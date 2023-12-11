@@ -11,7 +11,7 @@ Innovation, Performance, Ease of use, Low memory footprint, Cross platform are s
 
 ### Why the naming
 
-The name is not permanent, But wanted to name it something that represented its ability 
+The name is not permanent, But wanted to name it something that represents its ability 
 to shapeshift / morph (to completely change syntax).
 
 Please suggest a name, if you've got a better idea.

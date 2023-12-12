@@ -21,9 +21,36 @@ public:
 
     }
 
+    /**
+     * lex everything to LexTokens
+     * @return
+     */
     virtual std::vector<LexToken *> lex();
 
+    /**
+     * lex an optional integer at the current stream
+     * @param intOnly
+     * @return
+     */
     std::optional<int> lexInt(bool intOnly = false);
+
+    /**
+     * lex whitespaces at the current position
+     * @return the number of whitespaces ' ' read
+     */
+    int lexWhitespace();
+
+    /**
+     * lex a string until space occurs
+     * @return
+     */
+    std::string lexString();
+
+private:
+    bool lexingString = false;
+    bool lexingWhitespace = false;
+    bool lexedVariableName = false;
+    bool lexingEqual = false;
 
 };
 

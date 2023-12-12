@@ -34,6 +34,14 @@ public:
         return c;
     }
 
+    bool increment(char c) override {
+        if(stream.peek() == c) {
+            stream.seekg(position() + 1, std::ios::beg);
+            return true;
+        }
+        return false;
+    }
+
     bool increment(const std::string& text) override {
         // Save current position
         std::streampos peekPos = stream.tellg();

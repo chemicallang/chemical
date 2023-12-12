@@ -36,11 +36,17 @@ public:
     virtual char peek(int ahead) = 0;
     /**
      * if text is present at current position in the stream, increments the stream with text.length()
-     * otherwise returns false
      * @param text to increment
      * @return true if incremented by text length otherwise false
      */
     virtual bool increment(const std::string& text) = 0;
+
+    /**
+     * if char c is present at current position, increments the stream with cahracter
+     * @param c character to look for
+     * @return true if incremented by character length = 1, otherwise false
+     */
+    virtual bool increment(char c) = 0;
 };
 
 

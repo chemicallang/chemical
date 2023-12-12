@@ -98,8 +98,7 @@ std::vector<LexToken *> Lexer::lex() {
             continue;
         }
         if(lexingEqual) {
-            if(provider.peek() == '=') {
-                provider.readCharacter();
+            if(provider.increment('=')) {
                 auto token = new AssignmentOperatorToken(pos, 1);
                 tokens.push_back(token);
                 continue;

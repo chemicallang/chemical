@@ -1,13 +1,19 @@
-cmake_minimum_required(VERSION 3.26)
+cmake_minimum_required(VERSION 3.24)
 project(Compiler)
 
 set(CMAKE_CXX_STANDARD 17)
 
-# Add the LspCpp library directory
-add_subdirectory(LspCpp)
+# Set the Boost root directory
+set(BOOST_ROOT "D:/Software/Installed/boost_1_84_0")
+
+# Avoid New Boost Version Warning
+set(Boost_NO_WARN_NEW_VERSIONS 1)
 
 # Add Boost include directories
-find_package(Boost)
+find_package(Boost REQUIRED COMPONENTS date_time chrono filesystem system thread program_options)
+
+# Add the LspCpp library directory
+add_subdirectory(LspCpp)
 
 # Compiler Sources
 add_executable(Compiler main.cpp
@@ -20,9 +26,6 @@ add_executable(Compiler main.cpp
         lexer/model/IntToken.h
 )
 
-# Link against the LspCpp library
-target_link_libraries(Compiler PRIVATE lspcpp)
-
 # Include the LspCpp headers explicitly
 target_include_directories(Compiler PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/LspCpp/include
@@ -30,6 +33,9 @@ target_include_directories(Compiler PRIVATE
         ${Boost_INCLUDE_DIRS}
         # Add any other necessary include directories from LspCpp
 )
+
+# Link against the LspCpp library
+target_link_libraries(Compiler PRIVATE lspcpp)
 
 # Link against Boost libraries
 target_link_libraries(Compiler PRIVATE ${Boost_LIBRARIES})

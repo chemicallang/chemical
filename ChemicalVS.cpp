@@ -1,8 +1,9 @@
+﻿// ChemicalVS.cpp : Defines the entry point for the application.
+//
+
+#include "ChemicalVS.h"
 #include <iostream>
-#include <fstream>
 #include "SourceProvider.cpp"
-#include "lexer/Lexer.h"
-#include <chrono>
 #include "LibLsp/JsonRpc/WebSocketServer.h"
 #include "LibLsp/lsp/textDocument/signature_help.h"
 #include "LibLsp/lsp/general/initialize.h"
@@ -41,6 +42,7 @@
 #include "LibLsp/JsonRpc/RemoteEndPoint.h"
 #include "LibLsp/JsonRpc/stream.h"
 #include "LibLsp/lsp/ProtocolJsonHandler.h"
+#include "LibLsp/lsp/textDocument/did_change.h"
 
 namespace beast = boost::beast;         // from <boost/beast.hpp>
 namespace http = beast::http;           // from <boost/beast/http.hpp>
@@ -49,7 +51,7 @@ namespace net = boost::asio;            // from <boost/asio.hpp>
 using tcp = boost::asio::ip::tcp;       // from <boost/asio/ip/tcp.hpp>
 
 std::string _address = "127.0.0.1";
-std::string _port = "9333";
+std::string _port = "5007";
 
 class DummyLog : public lsp::Log {
 public:
@@ -74,21 +76,68 @@ public:
 class Server {
 public:
     Server(const std::string &user_agent) : server(user_agent, _address, _port, protocol_json_handler, endpoint, _log) {
+
         server.point.registerHandler(
                 [&](const td_initialize::request &req) {
+                    std::cout << "[Request] td_initialize\n";
                     td_initialize::response rsp;
                     CodeLensOptions code_lens_options;
                     code_lens_options.resolveProvider = true;
                     rsp.result.capabilities.codeLensProvider = code_lens_options;
                     return rsp;
                 });
-        std::thread([&]() {
-            server.run();
-        }).detach();
+
+        server.point.registerHandler(
+                [&](const td_semanticTokens_full::request &request) {
+                    std::cout << "[Request] td_semanticTokens_full\n";
+                    td_semanticTokens_full::response rsp;
+                    return rsp;
+                });
+
+        server.point.registerHandler(
+                [&](const td_semanticTokens_full_delta::request &request) {
+                    std::cout << "[Request] td_semanticTokens_full_delta\n";
+                    td_semanticTokens_full_delta::response rsp;
+                    return rsp;
+                });
+
+        server.point.registerHandler(
+                [&](const td_completion::request &request) {
+                    std::cout << "[Request] td_completion\n";
+                    td_completion::response rsp;
+                    return rsp;
+                });
+
+        server.point.registerHandler(
+                [&](const td_signatureHelp::request &request) {
+                    std::cout << "[Request] td_signatureHelp\n";
+                    td_signatureHelp::response rsp;
+                    return rsp;
+                });
+
+        server.point.registerHandler(
+                [&](const td_symbol::request &request) {
+                    std::cout << "[Request] td_symbol\n";
+                    td_symbol::response rsp;
+                    return rsp;
+                });
+
+        server.point.registerHandler(
+                [&](const td_typeHierarchy::request &request) {
+                    std::cout << "[Request] td_typeHierarchy\n";
+                    td_typeHierarchy::response rsp;
+                    return rsp;
+                });
+
+
+        // std::thread([&]() {
+        server.run();
+        // }).detach();
     }
 
     ~Server() {
         server.stop();
+        std::cout << "Server Stopped";
     }
 
     std::shared_ptr<lsp::ProtocolJsonHandler> protocol_json_handler = std::make_shared<lsp::ProtocolJsonHandler>();
@@ -97,51 +146,6 @@ public:
     lsp::WebSocketServer server;
 
 };
-
-void testLexerOnFile(std::string fileName = "file.txt") {
-
-
-    std::ifstream file;
-
-    file.open(fileName);
-
-    if (!file.is_open()) {
-        std::cerr << "error opening a file" << '\n';
-        return;
-    }
-
-    StreamSourceProvider reader(file);
-    Lexer lexer(reader);
-
-//    std::cout << "Lex Start " << '\n';
-
-    auto start = std::chrono::steady_clock::now();
-
-    auto lexed = lexer.lex();
-
-    auto end = std::chrono::steady_clock::now();
-
-    auto nanos = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
-    auto micros = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-    auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-    auto seconds = std::chrono::duration_cast<std::chrono::seconds>(end - start).count();
-
-    std::cout << "Lex Complete " << "[Size:" << lexed.size() << "]" << ' ';
-    std::cout << "[Nanoseconds:" << nanos << "]";
-    std::cout << "[Microseconds:" << micros << "]";
-    std::cout << "[Milliseconds:" << millis << "]" << '\n';
-
-    for (const auto &item: lexed) {
-        std::cout << " - [" << item->type_string() << "]" << "(" << item->start << "," << item->end << ")";
-        if (!item->content().empty()) {
-            std::cout << ":" << item->content();
-        }
-        std::cout << '\n';
-    }
-
-    file.close();
-
-}
 
 int main() {
     std::string user_agent = std::string(BOOST_BEAST_VERSION_STRING) + " websocket-server-async";

@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/Compiler.iml" filepath="$PROJECT_DIR$/.idea/Compiler.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/ChemicalVS.iml" filepath="$PROJECT_DIR$/.idea/ChemicalVS.iml" />
     </modules>
   </component>
 </project>

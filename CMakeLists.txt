@@ -1,41 +1,37 @@
-cmake_minimum_required(VERSION 3.24)
-project(Compiler)
+﻿# CMakeList.txt : CMake project for ChemicalVS, include source and define
+# project specific logic here.
+#
+cmake_minimum_required (VERSION 3.8)
 
-set(CMAKE_CXX_STANDARD 17)
+project ("ChemicalVS")
 
-# Set the Boost root directory
-set(BOOST_ROOT "D:/Software/Installed/boost_1_84_0")
+# Use static libraries
+set(Boost_USE_STATIC_LIBS ON)
+# Use debug version of Boost libraries
+set(Boost_USE_DEBUG_LIBS ON)
+SET(BOOST_ROOT "D:\\Software\\Installed\\boost_1_84_0")
 
-# Avoid New Boost Version Warning
-set(Boost_NO_WARN_NEW_VERSIONS 1)
 
-# Add Boost include directories
-find_package(Boost REQUIRED COMPONENTS date_time chrono filesystem system thread program_options)
+find_package(Boost 1.84 COMPONENTS program_options filesystem REQUIRED)
 
 # Add the LspCpp library directory
 add_subdirectory(LspCpp)
 
-# Compiler Sources
-add_executable(Compiler main.cpp
-        SourceProvider.cpp
-        SourceProvider.h
-        lexer/Lexer.cpp
-        lexer/Lexer.h
-        lexer/model/KeywordToken.h
-        lexer/model/LexToken.h
-        lexer/model/IntToken.h
+# Add source to this project's executable.
+add_executable (ChemicalVS "ChemicalVS.cpp" "ChemicalVS.h" "lexer/Lexer.cpp" "lexer/Lexer.h" "lexer/model/AssignmentOperatorToken.h" "lexer/model/IdentifierToken.h" "lexer/model/IntToken.h" "lexer/model/KeywordToken.h" "lexer/model/LexToken.h" "lexer/model/SemiColonToken.h" "lexer/model/WhitespaceToken.h" "SourceProvider.cpp" "SourceProvider.h"
+        Lexi.h)
+
+# Add include directories for LspCpp
+target_include_directories(ChemicalVS PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/LspCpp/include
 )
 
-# Include the LspCpp headers explicitly
-target_include_directories(Compiler PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/LspCpp/include
-        # Add Boost include directories
-        ${Boost_INCLUDE_DIRS}
-        # Add any other necessary include directories from LspCpp
-)
+# Link with Boost Library
+target_link_libraries(ChemicalVS Boost::program_options Boost::filesystem lspcpp)
 
-# Link against the LspCpp library
-target_link_libraries(Compiler PRIVATE lspcpp)
 
-# Link against Boost libraries
-target_link_libraries(Compiler PRIVATE ${Boost_LIBRARIES})
+if (CMAKE_VERSION VERSION_GREATER 3.12)
+  set_property(TARGET ChemicalVS PROPERTY CXX_STANDARD 20)
+endif()
+
+# TODO: Add tests and install targets if needed.

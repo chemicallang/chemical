@@ -1,9 +1,9 @@
 ﻿# CMakeList.txt : CMake project for ChemicalVS, include source and define
 # project specific logic here.
 #
-cmake_minimum_required (VERSION 3.8)
+cmake_minimum_required(VERSION 3.8)
 
-project ("ChemicalVS")
+project("ChemicalVS")
 
 # Use static libraries
 set(Boost_USE_STATIC_LIBS ON)
@@ -18,12 +18,18 @@ find_package(Boost 1.84 COMPONENTS program_options filesystem REQUIRED)
 add_subdirectory(LspCpp)
 
 # Add source to this project's executable.
-add_executable (ChemicalVS "ChemicalVS.cpp" "ChemicalVS.h" "lexer/Lexer.cpp" "lexer/Lexer.h" "lexer/model/AssignmentOperatorToken.h" "lexer/model/IdentifierToken.h" "lexer/model/IntToken.h" "lexer/model/KeywordToken.h" "lexer/model/LexToken.h" "lexer/model/SemiColonToken.h" "lexer/model/WhitespaceToken.h" "SourceProvider.cpp" "SourceProvider.h"
-        Lexi.h)
+add_executable(ChemicalVS "lexer/Lexer.cpp" "lexer/Lexer.h" "lexer/model/AssignmentOperatorToken.h" "lexer/model/IdentifierToken.h" "lexer/model/IntToken.h" "lexer/model/KeywordToken.h" "lexer/model/LexToken.h" "lexer/model/SemiColonToken.h" "lexer/model/WhitespaceToken.h" "SourceProvider.cpp" "SourceProvider.h"
+        Lexi.h
+        LPG-language-server.cpp
+        DependencyUtil.h
+        SearchPolicy.h
+        code.cpp)
 
 # Add include directories for LspCpp
 target_include_directories(ChemicalVS PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/LspCpp/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/LspCpp/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 # Link with Boost Library
@@ -31,7 +37,7 @@ target_link_libraries(ChemicalVS Boost::program_options Boost::filesystem lspcpp
 
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
-  set_property(TARGET ChemicalVS PROPERTY CXX_STANDARD 20)
-endif()
+    set_property(TARGET ChemicalVS PROPERTY CXX_STANDARD 20)
+endif ()
 
 # TODO: Add tests and install targets if needed.

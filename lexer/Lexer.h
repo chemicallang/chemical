@@ -7,7 +7,7 @@
 
 
 #include <vector>
-#include "../SourceProvider.h"
+#include "SourceProvider.h"
 #include "model/LexToken.h"
 #include "model/IntToken.h"
 #include <optional>

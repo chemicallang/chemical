@@ -9,6 +9,9 @@ project("ChemicalVS")
 set(Boost_USE_STATIC_LIBS ON)
 # Use debug version of Boost libraries
 set(Boost_USE_DEBUG_LIBS ON)
+# Don't warn about boost new version
+set(Boost_NO_WARN_NEW_VERSIONS 1)
+# Set custom boost root
 SET(BOOST_ROOT "D:\\Software\\Installed\\boost_1_84_0")
 
 
@@ -19,11 +22,10 @@ add_subdirectory(LspCpp)
 
 # Add source to this project's executable.
 add_executable(ChemicalVS "lexer/Lexer.cpp" "lexer/Lexer.h" "lexer/model/AssignmentOperatorToken.h" "lexer/model/IdentifierToken.h" "lexer/model/IntToken.h" "lexer/model/KeywordToken.h" "lexer/model/LexToken.h" "lexer/model/SemiColonToken.h" "lexer/model/WhitespaceToken.h" "SourceProvider.cpp" "SourceProvider.h"
-        Lexi.h
-        LPG-language-server.cpp
-        DependencyUtil.h
-        SearchPolicy.h
-        code.cpp)
+        utils/Lexi.h
+        Main.cpp
+        utils/PrintUtils.h
+)
 
 # Add include directories for LspCpp
 target_include_directories(ChemicalVS PRIVATE

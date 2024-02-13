@@ -42,7 +42,7 @@ public:
     virtual bool increment(const std::string& text) = 0;
 
     /**
-     * if char c is present at current position, increments the stream with cahracter
+     * if char c is present at current position, increments the stream with character
      * @param c character to look for
      * @return true if incremented by character length = 1, otherwise false
      */

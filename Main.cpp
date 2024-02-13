@@ -1,7 +1,5 @@
 ﻿
-#include "LibLsp/lsp/general/exit.h"
 #include "LibLsp/lsp/textDocument/declaration_definition.h"
-#include "LibLsp/lsp/textDocument/signature_help.h"
 #include "LibLsp/lsp/general/initialize.h"
 #include "LibLsp/lsp/ProtocolJsonHandler.h"
 #include "LibLsp/lsp/AbsolutePath.h"

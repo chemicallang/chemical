@@ -243,7 +243,7 @@ public:
                                                                                 });
             }
 
-            _log.log(lsp::Log::Level::INFO, rsp.ToJson());
+//            _log.log(lsp::Log::Level::INFO, rsp.ToJson());
 
             return std::move(rsp);
         });
@@ -288,6 +288,7 @@ public:
             }
             if (clientPreferences->isSemanticHighlightingSupported()) {
                 collectRegisterCapability(td_semanticTokens_full::request::kMethodInfo);
+                _log.log(lsp::Log::Level::INFO, "SemanticHighlightingSupported Collected in Initialized");
             }
 
             Req_ClientRegisterCapability::request request;
@@ -297,144 +298,144 @@ public:
             _sp.send(request);
 
         });
-        _sp.registerHandler(
-                [&](const td_symbol::request &req, const CancelMonitor &monitor)
-                        -> lsp::ResponseOrError<td_symbol::response> {
-                    _log.log(lsp::Log::Level::INFO, "td_symbol");
-                    if (need_initialize_error) {
-                        return need_initialize_error.value();
-                    }
-//				auto unit =GetUnit(req.params.textDocument, );
-                    td_symbol::response rsp;
-//				if (unit){
-                    // vector<lsDocumentSymbol>
-//					rsp.result = unit->document_symbols;
-//				}
-                    return std::move(rsp);
-                });
-        _sp.registerHandler(
-                [&](const td_definition::request &req, const CancelMonitor &monitor)
-                        -> lsp::ResponseOrError<td_definition::response> {
-                    _log.log(lsp::Log::Level::INFO, "td_definition");
-                    if (need_initialize_error) {
-                        return need_initialize_error.value();
-                    }
-//				RequestMonitor _requestMonitor(exit_monitor, monitor);
-//				auto unit = GetUnit(req.params.textDocument);
-                    td_definition::response rsp;
-//				rsp.result.first = std::vector<lsLocation>();
-//				if (unit){
-//					process_definition(unit, req.params.position, rsp.result.first.value(), &_requestMonitor);
-//				}
-                    return std::move(rsp);
-                });
+//        _sp.registerHandler(
+//                [&](const td_symbol::request &req, const CancelMonitor &monitor)
+//                        -> lsp::ResponseOrError<td_symbol::response> {
+//                    _log.log(lsp::Log::Level::INFO, "td_symbol");
+//                    if (need_initialize_error) {
+//                        return need_initialize_error.value();
+//                    }
+////				auto unit =GetUnit(req.params.textDocument, );
+//                    td_symbol::response rsp;
+////				if (unit){
+//                    // vector<lsDocumentSymbol>
+////					rsp.result = unit->document_symbols;
+////				}
+//                    return std::move(rsp);
+//                });
+//        _sp.registerHandler(
+//                [&](const td_definition::request &req, const CancelMonitor &monitor)
+//                        -> lsp::ResponseOrError<td_definition::response> {
+//                    _log.log(lsp::Log::Level::INFO, "td_definition");
+//                    if (need_initialize_error) {
+//                        return need_initialize_error.value();
+//                    }
+////				RequestMonitor _requestMonitor(exit_monitor, monitor);
+////				auto unit = GetUnit(req.params.textDocument);
+//                    td_definition::response rsp;
+////				rsp.result.first = std::vector<lsLocation>();
+////				if (unit){
+////					process_definition(unit, req.params.position, rsp.result.first.value(), &_requestMonitor);
+////				}
+//                    return std::move(rsp);
+//                });
+//
+//        _sp.registerHandler(
+//                [&](const td_hover::request &req, const CancelMonitor &monitor)
+//                        -> lsp::ResponseOrError<td_hover::response> {
+//                    _log.log(lsp::Log::Level::INFO, "td_hover");
+//                    if (need_initialize_error) {
+//                        return need_initialize_error.value();
+//                    }
+//                    td_hover::response rsp;
+//                    /*	if(req_back.params.uri == req.params.uri && req_back.params.position == req.params.position && req_back.params.textDocument.uri == req.params.textDocument.uri)
+//                        {
+//                            return std::move(rsp);
+//                        }
+//                        else
+//                        {
+//                            req_back = req;
+//                        }*/
+////				RequestMonitor _requestMonitor(exit_monitor, monitor);
+////				auto unit = GetUnit(req.params.textDocument);
+//
+////				if (unit)
+////				{
+////					process_hover(unit, req.params.position, rsp.result, &_requestMonitor);
+////					if(_requestMonitor.isCancelled())
+////					{
+////						rsp.result.contents.second.reset();
+////						rsp.result.contents.first = TextDocumentHover::Left();
+////						return std::move(rsp);
+////					}
+////					if(!rsp.result.contents.first.has_value() && !rsp.result.contents.second.has_value())
+////					{
+////						rsp.result.contents.first = TextDocumentHover::Left();
+////					}
+////				}
+////				else
+////				{
+////					rsp.result.contents.first = TextDocumentHover::Left();
+////				}
+//
+//                    return std::move(rsp);
+//                });
+//        _sp.registerHandler([&](const td_completion::request &req, const CancelMonitor &monitor)
+//                                    -> lsp::ResponseOrError<td_completion::response> {
+//            _log.log(lsp::Log::Level::INFO, "td_completion");
+//            if (need_initialize_error) {
+//                return need_initialize_error.value();
+//            }
+////				auto unit = GetUnit(req.params.textDocument,true);
+//            td_completion::response rsp;
+////				if (unit){
+////					CompletionHandler(unit, rsp.result, req.params,&_requestMonitor);
+////				}
+//
+//
+//            return std::move(rsp);
+//
+//        });
+//        _sp.registerHandler([&](const completionItem_resolve::request &req) {
+//            _log.log(lsp::Log::Level::INFO, "completionItem_resolve");
+//            completionItem_resolve::response rsp;
+//            rsp.result = req.params;
+//            return std::move(rsp);
+//        });
 
-        _sp.registerHandler(
-                [&](const td_hover::request &req, const CancelMonitor &monitor)
-                        -> lsp::ResponseOrError<td_hover::response> {
-                    _log.log(lsp::Log::Level::INFO, "td_hover");
-                    if (need_initialize_error) {
-                        return need_initialize_error.value();
-                    }
-                    td_hover::response rsp;
-                    /*	if(req_back.params.uri == req.params.uri && req_back.params.position == req.params.position && req_back.params.textDocument.uri == req.params.textDocument.uri)
-                        {
-                            return std::move(rsp);
-                        }
-                        else
-                        {
-                            req_back = req;
-                        }*/
-//				RequestMonitor _requestMonitor(exit_monitor, monitor);
-//				auto unit = GetUnit(req.params.textDocument);
-
-//				if (unit)
-//				{
-//					process_hover(unit, req.params.position, rsp.result, &_requestMonitor);
-//					if(_requestMonitor.isCancelled())
-//					{
-//						rsp.result.contents.second.reset();
-//						rsp.result.contents.first = TextDocumentHover::Left();
-//						return std::move(rsp);
-//					}
-//					if(!rsp.result.contents.first.has_value() && !rsp.result.contents.second.has_value())
-//					{
-//						rsp.result.contents.first = TextDocumentHover::Left();
-//					}
-//				}
-//				else
-//				{
-//					rsp.result.contents.first = TextDocumentHover::Left();
-//				}
-
-                    return std::move(rsp);
-                });
-        _sp.registerHandler([&](const td_completion::request &req, const CancelMonitor &monitor)
-                                    -> lsp::ResponseOrError<td_completion::response> {
-            _log.log(lsp::Log::Level::INFO, "td_completion");
-            if (need_initialize_error) {
-                return need_initialize_error.value();
-            }
-//				auto unit = GetUnit(req.params.textDocument,true);
-            td_completion::response rsp;
-//				if (unit){
-//					CompletionHandler(unit, rsp.result, req.params,&_requestMonitor);
-//				}
-
-
-            return std::move(rsp);
-
-        });
-        _sp.registerHandler([&](const completionItem_resolve::request &req) {
-            _log.log(lsp::Log::Level::INFO, "completionItem_resolve");
-            completionItem_resolve::response rsp;
-            rsp.result = req.params;
-            return std::move(rsp);
-        });
-
-        _sp.registerHandler([&](const td_foldingRange::request &req,
-                                const CancelMonitor &monitor)
-                                    -> lsp::ResponseOrError<td_foldingRange::response> {
-            _log.log(lsp::Log::Level::INFO, "td_foldingRange");
-            if (need_initialize_error) {
-                return need_initialize_error.value();
-            }
-//				auto unit = GetUnit(req.params.textDocument);
-            td_foldingRange::response rsp;
-//				if (unit){
-//					FoldingRangeHandler(unit, rsp.result, req.params);
-//				}
-            return std::move(rsp);
-        });
-        _sp.registerHandler([&](const td_formatting::request &req,
-                                const CancelMonitor &monitor)
-                                    -> lsp::ResponseOrError<td_formatting::response> {
-            _log.log(lsp::Log::Level::INFO, "td_formatting");
-            if (need_initialize_error) {
-                return need_initialize_error.value();
-            }
-            td_formatting::response rsp;
-//				auto unit = GetUnit(req.params.textDocument);
-//				if (unit){
-//					DocumentFormatHandler(unit, rsp.result, req.params.options);
-//				}
-            return std::move(rsp);
-        });
-        _sp.registerHandler([&](const td_documentColor::request &req,
-                                const CancelMonitor &monitor)
-                                    -> lsp::ResponseOrError<td_documentColor::response> {
-            _log.log(lsp::Log::Level::INFO, "td_documentColor");
-            if (need_initialize_error) {
-                return need_initialize_error.value();
-            }
-            td_documentColor::response rsp;
-
-//				auto unit = GetUnit(req.params.textDocument);
-//				if (unit){
-//					DocumentColorHandler(unit, rsp.result);
-//				}
-            return std::move(rsp);
-        });
+//        _sp.registerHandler([&](const td_foldingRange::request &req,
+//                                const CancelMonitor &monitor)
+//                                    -> lsp::ResponseOrError<td_foldingRange::response> {
+//            _log.log(lsp::Log::Level::INFO, "td_foldingRange");
+//            if (need_initialize_error) {
+//                return need_initialize_error.value();
+//            }
+////				auto unit = GetUnit(req.params.textDocument);
+//            td_foldingRange::response rsp;
+////				if (unit){
+////					FoldingRangeHandler(unit, rsp.result, req.params);
+////				}
+//            return std::move(rsp);
+//        });
+//        _sp.registerHandler([&](const td_formatting::request &req,
+//                                const CancelMonitor &monitor)
+//                                    -> lsp::ResponseOrError<td_formatting::response> {
+//            _log.log(lsp::Log::Level::INFO, "td_formatting");
+//            if (need_initialize_error) {
+//                return need_initialize_error.value();
+//            }
+//            td_formatting::response rsp;
+////				auto unit = GetUnit(req.params.textDocument);
+////				if (unit){
+////					DocumentFormatHandler(unit, rsp.result, req.params.options);
+////				}
+//            return std::move(rsp);
+//        });
+//        _sp.registerHandler([&](const td_documentColor::request &req,
+//                                const CancelMonitor &monitor)
+//                                    -> lsp::ResponseOrError<td_documentColor::response> {
+//            _log.log(lsp::Log::Level::INFO, "td_documentColor");
+//            if (need_initialize_error) {
+//                return need_initialize_error.value();
+//            }
+//            td_documentColor::response rsp;
+//
+////				auto unit = GetUnit(req.params.textDocument);
+////				if (unit){
+////					DocumentColorHandler(unit, rsp.result);
+////				}
+//            return std::move(rsp);
+//        });
         _sp.registerHandler([&](const td_semanticTokens_full::request &req,
                                 const CancelMonitor &monitor)
                                     -> lsp::ResponseOrError<td_semanticTokens_full::response> {
@@ -454,11 +455,11 @@ public:
             std::vector<SemanticToken> toks;
 
             toks.push_back(SemanticToken{
-                    0, 0, 3, SemanticTokenType::ls_keyword, 0
+                    0, 0, 4, SemanticTokenType::ls_keyword, 0
             });
 
             toks.push_back(SemanticToken{
-                    0, 4, 1, SemanticTokenType::ls_variable, 0
+                    0, 5, 1, SemanticTokenType::ls_variable, 0
             });
 
             toks.push_back(SemanticToken{
@@ -470,7 +471,7 @@ public:
             });
 
             toks.push_back(SemanticToken{
-                    0, 0, 1, SemanticTokenType::ls_operator, 0
+                    0, 1, 1, SemanticTokenType::ls_operator, 0
             });
 
             tokens.data = SemanticTokens::encodeTokens(toks);
@@ -479,37 +480,37 @@ public:
 
             return std::move(rsp);
         });
-        _sp.registerHandler([&](const td_references::request &req,
-                                const CancelMonitor &monitor)
-                                    -> lsp::ResponseOrError<td_references::response> {
-            _log.log(lsp::Log::Level::INFO, "td_references");
-            if (need_initialize_error) {
-                return need_initialize_error.value();
-            }
-            td_references::response rsp;
-//				auto unit = GetUnit(req.params.textDocument);
-//				if (unit){
-//					ReferencesHandler(unit, req.params.position, rsp.result,&_requestMonitor);
-//				}
-            return std::move(rsp);
-        });
-        _sp.registerHandler([&](const td_rename::request &req,
-                                const CancelMonitor &monitor)
-                                    -> lsp::ResponseOrError<td_rename::response> {
-            _log.log(lsp::Log::Level::INFO, "td_rename");
-            if (need_initialize_error) {
-                return need_initialize_error.value();
-            }
-            td_rename::response rsp;
-//				auto unit = GetUnit(req.params.textDocument);
-//				if (unit) {
-            std::vector<lsWorkspaceEdit::Either> edits;
-//					RenameHandler(unit, req.params, edits, &_requestMonitor);
-            rsp.result.documentChanges = std::move(edits);
-
-//				}
-            return std::move(rsp);
-        });
+//        _sp.registerHandler([&](const td_references::request &req,
+//                                const CancelMonitor &monitor)
+//                                    -> lsp::ResponseOrError<td_references::response> {
+//            _log.log(lsp::Log::Level::INFO, "td_references");
+//            if (need_initialize_error) {
+//                return need_initialize_error.value();
+//            }
+//            td_references::response rsp;
+////				auto unit = GetUnit(req.params.textDocument);
+////				if (unit){
+////					ReferencesHandler(unit, req.params.position, rsp.result,&_requestMonitor);
+////				}
+//            return std::move(rsp);
+//        });
+//        _sp.registerHandler([&](const td_rename::request &req,
+//                                const CancelMonitor &monitor)
+//                                    -> lsp::ResponseOrError<td_rename::response> {
+//            _log.log(lsp::Log::Level::INFO, "td_rename");
+//            if (need_initialize_error) {
+//                return need_initialize_error.value();
+//            }
+//            td_rename::response rsp;
+////				auto unit = GetUnit(req.params.textDocument);
+////				if (unit) {
+//            std::vector<lsWorkspaceEdit::Either> edits;
+////					RenameHandler(unit, req.params, edits, &_requestMonitor);
+//            rsp.result.documentChanges = std::move(edits);
+//
+////				}
+//            return std::move(rsp);
+//        });
         _sp.registerHandler([&](Notify_TextDocumentDidOpen::notify &notify) {
 
             _log.log(lsp::Log::Level::INFO, "TextDocumentDidOpen Received");
@@ -572,42 +573,42 @@ public:
             // 通知消失了
         });
 
-        _sp.registerHandler([&](Notify_WorkspaceDidChangeWatchedFiles::notify &notify) {
-            _log.log(lsp::Log::Level::INFO, "Notify_WorkspaceDidChangeWatchedFiles");
-        });
-        _sp.registerHandler([&](Notify_WorkspaceDidChangeConfiguration::notify &notify) {
-            _log.log(lsp::Log::Level::INFO, "Notify_WorkspaceDidChangeConfiguration");
-//				do
-//				{
-//					map<std::string, lsp::Any> settings;
-//					try
-//					{
-//						notify.params.settings.Get(settings);
-//					}
-//					catch (...)
-//					{
-//						break;
-//					}
+//        _sp.registerHandler([&](Notify_WorkspaceDidChangeWatchedFiles::notify &notify) {
+//            _log.log(lsp::Log::Level::INFO, "Notify_WorkspaceDidChangeWatchedFiles");
+//        });
+//        _sp.registerHandler([&](Notify_WorkspaceDidChangeConfiguration::notify &notify) {
+//            _log.log(lsp::Log::Level::INFO, "Notify_WorkspaceDidChangeConfiguration");
+////				do
+////				{
+////					map<std::string, lsp::Any> settings;
+////					try
+////					{
+////						notify.params.settings.Get(settings);
+////					}
+////					catch (...)
+////					{
+////						break;
+////					}
+////
+////				} while (false);
+//        });
+//        _sp.registerHandler([&](Notify_WorkspaceDidChangeWorkspaceFolders::notify &notify) {
+//            _log.log(lsp::Log::Level::INFO, "Notify_WorkspaceDidChangeWorkspaceFolders");
+//            if (need_initialize_error) {
+//                return;
+//            }
+////				work_space_mgr.OnDidChangeWorkspaceFolders(notify.params);
+//        });
 //
-//				} while (false);
-        });
-        _sp.registerHandler([&](Notify_WorkspaceDidChangeWorkspaceFolders::notify &notify) {
-            _log.log(lsp::Log::Level::INFO, "Notify_WorkspaceDidChangeWorkspaceFolders");
-            if (need_initialize_error) {
-                return;
-            }
-//				work_space_mgr.OnDidChangeWorkspaceFolders(notify.params);
-        });
-
         _sp.registerHandler([&](const td_shutdown::request &notify) {
             _log.log(lsp::Log::Level::INFO, "td_shutdown");
             td_shutdown::response rsp;
             return rsp;
         });
-        _sp.registerHandler([&](Notify_Exit::notify &notify) {
-            _log.log(lsp::Log::Level::INFO, "Notify_Exit");
-            on_exit();
-        });
+//        _sp.registerHandler([&](Notify_Exit::notify &notify) {
+//            _log.log(lsp::Log::Level::INFO, "Notify_Exit");
+//            on_exit();
+//        });
 
         std::thread([&]() {
             server.run();

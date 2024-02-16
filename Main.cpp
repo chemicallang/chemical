@@ -36,6 +36,7 @@
 #include "LibLsp/lsp/workspace/did_change_configuration.h"
 #include "LibLsp/lsp/client/registerCapability.h"
 #include "LibLsp/lsp/workspace/symbol.h"
+#include "utils/Lexi.h"
 
 using namespace boost::asio::ip;
 using namespace std;
@@ -217,18 +218,18 @@ public:
                     return _type;
                 };
 
-                semantic_tokens_opt.legend.tokenTypes = semanticTokenTypes();
+            semantic_tokens_opt.legend.tokenTypes = semanticTokenTypes();
 
-                std::pair<boost::optional<bool>, boost::optional<lsp::Any> > rang;
-                rang.first = false;
-                semantic_tokens_opt.range = rang;
+            std::pair<boost::optional<bool>, boost::optional<lsp::Any> > rang;
+            rang.first = false;
+            semantic_tokens_opt.range = rang;
 
-                std::pair<boost::optional<bool>,
-                        boost::optional<SemanticTokensServerFull> > full;
-                full.first = true;
+            std::pair<boost::optional<bool>,
+                    boost::optional<SemanticTokensServerFull> > full;
+            full.first = true;
 
-                semantic_tokens_opt.full = full;
-                capabilities.semanticTokensProvider = std::move(semantic_tokens_opt);
+            semantic_tokens_opt.full = full;
+            capabilities.semanticTokensProvider = std::move(semantic_tokens_opt);
 //            }
 
             rsp.result.capabilities.swap(capabilities);
@@ -444,33 +445,37 @@ public:
                 return need_initialize_error.value();
             }
 
-            _log.log(lsp::Log::Level::INFO, "providing syntax highlighting 2");
+            _log.log(lsp::Log::Level::INFO, "lexing the file");
+
+            auto lexed = lexFile(req.params.textDocument.uri.GetAbsolutePath().path);
+
+            _log.log(lsp::Log::Level::INFO, "transforming tokens");
+
+            std::vector<SemanticToken> toks;
+
+            unsigned int prevTokenStart = 0;
+            unsigned int prevTokenLineNumber = 0;
+            for (const auto &token: lexed) {
+                toks.push_back(SemanticToken{
+                        prevTokenLineNumber - token->lineNumber, (
+                                token->lineNumber == prevTokenLineNumber ? (
+                                        // on the same line
+                                        token->start - prevTokenStart
+                                ) : (
+                                        // on a different line
+                                        token->start
+                                )
+                        ), token->length, static_cast<unsigned int>(token->lspType()), 0
+                });
+                prevTokenStart = token->start;
+                prevTokenLineNumber = token->lineNumber;
+            }
+
+            _log.log(lsp::Log::Level::INFO, "sending response");
 
             td_semanticTokens_full::response rsp;
 
             SemanticTokens tokens;
-
-            std::vector<SemanticToken> toks;
-
-            toks.push_back(SemanticToken{
-                    0, 0, 4, SemanticTokenType::ls_keyword, 0
-            });
-
-            toks.push_back(SemanticToken{
-                    0, 5, 1, SemanticTokenType::ls_variable, 0
-            });
-
-            toks.push_back(SemanticToken{
-                    0, 2, 1, SemanticTokenType::ls_operator, 0
-            });
-
-            toks.push_back(SemanticToken{
-                    0, 2, 1, SemanticTokenType::ls_number, 0
-            });
-
-            toks.push_back(SemanticToken{
-                    0, 1, 1, SemanticTokenType::ls_operator, 0
-            });
 
             tokens.data = SemanticTokens::encodeTokens(toks);
 

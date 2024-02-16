@@ -25,7 +25,7 @@ public:
      * lex everything to LexTokens
      * @return
      */
-    virtual std::vector<LexToken *> lex();
+    virtual std::vector<std::unique_ptr<LexToken>> lex();
 
     /**
      * lex an optional integer at the current stream
@@ -47,6 +47,13 @@ public:
     std::string lexString();
 
 private:
+
+    /**
+     * line numbers start from 0
+     * line number currently being lexed
+     */
+    int lineNumber = 0;
+
     bool lexingString = false;
     bool lexingWhitespace = false;
     bool lexedVariableName = false;

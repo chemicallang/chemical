@@ -18,7 +18,7 @@
  * @param file
  * @return tokens
  */
-std::vector<LexToken *> benchLexFile(std::istream &file) {
+std::vector<std::unique_ptr<LexToken>> benchLexFile(std::istream &file) {
 
     StreamSourceProvider reader(file);
     Lexer lexer(reader);
@@ -57,7 +57,7 @@ std::vector<LexToken *> benchLexFile(std::istream &file) {
  * @param file
  * @return the tokens
  */
-std::vector<LexToken *> benchLexFile(const std::string &fileName) {
+std::vector<std::unique_ptr<LexToken>> benchLexFile(const std::string &fileName) {
     std::ifstream file;
     file.open(fileName);
     if (!file.is_open()) {
@@ -73,22 +73,21 @@ std::vector<LexToken *> benchLexFile(const std::string &fileName) {
  * @param file
  * @return the tokens
  */
-std::vector<LexToken *> lexFile(std::istream& file) {
+std::vector<std::unique_ptr<LexToken>> lexFile(std::istream& file) {
     StreamSourceProvider reader(file);
     Lexer lexer(reader);
-    auto lexed = lexer.lex();
-    return lexed;
+    return lexer.lex();
 }
 
 /**
  * same as lexFile with istream
- * lex the filename (relative to in the current project)
+ * lex the path (relative to in the current project)
  * @param fileName
  * @return the tokens
  */
-std::vector<LexToken *> lexFile(const std::string &fileName) {
+std::vector<std::unique_ptr<LexToken>> lexFile(const std::string &path) {
     std::ifstream file;
-    file.open(fileName);
+    file.open(path);
     if (!file.is_open()) {
         std::cerr << "Unknown error opening the file" << '\n';
     }

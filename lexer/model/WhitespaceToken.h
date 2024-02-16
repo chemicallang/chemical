@@ -9,13 +9,17 @@
 class WhitespaceToken : public LexToken {
 public:
 
-    WhitespaceToken(int start, int end) : LexToken(start, end) {
+    WhitespaceToken(unsigned int start, unsigned int length, unsigned int lineNumber) : LexToken(start, length, lineNumber) {
 
+    }
+
+    [[nodiscard]] LspSemanticTokenType lspType() const override {
+        return LspSemanticTokenType::ls_operator;
     }
 
     [[nodiscard]] std::string type_string() const override {
         std::string buf("Whitespace:");
-        buf.append(std::to_string(this->end - this->start));
+        buf.append(std::to_string(this->length));
         return buf;
     }
 

@@ -8,7 +8,7 @@
 
 bool Lexer::lexHashOperator(std::vector<std::unique_ptr<LexToken>> &tokens) {
     if (provider.increment("#")) {
-        tokens.emplace_back(std::make_unique<KeywordToken>(provider.position() - 1, 1, lineNumber, "#"));
+        tokens.emplace_back(std::make_unique<KeywordToken>(provider.position() - 1, 1, lineNumber(), "#"));
         return true;
     } else {
         return false;

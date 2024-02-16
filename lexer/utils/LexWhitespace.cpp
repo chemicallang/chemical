@@ -17,6 +17,6 @@ int Lexer::lexWhitespace() {
 void Lexer::lexWhitespaceToken(std::vector<std::unique_ptr<LexToken>> &tokens) {
     auto whitespace = lexWhitespace();
     if (whitespace > 0) {
-        tokens.emplace_back(std::make_unique<WhitespaceToken>(provider.position() - whitespace, whitespace, lineNumber));
+        tokens.emplace_back(std::make_unique<WhitespaceToken>(provider.position() - whitespace, whitespace, lineNumber()));
     }
 }

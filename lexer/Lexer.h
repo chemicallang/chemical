@@ -80,19 +80,16 @@ public:
      */
     bool lexIntToken(std::vector<std::unique_ptr<LexToken>> &tokens);
 
-private:
-
     /**
-     * line numbers start from 0
-     * line number currently being lexed
+     * gets the line number from the provider
+     * @return
      */
-    int lineNumber = 0;
+    inline unsigned int lineNumber() {
+        return provider.getLineNumber();
+    }
 
+private:
     bool lexHash = true;
-    bool lexingString = false;
-    bool lexingWhitespace = false;
-    bool lexedVariableName = false;
-    bool lexingEqual = false;
 
 };
 

@@ -15,21 +15,21 @@ void Lexer::lexDeclarationTokens(std::vector<std::unique_ptr<LexToken>> &tokens)
     if (provider.increment("var")) {
 
         // var
-        tokens.emplace_back(std::make_unique<KeywordToken>(provider.position() - 3, 3, lineNumber, "var"));
+        tokens.emplace_back(std::make_unique<KeywordToken>(provider.position() - 3, 3, lineNumber(), "var"));
 
         // whitespace
         lexWhitespaceToken(tokens);
 
         // identifier
         auto str = lexString();
-        tokens.emplace_back(std::make_unique<IdentifierToken>(provider.position() - str.length(), str, lineNumber));
+        tokens.emplace_back(std::make_unique<IdentifierToken>(provider.position() - str.length(), str, lineNumber()));
 
         // whitespace
         lexWhitespaceToken(tokens);
 
         // equal sign
         if (provider.increment('=')) {
-            tokens.emplace_back(std::make_unique<AssignmentOperatorToken>(provider.position() - 1, 1, lineNumber));
+            tokens.emplace_back(std::make_unique<AssignmentOperatorToken>(provider.position() - 1, 1, lineNumber()));
         }
 
         // whitespace
@@ -41,7 +41,7 @@ void Lexer::lexDeclarationTokens(std::vector<std::unique_ptr<LexToken>> &tokens)
         // semi colon (optional)
         if (provider.peek() == ';') {
             provider.readCharacter();
-            tokens.emplace_back(std::make_unique<SemiColonToken>(provider.position() - 1, 1, lineNumber));
+            tokens.emplace_back(std::make_unique<SemiColonToken>(provider.position() - 1, 1, lineNumber()));
         }
 
     }

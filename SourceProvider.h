@@ -12,7 +12,7 @@ public:
      * gets the current position of the stream
      * @return
      */
-    virtual int position() = 0;
+    virtual int position() const = 0;
 
     /**
      * reads a single character and returns it
@@ -29,7 +29,7 @@ public:
      * peaks the character to read
      * @return
      */
-    virtual char peek() = 0;
+    virtual char peek() const = 0;
     /**
      * peaks the character at current position + ahead
      * @param ahead

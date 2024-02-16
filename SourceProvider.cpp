@@ -23,7 +23,7 @@ public:
         return c;
     }
 
-    bool eof() override {
+    bool eof() const override {
         return stream.eof();
     }
 
@@ -75,6 +75,10 @@ public:
         return result;
     }
 
+    unsigned int getLineNumber() const override {
+        return lineNumber;
+    }
+
 private:
     std::istream &stream;
 
@@ -82,6 +86,6 @@ private:
      * By default, this counts lines
      * On every character read, the provider checks if the line has ended and increments
      */
-    int lineNumber;
+    int lineNumber = 0;
 
 };

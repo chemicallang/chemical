@@ -24,7 +24,7 @@ public:
      * checks the stream is not at the end
      * @return
      */
-    virtual bool eof() = 0;
+    virtual bool eof() const = 0;
     /**
      * peaks the character to read
      * @return
@@ -49,6 +49,12 @@ public:
      * @return true if incremented by character length = 1, otherwise false
      */
     virtual bool increment(char c) = 0;
+
+    /**
+     * get the current line number
+     */
+    virtual unsigned int getLineNumber() const = 0;
+
 };
 
 

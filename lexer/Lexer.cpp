@@ -23,7 +23,7 @@ std::string Lexer::lexString() {
     std::string str;
     while (!provider.eof() && provider.peek() != ' ') {
         char x = provider.readCharacter();
-        str.append(&x);
+        str.append(1, x);
     }
     return str;
 }
@@ -61,7 +61,7 @@ std::optional<int> Lexer::lexInt(bool intOnly) {
     return std::nullopt;
 }
 
-std::vector<std::unique_ptr<LexToken>> Lexer::lex() {
+std::vector<std::unique_ptr<LexToken>> Lexer::lex(const LexConfig &config) {
     std::vector<std::unique_ptr<LexToken>> tokens;
     while (!provider.eof() && provider.peek() != EOF) {
         auto pos = provider.position();
@@ -77,7 +77,9 @@ std::vector<std::unique_ptr<LexToken>> Lexer::lex() {
         }
         if (lexingWhitespace) {
             auto whitespace = lexWhitespace();
-            tokens.emplace_back(std::make_unique<WhitespaceToken>(pos, whitespace, lineNumber));
+            if(config.lexWhitespace) {
+                tokens.emplace_back(std::make_unique<WhitespaceToken>(pos, whitespace, lineNumber));
+            }
             lexingWhitespace = false;
             if(!lexedVariableName) {
                 lexingString = true;

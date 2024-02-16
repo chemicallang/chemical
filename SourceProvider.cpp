@@ -10,7 +10,7 @@ public:
 
     explicit StreamSourceProvider(std::istream &stream) : stream(stream) {}
 
-    int position() override {
+    int position() const override {
         return stream.tellg();
     }
 
@@ -27,7 +27,7 @@ public:
         return stream.eof();
     }
 
-    char peek() override {
+    char peek() const override {
         return stream.peek();
     }
 

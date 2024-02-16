@@ -15,7 +15,12 @@ public:
     }
 
     char readCharacter() override {
-        return stream.get();
+        auto c = stream.get();
+        if (c == '\n' || c == '\x0C' || (c == '\r' && stream.peek() != '\n')) {
+            // if there's no \n next to \r, the line ending must be CR, so we treat it as line ending
+            lineNumber++;
+        }
+        return c;
     }
 
     bool eof() override {
@@ -35,22 +40,24 @@ public:
     }
 
     bool increment(char c) override {
-        if(stream.peek() == c) {
+        if (stream.peek() == c) {
             stream.seekg(position() + 1, std::ios::beg);
             return true;
         }
         return false;
     }
 
-    bool increment(const std::string& text) override {
+    bool increment(const std::string &text) override {
+
         // Save current position
         std::streampos peekPos = stream.tellg();
+        int prevLineNumber = lineNumber;
 
         bool result = true;
         int pos = 0;
-        while(!stream.eof() && pos < text.size()) {
-            char c = stream.get();
-            if(c != text[pos]) {
+        while (!stream.eof() && pos < text.size()) {
+            char c = readCharacter();
+            if (c != text[pos]) {
 //                std::cout << "NotFound:" << text[pos] << ":" << c << std::endl;
                 result = false;
                 break;
@@ -60,8 +67,9 @@ public:
         }
 
         // Seek back to original position
-        if(!result) {
+        if (!result) {
             stream.seekg(peekPos, std::ios::beg);
+            lineNumber = prevLineNumber;
         }
 
         return result;
@@ -69,5 +77,11 @@ public:
 
 private:
     std::istream &stream;
+
+    /**
+     * By default, this counts lines
+     * On every character read, the provider checks if the line has ended and increments
+     */
+    int lineNumber;
 
 };

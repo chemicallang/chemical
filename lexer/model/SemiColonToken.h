@@ -9,8 +9,12 @@
 class SemiColonToken : public LexToken {
 public:
 
-    SemiColonToken(int start, int end) : LexToken(start, end) {
+    SemiColonToken(unsigned int start, unsigned int length, unsigned int lineNumber) : LexToken(start, length, lineNumber) {
 
+    }
+
+    [[nodiscard]] LspSemanticTokenType lspType() const override {
+        return LspSemanticTokenType::ls_operator;
     }
 
     [[nodiscard]] std::string type_string() const override {

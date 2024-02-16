@@ -11,8 +11,12 @@ public:
 
     std::string keyword;
 
-    KeywordToken(int start, int end, std::string keyword) : LexToken(start, end), keyword(std::move(keyword)) {
+    KeywordToken(unsigned int start, unsigned int end, unsigned int lineNumber, std::string keyword) : LexToken(start, end, lineNumber), keyword(std::move(keyword)) {
 
+    }
+
+    [[nodiscard]] LspSemanticTokenType lspType() const override {
+        return LspSemanticTokenType::ls_keyword;
     }
 
     [[nodiscard]] std::string type_string() const override {

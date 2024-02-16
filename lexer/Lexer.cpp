@@ -61,26 +61,23 @@ std::optional<int> Lexer::lexInt(bool intOnly) {
     return std::nullopt;
 }
 
-std::vector<LexToken *> Lexer::lex() {
-    std::vector<LexToken *> tokens;
+std::vector<std::unique_ptr<LexToken>> Lexer::lex() {
+    std::vector<std::unique_ptr<LexToken>> tokens;
     while (!provider.eof() && provider.peek() != EOF) {
         auto pos = provider.position();
 //        std::cout << "Lex Token Session, Character : " << provider.peek() << std::endl;
         if (provider.increment("#")) {
-            auto token = new KeywordToken(pos, pos + 1, "#");
-            tokens.push_back(token);
+            tokens.emplace_back(std::make_unique<KeywordToken>(pos, 1, lineNumber, "#"));
             continue;
         }
         if (provider.increment("var")) {
-            auto token = new KeywordToken(pos, pos + 3, "var");
-            tokens.push_back(token);
+            tokens.emplace_back(std::make_unique<KeywordToken>(pos, 3, lineNumber, "var"));
             lexingWhitespace = true;
             continue;
         }
         if (lexingWhitespace) {
             auto whitespace = lexWhitespace();
-            auto token = new WhitespaceToken(pos, pos + whitespace);
-            tokens.push_back(token);
+            tokens.emplace_back(std::make_unique<WhitespaceToken>(pos, whitespace, lineNumber));
             lexingWhitespace = false;
             if(!lexedVariableName) {
                 lexingString = true;
@@ -89,8 +86,7 @@ std::vector<LexToken *> Lexer::lex() {
         }
         if(lexingString) {
             auto str = lexString();
-            auto token = new IdentifierToken(pos, str);
-            tokens.push_back(token);
+            tokens.emplace_back(std::make_unique<IdentifierToken>(pos, str, lineNumber));
             lexingString = false;
             lexingWhitespace = true;
             lexedVariableName = true;
@@ -99,26 +95,23 @@ std::vector<LexToken *> Lexer::lex() {
         }
         if(lexingEqual) {
             if(provider.increment('=')) {
-                auto token = new AssignmentOperatorToken(pos, 1);
-                tokens.push_back(token);
+                tokens.emplace_back(std::make_unique<AssignmentOperatorToken>(pos, 1, lineNumber));
                 continue;
             }
             lexingEqual = false;
         }
         if(provider.peek() == ';') {
             provider.readCharacter();
-            auto token = new SemiColonToken(pos, 1);
-            tokens.push_back(token);
+            tokens.emplace_back(std::make_unique<SemiColonToken>(pos, 1, lineNumber));
             continue;
         }
         auto lexedInt = lexInt();
         if (lexedInt.has_value()) {
-            auto token = new IntToken(pos, provider.position(), lexedInt.value());
-            tokens.push_back(token);
+            tokens.emplace_back(std::make_unique<IntToken>(pos, provider.position(), lineNumber, lexedInt.value()));
             continue;
         }
         char unhandled = provider.readCharacter();
-        std::cout << "Unhandled:" << unhandled << std::endl;
+        std::cout << "[Lexer] Unhandled Character : " << unhandled << std::endl;
     }
     return tokens;
 }

@@ -9,8 +9,12 @@ public:
 
     int value;
 
-    IntToken(int start, int end, int value) : LexToken(start, end), value(value) {
+    IntToken(unsigned int start, unsigned int length, unsigned int lineNumber, int value) : LexToken(start, length, lineNumber), value(value) {
 
+    }
+
+    [[nodiscard]] LspSemanticTokenType lspType() const override {
+        return LspSemanticTokenType::ls_number;
     }
 
     [[nodiscard]] std::string type_string() const override {

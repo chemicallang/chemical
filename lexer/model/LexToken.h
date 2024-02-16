@@ -8,7 +8,7 @@
 
 #include <string>
 #include <utility>
-#include "minLsp/SemanticTokens.h"
+#include "lexer/minLsp/SemanticTokens.h"
 
 class LexToken {
 public:

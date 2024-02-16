@@ -11,6 +11,7 @@
 #include "model/LexToken.h"
 #include "model/IntToken.h"
 #include "LexConfig.h"
+#include <memory>
 #include <optional>
 
 class Lexer {
@@ -47,6 +48,38 @@ public:
      */
     std::string lexString();
 
+    /**
+     * lex declaration tokens
+     * @param tokens
+     */
+    void lexDeclarationTokens(std::vector<std::unique_ptr<LexToken>> &tokens);
+
+    /**
+     * lex preprocess
+     * @param tokens
+     */
+    bool lexHashOperator(std::vector<std::unique_ptr<LexToken>> &tokens);
+
+    /**
+     * lexes a single statement (of any type)
+     * @param tokens
+     */
+    void lexStatementTokens(std::vector<std::unique_ptr<LexToken>> &tokens);
+
+    /**
+     * lex whitespace tokens
+     * @param tokens
+     * @return
+     */
+    void lexWhitespaceToken(std::vector<std::unique_ptr<LexToken>> &tokens);
+
+    /**
+     * lex an integer token
+     * @param tokens
+     * @return
+     */
+    bool lexIntToken(std::vector<std::unique_ptr<LexToken>> &tokens);
+
 private:
 
     /**
@@ -55,6 +88,7 @@ private:
      */
     int lineNumber = 0;
 
+    bool lexHash = true;
     bool lexingString = false;
     bool lexingWhitespace = false;
     bool lexedVariableName = false;

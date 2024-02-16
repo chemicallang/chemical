@@ -27,6 +27,14 @@ add_executable(ChemicalVS "lexer/Lexer.cpp" "lexer/Lexer.h" "lexer/model/Assignm
         utils/PrintUtils.h
         lexer/minLsp/SemanticTokens.h
         lexer/LexConfig.h
+        lexer/statements/LexAssignment.cpp
+        lexer/statements/LexDeclaration.cpp
+        lexer/statements/LexDeclaration.cpp
+        lexer/statements/LexPreprocess.cpp
+        lexer/statements/LexStatement.cpp
+        lexer/utils/LexWhitespace.cpp
+        lexer/utils/LexString.cpp
+        lexer/utils/LexNumber.cpp
 )
 
 # Add include directories for LspCpp

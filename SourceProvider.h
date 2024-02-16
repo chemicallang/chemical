@@ -13,8 +13,10 @@ public:
      * @return
      */
     virtual int position() = 0;
+
     /**
      * reads a single character and returns it
+     * everytime a character is read, it must check if its the line ending character to track lineNumbers
      * @return
      */
     virtual char readCharacter() = 0;

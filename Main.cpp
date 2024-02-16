@@ -37,6 +37,7 @@
 #include "LibLsp/lsp/client/registerCapability.h"
 #include "LibLsp/lsp/workspace/symbol.h"
 #include "utils/Lexi.h"
+#include "utils/PrintUtils.h"
 
 using namespace boost::asio::ip;
 using namespace std;
@@ -115,8 +116,12 @@ public:
         }
     }
 
-    Server(const std::string &user_agent, const std::string &_port, bool _enable_watch_parent_process) : _sp(
-            server.point), server(_address, _port, protocol_json_handler, endpoint, _log) {
+    Server(
+            const std::string &user_agent,
+            const std::string &_port,
+            bool _enable_watch_parent_process,
+            const LexConfig &config
+    ) : _sp(server.point), server(_address, _port, protocol_json_handler, endpoint, _log) {
 
         need_initialize_error = Rsp_Error();
         need_initialize_error->error.code = lsErrorCodes::ServerNotInitialized;
@@ -209,14 +214,14 @@ public:
 
 //            {
 
-                SemanticTokensWithRegistrationOptions semantic_tokens_opt;
-                auto semanticTokenTypes = [] {
-                    std::vector<std::string> _type;
-                    for (unsigned i = 0; i <= static_cast<unsigned>(SemanticTokenType::lastKind);
-                         ++i)
-                        _type.push_back(to_string(static_cast<SemanticTokenType>(i)));
-                    return _type;
-                };
+            SemanticTokensWithRegistrationOptions semantic_tokens_opt;
+            auto semanticTokenTypes = [] {
+                std::vector<std::string> _type;
+                for (unsigned i = 0; i <= static_cast<unsigned>(SemanticTokenType::lastKind);
+                     ++i)
+                    _type.push_back(to_string(static_cast<SemanticTokenType>(i)));
+                return _type;
+            };
 
             semantic_tokens_opt.legend.tokenTypes = semanticTokenTypes();
 
@@ -447,7 +452,9 @@ public:
 
             _log.log(lsp::Log::Level::INFO, "lexing the file");
 
-            auto lexed = lexFile(req.params.textDocument.uri.GetAbsolutePath().path);
+            auto lexed = lexFile(req.params.textDocument.uri.GetAbsolutePath().path, config);
+
+//            printTokens(lexed);
 
             _log.log(lsp::Log::Level::INFO, "transforming tokens");
 
@@ -470,6 +477,9 @@ public:
                 prevTokenStart = token->start;
                 prevTokenLineNumber = token->lineNumber;
             }
+
+//             print tokens
+//            printTokens(toks);
 
             _log.log(lsp::Log::Level::INFO, "sending response");
 
@@ -670,7 +680,8 @@ int main(int argc, char *argv[]) {
         enable_watch_parent_process = true;
     }
     std::string user_agent = std::string(BOOST_BEAST_VERSION_STRING) + " websocket-server-async";
-    Server server(user_agent, "5007", enable_watch_parent_process);
+    LexConfig config;
+    Server server(user_agent, "5007", enable_watch_parent_process, config);
     auto ret = server.esc_event.wait();
     if (ret) {
         return 0;

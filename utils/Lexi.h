@@ -18,7 +18,7 @@
  * @param file
  * @return tokens
  */
-std::vector<std::unique_ptr<LexToken>> benchLexFile(std::istream &file) {
+std::vector<std::unique_ptr<LexToken>> benchLexFile(std::istream &file, const LexConfig &config) {
 
     StreamSourceProvider reader(file);
     Lexer lexer(reader);
@@ -30,7 +30,7 @@ std::vector<std::unique_ptr<LexToken>> benchLexFile(std::istream &file) {
     auto start = std::chrono::steady_clock::now();
 
     // Actual lexing
-    auto lexed = lexer.lex();
+    auto lexed = lexer.lex(config);
 
     // Save end time
     auto end = std::chrono::steady_clock::now();
@@ -57,13 +57,13 @@ std::vector<std::unique_ptr<LexToken>> benchLexFile(std::istream &file) {
  * @param file
  * @return the tokens
  */
-std::vector<std::unique_ptr<LexToken>> benchLexFile(const std::string &fileName) {
+std::vector<std::unique_ptr<LexToken>> benchLexFile(const std::string &fileName, const LexConfig &config) {
     std::ifstream file;
     file.open(fileName);
     if (!file.is_open()) {
         std::cerr << "Unknown error opening the file" << '\n';
     }
-    auto lexed = benchLexFile(file);
+    auto lexed = benchLexFile(file, config);
     file.close();
     return lexed;
 }
@@ -73,10 +73,10 @@ std::vector<std::unique_ptr<LexToken>> benchLexFile(const std::string &fileName)
  * @param file
  * @return the tokens
  */
-std::vector<std::unique_ptr<LexToken>> lexFile(std::istream& file) {
+std::vector<std::unique_ptr<LexToken>> lexFile(std::istream &file, const LexConfig &config) {
     StreamSourceProvider reader(file);
     Lexer lexer(reader);
-    return lexer.lex();
+    return lexer.lex(config);
 }
 
 /**
@@ -85,13 +85,13 @@ std::vector<std::unique_ptr<LexToken>> lexFile(std::istream& file) {
  * @param fileName
  * @return the tokens
  */
-std::vector<std::unique_ptr<LexToken>> lexFile(const std::string &path) {
+std::vector<std::unique_ptr<LexToken>> lexFile(const std::string &path, const LexConfig &config) {
     std::ifstream file;
     file.open(path);
     if (!file.is_open()) {
         std::cerr << "Unknown error opening the file" << '\n';
     }
-    auto lexed = lexFile(file);
+    auto lexed = lexFile(file, config);
     file.close();
     return lexed;
 }

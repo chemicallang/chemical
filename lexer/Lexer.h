@@ -10,6 +10,7 @@
 #include "SourceProvider.h"
 #include "model/LexToken.h"
 #include "model/IntToken.h"
+#include "LexConfig.h"
 #include <optional>
 
 class Lexer {
@@ -25,7 +26,7 @@ public:
      * lex everything to LexTokens
      * @return
      */
-    virtual std::vector<std::unique_ptr<LexToken>> lex();
+    virtual std::vector<std::unique_ptr<LexToken>> lex(const LexConfig &config);
 
     /**
      * lex an optional integer at the current stream

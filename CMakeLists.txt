@@ -11,8 +11,17 @@ set(Boost_USE_STATIC_LIBS ON)
 set(Boost_USE_DEBUG_LIBS ON)
 # Don't warn about boost new version
 set(Boost_NO_WARN_NEW_VERSIONS 1)
-# Set custom boost root
-SET(BOOST_ROOT "D:\\Software\\Installed\\boost_1_84_0")
+
+# set custom boost root (not required) (set BOOST_ROOT environment variable)
+# set(BOOST_ROOT "path\\to\\boost")
+
+# Enable this option if Boost Not Found to check for Boost
+# set(Boost_DEBUG 1)
+
+# Set CMP0074 policy so that CMake can use BOOST_ROOT environment variable
+if (POLICY CMP0074)
+    cmake_policy(SET CMP0074 NEW)
+endif()
 
 
 find_package(Boost 1.84 COMPONENTS program_options filesystem REQUIRED)

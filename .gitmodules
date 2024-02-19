@@ -1,0 +1,3 @@
+[submodule "LspCpp"]
+	path = LspCpp
+	url = https://github.com/kuafuwang/LspCpp.git

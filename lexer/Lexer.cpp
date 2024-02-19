@@ -6,7 +6,7 @@
 #include "model/KeywordToken.h"
 #include "model/WhitespaceToken.h"
 #include "model/IdentifierToken.h"
-#include "model/AssignmentOperatorToken.h"
+#include "model/OperatorToken.h"
 #include "model/SemiColonToken.h"
 
 

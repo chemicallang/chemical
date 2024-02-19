@@ -36,6 +36,15 @@ public:
      * @return
      */
     virtual char peek(int ahead) = 0;
+
+    /**
+     * reads the stream until this (stop) character occurs
+     * @param stop the stopping character
+     * @param consumeStop when true, stream will position after the stopping character, otherwise before
+     * @return everything read until stop character, it doesn't include the stopping character
+     */
+    virtual std::string readUntil(char stop, bool consumeStop = false) = 0;
+
     /**
      * if text is present at current position in the stream, increments the stream with text.length()
      * @param text to increment

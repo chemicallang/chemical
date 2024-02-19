@@ -39,6 +39,26 @@ public:
         return c;
     }
 
+    std::string readUntil(char stop, bool consumeStop = false) {
+        auto read = "";
+        char currChar;
+        int prevLineNumber;
+        while (true) {
+            prevLineNumber = lineNumber;
+            currChar = readCharacter();
+            if (currChar == stop || eof()) {
+                if(!consumeStop) {
+                    // since we have consumed the stop, we must go back
+                    lineNumber = prevLineNumber;
+                    stream.seekg((int) stream.tellg() - 1);
+                }
+                return read;
+            } else {
+                read += currChar;
+            }
+        }
+    }
+
     bool increment(char c) override {
         if (stream.peek() == c) {
             stream.seekg(position() + 1, std::ios::beg);

@@ -8,10 +8,10 @@
 #include "lexer/Lexer.h"
 #include "lexer/model/KeywordToken.h"
 #include "lexer/model/IdentifierToken.h"
-#include "lexer/model/AssignmentOperatorToken.h"
+#include "lexer/model/OperatorToken.h"
 #include "lexer/model/SemiColonToken.h"
 
-void Lexer::lexDeclarationTokens(std::vector<std::unique_ptr<LexToken>> &tokens) {
+void Lexer::lexVarInitializationTokens(std::vector<std::unique_ptr<LexToken>> &tokens) {
     if (provider.increment("var")) {
 
         // var
@@ -27,9 +27,26 @@ void Lexer::lexDeclarationTokens(std::vector<std::unique_ptr<LexToken>> &tokens)
         // whitespace
         lexWhitespaceToken(tokens);
 
+        // :
+        if(provider.increment(':')) {
+
+            // operator :
+            tokens.emplace_back(std::make_unique<CharOperatorToken>(provider.position() - 1, 1, lineNumber(), ':'));
+
+            // whitespace
+            lexWhitespaceToken(tokens);
+
+            // type
+            lexTypeTokens(tokens);
+
+            // whitespace
+            lexWhitespaceToken(tokens);
+
+        }
+
         // equal sign
         if (provider.increment('=')) {
-            tokens.emplace_back(std::make_unique<AssignmentOperatorToken>(provider.position() - 1, 1, lineNumber()));
+            tokens.emplace_back(std::make_unique<CharOperatorToken>(provider.position() - 1, 1, lineNumber(), '='));
         }
 
         // whitespace

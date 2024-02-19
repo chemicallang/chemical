@@ -52,7 +52,13 @@ public:
      * lex declaration tokens
      * @param tokens
      */
-    void lexDeclarationTokens(std::vector<std::unique_ptr<LexToken>> &tokens);
+    void lexVarInitializationTokens(std::vector<std::unique_ptr<LexToken>> &tokens);
+
+    /**
+     * lex type tokens
+     * @param tokens
+     */
+    void lexTypeTokens(std::vector<std::unique_ptr<LexToken>> &tokens);
 
     /**
      * lex preprocess

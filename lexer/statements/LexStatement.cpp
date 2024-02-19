@@ -9,6 +9,6 @@
 
 void Lexer::lexStatementTokens(std::vector<std::unique_ptr<LexToken>> &tokens) {
     if (!lexHash || lexHashOperator(tokens)) {
-        lexDeclarationTokens(tokens);
+        lexVarInitializationTokens(tokens);
     }
 }

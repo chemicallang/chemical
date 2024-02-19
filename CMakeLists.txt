@@ -30,20 +30,22 @@ find_package(Boost 1.84 COMPONENTS program_options filesystem REQUIRED)
 add_subdirectory(LspCpp)
 
 # Add source to this project's executable.
-add_executable(ChemicalVS "lexer/Lexer.cpp" "lexer/Lexer.h" "lexer/model/AssignmentOperatorToken.h" "lexer/model/IdentifierToken.h" "lexer/model/IntToken.h" "lexer/model/KeywordToken.h" "lexer/model/LexToken.h" "lexer/model/SemiColonToken.h" "lexer/model/WhitespaceToken.h" "SourceProvider.cpp" "SourceProvider.h"
+add_executable(ChemicalVS "lexer/Lexer.cpp" "lexer/Lexer.h" "lexer/model/OperatorToken.h" "lexer/model/IdentifierToken.h" "lexer/model/IntToken.h" "lexer/model/KeywordToken.h" "lexer/model/LexToken.h" "lexer/model/SemiColonToken.h" "lexer/model/WhitespaceToken.h" "SourceProvider.cpp" "SourceProvider.h"
         utils/Lexi.h
         Main.cpp
         utils/PrintUtils.h
         lexer/minLsp/SemanticTokens.h
         lexer/LexConfig.h
         lexer/statements/LexAssignment.cpp
-        lexer/statements/LexDeclaration.cpp
-        lexer/statements/LexDeclaration.cpp
+        lexer/statements/VarInitialization.cpp
+        lexer/statements/VarInitialization.cpp
         lexer/statements/LexPreprocess.cpp
         lexer/statements/LexStatement.cpp
         lexer/utils/LexWhitespace.cpp
         lexer/utils/LexString.cpp
         lexer/utils/LexNumber.cpp
+        lexer/statements/LexType.cpp
+        lexer/model/TypeToken.h
 )
 
 # Add include directories for LspCpp

@@ -1,15 +1,14 @@
 //
 // Created by wakaz on 10/12/2023.
 //
+#pragma once
 
-#ifndef COMPILER_SOURCEPROVIDER_H
-#define COMPILER_SOURCEPROVIDER_H
 #include <string>
 
 class SourceProvider {
 public:
     /**
-     * gets the current position of the stream
+     * gets the current pos of the stream
      * @return
      */
     virtual int position() const = 0;
@@ -31,7 +30,7 @@ public:
      */
     virtual char peek() const = 0;
     /**
-     * peaks the character at current position + ahead
+     * peaks the character at current pos + ahead
      * @param ahead
      * @return
      */
@@ -40,31 +39,33 @@ public:
     /**
      * reads the stream until this (stop) character occurs
      * @param stop the stopping character
-     * @param consumeStop when true, stream will position after the stopping character, otherwise before
      * @return everything read until stop character, it doesn't include the stopping character
      */
-    virtual std::string readUntil(char stop, bool consumeStop = false) = 0;
+    virtual std::string readUntil(char stop) = 0;
 
     /**
-     * if text is present at current position in the stream, increments the stream with text.length()
+     * if text is present at current pos in the stream, increments the stream with text.length()
      * @param text to increment
      * @return true if incremented by text length otherwise false
      */
     virtual bool increment(const std::string& text) = 0;
 
     /**
-     * if char c is present at current position, increments the stream with character
+     * if char c is present at current pos, increments the stream with character
      * @param c character to look for
      * @return true if incremented by character length = 1, otherwise false
      */
     virtual bool increment(char c) = 0;
 
     /**
-     * get the current line number
+     * get zero-based current line number
      */
     virtual unsigned int getLineNumber() const = 0;
 
+    /**
+     * get zero-based character number
+     * @return
+     */
+    virtual unsigned int getCharNumber() const = 0;
+
 };
-
-
-#endif //COMPILER_SOURCEPROVIDER_H

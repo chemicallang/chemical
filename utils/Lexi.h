@@ -2,15 +2,15 @@
 // Created by wakaz on 26/01/2024.
 //
 
-#ifndef CHEMICALVS_LEXI_H
-#define CHEMICALVS_LEXI_H
+#pragma once
 
 #include <string>
 #include <fstream>
 #include <chrono>
 #include <iostream>
-#include "SourceProvider.cpp"
+#include "SourceProvider.h"
 #include "lexer/Lexer.h"
+#include "StreamSourceProvider.h"
 
 /**
  * benchmark lexing the given input stream
@@ -18,38 +18,7 @@
  * @param file
  * @return tokens
  */
-std::vector<std::unique_ptr<LexToken>> benchLexFile(std::istream &file, const LexConfig &config) {
-
-    StreamSourceProvider reader(file);
-    Lexer lexer(reader);
-
-    // Print started
-    std::cout << "[Lex] Started" << '\n';
-
-    // Save start time
-    auto start = std::chrono::steady_clock::now();
-
-    // Actual lexing
-    auto lexed = lexer.lex(config);
-
-    // Save end time
-    auto end = std::chrono::steady_clock::now();
-
-    // Calculating duration in different units
-    auto nanos = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
-    auto micros = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-    auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-    auto seconds = std::chrono::duration_cast<std::chrono::seconds>(end - start).count();
-
-    // Printing stats
-    std::cout << "[Lex] Completed " << "(Tokens:" << lexed.size() << ")" << ' ';
-    std::cout << "[Lex]:Nanoseconds:" << nanos << "]";
-    std::cout << "[Lex]:Microseconds:" << micros << "]";
-    std::cout << "[Lex]:Milliseconds:" << millis << "]" << '\n';
-
-    return lexed;
-
-}
+std::vector<std::unique_ptr<LexToken>> benchLexFile(std::istream &file, const LexConfig &config);
 
 /**
  * same as benchLexFile with istream
@@ -57,27 +26,14 @@ std::vector<std::unique_ptr<LexToken>> benchLexFile(std::istream &file, const Le
  * @param file
  * @return the tokens
  */
-std::vector<std::unique_ptr<LexToken>> benchLexFile(const std::string &fileName, const LexConfig &config) {
-    std::ifstream file;
-    file.open(fileName);
-    if (!file.is_open()) {
-        std::cerr << "Unknown error opening the file" << '\n';
-    }
-    auto lexed = benchLexFile(file, config);
-    file.close();
-    return lexed;
-}
+std::vector<std::unique_ptr<LexToken>> benchLexFile(const std::string &fileName, const LexConfig &config);
 
 /**
  * will lex the file from given istream
  * @param file
  * @return the tokens
  */
-std::vector<std::unique_ptr<LexToken>> lexFile(std::istream &file, const LexConfig &config) {
-    StreamSourceProvider reader(file);
-    Lexer lexer(reader);
-    return lexer.lex(config);
-}
+std::vector<std::unique_ptr<LexToken>> lexFile(std::istream &file, const LexConfig &config);
 
 /**
  * same as lexFile with istream
@@ -85,15 +41,4 @@ std::vector<std::unique_ptr<LexToken>> lexFile(std::istream &file, const LexConf
  * @param fileName
  * @return the tokens
  */
-std::vector<std::unique_ptr<LexToken>> lexFile(const std::string &path, const LexConfig &config) {
-    std::ifstream file;
-    file.open(path);
-    if (!file.is_open()) {
-        std::cerr << "Unknown error opening the file" << '\n';
-    }
-    auto lexed = lexFile(file, config);
-    file.close();
-    return lexed;
-}
-
-#endif //CHEMICALVS_LEXI_H
+std::vector<std::unique_ptr<LexToken>> lexFile(const std::string &path, const LexConfig &config);

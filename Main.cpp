@@ -36,8 +36,9 @@
 #include "LibLsp/lsp/workspace/did_change_configuration.h"
 #include "LibLsp/lsp/client/registerCapability.h"
 #include "LibLsp/lsp/workspace/symbol.h"
-#include "utils/Lexi.h"
 #include "utils/PrintUtils.h"
+#include "lexer/LexConfig.h"
+#include "server/FileTracker.h"
 
 using namespace boost::asio::ip;
 using namespace std;
@@ -77,6 +78,8 @@ bool ShouldIgnoreFileForIndexing(const std::string &path) {
 
 class Server {
 public:
+
+    FileTracker fileTracker;
 
     RemoteEndPoint &_sp;
 
@@ -329,7 +332,7 @@ public:
 //                    td_definition::response rsp;
 ////				rsp.result.first = std::vector<lsLocation>();
 ////				if (unit){
-////					process_definition(unit, req.params.position, rsp.result.first.value(), &_requestMonitor);
+////					process_definition(unit, req.params.pos, rsp.result.first.value(), &_requestMonitor);
 ////				}
 //                    return std::move(rsp);
 //                });
@@ -342,7 +345,7 @@ public:
 //                        return need_initialize_error.value();
 //                    }
 //                    td_hover::response rsp;
-//                    /*	if(req_back.params.uri == req.params.uri && req_back.params.position == req.params.position && req_back.params.textDocument.uri == req.params.textDocument.uri)
+//                    /*	if(req_back.params.uri == req.params.uri && req_back.params.pos == req.params.pos && req_back.params.textDocument.uri == req.params.textDocument.uri)
 //                        {
 //                            return std::move(rsp);
 //                        }
@@ -355,7 +358,7 @@ public:
 //
 ////				if (unit)
 ////				{
-////					process_hover(unit, req.params.position, rsp.result, &_requestMonitor);
+////					process_hover(unit, req.params.pos, rsp.result, &_requestMonitor);
 ////					if(_requestMonitor.isCancelled())
 ////					{
 ////						rsp.result.contents.second.reset();
@@ -450,13 +453,13 @@ public:
                 return need_initialize_error.value();
             }
 
-            _log.log(lsp::Log::Level::INFO, "lexing the file");
+//            _log.log(lsp::Log::Level::INFO, "lexing the file");
 
-            auto lexed = lexFile(req.params.textDocument.uri.GetAbsolutePath().path, config);
+            auto lexed = fileTracker.getLexedFile(req.params.textDocument.uri.GetAbsolutePath().path, config);
 
 //            printTokens(lexed);
 
-            _log.log(lsp::Log::Level::INFO, "transforming tokens");
+//            _log.log(lsp::Log::Level::INFO, "transforming tokens");
 
             std::vector<SemanticToken> toks;
 
@@ -481,7 +484,7 @@ public:
 //             print tokens
 //            printTokens(toks);
 
-            _log.log(lsp::Log::Level::INFO, "sending response");
+//            _log.log(lsp::Log::Level::INFO, "sending response");
 
             td_semanticTokens_full::response rsp;
 
@@ -503,7 +506,7 @@ public:
 //            td_references::response rsp;
 ////				auto unit = GetUnit(req.params.textDocument);
 ////				if (unit){
-////					ReferencesHandler(unit, req.params.position, rsp.result,&_requestMonitor);
+////					ReferencesHandler(unit, req.params.pos, rsp.result,&_requestMonitor);
 ////				}
 //            return std::move(rsp);
 //        });
@@ -552,8 +555,9 @@ public:
             _log.log(lsp::Log::Level::INFO, "TextDocumentDidChange Received");
             const auto &params = notify.params;
             AbsolutePath path = params.textDocument.uri.GetAbsolutePath();
-            if (ShouldIgnoreFileForIndexing(path))
-                return;
+
+            fileTracker.onChangedContents(path.path, params.contentChanges);
+
 //			work_space_mgr.OnChange(params);
 
         });

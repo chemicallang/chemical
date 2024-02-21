@@ -30,7 +30,7 @@ find_package(Boost 1.84 COMPONENTS program_options filesystem REQUIRED)
 add_subdirectory(LspCpp)
 
 # Add source to this project's executable.
-add_executable(ChemicalVS "lexer/Lexer.cpp" "lexer/Lexer.h" "lexer/model/OperatorToken.h" "lexer/model/IdentifierToken.h" "lexer/model/IntToken.h" "lexer/model/KeywordToken.h" "lexer/model/LexToken.h" "lexer/model/SemiColonToken.h" "lexer/model/WhitespaceToken.h" "SourceProvider.cpp" "SourceProvider.h"
+add_executable(ChemicalVS "lexer/Lexer.cpp" "lexer/Lexer.h" "lexer/model/OperatorToken.h" "lexer/model/IdentifierToken.h" "lexer/model/IntToken.h" "lexer/model/KeywordToken.h" "lexer/model/LexToken.h" "lexer/model/SemiColonToken.h" "lexer/model/WhitespaceToken.h" "SourceProvider.h"
         utils/Lexi.h
         Main.cpp
         utils/PrintUtils.h
@@ -46,6 +46,12 @@ add_executable(ChemicalVS "lexer/Lexer.cpp" "lexer/Lexer.h" "lexer/model/Operato
         lexer/utils/LexNumber.cpp
         lexer/statements/LexType.cpp
         lexer/model/TypeToken.h
+        server/FileTracker.h
+        server/FileTracker.cpp
+        StreamSourceProvider.h
+        StreamPosition.h
+        utils/Lexi.cpp
+        utils/PrintUtils.cpp
 )
 
 # Add include directories for LspCpp

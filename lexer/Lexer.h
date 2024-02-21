@@ -2,9 +2,7 @@
 // Created by wakaz on 10/12/2023.
 //
 
-#ifndef COMPILER_LEXER_H
-#define COMPILER_LEXER_H
-
+#pragma once
 
 #include <vector>
 #include "SourceProvider.h"
@@ -37,7 +35,7 @@ public:
     std::optional<int> lexInt(bool intOnly = false);
 
     /**
-     * lex whitespaces at the current position
+     * lex whitespaces at the current pos
      * @return the number of whitespaces ' ' read
      */
     int lexWhitespace();
@@ -98,6 +96,3 @@ private:
     bool lexHash = true;
 
 };
-
-
-#endif //COMPILER_LEXER_H

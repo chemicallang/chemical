@@ -2,8 +2,7 @@
 // Created by wakaz on 10/12/2023.
 //
 
-#ifndef COMPILER_LEXTOKEN_H
-#define COMPILER_LEXTOKEN_H
+#pragma once
 
 
 #include <string>
@@ -37,6 +36,3 @@ public:
     virtual std::string content() const = 0;
 
 };
-
-
-#endif //COMPILER_LEXTOKEN_H

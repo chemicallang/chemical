@@ -295,7 +295,6 @@ public:
             }
             if (clientPreferences->isSemanticHighlightingSupported()) {
                 collectRegisterCapability(td_semanticTokens_full::request::kMethodInfo);
-                _log.log(lsp::Log::Level::INFO, "SemanticHighlightingSupported Collected in Initialized");
             }
 
             Req_ClientRegisterCapability::request request;
@@ -459,7 +458,7 @@ public:
 
 //            printTokens(lexed);
 
-//            _log.log(lsp::Log::Level::INFO, "transforming tokens");
+            _log.log(lsp::Log::Level::INFO, "transforming tokens");
 
             std::vector<SemanticToken> toks;
 
@@ -484,7 +483,7 @@ public:
 //             print tokens
 //            printTokens(toks);
 
-//            _log.log(lsp::Log::Level::INFO, "sending response");
+            _log.log(lsp::Log::Level::INFO, "sending response");
 
             td_semanticTokens_full::response rsp;
 
@@ -556,9 +555,13 @@ public:
             const auto &params = notify.params;
             AbsolutePath path = params.textDocument.uri.GetAbsolutePath();
 
-            fileTracker.onChangedContents(path.path, params.contentChanges);
+            if(params.contentChanges.empty()) {
+                _log.log(lsp::Log::Level::INFO, "No Changes in the code");
+            }
 
-//			work_space_mgr.OnChange(params);
+//            fileTracker.onChangedContents(path.path, params.contentChanges);
+
+            _log.log(lsp::Log::Level::INFO, "TextDocumentDidChange Received 3");
 
         });
         _sp.registerHandler([&](Notify_TextDocumentDidClose::notify &notify) {
@@ -572,7 +575,8 @@ public:
             AbsolutePath path = params.textDocument.uri.GetAbsolutePath();
             if (ShouldIgnoreFileForIndexing(path))
                 return;
-//				work_space_mgr.OnClose(params.textDocument);
+
+            fileTracker.onClosedFile(path.path);
 
         });
 

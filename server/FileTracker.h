@@ -44,7 +44,7 @@ public:
      * @param path
      * @param changes
      */
-    void onChangedContents(const std::string& path, const std::vector<lsTextDocumentContentChangeEvent>& changes);
+    void onChangedContents(const std::string& path, const std::vector<lsTextDocumentContentChangeEvent> changes);
 
     /**
      * when a file is closed by the user in the IDE \n

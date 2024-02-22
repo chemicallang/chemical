@@ -6,9 +6,11 @@
 
 std::vector<std::unique_ptr<LexToken>> FileTracker::getLexedFile(const std::string &path, const LexConfig &config) {
     if (overriddenSources.contains(path)) {
+        std::cout << "Retrieved Overridden Source:" << overriddenSources[path];
         std::istringstream iss(overriddenSources[path]);
-        return lexFile(iss, config);
+        return lexFile(path, config);
     } else {
+        std::cout << "No Overridden Source:" << overriddenSources[path];
         return lexFile(path, config);
     }
 }
@@ -18,16 +20,17 @@ void FileTracker::onChangedContents(const std::string &path, const std::string &
 }
 
 void
-FileTracker::onChangedContents(const std::string &path, const std::vector<lsTextDocumentContentChangeEvent> &changes) {
+FileTracker::onChangedContents(const std::string &path, const std::vector<lsTextDocumentContentChangeEvent> changes) {
 
     // no changes return !
     if (changes.empty()) {
+        std::cout << "no changes in course code";
         return;
     }
 
     std::string source;
 
-    // load the file if it doesn't exit
+    // load the file if it doesn't exist
     if (!overriddenSources.contains(path)) {
         std::ifstream file;
         file.open(path);
@@ -44,6 +47,8 @@ FileTracker::onChangedContents(const std::string &path, const std::vector<lsText
         source = overriddenSources[path];
     }
 
+    std::cout << "loaded the source : " << source;
+
     // make changes to the source code
     for (const auto &change: changes) {
         if (change.range.has_value()) {
@@ -52,6 +57,9 @@ FileTracker::onChangedContents(const std::string &path, const std::vector<lsText
             replaceSafe(source, start.line, start.character, end.line, end.character, change.text);
         }
     }
+
+
+    std::cout << "replaced : " << source;
 
     // store the overridden sources
     overriddenSources[path] = std::move(source);

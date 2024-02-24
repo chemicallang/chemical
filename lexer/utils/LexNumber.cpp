@@ -41,10 +41,10 @@ std::optional<int> Lexer::lexInt(bool intOnly) {
 }
 
 bool Lexer::lexIntToken(std::vector<std::unique_ptr<LexToken>> &tokens) {
-    auto prevPos = provider.position();
+    auto prevPos = position();
     auto lexedInt = lexInt();
     if (lexedInt.has_value()) {
-        tokens.emplace_back(std::make_unique<IntToken>(prevPos, provider.position(), lineNumber(), lexedInt.value()));
+        tokens.emplace_back(std::make_unique<IntToken>(prevPos, provider.position(), lexedInt.value()));
         return true;
     } else {
         return false;

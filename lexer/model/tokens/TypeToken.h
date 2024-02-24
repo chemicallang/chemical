@@ -15,7 +15,7 @@ public:
 
     std::string type;
 
-    TypeToken(unsigned int start, unsigned int lineNumber, std::string type) : LexToken(start, lineNumber), type(std::move(type)) {
+    TypeToken(const TokenPosition& position, std::string type) : LexToken(position), type(std::move(type)) {
 
     }
 

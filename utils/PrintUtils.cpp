@@ -8,7 +8,7 @@
 
 void printTokens(const std::vector<std::unique_ptr<LexToken>> &lexed) {
     for (const auto &item: lexed) {
-        std::cout << " - [" << item->type_string() << "]" << "(" << item->start << "," << item->end() << ")";
+        std::cout << " - [" << item->type_string() << "]" << "(" << item->start() << "," << item->end() << ")";
         if (!item->content().empty()) {
             std::cout << ":" << item->content();
         }

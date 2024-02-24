@@ -16,3 +16,11 @@ std::vector<std::unique_ptr<LexToken>> Lexer::lex(const LexConfig &config) {
     }
     return tokens;
 }
+
+TokenPosition Lexer::position() {
+    return {provider.getLineNumber(), provider.getLineCharNumber(), provider.position()};
+}
+
+TokenPosition Lexer::backPosition(unsigned int back) {
+    return { provider.getLineNumber(), provider.getLineCharNumber() - back, provider.position() - back };
+}

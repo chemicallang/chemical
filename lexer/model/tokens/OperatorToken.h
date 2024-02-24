@@ -15,7 +15,7 @@ public:
 
     char op;
 
-    CharOperatorToken(unsigned int start, unsigned int lineNumber, char op) : LexToken(start, lineNumber), op(op) {
+    CharOperatorToken(const TokenPosition& position, char op) : LexToken(position), op(op) {
 
     }
 

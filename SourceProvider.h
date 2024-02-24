@@ -14,7 +14,7 @@ public:
      * gets the current pos of the stream
      * @return
      */
-    virtual int position() const = 0;
+    virtual unsigned int position() const = 0;
 
     /**
      * reads a single character and returns it
@@ -69,7 +69,7 @@ public:
      * get zero-based character number
      * @return
      */
-    virtual unsigned int getCharNumber() const = 0;
+    virtual unsigned int getLineCharNumber() const = 0;
 
     /**
      * gets the stream position at the current position

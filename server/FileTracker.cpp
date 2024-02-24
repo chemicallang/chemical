@@ -4,13 +4,15 @@
 
 #include "FileTracker.h"
 
+#define DEBUG false
+
 std::vector<std::unique_ptr<LexToken>> FileTracker::getLexedFile(const std::string &path, const LexConfig &config) {
     if (overriddenSources.contains(path)) {
-        std::cout << "Retrieved Overridden Source:" << overriddenSources[path];
+        if(DEBUG) std::cout << "Retrieved Overridden Source:" << overriddenSources[path] << '\n';
         std::istringstream iss(overriddenSources[path]);
         return lexFile(path, config);
     } else {
-        std::cout << "No Overridden Source:" << overriddenSources[path];
+        if(DEBUG) std::cout << "No Overridden Source:" << path << '\n';
         return lexFile(path, config);
     }
 }
@@ -20,11 +22,11 @@ void FileTracker::onChangedContents(const std::string &path, const std::string &
 }
 
 void
-FileTracker::onChangedContents(const std::string &path, const std::vector<lsTextDocumentContentChangeEvent> changes) {
+FileTracker::onChangedContents(const std::string &path, const std::vector<lsTextDocumentContentChangeEvent> &changes) {
 
     // no changes return !
     if (changes.empty()) {
-        std::cout << "no changes in course code";
+//        std::cout << "no changes in source code";
         return;
     }
 
@@ -47,7 +49,18 @@ FileTracker::onChangedContents(const std::string &path, const std::vector<lsText
         source = overriddenSources[path];
     }
 
-    std::cout << "loaded the source : " << source;
+    if(DEBUG) std::cout << "loaded the source : " << source << '\n';
+    if(DEBUG) std::cout << "total changes :" << changes.size();
+
+    if (changes.size() == 1) {
+        auto change = changes[0];
+        auto start = change.range.get().start;
+        auto end = change.range.get().end;
+//        std::cout << " change : start : " << start.line << '-' << start.character << " end : " << end.line << '-'
+//                  << end.character << ";";
+    }
+
+    if(DEBUG) std::cout << '\n';
 
     // make changes to the source code
     for (const auto &change: changes) {
@@ -59,7 +72,7 @@ FileTracker::onChangedContents(const std::string &path, const std::vector<lsText
     }
 
 
-    std::cout << "replaced : " << source;
+    if(DEBUG) std::cout << "replaced : " << source << '\n';
 
     // store the overridden sources
     overriddenSources[path] = std::move(source);
@@ -85,22 +98,33 @@ void replace(
 
     std::string nextSource;
 
+    if(DEBUG) std::cout << "reading:";
+
     while (!provider.eof()) {
         auto c = provider.readCharacter();
         if (provider.getLineNumber() == lineStart && provider.getCharNumber() == charStart) {
 
+            std::cout << c;
+            nextSource += c;
+
             // forwarding to the end without adding character
-            while (!provider.eof() && provider.getLineNumber() != lineEnd && provider.getCharNumber() != charEnd) {
-                provider.readCharacter();
+            if(DEBUG) std::cout << "[fwd]:[";
+            while (!provider.eof() && !(provider.getLineNumber() == lineEnd && provider.getCharNumber() == charEnd)) {
+                std::cout << provider.readCharacter();
             }
+            if(DEBUG) std::cout << ']';
 
             // adding replacement
             nextSource += replacement;
+            if(DEBUG) std::cout << "[rep]:[" << replacement << ']';
 
         } else {
             nextSource += c;
+            std::cout << c;
         }
     }
+
+    if(DEBUG) std::cout << '\n';
 
     source = nextSource;
 
@@ -108,15 +132,21 @@ void replace(
 
 void replaceSafe(std::string &source, unsigned int lineStart, unsigned int charStart, unsigned int lineEnd,
                  unsigned int charEnd, const std::string &replacement) {
+
     if (lineStart == lineEnd) {
         if (charStart == charEnd) {
             // range is closed, do nothing
         } else if (charStart > charEnd) {
             // if start is larger than end, call replace accurately (swapping start with end)
             replace(source, lineEnd, charEnd, lineStart, charStart, replacement);
+            return;
         }
     } else if (lineStart > lineEnd) {
         // if start is larger than end, call replace accurately (swapping start with end)
         replace(source, lineEnd, charEnd, lineStart, charStart, replacement);
+        return;
     }
+
+    replace(source, lineStart, charStart, lineEnd, charEnd, replacement);
+
 }

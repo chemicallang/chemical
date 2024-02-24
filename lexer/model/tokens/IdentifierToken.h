@@ -15,8 +15,12 @@ public:
 
     std::string identifier;
 
-    IdentifierToken(unsigned int start, std::string identifier, unsigned int lineNumber) : LexToken(start, identifier.length(), lineNumber), identifier(std::move(identifier)) {
+    IdentifierToken(unsigned int start, std::string identifier, unsigned int lineNumber) : LexToken(start, lineNumber), identifier(std::move(identifier)) {
 
+    }
+
+    unsigned int length() const override {
+        return identifier.length();
     }
 
     [[nodiscard]] LspSemanticTokenType lspType() const override {

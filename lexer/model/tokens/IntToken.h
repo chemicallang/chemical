@@ -13,8 +13,14 @@ public:
 
     int value;
 
-    IntToken(unsigned int start, unsigned int length, unsigned int lineNumber, int value) : LexToken(start, length, lineNumber), value(value) {
+    unsigned int len;
 
+    IntToken(unsigned int start, unsigned int length, unsigned int lineNumber, int value) : LexToken(start, lineNumber), len(length), value(value) {
+
+    }
+
+    unsigned int length() const override {
+        return len;
     }
 
     [[nodiscard]] LspSemanticTokenType lspType() const override {

@@ -15,8 +15,12 @@ public:
 
     std::string type;
 
-    TypeToken(unsigned int start, unsigned int length, unsigned int lineNumber, std::string type) : LexToken(start, length, lineNumber), type(std::move(type)) {
+    TypeToken(unsigned int start, unsigned int lineNumber, std::string type) : LexToken(start, lineNumber), type(std::move(type)) {
 
+    }
+
+    unsigned int length() const override {
+        return type.length();
     }
 
     [[nodiscard]] LspSemanticTokenType lspType() const override {

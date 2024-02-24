@@ -466,7 +466,7 @@ public:
 
             auto lexed = fileTracker.getLexedFile(req.params.textDocument.uri.GetAbsolutePath().path, config);
 
-//            printTokens(lexed);
+            printTokens(lexed);
 
             _log.log(lsp::Log::Level::INFO, "transforming tokens");
 
@@ -476,7 +476,7 @@ public:
             unsigned int prevTokenLineNumber = 0;
             for (const auto &token: lexed) {
                 toks.push_back(SemanticToken{
-                        prevTokenLineNumber - token->lineNumber, (
+                        token->lineNumber - prevTokenLineNumber, (
                                 token->lineNumber == prevTokenLineNumber ? (
                                         // on the same line
                                         token->start - prevTokenStart
@@ -484,7 +484,7 @@ public:
                                         // on a different line
                                         token->start
                                 )
-                        ), token->length, static_cast<unsigned int>(token->lspType()), 0
+                        ), token->length(), static_cast<unsigned int>(token->lspType()), 0
                 });
                 prevTokenStart = token->start;
                 prevTokenLineNumber = token->lineNumber;

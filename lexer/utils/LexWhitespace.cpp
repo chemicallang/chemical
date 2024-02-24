@@ -9,7 +9,7 @@
 
 int Lexer::lexWhitespace() {
     int whitespaces = 0;
-    while (!provider.eof() && provider.peek() == ' ') {
+    while (!provider.eof() && (provider.peek() == ' ' || provider.peek() == '\t')) {
         provider.readCharacter();
         whitespaces++;
     }

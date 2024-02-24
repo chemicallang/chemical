@@ -13,21 +13,16 @@
 class LexToken {
 public:
     unsigned int start;
-    unsigned int length;
     unsigned int lineNumber;
 
-    LexToken(unsigned int start, unsigned int length, unsigned int lineNumber) : start(start), length(length), lineNumber(lineNumber) {
+    LexToken(unsigned int start, unsigned int lineNumber) : start(start), lineNumber(lineNumber) {
 
     }
 
-//    /**
-//     * this returns the representation of source, for example variable declaration token returns "var"
-//     * @return source representation of token
-//     */
-//    virtual std::string representation() = 0;
+    virtual unsigned int length() const = 0;
 
     inline unsigned int end() {
-        return start + length;
+        return start + length();
     }
 
     virtual LspSemanticTokenType lspType() const = 0;

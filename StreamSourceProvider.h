@@ -56,7 +56,7 @@ public:
     }
 
     bool increment(char c) override {
-        if (readCharacter() == c) {
+        if (stream.get() == c) {
             handleCharacterRead(c);
             return true;
         } else {

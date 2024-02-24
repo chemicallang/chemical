@@ -51,6 +51,6 @@ bool Lexer::lexIntToken(std::vector<std::unique_ptr<LexToken>> &tokens) {
     }
 }
 
-LexError Lexer::error(std::string& message) {
+LexError Lexer::error(const std::string& message) {
     return {provider.getStreamPosition(), path, message};
 }

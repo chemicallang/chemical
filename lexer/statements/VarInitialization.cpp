@@ -11,7 +11,6 @@
 #include "lexer/model/tokens/KeywordToken.h"
 #include "lexer/model/tokens/IdentifierToken.h"
 #include "lexer/model/tokens/OperatorToken.h"
-#include "lexer/model/tokens/SemiColonToken.h"
 
 std::optional<LexError> Lexer::lexVarInitializationTokens(std::vector<std::unique_ptr<LexToken>> &tokens) {
     if (provider.increment("var")) {
@@ -23,8 +22,9 @@ std::optional<LexError> Lexer::lexVarInitializationTokens(std::vector<std::uniqu
         lexWhitespaceToken(tokens);
 
         // identifier
-        auto str = lexString();
-        tokens.emplace_back(std::make_unique<IdentifierToken>(provider.position() - str.length(), str, lineNumber()));
+        if(!lexIdentifierTokenBool(tokens)) {
+            return error("expected an identifier for variable initialization");
+        }
 
         // whitespace
         lexWhitespaceToken(tokens);
@@ -33,7 +33,7 @@ std::optional<LexError> Lexer::lexVarInitializationTokens(std::vector<std::uniqu
         if(provider.increment(':')) {
 
             // operator :
-            tokens.emplace_back(std::make_unique<CharOperatorToken>(provider.position() - 1, 1, lineNumber(), ':'));
+            tokens.emplace_back(std::make_unique<CharOperatorToken>(provider.position() - 1, lineNumber(), ':'));
 
             // whitespace
             lexWhitespaceToken(tokens);
@@ -48,21 +48,30 @@ std::optional<LexError> Lexer::lexVarInitializationTokens(std::vector<std::uniqu
 
         // equal sign
         if (provider.increment('=')) {
-            tokens.emplace_back(std::make_unique<CharOperatorToken>(provider.position() - 1, 1, lineNumber(), '='));
+            tokens.emplace_back(std::make_unique<CharOperatorToken>(provider.position() - 1, lineNumber(), '='));
         } else {
+
+            // lex the optional semicolon when ending declaration
+            if (provider.increment(';')) {
+                tokens.emplace_back(std::make_unique<CharOperatorToken>(provider.position() - 1, lineNumber(), ';'));
+                return std::nullopt;
+            }
+
             return std::nullopt;
         }
 
         // whitespace
         lexWhitespaceToken(tokens);
 
-        // integer
-        lexIntToken(tokens);
+        // value
+        if(!lexValueToken(tokens)){
+            return error("expected a value for variable initialization");
+        }
 
         // semi colon (optional)
         if (provider.peek() == ';') {
             provider.readCharacter();
-            tokens.emplace_back(std::make_unique<SemiColonToken>(provider.position() - 1, 1, lineNumber()));
+            tokens.emplace_back(std::make_unique<CharOperatorToken>(provider.position() - 1, lineNumber(), ';'));
         }
 
     }

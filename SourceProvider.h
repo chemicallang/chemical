@@ -1,9 +1,12 @@
+// Copyright (c) Qinetik 2024.
+
 //
-// Created by wakaz on 10/12/2023.
+// Created by Waqas Tahir on 10/12/2023.
 //
 #pragma once
 
 #include <string>
+#include "StreamPosition.h"
 
 class SourceProvider {
 public:
@@ -67,5 +70,11 @@ public:
      * @return
      */
     virtual unsigned int getCharNumber() const = 0;
+
+    /**
+     * gets the stream position at the current position
+     * @return
+     */
+    virtual StreamPosition getStreamPosition() const = 0;
 
 };

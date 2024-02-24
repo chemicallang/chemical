@@ -1,5 +1,7 @@
+// Copyright (c) Qinetik 2024.
+
 //
-// Created by ACER on 21/02/2024.
+// Created by Waqas Tahir on 21/02/2024.
 //
 
 #pragma once
@@ -7,7 +9,7 @@
 #include <vector>
 #include <memory>
 #include <unordered_map>
-#include "lexer/model/LexToken.h"
+#include "lexer/model/tokens/LexToken.h"
 #include "lexer/LexConfig.h"
 #include "utils/Lexi.h"
 #include "LibLsp/lsp/textDocument/did_change.h"

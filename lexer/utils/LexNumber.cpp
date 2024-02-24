@@ -1,5 +1,7 @@
+// Copyright (c) Qinetik 2024.
+
 //
-// Created by wakaz on 16/02/2024.
+// Created by Waqas Tahir on 16/02/2024.
 //
 
 #include <memory>
@@ -47,4 +49,8 @@ bool Lexer::lexIntToken(std::vector<std::unique_ptr<LexToken>> &tokens) {
     } else {
         return false;
     }
+}
+
+LexError Lexer::error(std::string& message) {
+    return {provider.getStreamPosition(), path, message};
 }

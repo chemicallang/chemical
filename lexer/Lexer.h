@@ -1,14 +1,18 @@
+// Copyright (c) Qinetik 2024.
+
 //
-// Created by wakaz on 10/12/2023.
+// Created by Waqas Tahir on 10/12/2023.
 //
 
 #pragma once
 
+#include <utility>
 #include <vector>
 #include "SourceProvider.h"
-#include "model/LexToken.h"
-#include "model/IntToken.h"
+#include "lexer/model/tokens/LexToken.h"
+#include "lexer/model/tokens/IntToken.h"
 #include "LexConfig.h"
+#include "lexer/model/LexError.h"
 #include <memory>
 #include <optional>
 
@@ -16,8 +20,9 @@ class Lexer {
 public:
 
     SourceProvider &provider;
+    std::string path;
 
-    explicit Lexer(SourceProvider &provider1) : provider(provider1) {
+    explicit Lexer(SourceProvider &provider, std::string  path) : provider(provider), path(std::move(path)) {
 
     }
 
@@ -47,10 +52,10 @@ public:
     std::string lexString();
 
     /**
-     * lex declaration tokens
+     * lex declaration or initialization tokens
      * @param tokens
      */
-    void lexVarInitializationTokens(std::vector<std::unique_ptr<LexToken>> &tokens);
+    std::optional<LexError> lexVarInitializationTokens(std::vector<std::unique_ptr<LexToken>> &tokens);
 
     /**
      * lex type tokens
@@ -61,6 +66,7 @@ public:
     /**
      * lex preprocess
      * @param tokens
+     * @return whether the has token was lexed or not
      */
     bool lexHashOperator(std::vector<std::unique_ptr<LexToken>> &tokens);
 
@@ -80,9 +86,15 @@ public:
     /**
      * lex an integer token
      * @param tokens
-     * @return
+     * @return whether a token was lexed or not
      */
     bool lexIntToken(std::vector<std::unique_ptr<LexToken>> &tokens);
+
+    /**
+     * returns a lexing error at current position with the path of current file being lexed
+     * @return
+     */
+    LexError error(std::string& message);
 
     /**
      * gets the line number from the provider

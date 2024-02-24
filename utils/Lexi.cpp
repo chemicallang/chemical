@@ -1,5 +1,7 @@
+// Copyright (c) Qinetik 2024.
+
 //
-// Created by ACER on 21/02/2024.
+// Created by Waqas Tahir on 21/02/2024.
 //
 
 #include "Lexi.h"
@@ -10,10 +12,10 @@
  * @param file
  * @return tokens
  */
-std::vector<std::unique_ptr<LexToken>> benchLexFile(std::istream &file, const LexConfig &config) {
+std::vector<std::unique_ptr<LexToken>> benchLexFile(std::istream &file, const std::string& path, const LexConfig &config) {
 
     StreamSourceProvider reader(file);
-    Lexer lexer(reader);
+    Lexer lexer(reader, path);
 
     // Print started
     std::cout << "[Lex] Started" << '\n';
@@ -45,17 +47,17 @@ std::vector<std::unique_ptr<LexToken>> benchLexFile(std::istream &file, const Le
 
 /**
  * same as benchLexFile with istream
- * benchmark lexing the filename (relative to in the current project)
+ * benchmark lexing the path (relative to in the current project)
  * @param file
  * @return the tokens
  */
-std::vector<std::unique_ptr<LexToken>> benchLexFile(const std::string &fileName, const LexConfig &config) {
+std::vector<std::unique_ptr<LexToken>> benchLexFile(const std::string &path, const LexConfig &config) {
     std::ifstream file;
-    file.open(fileName);
+    file.open(path);
     if (!file.is_open()) {
         std::cerr << "Unknown error opening the file" << '\n';
     }
-    auto lexed = benchLexFile(file, config);
+    auto lexed = benchLexFile(file, path, config);
     file.close();
     return lexed;
 }
@@ -65,15 +67,15 @@ std::vector<std::unique_ptr<LexToken>> benchLexFile(const std::string &fileName,
  * @param file
  * @return the tokens
  */
-std::vector<std::unique_ptr<LexToken>> lexFile(std::istream &file, const LexConfig &config) {
+std::vector<std::unique_ptr<LexToken>> lexFile(std::istream &file, const std::string& path, const LexConfig &config) {
     StreamSourceProvider reader(file);
-    Lexer lexer(reader);
+    Lexer lexer(reader, path);
     return lexer.lex(config);
 }
 
 /**
  * same as lexFile with istream
- * lex the path (relative to in the current project)
+ * lex the file at path (relative to in the current project)
  * @param fileName
  * @return the tokens
  */
@@ -83,7 +85,7 @@ std::vector<std::unique_ptr<LexToken>> lexFile(const std::string &path, const Le
     if (!file.is_open()) {
         std::cerr << "Unknown error opening the file" << '\n';
     }
-    auto lexed = lexFile(file, config);
+    auto lexed = lexFile(file, path, config);
     file.close();
     return lexed;
 }

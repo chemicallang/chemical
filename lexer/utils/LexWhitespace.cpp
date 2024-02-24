@@ -1,8 +1,10 @@
+// Copyright (c) Qinetik 2024.
+
 //
-// Created by wakaz on 16/02/2024.
+// Created by Waqas Tahir on 16/02/2024.
 //
 #include "lexer/Lexer.h"
-#include "lexer/model/WhitespaceToken.h"
+#include "lexer/model/tokens/WhitespaceToken.h"
 #include <memory>
 
 int Lexer::lexWhitespace() {

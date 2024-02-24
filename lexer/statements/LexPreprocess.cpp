@@ -1,10 +1,12 @@
+// Copyright (c) Qinetik 2024.
+
 //
-// Created by wakaz on 16/02/2024.
+// Created by Waqas Tahir on 16/02/2024.
 //
 
 #include <memory>
 #include "lexer/Lexer.h"
-#include "lexer/model/KeywordToken.h"
+#include "lexer/model/tokens/KeywordToken.h"
 
 bool Lexer::lexHashOperator(std::vector<std::unique_ptr<LexToken>> &tokens) {
     if (provider.increment("#")) {

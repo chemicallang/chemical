@@ -1,5 +1,7 @@
+// Copyright (c) Qinetik 2024.
+
 //
-// Created by ACER on 21/02/2024.
+// Created by Waqas Tahir on 21/02/2024.
 //
 
 #ifndef CHEMICALVS_STREAMSOURCEPROVIDER_H
@@ -102,11 +104,11 @@ public:
         this->lineNumber = 0;
     }
 
-private:
-
-    StreamPosition getStreamPosition() {
+    StreamPosition getStreamPosition() const override {
         return StreamPosition{static_cast<unsigned int>(position()), lineNumber, lineCharacterNumber};
     }
+
+private:
 
     void saveInto(StreamPosition &pos) {
         pos.pos = position();

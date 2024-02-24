@@ -1,5 +1,7 @@
+// Copyright (c) Qinetik 2024.
+
 //
-// Created by wakaz on 26/01/2024.
+// Created by Waqas Tahir on 26/01/2024.
 //
 
 #pragma once
@@ -18,7 +20,7 @@
  * @param file
  * @return tokens
  */
-std::vector<std::unique_ptr<LexToken>> benchLexFile(std::istream &file, const LexConfig &config);
+std::vector<std::unique_ptr<LexToken>> benchLexFile(std::istream &file, const std::string& path, const LexConfig &config);
 
 /**
  * same as benchLexFile with istream
@@ -26,18 +28,18 @@ std::vector<std::unique_ptr<LexToken>> benchLexFile(std::istream &file, const Le
  * @param file
  * @return the tokens
  */
-std::vector<std::unique_ptr<LexToken>> benchLexFile(const std::string &fileName, const LexConfig &config);
+std::vector<std::unique_ptr<LexToken>> benchLexFile(const std::string &path, const LexConfig &config);
 
 /**
  * will lex the file from given istream
  * @param file
  * @return the tokens
  */
-std::vector<std::unique_ptr<LexToken>> lexFile(std::istream &file, const LexConfig &config);
+std::vector<std::unique_ptr<LexToken>> lexFile(std::istream &file, const std::string& path, const LexConfig &config);
 
 /**
  * same as lexFile with istream
- * lex the path (relative to in the current project)
+ * lex the file at path (relative to in the current project)
  * @param fileName
  * @return the tokens
  */

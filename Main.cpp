@@ -1,4 +1,6 @@
 ﻿
+// Copyright (c) Qinetik 2024.
+
 #include "LibLsp/lsp/textDocument/declaration_definition.h"
 #include "LibLsp/lsp/general/initialize.h"
 #include "LibLsp/lsp/ProtocolJsonHandler.h"

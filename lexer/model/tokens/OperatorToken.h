@@ -15,8 +15,12 @@ public:
 
     char op;
 
-    CharOperatorToken(unsigned int start, unsigned int length, unsigned int lineNumber, char op) : LexToken(start, length, lineNumber), op(op) {
+    CharOperatorToken(unsigned int start, unsigned int lineNumber, char op) : LexToken(start, lineNumber), op(op) {
 
+    }
+
+    unsigned int length() const override {
+        return 1;
     }
 
     [[nodiscard]] LspSemanticTokenType lspType() const override {
@@ -24,7 +28,10 @@ public:
     }
 
     [[nodiscard]] std::string type_string() const override {
-        return &"Operator:" [ op];
+        std::string ret;
+        ret.append("Operator:");
+        ret.append(1, op);
+        return ret;
     }
 
     [[nodiscard]] std::string content() const override {

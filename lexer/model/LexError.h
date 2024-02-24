@@ -39,6 +39,14 @@ public:
         std::cerr << "[Error] " << message << " ; at " << sourceId << '#' << position.line << ':' << position.character << '\n';
     }
 
+    LexError wrap(const std::string& prefix, const std::string& suffix) {
+        return {position, sourceId, prefix + " " + message + " " + suffix};
+    }
+
+    LexError wrap(const std::string& prefix) {
+        return {position, sourceId, prefix + " " + message};
+    }
+
     inline std::string getFilePath() {
         return sourceId;
     }

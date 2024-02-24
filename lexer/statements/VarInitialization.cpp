@@ -16,7 +16,7 @@ std::optional<LexError> Lexer::lexVarInitializationTokens(std::vector<std::uniqu
     if (provider.increment("var")) {
 
         // var
-        tokens.emplace_back(std::make_unique<KeywordToken>(provider.position() - 3, 3, lineNumber(), "var"));
+        tokens.emplace_back(std::make_unique<KeywordToken>(backPosition(3), "var"));
 
         // whitespace
         lexWhitespaceToken(tokens);
@@ -33,7 +33,7 @@ std::optional<LexError> Lexer::lexVarInitializationTokens(std::vector<std::uniqu
         if(provider.increment(':')) {
 
             // operator :
-            tokens.emplace_back(std::make_unique<CharOperatorToken>(provider.position() - 1, lineNumber(), ':'));
+            tokens.emplace_back(std::make_unique<CharOperatorToken>(backPosition(1), ':'));
 
             // whitespace
             lexWhitespaceToken(tokens);
@@ -48,12 +48,12 @@ std::optional<LexError> Lexer::lexVarInitializationTokens(std::vector<std::uniqu
 
         // equal sign
         if (provider.increment('=')) {
-            tokens.emplace_back(std::make_unique<CharOperatorToken>(provider.position() - 1, lineNumber(), '='));
+            tokens.emplace_back(std::make_unique<CharOperatorToken>(backPosition(1), '='));
         } else {
 
             // lex the optional semicolon when ending declaration
             if (provider.increment(';')) {
-                tokens.emplace_back(std::make_unique<CharOperatorToken>(provider.position() - 1, lineNumber(), ';'));
+                tokens.emplace_back(std::make_unique<CharOperatorToken>(backPosition(1), ';'));
                 return std::nullopt;
             }
 
@@ -71,7 +71,7 @@ std::optional<LexError> Lexer::lexVarInitializationTokens(std::vector<std::uniqu
         // semi colon (optional)
         if (provider.peek() == ';') {
             provider.readCharacter();
-            tokens.emplace_back(std::make_unique<CharOperatorToken>(provider.position() - 1, lineNumber(), ';'));
+            tokens.emplace_back(std::make_unique<CharOperatorToken>(backPosition(1), ';'));
         }
 
     }

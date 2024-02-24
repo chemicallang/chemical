@@ -15,7 +15,7 @@ public:
 
     unsigned int len;
 
-    IntToken(unsigned int start, unsigned int length, unsigned int lineNumber, int value) : LexToken(start, lineNumber), len(length), value(value) {
+    IntToken(TokenPosition& position, unsigned int length,  int value) : LexToken(position), len(length), value(value) {
 
     }
 

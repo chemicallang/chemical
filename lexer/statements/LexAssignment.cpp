@@ -17,7 +17,7 @@ std::optional<LexError> Lexer::lexAssignmentTokens(std::vector<std::unique_ptr<L
 
     // =
     if(provider.increment('=')) {
-        tokens.emplace_back(std::make_unique<CharOperatorToken>(provider.position() - 1, lineNumber(), '='));
+        tokens.emplace_back(std::make_unique<CharOperatorToken>(backPosition(1), '='));
     } else {
         return error("expected equal sign '=' for variable assignment");
     }

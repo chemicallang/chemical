@@ -16,7 +16,7 @@ public:
 
     explicit StreamSourceProvider(std::istream &stream) : stream(stream) {}
 
-    int position() const override {
+    unsigned int position() const override {
         return stream.tellg();
     }
 
@@ -94,7 +94,7 @@ public:
         return lineNumber;
     }
 
-    unsigned int getCharNumber() const override {
+    unsigned int getLineCharNumber() const override {
         return lineCharacterNumber;
     }
 

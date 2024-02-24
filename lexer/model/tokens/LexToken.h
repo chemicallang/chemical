@@ -9,21 +9,34 @@
 #include <string>
 #include <utility>
 #include "lexer/minLsp/SemanticTokens.h"
+#include "lexer/model/TokenPosition.h"
 
 class LexToken {
 public:
-    unsigned int start;
-    unsigned int lineNumber;
 
-    LexToken(unsigned int start, unsigned int lineNumber) : start(start), lineNumber(lineNumber) {
+    TokenPosition position;
 
+    LexToken(const TokenPosition& position) : position(position) {
+
+    }
+
+    inline unsigned int start() {
+        return position.position;
+    }
+
+    inline unsigned int end() {
+        return position.position + length();
+    }
+
+    inline unsigned int lineNumber() {
+        return position.lineNumber;
+    }
+
+    inline unsigned int lineCharNumber() {
+        return position.lineCharNumber;
     }
 
     virtual unsigned int length() const = 0;
-
-    inline unsigned int end() {
-        return start + length();
-    }
 
     virtual LspSemanticTokenType lspType() const = 0;
 

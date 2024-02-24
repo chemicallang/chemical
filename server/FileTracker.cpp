@@ -104,14 +104,14 @@ void replace(
 
     while (!provider.eof()) {
         auto c = provider.readCharacter();
-        if (provider.getLineNumber() == lineStart && provider.getCharNumber() == charStart) {
+        if (provider.getLineNumber() == lineStart && provider.getLineCharNumber() == charStart) {
 
             std::cout << c;
             nextSource += c;
 
             // forwarding to the end without adding character
             if(DEBUG) std::cout << "[fwd]:[";
-            while (!provider.eof() && !(provider.getLineNumber() == lineEnd && provider.getCharNumber() == charEnd)) {
+            while (!provider.eof() && !(provider.getLineNumber() == lineEnd && provider.getLineCharNumber() == charEnd)) {
                 std::cout << provider.readCharacter();
             }
             if(DEBUG) std::cout << ']';

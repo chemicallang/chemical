@@ -15,7 +15,7 @@ public:
 
     unsigned int len;
 
-    WhitespaceToken(unsigned int start, unsigned int length, unsigned int lineNumber) : LexToken(start, lineNumber), len(length) {
+    WhitespaceToken(const TokenPosition& position, unsigned int length) : LexToken(position), len(length) {
 
     }
 

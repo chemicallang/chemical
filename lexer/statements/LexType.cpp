@@ -10,6 +10,6 @@
 void Lexer::lexTypeTokens(std::vector<std::unique_ptr<LexToken>> &tokens) {
     auto type = provider.readUntil(' ');
     if (!type.empty()) {
-        tokens.emplace_back(std::make_unique<TypeToken>(provider.position() - type.length(), lineNumber(), type));
+        tokens.emplace_back(std::make_unique<TypeToken>(backPosition(type.length()), type));
     }
 }

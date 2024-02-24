@@ -476,18 +476,18 @@ public:
             unsigned int prevTokenLineNumber = 0;
             for (const auto &token: lexed) {
                 toks.push_back(SemanticToken{
-                        token->lineNumber - prevTokenLineNumber, (
-                                token->lineNumber == prevTokenLineNumber ? (
+                        token->lineNumber() - prevTokenLineNumber, (
+                                token->lineNumber() == prevTokenLineNumber ? (
                                         // on the same line
-                                        token->start - prevTokenStart
+                                        token->lineCharNumber() - prevTokenStart
                                 ) : (
                                         // on a different line
-                                        token->start
+                                        token->lineCharNumber()
                                 )
                         ), token->length(), static_cast<unsigned int>(token->lspType()), 0
                 });
-                prevTokenStart = token->start;
-                prevTokenLineNumber = token->lineNumber;
+                prevTokenStart = token->lineCharNumber();
+                prevTokenLineNumber = token->lineNumber();
             }
 
 //             print tokens

@@ -15,7 +15,7 @@ public:
 
     std::string identifier;
 
-    IdentifierToken(unsigned int start, std::string identifier, unsigned int lineNumber) : LexToken(start, lineNumber), identifier(std::move(identifier)) {
+    IdentifierToken(const TokenPosition& position, std::string identifier) : LexToken(position), identifier(std::move(identifier)) {
 
     }
 

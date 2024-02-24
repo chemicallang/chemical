@@ -56,8 +56,8 @@ FileTracker::onChangedContents(const std::string &path, const std::vector<lsText
         auto change = changes[0];
         auto start = change.range.get().start;
         auto end = change.range.get().end;
-//        std::cout << " change : start : " << start.line << '-' << start.character << " end : " << end.line << '-'
-//                  << end.character << ";";
+        if(DEBUG) std::cout << " change : start : " << start.line << '-' << start.character << " end : " << end.line << '-'
+                  << end.character << ";";
     }
 
     if(DEBUG) std::cout << '\n';

@@ -27,6 +27,14 @@ public:
         return LspSemanticTokenType::ls_operator;
     }
 
+    std::string representation() const override{
+        std::string space;
+        for(int i = 0; i< this->len;i ++) {
+            space += ' ';
+        }
+        return space;
+    }
+
     [[nodiscard]] std::string type_string() const override {
         std::string buf("Whitespace:");
         buf.append(std::to_string(this->len));

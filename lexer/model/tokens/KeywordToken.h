@@ -27,6 +27,10 @@ public:
         return LspSemanticTokenType::ls_keyword;
     }
 
+    std::string representation() const override {
+        return this->keyword;
+    }
+
     [[nodiscard]] std::string type_string() const override {
         std::string buf("Keyword:");
         buf.append(this->keyword);

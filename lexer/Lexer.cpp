@@ -9,12 +9,8 @@
 
 
 std::vector<std::unique_ptr<LexToken>> Lexer::lex(const LexConfig &config) {
-    std::vector<std::unique_ptr<LexToken>> tokens;
-    while (!provider.eof() && provider.peek() != EOF) {
-//        std::cout << "Lex Token Session, Character : " << provider.peek() << std::endl;
-        lexBodyTokens(tokens);
-    }
-    return tokens;
+    lexMultipleStatementsTokens();
+    return std::move(tokens);
 }
 
 TokenPosition Lexer::position() {

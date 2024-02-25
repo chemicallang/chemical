@@ -8,7 +8,7 @@
 #include "lexer/Lexer.h"
 #include "lexer/model/tokens/KeywordToken.h"
 
-bool Lexer::lexHashOperator(std::vector<std::unique_ptr<LexToken>> &tokens) {
+bool Lexer::lexHashOperator() {
     if (provider.increment("#")) {
         tokens.emplace_back(std::make_unique<KeywordToken>(backPosition(1), "#"));
         return true;

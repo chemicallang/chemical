@@ -4,8 +4,7 @@
 // Created by Waqas Tahir on 21/02/2024.
 //
 
-#ifndef CHEMICALVS_STREAMSOURCEPROVIDER_H
-#define CHEMICALVS_STREAMSOURCEPROVIDER_H
+#pragma once
 
 #include <istream>
 #include "SourceProvider.h"
@@ -62,6 +61,25 @@ public:
         } else {
             stream.seekg(position() - 1, std::ios::beg);
             return false;
+        }
+    }
+
+    std::string readAllFromHere() override {
+        std::string source;
+        while(!eof()) {
+            source += readCharacter();
+        }
+        return source;
+    }
+
+    std::string readAllFromBeg()  override  {
+        stream.seekg(0, std::ios::beg);
+        return readAllFromHere();
+    }
+
+    void printAll() override {
+        while(!eof()) {
+            std::cout << readCharacter();
         }
     }
 
@@ -147,5 +165,3 @@ private:
     unsigned int lineCharacterNumber = 0;
 
 };
-
-#endif //CHEMICALVS_STREAMSOURCEPROVIDER_H

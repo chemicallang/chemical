@@ -5,31 +5,31 @@
 #include "lexer/Lexer.h"
 #include "lexer/model/tokens/OperatorToken.h"
 
-std::optional<LexError> Lexer::lexAssignmentTokens(std::vector<std::unique_ptr<LexToken>> &tokens){
+void Lexer::lexAssignmentTokens(){
 
     // lex an identifier token
-    if(!lexIdentifierTokenBool(tokens)) {
-        return std::nullopt;
+    if(!lexIdentifierTokenBool()) {
+        return;
     }
 
     // whitespace
-    lexWhitespaceToken(tokens);
+    lexWhitespaceToken();
 
     // =
     if(provider.increment('=')) {
         tokens.emplace_back(std::make_unique<CharOperatorToken>(backPosition(1), '='));
     } else {
-        return error("expected equal sign '=' for variable assignment");
+        error("expected equal sign '=' for variable assignment");
+        return;
     }
 
     // value
-    if(!lexValueToken(tokens)) {
-        return error("expected a value for variable assignment");
+    if(!lexValueToken()) {
+        error("expected a value for variable assignment");
+        return;
     }
 
     // whitespace
-    lexWhitespaceToken(tokens);
-
-    return std::nullopt;
+    lexWhitespaceToken();
 
 }

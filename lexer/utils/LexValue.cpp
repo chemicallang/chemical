@@ -6,6 +6,6 @@
 
 #include "lexer/Lexer.h"
 
-bool Lexer::lexValueToken(std::vector<std::unique_ptr<LexToken>> &tokens) {
-    return lexIntToken(tokens);
+bool Lexer::lexValueToken() {
+    return lexIntToken();
 }

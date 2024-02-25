@@ -61,6 +61,8 @@ add_executable(ChemicalVS "lexer/Lexer.cpp" "lexer/Lexer.h" "lexer/model/tokens/
         utils/JsonUtils.h
         utils/FileUtils.h
         utils/FileUtils.cpp
+        lexer/model/tokens/StringToken.h
+        lexer/model/tokens/CharToken.h
 )
 
 # Add include directories for LspCpp

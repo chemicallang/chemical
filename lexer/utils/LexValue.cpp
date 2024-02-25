@@ -7,6 +7,7 @@
 #include "lexer/Lexer.h"
 #include "lexer/model/tokens/CharToken.h"
 #include "lexer/model/tokens/StringToken.h"
+#include "lexer/model/tokens/OperatorToken.h"
 
 char escape_sequence(char value) {
     char actualChar;
@@ -73,6 +74,16 @@ bool Lexer::lexCharToken() {
                 error("expected a ' to end a character");
             }
         }
+        return true;
+    } else {
+        return false;
+    }
+}
+
+bool Lexer::lexSemicolonToken() {
+    // semi colon (optional)
+    if (provider.increment(';')) {
+        tokens.emplace_back(std::make_unique<CharOperatorToken>(backPosition(1), ';'));
         return true;
     } else {
         return false;

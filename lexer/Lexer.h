@@ -97,16 +97,17 @@ public:
      * lex declaration or initialization tokens
      * like var x : int; or var x : int = 5;
      * @param tokens
+     * @return whether it was able to lex the tokens for the statement
      */
-    void lexVarInitializationTokens();
+    bool lexVarInitializationTokens();
 
     /**
      * lex assignment tokens
      * like x = 5;
      * @param tokens
-     * @return
+     * @return whether it was able to lex teh tokens for the statement
      */
-    void lexAssignmentTokens();
+    bool lexAssignmentTokens();
 
     /**
      * lex type tokens
@@ -124,8 +125,15 @@ public:
     /**
      * lexes a single statement (of any type)
      * @param tokens
+     * @return whether a statement was lexed successfully
      */
-    void lexStatementTokens();
+    bool lexStatementTokens();
+
+    /**
+     * lexes the semicolon token
+     * @return whether the semicolon token was found
+     */
+    bool lexSemicolonToken();
 
     /**
      * this lexes the tokens inside the body of a structure

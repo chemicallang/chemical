@@ -5,11 +5,11 @@
 #include "lexer/Lexer.h"
 #include "lexer/model/tokens/OperatorToken.h"
 
-void Lexer::lexAssignmentTokens(){
+bool Lexer::lexAssignmentTokens(){
 
     // lex an identifier token
     if(!lexAccessChain()) {
-        return;
+        return false;
     }
 
     // whitespace
@@ -20,7 +20,7 @@ void Lexer::lexAssignmentTokens(){
         tokens.emplace_back(std::make_unique<CharOperatorToken>(backPosition(1), '='));
     } else {
         error("expected equal sign '=' for variable assignment");
-        return;
+        return true;
     }
 
     // whitespace
@@ -29,13 +29,9 @@ void Lexer::lexAssignmentTokens(){
     // value
     if(!lexValueToken()) {
         error("expected a value for variable assignment");
-        return;
+        return true;
     }
 
-    // semi colon (optional)
-    if (provider.peek() == ';') {
-        provider.readCharacter();
-        tokens.emplace_back(std::make_unique<CharOperatorToken>(backPosition(1), ';'));
-    }
+    return true;
 
 }

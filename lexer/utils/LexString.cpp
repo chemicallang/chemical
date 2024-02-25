@@ -6,6 +6,7 @@
 
 #include "lexer/Lexer.h"
 #include "lexer/model/tokens/IdentifierToken.h"
+#include "lexer/model/tokens/OperatorToken.h"
 
 std::string Lexer::lexAnything(char until) {
     std::string str;
@@ -32,4 +33,22 @@ std::string Lexer::lexIdentifierToken() {
     } else {
         return id;
     }
+}
+
+bool Lexer::lexAccessChain() {
+
+    auto id = lexIdentifierToken();
+    if(id.empty()) {
+        return false;
+    }
+
+    while(provider.increment('.')) {
+        tokens.emplace_back(std::make_unique<CharOperatorToken>(backPosition(1), '.'));
+        if(lexIdentifierToken().empty()) {
+            error("expected an identifier after the '.' when lexing an access chain");
+        }
+    }
+
+    return true;
+
 }

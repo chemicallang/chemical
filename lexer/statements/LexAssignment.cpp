@@ -8,7 +8,7 @@
 void Lexer::lexAssignmentTokens(){
 
     // lex an identifier token
-    if(!lexIdentifierTokenBool()) {
+    if(!lexAccessChain()) {
         return;
     }
 
@@ -23,13 +23,19 @@ void Lexer::lexAssignmentTokens(){
         return;
     }
 
+    // whitespace
+    lexWhitespaceToken();
+
     // value
     if(!lexValueToken()) {
         error("expected a value for variable assignment");
         return;
     }
 
-    // whitespace
-    lexWhitespaceToken();
+    // semi colon (optional)
+    if (provider.peek() == ';') {
+        provider.readCharacter();
+        tokens.emplace_back(std::make_unique<CharOperatorToken>(backPosition(1), ';'));
+    }
 
 }

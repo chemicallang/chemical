@@ -78,6 +78,12 @@ public:
     std::string lexIdentifierToken();
 
     /**
+     * this lexes an access chain like x.y.z or just simply an identifier
+     * @return
+     */
+    bool lexAccessChain();
+
+    /**
      * shortcut for lexIdentifierToken, only difference is this returns true if token was lexed
      * @param tokens
      * @param until
@@ -136,6 +142,18 @@ public:
     void lexWhitespaceToken();
 
     /**
+     * lexes a string token, string is enclosed inside double quotes
+     * @return whether a string has been lexed
+     */
+    bool lexStringToken();
+
+    /**
+     * lexes a char token, char is enclosed inside single quotes
+     * @return whether a char has been lexed
+     */
+    bool lexCharToken();
+
+    /**
      * lex an integer token
      * @param tokens
      * @return whether a token was lexed or not
@@ -192,3 +210,10 @@ private:
     bool lexHash = true;
 
 };
+
+/**
+ * when given 'n' as the value, it will return \\n
+ * @param value
+ * @return
+ */
+char escape_sequence(char value);

@@ -10,6 +10,9 @@
 
 #include <utility>
 
+/**
+ * Its named CharOperator because it holds a char, char has no meaning in terms of syntax
+ */
 class CharOperatorToken : public LexToken {
 public:
 

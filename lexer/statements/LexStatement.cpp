@@ -9,12 +9,12 @@
 #include "lexer/model/tokens/LexToken.h"
 #include "lexer/Lexer.h"
 
-void Lexer::lexStatementTokens(std::vector<std::unique_ptr<LexToken>> &tokens) {
-    if (!lexHash || lexHashOperator(tokens)) {
+void Lexer::lexStatementTokens() {
+    if (!lexHash || lexHashOperator()) {
 
-        lexVarInitializationTokens(tokens);
+        lexVarInitializationTokens();
 
-        lexAssignmentTokens(tokens);
+        lexAssignmentTokens();
 
     }
 }
@@ -24,21 +24,24 @@ bool Lexer::lexNewLineChars() {
     if (peak == '\n') {
         provider.readCharacter();
         return true;
-    } else if(peak == '\r') {
+    } else if (peak == '\r') {
         // consuming the \r
         provider.readCharacter();
         // consume also the next \n
-        if(provider.peek() == '\n') provider.readCharacter();
+        if (provider.peek() == '\n') provider.readCharacter();
         return true;
     } else {
         return false;
     }
 }
 
-void Lexer::lexBodyTokens(std::vector<std::unique_ptr<LexToken>> &tokens) {
-    do {
-        lexWhitespaceToken(tokens);
-        lexStatementTokens(tokens);
-        lexWhitespaceToken(tokens);
-    } while (lexNewLineChars());
+void Lexer::lexMultipleStatementsTokens() {
+    while (!provider.eof() && provider.peek() != EOF && !lexError.has_value()) {
+        lexWhitespaceToken();
+        lexStatementTokens();
+        lexWhitespaceToken();
+        if(!lexNewLineChars()) {
+            return;
+        }
+    }
 }

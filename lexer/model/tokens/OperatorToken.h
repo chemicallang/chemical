@@ -27,6 +27,12 @@ public:
         return LspSemanticTokenType::ls_operator;
     }
 
+    std::string representation() const override {
+        std::string ret;
+        ret.append(1, op);
+        return ret;
+    }
+
     [[nodiscard]] std::string type_string() const override {
         std::string ret;
         ret.append("Operator:");

@@ -61,6 +61,23 @@ public:
     virtual bool increment(char c) = 0;
 
     /**
+     * this will read all the text from current position to end in a string and return it
+     * @return
+     */
+    virtual std::string readAllFromHere() = 0;
+
+    /**
+     * reads all the text from the stream from the beginning in a string and returns it
+     * @return
+     */
+    virtual std::string readAllFromBeg() = 0;
+
+    /**
+     * This for debugging, when called, everything from the current position to the end will be printed to cout
+     */
+    virtual void printAll() = 0;
+
+    /**
      * get zero-based current line number
      */
     virtual unsigned int getLineNumber() const = 0;

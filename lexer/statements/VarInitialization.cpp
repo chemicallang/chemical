@@ -11,23 +11,25 @@
 #include "lexer/model/tokens/KeywordToken.h"
 #include "lexer/model/tokens/IdentifierToken.h"
 #include "lexer/model/tokens/OperatorToken.h"
+#include "utils/FileUtils.h"
 
-std::optional<LexError> Lexer::lexVarInitializationTokens(std::vector<std::unique_ptr<LexToken>> &tokens) {
+void Lexer::lexVarInitializationTokens() {
     if (provider.increment("var")) {
 
         // var
         tokens.emplace_back(std::make_unique<KeywordToken>(backPosition(3), "var"));
 
         // whitespace
-        lexWhitespaceToken(tokens);
+        lexWhitespaceToken();
 
         // identifier
-        if(!lexIdentifierTokenBool(tokens)) {
-            return error("expected an identifier for variable initialization");
+        if(!lexIdentifierTokenBool()) {
+            error("expected an identifier for variable initialization");
+            return;
         }
 
         // whitespace
-        lexWhitespaceToken(tokens);
+        lexWhitespaceToken();
 
         // :
         if(provider.increment(':')) {
@@ -36,13 +38,13 @@ std::optional<LexError> Lexer::lexVarInitializationTokens(std::vector<std::uniqu
             tokens.emplace_back(std::make_unique<CharOperatorToken>(backPosition(1), ':'));
 
             // whitespace
-            lexWhitespaceToken(tokens);
+            lexWhitespaceToken();
 
             // type
-            lexTypeTokens(tokens);
+            lexTypeTokens();
 
             // whitespace
-            lexWhitespaceToken(tokens);
+            lexWhitespaceToken();
 
         }
 
@@ -54,18 +56,19 @@ std::optional<LexError> Lexer::lexVarInitializationTokens(std::vector<std::uniqu
             // lex the optional semicolon when ending declaration
             if (provider.increment(';')) {
                 tokens.emplace_back(std::make_unique<CharOperatorToken>(backPosition(1), ';'));
-                return std::nullopt;
+                return;
             }
 
-            return std::nullopt;
+            return;
         }
 
         // whitespace
-        lexWhitespaceToken(tokens);
+        lexWhitespaceToken();
 
         // value
-        if(!lexValueToken(tokens)){
-            return error("expected a value for variable initialization");
+        if(!lexValueToken()){
+            error("expected a value for variable initialization");
+            return;
         }
 
         // semi colon (optional)
@@ -75,7 +78,5 @@ std::optional<LexError> Lexer::lexVarInitializationTokens(std::vector<std::uniqu
         }
 
     }
-
-    return std::nullopt;
 
 }

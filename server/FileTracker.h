@@ -32,6 +32,13 @@ public:
     std::vector<std::unique_ptr<LexToken>> getLexedFile(const std::string& path, const LexConfig& config);
 
     /**
+     * Returns the overridden source code for file at path
+     * @param path
+     * @return
+     */
+    std::string getOverriddenSource(const std::string& path);
+
+    /**
      * stores the overridden (changed) contents of the file \n
      * This happens when user has changes in the IDE that aren't present on the file in disk \n
      * so next time when lexing is performed, it returns lexing using overridden contents \n

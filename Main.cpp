@@ -41,6 +41,7 @@
 #include "utils/PrintUtils.h"
 #include "lexer/LexConfig.h"
 #include "server/FileTracker.h"
+#include "utils/FileUtils.h"
 
 using namespace boost::asio::ip;
 using namespace std;
@@ -51,6 +52,7 @@ using namespace lsp;
 #include <atomic>
 #include <functional>
 #include <boost/asio.hpp>
+#include "utils/JsonUtils.h"
 
 class DummyLog : public lsp::Log {
 public:
@@ -452,6 +454,7 @@ public:
 ////				}
 //            return std::move(rsp);
 //        });
+        auto x = 0;
         _sp.registerHandler([&](const td_semanticTokens_full::request &req,
                                 const CancelMonitor &monitor)
                                     -> lsp::ResponseOrError<td_semanticTokens_full::response> {
@@ -464,9 +467,15 @@ public:
 
 //            _log.log(lsp::Log::Level::INFO, "lexing the file");
 
-            auto lexed = fileTracker.getLexedFile(req.params.textDocument.uri.GetAbsolutePath().path, config);
+            auto path = req.params.textDocument.uri.GetAbsolutePath().path;
 
-            printTokens(lexed);
+            // Writing the source code to a debug file
+//            writeToProjectFile("debug/source.txt", fileTracker.getOverriddenSource(path));
+
+            // Writing the source code as ascii to a debug file
+//            writeAsciiToProjectFile("debug/ascii.txt", fileTracker.getOverriddenSource(path));
+
+            auto lexed = fileTracker.getLexedFile(path, config);
 
             _log.log(lsp::Log::Level::INFO, "transforming tokens");
 
@@ -490,8 +499,8 @@ public:
                 prevTokenLineNumber = token->lineNumber();
             }
 
-//             print tokens
-//            printTokens(toks);
+//            JsonUtils utils;
+//            utils.serialize("debug/tokens.json", lexed);
 
             _log.log(lsp::Log::Level::INFO, "sending response");
 

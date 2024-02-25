@@ -21,14 +21,26 @@ class Lexer {
 public:
 
     SourceProvider &provider;
+
     std::string path;
 
-    explicit Lexer(SourceProvider &provider, std::string  path) : provider(provider), path(std::move(path)) {
+    std::vector<std::unique_ptr<LexToken>> tokens;
+
+    std::optional<LexError> lexError = std::nullopt;
+
+    inline bool isDebug(){ return true; };
+
+    inline bool addWhitespaceToken() { return false; }
+
+    explicit Lexer(SourceProvider &provider, std::string path) : provider(provider), path(std::move(path)) {
 
     }
 
     /**
-     * lex everything to LexTokens
+     * lex everything to LexTokens, return with ownership
+     *
+     * Since this just moves the tokens to you, the tokens member becomes invalid
+     * So accessing member tokens can lead to an error, if not initialized before using Lexer
      * @return
      */
     virtual std::vector<std::unique_ptr<LexToken>> lex(const LexConfig &config);
@@ -63,7 +75,7 @@ public:
      * only lexes the token if the identifier is not empty
      * @return
      */
-    std::string lexIdentifierToken(std::vector<std::unique_ptr<LexToken>> &tokens);
+    std::string lexIdentifierToken();
 
     /**
      * shortcut for lexIdentifierToken, only difference is this returns true if token was lexed
@@ -71,8 +83,8 @@ public:
      * @param until
      * @return
      */
-    inline bool lexIdentifierTokenBool(std::vector<std::unique_ptr<LexToken>> &tokens) {
-        return !lexIdentifierToken(tokens).empty();
+    inline bool lexIdentifierTokenBool() {
+        return !lexIdentifierToken().empty();
     }
 
     /**
@@ -80,7 +92,7 @@ public:
      * like var x : int; or var x : int = 5;
      * @param tokens
      */
-    std::optional<LexError> lexVarInitializationTokens(std::vector<std::unique_ptr<LexToken>> &tokens);
+    void lexVarInitializationTokens();
 
     /**
      * lex assignment tokens
@@ -88,53 +100,53 @@ public:
      * @param tokens
      * @return
      */
-    std::optional<LexError> lexAssignmentTokens(std::vector<std::unique_ptr<LexToken>> &tokens);
+    void lexAssignmentTokens();
 
     /**
      * lex type tokens
      * @param tokens
      */
-    void lexTypeTokens(std::vector<std::unique_ptr<LexToken>> &tokens);
+    void lexTypeTokens();
 
     /**
      * lex preprocess
      * @param tokens
      * @return whether the has token was lexed or not
      */
-    bool lexHashOperator(std::vector<std::unique_ptr<LexToken>> &tokens);
+    bool lexHashOperator();
 
     /**
      * lexes a single statement (of any type)
      * @param tokens
      */
-    void lexStatementTokens(std::vector<std::unique_ptr<LexToken>> &tokens);
+    void lexStatementTokens();
 
     /**
      * this lexes the tokens inside the body of a structure
      * this basically lexes multiple statements
      * @param tokens
      */
-    void lexBodyTokens(std::vector<std::unique_ptr<LexToken>> &tokens);
+    void lexMultipleStatementsTokens();
 
     /**
      * lex whitespace tokens
      * @param tokens
      * @return
      */
-    void lexWhitespaceToken(std::vector<std::unique_ptr<LexToken>> &tokens);
+    void lexWhitespaceToken();
 
     /**
      * lex an integer token
      * @param tokens
      * @return whether a token was lexed or not
      */
-    bool lexIntToken(std::vector<std::unique_ptr<LexToken>> &tokens);
+    bool lexIntToken();
 
     /**
      * lexes value tokens like integer, string
      * @param tokens
      */
-    bool lexValueToken(std::vector<std::unique_ptr<LexToken>> &tokens);
+    bool lexValueToken();
 
     /**
      * All the chars that cause new line
@@ -147,7 +159,7 @@ public:
      * returns a lexing error at current position with the path of current file being lexed
      * @return
      */
-    LexError error(const std::string& message);
+    void error(const std::string& message);
 
     /**
      * returns the token position at the very current position
@@ -176,6 +188,7 @@ public:
     }
 
 private:
+
     bool lexHash = true;
 
 };

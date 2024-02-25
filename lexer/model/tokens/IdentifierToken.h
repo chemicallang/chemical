@@ -27,6 +27,10 @@ public:
         return LspSemanticTokenType::ls_variable;
     }
 
+    std::string representation() const override {
+        return this->identifier;
+    }
+
     [[nodiscard]] std::string type_string() const override {
         std::string buf("Identifier:");
         buf.append(this->identifier);

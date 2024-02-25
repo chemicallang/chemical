@@ -10,6 +10,11 @@
 #include <utility>
 #include "lexer/minLsp/SemanticTokens.h"
 #include "lexer/model/TokenPosition.h"
+//#include "rapidjson\rapidjson.h"
+#include "rapidjson\document.h"		// rapidjson's DOM-style API
+#include "rapidjson/writer.h"
+//#include "rapidjson\stringbuffer.h"	// wrapper of C stream for prettywriter as output
+//#include "rapidjson\prettywriter.h"	// for stringify JSON
 
 class LexToken {
 public:
@@ -36,12 +41,48 @@ public:
         return position.lineCharNumber;
     }
 
+    /**
+     * string length of the token
+     * @return
+     */
     virtual unsigned int length() const = 0;
 
+    /**
+     * lsp  semantic token type
+     * @return
+     */
     virtual LspSemanticTokenType lspType() const = 0;
 
+    /**
+     * this function returns the actual representation of the token in the source code
+     * @return
+     */
+    virtual std::string representation() const = 0;
+
+    /**
+     * type string for token (debugging)
+     * @return
+     */
     virtual std::string type_string() const = 0;
 
+    /**
+     * content of the token, for example string token can contain ('some name')
+     * @return
+     */
     virtual std::string content() const = 0;
+
+//    /**
+//     * deserialize the token
+//     * @param obj
+//     * @return
+//     */
+//    virtual bool deserialize(const rapidjson::Value& obj) = 0;
+//
+//    /**
+//     * serialize the token
+//     * @param writer
+//     * @return
+//     */
+//    virtual bool serialize(rapidjson::Writer<rapidjson::StringBuffer>* writer) const = 0;
 
 };

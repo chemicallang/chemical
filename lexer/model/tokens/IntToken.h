@@ -27,6 +27,10 @@ public:
         return LspSemanticTokenType::ls_number;
     }
 
+    std::string representation() const override {
+        return std::to_string(value);
+    }
+
     [[nodiscard]] std::string type_string() const override {
         std::string buf("Int:");
         buf.append(std::to_string(value));

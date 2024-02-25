@@ -7,7 +7,7 @@
 #include "lexer/Lexer.h"
 #include "lexer/model/tokens/TypeToken.h"
 
-void Lexer::lexTypeTokens(std::vector<std::unique_ptr<LexToken>> &tokens) {
+void Lexer::lexTypeTokens() {
     auto type = provider.readUntil(' ');
     if (!type.empty()) {
         tokens.emplace_back(std::make_unique<TypeToken>(backPosition(type.length()), type));

@@ -24,7 +24,7 @@ std::string Lexer::lexAlphaNum() {
     return str;
 }
 
-std::string Lexer::lexIdentifierToken(std::vector<std::unique_ptr<LexToken>> &tokens) {
+std::string Lexer::lexIdentifierToken() {
     auto id = lexAlphaNum();
     if(!id.empty()) {
         tokens.emplace_back(std::make_unique<IdentifierToken>(backPosition(id.length()), id));

@@ -40,17 +40,17 @@ std::optional<int> Lexer::lexInt(bool intOnly) {
     return std::nullopt;
 }
 
-bool Lexer::lexIntToken(std::vector<std::unique_ptr<LexToken>> &tokens) {
+bool Lexer::lexIntToken() {
     auto prevPos = position();
     auto lexedInt = lexInt();
     if (lexedInt.has_value()) {
-        tokens.emplace_back(std::make_unique<IntToken>(prevPos, provider.position(), lexedInt.value()));
+        tokens.emplace_back(std::make_unique<IntToken>(prevPos, provider.position() - prevPos.position, lexedInt.value()));
         return true;
     } else {
         return false;
     }
 }
 
-LexError Lexer::error(const std::string& message) {
-    return {provider.getStreamPosition(), path, message};
+void Lexer::error(const std::string& message) {
+    lexError = {provider.getStreamPosition(), path, message};
 }

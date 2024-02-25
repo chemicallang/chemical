@@ -27,6 +27,10 @@ public:
         return LspSemanticTokenType::ls_type;
     }
 
+    std::string representation() const override {
+        return this->type;
+    }
+
     [[nodiscard]] std::string type_string() const override {
         std::string buf("Type:");
         buf.append(type);

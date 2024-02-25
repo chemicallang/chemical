@@ -13,70 +13,66 @@
 #include "lexer/model/tokens/OperatorToken.h"
 #include "utils/FileUtils.h"
 
-void Lexer::lexVarInitializationTokens() {
-    if (provider.increment("var")) {
+bool Lexer::lexVarInitializationTokens() {
 
-        // var
-        tokens.emplace_back(std::make_unique<KeywordToken>(backPosition(3), "var"));
+    if (!provider.increment("var")) {
+        return false;
+    }
 
-        // whitespace
-        lexWhitespaceToken();
+    // var
+    tokens.emplace_back(std::make_unique<KeywordToken>(backPosition(3), "var"));
 
-        // identifier
-        if(!lexIdentifierTokenBool()) {
-            error("expected an identifier for variable initialization");
-            return;
-        }
+    // whitespace
+    lexWhitespaceToken();
 
-        // whitespace
-        lexWhitespaceToken();
+    // identifier
+    if (!lexIdentifierTokenBool()) {
+        error("expected an identifier for variable initialization");
+        return true;
+    }
 
-        // :
-        if(provider.increment(':')) {
+    // whitespace
+    lexWhitespaceToken();
 
-            // operator :
-            tokens.emplace_back(std::make_unique<CharOperatorToken>(backPosition(1), ':'));
+    // :
+    if (provider.increment(':')) {
 
-            // whitespace
-            lexWhitespaceToken();
-
-            // type
-            lexTypeTokens();
-
-            // whitespace
-            lexWhitespaceToken();
-
-        }
-
-        // equal sign
-        if (provider.increment('=')) {
-            tokens.emplace_back(std::make_unique<CharOperatorToken>(backPosition(1), '='));
-        } else {
-
-            // lex the optional semicolon when ending declaration
-            if (provider.increment(';')) {
-                tokens.emplace_back(std::make_unique<CharOperatorToken>(backPosition(1), ';'));
-                return;
-            }
-
-            return;
-        }
+        // operator :
+        tokens.emplace_back(std::make_unique<CharOperatorToken>(backPosition(1), ':'));
 
         // whitespace
         lexWhitespaceToken();
 
-        // value
-        if(!lexValueToken()){
-            error("expected a value for variable initialization");
-            return;
-        }
+        // type
+        lexTypeTokens();
 
-        // semi colon (optional)
-        if (provider.peek() == ';') {
-            provider.readCharacter();
+        // whitespace
+        lexWhitespaceToken();
+
+    }
+
+    // equal sign
+    if (provider.increment('=')) {
+        tokens.emplace_back(std::make_unique<CharOperatorToken>(backPosition(1), '='));
+    } else {
+
+        // lex the optional semicolon when ending declaration
+        if (provider.increment(';')) {
             tokens.emplace_back(std::make_unique<CharOperatorToken>(backPosition(1), ';'));
         }
 
+        return true;
     }
+
+    // whitespace
+    lexWhitespaceToken();
+
+    // value
+    if (!lexValueToken()) {
+        error("expected a value for variable initialization");
+        return true;
+    }
+
+    return true;
 
 }

@@ -6,16 +6,14 @@
 
 #include <memory>
 #include <vector>
-#include "lexer/model/tokens/LexToken.h"
 #include "lexer/Lexer.h"
 
-void Lexer::lexStatementTokens() {
+bool Lexer::lexStatementTokens() {
     if (!lexHash || lexHashOperator()) {
-
-        lexVarInitializationTokens();
-
+        return lexVarInitializationTokens() ||
         lexAssignmentTokens();
-
+    } else {
+        return false;
     }
 }
 
@@ -38,7 +36,10 @@ bool Lexer::lexNewLineChars() {
 void Lexer::lexMultipleStatementsTokens() {
     while (!provider.eof() && provider.peek() != EOF && !lexError.has_value()) {
         lexWhitespaceToken();
-        lexStatementTokens();
+        do {
+            lexStatementTokens();
+            lexWhitespaceToken();
+        } while(lexSemicolonToken());
         lexWhitespaceToken();
         if(!lexNewLineChars()) {
             return;

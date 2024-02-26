@@ -7,7 +7,7 @@
 #include "lexer/Lexer.h"
 #include "lexer/model/tokens/CharToken.h"
 #include "lexer/model/tokens/StringToken.h"
-#include "lexer/model/tokens/OperatorToken.h"
+#include "lexer/model/tokens/CharOperatorToken.h"
 
 char escape_sequence(char value) {
     char actualChar;
@@ -80,37 +80,10 @@ bool Lexer::lexCharToken() {
     }
 }
 
-bool Lexer::lexSemicolonToken() {
-    // semi colon (optional)
-    if (provider.increment(';')) {
-        tokens.emplace_back(std::make_unique<CharOperatorToken>(backPosition(1), ';'));
-        return true;
-    } else {
-        return false;
-    }
-}
-
-bool Lexer::lexStringToken() {
-    if(provider.increment('"')) {
-        std::string str;
-        while(!provider.eof() && !lexError.has_value()){
-            auto readChar = provider.peek();
-            if(readChar == '"') {
-                provider.readCharacter();
-                tokens.emplace_back(std::make_unique<StringToken>(backPosition(str.length() + 2), str));
-                return true;
-            } else if(readChar == '\\') {
-                provider.readCharacter();
-                str += escape_sequence(provider.readCharacter());
-            } else {
-                provider.readCharacter();
-                str += readChar;
-            }
-        }
-    }
-    return false;
-}
-
 bool Lexer::lexValueToken() {
     return lexCharToken() || lexStringToken() || lexIntToken();
+}
+
+bool Lexer::lexAccessChainOrValue() {
+    return lexValueToken() || lexAccessChain();
 }

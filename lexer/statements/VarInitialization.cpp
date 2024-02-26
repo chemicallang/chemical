@@ -10,17 +10,14 @@
 #include "lexer/Lexer.h"
 #include "lexer/model/tokens/KeywordToken.h"
 #include "lexer/model/tokens/IdentifierToken.h"
-#include "lexer/model/tokens/OperatorToken.h"
+#include "lexer/model/tokens/CharOperatorToken.h"
 #include "utils/FileUtils.h"
 
-bool Lexer::lexVarInitializationTokens() {
+bool Lexer::lexVarInitializationTokens(bool allowDeclarations) {
 
-    if (!provider.increment("var")) {
+    if (!lexKeywordToken("var")) {
         return false;
     }
-
-    // var
-    tokens.emplace_back(std::make_unique<KeywordToken>(backPosition(3), "var"));
 
     // whitespace
     lexWhitespaceToken();
@@ -35,10 +32,7 @@ bool Lexer::lexVarInitializationTokens() {
     lexWhitespaceToken();
 
     // :
-    if (provider.increment(':')) {
-
-        // operator :
-        tokens.emplace_back(std::make_unique<CharOperatorToken>(backPosition(1), ':'));
+    if (lexOperatorToken(':')) {
 
         // whitespace
         lexWhitespaceToken();
@@ -52,15 +46,12 @@ bool Lexer::lexVarInitializationTokens() {
     }
 
     // equal sign
-    if (provider.increment('=')) {
-        tokens.emplace_back(std::make_unique<CharOperatorToken>(backPosition(1), '='));
-    } else {
-
-        // lex the optional semicolon when ending declaration
-        if (provider.increment(';')) {
-            tokens.emplace_back(std::make_unique<CharOperatorToken>(backPosition(1), ';'));
+    if (!lexOperatorToken('=')) {
+        if(allowDeclarations) {
+            lexOperatorToken(';');
+        } else {
+            error("expected an = sign for the initialization of the variable");
         }
-
         return true;
     }
 

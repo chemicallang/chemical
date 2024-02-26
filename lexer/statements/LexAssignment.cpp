@@ -3,7 +3,7 @@
 #include <vector>
 #include <memory>
 #include "lexer/Lexer.h"
-#include "lexer/model/tokens/OperatorToken.h"
+#include "lexer/model/tokens/CharOperatorToken.h"
 
 bool Lexer::lexAssignmentTokens(){
 
@@ -12,13 +12,16 @@ bool Lexer::lexAssignmentTokens(){
         return false;
     }
 
+    // increment or decrement
+    if(lexOperatorToken("++") || lexOperatorToken("--")) {
+        return true;
+    }
+
     // whitespace
     lexWhitespaceToken();
 
     // =
-    if(provider.increment('=')) {
-        tokens.emplace_back(std::make_unique<CharOperatorToken>(backPosition(1), '='));
-    } else {
+    if(!lexOperatorToken('=')) {
         error("expected equal sign '=' for variable assignment");
         return true;
     }

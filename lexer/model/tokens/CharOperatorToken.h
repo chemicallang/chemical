@@ -11,7 +11,8 @@
 #include <utility>
 
 /**
- * Its named CharOperator because it holds a char, char has no meaning in terms of syntax
+ * Its named CharOperator because it holds a char, Char has no meaning in terms of syntax
+ * The length of this token is always one
  */
 class CharOperatorToken : public LexToken {
 public:

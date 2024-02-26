@@ -4,17 +4,24 @@
 // Created by Waqas Tahir on 16/02/2024.
 //
 
-#include <memory>
-#include <vector>
 #include "lexer/Lexer.h"
 
 bool Lexer::lexStatementTokens() {
     if (!lexHash || lexHashOperator()) {
-        return lexVarInitializationTokens() ||
-        lexAssignmentTokens();
+        return lexSingleLineCommentTokens() ||
+               lexMultiLineCommentTokens() ||
+               lexVarInitializationTokens() ||
+               lexIfBlockTokens() ||
+               lexForBlockTokens() ||
+               lexWhileBlockTokens() ||
+               lexAssignmentTokens();
     } else {
         return false;
     }
+}
+
+bool Lexer::hasNewLine() {
+    return provider.peek() == '\n' || provider.peek() == '\r';
 }
 
 bool Lexer::lexNewLineChars() {
@@ -34,15 +41,13 @@ bool Lexer::lexNewLineChars() {
 }
 
 void Lexer::lexMultipleStatementsTokens() {
-    while (!provider.eof() && provider.peek() != EOF && !lexError.has_value()) {
-        lexWhitespaceToken();
+    do {
         do {
-            lexStatementTokens();
             lexWhitespaceToken();
-        } while(lexSemicolonToken());
-        lexWhitespaceToken();
-        if(!lexNewLineChars()) {
-            return;
-        }
-    }
+            if (!lexStatementTokens()) {
+                break;
+            }
+            lexWhitespaceToken();
+        } while (lexOperatorToken(';') && !lexError.has_value());
+    } while (lexNewLineChars());
 }

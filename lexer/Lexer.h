@@ -16,6 +16,7 @@
 #include "lexer/model/TokenPosition.h"
 #include <memory>
 #include <optional>
+#include <functional>
 
 class Lexer {
 public:
@@ -30,7 +31,7 @@ public:
 
     inline bool isDebug(){ return true; };
 
-    inline bool addWhitespaceToken() { return false; }
+    inline bool shouldAddWhitespaceToken() { return false; }
 
     explicit Lexer(SourceProvider &provider, std::string path) : provider(provider), path(std::move(path)) {
 
@@ -57,6 +58,13 @@ public:
      * @return the number of whitespaces ' ' read
      */
     unsigned int lexWhitespace();
+
+    /**
+     * lexes anything as long as when lambda returns true
+     * @return
+     */
+    template <typename TFunc>
+    std::string lexAnything(TFunc when);
 
     /**
      * lex all characters into a string until char occurs
@@ -94,12 +102,14 @@ public:
     }
 
     /**
-     * lex declaration or initialization tokens
+     * lex allowDeclarations or initialization tokens
      * like var x : int; or var x : int = 5;
      * @param tokens
+     * @param allowDeclarations when true, it will allow allowDeclarations only without the value initialization
+     * like #var x : int; when false however, it'll be strict initialization
      * @return whether it was able to lex the tokens for the statement
      */
-    bool lexVarInitializationTokens();
+    bool lexVarInitializationTokens(bool allowDeclarations = true);
 
     /**
      * lex assignment tokens
@@ -120,7 +130,9 @@ public:
      * @param tokens
      * @return whether the has token was lexed or not
      */
-    bool lexHashOperator();
+    inline bool lexHashOperator() {
+        return lexKeywordToken("#");
+    }
 
     /**
      * lexes a single statement (of any type)
@@ -130,10 +142,37 @@ public:
     bool lexStatementTokens();
 
     /**
-     * lexes the semicolon token
-     * @return whether the semicolon token was found
+     * lexes the given operator as length 1 character operator token
+     * @param op
+     * @return whether the token was found
      */
-    bool lexSemicolonToken();
+    bool lexOperatorToken(char op);
+
+    /**
+     * lexes the given operator as a string operator token
+     * @param op
+     * @return whether the token was found
+     */
+    bool lexOperatorToken(const std::string& op);
+
+    /**
+     * lexes a keyword token for the given keyword
+     * @param keyword
+     * @return  whether the keyword was found
+     */
+    bool lexKeywordToken(const std::string& keyword);
+
+    /**
+     * lexes a conditional operator like >,<,>=,<=
+     * @return whether the conditional operator was found
+     */
+    bool lexConditionalOperator();
+
+    /**
+     * lexes a conditional statement at the current position
+     * @return whether the conditional statement was found
+     */
+    bool lexConditionalStatement();
 
     /**
      * this lexes the tokens inside the body of a structure
@@ -141,6 +180,36 @@ public:
      * @param tokens
      */
     void lexMultipleStatementsTokens();
+
+    /**
+     * lex single comment comment
+     */
+    bool lexSingleLineCommentTokens();
+
+    /**
+     * lex multi line comment tokens
+     */
+    bool lexMultiLineCommentTokens();
+
+    /**
+     * lexes a brace block, { statement(s) }
+     */
+    bool lexBraceBlock();
+
+    /**
+     * lex if block
+     */
+     bool lexIfBlockTokens();
+
+     /**
+      * lex while block
+      */
+     bool lexWhileBlockTokens();
+
+     /**
+      * lex for block tokens
+      */
+     bool lexForBlockTokens();
 
     /**
      * lex whitespace tokens
@@ -173,6 +242,18 @@ public:
      * @param tokens
      */
     bool lexValueToken();
+
+    /**
+     * lexes access chain like x.y.z or a value like 10, could be int, string, char
+     * @return
+     */
+    bool lexAccessChainOrValue();
+
+    /**
+     * check if there's a new line at current position
+     * @return true if there's a newline otherwise false
+     */
+    bool hasNewLine();
 
     /**
      * All the chars that cause new line
@@ -225,3 +306,17 @@ private:
  * @return
  */
 char escape_sequence(char value);
+
+/**
+ * The implementation for lexAnything
+ * This is required in header because of template usage
+ */
+template <typename TFunc>
+std::string Lexer::lexAnything(TFunc when) {
+    std::string str;
+    while (!provider.eof() && when()) {
+        char x = provider.readCharacter();
+        str.append(1, x);
+    }
+    return str;
+}

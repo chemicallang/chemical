@@ -6,49 +6,26 @@
 
 #include "lexer/Lexer.h"
 #include "lexer/model/tokens/IdentifierToken.h"
-#include "lexer/model/tokens/OperatorToken.h"
+#include "lexer/model/tokens/CharOperatorToken.h"
+#include "lexer/model/tokens/StringToken.h"
 
-std::string Lexer::lexAnything(char until) {
-    std::string str;
-    while (!provider.eof() && provider.peek() != until) {
-        char x = provider.readCharacter();
-        str.append(1, x);
-    }
-    return str;
-}
-
-std::string Lexer::lexAlphaNum() {
-    std::string str;
-    while (!provider.eof() && std::isalnum(provider.peek())) {
-        str.append(1, provider.readCharacter());
-    }
-    return str;
-}
-
-std::string Lexer::lexIdentifierToken() {
-    auto id = lexAlphaNum();
-    if(!id.empty()) {
-        tokens.emplace_back(std::make_unique<IdentifierToken>(backPosition(id.length()), id));
-        return id;
-    } else {
-        return id;
-    }
-}
-
-bool Lexer::lexAccessChain() {
-
-    auto id = lexIdentifierToken();
-    if(id.empty()) {
-        return false;
-    }
-
-    while(provider.increment('.')) {
-        tokens.emplace_back(std::make_unique<CharOperatorToken>(backPosition(1), '.'));
-        if(lexIdentifierToken().empty()) {
-            error("expected an identifier after the '.' when lexing an access chain");
+bool Lexer::lexStringToken() {
+    if(provider.increment('"')) {
+        std::string str;
+        while(!provider.eof() && !lexError.has_value()){
+            auto readChar = provider.peek();
+            if(readChar == '"') {
+                provider.readCharacter();
+                tokens.emplace_back(std::make_unique<StringToken>(backPosition(str.length() + 2), str));
+                return true;
+            } else if(readChar == '\\') {
+                provider.readCharacter();
+                str += escape_sequence(provider.readCharacter());
+            } else {
+                provider.readCharacter();
+                str += readChar;
+            }
         }
     }
-
-    return true;
-
+    return false;
 }

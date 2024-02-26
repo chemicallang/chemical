@@ -25,9 +25,23 @@ bool Lexer::lexAccessChain() {
         return false;
     }
 
+    while(lexOperatorToken('[')) {
+        lexWhitespaceToken();
+        if(!lexExpressionTokens()) {
+            error("expected an expression in indexing operators for access chain");
+            return true;
+        }
+        lexWhitespaceToken();
+        if(!lexOperatorToken(']')) {
+            error("expected a closing bracket ] in access chain");
+            return true;
+        }
+    }
+
     while(lexOperatorToken('.')) {
-        if(lexIdentifierToken().empty()) {
-            error("expected an identifier after the '.' when lexing an access chain");
+        if(!lexAccessChain()){
+            error("expected a identifier after the dot . in the access chain");
+            return true;
         }
     }
 

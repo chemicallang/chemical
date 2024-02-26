@@ -80,8 +80,12 @@ bool Lexer::lexCharToken() {
     }
 }
 
+bool Lexer::lexBoolToken() {
+    return lexKeywordToken("true") || lexKeywordToken("false");
+}
+
 bool Lexer::lexValueToken() {
-    return lexCharToken() || lexStringToken() || lexIntToken();
+    return lexCharToken() || lexStringToken() || lexIntToken() || lexBoolToken();
 }
 
 bool Lexer::lexAccessChainOrValue() {

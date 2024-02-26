@@ -248,6 +248,12 @@ public:
     bool lexCharToken();
 
     /**
+     * lexes a bool, true or false
+     * @return whether a bool has been lexed
+     */
+    bool lexBoolToken();
+
+    /**
      * lex an integer token
      * @param tokens
      * @return whether a token was lexed or not

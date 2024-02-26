@@ -5,6 +5,19 @@
 #include "lexer/Lexer.h"
 #include "lexer/model/tokens/CharOperatorToken.h"
 
+bool Lexer::lexLanguageOperatorToken() {
+    return lexOperatorToken('+') ||
+           lexOperatorToken('-') ||
+           lexOperatorToken('*') ||
+           lexOperatorToken('/') ||
+           lexOperatorToken('%') ||
+           lexOperatorToken('&') ||
+           lexOperatorToken('|') ||
+           lexOperatorToken('^') ||
+           lexOperatorToken("<<") ||
+           lexOperatorToken(">>");
+}
+
 bool Lexer::lexAssignmentTokens() {
 
     // lex an identifier token
@@ -22,16 +35,7 @@ bool Lexer::lexAssignmentTokens() {
 
 
     // lex the operator before the equal sign
-    lexOperatorToken('+') ||
-    lexOperatorToken('-') ||
-    lexOperatorToken('*') ||
-    lexOperatorToken('/') ||
-    lexOperatorToken('%') ||
-    lexOperatorToken('&') ||
-    lexOperatorToken('|') ||
-    lexOperatorToken('^') ||
-    lexOperatorToken("<<") ||
-    lexOperatorToken(">>");
+    lexLanguageOperatorToken();
 
     // =
     if (!lexOperatorToken('=')) {
@@ -43,7 +47,7 @@ bool Lexer::lexAssignmentTokens() {
     lexWhitespaceToken();
 
     // value
-    if (!lexValueToken()) {
+    if (!lexExpressionTokens()) {
         error("expected a value for variable assignment");
         return true;
     }

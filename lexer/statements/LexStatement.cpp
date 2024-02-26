@@ -14,6 +14,7 @@ bool Lexer::lexStatementTokens() {
                lexIfBlockTokens() ||
                lexForBlockTokens() ||
                lexWhileBlockTokens() ||
+               lexFunctionStructureTokens() ||
                lexAssignmentTokens();
     } else {
         return false;

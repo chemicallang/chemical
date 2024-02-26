@@ -120,6 +120,13 @@ public:
     bool lexAssignmentTokens();
 
     /**
+     * lexes a single language operator token
+     * like +, -
+     * @return whether the language operator token has been lexed
+     */
+    bool lexLanguageOperatorToken();
+
+    /**
      * lex type tokens
      * @param tokens
      */
@@ -271,6 +278,19 @@ public:
      * @return
      */
     bool lexAccessChainOrValue();
+
+    /**
+     * lexes remaining expression, this is used by lexExpressionTokens
+     * this lexes the expression tokens after the first identifier / value
+     * for example in expression a + b, after lexing a + b will lexed by this function
+     */
+    void lexRemainingExpression();
+
+    /**
+     * lexes an expression token which can contain access chain and values
+     * @return whether an expression has been lexed, the expression can also be a single identifier or value
+     */
+    bool lexExpressionTokens();
 
     /**
      * check if there's a new line at current position

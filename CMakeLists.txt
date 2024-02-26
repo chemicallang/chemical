@@ -30,7 +30,7 @@ find_package(Boost 1.84 COMPONENTS program_options filesystem REQUIRED)
 add_subdirectory(LspCpp)
 
 # Add path to this project's executable.
-add_executable(ChemicalVS "lexer/Lexer.cpp" "lexer/Lexer.h" "lexer/model/tokens/OperatorToken.h" "lexer/model/tokens/IdentifierToken.h" "lexer/model/tokens/IntToken.h" "lexer/model/tokens/KeywordToken.h" "lexer/model/tokens/LexToken.h" "lexer/model/tokens/WhitespaceToken.h" "SourceProvider.h"
+add_executable(ChemicalVS "lexer/Lexer.cpp" "lexer/Lexer.h" "lexer/model/tokens/CharOperatorToken.h" "lexer/model/tokens/IdentifierToken.h" "lexer/model/tokens/IntToken.h" "lexer/model/tokens/KeywordToken.h" "lexer/model/tokens/LexToken.h" "lexer/model/tokens/WhitespaceToken.h" "SourceProvider.h"
         utils/Lexi.h
         Main.cpp
         utils/PrintUtils.h
@@ -39,7 +39,6 @@ add_executable(ChemicalVS "lexer/Lexer.cpp" "lexer/Lexer.h" "lexer/model/tokens/
         lexer/statements/LexAssignment.cpp
         lexer/statements/VarInitialization.cpp
         lexer/statements/VarInitialization.cpp
-        lexer/statements/LexPreprocess.cpp
         lexer/statements/LexStatement.cpp
         lexer/utils/LexWhitespace.cpp
         lexer/utils/LexString.cpp
@@ -63,6 +62,17 @@ add_executable(ChemicalVS "lexer/Lexer.cpp" "lexer/Lexer.h" "lexer/model/tokens/
         utils/FileUtils.cpp
         lexer/model/tokens/StringToken.h
         lexer/model/tokens/CharToken.h
+        lexer/statements/Comment.cpp
+        lexer/model/tokens/CommentToken.h
+        lexer/utils/Helpers.cpp
+        lexer/statements/AccessChain.cpp
+        lexer/model/tokens/MultilineCommentToken.h
+        lexer/structures/ForBlock.cpp
+        lexer/model/tokens/StringOperatorToken.h
+        lexer/model/tokens/StringOperatorToken.h
+        lexer/structures/WhileBlock.cpp
+        lexer/statements/Conditional.cpp
+        lexer/structures/IfBlock.cpp
 )
 
 # Add include directories for LspCpp

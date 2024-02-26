@@ -18,7 +18,7 @@ unsigned int Lexer::lexWhitespace() {
 
 void Lexer::lexWhitespaceToken() {
     auto whitespace = lexWhitespace();
-    if (whitespace > 0 && addWhitespaceToken()) {
+    if (whitespace > 0 && shouldAddWhitespaceToken()) {
         tokens.emplace_back(std::make_unique<WhitespaceToken>(backPosition(whitespace), whitespace));
     }
 }

@@ -34,7 +34,7 @@ public:
     }
 
     char peek(int ahead) override {
-        int pos = stream.tellg();
+        unsigned int pos = stream.tellg();
         stream.seekg(pos + ahead, std::ios::beg);
         char c = stream.get();
         stream.seekg(pos);

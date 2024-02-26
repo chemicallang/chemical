@@ -123,7 +123,7 @@ public:
      * lex type tokens
      * @param tokens
      */
-    void lexTypeTokens();
+    bool lexTypeTokens();
 
     /**
      * lex preprocess
@@ -210,6 +210,23 @@ public:
       * lex for block tokens
       */
      bool lexForBlockTokens();
+
+     /**
+      * lex parameter list
+      */
+     void lexParameterList();
+
+    /**
+    * lexes a function signature with parameters
+    * @return
+    */
+    bool lexFunctionSignatureTokens();
+
+     /**
+      * lexes a function block with parameters
+      * @return
+      */
+     bool lexFunctionStructureTokens();
 
     /**
      * lex whitespace tokens

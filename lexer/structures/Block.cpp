@@ -26,7 +26,10 @@ bool Lexer::lexBraceBlock() {
     }
 
     // multiple statements
+    auto prevImportState = isLexImportStatement;
+    isLexImportStatement = false;
     lexMultipleStatementsTokens();
+    prevImportState = prevImportState;
 
     // ending brace
     if(!lexOperatorToken('}')) {

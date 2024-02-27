@@ -6,33 +6,76 @@
 
 #include "lexer/Lexer.h"
 
-bool Lexer::lexIfBlockTokens() {
+bool Lexer::lexIfSignature() {
 
-    if(!lexKeywordToken("if")) {
+    if (!lexKeywordToken("if")) {
         return false;
     }
 
     lexWhitespaceToken();
 
-    if(!lexOperatorToken('(')) {
+    if (!lexOperatorToken('(')) {
         error("expected a starting parenthesis ( when lexing a if block");
         return true;
     }
 
-    if(!lexConditionalStatement()) {
+    if (!lexConditionalStatement()) {
         error("expected a conditional statement when lexing a if block");
         return true;
     }
 
-    if(!lexOperatorToken(')')) {
+    if (!lexOperatorToken(')')) {
         error("expected a ending parenthesis ) when lexing a if block");
         return true;
     }
 
     lexWhitespaceToken();
 
-    if(!lexBraceBlock()) {
+    return true;
+
+}
+
+bool Lexer::lexSingleIf() {
+
+    if (!lexIfSignature()) {
+        return false;
+    } else if (lexError.has_value()) {
+        return true;
+    }
+
+    if (!lexBraceBlock()) {
         error("expected a brace block when lexing a brace block");
+        return true;
+    }
+
+}
+
+bool Lexer::lexIfBlockTokens() {
+
+    if (!lexSingleIf()) {
+        return false;
+    } else if (lexError.has_value()) {
+        return true;
+    }
+
+    // lex whitespace
+    lexWhitespaceToken();
+
+    // keep lexing else if blocks until last else appears
+    while (lexKeywordToken("else")) {
+        lexWhitespaceToken();
+        if (provider.peek() == '{') {
+            if (!lexBraceBlock()) {
+                error("expected a brace block after the else while lexing an if statement");
+            }
+            return true;
+        } else {
+            if (lexSingleIf()) {
+                lexWhitespaceToken();
+            } else {
+                error("expected an if statement / brace block after the 'else' but none found");
+            }
+        }
     }
 
     return true;

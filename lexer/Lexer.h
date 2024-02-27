@@ -107,7 +107,6 @@ public:
     /**
      * lex allowDeclarations or initialization tokens
      * like var x : int; or var x : int = 5;
-     * @param tokens
      * @param allowDeclarations when true, it will allow allowDeclarations only without the value initialization
      * like #var x : int; when false however, it'll be strict initialization
      * @return whether it was able to lex the tokens for the statement
@@ -117,7 +116,6 @@ public:
     /**
      * lex assignment tokens
      * like x = 5;
-     * @param tokens
      * @return whether it was able to lex teh tokens for the statement
      */
     bool lexAssignmentTokens();
@@ -131,13 +129,11 @@ public:
 
     /**
      * lex type tokens
-     * @param tokens
      */
     bool lexTypeTokens();
 
     /**
      * lex preprocess
-     * @param tokens
      * @return whether the has token was lexed or not
      */
     inline bool lexHashOperator() {
@@ -146,7 +142,6 @@ public:
 
     /**
      * lexes a single statement (of any type)
-     * @param tokens
      * @return whether a statement was lexed successfully
      */
     bool lexStatementTokens();
@@ -187,7 +182,6 @@ public:
     /**
      * this lexes the tokens inside the body of a structure
      * this basically lexes multiple statements
-     * @param tokens
      */
     void lexMultipleStatementsTokens();
 
@@ -248,6 +242,11 @@ public:
     bool lexIfBlockTokens();
 
     /**
+     * lex do while block
+     */
+    bool lexDoWhileBlockTokens();
+
+    /**
      * lex while block
      */
     bool lexWhileBlockTokens();
@@ -275,6 +274,38 @@ public:
     bool lexFunctionStructureTokens();
 
     /**
+     * lexes interface block, this means { member(s) }
+     * without the `interface` keyword and name identifier
+     * @return
+     */
+    void lexInterfaceBlockTokens();
+
+    /**
+     * lexes a interface structure
+     * @return
+     */
+    bool lexInterfaceStructureTokens();
+
+    /**
+     * lexes a single member of the struct
+     * @return
+     */
+    bool lexStructMemberTokens();
+
+    /**
+     * lexes struct block, this means { member(s) }
+     * without the `struct` keyword and name identifier
+     * @return
+     */
+    bool lexStructBlockTokens();
+
+    /**
+     * lexes a struct block
+     * @return
+     */
+    bool lexStructStructureTokens();
+
+    /**
      * lexes an enum block, this means { enum(s) }
      * without the `enum` keyword and name identifier
      * @return
@@ -289,10 +320,14 @@ public:
 
     /**
      * lex whitespace tokens
-     * @param tokens
      * @return
      */
-    void lexWhitespaceToken();
+    bool lexWhitespaceToken();
+
+    /**
+     * a utility function to lex whitespace tokens and also skip new lines
+     */
+    void lexWhitespaceAndNewLines();
 
     /**
      * lexes a string token, string is enclosed inside double quotes
@@ -314,14 +349,12 @@ public:
 
     /**
      * lex an integer token
-     * @param tokens
      * @return whether a token was lexed or not
      */
     bool lexIntToken();
 
     /**
      * lexes value tokens like integer, string
-     * @param tokens
      */
     bool lexValueToken();
 

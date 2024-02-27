@@ -16,9 +16,22 @@ unsigned int Lexer::lexWhitespace() {
     return whitespaces;
 }
 
-void Lexer::lexWhitespaceToken() {
+bool Lexer::lexWhitespaceToken() {
     auto whitespace = lexWhitespace();
-    if (whitespace > 0 && shouldAddWhitespaceToken()) {
-        tokens.emplace_back(std::make_unique<WhitespaceToken>(backPosition(whitespace), whitespace));
+    if (whitespace > 0) {
+        if (shouldAddWhitespaceToken()) {
+            tokens.emplace_back(std::make_unique<WhitespaceToken>(backPosition(whitespace), whitespace));
+        }
+        return true;
+    } else {
+        return false;
+    }
+}
+
+void Lexer::lexWhitespaceAndNewLines() {
+    while (!provider.eof()) {
+        if (!lexNewLineChars() && !lexWhitespaceToken()) {
+            break;
+        }
     }
 }

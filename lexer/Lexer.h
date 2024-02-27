@@ -287,6 +287,13 @@ public:
     bool lexValueToken();
 
     /**
+     * lexes array syntax values like [1,2,3,4]
+     * for easy array creation
+     * @return
+     */
+    bool lexArrayInit();
+
+    /**
      * lexes access chain like x.y.z or a value like 10, could be int, string, char
      * @return
      */

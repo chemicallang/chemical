@@ -59,8 +59,8 @@ bool Lexer::lexVarInitializationTokens(bool allowDeclarations) {
     lexWhitespaceToken();
 
     // value
-    if (!lexValueToken()) {
-        error("expected a value for variable initialization");
+    if (!(lexExpressionTokens() || lexArrayInit())) {
+        error("expected an expression / array for variable initialization");
         return true;
     }
 

@@ -5,6 +5,8 @@
 //
 
 #include "lexer/Lexer.h"
+#include "lexer/model/tokens/FunctionToken.h"
+#include "lexer/model/tokens/ParameterToken.h"
 
 bool Lexer::lexReturnStatement() {
     if(lexKeywordToken("return")) {
@@ -18,7 +20,9 @@ bool Lexer::lexReturnStatement() {
 void Lexer::lexParameterList() {
     do {
         lexWhitespaceToken();
-        if(lexIdentifierToken()) {
+        auto name = lexAlpha();
+        if(!name.empty()) {
+            tokens.emplace_back(std::make_unique<ParameterToken>(backPosition(name.length()), name));
             lexWhitespaceToken();
             if(!lexOperatorToken(':')) {
                 error("missing a type for the function parameter, expected a colon after the name");
@@ -42,9 +46,12 @@ bool Lexer::lexFunctionSignatureTokens() {
 
     lexWhitespaceToken();
 
-    if(!lexIdentifierToken()) {
+    auto name = lexAlpha();
+    if(name.empty()) {
         error("function name is missing, when defining a function");
         return true;
+    } else {
+        tokens.emplace_back(std::make_unique<FunctionToken>(backPosition(name.length()), name));
     }
 
     lexWhitespaceToken();

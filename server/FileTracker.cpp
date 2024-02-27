@@ -93,6 +93,10 @@ void FileTracker::onClosedFile(const std::string &path) {
     overriddenSources.erase(path);
 }
 
+void FileTracker::clearAllStoredContents() {
+    overriddenSources.clear();
+}
+
 void replace(
         std::string &source,
         unsigned int lineStart,

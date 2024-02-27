@@ -209,6 +209,23 @@ public:
      */
     bool lexIfSignature();
 
+    /**
+     * lexes return statement
+     * @return
+     */
+    bool lexReturnStatement();
+
+    /**
+     * lexes break statement
+     * @return
+     */
+    bool lexBreakStatement();
+
+    /**
+     * lexes continue statement
+     * @return
+     */
+    bool lexContinueStatement();
 
     /**
      * lexes a single if statement with the body without else if or else
@@ -360,6 +377,21 @@ public:
 private:
 
     bool lexHash = true;
+
+    /**
+     * when true, return statements will be lexed
+     */
+    bool isLexReturnStatement = false;
+
+    /**
+     * when true, continue statements will be lexed
+     */
+    bool isLexContinueStatement = false;
+
+    /**
+     * when true, break statements will be lexed
+     */
+    bool isLexBreakStatement = false;
 
 };
 

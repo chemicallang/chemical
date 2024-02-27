@@ -11,6 +11,9 @@ bool Lexer::lexStatementTokens() {
         return lexSingleLineCommentTokens() ||
                lexMultiLineCommentTokens() ||
                lexVarInitializationTokens() ||
+               (isLexBreakStatement && lexBreakStatement()) ||
+               (isLexContinueStatement && lexContinueStatement()) ||
+               (isLexReturnStatement && lexReturnStatement()) ||
                lexIfBlockTokens() ||
                lexForBlockTokens() ||
                lexWhileBlockTokens() ||
@@ -39,16 +42,4 @@ bool Lexer::lexNewLineChars() {
     } else {
         return false;
     }
-}
-
-void Lexer::lexMultipleStatementsTokens() {
-    do {
-        do {
-            lexWhitespaceToken();
-            if (!lexStatementTokens()) {
-                break;
-            }
-            lexWhitespaceToken();
-        } while (lexOperatorToken(';') && !lexError.has_value());
-    } while (lexNewLineChars());
 }

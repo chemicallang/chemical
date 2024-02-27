@@ -6,6 +6,15 @@
 
 #include "lexer/Lexer.h"
 
+bool Lexer::lexReturnStatement() {
+    if(lexKeywordToken("return")) {
+        lexWhitespaceToken();
+        lexExpressionTokens();
+    } else {
+        return false;
+    }
+}
+
 void Lexer::lexParameterList() {
     do {
         lexWhitespaceToken();
@@ -71,9 +80,12 @@ bool Lexer::lexFunctionStructureTokens() {
 
     lexWhitespaceToken();
 
+    // inside the block allow return statements
+    isLexReturnStatement = true;
     if(!lexBraceBlock()) {
         error("expected the function definition after the signature");
     }
+    isLexReturnStatement = false;
 
     return true;
 

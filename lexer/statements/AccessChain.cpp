@@ -25,6 +25,15 @@ bool Lexer::lexAccessChain() {
         return false;
     }
 
+    if(lexOperatorToken('(')) {
+        do {
+            lexWhitespaceToken();
+            lexExpressionTokens();
+            lexWhitespaceToken();
+        } while(lexOperatorToken(','));
+        lexOperatorToken(')');
+    }
+
     while(lexOperatorToken('[')) {
         lexWhitespaceToken();
         if(!lexExpressionTokens()) {

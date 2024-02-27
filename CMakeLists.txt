@@ -90,6 +90,30 @@ add_executable(ChemicalVS "lexer/Lexer.cpp" "lexer/Lexer.h" "lexer/model/tokens/
         lexer/structures/Struct.cpp
         lexer/structures/Interface.cpp
         lexer/structures/DoWhile.cpp
+        ast/base/Value.h
+        ast/utils/Operation.h
+        ast/values/IntValue.h
+        ast/values/StringValue.h
+        ast/values/Expression.h
+        ast/values/FloatValue.h
+        ast/values/DoubleValue.h
+        ast/values/CharValue.h
+        ast/base/ASTNode.h
+        parser/Parser.h
+        ast/statements/VarInit.h
+        ast/statements/Assignment.h
+        ast/structures/StructDefinition.h
+        ast/structures/InterfaceDefinition.h
+        ast/structures/ForLoop.h
+        ast/structures/WhileLoop.h
+        ast/structures/EnumDeclaration.h
+        ast/structures/DoWhileLoop.h
+        ast/structures/FunctionDeclaration.h
+        ast/statements/Import.h
+        ast/structures/If.h
+        ast/statements/Return.h
+        ast/statements/Break.h
+        ast/statements/Continue.h
 )
 
 # Add include directories for LspCpp

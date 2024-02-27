@@ -73,6 +73,12 @@ public:
     std::string lexAnything(char until = ' ');
 
     /**
+     * lex a string that contains alphabetical characters only
+     * @return alphabetical string or empty if not found
+     */
+    std::string lexAlpha();
+
+    /**
      * lex a alpha numeric string until until character occurs
      * @return
      */

@@ -43,6 +43,14 @@ std::string Lexer::lexAnything(char until) {
     });
 }
 
+std::string Lexer::lexAlpha() {
+    std::string str;
+    while (!provider.eof() && std::isalpha(provider.peek())) {
+        str.append(1, provider.readCharacter());
+    }
+    return str;
+}
+
 std::string Lexer::lexAlphaNum() {
     std::string str;
     while (!provider.eof() && std::isalnum(provider.peek())) {

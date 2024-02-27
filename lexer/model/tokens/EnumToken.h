@@ -6,17 +6,23 @@
 
 #pragma once
 
-#include "IdentifierToken.h"
+#include "AbstractStringToken.h"
 
-class EnumToken : public IdentifierToken {
+class EnumToken : public AbstractStringToken {
 public:
 
-    EnumToken(const TokenPosition& position, std::string identifier) : IdentifierToken(position, std::move(identifier)){
+    EnumToken(const TokenPosition& position, std::string identifier) : AbstractStringToken(position, std::move(identifier)){
 
     }
 
     [[nodiscard]] LspSemanticTokenType lspType() const override {
         return LspSemanticTokenType::ls_enum;
+    }
+
+    [[nodiscard]] std::string type_string() const override {
+        std::string buf("EnumName:");
+        buf.append(this->value);
+        return buf;
     }
 
 };

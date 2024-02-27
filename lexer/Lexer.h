@@ -171,7 +171,7 @@ public:
      * lexes a conditional operator like >,<,>=,<=
      * @return whether the conditional operator was found
      */
-    bool lexConditionalOperator();
+    bool lexComparisonOperators();
 
     /**
      * lexes a conditional statement at the current position

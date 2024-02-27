@@ -6,7 +6,7 @@
 
 #include "lexer/Lexer.h"
 #include "lexer/model/tokens/CharOperatorToken.h"
-#include "lexer/model/tokens/IdentifierToken.h"
+#include "lexer/model/tokens/VariableToken.h"
 
 std::string Lexer::lexIdentifier() {
     return lexAlphaNum();
@@ -15,7 +15,7 @@ std::string Lexer::lexIdentifier() {
 bool Lexer::lexIdentifierToken() {
     auto id = lexIdentifier();
     if (!id.empty()) {
-        tokens.emplace_back(std::make_unique<IdentifierToken>(backPosition(id.length()), id));
+        tokens.emplace_back(std::make_unique<VariableToken>(backPosition(id.length()), id));
         return true;
     } else {
         return false;

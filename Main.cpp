@@ -493,7 +493,7 @@ public:
                                         // on a different line
                                         token->lineCharNumber()
                                 )
-                        ), token->length(), static_cast<unsigned int>(token->lspType()), 0
+                        ), token->length(), static_cast<unsigned int>(token->lspType()), token->modifiers
                 });
                 prevTokenStart = token->lineCharNumber();
                 prevTokenLineNumber = token->lineNumber();

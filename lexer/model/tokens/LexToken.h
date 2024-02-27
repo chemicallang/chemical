@@ -21,6 +21,8 @@ public:
 
     TokenPosition position;
 
+    unsigned modifiers = 0;
+
     LexToken(const TokenPosition& position) : position(position) {
 
     }

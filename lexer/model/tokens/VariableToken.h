@@ -8,10 +8,10 @@
 
 #include "AbstractStringToken.h"
 
-class IdentifierToken : public AbstractStringToken {
+class VariableToken : public AbstractStringToken {
 public:
 
-    IdentifierToken(const TokenPosition& position, std::string identifier) : AbstractStringToken(position, std::move(identifier)) {
+    VariableToken(const TokenPosition& position, std::string identifier) : AbstractStringToken(position, std::move(identifier)) {
 
     }
 

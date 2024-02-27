@@ -9,7 +9,7 @@
 #include "lexer/model/tokens/LexToken.h"
 #include "lexer/Lexer.h"
 #include "lexer/model/tokens/KeywordToken.h"
-#include "lexer/model/tokens/IdentifierToken.h"
+#include "lexer/model/tokens/VariableToken.h"
 #include "lexer/model/tokens/CharOperatorToken.h"
 #include "utils/FileUtils.h"
 

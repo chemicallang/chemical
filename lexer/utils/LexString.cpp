@@ -5,7 +5,7 @@
 //
 
 #include "lexer/Lexer.h"
-#include "lexer/model/tokens/IdentifierToken.h"
+#include "lexer/model/tokens/VariableToken.h"
 #include "lexer/model/tokens/CharOperatorToken.h"
 #include "lexer/model/tokens/StringToken.h"
 

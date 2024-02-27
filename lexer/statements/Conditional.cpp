@@ -8,43 +8,47 @@
 #include "lexer/model/tokens/StringOperatorToken.h"
 #include "lexer/model/tokens/CharOperatorToken.h"
 
-bool Lexer::lexConditionalOperator() {
+bool Lexer::lexComparisonOperators() {
 
-    if(provider.increment('>')) {
-        if(provider.increment('=')) {
+    if (provider.increment("==")) {
+        tokens.emplace_back(std::make_unique<StringOperatorToken>(backPosition(2), "=="));
+    } else if (provider.increment("!=")) {
+        tokens.emplace_back(std::make_unique<StringOperatorToken>(backPosition(2), "!="));
+    } else if (provider.increment('>')) {
+        if (provider.increment('=')) {
             tokens.emplace_back(std::make_unique<StringOperatorToken>(backPosition(2), ">="));
         } else {
             tokens.emplace_back(std::make_unique<CharOperatorToken>(backPosition(1), '>'));
         }
-        return true;
-    } else if(provider.increment('<')) {
-        if(provider.increment('=')) {
+    } else if (provider.increment('<')) {
+        if (provider.increment('=')) {
             tokens.emplace_back(std::make_unique<StringOperatorToken>(backPosition(2), "<="));
         } else {
             tokens.emplace_back(std::make_unique<CharOperatorToken>(backPosition(1), '<'));
         }
-        return true;
     } else {
         return false;
     }
+
+    return true;
 
 }
 
 bool Lexer::lexConditionalStatement() {
 
-    if(!lexExpressionTokens()) {
+    if (!lexExpressionTokens()) {
         return false;
     }
 
     lexWhitespaceToken();
 
-    if(!lexConditionalOperator()) {
+    if (!lexComparisonOperators()) {
         return true;
     }
 
     lexWhitespaceToken();
 
-    if(!lexExpressionTokens()) {
+    if (!lexExpressionTokens()) {
         error("expected a access chain at right hand side of the conditional operator");
         return true;
     }

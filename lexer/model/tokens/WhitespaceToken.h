@@ -8,8 +8,6 @@
 
 #include "LexToken.h"
 
-#include <utility>
-
 class WhitespaceToken : public LexToken {
 public:
 

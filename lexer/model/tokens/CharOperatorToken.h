@@ -8,8 +8,6 @@
 
 #include "LexToken.h"
 
-#include <utility>
-
 /**
  * Its named CharOperator because it holds a char, Char has no meaning in terms of syntax
  * The length of this token is always one

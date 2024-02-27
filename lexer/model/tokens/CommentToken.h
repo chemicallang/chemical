@@ -6,8 +6,6 @@
 
 #pragma once
 
-#include <utility>
-
 #include "LexToken.h"
 
 class CommentToken : public LexToken {

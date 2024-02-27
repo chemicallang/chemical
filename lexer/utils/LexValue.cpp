@@ -88,6 +88,22 @@ bool Lexer::lexValueToken() {
     return lexCharToken() || lexStringToken() || lexIntToken() || lexBoolToken();
 }
 
+bool Lexer::lexArrayInit() {
+    if(lexOperatorToken('[')) {
+        do {
+            lexWhitespaceToken();
+            lexExpressionTokens();
+            lexWhitespaceToken();
+        } while(lexOperatorToken(','));
+        if(!lexOperatorToken(']')) {
+            error("expected a ] when lexing an array");
+        }
+        return true;
+    } else {
+        return false;
+    }
+}
+
 bool Lexer::lexAccessChainOrValue() {
     return lexValueToken() || lexAccessChain();
 }

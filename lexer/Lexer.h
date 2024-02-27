@@ -204,6 +204,19 @@ public:
     bool lexBraceBlock();
 
     /**
+     * lexex an if statement without the body
+     * @return
+     */
+    bool lexIfSignature();
+
+
+    /**
+     * lexes a single if statement with the body without else if or else
+     * @return
+     */
+    bool lexSingleIf();
+
+    /**
      * lex if block
      */
      bool lexIfBlockTokens();

@@ -52,6 +52,13 @@ bool Lexer::lexFunctionSignatureTokens() {
         return true;
     }
 
+    lexWhitespaceToken();
+
+    if(lexOperatorToken(':')) {
+        lexWhitespaceToken();
+        lexTypeTokens();
+    }
+
     return true;
 
 }

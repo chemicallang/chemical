@@ -7,12 +7,12 @@
 #pragma once
 
 #include <string>
-#include <utility>
+//#include <utility>
 #include "lexer/minLsp/SemanticTokens.h"
 #include "lexer/model/TokenPosition.h"
 //#include "rapidjson\rapidjson.h"
-#include "rapidjson\document.h"		// rapidjson's DOM-style API
-#include "rapidjson/writer.h"
+//#include "rapidjson\document.h"		// rapidjson's DOM-style API
+//#include "rapidjson/writer.h"
 //#include "rapidjson\stringbuffer.h"	// wrapper of C stream for prettywriter as output
 //#include "rapidjson\prettywriter.h"	// for stringify JSON
 

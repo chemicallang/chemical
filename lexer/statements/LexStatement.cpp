@@ -15,6 +15,7 @@ bool Lexer::lexStatementTokens() {
                (isLexBreakStatement && lexBreakStatement()) ||
                (isLexContinueStatement && lexContinueStatement()) ||
                (isLexReturnStatement && lexReturnStatement()) ||
+               lexEnumStructureTokens() ||
                lexIfBlockTokens() ||
                lexForBlockTokens() ||
                lexWhileBlockTokens() ||

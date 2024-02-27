@@ -8,47 +8,50 @@
 #include "lexer/model/tokens/CharOperatorToken.h"
 #include "lexer/model/tokens/IdentifierToken.h"
 
-std::string Lexer::lexIdentifierToken() {
-    auto id = lexAlphaNum();
-    if(!id.empty()) {
+std::string Lexer::lexIdentifier() {
+    return lexAlphaNum();
+}
+
+bool Lexer::lexIdentifierToken() {
+    auto id = lexIdentifier();
+    if (!id.empty()) {
         tokens.emplace_back(std::make_unique<IdentifierToken>(backPosition(id.length()), id));
-        return id;
+        return true;
     } else {
-        return id;
+        return false;
     }
 }
 
 bool Lexer::lexAccessChain() {
 
-    auto id = lexIdentifierToken();
-    if(id.empty()) {
+    if (!lexIdentifierToken()) {
         return false;
     }
 
-    if(lexOperatorToken('(')) {
+    if (lexOperatorToken('(')) {
         do {
             lexWhitespaceToken();
             lexExpressionTokens();
             lexWhitespaceToken();
-        } while(lexOperatorToken(','));
+        } while (lexOperatorToken(','));
         lexOperatorToken(')');
     }
 
-    while(lexOperatorToken('[')) {
+    while (lexOperatorToken('[')) {
         lexWhitespaceToken();
-        if(!lexExpressionTokens()) {
+        if (!lexExpressionTokens()) {
             error("expected an expression in indexing operators for access chain");
             return true;
         }
         lexWhitespaceToken();
-        if(!lexOperatorToken(']')) {
+        if (!lexOperatorToken(']')) {
             error("expected a closing bracket ] in access chain");
             return true;
         }
     }
 
-    while(lexOperatorToken('.')) {
-        if(!lexAccessChain()){
+    while (lexOperatorToken('.')) {
+        if (!lexAccessChain()) {
             error("expected a identifier after the dot . in the access chain");
             return true;
         }

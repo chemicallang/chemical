@@ -18,7 +18,7 @@ bool Lexer::lexReturnStatement() {
 void Lexer::lexParameterList() {
     do {
         lexWhitespaceToken();
-        if(lexIdentifierTokenBool()) {
+        if(lexIdentifierToken()) {
             lexWhitespaceToken();
             if(!lexOperatorToken(':')) {
                 error("missing a type for the function parameter, expected a colon after the name");
@@ -42,7 +42,7 @@ bool Lexer::lexFunctionSignatureTokens() {
 
     lexWhitespaceToken();
 
-    if(!lexIdentifierTokenBool()) {
+    if(!lexIdentifierToken()) {
         error("function name is missing, when defining a function");
         return true;
     }

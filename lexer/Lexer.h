@@ -79,27 +79,24 @@ public:
     std::string lexAlphaNum();
 
     /**
+     * lexes an identifier
+     * it doesn't add it as a token use lex Identifier token for that
+     * @return
+     */
+    std::string lexIdentifier();
+
+    /**
      * lex an identifier token into tokens until the until character occurs
      * only lexes the token if the identifier is not empty
      * @return
      */
-    std::string lexIdentifierToken();
+    bool lexIdentifierToken();
 
     /**
      * this lexes an access chain like x.y.z or just simply an identifier
      * @return
      */
     bool lexAccessChain();
-
-    /**
-     * shortcut for lexIdentifierToken, only difference is this returns true if token was lexed
-     * @param tokens
-     * @param until
-     * @return
-     */
-    inline bool lexIdentifierTokenBool() {
-        return !lexIdentifierToken().empty();
-    }
 
     /**
      * lex allowDeclarations or initialization tokens
@@ -270,6 +267,19 @@ public:
      * @return
      */
     bool lexFunctionStructureTokens();
+
+    /**
+     * lexes an enum block, this means { enum(s) }
+     * without the `enum` keyword and name identifier
+     * @return
+     */
+    bool lexEnumBlockTokens();
+
+    /**
+     * lexes a enum block
+     * @return
+     */
+    bool lexEnumStructureTokens();
 
     /**
      * lex whitespace tokens

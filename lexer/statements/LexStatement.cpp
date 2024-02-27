@@ -11,6 +11,7 @@ bool Lexer::lexStatementTokens() {
         return lexSingleLineCommentTokens() ||
                lexMultiLineCommentTokens() ||
                lexVarInitializationTokens() ||
+               (isLexImportStatement && lexImportStatement()) ||
                (isLexBreakStatement && lexBreakStatement()) ||
                (isLexContinueStatement && lexContinueStatement()) ||
                (isLexReturnStatement && lexReturnStatement()) ||

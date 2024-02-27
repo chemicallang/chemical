@@ -29,7 +29,7 @@ public:
 
     std::optional<LexError> lexError = std::nullopt;
 
-    inline bool isDebug(){ return true; };
+    inline bool isDebug() { return true; };
 
     inline bool shouldAddWhitespaceToken() { return false; }
 
@@ -63,7 +63,7 @@ public:
      * lexes anything as long as when lambda returns true
      * @return
      */
-    template <typename TFunc>
+    template<typename TFunc>
     std::string lexAnything(TFunc when);
 
     /**
@@ -160,14 +160,14 @@ public:
      * @param op
      * @return whether the token was found
      */
-    bool lexOperatorToken(const std::string& op);
+    bool lexOperatorToken(const std::string &op);
 
     /**
      * lexes a keyword token for the given keyword
      * @param keyword
      * @return  whether the keyword was found
      */
-    bool lexKeywordToken(const std::string& keyword);
+    bool lexKeywordToken(const std::string &keyword);
 
     /**
      * lexes a conditional operator like >,<,>=,<=
@@ -210,6 +210,12 @@ public:
     bool lexIfSignature();
 
     /**
+     * lexes import statement
+     * @return
+     */
+    bool lexImportStatement();
+
+    /**
      * lexes return statement
      * @return
      */
@@ -236,22 +242,22 @@ public:
     /**
      * lex if block
      */
-     bool lexIfBlockTokens();
+    bool lexIfBlockTokens();
 
-     /**
-      * lex while block
-      */
-     bool lexWhileBlockTokens();
+    /**
+     * lex while block
+     */
+    bool lexWhileBlockTokens();
 
-     /**
-      * lex for block tokens
-      */
-     bool lexForBlockTokens();
+    /**
+     * lex for block tokens
+     */
+    bool lexForBlockTokens();
 
-     /**
-      * lex parameter list
-      */
-     void lexParameterList();
+    /**
+     * lex parameter list
+     */
+    void lexParameterList();
 
     /**
     * lexes a function signature with parameters
@@ -259,11 +265,11 @@ public:
     */
     bool lexFunctionSignatureTokens();
 
-     /**
-      * lexes a function block with parameters
-      * @return
-      */
-     bool lexFunctionStructureTokens();
+    /**
+     * lexes a function block with parameters
+     * @return
+     */
+    bool lexFunctionStructureTokens();
 
     /**
      * lex whitespace tokens
@@ -346,7 +352,7 @@ public:
      * returns a lexing error at current position with the path of current file being lexed
      * @return
      */
-    void error(const std::string& message);
+    void error(const std::string &message);
 
     /**
      * returns the token position at the very current position
@@ -379,6 +385,18 @@ private:
     bool lexHash = true;
 
     /**
+     * -----------------------------------------
+     * Developer Note:
+     * when the member bool starts with "is" (e.g isLexReturnStatement)
+     * it means this variable is a state, in case of return statement
+     * when a function block is found, this variable is set to true
+     * so that statements inside that block can contain return statement
+     * when the block finishes this variable is set to false, to disallow return statements
+     * so these variables can be switched on and off in the middle of the lexing
+     * -----------------------------------------
+     */
+
+    /**
      * when true, return statements will be lexed
      */
     bool isLexReturnStatement = false;
@@ -393,6 +411,11 @@ private:
      */
     bool isLexBreakStatement = false;
 
+    /**
+     * when true, import statements will be lexed
+     */
+    bool isLexImportStatement = true;
+
 };
 
 /**
@@ -406,7 +429,7 @@ char escape_sequence(char value);
  * The implementation for lexAnything
  * This is required in header because of template usage
  */
-template <typename TFunc>
+template<typename TFunc>
 std::string Lexer::lexAnything(TFunc when) {
     std::string str;
     while (!provider.eof() && when()) {

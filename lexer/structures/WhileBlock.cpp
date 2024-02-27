@@ -31,9 +31,14 @@ bool Lexer::lexWhileBlockTokens() {
 
     lexWhitespaceToken();
 
+    // { statement(s) } with continue & break support
+    isLexContinueStatement = true;
+    isLexBreakStatement = true;
     if(!lexBraceBlock()) {
         error("expected a brace block { statement(s) } when lexing a while block");
     }
+    isLexContinueStatement = false;
+    isLexBreakStatement = false;
 
     return true;
 

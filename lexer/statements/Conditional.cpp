@@ -32,22 +32,21 @@ bool Lexer::lexConditionalOperator() {
 
 bool Lexer::lexConditionalStatement() {
 
-    if(!lexAccessChain()) {
+    if(!lexExpressionTokens()) {
         return false;
     }
 
     lexWhitespaceToken();
 
     if(!lexConditionalOperator()) {
-        error("expected a conditional operator like >,<,>=,<=");
-        return false;
+        return true;
     }
 
     lexWhitespaceToken();
 
-    if(!lexAccessChainOrValue()) {
+    if(!lexExpressionTokens()) {
         error("expected a access chain at right hand side of the conditional operator");
-        return false;
+        return true;
     }
 
     return true;

@@ -6,22 +6,12 @@
 
 #include "lexer/Lexer.h"
 
-bool Lexer::lexBraceBlock() {
+bool Lexer::lexContinueStatement() {
+    return lexKeywordToken("continue");
+}
 
-    // starting brace
-    if(!lexOperatorToken('{')) {
-        return false;
-    }
-
-    // multiple statements
-    lexMultipleStatementsTokens();
-
-    // ending brace
-    if(!lexOperatorToken('}')) {
-        error("expected a closing brace }");
-        return true;
-    }
-
+bool Lexer::lexBreakStatement() {
+    return lexKeywordToken("break");
 }
 
 bool Lexer::lexForBlockTokens() {
@@ -72,10 +62,14 @@ bool Lexer::lexForBlockTokens() {
     // whitespace
     lexWhitespaceToken();
 
-    // { statement }
+    // { statement(s) } with continue & break support
+    isLexContinueStatement = true;
+    isLexBreakStatement = true;
     if(!lexBraceBlock()) {
         error("expected a brace block in a for block");
     }
+    isLexContinueStatement = false;
+    isLexBreakStatement = false;
 
     return true;
 

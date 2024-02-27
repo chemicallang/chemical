@@ -643,6 +643,7 @@ public:
 //
         _sp.registerHandler([&](const td_shutdown::request &notify) {
             _log.log(lsp::Log::Level::INFO, "td_shutdown");
+            fileTracker.clearAllStoredContents();
             td_shutdown::response rsp;
             return rsp;
         });

@@ -62,6 +62,12 @@ public:
      */
     void onClosedFile(const std::string& path);
 
+    /**
+     * when the editor is closed, or all files are closed, or just to erase all caches
+     * to provide lexing from the files on disk rather than their IDE state, this function can be called
+     */
+    void clearAllStoredContents();
+
 };
 
 extern void replace(

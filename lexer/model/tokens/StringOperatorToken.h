@@ -25,6 +25,10 @@ public:
         return op.size();
     }
 
+    LexTokenType type() const override {
+        return LexTokenType::StringOperator;
+    }
+
     [[nodiscard]] LspSemanticTokenType lspType() const override {
         return LspSemanticTokenType::ls_operator;
     }

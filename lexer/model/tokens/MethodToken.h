@@ -15,6 +15,10 @@ public:
 
     }
 
+    TokenType type() const override {
+        return TokenType::Method;
+    }
+
     [[nodiscard]] LspSemanticTokenType lspType() const override {
         return LspSemanticTokenType::ls_method;
     }

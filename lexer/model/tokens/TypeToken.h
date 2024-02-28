@@ -11,14 +11,18 @@
 class TypeToken : public LexToken {
 public:
 
-    std::string type;
+    std::string value;
 
-    TypeToken(const TokenPosition& position, std::string type) : LexToken(position), type(std::move(type)) {
+    TypeToken(const TokenPosition& position, std::string type) : LexToken(position), value(std::move(type)) {
 
     }
 
     unsigned int length() const override {
-        return type.length();
+        return value.length();
+    }
+
+    LexTokenType type() const override {
+        return LexTokenType::Type;
     }
 
     [[nodiscard]] LspSemanticTokenType lspType() const override {
@@ -26,17 +30,17 @@ public:
     }
 
     std::string representation() const override {
-        return this->type;
+        return this->value;
     }
 
     [[nodiscard]] std::string type_string() const override {
         std::string buf("Type:");
-        buf.append(type);
+        buf.append(value);
         return buf;
     }
 
     [[nodiscard]] std::string content() const override {
-        return type;
+        return value;
     }
 
 };

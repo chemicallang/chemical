@@ -25,6 +25,10 @@ public:
         return 1;
     }
 
+    LexTokenType type() const override {
+        return LexTokenType::CharOperator;
+    }
+
     [[nodiscard]] LspSemanticTokenType lspType() const override {
         return LspSemanticTokenType::ls_operator;
     }

@@ -7,6 +7,7 @@
 #pragma once
 
 #include "ast/base/ASTNode.h"
+#include "lexer/model/tokens/NumberToken.h"
 
 class VarInitStatement : public ASTNode {
 public:
@@ -18,10 +19,10 @@ public:
      */
     VarInitStatement(
             std::string identifier,
-            std::unique_ptr<ASTNode> value
+            Value value
     ) : identifier(std::move(identifier)), value(std::move(value)) {}
 
 private:
     std::string identifier; ///< The identifier being initialized.
-    std::unique_ptr<ASTNode> value; ///< The value being assigned to the identifier.
+    Value value; ///< The value being assigned to the identifier.
 };

@@ -11,7 +11,7 @@
 #include <unordered_map>
 #include "lexer/model/tokens/LexToken.h"
 #include "lexer/LexConfig.h"
-#include "utils/Lexi.h"
+#include "lexer/Lexi.h"
 #include "LibLsp/lsp/textDocument/did_change.h"
 
 class FileTracker {

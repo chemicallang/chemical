@@ -29,11 +29,9 @@ find_package(Boost 1.84 COMPONENTS program_options filesystem REQUIRED)
 # Add the LspCpp library directory
 add_subdirectory(LspCpp)
 
-# Add path to this project's executable.
-add_executable(ChemicalVS "lexer/Lexer.cpp" "lexer/Lexer.h" "lexer/model/tokens/CharOperatorToken.h" "lexer/model/tokens/VariableToken.h" "lexer/model/tokens/IntToken.h" "lexer/model/tokens/KeywordToken.h" "lexer/model/tokens/LexToken.h" "lexer/model/tokens/WhitespaceToken.h" "SourceProvider.h"
-        utils/Lexi.h
-        Main.cpp
-        utils/PrintUtils.h
+# Add your common source files (excluding the main files)
+set(COMMON_SOURCES "lexer/Lexer.cpp" "lexer/Lexer.h" "lexer/model/tokens/CharOperatorToken.h" "lexer/model/tokens/VariableToken.h" "lexer/model/tokens/NumberToken.h" "lexer/model/tokens/KeywordToken.h" "lexer/model/tokens/LexToken.h" "lexer/model/tokens/WhitespaceToken.h" "SourceProvider.h"
+        lexer/Lexi.h
         lexer/minLsp/SemanticTokens.h
         lexer/LexConfig.h
         lexer/statements/LexAssignment.cpp
@@ -45,12 +43,9 @@ add_executable(ChemicalVS "lexer/Lexer.cpp" "lexer/Lexer.h" "lexer/model/tokens/
         lexer/utils/LexNumber.cpp
         lexer/statements/LexType.cpp
         lexer/model/tokens/TypeToken.h
-        server/FileTracker.h
-        server/FileTracker.cpp
         StreamSourceProvider.h
         StreamPosition.h
-        utils/Lexi.cpp
-        utils/PrintUtils.cpp
+        lexer/Lexi.cpp
         lexer/model/LexError.h
         lexer/model/LexError.h
         lexer/model/LexError.h
@@ -114,21 +109,48 @@ add_executable(ChemicalVS "lexer/Lexer.cpp" "lexer/Lexer.h" "lexer/model/tokens/
         ast/statements/Return.h
         ast/statements/Break.h
         ast/statements/Continue.h
+        parser/Parser.cpp
+        parser/statements/VarInit.cpp
+        parser/values/Value.cpp
+        lexer/model/LexTokenType.h
+        utils/Utils.h
+        utils/Utils.cpp
+        parser/Persi.cpp
+        lexer/utils/TypeUtils.h
+        lexer/utils/TypeUtils.cpp
+        parser/utils/Consumers.cpp
 )
 
+# Chemical LSP Executable Target
+add_executable(ChemicalLsp Main.cpp ${COMMON_SOURCES}
+        server/FileTracker.h
+        server/FileTracker.cpp
+        server/PrintUtils.h
+        server/PrintUtils.cpp
+)
+
+# Add an executable target for the second executable
+add_executable(Compiler Compiler.cpp ${COMMON_SOURCES})
+
 # Add include directories for LspCpp
-target_include_directories(ChemicalVS PRIVATE
+target_include_directories(ChemicalLsp PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/LspCpp/include
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
+# Add include directories for LspCpp
+target_include_directories(Compiler PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
 # Link with Boost Library
-target_link_libraries(ChemicalVS Boost::program_options Boost::filesystem lspcpp)
+target_link_libraries(ChemicalLsp Boost::program_options Boost::filesystem lspcpp)
 
 
 if (CMAKE_VERSION VERSION_GREATER 3.12)
-    set_property(TARGET ChemicalVS PROPERTY CXX_STANDARD 20)
+    set_property(TARGET ChemicalLsp PROPERTY CXX_STANDARD 20)
+    set_property(TARGET Compiler PROPERTY CXX_STANDARD 20)
 endif ()
 
 # TODO: Add tests and install targets if needed.

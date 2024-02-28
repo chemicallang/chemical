@@ -15,6 +15,10 @@ public:
 
     }
 
+    TokenType type() const override {
+        return TokenType::Interface;
+    }
+
     [[nodiscard]] LspSemanticTokenType lspType() const override {
         return LspSemanticTokenType::ls_interface;
     }

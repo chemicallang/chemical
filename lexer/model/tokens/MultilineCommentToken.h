@@ -22,6 +22,10 @@ public:
         return value.length() + 4;
     }
 
+    LexTokenType type() const override {
+        return LexTokenType::MultilineComment;
+    }
+
     [[nodiscard]] LspSemanticTokenType lspType() const override {
         return LspSemanticTokenType::ls_string;
     }

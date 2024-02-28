@@ -38,7 +38,7 @@
 #include "LibLsp/lsp/workspace/did_change_configuration.h"
 #include "LibLsp/lsp/client/registerCapability.h"
 #include "LibLsp/lsp/workspace/symbol.h"
-#include "utils/PrintUtils.h"
+#include "server/PrintUtils.h"
 #include "lexer/LexConfig.h"
 #include "server/FileTracker.h"
 #include "utils/FileUtils.h"

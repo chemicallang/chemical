@@ -37,9 +37,9 @@ std::vector<std::unique_ptr<LexToken>> benchLexFile(std::istream &file, const st
 
     // Printing stats
     std::cout << "[Lex] Completed " << "(Tokens:" << lexed.size() << ")" << ' ';
-    std::cout << "[Lex]:Nanoseconds:" << nanos << "]";
-    std::cout << "[Lex]:Microseconds:" << micros << "]";
-    std::cout << "[Lex]:Milliseconds:" << millis << "]" << '\n';
+    std::cout << "[Nanoseconds:" << nanos << "]";
+    std::cout << "[Microseconds:" << micros << "]";
+    std::cout << "[Milliseconds:" << millis << "]" << '\n';
 
     return lexed;
 

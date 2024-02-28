@@ -10,7 +10,7 @@
 #include <vector>
 #include "SourceProvider.h"
 #include "lexer/model/tokens/LexToken.h"
-#include "lexer/model/tokens/IntToken.h"
+#include "lexer/model/tokens/NumberToken.h"
 #include "LexConfig.h"
 #include "lexer/model/LexError.h"
 #include "lexer/model/TokenPosition.h"
@@ -47,11 +47,10 @@ public:
     virtual std::vector<std::unique_ptr<LexToken>> lex(const LexConfig &config);
 
     /**
-     * lex an optional integer at the current stream
-     * @param intOnly
+     * lexes a number as a string
      * @return
      */
-    std::optional<int> lexInt(bool intOnly = false);
+    std::string lexNumber();
 
     /**
      * lex whitespaces at the current pos
@@ -348,10 +347,10 @@ public:
     bool lexBoolToken();
 
     /**
-     * lex an integer token
+     * lex an number token
      * @return whether a token was lexed or not
      */
-    bool lexIntToken();
+    bool lexNumberToken();
 
     /**
      * lexes value tokens like integer, string
@@ -431,7 +430,11 @@ public:
 
 private:
 
-    bool lexHash = true;
+    /**
+     * when true, hash will be lexed strictly
+     * when false, hash will be lexed optionally
+     */
+    bool lexHash = false;
 
     /**
      * -----------------------------------------

@@ -17,6 +17,10 @@ public:
 
     }
 
+    LexTokenType type() const override {
+        return LexTokenType::Keyword;
+    }
+
     unsigned int length() const override {
         return keyword.length();
     }

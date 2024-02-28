@@ -6,8 +6,6 @@
 
 #include "lexer/Lexer.h"
 #include "lexer/model/tokens/CharToken.h"
-#include "lexer/model/tokens/StringToken.h"
-#include "lexer/model/tokens/CharOperatorToken.h"
 
 char escape_sequence(char value) {
     char actualChar;
@@ -85,7 +83,7 @@ bool Lexer::lexBoolToken() {
 }
 
 bool Lexer::lexValueToken() {
-    return lexCharToken() || lexStringToken() || lexIntToken() || lexBoolToken();
+    return lexCharToken() || lexStringToken() || lexNumberToken() || lexBoolToken();
 }
 
 bool Lexer::lexArrayInit() {

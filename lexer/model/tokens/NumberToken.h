@@ -8,24 +8,24 @@
 
 #include "AbstractStringToken.h"
 
-class EnumMemberToken : public AbstractStringToken {
+class NumberToken : public AbstractStringToken {
 public:
 
-    EnumMemberToken(const TokenPosition& position, std::string identifier) : AbstractStringToken(position, std::move(identifier)){
+    NumberToken(const TokenPosition &position, std::string value) : AbstractStringToken(position, std::move(value)) {
 
     }
 
     LexTokenType type() const override {
-        return LexTokenType::EnumMember;
+        return LexTokenType::Number;
     }
 
     [[nodiscard]] LspSemanticTokenType lspType() const override {
-        return LspSemanticTokenType::ls_enumMember;
+        return LspSemanticTokenType::ls_number;
     }
 
     [[nodiscard]] std::string type_string() const override {
-        std::string buf("EnumMember:");
-        buf.append(this->value);
+        std::string buf("Number:");
+        buf.append(value);
         return buf;
     }
 

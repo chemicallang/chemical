@@ -16,6 +16,10 @@ public:
 
     }
 
+    LexTokenType type() const override {
+        return LexTokenType::Parameter;
+    }
+
     [[nodiscard]] LspSemanticTokenType lspType() const override {
         return LspSemanticTokenType::ls_parameter;
     }

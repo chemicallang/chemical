@@ -7,9 +7,9 @@
 #pragma once
 
 #include <string>
-//#include <utility>
 #include "lexer/minLsp/SemanticTokens.h"
 #include "lexer/model/TokenPosition.h"
+#include "lexer/model/LexTokenType.h"
 //#include "rapidjson\rapidjson.h"
 //#include "rapidjson\document.h"		// rapidjson's DOM-style API
 //#include "rapidjson/writer.h"
@@ -48,6 +48,12 @@ public:
      * @return
      */
     virtual unsigned int length() const = 0;
+
+    /**
+     * Get the type of token this is
+     * @return
+     */
+    virtual LexTokenType type() const = 0;
 
     /**
      * lsp  semantic token type

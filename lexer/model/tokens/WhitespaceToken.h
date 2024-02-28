@@ -17,6 +17,10 @@ public:
 
     }
 
+    LexTokenType type() const override {
+        return LexTokenType::Whitespace;
+    }
+
     unsigned int length() const override {
         return len;
     }

@@ -6,10 +6,12 @@
 
 #pragma once
 
+#include <cstdint>
+
 /**
  * @brief Enum class representing operations between two expressions.
  */
-enum class Operation {
+enum class Operation : uint8_t {
     Addition,
     Subtraction,
     Multiplication,

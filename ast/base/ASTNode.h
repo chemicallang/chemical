@@ -18,14 +18,6 @@ public:
 
     std::vector<std::unique_ptr<ASTNode>> children;
 
-    /**
-     * @brief Construct a new ASTNode object.
-     */
-    ASTNode() = default;
-
-    /**
-     * @brief Destroy the ASTNode object.
-     */
     virtual ~ASTNode() = default;
 
 };

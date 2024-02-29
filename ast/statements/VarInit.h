@@ -11,6 +11,10 @@
 
 class VarInitStatement : public ASTNode {
 public:
+
+    // value for interpretation
+    Value inter_value;
+
     /**
      * @brief Construct a new InitStatement object.
      *
@@ -19,10 +23,11 @@ public:
      */
     VarInitStatement(
             std::string identifier,
-            Value value
+            std::unique_ptr<Value> value
     ) : identifier(std::move(identifier)), value(std::move(value)) {}
 
 private:
     std::string identifier; ///< The identifier being initialized.
-    Value value; ///< The value being assigned to the identifier.
+    std::unique_ptr<Value> value; ///< The value being assigned to the identifier.
+
 };

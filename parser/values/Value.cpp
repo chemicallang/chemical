@@ -7,11 +7,11 @@
 #include "parser/Parser.h"
 #include "lexer/model/tokens/NumberToken.h"
 
-std::optional<IntValue> Parser::parseIntNode() {
+std::optional<std::unique_ptr<IntValue>> Parser::parseIntNode() {
     if (tokens[position]->type() == LexTokenType::Number) {
         auto number = consume<NumberToken>();
         try {
-            return std::stoi(number->value);
+            return std::make_unique<IntValue>(std::stoi(number->value));
         } catch (...) {
             error("invalid integer token");
             return std::nullopt;
@@ -21,6 +21,20 @@ std::optional<IntValue> Parser::parseIntNode() {
     }
 }
 
-std::optional<Value> Parser::parseValueNode() {
+std::optional<std::unique_ptr<Value>> Parser::parseValueNode() {
     return parseIntNode();
+}
+
+std::optional<std::unique_ptr<Value>> Parser::parseAccessChainOrValue() {
+    auto value = parseValueNode();
+    if (value.has_value()) {
+        return value;
+    }
+    auto chain = parseAccessChain();
+    if (chain.has_value()) {
+        if(chain.value()->values.size() == 1) {
+            return std::move(chain.value()->values[0]);
+        }
+        return chain;
+    }
 }

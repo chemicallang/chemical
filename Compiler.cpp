@@ -6,15 +6,18 @@
 
 #include "lexer/Lexi.h"
 #include "parser/Persi.h"
+#include "utils/Utils.h"
 
 int main(int argc, char *argv[]) {
     if (argc == 0) {
         std::cout << "A file path argument is required so the file can be parsed";
         return 0;
     }
-    auto parser = benchParse(benchLexFile(argv[1], LexConfig{}));
+    auto tokens = benchLexFile(argv[1], LexConfig{});
+//    printTokens(tokens);
+    auto parser = benchParse(std::move(tokens));
     if (parser.parseError.has_value()) {
-        std::cerr << "Error parsing the file:" << parser.parseError.value();
+        std::cerr << parser.parseError.value();
     }
     return 0;
 }

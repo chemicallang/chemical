@@ -17,11 +17,11 @@ public:
      * @param value The value being assigned to the identifier.
      */
     AssignStatement(
-            std::string identifier,
-            std::unique_ptr<ASTNode> value
+        std::string identifier,
+        Value value
     ) : identifier(std::move(identifier)), value(std::move(value)) {}
 
 private:
     std::string identifier; ///< The identifier being assigned.
-    std::unique_ptr<ASTNode> value; ///< The value being assigned to the identifier.
+    Value value; ///< The value being assigned to the identifier.
 };

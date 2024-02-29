@@ -70,6 +70,11 @@ public:
     std::optional<Value> parseValueNode();
 
     /**
+     * parses a variable assignment state
+     */
+    void parseVarAssignStatement();
+
+    /**
      * This parses a single variable initialization statement
      * @return
      */
@@ -85,26 +90,32 @@ public:
      * @param token
      * @return character operator token
      */
-    lex_ptr<CharOperatorToken> consumeOperator(char token);
+    lex_ptr<CharOperatorToken> consumeOperator(char token, bool errorOut = true);
 
     /**
      * it will consume and return a keyword token if found
      * @param keyword
      * @return a keyword token
      */
-    lex_ptr<KeywordToken> consume(const std::string& keyword);
+    lex_ptr<KeywordToken> consume(const std::string& keyword, bool errorOut = true);
 
     /**
      * sets the given error in the parseError and also prints it
      * @param err
      */
-    void error(const std::string& err, const TokenPosition tPos) {
-        parseError = "[Parser]" + err;
-        std::cout << "Error occurred at " << std::to_string(tPos.lineNumber) << ':' << std::to_string(tPos.lineCharNumber);
+    void error(const std::string& err, int tokenPosition) {
+        std::string errStr;
+        errStr = "[Parser] " + err;
+        if(tokenPosition < tokens.size()) {
+            auto t = tokens[tokenPosition].get();
+            errStr += " at " + std::to_string(t->lineNumber()) + ':' + std::to_string(t->lineCharNumber()) + " stopped at " + t->type_string();
+        }
+        errStr.append(1, '\n');
+        parseError = errStr;
     }
 
     void error(const std::string& err) {
-        error("[Parser] " + err, tokens[position]->position);
+        error(err, position);
     }
 
     /**
@@ -121,7 +132,7 @@ public:
      * @return
      */
     template<typename T>
-    inline lex_ptr<T> consumeOfType(LexTokenType type);
+    lex_ptr<T> consumeOfType(LexTokenType type, bool errorOut = true);
 
     /**
      * this will return a raw pointer to the token at position
@@ -154,14 +165,14 @@ T* Parser::as() {
 }
 
 template<typename T>
-inline lex_ptr<T> Parser::consumeOfType(LexTokenType type) {
+lex_ptr<T> Parser::consumeOfType(LexTokenType type, bool errorOut) {
     if (tokens.size() != position) {
         if (tokens[position]->type() == type) {
             return consume<T>();
-        } else {
+        } else if(errorOut){
             error("expected a " + toTypeString(type) + " token, got " + toTypeString(tokens[position]->type()));
         }
-    } else {
+    } else if(errorOut){
         error("expected a " + toTypeString(type) + " token but there are no tokens left");
     }
     return std::nullopt;

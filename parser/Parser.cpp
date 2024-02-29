@@ -14,5 +14,8 @@
  */
 void Parser::parse() {
     eraseAllWhitespaceTokens();
-    parseVariableInitStatement();
+    do {
+        parseVariableInitStatement();
+        parseVarAssignStatement();
+    }while(consumeOperator(';', false) && !parseError.has_value() && (position < tokens.size()));
 }

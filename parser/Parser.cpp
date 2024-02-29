@@ -6,16 +6,7 @@
 
 #include "Parser.h"
 
-/**
- * This parses the given tokens from the lexer
- * converts it into a ast and then returns it
- * @param tokens
- * @return
- */
 void Parser::parse() {
     eraseAllWhitespaceTokens();
-    do {
-        parseVariableInitStatement();
-        parseVarAssignStatement();
-    }while(consumeOperator(';', false) && !parseError.has_value() && (position < tokens.size()));
+    parseMultipleStatements();
 }

@@ -14,6 +14,7 @@
 #include "lexer/model/tokens/KeywordToken.h"
 #include "lexer/utils/TypeUtils.h"
 #include "lexer/model/tokens/CharOperatorToken.h"
+#include "ast/structures/Scope.h"
 #include <optional>
 #include <iostream>
 
@@ -56,6 +57,17 @@ public:
      * @return
      */
     void parse();
+
+    /**
+     * This parses multiple statements, creates a Scope and moves nodes into the scope
+     * and returns it
+     */
+    std::optional<Scope> parseScope();
+
+    /**
+    * This parses multiple statements as ASTNode(s) into nodes
+     */
+    void parseMultipleStatements();
 
     /**
      * parses a value of type int, integer !

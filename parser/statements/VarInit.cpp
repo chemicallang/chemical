@@ -9,7 +9,7 @@
 #include "lexer/model/tokens/VariableToken.h"
 
 void Parser::parseVariableInitStatement() {
-    auto varToken = consume("var");
+    auto varToken = consume("var", false);
     if (!varToken.has_value()) {
         return;
     }
@@ -20,9 +20,9 @@ void Parser::parseVariableInitStatement() {
     if (!consumeOperator('=')) {
         return;
     }
-    auto number = parseIntNode();
+    auto number = parseValueNode();
     if (number.has_value()) {
-        nodes.emplace_back(std::make_unique<VarInitStatement>(var.value()->value, (number.value())));
+        nodes.emplace_back(std::make_unique<VarInitStatement>(var.value()->value, std::move(number.value())));
     } else {
         error("expected an integer token");
     }

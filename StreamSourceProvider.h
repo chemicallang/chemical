@@ -85,6 +85,10 @@ public:
 
     bool increment(const std::string &text) override {
 
+        if(stream.eof()) {
+            return false;
+        }
+
         // Save current pos
         auto prevPosition = getStreamPosition();
 

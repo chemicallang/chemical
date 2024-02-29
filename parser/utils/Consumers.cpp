@@ -17,7 +17,7 @@ void Parser::eraseAllWhitespaceTokens() {
     }
 }
 
-lex_ptr<CharOperatorToken> Parser::consumeOperator(char token) {
+lex_ptr<CharOperatorToken> Parser::consumeOperator(char token, bool errorOut) {
     if (tokens.size() != position) {
         if (tokens[position]->type() == LexTokenType::CharOperator) {
             if (as<CharOperatorToken>()->op == token) {
@@ -31,17 +31,17 @@ lex_ptr<CharOperatorToken> Parser::consumeOperator(char token) {
                 err.append(1, '\'');
                 error(err);
             }
-        } else {
+        } else if(errorOut) {
             error("expected a " + toTypeString(LexTokenType::CharOperator) + " token, got " +
                   toTypeString(tokens[position]->type()));
         }
-    } else {
+    } else if(errorOut) {
         error("expected a " + toTypeString(LexTokenType::CharOperator) + " token but there are no tokens left");
     }
     return std::nullopt;
 }
 
-lex_ptr<KeywordToken> Parser::consume(const std::string &keyword) {
+lex_ptr<KeywordToken> Parser::consume(const std::string &keyword, bool errorOut) {
     if (tokens.size() != position) {
         if (tokens[position]->type() == LexTokenType::Keyword) {
             if (as<KeywordToken>()->keyword == keyword) {
@@ -49,11 +49,11 @@ lex_ptr<KeywordToken> Parser::consume(const std::string &keyword) {
             } else {
                 error("expected a '" + keyword + "' keyword, got" + as<KeywordToken>()->keyword);
             }
-        } else {
+        } else if(errorOut) {
             error("expected a " + toTypeString(LexTokenType::Keyword) + " token, got " +
                   toTypeString(tokens[position]->type()));
         }
-    } else {
+    } else if(errorOut){
         error("expected a " + toTypeString(LexTokenType::Keyword) + " token but there are no tokens left");
     }
     return std::nullopt;

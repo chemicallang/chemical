@@ -13,7 +13,7 @@ std::optional<IntValue> Parser::parseIntNode() {
         try {
             return std::stoi(number->value);
         } catch (...) {
-            error("invalid integer token", number->position);
+            error("invalid integer token");
             return std::nullopt;
         }
     } else {

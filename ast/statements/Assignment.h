@@ -6,10 +6,9 @@
 
 #pragma once
 
-#include "ast/base/ASTNode.h"
-
 class AssignStatement : public ASTNode {
 public:
+
     /**
      * @brief Construct a new AssignStatement object.
      *
@@ -17,11 +16,11 @@ public:
      * @param value The value being assigned to the identifier.
      */
     AssignStatement(
-        std::string identifier,
-        Value value
-    ) : identifier(std::move(identifier)), value(std::move(value)) {}
+            std::unique_ptr<AccessChain> lhs,
+            std::unique_ptr<Value> value
+    ) : lhs(std::move(lhs)), value(std::move(value)) {}
 
 private:
-    std::string identifier; ///< The identifier being assigned.
-    Value value; ///< The value being assigned to the identifier.
+    std::unique_ptr<AccessChain> lhs; ///< The identifier being assigned.
+    std::unique_ptr<Value> value; ///< The value being assigned to the identifier.
 };

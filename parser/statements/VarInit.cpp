@@ -8,22 +8,24 @@
 #include "lexer/model/tokens/KeywordToken.h"
 #include "lexer/model/tokens/VariableToken.h"
 
-void Parser::parseVariableInitStatement() {
+bool Parser::parseVariableInitStatement() {
     auto varToken = consume("var", false);
     if (!varToken.has_value()) {
-        return;
+        return false;
     }
     auto var = consumeOfType<VariableToken>(LexTokenType::Variable);
     if (!var.has_value()) {
-        return;
+        return false;
     }
-    if (!consumeOperator('=')) {
-        return;
+    if (!consume_op('=')) {
+        return false;
     }
     auto number = parseValueNode();
     if (number.has_value()) {
         nodes.emplace_back(std::make_unique<VarInitStatement>(var.value()->value, std::move(number.value())));
+        return true;
     } else {
         error("expected an integer token");
+        return false;
     }
 }

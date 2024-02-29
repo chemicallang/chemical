@@ -9,15 +9,6 @@
 /**
  * @brief Base class for all values in the AST.
  */
-class Value {
-public:
-    /**
-     * @brief Construct a new Value object.
-     */
-    Value() = default;
+class Value : public ASTNode {
 
-    /**
-     * @brief Destroy the Value object.
-     */
-    virtual ~Value() = default;
 };

@@ -5,20 +5,23 @@
 //
 
 #include "parser/Parser.h"
-#include "lexer/model/tokens/VariableToken.h"
+#include "lexer/model/tokens/AbstractStringToken.h"
 #include "ast/statements/Assignment.h"
 
-void Parser::parseVarAssignStatement() {
-    auto var = consumeOfType<VariableToken>(LexTokenType::Variable, false);
-    if (!var.has_value()) {
-        return;
+bool Parser::parseVarAssignStatement() {
+    auto chain = parseAccessChain();
+    if(!chain.has_value()) {
+        return false;
     }
-    if(consumeOperator('=')) {
+    if(consume_op('=')) {
         auto value = parseValueNode();
         if(value.has_value()) {
-            nodes.emplace_back(std::make_unique<AssignStatement>(var.value()->value, std::move(value.value())));
+            nodes.emplace_back(std::make_unique<AssignStatement>(std::move(chain.value()), std::move(value.value())));
         } else {
             error("expected a value after the equal in var assignment");
         }
+    } else {
+        nodes.emplace_back(std::move(chain.value()));
     }
+    return true;
 };

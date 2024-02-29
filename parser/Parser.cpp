@@ -9,4 +9,5 @@
 void Parser::parse() {
     eraseAllWhitespaceTokens();
     parseMultipleStatements();
+    nodes.shrink_to_fit();
 }

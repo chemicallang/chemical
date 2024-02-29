@@ -39,7 +39,8 @@ bool Lexer::lexAssignmentTokens() {
 
     // =
     if (!lexOperatorToken('=')) {
-        error("expected equal sign '=' for variable assignment");
+        // this is just an expression statement
+        // can be a access call
         return true;
     }
 

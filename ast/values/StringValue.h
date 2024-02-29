@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <utility>
+
 #include "ast/base/Value.h"
 
 /**
@@ -18,7 +20,7 @@ public:
      *
      * @param value The string value.
      */
-    StringValue(const std::string& value) : value(value) {}
+    StringValue(std::string  value) : value(std::move(value)) {}
 
 private:
     std::string value; ///< The string value.

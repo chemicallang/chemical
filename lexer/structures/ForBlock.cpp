@@ -40,8 +40,8 @@ bool Lexer::lexForBlockTokens() {
         return true;
     }
 
-    // lex conditional statement
-    lexConditionalStatement();
+    // lex conditional expression
+    lexExpressionTokens();
 
     if(!lexOperatorToken(';')){
         error("expected semicolon ; after the initialization in for block");

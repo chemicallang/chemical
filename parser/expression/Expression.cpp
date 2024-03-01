@@ -6,6 +6,7 @@
 
 #include "parser/Parser.h"
 #include "ast/values/NotValue.h"
+#include "parser/utils/Operation.h"
 
 std::optional<Operation> Parser::parseOperation() {
     auto value = get_op_token();
@@ -17,6 +18,12 @@ std::optional<Operation> Parser::parseOperation() {
             case '-':
                 position++;
                 return Operation::Subtraction;
+            case '>':
+                position++;
+                return Operation::GreaterThan;
+            case '<':
+                position++;
+                return Operation::LessThan;
             case '*':
                 position++;
                 return Operation::Multiplication;
@@ -40,11 +47,17 @@ std::optional<Operation> Parser::parseOperation() {
     auto strVal = consume_str_op();
     if (strVal.has_value()) {
         if (strVal.value() == "<<") {
-            position++;
             return Operation::LeftShift;
         } else if (strVal.value() == ">>") {
-            position++;
             return Operation::RightShift;
+        } else if (strVal.value() == "!=") {
+            return Operation::NotEqual;
+        } else if (strVal.value() == "==") {
+            return Operation::Equal;
+        } else if (strVal.value() == ">=") {
+            return Operation::GreaterThanOrEqual;
+        } else if (strVal.value() == "<=") {
+            return Operation::LessThanOrEqual;
         }
     }
     return std::nullopt;
@@ -57,7 +70,7 @@ std::unique_ptr<Value> Parser::parseRemainingExpression(std::unique_ptr<Value> f
         if (secondExpr.has_value()) {
             return std::make_unique<Expression>(std::move(firstValue), std::move(secondExpr.value()), op.value());
         } else {
-            error("expected an expression after an operation");
+            error("expected an expression after operation:" + to_string(op.value()));
             return firstValue;
         }
     } else {

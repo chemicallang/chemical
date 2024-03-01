@@ -19,8 +19,8 @@ bool Lexer::lexIfSignature() {
         return true;
     }
 
-    if (!lexConditionalStatement()) {
-        error("expected a conditional statement when lexing a if block");
+    if (!lexExpressionTokens()) {
+        error("expected a conditional expression when lexing a if block");
         return true;
     }
 

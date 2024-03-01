@@ -167,18 +167,6 @@ public:
     bool lexKeywordToken(const std::string &keyword);
 
     /**
-     * lexes a conditional operator like >,<,>=,<=
-     * @return whether the conditional operator was found
-     */
-    bool lexComparisonOperators();
-
-    /**
-     * lexes a conditional statement at the current position
-     * @return whether the conditional statement was found
-     */
-    bool lexConditionalStatement();
-
-    /**
      * this lexes the tokens inside the body of a structure
      * this basically lexes multiple statements
      */

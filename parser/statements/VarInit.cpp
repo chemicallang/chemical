@@ -9,8 +9,7 @@
 #include "lexer/model/tokens/VariableToken.h"
 
 bool Parser::parseVariableInitStatement() {
-    auto varToken = consume("var", false);
-    if (!varToken.has_value()) {
+    if(!consume("var")) {
         return false;
     }
     auto var = consumeOfType<VariableToken>(LexTokenType::Variable);

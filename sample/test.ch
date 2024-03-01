@@ -1,4 +1,4 @@
-var x = 1
+var x : int = 1
 x = x == 1
 if(x > 5) {
 

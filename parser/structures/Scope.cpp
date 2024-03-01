@@ -11,6 +11,7 @@ void Parser::parseMultipleStatements() {
         if (parseVariableInitStatementBool() ||
             parseIfStatementBool() ||
             parseForLoopBool() ||
+            parseDoWhileLoopBool() ||
             parseWhileLoopBool() ||
             parseVarAssignStatement()) {
             consume_op(';');

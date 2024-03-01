@@ -10,16 +10,27 @@
 
 class DoWhileLoop : public ASTNode {
 public:
+
     /**
-     * @brief Construct a new DoWhileLoop object.
+     * @brief Construct a new WhileLoop object.
      *
-     * @param body The body of the do-while loop.
      * @param condition The loop condition.
+     * @param body The body of the while loop.
      */
-    DoWhileLoop(std::shared_ptr<ASTNode> body, std::shared_ptr<ASTNode> condition)
-            : body(body), condition(condition) {}
+    DoWhileLoop(std::unique_ptr<Value> condition, Scope body)
+    : condition(std::move(condition)), body(std::move(body)) {}
+
+    std::string representation() const override {
+        std::string ret;
+        ret.append("do {\n");
+        ret.append(body.representation());
+        ret.append("\n} while (");
+        ret.append(condition->representation());
+        ret.append(")");
+        return ret;
+    }
 
 private:
-    std::shared_ptr<ASTNode> body; ///< The body of the do-while loop.
-    std::shared_ptr<ASTNode> condition; ///< The loop condition.
+    std::unique_ptr<Value> condition;
+    Scope body;
 };

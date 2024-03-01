@@ -18,3 +18,6 @@ for(var z = 5; z < 6; z++) {
 while(true) {
 
 }
+do {
+
+} while(true)

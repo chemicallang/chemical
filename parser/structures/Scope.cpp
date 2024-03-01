@@ -13,6 +13,7 @@ void Parser::parseMultipleStatements() {
             parseForLoopBool() ||
             parseDoWhileLoopBool() ||
             parseWhileLoopBool() ||
+            parseFunctionDefinitionBool() ||
             parseVarAssignStatement()) {
             consume_op(';');
         } else {

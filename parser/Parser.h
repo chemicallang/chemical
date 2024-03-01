@@ -309,6 +309,14 @@ public:
     }
 
     /**
+     * get current token type
+     * @return
+     */
+    inline LexTokenType token_type() {
+        return tokens[position]->type();
+    }
+
+    /**
      * consumes a token of type, moves position to focus on the next position
      * Please note that after consuming the token, the caller gets the token ownership
      * This function is also inlined

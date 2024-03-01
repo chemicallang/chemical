@@ -23,11 +23,20 @@ if (POLICY CMP0074)
     cmake_policy(SET CMP0074 NEW)
 endif()
 
-
+# Find Boost
 find_package(Boost 1.84 COMPONENTS program_options filesystem REQUIRED)
 
 # Add the LspCpp library directory
 add_subdirectory(LspCpp)
+
+if(MSVC)
+    message(STATUS "Using VS at $ENV{VSINSTALLDIR}")
+    set(MSVC_DIA_SDK_DIR "$ENV{VSINSTALLDIR}DIA SDK")
+    if(IS_DIRECTORY ${MSVC_DIA_SDK_DIR})
+        set(ZIG_DIA_GUIDS_LIB "${MSVC_DIA_SDK_DIR}/lib/amd64/diaguids.lib")
+        string(REGEX REPLACE "\\\\" "\\\\\\\\" ZIG_DIA_GUIDS_LIB_ESCAPED "${ZIG_DIA_GUIDS_LIB}")
+    endif()
+endif()
 
 # Add your common source files (excluding the main files)
 set(COMMON_SOURCES "lexer/Lexer.cpp" "lexer/Lexer.h" "lexer/model/tokens/CharOperatorToken.h" "lexer/model/tokens/VariableToken.h" "lexer/model/tokens/NumberToken.h" "lexer/model/tokens/KeywordToken.h" "lexer/model/tokens/LexToken.h" "lexer/model/tokens/WhitespaceToken.h" "SourceProvider.h"
@@ -158,7 +167,6 @@ target_include_directories(ChemicalLsp PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
-
 # Add include directories for LspCpp
 target_include_directories(Compiler PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
@@ -167,7 +175,7 @@ target_include_directories(Compiler PRIVATE
 # Link with Boost Library
 target_link_libraries(ChemicalLsp Boost::program_options Boost::filesystem lspcpp)
 
-
+# Set to C++ 20
 if (CMAKE_VERSION VERSION_GREATER 3.12)
     set_property(TARGET ChemicalLsp PROPERTY CXX_STANDARD 20)
     set_property(TARGET Compiler PROPERTY CXX_STANDARD 20)

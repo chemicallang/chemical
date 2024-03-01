@@ -14,6 +14,14 @@ bool Lexer::lexLanguageOperatorToken() {
            lexOperatorToken('&') ||
            lexOperatorToken('|') ||
            lexOperatorToken('^') ||
+           // conditional
+           lexOperatorToken('>') ||
+           lexOperatorToken('<') ||
+           lexOperatorToken("==") ||
+           lexOperatorToken("!=") ||
+           lexOperatorToken("<=") ||
+           lexOperatorToken(">=") ||
+           // shift
            lexOperatorToken("<<") ||
            lexOperatorToken(">>");
 }

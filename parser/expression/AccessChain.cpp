@@ -9,7 +9,7 @@
 #include "ast/values/FunctionCall.h"
 #include "ast/values/IndexOperator.h"
 
-std::optional<std::unique_ptr<AccessChain>> Parser::parseAccessChain() {
+lex_ptr<AccessChain> Parser::parseAccessChain() {
     std::unique_ptr<AccessChain> chain;
     do {
         auto var = consumeOfType<AbstractStringToken>(LexTokenType::Variable, false);

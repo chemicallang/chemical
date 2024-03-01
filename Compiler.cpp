@@ -16,8 +16,8 @@ int main(int argc, char *argv[]) {
     auto tokens = benchLexFile(argv[1], LexConfig{});
 //    printTokens(tokens);
     auto parser = benchParse(std::move(tokens));
-    if (parser.parseError.has_value()) {
-        std::cerr << parser.parseError.value();
+    for(const auto& err : parser.errors) {
+        std::cerr << err;
     }
     Scope scope(std::move(parser.nodes));
     std::cout << "[Representation]\n" << scope.representation() << "\n";

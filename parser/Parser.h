@@ -17,6 +17,7 @@
 #include "ast/structures/Scope.h"
 #include "ast/values/AccessChain.h"
 #include "ast/values/Expression.h"
+#include "ast/structures/If.h"
 #include <optional>
 #include <iostream>
 
@@ -39,10 +40,9 @@ public:
     std::vector<std::unique_ptr<ASTNode>> nodes;
 
     /**
-     * this value is set to the error encountered during parsing
-     * if an error occurs
+     * An error is stored in the vector
      */
-    std::optional<std::string> parseError;
+    std::vector<std::string> errors;
 
     /**
      * Constructor with the tokens to parse
@@ -64,7 +64,7 @@ public:
      * This parses multiple statements, creates a Scope and moves nodes into the scope
      * and returns it
      */
-    std::optional<Scope> parseScope();
+    Scope parseScope();
 
     /**
     * This parses multiple statements as ASTNode(s) into nodes
@@ -75,13 +75,13 @@ public:
      * parses a value of type int, integer !
      * @return
      */
-    std::optional<std::unique_ptr<IntValue>> parseIntNode();
+    lex_ptr<IntValue> parseIntNode();
 
     /**
      * parses a single value, which can be an expression, int, float...
      * @return
      */
-    std::optional<std::unique_ptr<Value>> parseValue();
+    lex_ptr<Value> parseValue();
 
     /**
      * parses a single operation
@@ -99,18 +99,18 @@ public:
     /**
      * parses an expression
      */
-     std::optional<std::unique_ptr<Value>> parseExpression();
+     lex_ptr<Value> parseExpression();
 
     /**
      * parse an access chain
      */
-    std::optional<std::unique_ptr<AccessChain>> parseAccessChain();
+    lex_ptr<AccessChain> parseAccessChain();
 
     /**
      * parse the access chain or the value
      * @return
      */
-    std::optional<std::unique_ptr<Value>> parseAccessChainOrValue();
+    lex_ptr<Value> parseAccessChainOrValue();
 
     /**
      * parses a variable assignment state
@@ -123,6 +123,18 @@ public:
      * @return
      */
     bool parseVariableInitStatement();
+
+    /**
+     * Parse a single if statement
+     * @return
+     */
+    lex_ptr<IfStatement> parseIfStatement();
+
+    /**
+     * parses an if statement into nodes, if found return strue
+     * @return
+     */
+    bool parseIfStatementBool();
 
     /**
      * This will erase all whitespace tokens
@@ -161,11 +173,18 @@ public:
     bool consume_op(char token);
 
     /**
+     * it will consume and return true if found the keyword
+     * @param keyword
+     * @return
+     */
+    bool consume(const std::string &keyword);
+
+    /**
      * it will consume and return a keyword token if found
      * @param keyword
      * @return a keyword token
      */
-    lex_ptr<KeywordToken> consume(const std::string &keyword, bool errorOut = true);
+    lex_ptr<KeywordToken> consume(const std::string &keyword, bool errorOut);
 
     /**
      * sets the given error in the parseError and also prints it
@@ -180,7 +199,7 @@ public:
                       " stopped at " + t->type_string();
         }
         errStr.append(1, '\n');
-        parseError = errStr;
+        errors.push_back(errStr);
     }
 
     void error(const std::string &err) {

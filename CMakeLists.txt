@@ -66,7 +66,6 @@ set(COMMON_SOURCES "lexer/Lexer.cpp" "lexer/Lexer.h" "lexer/model/tokens/CharOpe
         lexer/model/tokens/StringOperatorToken.h
         lexer/model/tokens/StringOperatorToken.h
         lexer/structures/WhileBlock.cpp
-        lexer/statements/Conditional.cpp
         lexer/structures/IfBlock.cpp
         lexer/structures/Function.cpp
         lexer/utils/Expression.cpp
@@ -128,6 +127,8 @@ set(COMMON_SOURCES "lexer/Lexer.cpp" "lexer/Lexer.h" "lexer/model/tokens/CharOpe
         ast/values/IndexOperator.h
         parser/expression/Expression.cpp
         ast/values/NotValue.h
+        parser/statements/If.cpp
+        parser/utils/Operation.h
 )
 
 # Chemical LSP Executable Target

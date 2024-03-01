@@ -7,6 +7,9 @@
 #pragma once
 
 #include "ast/base/ASTNode.h"
+#include "Scope.h"
+#include "ast/base/Value.h"
+#include <optional>
 
 class IfStatement : public ASTNode {
 public:
@@ -17,12 +20,38 @@ public:
      * @param ifBody The body of the if statement.
      * @param elseBody The body of the else statement (can be nullptr if there's no else part).
      */
-    IfStatement(std::shared_ptr<ASTNode> condition, std::shared_ptr<ASTNode> ifBody,
-                std::shared_ptr<ASTNode> elseBody)
-            : condition(condition), ifBody(ifBody), elseBody(elseBody) {}
+    IfStatement(
+            std::unique_ptr<Value> condition,
+            Scope ifBody,
+            std::vector<std::unique_ptr<IfStatement>> elseIfs,
+            std::optional<Scope> elseBody
+    ) : condition(std::move(condition)), ifBody(std::move(ifBody)),
+        elseIfs(std::move(elseIfs)), elseBody(std::move(elseBody)) {}
+
+    std::string representation() const override {
+        std::string rep;
+        rep.append("if(");
+        rep.append(condition->representation());
+        rep.append("){\n");
+        rep.append(ifBody.representation());
+        rep.append("\n}");
+        int i = 0;
+        while(i < elseIfs.size()) {
+            rep.append("else ");
+            rep.append(elseIfs[i]->representation());
+            i++;
+        }
+        if(elseBody.has_value()) {
+            rep.append("else {\n");
+            rep.append(elseBody.value().representation());
+            rep.append("\n}");
+        }
+        return rep;
+    }
 
 private:
-    std::shared_ptr<ASTNode> condition; ///< The condition of the if statement.
-    std::shared_ptr<ASTNode> ifBody; ///< The body of the if statement.
-    std::shared_ptr<ASTNode> elseBody; ///< The body of the else statement.
+    std::unique_ptr<ASTNode> condition;
+    Scope ifBody;
+    std::vector<std::unique_ptr<IfStatement>> elseIfs;
+    std::optional<Scope> elseBody;
 };

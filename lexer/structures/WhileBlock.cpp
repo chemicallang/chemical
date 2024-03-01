@@ -19,7 +19,7 @@ bool Lexer::lexWhileBlockTokens() {
         return true;
     }
 
-    if(!lexConditionalStatement()) {
+    if(!lexExpressionTokens()) {
         error("expected a conditional statement for while block");
         return true;
     }

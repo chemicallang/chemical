@@ -10,16 +10,27 @@
 
 class WhileLoop : public ASTNode {
 public:
+
     /**
      * @brief Construct a new WhileLoop object.
      *
      * @param condition The loop condition.
      * @param body The body of the while loop.
      */
-    WhileLoop(std::shared_ptr<ASTNode> condition, std::shared_ptr<ASTNode> body)
-            : condition(condition), body(body) {}
+    WhileLoop(std::unique_ptr<Value> condition, Scope body)
+            : condition(std::move(condition)), body(std::move(body)) {}
+
+    std::string representation() const override {
+        std::string ret;
+        ret.append("while(");
+        ret.append(condition->representation());
+        ret.append(") {\n");
+        ret.append(body.representation());
+        ret.append("\n}");
+        return ret;
+    }
 
 private:
-    std::shared_ptr<ASTNode> condition; ///< The loop condition.
-    std::shared_ptr<ASTNode> body; ///< The body of the while loop.
+    std::unique_ptr<Value> condition;
+    Scope body;
 };

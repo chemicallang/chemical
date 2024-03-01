@@ -23,6 +23,7 @@
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/structures/ForLoop.h"
 #include "ast/structures/EnumDeclaration.h"
+#include "ast/values/BoolValue.h"
 #include <optional>
 #include <iostream>
 
@@ -80,7 +81,13 @@ public:
      * parses a value of type int, integer !
      * @return
      */
-    lex_ptr<IntValue> parseIntNode();
+    lex_ptr<IntValue> parseIntValue();
+
+    /**
+     * parses a bool value, true or false
+     * @return
+     */
+    lex_ptr<BoolValue> parseBoolValue();
 
     /**
      * parses a single value, which can be an expression, int, float...

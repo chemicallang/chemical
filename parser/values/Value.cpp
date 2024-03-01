@@ -8,7 +8,7 @@
 #include "lexer/model/tokens/NumberToken.h"
 #include "ast/values/CharValue.h"
 
-lex_ptr<IntValue> Parser::parseIntNode() {
+lex_ptr<IntValue> Parser::parseIntValue() {
     if (tokens[position]->type() == LexTokenType::Number) {
         auto number = consume<NumberToken>();
         try {
@@ -22,12 +22,25 @@ lex_ptr<IntValue> Parser::parseIntNode() {
     }
 }
 
+lex_ptr<BoolValue> Parser::parseBoolValue() {
+    if(consume("true")) {
+        return std::make_unique<BoolValue>(true);
+    } else if(consume("false")){
+        return std::make_unique<BoolValue>(false);
+    }
+    return std::nullopt;
+}
+
 lex_ptr<Value> Parser::parseValue() {
     auto charToken = consume_char_token();
     if(charToken.has_value()) {
         return std::make_unique<CharValue>(charToken.value());
     }
-    return parseIntNode();
+    auto boolVal = parseBoolValue();
+    if(boolVal.has_value()) {
+        return boolVal;
+    }
+    return parseIntValue();
 }
 
 lex_ptr<Value> Parser::parseAccessChainOrValue() {

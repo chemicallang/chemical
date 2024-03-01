@@ -24,7 +24,7 @@ public:
     FunctionDeclaration(
             std::string name,
             func_params params,
-            std::string returnType,
+            std::optional<std::string> returnType,
             Scope body
     ) : name(std::move(name)), params(std::move(params)), returnType(std::move(returnType)), body(std::move(body)) {}
 

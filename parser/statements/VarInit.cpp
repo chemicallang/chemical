@@ -7,6 +7,7 @@
 #include "parser/Parser.h"
 #include "lexer/model/tokens/KeywordToken.h"
 #include "lexer/model/tokens/VariableToken.h"
+#include "lexer/model/tokens/TypeToken.h"
 
 lex_ptr<VarInitStatement> Parser::parseVariableInitStatement() {
     if(!consume("var")) {
@@ -16,12 +17,20 @@ lex_ptr<VarInitStatement> Parser::parseVariableInitStatement() {
     if (!var.has_value()) {
         return std::nullopt;
     }
+    std::optional<std::string> type_string;
+    if(consume_op(':')) {
+        if(token_type() == LexTokenType::Type) {
+            type_string = std::move(consume<TypeToken>()->value);
+        } else {
+            type_string = std::nullopt;
+        }
+    }
     if (!consume_op('=')) {
         return std::nullopt;
     }
     auto number = parseExpression();
     if (number.has_value()) {
-        return std::make_unique<VarInitStatement>(var.value()->value, std::move(number.value()));
+        return std::make_unique<VarInitStatement>(var.value()->value, std::move(type_string), std::move(number.value()));
     } else {
         error("expected an integer token");
         return std::nullopt;

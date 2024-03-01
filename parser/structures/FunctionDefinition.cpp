@@ -38,14 +38,16 @@ lex_ptr<FunctionDeclaration> Parser::parseFunctionDefinition() {
                 if (!consume_op(')')) {
                     error("expected a ')' after the function signature");
                 }
-                std::unique_ptr<TypeToken> typeToken;
+                std::optional<std::string> returnType;
                 if(consume_op(':')) {
                     if (token_type() == LexTokenType::Type) {
-                        typeToken = consume<TypeToken>();
+                        returnType = std::move(consume<TypeToken>()->value);
                     } else {
                         error("expected a type after the colon ':' for the function signature");
                         return std::nullopt;
                     }
+                } else {
+                    returnType = std::nullopt;
                 }
                 if (!consume_op('{')) {
                     error("expected a '}' for the function body");
@@ -54,7 +56,7 @@ lex_ptr<FunctionDeclaration> Parser::parseFunctionDefinition() {
                 if (!consume_op('}')) {
                     error("expected a '}' for ending the function body");
                 } else {
-                    return std::make_unique<FunctionDeclaration>(std::move(token->value), std::move(params), std::move(typeToken->value), std::move(scope));
+                    return std::make_unique<FunctionDeclaration>(std::move(token->value), std::move(params), std::move(returnType), std::move(scope));
                 }
             } else {
                 error("expected a '(' after the function name");

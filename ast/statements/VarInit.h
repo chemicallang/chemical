@@ -8,6 +8,7 @@
 
 #include "ast/base/ASTNode.h"
 #include "lexer/model/tokens/NumberToken.h"
+#include <optional>
 
 class VarInitStatement : public ASTNode {
 public:
@@ -20,13 +21,18 @@ public:
      */
     VarInitStatement(
             std::string identifier,
+            std::optional<std::string> type,
             std::unique_ptr<Value> value
-    ) : identifier(std::move(identifier)), value(std::move(value)) {}
+    ) : identifier(std::move(identifier)), type(std::move(type)), value(std::move(value)) {}
 
     std::string representation() const override {
         std::string rep;
         rep.append("var ");
         rep.append(identifier);
+        if(type.has_value()) {
+            rep.append(" : ");
+            rep.append(type.value());
+        }
         rep.append(" = ");
         rep.append(value->representation());
         return rep;
@@ -34,6 +40,7 @@ public:
 
 private:
     std::string identifier; ///< The identifier being initialized.
+    std::optional<std::string> type;
     std::unique_ptr<Value> value; ///< The value being assigned to the identifier.
 
 };

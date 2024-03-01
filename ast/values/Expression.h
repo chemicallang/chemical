@@ -8,6 +8,7 @@
 
 #include "ast/base/Value.h"
 #include "ast/utils/Operation.h"
+#include "parser/utils/Operation.h"
 #include <memory>
 
 class Expression : public Value {
@@ -31,7 +32,7 @@ public:
         std::string rep;
         rep.append(1, '(');
         rep.append(firstValue->representation());
-        rep.append(std::to_string((int) operation));
+        rep.append(to_string(operation));
         rep.append(secondValue->representation());
         rep.append(1, ')');
         return rep;

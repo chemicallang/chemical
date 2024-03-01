@@ -12,9 +12,6 @@
 class VarInitStatement : public ASTNode {
 public:
 
-    // value for interpretation
-    Value inter_value;
-
     /**
      * @brief Construct a new InitStatement object.
      *
@@ -25,6 +22,15 @@ public:
             std::string identifier,
             std::unique_ptr<Value> value
     ) : identifier(std::move(identifier)), value(std::move(value)) {}
+
+    std::string representation() const override {
+        std::string rep;
+        rep.append("var ");
+        rep.append(identifier);
+        rep.append(" = ");
+        rep.append(value->representation());
+        return rep;
+    }
 
 private:
     std::string identifier; ///< The identifier being initialized.

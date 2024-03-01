@@ -14,7 +14,7 @@ bool Parser::parseVarAssignStatement() {
         return false;
     }
     if(consume_op('=')) {
-        auto value = parseValueNode();
+        auto value = parseExpression();
         if(value.has_value()) {
             nodes.emplace_back(std::make_unique<AssignStatement>(std::move(chain.value()), std::move(value.value())));
         } else {

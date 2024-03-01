@@ -17,12 +17,19 @@ enum class Operation : uint8_t {
     Multiplication,
     Division,
     Modulus,
+
+
     Equal,
     NotEqual,
     LessThan,
     LessThanOrEqual,
     GreaterThan,
     GreaterThanOrEqual,
+
+    LeftShift,
+    RightShift,
+
     And,
-    Or
+    Or,
+    Xor
 };

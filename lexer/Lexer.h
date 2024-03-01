@@ -27,7 +27,7 @@ public:
 
     std::vector<std::unique_ptr<LexToken>> tokens;
 
-    std::optional<LexError> lexError = std::nullopt;
+    std::vector<LexError> errors;
 
     inline bool isDebug() { return true; };
 
@@ -38,13 +38,10 @@ public:
     }
 
     /**
-     * lex everything to LexTokens, return with ownership
-     *
-     * Since this just moves the tokens to you, the tokens member becomes invalid
-     * So accessing member tokens can lead to an error, if not initialized before using Lexer
+     * lex everything to LexTokens, tokens go into 'tokens' member property
      * @return
      */
-    virtual std::vector<std::unique_ptr<LexToken>> lex(const LexConfig &config);
+    virtual void lex(const LexConfig &config);
 
     /**
      * lexes a number as a string

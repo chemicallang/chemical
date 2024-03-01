@@ -39,7 +39,7 @@ bool Lexer::lexSingleIf() {
 
     if (!lexIfSignature()) {
         return false;
-    } else if (lexError.has_value()) {
+    } else if (!errors.empty()) {
         return true;
     }
 
@@ -54,7 +54,7 @@ bool Lexer::lexIfBlockTokens() {
 
     if (!lexSingleIf()) {
         return false;
-    } else if (lexError.has_value()) {
+    } else if (!errors.empty()) {
         return true;
     }
 

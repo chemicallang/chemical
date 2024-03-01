@@ -8,8 +8,9 @@
 
 void Parser::parseMultipleStatements() {
     do {
-        if (parseVariableInitStatement() ||
+        if (parseVariableInitStatementBool() ||
             parseIfStatementBool() ||
+            parseForLoopBool() ||
             parseVarAssignStatement()) {
             consume_op(';');
         } else {

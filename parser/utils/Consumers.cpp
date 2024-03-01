@@ -12,7 +12,7 @@
 void Parser::eraseAllWhitespaceAndMultilineCommentTokens() {
     auto i = 0;
     while (i < tokens.size()) {
-        if (tokens[position]->type() == LexTokenType::Whitespace || tokens[position]->type() == LexTokenType::MultilineComment) {
+        if (tokens[i]->type() == LexTokenType::Whitespace || tokens[i]->type() == LexTokenType::MultilineComment) {
             tokens.erase(tokens.begin() + i);
         }
         i++;
@@ -20,13 +20,13 @@ void Parser::eraseAllWhitespaceAndMultilineCommentTokens() {
 }
 
 bool Parser::check_type(LexTokenType type, bool errorOut) {
-    if (tokens.size() != position) {
+    if (position < tokens.size()) {
         if (tokens[position]->type() == type) {
             return true;
-        } else if(errorOut){
+        } else if (errorOut) {
             error("expected a " + toTypeString(type) + " token, got " + toTypeString(tokens[position]->type()));
         }
-    } else if(errorOut){
+    } else if (errorOut) {
         error("expected a " + toTypeString(type) + " token but there are no tokens left");
     }
     return false;
@@ -36,40 +36,35 @@ void Parser::print_got() {
     std::string err;
     err.append("got ");
     err.append(toTypeString(tokens[position]->type()));
-    std::cout << err << " at " + std::to_string(tokens[position]->lineNumber()) + ":" + std::to_string(tokens[position]->lineCharNumber());
+    std::cout << err << " at " + std::to_string(tokens[position]->lineNumber()) + ":" +
+                        std::to_string(tokens[position]->lineCharNumber());
     error(err);
 }
 
 std::optional<std::string> Parser::consume_str_op() {
-    if (tokens.size() != position) {
-        if (tokens[position]->type() == LexTokenType::StringOperator) {
-            return consume<StringOperatorToken>()->op;
-        }
+    if (position < tokens.size() && tokens[position]->type() == LexTokenType::StringOperator) {
+        return consume<StringOperatorToken>()->op;
     }
     return std::nullopt;
 }
 
 std::optional<char> Parser::consume_char_token() {
-    if (tokens.size() != position) {
-        if (tokens[position]->type() == LexTokenType::Char) {
-            return consume<CharToken>()->value;
-        }
+    if (position < tokens.size() && tokens[position]->type() == LexTokenType::Char) {
+        return consume<CharToken>()->value;
     }
     return std::nullopt;
 }
 
 std::optional<char> Parser::get_op_token() {
-    if (tokens.size() != position) {
-        if (tokens[position]->type() == LexTokenType::CharOperator) {
-            return as<CharOperatorToken>()->op;
-        }
+    if (position < tokens.size() && tokens[position]->type() == LexTokenType::CharOperator) {
+        return as<CharOperatorToken>()->op;
     }
     return std::nullopt;
 }
 
 bool Parser::consume_op(char token) {
     auto v = get_op_token();
-    if(v.has_value() && v.value() == token) {
+    if (v.has_value() && v.value() == token) {
         position++;
         return true;
     } else {
@@ -78,7 +73,8 @@ bool Parser::consume_op(char token) {
 }
 
 bool Parser::consume(const std::string &keyword) {
-    if (tokens.size() != position && tokens[position]->type() == LexTokenType::Keyword && as<KeywordToken>()->keyword == keyword) {
+    if (tokens.size() != position && tokens[position]->type() == LexTokenType::Keyword &&
+        as<KeywordToken>()->keyword == keyword) {
         position++;
         return true;
     } else {
@@ -91,14 +87,14 @@ lex_ptr<KeywordToken> Parser::consume(const std::string &keyword, bool errorOut)
         if (tokens[position]->type() == LexTokenType::Keyword) {
             if (as<KeywordToken>()->keyword == keyword) {
                 return consume<KeywordToken>();
-            } else if(errorOut){
+            } else if (errorOut) {
                 error("expected a '" + keyword + "' keyword, got " + as<KeywordToken>()->keyword);
             }
-        } else if(errorOut) {
+        } else if (errorOut) {
             error("expected a " + toTypeString(LexTokenType::Keyword) + " token, got " +
                   toTypeString(tokens[position]->type()));
         }
-    } else if(errorOut){
+    } else if (errorOut) {
         error("expected a " + toTypeString(LexTokenType::Keyword) + " token but there are no tokens left");
     }
     return std::nullopt;

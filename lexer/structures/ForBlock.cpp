@@ -40,13 +40,19 @@ bool Lexer::lexForBlockTokens() {
         return true;
     }
 
+    // whitespace
+    lexWhitespaceToken();
+
     // lex conditional expression
     lexExpressionTokens();
 
     if(!lexOperatorToken(';')){
-        error("expected semicolon ; after the initialization in for block");
+        error("expected semicolon ; after the condition in for block");
         return true;
     }
+
+    // whitespace
+    lexWhitespaceToken();
 
     // lex assignment token
     if(!lexAssignmentTokens()) {

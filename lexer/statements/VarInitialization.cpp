@@ -4,14 +4,7 @@
 // Created by Waqas Tahir on 16/02/2024.
 //
 
-#include <vector>
-#include <memory>
-#include "lexer/model/tokens/LexToken.h"
 #include "lexer/Lexer.h"
-#include "lexer/model/tokens/KeywordToken.h"
-#include "lexer/model/tokens/VariableToken.h"
-#include "lexer/model/tokens/CharOperatorToken.h"
-#include "utils/FileUtils.h"
 
 bool Lexer::lexVarInitializationTokens(bool allowDeclarations) {
 
@@ -47,9 +40,7 @@ bool Lexer::lexVarInitializationTokens(bool allowDeclarations) {
 
     // equal sign
     if (!lexOperatorToken('=')) {
-        if(allowDeclarations) {
-            lexOperatorToken(';');
-        } else {
+        if(!allowDeclarations) {
             error("expected an = sign for the initialization of the variable");
         }
         return true;

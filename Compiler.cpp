@@ -13,9 +13,12 @@ int main(int argc, char *argv[]) {
         std::cout << "A file path argument is required so the file can be parsed";
         return 0;
     }
-    auto tokens = benchLexFile(argv[1], LexConfig{});
-//    printTokens(tokens);
-    auto parser = benchParse(std::move(tokens));
+    auto lexer = benchLexFile(argv[1], LexConfig{});
+    printTokens(lexer.tokens);
+    for(const auto& err : lexer.errors) {
+        std::cerr << "[Lexer] " << err.message << ' ' << err.position.formatted();
+    }
+    auto parser = benchParse(std::move(lexer.tokens));
     for(const auto& err : parser.errors) {
         std::cerr << err;
     }

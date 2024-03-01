@@ -33,5 +33,5 @@ bool Lexer::lexNumberToken() {
 }
 
 void Lexer::error(const std::string &message) {
-    lexError = {provider.getStreamPosition(), path, message};
+    errors.emplace_back(provider.getStreamPosition(), path, message);
 }

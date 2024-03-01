@@ -20,6 +20,12 @@ public:
      */
     DoubleValue(double value) : value(value) {}
 
+    std::string representation() const override {
+        std::string rep;
+        rep.append(std::to_string(value));
+        return rep;
+    }
+
 private:
     double value; ///< The double value.
 };

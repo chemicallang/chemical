@@ -31,7 +31,7 @@ std::optional<std::unique_ptr<AccessChain>> Parser::parseAccessChain() {
             if(consume_op('(')) {
                 std::vector<std::unique_ptr<Value>> params;
                 do {
-                    auto param = parseAccessChainOrValue();
+                    auto param = parseExpression();
                     if(param.has_value()) {
                         params.emplace_back(std::move(param.value()));
                     } else {
@@ -47,7 +47,7 @@ std::optional<std::unique_ptr<AccessChain>> Parser::parseAccessChain() {
             }
 
             if(consume_op('[')){
-                auto val = parseValueNode();
+                auto val = parseExpression();
                 if(val.has_value()) {
                     chain->values.emplace_back(std::make_unique<IndexOperator>(std::move(val.value())));
                 } else {

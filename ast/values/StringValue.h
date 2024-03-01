@@ -22,6 +22,10 @@ public:
      */
     StringValue(std::string  value) : value(std::move(value)) {}
 
+    std::string representation() const override {
+        return value;
+    }
+
 private:
     std::string value; ///< The string value.
 };

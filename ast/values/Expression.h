@@ -8,6 +8,7 @@
 
 #include "ast/base/Value.h"
 #include "ast/utils/Operation.h"
+#include <memory>
 
 class Expression : public Value {
 public:
@@ -19,15 +20,26 @@ public:
      * @param operation The operation between the two values.
      */
     Expression(
-        const Value &firstValue,
-        const Value &secondValue,
+        std::unique_ptr<Value> firstValue,
+        std::unique_ptr<Value> secondValue,
         Operation operation
-    ) : firstValue(firstValue), secondValue(secondValue), operation(operation) {
+    ) : firstValue(std::move(firstValue)), secondValue(std::move(secondValue)), operation(operation) {
 
     }
 
+    std::string representation() const override {
+        std::string rep;
+        rep.append(1, '(');
+        rep.append(firstValue->representation());
+        rep.append(std::to_string((int) operation));
+        rep.append(secondValue->representation());
+        rep.append(1, ')');
+        return rep;
+    }
+
+
 private:
-    Value firstValue; ///< The first value in the expression.
-    Value secondValue; ///< The second value in the expression.
+    std::unique_ptr<Value> firstValue; ///< The first value in the expression.
+    std::unique_ptr<Value> secondValue; ///< The second value in the expression.
     Operation operation; ///< The operation between the two values.
 };

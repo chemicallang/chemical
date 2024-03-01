@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include "ASTNode.h"
+
 /**
  * @brief Base class for all values in the AST.
  */

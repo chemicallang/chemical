@@ -6,11 +6,13 @@
 
 #include "parser/Parser.h"
 #include "lexer/model/tokens/WhitespaceToken.h"
+#include "lexer/model/tokens/StringOperatorToken.h"
+#include "lexer/model/tokens/CharToken.h"
 
-void Parser::eraseAllWhitespaceTokens() {
+void Parser::eraseAllWhitespaceAndMultilineCommentTokens() {
     auto i = 0;
     while (i < tokens.size()) {
-        if (tokens[position]->type() == LexTokenType::Whitespace) {
+        if (tokens[position]->type() == LexTokenType::Whitespace || tokens[position]->type() == LexTokenType::MultilineComment) {
             tokens.erase(tokens.begin() + i);
         }
         i++;
@@ -34,20 +36,45 @@ void Parser::print_got() {
     std::string err;
     err.append("got ");
     err.append(toTypeString(tokens[position]->type()));
-    std::cout << err;
+    std::cout << err << " at " + std::to_string(tokens[position]->lineNumber()) + ":" + std::to_string(tokens[position]->lineCharNumber());
     error(err);
 }
 
-bool Parser::consume_op(char token) {
+std::optional<std::string> Parser::consume_str_op() {
     if (tokens.size() != position) {
-        if (tokens[position]->type() == LexTokenType::CharOperator) {
-            if (as<CharOperatorToken>()->op == token) {
-                increment();
-                return true;
-            }
+        if (tokens[position]->type() == LexTokenType::StringOperator) {
+            return as<StringOperatorToken>()->op;
         }
     }
-    return false;
+    return std::nullopt;
+}
+
+std::optional<char> Parser::consume_char_token() {
+    if (tokens.size() != position) {
+        if (tokens[position]->type() == LexTokenType::Char) {
+            return consume<CharToken>()->value;
+        }
+    }
+    return std::nullopt;
+}
+
+std::optional<char> Parser::get_op_token() {
+    if (tokens.size() != position) {
+        if (tokens[position]->type() == LexTokenType::CharOperator) {
+            return as<CharOperatorToken>()->op;
+        }
+    }
+    return std::nullopt;
+}
+
+bool Parser::consume_op(char token) {
+    auto v = get_op_token();
+    if(v.has_value() && v.value() == token) {
+        position++;
+        return true;
+    } else {
+        return false;
+    }
 }
 
 lex_ptr<KeywordToken> Parser::consume(const std::string &keyword, bool errorOut) {

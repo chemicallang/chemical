@@ -19,5 +19,7 @@ int main(int argc, char *argv[]) {
     if (parser.parseError.has_value()) {
         std::cerr << parser.parseError.value();
     }
+    Scope scope(std::move(parser.nodes));
+    std::cout << "[Representation]\n" << scope.representation() << "\n";
     return 0;
 }

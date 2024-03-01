@@ -16,7 +16,11 @@
 class ASTNode {
 public:
 
-    std::vector<std::unique_ptr<ASTNode>> children;
+    /**
+     * This would return the representation of the node
+     * @return
+     */
+    virtual std::string representation() const = 0;
 
     virtual ~ASTNode() = default;
 

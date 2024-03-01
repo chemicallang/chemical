@@ -20,7 +20,7 @@ bool Parser::parseVariableInitStatement() {
     if (!consume_op('=')) {
         return false;
     }
-    auto number = parseValueNode();
+    auto number = parseExpression();
     if (number.has_value()) {
         nodes.emplace_back(std::make_unique<VarInitStatement>(var.value()->value, std::move(number.value())));
         return true;

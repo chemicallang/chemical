@@ -16,6 +16,7 @@
 #include "lexer/model/tokens/CharOperatorToken.h"
 #include "ast/structures/Scope.h"
 #include "ast/values/AccessChain.h"
+#include "ast/values/Expression.h"
 #include <optional>
 #include <iostream>
 
@@ -80,7 +81,25 @@ public:
      * parses a single value, which can be an expression, int, float...
      * @return
      */
-    std::optional<std::unique_ptr<Value>> parseValueNode();
+    std::optional<std::unique_ptr<Value>> parseValue();
+
+    /**
+     * parses a single operation
+     * @return
+     */
+    std::optional<Operation> parseOperation();
+
+    /**
+     * parse remaining expression
+     * @return if parsed, new expression containing the firstValue operation secondValue is returned
+     * otherwise firstValue is returned
+     */
+    std::unique_ptr<Value> parseRemainingExpression(std::unique_ptr<Value> firstValue);
+
+    /**
+     * parses an expression
+     */
+     std::optional<std::unique_ptr<Value>> parseExpression();
 
     /**
      * parse an access chain
@@ -108,12 +127,30 @@ public:
     /**
      * This will erase all whitespace tokens
      */
-    void eraseAllWhitespaceTokens();
+    void eraseAllWhitespaceAndMultilineCommentTokens();
 
     /**
      * print what current token
      */
     void print_got();
+
+    /**
+     * gets current operator token if its a char operator of course
+     * @return
+     */
+    std::optional<char> get_op_token();
+
+    /**
+     * consume a char token
+     * @return
+     */
+    std::optional<char> consume_char_token();
+
+    /**
+     * consume any string operator token
+     * @return
+     */
+    std::optional<std::string> consume_str_op();
 
     /**
      * consumes a character operator token

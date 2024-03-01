@@ -20,6 +20,14 @@ public:
             std::unique_ptr<Value> value
     ) : lhs(std::move(lhs)), value(std::move(value)) {}
 
+    std::string representation() const override {
+        std::string rep;
+        rep.append(lhs->representation());
+        rep.append(" = ");
+        rep.append(value->representation());
+        return rep;
+    }
+
 private:
     std::unique_ptr<AccessChain> lhs; ///< The identifier being assigned.
     std::unique_ptr<Value> value; ///< The value being assigned to the identifier.

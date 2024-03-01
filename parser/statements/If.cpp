@@ -60,6 +60,6 @@ lex_ptr<IfStatement> Parser::parseIfStatement() {
         }
     } else {
         error("expected a starting parenthesis '('");
-        return std::nullopt;
     }
+    return std::nullopt;
 }

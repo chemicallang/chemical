@@ -12,7 +12,7 @@
 bool Lexer::lexStringToken() {
     if(provider.increment('"')) {
         std::string str;
-        while(!provider.eof() && !lexError.has_value()){
+        while(!provider.eof() && errors.empty()){
             auto readChar = provider.peek();
             if(readChar == '"') {
                 provider.readCharacter();

@@ -7,6 +7,7 @@
 #include "parser/Parser.h"
 #include "ast/values/NotValue.h"
 #include "parser/utils/Operation.h"
+#include "ast/values/IncDecValue.h"
 
 std::optional<Operation> Parser::parseOperation() {
     auto value = get_op_token();
@@ -46,7 +47,11 @@ std::optional<Operation> Parser::parseOperation() {
     }
     auto strVal = consume_str_op();
     if (strVal.has_value()) {
-        if (strVal.value() == "<<") {
+        if (strVal.value() == "++") {
+            return Operation::Increment;
+        } else if (strVal.value() == "--") {
+            return Operation::Decrement;
+        } else if (strVal.value() == "<<") {
             return Operation::LeftShift;
         } else if (strVal.value() == ">>") {
             return Operation::RightShift;
@@ -66,6 +71,11 @@ std::optional<Operation> Parser::parseOperation() {
 std::unique_ptr<Value> Parser::parseRemainingExpression(std::unique_ptr<Value> firstValue) {
     auto op = parseOperation();
     if (op.has_value()) {
+        if (op.value() == Operation::Increment) {
+            return std::make_unique<IncDecValue>(std::move(firstValue), true);
+        } else if(op.value() == Operation::Decrement) {
+            return std::make_unique<IncDecValue>(std::move(firstValue), false);
+        }
         auto secondExpr = parseExpression();
         if (secondExpr.has_value()) {
             return std::make_unique<Expression>(std::move(firstValue), std::move(secondExpr.value()), op.value());

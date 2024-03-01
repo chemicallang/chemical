@@ -12,7 +12,7 @@
  * @param file
  * @return tokens
  */
-std::vector<std::unique_ptr<LexToken>> benchLexFile(std::istream &file, const std::string& path, const LexConfig &config) {
+Lexer benchLexFile(std::istream &file, const std::string& path, const LexConfig &config) {
 
     StreamSourceProvider reader(file);
     Lexer lexer(reader, path);
@@ -24,7 +24,7 @@ std::vector<std::unique_ptr<LexToken>> benchLexFile(std::istream &file, const st
     auto start = std::chrono::steady_clock::now();
 
     // Actual lexing
-    auto lexed = lexer.lex(config);
+    lexer.lex(config);
 
     // Save end time
     auto end = std::chrono::steady_clock::now();
@@ -36,12 +36,12 @@ std::vector<std::unique_ptr<LexToken>> benchLexFile(std::istream &file, const st
     auto seconds = std::chrono::duration_cast<std::chrono::seconds>(end - start).count();
 
     // Printing stats
-    std::cout << "[Lex] Completed " << "(Tokens:" << lexed.size() << ")" << ' ';
+    std::cout << "[Lex] Completed " << "(Tokens:" << lexer.tokens.size() << ")" << ' ';
     std::cout << "[Nanoseconds:" << nanos << "]";
     std::cout << "[Microseconds:" << micros << "]";
     std::cout << "[Milliseconds:" << millis << "]" << '\n';
 
-    return lexed;
+    return lexer;
 
 }
 
@@ -51,15 +51,15 @@ std::vector<std::unique_ptr<LexToken>> benchLexFile(std::istream &file, const st
  * @param file
  * @return the tokens
  */
-std::vector<std::unique_ptr<LexToken>> benchLexFile(const std::string &path, const LexConfig &config) {
+Lexer benchLexFile(const std::string &path, const LexConfig &config) {
     std::ifstream file;
     file.open(path);
     if (!file.is_open()) {
         std::cerr << "Unknown error opening the file" << '\n';
     }
-    auto lexed = benchLexFile(file, path, config);
+    auto lexer = benchLexFile(file, path, config);
     file.close();
-    return lexed;
+    return lexer;
 }
 
 /**
@@ -70,7 +70,8 @@ std::vector<std::unique_ptr<LexToken>> benchLexFile(const std::string &path, con
 std::vector<std::unique_ptr<LexToken>> lexFile(std::istream &file, const std::string& path, const LexConfig &config) {
     StreamSourceProvider reader(file);
     Lexer lexer(reader, path);
-    return lexer.lex(config);
+    lexer.lex(config);
+    return std::move(lexer.tokens);
 }
 
 /**

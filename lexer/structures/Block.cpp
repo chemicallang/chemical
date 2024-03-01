@@ -14,7 +14,7 @@ void Lexer::lexMultipleStatementsTokens() {
                 break;
             }
             lexWhitespaceToken();
-        } while (lexOperatorToken(';') && !lexError.has_value());
+        } while (lexOperatorToken(';') && errors.empty());
     } while (lexNewLineChars());
 }
 

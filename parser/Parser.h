@@ -18,6 +18,11 @@
 #include "ast/values/AccessChain.h"
 #include "ast/values/Expression.h"
 #include "ast/structures/If.h"
+#include "ast/structures/WhileLoop.h"
+#include "ast/structures/DoWhileLoop.h"
+#include "ast/structures/FunctionDeclaration.h"
+#include "ast/structures/ForLoop.h"
+#include "ast/structures/EnumDeclaration.h"
 #include <optional>
 #include <iostream>
 
@@ -122,7 +127,13 @@ public:
      * This parses a single variable initialization statement
      * @return
      */
-    bool parseVariableInitStatement();
+    lex_ptr<VarInitStatement> parseVariableInitStatement();
+
+    /**
+     * This parses a single variable initialization statement
+     * @return true if parsed
+     */
+    bool parseVariableInitStatementBool();
 
     /**
      * Parse a single if statement
@@ -135,6 +146,90 @@ public:
      * @return
      */
     bool parseIfStatementBool();
+
+    /**
+     * Parse a single for loop
+     * @return
+     */
+    lex_ptr<ForLoop> parseForLoop();
+
+    /**
+     * parses a single for loop
+     * @return true if parsed
+     */
+    bool parseForLoopBool();
+
+    /**
+     * Parse a single while loop
+     * @return
+     */
+    lex_ptr<WhileLoop> parseWhileLoop();
+
+    /**
+     * parses a while loop
+     * @return true, if parsed
+     */
+    bool parseWhileLoopBool();
+
+    /**
+     * Parse a single do while loop
+     * @return
+     */
+    lex_ptr<DoWhileLoop> parseDoWhileLoop();
+
+    /**
+     * parses a single do while loop
+     * @return true if parsed
+     */
+    bool parseDoWhileLoopBool();
+
+    /**
+     * Parse a single function definition
+     * @return
+     */
+    lex_ptr<FunctionDeclaration> parseFunctionDefinition();
+
+    /**
+     * Parse a single function definition
+     * @return true if parsed
+     */
+    bool parseFunctionDefinitionBool();
+
+    /**
+     * Parse a single enum declaration
+     * @return
+     */
+    lex_ptr<EnumDeclaration> parseEnumDeclaration();
+
+    /**
+     * Parse a single enum declaration
+     * @return true if parsed
+     */
+    bool parseEnumDeclarationBool();
+
+    /**
+     * Parse a single interface definition
+     * @return
+     */
+    lex_ptr<EnumDeclaration> parseInterfaceDefinition();
+
+    /**
+     * Parse a single interface definition
+     * @return true if parsed
+     */
+    bool parseInterfaceDefinitionBool();
+
+    /**
+     * Parse a single struct definition
+     * @return
+     */
+    lex_ptr<EnumDeclaration> parseStructDefinition();
+
+    /**
+     * Parse a single struct definition
+     * @return true if parsed
+     */
+    bool parseStructDefinitionBool();
 
     /**
      * This will erase all whitespace tokens

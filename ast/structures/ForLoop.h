@@ -12,19 +12,32 @@ class ForLoop : public ASTNode {
 public:
     /**
      * @brief Construct a new ForLoop object.
-     *
-     * @param initialization The initialization statement of the for loop.
-     * @param condition The loop condition.
-     * @param update The loop update statement.
-     * @param body The body of the for loop.
      */
-    ForLoop(std::shared_ptr<ASTNode> initialization, std::shared_ptr<ASTNode> condition,
-            std::shared_ptr<ASTNode> update, std::shared_ptr<ASTNode> body)
-            : initialization(initialization), condition(condition), update(update), body(body) {}
+    ForLoop(
+            std::unique_ptr<VarInitStatement> initializer,
+            std::unique_ptr<Value> conditionExpr,
+            std::unique_ptr<Value> incrementerExpr,
+            Scope body
+    ) : initializer(std::move(initializer)),
+        conditionExpr(std::move(conditionExpr)), incrementerExpr(std::move(incrementerExpr)),
+        body(std::move(body)) {}
+
+    std::string representation() const override {
+        std::string ret("for(");
+        ret.append(initializer->representation());
+        ret.append(1, ';');
+        ret.append(conditionExpr->representation());
+        ret.append(1, ';');
+        ret.append(incrementerExpr->representation());
+        ret.append("{\n");
+        ret.append(body.representation());
+        ret.append("\n}");
+        return ret;
+    }
 
 private:
-    std::shared_ptr<ASTNode> initialization; ///< The initialization statement of the for loop.
-    std::shared_ptr<ASTNode> condition; ///< The loop condition.
-    std::shared_ptr<ASTNode> update; ///< The loop update statement.
-    std::shared_ptr<ASTNode> body; ///< The body of the for loop.
+    std::unique_ptr<VarInitStatement> initializer;
+    std::unique_ptr<Value> conditionExpr;
+    std::unique_ptr<Value> incrementerExpr;
+    Scope body;
 };

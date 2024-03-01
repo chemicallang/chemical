@@ -8,10 +8,9 @@
 #include "lexer/model/tokens/KeywordToken.h"
 
 
-std::vector<std::unique_ptr<LexToken>> Lexer::lex(const LexConfig &config) {
+void Lexer::lex(const LexConfig &config) {
     lexMultipleStatementsTokens();
     tokens.shrink_to_fit();
-    return std::move(tokens);
 }
 
 TokenPosition Lexer::position() {

@@ -5,8 +5,18 @@
 //
 #pragma once
 
+#include <string>
+
 struct StreamPosition {
+
     unsigned int pos;
     unsigned int line;
     unsigned int character;
+
+    std::string formatted() const {
+        std::string format;
+        format.append("at position " + std::to_string(pos) + " line " + std::to_string(line) + " character " + std::to_string(character));
+        return format;
+    }
+
 };

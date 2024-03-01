@@ -40,20 +40,20 @@ lex_ptr<ForLoop> Parser::parseForLoop() {
             return std::nullopt;
         }
         if(!consume_op(')')) {
-            error("expected a ending brace ')' for the 'for' block");
+            error("expected a ending brace ')' for the 'for' loop");
             return std::nullopt;
         }
         if (consume_op('{')) {
             auto scope = parseScope();
             if (!consume_op('}')) {
-                error("expected a ending brace '}' for 'if' block");
+                error("expected a ending brace '}' for 'for' loop");
                 return std::nullopt;
             }
             return std::make_unique<ForLoop>(std::move(statement.value()),
                                              std::move(condition.value()), std::move(incrementer.value()),
                                              std::move(scope));
         } else {
-            error("expected a starting brace '{' after the ')' for the 'for' block");
+            error("expected a starting brace '{' after the ')' for the 'for' loop");
             return std::nullopt;
         }
     } else {

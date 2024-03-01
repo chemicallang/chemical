@@ -7,7 +7,7 @@
 
 
 /**
- * Parse a single for loop
+ * Parse a single while loop
  * @return
  */
 lex_ptr<WhileLoop> Parser::parseWhileLoop() {
@@ -42,7 +42,7 @@ lex_ptr<WhileLoop> Parser::parseWhileLoop() {
 }
 
 /**
- * parses a single for loop
+ * parses a single while loop
  * @return true if parsed
  */
 bool Parser::parseWhileLoopBool() {

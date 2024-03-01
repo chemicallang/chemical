@@ -21,3 +21,6 @@ while(true) {
 do {
 
 } while(true)
+func y(g : int, h : int) : int {
+
+}

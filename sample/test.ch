@@ -16,14 +16,17 @@ if(x == 3) {
 
 }
 for(var z = 5; z < 6; z++) {
-
+    continue;
 }
 while(true) {
-
+    break;
 }
 do {
 
 } while(true)
+func x() {
+    return;
+}
 func y(g : int, h : int) : int {
-
+    return 3;
 }

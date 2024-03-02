@@ -9,6 +9,28 @@
 #include "lexer/model/tokens/ParameterToken.h"
 #include "lexer/model/tokens/TypeToken.h"
 
+lex_ptr<ReturnStatement> Parser::parseReturnStatement() {
+    if(consume("return")) {
+        auto value = parseExpression();
+        if(value.has_value()) {
+            return std::make_unique<ReturnStatement>(std::move(value.value()));
+        } else {
+            return std::make_unique<ReturnStatement>(std::nullopt);
+        }
+    }
+    return std::nullopt;
+}
+
+bool Parser::parseReturnStatementBool() {
+    auto value = parseReturnStatement();
+    if(value.has_value()) {
+        nodes.emplace_back(std::move(value.value()));
+        return true;
+    } else {
+        return false;
+    }
+}
+
 /**
  * parses a single for loop
  * @return true if parsed
@@ -52,7 +74,10 @@ lex_ptr<FunctionDeclaration> Parser::parseFunctionDefinition() {
                 if (!consume_op('{')) {
                     error("expected a '}' for the function body");
                 }
+                auto prevReturn = isParseReturnStatement;
+                isParseReturnStatement = true;
                 auto scope = parseScope();
+                isParseReturnStatement = prevReturn;
                 if (!consume_op('}')) {
                     error("expected a '}' for ending the function body");
                 } else {

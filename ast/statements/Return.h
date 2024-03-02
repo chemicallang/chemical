@@ -7,19 +7,30 @@
 #pragma once
 
 #include "ast/base/ASTNode.h"
+#include "ast/base/Value.h"
 
 class ReturnStatement : public ASTNode {
 public:
+
     /**
-     * @brief Construct a new InitStatement object.
-     *
-     * @param identifier The identifier being initialized.
-     * @param value The value being assigned to the identifier.
+     * @brief Construct a new ReturnStatement object.
      */
-    ReturnStatement(
-        std::unique_ptr<ASTNode> value
-    ) : value(std::move(value)) {}
+    ReturnStatement(std::optional<std::unique_ptr<Value>> value) : value(std::move(value)) {}
+
+    std::string representation() const override {
+        std::string ret;
+        ret.append("return");
+        if(value.has_value()) {
+            ret.append(1, ' ');
+            ret.append(value.value()->representation());
+            ret.append(1, ';');
+        } else {
+            ret.append(1, ';');
+        }
+        return ret;
+    }
 
 private:
-    std::unique_ptr<ASTNode> value; ///< The value being assigned to the identifier.
+    std::optional<std::unique_ptr<Value>> value;
+
 };

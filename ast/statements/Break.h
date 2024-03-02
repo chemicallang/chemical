@@ -10,16 +10,16 @@
 
 class BreakStatement : public ASTNode {
 public:
-    /**
-     * @brief Construct a new InitStatement object.
-     *
-     * @param identifier The identifier being initialized.
-     * @param value The value being assigned to the identifier.
-     */
-    BreakStatement(
-            std::unique_ptr<ASTNode> value
-    ) : value(std::move(value)) {}
 
-private:
-    std::unique_ptr<ASTNode> value; ///< The value being assigned to the identifier.
+    /**
+     * @brief Construct a new Break statement object.
+     */
+    BreakStatement() {}
+
+    std::string representation() const override {
+        std::string ret;
+        ret.append("break;");
+        return ret;
+    }
+
 };

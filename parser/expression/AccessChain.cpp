@@ -8,6 +8,7 @@
 #include "ast/values/StringValue.h"
 #include "ast/values/FunctionCall.h"
 #include "ast/values/IndexOperator.h"
+#include "ast/values/VariableIdentifier.h"
 
 lex_ptr<AccessChain> Parser::parseAccessChain() {
     std::unique_ptr<AccessChain> chain;
@@ -25,9 +26,6 @@ lex_ptr<AccessChain> Parser::parseAccessChain() {
             if (!chain) {
                 chain = std::make_unique<AccessChain>(std::vector<std::unique_ptr<Value>>());
             }
-
-            chain->values.emplace_back(std::move(std::make_unique<StringValue>(var.value()->value)));
-
             if(consume_op('(')) {
                 std::vector<std::unique_ptr<Value>> params;
                 do {
@@ -39,11 +37,13 @@ lex_ptr<AccessChain> Parser::parseAccessChain() {
                     }
                 } while(consume_op(','));
                 if(consume_op(')')) {
-                    chain->values.emplace_back(std::make_unique<FunctionCall>(std::move(params)));
+                    chain->values.emplace_back(std::make_unique<FunctionCall>(std::move(var.value()->value), std::move(params)));
                 } else {
                     error("expected a ')' after the function call in the access chain");
                     break;
                 }
+            } else {
+                chain->values.emplace_back(std::move(std::make_unique<VariableIdentifier>(var.value()->value)));
             }
 
             if(consume_op('[')){

@@ -14,7 +14,7 @@ class FunctionCall : public Value {
 
 public:
 
-    FunctionCall(std::vector<std::unique_ptr<Value>> values) : values(std::move(values)) {
+    FunctionCall(std::string name, std::vector<std::unique_ptr<Value>> values) : name(std::move(name)), values(std::move(values)) {
 
     }
 
@@ -24,6 +24,7 @@ public:
 
     std::string representation() const override {
         std::string rep;
+        rep.append(name);
         rep.append(1, '(');
         int i = 0;
         while (i < values.size()) {
@@ -33,10 +34,11 @@ public:
             }
             i++;
         }
-        rep.append(1, ')');
+        rep.append(");");
         return rep;
     }
 
+    std::string name;
     std::vector<std::unique_ptr<Value>> values;
 
 };

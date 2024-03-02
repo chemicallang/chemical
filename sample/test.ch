@@ -30,3 +30,4 @@ func x() {
 func y(g : int, h : int) : int {
     return 3;
 }
+y();

@@ -8,6 +8,7 @@
 #include "lexer/model/tokens/WhitespaceToken.h"
 #include "lexer/model/tokens/StringOperatorToken.h"
 #include "lexer/model/tokens/CharToken.h"
+#include "lexer/model/tokens/StringToken.h"
 
 void Parser::eraseAllWhitespaceAndMultilineCommentTokens() {
     auto i = 0;
@@ -44,6 +45,13 @@ void Parser::print_got() {
 std::optional<std::string> Parser::consume_str_op() {
     if (position < tokens.size() && tokens[position]->type() == LexTokenType::StringOperator) {
         return consume<StringOperatorToken>()->op;
+    }
+    return std::nullopt;
+}
+
+std::optional<std::string> Parser::consume_str_token() {
+    if (position < tokens.size() && tokens[position]->type() == LexTokenType::String) {
+        return consume<StringToken>()->value;
     }
     return std::nullopt;
 }

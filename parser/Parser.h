@@ -24,6 +24,7 @@
 #include "ast/structures/ForLoop.h"
 #include "ast/structures/EnumDeclaration.h"
 #include "ast/values/BoolValue.h"
+#include "ast/values/ArrayValue.h"
 #include <optional>
 #include <iostream>
 
@@ -88,6 +89,12 @@ public:
      * @return
      */
     lex_ptr<BoolValue> parseBoolValue();
+
+    /**
+     * parses a single array value
+     * @return
+     */
+    lex_ptr<ArrayValue> parseArrayValue();
 
     /**
      * parses a single value, which can be an expression, int, float...
@@ -253,6 +260,12 @@ public:
      * @return
      */
     std::optional<char> get_op_token();
+
+    /**
+     * consume a string token
+     * @return
+     */
+    std::optional<std::string> consume_str_token();
 
     /**
      * consume a char token

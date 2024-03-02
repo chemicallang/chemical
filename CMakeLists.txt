@@ -148,6 +148,7 @@ set(COMMON_SOURCES "lexer/Lexer.cpp" "lexer/Lexer.h" "lexer/model/tokens/CharOpe
         parser/structures/StructDefinition.cpp
         ast/values/IncDecValue.h
         ast/values/BoolValue.h
+        ast/values/ArrayValue.h
 )
 
 # Chemical LSP Executable Target

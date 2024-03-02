@@ -23,7 +23,7 @@ public:
     StringValue(std::string  value) : value(std::move(value)) {}
 
     std::string representation() const override {
-        return value;
+        return "\"" + value + "\"";
     }
 
 private:

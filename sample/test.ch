@@ -1,4 +1,7 @@
 var x : int = 1
+var a = [1,2,3];
+var b = 'x';
+var c = "something";
 x = x == 1
 if(x > 5) {
 

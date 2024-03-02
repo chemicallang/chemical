@@ -7,21 +7,24 @@
 #include "lexer/Lexer.h"
 
 void Lexer::lexMultipleStatementsTokens() {
-    do {
-        do {
-            lexWhitespaceToken();
-            if (!lexStatementTokens()) {
-                break;
-            }
-            lexWhitespaceToken();
-        } while (lexOperatorToken(';') && errors.empty());
-    } while (lexNewLineChars());
+
+    // lex whitespace and new lines to reach a statement
+    // lex a statement and then optional whitespace, lex semicolon
+
+    while(true) {
+        lexWhitespaceAndNewLines();
+        if(!lexStatementTokens())  {
+            break;
+        }
+        lexWhitespace();
+        lexOperatorToken(';');
+    }
 }
 
 bool Lexer::lexBraceBlock() {
 
     // starting brace
-    if(!lexOperatorToken('{')) {
+    if (!lexOperatorToken('{')) {
         return false;
     }
 
@@ -29,11 +32,11 @@ bool Lexer::lexBraceBlock() {
     auto prevImportState = isLexImportStatement;
     isLexImportStatement = false;
     lexMultipleStatementsTokens();
-    prevImportState = prevImportState;
+    isLexImportStatement = prevImportState;
 
     // ending brace
-    if(!lexOperatorToken('}')) {
-        error("expected a closing brace }");
+    if (!lexOperatorToken('}')) {
+        error("expected a closing brace '}'");
         return true;
     }
 

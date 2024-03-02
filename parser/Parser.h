@@ -25,6 +25,9 @@
 #include "ast/structures/EnumDeclaration.h"
 #include "ast/values/BoolValue.h"
 #include "ast/values/ArrayValue.h"
+#include "ast/statements/Return.h"
+#include "ast/statements/Break.h"
+#include "ast/statements/Continue.h"
 #include <optional>
 #include <iostream>
 
@@ -196,6 +199,44 @@ public:
      * @return true if parsed
      */
     bool parseDoWhileLoopBool();
+
+    /**
+     * parse a single continue statement in a loop
+     * @return
+     */
+    inline bool parseContinueStatement() {
+        if(consume("continue")) {
+            nodes.emplace_back(std::make_unique<ContinueStatement>());
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * parse a single break statement in a loop
+     * @return
+     */
+    inline bool parseBreakStatement() {
+        if(consume("break")) {
+            nodes.emplace_back(std::make_unique<BreakStatement>());
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * parse a single return statement present inside a function
+     * @return
+     */
+    lex_ptr<ReturnStatement> parseReturnStatement();
+
+    /**
+     * parses a return s
+     * @return
+     */
+    bool parseReturnStatementBool();
 
     /**
      * Parse a single function definition
@@ -384,6 +425,24 @@ private:
      * the current token being looked at !
      */
     int position = 0;
+
+    /**
+     * a stateful variable, in the middle of the lexing
+     * when turned on a return statement is parsed
+     */
+    bool isParseReturnStatement = false;
+
+    /**
+     * a stateful variable, in the middle of the lexing
+     * when turned on a continue statement is parsed
+     */
+    bool isParseContinueStatement = false;
+
+    /**
+     * a stateful variable, in the middle of the lexing
+     * when turned on a break statement is parsed
+     */
+    bool isParseBreakStatement = false;
 
 };
 

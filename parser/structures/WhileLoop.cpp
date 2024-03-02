@@ -25,7 +25,13 @@ lex_ptr<WhileLoop> Parser::parseWhileLoop() {
             return std::nullopt;
         }
         if (consume_op('{')) {
+            auto prevParseBreak = isParseBreakStatement;
+            auto prevParseContinue = isParseContinueStatement;
+            isParseBreakStatement = true;
+            isParseContinueStatement = true;
             auto scope = parseScope();
+            isParseBreakStatement = prevParseBreak;
+            isParseContinueStatement = prevParseContinue;
             if (!consume_op('}')) {
                 error("expected a ending brace '}' for 'while' loop");
                 return std::nullopt;

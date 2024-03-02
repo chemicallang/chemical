@@ -12,6 +12,7 @@ bool Lexer::lexReturnStatement() {
     if(lexKeywordToken("return")) {
         lexWhitespaceToken();
         lexExpressionTokens();
+        return true;
     } else {
         return false;
     }
@@ -88,11 +89,12 @@ bool Lexer::lexFunctionStructureTokens() {
     lexWhitespaceToken();
 
     // inside the block allow return statements
+    auto prevReturn = isLexReturnStatement;
     isLexReturnStatement = true;
     if(!lexBraceBlock()) {
         error("expected the function definition after the signature");
     }
-    isLexReturnStatement = false;
+    isLexReturnStatement = prevReturn;
 
     return true;
 

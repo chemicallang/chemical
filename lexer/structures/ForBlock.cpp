@@ -65,9 +65,6 @@ bool Lexer::lexForBlockTokens() {
         error("expected a closing parenthesis ) in a for block");
     }
 
-    // whitespace
-    lexWhitespaceToken();
-
     // { statement(s) } with continue & break support
     isLexContinueStatement = true;
     isLexBreakStatement = true;

@@ -23,6 +23,9 @@ void Lexer::lexMultipleStatementsTokens() {
 
 bool Lexer::lexBraceBlock() {
 
+    // whitespace and new lines
+    lexWhitespaceAndNewLines();
+
     // starting brace
     if (!lexOperatorToken('{')) {
         return false;

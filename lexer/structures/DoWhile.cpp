@@ -12,8 +12,6 @@ bool Lexer::lexDoWhileBlockTokens() {
         return false;
     }
 
-    lexWhitespaceToken();
-
     // { statement(s) } with continue & break support
     isLexContinueStatement = true;
     isLexBreakStatement = true;

@@ -86,8 +86,6 @@ bool Lexer::lexFunctionStructureTokens() {
         return false;
     }
 
-    lexWhitespaceToken();
-
     // inside the block allow return statements
     auto prevReturn = isLexReturnStatement;
     isLexReturnStatement = true;

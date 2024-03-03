@@ -15,6 +15,12 @@ if(x == 3) {
 } else {
 
 }
+if(x == 3)
+{
+}
+else
+{
+}
 for(var z = 5; z < 6; z++) {
     continue;
 }

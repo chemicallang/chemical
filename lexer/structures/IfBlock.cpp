@@ -29,8 +29,6 @@ bool Lexer::lexIfSignature() {
         return true;
     }
 
-    lexWhitespaceToken();
-
     return true;
 
 }
@@ -59,11 +57,11 @@ bool Lexer::lexIfBlockTokens() {
     }
 
     // lex whitespace
-    lexWhitespaceToken();
+    lexWhitespaceAndNewLines();
 
     // keep lexing else if blocks until last else appears
     while (lexKeywordToken("else")) {
-        lexWhitespaceToken();
+        lexWhitespaceAndNewLines();
         if (provider.peek() == '{') {
             if (!lexBraceBlock()) {
                 error("expected a brace block after the else while lexing an if statement");

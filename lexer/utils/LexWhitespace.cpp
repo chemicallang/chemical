@@ -30,8 +30,8 @@ bool Lexer::lexWhitespaceToken() {
 
 void Lexer::lexWhitespaceAndNewLines() {
     while (!provider.eof()) {
-        if (!lexNewLineChars() && !lexWhitespaceToken()) {
-            break;
+        if(!(lexNewLineChars() || lexWhitespaceToken())){
+            return;
         }
     }
 }

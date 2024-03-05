@@ -25,6 +25,12 @@ public:
      */
     Scope(Scope &&other) : nodes(std::move(other.nodes)) {}
 
+    void interpret(InterpretScope& scope) const override {
+        for(const auto& node : nodes) {
+            node->interpret(scope);
+        }
+    }
+
     std::string representation() const override {
         std::string rep;
         int i = 0;

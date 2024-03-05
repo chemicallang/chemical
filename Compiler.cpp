@@ -14,7 +14,7 @@ int main(int argc, char *argv[]) {
         return 0;
     }
     auto lexer = benchLexFile(argv[1], LexConfig{});
-    printTokens(lexer.tokens);
+//    printTokens(lexer.tokens);
     for(const auto& err : lexer.errors) {
         std::cerr << "[Lexer] " << err.message << ' ' << err.position.formatted() << "\n";
     }
@@ -23,6 +23,12 @@ int main(int argc, char *argv[]) {
         std::cerr << err;
     }
     Scope scope(std::move(parser.nodes));
-    std::cout << "[Representation]\n" << scope.representation() << "\n";
+//    std::cout << "[Representation]\n" << scope.representation() << "\n";
+    InterpretScope interpretScope;
+    std::cout << "[Interpretation]\n";
+    scope.interpret(interpretScope);
+    for(const auto& err : interpretScope.errors) {
+        std::cerr << "[Interpreter] " << err << '\n';
+    }
     return 0;
 }

@@ -35,5 +35,8 @@ enum class Operation : uint8_t {
 
     And,
     Or,
+
+    // Xor should always be the last Operation because XOR's index (uint8_t) is used as length of this enum
     Xor
+
 };

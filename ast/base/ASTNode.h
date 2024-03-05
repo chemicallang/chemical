@@ -11,6 +11,7 @@
 #include <string>
 #include "InterpretScope.h"
 #include <iostream>
+
 /**
  * @brief Base class for all AST nodes.
  */
@@ -21,7 +22,7 @@ public:
      * Interpret the current node in the given interpret scope
      * @param scope
      */
-    virtual void interpret(InterpretScope& scope) const {
+    virtual void interpret(InterpretScope& scope) {
         std::cerr << "ASTNode Bare interpret Called";
         // TODO make = 0
     }

@@ -17,18 +17,18 @@ public:
 
     }
 
-    void interpret(InterpretScope &scope) const override {
+    void interpret(InterpretScope &scope) override {
         for(const auto& value:values) {
             value->interpret(scope);
         }
     }
 
-    void set_in_parent(scope_vars vars, InterpretValue *value) override {
+    void set_in_parent(scope_vars vars, Value *value) override {
         values[0]->set_in_parent(vars, value);
     }
 
-    InterpretValue* travel(std::unordered_map<std::string, InterpretValue*>& scopeVars) override {
-        InterpretValue* scopeVariable = values[0]->find_in_parent(scopeVars);
+    Value* travel(scope_vars scopeVars) override {
+        Value* scopeVariable = values[0]->find_in_parent(scopeVars);
         if(scopeVariable == nullptr) {
             std::cerr << "Not found in parent";
             return nullptr;

@@ -20,7 +20,7 @@ Parser benchParse(std::vector<std::unique_ptr<LexToken>> tokens) {
     auto start = std::chrono::steady_clock::now();
 
     // Print started
-    std::cout << "[Parse] Started" << '\n';
+    // std::cout << "[Parse] Started" << '\n';
 
     // Actual parsing
     parser.parse();

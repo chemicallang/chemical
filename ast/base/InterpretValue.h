@@ -8,9 +8,7 @@
 
 #include <unordered_map>
 
-class InterpretValue;
-
-using scope_vars = std::unordered_map<std::string, InterpretValue*>&;
+using scope_vars = std::unordered_map<std::string, Value*>&;
 
 class InterpretValue {
 public:
@@ -19,7 +17,7 @@ public:
         return nullptr;
     }
 
-    virtual InterpretValue* getChild(std::string* name) {
+    virtual Value* getChild(std::string* name) {
         return nullptr;
     }
 
@@ -31,7 +29,7 @@ public:
         return "[InterpretValueRepresentation]";
     };
 
-    virtual void set_in_parent(scope_vars vars, InterpretValue* value) {
+    virtual void set_in_parent(scope_vars vars, Value* value) {
 
     }
 
@@ -42,7 +40,7 @@ public:
      * @param scopeVars
      * @return
      */
-    virtual InterpretValue * find_in_parent(std::unordered_map<std::string, InterpretValue *> &scopeVars) {
+    virtual Value * find_in_parent(scope_vars &scopeVars) {
         return nullptr;
     }
 
@@ -53,7 +51,7 @@ public:
      * @param scopeVars
      * @return
      */
-    virtual InterpretValue* travel(std::unordered_map<std::string, InterpretValue*>& scopeVars) {
+    virtual InterpretValue* travel(scope_vars scopeVars) {
         return nullptr;
     }
 

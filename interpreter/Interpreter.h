@@ -7,15 +7,34 @@
 #pragma once
 
 #include "ast/base/ASTNode.h"
+#include "ast/utils/ExpressionEvaluator.h"
 #include <memory>
 #include <vector>
 
-class Interpreter {
+class Interpreter : public ExpressionEvaluator {
+public:
 
-    std::vector<std::unique_ptr<ASTNode>> tokens;
-
-    explicit Interpreter(std::vector<std::unique_ptr<ASTNode>> tokens) : tokens(std::move(tokens)) {
+    void interpret() {
 
     }
+
+    void error(const std::string& err) {
+        errors.emplace_back(err);
+    }
+
+    /**
+     * The global interpret scope
+     */
+     InterpretScope global;
+
+     /**
+      * The local interpret scope
+      */
+     InterpretScope local;
+
+    /**
+     * This contains errors that occur during interpretation
+     */
+    std::vector<std::string> errors;
 
 };

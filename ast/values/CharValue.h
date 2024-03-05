@@ -28,6 +28,10 @@ public:
         return rep;
     }
 
+    void * get_value() override {
+        return &value;
+    }
+
 private:
     char value; ///< The character value.
 };

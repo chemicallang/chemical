@@ -26,6 +26,10 @@ public:
         return rep;
     }
 
+    void * get_value() override {
+        return &value;
+    }
+
 private:
     float value; ///< The floating-point value.
 };

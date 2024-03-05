@@ -28,6 +28,14 @@ public:
         return rep;
     }
 
+    bool as_bool() override {
+        return value;
+    }
+
+    void * get_value() override {
+        return &value;
+    }
+
 private:
     bool value;
 };

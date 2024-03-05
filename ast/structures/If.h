@@ -28,8 +28,20 @@ public:
     ) : condition(std::move(condition)), ifBody(std::move(ifBody)),
         elseIfs(std::move(elseIfs)), elseBody(std::move(elseBody)) {}
 
-    void interpret(InterpretScope &scope) const override {
-
+    void interpret(InterpretScope &scope) override {
+        if(condition->evaluated_value(scope.values)->as_bool()) {
+            ifBody.interpret(scope);
+        } else {
+            for (auto const& elseIf:elseIfs) {
+                if(elseIf->condition->evaluate()) {
+                    elseIf->ifBody.interpret(scope);
+                    return;
+                }
+            }
+            if(elseBody.has_value()) {
+                elseBody->interpret(scope);
+            }
+        }
     }
 
     std::string representation() const override {
@@ -54,7 +66,7 @@ public:
     }
 
 private:
-    std::unique_ptr<ASTNode> condition;
+    std::unique_ptr<Value> condition;
     Scope ifBody;
     std::vector<std::unique_ptr<IfStatement>> elseIfs;
     std::optional<Scope> elseBody;

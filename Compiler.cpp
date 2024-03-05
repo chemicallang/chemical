@@ -7,6 +7,8 @@
 #include "lexer/Lexi.h"
 #include "parser/Persi.h"
 #include "utils/Utils.h"
+#include "ast/utils/ExpressionEvaluator.h"
+#include "ast/utils/ValueType.h"
 
 int main(int argc, char *argv[]) {
     if (argc == 0) {
@@ -26,6 +28,7 @@ int main(int argc, char *argv[]) {
 //    std::cout << "[Representation]\n" << scope.representation() << "\n";
     InterpretScope interpretScope;
     std::cout << "[Interpretation]\n";
+    ExpressionEvaluator::prepareFunctions();
     scope.interpret(interpretScope);
     for(const auto& err : interpretScope.errors) {
         std::cerr << "[Interpreter] " << err << '\n';

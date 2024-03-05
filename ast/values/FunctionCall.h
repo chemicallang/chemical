@@ -22,14 +22,14 @@ public:
 
     }
 
-    void interpret(InterpretScope &scope) const override {
+    void interpret(InterpretScope &scope) override {
         if(name == "print") {
             for(auto const& value: values){
-                auto func = value->travel(scope.values);
-                if(func == nullptr) {
-                    std::cerr << "[FunctionCall] Function parameter not found : " << value->representation();
-                } else {
+                auto func = value->evaluated_value(scope.values);
+                if(func) {
                     std::cout << func->interpret_representation();
+                } else {
+                    std::cerr << "[FunctionCall] Function parameter not found : " << value->representation();
                 }
             }
         } else {

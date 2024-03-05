@@ -18,7 +18,7 @@ Lexer benchLexFile(std::istream &file, const std::string& path, const LexConfig 
     Lexer lexer(reader, path);
 
     // Print started
-    std::cout << "[Lex] Started" << '\n';
+    // std::cout << "[Lex] Started" << '\n';
 
     // Save start time
     auto start = std::chrono::steady_clock::now();

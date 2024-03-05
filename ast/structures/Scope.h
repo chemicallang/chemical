@@ -25,7 +25,7 @@ public:
      */
     Scope(Scope &&other) : nodes(std::move(other.nodes)) {}
 
-    void interpret(InterpretScope& scope) const override {
+    void interpret(InterpretScope& scope) override {
         for(const auto& node : nodes) {
             node->interpret(scope);
         }

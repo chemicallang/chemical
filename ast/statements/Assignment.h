@@ -20,7 +20,7 @@ public:
             std::unique_ptr<Value> value
     ) : lhs(std::move(lhs)), value(std::move(value)) {}
 
-    void interpret(InterpretScope& scope) const override {
+    void interpret(InterpretScope& scope) override {
         lhs->set_in_parent(scope.values, value.get());
     }
 

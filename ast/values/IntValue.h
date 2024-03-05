@@ -13,6 +13,7 @@
  */
 class IntValue : public Value {
 public:
+
     /**
      * @brief Construct a new IntValue object.
      *
@@ -25,6 +26,19 @@ public:
         rep.append(std::to_string(value));
         return rep;
     }
+
+    int as_int() override {
+        return value;
+    }
+
+    void *get_value() override {
+        return &value;
+    }
+
+    ValueType value_type() const override {
+        return ValueType::Int;
+    }
+
 
 private:
     int value; ///< The integer value.

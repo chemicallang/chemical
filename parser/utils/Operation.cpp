@@ -34,6 +34,10 @@ std::string to_string(Operation operation) {
             return "<<";
         case Operation::RightShift:
             return ">>";
+        case Operation::Increment:
+            return "++";
+        case Operation::Decrement:
+            return "--";
         case Operation::And:
             return "&";
         case Operation::Or:

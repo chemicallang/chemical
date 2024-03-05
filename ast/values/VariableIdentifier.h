@@ -15,6 +15,7 @@
  */
 class VariableIdentifier : public Value {
 public:
+
     /**
      * @brief Construct a new VariableIdentifier object.
      *
@@ -22,8 +23,7 @@ public:
      */
     VariableIdentifier(std::string  value) : value(std::move(value)) {}
 
-
-    void set_in_parent(scope_vars vars, InterpretValue* newValue) override {
+    void set_in_parent(scope_vars vars, Value* newValue) override {
         if(vars.contains(value)) {
             vars[value] = newValue;
         } else {
@@ -31,15 +31,25 @@ public:
         }
     }
 
-    InterpretValue * find_in_parent(std::unordered_map<std::string, InterpretValue *> &scopeVars) override {
+    Value * evaluated_value(scope_vars &scopeVars) override {
         if(scopeVars.contains(value)) {
-            return scopeVars[value];
+            pointing = scopeVars[value];
+            return pointing;
         } else {
             return nullptr;
         }
     }
 
-    InterpretValue * travel(std::unordered_map<std::string, InterpretValue *> &scopeVars) override {
+    Value * find_in_parent(scope_vars scopeVars) override {
+        if(scopeVars.contains(value)) {
+            pointing = scopeVars[value];
+            return pointing;
+        } else {
+            return nullptr;
+        }
+    }
+
+    Value * travel(scope_vars &scopeVars) override {
         return find_in_parent(scopeVars);
     }
 
@@ -48,5 +58,6 @@ public:
     }
 
 private:
+    Value* pointing;
     std::string value; ///< The string value.
 };

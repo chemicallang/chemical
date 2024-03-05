@@ -23,8 +23,16 @@ public:
      */
     StringValue(std::string  value) : value(std::move(value)) {}
 
+    std::string interpret_representation() const override {
+        return value;
+    }
+
     std::string representation() const override {
         return "\"" + value + "\"";
+    }
+
+    void * get_value() override {
+        return &value;
     }
 
 private:

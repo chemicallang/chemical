@@ -1,4 +1,4 @@
-var x : int = 1
+var x : int = -1
 var a = [1,2,3];
 var b = 'x';
 var c = "something";

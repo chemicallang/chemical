@@ -20,6 +20,10 @@ void Lexer::lexRemainingExpression() {
 
 bool Lexer::lexExpressionTokens(){
 
+    if(lexOperatorToken('-')) {
+        return lexExpressionTokens();
+    }
+
     if(lexOperatorToken('!')) {
         return lexExpressionTokens();
     }

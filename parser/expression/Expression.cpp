@@ -8,6 +8,7 @@
 #include "ast/values/NotValue.h"
 #include "parser/utils/Operation.h"
 #include "ast/values/IncDecValue.h"
+#include "ast/values/Negative.h"
 
 std::optional<Operation> Parser::parseOperation() {
     auto value = get_op_token();
@@ -90,6 +91,16 @@ std::unique_ptr<Value> Parser::parseRemainingExpression(std::unique_ptr<Value> f
 
 
 std::optional<std::unique_ptr<Value>> Parser::parseExpression() {
+
+    if(consume_op('-')) {
+        auto value = parseExpression();
+        if (value.has_value()) {
+            return std::make_unique<NegativeValue>(std::move(value.value()));
+        } else {
+            error("expected a value after the negative '-' operator");
+            return std::nullopt;
+        }
+    }
 
     if (consume_op('!')) {
         auto value = parseExpression();

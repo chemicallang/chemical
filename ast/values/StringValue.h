@@ -15,6 +15,7 @@
  */
 class StringValue : public Value {
 public:
+
     /**
      * @brief Construct a new StringValue object.
      *

@@ -28,6 +28,10 @@ public:
     ) : condition(std::move(condition)), ifBody(std::move(ifBody)),
         elseIfs(std::move(elseIfs)), elseBody(std::move(elseBody)) {}
 
+    void interpret(InterpretScope &scope) const override {
+
+    }
+
     std::string representation() const override {
         std::string rep;
         rep.append("if(");

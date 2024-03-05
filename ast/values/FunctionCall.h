@@ -22,6 +22,21 @@ public:
 
     }
 
+    void interpret(InterpretScope &scope) const override {
+        if(name == "print") {
+            for(auto const& value: values){
+                auto func = value->travel(scope.values);
+                if(func == nullptr) {
+                    std::cerr << "[FunctionCall] Function parameter not found : " << value->representation();
+                } else {
+                    std::cout << func->interpret_representation();
+                }
+            }
+        } else {
+            std::cerr << "Not implemented Function Call " << name;
+        }
+    }
+
     std::string representation() const override {
         std::string rep;
         rep.append(name);

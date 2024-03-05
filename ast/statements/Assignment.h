@@ -20,6 +20,10 @@ public:
             std::unique_ptr<Value> value
     ) : lhs(std::move(lhs)), value(std::move(value)) {}
 
+    void interpret(InterpretScope& scope) const override {
+        lhs->set_in_parent(scope.values, value.get());
+    }
+
     std::string representation() const override {
         std::string rep;
         rep.append(lhs->representation());

@@ -11,6 +11,10 @@
 /**
  * @brief Base class for all values in the AST.
  */
-class Value : public ASTNode {
+class Value : public ASTNode, public InterpretValue {
+
+    std::string interpret_representation() const override {
+        return representation();
+    }
 
 };

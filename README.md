@@ -11,7 +11,7 @@ It allows you to rethink how programming languages mix and share concepts to cre
 We are aiming for typescript like syntax for this native language.
 
 ```typescript
-    var x : int = 5;
+var x : int = 5;
 for(var i = 0; i < 5; i++){
     // switch statements are similar to c++
     if(i == 3) {
@@ -39,6 +39,7 @@ function add(a : int, b : int) : int {
 - [ ] CIPs
   - [ ] Syntax Modifier Plugins (SMP)
   - [ ] AST Transformation Plugins (ATP)
+- [ ] Documentation
 - [ ] Experiment & Research
   - [ ] Multi language linking
   - [ ] Multiplatform syntax support

@@ -10,6 +10,7 @@
 
 enum class LexTokenType : uint8_t {
     CharOperator,
+    Operation,
     Char,
     Class,
     Comment,

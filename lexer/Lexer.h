@@ -14,6 +14,7 @@
 #include "LexConfig.h"
 #include "lexer/model/LexError.h"
 #include "lexer/model/TokenPosition.h"
+#include "ast/utils/Operation.h"
 #include <memory>
 #include <optional>
 #include <functional>
@@ -117,11 +118,19 @@ public:
     bool lexAssignmentTokens();
 
     /**
-     * lexes a single language operator token
-     * like +, -
+     * This lexes a operation token in between two values
+     * for example x (token) y -> x + y or x - y
      * @return whether the language operator token has been lexed
      */
     bool lexLanguageOperatorToken();
+
+    /**
+     * This lexes a operation token before assignment '='
+     * for example +=, -=
+     * in this case, equal sign is ignored and operation is determined solely based on the token before it
+     * @return whether the language operator token has been lexed
+     */
+    bool lexAssignmentOperatorToken();
 
     /**
      * lex type tokens
@@ -155,6 +164,20 @@ public:
      * @return whether the token was found
      */
     bool lexOperatorToken(const std::string &op);
+
+    /**
+     * lexes the given operator as length 1 character operator token
+     * @param op
+     * @return whether the token was found
+     */
+    bool lexOperatorToken(char token, Operation op);
+
+    /**
+     * lexes the given operator as a string operator token
+     * @param op
+     * @return whether the token was found
+     */
+    bool lexOperatorToken(const std::string &token, Operation op);
 
     /**
      * lexes a keyword token for the given keyword

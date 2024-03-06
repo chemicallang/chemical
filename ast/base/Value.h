@@ -7,17 +7,52 @@
 #pragma once
 
 #include "ASTNode.h"
-#include "InterpretValue.h"
 #include "ValueType.h"
+
+using scope_vars = std::unordered_map<std::string, Value*>&;
 
 /**
  * @brief Base class for all values in the AST.
  */
-class Value : public ASTNode, public InterpretValue {
+class Value : public ASTNode {
 public:
 
-    std::string interpret_representation() const override {
+    virtual std::string* getScopeIdentifier() {
+        return nullptr;
+    }
+
+    virtual Value* getChild(std::string* name) {
+        return nullptr;
+    }
+
+    /**
+     * This would return the representation of the node
+     * @return
+     */
+    virtual std::string interpret_representation() const {
         return representation();
+    };
+
+    /**
+     * Called by assignment statement, to set this value to this container
+     * since InterpretValue can also represent an identifier or access chain
+     * This method is overridden by for ex : an identifier, which can find itself in the scope above and set this value
+     * @param vars
+     * @param value
+     */
+    virtual void set_in_parent(scope_vars vars, Value* value) {
+
+    }
+
+    /**
+     * this function is called with the current scope variables on the first element of the access chain
+     * this allows locating the first element of the access chain in the scope above
+     * once located, we can travel that variable to locate the rest of the access chain and use that value
+     * @param scopeVars
+     * @return
+     */
+    virtual Value * find_in_parent(scope_vars &scopeVars) {
+        return nullptr;
     }
 
     /**
@@ -58,12 +93,14 @@ public:
     }
 
     /**
-     * evaluate the value to another value
-     * for example logical expressions can be evaluated to booleans
+     * This is called by for example, assignment statement, to locate the access chain completely
+     * in the scope variables given, so that lhs value can be set
+     * It is also called by the function for its parameters to locate them
+     * @param scopeVars
      * @return
      */
-    virtual std::unique_ptr<Value> evaluate() {
-        throw std::runtime_error("evaluating a base value is not possible");
+    virtual Value* travel(scope_vars scopeVars) {
+        return nullptr;
     }
 
     /**
@@ -73,5 +110,13 @@ public:
     virtual ValueType value_type() const {
         return ValueType::Unknown;
     };
+
+    /**
+     * returns whether the value should be deleted at the end of the scope
+     * @return
+     */
+    virtual bool delete_value() const {
+       return false;
+    }
 
 };

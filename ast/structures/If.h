@@ -29,11 +29,14 @@ public:
         elseIfs(std::move(elseIfs)), elseBody(std::move(elseBody)) {}
 
     void interpret(InterpretScope &scope) override {
-        if(condition->evaluated_value(scope.values)->as_bool()) {
+        auto cond = condition->evaluated_value(scope.values);
+        if(cond->as_bool()) {
             ifBody.interpret(scope);
         } else {
+            delete cond;
             for (auto const& elseIf:elseIfs) {
-                if(elseIf->condition->evaluate()) {
+                cond = elseIf->condition->evaluated_value(scope.values);
+                if(cond->as_bool()) {
                     elseIf->ifBody.interpret(scope);
                     return;
                 }

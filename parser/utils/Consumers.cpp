@@ -9,6 +9,7 @@
 #include "lexer/model/tokens/StringOperatorToken.h"
 #include "lexer/model/tokens/CharToken.h"
 #include "lexer/model/tokens/StringToken.h"
+#include "lexer/model/tokens/OperationToken.h"
 
 void Parser::eraseAllWhitespaceAndMultilineCommentTokens() {
     auto i = 0;
@@ -40,6 +41,20 @@ void Parser::print_got() {
     std::cout << err << " at " + std::to_string(tokens[position]->lineNumber()) + ":" +
                         std::to_string(tokens[position]->lineCharNumber());
     error(err);
+}
+
+std::optional<Operation> Parser::consume_op_token() {
+    if (position < tokens.size() && tokens[position]->type() == LexTokenType::Operation) {
+        return consume<OperationToken>()->op;
+    }
+    return std::nullopt;
+}
+
+std::optional<char> Parser::consume_char_op() {
+    if (position < tokens.size() && tokens[position]->type() == LexTokenType::CharOperator) {
+        return consume<CharOperatorToken>()->op;
+    }
+    return std::nullopt;
 }
 
 std::optional<std::string> Parser::consume_str_op() {

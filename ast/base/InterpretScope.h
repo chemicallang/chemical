@@ -25,6 +25,12 @@ public:
     inline void error(const std::string& err);
 
     /**
+     * Values that want to be deleted when the scope ends
+     * must be deleted in the destructor
+     */
+    ~InterpretScope();
+
+    /**
      * This contains a map between identifiers and its values
      * When a variable is created, the variable sets the identifier in unordered-map
      */

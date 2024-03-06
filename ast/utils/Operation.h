@@ -20,8 +20,8 @@ enum class Operation : uint8_t {
     Modulus,
 
 
-    Equal,
-    NotEqual,
+    IsEqual,
+    IsNotEqual,
     LessThan,
     LessThanOrEqual,
     GreaterThan,
@@ -29,6 +29,8 @@ enum class Operation : uint8_t {
 
     LeftShift,
     RightShift,
+
+    Equal,
 
     Increment,
     Decrement,
@@ -40,3 +42,5 @@ enum class Operation : uint8_t {
     Xor
 
 };
+
+std::string to_string(Operation operation);

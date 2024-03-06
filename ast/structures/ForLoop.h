@@ -16,11 +16,20 @@ public:
     ForLoop(
             std::unique_ptr<VarInitStatement> initializer,
             std::unique_ptr<Value> conditionExpr,
-            std::unique_ptr<Value> incrementerExpr,
+            std::unique_ptr<ASTNode> incrementerExpr,
             Scope body
     ) : initializer(std::move(initializer)),
         conditionExpr(std::move(conditionExpr)), incrementerExpr(std::move(incrementerExpr)),
         body(std::move(body)) {}
+
+    void interpret(InterpretScope &scope) override {
+        InterpretScope child(scope);
+        initializer->interpret(child);
+        while(conditionExpr->evaluated_value(child.values)->as_bool()){
+            body.interpret(child);
+            incrementerExpr->interpret(child);
+        }
+    }
 
     std::string representation() const override {
         std::string ret("for(");
@@ -38,6 +47,6 @@ public:
 private:
     std::unique_ptr<VarInitStatement> initializer;
     std::unique_ptr<Value> conditionExpr;
-    std::unique_ptr<Value> incrementerExpr;
+    std::unique_ptr<ASTNode> incrementerExpr;
     Scope body;
 };

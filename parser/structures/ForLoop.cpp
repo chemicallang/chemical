@@ -34,7 +34,7 @@ lex_ptr<ForLoop> Parser::parseForLoop() {
             error("expected a ';' for ending 'for' loop condition");
             return std::nullopt;
         }
-        auto incrementer = parseExpression();
+        auto incrementer = parseVarAssignStatement();
         if (!incrementer.has_value()) {
             error("expected an incrementer expression for 'for' loop");
             return std::nullopt;

@@ -8,27 +8,40 @@
 #include "lexer/model/tokens/AbstractStringToken.h"
 #include "ast/statements/Assignment.h"
 
-bool Parser::parseVarAssignStatement() {
+lex_ptr<ASTNode> Parser::parseVarAssignStatement() {
     auto chain = parseAccessChain();
     if (!chain.has_value()) {
-        return false;
+        return std::nullopt;
     }
     auto operation = consume_op_token();
-    if(!consume_op('=')) {
+    if(!consume_op('=') && operation != Operation::Increment && operation != Operation::Decrement) {
         if(operation.has_value()) {
             error("expected a equal operator after the operation token");
         }
-        nodes.emplace_back(std::move(chain.value()));
-        return true;
+        return std::move(chain.value());
     }
     if(!operation.has_value()) {
         operation = Operation::Equal;
     }
     auto value = parseExpression();
     if (value.has_value()) {
-        nodes.emplace_back(std::make_unique<AssignStatement>(std::move(chain.value()), std::move(value.value()), operation.value()));
+        return std::make_unique<AssignStatement>(std::move(chain.value()), std::move(value.value()), operation.value());
     } else {
-        error("expected a value after the operation in var assignment");
+        if(operation.has_value() && (operation == Operation::Increment) || (operation == Operation::Decrement)) {
+            return std::make_unique<AssignStatement>(std::move(chain.value()), std::make_unique<IntValue>(1), operation.value());
+        } else {
+            error("expected a value after the operation in var assignment");
+        }
     }
-    return true;
+    return std::nullopt;
+}
+
+bool Parser::parseVarAssignStatementBool() {
+    auto statement = parseVarAssignStatement();
+    if(statement.has_value()) {
+        nodes.emplace_back(std::move(statement.value()));
+        return true;
+    } else {
+        return !errors.empty();
+    }
 };

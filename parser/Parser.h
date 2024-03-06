@@ -28,6 +28,7 @@
 #include "ast/statements/Return.h"
 #include "ast/statements/Break.h"
 #include "ast/statements/Continue.h"
+#include "ast/statements/Assignment.h"
 #include <optional>
 #include <iostream>
 
@@ -129,10 +130,16 @@ public:
     lex_ptr<Value> parseAccessChainOrValue();
 
     /**
+     * parses a single assignment statement
+     * @return
+     */
+    lex_ptr<ASTNode> parseVarAssignStatement();
+
+    /**
      * parses a variable assignment state
      * @return whether a node was added
      */
-    bool parseVarAssignStatement();
+    bool parseVarAssignStatementBool();
 
     /**
      * This parses a single variable initialization statement

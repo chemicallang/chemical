@@ -7,26 +7,27 @@
 #pragma once
 
 #include "LexToken.h"
+#include "ast/utils/Operation.h"
 
 /**
- * Its named CharOperator because it holds a char, Char has no meaning in terms of syntax
- * The length of this token is always one
+ * Its named OperationToken because it holds a operation
  */
-class CharOperatorToken : public LexToken {
+class OperationToken : public LexToken {
 public:
 
-    char op;
+    Operation op;
+    unsigned int len;
 
-    CharOperatorToken(const TokenPosition& position, char op) : LexToken(position), op(op) {
+    OperationToken(const TokenPosition& position, unsigned int length, Operation op) : LexToken(position), len(length), op(op) {
 
     }
 
     unsigned int length() const override {
-        return 1;
+        return len;
     }
 
     LexTokenType type() const override {
-        return LexTokenType::CharOperator;
+        return LexTokenType::Operation;
     }
 
     [[nodiscard]] LspSemanticTokenType lspType() const override {
@@ -35,14 +36,14 @@ public:
 
     std::string representation() const override {
         std::string ret;
-        ret.append(1, op);
+        ret.append(to_string(op));
         return ret;
     }
 
     [[nodiscard]] std::string type_string() const override {
         std::string ret;
         ret.append("Operator:");
-        ret.append(1, op);
+        ret.append(to_string(op));
         return ret;
     }
 

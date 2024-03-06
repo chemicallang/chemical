@@ -8,6 +8,7 @@
 #include "lexer/model/tokens/CharOperatorToken.h"
 #include "lexer/model/tokens/KeywordToken.h"
 #include "lexer/model/tokens/StringOperatorToken.h"
+#include "lexer/model/tokens/OperationToken.h"
 
 bool Lexer::lexOperatorToken(char op) {
     if(provider.increment(op)) {
@@ -21,6 +22,24 @@ bool Lexer::lexOperatorToken(char op) {
 bool Lexer::lexOperatorToken(const std::string& op) {
     if(provider.increment(op)) {
         tokens.emplace_back(std::make_unique<StringOperatorToken>(backPosition(op.length()), op));
+        return true;
+    } else {
+        return false;
+    }
+}
+
+bool Lexer::lexOperatorToken(char token, Operation op) {
+    if(provider.increment(token)) {
+        tokens.emplace_back(std::make_unique<OperationToken>(backPosition(1), 1, op));
+        return true;
+    } else {
+        return false;
+    }
+}
+
+bool Lexer::lexOperatorToken(const std::string &token, Operation op) {
+    if(provider.increment(token)) {
+        tokens.emplace_back(std::make_unique<OperationToken>(backPosition(token.length()), token.length(), op));
         return true;
     } else {
         return false;

@@ -1,29 +1,40 @@
 // Copyright (c) Qinetik 2024.
 
-#include <vector>
-#include <memory>
 #include "lexer/Lexer.h"
-#include "lexer/model/tokens/CharOperatorToken.h"
 
 bool Lexer::lexLanguageOperatorToken() {
-    return lexOperatorToken('+') ||
-           lexOperatorToken('-') ||
-           lexOperatorToken('*') ||
-           lexOperatorToken('/') ||
-           lexOperatorToken('%') ||
-           lexOperatorToken('&') ||
-           lexOperatorToken('|') ||
-           lexOperatorToken('^') ||
-           // conditional
-           lexOperatorToken('>') ||
-           lexOperatorToken('<') ||
-           lexOperatorToken("==") ||
-           lexOperatorToken("!=") ||
-           lexOperatorToken("<=") ||
-           lexOperatorToken(">=") ||
+    return lexOperatorToken('+', Operation::Addition) ||
+           lexOperatorToken('-', Operation::Subtraction) ||
+           lexOperatorToken('*', Operation::Multiplication) ||
+           lexOperatorToken('/', Operation::Division) ||
+           lexOperatorToken('%', Operation::Modulus) ||
+           lexOperatorToken('&', Operation::And) ||
+           lexOperatorToken('|', Operation::Or) ||
+           lexOperatorToken('^', Operation::Xor) ||
            // shift
-           lexOperatorToken("<<") ||
-           lexOperatorToken(">>");
+           lexOperatorToken("<<", Operation::LeftShift) ||
+           lexOperatorToken(">>", Operation::RightShift) ||
+           // conditional
+           lexOperatorToken(">=", Operation::GreaterThanOrEqual) ||
+           lexOperatorToken("<=", Operation::LessThanOrEqual) ||
+           lexOperatorToken('>', Operation::GreaterThan) ||
+           lexOperatorToken('<', Operation::LessThan) ||
+           lexOperatorToken("==", Operation::IsEqual) ||
+           lexOperatorToken("!=", Operation::IsNotEqual);
+}
+
+bool Lexer::lexAssignmentOperatorToken() {
+    return lexOperatorToken('+', Operation::Addition) ||
+           lexOperatorToken('-', Operation::Subtraction) ||
+           lexOperatorToken('*', Operation::Multiplication) ||
+           lexOperatorToken('/', Operation::Division) ||
+           lexOperatorToken('%', Operation::Modulus) ||
+           lexOperatorToken('&', Operation::And) ||
+           lexOperatorToken('|', Operation::Or) ||
+           lexOperatorToken('^', Operation::Xor) ||
+           // shift
+           lexOperatorToken("<<", Operation::LeftShift) ||
+           lexOperatorToken(">>", Operation::RightShift);
 }
 
 bool Lexer::lexAssignmentTokens() {
@@ -43,12 +54,13 @@ bool Lexer::lexAssignmentTokens() {
 
 
     // lex the operator before the equal sign
-    lexLanguageOperatorToken();
+    auto assOp = lexAssignmentOperatorToken();
 
     // =
     if (!lexOperatorToken('=')) {
-        // this is just an expression statement
-        // can be a access call
+        if(assOp) {
+            error("expected an equal for assignment after the assignment operator");
+        }
         return true;
     }
 

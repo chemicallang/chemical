@@ -1,3 +1,5 @@
+#include <utility>
+
 // Copyright (c) Qinetik 2024.
 
 //
@@ -17,11 +19,16 @@ public:
      */
     AssignStatement(
             std::unique_ptr<AccessChain> lhs,
-            std::unique_ptr<Value> value
-    ) : lhs(std::move(lhs)), value(std::move(value)) {}
+            std::unique_ptr<Value> value,
+            Operation assOp
+    ) : lhs(std::move(lhs)), value(std::move(value)), assOp(assOp) {}
 
     void interpret(InterpretScope& scope) override {
-        lhs->set_in_parent(scope.values, value.get());
+        if(assOp == Operation::Equal) {
+            lhs->set_in_parent(scope.values, value->evaluated_value(scope.values));
+        } else {
+            // TODO
+        }
     }
 
     std::string representation() const override {
@@ -35,4 +42,5 @@ public:
 private:
     std::unique_ptr<AccessChain> lhs; ///< The identifier being assigned.
     std::unique_ptr<Value> value; ///< The value being assigned to the identifier.
+    Operation assOp;
 };

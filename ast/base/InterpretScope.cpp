@@ -6,11 +6,22 @@
 
 #include "InterpretScope.h"
 #include "GlobalInterpretScope.h"
+#include "Value.h"
 
-InterpretScope::InterpretScope(GlobalInterpretScope* global) : global(global) {
+InterpretScope::InterpretScope(GlobalInterpretScope *global) : global(global) {
 
 }
 
-void InterpretScope::error(const std::string& err) {
+void InterpretScope::error(const std::string &err) {
     global->add_error(err);
+}
+
+InterpretScope::~InterpretScope() {
+    // delete computed values
+    for (const auto& it : values) {
+        if (it.second->delete_value()) {
+            delete it.second;
+        }
+    }
+    values.clear();
 }

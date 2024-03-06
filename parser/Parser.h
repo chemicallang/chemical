@@ -106,12 +106,6 @@ public:
     lex_ptr<Value> parseValue();
 
     /**
-     * parses a single operation
-     * @return
-     */
-    std::optional<Operation> parseOperation();
-
-    /**
      * parse remaining expression
      * @return if parsed, new expression containing the firstValue operation secondValue is returned
      * otherwise firstValue is returned
@@ -313,6 +307,18 @@ public:
      * @return
      */
     std::optional<char> consume_char_token();
+
+    /**
+     * a operation token ia a unique token for mathematical or logical operations like >= and +
+     * @return
+     */
+    std::optional<Operation> consume_op_token();
+
+    /**
+     * consume any char operator token
+     * @return
+     */
+    std::optional<char> consume_char_op();
 
     /**
      * consume any string operator token

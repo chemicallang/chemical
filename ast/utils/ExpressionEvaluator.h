@@ -10,12 +10,13 @@
 #include <functional>
 #include "ast/base/Value.h"
 #include "Operation.h"
-#include "parser/utils/Operation.h"
 
 class ExpressionEvaluator {
 public:
 
-    static std::unordered_map<int, std::function<std::unique_ptr<Value>(Value *, Value *)>> functionVector;
+    static std::unordered_map<int, std::function<Value*(Value *, Value *)>> functionVector;
+
+    static inline int index(ValueType vt, ValueType vt2, Operation op);
 
     static constexpr int compute(ValueType vt, ValueType vt2, Operation op);
 

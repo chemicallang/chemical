@@ -10,18 +10,25 @@
 
 bool Parser::parseVarAssignStatement() {
     auto chain = parseAccessChain();
-    if(!chain.has_value()) {
+    if (!chain.has_value()) {
         return false;
     }
-    if(consume_op('=')) {
-        auto value = parseExpression();
-        if(value.has_value()) {
-            nodes.emplace_back(std::make_unique<AssignStatement>(std::move(chain.value()), std::move(value.value())));
-        } else {
-            error("expected a value after the equal in var assignment");
+    auto operation = consume_op_token();
+    if(!consume_op('=')) {
+        if(operation.has_value()) {
+            error("expected a equal operator after the operation token");
         }
-    } else {
         nodes.emplace_back(std::move(chain.value()));
+        return true;
+    }
+    if(!operation.has_value()) {
+        operation = Operation::Equal;
+    }
+    auto value = parseExpression();
+    if (value.has_value()) {
+        nodes.emplace_back(std::make_unique<AssignStatement>(std::move(chain.value()), std::move(value.value()), operation.value()));
+    } else {
+        error("expected a value after the operation in var assignment");
     }
     return true;
 };

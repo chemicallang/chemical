@@ -4,6 +4,7 @@
 // Created by Waqas Tahir on 01/03/2024.
 //
 
+#include <string>
 #include "Operation.h"
 
 std::string to_string(Operation operation) {
@@ -18,9 +19,9 @@ std::string to_string(Operation operation) {
             return "/";
         case Operation::Modulus:
             return "%";
-        case Operation::Equal:
+        case Operation::IsEqual:
             return "==";
-        case Operation::NotEqual:
+        case Operation::IsNotEqual:
             return "!=";
         case Operation::LessThan:
             return "<";
@@ -34,6 +35,8 @@ std::string to_string(Operation operation) {
             return "<<";
         case Operation::RightShift:
             return ">>";
+        case Operation::Equal:
+            return "=";
         case Operation::Increment:
             return "++";
         case Operation::Decrement:

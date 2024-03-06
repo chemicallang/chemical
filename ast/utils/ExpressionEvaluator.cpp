@@ -15,10 +15,6 @@
 // Definition of static member variable
 std::unordered_map<int, std::function<Value*(Value *, Value *)>> ExpressionEvaluator::functionVector;
 
-int ExpressionEvaluator::index(ValueType vt, ValueType vt2, Operation op) {
-    return ((uint8_t) vt << 20) | ((uint8_t) vt2 << 10) | (uint8_t) op;
-}
-
 constexpr int ExpressionEvaluator::compute(ValueType vt, ValueType vt2, Operation op) {
     return ((uint8_t) vt << 20) | ((uint8_t) vt2 << 10) | (uint8_t) op;
 }

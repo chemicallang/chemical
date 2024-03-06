@@ -27,7 +27,7 @@ public:
         if(assOp == Operation::Equal) {
             lhs->set_in_parent(scope.values, value->evaluated_value(scope.values));
         } else {
-            // TODO
+            lhs->set_in_parent(scope.values, value->evaluated_value(scope.values), assOp);
         }
     }
 

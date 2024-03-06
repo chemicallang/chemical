@@ -8,6 +8,7 @@
 
 #include "ASTNode.h"
 #include "ValueType.h"
+#include "ast/utils/Operation.h"
 
 using scope_vars = std::unordered_map<std::string, Value*>&;
 
@@ -34,13 +35,24 @@ public:
     };
 
     /**
-     * Called by assignment statement, to set this value to this container
+     * Called by assignment statement, to set the value of this value
      * since InterpretValue can also represent an identifier or access chain
      * This method is overridden by for ex : an identifier, which can find itself in the scope above and set this value
      * @param vars
      * @param value
      */
     virtual void set_in_parent(scope_vars vars, Value* value) {
+
+    }
+
+    /**
+     * Called by assignment statement, to set the value of this value
+     * Operation is given to perform operation on the existing value
+     * @param vars
+     * @param value
+     * @param op
+     */
+    virtual void set_in_parent(scope_vars vars, Value* value, Operation op) {
 
     }
 

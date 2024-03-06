@@ -27,6 +27,10 @@ public:
         values[0]->set_in_parent(vars, value);
     }
 
+    void set_in_parent(scope_vars vars, Value *value, Operation op) override {
+        values[0]->set_in_parent(vars, value, op);
+    }
+
     Value* travel(scope_vars scopeVars) override {
         Value* scopeVariable = values[0]->find_in_parent(scopeVars);
         if(scopeVariable == nullptr) {

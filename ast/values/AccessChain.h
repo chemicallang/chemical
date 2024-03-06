@@ -23,12 +23,12 @@ public:
         }
     }
 
-    void set_in_parent(InterpretScope& scope, Value *value) override {
-        values[0]->set_in_parent(scope, value);
+    void set_identifier_value(InterpretScope& scope, Value *value) override {
+        values[0]->set_identifier_value(scope, value);
     }
 
-    void set_in_parent(InterpretScope& scope, Value *value, Operation op) override {
-        values[0]->set_in_parent(scope, value, op);
+    void set_identifier_value(InterpretScope& scope, Value *value, Operation op) override {
+        values[0]->set_identifier_value(scope, value, op);
     }
 
     Value* travel(InterpretScope& scopeVars) override {

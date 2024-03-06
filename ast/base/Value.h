@@ -10,7 +10,7 @@
 #include "ValueType.h"
 #include "ast/utils/Operation.h"
 
-using scope_vars = std::unordered_map<std::string, Value*>&;
+class FunctionDeclaration;
 
 /**
  * @brief Base class for all values in the AST.
@@ -41,7 +41,7 @@ public:
      * @param vars
      * @param value
      */
-    virtual void set_in_parent(InterpretScope& scope, Value* value) {
+    virtual void set_identifier_value(InterpretScope& scope, Value* value) {
 
     }
 
@@ -52,7 +52,7 @@ public:
      * @param value
      * @param op
      */
-    virtual void set_in_parent(InterpretScope& scope, Value* value, Operation op) {
+    virtual void set_identifier_value(InterpretScope& scope, Value* value, Operation op) {
 
     }
 
@@ -98,12 +98,37 @@ public:
     }
 
     /**
+     * finds the given identifier in the scope above, returns a pair, representing first value as true, if found
+     * second value is an iterator to modify or access the value
+     * @param scope
+     * @param value
+     * @return
+     */
+    std::pair<bool, std::unordered_map<std::string, Value *>::iterator> find(InterpretScope &scope, const std::string& value) {
+        // try to find the pointer of the value
+        auto currentScope = &scope;
+        while (currentScope != nullptr) {
+            auto pointer = currentScope->values.find(value);
+            if (pointer != currentScope->values.end()) {
+                return std::pair(true, std::move(pointer));
+            }
+            currentScope = currentScope->parent;
+        }
+        return std::pair(false, scope.values.end());
+    }
+
+    /**
      * a function to be overridden by bool values to return actual values
      * @return
      */
     virtual bool as_bool() {
         std::cerr << "actual_type:" << std::to_string((int) value_type()) << std::endl;
         throw std::runtime_error("as_bool called on a value");
+    }
+
+    virtual FunctionDeclaration* as_function() {
+        std::cerr << "actual_type:" << std::to_string((int) value_type()) << std::endl;
+        throw std::runtime_error("as_function called on a value");
     }
 
     /**

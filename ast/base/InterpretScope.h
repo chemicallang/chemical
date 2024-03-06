@@ -11,12 +11,18 @@
 
 class Value;
 
+class GlobalInterpretScope;
+
 class InterpretScope {
 public:
 
-    void error(const std::string& err) {
-        errors.emplace_back(err);
-    }
+    InterpretScope(GlobalInterpretScope* global);
+
+    /**
+     * The errors are stored in global scope only
+     * @param err
+     */
+    inline void error(const std::string& err);
 
     /**
      * This contains a map between identifiers and its values
@@ -25,8 +31,8 @@ public:
     std::unordered_map<std::string, Value*> values;
 
     /**
-     * This contains errors that occur during interpretation
+     * a pointer to global scope, If this is a global scope, it will be a pointer to itself
      */
-    std::vector<std::string> errors;
+    GlobalInterpretScope* global;
 
 };

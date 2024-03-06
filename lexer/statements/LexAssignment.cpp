@@ -45,7 +45,7 @@ bool Lexer::lexAssignmentTokens() {
     }
 
     // increment or decrement
-    if (lexOperatorToken("++") || lexOperatorToken("--")) {
+    if (lexOperatorToken("++", Operation::Increment) || lexOperatorToken("--", Operation::Decrement)) {
         return true;
     }
 

@@ -42,8 +42,9 @@ public:
         return rep;
     }
 
-private:
+
     std::string identifier; ///< The identifier being initialized.
+private:
     std::optional<std::string> type;
     std::unique_ptr<Value> value; ///< The value being assigned to the identifier.
 

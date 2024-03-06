@@ -33,9 +33,9 @@ public:
      * evaluates both values and returns the result as unique_tr to Value
      * @return
      */
-    inline Value* evaluate(scope_vars scopeVars) {
-        auto fEvl = firstValue->evaluated_value(scopeVars);
-        auto sEvl = secondValue->evaluated_value(scopeVars);
+    inline Value* evaluate(InterpretScope& scope) {
+        auto fEvl = firstValue->evaluated_value(scope);
+        auto sEvl = secondValue->evaluated_value(scope);
         auto index = ((uint8_t) fEvl->value_type() << 20) | ((uint8_t) sEvl->value_type() << 10) | (uint8_t) operation;
         if (ExpressionEvaluator::functionVector.contains(index)) {
             return ExpressionEvaluator::functionVector[index](fEvl, sEvl);
@@ -45,8 +45,15 @@ public:
         }
     }
 
-    Value *evaluated_value(scope_vars scopeVars) override {
-        return evaluate(scopeVars);
+    Value *evaluated_value(InterpretScope& scope) override {
+        return evaluate(scope);
+    }
+
+    bool evaluated_bool(InterpretScope& scope) override {
+        auto eval = evaluate(scope);
+        auto value = eval->as_bool();
+        if(eval->delete_value()) delete eval;
+        return value;
     }
 
     /**
@@ -54,7 +61,7 @@ public:
      * @param scope
      */
     void interpret(InterpretScope &scope) override {
-        evaluate(scope.values)->interpret(scope);
+        evaluate(scope)->interpret(scope);
     }
 
     std::string representation() const override {

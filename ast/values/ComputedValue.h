@@ -22,8 +22,4 @@ public:
         return true;
     }
 
-    ~ComputedValue(){
-        delete value;
-    }
-
 };

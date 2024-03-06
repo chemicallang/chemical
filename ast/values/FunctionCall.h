@@ -25,7 +25,7 @@ public:
     void interpret(InterpretScope &scope) override {
         if(name == "print" || name == "println") {
             for(auto const& value: values){
-                auto func = value->evaluated_value(scope.values);
+                auto func = value->evaluated_value(scope);
                 if(func) {
                     std::cout << func->interpret_representation();
                     if(name == "println") std::cout << std::endl;

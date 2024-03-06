@@ -6,7 +6,7 @@
 
 #include "GlobalInterpretScope.h"
 
-GlobalInterpretScope::GlobalInterpretScope() : InterpretScope(this) {
+GlobalInterpretScope::GlobalInterpretScope() : InterpretScope(nullptr, this) {
 
 }
 

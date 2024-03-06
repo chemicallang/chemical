@@ -26,7 +26,7 @@ public:
     ) : identifier(std::move(identifier)), type(std::move(type)), value(std::move(value)) {}
 
     void interpret(InterpretScope& scope) override {
-        scope.values[identifier] = value.get();
+        scope.values[identifier] = value->evaluated_value(scope);
     }
 
     std::string representation() const override {

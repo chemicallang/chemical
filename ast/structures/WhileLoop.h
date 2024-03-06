@@ -20,6 +20,13 @@ public:
     WhileLoop(std::unique_ptr<Value> condition, Scope body)
             : condition(std::move(condition)), body(std::move(body)) {}
 
+    void interpret(InterpretScope &scope) override {
+        InterpretScope child(&scope, scope.global);
+        while(condition->evaluated_bool(child)){
+            body.interpret(child);
+        }
+    }
+
     std::string representation() const override {
         std::string ret;
         ret.append("while(");

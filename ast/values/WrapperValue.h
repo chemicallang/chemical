@@ -26,8 +26,8 @@ public:
         return value->interpret_representation();
     }
 
-    Value * evaluated_value(scope_vars scopeVars) override {
-        return value->evaluated_value(scopeVars);
+    Value * evaluated_value(InterpretScope& scope) override {
+        return value->evaluated_value(scope);
     }
 
     int as_int() override {
@@ -44,6 +44,10 @@ public:
 
     bool delete_value() const override {
         return value->delete_value();
+    }
+
+    ~WrapperValue() {
+        delete value;
     }
 
 protected:

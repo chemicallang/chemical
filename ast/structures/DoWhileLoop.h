@@ -20,6 +20,13 @@ public:
     DoWhileLoop(std::unique_ptr<Value> condition, Scope body)
     : condition(std::move(condition)), body(std::move(body)) {}
 
+    void interpret(InterpretScope &scope) override {
+        InterpretScope child(&scope, scope.global);
+        do {
+            body.interpret(child);
+        } while(condition->evaluated_bool(child));
+    }
+
     std::string representation() const override {
         std::string ret;
         ret.append("do {\n");

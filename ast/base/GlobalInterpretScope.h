@@ -16,6 +16,9 @@ public:
      */
     GlobalInterpretScope();
 
+    // delete copy constructor
+    GlobalInterpretScope(GlobalInterpretScope&& copy) = delete;
+
     /**
      * Given error will be stored in the errors vector
      * @param err

@@ -23,9 +23,9 @@ public:
         body(std::move(body)) {}
 
     void interpret(InterpretScope &scope) override {
-        InterpretScope child(scope);
+        InterpretScope child(&scope, scope.global);
         initializer->interpret(child);
-        while(conditionExpr->evaluated_value(child.values)->as_bool()){
+        while(conditionExpr->evaluated_bool(child)){
             body.interpret(child);
             incrementerExpr->interpret(child);
         }

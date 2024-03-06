@@ -16,7 +16,15 @@ class GlobalInterpretScope;
 class InterpretScope {
 public:
 
-    InterpretScope(GlobalInterpretScope* global);
+    explicit InterpretScope(InterpretScope* parent, GlobalInterpretScope* global);
+
+    // delete copy constructor
+    InterpretScope(InterpretScope&& copy) = delete;
+
+    /**
+     * useful for debugging
+     */
+    void printAllValues();
 
     /**
      * The errors are stored in global scope only
@@ -35,6 +43,11 @@ public:
      * When a variable is created, the variable sets the identifier in unordered-map
      */
     std::unordered_map<std::string, Value*> values;
+
+    /**
+     * a pointer to the parent scope, If this is a global scope, it will be a nullptr
+     */
+    InterpretScope* parent;
 
     /**
      * a pointer to global scope, If this is a global scope, it will be a pointer to itself

@@ -41,7 +41,7 @@ public:
      * @param vars
      * @param value
      */
-    virtual void set_in_parent(scope_vars vars, Value* value) {
+    virtual void set_in_parent(InterpretScope& scope, Value* value) {
 
     }
 
@@ -52,7 +52,7 @@ public:
      * @param value
      * @param op
      */
-    virtual void set_in_parent(scope_vars vars, Value* value, Operation op) {
+    virtual void set_in_parent(InterpretScope& scope, Value* value, Operation op) {
 
     }
 
@@ -63,7 +63,7 @@ public:
      * @param scopeVars
      * @return
      */
-    virtual Value * find_in_parent(scope_vars &scopeVars) {
+    virtual Value * find_in_parent(InterpretScope& scope) {
         return nullptr;
     }
 
@@ -83,8 +83,18 @@ public:
      * so it can find its value and return pointer to the Value object that actually holds the value
      * @return
      */
-    virtual Value* evaluated_value(scope_vars &scopeVars) {
+    virtual Value* evaluated_value(InterpretScope& scope) {
         return this;
+    }
+
+    /**
+     * This method is a helper method that evaluates the current value as a boolean
+     * The only difference between this and as_bool is that when this is called
+     * Not only bool is returned, the computations performed inside this value is deleted
+     * @return
+     */
+    virtual bool evaluated_bool(InterpretScope& scope) {
+        return this->evaluated_value(scope)->as_bool();
     }
 
     /**
@@ -111,7 +121,7 @@ public:
      * @param scopeVars
      * @return
      */
-    virtual Value* travel(scope_vars scopeVars) {
+    virtual Value* travel(InterpretScope& scope) {
         return nullptr;
     }
 

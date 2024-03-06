@@ -23,51 +23,73 @@ public:
      */
     VariableIdentifier(std::string value) : value(std::move(value)) {}
 
-    void set_in_parent(scope_vars vars, Value *newValue) override {
-        try {
-            auto v = vars.at(value);
-            if (v != nullptr && v->delete_value()) {
-                delete v;
-            }
-            vars[value] = newValue;
-        } catch (const std::out_of_range &e) {
-            std::cerr << "Couldn't set variable " << value << " as there's no such variable in parent, " << e.what();
+    void set_in_parent(InterpretScope &scope, Value *newValue) override {
+        auto it = find(scope);
+        if (!it.first) {
+            std::cerr << "Couldn't set variable " << value
+                      << " as there's no such variable in parent, or previous value doesn't exist ";
+            return;
         }
+        auto v = it.second->second;
+        if (v->delete_value()) {
+            delete v;
+        }
+        it.second->second = newValue;
     }
 
-    void set_in_parent(scope_vars vars, Value *newValue, Operation op) override {
-        try {
-            auto v = vars.at(value);
-            auto nextValue = ExpressionEvaluator::functionVector[ExpressionEvaluator::index(v->value_type(), v->value_type(), op)](v, newValue);
-            if (v->delete_value()) {
-                delete v;
-            }
-            vars[value] = nextValue;
-        } catch (const std::out_of_range &e) {
-            std::cerr << "Couldn't set variable " << value << " as there's no such variable in parent, or previous value doesn't exist " << e.what();
+    void set_in_parent(InterpretScope &scope, Value *newValue, Operation op) override {
+        auto it = find(scope);
+        if (!it.first) {
+            std::cerr << "Couldn't set variable " << value
+                      << " as there's no such variable in parent, or previous value doesn't exist ";
+            return;
         }
+        auto v = it.second->second;
+
+        // creating an expression
+        auto nextValue = ExpressionEvaluator::functionVector[
+                ExpressionEvaluator::index(v->value_type(), v->value_type(), op)
+        ](v, newValue);
+
+        if (v->delete_value()) {
+            delete v;
+        }
+        it.second->second = nextValue;
     }
 
-    Value *evaluated_value(scope_vars &scopeVars) override {
-        if (scopeVars.contains(value)) {
-            pointing = scopeVars[value];
-            return pointing;
+    std::pair<bool, std::unordered_map<std::string, Value *>::iterator> find(InterpretScope &scope) {
+        // try to find the pointer of the value
+        auto currentScope = &scope;
+        while (currentScope != nullptr) {
+            auto pointer = currentScope->values.find(value);
+            if (pointer != currentScope->values.end()) {
+                return std::pair(true, std::move(pointer));
+            }
+            currentScope = currentScope->parent;
+        }
+        return std::pair(false, scope.values.end());
+    }
+
+    Value *evaluated_value(InterpretScope &scope) override {
+        auto found = find(scope);
+        if (found.first) {
+            return found.second->second;
         } else {
             return nullptr;
         }
     }
 
-    Value *find_in_parent(scope_vars scopeVars) override {
-        if (scopeVars.contains(value)) {
-            pointing = scopeVars[value];
-            return pointing;
+    Value *find_in_parent(InterpretScope &scope) override {
+        auto found = find(scope);
+        if (found.first) {
+            return found.second->second;
         } else {
             return nullptr;
         }
     }
 
-    Value *travel(scope_vars &scopeVars) override {
-        return find_in_parent(scopeVars);
+    Value *travel(InterpretScope &scope) override {
+        return find_in_parent(scope);
     }
 
     std::string representation() const override {
@@ -75,6 +97,6 @@ public:
     }
 
 private:
-    Value *pointing;
     std::string value; ///< The string value.
+
 };

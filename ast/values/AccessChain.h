@@ -23,15 +23,15 @@ public:
         }
     }
 
-    void set_in_parent(scope_vars vars, Value *value) override {
-        values[0]->set_in_parent(vars, value);
+    void set_in_parent(InterpretScope& scope, Value *value) override {
+        values[0]->set_in_parent(scope, value);
     }
 
-    void set_in_parent(scope_vars vars, Value *value, Operation op) override {
-        values[0]->set_in_parent(vars, value, op);
+    void set_in_parent(InterpretScope& scope, Value *value, Operation op) override {
+        values[0]->set_in_parent(scope, value, op);
     }
 
-    Value* travel(scope_vars scopeVars) override {
+    Value* travel(InterpretScope& scopeVars) override {
         Value* scopeVariable = values[0]->find_in_parent(scopeVars);
         if(scopeVariable == nullptr) {
             std::cerr << "Not found in parent";

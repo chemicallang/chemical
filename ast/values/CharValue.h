@@ -13,12 +13,19 @@
  */
 class CharValue : public Value {
 public:
+
     /**
      * @brief Construct a new CharValue object.
      *
      * @param value The character value.
      */
     CharValue(char value) : value(value) {}
+
+    std::string interpret_representation() const override {
+        std::string rep;
+        rep.append(1, value);
+        return rep;
+    }
 
     std::string representation() const override {
         std::string rep;

@@ -29,20 +29,20 @@ public:
         elseIfs(std::move(elseIfs)), elseBody(std::move(elseBody)) {}
 
     void interpret(InterpretScope &scope) override {
-        auto cond = condition->evaluated_value(scope.values);
-        if(cond->as_bool()) {
-            ifBody.interpret(scope);
+        if(condition->evaluated_bool(scope)) {
+            InterpretScope child(&scope, scope.global);
+            ifBody.interpret(child);
         } else {
-            delete cond;
             for (auto const& elseIf:elseIfs) {
-                cond = elseIf->condition->evaluated_value(scope.values);
-                if(cond->as_bool()) {
-                    elseIf->ifBody.interpret(scope);
+                if(elseIf->condition->evaluated_bool(scope)) {
+                    InterpretScope child(&scope, scope.global);
+                    elseIf->ifBody.interpret(child);
                     return;
                 }
             }
             if(elseBody.has_value()) {
-                elseBody->interpret(scope);
+                InterpretScope child(&scope, scope.global);
+                elseBody->interpret(child);
             }
         }
     }

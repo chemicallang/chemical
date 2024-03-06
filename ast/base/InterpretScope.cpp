@@ -8,8 +8,15 @@
 #include "GlobalInterpretScope.h"
 #include "Value.h"
 
-InterpretScope::InterpretScope(GlobalInterpretScope *global) : global(global) {
+InterpretScope::InterpretScope(InterpretScope* parent, GlobalInterpretScope *global) : parent(parent), global(global) {
 
+}
+
+void InterpretScope::printAllValues() {
+    std::cout << "ScopeValues:" << std::endl;
+    for(auto const& value : values) {
+        std::cout << value.first << " : " << value.second << std::endl;
+    }
 }
 
 void InterpretScope::error(const std::string &err) {

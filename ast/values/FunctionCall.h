@@ -22,7 +22,7 @@ public:
 
     }
 
-    void interpret(InterpretScope &scope) override {
+    Value * evaluated_value(InterpretScope &scope) override {
         if(name == "print" || name == "println") {
             for(auto const& value: values){
                 auto func = value->evaluated_value(scope);
@@ -34,7 +34,20 @@ public:
                 }
             }
         } else {
-            std::cerr << "Not implemented Function Call " << name;
+            auto func = find(scope, name);
+            if(func.first) {
+                return func.second->second->as_function()->call(values);
+            } else {
+                scope.error("[FunctionCall] couldn't find function with name " + name);
+            }
+        }
+        return nullptr;
+    }
+
+    void interpret(InterpretScope &scope) override {
+        auto v = evaluated_value(scope);
+        if(v != nullptr && v->delete_value()) {
+            delete v;
         }
     }
 

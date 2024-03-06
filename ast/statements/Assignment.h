@@ -25,9 +25,9 @@ public:
 
     void interpret(InterpretScope& scope) override {
         if(assOp == Operation::Equal) {
-            lhs->set_in_parent(scope, value->evaluated_value(scope));
+            lhs->set_identifier_value(scope, value->evaluated_value(scope));
         } else {
-            lhs->set_in_parent(scope, value->evaluated_value(scope), assOp);
+            lhs->set_identifier_value(scope, value->evaluated_value(scope), assOp);
         }
     }
 

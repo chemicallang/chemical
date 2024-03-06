@@ -1,3 +1,10 @@
+func add(a : int, b : int) : int {
+    return a + b;
+}
+var zz = add(5, 5);
+print("Function Call ");
+print(zz);
+println(' ');
 var x : int = 1;
 if(x == 1) {
     x += 8 + 2;

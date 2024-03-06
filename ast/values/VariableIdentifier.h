@@ -21,18 +21,35 @@ public:
      *
      * @param value The string value.
      */
-    VariableIdentifier(std::string  value) : value(std::move(value)) {}
+    VariableIdentifier(std::string value) : value(std::move(value)) {}
 
-    void set_in_parent(scope_vars vars, Value* newValue) override {
-        if(vars.contains(value)) {
+    void set_in_parent(scope_vars vars, Value *newValue) override {
+        try {
+            auto v = vars.at(value);
+            if (v != nullptr && v->delete_value()) {
+                delete v;
+            }
             vars[value] = newValue;
-        } else {
-            std::cerr << "Couldn't set variable " << value << " as there's no such variable in parent";
+        } catch (const std::out_of_range &e) {
+            std::cerr << "Couldn't set variable " << value << " as there's no such variable in parent, " << e.what();
         }
     }
 
-    Value * evaluated_value(scope_vars &scopeVars) override {
-        if(scopeVars.contains(value)) {
+    void set_in_parent(scope_vars vars, Value *newValue, Operation op) override {
+        try {
+            auto v = vars.at(value);
+            auto nextValue = ExpressionEvaluator::functionVector[ExpressionEvaluator::index(v->value_type(), v->value_type(), op)](v, newValue);
+            if (v->delete_value()) {
+                delete v;
+            }
+            vars[value] = nextValue;
+        } catch (const std::out_of_range &e) {
+            std::cerr << "Couldn't set variable " << value << " as there's no such variable in parent, or previous value doesn't exist " << e.what();
+        }
+    }
+
+    Value *evaluated_value(scope_vars &scopeVars) override {
+        if (scopeVars.contains(value)) {
             pointing = scopeVars[value];
             return pointing;
         } else {
@@ -40,8 +57,8 @@ public:
         }
     }
 
-    Value * find_in_parent(scope_vars scopeVars) override {
-        if(scopeVars.contains(value)) {
+    Value *find_in_parent(scope_vars scopeVars) override {
+        if (scopeVars.contains(value)) {
             pointing = scopeVars[value];
             return pointing;
         } else {
@@ -49,7 +66,7 @@ public:
         }
     }
 
-    Value * travel(scope_vars &scopeVars) override {
+    Value *travel(scope_vars &scopeVars) override {
         return find_in_parent(scopeVars);
     }
 
@@ -58,6 +75,6 @@ public:
     }
 
 private:
-    Value* pointing;
+    Value *pointing;
     std::string value; ///< The string value.
 };

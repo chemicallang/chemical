@@ -16,7 +16,9 @@ public:
 
     static std::unordered_map<int, std::function<Value*(Value *, Value *)>> functionVector;
 
-    static inline int index(ValueType vt, ValueType vt2, Operation op);
+    static inline int index(ValueType vt, ValueType vt2, Operation op) {
+        return ((uint8_t) vt << 20) | ((uint8_t) vt2 << 10) | (uint8_t) op;
+    }
 
     static constexpr int compute(ValueType vt, ValueType vt2, Operation op);
 

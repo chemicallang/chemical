@@ -14,7 +14,7 @@ public:
     std::string value;
 
     TypeToken(const TokenPosition& position, std::string type) : LexToken(position), value(std::move(type)) {
-
+        value.shrink_to_fit();
     }
 
     unsigned int length() const override {

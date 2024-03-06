@@ -48,7 +48,7 @@ lex_ptr<ForLoop> Parser::parseForLoop() {
             auto prevParseContinue = isParseContinueStatement;
             isParseBreakStatement = true;
             isParseContinueStatement = true;
-            auto scope = parseScope();
+            auto scope = parseLoopScope();
             isParseBreakStatement = prevParseBreak;
             isParseContinueStatement = prevParseContinue;
             if (!consume_op('}')) {

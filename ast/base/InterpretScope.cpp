@@ -8,7 +8,7 @@
 #include "GlobalInterpretScope.h"
 #include "Value.h"
 
-InterpretScope::InterpretScope(InterpretScope* parent, GlobalInterpretScope *global) : parent(parent), global(global) {
+InterpretScope::InterpretScope(InterpretScope* parent, GlobalInterpretScope *global, Scope* scope, ASTNode* node) : parent(parent), global(global), codeScope(scope), node(node) {
 
 }
 

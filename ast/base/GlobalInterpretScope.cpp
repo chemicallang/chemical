@@ -6,7 +6,7 @@
 
 #include "GlobalInterpretScope.h"
 
-GlobalInterpretScope::GlobalInterpretScope() : InterpretScope(nullptr, this) {
+GlobalInterpretScope::GlobalInterpretScope(Scope* scope, ASTNode* node) : InterpretScope(nullptr, this, scope, node) {
 
 }
 

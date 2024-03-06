@@ -29,7 +29,7 @@ lex_ptr<WhileLoop> Parser::parseWhileLoop() {
             auto prevParseContinue = isParseContinueStatement;
             isParseBreakStatement = true;
             isParseContinueStatement = true;
-            auto scope = parseScope();
+            auto scope = parseLoopScope();
             isParseBreakStatement = prevParseBreak;
             isParseContinueStatement = prevParseContinue;
             if (!consume_op('}')) {

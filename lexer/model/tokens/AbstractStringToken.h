@@ -18,7 +18,7 @@ public:
     std::string value;
 
     AbstractStringToken(const TokenPosition& position, std::string value) : LexToken(position), value(std::move(value)) {
-
+        value.shrink_to_fit();
     }
 
     unsigned int length() const override {

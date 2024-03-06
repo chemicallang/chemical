@@ -30,18 +30,18 @@ public:
 
     void interpret(InterpretScope &scope) override {
         if(condition->evaluated_bool(scope)) {
-            InterpretScope child(&scope, scope.global);
+            InterpretScope child(&scope, scope.global, &ifBody, this);
             ifBody.interpret(child);
         } else {
             for (auto const& elseIf:elseIfs) {
                 if(elseIf->condition->evaluated_bool(scope)) {
-                    InterpretScope child(&scope, scope.global);
+                    InterpretScope child(&scope, scope.global, &elseIf->ifBody, this);
                     elseIf->ifBody.interpret(child);
                     return;
                 }
             }
             if(elseBody.has_value()) {
-                InterpretScope child(&scope, scope.global);
+                InterpretScope child(&scope, scope.global, &elseBody.value(), this);
                 elseBody->interpret(child);
             }
         }

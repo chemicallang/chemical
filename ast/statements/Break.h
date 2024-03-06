@@ -16,6 +16,19 @@ public:
      */
     BreakStatement() {}
 
+    void interpret(InterpretScope &scope) override {
+        auto current = &scope;
+        while(current != nullptr && !current->node->supportsBreak()) {
+            current = current->parent;
+        }
+        if(current == nullptr) {
+            scope.error("invalid break statement, couldn't find breakable node up in the tree");
+            return;
+        }
+        current->codeScope->stopInterpretOnce();
+        current->node->stopInterpretation();
+    }
+
     std::string representation() const override {
         std::string ret;
         ret.append("break;");

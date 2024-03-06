@@ -56,7 +56,7 @@ int main(int argc, char *argv[]) {
     }
     Scope scope(std::move(parser.nodes));
 //    std::cout << "[Representation]\n" << scope.representation() << "\n";
-    GlobalInterpretScope interpretScope;
+    GlobalInterpretScope interpretScope(&scope, nullptr);
     benchInterpret(scope, interpretScope);
     for(const auto& err : interpretScope.errors) {
         std::cerr << "[Interpreter] " << err << '\n';

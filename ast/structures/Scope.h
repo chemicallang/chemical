@@ -31,6 +31,14 @@ public:
         }
     }
 
+    /**
+     * function is supposed to implemented by other scopes
+     * like loop scope, which can be stopped in the middle of the loop
+     */
+    virtual void stopInterpretOnce() {
+
+    }
+
     std::string representation() const override {
         std::string rep;
         int i = 0;
@@ -44,7 +52,7 @@ public:
         return rep;
     }
 
-private:
+protected:
     std::vector<std::unique_ptr<ASTNode>> nodes;
 
 };

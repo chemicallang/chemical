@@ -14,7 +14,7 @@ public:
     /**
      * The constructor
      */
-    GlobalInterpretScope();
+    GlobalInterpretScope(Scope* scope, ASTNode* node);
 
     // delete copy constructor
     GlobalInterpretScope(GlobalInterpretScope&& copy) = delete;

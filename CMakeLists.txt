@@ -149,7 +149,6 @@ set(COMMON_SOURCES "lexer/Lexer.cpp" "lexer/Lexer.h" "lexer/model/tokens/CharOpe
         ast/values/ArrayValue.h
         ast/values/VariableIdentifier.h
         ast/values/Negative.h
-        interpreter/Interpreter.h
         ast/base/InterpretScope.h
         ast/base/ValueType.h
         ast/utils/ExpressionEvaluator.h
@@ -162,6 +161,8 @@ set(COMMON_SOURCES "lexer/Lexer.cpp" "lexer/Lexer.h" "lexer/model/tokens/CharOpe
         ast/values/ComputedValue.h
         ast/values/WrapperValue.h
         ast/utils/Operation.cpp
+        ast/structures/LoopScope.h
+        ast/structures/LoopScope.h
 )
 
 # Chemical LSP Executable Target

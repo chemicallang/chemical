@@ -6,7 +6,10 @@
 
 #pragma once
 
+#include "ast/base/Value.h"
 #include "ast/base/ASTNode.h"
+#include "Scope.h"
+#include "LoopScope.h"
 
 class WhileLoop : public ASTNode {
 public:
@@ -17,14 +20,30 @@ public:
      * @param condition The loop condition.
      * @param body The body of the while loop.
      */
-    WhileLoop(std::unique_ptr<Value> condition, Scope body)
+    WhileLoop(std::unique_ptr<Value> condition, LoopScope body)
             : condition(std::move(condition)), body(std::move(body)) {}
 
     void interpret(InterpretScope &scope) override {
-        InterpretScope child(&scope, scope.global);
+        InterpretScope child(&scope, scope.global, &body, this);
         while(condition->evaluated_bool(child)){
             body.interpret(child);
+            if(stoppedInterpretation) {
+                stoppedInterpretation = false;
+                break;
+            }
         }
+    }
+
+    bool supportsBreak() override {
+        return true;
+    }
+
+    bool supportsContinue() override {
+        return true;
+    }
+
+    void stopInterpretation() override {
+        stoppedInterpretation = true;
     }
 
     std::string representation() const override {
@@ -39,5 +58,6 @@ public:
 
 private:
     std::unique_ptr<Value> condition;
-    Scope body;
+    LoopScope body;
+    bool stoppedInterpretation = false;
 };

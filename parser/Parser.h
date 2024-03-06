@@ -72,10 +72,27 @@ public:
     void parse();
 
     /**
+     * This parses the nodes of one scope
+     * @return
+     */
+    std::vector<std::unique_ptr<ASTNode>> parseScopeNodes();
+
+    /**
      * This parses multiple statements, creates a Scope and moves nodes into the scope
      * and returns it
      */
-    Scope parseScope();
+    inline Scope parseScope() {
+        return {parseScopeNodes()};
+    }
+
+    /**
+     * This parses multiple statements, creates a LoopScope and moves nodes into the scope
+     * and returns it
+     * @return
+     */
+    inline LoopScope parseLoopScope() {
+        return {parseScopeNodes()};
+    }
 
     /**
     * This parses multiple statements as ASTNode(s) into nodes

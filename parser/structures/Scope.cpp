@@ -25,12 +25,12 @@ void Parser::parseMultipleStatements() {
     } while (errors.empty() && (position < tokens.size()));
 }
 
-Scope Parser::parseScope() {
+std::vector<std::unique_ptr<ASTNode>> Parser::parseScopeNodes() {
     auto prevNodes = std::move(nodes);
     nodes = std::vector<std::unique_ptr<ASTNode>>();
     parseMultipleStatements();
     auto parsedNodes = std::move(nodes);
     parsedNodes.shrink_to_fit();
     nodes = std::move(prevNodes);
-    return std::move(Scope(std::move(parsedNodes)));
+    return std::move(parsedNodes);
 }

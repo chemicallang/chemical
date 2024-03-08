@@ -31,7 +31,7 @@ public:
             return;
         }
         auto v = it.second->second;
-        if (v->delete_value()) {
+        if (v->primitive()) {
             delete v;
         }
         it.second->second = newValue;
@@ -51,7 +51,7 @@ public:
                 ExpressionEvaluator::index(v->value_type(), v->value_type(), op)
         ](v, newValue);
 
-        if (v->delete_value()) {
+        if (v->primitive()) {
             delete v;
         }
         it.second->second = nextValue;

@@ -11,7 +11,6 @@
 #include "SourceProvider.h"
 #include "lexer/model/tokens/LexToken.h"
 #include "lexer/model/tokens/NumberToken.h"
-#include "LexConfig.h"
 #include "lexer/model/LexError.h"
 #include "lexer/model/TokenPosition.h"
 #include "ast/utils/Operation.h"
@@ -42,7 +41,7 @@ public:
      * lex everything to LexTokens, tokens go into 'tokens' member property
      * @return
      */
-    virtual void lex(const LexConfig &config);
+    virtual void lex();
 
     /**
      * lexes a number as a string

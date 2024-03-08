@@ -45,7 +45,7 @@ int main(int argc, char *argv[]) {
         std::cout << "A file path argument is required so the file can be parsed";
         return 0;
     }
-    auto lexer = benchLexFile(argv[1], LexConfig{});
+    auto lexer = benchLexFile(argv[1]);
 //    printTokens(lexer.tokens);
     for(const auto& err : lexer.errors) {
         std::cerr << "[Lexer] " << err.message << ' ' << err.position.formatted() << "\n";
@@ -56,7 +56,7 @@ int main(int argc, char *argv[]) {
     }
     Scope scope(std::move(parser.nodes));
 //    std::cout << "[Representation]\n" << scope.representation() << "\n";
-    GlobalInterpretScope interpretScope(&scope, nullptr);
+    GlobalInterpretScope interpretScope(nullptr, &scope, nullptr, argv[1]);
     benchInterpret(scope, interpretScope);
     for(const auto& err : interpretScope.errors) {
         std::cerr << "[Interpreter] " << err << '\n';

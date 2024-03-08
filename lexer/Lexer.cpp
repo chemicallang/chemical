@@ -8,7 +8,7 @@
 #include "lexer/model/tokens/KeywordToken.h"
 
 
-void Lexer::lex(const LexConfig &config) {
+void Lexer::lex() {
     lexMultipleStatementsTokens();
     tokens.shrink_to_fit();
 }

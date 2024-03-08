@@ -26,8 +26,10 @@ void InterpretScope::error(const std::string &err) {
 InterpretScope::~InterpretScope() {
     // delete computed values
     for (const auto& it : values) {
-        if (it.second->delete_value()) {
+        if(it.second->references() == 1){
             delete it.second;
+        } else {
+           it.second->decrease_reference();
         }
     }
     values.clear();

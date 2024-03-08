@@ -17,7 +17,9 @@ void Parser::parseMultipleStatements() {
             (isParseReturnStatement && parseReturnStatementBool()) ||
             (isParseBreakStatement && parseBreakStatement()) ||
             (isParseContinueStatement && parseContinueStatement()) ||
-                parseVarAssignStatementBool()) {
+            (isParseImportStatement && parseImportStatementBool()) ||
+            parseVarAssignStatementBool()
+        ) {
             consume_op(';');
         } else {
             break;

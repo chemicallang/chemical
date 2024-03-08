@@ -32,6 +32,8 @@
 #include <optional>
 #include <iostream>
 
+class ImportStatement;
+
 template<typename T>
 using lex_ptr = std::optional<std::unique_ptr<T>>;
 
@@ -217,6 +219,12 @@ public:
      * @return true if parsed
      */
     bool parseDoWhileLoopBool();
+
+    /**
+     * parse a import statement
+     * @return
+     */
+    bool parseImportStatementBool();
 
     /**
      * parse a single continue statement in a loop
@@ -457,20 +465,26 @@ private:
     int position = 0;
 
     /**
-     * a stateful variable, in the middle of the lexing
-     * when turned on a return statement is parsed
+     * a stateful variable, in the middle of parsing
+     * when turned on return statements are parsed
      */
     bool isParseReturnStatement = false;
 
     /**
-     * a stateful variable, in the middle of the lexing
-     * when turned on a continue statement is parsed
+     * a stateful variable, in the middle of parsing
+     * when turned on import statements are parsed
+     */
+    bool isParseImportStatement = true;
+
+    /**
+     * a stateful variable, in the middle of parsing
+     * when turned on continue statement are parsed
      */
     bool isParseContinueStatement = false;
 
     /**
-     * a stateful variable, in the middle of the lexing
-     * when turned on a break statement is parsed
+     * a stateful variable, in the middle of parsing
+     * when turned on break statements are parsed
      */
     bool isParseBreakStatement = false;
 

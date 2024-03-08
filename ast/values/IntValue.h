@@ -27,6 +27,14 @@ public:
         return rep;
     }
 
+    bool primitive() override {
+        return true;
+    }
+
+    Value * copy() override {
+        return new IntValue(value);
+    }
+
     int as_int() override {
         return value;
     }

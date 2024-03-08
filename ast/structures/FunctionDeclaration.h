@@ -47,11 +47,22 @@ public:
         }
         auto i = 0;
         while(i < params.size()) {
-            child.values[params[i].first] = call_params[i].get();
+            // TODO all function values are being copied
+            // TODO make sure only primitive values are copied
+            child.values[params[i].first] = call_params[i]->copy();
             i++;
         }
         body.interpret(child);
         return interpretReturn;
+    }
+
+    // this always returns 2 references, to prevent scope from deleting this value,
+    // this value is deleted when the AST is deleted, because its part of the AST
+    // when scope deletes values to 'clear' itself, it generally clears all values
+    // but calls destructors on values which are either primitive or has a single reference
+    // we don't want the destructor to be called, but the scope will always clear itself
+    unsigned int references() override {
+        return 2;
     }
 
     bool supportsReturn() override {

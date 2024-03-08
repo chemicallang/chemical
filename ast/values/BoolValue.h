@@ -18,6 +18,14 @@ public:
      */
     BoolValue(bool value) : value(value) {}
 
+    bool primitive() override {
+        return true;
+    }
+
+    Value * copy() override {
+        return new BoolValue(value);
+    }
+
     std::string representation() const override {
         std::string rep;
         if(value) {

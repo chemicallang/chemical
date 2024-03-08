@@ -45,9 +45,9 @@ public:
     }
 
     void interpret(InterpretScope &scope) override {
-        auto v = evaluated_value(scope);
-        if(v != nullptr && v->delete_value()) {
-            delete v;
+        auto value = evaluated_value(scope);
+        if(value != nullptr && value->primitive()) {
+            delete value;
         }
     }
 

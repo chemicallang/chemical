@@ -12,7 +12,7 @@
  * @param file
  * @return tokens
  */
-Lexer benchLexFile(std::istream &file, const std::string& path, const LexConfig &config) {
+Lexer benchLexFile(std::istream &file, const std::string& path) {
 
     StreamSourceProvider reader(file);
     Lexer lexer(reader, path);
@@ -24,7 +24,7 @@ Lexer benchLexFile(std::istream &file, const std::string& path, const LexConfig 
     auto start = std::chrono::steady_clock::now();
 
     // Actual lexing
-    lexer.lex(config);
+    lexer.lex();
 
     // Save end time
     auto end = std::chrono::steady_clock::now();
@@ -51,13 +51,13 @@ Lexer benchLexFile(std::istream &file, const std::string& path, const LexConfig 
  * @param file
  * @return the tokens
  */
-Lexer benchLexFile(const std::string &path, const LexConfig &config) {
+Lexer benchLexFile(const std::string &path) {
     std::ifstream file;
     file.open(path);
     if (!file.is_open()) {
         std::cerr << "Unknown error opening the file" << '\n';
     }
-    auto lexer = benchLexFile(file, path, config);
+    auto lexer = benchLexFile(file, path);
     file.close();
     return lexer;
 }
@@ -67,10 +67,10 @@ Lexer benchLexFile(const std::string &path, const LexConfig &config) {
  * @param file
  * @return the tokens
  */
-std::vector<std::unique_ptr<LexToken>> lexFile(std::istream &file, const std::string& path, const LexConfig &config) {
+std::vector<std::unique_ptr<LexToken>> lexFile(std::istream &file, const std::string& path) {
     StreamSourceProvider reader(file);
     Lexer lexer(reader, path);
-    lexer.lex(config);
+    lexer.lex();
     return std::move(lexer.tokens);
 }
 
@@ -80,13 +80,13 @@ std::vector<std::unique_ptr<LexToken>> lexFile(std::istream &file, const std::st
  * @param fileName
  * @return the tokens
  */
-std::vector<std::unique_ptr<LexToken>> lexFile(const std::string &path, const LexConfig &config) {
+std::vector<std::unique_ptr<LexToken>> lexFile(const std::string &path) {
     std::ifstream file;
     file.open(path);
     if (!file.is_open()) {
         std::cerr << "Unknown error opening the file" << '\n';
     }
-    auto lexed = lexFile(file, path, config);
+    auto lexed = lexFile(file, path);
     file.close();
     return lexed;
 }

@@ -27,6 +27,14 @@ public:
         return value;
     }
 
+    bool primitive() override {
+        return true;
+    }
+
+    Value * copy() override {
+        return new StringValue(value);
+    }
+
     std::string representation() const override {
         return "\"" + value + "\"";
     }

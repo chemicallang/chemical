@@ -26,6 +26,8 @@ public:
 
     static constexpr int computeIntToFloat(Operation op);
 
+    static constexpr int computeFloatToInt(Operation op);
+
     static void prepareFunctions();
 
 };

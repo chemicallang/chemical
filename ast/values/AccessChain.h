@@ -31,25 +31,31 @@ public:
         values[0]->set_identifier_value(scope, value, op);
     }
 
-    Value* travel(InterpretScope& scopeVars) override {
-        Value* scopeVariable = values[0]->find_in_parent(scopeVars);
+    std::string interpret_representation() const override {
+        return "[AccessChainInterpretRepresentation]";
+    }
+
+    Value * evaluated_value(InterpretScope &scope) override {
+        Value* scopeVariable = values[0]->evaluated_value(scope);
         if(scopeVariable == nullptr) {
-            std::cerr << "Not found in parent";
+            scope.printAllValues();
+            std::cerr << "Not found in parent : " << values[0]->representation();
             return nullptr;
         }
         if(values.size() > 1) {
             auto i = 1;
             while(i < values.size()) {
-                auto child = scopeVariable->getChild(values[i]->getScopeIdentifier());
+                auto child = values[i]->find_in(scopeVariable);
                 if(child != nullptr) {
                     scopeVariable = child;
+                } else {
+                    std::cerr << "in access chain" << representation() << " not found at " << std::to_string(i) << " : " << values[i]->representation();
                 }
                 i++;
             }
         }
         return scopeVariable;
     }
-
 
     std::string representation() const override {
         std::string rep;

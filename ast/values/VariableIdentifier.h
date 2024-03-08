@@ -23,6 +23,11 @@ public:
      */
     VariableIdentifier(std::string value) : value(std::move(value)) {}
 
+    // will find value by this name in the parent
+    Value * find_in(Value *parent) override {
+        return parent->child(value);
+    }
+
     void set_identifier_value(InterpretScope &scope, Value *newValue) override {
         auto it = find(scope, value);
         if (!it.first) {
@@ -64,19 +69,6 @@ public:
         } else {
             return nullptr;
         }
-    }
-
-    Value *find_in_parent(InterpretScope &scope) override {
-        auto found = find(scope, value);
-        if (found.first) {
-            return found.second->second;
-        } else {
-            return nullptr;
-        }
-    }
-
-    Value *travel(InterpretScope &scope) override {
-        return find_in_parent(scope);
     }
 
     std::string representation() const override {

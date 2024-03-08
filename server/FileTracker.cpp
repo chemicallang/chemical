@@ -12,10 +12,10 @@ std::vector<std::unique_ptr<LexToken>> FileTracker::getLexedFile(const std::stri
     if (overriddenSources.contains(path)) {
         if(DEBUG) std::cout << "Retrieved Overridden Source:" << overriddenSources[path] << '\n';
         std::istringstream iss(overriddenSources[path]);
-        return lexFile(iss, path, config);
+        return lexFile(iss, path);
     } else {
         if(DEBUG) std::cout << "No Overridden Source:" << path << '\n';
-        return lexFile(path, config);
+        return lexFile(path);
     }
 }
 

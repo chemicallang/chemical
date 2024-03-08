@@ -26,6 +26,14 @@ public:
         return rep;
     }
 
+    bool primitive() override {
+        return true;
+    }
+
+    Value * copy() override {
+        return new FloatValue(value);
+    }
+
     void * get_value() override {
         return &value;
     }

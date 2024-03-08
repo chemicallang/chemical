@@ -20,7 +20,7 @@
  * @param file
  * @return tokens
  */
-Lexer benchLexFile(std::istream &file, const std::string& path, const LexConfig &config);
+Lexer benchLexFile(std::istream &file, const std::string& path);
 
 /**
  * same as benchLexFile with istream
@@ -28,14 +28,14 @@ Lexer benchLexFile(std::istream &file, const std::string& path, const LexConfig 
  * @param file
  * @return the tokens
  */
-Lexer benchLexFile(const std::string &path, const LexConfig &config);
+Lexer benchLexFile(const std::string &path);
 
 /**
  * will lex the file from given istream
  * @param file
  * @return the tokens
  */
-std::vector<std::unique_ptr<LexToken>> lexFile(std::istream &file, const std::string& path, const LexConfig &config);
+std::vector<std::unique_ptr<LexToken>> lexFile(std::istream &file, const std::string& path);
 
 /**
  * same as lexFile with istream
@@ -43,4 +43,4 @@ std::vector<std::unique_ptr<LexToken>> lexFile(std::istream &file, const std::st
  * @param fileName
  * @return the tokens
  */
-std::vector<std::unique_ptr<LexToken>> lexFile(const std::string &path, const LexConfig &config);
+std::vector<std::unique_ptr<LexToken>> lexFile(const std::string &path);

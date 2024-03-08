@@ -42,10 +42,6 @@ public:
         return value->value_type();
     }
 
-    bool delete_value() const override {
-        return value->delete_value();
-    }
-
     ~WrapperValue() {
         delete value;
     }

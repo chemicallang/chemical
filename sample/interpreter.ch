@@ -1,3 +1,6 @@
+import "./importable/imported.ch";
+print("imported thing is : ");
+println(imp);
 func add(a : int, b : int) : int {
     return a + b;
 }

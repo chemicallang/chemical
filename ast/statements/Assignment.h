@@ -24,10 +24,16 @@ public:
     ) : lhs(std::move(lhs)), value(std::move(value)), assOp(assOp) {}
 
     void interpret(InterpretScope& scope) override {
-        if(assOp == Operation::Equal) {
-            lhs->set_identifier_value(scope, value->evaluated_value(scope));
+        Value* next;
+        if(value->primitive()) {
+            next = value->copy();
         } else {
-            lhs->set_identifier_value(scope, value->evaluated_value(scope), assOp);
+            next = value->evaluated_value(scope);
+        }
+        if(assOp == Operation::Equal) {
+            lhs->set_identifier_value(scope, next);
+        } else {
+            lhs->set_identifier_value(scope, next, assOp);
         }
     }
 

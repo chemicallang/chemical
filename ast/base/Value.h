@@ -68,6 +68,45 @@ public:
     }
 
     /**
+     * This method is overridden by primitive values like int, float... to return true
+     * @return true when the value is primitive
+     */
+    virtual bool primitive() {
+        return false;
+    }
+
+    /**
+     * This returns how many references are to this value
+     * All primitive values have only a single reference to its value, because on new variable creation
+     * primitive values are copied into the variables
+     * For complex types like struct, a references unsigned int is held to determine the number of references the struct has
+     * A value is deleted when the scope ends if it only has a single reference, which is in the variable currently on the scope
+     * @return
+     */
+    virtual unsigned int references() {
+        return 1;
+    }
+
+    /**
+     * This function is called by the scope, if this function has more than one reference and it couldn't be deleted
+     * To allow the value to be deleted, we must decreases references count as we are deleting references
+     * So when the last reference is in the scope, the references count = 1, so value can be safely deleted
+     */
+    virtual void decrease_reference() {
+
+    }
+
+    /**
+     * This method allows to make a copy of the current value
+     * This method can only be called on primitive values as they are the only ones that support copy operation
+     * @return
+     */
+    virtual Value* copy() {
+        std::cerr << "[Value] copy operation called on base class";
+        return this;
+    }
+
+    /**
      * This method should return the value for interpretation
      * By default it returns null pointer
      * @return
@@ -139,6 +178,10 @@ public:
         throw std::runtime_error("as_int called on a value");
     }
 
+    virtual float as_float() {
+        throw std::runtime_error("as_float called on a value");
+    }
+
     /**
      * This is called by for example, assignment statement, to locate the access chain completely
      * in the scope variables given, so that lhs value can be set
@@ -157,13 +200,5 @@ public:
     virtual ValueType value_type() const {
         return ValueType::Unknown;
     };
-
-    /**
-     * returns whether the value should be deleted at the end of the scope
-     * @return
-     */
-    virtual bool delete_value() const {
-       return false;
-    }
 
 };

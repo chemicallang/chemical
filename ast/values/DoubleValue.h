@@ -20,6 +20,14 @@ public:
      */
     DoubleValue(double value) : value(value) {}
 
+    bool primitive() override {
+        return true;
+    }
+
+    Value * copy() override {
+        return new DoubleValue(value);
+    }
+
     std::string representation() const override {
         std::string rep;
         rep.append(std::to_string(value));

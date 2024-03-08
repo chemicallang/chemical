@@ -50,9 +50,13 @@ public:
     }
 
     bool evaluated_bool(InterpretScope& scope) override {
+        // compute the expression value
         auto eval = evaluate(scope);
+        // get and store the expression value as primitive boolean
         auto value = eval->as_bool();
-        if(eval->delete_value()) delete eval;
+        // delete the expression value
+        delete eval;
+        // return the expression value
         return value;
     }
 

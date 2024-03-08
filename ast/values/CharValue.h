@@ -21,6 +21,14 @@ public:
      */
     CharValue(char value) : value(value) {}
 
+    bool primitive() override {
+        return true;
+    }
+
+    Value * copy() override {
+        return new CharValue(value);
+    }
+
     std::string interpret_representation() const override {
         std::string rep;
         rep.append(1, value);

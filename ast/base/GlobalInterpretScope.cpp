@@ -6,7 +6,9 @@
 
 #include "GlobalInterpretScope.h"
 
-GlobalInterpretScope::GlobalInterpretScope(Scope* scope, ASTNode* node) : InterpretScope(nullptr, this, scope, node) {
+#include <utility>
+
+GlobalInterpretScope::GlobalInterpretScope(InterpretScope* parent, Scope* scope, ASTNode* node, std::string path) : root_path(std::move(path)), InterpretScope(parent, this, scope, node) {
 
 }
 

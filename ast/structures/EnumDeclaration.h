@@ -6,20 +6,56 @@
 
 #pragma once
 
-#include "ast/base/ASTNode.h"
+#include <utility>
 
-class EnumDeclaration : public ASTNode {
+#include "ast/base/Value.h"
+
+class EnumDeclaration : public Value {
 public:
+
     /**
      * @brief Construct a new EnumDeclaration object.
      *
      * @param name The name of the enum.
      * @param values The values of the enum.
      */
-    EnumDeclaration(const std::string& name, std::vector<std::string> values)
-            : name(name), values(values) {}
+    EnumDeclaration(std::string name, std::vector<std::string> values)
+            : name(std::move(name)), values(std::move(values)) {}
+
+    void interpret(InterpretScope &scope) override {
+        members = new std::unordered_map<std::string, std::unique_ptr<Value>>;
+        unsigned int i = 0;
+        for(const auto& member : values) {
+            (*members)[member] = std::make_unique<IntValue>(i);
+            i++;
+        }
+        scope.values[name] = this;
+    }
+
+    Value * child(const std::string& child_name) override {
+        return (*members)[child_name].get();
+    }
+
+    std::string representation() const override {
+        std::string rep("enum " + name + " {\n");
+        unsigned int i = 0;
+        while (i < values.size()) {
+            rep.append(values[i]);
+            if (i != values.size() - 1) {
+                rep.append(",\n");
+            }
+            i++;
+        }
+        rep.append("\n}");
+        return rep;
+    }
+
+    void scope_ends() override {
+        delete members;
+    }
 
 private:
     std::string name; ///< The name of the enum.
     std::vector<std::string> values; ///< The values of the enum.
+    std::unordered_map<std::string, std::unique_ptr<Value>>* members;
 };

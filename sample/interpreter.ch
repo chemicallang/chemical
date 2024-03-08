@@ -13,6 +13,14 @@ if(x == 1) {
     x += 8 + 2;
 }
 println(x);
+enum Some {
+    First,
+    Second
+}
+print("Enum value First : ");
+println(Some.First);
+print("Enum value Second : ");
+println(Some.Second);
 print("While Loop (breakon:5): ");
 var w = 0;
 while(w < 10) {

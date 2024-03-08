@@ -56,15 +56,6 @@ public:
         return interpretReturn;
     }
 
-    // this always returns 2 references, to prevent scope from deleting this value,
-    // this value is deleted when the AST is deleted, because its part of the AST
-    // when scope deletes values to 'clear' itself, it generally clears all values
-    // but calls destructors on values which are either primitive or has a single reference
-    // we don't want the destructor to be called, but the scope will always clear itself
-    unsigned int references() override {
-        return 2;
-    }
-
     bool supportsReturn() override {
         return true;
     }
@@ -103,6 +94,10 @@ public:
         ret.append(body.representation());
         ret.append("\n}");
         return ret;
+    }
+
+    void scope_ends() override {
+        // do nothing, as we don't want to delete this value
     }
 
 private:

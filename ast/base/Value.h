@@ -18,12 +18,23 @@ class FunctionDeclaration;
 class Value : public ASTNode {
 public:
 
-    virtual std::string* getScopeIdentifier() {
+    /**
+     * if this value has a child by this name, it should return a pointer to it
+     * @param name
+     * @return
+     */
+    virtual Value* child(const std::string& name) {
         return nullptr;
     }
 
-    virtual Value* getChild(std::string* name) {
-        return nullptr;
+    /**
+     * this function expects this identifier value to find itself in the parent value given to it
+     * this is only expected to be overridden by identifiers
+     * @param parent
+     * @return
+     */
+    virtual Value* find_in(Value* parent) {
+       return nullptr;
     }
 
     /**
@@ -57,43 +68,11 @@ public:
     }
 
     /**
-     * this function is called with the current scope variables on the first element of the access chain
-     * this allows locating the first element of the access chain in the scope above
-     * once located, we can travel that variable to locate the rest of the access chain and use that value
-     * @param scopeVars
-     * @return
-     */
-    virtual Value * find_in_parent(InterpretScope& scope) {
-        return nullptr;
-    }
-
-    /**
      * This method is overridden by primitive values like int, float... to return true
      * @return true when the value is primitive
      */
     virtual bool primitive() {
         return false;
-    }
-
-    /**
-     * This returns how many references are to this value
-     * All primitive values have only a single reference to its value, because on new variable creation
-     * primitive values are copied into the variables
-     * For complex types like struct, a references unsigned int is held to determine the number of references the struct has
-     * A value is deleted when the scope ends if it only has a single reference, which is in the variable currently on the scope
-     * @return
-     */
-    virtual unsigned int references() {
-        return 1;
-    }
-
-    /**
-     * This function is called by the scope, if this function has more than one reference and it couldn't be deleted
-     * To allow the value to be deleted, we must decreases references count as we are deleting references
-     * So when the last reference is in the scope, the references count = 1, so value can be safely deleted
-     */
-    virtual void decrease_reference() {
-
     }
 
     /**
@@ -165,32 +144,29 @@ public:
         throw std::runtime_error("as_bool called on a value");
     }
 
+    /**
+     * this is overridden by function declaration to return itself
+     * @return
+     */
     virtual FunctionDeclaration* as_function() {
         std::cerr << "actual_type:" << std::to_string((int) value_type()) << std::endl;
         throw std::runtime_error("as_function called on a value");
     }
 
     /**
-     * a function to be overridden by int values to return actual values
+     * a function to be overridden by values that can return int
      * @return
      */
     virtual int as_int() {
         throw std::runtime_error("as_int called on a value");
     }
 
-    virtual float as_float() {
-        throw std::runtime_error("as_float called on a value");
-    }
-
     /**
-     * This is called by for example, assignment statement, to locate the access chain completely
-     * in the scope variables given, so that lhs value can be set
-     * It is also called by the function for its parameters to locate them
-     * @param scopeVars
+     * a function to be overridden by values that can return float
      * @return
      */
-    virtual Value* travel(InterpretScope& scope) {
-        return nullptr;
+    virtual float as_float() {
+        throw std::runtime_error("as_float called on a value");
     }
 
     /**
@@ -200,5 +176,13 @@ public:
     virtual ValueType value_type() const {
         return ValueType::Unknown;
     };
+
+    /**
+     * called when the interpret scope ends, the interpret scope is the parent of the current value
+     * By default deletes the current value
+     */
+    virtual void scope_ends() {
+        delete this;
+    }
 
 };

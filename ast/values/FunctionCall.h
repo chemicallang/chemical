@@ -34,7 +34,7 @@ public:
                 }
             }
         } else {
-            auto func = find(scope, name);
+            auto func = scope.find(name);
             if(func.first) {
                 return func.second->second->as_function()->call(values);
             } else {

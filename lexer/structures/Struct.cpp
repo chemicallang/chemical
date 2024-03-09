@@ -6,6 +6,7 @@
 
 #include "lexer/Lexer.h"
 #include "lexer/model/tokens/StructToken.h"
+#include "lexer/model/tokens/InterfaceToken.h"
 
 bool Lexer::lexStructMemberTokens() {
     return lexVarInitializationTokens();
@@ -40,6 +41,16 @@ bool Lexer::lexStructStructureTokens() {
             error("expected a identifier as struct name");
         } else {
             tokens.emplace_back(std::make_unique<StructToken>(backPosition(id.length()), id));
+        }
+        lexWhitespaceToken();
+        if(lexOperatorToken(':')) {
+            lexWhitespaceToken();
+            auto inter = lexAlpha();
+            if(!inter.empty()) {
+                tokens.emplace_back(std::make_unique<InterfaceToken>(backPosition(inter.length()), inter));
+            } else {
+                error("expected a interface name after ':' when declaring a struct");
+            }
         }
         lexWhitespaceToken();
         if(!lexStructBlockTokens()) {

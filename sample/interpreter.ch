@@ -12,7 +12,7 @@ interface IBase {
     var x : int
     func something(a : int) : int;
 }
-struct X {
+struct X : IBase {
     var x = 5
     var y = 6
 }

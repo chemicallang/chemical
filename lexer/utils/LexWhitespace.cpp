@@ -17,6 +17,7 @@ unsigned int Lexer::lexWhitespace() {
 }
 
 bool Lexer::lexWhitespaceToken() {
+    if(provider.peek() != ' ' && provider.peek() != '\t') return false;
     auto whitespace = lexWhitespace();
     if (whitespace > 0) {
         if (shouldAddWhitespaceToken()) {

@@ -26,6 +26,13 @@ public:
     InterpretScope(InterpretScope&& copy) = delete;
 
     /**
+     * finds iterator in the scope tree above for the given name of the value
+     * @param value
+     * @return
+     */
+    std::pair<bool, std::unordered_map<std::string, Value *>::iterator> find(const std::string& value);
+
+    /**
      * useful for debugging
      */
     void printAllValues();

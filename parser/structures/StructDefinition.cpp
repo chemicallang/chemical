@@ -7,5 +7,29 @@
 #include "parser/Parser.h"
 
 lex_ptr<StructDefinition> Parser::parseStructDefinition() {
+    if (consume("struct")) {
+        auto value = consumeOfType<AbstractStringToken>(LexTokenType::Struct);
+        if (value.has_value()) {
+            if (consume_op('{')) {
+                std::vector<std::unique_ptr<VarInitStatement>> statements;
+                while(true) {
+                    auto init = parseVariableInitStatement();
+                    if (init.has_value()) {
+                        statements.emplace_back(std::move(init.value()));
+                    } else {
+                        break;
+                    }
+                }
+                if(!consume_op('}')) {
+                    error("expected a '}' after the struct definition");
+                }
+                return std::make_unique<StructDefinition>(std::move(value.value()->value), std::move(statements));
+            } else {
+                error("expected '{' after the struct name in struct definition");
+            }
+        } else {
+            error("expected a struct name in the struct definition");
+        }
+    }
     return std::nullopt;
 }

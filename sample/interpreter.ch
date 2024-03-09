@@ -8,6 +8,10 @@ println(v);
 func add(a : int, b : int) : int {
     return a + b;
 }
+struct X {
+    var x = 5
+    var y = 6
+}
 var zz = add(5, 5);
 print("Function Call ");
 print(zz);

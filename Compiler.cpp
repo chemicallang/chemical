@@ -46,7 +46,7 @@ int main(int argc, char *argv[]) {
         return 0;
     }
     auto lexer = benchLexFile(argv[1]);
-//    printTokens(lexer.tokens);
+    printTokens(lexer.tokens);
     for(const auto& err : lexer.errors) {
         std::cerr << "[Lexer] " << err.message << ' ' << err.position.formatted() << "\n";
     }

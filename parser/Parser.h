@@ -30,6 +30,7 @@
 #include "ast/statements/Continue.h"
 #include "ast/statements/Assignment.h"
 #include "ast/structures/StructDefinition.h"
+#include "ast/structures/InterfaceDefinition.h"
 #include <optional>
 #include <iostream>
 
@@ -297,9 +298,10 @@ public:
 
     /**
      * Parse a single function definition
+     * @param declaration specify whether to allow declarations or generate errors instead
      * @return
      */
-    lex_ptr<FunctionDeclaration> parseFunctionDefinition();
+    lex_ptr<FunctionDeclaration> parseFunctionDefinition(bool declaration = false);
 
     /**
      * Parse a single function definition
@@ -331,14 +333,14 @@ public:
      * Parse a single interface definition
      * @return
      */
-    lex_ptr<EnumDeclaration> parseInterfaceDefinition();
+    lex_ptr<InterfaceDefinition> parseInterfaceDefinition();
 
     /**
      * Parse a single interface definition
      * @return true if parsed
      */
     inline bool parseInterfaceDefinitionBool() {
-        return parse_return_bool([&]() -> lex_ptr<EnumDeclaration> {
+        return parse_return_bool([&]() -> lex_ptr<InterfaceDefinition> {
             return parseInterfaceDefinition();
         });
     }

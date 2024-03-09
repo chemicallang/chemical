@@ -17,11 +17,11 @@ bool Lexer::lexStructBlockTokens() {
         lexWhitespaceToken();
         lexNewLineChars();
         do {
-            lexWhitespace();
+            lexWhitespaceToken();
             lexStructMemberTokens();
-            lexWhitespace();
+            lexWhitespaceToken();
             lexOperatorToken(';');
-            lexWhitespace();
+            lexWhitespaceToken();
         }while(lexNewLineChars());
         lexWhitespaceToken();
         if(!lexOperatorToken('}')) {

@@ -7,7 +7,7 @@
 #include "lexer/model/tokens/WhitespaceToken.h"
 #include <memory>
 
-unsigned int Lexer::lexWhitespace() {
+unsigned int Lexer::readWhitespaces() {
     unsigned int whitespaces = 0;
     while (!provider.eof() && (provider.peek() == ' ' || provider.peek() == '\t')) {
         provider.readCharacter();
@@ -18,7 +18,7 @@ unsigned int Lexer::lexWhitespace() {
 
 bool Lexer::lexWhitespaceToken() {
     if(provider.peek() != ' ' && provider.peek() != '\t') return false;
-    auto whitespace = lexWhitespace();
+    auto whitespace = readWhitespaces();
     if (whitespace > 0) {
         if (shouldAddWhitespaceToken()) {
             tokens.emplace_back(std::make_unique<WhitespaceToken>(backPosition(whitespace), whitespace));

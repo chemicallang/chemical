@@ -16,7 +16,7 @@ void Lexer::lexMultipleStatementsTokens() {
         if(!lexStatementTokens())  {
             break;
         }
-        lexWhitespace();
+        lexWhitespaceToken();
         lexOperatorToken(';');
     }
 }

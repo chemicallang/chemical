@@ -9,11 +9,11 @@
 
 void Lexer::lexInterfaceBlockTokens() {
     do {
-        lexWhitespace();
+        lexWhitespaceToken();
         lexFunctionSignatureTokens() || lexVarInitializationTokens(true);
-        lexWhitespace();
+        lexWhitespaceToken();
         lexOperatorToken(';');
-        lexWhitespace();
+        lexWhitespaceToken();
     } while (lexNewLineChars());
 }
 
@@ -27,15 +27,15 @@ bool Lexer::lexInterfaceStructureTokens() {
         } else {
             tokens.emplace_back(std::make_unique<InterfaceToken>(backPosition(name.length()), std::move(name)));
         }
-        lexWhitespace();
+        lexWhitespaceToken();
         if (!lexOperatorToken('{')) {
             error("expected a '{' when starting an interface");
             return true;
         }
-        lexWhitespace();
+        lexWhitespaceToken();
         lexNewLineChars();
         lexInterfaceBlockTokens();
-        lexWhitespace();
+        lexWhitespaceToken();
         if (!lexOperatorToken('}')) {
             error("expected a '}' when ending an interface");
             return true;

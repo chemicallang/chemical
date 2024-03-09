@@ -10,7 +10,7 @@
 #include "lexer/model/tokens/NumberToken.h"
 #include <optional>
 
-class VarInitStatement : public ASTNode {
+class VarInitStatement : public Value {
 public:
 
     /**
@@ -22,15 +22,19 @@ public:
     VarInitStatement(
             std::string identifier,
             std::optional<std::string> type,
-            std::unique_ptr<Value> value
+            std::optional<std::unique_ptr<Value>> value
     ) : identifier(std::move(identifier)), type(std::move(type)), value(std::move(value)) {}
 
     void interpret(InterpretScope& scope) override {
-        if(value->primitive()) {
-            scope.values[identifier] = value->copy();
-        } else {
+        if(value.has_value()) {
+            if (value.value()->primitive()) {
+                scope.values[identifier] = value.value()->copy();
+            } else {
 //            std::cerr << "First Non-Copied Var : " << identifier;
-            scope.values[identifier] = value->evaluated_value(scope);
+                scope.values[identifier] = value.value()->evaluated_value(scope);
+            }
+        } else {
+            scope.values[identifier] = this;
         }
     }
 
@@ -42,15 +46,20 @@ public:
             rep.append(" : ");
             rep.append(type.value());
         }
-        rep.append(" = ");
-        rep.append(value->representation());
+        if(value.has_value()) {
+            rep.append(" = ");
+            rep.append(value.value()->representation());
+        }
         return rep;
     }
 
+    void scope_ends() override {
+        // do not call destructor
+    }
 
     std::string identifier; ///< The identifier being initialized.
 private:
     std::optional<std::string> type;
-    std::unique_ptr<Value> value; ///< The value being assigned to the identifier.
+    std::optional<std::unique_ptr<Value>> value; ///< The value being assigned to the identifier.
 
 };

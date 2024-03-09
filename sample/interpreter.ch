@@ -1,6 +1,10 @@
 import "./importable/imported.ch";
 print("imported thing is : ");
 println(imp);
+var v : int;
+v = 9;
+print("The output is : ");
+println(v);
 func add(a : int, b : int) : int {
     return a + b;
 }

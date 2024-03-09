@@ -25,16 +25,11 @@ lex_ptr<VarInitStatement> Parser::parseVariableInitStatement() {
             type_string = std::nullopt;
         }
     }
-    if (!consume_op('=')) {
-        return std::nullopt;
+    lex_ptr<Value> value = std::nullopt;
+    if(consume_op('=')) {
+        value = parseExpression();
     }
-    auto number = parseExpression();
-    if (number.has_value()) {
-        return std::make_unique<VarInitStatement>(var.value()->value, std::move(type_string), std::move(number.value()));
-    } else {
-        error("expected an integer token");
-        return std::nullopt;
-    }
+    return std::make_unique<VarInitStatement>(var.value()->value, std::move(type_string), std::move(value));
 }
 
 bool Parser::parseVariableInitStatementBool() {

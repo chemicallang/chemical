@@ -75,17 +75,3 @@ lex_ptr<ForLoop> Parser::parseForLoop() {
         return std::nullopt;
     }
 }
-
-/**
- * parses a single for loop
- * @return true if parsed
- */
-bool Parser::parseForLoopBool() {
-    auto loop = parseForLoop();
-    if (loop.has_value()) {
-        nodes.emplace_back(std::move(loop.value()));
-        return true;
-    } else {
-        return false;
-    }
-}

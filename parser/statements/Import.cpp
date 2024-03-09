@@ -7,16 +7,20 @@
 #include "parser/Parser.h"
 #include "ast/statements/Import.h"
 
-bool Parser::parseImportStatementBool() {
+lex_ptr<ImportStatement> Parser::parseImportStatement() {
     if (consume("import")) {
         auto value = consumeOfType<AbstractStringToken>(LexTokenType::String);
         if (value.has_value()) {
-            nodes.emplace_back(std::make_unique<ImportStatement>(value.value()->value));
+            return std::make_unique<ImportStatement>(value.value()->value);
         } else {
             error("expected a value for the import statement");
         }
-        return true;
-    } else {
-        return false;
     }
+    return std::nullopt;
+}
+
+bool Parser::parseImportStatementBool() {
+    return parse_return_bool([&] () -> lex_ptr<ImportStatement> {
+        return parseImportStatement();
+    });
 }

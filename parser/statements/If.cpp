@@ -6,16 +6,6 @@
 
 #include "parser/Parser.h"
 
-bool Parser::parseIfStatementBool() {
-    auto statement = parseIfStatement();
-    if(statement.has_value()) {
-        nodes.emplace_back(std::move(statement.value()));
-        return true;
-    } else {
-        return false;
-    }
-}
-
 lex_ptr<IfStatement> Parser::parseIfStatement() {
     if(!consume("if")) {
         return std::nullopt;

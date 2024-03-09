@@ -58,17 +58,3 @@ lex_ptr<WhileLoop> Parser::parseWhileLoop() {
         return std::nullopt;
     }
 }
-
-/**
- * parses a single while loop
- * @return true if parsed
- */
-bool Parser::parseWhileLoopBool() {
-    auto loop = parseWhileLoop();
-    if (loop.has_value()) {
-        nodes.emplace_back(std::move(loop.value()));
-        return true;
-    } else {
-        return false;
-    }
-}

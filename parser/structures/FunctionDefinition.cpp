@@ -21,16 +21,6 @@ lex_ptr<ReturnStatement> Parser::parseReturnStatement() {
     return std::nullopt;
 }
 
-bool Parser::parseReturnStatementBool() {
-    auto value = parseReturnStatement();
-    if(value.has_value()) {
-        nodes.emplace_back(std::move(value.value()));
-        return true;
-    } else {
-        return false;
-    }
-}
-
 /**
  * parses a single for loop
  * @return true if parsed
@@ -103,18 +93,4 @@ lex_ptr<FunctionDeclaration> Parser::parseFunctionDefinition() {
         }
     }
     return std::nullopt;
-}
-
-/**
- * parses a single function
- * @return true if parsed
- */
-bool Parser::parseFunctionDefinitionBool() {
-    auto loop = parseFunctionDefinition();
-    if (loop.has_value()) {
-        nodes.emplace_back(std::move(loop.value()));
-        return true;
-    } else {
-        return false;
-    }
 }

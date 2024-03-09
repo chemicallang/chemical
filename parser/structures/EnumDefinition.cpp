@@ -34,13 +34,3 @@ lex_ptr<EnumDeclaration> Parser::parseEnumDeclaration() {
     }
     return std::nullopt;
 }
-
-bool Parser::parseEnumDeclarationBool() {
-    auto value = parseEnumDeclaration();
-    if(value.has_value()) {
-        nodes.emplace_back(std::move(value.value()));
-        return true;
-    } else {
-        return false;
-    }
-}

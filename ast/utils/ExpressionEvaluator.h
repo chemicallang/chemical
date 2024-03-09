@@ -28,6 +28,8 @@ public:
 
     static constexpr int computeFloatToInt(Operation op);
 
+    static constexpr int computeBoolToBool(Operation op);
+
     static void prepareFunctions();
 
 };

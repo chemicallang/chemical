@@ -76,7 +76,7 @@ lex_ptr<FunctionDeclaration> Parser::parseFunctionDefinition() {
                 }
 
                 // create declaration before, so that return statement can take a pointer to it
-                auto declaration = std::make_unique<FunctionDeclaration>(std::move(token->value), std::move(params), std::move(returnType), Scope());
+                auto declaration = std::make_unique<FunctionDeclaration>(std::move(token->value), std::move(params), std::move(returnType));
 
                 auto prevFuncDecl = current_func_decl;
                 // the warning the address of local may escape the function should be ignored

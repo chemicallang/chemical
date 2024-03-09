@@ -44,20 +44,28 @@ lex_ptr<ForLoop> Parser::parseForLoop() {
             return std::nullopt;
         }
         if (consume_op('{')) {
+
+            auto loop = std::make_unique<ForLoop>(std::move(statement.value()),std::move(condition.value()), std::move(incrementer.value()));
+
+            auto prevLoopNode = current_loop_node;
+            // the warning : the address of the local variable may escape the function is invalid because loop is moved at the end of the scope
+            current_loop_node = loop.get();
             auto prevParseBreak = isParseBreakStatement;
             auto prevParseContinue = isParseContinueStatement;
             isParseBreakStatement = true;
             isParseContinueStatement = true;
-            auto scope = parseLoopScope();
+            auto scope_nodes = parseScopeNodes();
             isParseBreakStatement = prevParseBreak;
             isParseContinueStatement = prevParseContinue;
+            current_loop_node = prevLoopNode;
+
+            loop->body.nodes = std::move(scope_nodes);
+
             if (!consume_op('}')) {
                 error("expected a ending brace '}' for 'for' loop");
                 return std::nullopt;
             }
-            return std::make_unique<ForLoop>(std::move(statement.value()),
-                                             std::move(condition.value()), std::move(incrementer.value()),
-                                             std::move(scope));
+            return loop;
         } else {
             error("expected a starting brace '{' after the ')' for the 'for' loop");
             return std::nullopt;

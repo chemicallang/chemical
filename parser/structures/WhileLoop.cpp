@@ -25,18 +25,30 @@ lex_ptr<WhileLoop> Parser::parseWhileLoop() {
             return std::nullopt;
         }
         if (consume_op('{')) {
+
+            auto loop = std::make_unique<WhileLoop>(std::move(condition.value()));
+
+            auto prev_loop_node = current_loop_node;
+            // warning : the address of the local variable may escape the function is invalid because we move the loop at the end of the scope
+            current_loop_node = loop.get();
             auto prevParseBreak = isParseBreakStatement;
             auto prevParseContinue = isParseContinueStatement;
             isParseBreakStatement = true;
             isParseContinueStatement = true;
-            auto scope = parseLoopScope();
+            auto scope_nodes = parseScopeNodes();
             isParseBreakStatement = prevParseBreak;
             isParseContinueStatement = prevParseContinue;
+            current_loop_node = prev_loop_node;
+
+            loop->body.nodes = std::move(scope_nodes);
+
             if (!consume_op('}')) {
                 error("expected a ending brace '}' for 'while' loop");
                 return std::nullopt;
             }
-            return std::make_unique<WhileLoop>(std::move(condition.value()),std::move(scope));
+
+            return loop;
+
         } else {
             error("expected a starting brace '{' after the ')' for the 'while' loop");
             return std::nullopt;

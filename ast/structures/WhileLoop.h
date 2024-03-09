@@ -7,12 +7,20 @@
 #pragma once
 
 #include "ast/base/Value.h"
-#include "ast/base/ASTNode.h"
 #include "Scope.h"
 #include "LoopScope.h"
+#include "ast/base/LoopASTNode.h"
 
-class WhileLoop : public ASTNode {
+class WhileLoop : public LoopASTNode {
 public:
+
+    /**
+     * initializes the loop with only a condition and empty body
+     * @param condition
+     */
+    WhileLoop(std::unique_ptr<Value> condition) : condition(std::move(condition)) {
+
+    }
 
     /**
      * @brief Construct a new WhileLoop object.
@@ -21,7 +29,7 @@ public:
      * @param body The body of the while loop.
      */
     WhileLoop(std::unique_ptr<Value> condition, LoopScope body)
-            : condition(std::move(condition)), body(std::move(body)) {}
+            : condition(std::move(condition)), LoopASTNode(std::move(body)) {}
 
     void interpret(InterpretScope &scope) override {
         InterpretScope child(&scope, scope.global, &body, this);
@@ -32,14 +40,6 @@ public:
                 break;
             }
         }
-    }
-
-    bool supportsBreak() override {
-        return true;
-    }
-
-    bool supportsContinue() override {
-        return true;
     }
 
     void stopInterpretation() override {
@@ -58,6 +58,5 @@ public:
 
 private:
     std::unique_ptr<Value> condition;
-    LoopScope body;
     bool stoppedInterpretation = false;
 };

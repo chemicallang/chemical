@@ -28,38 +28,6 @@ public:
     }
 
     /**
-     * return true if this node supports continue statement
-     * @return
-     */
-    virtual bool supportsContinue() {
-        return false;
-    }
-
-    /**
-     * return true if this node supports break statement
-     * @return
-     */
-    virtual bool supportsBreak() {
-        return false;
-    }
-
-    /**
-     * return true if this node supports return statement
-     * @return
-     */
-    virtual bool supportsReturn() {
-        return false;
-    }
-
-    /**
-     * This is called by statements like break
-     * to break the current interpretation, that is run by ASTNode's like loops (for, while)
-     */
-    virtual void stopInterpretation() {
-
-    }
-
-    /**
      * This would return the representation of the node
      * @return
      */

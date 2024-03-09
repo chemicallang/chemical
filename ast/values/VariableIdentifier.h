@@ -29,7 +29,7 @@ public:
     }
 
     void set_identifier_value(InterpretScope &scope, Value *newValue) override {
-        auto it = find(scope, value);
+        auto it = scope.find(value);
         if (!it.first) {
             std::cerr << "Couldn't set variable " << value
                       << " as there's no such variable in parent, or previous value doesn't exist ";
@@ -43,7 +43,7 @@ public:
     }
 
     void set_identifier_value(InterpretScope &scope, Value *newValue, Operation op) override {
-        auto it = find(scope, value);
+        auto it = scope.find(value);
         if (!it.first) {
             std::cerr << "Couldn't set variable " << value
                       << " as there's no such variable in parent, or previous value doesn't exist ";
@@ -63,7 +63,7 @@ public:
     }
 
     Value *evaluated_value(InterpretScope &scope) override {
-        auto found = find(scope, value);
+        auto found = scope.find(value);
         if (found.first) {
             return found.second->second;
         } else {

@@ -12,6 +12,8 @@
 
 class FunctionDeclaration;
 
+class InterfaceDefinition;
+
 /**
  * @brief Base class for all values in the AST.
  */
@@ -116,26 +118,6 @@ public:
     }
 
     /**
-     * finds the given identifier in the scope above, returns a pair, representing first value as true, if found
-     * second value is an iterator to modify or access the value
-     * @param scope
-     * @param value
-     * @return
-     */
-    std::pair<bool, std::unordered_map<std::string, Value *>::iterator> find(InterpretScope &scope, const std::string& value) {
-        // try to find the pointer of the value
-        auto currentScope = &scope;
-        while (currentScope != nullptr) {
-            auto pointer = currentScope->values.find(value);
-            if (pointer != currentScope->values.end()) {
-                return std::pair(true, std::move(pointer));
-            }
-            currentScope = currentScope->parent;
-        }
-        return std::pair(false, scope.values.end());
-    }
-
-    /**
      * a function to be overridden by bool values to return actual values
      * @return
      */
@@ -151,6 +133,15 @@ public:
     virtual FunctionDeclaration* as_function() {
         std::cerr << "actual_type:" << std::to_string((int) value_type()) << std::endl;
         throw std::runtime_error("as_function called on a value");
+    }
+
+    /**
+     * this is overridden by interface definition to return itself
+     * @return
+     */
+    virtual InterfaceDefinition* as_interface() {
+        std::cerr << "actual_type:" << std::to_string((int) value_type()) << std::endl;
+        throw std::runtime_error("as_interface called on a value");
     }
 
     /**

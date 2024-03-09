@@ -12,6 +12,19 @@ InterpretScope::InterpretScope(InterpretScope* parent, GlobalInterpretScope *glo
 
 }
 
+std::pair<bool, std::unordered_map<std::string, Value *>::iterator> InterpretScope::find(const std::string& value) {
+    // try to find the pointer of the value
+    auto currentScope = this;
+    while (currentScope != nullptr) {
+        auto pointer = currentScope->values.find(value);
+        if (pointer != currentScope->values.end()) {
+            return {true, std::move(pointer)};
+        }
+        currentScope = currentScope->parent;
+    }
+    return {false, values.end()};
+}
+
 void InterpretScope::printAllValues() {
     std::cout << "ScopeValues:" << std::endl;
     for(auto const& value : values) {

@@ -8,9 +8,9 @@ It allows you to rethink how programming languages mix and share concepts to cre
 
 ### Syntax
 
-We are aiming for typescript like syntax for this native language.
+It's similar to golang, typescript & c++ but there's a lot that cannot be explained about syntax here.
 
-```typescript
+```golang
 var x : int = 5;
 for(var i = 0; i < 5; i++){
     // switch statements are similar to c++
@@ -22,7 +22,7 @@ for(var i = 0; i < 5; i++){
 }
 // while and do while loops are also similar
 // a function, requires types
-function add(a : int, b : int) : int {
+func add(a : int, b : int) : int {
     return a + b;
 }
 // supports : struct, interface, implementation

@@ -5,6 +5,12 @@ var v : int;
 v = 9;
 print("The output is : ");
 println(v);
+impl IBase for X {
+    var x = 5
+    func add() {
+        // nothing
+    }
+}
 func add(a : int, b : int) : int {
     return a + b;
 }

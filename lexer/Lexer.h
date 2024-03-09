@@ -312,6 +312,18 @@ public:
     bool lexStructStructureTokens();
 
     /**
+     * lexes a impl block tokens
+     * @return
+     */
+    void lexImplBlockTokens();
+
+    /**
+     * lexes a impl block
+     * @return
+     */
+    bool lexImplTokens();
+
+    /**
      * lexes an enum block, this means { enum(s) }
      * without the `enum` keyword and name identifier
      * @return

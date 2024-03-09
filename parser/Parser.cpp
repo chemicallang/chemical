@@ -7,7 +7,6 @@
 #include "Parser.h"
 
 void Parser::parse() {
-    eraseAllWhitespaceAndMultilineCommentTokens();
     parseMultipleStatements();
     nodes.shrink_to_fit();
 }

@@ -11,12 +11,14 @@ void Parser::parseMultipleStatements() {
         if (parseVariableInitStatementBool() ||
             parseIfStatementBool() ||
             parseForLoopBool() ||
+            parseCommentBool() ||
             parseDoWhileLoopBool() ||
             parseWhileLoopBool() ||
             parseFunctionDefinitionBool() ||
             parseEnumDeclarationBool() ||
             parseStructDefinitionBool() ||
             parseInterfaceDefinitionBool() ||
+            parseImplementationDefinitionBool() ||
             (isParseReturnStatement && parseReturnStatementBool()) ||
             (isParseBreakStatement && parseBreakStatement()) ||
             (isParseContinueStatement && parseContinueStatement()) ||

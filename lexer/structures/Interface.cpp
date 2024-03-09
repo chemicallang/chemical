@@ -40,7 +40,7 @@ bool Lexer::lexInterfaceStructureTokens() {
             error("expected a '}' when ending an interface");
             return true;
         }
-    } else {
-        return false;
+        return true;
     }
+    return false;
 }

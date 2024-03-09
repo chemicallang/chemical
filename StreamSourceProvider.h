@@ -85,7 +85,7 @@ public:
 
     bool increment(const std::string &text) override {
 
-        if(stream.eof()) {
+        if(stream.peek() != text[0]) {
             return false;
         }
 

@@ -29,6 +29,7 @@
 #include "ast/statements/Break.h"
 #include "ast/statements/Continue.h"
 #include "ast/statements/Assignment.h"
+#include "ast/structures/StructDefinition.h"
 #include <optional>
 #include <iostream>
 
@@ -135,7 +136,7 @@ public:
     /**
      * parses an expression
      */
-     lex_ptr<Value> parseExpression();
+    lex_ptr<Value> parseExpression();
 
     /**
      * parse an access chain
@@ -158,7 +159,11 @@ public:
      * parses a variable assignment state
      * @return whether a node was added
      */
-    bool parseVarAssignStatementBool();
+    inline bool parseVarAssignStatementBool() {
+        return parse_return_bool([&]() -> lex_ptr<ASTNode> {
+            return parseVarAssignStatement();
+        });
+    }
 
     /**
      * This parses a single variable initialization statement
@@ -182,7 +187,11 @@ public:
      * parses an if statement into nodes, if found return strue
      * @return
      */
-    bool parseIfStatementBool();
+    inline bool parseIfStatementBool() {
+        return parse_return_bool([&]() -> lex_ptr<IfStatement> {
+            return parseIfStatement();
+        });
+    }
 
     /**
      * Parse a single for loop
@@ -194,7 +203,11 @@ public:
      * parses a single for loop
      * @return true if parsed
      */
-    bool parseForLoopBool();
+    inline bool parseForLoopBool() {
+        return parse_return_bool([&]() -> lex_ptr<ForLoop> {
+            return parseForLoop();
+        });
+    }
 
     /**
      * Parse a single while loop
@@ -206,7 +219,11 @@ public:
      * parses a while loop
      * @return true, if parsed
      */
-    bool parseWhileLoopBool();
+    inline bool parseWhileLoopBool() {
+        return parse_return_bool([&]() -> lex_ptr<WhileLoop> {
+            return parseWhileLoop();
+        });
+    }
 
     /**
      * Parse a single do while loop
@@ -218,7 +235,17 @@ public:
      * parses a single do while loop
      * @return true if parsed
      */
-    bool parseDoWhileLoopBool();
+    inline bool parseDoWhileLoopBool() {
+        return parse_return_bool([&]() -> lex_ptr<DoWhileLoop> {
+            return parseDoWhileLoop();
+        });
+    }
+
+    /**
+     * parses a single import statement
+     * @return
+     */
+    lex_ptr<ImportStatement> parseImportStatement();
 
     /**
      * parse a import statement
@@ -231,7 +258,7 @@ public:
      * @return
      */
     inline bool parseContinueStatement() {
-        if(consume("continue")) {
+        if (consume("continue")) {
             nodes.emplace_back(std::make_unique<ContinueStatement>(current_loop_node));
             return true;
         } else {
@@ -244,7 +271,7 @@ public:
      * @return
      */
     inline bool parseBreakStatement() {
-        if(consume("break")) {
+        if (consume("break")) {
             nodes.emplace_back(std::make_unique<BreakStatement>(current_loop_node));
             return true;
         } else {
@@ -262,7 +289,11 @@ public:
      * parses a return s
      * @return
      */
-    bool parseReturnStatementBool();
+    inline bool parseReturnStatementBool() {
+        return parse_return_bool([&]() -> lex_ptr<ReturnStatement> {
+            return parseReturnStatement();
+        });
+    }
 
     /**
      * Parse a single function definition
@@ -274,7 +305,11 @@ public:
      * Parse a single function definition
      * @return true if parsed
      */
-    bool parseFunctionDefinitionBool();
+    inline bool parseFunctionDefinitionBool() {
+        return parse_return_bool([&]() -> std::optional<std::unique_ptr<FunctionDeclaration>> {
+            return parseFunctionDefinition();
+        });
+    }
 
     /**
      * Parse a single enum declaration
@@ -286,7 +321,11 @@ public:
      * Parse a single enum declaration
      * @return true if parsed
      */
-    bool parseEnumDeclarationBool();
+    inline bool parseEnumDeclarationBool() {
+        return parse_return_bool([&]() -> lex_ptr<EnumDeclaration> {
+            return parseEnumDeclaration();
+        });
+    }
 
     /**
      * Parse a single interface definition
@@ -298,19 +337,44 @@ public:
      * Parse a single interface definition
      * @return true if parsed
      */
-    bool parseInterfaceDefinitionBool();
+    inline bool parseInterfaceDefinitionBool() {
+        return parse_return_bool([&]() -> lex_ptr<EnumDeclaration> {
+            return parseInterfaceDefinition();
+        });
+    }
 
     /**
      * Parse a single struct definition
      * @return
      */
-    lex_ptr<EnumDeclaration> parseStructDefinition();
+    lex_ptr<StructDefinition> parseStructDefinition();
 
     /**
      * Parse a single struct definition
      * @return true if parsed
      */
-    bool parseStructDefinitionBool();
+    inline bool parseStructDefinitionBool() {
+        return parse_return_bool([&]() -> lex_ptr<StructDefinition> {
+            return parseStructDefinition();
+        });
+    }
+
+    /**
+     *
+     * @tparam TFunc
+     * @param yield
+     * @return
+     */
+    template<typename TFunc>
+    inline bool parse_return_bool(TFunc yield) {
+        auto value = yield();
+        if (value.has_value()) {
+            nodes.emplace_back(std::move(value.value()));
+            return true;
+        } else {
+            return !errors.empty();
+        }
+    }
 
     /**
      * This will erase all whitespace tokens
@@ -492,13 +556,13 @@ private:
      * This is a pointer to current function declaration
      * All nodes being parsed belong to this function's body
      */
-    FunctionDeclaration* current_func_decl;
+    FunctionDeclaration *current_func_decl;
 
     /**
      * The current loop node
      * All nodes being parsed belong this loop's body
      */
-    LoopASTNode* current_loop_node;
+    LoopASTNode *current_loop_node;
 
 };
 

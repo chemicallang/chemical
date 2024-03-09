@@ -35,13 +35,3 @@ lex_ptr<ASTNode> Parser::parseVarAssignStatement() {
     }
     return std::nullopt;
 }
-
-bool Parser::parseVarAssignStatementBool() {
-    auto statement = parseVarAssignStatement();
-    if(statement.has_value()) {
-        nodes.emplace_back(std::move(statement.value()));
-        return true;
-    } else {
-        return !errors.empty();
-    }
-};

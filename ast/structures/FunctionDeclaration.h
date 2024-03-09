@@ -28,7 +28,7 @@ public:
             std::optional<std::string> returnType,
             Scope body
     ) : name(std::move(name)), params(std::move(params)), returnType(std::move(returnType)), body(std::move(body)) {
-        for(auto& param : this->params) {
+        for (auto &param: this->params) {
             param.first.shrink_to_fit();
             param.second.shrink_to_fit();
         }
@@ -39,14 +39,15 @@ public:
         declarationScope = &scope;
     }
 
-    Value* call(std::vector<std::unique_ptr<Value>>& call_params) {
+    Value *call(std::vector<std::unique_ptr<Value>> &call_params) {
         InterpretScope child(declarationScope, declarationScope->global, &body, this);
-        if(params.size() != call_params.size()) {
-            child.error("function " + name + " requires " + std::to_string(params.size()) + ", but given params are " + std::to_string(call_params.size()));
+        if (params.size() != call_params.size()) {
+            child.error("function " + name + " requires " + std::to_string(params.size()) + ", but given params are " +
+                        std::to_string(call_params.size()));
             return nullptr;
         }
         auto i = 0;
-        while(i < params.size()) {
+        while (i < params.size()) {
             // TODO all function values are being copied
             // TODO make sure only primitive values are copied
             child.values[params[i].first] = call_params[i]->copy();
@@ -60,11 +61,12 @@ public:
         return true;
     }
 
-    void set_return(Value *value) override {
+    // called by the return statement
+    void set_return(Value *value) {
         interpretReturn = value;
     }
 
-    FunctionDeclaration * as_function() override {
+    FunctionDeclaration *as_function() override {
         return this;
     }
 
@@ -100,11 +102,13 @@ public:
         // do nothing, as we don't want to delete this value
     }
 
+    Scope body; ///< The body of the function.
+
 private:
     std::string name; ///< The name of the function.
     func_params params;
     std::optional<std::string> returnType;
-    Scope body; ///< The body of the function.
-    InterpretScope* declarationScope;
-    Value* interpretReturn;
+
+    InterpretScope *declarationScope;
+    Value *interpretReturn;
 };

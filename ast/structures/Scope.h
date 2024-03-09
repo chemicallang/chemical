@@ -13,6 +13,10 @@
 class Scope : public ASTNode {
 public:
 
+    Scope() {
+
+    }
+
     /**
      * @brief Construct a new Scope object.
      * @param nodes All the ASTNode(s) present in the scope
@@ -52,7 +56,6 @@ public:
         return rep;
     }
 
-protected:
     std::vector<std::unique_ptr<ASTNode>> nodes;
 
 };

@@ -25,9 +25,8 @@ public:
     FunctionDeclaration(
             std::string name,
             func_params params,
-            std::optional<std::string> returnType,
-            Scope body
-    ) : name(std::move(name)), params(std::move(params)), returnType(std::move(returnType)), body(std::move(body)) {
+            std::optional<std::string> returnType
+    ) : name(std::move(name)), params(std::move(params)), returnType(std::move(returnType)) {
         for (auto &param: this->params) {
             param.first.shrink_to_fit();
             param.second.shrink_to_fit();
@@ -55,10 +54,6 @@ public:
         }
         body.interpret(child);
         return interpretReturn;
-    }
-
-    bool supportsReturn() override {
-        return true;
     }
 
     // called by the return statement
@@ -108,7 +103,6 @@ private:
     std::string name; ///< The name of the function.
     func_params params;
     std::optional<std::string> returnType;
-
     InterpretScope *declarationScope;
     Value *interpretReturn;
 };

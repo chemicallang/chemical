@@ -6,13 +6,23 @@
 
 #pragma once
 
-#include "ast/base/ASTNode.h"
+#include "ast/base/LoopASTNode.h"
 #include "ast/base/Value.h"
 #include "Scope.h"
 #include "ast/statements/VarInit.h"
 
-class ForLoop : public ASTNode {
+class ForLoop : public LoopASTNode {
 public:
+
+    /**
+     * @brief Construct a new ForLoop object with an empty body
+     */
+    ForLoop(
+            std::unique_ptr<VarInitStatement> initializer,
+            std::unique_ptr<Value> conditionExpr,
+            std::unique_ptr<ASTNode> incrementerExpr
+    ) : initializer(std::move(initializer)),
+        conditionExpr(std::move(conditionExpr)), incrementerExpr(std::move(incrementerExpr)) {}
 
     /**
      * @brief Construct a new ForLoop object.
@@ -24,7 +34,7 @@ public:
             LoopScope body
     ) : initializer(std::move(initializer)),
         conditionExpr(std::move(conditionExpr)), incrementerExpr(std::move(incrementerExpr)),
-        body(std::move(body)) {}
+        LoopASTNode(std::move(body)) {}
 
     void interpret(InterpretScope &scope) override {
         InterpretScope child(&scope, scope.global, &body, this);
@@ -37,14 +47,6 @@ public:
             }
             incrementerExpr->interpret(child);
         }
-    }
-
-    bool supportsBreak() override {
-        return true;
-    }
-
-    bool supportsContinue() override {
-        return true;
     }
 
     void stopInterpretation() override {
@@ -68,6 +70,5 @@ private:
     std::unique_ptr<VarInitStatement> initializer;
     std::unique_ptr<Value> conditionExpr;
     std::unique_ptr<ASTNode> incrementerExpr;
-    LoopScope body;
     bool stoppedInterpretation = false;
 };

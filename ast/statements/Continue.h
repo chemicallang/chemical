@@ -14,18 +14,14 @@ public:
     /**
      * @brief Construct a new ContinueStatement object.
      */
-    ContinueStatement() {}
+    ContinueStatement(LoopASTNode *node) : node(node) {}
 
     void interpret(InterpretScope &scope) override {
-        auto current = &scope;
-        while(current != nullptr && !current->node->supportsBreak()) {
-            current = current->parent;
-        }
-        if(current == nullptr) {
-            scope.error("invalid break statement, couldn't find breakable node up in the tree");
+        if(node == nullptr) {
+            std::cerr << "[Continue] statement has nullptr to loop node";
             return;
         }
-        current->codeScope->stopInterpretOnce();
+        node->body.stopInterpretOnce();
     }
 
     std::string representation() const override {
@@ -33,5 +29,8 @@ public:
         ret.append("continue;");
         return ret;
     }
+
+private:
+    LoopASTNode *node;
 
 };

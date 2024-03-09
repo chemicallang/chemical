@@ -232,7 +232,7 @@ public:
      */
     inline bool parseContinueStatement() {
         if(consume("continue")) {
-            nodes.emplace_back(std::make_unique<ContinueStatement>());
+            nodes.emplace_back(std::make_unique<ContinueStatement>(current_loop_node));
             return true;
         } else {
             return false;
@@ -245,7 +245,7 @@ public:
      */
     inline bool parseBreakStatement() {
         if(consume("break")) {
-            nodes.emplace_back(std::make_unique<BreakStatement>());
+            nodes.emplace_back(std::make_unique<BreakStatement>(current_loop_node));
             return true;
         } else {
             return false;
@@ -493,6 +493,12 @@ private:
      * All nodes being parsed belong to this function's body
      */
     FunctionDeclaration* current_func_decl;
+
+    /**
+     * The current loop node
+     * All nodes being parsed belong this loop's body
+     */
+    LoopASTNode* current_loop_node;
 
 };
 

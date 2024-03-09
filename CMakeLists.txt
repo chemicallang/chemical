@@ -163,6 +163,7 @@ set(COMMON_SOURCES "lexer/Lexer.cpp" "lexer/Lexer.h" "lexer/model/tokens/CharOpe
         ast/structures/LoopScope.h
         ast/structures/LoopScope.h
         parser/statements/Import.cpp
+        ast/base/LoopASTNode.h
 )
 
 # Chemical LSP Executable Target

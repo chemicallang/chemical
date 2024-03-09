@@ -7,11 +7,18 @@
 #pragma once
 
 #include "ast/base/Value.h"
-#include "ast/base/ASTNode.h"
+#include "ast/base/LoopASTNode.h"
 #include "Scope.h"
 
-class DoWhileLoop : public ASTNode {
+class DoWhileLoop : public LoopASTNode {
 public:
+
+    /**
+     * Initialize an empty do while loop
+     */
+    DoWhileLoop() {
+
+    }
 
     /**
      * @brief Construct a new WhileLoop object.
@@ -20,25 +27,17 @@ public:
      * @param body The body of the while loop.
      */
     DoWhileLoop(std::unique_ptr<Value> condition, LoopScope body)
-    : condition(std::move(condition)), body(std::move(body)) {}
+            : condition(std::move(condition)), LoopASTNode(std::move(body)) {}
 
     void interpret(InterpretScope &scope) override {
         InterpretScope child(&scope, scope.global, &body, this);
         do {
             body.interpret(child);
-            if(stoppedInterpretation) {
+            if (stoppedInterpretation) {
                 stoppedInterpretation = false;
                 break;
             }
-        } while(condition->evaluated_bool(child));
-    }
-
-    bool supportsBreak() override {
-        return true;
-    }
-
-    bool supportsContinue() override {
-        return true;
+        } while (condition->evaluated_bool(child));
     }
 
     void stopInterpretation() override {
@@ -55,8 +54,8 @@ public:
         return ret;
     }
 
-private:
     std::unique_ptr<Value> condition;
-    LoopScope body;
+
+private:
     bool stoppedInterpretation = false;
 };

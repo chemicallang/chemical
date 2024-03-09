@@ -13,6 +13,9 @@
 class Scope : public ASTNode {
 public:
 
+    /**
+     * empty constructor
+     */
     Scope() {
 
     }

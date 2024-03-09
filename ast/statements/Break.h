@@ -14,19 +14,15 @@ public:
     /**
      * @brief Construct a new Break statement object.
      */
-    BreakStatement() {}
+    BreakStatement(LoopASTNode *node) : node(node) {}
 
     void interpret(InterpretScope &scope) override {
-        auto current = &scope;
-        while(current != nullptr && !current->node->supportsBreak()) {
-            current = current->parent;
-        }
-        if(current == nullptr) {
-            scope.error("invalid break statement, couldn't find breakable node up in the tree");
+        if(node == nullptr) {
+            std::cerr << "[Break] statement has nullptr to loop node";
             return;
         }
-        current->codeScope->stopInterpretOnce();
-        current->node->stopInterpretation();
+        node->body.stopInterpretOnce();
+        node->stopInterpretation();
     }
 
     std::string representation() const override {
@@ -34,5 +30,8 @@ public:
         ret.append("break;");
         return ret;
     }
+
+private:
+    LoopASTNode *node;
 
 };

@@ -12,6 +12,17 @@ class LoopScope : public Scope {
 public:
     bool stoppedInterpretOnce = false;
 
+    /**
+     * empty constructor
+     */
+    LoopScope() : Scope() {
+
+    }
+
+    /**
+     * construct with given nodes
+     * @param nodes
+     */
     LoopScope(std::vector<std::unique_ptr<ASTNode>> nodes) : Scope(std::move(nodes)) {
 
     }
@@ -26,6 +37,10 @@ public:
         }
     }
 
+    /**
+     * this will stop the interpretation at the current statement
+     * meaning all the nodes in this scope will be skipped
+     */
     void stopInterpretOnce() override {
         stoppedInterpretOnce = true;
     }

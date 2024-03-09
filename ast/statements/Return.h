@@ -15,21 +15,13 @@ public:
     /**
      * @brief Construct a new ReturnStatement object.
      */
-    ReturnStatement(std::optional<std::unique_ptr<Value>> value) : value(std::move(value)) {}
+    ReturnStatement(std::optional<std::unique_ptr<Value>> value, FunctionDeclaration* declaration) : value(std::move(value)), declaration(declaration) {}
 
     void interpret(InterpretScope &scope) override {
-        auto current = &scope;
-        while(current != nullptr && !current->node->supportsReturn()) {
-            current = current->parent;
-        }
-        if(current == nullptr) {
-            scope.error("invalid return statement, couldn't find returnable node up in the tree");
-            return;
-        }
         if(value.has_value()) {
-            current->node->set_return(value->get()->evaluated_value(scope));
+            declaration->set_return(value->get()->evaluated_value(scope));
         } else {
-            current->node->set_return(nullptr);
+            declaration->set_return(nullptr);
         }
     }
 
@@ -47,6 +39,7 @@ public:
     }
 
 private:
+    FunctionDeclaration* declaration;
     std::optional<std::unique_ptr<Value>> value;
 
 };

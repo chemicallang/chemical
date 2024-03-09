@@ -13,9 +13,9 @@ lex_ptr<ReturnStatement> Parser::parseReturnStatement() {
     if(consume("return")) {
         auto value = parseExpression();
         if(value.has_value()) {
-            return std::make_unique<ReturnStatement>(std::move(value.value()));
+            return std::make_unique<ReturnStatement>(std::move(value.value()), current_func_decl);
         } else {
-            return std::make_unique<ReturnStatement>(std::nullopt);
+            return std::make_unique<ReturnStatement>(std::nullopt, current_func_decl);
         }
     }
     return std::nullopt;
@@ -74,15 +74,27 @@ lex_ptr<FunctionDeclaration> Parser::parseFunctionDefinition() {
                 if (!consume_op('{')) {
                     error("expected a '}' for the function body");
                 }
+
+                // create declaration before, so that return statement can take a pointer to it
+                auto declaration = std::make_unique<FunctionDeclaration>(std::move(token->value), std::move(params), std::move(returnType), Scope());
+
+                auto prevFuncDecl = current_func_decl;
+                // the warning the address of local may escape the function should be ignored
+                // because declaration will be moved by return so this is valid
+                current_func_decl = declaration.get();
                 auto prevReturn = isParseReturnStatement;
                 isParseReturnStatement = true;
-                auto scope = parseScope();
+                auto scope_nodes = parseScopeNodes();
                 isParseReturnStatement = prevReturn;
+                current_func_decl = prevFuncDecl;
+
                 if (!consume_op('}')) {
                     error("expected a '}' for ending the function body");
                 } else {
-                    return std::make_unique<FunctionDeclaration>(std::move(token->value), std::move(params), std::move(returnType), std::move(scope));
+                    declaration->body.nodes = std::move(scope_nodes);
+                    return std::move(declaration);
                 }
+
             } else {
                 error("expected a '(' after the function name");
             }

@@ -52,13 +52,6 @@ public:
     }
 
     /**
-     * when return statement is called, it calls this method
-     */
-    virtual void set_return(Value* value) {
-
-    }
-
-    /**
      * This is called by statements like break
      * to break the current interpretation, that is run by ASTNode's like loops (for, while)
      */

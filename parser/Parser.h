@@ -488,6 +488,12 @@ private:
      */
     bool isParseBreakStatement = false;
 
+    /**
+     * This is a pointer to current function declaration
+     * All nodes being parsed belong to this function's body
+     */
+    FunctionDeclaration* current_func_decl;
+
 };
 
 template<typename T>

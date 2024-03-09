@@ -11,12 +11,11 @@
 class InterfaceToken : public AbstractStringToken {
 public:
 
-    InterfaceToken(const TokenPosition& position, std::string identifier) : AbstractStringToken(position, std::move(identifier)){
+    InterfaceToken(const TokenPosition &position, std::string identifier)
+            : AbstractStringToken(position, std::move(identifier)) {}
 
-    }
-
-    TokenType type() const override {
-        return TokenType::Interface;
+    LexTokenType type() const override {
+        return LexTokenType::Interface;
     }
 
     [[nodiscard]] LspSemanticTokenType lspType() const override {

@@ -8,6 +8,10 @@ println(v);
 func add(a : int, b : int) : int {
     return a + b;
 }
+interface IBase {
+    var x : int
+    func something(a : int) : int;
+}
 struct X {
     var x = 5
     var y = 6

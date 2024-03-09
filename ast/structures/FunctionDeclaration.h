@@ -26,7 +26,7 @@ public:
             std::string name,
             func_params params,
             std::optional<std::string> returnType
-    ) : name(std::move(name)), params(std::move(params)), returnType(std::move(returnType)) {
+    ) : name(std::move(name)), params(std::move(params)), returnType(std::move(returnType)), body(std::nullopt) {
         for (auto &param: this->params) {
             param.first.shrink_to_fit();
             param.second.shrink_to_fit();
@@ -39,7 +39,7 @@ public:
     }
 
     Value *call(std::vector<std::unique_ptr<Value>> &call_params) {
-        InterpretScope child(declarationScope, declarationScope->global, &body, this);
+        InterpretScope child(declarationScope, declarationScope->global, &body.value(), this);
         if (params.size() != call_params.size()) {
             child.error("function " + name + " requires " + std::to_string(params.size()) + ", but given params are " +
                         std::to_string(call_params.size()));
@@ -52,7 +52,7 @@ public:
             child.values[params[i].first] = call_params[i]->copy();
             i++;
         }
-        body.interpret(child);
+        body.value().interpret(child);
         return interpretReturn;
     }
 
@@ -87,9 +87,11 @@ public:
             ret.append(returnType.value());
             ret.append(1, ' ');
         }
-        ret.append("{\n");
-        ret.append(body.representation());
-        ret.append("\n}");
+        if(body.has_value()) {
+            ret.append("{\n");
+            ret.append(body.value().representation());
+            ret.append("\n}");
+        }
         return ret;
     }
 
@@ -97,7 +99,7 @@ public:
         // do nothing, as we don't want to delete this value
     }
 
-    Scope body; ///< The body of the function.
+    std::optional<Scope> body; ///< The body of the function.
 
 private:
     std::string name; ///< The name of the function.

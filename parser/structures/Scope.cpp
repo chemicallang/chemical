@@ -15,6 +15,7 @@ void Parser::parseMultipleStatements() {
             parseWhileLoopBool() ||
             parseFunctionDefinitionBool() ||
             parseEnumDeclarationBool() ||
+            parseStructDefinitionBool() ||
             (isParseReturnStatement && parseReturnStatementBool()) ||
             (isParseBreakStatement && parseBreakStatement()) ||
             (isParseContinueStatement && parseContinueStatement()) ||

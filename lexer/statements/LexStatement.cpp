@@ -20,6 +20,7 @@ bool Lexer::lexStatementTokens() {
                lexForBlockTokens() ||
                lexStructStructureTokens() ||
                lexInterfaceStructureTokens() ||
+               lexImplTokens() ||
                lexDoWhileBlockTokens() ||
                lexWhileBlockTokens() ||
                lexFunctionStructureTokens() ||

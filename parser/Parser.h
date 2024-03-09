@@ -31,6 +31,8 @@
 #include "ast/statements/Assignment.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/InterfaceDefinition.h"
+#include "ast/structures/ImplDefinition.h"
+#include "ast/statements/Comment.h"
 #include <optional>
 #include <iostream>
 
@@ -346,6 +348,38 @@ public:
     }
 
     /**
+     * parses a single comment
+     * @return
+     */
+    lex_ptr<Comment> parseComment();
+
+    /**
+     * parses a singel comment
+     * @return true if comment is pased
+     */
+    bool parseCommentBool() {
+        return parse_return_bool([&]() -> lex_ptr<Comment> {
+            return parseComment();
+        });
+    }
+
+    /**
+     * Parse a single implementation definition
+     * @return
+     */
+    lex_ptr<ImplDefinition> parseImplementationDefinition();
+
+    /**
+     * Parse a single implementation definition
+     * @return true if parsed
+     */
+    inline bool parseImplementationDefinitionBool() {
+        return parse_return_bool([&]() -> lex_ptr<ImplDefinition> {
+            return parseImplementationDefinition();
+        });
+    }
+
+    /**
      * Parse a single struct definition
      * @return
      */
@@ -377,11 +411,6 @@ public:
             return !errors.empty();
         }
     }
-
-    /**
-     * This will erase all whitespace tokens
-     */
-    void eraseAllWhitespaceAndMultilineCommentTokens();
 
     /**
      * print what current token

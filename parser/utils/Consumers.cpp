@@ -11,16 +11,6 @@
 #include "lexer/model/tokens/StringToken.h"
 #include "lexer/model/tokens/OperationToken.h"
 
-void Parser::eraseAllWhitespaceAndMultilineCommentTokens() {
-    auto i = 0;
-    while (i < tokens.size()) {
-        if (tokens[i]->type() == LexTokenType::Whitespace || tokens[i]->type() == LexTokenType::MultilineComment) {
-            tokens.erase(tokens.begin() + i);
-        }
-        i++;
-    }
-}
-
 bool Parser::check_type(LexTokenType type, bool errorOut) {
     if (position < tokens.size()) {
         if (tokens[position]->type() == type) {

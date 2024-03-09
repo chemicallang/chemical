@@ -18,7 +18,7 @@ public:
      * @brief Construct a new StructDeclaration object.
      *
      * @param name The name of the struct.
-     * @param fields The fields of the struct.
+     * @param fields The members of the struct.
      */
     StructDefinition(
             std::string name,
@@ -76,5 +76,5 @@ public:
 private:
     std::string name; ///< The name of the struct.
     std::optional<std::string> overrides;
-    std::vector<std::unique_ptr<VarInitStatement>> fields; ///< The fields of the struct.
+    std::vector<std::unique_ptr<VarInitStatement>> fields; ///< The members of the struct.
 };

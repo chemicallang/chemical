@@ -50,10 +50,10 @@ public:
     std::string lexNumber();
 
     /**
-     * lex whitespaces at the current pos
+     * read whitespaces at the current pos
      * @return the number of whitespaces ' ' read
      */
-    unsigned int lexWhitespace();
+    unsigned int readWhitespaces();
 
     /**
      * lexes anything as long as when lambda returns true

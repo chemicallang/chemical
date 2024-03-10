@@ -30,5 +30,6 @@ enum class LexTokenType : uint8_t {
     Struct,
     Type,
     Variable,
+    Macro,
     Whitespace
 };

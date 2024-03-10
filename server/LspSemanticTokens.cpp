@@ -8,8 +8,10 @@
 #include "SemanticLexer.h"
 #include "utils/JsonUtils.h"
 #include "utils/FileUtils.h"
+#include "utils/Utils.h"
 
 #define DEBUG false
+#define PRINT_TOKENS false
 
 std::vector<SemanticToken> to_semantic_tokens(FileTracker &tracker, const std::string &path) {
 
@@ -33,6 +35,10 @@ std::vector<SemanticToken> to_semantic_tokens(FileTracker &tracker, const std::s
         // lex all the tokens
         lexer->lex();
         file.close();
+    }
+
+    if(PRINT_TOKENS) {
+        printTokens(lexer->tokens);
     }
 
     if(DEBUG) {

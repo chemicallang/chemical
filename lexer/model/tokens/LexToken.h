@@ -8,7 +8,7 @@
 
 #include <string>
 #include <optional>
-#include "lexer/minLsp/SemanticTokens.h"
+#include "lexer/minLsp/SemanticTokenType.h"
 #include "lexer/model/TokenPosition.h"
 #include "lexer/model/LexTokenType.h"
 //#include "rapidjson\rapidjson.h"

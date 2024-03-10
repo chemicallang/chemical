@@ -30,6 +30,7 @@
 #include "LibLsp/lsp/textDocument/formatting.h"
 #include "LibLsp/lsp/textDocument/documentColor.h"
 #include "LibLsp/lsp/general/shutdown.h"
+#include "LibLsp/lsp/general/exit.h"
 #include "LibLsp/lsp/workspace/did_change_watched_files.h"
 #include "LibLsp/lsp/general/initialized.h"
 #include "LibLsp/lsp/textDocument/SemanticTokens.h"
@@ -42,6 +43,7 @@
 #include "lexer/LexConfig.h"
 #include "server/FileTracker.h"
 #include "utils/FileUtils.h"
+#include <mutex>
 
 using namespace boost::asio::ip;
 using namespace std;
@@ -388,22 +390,22 @@ public:
 
                     return std::move(rsp);
                 });
-//        _sp.registerHandler([&](const td_completion::request &req, const CancelMonitor &monitor)
-//                                    -> lsp::ResponseOrError<td_completion::response> {
-//            _log.log(lsp::Log::Level::INFO, "td_completion");
-//            if (need_initialize_error) {
-//                return need_initialize_error.value();
-//            }
-////				auto unit = GetUnit(req.params.textDocument,true);
-//            td_completion::response rsp;
-////				if (unit){
-////					CompletionHandler(unit, rsp.result, req.params,&_requestMonitor);
-////				}
-//
-//
-//            return std::move(rsp);
-//
-//        });
+        _sp.registerHandler([&](const td_completion::request &req, const CancelMonitor &monitor)
+                                    -> lsp::ResponseOrError<td_completion::response> {
+            _log.log(lsp::Log::Level::INFO, "td_completion");
+            if (need_initialize_error) {
+                return need_initialize_error.value();
+            }
+//				auto unit = GetUnit(req.params.textDocument,true);
+            td_completion::response rsp;
+
+            rsp.result = CompletionList {
+                false, std::vector<lsCompletionItem> {}
+            };
+
+            return std::move(rsp);
+
+        });
         _sp.registerHandler([&](const completionItem_resolve::request &req) {
             _log.log(lsp::Log::Level::INFO, "completionItem_resolve");
             completionItem_resolve::response rsp;
@@ -425,20 +427,20 @@ public:
 //				}
             return std::move(rsp);
         });
-//        _sp.registerHandler([&](const td_formatting::request &req,
-//                                const CancelMonitor &monitor)
-//                                    -> lsp::ResponseOrError<td_formatting::response> {
-//            _log.log(lsp::Log::Level::INFO, "td_formatting");
-//            if (need_initialize_error) {
-//                return need_initialize_error.value();
-//            }
-//            td_formatting::response rsp;
-////				auto unit = GetUnit(req.params.textDocument);
-////				if (unit){
-////					DocumentFormatHandler(unit, rsp.result, req.params.options);
-////				}
-//            return std::move(rsp);
-//        });
+        _sp.registerHandler([&](const td_formatting::request &req,
+                                const CancelMonitor &monitor)
+                                    -> lsp::ResponseOrError<td_formatting::response> {
+            _log.log(lsp::Log::Level::INFO, "td_formatting");
+            if (need_initialize_error) {
+                return need_initialize_error.value();
+            }
+            td_formatting::response rsp;
+//				auto unit = GetUnit(req.params.textDocument);
+//				if (unit){
+//					DocumentFormatHandler(unit, rsp.result, req.params.options);
+//				}
+            return std::move(rsp);
+        });
 //        _sp.registerHandler([&](const td_documentColor::request &req,
 //                                const CancelMonitor &monitor)
 //                                    -> lsp::ResponseOrError<td_documentColor::response> {
@@ -570,7 +572,11 @@ public:
                 return;
             }
 
-            _log.log(lsp::Log::Level::INFO, "TextDocumentDidChange Received");
+            _log.log(lsp::Log::Level::INFO, "TextDocumentDidChange Received\n");
+
+            // to json the request
+            _log.log(lsp::Log::Level::INFO, notify.ToJson());
+            _log.log(lsp::Log::Level::INFO, "\nAbove was the json");
             const auto &params = notify.params;
             AbsolutePath path = params.textDocument.uri.GetAbsolutePath();
 
@@ -647,10 +653,9 @@ public:
             td_shutdown::response rsp;
             return rsp;
         });
-//        _sp.registerHandler([&](Notify_Exit::notify &notify) {
-//            _log.log(lsp::Log::Level::INFO, "Notify_Exit");
-//            on_exit();
-//        });
+        _sp.registerHandler([&](Notify_Exit::notify &notify) {
+            _log.log(lsp::Log::Level::INFO, "Notify_Exit");
+        });
 
         std::thread([&]() {
             server.run();

@@ -7,6 +7,7 @@
 #pragma once
 
 #include <string>
+#include <optional>
 #include "lexer/minLsp/SemanticTokens.h"
 #include "lexer/model/TokenPosition.h"
 #include "lexer/model/LexTokenType.h"
@@ -20,8 +21,6 @@ class LexToken {
 public:
 
     TokenPosition position;
-
-    unsigned modifiers = 0;
 
     LexToken(const TokenPosition& position) : position(position) {
 
@@ -41,6 +40,49 @@ public:
 
     inline unsigned int lineCharNumber() {
         return position.lineCharNumber;
+    }
+
+    /**
+     * returns the modifiers used by lsp
+     * @return
+     */
+    virtual unsigned int lsp_modifiers() {
+        return 0;
+    }
+
+    /**
+     * if this token corresponds to a declaration token
+     * meaning the token defines something, a struct, an enum, or a variable
+     * the identifier for that, should be returned (enum name or struct name)
+     * @return
+     */
+    virtual std::optional<std::string> declaration_identifier() {
+        return std::nullopt;
+    }
+
+//    /**
+//     * the declaration identifier returned by this token
+//     * can be used to identify the identifier present in a child scope of the current scope (in which this token is present)
+//     *
+//     * Why is this required, well :
+//     * in c++ when a function is written below its usage, a function prototype is required above, so the compiler knows the existence of this function
+//     *
+//     * the problem is that when lexing, tokens are provided to IDE and lexing is a forward process (we can't look back)
+//     * so when its usage appears above, to resolve the token, we store that token as unresolved, later when this token returns a declaration identifier and we know
+//     * that a child scope token hasn't been resolved with same identifier, we ask this function if the child scope token should be resolved, if this returns true, we resolve it
+//     * @return
+//     */
+//    virtual bool resolves_child_scope_symbol() {
+//        return false;
+//    }
+
+    /**
+     * If this token requires that the identifier returned should be looked in the current scope
+     * so that, its correct semantic type can be identified, the resolution identifier should be returned
+     * @return
+     */
+    virtual std::optional<std::string> resolution_identifier() {
+        return std::nullopt;
     }
 
     /**

@@ -504,8 +504,7 @@ template<typename TFunc>
 std::string Lexer::lexAnything(TFunc when) {
     std::string str;
     while (!provider.eof() && when()) {
-        char x = provider.readCharacter();
-        str.append(1, x);
+        str.append(1, provider.readCharacter());
     }
     return str;
 }

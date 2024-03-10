@@ -9,7 +9,7 @@
 #include <memory>
 #include "ast/base/Value.h"
 
-class AccessChain : public Value {
+class AccessChain : public ASTNode, public Value {
 
 public:
 

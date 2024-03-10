@@ -11,7 +11,7 @@
 
 using func_params = std::vector<std::pair<std::string, std::string>>;
 
-class FunctionDeclaration : public Value {
+class FunctionDeclaration : public ASTNode, public Value {
 public:
 
     /**

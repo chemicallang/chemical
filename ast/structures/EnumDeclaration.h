@@ -10,7 +10,7 @@
 
 #include "ast/base/Value.h"
 
-class EnumDeclaration : public Value {
+class EnumDeclaration : public ASTNode, public Value {
 public:
 
     /**

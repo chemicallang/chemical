@@ -9,23 +9,13 @@
 #include <vector>
 #include <memory>
 #include <string>
-#include "InterpretScope.h"
-#include <iostream>
+#include "Interpretable.h"
 
 /**
  * @brief Base class for all AST nodes.
  */
-class ASTNode {
+class ASTNode : public Interpretable {
 public:
-
-    /**
-     * Interpret the current node in the given interpret scope
-     * @param scope
-     */
-    virtual void interpret(InterpretScope& scope) {
-        std::cerr << "ASTNode Bare interpret Called";
-        // TODO make = 0
-    }
 
     /**
      * This would return the representation of the node

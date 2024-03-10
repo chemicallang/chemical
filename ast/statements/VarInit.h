@@ -10,7 +10,7 @@
 #include "lexer/model/tokens/NumberToken.h"
 #include <optional>
 
-class VarInitStatement : public Value {
+class VarInitStatement : public ASTNode, public Value {
 public:
 
     /**

@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "ASTNode.h"
+#include "Interpretable.h"
 #include "ValueType.h"
 #include "ast/utils/Operation.h"
 
@@ -17,7 +17,7 @@ class InterfaceDefinition;
 /**
  * @brief Base class for all values in the AST.
  */
-class Value : public ASTNode {
+class Value : public Interpretable {
 public:
 
     /**
@@ -37,6 +37,15 @@ public:
      */
     virtual Value* find_in(Value* parent) {
        return nullptr;
+    }
+
+    /**
+     * give representation of the value as it appears in source
+     * this doesn't need to be 100% accurate
+     * @return
+     */
+    virtual std::string representation() const {
+        return "[Value:Base:Representation]";
     }
 
     /**

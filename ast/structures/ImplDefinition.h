@@ -11,7 +11,7 @@
 #include "ast/base/Value.h"
 #include "ast/structures/InterfaceDefinition.h"
 
-class ImplDefinition : public Value {
+class ImplDefinition : public ASTNode, public Value {
 public:
 
     /**

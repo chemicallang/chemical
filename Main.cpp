@@ -43,7 +43,6 @@
 #include "lexer/LexConfig.h"
 #include "server/FileTracker.h"
 #include "utils/FileUtils.h"
-#include <mutex>
 
 using namespace boost::asio::ip;
 using namespace std;
@@ -501,8 +500,8 @@ public:
                 prevTokenLineNumber = token->lineNumber();
             }
 
-//            JsonUtils utils;
-//            utils.serialize("debug/tokens.json", lexed);
+//             JsonUtils utils;
+//             utils.serialize("debug/tokens.json", lexed);
 
             _log.log(lsp::Log::Level::INFO, "sending response");
 

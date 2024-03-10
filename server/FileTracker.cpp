@@ -6,7 +6,7 @@
 
 #include "FileTracker.h"
 
-#define DEBUG true
+#define DEBUG false
 
 std::vector<std::unique_ptr<LexToken>> FileTracker::getLexedFile(const std::string &path, const LexConfig &config) {
     if (overriddenSources.contains(path)) {

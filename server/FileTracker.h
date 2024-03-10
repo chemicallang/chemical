@@ -8,6 +8,7 @@
 
 #include <vector>
 #include <memory>
+#include <mutex>
 #include <unordered_map>
 #include "lexer/model/tokens/LexToken.h"
 #include "lexer/LexConfig.h"
@@ -19,6 +20,14 @@ class FileTracker {
 private:
 
     std::unordered_map<std::string, std::string> overriddenSources;
+
+    /**
+     * This mutex is for the change of files
+     * Changes to a file are delivered in sequential order, meaning two requests will modify the source at the same time
+     * or the second request might be processed completely before the first has finished
+     * causing the source code to be modified by the second request and leading to unexpected changes
+     */
+    std::mutex incremental_change_mutex;
 
 public:
 

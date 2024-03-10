@@ -6,11 +6,11 @@
 
 #include "FileTracker.h"
 
-#define DEBUG false
+#define DEBUG true
 
 std::vector<std::unique_ptr<LexToken>> FileTracker::getLexedFile(const std::string &path, const LexConfig &config) {
     if (overriddenSources.contains(path)) {
-        if(DEBUG) std::cout << "Retrieved Overridden Source:" << overriddenSources[path] << '\n';
+//        if(DEBUG) std::cout << "Retrieved Overridden Source:" << overriddenSources[path] << '\n';
         std::istringstream iss(overriddenSources[path]);
         return lexFile(iss, path);
     } else {
@@ -40,6 +40,10 @@ FileTracker::onChangedContents(const std::string &path, const std::vector<lsText
         return;
     }
 
+    // locking the incremental change mutex, when the object is destroyed, lock is released
+    // causing requests to this method be processed sequentially
+    std::lock_guard<std::mutex> lock(incremental_change_mutex);
+
     std::string source;
 
     // load the file if it doesn't exist
@@ -59,18 +63,16 @@ FileTracker::onChangedContents(const std::string &path, const std::vector<lsText
         source = overriddenSources[path];
     }
 
-    if(DEBUG) std::cout << "loaded the source : " << source << '\n';
-    if(DEBUG) std::cout << "total changes :" << changes.size();
+    if(DEBUG) std::cout << "loaded the source : " << source << std::endl;
+    if(DEBUG) std::cout << "total changes :" << changes.size() << std::endl;
 
-    if (changes.size() == 1) {
+    if (DEBUG && changes.size() == 1) {
         auto change = changes[0];
         auto start = change.range.get().start;
         auto end = change.range.get().end;
-        if(DEBUG) std::cout << " change : start : " << start.line << '-' << start.character << " end : " << end.line << '-'
-                  << end.character << ";";
+        std::cout << " change : start : " << start.line << '-' << start.character << " end : " << end.line << '-'
+                  << end.character << ";" << std::endl;
     }
-
-    if(DEBUG) std::cout << '\n';
 
     // make changes to the source code
     for (const auto &change: changes) {
@@ -82,7 +84,7 @@ FileTracker::onChangedContents(const std::string &path, const std::vector<lsText
     }
 
 
-    if(DEBUG) std::cout << "replaced : " << source << '\n';
+    if(DEBUG) std::cout << "replaced : " << source << std::endl;
 
     // store the overridden sources
     overriddenSources[path] = std::move(source);
@@ -114,17 +116,19 @@ void replace(
 
     if(DEBUG) std::cout << "reading:";
 
-    while (!provider.eof()) {
-        auto c = provider.readCharacter();
-        if (provider.getLineNumber() == lineStart && provider.getLineCharNumber() == charStart) {
+    auto not_replaced = true;
 
-            std::cout << c;
-            nextSource += c;
+    while (!provider.eof()) {
+        if (not_replaced && (provider.getLineNumber() == lineStart && provider.getLineCharNumber() == charStart)) {
 
             // forwarding to the end without adding character
             if(DEBUG) std::cout << "[fwd]:[";
             while (!provider.eof() && !(provider.getLineNumber() == lineEnd && provider.getLineCharNumber() == charEnd)) {
-                std::cout << provider.readCharacter();
+                if(DEBUG) {
+                    std::cout << provider.readCharacter();
+                } else {
+                    provider.readCharacter();
+                }
             }
             if(DEBUG) std::cout << ']';
 
@@ -132,9 +136,13 @@ void replace(
             nextSource += replacement;
             if(DEBUG) std::cout << "[rep]:[" << replacement << ']';
 
+            // replaced
+            not_replaced = false;
+
         } else {
+            auto c = provider.readCharacter();
             nextSource += c;
-            std::cout << c;
+            if(DEBUG) std::cout << c;
         }
     }
 

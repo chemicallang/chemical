@@ -13,6 +13,7 @@
 
 class IfStatement : public ASTNode {
 public:
+
     /**
      * @brief Construct a new IfStatement object.
      *

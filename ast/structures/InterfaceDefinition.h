@@ -8,9 +8,10 @@
 
 #include <utility>
 
+#include "ast/base/AstNode.h"
 #include "ast/base/Value.h"
 
-class InterfaceDefinition : public Value {
+class InterfaceDefinition : public ASTNode, public Value {
 public:
 
     /**

@@ -41,7 +41,7 @@ endif()
 # Add your common source files (excluding the main files)
 set(COMMON_SOURCES "lexer/Lexer.cpp" "lexer/Lexer.h" "lexer/model/tokens/CharOperatorToken.h" "lexer/model/tokens/VariableToken.h" "lexer/model/tokens/NumberToken.h" "lexer/model/tokens/KeywordToken.h" "lexer/model/tokens/LexToken.h" "lexer/model/tokens/WhitespaceToken.h" "SourceProvider.h"
         lexer/Lexi.h
-        lexer/minLsp/SemanticTokens.h
+        lexer/minLsp/SemanticTokenType.h
         lexer/statements/LexAssignment.cpp
         lexer/statements/VarInitialization.cpp
         lexer/statements/VarInitialization.cpp
@@ -172,6 +172,9 @@ set(COMMON_SOURCES "lexer/Lexer.cpp" "lexer/Lexer.h" "lexer/model/tokens/CharOpe
         server/SemanticLexer.cpp
         server/SemanticLexer.h
         lexer/model/tokens/ModifiableToken.h
+        lexer/statements/HashMacro.cpp
+        lexer/model/tokens/MacroToken.h
+        lexer/minLsp/SemanticTokenModifier.h
 )
 
 # Chemical LSP Executable Target

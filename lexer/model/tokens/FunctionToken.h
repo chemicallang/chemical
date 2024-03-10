@@ -11,7 +11,9 @@
 class FunctionToken : public AbstractStringToken {
 public:
 
-    FunctionToken(const TokenPosition& position, std::string identifier) : AbstractStringToken(position, std::move(identifier)){
+    unsigned int modifiers = 0;
+
+    FunctionToken(const TokenPosition& position, std::string identifier, unsigned int modifiers) : AbstractStringToken(position, std::move(identifier)), modifiers(modifiers) {
 
     }
 
@@ -23,9 +25,14 @@ public:
         return LspSemanticTokenType::ls_function;
     }
 
+    unsigned int lsp_modifiers() override {
+        return modifiers;
+    }
+
     [[nodiscard]] std::string type_string() const override {
         std::string buf("FunctionName:");
         buf.append(this->value);
+        buf.append(";modifiers:" + std::to_string(modifiers));
         return buf;
     }
 

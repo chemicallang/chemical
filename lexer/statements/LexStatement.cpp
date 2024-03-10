@@ -7,27 +7,24 @@
 #include "lexer/Lexer.h"
 
 bool Lexer::lexStatementTokens() {
-    if (!lexHash || lexHashOperator()) {
-        return lexSingleLineCommentTokens() ||
-               lexMultiLineCommentTokens() ||
-               lexVarInitializationTokens() ||
-               (isLexImportStatement && lexImportStatement()) ||
-               (isLexBreakStatement && lexBreakStatement()) ||
-               (isLexContinueStatement && lexContinueStatement()) ||
-               (isLexReturnStatement && lexReturnStatement()) ||
-               lexEnumStructureTokens() ||
-               lexIfBlockTokens() ||
-               lexForBlockTokens() ||
-               lexStructStructureTokens() ||
-               lexInterfaceStructureTokens() ||
-               lexImplTokens() ||
-               lexDoWhileBlockTokens() ||
-               lexWhileBlockTokens() ||
-               lexFunctionStructureTokens() ||
-               lexAssignmentTokens();
-    } else {
-        return false;
-    }
+    return lexSingleLineCommentTokens() ||
+           lexMultiLineCommentTokens() ||
+           lexVarInitializationTokens() ||
+           lexHashMacro() ||
+           (isLexImportStatement && lexImportStatement()) ||
+           (isLexBreakStatement && lexBreakStatement()) ||
+           (isLexContinueStatement && lexContinueStatement()) ||
+           (isLexReturnStatement && lexReturnStatement()) ||
+           lexEnumStructureTokens() ||
+           lexIfBlockTokens() ||
+           lexForBlockTokens() ||
+           lexStructStructureTokens() ||
+           lexInterfaceStructureTokens() ||
+           lexImplTokens() ||
+           lexDoWhileBlockTokens() ||
+           lexWhileBlockTokens() ||
+           lexFunctionStructureTokens() ||
+           lexAssignmentTokens();
 }
 
 bool Lexer::hasNewLine() {

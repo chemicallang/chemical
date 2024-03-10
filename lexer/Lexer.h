@@ -137,14 +137,6 @@ public:
     bool lexTypeTokens();
 
     /**
-     * lex preprocess
-     * @return whether the has token was lexed or not
-     */
-    inline bool lexHashOperator() {
-        return lexKeywordToken("#");
-    }
-
-    /**
      * lexes a single statement (of any type)
      * @return whether a statement was lexed successfully
      */
@@ -374,6 +366,12 @@ public:
     bool lexCharToken();
 
     /**
+     * lex hash macro
+     * @return
+     */
+    bool lexHashMacro();
+
+    /**
      * lexes a bool, true or false
      * @return whether a bool has been lexed
      */
@@ -463,11 +461,7 @@ public:
 
 private:
 
-    /**
-     * when true, hash will be lexed strictly
-     * when false, hash will be lexed optionally
-     */
-    bool lexHash = false;
+    unsigned int modifiers = 0;
 
     /**
      * -----------------------------------------

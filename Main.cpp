@@ -541,8 +541,8 @@ public:
             _log.log(lsp::Log::Level::INFO, "TextDocumentDidChange Received\n");
 
             // to json the request
-            _log.log(lsp::Log::Level::INFO, notify.ToJson());
-            _log.log(lsp::Log::Level::INFO, "\nAbove was the json");
+//            _log.log(lsp::Log::Level::INFO, notify.ToJson());
+//            _log.log(lsp::Log::Level::INFO, "\nAbove was the json");
             const auto &params = notify.params;
             AbsolutePath path = params.textDocument.uri.GetAbsolutePath();
 

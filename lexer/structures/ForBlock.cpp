@@ -28,9 +28,6 @@ bool Lexer::lexForBlockTokens() {
         error("expected a starting parenthesis ( in a for block");
     }
 
-    // optional #
-    lexHashOperator();
-
     // lex strict initialization
     lexVarInitializationTokens(false);
 

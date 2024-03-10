@@ -40,7 +40,8 @@
 #include "LibLsp/lsp/client/registerCapability.h"
 #include "LibLsp/lsp/workspace/symbol.h"
 #include "server/PrintUtils.h"
-#include "lexer/LexConfig.h"
+#include "server/SemanticLexer.h"
+#include "server/LspSemanticTokens.h"
 #include "server/FileTracker.h"
 #include "utils/FileUtils.h"
 
@@ -127,8 +128,7 @@ public:
     Server(
             const std::string &user_agent,
             const std::string &_port,
-            bool _enable_watch_parent_process,
-            const LexConfig &config
+            bool _enable_watch_parent_process
     ) : _sp(server.point), server(_address, _port, protocol_json_handler, endpoint, _log) {
 
         need_initialize_error = Rsp_Error();
@@ -470,40 +470,7 @@ public:
 
             auto path = req.params.textDocument.uri.GetAbsolutePath().path;
 
-            // Writing the source code to a debug file
-//            writeToProjectFile("debug/source.txt", fileTracker.getOverriddenSource(path));
-
-            // Writing the source code as ascii to a debug file
-//            writeAsciiToProjectFile("debug/ascii.txt", fileTracker.getOverriddenSource(path));
-
-            auto lexed = fileTracker.getLexedFile(path, config);
-
-            _log.log(lsp::Log::Level::INFO, "transforming tokens");
-
-            std::vector<SemanticToken> toks;
-
-            unsigned int prevTokenStart = 0;
-            unsigned int prevTokenLineNumber = 0;
-            for (const auto &token: lexed) {
-                toks.push_back(SemanticToken{
-                        token->lineNumber() - prevTokenLineNumber, (
-                                token->lineNumber() == prevTokenLineNumber ? (
-                                        // on the same line
-                                        token->lineCharNumber() - prevTokenStart
-                                ) : (
-                                        // on a different line
-                                        token->lineCharNumber()
-                                )
-                        ), token->length(), static_cast<unsigned int>(token->lspType()), token->modifiers
-                });
-                prevTokenStart = token->lineCharNumber();
-                prevTokenLineNumber = token->lineNumber();
-            }
-
-//             JsonUtils utils;
-//             utils.serialize("debug/tokens.json", lexed);
-
-            _log.log(lsp::Log::Level::INFO, "sending response");
+            auto toks = to_semantic_tokens(fileTracker, path);
 
             td_semanticTokens_full::response rsp;
 
@@ -713,8 +680,7 @@ int main(int argc, char *argv[]) {
         enable_watch_parent_process = true;
     }
     std::string user_agent = std::string(BOOST_BEAST_VERSION_STRING) + " websocket-server-async";
-    LexConfig config;
-    Server server(user_agent, "5007", enable_watch_parent_process, config);
+    Server server(user_agent, "5007", enable_watch_parent_process);
     auto ret = server.esc_event.wait();
     if (ret) {
         return 0;

@@ -34,7 +34,9 @@ bool Lexer::lexBraceBlock() {
     // multiple statements
     auto prevImportState = isLexImportStatement;
     isLexImportStatement = false;
+    scope_begins();
     lexMultipleStatementsTokens();
+    scope_ends();
     isLexImportStatement = prevImportState;
 
     // ending brace

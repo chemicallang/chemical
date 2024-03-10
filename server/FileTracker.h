@@ -11,7 +11,6 @@
 #include <mutex>
 #include <unordered_map>
 #include "lexer/model/tokens/LexToken.h"
-#include "lexer/LexConfig.h"
 #include "lexer/Lexi.h"
 #include "LibLsp/lsp/textDocument/did_change.h"
 
@@ -38,14 +37,14 @@ public:
      * @param path
      * @return
      */
-    std::vector<std::unique_ptr<LexToken>> getLexedFile(const std::string& path, const LexConfig& config);
+    std::vector<std::unique_ptr<LexToken>> getLexedFile(const std::string& path);
 
     /**
      * Returns the overridden source code for file at path
      * @param path
      * @return
      */
-    std::string getOverriddenSource(const std::string& path);
+    std::optional<std::string> get_overridden_source(const std::string& path);
 
     /**
      * stores the overridden (changed) contents of the file \n

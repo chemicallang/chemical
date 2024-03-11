@@ -22,6 +22,7 @@ void CompletionItemAnalyzer::find_completion_items() {
     auto size = tokens.size();
     std::vector<unsigned int> scopes_prev;
     std::unordered_set<unsigned int> token_positions;
+//    std::unordered_set<unsigned int> upcoming_scope;
     unsigned int scope_start = 0;
     while (i < size) {
         auto token = tokens[i].get();
@@ -31,6 +32,11 @@ void CompletionItemAnalyzer::find_completion_items() {
 
                 scopes_prev.push_back(scope_start);
                 scope_start = i;
+
+//                for(const auto t : upcoming_scope) {
+//                    token_positions.insert(t);
+//                }
+//                upcoming_scope.clear();
 
             } else if (casted->op == '}') { // a scope ends
 
@@ -58,7 +64,7 @@ void CompletionItemAnalyzer::find_completion_items() {
         }
         i++;
     }
-    for (const auto &token_pos: token_positions) {
+    for (const auto token_pos: token_positions) {
         auto token = tokens[token_pos].get();
         if (token->lsp_comp_label().has_value()) {
             items.push_back(lsCompletionItem{

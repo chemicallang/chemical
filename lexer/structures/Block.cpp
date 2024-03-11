@@ -19,9 +19,11 @@ void Lexer::lexMultipleStatementsTokens(bool till_end) {
                     break;
                 } else {
                     // skip to new line
+                    auto last_readable_token = tokens.size() - 1;
                     while(!lexNewLineChars() && !(provider.eof() || provider.peek() == -1)) {
                         provider.readCharacter();
                     }
+                    error(last_readable_token, "Skipped due to invalid syntax before it");
                     continue;
                 }
             } else {

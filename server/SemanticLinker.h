@@ -32,17 +32,15 @@ public:
     std::unordered_map<unsigned int, unsigned int> resolved;
 
     /**
-     * tokens that couldn't be resolved in the nested child scopes
+     * tokens that aren't found, thus can be classified as errors
      */
-    std::unordered_map<std::string, unsigned int> unresolved;
+    std::unordered_set<unsigned int> not_found;
 
     /**
-     * this function is called with the position of the token that couldn't be resolved
-     * @param position
+     * tokens that couldn't be resolved in the nested child scopes
+     * these tokens may be found in the future if they require
      */
-    virtual void report_unresolved(unsigned int position) {
-
-    }
+    std::unordered_map<std::string, unsigned int> unresolved;
 
     void analyze_scopes();
 

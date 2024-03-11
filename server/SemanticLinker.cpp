@@ -56,13 +56,15 @@ void SemanticLinker::analyze_scopes() {
                     auto found = current.find(id.value());
                     if (found != current.end()) {
                         resolved[i] = found->second;
+                    } else {
+                        if(tokens[i]->resolve_below_current_scope()) {
+                            // unresolved[id.value()] = i;
+                        } else {
+                            not_found.insert(i);
+                        }
                     }
-//                else {
-//                    unresolved[id.value()] = i;
-//                }
                 }
             }
-
         }
         i++;
     }

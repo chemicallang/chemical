@@ -49,6 +49,10 @@ std::vector<SemanticToken> to_semantic_tokens(FileTracker &tracker, const lsDocu
         file.close();
     }
 
+    SemanticLinker linker(lexed);
+
+    linker.analyze();
+
     // publishing diagnostics related to the lexing
     std::vector<lsDiagnostic> diagnostics;
     for(const auto &error : errors) {
@@ -64,16 +68,27 @@ std::vector<SemanticToken> to_semantic_tokens(FileTracker &tracker, const lsDocu
                 error.message
         });
     }
+    // adding diagnostics related to linking (unresolved references)
+    for(const auto &not_found : linker.not_found) {
+        auto token = lexed[not_found].get();
+        diagnostics.push_back(lsDiagnostic{
+                lsRange(
+                        lsPosition(token->lineNumber(), token->lineCharNumber()),
+                        lsPosition(token->lineNumber(), token->lineCharNumber() + token->length())
+                ),
+                lsDiagnosticSeverity::Error,
+                boost::none,
+                boost::none,
+                boost::none,
+                "Unresolved reference"
+        });
+    }
     Notify_TextDocumentPublishDiagnostics::notify notify;
     notify.params.uri = lsDocumentUri::FromPath(uri.GetAbsolutePath());
     notify.params.diagnostics = std::move(diagnostics);
     std::future<void> futureObj = std::async(std::launch::async, [&]{
         sp.sendNotification(notify);
     });
-
-    SemanticLinker linker(lexed);
-
-    linker.analyze();
 
     if(PRINT_TOKENS) {
         printTokens(lexed, linker.resolved);

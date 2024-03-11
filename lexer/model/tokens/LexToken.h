@@ -113,6 +113,14 @@ public:
     virtual SemanticTokenType lspType() const = 0;
 
     /**
+     * return true if this token should be considered for code completion
+     * @return
+     */
+    virtual bool lsp_has_comp() const {
+        return false;
+    }
+
+    /**
      * return th completion item label for the lsp
      * @return
      */

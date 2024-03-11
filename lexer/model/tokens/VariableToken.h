@@ -41,6 +41,10 @@ public:
         return SemanticTokenType::ls_variable;
     }
 
+    bool lsp_has_comp() const override {
+        return !access;
+    }
+
     std::optional<lsCompletionItemKind> lsp_comp_kind() const override {
         return lsCompletionItemKind::Variable;
     }

@@ -24,6 +24,11 @@ public:
         return SemanticTokenType::ls_parameter;
     }
 
+    // parameter has completions, but aren't supported yet !
+    bool lsp_has_comp() const override {
+        return false;
+    }
+
     std::optional<std::string> lsp_comp_label() const override {
         return std::nullopt;
     }

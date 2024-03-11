@@ -23,8 +23,8 @@ public:
         return SemanticTokenType::ls_number;
     }
 
-    std::optional<std::string> lsp_comp_label() const override {
-        return std::nullopt;
+    bool lsp_has_comp() const override {
+        return false;
     }
 
     [[nodiscard]] std::string type_string() const override {

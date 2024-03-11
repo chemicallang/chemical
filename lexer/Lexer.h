@@ -183,7 +183,7 @@ public:
      * this lexes the tokens inside the body of a structure
      * this basically lexes multiple statements
      */
-    void lexMultipleStatementsTokens();
+    void lexMultipleStatementsTokens(bool till_end = false);
 
     /**
      * lex single comment comment

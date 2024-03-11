@@ -29,6 +29,10 @@ public:
         return SemanticTokenType::ls_keyword;
     }
 
+    bool lsp_has_comp() const override {
+        return true;
+    }
+
     std::optional<std::string> lsp_comp_label() const override {
         return value;
     }

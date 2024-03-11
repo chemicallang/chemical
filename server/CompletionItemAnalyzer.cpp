@@ -52,7 +52,7 @@ void CompletionItemAnalyzer::find_completion_items() {
                 scopes_prev.pop_back();
 
             }
-        } else {
+        } else if(token->lsp_has_comp()){
             token_positions.insert(i);
         }
         if (token->lineNumber() > position.first) {
@@ -71,6 +71,8 @@ void CompletionItemAnalyzer::find_completion_items() {
                     token->lsp_comp_label().value(),
                     convert_optional(token->lsp_comp_kind())
             });
+        } else {
+            std::cerr << "Token:" << token->type_string() << " stated has completions but returned no label.";
         }
     }
 }

@@ -67,6 +67,13 @@ public:
 
     }
 
+    /**
+     * The function that analyzes
+     */
+    inline void analyze() {
+        analyze_scopes();
+    }
+
     void scope_begins(unsigned int position) override;
 
     void scope_ends(unsigned int position) override;

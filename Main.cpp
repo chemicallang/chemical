@@ -44,6 +44,7 @@
 #include "server/LspSemanticTokens.h"
 #include "server/FileTracker.h"
 #include "utils/FileUtils.h"
+#include "server/FoldingRangeAnalyzer.h"
 
 using namespace boost::asio::ip;
 using namespace std;
@@ -196,11 +197,11 @@ public:
 //				{
 //					capabilities.definitionProvider = option;
 //				}
-//				if (!clientPreferences->isFoldgingRangeDynamicRegistered())
-//				{
-//					capabilities.foldingRangeProvider = std::pair< boost::optional<bool>, boost::optional<FoldingRangeOptions> >();
-//					capabilities.foldingRangeProvider->first = true;
-//				}
+				if (!clientPreferences->isFoldgingRangeDynamicRegistered())
+				{
+					capabilities.foldingRangeProvider = std::pair< boost::optional<bool>, boost::optional<FoldingRangeOptions> >();
+					capabilities.foldingRangeProvider->first = true;
+				}
 //				if (!clientPreferences->isReferencesDynamicRegistered())
 //				{
 //					capabilities.referencesProvider = option;
@@ -230,8 +231,16 @@ public:
                     _type.push_back(to_string(static_cast<SemanticTokenType>(i)));
                 return _type;
             };
+            auto semanticTokenModifiers = [] {
+                std::vector<std::string> _type;
+                for (unsigned i = 0; i <= static_cast<unsigned>(SemanticTokenModifier::LastModifier);
+                     ++i)
+                    _type.push_back(to_string(static_cast<SemanticTokenModifier>(i)));
+                return _type;
+            };
 
             semantic_tokens_opt.legend.tokenTypes = semanticTokenTypes();
+            semantic_tokens_opt.legend.tokenModifiers = semanticTokenModifiers();
 
             std::pair<boost::optional<bool>, boost::optional<lsp::Any> > rang;
             rang.first = false;
@@ -419,11 +428,12 @@ public:
             if (need_initialize_error) {
                 return need_initialize_error.value();
             }
-//				auto unit = GetUnit(req.params.textDocument);
+            auto path = req.params.textDocument.uri.GetAbsolutePath().path;
             td_foldingRange::response rsp;
-//				if (unit){
-//					FoldingRangeHandler(unit, rsp.result, req.params);
-//				}
+            auto lexed = fileTracker.getLexedFile(path);
+            FoldingRangeAnalyzer analyzer(lexed);
+            analyzer.analyze();
+            rsp.result = std::move(analyzer.ranges);
             return std::move(rsp);
         });
         _sp.registerHandler([&](const td_formatting::request &req,
@@ -459,27 +469,16 @@ public:
         _sp.registerHandler([&](const td_semanticTokens_full::request &req,
                                 const CancelMonitor &monitor)
                                     -> lsp::ResponseOrError<td_semanticTokens_full::response> {
-
-            _log.log(lsp::Log::Level::INFO, "providing syntax highlighting");
-
+            _log.log(lsp::Log::Level::INFO, "td_semanticTokens_full");
             if (need_initialize_error) {
                 return need_initialize_error.value();
             }
-
-//            _log.log(lsp::Log::Level::INFO, "lexing the file");
-
             auto path = req.params.textDocument.uri.GetAbsolutePath().path;
-
             auto toks = to_semantic_tokens(fileTracker, path);
-
             td_semanticTokens_full::response rsp;
-
             SemanticTokens tokens;
-
             tokens.data = SemanticTokens::encodeTokens(toks);
-
             rsp.result = std::move(tokens);
-
             return std::move(rsp);
         });
 //        _sp.registerHandler([&](const td_references::request &req,

@@ -176,6 +176,8 @@ set(COMMON_SOURCES "lexer/Lexer.cpp" "lexer/Lexer.h" "lexer/model/tokens/CharOpe
         lexer/minLsp/SemanticTokenModifier.h
         server/SemanticAnalyzer.cpp
         server/SemanticAnalyzer.h
+        server/FoldingRangeAnalyzer.cpp
+        server/FoldingRangeAnalyzer.h
 )
 
 # Chemical LSP Executable Target

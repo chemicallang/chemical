@@ -21,7 +21,7 @@ std::vector<SemanticToken> to_semantic_tokens(FileTracker &tracker, const std::s
 
     SemanticLinker linker(lexed);
 
-    linker.analyze_scopes();
+    linker.analyze();
 
     if(PRINT_TOKENS) {
         printTokens(lexed, linker.resolved);

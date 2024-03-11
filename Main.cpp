@@ -472,8 +472,7 @@ public:
             if (need_initialize_error) {
                 return need_initialize_error.value();
             }
-            auto path = req.params.textDocument.uri.GetAbsolutePath().path;
-            auto toks = to_semantic_tokens(fileTracker, path);
+            auto toks = to_semantic_tokens(fileTracker, req.params.textDocument.uri, _sp);
             td_semanticTokens_full::response rsp;
             SemanticTokens tokens;
             tokens.data = SemanticTokens::encodeTokens(toks);

@@ -6,7 +6,7 @@
 
 #include "lexer/Lexer.h"
 
-void Lexer::lexMultipleStatementsTokens() {
+void Lexer::lexMultipleStatementsTokens(bool till_end) {
 
     // lex whitespace and new lines to reach a statement
     // lex a statement and then optional whitespace, lex semicolon
@@ -14,13 +14,18 @@ void Lexer::lexMultipleStatementsTokens() {
     while(true) {
         lexWhitespaceAndNewLines();
         if(!lexStatementTokens())  {
-            if(provider.eof() || provider.peek() == -1){
-                break;
-            } else {
-                while(!lexNewLineChars() && !provider.eof()) {
-                    provider.readCharacter();
+            if(till_end) {
+                if(provider.eof() || provider.peek() == -1){
+                    break;
+                } else {
+                    // skip to new line
+                    while(!lexNewLineChars() && !(provider.eof() || provider.peek() == -1)) {
+                        provider.readCharacter();
+                    }
+                    continue;
                 }
-                continue;
+            } else {
+                break;
             }
         }
         lexWhitespaceToken();

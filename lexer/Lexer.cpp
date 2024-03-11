@@ -9,7 +9,7 @@
 
 
 void Lexer::lex() {
-    lexMultipleStatementsTokens();
+    lexMultipleStatementsTokens(true);
     tokens.shrink_to_fit();
 }
 

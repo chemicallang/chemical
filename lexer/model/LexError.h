@@ -12,13 +12,18 @@
 #include <iostream>
 
 class LexError {
-
 public:
 
     /**
-     * the position of the lexer where the error occurred
+     * The start position of the error
      */
-    StreamPosition position;
+    StreamPosition start;
+
+    /**
+     * the position of the stream where the error stopped
+     * this is usually the position where the error actually occurred
+     */
+    StreamPosition end;
 
     /**
      * specific sourceId that identifies the source code
@@ -31,21 +36,24 @@ public:
      */
     std::string message;
 
-    LexError(StreamPosition position, std::string& identifier, std::string message) : position(position), sourceId(identifier), message(std::move(message)) {
+    /**
+     * constructor
+     * @param start
+     * @param position
+     * @param identifier
+     * @param message
+     */
+    LexError(StreamPosition start, StreamPosition position, std::string& identifier, std::string message) : start(start), end(position), sourceId(identifier), message(std::move(message)) {
 
     }
 
-    void display() {
-        std::cerr << "[Error] " << message << " ; at " << sourceId << '#' << position.line << ':' << position.character << '\n';
-    }
-
-    LexError wrap(const std::string& prefix, const std::string& suffix) {
-        return {position, sourceId, prefix + " " + message + " " + suffix};
-    }
-
-    LexError wrap(const std::string& prefix) {
-        return {position, sourceId, prefix + " " + message};
-    }
+    /**
+     * representation of the error so it can be printed in the console
+     * @return
+     */
+    std::string representation() const {
+        return "[Lexer] " + message + " ; at " + sourceId + '#' + std::to_string(end.line) + ':' + std::to_string(end.character);
+    };
 
     inline std::string getFilePath() {
         return sourceId;

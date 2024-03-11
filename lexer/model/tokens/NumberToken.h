@@ -23,6 +23,10 @@ public:
         return SemanticTokenType::ls_number;
     }
 
+    std::optional<std::string> lsp_comp_label() const override {
+        return std::nullopt;
+    }
+
     [[nodiscard]] std::string type_string() const override {
         std::string buf("Number:");
         buf.append(value);

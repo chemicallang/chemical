@@ -24,6 +24,10 @@ public:
         return SemanticTokenType::ls_parameter;
     }
 
+    std::optional<std::string> lsp_comp_label() const override {
+        return std::nullopt;
+    }
+
     [[nodiscard]] std::string type_string() const override {
         std::string buf("Parameter:");
         buf.append(this->value);

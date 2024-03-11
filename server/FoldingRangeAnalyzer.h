@@ -8,37 +8,30 @@
 
 
 #include "LibLsp/lsp/textDocument/foldingRange.h"
-#include "ScopeAnalyzer.h"
+#include "SemanticAnalyzer.h"
 
 #define DEBUG false
 
-class FoldingRangeAnalyzer : public ScopeAnalyzer {
+class FoldingRangeAnalyzer : public SemanticAnalyzer {
 public:
 
     /**
      * constructor
      * @param tokens
      */
-    FoldingRangeAnalyzer(std::vector<std::unique_ptr<LexToken>> &tokens) : ScopeAnalyzer(tokens) {
+    FoldingRangeAnalyzer(std::vector<std::unique_ptr<LexToken>> &tokens) : SemanticAnalyzer(tokens) {
 
     }
-
-    /**
-     * this stack stores the start positions of the nested scopes
-     * since one scope starts, we set scope_start_pos, another nested starts, we must store the previous one on the stack
-     * when nested ends, we must get the last position from the scope_start_pos_stack and set it to scope_start_pos, or zero if stack is empty
-     */
-    std::vector<unsigned int> scope_start_pos_stack;
-
-    /**
-     * the start position (inside the tokens vector) of the current scope
-     */
-    unsigned int scope_start_pos = 0;
 
     /**
      * all the folding ranges found
      */
     std::vector<FoldingRange> ranges;
+
+    /**
+     * analyzes scopes to create folding ranges
+     */
+    void analyze_scopes();
 
     /**
      * The function that analyzes
@@ -53,9 +46,5 @@ public:
             }
         }
     }
-
-    void scope_begins(unsigned int position) override;
-
-    void scope_ends(unsigned int position) override;
 
 };

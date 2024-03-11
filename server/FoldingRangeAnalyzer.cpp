@@ -5,29 +5,40 @@
 //
 
 #include "FoldingRangeAnalyzer.h"
+#include "lexer/model/tokens/CharOperatorToken.h"
 
-void FoldingRangeAnalyzer::scope_begins(unsigned int position) {
-    scope_start_pos_stack.push_back(scope_start_pos);
-    scope_start_pos = position;
-}
+void FoldingRangeAnalyzer::analyze_scopes() {
+    unsigned int i = 0;
+    auto size = tokens.size();
+    std::vector<unsigned int> scope_start_pos_stack;
+    unsigned int scope_start_pos = 0;
+    while (i < size) {
+        auto token = tokens[i].get();
+        if (token->type() == LexTokenType::CharOperator) {
+            auto casted = as<CharOperatorToken>(i);
+            if (casted->op == '{') {
+                scope_start_pos_stack.push_back(scope_start_pos);
+                scope_start_pos = i;
+            } else if (casted->op == '}') {
+                auto start = tokens[scope_start_pos].get();
+                auto end = tokens[i].get();
 
-void FoldingRangeAnalyzer::scope_ends(unsigned int position) {
+                ranges.push_back(FoldingRange{
 
-    auto start = tokens[scope_start_pos].get();
-    auto end = tokens[position].get();
+                        static_cast<int>(start->position.lineNumber),
+                        static_cast<int>(end->position.lineNumber),
+                        static_cast<int>(start->position.lineCharNumber),
+                        static_cast<int>(end->position.lineCharNumber),
 
-    ranges.push_back(FoldingRange{
+                        // TODO allow folding ranges of type comments
+                        "region"
 
-            static_cast<int>(start->position.lineNumber),
-            static_cast<int>(end->position.lineNumber),
-            static_cast<int>(start->position.lineCharNumber),
-            static_cast<int>(end->position.lineCharNumber),
+                });
 
-            // TODO allow folding ranges of type comments
-            "region"
-
-    });
-
-    scope_start_pos = scope_start_pos_stack.back();
-    scope_start_pos_stack.pop_back();
+                scope_start_pos = scope_start_pos_stack.back();
+                scope_start_pos_stack.pop_back();
+            }
+        }
+        i++;
+    }
 }

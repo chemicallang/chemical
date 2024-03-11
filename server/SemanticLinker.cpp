@@ -4,16 +4,16 @@
 // Created by Waqas Tahir on 10/03/2024.
 //
 
-#include "SemanticLexer.h"
+#include "SemanticLinker.h"
 
-void SemanticLexer::scope_begins() {
+void SemanticLinker::scope_begins(unsigned int position) {
     scope_start_pos_stack.push_back(scope_start_pos);
-    scope_start_pos = tokens.size();
+    scope_start_pos = position;
 }
 
-void SemanticLexer::scope_ends() {
+void SemanticLinker::scope_ends(unsigned int position) {
 
-    auto current_scope_end = tokens.size();
+    auto current_scope_end = position;
 
     /**
      *

@@ -40,7 +40,7 @@
 #include "LibLsp/lsp/client/registerCapability.h"
 #include "LibLsp/lsp/workspace/symbol.h"
 #include "server/PrintUtils.h"
-#include "server/SemanticLexer.h"
+#include "server/SemanticLinker.h"
 #include "server/LspSemanticTokens.h"
 #include "server/FileTracker.h"
 #include "utils/FileUtils.h"

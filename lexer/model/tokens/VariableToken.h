@@ -15,6 +15,10 @@ public:
 
     }
 
+    std::optional<std::string> resolution_identifier() override {
+        return value;
+    }
+
     LexTokenType type() const override {
         return LexTokenType::Variable;
     }

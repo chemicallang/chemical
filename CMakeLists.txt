@@ -169,12 +169,13 @@ set(COMMON_SOURCES "lexer/Lexer.cpp" "lexer/Lexer.h" "lexer/model/tokens/CharOpe
         ast/statements/Comment.h
         parser/statements/Comment.cpp
         ast/base/Interpretable.h
-        server/SemanticLexer.cpp
-        server/SemanticLexer.h
-        lexer/model/tokens/ModifiableToken.h
+        server/SemanticLinker.cpp
+        server/SemanticLinker.h
         lexer/statements/HashMacro.cpp
         lexer/model/tokens/MacroToken.h
         lexer/minLsp/SemanticTokenModifier.h
+        server/SemanticAnalyzer.cpp
+        server/SemanticAnalyzer.h
 )
 
 # Chemical LSP Executable Target
@@ -184,7 +185,6 @@ add_executable(ChemicalLsp Main.cpp ${COMMON_SOURCES}
         server/PrintUtils.h
         server/PrintUtils.cpp
         server/LspSemanticTokens.cpp
-        server/LspSemanticTokens.h
 )
 
 # Add an executable target for the second executable

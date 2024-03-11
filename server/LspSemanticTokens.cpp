@@ -11,7 +11,7 @@
 #include "utils/Utils.h"
 
 #define DEBUG false
-#define PRINT_TOKENS false
+#define PRINT_TOKENS true
 
 std::vector<SemanticToken> to_semantic_tokens(FileTracker &tracker, const std::string &path) {
 

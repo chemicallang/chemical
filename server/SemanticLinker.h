@@ -11,20 +11,13 @@
 #include <unordered_map>
 #include <unordered_set>
 
-class SemanticLinker : public ScopeAnalyzer {
+class SemanticLinker : public SemanticAnalyzer {
 public:
 
     // constructor
-    SemanticLinker(std::vector<std::unique_ptr<LexToken>> &tokens) : ScopeAnalyzer(tokens) {
+    SemanticLinker(std::vector<std::unique_ptr<LexToken>> &tokens) : SemanticAnalyzer(tokens) {
 
     }
-
-    /**
-     * this stack stores the start positions of the nested scopes
-     * since one scope starts, we set scope_start_pos, another nested starts, we must store the previous one on the stack
-     * when nested ends, we must get the last position from the scope_start_pos_stack and set it to scope_start_pos, or zero if stack is empty
-     */
-    std::vector<unsigned int> scope_start_pos_stack;
 
     /**
      * The tokens that have resolution
@@ -39,23 +32,6 @@ public:
     std::unordered_map<unsigned int, unsigned int> resolved;
 
     /**
-     * the start position (inside the tokens vector) of the current scope
-     */
-    unsigned int scope_start_pos = 0;
-
-    /**
-     * the identifier map till the current position (map_tokens_position)
-     * unsigned int is the position
-     */
-    std::unordered_map<std::string, unsigned int> current;
-
-    /**
-     * the position (inside the vector tokens) which tells at the position we have analyzed all the tokens above that position in the current map
-     * this doesn't include tokens of the nested scopes, because when a scope ends, its keys will be deleted from the unordered_map
-     */
-    unsigned int map_tokens_position = 0;
-
-    /**
      * tokens that couldn't be resolved in the nested child scopes
      */
     std::unordered_map<std::string, unsigned int> unresolved;
@@ -68,15 +44,13 @@ public:
 
     }
 
+    void analyze_scopes();
+
     /**
      * The function that analyzes
      */
     inline void analyze() {
         analyze_scopes();
     }
-
-    void scope_begins(unsigned int position) override;
-
-    void scope_ends(unsigned int position) override;
 
 };

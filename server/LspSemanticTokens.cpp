@@ -9,15 +9,67 @@
 #include "utils/JsonUtils.h"
 #include "utils/FileUtils.h"
 #include "utils/Utils.h"
+#include "LibLsp/lsp/AbsolutePath.h"
+#include "LibLsp/lsp/textDocument/publishDiagnostics.h"
 
 #define DEBUG false
-#define PRINT_TOKENS true
+#define OVER_SRC_PRINT false
+#define PRINT_TOKENS false
 
-std::vector<SemanticToken> to_semantic_tokens(FileTracker &tracker, const std::string &path) {
+std::vector<SemanticToken> to_semantic_tokens(FileTracker &tracker, const lsDocumentUri &uri, RemoteEndPoint &sp) {
 
-    auto overridden = tracker.get_overridden_source(path);
+    auto path = uri.GetAbsolutePath().path;
 
-    auto lexed = tracker.getLexedFile(path);
+    auto overridden_source = tracker.get_overridden_source(path);
+
+    std::vector<std::unique_ptr<LexToken>> lexed;
+
+    std::vector<LexError> errors;
+
+    if (overridden_source.has_value()) {
+        if(OVER_SRC_PRINT) std::cout << "[to_semantic_tokens] overridden source : " << overridden_source.value() << '\n';
+        std::istringstream iss(overridden_source.value());
+        StreamSourceProvider reader(iss);
+        Lexer lexer(reader, path);
+        lexer.lex();
+        lexed = std::move(lexer.tokens);
+        errors = std::move(lexer.errors);
+    } else {
+        if(OVER_SRC_PRINT) std::cout << "[to_semantic_tokens] overridden source not found for : " << path << '\n';
+        std::ifstream file;
+        file.open(path);
+        if (!file.is_open()) {
+            std::cerr << "Unknown error opening the file" << '\n';
+        }
+        StreamSourceProvider reader(file);
+        Lexer lexer(reader, path);
+        lexer.lex();
+        lexed = std::move(lexer.tokens);
+        errors = std::move(lexer.errors);
+        file.close();
+    }
+
+    // publishing diagnostics related to the lexing
+    std::vector<lsDiagnostic> diagnostics;
+    for(const auto &error : errors) {
+        diagnostics.push_back(lsDiagnostic{
+            lsRange(
+                    lsPosition(error.position.line, error.position.character),
+                    lsPosition(error.position.line, error.position.character)
+                ),
+                lsDiagnosticSeverity::Error,
+                boost::none,
+                boost::none,
+                boost::none,
+                error.message
+        });
+    }
+    Notify_TextDocumentPublishDiagnostics::notify notify;
+    notify.params.uri = lsDocumentUri::FromPath(uri.GetAbsolutePath());
+    notify.params.diagnostics = std::move(diagnostics);
+    std::future<void> futureObj = std::async(std::launch::async, [&]{
+        sp.sendNotification(notify);
+    });
 
     SemanticLinker linker(lexed);
 
@@ -28,6 +80,7 @@ std::vector<SemanticToken> to_semantic_tokens(FileTracker &tracker, const std::s
     }
 
     if(DEBUG) {
+        auto overridden = tracker.get_overridden_source(path);
         if(overridden.has_value()) {
             // Writing the source code to a debug file
             writeToProjectFile("debug/source.txt", overridden.value());

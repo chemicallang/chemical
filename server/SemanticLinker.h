@@ -6,15 +6,15 @@
 
 #pragma once
 
-#include "lexer/Lexer.h"
+#include "SemanticAnalyzer.h"
 #include <unordered_map>
 #include <unordered_set>
 
-class SemanticLexer : public Lexer {
+class SemanticLinker : public SemanticAnalyzer {
 public:
 
     // constructor
-    SemanticLexer(SourceProvider &provider, const std::string& path) : Lexer(provider, path) {
+    SemanticLinker(std::vector<std::unique_ptr<LexToken>> &tokens) : SemanticAnalyzer(tokens) {
 
     }
 
@@ -49,7 +49,7 @@ public:
     std::unordered_map<std::string, unsigned int> current;
 
     /**
-     * the position (inside the vector tokens) which tells at the position we have stored all the tokens above that position in the current map
+     * the position (inside the vector tokens) which tells at the position we have analyzed all the tokens above that position in the current map
      * this doesn't include tokens of the nested scopes, because when a scope ends, its keys will be deleted from the unordered_map
      */
     unsigned int map_tokens_position = 0;
@@ -67,8 +67,8 @@ public:
 
     }
 
-    void scope_begins() override;
+    void scope_begins(unsigned int position) override;
 
-    void scope_ends() override;
+    void scope_ends(unsigned int position) override;
 
 };

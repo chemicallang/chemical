@@ -8,12 +8,27 @@
 
 #include <iostream>
 
+void printToken(LexToken *token) {
+    std::cout << " - [" << token->type_string() << "]" << "(" << token->start() << "," << token->end() << ")";
+    if (!token->content().empty()) {
+        std::cout << ":" << token->content();
+    }
+}
+
 void printTokens(const std::vector<std::unique_ptr<LexToken>> &lexed) {
     for (const auto &item: lexed) {
-        std::cout << " - [" << item->type_string() << "]" << "(" << item->start() << "," << item->end() << ")";
-        if (!item->content().empty()) {
-            std::cout << ":" << item->content();
-        }
-        std::cout << '\n';
+        printToken(item.get());
+        std::cout << std::endl;
+    }
+}
+
+void printTokens(const std::vector<std::unique_ptr<LexToken>> &lexed, const std::unordered_map<unsigned int, unsigned int> &linked) {
+    int i = 0;
+    while(i < lexed.size()) {
+        auto found = linked.find(i);
+        auto token = found == linked.end() ? lexed[i].get() : lexed[found->second].get();
+        printToken(token);
+        std::cout << std::endl;
+        i++;
     }
 }

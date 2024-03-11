@@ -17,6 +17,10 @@ public:
 
     }
 
+    std::optional<std::string> declaration_identifier() override {
+        return value;
+    }
+
     LexTokenType type() const override {
         return LexTokenType::Function;
     }

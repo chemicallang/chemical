@@ -329,20 +329,6 @@ public:
     bool lexEnumStructureTokens();
 
     /**
-     * This method is called when a scope beings
-     */
-    virtual void scope_begins() {
-
-    }
-
-    /**
-     * This method is called when a scope ends
-     */
-    virtual void scope_ends() {
-
-    }
-
-    /**
      * lex whitespace tokens
      * @return
      */

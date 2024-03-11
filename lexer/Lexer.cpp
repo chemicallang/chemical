@@ -9,9 +9,7 @@
 
 
 void Lexer::lex() {
-    scope_begins();
     lexMultipleStatementsTokens();
-    scope_ends();
     tokens.shrink_to_fit();
 }
 

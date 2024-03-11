@@ -416,10 +416,21 @@ public:
     bool lexNewLineChars();
 
     /**
-     * returns a lexing error at current position with the path of current file being lexed
+     * adds an error at the current stream position (which is the end), starting from the last token's end,
+     * @param position the position (in the tokens vector) of the token at end of which error started
+     * @param message the message for the error
+     */
+    void error(unsigned int position, const std::string &message);
+
+    /**
+     * Adds an error
+     * The error has a range, so it will start at the last token that was consumed
+     * and up until the current stream position
      * @return
      */
-    void error(const std::string &message);
+    inline void error(const std::string &message) {
+        error(tokens.size() - 1, message);
+    }
 
     /**
      * returns the token position at the very current position

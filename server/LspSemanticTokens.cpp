@@ -58,8 +58,8 @@ std::vector<SemanticToken> to_semantic_tokens(FileTracker &tracker, const lsDocu
     for(const auto &error : errors) {
         diagnostics.push_back(lsDiagnostic{
             lsRange(
-                    lsPosition(error.position.line, error.position.character),
-                    lsPosition(error.position.line, error.position.character)
+                    lsPosition(error.start.line, error.start.character),
+                    lsPosition(error.end.line, error.end.character)
                 ),
                 lsDiagnosticSeverity::Error,
                 boost::none,

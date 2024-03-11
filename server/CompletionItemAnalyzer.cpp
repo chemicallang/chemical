@@ -26,6 +26,15 @@ void CompletionItemAnalyzer::find_completion_items() {
     unsigned int scope_start = 0;
     while (i < size) {
         auto token = tokens[i].get();
+        if (token->lineNumber() > position.first) {
+            // std::cerr << "Broke at " << token->type_string() << " because line numbers : " << std::to_string(token->lineNumber()) << " > " << std::to_string(position.first) << " \n";
+            break;
+        } else if (token->lineNumber() == position.first) {
+            if (token->lineCharNumber() >= position.second) {
+                // std::cerr << "Broke at " << token->type_string() << " because at same line number " << std::to_string(token->lineNumber()) << ", the character numbers " << std::to_string(token->lineCharNumber()) << " >= " << std::to_string(position.second) << '\n';
+                break;
+            }
+        }
         if (token->type() == LexTokenType::CharOperator) {
             auto casted = as<CharOperatorToken>(i);
             if (casted->op == '{') { // a scope begins
@@ -54,13 +63,6 @@ void CompletionItemAnalyzer::find_completion_items() {
             }
         } else if(token->lsp_has_comp()){
             token_positions.insert(i);
-        }
-        if (token->lineNumber() > position.first) {
-            break;
-        } else if (token->lineNumber() == position.first) {
-            if (token->lineCharNumber() >= position.second) {
-                break;
-            }
         }
         i++;
     }

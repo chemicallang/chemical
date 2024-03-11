@@ -14,7 +14,14 @@ void Lexer::lexMultipleStatementsTokens() {
     while(true) {
         lexWhitespaceAndNewLines();
         if(!lexStatementTokens())  {
-            break;
+            if(provider.eof() || provider.peek() == -1){
+                break;
+            } else {
+                while(!lexNewLineChars() && !provider.eof()) {
+                    provider.readCharacter();
+                }
+                continue;
+            }
         }
         lexWhitespaceToken();
         lexOperatorToken(';');

@@ -19,8 +19,12 @@ public:
         return LexTokenType::EnumMember;
     }
 
-    [[nodiscard]] LspSemanticTokenType lspType() const override {
-        return LspSemanticTokenType::ls_enumMember;
+    [[nodiscard]] SemanticTokenType lspType() const override {
+        return SemanticTokenType::ls_enumMember;
+    }
+
+    std::optional<lsCompletionItemKind> lsp_comp_kind() const override {
+        return lsCompletionItemKind::EnumMember;
     }
 
     [[nodiscard]] std::string type_string() const override {

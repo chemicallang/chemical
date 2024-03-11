@@ -45,6 +45,7 @@
 #include "server/FileTracker.h"
 #include "utils/FileUtils.h"
 #include "server/FoldingRangeAnalyzer.h"
+#include "server/CompletionItemAnalyzer.h"
 
 using namespace boost::asio::ip;
 using namespace std;
@@ -184,12 +185,12 @@ public:
 //			    {
 //					capabilities.hoverProvider = true;
 //			    }
-//				if (!clientPreferences->isCompletionDynamicRegistered())
-//				{
-//					lsCompletionOptions completion;
-//					completion.resolveProvider = true;
-//					capabilities.completionProvider = completion;
-//				}
+				if (!clientPreferences->isCompletionDynamicRegistered())
+				{
+					lsCompletionOptions completion;
+					completion.resolveProvider = true;
+					capabilities.completionProvider = completion;
+				}
 //				std::pair< boost::optional<bool>, boost::optional<WorkDoneProgressOptions> > option;
 //				option.first = true;
 
@@ -404,13 +405,11 @@ public:
             if (need_initialize_error) {
                 return need_initialize_error.value();
             }
-//				auto unit = GetUnit(req.params.textDocument,true);
+            auto path = req.params.textDocument.uri.GetAbsolutePath().path;
+            auto lexed = fileTracker.getLexedFile(path);
+            CompletionItemAnalyzer analyzer(lexed, std::pair(req.params.position.line, req.params.position.character));
             td_completion::response rsp;
-
-            rsp.result = CompletionList {
-                false, std::vector<lsCompletionItem> {}
-            };
-
+            rsp.result = analyzer.analyze();
             return std::move(rsp);
 
         });

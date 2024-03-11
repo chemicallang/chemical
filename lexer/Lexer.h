@@ -90,15 +90,17 @@ public:
     /**
      * lex an identifier token into tokens until the until character occurs
      * only lexes the token if the identifier is not empty
+     * @param access is this token being lexed in an access statement instead of assignment
      * @return
      */
-    bool lexIdentifierToken();
+    bool lexIdentifierToken(bool access);
 
     /**
      * this lexes an access chain like x.y.z or just simply an identifier
+     * @param access is this token being lexed in an access statement instead of assignment
      * @return
      */
-    bool lexAccessChain();
+    bool lexAccessChain(bool access);
 
     /**
      * lex allowDeclarations or initialization tokens

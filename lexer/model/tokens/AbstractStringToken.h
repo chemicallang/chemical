@@ -25,8 +25,12 @@ public:
         return value.length();
     }
 
-    [[nodiscard]] LspSemanticTokenType lspType() const override {
-        return LspSemanticTokenType::ls_keyword;
+    [[nodiscard]] SemanticTokenType lspType() const override {
+        return SemanticTokenType::ls_keyword;
+    }
+
+    std::optional<std::string> lsp_comp_label() const override {
+        return value;
     }
 
     std::string representation() const override {

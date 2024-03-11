@@ -25,8 +25,8 @@ public:
         return LexTokenType::Type;
     }
 
-    [[nodiscard]] LspSemanticTokenType lspType() const override {
-        return LspSemanticTokenType::ls_type;
+    [[nodiscard]] SemanticTokenType lspType() const override {
+        return SemanticTokenType::ls_type;
     }
 
     std::string representation() const override {

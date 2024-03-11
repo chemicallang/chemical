@@ -4,10 +4,10 @@
 // Created by Waqas Tahir on 11/03/2024.
 //
 
-#include "SemanticAnalyzer.h"
+#include "ScopeAnalyzer.h"
 #include "lexer/model/tokens/CharOperatorToken.h"
 
-void SemanticAnalyzer::analyze_scopes() {
+void ScopeAnalyzer::analyze_scopes() {
     unsigned int i = 0;
     auto size = tokens.size();
     while (i < size) {

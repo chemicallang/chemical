@@ -16,7 +16,7 @@ bool Lexer::lexVarInitializationTokens(bool allowDeclarations) {
     lexWhitespaceToken();
 
     // identifier
-    if (!lexIdentifierToken()) {
+    if (!lexIdentifierToken(false)) {
         error("expected an identifier for variable initialization");
         return true;
     }

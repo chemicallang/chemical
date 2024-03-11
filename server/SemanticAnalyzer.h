@@ -27,12 +27,6 @@ public:
     }
 
     /**
-     * When this function is called, scopes will be analyzed
-     * scope_begins & scope_ends will be called
-     */
-    void analyze_scopes();
-
-    /**
      * this will return a raw pointer to the token at position
      * as derived token of class given type parameter T
      * This will fail if the token at current position is not of derived class of given type parameter
@@ -40,20 +34,6 @@ public:
      */
     template<typename T>
     inline T *as(unsigned int position);
-
-    /**
-     * This function will be called when a scope begins with a '{' operator
-     */
-    virtual void scope_begins(unsigned int position) {
-
-    }
-
-    /**
-     * This function will be called when a scope ends with a '}' operator
-     */
-    virtual void scope_ends(unsigned int position) {
-
-    }
 
 };
 

@@ -103,27 +103,27 @@ void ExpressionEvaluator::prepareFunctions() {
     };
 
     //    (int ++) -> int
-    functionVector[computeIntToInt(Operation::Increment)] = [&](Value *v1, Value *v2) -> Value * {
+    functionVector[computeIntToInt(Operation::PostfixIncrement)] = [&](Value *v1, Value *v2) -> Value * {
         return new IntValue(v1->as_int() + 1);
     };
 
     //    (int --) -> int
-    functionVector[computeIntToInt(Operation::Decrement)] = [&](Value *v1, Value *v2) -> Value * {
+    functionVector[computeIntToInt(Operation::PostfixDecrement)] = [&](Value *v1, Value *v2) -> Value * {
         return new IntValue(v1->as_int() - 1);
     };
 
     //    (int & int) -> int
-    functionVector[computeIntToInt(Operation::And)] = [&](Value *v1, Value *v2) -> Value * {
+    functionVector[computeIntToInt(Operation::BitwiseAND)] = [&](Value *v1, Value *v2) -> Value * {
         return new IntValue(v1->as_int() & v2->as_int());
     };
 
     //    (int | int) -> int
-    functionVector[computeIntToInt(Operation::Or)] = [&](Value *v1, Value *v2) -> Value * {
+    functionVector[computeIntToInt(Operation::BitwiseOR)] = [&](Value *v1, Value *v2) -> Value * {
         return new IntValue(v1->as_int() | v2->as_int());
     };
 
     //    (int ^ int) -> int
-    functionVector[computeIntToInt(Operation::Xor)] = [&](Value *v1, Value *v2) -> Value * {
+    functionVector[computeIntToInt(Operation::BitwiseXOR)] = [&](Value *v1, Value *v2) -> Value * {
         return new IntValue(v1->as_int() ^ v2->as_int());
     };
 
@@ -194,12 +194,12 @@ void ExpressionEvaluator::prepareFunctions() {
 //    };
 
     //    (float ++) -> float
-    functionVector[computeFloatToInt(Operation::Increment)] = [&](Value *v1, Value *v2) -> Value * {
+    functionVector[computeFloatToInt(Operation::PostfixIncrement)] = [&](Value *v1, Value *v2) -> Value * {
         return new FloatValue(v1->as_float() + 1);
     };
 
     //    (float --) -> float
-    functionVector[computeFloatToInt(Operation::Decrement)] = [&](Value *v1, Value *v2) -> Value * {
+    functionVector[computeFloatToInt(Operation::PostfixDecrement)] = [&](Value *v1, Value *v2) -> Value * {
         return new FloatValue(v1->as_float() - 1);
     };
 
@@ -295,17 +295,17 @@ void ExpressionEvaluator::prepareFunctions() {
 //    };
 
     //    (bool & bool) -> bool
-    functionVector[computeBoolToBool(Operation::And)] = [&](Value *v1, Value *v2) -> Value * {
+    functionVector[computeBoolToBool(Operation::BitwiseAND)] = [&](Value *v1, Value *v2) -> Value * {
         return new BoolValue(v1->as_bool() & v2->as_bool());
     };
 
     //    (bool | bool) -> bool
-    functionVector[computeBoolToBool(Operation::Or)] = [&](Value *v1, Value *v2) -> Value * {
+    functionVector[computeBoolToBool(Operation::BitwiseOR)] = [&](Value *v1, Value *v2) -> Value * {
         return new BoolValue(v1->as_bool() | v2->as_bool());
     };
 
     //    (bool ^ bool) -> bool
-    functionVector[computeBoolToBool(Operation::Xor)] = [&](Value *v1, Value *v2) -> Value * {
+    functionVector[computeBoolToBool(Operation::BitwiseXOR)] = [&](Value *v1, Value *v2) -> Value * {
         return new BoolValue(v1->as_bool() ^ v2->as_bool());
     };
 

@@ -7,40 +7,99 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 
 /**
  * @brief Enum class representing operations between two expressions.
  */
 enum class Operation : uint8_t {
+    // Grouping and scope resolution operators
+    Grouping,
+    ScopeResolutionUnary,
+    ScopeResolutionBinary,
 
-    Addition,
-    Subtraction,
+    // Function call, subscript, structure member, structure pointer member
+    FunctionCall,
+    Subscript,
+    StructureMember,
+    StructurePointerMember,
+
+    // Postfix increment and decrement
+    PostfixIncrement,
+    PostfixDecrement,
+
+    // Unary operators
+    LogicalNegate,
+    OnesComplement,
+    UnaryPlus,
+    UnaryMinus,
+    PrefixIncrement,
+    PrefixDecrement,
+    Indirection,
+    AddressOf,
+    Sizeof,
+    TypeConversion,
+
+    // Multiplicative operators
     Multiplication,
     Division,
     Modulus,
 
+    // Additive operators
+    Addition,
+    Subtraction,
 
-    IsEqual,
-    IsNotEqual,
-    LessThan,
-    LessThanOrEqual,
-    GreaterThan,
-    GreaterThanOrEqual,
-
+    // Shift operators
     LeftShift,
     RightShift,
 
-    Equal,
+    // Relational operators
+    GreaterThan,
+    GreaterThanOrEqual,
+    LessThan,
+    LessThanOrEqual,
 
-    Increment,
-    Decrement,
+    // Equality operators
+    IsEqual,
+    IsNotEqual,
 
-    And,
-    Or,
+    // Bitwise AND
+    BitwiseAND,
 
-    // Xor should always be the last Operation because XOR's index (uint8_t) is used as length of this enum
-    Xor
+    // Bitwise exclusive OR
+    BitwiseXOR,
 
+    // Bitwise inclusive OR
+    BitwiseOR,
+
+    // Logical AND
+    LogicalAND,
+
+    // Logical OR
+    LogicalOR,
+
+    // Conditional operator
+    Conditional,
+
+    // Assignment operators
+    Assignment,
+    AddTo,
+    SubtractFrom,
+    MultiplyBy,
+    DivideBy,
+    ModuloBy,
+    ShiftLeftBy,
+    ShiftRightBy,
+    ANDWith,
+    ExclusiveORWith,
+    InclusiveORWith
 };
 
 std::string to_string(Operation operation);
+
+/**
+ * This tells whether the associativity of the given operator is left to right
+ * @param op
+ * @return true if the associativity is LTR
+ */
+bool is_assoc_left_to_right(Operation op);

@@ -8,9 +8,9 @@ bool Lexer::lexLanguageOperatorToken() {
            lexOperatorToken('*', Operation::Multiplication) ||
            lexOperatorToken('/', Operation::Division) ||
            lexOperatorToken('%', Operation::Modulus) ||
-           lexOperatorToken('&', Operation::And) ||
-           lexOperatorToken('|', Operation::Or) ||
-           lexOperatorToken('^', Operation::Xor) ||
+           lexOperatorToken('&', Operation::BitwiseAND) ||
+           lexOperatorToken('|', Operation::BitwiseOR) ||
+           lexOperatorToken('^', Operation::BitwiseXOR) ||
            // shift
            lexOperatorToken("<<", Operation::LeftShift) ||
            lexOperatorToken(">>", Operation::RightShift) ||
@@ -29,9 +29,9 @@ bool Lexer::lexAssignmentOperatorToken() {
            lexOperatorToken('*', Operation::Multiplication) ||
            lexOperatorToken('/', Operation::Division) ||
            lexOperatorToken('%', Operation::Modulus) ||
-           lexOperatorToken('&', Operation::And) ||
-           lexOperatorToken('|', Operation::Or) ||
-           lexOperatorToken('^', Operation::Xor) ||
+           lexOperatorToken('&', Operation::BitwiseAND) ||
+           lexOperatorToken('|', Operation::BitwiseOR) ||
+           lexOperatorToken('^', Operation::BitwiseXOR) ||
            // shift
            lexOperatorToken("<<", Operation::LeftShift) ||
            lexOperatorToken(">>", Operation::RightShift);
@@ -45,7 +45,7 @@ bool Lexer::lexAssignmentTokens() {
     }
 
     // increment or decrement
-    if (lexOperatorToken("++", Operation::Increment) || lexOperatorToken("--", Operation::Decrement)) {
+    if (lexOperatorToken("++", Operation::PostfixIncrement) || lexOperatorToken("--", Operation::PostfixDecrement)) {
         return true;
     }
 

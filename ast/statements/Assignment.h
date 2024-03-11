@@ -30,7 +30,7 @@ public:
         } else {
             next = value->evaluated_value(scope);
         }
-        if(assOp == Operation::Equal) {
+        if(assOp == Operation::Assignment) {
             lhs->set_identifier_value(scope, next);
         } else {
             lhs->set_identifier_value(scope, next, assOp);

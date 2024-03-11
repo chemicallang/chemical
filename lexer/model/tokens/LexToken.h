@@ -87,6 +87,14 @@ public:
     }
 
     /**
+     * when this token can't be found in the current scope or in the scopes above
+     * you can allow the linker to look below the current scope
+     */
+    virtual bool resolve_below_current_scope() {
+        return false;
+    }
+
+    /**
      * string length of the token
      * @return
      */

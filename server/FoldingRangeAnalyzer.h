@@ -7,19 +7,19 @@
 #pragma once
 
 
-#include "SemanticAnalyzer.h"
 #include "LibLsp/lsp/textDocument/foldingRange.h"
+#include "ScopeAnalyzer.h"
 
-#define DEBUG true
+#define DEBUG false
 
-class FoldingRangeAnalyzer : public SemanticAnalyzer {
+class FoldingRangeAnalyzer : public ScopeAnalyzer {
 public:
 
     /**
      * constructor
      * @param tokens
      */
-    FoldingRangeAnalyzer(std::vector<std::unique_ptr<LexToken>> &tokens) : SemanticAnalyzer(tokens) {
+    FoldingRangeAnalyzer(std::vector<std::unique_ptr<LexToken>> &tokens) : ScopeAnalyzer(tokens) {
 
     }
 

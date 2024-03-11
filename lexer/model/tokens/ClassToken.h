@@ -15,12 +15,12 @@ public:
 
     }
 
-    TokenType type() const override {
-        return TokenType::Class;
+    LexTokenType type() const override {
+        return LexTokenType::Class;
     }
 
-    [[nodiscard]] LspSemanticTokenType lspType() const override {
-        return LspSemanticTokenType::ls_class;
+    [[nodiscard]] SemanticTokenType lspType() const override {
+        return SemanticTokenType::ls_class;
     }
 
     [[nodiscard]] std::string type_string() const override {

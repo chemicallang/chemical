@@ -11,20 +11,42 @@
 class VariableToken : public AbstractStringToken {
 public:
 
-    VariableToken(const TokenPosition& position, std::string identifier) : AbstractStringToken(position, std::move(identifier)) {
+    bool access;
+
+    VariableToken(const TokenPosition& position, std::string identifier, bool access) : AbstractStringToken(position, std::move(identifier)), access(access) {
 
     }
 
     std::optional<std::string> resolution_identifier() override {
-        return value;
+        if(access) {
+            return value;
+        } else {
+            return std::nullopt;
+        }
+    }
+
+    std::optional<std::string> declaration_identifier() override {
+        if(access) {
+            return std::nullopt;
+        } else {
+            return value;
+        }
     }
 
     LexTokenType type() const override {
         return LexTokenType::Variable;
     }
 
-    [[nodiscard]] LspSemanticTokenType lspType() const override {
-        return LspSemanticTokenType::ls_variable;
+    [[nodiscard]] SemanticTokenType lspType() const override {
+        return SemanticTokenType::ls_variable;
+    }
+
+    std::optional<lsCompletionItemKind> lsp_comp_kind() const override {
+        return lsCompletionItemKind::Variable;
+    }
+
+    std::optional<std::string> lsp_comp_label() const override {
+        if(access) return std::nullopt; else return value;
     }
 
     [[nodiscard]] std::string type_string() const override {

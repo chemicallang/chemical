@@ -7,14 +7,15 @@
 #pragma once
 
 #include "SemanticAnalyzer.h"
+#include "ScopeAnalyzer.h"
 #include <unordered_map>
 #include <unordered_set>
 
-class SemanticLinker : public SemanticAnalyzer {
+class SemanticLinker : public ScopeAnalyzer {
 public:
 
     // constructor
-    SemanticLinker(std::vector<std::unique_ptr<LexToken>> &tokens) : SemanticAnalyzer(tokens) {
+    SemanticLinker(std::vector<std::unique_ptr<LexToken>> &tokens) : ScopeAnalyzer(tokens) {
 
     }
 

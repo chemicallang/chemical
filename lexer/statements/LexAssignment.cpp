@@ -40,7 +40,7 @@ bool Lexer::lexAssignmentOperatorToken() {
 bool Lexer::lexAssignmentTokens() {
 
     // lex an identifier token
-    if (!lexAccessChain()) {
+    if (!lexAccessChain(true)) {
         return false;
     }
 

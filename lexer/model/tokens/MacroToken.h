@@ -7,21 +7,20 @@
 #pragma once
 
 #include "LexToken.h"
-#include "lexer/minLsp/SemanticTokenModifier.h"
 
 class MacroToken : public LexToken {
 public:
 
     unsigned int len;
 
-    LspSemanticTokenModifier modifier;
+    SemanticTokenModifier modifier;
 
-    MacroToken(const TokenPosition &position, unsigned int len, LspSemanticTokenModifier modifier) : LexToken(position), len(len), modifier(modifier) {
+    MacroToken(const TokenPosition &position, unsigned int len, SemanticTokenModifier modifier) : LexToken(position), len(len), modifier(modifier) {
         // nothing
     }
 
-    LspSemanticTokenType lspType() const override {
-        return LspSemanticTokenType::ls_macro;
+    SemanticTokenType lspType() const override {
+        return SemanticTokenType::ls_macro;
     }
 
     LexTokenType type() const override {

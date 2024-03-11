@@ -18,8 +18,16 @@ public:
         return LexTokenType::Interface;
     }
 
-    [[nodiscard]] LspSemanticTokenType lspType() const override {
-        return LspSemanticTokenType::ls_interface;
+    std::optional<std::string> declaration_identifier() override {
+        return value;
+    }
+
+    [[nodiscard]] SemanticTokenType lspType() const override {
+        return SemanticTokenType::ls_interface;
+    }
+
+    std::optional<lsCompletionItemKind> lsp_comp_kind() const override {
+        return lsCompletionItemKind::Interface;
     }
 
     [[nodiscard]] std::string type_string() const override {

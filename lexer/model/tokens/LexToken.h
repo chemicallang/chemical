@@ -8,9 +8,10 @@
 
 #include <string>
 #include <optional>
-#include "lexer/minLsp/SemanticTokenType.h"
 #include "lexer/model/TokenPosition.h"
 #include "lexer/model/LexTokenType.h"
+#include "LibLsp/lsp/textDocument/SemanticTokens.h"
+#include "LibLsp/lsp/lsp_completion.h"
 //#include "rapidjson\rapidjson.h"
 //#include "rapidjson\document.h"		// rapidjson's DOM-style API
 //#include "rapidjson/writer.h"
@@ -101,7 +102,23 @@ public:
      * lsp  semantic token type
      * @return
      */
-    virtual LspSemanticTokenType lspType() const = 0;
+    virtual SemanticTokenType lspType() const = 0;
+
+    /**
+     * return th completion item label for the lsp
+     * @return
+     */
+    virtual std::optional<std::string> lsp_comp_label() const {
+        return std::nullopt;
+    }
+
+    /**
+     * return the lsp completion item kind
+     * @return
+     */
+    virtual std::optional<lsCompletionItemKind> lsp_comp_kind() const {
+        return std::nullopt;
+    }
 
     /**
      * this function returns the actual representation of the token in the source code

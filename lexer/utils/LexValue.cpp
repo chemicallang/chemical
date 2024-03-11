@@ -103,5 +103,5 @@ bool Lexer::lexArrayInit() {
 }
 
 bool Lexer::lexAccessChainOrValue() {
-    return lexValueToken() || lexAccessChain();
+    return lexValueToken() || lexAccessChain(true);
 }

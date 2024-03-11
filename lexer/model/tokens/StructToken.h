@@ -19,8 +19,12 @@ public:
         return LexTokenType::Struct;
     }
 
-    [[nodiscard]] LspSemanticTokenType lspType() const override {
-        return LspSemanticTokenType::ls_struct;
+    [[nodiscard]] SemanticTokenType lspType() const override {
+        return SemanticTokenType::ls_struct;
+    }
+
+    std::optional<lsCompletionItemKind> lsp_comp_kind() const override {
+        return lsCompletionItemKind::Struct;
     }
 
     [[nodiscard]] std::string type_string() const override {

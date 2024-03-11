@@ -25,8 +25,8 @@ public:
         return keyword.length();
     }
 
-    [[nodiscard]] LspSemanticTokenType lspType() const override {
-        return LspSemanticTokenType::ls_keyword;
+    [[nodiscard]] SemanticTokenType lspType() const override {
+        return SemanticTokenType::ls_keyword;
     }
 
     std::string representation() const override {

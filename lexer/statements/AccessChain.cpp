@@ -12,19 +12,19 @@ std::string Lexer::lexIdentifier() {
     return lexAlphaNum();
 }
 
-bool Lexer::lexIdentifierToken() {
+bool Lexer::lexIdentifierToken(bool access) {
     auto id = lexIdentifier();
     if (!id.empty()) {
-        tokens.emplace_back(std::make_unique<VariableToken>(backPosition(id.length()), id));
+        tokens.emplace_back(std::make_unique<VariableToken>(backPosition(id.length()), id, access));
         return true;
     } else {
         return false;
     }
 }
 
-bool Lexer::lexAccessChain() {
+bool Lexer::lexAccessChain(bool access) {
 
-    if (!lexIdentifierToken()) {
+    if (!lexIdentifierToken(access)) {
         return false;
     }
 
@@ -51,7 +51,7 @@ bool Lexer::lexAccessChain() {
     }
 
     while (lexOperatorToken('.')) {
-        if (!lexAccessChain()) {
+        if (!lexAccessChain(access)) {
             error("expected a identifier after the dot . in the access chain");
             return true;
         }

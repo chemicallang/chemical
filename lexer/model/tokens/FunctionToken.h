@@ -25,8 +25,12 @@ public:
         return LexTokenType::Function;
     }
 
-    [[nodiscard]] LspSemanticTokenType lspType() const override {
-        return LspSemanticTokenType::ls_function;
+    [[nodiscard]] SemanticTokenType lspType() const override {
+        return SemanticTokenType::ls_function;
+    }
+
+    std::optional<lsCompletionItemKind> lsp_comp_kind() const override {
+        return lsCompletionItemKind::Function;
     }
 
     unsigned int lsp_modifiers() override {

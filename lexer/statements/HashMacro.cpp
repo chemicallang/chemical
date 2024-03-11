@@ -10,11 +10,11 @@
 bool Lexer::lexHashMacro() {
     if(provider.increment('#')) {
         auto macro = lexAlphaNum();
-        LspSemanticTokenModifier modifier = LspSemanticTokenModifier::LastModifier;
+        SemanticTokenModifier modifier = SemanticTokenModifier::LastModifier;
         if(macro == "deprecated") {
-            modifier = LspSemanticTokenModifier::ls_deprecated;
+            modifier = SemanticTokenModifier::ls_deprecated;
         } else if(macro == "readonly") {
-            modifier = LspSemanticTokenModifier::ls_readonly;
+            modifier = SemanticTokenModifier::ls_readonly;
         }
         modifiers |= 1 << (unsigned int) modifier;
         tokens.emplace_back(std::make_unique<MacroToken>(backPosition(macro.size() + 1), macro.size() + 1, modifier));

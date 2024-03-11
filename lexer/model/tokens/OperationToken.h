@@ -30,8 +30,8 @@ public:
         return LexTokenType::Operation;
     }
 
-    [[nodiscard]] LspSemanticTokenType lspType() const override {
-        return LspSemanticTokenType::ls_operator;
+    [[nodiscard]] SemanticTokenType lspType() const override {
+        return SemanticTokenType::ls_operator;
     }
 
     std::string representation() const override {

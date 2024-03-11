@@ -9,7 +9,11 @@
 #include "lexer/model/tokens/VariableToken.h"
 
 std::string Lexer::lexIdentifier() {
-    return lexAlphaNum();
+    if(std::isalpha(provider.peek())) {
+        return lexAlphaNum();
+    } else {
+        return "";
+    }
 }
 
 bool Lexer::lexIdentifierToken(bool access) {

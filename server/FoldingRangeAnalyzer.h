@@ -10,6 +10,8 @@
 #include "SemanticAnalyzer.h"
 #include "LibLsp/lsp/textDocument/foldingRange.h"
 
+#define DEBUG true
+
 class FoldingRangeAnalyzer : public SemanticAnalyzer {
 public:
 
@@ -17,7 +19,7 @@ public:
      * constructor
      * @param tokens
      */
-    FoldingRangeAnalyzer(std::vector<std::unique_ptr<LexToken>> &tokens) : SemanticAnalyzer(tokens){
+    FoldingRangeAnalyzer(std::vector<std::unique_ptr<LexToken>> &tokens) : SemanticAnalyzer(tokens) {
 
     }
 
@@ -43,6 +45,13 @@ public:
      */
     inline void analyze() {
         analyze_scopes();
+        if (DEBUG) {
+            for (const auto &range: ranges) {
+                std::cout << std::to_string(range.startLine) << ':' << std::to_string(range.startCharacter) << '-'
+                          << std::to_string(range.endLine) << ':' << std::to_string(range.endCharacter) << '-'
+                          << range.kind << std::endl;
+            }
+        }
     }
 
     void scope_begins(unsigned int position) override;

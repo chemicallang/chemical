@@ -19,8 +19,8 @@ void FoldingRangeAnalyzer::scope_ends(unsigned int position) {
     ranges.push_back(FoldingRange{
 
             static_cast<int>(start->position.lineNumber),
-            static_cast<int>(start->position.lineCharNumber),
             static_cast<int>(end->position.lineNumber),
+            static_cast<int>(start->position.lineCharNumber),
             static_cast<int>(end->position.lineCharNumber),
 
             // TODO allow folding ranges of type comments

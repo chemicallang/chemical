@@ -179,6 +179,7 @@ set(COMMON_SOURCES "lexer/Lexer.cpp" "lexer/Lexer.h" "lexer/model/tokens/CharOpe
         server/CompletionItemAnalyzer.cpp
         server/ScopeAnalyzer.h
         server/ScopeAnalyzer.cpp
+        parser/utils/ValueAndOperatorStack.h
 )
 
 # Chemical LSP Executable Target

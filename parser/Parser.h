@@ -33,6 +33,7 @@
 #include "ast/structures/InterfaceDefinition.h"
 #include "ast/structures/ImplDefinition.h"
 #include "ast/statements/Comment.h"
+#include "parser/utils/ValueAndOperatorStack.h"
 #include <optional>
 #include <iostream>
 
@@ -128,6 +129,22 @@ public:
      * @return
      */
     lex_ptr<Value> parseValue();
+
+    /**
+     * this is a helper function that's supposed to be called by parseRemainingInterpretableExpression
+     * @param stack
+     * @param final
+     */
+    void parseExpressionWith(ValueAndOperatorStack &stack, ValueAndOperatorStack &final);
+
+    /**
+     * parse the remaining expression as interpretable, what this does is
+     * parse the expression as a postfix expression which can be interpreted
+     * by changing the order of values / expressions
+     * @param firstValue
+     * @return
+     */
+    std::unique_ptr<Value> parseRemainingInterpretableExpression(std::unique_ptr<Value> firstValue);
 
     /**
      * parse remaining expression
@@ -557,7 +574,7 @@ private:
      * this is the position in tokens variable
      * the current token being looked at !
      */
-    int position = 0;
+    unsigned int position = 0;
 
     /**
      * a stateful variable, in the middle of parsing

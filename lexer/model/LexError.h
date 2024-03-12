@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "StreamPosition.h"
+#include "stream/StreamPosition.h"
 #include <string>
 #include <utility>
 #include <iostream>

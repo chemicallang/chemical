@@ -39,7 +39,7 @@ if(MSVC)
 endif()
 
 # Add your common source files (excluding the main files)
-set(COMMON_SOURCES "lexer/Lexer.cpp" "lexer/Lexer.h" "lexer/model/tokens/CharOperatorToken.h" "lexer/model/tokens/VariableToken.h" "lexer/model/tokens/NumberToken.h" "lexer/model/tokens/KeywordToken.h" "lexer/model/tokens/LexToken.h" "lexer/model/tokens/WhitespaceToken.h" "SourceProvider.h"
+set(COMMON_SOURCES "lexer/Lexer.cpp" "lexer/Lexer.h" "lexer/model/tokens/CharOperatorToken.h" "lexer/model/tokens/VariableToken.h" "lexer/model/tokens/NumberToken.h" "lexer/model/tokens/KeywordToken.h" "lexer/model/tokens/LexToken.h" "lexer/model/tokens/WhitespaceToken.h" "stream/SourceProvider.h"
         lexer/Lexi.h
         lexer/statements/LexAssignment.cpp
         lexer/statements/VarInitialization.cpp
@@ -50,8 +50,8 @@ set(COMMON_SOURCES "lexer/Lexer.cpp" "lexer/Lexer.h" "lexer/model/tokens/CharOpe
         lexer/utils/LexNumber.cpp
         lexer/statements/LexType.cpp
         lexer/model/tokens/TypeToken.h
-        StreamSourceProvider.h
-        StreamPosition.h
+        stream/StreamSourceProvider.h
+        stream/StreamPosition.h
         lexer/Lexi.cpp
         lexer/model/LexError.h
         lexer/model/LexError.h
@@ -203,7 +203,13 @@ target_include_directories(ChemicalLsp PRIVATE
 # Add include directories for LspCpp
 target_include_directories(Compiler PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/LspCpp/include
 )
+
+# Linking compiler with Boost library
+# This should be removed eventually we don't want boost to boost our exe size
+target_link_libraries(Compiler Boost::program_options Boost::filesystem lspcpp)
 
 # Link with Boost Library
 target_link_libraries(ChemicalLsp Boost::program_options Boost::filesystem lspcpp)

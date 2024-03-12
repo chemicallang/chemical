@@ -10,9 +10,9 @@
 #include <fstream>
 #include <chrono>
 #include <iostream>
-#include "SourceProvider.h"
+#include "stream/SourceProvider.h"
 #include "lexer/Lexer.h"
-#include "StreamSourceProvider.h"
+#include "stream/StreamSourceProvider.h"
 
 /**
  * benchmark lexing the given input stream

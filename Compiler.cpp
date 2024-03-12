@@ -10,6 +10,7 @@
 #include "ast/utils/ExpressionEvaluator.h"
 #include "ast/utils/ValueType.h"
 #include "ast/base/GlobalInterpretScope.h"
+#include "compiler/Codegen.h"
 
 int main(int argc, char *argv[]) {
     if (argc == 0) {
@@ -25,9 +26,12 @@ int main(int argc, char *argv[]) {
     for (const auto &err: parser.errors) {
         std::cerr << err;
     }
-    Scope scope(std::move(parser.nodes));
 //    std::cout << "[Representation]\n" << scope.representation() << "\n";
-    GlobalInterpretScope interpretScope(nullptr, &scope, nullptr, argv[1]);
+
+    Codegen gen(std::move(parser.nodes), argv[1]);
+
+    // save the generation to a file
+    gen.save_to_file("sample/compiled.ll");
 
     // TODO interpret
 

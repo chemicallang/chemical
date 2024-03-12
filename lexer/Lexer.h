@@ -8,7 +8,7 @@
 
 #include <utility>
 #include <vector>
-#include "SourceProvider.h"
+#include "stream/SourceProvider.h"
 #include "lexer/model/tokens/LexToken.h"
 #include "lexer/model/tokens/NumberToken.h"
 #include "lexer/model/LexError.h"

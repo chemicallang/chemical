@@ -1,9 +1,9 @@
-﻿# CMakeList.txt : CMake project for ChemicalVS, include path and define
+﻿# CMakeList.txt : CMake project for chemical, include path and define
 # project specific logic here.
 #
 cmake_minimum_required(VERSION 3.8)
-
-project("ChemicalVS")
+message("CMake version: ${CMAKE_VERSION}")
+project("chemical")
 
 # Use static libraries
 set(Boost_USE_STATIC_LIBS ON)
@@ -18,25 +18,38 @@ set(Boost_NO_WARN_NEW_VERSIONS 1)
 # Enable this option if Boost Not Found to check for Boost
 # set(Boost_DEBUG 1)
 
+# this sets the out host to parent directory out host
+# ./out/host contains llvm build, for now I'm hard coding it
+# later I'll allow to configure using some other configuration
+set(CMAKE_PREFIX_PATH "../out/host")
+
+# include some compiler options for better support
+include(config/CompilerOptions.cmake)
+
 # Set CMP0074 policy so that CMake can use BOOST_ROOT environment variable
 if (POLICY CMP0074)
     cmake_policy(SET CMP0074 NEW)
-endif()
+endif ()
 
 # Find Boost
-find_package(Boost 1.84 COMPONENTS program_options filesystem REQUIRED)
+find_package(Boost 1.74 COMPONENTS program_options filesystem REQUIRED)
+
+# find these packages
+find_package(llvm 17)
+find_package(clang 17)
+find_package(lld 17)
 
 # Add the LspCpp library directory
 add_subdirectory(LspCpp)
 
-if(MSVC)
+if (MSVC)
     message(STATUS "Using VS at $ENV{VSINSTALLDIR}")
     set(MSVC_DIA_SDK_DIR "$ENV{VSINSTALLDIR}DIA SDK")
-    if(IS_DIRECTORY ${MSVC_DIA_SDK_DIR})
+    if (IS_DIRECTORY ${MSVC_DIA_SDK_DIR})
         set(ZIG_DIA_GUIDS_LIB "${MSVC_DIA_SDK_DIR}/lib/amd64/diaguids.lib")
         string(REGEX REPLACE "\\\\" "\\\\\\\\" ZIG_DIA_GUIDS_LIB_ESCAPED "${ZIG_DIA_GUIDS_LIB}")
-    endif()
-endif()
+    endif ()
+endif ()
 
 # Add your common source files (excluding the main files)
 set(COMMON_SOURCES "lexer/Lexer.cpp" "lexer/Lexer.h" "lexer/model/tokens/CharOperatorToken.h" "lexer/model/tokens/VariableToken.h" "lexer/model/tokens/NumberToken.h" "lexer/model/tokens/KeywordToken.h" "lexer/model/tokens/LexToken.h" "lexer/model/tokens/WhitespaceToken.h" "stream/SourceProvider.h"
@@ -192,6 +205,9 @@ add_executable(ChemicalLsp Main.cpp ${COMMON_SOURCES}
 )
 
 # Add an executable target for the second executable
+add_executable(Interpreter Interpreter.cpp ${COMMON_SOURCES})
+
+# add chemical llvm executable
 add_executable(Compiler Compiler.cpp ${COMMON_SOURCES})
 
 # Add include directories for LspCpp
@@ -200,24 +216,40 @@ target_include_directories(ChemicalLsp PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
+
 # Add include directories for LspCpp
+target_include_directories(Interpreter PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/LspCpp/include
+)
+
+# Add include directories for Compiler
 target_include_directories(Compiler PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${CMAKE_CURRENT_SOURCE_DIR}/LspCpp/include
 )
 
-# Linking compiler with Boost library
-# This should be removed eventually we don't want boost to boost our exe size
-target_link_libraries(Compiler Boost::program_options Boost::filesystem lspcpp)
+# Include llvm directories for the compiler executable
+include_directories(${LLVM_INCLUDE_DIRS})
+include_directories(${LLD_INCLUDE_DIRS})
+include_directories(${CLANG_INCLUDE_DIRS})
 
-# Link with Boost Library
+# Linking interpreter with Boost library
+# This should be removed eventually we don't want boost to boost our exe size
+target_link_libraries(Interpreter Boost::program_options Boost::filesystem lspcpp)
+
+# Link compiler against boost
+target_link_libraries(Compiler Boost::program_options Boost::filesystem lspcpp ${CLANG_LIBRARIES} ${LLD_LIBRARIES} ${LLVM_LIBRARIES})
+
+# Link Lsp with Boost Library
 target_link_libraries(ChemicalLsp Boost::program_options Boost::filesystem lspcpp)
 
 # Set to C++ 20
 if (CMAKE_VERSION VERSION_GREATER 3.12)
+    message(STATUS "C++ standard 20 is set")
     set_property(TARGET ChemicalLsp PROPERTY CXX_STANDARD 20)
+    set_property(TARGET Interpreter PROPERTY CXX_STANDARD 20)
     set_property(TARGET Compiler PROPERTY CXX_STANDARD 20)
 endif ()
-
-# TODO: Add tests and install targets if needed.

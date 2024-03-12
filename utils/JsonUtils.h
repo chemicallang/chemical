@@ -17,7 +17,7 @@
 #include <fstream>
 #include <rapidjson/prettywriter.h>
 #include "lexer/model/tokens/LexToken.h"
-#include "rapidjson\document.h"
+#include "rapidjson/document.h"
 
 class JsonUtils {
 

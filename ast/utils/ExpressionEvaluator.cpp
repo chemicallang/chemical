@@ -4,8 +4,6 @@
 // Created by Waqas Tahir on 05/03/2024.
 //
 
-#pragma once
-
 #include "ast/values/FloatValue.h"
 #include "ast/values/BoolValue.h"
 #include "ExpressionEvaluator.h"

@@ -55,7 +55,7 @@ Lexer benchLexFile(const std::string &path) {
     std::ifstream file;
     file.open(path);
     if (!file.is_open()) {
-        std::cerr << "Unknown error opening the file" << '\n';
+        std::cerr << "Unknown error opening the file:" << path << '\n';
     }
     auto lexer = benchLexFile(file, path);
     file.close();

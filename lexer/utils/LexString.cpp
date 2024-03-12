@@ -14,13 +14,13 @@ bool Lexer::lexStringToken() {
         std::string str;
         while(!provider.eof() && errors.empty()){
             auto readChar = provider.peek();
-            if(readChar == '"') {
+            if(readChar == '\\') {
+                provider.readCharacter();
+                str += escape_sequence(provider.readCharacter());
+            } else if(readChar == '"') {
                 provider.readCharacter();
                 tokens.emplace_back(std::make_unique<StringToken>(backPosition(str.length() + 2), str));
                 return true;
-            } else if(readChar == '\\') {
-                provider.readCharacter();
-                str += escape_sequence(provider.readCharacter());
             } else {
                 provider.readCharacter();
                 str += readChar;

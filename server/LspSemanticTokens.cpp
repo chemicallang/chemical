@@ -62,9 +62,9 @@ std::vector<SemanticToken> to_semantic_tokens(FileTracker &tracker, const lsDocu
                     lsPosition(error.end.line, error.end.character)
                 ),
                 lsDiagnosticSeverity::Error,
-                boost::none,
-                boost::none,
-                boost::none,
+                std::nullopt,
+                std::nullopt,
+                std::nullopt,
                 error.message
         });
     }
@@ -77,9 +77,9 @@ std::vector<SemanticToken> to_semantic_tokens(FileTracker &tracker, const lsDocu
                         lsPosition(token->lineNumber(), token->lineCharNumber() + token->length())
                 ),
                 lsDiagnosticSeverity::Error,
-                boost::none,
-                boost::none,
-                boost::none,
+                std::nullopt,
+                std::nullopt,
+                std::nullopt,
                 "Unresolved reference"
         });
     }

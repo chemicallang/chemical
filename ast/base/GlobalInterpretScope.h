@@ -7,6 +7,7 @@
 #pragma once
 
 #include "InterpretScope.h"
+#include <vector>
 
 class GlobalInterpretScope : public InterpretScope {
 public:

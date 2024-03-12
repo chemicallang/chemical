@@ -3,19 +3,19 @@
 //
 // Created by Waqas Tahir on 11/03/2024.
 //
-
 #include "CompletionItemAnalyzer.h"
 #include "lexer/model/tokens/CharOperatorToken.h"
 #include <unordered_set>
+#include <boost/optional.hpp>
 
-template<typename T>
-inline boost::optional<T> convert_optional(const std::optional<T> &std_opt) {
-    if (std_opt.has_value()) {
-        return boost::optional<T>(*std_opt);
-    } else {
-        return boost::none;
-    }
-}
+//template<typename T>
+//inline boost::optional<T> convert_optional(const std::optional<T> &std_opt) {
+//    if (std_opt.has_value()) {
+//        return boost::optional<T>(*std_opt);
+//    } else {
+//        return boost::none;
+//    }
+//}
 
 void CompletionItemAnalyzer::find_completion_items() {
     unsigned int i = 0;
@@ -71,7 +71,7 @@ void CompletionItemAnalyzer::find_completion_items() {
         if (token->lsp_comp_label().has_value()) {
             items.push_back(lsCompletionItem{
                     token->lsp_comp_label().value(),
-                    convert_optional(token->lsp_comp_kind())
+                    token->lsp_comp_kind()
             });
         } else {
             std::cerr << "Token:" << token->type_string() << " stated has completions but returned no label.";

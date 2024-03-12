@@ -171,8 +171,7 @@ public:
             }
 
 
-            std::pair<boost::optional<lsTextDocumentSyncKind>,
-                    boost::optional<lsTextDocumentSyncOptions> > textDocumentSync;
+            std::pair<optional<lsTextDocumentSyncKind>, optional<lsTextDocumentSyncOptions>> textDocumentSync;
             lsTextDocumentSyncOptions options;
             options.openClose = true;
             options.change = lsTextDocumentSyncKind::Incremental;
@@ -200,7 +199,7 @@ public:
 //				}
 				if (!clientPreferences->isFoldgingRangeDynamicRegistered())
 				{
-					capabilities.foldingRangeProvider = std::pair< boost::optional<bool>, boost::optional<FoldingRangeOptions> >();
+					capabilities.foldingRangeProvider = std::pair< optional<bool>, optional<FoldingRangeOptions> >();
 					capabilities.foldingRangeProvider->first = true;
 				}
 //				if (!clientPreferences->isReferencesDynamicRegistered())
@@ -243,12 +242,12 @@ public:
             semantic_tokens_opt.legend.tokenTypes = semanticTokenTypes();
             semantic_tokens_opt.legend.tokenModifiers = semanticTokenModifiers();
 
-            std::pair<boost::optional<bool>, boost::optional<lsp::Any> > rang;
+            std::pair<optional<bool>, optional<lsp::Any> > rang;
             rang.first = false;
             semantic_tokens_opt.range = rang;
 
-            std::pair<boost::optional<bool>,
-                    boost::optional<SemanticTokensServerFull> > full;
+            std::pair<optional<bool>,
+                    optional<SemanticTokensServerFull> > full;
             full.first = true;
 
             semantic_tokens_opt.full = full;

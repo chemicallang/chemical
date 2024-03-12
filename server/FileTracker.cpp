@@ -68,8 +68,8 @@ FileTracker::onChangedContents(const std::string &path, const std::vector<lsText
 
     if (DEBUG && changes.size() == 1) {
         auto change = changes[0];
-        auto start = change.range.get().start;
-        auto end = change.range.get().end;
+        auto start = change.range.value().start;
+        auto end = change.range.value().end;
         std::cout << " change : start : " << start.line << '-' << start.character << " end : " << end.line << '-'
                   << end.character << ";" << std::endl;
     }
@@ -77,8 +77,8 @@ FileTracker::onChangedContents(const std::string &path, const std::vector<lsText
     // make changes to the source code
     for (const auto &change: changes) {
         if (change.range.has_value()) {
-            auto start = change.range.get().start;
-            auto end = change.range.get().end;
+            auto start = change.range.value().start;
+            auto end = change.range.value().end;
             replaceSafe(source, start.line, start.character, end.line, end.character, change.text);
         }
     }

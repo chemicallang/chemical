@@ -10,6 +10,7 @@
 #include <memory>
 #include <string>
 #include "Interpretable.h"
+#include "llvm/IR/Value.h"
 
 /**
  * @brief Base class for all AST nodes.
@@ -22,6 +23,15 @@ public:
      * @return
      */
     virtual std::string representation() const = 0;
+
+    /**
+     * code_gen function that generates llvm Value
+     * @return
+     */
+    virtual llvm::Value* code_gen() {
+        // TODO make this = 0 when every node complies
+        return nullptr;
+    }
 
     /**
      * virtual destructor for the ASTNode

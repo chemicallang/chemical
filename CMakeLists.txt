@@ -18,11 +18,6 @@ set(Boost_NO_WARN_NEW_VERSIONS 1)
 # Enable this option if Boost Not Found to check for Boost
 # set(Boost_DEBUG 1)
 
-# this sets the out host to parent directory out host
-# ./out/host contains llvm build, for now I'm hard coding it
-# later I'll allow to configure using some other configuration
-set(CMAKE_PREFIX_PATH "../out/host")
-
 # include some compiler options for better support
 include(config/CompilerOptions.cmake)
 
@@ -193,6 +188,7 @@ set(COMMON_SOURCES "lexer/Lexer.cpp" "lexer/Lexer.h" "lexer/model/tokens/CharOpe
         server/ScopeAnalyzer.h
         server/ScopeAnalyzer.cpp
         parser/utils/ValueAndOperatorStack.h
+        compiler/Codegen.h
 )
 
 # Chemical LSP Executable Target
@@ -236,12 +232,15 @@ include_directories(${LLVM_INCLUDE_DIRS})
 include_directories(${LLD_INCLUDE_DIRS})
 include_directories(${CLANG_INCLUDE_DIRS})
 
+# find the libraries that correspond to llvm
+llvm_map_components_to_libnames(llvm_libs support core)
+
 # Linking interpreter with Boost library
 # This should be removed eventually we don't want boost to boost our exe size
 target_link_libraries(Interpreter Boost::program_options Boost::filesystem lspcpp)
 
 # Link compiler against boost
-target_link_libraries(Compiler Boost::program_options Boost::filesystem lspcpp ${CLANG_LIBRARIES} ${LLD_LIBRARIES} ${LLVM_LIBRARIES})
+target_link_libraries(Compiler Boost::program_options Boost::filesystem lspcpp ${llvm_libs})
 
 # Link Lsp with Boost Library
 target_link_libraries(ChemicalLsp Boost::program_options Boost::filesystem lspcpp)

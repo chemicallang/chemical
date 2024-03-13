@@ -29,6 +29,22 @@ public:
         }
     }
 
+    llvm::Value * llvm_value(Codegen &gen) override {
+        if(values.size() == 1) {
+            return values[0]->llvm_value(gen);
+        }
+        gen.error("Unimplemented accessing complete access chain as llvm value");
+        return nullptr;
+    }
+
+    llvm::Value * llvm_pointer(Codegen &gen) override {
+        if(values.size() == 1) {
+            return values[0]->llvm_pointer(gen);
+        }
+        gen.error("Unimplemented accessing complete access chain as llvm pointer");
+        return nullptr;
+    }
+
     void set_identifier_value(InterpretScope& scope, Value *value) override {
         values[0]->set_identifier_value(scope, value);
     }

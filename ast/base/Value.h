@@ -78,6 +78,19 @@ public:
     }
 
     /**
+     * provides llvm_type for the given value
+     * @param gen
+     * @return
+     */
+    virtual llvm::Type* llvm_type(Codegen& gen) {
+        throw std::runtime_error("llvm_type called on bare Value of type " + std::to_string((int) value_type()));
+    };
+
+    virtual llvm::Value* llvm_pointer(Codegen& gen) {
+        throw std::runtime_error("llvm_pointer called on bare Value of type " + std::to_string((int) value_type()));
+    }
+
+    /**
      * creates and returns the llvm value
      * @return
      */

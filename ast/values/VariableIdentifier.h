@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "ast/base/Value.h"
+#include <llvm/IR/ValueSymbolTable.h>
 
 /**
  * @brief Class representing a VariableIdentifier.
@@ -60,6 +61,20 @@ public:
             delete v;
         }
         it.second->second = nextValue;
+    }
+
+    llvm::Value * llvm_pointer(Codegen &gen) override {
+        auto v = gen.builder->GetInsertBlock()->getValueSymbolTable()->lookup(value);
+        if(v == nullptr) {
+            gen.error("Couldn't find variable identifier : " + value);
+            return nullptr;
+        }
+        return v;
+    }
+
+    llvm::Value * llvm_value(Codegen &gen) override {
+        auto v = llvm_pointer(gen);
+        return gen.builder->CreateLoad(v->getType(), v, value);
     }
 
     Value *evaluated_value(InterpretScope &scope) override {

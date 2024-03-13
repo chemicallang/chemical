@@ -78,7 +78,24 @@ public:
         module->print(outLL, nullptr);
     }
 
+    /**
+     * this operates on two values, left and right
+     * this is used by expressions to operate on two values
+     * @param op
+     * @param lhs
+     * @param rhs
+     * @return
+     */
     llvm::Value* operate(Operation op, llvm::Value* lhs, llvm::Value* rhs);
+
+
+    /**
+     * returns an llvm type for the given type
+     * @param gen
+     * @param type
+     * @return
+     */
+    llvm::Type* llvm_type(const std::optional<std::string>& type);
 
     /**
      * report an error when generating a node

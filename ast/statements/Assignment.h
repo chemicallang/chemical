@@ -23,6 +23,16 @@ public:
             Operation assOp
     ) : lhs(std::move(lhs)), value(std::move(value)), assOp(assOp) {}
 
+    void code_gen(Codegen &gen) override {
+        if(assOp == Operation::Assignment) {
+            gen.builder->CreateStore(value->llvm_value(gen), lhs->llvm_pointer(gen));
+        } else {
+            auto loaded = lhs->llvm_value(gen);
+            auto operated = gen.operate(assOp, loaded, value->llvm_value(gen));
+            gen.builder->CreateStore(operated, lhs->llvm_pointer(gen));
+        }
+    }
+
     void interpret(InterpretScope& scope) override {
         Value* next;
         if(value->primitive()) {
@@ -40,7 +50,11 @@ public:
     std::string representation() const override {
         std::string rep;
         rep.append(lhs->representation());
-        rep.append(" = ");
+        if(assOp != Operation::Assignment) {
+            rep.append(" " + to_string(assOp) +"= ");
+        } else {
+            rep.append(" = ");
+        }
         rep.append(value->representation());
         return rep;
     }

@@ -7,7 +7,7 @@
 #pragma once
 
 #include <utility>
-
+#include "ast/structures/FunctionDeclaration.h"
 #include "ast/base/Value.h"
 #include <llvm/IR/ValueSymbolTable.h>
 
@@ -64,6 +64,20 @@ public:
     }
 
     llvm::Value * llvm_pointer(Codegen &gen) override {
+        auto param = resolve(gen)->as_parameter();
+        if(param != nullptr && gen.current_function != nullptr) {
+            for(const auto& arg : gen.current_function->args()) {
+                if(arg.getArgNo() == param->index) {
+                    return (llvm::Value*) &arg;
+                }
+//                else {
+//                    gen.error("no mismatch" + std::to_string(arg.getArgNo()) + " " + std::to_string(param->index));
+//                }
+            }
+        }
+//        else {
+//            gen.error("param or function missing");
+//        }
         auto v = gen.builder->GetInsertBlock()->getValueSymbolTable()->lookup(value);
         if(v == nullptr) {
             gen.error("Couldn't find variable identifier : " + value);

@@ -6,7 +6,7 @@
 
 #include "parser/Parser.h"
 
-lex_ptr<IfStatement> Parser::parseIfStatement() {
+std::optional<std::pair<std::unique_ptr<Value>, Scope>> Parser::parseSingleIfBlock() {
     if(!consume("if")) {
         return std::nullopt;
     }
@@ -25,31 +25,39 @@ lex_ptr<IfStatement> Parser::parseIfStatement() {
             if(!consume_op('}')) {
                 error("expected a ending brace '}' for 'if' block");
             }
-            auto elseIfs = std::vector<std::unique_ptr<IfStatement>>();
-            while(consume("else")) {
-                if(consume_op('{')) {
-                    auto elseScope = parseScope();
-                    auto ifst = std::make_unique<IfStatement>(std::move(condition.value()), std::move(scope), std::move(elseIfs), std::move(elseScope));
-                    if(!consume_op('}')) {
-                        error("expected a ending brace '}' for 'else' block");
-                    }
-                    return ifst;
-                } else {
-                    auto elseIf = parseIfStatement();
-                    if (elseIf.has_value()) {
-                        elseIfs.emplace_back(std::move(elseIf.value()));
-                    } else {
-                        error("expected a else if / else block after 'if' statement");
-                        break;
-                    }
-                }
-            }
-            return std::make_unique<IfStatement>(std::move(condition.value()), std::move(scope), std::move(elseIfs), std::nullopt);
+            return std::pair(std::move(condition.value()), std::move(scope));
         } else {
             error("expected a starting brace after the ')' for the 'if' block");
         }
     } else {
         error("expected a starting parenthesis '('");
+    }
+    return std::nullopt;
+}
+
+lex_ptr<IfStatement> Parser::parseIfStatement() {
+    auto singleIf = parseSingleIfBlock();
+    if(singleIf.has_value()) {
+        auto elseIfs = std::vector<std::pair<std::unique_ptr<Value>, Scope>>();
+        std::optional<Scope> elseScope = std::nullopt;
+        while(consume("else")) {
+            if(consume_op('{')) {
+                elseScope.emplace(parseScope());
+                if(!consume_op('}')) {
+                    error("expected a ending brace '}' for 'else' block");
+                }
+                break;
+            } else {
+                auto elseIf = parseSingleIfBlock();
+                if (elseIf.has_value()) {
+                    elseIfs.emplace_back(std::move(elseIf.value()));
+                } else {
+                    error("expected a else if / else block after 'if' statement");
+                    break;
+                }
+            }
+        }
+        return std::make_unique<IfStatement>(std::move(singleIf.value().first), std::move(singleIf.value().second), std::move(elseIfs), std::move(elseScope));
     }
     return std::nullopt;
 }

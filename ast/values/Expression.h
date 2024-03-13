@@ -29,6 +29,10 @@ public:
 
     }
 
+    llvm::Value * llvm_value(Codegen &gen) override {
+        return gen.operate(operation, firstValue->llvm_value(gen), secondValue->llvm_value(gen));
+    }
+
     /**
      * evaluates both values and returns the result as unique_tr to Value
      * @return

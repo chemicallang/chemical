@@ -25,6 +25,14 @@ public:
         }
     }
 
+    void code_gen(Codegen &gen) override {
+        if(value.has_value()) {
+            gen.builder->CreateRet(value.value()->casted_llvm_value(gen));
+        } else {
+            gen.builder->CreateRet(nullptr);
+        }
+    }
+
     std::string representation() const override {
         std::string ret;
         ret.append("return");

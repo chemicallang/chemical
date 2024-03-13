@@ -9,6 +9,8 @@
 #include "Interpretable.h"
 #include "ValueType.h"
 #include "ast/utils/Operation.h"
+#include "llvm/IR/Value.h"
+#include "compiler/Codegen.h"
 
 class FunctionDeclaration;
 
@@ -65,6 +67,23 @@ public:
      */
     virtual void set_identifier_value(InterpretScope& scope, Value* value) {
 
+    }
+
+    /**
+     * creates and returns the llvm value
+     * @return
+     */
+    virtual llvm::Value* llvm_value(Codegen& gen) {
+        throw std::runtime_error("llvm_value called on bare Value of type " + std::to_string((int) value_type()));
+    }
+
+    /**
+     * creates the value, casts it to its type and returns it
+     * @param gen
+     * @return
+     */
+    virtual llvm::Value* casted_llvm_value(Codegen &gen) {
+        throw std::runtime_error("casted_llvm_value called on bare Value of type " + std::to_string((int) value_type()));
     }
 
     /**

@@ -1,0 +1,9 @@
+<toolSet name="External Tools">
+  <tool name="LLVMInterpret" description="interprets the .ll file using clang" showInMainMenu="false" showInEditor="false" showInProject="false" showInSearchPopup="false" disabled="false" useConsole="true" showConsoleOnStdOut="false" showConsoleOnStdErr="false" synchronizeAfterRun="true">
+    <exec>
+      <option name="COMMAND" value="D:\Programming\Cpp\zig-bootstrap\chemical\sample\interpret.sh" />
+      <option name="PARAMETERS" />
+      <option name="WORKING_DIRECTORY" value="D:/Programming/Cpp/zig-bootstrap/chemical/sample" />
+    </exec>
+  </tool>
+</toolSet>

@@ -27,6 +27,14 @@ public:
         return rep;
     }
 
+    llvm::Value * llvm_value(Codegen &gen) override {
+        return gen.builder->getInt32(value);
+    }
+
+    llvm::Value* casted_llvm_value(Codegen &gen) override {
+        return gen.builder->CreateIntCast(llvm_value(gen), gen.builder->getInt32Ty(), true);
+    }
+
     bool primitive() override {
         return true;
     }

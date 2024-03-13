@@ -18,7 +18,7 @@ int main(int argc, char *argv[]) {
         return 0;
     }
     auto lexer = benchLexFile(argv[1]);
-    printTokens(lexer.tokens);
+//    printTokens(lexer.tokens);
     for (const auto &err: lexer.errors) {
         std::cerr << err.representation() << std::endl;
     }
@@ -26,14 +26,19 @@ int main(int argc, char *argv[]) {
     for (const auto &err: parser.errors) {
         std::cerr << err;
     }
-//    std::cout << "[Representation]\n" << scope.representation() << "\n";
-
-    Codegen gen(std::move(parser.nodes), argv[1]);
-
+    Scope scope(std::move(parser.nodes));
+    std::cout << "[Representation]\n" << scope.representation() << std::endl;
+    Codegen gen(std::move(scope.nodes), argv[1]);
+    // compile
+    gen.compile();
+    // print the errors occurred
+    for(const auto& error : gen.errors) {
+        std::cout << error << std::endl;
+    }
     // save the generation to a file
     gen.save_to_file("sample/compiled.ll");
-
-    // TODO interpret
+    // print to console
+    gen.print_to_console();
 
     return 0;
 }

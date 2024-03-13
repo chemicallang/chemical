@@ -32,6 +32,12 @@ public:
      */
     Scope(Scope &&other) : nodes(std::move(other.nodes)) {}
 
+    void code_gen(Codegen &gen) override {
+        for(const auto& node : nodes) {
+            node->code_gen(gen);
+        }
+    }
+
     void interpret(InterpretScope& scope) override {
         for(const auto& node : nodes) {
             node->interpret(scope);

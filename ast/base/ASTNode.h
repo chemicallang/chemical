@@ -11,6 +11,7 @@
 #include <string>
 #include "Interpretable.h"
 #include "llvm/IR/Value.h"
+#include "compiler/Codegen.h"
 
 /**
  * @brief Base class for all AST nodes.
@@ -28,9 +29,8 @@ public:
      * code_gen function that generates llvm Value
      * @return
      */
-    virtual llvm::Value* code_gen() {
-        // TODO make this = 0 when every node complies
-        return nullptr;
+    virtual void code_gen(Codegen& gen) {
+        throw std::runtime_error("ASTNode code_gen called on bare ASTNode");
     }
 
     /**

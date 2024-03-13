@@ -33,6 +33,24 @@ public:
         }
     }
 
+    llvm::FunctionType* get_type(Codegen& gen) {
+        if(returnType.has_value()) {
+            if(returnType.value() == "int") {
+                return llvm::FunctionType::get(gen.builder->getInt32Ty(), false);
+            } else {
+                gen.error("UNKNOWN FUNCTION RETURN TYPE : " + returnType.value());
+                return nullptr;
+            }
+        } else {
+            return llvm::FunctionType::get(gen.builder->getVoidTy(), false);
+        }
+    }
+
+    void code_gen(Codegen& gen) override {
+        gen.create_function(name, get_type(gen));
+        body->code_gen(gen);
+    }
+
     void interpret(InterpretScope &scope) override {
         scope.values[name] = this;
         declarationScope = &scope;

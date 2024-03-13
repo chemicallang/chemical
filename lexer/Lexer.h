@@ -269,9 +269,10 @@ public:
 
     /**
      * lexes a function block with parameters
+     * @param allow_declaration allows a declaration, without body of the function that is
      * @return
      */
-    bool lexFunctionStructureTokens();
+    bool lexFunctionStructureTokens(bool allow_declaration = false);
 
     /**
      * lexes interface block, this means { member(s) }

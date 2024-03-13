@@ -31,6 +31,7 @@ lex_ptr<FunctionDeclaration> Parser::parseFunctionDefinition(bool declarations) 
             auto token = consume<FunctionToken>();
             if (consume_op('(')) {
                 func_params params;
+                bool isVariadic = false;
                 do {
                     if (token_type() == LexTokenType::Parameter) {
                         auto paramToken = consume<ParameterToken>();
@@ -41,6 +42,11 @@ lex_ptr<FunctionDeclaration> Parser::parseFunctionDefinition(bool declarations) 
                         if (token_type() == LexTokenType::Type) {
                             auto typeToken = consume<TypeToken>();
                             params.emplace_back(std::move(paramToken->value), std::move(typeToken->value));
+                            if(token_type() == LexTokenType::StringOperator && as<AbstractStringToken>()->value == "...") {
+                                increment();
+                                isVariadic = true;
+                                break;
+                            }
                         } else {
                             error("expected a type after the colon ':' for the function signature");
                             break;
@@ -64,7 +70,7 @@ lex_ptr<FunctionDeclaration> Parser::parseFunctionDefinition(bool declarations) 
 
                 // create declaration before, so that return statement can take a pointer to it
                 auto declaration = std::make_unique<FunctionDeclaration>(std::move(token->value), std::move(params),
-                                                                         std::move(returnType));
+                                                                         std::move(returnType), isVariadic);
 
                 if (!consume_op('{')) {
                     if (declarations) {

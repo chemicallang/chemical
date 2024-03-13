@@ -70,6 +70,14 @@ public:
     }
 
     /**
+     * code_gen function that generates llvm Value
+     * @return
+     */
+    virtual void code_gen(Codegen& gen) {
+        throw std::runtime_error("ASTNode code_gen called on bare ASTNode");
+    }
+
+    /**
      * creates and returns the llvm value
      * @return
      */

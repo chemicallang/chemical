@@ -23,6 +23,12 @@ public:
         }
     }
 
+    void code_gen(Codegen &gen) override {
+        for(const auto& value : values) {
+            value->code_gen(gen);
+        }
+    }
+
     void set_identifier_value(InterpretScope& scope, Value *value) override {
         values[0]->set_identifier_value(scope, value);
     }

@@ -26,6 +26,14 @@ public:
         return new BoolValue(value);
     }
 
+    llvm::Type * llvm_type(Codegen &gen) override {
+        return gen.builder->getInt1Ty();
+    }
+
+    llvm::Value * llvm_value(Codegen &gen) override {
+        return gen.builder->getInt1(value);
+    }
+
     std::string representation() const override {
         std::string rep;
         if(value) {

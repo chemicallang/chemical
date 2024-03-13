@@ -27,6 +27,10 @@ public:
         return rep;
     }
 
+    llvm::Type * llvm_type(Codegen &gen) override {
+        return gen.builder->getInt32Ty();
+    }
+
     llvm::Value * llvm_value(Codegen &gen) override {
         return gen.builder->getInt32(value);
     }

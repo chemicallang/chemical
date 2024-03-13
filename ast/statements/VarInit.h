@@ -25,6 +25,18 @@ public:
             std::optional<std::unique_ptr<Value>> value
     ) : identifier(std::move(identifier)), type(std::move(type)), value(std::move(value)) {}
 
+    void code_gen(Codegen &gen) override {
+        if(!type.has_value() && !value.has_value()) {
+            gen.error("neither variable type no variable value were given");
+            return;
+        }
+        auto llvm_type = value.has_value() ? value.value()->llvm_type(gen) : gen.llvm_type(type.value());
+        auto x = gen.builder->CreateAlloca(llvm_type, nullptr, identifier);
+        if(value.has_value()) {
+            gen.builder->CreateStore(value.value()->llvm_value(gen), x);
+        }
+    }
+
     void interpret(InterpretScope& scope) override {
         if(value.has_value()) {
             if (value.value()->primitive()) {

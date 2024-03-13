@@ -25,20 +25,36 @@ public:
             std::optional<std::unique_ptr<Value>> value
     ) : identifier(std::move(identifier)), type(std::move(type)), value(std::move(value)) {}
 
-    void code_gen(Codegen &gen) override {
-        if(!type.has_value() && !value.has_value()) {
+    inline void declare(Codegen &gen) {
+        gen.current[identifier] = this;
+    }
+
+    void undeclare(Codegen &gen) override {
+        gen.current.erase(identifier);
+    }
+
+    inline void check_has_type(Codegen& gen) {
+        if (!type.has_value() && !value.has_value()) {
             gen.error("neither variable type no variable value were given");
             return;
         }
-        auto llvm_type = value.has_value() ? value.value()->llvm_type(gen) : gen.llvm_type(type.value());
-        auto x = gen.builder->CreateAlloca(llvm_type, nullptr, identifier);
-        if(value.has_value()) {
+    }
+
+    llvm::Type *llvm_type(Codegen &gen) override {
+        check_has_type(gen);
+        return value.has_value() ? value.value()->llvm_type(gen) : gen.llvm_type(type.value());
+    }
+
+    void code_gen(Codegen &gen) override {
+        declare(gen);
+        auto x = gen.builder->CreateAlloca(llvm_type(gen), nullptr, identifier);
+        if (value.has_value()) {
             gen.builder->CreateStore(value.value()->llvm_value(gen), x);
         }
     }
 
-    void interpret(InterpretScope& scope) override {
-        if(value.has_value()) {
+    void interpret(InterpretScope &scope) override {
+        if (value.has_value()) {
             if (value.value()->primitive()) {
                 scope.values[identifier] = value.value()->copy();
             } else {
@@ -54,11 +70,11 @@ public:
         std::string rep;
         rep.append("var ");
         rep.append(identifier);
-        if(type.has_value()) {
+        if (type.has_value()) {
             rep.append(" : ");
             rep.append(type.value());
         }
-        if(value.has_value()) {
+        if (value.has_value()) {
             rep.append(" = ");
             rep.append(value.value()->representation());
         }
@@ -70,6 +86,7 @@ public:
     }
 
     std::string identifier; ///< The identifier being initialized.
+
 private:
     std::optional<std::string> type;
     std::optional<std::unique_ptr<Value>> value; ///< The value being assigned to the identifier.

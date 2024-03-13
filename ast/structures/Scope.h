@@ -36,6 +36,9 @@ public:
         for(const auto& node : nodes) {
             node->code_gen(gen);
         }
+        for(const auto& node : nodes) {
+            node->undeclare(gen);
+        }
     }
 
     void interpret(InterpretScope& scope) override {

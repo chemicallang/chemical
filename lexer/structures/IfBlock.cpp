@@ -41,10 +41,12 @@ bool Lexer::lexSingleIf() {
         return true;
     }
 
-    if (!lexBraceBlock()) {
+    if (!lexBraceBlock("if")) {
         error("expected a brace block when lexing a brace block");
         return true;
     }
+
+    return true;
 
 }
 
@@ -63,7 +65,7 @@ bool Lexer::lexIfBlockTokens() {
     while (lexKeywordToken("else")) {
         lexWhitespaceAndNewLines();
         if (provider.peek() == '{') {
-            if (!lexBraceBlock()) {
+            if (!lexBraceBlock("else")) {
                 error("expected a brace block after the else while lexing an if statement");
             }
             return true;

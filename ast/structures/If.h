@@ -29,6 +29,43 @@ public:
     ) : condition(std::move(condition)), ifBody(std::move(ifBody)),
         elseIfs(std::move(elseIfs)), elseBody(std::move(elseBody)) {}
 
+    void code_gen(Codegen &gen) override {
+
+        // compare
+        auto comparison = condition->llvm_value(gen);
+
+        llvm::BasicBlock* elseBlock = nullptr;
+
+        // blocks
+        auto thenBlock = llvm::BasicBlock::Create(*gen.ctx, "then", gen.current_function);
+
+        if(elseBody.has_value()) {
+            elseBlock = llvm::BasicBlock::Create(*gen.ctx, "else", gen.current_function);
+        }
+
+        // end block
+        auto endBlock = llvm::BasicBlock::Create(*gen.ctx, "end", gen.current_function);
+
+        // Branch based on comparison result
+        gen.builder->CreateCondBr(comparison, thenBlock, elseBlock ? elseBlock : endBlock);
+
+        // then code
+        gen.builder->SetInsertPoint(thenBlock);
+        ifBody.code_gen(gen);
+        gen.builder->CreateBr(endBlock);
+
+        // else block
+        if(elseBlock) {
+            gen.builder->SetInsertPoint(elseBlock);
+            elseBody.value().code_gen(gen);
+            gen.builder->CreateBr(endBlock);
+        }
+
+        // set to end block
+        gen.builder->SetInsertPoint(endBlock);
+
+    }
+
     void interpret(InterpretScope &scope) override {
         if(condition->evaluated_bool(scope)) {
             InterpretScope child(&scope, scope.global, &ifBody, this);

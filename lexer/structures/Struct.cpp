@@ -57,6 +57,7 @@ bool Lexer::lexStructStructureTokens() {
             error("expected an struct block for declaring struct members");
         }
         lexWhitespaceToken();
+        return true;
     } else {
         return false;
     }

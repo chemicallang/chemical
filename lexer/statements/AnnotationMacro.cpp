@@ -7,8 +7,8 @@
 #include "lexer/Lexer.h"
 #include "lexer/model/tokens/MacroToken.h"
 
-bool Lexer::lexHashMacro() {
-    if(provider.increment('#')) {
+bool Lexer::lexAnnotationMacro() {
+    if(provider.increment('@')) {
         auto macro = lexAlphaNum();
         SemanticTokenModifier modifier = SemanticTokenModifier::LastModifier;
         if(macro == "deprecated") {

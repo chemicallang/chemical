@@ -46,6 +46,7 @@ bool Lexer::lexEnumStructureTokens() {
             error("expected an enum block for declaring an enum");
         }
         lexWhitespaceToken();
+        return true;
     } else {
         return false;
     }

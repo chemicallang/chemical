@@ -198,7 +198,7 @@ public:
     /**
      * lexes a brace block, { statement(s) }
      */
-    bool lexBraceBlock();
+    bool lexBraceBlock(const std::string& forThing = "");
 
     /**
      * lexex an if statement without the body
@@ -358,7 +358,7 @@ public:
      * lex hash macro
      * @return
      */
-    bool lexHashMacro();
+    bool lexAnnotationMacro();
 
     /**
      * lexes a bool, true or false
@@ -430,7 +430,7 @@ public:
      * @return
      */
     inline void error(const std::string &message) {
-        error(tokens.size() - 1, message);
+        error(tokens.size() - 1, message + " got \"" + tokens[tokens.size() - 1]->representation() + "\"");
     }
 
     /**

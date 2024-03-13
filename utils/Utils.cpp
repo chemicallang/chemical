@@ -10,9 +10,9 @@
 
 void printToken(LexToken *token) {
     std::cout << " - [" << token->type_string() << "]" << "(" << token->start() << "," << token->end() << ")";
-    if (!token->content().empty()) {
-        std::cout << ":" << token->content();
-    }
+//    if (!token->content().empty()) {
+//        std::cout << ":" << token->content();
+//    }
 }
 
 void printTokens(const std::vector<std::unique_ptr<LexToken>> &lexed) {

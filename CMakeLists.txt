@@ -178,7 +178,7 @@ set(COMMON_SOURCES "lexer/Lexer.cpp" "lexer/Lexer.h" "lexer/model/tokens/CharOpe
         ast/base/Interpretable.h
         server/SemanticLinker.cpp
         server/SemanticLinker.h
-        lexer/statements/HashMacro.cpp
+        lexer/statements/AnnotationMacro.cpp
         lexer/model/tokens/MacroToken.h
         server/SemanticAnalyzer.h
         server/FoldingRangeAnalyzer.cpp

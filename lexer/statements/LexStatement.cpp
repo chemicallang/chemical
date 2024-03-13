@@ -10,7 +10,7 @@ bool Lexer::lexStatementTokens() {
     return lexSingleLineCommentTokens() ||
            lexMultiLineCommentTokens() ||
            lexVarInitializationTokens() ||
-           lexHashMacro() ||
+           lexAnnotationMacro() ||
            (isLexImportStatement && lexImportStatement()) ||
            (isLexBreakStatement && lexBreakStatement()) ||
            (isLexContinueStatement && lexContinueStatement()) ||

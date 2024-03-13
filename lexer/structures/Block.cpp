@@ -35,7 +35,7 @@ void Lexer::lexMultipleStatementsTokens(bool till_end) {
     }
 }
 
-bool Lexer::lexBraceBlock() {
+bool Lexer::lexBraceBlock(const std::string& forThing) {
 
     // whitespace and new lines
     lexWhitespaceAndNewLines();
@@ -53,7 +53,7 @@ bool Lexer::lexBraceBlock() {
 
     // ending brace
     if (!lexOperatorToken('}')) {
-        error("expected a closing brace '}'");
+        error("expected a closing brace '}' for [" + forThing + "]");
         return true;
     }
 

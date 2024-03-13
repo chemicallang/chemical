@@ -43,6 +43,15 @@ public:
         return current_function;
     }
 
+    llvm::FunctionCallee declare_function(const std::string& name, llvm::FunctionType* type) {
+        return module->getOrInsertFunction(name, type);
+    }
+
+//    template <typename... ArgsTy>
+//    llvm::Function* declare_function(const std::string& name, llvm::FunctionType* type, ArgsTy... args) {
+//        module->getOrInsertFunction(name, type, args...);
+//    }
+
     llvm::Function* create_function_proto(const std::string& name, llvm::FunctionType* type) {
         auto fn = llvm::Function::Create(type, llvm::Function::ExternalLinkage, name, *module);
         llvm::verifyFunction(*fn);

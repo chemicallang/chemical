@@ -34,6 +34,9 @@ void Lexer::lexParameterList() {
                 error("missing a type token for the function parameter, expected type after the colon");
                 return;
             }
+            if(lexOperatorToken("...")) {
+                break;
+            }
         }
         lexWhitespaceToken();
     } while(lexOperatorToken(','));
@@ -81,7 +84,7 @@ bool Lexer::lexFunctionSignatureTokens() {
 
 }
 
-bool Lexer::lexFunctionStructureTokens() {
+bool Lexer::lexFunctionStructureTokens(bool allow_declarations) {
 
     if(!lexFunctionSignatureTokens()) {
         return false;
@@ -90,7 +93,7 @@ bool Lexer::lexFunctionStructureTokens() {
     // inside the block allow return statements
     auto prevReturn = isLexReturnStatement;
     isLexReturnStatement = true;
-    if(!lexBraceBlock()) {
+    if(!lexBraceBlock() && !allow_declarations) {
         error("expected the function definition after the signature");
     }
     isLexReturnStatement = prevReturn;

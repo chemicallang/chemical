@@ -23,7 +23,7 @@ bool Lexer::lexStatementTokens() {
            lexImplTokens() ||
            lexDoWhileBlockTokens() ||
            lexWhileBlockTokens() ||
-           lexFunctionStructureTokens() ||
+           lexFunctionStructureTokens(true) ||
            lexAssignmentTokens();
 }
 

@@ -25,30 +25,56 @@ public:
     FunctionDeclaration(
             std::string name,
             func_params params,
-            std::optional<std::string> returnType
-    ) : name(std::move(name)), params(std::move(params)), returnType(std::move(returnType)), body(std::nullopt) {
+            std::optional<std::string> returnType,
+            bool isVariadic
+    ) : name(std::move(name)), params(std::move(params)), returnType(std::move(returnType)), body(std::nullopt), isVariadic(isVariadic) {
         for (auto &param: this->params) {
             param.first.shrink_to_fit();
             param.second.shrink_to_fit();
         }
     }
 
-    llvm::FunctionType* get_type(Codegen& gen) {
-        if(returnType.has_value()) {
-            if(returnType.value() == "int") {
-                return llvm::FunctionType::get(gen.builder->getInt32Ty(), false);
+    llvm::Type* llvm_type(Codegen& gen, const std::optional<std::string>& type) {
+        if(type.has_value()) {
+            if (type.value() == "int") {
+                return gen.builder->getInt32Ty();
+            } else if (type.value() == "string") {
+                return gen.builder->getInt8PtrTy();
             } else {
-                gen.error("UNKNOWN FUNCTION RETURN TYPE : " + returnType.value());
+                gen.error("UNKNOWN FUNCTION RETURN TYPE : " + type.value());
                 return nullptr;
             }
         } else {
-            return llvm::FunctionType::get(gen.builder->getVoidTy(), false);
+            return gen.builder->getVoidTy();
+        }
+    }
+
+    std::vector<llvm::Type*> param_types(Codegen& gen) {
+        auto size = isVariadic ? (params.size() - 1 ): params.size();
+        std::vector<llvm::Type*> array(size);
+        unsigned i = 0;
+        while(i < size) {
+            array[i] = llvm_type(gen, params[i].second);
+            i++;
+        }
+        return array;
+    }
+
+    llvm::FunctionType* function_type(Codegen& gen) {
+        if(params.empty() || (params.size() == 1 && isVariadic)) {
+            return llvm::FunctionType::get(llvm_type(gen, returnType), isVariadic);
+        } else {
+            return llvm::FunctionType::get(llvm_type(gen, returnType), param_types(gen), isVariadic);
         }
     }
 
     void code_gen(Codegen& gen) override {
-        gen.create_function(name, get_type(gen));
-        body->code_gen(gen);
+        if(body.has_value()) {
+            gen.create_function(name, function_type(gen));
+            body->code_gen(gen);
+        } else {
+            gen.declare_function(name, function_type(gen));
+        }
     }
 
     void interpret(InterpretScope &scope) override {
@@ -96,6 +122,10 @@ public:
             ret.append(param.second);
             if (i < params.size() - 1) {
                 ret.append(", ");
+            } else {
+                if(isVariadic) {
+                    ret.append("...");
+                }
             }
             i++;
         }
@@ -125,4 +155,6 @@ private:
     std::optional<std::string> returnType;
     InterpretScope *declarationScope;
     Value *interpretReturn;
+    // if the function is variadic, the last type in params is the type given to the variadic parameter
+    bool isVariadic;
 };

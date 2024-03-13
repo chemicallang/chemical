@@ -326,9 +326,9 @@ public:
      * Parse a single function definition
      * @return true if parsed
      */
-    inline bool parseFunctionDefinitionBool() {
+    inline bool parseFunctionDefinitionBool(bool declaration = false) {
         return parse_return_bool([&]() -> std::optional<std::unique_ptr<FunctionDeclaration>> {
-            return parseFunctionDefinition();
+            return parseFunctionDefinition(declaration);
         });
     }
 

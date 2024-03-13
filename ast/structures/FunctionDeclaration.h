@@ -6,10 +6,31 @@
 
 #pragma once
 
-#include "ast/base/ASTNode.h"
-#include "ast/values/VariableIdentifier.h"
+#include <utility>
 
-using func_params = std::vector<std::pair<std::string, std::string>>;
+#include "ast/base/ASTNode.h"
+
+class FunctionParam : public ASTNode {
+public:
+    FunctionParam(std::string  name, std::string  type, unsigned int index) : name(std::move(name)), type(std::move(type)), index(index) {
+
+    }
+    FunctionParam* as_parameter() override {
+        return this;
+    }
+    llvm::Type* llvm_type(Codegen &gen) override {
+        return gen.llvm_type(type);
+    }
+    std::string representation() const override {
+        return name + " : " + type;
+    }
+    unsigned int index;
+    std::string name;
+    std::string type;
+};
+
+
+using func_params = std::vector<FunctionParam>;
 
 class FunctionDeclaration : public ASTNode, public Value {
 public:
@@ -29,8 +50,8 @@ public:
             bool isVariadic
     ) : name(std::move(name)), params(std::move(params)), returnType(std::move(returnType)), body(std::nullopt), isVariadic(isVariadic) {
         for (auto &param: this->params) {
-            param.first.shrink_to_fit();
-            param.second.shrink_to_fit();
+            param.name.shrink_to_fit();
+            param.type.shrink_to_fit();
         }
     }
 
@@ -39,7 +60,7 @@ public:
         std::vector<llvm::Type*> array(size);
         unsigned i = 0;
         while(i < size) {
-            array[i] = gen.llvm_type(params[i].second);
+            array[i] = gen.llvm_type(params[i].type);
             i++;
         }
         return array;
@@ -53,10 +74,24 @@ public:
         }
     }
 
+    void declare(Codegen& gen) {
+        for(const auto& param : params) {
+            gen.current[param.name] = (ASTNode*) &param;
+        }
+    }
+
+    void undeclare(Codegen &gen) override {
+        for(const auto& param : params) {
+            gen.current.erase(param.name);
+        }
+    }
+
     void code_gen(Codegen& gen) override {
         if(body.has_value()) {
+            declare(gen);
             gen.create_function(name, function_type(gen));
             body->code_gen(gen);
+            undeclare(gen);
         } else {
             gen.declare_function(name, function_type(gen));
         }
@@ -77,8 +112,7 @@ public:
         auto i = 0;
         while (i < params.size()) {
             // TODO all function values are being copied
-            // TODO make sure only primitive values are copied
-            child.values[params[i].first] = call_params[i]->copy();
+            child.values[params[i].name] = call_params[i]->copy();
             i++;
         }
         body.value().interpret(child);
@@ -102,9 +136,7 @@ public:
         int i = 0;
         while (i < params.size()) {
             const auto &param = params[i];
-            ret.append(param.first);
-            ret.append(" : ");
-            ret.append(param.second);
+            ret.append(param.representation());
             if (i < params.size() - 1) {
                 ret.append(", ");
             } else {

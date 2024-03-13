@@ -13,6 +13,8 @@
 #include "llvm/IR/Value.h"
 #include "compiler/Codegen.h"
 
+class FunctionParam;
+
 /**
  * @brief Base class for all AST nodes.
  */
@@ -24,6 +26,14 @@ public:
      * @return
      */
     virtual std::string representation() const = 0;
+
+    /**
+     * return if this is a parameter
+     * @return
+     */
+    virtual FunctionParam* as_parameter() {
+        return nullptr;
+    }
 
     /**
      * This function is called by the scope to undeclare anything this map put on the

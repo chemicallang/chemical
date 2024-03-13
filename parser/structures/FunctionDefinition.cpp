@@ -31,6 +31,7 @@ lex_ptr<FunctionDeclaration> Parser::parseFunctionDefinition(bool declarations) 
             auto token = consume<FunctionToken>();
             if (consume_op('(')) {
                 func_params params;
+                unsigned paramsCount = 0;
                 bool isVariadic = false;
                 do {
                     if (token_type() == LexTokenType::Parameter) {
@@ -41,7 +42,8 @@ lex_ptr<FunctionDeclaration> Parser::parseFunctionDefinition(bool declarations) 
                         }
                         if (token_type() == LexTokenType::Type) {
                             auto typeToken = consume<TypeToken>();
-                            params.emplace_back(std::move(paramToken->value), std::move(typeToken->value));
+                            params.emplace_back(std::move(paramToken->value), std::move(typeToken->value), paramsCount);
+                            paramsCount++;
                             if(token_type() == LexTokenType::StringOperator && as<AbstractStringToken>()->value == "...") {
                                 increment();
                                 isVariadic = true;

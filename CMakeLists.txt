@@ -191,6 +191,7 @@ set(COMMON_SOURCES "lexer/Lexer.cpp" "lexer/Lexer.h" "lexer/model/tokens/CharOpe
         compiler/Codegen.h
         compiler/Codegen.cpp
         ast/types/BaseType.h
+        compiler/Operation.cpp
 )
 
 # Chemical LSP Executable Target

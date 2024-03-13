@@ -9,6 +9,7 @@
 #include <llvm/IR/Module.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Verifier.h>
+#include "ast/utils/Operation.h"
 
 class ASTNode;
 
@@ -76,6 +77,8 @@ public:
         llvm::raw_fd_ostream outLL(out_path, errorCode);
         module->print(outLL, nullptr);
     }
+
+    llvm::Value* operate(Operation op, llvm::Value* lhs, llvm::Value* rhs);
 
     /**
      * report an error when generating a node

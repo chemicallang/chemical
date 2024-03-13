@@ -198,6 +198,12 @@ public:
     bool parseVariableInitStatementBool();
 
     /**
+     * parses a single if block, meaning condition and block, no else ifs and else
+     * @return
+     */
+    std::optional<std::pair<std::unique_ptr<Value>, Scope>> parseSingleIfBlock();
+
+    /**
      * Parse a single if statement
      * @return
      */

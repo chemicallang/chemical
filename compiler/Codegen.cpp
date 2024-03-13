@@ -3,7 +3,7 @@
 #include "ast/base/ASTNode.h"
 #include "Codegen.h"
 
-Codegen::Codegen(std::vector<std::unique_ptr<ASTNode>> nodes, std::string path): nodes(std::move(nodes)), path(std::move(path)) {
+Codegen::Codegen(std::vector<std::unique_ptr<ASTNode>> nodes, std::string path): ASTLinker(std::move(nodes)), path(std::move(path)) {
     module_init();
 }
 
@@ -12,6 +12,7 @@ void Codegen::compile() {
         node->code_gen(*this);
         position++;
     }
+    current.clear();
 }
 
 void Codegen::error(const std::string& err){

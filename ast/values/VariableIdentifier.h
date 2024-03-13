@@ -72,9 +72,19 @@ public:
         return v;
     }
 
+    ASTNode* resolve(Codegen &gen) {
+        auto found = gen.current.find(value);
+        if(gen.current.end() == found) {
+            gen.error("Couldn't find variable identifier in scope : " + value);
+            throw std::runtime_error("couldn't find variable identifier in scope : " + value);
+        } else {
+            return found->second;
+        }
+    }
+
     llvm::Value * llvm_value(Codegen &gen) override {
         auto v = llvm_pointer(gen);
-        return gen.builder->CreateLoad(v->getType(), v, value);
+        return gen.builder->CreateLoad(resolve(gen)->llvm_type(gen), v, value);
     }
 
     Value *evaluated_value(InterpretScope &scope) override {

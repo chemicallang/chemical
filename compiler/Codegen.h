@@ -10,15 +10,12 @@
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Verifier.h>
 #include "ast/utils/Operation.h"
+#include "ASTLinker.h"
 
-class ASTNode;
-
-class Codegen {
+class Codegen : public ASTLinker {
 public:
 
     unsigned int position = 0;
-
-    std::vector<std::unique_ptr<ASTNode>> nodes;
 
     std::vector<std::string> errors = std::vector<std::string>();
 

@@ -74,7 +74,7 @@ public:
      * @return
      */
     virtual void code_gen(Codegen& gen) {
-        throw std::runtime_error("ASTNode code_gen called on bare ASTNode");
+        throw std::runtime_error("ASTNode code_gen called on bare ASTNode, with representation : " + representation() + " , type : " + std::to_string((unsigned int) value_type()));
     }
 
     /**

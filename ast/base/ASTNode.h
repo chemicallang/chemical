@@ -51,7 +51,7 @@ public:
      * @return
      */
     virtual llvm::Type* llvm_type(Codegen& gen) {
-        throw std::runtime_error("llvm_type called on bare ASTNode");
+        throw std::runtime_error("llvm_type called on bare ASTNode, with representation" + representation());
     };
 
     /**
@@ -59,7 +59,7 @@ public:
      * @return
      */
     virtual void code_gen(Codegen& gen) {
-        throw std::runtime_error("ASTNode code_gen called on bare ASTNode");
+        throw std::runtime_error("ASTNode code_gen called on bare ASTNode, with representation : " + representation());
     }
 
     /**

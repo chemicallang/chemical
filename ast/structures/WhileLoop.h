@@ -42,6 +42,30 @@ public:
         }
     }
 
+    void code_gen(Codegen &gen) override {
+
+        auto loopCond = llvm::BasicBlock::Create(*gen.ctx, "loopcond", gen.current_function);
+        auto loopThen = llvm::BasicBlock::Create(*gen.ctx, "loopexit", gen.current_function);
+        auto exitBlock = llvm::BasicBlock::Create(*gen.ctx, "loopexit", gen.current_function);
+
+        // sending to loop condition
+        gen.builder->CreateBr(loopCond);
+
+        // loop condition
+        gen.builder->SetInsertPoint(loopCond);
+        auto comparison = condition->llvm_value(gen);
+        gen.builder->CreateCondBr(comparison, loopThen, exitBlock);
+
+        // loop then
+        gen.builder->SetInsertPoint(loopThen);
+        body.code_gen(gen);
+        gen.builder->CreateBr(loopCond);
+
+        // loop exit
+        gen.builder->SetInsertPoint(exitBlock);
+
+    }
+
     void stopInterpretation() override {
         stoppedInterpretation = true;
     }

@@ -13,7 +13,7 @@ It's similar to golang, typescript & c++ but there's a lot that cannot be explai
 ```golang
 var x : int = 5;
 for(var i = 0; i < 5; i++){
-    // switch statements are similar to c++
+    var arr = []int(5); // array of five integer elements, uninitialized
     if(i == 3) {
         x += 2;
     }
@@ -21,11 +21,12 @@ for(var i = 0; i < 5; i++){
     x++;
 }
 // while and do while loops are also similar
-// a function, requires types
+// a function, requires types, primitive values are pass by value
 func add(a : int, b : int) : int {
     return a + b;
 }
 // supports : struct, interface, implementation
+// semicolons are optional
 // in the future, we will support switch statements, pointers
 ```
 
@@ -35,7 +36,7 @@ func add(a : int, b : int) : int {
 - [x] Parser
 - [x] LSP (will add more features later)
 - [ ] Interpreter (mostly done)
-- [ ] Native Codegen
+- [ ] Native Codegen (mostly done)
 - [ ] CIPs
   - [ ] Syntax Modifier Plugins (SMP)
   - [ ] AST Transformation Plugins (ATP)

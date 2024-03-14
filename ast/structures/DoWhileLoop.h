@@ -29,6 +29,25 @@ public:
     DoWhileLoop(std::unique_ptr<Value> condition, LoopScope body)
             : condition(std::move(condition)), LoopASTNode(std::move(body)) {}
 
+    void code_gen(Codegen &gen) override {
+
+        auto loopThen = llvm::BasicBlock::Create(*gen.ctx, "loopthen", gen.current_function);
+        auto exitBlock = llvm::BasicBlock::Create(*gen.ctx, "loopexit", gen.current_function);
+
+        // sending to loop then
+        gen.builder->CreateBr(loopThen);
+
+        // loop then
+        gen.builder->SetInsertPoint(loopThen);
+        body.code_gen(gen);
+        auto comparison = condition->llvm_value(gen);
+        gen.builder->CreateCondBr(comparison, loopThen, exitBlock);
+
+        // loop exit
+        gen.builder->SetInsertPoint(exitBlock);
+
+    }
+
     void interpret(InterpretScope &scope) override {
         InterpretScope child(&scope, scope.global, &body, this);
         do {

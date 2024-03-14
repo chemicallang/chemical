@@ -27,9 +27,9 @@ public:
 
     void code_gen(Codegen &gen) override {
         if(value.has_value()) {
-            gen.builder->CreateRet(value.value()->llvm_value(gen));
+            gen.CreateRet(value.value()->llvm_value(gen));
         } else {
-            gen.builder->CreateRet(nullptr);
+            gen.CreateRet(nullptr);
         }
     }
 

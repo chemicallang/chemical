@@ -38,7 +38,6 @@ loopexit:                                         ; preds = %ifthen, %loopcond
   ret i32 0
 
 ifthen:                                           ; preds = %loopthen
-  ret i32 0
   br label %loopexit
 
 ifend:                                            ; preds = %loopthen

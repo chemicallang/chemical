@@ -13,3 +13,10 @@ void Codegen::CreateBr(llvm::BasicBlock* block) {
         has_current_block_ended = true;
     }
 }
+
+void Codegen::CreateRet(llvm::Value* value) {
+    if(!has_current_block_ended) {
+        builder->CreateRet(value);
+        has_current_block_ended = true;
+    }
+}

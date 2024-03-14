@@ -16,6 +16,10 @@ public:
      */
     ContinueStatement(LoopASTNode *node) : node(node) {}
 
+    void code_gen(Codegen &gen) override {
+        gen.CreateBr(gen.current_loop_continue);
+    }
+
     void interpret(InterpretScope &scope) override {
         if(node == nullptr) {
             std::cerr << "[Continue] statement has nullptr to loop node";

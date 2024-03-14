@@ -37,7 +37,7 @@ public:
         llvm::BasicBlock* elseBlock = nullptr;
 
         // creating a then block
-        auto thenBlock = llvm::BasicBlock::Create(*gen.ctx, "then", gen.current_function);
+        auto thenBlock = llvm::BasicBlock::Create(*gen.ctx, "ifthen", gen.current_function);
 
         // creating all the else ifs blocks
         // every else if it has two blocks, one block that checks the condition, the other block which runs when condition succeeds
@@ -55,11 +55,11 @@ public:
 
         // create an else block
         if(elseBody.has_value()) {
-            elseBlock = llvm::BasicBlock::Create(*gen.ctx, "else", gen.current_function);
+            elseBlock = llvm::BasicBlock::Create(*gen.ctx, "ifelse", gen.current_function);
         }
 
         // end block
-        auto endBlock = llvm::BasicBlock::Create(*gen.ctx, "end", gen.current_function);
+        auto endBlock = llvm::BasicBlock::Create(*gen.ctx, "ifend", gen.current_function);
 
         // the block after the first if block
         const auto elseOrEndBlock = elseBlock ? elseBlock : endBlock;
@@ -69,9 +69,9 @@ public:
         gen.builder->CreateCondBr(comparison, thenBlock, nextBlock);
 
         // generating then code
-        gen.builder->SetInsertPoint(thenBlock);
+        gen.SetInsertPoint(thenBlock);
         ifBody.code_gen(gen);
-        gen.builder->CreateBr(endBlock);
+        gen.CreateBr(endBlock);
 
         // generating else if block
         i = 0;
@@ -80,28 +80,28 @@ public:
             auto& pair = elseIfsBlocks[i];
 
             // generating condition code
-            gen.builder->SetInsertPoint(pair.first);
+            gen.SetInsertPoint(pair.first);
             comparison = elif.first->llvm_value(gen);
             nextBlock = ((i + 1) < elseIfsBlocks.size()) ? elseIfsBlocks[i + 1].first : elseOrEndBlock;
             gen.builder->CreateCondBr(comparison, pair.second, nextBlock);
 
             // generating block code
-            gen.builder->SetInsertPoint(pair.second);
+            gen.SetInsertPoint(pair.second);
             elif.second.code_gen(gen);
-            gen.builder->CreateBr(endBlock);
+            gen.CreateBr(endBlock);
 
             i++;
         }
 
         // generating else block
         if(elseBlock) {
-            gen.builder->SetInsertPoint(elseBlock);
+            gen.SetInsertPoint(elseBlock);
             elseBody.value().code_gen(gen);
-            gen.builder->CreateBr(endBlock);
+            gen.CreateBr(endBlock);
         }
 
         // set to end block
-        gen.builder->SetInsertPoint(endBlock);
+        gen.SetInsertPoint(endBlock);
 
     }
 

@@ -5,6 +5,9 @@ func main(argc : int) : int {
     var arr = [2,4,6,8,10];
     var i = 0;
     while(i < 5) {
+        if(i == 4) {
+            break;
+        }
         printf("current : %d\n", arr[i]);
         i += 1;
     }

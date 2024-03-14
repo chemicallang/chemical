@@ -62,7 +62,7 @@ public:
 
     void createFunctionBlock(llvm::Function* fn) {
         auto entry = createBB("entry", fn);
-        builder->SetInsertPoint(entry);
+        SetInsertPoint(entry);
     }
 
     void print_to_console() {
@@ -74,6 +74,25 @@ public:
         llvm::raw_fd_ostream outLL(out_path, errorCode);
         module->print(outLL, nullptr);
     }
+
+    /**
+     * This sets the insert point to this block
+     * Instead of using builder.SetInsertPoint, this function should be
+     * used because llvm doesn't support multiple consecutive returns or branches
+     * so if we know the block has changed, we can track
+     * if this block has ended previously to avoid creating branches and returns
+     * @param block
+     */
+    void SetInsertPoint(llvm::BasicBlock* block);
+
+    /**
+     * The safe version of builder.CreateBr
+     * this will avoid creating multiple branch instructions
+     * once you call this, no longer can you create branch, or return instructions
+     * because you've already shifted
+     * @param block
+     */
+    void CreateBr(llvm::BasicBlock* block);
 
     /**
      * this operates on two values, left and right
@@ -111,6 +130,16 @@ public:
     llvm::Function* current_function;
 
     /**
+     * This is set by every loop so break statement can exit to this block
+     */
+    llvm::BasicBlock* current_loop_exit;
+
+    /**
+     * This is set by every loop so continue statement can continue to this block
+     */
+    llvm::BasicBlock* current_loop_continue;
+
+    /**
      * LLVM context that holds modules
      */
     std::unique_ptr<llvm::LLVMContext> ctx;
@@ -124,5 +153,13 @@ public:
      * the builder that builds ir
      */
     std::unique_ptr<llvm::IRBuilder<>> builder;
+
+private:
+
+    /**
+     * this is set to true when the branch instruction is executed
+     * and set back to false, when a new block begins using SetInsertPoint
+     */
+    bool has_current_block_ended = false;
 
 };

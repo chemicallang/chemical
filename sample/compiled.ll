@@ -24,21 +24,30 @@ entry:
   store i32 0, ptr %i, align 4
   br label %loopcond
 
-loopcond:                                         ; preds = %loopthen, %entry
+loopcond:                                         ; preds = %ifend, %entry
   %i1 = load i32, ptr %i, align 4
   %7 = icmp slt i32 %i1, 5
   br i1 %7, label %loopthen, label %loopexit
 
 loopthen:                                         ; preds = %loopcond
   %i2 = load i32, ptr %i, align 4
-  %8 = getelementptr [5 x i32], ptr %arr, i32 0, i32 %i2
-  %arr0 = load i32, ptr %8, align 4
-  %9 = call i32 (ptr, ...) @printf(ptr @1, i32 %arr0)
-  %i3 = load i32, ptr %i, align 4
-  %10 = add i32 %i3, 1
-  store i32 %10, ptr %i, align 4
-  br label %loopcond
+  %8 = icmp eq i32 %i2, 4
+  br i1 %8, label %ifthen, label %ifend
 
-loopexit:                                         ; preds = %loopcond
+loopexit:                                         ; preds = %ifthen, %loopcond
   ret i32 0
+
+ifthen:                                           ; preds = %loopthen
+  ret i32 0
+  br label %loopexit
+
+ifend:                                            ; preds = %loopthen
+  %i3 = load i32, ptr %i, align 4
+  %9 = getelementptr [5 x i32], ptr %arr, i32 0, i32 %i3
+  %arr0 = load i32, ptr %9, align 4
+  %10 = call i32 (ptr, ...) @printf(ptr @1, i32 %arr0)
+  %i4 = load i32, ptr %i, align 4
+  %11 = add i32 %i4, 1
+  store i32 %11, ptr %i, align 4
+  br label %loopcond
 }

@@ -15,12 +15,34 @@
 class Codegen : public ASTLinker {
 public:
 
+    /**
+     * At the moment this stores the position (inside the nodes vector)
+     * the position doesn't work with nested nodes, as nested nodes have their own structures
+     * for that we may use ASTPointer if required anytime
+     */
     unsigned int position = 0;
 
+    /**
+     * errors are stored here
+     */
     std::vector<std::string> errors = std::vector<std::string>();
 
+    /**
+     * similar to ast linker we have allocated
+     * which provides a way to link up the currently allocated variables
+     */
+    std::unordered_map<std::string, llvm::AllocaInst*> allocated;
+
+    /**
+     * constructor
+     * @param nodes
+     * @param path
+     */
     explicit Codegen(std::vector<std::unique_ptr<ASTNode>> nodes, std::string path);
 
+    /**
+     * initializes the llvm module and context
+     */
     void module_init() {
         // context and module
         ctx = std::make_unique<llvm::LLVMContext>();
@@ -30,8 +52,18 @@ public:
         builder = std::make_unique<llvm::IRBuilder<>>(*ctx);
     }
 
+    /**
+     * the actual compile function, when called module, ctx and builder members
+     * are used to fill up the IR
+     */
     void compile();
 
+    /**
+     * the method to create a function
+     * @param name name of the function
+     * @param type type of the function
+     * @return
+     */
     llvm::Function* create_function(const std::string& name, llvm::FunctionType* type) {
         current_function = module->getFunction(name);
         if(current_function == nullptr) {
@@ -41,34 +73,58 @@ public:
         return current_function;
     }
 
+    /**
+     * gets or inserts a function, similar to declaration
+     * @param name
+     * @param type
+     * @return
+     */
     llvm::FunctionCallee declare_function(const std::string& name, llvm::FunctionType* type) {
         return module->getOrInsertFunction(name, type);
     }
 
-//    template <typename... ArgsTy>
-//    llvm::Function* declare_function(const std::string& name, llvm::FunctionType* type, ArgsTy... args) {
-//        module->getOrInsertFunction(name, type, args...);
-//    }
-
+    /**
+     * create a function prototype
+     * @param name name of the function
+     * @param type type of the function
+     * @return
+     */
     llvm::Function* create_function_proto(const std::string& name, llvm::FunctionType* type) {
         auto fn = llvm::Function::Create(type, llvm::Function::ExternalLinkage, name, *module);
         llvm::verifyFunction(*fn);
         return fn;
     }
 
+    /**
+     * create a function's basic block, with the given name
+     * @param name
+     * @param fn
+     * @return
+     */
     llvm::BasicBlock* createBB(const std::string& name, llvm::Function* fn) {
         return llvm::BasicBlock::Create(*ctx, name, fn);
     }
 
+    /**
+     * creates a function block, along with setting the insert point to this entry block
+     * @param fn
+     */
     void createFunctionBlock(llvm::Function* fn) {
         auto entry = createBB("entry", fn);
         SetInsertPoint(entry);
     }
 
+    /**
+     * prints the current module to console
+     */
     void print_to_console() {
         module->print(llvm::outs(), nullptr);
     }
 
+    /**
+     * prints the current module as LLVM IR to a .ll file with given out_path
+     * @param out_path
+     */
     void save_to_file(const std::string &out_path) {
         std::error_code errorCode;
         llvm::raw_fd_ostream outLL(out_path, errorCode);

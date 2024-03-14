@@ -25,7 +25,7 @@ public:
     VariableIdentifier(std::string value) : value(std::move(value)) {}
 
     // will find value by this name in the parent
-    Value * find_in(Value *parent) override {
+    Value *find_in(Value *parent) override {
         return parent->child(value);
     }
 
@@ -63,12 +63,12 @@ public:
         it.second->second = nextValue;
     }
 
-    llvm::Value * llvm_pointer(Codegen &gen) override {
+    llvm::Value *arg_value(Codegen &gen) {
         auto param = resolve(gen)->as_parameter();
-        if(param != nullptr && gen.current_function != nullptr) {
-            for(const auto& arg : gen.current_function->args()) {
-                if(arg.getArgNo() == param->index) {
-                    return (llvm::Value*) &arg;
+        if (param != nullptr && gen.current_function != nullptr) {
+            for (const auto &arg: gen.current_function->args()) {
+                if (arg.getArgNo() == param->index) {
+                    return (llvm::Value *) &arg;
                 }
 //                else {
 //                    gen.error("no mismatch" + std::to_string(arg.getArgNo()) + " " + std::to_string(param->index));
@@ -78,17 +78,21 @@ public:
 //        else {
 //            gen.error("param or function missing");
 //        }
+        return nullptr;
+    }
+
+    llvm::Value *llvm_pointer(Codegen &gen) override {
         auto v = gen.builder->GetInsertBlock()->getValueSymbolTable()->lookup(value);
-        if(v == nullptr) {
+        if (v == nullptr) {
             gen.error("Couldn't find variable identifier : " + value);
             return nullptr;
         }
         return v;
     }
 
-    ASTNode* resolve(Codegen &gen) {
+    ASTNode *resolve(Codegen &gen) {
         auto found = gen.current.find(value);
-        if(gen.current.end() == found) {
+        if (gen.current.end() == found) {
             gen.error("Couldn't find variable identifier in scope : " + value);
             throw std::runtime_error("couldn't find variable identifier in scope : " + value);
         } else {
@@ -96,7 +100,11 @@ public:
         }
     }
 
-    llvm::Value * llvm_value(Codegen &gen) override {
+    llvm::Value *llvm_value(Codegen &gen) override {
+        auto argVal = arg_value(gen);
+        if (argVal != nullptr) {
+            return argVal;
+        }
         auto v = llvm_pointer(gen);
         return gen.builder->CreateLoad(resolve(gen)->llvm_type(gen), v, value);
     }

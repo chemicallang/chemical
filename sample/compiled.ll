@@ -5,8 +5,8 @@ source_filename = "TodoName"
 
 declare i32 @printf(ptr, ...)
 
-define i32 @main(i32 %argc) {
+define i32 @main(i32 %0) {
 entry:
-  %1 = call i32 (ptr, ...) @printf(ptr @0, i32 %argc)
+  %1 = call i32 (ptr, ...) @printf(ptr @0, i32 %0)
   ret i32 0
 }

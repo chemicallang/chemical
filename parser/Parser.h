@@ -107,6 +107,12 @@ public:
     void parseMultipleStatements();
 
     /**
+     * parses a number, int, float, double
+     * @return
+     */
+    lex_ptr<Value> parseNumberValue();
+
+    /**
      * parses a value of type int, integer !
      * @return
      */

@@ -15,6 +15,15 @@ public:
 
     }
 
+    bool has_dot() {
+        return value.find('.') != std::string::npos;
+    }
+
+    // TODO everything is a double, at the moment
+    bool is_float() {
+        return false;
+    }
+
     LexTokenType type() const override {
         return LexTokenType::Number;
     }

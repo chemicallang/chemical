@@ -9,6 +9,8 @@
 #include "ast/values/CharValue.h"
 #include "ast/values/StringValue.h"
 #include "lexer/model/tokens/TypeToken.h"
+#include "ast/values/DoubleValue.h"
+#include "ast/values/FloatValue.h"
 
 lex_ptr<ArrayValue> Parser::parseArrayValue() {
 
@@ -87,6 +89,28 @@ lex_ptr<ArrayValue> Parser::parseArrayValue() {
     return std::nullopt;
 }
 
+lex_ptr<Value> Parser::parseNumberValue() {
+    if (tokens[position]->type() == LexTokenType::Number) {
+        auto number = consume<NumberToken>();
+        try {
+            if (number->has_dot()) {
+                if(number->is_float()) {
+                    return std::make_unique<FloatValue>(std::stof(number->value));
+                } else {
+                    return std::make_unique<DoubleValue>(std::stod(number->value));
+                }
+            } else {
+                return std::make_unique<IntValue>(std::stoi(number->value));
+            }
+        } catch (...) {
+            error("invalid number given");
+            return std::nullopt;
+        }
+    } else {
+        return std::nullopt;
+    }
+}
+
 lex_ptr<IntValue> Parser::parseIntValue() {
     if (tokens[position]->type() == LexTokenType::Number) {
         auto number = consume<NumberToken>();
@@ -127,7 +151,7 @@ lex_ptr<Value> Parser::parseValue() {
     if(arrVal.has_value()) {
         return arrVal;
     }
-    return parseIntValue();
+    return parseNumberValue();
 }
 
 lex_ptr<Value> Parser::parseAccessChainOrValue() {

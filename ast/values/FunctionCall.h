@@ -60,6 +60,10 @@ public:
         std::vector<llvm::Value*> args(values.size());
         for(size_t i = 0; i < values.size(); ++i) {
             args[i] = values[i]->llvm_value(gen);
+            // Ensure proper type promotion for float values passed to printf
+            if (fn->isVarArg() && llvm::isa<llvm::ConstantFP>(args[i]) && args[i]->getType() != llvm::Type::getDoubleTy(*gen.ctx)) {
+                args[i] = gen.builder->CreateFPExt(args[i], llvm::Type::getDoubleTy(*gen.ctx));
+            }
         }
         return gen.builder->CreateCall(fn, args);
     }

@@ -18,7 +18,7 @@ int main(int argc, char *argv[]) {
         return 0;
     }
     auto lexer = benchLexFile(argv[1]);
-//    printTokens(lexer.tokens);
+    printTokens(lexer.tokens);
     for (const auto &err: lexer.errors) {
         std::cerr << err.representation() << std::endl;
     }
@@ -27,7 +27,7 @@ int main(int argc, char *argv[]) {
         std::cerr << err;
     }
     Scope scope(std::move(parser.nodes));
-//    std::cout << "[Representation]\n" << scope.representation() << std::endl;
+    std::cout << "[Representation]\n" << scope.representation() << std::endl;
     if(!lexer.errors.empty() || !parser.errors.empty()) return 1;
     Codegen gen(std::move(scope.nodes), argv[1]);
     // compile

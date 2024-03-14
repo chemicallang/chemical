@@ -81,13 +81,18 @@ public:
         return nullptr;
     }
 
-    llvm::Value *llvm_pointer(Codegen &gen) override {
-        auto v = gen.builder->GetInsertBlock()->getValueSymbolTable()->lookup(value);
-        if (v == nullptr) {
-            gen.error("Couldn't find variable identifier : " + value);
+    llvm::AllocaInst* llvm_alloca(Codegen &gen) {
+        auto found = gen.allocated.find(value);
+        if(found == gen.allocated.end()) {
+            gen.error("llvm_alloca called on variable identifier, couldn't locate the identifier : " + value);
             return nullptr;
+        } else {
+            return found->second;
         }
-        return v;
+    }
+
+    llvm::Value *llvm_pointer(Codegen &gen) override {
+        return llvm_alloca(gen);
     }
 
     ASTNode *resolve(Codegen &gen) {

@@ -31,6 +31,7 @@ public:
 
     void undeclare(Codegen &gen) override {
         gen.current.erase(identifier);
+        gen.allocated.erase(identifier);
     }
 
     inline void check_has_type(Codegen& gen) {
@@ -58,7 +59,7 @@ public:
         if(value.has_value()) {
             value.value()->llvm_allocate(gen, identifier);
         } else {
-            gen.builder->CreateAlloca(llvm_type(gen), nullptr, identifier);
+            gen.allocated[identifier] = gen.builder->CreateAlloca(llvm_type(gen), nullptr, identifier);
         }
     }
 

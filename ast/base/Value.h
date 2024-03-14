@@ -87,12 +87,13 @@ public:
     };
 
     /**
-     * allocates this value with this identifier
+     * allocates this value with this identifier, and also creates a store instruction
      * @param gen
      * @param identifier
      */
     virtual void llvm_allocate(Codegen& gen, const std::string& identifier) {
         auto x = gen.builder->CreateAlloca(llvm_type(gen), nullptr, identifier);
+        gen.allocated[identifier] = x;
         gen.builder->CreateStore(llvm_value(gen), x);
     }
 

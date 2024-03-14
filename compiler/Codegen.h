@@ -87,12 +87,21 @@ public:
 
     /**
      * The safe version of builder.CreateBr
-     * this will avoid creating multiple branch instructions
+     * this will avoid creating multiple terminator instructions
      * once you call this, no longer can you create branch, or return instructions
-     * because you've already shifted
+     * because you've already shifted to another block
      * @param block
      */
     void CreateBr(llvm::BasicBlock* block);
+
+    /**
+     * The safe version of builder.CreateRet
+     * this will avoid creating multiple terminator instructions
+     * once you call this, no longer can you create branch, or return instructions
+     * becuase you've already shifted to another block
+     * @param value
+     */
+    void CreateRet(llvm::Value* value);
 
     /**
      * this operates on two values, left and right

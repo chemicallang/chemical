@@ -32,19 +32,28 @@ public:
     void code_gen(Codegen &gen) override {
 
         auto loopThen = llvm::BasicBlock::Create(*gen.ctx, "loopthen", gen.current_function);
+        auto loopCond = llvm::BasicBlock::Create(*gen.ctx, "loopcond", gen.current_function);
         auto exitBlock = llvm::BasicBlock::Create(*gen.ctx, "loopexit", gen.current_function);
 
+        // set current loop block, so it can be broken
+        gen.current_loop_exit = exitBlock;
+        gen.current_loop_continue = loopCond;
+
         // sending to loop then
-        gen.builder->CreateBr(loopThen);
+        gen.CreateBr(loopThen);
 
         // loop then
-        gen.builder->SetInsertPoint(loopThen);
+        gen.SetInsertPoint(loopThen);
         body.code_gen(gen);
+        gen.CreateBr(loopCond);
+
+        // loop condition
+        gen.SetInsertPoint(loopCond);
         auto comparison = condition->llvm_value(gen);
         gen.builder->CreateCondBr(comparison, loopThen, exitBlock);
 
         // loop exit
-        gen.builder->SetInsertPoint(exitBlock);
+        gen.SetInsertPoint(exitBlock);
 
     }
 

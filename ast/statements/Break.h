@@ -25,6 +25,10 @@ public:
         node->stopInterpretation();
     }
 
+    void code_gen(Codegen &gen) override {
+        gen.CreateBr(gen.current_loop_exit);
+    }
+
     std::string representation() const override {
         std::string ret;
         ret.append("break;");

@@ -63,8 +63,8 @@ public:
         it.second->second = nextValue;
     }
 
-    llvm::Value *arg_value(Codegen &gen) {
-        auto param = resolve(gen)->as_parameter();
+    llvm::Value *arg_value(Codegen &gen, ASTNode* node) {
+        auto param = node->as_parameter();
         if (param != nullptr && gen.current_function != nullptr) {
             for (const auto &arg: gen.current_function->args()) {
                 if (arg.getArgNo() == param->index) {
@@ -101,12 +101,13 @@ public:
     }
 
     llvm::Value *llvm_value(Codegen &gen) override {
-        auto argVal = arg_value(gen);
+        auto resolved = resolve(gen);
+        auto argVal = arg_value(gen, resolved);
         if (argVal != nullptr) {
             return argVal;
         }
         auto v = llvm_pointer(gen);
-        return gen.builder->CreateLoad(resolve(gen)->llvm_type(gen), v, value);
+        return gen.builder->CreateLoad(resolved->llvm_type(gen), v, value);
     }
 
     Value *evaluated_value(InterpretScope &scope) override {

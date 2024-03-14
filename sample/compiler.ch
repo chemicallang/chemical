@@ -21,5 +21,8 @@ func main(argc : int) : int {
     for(var j = 0; j < 5; j+=1) {
         printf("for loop : %d\n", j);
     }
+    var c : int;
+    c = 155;
+    printf("check c : %d\n", c);
     return 0;
 }

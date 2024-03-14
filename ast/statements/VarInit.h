@@ -57,6 +57,8 @@ public:
         declare(gen);
         if(value.has_value()) {
             value.value()->llvm_allocate(gen, identifier);
+        } else {
+            gen.builder->CreateAlloca(llvm_type(gen), nullptr, identifier);
         }
     }
 

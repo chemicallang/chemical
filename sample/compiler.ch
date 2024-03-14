@@ -1,7 +1,12 @@
 func printf(format : string, args : any...) : int
 
+func add(a : int, b : int) : int {
+    return a + b;
+}
+
 func main(argc : int) : int {
     printf("number of arguments : %d\n", argc);
+    printf("function sum : %d\n", add(5, 4))
     var arr = [2,4,6,8,10];
     var i = 0;
     while(i < 5) {

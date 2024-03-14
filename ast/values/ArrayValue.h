@@ -6,24 +6,25 @@
 
 #pragma once
 
+#include <utility>
 #include <vector>
 #include <memory>
 #include "ast/base/Value.h"
 
 class ArrayValue : public Value {
-
 public:
 
-    ArrayValue(std::vector<std::unique_ptr<Value>> values) : values(std::move(values)) {
+    ArrayValue(std::vector<std::unique_ptr<Value>> values, std::optional<std::string> type, std::vector<unsigned int> sizes) : values(std::move(values)), elemType(std::move(type)), sizes(std::move(sizes)) {
         values.shrink_to_fit();
     }
 
-    ArrayValue(ArrayValue&& other) : values(std::move(other.values)) {
-
-    }
-
     inline unsigned int array_size() {
-        return values.size();
+        if(sizes.empty()) {
+            return values.size();
+        } else {
+            // TODO support multi dimensional arrays
+            return sizes[0];
+        }
     }
 
     llvm::Value * llvm_pointer(Codegen &gen) override {
@@ -50,7 +51,7 @@ public:
         llvm::Type* elementType;
         if(values.empty()) {
             // get empty array type from the user
-            elementType = gen.builder->getInt1Ty();
+            elementType = gen.llvm_type(elemType.value());
         } else {
             elementType = values[0]->llvm_type(gen);
         }
@@ -64,19 +65,35 @@ public:
     std::string representation() const override {
         std::string rep;
         rep.append(1, '[');
-        int i = 0;
-        while (i < values.size()) {
-            rep.append(values[i]->representation());
-            if (i != values.size() - 1) {
-                rep.append(1, ',');
+        if(values.empty()) {
+            rep.append("]" + elemType.value() + "(");
+            int i = 0;
+            while(i < sizes.size()) {
+                rep.append(std::to_string(sizes[i]));
+                if(i < sizes.size() - 1) {
+                    rep.append(", ");
+                }
+                i++;
             }
-            i++;
+            rep.append(")");
+        } else {
+            int i = 0;
+            while (i < values.size()) {
+                rep.append(values[i]->representation());
+                if (i != values.size() - 1) {
+                    rep.append(1, ',');
+                }
+                i++;
+            }
         }
         rep.append(1, ']');
         return rep;
     }
 
     std::vector<std::unique_ptr<Value>> values;
+
+    std::optional<std::string> elemType;
+    std::vector<unsigned int>  sizes;
 
     // TODO this arr value should be stored in code gen since its related to that
     llvm::AllocaInst* arr;

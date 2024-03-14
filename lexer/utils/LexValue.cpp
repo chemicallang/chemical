@@ -90,11 +90,29 @@ bool Lexer::lexArrayInit() {
     if(lexOperatorToken('[')) {
         do {
             lexWhitespaceToken();
-            lexExpressionTokens();
+            if(!lexExpressionTokens()) {
+                break;
+            }
             lexWhitespaceToken();
         } while(lexOperatorToken(','));
         if(!lexOperatorToken(']')) {
             error("expected a ] when lexing an array");
+        }
+        lexWhitespaceToken();
+        lexTypeTokens();
+        lexWhitespaceToken();
+        if(lexOperatorToken('(')) {
+            do {
+                lexWhitespaceToken();
+                if(!lexNumberToken()) {
+                    break;
+                }
+                lexWhitespaceToken();
+            } while(lexOperatorToken(','));
+            lexWhitespaceToken();
+            if(!lexOperatorToken(')')) {
+                error("expected a ')' when ending array size");
+            }
         }
         return true;
     } else {

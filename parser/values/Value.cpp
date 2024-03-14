@@ -8,9 +8,25 @@
 #include "lexer/model/tokens/NumberToken.h"
 #include "ast/values/CharValue.h"
 #include "ast/values/StringValue.h"
+#include "lexer/model/tokens/TypeToken.h"
 
 lex_ptr<ArrayValue> Parser::parseArrayValue() {
+
+    // [1,2,3,4,5] // array of five elements, array type guessed from the type of the first element
+    // [1,2,3,4](5) // array of five elements, with fifth element uninitialized, type guessed
+    // [1,2,3,4]int(5) // array of five elements, with fifth element uninitialized
+    // []int(5) // array of five elements, no initialization
+    // []int(5,5) // multi dimensional, 5x5, no initialization
+
+    // [1,2,3](2) error array size cannot be larger than the elements given
+    // [](5) // error no element, and type, we can't guess type
+    // []int // error int empty array, no size given, no elements, useless empty array
+
+    // unsupported :
+    // [[1,2],[1,2]] 2x2 array
+
     if(consume_op('[')) {
+        // TODO support multi dimensional params
         std::vector<std::unique_ptr<Value>> params;
         do {
             auto param = parseExpression();
@@ -21,7 +37,49 @@ lex_ptr<ArrayValue> Parser::parseArrayValue() {
             }
         } while(consume_op(','));
         if(consume_op(']')) {
-            return std::make_unique<ArrayValue>(std::move(params));
+            std::optional<std::string> type = std::nullopt;
+            if(token_type() == LexTokenType::Type) {
+                type.emplace(consume<TypeToken>()->value);
+            } else {
+                if(params.empty()) {
+                    error("cannot guess array type, if there's no element in the array and type's not given");
+                    return std::nullopt;
+                }
+            }
+            std::vector<unsigned int> dimension_sizes;
+            if(consume_op('(')) {
+                do {
+                    auto sizeVal = parseIntValue();
+                    if (sizeVal.has_value()) {
+                        dimension_sizes.push_back(sizeVal.value()->as_int());
+                    } else {
+                        break;
+                    }
+                } while (consume_op(','));
+                if(!consume_op(')')) {
+                    error("expected ')' after the array value declaration");
+                    return std::nullopt;
+                }
+            }
+            if(dimension_sizes.empty()) {
+                if(params.empty()) {
+                    error("array has no params & no size, creating an empty static array which is useless");
+                    return std::nullopt;
+                }
+            } else {
+                if(params.empty() || params.size() < dimension_sizes[0]) {
+                    error("array elements cannot be larger than size of the array");
+                    return std::nullopt;
+                }
+                for(const auto& size : dimension_sizes) {
+                    if(size < 0) {
+                        error("array size cannot be smaller than 0");
+                        return std::nullopt;
+                    }
+                }
+                // TODO check multi dimensional arrays sizes with their elements
+            }
+            return std::make_unique<ArrayValue>(std::move(params), std::move(type), std::move(dimension_sizes));
         } else {
             error("expected a ']' after the array declaration");
         }

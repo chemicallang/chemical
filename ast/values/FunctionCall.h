@@ -51,17 +51,21 @@ public:
         }
     }
 
-    void code_gen(Codegen &gen) override {
+    llvm::Value * llvm_value(Codegen &gen) override {
         auto fn = gen.module->getFunction(name);
         if(fn == nullptr) {
             gen.error("function with name " + name + " does not exist");
-            return;
+            return nullptr;
         }
         std::vector<llvm::Value*> args(values.size());
         for(size_t i = 0; i < values.size(); ++i) {
             args[i] = values[i]->llvm_value(gen);
         }
-        gen.builder->CreateCall(fn, args);
+        return gen.builder->CreateCall(fn, args);
+    }
+
+    void code_gen(Codegen &gen) override {
+      llvm_value(gen);
     }
 
     std::string representation() const override {

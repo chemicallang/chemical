@@ -40,6 +40,14 @@ public:
         }
     }
 
+    llvm::Value * llvm_pointer(Codegen &gen) override {
+        return value.has_value() ? value.value()->llvm_pointer(gen) : nullptr;
+    }
+
+    llvm::Type * llvm_elem_type(Codegen &gen) override {
+        return value.has_value() ? value.value()->llvm_elem_type(gen) : nullptr;
+    }
+
     llvm::Type *llvm_type(Codegen &gen) override {
         check_has_type(gen);
         return value.has_value() ? value.value()->llvm_type(gen) : gen.llvm_type(type.value());
@@ -47,9 +55,8 @@ public:
 
     void code_gen(Codegen &gen) override {
         declare(gen);
-        auto x = gen.builder->CreateAlloca(llvm_type(gen), nullptr, identifier);
-        if (value.has_value()) {
-            gen.builder->CreateStore(value.value()->llvm_value(gen), x);
+        if(value.has_value()) {
+            value.value()->llvm_allocate(gen, identifier);
         }
     }
 

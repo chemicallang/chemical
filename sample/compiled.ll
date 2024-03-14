@@ -7,6 +7,7 @@ source_filename = "TodoName"
 @3 = private unnamed_addr constant [23 x i8] c"check this float : %f\0A\00", align 1
 @4 = private unnamed_addr constant [14 x i8] c"current : %d\0A\00", align 1
 @5 = private unnamed_addr constant [15 x i8] c"for loop : %d\0A\00", align 1
+@6 = private unnamed_addr constant [14 x i8] c"check c : %d\0A\00", align 1
 
 declare i32 @printf(ptr, ...)
 
@@ -80,5 +81,9 @@ forthen:                                          ; preds = %forcond
   br label %forcond
 
 forend:                                           ; preds = %forcond
+  %c = alloca i32, align 4
+  store i32 155, ptr %c, align 4
+  %c8 = load i32, ptr %c, align 4
+  %19 = call i32 (ptr, ...) @printf(ptr @6, i32 %c8)
   ret i32 0
 }

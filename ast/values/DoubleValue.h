@@ -24,6 +24,14 @@ public:
         return true;
     }
 
+    llvm::Type * llvm_type(Codegen &gen) override {
+        return gen.builder->getDoubleTy();
+    }
+
+    llvm::Value * llvm_value(Codegen &gen) override {
+        return llvm::ConstantFP::get(llvm_type(gen), value);
+    }
+
     Value * copy() override {
         return new DoubleValue(value);
     }

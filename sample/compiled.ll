@@ -6,6 +6,7 @@ source_filename = "TodoName"
 @2 = private unnamed_addr constant [22 x i8] c"check this char '%c'\0A\00", align 1
 @3 = private unnamed_addr constant [23 x i8] c"check this float : %f\0A\00", align 1
 @4 = private unnamed_addr constant [14 x i8] c"current : %d\0A\00", align 1
+@5 = private unnamed_addr constant [15 x i8] c"for loop : %d\0A\00", align 1
 
 declare i32 @printf(ptr, ...)
 
@@ -48,7 +49,9 @@ loopthen:                                         ; preds = %loopcond
   br i1 %12, label %ifthen, label %ifend
 
 loopexit:                                         ; preds = %ifthen, %loopcond
-  ret i32 0
+  %j = alloca i32, align 4
+  store i32 0, ptr %j, align 4
+  br label %forcond
 
 ifthen:                                           ; preds = %loopthen
   br label %loopexit
@@ -62,4 +65,20 @@ ifend:                                            ; preds = %loopthen
   %15 = add i32 %i4, 1
   store i32 %15, ptr %i, align 4
   br label %loopcond
+
+forcond:                                          ; preds = %forthen, %loopexit
+  %j5 = load i32, ptr %j, align 4
+  %16 = icmp slt i32 %j5, 5
+  br i1 %16, label %forthen, label %forend
+
+forthen:                                          ; preds = %forcond
+  %j6 = load i32, ptr %j, align 4
+  %17 = call i32 (ptr, ...) @printf(ptr @5, i32 %j6)
+  %j7 = load i32, ptr %j, align 4
+  %18 = add i32 %j7, 1
+  store i32 %18, ptr %j, align 4
+  br label %forcond
+
+forend:                                           ; preds = %forcond
+  ret i32 0
 }

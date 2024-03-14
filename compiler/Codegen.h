@@ -76,6 +76,16 @@ public:
     }
 
     /**
+     * when generating code for the body of the loop, it should be wrapped with this function call
+     * before and after the body generation
+     * this ensures that break and continue instructions work properly by pointing to the given blocks
+     * @param gen
+     * @param condBlock
+     * @param endBlock
+     */
+    void loop_body_wrap(llvm::BasicBlock* condBlock, llvm::BasicBlock* endBlock);
+
+    /**
      * This sets the insert point to this block
      * Instead of using builder.SetInsertPoint, this function should be
      * used because llvm doesn't support multiple consecutive returns or branches
@@ -98,10 +108,20 @@ public:
      * The safe version of builder.CreateRet
      * this will avoid creating multiple terminator instructions
      * once you call this, no longer can you create branch, or return instructions
-     * becuase you've already shifted to another block
+     * because you've already shifted to another block
      * @param value
      */
     void CreateRet(llvm::Value* value);
+
+    /**
+     * The safe version of builder.CreateCondBr
+     * this will avoid creating multiple terminator instructions
+     * @param Cond
+     * @param True
+     * @param False
+     * @return
+     */
+    void CreateCondBr(llvm::Value *Cond, llvm::BasicBlock *True, llvm::BasicBlock *FalseMDNode);
 
     /**
      * this operates on two values, left and right

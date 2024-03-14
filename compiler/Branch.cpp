@@ -20,3 +20,10 @@ void Codegen::CreateRet(llvm::Value* value) {
         has_current_block_ended = true;
     }
 }
+
+void Codegen::CreateCondBr(llvm::Value *Cond, llvm::BasicBlock *True, llvm::BasicBlock *FalseMDNode) {
+    if(!has_current_block_ended) {
+        builder->CreateCondBr(Cond, True, FalseMDNode);
+        has_current_block_ended = true;
+    }
+}

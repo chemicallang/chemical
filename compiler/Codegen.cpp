@@ -15,6 +15,12 @@ void Codegen::compile() {
     current.clear();
 }
 
+void Codegen::loop_body_wrap(llvm::BasicBlock *condBlock, llvm::BasicBlock *endBlock) {
+    // set current loop exit, so it can be broken
+    current_loop_continue = condBlock;
+    current_loop_exit = endBlock;
+}
+
 void Codegen::error(const std::string& err){
     std::string errStr = "[Codegen] ERROR\n";
     errStr += "---- message : " + err + "\n";

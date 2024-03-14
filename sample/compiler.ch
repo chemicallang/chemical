@@ -18,5 +18,8 @@ func main(argc : int) : int {
         printf("current : %d\n", arr[i]);
         i += 1;
     }
+    for(var j = 0; j < 5; j+=1) {
+        printf("for loop : %d\n", j);
+    }
     return 0;
 }

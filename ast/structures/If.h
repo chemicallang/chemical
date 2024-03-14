@@ -66,7 +66,7 @@ public:
         auto nextBlock = !elseIfsBlocks.empty() ? elseIfsBlocks[0].first : elseOrEndBlock;
 
         // Branch based on comparison result
-        gen.builder->CreateCondBr(comparison, thenBlock, nextBlock);
+        gen.CreateCondBr(comparison, thenBlock, nextBlock);
 
         // generating then code
         gen.SetInsertPoint(thenBlock);
@@ -83,7 +83,7 @@ public:
             gen.SetInsertPoint(pair.first);
             comparison = elif.first->llvm_value(gen);
             nextBlock = ((i + 1) < elseIfsBlocks.size()) ? elseIfsBlocks[i + 1].first : elseOrEndBlock;
-            gen.builder->CreateCondBr(comparison, pair.second, nextBlock);
+            gen.CreateCondBr(comparison, pair.second, nextBlock);
 
             // generating block code
             gen.SetInsertPoint(pair.second);

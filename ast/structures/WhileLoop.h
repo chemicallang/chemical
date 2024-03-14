@@ -48,21 +48,19 @@ public:
         auto loopThen = llvm::BasicBlock::Create(*gen.ctx, "loopthen", gen.current_function);
         auto exitBlock = llvm::BasicBlock::Create(*gen.ctx, "loopexit", gen.current_function);
 
-        // set current loop exit, so it can be broken
-        gen.current_loop_exit = exitBlock;
-        gen.current_loop_continue = loopCond;
-
         // sending to loop condition
         gen.CreateBr(loopCond);
 
         // loop condition
         gen.SetInsertPoint(loopCond);
         auto comparison = condition->llvm_value(gen);
-        gen.builder->CreateCondBr(comparison, loopThen, exitBlock);
+        gen.CreateCondBr(comparison, loopThen, exitBlock);
 
         // loop then
         gen.SetInsertPoint(loopThen);
+        gen.loop_body_wrap(loopCond, exitBlock);
         body.code_gen(gen);
+        gen.loop_body_wrap(loopCond, exitBlock);
         gen.CreateBr(loopCond);
 
         // loop exit

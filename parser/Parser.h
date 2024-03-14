@@ -519,6 +519,15 @@ public:
     }
 
     /**
+     * this would store a warning
+     * @param err
+     */
+    inline void warning(const std::string &err) {
+        // TODO implement this beautiful function
+        error(err);
+    }
+
+    /**
      * get current token type
      * @return
      */

@@ -86,6 +86,30 @@ public:
         throw std::runtime_error("llvm_type called on bare Value of type " + std::to_string((int) value_type()));
     };
 
+    /**
+     * allocates this value with this identifier
+     * @param gen
+     * @param identifier
+     */
+    virtual void llvm_allocate(Codegen& gen, const std::string& identifier) {
+        auto x = gen.builder->CreateAlloca(llvm_type(gen), nullptr, identifier);
+        gen.builder->CreateStore(llvm_value(gen), x);
+    }
+
+    /**
+     * provides llvm_elem_type, which is the child type for example elem type of an array value
+     * @param gen
+     * @return
+     */
+    virtual llvm::Type* llvm_elem_type(Codegen& gen) {
+        throw std::runtime_error("llvm_elem_type called on bare Value of type " + std::to_string((int) value_type()));
+    };
+
+    /**
+     * returns a llvm pointer to the value, if has any
+     * @param gen
+     * @return
+     */
     virtual llvm::Value* llvm_pointer(Codegen& gen) {
         throw std::runtime_error("llvm_pointer called on bare Value of type " + std::to_string((int) value_type()));
     }
@@ -95,7 +119,7 @@ public:
      * @return
      */
     virtual llvm::Value* llvm_value(Codegen& gen) {
-        throw std::runtime_error("llvm_value called on bare Value of type " + std::to_string((int) value_type()));
+        throw std::runtime_error("llvm_value called on bare Value with representation : " + representation() + " , type " + std::to_string((int) value_type()));
     }
 
     /**

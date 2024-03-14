@@ -46,12 +46,30 @@ public:
     }
 
     /**
+     * returns a llvm pointer
+     * @param gen
+     * @return
+     */
+    virtual llvm::Value* llvm_pointer(Codegen &gen) {
+        throw std::runtime_error("llvm_pointer called on bare ASTNode, with representation" + representation());
+    };
+
+    /**
      * provides llvm_type if this statement declares a type
      * @param gen
      * @return
      */
     virtual llvm::Type* llvm_type(Codegen& gen) {
         throw std::runtime_error("llvm_type called on bare ASTNode, with representation" + representation());
+    };
+
+    /**
+     * provides llvm_elem_type, which is the child type for example elem type of an array value
+     * @param gen
+     * @return
+     */
+    virtual llvm::Type* llvm_elem_type(Codegen& gen) {
+        throw std::runtime_error("llvm_elem_type called on bare ASTNode, with representation" + representation());
     };
 
     /**

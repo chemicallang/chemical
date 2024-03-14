@@ -49,7 +49,8 @@ lex_ptr<AccessChain> Parser::parseAccessChain() {
             if(consume_op('[')){
                 auto val = parseExpression();
                 if(val.has_value()) {
-                    chain->values.emplace_back(std::make_unique<IndexOperator>(std::move(val.value())));
+                    // TODO index operator shouldn't take variable identifier
+                    chain->values.emplace_back(std::make_unique<IndexOperator>(std::move(var.value()->value), std::move(val.value())));
                 } else {
                     error("expected a value for the index operators '[]' in the access chain");
                     break;

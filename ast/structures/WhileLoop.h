@@ -45,7 +45,7 @@ public:
     void code_gen(Codegen &gen) override {
 
         auto loopCond = llvm::BasicBlock::Create(*gen.ctx, "loopcond", gen.current_function);
-        auto loopThen = llvm::BasicBlock::Create(*gen.ctx, "loopexit", gen.current_function);
+        auto loopThen = llvm::BasicBlock::Create(*gen.ctx, "loopthen", gen.current_function);
         auto exitBlock = llvm::BasicBlock::Create(*gen.ctx, "loopexit", gen.current_function);
 
         // sending to loop condition

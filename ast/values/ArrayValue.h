@@ -15,11 +15,50 @@ class ArrayValue : public Value {
 public:
 
     ArrayValue(std::vector<std::unique_ptr<Value>> values) : values(std::move(values)) {
-
+        values.shrink_to_fit();
     }
 
     ArrayValue(ArrayValue&& other) : values(std::move(other.values)) {
 
+    }
+
+    inline unsigned int array_size() {
+        return values.size();
+    }
+
+    llvm::Value * llvm_pointer(Codegen &gen) override {
+        return arr;
+    }
+
+    void llvm_allocate(Codegen &gen, const std::string &identifier) override {
+        auto arrType = llvm_type(gen);
+        arr = gen.builder->CreateAlloca(arrType, nullptr, identifier);
+        // filling array with values
+        for (size_t i = 0; i < values.size(); ++i) {
+            auto index = llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), i);
+            auto elemPtr = gen.builder->CreateGEP(arrType, arr, {llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), 0), index});
+            auto elemValue = values[i]->llvm_value(gen);
+            gen.builder->CreateStore(elemValue, elemPtr);
+        }
+    }
+
+    llvm::Value * llvm_value(Codegen &gen) override {
+        throw std::runtime_error("cannot allocate an array without an identifier");
+    }
+
+    llvm::Type * llvm_elem_type(Codegen &gen) override {
+        llvm::Type* elementType;
+        if(values.empty()) {
+            // get empty array type from the user
+            elementType = gen.builder->getInt1Ty();
+        } else {
+            elementType = values[0]->llvm_type(gen);
+        }
+        return elementType;
+    }
+
+    llvm::Type * llvm_type(Codegen &gen) override {
+        return llvm::ArrayType::get(llvm_elem_type(gen), array_size());
     }
 
     std::string representation() const override {
@@ -38,5 +77,8 @@ public:
     }
 
     std::vector<std::unique_ptr<Value>> values;
+
+    // TODO this arr value should be stored in code gen since its related to that
+    llvm::AllocaInst* arr;
 
 };

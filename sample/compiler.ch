@@ -2,10 +2,11 @@ func printf(format : string, args : any...) : int
 
 func main(argc : int) : int {
     printf("number of arguments : %d\n", argc);
+    var arr = [2,4,6,8,10];
     var i = 0;
-    do {
-        printf("i = %d", i);
+    while(i < 5) {
+        printf("current : %d\n", arr[i]);
         i += 1;
-    } while(i < 10);
+    }
     return 0;
 }

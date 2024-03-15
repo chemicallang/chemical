@@ -42,7 +42,7 @@ public:
         }
     }
 
-    void type_check(TypeChecker &checker) override {
+    void type_check(TypeChecker &checker) const override {
         if((value.has_value() && type.has_value()) && !type.value()->satisfies(value.value()->value_type())) {
             checker.error("var initialization statement fails");
         }

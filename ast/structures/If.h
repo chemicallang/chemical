@@ -29,6 +29,16 @@ public:
     ) : condition(std::move(condition)), ifBody(std::move(ifBody)),
         elseIfs(std::move(elseIfs)), elseBody(std::move(elseBody)) {}
 
+    void type_check(TypeChecker &checker) const override {
+        ifBody.type_check(checker);
+        for(const auto& eif : elseIfs) {
+            eif.second.type_check(checker);
+        }
+        if(elseBody.has_value()) {
+            elseBody->type_check(checker);
+        }
+    }
+
     void code_gen(Codegen &gen) override {
 
         // compare

@@ -133,6 +133,12 @@ public:
     }
 
     /**
+     * saves as object file to this path
+     * @param out_path
+     */
+    void save_to_object_file(const std::string &out_path);
+
+    /**
      * when generating code for the body of the loop, it should be wrapped with this function call
      * before and after the body generation
      * this ensures that break and continue instructions work properly by pointing to the given blocks

@@ -5,6 +5,14 @@ cmake_minimum_required(VERSION 3.8)
 message("CMake version: ${CMAKE_VERSION}")
 project("chemical")
 
+set(CMAKE_PREFIX_PATH "/mnt/d/Programming/Cpp/zig-bootstrap/out/host")
+set(ZIG_USE_LLVM_CONFIG ON)
+set(CMAKE_USER_MAKE_RULES_OVERRIDE
+        ${CMAKE_CURRENT_SOURCE_DIR}/cmake/c_flag_overrides.cmake)
+set(CMAKE_USER_MAKE_RULES_OVERRIDE_CXX
+        ${CMAKE_CURRENT_SOURCE_DIR}/cmake/cxx_flag_overrides.cmake)
+set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
+
 # Enable verbose output
 #set(CMAKE_VERBOSE_MAKEFILE ON)
 # Use static libraries
@@ -221,6 +229,7 @@ set(COMMON_SOURCES
         ast/types/VoidType.h
         ast/types/AnyType.h
         utils/CmdUtils.h
+        compiler/Object.cpp
 )
 
 # Chemical LSP Executable Target
@@ -269,7 +278,7 @@ target_include_directories(Compiler PRIVATE
 )
 
 # find the libraries that correspond to llvm
-llvm_map_components_to_libnames(LLVM_LIBRARIES support core)
+#llvm_map_components_to_libnames(LLVM_LIBRARIES support core)
 
 # Indicate which libraries are present in these vars
 message(STATUS "Clang Libs ${CLANG_LIBRARIES}")

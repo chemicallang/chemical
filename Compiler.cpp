@@ -60,15 +60,17 @@ int main(int argc, char *argv[]) {
     Codegen gen(std::move(scope.nodes), argv[1]);
     // compile
     gen.compile();
-    // print the errors occurred
+    if(gen.errors.empty()) { // if there's no compilation errors
+        if (endsWith(output.value(), ".ll")) {
+            // save the generation to a file
+            gen.save_to_file(output.value());
+        } else if (endsWith(output.value(), ".o")) {
+            gen.save_to_object_file(output.value());
+        }
+    }
+    // prints the errors occurred during saving as well
     for (const auto &error: gen.errors) {
         std::cout << error << std::endl;
-    }
-    if(endsWith(output.value(), ".ll")) {
-        // save the generation to a file
-        gen.save_to_file(output.value());
-    } else if(endsWith(output.value(), ".o")) {
-        std::cerr << "\nobject file output not yet supported\n\n";
     }
     auto print = options.option("print", "p");
     if (print.has_value()) {

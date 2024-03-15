@@ -24,6 +24,7 @@ public:
         return true;
     }
 
+#ifdef COMPILER_BUILD
     llvm::Type * llvm_type(Codegen &gen) override {
         return gen.builder->getDoubleTy();
     }
@@ -31,6 +32,7 @@ public:
     llvm::Value * llvm_value(Codegen &gen) override {
         return llvm::ConstantFP::get(llvm_type(gen), value);
     }
+#endif
 
     Value * copy() override {
         return new DoubleValue(value);

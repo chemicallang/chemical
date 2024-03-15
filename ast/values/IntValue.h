@@ -27,6 +27,7 @@ public:
         return rep;
     }
 
+#ifdef COMPILER_BUILD
     llvm::Type * llvm_type(Codegen &gen) override {
         return gen.builder->getInt32Ty();
     }
@@ -38,6 +39,7 @@ public:
     llvm::Value* casted_llvm_value(Codegen &gen) override {
         return gen.builder->CreateIntCast(llvm_value(gen), gen.builder->getInt32Ty(), true);
     }
+#endif
 
     bool primitive() override {
         return true;

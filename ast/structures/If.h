@@ -33,6 +33,7 @@ public:
         visitor.visit(this);
     }
 
+#ifdef COMPILER_BUILD
     void code_gen(Codegen &gen) override {
 
         // compare
@@ -108,6 +109,7 @@ public:
         gen.SetInsertPoint(endBlock);
 
     }
+#endif
 
     void interpret(InterpretScope &scope) override {
         if(condition->evaluated_bool(scope)) {

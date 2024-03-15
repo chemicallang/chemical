@@ -27,13 +27,13 @@ public:
             std::optional<std::unique_ptr<Value>> value
     ) : identifier(std::move(identifier)), type(std::move(type)), value(std::move(value)) {}
 
-    inline void declare(Codegen &gen) {
-        gen.current[identifier] = this;
+    void accept(Visitor& visitor) override {
+        visitor.visit(this);
     }
 
-    void undeclare(Codegen &gen) override {
-        gen.current.erase(identifier);
-        gen.allocated.erase(identifier);
+#ifdef COMPILER_BUILD
+    inline void declare(Codegen &gen) {
+        gen.current[identifier] = this;
     }
 
     inline void check_has_type(Codegen& gen) {
@@ -43,8 +43,9 @@ public:
         }
     }
 
-    void accept(Visitor& visitor) override {
-        visitor.visit(this);
+    void undeclare(Codegen &gen) override {
+        gen.current.erase(identifier);
+        gen.allocated.erase(identifier);
     }
 
     llvm::Value * llvm_pointer(Codegen &gen) override {
@@ -68,6 +69,7 @@ public:
             gen.allocated[identifier] = gen.builder->CreateAlloca(llvm_type(gen), nullptr, identifier);
         }
     }
+#endif
 
     void interpret(InterpretScope &scope) override {
         if (value.has_value()) {

@@ -31,9 +31,11 @@ public:
         return true;
     }
 
+#ifdef COMPILER_BUILD
     llvm::Value * llvm_value(Codegen &gen) override {
         return gen.builder->CreateGlobalStringPtr(value);
     }
+#endif
 
     Value * copy() override {
         return new StringValue(value);

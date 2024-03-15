@@ -29,6 +29,7 @@ public:
         return new CharValue(value);
     }
 
+#ifdef COMPILER_BUILD
     llvm::Type * llvm_type(Codegen &gen) override {
         return gen.builder->getInt8Ty();
     }
@@ -36,6 +37,7 @@ public:
     llvm::Value * llvm_value(Codegen &gen) override {
         return gen.builder->getInt8((int) value);
     }
+#endif
 
     std::string interpret_representation() const override {
         std::string rep;

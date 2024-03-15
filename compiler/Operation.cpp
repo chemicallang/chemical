@@ -2,6 +2,7 @@
 
 #include "Codegen.h"
 
+#ifdef COMPILER_BUILD
 llvm::Value* Codegen::operate(Operation op, llvm::Value* lhs, llvm::Value* rhs) {
     switch(op) {
 //        case Operation::Grouping:
@@ -107,3 +108,4 @@ llvm::Value* Codegen::operate(Operation op, llvm::Value* lhs, llvm::Value* rhs) 
 //            break;
     }
 }
+#endif

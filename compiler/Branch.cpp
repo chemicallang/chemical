@@ -1,5 +1,6 @@
 // Copyright (c) Qinetik 2024.
 
+#ifdef COMPILER_BUILD
 #include "Codegen.h"
 
 void Codegen::SetInsertPoint(llvm::BasicBlock* block) {
@@ -27,3 +28,5 @@ void Codegen::CreateCondBr(llvm::Value *Cond, llvm::BasicBlock *True, llvm::Basi
         has_current_block_ended = true;
     }
 }
+
+#endif

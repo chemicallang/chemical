@@ -2,6 +2,7 @@
 
 #pragma once
 
+#ifdef COMPILER_BUILD
 #include <memory>
 #include <utility>
 #include <vector>
@@ -239,3 +240,4 @@ private:
     bool has_current_block_ended = false;
 
 };
+#endif

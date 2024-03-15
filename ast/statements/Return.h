@@ -29,6 +29,7 @@ public:
         visitor.visit(this);
     }
 
+#ifdef COMPILER_BUILD
     void code_gen(Codegen &gen) override {
         if(value.has_value()) {
             gen.CreateRet(value.value()->llvm_value(gen));
@@ -36,6 +37,7 @@ public:
             gen.CreateRet(nullptr);
         }
     }
+#endif
 
     std::string representation() const override {
         std::string ret;

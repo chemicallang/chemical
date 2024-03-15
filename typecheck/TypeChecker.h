@@ -5,6 +5,7 @@
 #include <utility>
 #include <memory>
 #include <vector>
+#include <string>
 #include "ast/base/Visitor.h"
 
 class ASTNode;

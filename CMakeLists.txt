@@ -238,6 +238,11 @@ add_executable(Interpreter Interpreter.cpp ${COMMON_SOURCES})
 # add chemical llvm executable
 add_executable(Compiler Compiler.cpp ${COMMON_SOURCES})
 
+# Compiler uses llvm
+target_compile_definitions(Compiler PRIVATE COMPILER_BUILD)
+# Lsp uses boost library
+target_compile_definitions(ChemicalLsp PRIVATE LSP_BUILD)
+
 # Add include directories for LspCpp
 target_include_directories(ChemicalLsp PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/LspCpp/include
@@ -257,12 +262,11 @@ target_include_directories(Compiler PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${CMAKE_CURRENT_SOURCE_DIR}/LspCpp/include
+        # Include llvm directories for the compiler executable
+        ${LLVM_INCLUDE_DIRS}
+        ${LLD_INCLUDE_DIRS}
+        ${CLANG_INCLUDE_DIRS}
 )
-
-# Include llvm directories for the compiler executable
-include_directories(${LLVM_INCLUDE_DIRS})
-include_directories(${LLD_INCLUDE_DIRS})
-include_directories(${CLANG_INCLUDE_DIRS})
 
 # find the libraries that correspond to llvm
 llvm_map_components_to_libnames(LLVM_LIBRARIES support core)

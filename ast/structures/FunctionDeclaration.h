@@ -21,9 +21,11 @@ public:
     FunctionParam* as_parameter() override {
         return this;
     }
+#ifdef COMPILER_BUILD
     llvm::Type* llvm_type(Codegen &gen) override {
         return type->llvm_type(gen);
     }
+#endif
     std::string representation() const override {
         return name + " : " + type->representation();
     }
@@ -61,6 +63,7 @@ public:
         visitor.visit(this);
     }
 
+#ifdef COMPILER_BUILD
     std::vector<llvm::Type*> param_types(Codegen& gen) {
         auto size = isVariadic ? (params.size() - 1 ): params.size();
         std::vector<llvm::Type*> array(size);
@@ -102,6 +105,7 @@ public:
             gen.declare_function(name, function_type(gen));
         }
     }
+#endif
 
     void interpret(InterpretScope &scope) override {
         scope.values[name] = this;

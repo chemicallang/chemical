@@ -1,5 +1,6 @@
 // Copyright (c) Qinetik 2024.
 
+#ifdef COMPILER_BUILD
 #include "ast/base/ASTNode.h"
 #include "Codegen.h"
 
@@ -28,3 +29,5 @@ void Codegen::error(const std::string& err){
     errStr += "---- node position : " + std::to_string(position);
     errors.push_back(errStr);
 }
+
+#endif

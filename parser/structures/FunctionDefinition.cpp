@@ -8,6 +8,7 @@
 #include "lexer/model/tokens/FunctionToken.h"
 #include "lexer/model/tokens/ParameterToken.h"
 #include "lexer/model/tokens/TypeToken.h"
+#include "ast/types/VoidType.h"
 
 lex_ptr<ReturnStatement> Parser::parseReturnStatement() {
     if (consume("return")) {
@@ -40,9 +41,9 @@ lex_ptr<FunctionDeclaration> Parser::parseFunctionDefinition(bool declarations) 
                             error("expected a ':' after the parameter for its type");
                             break;
                         }
-                        if (token_type() == LexTokenType::Type) {
-                            auto typeToken = consume<TypeToken>();
-                            params.emplace_back(std::move(paramToken->value), std::move(typeToken->value), paramsCount);
+                        auto type = parseType();
+                        if(type.has_value()) {
+                            params.emplace_back(std::move(paramToken->value), std::move(type.value()), paramsCount);
                             paramsCount++;
                             if(token_type() == LexTokenType::StringOperator && as<AbstractStringToken>()->value == "...") {
                                 increment();
@@ -50,7 +51,7 @@ lex_ptr<FunctionDeclaration> Parser::parseFunctionDefinition(bool declarations) 
                                 break;
                             }
                         } else {
-                            error("expected a type after the colon ':' for the function signature");
+                            error("expected a type after the colon ':' for the function parameter");
                             break;
                         }
                     }
@@ -58,21 +59,20 @@ lex_ptr<FunctionDeclaration> Parser::parseFunctionDefinition(bool declarations) 
                 if (!consume_op(')')) {
                     error("expected a ')' after the function signature");
                 }
-                std::optional<std::string> returnType;
+                lex_ptr<BaseType> returnType;
                 if (consume_op(':')) {
-                    if (token_type() == LexTokenType::Type) {
-                        returnType = std::move(consume<TypeToken>()->value);
-                    } else {
-                        error("expected a type after the colon ':' for the function signature");
+                    returnType = parseType();
+                    if(!returnType.has_value()) {
+                        error("expected a type after the colon ':' for the function return");
                         return std::nullopt;
                     }
                 } else {
-                    returnType = std::nullopt;
+                    returnType = std::make_unique<VoidType>();
                 }
 
                 // create declaration before, so that return statement can take a pointer to it
                 auto declaration = std::make_unique<FunctionDeclaration>(std::move(token->value), std::move(params),
-                                                                         std::move(returnType), isVariadic);
+                                                                         std::move(returnType.value()), isVariadic);
 
                 if (!consume_op('{')) {
                     if (declarations) {

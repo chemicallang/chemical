@@ -39,14 +39,10 @@ lex_ptr<ArrayValue> Parser::parseArrayValue() {
             }
         } while(consume_op(','));
         if(consume_op(']')) {
-            std::optional<std::string> type = std::nullopt;
-            if(token_type() == LexTokenType::Type) {
-                type.emplace(consume<TypeToken>()->value);
-            } else {
-                if(params.empty()) {
-                    error("cannot guess array type, if there's no element in the array and type's not given");
-                    return std::nullopt;
-                }
+            lex_ptr<BaseType> type = parseType();
+            if(!type.has_value() && params.empty()) {
+                error("cannot guess array type, if there's no element in the array and type's not given");
+                return std::nullopt;
             }
             std::vector<unsigned int> dimension_sizes;
             if(consume_op('(')) {

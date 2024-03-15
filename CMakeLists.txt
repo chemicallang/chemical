@@ -203,7 +203,6 @@ set(COMMON_SOURCES
         compiler/Codegen.cpp
         ast/base/BaseType.h
         compiler/Operation.cpp
-        compiler/Type.cpp
         compiler/ASTLinker.h
         compiler/ASTLinker.cpp
         compiler/ASTPointer.h
@@ -220,6 +219,8 @@ set(COMMON_SOURCES
         ast/types/ArrayType.h
         parser/utils/Type.cpp
         ast/base/Visitor.h
+        ast/types/VoidType.h
+        ast/types/AnyType.h
 )
 
 # Chemical LSP Executable Target

@@ -15,7 +15,7 @@ bool Lexer::lexDoWhileBlockTokens() {
     // { statement(s) } with continue & break support
     isLexContinueStatement = true;
     isLexBreakStatement = true;
-    if(!lexBraceBlock()) {
+    if(!lexBraceBlock("dowhileloop")) {
         error("expected a brace block { statement(s) } when lexing a while block");
     }
     isLexContinueStatement = false;

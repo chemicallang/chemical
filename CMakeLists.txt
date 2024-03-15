@@ -5,6 +5,8 @@ cmake_minimum_required(VERSION 3.8)
 message("CMake version: ${CMAKE_VERSION}")
 project("chemical")
 
+# Enable verbose output
+#set(CMAKE_VERBOSE_MAKEFILE ON)
 # Use static libraries
 set(Boost_USE_STATIC_LIBS ON)
 # Use debug version of Boost libraries
@@ -19,7 +21,7 @@ set(Boost_NO_WARN_NEW_VERSIONS 1)
 # set(Boost_DEBUG 1)
 
 # include some compiler options for better support
-include(config/CompilerOptions.cmake)
+include(cmake/CompilerOptions.cmake)
 
 # Set CMP0074 policy so that CMake can use BOOST_ROOT environment variable
 if (POLICY CMP0074)
@@ -37,17 +39,26 @@ find_package(lld 17)
 # Add the LspCpp library directory
 add_subdirectory(LspCpp)
 
-if (MSVC)
-    message(STATUS "Using VS at $ENV{VSINSTALLDIR}")
-    set(MSVC_DIA_SDK_DIR "$ENV{VSINSTALLDIR}DIA SDK")
-    if (IS_DIRECTORY ${MSVC_DIA_SDK_DIR})
-        set(ZIG_DIA_GUIDS_LIB "${MSVC_DIA_SDK_DIR}/lib/amd64/diaguids.lib")
-        string(REGEX REPLACE "\\\\" "\\\\\\\\" ZIG_DIA_GUIDS_LIB_ESCAPED "${ZIG_DIA_GUIDS_LIB}")
-    endif ()
-endif ()
+#if (MSVC)
+#    message(STATUS "Using VS at $ENV{VSINSTALLDIR}")
+#    set(MSVC_DIA_SDK_DIR "$ENV{VSINSTALLDIR}DIA SDK")
+#    if (IS_DIRECTORY ${MSVC_DIA_SDK_DIR})
+#        set(ZIG_DIA_GUIDS_LIB "${MSVC_DIA_SDK_DIR}/lib/amd64/diaguids.lib")
+#        string(REGEX REPLACE "\\\\" "\\\\\\\\" ZIG_DIA_GUIDS_LIB_ESCAPED "${ZIG_DIA_GUIDS_LIB}")
+#    endif ()
+#endif ()
 
 # Add your common source files (excluding the main files)
-set(COMMON_SOURCES "lexer/Lexer.cpp" "lexer/Lexer.h" "lexer/model/tokens/CharOperatorToken.h" "lexer/model/tokens/VariableToken.h" "lexer/model/tokens/NumberToken.h" "lexer/model/tokens/KeywordToken.h" "lexer/model/tokens/LexToken.h" "lexer/model/tokens/WhitespaceToken.h" "stream/SourceProvider.h"
+set(COMMON_SOURCES
+        lexer/Lexer.cpp
+        lexer/Lexer.h
+        lexer/model/tokens/CharOperatorToken.h
+        lexer/model/tokens/VariableToken.h
+        lexer/model/tokens/NumberToken.h
+        lexer/model/tokens/KeywordToken.h
+        lexer/model/tokens/LexToken.h
+        lexer/model/tokens/WhitespaceToken.h
+        stream/SourceProvider.h
         lexer/Lexi.h
         lexer/statements/LexAssignment.cpp
         lexer/statements/VarInitialization.cpp
@@ -190,13 +201,24 @@ set(COMMON_SOURCES "lexer/Lexer.cpp" "lexer/Lexer.h" "lexer/model/tokens/CharOpe
         parser/utils/ValueAndOperatorStack.h
         compiler/Codegen.h
         compiler/Codegen.cpp
-        ast/types/BaseType.h
+        ast/base/BaseType.h
         compiler/Operation.cpp
         compiler/Type.cpp
         compiler/ASTLinker.h
         compiler/ASTLinker.cpp
         compiler/ASTPointer.h
         compiler/Branch.cpp
+        ast/types/Int32Type.h
+        ast/types/FloatType.h
+        ast/types/StringType.h
+        ast/types/DoubleType.h
+        ast/values/TernaryValue.h
+        typecheck/TypeChecker.h
+        typecheck/TypeChecker.cpp
+        ast/types/BoolType.h
+        ast/types/CharType.h
+        ast/types/ArrayType.h
+        parser/utils/Type.cpp
 )
 
 # Chemical LSP Executable Target
@@ -241,22 +263,24 @@ include_directories(${LLD_INCLUDE_DIRS})
 include_directories(${CLANG_INCLUDE_DIRS})
 
 # find the libraries that correspond to llvm
-llvm_map_components_to_libnames(llvm_libs support core)
+llvm_map_components_to_libnames(LLVM_LIBRARIES support core)
+
+# Indicate which libraries are present in these vars
+message(STATUS "Clang Libs ${CLANG_LIBRARIES}")
+message(STATUS "LLvm Libs ${LLVM_LIBRARIES}")
 
 # Linking interpreter with Boost library
 # This should be removed eventually we don't want boost to boost our exe size
 target_link_libraries(Interpreter Boost::program_options Boost::filesystem lspcpp)
 
 # Link compiler against boost
-target_link_libraries(Compiler Boost::program_options Boost::filesystem lspcpp ${llvm_libs})
+target_link_libraries(Compiler Boost::program_options Boost::filesystem lspcpp ${LLVM_LIBRARIES})
 
 # Link Lsp with Boost Library
 target_link_libraries(ChemicalLsp Boost::program_options Boost::filesystem lspcpp)
 
 # Set to C++ 20
-if (CMAKE_VERSION VERSION_GREATER 3.12)
-    message(STATUS "C++ standard 20 is set")
-    set_property(TARGET ChemicalLsp PROPERTY CXX_STANDARD 20)
-    set_property(TARGET Interpreter PROPERTY CXX_STANDARD 20)
-    set_property(TARGET Compiler PROPERTY CXX_STANDARD 20)
-endif ()
+message(STATUS "Setting Standard C++ 20")
+set_property(TARGET ChemicalLsp PROPERTY CXX_STANDARD 20)
+set_property(TARGET Interpreter PROPERTY CXX_STANDARD 20)
+set_property(TARGET Compiler PROPERTY CXX_STANDARD 20)

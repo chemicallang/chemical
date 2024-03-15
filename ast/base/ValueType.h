@@ -15,6 +15,7 @@ enum class ValueType : uint8_t {
 
     Int,
     Float,
+    Double,
     Bool,
     Char,
     String,

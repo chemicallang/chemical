@@ -93,7 +93,7 @@ bool Lexer::lexFunctionStructureTokens(bool allow_declarations) {
     // inside the block allow return statements
     auto prevReturn = isLexReturnStatement;
     isLexReturnStatement = true;
-    if(!lexBraceBlock() && !allow_declarations) {
+    if(!lexBraceBlock("function") && !allow_declarations) {
         error("expected the function definition after the signature");
     }
     isLexReturnStatement = prevReturn;

@@ -9,6 +9,7 @@
 #include "ast/base/ASTNode.h"
 #include "lexer/model/tokens/NumberToken.h"
 #include <optional>
+#include "ast/base/BaseType.h"
 
 class VarInitStatement : public ASTNode, public Value {
 public:
@@ -21,7 +22,7 @@ public:
      */
     VarInitStatement(
             std::string identifier,
-            std::optional<std::string> type,
+            std::optional<std::unique_ptr<BaseType>> type,
             std::optional<std::unique_ptr<Value>> value
     ) : identifier(std::move(identifier)), type(std::move(type)), value(std::move(value)) {}
 
@@ -41,6 +42,12 @@ public:
         }
     }
 
+    void type_check(TypeChecker &checker) override {
+        if((value.has_value() && type.has_value()) && !type.value()->satisfies(value.value()->value_type())) {
+            checker.error("var initialization statement fails");
+        }
+    }
+
     llvm::Value * llvm_pointer(Codegen &gen) override {
         return value.has_value() ? value.value()->llvm_pointer(gen) : nullptr;
     }
@@ -51,7 +58,7 @@ public:
 
     llvm::Type *llvm_type(Codegen &gen) override {
         check_has_type(gen);
-        return value.has_value() ? value.value()->llvm_type(gen) : gen.llvm_type(type.value());
+        return value.has_value() ? value.value()->llvm_type(gen) : type.value()->llvm_type(gen);
     }
 
     void code_gen(Codegen &gen) override {
@@ -82,7 +89,7 @@ public:
         rep.append(identifier);
         if (type.has_value()) {
             rep.append(" : ");
-            rep.append(type.value());
+            rep.append(type.value()->representation());
         }
         if (value.has_value()) {
             rep.append(" = ");
@@ -98,7 +105,7 @@ public:
     std::string identifier; ///< The identifier being initialized.
 
 private:
-    std::optional<std::string> type;
+    std::optional<std::unique_ptr<BaseType>> type;
     std::optional<std::unique_ptr<Value>> value; ///< The value being assigned to the identifier.
 
 };

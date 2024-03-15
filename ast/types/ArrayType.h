@@ -11,7 +11,7 @@ public:
 
     unsigned int array_size;
 
-    ArrayType(std::unique_ptr<BaseType> elem_type, unsigned int array_size) : elem_type(elem_type),
+    ArrayType(std::unique_ptr<BaseType> elem_type, unsigned int array_size) : elem_type(std::move(elem_type)),
                                                                               array_size(array_size) {
 
     }
@@ -25,7 +25,7 @@ public:
     }
 
     llvm::Type *llvm_type(Codegen &gen) const override {
-        throw std::runtime_error("llvm string type is not supported");
+        return llvm::ArrayType::get(elem_type->llvm_type(gen), array_size);
     }
 
 };

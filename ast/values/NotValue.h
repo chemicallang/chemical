@@ -23,6 +23,12 @@ public:
         return rep;
     }
 
+#ifdef COMPILER_BUILD
+    llvm::Value * llvm_value(Codegen &gen) override {
+        return gen.builder->CreateNot(value->llvm_value(gen));
+    }
+#endif
+
     std::unique_ptr<Value> value;
 
 };

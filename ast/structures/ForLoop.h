@@ -36,6 +36,12 @@ public:
         conditionExpr(std::move(conditionExpr)), incrementerExpr(std::move(incrementerExpr)),
         LoopASTNode(std::move(body)) {}
 
+    void type_check(TypeChecker &checker) const override {
+        initializer->type_check(checker);
+        incrementerExpr->type_check(checker);
+        body.type_check(checker);
+    }
+
     void code_gen(Codegen &gen) override {
 
         // initialize the variables

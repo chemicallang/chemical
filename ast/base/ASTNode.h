@@ -50,7 +50,7 @@ public:
      * typecheck the nodes, put errors into the TypeChecker class
      * @param checker
      */
-    virtual void type_check(TypeChecker& checker) {
+    virtual void type_check(TypeChecker& checker) const {
         // default implementation should be removed
     }
 

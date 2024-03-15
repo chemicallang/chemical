@@ -29,8 +29,8 @@ public:
     DoWhileLoop(std::unique_ptr<Value> condition, LoopScope body)
             : condition(std::move(condition)), LoopASTNode(std::move(body)) {}
 
-    void type_check(TypeChecker &checker) const override {
-        return body.type_check(checker);
+    void accept(Visitor &visitor) override {
+        visitor.visit(this);
     }
 
     void code_gen(Codegen &gen) override {

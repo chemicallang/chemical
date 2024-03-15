@@ -32,10 +32,8 @@ public:
      */
     Scope(Scope &&other) : nodes(std::move(other.nodes)) {}
 
-    void type_check(TypeChecker &checker) const override {
-        for(const auto& node : nodes) {
-            node->type_check(checker);
-        }
+    void accept(Visitor &visitor) override {
+        visitor.visit(this);
     }
 
     void code_gen(Codegen &gen) override {

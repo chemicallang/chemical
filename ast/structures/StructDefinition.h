@@ -26,6 +26,10 @@ public:
             std::optional<std::string> overrides
     ) : name(std::move(name)), fields(std::move(fields)), overrides(std::move(overrides)) {}
 
+    void accept(Visitor &visitor) override {
+        visitor.visit(this);
+    }
+
     bool type_check(InterpretScope &scope) {
         if (overrides.has_value()) {
             auto inter = scope.find(overrides.value());

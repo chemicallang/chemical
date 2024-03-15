@@ -26,6 +26,10 @@ public:
             std::vector<std::unique_ptr<ASTNode>> fields
     ) : struct_name(std::move(struct_name)), interface_name(std::move(interface_name)), members(std::move(fields)) {}
 
+    void accept(Visitor &visitor) override {
+        visitor.visit(this);
+    }
+
     bool type_check(InterpretScope &scope) {
 //        if (overrides.has_value()) {
 //            auto inter = scope.find(overrides.value());

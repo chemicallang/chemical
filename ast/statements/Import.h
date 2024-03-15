@@ -28,6 +28,10 @@ public:
         this->filePath.shrink_to_fit();
     }
 
+    void accept(Visitor &visitor) override {
+        visitor.visit(this);
+    }
+
     std::string representation() const override {
         return std::string("import \"" + filePath + "\";");
     }

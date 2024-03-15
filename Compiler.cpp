@@ -26,12 +26,12 @@ int main(int argc, char *argv[]) {
     for (const auto &err: parser.errors) {
         std::cerr << err;
     }
-    TypeChecker checker(std::move(parser.nodes));
-    checker.type_check();
+    TypeChecker checker;
+    checker.type_check(parser.nodes);
     for(const auto &err : checker.errors) {
         std::cerr << err << std::endl;
     }
-    Scope scope(std::move(checker.nodes));
+    Scope scope(std::move(parser.nodes));
 //    std::cout << "[Representation]\n" << scope.representation() << std::endl;
     if(!lexer.errors.empty() || !parser.errors.empty() || !checker.errors.empty()) return 1;
     Codegen gen(std::move(scope.nodes), argv[1]);

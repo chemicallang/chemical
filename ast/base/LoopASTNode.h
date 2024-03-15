@@ -7,6 +7,7 @@
 #pragma once
 
 #include "ASTNode.h"
+#include "ast/structures/LoopScope.h"
 
 /**
  * Anything that's a loop (for, while..) inherits this LoopASTNode

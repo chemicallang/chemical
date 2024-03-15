@@ -29,14 +29,8 @@ public:
     ) : condition(std::move(condition)), ifBody(std::move(ifBody)),
         elseIfs(std::move(elseIfs)), elseBody(std::move(elseBody)) {}
 
-    void type_check(TypeChecker &checker) const override {
-        ifBody.type_check(checker);
-        for(const auto& eif : elseIfs) {
-            eif.second.type_check(checker);
-        }
-        if(elseBody.has_value()) {
-            elseBody->type_check(checker);
-        }
+    void accept(Visitor &visitor) override {
+        visitor.visit(this);
     }
 
     void code_gen(Codegen &gen) override {
@@ -158,7 +152,6 @@ public:
         return rep;
     }
 
-private:
     std::unique_ptr<Value> condition;
     Scope ifBody;
     std::vector<std::pair<std::unique_ptr<Value>, Scope>> elseIfs;

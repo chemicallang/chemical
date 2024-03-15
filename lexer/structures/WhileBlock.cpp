@@ -34,7 +34,7 @@ bool Lexer::lexWhileBlockTokens() {
     auto prevLexBreak = isLexBreakStatement;
     isLexContinueStatement = true;
     isLexBreakStatement = true;
-    if(!lexBraceBlock()) {
+    if(!lexBraceBlock("whileloop")) {
         error("expected a brace block { statement(s) } when lexing a while block");
     }
     isLexContinueStatement = prevLexContinue;

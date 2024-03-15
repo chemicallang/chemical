@@ -102,6 +102,12 @@ public:
     }
 
     /**
+     * parses the type token as a type
+     * @return
+     */
+    lex_ptr<BaseType> parseType();
+
+    /**
     * This parses multiple statements as ASTNode(s) into nodes
      */
     void parseMultipleStatements();

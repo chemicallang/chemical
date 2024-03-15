@@ -6,7 +6,7 @@
 
 #include "lexer/Lexer.h"
 
-void Lexer::lexMultipleStatementsTokens(bool till_end) {
+void Lexer::lexNestedLevelMultipleStatementsTokens() {
 
     // lex whitespace and new lines to reach a statement
     // lex a statement and then optional whitespace, lex semicolon
@@ -14,21 +14,22 @@ void Lexer::lexMultipleStatementsTokens(bool till_end) {
     while(true) {
         lexWhitespaceAndNewLines();
         if(!lexStatementTokens())  {
-            if(till_end) {
-                if(provider.eof() || provider.peek() == -1){
-                    break;
-                } else {
-                    // skip to new line
-                    auto last_readable_token = tokens.size() - 1;
-                    while(!lexNewLineChars() && !(provider.eof() || provider.peek() == -1)) {
-                        provider.readCharacter();
-                    }
-                    error(last_readable_token, "Skipped due to invalid syntax before it");
-                    continue;
-                }
-            } else {
-                break;
-            }
+            break;
+        }
+        lexWhitespaceToken();
+        lexOperatorToken(';');
+    }
+}
+
+void Lexer::lexMultipleStatementsTokens() {
+
+    // lex whitespace and new lines to reach a statement
+    // lex a statement and then optional whitespace, lex semicolon
+
+    while(true) {
+        lexWhitespaceAndNewLines();
+        if(!lexStatementTokens())  {
+            break;
         }
         lexWhitespaceToken();
         lexOperatorToken(';');
@@ -48,7 +49,7 @@ bool Lexer::lexBraceBlock(const std::string& forThing) {
     // multiple statements
     auto prevImportState = isLexImportStatement;
     isLexImportStatement = false;
-    lexMultipleStatementsTokens();
+    lexNestedLevelMultipleStatementsTokens();
     isLexImportStatement = prevImportState;
 
     // ending brace

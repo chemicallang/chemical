@@ -139,6 +139,20 @@ public:
     bool lexTypeTokens();
 
     /**
+     * lexes a single top level statement, top level means in file scope, These include
+     * functions, structs, interfaces, implementations, enum, annotations
+     * comments, variable initialization with value, constants
+     * @return
+     */
+    bool lexTopLevelStatementTokens();
+
+    /**
+     * lexes a single nested level statement, nested level means not top level (must not be in file scope)
+     * These exclude functions, enum, structs, interfaces, implementations in nested scopes
+     */
+     bool lexNestedLevelStatementTokens();
+
+    /**
      * lexes a single statement (of any type)
      * @return whether a statement was lexed successfully
      */
@@ -180,10 +194,23 @@ public:
     bool lexKeywordToken(const std::string &keyword);
 
     /**
+     * All top levels statements lexed, These include
+     * functions, structs, interfaces, implementations
+     * comments, variable initialization with value, constants
+     */
+    void lexTopLevelMultipleStatementsTokens();
+
+    /**
+     * lexes a multiple nested level statement, nested level means not top level (must not be in file scope)
+     * These exclude functions, enum, structs, interfaces, implementations in nested scopes
+     */
+    void lexNestedLevelMultipleStatementsTokens();
+
+    /**
      * this lexes the tokens inside the body of a structure
      * this basically lexes multiple statements
      */
-    void lexMultipleStatementsTokens(bool till_end = false);
+    void lexMultipleStatementsTokens();
 
     /**
      * lex single comment comment

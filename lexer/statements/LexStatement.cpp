@@ -6,6 +6,35 @@
 
 #include "lexer/Lexer.h"
 
+bool Lexer::lexTopLevelStatementTokens() {
+    return lexSingleLineCommentTokens() ||
+           lexMultiLineCommentTokens() ||
+           lexVarInitializationTokens(false) ||
+           lexAnnotationMacro() ||
+           (isLexImportStatement && lexImportStatement()) ||
+           lexEnumStructureTokens() ||
+           lexStructStructureTokens() ||
+           lexInterfaceStructureTokens() ||
+           lexImplTokens() ||
+           lexFunctionStructureTokens(true);
+}
+
+bool Lexer::lexNestedLevelStatementTokens() {
+    return lexSingleLineCommentTokens() ||
+           lexMultiLineCommentTokens() ||
+           lexVarInitializationTokens() ||
+           lexAnnotationMacro() ||
+           (isLexImportStatement && lexImportStatement()) ||
+           (isLexBreakStatement && lexBreakStatement()) ||
+           (isLexContinueStatement && lexContinueStatement()) ||
+           (isLexReturnStatement && lexReturnStatement()) ||
+           lexIfBlockTokens() ||
+           lexForBlockTokens() ||
+           lexDoWhileBlockTokens() ||
+           lexWhileBlockTokens() ||
+           lexAssignmentTokens();
+}
+
 bool Lexer::lexStatementTokens() {
     return lexSingleLineCommentTokens() ||
            lexMultiLineCommentTokens() ||

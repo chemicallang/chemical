@@ -12,6 +12,7 @@
 #include "Interpretable.h"
 #include "llvm/IR/Value.h"
 #include "compiler/Codegen.h"
+#include "typecheck/TypeChecker.h"
 
 class FunctionParam;
 
@@ -43,6 +44,14 @@ public:
      */
     virtual void undeclare(Codegen& gen) {
         // nothing to undeclare
+    }
+
+    /**
+     * typecheck the nodes, put errors into the TypeChecker class
+     * @param checker
+     */
+    virtual void type_check(TypeChecker& checker) {
+        // default implementation should be removed
     }
 
     /**

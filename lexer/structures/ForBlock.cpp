@@ -65,7 +65,7 @@ bool Lexer::lexForBlockTokens() {
     // { statement(s) } with continue & break support
     isLexContinueStatement = true;
     isLexBreakStatement = true;
-    if(!lexBraceBlock()) {
+    if(!lexBraceBlock("forloop")) {
         error("expected a brace block in a for block");
     }
     isLexContinueStatement = false;

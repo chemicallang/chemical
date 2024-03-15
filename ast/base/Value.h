@@ -9,8 +9,10 @@
 #include "Interpretable.h"
 #include "ValueType.h"
 #include "ast/utils/Operation.h"
-#include "llvm/IR/Value.h"
 #include "compiler/Codegen.h"
+#ifdef COMPILER_BUILD
+#include "llvm/IR/Value.h"
+#endif
 
 class FunctionDeclaration;
 
@@ -69,6 +71,7 @@ public:
 
     }
 
+#ifdef COMPILER_BUILD
     /**
      * code_gen function that generates llvm Value
      * @return
@@ -131,6 +134,7 @@ public:
     virtual llvm::Value* casted_llvm_value(Codegen &gen) {
         throw std::runtime_error("casted_llvm_value called on bare Value of type " + std::to_string((int) value_type()));
     }
+#endif
 
     /**
      * Called by assignment statement, to set the value of this value

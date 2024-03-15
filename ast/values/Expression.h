@@ -29,9 +29,11 @@ public:
 
     }
 
+#ifdef COMPILER_BUILD
     llvm::Value * llvm_value(Codegen &gen) override {
         return gen.operate(operation, firstValue->llvm_value(gen), secondValue->llvm_value(gen));
     }
+#endif
 
     /**
      * evaluates both values and returns the result as unique_tr to Value

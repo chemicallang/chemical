@@ -46,6 +46,7 @@ public:
         }
     }
 
+#ifdef COMPILER_BUILD
     void code_gen(Codegen &gen) override {
 
         auto loopCond = llvm::BasicBlock::Create(*gen.ctx, "loopcond", gen.current_function);
@@ -71,6 +72,7 @@ public:
         gen.SetInsertPoint(exitBlock);
 
     }
+#endif
 
     void stopInterpretation() override {
         stoppedInterpretation = true;

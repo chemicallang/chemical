@@ -51,6 +51,7 @@ public:
         }
     }
 
+#ifdef COMPILER_BUILD
     llvm::Value * llvm_value(Codegen &gen) override {
         auto fn = gen.module->getFunction(name);
         if(fn == nullptr) {
@@ -71,6 +72,7 @@ public:
     void code_gen(Codegen &gen) override {
       llvm_value(gen);
     }
+#endif
 
     std::string representation() const override {
         std::string rep;

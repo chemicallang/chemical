@@ -40,6 +40,7 @@ public:
         visitor.visit(this);
     }
 
+#ifdef COMPILER_BUILD
     void code_gen(Codegen &gen) override {
 
         // initialize the variables
@@ -70,6 +71,7 @@ public:
         gen.SetInsertPoint(endBlock);
 
     }
+#endif
 
     void interpret(InterpretScope &scope) override {
         InterpretScope child(&scope, scope.global, &body, this);

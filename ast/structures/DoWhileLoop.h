@@ -33,6 +33,7 @@ public:
         visitor.visit(this);
     }
 
+#ifdef COMPILER_BUILD
     void code_gen(Codegen &gen) override {
 
         auto loopThen = llvm::BasicBlock::Create(*gen.ctx, "loopthen", gen.current_function);
@@ -58,6 +59,7 @@ public:
         gen.SetInsertPoint(exitBlock);
 
     }
+#endif
 
     void interpret(InterpretScope &scope) override {
         InterpretScope child(&scope, scope.global, &body, this);

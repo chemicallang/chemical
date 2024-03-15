@@ -20,9 +20,11 @@ public:
         visitor.visit(this);
     }
 
+#ifdef COMPILER_BUILD
     void code_gen(Codegen &gen) override {
         gen.CreateBr(gen.current_loop_continue);
     }
+#endif
 
     void interpret(InterpretScope &scope) override {
         if(node == nullptr) {

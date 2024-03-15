@@ -9,8 +9,9 @@
 #include <utility>
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/base/Value.h"
+#ifdef COMPILER_BUILD
 #include <llvm/IR/ValueSymbolTable.h>
-
+#endif
 /**
  * @brief Class representing a VariableIdentifier.
  */
@@ -63,6 +64,7 @@ public:
         it.second->second = nextValue;
     }
 
+#ifdef COMPILER_BUILD
     llvm::Value *arg_value(Codegen &gen, ASTNode* node) {
         auto param = node->as_parameter();
         if (param != nullptr && gen.current_function != nullptr) {
@@ -95,16 +97,6 @@ public:
         return llvm_alloca(gen);
     }
 
-    ASTNode *resolve(Codegen &gen) {
-        auto found = gen.current.find(value);
-        if (gen.current.end() == found) {
-            gen.error("Couldn't find variable identifier in scope : " + value);
-            throw std::runtime_error("couldn't find variable identifier in scope : " + value);
-        } else {
-            return found->second;
-        }
-    }
-
     llvm::Value *llvm_value(Codegen &gen) override {
         auto resolved = resolve(gen);
         auto argVal = arg_value(gen, resolved);
@@ -114,6 +106,17 @@ public:
         auto v = llvm_pointer(gen);
         return gen.builder->CreateLoad(resolved->llvm_type(gen), v, value);
     }
+
+    ASTNode *resolve(Codegen &gen) {
+        auto found = gen.current.find(value);
+        if (gen.current.end() == found) {
+            gen.error("Couldn't find variable identifier in scope : " + value);
+            throw std::runtime_error("couldn't find variable identifier in scope : " + value);
+        } else {
+            return found->second;
+        }
+    }
+#endif
 
     Value *evaluated_value(InterpretScope &scope) override {
         auto found = scope.find(value);

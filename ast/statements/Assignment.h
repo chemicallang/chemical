@@ -27,6 +27,7 @@ public:
         visitor.visit(this);
     }
 
+#ifdef COMPILER_BUILD
     void code_gen(Codegen &gen) override {
         if(assOp == Operation::Assignment) {
             gen.builder->CreateStore(value->llvm_value(gen), lhs->llvm_pointer(gen));
@@ -36,6 +37,7 @@ public:
             gen.builder->CreateStore(operated, lhs->llvm_pointer(gen));
         }
     }
+#endif
 
     void interpret(InterpretScope& scope) override {
         Value* next;

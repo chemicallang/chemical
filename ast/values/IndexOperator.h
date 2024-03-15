@@ -17,6 +17,7 @@ public:
 
     }
 
+#ifdef COMPILER_BUILD
     ASTNode* resolve(Codegen& gen) {
         auto resolved = gen.current.find(identifier);
         if(resolved == gen.current.end()) {
@@ -40,6 +41,7 @@ public:
         auto resolved = resolve(gen);
         return gen.builder->CreateLoad(resolved->llvm_elem_type(gen), elem_pointer(gen, resolved), "arr0");
     }
+#endif
 
     std::string representation() const override {
         std::string rep;

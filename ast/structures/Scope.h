@@ -36,6 +36,7 @@ public:
         visitor.visit(this);
     }
 
+#ifdef COMPILER_BUILD
     void code_gen(Codegen &gen) override {
         for(const auto& node : nodes) {
             node->code_gen(gen);
@@ -44,6 +45,7 @@ public:
             node->undeclare(gen);
         }
     }
+#endif
 
     void interpret(InterpretScope& scope) override {
         for(const auto& node : nodes) {

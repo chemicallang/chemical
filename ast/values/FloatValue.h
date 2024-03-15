@@ -26,6 +26,7 @@ public:
         return rep;
     }
 
+#ifdef COMPILER_BUILD
     llvm::Type * llvm_type(Codegen &gen) override {
         return gen.builder->getFloatTy();
     }
@@ -33,6 +34,7 @@ public:
     llvm::Value * llvm_value(Codegen &gen) override {
         return llvm::ConstantFP::get(llvm_type(gen), value);
     }
+#endif
 
     bool primitive() override {
         return true;

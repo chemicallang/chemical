@@ -27,6 +27,7 @@ public:
         }
     }
 
+#ifdef COMPILER_BUILD
     llvm::Value * llvm_pointer(Codegen &gen) override {
         return arr;
     }
@@ -42,7 +43,6 @@ public:
             gen.builder->CreateStore(elemValue, elemPtr);
         }
     }
-
     llvm::Value * llvm_value(Codegen &gen) override {
         throw std::runtime_error("cannot allocate an array without an identifier");
     }
@@ -61,6 +61,7 @@ public:
     llvm::Type * llvm_type(Codegen &gen) override {
         return llvm::ArrayType::get(llvm_elem_type(gen), array_size());
     }
+#endif
 
     std::string representation() const override {
         std::string rep;
@@ -95,7 +96,9 @@ public:
     std::optional<std::unique_ptr<BaseType>> elemType;
     std::vector<unsigned int>  sizes;
 
+#ifdef COMPILER_BUILD
     // TODO this arr value should be stored in code gen since its related to that
     llvm::AllocaInst* arr;
+#endif
 
 };

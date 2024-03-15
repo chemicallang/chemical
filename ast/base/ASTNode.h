@@ -10,10 +10,14 @@
 #include <memory>
 #include <string>
 #include "Interpretable.h"
-#include "llvm/IR/Value.h"
-#include "compiler/Codegen.h"
 #include "typecheck/TypeChecker.h"
 #include "Visitor.h"
+#include "compiler/ASTLinker.h"
+
+#ifdef COMPILER_BUILD
+#include "compiler/Codegen.h"
+#include "llvm/IR/Value.h"
+#endif
 
 class FunctionParam;
 
@@ -38,6 +42,13 @@ public:
     }
 
     /**
+     * accept the visitor
+     * @param visitor
+     */
+    virtual void accept(Visitor& visitor) = 0;
+
+#ifdef COMPILER_BUILD
+    /**
      * This function is called by the scope to undeclare anything this map put on the
      * codegen's current map, which is used to resolve nodes
      * so when the scope ends, references to this variable cannot be resolved below the scope!
@@ -46,12 +57,6 @@ public:
     virtual void undeclare(Codegen& gen) {
         // nothing to undeclare
     }
-
-    /**
-     * accept the visitor
-     * @param visitor
-     */
-    virtual void accept(Visitor& visitor) = 0;
 
     /**
      * returns a llvm pointer
@@ -87,6 +92,7 @@ public:
     virtual void code_gen(Codegen& gen) {
         throw std::runtime_error("ASTNode code_gen called on bare ASTNode, with representation : " + representation());
     }
+#endif
 
     /**
      * virtual destructor for the ASTNode

@@ -5,6 +5,7 @@
 //
 
 #include "FileTracker.h"
+#include <sstream>
 
 #define DEBUG false
 

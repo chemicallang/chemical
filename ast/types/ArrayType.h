@@ -24,8 +24,10 @@ public:
         return "string";
     }
 
+#ifdef COMPILER_BUILD
     llvm::Type *llvm_type(Codegen &gen) const override {
         return llvm::ArrayType::get(elem_type->llvm_type(gen), array_size);
     }
+#endif
 
 };

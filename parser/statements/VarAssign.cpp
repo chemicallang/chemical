@@ -14,7 +14,10 @@ lex_ptr<ASTNode> Parser::parseVarAssignStatement() {
         return std::nullopt;
     }
     auto operation = consume_op_token();
-    if(!consume_op('=') && operation != Operation::PostfixIncrement && operation != Operation::PostfixDecrement) {
+    if(operation.has_value() && ((operation.value() == Operation::PostfixIncrement) || (operation.value() == Operation::PostfixDecrement))) {
+        return std::make_unique<AssignStatement>(std::move(chain.value()), std::make_unique<IntValue>(1), (operation.value() == Operation::PostfixIncrement) ? Operation::Addition : Operation::Subtraction);
+    }
+    if(!consume_op('=')) {
         if(operation.has_value()) {
             error("expected a equal operator after the operation token");
         }
@@ -27,11 +30,7 @@ lex_ptr<ASTNode> Parser::parseVarAssignStatement() {
     if (value.has_value()) {
         return std::make_unique<AssignStatement>(std::move(chain.value()), std::move(value.value()), operation.value());
     } else {
-        if(operation.has_value() && (operation == Operation::PostfixIncrement) || (operation == Operation::PostfixDecrement)) {
-            return std::make_unique<AssignStatement>(std::move(chain.value()), std::make_unique<IntValue>(1), operation.value());
-        } else {
-            error("expected a value after the operation in var assignment");
-        }
+        error("expected a value after the operation in var assignment");
     }
     return std::nullopt;
 }

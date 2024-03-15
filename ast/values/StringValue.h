@@ -31,6 +31,10 @@ public:
         return true;
     }
 
+    std::string as_string() override {
+        return value;
+    }
+
 #ifdef COMPILER_BUILD
     llvm::Value * llvm_value(Codegen &gen) override {
         return gen.builder->CreateGlobalStringPtr(value);

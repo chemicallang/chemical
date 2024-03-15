@@ -23,12 +23,11 @@ public:
     }
 
     Value * evaluated_value(InterpretScope &scope) override {
-        if(name == "print" || name == "println") {
+        if(name == "printf") {
             for(auto const& value: values){
                 auto func = value->evaluated_value(scope);
                 if(func) {
-                    std::cout << func->interpret_representation();
-                    if(name == "println") std::cout << std::endl;
+                    std::cout << func->interpret_representation() << std::endl;
                 } else {
                     std::cerr << "[FunctionCall] Function parameter not found : " << value->representation();
                 }

@@ -222,6 +222,10 @@ public:
         throw std::runtime_error("as_interface called on a value");
     }
 
+    virtual std::string as_string() {
+        throw std::runtime_error("as_string called on a value");
+    }
+
     /**
      * a function to be overridden by values that can return int
      * @return

@@ -12,7 +12,7 @@
 
 class FunctionParam : public ASTNode {
 public:
-    FunctionParam(std::string  name, std::string  type, unsigned int index) : name(std::move(name)), type(std::move(type)), index(index) {
+    FunctionParam(std::string  name, std::unique_ptr<BaseType> type, unsigned int index) : name(std::move(name)), type(std::move(type)), index(index) {
 
     }
     void accept(Visitor &visitor) override {
@@ -22,14 +22,14 @@ public:
         return this;
     }
     llvm::Type* llvm_type(Codegen &gen) override {
-        return gen.llvm_type(type);
+        return type->llvm_type(gen);
     }
     std::string representation() const override {
-        return name + " : " + type;
+        return name + " : " + type->representation();
     }
     unsigned int index;
     std::string name;
-    std::string type;
+    std::unique_ptr<BaseType> type;
 };
 
 
@@ -49,12 +49,11 @@ public:
     FunctionDeclaration(
             std::string name,
             func_params params,
-            std::optional<std::string> returnType,
+            std::unique_ptr<BaseType> returnType,
             bool isVariadic
     ) : name(std::move(name)), params(std::move(params)), returnType(std::move(returnType)), body(std::nullopt), isVariadic(isVariadic) {
         for (auto &param: this->params) {
             param.name.shrink_to_fit();
-            param.type.shrink_to_fit();
         }
     }
 
@@ -67,7 +66,7 @@ public:
         std::vector<llvm::Type*> array(size);
         unsigned i = 0;
         while(i < size) {
-            array[i] = gen.llvm_type(params[i].type);
+            array[i] = params[i].type->llvm_type(gen);
             i++;
         }
         return array;
@@ -75,9 +74,9 @@ public:
 
     llvm::FunctionType* function_type(Codegen& gen) {
         if(params.empty() || (params.size() == 1 && isVariadic)) {
-            return llvm::FunctionType::get(gen.llvm_type(returnType), isVariadic);
+            return llvm::FunctionType::get(returnType->llvm_type(gen), isVariadic);
         } else {
-            return llvm::FunctionType::get(gen.llvm_type(returnType), param_types(gen), isVariadic);
+            return llvm::FunctionType::get(returnType->llvm_type(gen), param_types(gen), isVariadic);
         }
     }
 
@@ -154,11 +153,9 @@ public:
             i++;
         }
         ret.append(1, ')');
-        if (returnType.has_value()) {
-            ret.append(" : ");
-            ret.append(returnType.value());
-            ret.append(1, ' ');
-        }
+        ret.append(" : ");
+        ret.append(returnType->representation());
+        ret.append(1, ' ');
         if(body.has_value()) {
             ret.append("{\n");
             ret.append(body.value().representation());
@@ -176,7 +173,7 @@ public:
 private:
     std::string name; ///< The name of the function.
     func_params params;
-    std::optional<std::string> returnType;
+    std::unique_ptr<BaseType> returnType;
     InterpretScope *declarationScope;
     Value *interpretReturn;
     // if the function is variadic, the last type in params is the type given to the variadic parameter

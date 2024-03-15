@@ -19,6 +19,7 @@ enum class ValueType : uint8_t {
     Bool,
     Char,
     String,
+    Void,
     Unknown
 
 };

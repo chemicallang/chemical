@@ -14,7 +14,7 @@
 class ArrayValue : public Value {
 public:
 
-    ArrayValue(std::vector<std::unique_ptr<Value>> values, std::optional<std::string> type, std::vector<unsigned int> sizes) : values(std::move(values)), elemType(std::move(type)), sizes(std::move(sizes)) {
+    ArrayValue(std::vector<std::unique_ptr<Value>> values, std::optional<std::unique_ptr<BaseType>> type, std::vector<unsigned int> sizes) : values(std::move(values)), elemType(std::move(type)), sizes(std::move(sizes)) {
         values.shrink_to_fit();
     }
 
@@ -51,7 +51,7 @@ public:
         llvm::Type* elementType;
         if(values.empty()) {
             // get empty array type from the user
-            elementType = gen.llvm_type(elemType.value());
+            elementType = elemType.value()->llvm_type(gen);
         } else {
             elementType = values[0]->llvm_type(gen);
         }
@@ -66,7 +66,7 @@ public:
         std::string rep;
         rep.append(1, '[');
         if(values.empty()) {
-            rep.append("]" + elemType.value() + "(");
+            rep.append("]" + elemType.value()->representation() + "(");
             int i = 0;
             while(i < sizes.size()) {
                 rep.append(std::to_string(sizes[i]));
@@ -92,7 +92,7 @@ public:
 
     std::vector<std::unique_ptr<Value>> values;
 
-    std::optional<std::string> elemType;
+    std::optional<std::unique_ptr<BaseType>> elemType;
     std::vector<unsigned int>  sizes;
 
     // TODO this arr value should be stored in code gen since its related to that

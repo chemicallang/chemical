@@ -8,6 +8,7 @@
 #include "ast/types/DoubleType.h"
 #include "ast/types/BoolType.h"
 #include "ast/types/CharType.h"
+#include "ast/types/AnyType.h"
 
 lex_ptr<BaseType> Parser::parseType() {
     if (token_type() == LexTokenType::Type) {
@@ -24,6 +25,8 @@ lex_ptr<BaseType> Parser::parseType() {
             return std::make_unique<BoolType>();
         } else if (type == "char") {
             return std::make_unique<CharType>();
+        } else if (type == "any") {
+            return std::make_unique<AnyType>();
         } else {
             error("Unknown type encountered " + type);
             return std::nullopt;

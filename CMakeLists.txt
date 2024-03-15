@@ -161,7 +161,6 @@ set(COMMON_SOURCES
         parser/structures/EnumDefinition.cpp
         parser/structures/InterfaceDefinition.cpp
         parser/structures/StructDefinition.cpp
-        ast/values/IncDecValue.h
         ast/values/BoolValue.h
         ast/values/ArrayValue.h
         ast/values/VariableIdentifier.h
@@ -221,6 +220,7 @@ set(COMMON_SOURCES
         ast/base/Visitor.h
         ast/types/VoidType.h
         ast/types/AnyType.h
+        utils/CmdUtils.h
 )
 
 # Chemical LSP Executable Target

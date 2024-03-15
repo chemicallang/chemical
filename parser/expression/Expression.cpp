@@ -6,7 +6,6 @@
 
 #include "parser/Parser.h"
 #include "ast/values/NotValue.h"
-#include "ast/values/IncDecValue.h"
 #include "ast/values/Negative.h"
 
 void Parser::parseExpressionWith(ValueAndOperatorStack &stack, ValueAndOperatorStack &final) {
@@ -73,12 +72,6 @@ void Parser::parseExpressionWith(ValueAndOperatorStack &stack, ValueAndOperatorS
 std::unique_ptr<Value> Parser::parseRemainingInterpretableExpression(std::unique_ptr<Value> firstValue) {
     auto op = consume_op_token();
     if (op.has_value()) {
-        if (op.value() == Operation::PostfixIncrement) {
-            return std::make_unique<IncDecValue>(std::move(firstValue), true);
-        } else if(op.value() == Operation::PostfixDecrement) {
-            return std::make_unique<IncDecValue>(std::move(firstValue), false);
-        }
-
         ValueAndOperatorStack stack;
         stack.putOperator(op.value());
         ValueAndOperatorStack final;
@@ -93,11 +86,6 @@ std::unique_ptr<Value> Parser::parseRemainingInterpretableExpression(std::unique
 std::unique_ptr<Value> Parser::parseRemainingExpression(std::unique_ptr<Value> firstValue) {
     auto op = consume_op_token();
     if (op.has_value()) {
-        if (op.value() == Operation::PostfixIncrement) {
-            return std::make_unique<IncDecValue>(std::move(firstValue), true);
-        } else if(op.value() == Operation::PostfixDecrement) {
-            return std::make_unique<IncDecValue>(std::move(firstValue), false);
-        }
         auto secondExpr = parseExpression();
         if (secondExpr.has_value()) {
             return std::make_unique<Expression>(std::move(firstValue), std::move(secondExpr.value()), op.value());

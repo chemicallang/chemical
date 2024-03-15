@@ -7,6 +7,7 @@
 #pragma once
 
 #include "ast/base/ASTNode.h"
+#include "ast/base/Value.h"
 #include "lexer/model/tokens/NumberToken.h"
 #include <optional>
 #include "ast/base/BaseType.h"
@@ -42,10 +43,8 @@ public:
         }
     }
 
-    void type_check(TypeChecker &checker) const override {
-        if((value.has_value() && type.has_value()) && !type.value()->satisfies(value.value()->value_type())) {
-            checker.error("var initialization statement fails");
-        }
+    void accept(Visitor& visitor) override {
+        visitor.visit(this);
     }
 
     llvm::Value * llvm_pointer(Codegen &gen) override {
@@ -103,8 +102,6 @@ public:
     }
 
     std::string identifier; ///< The identifier being initialized.
-
-private:
     std::optional<std::unique_ptr<BaseType>> type;
     std::optional<std::unique_ptr<Value>> value; ///< The value being assigned to the identifier.
 

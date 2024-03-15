@@ -13,6 +13,7 @@
 #include "llvm/IR/Value.h"
 #include "compiler/Codegen.h"
 #include "typecheck/TypeChecker.h"
+#include "Visitor.h"
 
 class FunctionParam;
 
@@ -47,12 +48,10 @@ public:
     }
 
     /**
-     * typecheck the nodes, put errors into the TypeChecker class
-     * @param checker
+     * accept the visitor
+     * @param visitor
      */
-    virtual void type_check(TypeChecker& checker) const {
-        // default implementation should be removed
-    }
+    virtual void accept(Visitor& visitor) = 0;
 
     /**
      * returns a llvm pointer

@@ -23,6 +23,10 @@ public:
     InterfaceDefinition(std::string name, std::vector<std::unique_ptr<ASTNode>> members)
             : name(std::move(name)), members(std::move(members)) {}
 
+    void accept(Visitor &visitor) override {
+        visitor.visit(this);
+    }
+
     void interpret(InterpretScope &scope) override {
         scope.values[name] = this;
     }

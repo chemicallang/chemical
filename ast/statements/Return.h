@@ -25,6 +25,10 @@ public:
         }
     }
 
+    void accept(Visitor &visitor) override {
+        visitor.visit(this);
+    }
+
     void code_gen(Codegen &gen) override {
         if(value.has_value()) {
             gen.CreateRet(value.value()->llvm_value(gen));

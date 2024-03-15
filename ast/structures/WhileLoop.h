@@ -31,6 +31,10 @@ public:
     WhileLoop(std::unique_ptr<Value> condition, LoopScope body)
             : condition(std::move(condition)), LoopASTNode(std::move(body)) {}
 
+    void accept(Visitor &visitor) override {
+        visitor.visit(this);
+    }
+
     void interpret(InterpretScope &scope) override {
         InterpretScope child(&scope, scope.global, &body, this);
         while(condition->evaluated_bool(child)){

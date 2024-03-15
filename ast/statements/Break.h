@@ -25,6 +25,10 @@ public:
         node->stopInterpretation();
     }
 
+    void accept(Visitor &visitor) override {
+        visitor.visit(this);
+    }
+
     void code_gen(Codegen &gen) override {
         gen.CreateBr(gen.current_loop_exit);
     }

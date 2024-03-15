@@ -22,6 +22,10 @@ public:
     EnumDeclaration(std::string name, std::vector<std::string> values)
             : name(std::move(name)), values(std::move(values)) {}
 
+    void accept(Visitor &visitor) override {
+        visitor.visit(this);
+    }
+
     void interpret(InterpretScope &scope) override {
         members = new std::unordered_map<std::string, std::unique_ptr<Value>>;
         unsigned int i = 0;

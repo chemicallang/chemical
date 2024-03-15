@@ -21,6 +21,10 @@ public:
         // do nothing, since it's a comment
     }
 
+    void accept(Visitor &visitor) override {
+        visitor.visit(this);
+    }
+
     std::string representation() const override {
         std::string ret;
         if(multiline) {

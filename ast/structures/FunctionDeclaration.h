@@ -15,6 +15,9 @@ public:
     FunctionParam(std::string  name, std::string  type, unsigned int index) : name(std::move(name)), type(std::move(type)), index(index) {
 
     }
+    void accept(Visitor &visitor) override {
+        visitor.visit(this);
+    }
     FunctionParam* as_parameter() override {
         return this;
     }
@@ -53,6 +56,10 @@ public:
             param.name.shrink_to_fit();
             param.type.shrink_to_fit();
         }
+    }
+
+    void accept(Visitor &visitor) override {
+        visitor.visit(this);
     }
 
     std::vector<llvm::Type*> param_types(Codegen& gen) {

@@ -17,6 +17,10 @@ public:
 
     }
 
+    void accept(Visitor &visitor) override {
+        visitor.visit(this);
+    }
+
     void interpret(InterpretScope &scope) override {
         for(const auto& value:values) {
             value->interpret(scope);

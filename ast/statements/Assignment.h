@@ -23,6 +23,10 @@ public:
             Operation assOp
     ) : lhs(std::move(lhs)), value(std::move(value)), assOp(assOp) {}
 
+    void accept(Visitor &visitor) override {
+        visitor.visit(this);
+    }
+
     void code_gen(Codegen &gen) override {
         if(assOp == Operation::Assignment) {
             gen.builder->CreateStore(value->llvm_value(gen), lhs->llvm_pointer(gen));

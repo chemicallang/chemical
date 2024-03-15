@@ -219,6 +219,7 @@ set(COMMON_SOURCES
         ast/types/CharType.h
         ast/types/ArrayType.h
         parser/utils/Type.cpp
+        ast/base/Visitor.h
 )
 
 # Chemical LSP Executable Target

@@ -5,19 +5,28 @@
 #include <utility>
 #include <memory>
 #include <vector>
+#include "ast/base/Visitor.h"
 
 class ASTNode;
 
-class TypeChecker {
+class TypeChecker : Visitor {
 public:
-
-    std::vector<std::unique_ptr<ASTNode>> nodes;
 
     std::vector<std::string> errors;
 
-    TypeChecker(std::vector<std::unique_ptr<ASTNode>> nodes);
+    TypeChecker();
 
-    void type_check();
+    void visit(VarInitStatement *init) override;
+
+    void visit(DoWhileLoop *doWhileLoop) override;
+
+    void visit(ForLoop *forLoop) override;
+
+    void visit(IfStatement *ifStatement) override;
+
+    void visit(Scope *scope) override;
+
+    void type_check(std::vector<std::unique_ptr<ASTNode>>& nodes);
 
     inline void error(const std::string& err) {
         errors.push_back(err);

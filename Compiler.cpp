@@ -34,12 +34,6 @@ int main(int argc, char *argv[]) {
         print_usage();
         return 1;
     }
-    auto output = options.option("output", "o");
-    if (!output.has_value()) {
-        std::cerr << "A output file path argument must be given\n\n";
-        print_usage();
-        return 1;
-    }
     auto lexer = benchLexFile(argv[1]);
 //    printTokens(lexer.tokens);
     for (const auto &err: lexer.errors) {
@@ -60,22 +54,42 @@ int main(int argc, char *argv[]) {
     Codegen gen(std::move(scope.nodes), argv[1]);
     // compile
     gen.compile();
-    if(gen.errors.empty()) { // if there's no compilation errors
-        if (endsWith(output.value(), ".ll")) {
-            // save the generation to a file
-            gen.save_to_file(output.value());
-        } else if (endsWith(output.value(), ".o")) {
-            gen.save_to_object_file(output.value());
+    auto generate = options.option("gen", "g");
+    if(generate.has_value()) {
+        if (gen.errors.empty()) { // if there's no compilation errors
+            if (endsWith(generate.value(), ".ll")) {
+                // save the generation to a file
+                gen.save_to_file(generate.value());
+            } else if (endsWith(generate.value(), ".o")) {
+                gen.save_to_object_file(generate.value());
+            } else {
+                std::cerr << "Unknown output file path given, the output file must have .ll or .o extension" << std::endl;
+            }
         }
+    }
+    auto output = options.option("output", "o");
+    if(output.has_value()) {
+        std::string object_file_path;
+        bool delete_object_default = true;
+        if(generate.has_value() && endsWith(generate.value(), ".o")) {
+            object_file_path = generate.value();
+            delete_object_default = false;
+        } else {
+            object_file_path = output.value() + ".o";
+            gen.save_to_object_file(object_file_path);
+        }
+        std::vector<std::string> link_objs;
+        link_objs.push_back(object_file_path);
+        gen.link_object_files_as_executable(link_objs, output.value());
+    }
+    auto print = options.option("print-ir", "pir");
+    if (print.has_value()) {
+        // print to console
+        gen.print_to_console();
     }
     // prints the errors occurred during saving as well
     for (const auto &error: gen.errors) {
         std::cout << error << std::endl;
-    }
-    auto print = options.option("print", "p");
-    if (print.has_value()) {
-        // print to console
-        gen.print_to_console();
     }
     return 0;
 }

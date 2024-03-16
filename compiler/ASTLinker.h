@@ -11,6 +11,7 @@ class ASTNode;
 /**
  * ASTLinker provides a way for the nodes to be linked
  * SemanticLinker however provides a way for the tokens to be linked
+ * This doesn't link up modules like Linker does which is used for exporting executables
  */
 class ASTLinker {
 public:

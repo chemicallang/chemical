@@ -55,8 +55,12 @@ bool Lexer::lexFunctionSignatureTokens() {
         error("function name is missing, when defining a function");
         return true;
     } else {
+#ifdef LSP_BUILD
         tokens.emplace_back(std::make_unique<FunctionToken>(backPosition(name.length()), name, modifiers));
         modifiers = 0;
+#else
+        tokens.emplace_back(std::make_unique<FunctionToken>(backPosition(name.length()), name));
+#endif
     }
 
     lexWhitespaceToken();

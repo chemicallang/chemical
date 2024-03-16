@@ -6,6 +6,7 @@
 
 #pragma once
 
+#ifdef LSP_BUILD
 #include "SemanticAnalyzer.h"
 #include "LibLsp/lsp/lsp_completion.h"
 
@@ -51,3 +52,4 @@ public:
     }
 
 };
+#endif

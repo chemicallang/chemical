@@ -13,6 +13,11 @@ public:
 
     unsigned int len;
 
+    MacroToken(const TokenPosition &position, unsigned int len) : LexToken(position), len(len) {
+        // nothing
+    }
+
+#ifdef LSP_BUILD
     SemanticTokenModifier modifier;
 
     MacroToken(const TokenPosition &position, unsigned int len, SemanticTokenModifier modifier) : LexToken(position), len(len), modifier(modifier) {
@@ -22,6 +27,7 @@ public:
     SemanticTokenType lspType() const override {
         return SemanticTokenType::ls_macro;
     }
+#endif
 
     LexTokenType type() const override {
         return LexTokenType::Macro;

@@ -28,6 +28,7 @@ public:
         return LexTokenType::Number;
     }
 
+#ifdef LSP_BUILD
     [[nodiscard]] SemanticTokenType lspType() const override {
         return SemanticTokenType::ls_number;
     }
@@ -35,6 +36,7 @@ public:
     bool lsp_has_comp() const override {
         return false;
     }
+#endif
 
     [[nodiscard]] std::string type_string() const override {
         std::string buf("Number:");

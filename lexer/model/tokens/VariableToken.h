@@ -37,6 +37,7 @@ public:
         return LexTokenType::Variable;
     }
 
+#ifdef LSP_BUILD
     [[nodiscard]] SemanticTokenType lspType() const override {
         return SemanticTokenType::ls_variable;
     }
@@ -52,6 +53,7 @@ public:
     std::optional<std::string> lsp_comp_label() const override {
         if(access) return std::nullopt; else return value;
     }
+#endif
 
     [[nodiscard]] std::string type_string() const override {
         std::string buf("Identifier:");

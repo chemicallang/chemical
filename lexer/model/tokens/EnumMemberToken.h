@@ -19,6 +19,7 @@ public:
         return LexTokenType::EnumMember;
     }
 
+#ifdef LSP_BUILD
     [[nodiscard]] SemanticTokenType lspType() const override {
         return SemanticTokenType::ls_enumMember;
     }
@@ -26,6 +27,7 @@ public:
     std::optional<lsCompletionItemKind> lsp_comp_kind() const override {
         return lsCompletionItemKind::EnumMember;
     }
+#endif
 
     [[nodiscard]] std::string type_string() const override {
         std::string buf("EnumMember:");

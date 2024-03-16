@@ -22,6 +22,7 @@ public:
         return value;
     }
 
+#ifdef LSP_BUILD
     [[nodiscard]] SemanticTokenType lspType() const override {
         return SemanticTokenType::ls_interface;
     }
@@ -29,6 +30,7 @@ public:
     std::optional<lsCompletionItemKind> lsp_comp_kind() const override {
         return lsCompletionItemKind::Interface;
     }
+#endif
 
     [[nodiscard]] std::string type_string() const override {
         std::string buf("InterfaceName:");

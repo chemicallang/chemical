@@ -6,8 +6,9 @@
 
 #pragma once
 
-
+#ifdef LSP_BUILD
 #include "LibLsp/lsp/textDocument/foldingRange.h"
+
 #include "SemanticAnalyzer.h"
 
 #define DEBUG false
@@ -48,3 +49,4 @@ public:
     }
 
 };
+#endif

@@ -10,14 +10,19 @@
 bool Lexer::lexAnnotationMacro() {
     if(provider.increment('@')) {
         auto macro = lexAlphaNum();
-        SemanticTokenModifier modifier = SemanticTokenModifier::LastModifier;
+#ifdef LSP_BUILD
+        SemanticTokenModifier modifier;
         if(macro == "deprecated") {
             modifier = SemanticTokenModifier::ls_deprecated;
         } else if(macro == "readonly") {
             modifier = SemanticTokenModifier::ls_readonly;
+        } else {
+            modifier = SemanticTokenModifier::LastModifier;
         }
-        modifiers |= 1 << (unsigned int) modifier;
         tokens.emplace_back(std::make_unique<MacroToken>(backPosition(macro.size() + 1), macro.size() + 1, modifier));
+#else
+        tokens.emplace_back(std::make_unique<MacroToken>(backPosition(macro.size() + 1), macro.size() + 1));
+#endif
         return true;
     } else {
         return false;

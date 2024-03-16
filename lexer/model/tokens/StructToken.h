@@ -19,6 +19,7 @@ public:
         return LexTokenType::Struct;
     }
 
+#ifdef LSP_BUILD
     [[nodiscard]] SemanticTokenType lspType() const override {
         return SemanticTokenType::ls_struct;
     }
@@ -26,6 +27,7 @@ public:
     std::optional<lsCompletionItemKind> lsp_comp_kind() const override {
         return lsCompletionItemKind::Struct;
     }
+#endif
 
     [[nodiscard]] std::string type_string() const override {
         std::string buf("Struct:");

@@ -27,9 +27,11 @@ public:
         return LexTokenType::Char;
     }
 
+#ifdef LSP_BUILD
     [[nodiscard]] SemanticTokenType lspType() const override {
         return SemanticTokenType::ls_string;
     }
+#endif
 
     std::string representation() const override {
         std::string buf;

@@ -263,14 +263,12 @@ target_include_directories(ChemicalLsp PRIVATE
 target_include_directories(Interpreter PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/LspCpp/include
 )
 
 # Add include directories for Compiler
 target_include_directories(Compiler PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/LspCpp/include
         # Include llvm directories for the compiler executable
         ${LLVM_INCLUDE_DIRS}
         ${LLD_INCLUDE_DIRS}
@@ -286,10 +284,10 @@ message(STATUS "LLvm Libs ${LLVM_LIBRARIES}")
 
 # Linking interpreter with Boost library
 # This should be removed eventually we don't want boost to boost our exe size
-target_link_libraries(Interpreter Boost::program_options Boost::filesystem lspcpp)
+target_link_libraries(Interpreter)
 
 # Link compiler against boost
-target_link_libraries(Compiler Boost::program_options Boost::filesystem lspcpp ${LLVM_LIBRARIES})
+target_link_libraries(Compiler ${LLVM_LIBRARIES})
 
 # Link Lsp with Boost Library
 target_link_libraries(ChemicalLsp Boost::program_options Boost::filesystem lspcpp)

@@ -26,9 +26,11 @@ public:
         return LexTokenType::MultilineComment;
     }
 
+#ifdef LSP_BUILD
     [[nodiscard]] SemanticTokenType lspType() const override {
         return SemanticTokenType::ls_string;
     }
+#endif
 
     std::string representation() const override {
         return "/* " + value + "*/";

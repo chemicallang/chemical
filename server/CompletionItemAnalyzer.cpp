@@ -3,6 +3,7 @@
 //
 // Created by Waqas Tahir on 11/03/2024.
 //
+#ifdef LSP_BUILD
 #include "CompletionItemAnalyzer.h"
 #include "lexer/model/tokens/CharOperatorToken.h"
 #include <unordered_set>
@@ -78,3 +79,4 @@ void CompletionItemAnalyzer::find_completion_items() {
         }
     }
 }
+#endif

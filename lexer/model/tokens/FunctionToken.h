@@ -11,9 +11,7 @@
 class FunctionToken : public AbstractStringToken {
 public:
 
-    unsigned int modifiers = 0;
-
-    FunctionToken(const TokenPosition& position, std::string identifier, unsigned int modifiers) : AbstractStringToken(position, std::move(identifier)), modifiers(modifiers) {
+    FunctionToken(const TokenPosition& position, std::string identifier) : AbstractStringToken(position, std::move(identifier)) {
 
     }
 
@@ -23,6 +21,13 @@ public:
 
     LexTokenType type() const override {
         return LexTokenType::Function;
+    }
+
+#ifdef LSP_BUILD
+    unsigned int modifiers = 0;
+
+    FunctionToken(const TokenPosition& position, std::string identifier, unsigned int modifiers) : AbstractStringToken(position, std::move(identifier)), modifiers(modifiers) {
+
     }
 
     [[nodiscard]] SemanticTokenType lspType() const override {
@@ -36,11 +41,11 @@ public:
     unsigned int lsp_modifiers() override {
         return modifiers;
     }
+#endif
 
     [[nodiscard]] std::string type_string() const override {
         std::string buf("FunctionName:");
         buf.append(this->value);
-        buf.append(";modifiers:" + std::to_string(modifiers));
         return buf;
     }
 

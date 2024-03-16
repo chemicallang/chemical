@@ -20,6 +20,7 @@ public:
         return LexTokenType::Parameter;
     }
 
+#ifdef LSP_BUILD
     [[nodiscard]] SemanticTokenType lspType() const override {
         return SemanticTokenType::ls_parameter;
     }
@@ -32,6 +33,7 @@ public:
     std::optional<std::string> lsp_comp_label() const override {
         return std::nullopt;
     }
+#endif
 
     [[nodiscard]] std::string type_string() const override {
         std::string buf("Parameter:");

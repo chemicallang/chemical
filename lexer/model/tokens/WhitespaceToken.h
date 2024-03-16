@@ -25,9 +25,11 @@ public:
         return len;
     }
 
+#ifdef LSP_BUILD
     [[nodiscard]] SemanticTokenType lspType() const override {
         return SemanticTokenType::ls_operator;
     }
+#endif
 
     std::string representation() const override{
         std::string space;

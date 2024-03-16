@@ -25,6 +25,7 @@ public:
         return value.length();
     }
 
+#ifdef LSP_BUILD
     [[nodiscard]] SemanticTokenType lspType() const override {
         return SemanticTokenType::ls_keyword;
     }
@@ -36,6 +37,7 @@ public:
     std::optional<std::string> lsp_comp_label() const override {
         return value;
     }
+#endif
 
     std::string representation() const override {
         return this->value;

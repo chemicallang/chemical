@@ -3,7 +3,7 @@
 //
 // Created by Waqas Tahir on 11/03/2024.
 //
-
+#ifdef LSP_BUILD
 #include "FoldingRangeAnalyzer.h"
 #include "lexer/model/tokens/CharOperatorToken.h"
 
@@ -42,3 +42,4 @@ void FoldingRangeAnalyzer::analyze_scopes() {
         i++;
     }
 }
+#endif

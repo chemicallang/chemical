@@ -80,7 +80,8 @@ int main(int argc, char *argv[]) {
         }
         std::vector<std::string> link_objs;
         link_objs.push_back(object_file_path);
-        gen.link_object_files_as_executable(link_objs, output.value());
+        std::vector<std::string> linker_flags{"-l:stdio.so"};
+        gen.link_object_files_as_executable(link_objs, output.value(), linker_flags);
     }
     auto print = options.option("print-ir", "pir");
     if (print.has_value()) {

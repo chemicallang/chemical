@@ -141,7 +141,7 @@ public:
     /**
      * This compiles the given object file to executable using clang apis
      */
-    void link_object_files_as_executable(std::vector<std::string>& obj_files, const std::string &out_path);
+    void link_object_files_as_executable(std::vector<std::string>& obj_files, const std::string &out_path, const std::vector<std::string>& linker_flags);
 
     /**
      * when generating code for the body of the loop, it should be wrapped with this function call

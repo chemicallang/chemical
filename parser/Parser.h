@@ -628,6 +628,12 @@ private:
     bool isParseBreakStatement = false;
 
     /**
+     * a stateful variable, in the middle of parsing
+     * n turned on expressions are parsed as interpretable
+     */
+    bool isParseInterpretableExpressions = false;
+
+    /**
      * This is a pointer to current function declaration
      * All nodes being parsed belong to this function's body
      */

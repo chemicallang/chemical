@@ -5,12 +5,19 @@ cmake_minimum_required(VERSION 3.8)
 message("CMake version: ${CMAKE_VERSION}")
 project("chemical")
 
-set(CMAKE_PREFIX_PATH "/mnt/d/Programming/Cpp/zig-bootstrap/out/host")
+# use default out/host or out-win/host folder if cmake prefix path is not given
+if(NOT DEFINED CMAKE_PREFIX_PATH)
+    if(WIN32)
+        set(CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../out-win/host")
+    else()
+        set(CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../out/host")
+    endif()
+endif()
+
+# We copied this from Zig CMakeLists
 set(ZIG_USE_LLVM_CONFIG ON)
-set(CMAKE_USER_MAKE_RULES_OVERRIDE
-        ${CMAKE_CURRENT_SOURCE_DIR}/cmake/c_flag_overrides.cmake)
-set(CMAKE_USER_MAKE_RULES_OVERRIDE_CXX
-        ${CMAKE_CURRENT_SOURCE_DIR}/cmake/cxx_flag_overrides.cmake)
+set(CMAKE_USER_MAKE_RULES_OVERRIDE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/c_flag_overrides.cmake)
+set(CMAKE_USER_MAKE_RULES_OVERRIDE_CXX ${CMAKE_CURRENT_SOURCE_DIR}/cmake/cxx_flag_overrides.cmake)
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
 
 # Enable verbose output
@@ -284,6 +291,7 @@ message(STATUS "LLvm Libs ${LLVM_LIBRARIES}")
 message(STATUS "Clang Libs ${CLANG_LIBRARIES}")
 message(STATUS "LLD Libs ${LLD_LIBRARIES}")
 
+# https://discourse.llvm.org/t/undefined-reference-to-typeinfo-for-llvm-genericoptionvalue/71526/3
 set(NO_RTTI "-fno-rtti")
 add_definitions(${NO_RTTI})
 

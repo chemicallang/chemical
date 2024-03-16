@@ -139,6 +139,10 @@ std::optional<std::unique_ptr<Value>> Parser::parseExpression() {
         return std::nullopt;
     }
 
-    return parseRemainingExpression(std::move(firstValue.value()));
+    if(isParseInterpretableExpressions) {
+        return parseRemainingInterpretableExpression(std::move(firstValue.value()));
+    } else {
+        return parseRemainingExpression(std::move(firstValue.value()));
+    }
 
 }

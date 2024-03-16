@@ -60,7 +60,7 @@ int lld_main(int argc, char **argv, const llvm::ToolContext &) {
 
 }
 
-void Codegen::link_object_files_as_executable(std::vector<std::string>& obj_files, const std::string &out_path) {
+void Codegen::link_object_files_as_executable(std::vector<std::string>& obj_files, const std::string &out_path, const std::vector<std::string>& linker_flags) {
 
     // Determine the lld driver
     std::string lld_driver;
@@ -79,14 +79,22 @@ void Codegen::link_object_files_as_executable(std::vector<std::string>& obj_file
     }
 
     // Arguments for lld_main
-    int argc = object_files_cstr.size() + 3; // Plus 3 for program name, output file, and terminator
+    int argc = object_files_cstr.size() + 3 + linker_flags.size(); // Plus 3 for program name, output file, and terminator
     std::vector<const char *> argv(argc);
     argv[0] = lld_driver.c_str(); // Use the correct lld driver
     for (size_t i = 0; i < object_files_cstr.size(); ++i) {
         argv[i + 1] = object_files_cstr[i];
     }
-    argv[argc - 2] = "-o";
-    argv[argc - 1] = out_path.c_str(); // Output executable path
+
+    // Add linker flags
+    int arg_index = object_files_cstr.size() + 1;
+    for (const auto& flag : linker_flags) {
+        argv[arg_index++] = flag.c_str();
+    }
+
+    argv[arg_index++] = "-o";
+    argv[arg_index++] = out_path.c_str(); // Output executable path
+    argv[arg_index] = nullptr; // Null terminator
 
     // Tool context (optional, can be left empty)
     llvm::ToolContext toolContext{};

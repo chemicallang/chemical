@@ -139,6 +139,11 @@ public:
     void save_to_object_file(const std::string &out_path);
 
     /**
+     * This compiles the given object file to executable using clang apis
+     */
+    void link_object_files_as_executable(std::vector<std::string>& obj_files, const std::string &out_path);
+
+    /**
      * when generating code for the body of the loop, it should be wrapped with this function call
      * before and after the body generation
      * this ensures that break and continue instructions work properly by pointing to the given blocks

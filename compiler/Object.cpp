@@ -55,7 +55,7 @@ void Codegen::save_to_object_file(const std::string &out_path) {
     // This generally occurs if we've forgotten to initialise the
     // TargetRegistry or we have a bogus target triple.
     if (!Target) {
-        errs() << Error;
+        error(Error);
         return;
     }
 

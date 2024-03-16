@@ -230,6 +230,7 @@ set(COMMON_SOURCES
         ast/types/AnyType.h
         utils/CmdUtils.h
         compiler/Object.cpp
+        compiler/Linker.cpp
 )
 
 # Chemical LSP Executable Target
@@ -276,18 +277,22 @@ target_include_directories(Compiler PRIVATE
 )
 
 # find the libraries that correspond to llvm
-#llvm_map_components_to_libnames(LLVM_LIBRARIES support core)
+#llvm_map_components_to_libnames(LLVM_EXTRA_LIBS Option)
 
 # Indicate which libraries are present in these vars
-message(STATUS "Clang Libs ${CLANG_LIBRARIES}")
 message(STATUS "LLvm Libs ${LLVM_LIBRARIES}")
+message(STATUS "Clang Libs ${CLANG_LIBRARIES}")
+message(STATUS "LLD Libs ${LLD_LIBRARIES}")
+
+set(NO_RTTI "-fno-rtti")
+add_definitions(${NO_RTTI})
 
 # Linking interpreter with Boost library
 # This should be removed eventually we don't want boost to boost our exe size
 target_link_libraries(Interpreter)
 
 # Link compiler against boost
-target_link_libraries(Compiler ${LLVM_LIBRARIES})
+target_link_libraries(Compiler ${CLANG_LIBRARIES} ${LLVM_LIBRARIES} ${LLD_LIBRARIES})
 
 # Link Lsp with Boost Library
 target_link_libraries(ChemicalLsp Boost::program_options Boost::filesystem lspcpp)

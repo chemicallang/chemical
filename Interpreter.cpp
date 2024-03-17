@@ -48,7 +48,7 @@ int main(int argc, char *argv[]) {
     auto lexer = benchLexFile(argv[1]);
     printTokens(lexer.tokens);
     for(const auto& err : lexer.errors) {
-        std::cerr << err.representation() << std::endl;
+        std::cerr << err.representation(argv[1]) << std::endl;
     }
     auto parser = benchParse(std::move(lexer.tokens));
     for(const auto& err : parser.errors) {

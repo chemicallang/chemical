@@ -95,9 +95,6 @@ set(COMMON_SOURCES
         stream/StreamSourceProvider.h
         stream/StreamPosition.h
         lexer/Lexi.cpp
-        lexer/model/LexError.h
-        lexer/model/LexError.h
-        lexer/model/LexError.h
         lexer/utils/LexValue.cpp
         lexer/model/TokenPosition.h
         utils/JsonUtils.cpp
@@ -246,6 +243,7 @@ set(COMMON_SOURCES
         utils/CmdUtils.h
         compiler/Object.cpp
         compiler/Linker.cpp
+        common/Diagnostic.h
 )
 
 # Chemical LSP Executable Target

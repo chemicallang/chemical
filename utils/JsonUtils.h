@@ -60,7 +60,8 @@ public:
 
         for (const auto &token: tokens) {
             rapidjson::Value tokenObj(rapidjson::kObjectType);
-            tokenObj.AddMember("start", token->start(), allocator);
+            rapidjson::Value posValue(token->position.representation().c_str(), static_cast<rapidjson::SizeType>(token->position.representation().length()), allocator);
+            tokenObj.AddMember("position", posValue, allocator);
             tokenObj.AddMember("length", token->length(), allocator);
             rapidjson::Value typeValue(token->type_string().c_str(), static_cast<rapidjson::SizeType>(token->type_string().length()), allocator);
             rapidjson::Value contentValue(token->content().c_str(), static_cast<rapidjson::SizeType>(token->content().length()), allocator);

@@ -25,10 +25,10 @@ void FoldingRangeAnalyzer::analyze_scopes() {
 
                 ranges.push_back(FoldingRange{
 
-                        static_cast<int>(start->position.lineNumber),
-                        static_cast<int>(end->position.lineNumber),
-                        static_cast<int>(start->position.lineCharNumber),
-                        static_cast<int>(end->position.lineCharNumber),
+                        static_cast<int>(start->position.line),
+                        static_cast<int>(end->position.line),
+                        static_cast<int>(start->position.character),
+                        static_cast<int>(end->position.character),
 
                         // TODO allow folding ranges of type comments
                         "region"

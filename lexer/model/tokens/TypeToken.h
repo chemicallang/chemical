@@ -13,7 +13,7 @@ public:
 
     std::string value;
 
-    TypeToken(const TokenPosition& position, std::string type) : LexToken(position), value(std::move(type)) {
+    TypeToken(const Position& position, std::string type) : LexToken(position), value(std::move(type)) {
         value.shrink_to_fit();
     }
 

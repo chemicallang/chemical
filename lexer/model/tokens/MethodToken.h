@@ -11,7 +11,7 @@
 class MethodToken : public AbstractStringToken {
 public:
 
-    MethodToken(const TokenPosition& position, std::string identifier) : AbstractStringToken(position, std::move(identifier)){
+    MethodToken(const Position& position, std::string identifier) : AbstractStringToken(position, std::move(identifier)){
 
     }
 

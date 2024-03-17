@@ -8,8 +8,15 @@
 
 class Position {
 public:
+
     // line and character correspond to position in the source file
     unsigned int line, character;
+
+    // representation of the position
+    std::string representation() {
+        return std::to_string(line) + ':' + std::to_string(character);
+    }
+
 };
 
 class Range {
@@ -89,7 +96,7 @@ public:
      * @param path
      * @return
      */
-    std::string representation(const std::string& path) const {
+    std::string representation(const std::string &path) const {
         return representation();
     }
 

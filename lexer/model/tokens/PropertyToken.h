@@ -11,7 +11,7 @@
 class PropertyToken : public AbstractStringToken {
 public:
 
-    PropertyToken(const TokenPosition& position, std::string identifier) : AbstractStringToken(position, std::move(identifier)){
+    PropertyToken(const Position& position, std::string identifier) : AbstractStringToken(position, std::move(identifier)){
 
     }
 

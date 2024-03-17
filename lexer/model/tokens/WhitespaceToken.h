@@ -13,7 +13,7 @@ public:
 
     unsigned int len;
 
-    WhitespaceToken(const TokenPosition& position, unsigned int length) : LexToken(position), len(length) {
+    WhitespaceToken(const Position& position, unsigned int length) : LexToken(position), len(length) {
 
     }
 

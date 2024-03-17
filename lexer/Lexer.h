@@ -11,7 +11,6 @@
 #include "stream/SourceProvider.h"
 #include "lexer/model/tokens/LexToken.h"
 #include "lexer/model/tokens/NumberToken.h"
-#include "lexer/model/TokenPosition.h"
 #include "ast/utils/Operation.h"
 #include "common/Diagnostic.h"
 #include <memory>
@@ -464,7 +463,7 @@ public:
      * returns the token position at the very current position
      * @return
      */
-    TokenPosition position();
+    Position position();
 
     /**
      * when you have read the character from the stream, you create a position, \n\n
@@ -476,7 +475,7 @@ public:
      * @param back
      * @return
      */
-    TokenPosition backPosition(unsigned int back);
+    Position backPosition(unsigned int back);
 
     /**
      * gets the line number from the provider

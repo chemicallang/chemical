@@ -11,7 +11,7 @@
 class FunctionToken : public AbstractStringToken {
 public:
 
-    FunctionToken(const TokenPosition& position, std::string identifier) : AbstractStringToken(position, std::move(identifier)) {
+    FunctionToken(const Position& position, std::string identifier) : AbstractStringToken(position, std::move(identifier)) {
 
     }
 
@@ -26,7 +26,7 @@ public:
 #ifdef LSP_BUILD
     unsigned int modifiers = 0;
 
-    FunctionToken(const TokenPosition& position, std::string identifier, unsigned int modifiers) : AbstractStringToken(position, std::move(identifier)), modifiers(modifiers) {
+    FunctionToken(const Position& position, std::string identifier, unsigned int modifiers) : AbstractStringToken(position, std::move(identifier)), modifiers(modifiers) {
 
     }
 

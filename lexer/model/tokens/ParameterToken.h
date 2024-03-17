@@ -12,7 +12,7 @@
 class ParameterToken : public AbstractStringToken {
 public:
 
-    ParameterToken(const TokenPosition& position, std::string identifier) : AbstractStringToken(position, std::move(identifier)){
+    ParameterToken(const Position& position, std::string identifier) : AbstractStringToken(position, std::move(identifier)){
 
     }
 

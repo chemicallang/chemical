@@ -11,7 +11,7 @@
 class EnumToken : public AbstractStringToken {
 public:
 
-    EnumToken(const TokenPosition& position, std::string identifier) : AbstractStringToken(position, std::move(identifier)){
+    EnumToken(const Position& position, std::string identifier) : AbstractStringToken(position, std::move(identifier)){
 
     }
 

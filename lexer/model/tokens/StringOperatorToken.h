@@ -17,7 +17,7 @@ public:
 
     std::string op;
 
-    StringOperatorToken(const TokenPosition& position, std::string op) : LexToken(position), op(std::move(op)) {
+    StringOperatorToken(const Position& position, std::string op) : LexToken(position), op(std::move(op)) {
         op.shrink_to_fit();
     }
 

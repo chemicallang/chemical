@@ -11,7 +11,7 @@
 class NumberToken : public AbstractStringToken {
 public:
 
-    NumberToken(const TokenPosition &position, std::string value) : AbstractStringToken(position, std::move(value)) {
+    NumberToken(const Position &position, std::string value) : AbstractStringToken(position, std::move(value)) {
 
     }
 

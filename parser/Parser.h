@@ -60,7 +60,7 @@ public:
     /**
      * An error is stored in the vector
      */
-    std::vector<std::string> errors;
+    std::vector<Diagnostic> errors;
 
     /**
      * Constructor with the tokens to parse
@@ -519,11 +519,16 @@ public:
         errStr = "[Parser] " + err;
         if (tokenPosition < tokens.size()) {
             auto t = tokens[tokenPosition].get();
-            errStr += " at " + std::to_string(t->lineNumber()) + ':' + std::to_string(t->lineCharNumber()) +
+            errStr += " at " + t->position.representation() +
                       " stopped at " + t->type_string();
         }
         errStr.append(1, '\n');
-        errors.push_back(errStr);
+        errors.emplace_back(
+                Range(tokens[tokenPosition]->position, tokens[tokenPosition]->position),
+                DiagSeverity::Error,
+                std::nullopt,
+                errStr
+        );
     }
 
     void error(const std::string &err) {

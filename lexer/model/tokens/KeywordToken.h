@@ -13,7 +13,7 @@ public:
 
     std::string keyword;
 
-    KeywordToken(const TokenPosition& position, std::string keyword) : LexToken(position), keyword(std::move(keyword)) {
+    KeywordToken(const Position& position, std::string keyword) : LexToken(position), keyword(std::move(keyword)) {
         keyword.shrink_to_fit();
     }
 

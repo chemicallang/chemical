@@ -11,7 +11,7 @@
 class StructToken : public AbstractStringToken {
 public:
 
-    StructToken(const TokenPosition& position, std::string identifier) : AbstractStringToken(position, std::move(identifier)){
+    StructToken(const Position& position, std::string identifier) : AbstractStringToken(position, std::move(identifier)){
 
     }
 

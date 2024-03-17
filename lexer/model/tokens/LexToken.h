@@ -8,8 +8,9 @@
 
 #include <string>
 #include <optional>
-#include "lexer/model/TokenPosition.h"
 #include "lexer/model/LexTokenType.h"
+#include "common/Diagnostic.h"
+
 #ifdef LSP_BUILD
 #include "LibLsp/lsp/textDocument/SemanticTokens.h"
 #include "LibLsp/lsp/lsp_completion.h"
@@ -24,26 +25,18 @@
 class LexToken {
 public:
 
-    TokenPosition position;
+    Position position;
 
-    LexToken(const TokenPosition& position) : position(position) {
+    LexToken(const Position& position) : position(position) {
 
-    }
-
-    inline unsigned int start() {
-        return position.position;
-    }
-
-    inline unsigned int end() {
-        return position.position + length();
     }
 
     inline unsigned int lineNumber() {
-        return position.lineNumber;
+        return position.line;
     }
 
     inline unsigned int lineCharNumber() {
-        return position.lineCharNumber;
+        return position.character;
     }
 
     /**

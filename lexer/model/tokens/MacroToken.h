@@ -13,14 +13,14 @@ public:
 
     unsigned int len;
 
-    MacroToken(const TokenPosition &position, unsigned int len) : LexToken(position), len(len) {
+    MacroToken(const Position &position, unsigned int len) : LexToken(position), len(len) {
         // nothing
     }
 
 #ifdef LSP_BUILD
     SemanticTokenModifier modifier;
 
-    MacroToken(const TokenPosition &position, unsigned int len, SemanticTokenModifier modifier) : LexToken(position), len(len), modifier(modifier) {
+    MacroToken(const Position &position, unsigned int len, SemanticTokenModifier modifier) : LexToken(position), len(len), modifier(modifier) {
         // nothing
     }
 

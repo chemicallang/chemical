@@ -11,7 +11,7 @@
 class InterfaceToken : public AbstractStringToken {
 public:
 
-    InterfaceToken(const TokenPosition &position, std::string identifier)
+    InterfaceToken(const Position &position, std::string identifier)
             : AbstractStringToken(position, std::move(identifier)) {}
 
     LexTokenType type() const override {

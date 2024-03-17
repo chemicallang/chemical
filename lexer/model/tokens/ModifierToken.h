@@ -11,7 +11,7 @@
 class ModifierToken : public AbstractStringToken {
 public:
 
-    ModifierToken(const TokenPosition& position, std::string identifier) : AbstractStringToken(position, std::move(identifier)){
+    ModifierToken(const Position& position, std::string identifier) : AbstractStringToken(position, std::move(identifier)){
 
     }
 

@@ -15,7 +15,7 @@ public:
 
     unsigned int len;
 
-    CharToken(const TokenPosition& position, char value, unsigned int length) : LexToken(position), value(value), len(length) {
+    CharToken(const Position& position, char value, unsigned int length) : LexToken(position), value(value), len(length) {
 
     }
 

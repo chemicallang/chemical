@@ -18,7 +18,7 @@ public:
     Operation op;
     unsigned int len;
 
-    OperationToken(const TokenPosition& position, unsigned int length, Operation op) : LexToken(position), len(length), op(op) {
+    OperationToken(const Position& position, unsigned int length, Operation op) : LexToken(position), len(length), op(op) {
 
     }
 

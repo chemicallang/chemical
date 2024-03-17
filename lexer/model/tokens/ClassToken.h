@@ -11,7 +11,7 @@
 class ClassToken : public AbstractStringToken {
 public:
 
-    ClassToken(const TokenPosition& position, std::string identifier) : AbstractStringToken(position, std::move(identifier)){
+    ClassToken(const Position& position, std::string identifier) : AbstractStringToken(position, std::move(identifier)){
 
     }
 

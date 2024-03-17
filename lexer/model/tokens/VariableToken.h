@@ -13,7 +13,7 @@ public:
 
     bool access;
 
-    VariableToken(const TokenPosition& position, std::string identifier, bool access) : AbstractStringToken(position, std::move(identifier)), access(access) {
+    VariableToken(const Position& position, std::string identifier, bool access) : AbstractStringToken(position, std::move(identifier)), access(access) {
 
     }
 

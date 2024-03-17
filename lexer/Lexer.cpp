@@ -38,12 +38,12 @@ void Lexer::lex() {
     tokens.shrink_to_fit();
 }
 
-TokenPosition Lexer::position() {
-    return {provider.getLineNumber(), provider.getLineCharNumber(), provider.position()};
+Position Lexer::position() {
+    return {provider.getLineNumber(), provider.getLineCharNumber()};
 }
 
-TokenPosition Lexer::backPosition(unsigned int back) {
-    return {provider.getLineNumber(), provider.getLineCharNumber() - back, provider.position() - back};
+Position Lexer::backPosition(unsigned int back) {
+    return {provider.getLineNumber(), provider.getLineCharNumber() - back};
 }
 
 void Lexer::error(unsigned int position, const std::string &message) {
@@ -52,7 +52,7 @@ void Lexer::error(unsigned int position, const std::string &message) {
     auto len = token->length();
     errors.emplace_back(
             Range{
-                    {pos.lineNumber,           pos.lineCharNumber + len},
+                    {pos.line,           pos.character + len},
                     {provider.getLineNumber(), provider.getLineCharNumber()}
             },
             DiagSeverity::Error,

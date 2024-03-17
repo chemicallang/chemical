@@ -24,7 +24,7 @@ std::vector<SemanticToken> to_semantic_tokens(FileTracker &tracker, const lsDocu
 
     std::vector<std::unique_ptr<LexToken>> lexed;
 
-    std::vector<LexError> errors;
+    std::vector<Diagnostic> errors;
 
     if (overridden_source.has_value()) {
         if(OVER_SRC_PRINT) std::cout << "[to_semantic_tokens] overridden source : " << overridden_source.value() << '\n';
@@ -58,8 +58,8 @@ std::vector<SemanticToken> to_semantic_tokens(FileTracker &tracker, const lsDocu
     for(const auto &error : errors) {
         diagnostics.push_back(lsDiagnostic{
             lsRange(
-                    lsPosition(error.start.line, error.start.character),
-                    lsPosition(error.end.line, error.end.character)
+                    lsPosition(error.range.start.line, error.range.start.character),
+                    lsPosition(error.range.end.line, error.range.end.character)
                 ),
                 lsDiagnosticSeverity::Error,
                 std::nullopt,

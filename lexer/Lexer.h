@@ -11,9 +11,9 @@
 #include "stream/SourceProvider.h"
 #include "lexer/model/tokens/LexToken.h"
 #include "lexer/model/tokens/NumberToken.h"
-#include "lexer/model/LexError.h"
 #include "lexer/model/TokenPosition.h"
 #include "ast/utils/Operation.h"
+#include "common/Diagnostic.h"
 #include <memory>
 #include <optional>
 #include <functional>
@@ -27,7 +27,7 @@ public:
 
     std::vector<std::unique_ptr<LexToken>> tokens;
 
-    std::vector<LexError> errors;
+    std::vector<Diagnostic> errors;
 
     inline bool isDebug() { return true; };
 

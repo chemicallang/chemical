@@ -51,6 +51,14 @@ find_package(llvm 17)
 find_package(clang 17)
 find_package(lld 17)
 
+# Check if CLANG_LIBRARIES contains NOTFOUND
+if(CLANG_LIBRARIES AND CLANG_LIBRARIES MATCHES "CLANG_LIBRARIES-NOTFOUND")
+    # Remove NOTFOUND from CLANG_LIBRARIES
+    string(REPLACE "CLANG_LIBRARIES-NOTFOUND;" "" CLANG_LIBRARIES "${CLANG_LIBRARIES}")
+endif()
+
+set(CMAKE_BUILD_TYPE "Release")
+
 # Add the LspCpp library directory
 add_subdirectory(LspCpp)
 
@@ -253,7 +261,9 @@ add_executable(ChemicalLsp Main.cpp ${COMMON_SOURCES}
 add_executable(Interpreter Interpreter.cpp ${COMMON_SOURCES})
 
 # add chemical llvm executable
-add_executable(Compiler Compiler.cpp ${COMMON_SOURCES})
+add_executable(Compiler Compiler.cpp ${COMMON_SOURCES}
+        compiler/ClangMain.cpp
+)
 
 # Compiler uses llvm
 target_compile_definitions(Compiler PRIVATE COMPILER_BUILD)
@@ -293,7 +303,10 @@ message(STATUS "LLD Libs ${LLD_LIBRARIES}")
 
 # https://discourse.llvm.org/t/undefined-reference-to-typeinfo-for-llvm-genericoptionvalue/71526/3
 set(NO_RTTI "-fno-rtti")
-add_definitions(${NO_RTTI})
+target_compile_options(Compiler PRIVATE ${NO_RTTI})
+if(WIN32)
+    target_compile_options(Compiler PRIVATE "/MT")
+endif()
 
 # Linking interpreter with Boost library
 # This should be removed eventually we don't want boost to boost our exe size

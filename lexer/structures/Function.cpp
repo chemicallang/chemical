@@ -49,8 +49,13 @@ bool Lexer::lexFunctionSignatureTokens() {
     }
 
     lexWhitespaceToken();
-
-    auto name = lexAlpha();
+    std::string name;
+    // TODO take it out as a function on provider
+    if(std::isalpha(provider.peek()) || provider.peek() == '_') {
+        while (!provider.eof() && (std::isalnum(provider.peek()) || provider.peek() == '_')) {
+            name.append(1, provider.readCharacter());
+        }
+    }
     if(name.empty()) {
         error("function name is missing, when defining a function");
         return true;

@@ -36,7 +36,7 @@
 using namespace llvm;
 using namespace llvm::sys;
 
-void Codegen::save_to_object_file(const std::string &out_path) {
+void Codegen::save_to_object_file(const std::string &out_path, const std::string& TargetTriple) {
 
     // Initialize the target registry etc.
     InitializeAllTargetInfos();
@@ -45,10 +45,9 @@ void Codegen::save_to_object_file(const std::string &out_path) {
     InitializeAllAsmParsers();
     InitializeAllAsmPrinters();
 
-    auto TargetTriple = sys::getDefaultTargetTriple();
-    module->setTargetTriple(TargetTriple);
+//    auto TargetTriple = sys::getDefaultTargetTriple();
 
-    std::string Error;
+    std::string Error = "unknown error related to target lookup";
     auto Target = TargetRegistry::lookupTarget(TargetTriple, Error);
 
     // Print an error and exit if we couldn't find the requested target.
@@ -63,10 +62,12 @@ void Codegen::save_to_object_file(const std::string &out_path) {
     auto Features = "";
 
     TargetOptions opt;
+    auto RM = std::optional<Reloc::Model>();
     auto TheTargetMachine = Target->createTargetMachine(
-            TargetTriple, CPU, Features, opt, Reloc::PIC_);
+            TargetTriple, CPU, Features, opt, RM);
 
     module->setDataLayout(TheTargetMachine->createDataLayout());
+    module->setTargetTriple(TargetTriple);
 
     std::error_code EC;
     raw_fd_ostream dest(out_path, EC, sys::fs::OF_None);

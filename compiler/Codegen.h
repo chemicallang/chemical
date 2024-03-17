@@ -6,6 +6,7 @@
 #include <memory>
 #include <utility>
 #include <vector>
+#include <iostream>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
 #include <llvm/IR/IRBuilder.h>
@@ -136,12 +137,36 @@ public:
      * saves as object file to this path
      * @param out_path
      */
-    void save_to_object_file(const std::string &out_path);
+    void save_to_object_file(const std::string &out_path, const std::string& target);
 
     /**
-     * This compiles the given object file to executable using clang apis
+      * You can invoke clang with this function
+      */
+    int invoke_lld(const std::vector<std::string>& command_args);
+
+    /**
+     * This uses lld API to compile given object files as executable
+     * BUT this doesn't result in a runnable executable because standard library is not linked
      */
-    void link_object_files_as_executable(std::vector<std::string>& obj_files, const std::string &out_path, const std::vector<std::string>& linker_flags);
+    void link_objs_as_exes_lld(std::vector<std::string>& obj_files, const std::string &out_path, const std::vector<std::string>& linker_flags);
+
+    /**
+     * You can invoke clang with this function
+     */
+    int invoke_clang(const std::vector<std::string>& command_args);
+
+
+    /**
+     * This uses clang API to compile given object files as executable
+     * BUT this doesn't result in a runnable executable because standard library is not linked
+     */
+    int link_objs_as_exes_clang(std::vector<std::string>& obj_files, const std::string &out_path, const std::vector<std::string>& command_args);
+
+    void print_errors() {
+        for(const auto& err : errors) {
+            std::cerr << err << std::endl;
+        }
+    }
 
     /**
      * when generating code for the body of the loop, it should be wrapped with this function call

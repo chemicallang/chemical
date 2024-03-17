@@ -60,11 +60,32 @@ int lld_main(int argc, char **argv, const llvm::ToolContext &) {
 
 }
 
-void Codegen::link_object_files_as_executable(std::vector<std::string>& obj_files, const std::string &out_path, const std::vector<std::string>& linker_flags) {
+int Codegen::invoke_lld(const std::vector<std::string> &command_args) {
+    // Convert the vector of strings to an ArrayRef<const char *>
+    std::vector<const char *> args_cstr;
+    args_cstr.reserve(command_args.size() + 1);
+    std::string lld_driver;
+    auto triple = llvm::Triple(sys::getDefaultTargetTriple());
+    if (triple.isOSDarwin())
+        lld_driver = "ld64.lld";
+    else if (triple.isOSWindows())
+        lld_driver = "lld-link";
+    else
+        lld_driver = "ld.lld";
+    args_cstr.push_back(lld_driver.c_str());
+    for (const std::string& arg : command_args) {
+        args_cstr.push_back(arg.c_str());
+    }
+    // invocation
+    ToolContext context{};
+    return lld_main(args_cstr.size(), const_cast<char**>(args_cstr.data()), context);
+}
+
+void Codegen::link_objs_as_exes_lld(std::vector<std::string>& obj_files, const std::string &out_path, const std::vector<std::string>& linker_flags) {
 
     // Determine the lld driver
     std::string lld_driver;
-    auto triple = llvm::Triple(sys::getProcessTriple());
+    auto triple = llvm::Triple(sys::getDefaultTargetTriple());
     if (triple.isOSDarwin())
         lld_driver = "ld64.lld";
     else if (triple.isOSWindows())

@@ -46,7 +46,7 @@ struct CmdOptions {
 
 };
 
-CmdOptions parse_cmd_options(int argc, char *argv[], int skip = 0) {
+CmdOptions parse_cmd_options(int argc, char *argv[], int skip = 0, std::string defValue = "true") {
     int i = skip;
     std::string option;
     std::unordered_map<std::string, std::string> options;
@@ -55,9 +55,9 @@ CmdOptions parse_cmd_options(int argc, char *argv[], int skip = 0) {
         auto x = argv[i];
         if (x[0] == '-') {
             if(!option.empty()) {
-                options[option] = "";
+                options[option] = defValue;
             }
-            option = (x[1] == '-') ? x[2] : x[1];
+            option = (x[1] == '-') ? (x + 2) : (x + 1);
         } else if (!option.empty()) {
             options[option] = x;
             option = "";
@@ -67,7 +67,7 @@ CmdOptions parse_cmd_options(int argc, char *argv[], int skip = 0) {
         i++;
     }
     if(!option.empty()) {
-        options[option] = "";
+        options[option] = defValue;
     }
     return CmdOptions{ options, arguments };
 }

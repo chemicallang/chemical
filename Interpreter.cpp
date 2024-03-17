@@ -46,16 +46,16 @@ int main(int argc, char *argv[]) {
         return 0;
     }
     auto lexer = benchLexFile(argv[1]);
-    printTokens(lexer.tokens);
+//    printTokens(lexer.tokens);
     for(const auto& err : lexer.errors) {
         std::cerr << err.representation(argv[1]) << std::endl;
     }
     auto parser = benchParse(std::move(lexer.tokens));
     for(const auto& err : parser.errors) {
-        std::cerr << err;
+        std::cerr << err.representation(argv[1]) << std::endl;
     }
     Scope scope(std::move(parser.nodes));
-    std::cout << "[Representation]\n" << scope.representation() << "\n";
+//    std::cout << "[Representation]\n" << scope.representation() << "\n";
     GlobalInterpretScope interpretScope(nullptr, &scope, nullptr, argv[1]);
     benchInterpret(scope, interpretScope);
     for(const auto& err : interpretScope.errors) {

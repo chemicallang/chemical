@@ -514,7 +514,7 @@ public:
      * sets the given error in the parseError and also prints it
      * @param err
      */
-    void error(const std::string &err, int tokenPosition) {
+    void diagnostic(const std::string &err, int tokenPosition, DiagSeverity severity) {
         std::string errStr;
         errStr = "[Parser] " + err;
         if (tokenPosition < tokens.size()) {
@@ -525,23 +525,47 @@ public:
         errStr.append(1, '\n');
         errors.emplace_back(
                 Range(tokens[tokenPosition]->position, tokens[tokenPosition]->position),
-                DiagSeverity::Error,
+                severity,
                 std::nullopt,
                 errStr
         );
     }
 
-    void error(const std::string &err) {
-        error(err, position);
+    /**
+     * This just calls the diagnostic method above with current token position
+     * @param err
+     * @param severity
+     */
+    void diagnostic(const std::string &err, DiagSeverity severity) {
+        diagnostic(err, position, severity);
     }
 
     /**
-     * this would store a warning
-     * @param err
+     * This just calls the diagnostic method above with DiagSeverity::Warning
      */
-    inline void warning(const std::string &err) {
-        // TODO implement this beautiful function
-        error(err);
+    inline void warning(const std::string &message) {
+        diagnostic(message, DiagSeverity::Warning);
+    }
+
+    /**
+     * This just calls the diagnostic method above with DiagSeverity::Information
+     */
+    inline void info(const std::string &message) {
+        diagnostic(message, DiagSeverity::Information);
+    }
+
+    /**
+     * This just calls the diagnostic method above with DiagSeverity::Hint
+     */
+    inline void hint(const std::string &message) {
+        diagnostic(message, DiagSeverity::Hint);
+    }
+
+    /**
+     * This just calls the diagnostic method above with DiagSeverity::Error
+     */
+    inline void error(const std::string &message) {
+        diagnostic(message, DiagSeverity::Error);
     }
 
     /**

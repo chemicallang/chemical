@@ -23,7 +23,7 @@ void Lexer::lexTopLevelMultipleStatementsTokens() {
                 while (!lexNewLineChars() && !(provider.eof() || provider.peek() == -1)) {
                     provider.readCharacter();
                 }
-                error(last_readable_token, "Skipped due to invalid syntax before it");
+                diagnostic(last_readable_token, "Skipped due to invalid syntax before it", DiagSeverity::Error);
                 continue;
             }
         }
@@ -46,7 +46,7 @@ Position Lexer::backPosition(unsigned int back) {
     return {provider.getLineNumber(), provider.getLineCharNumber() - back};
 }
 
-void Lexer::error(unsigned int position, const std::string &message) {
+void Lexer::diagnostic(unsigned int position, const std::string &message, DiagSeverity severity) {
     auto token = tokens[position].get();
     auto &pos = token->position;
     auto len = token->length();
@@ -55,7 +55,7 @@ void Lexer::error(unsigned int position, const std::string &message) {
                     {pos.line,           pos.character + len},
                     {provider.getLineNumber(), provider.getLineCharNumber()}
             },
-            DiagSeverity::Error,
+            severity,
             std::nullopt,
             message
     );

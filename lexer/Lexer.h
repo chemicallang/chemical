@@ -447,16 +447,45 @@ public:
      * @param position the position (in the tokens vector) of the token at end of which error started
      * @param message the message for the error
      */
-    void error(unsigned int position, const std::string &message);
+    void diagnostic(unsigned int position, const std::string &message, DiagSeverity severity);
 
     /**
-     * Adds an error
-     * The error has a range, so it will start at the last token that was consumed
+     * This just calls the diagnostic method above
+     * It has a range, so it will start at the last token that was consumed
      * and up until the current stream position
-     * @return
+     * @param message
+     * @param severity
+     */
+    inline void diagnostic(const std::string& message, DiagSeverity severity) {
+        diagnostic(tokens.size() - 1, message + " got \"" + tokens[tokens.size() - 1]->representation() + "\"", severity);
+    }
+
+    /**
+     * This just calls the diagnostic method above with DiagSeverity::Warning
+     */
+    inline void warning(const std::string &message) {
+        diagnostic(message, DiagSeverity::Warning);
+    }
+
+    /**
+     * This just calls the diagnostic method above with DiagSeverity::Information
+     */
+    inline void info(const std::string &message) {
+        diagnostic(message, DiagSeverity::Information);
+    }
+
+    /**
+     * This just calls the diagnostic method above with DiagSeverity::Hint
+     */
+    inline void hint(const std::string &message) {
+        diagnostic(message, DiagSeverity::Hint);
+    }
+
+    /**
+     * This just calls the diagnostic method above with DiagSeverity::Error
      */
     inline void error(const std::string &message) {
-        error(tokens.size() - 1, message + " got \"" + tokens[tokens.size() - 1]->representation() + "\"");
+        diagnostic(message, DiagSeverity::Error);
     }
 
     /**

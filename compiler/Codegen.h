@@ -142,10 +142,27 @@ public:
     llvm::TargetMachine * setup_for_target(const std::string& TargetTriple);
 
     /**
+     * save file as file type
+     * @param TargetTriple
+     * @param type
+     */
+    void save_as_file_type(const std::string &out_path, const std::string& TargetTriple, llvm::CodeGenFileType type);
+
+    /**
+     * saves as assembly file to this path
+     * @param TargetTriple
+     */
+    inline void save_to_assembly_file(const std::string &out_path, const std::string& TargetTriple) {
+        save_as_file_type(out_path, TargetTriple, llvm::CGFT_AssemblyFile);
+    }
+
+    /**
      * saves as object file to this path
      * @param out_path
      */
-    void save_to_object_file(const std::string &out_path, const std::string& TargetTriple);
+    inline void save_to_object_file(const std::string &out_path, const std::string& TargetTriple) {
+        save_as_file_type(out_path, TargetTriple, llvm::CGFT_ObjectFile);
+    }
 
     /**
       * You can invoke clang with this function

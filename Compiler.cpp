@@ -116,6 +116,9 @@ int main(int argc, char *argv[]) {
     if(endsWith(output.value(), ".o")) {
         gen.save_to_object_file(output.value(), target.value());
         return 0;
+    } else if(endsWith(output.value(), ".s")) {
+        gen.save_to_assembly_file(output.value(), target.value());
+        return 0;
     } else if(endsWith(output.value(), ".ll")) {
         gen.save_to_file(output.value(), target.value());
         return 0;

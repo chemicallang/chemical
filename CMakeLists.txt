@@ -96,7 +96,7 @@ set(COMMON_SOURCES
         stream/StreamPosition.h
         lexer/Lexi.cpp
         lexer/utils/LexValue.cpp
-        lexer/model/TokenPosition.h
+        compiler/clang_driver.cpp
         utils/JsonUtils.cpp
         utils/JsonUtils.h
         utils/FileUtils.h
@@ -260,7 +260,11 @@ add_executable(Interpreter Interpreter.cpp ${COMMON_SOURCES})
 
 # add chemical llvm executable
 add_executable(Compiler Compiler.cpp ${COMMON_SOURCES}
-        compiler/ClangMain.cpp
+        compiler/clang_cc1main.cpp
+        compiler/clang_driver.cpp
+        compiler/clang_cc1as_main.cpp
+        compiler/InvokeExtension.cpp
+        compiler/cc1gen_reproducer_main.cpp
 )
 
 # Compiler uses llvm

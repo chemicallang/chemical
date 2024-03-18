@@ -36,16 +36,13 @@
 using namespace llvm;
 using namespace llvm::sys;
 
-void Codegen::save_to_object_file(const std::string &out_path, const std::string& TargetTriple) {
-
+TargetMachine * Codegen::setup_for_target(const std::string &TargetTriple) {
     // Initialize the target registry etc.
     InitializeAllTargetInfos();
     InitializeAllTargets();
     InitializeAllTargetMCs();
     InitializeAllAsmParsers();
     InitializeAllAsmPrinters();
-
-//    auto TargetTriple = sys::getDefaultTargetTriple();
 
     std::string Error = "unknown error related to target lookup";
     auto Target = TargetRegistry::lookupTarget(TargetTriple, Error);
@@ -55,7 +52,7 @@ void Codegen::save_to_object_file(const std::string &out_path, const std::string
     // TargetRegistry or we have a bogus target triple.
     if (!Target) {
         error(Error);
-        return;
+        return nullptr;
     }
 
     auto CPU = "generic";
@@ -68,6 +65,17 @@ void Codegen::save_to_object_file(const std::string &out_path, const std::string
 
     module->setDataLayout(TheTargetMachine->createDataLayout());
     module->setTargetTriple(TargetTriple);
+
+    return TheTargetMachine;
+
+}
+
+void Codegen::save_to_object_file(const std::string &out_path, const std::string& TargetTriple) {
+
+    auto TheTargetMachine = setup_for_target(TargetTriple);
+    if(TheTargetMachine == nullptr) {
+        return;
+    }
 
     std::error_code EC;
     raw_fd_ostream dest(out_path, EC, sys::fs::OF_None);

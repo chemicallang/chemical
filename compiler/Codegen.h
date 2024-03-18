@@ -11,6 +11,7 @@
 #include <llvm/IR/Module.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Verifier.h>
+#include <llvm/Target/TargetMachine.h>
 #include "ast/utils/Operation.h"
 #include "ASTLinker.h"
 
@@ -127,17 +128,24 @@ public:
      * prints the current module as LLVM IR to a .ll file with given out_path
      * @param out_path
      */
-    void save_to_file(const std::string &out_path) {
+    void save_to_file(const std::string &out_path, const std::string& TargetTriple) {
         std::error_code errorCode;
         llvm::raw_fd_ostream outLL(out_path, errorCode);
         module->print(outLL, nullptr);
+        outLL.close();
     }
+
+    /**
+     * sets up the module for the given target
+     * @param target
+     */
+    llvm::TargetMachine * setup_for_target(const std::string& TargetTriple);
 
     /**
      * saves as object file to this path
      * @param out_path
      */
-    void save_to_object_file(const std::string &out_path, const std::string& target);
+    void save_to_object_file(const std::string &out_path, const std::string& TargetTriple);
 
     /**
       * You can invoke clang with this function
@@ -153,7 +161,7 @@ public:
     /**
      * You can invoke clang with this function
      */
-    int invoke_clang(const std::vector<std::string>& command_args);
+    int invoke_clang(std::vector<std::string>& command_args);
 
 
     /**

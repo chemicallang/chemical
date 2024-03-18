@@ -4,17 +4,33 @@
 
 int chemical_clang_main(int argc, char **argv);
 
-int Codegen::invoke_clang(std::vector<std::string> &command_args) {
+int Codegen::invoke_clang(const std::vector<std::string> &command_args) {
 
-    // Convert the vector of strings to an ArrayRef<const char *>
-    std::vector<char *> args_cstr;
-    args_cstr.reserve(command_args.size());
-    for (const std::string& arg : command_args) {
-        args_cstr.push_back(const_cast<char*>(arg.c_str()));
+    char** pointers = static_cast<char **>(malloc(command_args.size() * sizeof(char*)));
+
+    // Allocate memory for each argument
+    for (size_t i = 0; i < command_args.size(); ++i) {
+        pointers[i] = static_cast<char*>(malloc((command_args[i].size() + 1) * sizeof(char)));
+        // Copy the argument
+        if (strcpy_s(pointers[i], command_args[i].size() + 1, command_args[i].c_str()) != 0) {
+            // Handle strcpy_s failure
+            std::cerr << "Failure copying clang command argument";
+            // Free memory allocated so far
+            for (size_t j = 0; j <= i; ++j) {
+                free(pointers[j]);
+            }
+            free(pointers);
+            return -1;
+        }
     }
 
     // invocation
-    return chemical_clang_main(args_cstr.size(), args_cstr.data());
+    auto result = chemical_clang_main(command_args.size(), pointers);
+    for (size_t i = 0; i < command_args.size(); ++i) {
+        free(pointers[i]);
+    }
+    free(pointers);
+    return result;
 
 }
 

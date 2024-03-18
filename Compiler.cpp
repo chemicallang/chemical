@@ -49,7 +49,7 @@ int main(int argc, char *argv[]) {
 
     // invoke clang cc1, this is used by clang, because it invokes (current executable)
     if(strcmp(argv[1], "-cc1") == 0) {
-        if(DEBUG) std::cout << "Invoking clang cc1: ";
+        if(DEBUG) std::cout << "Invoking clang cc1: " << std::endl;
         return chemical_clang_main(argc, argv);
     }
 

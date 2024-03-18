@@ -161,7 +161,7 @@ public:
     /**
      * You can invoke clang with this function
      */
-    int invoke_clang(std::vector<std::string>& command_args);
+    int invoke_clang(const std::vector<std::string>& command_args);
 
 
     /**

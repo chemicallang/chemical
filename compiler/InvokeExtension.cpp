@@ -12,16 +12,8 @@ int Codegen::invoke_clang(const std::vector<std::string> &command_args) {
     for (size_t i = 0; i < command_args.size(); ++i) {
         pointers[i] = static_cast<char*>(malloc((command_args[i].size() + 1) * sizeof(char)));
         // Copy the argument
-        if (strcpy_s(pointers[i], command_args[i].size() + 1, command_args[i].c_str()) != 0) {
-            // Handle strcpy_s failure
-            std::cerr << "Failure copying clang command argument";
-            // Free memory allocated so far
-            for (size_t j = 0; j <= i; ++j) {
-                free(pointers[j]);
-            }
-            free(pointers);
-            return -1;
-        }
+        strcpy(pointers[i], command_args[i].c_str());
+        pointers[i][command_args[i].size()] = '\0';
     }
 
     // invocation

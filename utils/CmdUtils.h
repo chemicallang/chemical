@@ -31,14 +31,27 @@ struct CmdOptions {
     /**
      * just prints the command to cout
      */
-    void print() {
+    void print(std::ostream& out = std::cout) {
         for(const auto& opt : options) {
             if(opt.second.empty()) {
-                std::cout << opt.first << ' ';
+                out << opt.first << ' ';
             } else {
-                std::cout << '-' << opt.first << ' ' << opt.second << ' ';
+                out << '-' << opt.first << ' ' << opt.second << ' ';
             }
         }
+    }
+
+    /**
+     * prints unconsumed options as errs
+     */
+#define ANSI_COLOR_RED     "\x1b[91m"
+#define ANSI_COLOR_RESET   "\x1b[0m"
+    void print_unhandled() {
+        if(!options.empty()) {
+            std::cerr << ANSI_COLOR_RED << "unhandled arguments given -> ";
+        }
+        print(std::cerr);
+        std::cerr << ANSI_COLOR_RESET;
     }
 
     /**
@@ -85,17 +98,21 @@ struct CmdOptions {
      * @param small_opt the small option key used with -x (single dash)
      * @return
      */
-    std::optional<std::string> option(const std::string& opt, const std::string& small_opt) {
+    std::optional<std::string> option(const std::string& opt, const std::string& small_opt, bool consume = true) {
         auto whole = options.find(opt);
         if(whole == options.end()) {
             auto half = options.find(small_opt);
             if(half == options.end()) {
                 return std::nullopt;
             } else {
-                return half->second;
+                auto value = half->second;
+                if(consume) options.erase(half);
+                return value;
             }
         } else {
-            return whole->second;
+            auto value = whole->second;
+            if(consume) options.erase(whole);
+            return value;
         }
     }
 
@@ -106,12 +123,12 @@ struct CmdOptions {
      * @param skip how many to skip before parsing
      * @param defOptValue the default value for an option, for example --print --use --done,
      * all these arguments don't have a value, you can give them default values (default true)
-     * @param defArgValue the default value for a argument (not followed by a -- option)
      * for example clang x -o file.o, x here is a argument
-     * @return
+     * @return the first args, cmd file.o file.o1, these file.o and file.o1 are returned
      */
-    void parse_cmd_options(int argc, char *argv[], int skip = 0) {
+    std::vector<std::string> parse_cmd_options(int argc, char *argv[], int skip = 0) {
         int i = skip;
+        std::vector<std::string> args;
         std::string option;
         while (i < argc) {
             auto x = argv[i];
@@ -124,13 +141,14 @@ struct CmdOptions {
                 options[option] = x;
                 option = "";
             } else {
-                options[x] = "";
+                args.emplace_back(x);
             }
             i++;
         }
         if(!option.empty()) {
             options[option] = defOptValue;
         }
+        return args;
     }
 
 };

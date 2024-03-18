@@ -25,16 +25,6 @@ using namespace lld;
 using namespace llvm;
 using namespace llvm::sys;
 
-namespace lld {
-    extern bool inTestOutputDisabled;
-
-// Bypass the crash recovery handler, which is only meant to be used in
-// LLD-as-lib scenarios.
-    int unsafeLldMain(llvm::ArrayRef<const char *> args,
-                      llvm::raw_ostream &stdoutOS, llvm::raw_ostream &stderrOS,
-                      llvm::ArrayRef<DriverDef> drivers, bool exitEarly);
-} // namespace lld
-
 LLD_HAS_DRIVER(coff)
 LLD_HAS_DRIVER(elf)
 LLD_HAS_DRIVER(mingw)
@@ -45,18 +35,11 @@ int lld_main(int argc, char **argv, const llvm::ToolContext &) {
 
     sys::Process::UseANSIEscapeCodes(true);
 
-    if (::getenv("FORCE_LLD_DIAGNOSTICS_CRASH")) {
-        llvm::errs()
-                << "crashing due to environment variable FORCE_LLD_DIAGNOSTICS_CRASH\n";
-        LLVM_BUILTIN_TRAP;
-    }
-
     ArrayRef<const char *> args(argv, argv + argc);
 
-    int r =
-            lld::unsafeLldMain(args, llvm::outs(), llvm::errs(), LLD_ALL_DRIVERS,
-                    /*exitEarly=*/true);
-    return r;
+    auto result = lld::lldMain(args, llvm::outs(), llvm::errs(), LLD_ALL_DRIVERS);
+
+    return result.retCode;
 
 }
 

@@ -28,7 +28,7 @@ bool endsWith(const std::string &fullString, const std::string &ending) {
 
 int main(int argc, char *argv[]) {
 
-    if (argc == 0) {
+    if (argc < 2) {
         std::cerr << "No inputs given\n\n";
         print_usage();
         return 1;
@@ -36,7 +36,13 @@ int main(int argc, char *argv[]) {
 
     // parsing the command
     CmdOptions options;
-    options.parse_cmd_options(argc, argv, 1);
+    auto args = options.parse_cmd_options(argc, argv, 1);
+    if(args.empty()) {
+        std::cerr << "No input given\n\n";
+        print_usage();
+        return 1;
+    }
+
     auto verbose = options.option("verbose", "v");
 
     // invoke clang cc1, this is used by clang, because it invokes (current executable)
@@ -51,15 +57,9 @@ int main(int argc, char *argv[]) {
         std::cout << std::endl;
     }
 
-    if (options.count_args() == 0) {
-        std::cerr << "No inputs given to the compiler\n\n";
-        print_usage();
-        return 1;
-    }
-
     // Lex, parse & type check
     auto benchmark = options.option("benchmark", "bm");
-    Lexer lexer = benchmark.has_value() ? benchLexFile(argv[1]) : lexFile(argv[1]);
+    Lexer lexer = benchmark.has_value() ? benchLexFile(args[0]) : lexFile(args[0]);
     if(verbose.has_value()) {
         printTokens(lexer.tokens);
     }
@@ -110,12 +110,15 @@ int main(int argc, char *argv[]) {
     // writing object / ll file when user wants only that !
     if(endsWith(output.value(), ".o")) {
         gen.save_to_object_file(output.value(), target.value());
+        options.print_unhandled();
         return 0;
     } else if(endsWith(output.value(), ".s")) {
         gen.save_to_assembly_file(output.value(), target.value());
+        options.print_unhandled();
         return 0;
     } else if(endsWith(output.value(), ".ll")) {
         gen.save_to_file(output.value(), target.value());
+        options.print_unhandled();
         return 0;
     }
 
@@ -128,15 +131,13 @@ int main(int argc, char *argv[]) {
     }
 
     // check no need to invoke clang
-    auto invoke_clang = options.option("use-clang", "use-clang");
-    if (invoke_clang.has_value()) {
-        std::vector<std::string> clang_flags{
-                argv[0],
-                object_file_path,
-                "-o",
-                output.value(),
-                "-v"
-        };
+    auto clang = options.option("clang", "clang");
+    if (clang.has_value()) {
+        std::vector<std::string> clang_flags{argv[0]};
+        // TODO allow user to inject args here
+        clang_flags.emplace_back(object_file_path);
+        clang_flags.emplace_back("-o");
+        clang_flags.emplace_back(output.value());
         return_int = gen.invoke_clang(clang_flags);
     } else {
 
@@ -169,8 +170,9 @@ int main(int argc, char *argv[]) {
         }
 
         // add user's linker flags
-        auto user_flags = options.collect_multi("linker");
-        for(const auto& flag : user_flags) {
+        auto user_libs = options.collect_multi("link");
+        // TODO test this
+        for(const auto& flag : user_libs) {
             linker.emplace_back(flag);
         }
 
@@ -184,9 +186,11 @@ int main(int argc, char *argv[]) {
             std::filesystem::remove(object_file_path);
         } catch (const std::filesystem::filesystem_error& ex) {
             std::cerr << "couldn't delete object file " << object_file_path << " because " << ex.what() << std::endl;
-            return 1;
+            return_int = 1;
         }
     }
+
+    options.print_unhandled();
 
     return return_int;
 

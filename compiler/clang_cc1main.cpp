@@ -310,36 +310,4 @@ int cc1_main(ArrayRef<const char *> Argv, const char *Argv0, void *MainAddr) {
     return !Success;
 }
 
-int Codegen::invoke_clang(const std::vector<std::string> &command_args) {
-
-    // Sample command line arguments as a vector of strings
-//    const std::vector<std::string> command_args = {"clang", "-c", "source_file.c", "-o", "output_file.o"};
-
-    // Convert the vector of strings to an ArrayRef<const char *>
-    std::vector<const char *> args_cstr;
-    args_cstr.reserve(command_args.size());
-    for (const std::string& arg : command_args) {
-        args_cstr.push_back(arg.c_str());
-    }
-    llvm::ArrayRef<const char *> args(args_cstr);
-
-    // invocation
-    return cc1_main(args, "clang", nullptr);
-
-}
-
-int Codegen::link_objs_as_exes_clang(std::vector<std::string> &obj_files, const std::string &out_path, const std::vector<std::string> &command_args) {
-
-    // Convert vector of strings to array of C-style strings
-    std::vector<const char*> args;
-    args.reserve(obj_files.size() + 1); // +1 for the terminating nullptr
-    for(const auto& file : obj_files)
-        args.push_back(file.c_str());
-
-
-    return cc1_main(args, "clang", nullptr);
-
-    return 0;
-}
-
 #endif

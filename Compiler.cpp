@@ -16,8 +16,6 @@
 #include "utils/CmdUtils.h"
 #include <filesystem>
 
-#define DEBUG true
-
 int chemical_clang_main(int argc, char **argv);
 
 bool endsWith(const std::string &fullString, const std::string &ending) {
@@ -36,28 +34,18 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // print command in debug mode
-    if(DEBUG) {
-        std::cout << "Command : ";
-        int i = 0;
-        while (i < argc) {
-            std::cout << argv[i] << ' ';
-            i++;
-        }
-        std::cout << std::endl;
-    }
-
-    // invoke clang cc1, this is used by clang, because it invokes (current executable)
-    if(strcmp(argv[1], "-cc1") == 0) {
-        if(DEBUG) std::cout << "Invoking clang cc1: " << std::endl;
-        return chemical_clang_main(argc, argv);
-    }
-
     // parsing the command
     CmdOptions options;
     options.parse_cmd_options(argc, argv, 1);
+    auto verbose = options.option("verbose", "v");
 
-    if(DEBUG) {
+    // invoke clang cc1, this is used by clang, because it invokes (current executable)
+    if(strcmp(argv[1], "-cc1") == 0) {
+        if(verbose.has_value()) std::cout << "Invoking Clang : " << std::endl;
+        return chemical_clang_main(argc, argv);
+    }
+
+    if(verbose.has_value()) {
         std::cout << "Formed Command : ";
         options.print();
         std::cout << std::endl;
@@ -70,12 +58,15 @@ int main(int argc, char *argv[]) {
     }
 
     // Lex, parse & type check
-    auto lexer = benchLexFile(argv[1]);
-//    printTokens(lexer.tokens);
+    auto benchmark = options.option("benchmark", "bm");
+    Lexer lexer = benchmark.has_value() ? benchLexFile(argv[1]) : lexFile(argv[1]);
+    if(verbose.has_value()) {
+        printTokens(lexer.tokens);
+    }
     for (const auto &err: lexer.errors) {
         std::cerr << err.representation(argv[1]) << std::endl;
     }
-    auto parser = benchParse(std::move(lexer.tokens));
+    auto parser = benchmark.has_value() ? benchParse(std::move(lexer.tokens)) : parse(std::move(lexer.tokens));
     for (const auto &err: parser.errors) {
         std::cerr << err.representation(argv[1]) << std::endl;
     }
@@ -85,7 +76,9 @@ int main(int argc, char *argv[]) {
         std::cerr << err << std::endl;
     }
     Scope scope(std::move(parser.nodes));
-//    std::cout << "[Representation]\n" << scope.representation() << std::endl;
+    if(verbose.has_value()) {
+        std::cout << "[Representation]\n" << scope.representation() << std::endl;
+    }
     if (!lexer.errors.empty() || !parser.errors.empty() || !checker.errors.empty()) return 1;
 
     // actual compilation
@@ -104,7 +97,9 @@ int main(int argc, char *argv[]) {
     if (!target.has_value()) {
         target.emplace(llvm::sys::getDefaultTargetTriple());
     }
-    std::cout << "Target: " << target.value() << std::endl;
+    if(verbose.has_value()) {
+        std::cout << "Target: " << target.value() << std::endl;
+    }
 
     int return_int = 0;
     auto output = options.option("output", "o");

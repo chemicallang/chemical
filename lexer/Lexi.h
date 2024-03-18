@@ -35,7 +35,7 @@ Lexer benchLexFile(const std::string &path);
  * @param file
  * @return the tokens
  */
-std::vector<std::unique_ptr<LexToken>> lexFile(std::istream &file, const std::string& path);
+Lexer lexFile(std::istream &file, const std::string& path);
 
 /**
  * same as lexFile with istream
@@ -43,4 +43,4 @@ std::vector<std::unique_ptr<LexToken>> lexFile(std::istream &file, const std::st
  * @param fileName
  * @return the tokens
  */
-std::vector<std::unique_ptr<LexToken>> lexFile(const std::string &path);
+Lexer lexFile(const std::string &path);

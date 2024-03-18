@@ -137,15 +137,24 @@ int main(int argc, char *argv[]) {
                 object_file_path,
                 "-o",
                 output.value(),
-                "--target",
-                target.value(),
                 "-v"
         };
         return_int = gen.invoke_clang(clang_flags);
     } else {
 
         // creating lld command
-        std::vector<std::string> linker{object_file_path, "/OUT:"+output.value()};
+        std::vector<std::string> linker{object_file_path};
+
+        // set output
+#if defined(_WIN32)
+        linker.emplace_back("/OUT:"+output.value());
+#elif defined(__APPLE__)
+        linker.emplace_back("-o");
+        linker.emplace_back("./"+output.value());
+#elif defined(__linux__)
+        linker.emplace_back("-o");
+        linker.emplace_back("./"+output.value());
+#endif
 
         // link with standard libc (unless user opts out)
         auto option = options.option("no-libc", "no-libc");

@@ -67,11 +67,11 @@ Lexer benchLexFile(const std::string &path) {
  * @param file
  * @return the tokens
  */
-std::vector<std::unique_ptr<LexToken>> lexFile(std::istream &file, const std::string& path) {
+Lexer lexFile(std::istream &file, const std::string& path) {
     StreamSourceProvider reader(file);
     Lexer lexer(reader, path);
     lexer.lex();
-    return std::move(lexer.tokens);
+    return lexer;
 }
 
 /**
@@ -80,7 +80,7 @@ std::vector<std::unique_ptr<LexToken>> lexFile(std::istream &file, const std::st
  * @param fileName
  * @return the tokens
  */
-std::vector<std::unique_ptr<LexToken>> lexFile(const std::string &path) {
+Lexer lexFile(const std::string &path) {
     std::ifstream file;
     file.open(path);
     if (!file.is_open()) {

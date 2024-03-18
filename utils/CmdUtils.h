@@ -28,9 +28,16 @@ struct CmdOptions {
      */
     std::map<std::string, std::string> options;
 
+    /**
+     * just prints the command to cout
+     */
     void print() {
         for(const auto& opt : options) {
-            std::cout << '-' << opt.first << ' ' << opt.second << ' ';
+            if(opt.second.empty()) {
+                std::cout << opt.first << ' ';
+            } else {
+                std::cout << '-' << opt.first << ' ' << opt.second << ' ';
+            }
         }
     }
 

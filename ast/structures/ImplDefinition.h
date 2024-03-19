@@ -11,7 +11,7 @@
 #include "ast/base/Value.h"
 #include "ast/structures/InterfaceDefinition.h"
 
-class ImplDefinition : public ASTNode, public Value {
+class ImplDefinition : public ASTNode {
 public:
 
     /**
@@ -51,7 +51,7 @@ public:
 
     void interpret(InterpretScope &scope) override {
         type_check(scope);
-        scope.values[struct_name + ':' + interface_name] = this;
+        scope.global->nodes[struct_name + ':' + interface_name] = this;
     }
 
     std::string representation() const override {
@@ -66,10 +66,6 @@ public:
         }
         ret.append("\n}");
         return ret;
-    }
-
-    void scope_ends() override {
-        // don't call destructor when scope ends
     }
 
 private:

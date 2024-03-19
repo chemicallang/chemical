@@ -15,20 +15,16 @@ public:
         values.shrink_to_fit();
     }
 
-    void store() {
-        map = new std::unordered_map<std::string, Value *>();
-        for (const auto &value: values) {
-            (*map)[value.first] = value.second.get();
-        }
-    }
-
     Value * evaluated_value(InterpretScope &scope) override {
-        store();
+        auto decl = scope.global->values.find(structName);
+        if(decl == scope.global->values.end()) {
+            scope.error("couldn't find struct declaration by name " + structName);
+        }
         return this;
     }
 
     Value *child(const std::string &name) override {
-        return (*map)[name];
+        return nullptr;
     }
 
 #ifdef COMPILER_BUILD
@@ -81,12 +77,7 @@ public:
         return rep;
     }
 
-    void scope_ends() override {
-        delete map;
-    }
-
     std::string structName;
-    std::unordered_map<std::string, Value *> *map;
     std::vector<std::pair<std::string, std::unique_ptr<Value>>> values;
 
 #ifdef COMPILER_BUILD

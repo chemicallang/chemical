@@ -1,16 +1,15 @@
-func printf(format : string, args : any...) : int
-
-struct Point {
-    var x : int;
-    var y : int;
+func add(a : int, b : int) : int {
+    return a + b;
 }
 
 func main() : int {
-    var x = Vox {
-        x : 1,
-        y : 2
+
+    for(var x = 0; x < 5; x++) {
+        printf("check : ", x, '\n');
     }
-    printf("check its 1 -> ", x.x);
+
+    printf("check 1 + 2 = ", add(1,2), '\n');
+
     return 0;
 }
 

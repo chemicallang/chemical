@@ -16,7 +16,8 @@ bool Lexer::lexStringToken() {
             auto readChar = provider.peek();
             if(readChar == '\\') {
                 provider.readCharacter();
-                str += escape_sequence(provider.readCharacter());
+                auto escaped = escape_sequence(provider.readCharacter());
+                str += escaped;
             } else if(readChar == '"') {
                 provider.readCharacter();
                 tokens.emplace_back(std::make_unique<StringToken>(backPosition(str.length() + 2), str));

@@ -27,15 +27,15 @@ public:
             for(auto const& value: values){
                 auto func = value->evaluated_value(scope);
                 if(func) {
-                    std::cout << func->interpret_representation() << std::endl;
+                    std::cout << func->interpret_representation();
                 } else {
                     std::cerr << "[FunctionCall] Function parameter not found : " << value->representation();
                 }
             }
         } else {
-            auto func = scope.find(name);
-            if(func.first) {
-                return func.second->second->as_function()->call(values);
+            auto func = scope.global->nodes.find(name);
+            if(func != scope.global->nodes.end()) {
+                return func->second->as_function()->call(values);
             } else {
                 scope.error("[FunctionCall] couldn't find function with name " + name);
             }

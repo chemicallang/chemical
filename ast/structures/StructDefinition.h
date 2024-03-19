@@ -10,8 +10,9 @@
 
 #include "ast/base/Value.h"
 #include "ast/structures/InterfaceDefinition.h"
+#include "ast/base/GlobalInterpretScope.h"
 
-class StructDefinition : public ASTNode, public Value {
+class StructDefinition : public ASTNode {
 public:
 
     /**
@@ -32,16 +33,16 @@ public:
 
     bool type_check(InterpretScope &scope) {
         if (overrides.has_value()) {
-            auto inter = scope.find(overrides.value());
-            if (inter.first) {
-                auto interVal = inter.second->second->as_interface();
-                if (interVal != nullptr) {
-                    if (!interVal->verify(scope, name, fields)) {
-                        return false;
-                    }
-                } else {
-                    scope.error("provided overridden value is not an interface");
-                }
+            auto inter = scope.global->values.find(overrides.value());
+            if (inter == scope.global->values.end()) {
+//                auto interVal = inter->second->as_interface();
+//                if (interVal != nullptr) {
+//                    if (!interVal->verify(scope, name, fields)) {
+//                        return false;
+//                    }
+//                } else {
+//                    scope.error("provided overridden value is not an interface");
+//                }
             } else {
                 scope.error("couldn't find the overridden interface " + overrides.value());
             }
@@ -50,8 +51,11 @@ public:
     }
 
     void interpret(InterpretScope &scope) override {
-        type_check(scope);
-        scope.values[name] = this;
+        scope.global->nodes[name] = this;
+    }
+
+    void interpret_scope_ends(InterpretScope& scope) override {
+        scope.global->values.erase(name);
     }
 
     std::string representation() const override {
@@ -71,10 +75,6 @@ public:
         }
         ret.append("\n}");
         return ret;
-    }
-
-    void scope_ends() override {
-        // don't call destructor when scope ends
     }
 
 private:

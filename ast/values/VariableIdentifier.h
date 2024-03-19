@@ -31,27 +31,27 @@ public:
     }
 
     void set_identifier_value(InterpretScope &scope, Value *newValue) override {
-        auto it = scope.find(value);
-        if (!it.first) {
+        auto it = scope.global->values.find(value);
+        if (it != scope.global->values.end()) {
             std::cerr << "Couldn't set variable " << value
                       << " as there's no such variable in parent, or previous value doesn't exist ";
             return;
         }
-        auto v = it.second->second;
+        auto v = it->second;
         if (v->primitive()) {
             delete v;
         }
-        it.second->second = newValue;
+        it->second = newValue;
     }
 
     void set_identifier_value(InterpretScope &scope, Value *newValue, Operation op) override {
-        auto it = scope.find(value);
-        if (!it.first) {
+        auto it = scope.global->values.find(value);
+        if (it == scope.global->values.end()) {
             std::cerr << "Couldn't set variable " << value
                       << " as there's no such variable in parent, or previous value doesn't exist ";
             return;
         }
-        auto v = it.second->second;
+        auto v = it->second;
 
         // creating an expression
         auto nextValue = ExpressionEvaluator::functionVector[
@@ -61,7 +61,7 @@ public:
         if (v->primitive()) {
             delete v;
         }
-        it.second->second = nextValue;
+        it->second = nextValue;
     }
 
 #ifdef COMPILER_BUILD
@@ -119,9 +119,9 @@ public:
 #endif
 
     Value *evaluated_value(InterpretScope &scope) override {
-        auto found = scope.find(value);
-        if (found.first) {
-            return found.second->second;
+        auto found = scope.global->values.find(value);
+        if (found != scope.global->values.end()) {
+            return found->second;
         } else {
             return nullptr;
         }

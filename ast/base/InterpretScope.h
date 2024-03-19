@@ -26,13 +26,6 @@ public:
     InterpretScope(InterpretScope&& copy) = delete;
 
     /**
-     * finds iterator in the scope tree above for the given name of the value
-     * @param value
-     * @return
-     */
-    std::pair<bool, std::unordered_map<std::string, Value *>::iterator> find(const std::string& value);
-
-    /**
      * useful for debugging
      */
     void printAllValues();
@@ -48,12 +41,6 @@ public:
      * must be deleted in the destructor
      */
     ~InterpretScope();
-
-    /**
-     * This contains a map between identifiers and its values
-     * When a variable is created, the variable sets the identifier in unordered-map
-     */
-    std::unordered_map<std::string, Value*> values;
 
     /**
      * a pointer to the parent scope, If this is a global scope, it will be a nullptr

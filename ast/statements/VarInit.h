@@ -11,8 +11,9 @@
 #include "lexer/model/tokens/NumberToken.h"
 #include <optional>
 #include "ast/base/BaseType.h"
+#include "ast/base/GlobalInterpretScope.h"
 
-class VarInitStatement : public ASTNode, public Value {
+class VarInitStatement : public ASTNode {
 public:
 
     /**
@@ -74,13 +75,28 @@ public:
     void interpret(InterpretScope &scope) override {
         if (value.has_value()) {
             if (value.value()->primitive()) {
-                scope.values[identifier] = value.value()->copy();
+                scope.global->values[identifier] = value.value()->copy();
             } else {
-//            std::cerr << "First Non-Copied Var : " << identifier;
-                scope.values[identifier] = value.value()->evaluated_value(scope);
+                scope.global->values[identifier] = value.value()->evaluated_value(scope);
             }
         } else {
-            scope.values[identifier] = this;
+            scope.global->nodes[identifier] = this;
+        }
+    }
+
+    void interpret_scope_ends(InterpretScope &scope) override {
+        if(value.has_value()) {
+            auto found = scope.global->values.find(identifier);
+            if(found != scope.global->values.end()) {
+                if(found->second->primitive()) {
+                    delete found->second;
+                }
+                scope.global->values.erase(found);
+            } else {
+                scope.error("cannot clear non existent variable on the value map " + identifier);
+            }
+        } else {
+            scope.global->nodes.erase(identifier);
         }
     }
 
@@ -97,10 +113,6 @@ public:
             rep.append(value.value()->representation());
         }
         return rep;
-    }
-
-    void scope_ends() override {
-        // do not call destructor
     }
 
     std::string identifier; ///< The identifier being initialized.

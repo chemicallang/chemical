@@ -10,7 +10,7 @@
 
 #include "ast/base/Value.h"
 
-class EnumDeclaration : public ASTNode, public Value {
+class EnumDeclaration : public ASTNode {
 public:
 
     /**
@@ -33,11 +33,7 @@ public:
             (*members)[member] = std::make_unique<IntValue>(i);
             i++;
         }
-        scope.values[name] = this;
-    }
-
-    Value * child(const std::string& child_name) override {
-        return (*members)[child_name].get();
+        scope.global->nodes[name] = this;
     }
 
     std::string representation() const override {
@@ -54,7 +50,11 @@ public:
         return rep;
     }
 
-    void scope_ends() override {
+    Value * child(const std::string &child_name) override {
+        return (*members)[child_name].get();
+    }
+
+    void interpret_scope_ends(InterpretScope &scope) override {
         delete members;
     }
 

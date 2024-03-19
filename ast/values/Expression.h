@@ -35,6 +35,10 @@ public:
     }
 #endif
 
+    bool computed() override {
+        return true;
+    }
+
     /**
      * evaluates both values and returns the result as unique_tr to Value
      * @return
@@ -44,10 +48,13 @@ public:
         auto sEvl = secondValue->evaluated_value(scope);
         auto index = ((uint8_t) fEvl->value_type() << 20) | ((uint8_t) sEvl->value_type() << 10) | (uint8_t) operation;
         if (ExpressionEvaluator::functionVector.contains(index)) {
-            return ExpressionEvaluator::functionVector[index](fEvl, sEvl);
+            auto result = ExpressionEvaluator::functionVector[index](fEvl, sEvl);
+            if(fEvl->computed()) delete fEvl;
+            if(sEvl->computed()) delete sEvl;
+            return result;
         } else {
-            throw std::runtime_error(
-                    "Cannot evaluate expression as the method with index " + std::to_string(index) + " does not exist");
+            scope.error("Cannot evaluate expression as the method with index " + std::to_string(index) + " does not exist");
+            return nullptr;
         }
     }
 

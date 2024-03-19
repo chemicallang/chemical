@@ -87,19 +87,28 @@ public:
     std::string lexIdentifier();
 
     /**
+     * consumes a identifier token
+     * @return true if identifier is not empty, false if it is
+     */
+    bool storeIdentifier(const std::string &identifier, bool access);
+
+    /**
      * lex an identifier token into tokens until the until character occurs
      * only lexes the token if the identifier is not empty
      * @param access is this token being lexed in an access statement instead of assignment
      * @return
      */
-    bool lexIdentifierToken(bool access);
+    inline bool lexIdentifierToken(bool access) {
+        return storeIdentifier(lexIdentifier(), access);
+    }
 
     /**
      * this lexes an access chain like x.y.z or just simply an identifier
      * @param access is this token being lexed in an access statement instead of assignment
+     * @param lexStruct also lex a struct if found -> StructName { v1, v2 }
      * @return
      */
-    bool lexAccessChain(bool access);
+    bool lexAccessChain(bool access, bool lexStruct = false);
 
     /**
      * lex allowDeclarations or initialization tokens
@@ -149,7 +158,7 @@ public:
      * lexes a single nested level statement, nested level means not top level (must not be in file scope)
      * These exclude functions, enum, structs, interfaces, implementations in nested scopes
      */
-     bool lexNestedLevelStatementTokens();
+    bool lexNestedLevelStatementTokens();
 
     /**
      * lexes a single statement (of any type)
@@ -224,7 +233,7 @@ public:
     /**
      * lexes a brace block, { statement(s) }
      */
-    bool lexBraceBlock(const std::string& forThing = "");
+    bool lexBraceBlock(const std::string &forThing = "");
 
     /**
      * lexex an if statement without the body
@@ -399,6 +408,12 @@ public:
     bool lexNumberToken();
 
     /**
+     * lexes tokens for a complete struct object initialization
+     * @return
+     */
+    bool lexStructValueTokens();
+
+    /**
      * lexes value tokens like integer, string
      */
     bool lexValueToken();
@@ -414,7 +429,7 @@ public:
      * lexes access chain like x.y.z or a value like 10, could be int, string, char
      * @return
      */
-    bool lexAccessChainOrValue();
+    bool lexAccessChainOrValue(bool lexStruct = false);
 
     /**
      * lexes remaining expression, this is used by lexExpressionTokens
@@ -427,7 +442,7 @@ public:
      * lexes an expression token which can contain access chain and values
      * @return whether an expression has been lexed, the expression can also be a single identifier or value
      */
-    bool lexExpressionTokens();
+    bool lexExpressionTokens(bool lexStruct = false);
 
     /**
      * check if there's a new line at current position
@@ -447,7 +462,16 @@ public:
      * @param position the position (in the tokens vector) of the token at end of which error started
      * @param message the message for the error
      */
-    void diagnostic(unsigned int position, const std::string &message, DiagSeverity severity);
+    void diagnostic(Position start, const std::string &message, DiagSeverity severity);
+
+    /**
+     * This just calls the diagnostic method above giving it the position
+     */
+    inline void diagnostic(unsigned int position, const std::string &message, DiagSeverity severity) {
+        auto token = tokens[position].get();
+        auto &pos = token->position;
+        diagnostic({pos.line, pos.character + token->length()}, message, severity);
+    }
 
     /**
      * This just calls the diagnostic method above
@@ -456,8 +480,9 @@ public:
      * @param message
      * @param severity
      */
-    inline void diagnostic(const std::string& message, DiagSeverity severity) {
-        diagnostic(tokens.size() - 1, message + " got \"" + tokens[tokens.size() - 1]->representation() + "\"", severity);
+    inline void diagnostic(const std::string &message, DiagSeverity severity) {
+        diagnostic(tokens.size() - 1, message + " got \"" + tokens[tokens.size() - 1]->representation() + "\"",
+                   severity);
     }
 
     /**

@@ -10,6 +10,7 @@
 // for functionality in the Driver clang library.
 //
 //===----------------------------------------------------------------------===//
+#ifdef COMPILER_BUILD
 
 #include "clang/Driver/Driver.h"
 #include "clang/Basic/DiagnosticOptions.h"
@@ -613,3 +614,5 @@ int clang_main(int Argc, char **Argv, const llvm::ToolContext &ToolContext) {
 int chemical_clang_main(int argc, char **argv) {
     return clang_main(argc, argv, {argv[0], nullptr, false});
 }
+
+#endif

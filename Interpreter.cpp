@@ -13,11 +13,11 @@
 
 void benchInterpret(Scope& scope, GlobalInterpretScope& interpretScope) {
 
+    // Print started
+    // std::cout << "[Interpreter] Started" << std::endl;
+
     // Save start time
     auto start = std::chrono::steady_clock::now();
-
-    // Print started
-    // std::cout << "[Interpreter] Started" << '\n';
 
     // Actual interpretation
     ExpressionEvaluator::prepareFunctions();
@@ -48,11 +48,11 @@ int main(int argc, char *argv[]) {
     auto lexer = benchLexFile(argv[1]);
 //    printTokens(lexer.tokens);
     for(const auto& err : lexer.errors) {
-        std::cerr << err.representation(argv[1]) << std::endl;
+        std::cerr << err.representation(argv[1], "Lexer") << std::endl;
     }
     auto parser = benchParse(std::move(lexer.tokens));
     for(const auto& err : parser.errors) {
-        std::cerr << err.representation(argv[1]) << std::endl;
+        std::cerr << err.representation(argv[1], "Parser") << std::endl;
     }
     Scope scope(std::move(parser.nodes));
 //    std::cout << "[Representation]\n" << scope.representation() << "\n";

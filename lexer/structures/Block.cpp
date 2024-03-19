@@ -13,7 +13,7 @@ void Lexer::lexNestedLevelMultipleStatementsTokens() {
 
     while(true) {
         lexWhitespaceAndNewLines();
-        if(!lexStatementTokens())  {
+        if(!lexNestedLevelStatementTokens())  {
             break;
         }
         lexWhitespaceToken();

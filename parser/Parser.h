@@ -28,12 +28,14 @@
 #include "ast/statements/Return.h"
 #include "ast/statements/Break.h"
 #include "ast/statements/Continue.h"
+#include "ast/values/StructValue.h"
 #include "ast/statements/Assignment.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/InterfaceDefinition.h"
 #include "ast/structures/ImplDefinition.h"
 #include "ast/statements/Comment.h"
 #include "parser/utils/ValueAndOperatorStack.h"
+#include "lexer/model/tokens/VariableToken.h"
 #include <optional>
 #include <iostream>
 
@@ -135,6 +137,12 @@ public:
      * @return
      */
     lex_ptr<ArrayValue> parseArrayValue();
+
+    /**
+     * parses a single struct value
+     * @return
+     */
+    lex_ptr<StructValue> parseStructValue(const std::string& structName);
 
     /**
      * parses a single value, which can be an expression, int, float...
@@ -515,12 +523,10 @@ public:
      * @param err
      */
     void diagnostic(const std::string &err, int tokenPosition, DiagSeverity severity) {
-        std::string errStr;
-        errStr = "[Parser] " + err;
+        std::string errStr = err;
         if (tokenPosition < tokens.size()) {
             auto t = tokens[tokenPosition].get();
-            errStr += " at " + t->position.representation() +
-                      " stopped at " + t->type_string();
+            errStr += " stopped at " + t->type_string();
         }
         errStr.append(1, '\n');
         errors.emplace_back(
@@ -606,6 +612,19 @@ public:
      */
     template<typename T>
     lex_ptr<T> consumeOfType(LexTokenType type, bool errorOut = true);
+
+    /**
+     * consumes a single identifier token, this is definitely a variable
+     * @return consumed identifier token
+     */
+    inline std::optional<std::string> consume_identifier(bool error_out = true) {
+        auto variable = consumeOfType<VariableToken>(LexTokenType::Variable, error_out);
+        if(variable.has_value()) {
+            return variable.value()->value;
+        } else {
+            return std::nullopt;
+        }
+    }
 
     /**
      * this will return a raw pointer to the token at position

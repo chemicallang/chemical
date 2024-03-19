@@ -24,6 +24,7 @@ lex_ptr<StructDefinition> Parser::parseStructDefinition() {
                 while(true) {
                     auto init = parseVariableInitStatement();
                     if (init.has_value()) {
+                        consume_op(';');
                         statements.emplace_back(std::move(init.value()));
                     } else {
                         break;

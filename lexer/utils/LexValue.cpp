@@ -120,6 +120,6 @@ bool Lexer::lexArrayInit() {
     }
 }
 
-bool Lexer::lexAccessChainOrValue() {
-    return lexValueToken() || lexAccessChain(true);
+bool Lexer::lexAccessChainOrValue(bool lexStruct) {
+    return lexValueToken() || lexAccessChain(true, lexStruct);
 }

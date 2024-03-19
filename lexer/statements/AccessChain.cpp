@@ -16,20 +16,26 @@ std::string Lexer::lexIdentifier() {
     }
 }
 
-bool Lexer::lexIdentifierToken(bool access) {
-    auto id = lexIdentifier();
-    if (!id.empty()) {
-        tokens.emplace_back(std::make_unique<VariableToken>(backPosition(id.length()), id, access));
+bool Lexer::storeIdentifier(const std::string& identifier, bool access) {
+    if (!identifier.empty()) {
+        tokens.emplace_back(std::make_unique<VariableToken>(backPosition(identifier.length()), identifier, access));
         return true;
     } else {
         return false;
     }
 }
 
-bool Lexer::lexAccessChain(bool access) {
+bool Lexer::lexAccessChain(bool access, bool lexStruct) {
 
     if (!lexIdentifierToken(access)) {
         return false;
+    }
+
+    if(lexStruct) {
+        lexWhitespaceToken();
+        if(provider.peek() == '{') {
+            return lexStructValueTokens();
+        }
     }
 
     if (lexOperatorToken('(')) {
@@ -55,7 +61,7 @@ bool Lexer::lexAccessChain(bool access) {
     }
 
     while (lexOperatorToken('.')) {
-        if (!lexAccessChain(access)) {
+        if (!lexAccessChain(access, false)) {
             error("expected a identifier after the dot . in the access chain");
             return true;
         }

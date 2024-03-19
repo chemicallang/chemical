@@ -25,9 +25,3 @@ int Codegen::invoke_clang(const std::vector<std::string> &command_args) {
     return result;
 
 }
-
-int Codegen::link_objs_as_exes_clang(std::vector<std::string> &obj_files, const std::string &out_path, const std::vector<std::string> &command_args) {
-    // TODO
-
-    return 0;
-}

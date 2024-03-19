@@ -116,6 +116,29 @@ struct CmdOptions {
         }
     }
 
+    std::vector<std::string> collect_subcommand(int argc, char *argv[], const std::string& subcommand, int skip = 0, bool consume = true) {
+        int i = skip;
+        std::vector<std::string> args;
+        bool collect = false;
+        while (i < argc) {
+            auto x = argv[i];
+            if (!collect && strncmp(x + 1, subcommand.c_str(), subcommand.size()) == 0) {
+                collect = true;
+            } else if(collect) {
+                if(strncmp(x, "!!", 2) == 0) {
+                    return args;
+                } else {
+                    if(consume && x[0] == '-') {
+                        options.erase((x[1] == '-') ? (x + 2) : (x + 1));
+                    }
+                    args.emplace_back(x);
+                }
+            }
+            i++;
+        }
+        return args;
+    }
+
     /**
      * parses arguments / options into the options map
      * @param argc arg count

@@ -25,7 +25,7 @@ public:
         return true;
     }
 
-    Value * copy() override {
+    Value * copy() const override {
         return new CharValue(value);
     }
 

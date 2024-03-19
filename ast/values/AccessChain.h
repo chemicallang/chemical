@@ -62,8 +62,7 @@ public:
     Value * evaluated_value(InterpretScope &scope) override {
         Value* scopeVariable = values[0]->evaluated_value(scope);
         if(scopeVariable == nullptr) {
-            scope.printAllValues();
-            std::cerr << "Not found in parent : " << values[0]->representation();
+            scope.error("(access chain) not found in parent : " + values[0]->representation());
             return nullptr;
         }
         if(values.size() > 1) {
@@ -73,7 +72,7 @@ public:
                 if(child != nullptr) {
                     scopeVariable = child;
                 } else {
-                    std::cerr << "in access chain" << representation() << " not found at " << std::to_string(i) << " : " << values[i]->representation();
+                    scope.error("(access chain) "+ representation() + " child " + values[i]->representation() + " not found");
                 }
                 i++;
             }

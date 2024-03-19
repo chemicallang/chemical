@@ -50,11 +50,8 @@ public:
         return rep;
     }
 
-    Value * child(const std::string &child_name) override {
-        return (*members)[child_name].get();
-    }
-
     void interpret_scope_ends(InterpretScope &scope) override {
+        scope.global->nodes.erase(name);
         delete members;
     }
 

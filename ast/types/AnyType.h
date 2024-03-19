@@ -15,6 +15,10 @@ public:
         return "any";
     }
 
+    virtual BaseType* copy() const {
+        return new AnyType();
+    }
+
 #ifdef COMPILER_BUILD
     llvm::Type *llvm_type(Codegen &gen) const override {
         throw std::runtime_error("llvm_type called on any type");

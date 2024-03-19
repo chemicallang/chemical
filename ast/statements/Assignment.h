@@ -66,7 +66,8 @@ public:
     }
 
 private:
-    std::unique_ptr<AccessChain> lhs; ///< The identifier being assigned.
-    std::unique_ptr<Value> value; ///< The value being assigned to the identifier.
+    std::unique_ptr<AccessChain> lhs;
+    std::unique_ptr<Value> value;
+    InterfaceDefinition* definition;
     Operation assOp;
 };

@@ -14,12 +14,14 @@
 class ArrayValue : public Value {
 public:
 
-    ArrayValue(std::vector<std::unique_ptr<Value>> values, std::optional<std::unique_ptr<BaseType>> type, std::vector<unsigned int> sizes) : values(std::move(values)), elemType(std::move(type)), sizes(std::move(sizes)) {
+    ArrayValue(std::vector<std::unique_ptr<Value>> values, std::optional<std::unique_ptr<BaseType>> type,
+               std::vector<unsigned int> sizes) : values(std::move(values)), elemType(std::move(type)),
+                                                  sizes(std::move(sizes)) {
         values.shrink_to_fit();
     }
 
     inline unsigned int array_size() {
-        if(sizes.empty()) {
+        if (sizes.empty()) {
             return values.size();
         } else {
             // TODO support multi dimensional arrays
@@ -63,15 +65,28 @@ public:
     }
 #endif
 
+    Value *copy() const override {
+        std::vector<std::unique_ptr<Value>> copied_values(values.size());
+        for(const auto& value : values) {
+            copied_values.emplace_back(value->copy());
+        }
+        std::vector<unsigned int> copied_sizes(sizes.size());
+        std::optional<std::unique_ptr<BaseType>> copied_elem_type = std::nullopt;
+        if(elemType.has_value()) {
+            copied_elem_type.emplace(elemType.value()->copy());
+        }
+        return new ArrayValue(std::move(copied_values), std::move(copied_elem_type), sizes);
+    }
+
     std::string representation() const override {
         std::string rep;
         rep.append(1, '[');
-        if(values.empty()) {
+        if (values.empty()) {
             rep.append("]" + elemType.value()->representation() + "(");
             int i = 0;
-            while(i < sizes.size()) {
+            while (i < sizes.size()) {
                 rep.append(std::to_string(sizes[i]));
-                if(i < sizes.size() - 1) {
+                if (i < sizes.size() - 1) {
                     rep.append(", ");
                 }
                 i++;
@@ -94,7 +109,7 @@ public:
     std::vector<std::unique_ptr<Value>> values;
 
     std::optional<std::unique_ptr<BaseType>> elemType;
-    std::vector<unsigned int>  sizes;
+    std::vector<unsigned int> sizes;
 
 #ifdef COMPILER_BUILD
     // TODO this arr value should be stored in code gen since its related to that

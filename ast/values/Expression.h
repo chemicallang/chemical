@@ -43,26 +43,27 @@ public:
      * evaluates both values and returns the result as unique_tr to Value
      * @return
      */
-    inline Value* evaluate(InterpretScope& scope) {
+    inline Value *evaluate(InterpretScope &scope) {
         auto fEvl = firstValue->evaluated_value(scope);
         auto sEvl = secondValue->evaluated_value(scope);
         auto index = ((uint8_t) fEvl->value_type() << 20) | ((uint8_t) sEvl->value_type() << 10) | (uint8_t) operation;
         if (ExpressionEvaluator::functionVector.contains(index)) {
             auto result = ExpressionEvaluator::functionVector[index](fEvl, sEvl);
-            if(fEvl->computed()) delete fEvl;
-            if(sEvl->computed()) delete sEvl;
+            if (fEvl->computed()) delete fEvl;
+            if (sEvl->computed()) delete sEvl;
             return result;
         } else {
-            scope.error("Cannot evaluate expression as the method with index " + std::to_string(index) + " does not exist");
+            scope.error(
+                    "Cannot evaluate expression as the method with index " + std::to_string(index) + " does not exist");
             return nullptr;
         }
     }
 
-    Value *evaluated_value(InterpretScope& scope) override {
+    Value *evaluated_value(InterpretScope &scope) override {
         return evaluate(scope);
     }
 
-    bool evaluated_bool(InterpretScope& scope) override {
+    bool evaluated_bool(InterpretScope &scope) override {
         // compute the expression value
         auto eval = evaluate(scope);
         // get and store the expression value as primitive boolean
@@ -71,6 +72,10 @@ public:
         delete eval;
         // return the expression value
         return value;
+    }
+
+    Value *initializer_value(InterpretScope& scope) override {
+        return evaluated_value(scope);
     }
 
     /**

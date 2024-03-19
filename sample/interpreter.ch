@@ -1,16 +1,21 @@
-func add(a : int, b : int) : int {
-    return a + b;
+struct Point {
+    var x : int;
+    var y : int;
 }
 
 func main() : int {
 
-    for(var x = 0; x < 5; x++) {
-        printf("check : ", x, '\n');
+    var p = Point {
+        x : 1,
+        y : 2
     }
 
-    printf("check 1 + 2 = ", add(1,2), '\n');
+    p.x = 5;
+
+    printf("check x = ", p.x, " check y = ", p.y, '\n');
 
     return 0;
+
 }
 
 var x = main();

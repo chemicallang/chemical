@@ -130,19 +130,8 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // check no need to invoke clang
-    auto clang = options.option("clang", "clang");
-    if (clang.has_value()) {
-        std::vector<std::string> clang_flags{argv[0]};
-        auto consumed = options.collect_subcommand(argc, argv, "clang");
-        for(const auto& cland_fl : consumed) {
-            clang_flags.emplace_back(cland_fl);
-        }
-        clang_flags.emplace_back(object_file_path);
-        clang_flags.emplace_back("-o");
-        clang_flags.emplace_back(output.value());
-        return_int = gen.invoke_clang(clang_flags);
-    } else {
+    auto useLinker = options.option("linker", "linker");
+    if(useLinker.has_value()) {
 
         // creating lld command
         std::vector<std::string> linker{object_file_path};
@@ -173,7 +162,7 @@ int main(int argc, char *argv[]) {
         }
 
         // add user's linker flags
-        auto user_libs = options.collect_multi("link");
+        auto user_libs = options.collect_subcommand(argc, argv, "linker");
         // TODO test this
         for(const auto& flag : user_libs) {
             linker.emplace_back(flag);
@@ -182,15 +171,27 @@ int main(int argc, char *argv[]) {
         // invoke lld to create executable
         return_int = gen.invoke_lld(linker);
 
-        // delete object file which was linked
-        // Attempt to delete the file using std::filesystem
-        // TODO this doesn't work
-        try {
-            std::filesystem::remove(object_file_path);
-        } catch (const std::filesystem::filesystem_error& ex) {
-            std::cerr << ANSI_COLOR_RED << "couldn't delete object file " << object_file_path << " because " << ex.what() << ANSI_COLOR_RESET << std::endl;
-            return_int = 1;
+    } else {
+        // use clang by default
+        std::vector<std::string> clang_flags{argv[0]};
+        options.option("clang", "clang"); // consume clang cmd
+        auto consumed = options.collect_subcommand(argc, argv, "clang");
+        for(const auto& cland_fl : consumed) {
+            clang_flags.emplace_back(cland_fl);
         }
+        clang_flags.emplace_back(object_file_path);
+        clang_flags.emplace_back("-o");
+        clang_flags.emplace_back(output.value());
+        return_int = gen.invoke_clang(clang_flags);
+    }
+
+    // delete object file which was linked
+    // Attempt to delete the file using std::filesystem
+    try {
+        std::filesystem::remove(object_file_path);
+    } catch (const std::filesystem::filesystem_error& ex) {
+        std::cerr << ANSI_COLOR_RED << "couldn't delete object file " << object_file_path << " because " << ex.what() << ANSI_COLOR_RESET << std::endl;
+        return_int = 1;
     }
 
     options.print_unhandled();

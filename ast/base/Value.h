@@ -175,6 +175,14 @@ public:
     }
 
     /**
+     * does this value compute the value, in other words (is it an expression -> e.g a + b)
+     * @return
+     */
+    virtual bool computed() {
+        return false;
+    }
+
+    /**
      * This returns Value pointer to the object that represents the real value
      * This can be used to get the value after evaluation
      * for ex : identifier represents a variable that contains a value, its not a value itself, but yields a value
@@ -204,24 +212,6 @@ public:
         throw std::runtime_error("as_bool called on a value");
     }
 
-    /**
-     * this is overridden by function declaration to return itself
-     * @return
-     */
-    virtual FunctionDeclaration* as_function() {
-        std::cerr << "actual_type:" << std::to_string((int) value_type()) << std::endl;
-        throw std::runtime_error("as_function called on a value");
-    }
-
-    /**
-     * this is overridden by interface definition to return itself
-     * @return
-     */
-    virtual InterfaceDefinition* as_interface() {
-        std::cerr << "actual_type:" << std::to_string((int) value_type()) << std::endl;
-        throw std::runtime_error("as_interface called on a value");
-    }
-
     virtual std::string as_string() {
         throw std::runtime_error("as_string called on a value");
     }
@@ -249,13 +239,5 @@ public:
     virtual ValueType value_type() const {
         return ValueType::Unknown;
     };
-
-    /**
-     * called when the interpret scope ends, the interpret scope is the parent of the current value
-     * By default deletes the current value
-     */
-    virtual void scope_ends() {
-        delete this;
-    }
 
 };

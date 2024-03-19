@@ -37,7 +37,7 @@ public:
 
 using func_params = std::vector<FunctionParam>;
 
-class FunctionDeclaration : public ASTNode, public Value {
+class FunctionDeclaration : public ASTNode {
 public:
 
     /**
@@ -108,7 +108,7 @@ public:
 #endif
 
     void interpret(InterpretScope &scope) override {
-        scope.values[name] = this;
+        scope.global->nodes[name] = this;
         declarationScope = &scope;
     }
 
@@ -122,7 +122,7 @@ public:
         auto i = 0;
         while (i < params.size()) {
             // TODO all function values are being copied
-            child.values[params[i].name] = call_params[i]->copy();
+            child.global->values[params[i].name] = call_params[i]->copy();
             i++;
         }
         body.value().interpret(child);
@@ -134,7 +134,7 @@ public:
         interpretReturn = value;
     }
 
-    FunctionDeclaration *as_function() override {
+    FunctionDeclaration * as_function() override {
         return this;
     }
 
@@ -166,10 +166,6 @@ public:
             ret.append("\n}");
         }
         return ret;
-    }
-
-    void scope_ends() override {
-        // do nothing, as we don't want to delete this value
     }
 
     std::optional<Scope> body; ///< The body of the function.

@@ -27,6 +27,19 @@ public:
     void add_error(const std::string &err);
 
     /**
+     * When a ASTNode declares itself, for example a struct, interface / implementation
+     * it declares itself on this unordered map, when the scope ends, it erases itself from this map
+     */
+    std::unordered_map<std::string, ASTNode*> nodes;
+
+    /**
+      * This contains a map between identifiers and its values
+      * When a child scope is interpreting, it puts values on this map, when it ends, only the values of that scope are erased from this map
+      * When a variable is created, the variable sets the identifier in this unordered map with the corresponding value
+      */
+    std::unordered_map<std::string, Value*> values;
+
+    /**
      * This contains errors that occur during interpretation
      */
     std::vector<std::string> errors;

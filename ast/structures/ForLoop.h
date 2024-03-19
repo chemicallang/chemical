@@ -84,6 +84,7 @@ public:
             }
             incrementerExpr->interpret(child);
         }
+        initializer->interpret_scope_ends(child);
     }
 
     void stopInterpretation() override {

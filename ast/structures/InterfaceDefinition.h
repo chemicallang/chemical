@@ -11,7 +11,7 @@
 #include "ast/base/AstNode.h"
 #include "ast/base/Value.h"
 
-class InterfaceDefinition : public ASTNode, public Value {
+class InterfaceDefinition : public ASTNode {
 public:
 
     /**
@@ -28,11 +28,11 @@ public:
     }
 
     void interpret(InterpretScope &scope) override {
-        scope.values[name] = this;
+        scope.global->nodes[name] = this;
     }
 
-    InterfaceDefinition * as_interface() override {
-        return this;
+    void interpret_scope_ends(InterpretScope &scope) override {
+
     }
 
     bool verify(InterpretScope &scope, const std::string& name, const std::vector<std::unique_ptr<VarInitStatement>>& members) {
@@ -52,10 +52,6 @@ public:
         }
         ret.append("\n}");
         return ret;
-    }
-
-    void scope_ends() override {
-        // don't call destructor when scope ends
     }
 
 private:

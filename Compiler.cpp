@@ -134,7 +134,10 @@ int main(int argc, char *argv[]) {
     auto clang = options.option("clang", "clang");
     if (clang.has_value()) {
         std::vector<std::string> clang_flags{argv[0]};
-        // TODO allow user to inject args here
+        auto consumed = options.collect_subcommand(argc, argv, "clang");
+        for(const auto& cland_fl : consumed) {
+            clang_flags.emplace_back(cland_fl);
+        }
         clang_flags.emplace_back(object_file_path);
         clang_flags.emplace_back("-o");
         clang_flags.emplace_back(output.value());

@@ -58,6 +58,7 @@ int main(int argc, char *argv[]) {
 //    std::cout << "[Representation]\n" << scope.representation() << "\n";
     GlobalInterpretScope interpretScope(nullptr, &scope, nullptr, argv[1]);
     benchInterpret(scope, interpretScope);
+    std::cout << std::endl;
     for(const auto& err : interpretScope.errors) {
         std::cerr << "[Interpreter] " << err << '\n';
     }

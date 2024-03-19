@@ -21,7 +21,7 @@ public:
      *
      * @param value The string value.
      */
-    StringValue(std::string  value) : value(std::move(value)) {}
+    StringValue(std::string value) : value(std::move(value)) {}
 
     std::string interpret_representation() const override {
         return value;
@@ -41,7 +41,7 @@ public:
     }
 #endif
 
-    Value * copy() override {
+    Value *copy() const override {
         return new StringValue(value);
     }
 
@@ -49,7 +49,7 @@ public:
         return "\"" + value + "\"";
     }
 
-    void * get_value() override {
+    void *get_value() override {
         return &value;
     }
 

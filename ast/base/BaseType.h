@@ -21,6 +21,8 @@ public:
 
     }
 
+    virtual BaseType* copy() const = 0;
+
     /**
      * this basically tells whether the given value type would satisfy this type
      * @param type

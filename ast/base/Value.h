@@ -160,9 +160,20 @@ public:
      * This method can only be called on primitive values as they are the only ones that support copy operation
      * @return
      */
-    virtual Value* copy() {
-        std::cerr << "[Value] copy operation called on base class";
-        return this;
+    virtual Value* copy() const {
+        return nullptr;
+    };
+
+    /**
+     * This method is called by the ASTNode to get an initializer value
+     * an initializer value is basically value that will initialize a variable
+     * usually values copy themselves over, expressions evaluate themselves
+     * because in an AST a value is basically a fragment of AST, but when interpreting
+     * it becomes an actual value that can be modified, for any modifications values must be copied
+     * @return
+     */
+    virtual Value* initializer_value(InterpretScope& scope) {
+        return copy();
     }
 
     /**

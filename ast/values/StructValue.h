@@ -15,15 +15,36 @@ public:
         values.shrink_to_fit();
     }
 
-    Value * evaluated_value(InterpretScope &scope) override {
-        auto decl = scope.global->values.find(structName);
-        if(decl == scope.global->values.end()) {
+    void prepare(InterpretScope &scope) {
+        auto decl = scope.global->nodes.find(structName);
+        if (decl == scope.global->nodes.end()) {
             scope.error("couldn't find struct declaration by name " + structName);
+        } else if (decl->second->as_struct_def() == nullptr) {
+            scope.error("declaration by name " + structName + " is not a struct");
+        } else {
+            definition = decl->second->as_struct_def();
         }
+    }
+
+    Value *evaluated_value(InterpretScope &scope) override {
+        prepare(scope);
         return this;
     }
 
+    Value *copy() const override {
+        std::vector<std::pair<std::string, std::unique_ptr<Value>>> copied(values.size());
+        for (const auto &value: values) {
+            copied.emplace_back(value.first, value.second->copy());
+        }
+        return new StructValue(structName, std::move(copied));
+    }
+
     Value *child(const std::string &name) override {
+        for (const auto &value: values) {
+            if (value.first == name) {
+                return value.second.get();
+            }
+        }
         return nullptr;
     }
 
@@ -78,6 +99,7 @@ public:
     }
 
     std::string structName;
+    StructDefinition *definition;
     std::vector<std::pair<std::string, std::unique_ptr<Value>>> values;
 
 #ifdef COMPILER_BUILD

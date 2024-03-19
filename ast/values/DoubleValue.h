@@ -34,7 +34,7 @@ public:
     }
 #endif
 
-    Value * copy() override {
+    Value * copy() const override {
         return new DoubleValue(value);
     }
 

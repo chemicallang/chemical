@@ -32,7 +32,7 @@ public:
     }
 
     void interpret_scope_ends(InterpretScope &scope) override {
-
+        scope.global->nodes.erase(name);
     }
 
     bool verify(InterpretScope &scope, const std::string& name, const std::vector<std::unique_ptr<VarInitStatement>>& members) {

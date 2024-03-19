@@ -14,38 +14,52 @@ class FunctionCall : public Value {
 
 public:
 
-    FunctionCall(std::string name, std::vector<std::unique_ptr<Value>> values) : name(std::move(name)), values(std::move(values)) {
+    FunctionCall(std::string name, std::vector<std::unique_ptr<Value>> values) : name(std::move(name)),
+                                                                                 values(std::move(values)) {
 
     }
 
-    FunctionCall(FunctionCall&& other) : values(std::move(other.values)) {
+    FunctionCall(FunctionCall &&other) : values(std::move(other.values)) {
 
     }
 
-    Value * evaluated_value(InterpretScope &scope) override {
-        if(name == "printf") {
-            for(auto const& value: values){
+    void prepare(InterpretScope &scope) {
+        auto decl = scope.global->nodes.find(name);
+        if (decl == scope.global->nodes.end()) {
+            scope.error("(function call) couldn't find function declaration by name " + name);
+        } else if (decl->second->as_function() == nullptr) {
+            scope.error("(function call) declaration by name " + name + " is not a function");
+        } else {
+            definition = decl->second->as_function();
+        }
+    }
+
+    Value *evaluated_value(InterpretScope &scope) override {
+        if (name == "printf") {
+            for (auto const &value: values) {
                 auto func = value->evaluated_value(scope);
-                if(func) {
+                if (func) {
                     std::cout << func->interpret_representation();
                 } else {
-                    std::cerr << "[FunctionCall] Function parameter not found : " << value->representation();
+                    std::cerr << "(function call) Function parameter not found : " << value->representation();
                 }
             }
         } else {
-            auto func = scope.global->nodes.find(name);
-            if(func != scope.global->nodes.end()) {
-                return func->second->as_function()->call(values);
-            } else {
-                scope.error("[FunctionCall] couldn't find function with name " + name);
+            prepare(scope);
+            if (definition != nullptr) {
+                definition->call(values);
             }
         }
         return nullptr;
     }
 
+    Value *initializer_value(InterpretScope &scope) override {
+        return evaluated_value(scope);
+    }
+
     void interpret(InterpretScope &scope) override {
         auto value = evaluated_value(scope);
-        if(value != nullptr && value->primitive()) {
+        if (value != nullptr && value->primitive()) {
             delete value;
         }
     }
@@ -91,5 +105,6 @@ public:
 
     std::string name;
     std::vector<std::unique_ptr<Value>> values;
+    FunctionDeclaration *definition;
 
 };

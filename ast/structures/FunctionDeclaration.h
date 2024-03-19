@@ -112,6 +112,10 @@ public:
         declarationScope = &scope;
     }
 
+    void interpret_scope_ends(InterpretScope &scope) override {
+        scope.global->nodes.erase(name);
+    }
+
     Value *call(std::vector<std::unique_ptr<Value>> &call_params) {
         InterpretScope child(declarationScope, declarationScope->global, &body.value(), this);
         if (params.size() != call_params.size()) {

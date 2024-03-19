@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ast/base/BaseType.h"
+#include <memory>
 
 class ArrayType : public BaseType {
 public:
@@ -14,6 +15,10 @@ public:
     ArrayType(std::unique_ptr<BaseType> elem_type, unsigned int array_size) : elem_type(std::move(elem_type)),
                                                                               array_size(array_size) {
 
+    }
+
+    virtual BaseType* copy() const {
+        return new ArrayType(std::unique_ptr<BaseType>(elem_type->copy()), array_size);
     }
 
     bool satisfies(ValueType type) const override {

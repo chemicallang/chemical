@@ -9,9 +9,11 @@
 #include <utility>
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/base/Value.h"
+
 #ifdef COMPILER_BUILD
 #include <llvm/IR/ValueSymbolTable.h>
 #endif
+
 /**
  * @brief Class representing a VariableIdentifier.
  */
@@ -32,7 +34,7 @@ public:
 
     void set_identifier_value(InterpretScope &scope, Value *newValue) override {
         auto it = scope.global->values.find(value);
-        if (it != scope.global->values.end()) {
+        if (it == scope.global->values.end()) {
             std::cerr << "Couldn't set variable " << value
                       << " as there's no such variable in parent, or previous value doesn't exist ";
             return;
@@ -125,6 +127,10 @@ public:
         } else {
             return nullptr;
         }
+    }
+
+    Value *initializer_value(InterpretScope &scope) override {
+        return evaluated_value(scope);
     }
 
     std::string representation() const override {

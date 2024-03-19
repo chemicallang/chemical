@@ -27,10 +27,6 @@ class FunctionParam;
 class ASTNode : public Interpretable {
 public:
 
-    virtual Value * child(const std::string& child_name) {
-        return nullptr;
-    }
-
     /**
      * This would return the representation of the node
      * @return
@@ -41,7 +37,7 @@ public:
      * return if this is a parameter
      * @return
      */
-    virtual FunctionParam* as_parameter() {
+    virtual FunctionParam *as_parameter() {
         return nullptr;
     }
 
@@ -49,7 +45,23 @@ public:
      * return if this is a function decl
      * @return
      */
-    virtual FunctionDeclaration* as_function() {
+    virtual FunctionDeclaration *as_function() {
+        return nullptr;
+    }
+
+    /**
+     * return if this is a struct definition
+     * @return
+     */
+    virtual StructDefinition *as_struct_def() {
+        return nullptr;
+    }
+
+    /**
+     * return if this is a var init statement
+     * @return
+     */
+    virtual VarInitStatement *as_var_init() {
         return nullptr;
     }
 
@@ -57,14 +69,14 @@ public:
      * accept the visitor
      * @param visitor
      */
-    virtual void accept(Visitor& visitor) = 0;
+    virtual void accept(Visitor &visitor) = 0;
 
     /**
      * This supposed to be overridden by ASTNodes that put themselves
      * on global value map, to clean up when the current interpret scope ends
      * this method can be overridden
      */
-    virtual void interpret_scope_ends(InterpretScope& scope) {
+    virtual void interpret_scope_ends(InterpretScope &scope) {
 
     }
 

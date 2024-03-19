@@ -28,7 +28,7 @@ public:
             std::optional<std::unique_ptr<Value>> value
     ) : identifier(std::move(identifier)), type(std::move(type)), value(std::move(value)) {}
 
-    void accept(Visitor& visitor) override {
+    void accept(Visitor &visitor) override {
         visitor.visit(this);
     }
 
@@ -72,32 +72,28 @@ public:
     }
 #endif
 
+    VarInitStatement *as_var_init() override {
+        return this;
+    }
+
     void interpret(InterpretScope &scope) override {
         if (value.has_value()) {
-            if (value.value()->primitive()) {
-                scope.global->values[identifier] = value.value()->copy();
-            } else {
-                scope.global->values[identifier] = value.value()->evaluated_value(scope);
-            }
-        } else {
-            scope.global->nodes[identifier] = this;
+            scope.global->values[identifier] = value.value()->initializer_value(scope);
         }
+        scope.global->nodes[identifier] = this;
     }
 
     void interpret_scope_ends(InterpretScope &scope) override {
-        if(value.has_value()) {
+        if (value.has_value()) {
             auto found = scope.global->values.find(identifier);
-            if(found != scope.global->values.end()) {
-                if(found->second->primitive()) {
-                    delete found->second;
-                }
+            if (found != scope.global->values.end()) {
+                delete found->second;
                 scope.global->values.erase(found);
             } else {
                 scope.error("cannot clear non existent variable on the value map " + identifier);
             }
-        } else {
-            scope.global->nodes.erase(identifier);
         }
+        scope.global->nodes.erase(identifier);
     }
 
     std::string representation() const override {

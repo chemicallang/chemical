@@ -15,6 +15,10 @@ public:
         return "void";
     }
 
+    virtual BaseType* copy() const {
+        return new VoidType();
+    }
+
 #ifdef COMPILER_BUILD
     llvm::Type *llvm_type(Codegen &gen) const override {
         return gen.builder->getVoidTy();

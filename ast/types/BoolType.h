@@ -15,6 +15,10 @@ public:
         return "bool";
     }
 
+    virtual BaseType* copy() const {
+        return new BoolType();
+    }
+
 #ifdef COMPILER_BUILD
     llvm::Type *llvm_type(Codegen &gen) const override {
         return gen.builder->getInt1Ty();

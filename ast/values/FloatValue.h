@@ -40,11 +40,11 @@ public:
         return true;
     }
 
-    Value * copy() override {
+    Value *copy() const override {
         return new FloatValue(value);
     }
 
-    void * get_value() override {
+    void *get_value() override {
         return &value;
     }
 

@@ -31,6 +31,10 @@ public:
         visitor.visit(this);
     }
 
+    StructDefinition *as_struct_def() override {
+        return this;
+    }
+
     bool type_check(InterpretScope &scope) {
         if (overrides.has_value()) {
             auto inter = scope.global->values.find(overrides.value());
@@ -54,13 +58,13 @@ public:
         scope.global->nodes[name] = this;
     }
 
-    void interpret_scope_ends(InterpretScope& scope) override {
-        scope.global->values.erase(name);
+    void interpret_scope_ends(InterpretScope &scope) override {
+        scope.global->nodes.erase(name);
     }
 
     std::string representation() const override {
         std::string ret("struct " + name + " ");
-        if(overrides.has_value()) {
+        if (overrides.has_value()) {
             ret.append(": " + overrides.value() + " {\n");
         } else {
             ret.append("{\n");

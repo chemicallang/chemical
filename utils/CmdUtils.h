@@ -8,6 +8,13 @@
 #include <optional>
 #include <iostream>
 
+#define ANSI_COLOR_RED     "\x1b[91m"
+#define ANSI_COLOR_RESET   "\x1b[0m"
+
+inline std::string cmd_error(const std::string& err) {
+    return ANSI_COLOR_RED + err + ANSI_COLOR_RESET;
+}
+
 void print_usage() {
     std::string usage = "chemical <input_file> -o <output_file>\n\n";
     usage += "<input_file> a chemical file path with .ch extension relative to current executable\n";
@@ -44,8 +51,6 @@ struct CmdOptions {
     /**
      * prints unconsumed options as errs
      */
-#define ANSI_COLOR_RED     "\x1b[91m"
-#define ANSI_COLOR_RESET   "\x1b[0m"
     void print_unhandled() {
         if(!options.empty()) {
             std::cerr << ANSI_COLOR_RED << "unhandled arguments given -> ";
@@ -122,17 +127,10 @@ struct CmdOptions {
         bool collect = false;
         while (i < argc) {
             auto x = argv[i];
-            if (!collect && strncmp(x + 1, subcommand.c_str(), subcommand.size()) == 0) {
+            if (!collect && strncmp(x, subcommand.c_str(), subcommand.size()) == 0) {
                 collect = true;
             } else if(collect) {
-                if(strncmp(x, "!!", 2) == 0) {
-                    return args;
-                } else {
-                    if(consume && x[0] == '-') {
-                        options.erase((x[1] == '-') ? (x + 2) : (x + 1));
-                    }
-                    args.emplace_back(x);
-                }
+                args.emplace_back(x);
             }
             i++;
         }
@@ -149,22 +147,37 @@ struct CmdOptions {
      * for example clang x -o file.o, x here is a argument
      * @return the first args, cmd file.o file.o1, these file.o and file.o1 are returned
      */
-    std::vector<std::string> parse_cmd_options(int argc, char *argv[], int skip = 0) {
+    std::vector<std::string> parse_cmd_options(int argc, char *argv[], int skip = 0, const std::vector<std::string>& subcommands = {}, bool add_subcommand = true) {
         int i = skip;
         std::vector<std::string> args;
         std::string option;
         while (i < argc) {
             auto x = argv[i];
+            // check if it's a subcommand
+            bool found = false;
+            for(const auto& sub : subcommands) {
+                if(sub == x) {
+                    if(add_subcommand) options[sub] = defOptValue;
+                    found = true;
+                    break;
+                }
+            }
+            if(found) break;
+            // check if it's -option
             if (x[0] == '-') {
                 if(!option.empty()) {
                     options[option] = defOptValue;
                 }
                 option = (x[1] == '-') ? (x + 2) : (x + 1);
-            } else if (!option.empty()) {
-                options[option] = x;
-                option = "";
             } else {
-                args.emplace_back(x);
+                // it's a value for the previous option
+                if(!option.empty()) {
+                    options[option] = x;
+                    option = "";
+                } else {
+                    // it's a argument
+                    args.emplace_back(x);
+                }
             }
             i++;
         }

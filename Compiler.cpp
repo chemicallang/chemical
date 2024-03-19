@@ -29,16 +29,16 @@ bool endsWith(const std::string &fullString, const std::string &ending) {
 int main(int argc, char *argv[]) {
 
     if (argc < 2) {
-        std::cerr << "No inputs given\n\n";
+        std::cerr << cmd_error("no inputs given\n\n");
         print_usage();
         return 1;
     }
 
     // parsing the command
     CmdOptions options;
-    auto args = options.parse_cmd_options(argc, argv, 1);
+    auto args = options.parse_cmd_options(argc, argv, 1, {"clang", "linker"});
     if(args.empty()) {
-        std::cerr << "No input given\n\n";
+        std::cerr << cmd_error("no input given\n\n");
         print_usage();
         return 1;
     }
@@ -47,12 +47,12 @@ int main(int argc, char *argv[]) {
 
     // invoke clang cc1, this is used by clang, because it invokes (current executable)
     if(strcmp(argv[1], "-cc1") == 0) {
-        if(verbose.has_value()) std::cout << "Invoking Clang : " << std::endl;
+        if(verbose.has_value()) std::cout << "invoking clang cc1: " << std::endl;
         return chemical_clang_main(argc, argv);
     }
 
     if(verbose.has_value()) {
-        std::cout << "Formed Command : ";
+        std::cout << "parsed command : ";
         options.print();
         std::cout << std::endl;
     }
@@ -188,7 +188,7 @@ int main(int argc, char *argv[]) {
         try {
             std::filesystem::remove(object_file_path);
         } catch (const std::filesystem::filesystem_error& ex) {
-            std::cerr << "couldn't delete object file " << object_file_path << " because " << ex.what() << std::endl;
+            std::cerr << ANSI_COLOR_RED << "couldn't delete object file " << object_file_path << " because " << ex.what() << ANSI_COLOR_RESET << std::endl;
             return_int = 1;
         }
     }

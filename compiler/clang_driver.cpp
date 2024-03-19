@@ -377,7 +377,13 @@ static int ExecuteCC1Tool(SmallVectorImpl<const char *> &ArgV,
 
 int clang_main(int Argc, char **Argv, const llvm::ToolContext &ToolContext) {
     noteBottomOfStack();
-    llvm::InitLLVM X(Argc, Argv);
+    // ZIG PATCH: On Windows, InitLLVM calls GetCommandLineW(),
+    // and overwrites the args.  We don't want it to do that,
+    // and we also don't need the signal handlers it installs
+    // (we have our own already), so we just use llvm_shutdown_obj
+    // instead.
+    // llvm::InitLLVM X(Argc, Argv);
+    llvm::llvm_shutdown_obj X;
     llvm::setBugReportMsg("PLEASE submit a bug report to " BUG_REPORT_URL
                           " and include the crash backtrace, preprocessed "
                           "source, and associated run script.\n");

@@ -13,7 +13,7 @@ public:
     unsigned int line, character;
 
     // representation of the position
-    std::string representation() {
+    std::string representation() const {
         return std::to_string(line) + ':' + std::to_string(character);
     }
 
@@ -23,6 +23,9 @@ class Range {
 public:
     // the range in the source file
     Position start, end;
+    std::string representation() const {
+        return start.representation() + " - " + end.representation();
+    }
 };
 
 enum class DiagSeverity : uint8_t {
@@ -87,8 +90,8 @@ public:
      * returns representation of this diagnostic as string
      * @return
      */
-    std::string representation() const {
-        return "[Diagnostic] " + message;
+    std::string representation(const std::string& tag = "Diagnostic") const {
+        return "[" + tag + "] " + message + " at " + range.representation();
     }
 
     /**
@@ -96,8 +99,8 @@ public:
      * @param path
      * @return
      */
-    std::string representation(const std::string &path) const {
-        return representation();
+    std::string representation(const std::string &path, const std::string& tag) const {
+        return representation(tag);
     }
 
 };

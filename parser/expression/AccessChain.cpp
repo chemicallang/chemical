@@ -24,7 +24,20 @@ lex_ptr<AccessChain> Parser::parseAccessChain() {
         } else {
 
             if (!chain) {
+
                 chain = std::make_unique<AccessChain>(std::vector<std::unique_ptr<Value>>());
+
+                // parsea  struct value
+                if(token_type() == LexTokenType::CharOperator && as<CharOperatorToken>()->op == '{') {
+                    auto structValue = parseStructValue(var.value()->value);
+                    if(structValue.has_value()) {
+                        chain->values.push_back(std::move(structValue.value()));
+                    } else {
+                        error("expected a struct after encountering '{' after struct value declaration " + var.value()->value);
+                    }
+                    return chain;
+                }
+
             }
             if(consume_op('(')) {
                 std::vector<std::unique_ptr<Value>> params;

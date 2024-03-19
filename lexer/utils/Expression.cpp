@@ -18,7 +18,7 @@ void Lexer::lexRemainingExpression() {
     }
 }
 
-bool Lexer::lexExpressionTokens(){
+bool Lexer::lexExpressionTokens(bool lexStruct){
 
     if(lexOperatorToken('-')) {
         return lexExpressionTokens();
@@ -46,7 +46,7 @@ bool Lexer::lexExpressionTokens(){
 
     }
 
-    if(!lexAccessChainOrValue()) {
+    if(!lexAccessChainOrValue(lexStruct)) {
         return false;
     }
 

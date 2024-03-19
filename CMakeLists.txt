@@ -244,6 +244,9 @@ set(COMMON_SOURCES
         compiler/Object.cpp
         compiler/Linker.cpp
         common/Diagnostic.h
+        lexer/values/StructValue.cpp
+        ast/values/StructValue.h
+        parser/values/StructValue.cpp
 )
 
 # Chemical LSP Executable Target

@@ -110,12 +110,12 @@ struct CmdOptions {
             if(half == options.end()) {
                 return std::nullopt;
             } else {
-                auto value = half->second;
+                auto value = std::move(half->second);
                 if(consume) options.erase(half);
                 return value;
             }
         } else {
-            auto value = whole->second;
+            auto value = std::move(whole->second);
             if(consume) options.erase(whole);
             return value;
         }

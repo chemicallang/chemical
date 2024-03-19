@@ -170,23 +170,13 @@ public:
     int invoke_lld(const std::vector<std::string>& command_args);
 
     /**
-     * This uses lld API to compile given object files as executable
-     * BUT this doesn't result in a runnable executable because standard library is not linked
-     */
-    void link_objs_as_exes_lld(std::vector<std::string>& obj_files, const std::string &out_path, const std::vector<std::string>& linker_flags);
-
-    /**
      * You can invoke clang with this function
      */
     int invoke_clang(const std::vector<std::string>& command_args);
 
-
     /**
-     * This uses clang API to compile given object files as executable
-     * BUT this doesn't result in a runnable executable because standard library is not linked
+     * just prints the errors to std out
      */
-    int link_objs_as_exes_clang(std::vector<std::string>& obj_files, const std::string &out_path, const std::vector<std::string>& command_args);
-
     void print_errors() {
         for(const auto& err : errors) {
             std::cerr << err << std::endl;

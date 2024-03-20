@@ -8,6 +8,11 @@
 
 #pragma once
 
+#include "ast/base/ASTNode.h"
+#include "ast/base/Value.h"
+#include "ast/values/AccessChain.h"
+#include "ast/utils/Operation.h"
+
 class AssignStatement : public ASTNode {
 public:
 
@@ -40,17 +45,12 @@ public:
 #endif
 
     void interpret(InterpretScope& scope) override {
-        Value* next;
-        if(value->primitive()) {
-            next = value->copy();
-        } else {
-            next = value->evaluated_value(scope);
-        }
-        if(assOp == Operation::Assignment) {
-            lhs->set_identifier_value(scope, next);
-        } else {
-            lhs->set_identifier_value(scope, next, assOp);
-        }
+        lhs->set_identifier_value(scope, value->initializer_value(scope), assOp);
+    }
+
+    void interpret_scope_ends(InterpretScope &scope) override {
+        // when the var initializer ast node or the holder ast node goes out of scope
+        // the newly created value due to function call initializer_value will be destroyed
     }
 
     std::string representation() const override {

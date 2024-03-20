@@ -32,33 +32,24 @@ public:
         return parent->child(value);
     }
 
-    void set_identifier_value(InterpretScope &scope, Value *newValue) override {
-        auto it = scope.global->values.find(value);
-        if (it == scope.global->values.end()) {
-            std::cerr << "Couldn't set variable " << value
-                      << " as there's no such variable in parent, or previous value doesn't exist ";
-            return;
-        }
-        auto v = it->second;
-        if (v->primitive()) {
-            delete v;
-        }
-        it->second = newValue;
+    void set_value_in(InterpretScope &scope, Value *parent, Value *next_value, Operation op) override {
+        parent->set_child_value(value, next_value, op);
     }
 
     void set_identifier_value(InterpretScope &scope, Value *newValue, Operation op) override {
         auto it = scope.global->values.find(value);
         if (it == scope.global->values.end()) {
-            std::cerr << "Couldn't set variable " << value
+            std::cerr << "couldn't set variable " << value
                       << " as there's no such variable in parent, or previous value doesn't exist ";
             return;
         }
         auto v = it->second;
 
-        // creating an expression
-        auto nextValue = ExpressionEvaluator::functionVector[
-                ExpressionEvaluator::index(v->value_type(), v->value_type(), op)
-        ](v, newValue);
+        auto nextValue = op == Operation::Assignment ? (newValue) : (
+                ExpressionEvaluator::functionVector[
+                        ExpressionEvaluator::index(v->value_type(), v->value_type(), op)
+                ](v, newValue)
+        );
 
         if (v->primitive()) {
             delete v;

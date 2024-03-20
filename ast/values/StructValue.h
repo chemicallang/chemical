@@ -26,6 +26,17 @@ public:
         }
     }
 
+    void set_child_value(const std::string &name, Value *value, Operation op) override {
+        auto i = index(name);
+        if(i == -1) {
+            std::cerr << "couldn't find child by name " + name + " in struct";
+            return;
+        }
+        // this is probably gonna delete by itself
+        delete values[i].second.release();
+        values[i] = std::pair(values[i].first, std::unique_ptr<Value>(value));
+    }
+
     Value *evaluated_value(InterpretScope &scope) override {
         prepare(scope);
         return this;
@@ -39,13 +50,21 @@ public:
         return new StructValue(structName, std::move(copied));
     }
 
-    Value *child(const std::string &name) override {
-        for (const auto &value: values) {
-            if (value.first == name) {
-                return value.second.get();
+    unsigned int index(const std::string& name) {
+        unsigned i = 0;
+        for(const auto& value : values) {
+            if(value.first == name) {
+                return i;
             }
+            i++;
         }
-        return nullptr;
+        return -1;
+    }
+
+    Value *child(const std::string &name) override {
+        auto i = index(name);
+        if(i == -1) return nullptr;
+        return values[i].second.get();
     }
 
 #ifdef COMPILER_BUILD

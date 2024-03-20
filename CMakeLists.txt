@@ -247,6 +247,7 @@ set(COMMON_SOURCES
         lexer/values/StructValue.cpp
         ast/values/StructValue.h
         parser/values/StructValue.cpp
+        ast/base/ChainFragment.h
 )
 
 # Chemical LSP Executable Target

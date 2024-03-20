@@ -47,8 +47,7 @@ public:
         for(unsigned i = 0; i < values.size(); ++i) {
             copied[i] = std::make_pair(values[i].first, std::unique_ptr<Value>(values[i].second->copy()));
         }
-        auto enwS = new StructValue(structName, std::move(copied));
-        return enwS;
+        return new StructValue(structName, std::move(copied));
     }
 
     unsigned int index(const std::string& name) {

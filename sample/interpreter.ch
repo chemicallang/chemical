@@ -1,9 +1,17 @@
+struct Point {
+    var x : int;
+    var y : int;
+}
+
 func main() : int {
 
-    var x = 5;
-    var y = x;
-    y = 6;
-    printf("check y = ", y);
+    var p = Point {
+        x : 1,
+        y : 2
+    }
+
+    printf("check x = ", p.x, " check y = ", p.y, '\n');
+
     return 0;
 
 }

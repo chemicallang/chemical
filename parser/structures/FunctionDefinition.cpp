@@ -88,7 +88,7 @@ lex_ptr<FunctionDeclaration> Parser::parseFunctionDefinition(bool declarations) 
                 current_func_decl = declaration.get();
                 auto prevReturn = isParseReturnStatement;
                 isParseReturnStatement = true;
-                auto scope_nodes = parseScope();
+                auto scope_nodes = parseLoopScope();
                 isParseReturnStatement = prevReturn;
                 current_func_decl = prevFuncDecl;
 

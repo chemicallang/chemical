@@ -10,6 +10,7 @@
 
 class LoopScope : public Scope {
 public:
+
     bool stoppedInterpretOnce = false;
 
     /**

@@ -20,7 +20,7 @@ public:
      * @param scope
      */
     virtual void interpret(InterpretScope &scope) {
-        std::cerr << "[Interpretable:Base]";
+        scope.error("[Interpretable] interpret called on base class");
     }
 
 };

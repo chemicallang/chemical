@@ -35,7 +35,7 @@ public:
     void set_value_in(InterpretScope &scope, Value *parent, Value *next_value, Operation op) override {
 #ifdef DEBUG
         if(parent == nullptr) {
-            std::cerr << "set_value_in in variable identifier, received null pointer to parent" << std::endl;
+            scope.error("set_value_in in variable identifier, received null pointer to parent");
         }
 #endif
         parent->set_child_value(value, next_value, op);
@@ -44,8 +44,7 @@ public:
     void set_identifier_value(InterpretScope &scope, Value *newValue, Operation op) override {
         auto it = scope.global->values.find(value);
         if (it == scope.global->values.end()) {
-            std::cerr << "couldn't set variable " << value
-                      << " as there's no such variable in parent, or previous value doesn't exist ";
+            scope.error("couldn't set non-existent variable " + value);
             return;
         }
         auto v = it->second;

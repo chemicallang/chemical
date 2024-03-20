@@ -43,13 +43,15 @@ public:
                 if (func) {
                     std::cout << func->interpret_representation();
                 } else {
-                    std::cerr << "(function call) Function parameter not found : " << value->representation();
+                    scope.error("(function call) Function parameter not found : " + value->representation());
                 }
             }
         } else {
             prepare(scope);
             if (definition != nullptr) {
                 return definition->call(values);
+            } else {
+                scope.error("(function call) calling a function with no body, name : " + name);
             }
         }
         return nullptr;

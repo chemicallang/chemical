@@ -16,6 +16,9 @@ InterpretScope::InterpretScope(InterpretScope *parent, GlobalInterpretScope *glo
         : parent(parent), global(global), codeScope(scope), node(node) {}
 
 void InterpretScope::error(const std::string &err) {
+#ifdef DEBUG
+    std::cerr << ANSI_COLOR_RED << "[InterpretError]" << err << ANSI_COLOR_RESET << std::endl;
+#endif
     global->add_error(err);
 }
 

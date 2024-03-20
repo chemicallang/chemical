@@ -66,9 +66,9 @@ public:
 #ifdef DEBUG
         auto p = parent(scope);
         if(p == nullptr) {
-            std::cerr << "parent is nullptr in access cain " << representation() << std::endl;
+            scope.error("parent is nullptr in access cain " + representation());
         } else if(p->evaluated_value(scope) == nullptr) {
-            std::cerr << "evaluated value of parent is nullptr in access chain " << representation() << " pointer " << p->representation() << std::endl;
+            scope.error("evaluated value of parent is nullptr in access chain " + representation() + " pointer " + p->representation());
         }
 #endif
         return parent(scope)->evaluated_value(scope);

@@ -38,6 +38,9 @@ public:
      * @return
      */
     virtual FunctionParam *as_parameter() {
+#ifdef DEBUG
+      std::cerr << "as_parameter called on ASTNode" << std::endl;
+#endif
         return nullptr;
     }
 
@@ -46,6 +49,9 @@ public:
      * @return
      */
     virtual FunctionDeclaration *as_function() {
+#ifdef DEBUG
+        std::cerr << "as_function called on ASTNode" << std::endl;
+#endif
         return nullptr;
     }
 
@@ -54,6 +60,9 @@ public:
      * @return
      */
     virtual StructDefinition *as_struct_def() {
+#ifdef DEBUG
+        std::cerr << "as_struct_def called on ASTNode" << std::endl;
+#endif
         return nullptr;
     }
 
@@ -62,6 +71,9 @@ public:
      * @return
      */
     virtual VarInitStatement *as_var_init() {
+#ifdef DEBUG
+        std::cerr << "as_var_init called on ASTNode" << std::endl;
+#endif
         return nullptr;
     }
 

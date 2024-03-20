@@ -30,7 +30,9 @@ public:
      * @return
      */
     virtual Value* child(const std::string& name) {
-        std::cerr << "child called on base value";
+#ifdef DEBUG
+std::cerr << "child called on base value";
+#endif
         return nullptr;
     }
 
@@ -38,7 +40,9 @@ public:
      * set the child value, with given name, performing operation op
      */
     virtual void set_child_value(const std::string& name, Value* value, Operation op) {
+#ifdef DEBUG
         std::cerr << "set_child_value called on base value";
+#endif
     }
 
     /**
@@ -48,7 +52,9 @@ public:
      * @return
      */
     virtual Value* find_in(Value* parent) {
+#ifdef DEBUG
         std::cerr << "find_in called on base value";
+#endif
        return nullptr;
     }
 
@@ -56,7 +62,7 @@ public:
      * called on a identifier to set it's value in the given parent
      */
     virtual void set_value_in(InterpretScope& scope, Value* parent, Value* value, Operation op) {
-        std::cerr << "set_value_in called on base value";
+        scope.error("set_value_in called on base value");
     }
 
     /**
@@ -151,7 +157,7 @@ public:
      * @param op
      */
     virtual void set_identifier_value(InterpretScope& scope, Value* value, Operation op) {
-        std::cerr << "set_identifier_value called on base value";
+        scope.error("set_identifier_value called on base value");
     }
 
     /**

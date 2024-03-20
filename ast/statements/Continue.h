@@ -28,7 +28,7 @@ public:
 
     void interpret(InterpretScope &scope) override {
         if(node == nullptr) {
-            std::cerr << "[Continue] statement has nullptr to loop node";
+            scope.error("[Continue] statement has nullptr to loop node");
             return;
         }
         node->body.stopInterpretOnce();

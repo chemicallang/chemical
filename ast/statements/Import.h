@@ -45,7 +45,6 @@ public:
         std::ifstream stream(absolute_path);
         if(stream.fail()) {
             scope.error("error couldn't import the following file " + absolute_path);
-            std::cerr << "couldn't import the following file " + absolute_path;
             return;
         }
         StreamSourceProvider provider(stream);

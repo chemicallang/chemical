@@ -124,7 +124,7 @@ public:
     }
 
     void interpret_scope_ends(InterpretScope &scope) override {
-        scope.global->nodes.erase(name);
+        scope.global->erase_node(name);
     }
 
     Value *call(std::vector<std::unique_ptr<Value>> &call_params) {

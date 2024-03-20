@@ -50,6 +50,7 @@ public:
     void interpret(InterpretScope& scope) override {
         for(const auto& node : nodes) {
             node->interpret(scope);
+            scope.nodes_interpreted++;
         }
     }
 

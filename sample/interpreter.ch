@@ -3,19 +3,19 @@ struct Point {
     var y : int;
 }
 
-func create_point() {
-    return Point {
-       x : 1,
-       y : 2
-    };
+func modify_point(point : Point) {
+    point.x = 5;
+    point.y = 6;
 }
 
 func main() : int {
 
-    var p = create_point();
+    var p = Point {
+        x : 1,
+        y : 2
+    }
 
-    p.x = 5;
-    p.y = 6;
+    modify_point(p);
 
     printf("check x = ", p.x, " check y = ", p.y, '\n');
 

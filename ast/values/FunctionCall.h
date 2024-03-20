@@ -19,8 +19,10 @@ public:
 
     }
 
-    FunctionCall(FunctionCall &&other) : values(std::move(other.values)) {
+    FunctionCall(FunctionCall &&other) = delete;
 
+    Value *find_in(Value *parent) override {
+        return parent->child(name);
     }
 
     void prepare(InterpretScope &scope) {

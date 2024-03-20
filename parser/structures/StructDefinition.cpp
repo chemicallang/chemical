@@ -20,14 +20,19 @@ lex_ptr<StructDefinition> Parser::parseStructDefinition() {
                 }
             }
             if (consume_op('{')) {
-                std::vector<std::unique_ptr<VarInitStatement>> statements;
+                std::vector<std::unique_ptr<ASTNode>> statements;
                 while(true) {
                     auto init = parseVariableInitStatement();
                     if (init.has_value()) {
                         consume_op(';');
                         statements.emplace_back(std::move(init.value()));
                     } else {
-                        break;
+                        auto func = parseFunctionDefinition();
+                        if(func.has_value()) {
+                            statements.emplace_back(std::move(func.value()));
+                        }else {
+                            break;
+                        }
                     }
                 }
                 if(!consume_op('}')) {

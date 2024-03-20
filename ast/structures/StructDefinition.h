@@ -23,7 +23,7 @@ public:
      */
     StructDefinition(
             std::string name,
-            std::vector<std::unique_ptr<VarInitStatement>> fields,
+            std::vector<std::unique_ptr<ASTNode>> fields,
             std::optional<std::string> overrides
     ) : name(std::move(name)), fields(std::move(fields)), overrides(std::move(overrides)) {}
 
@@ -84,5 +84,5 @@ public:
 private:
     std::string name; ///< The name of the struct.
     std::optional<std::string> overrides;
-    std::vector<std::unique_ptr<VarInitStatement>> fields; ///< The members of the struct.
+    std::vector<std::unique_ptr<ASTNode>> fields; ///< The members of the struct.
 };

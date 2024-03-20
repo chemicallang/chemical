@@ -57,7 +57,11 @@ if(CLANG_LIBRARIES AND CLANG_LIBRARIES MATCHES "CLANG_LIBRARIES-NOTFOUND")
     string(REPLACE "CLANG_LIBRARIES-NOTFOUND;" "" CLANG_LIBRARIES "${CLANG_LIBRARIES}")
 endif()
 
-set(CMAKE_BUILD_TYPE "Release")
+set(CMAKE_BUILD_TYPE "Debug")
+
+if(CMAKE_BUILD_TYPE MATCHES Debug)
+    add_definitions(-DDEBUG)
+endif()
 
 # Add the LspCpp library directory
 add_subdirectory(LspCpp)
@@ -247,7 +251,7 @@ set(COMMON_SOURCES
         lexer/values/StructValue.cpp
         ast/values/StructValue.h
         parser/values/StructValue.cpp
-        ast/base/ChainFragment.h
+        ast/types/ReferencedType.h
 )
 
 # Chemical LSP Executable Target

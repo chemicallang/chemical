@@ -10,7 +10,11 @@
 
 std::string Lexer::lexIdentifier() {
     if(std::isalpha(provider.peek())) {
-        return lexAlphaNum();
+        std::string str;
+        while (!provider.eof() && (std::isalnum(provider.peek()) || provider.peek() == '_')) {
+            str.append(1, provider.readCharacter());
+        }
+        return str;
     } else {
         return "";
     }

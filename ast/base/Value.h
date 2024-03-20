@@ -34,6 +34,9 @@ public:
         return nullptr;
     }
 
+    /**
+     * set the child value, with given name, performing operation op
+     */
     virtual void set_child_value(const std::string& name, Value* value, Operation op) {
         std::cerr << "set_child_value called on base value";
     }

@@ -9,6 +9,7 @@
 #include "ast/types/BoolType.h"
 #include "ast/types/CharType.h"
 #include "ast/types/AnyType.h"
+#include "ast/types/ReferencedType.h"
 
 lex_ptr<BaseType> Parser::parseType() {
     if (token_type() == LexTokenType::Type) {
@@ -28,9 +29,8 @@ lex_ptr<BaseType> Parser::parseType() {
         } else if (type == "any") {
             return std::make_unique<AnyType>();
         } else {
-            error("Unknown type encountered " + type);
-            return std::nullopt;
-        };
+            return std::make_unique<ReferencedType>(type);
+        }
     } else {
         return std::nullopt;
     }

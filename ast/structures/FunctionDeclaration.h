@@ -126,16 +126,10 @@ public:
         }
         auto i = 0;
         while (i < params.size()) {
-            // TODO all function values are being copied
-            child.global->values[params[i].name] = call_params[i]->copy();
+            child.global->values[params[i].name] = call_params[i]->initializer_value(child);
             i++;
         }
         body.value().interpret(child);
-#ifdef DEBUG
-        if(interpretReturn == nullptr) {
-            std::cerr << "returning nullptr in function definition call" << std::endl;
-        }
-#endif
         return interpretReturn;
     }
 

@@ -3,12 +3,16 @@ struct Point {
     var y : int;
 }
 
+func create_point() {
+    return Point {
+       x : 1,
+       y : 2
+    };
+}
+
 func main() : int {
 
-    var p = Point {
-        x : 1,
-        y : 2
-    }
+    var p = create_point();
 
     p.x = 5;
     p.y = 6;

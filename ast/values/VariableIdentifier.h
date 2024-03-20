@@ -33,6 +33,11 @@ public:
     }
 
     void set_value_in(InterpretScope &scope, Value *parent, Value *next_value, Operation op) override {
+#ifdef DEBUG
+        if(parent == nullptr) {
+            std::cerr << "set_value_in in variable identifier, received null pointer to parent" << std::endl;
+        }
+#endif
         parent->set_child_value(value, next_value, op);
     }
 

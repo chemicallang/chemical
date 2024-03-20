@@ -117,6 +117,7 @@ public:
     }
 
     Value *call(std::vector<std::unique_ptr<Value>> &call_params) {
+        if(!body.has_value()) return nullptr;
         InterpretScope child(declarationScope, declarationScope->global, &body.value(), this);
         if (params.size() != call_params.size()) {
             child.error("function " + name + " requires " + std::to_string(params.size()) + ", but given params are " +
@@ -130,6 +131,11 @@ public:
             i++;
         }
         body.value().interpret(child);
+#ifdef DEBUG
+        if(interpretReturn == nullptr) {
+            std::cerr << "returning nullptr in function definition call" << std::endl;
+        }
+#endif
         return interpretReturn;
     }
 

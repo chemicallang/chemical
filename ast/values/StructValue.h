@@ -44,10 +44,11 @@ public:
 
     Value *copy() const override {
         std::vector<std::pair<std::string, std::unique_ptr<Value>>> copied(values.size());
-        for (const auto &value: values) {
-            copied.emplace_back(value.first, value.second->copy());
+        for(unsigned i = 0; i < values.size(); ++i) {
+            copied[i] = std::make_pair(values[i].first, std::unique_ptr<Value>(values[i].second->copy()));
         }
-        return new StructValue(structName, std::move(copied));
+        auto enwS = new StructValue(structName, std::move(copied));
+        return enwS;
     }
 
     unsigned int index(const std::string& name) {

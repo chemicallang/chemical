@@ -47,7 +47,7 @@ public:
         } else {
             prepare(scope);
             if (definition != nullptr) {
-                definition->call(values);
+                return definition->call(values);
             }
         }
         return nullptr;

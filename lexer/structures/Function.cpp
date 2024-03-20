@@ -11,7 +11,7 @@
 bool Lexer::lexReturnStatement() {
     if(lexKeywordToken("return")) {
         lexWhitespaceToken();
-        lexExpressionTokens();
+        lexExpressionTokens(true);
         return true;
     } else {
         return false;

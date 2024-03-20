@@ -9,7 +9,7 @@
 #include "lexer/model/tokens/VariableToken.h"
 
 std::string Lexer::lexIdentifier() {
-    if(std::isalpha(provider.peek())) {
+    if(std::isalpha(provider.peek()) || provider.peek() == '_') {
         std::string str;
         while (!provider.eof() && (std::isalnum(provider.peek()) || provider.peek() == '_')) {
             str.append(1, provider.readCharacter());

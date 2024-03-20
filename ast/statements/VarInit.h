@@ -91,7 +91,7 @@ public:
         } else {
             scope.error("cannot clear non existent variable on the value map " + identifier);
         }
-        scope.global->nodes.erase(identifier);
+        scope.global->erase_node(identifier);
     }
 
     std::string representation() const override {

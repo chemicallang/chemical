@@ -21,6 +21,28 @@ public:
     GlobalInterpretScope(GlobalInterpretScope&& copy) = delete;
 
     /**
+     * erases a value by the key name from the value map safely
+     * @param name
+     */
+    void erase_value(const std::string& name);
+
+    /**
+     * erases a name by the key name from the node map safely
+     * @param name
+     */
+    void erase_node(const std::string& name);
+
+    /**
+     * print all values
+     */
+    void print_values();
+
+    /**
+     * print all nodes
+     */
+    void print_nodes();
+
+    /**
      * Given error will be stored in the errors vector
      * @param err
      */

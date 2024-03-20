@@ -16,4 +16,4 @@ func main() : int {
 
 }
 
-var z = main();
+var __main__ = main();

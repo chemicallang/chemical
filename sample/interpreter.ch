@@ -11,6 +11,7 @@ func main() : int {
     }
 
     p.x = 5;
+    p.y = 6;
 
     printf("check x = ", p.x, " check y = ", p.y, '\n');
 
@@ -18,4 +19,4 @@ func main() : int {
 
 }
 
-var x = main();
+var z = main();

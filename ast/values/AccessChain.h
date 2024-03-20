@@ -22,7 +22,7 @@ public:
     }
 
     void interpret(InterpretScope &scope) override {
-        for(const auto& value:values) {
+        for (const auto &value: values) {
             value->interpret(scope);
         }
     }
@@ -47,37 +47,43 @@ public:
     }
 #endif
 
-    void set_identifier_value(InterpretScope& scope, Value *value) override {
-        values[0]->set_identifier_value(scope, value);
+    Value *parent(InterpretScope &scope) {
+        Value *current = values[0].get();
+        unsigned i = 1;
+        while (i < (values.size() - 1)) {
+            current = values[i]->find_in(current);
+            if (current == nullptr) {
+                scope.error(
+                        "(access chain) " + representation() + " child " + values[i]->representation() + " not found");
+                return nullptr;
+            }
+            i++;
+        }
+        return current;
     }
 
-    void set_identifier_value(InterpretScope& scope, Value *value, Operation op) override {
-        values[0]->set_identifier_value(scope, value, op);
+    inline Value* parent_value(InterpretScope &scope) {
+        return parent(scope)->evaluated_value(scope);
+    }
+
+    void set_identifier_value(InterpretScope &scope, Value *value, Operation op) override {
+        if (values.size() <= 1) {
+            values[0]->set_identifier_value(scope, value, op);
+        } else {
+            values[values.size() - 1]->set_value_in(scope, parent_value(scope), value, op);
+        }
     }
 
     std::string interpret_representation() const override {
         return "[AccessChainInterpretRepresentation]";
     }
 
-    Value * evaluated_value(InterpretScope &scope) override {
-        Value* scopeVariable = values[0]->evaluated_value(scope);
-        if(scopeVariable == nullptr) {
-            scope.error("(access chain) not found in parent : " + values[0]->representation());
-            return nullptr;
+    Value *evaluated_value(InterpretScope &scope) override {
+        if (values.size() <= 1) {
+            return values[0]->evaluated_value(scope);
+        } else {
+            return values[values.size() - 1]->find_in(parent_value(scope));
         }
-        if(values.size() > 1) {
-            auto i = 1;
-            while(i < values.size()) {
-                auto child = values[i]->find_in(scopeVariable);
-                if(child != nullptr) {
-                    scopeVariable = child;
-                } else {
-                    scope.error("(access chain) "+ representation() + " child " + values[i]->representation() + " not found");
-                }
-                i++;
-            }
-        }
-        return scopeVariable;
     }
 
     std::string representation() const override {

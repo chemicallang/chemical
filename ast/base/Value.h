@@ -30,7 +30,12 @@ public:
      * @return
      */
     virtual Value* child(const std::string& name) {
+        std::cerr << "child called on base value";
         return nullptr;
+    }
+
+    virtual void set_child_value(const std::string& name, Value* value, Operation op) {
+        std::cerr << "set_child_value called on base value";
     }
 
     /**
@@ -40,7 +45,15 @@ public:
      * @return
      */
     virtual Value* find_in(Value* parent) {
+        std::cerr << "find_in called on base value";
        return nullptr;
+    }
+
+    /**
+     * called on a identifier to set it's value in the given parent
+     */
+    virtual void set_value_in(InterpretScope& scope, Value* parent, Value* value, Operation op) {
+        std::cerr << "set_value_in called on base value";
     }
 
     /**
@@ -59,17 +72,6 @@ public:
     virtual std::string interpret_representation() const {
         return representation();
     };
-
-    /**
-     * Called by assignment statement, to set the value of this value
-     * since InterpretValue can also represent an identifier or access chain
-     * This method is overridden by for ex : an identifier, which can find itself in the scope above and set this value
-     * @param vars
-     * @param value
-     */
-    virtual void set_identifier_value(InterpretScope& scope, Value* value) {
-
-    }
 
 #ifdef COMPILER_BUILD
     /**
@@ -138,13 +140,15 @@ public:
 
     /**
      * Called by assignment statement, to set the value of this value
-     * Operation is given to perform operation on the existing value
+     * since InterpretValue can also represent an identifier or access chain
+     * This method is overridden by for ex : an identifier, which can find itself in the scope above and set this value
+     * The given op must be performed on the already stored value
      * @param vars
      * @param value
      * @param op
      */
     virtual void set_identifier_value(InterpretScope& scope, Value* value, Operation op) {
-
+        std::cerr << "set_identifier_value called on base value";
     }
 
     /**

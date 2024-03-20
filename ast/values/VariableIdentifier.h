@@ -126,7 +126,13 @@ public:
     }
 
     Value *initializer_value(InterpretScope &scope) override {
-        return evaluated_value(scope);
+        // evaluates the value, if its primitive copies it, otherwise creates another reference
+        auto val = evaluated_value(scope);
+        if(val->primitive()) {
+            return val->copy();
+        } else {
+            return val;
+        }
     }
 
     std::string representation() const override {

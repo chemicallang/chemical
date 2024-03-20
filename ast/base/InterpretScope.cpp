@@ -9,13 +9,14 @@
 #include "Value.h"
 #include "ast/structures/Scope.h"
 
-InterpretScope::InterpretScope(InterpretScope* parent, GlobalInterpretScope *global, Scope* scope, ASTNode* node) : parent(parent), global(global), codeScope(scope), node(node) {
+InterpretScope::InterpretScope(InterpretScope *parent, GlobalInterpretScope *global, Scope *scope, ASTNode *node)
+        : parent(parent), global(global), codeScope(scope), node(node) {
 
 }
 
 void InterpretScope::printAllValues() {
     std::cout << "ScopeValues:" << std::endl;
-    for(auto const& value : global->values) {
+    for (auto const &value: global->values) {
         std::cout << value.first << " : " << value.second << std::endl;
     }
 }
@@ -25,7 +26,9 @@ void InterpretScope::error(const std::string &err) {
 }
 
 InterpretScope::~InterpretScope() {
-    for(const auto& va : codeScope->nodes) {
-        va->interpret_scope_ends(*this);
+    int i = codeScope->nodes.size() - 1;
+    while (i >= 0) {
+        codeScope->nodes[i]->interpret_scope_ends(*this);
+        i--;
     }
 }

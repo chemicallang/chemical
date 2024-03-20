@@ -12,23 +12,35 @@
 
 class FunctionParam : public ASTNode {
 public:
-    FunctionParam(std::string  name, std::unique_ptr<BaseType> type, unsigned int index) : name(std::move(name)), type(std::move(type)), index(index) {
 
+    FunctionParam(
+            std::string name,
+            std::unique_ptr<BaseType> type,
+            unsigned int index
+    ) : name(std::move(name)),
+        type(std::move(type)),
+        index(index) {
+        name.shrink_to_fit();
     }
+
     void accept(Visitor &visitor) override {
         visitor.visit(this);
     }
-    FunctionParam* as_parameter() override {
+
+    FunctionParam *as_parameter() override {
         return this;
     }
+
 #ifdef COMPILER_BUILD
     llvm::Type* llvm_type(Codegen &gen) override {
         return type->llvm_type(gen);
     }
 #endif
+
     std::string representation() const override {
         return name + " : " + type->representation();
     }
+
     unsigned int index;
     std::string name;
     std::unique_ptr<BaseType> type;
@@ -53,10 +65,9 @@ public:
             func_params params,
             std::unique_ptr<BaseType> returnType,
             bool isVariadic
-    ) : name(std::move(name)), params(std::move(params)), returnType(std::move(returnType)), body(std::nullopt), isVariadic(isVariadic) {
-        for (auto &param: this->params) {
-            param.name.shrink_to_fit();
-        }
+    ) : name(std::move(name)), params(std::move(params)), returnType(std::move(returnType)), body(std::nullopt),
+        isVariadic(isVariadic) {
+        params.shrink_to_fit();
     }
 
     void accept(Visitor &visitor) override {
@@ -117,7 +128,7 @@ public:
     }
 
     Value *call(std::vector<std::unique_ptr<Value>> &call_params) {
-        if(!body.has_value()) return nullptr;
+        if (!body.has_value()) return nullptr;
         InterpretScope child(declarationScope, declarationScope->global, &body.value(), this);
         if (params.size() != call_params.size()) {
             child.error("function " + name + " requires " + std::to_string(params.size()) + ", but given params are " +
@@ -136,9 +147,10 @@ public:
     // called by the return statement
     void set_return(Value *value) {
         interpretReturn = value;
+        body->stopInterpretOnce();
     }
 
-    FunctionDeclaration * as_function() override {
+    FunctionDeclaration *as_function() override {
         return this;
     }
 
@@ -154,7 +166,7 @@ public:
             if (i < params.size() - 1) {
                 ret.append(", ");
             } else {
-                if(isVariadic) {
+                if (isVariadic) {
                     ret.append("...");
                 }
             }
@@ -164,7 +176,7 @@ public:
         ret.append(" : ");
         ret.append(returnType->representation());
         ret.append(1, ' ');
-        if(body.has_value()) {
+        if (body.has_value()) {
             ret.append("{\n");
             ret.append(body.value().representation());
             ret.append("\n}");
@@ -172,7 +184,7 @@ public:
         return ret;
     }
 
-    std::optional<Scope> body; ///< The body of the function.
+    std::optional<LoopScope> body; ///< The body of the function.
 
 private:
     std::string name; ///< The name of the function.

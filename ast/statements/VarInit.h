@@ -84,14 +84,12 @@ public:
     }
 
     void interpret_scope_ends(InterpretScope &scope) override {
-        if (value.has_value()) {
-            auto found = scope.global->values.find(identifier);
-            if (found != scope.global->values.end()) {
-                delete found->second;
-                scope.global->values.erase(found);
-            } else {
-                scope.error("cannot clear non existent variable on the value map " + identifier);
-            }
+        auto found = scope.global->values.find(identifier);
+        if (found != scope.global->values.end()) {
+            delete found->second;
+            scope.global->values.erase(found);
+        } else {
+            scope.error("cannot clear non existent variable on the value map " + identifier);
         }
         scope.global->nodes.erase(identifier);
     }

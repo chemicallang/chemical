@@ -13,8 +13,21 @@
 class IndexOperator : public Value {
 public:
 
-    IndexOperator(std::string identifier, std::unique_ptr<Value> value) : identifier(std::move(identifier)), value(std::move(value)) {
+    IndexOperator(std::string identifier, std::unique_ptr<Value> value) : identifier(std::move(identifier)),
+                                                                          value(std::move(value)) {
 
+    }
+
+    Value *find_in(Value *parent) override {
+#ifdef DEBUG
+      try {
+          return parent->index(value->as_int());
+      }  catch (...) {
+          std::cerr << "[InterpretError] index operator only support's integer indexes at the moment";
+      }
+#endif
+        parent->index(value->as_int());
+        return nullptr;
     }
 
 #ifdef COMPILER_BUILD

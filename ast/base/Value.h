@@ -37,6 +37,16 @@ std::cerr << "child called on base value";
     }
 
     /**
+     * index operator [] calls this on a value
+     */
+    virtual Value* index(int i) {
+#ifdef DEBUG
+        std::cerr << "index called on base value";
+#endif
+        return nullptr;
+    }
+
+    /**
      * set the child value, with given name, performing operation op
      */
     virtual void set_child_value(const std::string& name, Value* value, Operation op) {

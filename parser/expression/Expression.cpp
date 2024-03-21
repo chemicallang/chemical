@@ -12,19 +12,19 @@ void Parser::parseExpressionWith(ValueAndOperatorStack &stack, ValueAndOperatorS
     while (position < tokens.size()) {
         auto valueOrAc = parseAccessChainOrValue();
         if(valueOrAc.has_value()) {
-            final.putValue(valueOrAc->get());
+            final.putValue(valueOrAc->release());
             auto operation = consume_op_token();
             if(operation.has_value()) {
-                auto precedence = operation.value();
+                auto precedence = (uint8_t) operation.value();
                 auto peak_precedence = stack.peakOperator();
                 auto assocLeftToRight = is_assoc_left_to_right(operation.value());
                 if (stack.isEmpty() || stack.peakChar() == '(') {
                     stack.putOperator(operation.value());
-                } else if (!stack.has_operation_top() || precedence > peak_precedence) {
+                } else if (!stack.has_operation_top() || precedence > (uint8_t) peak_precedence.value()) {
                     while (!stack.isEmpty() && stack.has_operation_top()) {
-                        if (precedence > peak_precedence) {
+                        if (precedence > (uint8_t) peak_precedence.value()) {
                             final.putOperator(stack.popOperator());
-                        } else if (precedence == peak_precedence) {
+                        } else if (precedence == (uint8_t) peak_precedence.value()) {
                             if(assocLeftToRight) {
                                 final.putOperator(stack.popOperator());
                             } else {
@@ -33,9 +33,9 @@ void Parser::parseExpressionWith(ValueAndOperatorStack &stack, ValueAndOperatorS
                         }
                     }
                     stack.putOperator(operation.value());
-                } else if (precedence < peak_precedence) {
+                } else if (precedence < (uint8_t) peak_precedence.value()) {
                     stack.putOperator(operation.value());
-                } else if (precedence == peak_precedence) {
+                } else if (precedence == (uint8_t) peak_precedence.value()) {
                     if(assocLeftToRight) {
                         final.putOperator(stack.popOperator());
                     } else {
@@ -52,7 +52,7 @@ void Parser::parseExpressionWith(ValueAndOperatorStack &stack, ValueAndOperatorS
             if (consume_op('(')) {
                 stack.putCharacter('(');
             } else if (consume_op(')')) {
-                int found = false;
+                bool found = false;
                 while (!found) {
                     if (stack.has_operation_top()) {
                         final.putOperator(stack.popOperator());

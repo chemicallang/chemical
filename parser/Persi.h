@@ -20,6 +20,11 @@
  * @param file
  * @return tokens
  */
+void benchParse(Parser& parser);
+
+/**
+ * an extension on bench parse that creates the parser
+ */
 Parser benchParse(std::vector<std::unique_ptr<LexToken>> tokens);
 
 /**

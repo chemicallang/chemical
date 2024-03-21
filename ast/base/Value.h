@@ -258,6 +258,10 @@ std::cerr << "child called on base value";
         throw std::runtime_error("as_bool called on a value");
     }
 
+    /**
+     * a function to be overridden by values that can return string
+     * @return
+     */
     virtual std::string as_string() {
 #ifdef DEBUG
         std::cerr << "as_string called on base value, representation : " << representation();
@@ -283,6 +287,17 @@ std::cerr << "child called on base value";
     virtual float as_float() {
 #ifdef DEBUG
         std::cerr << "as_float called on base value, representation : " << representation();
+#endif
+        throw std::runtime_error("as_float called on a value");
+    }
+
+    /**
+     * a function to be overridden by values that can return double
+     * @return
+     */
+    virtual double as_double() {
+#ifdef DEBUG
+        std::cerr << "as_double called on base value, representation : " << representation();
 #endif
         throw std::runtime_error("as_float called on a value");
     }

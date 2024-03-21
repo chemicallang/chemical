@@ -36,6 +36,10 @@ public:
     }
 #endif
 
+    float as_float() override {
+        return value;
+    }
+
     bool primitive() override {
         return true;
     }

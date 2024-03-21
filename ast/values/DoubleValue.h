@@ -38,6 +38,10 @@ public:
         return new DoubleValue(value);
     }
 
+    double as_double() override {
+        return value;
+    }
+
     std::string representation() const override {
         std::string rep;
         rep.append(std::to_string(value));

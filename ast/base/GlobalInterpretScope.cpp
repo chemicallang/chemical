@@ -58,5 +58,22 @@ void GlobalInterpretScope::erase_node(const std::string& name) {
 }
 
 void GlobalInterpretScope::add_error(const std::string &err) {
+#ifdef DEBUG
+    std::cerr << ANSI_COLOR_RED << "[InterpretError]" << err << ANSI_COLOR_RESET << std::endl;
+#endif
     errors.emplace_back(err);
+}
+
+GlobalInterpretScope::~GlobalInterpretScope() {
+#ifdef DEBUG
+    if (nodes_interpreted == -1) {
+        std::cerr << ANSI_COLOR_RED
+                  << "global nodes_interpreted = -1 , either the scope is empty, or scope doesn't increment nodes_interpreted"
+                  << std::endl;
+    }
+#endif
+    while (nodes_interpreted > -1) {
+        codeScope->nodes[nodes_interpreted]->interpret_scope_ends(*this);
+        nodes_interpreted--;
+    }
 }

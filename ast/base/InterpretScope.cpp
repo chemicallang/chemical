@@ -16,20 +16,28 @@ InterpretScope::InterpretScope(InterpretScope *parent, GlobalInterpretScope *glo
         : parent(parent), global(global), codeScope(scope), node(node) {}
 
 void InterpretScope::error(const std::string &err) {
-#ifdef DEBUG
-    std::cerr << ANSI_COLOR_RED << "[InterpretError]" << err << ANSI_COLOR_RESET << std::endl;
-#endif
     global->add_error(err);
 }
 
 InterpretScope::~InterpretScope() {
 #ifdef DEBUG
     if (nodes_interpreted == -1) {
-        std::cerr << ANSI_COLOR_RED
-                  << "nodes_interpreted = -1 , shouldn't be, either the scope is empty, or scope doesn't increment nodes_interpreted when interpreting nodes"
-                  << std::endl;
-        if (node == nullptr) return;
-        std::cerr << "here's the representation of node : " << node->representation() << ANSI_COLOR_RESET << std::endl;
+
+        // global interpret scope has its own destructor which also checks this
+        // after global interpret scope's destructor is called, this destructor is called
+        // because of inheritance, but the work is already done
+        if (this == global) return;
+        std::cerr << ANSI_COLOR_RED;
+        std::cerr
+                << "nodes_interpreted = -1 , either the scope is empty, or scope doesn't increment nodes_interpreted"
+                << std::endl;
+        if (node != nullptr) {
+            std::cerr << "here's the representation of node : " << node->representation()
+                      << std::endl;
+        } else {
+
+        }
+        std::cerr << ANSI_COLOR_RESET;
     }
 #endif
     while (nodes_interpreted > -1) {

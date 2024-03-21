@@ -20,10 +20,16 @@ class ASTNode;
 class InterpretScope {
 public:
 
+    /**
+     * explicit constructor
+     */
     explicit InterpretScope(InterpretScope* parent, GlobalInterpretScope* global, Scope* scope, ASTNode* node);
 
-    // delete copy constructor
-    InterpretScope(InterpretScope&& copy) = delete;
+    /**
+     * deleted copy constructor
+     * @param copy
+     */
+    InterpretScope(const InterpretScope& copy) = delete;
 
     /**
      * The errors are stored in global scope only
@@ -35,7 +41,7 @@ public:
      * Values that want to be deleted when the scope ends
      * must be deleted in the destructor
      */
-    ~InterpretScope();
+    virtual ~InterpretScope();
 
     /**
      * a pointer to the parent scope, If this is a global scope, it will be a nullptr

@@ -46,15 +46,16 @@ public:
     inline Value *evaluate(InterpretScope &scope) {
         auto fEvl = firstValue->evaluated_value(scope);
         auto sEvl = secondValue->evaluated_value(scope);
-        auto index = ((uint8_t) fEvl->value_type() << 20) | ((uint8_t) sEvl->value_type() << 10) | (uint8_t) operation;
-        if (ExpressionEvaluator::functionVector.contains(index)) {
+        auto index = ExpressionEvaluator::index(fEvl->value_type(), sEvl->value_type(), operation);
+        auto found = ExpressionEvaluator::functionVector.find(index);
+        if (found != ExpressionEvaluator::functionVector.end()) {
             auto result = ExpressionEvaluator::functionVector[index](fEvl, sEvl);
-            if (fEvl->computed()) delete fEvl;
-            if (sEvl->computed()) delete sEvl;
+            if (firstValue->computed()) delete fEvl;
+            if (secondValue->computed()) delete sEvl;
             return result;
         } else {
             scope.error(
-                    "Cannot evaluate expression as the method with index " + std::to_string(index) + " does not exist");
+                    "Cannot evaluate expression as the method with index " + std::to_string(index) + " does not exist, for value types " + to_string(fEvl->value_type()) + " and " + to_string(sEvl->value_type()));
             return nullptr;
         }
     }
@@ -74,7 +75,7 @@ public:
         return value;
     }
 
-    Value *initializer_value(InterpretScope& scope) override {
+    Value *initializer_value(InterpretScope &scope) override {
         return evaluated_value(scope);
     }
 

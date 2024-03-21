@@ -23,6 +23,16 @@ public:
      */
     StringValue(std::string value) : value(std::move(value)) {}
 
+    Value *index(int i) override {
+#ifdef DEBUG
+        if (i < 0 || i >= value.size()) {
+            std::cerr << "[InterpretError] access index " + std::to_string(i) + " out of bounds for string " + value +
+                         " of length " + std::to_string(value.size());
+        }
+#endif
+        return new CharValue(value[i]);
+    }
+
     std::string interpret_representation() const override {
         return value;
     }

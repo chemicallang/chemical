@@ -141,6 +141,20 @@ public:
             i++;
         }
         body.value().interpret(child);
+        // delete all the primitive values that were copied into the function
+        i--;
+        while(i > -1) {
+            auto itr = child.global->values.find(params[i].name);
+            if(itr != child.global->values.end()) {
+                if(itr->second != nullptr && itr->second->primitive()) {
+                    delete itr->second;
+                }
+                child.global->values.erase(itr);
+            } else {
+                child.error("couldn't find parameter for cleanup after function call " + params[i].name);
+            }
+            i--;
+        }
         return interpretReturn;
     }
 

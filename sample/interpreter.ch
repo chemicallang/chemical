@@ -1,5 +1,6 @@
 func main() : int {
-    printf("2+7*8-5 = ", 2+7*8-5, " which is ", 53);
+    var str = "something I'd like to say";
+    printf(str[0]);
     return 0;
 }
 

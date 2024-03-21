@@ -15,22 +15,32 @@ public:
     /**
      * The constructor
      */
-    GlobalInterpretScope(InterpretScope* parent, Scope* scope, ASTNode* node, std::string  path);
+    GlobalInterpretScope(InterpretScope *parent, Scope *scope, ASTNode *node, std::string path);
 
-    // delete copy constructor
-    GlobalInterpretScope(GlobalInterpretScope&& copy) = delete;
+    /**
+     * deleted copy constructor
+     * @param copy
+     */
+    GlobalInterpretScope(const GlobalInterpretScope &copy) = delete;
+
+    /**
+     * overrides the destructor of InterpretScope
+     * this is done because dereferencing "this" in base class for an object of derived class
+     * causes segfaults, which could be because of object slicing
+     */
+    ~GlobalInterpretScope() override;
 
     /**
      * erases a value by the key name from the value map safely
      * @param name
      */
-    void erase_value(const std::string& name);
+    void erase_value(const std::string &name);
 
     /**
      * erases a name by the key name from the node map safely
      * @param name
      */
-    void erase_node(const std::string& name);
+    void erase_node(const std::string &name);
 
     /**
      * print all values
@@ -52,14 +62,14 @@ public:
      * When a ASTNode declares itself, for example a struct, interface / implementation
      * it declares itself on this unordered map, when the scope ends, it erases itself from this map
      */
-    std::unordered_map<std::string, ASTNode*> nodes;
+    std::unordered_map<std::string, ASTNode *> nodes;
 
     /**
       * This contains a map between identifiers and its values
       * When a child scope is interpreting, it puts values on this map, when it ends, only the values of that scope are erased from this map
       * When a variable is created, the variable sets the identifier in this unordered map with the corresponding value
       */
-    std::unordered_map<std::string, Value*> values;
+    std::unordered_map<std::string, Value *> values;
 
     /**
      * This contains errors that occur during interpretation
@@ -69,6 +79,6 @@ public:
     /**
      * root path is the path of the file, interpretation begun at
      */
-     std::string root_path;
+    std::string root_path;
 
 };

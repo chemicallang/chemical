@@ -11,7 +11,7 @@
 #include "ast/utils/ValueType.h"
 #include "ast/base/GlobalInterpretScope.h"
 
-void benchInterpret(Scope& scope, GlobalInterpretScope& interpretScope) {
+void benchInterpret(Scope& scope, InterpretScope& interpretScope) {
 
     // Print started
     // std::cout << "[Interpreter] Started" << std::endl;
@@ -21,7 +21,7 @@ void benchInterpret(Scope& scope, GlobalInterpretScope& interpretScope) {
 
     // Actual interpretation
     ExpressionEvaluator::prepareFunctions();
-    scope.interpret((InterpretScope &) interpretScope);
+    scope.interpret(interpretScope);
 
     // Save end time
     auto end = std::chrono::steady_clock::now();

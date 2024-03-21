@@ -32,6 +32,12 @@ public:
 
     static constexpr int computeCharToChar(Operation op);
 
+    static constexpr int computeStrToStr(Operation op);
+
+    static constexpr int computeFloatToFloat(Operation op);
+
+    static constexpr int computeDoubleToDouble(Operation op);
+
     static void prepareFunctions();
 
 };

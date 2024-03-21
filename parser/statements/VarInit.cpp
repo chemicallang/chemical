@@ -10,7 +10,8 @@
 #include "lexer/model/tokens/TypeToken.h"
 
 lex_ptr<VarInitStatement> Parser::parseVariableInitStatement() {
-    if (!consume("var")) {
+    auto consumed_const = consume("const");
+    if (!consumed_const && !consume("var")) {
         return std::nullopt;
     }
     auto var = consumeOfType<VariableToken>(LexTokenType::Variable);
@@ -25,7 +26,7 @@ lex_ptr<VarInitStatement> Parser::parseVariableInitStatement() {
     if (consume_op('=')) {
         value = parseExpression();
     }
-    return std::make_unique<VarInitStatement>(var.value()->value, std::move(base_type), std::move(value));
+    return std::make_unique<VarInitStatement>(consumed_const, var.value()->value, std::move(base_type), std::move(value));
 }
 
 bool Parser::parseVariableInitStatementBool() {

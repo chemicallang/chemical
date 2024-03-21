@@ -8,7 +8,9 @@
 
 bool Lexer::lexVarInitializationTokens(bool allowDeclarations) {
 
-    if (!lexKeywordToken("var")) {
+    auto lexed_const = lexKeywordToken("const");
+
+    if (!lexed_const && !lexKeywordToken("var")) {
         return false;
     }
 

@@ -23,10 +23,11 @@ public:
      * @param value The value being assigned to the identifier.
      */
     VarInitStatement(
+            bool is_const,
             std::string identifier,
             std::optional<std::unique_ptr<BaseType>> type,
             std::optional<std::unique_ptr<Value>> value
-    ) : identifier(std::move(identifier)), type(std::move(type)), value(std::move(value)) {}
+    ) : is_const(is_const), identifier(std::move(identifier)), type(std::move(type)), value(std::move(value)) {}
 
     void accept(Visitor &visitor) override {
         visitor.visit(this);
@@ -96,7 +97,11 @@ public:
 
     std::string representation() const override {
         std::string rep;
-        rep.append("var ");
+        if(is_const) {
+            rep.append("const ");
+        } else {
+            rep.append("var ");
+        }
         rep.append(identifier);
         if (type.has_value()) {
             rep.append(" : ");
@@ -109,6 +114,7 @@ public:
         return rep;
     }
 
+    bool is_const;
     std::string identifier; ///< The identifier being initialized.
     std::optional<std::unique_ptr<BaseType>> type;
     std::optional<std::unique_ptr<Value>> value; ///< The value being assigned to the identifier.

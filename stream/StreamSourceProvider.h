@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <istream>
+#include <iostream>
 #include "SourceProvider.h"
 #include "StreamPosition.h"
 

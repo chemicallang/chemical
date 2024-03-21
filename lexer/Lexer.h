@@ -46,45 +46,59 @@ public:
      * lexes a number as a string
      * @return
      */
-    std::string lexNumber();
+    inline std::string lexNumber() {
+        return provider.readNumber();
+    }
 
     /**
      * read whitespaces at the current pos
      * @return the number of whitespaces ' ' read
      */
-    unsigned int readWhitespaces();
+    inline unsigned int readWhitespaces() {
+        return provider.readWhitespaces();
+    }
 
     /**
      * lexes anything as long as when lambda returns true
      * @return
      */
     template<typename TFunc>
-    std::string lexAnything(TFunc when);
+    inline std::string lexAnything(TFunc when) {
+        return provider.readAnything(when);
+    }
 
     /**
      * lex all characters into a string until char occurs
      * @return the string that was found
      */
-    std::string lexAnything(char until = ' ');
+    inline std::string lexAnything(char until = ' ') {
+        return provider.readAnything(until);
+    }
 
     /**
      * lex a string that contains alphabetical characters only
      * @return alphabetical string or empty if not found
      */
-    std::string lexAlpha();
+    inline std::string lexAlpha() {
+        return provider.readAlpha();
+    }
 
     /**
      * lex a alpha numeric string until until character occurs
      * @return
      */
-    std::string lexAlphaNum();
+    inline std::string lexAlphaNum() {
+        return provider.readAlphaNum();
+    }
 
     /**
      * lexes an identifier
      * it doesn't add it as a token use lex Identifier token for that
      * @return
      */
-    std::string lexIdentifier();
+    inline std::string lexIdentifier() {
+        return provider.readIdentifier();
+    }
 
     /**
      * consumes a identifier token
@@ -448,14 +462,18 @@ public:
      * check if there's a new line at current position
      * @return true if there's a newline otherwise false
      */
-    bool hasNewLine();
+    inline bool hasNewLine() {
+        return provider.hasNewLine();
+    }
 
     /**
      * All the chars that cause new line
      * for example \n \r
      * @return
      */
-    bool lexNewLineChars();
+    inline bool lexNewLineChars() {
+        return provider.readNewLineChars();
+    }
 
     /**
      * adds an error at the current stream position (which is the end), starting from the last token's end,
@@ -517,7 +535,9 @@ public:
      * returns the token position at the very current position
      * @return
      */
-    Position position();
+    inline Position position() {
+        return provider.position();
+    }
 
     /**
      * when you have read the character from the stream, you create a position, \n\n
@@ -529,7 +549,9 @@ public:
      * @param back
      * @return
      */
-    Position backPosition(unsigned int back);
+    inline Position backPosition(unsigned int back) {
+        return provider.backPosition(back);
+    }
 
     /**
      * gets the line number from the provider
@@ -583,16 +605,3 @@ private:
  * @return
  */
 char escape_sequence(char value);
-
-/**
- * The implementation for lexAnything
- * This is required in header because of template usage
- */
-template<typename TFunc>
-std::string Lexer::lexAnything(TFunc when) {
-    std::string str;
-    while (!provider.eof() && when()) {
-        str.append(1, provider.readCharacter());
-    }
-    return str;
-}

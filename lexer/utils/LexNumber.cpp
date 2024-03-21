@@ -7,28 +7,6 @@
 #include <memory>
 #include "lexer/Lexer.h"
 
-std::string Lexer::lexNumber() {
-    auto appearedDot = false;
-    auto first_char = true;
-    return lexAnything([&]() -> bool {
-        auto c = provider.peek();
-        if(first_char) {
-            first_char = false;
-            if(c == '-') {
-                return true;
-            }
-        }
-        if (c >= '0' && c <= '9') {
-            return true;
-        } else if (c == '.' && !appearedDot) {
-            appearedDot = true;
-            return true;
-        } else {
-            return false;
-        }
-    });
-}
-
 bool Lexer::lexNumberToken() {
     auto number = lexNumber();
     if (!number.empty()) {

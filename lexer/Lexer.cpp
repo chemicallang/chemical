@@ -38,14 +38,6 @@ void Lexer::lex() {
     tokens.shrink_to_fit();
 }
 
-Position Lexer::position() {
-    return {provider.getLineNumber(), provider.getLineCharNumber()};
-}
-
-Position Lexer::backPosition(unsigned int back) {
-    return {provider.getLineNumber(), provider.getLineCharNumber() - back};
-}
-
 void Lexer::diagnostic(Position start, const std::string &message, DiagSeverity severity) {
     errors.emplace_back(
             Range{

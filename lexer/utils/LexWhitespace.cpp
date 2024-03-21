@@ -7,15 +7,6 @@
 #include "lexer/model/tokens/WhitespaceToken.h"
 #include <memory>
 
-unsigned int Lexer::readWhitespaces() {
-    unsigned int whitespaces = 0;
-    while (!provider.eof() && (provider.peek() == ' ' || provider.peek() == '\t')) {
-        provider.readCharacter();
-        whitespaces++;
-    }
-    return whitespaces;
-}
-
 bool Lexer::lexWhitespaceToken() {
     if(provider.peek() != ' ' && provider.peek() != '\t') return false;
     auto whitespace = readWhitespaces();

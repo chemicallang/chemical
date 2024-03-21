@@ -30,6 +30,8 @@ public:
 
     static constexpr int computeBoolToBool(Operation op);
 
+    static constexpr int computeCharToChar(Operation op);
+
     static void prepareFunctions();
 
 };

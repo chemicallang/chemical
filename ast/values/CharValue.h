@@ -25,7 +25,7 @@ public:
         return true;
     }
 
-    Value * copy() const override {
+    Value *copy() const override {
         return new CharValue(value);
     }
 
@@ -38,6 +38,10 @@ public:
         return gen.builder->getInt8((int) value);
     }
 #endif
+
+    char as_char() override {
+        return value;
+    }
 
     std::string interpret_representation() const override {
         std::string rep;
@@ -53,8 +57,12 @@ public:
         return rep;
     }
 
-    void * get_value() override {
+    void *get_value() override {
         return &value;
+    }
+
+    ValueType value_type() const override {
+        return ValueType::Char;
     }
 
 private:

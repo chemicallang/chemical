@@ -238,15 +238,30 @@ std::cerr << "child called on base value";
     }
 
     /**
+     * a function to be overridden by char values to return actual values
+     */
+    virtual char as_char() {
+#ifdef DEBUG
+        std::cerr << "as_char called on base value, representation : " << representation();
+#endif
+        throw std::runtime_error("as_char called on a value");
+    }
+
+    /**
      * a function to be overridden by bool values to return actual values
      * @return
      */
     virtual bool as_bool() {
-        std::cerr << "actual_type:" << std::to_string((int) value_type()) << std::endl;
+#ifdef DEBUG
+        std::cerr << "as_bool called on base value, representation : " << representation();
+#endif
         throw std::runtime_error("as_bool called on a value");
     }
 
     virtual std::string as_string() {
+#ifdef DEBUG
+        std::cerr << "as_string called on base value, representation : " << representation();
+#endif
         throw std::runtime_error("as_string called on a value");
     }
 
@@ -255,6 +270,9 @@ std::cerr << "child called on base value";
      * @return
      */
     virtual int as_int() {
+#ifdef DEBUG
+        std::cerr << "as_int called on base value, representation : " << representation();
+#endif
         throw std::runtime_error("as_int called on a value");
     }
 
@@ -263,6 +281,9 @@ std::cerr << "child called on base value";
      * @return
      */
     virtual float as_float() {
+#ifdef DEBUG
+        std::cerr << "as_float called on base value, representation : " << representation();
+#endif
         throw std::runtime_error("as_float called on a value");
     }
 

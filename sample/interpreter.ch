@@ -1,6 +1,8 @@
 func main() : int {
     var str = "something I'd like to say";
-    printf(str[0]);
+    if(str[0] == 's') {
+        printf("hoola hoo");
+    }
     return 0;
 }
 

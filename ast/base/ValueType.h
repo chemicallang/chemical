@@ -7,6 +7,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 
 /**
  * @brief Enum class representing values contained in an expression.
@@ -23,3 +24,5 @@ enum class ValueType : uint8_t {
     Unknown
 
 };
+
+std::string to_string(ValueType type);

@@ -32,6 +32,10 @@ constexpr int ExpressionEvaluator::computeBoolToBool(Operation op) {
     return compute(ValueType::Bool, ValueType::Bool, op);
 }
 
+constexpr int ExpressionEvaluator::computeCharToChar(Operation op) {
+    return compute(ValueType::Char, ValueType::Char, op);
+}
+
 void ExpressionEvaluator::prepareFunctions() {
 
     //    (int + int) -> int
@@ -282,16 +286,6 @@ void ExpressionEvaluator::prepareFunctions() {
         return new BoolValue(v1->as_bool() >> v2->as_bool());
     };
 
-    //    (bool ++) -> int
-//    functionVector[computeBoolToBool(Operation::Increment)] = [&](Value *v1, Value *v2) -> Value * {
-//        return new IntValue(v1->as_bool() + 1);
-//    };
-
-    //    (bool --) -> int
-//    functionVector[computeBoolToBool(Operation::Decrement)] = [&](Value *v1, Value *v2) -> Value * {
-//        return new IntValue(v1->as_bool() - 1);
-//    };
-
     //    (bool & bool) -> bool
     functionVector[computeBoolToBool(Operation::BitwiseAND)] = [&](Value *v1, Value *v2) -> Value * {
         return new BoolValue(v1->as_bool() & v2->as_bool());
@@ -305,6 +299,87 @@ void ExpressionEvaluator::prepareFunctions() {
     //    (bool ^ bool) -> bool
     functionVector[computeBoolToBool(Operation::BitwiseXOR)] = [&](Value *v1, Value *v2) -> Value * {
         return new BoolValue(v1->as_bool() ^ v2->as_bool());
+    };
+
+    //    (char + char) -> int
+    functionVector[computeCharToChar(Operation::Addition)] = [&](Value *v1, Value *v2) -> Value * {
+        return new IntValue(v1->as_char() + v2->as_char());
+    };
+
+    //    (char - char) -> int
+    functionVector[computeCharToChar(Operation::Subtraction)] = [&](Value *v1, Value *v2) -> Value * {
+        return new IntValue(v1->as_char() - v2->as_char());
+    };
+
+    //    (char * char) -> int
+    functionVector[computeCharToChar(Operation::Multiplication)] = [&](Value *v1, Value *v2) -> Value * {
+        return new IntValue(v1->as_char() * v2->as_char());
+    };
+
+    //    (char / char) -> int
+    functionVector[computeCharToChar(Operation::Division)] = [&](Value *v1, Value *v2) -> Value * {
+        return new IntValue(v1->as_char() / v2->as_char());
+    };
+
+    //    (char % char) -> int
+    functionVector[computeCharToChar(Operation::Modulus)] = [&](Value *v1, Value *v2) -> Value * {
+        return new IntValue(v1->as_char() % v2->as_char());
+    };
+
+    //    (char == char) -> bool
+    functionVector[computeCharToChar(Operation::IsEqual)] = [&](Value *v1, Value *v2) -> Value * {
+        return new BoolValue(v1->as_char() == v2->as_char());
+    };
+
+    //    (char != char) -> bool
+    functionVector[computeCharToChar(Operation::IsNotEqual)] = [&](Value *v1, Value *v2) -> Value * {
+        return new BoolValue(v1->as_char() != v2->as_char());
+    };
+
+    //    (char < char) -> bool
+    functionVector[computeCharToChar(Operation::LessThan)] = [&](Value *v1, Value *v2) -> Value * {
+        return new BoolValue(v1->as_char() < v2->as_char());
+    };
+
+    //    (char <= char) -> bool
+    functionVector[computeCharToChar(Operation::LessThanOrEqual)] = [&](Value *v1, Value *v2) -> Value * {
+        return new BoolValue(v1->as_char() <= v2->as_char());
+    };
+
+    //    (char > char) -> bool
+    functionVector[computeCharToChar(Operation::GreaterThan)] = [&](Value *v1, Value *v2) -> Value * {
+        return new BoolValue(v1->as_char() > v2->as_char());
+    };
+
+    //    (char >= char) -> bool
+    functionVector[computeCharToChar(Operation::GreaterThanOrEqual)] = [&](Value *v1,
+                                                                           Value *v2) -> Value * {
+        return new BoolValue(v1->as_char() >= v2->as_char());
+    };
+
+    //    (char << char) -> int
+    functionVector[computeCharToChar(Operation::LeftShift)] = [&](Value *v1, Value *v2) -> Value * {
+        return new IntValue(v1->as_char() << v2->as_char());
+    };
+
+    //    (char >> char) -> int
+    functionVector[computeCharToChar(Operation::RightShift)] = [&](Value *v1, Value *v2) -> Value * {
+        return new IntValue(v1->as_char() >> v2->as_char());
+    };
+
+    //    (char & char) -> int
+    functionVector[computeCharToChar(Operation::BitwiseAND)] = [&](Value *v1, Value *v2) -> Value * {
+        return new IntValue(v1->as_char() & v2->as_char());
+    };
+
+    //    (char | char) -> int
+    functionVector[computeCharToChar(Operation::BitwiseOR)] = [&](Value *v1, Value *v2) -> Value * {
+        return new IntValue(v1->as_char() | v2->as_char());
+    };
+
+    //    (char ^ char) -> int
+    functionVector[computeCharToChar(Operation::BitwiseXOR)] = [&](Value *v1, Value *v2) -> Value * {
+        return new IntValue(v1->as_char() ^ v2->as_char());
     };
 
 }

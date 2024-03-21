@@ -7,6 +7,7 @@
 
 #include <string>
 #include "StreamPosition.h"
+#include "common/Diagnostic.h"
 
 class SourceProvider {
 public:
@@ -94,4 +95,83 @@ public:
      */
     virtual StreamPosition getStreamPosition() const = 0;
 
+    /**
+     * reads anything as long as when lambda returns true
+     * @return
+     */
+    template<typename TFunc>
+    std::string readAnything(TFunc when);
+
+    /**
+     * reads all characters into a string until char occurs
+     * @return the string that was found
+     */
+    std::string readAnything(char until = ' ');
+
+    /**
+     * reads a alphabetical string
+     */
+    std::string readAlpha();
+
+    /**
+     * reads a number from the stream
+     */
+    std::string readNumber();
+
+    /**
+     * reads a alphanumeric string
+     */
+    std::string readAlphaNum();
+
+    /**
+     * reads a single identifier
+     */
+    std::string readIdentifier();
+
+    /**
+     * reads whitespaces, returns how many whitespaces were read
+     */
+    unsigned int readWhitespaces();
+
+    /**
+     * @return whether there's a newline at current position
+     */
+    bool hasNewLine();
+
+    /**
+     * @return whether new line characters were read
+     */
+    bool readNewLineChars();
+
+    /**
+     * returns the token position at the very current position
+     * @return
+     */
+    Position position();
+
+    /**
+     * when you have read the character from the stream, you create a position, \n\n
+     * it corresponds to the position at the end of the character and not at the start \n\n
+     * instead of saving the position in a variable before you read and consume characters \n
+     * You should get position after reading the characters and basically subtract the length of the token \n\n
+     * You can provide the length of the token to this function \n\n
+     * Note that token must be on the same line
+     * @param back
+     * @return
+     */
+    Position backPosition(unsigned int back);
+
 };
+
+/**
+ * The implementation for lexAnything
+ * This is required in header because of template usage
+ */
+template<typename TFunc>
+std::string SourceProvider::readAnything(TFunc when) {
+    std::string str;
+    while (!eof() && when()) {
+        str.append(1, readCharacter());
+    }
+    return str;
+}

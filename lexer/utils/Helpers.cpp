@@ -54,26 +54,3 @@ bool Lexer::lexKeywordToken(const std::string& keyword) {
         return false;
     }
 }
-
-
-std::string Lexer::lexAnything(char until) {
-    return lexAnything([&]() -> bool {
-        return provider.peek() != until;
-    });
-}
-
-std::string Lexer::lexAlpha() {
-    std::string str;
-    while (!provider.eof() && std::isalpha(provider.peek())) {
-        str.append(1, provider.readCharacter());
-    }
-    return str;
-}
-
-std::string Lexer::lexAlphaNum() {
-    std::string str;
-    while (!provider.eof() && std::isalnum(provider.peek())) {
-        str.append(1, provider.readCharacter());
-    }
-    return str;
-}

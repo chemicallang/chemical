@@ -8,7 +8,7 @@
 
 #include <utility>
 
-#include "ast/base/Value.h"
+#include "ast/values/CharValue.h"
 
 /**
  * @brief Class representing a string value.

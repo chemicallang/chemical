@@ -8,18 +8,6 @@
 #include "lexer/model/tokens/CharOperatorToken.h"
 #include "lexer/model/tokens/VariableToken.h"
 
-std::string Lexer::lexIdentifier() {
-    if(std::isalpha(provider.peek()) || provider.peek() == '_') {
-        std::string str;
-        while (!provider.eof() && (std::isalnum(provider.peek()) || provider.peek() == '_')) {
-            str.append(1, provider.readCharacter());
-        }
-        return str;
-    } else {
-        return "";
-    }
-}
-
 bool Lexer::storeIdentifier(const std::string& identifier, bool access) {
     if (!identifier.empty()) {
         tokens.emplace_back(std::make_unique<VariableToken>(backPosition(identifier.length()), identifier, access));

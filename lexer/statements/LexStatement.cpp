@@ -55,23 +55,3 @@ bool Lexer::lexStatementTokens() {
            lexFunctionStructureTokens(true) ||
            lexAssignmentTokens();
 }
-
-bool Lexer::hasNewLine() {
-    return provider.peek() == '\n' || provider.peek() == '\r';
-}
-
-bool Lexer::lexNewLineChars() {
-    auto peak = provider.peek();
-    if (peak == '\n') {
-        provider.readCharacter();
-        return true;
-    } else if (peak == '\r') {
-        // consuming the \r
-        provider.readCharacter();
-        // consume also the next \n
-        if (provider.peek() == '\n') provider.readCharacter();
-        return true;
-    } else {
-        return false;
-    }
-}

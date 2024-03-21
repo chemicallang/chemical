@@ -192,7 +192,6 @@ set(COMMON_SOURCES
         ast/base/InterpretScope.h
         ast/base/ValueType.h
         ast/utils/ExpressionEvaluator.h
-        ast/utils/ValueType.h
         ast/utils/ValueType.cpp
         ast/utils/ExpressionEvaluator.cpp
         ast/base/GlobalInterpretScope.h
@@ -252,6 +251,7 @@ set(COMMON_SOURCES
         ast/values/StructValue.h
         parser/values/StructValue.cpp
         ast/types/ReferencedType.h
+        stream/SourceProviderImpl.cpp
 )
 
 # Chemical LSP Executable Target

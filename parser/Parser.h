@@ -643,6 +643,12 @@ public:
         return true;
     }
 
+    /**
+     * a stateful variable, in the middle of parsing
+     * n turned on expressions are parsed as interpretable
+     */
+    bool isParseInterpretableExpressions = false;
+
 private:
 
     /**
@@ -674,12 +680,6 @@ private:
      * when turned on break statements are parsed
      */
     bool isParseBreakStatement = false;
-
-    /**
-     * a stateful variable, in the middle of parsing
-     * n turned on expressions are parsed as interpretable
-     */
-    bool isParseInterpretableExpressions = false;
 
     /**
      * This is a pointer to current function declaration

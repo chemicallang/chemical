@@ -36,7 +36,7 @@ public:
     }
 
     void putAllInto(ValueAndOperatorStack &other) {
-        unsigned int i = container.size() - 1;
+        int i = container.size() - 1;
         while (i >= 0) {
             other.container.push_back(container[i]);
             i--;
@@ -48,11 +48,11 @@ public:
     }
 
     void putOperator(Operation operation) {
-        container.push_back({ItemType::Value, VOPItem{.operation = operation}});
+        container.push_back({ItemType::Operation, VOPItem{.operation = operation}});
     }
 
     void putCharacter(char character) {
-        container.push_back({ItemType::Value, VOPItem{.character = character}});
+        container.push_back({ItemType::Char, VOPItem{.character = character}});
     }
 
     std::optional<Operation> peakOperator() {
@@ -113,11 +113,12 @@ public:
 
     std::unique_ptr<Expression> toExpression() {
         ValueAndOperatorStack stack;
-        while (!container.empty()) {
-            auto item = container.erase(container.begin());
-            switch (item->type) {
+        int i = 0;
+        while(i < container.size()) {
+            auto item = container[i];
+            switch (item.type) {
                 case ItemType::Value:
-                    stack.putValue(item->item.value);
+                    stack.putValue(item.item.value);
                     break;
                 case ItemType::Char:
                     break;
@@ -127,9 +128,10 @@ public:
                     auto first = stack.container.back();
                     stack.container.pop_back();
                     stack.putValue(new Expression(std::unique_ptr<Value>(first.item.value),
-                                                  std::unique_ptr<Value>(second.item.value), item->item.operation));
+                                                  std::unique_ptr<Value>(second.item.value), item.item.operation));
                     break;
             }
+            i++;
         }
         return std::unique_ptr<Expression>((Expression *) stack.peakValue());
     }

@@ -50,7 +50,9 @@ int main(int argc, char *argv[]) {
     for(const auto& err : lexer.errors) {
         std::cerr << err.representation(argv[1], "Lexer") << std::endl;
     }
-    auto parser = benchParse(std::move(lexer.tokens));
+    Parser parser(std::move(lexer.tokens));
+    parser.isParseInterpretableExpressions = true;
+    benchParse(parser);
     for(const auto& err : parser.errors) {
         std::cerr << err.representation(argv[1], "Parser") << std::endl;
     }

@@ -10,7 +10,7 @@
 #include "ast/utils/ExpressionEvaluator.h"
 #include "ast/base/GlobalInterpretScope.h"
 
-void benchInterpret(Scope& scope, InterpretScope& interpretScope) {
+void benchInterpret(Scope& scope, GlobalInterpretScope& interpretScope) {
 
     // Print started
     // std::cout << "[Interpreter] Started" << std::endl;
@@ -19,7 +19,7 @@ void benchInterpret(Scope& scope, InterpretScope& interpretScope) {
     auto start = std::chrono::steady_clock::now();
 
     // Actual interpretation
-    ExpressionEvaluator::prepareFunctions();
+    ExpressionEvaluator::prepareFunctions(interpretScope);
     scope.interpret(interpretScope);
 
     // Save end time

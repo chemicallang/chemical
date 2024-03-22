@@ -14,8 +14,6 @@
 class ExpressionEvaluator {
 public:
 
-    static std::unordered_map<int, std::function<Value*(Value *, Value *)>> functionVector;
-
     static inline int index(ValueType vt, ValueType vt2, Operation op) {
         return ((uint8_t) vt << 20) | ((uint8_t) vt2 << 10) | (uint8_t) op;
     }
@@ -38,7 +36,7 @@ public:
 
     static constexpr int computeDoubleToDouble(Operation op);
 
-    static void prepareFunctions();
+    static void prepareFunctions(GlobalInterpretScope& scope);
 
 };
 

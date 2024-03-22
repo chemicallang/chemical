@@ -9,6 +9,7 @@
 #include "utils/Utils.h"
 #include "ast/utils/ExpressionEvaluator.h"
 #include "ast/base/GlobalInterpretScope.h"
+#include "ast/utils/GlobalFunctions.h"
 
 void benchInterpret(Scope& scope, GlobalInterpretScope& interpretScope) {
 
@@ -58,6 +59,7 @@ int main(int argc, char *argv[]) {
     Scope scope(std::move(parser.nodes));
 //    std::cout << "[Representation]\n" << scope.representation() << "\n";
     GlobalInterpretScope interpretScope(nullptr, &scope, nullptr, argv[1]);
+    define_all(interpretScope);
     benchInterpret(scope, interpretScope);
     std::cout << std::endl;
     for(const auto& err : interpretScope.errors) {

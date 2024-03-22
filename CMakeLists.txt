@@ -252,6 +252,9 @@ set(COMMON_SOURCES
         parser/values/StructValue.cpp
         ast/types/ReferencedType.h
         stream/SourceProviderImpl.cpp
+        ast/structures/FunctionDecl.cpp
+        ast/utils/GlobalFunctions.h
+        ast/utils/GlobalFunctions.cpp
 )
 
 # Chemical LSP Executable Target

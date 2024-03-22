@@ -8,7 +8,11 @@
 
 #include <utility>
 
+#include "ast/base/Value.h"
 #include "ast/base/ASTNode.h"
+#include "LoopScope.h"
+#include "ast/base/BaseType.h"
+#include <optional>
 
 class FunctionParam : public ASTNode {
 public:
@@ -64,8 +68,9 @@ public:
             std::string name,
             func_params params,
             std::unique_ptr<BaseType> returnType,
-            bool isVariadic
-    ) : name(std::move(name)), params(std::move(params)), returnType(std::move(returnType)), body(std::nullopt),
+            bool isVariadic,
+            std::optional<LoopScope> body = std::nullopt
+    ) : name(std::move(name)), params(std::move(params)), returnType(std::move(returnType)), body(std::move(body)),
         isVariadic(isVariadic) {
         params.shrink_to_fit();
     }
@@ -123,17 +128,15 @@ public:
         declarationScope = &scope;
     }
 
-    void interpret_scope_ends(InterpretScope &scope) override {
-        scope.global->erase_node(name);
-    }
+    void interpret_scope_ends(InterpretScope &scope) override;
 
-    Value *call(std::vector<std::unique_ptr<Value>> &call_params) {
+    virtual Value *call(std::vector<std::unique_ptr<Value>> &call_params) {
         if (!body.has_value()) return nullptr;
         InterpretScope child(declarationScope, declarationScope->global, &body.value(), this);
         return call(&child, call_params);
     }
 
-    Value *call(InterpretScope *scope, std::vector<std::unique_ptr<Value>> &call_params) {
+    virtual Value *call(InterpretScope *scope, std::vector<std::unique_ptr<Value>> &call_params) {
         if (params.size() != call_params.size()) {
             scope->error("function " + name + " requires " + std::to_string(params.size()) + ", but given params are " +
                         std::to_string(call_params.size()));

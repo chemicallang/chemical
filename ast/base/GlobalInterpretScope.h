@@ -7,8 +7,12 @@
 #pragma once
 
 #include "InterpretScope.h"
+#include "ast/structures/FunctionDeclaration.h"
 #include <functional>
 #include <vector>
+#include <memory>
+
+using expression_evaluators = std::unordered_map<int, std::function<Value *(Value *, Value *)>>;
 
 class GlobalInterpretScope : public InterpretScope {
 public:
@@ -38,11 +42,16 @@ public:
     void add_error(const std::string &err);
 
     /**
+     * global functions that are evaluated during interpretation
+     */
+    std::unordered_map<std::string, std::unique_ptr<FunctionDeclaration>> global_fns;
+
+    /**
      * expression evaluators evaluate expressions
      * indexed functions that evaluate two values into another value are put on this map
      * usually index is determined based on the type of values inputted
      */
-    std::unordered_map<int, std::function<Value*(Value *, Value *)>> expr_evaluators;
+    expression_evaluators expr_evaluators = expression_evaluators();
 
     /**
      * This contains errors that occur during interpretation

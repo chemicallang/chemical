@@ -25,6 +25,11 @@ public:
     }
 
     void prepare(InterpretScope &scope) {
+        auto global = scope.global->global_fns.find(name);
+        if(global != scope.global->global_fns.end()) {
+            definition = global->second.get();
+            return;
+        }
         auto decl = scope.find_node(name);
         if (decl == nullptr) {
             scope.error("(function call) couldn't find function declaration by name " + name);
@@ -36,22 +41,11 @@ public:
     }
 
     Value *evaluated_value(InterpretScope &scope) override {
-        if (name == "printf") {
-            for (auto const &value: values) {
-                auto paramValue = value->evaluated_value(scope);
-                if (paramValue != nullptr) {
-                    std::cout << paramValue->interpret_representation();
-                } else {
-                    scope.error("(function call) Function parameter not found : " + value->representation());
-                }
-            }
+        prepare(scope);
+        if (definition != nullptr) {
+            return definition->call(values);
         } else {
-            prepare(scope);
-            if (definition != nullptr) {
-                return definition->call(values);
-            } else {
-                scope.error("(function call) calling a function with no body, name : " + name);
-            }
+            scope.error("(function call) calling a function that is not found or has no body, name : " + name);
         }
         return nullptr;
     }

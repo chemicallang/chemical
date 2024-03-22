@@ -50,7 +50,7 @@ public:
         auto v = it.first->second;
 
         auto nextValue = op == Operation::Assignment ? (newValue) : (
-                ExpressionEvaluator::functionVector[
+                scope.global->expr_evaluators[
                         ExpressionEvaluator::index(v->value_type(), v->value_type(), op)
                 ](v, newValue)
         );

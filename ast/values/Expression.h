@@ -47,9 +47,9 @@ public:
         auto fEvl = firstValue->evaluated_value(scope);
         auto sEvl = secondValue->evaluated_value(scope);
         auto index = ExpressionEvaluator::index(fEvl->value_type(), sEvl->value_type(), operation);
-        auto found = ExpressionEvaluator::functionVector.find(index);
-        if (found != ExpressionEvaluator::functionVector.end()) {
-            auto result = ExpressionEvaluator::functionVector[index](fEvl, sEvl);
+        auto found = scope.global->expr_evaluators.find(index);
+        if (found != scope.global->expr_evaluators.end()) {
+            auto result = scope.global->expr_evaluators[index](fEvl, sEvl);
             if (firstValue->computed()) delete fEvl;
             if (secondValue->computed()) delete sEvl;
             return result;

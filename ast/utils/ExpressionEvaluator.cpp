@@ -10,9 +10,9 @@
 #include "ast/values/IntValue.h"
 #include "ast/values/DoubleValue.h"
 #include "ast/values/StringValue.h"
+#include "ast/base/GlobalInterpretScope.h"
 
 // Definition of static member variable
-std::unordered_map<int, std::function<Value *(Value *, Value *)>> ExpressionEvaluator::functionVector;
 
 constexpr int ExpressionEvaluator::compute(ValueType vt, ValueType vt2, Operation op) {
     return ((uint8_t) vt << 20) | ((uint8_t) vt2 << 10) | (uint8_t) op;
@@ -50,7 +50,9 @@ constexpr int ExpressionEvaluator::computeDoubleToDouble(Operation op) {
     return compute(ValueType::Double, ValueType::Double, op);
 }
 
-void ExpressionEvaluator::prepareFunctions() {
+void ExpressionEvaluator::prepareFunctions(GlobalInterpretScope& scope) {
+
+    auto& functionVector = scope.expr_evaluators;
 
     // ---------------------------int to int ----------------------------
 

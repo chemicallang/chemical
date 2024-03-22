@@ -7,9 +7,10 @@
 #include "lexer/Lexer.h"
 #include "lexer/model/tokens/CharToken.h"
 
-char escape_sequence(char value) {
+std::pair<char, bool> escape_sequence(char value) {
     char actualChar;
-    switch(value) {
+    bool found = true;
+    switch (value) {
         case 'a':
             actualChar = '\a';
             break;
@@ -37,35 +38,34 @@ char escape_sequence(char value) {
         case '\\':
             actualChar = '\\';
             break;
-        case '\'':
-            actualChar = '\'';
-            break;
         case '"':
-            actualChar = '\"';
+            actualChar = '"';
             break;
         case '?':
             actualChar = '\?';
             break;
         default:
             actualChar = value;
+            found = false;
             break;
     }
-    return actualChar;
+    return {actualChar, found};
 }
 
 bool Lexer::lexCharToken() {
-    if(provider.increment('\'')) {
+    if (provider.increment('\'')) {
         auto readChar = provider.readCharacter();
-        if(readChar == '\\') {
-            readChar = escape_sequence(provider.readCharacter());
-            if(provider.increment('\'')) {
+        if (readChar == '\\') {
+            auto escaped = escape_sequence(provider.readCharacter());
+            readChar = escaped.first;
+            if (provider.increment('\'')) {
                 tokens.emplace_back(std::make_unique<CharToken>(backPosition(4), readChar, 4));
             } else {
                 tokens.emplace_back(std::make_unique<CharToken>(backPosition(3), readChar, 3));
                 error("expected a ' to end a character");
             }
         } else {
-            if(provider.increment('\'')) {
+            if (provider.increment('\'')) {
                 tokens.emplace_back(std::make_unique<CharToken>(backPosition(3), readChar, 3));
             } else {
                 tokens.emplace_back(std::make_unique<CharToken>(backPosition(2), readChar, 2));
@@ -87,30 +87,30 @@ bool Lexer::lexValueToken() {
 }
 
 bool Lexer::lexArrayInit() {
-    if(lexOperatorToken('[')) {
+    if (lexOperatorToken('[')) {
         do {
             lexWhitespaceToken();
-            if(!lexExpressionTokens()) {
+            if (!lexExpressionTokens()) {
                 break;
             }
             lexWhitespaceToken();
-        } while(lexOperatorToken(','));
-        if(!lexOperatorToken(']')) {
+        } while (lexOperatorToken(','));
+        if (!lexOperatorToken(']')) {
             error("expected a ] when lexing an array");
         }
         lexWhitespaceToken();
         lexTypeTokens();
         lexWhitespaceToken();
-        if(lexOperatorToken('(')) {
+        if (lexOperatorToken('(')) {
             do {
                 lexWhitespaceToken();
-                if(!lexNumberToken()) {
+                if (!lexNumberToken()) {
                     break;
                 }
                 lexWhitespaceToken();
-            } while(lexOperatorToken(','));
+            } while (lexOperatorToken(','));
             lexWhitespaceToken();
-            if(!lexOperatorToken(')')) {
+            if (!lexOperatorToken(')')) {
                 error("expected a ')' when ending array size");
             }
         }

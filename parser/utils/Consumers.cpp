@@ -54,9 +54,19 @@ std::optional<std::string> Parser::consume_str_op() {
     return std::nullopt;
 }
 
+void replaceAll(std::string& str, const std::string& from, char to) {
+    size_t start_pos = 0;
+    while((start_pos = str.find(from, start_pos)) != std::string::npos) {
+        str.replace(start_pos, from.length(), 1, to); // Replace 'from' with 'to'
+        start_pos += 1; // Move to the next position to search for more occurrences
+    }
+}
+
 std::optional<std::string> Parser::consume_str_token() {
     if (position < tokens.size() && tokens[position]->type() == LexTokenType::String) {
-        return consume<StringToken>()->value;
+        auto str = consume<StringToken>()->value;
+        replaceAll(str, "\\x1b", '\x1b');
+        return str;
     }
     return std::nullopt;
 }

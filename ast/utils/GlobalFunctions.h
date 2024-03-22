@@ -49,11 +49,6 @@ void define_func(GlobalInterpretScope &scope, const std::string &name, CompTimeF
 CompTimeFuncType create_print(GlobalInterpretScope &global);
 
 /**
- * this creates ansi_print function
- */
-CompTimeFuncType create_ansi_print(GlobalInterpretScope &global);
-
-/**
  * defines all functions in global scope
  * these functions are interpreted functions like print and ansi_print
  */

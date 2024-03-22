@@ -63,6 +63,10 @@ public:
         return &value;
     }
 
+    ValueType value_type() const override {
+        return ValueType::String;
+    }
+
 private:
     std::string value; ///< The string value.
 };

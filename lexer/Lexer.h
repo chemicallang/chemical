@@ -598,11 +598,3 @@ private:
     bool isLexImportStatement = true;
 
 };
-
-/**
- * when given 'n' as the value, it will return \n (newline)
- * @return a pair, where first char is the actual char that is the escape sequence
- * the second bool is whether we were able to escape the character
- * for example, if user gives 'y', now y is invalid, here so second value will be false
- */
-std::pair<char, bool> escape_sequence(char value);

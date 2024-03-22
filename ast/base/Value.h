@@ -10,6 +10,8 @@
 #include "ValueType.h"
 #include "ast/utils/Operation.h"
 #include "compiler/Codegen.h"
+#include <vector>
+#include <memory>
 #ifdef COMPILER_BUILD
 #include "llvm/IR/Value.h"
 #endif

@@ -27,21 +27,6 @@ CompTimeFuncType create_print(GlobalInterpretScope &global) {
     };
 }
 
-CompTimeFuncType create_ansi_print(GlobalInterpretScope &global){
-    return [&](InterpretScope* scope, std::vector<std::unique_ptr<Value>>& params) -> Value* {
-        for (auto const &value: params) {
-            auto paramValue = value->evaluated_value(*scope);
-            if (paramValue != nullptr) {
-                std::cout << paramValue->interpret_representation();
-            } else {
-                scope->error("(function call) function parameter not found : " + value->representation());
-            }
-        }
-        return nullptr;
-    };
-}
-
 void define_all(GlobalInterpretScope &scope) {
     define_func(scope, "print", create_print(scope), true);
-    define_func(scope, "ansi_print", create_ansi_print(scope), true);
 }

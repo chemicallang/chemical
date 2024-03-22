@@ -7,56 +7,11 @@
 #include "lexer/Lexer.h"
 #include "lexer/model/tokens/CharToken.h"
 
-std::pair<char, bool> escape_sequence(char value) {
-    char actualChar;
-    bool found = true;
-    switch (value) {
-        case 'a':
-            actualChar = '\a';
-            break;
-        case 'f':
-            actualChar = '\f';
-            break;
-        case 'r':
-            actualChar = '\r';
-            break;
-        case 'n':
-            actualChar = '\n';
-            break;
-        case '0':
-            actualChar = '\0';
-            break;
-        case 't':
-            actualChar = '\t';
-            break;
-        case 'v':
-            actualChar = '\v';
-            break;
-        case 'b':
-            actualChar = '\b';
-            break;
-        case '\\':
-            actualChar = '\\';
-            break;
-        case '"':
-            actualChar = '"';
-            break;
-        case '?':
-            actualChar = '\?';
-            break;
-        default:
-            actualChar = value;
-            found = false;
-            break;
-    }
-    return {actualChar, found};
-}
-
 bool Lexer::lexCharToken() {
     if (provider.increment('\'')) {
         auto readChar = provider.readCharacter();
         if (readChar == '\\') {
-            auto escaped = escape_sequence(provider.readCharacter());
+            auto escaped = provider.escape_sequence();
             readChar = escaped.first;
             if (provider.increment('\'')) {
                 tokens.emplace_back(std::make_unique<CharToken>(backPosition(4), readChar, 4));

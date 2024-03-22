@@ -103,6 +103,14 @@ public:
     std::string readAnything(TFunc when);
 
     /**
+     * escapes a sequence at current position, if 'n' is at current position, returns '\n'
+     * you must have consumed a \ (backslash) before calling this function
+     * a pair will be returned, first the escaped character
+     * second the bool indicating whether an escape sequence was found
+     */
+    std::pair<char, bool> escape_sequence();
+
+    /**
      * reads all characters into a string until char occurs
      * @return the string that was found
      */

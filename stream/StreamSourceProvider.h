@@ -37,7 +37,7 @@ public:
         unsigned int pos = stream.tellg();
         stream.seekg(pos + ahead, std::ios::beg);
         char c = stream.get();
-        stream.seekg(pos);
+        stream.seekg(pos, std::ios::beg);
         return c;
     }
 

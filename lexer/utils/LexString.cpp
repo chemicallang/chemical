@@ -16,7 +16,7 @@ bool Lexer::lexStringToken() {
             auto readChar = provider.peek();
             if(readChar == '\\') {
                 provider.readCharacter();
-                auto escaped = escape_sequence(provider.readCharacter());
+                auto escaped = provider.escape_sequence();
                 if(!escaped.second) {
                     str += '\\';
                 }

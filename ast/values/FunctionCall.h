@@ -11,7 +11,6 @@
 #include "ast/base/Value.h"
 
 class FunctionCall : public Value {
-
 public:
 
     FunctionCall(std::string name, std::vector<std::unique_ptr<Value>> values) : name(std::move(name)),
@@ -21,27 +20,27 @@ public:
 
     FunctionCall(FunctionCall &&other) = delete;
 
-    Value *find_in(Value *parent) override {
-        return parent->child(name);
+    Value *find_in(InterpretScope& scope, Value *parent) override {
+        return parent->call_member(scope, name, values);
     }
 
     void prepare(InterpretScope &scope) {
-        auto decl = scope.global->nodes.find(name);
-        if (decl == scope.global->nodes.end()) {
+        auto decl = scope.find_node(name);
+        if (decl == nullptr) {
             scope.error("(function call) couldn't find function declaration by name " + name);
-        } else if (decl->second->as_function() == nullptr) {
+        } else if (decl->as_function() == nullptr) {
             scope.error("(function call) declaration by name " + name + " is not a function");
         } else {
-            definition = decl->second->as_function();
+            definition = decl->as_function();
         }
     }
 
     Value *evaluated_value(InterpretScope &scope) override {
         if (name == "printf") {
             for (auto const &value: values) {
-                auto func = value->evaluated_value(scope);
-                if (func) {
-                    std::cout << func->interpret_representation();
+                auto paramValue = value->evaluated_value(scope);
+                if (paramValue != nullptr) {
+                    std::cout << paramValue->interpret_representation();
                 } else {
                     scope.error("(function call) Function parameter not found : " + value->representation());
                 }

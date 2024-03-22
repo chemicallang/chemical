@@ -33,7 +33,7 @@ public:
             (*members)[member] = std::make_unique<IntValue>(i);
             i++;
         }
-        scope.global->nodes[name] = this;
+        scope.declare(name, this);
     }
 
     std::string representation() const override {

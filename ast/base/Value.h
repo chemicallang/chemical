@@ -37,6 +37,16 @@ std::cerr << "child called on base value";
     }
 
     /**
+     * this function returns a function declaration for a member function
+     */
+    virtual Value* call_member(InterpretScope& scope, const std::string& name, std::vector<std::unique_ptr<Value>>& values) {
+#ifdef DEBUG
+        std::cerr << "call_member called on base value with name " + name;
+#endif
+        return nullptr;
+    }
+
+    /**
      * index operator [] calls this on a value
      */
     virtual Value* index(int i) {
@@ -61,7 +71,7 @@ std::cerr << "child called on base value";
      * @param parent
      * @return
      */
-    virtual Value* find_in(Value* parent) {
+    virtual Value* find_in(InterpretScope& scope, Value* parent) {
 #ifdef DEBUG
         std::cerr << "find_in called on base value";
 #endif

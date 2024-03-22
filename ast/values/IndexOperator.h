@@ -18,7 +18,7 @@ public:
 
     }
 
-    Value *find_in(Value *parent) override {
+    Value *find_in(InterpretScope& scope, Value *parent) override {
 #ifdef DEBUG
       try {
           return parent->index(value->as_int());

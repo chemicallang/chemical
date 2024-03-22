@@ -17,6 +17,11 @@ class Scope;
 
 class ASTNode;
 
+using node_map = std::unordered_map<std::string, ASTNode*>;
+using node_iterator = node_map::iterator;
+using value_map = std::unordered_map<std::string, Value*>;
+using value_iterator = value_map::iterator;
+
 class InterpretScope {
 public:
 
@@ -32,6 +37,56 @@ public:
     InterpretScope(const InterpretScope& copy) = delete;
 
     /**
+     * declares a value with this name in current scope
+     */
+    void declare(const std::string& name, Value* value);
+
+    /**
+     * declares a node with this name in current scope
+     */
+    void declare(const std::string& name, ASTNode* node);
+
+    /**
+     * erases a value by the key name from the value map safely
+     */
+    void erase_value(const std::string &name);
+
+    /**
+     * erases a name by the key name from the node map safely
+     */
+    void erase_node(const std::string &name);
+
+    /**
+     * @return return node with name, or nullptr
+     */
+    ASTNode* find_node(const std::string& name);
+
+    /**
+     * @return return value with name, or nullptr
+     */
+    Value* find_value(const std::string& name);
+
+    /**
+     * @return iterator for found node, the map that it was found in
+     */
+    std::pair<node_iterator, node_map&> find_node_iterator(const std::string& name);
+
+    /**
+     * @return iterator for found value, the map that it was found in
+     */
+    std::pair<value_iterator, value_map&> find_value_iterator(const std::string& name);
+
+    /**
+     * print all values
+     */
+    void print_values();
+
+    /**
+     * print all nodes
+     */
+    void print_nodes();
+
+    /**
      * The errors are stored in global scope only
      * @param err
      */
@@ -42,6 +97,17 @@ public:
      * must be deleted in the destructor
      */
     virtual ~InterpretScope();
+
+    /**
+      * This contains a map between identifiers and its values, of the current scope
+      */
+    std::unordered_map<std::string, Value *> values;
+
+    /**
+     * When a ASTNode declares itself, for example a struct, interface / implementation
+     * it declares itself on this unordered map, when the scope ends, it erases itself from this map
+     */
+    std::unordered_map<std::string, ASTNode *> nodes;
 
     /**
      * a pointer to the parent scope, If this is a global scope, it will be a nullptr

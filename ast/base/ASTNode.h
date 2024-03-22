@@ -49,9 +49,6 @@ public:
      * @return
      */
     virtual FunctionDeclaration *as_function() {
-#ifdef DEBUG
-        std::cerr << "as_function called on ASTNode" << std::endl;
-#endif
         return nullptr;
     }
 

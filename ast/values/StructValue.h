@@ -6,6 +6,7 @@
 #include <vector>
 #include <memory>
 #include "ast/base/Value.h"
+#include "ast/structures/StructDefinition.h"
 
 class StructValue : public Value {
 public:
@@ -16,19 +17,38 @@ public:
     }
 
     void prepare(InterpretScope &scope) {
-        auto decl = scope.global->nodes.find(structName);
-        if (decl == scope.global->nodes.end()) {
+        auto decl = scope.find_node(structName);
+        if (decl == nullptr) {
             scope.error("couldn't find struct declaration by name " + structName);
-        } else if (decl->second->as_struct_def() == nullptr) {
+        } else if (decl->as_struct_def() == nullptr) {
             scope.error("declaration by name " + structName + " is not a struct");
         } else {
-            definition = decl->second->as_struct_def();
+            definition = decl->as_struct_def();
+        }
+    }
+
+    Value* call_member(InterpretScope& scope, const std::string &name, std::vector<std::unique_ptr<Value>>& params) override {
+        prepare(scope);
+        if(definition == nullptr) {
+            scope.error("couldn't find struct definition by name " + structName + ", when querying member function by name " + name);
+            return nullptr;
+        } else {
+            auto fn = definition->member(name);
+            if(fn == nullptr) {
+                scope.error("couldn't find member function by name " + name + " in a struct by name " + structName);
+                return nullptr;
+            }
+            InterpretScope child(definition->decl_scope, scope.global, &fn->body.value(), definition);
+            for(const auto& value : values) {
+                child.declare(value.first, value.second.get());
+            }
+            return fn->call(&child, params);
         }
     }
 
     void set_child_value(const std::string &name, Value *value, Operation op) override {
         auto i = index(name);
-        if(i == -1) {
+        if (i == -1) {
             std::cerr << "couldn't find child by name " + name + " in struct";
             return;
         }
@@ -44,16 +64,16 @@ public:
 
     Value *copy() const override {
         std::vector<std::pair<std::string, std::unique_ptr<Value>>> copied(values.size());
-        for(unsigned i = 0; i < values.size(); ++i) {
+        for (unsigned i = 0; i < values.size(); ++i) {
             copied[i] = std::make_pair(values[i].first, std::unique_ptr<Value>(values[i].second->copy()));
         }
         return new StructValue(structName, std::move(copied));
     }
 
-    unsigned int index(const std::string& name) {
+    unsigned int index(const std::string &name) {
         unsigned i = 0;
-        for(const auto& value : values) {
-            if(value.first == name) {
+        for (const auto &value: values) {
+            if (value.first == name) {
                 return i;
             }
             i++;
@@ -63,7 +83,7 @@ public:
 
     Value *child(const std::string &name) override {
         auto i = index(name);
-        if(i == -1) return nullptr;
+        if (i == -1) return nullptr;
         return values[i].second.get();
     }
 

@@ -79,20 +79,20 @@ public:
 
     void interpret(InterpretScope &scope) override {
         if (value.has_value()) {
-            scope.global->values[identifier] = value.value()->initializer_value(scope);
+            scope.declare(identifier, value.value()->initializer_value(scope));
         }
-        scope.global->nodes[identifier] = this;
+        scope.declare(identifier, this);
     }
 
     void interpret_scope_ends(InterpretScope &scope) override {
-        auto found = scope.global->values.find(identifier);
-        if (found != scope.global->values.end()) {
-            delete found->second;
-            scope.global->values.erase(found);
+        auto found = scope.find_value_iterator(identifier);
+        if (found.first != found.second.end()) {
+            delete found.first->second;
+            found.second.erase(found.first);
         } else {
             scope.error("cannot clear non existent variable on the value map " + identifier);
         }
-        scope.global->erase_node(identifier);
+        scope.erase_node(identifier);
     }
 
     std::string representation() const override {

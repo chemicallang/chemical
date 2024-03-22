@@ -28,7 +28,7 @@ public:
     VariableIdentifier(std::string value) : value(std::move(value)) {}
 
     // will find value by this name in the parent
-    Value *find_in(Value *parent) override {
+    Value *find_in(InterpretScope& scope, Value *parent) override {
         return parent->child(value);
     }
 
@@ -42,12 +42,12 @@ public:
     }
 
     void set_identifier_value(InterpretScope &scope, Value *newValue, Operation op) override {
-        auto it = scope.global->values.find(value);
-        if (it == scope.global->values.end()) {
+        auto it = scope.find_value_iterator(value);
+        if (it.first == it.second.end()) {
             scope.error("couldn't set non-existent variable " + value);
             return;
         }
-        auto v = it->second;
+        auto v = it.first->second;
 
         auto nextValue = op == Operation::Assignment ? (newValue) : (
                 ExpressionEvaluator::functionVector[
@@ -58,7 +58,7 @@ public:
         if (v->primitive()) {
             delete v;
         }
-        it->second = nextValue;
+        it.first->second = nextValue;
     }
 
 #ifdef COMPILER_BUILD
@@ -116,9 +116,9 @@ public:
 #endif
 
     Value *evaluated_value(InterpretScope &scope) override {
-        auto found = scope.global->values.find(value);
-        if (found != scope.global->values.end()) {
-            return found->second;
+        auto found = scope.find_value(value);
+        if (found != nullptr) {
+            return found;
         } else {
             return nullptr;
         }

@@ -28,7 +28,7 @@ public:
     }
 
     void interpret(InterpretScope &scope) override {
-        scope.global->nodes[name] = this;
+        scope.declare(name, this);
     }
 
     void interpret_scope_ends(InterpretScope &scope) override {

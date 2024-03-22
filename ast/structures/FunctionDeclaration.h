@@ -119,7 +119,7 @@ public:
 #endif
 
     void interpret(InterpretScope &scope) override {
-        scope.global->nodes[name] = this;
+        scope.declare(name, this);
         declarationScope = &scope;
     }
 
@@ -130,28 +130,32 @@ public:
     Value *call(std::vector<std::unique_ptr<Value>> &call_params) {
         if (!body.has_value()) return nullptr;
         InterpretScope child(declarationScope, declarationScope->global, &body.value(), this);
+        return call(&child, call_params);
+    }
+
+    Value *call(InterpretScope *scope, std::vector<std::unique_ptr<Value>> &call_params) {
         if (params.size() != call_params.size()) {
-            child.error("function " + name + " requires " + std::to_string(params.size()) + ", but given params are " +
+            scope->error("function " + name + " requires " + std::to_string(params.size()) + ", but given params are " +
                         std::to_string(call_params.size()));
             return nullptr;
         }
         auto i = 0;
         while (i < params.size()) {
-            child.global->values[params[i].name] = call_params[i]->initializer_value(child);
+            scope->declare(params[i].name, call_params[i]->initializer_value(*scope));
             i++;
         }
-        body.value().interpret(child);
+        body.value().interpret(*scope);
         // delete all the primitive values that were copied into the function
         i--;
-        while(i > -1) {
-            auto itr = child.global->values.find(params[i].name);
-            if(itr != child.global->values.end()) {
-                if(itr->second != nullptr && itr->second->primitive()) {
-                    delete itr->second;
+        while (i > -1) {
+            auto itr = scope->find_value_iterator(params[i].name);
+            if (itr.first != itr.second.end()) {
+                if (itr.first->second != nullptr && itr.first->second->primitive()) {
+                    delete itr.first->second;
                 }
-                child.global->values.erase(itr);
+                itr.second.erase(itr.first);
             } else {
-                child.error("couldn't find parameter for cleanup after function call " + params[i].name);
+                scope->error("couldn't find parameter for cleanup after function call " + params[i].name);
             }
             i--;
         }
@@ -198,14 +202,14 @@ public:
         return ret;
     }
 
-    std::optional<LoopScope> body; ///< The body of the function.
-
-private:
     std::string name; ///< The name of the function.
     func_params params;
-    std::unique_ptr<BaseType> returnType;
+    std::optional<LoopScope> body; ///< The body of the function.
     InterpretScope *declarationScope;
-    Value *interpretReturn;
+
+private:
+    std::unique_ptr<BaseType> returnType;
+    Value *interpretReturn = nullptr;
     // if the function is variadic, the last type in params is the type given to the variadic parameter
     bool isVariadic;
 };

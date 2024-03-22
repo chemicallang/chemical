@@ -51,7 +51,7 @@ public:
 
     void interpret(InterpretScope &scope) override {
         type_check(scope);
-        scope.global->nodes[struct_name + ':' + interface_name] = this;
+        scope.declare(struct_name + ':' + interface_name, this);
     }
 
     std::string representation() const override {

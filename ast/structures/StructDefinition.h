@@ -35,10 +35,20 @@ public:
         return this;
     }
 
+    FunctionDeclaration * member(const std::string& name) {
+        for(const auto& field : fields) {
+            auto decl = field->as_function();
+            if(decl != nullptr && decl->name == name) {
+                return decl;
+            }
+        }
+        return nullptr;
+    }
+
     bool type_check(InterpretScope &scope) {
         if (overrides.has_value()) {
-            auto inter = scope.global->values.find(overrides.value());
-            if (inter == scope.global->values.end()) {
+            auto inter = scope.find_value(overrides.value());
+            if (inter == nullptr) {
 //                auto interVal = inter->second->as_interface();
 //                if (interVal != nullptr) {
 //                    if (!interVal->verify(scope, name, fields)) {
@@ -55,11 +65,13 @@ public:
     }
 
     void interpret(InterpretScope &scope) override {
-        scope.global->nodes[name] = this;
+        scope.declare(name, this);
+        decl_scope = &scope;
     }
 
     void interpret_scope_ends(InterpretScope &scope) override {
         scope.global->erase_node(name);
+        decl_scope = nullptr;
     }
 
     std::string representation() const override {
@@ -81,6 +93,7 @@ public:
         return ret;
     }
 
+    InterpretScope* decl_scope;
 private:
     std::string name; ///< The name of the struct.
     std::optional<std::string> overrides;

@@ -19,44 +19,6 @@ GlobalInterpretScope::GlobalInterpretScope(InterpretScope* parent, Scope* scope,
 
 }
 
-void GlobalInterpretScope::print_values() {
-    std::cout << "Values:" << std::endl;
-    for (auto const &value: values) {
-        std::cout << value.first << " : " << value.second->representation() << std::endl;
-    }
-}
-
-void GlobalInterpretScope::print_nodes() {
-    std::cout << "Nodes:" << std::endl;
-    for (auto const &value: nodes) {
-        std::cout << value.first << " : " << value.second->representation() << std::endl;
-    }
-}
-
-void GlobalInterpretScope::erase_value(const std::string& name) {
-    auto found = global->values.find(name);
-    if(found == global->values.end()) {
-        std::cerr << ANSI_COLOR_RED << "couldn't locate value " << name << " for removal" << ANSI_COLOR_RESET << std::endl;
-#ifdef DEBUG
-      print_values();
-#endif
-    } else {
-        global->values.erase(found);
-    }
-}
-
-void GlobalInterpretScope::erase_node(const std::string& name) {
-    auto found = global->nodes.find(name);
-    if(found == global->nodes.end()) {
-        std::cerr << ANSI_COLOR_RED << "couldn't locate node " << name << " for removal" << ANSI_COLOR_RESET << std::endl;
-#ifdef DEBUG
-    print_nodes();
-#endif
-    } else {
-        global->nodes.erase(found);
-    }
-}
-
 void GlobalInterpretScope::add_error(const std::string &err) {
 #ifdef DEBUG
     std::cerr << ANSI_COLOR_RED << "[InterpretError]" << err << ANSI_COLOR_RESET << std::endl;

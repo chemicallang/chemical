@@ -22,8 +22,9 @@ public:
     }
 
     void interpret(InterpretScope &scope) override {
-        for (const auto &value: values) {
-            value->interpret(scope);
+        auto v = evaluated_value(scope);
+        if(v != nullptr && v->primitive()) {
+            delete v;
         }
     }
 
@@ -51,7 +52,7 @@ public:
         Value *current = values[0].get();
         unsigned i = 1;
         while (i < (values.size() - 1)) {
-            current = values[i]->find_in(current);
+            current = values[i]->find_in(scope, current);
             if (current == nullptr) {
                 scope.error(
                         "(access chain) " + representation() + " child " + values[i]->representation() + " not found");
@@ -90,7 +91,7 @@ public:
         if (values.size() <= 1) {
             return values[0]->evaluated_value(scope);
         } else {
-            return values[values.size() - 1]->find_in(parent_value(scope));
+            return values[values.size() - 1]->find_in(scope, parent_value(scope));
         }
     }
 

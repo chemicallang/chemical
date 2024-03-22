@@ -1,17 +1,17 @@
-@lexer
-struct html : Lexer {
-    override func lexTokens(provider : SourceProvider) : vector<UserToken> {
-        var tokens = vector<UserToken>();
-
-        return tokens;
+struct Point {
+    var x : int
+    var y : int
+    func print() {
+        printf("x = ", x, ", y = ", y);
     }
 }
 
 func main() : int {
-    var str = "something I'd like to say";
-    if(str[0] == 's') {
-        printf("hoola hoo");
+    var p = Point {
+        x : 1,
+        y : 2
     }
+    p.print();
     return 0;
 }
 

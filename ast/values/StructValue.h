@@ -39,9 +39,7 @@ public:
                 return nullptr;
             }
             InterpretScope child(definition->decl_scope, scope.global, &fn->body.value(), definition);
-            for(const auto& value : values) {
-                child.declare(value.first, value.second.get());
-            }
+            child.declare("this", this);
             return fn->call(&child, params);
         }
     }

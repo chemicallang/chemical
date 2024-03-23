@@ -63,11 +63,11 @@ int main(int argc, char *argv[]) {
         printTokens(lexer.tokens);
     }
     for (const auto &err: lexer.errors) {
-        std::cerr << err.representation(argv[1]) << std::endl;
+        std::cerr << err.representation(argv[1], "Lexer") << std::endl;
     }
     auto parser = benchmark.has_value() ? benchParse(std::move(lexer.tokens)) : parse(std::move(lexer.tokens));
     for (const auto &err: parser.errors) {
-        std::cerr << err.representation(argv[1]) << std::endl;
+        std::cerr << err.representation(argv[1], "Parser") << std::endl;
     }
     TypeChecker checker;
     checker.type_check(parser.nodes);
@@ -78,7 +78,7 @@ int main(int argc, char *argv[]) {
     if(verbose.has_value()) {
         std::cout << "[Representation]\n" << scope.representation() << std::endl;
     }
-    if (!lexer.errors.empty() || !parser.errors.empty() || !checker.errors.empty()) return 1;
+    if (lexer.has_errors || !parser.errors.empty() || !checker.errors.empty()) return 1;
 
     // actual compilation
     Codegen gen(std::move(scope.nodes), argv[1]);

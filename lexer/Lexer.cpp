@@ -7,6 +7,10 @@
 #include "Lexer.h"
 #include "lexer/model/tokens/KeywordToken.h"
 
+void Lexer::init() {
+    annotation_modifiers["lexer"] = [&](Lexer *lexer) -> void { lexer->isLexCompTimeLexer = true; };
+}
+
 void Lexer::lexTopLevelMultipleStatementsTokens() {
 
     // lex whitespace and new lines to reach a statement
@@ -39,6 +43,9 @@ void Lexer::lex() {
 }
 
 void Lexer::diagnostic(Position start, const std::string &message, DiagSeverity severity) {
+    if(severity == DiagSeverity::Error) {
+        has_errors = true;
+    }
     errors.emplace_back(
             Range{
                     start,

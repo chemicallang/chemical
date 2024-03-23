@@ -9,8 +9,7 @@ std::optional<std::pair<std::string, std::unique_ptr<Value>>> Parser::parseMacro
     if (token_type() == LexTokenType::Macro) {
         auto macro = consume<MacroToken>();
         if (macro->isAnnotation) {
-            // consuming the annotation and returning no value
-            return std::nullopt;
+            return std::pair(macro->name, std::make_unique<StringValue>(""));
         } else {
             std::string content;
             while (token_type() != LexTokenType::Macro && position < tokens.size()) {

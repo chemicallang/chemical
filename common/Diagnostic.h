@@ -23,6 +23,7 @@ class Range {
 public:
     // the range in the source file
     Position start, end;
+
     std::string representation() const {
         return start.representation() + " - " + end.representation();
     }
@@ -38,6 +39,8 @@ enum class DiagSeverity : uint8_t {
     // Reports a hint.
     Hint = 4
 };
+
+std::string color(DiagSeverity severity);
 
 enum class DiagTag : uint8_t {
     // redundant code tag
@@ -90,8 +93,18 @@ public:
      * returns representation of this diagnostic as string
      * @return
      */
-    std::string representation(const std::string& tag = "Diagnostic") const {
+    std::string representation(const std::string &tag = "Diagnostic") const {
         return "[" + tag + "] " + message + " at " + range.representation();
+    }
+
+    /**
+     * returns representation of this diagnostic as string
+     * @return
+     */
+    std::string ansi_representation(const std::string &tag = "Diagnostic") const {
+        return (severity.has_value() ? (color(severity.value())) : "") +
+               representation(tag) +
+               (severity.has_value() ? ("\x1b[0m") : "");
     }
 
     /**
@@ -99,8 +112,8 @@ public:
      * @param path
      * @return
      */
-    std::string representation(const std::string &path, const std::string& tag) const {
-        return representation(tag);
+    std::string representation(const std::string &path, const std::string &tag) const {
+        return ansi_representation(tag);
     }
 
 };

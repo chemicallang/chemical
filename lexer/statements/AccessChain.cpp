@@ -33,10 +33,14 @@ bool Lexer::lexAccessChain(bool access, bool lexStruct) {
     if (lexOperatorToken('(')) {
         do {
             lexWhitespaceToken();
-            lexExpressionTokens();
+            if(!lexExpressionTokens()) {
+                break;
+            }
             lexWhitespaceToken();
         } while (lexOperatorToken(','));
-        lexOperatorToken(')');
+        if(!lexOperatorToken(')')) {
+            error("expected a ')' for a function call, after starting ')'");
+        }
     }
 
     while (lexOperatorToken('[')) {

@@ -537,7 +537,7 @@ public:
      * @param keyword
      * @return a keyword token
      */
-    lex_ptr<KeywordToken> consume(const std::string &keyword, bool errorOut);
+    KeywordToken* consume(const std::string &keyword, bool errorOut);
 
     /**
      * sets the given error in the parseError and also prints it
@@ -609,7 +609,7 @@ public:
      * This function is also inlined
      */
     template<typename T>
-    inline std::unique_ptr<T> consume();
+    inline T* consume();
 
     /**
      * this will consume the token at current position
@@ -632,7 +632,7 @@ public:
      * @return
      */
     template<typename T>
-    lex_ptr<T> consumeOfType(LexTokenType type, bool errorOut = true);
+    T* consumeOfType(LexTokenType type, bool errorOut = true);
 
     /**
      * consumes a single identifier token, this is definitely a variable
@@ -640,8 +640,8 @@ public:
      */
     inline std::optional<std::string> consume_identifier(bool error_out = true) {
         auto variable = consumeOfType<VariableToken>(LexTokenType::Variable, error_out);
-        if(variable.has_value()) {
-            return variable.value()->value;
+        if(variable != nullptr) {
+            return variable->value;
         } else {
             return std::nullopt;
         }
@@ -727,8 +727,8 @@ protected:
 };
 
 template<typename T>
-std::unique_ptr<T> Parser::consume() {
-    return std::unique_ptr<T>(static_cast<T *>(tokens[position++].release()));
+T* Parser::consume() {
+    return static_cast<T *>(tokens[position++].get());
 }
 
 void Parser::increment() {
@@ -741,10 +741,10 @@ T *Parser::as() {
 }
 
 template<typename T>
-lex_ptr<T> Parser::consumeOfType(LexTokenType type, bool errorOut) {
+T* Parser::consumeOfType(LexTokenType type, bool errorOut) {
     if (check_type(type, errorOut)) {
         return consume<T>();
     } else {
-        return std::nullopt;
+        return nullptr;
     }
 }

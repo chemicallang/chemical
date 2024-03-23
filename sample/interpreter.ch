@@ -1,4 +1,8 @@
-@nothing
+@lexer
+struct html {
+    var i : int
+}
+
 func main() : int {
     var v = vector();
     v.push(11);

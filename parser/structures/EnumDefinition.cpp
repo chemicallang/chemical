@@ -9,19 +9,19 @@
 lex_ptr<EnumDeclaration> Parser::parseEnumDeclaration() {
     if(consume("enum")) {
         auto name = consumeOfType<AbstractStringToken>(LexTokenType::Enum);
-        if(name.has_value()) {
+        if(name != nullptr) {
             if(consume_op('{')) {
                 std::vector<std::string> members;
                 do {
                     auto member = consumeOfType<AbstractStringToken>(LexTokenType::EnumMember);
-                    if(member.has_value()) {
-                        members.emplace_back(member.value()->value);
+                    if(member != nullptr) {
+                        members.emplace_back(member->value);
                     } else {
                         break;
                     }
                 } while(consume_op(','));
                 if(consume_op('}')) {
-                    return std::make_unique<EnumDeclaration>(std::move(name.value()->value), std::move(members));
+                    return std::make_unique<EnumDeclaration>(name->value, std::move(members));
                 } else {
                     error("expected a '}' for closing the enum");
                 }

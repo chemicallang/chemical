@@ -10,12 +10,12 @@
 
 lex_ptr<Comment> Parser::parseComment() {
     auto comment = consumeOfType<CommentToken>(LexTokenType::Comment, false);
-    if(comment.has_value()) {
-        return std::make_unique<Comment>(comment.value()->value, false);
+    if(comment != nullptr) {
+        return std::make_unique<Comment>(comment->value, false);
     } else {
         auto multi = consumeOfType<MultilineCommentToken>(LexTokenType::MultilineComment, false);
-        if(multi.has_value()) {
-            return std::make_unique<Comment>(multi.value()->value, true);
+        if(multi != nullptr) {
+            return std::make_unique<Comment>(multi->value, true);
         }
     }
     return std::nullopt;

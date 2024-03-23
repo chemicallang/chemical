@@ -35,6 +35,7 @@ bool Lexer::lexStructBlockTokens() {
 
 bool Lexer::lexStructStructureTokens() {
     if(lexKeywordToken("struct")) {
+        auto start_token = tokens.size() - 1;
         lexWhitespaceToken();
         auto id = lexAlpha();
         if(id.empty()) {
@@ -57,6 +58,10 @@ bool Lexer::lexStructStructureTokens() {
             error("expected an struct block for declaring struct members");
         }
         lexWhitespaceToken();
+        if(isLexCompTimeLexer) {
+            collectStructAsLexer(start_token, tokens.size());
+            isLexCompTimeLexer = false;
+        }
         return true;
     } else {
         return false;

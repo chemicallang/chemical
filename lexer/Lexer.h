@@ -14,6 +14,7 @@
 #include "ast/utils/Operation.h"
 #include "common/Diagnostic.h"
 #include "ast/base/BaseType.h"
+#include "ast/structures/StructDefinition.h"
 #include <memory>
 #include <optional>
 #include <functional>
@@ -360,6 +361,12 @@ public:
     bool lexStructStructureTokens();
 
     /**
+     * this will try to collect current struct as a lexer
+     * @param start is the start position inside the tokens vector
+     */
+    bool collectStructAsLexer(unsigned int start, unsigned int end);
+
+    /**
      * lexes a impl block tokens
      * @return
      */
@@ -584,6 +591,11 @@ protected:
      * key:deprecated -> value:{ modifiers = deprecated; }
      */
     std::unordered_map<std::string, std::function<void(Lexer* lexer)>> annotation_modifiers;
+
+    /**
+     * structs declared as lexer by the user
+     */
+    std::unordered_map<std::string, std::unique_ptr<StructDefinition>> lexer_structs;
 
     /**
      * -----------------------------------------

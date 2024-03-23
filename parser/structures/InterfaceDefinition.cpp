@@ -9,7 +9,7 @@
 lex_ptr<InterfaceDefinition> Parser::parseInterfaceDefinition() {
     if(consume("interface")){
         auto name = consumeOfType<AbstractStringToken>(LexTokenType::Interface);
-        if(name.has_value()) {
+        if(name != nullptr) {
             if(consume_op('{')) {
                 std::vector<std::unique_ptr<ASTNode>> members;
                 while(true) {
@@ -30,7 +30,7 @@ lex_ptr<InterfaceDefinition> Parser::parseInterfaceDefinition() {
                 if(!consume_op('}')) {
                     error("expected '}' after the interface definition");
                 }
-                return std::make_unique<InterfaceDefinition>(std::move(name.value()->value), std::move(members));
+                return std::make_unique<InterfaceDefinition>(name->value, std::move(members));
             }
         } else {
             error("expected a interface name identifier after the keyword interface");

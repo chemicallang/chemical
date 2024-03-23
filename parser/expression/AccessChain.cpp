@@ -14,7 +14,7 @@ lex_ptr<AccessChain> Parser::parseAccessChain() {
     std::unique_ptr<AccessChain> chain;
     do {
         auto var = consumeOfType<AbstractStringToken>(LexTokenType::Variable, false);
-        if (!var.has_value()) {
+        if (var == nullptr) {
             if (chain) {
                 error("Expected a value after the dot in the access chain");
                 break;
@@ -29,11 +29,11 @@ lex_ptr<AccessChain> Parser::parseAccessChain() {
 
                 // parsea  struct value
                 if(token_type() == LexTokenType::CharOperator && as<CharOperatorToken>()->op == '{') {
-                    auto structValue = parseStructValue(var.value()->value);
+                    auto structValue = parseStructValue(var->value);
                     if(structValue.has_value()) {
                         chain->values.push_back(std::move(structValue.value()));
                     } else {
-                        error("expected a struct after encountering '{' after struct value declaration " + var.value()->value);
+                        error("expected a struct after encountering '{' after struct value declaration " + var->value);
                     }
                     return chain;
                 }
@@ -50,20 +50,20 @@ lex_ptr<AccessChain> Parser::parseAccessChain() {
                     }
                 } while(consume_op(','));
                 if(consume_op(')')) {
-                    chain->values.emplace_back(std::make_unique<FunctionCall>(std::move(var.value()->value), std::move(params)));
+                    chain->values.emplace_back(std::make_unique<FunctionCall>(var->value, std::move(params)));
                 } else {
                     error("expected a ')' after the function call in the access chain");
                     break;
                 }
             } else {
-                chain->values.emplace_back(std::move(std::make_unique<VariableIdentifier>(var.value()->value)));
+                chain->values.emplace_back(std::move(std::make_unique<VariableIdentifier>(var->value)));
             }
 
             if(consume_op('[')){
                 auto val = parseExpression();
                 if(val.has_value()) {
                     // TODO index operator shouldn't take variable identifier
-                    chain->values.emplace_back(std::make_unique<IndexOperator>(std::move(var.value()->value), std::move(val.value())));
+                    chain->values.emplace_back(std::make_unique<IndexOperator>(var->value, std::move(val.value())));
                 } else {
                     error("expected a value for the index operators '[]' in the access chain");
                     break;

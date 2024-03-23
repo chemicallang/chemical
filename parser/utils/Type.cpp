@@ -13,7 +13,7 @@
 
 lex_ptr<BaseType> Parser::parseType() {
     if (token_type() == LexTokenType::Type) {
-        auto type = std::move(consume<TypeToken>()->value);
+        auto type = consume<TypeToken>()->value;
         auto type_fn = primitive_type_map.find(type);
         if(type_fn != primitive_type_map.end()) {
             return std::unique_ptr<BaseType>(type_fn->second(this));

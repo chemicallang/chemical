@@ -94,7 +94,6 @@ public:
     }
 
     InterpretScope* decl_scope;
-private:
     std::string name; ///< The name of the struct.
     std::optional<std::string> overrides;
     std::vector<std::unique_ptr<ASTNode>> fields; ///< The members of the struct.

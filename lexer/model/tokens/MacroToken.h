@@ -11,9 +11,12 @@
 class MacroToken : public LexToken {
 public:
 
-    unsigned int len;
+    std::string name;
 
-    MacroToken(const Position &position, unsigned int len) : LexToken(position), len(len) {
+    MacroToken(
+            const Position &position,
+            std::string name
+    ) : LexToken(position), name(std::move(name)) {
         // nothing
     }
 
@@ -34,11 +37,11 @@ public:
     }
 
     std::string type_string() const override {
-        return "Macro";
+        return "Annotation";
     }
 
     std::string representation() const override {
-        return "[macro]";
+        return "@" + name;
     }
 
     std::string content() const override {
@@ -46,7 +49,7 @@ public:
     }
 
     unsigned int length() const override {
-        return len;
+        return name.length() + 1;
     }
 
 };

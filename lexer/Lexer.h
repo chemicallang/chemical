@@ -29,10 +29,15 @@ public:
 
     std::vector<Diagnostic> errors;
 
+    /**
+     * this is a flag, that would be set to true, if errors are detected during lexing
+     */
+    bool has_errors = false;
+
     inline bool isDebug() { return true; };
 
     explicit Lexer(SourceProvider &provider, std::string path) : provider(provider), path(std::move(path)) {
-
+        init();
     }
 
     /**
@@ -562,10 +567,23 @@ public:
 
 protected:
 
-    /*
-     * collected modifiers
+    /**
+     * called by constructor
+     */
+    void init();
+
+    /**
+     * collected token modifiers, when annotation modifiers like deprecated are detected
+     * they set bits into this unsigned int, which will be later collected by a declaration like
+     * struct / function
      */
     unsigned int modifiers = 0;
+
+    /**
+     * just a map between annotations and their functions, for example
+     * key:deprecated -> value:{ modifiers = deprecated; }
+     */
+    std::unordered_map<std::string, std::function<void(Lexer* lexer)>> annotation_modifiers;
 
     /**
      * -----------------------------------------
@@ -578,6 +596,12 @@ protected:
      * so these variables can be switched on and off in the middle of the lexing
      * -----------------------------------------
      */
+
+    /**
+     * when true, a struct will be lexed as a lexer, which will defines
+     * a lexer implementation, that lexes tokens found in preprocess directives
+     */
+    bool isLexCompTimeLexer = false;
 
     /**
      * when true, return statements will be lexed

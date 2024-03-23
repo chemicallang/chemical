@@ -82,6 +82,7 @@ std::string SourceProvider::readUntil(const std::string& ending, bool consume) {
 }
 
 std::string SourceProvider::readNumber() {
+    if(peek() != '-' && !std::isdigit(peek())) return "";
     auto appearedDot = false;
     auto first_char = true;
     return readAnything([&]() -> bool {

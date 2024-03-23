@@ -1,3 +1,4 @@
+@nothing
 func main() : int {
     var v = vector();
     v.push(11);

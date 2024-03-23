@@ -33,10 +33,10 @@ void benchInterpret(Scope& scope, GlobalInterpretScope& interpretScope) {
     auto seconds = std::chrono::duration_cast<std::chrono::seconds>(end - start).count();
 
     // Printing stats
-    std::cout << "[Interpreter] Completed " << ' ';
+    std::cout << std::endl << "[Interpreter] Completed " << ' ';
     std::cout << "[Nanoseconds:" << nanos << "]";
     std::cout << "[Microseconds:" << micros << "]";
-    std::cout << "[Milliseconds:" << millis << "]" << '\n';
+    std::cout << "[Milliseconds:" << millis << "]" << std::endl;
 
 }
 
@@ -61,7 +61,6 @@ int main(int argc, char *argv[]) {
     GlobalInterpretScope interpretScope(nullptr, &scope, nullptr, argv[1]);
     define_all(interpretScope);
     benchInterpret(scope, interpretScope);
-    std::cout << std::endl;
     for(const auto& err : interpretScope.errors) {
         std::cerr << "[Interpreter] " << err << '\n';
     }

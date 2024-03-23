@@ -25,8 +25,14 @@ bool Lexer::lexAnnotationMacro() {
         tokens.emplace_back(std::make_unique<MacroToken>(backPosition(macro.size() + 1), std::move(macro), isAnnotation, modifier));
 #else
         tokens.emplace_back(std::make_unique<MacroToken>(backPosition(macro.size() + 1), macro, isAnnotation));
+#endif
         if(isAnnotation) {
-
+            auto found = annotation_modifiers.find(macro);
+            if(found != annotation_modifiers.end()) {
+                found->second(this);
+            } else {
+                info("unknown annotation at lexer level : " + macro + " next char :" + provider.peek());
+            }
         } else {
             std::string ending = "#end" + macro;
             auto current = position();
@@ -39,7 +45,6 @@ bool Lexer::lexAnnotationMacro() {
                 error("expected ending macro with " + ending);
             }
         }
-#endif
         return true;
     } else {
         return false;

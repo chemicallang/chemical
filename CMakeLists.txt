@@ -257,6 +257,8 @@ set(COMMON_SOURCES
         ast/statements/MacroValueStatement.h
         parser/statements/AnnotationMacro.cpp
         ast/utils/InterpretValues.h
+        common/Diagnostic.cpp
+        ast/values/NothingValue.h
 )
 
 # Chemical LSP Executable Target

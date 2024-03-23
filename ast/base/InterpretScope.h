@@ -31,6 +31,11 @@ public:
     explicit InterpretScope(InterpretScope* parent, GlobalInterpretScope* global, Scope* scope, ASTNode* node);
 
     /**
+     * use default move constructor
+     */
+    InterpretScope(InterpretScope&& global) = default;
+
+    /**
      * deleted copy constructor
      * @param copy
      */

@@ -15,7 +15,7 @@ public:
 
     explicit StreamSourceProvider(std::istream &stream) : stream(stream) {}
 
-    unsigned int position() const override {
+    unsigned int currentPosition() const override {
         return stream.tellg();
     }
 
@@ -59,7 +59,7 @@ public:
             handleCharacterRead(c);
             return true;
         } else {
-            stream.seekg(position() - 1, std::ios::beg);
+            stream.seekg(currentPosition() - 1, std::ios::beg);
             return false;
         }
     }
@@ -127,13 +127,13 @@ public:
     }
 
     StreamPosition getStreamPosition() const override {
-        return StreamPosition{static_cast<unsigned int>(position()), lineNumber, lineCharacterNumber};
+        return StreamPosition{static_cast<unsigned int>(currentPosition()), lineNumber, lineCharacterNumber};
     }
 
 private:
 
     void saveInto(StreamPosition &pos) {
-        pos.pos = position();
+        pos.pos = currentPosition();
         pos.line = lineNumber;
         pos.character = lineCharacterNumber;
     }

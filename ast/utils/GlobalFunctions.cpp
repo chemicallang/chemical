@@ -7,6 +7,8 @@
 #include "InterpretValues.h"
 #include "ast/values/IntValue.h"
 
+void define_source_stream_fns(GlobalInterpretScope &global);
+
 void define_func(GlobalInterpretScope &scope, const std::string &name, CompTimeFuncType func, bool isVariadic) {
     auto decl = std::make_unique<CompTimeFuncDecl>(std::move(func), name, func_params(), std::make_unique<VoidType>(),
                                                    isVariadic);
@@ -20,7 +22,11 @@ CompTimeFuncType create_print(GlobalInterpretScope &global) {
     return [&](InterpretScope *scope, std::vector<std::unique_ptr<Value>> &params) -> Value * {
         for (auto const &value: params) {
             auto paramValue = value->evaluated_value(*scope);
-            std::cout << paramValue->interpret_representation();
+            if(paramValue == nullptr) {
+                std::cout << "null";
+            } else {
+                std::cout << paramValue->interpret_representation();
+            }
         }
         return nullptr;
     };
@@ -68,6 +74,7 @@ CompTimeFuncType create_vector(GlobalInterpretScope &global) {
 }
 
 void define_all(GlobalInterpretScope &scope) {
+    define_source_stream_fns(scope);
     define_func(scope, "vector", create_vector(scope), false);
     define_func(scope, "print", create_print(scope), true);
 }

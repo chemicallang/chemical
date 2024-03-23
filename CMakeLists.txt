@@ -63,6 +63,11 @@ if(CMAKE_BUILD_TYPE MATCHES Debug)
     add_definitions(-DDEBUG)
 endif()
 
+option(VERBOSE "Enable verbose output (for debugging)" OFF)
+if(VERBOSE)
+    add_definitions(-DVERBOSE) # Define VERBOSE macro
+endif()
+
 # Add the LspCpp library directory
 add_subdirectory(LspCpp)
 
@@ -259,6 +264,9 @@ set(COMMON_SOURCES
         ast/utils/InterpretValues.h
         common/Diagnostic.cpp
         lexer/structures/Collection.cpp
+        stream/StreamStructValue.h
+        stream/StreamStructValue.cpp
+        lexer/model/tokens/UserToken.h
 )
 
 # Chemical LSP Executable Target

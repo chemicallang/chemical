@@ -15,7 +15,7 @@ public:
      * gets the current pos of the stream
      * @return
      */
-    virtual unsigned int position() const = 0;
+    virtual unsigned int currentPosition() const = 0;
 
     /**
      * reads a single character and returns it

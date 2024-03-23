@@ -31,15 +31,19 @@ public:
     std::vector<Diagnostic> errors;
 
     /**
+     * this is the interpret scope used by the lexer to interpret
+     * things in between lexing
+     */
+    GlobalInterpretScope interpret_scope;
+
+    /**
      * this is a flag, that would be set to true, if errors are detected during lexing
      */
     bool has_errors = false;
 
     inline bool isDebug() { return true; };
 
-    explicit Lexer(SourceProvider &provider, std::string path) : provider(provider), path(std::move(path)) {
-        init();
-    }
+    explicit Lexer(SourceProvider &provider, std::string path);
 
     /**
      * lex everything to LexTokens, tokens go into 'tokens' member property
@@ -577,7 +581,7 @@ protected:
     /**
      * called by constructor
      */
-    void init();
+    void init_annotation_modifiers();
 
     /**
      * collected token modifiers, when annotation modifiers like deprecated are detected
@@ -590,7 +594,7 @@ protected:
      * just a map between annotations and their functions, for example
      * key:deprecated -> value:{ modifiers = deprecated; }
      */
-    std::unordered_map<std::string, std::function<void(Lexer* lexer)>> annotation_modifiers;
+    std::unordered_map<std::string, std::function<void(Lexer *lexer)>> annotation_modifiers;
 
     /**
      * structs declared as lexer by the user

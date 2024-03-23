@@ -28,7 +28,11 @@ public:
 
     }
 
-    Value *call(InterpretScope *scope, std::vector<std::unique_ptr<Value>> &call_params) override {
+    Value * call(InterpretScope *call_scope, std::vector<std::unique_ptr<Value>> &call_params) override {
+        return lambda(call_scope, call_params);
+    }
+
+    Value *call(InterpretScope *scope, std::vector<std::unique_ptr<Value>> &call_params, std::unique_ptr<InterpretScope> fn_scope) override {
         return lambda(scope, call_params);
     }
 

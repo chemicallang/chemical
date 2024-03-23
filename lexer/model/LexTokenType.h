@@ -31,5 +31,6 @@ enum class LexTokenType : uint8_t {
     Type,
     Variable,
     Macro,
-    RawToken
+    RawToken,
+    UserToken
 };

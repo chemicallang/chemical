@@ -6,8 +6,19 @@
 
 #include "Lexer.h"
 #include "lexer/model/tokens/KeywordToken.h"
+#include "ast/utils/GlobalFunctions.h"
 
-void Lexer::init() {
+Lexer::Lexer(SourceProvider &provider, std::string path) : provider(provider), path(std::move(path)), interpret_scope(
+        GlobalInterpretScope(nullptr, nullptr, nullptr, path)
+) {
+#ifdef DEBUG
+    interpret_scope.warn_no_nodes = false;
+#endif
+    define_all(interpret_scope);
+    init_annotation_modifiers();
+}
+
+void Lexer::init_annotation_modifiers() {
     annotation_modifiers["lexer"] = [&](Lexer *lexer) -> void { lexer->isLexCompTimeLexer = true; };
 }
 

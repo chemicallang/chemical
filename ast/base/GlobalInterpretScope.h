@@ -29,6 +29,11 @@ public:
     GlobalInterpretScope(const GlobalInterpretScope &copy) = delete;
 
     /**
+     * use default move constructor
+     */
+    GlobalInterpretScope(GlobalInterpretScope&& global) = default;
+
+    /**
      * overrides the destructor of InterpretScope
      * this is done because dereferencing "this" in base class for an object of derived class
      * causes segfaults, which could be because of object slicing
@@ -40,6 +45,13 @@ public:
      * @param err
      */
     void add_error(const std::string &err);
+
+#ifdef DEBUG
+    /**
+     * whether it should warn that there are no nodes
+     */
+    bool warn_no_nodes = true;
+#endif
 
     /**
      * global functions that are evaluated during interpretation

@@ -40,7 +40,7 @@ public:
             }
             InterpretScope child(definition->decl_scope, scope.global, &fn->body.value(), definition);
             child.declare("this", this);
-            return fn->call(&child, params);
+            return fn->call(&scope, params, std::unique_ptr<InterpretScope>(&child));
         }
     }
 
@@ -133,6 +133,14 @@ public:
         }
         rep.append("\n}");
         return rep;
+    }
+
+    StructValue* as_struct() override {
+        return this;
+    }
+
+    ValueType value_type() const override {
+        return ValueType::Struct;
     }
 
     std::string structName;

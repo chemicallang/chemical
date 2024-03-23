@@ -10,7 +10,7 @@
 
 void Parser::parseExpressionWith(ValueAndOperatorStack &stack, ValueAndOperatorStack &final) {
     while (position < tokens.size()) {
-        auto valueOrAc = parseAccessChainOrValue();
+        auto valueOrAc = parseExpression();
         if(valueOrAc.has_value()) {
             final.putValue(valueOrAc->release());
             auto operation = consume_op_token();

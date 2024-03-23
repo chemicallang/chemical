@@ -6,6 +6,9 @@ func main() : int {
     var i = 0;
     while(i < v.size()) {
         print(i, " = ", v[i]);
+        if(i < (v.size() - 1)) {
+            print(',');
+        }
         i++;
     }
     return 0;

@@ -8,45 +8,33 @@
 
 #include "LexToken.h"
 
-class WhitespaceToken : public LexToken {
+class RawToken : public AbstractStringToken {
 public:
 
-    unsigned int len;
-
-    WhitespaceToken(const Position& position, unsigned int length) : LexToken(position), len(length) {
+    RawToken(const Position& position, std::string value) : AbstractStringToken(position, std::move(value)) {
 
     }
 
     LexTokenType type() const override {
-        return LexTokenType::Whitespace;
+        return LexTokenType::RawToken;
     }
 
     unsigned int length() const override {
-        return len;
+        return value.length();
     }
 
 #ifdef LSP_BUILD
     [[nodiscard]] SemanticTokenType lspType() const override {
-        return SemanticTokenType::ls_operator;
+        return SemanticTokenType::ls_string;
     }
 #endif
 
-    std::string representation() const override{
-        std::string space;
-        for(int i = 0; i< this->len;i ++) {
-            space += ' ';
-        }
-        return space;
-    }
-
     [[nodiscard]] std::string type_string() const override {
-        std::string buf("Whitespace:");
-        buf.append(std::to_string(this->len));
-        return buf;
+        return "Raw:" + value;
     }
 
     [[nodiscard]] std::string content() const override {
-        return "";
+        return value;
     }
 
 };

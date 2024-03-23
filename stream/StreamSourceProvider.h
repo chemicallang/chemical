@@ -83,7 +83,7 @@ public:
         }
     }
 
-    bool increment(const std::string &text) override {
+    bool increment(const std::string &text, bool peek) override {
 
         if(stream.peek() != text[0]) {
             return false;
@@ -105,7 +105,7 @@ public:
         }
 
         // Seek back to original pos
-        if (!result) {
+        if (!result || peek) {
             restore(prevPosition);
         }
 

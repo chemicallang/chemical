@@ -84,7 +84,7 @@ set(COMMON_SOURCES
         lexer/model/tokens/NumberToken.h
         lexer/model/tokens/KeywordToken.h
         lexer/model/tokens/LexToken.h
-        lexer/model/tokens/WhitespaceToken.h
+        lexer/model/tokens/RawToken.h
         stream/SourceProvider.h
         lexer/Lexi.h
         lexer/statements/LexAssignment.cpp
@@ -197,7 +197,6 @@ set(COMMON_SOURCES
         ast/base/GlobalInterpretScope.h
         ast/base/InterpretScope.cpp
         ast/base/GlobalInterpretScope.cpp
-        ast/values/WrapperValue.h
         ast/utils/Operation.cpp
         ast/structures/LoopScope.h
         ast/structures/LoopScope.h
@@ -255,6 +254,8 @@ set(COMMON_SOURCES
         ast/structures/FunctionDecl.cpp
         ast/utils/GlobalFunctions.h
         ast/utils/GlobalFunctions.cpp
+        ast/statements/MacroValueStatement.h
+        parser/statements/AnnotationMacro.cpp
 )
 
 # Chemical LSP Executable Target

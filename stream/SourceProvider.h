@@ -50,9 +50,10 @@ public:
     /**
      * if text is present at current pos in the stream, increments the stream with text.length()
      * @param text to increment
+     * @param peek peeks only, doesn't increment
      * @return true if incremented by text length otherwise false
      */
-    virtual bool increment(const std::string& text) = 0;
+    virtual bool increment(const std::string& text, bool peek = false) = 0;
 
     /**
      * if char c is present at current pos, increments the stream with character
@@ -101,6 +102,12 @@ public:
      */
     template<typename TFunc>
     std::string readAnything(TFunc when);
+
+    /**
+     * reads until the given ending appears into a string and returns it
+     * @param consume, should it also consume the ending text
+     */
+    std::string readUntil(const std::string& ending, bool consume = true);
 
     /**
      * escapes a sequence at current position, if 'n' is at current position, returns '\n'

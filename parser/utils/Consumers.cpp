@@ -5,7 +5,7 @@
 //
 
 #include "parser/Parser.h"
-#include "lexer/model/tokens/WhitespaceToken.h"
+#include "lexer/model/tokens/RawToken.h"
 #include "lexer/model/tokens/StringOperatorToken.h"
 #include "lexer/model/tokens/CharToken.h"
 #include "lexer/model/tokens/StringToken.h"

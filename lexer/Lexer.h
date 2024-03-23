@@ -30,8 +30,6 @@ public:
 
     inline bool isDebug() { return true; };
 
-    inline bool shouldAddWhitespaceToken() { return false; }
-
     explicit Lexer(SourceProvider &provider, std::string path) : provider(provider), path(std::move(path)) {
 
     }

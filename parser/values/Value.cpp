@@ -162,5 +162,9 @@ lex_ptr<Value> Parser::parseAccessChainOrValue() {
         }
         return chain;
     }
+    auto macro = parseMacroValue();
+    if(macro.has_value()) {
+        return macro;
+    }
     return std::nullopt;
 }

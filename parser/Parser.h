@@ -461,6 +461,27 @@ public:
     void print_got();
 
     /**
+     * parses a single macro
+     * @return pair, first -> macro name, second -> macro value
+     */
+    std::optional<std::pair<std::string, std::unique_ptr<Value>>> parseMacro();
+
+    /**
+     * parses a macro value
+     */
+    inline lex_ptr<Value> parseMacroValue() {
+        auto m = parseMacro();
+        if(m.has_value()) return std::move(m.value().second);
+        return std::nullopt;
+    }
+
+    /**
+     *
+     * @return
+     */
+    bool parseMacroValueStatementBool();
+
+    /**
      * gets current operator token if its a char operator of course
      * @return
      */

@@ -12,18 +12,27 @@ class MacroToken : public LexToken {
 public:
 
     std::string name;
+    bool isAnnotation;
+    bool isMacroEnd;
 
     MacroToken(
             const Position &position,
-            std::string name
-    ) : LexToken(position), name(std::move(name)) {
+            std::string name,
+            bool isAnnotation,
+            bool isMacroEnd = false
+    ) : LexToken(position), name(std::move(name)), isAnnotation(isAnnotation), isMacroEnd(isMacroEnd) {
         // nothing
     }
 
 #ifdef LSP_BUILD
     SemanticTokenModifier modifier;
 
-    MacroToken(const Position &position, unsigned int len, SemanticTokenModifier modifier) : LexToken(position), len(len), modifier(modifier) {
+    MacroToken(
+            const Position &position,
+            std::string name,
+            bool isAnnotation,
+            SemanticTokenModifier modifier
+    ) : LexToken(position), name(std::move(name)), isAnnotation(isAnnotation), modifier(modifier) {
         // nothing
     }
 
@@ -37,11 +46,15 @@ public:
     }
 
     std::string type_string() const override {
-        return "Annotation";
+        return "Macro:" + representation();
     }
 
     std::string representation() const override {
-        return "@" + name;
+        if(isAnnotation) {
+            return "@" + name;
+        } else {
+            return "#" + name;
+        }
     }
 
     std::string content() const override {

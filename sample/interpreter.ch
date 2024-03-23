@@ -1,5 +1,5 @@
 func main() : int {
-    print("\x1b[91mHello, World!\x1b[0m");
+    print(#raw \x1b[91mHello, World!\x1b[0m #endraw);
     return 0;
 }
 

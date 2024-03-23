@@ -4,6 +4,10 @@
 #include "parser/Parser.h"
 
 bool Lexer::collectStructAsLexer(unsigned int start, unsigned int end) {
+    if(has_errors) {
+        error("please resolve errors above before declaring a struct for collection");
+        return false;
+    }
     if(end - start <= 0) return false;
     std::vector<std::unique_ptr<LexToken>> copied_ptrs;
     copied_ptrs.reserve(end - start);

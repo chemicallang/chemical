@@ -48,8 +48,8 @@ std::string toTypeString(LexTokenType token) {
             return "LexTokenType::Type";
         case LexTokenType::Variable:
             return "LexTokenType::Variable";
-        case LexTokenType::Whitespace:
-            return "LexTokenType::Whitespace";
+        case LexTokenType::RawToken:
+            return "LexTokenType::Raw";
         default:
             return "Undocumented token in TypeUtils";
     }

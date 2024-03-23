@@ -76,5 +76,5 @@ bool Lexer::lexArrayInit() {
 }
 
 bool Lexer::lexAccessChainOrValue(bool lexStruct) {
-    return lexValueToken() || lexAccessChain(true, lexStruct);
+    return lexValueToken() || lexAccessChain(true, lexStruct) || lexAnnotationMacro();
 }

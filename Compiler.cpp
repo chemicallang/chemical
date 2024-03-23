@@ -10,7 +10,6 @@
 #include <cstdio>
 #include "utils/Utils.h"
 #include "ast/utils/ExpressionEvaluator.h"
-#include "ast/utils/ValueType.h"
 #include "ast/base/GlobalInterpretScope.h"
 #include "compiler/Codegen.h"
 #include "utils/CmdUtils.h"

@@ -70,6 +70,17 @@ std::string SourceProvider::readAnything(char until) {
     });
 }
 
+std::string SourceProvider::readUntil(const std::string& ending, bool consume) {
+    std::string content;
+    while(!eof() && peek() != -1) {
+        if(peek() == ending[0] && increment(ending, !consume)) {
+            break;
+        }
+        content += readCharacter();
+    }
+    return content;
+}
+
 std::string SourceProvider::readNumber() {
     auto appearedDot = false;
     auto first_char = true;

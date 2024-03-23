@@ -18,6 +18,7 @@ void Parser::parseMultipleStatements() {
             parseEnumDeclarationBool() ||
             parseStructDefinitionBool() ||
             parseInterfaceDefinitionBool() ||
+            parseMacroValueStatementBool() ||
             parseImplementationDefinitionBool() ||
             (isParseReturnStatement && parseReturnStatementBool()) ||
             (isParseBreakStatement && parseBreakStatement()) ||

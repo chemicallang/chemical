@@ -40,6 +40,8 @@ class WhileLoop;
 
 class AccessChain;
 
+class MacroValueStatement;
+
 class Visitor {
 public:
 
@@ -116,6 +118,10 @@ public:
     }
 
     virtual void visit(AccessChain* chain) {
+
+    }
+
+    virtual void visit(MacroValueStatement* statement) {
 
     }
 

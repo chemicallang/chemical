@@ -28,13 +28,13 @@ public:
     VariableIdentifier(std::string value) : value(std::move(value)) {}
 
     // will find value by this name in the parent
-    Value *find_in(InterpretScope& scope, Value *parent) override {
+    Value *find_in(InterpretScope &scope, Value *parent) override {
         return parent->child(value);
     }
 
     void set_value_in(InterpretScope &scope, Value *parent, Value *next_value, Operation op) override {
 #ifdef DEBUG
-        if(parent == nullptr) {
+        if (parent == nullptr) {
             scope.error("set_value_in in variable identifier, received null pointer to parent");
         }
 #endif
@@ -124,13 +124,34 @@ public:
         }
     }
 
-    Value *initializer_value(InterpretScope &scope) override {
-        // evaluates the value, if its primitive copies it, otherwise creates another reference
-        auto val = evaluated_value(scope);
-        if(val->primitive()) {
-            return val->copy();
+    Value *param_value(InterpretScope &scope) override {
+        // evaluates the value, if its primitive copies it
+        // otherwise, we pass another reference to the value, in the function calls
+        auto val = scope.find_value_iterator(value);
+        if (val.first == val.second.end() || val.first->second == nullptr) {
+            return nullptr;
+        }
+        if (val.first->second->primitive()) {
+            return val.first->second->copy();
         } else {
-            return val;
+            return val.first->second;
+        }
+    }
+
+    Value *initializer_value(InterpretScope &scope) override {
+        // evaluates the value, if its primitive copies it
+        // otherwise, we basically delete the previous pointer to the value
+        // it's similar to moving / taking ownership
+        auto val = scope.find_value_iterator(value);
+        if (val.first == val.second.end() || val.first->second == nullptr) {
+            return nullptr;
+        }
+        if (val.first->second->primitive()) {
+            return val.first->second->copy();
+        } else {
+            auto store = val.first->second;
+            val.first->second = nullptr;
+            return store;
         }
     }
 

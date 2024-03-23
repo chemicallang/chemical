@@ -20,6 +20,10 @@ class FunctionDeclaration;
 
 class InterfaceDefinition;
 
+class StructValue;
+
+class InterpretVectorValue;
+
 /**
  * @brief Base class for all values in the AST.
  */
@@ -212,6 +216,13 @@ std::cerr << "child called on base value";
     }
 
     /**
+     * this is the parameter value that is sent to function calls
+     */
+    virtual Value* param_value(InterpretScope& scope) {
+        return initializer_value(scope);
+    }
+
+    /**
      * This method should return the value for interpretation
      * By default it returns null pointer
      * @return
@@ -312,6 +323,26 @@ std::cerr << "child called on base value";
         std::cerr << "as_double called on base value, representation : " << representation();
 #endif
         throw std::runtime_error("as_float called on a value");
+    }
+
+    /**
+     * a function to be overridden by values that can return struct
+     */
+    virtual StructValue* as_struct() {
+#ifdef DEBUG
+        std::cerr << "as_struct called on base value, representation : " << representation();
+#endif
+        throw std::runtime_error("as_struct called on a value");
+    }
+
+    /**
+     * a function to be overridden by values that can return vectors
+     */
+    virtual InterpretVectorValue* as_vector() {
+#ifdef DEBUG
+        std::cerr << "as_vector called on base value, representation : " << representation();
+#endif
+        throw std::runtime_error("as_vector called on a value");
     }
 
     /**

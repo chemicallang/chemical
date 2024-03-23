@@ -5,6 +5,7 @@
  * These values are initialized by global functions
  */
 
+#pragma once
 
 #include "ast/base/Value.h"
 #include <functional>
@@ -75,6 +76,14 @@ public:
 
     Value *copy() const override {
         return nullptr;
+    }
+
+    ValueType value_type() const override {
+        return ValueType::Vector;
+    }
+
+    InterpretVectorValue * as_vector() override {
+        return this;
     }
 
 };

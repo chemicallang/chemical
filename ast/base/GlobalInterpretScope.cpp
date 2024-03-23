@@ -28,7 +28,7 @@ void GlobalInterpretScope::add_error(const std::string &err) {
 
 GlobalInterpretScope::~GlobalInterpretScope() {
 #ifdef DEBUG
-    if (nodes_interpreted == -1) {
+    if (nodes_interpreted == -1 && warn_no_nodes) {
         std::cerr << ANSI_COLOR_RED
                   << "global nodes_interpreted = -1 , either the scope is empty, or scope doesn't increment nodes_interpreted"
                   << std::endl;

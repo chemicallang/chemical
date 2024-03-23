@@ -43,7 +43,7 @@ public:
     Value *evaluated_value(InterpretScope &scope) override {
         prepare(scope);
         if (definition != nullptr) {
-            return definition->call(values);
+            return definition->call(&scope, values);
         } else {
             scope.error("(function call) calling a function that is not found or has no body, name : " + name);
         }

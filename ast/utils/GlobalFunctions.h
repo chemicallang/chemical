@@ -2,6 +2,9 @@
 
 #include "ast/base/GlobalInterpretScope.h"
 
+/**
+ * this is the type of function that can be inserted into global scope
+ */
 using CompTimeFuncType = std::function<Value *(InterpretScope *, std::vector<std::unique_ptr<Value>> &)>;
 
 /**
@@ -25,10 +28,6 @@ public:
 
     }
 
-    Value * call(std::vector<std::unique_ptr<Value>> &call_params) override {
-        return lambda(declarationScope, call_params);
-    }
-
     Value *call(InterpretScope *scope, std::vector<std::unique_ptr<Value>> &call_params) override {
         return lambda(scope, call_params);
     }
@@ -44,12 +43,17 @@ public:
 void define_func(GlobalInterpretScope &scope, const std::string &name, CompTimeFuncType func, bool isVariadic = false);
 
 /**
+ * this creates the vector function, which returns a vector
+ */
+CompTimeFuncType create_vector(GlobalInterpretScope &global);
+
+/**
  * this creates the normal print function
  */
 CompTimeFuncType create_print(GlobalInterpretScope &global);
 
 /**
  * defines all functions in global scope
- * these functions are interpreted functions like print and ansi_print
+ * these functions are interpreted functions like print and vector
  */
 void define_all(GlobalInterpretScope &scope);

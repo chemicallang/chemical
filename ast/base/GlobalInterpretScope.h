@@ -47,6 +47,11 @@ public:
     std::unordered_map<std::string, std::unique_ptr<FunctionDeclaration>> global_fns;
 
     /**
+     * global values that are used by global fns
+     */
+    std::unordered_map<std::string, std::unique_ptr<Value>> global_vals;
+
+    /**
      * expression evaluators evaluate expressions
      * indexed functions that evaluate two values into another value are put on this map
      * usually index is determined based on the type of values inputted

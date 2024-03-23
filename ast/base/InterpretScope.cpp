@@ -98,6 +98,10 @@ void InterpretScope::print_values() {
     for (auto const &value: values) {
         std::cout << value.first << " : " << value.second->representation() << std::endl;
     }
+    if(parent != nullptr) {
+        std::cout << "Parent ";
+        parent->print_values();
+    }
 }
 
 void InterpretScope::print_nodes() {

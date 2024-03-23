@@ -130,13 +130,10 @@ public:
 
     void interpret_scope_ends(InterpretScope &scope) override;
 
-    virtual Value *call(std::vector<std::unique_ptr<Value>> &call_params) {
+    virtual Value *call(InterpretScope *call_scope, std::vector<std::unique_ptr<Value>> &call_params) {
         if (!body.has_value()) return nullptr;
-        InterpretScope child(declarationScope, declarationScope->global, &body.value(), this);
-        return call(&child, call_params);
-    }
-
-    virtual Value *call(InterpretScope *scope, std::vector<std::unique_ptr<Value>> &call_params) {
+        InterpretScope decl_child(declarationScope, declarationScope->global, &body.value(), this);
+        auto scope = &decl_child;
         if (params.size() != call_params.size()) {
             scope->error("function " + name + " requires " + std::to_string(params.size()) + ", but given params are " +
                         std::to_string(call_params.size()));
@@ -144,7 +141,7 @@ public:
         }
         auto i = 0;
         while (i < params.size()) {
-            scope->declare(params[i].name, call_params[i]->initializer_value(*scope));
+            decl_child.declare(params[i].name, call_params[i]->initializer_value(*call_scope));
             i++;
         }
         body.value().interpret(*scope);

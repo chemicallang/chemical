@@ -95,7 +95,7 @@ bool Parser::consume(const std::string &keyword) {
     }
 }
 
-lex_ptr<KeywordToken> Parser::consume(const std::string &keyword, bool errorOut) {
+KeywordToken* Parser::consume(const std::string &keyword, bool errorOut) {
     if (tokens.size() != position) {
         if (tokens[position]->type() == LexTokenType::Keyword) {
             if (as<KeywordToken>()->keyword == keyword) {
@@ -110,5 +110,5 @@ lex_ptr<KeywordToken> Parser::consume(const std::string &keyword, bool errorOut)
     } else if (errorOut) {
         error("expected a " + toTypeString(LexTokenType::Keyword) + " token but there are no tokens left");
     }
-    return std::nullopt;
+    return nullptr;
 }

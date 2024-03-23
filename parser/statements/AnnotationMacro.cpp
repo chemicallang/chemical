@@ -18,7 +18,7 @@ std::optional<std::pair<std::string, std::unique_ptr<Value>>> Parser::parseMacro
             }
             if (token_type() == LexTokenType::Macro) {
                 // just going to assume this is the end token
-                consume<MacroToken>();
+                increment();
                 // string value
                 return std::pair(macro->name, std::make_unique<StringValue>(std::move(content)));
             } else {

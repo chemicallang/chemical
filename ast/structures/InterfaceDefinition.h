@@ -8,7 +8,8 @@
 
 #include <utility>
 
-#include "ast/base/AstNode.h"
+#include "ast/base/ASTNode.h"
+#include "ast/base/GlobalInterpretScope.h"
 #include "ast/base/Value.h"
 
 class InterfaceDefinition : public ASTNode {

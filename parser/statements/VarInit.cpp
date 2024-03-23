@@ -15,7 +15,7 @@ lex_ptr<VarInitStatement> Parser::parseVariableInitStatement() {
         return std::nullopt;
     }
     auto var = consumeOfType<VariableToken>(LexTokenType::Variable);
-    if (!var.has_value()) {
+    if (var == nullptr) {
         return std::nullopt;
     }
     lex_ptr<BaseType> base_type = std::nullopt;
@@ -26,7 +26,7 @@ lex_ptr<VarInitStatement> Parser::parseVariableInitStatement() {
     if (consume_op('=')) {
         value = parseExpression();
     }
-    return std::make_unique<VarInitStatement>(consumed_const, var.value()->value, std::move(base_type), std::move(value));
+    return std::make_unique<VarInitStatement>(consumed_const, var->value, std::move(base_type), std::move(value));
 }
 
 bool Parser::parseVariableInitStatementBool() {

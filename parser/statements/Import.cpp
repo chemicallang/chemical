@@ -10,8 +10,8 @@
 lex_ptr<ImportStatement> Parser::parseImportStatement() {
     if (consume("import")) {
         auto value = consumeOfType<AbstractStringToken>(LexTokenType::String);
-        if (value.has_value()) {
-            return std::make_unique<ImportStatement>(value.value()->value);
+        if (value != nullptr) {
+            return std::make_unique<ImportStatement>(value->value);
         } else {
             error("expected a value for the import statement");
         }

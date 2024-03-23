@@ -43,7 +43,7 @@ lex_ptr<FunctionDeclaration> Parser::parseFunctionDefinition(bool declarations) 
                         }
                         auto type = parseType();
                         if(type.has_value()) {
-                            params.emplace_back(std::move(paramToken->value), std::move(type.value()), paramsCount);
+                            params.emplace_back(paramToken->value, std::move(type.value()), paramsCount);
                             paramsCount++;
                             if(token_type() == LexTokenType::StringOperator && as<AbstractStringToken>()->value == "...") {
                                 increment();
@@ -71,7 +71,7 @@ lex_ptr<FunctionDeclaration> Parser::parseFunctionDefinition(bool declarations) 
                 }
 
                 // create declaration before, so that return statement can take a pointer to it
-                auto declaration = std::make_unique<FunctionDeclaration>(std::move(token->value), std::move(params),
+                auto declaration = std::make_unique<FunctionDeclaration>(token->value, std::move(params),
                                                                          std::move(returnType.value()), isVariadic);
 
                 if (!consume_op('{')) {

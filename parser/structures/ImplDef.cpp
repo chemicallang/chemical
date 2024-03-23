@@ -9,7 +9,7 @@
 lex_ptr<ImplDefinition> Parser::parseImplementationDefinition() {
     if(consume("impl")) {
         auto interfaceName = consumeOfType<AbstractStringToken>(LexTokenType::Interface);
-        if(!interfaceName.has_value()) {
+        if(interfaceName == nullptr) {
             error("interface name missing for implementation declaration");
             return std::nullopt;
         }
@@ -18,8 +18,9 @@ lex_ptr<ImplDefinition> Parser::parseImplementationDefinition() {
             return std::nullopt;
         }
         auto structName = consumeOfType<AbstractStringToken>(LexTokenType::Struct);
-        if(!structName.has_value()) {
-            error("expected a struct name for implementation declaration for interface " + interfaceName.value()->value);
+        if(structName == nullptr) {
+            error("expected a struct name for implementation declaration for interface " + interfaceName->value);
+            return std::nullopt;
         }
         if(consume_op('{')) {
             std::vector<std::unique_ptr<ASTNode>> members;
@@ -41,7 +42,7 @@ lex_ptr<ImplDefinition> Parser::parseImplementationDefinition() {
             if(!consume_op('}')) {
                 error("expected '}' after the impl definition");
             }
-            return std::make_unique<ImplDefinition>(structName.value()->value, interfaceName.value()->value, std::move(members));
+            return std::make_unique<ImplDefinition>(structName->value, interfaceName->value, std::move(members));
         }
     }
     return std::nullopt;

@@ -62,6 +62,43 @@ These features are sorted by priority, the features on top are what we will work
 - Use as an embedder language
 - Use as a scripting language (we may skip this)
 
+### Build
+
+#### Requirements
+
+These requirements are for people who've never set up a C++ / Boost / LLVM Project
+
+ - A PC with at least 8 - 16 GB of RAM
+ - CLion IDE (I use CLion)
+ - Toolchain (Visual Studio / Other)
+ - LLVM (Optional -> only if you are working on compiler)
+ - Patience with build errors (open an issues for fast response)
+
+#### Instructions
+
+The project generates three executables (at the moment)
+
+ - Compiler (source code to executables) (requires llvm)
+ - Interpreter (interprets the source code)
+ - LSP Server (for IDE experience) (requires boost)
+
+The easiest to setup and work on is interpreter because it has no dependencies.
+
+#### To work on `Interpreter`
+- clone the repo
+  - open in CLion
+  - mostly done, if you fail, open an issue
+
+#### To work on `LSP Server`
+- Please install Boost
+  - open an issue, if you fail, I'll respond fast
+
+#### To work on `Compiler`
+- clone a repo present in this organization named `chemical-bootstrap`
+- clone this repo inside `chemical-bootstrap` (folder chemical)
+- build llvm, `chemical-bootstrap` has build scripts (build.bat or build)
+- make sure it works, open an issue if it doesn't !
+
 ### Contibuting
 
 Chemical Programming Language is an open source work, It also allows you to completely customize it.

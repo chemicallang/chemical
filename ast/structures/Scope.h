@@ -48,6 +48,7 @@ public:
 #endif
 
     void interpret(InterpretScope& scope) override {
+        scope.nodes_interpreted = -1;
         for(const auto& node : nodes) {
             node->interpret(scope);
             scope.nodes_interpreted++;

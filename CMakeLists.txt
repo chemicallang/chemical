@@ -256,6 +256,7 @@ set(COMMON_SOURCES
         ast/utils/GlobalFunctions.cpp
         ast/statements/MacroValueStatement.h
         parser/statements/AnnotationMacro.cpp
+        ast/utils/InterpretValues.h
 )
 
 # Chemical LSP Executable Target

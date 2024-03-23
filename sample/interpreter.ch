@@ -1,5 +1,13 @@
 func main() : int {
-    print(#raw \x1b[91mHello, World!\x1b[0m #endraw);
+    var v = vector();
+    v.push(11);
+    v.push(22);
+    v.push(33);
+    var i = 0;
+    while(i < v.size()) {
+        print(i, " = ", v[i]);
+        i++;
+    }
     return 0;
 }
 

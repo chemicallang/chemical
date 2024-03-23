@@ -13,6 +13,7 @@
 #include "lexer/model/tokens/NumberToken.h"
 #include "ast/utils/Operation.h"
 #include "common/Diagnostic.h"
+#include "ast/base/BaseType.h"
 #include <memory>
 #include <optional>
 #include <functional>
@@ -559,8 +560,11 @@ public:
         return provider.getLineNumber();
     }
 
-private:
+protected:
 
+    /*
+     * collected modifiers
+     */
     unsigned int modifiers = 0;
 
     /**

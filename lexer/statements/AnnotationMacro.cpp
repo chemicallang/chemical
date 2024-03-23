@@ -25,7 +25,9 @@ bool Lexer::lexAnnotationMacro() {
         tokens.emplace_back(std::make_unique<MacroToken>(backPosition(macro.size() + 1), std::move(macro), isAnnotation, modifier));
 #else
         tokens.emplace_back(std::make_unique<MacroToken>(backPosition(macro.size() + 1), macro, isAnnotation));
-        if(!isAnnotation) {
+        if(isAnnotation) {
+
+        } else {
             std::string ending = "#end" + macro;
             auto current = position();
             std::string content = provider.readUntil(ending, false);

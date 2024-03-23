@@ -69,7 +69,7 @@ public:
      * @param tokens
      */
     Parser(std::vector<std::unique_ptr<LexToken>> tokens) : tokens(std::move(tokens)) {
-        // nothing here
+        init();
     }
 
     /**
@@ -670,7 +670,17 @@ public:
      */
     bool isParseInterpretableExpressions = false;
 
-private:
+protected:
+
+    /**
+     * this initializes the lexer, this is called in the constructor
+     */
+    void init();
+
+    /**
+     * this is a map between primitive types and their classes
+     */
+    std::unordered_map<std::string, std::function<BaseType*(Parser*)>> primitive_type_map;
 
     /**
      * this is the position in tokens variable

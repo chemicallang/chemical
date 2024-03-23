@@ -14,20 +14,9 @@
 lex_ptr<BaseType> Parser::parseType() {
     if (token_type() == LexTokenType::Type) {
         auto type = std::move(consume<TypeToken>()->value);
-        if (type == "int") { // currently parsing int as int32
-            return std::make_unique<Int32Type>();
-        } else if (type == "string") {
-            return std::make_unique<StringType>();
-        } else if (type == "float") {
-            return std::make_unique<FloatType>();
-        } else if (type == "double") {
-            return std::make_unique<DoubleType>();
-        } else if (type == "bool") {
-            return std::make_unique<BoolType>();
-        } else if (type == "char") {
-            return std::make_unique<CharType>();
-        } else if (type == "any") {
-            return std::make_unique<AnyType>();
+        auto type_fn = primitive_type_map.find(type);
+        if(type_fn != primitive_type_map.end()) {
+            return std::unique_ptr<BaseType>(type_fn->second(this));
         } else {
             return std::make_unique<ReferencedType>(type);
         }

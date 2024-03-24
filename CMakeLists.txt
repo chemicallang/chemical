@@ -20,6 +20,18 @@ set(CMAKE_USER_MAKE_RULES_OVERRIDE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/c_flag_over
 set(CMAKE_USER_MAKE_RULES_OVERRIDE_CXX ${CMAKE_CURRENT_SOURCE_DIR}/cmake/cxx_flag_overrides.cmake)
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
 
+# Debug builds error messages that are more helpful
+set(CMAKE_BUILD_TYPE "Debug")
+if(CMAKE_BUILD_TYPE MATCHES Debug)
+    add_definitions(-DDEBUG)
+endif()
+
+# Verbose builds produce logs as well
+option(VERBOSE "Enable verbose output (for debugging)" OFF)
+if(VERBOSE)
+    add_definitions(-DVERBOSE) # Define VERBOSE macro
+endif()
+
 # Enable verbose output
 #set(CMAKE_VERBOSE_MAKEFILE ON)
 # Use static libraries
@@ -57,28 +69,8 @@ if(CLANG_LIBRARIES AND CLANG_LIBRARIES MATCHES "CLANG_LIBRARIES-NOTFOUND")
     string(REPLACE "CLANG_LIBRARIES-NOTFOUND;" "" CLANG_LIBRARIES "${CLANG_LIBRARIES}")
 endif()
 
-set(CMAKE_BUILD_TYPE "Debug")
-
-if(CMAKE_BUILD_TYPE MATCHES Debug)
-    add_definitions(-DDEBUG)
-endif()
-
-option(VERBOSE "Enable verbose output (for debugging)" OFF)
-if(VERBOSE)
-    add_definitions(-DVERBOSE) # Define VERBOSE macro
-endif()
-
 # Add the LspCpp library directory
 add_subdirectory(LspCpp)
-
-#if (MSVC)
-#    message(STATUS "Using VS at $ENV{VSINSTALLDIR}")
-#    set(MSVC_DIA_SDK_DIR "$ENV{VSINSTALLDIR}DIA SDK")
-#    if (IS_DIRECTORY ${MSVC_DIA_SDK_DIR})
-#        set(ZIG_DIA_GUIDS_LIB "${MSVC_DIA_SDK_DIR}/lib/amd64/diaguids.lib")
-#        string(REGEX REPLACE "\\\\" "\\\\\\\\" ZIG_DIA_GUIDS_LIB_ESCAPED "${ZIG_DIA_GUIDS_LIB}")
-#    endif ()
-#endif ()
 
 # Add your common source files (excluding the main files)
 set(COMMON_SOURCES
@@ -320,12 +312,20 @@ target_include_directories(Compiler PRIVATE
 )
 
 # find the libraries that correspond to llvm
-#llvm_map_components_to_libnames(LLVM_EXTRA_LIBS Option)
+# llvm_map_components_to_libnames(LLVM_EXTRA_LIBS Option)
 
 # Indicate which libraries are present in these vars
 message(STATUS "LLvm Libs ${LLVM_LIBRARIES}")
 message(STATUS "Clang Libs ${CLANG_LIBRARIES}")
 message(STATUS "LLD Libs ${LLD_LIBRARIES}")
+
+if (MSVC)
+    # Disable warning C4267: 'argument': conversion from 'size_t' to '...', possible loss of data
+    # For Microsoft Visual Studio Compiler Only
+    target_compile_options(Compiler PRIVATE /wd4267)
+    target_compile_options(Interpreter PRIVATE /wd4267)
+    target_compile_options(ChemicalLsp PRIVATE /wd4267)
+endif()
 
 # https://discourse.llvm.org/t/undefined-reference-to-typeinfo-for-llvm-genericoptionvalue/71526/3
 set(NO_RTTI "-fno-rtti")
@@ -338,7 +338,7 @@ endif()
 # This should be removed eventually we don't want boost to boost our exe size
 target_link_libraries(Interpreter)
 
-# Link compiler against boost
+# Link compiler against CLANG, LLVM, LLD
 target_link_libraries(Compiler ${CLANG_LIBRARIES} ${LLVM_LIBRARIES} ${LLD_LIBRARIES})
 
 # Link Lsp with Boost Library

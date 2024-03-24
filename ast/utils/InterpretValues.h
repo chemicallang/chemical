@@ -61,6 +61,7 @@ public:
         auto fn = members.find(name);
         if (fn == members.end()) {
             scope.error("function with name " + name + " doesn't exist on vector");
+            return nullptr;
         } else {
             return fn->second(scope, this, vals);
         }

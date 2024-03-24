@@ -29,10 +29,12 @@ bool Lexer::collectStructAsLexer(unsigned int start, unsigned int end) {
             lexer_structs[definition.value()->name] = std::move(definition.value());
         } else {
             error("couldn't find struct");
+            return false;
         }
     } else {
         for(auto& err : parser.errors) {
             errors.push_back(std::move(err));
         }
     }
+    return true;
 }

@@ -222,7 +222,7 @@ public:
             return val.first->second->copy();
         } else {
             auto store = val.first->second;
-            val.first->second = nullptr;
+            val.second.erase(val.first);
             return store;
         }
     }

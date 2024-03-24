@@ -57,7 +57,7 @@ public:
      * the current interpret position
      * this is assigned to the position variable of the ASTNode
      */
-    unsigned int current_interpret_position = 0;
+    unsigned int curr_node_position = 0;
 
     /**
      * global functions that are evaluated during interpretation

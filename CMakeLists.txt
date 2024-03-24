@@ -204,7 +204,6 @@ set(COMMON_SOURCES
         ast/base/GlobalInterpretScope.cpp
         ast/utils/Operation.cpp
         ast/structures/LoopScope.h
-        ast/structures/LoopScope.h
         parser/statements/Import.cpp
         ast/base/LoopASTNode.h
         ast/structures/ImplDefinition.h
@@ -267,6 +266,8 @@ set(COMMON_SOURCES
         stream/StreamStructValue.h
         stream/StreamStructValue.cpp
         lexer/model/tokens/UserToken.h
+        ast/structures/Scope.cpp
+        ast/structures/LoopScope.cpp
 )
 
 # Chemical LSP Executable Target

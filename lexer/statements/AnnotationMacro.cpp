@@ -72,9 +72,12 @@ bool Lexer::lexAnnotationMacro() {
             }
         } else {
 
+            if(macro.starts_with("end")) {
+                error("processing ending macro as starting point, macro cannot be named starting with 'end' like " + macro);
+                return true;
+            }
+
             std::string ending = "#end" + macro;
-            auto current = position();
-            std::string content = provider.readUntil(ending, false);
 
             // check if this macro has a lexer fined
             auto lex_struct = this->lexer_structs.find(macro);
@@ -115,19 +118,26 @@ bool Lexer::lexAnnotationMacro() {
                         for (auto &token: tokens_struct) {
                             tokens.push_back(std::move(token));
                         }
-                        return true;
                     }
 
                 }
 
             }
 
-            tokens.emplace_back(std::make_unique<RawToken>(current, std::move(content)));
+            lexWhitespaceAndNewLines();
+
             auto before_ending = position();
             if(provider.increment(ending)) {
                 tokens.emplace_back(std::make_unique<MacroToken>(before_ending, "end" + macro, false, true));
             } else {
-                error("expected ending macro with " + ending);
+                auto current = position();
+                auto content = provider.readUntil(ending, false);
+                tokens.emplace_back(std::make_unique<RawToken>(current, std::move(content)));
+                if(!provider.increment(ending)) {
+                    error("expected ending macro with " + ending);
+                } else {
+                    tokens.emplace_back(std::make_unique<MacroToken>(before_ending, "end" + macro, false, true));
+                }
             }
         }
         return true;

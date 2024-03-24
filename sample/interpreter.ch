@@ -1,12 +1,15 @@
+@lexer
 struct html {
-    func value() {
-        return 11;
+    func lex(provider : SourceProvider) {
+        var tokens = vector();
+
+        return tokens;
     }
 }
 
 func main() : int {
-    var x = html {};
-    print(x.value());
+    var x = #html <html></html> #endhtml;
+    print(x);
     return 0;
 }
 

@@ -1,6 +1,6 @@
 struct html {
     func value() {
-        return "<html></html>";
+        return 11;
     }
 }
 

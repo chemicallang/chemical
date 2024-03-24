@@ -3,10 +3,10 @@
 #include "ast/base/GlobalInterpretScope.h"
 
 void FunctionDeclaration::interpret_scope_ends(InterpretScope &scope) {
-    scope.global->erase_node(name);
+    scope.erase_node(name);
 }
 
-Value* FunctionDeclaration::call(InterpretScope *call_scope, std::vector<std::unique_ptr<Value>> &call_params, std::unique_ptr<InterpretScope> fn_scope) {
+Value* FunctionDeclaration::call(InterpretScope *call_scope, std::vector<std::unique_ptr<Value>> &call_params, InterpretScope* fn_scope) {
     if (!body.has_value()) return nullptr;
     if (params.size() != call_params.size()) {
         fn_scope->error("function " + name + " requires " + std::to_string(params.size()) + ", but given params are " +

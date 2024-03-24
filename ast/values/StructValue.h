@@ -42,9 +42,19 @@ public:
                 scope.error("couldn't find member function by name " + name + " in a struct by name " + structName);
                 return nullptr;
             }
+#ifdef DEBUG
+            if(definition->decl_scope == nullptr) {
+                scope.error("declaration scope is nullptr for struct value");
+            }
+            if(!fn->body.has_value()) {
+                scope.error("function doesn't have body in a struct " + name);
+                return nullptr;
+            }
+#endif
             InterpretScope child(definition->decl_scope, scope.global, &fn->body.value(), definition);
             child.declare("this", this);
-            return fn->call(&scope, params, std::unique_ptr<InterpretScope>(&child));
+            auto value = fn->call(&scope, params, &child);
+            return value;
         }
     }
 

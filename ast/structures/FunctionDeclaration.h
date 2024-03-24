@@ -132,11 +132,11 @@ public:
 
     virtual Value *call(InterpretScope *call_scope, std::vector<std::unique_ptr<Value>> &call_params) {
         if (!body.has_value()) return nullptr;
-        auto fn_scope = std::make_unique<InterpretScope>(declarationScope, declarationScope->global, &body.value(), this);
-        return call(call_scope, call_params, std::move(fn_scope));
+        InterpretScope fn_scope(declarationScope, declarationScope->global, &body.value(), this);
+        return call(call_scope, call_params, &fn_scope);
     }
 
-    virtual Value *call(InterpretScope *call_scope, std::vector<std::unique_ptr<Value>> &call_params, std::unique_ptr<InterpretScope> fn_scope);
+    virtual Value *call(InterpretScope *call_scope, std::vector<std::unique_ptr<Value>> &call_params, InterpretScope* fn_scope);
 
     // called by the return statement
     void set_return(Value *value) {

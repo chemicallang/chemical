@@ -114,10 +114,12 @@ bool Lexer::lexAnnotationMacro() {
                     } else if (tokens_value->value_type() != ValueType::Vector) {
                         error("received a value that is not a vector from lex member function of " + macro);
                     } else {
-                        auto tokens_struct = get_user_tokens(tokens_value->as_vector(), *this);
+                        auto vec = tokens_value->as_vector();
+                        auto tokens_struct = get_user_tokens(vec, *this);
                         for (auto &token: tokens_struct) {
                             tokens.push_back(std::move(token));
                         }
+                        delete vec;
                     }
 
                 }

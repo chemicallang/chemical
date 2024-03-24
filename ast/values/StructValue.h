@@ -74,6 +74,11 @@ public:
         return this;
     }
 
+    Value * initializer_value(InterpretScope &scope) override {
+        prepare(scope);
+        return copy();
+    }
+
     Value *copy() const override {
         std::vector<std::pair<std::string, std::unique_ptr<Value>>> copied(values.size());
         for (unsigned i = 0; i < values.size(); ++i) {

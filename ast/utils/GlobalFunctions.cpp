@@ -50,8 +50,7 @@ CompTimeFuncType create_vector(GlobalInterpretScope &global) {
                 std::vector<std::unique_ptr<Value>> &params
         ) -> Value * {
             if(params.empty()) return nullptr;
-            auto to_add = params[0]->primitive() ? params[0]->copy() : params[0].get();
-            static_cast<InterpretVectorValue*>(value)->values.emplace_back(to_add);
+            static_cast<InterpretVectorValue*>(value)->values.emplace_back(params[0]->param_value(scope));
             return nullptr;
         };
         member_fns["erase"] = [&](

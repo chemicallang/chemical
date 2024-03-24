@@ -17,7 +17,7 @@ func moved_return() {
     return x; // moved here
 }
 
-func references() {
+func struct_references() {
     var x = wow {
         i : 5
     };
@@ -31,10 +31,53 @@ func references() {
     return x;
 }
 
+func copy_above_primitive() {
+    var x : int
+    if(true) {
+        x = 5;
+    }
+    return x;
+}
+
+func copy_above_primitive_by_id() {
+    var x : int
+    if(true) {
+        var y = 5;
+        x = y;
+    }
+    return x;
+}
+
+func moving_above_struct_value() {
+    var x : wow;
+    if(5 == 5) {
+        x = wow {
+            i : 7
+        };
+    }
+    return x;
+}
+
+func moving_struct_down() {
+    var x : wow = wow {
+        i : 0
+    }
+    if(true) {
+        // testing with declaration
+        var z : wow
+        z = x;
+        // testing with initialization
+        var j = x;
+        j = x;
+    }
+    return x;
+}
+
 func moving_above() {
-    var x : wow
-    var y = 5
-    if(y == 5) {
+    var x : wow = wow {
+        i : 0
+    }
+    if(true) {
         var z = wow {
             i : 16
         }
@@ -47,8 +90,12 @@ func moving_above() {
 func main() : int {
     print("copied-return:", copied_return(), '\n');
     print("moved-return:", moved_return(), '\n');
-    print("references:", references(), '\n');
-    print("moving-above", moving_above(), '\n');
+    print("copy-above-primitive:", copy_above_primitive(), '\n');
+    print("copy-above-primitive-by-id:", copy_above_primitive_by_id(), '\n');
+    print("struct-references:", struct_references(), '\n');
+    print("moving-above-struct-value:", moving_above_struct_value(), '\n');
+    print("moving_struct_down:", moving_struct_down(), '\n');
+    print("moving-above:", moving_above(), '\n');
     return 0;
 }
 

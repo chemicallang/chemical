@@ -26,6 +26,10 @@ public:
         return false;
     }
 
+    bool reference() override {
+        return true;
+    }
+
     void interpret(InterpretScope &scope) override {
         auto v = evaluated_value(scope);
         if(v != nullptr && v->primitive()) {
@@ -80,11 +84,11 @@ public:
         return parent(scope)->evaluated_value(scope);
     }
 
-    void set_identifier_value(InterpretScope &scope, Value *value, Operation op) override {
+    void set_identifier_value(InterpretScope &scope, Value *rawValue, Operation op) override {
         if (values.size() <= 1) {
-            values[0]->set_identifier_value(scope, value, op);
+            values[0]->set_identifier_value(scope, rawValue, op);
         } else {
-            values[values.size() - 1]->set_value_in(scope, parent_value(scope), value, op);
+            values[values.size() - 1]->set_value_in(scope, parent_value(scope), rawValue->assignment_value(scope), op);
         }
     }
 

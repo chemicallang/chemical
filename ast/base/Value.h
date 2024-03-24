@@ -24,6 +24,8 @@ class StructValue;
 
 class InterpretVectorValue;
 
+class VarInitStatement;
+
 /**
  * @brief Base class for all values in the AST.
  */
@@ -182,8 +184,22 @@ std::cerr << "child called on base value";
      * @param value
      * @param op
      */
-    virtual void set_identifier_value(InterpretScope& scope, Value* value, Operation op) {
+    virtual void set_identifier_value(InterpretScope& scope, Value* rawValue, Operation op) {
         scope.error("set_identifier_value called on base value");
+    }
+
+    /**
+     * return a var init statement that this value corresponds to
+     */
+    virtual VarInitStatement* declaration(InterpretScope& scope) {
+        return nullptr;
+    }
+
+    /**
+     * return true if this value is a reference (VariableIdentifier)
+     */
+    virtual bool reference() {
+        return false;
     }
 
     /**

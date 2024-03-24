@@ -45,7 +45,7 @@ public:
 #endif
 
     void interpret(InterpretScope& scope) override {
-        lhs->set_identifier_value(scope, value->assignment_value(scope), assOp);
+        lhs->set_identifier_value(scope, value.get(), assOp);
     }
 
     void interpret_scope_ends(InterpretScope &scope) override {

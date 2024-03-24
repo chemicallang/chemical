@@ -68,7 +68,7 @@ bool Lexer::lexAssignmentTokens() {
     lexWhitespaceToken();
 
     // value
-    if (!(lexExpressionTokens() || lexArrayInit())) {
+    if (!(lexExpressionTokens(true) || lexArrayInit())) {
         error("expected a value for variable assignment");
         return true;
     }

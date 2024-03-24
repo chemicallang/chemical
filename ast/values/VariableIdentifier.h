@@ -32,6 +32,10 @@ public:
         return parent->child(value);
     }
 
+    bool reference() override {
+        return true;
+    }
+
     void set_value_in(InterpretScope &scope, Value *parent, Value *next_value, Operation op) override {
 #ifdef DEBUG
         if (parent == nullptr) {
@@ -41,29 +45,76 @@ public:
         parent->set_child_value(value, next_value, op);
     }
 
-    void set_identifier_value(InterpretScope &scope, Value *newValue, Operation op) override {
-        auto it = scope.find_value_iterator(value);
-        if (it.first == it.second.end()) {
-            if(op == Operation::Assignment) {
-                // value has been declared above and now is being assigned
-                scope.declare(value, newValue);
-            } else {
-                scope.error("couldn't set non-existent variable " + value + " with operation " + to_string(op));
-            }
+    void set_identifier_value(InterpretScope &scope, Value *rawValue, Operation op) override {
+
+        auto newValue = rawValue->assignment_value(scope);
+        if (newValue == nullptr) {
+            scope.error("trying to assign null ptr to identifier " + value);
             return;
         }
-        auto v = it.first->second;
 
-        auto nextValue = op == Operation::Assignment ? (newValue) : (
-                scope.global->expr_evaluators[
-                        ExpressionEvaluator::index(v->value_type(), v->value_type(), op)
-                ](v, newValue)
-        );
-
-        if (v->primitive()) {
-            delete v;
+        // var init statement of current value, being assigned var x (<--- this one) = y
+        auto var_init = declaration(scope);
+        if (var_init == nullptr) {
+            scope.error("couldn't find declaration for identifier " + value);
+            return;
         }
-        it.first->second = nextValue;
+
+        // making one statement a reference
+        if (rawValue->reference() && !newValue->primitive()) {
+            // var init statement of value that owns the value var x = y (<---- this one)
+            auto value_var_init = rawValue->declaration(scope);
+            if (value_var_init == nullptr) {
+                scope.error("couldn't find declaration of the identifier " + rawValue->representation() +
+                            " to assign to " + value);
+                return;
+            }
+            if (var_init->position > value_var_init->position) {
+                // going down, declared above and now being assigned to declaration below (take reference / make decl below a reference)
+                var_init->is_reference = true;
+            } else {
+                // going up, declared below and now being assigned to declaration above (move the value / make decl above a reference)
+                value_var_init->is_reference = true;
+                var_init->is_reference = false;
+            }
+        } else {
+            var_init->is_reference = false;
+        }
+
+        // iterator for previous value
+        auto itr = scope.find_value_iterator(value);
+
+        auto nextValue = newValue;
+
+        // previous value doesn't exist, so it must only be a declaration above that is being assigned
+        // preventing x += 1 (requires previous value)
+        if (op != Operation::Assignment) {
+
+            // previous value iterator is required
+            if (itr.first == itr.second.end()) {
+                scope.error("couldn't set non-existent variable " + value + " with operation " + to_string(op));
+                return;
+            }
+
+            // get the previous value, perform operation on it
+            auto prevValue = itr.first->second;
+            nextValue = scope.global->expr_evaluators[
+                    ExpressionEvaluator::index(prevValue->value_type(), prevValue->value_type(), op)
+            ](prevValue, newValue);
+
+        }
+
+        // delete previous value if its a primitive / not a reference & exists
+        if(itr.first != itr.second.end() && (!var_init->is_reference || itr.first->second->primitive())) {
+            delete itr.first->second;
+        }
+
+        if(itr.first == itr.second.end()) {
+            var_init->declare(nextValue);
+        } else {
+            itr.first->second = nextValue;
+        }
+
     }
 
 #ifdef COMPILER_BUILD
@@ -120,6 +171,14 @@ public:
     }
 #endif
 
+    VarInitStatement *declaration(InterpretScope &scope) override {
+        auto node = scope.find_node(value);
+        if (node != nullptr) {
+            return node->as_var_init();
+        }
+        return nullptr;
+    }
+
     Value *evaluated_value(InterpretScope &scope) override {
         auto found = scope.find_value(value);
         if (found != nullptr) {
@@ -132,7 +191,7 @@ public:
     /**
      * every identifier's value will be moved to new owner at return
      */
-    Value* return_value(InterpretScope& scope) override {
+    Value *return_value(InterpretScope &scope) override {
         // current identifier, holds the value, we find it
         auto val = scope.find_value_iterator(value);
         // check if not found
@@ -182,7 +241,7 @@ public:
         }
     }
 
-    Value* assignment_value(InterpretScope &scope) override {
+    Value *assignment_value(InterpretScope &scope) override {
         // user is trying to do var x = y;
         // where y is this variable identifier
         auto val = scope.find_value_iterator(value);

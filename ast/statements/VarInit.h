@@ -80,14 +80,20 @@ public:
     void interpret(InterpretScope &scope) override {
         if (value.has_value()) {
             scope.declare(identifier, value.value()->initializer_value(scope));
+        } else {
+            decl_scope = &scope;
         }
         scope.declare(identifier, this);
+    }
+
+    void declare(Value* new_value) {
+        decl_scope->declare(identifier, new_value);
     }
 
     void interpret_scope_ends(InterpretScope &scope) override {
         auto found = scope.find_value_iterator(identifier);
         if (found.first != found.second.end()) {
-            if(!value.has_value() || !value.value()->is_initializer_reference(scope)) {
+            if(!is_reference && (!value.has_value() || !value.value()->is_initializer_reference(scope))) {
                 delete found.first->second;
             }
             found.second.erase(found.first);
@@ -117,6 +123,8 @@ public:
     }
 
     bool is_const;
+    bool is_reference = false;
+    InterpretScope* decl_scope = nullptr;
     std::string identifier; ///< The identifier being initialized.
     std::optional<std::unique_ptr<BaseType>> type;
     std::optional<std::unique_ptr<Value>> value; ///< The value being assigned to the identifier.

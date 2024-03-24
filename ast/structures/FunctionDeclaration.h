@@ -10,8 +10,8 @@
 
 #include "ast/base/Value.h"
 #include "ast/base/ASTNode.h"
-#include "LoopScope.h"
 #include "ast/base/BaseType.h"
+#include "LoopScope.h"
 #include <optional>
 
 class FunctionParam : public ASTNode {
@@ -136,35 +136,7 @@ public:
         return call(call_scope, call_params, std::move(fn_scope));
     }
 
-    virtual Value *call(InterpretScope *call_scope, std::vector<std::unique_ptr<Value>> &call_params, std::unique_ptr<InterpretScope> fn_scope) {
-        if (!body.has_value()) return nullptr;
-        if (params.size() != call_params.size()) {
-            fn_scope->error("function " + name + " requires " + std::to_string(params.size()) + ", but given params are " +
-                        std::to_string(call_params.size()));
-            return nullptr;
-        }
-        auto i = 0;
-        while (i < params.size()) {
-            fn_scope->declare(params[i].name, call_params[i]->param_value(*call_scope));
-            i++;
-        }
-        body.value().interpret(*fn_scope);
-        // delete all the primitive values that were copied into the function
-        i--;
-        while (i > -1) {
-            auto itr = fn_scope->find_value_iterator(params[i].name);
-            if (itr.first != itr.second.end()) {
-                if (itr.first->second != nullptr && itr.first->second->primitive()) {
-                    delete itr.first->second;
-                }
-                itr.second.erase(itr.first);
-            } else {
-                fn_scope->error("couldn't find parameter for cleanup after function call " + params[i].name);
-            }
-            i--;
-        }
-        return interpretReturn;
-    }
+    virtual Value *call(InterpretScope *call_scope, std::vector<std::unique_ptr<Value>> &call_params, std::unique_ptr<InterpretScope> fn_scope);
 
     // called by the return statement
     void set_return(Value *value) {

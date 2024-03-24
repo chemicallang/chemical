@@ -55,12 +55,14 @@ These features are sorted by priority, the features on top are what we will work
 
 - Compile Time Evaluation
 - Low memory footprint
+- No Garbage Collection
+- Compile time strict memory checks
+- Tiny executables
 - Everything Included Kit
-- Use as an interpreted / native language (being worked on)
-- Use as a template engine (we may skip this)
+- Native language (being worked on)
 - Use as a code generator
 - Use as an embedder language
-- Use as a scripting language (we may skip this)
+- Use as a scripting language
 
 ### Build
 

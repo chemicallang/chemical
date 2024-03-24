@@ -2,7 +2,12 @@
 struct html {
     func lex(provider : SourceProvider) {
         var tokens = vector();
-
+        var aToken = UserToken {
+            line : 5,
+            character : 5,
+            length : 5
+        }
+        tokens.push(aToken);
         return tokens;
     }
 }

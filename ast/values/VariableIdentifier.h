@@ -221,7 +221,9 @@ public:
         if (val.first->second->primitive()) {
             return val.first->second->copy();
         } else {
-            return val.first->second;
+            auto store = val.first->second;
+            val.first->second = nullptr;
+            return store;
         }
     }
 

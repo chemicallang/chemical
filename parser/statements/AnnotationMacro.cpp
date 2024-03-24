@@ -13,7 +13,9 @@ std::optional<std::pair<std::string, std::unique_ptr<Value>>> Parser::parseMacro
         } else {
             std::string content;
             while (token_type() != LexTokenType::Macro && position < tokens.size()) {
-                content += as<AbstractStringToken>()->value;
+                if(token_type() == LexTokenType::Macro) {
+                    content += as<AbstractStringToken>()->value;
+                }
                 position++;
             }
             if (token_type() == LexTokenType::Macro) {

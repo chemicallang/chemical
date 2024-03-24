@@ -21,10 +21,6 @@ public:
      */
     CharValue(char value) : value(value) {}
 
-    bool primitive() override {
-        return true;
-    }
-
     Value *copy() const override {
         return new CharValue(value);
     }

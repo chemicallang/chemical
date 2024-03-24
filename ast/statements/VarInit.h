@@ -87,7 +87,9 @@ public:
     void interpret_scope_ends(InterpretScope &scope) override {
         auto found = scope.find_value_iterator(identifier);
         if (found.first != found.second.end()) {
-            delete found.first->second;
+            if(!value.has_value() || !value.value()->is_initializer_reference(scope)) {
+                delete found.first->second;
+            }
             found.second.erase(found.first);
         } else {
             scope.error("cannot clear non existent variable on the value map " + identifier);

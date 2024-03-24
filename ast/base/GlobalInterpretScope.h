@@ -54,6 +54,12 @@ public:
 #endif
 
     /**
+     * the current interpret position
+     * this is assigned to the position variable of the ASTNode
+     */
+    unsigned int current_interpret_position = 0;
+
+    /**
      * global functions that are evaluated during interpretation
      */
     std::unordered_map<std::string, std::unique_ptr<FunctionDeclaration>> global_fns;

@@ -7,6 +7,7 @@
 #pragma once
 
 #include <memory>
+#include "ast/base/ASTNode.h"
 #include "ast/base/Value.h"
 
 class AccessChain : public ASTNode, public Value {
@@ -19,6 +20,10 @@ public:
 
     void accept(Visitor &visitor) override {
         visitor.visit(this);
+    }
+
+    bool primitive() override {
+        return false;
     }
 
     void interpret(InterpretScope &scope) override {

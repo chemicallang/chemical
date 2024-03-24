@@ -40,10 +40,6 @@ public:
         return value;
     }
 
-    bool primitive() override {
-        return true;
-    }
-
     Value *copy() const override {
         return new FloatValue(value);
     }

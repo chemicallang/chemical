@@ -28,6 +28,17 @@ class ASTNode : public Interpretable {
 public:
 
     /**
+     * the position of of the ASTNode is its position in the current function
+     * this calculated when interpreting ASTNodes
+     *
+     * var i = 0 // 0
+     * if(i == 0) { // 1
+     *    i = 1; // 2
+     * }
+     */
+    unsigned int position = 0;
+
+    /**
      * This would return the representation of the node
      * @return
      */

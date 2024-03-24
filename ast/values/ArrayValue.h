@@ -20,6 +20,10 @@ public:
         values.shrink_to_fit();
     }
 
+    bool primitive() override {
+        return false;
+    }
+
     inline unsigned int array_size() {
         if (sizes.empty()) {
             return values.size();

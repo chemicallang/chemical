@@ -41,10 +41,6 @@ public:
     }
 #endif
 
-    bool primitive() override {
-        return true;
-    }
-
     Value * copy() const override {
         return new IntValue(value);
     }

@@ -44,7 +44,12 @@ public:
     void set_identifier_value(InterpretScope &scope, Value *newValue, Operation op) override {
         auto it = scope.find_value_iterator(value);
         if (it.first == it.second.end()) {
-            scope.error("couldn't set non-existent variable " + value);
+            if(op == Operation::Assignment) {
+                // value has been declared above and now is being assigned
+                scope.declare(value, newValue);
+            } else {
+                scope.error("couldn't set non-existent variable " + value + " with operation " + to_string(op));
+            }
             return;
         }
         auto v = it.first->second;
@@ -124,6 +129,24 @@ public:
         }
     }
 
+    /**
+     * every identifier's value will be moved to new owner at return
+     */
+    Value* return_value(InterpretScope& scope) override {
+        // current identifier, holds the value, we find it
+        auto val = scope.find_value_iterator(value);
+        // check if not found
+        if (val.first == val.second.end() || val.first->second == nullptr) {
+            return nullptr;
+        }
+        // store the pointer to the value
+        auto store = val.first->second;
+        // delete the previous owner
+        val.first->second = nullptr;
+        // return the pointer
+        return store;
+    }
+
     Value *param_value(InterpretScope &scope) override {
         // evaluates the value, if its primitive copies it
         // otherwise, we pass another reference to the value, in the function calls
@@ -138,20 +161,39 @@ public:
         }
     }
 
+    bool is_initializer_reference(InterpretScope &scope) override {
+        // true, because we don't value to be destroyed, since its an identifier
+        // it was probably defined above in the scope
+        return true;
+    }
+
     Value *initializer_value(InterpretScope &scope) override {
-        // evaluates the value, if its primitive copies it
-        // otherwise, we basically delete the previous pointer to the value
-        // it's similar to moving / taking ownership
+        // user is trying to do var x = y;
+        // where y is this variable identifier
         auto val = scope.find_value_iterator(value);
         if (val.first == val.second.end() || val.first->second == nullptr) {
             return nullptr;
         }
+        // we'll create a copy if its primitive & create reference if it's not
         if (val.first->second->primitive()) {
             return val.first->second->copy();
         } else {
-            auto store = val.first->second;
-            val.first->second = nullptr;
-            return store;
+            return val.first->second;
+        }
+    }
+
+    Value* assignment_value(InterpretScope &scope) override {
+        // user is trying to do var x = y;
+        // where y is this variable identifier
+        auto val = scope.find_value_iterator(value);
+        if (val.first == val.second.end() || val.first->second == nullptr) {
+            return nullptr;
+        }
+        // we'll create a copy if its primitive & create reference if it's not
+        if (val.first->second->primitive()) {
+            return val.first->second->copy();
+        } else {
+            return val.first->second;
         }
     }
 

@@ -6,6 +6,8 @@
 
 class TernaryValue : public Value {
 
-
+    bool primitive() override {
+        return false;
+    }
 
 };

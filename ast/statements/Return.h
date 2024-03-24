@@ -19,7 +19,7 @@ public:
 
     void interpret(InterpretScope &scope) override {
         if(value.has_value()) {
-            declaration->set_return(value->get()->initializer_value(scope));
+            declaration->set_return(value->get()->return_value(scope));
         } else {
             declaration->set_return(nullptr);
         }

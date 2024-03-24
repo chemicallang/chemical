@@ -223,6 +223,10 @@ public:
         } else {
             auto store = val.first->second;
             val.second.erase(val.first);
+            auto decl = declaration(scope);
+            if(decl != nullptr) {
+                decl->moved();
+            }
             return store;
         }
     }

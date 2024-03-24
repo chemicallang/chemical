@@ -90,6 +90,13 @@ public:
         decl_scope->declare(identifier, new_value);
     }
 
+    /**
+     * called when the value associated with this var init has been moved
+     */
+    inline void moved() {
+        has_moved = true;
+    }
+
     void interpret_scope_ends(InterpretScope &scope) override {
         auto found = scope.find_value_iterator(identifier);
         if (found.first != found.second.end()) {
@@ -97,7 +104,7 @@ public:
                 delete found.first->second;
             }
             found.second.erase(found.first);
-        } else {
+        } else if(!has_moved) {
             scope.error("cannot clear non existent variable on the value map " + identifier);
         }
         scope.erase_node(identifier);
@@ -124,6 +131,7 @@ public:
 
     bool is_const;
     bool is_reference = false;
+    bool has_moved = false;
     InterpretScope* decl_scope = nullptr;
     std::string identifier; ///< The identifier being initialized.
     std::optional<std::unique_ptr<BaseType>> type;

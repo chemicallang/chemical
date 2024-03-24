@@ -32,7 +32,7 @@ public:
         return lambda(call_scope, call_params);
     }
 
-    Value *call(InterpretScope *scope, std::vector<std::unique_ptr<Value>> &call_params, std::unique_ptr<InterpretScope> fn_scope) override {
+    Value *call(InterpretScope *scope, std::vector<std::unique_ptr<Value>> &call_params, InterpretScope* fn_scope) override {
         return lambda(scope, call_params);
     }
 

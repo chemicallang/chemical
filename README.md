@@ -32,6 +32,9 @@ func add(a : int, b : int) : int {
 
 ### Progress
 
+A lot of unexplained things in this list, Trust me when I say,
+very innovative things are planned.
+
 - [x] Lexer
 - [x] Parser
 - [x] LSP (will add more features later)
@@ -40,6 +43,7 @@ func add(a : int, b : int) : int {
 - [ ] CIPs
   - [ ] Syntax Modifier Plugins (SMP)
   - [ ] AST Transformation Plugins (ATP)
+  - [ ] Auto Bootstrapping
 - [ ] Documentation
 - [ ] Experiment & Research
   - [ ] Multi language linking

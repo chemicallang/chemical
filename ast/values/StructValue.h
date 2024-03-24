@@ -16,6 +16,10 @@ public:
         values.shrink_to_fit();
     }
 
+    bool primitive() override {
+        return false;
+    }
+
     void prepare(InterpretScope &scope) {
         auto decl = scope.find_node(structName);
         if (decl == nullptr) {

@@ -18,10 +18,6 @@ public:
      */
     BoolValue(bool value) : value(value) {}
 
-    bool primitive() override {
-        return true;
-    }
-
     Value * copy() const override {
         return new BoolValue(value);
     }

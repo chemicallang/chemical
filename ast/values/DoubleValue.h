@@ -20,10 +20,6 @@ public:
      */
     DoubleValue(double value) : value(value) {}
 
-    bool primitive() override {
-        return true;
-    }
-
 #ifdef COMPILER_BUILD
     llvm::Type * llvm_type(Codegen &gen) override {
         return gen.builder->getDoubleTy();

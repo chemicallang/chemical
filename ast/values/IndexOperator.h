@@ -18,6 +18,10 @@ public:
 
     }
 
+    bool primitive() override {
+        return false;
+    }
+
     Value *find_in(InterpretScope& scope, Value *parent) override {
 #ifdef DEBUG
       try {

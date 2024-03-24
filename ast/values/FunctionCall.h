@@ -20,6 +20,10 @@ public:
 
     FunctionCall(FunctionCall &&other) = delete;
 
+    bool primitive() override {
+        return false;
+    }
+
     Value *find_in(InterpretScope& scope, Value *parent) override {
         return parent->call_member(scope, name, values);
     }

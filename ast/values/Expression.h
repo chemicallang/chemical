@@ -35,6 +35,10 @@ public:
     }
 #endif
 
+    bool primitive() override {
+        return false;
+    }
+
     bool computed() override {
         return true;
     }

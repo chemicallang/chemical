@@ -191,7 +191,7 @@ std::cerr << "child called on base value";
      * @return true when the value is primitive
      */
     virtual bool primitive() {
-        return false;
+        return true;
     }
 
     /**
@@ -204,14 +204,23 @@ std::cerr << "child called on base value";
     };
 
     /**
-     * This method is called by the ASTNode to get an initializer value
-     * an initializer value is basically value that will initialize a variable
-     * usually values copy themselves over, expressions evaluate themselves
-     * because in an AST a value is basically a fragment of AST, but when interpreting
-     * it becomes an actual value that can be modified, for any modifications values must be copied
-     * @return
+     * return true if initializer value is a reference
+     */
+    virtual bool is_initializer_reference(InterpretScope& scope) {
+        return false;
+    }
+
+    /**
+     * this is the initializer value, which is called by the var init statement
      */
     virtual Value* initializer_value(InterpretScope& scope) {
+        return copy();
+    }
+
+    /**
+     * this is the assignment value, which is called by the assignment statement (without var)
+     */
+    virtual Value* assignment_value(InterpretScope& scope) {
         return copy();
     }
 
@@ -219,7 +228,14 @@ std::cerr << "child called on base value";
      * this is the parameter value that is sent to function calls
      */
     virtual Value* param_value(InterpretScope& scope) {
-        return initializer_value(scope);
+        return copy();
+    }
+
+    /**
+     * called by return statement to get the return_value of this value
+     */
+    virtual Value* return_value(InterpretScope& scope) {
+        return copy();
     }
 
     /**

@@ -15,6 +15,9 @@ public:
 
     NotValue(std::unique_ptr<Value> value) : value(std::move(value)) {}
 
+    bool primitive() override {
+        return false;
+    }
 
     std::string representation() const override {
         std::string rep;

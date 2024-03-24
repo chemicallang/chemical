@@ -37,10 +37,6 @@ public:
         return value;
     }
 
-    bool primitive() override {
-        return true;
-    }
-
     std::string as_string() override {
         return value;
     }

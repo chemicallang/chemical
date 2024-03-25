@@ -19,6 +19,7 @@ bool Lexer::collectStructAsLexer(unsigned int start, unsigned int end) {
     }
     // create parser, and parse struct
     Parser parser(std::move(copied_ptrs));
+    parser.isParseInterpretableExpressions = true;
     auto definition = parser.parseStructDefinition();
     // release all the pointers, so tokens don't get deleted
     for(auto& ptr : parser.tokens) {

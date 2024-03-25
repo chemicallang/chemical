@@ -111,6 +111,12 @@ void InterpretScope::print_nodes() {
     }
 }
 
+void InterpretScope::clean() {
+    values.clear();
+    nodes.clear();
+    nodes_interpreted = -1;
+}
+
 InterpretScope::~InterpretScope() {
 #ifdef DEBUG
     if (nodes_interpreted == -1) {

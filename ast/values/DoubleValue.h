@@ -30,7 +30,7 @@ public:
     }
 #endif
 
-    Value * copy() const override {
+    Value * copy(InterpretScope& scope) const override {
         return new DoubleValue(value);
     }
 

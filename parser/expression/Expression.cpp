@@ -79,7 +79,7 @@ std::unique_ptr<Value> Parser::parseRemainingInterpretableExpression(std::unique
         parseExpressionWith(stack, final);
         return final.toExpression();
     } else {
-        return firstValue;
+        return std::move(firstValue);
     }
 }
 
@@ -94,7 +94,7 @@ std::unique_ptr<Value> Parser::parseRemainingExpression(std::unique_ptr<Value> f
             return firstValue;
         }
     } else {
-        return firstValue;
+        return std::move(firstValue);
     }
 }
 
@@ -140,9 +140,11 @@ std::optional<std::unique_ptr<Value>> Parser::parseExpression() {
     }
 
     if(isParseInterpretableExpressions) {
-        return parseRemainingInterpretableExpression(std::move(firstValue.value()));
+        auto pass = parseRemainingInterpretableExpression(std::move(firstValue.value()));
+        return std::move(pass);
     } else {
-        return parseRemainingExpression(std::move(firstValue.value()));
+        auto pass = parseRemainingExpression(std::move(firstValue.value()));
+        return std::move(pass);
     }
 
 }

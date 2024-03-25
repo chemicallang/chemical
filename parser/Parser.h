@@ -179,6 +179,11 @@ public:
     lex_ptr<Value> parseExpression();
 
     /**
+     * parses function call parameters
+     */
+    std::vector<std::unique_ptr<Value>> parseFunctionCallParams();
+
+    /**
      * parse an access chain
      */
     lex_ptr<AccessChain> parseAccessChain();

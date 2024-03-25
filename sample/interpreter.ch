@@ -3,9 +3,9 @@ struct html {
     func lex(provider : SourceProvider) {
         var tokens = vector();
         var aToken = UserToken {
-            line : 5,
-            character : 5,
-            length : 5
+            line : provider.getLineNumber(),
+            character : provider.getLineCharNumber(),
+            length : 0
         }
         tokens.push(aToken);
         return tokens;

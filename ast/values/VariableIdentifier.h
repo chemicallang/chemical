@@ -29,7 +29,7 @@ public:
 
     // will find value by this name in the parent
     Value *find_in(InterpretScope &scope, Value *parent) override {
-        return parent->child(value);
+        return parent->child(scope, value);
     }
 
     bool reference() override {
@@ -219,7 +219,7 @@ public:
             return nullptr;
         }
         if (val.first->second->primitive()) {
-            return val.first->second->copy();
+            return val.first->second->copy(scope);
         } else {
             auto store = val.first->second;
             val.second.erase(val.first);
@@ -246,7 +246,7 @@ public:
         }
         // we'll create a copy if its primitive & create reference if it's not
         if (val.first->second->primitive()) {
-            return val.first->second->copy();
+            return val.first->second->copy(scope);
         } else {
             return val.first->second;
         }
@@ -261,7 +261,7 @@ public:
         }
         // we'll create a copy if its primitive & create reference if it's not
         if (val.first->second->primitive()) {
-            return val.first->second->copy();
+            return val.first->second->copy(scope);
         } else {
             return val.first->second;
         }

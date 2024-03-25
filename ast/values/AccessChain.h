@@ -32,7 +32,7 @@ public:
 
     void interpret(InterpretScope &scope) override {
         auto v = evaluated_value(scope);
-        if(v != nullptr && v->primitive()) {
+        if (v != nullptr && v->primitive()) {
             delete v;
         }
     }
@@ -72,13 +72,14 @@ public:
         return current;
     }
 
-    inline Value* parent_value(InterpretScope &scope) {
+    inline Value *parent_value(InterpretScope &scope) {
 #ifdef DEBUG
         auto p = parent(scope);
-        if(p == nullptr) {
+        if (p == nullptr) {
             scope.error("parent is nullptr in access cain " + representation());
-        } else if(p->evaluated_value(scope) == nullptr) {
-            scope.error("evaluated value of parent is nullptr in access chain " + representation() + " pointer " + p->representation());
+        } else if (p->evaluated_value(scope) == nullptr) {
+            scope.error("evaluated value of parent is nullptr in access chain " + representation() + " pointer " +
+                        p->representation());
         }
 #endif
         return parent(scope)->evaluated_value(scope);
@@ -102,6 +103,10 @@ public:
         } else {
             return values[values.size() - 1]->find_in(scope, parent_value(scope));
         }
+    }
+
+    Value *initializer_value(InterpretScope &scope) override {
+        return evaluated_value(scope);
     }
 
     std::string representation() const override {

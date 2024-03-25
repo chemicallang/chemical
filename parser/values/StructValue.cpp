@@ -15,14 +15,14 @@ lex_ptr<StructValue> Parser::parseStructValue(const std::string& structName) {
 
                 if(consume_op(':')) {
 
-                    auto value = parseValue();
+                    auto value = parseExpression();
 
                     if(value.has_value()) {
 
-                        values.emplace_back(std::move(identifier.value()), std::move(value.value()));
+                        values.emplace_back(identifier.value(), std::move(value.value()));
 
                     } else {
-                        error("expected a value after the ':' for struct member");
+                        error("expected an expression after the ':' for struct member");
                     }
 
                 } else {

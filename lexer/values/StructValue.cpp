@@ -16,8 +16,8 @@ bool Lexer::lexStructValueTokens() {
                     break;
                 }
                 lexWhitespaceToken();
-                if(!lexValueToken()) {
-                    error("expected a value after ':' for struct member " + identifier);
+                if(!lexExpressionTokens(true)) {
+                    error("expected an expression after ':' for struct member " + identifier);
                     break;
                 }
                 lexWhitespaceToken();

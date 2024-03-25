@@ -10,6 +10,19 @@
 #include "ast/values/IndexOperator.h"
 #include "ast/values/VariableIdentifier.h"
 
+std::vector<std::unique_ptr<Value>> Parser::parseFunctionCallParams() {
+    std::vector<std::unique_ptr<Value>> params;
+    do {
+        auto param = parseExpression();
+        if(param.has_value()) {
+            params.emplace_back(std::move(param.value()));
+        } else {
+            break;
+        }
+    } while(consume_op(','));
+    return params;
+}
+
 lex_ptr<AccessChain> Parser::parseAccessChain() {
     std::unique_ptr<AccessChain> chain;
     do {
@@ -27,7 +40,7 @@ lex_ptr<AccessChain> Parser::parseAccessChain() {
 
                 chain = std::make_unique<AccessChain>(std::vector<std::unique_ptr<Value>>());
 
-                // parsea  struct value
+                // parse  struct value
                 if(token_type() == LexTokenType::CharOperator && as<CharOperatorToken>()->op == '{') {
                     auto structValue = parseStructValue(var->value);
                     if(structValue.has_value()) {
@@ -40,15 +53,7 @@ lex_ptr<AccessChain> Parser::parseAccessChain() {
 
             }
             if(consume_op('(')) {
-                std::vector<std::unique_ptr<Value>> params;
-                do {
-                    auto param = parseExpression();
-                    if(param.has_value()) {
-                        params.emplace_back(std::move(param.value()));
-                    } else {
-                        break;
-                    }
-                } while(consume_op(','));
+                auto params = parseFunctionCallParams();
                 if(consume_op(')')) {
                     chain->values.emplace_back(std::make_unique<FunctionCall>(var->value, std::move(params)));
                 } else {

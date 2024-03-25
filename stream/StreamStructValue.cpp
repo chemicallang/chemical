@@ -85,6 +85,13 @@ void define_source_stream_fns(GlobalInterpretScope &global) {
         ) -> Value * {
             return new IntValue(static_cast<StreamStructValue *>(value)->provider.getLineNumber());
         };
+        member_fns["getLineCharNumber"] = [&](
+                InterpretScope &scope,
+                Value *value,
+                std::vector<std::unique_ptr<Value>> &params
+        ) -> Value * {
+            return new IntValue(static_cast<StreamStructValue *>(value)->provider.getLineCharNumber());
+        };
         member_fns["readAlpha"] = [&](
                 InterpretScope &scope,
                 Value *value,

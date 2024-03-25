@@ -25,12 +25,12 @@ public:
     Value *find_in(InterpretScope& scope, Value *parent) override {
 #ifdef DEBUG
       try {
-          return parent->index(value->evaluated_value(scope)->as_int());
+          return parent->index(scope, value->evaluated_value(scope)->as_int());
       }  catch (...) {
           std::cerr << "[InterpretError] index operator only support's integer indexes at the moment";
       }
 #endif
-        parent->index(value->evaluated_value(scope)->as_int());
+        parent->index(scope, value->evaluated_value(scope)->as_int());
         return nullptr;
     }
 

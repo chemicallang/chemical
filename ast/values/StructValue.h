@@ -76,13 +76,13 @@ public:
 
     Value * initializer_value(InterpretScope &scope) override {
         prepare(scope);
-        return copy();
+        return copy(scope);
     }
 
-    Value *copy() const override {
+    Value* copy(InterpretScope& scope) const override {
         std::vector<std::pair<std::string, std::unique_ptr<Value>>> copied(values.size());
         for (unsigned i = 0; i < values.size(); ++i) {
-            copied[i] = std::make_pair(values[i].first, std::unique_ptr<Value>(values[i].second->copy()));
+            copied[i] = std::make_pair(values[i].first, std::unique_ptr<Value>(values[i].second->initializer_value(scope)));
         }
         return new StructValue(structName, std::move(copied));
     }
@@ -98,7 +98,7 @@ public:
         return -1;
     }
 
-    Value *child(const std::string &name) override {
+    Value *child(InterpretScope& scope, const std::string &name) override {
         auto i = index(name);
         if (i == -1) return nullptr;
         return values[i].second.get();

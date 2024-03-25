@@ -21,7 +21,7 @@ public:
      */
     CharValue(char value) : value(value) {}
 
-    Value *copy() const override {
+    Value *copy(InterpretScope& scope) const override {
         return new CharValue(value);
     }
 

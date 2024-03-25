@@ -69,10 +69,10 @@ public:
     }
 #endif
 
-    Value *copy() const override {
+    Value *copy(InterpretScope& scope) const override {
         std::vector<std::unique_ptr<Value>> copied_values(values.size());
         for(const auto& value : values) {
-            copied_values.emplace_back(value->copy());
+            copied_values.emplace_back(value->copy(scope));
         }
         std::vector<unsigned int> copied_sizes(sizes.size());
         std::optional<std::unique_ptr<BaseType>> copied_elem_type = std::nullopt;

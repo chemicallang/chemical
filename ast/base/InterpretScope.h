@@ -98,6 +98,12 @@ public:
     void error(const std::string& err);
 
     /**
+     * this can be called to "clean" everything in this scope
+     * to make it reusable
+     */
+    virtual void clean();
+
+    /**
      * Values that want to be deleted when the scope ends
      * must be deleted in the destructor
      */

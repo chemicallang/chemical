@@ -23,7 +23,7 @@ public:
      */
     StringValue(std::string value) : value(std::move(value)) {}
 
-    Value *index(int i) override {
+    Value *index(InterpretScope& scope, int i) override {
 #ifdef DEBUG
         if (i < 0 || i >= value.size()) {
             std::cerr << "[InterpretError] access index " + std::to_string(i) + " out of bounds for string " + value +
@@ -47,7 +47,7 @@ public:
     }
 #endif
 
-    Value *copy() const override {
+    Value *copy(InterpretScope& scope) const override {
         return new StringValue(value);
     }
 

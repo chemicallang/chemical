@@ -11,8 +11,8 @@
 #include "stream/StreamStructValue.h"
 #include "lexer/model/tokens/UserToken.h"
 
-Value* extract_child(StructValue* value, const std::string& name, ValueType type, Lexer& lexer) {
-    auto child = value->child(name);
+Value* extract_child(InterpretScope& scope, StructValue* value, const std::string& name, ValueType type, Lexer& lexer) {
+    auto child = value->child(scope, name);
     if(child == nullptr) {
         lexer.error("required value \"" + name + "\" not found in the struct");
     } else if(child->value_type() != type) {
@@ -22,27 +22,25 @@ Value* extract_child(StructValue* value, const std::string& name, ValueType type
     return child;
 }
 
-LexUserToken* extract_token(StructValue* value, Lexer& lexer) {
-    auto line = extract_child(value, "line", ValueType::Int, lexer);
-    auto character = extract_child(value, "character", ValueType::Int, lexer);
-    auto length = extract_child(value, "length", ValueType::Int, lexer);
+LexUserToken* extract_token(InterpretScope& scope, StructValue* value, Lexer& lexer) {
+    auto line = extract_child(scope, value, "line", ValueType::Int, lexer);
+    auto character = extract_child(scope, value, "character", ValueType::Int, lexer);
+    auto length = extract_child(scope, value, "length", ValueType::Int, lexer);
     if(line == nullptr || character == nullptr || length == nullptr) {
         return nullptr;
     }
     return new LexUserToken(UserToken(line->as_int(), character->as_int(), length->as_int()));
 }
 
-std::vector<std::unique_ptr<LexUserToken>> get_user_tokens(InterpretVectorValue* list, Lexer& lexer) {
-    std::vector<std::unique_ptr<LexUserToken>> tokens;
+void extract_user_tokens(InterpretVectorValue* list, Lexer& lexer) {
     for(auto& value : list->values) {
         if(value->value_type() == ValueType::Struct) {
-            auto token = extract_token(value->as_struct(), lexer);
-            if(token != nullptr) { tokens.emplace_back(token); }
+            auto token = extract_token(lexer.interpret_scope, value->as_struct(), lexer);
+            if(token != nullptr) { lexer.tokens.emplace_back(token); }
         } else {
             lexer.error("given vector contains a value that is not a struct, with representation " + value->representation());
         }
     }
-    return tokens;
 }
 
 bool Lexer::lexAnnotationMacro() {
@@ -104,23 +102,25 @@ bool Lexer::lexAnnotationMacro() {
 
                     // defining function params, containing the stream source
                     std::vector<std::unique_ptr<Value>> params(1);
-                    auto &members = static_cast<MemberFnsValue *>(interpret_scope.global_vals["vector"].get())->members;
+                    auto &members = static_cast<MemberFnsValue *>(interpret_scope.global_vals["stream"].get())->members;
                     params[0] = std::make_unique<StreamStructValue>(provider, members);
 
                     // calling the member function lex and getting the tokens struct
                     auto tokens_value = lex_struct_value->call_member(interpret_scope, "lex", params);
+                    for(const auto& err  : interpret_scope.errors) {
+                        error("lex call error " + err);
+                    }
                     if (tokens_value == nullptr) {
                         error("received no tokens struct value from lex member function of " + macro);
                     } else if (tokens_value->value_type() != ValueType::Vector) {
-                        error("received a value that is not a vector from lex member function of " + macro);
+                        error("received a value that is not a vector from lex member function of " + macro + ", value : " + tokens_value->representation());
+                        delete tokens_value;
                     } else {
                         auto vec = tokens_value->as_vector();
-                        auto tokens_struct = get_user_tokens(vec, *this);
-                        for (auto &token: tokens_struct) {
-                            tokens.push_back(std::move(token));
-                        }
+                        extract_user_tokens(vec, *this);
                         delete vec;
                     }
+                    interpret_scope.clean();
 
                 }
 

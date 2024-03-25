@@ -21,9 +21,15 @@ GlobalInterpretScope::GlobalInterpretScope(InterpretScope* parent, Scope* scope,
 
 void GlobalInterpretScope::add_error(const std::string &err) {
 #ifdef DEBUG
-    std::cerr << ANSI_COLOR_RED << "[InterpretError]" << err << ANSI_COLOR_RESET << std::endl;
+    std::cerr << ANSI_COLOR_RED << "[InterpretError] " << err << ANSI_COLOR_RESET << std::endl;
 #endif
     errors.emplace_back(err);
+}
+
+void GlobalInterpretScope::clean() {
+    InterpretScope::clean();
+    errors.clear();
+    curr_node_position = 0;
 }
 
 GlobalInterpretScope::~GlobalInterpretScope() {

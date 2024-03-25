@@ -37,7 +37,7 @@ public:
 
     }
 
-    Value *child(const std::string &name) override {
+    Value *child(InterpretScope& scope, const std::string &name) override {
         return nullptr;
     }
 
@@ -67,16 +67,16 @@ public:
         }
     }
 
-    Value *index(int i) override {
+    Value *index(InterpretScope& scope, int i) override {
         if (values[i]->primitive()) {
-            return values[i]->copy();
+            return values[i]->copy(scope);
         } else {
             return values[i].get();
         }
     }
 
-    Value *copy() const override {
-        return nullptr;
+    Value *copy(InterpretScope& scope) const override {
+        return (Value *) this;
     }
 
     ValueType value_type() const override {
@@ -102,12 +102,12 @@ public:
 
     }
 
-    Value *child(const std::string &name) override {
+    Value *child(InterpretScope& scope, const std::string &name) override {
         auto val = values.find(name);
         if (val != values.end()) {
             auto act = val->second.get();
             if (act->primitive()) {
-                return act->copy();
+                return act->copy(scope);
             } else {
                 return act;
             }
@@ -124,6 +124,10 @@ public:
         } else {
             return fn->second(scope, this, vals);
         }
+    }
+
+    Value *copy(InterpretScope& scope) const override {
+        return (Value *) this;
     }
 
     Value *evaluated_value(InterpretScope &scope) override {
@@ -145,12 +149,12 @@ public:
 
     }
 
-    Value *child(const std::string &name) override {
+    Value *child(InterpretScope& scope, const std::string &name) override {
         auto val = values.find(name);
         if (val != values.end()) {
             auto act = val->second.get();
             if (act->primitive()) {
-                return act->copy();
+                return act->copy(scope);
             } else {
                 return act;
             }
@@ -167,6 +171,10 @@ public:
         } else {
             return fn->second(scope, this, vals);
         }
+    }
+
+    Value *copy(InterpretScope& scope) const override {
+        return (Value *) this;
     }
 
     Value *evaluated_value(InterpretScope &scope) override {

@@ -37,7 +37,7 @@ public:
      * @param name
      * @return
      */
-    virtual Value* child(const std::string& name) {
+    virtual Value* child(InterpretScope& scope, const std::string& name) {
 #ifdef DEBUG
 std::cerr << "child called on base value";
 #endif
@@ -57,7 +57,7 @@ std::cerr << "child called on base value";
     /**
      * index operator [] calls this on a value
      */
-    virtual Value* index(int i) {
+    virtual Value* index(InterpretScope& scope, int i) {
 #ifdef DEBUG
         std::cerr << "index called on base value";
 #endif
@@ -215,9 +215,9 @@ std::cerr << "child called on base value";
      * This method can only be called on primitive values as they are the only ones that support copy operation
      * @return
      */
-    virtual Value* copy() const {
+    virtual Value* copy(InterpretScope& scope) const {
         return nullptr;
-    };
+    }
 
     /**
      * return true if initializer value is a reference
@@ -230,28 +230,28 @@ std::cerr << "child called on base value";
      * this is the initializer value, which is called by the var init statement
      */
     virtual Value* initializer_value(InterpretScope& scope) {
-        return copy();
+        return copy(scope);
     }
 
     /**
      * this is the assignment value, which is called by the assignment statement (without var)
      */
     virtual Value* assignment_value(InterpretScope& scope) {
-        return copy();
+        return copy(scope);
     }
 
     /**
      * this is the parameter value that is sent to function calls
      */
     virtual Value* param_value(InterpretScope& scope) {
-        return copy();
+        return copy(scope);
     }
 
     /**
      * called by return statement to get the return_value of this value
      */
     virtual Value* return_value(InterpretScope& scope) {
-        return copy();
+        return copy(scope);
     }
 
     /**

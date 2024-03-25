@@ -132,6 +132,18 @@ std::string SourceProvider::readIdentifier() {
     }
 }
 
+std::string SourceProvider::readAnnotation() {
+    if(std::isalpha(peek()) || peek() == '_') {
+        std::string str;
+        while (!eof() && (std::isalnum(peek()) || peek() == '_' || peek() == ':')) {
+            str.append(1, readCharacter());
+        }
+        return str;
+    } else {
+        return "";
+    }
+}
+
 unsigned int SourceProvider::readWhitespaces() {
     unsigned int whitespaces = 0;
     while (!eof() && (peek() == ' ' || peek() == '\t')) {

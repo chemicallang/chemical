@@ -27,6 +27,10 @@ public:
      */
     VariableIdentifier(std::string value) : value(std::move(value)) {}
 
+    Value *child(InterpretScope &scope, const std::string &name) override {
+        return evaluated_value(scope)->child(scope, name);
+    }
+
     // will find value by this name in the parent
     Value *find_in(InterpretScope &scope, Value *parent) override {
         return parent->child(scope, value);
@@ -70,8 +74,10 @@ public:
                 return;
             }
 #ifdef DEBUG
-            if(var_init->position == value_var_init->position) {
-                scope.error("two init statements have the same position in AST, first : " + var_init->representation() + " second : " + value_var_init->representation() + ", triggered by assignment between their variables");
+            if (var_init->position == value_var_init->position) {
+                scope.error("two init statements have the same position in AST, first : " + var_init->representation() +
+                            " second : " + value_var_init->representation() +
+                            ", triggered by assignment between their variables");
             }
 #endif
             if (var_init->position > value_var_init->position) {
@@ -110,11 +116,11 @@ public:
         }
 
         // delete previous value if its a primitive / not a reference & exists
-        if(itr.first != itr.second.end() && (!var_init->is_reference || itr.first->second->primitive())) {
+        if (itr.first != itr.second.end() && (!var_init->is_reference || itr.first->second->primitive())) {
             delete itr.first->second;
         }
 
-        if(itr.first == itr.second.end()) {
+        if (itr.first == itr.second.end()) {
             var_init->declare(nextValue);
         } else {
             itr.first->second = nextValue;
@@ -224,7 +230,7 @@ public:
             auto store = val.first->second;
             val.second.erase(val.first);
             auto decl = declaration(scope);
-            if(decl != nullptr) {
+            if (decl != nullptr) {
                 decl->moved();
             }
             return store;

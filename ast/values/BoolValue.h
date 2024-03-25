@@ -18,7 +18,7 @@ public:
      */
     BoolValue(bool value) : value(value) {}
 
-    Value * copy(InterpretScope& scope) const override {
+    Value * copy(InterpretScope& scope) override {
         return new BoolValue(value);
     }
 

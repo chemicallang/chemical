@@ -58,9 +58,9 @@ bool Lexer::lexStructStructureTokens() {
             error("expected an struct block for declaring struct members");
         }
         lexWhitespaceToken();
-        if(isLexCompTimeLexer) {
+        if(isLexerScoped) {
             collectStructAsLexer(start_token, tokens.size());
-            isLexCompTimeLexer = false;
+            isLexerScoped = false;
         }
         return true;
     } else {

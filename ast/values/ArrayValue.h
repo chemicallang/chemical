@@ -69,7 +69,7 @@ public:
     }
 #endif
 
-    Value *copy(InterpretScope& scope) const override {
+    Value *copy(InterpretScope& scope) override {
         std::vector<std::unique_ptr<Value>> copied_values(values.size());
         for(const auto& value : values) {
             copied_values.emplace_back(value->copy(scope));

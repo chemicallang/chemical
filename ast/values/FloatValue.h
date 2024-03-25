@@ -40,7 +40,7 @@ public:
         return value;
     }
 
-    Value *copy(InterpretScope& scope) const override {
+    Value *copy(InterpretScope& scope) override {
         return new FloatValue(value);
     }
 

@@ -6,7 +6,7 @@ lex_ptr<StructValue> Parser::parseStructValue(const std::string& structName) {
 
     if(consume_op('{')) {
 
-        std::vector<std::pair<std::string, std::unique_ptr<Value>>> values;
+        std::unordered_map<std::string, std::unique_ptr<Value>> values;
 
         do {
 
@@ -19,7 +19,7 @@ lex_ptr<StructValue> Parser::parseStructValue(const std::string& structName) {
 
                     if(value.has_value()) {
 
-                        values.emplace_back(identifier.value(), std::move(value.value()));
+                        values[identifier.value()] = std::move(value.value());
 
                     } else {
                         error("expected an expression after the ':' for struct member");

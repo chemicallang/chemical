@@ -1,15 +1,25 @@
+@scope:lexer
+struct UserToken {
+    var line : int
+    var character : int
+    var length : int
+}
+
+@scope:lexer
 @lexer
 struct html {
+
+    var tokens : vector = vector()
+
     func lex(provider : SourceProvider) {
-        var tokens = vector();
         var aToken = UserToken {
             line : provider.getLineNumber(),
             character : provider.getLineCharNumber(),
             length : 0
         }
-        tokens.push(aToken);
-        return tokens;
+        this.tokens.push(aToken);
     }
+
 }
 
 func main() : int {

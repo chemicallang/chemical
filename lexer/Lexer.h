@@ -602,6 +602,11 @@ protected:
     std::unordered_map<std::string, std::unique_ptr<StructDefinition>> lexer_structs;
 
     /**
+     * collected nodes that should be destroyed when the lexer is destroyed
+     */
+    std::unordered_map<std::string, std::unique_ptr<ASTNode>> collected;
+
+    /**
      * -----------------------------------------
      * Developer Note:
      * when the member bool starts with "is" (e.g isLexReturnStatement)
@@ -618,6 +623,12 @@ protected:
      * a lexer implementation, that lexes tokens found in preprocess directives
      */
     bool isLexCompTimeLexer = false;
+
+    /**
+     * when true, a struct / function will be lexed as lexer scoped
+     * which means, it will be parsed at lex time
+     */
+    bool isLexerScoped = false;
 
     /**
      * when true, return statements will be lexed

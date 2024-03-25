@@ -20,16 +20,17 @@ lex_ptr<StructDefinition> Parser::parseStructDefinition() {
                 }
             }
             if (consume_op('{')) {
-                std::vector<std::unique_ptr<ASTNode>> statements;
+                std::unordered_map<std::string, std::unique_ptr<VarInitStatement>> variables;
+                std::unordered_map<std::string, std::unique_ptr<FunctionDeclaration>> functions;
                 while(true) {
                     auto init = parseVariableInitStatement();
                     if (init.has_value()) {
                         consume_op(';');
-                        statements.emplace_back(std::move(init.value()));
+                        variables[init.value()->identifier] = std::move(init.value());
                     } else {
                         auto func = parseFunctionDefinition();
                         if(func.has_value()) {
-                            statements.emplace_back(std::move(func.value()));
+                            functions[func.value()->name] = std::move(func.value());
                         }else {
                             break;
                         }
@@ -38,7 +39,7 @@ lex_ptr<StructDefinition> Parser::parseStructDefinition() {
                 if(!consume_op('}')) {
                     error("expected a '}' after the struct definition");
                 }
-                return std::make_unique<StructDefinition>(value->value, std::move(statements), overrides);
+                return std::make_unique<StructDefinition>(value->value, std::move(variables), std::move(functions), overrides);
             } else {
                 error("expected '{' after the struct name in struct definition");
             }

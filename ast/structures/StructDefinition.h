@@ -10,6 +10,7 @@
 
 #include "ast/base/Value.h"
 #include "ast/structures/InterfaceDefinition.h"
+#include "ast/statements/VarInit.h"
 #include "ast/base/GlobalInterpretScope.h"
 
 class StructDefinition : public ASTNode {
@@ -23,9 +24,10 @@ public:
      */
     StructDefinition(
             std::string name,
-            std::vector<std::unique_ptr<ASTNode>> fields,
+            std::unordered_map<std::string, std::unique_ptr<VarInitStatement>> fields,
+            std::unordered_map<std::string, std::unique_ptr<FunctionDeclaration>> functions,
             std::optional<std::string> overrides
-    ) : name(std::move(name)), fields(std::move(fields)), overrides(std::move(overrides)) {}
+    ) : name(std::move(name)), variables(std::move(fields)), functions(std::move(functions)), overrides(std::move(overrides)) {}
 
     void accept(Visitor &visitor) override {
         visitor.visit(this);
@@ -36,8 +38,8 @@ public:
     }
 
     FunctionDeclaration * member(const std::string& name) {
-        for(const auto& field : fields) {
-            auto decl = field->as_function();
+        for(const auto& field : functions) {
+            auto decl = field.second->as_function();
             if(decl != nullptr && decl->name == name) {
                 return decl;
             }
@@ -82,9 +84,18 @@ public:
             ret.append("{\n");
         }
         int i = 0;
-        while (i < fields.size()) {
-            ret.append(fields[i]->representation());
-            if (i < fields.size() - 1) {
+        for(const auto& field : variables) {
+            ret.append(field.second->representation());
+            if (i < variables.size() - 1) {
+                ret.append(1, '\n');
+            }
+            i++;
+        }
+        ret.append("\n}");
+        i = 0;
+        for(const auto& field : functions) {
+            ret.append(field.second->representation());
+            if (i < variables.size() - 1) {
                 ret.append(1, '\n');
             }
             i++;
@@ -96,5 +107,6 @@ public:
     InterpretScope* decl_scope;
     std::string name; ///< The name of the struct.
     std::optional<std::string> overrides;
-    std::vector<std::unique_ptr<ASTNode>> fields; ///< The members of the struct.
+    std::unordered_map<std::string, std::unique_ptr<VarInitStatement>> variables; ///< The members of the struct.
+    std::unordered_map<std::string, std::unique_ptr<FunctionDeclaration>> functions;
 };

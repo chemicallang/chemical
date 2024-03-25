@@ -22,7 +22,7 @@ public:
     // This is a primitive value, meaning it will be copied when provided as a parameter
     // and deleted afterward, this makes it so that this value is not moved anywhere
     // user can access it from anywhere and make copied of it
-    Value *copy(InterpretScope& scope) const override {
+    Value *copy(InterpretScope& scope) override {
         return new StreamStructValue(provider, members);
     }
 

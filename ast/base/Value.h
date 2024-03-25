@@ -215,7 +215,7 @@ std::cerr << "child called on base value";
      * This method can only be called on primitive values as they are the only ones that support copy operation
      * @return
      */
-    virtual Value* copy(InterpretScope& scope) const {
+    virtual Value* copy(InterpretScope& scope) {
         return nullptr;
     }
 

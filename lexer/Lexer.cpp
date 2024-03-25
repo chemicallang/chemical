@@ -20,6 +20,7 @@ Lexer::Lexer(SourceProvider &provider, std::string path) : provider(provider), p
 
 void Lexer::init_annotation_modifiers() {
     annotation_modifiers["lexer"] = [&](Lexer *lexer) -> void { lexer->isLexCompTimeLexer = true; };
+    annotation_modifiers["scope:lexer"] = [&](Lexer *lexer) -> void { lexer->isLexerScoped = true; };
 }
 
 void Lexer::lexTopLevelMultipleStatementsTokens() {

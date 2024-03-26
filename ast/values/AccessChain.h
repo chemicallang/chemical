@@ -109,8 +109,16 @@ public:
         return pointer(scope)->evaluated_value(scope);
     }
 
+    Value *param_value(InterpretScope &scope) override {
+        return pointer(scope)->param_value(scope);
+    }
+
     Value *initializer_value(InterpretScope &scope) override {
-        return evaluated_value(scope);
+        return pointer(scope)->initializer_value(scope);
+    }
+
+    Value *return_value(InterpretScope &scope) override {
+        return pointer(scope)->return_value(scope);
     }
 
     std::string representation() const override {

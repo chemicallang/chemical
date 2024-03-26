@@ -74,7 +74,9 @@ func test_primitive() {
 }
 
 func main() {
-
+    test_primitive();
+    test_id();
+    test_access_chain();
     return 0;
 }
 

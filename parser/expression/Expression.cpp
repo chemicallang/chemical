@@ -131,7 +131,11 @@ std::optional<std::unique_ptr<Value>> Parser::parseExpression() {
             error("expected a ')' after the nested expression");
             return std::nullopt;
         }
-        return parseRemainingExpression(std::move(value.value()));
+        if(isParseInterpretableExpressions) {
+            return parseRemainingInterpretableExpression(std::move(value.value()));
+        } else {
+            return parseRemainingExpression(std::move(value.value()));
+        }
     }
 
     auto firstValue = parseAccessChainOrValue();
@@ -140,11 +144,9 @@ std::optional<std::unique_ptr<Value>> Parser::parseExpression() {
     }
 
     if(isParseInterpretableExpressions) {
-        auto pass = parseRemainingInterpretableExpression(std::move(firstValue.value()));
-        return std::move(pass);
+       return parseRemainingInterpretableExpression(std::move(firstValue.value()));
     } else {
-        auto pass = parseRemainingExpression(std::move(firstValue.value()));
-        return std::move(pass);
+        return parseRemainingExpression(std::move(firstValue.value()));
     }
 
 }

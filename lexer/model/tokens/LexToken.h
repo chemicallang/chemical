@@ -92,13 +92,11 @@ public:
 
     /**
      * string length of the token
-     * @return
      */
     virtual unsigned int length() const = 0;
 
     /**
      * Get the type of token this is
-     * @return
      */
     virtual LexTokenType type() const = 0;
 
@@ -136,21 +134,23 @@ public:
 
     /**
      * this function returns the actual representation of the token in the source code
-     * @return
      */
     virtual std::string representation() const = 0;
 
     /**
      * type string for token (debugging)
-     * @return
      */
     virtual std::string type_string() const = 0;
 
     /**
      * content of the token, for example string token can contain ('some name')
-     * @return
      */
     virtual std::string content() const = 0;
+
+    /**
+     * lex token virtual destructor
+     */
+    virtual ~LexToken() = default;
 
 //    /**
 //     * deserialize the token

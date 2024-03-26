@@ -385,4 +385,9 @@ std::cerr << "child called on base value";
         return ValueType::Unknown;
     };
 
+    /**
+     * virtual default destructor
+     */
+    virtual ~Value() = default;
+
 };

@@ -721,13 +721,13 @@ protected:
      * This is a pointer to current function declaration
      * All nodes being parsed belong to this function's body
      */
-    FunctionDeclaration *current_func_decl;
+    FunctionDeclaration *current_func_decl = nullptr;
 
     /**
      * The current loop node
      * All nodes being parsed belong this loop's body
      */
-    LoopASTNode *current_loop_node;
+    LoopASTNode *current_loop_node = nullptr;
 
 };
 

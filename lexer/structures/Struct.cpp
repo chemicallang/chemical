@@ -37,7 +37,7 @@ bool Lexer::lexStructStructureTokens() {
     if(lexKeywordToken("struct")) {
         auto start_token = tokens.size() - 1;
         lexWhitespaceToken();
-        auto id = lexAlpha();
+        auto id = provider.readIdentifier();
         if(id.empty()) {
             error("expected a identifier as struct name");
         } else {
@@ -46,7 +46,7 @@ bool Lexer::lexStructStructureTokens() {
         lexWhitespaceToken();
         if(lexOperatorToken(':')) {
             lexWhitespaceToken();
-            auto inter = lexAlpha();
+            auto inter = provider.readIdentifier();
             if(!inter.empty()) {
                 tokens.emplace_back(std::make_unique<InterfaceToken>(backPosition(inter.length()), inter));
             } else {
@@ -55,7 +55,7 @@ bool Lexer::lexStructStructureTokens() {
         }
         lexWhitespaceToken();
         if(!lexStructBlockTokens()) {
-            error("expected an struct block for declaring struct members");
+            error("expected a struct block for declaring struct members");
         }
         lexWhitespaceToken();
         if(isLexerScoped) {

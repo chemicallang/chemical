@@ -97,12 +97,16 @@ public:
         return "[AccessChainInterpretRepresentation]";
     }
 
-    Value *evaluated_value(InterpretScope &scope) override {
+    Value *pointer(InterpretScope &scope) {
         if (values.size() <= 1) {
-            return values[0]->evaluated_value(scope);
+            return values[0].get();
         } else {
             return values[values.size() - 1]->find_in(scope, parent_value(scope));
         }
+    }
+
+    Value *evaluated_value(InterpretScope &scope) override {
+        return pointer(scope)->evaluated_value(scope);
     }
 
     Value *initializer_value(InterpretScope &scope) override {

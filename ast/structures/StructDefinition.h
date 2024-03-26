@@ -8,6 +8,7 @@
 
 #include <utility>
 
+#include <map>
 #include "ast/base/Value.h"
 #include "ast/structures/InterfaceDefinition.h"
 #include "ast/statements/VarInit.h"
@@ -24,8 +25,8 @@ public:
      */
     StructDefinition(
             std::string name,
-            std::unordered_map<std::string, std::unique_ptr<VarInitStatement>> fields,
-            std::unordered_map<std::string, std::unique_ptr<FunctionDeclaration>> functions,
+            std::map<std::string, std::unique_ptr<VarInitStatement>> fields,
+            std::map<std::string, std::unique_ptr<FunctionDeclaration>> functions,
             std::optional<std::string> overrides
     ) : name(std::move(name)), variables(std::move(fields)), functions(std::move(functions)), overrides(std::move(overrides)) {}
 
@@ -76,6 +77,16 @@ public:
         decl_scope = nullptr;
     }
 
+#ifdef COMPILER_BUILD
+    llvm::ArrayRef<llvm::Type*> elements_type(Codegen &gen) {
+        auto vec = std::vector<llvm::Type*>();
+        for(const auto& var : variables) {
+            vec.emplace_back(var.second->llvm_type(gen));
+        }
+        return vec;
+    }
+#endif
+
     std::string representation() const override {
         std::string ret("struct " + name + " ");
         if (overrides.has_value()) {
@@ -107,6 +118,6 @@ public:
     InterpretScope* decl_scope;
     std::string name; ///< The name of the struct.
     std::optional<std::string> overrides;
-    std::unordered_map<std::string, std::unique_ptr<VarInitStatement>> variables; ///< The members of the struct.
-    std::unordered_map<std::string, std::unique_ptr<FunctionDeclaration>> functions;
+    std::map<std::string, std::unique_ptr<VarInitStatement>> variables; ///< The members of the struct.
+    std::map<std::string, std::unique_ptr<FunctionDeclaration>> functions;
 };

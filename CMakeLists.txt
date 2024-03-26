@@ -260,6 +260,7 @@ set(COMMON_SOURCES
         lexer/model/tokens/UserToken.h
         ast/structures/Scope.cpp
         ast/structures/LoopScope.cpp
+        ast/types/StructType.h
 )
 
 # Chemical LSP Executable Target

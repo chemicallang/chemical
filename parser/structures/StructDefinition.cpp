@@ -20,8 +20,8 @@ lex_ptr<StructDefinition> Parser::parseStructDefinition() {
                 }
             }
             if (consume_op('{')) {
-                std::unordered_map<std::string, std::unique_ptr<VarInitStatement>> variables;
-                std::unordered_map<std::string, std::unique_ptr<FunctionDeclaration>> functions;
+                std::map<std::string, std::unique_ptr<VarInitStatement>> variables;
+                std::map<std::string, std::unique_ptr<FunctionDeclaration>> functions;
                 while(true) {
                     auto init = parseVariableInitStatement();
                     if (init.has_value()) {

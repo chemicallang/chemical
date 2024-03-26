@@ -45,4 +45,6 @@ public:
     virtual llvm::Type* llvm_type(Codegen& gen) const = 0;
 #endif
 
+    virtual ~BaseType() = default;
+
 };

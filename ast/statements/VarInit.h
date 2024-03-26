@@ -80,12 +80,14 @@ public:
     void interpret(InterpretScope &scope) override {
         if (value.has_value()) {
             scope.declare(identifier, value.value()->initializer_value(scope));
-        } else {
-            decl_scope = &scope;
         }
+        decl_scope = &scope;
         scope.declare(identifier, this);
     }
 
+    /**
+     * called by assignment to assign a new value in the scope that this variable was declared
+     */
     void declare(Value* new_value) {
         decl_scope->declare(identifier, new_value);
     }

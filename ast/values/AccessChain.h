@@ -117,6 +117,10 @@ public:
         return pointer(scope)->initializer_value(scope);
     }
 
+    Value *assignment_value(InterpretScope &scope) override {
+        return pointer(scope)->assignment_value(scope);
+    }
+
     Value *return_value(InterpretScope &scope) override {
         return pointer(scope)->return_value(scope);
     }

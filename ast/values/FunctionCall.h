@@ -24,16 +24,11 @@ public:
         return false;
     }
 
-    Value *find_in(InterpretScope& scope, Value *parent) override {
+    Value *find_in(InterpretScope &scope, Value *parent) override {
         return parent->call_member(scope, name, values);
     }
 
     void prepare(InterpretScope &scope) {
-        auto global = scope.global->global_fns.find(name);
-        if(global != scope.global->global_fns.end()) {
-            definition = global->second.get();
-            return;
-        }
         auto decl = scope.find_node(name);
         if (decl == nullptr) {
             scope.error("(function call) couldn't find function declaration by name " + name);
@@ -54,7 +49,24 @@ public:
         return nullptr;
     }
 
+    Value *copy(InterpretScope &scope) override {
+        scope.error("copy called on function call");
+        return nullptr;
+    }
+
     Value *initializer_value(InterpretScope &scope) override {
+        return evaluated_value(scope);
+    }
+
+    Value *assignment_value(InterpretScope &scope) override {
+        return evaluated_value(scope);
+    }
+
+    Value *param_value(InterpretScope &scope) override {
+        return evaluated_value(scope);
+    }
+
+    Value *return_value(InterpretScope &scope) override {
         return evaluated_value(scope);
     }
 

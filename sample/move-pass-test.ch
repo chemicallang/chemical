@@ -37,19 +37,19 @@ func ret_id_passed(id : int) {
 func test_id() {
     // test initializing a identifier
     var x = 5;
-    print("init-id-int:", "5 == ", x, '\n');
+    print("init-id-int:", x, '\n');
 
     // test assigning an int
     var y : int
     y = 5;
-    print("assign-id-int:", "5 == ", y, '\n');
+    print("assign-id-int:", y, '\n');
 
     // test returning an id
-    print("ret_id:", "5 == ", ret_id(), '\n');
+    print("ret_id:", ret_id(), '\n');
 
     // test passing an id
     var z = 5;
-    print("ret_id_passed:", "5 == ", ret_id_passed(z), '\n');
+    print("ret_id_passed:", ret_id_passed(z), '\n');
 
 }
 
@@ -63,13 +63,13 @@ func ret_prim_passed(prim : int) {
 func test_primitive() {
 
     // init
-    print("init-int:", "5 == ", 5, '\n');
+    print("init-int:", 5, '\n');
 
     // primitive
-    print("ret_prim:", "5 == ", ret_prim(), '\n');
+    print("ret_prim:", ret_prim(), '\n');
 
     // primitive passed to function
-    print("ret_prim_passed:", "5 == ", ret_prim_passed(5), '\n');
+    print("ret_prim_passed:", ret_prim_passed(5), '\n');
 
 }
 

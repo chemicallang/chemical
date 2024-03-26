@@ -107,37 +107,23 @@ public:
 
 #ifdef COMPILER_BUILD
     llvm::Value * llvm_pointer(Codegen &gen) override {
-        return arr;
+        return allocaInst;
     }
 
     void llvm_allocate(Codegen &gen, const std::string &identifier) override {
-        auto arrType = llvm_type(gen);
-        arr = gen.builder->CreateAlloca(arrType, nullptr, identifier);
-        // filling array with values
-        for (size_t i = 0; i < values.size(); ++i) {
-            auto index = llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), i);
-            auto elemPtr = gen.builder->CreateGEP(arrType, arr, {llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), 0), index});
-            auto elemValue = values[i]->llvm_value(gen);
-            gen.builder->CreateStore(elemValue, elemPtr);
-        }
+        allocaInst = gen.builder->CreateAlloca(llvm_type(gen), nullptr, structName);
     }
+
     llvm::Value * llvm_value(Codegen &gen) override {
         throw std::runtime_error("cannot allocate an array without an identifier");
     }
 
     llvm::Type * llvm_elem_type(Codegen &gen) override {
-        llvm::Type* elementType;
-        if(values.empty()) {
-            // get empty array type from the user
-            elementType = elemType.value()->llvm_type(gen);
-        } else {
-            elementType = values[0]->llvm_type(gen);
-        }
-        return elementType;
+        throw std::runtime_error("cannot allocate an array without an identifier");
     }
 
     llvm::Type * llvm_type(Codegen &gen) override {
-        return llvm::ArrayType::get(llvm_elem_type(gen), array_size());
+        return llvm::StructType::get(*gen.ctx, definition->elements_type(gen));
     }
 #endif
 
@@ -169,7 +155,7 @@ public:
 
 #ifdef COMPILER_BUILD
     // TODO this arr value should be stored in code gen since its related to that
-    llvm::AllocaInst* arr;
+    llvm::AllocaInst* allocaInst;
 #endif
 
 };

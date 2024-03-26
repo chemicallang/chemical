@@ -44,6 +44,7 @@ very innovative things are planned.
   - [ ] Syntax Modifier Plugins (SMP)
   - [ ] AST Transformation Plugins (ATP)
   - [ ] Auto Bootstrapping
+  - [ ] Annotation / Symbol Processing
 - [ ] Documentation
 - [ ] Experiment & Research
   - [ ] Multi language linking
@@ -60,7 +61,8 @@ These features are sorted by priority, the features on top are what we will work
 - Compile Time Evaluation
 - Low memory footprint
 - No Garbage Collection
-- Compile time strict memory checks
+- Compile time memory checks
+  - without sacrificing performance / ease of use
 - Tiny executables
 - Everything Included Kit
 - Native language (being worked on)
@@ -88,7 +90,7 @@ The project generates three executables (at the moment)
  - Interpreter (interprets the source code)
  - LSP Server (for IDE experience) (requires boost)
 
-The easiest to setup and work on is interpreter because it has no dependencies.
+The easiest to set up and work on is interpreter because it has no dependencies.
 
 #### To work on `Interpreter`
 - clone the repo
@@ -105,8 +107,28 @@ The easiest to setup and work on is interpreter because it has no dependencies.
 - build llvm, `chemical-bootstrap` has build scripts (build.bat or build)
 - make sure it works, open an issue if it doesn't !
 
-### Contibuting
+### Vision & Design goals
+
+ - Chemical will never be bootstrapped. At least not in a traditional sense. 
+ - Don't want to waste time writing features again and again. 
+ - Want to keep it simple, Language plugins instead of syntactic sugar.
+ - Won't provide multiple ways of doing things.
+ - Will provide a very easy way to write compiler plugins.
+ - No package manager, instead command line Git Interface with modules & shallow clones.
+
+### Contributing
 
 Chemical Programming Language is an open source work, It also allows you to completely customize it.
 It requires a lot of contributions to support the large number of features that need to be supported,
 so we not just welcome contributions but encourage everybody to contribute. So we can bring our vision to life.
+
+
+### Licensing
+
+Qinetik owns Chemical, Qinetik is a for-profit company. But we will always keep Chemical as an open source programming language.
+
+Qinetik intends to make products and apps and intends to develop Chemical as an open source work with community effort to improve
+app development process.
+
+Chemical's Compiler is open source and MIT licensed and will always remain open source and MIT licensed, You can use Chemical's compiler however you like.
+You don't even need to give credits. But if you do, we'd really appreciate it. 

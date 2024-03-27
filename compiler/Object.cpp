@@ -21,6 +21,7 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/TargetParser/Host.h"
+#include <llvm/Bitcode/BitcodeWriter.h>
 #include <algorithm>
 #include <cassert>
 #include <cctype>
@@ -37,6 +38,7 @@ using namespace llvm;
 using namespace llvm::sys;
 
 TargetMachine * Codegen::setup_for_target(const std::string &TargetTriple) {
+
     // Initialize the target registry etc.
     InitializeAllTargetInfos();
     InitializeAllTargets();
@@ -96,4 +98,24 @@ void Codegen::save_as_file_type(const std::string &out_path, const std::string& 
     dest.flush();
 
 }
+
+void Codegen::save_as_bc_file(const std::string &out_path, const std::string& TargetTriple) {
+
+    setup_for_target(TargetTriple);
+
+    std::error_code EC;
+    raw_fd_ostream dest(out_path, EC, sys::fs::OF_None);
+
+    if (EC) {
+        error("Could not open file: " + EC.message());
+        return;
+    }
+
+    WriteBitcodeToFile(*module, dest);
+
+    dest.flush();
+    dest.close();
+
+}
+
 #endif

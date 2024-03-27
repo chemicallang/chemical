@@ -260,7 +260,6 @@ set(COMMON_SOURCES
         lexer/model/tokens/UserToken.h
         ast/structures/Scope.cpp
         ast/structures/LoopScope.cpp
-        ast/types/StructType.h
 )
 
 # Chemical LSP Executable Target
@@ -282,6 +281,7 @@ add_executable(Compiler Compiler.cpp ${COMMON_SOURCES}
         compiler/clang_cc1as_main.cpp
         compiler/InvokeExtension.cpp
         compiler/cc1gen_reproducer_main.cpp
+        compiler/JitInterpret.cpp
 )
 
 # Compiler uses llvm

@@ -142,11 +142,22 @@ public:
     llvm::TargetMachine * setup_for_target(const std::string& TargetTriple);
 
     /**
+     * just in time compilation
+     * please note that this takes ownership of the module
+     */
+    void just_in_time_compile(std::vector<const char*>& args);
+
+    /**
      * save file as file type
      * @param TargetTriple
      * @param type
      */
     void save_as_file_type(const std::string &out_path, const std::string& TargetTriple, llvm::CodeGenFileType type);
+
+    /**
+     * save as a bitcode file
+     */
+    void save_as_bc_file(const std::string &out_path, const std::string& TargetTriple);
 
     /**
      * saves as assembly file to this path

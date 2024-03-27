@@ -35,7 +35,7 @@ int main(int argc, char *argv[]) {
 
     // parsing the command
     CmdOptions options;
-    auto args = options.parse_cmd_options(argc, argv, 1, {"clang", "linker"});
+    auto args = options.parse_cmd_options(argc, argv, 1, {"clang", "linker", "jit"});
     if(args.empty()) {
         std::cerr << cmd_error("no input given\n\n");
         print_usage();
@@ -100,6 +100,20 @@ int main(int argc, char *argv[]) {
         std::cout << "Target: " << target.value() << std::endl;
     }
 
+    auto jit = options.option("jit", "jit");
+    if(jit.has_value()) {
+        auto jit_commands = options.collect_subcommand(argc, argv, "jit");
+        std::vector<const char*> jit_args;
+        args.reserve(jit_commands.size());
+        for(const auto& cmd : jit_commands) {
+            jit_args.push_back(cmd.c_str());
+        }
+        gen.setup_for_target(target.value());
+        gen.just_in_time_compile(jit_args);
+        gen.print_errors();
+        return 0;
+    }
+
     int return_int = 0;
     auto output = options.option("output", "o");
     if (!output.has_value()) {
@@ -117,6 +131,10 @@ int main(int argc, char *argv[]) {
         return 0;
     } else if(endsWith(output.value(), ".ll")) {
         gen.save_to_file(output.value(), target.value());
+        options.print_unhandled();
+        return 0;
+    } else if(endsWith(output.value(), ".bc")) {
+        gen.save_as_bc_file(output.value(), target.value());
         options.print_unhandled();
         return 0;
     }

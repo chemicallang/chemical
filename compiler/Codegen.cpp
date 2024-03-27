@@ -27,6 +27,9 @@ void Codegen::error(const std::string& err){
     errStr += "---- message : " + err + "\n";
     errStr += "---- node representation : " + nodes[position]->representation() + '\n';
     errStr += "---- node position : " + std::to_string(position);
+#ifdef DEBUG
+    std::cerr << errStr << std::endl;
+#endif
     errors.push_back(errStr);
 }
 

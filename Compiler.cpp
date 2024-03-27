@@ -108,8 +108,7 @@ int main(int argc, char *argv[]) {
         for(const auto& cmd : jit_commands) {
             jit_args.push_back(cmd.c_str());
         }
-        gen.setup_for_target(target.value());
-        gen.just_in_time_compile(jit_args);
+        gen.just_in_time_compile(jit_args, target.value());
         gen.print_errors();
         return 0;
     }

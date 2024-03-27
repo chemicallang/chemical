@@ -145,7 +145,7 @@ public:
      * just in time compilation
      * please note that this takes ownership of the module
      */
-    void just_in_time_compile(std::vector<const char*>& args);
+    void just_in_time_compile(std::vector<const char*>& args, const std::string& TargetTriple);
 
     /**
      * save file as file type

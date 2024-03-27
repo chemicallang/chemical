@@ -78,12 +78,18 @@ public:
     }
 
 #ifdef COMPILER_BUILD
-    llvm::ArrayRef<llvm::Type*> elements_type(Codegen &gen) {
+    std::vector<llvm::Type*> elements_type(Codegen &gen) {
         auto vec = std::vector<llvm::Type*>();
+        vec.reserve(variables.size());
+        // TODO this doesn't work, a crash happens at variables
         for(const auto& var : variables) {
-            vec.emplace_back(var.second->llvm_type(gen));
+            vec.push_back(var.second->llvm_type(gen));
         }
         return vec;
+    }
+
+    void code_gen(Codegen &gen) override {
+        llvm::StructType::create(*gen.ctx, elements_type(gen), name);
     }
 #endif
 

@@ -4,6 +4,11 @@ func add(a : int, b : int) : int {
     return a + b;
 }
 
+struct Point {
+    var x : int
+    var y : int
+}
+
 func main(argc : int) : int {
     printf("number of arguments : %d\n", argc);
     printf("function sum : %d\n", add(5, 4))

@@ -17,6 +17,10 @@ public:
         return type->satisfies(value_type);
     }
 
+    PointerType* pointer_type() override {
+        return this;
+    }
+
     std::string representation() const override {
         return  type->representation() + "*";
     }

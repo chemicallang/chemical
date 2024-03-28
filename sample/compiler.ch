@@ -12,9 +12,11 @@ struct Point {
 func main(argc : int, argv : string*) : int {
     printf("number of arguments : %d\n", argc);
     printf("printing args : \n");
-    // for(var a = 0; a < argc; a++){
-    //    printf("%d = %s\n", a, argv + a);
-    // }
+    var i = 0;
+    while(i < argc){
+        printf("%d = %s\n", i, argv[i]);
+        i++;
+    }
     printf("function sum : %d\n", add(5, 4))
     printf("check this char '%c'\n", 'x');
     printf("check this float : %f\n", 1.12345);

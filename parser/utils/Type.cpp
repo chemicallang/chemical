@@ -11,6 +11,7 @@
 #include "ast/types/AnyType.h"
 #include "ast/types/ReferencedType.h"
 #include "ast/types/PointerType.h"
+#include "ast/types/GenericType.h"
 
 lex_ptr<BaseType> Parser::parseType() {
     if (token_type() == LexTokenType::Type) {
@@ -19,6 +20,16 @@ lex_ptr<BaseType> Parser::parseType() {
         auto base_type = type_fn != primitive_type_map.end() ? (
                 std::unique_ptr<BaseType>(type_fn->second(this))
         ) : std::make_unique<ReferencedType>(type);
+        if(consume_op('<')) {
+            if(type_fn == primitive_type_map.end()) {
+                base_type = std::make_unique<GenericType>(type, std::move(base_type));
+            } else {
+                error("primitive type is not a generic : " + type);
+            }
+            if(!consume_op('>')) {
+                error("expected '>' for generic type");
+            }
+        }
         if (consume_op('*')) {
             return std::make_unique<PointerType>(std::move(base_type));
         } else {

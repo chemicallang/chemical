@@ -9,10 +9,18 @@
 
 bool Lexer::lexTypeTokens() {
     auto type = lexAnything([&] () -> bool {
-        return std::isalpha(provider.peek()) || provider.peek() == '<' || provider.peek() == '>';
+        return std::isalpha(provider.peek());
     });
     if (!type.empty()) {
         tokens.emplace_back(std::make_unique<TypeToken>(backPosition(type.length()), type));
+        if(lexOperatorToken('<')) {
+            if(!lexTypeTokens()) {
+                error("expected a type within '<' '>' for generic type");
+            }
+            if(!lexOperatorToken('>')) {
+                error("expected '>' for generic type");
+            }
+        }
         lexOperatorToken('*');
         return true;
     } else {

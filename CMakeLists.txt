@@ -261,6 +261,7 @@ set(COMMON_SOURCES
         ast/structures/Scope.cpp
         ast/structures/LoopScope.cpp
         ast/types/PointerType.h
+        ast/types/GenericType.h
 )
 
 # Chemical LSP Executable Target

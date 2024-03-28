@@ -36,9 +36,34 @@ public:
     }
 
 #ifdef COMPILER_BUILD
-    llvm::Type* llvm_type(Codegen &gen) override {
+
+    llvm::Value *llvm_pointer(Codegen &gen) override {
+        auto arg = gen.current_function->getArg(index);
+        if (arg) {
+            return arg;
+        } else {
+            gen.error("couldn't get argument with name " + name);
+        }
+    }
+
+    llvm::Type *llvm_type(Codegen &gen) override {
         return type->llvm_type(gen);
     }
+
+    llvm::Type *llvm_elem_type(Codegen &gen) override {
+        auto type = llvm_type(gen);
+        if(type) {
+            if(type->isArrayTy()) {
+                return type->getArrayElementType();
+            } else {
+                gen.error("type is not an array for parameter " + name);
+            }
+        } else {
+          gen.error("parameter type is invalid " + name);
+        }
+        return nullptr;
+    }
+
 #endif
 
     std::string representation() const override {
@@ -80,39 +105,40 @@ public:
     }
 
 #ifdef COMPILER_BUILD
-    std::vector<llvm::Type*> param_types(Codegen& gen) {
-        auto size = isVariadic ? (params.size() - 1 ): params.size();
-        std::vector<llvm::Type*> array(size);
+
+    std::vector<llvm::Type *> param_types(Codegen &gen) {
+        auto size = isVariadic ? (params.size() - 1) : params.size();
+        std::vector<llvm::Type *> array(size);
         unsigned i = 0;
-        while(i < size) {
+        while (i < size) {
             array[i] = params[i].type->llvm_type(gen);
             i++;
         }
         return array;
     }
 
-    llvm::FunctionType* function_type(Codegen& gen) {
-        if(params.empty() || (params.size() == 1 && isVariadic)) {
+    llvm::FunctionType *function_type(Codegen &gen) {
+        if (params.empty() || (params.size() == 1 && isVariadic)) {
             return llvm::FunctionType::get(returnType->llvm_type(gen), isVariadic);
         } else {
             return llvm::FunctionType::get(returnType->llvm_type(gen), param_types(gen), isVariadic);
         }
     }
 
-    void declare(Codegen& gen) {
-        for(const auto& param : params) {
-            gen.current[param.name] = (ASTNode*) &param;
+    void declare(Codegen &gen) {
+        for (const auto &param: params) {
+            gen.current[param.name] = (ASTNode *) &param;
         }
     }
 
     void undeclare(Codegen &gen) override {
-        for(const auto& param : params) {
+        for (const auto &param: params) {
             gen.current.erase(param.name);
         }
     }
 
-    void code_gen(Codegen& gen) override {
-        if(body.has_value()) {
+    void code_gen(Codegen &gen) override {
+        if (body.has_value()) {
             declare(gen);
             gen.create_function(name, function_type(gen));
             body->code_gen(gen);
@@ -121,6 +147,7 @@ public:
             gen.declare_function(name, function_type(gen));
         }
     }
+
 #endif
 
     void interpret(InterpretScope &scope) override {
@@ -136,7 +163,8 @@ public:
         return call(call_scope, call_params, &fn_scope);
     }
 
-    virtual Value *call(InterpretScope *call_scope, std::vector<std::unique_ptr<Value>> &call_params, InterpretScope* fn_scope);
+    virtual Value *
+    call(InterpretScope *call_scope, std::vector<std::unique_ptr<Value>> &call_params, InterpretScope *fn_scope);
 
     // called by the return statement
     void set_return(Value *value) {

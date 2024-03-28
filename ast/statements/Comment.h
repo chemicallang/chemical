@@ -25,9 +25,15 @@ public:
         visitor.visit(this);
     }
 
+#ifdef COMPILER_BUILD
+    void code_gen(Codegen &gen) override {
+        // doesn't generate anything
+    }
+#endif
+
     std::string representation() const override {
         std::string ret;
-        if(multiline) {
+        if (multiline) {
             ret.append("/*" + comment + "*/");
         } else {
             ret.append("//" + comment);

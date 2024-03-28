@@ -10,15 +10,19 @@
 #include "ast/types/CharType.h"
 #include "ast/types/AnyType.h"
 #include "ast/types/ReferencedType.h"
+#include "ast/types/PointerType.h"
 
 lex_ptr<BaseType> Parser::parseType() {
     if (token_type() == LexTokenType::Type) {
         auto type = consume<TypeToken>()->value;
         auto type_fn = primitive_type_map.find(type);
-        if(type_fn != primitive_type_map.end()) {
-            return std::unique_ptr<BaseType>(type_fn->second(this));
+        auto base_type = type_fn != primitive_type_map.end() ? (
+                std::unique_ptr<BaseType>(type_fn->second(this))
+        ) : std::make_unique<ReferencedType>(type);
+        if (consume_op('*')) {
+            return std::make_unique<PointerType>(std::move(base_type));
         } else {
-            return std::make_unique<ReferencedType>(type);
+            return base_type;
         }
     } else {
         return std::nullopt;

@@ -6,7 +6,7 @@
 #include <string>
 #include "compiler/Codegen.h"
 #ifdef COMPILER_BUILD
-#include "llvm/IR/Type.h"
+#include "compiler/llvmfwd.h"
 #endif
 
 class PointerType;

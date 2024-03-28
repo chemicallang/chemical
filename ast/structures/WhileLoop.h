@@ -47,31 +47,7 @@ public:
     }
 
 #ifdef COMPILER_BUILD
-    void code_gen(Codegen &gen) override {
-
-        auto loopCond = llvm::BasicBlock::Create(*gen.ctx, "loopcond", gen.current_function);
-        auto loopThen = llvm::BasicBlock::Create(*gen.ctx, "loopthen", gen.current_function);
-        auto exitBlock = llvm::BasicBlock::Create(*gen.ctx, "loopexit", gen.current_function);
-
-        // sending to loop condition
-        gen.CreateBr(loopCond);
-
-        // loop condition
-        gen.SetInsertPoint(loopCond);
-        auto comparison = condition->llvm_value(gen);
-        gen.CreateCondBr(comparison, loopThen, exitBlock);
-
-        // loop then
-        gen.SetInsertPoint(loopThen);
-        gen.loop_body_wrap(loopCond, exitBlock);
-        body.code_gen(gen);
-        gen.loop_body_wrap(loopCond, exitBlock);
-        gen.CreateBr(loopCond);
-
-        // loop exit
-        gen.SetInsertPoint(exitBlock);
-
-    }
+    void code_gen(Codegen &gen) override;
 #endif
 
     void stopInterpretation() override {

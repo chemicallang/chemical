@@ -16,7 +16,7 @@
 
 #ifdef COMPILER_BUILD
 #include "compiler/Codegen.h"
-#include "llvm/IR/Value.h"
+#include "compiler/llvmfwd.h"
 #endif
 
 class FunctionParam;

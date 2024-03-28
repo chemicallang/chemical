@@ -46,19 +46,12 @@ public:
     }
 
     // TODO isInBounds optimization, when we know that index is in bounds
-    llvm::Value* elem_pointer(Codegen& gen, ASTNode* arr) {
-        return gen.builder->CreateGEP(arr->llvm_type(gen), arr->llvm_pointer(gen), {value->llvm_value(gen)});;
-    }
+    llvm::Value* elem_pointer(Codegen& gen, ASTNode* arr);
 
-    llvm::Value * llvm_pointer(Codegen &gen) override {
-        auto arr = resolve(gen);
-        return elem_pointer(gen, arr);
-    }
+    llvm::Value * llvm_pointer(Codegen &gen) override;
 
-    llvm::Value * llvm_value(Codegen &gen) override {
-        auto resolved = resolve(gen);
-        return gen.builder->CreateLoad(resolved->llvm_elem_type(gen), elem_pointer(gen, resolved), "arr0");
-    }
+    llvm::Value * llvm_value(Codegen &gen) override;
+
 #endif
 
     std::string representation() const override {

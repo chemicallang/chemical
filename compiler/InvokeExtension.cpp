@@ -1,6 +1,7 @@
 // Copyright (c) Qinetik 2024.
 
 #include "Codegen.h"
+#include "cstring"
 
 int chemical_clang_main(int argc, char **argv);
 

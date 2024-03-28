@@ -2,6 +2,7 @@
 
 #ifdef COMPILER_BUILD
 #include "Codegen.h"
+#include "llvmimpl.h"
 
 void Codegen::SetInsertPoint(llvm::BasicBlock* block) {
     has_current_block_ended = false;

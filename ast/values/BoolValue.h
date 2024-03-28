@@ -18,23 +18,21 @@ public:
      */
     BoolValue(bool value) : value(value) {}
 
-    Value * copy(InterpretScope& scope) override {
+    Value *copy(InterpretScope &scope) override {
         return new BoolValue(value);
     }
 
-#ifdef LLVM_VALUE
-    llvm::Type * llvm_type(Codegen &gen) override {
-        return gen.builder->getInt1Ty();
-    }
+#ifdef COMPILER_BUILD
 
-    llvm::Value * llvm_value(Codegen &gen) override {
-        return gen.builder->getInt1(value);
-    }
+    llvm::Type *llvm_type(Codegen &gen) override;
+
+    llvm::Value *llvm_value(Codegen &gen) override;
+
 #endif
 
     std::string representation() const override {
         std::string rep;
-        if(value) {
+        if (value) {
             rep.append("true");
         } else {
             rep.append("false");
@@ -46,7 +44,7 @@ public:
         return value;
     }
 
-    void * get_value() override {
+    void *get_value() override {
         return &value;
     }
 

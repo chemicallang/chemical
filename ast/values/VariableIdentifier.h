@@ -9,9 +9,11 @@
 #include <utility>
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/base/Value.h"
+#include "ast/statements/VarInit.h"
+#include "ast/utils/ExpressionEvaluator.h"
 
 #ifdef COMPILER_BUILD
-#include <llvm/IR/ValueSymbolTable.h>
+#include "compiler/llvmfwd.h"
 #endif
 
 /**
@@ -129,47 +131,13 @@ public:
     }
 
 #ifdef COMPILER_BUILD
-    llvm::Value *arg_value(Codegen &gen, ASTNode* node) {
-        auto param = node->as_parameter();
-        if (param != nullptr && gen.current_function != nullptr) {
-            for (const auto &arg: gen.current_function->args()) {
-                if (arg.getArgNo() == param->index) {
-                    return (llvm::Value *) &arg;
-                }
-//                else {
-//                    gen.error("no mismatch" + std::to_string(arg.getArgNo()) + " " + std::to_string(param->index));
-//                }
-            }
-        }
-//        else {
-//            gen.error("param or function missing");
-//        }
-        return nullptr;
-    }
+    llvm::Value *arg_value(Codegen &gen, ASTNode* node);
 
-    llvm::AllocaInst* llvm_alloca(Codegen &gen) {
-        auto found = gen.allocated.find(value);
-        if(found == gen.allocated.end()) {
-            gen.error("llvm_alloca called on variable identifier, couldn't locate the identifier : " + value);
-            return nullptr;
-        } else {
-            return found->second;
-        }
-    }
+    llvm::AllocaInst* llvm_alloca(Codegen &gen);
 
-    llvm::Value *llvm_pointer(Codegen &gen) override {
-        return llvm_alloca(gen);
-    }
+    llvm::Value *llvm_pointer(Codegen &gen) override;
 
-    llvm::Value *llvm_value(Codegen &gen) override {
-        auto resolved = resolve(gen);
-        auto argVal = arg_value(gen, resolved);
-        if (argVal != nullptr) {
-            return argVal;
-        }
-        auto v = llvm_pointer(gen);
-        return gen.builder->CreateLoad(resolved->llvm_type(gen), v, value);
-    }
+    llvm::Value *llvm_value(Codegen &gen) override;
 
     ASTNode *resolve(Codegen &gen) {
         auto found = gen.current.find(value);

@@ -72,7 +72,7 @@ TargetMachine * Codegen::setup_for_target(const std::string &TargetTriple) {
 
 }
 
-void Codegen::save_as_file_type(const std::string &out_path, const std::string& TargetTriple, llvm::CodeGenFileType type) {
+void Codegen::save_as_file_type(const std::string &out_path, const std::string& TargetTriple, bool object_file) {
 
     auto TheTargetMachine = setup_for_target(TargetTriple);
     if(TheTargetMachine == nullptr) {
@@ -88,6 +88,8 @@ void Codegen::save_as_file_type(const std::string &out_path, const std::string& 
     }
 
     legacy::PassManager pass;
+
+    auto type = object_file ? llvm::CodeGenFileType::CGFT_ObjectFile : llvm::CodeGenFileType::CGFT_AssemblyFile;
 
     if (TheTargetMachine->addPassesToEmitFile(pass, dest, nullptr, type)) {
         error("TheTargetMachine can't emit a file of this type");

@@ -13,7 +13,7 @@
 #include <vector>
 #include <memory>
 #ifdef COMPILER_BUILD
-#include "llvm/IR/Value.h"
+#include "compiler/llvmfwd.h"
 #endif
 
 class FunctionDeclaration;
@@ -133,11 +133,7 @@ std::cerr << "child called on base value";
      * @param gen
      * @param identifier
      */
-    virtual void llvm_allocate(Codegen& gen, const std::string& identifier) {
-        auto x = gen.builder->CreateAlloca(llvm_type(gen), nullptr, identifier);
-        gen.allocated[identifier] = x;
-        gen.builder->CreateStore(llvm_value(gen), x);
-    }
+    virtual void llvm_allocate(Codegen& gen, const std::string& identifier);
 
     /**
      * provides llvm_elem_type, which is the child type for example elem type of an array value

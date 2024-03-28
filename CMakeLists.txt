@@ -262,6 +262,37 @@ set(COMMON_SOURCES
         ast/structures/LoopScope.cpp
         ast/types/PointerType.h
         ast/types/GenericType.h
+        ast/base/Value.cpp
+        ast/statements/VarInit.cpp
+        ast/structures/StructDefinition.cpp
+        ast/values/IntValue.cpp
+        ast/structures/If.cpp
+        ast/structures/WhileLoop.cpp
+        ast/structures/DoWhileLoop.cpp
+        ast/structures/ForLoop.cpp
+        ast/values/ArrayValue.cpp
+        ast/values/StructValue.cpp
+        ast/statements/Assignment.cpp
+        ast/values/CharValue.cpp
+        ast/values/StringValue.cpp
+        ast/values/NotValue.cpp
+        ast/values/Negative.cpp
+        ast/types/AnyType.cpp
+        ast/values/FunctionCall.cpp
+        ast/values/BoolValue.cpp
+        ast/values/DoubleValue.cpp
+        ast/values/FloatValue.cpp
+        ast/types/ArrayType.cpp
+        ast/types/BoolType.cpp
+        ast/types/CharType.cpp
+        ast/types/DoubleType.cpp
+        ast/types/FloatType.cpp
+        ast/types/Int32Type.cpp
+        ast/types/PointerType.cpp
+        ast/types/StringType.cpp
+        ast/types/VoidType.cpp
+        ast/values/VariableIdentifier.cpp
+        ast/values/IndexOperator.cpp
 )
 
 # Chemical LSP Executable Target
@@ -284,6 +315,8 @@ add_executable(Compiler Compiler.cpp ${COMMON_SOURCES}
         compiler/InvokeExtension.cpp
         compiler/cc1gen_reproducer_main.cpp
         compiler/JitInterpret.cpp
+        compiler/llvmfwd.h
+        compiler/llvmimpl.h
 )
 
 # Compiler uses llvm

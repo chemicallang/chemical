@@ -431,6 +431,11 @@ public:
     bool lexBoolToken();
 
     /**
+      * lex a unsigned int as number token
+      */
+    bool lexUnsignedIntAsNumberToken();
+
+    /**
      * lex an number token
      * @return whether a token was lexed or not
      */

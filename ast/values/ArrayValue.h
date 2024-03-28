@@ -69,6 +69,10 @@ public:
     }
 #endif
 
+    ValueType value_type() const override {
+        return ValueType::Array;
+    }
+
     Value *copy(InterpretScope& scope) override {
         std::vector<std::unique_ptr<Value>> copied_values(values.size());
         for(const auto& value : values) {

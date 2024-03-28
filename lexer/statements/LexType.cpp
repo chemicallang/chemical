@@ -20,6 +20,12 @@ bool Lexer::lexTypeTokens() {
             if(!lexOperatorToken('>')) {
                 error("expected '>' for generic type");
             }
+        } else if(lexOperatorToken('[')) {
+            // optional array size
+            lexUnsignedIntAsNumberToken();
+            if(!lexOperatorToken(']')) {
+                error("expected ']' for array type");
+            }
         }
         lexOperatorToken('*');
         return true;

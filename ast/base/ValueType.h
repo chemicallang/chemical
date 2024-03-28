@@ -21,6 +21,7 @@ enum class ValueType : uint8_t {
     Char,
     String,
     Void,
+    Array,
     Struct,
     Vector,
     Unknown

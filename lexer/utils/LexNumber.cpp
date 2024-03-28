@@ -7,6 +7,16 @@
 #include <memory>
 #include "lexer/Lexer.h"
 
+bool Lexer::lexUnsignedIntAsNumberToken() {
+    auto number = provider.readUnsignedInt();
+    if (!number.empty()) {
+        tokens.emplace_back(std::make_unique<NumberToken>(backPosition(number.length()), number));
+        return true;
+    } else {
+        return false;
+    }
+}
+
 bool Lexer::lexNumberToken() {
     auto number = lexNumber();
     if (!number.empty()) {

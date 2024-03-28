@@ -39,7 +39,7 @@ std::pair<char, bool> SourceProvider::escape_sequence() {
             actualChar = '\?';
             break;
         case 'x':
-            if(peek(1) == '1' && peek(2) == 'b') {
+            if (peek(1) == '1' && peek(2) == 'b') {
                 actualChar = '\x1b';
                 length = 3;
             } else {
@@ -54,8 +54,8 @@ std::pair<char, bool> SourceProvider::escape_sequence() {
     }
 
     // consuming the escape sequence
-    if(found) {
-        while(length > 0) {
+    if (found) {
+        while (length > 0) {
             readCharacter();
             length--;
         }
@@ -70,10 +70,10 @@ std::string SourceProvider::readAnything(char until) {
     });
 }
 
-std::string SourceProvider::readUntil(const std::string& ending, bool consume) {
+std::string SourceProvider::readUntil(const std::string &ending, bool consume) {
     std::string content;
-    while(!eof() && peek() != -1) {
-        if(peek() == ending[0] && increment(ending, !consume)) {
+    while (!eof() && peek() != -1) {
+        if (peek() == ending[0] && increment(ending, !consume)) {
             break;
         }
         content += readCharacter();
@@ -81,15 +81,23 @@ std::string SourceProvider::readUntil(const std::string& ending, bool consume) {
     return content;
 }
 
+std::string SourceProvider::readUnsignedInt() {
+    if (!std::isdigit(peek())) return "";
+    return readAnything([&]() -> bool {
+        auto p = peek();
+        return p >= '0' && p <= '9';
+    });
+}
+
 std::string SourceProvider::readNumber() {
-    if(peek() != '-' && !std::isdigit(peek())) return "";
+    if (peek() != '-' && !std::isdigit(peek())) return "";
     auto appearedDot = false;
     auto first_char = true;
     return readAnything([&]() -> bool {
         auto c = peek();
-        if(first_char) {
+        if (first_char) {
             first_char = false;
-            if(c == '-') {
+            if (c == '-') {
                 return true;
             }
         }
@@ -121,7 +129,7 @@ std::string SourceProvider::readAlphaNum() {
 }
 
 std::string SourceProvider::readIdentifier() {
-    if(std::isalpha(peek()) || peek() == '_') {
+    if (std::isalpha(peek()) || peek() == '_') {
         std::string str;
         while (!eof() && (std::isalnum(peek()) || peek() == '_')) {
             str.append(1, readCharacter());
@@ -133,7 +141,7 @@ std::string SourceProvider::readIdentifier() {
 }
 
 std::string SourceProvider::readAnnotation() {
-    if(std::isalpha(peek()) || peek() == '_') {
+    if (std::isalpha(peek()) || peek() == '_') {
         std::string str;
         while (!eof() && (std::isalnum(peek()) || peek() == '_' || peek() == ':')) {
             str.append(1, readCharacter());

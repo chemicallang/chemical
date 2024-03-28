@@ -129,6 +129,11 @@ public:
     std::string readAlpha();
 
     /**
+     * reads an unsigned integer as string, returns "" if no integer found
+     */
+    std::string readUnsignedInt();
+
+    /**
      * reads a number from the stream
      */
     std::string readNumber();

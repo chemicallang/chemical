@@ -4,12 +4,7 @@ func add(a : int, b : int) : int {
     return a + b;
 }
 
-struct Point {
-    var x : int
-    var y : int
-}
-
-func main(argc : int, argv : string*) : int {
+func print_args(argc : int, argv : string*) {
     printf("number of arguments : %d\n", argc);
     printf("printing args : \n");
     var i = 0;
@@ -17,6 +12,15 @@ func main(argc : int, argv : string*) : int {
         printf("%d = %s\n", i, argv[i]);
         i++;
     }
+}
+
+struct Point {
+    var x : int
+    var y : int
+}
+
+func main(argc : int, argv : string*) : int {
+    print_args(argc, argv);
     printf("function sum : %d\n", add(5, 4))
     printf("check this char '%c'\n", 'x');
     printf("check this float : %f\n", 1.12345);

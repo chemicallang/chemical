@@ -68,6 +68,10 @@ public:
      * @return
      */
     llvm::Function* create_function(const std::string& name, llvm::FunctionType* type) {
+        if(!has_current_block_ended) {
+            builder->CreateRetVoid();
+            has_current_block_ended = true;
+        }
         current_function = module->getFunction(name);
         if(current_function == nullptr) {
             current_function = create_function_proto(name, type);

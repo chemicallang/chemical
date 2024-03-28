@@ -8,6 +8,9 @@
 #ifdef COMPILER_BUILD
 #include "llvm/IR/Type.h"
 #endif
+
+class PointerType;
+
 /**
  * BaseType is a base class for all the types there are
  */
@@ -29,6 +32,13 @@ public:
      * @return
      */
     virtual bool satisfies(ValueType type) const = 0;
+
+    /**
+     * pointer type returns pointer type
+     */
+    virtual PointerType* pointer_type() {
+        return nullptr;
+    }
 
     /**
      * representation is representation of the type

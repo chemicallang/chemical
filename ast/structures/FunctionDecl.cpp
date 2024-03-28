@@ -2,11 +2,38 @@
 
 #include "ast/base/GlobalInterpretScope.h"
 
+#ifdef COMPILER_BUILD
+#include "ast/types/PointerType.h"
+
+llvm::Type *FunctionParam::llvm_elem_type(Codegen &gen) {
+    auto lType = llvm_type(gen);
+    if (lType) {
+        if (lType->isArrayTy()) {
+            return lType->getArrayElementType();
+        } else if (lType->isPointerTy()) {
+            auto ptr_type = type->pointer_type();
+            if(ptr_type){
+                return ptr_type->type->llvm_type(gen);
+            } else {
+                gen.error("type is not a pointer type for parameter " + name);
+            }
+        } else {
+            gen.error("type is not an array / pointer for parameter " + name);
+        }
+    } else {
+        gen.error("parameter type is invalid " + name);
+    }
+    return nullptr;
+}
+
+#endif
+
 void FunctionDeclaration::interpret_scope_ends(InterpretScope &scope) {
     scope.erase_node(name);
 }
 
-Value* FunctionDeclaration::call(InterpretScope *call_scope, std::vector<std::unique_ptr<Value>> &call_params, InterpretScope* fn_scope) {
+Value *FunctionDeclaration::call(InterpretScope *call_scope, std::vector<std::unique_ptr<Value>> &call_params,
+                                 InterpretScope *fn_scope) {
     if (!body.has_value()) return nullptr;
     if (params.size() != call_params.size()) {
         fn_scope->error("function " + name + " requires " + std::to_string(params.size()) + ", but given params are " +

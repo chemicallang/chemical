@@ -50,19 +50,7 @@ public:
         return type->llvm_type(gen);
     }
 
-    llvm::Type *llvm_elem_type(Codegen &gen) override {
-        auto type = llvm_type(gen);
-        if(type) {
-            if(type->isArrayTy()) {
-                return type->getArrayElementType();
-            } else {
-                gen.error("type is not an array for parameter " + name);
-            }
-        } else {
-          gen.error("parameter type is invalid " + name);
-        }
-        return nullptr;
-    }
+    llvm::Type *llvm_elem_type(Codegen &gen) override;
 
 #endif
 

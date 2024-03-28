@@ -45,8 +45,9 @@ public:
         }
     }
 
+    // TODO isInBounds optimization, when we know that index is in bounds
     llvm::Value* elem_pointer(Codegen& gen, ASTNode* arr) {
-        return gen.builder->CreateGEP(arr->llvm_type(gen), arr->llvm_pointer(gen), {llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), 0), value->llvm_value(gen)});;
+        return gen.builder->CreateGEP(arr->llvm_type(gen), arr->llvm_pointer(gen), {value->llvm_value(gen)});;
     }
 
     llvm::Value * llvm_pointer(Codegen &gen) override {

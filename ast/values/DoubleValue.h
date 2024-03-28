@@ -21,13 +21,9 @@ public:
     DoubleValue(double value) : value(value) {}
 
 #ifdef COMPILER_BUILD
-    llvm::Type * llvm_type(Codegen &gen) override {
-        return gen.builder->getDoubleTy();
-    }
+    llvm::Type * llvm_type(Codegen &gen) override;
 
-    llvm::Value * llvm_value(Codegen &gen) override {
-        return llvm::ConstantFP::get(llvm_type(gen), value);
-    }
+    llvm::Value * llvm_value(Codegen &gen) override;
 #endif
 
     Value * copy(InterpretScope& scope) override {

@@ -106,25 +106,15 @@ public:
     }
 
 #ifdef COMPILER_BUILD
-    llvm::Value * llvm_pointer(Codegen &gen) override {
-        return allocaInst;
-    }
+    llvm::Value * llvm_pointer(Codegen &gen) override;
 
-    void llvm_allocate(Codegen &gen, const std::string &identifier) override {
-        allocaInst = gen.builder->CreateAlloca(llvm_type(gen), nullptr, structName);
-    }
+    void llvm_allocate(Codegen &gen, const std::string &identifier) override;
 
-    llvm::Value * llvm_value(Codegen &gen) override {
-        throw std::runtime_error("cannot allocate an array without an identifier");
-    }
+    llvm::Value * llvm_value(Codegen &gen) override;
 
-    llvm::Type * llvm_elem_type(Codegen &gen) override {
-        throw std::runtime_error("cannot allocate an array without an identifier");
-    }
+    llvm::Type * llvm_elem_type(Codegen &gen) override;
 
-    llvm::Type * llvm_type(Codegen &gen) override {
-        return llvm::StructType::get(*gen.ctx, definition->elements_type(gen));
-    }
+    llvm::Type * llvm_type(Codegen &gen) override;
 #endif
 
     std::string representation() const override {

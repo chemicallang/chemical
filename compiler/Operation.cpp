@@ -3,6 +3,8 @@
 #include "Codegen.h"
 
 #ifdef COMPILER_BUILD
+#include "llvmimpl.h"
+
 llvm::Value* Codegen::operate(Operation op, llvm::Value* lhs, llvm::Value* rhs) {
     switch(op) {
 //        case Operation::Grouping:

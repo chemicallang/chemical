@@ -33,15 +33,7 @@ public:
     }
 
 #ifdef COMPILER_BUILD
-    void code_gen(Codegen &gen) override {
-        if(assOp == Operation::Assignment) {
-            gen.builder->CreateStore(value->llvm_value(gen), lhs->llvm_pointer(gen));
-        } else {
-            auto loaded = lhs->llvm_value(gen);
-            auto operated = gen.operate(assOp, loaded, value->llvm_value(gen));
-            gen.builder->CreateStore(operated, lhs->llvm_pointer(gen));
-        }
-    }
+    void code_gen(Codegen &gen) override;
 #endif
 
     void interpret(InterpretScope& scope) override {

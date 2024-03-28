@@ -9,6 +9,8 @@
 #include <vector>
 #include <memory>
 #include "ast/base/Value.h"
+#include "ast/base/ASTNode.h"
+#include "ast/structures/FunctionDeclaration.h"
 
 class FunctionCall : public Value {
 public:
@@ -78,26 +80,9 @@ public:
     }
 
 #ifdef COMPILER_BUILD
-    llvm::Value * llvm_value(Codegen &gen) override {
-        auto fn = gen.module->getFunction(name);
-        if(fn == nullptr) {
-            gen.error("function with name " + name + " does not exist");
-            return nullptr;
-        }
-        std::vector<llvm::Value*> args(values.size());
-        for(size_t i = 0; i < values.size(); ++i) {
-            args[i] = values[i]->llvm_value(gen);
-            // Ensure proper type promotion for float values passed to printf
-            if (fn->isVarArg() && llvm::isa<llvm::ConstantFP>(args[i]) && args[i]->getType() != llvm::Type::getDoubleTy(*gen.ctx)) {
-                args[i] = gen.builder->CreateFPExt(args[i], llvm::Type::getDoubleTy(*gen.ctx));
-            }
-        }
-        return gen.builder->CreateCall(fn, args);
-    }
+    llvm::Value * llvm_value(Codegen &gen) override;
 
-    void code_gen(Codegen &gen) override {
-      llvm_value(gen);
-    }
+    void code_gen(Codegen &gen) override;
 #endif
 
     std::string representation() const override {

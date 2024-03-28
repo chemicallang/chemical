@@ -7,13 +7,9 @@
 #include <utility>
 #include <vector>
 #include <iostream>
-#include <llvm/IR/LLVMContext.h>
-#include <llvm/IR/Module.h>
-#include <llvm/IR/IRBuilder.h>
-#include <llvm/IR/Verifier.h>
-#include <llvm/Target/TargetMachine.h>
 #include "ast/utils/Operation.h"
 #include "ASTLinker.h"
+#include "llvmfwd.h"
 
 class Codegen : public ASTLinker {
 public:
@@ -46,14 +42,7 @@ public:
     /**
      * initializes the llvm module and context
      */
-    void module_init() {
-        // context and module
-        ctx = std::make_unique<llvm::LLVMContext>();
-        module = std::make_unique<llvm::Module>("TodoName", *ctx);
-
-        // creating a new builder for the module
-        builder = std::make_unique<llvm::IRBuilder<>>(*ctx);
-    }
+    void module_init();
 
     /**
      * the actual compile function, when called module, ctx and builder members
@@ -67,18 +56,7 @@ public:
      * @param type type of the function
      * @return
      */
-    llvm::Function* create_function(const std::string& name, llvm::FunctionType* type) {
-        if(!has_current_block_ended) {
-            builder->CreateRetVoid();
-            has_current_block_ended = true;
-        }
-        current_function = module->getFunction(name);
-        if(current_function == nullptr) {
-            current_function = create_function_proto(name, type);
-        }
-        createFunctionBlock(current_function);
-        return current_function;
-    }
+    llvm::Function* create_function(const std::string& name, llvm::FunctionType* type);
 
     /**
      * gets or inserts a function, similar to declaration
@@ -86,9 +64,7 @@ public:
      * @param type
      * @return
      */
-    llvm::FunctionCallee declare_function(const std::string& name, llvm::FunctionType* type) {
-        return module->getOrInsertFunction(name, type);
-    }
+    llvm::FunctionCallee declare_function(const std::string& name, llvm::FunctionType* type);
 
     /**
      * create a function prototype
@@ -96,11 +72,7 @@ public:
      * @param type type of the function
      * @return
      */
-    llvm::Function* create_function_proto(const std::string& name, llvm::FunctionType* type) {
-        auto fn = llvm::Function::Create(type, llvm::Function::ExternalLinkage, name, *module);
-        llvm::verifyFunction(*fn);
-        return fn;
-    }
+    llvm::Function* create_function_proto(const std::string& name, llvm::FunctionType* type);
 
     /**
      * create a function's basic block, with the given name
@@ -108,36 +80,24 @@ public:
      * @param fn
      * @return
      */
-    llvm::BasicBlock* createBB(const std::string& name, llvm::Function* fn) {
-        return llvm::BasicBlock::Create(*ctx, name, fn);
-    }
+    llvm::BasicBlock* createBB(const std::string& name, llvm::Function* fn);
 
     /**
      * creates a function block, along with setting the insert point to this entry block
      * @param fn
      */
-    void createFunctionBlock(llvm::Function* fn) {
-        auto entry = createBB("entry", fn);
-        SetInsertPoint(entry);
-    }
+    void createFunctionBlock(llvm::Function* fn);
 
     /**
      * prints the current module to console
      */
-    void print_to_console() {
-        module->print(llvm::outs(), nullptr);
-    }
+    void print_to_console();
 
     /**
      * prints the current module as LLVM IR to a .ll file with given out_path
      * @param out_path
      */
-    void save_to_file(const std::string &out_path, const std::string& TargetTriple) {
-        std::error_code errorCode;
-        llvm::raw_fd_ostream outLL(out_path, errorCode);
-        module->print(outLL, nullptr);
-        outLL.close();
-    }
+    void save_to_file(const std::string &out_path, const std::string& TargetTriple);
 
     /**
      * sets up the module for the given target
@@ -153,10 +113,9 @@ public:
 
     /**
      * save file as file type
-     * @param TargetTriple
-     * @param type
+     * @param object_file when true object file is generated, otherwise assembly file is generated
      */
-    void save_as_file_type(const std::string &out_path, const std::string& TargetTriple, llvm::CodeGenFileType type);
+    void save_as_file_type(const std::string &out_path, const std::string& TargetTriple, bool object_file = true);
 
     /**
      * save as a bitcode file
@@ -168,7 +127,7 @@ public:
      * @param TargetTriple
      */
     inline void save_to_assembly_file(const std::string &out_path, const std::string& TargetTriple) {
-        save_as_file_type(out_path, TargetTriple, llvm::CGFT_AssemblyFile);
+        save_as_file_type(out_path, TargetTriple, false);
     }
 
     /**
@@ -176,7 +135,7 @@ public:
      * @param out_path
      */
     inline void save_to_object_file(const std::string &out_path, const std::string& TargetTriple) {
-        save_as_file_type(out_path, TargetTriple, llvm::CGFT_ObjectFile);
+        save_as_file_type(out_path, TargetTriple, true);
     }
 
     /**
@@ -263,6 +222,11 @@ public:
     void error(const std::string& err);
 
     /**
+     * destructor takes care of deallocating members
+     */
+    ~Codegen();
+
+    /**
      * path to the file
      */
     std::string path;
@@ -295,7 +259,7 @@ public:
     /**
      * the builder that builds ir
      */
-    std::unique_ptr<llvm::IRBuilder<>> builder;
+    llvm::IRBuilder<llvm::ConstantFolder, llvm::IRBuilderDefaultInserter>* builder;
 
 private:
 

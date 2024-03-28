@@ -20,9 +20,7 @@ public:
     }
 
 #ifdef COMPILER_BUILD
-    llvm::Type *llvm_type(Codegen &gen) const override {
-        return gen.builder->getFloatTy();
-    }
+    llvm::Type *llvm_type(Codegen &gen) const override;
 #endif
 
 };

@@ -26,13 +26,9 @@ public:
     }
 
 #ifdef COMPILER_BUILD
-    llvm::Type * llvm_type(Codegen &gen) override {
-        return gen.builder->getInt8Ty();
-    }
+    llvm::Type * llvm_type(Codegen &gen) override;
 
-    llvm::Value * llvm_value(Codegen &gen) override {
-        return gen.builder->getInt8((int) value);
-    }
+    llvm::Value * llvm_value(Codegen &gen) override;
 #endif
 
     char as_char() override {

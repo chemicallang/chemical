@@ -88,9 +88,7 @@ public:
         return vec;
     }
 
-    void code_gen(Codegen &gen) override {
-        llvm::StructType::create(*gen.ctx, elements_type(gen), name);
-    }
+    void code_gen(Codegen &gen) override;
 #endif
 
     std::string representation() const override {

@@ -42,9 +42,7 @@ public:
     }
 
 #ifdef COMPILER_BUILD
-    llvm::Value * llvm_value(Codegen &gen) override {
-        return gen.builder->CreateGlobalStringPtr(value);
-    }
+    llvm::Value * llvm_value(Codegen &gen) override;
 #endif
 
     Value *copy(InterpretScope& scope) override {

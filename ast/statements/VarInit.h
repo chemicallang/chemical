@@ -63,14 +63,7 @@ public:
         return value.has_value() ? value.value()->llvm_type(gen) : type.value()->llvm_type(gen);
     }
 
-    void code_gen(Codegen &gen) override {
-        declare(gen);
-        if(value.has_value()) {
-            value.value()->llvm_allocate(gen, identifier);
-        } else {
-            gen.allocated[identifier] = gen.builder->CreateAlloca(llvm_type(gen), nullptr, identifier);
-        }
-    }
+    void code_gen(Codegen &gen) override;
 #endif
 
     VarInitStatement *as_var_init() override {

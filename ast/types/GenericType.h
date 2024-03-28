@@ -23,7 +23,7 @@ public:
     }
 
     virtual BaseType* copy() const {
-        return new GenericType(std::unique_ptr<BaseType>(type->copy()));
+        return new GenericType(base, std::unique_ptr<BaseType>(type->copy()));
     }
 
 #ifdef COMPILER_BUILD

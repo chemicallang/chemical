@@ -4,7 +4,6 @@ struct wow {
 
 func modify(x : wow) {
     x.i = 6;
-    return x;
 }
 
 // interpreter copied value from AST
@@ -22,8 +21,8 @@ func struct_references() {
     var x = wow {
         i : 5
     };
-    // moved
-    x = modify(x);
+    // passed as a reference
+    modify(x);
     if(x.i == 6){
         // another reference
         var y = x;

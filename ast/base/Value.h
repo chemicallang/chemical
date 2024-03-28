@@ -216,13 +216,6 @@ std::cerr << "child called on base value";
     }
 
     /**
-     * return true if initializer value is a reference
-     */
-    virtual bool is_initializer_reference(InterpretScope& scope) {
-        return false;
-    }
-
-    /**
      * this is the initializer value, which is called by the var init statement
      */
     virtual Value* initializer_value(InterpretScope& scope) {

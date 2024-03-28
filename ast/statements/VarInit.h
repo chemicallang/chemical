@@ -72,7 +72,9 @@ public:
 
     void interpret(InterpretScope &scope) override {
         if (value.has_value()) {
-            scope.declare(identifier, value.value()->initializer_value(scope));
+            auto initializer = value.value()->initializer_value(scope);
+            scope.declare(identifier, initializer);
+            is_reference = !initializer->primitive();
         }
         decl_scope = &scope;
         scope.declare(identifier, this);
@@ -95,7 +97,7 @@ public:
     void interpret_scope_ends(InterpretScope &scope) override {
         auto found = scope.find_value_iterator(identifier);
         if (found.first != found.second.end()) {
-            if(!is_reference && (!value.has_value() || !value.value()->is_initializer_reference(scope))) {
+            if(!is_reference) {
                 delete found.first->second;
             }
             found.second.erase(found.first);

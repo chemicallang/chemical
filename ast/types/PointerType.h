@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ast/base/BaseType.h"
+#include <memory>
 
 class PointerType : public BaseType {
 public:

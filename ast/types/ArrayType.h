@@ -10,9 +10,9 @@ public:
 
     std::unique_ptr<BaseType> elem_type;
 
-    unsigned int array_size;
+    int array_size;
 
-    ArrayType(std::unique_ptr<BaseType> elem_type, unsigned int array_size) : elem_type(std::move(elem_type)),
+    ArrayType(std::unique_ptr<BaseType> elem_type, int array_size) : elem_type(std::move(elem_type)),
                                                                               array_size(array_size) {
 
     }
@@ -22,11 +22,11 @@ public:
     }
 
     bool satisfies(ValueType type) const override {
-        return type == ValueType::String;
+        return type == ValueType::Array;
     }
 
     std::string representation() const override {
-        return "string";
+        return elem_type->representation() + ((array_size == -1) ? "[]" : ("[" + std::to_string(array_size) + "]"));
     }
 
 #ifdef COMPILER_BUILD

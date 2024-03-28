@@ -89,8 +89,6 @@ Value *FunctionDeclaration::call(InterpretScope *call_scope, std::vector<std::un
                 delete itr.first->second;
             }
             itr.second.erase(itr.first);
-        } else {
-            fn_scope->error("couldn't find parameter for cleanup after function call " + params[i].name);
         }
         i--;
     }

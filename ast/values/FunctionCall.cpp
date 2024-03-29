@@ -29,3 +29,36 @@ void FunctionCall::code_gen(Codegen &gen) {
 }
 
 #endif
+
+void FunctionCall::link(ASTLinker &linker) {
+    auto found = linker.current.find(name);
+    if (found != linker.current.end()) {
+        auto func = found->second->as_function();
+        if (func != nullptr) {
+            definition = func;
+            for(const auto& value : values) {
+                value->link(linker);
+            }
+        } else {
+            linker.error("function call to identifier '" + name + "' is not valid, because its not a function.");
+        }
+    } else {
+        linker.error("no function with name '" + name + "' found");
+    }
+}
+
+ASTNode *FunctionCall::linked_node(ASTLinker &linker) {
+    if (!definition) link(linker);
+    if (!definition) return nullptr;
+    return definition->returnType->link(linker);
+}
+
+ASTNode* FunctionCall::find_link_in_parent(ASTNode *node) {
+    auto found = node->child(name);
+    auto func = found->as_function();
+    if(func) {
+        definition = func;
+        return func;
+    }
+    return nullptr;
+}

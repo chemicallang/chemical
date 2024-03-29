@@ -22,6 +22,12 @@ public:
 
     FunctionCall(FunctionCall &&other) = delete;
 
+    void link(ASTLinker &linker) override;
+
+    ASTNode *linked_node(ASTLinker &linker) override;
+
+    ASTNode* find_link_in_parent(ASTNode *parent) override;
+
     bool primitive() override {
         return false;
     }
@@ -30,19 +36,7 @@ public:
         return parent->call_member(scope, name, values);
     }
 
-    void prepare(InterpretScope &scope) {
-        auto decl = scope.find_node(name);
-        if (decl == nullptr) {
-            scope.error("(function call) couldn't find function declaration by name " + name);
-        } else if (decl->as_function() == nullptr) {
-            scope.error("(function call) declaration by name " + name + " is not a function");
-        } else {
-            definition = decl->as_function();
-        }
-    }
-
     Value *evaluated_value(InterpretScope &scope) override {
-        prepare(scope);
         if (definition != nullptr) {
             return definition->call(&scope, values);
         } else {

@@ -42,6 +42,12 @@ public:
 
     void set_identifier_value(InterpretScope &scope, Value *rawValue, Operation op) override;
 
+    void link(ASTLinker &linker) override;
+
+    ASTNode *linked_node(ASTLinker &linker) override;
+
+    ASTNode *find_link_in_parent(ASTNode *parent) override;
+
 #ifdef COMPILER_BUILD
 
     llvm::Value *arg_value(Codegen &gen, ASTNode *node);
@@ -52,11 +58,9 @@ public:
 
     llvm::Value *llvm_value(Codegen &gen) override;
 
-    ASTNode *resolve(Codegen &gen);
-
 #endif
 
-    VarInitStatement *declaration(InterpretScope &scope) override;
+    VarInitStatement *declaration() override;
 
     Value *evaluated_value(InterpretScope &scope) override;
 
@@ -68,7 +72,7 @@ public:
     /**
      * copy the value if its primitive, otherwise make a reference
      */
-    Value* copy_prim_ref_other(InterpretScope& scope);
+    Value *copy_prim_ref_other(InterpretScope &scope);
 
     Value *param_value(InterpretScope &scope) override;
 
@@ -79,6 +83,7 @@ public:
     std::string representation() const override;
 
 private:
+    ASTNode *linked = nullptr;
     std::string value; ///< The string value.
 
 };

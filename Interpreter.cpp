@@ -21,6 +21,19 @@ void benchInterpret(Scope& scope, GlobalInterpretScope& interpretScope) {
 
     // Actual interpretation
     ExpressionEvaluator::prepareFunctions(interpretScope);
+    {
+        ASTLinker linker;
+        for(const auto& func : interpretScope.global_fns) {
+            linker.current[func.first] = func.second.get();
+        }
+        scope.declare_top_level(linker);
+        if(!linker.errors.empty()){
+            for(const auto& err : linker.errors) {
+                std::cerr << "[Linker] " << err << std::endl;
+            }
+            return;
+        }
+    }
     scope.interpret(interpretScope);
 
     // Save end time

@@ -5,6 +5,8 @@
 #include "ValueType.h"
 #include <string>
 #include "compiler/Codegen.h"
+#include "compiler/ASTLinker.h"
+
 #ifdef COMPILER_BUILD
 #include "compiler/llvmfwd.h"
 #endif
@@ -25,6 +27,13 @@ public:
     }
 
     virtual BaseType* copy() const = 0;
+
+    /**
+     * a type, or a referenced type, can link itself with its definition
+     */
+    virtual ASTNode* link(ASTLinker& linker) {
+        return nullptr;
+    }
 
     /**
      * this basically tells whether the given value type would satisfy this type

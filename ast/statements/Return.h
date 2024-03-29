@@ -25,6 +25,12 @@ public:
         }
     }
 
+    void declare_and_link(ASTLinker &linker) override {
+        if(value.has_value()) {
+            value.value()->link(linker);
+        }
+    }
+
     void accept(Visitor &visitor) override {
         visitor.visit(this);
     }

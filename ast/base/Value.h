@@ -10,6 +10,7 @@
 #include "ValueType.h"
 #include "ast/utils/Operation.h"
 #include "compiler/Codegen.h"
+#include "compiler/ASTLinker.h"
 #include <vector>
 #include <memory>
 #ifdef COMPILER_BUILD
@@ -31,6 +32,30 @@ class VarInitStatement;
  */
 class Value : public Interpretable {
 public:
+
+    /**
+     * this function is called to allow variable identifiers to link with a node on the map
+     * that will help it provide information, to allow it to generate code, or interpret
+     */
+    virtual void link(ASTLinker& linker) {
+        // does nothing by default
+    }
+
+    /**
+     * it must return the node that will be used to find the next node in the access chain
+     * this node is extracted from the node that was linked to in link method
+     * @return return node that signifies the fragment in the access chain
+     */
+    virtual ASTNode* linked_node(ASTLinker& linker) {
+        return nullptr;
+    }
+
+    /**
+     * find linked node in given parent node
+     */
+    virtual ASTNode* find_link_in_parent(ASTNode* parent){
+        return nullptr;
+    }
 
     /**
      * if this value has a child by this name, it should return a pointer to it
@@ -133,7 +158,7 @@ std::cerr << "child called on base value";
      * @param gen
      * @param identifier
      */
-    virtual void llvm_allocate(Codegen& gen, const std::string& identifier);
+    virtual llvm::AllocaInst* llvm_allocate(Codegen& gen, const std::string& identifier);
 
     /**
      * provides llvm_elem_type, which is the child type for example elem type of an array value
@@ -187,7 +212,7 @@ std::cerr << "child called on base value";
     /**
      * return a var init statement that this value corresponds to
      */
-    virtual VarInitStatement* declaration(InterpretScope& scope) {
+    virtual VarInitStatement* declaration() {
         return nullptr;
     }
 

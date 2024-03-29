@@ -37,7 +37,7 @@ public:
 #ifdef COMPILER_BUILD
     llvm::Value * llvm_pointer(Codegen &gen) override;
 
-    void llvm_allocate(Codegen &gen, const std::string &identifier) override;
+    llvm::AllocaInst* llvm_allocate(Codegen &gen, const std::string &identifier) override;
 
     llvm::Value * llvm_value(Codegen &gen) override;
 

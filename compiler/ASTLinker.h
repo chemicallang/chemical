@@ -17,20 +17,26 @@ class ASTLinker {
 public:
 
     /**
-     * nodes
-     */
-    std::vector<std::unique_ptr<ASTNode>> nodes;
-
-    /**
      * constructor
-     * @param nodes
      */
-    ASTLinker(std::vector<std::unique_ptr<ASTNode>> nodes);
+    ASTLinker();
 
     /**
      * When traversing nodes, A node can declare something e.g a variable using variable statement
      * the identifier for the node is put on this map, so other upcoming nodes can find the node
      */
     std::unordered_map<std::string, ASTNode*> current;
+
+    /**
+     * errors occurred during linking
+     */
+    std::vector<std::string> errors;
+
+    /**
+     * save an error
+     */
+    inline void error(const std::string& err) {
+        errors.push_back(err);
+    }
 
 };

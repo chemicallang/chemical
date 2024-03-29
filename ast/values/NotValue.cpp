@@ -11,3 +11,18 @@ llvm::Value *NotValue::llvm_value(Codegen &gen) {
 }
 
 #endif
+
+void NotValue::link(ASTLinker &linker) {
+    value->link(linker);
+}
+
+bool NotValue::primitive() {
+    return false;
+}
+
+std::string NotValue::representation() const {
+    std::string rep;
+    rep.append(1, '!');
+    rep.append(value->representation());
+    return rep;
+}

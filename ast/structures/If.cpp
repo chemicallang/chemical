@@ -85,3 +85,73 @@ void IfStatement::code_gen(Codegen &gen) {
 }
 
 #endif
+
+IfStatement::IfStatement(
+        std::unique_ptr<Value> condition,
+        Scope ifBody,
+        std::vector<std::pair<std::unique_ptr<Value>, Scope>> elseIfs,
+        std::optional<Scope> elseBody
+) : condition(std::move(condition)), ifBody(std::move(ifBody)),
+    elseIfs(std::move(elseIfs)), elseBody(std::move(elseBody)) {}
+
+void IfStatement::accept(Visitor &visitor) {
+    visitor.visit(this);
+}
+
+void IfStatement::declare_and_link(ASTLinker &linker) {
+    condition->link(linker);
+    ifBody.declare_and_link(linker);
+    ifBody.undeclare_on_scope_end(linker);
+    for(auto& elseIf : elseIfs) {
+        elseIf.first->link(linker);
+        elseIf.second.declare_and_link(linker);
+        elseIf.second.undeclare_on_scope_end(linker);
+    }
+    if(elseBody.has_value()) {
+        elseBody->declare_and_link(linker);
+        elseBody->undeclare_on_scope_end(linker);
+    }
+}
+
+void IfStatement::interpret(InterpretScope &scope) {
+    if (condition->evaluated_bool(scope)) {
+        InterpretScope child(&scope, scope.global, &ifBody, this);
+        ifBody.interpret(child);
+    } else {
+        for (auto const &elseIf: elseIfs) {
+            if (elseIf.first->evaluated_bool(scope)) {
+                InterpretScope child(&scope, scope.global, const_cast<Scope *>(&elseIf.second), this);
+                const_cast<Scope *>(&elseIf.second)->interpret(child);
+                return;
+            }
+        }
+        if (elseBody.has_value()) {
+            InterpretScope child(&scope, scope.global, &elseBody.value(), this);
+            elseBody->interpret(child);
+        }
+    }
+}
+
+std::string IfStatement::representation() const {
+    std::string rep;
+    rep.append("if(");
+    rep.append(condition->representation());
+    rep.append("){\n");
+    rep.append(ifBody.representation());
+    rep.append("\n}");
+    int i = 0;
+    while (i < elseIfs.size()) {
+        rep.append("else if(");
+        rep.append(elseIfs[i].first->representation());
+        rep.append(") {\n");
+        rep.append(elseIfs[i].second.representation());
+        rep.append("\n}");
+        i++;
+    }
+    if (elseBody.has_value()) {
+        rep.append("else {\n");
+        rep.append(elseBody.value().representation());
+        rep.append("\n}");
+    }
+    return rep;
+}

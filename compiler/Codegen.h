@@ -11,8 +11,13 @@
 #include "ASTLinker.h"
 #include "llvmfwd.h"
 
-class Codegen : public ASTLinker {
+class Codegen {
 public:
+
+    /**
+     * nodes that are being traversed to generate the machine code
+     */
+    std::vector<std::unique_ptr<ASTNode>> nodes;
 
     /**
      * At the moment this stores the position (inside the nodes vector)
@@ -25,12 +30,6 @@ public:
      * errors are stored here
      */
     std::vector<std::string> errors = std::vector<std::string>();
-
-    /**
-     * similar to ast linker we have allocated
-     * which provides a way to link up the currently allocated variables
-     */
-    std::unordered_map<std::string, llvm::AllocaInst*> allocated;
 
     /**
      * constructor

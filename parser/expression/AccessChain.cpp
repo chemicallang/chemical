@@ -52,6 +52,7 @@ lex_ptr<AccessChain> Parser::parseAccessChain() {
                 }
 
             }
+
             if(consume_op('(')) {
                 auto params = parseFunctionCallParams();
                 if(consume_op(')')) {
@@ -60,11 +61,7 @@ lex_ptr<AccessChain> Parser::parseAccessChain() {
                     error("expected a ')' after the function call in the access chain");
                     break;
                 }
-            } else {
-                chain->values.emplace_back(std::move(std::make_unique<VariableIdentifier>(var->value)));
-            }
-
-            if(consume_op('[')){
+            } else if(consume_op('[')){
                 auto val = parseExpression();
                 if(val.has_value()) {
                     // TODO index operator shouldn't take variable identifier
@@ -77,6 +74,8 @@ lex_ptr<AccessChain> Parser::parseAccessChain() {
                     error("expected a ']' after the opening '[' in the access chain");
                     break;
                 }
+            } else {
+                chain->values.emplace_back(std::move(std::make_unique<VariableIdentifier>(var->value)));
             }
 
         }

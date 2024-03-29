@@ -28,12 +28,8 @@ public:
         visitor.visit(this);
     }
 
-    void interpret(InterpretScope &scope) override {
-        scope.declare(name, this);
-    }
-
-    void interpret_scope_ends(InterpretScope &scope) override {
-        scope.global->erase_node(name);
+    void declare_top_level(ASTLinker &linker) override {
+        linker.current[name] = this;
     }
 
     bool verify(InterpretScope &scope, const std::string& name, const std::vector<std::unique_ptr<VarInitStatement>>& members) {

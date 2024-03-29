@@ -10,7 +10,7 @@ llvm::Value *ArrayValue::llvm_pointer(Codegen &gen) {
     return arr;
 }
 
-void ArrayValue::llvm_allocate(Codegen &gen, const std::string &identifier) {
+llvm::AllocaInst* ArrayValue::llvm_allocate(Codegen &gen, const std::string &identifier) {
     auto arrType = llvm_type(gen);
     arr = gen.builder->CreateAlloca(arrType, nullptr, identifier);
     // filling array with values
@@ -21,6 +21,7 @@ void ArrayValue::llvm_allocate(Codegen &gen, const std::string &identifier) {
         auto elemValue = values[i]->llvm_value(gen);
         gen.builder->CreateStore(elemValue, elemPtr);
     }
+    return arr;
 }
 
 llvm::Value *ArrayValue::llvm_value(Codegen &gen) {

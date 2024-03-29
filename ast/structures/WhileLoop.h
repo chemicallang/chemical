@@ -18,9 +18,7 @@ public:
      * initializes the loop with only a condition and empty body
      * @param condition
      */
-    WhileLoop(std::unique_ptr<Value> condition) : condition(std::move(condition)) {
-
-    }
+    WhileLoop(std::unique_ptr<Value> condition);
 
     /**
      * @brief Construct a new WhileLoop object.
@@ -28,41 +26,21 @@ public:
      * @param condition The loop condition.
      * @param body The body of the while loop.
      */
-    WhileLoop(std::unique_ptr<Value> condition, LoopScope body)
-            : condition(std::move(condition)), LoopASTNode(std::move(body)) {}
+    WhileLoop(std::unique_ptr<Value> condition, LoopScope body);
 
-    void accept(Visitor &visitor) override {
-        visitor.visit(this);
-    }
+    void accept(Visitor &visitor) override;
 
-    void interpret(InterpretScope &scope) override {
-        InterpretScope child(&scope, scope.global, &body, this);
-        while(condition->evaluated_bool(child)){
-            body.interpret(child);
-            if(stoppedInterpretation) {
-                stoppedInterpretation = false;
-                break;
-            }
-        }
-    }
+    void declare_and_link(ASTLinker &linker) override;
+
+    void interpret(InterpretScope &scope) override;
 
 #ifdef COMPILER_BUILD
     void code_gen(Codegen &gen) override;
 #endif
 
-    void stopInterpretation() override {
-        stoppedInterpretation = true;
-    }
+    void stopInterpretation() override;
 
-    std::string representation() const override {
-        std::string ret;
-        ret.append("while(");
-        ret.append(condition->representation());
-        ret.append(") {\n");
-        ret.append(body.representation());
-        ret.append("\n}");
-        return ret;
-    }
+    std::string representation() const override;
 
 private:
     std::unique_ptr<Value> condition;

@@ -39,6 +39,46 @@ public:
     unsigned int position = 0;
 
     /**
+     * declare something on the scope map
+     * that must be retained in nested level scopes
+     * for example top level functions can be called within functions
+     */
+    virtual void declare_top_level(ASTLinker& linker) {
+        // does nothing by default
+    }
+
+    /**
+     * declares something on the scope map
+     * or find something on the map to link yourself with it
+     */
+    virtual void declare_and_link(ASTLinker& linker) {
+        // does nothing by default
+    }
+
+    /**
+     * undeclare declared things on the scope map
+     */
+    virtual void undeclare_on_scope_end(ASTLinker& linker) {
+        // does nothing by default
+    }
+
+    /**
+     * return a child ASTNode* at index, called by index operator
+     * WARNING : index can be -1, if not known at compile time !
+     */
+    virtual ASTNode* child(int index) {
+        return nullptr;
+    }
+
+    /**
+     * return a child ASTNode* with name
+     * called by access chain values like function call, on structs to get member function definitions
+     */
+    virtual ASTNode* child(const std::string& name) {
+        return nullptr;
+    }
+
+    /**
      * This would return the representation of the node
      * @return
      */
@@ -101,15 +141,6 @@ public:
     }
 
 #ifdef COMPILER_BUILD
-    /**
-     * This function is called by the scope to undeclare anything this map put on the
-     * codegen's current map, which is used to resolve nodes
-     * so when the scope ends, references to this variable cannot be resolved below the scope!
-     * @param gen
-     */
-    virtual void undeclare(Codegen& gen) {
-        // nothing to undeclare
-    }
 
     /**
      * returns a llvm pointer

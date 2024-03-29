@@ -32,6 +32,11 @@ public:
         visitor.visit(this);
     }
 
+    void declare_and_link(ASTLinker &linker) override {
+        lhs->declare_and_link(linker);
+        value->link(linker);
+    }
+
 #ifdef COMPILER_BUILD
     void code_gen(Codegen &gen) override;
 #endif

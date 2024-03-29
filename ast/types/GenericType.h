@@ -9,10 +9,13 @@ public:
 
     std::string base;
     std::unique_ptr<BaseType> type;
+    ASTNode* linked;
 
     GenericType(std::string base, std::unique_ptr<BaseType> type) : base(std::move(base)), type(std::move(type)) {
 
     }
+
+    ASTNode* link(ASTLinker &linker) override;
 
     bool satisfies(ValueType value_type) const override {
         return type->satisfies(value_type);

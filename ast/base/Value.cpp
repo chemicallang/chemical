@@ -6,10 +6,10 @@
 
 #include "compiler/llvmimpl.h"
 
-void Value::llvm_allocate(Codegen& gen, const std::string& identifier) {
+llvm::AllocaInst* Value::llvm_allocate(Codegen& gen, const std::string& identifier) {
     auto x = gen.builder->CreateAlloca(llvm_type(gen), nullptr, identifier);
-    gen.allocated[identifier] = x;
     gen.builder->CreateStore(llvm_value(gen), x);
+    return x;
 }
 
 #endif

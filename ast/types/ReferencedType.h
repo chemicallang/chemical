@@ -9,7 +9,11 @@ public:
 
     std::string type;
 
+    ASTNode* linked;
+
     ReferencedType(const std::string type) : type(type) {}
+
+    ASTNode* link(ASTLinker &linker) override;
 
     bool satisfies(ValueType value_type) const override {
         throw "referenced type cannot determine whether the given value type satisfies";

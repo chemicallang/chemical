@@ -10,8 +10,9 @@ llvm::Value *StructValue::llvm_pointer(Codegen &gen) {
     return allocaInst;
 }
 
-void StructValue::llvm_allocate(Codegen &gen, const std::string &identifier) {
+llvm::AllocaInst* StructValue::llvm_allocate(Codegen &gen, const std::string &identifier) {
     allocaInst = gen.builder->CreateAlloca(llvm_type(gen), nullptr, structName);
+    return allocaInst;
 }
 
 llvm::Value *StructValue::llvm_value(Codegen &gen) {

@@ -34,6 +34,10 @@ public:
         visitor.visit(this);
     }
 
+    void declare_top_level(ASTLinker &linker) override {
+        linker.current[name] = this;
+    }
+
     StructDefinition *as_struct_def() override {
         return this;
     }
@@ -68,12 +72,10 @@ public:
     }
 
     void interpret(InterpretScope &scope) override {
-        scope.declare(name, this);
         decl_scope = &scope;
     }
 
     void interpret_scope_ends(InterpretScope &scope) override {
-        scope.global->erase_node(name);
         decl_scope = nullptr;
     }
 

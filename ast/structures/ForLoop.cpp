@@ -38,3 +38,69 @@ void ForLoop::code_gen(Codegen &gen) {
 }
 
 #endif
+
+/**
+ * @brief Construct a new ForLoop object with an empty body
+ */
+ForLoop::ForLoop(
+        std::unique_ptr<VarInitStatement> initializer,
+        std::unique_ptr<Value> conditionExpr,
+        std::unique_ptr<ASTNode> incrementerExpr
+) : initializer(std::move(initializer)),
+    conditionExpr(std::move(conditionExpr)), incrementerExpr(std::move(incrementerExpr)) {}
+
+/**
+ * @brief Construct a new ForLoop object.
+ */
+ForLoop::ForLoop(
+        std::unique_ptr<VarInitStatement> initializer,
+        std::unique_ptr<Value> conditionExpr,
+        std::unique_ptr<ASTNode> incrementerExpr,
+        LoopScope body
+) : initializer(std::move(initializer)),
+    conditionExpr(std::move(conditionExpr)), incrementerExpr(std::move(incrementerExpr)),
+    LoopASTNode(std::move(body)) {}
+
+void ForLoop::accept(Visitor &visitor) {
+    visitor.visit(this);
+}
+
+void ForLoop::declare_and_link(ASTLinker &linker) {
+    initializer->declare_and_link(linker);
+    conditionExpr->link(linker);
+    incrementerExpr->declare_and_link(linker);
+    body.declare_and_link(linker);
+    initializer->undeclare_on_scope_end(linker);
+    incrementerExpr->undeclare_on_scope_end(linker);
+}
+
+void ForLoop::interpret(InterpretScope &scope) {
+    InterpretScope child(&scope, scope.global, &body, this);
+    initializer->interpret(child);
+    while (conditionExpr->evaluated_bool(child)) {
+        body.interpret(child);
+        if (stoppedInterpretation) {
+            stoppedInterpretation = false;
+            break;
+        }
+        incrementerExpr->interpret(child);
+    }
+    initializer->interpret_scope_ends(child);
+}
+
+void ForLoop::stopInterpretation() {
+    stoppedInterpretation = true;
+}
+
+std::string ForLoop::representation() const {
+    std::string ret("for(");
+    ret.append(initializer->representation());
+    ret.append(1, ';');
+    ret.append(conditionExpr->representation());
+    ret.append(1, ';');
+    ret.append(incrementerExpr->representation());
+    ret.append("{\n");
+    ret.append(body.representation());
+    ret.append("\n}");
+    return ret;
+}

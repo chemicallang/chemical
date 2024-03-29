@@ -67,8 +67,8 @@ public:
 
     void declare_default_values(std::unordered_map<std::string, std::unique_ptr<Value>>& into, InterpretScope& scope) {
         for (const auto &field: definition->variables) {
-            if (into.find(field.second->identifier) == into.end() && field.second->value.has_value()) {
-                into[field.second->identifier] = std::unique_ptr<Value>(field.second->value.value()->initializer_value(scope));
+            if (into.find(field.second->name) == into.end() && field.second->defValue.has_value()) {
+                into[field.second->name] = std::unique_ptr<Value>(field.second->defValue.value()->initializer_value(scope));
             }
         }
     }

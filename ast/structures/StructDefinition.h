@@ -14,6 +14,27 @@
 #include "ast/statements/VarInit.h"
 #include "ast/base/GlobalInterpretScope.h"
 
+struct StructMember : public ASTNode {
+public:
+
+    std::string name;
+
+    std::unique_ptr<BaseType> type;
+
+    std::optional<std::unique_ptr<Value>> defValue;
+
+    StructMember(std::string name, std::unique_ptr<BaseType> type, std::optional<std::unique_ptr<Value>> defValue);
+
+    void accept(Visitor &visitor) override;
+
+#ifdef COMPILER_BUILD
+    llvm::Type * llvm_type(Codegen &gen) override;
+#endif
+
+    std::string representation() const override;
+
+};
+
 class StructDefinition : public ASTNode {
 public:
 
@@ -25,7 +46,7 @@ public:
      */
     StructDefinition(
             std::string name,
-            std::map<std::string, std::unique_ptr<VarInitStatement>> fields,
+            std::map<std::string, std::unique_ptr<StructMember>> fields,
             std::map<std::string, std::unique_ptr<FunctionDeclaration>> functions,
             std::optional<std::string> overrides
     );
@@ -57,6 +78,6 @@ public:
     InterpretScope *decl_scope;
     std::string name; ///< The name of the struct.
     std::optional<std::string> overrides;
-    std::map<std::string, std::unique_ptr<VarInitStatement>> variables; ///< The members of the struct.
+    std::map<std::string, std::unique_ptr<StructMember>> variables; ///< The members of the struct.
     std::map<std::string, std::unique_ptr<FunctionDeclaration>> functions;
 };

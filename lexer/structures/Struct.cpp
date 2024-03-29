@@ -9,7 +9,7 @@
 #include "lexer/model/tokens/InterfaceToken.h"
 
 bool Lexer::lexStructMemberTokens() {
-    return lexVarInitializationTokens() || lexFunctionStructureTokens();
+    return lexVarInitializationTokens(true, true) || lexFunctionStructureTokens();
 }
 
 bool Lexer::lexStructBlockTokens() {

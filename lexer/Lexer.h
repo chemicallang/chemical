@@ -140,7 +140,7 @@ public:
      * like #var x : int; when false however, it'll be strict initialization
      * @return whether it was able to lex the tokens for the statement
      */
-    bool lexVarInitializationTokens(bool allowDeclarations = true);
+    bool lexVarInitializationTokens(bool allowDeclarations = true, bool requiredType = false);
 
     /**
      * lex assignment tokens

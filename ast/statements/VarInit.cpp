@@ -37,7 +37,7 @@ inline void VarInitStatement::check_has_type(Codegen &gen) {
 }
 
 llvm::Value *VarInitStatement::llvm_pointer(Codegen &gen) {
-    return value.has_value() ? value.value()->llvm_pointer(gen) : nullptr;
+    return allocaInst;
 }
 
 llvm::Type *VarInitStatement::llvm_elem_type(Codegen &gen) {

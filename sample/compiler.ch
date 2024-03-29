@@ -41,5 +41,10 @@ func main(argc : int, argv : string*) : int {
     var c : int;
     c = 155;
     printf("check c : %d\n", c);
+    var p = Point {
+        x : 5,
+        y : 6
+    };
+    printf("Point : x = ", p.x, ", y = ", p.y);
     return 0;
 }

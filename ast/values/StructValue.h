@@ -12,123 +12,61 @@
 class StructValue : public Value {
 public:
 
-    StructValue(std::string structName, std::unordered_map<std::string, std::unique_ptr<Value>> values, StructDefinition* definition = nullptr)
-            : structName(std::move(structName)), values(std::move(values)), definition(definition) {}
+    StructValue(
+            std::string structName,
+            std::unordered_map<std::string, std::unique_ptr<Value>> values,
+            StructDefinition *definition = nullptr
+    );
 
-    StructValue(std::string structName, std::unordered_map<std::string, std::unique_ptr<Value>> values, StructDefinition* definition, InterpretScope& scope)
-            : structName(std::move(structName)), values(std::move(values)), definition(definition) {
-        declare_default_values(this->values, scope);
-    }
+    StructValue(
+            std::string structName,
+            std::unordered_map<std::string, std::unique_ptr<Value>> values,
+            StructDefinition *definition,
+            InterpretScope &scope
+    );
 
-    bool primitive() override {
-        return false;
-    }
+    bool primitive() override;
 
-    Value *
-    call_member(InterpretScope &scope, const std::string &name, std::vector<std::unique_ptr<Value>> &params) override {
-        auto fn = definition->member(name);
-        if (fn == nullptr) {
-            scope.error("couldn't find member function by name " + name + " in a struct by name " + structName);
-            return nullptr;
-        }
-#ifdef DEBUG
-        if (definition->decl_scope == nullptr) {
-            scope.error("declaration scope is nullptr for struct value");
-        }
-        if (!fn->body.has_value()) {
-            scope.error("function doesn't have body in a struct " + name);
-            return nullptr;
-        }
-#endif
-        InterpretScope child(definition->decl_scope, scope.global, &fn->body.value(), definition);
-        child.declare("this", this);
-        auto value = fn->call(&scope, params, &child);
-        return value;
-    }
+    void link(ASTLinker &linker) override;
 
-    void set_child_value(const std::string &name, Value *value, Operation op) override {
-        auto ptr = values.find(name);
-        if (ptr == values.end()) {
-            std::cerr << "couldn't find child by name " + name + " in struct";
-            return;
-        }
-        // this is probably gonna delete by itself
-        delete ptr->second.release();
-        ptr->second = std::unique_ptr<Value>(value);
-    }
+    Value *call_member(
+            InterpretScope &scope,
+            const std::string &name,
+            std::vector<std::unique_ptr<Value>> &params
+    ) override;
 
-    Value *evaluated_value(InterpretScope &scope) override {
-        return this;
-    }
+    void set_child_value(const std::string &name, Value *value, Operation op) override;
 
-    Value *initializer_value(InterpretScope &scope) override {
-        return copy(scope);
-    }
+    Value *evaluated_value(InterpretScope &scope) override;
 
-    void declare_default_values(std::unordered_map<std::string, std::unique_ptr<Value>>& into, InterpretScope& scope) {
-        for (const auto &field: definition->variables) {
-            if (into.find(field.second->name) == into.end() && field.second->defValue.has_value()) {
-                into[field.second->name] = std::unique_ptr<Value>(field.second->defValue.value()->initializer_value(scope));
-            }
-        }
-    }
+    Value *initializer_value(InterpretScope &scope) override;
 
-    Value *copy(InterpretScope &scope) override {
-        std::unordered_map<std::string, std::unique_ptr<Value>> copied(values.size());
-        for (const auto &value: values) {
-            copied[value.first] = std::unique_ptr<Value>(value.second->initializer_value(scope));
-        }
-        declare_default_values(copied, scope);
-        return new StructValue(structName, std::move(copied), definition);
-    }
+    void declare_default_values(std::unordered_map<std::string, std::unique_ptr<Value>> &into, InterpretScope &scope);
 
-    Value *child(InterpretScope &scope, const std::string &name) override {
-        auto value = values.find(name);
-        if (value == values.end()) return nullptr;
-        return value->second.get();
-    }
+    Value *copy(InterpretScope &scope) override;
+
+    Value *child(InterpretScope &scope, const std::string &name) override;
 
 #ifdef COMPILER_BUILD
-    llvm::Value * llvm_pointer(Codegen &gen) override;
 
-    llvm::AllocaInst* llvm_allocate(Codegen &gen, const std::string &identifier) override;
+    llvm::AllocaInst *llvm_allocate(Codegen &gen, const std::string &identifier) override;
 
-    llvm::Value * llvm_value(Codegen &gen) override;
+    llvm::Value *llvm_value(Codegen &gen) override;
 
-    llvm::Type * llvm_elem_type(Codegen &gen) override;
+    llvm::Type *llvm_elem_type(Codegen &gen) override;
 
-    llvm::Type * llvm_type(Codegen &gen) override;
+    llvm::Type *llvm_type(Codegen &gen) override;
+
 #endif
 
-    std::string representation() const override {
-        std::string rep(structName + " {\n");
-        unsigned i = 0;
-        for (const auto &value: values) {
-            rep.append(value.first);
-            rep.append(" : ");
-            rep.append(value.second->representation());
-            if (i < values.size() - 1) rep.append(",\n");
-            i++;
-        }
-        rep.append("\n}");
-        return rep;
-    }
+    std::string representation() const override;
 
-    StructValue *as_struct() override {
-        return this;
-    }
+    StructValue *as_struct() override;
 
-    ValueType value_type() const override {
-        return ValueType::Struct;
-    }
+    ValueType value_type() const override;
 
     std::string structName;
-    StructDefinition *definition;
+    StructDefinition *definition = nullptr;
     std::unordered_map<std::string, std::unique_ptr<Value>> values;
-
-#ifdef COMPILER_BUILD
-    // TODO this arr value should be stored in code gen since its related to that
-    llvm::AllocaInst* allocaInst;
-#endif
 
 };

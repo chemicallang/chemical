@@ -24,9 +24,7 @@ public:
      * construct with given nodes
      * @param nodes
      */
-    LoopScope(std::vector<std::unique_ptr<ASTNode>> nodes) : Scope(std::move(nodes)) {
-
-    }
+    LoopScope(std::vector<std::unique_ptr<ASTNode>> nodes);
 
     void interpret(InterpretScope& scope) override;
 
@@ -34,8 +32,6 @@ public:
      * this will stop the interpretation at the current statement
      * meaning all the nodes in this scope will be skipped
      */
-    void stopInterpretOnce() override {
-        stoppedInterpretOnce = true;
-    }
+    void stopInterpretOnce() override;
 
 };

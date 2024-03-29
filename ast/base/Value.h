@@ -27,6 +27,8 @@ class InterpretVectorValue;
 
 class VarInitStatement;
 
+class FunctionCall;
+
 /**
  * @brief Base class for all values in the AST.
  */
@@ -46,7 +48,7 @@ public:
      * this node is extracted from the node that was linked to in link method
      * @return return node that signifies the fragment in the access chain
      */
-    virtual ASTNode* linked_node(ASTLinker& linker) {
+    virtual ASTNode* linked_node() {
         return nullptr;
     }
 
@@ -187,13 +189,37 @@ std::cerr << "child called on base value";
     }
 
     /**
-     * creates the value, casts it to its type and returns it
-     * @param gen
-     * @return
+     * add member index for the given identifier
+     * WARNING : parent can be null ptr when this is the first element in access chain
+     * @return whether it was successful in access index(s)
      */
-    virtual llvm::Value* casted_llvm_value(Codegen &gen) {
-        throw std::runtime_error("casted_llvm_value called on bare Value of type " + std::to_string((int) value_type()));
+    virtual bool add_member_index(Codegen& gen, ASTNode* parent, std::vector<llvm::Value*>& indexes) {
+#ifdef DEBUG
+        std::cerr << "add_member_index called on base value, representation : " << representation();
+#endif
+        throw std::runtime_error("add_member_index called on a value");
     }
+
+    /**
+     * add child index in llvm indexes vector
+     */
+    virtual bool add_child_index(Codegen& gen, std::vector<llvm::Value*>& indexes, const std::string& name) {
+#ifdef DEBUG
+        std::cerr << "add_child_index called on base ASTNode, representation : " << representation();
+#endif
+        throw std::runtime_error("add_child_index called on a ASTNode");
+    }
+
+    /**
+     * add child index in llvm indexes vector
+     */
+    virtual bool add_child_index(Codegen& gen, std::vector<llvm::Value*>& indexes, unsigned int index) {
+#ifdef DEBUG
+        std::cerr << "add_child_index(int) called on base ASTNode, representation : " << representation();
+#endif
+        throw std::runtime_error("add_child_index(int) called on a ASTNode");
+    }
+
 #endif
 
     /**
@@ -375,10 +401,14 @@ std::cerr << "child called on base value";
      * a function to be overridden by values that can return struct
      */
     virtual StructValue* as_struct() {
-#ifdef DEBUG
-        std::cerr << "as_struct called on base value, representation : " << representation();
-#endif
-        throw std::runtime_error("as_struct called on a value");
+        return nullptr;
+    }
+
+    /**
+     * return if value is a function call
+     */
+    virtual FunctionCall* as_func_call() {
+        return nullptr;
     }
 
     /**

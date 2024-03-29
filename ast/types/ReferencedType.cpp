@@ -8,14 +8,15 @@
 
 #endif
 
-ASTNode* ReferencedType::link(ASTLinker &linker) {
-    if(linked) return linked;
+void ReferencedType::link(ASTLinker &linker) {
     auto found = linker.current.find(type);
     if(found != linker.current.end()) {
         linked = found->second;
-        return linked;
     } else {
         linker.error("unresolved symbol, couldn't find type " + type);
-        return nullptr;
     }
+}
+
+ASTNode *ReferencedType::linked_node() {
+    return linked;
 }

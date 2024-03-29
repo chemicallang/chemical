@@ -47,6 +47,8 @@ public:
 
     Value *child(InterpretScope &scope, const std::string &name) override;
 
+    ASTNode *linked_node() override;
+
 #ifdef COMPILER_BUILD
 
     llvm::AllocaInst *llvm_allocate(Codegen &gen, const std::string &identifier) override;
@@ -56,6 +58,10 @@ public:
     llvm::Type *llvm_elem_type(Codegen &gen) override;
 
     llvm::Type *llvm_type(Codegen &gen) override;
+
+    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, unsigned int index) override;
+
+    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
 
 #endif
 

@@ -43,4 +43,10 @@ llvm::Type *ArrayValue::llvm_type(Codegen &gen) {
     return llvm::ArrayType::get(llvm_elem_type(gen), array_size());
 }
 
+bool ArrayValue::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, unsigned int index) {
+    indexes.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), 0));
+    indexes.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), index));
+    return true;
+}
+
 #endif

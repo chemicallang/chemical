@@ -35,29 +35,33 @@ public:
     }
 
 #ifdef COMPILER_BUILD
-    llvm::Value * llvm_pointer(Codegen &gen) override;
 
-    llvm::AllocaInst* llvm_allocate(Codegen &gen, const std::string &identifier) override;
+    llvm::Value *llvm_pointer(Codegen &gen) override;
 
-    llvm::Value * llvm_value(Codegen &gen) override;
+    llvm::AllocaInst *llvm_allocate(Codegen &gen, const std::string &identifier) override;
 
-    llvm::Type * llvm_elem_type(Codegen &gen) override;
+    llvm::Value *llvm_value(Codegen &gen) override;
 
-    llvm::Type * llvm_type(Codegen &gen) override;
+    llvm::Type *llvm_elem_type(Codegen &gen) override;
+
+    llvm::Type *llvm_type(Codegen &gen) override;
+
+    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, unsigned int index) override;
+
 #endif
 
     ValueType value_type() const override {
         return ValueType::Array;
     }
 
-    Value *copy(InterpretScope& scope) override {
+    Value *copy(InterpretScope &scope) override {
         std::vector<std::unique_ptr<Value>> copied_values(values.size());
-        for(const auto& value : values) {
+        for (const auto &value: values) {
             copied_values.emplace_back(value->copy(scope));
         }
         std::vector<unsigned int> copied_sizes(sizes.size());
         std::optional<std::unique_ptr<BaseType>> copied_elem_type = std::nullopt;
-        if(elemType.has_value()) {
+        if (elemType.has_value()) {
             copied_elem_type.emplace(elemType.value()->copy());
         }
         return new ArrayValue(std::move(copied_values), std::move(copied_elem_type), sizes);
@@ -98,7 +102,7 @@ public:
 
 #ifdef COMPILER_BUILD
     // TODO this arr value should be stored in code gen since its related to that
-    llvm::AllocaInst* arr;
+    llvm::AllocaInst *arr;
 #endif
 
 };

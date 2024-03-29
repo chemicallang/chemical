@@ -45,6 +45,6 @@ func main(argc : int, argv : string*) : int {
         x : 5,
         y : 6
     };
-    printf("Point : x = ", p.x, ", y = ", p.y);
+    printf("Point : x = %d, y = %d", p.x, p.y);
     return 0;
 }

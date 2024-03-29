@@ -31,7 +31,14 @@ public:
     /**
      * a type, or a referenced type, can link itself with its definition
      */
-    virtual ASTNode* link(ASTLinker& linker) {
+    virtual void link(ASTLinker& linker) {
+        // does nothing by default
+    }
+
+    /**
+     * just return the linked node
+     */
+    virtual ASTNode* linked_node() {
         return nullptr;
     }
 

@@ -14,20 +14,23 @@ void VarInitStatement::code_gen(Codegen &gen) {
     }
 }
 
-#endif
-
-VarInitStatement::VarInitStatement(
-        bool is_const,
-        std::string identifier,
-        std::optional<std::unique_ptr<BaseType>> type,
-        std::optional<std::unique_ptr<Value>> value
-) : is_const(is_const), identifier(std::move(identifier)), type(std::move(type)), value(std::move(value)) {}
-
-void VarInitStatement::accept(Visitor &visitor) {
-    visitor.visit(this);
+bool VarInitStatement::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
+    if(value.has_value()) {
+        return value.value()->add_child_index(gen, indexes, name);
+    } else if(type.has_value()) {
+        return type.value()->linked_node()->add_child_index(gen, indexes, name);
+    }
+    return false;
 }
 
-#ifdef COMPILER_BUILD
+bool VarInitStatement::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, unsigned int index) {
+    if(value.has_value()) {
+        return value.value()->add_child_index(gen, indexes, index);
+    } else if(type.has_value()) {
+        return type.value()->linked_node()->add_child_index(gen, indexes, index);
+    }
+    return false;
+}
 
 inline void VarInitStatement::check_has_type(Codegen &gen) {
     if (!type.has_value() && !value.has_value()) {
@@ -51,12 +54,44 @@ llvm::Type *VarInitStatement::llvm_type(Codegen &gen) {
 
 #endif
 
+VarInitStatement::VarInitStatement(
+        bool is_const,
+        std::string identifier,
+        std::optional<std::unique_ptr<BaseType>> type,
+        std::optional<std::unique_ptr<Value>> value
+) : is_const(is_const), identifier(std::move(identifier)), type(std::move(type)), value(std::move(value)) {}
+
+void VarInitStatement::accept(Visitor &visitor) {
+    visitor.visit(this);
+}
+
 VarInitStatement *VarInitStatement::as_var_init() {
     return this;
 }
 
+ASTNode *VarInitStatement::child(const std::string &name) {
+    if(type.has_value()) {
+        return type.value()->linked_node()->child(name);
+    } else if(value.has_value()) {
+        return value.value()->linked_node()->child(name);
+    }
+    return nullptr;
+}
+
+int VarInitStatement::child_index(const std::string &name) {
+    if(type.has_value()) {
+        return type.value()->linked_node()->child_index(name);
+    } else if(value.has_value()) {
+        return value.value()->linked_node()->child_index(name);
+    }
+    return -1;
+}
+
 void VarInitStatement::declare_and_link(ASTLinker &linker) {
     linker.current[identifier] = this;
+    if(type.has_value()) {
+        type.value()->link(linker);
+    }
     if (value.has_value()) {
         value.value()->link(linker);
     }

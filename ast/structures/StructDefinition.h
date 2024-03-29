@@ -28,7 +28,9 @@ public:
     void accept(Visitor &visitor) override;
 
 #ifdef COMPILER_BUILD
-    llvm::Type * llvm_type(Codegen &gen) override;
+
+    llvm::Type *llvm_type(Codegen &gen) override;
+
 #endif
 
     std::string representation() const override;
@@ -59,6 +61,10 @@ public:
 
     FunctionDeclaration *member(const std::string &name);
 
+    ASTNode *child(const std::string &name) override;
+
+    int child_index(const std::string &name) override;
+
     bool type_check(InterpretScope &scope);
 
     void interpret(InterpretScope &scope) override;
@@ -68,6 +74,10 @@ public:
 #ifdef COMPILER_BUILD
 
     std::vector<llvm::Type *> elements_type(Codegen &gen);
+
+    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
+
+    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, unsigned int index) override;
 
     void code_gen(Codegen &gen) override;
 

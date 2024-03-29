@@ -90,6 +90,7 @@ int main(int argc, char *argv[]) {
             for(const auto& err : linker.errors) {
                 std::cerr << "[Linker] " << err << std::endl;
             }
+            return 1;
         }
     }
 

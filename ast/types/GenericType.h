@@ -15,7 +15,9 @@ public:
 
     }
 
-    ASTNode* link(ASTLinker &linker) override;
+    void link(ASTLinker &linker) override;
+
+    ASTNode * linked_node() override;
 
     bool satisfies(ValueType value_type) const override {
         return type->satisfies(value_type);

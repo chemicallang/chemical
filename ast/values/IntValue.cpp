@@ -14,8 +14,4 @@ llvm::Value *IntValue::llvm_value(Codegen &gen) {
     return gen.builder->getInt32(value);
 }
 
-llvm::Value *IntValue::casted_llvm_value(Codegen &gen) {
-    return gen.builder->CreateIntCast(llvm_value(gen), gen.builder->getInt32Ty(), true);
-}
-
 #endif

@@ -293,6 +293,10 @@ set(COMMON_SOURCES
         ast/types/VoidType.cpp
         ast/values/VariableIdentifier.cpp
         ast/values/IndexOperator.cpp
+        ast/values/AccessChain.cpp
+        ast/types/ReferencedType.cpp
+        ast/types/GenericType.cpp
+        ast/values/Expression.cpp
 )
 
 # Chemical LSP Executable Target

@@ -11,11 +11,13 @@ lex_ptr<EnumDeclaration> Parser::parseEnumDeclaration() {
         auto name = consumeOfType<AbstractStringToken>(LexTokenType::Enum);
         if(name != nullptr) {
             if(consume_op('{')) {
-                std::vector<std::string> members;
+                std::unordered_map<std::string, unsigned int> members;
+                unsigned member_pos = 0;
                 do {
                     auto member = consumeOfType<AbstractStringToken>(LexTokenType::EnumMember);
                     if(member != nullptr) {
-                        members.emplace_back(member->value);
+                        members[member->value] = member_pos;
+                        member_pos++;
                     } else {
                         break;
                     }

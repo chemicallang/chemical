@@ -34,18 +34,36 @@ public:
         visitor.visit(this);
     }
 
+    /**
+     * a scope's declare_top_level will be called to link all the nodes
+     */
+    void declare_top_level(ASTLinker &linker) override {
+        for(const auto& node : nodes) {
+            node->declare_top_level(linker);
+        }
+        for(const auto& node : nodes) {
+            node->declare_and_link(linker);
+        }
+    }
+
+    void declare_and_link(ASTLinker &linker) override {
+        for(const auto& node : nodes) {
+            node->declare_and_link(linker);
+        }
+        for(const auto& node : nodes) {
+            node->undeclare_on_scope_end(linker);
+        }
+    }
+
 #ifdef COMPILER_BUILD
     void code_gen(Codegen &gen) override {
         for(const auto& node : nodes) {
             node->code_gen(gen);
         }
-        for(const auto& node : nodes) {
-            node->undeclare(gen);
-        }
     }
 #endif
 
-    void interpret(InterpretScope& scope) override;
+    void interpret(InterpretScope &scope) override;
 
     /**
      * function is supposed to implemented by other scopes
@@ -58,9 +76,9 @@ public:
     std::string representation() const override {
         std::string rep;
         int i = 0;
-        while(i < nodes.size()) {
+        while (i < nodes.size()) {
             rep.append(nodes[i]->representation());
-            if(i != nodes.size() - 1) {
+            if (i != nodes.size() - 1) {
                 rep.append(1, '\n');
             }
             i++;

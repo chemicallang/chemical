@@ -25,13 +25,7 @@ llvm::Value *VariableIdentifier::arg_value(Codegen &gen, ASTNode *node) {
 }
 
 llvm::AllocaInst *VariableIdentifier::llvm_alloca(Codegen &gen) {
-    auto found = gen.allocated.find(value);
-    if (found == gen.allocated.end()) {
-        gen.error("llvm_alloca called on variable identifier, couldn't locate the identifier : " + value);
-        return nullptr;
-    } else {
-        return found->second;
-    }
+    return declaration()->allocaInst;
 }
 
 llvm::Value *VariableIdentifier::llvm_pointer(Codegen &gen) {
@@ -39,26 +33,37 @@ llvm::Value *VariableIdentifier::llvm_pointer(Codegen &gen) {
 }
 
 llvm::Value *VariableIdentifier::llvm_value(Codegen &gen) {
-    auto resolved = resolve(gen);
-    auto argVal = arg_value(gen, resolved);
+    auto argVal = arg_value(gen, linked);
     if (argVal != nullptr) {
         return argVal;
     }
     auto v = llvm_pointer(gen);
-    return gen.builder->CreateLoad(resolved->llvm_type(gen), v, value);
-}
-
-ASTNode *VariableIdentifier::resolve(Codegen &gen) {
-    auto found = gen.current.find(value);
-    if (gen.current.end() == found) {
-        gen.error("Couldn't find variable identifier in scope : " + value);
-        throw std::runtime_error("couldn't find variable identifier in scope : " + value);
-    } else {
-        return found->second;
-    }
+    return gen.builder->CreateLoad(linked->llvm_type(gen), v, value);
 }
 
 #endif
+
+void VariableIdentifier::link(ASTLinker &linker) {
+    auto found = linker.current.find(value);
+    if (found != linker.current.end()) {
+        linked = found->second;
+    } else {
+        linker.error("variable identifier '" + value + "' not found");
+    }
+}
+
+ASTNode* VariableIdentifier::linked_node(ASTLinker &linker) {
+    if(!linked) link(linker);
+    return linked;
+}
+
+ASTNode *VariableIdentifier::find_link_in_parent(ASTNode *parent) {
+    auto found = parent->child(value);
+    if(found) {
+        linked = found;
+    }
+    return found;
+}
 
 Value *VariableIdentifier::child(InterpretScope &scope, const std::string &name) {
     return evaluated_value(scope)->child(scope, name);
@@ -91,7 +96,7 @@ void VariableIdentifier::set_identifier_value(InterpretScope &scope, Value *rawV
     }
 
     // var init statement of current value, being assigned var x (<--- this one) = y
-    auto var_init = declaration(scope);
+    auto var_init = declaration();
     if (var_init == nullptr) {
         scope.error("couldn't find declaration for identifier " + value);
         return;
@@ -100,7 +105,7 @@ void VariableIdentifier::set_identifier_value(InterpretScope &scope, Value *rawV
     // making one statement a reference
     if (rawValue->reference() && !newValue->primitive()) {
         // var init statement of value that owns the value var x = y (<---- this one)
-        auto value_var_init = rawValue->declaration(scope);
+        auto value_var_init = rawValue->declaration();
         if (value_var_init == nullptr) {
             scope.error("couldn't find declaration of the identifier " + rawValue->representation() +
                         " to assign to " + value);
@@ -161,12 +166,9 @@ void VariableIdentifier::set_identifier_value(InterpretScope &scope, Value *rawV
 
 }
 
-VarInitStatement *VariableIdentifier::declaration(InterpretScope &scope) {
-    auto node = scope.find_node(value);
-    if (node != nullptr) {
-        return node->as_var_init();
-    }
-    return nullptr;
+VarInitStatement *VariableIdentifier::declaration() {
+    if(!linked) return nullptr;
+    return linked->as_var_init();
 }
 
 Value *VariableIdentifier::evaluated_value(InterpretScope &scope) {
@@ -189,7 +191,7 @@ Value *VariableIdentifier::return_value(InterpretScope &scope) {
     val.second.erase(val.first);
     // TODO this will only move a single identifier
     // TODO this won't move struct children !
-    auto decl = declaration(scope);
+    auto decl = declaration();
     if (decl) {
         decl->moved();
     } else {

@@ -6,11 +6,10 @@
 #include "compiler/llvmimpl.h"
 
 void VarInitStatement::code_gen(Codegen &gen) {
-    declare(gen);
     if (value.has_value()) {
-        value.value()->llvm_allocate(gen, identifier);
+        allocaInst = value.value()->llvm_allocate(gen, identifier);
     } else {
-        gen.allocated[identifier] = gen.builder->CreateAlloca(llvm_type(gen), nullptr, identifier);
+        allocaInst = gen.builder->CreateAlloca(llvm_type(gen), nullptr, identifier);
     }
 }
 

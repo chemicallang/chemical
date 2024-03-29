@@ -80,6 +80,20 @@ int main(int argc, char *argv[]) {
     }
     if (lexer.has_errors || !parser.errors.empty() || !checker.errors.empty()) return 1;
 
+    // TODO typechecker should run after the linker runs
+
+    // linking the nodes
+    {
+        ASTLinker linker;
+        scope.declare_top_level(linker);
+        if(!linker.errors.empty()) {
+            for(const auto& err : linker.errors) {
+                std::cerr << "[Linker] " << err << std::endl;
+            }
+        }
+    }
+
+
     // actual compilation
     Codegen gen(std::move(scope.nodes), argv[1]);
     gen.compile();

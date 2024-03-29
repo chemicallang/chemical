@@ -33,3 +33,55 @@ void WhileLoop::code_gen(Codegen &gen) {
 }
 
 #endif
+
+/**
+ * initializes the loop with only a condition and empty body
+ * @param condition
+ */
+WhileLoop::WhileLoop(std::unique_ptr<Value> condition) : condition(std::move(condition)) {
+
+}
+
+/**
+ * @brief Construct a new WhileLoop object.
+ *
+ * @param condition The loop condition.
+ * @param body The body of the while loop.
+ */
+WhileLoop::WhileLoop(std::unique_ptr<Value> condition, LoopScope body)
+        : condition(std::move(condition)), LoopASTNode(std::move(body)) {}
+
+void WhileLoop::declare_and_link(ASTLinker &linker) {
+    condition->link(linker);
+    body.declare_and_link(linker);
+    body.undeclare_on_scope_end(linker);
+}
+
+void WhileLoop::accept(Visitor &visitor) {
+    visitor.visit(this);
+}
+
+void WhileLoop::interpret(InterpretScope &scope) {
+    InterpretScope child(&scope, scope.global, &body, this);
+    while (condition->evaluated_bool(child)) {
+        body.interpret(child);
+        if (stoppedInterpretation) {
+            stoppedInterpretation = false;
+            break;
+        }
+    }
+}
+
+void WhileLoop::stopInterpretation() {
+    stoppedInterpretation = true;
+}
+
+std::string WhileLoop::representation() const {
+    std::string ret;
+    ret.append("while(");
+    ret.append(condition->representation());
+    ret.append(") {\n");
+    ret.append(body.representation());
+    ret.append("\n}");
+    return ret;
+}

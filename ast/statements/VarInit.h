@@ -34,20 +34,12 @@ public:
     }
 
 #ifdef COMPILER_BUILD
-    inline void declare(Codegen &gen) {
-        gen.current[identifier] = this;
-    }
 
     inline void check_has_type(Codegen& gen) {
         if (!type.has_value() && !value.has_value()) {
             gen.error("neither variable type no variable value were given");
             return;
         }
-    }
-
-    void undeclare(Codegen &gen) override {
-        gen.current.erase(identifier);
-        gen.allocated.erase(identifier);
     }
 
     llvm::Value * llvm_pointer(Codegen &gen) override {
@@ -70,20 +62,30 @@ public:
         return this;
     }
 
+    void declare_and_link(ASTLinker &linker) override {
+        linker.current[identifier] = this;
+        if(value.has_value()){
+            value.value()->link(linker);
+        }
+    }
+
+    void undeclare_on_scope_end(ASTLinker &linker) override {
+        linker.current.erase(identifier);
+    }
+
     void interpret(InterpretScope &scope) override {
         if (value.has_value()) {
             auto initializer = value.value()->initializer_value(scope);
             scope.declare(identifier, initializer);
-            is_reference = !initializer->primitive();
+            is_reference = initializer == nullptr || !initializer->primitive();
         }
         decl_scope = &scope;
-        scope.declare(identifier, this);
     }
 
     /**
      * called by assignment to assign a new value in the scope that this variable was declared
      */
-    void declare(Value* new_value) {
+    void declare(Value *new_value) {
         decl_scope->declare(identifier, new_value);
     }
 
@@ -97,19 +99,18 @@ public:
     void interpret_scope_ends(InterpretScope &scope) override {
         auto found = scope.find_value_iterator(identifier);
         if (found.first != found.second.end()) {
-            if(!is_reference) {
+            if (!is_reference) {
                 delete found.first->second;
             }
             found.second.erase(found.first);
-        } else if(!has_moved) {
+        } else if (!has_moved) {
             scope.error("cannot clear non existent variable on the value map " + identifier);
         }
-        scope.erase_node(identifier);
     }
 
     std::string representation() const override {
         std::string rep;
-        if(is_const) {
+        if (is_const) {
             rep.append("const ");
         } else {
             rep.append("var ");
@@ -129,9 +130,13 @@ public:
     bool is_const;
     bool is_reference = false;
     bool has_moved = false;
-    InterpretScope* decl_scope = nullptr;
+    InterpretScope *decl_scope = nullptr;
     std::string identifier; ///< The identifier being initialized.
     std::optional<std::unique_ptr<BaseType>> type;
     std::optional<std::unique_ptr<Value>> value; ///< The value being assigned to the identifier.
+
+#ifdef COMPILER_BUILD
+    llvm::AllocaInst* allocaInst;
+#endif
 
 };

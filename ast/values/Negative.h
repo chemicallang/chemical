@@ -15,16 +15,11 @@ public:
 
     NegativeValue(std::unique_ptr<Value> value) : value(std::move(value)) {}
 
-    bool primitive() override {
-        return false;
-    }
+    void link(ASTLinker &linker) override;
 
-    std::string representation() const override {
-        std::string rep;
-        rep.append(1, '-');
-        rep.append(value->representation());
-        return rep;
-    }
+    bool primitive() override;
+
+    std::string representation() const override;
 
 #ifdef COMPILER_BUILD
     llvm::Value * llvm_value(Codegen &gen) override;

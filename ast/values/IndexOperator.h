@@ -18,32 +18,29 @@ public:
 
     }
 
+    void link(ASTLinker &linker) override;
+
+    ASTNode *linked_node(ASTLinker &linker) override;
+
+    ASTNode *find_link_in_parent(ASTNode *parent) override;
+
     bool primitive() override {
         return false;
     }
 
-    Value *find_in(InterpretScope& scope, Value *parent) override {
+    Value *find_in(InterpretScope &scope, Value *parent) override {
 #ifdef DEBUG
-      try {
-          return parent->index(scope, value->evaluated_value(scope)->as_int());
-      }  catch (...) {
-          std::cerr << "[InterpretError] index operator only support's integer indexes at the moment";
-      }
+        try {
+            return parent->index(scope, value->evaluated_value(scope)->as_int());
+        } catch (...) {
+            std::cerr << "[InterpretError] index operator only support's integer indexes at the moment";
+        }
 #endif
         parent->index(scope, value->evaluated_value(scope)->as_int());
         return nullptr;
     }
 
 #ifdef COMPILER_BUILD
-    ASTNode* resolve(Codegen& gen) {
-        auto resolved = gen.current.find(identifier);
-        if(resolved == gen.current.end()) {
-            gen.error("Couldn't find identifier for indexing operator : " + identifier);
-            throw std::runtime_error("Couldn't find identifier for indexing operator : " + identifier);
-        } else {
-            return resolved->second;
-        }
-    }
 
     // TODO isInBounds optimization, when we know that index is in bounds
     llvm::Value* elem_pointer(Codegen& gen, ASTNode* arr);
@@ -62,6 +59,7 @@ public:
         return rep;
     }
 
+    ASTNode *linked;
     std::string identifier;
     std::unique_ptr<Value> value;
 

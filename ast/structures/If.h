@@ -26,59 +26,19 @@ public:
             Scope ifBody,
             std::vector<std::pair<std::unique_ptr<Value>, Scope>> elseIfs,
             std::optional<Scope> elseBody
-    ) : condition(std::move(condition)), ifBody(std::move(ifBody)),
-        elseIfs(std::move(elseIfs)), elseBody(std::move(elseBody)) {}
+    );
 
-    void accept(Visitor &visitor) override {
-        visitor.visit(this);
-    }
+    void accept(Visitor &visitor) override;
+
+    void declare_and_link(ASTLinker &linker) override;
 
 #ifdef COMPILER_BUILD
     void code_gen(Codegen &gen) override;
 #endif
 
-    void interpret(InterpretScope &scope) override {
-        if(condition->evaluated_bool(scope)) {
-            InterpretScope child(&scope, scope.global, &ifBody, this);
-            ifBody.interpret(child);
-        } else {
-            for (auto const& elseIf:elseIfs) {
-                if(elseIf.first->evaluated_bool(scope)) {
-                    InterpretScope child(&scope, scope.global, const_cast<Scope*>(&elseIf.second), this);
-                    const_cast<Scope*>(&elseIf.second)->interpret(child);
-                    return;
-                }
-            }
-            if(elseBody.has_value()) {
-                InterpretScope child(&scope, scope.global, &elseBody.value(), this);
-                elseBody->interpret(child);
-            }
-        }
-    }
+    void interpret(InterpretScope &scope) override;
 
-    std::string representation() const override {
-        std::string rep;
-        rep.append("if(");
-        rep.append(condition->representation());
-        rep.append("){\n");
-        rep.append(ifBody.representation());
-        rep.append("\n}");
-        int i = 0;
-        while(i < elseIfs.size()) {
-            rep.append("else if(");
-            rep.append(elseIfs[i].first->representation());
-            rep.append(") {\n");
-            rep.append(elseIfs[i].second.representation());
-            rep.append("\n}");
-            i++;
-        }
-        if(elseBody.has_value()) {
-            rep.append("else {\n");
-            rep.append(elseBody.value().representation());
-            rep.append("\n}");
-        }
-        return rep;
-    }
+    std::string representation() const override;
 
     std::unique_ptr<Value> condition;
     Scope ifBody;

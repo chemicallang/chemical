@@ -18,6 +18,10 @@ public:
 
     }
 
+    void link(ASTLinker &linker) override;
+
+    void declare_and_link(ASTLinker &linker) override;
+
     void accept(Visitor &visitor) override {
         visitor.visit(this);
     }
@@ -38,23 +42,11 @@ public:
     }
 
 #ifdef COMPILER_BUILD
-    void code_gen(Codegen &gen) override {
-        for(const auto& value : values) {
-            value->code_gen(gen);
-        }
-    }
+    void code_gen(Codegen &gen) override;
 
-    llvm::Value * llvm_value(Codegen &gen) override {
-        return values[values.size() - 1]->llvm_value(gen);
-//        gen.error("Unimplemented accessing complete access chain as llvm value");
-//        return nullptr;
-    }
+    llvm::Value* llvm_value(Codegen &gen) override;
 
-    llvm::Value * llvm_pointer(Codegen &gen) override {
-        return values[values.size() - 1]->llvm_pointer(gen);
-//        gen.error("Unimplemented accessing complete access chain as llvm pointer");
-//        return nullptr;
-    }
+    llvm::Value* llvm_pointer(Codegen &gen) override;
 #endif
 
     Value *parent(InterpretScope &scope) {

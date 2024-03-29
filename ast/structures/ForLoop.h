@@ -21,8 +21,7 @@ public:
             std::unique_ptr<VarInitStatement> initializer,
             std::unique_ptr<Value> conditionExpr,
             std::unique_ptr<ASTNode> incrementerExpr
-    ) : initializer(std::move(initializer)),
-        conditionExpr(std::move(conditionExpr)), incrementerExpr(std::move(incrementerExpr)) {}
+    );
 
     /**
      * @brief Construct a new ForLoop object.
@@ -32,48 +31,21 @@ public:
             std::unique_ptr<Value> conditionExpr,
             std::unique_ptr<ASTNode> incrementerExpr,
             LoopScope body
-    ) : initializer(std::move(initializer)),
-        conditionExpr(std::move(conditionExpr)), incrementerExpr(std::move(incrementerExpr)),
-        LoopASTNode(std::move(body)) {}
+    );
 
-    void accept(Visitor &visitor) override {
-        visitor.visit(this);
-    }
+    void accept(Visitor &visitor) override;
+
+    void declare_and_link(ASTLinker &linker) override;
 
 #ifdef COMPILER_BUILD
     void code_gen(Codegen &gen) override;
 #endif
 
-    void interpret(InterpretScope &scope) override {
-        InterpretScope child(&scope, scope.global, &body, this);
-        initializer->interpret(child);
-        while(conditionExpr->evaluated_bool(child)){
-            body.interpret(child);
-            if(stoppedInterpretation){
-                stoppedInterpretation = false;
-                break;
-            }
-            incrementerExpr->interpret(child);
-        }
-        initializer->interpret_scope_ends(child);
-    }
+    void interpret(InterpretScope &scope) override;
 
-    void stopInterpretation() override {
-        stoppedInterpretation = true;
-    }
+    void stopInterpretation() override;
 
-    std::string representation() const override {
-        std::string ret("for(");
-        ret.append(initializer->representation());
-        ret.append(1, ';');
-        ret.append(conditionExpr->representation());
-        ret.append(1, ';');
-        ret.append(incrementerExpr->representation());
-        ret.append("{\n");
-        ret.append(body.representation());
-        ret.append("\n}");
-        return ret;
-    }
+    std::string representation() const override;
 
     std::unique_ptr<VarInitStatement> initializer;
     std::unique_ptr<Value> conditionExpr;

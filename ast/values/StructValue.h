@@ -24,23 +24,8 @@ public:
         return false;
     }
 
-    bool prepare(InterpretScope &scope) {
-        if (definition != nullptr) return true;
-        auto decl = scope.find_node(structName);
-        if (decl == nullptr) {
-            scope.error("couldn't find struct declaration by name " + structName);
-        } else if (decl->as_struct_def() == nullptr) {
-            scope.error("declaration by name " + structName + " is not a struct");
-        } else {
-            definition = decl->as_struct_def();
-            return true;
-        }
-        return false;
-    }
-
     Value *
     call_member(InterpretScope &scope, const std::string &name, std::vector<std::unique_ptr<Value>> &params) override {
-        if (!prepare(scope)) return nullptr;
         auto fn = definition->member(name);
         if (fn == nullptr) {
             scope.error("couldn't find member function by name " + name + " in a struct by name " + structName);
@@ -73,7 +58,6 @@ public:
     }
 
     Value *evaluated_value(InterpretScope &scope) override {
-        prepare(scope);
         return this;
     }
 
@@ -90,7 +74,6 @@ public:
     }
 
     Value *copy(InterpretScope &scope) override {
-        if (!prepare(scope)) return nullptr;
         std::unordered_map<std::string, std::unique_ptr<Value>> copied(values.size());
         for (const auto &value: values) {
             copied[value.first] = std::unique_ptr<Value>(value.second->initializer_value(scope));
@@ -108,7 +91,7 @@ public:
 #ifdef COMPILER_BUILD
     llvm::Value * llvm_pointer(Codegen &gen) override;
 
-    void llvm_allocate(Codegen &gen, const std::string &identifier) override;
+    llvm::AllocaInst* llvm_allocate(Codegen &gen, const std::string &identifier) override;
 
     llvm::Value * llvm_value(Codegen &gen) override;
 

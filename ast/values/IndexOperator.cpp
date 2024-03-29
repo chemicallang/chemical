@@ -2,6 +2,7 @@
 
 #include "IndexOperator.h"
 #include "ast/base/ASTNode.h"
+#include "ast/structures/StructDefinition.h"
 
 #ifdef COMPILER_BUILD
 
@@ -20,13 +21,35 @@ llvm::Value* IndexOperator::elem_pointer(Codegen& gen, ASTNode* arr) {
 }
 
 llvm::Value * IndexOperator::llvm_pointer(Codegen &gen) {
-    auto arr = resolve(gen);
-    return elem_pointer(gen, arr);
+    return elem_pointer(gen, linked);
 }
 
 llvm::Value * IndexOperator::llvm_value(Codegen &gen) {
-    auto resolved = resolve(gen);
-    return gen.builder->CreateLoad(resolved->llvm_elem_type(gen), elem_pointer(gen, resolved), "arr0");
+    return gen.builder->CreateLoad(linked->llvm_elem_type(gen), elem_pointer(gen, linked), "arr0");
 }
 
 #endif
+
+void IndexOperator::link(ASTLinker &linker) {
+    auto found = linker.current.find(identifier);
+    if (found != linker.current.end()) {
+        linked = found->second;
+        value->link(linker);
+    } else {
+        linker.error("no identifier with name '" + identifier + "' found to link for index operator");
+    }
+}
+
+ASTNode *IndexOperator::linked_node(ASTLinker &linker) {
+    if (!linked) link(linker);
+    if (!linked) return nullptr;
+    return linked->child(value->value_type() == ValueType::Int ? value->as_int() : -1);
+}
+
+ASTNode *IndexOperator::find_link_in_parent(ASTNode *parent)  {
+    auto found = parent->child(identifier);
+    if(found) {
+        linked = found;
+    }
+    return found;
+}

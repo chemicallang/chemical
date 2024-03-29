@@ -19,20 +19,6 @@ void InterpretScope::declare(const std::string &name, Value *value) {
     values[name] = value;
 }
 
-void InterpretScope::declare(const std::string &name, ASTNode *dec_node) {
-    nodes[name] = dec_node;
-}
-
-ASTNode *InterpretScope::find_node(const std::string &name) {
-    auto found = nodes.find(name);
-    if (found == nodes.end()) {
-        if(parent == nullptr) return nullptr;
-        return parent->find_node(name);
-    } else {
-        return found->second;
-    }
-}
-
 Value *InterpretScope::find_value(const std::string &name) {
     auto found = values.find(name);
     if (found == values.end()) {
@@ -40,16 +26,6 @@ Value *InterpretScope::find_value(const std::string &name) {
         return parent->find_value(name);
     } else {
         return found->second;
-    }
-}
-
-std::pair<node_iterator, node_map&> InterpretScope::find_node_iterator(const std::string &name) {
-    auto found = nodes.find(name);
-    if (found == nodes.end()) {
-        if(parent == nullptr) return {nodes.end(), nodes};
-        return parent->find_node_iterator(name);
-    } else {
-        return {found, nodes};
     }
 }
 
@@ -76,19 +52,6 @@ void InterpretScope::erase_value(const std::string &name) {
     }
 }
 
-void InterpretScope::erase_node(const std::string &name) {
-    auto iterator = find_node_iterator(name);
-    if(iterator.first == iterator.second.end()) {
-        std::cerr << ANSI_COLOR_RED << "couldn't locate node " << name << " for removal" << ANSI_COLOR_RESET
-                  << std::endl;
-#ifdef DEBUG
-        print_nodes();
-#endif
-    } else {
-        iterator.second.erase(iterator.first);
-    }
-}
-
 void InterpretScope::error(const std::string &err) {
     global->add_error(err);
 }
@@ -104,16 +67,8 @@ void InterpretScope::print_values() {
     }
 }
 
-void InterpretScope::print_nodes() {
-    std::cout << "Nodes:" << std::endl;
-    for (auto const &value: nodes) {
-        std::cout << value.first << " : " << value.second->representation() << std::endl;
-    }
-}
-
 void InterpretScope::clean() {
     values.clear();
-    nodes.clear();
     nodes_interpreted = -1;
 }
 

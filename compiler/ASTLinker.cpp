@@ -4,6 +4,6 @@
 #include "ast/base/ASTNode.h"
 #include "ASTLinker.h"
 
-ASTLinker::ASTLinker(std::vector<std::unique_ptr<ASTNode>> nodes) : nodes(std::move(nodes)) {
+ASTLinker::ASTLinker() {
 
 }

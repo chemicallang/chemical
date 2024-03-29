@@ -26,41 +26,21 @@ public:
      * @param condition The loop condition.
      * @param body The body of the while loop.
      */
-    DoWhileLoop(std::unique_ptr<Value> condition, LoopScope body)
-            : condition(std::move(condition)), LoopASTNode(std::move(body)) {}
+    DoWhileLoop(std::unique_ptr<Value> condition, LoopScope body);
 
-    void accept(Visitor &visitor) override {
-        visitor.visit(this);
-    }
+    void accept(Visitor &visitor) override;
 
 #ifdef COMPILER_BUILD
     void code_gen(Codegen &gen) override;
 #endif
 
-    void interpret(InterpretScope &scope) override {
-        InterpretScope child(&scope, scope.global, &body, this);
-        do {
-            body.interpret(child);
-            if (stoppedInterpretation) {
-                stoppedInterpretation = false;
-                break;
-            }
-        } while (condition->evaluated_bool(child));
-    }
+    void declare_and_link(ASTLinker &linker) override;
 
-    void stopInterpretation() override {
-        stoppedInterpretation = true;
-    }
+    void interpret(InterpretScope &scope) override;
 
-    std::string representation() const override {
-        std::string ret;
-        ret.append("do {\n");
-        ret.append(body.representation());
-        ret.append("\n} while (");
-        ret.append(condition->representation());
-        ret.append(")");
-        return ret;
-    }
+    void stopInterpretation() override;
+
+    std::string representation() const override;
 
     std::unique_ptr<Value> condition;
 

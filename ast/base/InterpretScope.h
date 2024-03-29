@@ -47,34 +47,14 @@ public:
     void declare(const std::string& name, Value* value);
 
     /**
-     * declares a node with this name in current scope
-     */
-    void declare(const std::string& name, ASTNode* node);
-
-    /**
      * erases a value by the key name from the value map safely
      */
     void erase_value(const std::string &name);
 
     /**
-     * erases a name by the key name from the node map safely
-     */
-    void erase_node(const std::string &name);
-
-    /**
-     * @return return node with name, or nullptr
-     */
-    ASTNode* find_node(const std::string& name);
-
-    /**
      * @return return value with name, or nullptr
      */
     Value* find_value(const std::string& name);
-
-    /**
-     * @return iterator for found node, the map that it was found in
-     */
-    std::pair<node_iterator, node_map&> find_node_iterator(const std::string& name);
 
     /**
      * @return iterator for found value, the map that it was found in
@@ -85,11 +65,6 @@ public:
      * print all values
      */
     void print_values();
-
-    /**
-     * print all nodes
-     */
-    void print_nodes();
 
     /**
      * The errors are stored in global scope only
@@ -118,7 +93,7 @@ public:
      * When a ASTNode declares itself, for example a struct, interface / implementation
      * it declares itself on this unordered map, when the scope ends, it erases itself from this map
      */
-    std::unordered_map<std::string, ASTNode *> nodes;
+//    std::unordered_map<std::string, ASTNode *> nodes;
 
     /**
      * a pointer to the parent scope, If this is a global scope, it will be a nullptr

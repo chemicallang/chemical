@@ -19,29 +19,23 @@ public:
      * @param name The name of the enum.
      * @param values The values of the enum.
      */
-    EnumDeclaration(std::string name, std::vector<std::string> values)
-            : name(std::move(name)), values(std::move(values)) {}
+    EnumDeclaration(std::string name, std::unordered_map<std::string, unsigned int> members)
+            : name(std::move(name)), members(std::move(members)) {}
 
     void accept(Visitor &visitor) override {
         visitor.visit(this);
     }
 
-    void interpret(InterpretScope &scope) override {
-        members = new std::unordered_map<std::string, std::unique_ptr<Value>>;
-        unsigned int i = 0;
-        for(const auto& member : values) {
-            (*members)[member] = std::make_unique<IntValue>(i);
-            i++;
-        }
-        scope.declare(name, this);
+    void declare_top_level(ASTLinker &linker) override {
+        linker.current[name] = this;
     }
 
     std::string representation() const override {
         std::string rep("enum " + name + " {\n");
         unsigned int i = 0;
-        while (i < values.size()) {
-            rep.append(values[i]);
-            if (i != values.size() - 1) {
+        for(const auto& member : members) {
+            rep.append(member.first);
+            if (i != members.size() - 1) {
                 rep.append(",\n");
             }
             i++;
@@ -50,13 +44,7 @@ public:
         return rep;
     }
 
-    void interpret_scope_ends(InterpretScope &scope) override {
-        scope.global->erase_node(name);
-        delete members;
-    }
-
 private:
     std::string name; ///< The name of the enum.
-    std::vector<std::string> values; ///< The values of the enum.
-    std::unordered_map<std::string, std::unique_ptr<Value>>* members;
+    std::unordered_map<std::string, unsigned int> members; ///< The values of the enum.
 };

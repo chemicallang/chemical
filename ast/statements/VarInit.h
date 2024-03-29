@@ -27,105 +27,44 @@ public:
             std::string identifier,
             std::optional<std::unique_ptr<BaseType>> type,
             std::optional<std::unique_ptr<Value>> value
-    ) : is_const(is_const), identifier(std::move(identifier)), type(std::move(type)), value(std::move(value)) {}
+    );
 
-    void accept(Visitor &visitor) override {
-        visitor.visit(this);
-    }
+    void accept(Visitor &visitor) override;
 
 #ifdef COMPILER_BUILD
 
-    inline void check_has_type(Codegen& gen) {
-        if (!type.has_value() && !value.has_value()) {
-            gen.error("neither variable type no variable value were given");
-            return;
-        }
-    }
+    inline void check_has_type(Codegen& gen);
 
-    llvm::Value * llvm_pointer(Codegen &gen) override {
-        return value.has_value() ? value.value()->llvm_pointer(gen) : nullptr;
-    }
+    llvm::Value * llvm_pointer(Codegen &gen) override;
 
-    llvm::Type * llvm_elem_type(Codegen &gen) override {
-        return value.has_value() ? value.value()->llvm_elem_type(gen) : nullptr;
-    }
+    llvm::Type * llvm_elem_type(Codegen &gen) override;
 
-    llvm::Type *llvm_type(Codegen &gen) override {
-        check_has_type(gen);
-        return value.has_value() ? value.value()->llvm_type(gen) : type.value()->llvm_type(gen);
-    }
+    llvm::Type *llvm_type(Codegen &gen) override;
 
     void code_gen(Codegen &gen) override;
 #endif
 
-    VarInitStatement *as_var_init() override {
-        return this;
-    }
+    VarInitStatement *as_var_init() override;
 
-    void declare_and_link(ASTLinker &linker) override {
-        linker.current[identifier] = this;
-        if(value.has_value()){
-            value.value()->link(linker);
-        }
-    }
+    void declare_and_link(ASTLinker &linker) override;
 
-    void undeclare_on_scope_end(ASTLinker &linker) override {
-        linker.current.erase(identifier);
-    }
+    void undeclare_on_scope_end(ASTLinker &linker) override;
 
-    void interpret(InterpretScope &scope) override {
-        if (value.has_value()) {
-            auto initializer = value.value()->initializer_value(scope);
-            scope.declare(identifier, initializer);
-            is_reference = initializer == nullptr || !initializer->primitive();
-        }
-        decl_scope = &scope;
-    }
+    void interpret(InterpretScope &scope) override;
 
     /**
      * called by assignment to assign a new value in the scope that this variable was declared
      */
-    void declare(Value *new_value) {
-        decl_scope->declare(identifier, new_value);
-    }
+    void declare(Value *new_value);
 
     /**
      * called when the value associated with this var init has been moved
      */
-    inline void moved() {
-        has_moved = true;
-    }
+    void moved();
 
-    void interpret_scope_ends(InterpretScope &scope) override {
-        auto found = scope.find_value_iterator(identifier);
-        if (found.first != found.second.end()) {
-            if (!is_reference) {
-                delete found.first->second;
-            }
-            found.second.erase(found.first);
-        } else if (!has_moved) {
-            scope.error("cannot clear non existent variable on the value map " + identifier);
-        }
-    }
+    void interpret_scope_ends(InterpretScope &scope) override;
 
-    std::string representation() const override {
-        std::string rep;
-        if (is_const) {
-            rep.append("const ");
-        } else {
-            rep.append("var ");
-        }
-        rep.append(identifier);
-        if (type.has_value()) {
-            rep.append(" : ");
-            rep.append(type.value()->representation());
-        }
-        if (value.has_value()) {
-            rep.append(" = ");
-            rep.append(value.value()->representation());
-        }
-        return rep;
-    }
+    std::string representation() const override;
 
     bool is_const;
     bool is_reference = false;

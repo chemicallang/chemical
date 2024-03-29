@@ -26,41 +26,21 @@ public:
             std::unique_ptr<AccessChain> lhs,
             std::unique_ptr<Value> value,
             Operation assOp
-    ) : lhs(std::move(lhs)), value(std::move(value)), assOp(assOp) {}
+    );
 
-    void accept(Visitor &visitor) override {
-        visitor.visit(this);
-    }
+    void accept(Visitor &visitor) override;
 
-    void declare_and_link(ASTLinker &linker) override {
-        lhs->declare_and_link(linker);
-        value->link(linker);
-    }
+    void declare_and_link(ASTLinker &linker) override;
 
 #ifdef COMPILER_BUILD
     void code_gen(Codegen &gen) override;
 #endif
 
-    void interpret(InterpretScope& scope) override {
-        lhs->set_identifier_value(scope, value.get(), assOp);
-    }
+    void interpret(InterpretScope& scope) override;
 
-    void interpret_scope_ends(InterpretScope &scope) override {
-        // when the var initializer ast node or the holder ast node goes out of scope
-        // the newly created value due to function call initializer_value will be destroyed
-    }
+    void interpret_scope_ends(InterpretScope &scope) override;
 
-    std::string representation() const override {
-        std::string rep;
-        rep.append(lhs->representation());
-        if(assOp != Operation::Assignment) {
-            rep.append(" " + to_string(assOp) +"= ");
-        } else {
-            rep.append(" = ");
-        }
-        rep.append(value->representation());
-        return rep;
-    }
+    std::string representation() const override;
 
 private:
     std::unique_ptr<AccessChain> lhs;

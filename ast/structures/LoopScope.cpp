@@ -5,14 +5,23 @@
 
 void LoopScope::interpret(InterpretScope &scope) {
     scope.nodes_interpreted = -1;
-    for(const auto& node : nodes) {
+    for (const auto &node: nodes) {
         node->position = scope.global->curr_node_position;
         node->interpret(scope);
         scope.global->curr_node_position++;
         scope.nodes_interpreted++;
-        if(stoppedInterpretOnce) {
+        if (stoppedInterpretOnce) {
             stoppedInterpretOnce = false;
             return;
         }
     }
+}
+
+
+LoopScope::LoopScope(std::vector<std::unique_ptr<ASTNode>> nodes) : Scope(std::move(nodes)) {
+
+}
+
+void LoopScope::stopInterpretOnce() {
+    stoppedInterpretOnce = true;
 }

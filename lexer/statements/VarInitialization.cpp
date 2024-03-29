@@ -6,7 +6,7 @@
 
 #include "lexer/Lexer.h"
 
-bool Lexer::lexVarInitializationTokens(bool allowDeclarations) {
+bool Lexer::lexVarInitializationTokens(bool allowDeclarations, bool requiredType) {
 
     auto lexed_const = lexKeywordToken("const");
 
@@ -33,7 +33,9 @@ bool Lexer::lexVarInitializationTokens(bool allowDeclarations) {
         lexWhitespaceToken();
 
         // type
-        lexTypeTokens();
+        if(!lexTypeTokens() && requiredType) {
+            error("expected type tokens for variable initialization");
+        }
 
         // whitespace
         lexWhitespaceToken();

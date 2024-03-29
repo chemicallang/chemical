@@ -20,13 +20,13 @@ lex_ptr<StructDefinition> Parser::parseStructDefinition() {
                 }
             }
             if (consume_op('{')) {
-                std::map<std::string, std::unique_ptr<VarInitStatement>> variables;
+                std::map<std::string, std::unique_ptr<StructMember>> variables;
                 std::map<std::string, std::unique_ptr<FunctionDeclaration>> functions;
                 while(true) {
                     auto init = parseVariableInitStatement();
                     if (init.has_value()) {
                         consume_op(';');
-                        variables[init.value()->identifier] = std::move(init.value());
+                        variables[init.value()->identifier] = std::make_unique<StructMember>(init.value()->identifier, std::move(init.value()->type.value()), std::move(init.value()->value));
                     } else {
                         auto func = parseFunctionDefinition();
                         if(func.has_value()) {

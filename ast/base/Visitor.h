@@ -42,6 +42,8 @@ class AccessChain;
 
 class MacroValueStatement;
 
+class StructMember;
+
 class Visitor {
 public:
 
@@ -122,6 +124,10 @@ public:
     }
 
     virtual void visit(MacroValueStatement* statement) {
+
+    }
+
+    virtual void visit(StructMember* member) {
 
     }
 

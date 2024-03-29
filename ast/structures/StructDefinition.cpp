@@ -10,11 +10,36 @@ void StructDefinition::code_gen(Codegen &gen) {
     llvm::StructType::create(*gen.ctx, elements_type(gen), name);
 }
 
+llvm::Type* StructMember::llvm_type(Codegen &gen) {
+    return type->llvm_type(gen);
+}
+
 #endif
+
+
+StructMember::StructMember(
+        std::string name,
+        std::unique_ptr<BaseType> type,
+        std::optional<std::unique_ptr<Value>> defValue
+) : name(std::move(name)), type(std::move(type)), defValue(std::move(defValue)) {
+
+}
+
+void StructMember::accept(Visitor &visitor) {
+    visitor.visit(this);
+}
+
+std::string StructMember::representation() const {
+    std::string rep(name + " : " + type->representation());
+    if (defValue.has_value()) {
+        rep.append(defValue.value()->representation());
+    }
+    return rep;
+}
 
 StructDefinition::StructDefinition(
         std::string name,
-        std::map<std::string, std::unique_ptr<VarInitStatement>> fields,
+        std::map<std::string, std::unique_ptr<StructMember>> fields,
         std::map<std::string, std::unique_ptr<FunctionDeclaration>> functions,
         std::optional<std::string> overrides
 ) : name(std::move(name)), variables(std::move(fields)), functions(std::move(functions)),

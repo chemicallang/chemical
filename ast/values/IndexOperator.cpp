@@ -9,23 +9,39 @@
 #include "compiler/llvmimpl.h"
 
 // TODO isInBounds optimization, when we know that index is in bounds
-llvm::Value* IndexOperator::elem_pointer(Codegen& gen, ASTNode* arr) {
-    std::vector<llvm::Value*> idxList;
+llvm::Value *IndexOperator::elem_pointer(Codegen &gen, ASTNode *arr) {
+    std::vector<llvm::Value *> idxList;
     auto type = arr->llvm_type(gen);
-    if(type->isArrayTy()) {
+    if (type->isArrayTy()) {
         idxList.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), 0));
     }
     idxList.push_back(value->llvm_value(gen));
     idxList.shrink_to_fit();
-    return gen.builder->CreateGEP(type, arr->llvm_pointer(gen), idxList);;
+    return gen.builder->CreateGEP(type, arr->llvm_pointer(gen), idxList);
 }
 
-llvm::Value * IndexOperator::llvm_pointer(Codegen &gen) {
+llvm::Value *IndexOperator::llvm_pointer(Codegen &gen) {
     return elem_pointer(gen, linked);
 }
 
-llvm::Value * IndexOperator::llvm_value(Codegen &gen) {
+llvm::Value *IndexOperator::llvm_value(Codegen &gen) {
     return gen.builder->CreateLoad(linked->llvm_elem_type(gen), elem_pointer(gen, linked), "arr0");
+}
+
+bool IndexOperator::add_member_index(Codegen &gen, ASTNode *parent, std::vector<llvm::Value *> &indexes) {
+    if (parent && !parent->add_child_index(gen, indexes, identifier)) {
+        gen.error("couldn't add child index in index operator for identifier " + identifier);
+        return false;
+    }
+    if (value->value_type() != ValueType::Int) {
+        gen.error("cannot add index for a non int value type in index operator on identifier " + identifier);
+        return false;
+    }
+    if (!linked->add_child_index(gen, indexes, value->as_int())) {
+        gen.error("couldn't add child index in index operator for identifier " + identifier);
+        return false;
+    }
+    return true;
 }
 
 #endif
@@ -40,15 +56,14 @@ void IndexOperator::link(ASTLinker &linker) {
     }
 }
 
-ASTNode *IndexOperator::linked_node(ASTLinker &linker) {
-    if (!linked) link(linker);
+ASTNode *IndexOperator::linked_node() {
     if (!linked) return nullptr;
     return linked->child(value->value_type() == ValueType::Int ? value->as_int() : -1);
 }
 
-ASTNode *IndexOperator::find_link_in_parent(ASTNode *parent)  {
+ASTNode *IndexOperator::find_link_in_parent(ASTNode *parent) {
     auto found = parent->child(identifier);
-    if(found) {
+    if (found) {
         linked = found;
     }
     return found;

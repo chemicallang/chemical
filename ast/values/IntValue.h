@@ -28,14 +28,14 @@ public:
     }
 
 #ifdef COMPILER_BUILD
-    llvm::Type * llvm_type(Codegen &gen) override;
 
-    llvm::Value * llvm_value(Codegen &gen) override;
+    llvm::Type *llvm_type(Codegen &gen) override;
 
-    llvm::Value* casted_llvm_value(Codegen &gen) override;
+    llvm::Value *llvm_value(Codegen &gen) override;
+
 #endif
 
-    Value * copy(InterpretScope& scope) override {
+    Value *copy(InterpretScope &scope) override {
         return new IntValue(value);
     }
 

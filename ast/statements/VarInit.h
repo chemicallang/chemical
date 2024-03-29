@@ -33,16 +33,25 @@ public:
 
 #ifdef COMPILER_BUILD
 
-    inline void check_has_type(Codegen& gen);
+    inline void check_has_type(Codegen &gen);
 
-    llvm::Value * llvm_pointer(Codegen &gen) override;
+    llvm::Value *llvm_pointer(Codegen &gen) override;
 
-    llvm::Type * llvm_elem_type(Codegen &gen) override;
+    llvm::Type *llvm_elem_type(Codegen &gen) override;
 
     llvm::Type *llvm_type(Codegen &gen) override;
 
+    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
+
+    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, unsigned int index) override;
+
     void code_gen(Codegen &gen) override;
+
 #endif
+
+    ASTNode *child(const std::string &name) override;
+
+    int child_index(const std::string &name) override;
 
     VarInitStatement *as_var_init() override;
 
@@ -75,7 +84,7 @@ public:
     std::optional<std::unique_ptr<Value>> value; ///< The value being assigned to the identifier.
 
 #ifdef COMPILER_BUILD
-    llvm::AllocaInst* allocaInst;
+    llvm::AllocaInst *allocaInst;
 #endif
 
 };

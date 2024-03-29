@@ -44,15 +44,17 @@ public:
 
     void link(ASTLinker &linker) override;
 
-    ASTNode *linked_node(ASTLinker &linker) override;
+    ASTNode *linked_node() override;
 
     ASTNode *find_link_in_parent(ASTNode *parent) override;
+
+    bool add_member_index(Codegen &gen, ASTNode *parent, std::vector<llvm::Value *> &indexes) override;
 
 #ifdef COMPILER_BUILD
 
     llvm::Value *arg_value(Codegen &gen, ASTNode *node);
 
-    llvm::AllocaInst *llvm_alloca(Codegen &gen);
+    llvm::Type * llvm_type(Codegen &gen) override;
 
     llvm::Value *llvm_pointer(Codegen &gen) override;
 

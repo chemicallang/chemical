@@ -13,15 +13,40 @@ void AccessChain::code_gen(Codegen &gen) {
 }
 
 llvm::Value *AccessChain::llvm_value(Codegen &gen) {
-    return values[values.size() - 1]->llvm_value(gen);
-//        gen.error("Unimplemented accessing complete access chain as llvm value");
-//        return nullptr;
+    if(values.size() == 1) {
+        return values[0]->llvm_value(gen);
+    }
+    return gen.builder->CreateLoad(values[values.size() - 1]->llvm_type(gen), llvm_pointer(gen), "acc");
 }
 
 llvm::Value *AccessChain::llvm_pointer(Codegen &gen) {
-    return values[values.size() - 1]->llvm_pointer(gen);
-//        gen.error("Unimplemented accessing complete access chain as llvm pointer");
-//        return nullptr;
+    if(values.size() == 1) {
+        return values[0]->llvm_pointer(gen);
+    } else {
+        auto last = values[values.size() - 1].get();
+        if(last->as_func_call() != nullptr) {
+            gen.error("[TODO:] Generate code for a member function call !");
+        } else {
+            std::vector<llvm::Value*> idxList;
+
+            // add member index of first value
+            // if this is a index operator, only the integer index will be added since parent is nullptr
+            if(!values[0]->add_member_index(gen, nullptr, idxList)) {
+                gen.error("couldn't add member index for fragment '" + values[0]->representation() + "' in access chain '" + representation() + "'");
+            }
+
+            auto parent = values[0]->linked_node();
+            unsigned i = 1;
+            while (i < values.size()) {
+                if(!values[i]->add_member_index(gen, parent, idxList)) {
+                    gen.error("couldn't add member index for fragment '" + values[i]->representation() + "' in access chain '" + representation() + "'");
+                }
+                parent = values[i]->find_link_in_parent(parent);
+                i++;
+            }
+            return gen.builder->CreateGEP(values[0]->llvm_type(gen), values[0]->llvm_pointer(gen), idxList);
+        }
+    }
 }
 
 #endif
@@ -31,10 +56,9 @@ void AccessChain::declare_and_link(ASTLinker &linker) {
 }
 
 void AccessChain::link(ASTLinker &linker) {
-    if (values.size() == 1) {
-        values[0]->link(linker);
-    } else {
-        auto parent = values[0]->linked_node(linker);
+    values[0]->link(linker);
+    if (values.size() > 1) {
+        auto parent = values[0]->linked_node();
         if (!parent) {
             linker.error("couldn't find fragment '" + values[0]->representation() + "' in access chain '" +
                          representation() + "'");

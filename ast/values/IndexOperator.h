@@ -20,7 +20,7 @@ public:
 
     void link(ASTLinker &linker) override;
 
-    ASTNode *linked_node(ASTLinker &linker) override;
+    ASTNode *linked_node() override;
 
     ASTNode *find_link_in_parent(ASTNode *parent) override;
 
@@ -48,6 +48,8 @@ public:
     llvm::Value * llvm_pointer(Codegen &gen) override;
 
     llvm::Value * llvm_value(Codegen &gen) override;
+
+    bool add_member_index(Codegen& gen, ASTNode* parent, std::vector<llvm::Value *> &indexes) override;
 
 #endif
 

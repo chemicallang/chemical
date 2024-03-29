@@ -14,6 +14,22 @@ llvm::Type* StructMember::llvm_type(Codegen &gen) {
     return type->llvm_type(gen);
 }
 
+bool StructDefinition::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string& child_name) {
+    auto index = child_index(child_name);
+    if(index == -1) {
+        return false;
+    }
+    indexes.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), 0));
+    indexes.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), index));
+    return true;
+}
+
+bool StructDefinition::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, unsigned int index) {
+    if(index >= variables.size()) return false;
+    indexes.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), index));
+    return true;
+}
+
 #endif
 
 
@@ -47,6 +63,26 @@ StructDefinition::StructDefinition(
 
 void StructDefinition::accept(Visitor &visitor) {
     visitor.visit(this);
+}
+
+ASTNode *StructDefinition::child(const std::string &varName) {
+    auto found = variables.find(varName);
+    if(found != variables.end()) {
+        return found->second.get();
+    } else {
+        return nullptr;
+    }
+}
+
+int StructDefinition::child_index(const std::string &varName) {
+    auto i = 0;
+    for(const auto& var : variables) {
+        if(var.first == varName) {
+            return i;
+        }
+        i++;
+    }
+    return -1;
 }
 
 void StructDefinition::declare_top_level(ASTLinker &linker) {

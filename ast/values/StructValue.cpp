@@ -7,7 +7,18 @@
 #include "compiler/llvmimpl.h"
 
 llvm::AllocaInst *StructValue::llvm_allocate(Codegen &gen, const std::string &identifier) {
-    return gen.builder->CreateAlloca(llvm_type(gen), nullptr, structName);
+    auto allocaInst = gen.builder->CreateAlloca(llvm_type(gen), nullptr, structName);
+    for(const auto& value : values) {
+        auto child = definition->child(value.first);
+        auto index = definition->child_index(value.first);
+        if(index == -1) {
+            gen.error("couldn't get struct child " + value.first + " in definition");
+        } else {
+            auto elementPtr = gen.builder->CreateGEP(child->llvm_type(gen), allocaInst, {llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), index)});
+            gen.builder->CreateStore(value.second->llvm_value(gen), elementPtr);
+        }
+    }
+    return allocaInst;
 }
 
 llvm::Value *StructValue::llvm_value(Codegen &gen) {
@@ -20,6 +31,14 @@ llvm::Type *StructValue::llvm_elem_type(Codegen &gen) {
 
 llvm::Type *StructValue::llvm_type(Codegen &gen) {
     return llvm::StructType::get(*gen.ctx, definition->elements_type(gen));
+}
+
+bool StructValue::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, unsigned int index) {
+    return definition->add_child_index(gen, indexes, index);
+}
+
+bool StructValue::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
+    return definition->add_child_index(gen, indexes, name);
 }
 
 #endif
@@ -55,6 +74,10 @@ void StructValue::link(ASTLinker &linker) {
     } else {
         linker.error("couldn't find struct definition for struct name " + structName);
     }
+}
+
+ASTNode *StructValue::linked_node() {
+    return definition;
 }
 
 Value *StructValue::call_member(

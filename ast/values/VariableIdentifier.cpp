@@ -24,12 +24,12 @@ llvm::Value *VariableIdentifier::arg_value(Codegen &gen, ASTNode *node) {
     return nullptr;
 }
 
-llvm::AllocaInst *VariableIdentifier::llvm_alloca(Codegen &gen) {
-    return declaration()->allocaInst;
+llvm::Type *VariableIdentifier::llvm_type(Codegen &gen) {
+    return linked->llvm_type(gen);
 }
 
 llvm::Value *VariableIdentifier::llvm_pointer(Codegen &gen) {
-    return llvm_alloca(gen);
+    return declaration()->allocaInst;
 }
 
 llvm::Value *VariableIdentifier::llvm_value(Codegen &gen) {
@@ -52,8 +52,7 @@ void VariableIdentifier::link(ASTLinker &linker) {
     }
 }
 
-ASTNode* VariableIdentifier::linked_node(ASTLinker &linker) {
-    if(!linked) link(linker);
+ASTNode* VariableIdentifier::linked_node() {
     return linked;
 }
 
@@ -63,6 +62,13 @@ ASTNode *VariableIdentifier::find_link_in_parent(ASTNode *parent) {
         linked = found;
     }
     return found;
+}
+
+bool VariableIdentifier::add_member_index(Codegen &gen, ASTNode *parent, std::vector<llvm::Value *> &indexes) {
+    if(parent) {
+        return parent->add_child_index(gen, indexes, value);
+    }
+    return true;
 }
 
 Value *VariableIdentifier::child(InterpretScope &scope, const std::string &name) {

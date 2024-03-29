@@ -15,8 +15,10 @@
 #include "compiler/ASTLinker.h"
 
 #ifdef COMPILER_BUILD
+
 #include "compiler/Codegen.h"
 #include "compiler/llvmfwd.h"
+
 #endif
 
 class FunctionParam;
@@ -43,7 +45,7 @@ public:
      * that must be retained in nested level scopes
      * for example top level functions can be called within functions
      */
-    virtual void declare_top_level(ASTLinker& linker) {
+    virtual void declare_top_level(ASTLinker &linker) {
         // does nothing by default
     }
 
@@ -51,14 +53,14 @@ public:
      * declares something on the scope map
      * or find something on the map to link yourself with it
      */
-    virtual void declare_and_link(ASTLinker& linker) {
+    virtual void declare_and_link(ASTLinker &linker) {
         // does nothing by default
     }
 
     /**
      * undeclare declared things on the scope map
      */
-    virtual void undeclare_on_scope_end(ASTLinker& linker) {
+    virtual void undeclare_on_scope_end(ASTLinker &linker) {
         // does nothing by default
     }
 
@@ -66,7 +68,7 @@ public:
      * return a child ASTNode* at index, called by index operator
      * WARNING : index can be -1, if not known at compile time !
      */
-    virtual ASTNode* child(int index) {
+    virtual ASTNode *child(int index) {
         return nullptr;
     }
 
@@ -74,8 +76,16 @@ public:
      * return a child ASTNode* with name
      * called by access chain values like function call, on structs to get member function definitions
      */
-    virtual ASTNode* child(const std::string& name) {
+    virtual ASTNode *child(const std::string &name) {
         return nullptr;
+    }
+
+    /**
+     * same as child, only it returns the index of the child
+     * so it can be used to create get element pointer instructions using llvm
+     */
+    virtual int child_index(const std::string &name) {
+        return -1;
     }
 
     /**
@@ -90,7 +100,7 @@ public:
      */
     virtual FunctionParam *as_parameter() {
 #ifdef DEBUG
-      std::cerr << "as_parameter called on ASTNode" << std::endl;
+        std::cerr << "as_parameter called on ASTNode" << std::endl;
 #endif
         return nullptr;
     }
@@ -147,7 +157,7 @@ public:
      * @param gen
      * @return
      */
-    virtual llvm::Value* llvm_pointer(Codegen &gen) {
+    virtual llvm::Value *llvm_pointer(Codegen &gen) {
         throw std::runtime_error("llvm_pointer called on bare ASTNode, with representation" + representation());
     };
 
@@ -156,7 +166,7 @@ public:
      * @param gen
      * @return
      */
-    virtual llvm::Type* llvm_type(Codegen& gen) {
+    virtual llvm::Type *llvm_type(Codegen &gen) {
         throw std::runtime_error("llvm_type called on bare ASTNode, with representation" + representation());
     };
 
@@ -165,7 +175,7 @@ public:
      * @param gen
      * @return
      */
-    virtual llvm::Type* llvm_elem_type(Codegen& gen) {
+    virtual llvm::Type *llvm_elem_type(Codegen &gen) {
         throw std::runtime_error("llvm_elem_type called on bare ASTNode, with representation" + representation());
     };
 
@@ -173,9 +183,30 @@ public:
      * code_gen function that generates llvm Value
      * @return
      */
-    virtual void code_gen(Codegen& gen) {
+    virtual void code_gen(Codegen &gen) {
         throw std::runtime_error("ASTNode code_gen called on bare ASTNode, with representation : " + representation());
     }
+
+    /**
+     * add child index in llvm indexes vector
+     */
+    virtual bool add_child_index(Codegen& gen, std::vector<llvm::Value*>& indexes, const std::string& name) {
+#ifdef DEBUG
+        std::cerr << "add_child_index called on base ASTNode, representation : " << representation();
+#endif
+        throw std::runtime_error("add_child_index called on a ASTNode");
+    }
+
+    /**
+     * add child index in llvm indexes vector
+     */
+    virtual bool add_child_index(Codegen& gen, std::vector<llvm::Value*>& indexes, unsigned int index) {
+#ifdef DEBUG
+        std::cerr << "add_child_index(int) called on base ASTNode, representation : " << representation();
+#endif
+        throw std::runtime_error("add_child_index(int) called on a ASTNode");
+    }
+
 #endif
 
     /**

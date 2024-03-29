@@ -7,13 +7,15 @@
 
 #endif
 
-ASTNode* GenericType::link(ASTLinker &linker) {
+void GenericType::link(ASTLinker &linker) {
     auto found = linker.current.find(base);
     if(found != linker.current.end()) {
         linked = found->second;
-        return linked;
     } else {
         linker.error("unresolved symbol, couldn't find generic type " + base);
-        return nullptr;
     }
+}
+
+ASTNode *GenericType::linked_node() {
+    return linked;
 }

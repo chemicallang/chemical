@@ -265,6 +265,11 @@ public:
     bool lexIfSignature();
 
     /**
+     * lexes import identifier list example : { something, something }
+     */
+    bool lexImportIdentifierList();
+
+    /**
      * lexes import statement
      * @return
      */

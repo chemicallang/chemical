@@ -46,6 +46,10 @@ class StructMember;
 
 class TypealiasStatement;
 
+class SwitchStatement;
+
+class TryCatch;
+
 class Visitor {
 public:
 
@@ -134,6 +138,14 @@ public:
     }
 
     virtual void visit(TypealiasStatement* statement) {
+
+    }
+
+    virtual void visit(SwitchStatement* statement) {
+
+    }
+
+    virtual void visit(TryCatch* statement) {
 
     }
 

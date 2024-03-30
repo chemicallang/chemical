@@ -489,6 +489,16 @@ public:
     bool lexExpressionTokens(bool lexStruct = false);
 
     /**
+     * lexes switch block
+     */
+    bool lexSwitchStatementBlock();
+
+    /**
+     * lexes try catch block statements
+     */
+    bool lexTryCatchTokens();
+
+    /**
      * check if there's a new line at current position
      * @return true if there's a newline otherwise false
      */

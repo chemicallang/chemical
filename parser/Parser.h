@@ -355,6 +355,16 @@ public:
     lex_ptr<Comment> parseComment();
 
     /**
+     * parses a single switch statement
+     */
+    lex_ptr<SwitchStatement> parseSwitchStatement();
+
+    /**
+     * parsea a single try catch block
+     */
+    lex_ptr<TryCatch> parseTryCatchBlock();
+
+    /**
      * parses a singel comment
      * @return true if comment is pased
      */

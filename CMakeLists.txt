@@ -303,6 +303,14 @@ set(COMMON_SOURCES
         parser/statements/Typealias.cpp
         ast/statements/Continue.cpp
         ast/statements/Return.cpp
+        ast/statements/SwitchStatement.cpp
+        ast/statements/SwitchStatement.h
+        ast/structures/TryCatch.cpp
+        ast/structures/TryCatch.h
+        lexer/structures/TryCatch.cpp
+        lexer/structures/Switch.cpp
+        parser/structures/Switch.cpp
+        parser/structures/TryCatch.cpp
 )
 
 # Chemical LSP Executable Target

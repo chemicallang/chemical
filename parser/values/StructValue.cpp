@@ -1,6 +1,7 @@
 // Copyright (c) Qinetik 2024.
 
 #include "parser/Parser.h"
+#include "ast/values/StructValue.h"
 
 lex_ptr<StructValue> Parser::parseStructValue(const std::string& structName) {
 

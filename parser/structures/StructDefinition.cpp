@@ -5,6 +5,7 @@
 //
 
 #include "parser/Parser.h"
+#include "ast/structures/StructDefinition.h"
 
 lex_ptr<StructDefinition> Parser::parseStructDefinition() {
     if (consume("struct")) {
@@ -48,4 +49,10 @@ lex_ptr<StructDefinition> Parser::parseStructDefinition() {
         }
     }
     return std::nullopt;
+}
+
+bool Parser::parseStructDefinitionBool(){
+    return parse_return_bool([&]() -> lex_ptr<StructDefinition> {
+        return parseStructDefinition();
+    });
 }

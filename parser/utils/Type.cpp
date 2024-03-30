@@ -3,16 +3,11 @@
 #include "parser/Parser.h"
 #include "lexer/model/tokens/TypeToken.h"
 #include "ast/types/Int32Type.h"
-#include "ast/types/StringType.h"
-#include "ast/types/FloatType.h"
-#include "ast/types/DoubleType.h"
-#include "ast/types/BoolType.h"
-#include "ast/types/CharType.h"
-#include "ast/types/AnyType.h"
 #include "ast/types/ReferencedType.h"
 #include "ast/types/PointerType.h"
 #include "ast/types/GenericType.h"
 #include "ast/types/ArrayType.h"
+#include "ast/values/IntValue.h"
 
 lex_ptr<BaseType> Parser::parseType() {
     if (token_type() == LexTokenType::Type) {

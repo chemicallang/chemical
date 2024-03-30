@@ -8,6 +8,7 @@
 #include "lexer/model/tokens/KeywordToken.h"
 #include "lexer/model/tokens/VariableToken.h"
 #include "lexer/model/tokens/TypeToken.h"
+#include "ast/statements/VarInit.h"
 
 lex_ptr<VarInitStatement> Parser::parseVariableInitStatement() {
     auto consumed_const = consume("const");

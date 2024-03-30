@@ -5,6 +5,7 @@
 //
 
 #include "parser/Parser.h"
+#include "ast/structures/DoWhileLoop.h"
 
 /**
  * Parse a single do while loop
@@ -35,11 +36,11 @@ lex_ptr<DoWhileLoop> Parser::parseDoWhileLoop() {
             error("expected a ending brace '}' for 'while' loop");
             return std::nullopt;
         }
-        if(!consume("while")) {
+        if (!consume("while")) {
             error("expected a 'while' in 'do while' loop for the condition");
             return std::nullopt;
         }
-        if(!consume_op('(')) {
+        if (!consume_op('(')) {
             error("expected a starting brace '(' for the 'do while' loop");
             return std::nullopt;
         }
@@ -48,7 +49,7 @@ lex_ptr<DoWhileLoop> Parser::parseDoWhileLoop() {
             error("expected a conditional expression for 'while' loop condition");
             return std::nullopt;
         }
-        if(!consume_op(')')) {
+        if (!consume_op(')')) {
             error("expected a ending brace ')' for the 'while' loop");
             return std::nullopt;
         }
@@ -61,4 +62,10 @@ lex_ptr<DoWhileLoop> Parser::parseDoWhileLoop() {
         error("expected a starting brace '{' for the 'do while' loop");
         return std::nullopt;
     }
+}
+
+bool Parser::parseDoWhileLoopBool() {
+    return parse_return_bool([&]() -> lex_ptr<DoWhileLoop> {
+        return parseDoWhileLoop();
+    });
 }

@@ -297,6 +297,12 @@ set(COMMON_SOURCES
         ast/types/ReferencedType.cpp
         ast/types/GenericType.cpp
         ast/values/Expression.cpp
+        lexer/statements/Typealias.cpp
+        ast/statements/Typealias.cpp
+        ast/statements/Typealias.h
+        parser/statements/Typealias.cpp
+        ast/statements/Continue.cpp
+        ast/statements/Return.cpp
 )
 
 # Chemical LSP Executable Target

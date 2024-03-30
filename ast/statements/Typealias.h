@@ -1,21 +1,23 @@
 // Copyright (c) Qinetik 2024.
 
-//
-// Created by Waqas Tahir on 27/02/2024.
-//
-
 #pragma once
 
 #include "ast/base/ASTNode.h"
 #include "ast/base/Value.h"
+#include "ast/base/BaseType.h"
 
-class ReturnStatement : public ASTNode {
+class TypealiasStatement : public ASTNode {
 public:
 
+    // before equal
+    std::unique_ptr<BaseType> from;
+    // after equal
+    std::unique_ptr<BaseType> to;
+
     /**
-     * @brief Construct a new ReturnStatement object.
+     * @brief Construct a new TypealiasStatement object.
      */
-    ReturnStatement(std::optional<std::unique_ptr<Value>> value, FunctionDeclaration *declaration);
+    TypealiasStatement(std::unique_ptr<BaseType> from, std::unique_ptr<BaseType> to);
 
     void interpret(InterpretScope &scope) override;
 
@@ -30,9 +32,5 @@ public:
 #endif
 
     std::string representation() const override;
-
-private:
-    FunctionDeclaration *declaration;
-    std::optional<std::unique_ptr<Value>> value;
 
 };

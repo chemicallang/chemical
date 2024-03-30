@@ -4,6 +4,7 @@
 // Created by Waqas Tahir on 01/03/2024.
 //
 #include "parser/Parser.h"
+#include "ast/structures/Whileloop.h"
 
 
 /**
@@ -57,4 +58,10 @@ lex_ptr<WhileLoop> Parser::parseWhileLoop() {
         error("expected a starting parenthesis '('");
         return std::nullopt;
     }
+}
+
+bool Parser::parseWhileLoopBool() {
+    return parse_return_bool([&]() -> lex_ptr<WhileLoop> {
+        return parseWhileLoop();
+    });
 }

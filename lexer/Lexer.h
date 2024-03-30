@@ -288,6 +288,11 @@ public:
     bool lexBreakStatement();
 
     /**
+     * lexes a single typealias statement
+     */
+    bool lexTypealiasStatement();
+
+    /**
      * lexes continue statement
      * @return
      */

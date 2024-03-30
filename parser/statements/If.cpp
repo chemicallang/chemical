@@ -5,6 +5,7 @@
 //
 
 #include "parser/Parser.h"
+#include "ast/structures/If.h"
 
 std::optional<std::pair<std::unique_ptr<Value>, Scope>> Parser::parseSingleIfBlock() {
     if(!consume("if")) {
@@ -60,4 +61,10 @@ lex_ptr<IfStatement> Parser::parseIfStatement() {
         return std::make_unique<IfStatement>(std::move(singleIf.value().first), std::move(singleIf.value().second), std::move(elseIfs), std::move(elseScope));
     }
     return std::nullopt;
+}
+
+bool Parser::parseIfStatementBool() {
+    return parse_return_bool([&]() -> lex_ptr<IfStatement> {
+        return parseIfStatement();
+    });
 }

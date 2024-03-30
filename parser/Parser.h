@@ -9,37 +9,31 @@
 #include "lexer/model/tokens/LexToken.h"
 #include "ast/base/ASTNode.h"
 #include "ast/base/Value.h"
-#include "ast/statements/VarInit.h"
-#include "ast/values/IntValue.h"
-#include "lexer/model/tokens/KeywordToken.h"
-#include "lexer/utils/TypeUtils.h"
-#include "lexer/model/tokens/CharOperatorToken.h"
-#include "ast/structures/Scope.h"
-#include "ast/values/AccessChain.h"
-#include "ast/values/Expression.h"
-#include "ast/structures/If.h"
-#include "ast/structures/WhileLoop.h"
-#include "ast/structures/DoWhileLoop.h"
-#include "ast/structures/FunctionDeclaration.h"
-#include "ast/structures/ForLoop.h"
-#include "ast/structures/EnumDeclaration.h"
-#include "ast/values/BoolValue.h"
-#include "ast/values/ArrayValue.h"
-#include "ast/statements/Return.h"
-#include "ast/statements/Break.h"
-#include "ast/statements/Continue.h"
-#include "ast/values/StructValue.h"
-#include "ast/statements/Assignment.h"
-#include "ast/structures/StructDefinition.h"
-#include "ast/structures/InterfaceDefinition.h"
-#include "ast/structures/ImplDefinition.h"
-#include "ast/statements/Comment.h"
-#include "parser/utils/ValueAndOperatorStack.h"
 #include "lexer/model/tokens/VariableToken.h"
+#include "ast/base/BaseType.h"
+#include "ast/structures/Scope.h"
+#include "ast/structures/LoopScope.h"
 #include <optional>
 #include <iostream>
+#include <functional>
 
 class ImportStatement;
+
+class Scope;
+
+class LoopScope;
+
+class IntValue;
+
+class BoolValue;
+
+class ArrayValue;
+
+class ValueAndOperatorStack;
+
+class KeywordToken;
+
+class LoopASTNode;
 
 template<typename T>
 using lex_ptr = std::optional<std::unique_ptr<T>>;
@@ -229,6 +223,11 @@ public:
     std::optional<std::pair<std::unique_ptr<Value>, Scope>> parseSingleIfBlock();
 
     /**
+     * parse a single typealias statement
+     */
+    lex_ptr<TypealiasStatement> parseTypealiasStatement();
+
+    /**
      * Parse a single if statement
      * @return
      */
@@ -238,11 +237,7 @@ public:
      * parses an if statement into nodes, if found return strue
      * @return
      */
-    inline bool parseIfStatementBool() {
-        return parse_return_bool([&]() -> lex_ptr<IfStatement> {
-            return parseIfStatement();
-        });
-    }
+    bool parseIfStatementBool();
 
     /**
      * Parse a single for loop
@@ -254,11 +249,7 @@ public:
      * parses a single for loop
      * @return true if parsed
      */
-    inline bool parseForLoopBool() {
-        return parse_return_bool([&]() -> lex_ptr<ForLoop> {
-            return parseForLoop();
-        });
-    }
+    bool parseForLoopBool();
 
     /**
      * Parse a single while loop
@@ -270,11 +261,7 @@ public:
      * parses a while loop
      * @return true, if parsed
      */
-    inline bool parseWhileLoopBool() {
-        return parse_return_bool([&]() -> lex_ptr<WhileLoop> {
-            return parseWhileLoop();
-        });
-    }
+    bool parseWhileLoopBool();
 
     /**
      * Parse a single do while loop
@@ -286,11 +273,7 @@ public:
      * parses a single do while loop
      * @return true if parsed
      */
-    inline bool parseDoWhileLoopBool() {
-        return parse_return_bool([&]() -> lex_ptr<DoWhileLoop> {
-            return parseDoWhileLoop();
-        });
-    }
+    bool parseDoWhileLoopBool();
 
     /**
      * parses a single import statement
@@ -308,27 +291,13 @@ public:
      * parse a single continue statement in a loop
      * @return
      */
-    inline bool parseContinueStatement() {
-        if (consume("continue")) {
-            nodes.emplace_back(std::make_unique<ContinueStatement>(current_loop_node));
-            return true;
-        } else {
-            return false;
-        }
-    }
+    bool parseContinueStatement();
 
     /**
      * parse a single break statement in a loop
      * @return
      */
-    inline bool parseBreakStatement() {
-        if (consume("break")) {
-            nodes.emplace_back(std::make_unique<BreakStatement>(current_loop_node));
-            return true;
-        } else {
-            return false;
-        }
-    }
+    bool parseBreakStatement();
 
     /**
      * parse a single return statement present inside a function
@@ -340,11 +309,7 @@ public:
      * parses a return s
      * @return
      */
-    inline bool parseReturnStatementBool() {
-        return parse_return_bool([&]() -> lex_ptr<ReturnStatement> {
-            return parseReturnStatement();
-        });
-    }
+    bool parseReturnStatementBool();
 
     /**
      * Parse a single function definition
@@ -357,11 +322,7 @@ public:
      * Parse a single function definition
      * @return true if parsed
      */
-    inline bool parseFunctionDefinitionBool(bool declaration = false) {
-        return parse_return_bool([&]() -> std::optional<std::unique_ptr<FunctionDeclaration>> {
-            return parseFunctionDefinition(declaration);
-        });
-    }
+    bool parseFunctionDefinitionBool(bool declaration = false);
 
     /**
      * Parse a single enum declaration
@@ -373,11 +334,7 @@ public:
      * Parse a single enum declaration
      * @return true if parsed
      */
-    inline bool parseEnumDeclarationBool() {
-        return parse_return_bool([&]() -> lex_ptr<EnumDeclaration> {
-            return parseEnumDeclaration();
-        });
-    }
+    bool parseEnumDeclarationBool();
 
     /**
      * Parse a single interface definition
@@ -389,11 +346,7 @@ public:
      * Parse a single interface definition
      * @return true if parsed
      */
-    inline bool parseInterfaceDefinitionBool() {
-        return parse_return_bool([&]() -> lex_ptr<InterfaceDefinition> {
-            return parseInterfaceDefinition();
-        });
-    }
+    bool parseInterfaceDefinitionBool();
 
     /**
      * parses a single comment
@@ -405,11 +358,7 @@ public:
      * parses a singel comment
      * @return true if comment is pased
      */
-    bool parseCommentBool() {
-        return parse_return_bool([&]() -> lex_ptr<Comment> {
-            return parseComment();
-        });
-    }
+    bool parseCommentBool();
 
     /**
      * Parse a single implementation definition
@@ -421,11 +370,7 @@ public:
      * Parse a single implementation definition
      * @return true if parsed
      */
-    inline bool parseImplementationDefinitionBool() {
-        return parse_return_bool([&]() -> lex_ptr<ImplDefinition> {
-            return parseImplementationDefinition();
-        });
-    }
+    bool parseImplementationDefinitionBool();
 
     /**
      * Parse a single struct definition
@@ -437,11 +382,7 @@ public:
      * Parse a single struct definition
      * @return true if parsed
      */
-    inline bool parseStructDefinitionBool() {
-        return parse_return_bool([&]() -> lex_ptr<StructDefinition> {
-            return parseStructDefinition();
-        });
-    }
+    bool parseStructDefinitionBool();
 
     /**
      *

@@ -19,7 +19,9 @@ bool StructDefinition::add_child_index(Codegen &gen, std::vector<llvm::Value *> 
     if(index == -1) {
         return false;
     }
-    indexes.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), 0));
+    if(indexes.empty()) {
+        indexes.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), 0));
+    }
     indexes.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), index));
     return true;
 }
@@ -28,6 +30,17 @@ bool StructDefinition::add_child_index(Codegen &gen, std::vector<llvm::Value *> 
     if(index >= variables.size()) return false;
     indexes.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), index));
     return true;
+}
+
+bool StructMember::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &childName) {
+    auto linked = type->linked_node();
+    if(!linked) return false;
+    linked->add_child_index(gen, indexes, childName);
+    return true;
+}
+
+llvm::Type *StructDefinition::llvm_type(Codegen &gen) {
+    return llvm::StructType::get(*gen.ctx, elements_type(gen));
 }
 
 #endif
@@ -43,6 +56,19 @@ StructMember::StructMember(
 
 void StructMember::accept(Visitor &visitor) {
     visitor.visit(this);
+}
+
+void StructMember::declare_and_link(ASTLinker &linker) {
+    type->link(linker);
+    if(defValue.has_value()) {
+        defValue.value()->link(linker);
+    }
+}
+
+ASTNode *StructMember::child(const std::string &childName) {
+    auto linked = type->linked_node();
+    if(!linked) return nullptr;
+    linked->child(childName);
 }
 
 std::string StructMember::representation() const {
@@ -87,6 +113,12 @@ int StructDefinition::child_index(const std::string &varName) {
 
 void StructDefinition::declare_top_level(ASTLinker &linker) {
     linker.current[name] = this;
+}
+
+void StructDefinition::declare_and_link(ASTLinker &linker) {
+    for(const auto& var : variables){
+        var.second->declare_and_link(linker);
+    }
 }
 
 StructDefinition *StructDefinition::as_struct_def() {

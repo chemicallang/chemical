@@ -5,6 +5,12 @@
 #ifdef COMPILER_BUILD
 
 #include "compiler/llvmimpl.h"
+#include "ast/base/ASTNode.h"
+
+llvm::Type *ReferencedType::llvm_type(Codegen &gen) const {
+    if(!linked) return nullptr;
+    return linked->llvm_type(gen);
+}
 
 #endif
 

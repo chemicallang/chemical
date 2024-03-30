@@ -53,6 +53,14 @@ public:
 
     llvm::AllocaInst *llvm_allocate(Codegen &gen, const std::string &identifier) override;
 
+    unsigned int store_in_struct(
+            Codegen &gen,
+            StructValue *parent,
+            llvm::AllocaInst *ptr,
+            const std::string &identifier,
+            unsigned int index
+    ) override;
+
     llvm::Value *llvm_value(Codegen &gen) override;
 
     llvm::Type *llvm_elem_type(Codegen &gen) override;

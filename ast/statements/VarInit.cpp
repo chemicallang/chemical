@@ -78,15 +78,6 @@ ASTNode *VarInitStatement::child(const std::string &name) {
     return nullptr;
 }
 
-int VarInitStatement::child_index(const std::string &name) {
-    if(type.has_value()) {
-        return type.value()->linked_node()->child_index(name);
-    } else if(value.has_value()) {
-        return value.value()->linked_node()->child_index(name);
-    }
-    return -1;
-}
-
 void VarInitStatement::declare_and_link(ASTLinker &linker) {
     linker.current[identifier] = this;
     if(type.has_value()) {

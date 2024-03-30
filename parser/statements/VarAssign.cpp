@@ -7,6 +7,7 @@
 #include "parser/Parser.h"
 #include "lexer/model/tokens/AbstractStringToken.h"
 #include "ast/statements/Assignment.h"
+#include "ast/values/IntValue.h"
 
 lex_ptr<ASTNode> Parser::parseVarAssignStatement() {
     auto chain = parseAccessChain();

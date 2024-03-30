@@ -7,6 +7,7 @@
 #include "parser/Parser.h"
 #include "lexer/model/tokens/CommentToken.h"
 #include "lexer/model/tokens/MultilineCommentToken.h"
+#include "ast/statements/Comment.h"
 
 lex_ptr<Comment> Parser::parseComment() {
     auto comment = consumeOfType<CommentToken>(LexTokenType::Comment, false);
@@ -19,4 +20,10 @@ lex_ptr<Comment> Parser::parseComment() {
         }
     }
     return std::nullopt;
+}
+
+bool Parser::parseCommentBool() {
+    return parse_return_bool([&]() -> lex_ptr<Comment> {
+        return parseComment();
+    });
 }

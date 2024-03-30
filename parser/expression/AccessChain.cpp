@@ -5,10 +5,12 @@
 //
 
 #include "parser/Parser.h"
-#include "ast/values/StringValue.h"
 #include "ast/values/FunctionCall.h"
 #include "ast/values/IndexOperator.h"
 #include "ast/values/VariableIdentifier.h"
+#include "ast/values/AccessChain.h"
+#include "lexer/model/tokens/CharOperatorToken.h"
+#include "ast/values/StructValue.h"
 
 std::vector<std::unique_ptr<Value>> Parser::parseFunctionCallParams() {
     std::vector<std::unique_ptr<Value>> params;

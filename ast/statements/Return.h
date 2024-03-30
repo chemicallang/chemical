@@ -15,51 +15,24 @@ public:
     /**
      * @brief Construct a new ReturnStatement object.
      */
-    ReturnStatement(std::optional<std::unique_ptr<Value>> value, FunctionDeclaration* declaration) : value(std::move(value)), declaration(declaration) {}
+    ReturnStatement(std::optional<std::unique_ptr<Value>> value, FunctionDeclaration *declaration);
 
-    void interpret(InterpretScope &scope) override {
-        if(value.has_value()) {
-            declaration->set_return(value->get()->return_value(scope));
-        } else {
-            declaration->set_return(nullptr);
-        }
-    }
+    void interpret(InterpretScope &scope) override;
 
-    void declare_and_link(ASTLinker &linker) override {
-        if(value.has_value()) {
-            value.value()->link(linker);
-        }
-    }
+    void declare_and_link(ASTLinker &linker) override;
 
-    void accept(Visitor &visitor) override {
-        visitor.visit(this);
-    }
+    void accept(Visitor &visitor) override;
 
 #ifdef COMPILER_BUILD
-    void code_gen(Codegen &gen) override {
-        if(value.has_value()) {
-            gen.CreateRet(value.value()->llvm_value(gen));
-        } else {
-            gen.CreateRet(nullptr);
-        }
-    }
+
+    void code_gen(Codegen &gen) override;
+
 #endif
 
-    std::string representation() const override {
-        std::string ret;
-        ret.append("return");
-        if(value.has_value()) {
-            ret.append(1, ' ');
-            ret.append(value.value()->representation());
-            ret.append(1, ';');
-        } else {
-            ret.append(1, ';');
-        }
-        return ret;
-    }
+    std::string representation() const override;
 
 private:
-    FunctionDeclaration* declaration;
+    FunctionDeclaration *declaration;
     std::optional<std::unique_ptr<Value>> value;
 
 };

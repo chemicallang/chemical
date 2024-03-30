@@ -44,6 +44,8 @@ class MacroValueStatement;
 
 class StructMember;
 
+class TypealiasStatement;
+
 class Visitor {
 public:
 
@@ -128,6 +130,10 @@ public:
     }
 
     virtual void visit(StructMember* member) {
+
+    }
+
+    virtual void visit(TypealiasStatement* statement) {
 
     }
 

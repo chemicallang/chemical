@@ -7,6 +7,7 @@
 #include "parser/Parser.h"
 #include "ast/values/NotValue.h"
 #include "ast/values/Negative.h"
+#include "parser/utils/ValueAndOperatorStack.h"
 
 void Parser::parseExpressionWith(ValueAndOperatorStack &stack, ValueAndOperatorStack &final) {
     while (position < tokens.size()) {

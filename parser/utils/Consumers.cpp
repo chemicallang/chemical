@@ -10,6 +10,9 @@
 #include "lexer/model/tokens/CharToken.h"
 #include "lexer/model/tokens/StringToken.h"
 #include "lexer/model/tokens/OperationToken.h"
+#include "lexer/utils/TypeUtils.h"
+#include "lexer/model/tokens/CharOperatorToken.h"
+#include "lexer/model/tokens/KeywordToken.h"
 
 bool Parser::check_type(LexTokenType type, bool errorOut) {
     if (position < tokens.size()) {

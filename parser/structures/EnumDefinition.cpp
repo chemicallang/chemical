@@ -5,24 +5,25 @@
 //
 
 #include "parser/Parser.h"
+#include "ast/structures/EnumDeclaration.h"
 
 lex_ptr<EnumDeclaration> Parser::parseEnumDeclaration() {
-    if(consume("enum")) {
+    if (consume("enum")) {
         auto name = consumeOfType<AbstractStringToken>(LexTokenType::Enum);
-        if(name != nullptr) {
-            if(consume_op('{')) {
+        if (name != nullptr) {
+            if (consume_op('{')) {
                 std::unordered_map<std::string, unsigned int> members;
                 unsigned member_pos = 0;
                 do {
                     auto member = consumeOfType<AbstractStringToken>(LexTokenType::EnumMember);
-                    if(member != nullptr) {
+                    if (member != nullptr) {
                         members[member->value] = member_pos;
                         member_pos++;
                     } else {
                         break;
                     }
-                } while(consume_op(','));
-                if(consume_op('}')) {
+                } while (consume_op(','));
+                if (consume_op('}')) {
                     return std::make_unique<EnumDeclaration>(name->value, std::move(members));
                 } else {
                     error("expected a '}' for closing the enum");
@@ -35,4 +36,10 @@ lex_ptr<EnumDeclaration> Parser::parseEnumDeclaration() {
         }
     }
     return std::nullopt;
+}
+
+bool Parser::parseEnumDeclarationBool() {
+    return parse_return_bool([&]() -> lex_ptr<EnumDeclaration> {
+        return parseEnumDeclaration();
+    });
 }

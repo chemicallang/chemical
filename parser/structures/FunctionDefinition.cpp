@@ -9,6 +9,8 @@
 #include "lexer/model/tokens/ParameterToken.h"
 #include "lexer/model/tokens/TypeToken.h"
 #include "ast/types/VoidType.h"
+#include "ast/statements/Return.h"
+#include "ast/structures/FunctionDeclaration.h"
 
 lex_ptr<ReturnStatement> Parser::parseReturnStatement() {
     if (consume("return")) {
@@ -20,6 +22,12 @@ lex_ptr<ReturnStatement> Parser::parseReturnStatement() {
         }
     }
     return std::nullopt;
+}
+
+bool Parser::parseReturnStatementBool() {
+    return parse_return_bool([&]() -> lex_ptr<ReturnStatement> {
+        return parseReturnStatement();
+    });
 }
 
 /**
@@ -42,10 +50,11 @@ lex_ptr<FunctionDeclaration> Parser::parseFunctionDefinition(bool declarations) 
                             break;
                         }
                         auto type = parseType();
-                        if(type.has_value()) {
+                        if (type.has_value()) {
                             params.emplace_back(paramToken->value, std::move(type.value()), paramsCount);
                             paramsCount++;
-                            if(token_type() == LexTokenType::StringOperator && as<AbstractStringToken>()->value == "...") {
+                            if (token_type() == LexTokenType::StringOperator &&
+                                as<AbstractStringToken>()->value == "...") {
                                 increment();
                                 isVariadic = true;
                                 break;
@@ -62,7 +71,7 @@ lex_ptr<FunctionDeclaration> Parser::parseFunctionDefinition(bool declarations) 
                 lex_ptr<BaseType> returnType;
                 if (consume_op(':')) {
                     returnType = parseType();
-                    if(!returnType.has_value()) {
+                    if (!returnType.has_value()) {
                         error("expected a type after the colon ':' for the function return");
                         return std::nullopt;
                     }
@@ -107,4 +116,10 @@ lex_ptr<FunctionDeclaration> Parser::parseFunctionDefinition(bool declarations) 
         }
     }
     return std::nullopt;
+}
+
+bool Parser::parseFunctionDefinitionBool(bool declaration) {
+    return parse_return_bool([&]() -> std::optional<std::unique_ptr<FunctionDeclaration>> {
+        return parseFunctionDefinition(declaration);
+    });
 }

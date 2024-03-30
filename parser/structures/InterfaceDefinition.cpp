@@ -5,21 +5,23 @@
 //
 
 #include "parser/Parser.h"
+#include "ast/statements/VarInit.h"
+#include "ast/structures/InterfaceDefinition.h"
 
 lex_ptr<InterfaceDefinition> Parser::parseInterfaceDefinition() {
-    if(consume("interface")){
+    if (consume("interface")) {
         auto name = consumeOfType<AbstractStringToken>(LexTokenType::Interface);
-        if(name != nullptr) {
-            if(consume_op('{')) {
+        if (name != nullptr) {
+            if (consume_op('{')) {
                 std::vector<std::unique_ptr<ASTNode>> members;
-                while(true) {
+                while (true) {
                     auto init = parseVariableInitStatement();
-                    if(init.has_value()) {
+                    if (init.has_value()) {
                         members.emplace_back(std::move(init.value()));
                         consume_op(';');
                     } else {
                         auto fun = parseFunctionDefinition(true);
-                        if(fun.has_value()) {
+                        if (fun.has_value()) {
                             members.emplace_back(std::move(fun.value()));
                             consume_op(';');
                         } else {
@@ -27,7 +29,7 @@ lex_ptr<InterfaceDefinition> Parser::parseInterfaceDefinition() {
                         }
                     }
                 }
-                if(!consume_op('}')) {
+                if (!consume_op('}')) {
                     error("expected '}' after the interface definition");
                 }
                 return std::make_unique<InterfaceDefinition>(name->value, std::move(members));
@@ -37,4 +39,10 @@ lex_ptr<InterfaceDefinition> Parser::parseInterfaceDefinition() {
         }
     }
     return std::nullopt;
+}
+
+bool Parser::parseInterfaceDefinitionBool() {
+    return parse_return_bool([&]() -> lex_ptr<InterfaceDefinition> {
+        return parseInterfaceDefinition();
+    });
 }

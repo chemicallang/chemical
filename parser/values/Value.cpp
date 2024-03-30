@@ -11,6 +11,10 @@
 #include "lexer/model/tokens/TypeToken.h"
 #include "ast/values/DoubleValue.h"
 #include "ast/values/FloatValue.h"
+#include "ast/values/IntValue.h"
+#include "ast/values/BoolValue.h"
+#include "ast/values/AccessChain.h"
+#include "ast/values/ArrayValue.h"
 
 lex_ptr<ArrayValue> Parser::parseArrayValue() {
 

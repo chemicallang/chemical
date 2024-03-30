@@ -5,33 +5,35 @@
 //
 
 #include "parser/Parser.h"
+#include "ast/statements/VarInit.h"
+#include "ast/structures/ImplDefinition.h"
 
 lex_ptr<ImplDefinition> Parser::parseImplementationDefinition() {
-    if(consume("impl")) {
+    if (consume("impl")) {
         auto interfaceName = consumeOfType<AbstractStringToken>(LexTokenType::Interface);
-        if(interfaceName == nullptr) {
+        if (interfaceName == nullptr) {
             error("interface name missing for implementation declaration");
             return std::nullopt;
         }
-        if(!consume("for")) {
+        if (!consume("for")) {
             error("missing 'for' keyword after the implementation declaration");
             return std::nullopt;
         }
         auto structName = consumeOfType<AbstractStringToken>(LexTokenType::Struct);
-        if(structName == nullptr) {
+        if (structName == nullptr) {
             error("expected a struct name for implementation declaration for interface " + interfaceName->value);
             return std::nullopt;
         }
-        if(consume_op('{')) {
+        if (consume_op('{')) {
             std::vector<std::unique_ptr<ASTNode>> members;
-            while(true) {
+            while (true) {
                 auto init = parseVariableInitStatement();
-                if(init.has_value()) {
+                if (init.has_value()) {
                     members.emplace_back(std::move(init.value()));
                     consume_op(';');
                 } else {
                     auto fun = parseFunctionDefinition(true);
-                    if(fun.has_value()) {
+                    if (fun.has_value()) {
                         members.emplace_back(std::move(fun.value()));
                         consume_op(';');
                     } else {
@@ -39,11 +41,17 @@ lex_ptr<ImplDefinition> Parser::parseImplementationDefinition() {
                     }
                 }
             }
-            if(!consume_op('}')) {
+            if (!consume_op('}')) {
                 error("expected '}' after the impl definition");
             }
             return std::make_unique<ImplDefinition>(structName->value, interfaceName->value, std::move(members));
         }
     }
     return std::nullopt;
+}
+
+bool Parser::parseImplementationDefinitionBool() {
+    return parse_return_bool([&]() -> lex_ptr<ImplDefinition> {
+        return parseImplementationDefinition();
+    });
 }

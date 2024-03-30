@@ -7,6 +7,7 @@
 #pragma once
 
 #include "ast/base/ASTNode.h"
+#include "ast/base/LoopASTNode.h"
 
 class ContinueStatement : public ASTNode {
 public:
@@ -14,31 +15,17 @@ public:
     /**
      * @brief Construct a new ContinueStatement object.
      */
-    ContinueStatement(LoopASTNode *node) : node(node) {}
+    explicit ContinueStatement(LoopASTNode *node);
 
-    void accept(Visitor &visitor) override {
-        visitor.visit(this);
-    }
+    void accept(Visitor &visitor) override;
 
 #ifdef COMPILER_BUILD
-    void code_gen(Codegen &gen) override {
-        gen.CreateBr(gen.current_loop_continue);
-    }
+    void code_gen(Codegen &gen) override;
 #endif
 
-    void interpret(InterpretScope &scope) override {
-        if(node == nullptr) {
-            scope.error("[Continue] statement has nullptr to loop node");
-            return;
-        }
-        node->body.stopInterpretOnce();
-    }
+    void interpret(InterpretScope &scope) override;
 
-    std::string representation() const override {
-        std::string ret;
-        ret.append("continue;");
-        return ret;
-    }
+    std::string representation() const override;
 
 private:
     LoopASTNode *node;

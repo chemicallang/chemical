@@ -23,7 +23,7 @@ public:
      */
     StringValue(std::string value) : value(std::move(value)) {}
 
-    Value *index(InterpretScope& scope, int i) override {
+    Value *index(InterpretScope &scope, int i) override {
 #ifdef DEBUG
         if (i < 0 || i >= value.size()) {
             std::cerr << "[InterpretError] access index " + std::to_string(i) + " out of bounds for string " + value +
@@ -42,10 +42,14 @@ public:
     }
 
 #ifdef COMPILER_BUILD
-    llvm::Value * llvm_value(Codegen &gen) override;
+
+    llvm::Type * llvm_type(Codegen &gen) override;
+
+    llvm::Value *llvm_value(Codegen &gen) override;
+
 #endif
 
-    Value *copy(InterpretScope& scope) override {
+    Value *copy(InterpretScope &scope) override {
         return new StringValue(value);
     }
 

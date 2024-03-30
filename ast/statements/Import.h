@@ -24,7 +24,7 @@ public:
      *
      * @param filePath The file path to import.
      */
-    ImportStatement(std::string filePath) : filePath(std::move(filePath)) {
+    ImportStatement(std::string filePath, std::vector<std::string> identifiers) : filePath(std::move(filePath)), identifiers(std::move(identifiers)) {
         this->filePath.shrink_to_fit();
     }
 
@@ -60,6 +60,7 @@ public:
     }
 
 private:
+    std::vector<std::string> identifiers;
     std::string filePath; ///< The file path to import.
 
 };

@@ -163,6 +163,23 @@ std::cerr << "child called on base value";
     virtual llvm::AllocaInst* llvm_allocate(Codegen& gen, const std::string& identifier);
 
     /**
+     * store this value in the allocated struct value
+     *
+     * it takes an index to store value at, it returns an index to store next value at
+     * this is because some values store multiple values making next value to be stored at index + 2
+     *
+     * @param index is the index at which the value should be stored
+     * @return an index at which next value should be stores is returned
+     */
+    virtual unsigned int store_in_struct(
+            Codegen& gen,
+            StructValue* parent,
+            llvm::AllocaInst* ptr,
+            const std::string& identifier,
+            unsigned int index
+    );
+
+    /**
      * provides llvm_elem_type, which is the child type for example elem type of an array value
      * @param gen
      * @return

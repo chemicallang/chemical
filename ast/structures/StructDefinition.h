@@ -27,6 +27,12 @@ public:
 
     void accept(Visitor &visitor) override;
 
+    void declare_and_link(ASTLinker &linker) override;
+
+    ASTNode *child(const std::string &name) override;
+
+    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
+
 #ifdef COMPILER_BUILD
 
     llvm::Type *llvm_type(Codegen &gen) override;
@@ -57,6 +63,8 @@ public:
 
     void declare_top_level(ASTLinker &linker) override;
 
+    void declare_and_link(ASTLinker &linker) override;
+
     StructDefinition *as_struct_def() override;
 
     FunctionDeclaration *member(const std::string &name);
@@ -74,6 +82,8 @@ public:
 #ifdef COMPILER_BUILD
 
     std::vector<llvm::Type *> elements_type(Codegen &gen);
+
+    llvm::Type *llvm_type(Codegen &gen) override;
 
     bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
 

@@ -19,6 +19,12 @@ struct Point {
     var y : int
 }
 
+struct Nested {
+    var j : int
+    var nested : Point
+    var d : int
+}
+
 func main(argc : int, argv : string*) : int {
     print_args(argc, argv);
     printf("function sum : %d\n", add(5, 4))
@@ -45,6 +51,15 @@ func main(argc : int, argv : string*) : int {
         x : 5,
         y : 6
     };
-    printf("Point : x = %d, y = %d", p.x, p.y);
+    printf("Point : x = %d, y = %d\n", p.x, p.y);
+    var n = Nested {
+        j : 1,
+        nested : Point {
+            x : 33,
+            y : 55
+        }
+        d : 2
+    };
+    printf("j = %d, Nested Point : x = %d, y = %d, d = %d\n", n.j, n.nested.x, n.nested.y, n.d);
     return 0;
 }

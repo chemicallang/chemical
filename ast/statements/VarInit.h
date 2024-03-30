@@ -51,8 +51,6 @@ public:
 
     ASTNode *child(const std::string &name) override;
 
-    int child_index(const std::string &name) override;
-
     VarInitStatement *as_var_init() override;
 
     void declare_and_link(ASTLinker &linker) override;

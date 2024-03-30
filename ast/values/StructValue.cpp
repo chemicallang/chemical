@@ -8,29 +8,45 @@
 
 llvm::AllocaInst *StructValue::llvm_allocate(Codegen &gen, const std::string &identifier) {
     auto allocaInst = gen.builder->CreateAlloca(llvm_type(gen), nullptr, structName);
-    for(const auto& value : values) {
-        auto child = definition->child(value.first);
+    for (const auto &value: values) {
         auto index = definition->child_index(value.first);
-        if(index == -1) {
-            gen.error("couldn't get struct child " + value.first + " in definition");
+        if (index == -1) {
+            gen.error("couldn't get struct child " + value.first + " in definition with name " + definition->name);
         } else {
-            auto elementPtr = gen.builder->CreateGEP(child->llvm_type(gen), allocaInst, {llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), index)});
-            gen.builder->CreateStore(value.second->llvm_value(gen), elementPtr);
+            value.second->store_in_struct(gen, this, allocaInst, value.first, index);
         }
     }
     return allocaInst;
 }
 
+unsigned int StructValue::store_in_struct(
+        Codegen &gen,
+        StructValue *parent,
+        llvm::AllocaInst *ptr,
+        const std::string &identifier,
+        unsigned int index
+) {
+    for (const auto &value: values) {
+        auto currIndex = index + definition->child_index(value.first);
+        if (index == -1) {
+            gen.error("couldn't get embedded struct child " + value.first + " in definition of name " + definition->name + " with parent of name " + parent->definition->name);
+        } else {
+            value.second->store_in_struct(gen, this, ptr, value.first, currIndex);
+        }
+    }
+    return index + values.size();
+}
+
 llvm::Value *StructValue::llvm_value(Codegen &gen) {
-    throw std::runtime_error("cannot allocate an array without an identifier");
+    throw std::runtime_error("cannot allocate a struct without an identifier");
 }
 
 llvm::Type *StructValue::llvm_elem_type(Codegen &gen) {
-    throw std::runtime_error("cannot allocate an array without an identifier");
+    throw std::runtime_error("llvm_elem_type: called on a struct");
 }
 
 llvm::Type *StructValue::llvm_type(Codegen &gen) {
-    return llvm::StructType::get(*gen.ctx, definition->elements_type(gen));
+    return definition->llvm_type(gen);
 }
 
 bool StructValue::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, unsigned int index) {
@@ -68,6 +84,9 @@ void StructValue::link(ASTLinker &linker) {
         auto struct_def = def->second->as_struct_def();
         if (struct_def) {
             definition = struct_def;
+            for (const auto &val: values) {
+                val.second->link(linker);
+            }
         } else {
             linker.error("given struct name is not a struct definition : " + structName);
         }

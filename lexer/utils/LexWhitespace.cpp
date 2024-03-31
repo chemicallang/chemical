@@ -11,11 +11,3 @@ bool Lexer::lexWhitespaceToken() {
     if(provider.peek() != ' ' && provider.peek() != '\t') return false;
     return readWhitespaces() > 0;
 }
-
-void Lexer::lexWhitespaceAndNewLines() {
-    while (!provider.eof()) {
-        if(!(lexNewLineChars() || lexWhitespaceToken())){
-            return;
-        }
-    }
-}

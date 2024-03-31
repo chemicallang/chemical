@@ -169,6 +169,11 @@ public:
     bool readNewLineChars();
 
     /**
+     * reads all whitespaces along with new lines
+     */
+    void readWhitespacesAndNewLines();
+
+    /**
      * returns the token position at the very current position
      * @return
      */

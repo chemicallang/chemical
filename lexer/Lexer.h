@@ -414,7 +414,9 @@ public:
     /**
      * a utility function to lex whitespace tokens and also skip new lines
      */
-    void lexWhitespaceAndNewLines();
+    inline void lexWhitespaceAndNewLines() {
+        provider.readWhitespacesAndNewLines();
+    }
 
     /**
      * lexes a string token, string is enclosed inside double quotes

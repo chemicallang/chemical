@@ -181,6 +181,12 @@ bool SourceProvider::readNewLineChars() {
     }
 }
 
+void SourceProvider::readWhitespacesAndNewLines() {
+    while (!eof() && (peek() == ' ' || peek() == '\t' || peek() == '\n' || peek() == '\r')) {
+        readCharacter();
+    }
+}
+
 Position SourceProvider::position() {
     return {getLineNumber(), getLineCharNumber()};
 }

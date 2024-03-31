@@ -2,7 +2,11 @@
 
 #include "TryCatch.h"
 
-TryCatch::TryCatch() {
+TryCatch::TryCatch(
+        Scope tryScope,
+        catch_var_type catchVar,
+        std::optional<Scope> catchScope
+) : tryScope(std::move(tryScope)), catchVar(std::move(catchVar)), catchScope(std::move(catchScope)){
 
 }
 
@@ -19,6 +23,17 @@ void TryCatch::accept(Visitor &visitor) {
 }
 
 std::string TryCatch::representation() const {
-    std::string rep("try {} catch {}");
+    std::string rep("try {\n");
+    rep.append(tryScope.representation());
+    rep.append("\n}");
+    if(catchScope.has_value()) {
+        rep.append(" catch ");
+        if(catchVar.has_value()) {
+            rep.append("(" + catchVar.value().first + ':' + catchVar.value().second->representation() + ") ");
+        }
+        rep.append("{\n");
+        rep.append(catchScope.value().representation());
+        rep.append("\n}");
+    }
     return rep;
 }

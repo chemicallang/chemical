@@ -1,8 +1,13 @@
 // Copyright (c) Qinetik 2024.
 
 #include "SwitchStatement.h"
+#include "ast/base/Value.h"
 
-SwitchStatement::SwitchStatement() {
+SwitchStatement::SwitchStatement(
+        std::unique_ptr<Value> expression,
+        std::vector<std::pair<std::unique_ptr<Value>, Scope>> scopes,
+        std::optional<Scope> defScope
+) : expression(std::move(expression)), scopes(std::move(scopes)), defScope(std::move(defScope)) {
 
 }
 

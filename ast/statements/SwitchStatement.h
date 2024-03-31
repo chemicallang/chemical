@@ -2,11 +2,20 @@
 
 
 #include "ast/base/ASTNode.h"
+#include "ast/structures/Scope.h"
 
 class SwitchStatement : ASTNode {
 public:
 
-    SwitchStatement();
+    std::unique_ptr<Value> expression;
+    std::vector<std::pair<std::unique_ptr<Value>, Scope>> scopes;
+    std::optional<Scope> defScope;
+
+    SwitchStatement(
+        std::unique_ptr<Value> expression,
+        std::vector<std::pair<std::unique_ptr<Value>, Scope>> scopes,
+        std::optional<Scope> defScope
+    );
 
     void accept(Visitor &visitor) override;
 

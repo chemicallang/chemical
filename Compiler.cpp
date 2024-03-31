@@ -17,6 +17,8 @@
 
 int chemical_clang_main(int argc, char **argv);
 
+int chemical_clang_main2(const std::vector<std::string> &command_args);
+
 bool endsWith(const std::string &fullString, const std::string &ending) {
     if (fullString.length() >= ending.length()) {
         return (fullString.compare(fullString.length() - ending.length(), ending.length(), ending) == 0);
@@ -27,33 +29,39 @@ bool endsWith(const std::string &fullString, const std::string &ending) {
 
 int main(int argc, char *argv[]) {
 
-    if (argc < 2) {
-        std::cerr << cmd_error("no inputs given\n\n");
-        print_usage();
-        return 1;
+    // invoke clang cc1, this is used by clang, because it invokes (current executable)
+    if(argc >= 2 && strcmp(argv[1], "-cc1") == 0) {
+        return chemical_clang_main(argc, argv);
     }
 
     // parsing the command
     CmdOptions options;
-    auto args = options.parse_cmd_options(argc, argv, 1, {"clang", "linker", "jit"});
-    if(args.empty()) {
-        std::cerr << cmd_error("no input given\n\n");
-        print_usage();
-        return 1;
+    auto args = options.parse_cmd_options(argc, argv, 1, {"rclg", "clang", "linker", "jit"});
+
+    // use raw clang
+    auto rawclang = options.option("rclg", "rclg");
+    if(rawclang.has_value()) {
+        auto subc = options.collect_subcommand(argc, argv, "rclg");
+        subc.insert(subc.begin(), argv[0]);
+//        std::cout << "rclg  : ";
+//        for(const auto& sub : subc) {
+//            std::cout << sub;
+//        }
+//        std::cout << std::endl;
+        return chemical_clang_main2(subc);
     }
 
     auto verbose = options.option("verbose", "v");
-
-    // invoke clang cc1, this is used by clang, because it invokes (current executable)
-    if(strcmp(argv[1], "-cc1") == 0) {
-        if(verbose.has_value()) std::cout << "invoking clang cc1: " << std::endl;
-        return chemical_clang_main(argc, argv);
-    }
-
     if(verbose.has_value()) {
         std::cout << "parsed command : ";
         options.print();
         std::cout << std::endl;
+    }
+
+    if(args.empty()) {
+        std::cerr << cmd_error("no input given\n\n");
+        print_usage();
+        return 1;
     }
 
     // Lex, parse & type check

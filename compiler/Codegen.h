@@ -148,6 +148,16 @@ public:
     int invoke_clang(const std::vector<std::string>& command_args);
 
     /**
+     * this can be used to capture output of clang in the console
+     */
+    int invoke_clang(const std::vector<std::string>& command_args, std::string& clang_output);
+
+    /**
+     * get system headers directory path for searching headers
+     */
+    std::vector<std::string> system_headers_path(const std::string& argv1);
+
+    /**
      * just prints the errors to std out
      */
     void print_errors() {

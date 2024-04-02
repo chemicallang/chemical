@@ -17,8 +17,35 @@
 #include <clang/Lex/PreprocessorOptions.h>
 #include <clang/CodeGen/CodeGenAction.h>
 #include <llvm/Linker/Linker.h>
+#include <filesystem>
+#include "lexer/Lexi.h"
+#include "parser/Persi.h"
+
+namespace fs = std::filesystem;
+
+std::vector<std::unique_ptr<ASTNode>>& ImportStatement::parsed(const std::string& root_path) {
+
+    if(!imported_ast.empty()) {
+        return imported_ast;
+    }
+
+    auto resolved = resolve_rel_path(root_path);
+
+    auto lexer = lexFile(resolved.string());
+    auto parser = parse(std::move(lexer.tokens));
+
+    imported_ast = std::move(parser.nodes);
+
+    return imported_ast;
+
+}
 
 void ImportStatement::code_gen(Codegen &gen) {
+
+    auto& ast = parsed(gen.path);
+    for(const auto& node : ast) {
+        node->code_gen(gen);
+    }
 
     // Resolve the containing directory to given header
 //    std::string dir = gen.headers_dir(filePath);
@@ -79,6 +106,20 @@ ImportStatement::ImportStatement(std::string filePath, std::vector<std::string> 
     this->filePath.shrink_to_fit();
 }
 
+void ImportStatement::declare_top_level(ASTLinker &linker) {
+    auto& ast = parsed(linker.path);
+    for(const auto& node : ast) {
+        node->declare_top_level(linker);
+    }
+}
+
+void ImportStatement::declare_and_link(ASTLinker &linker) {
+    auto& ast = parsed(linker.path);
+    for(const auto& node : ast) {
+        node->declare_and_link(linker);
+    }
+}
+
 void ImportStatement::accept(Visitor &visitor) {
     visitor.visit(this);
 }
@@ -87,12 +128,12 @@ std::string ImportStatement::representation() const {
     return std::string("import \"" + filePath + "\";");
 }
 
-std::filesystem::path ImportStatement::resolve_rel_path(InterpretScope &scope) {
-    return (((std::filesystem::path) scope.global->root_path).parent_path() / ((std::filesystem::path) filePath));
+std::filesystem::path ImportStatement::resolve_rel_path(const std::string& root_path) {
+    return (((std::filesystem::path) root_path).parent_path() / ((std::filesystem::path) filePath));
 }
 
 void ImportStatement::interpret(InterpretScope &scope) {
-    auto absolute_path = resolve_rel_path(scope).string();
+    auto absolute_path = resolve_rel_path(scope.global->root_path).string();
     std::ifstream stream(absolute_path);
     if (stream.fail()) {
         scope.error("error couldn't import the following file " + absolute_path);

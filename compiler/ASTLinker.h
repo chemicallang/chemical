@@ -19,7 +19,7 @@ public:
     /**
      * constructor
      */
-    ASTLinker();
+    ASTLinker(std::string path);
 
     /**
      * When traversing nodes, A node can declare something e.g a variable using variable statement
@@ -31,6 +31,11 @@ public:
      * errors occurred during linking
      */
     std::vector<std::string> errors;
+
+    /**
+     * path of the file being linked
+     */
+    std::string path;
 
     /**
      * save an error

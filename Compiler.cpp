@@ -64,18 +64,20 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    auto srcFilePath = args[0];
+
     // Lex, parse & type check
     auto benchmark = options.option("benchmark", "bm");
-    Lexer lexer = benchmark.has_value() ? benchLexFile(args[0]) : lexFile(args[0]);
+    Lexer lexer = benchmark.has_value() ? benchLexFile(srcFilePath) : lexFile(srcFilePath);
     if(verbose.has_value()) {
         printTokens(lexer.tokens);
     }
     for (const auto &err: lexer.errors) {
-        std::cerr << err.representation(argv[1], "Lexer") << std::endl;
+        std::cerr << err.representation(srcFilePath, "Lexer") << std::endl;
     }
     auto parser = benchmark.has_value() ? benchParse(std::move(lexer.tokens)) : parse(std::move(lexer.tokens));
     for (const auto &err: parser.errors) {
-        std::cerr << err.representation(argv[1], "Parser") << std::endl;
+        std::cerr << err.representation(srcFilePath, "Parser") << std::endl;
     }
     TypeChecker checker;
     checker.type_check(parser.nodes);
@@ -92,7 +94,7 @@ int main(int argc, char *argv[]) {
 
     // linking the nodes
     {
-        ASTLinker linker;
+        ASTLinker linker(srcFilePath);
         scope.declare_top_level(linker);
         if(!linker.errors.empty()) {
             for(const auto& err : linker.errors) {
@@ -113,7 +115,7 @@ int main(int argc, char *argv[]) {
     }
 
     // actual compilation
-    Codegen gen(std::move(scope.nodes), argv[1], target.value(), argv[0]);
+    Codegen gen(std::move(scope.nodes), srcFilePath, target.value(), argv[0]);
     gen.compile();
 
     // check if it requires printing

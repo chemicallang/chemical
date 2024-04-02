@@ -51,6 +51,8 @@ public:
 
     Value *initializer_value(InterpretScope &scope) override;
 
+    bool compile_time_computable() override;
+
     /**
      * evaluates the current expression and also interprets the evaluated value
      * @param scope

@@ -14,6 +14,10 @@ llvm::AllocaInst *Value::llvm_allocate(Codegen &gen, const std::string &identifi
     return x;
 }
 
+llvm::GlobalVariable* Value::llvm_global_variable(Codegen& gen, bool is_const, const std::string& name) {
+    return new llvm::GlobalVariable(*gen.module, llvm_type(gen), is_const, llvm::GlobalValue::LinkageTypes::PrivateLinkage, (llvm::Constant*) llvm_value(gen), name);
+}
+
 unsigned int Value::store_in_struct(
         Codegen &gen,
         StructValue *parent,

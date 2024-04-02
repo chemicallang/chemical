@@ -50,6 +50,7 @@ void FunctionDeclaration::code_gen(Codegen &gen) {
     if (body.has_value()) {
         gen.create_function(name, function_type(gen));
         body->code_gen(gen);
+        gen.current_function = nullptr;
     } else {
         gen.declare_function(name, function_type(gen));
     }

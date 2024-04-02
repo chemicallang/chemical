@@ -72,9 +72,9 @@ TargetMachine * Codegen::setup_for_target(const std::string &TargetTriple) {
 
 }
 
-void Codegen::save_as_file_type(const std::string &out_path, const std::string& TargetTriple, bool object_file) {
+void Codegen::save_as_file_type(const std::string &out_path, bool object_file) {
 
-    auto TheTargetMachine = setup_for_target(TargetTriple);
+    auto TheTargetMachine = setup_for_target();
     if(TheTargetMachine == nullptr) {
         return;
     }
@@ -101,9 +101,9 @@ void Codegen::save_as_file_type(const std::string &out_path, const std::string& 
 
 }
 
-void Codegen::save_as_bc_file(const std::string &out_path, const std::string& TargetTriple) {
+void Codegen::save_as_bc_file(const std::string &out_path) {
 
-    setup_for_target(TargetTriple);
+    setup_for_target();
 
     std::error_code EC;
     raw_fd_ostream dest(out_path, EC, sys::fs::OF_None);

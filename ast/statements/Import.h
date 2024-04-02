@@ -24,40 +24,17 @@ public:
      *
      * @param filePath The file path to import.
      */
-    ImportStatement(std::string filePath, std::vector<std::string> identifiers) : filePath(std::move(filePath)), identifiers(std::move(identifiers)) {
-        this->filePath.shrink_to_fit();
-    }
+    ImportStatement(std::string filePath, std::vector<std::string> identifiers);
 
-    void accept(Visitor &visitor) override {
-        visitor.visit(this);
-    }
+    void accept(Visitor &visitor) override;
 
-    std::string representation() const override {
-        return std::string("import \"" + filePath + "\";");
-    }
+    std::string representation() const override;
 
-    std::filesystem::path resolve_rel_path(InterpretScope& scope) {
-        return (((std::filesystem::path) scope.global->root_path).parent_path() / ((std::filesystem::path) filePath));
-    }
+    void code_gen(Codegen &gen) override;
 
-    void interpret(InterpretScope &scope) override {
-        auto absolute_path = resolve_rel_path(scope).string();
-        std::ifstream stream(absolute_path);
-        if(stream.fail()) {
-            scope.error("error couldn't import the following file " + absolute_path);
-            return;
-        }
-        StreamSourceProvider provider(stream);
-        Lexer lexer(provider, absolute_path);
-        lexer.lex();
-        Parser parser(std::move(lexer.tokens));
-        parser.parse();
-        Scope fileScope(std::move(parser.nodes));
-        auto prevPath = scope.global->root_path;
-        scope.global->root_path = absolute_path;
-        fileScope.interpret(scope);
-        scope.global->root_path = prevPath;
-    }
+    std::filesystem::path resolve_rel_path(InterpretScope& scope);
+
+    void interpret(InterpretScope &scope);
 
 private:
     std::vector<std::string> identifiers;

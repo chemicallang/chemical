@@ -3,9 +3,11 @@
 #ifdef COMPILER_BUILD
 #include "ast/base/ASTNode.h"
 #include "Codegen.h"
+
+#include <utility>
 #include "llvmimpl.h"
 
-Codegen::Codegen(std::vector<std::unique_ptr<ASTNode>> nodes, std::string path): nodes(std::move(nodes)), path(std::move(path)) {
+Codegen::Codegen(std::vector<std::unique_ptr<ASTNode>> nodes, std::string path, std::string target_triple, std::string curr_exe_path): nodes(std::move(nodes)), path(std::move(path)), target_triple(std::move(target_triple)), curr_exe_path(std::move(curr_exe_path)) {
     module_init();
 }
 
@@ -61,7 +63,7 @@ void Codegen::print_to_console() {
     module->print(llvm::outs(), nullptr);
 }
 
-void Codegen::save_to_file(const std::string &out_path, const std::string& TargetTriple) {
+void Codegen::save_to_file(const std::string &out_path) {
     std::error_code errorCode;
     llvm::raw_fd_ostream outLL(out_path, errorCode);
     module->print(outLL, nullptr);

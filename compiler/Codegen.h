@@ -36,7 +36,7 @@ public:
      * @param nodes
      * @param path
      */
-    explicit Codegen(std::vector<std::unique_ptr<ASTNode>> nodes, std::string path);
+    explicit Codegen(std::vector<std::unique_ptr<ASTNode>> nodes, std::string path, std::string target_triple, std::string curr_exe_path);
 
     /**
      * initializes the llvm module and context
@@ -96,7 +96,7 @@ public:
      * prints the current module as LLVM IR to a .ll file with given out_path
      * @param out_path
      */
-    void save_to_file(const std::string &out_path, const std::string& TargetTriple);
+    void save_to_file(const std::string &out_path);
 
     /**
      * sets up the module for the given target
@@ -105,40 +105,47 @@ public:
     llvm::TargetMachine * setup_for_target(const std::string& TargetTriple);
 
     /**
+     * automatically sets up for the current target triple
+     */
+    inline llvm::TargetMachine *setup_for_target() {
+        return setup_for_target(target_triple);
+    }
+
+    /**
      * just in time compilation
      * please note that this takes ownership of the module
      */
-    void just_in_time_compile(std::vector<const char*>& args, const std::string& TargetTriple);
+    void just_in_time_compile(std::vector<const char*>& args);
 
     /**
      * save file as file type
      * @param object_file when true object file is generated, otherwise assembly file is generated
      */
-    void save_as_file_type(const std::string &out_path, const std::string& TargetTriple, bool object_file = true);
+    void save_as_file_type(const std::string &out_path, bool object_file = true);
 
     /**
      * save as a bitcode file
      */
-    void save_as_bc_file(const std::string &out_path, const std::string& TargetTriple);
+    void save_as_bc_file(const std::string &out_path);
 
     /**
      * saves as assembly file to this path
      * @param TargetTriple
      */
-    inline void save_to_assembly_file(const std::string &out_path, const std::string& TargetTriple) {
-        save_as_file_type(out_path, TargetTriple, false);
+    inline void save_to_assembly_file(const std::string &out_path) {
+        save_as_file_type(out_path, false);
     }
 
     /**
      * saves as object file to this path
      * @param out_path
      */
-    inline void save_to_object_file(const std::string &out_path, const std::string& TargetTriple) {
-        save_as_file_type(out_path, TargetTriple, true);
+    inline void save_to_object_file(const std::string &out_path) {
+        save_as_file_type(out_path, true);
     }
 
     /**
-      * You can invoke clang with this function
+      * You can invoke lld with this function
       */
     int invoke_lld(const std::vector<std::string>& command_args);
 
@@ -148,14 +155,14 @@ public:
     int invoke_clang(const std::vector<std::string>& command_args);
 
     /**
-     * this can be used to capture output of clang in the console
+     * get absolute path to this system header
      */
-    int invoke_clang(const std::vector<std::string>& command_args, std::string& clang_output);
+    std::string abs_header_path(const std::string& header);
 
     /**
-     * get system headers directory path for searching headers
+     * get containing system headers directory for the following header
      */
-    std::vector<std::string> system_headers_path(const std::string& argv1);
+    std::string headers_dir(const std::string& header);
 
     /**
      * just prints the errors to std out
@@ -236,9 +243,28 @@ public:
     ~Codegen();
 
     /**
+     * these are the resolved places where system headers paths exist
+     * when its empty, its loaded directly by invoking clang (from self)
+     * then once we found them we cache them here, for faster invocation next time
+     */
+    std::vector<std::string> system_headers_paths = {};
+
+    /**
+     * path to the current executable, arg[0]
+     * this is useful if in the middle of code generation
+     * we want to invoke the compiler to get more information !
+     */
+    std::string curr_exe_path;
+
+    /**
      * path to the file
      */
     std::string path;
+
+    /**
+     * TargetTriple , which we are generating code for !
+     */
+    std::string target_triple;
 
     /**
      * The function being compiled currently

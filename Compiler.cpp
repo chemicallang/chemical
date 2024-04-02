@@ -98,20 +98,9 @@ int main(int argc, char *argv[]) {
             for(const auto& err : linker.errors) {
                 std::cerr << "[Linker] " << err << std::endl;
             }
-            return 1;
+            // TODO preventing linker to stop if errors occur, because we need std.io import to work !
+//            return 1;
         }
-    }
-
-
-    // actual compilation
-    Codegen gen(std::move(scope.nodes), argv[1]);
-    gen.compile();
-
-    // check if it requires printing
-    auto print = options.option("print-ir", "pir");
-    if (print.has_value()) {
-        // print to console
-        gen.print_to_console();
     }
 
     // get and print target
@@ -123,6 +112,17 @@ int main(int argc, char *argv[]) {
         std::cout << "Target: " << target.value() << std::endl;
     }
 
+    // actual compilation
+    Codegen gen(std::move(scope.nodes), argv[1], target.value(), argv[0]);
+    gen.compile();
+
+    // check if it requires printing
+    auto print = options.option("print-ir", "pir");
+    if (print.has_value()) {
+        // print to console
+        gen.print_to_console();
+    }
+
     auto jit = options.option("jit", "jit");
     if(jit.has_value()) {
         auto jit_commands = options.collect_subcommand(argc, argv, "jit");
@@ -131,7 +131,7 @@ int main(int argc, char *argv[]) {
         for(const auto& cmd : jit_commands) {
             jit_args.push_back(cmd.c_str());
         }
-        gen.just_in_time_compile(jit_args, target.value());
+        gen.just_in_time_compile(jit_args);
         gen.print_errors();
         return 0;
     }
@@ -144,26 +144,26 @@ int main(int argc, char *argv[]) {
 
     // writing object / ll file when user wants only that !
     if(endsWith(output.value(), ".o")) {
-        gen.save_to_object_file(output.value(), target.value());
+        gen.save_to_object_file(output.value());
         options.print_unhandled();
         return 0;
     } else if(endsWith(output.value(), ".s")) {
-        gen.save_to_assembly_file(output.value(), target.value());
+        gen.save_to_assembly_file(output.value());
         options.print_unhandled();
         return 0;
     } else if(endsWith(output.value(), ".ll")) {
-        gen.save_to_file(output.value(), target.value());
+        gen.save_to_file(output.value());
         options.print_unhandled();
         return 0;
     } else if(endsWith(output.value(), ".bc")) {
-        gen.save_as_bc_file(output.value(), target.value());
+        gen.save_as_bc_file(output.value());
         options.print_unhandled();
         return 0;
     }
 
     // creating object file for compilation
     std::string object_file_path = output.value() + ".o";
-    gen.save_to_object_file(object_file_path, target.value());
+    gen.save_to_object_file(object_file_path);
     if (!gen.errors.empty()) {
         gen.print_errors();
         return 1;

@@ -269,17 +269,17 @@ public:
     /**
      * The function being compiled currently
      */
-    llvm::Function* current_function;
+    llvm::Function* current_function = nullptr;
 
     /**
      * This is set by every loop so break statement can exit to this block
      */
-    llvm::BasicBlock* current_loop_exit;
+    llvm::BasicBlock* current_loop_exit = nullptr;
 
     /**
      * This is set by every loop so continue statement can continue to this block
      */
-    llvm::BasicBlock* current_loop_continue;
+    llvm::BasicBlock* current_loop_continue = nullptr;
 
     /**
      * LLVM context that holds modules

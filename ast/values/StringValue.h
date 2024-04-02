@@ -47,6 +47,8 @@ public:
 
     llvm::Value *llvm_value(Codegen &gen) override;
 
+    llvm::GlobalVariable * llvm_global_variable(Codegen &gen, bool is_const, const std::string &name) override;
+
 #endif
 
     Value *copy(InterpretScope &scope) override {

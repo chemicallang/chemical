@@ -14,4 +14,8 @@ llvm::Value * StringValue::llvm_value(Codegen &gen) {
     return gen.builder->CreateGlobalStringPtr(value);
 }
 
+llvm::GlobalVariable * StringValue::llvm_global_variable(Codegen &gen, bool is_const, const std::string &name) {
+    return gen.builder->CreateGlobalString(value, name);
+}
+
 #endif

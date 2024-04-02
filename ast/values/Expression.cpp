@@ -83,6 +83,10 @@ Value *Expression::initializer_value(InterpretScope &scope) {
     return evaluated_value(scope);
 }
 
+bool Expression::compile_time_computable() {
+    return firstValue->compile_time_computable() && secondValue->compile_time_computable();
+}
+
 /**
  * evaluates the current expression and also interprets the evaluated value
  * @param scope

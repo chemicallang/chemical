@@ -163,6 +163,11 @@ std::cerr << "child called on base value";
     virtual llvm::AllocaInst* llvm_allocate(Codegen& gen, const std::string& identifier);
 
     /**
+     * This creates this value as a global variable, it could be constant
+     */
+    virtual llvm::GlobalVariable* llvm_global_variable(Codegen& gen, bool is_const, const std::string& name);
+
+    /**
      * store this value in the allocated struct value
      *
      * it takes an index to store value at, it returns an index to store next value at
@@ -326,6 +331,13 @@ std::cerr << "child called on base value";
      */
     virtual bool computed() {
         return false;
+    }
+
+    /**
+     * is value computable at compile time
+     */
+    virtual bool compile_time_computable() {
+        return primitive();
     }
 
     /**

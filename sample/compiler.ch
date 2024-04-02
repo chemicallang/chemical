@@ -47,8 +47,11 @@ func test_macro() {
     printf("check my html : %s", html);
 }
 
+const global_int = 444;
+
 func main(argc : int, argv : string*) : int {
     print_args(argc, argv);
+    printf("check global works : %d\n", global_int);
     printf("function sum : %d\n", add(5, 4))
     printf("check this char '%c'\n", 'x');
     printf("check this float : %f\n", 1.12345);

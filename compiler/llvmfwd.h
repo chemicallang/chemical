@@ -4,6 +4,7 @@
 
 namespace llvm {
     class AllocaInst;
+    class GlobalVariable;
     class Function;
     class FunctionType;
     class FunctionCallee;

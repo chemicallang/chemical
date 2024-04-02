@@ -7,10 +7,18 @@
 #include "compiler/llvmimpl.h"
 
 void VarInitStatement::code_gen(Codegen &gen) {
-    if (value.has_value()) {
-        allocaInst = value.value()->llvm_allocate(gen, identifier);
+    if(gen.current_function == nullptr) {
+        if(value.has_value()) {
+            llvm_ptr = value.value()->llvm_global_variable(gen, is_const, identifier);
+        } else {
+            gen.error("Global variables must have a value by default !");
+        }
     } else {
-        allocaInst = gen.builder->CreateAlloca(llvm_type(gen), nullptr, identifier);
+        if (value.has_value()) {
+            llvm_ptr = value.value()->llvm_allocate(gen, identifier);
+        } else {
+            llvm_ptr = gen.builder->CreateAlloca(llvm_type(gen), nullptr, identifier);
+        }
     }
 }
 
@@ -40,7 +48,7 @@ inline void VarInitStatement::check_has_type(Codegen &gen) {
 }
 
 llvm::Value *VarInitStatement::llvm_pointer(Codegen &gen) {
-    return allocaInst;
+    return llvm_ptr;
 }
 
 llvm::Type *VarInitStatement::llvm_elem_type(Codegen &gen) {

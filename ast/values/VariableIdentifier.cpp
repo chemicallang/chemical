@@ -29,7 +29,7 @@ llvm::Type *VariableIdentifier::llvm_type(Codegen &gen) {
 }
 
 llvm::Value *VariableIdentifier::llvm_pointer(Codegen &gen) {
-    return declaration()->allocaInst;
+    return declaration()->llvm_ptr;
 }
 
 llvm::Value *VariableIdentifier::llvm_value(Codegen &gen) {

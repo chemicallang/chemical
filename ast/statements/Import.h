@@ -32,12 +32,26 @@ public:
 
     void code_gen(Codegen &gen) override;
 
-    std::filesystem::path resolve_rel_path(InterpretScope& scope);
+    std::filesystem::path resolve_rel_path(const std::string& root_path);
+
+    /**
+     * this parses the imported file, if already parsed returns cached
+     * @param base_path file path should be given, so the imported file path can be resolved
+     * relative to it
+     */
+    std::vector<std::unique_ptr<ASTNode>>& parsed(const std::string& root_path);
+
+    void declare_top_level(ASTLinker &linker) override;
+
+    void declare_and_link(ASTLinker &linker) override;
 
     void interpret(InterpretScope &scope);
 
 private:
     std::vector<std::string> identifiers;
     std::string filePath; ///< The file path to import.
+
+    // these are cached parsed nodes that are filled when file is imported
+    std::vector<std::unique_ptr<ASTNode>> imported_ast;
 
 };

@@ -1,4 +1,4 @@
-func printf(format : string, args : any...) : int
+import "std.ch"
 
 func add(a : int, b : int) : int {
     return a + b;

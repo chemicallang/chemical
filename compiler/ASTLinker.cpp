@@ -4,6 +4,6 @@
 #include "ast/base/ASTNode.h"
 #include "ASTLinker.h"
 
-ASTLinker::ASTLinker() {
+ASTLinker::ASTLinker(std::string path) : path(std::move(path)) {
 
 }

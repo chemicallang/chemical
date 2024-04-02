@@ -10,9 +10,9 @@
 
 typedef int (*MainFuncType)(int, char**);
 
-void Codegen::just_in_time_compile(std::vector<const char*>& args, const std::string& TargetTriple) {
+void Codegen::just_in_time_compile(std::vector<const char*>& args) {
 
-    setup_for_target(TargetTriple);
+    setup_for_target();
 
     llvm::EngineBuilder engine_builder(std::move(module));
     std::unique_ptr<llvm::ExecutionEngine> engine(engine_builder.create());

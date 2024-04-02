@@ -311,6 +311,9 @@ set(COMMON_SOURCES
         lexer/structures/Switch.cpp
         parser/structures/Switch.cpp
         parser/structures/TryCatch.cpp
+        ast/statements/Import.cpp
+        compiler/SelfInvocation.h
+        compiler/SelfInvocation.cpp
 )
 
 # Chemical LSP Executable Target

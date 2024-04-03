@@ -190,7 +190,7 @@ public:
     /**
      * add child index in llvm indexes vector
      */
-    virtual bool add_child_index(Codegen& gen, std::vector<llvm::Value*>& indexes, const std::string& name) {
+    virtual bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
 #ifdef DEBUG
         std::cerr << "add_child_index called on base ASTNode, representation : " << representation();
 #endif
@@ -200,11 +200,22 @@ public:
     /**
      * add child index in llvm indexes vector
      */
-    virtual bool add_child_index(Codegen& gen, std::vector<llvm::Value*>& indexes, unsigned int index) {
+    virtual bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, unsigned int index) {
 #ifdef DEBUG
         std::cerr << "add_child_index(int) called on base ASTNode, representation : " << representation();
 #endif
         throw std::runtime_error("add_child_index(int) called on a ASTNode");
+    }
+
+    /**
+     * loads the value of the given ASTNode
+     * this is called by variable identifier, on linked nodes (var init, function parameters)
+     */
+    virtual llvm::Value *llvm_load(Codegen &gen) {
+#ifdef DEBUG
+        std::cerr << "llvm_load called on base ASTNode, representation : " << representation();
+#endif
+        throw std::runtime_error("llvm_load called on a ASTNode");
     }
 
 #endif

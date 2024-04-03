@@ -52,8 +52,6 @@ public:
 
 #ifdef COMPILER_BUILD
 
-    llvm::Value *arg_value(Codegen &gen, ASTNode *node);
-
     llvm::Type * llvm_type(Codegen &gen) override;
 
     llvm::Value *llvm_pointer(Codegen &gen) override;

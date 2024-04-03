@@ -45,6 +45,8 @@ public:
 
     llvm::Type *llvm_elem_type(Codegen &gen) override;
 
+    llvm::Value * llvm_load(Codegen &gen) override;
+
 #endif
 
     std::string representation() const override {

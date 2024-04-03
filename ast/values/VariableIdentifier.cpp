@@ -6,24 +6,6 @@
 
 #include "compiler/llvmimpl.h"
 
-llvm::Value *VariableIdentifier::arg_value(Codegen &gen, ASTNode *node) {
-    auto param = node->as_parameter();
-    if (param != nullptr && gen.current_function != nullptr) {
-        for (const auto &arg: gen.current_function->args()) {
-            if (arg.getArgNo() == param->index) {
-                return (llvm::Value *) &arg;
-            }
-//                else {
-//                    gen.error("no mismatch" + std::to_string(arg.getArgNo()) + " " + std::to_string(param->index));
-//                }
-        }
-    }
-//        else {
-//            gen.error("param or function missing");
-//        }
-    return nullptr;
-}
-
 llvm::Type *VariableIdentifier::llvm_type(Codegen &gen) {
     return linked->llvm_type(gen);
 }
@@ -33,12 +15,7 @@ llvm::Value *VariableIdentifier::llvm_pointer(Codegen &gen) {
 }
 
 llvm::Value *VariableIdentifier::llvm_value(Codegen &gen) {
-    auto argVal = arg_value(gen, linked);
-    if (argVal != nullptr) {
-        return argVal;
-    }
-    auto v = llvm_pointer(gen);
-    return gen.builder->CreateLoad(linked->llvm_type(gen), v, value);
+    return linked->llvm_load(gen);
 }
 
 #endif

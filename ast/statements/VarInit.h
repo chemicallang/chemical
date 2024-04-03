@@ -41,6 +41,8 @@ public:
 
     llvm::Type *llvm_type(Codegen &gen) override;
 
+    llvm::Value *llvm_load(Codegen &gen) override;
+
     bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
 
     bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, unsigned int index) override;
@@ -82,7 +84,7 @@ public:
     std::optional<std::unique_ptr<Value>> value; ///< The value being assigned to the identifier.
 
 #ifdef COMPILER_BUILD
-    llvm::Value* llvm_ptr;
+    llvm::Value *llvm_ptr;
 #endif
 
 };

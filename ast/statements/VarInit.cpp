@@ -7,8 +7,8 @@
 #include "compiler/llvmimpl.h"
 
 void VarInitStatement::code_gen(Codegen &gen) {
-    if(gen.current_function == nullptr) {
-        if(value.has_value()) {
+    if (gen.current_function == nullptr) {
+        if (value.has_value()) {
             llvm_ptr = value.value()->llvm_global_variable(gen, is_const, identifier);
         } else {
             gen.error("Global variables must have a value by default !");
@@ -22,19 +22,28 @@ void VarInitStatement::code_gen(Codegen &gen) {
     }
 }
 
+llvm::Value *VarInitStatement::llvm_load(Codegen &gen) {
+    if(is_const && value.has_value() && value.value()->value_type() == ValueType::String) {
+        // global strings do not require loading
+        return llvm_pointer(gen);
+    }
+    auto v = llvm_pointer(gen);
+    return gen.builder->CreateLoad(llvm_type(gen), v, identifier);
+}
+
 bool VarInitStatement::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
-    if(value.has_value()) {
+    if (value.has_value()) {
         return value.value()->add_child_index(gen, indexes, name);
-    } else if(type.has_value()) {
+    } else if (type.has_value()) {
         return type.value()->linked_node()->add_child_index(gen, indexes, name);
     }
     return false;
 }
 
 bool VarInitStatement::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, unsigned int index) {
-    if(value.has_value()) {
+    if (value.has_value()) {
         return value.value()->add_child_index(gen, indexes, index);
-    } else if(type.has_value()) {
+    } else if (type.has_value()) {
         return type.value()->linked_node()->add_child_index(gen, indexes, index);
     }
     return false;
@@ -78,9 +87,9 @@ VarInitStatement *VarInitStatement::as_var_init() {
 }
 
 ASTNode *VarInitStatement::child(const std::string &name) {
-    if(type.has_value()) {
+    if (type.has_value()) {
         return type.value()->linked_node()->child(name);
-    } else if(value.has_value()) {
+    } else if (value.has_value()) {
         return value.value()->linked_node()->child(name);
     }
     return nullptr;
@@ -88,7 +97,7 @@ ASTNode *VarInitStatement::child(const std::string &name) {
 
 void VarInitStatement::declare_and_link(ASTLinker &linker) {
     linker.current[identifier] = this;
-    if(type.has_value()) {
+    if (type.has_value()) {
         type.value()->link(linker);
     }
     if (value.has_value()) {

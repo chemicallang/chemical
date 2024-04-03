@@ -48,10 +48,12 @@ func test_macro() {
 }
 
 const global_int = 444;
+const my_global_str = "something ain't right";
 
 func main(argc : int, argv : string*) : int {
     print_args(argc, argv);
     printf("check global works : %d\n", global_int);
+    printf("global string works : %s\n", my_global_str);
     printf("function sum : %d\n", add(5, 4))
     printf("check this char '%c'\n", 'x');
     printf("check this float : %f\n", 1.12345);

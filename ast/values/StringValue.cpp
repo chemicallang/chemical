@@ -15,7 +15,10 @@ llvm::Value * StringValue::llvm_value(Codegen &gen) {
 }
 
 llvm::GlobalVariable * StringValue::llvm_global_variable(Codegen &gen, bool is_const, const std::string &name) {
-    return gen.builder->CreateGlobalString(value, name);
+    if(!is_const) {
+        gen.error("Global string variables aren't supported at the moment");
+    }
+    return gen.builder->CreateGlobalString(value, name, 0, gen.module.get());
 }
 
 #endif

@@ -76,5 +76,14 @@ func main(argc : int, argv : string*) : int {
     printf("check c : %d\n", c);
     test_structs();
     test_macro();
+    var tt = 5;
+    switch(tt) {
+        case 3 -> {
+            printf("it is 3");
+        }
+        case 5 -> {
+            printf("it is 5");
+        }
+    }
     return 0;
 }

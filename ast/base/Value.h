@@ -9,11 +9,12 @@
 #include "Interpretable.h"
 #include "ValueType.h"
 #include "ast/utils/Operation.h"
-#include "compiler/Codegen.h"
 #include "compiler/SymbolResolver.h"
 #include <vector>
 #include <memory>
+
 #ifdef COMPILER_BUILD
+class Codegen;
 #include "compiler/llvmfwd.h"
 #endif
 

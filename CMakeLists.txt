@@ -6,13 +6,13 @@ message("CMake version: ${CMAKE_VERSION}")
 project("chemical")
 
 # use default out/host or out-win/host folder if cmake prefix path is not given
-if(NOT DEFINED CMAKE_PREFIX_PATH)
-    if(WIN32)
+if (NOT DEFINED CMAKE_PREFIX_PATH)
+    if (WIN32)
         set(CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../out-win/host")
-    else()
+    else ()
         set(CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../out/host")
-    endif()
-endif()
+    endif ()
+endif ()
 
 # We copied this from Zig CMakeLists
 set(ZIG_USE_LLVM_CONFIG ON)
@@ -22,15 +22,15 @@ set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
 
 # Debug builds error messages that are more helpful
 set(CMAKE_BUILD_TYPE "Debug")
-if(CMAKE_BUILD_TYPE MATCHES Debug)
+if (CMAKE_BUILD_TYPE MATCHES Debug)
     add_definitions(-DDEBUG)
-endif()
+endif ()
 
 # Verbose builds produce logs as well
 option(VERBOSE "Enable verbose output (for debugging)" OFF)
-if(VERBOSE)
+if (VERBOSE)
     add_definitions(-DVERBOSE) # Define VERBOSE macro
-endif()
+endif ()
 
 # Enable verbose output
 #set(CMAKE_VERBOSE_MAKEFILE ON)
@@ -49,6 +49,7 @@ set(Boost_NO_WARN_NEW_VERSIONS 1)
 
 # include some compiler options for better support
 include(cmake/CompilerOptions.cmake)
+include(cmake/FeatureFlags.cmake)
 
 # Set CMP0074 policy so that CMake can use BOOST_ROOT environment variable
 if (POLICY CMP0074)
@@ -64,10 +65,10 @@ find_package(clang 17)
 find_package(lld 17)
 
 # Check if CLANG_LIBRARIES contains NOTFOUND
-if(CLANG_LIBRARIES AND CLANG_LIBRARIES MATCHES "CLANG_LIBRARIES-NOTFOUND")
+if (CLANG_LIBRARIES AND CLANG_LIBRARIES MATCHES "CLANG_LIBRARIES-NOTFOUND")
     # Remove NOTFOUND from CLANG_LIBRARIES
     string(REPLACE "CLANG_LIBRARIES-NOTFOUND;" "" CLANG_LIBRARIES "${CLANG_LIBRARIES}")
-endif()
+endif ()
 
 # Add the LspCpp library directory
 add_subdirectory(LspCpp)
@@ -342,8 +343,10 @@ add_executable(Compiler Compiler.cpp ${COMMON_SOURCES}
         compiler/llvmimpl.h
 )
 
+message(STATUS "FEATURES ${COMPILER_FEATURES}")
+
 # Compiler uses llvm
-target_compile_definitions(Compiler PRIVATE COMPILER_BUILD)
+target_compile_definitions(Compiler PRIVATE COMPILER_BUILD ${COMPILER_FEATURES})
 # Lsp uses boost library
 target_compile_definitions(ChemicalLsp PRIVATE LSP_BUILD)
 
@@ -384,14 +387,14 @@ if (MSVC)
     target_compile_options(Compiler PRIVATE /wd4267)
     target_compile_options(Interpreter PRIVATE /wd4267)
     target_compile_options(ChemicalLsp PRIVATE /wd4267)
-endif()
+endif ()
 
 # https://discourse.llvm.org/t/undefined-reference-to-typeinfo-for-llvm-genericoptionvalue/71526/3
 set(NO_RTTI "-fno-rtti")
 target_compile_options(Compiler PRIVATE ${NO_RTTI})
-if(WIN32)
+if (WIN32)
     target_compile_options(Compiler PRIVATE "/MT")
-endif()
+endif ()
 
 # Linking interpreter with Boost library
 # This should be removed eventually we don't want boost to boost our exe size

@@ -1,38 +1,20 @@
 // Copyright (c) Qinetik 2024.
+
 #ifdef COMPILER_BUILD
 #include "Codegen.h"
 #include "llvm/ADT/APFloat.h"
-#include "llvm/ADT/STLExtras.h"
-#include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Constants.h"
-#include "llvm/IR/DerivedTypes.h"
-#include "llvm/IR/Function.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Instructions.h"
-#include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/LegacyPassManager.h"
-#include "llvm/IR/Module.h"
-#include "llvm/IR/Type.h"
-#include "llvm/IR/Verifier.h"
 #include "llvm/MC/TargetRegistry.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
-#include "llvm/TargetParser/Host.h"
-#include <llvm/Bitcode/BitcodeWriter.h>
-#include <algorithm>
-#include <cassert>
-#include <cctype>
-#include <cstdio>
-#include <cstdlib>
-#include <map>
-#include <memory>
 #include <string>
 #include <system_error>
-#include <utility>
-#include <vector>
 
 using namespace llvm;
 using namespace llvm::sys;
@@ -72,9 +54,9 @@ TargetMachine * Codegen::setup_for_target(const std::string &TargetTriple) {
 
 }
 
-void Codegen::save_as_file_type(const std::string &out_path, bool object_file) {
+void save_as_file_type(Codegen* gen, const std::string &out_path, llvm::CodeGenFileType type) {
 
-    auto TheTargetMachine = setup_for_target();
+    auto TheTargetMachine = gen->setup_for_target();
     if(TheTargetMachine == nullptr) {
         return;
     }
@@ -83,23 +65,45 @@ void Codegen::save_as_file_type(const std::string &out_path, bool object_file) {
     raw_fd_ostream dest(out_path, EC, sys::fs::OF_None);
 
     if (EC) {
-        error("Could not open file: " + EC.message());
+        gen->error("Could not open file: " + EC.message());
         return;
     }
 
     legacy::PassManager pass;
 
-    auto type = object_file ? llvm::CodeGenFileType::CGFT_ObjectFile : llvm::CodeGenFileType::CGFT_AssemblyFile;
-
     if (TheTargetMachine->addPassesToEmitFile(pass, dest, nullptr, type)) {
-        error("TheTargetMachine can't emit a file of this type");
+        gen->error("TheTargetMachine can't emit a file of this type");
         return;
     }
 
-    pass.run(*module);
+    pass.run(*gen->module);
     dest.flush();
 
 }
+
+#ifdef FEAT_ASSEMBLY_GEN
+
+/**
+ * saves as assembly file to this path
+ * @param TargetTriple
+ */
+void Codegen::save_to_assembly_file(const std::string &out_path) {
+    save_as_file_type(this, out_path, llvm::CodeGenFileType::CGFT_AssemblyFile);
+}
+
+#endif
+
+/**
+ * saves as object file to this path
+ * @param out_path
+ */
+void Codegen::save_to_object_file(const std::string &out_path) {
+    save_as_file_type(this, out_path, llvm::CodeGenFileType::CGFT_ObjectFile);
+}
+
+#ifdef FEAT_BITCODE_GEN
+
+#include <llvm/Bitcode/BitcodeWriter.h>
 
 void Codegen::save_as_bc_file(const std::string &out_path) {
 
@@ -119,5 +123,7 @@ void Codegen::save_as_bc_file(const std::string &out_path) {
     dest.close();
 
 }
+
+#endif
 
 #endif

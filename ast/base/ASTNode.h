@@ -16,7 +16,8 @@
 
 #ifdef COMPILER_BUILD
 
-#include "compiler/Codegen.h"
+class Codegen;
+
 #include "compiler/llvmfwd.h"
 
 #endif

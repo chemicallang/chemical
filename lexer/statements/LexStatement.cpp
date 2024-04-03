@@ -29,6 +29,7 @@ bool Lexer::lexNestedLevelStatementTokens() {
            (isLexContinueStatement && lexContinueStatement()) ||
            (isLexReturnStatement && lexReturnStatement()) ||
            lexIfBlockTokens() ||
+           lexSwitchStatementBlock() ||
            lexForBlockTokens() ||
            lexDoWhileBlockTokens() ||
            lexWhileBlockTokens() ||

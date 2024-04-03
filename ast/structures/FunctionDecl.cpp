@@ -7,6 +7,10 @@
 #include "ast/types/PointerType.h"
 #include "compiler/llvmimpl.h"
 
+llvm::Type *FunctionParam::llvm_type(Codegen &gen) {
+    return type->llvm_type(gen);
+}
+
 llvm::Type *FunctionParam::llvm_elem_type(Codegen &gen) {
     auto lType = llvm_type(gen);
     if (lType) {
@@ -85,6 +89,30 @@ std::vector<llvm::Type *> FunctionDeclaration::param_types(Codegen &gen) {
 }
 
 #endif
+
+FunctionParam::FunctionParam(
+        std::string name,
+        std::unique_ptr<BaseType> type,
+        unsigned int index,
+        bool isVariadic,
+        std::optional<std::unique_ptr<Value>> defValue
+) : name(std::move(name)),
+    type(std::move(type)),
+    index(index), isVariadic(isVariadic), defValue(std::move(defValue)) {
+    name.shrink_to_fit();
+}
+
+void FunctionParam::accept(Visitor &visitor) {
+    visitor.visit(this);
+}
+
+FunctionParam *FunctionParam::as_parameter() {
+    return this;
+}
+
+std::string FunctionParam::representation() const {
+    return name + " : " + type->representation();
+}
 
 FunctionDeclaration::FunctionDeclaration(
         std::string name,

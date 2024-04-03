@@ -51,12 +51,21 @@ lex_ptr<FunctionDeclaration> Parser::parseFunctionDefinition(bool declarations) 
                         }
                         auto type = parseType();
                         if (type.has_value()) {
-                            params.emplace_back(paramToken->value, std::move(type.value()), paramsCount);
-                            paramsCount++;
                             if (token_type() == LexTokenType::StringOperator &&
                                 as<AbstractStringToken>()->value == "...") {
                                 increment();
                                 isVariadic = true;
+                            }
+                            lex_ptr<Value> defValue = std::nullopt;
+                            if(!isVariadic && consume_op('=')) {
+                                defValue = parseValue();
+                                if(!defValue.has_value()) {
+                                    error("expected a default value after '=' for the parameter with name " + paramToken->value);
+                                }
+                            }
+                            params.emplace_back(paramToken->value, std::move(type.value()), paramsCount, isVariadic, std::move(defValue));
+                            paramsCount++;
+                            if(isVariadic) {
                                 break;
                             }
                         } else {

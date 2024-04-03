@@ -37,6 +37,13 @@ void Lexer::lexParameterList() {
             if(lexOperatorToken("...")) {
                 break;
             }
+            lexWhitespaceToken();
+            if(lexOperatorToken('=')) {
+                lexWhitespaceToken();
+                if(!lexValueToken()) {
+                    error("expected value after '=' for default value for the parameter");
+                }
+            }
         }
         lexWhitespaceToken();
     } while(lexOperatorToken(','));

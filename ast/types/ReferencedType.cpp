@@ -14,7 +14,7 @@ llvm::Type *ReferencedType::llvm_type(Codegen &gen) const {
 
 #endif
 
-void ReferencedType::link(ASTLinker &linker) {
+void ReferencedType::link(SymbolResolver &linker) {
     auto found = linker.current.find(type);
     if(found != linker.current.end()) {
         linked = found->second;

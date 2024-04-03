@@ -98,7 +98,7 @@ void IfStatement::accept(Visitor &visitor) {
     visitor.visit(this);
 }
 
-void IfStatement::declare_and_link(ASTLinker &linker) {
+void IfStatement::declare_and_link(SymbolResolver &linker) {
     condition->link(linker);
     ifBody.declare_and_link(linker);
     ifBody.undeclare_on_scope_end(linker);

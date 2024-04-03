@@ -22,7 +22,7 @@ void TypealiasStatement::interpret(InterpretScope &scope) {
 
 }
 
-void TypealiasStatement::declare_and_link(ASTLinker &linker) {
+void TypealiasStatement::declare_and_link(SymbolResolver &linker) {
 
 }
 

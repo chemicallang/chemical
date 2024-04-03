@@ -22,7 +22,7 @@ void benchInterpret(Scope& scope, GlobalInterpretScope& interpretScope) {
     // Actual interpretation
     ExpressionEvaluator::prepareFunctions(interpretScope);
     {
-        ASTLinker linker;
+        SymbolResolver linker;
         for(const auto& func : interpretScope.global_fns) {
             linker.current[func.first] = func.second.get();
         }

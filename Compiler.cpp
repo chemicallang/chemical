@@ -94,7 +94,7 @@ int main(int argc, char *argv[]) {
 
     // linking the nodes
     {
-        ASTLinker linker(srcFilePath);
+        SymbolResolver linker(srcFilePath);
         scope.declare_top_level(linker);
         if(!linker.errors.empty()) {
             for(const auto& err : linker.errors) {

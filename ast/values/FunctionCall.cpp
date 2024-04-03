@@ -37,7 +37,7 @@ FunctionCall::FunctionCall(
 
 }
 
-void FunctionCall::link(ASTLinker &linker) {
+void FunctionCall::link(SymbolResolver &linker) {
     auto found = linker.current.find(name);
     if (found != linker.current.end()) {
         auto func = found->second->as_function();

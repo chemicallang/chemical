@@ -13,7 +13,7 @@ public:
 
     ReferencedType(const std::string type) : type(type) {}
 
-    void link(ASTLinker &linker) override;
+    void link(SymbolResolver &linker) override;
 
     ASTNode * linked_node() override;
 

@@ -5,7 +5,7 @@
 #include "ValueType.h"
 #include <string>
 #include "compiler/Codegen.h"
-#include "compiler/ASTLinker.h"
+#include "compiler/SymbolResolver.h"
 
 #ifdef COMPILER_BUILD
 #include "compiler/llvmfwd.h"
@@ -31,7 +31,7 @@ public:
     /**
      * a type, or a referenced type, can link itself with its definition
      */
-    virtual void link(ASTLinker& linker) {
+    virtual void link(SymbolResolver& linker) {
         // does nothing by default
     }
 

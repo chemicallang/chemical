@@ -19,7 +19,7 @@ public:
 
     FunctionCall(FunctionCall &&other) = delete;
 
-    void link(ASTLinker &linker) override;
+    void link(SymbolResolver &linker) override;
 
     FunctionCall *as_func_call() override;
 

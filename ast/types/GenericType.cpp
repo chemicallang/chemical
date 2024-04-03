@@ -7,7 +7,7 @@
 
 #endif
 
-void GenericType::link(ASTLinker &linker) {
+void GenericType::link(SymbolResolver &linker) {
     auto found = linker.current.find(base);
     if(found != linker.current.end()) {
         linked = found->second;

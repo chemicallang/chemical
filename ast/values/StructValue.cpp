@@ -78,7 +78,7 @@ bool StructValue::primitive() {
     return false;
 }
 
-void StructValue::link(ASTLinker &linker) {
+void StructValue::link(SymbolResolver &linker) {
     auto def = linker.current.find(structName);
     if (def != linker.current.end()) {
         auto struct_def = def->second->as_struct_def();

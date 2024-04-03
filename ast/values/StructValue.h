@@ -27,7 +27,7 @@ public:
 
     bool primitive() override;
 
-    void link(ASTLinker &linker) override;
+    void link(SymbolResolver &linker) override;
 
     Value *call_member(
             InterpretScope &scope,

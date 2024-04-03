@@ -106,14 +106,14 @@ ImportStatement::ImportStatement(std::string filePath, std::vector<std::string> 
     this->filePath.shrink_to_fit();
 }
 
-void ImportStatement::declare_top_level(ASTLinker &linker) {
+void ImportStatement::declare_top_level(SymbolResolver &linker) {
     auto& ast = parsed(linker.path);
     for(const auto& node : ast) {
         node->declare_top_level(linker);
     }
 }
 
-void ImportStatement::declare_and_link(ASTLinker &linker) {
+void ImportStatement::declare_and_link(SymbolResolver &linker) {
     auto& ast = parsed(linker.path);
     for(const auto& node : ast) {
         node->declare_and_link(linker);

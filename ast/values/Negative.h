@@ -15,7 +15,7 @@ public:
 
     NegativeValue(std::unique_ptr<Value> value) : value(std::move(value)) {}
 
-    void link(ASTLinker &linker) override;
+    void link(SymbolResolver &linker) override;
 
     bool primitive() override;
 

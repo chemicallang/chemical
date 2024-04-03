@@ -47,7 +47,7 @@ void DoWhileLoop::accept(Visitor &visitor) {
     visitor.visit(this);
 }
 
-void DoWhileLoop::declare_and_link(ASTLinker &linker) {
+void DoWhileLoop::declare_and_link(SymbolResolver &linker) {
     body.declare_and_link(linker);
     condition->link(linker);
     body.undeclare_on_scope_end(linker);

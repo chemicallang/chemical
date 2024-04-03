@@ -8,6 +8,7 @@
 #include "ast/values/NotValue.h"
 #include "ast/values/Negative.h"
 #include "parser/utils/ValueAndOperatorStack.h"
+#include "ast/values/CastedValue.h"
 
 void Parser::parseExpressionWith(ValueAndOperatorStack &stack, ValueAndOperatorStack &final) {
     while (position < tokens.size()) {
@@ -84,7 +85,7 @@ std::unique_ptr<Value> Parser::parseRemainingInterpretableExpression(std::unique
     }
 }
 
-std::unique_ptr<Value> Parser::parseRemainingExpression(std::unique_ptr<Value> firstValue) {
+std::unique_ptr<Value> Parser::parseRemainingNonInterpretExpr(std::unique_ptr<Value> firstValue) {
     auto op = consume_op_token();
     if (op.has_value()) {
         auto secondExpr = parseExpression();
@@ -99,6 +100,22 @@ std::unique_ptr<Value> Parser::parseRemainingExpression(std::unique_ptr<Value> f
     }
 }
 
+
+std::unique_ptr<Value> Parser::parseRemainingExpr(std::unique_ptr<Value> firstValue) {
+    if(consume("as")) {
+        auto type = parseType();
+        if(type.has_value()) {
+            return std::make_unique<CastedValue>(std::move(firstValue), std::move(type.value()));
+        } else {
+            error("expected type after 'as' in the expression for casting");
+        }
+    }
+    if(isParseInterpretableExpressions) {
+        return parseRemainingInterpretableExpression(std::move(firstValue));
+    } else {
+        return parseRemainingNonInterpretExpr(std::move(firstValue));
+    }
+}
 
 std::optional<std::unique_ptr<Value>> Parser::parseExpression() {
 
@@ -132,11 +149,7 @@ std::optional<std::unique_ptr<Value>> Parser::parseExpression() {
             error("expected a ')' after the nested expression");
             return std::nullopt;
         }
-        if(isParseInterpretableExpressions) {
-            return parseRemainingInterpretableExpression(std::move(value.value()));
-        } else {
-            return parseRemainingExpression(std::move(value.value()));
-        }
+        return parseRemainingExpr(std::move(value.value()));
     }
 
     auto firstValue = parseAccessChainOrValue();
@@ -144,10 +157,6 @@ std::optional<std::unique_ptr<Value>> Parser::parseExpression() {
         return std::nullopt;
     }
 
-    if(isParseInterpretableExpressions) {
-       return parseRemainingInterpretableExpression(std::move(firstValue.value()));
-    } else {
-        return parseRemainingExpression(std::move(firstValue.value()));
-    }
+    return parseRemainingExpr(std::move(firstValue.value()));
 
 }

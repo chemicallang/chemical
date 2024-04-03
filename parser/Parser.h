@@ -161,11 +161,17 @@ public:
     std::unique_ptr<Value> parseRemainingInterpretableExpression(std::unique_ptr<Value> firstValue);
 
     /**
-     * parse remaining expression
+     * parse remaining non interpretable expression
      * @return if parsed, new expression containing the firstValue operation secondValue is returned
      * otherwise firstValue is returned
      */
-    std::unique_ptr<Value> parseRemainingExpression(std::unique_ptr<Value> firstValue);
+    std::unique_ptr<Value> parseRemainingNonInterpretExpr(std::unique_ptr<Value> firstValue);
+
+    /**
+     * parse remaining expression, this will call parseRemainingNonInterpretExpr
+     * or parseRemainingInterpretableExpression based on which is true
+     */
+    std::unique_ptr<Value> parseRemainingExpr(std::unique_ptr<Value> firstValue);
 
     /**
      * parses an expression

@@ -7,9 +7,7 @@
 #include <llvm/TargetParser/Host.h>
 #include "lexer/Lexi.h"
 #include "parser/Persi.h"
-#include <cstdio>
 #include "utils/Utils.h"
-#include "ast/utils/ExpressionEvaluator.h"
 #include "ast/base/GlobalInterpretScope.h"
 #include "compiler/Codegen.h"
 #include "utils/CmdUtils.h"
@@ -149,19 +147,28 @@ int main(int argc, char *argv[]) {
         gen.save_to_object_file(output.value());
         options.print_unhandled();
         return 0;
-    } else if(endsWith(output.value(), ".s")) {
+    }
+#ifdef FEAT_ASSEMBLY_GEN
+    else if(endsWith(output.value(), ".s")) {
         gen.save_to_assembly_file(output.value());
         options.print_unhandled();
         return 0;
-    } else if(endsWith(output.value(), ".ll")) {
+    }
+#endif
+#ifdef FEAT_LLVM_IR_GEN
+    else if(endsWith(output.value(), ".ll")) {
         gen.save_to_file(output.value());
         options.print_unhandled();
         return 0;
-    } else if(endsWith(output.value(), ".bc")) {
+    }
+#endif
+#ifdef FEAT_BITCODE_GEN
+    else if(endsWith(output.value(), ".bc")) {
         gen.save_as_bc_file(output.value());
         options.print_unhandled();
         return 0;
     }
+#endif
 
     // creating object file for compilation
     std::string object_file_path = output.value() + ".o";

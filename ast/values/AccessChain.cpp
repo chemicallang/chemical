@@ -5,6 +5,7 @@
 #ifdef COMPILER_BUILD
 
 #include "compiler/llvmimpl.h"
+#include "compiler/Codegen.h"
 
 void AccessChain::code_gen(Codegen &gen) {
     for (const auto &value: values) {

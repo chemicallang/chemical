@@ -5,6 +5,7 @@
 #ifdef COMPILER_BUILD
 
 #include "compiler/llvmimpl.h"
+#include "compiler/Codegen.h"
 
 void IfStatement::code_gen(Codegen &gen) {
 

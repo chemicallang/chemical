@@ -13,6 +13,8 @@ void ContinueStatement::accept(Visitor &visitor) {
 
 #ifdef COMPILER_BUILD
 
+#include "compiler/Codegen.h"
+
 void ContinueStatement::code_gen(Codegen &gen) {
     gen.CreateBr(gen.current_loop_continue);
 }

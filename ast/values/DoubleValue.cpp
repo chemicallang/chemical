@@ -5,6 +5,7 @@
 #ifdef COMPILER_BUILD
 
 #include "compiler/llvmimpl.h"
+#include "compiler/Codegen.h"
 
 llvm::Type *DoubleValue::llvm_type(Codegen &gen) {
     return gen.builder->getDoubleTy();

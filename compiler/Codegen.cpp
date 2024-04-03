@@ -63,12 +63,14 @@ void Codegen::print_to_console() {
     module->print(llvm::outs(), nullptr);
 }
 
+#ifdef FEAT_LLVM_IR_GEN
 void Codegen::save_to_file(const std::string &out_path) {
     std::error_code errorCode;
     llvm::raw_fd_ostream outLL(out_path, errorCode);
     module->print(outLL, nullptr);
     outLL.close();
 }
+#endif
 
 void Codegen::loop_body_wrap(llvm::BasicBlock *condBlock, llvm::BasicBlock *endBlock) {
     // set current loop exit, so it can be broken

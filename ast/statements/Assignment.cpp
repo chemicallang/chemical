@@ -5,6 +5,7 @@
 #ifdef COMPILER_BUILD
 
 #include "compiler/llvmimpl.h"
+#include "compiler/Codegen.h"
 
 void AssignStatement::code_gen(Codegen &gen) {
     if (assOp == Operation::Assignment) {

@@ -20,20 +20,22 @@ bool Lexer::lexSwitchStatementBlock() {
                 if (lexKeywordToken("case")) {
                     lexWhitespaceToken();
                     if (!lexValueToken()) {
-                        error("expected a value token");
+                        error("expected a value after 'case' in switch");
+                        break;
                     }
+                    lexWhitespaceToken();
                     if (lexOperatorToken(':')) {
                         lexNestedLevelMultipleStatementsTokens();
+                        continue;
                     } else if (lexOperatorToken("->")) {
                         lexWhitespaceAndNewLines();
                         if(!lexBraceBlock("switch-case")) {
                             error("expected a brace block after the '->' in the switch case");
+                            break;
                         }
                     } else {
                         error("expected ':' or '->' after 'case' in switch statement");
-                    }
-                    if(!lexOperatorToken('}')) {
-                        error("expected '}' for ending the 'switch' block");
+                        break;
                     }
                 } else if(lexKeywordToken("default")) {
                     if (lexOperatorToken(':')) {
@@ -42,9 +44,11 @@ bool Lexer::lexSwitchStatementBlock() {
                         lexWhitespaceAndNewLines();
                         if(!lexBraceBlock("switch-default")) {
                             error("expected a brace block after the '->' in the switch default case");
+                            break;
                         }
                     } else {
                         error("expected ':' or '->' after 'default' in switch statement");
+                        break;
                     }
                 } else {
                     break;

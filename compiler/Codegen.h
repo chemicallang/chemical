@@ -92,11 +92,13 @@ public:
      */
     void print_to_console();
 
+#ifdef FEAT_LLVM_IR_GEN
     /**
      * prints the current module as LLVM IR to a .ll file with given out_path
      * @param out_path
      */
     void save_to_file(const std::string &out_path);
+#endif
 
     /**
      * sets up the module for the given target
@@ -117,32 +119,26 @@ public:
      */
     void just_in_time_compile(std::vector<const char*>& args);
 
-    /**
-     * save file as file type
-     * @param object_file when true object file is generated, otherwise assembly file is generated
-     */
-    void save_as_file_type(const std::string &out_path, bool object_file = true);
-
+#ifdef FEAT_BITCODE_GEN
     /**
      * save as a bitcode file
      */
     void save_as_bc_file(const std::string &out_path);
+#endif
 
+#ifdef FEAT_ASSEMBLY_GEN
     /**
      * saves as assembly file to this path
      * @param TargetTriple
      */
-    inline void save_to_assembly_file(const std::string &out_path) {
-        save_as_file_type(out_path, false);
-    }
+    void save_to_assembly_file(const std::string &out_path);
+#endif
 
     /**
      * saves as object file to this path
      * @param out_path
      */
-    inline void save_to_object_file(const std::string &out_path) {
-        save_as_file_type(out_path, true);
-    }
+    void save_to_object_file(const std::string &out_path);
 
     /**
       * You can invoke lld with this function

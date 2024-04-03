@@ -5,6 +5,7 @@
 #ifdef COMPILER_BUILD
 
 #include "compiler/llvmimpl.h"
+#include "compiler/Codegen.h"
 
 llvm::Value *NegativeValue::llvm_value(Codegen &gen) {
     return gen.builder->CreateNeg(value->llvm_value(gen));

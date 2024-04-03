@@ -3,6 +3,7 @@
 
 #include "ast/base/ASTNode.h"
 #include "ast/structures/Scope.h"
+#include <optional>
 
 class SwitchStatement : ASTNode {
 public:

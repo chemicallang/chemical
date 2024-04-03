@@ -12,7 +12,7 @@ llvm::Value *NegativeValue::llvm_value(Codegen &gen) {
 
 #endif
 
-void NegativeValue::link(ASTLinker &linker) {
+void NegativeValue::link(SymbolResolver &linker) {
     value->link(linker);
 }
 

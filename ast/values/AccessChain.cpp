@@ -51,11 +51,11 @@ llvm::Value *AccessChain::llvm_pointer(Codegen &gen) {
 
 #endif
 
-void AccessChain::declare_and_link(ASTLinker &linker) {
+void AccessChain::declare_and_link(SymbolResolver &linker) {
     link(linker);
 }
 
-void AccessChain::link(ASTLinker &linker) {
+void AccessChain::link(SymbolResolver &linker) {
     values[0]->link(linker);
     if (values.size() > 1) {
         auto parent = values[0]->linked_node();

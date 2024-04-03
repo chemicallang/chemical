@@ -16,9 +16,9 @@ public:
 
     AccessChain(std::vector<std::unique_ptr<Value>> values);
 
-    void link(ASTLinker &linker) override;
+    void link(SymbolResolver &linker) override;
 
-    void declare_and_link(ASTLinker &linker) override;
+    void declare_and_link(SymbolResolver &linker) override;
 
     void accept(Visitor &visitor) override;
 

@@ -18,7 +18,7 @@ public:
 
     }
 
-    void link(ASTLinker &linker) override;
+    void link(SymbolResolver &linker) override;
 
     ASTNode *linked_node() override;
 

@@ -46,7 +46,7 @@ bool IndexOperator::add_member_index(Codegen &gen, ASTNode *parent, std::vector<
 
 #endif
 
-void IndexOperator::link(ASTLinker &linker) {
+void IndexOperator::link(SymbolResolver &linker) {
     auto found = linker.current.find(identifier);
     if (found != linker.current.end()) {
         linked = found->second;

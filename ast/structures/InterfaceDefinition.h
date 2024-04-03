@@ -28,7 +28,7 @@ public:
         visitor.visit(this);
     }
 
-    void declare_top_level(ASTLinker &linker) override {
+    void declare_top_level(SymbolResolver &linker) override {
         linker.current[name] = this;
     }
 

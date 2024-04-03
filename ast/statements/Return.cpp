@@ -19,7 +19,7 @@ void ReturnStatement::interpret(InterpretScope &scope) {
     }
 }
 
-void ReturnStatement::declare_and_link(ASTLinker &linker) {
+void ReturnStatement::declare_and_link(SymbolResolver &linker) {
     if (value.has_value()) {
         value.value()->link(linker);
     }

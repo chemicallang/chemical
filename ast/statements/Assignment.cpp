@@ -28,7 +28,7 @@ void AssignStatement::accept(Visitor &visitor) {
     visitor.visit(this);
 }
 
-void AssignStatement::declare_and_link(ASTLinker &linker) {
+void AssignStatement::declare_and_link(SymbolResolver &linker) {
     lhs->declare_and_link(linker);
     value->link(linker);
 }

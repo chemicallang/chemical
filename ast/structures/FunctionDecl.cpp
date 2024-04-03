@@ -129,11 +129,11 @@ void FunctionDeclaration::accept(Visitor &visitor) {
     visitor.visit(this);
 }
 
-void FunctionDeclaration::declare_top_level(ASTLinker &linker) {
+void FunctionDeclaration::declare_top_level(SymbolResolver &linker) {
     linker.current[name] = this;
 }
 
-void FunctionDeclaration::declare_and_link(ASTLinker &linker) {
+void FunctionDeclaration::declare_and_link(SymbolResolver &linker) {
     if (body.has_value()) {
         // if has body declare params
         for (auto &param: params) {

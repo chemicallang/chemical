@@ -13,13 +13,13 @@ class ASTNode;
  * SemanticLinker however provides a way for the tokens to be linked
  * This doesn't link up modules like Linker does which is used for exporting executables
  */
-class ASTLinker {
+class SymbolResolver {
 public:
 
     /**
      * constructor
      */
-    ASTLinker(std::string path);
+    SymbolResolver(std::string path);
 
     /**
      * When traversing nodes, A node can declare something e.g a variable using variable statement

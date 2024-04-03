@@ -20,7 +20,7 @@ llvm::Value *VariableIdentifier::llvm_value(Codegen &gen) {
 
 #endif
 
-void VariableIdentifier::link(ASTLinker &linker) {
+void VariableIdentifier::link(SymbolResolver &linker) {
     auto found = linker.current.find(value);
     if (found != linker.current.end()) {
         linked = found->second;

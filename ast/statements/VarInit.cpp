@@ -95,7 +95,7 @@ ASTNode *VarInitStatement::child(const std::string &name) {
     return nullptr;
 }
 
-void VarInitStatement::declare_and_link(ASTLinker &linker) {
+void VarInitStatement::declare_and_link(SymbolResolver &linker) {
     linker.current[identifier] = this;
     if (type.has_value()) {
         type.value()->link(linker);
@@ -105,7 +105,7 @@ void VarInitStatement::declare_and_link(ASTLinker &linker) {
     }
 }
 
-void VarInitStatement::undeclare_on_scope_end(ASTLinker &linker) {
+void VarInitStatement::undeclare_on_scope_end(SymbolResolver &linker) {
     linker.current.erase(identifier);
 }
 

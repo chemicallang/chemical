@@ -35,9 +35,9 @@ public:
     /**
      * a scope's declare_top_level will be called to link all the nodes
      */
-    void declare_top_level(ASTLinker &linker) override;
+    void declare_top_level(SymbolResolver &linker) override;
 
-    void declare_and_link(ASTLinker &linker) override;
+    void declare_and_link(SymbolResolver &linker) override;
 
 #ifdef COMPILER_BUILD
     void code_gen(Codegen &gen) override;

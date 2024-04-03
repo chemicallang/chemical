@@ -28,7 +28,7 @@ Expression::Expression(
 
 }
 
-void Expression::link(ASTLinker &linker) {
+void Expression::link(SymbolResolver &linker) {
     firstValue->link(linker);
     secondValue->link(linker);
 }

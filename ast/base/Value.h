@@ -10,7 +10,7 @@
 #include "ValueType.h"
 #include "ast/utils/Operation.h"
 #include "compiler/Codegen.h"
-#include "compiler/ASTLinker.h"
+#include "compiler/SymbolResolver.h"
 #include <vector>
 #include <memory>
 #ifdef COMPILER_BUILD
@@ -39,7 +39,7 @@ public:
      * this function is called to allow variable identifiers to link with a node on the map
      * that will help it provide information, to allow it to generate code, or interpret
      */
-    virtual void link(ASTLinker& linker) {
+    virtual void link(SymbolResolver& linker) {
         // does nothing by default
     }
 

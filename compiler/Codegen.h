@@ -8,7 +8,7 @@
 #include <vector>
 #include <iostream>
 #include "ast/utils/Operation.h"
-#include "ASTLinker.h"
+#include "SymbolResolver.h"
 #include "llvmfwd.h"
 
 class Codegen {

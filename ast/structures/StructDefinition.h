@@ -27,7 +27,7 @@ public:
 
     void accept(Visitor &visitor) override;
 
-    void declare_and_link(ASTLinker &linker) override;
+    void declare_and_link(SymbolResolver &linker) override;
 
     ASTNode *child(const std::string &name) override;
 
@@ -61,9 +61,9 @@ public:
 
     void accept(Visitor &visitor) override;
 
-    void declare_top_level(ASTLinker &linker) override;
+    void declare_top_level(SymbolResolver &linker) override;
 
-    void declare_and_link(ASTLinker &linker) override;
+    void declare_and_link(SymbolResolver &linker) override;
 
     StructDefinition *as_struct_def() override;
 

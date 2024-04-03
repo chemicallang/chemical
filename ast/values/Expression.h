@@ -33,7 +33,7 @@ public:
 
 #endif
 
-    void link(ASTLinker &linker) override;
+    void link(SymbolResolver &linker) override;
 
     bool primitive() override;
 

@@ -12,7 +12,7 @@ llvm::Value *NotValue::llvm_value(Codegen &gen) {
 
 #endif
 
-void NotValue::link(ASTLinker &linker) {
+void NotValue::link(SymbolResolver &linker) {
     value->link(linker);
 }
 

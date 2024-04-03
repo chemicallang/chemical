@@ -220,8 +220,8 @@ set(COMMON_SOURCES
         compiler/Codegen.cpp
         ast/base/BaseType.h
         compiler/Operation.cpp
-        compiler/ASTLinker.h
-        compiler/ASTLinker.cpp
+        compiler/SymbolResolver.h
+        compiler/SymbolResolver.cpp
         compiler/ASTPointer.h
         compiler/Branch.cpp
         ast/types/Int32Type.h

@@ -58,7 +58,7 @@ void StructMember::accept(Visitor &visitor) {
     visitor.visit(this);
 }
 
-void StructMember::declare_and_link(ASTLinker &linker) {
+void StructMember::declare_and_link(SymbolResolver &linker) {
     type->link(linker);
     if(defValue.has_value()) {
         defValue.value()->link(linker);
@@ -111,11 +111,11 @@ int StructDefinition::child_index(const std::string &varName) {
     return -1;
 }
 
-void StructDefinition::declare_top_level(ASTLinker &linker) {
+void StructDefinition::declare_top_level(SymbolResolver &linker) {
     linker.current[name] = this;
 }
 
-void StructDefinition::declare_and_link(ASTLinker &linker) {
+void StructDefinition::declare_and_link(SymbolResolver &linker) {
     for(const auto& var : variables){
         var.second->declare_and_link(linker);
     }

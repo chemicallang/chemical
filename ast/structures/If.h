@@ -30,7 +30,7 @@ public:
 
     void accept(Visitor &visitor) override;
 
-    void declare_and_link(ASTLinker &linker) override;
+    void declare_and_link(SymbolResolver &linker) override;
 
 #ifdef COMPILER_BUILD
     void code_gen(Codegen &gen) override;

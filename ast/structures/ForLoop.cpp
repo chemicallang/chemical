@@ -65,7 +65,7 @@ void ForLoop::accept(Visitor &visitor) {
     visitor.visit(this);
 }
 
-void ForLoop::declare_and_link(ASTLinker &linker) {
+void ForLoop::declare_and_link(SymbolResolver &linker) {
     initializer->declare_and_link(linker);
     conditionExpr->link(linker);
     incrementerExpr->declare_and_link(linker);

@@ -42,7 +42,7 @@ public:
 
     void set_identifier_value(InterpretScope &scope, Value *rawValue, Operation op) override;
 
-    void link(ASTLinker &linker) override;
+    void link(SymbolResolver &linker) override;
 
     ASTNode *linked_node() override;
 

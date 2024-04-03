@@ -51,7 +51,7 @@ WhileLoop::WhileLoop(std::unique_ptr<Value> condition) : condition(std::move(con
 WhileLoop::WhileLoop(std::unique_ptr<Value> condition, LoopScope body)
         : condition(std::move(condition)), LoopASTNode(std::move(body)) {}
 
-void WhileLoop::declare_and_link(ASTLinker &linker) {
+void WhileLoop::declare_and_link(SymbolResolver &linker) {
     condition->link(linker);
     body.declare_and_link(linker);
     body.undeclare_on_scope_end(linker);

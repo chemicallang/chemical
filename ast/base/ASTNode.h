@@ -12,7 +12,7 @@
 #include "Interpretable.h"
 #include "typecheck/TypeChecker.h"
 #include "Visitor.h"
-#include "compiler/ASTLinker.h"
+#include "compiler/SymbolResolver.h"
 
 #ifdef COMPILER_BUILD
 
@@ -45,7 +45,7 @@ public:
      * that must be retained in nested level scopes
      * for example top level functions can be called within functions
      */
-    virtual void declare_top_level(ASTLinker &linker) {
+    virtual void declare_top_level(SymbolResolver &linker) {
         // does nothing by default
     }
 
@@ -53,14 +53,14 @@ public:
      * declares something on the scope map
      * or find something on the map to link yourself with it
      */
-    virtual void declare_and_link(ASTLinker &linker) {
+    virtual void declare_and_link(SymbolResolver &linker) {
         // does nothing by default
     }
 
     /**
      * undeclare declared things on the scope map
      */
-    virtual void undeclare_on_scope_end(ASTLinker &linker) {
+    virtual void undeclare_on_scope_end(SymbolResolver &linker) {
         // does nothing by default
     }
 

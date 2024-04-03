@@ -34,7 +34,7 @@ public:
     void code_gen(Codegen &gen) override;
 #endif
 
-    void declare_and_link(ASTLinker &linker) override;
+    void declare_and_link(SymbolResolver &linker) override;
 
     void interpret(InterpretScope &scope) override;
 

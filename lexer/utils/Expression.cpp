@@ -8,6 +8,13 @@
 
 void Lexer::lexRemainingExpression() {
     lexWhitespaceToken();
+    if(lexKeywordToken("as")) {
+        lexWhitespaceToken();
+        if(!lexTypeTokens()) {
+            error("expected a type for casting after 'as' in expression");
+        }
+        return;
+    }
     if(!lexLanguageOperatorToken()) {
         return;
     }

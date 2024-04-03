@@ -20,42 +20,34 @@ public:
     FunctionParam(
             std::string name,
             std::unique_ptr<BaseType> type,
-            unsigned int index
-    ) : name(std::move(name)),
-        type(std::move(type)),
-        index(index) {
-        name.shrink_to_fit();
-    }
+            unsigned int index,
+            bool isVariadic,
+            std::optional<std::unique_ptr<Value>> defValue
+    );
 
-    void accept(Visitor &visitor) override {
-        visitor.visit(this);
-    }
+    void accept(Visitor &visitor) override;
 
-    FunctionParam *as_parameter() override {
-        return this;
-    }
+    FunctionParam *as_parameter() override;
 
 #ifdef COMPILER_BUILD
 
     llvm::Value *llvm_pointer(Codegen &gen) override;
 
-    llvm::Type *llvm_type(Codegen &gen) override {
-        return type->llvm_type(gen);
-    }
+    llvm::Type *llvm_type(Codegen &gen) override;
 
     llvm::Type *llvm_elem_type(Codegen &gen) override;
 
-    llvm::Value * llvm_load(Codegen &gen) override;
+    llvm::Value *llvm_load(Codegen &gen) override;
 
 #endif
 
-    std::string representation() const override {
-        return name + " : " + type->representation();
-    }
+    std::string representation() const override;
 
     unsigned int index;
     std::string name;
     std::unique_ptr<BaseType> type;
+    bool isVariadic;
+    std::optional<std::unique_ptr<Value>> defValue;
 };
 
 

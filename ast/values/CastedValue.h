@@ -16,6 +16,10 @@ public:
 
     Value *copy(InterpretScope &scope) override;
 
+    void accept(Visitor &visitor) override {
+        visitor.visit(this);
+    }
+
 #ifdef COMPILER_BUILD
 
     llvm::Type *llvm_type(Codegen &gen) override;

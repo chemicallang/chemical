@@ -27,6 +27,10 @@ public:
             Operation operation
     );
 
+    void accept(Visitor &visitor) override {
+        visitor.visit(this);
+    }
+
 #ifdef COMPILER_BUILD
 
     llvm::Value *llvm_value(Codegen &gen) override;

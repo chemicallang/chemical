@@ -31,6 +31,10 @@ public:
      */
     VariableIdentifier(std::string value) : value(std::move(value)) {}
 
+    void accept(Visitor &visitor) override {
+        visitor.visit(this);
+    }
+
     Value *child(InterpretScope &scope, const std::string &name) override;
 
     // will find value by this name in the parent

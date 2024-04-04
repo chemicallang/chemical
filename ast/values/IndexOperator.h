@@ -18,6 +18,10 @@ public:
 
     }
 
+    void accept(Visitor &visitor) override {
+        visitor.visit(this);
+    }
+
     void link(SymbolResolver &linker) override;
 
     ASTNode *linked_node() override;

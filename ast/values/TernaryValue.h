@@ -6,6 +6,10 @@
 
 class TernaryValue : public Value {
 
+    void accept(Visitor &visitor) override {
+        visitor.visit(this);
+    }
+
     bool primitive() override {
         return false;
     }

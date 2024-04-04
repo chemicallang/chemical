@@ -22,6 +22,10 @@ public:
 
     }
 
+    void accept(Visitor &visitor) override {
+        // no visitor can visit this
+    }
+
 };
 
 class InterpretVectorValue : public Value {
@@ -35,6 +39,10 @@ public:
             std::unordered_map<std::string, MemValueFn> &members
     ) : values(std::move(values)), members(members) {
 
+    }
+
+    void accept(Visitor &visitor) override {
+        // no visitor can visit this
     }
 
     Value *child(InterpretScope& scope, const std::string &name) override {
@@ -102,6 +110,10 @@ public:
 
     }
 
+    void accept(Visitor &visitor) override {
+        // no visitor can visit this
+    }
+
     Value *child(InterpretScope& scope, const std::string &name) override {
         auto val = values.find(name);
         if (val != values.end()) {
@@ -147,6 +159,10 @@ public:
             std::unordered_map<std::string, MemValueFn> &members
     ) : values(std::move(values)), members(members) {
 
+    }
+
+    void accept(Visitor &visitor) override {
+        // no visitor can visit this
     }
 
     Value *child(InterpretScope& scope, const std::string &name) override {

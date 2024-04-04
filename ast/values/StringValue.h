@@ -23,6 +23,10 @@ public:
      */
     StringValue(std::string value) : value(std::move(value)) {}
 
+    void accept(Visitor &visitor) override {
+        visitor.visit(this);
+    }
+
     Value *index(InterpretScope &scope, int i) override {
 #ifdef DEBUG
         if (i < 0 || i >= value.size()) {

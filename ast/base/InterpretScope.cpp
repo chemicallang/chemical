@@ -88,7 +88,13 @@ InterpretScope::~InterpretScope() {
             std::cerr << "here's the representation of node : " << node->representation()
                       << std::endl;
         } else {
-
+            if(codeScope != nullptr) {
+                std::cerr << "nodes present in the current scope\n";
+                for(const auto& node : codeScope->nodes) {
+                    std::cerr << node->representation() + '\n';
+                }
+                std::cerr << std::endl;
+            }
         }
         std::cerr << ANSI_COLOR_RESET;
     }

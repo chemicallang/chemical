@@ -21,6 +21,10 @@ public:
      */
     CharValue(char value) : value(value) {}
 
+    void accept(Visitor &visitor) override {
+        visitor.visit(this);
+    }
+
     Value *copy(InterpretScope& scope) override {
         return new CharValue(value);
     }

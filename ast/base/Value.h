@@ -16,6 +16,8 @@
 #ifdef COMPILER_BUILD
 class Codegen;
 #include "compiler/llvmfwd.h"
+#include "Visitor.h"
+
 #endif
 
 class FunctionDeclaration;
@@ -35,6 +37,11 @@ class FunctionCall;
  */
 class Value : public Interpretable {
 public:
+
+    /**
+     * accept the visitor
+     */
+    virtual void accept(Visitor &visitor) = 0;
 
     /**
      * this function is called to allow variable identifiers to link with a node on the map

@@ -319,6 +319,12 @@ public:
     bool parseReturnStatementBool();
 
     /**
+     * parse function parameters list
+     * the second parameter is for if the function params include a variadic parameter
+     */
+    std::pair<std::vector<std::unique_ptr<FunctionParam>>, bool> parseFunctionParams();
+
+    /**
      * Parse a single function definition
      * @param declaration specify whether to allow declarations or generate errors instead
      * @return

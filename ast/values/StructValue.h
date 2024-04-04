@@ -47,7 +47,7 @@ public:
 
     void declare_default_values(std::unordered_map<std::string, std::unique_ptr<Value>> &into, InterpretScope &scope);
 
-    Value *copy(InterpretScope &scope) override;
+    Value *copy() override;
 
     Value *child(InterpretScope &scope, const std::string &name) override;
 

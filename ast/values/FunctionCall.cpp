@@ -90,8 +90,8 @@ Value *FunctionCall::evaluated_value(InterpretScope &scope) {
     return nullptr;
 }
 
-Value *FunctionCall::copy(InterpretScope &scope) {
-    scope.error("copy called on function call");
+Value *FunctionCall::copy() {
+    std::cerr << "copy called on function call" << std::endl;
     return nullptr;
 }
 

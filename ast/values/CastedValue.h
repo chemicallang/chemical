@@ -14,7 +14,7 @@ public:
 
     CastedValue(std::unique_ptr<Value> value, std::unique_ptr<BaseType> type);
 
-    Value *copy(InterpretScope &scope) override;
+    Value *copy() override;
 
     void accept(Visitor &visitor) override {
         visitor.visit(this);

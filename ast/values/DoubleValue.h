@@ -32,7 +32,7 @@ public:
 
 #endif
 
-    Value *copy(InterpretScope &scope) override {
+    Value *copy() override {
         return new DoubleValue(value);
     }
 

@@ -29,7 +29,9 @@ unsigned int StructValue::store_in_struct(
     for (const auto &value: values) {
         auto currIndex = index + definition->child_index(value.first);
         if (index == -1) {
-            gen.error("couldn't get embedded struct child " + value.first + " in definition of name " + definition->name + " with parent of name " + parent->definition->name);
+            gen.error(
+                    "couldn't get embedded struct child " + value.first + " in definition of name " + definition->name +
+                    " with parent of name " + parent->definition->name);
         } else {
             value.second->store_in_struct(gen, this, ptr, value.first, currIndex);
         }
@@ -140,7 +142,12 @@ Value *StructValue::evaluated_value(InterpretScope &scope) {
 }
 
 Value *StructValue::initializer_value(InterpretScope &scope) {
-    return copy(scope);
+    std::unordered_map<std::string, std::unique_ptr<Value>> copied(values.size());
+    for (const auto &value: values) {
+        copied[value.first] = std::unique_ptr<Value>(value.second->initializer_value(scope));
+    }
+    declare_default_values(copied, scope);
+    return new StructValue(structName, std::move(copied), definition);
 }
 
 void StructValue::declare_default_values(
@@ -155,12 +162,11 @@ void StructValue::declare_default_values(
     }
 }
 
-Value *StructValue::copy(InterpretScope &scope) {
+Value *StructValue::copy() {
     std::unordered_map<std::string, std::unique_ptr<Value>> copied(values.size());
     for (const auto &value: values) {
-        copied[value.first] = std::unique_ptr<Value>(value.second->initializer_value(scope));
+        copied[value.first] = std::unique_ptr<Value>(value.second->copy());
     }
-    declare_default_values(copied, scope);
     return new StructValue(structName, std::move(copied), definition);
 }
 

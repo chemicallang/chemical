@@ -21,7 +21,7 @@ bool Lexer::lexReturnStatement() {
 void Lexer::lexParameterList() {
     do {
         lexWhitespaceToken();
-        auto name = lexAlpha();
+        auto name = lexIdentifier();
         if(!name.empty()) {
             tokens.emplace_back(std::make_unique<ParameterToken>(backPosition(name.length()), name));
             lexWhitespaceToken();

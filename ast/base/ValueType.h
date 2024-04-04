@@ -24,6 +24,7 @@ enum class ValueType : uint8_t {
     Array,
     Struct,
     Vector,
+    Lambda,
     Unknown
 
 };

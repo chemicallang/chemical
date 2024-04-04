@@ -40,7 +40,7 @@ public:
         return value;
     }
 
-    Value *copy(InterpretScope& scope) override {
+    Value *copy() override {
         return new FloatValue(value);
     }
 

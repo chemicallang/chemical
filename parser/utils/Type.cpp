@@ -8,8 +8,26 @@
 #include "ast/types/GenericType.h"
 #include "ast/types/ArrayType.h"
 #include "ast/values/IntValue.h"
+#include "ast/types/FunctionType.h"
 
 lex_ptr<BaseType> Parser::parseType() {
+
+    if(consume_op('(')) {
+        auto params = parseFunctionParams();
+        if(!consume_op(')')) {
+            error("expected ')' for function type");
+        }
+        if(!consume_op("=>")) {
+            error("expected '=>' for function type");
+        }
+        auto returnType = parseType();
+        if(!returnType.has_value()){
+            error("expected a return type for function type");
+            return std::nullopt;
+        }
+        return std::make_unique<FunctionType>(std::move(params.first), std::move(returnType.value()), params.second);
+    }
+
     if (token_type() == LexTokenType::Type) {
         auto type = consume<TypeToken>()->value;
         auto type_fn = primitive_type_map.find(type);

@@ -55,7 +55,7 @@ public:
 
 #endif
 
-    Value *copy(InterpretScope &scope) override {
+    Value *copy() override {
         return new StringValue(value);
     }
 

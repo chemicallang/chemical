@@ -77,13 +77,13 @@ public:
 
     Value *index(InterpretScope& scope, int i) override {
         if (values[i]->primitive()) {
-            return values[i]->copy(scope);
+            return values[i]->copy();
         } else {
             return values[i].get();
         }
     }
 
-    Value *copy(InterpretScope& scope) override {
+    Value *copy() override {
         return (Value *) this;
     }
 
@@ -119,7 +119,7 @@ public:
         if (val != values.end()) {
             auto act = val->second.get();
             if (act->primitive()) {
-                return act->copy(scope);
+                return act->copy();
             } else {
                 return act;
             }
@@ -138,7 +138,7 @@ public:
         }
     }
 
-    Value *copy(InterpretScope& scope) override {
+    Value *copy() override {
         return (Value *) this;
     }
 
@@ -170,7 +170,7 @@ public:
         if (val != values.end()) {
             auto act = val->second.get();
             if (act->primitive()) {
-                return act->copy(scope);
+                return act->copy();
             } else {
                 return act;
             }
@@ -189,7 +189,7 @@ public:
         }
     }
 
-    Value *copy(InterpretScope& scope) override {
+    Value *copy() override {
         return (Value *) this;
     }
 

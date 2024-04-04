@@ -191,7 +191,7 @@ Value* VariableIdentifier::copy_prim_ref_other(InterpretScope& scope) {
         return nullptr;
     }
     if (val.first->second->primitive()) {
-        return val.first->second->copy(scope);
+        return val.first->second->copy();
     } else {
         return val.first->second;
     }

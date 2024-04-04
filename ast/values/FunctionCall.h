@@ -37,7 +37,7 @@ public:
 
     Value *evaluated_value(InterpretScope &scope) override;
 
-    Value *copy(InterpretScope &scope) override;
+    Value *copy() override;
 
     Value *initializer_value(InterpretScope &scope) override;
 

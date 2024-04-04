@@ -317,6 +317,8 @@ set(COMMON_SOURCES
         compiler/SelfInvocation.cpp
         ast/values/CastedValue.cpp
         ast/values/CastedValue.h
+        ast/types/FunctionType.h
+        ast/types/FunctionType.cpp
 )
 
 # Chemical LSP Executable Target

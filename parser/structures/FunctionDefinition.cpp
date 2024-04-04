@@ -30,6 +30,45 @@ bool Parser::parseReturnStatementBool() {
     });
 }
 
+std::pair<std::vector<std::unique_ptr<FunctionParam>>, bool> Parser::parseFunctionParams() {
+    func_params params;
+    unsigned paramsCount = 0;
+    bool isVariadic = false;
+    do {
+        if (token_type() == LexTokenType::Parameter) {
+            auto paramToken = consume<ParameterToken>();
+            if (!consume_op(':')) {
+                error("expected a ':' after the parameter for its type");
+                break;
+            }
+            auto type = parseType();
+            if (type.has_value()) {
+                if (token_type() == LexTokenType::StringOperator &&
+                    as<AbstractStringToken>()->value == "...") {
+                    increment();
+                    isVariadic = true;
+                }
+                lex_ptr<Value> defValue = std::nullopt;
+                if(!isVariadic && consume_op('=')) {
+                    defValue = parseValue();
+                    if(!defValue.has_value()) {
+                        error("expected a default value after '=' for the parameter with name " + paramToken->value);
+                    }
+                }
+                params.emplace_back(std::make_unique<FunctionParam>(paramToken->value, std::move(type.value()), paramsCount, isVariadic, std::move(defValue)));
+                paramsCount++;
+                if(isVariadic) {
+                    break;
+                }
+            } else {
+                error("expected a type after the colon ':' for the function parameter");
+                break;
+            }
+        }
+    } while (consume_op(','));
+    return std::pair(std::move(params), isVariadic);
+}
+
 /**
  * parses a single for loop
  * @return true if parsed
@@ -39,41 +78,7 @@ lex_ptr<FunctionDeclaration> Parser::parseFunctionDefinition(bool declarations) 
         if (token_type() == LexTokenType::Function) {
             auto token = consume<FunctionToken>();
             if (consume_op('(')) {
-                func_params params;
-                unsigned paramsCount = 0;
-                bool isVariadic = false;
-                do {
-                    if (token_type() == LexTokenType::Parameter) {
-                        auto paramToken = consume<ParameterToken>();
-                        if (!consume_op(':')) {
-                            error("expected a ':' after the parameter for its type");
-                            break;
-                        }
-                        auto type = parseType();
-                        if (type.has_value()) {
-                            if (token_type() == LexTokenType::StringOperator &&
-                                as<AbstractStringToken>()->value == "...") {
-                                increment();
-                                isVariadic = true;
-                            }
-                            lex_ptr<Value> defValue = std::nullopt;
-                            if(!isVariadic && consume_op('=')) {
-                                defValue = parseValue();
-                                if(!defValue.has_value()) {
-                                    error("expected a default value after '=' for the parameter with name " + paramToken->value);
-                                }
-                            }
-                            params.emplace_back(paramToken->value, std::move(type.value()), paramsCount, isVariadic, std::move(defValue));
-                            paramsCount++;
-                            if(isVariadic) {
-                                break;
-                            }
-                        } else {
-                            error("expected a type after the colon ':' for the function parameter");
-                            break;
-                        }
-                    }
-                } while (consume_op(','));
+                auto params = parseFunctionParams();
                 if (!consume_op(')')) {
                     error("expected a ')' after the function signature");
                 }
@@ -89,8 +94,8 @@ lex_ptr<FunctionDeclaration> Parser::parseFunctionDefinition(bool declarations) 
                 }
 
                 // create declaration before, so that return statement can take a pointer to it
-                auto declaration = std::make_unique<FunctionDeclaration>(token->value, std::move(params),
-                                                                         std::move(returnType.value()), isVariadic);
+                auto declaration = std::make_unique<FunctionDeclaration>(token->value, std::move(params.first),
+                                                                         std::move(returnType.value()), params.second);
 
                 if (!consume_op('{')) {
                     if (declarations) {

@@ -292,7 +292,7 @@ std::cerr << "child called on base value";
      * This method can only be called on primitive values as they are the only ones that support copy operation
      * @return
      */
-    virtual Value* copy(InterpretScope& scope) {
+    virtual Value* copy() {
         return nullptr;
     }
 
@@ -300,28 +300,28 @@ std::cerr << "child called on base value";
      * this is the initializer value, which is called by the var init statement
      */
     virtual Value* initializer_value(InterpretScope& scope) {
-        return copy(scope);
+        return copy();
     }
 
     /**
      * this is the assignment value, which is called by the assignment statement (without var)
      */
     virtual Value* assignment_value(InterpretScope& scope) {
-        return copy(scope);
+        return copy();
     }
 
     /**
      * this is the parameter value that is sent to function calls
      */
     virtual Value* param_value(InterpretScope& scope) {
-        return copy(scope);
+        return copy();
     }
 
     /**
      * called by return statement to get the return_value of this value
      */
     virtual Value* return_value(InterpretScope& scope) {
-        return copy(scope);
+        return copy();
     }
 
     /**

@@ -82,7 +82,7 @@ std::vector<llvm::Type *> FunctionDeclaration::param_types(Codegen &gen) {
     std::vector<llvm::Type *> array(size);
     unsigned i = 0;
     while (i < size) {
-        array[i] = params[i].type->llvm_type(gen);
+        array[i] = params[i]->type->llvm_type(gen);
         i++;
     }
     return array;
@@ -104,6 +104,14 @@ FunctionParam::FunctionParam(
 
 void FunctionParam::accept(Visitor &visitor) {
     visitor.visit(this);
+}
+
+FunctionParam* FunctionParam::copy() const {
+    std::optional<std::unique_ptr<Value>> copied = std::nullopt;
+    if(defValue.has_value()) {
+        copied.emplace(defValue.value()->copy());
+    }
+    return new FunctionParam(name, std::unique_ptr<BaseType>(type->copy()), index, isVariadic, std::move(copied));
 }
 
 FunctionParam *FunctionParam::as_parameter() {
@@ -137,11 +145,11 @@ void FunctionDeclaration::declare_and_link(SymbolResolver &linker) {
     if (body.has_value()) {
         // if has body declare params
         for (auto &param: params) {
-            linker.current[param.name] = &param;
+            linker.current[param->name] = param.get();
         }
         body->declare_and_link(linker);
         for (auto &param: params) {
-            linker.current.erase(param.name);
+            linker.current.erase(param->name);
         }
     }
 }
@@ -174,7 +182,7 @@ std::string FunctionDeclaration::representation() const {
     int i = 0;
     while (i < params.size()) {
         const auto &param = params[i];
-        ret.append(param.representation());
+        ret.append(param->representation());
         if (i < params.size() - 1) {
             ret.append(", ");
         } else {
@@ -206,7 +214,7 @@ Value *FunctionDeclaration::call(InterpretScope *call_scope, std::vector<std::un
     }
     auto i = 0;
     while (i < params.size()) {
-        fn_scope->declare(params[i].name, call_params[i]->param_value(*call_scope));
+        fn_scope->declare(params[i]->name, call_params[i]->param_value(*call_scope));
         i++;
     }
     auto previous = call_scope->global->curr_node_position;
@@ -216,7 +224,7 @@ Value *FunctionDeclaration::call(InterpretScope *call_scope, std::vector<std::un
     // delete all the primitive values that were copied into the function
     i--;
     while (i > -1) {
-        auto itr = fn_scope->find_value_iterator(params[i].name);
+        auto itr = fn_scope->find_value_iterator(params[i]->name);
         if (itr.first != itr.second.end()) {
             if (itr.first->second != nullptr && itr.first->second->primitive()) {
                 delete itr.first->second;

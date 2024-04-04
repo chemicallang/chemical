@@ -25,7 +25,7 @@ public:
         visitor.visit(this);
     }
 
-    Value *copy(InterpretScope& scope) override {
+    Value *copy() override {
         return new CharValue(value);
     }
 

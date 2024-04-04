@@ -41,6 +41,8 @@ public:
 
 #endif
 
+    FunctionParam* copy() const;
+
     std::string representation() const override;
 
     unsigned int index;
@@ -51,7 +53,7 @@ public:
 };
 
 
-using func_params = std::vector<FunctionParam>;
+using func_params = std::vector<std::unique_ptr<FunctionParam>>;
 
 class FunctionDeclaration : public ASTNode {
 public:

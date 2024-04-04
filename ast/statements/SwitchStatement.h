@@ -5,7 +5,7 @@
 #include "ast/structures/Scope.h"
 #include <optional>
 
-class SwitchStatement : ASTNode {
+class SwitchStatement : public ASTNode {
 public:
 
     std::unique_ptr<Value> expression;
@@ -19,6 +19,8 @@ public:
     );
 
     void accept(Visitor &visitor) override;
+
+    void declare_and_link(SymbolResolver &linker) override;
 
 #ifdef COMPILER_BUILD
 

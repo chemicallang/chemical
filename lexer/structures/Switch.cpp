@@ -54,6 +54,9 @@ bool Lexer::lexSwitchStatementBlock() {
                     break;
                 }
             }
+            if(!lexOperatorToken('}')) {
+                error("expected '}' for ending the switch block");
+            }
         } else {
             error("expected '{' after switch");
         }

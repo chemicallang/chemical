@@ -9,12 +9,12 @@
 #include <utility>
 
 #include "ast/base/ASTNode.h"
-#include "ast/base/GlobalInterpretScope.h"
-#include "lexer/Lexer.h"
-#include "stream/StreamSourceProvider.h"
-#include "parser/Parser.h"
-#include <filesystem>
-#include <fstream>
+
+namespace std {
+    namespace filesystem {
+        class path;
+    }
+}
 
 class ImportStatement : public ASTNode {
 public:

@@ -43,20 +43,6 @@ std::optional<Operation> Parser::consume_op_token() {
     return std::nullopt;
 }
 
-std::optional<char> Parser::consume_char_op() {
-    if (position < tokens.size() && tokens[position]->type() == LexTokenType::CharOperator) {
-        return consume<CharOperatorToken>()->op;
-    }
-    return std::nullopt;
-}
-
-std::optional<std::string> Parser::consume_str_op() {
-    if (position < tokens.size() && tokens[position]->type() == LexTokenType::StringOperator) {
-        return consume<StringOperatorToken>()->op;
-    }
-    return std::nullopt;
-}
-
 std::optional<std::string> Parser::consume_str_token() {
     if (position < tokens.size() && tokens[position]->type() == LexTokenType::String) {
         return consume<StringToken>()->value;
@@ -78,8 +64,25 @@ std::optional<char> Parser::get_op_token() {
     return std::nullopt;
 }
 
+std::optional<std::string> Parser::get_str_op_token() {
+    if (position < tokens.size() && tokens[position]->type() == LexTokenType::StringOperator) {
+        return as<StringOperatorToken>()->op;
+    }
+    return std::nullopt;
+}
+
 bool Parser::consume_op(char token) {
     auto v = get_op_token();
+    if (v.has_value() && v.value() == token) {
+        position++;
+        return true;
+    } else {
+        return false;
+    }
+}
+
+bool Parser::consume_op(const std::string& token) {
+    auto v = get_str_op_token();
     if (v.has_value() && v.value() == token) {
         position++;
         return true;

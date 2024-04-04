@@ -170,6 +170,7 @@ public:
     /**
      * parse remaining expression, this will call parseRemainingNonInterpretExpr
      * or parseRemainingInterpretableExpression based on which is true
+     * this also take cares of casts (int as float) in the expression
      */
     std::unique_ptr<Value> parseRemainingExpr(std::unique_ptr<Value> firstValue);
 
@@ -366,6 +367,12 @@ public:
     lex_ptr<SwitchStatement> parseSwitchStatement();
 
     /**
+     * parses a single switch statement
+     * @return true if parsed
+     */
+    bool parseSwitchStatementBool();
+
+    /**
      * parsea a single try catch block
      */
     lex_ptr<TryCatch> parseTryCatchBlock();
@@ -444,10 +451,15 @@ public:
     bool parseMacroValueStatementBool();
 
     /**
-     * gets current operator token if its a char operator of course
+     * gets current operator token if its a char operator
      * @return
      */
     std::optional<char> get_op_token();
+
+    /**
+     * gets current operator token if its a string operator
+     */
+    std::optional<std::string> get_str_op_token();
 
     /**
      * consume a string token
@@ -468,24 +480,17 @@ public:
     std::optional<Operation> consume_op_token();
 
     /**
-     * consume any char operator token
-     * @return
-     */
-    std::optional<char> consume_char_op();
-
-    /**
-     * consume any string operator token
-     * @return
-     */
-    std::optional<std::string> consume_str_op();
-
-    /**
      * consumes a character operator token
      * @param token value of the token
      * @param errorOut whether to error out if the token is not present
      * @return true if the token has been consumed, false otherwise
      */
     bool consume_op(char token);
+
+    /**
+     * consume a string token
+     */
+    bool consume_op(const std::string& token);
 
     /**
      * it will consume and return true if found the keyword

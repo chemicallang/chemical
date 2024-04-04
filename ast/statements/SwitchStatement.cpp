@@ -11,12 +11,17 @@
 void SwitchStatement::code_gen(Codegen &gen) {
 
     auto total_scopes = defScope.has_value() ? (scopes.size() + 1) : scopes.size();
-    auto switchInst = gen.builder->CreateSwitch(expression->llvm_value(gen), nullptr, total_scopes);
+
+    // the end block
+    auto end = llvm::BasicBlock::Create(*gen.ctx, "end", gen.current_function);
+
+    auto switchInst = gen.builder->CreateSwitch(expression->llvm_value(gen), end, total_scopes);
 
     for(auto& scope : scopes) {
         auto caseBlock = llvm::BasicBlock::Create(*gen.ctx, "case", gen.current_function);
         gen.SetInsertPoint(caseBlock);
         scope.second.code_gen(gen);
+        gen.CreateBr(end);
 
         // TODO check value is of type constant integer
         switchInst->addCase((llvm::ConstantInt*) scope.first->llvm_value(gen), caseBlock);
@@ -28,10 +33,10 @@ void SwitchStatement::code_gen(Codegen &gen) {
         auto defCase = llvm::BasicBlock::Create(*gen.ctx, "default", gen.current_function);
         gen.SetInsertPoint(defCase);
         defScope.value().code_gen(gen);
+        gen.CreateBr(end);
         switchInst->setDefaultDest(defCase);
     }
 
-    auto end = llvm::BasicBlock::Create(*gen.ctx, "end", gen.current_function);
     gen.SetInsertPoint(end);
 
 }
@@ -46,12 +51,16 @@ SwitchStatement::SwitchStatement(
 
 }
 
+void SwitchStatement::declare_and_link(SymbolResolver &linker) {
+    expression->link(linker);
+}
+
 void SwitchStatement::accept(Visitor &visitor) {
     visitor.visit(this);
 }
 
 std::string SwitchStatement::representation() const {
-    std::string rep("switch {\n");
+    std::string rep("switch(" + expression->representation() +  ") {\n");
 
     rep.append("\n}");
     return rep;

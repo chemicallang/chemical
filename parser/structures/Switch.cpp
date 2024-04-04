@@ -26,7 +26,7 @@ lex_ptr<SwitchStatement> Parser::parseSwitchStatement() {
                         if(consume_op(':')) {
                             auto scope = parseScope();
                             scopes.emplace_back(std::move(value.value()), std::move(scope));
-                        } else if(consume("->")) {
+                        } else if(consume_op("->")) {
                             consume_op('{');
                             auto scope = parseScope();
                             scopes.emplace_back(std::move(value.value()), std::move(scope));
@@ -46,7 +46,7 @@ lex_ptr<SwitchStatement> Parser::parseSwitchStatement() {
                     }
                 }
                 if(!consume_op('}')) {
-                    error("expected '}' in switch");
+                    error("expected '}' for ending the switch statement");
                 }
                 return std::make_unique<SwitchStatement>(std::move(expr.value()), std::move(scopes), std::move(defScope));
             }
@@ -55,4 +55,10 @@ lex_ptr<SwitchStatement> Parser::parseSwitchStatement() {
         }
     }
     return std::nullopt;
+}
+
+bool Parser::parseSwitchStatementBool() {
+    return parse_return_bool([&]() -> lex_ptr<SwitchStatement> {
+        return parseSwitchStatement();
+    });
 }

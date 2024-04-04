@@ -44,7 +44,7 @@ func test_structs() {
 
 func test_macro() {
     var html = #html <html></html> #endhtml;
-    printf("check my html : %s", html);
+    printf("check my html : %s\n", html);
 }
 
 const global_int = 444;
@@ -76,13 +76,13 @@ func main(argc : int, argv : string*) : int {
     printf("check c : %d\n", c);
     test_structs();
     test_macro();
-    var tt = 5;
+    var tt = 3;
     switch(tt) {
         case 3 -> {
-            printf("it is 3");
+            printf("it is 3\n");
         }
         case 5 -> {
-            printf("it is 5");
+            printf("it is 5\n");
         }
     }
     return 0;

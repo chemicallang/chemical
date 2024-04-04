@@ -25,6 +25,10 @@ public:
             InterpretScope &scope
     );
 
+    void accept(Visitor &visitor) override {
+        visitor.visit(this);
+    }
+
     bool primitive() override;
 
     void link(SymbolResolver &linker) override;

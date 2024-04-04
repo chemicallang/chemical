@@ -2,6 +2,8 @@
 
 #pragma once
 
+// Nodes
+
 class ASTNode;
 
 class VarInitStatement;
@@ -52,10 +54,55 @@ class SwitchStatement;
 
 class TryCatch;
 
+// Values Begin
+
+class Value;
+
+class IntValue;
+
+class FloatValue;
+
+class DoubleValue;
+
+class CharValue;
+
+class StringValue;
+
+class BoolValue;
+
+class ArrayValue;
+
+class StructValue;
+
+class VariableIdentifier;
+
+class Expression;
+
+class AccessChain;
+
+class CastedValue;
+
+class FunctionCall;
+
+class IndexOperator;
+
+class NegativeValue;
+
+class NotValue;
+
+class TernaryValue;
+
+
+// Visitor Class
+
 class Visitor {
 public:
 
     virtual void visitCommon(ASTNode* node) {
+        // do nothing
+    }
+
+    virtual void visitCommonValue(Value* value) {
         // do nothing
     }
 
@@ -153,6 +200,72 @@ public:
 
     virtual void visit(TryCatch* statement) {
         visitCommon((ASTNode*) statement);
+    }
+
+    // Value Visit Methods
+
+    virtual void visit(IntValue* intVal) {
+        visitCommonValue((Value*) intVal);
+    }
+
+    virtual void visit(FloatValue* floatVal) {
+        visitCommonValue((Value*) floatVal);
+    }
+
+    virtual void visit(DoubleValue* doubleVal) {
+        visitCommonValue((Value*) doubleVal);
+    }
+
+    virtual void visit(CharValue* charVal) {
+        visitCommonValue((Value*) charVal);
+    }
+
+    virtual void visit(StringValue* stringVal) {
+        visitCommonValue((Value*) stringVal);
+    }
+
+    virtual void visit(BoolValue* boolVal) {
+        visitCommonValue((Value*) boolVal);
+    }
+
+    virtual void visit(ArrayValue* arrayVal) {
+        visitCommonValue((Value*) arrayVal);
+    }
+
+    virtual void visit(StructValue* structValue) {
+        visitCommonValue((Value*) structValue);
+    }
+
+    virtual void visit(VariableIdentifier* identifier) {
+        visitCommonValue((Value*) identifier);
+    }
+
+    virtual void visit(Expression* expr) {
+        visitCommonValue((Value*) expr);
+    }
+
+    virtual void visit(CastedValue* casted) {
+        visitCommonValue((Value*) casted);
+    }
+
+    virtual void visit(FunctionCall* call) {
+        visitCommonValue((Value*) call);
+    }
+
+    virtual void visit(IndexOperator* op) {
+        visitCommonValue((Value*) op);
+    }
+
+    virtual void visit(NegativeValue* negValue) {
+        visitCommonValue((Value*) negValue);
+    }
+
+    virtual void visit(NotValue* notValue) {
+        visitCommonValue((Value*) notValue);
+    }
+
+    virtual void visit(TernaryValue* ternary) {
+        visitCommonValue((Value*) ternary);
     }
 
 };

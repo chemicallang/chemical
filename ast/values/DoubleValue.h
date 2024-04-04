@@ -20,13 +20,19 @@ public:
      */
     DoubleValue(double value) : value(value) {}
 
-#ifdef COMPILER_BUILD
-    llvm::Type * llvm_type(Codegen &gen) override;
+    void accept(Visitor &visitor) override {
+        visitor.visit(this);
+    }
 
-    llvm::Value * llvm_value(Codegen &gen) override;
+#ifdef COMPILER_BUILD
+
+    llvm::Type *llvm_type(Codegen &gen) override;
+
+    llvm::Value *llvm_value(Codegen &gen) override;
+
 #endif
 
-    Value * copy(InterpretScope& scope) override {
+    Value *copy(InterpretScope &scope) override {
         return new DoubleValue(value);
     }
 
@@ -40,7 +46,7 @@ public:
         return rep;
     }
 
-    void * get_value() override {
+    void *get_value() override {
         return &value;
     }
 

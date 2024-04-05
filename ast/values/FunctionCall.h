@@ -59,6 +59,6 @@ public:
 
     std::string name;
     std::vector<std::unique_ptr<Value>> values;
-    FunctionDeclaration *definition;
+    ASTNode* linked = nullptr;
 
 };

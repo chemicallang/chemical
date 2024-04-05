@@ -7,6 +7,7 @@
 #pragma once
 
 #include "ast/base/Value.h"
+#include "ast/types/BoolType.h"
 
 class BoolValue : public Value {
 public:
@@ -20,6 +21,10 @@ public:
 
     Value *copy() override {
         return new BoolValue(value);
+    }
+
+    std::shared_ptr<BaseType> create_type() const override {
+        return std::make_shared<BoolType>();
     }
 
     void accept(Visitor &visitor) override {

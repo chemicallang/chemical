@@ -7,6 +7,7 @@
 #pragma once
 
 #include "ast/base/Value.h"
+#include "ast/types/FloatType.h"
 
 /**
  * @brief Class representing a floating-point value.
@@ -31,13 +32,19 @@ public:
     }
 
 #ifdef COMPILER_BUILD
-    llvm::Type * llvm_type(Codegen &gen) override;
 
-    llvm::Value * llvm_value(Codegen &gen) override;
+    llvm::Type *llvm_type(Codegen &gen) override;
+
+    llvm::Value *llvm_value(Codegen &gen) override;
+
 #endif
 
     float as_float() override {
         return value;
+    }
+
+    std::shared_ptr<BaseType> create_type() const override {
+        return std::make_shared<FloatType>();
     }
 
     Value *copy() override {

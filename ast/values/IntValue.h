@@ -7,6 +7,7 @@
 #pragma once
 
 #include "ast/base/Value.h"
+#include "ast/types/Int32Type.h"
 
 /**
  * @brief Class representing an integer value.
@@ -41,6 +42,10 @@ public:
 
     Value *copy() override {
         return new IntValue(value);
+    }
+
+    std::shared_ptr<BaseType> create_type() const override {
+        return std::make_shared<Int32Type>();
     }
 
     int as_int() override {

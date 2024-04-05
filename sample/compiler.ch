@@ -4,6 +4,10 @@ func add(a : int, b : int) : int {
     return a + b;
 }
 
+func check_lambda(lamb : (a : int, b : int) => int) {
+    printf("check lambda result : %d\n", lamb(2, 2));
+}
+
 func print_args(argc : int, argv : string*) {
     printf("number of arguments : %d\n", argc);
     printf("printing args : \n");
@@ -85,5 +89,6 @@ func main(argc : int, argv : string*) : int {
             printf("it is 5\n");
         }
     }
+    check_lambda(add);
     return 0;
 }

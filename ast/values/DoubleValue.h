@@ -7,6 +7,7 @@
 #pragma once
 
 #include "ast/base/Value.h"
+#include "ast/types/DoubleType.h"
 
 /**
  * @brief Class representing a double value.
@@ -31,6 +32,10 @@ public:
     llvm::Value *llvm_value(Codegen &gen) override;
 
 #endif
+
+    std::shared_ptr<BaseType> create_type() const override {
+        return std::make_shared<DoubleType>();
+    }
 
     Value *copy() override {
         return new DoubleValue(value);

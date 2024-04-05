@@ -52,7 +52,8 @@ llvm::Value *FunctionParam::llvm_load(Codegen &gen) {
 //                    gen.error("no mismatch" + std::to_string(arg.getArgNo()) + " " + std::to_string(param->index));
 //                }
         }
-        gen.error("couldn't locate argument by name " + name + " at index " + std::to_string(index) + " in the function");
+        gen.error(
+                "couldn't locate argument by name " + name + " at index " + std::to_string(index) + " in the function");
     } else {
         gen.error("cannot provide pointer to a function parameter when not generating code for a function");
     }
@@ -69,11 +70,15 @@ llvm::FunctionType *FunctionDeclaration::function_type(Codegen &gen) {
 
 void FunctionDeclaration::code_gen(Codegen &gen) {
     if (body.has_value()) {
-        gen.create_function(name, function_type(gen));
+        auto func = gen.create_function(name, function_type(gen));
+        funcType = func->getFunctionType();
+        funcCallee = func;
         body->code_gen(gen);
         gen.current_function = nullptr;
     } else {
-        gen.declare_function(name, function_type(gen));
+        auto callee = gen.declare_function(name, function_type(gen));
+        funcType = callee.getFunctionType();
+        funcCallee = callee.getCallee();
     }
 }
 
@@ -82,10 +87,18 @@ std::vector<llvm::Type *> FunctionDeclaration::param_types(Codegen &gen) {
     std::vector<llvm::Type *> array(size);
     unsigned i = 0;
     while (i < size) {
-        array[i] = params[i]->type->llvm_type(gen);
+        array[i] = params[i]->type->llvm_param_type(gen);
         i++;
     }
     return array;
+}
+
+llvm::Value *FunctionDeclaration::llvm_load(Codegen &gen) {
+    return llvm_pointer(gen);
+}
+
+llvm::Value *FunctionDeclaration::llvm_pointer(Codegen &gen) {
+    return funcCallee;
 }
 
 #endif
@@ -106,9 +119,9 @@ void FunctionParam::accept(Visitor &visitor) {
     visitor.visit(this);
 }
 
-FunctionParam* FunctionParam::copy() const {
+FunctionParam *FunctionParam::copy() const {
     std::optional<std::unique_ptr<Value>> copied = std::nullopt;
-    if(defValue.has_value()) {
+    if (defValue.has_value()) {
         copied.emplace(defValue.value()->copy());
     }
     return new FunctionParam(name, std::unique_ptr<BaseType>(type->copy()), index, isVariadic, std::move(copied));

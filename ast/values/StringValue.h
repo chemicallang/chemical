@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "ast/values/CharValue.h"
+#include "ast/types/StringType.h"
 
 /**
  * @brief Class representing a string value.
@@ -57,6 +58,10 @@ public:
 
     Value *copy() override {
         return new StringValue(value);
+    }
+
+    std::shared_ptr<BaseType> create_type() const override {
+        return std::make_shared<StringType>();
     }
 
     std::string representation() const override {

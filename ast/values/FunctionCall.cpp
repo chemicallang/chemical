@@ -6,22 +6,29 @@
 
 #include "compiler/llvmimpl.h"
 
-llvm::Value *FunctionCall::llvm_value(Codegen &gen) {
-    auto fn = gen.module->getFunction(name);
-    if (fn == nullptr) {
-        gen.error("function with name " + name + " does not exist");
-        return nullptr;
-    }
+std::vector<llvm::Value*> to_llvm_args(Codegen& gen, std::vector<std::unique_ptr<Value>>& values, bool isVariadic) {
     std::vector<llvm::Value *> args(values.size());
     for (size_t i = 0; i < values.size(); ++i) {
         args[i] = values[i]->llvm_value(gen);
         // Ensure proper type promotion for float values passed to printf
-        if (fn->isVarArg() && llvm::isa<llvm::ConstantFP>(args[i]) &&
+        if (isVariadic && llvm::isa<llvm::ConstantFP>(args[i]) &&
             args[i]->getType() != llvm::Type::getDoubleTy(*gen.ctx)) {
             args[i] = gen.builder->CreateFPExt(args[i], llvm::Type::getDoubleTy(*gen.ctx));
         }
     }
-    return gen.builder->CreateCall(fn, args);
+    return args;
+}
+
+llvm::Value *FunctionCall::llvm_value(Codegen &gen) {
+    auto fn = gen.module->getFunction(name);
+    if(fn != nullptr) {
+        auto args = to_llvm_args(gen, values, fn->isVarArg());
+        return gen.builder->CreateCall(fn, args);
+    } else {
+        // TODO hardcoded false to isVariadic
+        auto args = to_llvm_args(gen, values, false);
+        return gen.builder->CreateCall((llvm::FunctionType*) linked->llvm_type(gen), linked->llvm_pointer(gen), args);
+    }
 }
 
 void FunctionCall::code_gen(Codegen &gen) {
@@ -40,13 +47,11 @@ FunctionCall::FunctionCall(
 void FunctionCall::link(SymbolResolver &linker) {
     auto found = linker.current.find(name);
     if (found != linker.current.end()) {
-        auto func = found->second->as_function();
-        if (func != nullptr) {
-            definition = func;
-            for (const auto &value: values) {
-                value->link(linker);
-            }
-        } else {
+        linked = found->second;
+        for (const auto &value: values) {
+            value->link(linker);
+        }
+        if(found->second->as_function() == nullptr && !found->second->create_type()->satisfies(ValueType::Lambda)) {
             linker.error("function call to identifier '" + name + "' is not valid, because its not a function.");
         }
     } else {
@@ -55,16 +60,15 @@ void FunctionCall::link(SymbolResolver &linker) {
 }
 
 ASTNode *FunctionCall::linked_node() {
-    if (!definition) return nullptr;
-    return definition->returnType->linked_node();
+    if (!linked || !linked->as_function()) return nullptr;
+    return linked->as_function()->returnType->linked_node();
 }
 
 ASTNode *FunctionCall::find_link_in_parent(ASTNode *node) {
     auto found = node->child(name);
-    auto func = found->as_function();
-    if (func) {
-        definition = func;
-        return func;
+    if (found) {
+        linked = found;
+        return linked;
     }
     return nullptr;
 }
@@ -82,8 +86,8 @@ Value *FunctionCall::find_in(InterpretScope &scope, Value *parent) {
 }
 
 Value *FunctionCall::evaluated_value(InterpretScope &scope) {
-    if (definition != nullptr) {
-        return definition->call(&scope, values);
+    if (linked && linked->as_function()) {
+        return linked->as_function()->call(&scope, values);
     } else {
         scope.error("(function call) calling a function that is not found or has no body, name : " + name);
     }

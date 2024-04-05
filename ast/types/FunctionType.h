@@ -21,12 +21,20 @@ public:
 
     bool satisfies(ValueType type) const override;
 
+    FunctionType *function_type() override {
+        return this;
+    }
+
     std::string representation() const override;
 
-    virtual BaseType* copy() const;
+    virtual BaseType *copy() const;
 
 #ifdef COMPILER_BUILD
+
     llvm::Type *llvm_type(Codegen &gen) const override;
+
+    llvm::Type *llvm_param_type(Codegen &gen) override;
+
 #endif
 
 };

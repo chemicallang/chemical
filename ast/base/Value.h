@@ -32,6 +32,8 @@ class VarInitStatement;
 
 class FunctionCall;
 
+class BaseType;
+
 /**
  * @brief Base class for all values in the AST.
  */
@@ -145,13 +147,20 @@ std::cerr << "child called on base value";
         return representation();
     };
 
+    /**
+     * create a base type that represents the type of this value
+     */
+    virtual std::shared_ptr<BaseType> create_type() const {
+        throw std::runtime_error("create_type called on bare Value, with representation : " + representation() + " , type : " + std::to_string((unsigned int) value_type()));
+    };
+
 #ifdef COMPILER_BUILD
     /**
      * code_gen function that generates llvm Value
      * @return
      */
     virtual void code_gen(Codegen& gen) {
-        throw std::runtime_error("ASTNode code_gen called on bare ASTNode, with representation : " + representation() + " , type : " + std::to_string((unsigned int) value_type()));
+        throw std::runtime_error("code_gen called on bare Value, with representation : " + representation() + " , type : " + std::to_string((unsigned int) value_type()));
     }
 
     /**
@@ -293,6 +302,9 @@ std::cerr << "child called on base value";
      * @return
      */
     virtual Value* copy() {
+#ifdef DEBUG
+        std::cerr << "copy called on base Value, representation : " << representation();
+#endif
         return nullptr;
     }
 

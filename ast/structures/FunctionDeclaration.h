@@ -25,6 +25,10 @@ public:
             std::optional<std::unique_ptr<Value>> defValue
     );
 
+    std::shared_ptr<BaseType> create_type() override {
+        return {type.get(), [](BaseType *) {}};
+    }
+
     void accept(Visitor &visitor) override;
 
     FunctionParam *as_parameter() override;
@@ -41,7 +45,7 @@ public:
 
 #endif
 
-    FunctionParam* copy() const;
+    FunctionParam *copy() const;
 
     std::string representation() const override;
 
@@ -78,6 +82,10 @@ public:
 
 #ifdef COMPILER_BUILD
 
+    llvm::Value *llvm_load(Codegen &gen) override;
+
+    llvm::Value *llvm_pointer(Codegen &gen) override;
+
     std::vector<llvm::Type *> param_types(Codegen &gen);
 
     llvm::FunctionType *function_type(Codegen &gen);
@@ -112,6 +120,12 @@ public:
     std::optional<LoopScope> body; ///< The body of the function.
     InterpretScope *declarationScope;
     std::unique_ptr<BaseType> returnType;
+
+#ifdef COMPILER_BUILD
+    llvm::FunctionType* funcType;
+    llvm::Value* funcCallee;
+#endif
+
 private:
     Value *interpretReturn = nullptr;
     // if the function is variadic, the last type in params is the type given to the variadic parameter

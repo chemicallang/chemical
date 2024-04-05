@@ -92,6 +92,8 @@ class NotValue;
 
 class TernaryValue;
 
+class LambdaFunction;
+
 
 // Visitor Class
 
@@ -266,6 +268,10 @@ public:
 
     virtual void visit(TernaryValue* ternary) {
         visitCommonValue((Value*) ternary);
+    }
+
+    virtual void visit(LambdaFunction* func) {
+        visitCommonValue((Value*) func);
     }
 
 };

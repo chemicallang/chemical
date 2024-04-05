@@ -16,6 +16,10 @@ public:
 
     Value *copy() override;
 
+    std::shared_ptr<BaseType> create_type() const override {
+        return {type.get(), [](BaseType*) {}};
+    }
+
     void accept(Visitor &visitor) override {
         visitor.visit(this);
     }

@@ -319,6 +319,8 @@ set(COMMON_SOURCES
         ast/values/CastedValue.h
         ast/types/FunctionType.h
         ast/types/FunctionType.cpp
+        ast/values/LambdaFunction.h
+        ast/values/LambdaFunction.cpp
 )
 
 # Chemical LSP Executable Target

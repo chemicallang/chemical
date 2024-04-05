@@ -19,10 +19,13 @@
 class Codegen;
 
 #include "compiler/llvmfwd.h"
+#include "ValueType.h"
 
 #endif
 
 class FunctionParam;
+
+class BaseType;
 
 /**
  * @brief Base class for all AST nodes.
@@ -151,6 +154,14 @@ public:
 
     }
 
+    /**
+     * get the type from the ASTNode
+     * this type can represent the type of value, type of parameter etc.
+     */
+    virtual std::shared_ptr<BaseType> create_type() {
+        throw std::runtime_error("create_type called on bare ASTNode, with representation" + representation());
+    }
+
 #ifdef COMPILER_BUILD
 
     /**
@@ -170,6 +181,13 @@ public:
     virtual llvm::Type *llvm_type(Codegen &gen) {
         throw std::runtime_error("llvm_type called on bare ASTNode, with representation" + representation());
     };
+
+    /**
+     * return a llvm func type, so that this ASTNode can be called
+     */
+    virtual llvm::FunctionType* llvm_func_type(Codegen &gen) {
+        return (llvm::FunctionType*) llvm_type(gen);
+    }
 
     /**
      * provides llvm_elem_type, which is the child type for example elem type of an array value

@@ -224,7 +224,7 @@ std::cerr << "child called on base value";
      * this method is called by function call to get the parameter value for this Value
      * if this class defines specific behavior for function call, it should override this method
      */
-    virtual llvm::Value* llvm_param_value(Codegen& gen, FunctionCall* call) {
+    virtual llvm::Value* llvm_arg_value(Codegen& gen, FunctionCall* call, unsigned int index) {
         return llvm_value(gen);
     }
 

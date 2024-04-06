@@ -27,7 +27,7 @@ func add(a : int, b : int) : int {
 }
 // supports : struct, interface, implementation
 // semicolons are optional
-// in the future, we will support switch statements, pointers
+// supports lambdas, switch statements & pointers
 ```
 
 ### Progress

@@ -8,9 +8,7 @@
 #include "compiler/Codegen.h"
 
 void AccessChain::code_gen(Codegen &gen) {
-    for (const auto &value: values) {
-        value->code_gen(gen);
-    }
+    llvm_value(gen);
 }
 
 llvm::Value *AccessChain::llvm_value(Codegen &gen) {

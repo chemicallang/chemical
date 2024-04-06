@@ -31,10 +31,6 @@ llvm::Value *FunctionCall::llvm_value(Codegen &gen) {
     }
 }
 
-void FunctionCall::code_gen(Codegen &gen) {
-    llvm_value(gen);
-}
-
 #endif
 
 FunctionCall::FunctionCall(

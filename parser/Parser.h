@@ -17,17 +17,7 @@
 #include <iostream>
 #include <functional>
 
-class ImportStatement;
-
-class Scope;
-
 class LoopScope;
-
-class IntValue;
-
-class BoolValue;
-
-class ArrayValue;
 
 class ValueAndOperatorStack;
 
@@ -131,6 +121,11 @@ public:
      * @return
      */
     lex_ptr<ArrayValue> parseArrayValue();
+
+    /**
+     * parses a single lambda function []() => {}
+     */
+    lex_ptr<LambdaFunction> parseLambdaValue();
 
     /**
      * parses a single struct value

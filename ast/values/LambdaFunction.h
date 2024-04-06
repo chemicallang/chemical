@@ -7,6 +7,7 @@
 #pragma once
 
 #include "ast/base/Value.h"
+#include "ast/structures/Scope.h"
 
 class FunctionDeclaration;
 
@@ -16,14 +17,20 @@ class FunctionDeclaration;
 class LambdaFunction : public Value {
 public:
 
-    std::unique_ptr<FunctionDeclaration> decl;
+    std::vector<std::string> captureList;
+    std::vector<std::string> paramList;
+    Scope scope;
 
     /**
      * @brief Construct a new IntValue object.
      *
      * @param value The integer value.
      */
-    LambdaFunction(std::unique_ptr<FunctionDeclaration> decl);
+    LambdaFunction(
+        std::vector<std::string> captureList,
+        std::vector<std::string> paramList,
+        Scope scope
+    );
 
     void accept(Visitor &visitor) override {
         visitor.visit(this);

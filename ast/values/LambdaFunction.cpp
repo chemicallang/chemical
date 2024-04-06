@@ -18,7 +18,11 @@ llvm::Value *LambdaFunction::llvm_value(Codegen &gen) {
 
 #endif
 
-LambdaFunction::LambdaFunction(std::unique_ptr<FunctionDeclaration> decl) : decl(std::move(decl)) {
+LambdaFunction::LambdaFunction(
+        std::vector<std::string> captureList,
+        std::vector<std::string> paramList,
+        Scope scope
+) : captureList(std::move(captureList)), paramList(std::move(paramList)), scope(std::move(scope)) {
 
 }
 

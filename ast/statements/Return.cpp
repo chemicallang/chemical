@@ -33,7 +33,7 @@ void ReturnStatement::accept(Visitor &visitor) {
 
 void ReturnStatement::code_gen(Codegen &gen) {
     if (value.has_value()) {
-        gen.CreateRet(value.value()->llvm_value(gen));
+        gen.CreateRet(value.value()->llvm_ret_value(gen, this));
     } else {
         gen.CreateRet(nullptr);
     }

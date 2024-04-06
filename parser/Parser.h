@@ -317,7 +317,7 @@ public:
      * parse function parameters list
      * the second parameter is for if the function params include a variadic parameter
      */
-    std::pair<std::vector<std::unique_ptr<FunctionParam>>, bool> parseFunctionParams();
+    std::pair<std::vector<std::unique_ptr<FunctionParam>>, bool> parseFunctionParams(bool optionalTypes = false);
 
     /**
      * Parse a single function definition

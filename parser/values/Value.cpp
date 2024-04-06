@@ -18,20 +18,20 @@
 
 lex_ptr<ArrayValue> Parser::parseArrayValue() {
 
-    // [1,2,3,4,5] // array of five elements, array type guessed from the type of the first element
-    // [1,2,3,4](5) // array of five elements, with fifth element uninitialized, type guessed
-    // [1,2,3,4]int(5) // array of five elements, with fifth element uninitialized
-    // []int(5) // array of five elements, no initialization
-    // []int(5,5) // multi dimensional, 5x5, no initialization
+    // {1,2,3,4,5} // array of five elements, array type guessed from the type of the first element
+    // {1,2,3,4}(5) // array of five elements, with fifth element uninitialized, type guessed
+    // {1,2,3,4}int(5) // array of five elements, with fifth element uninitialized
+    // {}int(5) // array of five elements, no initialization
+    // {}int(5,5) // multi dimensional, 5x5, no initialization
 
-    // [1,2,3](2) error array size cannot be larger than the elements given
-    // [](5) // error no element, and type, we can't guess type
-    // []int // error int empty array, no size given, no elements, useless empty array
+    // {1,2,3}(2) error array size cannot be larger than the elements given
+    // {}(5) // error no element, and type, we can't guess type
+    // {}int // error int empty array, no size given, no elements, useless empty array
 
     // unsupported :
-    // [[1,2],[1,2]] 2x2 array
+    // {{1,2},{1,2}} 2x2 array
 
-    if(consume_op('[')) {
+    if(consume_op('{')) {
         // TODO support multi dimensional params
         std::vector<std::unique_ptr<Value>> params;
         do {
@@ -42,7 +42,7 @@ lex_ptr<ArrayValue> Parser::parseArrayValue() {
                 break;
             }
         } while(consume_op(','));
-        if(consume_op(']')) {
+        if(consume_op('}')) {
             lex_ptr<BaseType> type = parseType();
             if(!type.has_value() && params.empty()) {
                 error("cannot guess array type, if there's no element in the array and type's not given");
@@ -83,7 +83,7 @@ lex_ptr<ArrayValue> Parser::parseArrayValue() {
             }
             return std::make_unique<ArrayValue>(std::move(params), std::move(type), std::move(dimension_sizes));
         } else {
-            error("expected a ']' after the array declaration");
+            error("expected a '}' after the array declaration");
         }
     }
     return std::nullopt;

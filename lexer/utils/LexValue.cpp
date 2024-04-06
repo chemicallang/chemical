@@ -38,11 +38,11 @@ bool Lexer::lexBoolToken() {
 }
 
 bool Lexer::lexValueToken() {
-    return lexCharToken() || lexStringToken() || lexNumberToken() || lexBoolToken();
+    return lexCharToken() || lexStringToken() || lexLambdaValue() || lexNumberToken() || lexBoolToken();
 }
 
 bool Lexer::lexArrayInit() {
-    if (lexOperatorToken('[')) {
+    if (lexOperatorToken('{')) {
         do {
             lexWhitespaceToken();
             if (!lexExpressionTokens()) {
@@ -50,8 +50,8 @@ bool Lexer::lexArrayInit() {
             }
             lexWhitespaceToken();
         } while (lexOperatorToken(','));
-        if (!lexOperatorToken(']')) {
-            error("expected a ] when lexing an array");
+        if (!lexOperatorToken('}')) {
+            error("expected a '}' when lexing an array");
         }
         lexWhitespaceToken();
         lexTypeTokens();

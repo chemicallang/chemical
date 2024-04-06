@@ -5,6 +5,7 @@
 //
 
 #include "Lexer.h"
+#include "Impls.h"
 #include "lexer/model/tokens/KeywordToken.h"
 #include "ast/utils/GlobalFunctions.h"
 

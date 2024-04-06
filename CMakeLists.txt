@@ -321,6 +321,8 @@ set(COMMON_SOURCES
         ast/types/FunctionType.cpp
         ast/values/LambdaFunction.h
         ast/values/LambdaFunction.cpp
+        lexer/values/LambdaValue.h
+        lexer/Impls.h
 )
 
 # Chemical LSP Executable Target

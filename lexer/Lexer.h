@@ -478,6 +478,16 @@ public:
     bool lexAccessChainOrValue(bool lexStruct = false);
 
     /**
+     * lexes a identifier list like id1,id2
+     */
+    void lexIdentifierList();
+
+    /**
+     * lexes a single lambda function (PARAM1, PARAM2)[CAP1, CAP2] => {}
+     */
+    bool lexLambdaValue();
+
+    /**
      * lexes remaining expression, this is used by lexExpressionTokens
      * this lexes the expression tokens after the first identifier / value
      * for example in expression a + b, after lexing a + b will lexed by this function

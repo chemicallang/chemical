@@ -6,10 +6,10 @@
 
 #include "compiler/llvmimpl.h"
 
-std::vector<llvm::Value*> to_llvm_args(Codegen& gen, std::vector<std::unique_ptr<Value>>& values, bool isVariadic) {
+std::vector<llvm::Value*> to_llvm_args(Codegen& gen, FunctionCall* call, std::vector<std::unique_ptr<Value>>& values, bool isVariadic) {
     std::vector<llvm::Value *> args(values.size());
     for (size_t i = 0; i < values.size(); ++i) {
-        args[i] = values[i]->llvm_value(gen);
+        args[i] = values[i]->llvm_param_value(gen, call);
         // Ensure proper type promotion for float values passed to printf
         if (isVariadic && llvm::isa<llvm::ConstantFP>(args[i]) &&
             args[i]->getType() != llvm::Type::getDoubleTy(*gen.ctx)) {
@@ -22,11 +22,11 @@ std::vector<llvm::Value*> to_llvm_args(Codegen& gen, std::vector<std::unique_ptr
 llvm::Value *FunctionCall::llvm_value(Codegen &gen) {
     auto fn = gen.module->getFunction(name);
     if(fn != nullptr) {
-        auto args = to_llvm_args(gen, values, fn->isVarArg());
+        auto args = to_llvm_args(gen, this, values, fn->isVarArg());
         return gen.builder->CreateCall(fn, args);
     } else {
         // TODO hardcoded false to isVariadic
-        auto args = to_llvm_args(gen, values, false);
+        auto args = to_llvm_args(gen, this, values, false);
         return gen.builder->CreateCall((llvm::FunctionType*) linked->llvm_type(gen), linked->llvm_pointer(gen), args);
     }
 }

@@ -221,6 +221,22 @@ std::cerr << "child called on base value";
     }
 
     /**
+     * this method is called by function call to get the parameter value for this Value
+     * if this class defines specific behavior for function call, it should override this method
+     */
+    virtual llvm::Value* llvm_param_value(Codegen& gen, FunctionCall* call) {
+        return llvm_value(gen);
+    }
+
+    /**
+     * this method is called by return statement to get the return value for this Value
+     * if this class defines specific behavior for return, it should override this method
+     */
+    virtual llvm::Value* llvm_ret_value(Codegen& gen, ReturnStatement* returnStmt) {
+        return llvm_value(gen);
+    }
+
+    /**
      * add member index for the given identifier
      * WARNING : parent can be null ptr when this is the first element in access chain
      * @return whether it was successful in access index(s)

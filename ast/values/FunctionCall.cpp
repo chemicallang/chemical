@@ -9,7 +9,7 @@
 std::vector<llvm::Value*> to_llvm_args(Codegen& gen, FunctionCall* call, std::vector<std::unique_ptr<Value>>& values, bool isVariadic) {
     std::vector<llvm::Value *> args(values.size());
     for (size_t i = 0; i < values.size(); ++i) {
-        args[i] = values[i]->llvm_param_value(gen, call);
+        args[i] = values[i]->llvm_arg_value(gen, call, i);
         // Ensure proper type promotion for float values passed to printf
         if (isVariadic && llvm::isa<llvm::ConstantFP>(args[i]) &&
             args[i]->getType() != llvm::Type::getDoubleTy(*gen.ctx)) {

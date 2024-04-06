@@ -29,7 +29,7 @@ public:
 
     ASTNode *linked_node() override;
 
-    ASTNode* find_link_in_parent(ASTNode *parent) override;
+    ASTNode *find_link_in_parent(ASTNode *parent) override;
 
     bool primitive() override;
 
@@ -50,15 +50,15 @@ public:
     void interpret(InterpretScope &scope) override;
 
 #ifdef COMPILER_BUILD
-    llvm::Value * llvm_value(Codegen &gen) override;
 
-    void code_gen(Codegen &gen) override;
+    llvm::Value *llvm_value(Codegen &gen) override;
+
 #endif
 
     std::string representation() const override;
 
     std::string name;
     std::vector<std::unique_ptr<Value>> values;
-    ASTNode* linked = nullptr;
+    ASTNode *linked = nullptr;
 
 };

@@ -155,13 +155,6 @@ std::cerr << "child called on base value";
     };
 
 #ifdef COMPILER_BUILD
-    /**
-     * code_gen function that generates llvm Value
-     * @return
-     */
-    virtual void code_gen(Codegen& gen) {
-        throw std::runtime_error("code_gen called on bare Value, with representation : " + representation() + " , type : " + std::to_string((unsigned int) value_type()));
-    }
 
     /**
      * provides llvm_type for the given value

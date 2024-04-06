@@ -15,6 +15,7 @@
 #include "ast/values/BoolValue.h"
 #include "ast/values/AccessChain.h"
 #include "ast/values/ArrayValue.h"
+#include "ast/values/LambdaFunction.h"
 
 lex_ptr<ArrayValue> Parser::parseArrayValue() {
 
@@ -143,6 +144,10 @@ lex_ptr<Value> Parser::parseValue() {
     if(charToken.has_value()) {
         return std::make_unique<CharValue>(charToken.value());
     }
+    auto lambdaValue = parseLambdaValue();
+    if(lambdaValue.has_value()) {
+        return lambdaValue;
+    }
     auto boolVal = parseBoolValue();
     if(boolVal.has_value()) {
         return boolVal;
@@ -171,4 +176,54 @@ lex_ptr<Value> Parser::parseAccessChainOrValue() {
         return macro;
     }
     return std::nullopt;
+}
+
+lex_ptr<LambdaFunction> Parser::parseLambdaValue() {
+    if(consume_op('[')) {
+
+        std::vector<std::string> captureList;
+
+        do {
+            auto id = consume_identifier();
+            if(id.has_value()) {
+                captureList.push_back(id.value());
+            } else {
+                break;
+            }
+        } while(consume_op(','));
+
+        if(!consume_op(']')){
+            error("expected ']'");
+        };
+
+        if(!consume_op('(')) {
+            error("expected '('");
+        }
+
+        std::vector<std::string> paramList;
+
+        do {
+            auto id = consume_identifier();
+            if(id.has_value()) {
+                paramList.push_back(id.value());
+            } else {
+                break;
+            }
+        } while(consume_op(','));
+
+        if(!consume_op(')')) {
+            error("expected ')'");
+        }
+
+        if(!consume_op("=>")) {
+            error("expected '=>' in lambda");
+        }
+
+        auto scope = parseScope();
+
+        return std::make_unique<LambdaFunction>(std::move(captureList), std::move(paramList), std::move(scope));
+
+    } else {
+        return std::nullopt;
+    }
 }

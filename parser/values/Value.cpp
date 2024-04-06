@@ -200,16 +200,7 @@ lex_ptr<LambdaFunction> Parser::parseLambdaValue() {
             error("expected '('");
         }
 
-        std::vector<std::string> paramList;
-
-        do {
-            auto id = consume_identifier();
-            if(id.has_value()) {
-                paramList.push_back(id.value());
-            } else {
-                break;
-            }
-        } while(consume_op(','));
+        auto paramsList = parseFunctionParams(true);
 
         if(!consume_op(')')) {
             error("expected ')'");
@@ -221,7 +212,7 @@ lex_ptr<LambdaFunction> Parser::parseLambdaValue() {
 
         auto scope = parseScope();
 
-        return std::make_unique<LambdaFunction>(std::move(captureList), std::move(paramList), std::move(scope));
+        return std::make_unique<LambdaFunction>(std::move(captureList), std::move(paramsList.first), paramsList.second, std::move(scope));
 
     } else {
         return std::nullopt;

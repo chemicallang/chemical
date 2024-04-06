@@ -27,7 +27,7 @@ bool Lexer::lexLambdaValue() {
             error("expected '(' for lambda parameter list");
         }
 
-        lexIdentifierList();
+        lexParameterList(true);
 
         lexNewLineChars();
 

@@ -30,14 +30,14 @@ bool Parser::parseReturnStatementBool() {
     });
 }
 
-std::pair<std::vector<std::unique_ptr<FunctionParam>>, bool> Parser::parseFunctionParams() {
+std::pair<std::vector<std::unique_ptr<FunctionParam>>, bool> Parser::parseFunctionParams(bool optionalTypes) {
     func_params params;
     unsigned paramsCount = 0;
     bool isVariadic = false;
     do {
         if (token_type() == LexTokenType::Parameter) {
             auto paramToken = consume<ParameterToken>();
-            if (!consume_op(':')) {
+            if (!consume_op(':') && !optionalTypes) {
                 error("expected a ':' after the parameter for its type");
                 break;
             }
@@ -60,7 +60,7 @@ std::pair<std::vector<std::unique_ptr<FunctionParam>>, bool> Parser::parseFuncti
                 if(isVariadic) {
                     break;
                 }
-            } else {
+            } else if(!optionalTypes) {
                 error("expected a type after the colon ':' for the function parameter");
                 break;
             }

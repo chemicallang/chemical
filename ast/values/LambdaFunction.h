@@ -8,6 +8,7 @@
 
 #include "ast/base/Value.h"
 #include "ast/structures/Scope.h"
+#include "ast/structures/FunctionDeclaration.h"
 
 class FunctionDeclaration;
 
@@ -18,7 +19,8 @@ class LambdaFunction : public Value {
 public:
 
     std::vector<std::string> captureList;
-    std::vector<std::string> paramList;
+    std::vector<std::unique_ptr<FunctionParam>> params;
+    bool isVariadic;
     Scope scope;
 
     /**
@@ -28,7 +30,8 @@ public:
      */
     LambdaFunction(
         std::vector<std::string> captureList,
-        std::vector<std::string> paramList,
+        std::vector<std::unique_ptr<FunctionParam>> params,
+        bool isVariadic,
         Scope scope
     );
 

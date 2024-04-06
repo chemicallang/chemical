@@ -327,7 +327,7 @@ public:
     /**
      * lex parameter list
      */
-    void lexParameterList();
+    void lexParameterList(bool optionalTypes = false);
 
     /**
     * lexes a function signature with parameters

@@ -20,9 +20,10 @@ llvm::Value *LambdaFunction::llvm_value(Codegen &gen) {
 
 LambdaFunction::LambdaFunction(
         std::vector<std::string> captureList,
-        std::vector<std::string> paramList,
+        std::vector<std::unique_ptr<FunctionParam>> params,
+        bool isVariadic,
         Scope scope
-) : captureList(std::move(captureList)), paramList(std::move(paramList)), scope(std::move(scope)) {
+) : captureList(std::move(captureList)), params(std::move(params)), isVariadic(isVariadic), scope(std::move(scope)) {
 
 }
 

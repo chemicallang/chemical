@@ -25,24 +25,25 @@ void Lexer::lexParameterList(bool optionalTypes) {
         if(!name.empty()) {
             tokens.emplace_back(std::make_unique<ParameterToken>(backPosition(name.length()), name));
             lexWhitespaceToken();
-            if(!lexOperatorToken(':') && !optionalTypes) {
-                error("expected colon ':' in function parameter list after the parameter name " + name);
-                return;
-            }
-            lexWhitespaceToken();
-            if(lexTypeTokens()) {
-                if(lexOperatorToken("...")) {
-                    break;
-                }
+            if(lexOperatorToken(':')) {
                 lexWhitespaceToken();
-                if(lexOperatorToken('=')) {
-                    lexWhitespaceToken();
-                    if(!lexValueToken()) {
-                        error("expected value after '=' for default value for the parameter");
+                if(lexTypeTokens()) {
+                    if(lexOperatorToken("...")) {
+                        break;
                     }
+                    lexWhitespaceToken();
+                    if(lexOperatorToken('=')) {
+                        lexWhitespaceToken();
+                        if(!lexValueToken()) {
+                            error("expected value after '=' for default value for the parameter");
+                        }
+                    }
+                } else {
+                    error("missing a type token for the function parameter, expected type after the colon");
+                    return;
                 }
             } else if(!optionalTypes) {
-                error("missing a type token for the function parameter, expected type after the colon");
+                error("expected colon ':' in function parameter list after the parameter name " + name);
                 return;
             }
         }

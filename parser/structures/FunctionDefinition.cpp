@@ -37,31 +37,35 @@ std::pair<std::vector<std::unique_ptr<FunctionParam>>, bool> Parser::parseFuncti
     do {
         if (token_type() == LexTokenType::Parameter) {
             auto paramToken = consume<ParameterToken>();
-            if (!consume_op(':') && !optionalTypes) {
-                error("expected a ':' after the parameter for its type");
-                break;
-            }
-            auto type = parseType();
-            if (type.has_value()) {
-                if (token_type() == LexTokenType::StringOperator &&
-                    as<AbstractStringToken>()->value == "...") {
-                    increment();
-                    isVariadic = true;
-                }
-                lex_ptr<Value> defValue = std::nullopt;
-                if(!isVariadic && consume_op('=')) {
-                    defValue = parseValue();
-                    if(!defValue.has_value()) {
-                        error("expected a default value after '=' for the parameter with name " + paramToken->value);
+            if(consume_op(':')) {
+                auto type = parseType();
+                if (type.has_value()) {
+                    if (token_type() == LexTokenType::StringOperator &&
+                        as<AbstractStringToken>()->value == "...") {
+                        increment();
+                        isVariadic = true;
                     }
-                }
-                params.emplace_back(std::make_unique<FunctionParam>(paramToken->value, std::move(type.value()), paramsCount, isVariadic, std::move(defValue)));
-                paramsCount++;
-                if(isVariadic) {
+                    lex_ptr<Value> defValue = std::nullopt;
+                    if(!isVariadic && consume_op('=')) {
+                        defValue = parseValue();
+                        if(!defValue.has_value()) {
+                            error("expected a default value after '=' for the parameter with name " + paramToken->value);
+                        }
+                    }
+                    params.emplace_back(std::make_unique<FunctionParam>(paramToken->value, std::move(type.value()), paramsCount, isVariadic, std::move(defValue)));
+                    paramsCount++;
+                    if(isVariadic) {
+                        break;
+                    }
+                } else {
+                    error("expected a type after the colon ':' for the function parameter");
                     break;
                 }
-            } else if(!optionalTypes) {
-                error("expected a type after the colon ':' for the function parameter");
+            } else if(optionalTypes) {
+                params.emplace_back(std::make_unique<FunctionParam>(paramToken->value, std::move(std::make_unique<VoidType>()), paramsCount, isVariadic, std::nullopt));
+                paramsCount++;
+            } else {
+                error("expected a ':' after the parameter for its type");
                 break;
             }
         }

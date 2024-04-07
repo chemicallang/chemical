@@ -90,5 +90,11 @@ func main(argc : int, argv : string*) : int {
         }
     }
     check_lambda(add);
+    check_lambda([](a,b) => {
+        return a / b;
+    })
+    check_lambda([](a,b) => {
+        return a * b * 2;
+    })
     return 0;
 }

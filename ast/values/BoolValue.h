@@ -23,8 +23,8 @@ public:
         return new BoolValue(value);
     }
 
-    std::shared_ptr<BaseType> create_type() const override {
-        return std::make_shared<BoolType>();
+    std::unique_ptr<BaseType> create_type() const override {
+        return std::make_unique<BoolType>();
     }
 
     void accept(Visitor &visitor) override {

@@ -1,6 +1,7 @@
 // Copyright (c) Qinetik 2024.
 
 #include "ast/base/GlobalInterpretScope.h"
+#include "ast/types/FunctionType.h"
 
 #ifdef COMPILER_BUILD
 
@@ -144,6 +145,14 @@ FunctionDeclaration::FunctionDeclaration(
 ) : name(std::move(name)), params(std::move(params)), returnType(std::move(returnType)), body(std::move(body)),
     isVariadic(isVariadic) {
     params.shrink_to_fit();
+}
+
+std::shared_ptr<BaseType> FunctionDeclaration::create_type() {
+    std::vector<std::unique_ptr<FunctionParam>> copied;
+    for(const auto& param : params) {
+        copied.emplace_back(param->copy());
+    }
+    return std::make_shared<FunctionType>(std::move(copied), std::unique_ptr<BaseType>(returnType->copy()), isVariadic);
 }
 
 void FunctionDeclaration::accept(Visitor &visitor) {

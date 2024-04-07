@@ -44,8 +44,8 @@ public:
         return new IntValue(value);
     }
 
-    std::shared_ptr<BaseType> create_type() const override {
-        return std::make_shared<Int32Type>();
+    [[nodiscard]] std::unique_ptr<BaseType> create_type() const override {
+        return std::make_unique<Int32Type>();
     }
 
     int as_int() override {

@@ -43,8 +43,8 @@ public:
         return value;
     }
 
-    std::shared_ptr<BaseType> create_type() const override {
-        return std::make_shared<FloatType>();
+    std::unique_ptr<BaseType> create_type() const override {
+        return std::make_unique<FloatType>();
     }
 
     Value *copy() override {

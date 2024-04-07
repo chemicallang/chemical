@@ -26,8 +26,8 @@ public:
         visitor.visit(this);
     }
 
-    std::shared_ptr<BaseType> create_type() const override {
-        return std::make_shared<CharType>();
+    std::unique_ptr<BaseType> create_type() const override {
+        return std::make_unique<CharType>();
     }
 
     Value *copy() override {

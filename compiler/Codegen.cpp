@@ -3,6 +3,7 @@
 #ifdef COMPILER_BUILD
 #include "ast/base/ASTNode.h"
 #include "Codegen.h"
+#include "ast/structures/Scope.h"
 
 #include <utility>
 #include "llvmimpl.h"
@@ -43,6 +44,27 @@ llvm::Function* Codegen::create_function(const std::string& name, llvm::Function
     }
     createFunctionBlock(current_function);
     return current_function;
+}
+
+llvm::Function* Codegen::create_nested_function(const std::string& name, llvm::FunctionType* type, Scope &scope) {
+
+    auto prev_block_ended = has_current_block_ended;
+    auto prev_block = builder->GetInsertBlock();
+    auto prev_current_func = current_function;
+
+    has_current_block_ended = true;
+    SetInsertPoint(nullptr);
+    auto nested_function = create_function_proto(name, type);
+    current_function = nested_function;
+    createFunctionBlock(nested_function);
+    scope.code_gen(*this);
+
+    has_current_block_ended = prev_block_ended;
+    SetInsertPoint(prev_block);
+    current_function = prev_current_func;
+
+    return nested_function;
+
 }
 
 llvm::FunctionCallee Codegen::declare_function(const std::string& name, llvm::FunctionType* type) {

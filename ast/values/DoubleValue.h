@@ -33,8 +33,8 @@ public:
 
 #endif
 
-    std::shared_ptr<BaseType> create_type() const override {
-        return std::make_shared<DoubleType>();
+    std::unique_ptr<BaseType> create_type() const override {
+        return std::make_unique<DoubleType>();
     }
 
     Value *copy() override {

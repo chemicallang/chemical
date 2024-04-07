@@ -31,7 +31,6 @@ public:
 
     std::string representation() const override;
 
-private:
     FunctionDeclaration *declaration;
     std::optional<std::unique_ptr<Value>> value;
 

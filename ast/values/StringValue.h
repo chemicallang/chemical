@@ -60,8 +60,8 @@ public:
         return new StringValue(value);
     }
 
-    std::shared_ptr<BaseType> create_type() const override {
-        return std::make_shared<StringType>();
+    std::unique_ptr<BaseType> create_type() const override {
+        return std::make_unique<StringType>();
     }
 
     std::string representation() const override {

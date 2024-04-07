@@ -44,8 +44,10 @@ void FunctionCall::link(SymbolResolver &linker) {
     auto found = linker.current.find(name);
     if (found != linker.current.end()) {
         linked = found->second;
-        for (const auto &value: values) {
-            value->link(linker);
+        unsigned i = 0;
+        while(i < values.size()) {
+            values[i]->link(linker, this, i);
+            i++;
         }
         if(found->second->as_function() == nullptr && !found->second->create_type()->satisfies(ValueType::Lambda)) {
             linker.error("function call to identifier '" + name + "' is not valid, because its not a function.");

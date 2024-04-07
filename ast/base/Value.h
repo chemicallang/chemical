@@ -54,6 +54,22 @@ public:
     }
 
     /**
+     * values inside a function call, can override this method if they want to access
+     * information about call, function at link time
+     */
+    virtual void link(SymbolResolver& linker, FunctionCall* call, unsigned int index) {
+        return link(linker);
+    }
+
+    /**
+     * when a value is required to be linked by a return statement, this function is called
+     * overriding this method, allows to access the return statement, function of return
+     */
+    virtual void link(SymbolResolver& linker, ReturnStatement* returnStmt) {
+        return link(linker);
+    }
+
+    /**
      * it must return the node that will be used to find the next node in the access chain
      * this node is extracted from the node that was linked to in link method
      * @return return node that signifies the fragment in the access chain
@@ -150,7 +166,7 @@ std::cerr << "child called on base value";
     /**
      * create a base type that represents the type of this value
      */
-    virtual std::shared_ptr<BaseType> create_type() const {
+    virtual std::unique_ptr<BaseType> create_type() const {
         throw std::runtime_error("create_type called on bare Value, with representation : " + representation() + " , type : " + std::to_string((unsigned int) value_type()));
     };
 

@@ -11,6 +11,8 @@
 #include "SymbolResolver.h"
 #include "llvmfwd.h"
 
+class Scope;
+
 class Codegen {
 public:
 
@@ -56,6 +58,11 @@ public:
      * @return
      */
     llvm::Function* create_function(const std::string& name, llvm::FunctionType* type);
+
+    /**
+     * create a nested function
+     */
+    llvm::Function* create_nested_function(const std::string& name, llvm::FunctionType* type, Scope &scope);
 
     /**
      * gets or inserts a function, similar to declaration

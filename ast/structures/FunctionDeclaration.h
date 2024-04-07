@@ -108,6 +108,8 @@ public:
             InterpretScope *fn_scope
     );
 
+    std::shared_ptr<BaseType> create_type() override;
+
     // called by the return statement
     void set_return(Value *value);
 

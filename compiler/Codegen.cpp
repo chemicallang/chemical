@@ -38,10 +38,7 @@ llvm::Function* Codegen::create_function(const std::string& name, llvm::Function
         builder->CreateRetVoid();
         has_current_block_ended = true;
     }
-    current_function = module->getFunction(name);
-    if(current_function == nullptr) {
-        current_function = create_function_proto(name, type);
-    }
+    current_function = create_function_proto(name, type);
     createFunctionBlock(current_function);
     return current_function;
 }

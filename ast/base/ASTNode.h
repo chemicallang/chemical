@@ -23,6 +23,10 @@ class Codegen;
 
 #endif
 
+#ifdef DEBUG
+#include <iostream>
+#endif
+
 class FunctionParam;
 
 class BaseType;

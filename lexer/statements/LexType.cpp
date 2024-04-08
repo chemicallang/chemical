@@ -6,10 +6,15 @@
 
 #include "lexer/Lexer.h"
 #include "lexer/model/tokens/TypeToken.h"
+#include "cst/types/FunctionTypeCST.h"
+#include "cst/types/ArrayTypeCST.h"
+#include "cst/types/PointerTypeCST.h"
+#include "cst/types/GenericTypeCST.h"
 
 bool Lexer::lexTypeTokens() {
 
     if(lexOperatorToken('(')) {
+        unsigned start = tokens.size() - 1;
         lexParameterList();
         if(!lexOperatorToken(')')) {
             error("expected a ')' after the ')' in lambda function type");
@@ -23,6 +28,9 @@ bool Lexer::lexTypeTokens() {
         } else {
             error("expected '=>' for lambda function type");
         }
+        if(isCST()) {
+            compound<FunctionTypeCST>(start);
+        }
         return true;
     }
 
@@ -30,6 +38,7 @@ bool Lexer::lexTypeTokens() {
         return std::isalpha(provider.peek());
     });
     if (!type.empty()) {
+        unsigned start = tokens.size();
         tokens.emplace_back(std::make_unique<TypeToken>(backPosition(type.length()), type));
         if(lexOperatorToken('<')) {
             if(!lexTypeTokens()) {
@@ -38,14 +47,24 @@ bool Lexer::lexTypeTokens() {
             if(!lexOperatorToken('>')) {
                 error("expected '>' for generic type");
             }
+            if(isCST()) {
+                compound<GenericTypeCST>(start);
+            }
         } else if(lexOperatorToken('[')) {
             // optional array size
             lexUnsignedIntAsNumberToken();
             if(!lexOperatorToken(']')) {
                 error("expected ']' for array type");
             }
+            if(isCST()) {
+                compound<ArrayTypeCST>(start);
+            }
         }
-        lexOperatorToken('*');
+        if(lexOperatorToken('*')) {
+            if(isCST()) {
+                compound<PointerTypeCST>(start);
+            }
+        }
         return true;
     } else {
         return false;

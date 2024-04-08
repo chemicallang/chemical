@@ -7,7 +7,7 @@
 #pragma once
 
 #include "InterpretScope.h"
-#include <iostream>
+#include <iosfwd>
 
 /**
  * @brief Base class for all things that can be interpreted

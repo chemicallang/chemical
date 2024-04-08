@@ -8,7 +8,14 @@
 #include <utility>
 #include "llvmimpl.h"
 
-Codegen::Codegen(std::vector<std::unique_ptr<ASTNode>> nodes, std::string path, std::string target_triple, std::string curr_exe_path): nodes(std::move(nodes)), path(std::move(path)), target_triple(std::move(target_triple)), curr_exe_path(std::move(curr_exe_path)) {
+Codegen::Codegen(
+        std::vector<std::unique_ptr<ASTNode>> nodes,
+        std::string path,
+        std::string target_triple,
+        std::string curr_exe_path
+) : nodes(std::move(nodes)), path(std::move(path)),
+    target_triple(std::move(target_triple)),
+    curr_exe_path(std::move(curr_exe_path)) {
     module_init();
 }
 

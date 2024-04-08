@@ -13,7 +13,7 @@ public:
 
     std::string value;
 
-    MultilineCommentToken(const Position& position, std::string value) : LexToken(position), value(std::move(value)) {
+    MultilineCommentToken(const Position &position, std::string value) : LexToken(position), value(std::move(value)) {
         value.shrink_to_fit();
     }
 
@@ -32,8 +32,10 @@ public:
     }
 #endif
 
-    std::string representation() const override {
-        return "/* " + value + "*/";
+    void append_representation(std::string &rep) const override {
+        rep.append("/*");
+        rep.append(value);
+        rep.append("*/");
     }
 
     [[nodiscard]] std::string type_string() const override {

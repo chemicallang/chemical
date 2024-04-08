@@ -1,0 +1,25 @@
+// Copyright (c) Qinetik 2024.
+
+#pragma once
+
+#include "cst/base/CompoundCSTToken.h"
+
+class VarInitCST : public CompoundCSTToken {
+public:
+
+    /**
+     * constructor
+     */
+    VarInitCST(std::vector<std::unique_ptr<CSTToken>> tokens) : CompoundCSTToken(std::move(tokens)) {
+
+    }
+
+#ifdef DEBUG
+
+    std::string compound_type_string() const override {
+        return "VarInitCST";
+    }
+
+#endif
+
+};

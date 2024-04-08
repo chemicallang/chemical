@@ -14,7 +14,7 @@
 #include "ast/structures/Scope.h"
 #include "ast/structures/LoopScope.h"
 #include <optional>
-#include <iostream>
+#include <iosfwd>
 #include <functional>
 
 class LoopScope;

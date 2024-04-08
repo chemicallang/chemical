@@ -31,9 +31,10 @@ std::vector<std::unique_ptr<ASTNode>>& ImportStatement::parsed(const std::string
     auto resolved = resolve_rel_path(root_path);
 
     auto lexer = lexFile(resolved.string());
-    auto parser = parse(std::move(lexer.tokens));
+    // TODO convert to AST
+//    auto parser = parse(std::move(lexer.tokens));
 
-    imported_ast = std::move(parser.nodes);
+//    imported_ast = std::move(parser.nodes);
 
     return imported_ast;
 
@@ -141,11 +142,12 @@ void ImportStatement::interpret(InterpretScope &scope) {
     StreamSourceProvider provider(stream);
     Lexer lexer(provider, absolute_path);
     lexer.lex();
-    Parser parser(std::move(lexer.tokens));
-    parser.parse();
-    Scope fileScope(std::move(parser.nodes));
-    auto prevPath = scope.global->root_path;
-    scope.global->root_path = absolute_path;
-    fileScope.interpret(scope);
-    scope.global->root_path = prevPath;
+    // TODO convert to AST
+//    Parser parser(std::move(lexer.tokens));
+//    parser.parse();
+//    Scope fileScope(std::move(parser.nodes));
+//    auto prevPath = scope.global->root_path;
+//    scope.global->root_path = absolute_path;
+//    fileScope.interpret(scope);
+//    scope.global->root_path = prevPath;
 }

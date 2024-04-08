@@ -10,6 +10,7 @@
 #include <optional>
 #include "lexer/model/LexTokenType.h"
 #include "common/Diagnostic.h"
+#include "cst/base/CSTToken.h"
 
 #ifdef LSP_BUILD
 #include "LibLsp/lsp/textDocument/SemanticTokens.h"
@@ -22,12 +23,12 @@
 //#include "rapidjson\stringbuffer.h"	// wrapper of C stream for prettywriter as output
 //#include "rapidjson\prettywriter.h"	// for stringify JSON
 
-class LexToken {
+class LexToken : public CSTToken {
 public:
 
     Position position;
 
-    LexToken(const Position& position) : position(position) {
+    LexToken(const Position &position) : position(position) {
 
     }
 
@@ -90,6 +91,14 @@ public:
         return false;
     }
 
+    LexToken *start_token() override {
+        return this;
+    }
+
+    LexToken *end_token() override {
+        return this;
+    }
+
     /**
      * string length of the token
      */
@@ -132,15 +141,13 @@ public:
     }
 #endif
 
-    /**
-     * this function returns the actual representation of the token in the source code
-     */
-    virtual std::string representation() const = 0;
+#ifdef DEBUG
 
-    /**
-     * type string for token (debugging)
-     */
-    virtual std::string type_string() const = 0;
+    Position start() override {
+        return position;
+    }
+
+#endif
 
     /**
      * content of the token, for example string token can contain ('some name')

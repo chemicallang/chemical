@@ -31,8 +31,8 @@ public:
     }
 #endif
 
-    std::string representation() const override {
-        return this->value;
+    void append_representation(std::string &rep) const override {
+        rep.append(value);
     }
 
     [[nodiscard]] std::string type_string() const override {

@@ -5,21 +5,22 @@
 //
 
 #include "Utils.h"
+#include "common/Diagnostic.h"
 
 #include <iostream>
 
-void printToken(LexToken *token) {
-    std::cout << " - [" << token->type_string() << "]" << "(" << token->position.representation() << ")";
+void printToken(CSTToken *token) {
+    std::cout << " - [" << token->type_string() << "]" << "(" << token->start().representation() << ")";
 }
 
-void printTokens(const std::vector<std::unique_ptr<LexToken>> &lexed) {
+void printTokens(const std::vector<std::unique_ptr<CSTToken>> &lexed) {
     for (const auto &item: lexed) {
         printToken(item.get());
         std::cout << std::endl;
     }
 }
 
-void printTokens(const std::vector<std::unique_ptr<LexToken>> &lexed, const std::unordered_map<unsigned int, unsigned int> &linked) {
+void printTokens(const std::vector<std::unique_ptr<CSTToken>> &lexed, const std::unordered_map<unsigned int, unsigned int> &linked) {
     int i = 0;
     while(i < lexed.size()) {
         auto found = linked.find(i);

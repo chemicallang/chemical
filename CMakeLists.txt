@@ -323,6 +323,12 @@ set(COMMON_SOURCES
         ast/values/LambdaFunction.cpp
         lexer/values/LambdaValue.h
         lexer/Impls.h
+        cst/base/CSTToken.h
+        utils/fwdvector.h
+        cst/base/CompoundCSTToken.h
+        cst/statements/VarInitCST.h
+        cst/structures/FunctionCST.h
+        cst/types/GenericTypeCST.h
 )
 
 # Chemical LSP Executable Target

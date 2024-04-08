@@ -5,6 +5,7 @@
 //
 
 #include "lexer/Lexer.h"
+#include "cst/statements/VarInitCST.h"
 
 bool Lexer::lexVarInitializationTokens(bool allowDeclarations, bool requiredType) {
 
@@ -13,6 +14,8 @@ bool Lexer::lexVarInitializationTokens(bool allowDeclarations, bool requiredType
     if (!lexed_const && !lexKeywordToken("var")) {
         return false;
     }
+
+    unsigned int start = tokens.size() - 1;
 
     // whitespace
     lexWhitespaceToken();
@@ -57,6 +60,10 @@ bool Lexer::lexVarInitializationTokens(bool allowDeclarations, bool requiredType
     if (!(lexExpressionTokens(true) || lexArrayInit())) {
         error("expected an expression / array for variable initialization");
         return true;
+    }
+
+    if(isCST()) {
+        compound<VarInitCST>(start);
     }
 
     return true;

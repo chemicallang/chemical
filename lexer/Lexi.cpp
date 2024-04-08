@@ -5,6 +5,8 @@
 //
 
 #include "Lexi.h"
+#include <chrono>
+#include "stream/StreamSourceProvider.h"
 
 /**
  * benchmark lexing the given input stream

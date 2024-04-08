@@ -8,11 +8,7 @@
 
 #include <string>
 #include <fstream>
-#include <chrono>
-#include <iostream>
-#include "stream/SourceProvider.h"
 #include "lexer/Lexer.h"
-#include "stream/StreamSourceProvider.h"
 
 /**
  * benchmark lexing the given input stream
@@ -20,7 +16,7 @@
  * @param file
  * @return tokens
  */
-Lexer benchLexFile(std::istream &file, const std::string& path);
+Lexer benchLexFile(std::istream &file, const std::string &path);
 
 /**
  * same as benchLexFile with istream
@@ -35,7 +31,7 @@ Lexer benchLexFile(const std::string &path);
  * @param file
  * @return the tokens
  */
-Lexer lexFile(std::istream &file, const std::string& path);
+Lexer lexFile(std::istream &file, const std::string &path);
 
 /**
  * same as lexFile with istream

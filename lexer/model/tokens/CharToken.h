@@ -33,12 +33,10 @@ public:
     }
 #endif
 
-    std::string representation() const override {
-        std::string buf;
-        buf.append(1, '\'');
-        buf.append(1,value);
-        buf.append(1, '\'');
-        return buf;
+    void append_representation(std::string &rep) const override {
+        rep.append(1, '\'');
+        rep.append(1,value);
+        rep.append(1, '\'');
     }
 
     [[nodiscard]] std::string type_string() const override {

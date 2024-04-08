@@ -52,8 +52,8 @@ Position{
     }
 #endif
 
-    std::string representation() const {
-        return "[UserToken]";
+    void append_representation(std::string &rep) const override {
+        rep.append("[UserToken]");
     }
 
     std::string type_string() const {

@@ -116,6 +116,10 @@ bool Lexer::lexFunctionStructureTokens(bool allow_declarations) {
     }
     isLexReturnStatement = prevReturn;
 
+    if(isCST()) {
+
+    }
+
     return true;
 
 }

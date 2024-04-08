@@ -26,7 +26,7 @@ public:
 
     std::string path;
 
-    std::vector<std::unique_ptr<LexToken>> tokens;
+    std::vector<std::unique_ptr<CSTToken>> tokens;
 
     std::vector<Diagnostic> errors;
 
@@ -42,6 +42,8 @@ public:
     bool has_errors = false;
 
     inline bool isDebug() { return true; };
+
+    inline bool isCST() { return true; };
 
     explicit Lexer(SourceProvider &provider, std::string path);
 
@@ -511,6 +513,32 @@ public:
     bool lexTryCatchTokens();
 
     /**
+     * takes elements (by removing) from tokens vector, starting from start position, till end
+     */
+    std::vector<std::unique_ptr<CSTToken>> take_from(unsigned int start) {
+        unsigned size = tokens.size() - start;
+        std::vector<std::unique_ptr<CSTToken>> slice;
+        slice.reserve(size);
+        unsigned i = start;
+        unsigned end = tokens.size();
+        while(i < end) {
+            slice.push_back(std::move(tokens[i]));
+            i++;
+        }
+        tokens.erase(tokens.end() - size, tokens.end());
+        return slice;
+    }
+
+    /**
+     * put tokens starting from start position in a compound token of specified type
+     */
+    template<typename T, typename... Args>
+    std::enable_if_t<std::is_base_of_v<CSTToken, T>>
+    compound(unsigned int start, Args&&... args) {
+        tokens.emplace_back(std::make_unique<T>(take_from(start), std::forward<Args>(args)...));
+    }
+
+    /**
      * check if there's a new line at current position
      * @return true if there's a newline otherwise false
      */
@@ -538,7 +566,7 @@ public:
      * This just calls the diagnostic method above giving it the position
      */
     inline void diagnostic(unsigned int position, const std::string &message, DiagSeverity severity) {
-        auto token = tokens[position].get();
+        auto token = tokens[position]->start_token();
         auto &pos = token->position;
         diagnostic({pos.line, pos.character + token->length()}, message, severity);
     }
@@ -551,7 +579,9 @@ public:
      * @param severity
      */
     inline void diagnostic(const std::string &message, DiagSeverity severity) {
-        diagnostic(tokens.size() - 1, message + " got \"" + tokens[tokens.size() - 1]->representation() + "\"",
+        std::string rep;
+        tokens[tokens.size() - 1]->end_token()->append_representation(rep);
+        diagnostic(tokens.size() - 1, message + " got \"" + rep + "\"",
                    severity);
     }
 

@@ -46,15 +46,18 @@ public:
     }
 
     std::string type_string() const override {
-        return "Macro:" + representation();
+        std::string rep("Macro:");
+        append_representation(rep);
+        return rep;
     }
 
-    std::string representation() const override {
+    void append_representation(std::string &rep) const override {
         if(isAnnotation) {
-            return "@" + name;
+            rep.append(1, '@');
         } else {
-            return "#" + name;
+            rep.append(1, '#');
         }
+        rep.append(name);
     }
 
     std::string content() const override {

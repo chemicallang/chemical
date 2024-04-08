@@ -20,6 +20,10 @@ class Codegen;
 
 #endif
 
+#ifdef DEBUG
+#include <iostream>
+#endif
+
 class FunctionDeclaration;
 
 class InterfaceDefinition;

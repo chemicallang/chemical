@@ -17,7 +17,7 @@ public:
 
     std::string value;
 
-    AbstractStringToken(const Position& position, std::string value) : LexToken(position), value(std::move(value)) {
+    AbstractStringToken(const Position &position, std::string value) : LexToken(position), value(std::move(value)) {
         value.shrink_to_fit();
     }
 
@@ -39,8 +39,8 @@ public:
     }
 #endif
 
-    std::string representation() const override {
-        return this->value;
+    void append_representation(std::string &rep) const override {
+        rep.append(value);
     }
 
     [[nodiscard]] std::string content() const override {

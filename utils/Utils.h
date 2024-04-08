@@ -9,10 +9,10 @@
 #include <memory>
 #include <vector>
 #include <unordered_map>
-#include "lexer/model/tokens/LexToken.h"
+#include "cst/base/CSTToken.h"
 
-void printToken(LexToken *token);
+void printToken(CSTToken *token);
 
-void printTokens(const std::vector<std::unique_ptr<LexToken>> &lexed);
+void printTokens(const std::vector<std::unique_ptr<CSTToken>> &lexed);
 
-void printTokens(const std::vector<std::unique_ptr<LexToken>> &lexed, const std::unordered_map<unsigned int, unsigned int> &linked);
+void printTokens(const std::vector<std::unique_ptr<CSTToken>> &lexed, const std::unordered_map<unsigned int, unsigned int> &linked);

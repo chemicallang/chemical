@@ -42,6 +42,10 @@
 #include "lexer/model/tokens/OperationToken.h"
 #include "lexer/model/tokens/VariableToken.h"
 #include "lexer/model/tokens/BoolToken.h"
+#include "ast/statements/Import.h"
+#include "cst/statements/ImportCST.h"
+#include "ast/statements/Return.h"
+#include "cst/statements/ReturnCST.h"
 
 inline std::string str_token(std::vector<std::unique_ptr<CSTToken>> &tokens, unsigned int index) {
     return static_cast<AbstractStringToken *>(tokens[index].get())->value;
@@ -156,7 +160,7 @@ void CSTConverter::visit(FunctionCST *function) {
         i++;
     }
 
-    if(char_op(function->tokens[i + 1].get()) == ':') {
+    if (char_op(function->tokens[i + 1].get()) == ':') {
         function->tokens[i + 2]->accept(this);
         i += 2;
     }
@@ -166,14 +170,18 @@ void CSTConverter::visit(FunctionCST *function) {
         returnType.emplace(std::make_unique<VoidType>());
     }
 
+    auto funcDecl = new FunctionDeclaration(function->func_name(), std::move(params),
+                                            std::move(returnType.value()), isVariadic,
+                                            LoopScope{});
+    nodes.emplace_back(std::unique_ptr<FunctionDeclaration>(funcDecl));
+
     auto prev_nodes = std::move(nodes);
     visit(function->tokens, i);
-    auto body = LoopScope(std::move(nodes));
+    current_func_decl = funcDecl;
+    funcDecl->body->nodes = std::move(nodes);
     nodes = std::move(prev_nodes);
 
-    nodes.emplace_back(std::make_unique<FunctionDeclaration>(function->func_name(), std::move(params),
-                                                             std::move(returnType.value()), isVariadic,
-                                                             std::move(body)));
+
 }
 
 void CSTConverter::visit(VarInitCST *varInit) {
@@ -196,6 +204,16 @@ void CSTConverter::visit(AssignmentCST *assignment) {
             (assignment->tokens[1]->type() == LexTokenType::Operation)
             ? ((OperationToken *) assignment->tokens[1].get())->op : Operation::Assignment
     ));
+}
+
+void CSTConverter::visit(ImportCST *cst) {
+    std::vector<std::string> ids;
+    nodes.emplace_back(std::make_unique<ImportStatement>(str_token(cst->tokens, 1), ids));
+}
+
+void CSTConverter::visit(ReturnCST *cst) {
+    visit(cst->tokens, 1);
+    nodes.emplace_back(std::make_unique<ReturnStatement>(opt_value(), current_func_decl));
 }
 
 void CSTConverter::visit(TypeToken *token) {
@@ -271,7 +289,8 @@ void CSTConverter::visit(ExpressionCST *expr) {
     visit(expr->tokens, 0);
     auto second = value();
     auto first = value();
-    values.emplace_back(std::make_unique<Expression>(std::move(first), std::move(second), ((OperationToken *) expr->tokens[1].get())->op));
+    values.emplace_back(std::make_unique<Expression>(std::move(first), std::move(second),
+                                                     ((OperationToken *) expr->tokens[1].get())->op));
 }
 
 void CSTConverter::visit(VariableToken *token) {

@@ -29,8 +29,10 @@ bool Lexer::lexImportStatement() {
     if (!lexKeywordToken("import")) {
         return false;
     }
+    unsigned int start = tokens.size() - 1;
     lexWhitespaceToken();
     if (lexStringToken()) {
+        compound_from<ImportCST>(start);
         return true;
     } else {
         if (lexIdentifierToken(false) || lexImportIdentifierList()) {
@@ -46,7 +48,7 @@ bool Lexer::lexImportStatement() {
         } else {
             error("expected a string path in import statement or identifier(s) after the 'import' keyword");
         }
+        compound_from<ImportCST>(start);
     }
-    compound<ImportCST>();
     return true;
 }

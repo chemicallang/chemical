@@ -8,11 +8,14 @@
 #include "lexer/model/tokens/FunctionToken.h"
 #include "lexer/model/tokens/ParameterToken.h"
 #include "cst/structures/FunctionCST.h"
+#include "cst/statements/ReturnCST.h"
 
 bool Lexer::lexReturnStatement() {
     if(lexKeywordToken("return")) {
+        unsigned int start = tokens.size() - 1;
         lexWhitespaceToken();
         lexExpressionTokens(true);
+        compound_from<ReturnCST>(start);
         return true;
     } else {
         return false;
@@ -25,6 +28,7 @@ void Lexer::lexParameterList(bool optionalTypes) {
         lexWhitespaceToken();
         auto name = lexIdentifier();
         if(!name.empty()) {
+            unsigned int start = tokens.size();
             tokens.emplace_back(std::make_unique<ParameterToken>(backPosition(name.length()), name));
             lexWhitespaceToken();
             if(lexOperatorToken(':')) {
@@ -42,7 +46,7 @@ void Lexer::lexParameterList(bool optionalTypes) {
                             break;
                         }
                     }
-                    compound<FunctionParamCST>();
+                    compound_from<FunctionParamCST>(start);
                 } else {
                     error("missing a type token for the function parameter, expected type after the colon");
                     return;

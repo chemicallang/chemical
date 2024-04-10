@@ -5,6 +5,7 @@
 //
 
 #include "lexer/Lexer.h"
+#include "cst/structures/ForLoopCST.h"
 
 bool Lexer::lexContinueStatement() {
     return lexKeywordToken("continue");
@@ -19,6 +20,8 @@ bool Lexer::lexForBlockTokens() {
     if (!lexKeywordToken("for")) {
         return false;
     }
+
+    unsigned start = tokens.size() - 1;
 
     // whitespace
     lexWhitespaceToken();
@@ -70,6 +73,8 @@ bool Lexer::lexForBlockTokens() {
     }
     isLexContinueStatement = false;
     isLexBreakStatement = false;
+
+    compound_from<ForLoopCST>(start);
 
     return true;
 

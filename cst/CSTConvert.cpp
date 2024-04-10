@@ -54,6 +54,13 @@
 #include "ast/statements/Return.h"
 #include "cst/statements/ReturnCST.h"
 #include "ast/types/GenericType.h"
+#include "ast/structures/ForLoop.h"
+#include "cst/structures/ForLoopCST.h"
+#include "ast/structures/WhileLoop.h"
+#include "cst/structures/WhileCST.h"
+#include "ast/structures/DoWhileLoop.h"
+#include "cst/structures/DoWhileCST.h"
+#include "cst/base/CSTConverter.h"
 
 inline std::string str_token(std::vector<std::unique_ptr<CSTToken>> &tokens, unsigned int index) {
     return static_cast<AbstractStringToken *>(tokens[index].get())->value;
@@ -244,6 +251,27 @@ void CSTConverter::visit(BodyCST *bodyCst) {
     visit(bodyCst->tokens, 0);
 }
 
+void CSTConverter::visit(ForLoopCST *forLoop) {
+
+}
+
+void CSTConverter::visit(WhileCST *whileCst) {
+    // visiting the condition expression
+    whileCst->tokens[2]->accept(this);
+    // get it
+    auto cond = value();
+    // visit the body
+    auto previous = std::move(nodes);
+    visit(whileCst->tokens, 3);
+    auto body = std::move(nodes);
+    nodes = std::move(previous);
+    nodes.emplace_back(std::make_unique<WhileLoop>(std::move(cond), LoopScope(std::move(body))));
+}
+
+void CSTConverter::visit(DoWhileCST *doWhileCst) {
+
+}
+
 void CSTConverter::visit(PointerTypeCST *cst) {
     visit(cst->tokens, 0);
     types.emplace_back(std::make_unique<PointerType>(type()));
@@ -312,7 +340,7 @@ void CSTConverter::visit(IndexOpCST *op) {
 
 void CSTConverter::visit(AccessChainCST *chain) {
     auto prev_values = std::move(values);
-    visit(chain->tokens, 0);
+    visit(chain->tokens);
     auto ret_chain = std::make_unique<AccessChain>(std::move(values));
     values = std::move(prev_values);
     if (chain->is_node) {
@@ -323,7 +351,7 @@ void CSTConverter::visit(AccessChainCST *chain) {
 }
 
 void CSTConverter::visit(ExpressionCST *expr) {
-    visit(expr->tokens, 0);
+    visit(expr->tokens);
     auto second = value();
     auto first = value();
     values.emplace_back(std::make_unique<Expression>(std::move(first), std::move(second),
@@ -339,11 +367,11 @@ void CSTConverter::visit(BoolToken *token) {
 }
 
 void CSTConverter::visit(NegativeCST *neg) {
-    visit(neg->tokens, 0);
+    visit(neg->tokens);
     values.emplace_back(std::make_unique<NegativeValue>(value()));
 }
 
 void CSTConverter::visit(NotCST *notCst) {
-    visit(notCst->tokens, 0);
+    visit(notCst->tokens);
     values.emplace_back(std::make_unique<NotValue>(value()));
 }

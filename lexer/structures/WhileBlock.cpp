@@ -5,12 +5,15 @@
 //
 
 #include "lexer/Lexer.h"
+#include "cst/structures/WhileCST.h"
 
 bool Lexer::lexWhileBlockTokens() {
 
     if(!lexKeywordToken("while")) {
         return false;
     }
+
+    auto start = tokens.size() - 1;
 
     lexWhitespaceToken();
 
@@ -39,6 +42,8 @@ bool Lexer::lexWhileBlockTokens() {
     }
     isLexContinueStatement = prevLexContinue;
     isLexBreakStatement = prevLexBreak;
+
+    compound_from<WhileCST>(start);
 
     return true;
 

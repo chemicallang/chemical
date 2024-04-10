@@ -68,7 +68,7 @@ bool Lexer::lexAccessChainAfterId(bool lexStruct) {
     }
 
     while (lexOperatorToken('[')) {
-        unsigned start = tokens.size() - 1;
+        unsigned start = tokens.size() - 2;
         lexWhitespaceToken();
         if (!lexExpressionTokens()) {
             error("expected an expression in indexing operators for access chain");

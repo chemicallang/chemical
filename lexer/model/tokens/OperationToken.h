@@ -46,7 +46,7 @@ public:
 
     [[nodiscard]] std::string type_string() const override {
         std::string ret;
-        ret.append("Operator:");
+        ret.append("Operation:");
         ret.append(to_string(op));
         return ret;
     }

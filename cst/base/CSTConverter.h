@@ -82,7 +82,7 @@ public:
     /**
      * A helper function to visit the tokens starting at start
      */
-    void visit(std::vector<std::unique_ptr<CSTToken>> &tokens, unsigned int start) {
+    void visit(std::vector<std::unique_ptr<CSTToken>> &tokens, unsigned int start = 0) {
         visit(tokens, start, tokens.size());
     }
 
@@ -143,6 +143,12 @@ public:
     void visit(ReturnCST *returnCst) override;
 
     void visit(BodyCST *bodyCst) override;
+
+    void visit(ForLoopCST *forLoop) override;
+
+    void visit(WhileCST *whileCst) override;
+
+    void visit(DoWhileCST *doWhileCst) override;
 
     // Types
 

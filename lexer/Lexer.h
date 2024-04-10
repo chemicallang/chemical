@@ -113,7 +113,7 @@ public:
      * consumes a identifier token
      * @return true if identifier is not empty, false if it is
      */
-    bool storeIdentifier(const std::string &identifier, bool access);
+    bool storeIdentifier(const std::string &identifier);
 
     /**
      * lex an identifier token into tokens until the until character occurs
@@ -121,8 +121,8 @@ public:
      * @param access is this token being lexed in an access statement instead of assignment
      * @return
      */
-    inline bool lexIdentifierToken(bool access) {
-        return storeIdentifier(lexIdentifier(), access);
+    inline bool lexIdentifierToken() {
+        return storeIdentifier(lexIdentifier());
     }
 
     /**
@@ -130,22 +130,24 @@ public:
      * we call this method to lex an access chain after it
      * identifier .element1.element2.element3
      * this is the method called by lexAccessChain after finding a identifier
+     * @param assChain is the access chain in an assignment
      */
-    bool lexAccessChainAfterId(bool access, bool lexStruct = false);
+    bool lexAccessChainAfterId(bool lexStruct = false);
 
     /**
      * this method does not compound the access chain, so can be called recursively
      * this method is called by lexAccessChain to not compound access chains nested in it
+     * @param assChain is the access chain in an assignment
      */
-    bool lexAccessChainRecursive(bool access, bool lexStruct = false);
+    bool lexAccessChainRecursive(bool lexStruct = false);
 
     /**
      * this lexes an access chain like x.y.z or just simply an identifier
-     * @param access is this token being lexed in an access statement instead of assignment
+     * @param assChain is the access chain in an assignment
      * @param lexStruct also lex a struct if found -> StructName { v1, v2 }
      * @return
      */
-    bool lexAccessChain(bool access, bool lexStruct = false);
+    bool lexAccessChain(bool lexStruct = false);
 
     /**
      * lex allowDeclarations or initialization tokens

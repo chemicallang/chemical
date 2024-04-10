@@ -132,6 +132,6 @@ std::string FunctionCall::representation() const {
         }
         i++;
     }
-    rep.append(");");
+    rep.append(1, ')');
     return rep;
 }

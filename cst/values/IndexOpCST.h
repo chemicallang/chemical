@@ -4,18 +4,13 @@
 
 #include "cst/base/CompoundCSTToken.h"
 
-class AccessChainCST : public CompoundCSTToken {
+class IndexOpCST : public CompoundCSTToken {
 public:
-
-    /**
-     * this means that Access chain is not nested as a value
-     */
-    bool is_node = false;
 
     /**
      * constructor
      */
-    AccessChainCST(std::vector<std::unique_ptr<CSTToken>> tokens) : CompoundCSTToken(std::move(tokens)) {
+    IndexOpCST(std::vector<std::unique_ptr<CSTToken>> tokens) : CompoundCSTToken(std::move(tokens)) {
 
     }
 
@@ -26,7 +21,7 @@ public:
 #ifdef DEBUG
 
     std::string compound_type_string() const override {
-        return "AccessChainCST";
+        return "IndexOpCST";
     }
 
 #endif

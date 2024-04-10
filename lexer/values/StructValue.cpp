@@ -9,7 +9,7 @@ bool Lexer::lexStructValueTokens() {
         do {
             lexWhitespaceAndNewLines();
             auto identifier = lexIdentifier();
-            if(storeIdentifier(identifier, false)) {
+            if(storeIdentifier(identifier)) {
                 lexWhitespaceToken();
                 if(!lexOperatorToken(':')) {
                     error("expected a ':' for initializing struct member " + identifier);

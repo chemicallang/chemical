@@ -2,6 +2,7 @@
 
 #include "lexer/Lexer.h"
 #include "cst/statements/AssignmentCST.h"
+#include "cst/values/AccessChainCST.h"
 
 bool Lexer::lexLanguageOperatorToken() {
     return lexOperatorToken('+', Operation::Addition) ||
@@ -40,7 +41,7 @@ bool Lexer::lexAssignmentOperatorToken() {
 
 bool Lexer::lexAssignmentTokens() {
 
-    if(!lexAccessChain(true)) {
+    if(!lexAccessChain()) {
         return false;
     }
 
@@ -48,6 +49,7 @@ bool Lexer::lexAssignmentTokens() {
 
     // increment or decrement
     if (lexOperatorToken("++", Operation::PostfixIncrement) || lexOperatorToken("--", Operation::PostfixDecrement)) {
+        ((AccessChainCST*) tokens[start].get())->is_node = true;
         return true;
     }
 
@@ -63,6 +65,7 @@ bool Lexer::lexAssignmentTokens() {
         if(assOp) {
             error("expected an equal for assignment after the assignment operator");
         }
+        ((AccessChainCST*) tokens[start].get())->is_node = true;
         return true;
     }
 

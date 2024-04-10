@@ -11,30 +11,12 @@
 class VariableToken : public AbstractStringToken {
 public:
 
-    bool access;
-
-    VariableToken(const Position& position, std::string identifier, bool access) : AbstractStringToken(position, std::move(identifier)), access(access) {
+    VariableToken(const Position& position, std::string identifier) : AbstractStringToken(position, std::move(identifier)) {
 
     }
 
     void accept(CSTVisitor *visitor) override {
         visitor->visit(this);
-    }
-
-    std::optional<std::string> resolution_identifier() override {
-        if(access) {
-            return value;
-        } else {
-            return std::nullopt;
-        }
-    }
-
-    std::optional<std::string> declaration_identifier() override {
-        if(access) {
-            return std::nullopt;
-        } else {
-            return value;
-        }
     }
 
     LexTokenType type() const override {

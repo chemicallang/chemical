@@ -58,6 +58,10 @@ class CastCST;
 
 class ExpressionCST;
 
+class FunctionCallCST;
+
+class IndexOpCST;
+
 class NegativeCST;
 
 class NotCST;
@@ -209,6 +213,14 @@ public:
 
     virtual void visit(ExpressionCST *expressionCst) {
         visitCompoundCommon((CompoundCSTToken *) expressionCst);
+    }
+
+    virtual void visit(FunctionCallCST *call) {
+        visitCompoundCommon((CompoundCSTToken *) call);
+    }
+
+    virtual void visit(IndexOpCST *op) {
+        visitCompoundCommon((CompoundCSTToken *) op);
     }
 
     virtual void visit(NegativeCST *negativeCst) {

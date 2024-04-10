@@ -168,6 +168,10 @@ public:
 
     void visit(ArrayValueCST *arrayValue) override;
 
+    void visit(FunctionCallCST *call) override;
+
+    void visit(IndexOpCST *op) override;
+
     void visit(VariableToken *token) override;
 
     void visit(BoolToken *token) override;

@@ -23,6 +23,8 @@
 #include "cst/types/GenericTypeCST.h"
 #include "cst/statements/AssignmentCST.h"
 #include "cst/values/NegativeCST.h"
+#include "cst/values/FunctionCallCST.h"
+#include "cst/values/IndexOpCST.h"
 #include "cst/values/NotCST.h"
 #include "ast/statements/Assignment.h"
 #include "cst/types/FunctionTypeCST.h"
@@ -36,6 +38,8 @@
 #include "ast/values/BoolValue.h"
 #include "ast/values/DoubleValue.h"
 #include "ast/values/AccessChain.h"
+#include "ast/values/FunctionCall.h"
+#include "ast/values/IndexOperator.h"
 #include "ast/values/IntValue.h"
 #include "ast/values/Negative.h"
 #include "ast/values/NotValue.h"
@@ -296,12 +300,26 @@ void CSTConverter::visit(ArrayValueCST *arrayValue) {
 
 }
 
+void CSTConverter::visit(FunctionCallCST *call) {
+    visit(call->tokens, 1);
+    values.emplace_back(std::make_unique<FunctionCall>(str_token(call->tokens, 0), std::move(values)));
+}
+
+void CSTConverter::visit(IndexOpCST *op) {
+    visit(op->tokens, 1);
+    values.emplace_back(std::make_unique<IndexOperator>(str_token(op->tokens, 0), value()));
+}
+
 void CSTConverter::visit(AccessChainCST *chain) {
     auto prev_values = std::move(values);
     visit(chain->tokens, 0);
     auto ret_chain = std::make_unique<AccessChain>(std::move(values));
     values = std::move(prev_values);
-    values.push_back(std::move(ret_chain));
+    if (chain->is_node) {
+        nodes.push_back(std::move(ret_chain));
+    } else {
+        values.push_back(std::move(ret_chain));
+    }
 }
 
 void CSTConverter::visit(ExpressionCST *expr) {

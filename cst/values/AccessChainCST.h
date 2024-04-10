@@ -8,6 +8,11 @@ class AccessChainCST : public CompoundCSTToken {
 public:
 
     /**
+     * this means that Access chain is not nested as a value
+     */
+    bool is_node = false;
+
+    /**
      * constructor
      */
     AccessChainCST(std::vector<std::unique_ptr<CSTToken>> tokens) : CompoundCSTToken(std::move(tokens)) {

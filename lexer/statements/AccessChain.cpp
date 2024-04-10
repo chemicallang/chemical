@@ -8,25 +8,27 @@
 #include "lexer/model/tokens/CharOperatorToken.h"
 #include "lexer/model/tokens/VariableToken.h"
 #include "cst/values/AccessChainCST.h"
+#include "cst/values/FunctionCallCST.h"
+#include "cst/values/IndexOpCST.h"
 
-bool Lexer::storeIdentifier(const std::string& identifier, bool access) {
+bool Lexer::storeIdentifier(const std::string& identifier) {
     if (!identifier.empty()) {
-        tokens.emplace_back(std::make_unique<VariableToken>(backPosition(identifier.length()), identifier, access));
+        tokens.emplace_back(std::make_unique<VariableToken>(backPosition(identifier.length()), identifier));
         return true;
     } else {
         return false;
     }
 }
 
-bool Lexer::lexAccessChain(bool access, bool lexStruct) {
+bool Lexer::lexAccessChain(bool lexStruct) {
 
-    if (!lexIdentifierToken(access)) {
+    if (!lexIdentifierToken()) {
         return false;
     }
 
     auto start = tokens.size() - 1;
 
-    lexAccessChainAfterId(access, lexStruct);
+    lexAccessChainAfterId(lexStruct);
 
     compound_from<AccessChainCST>(start);
 
@@ -34,14 +36,14 @@ bool Lexer::lexAccessChain(bool access, bool lexStruct) {
 
 }
 
-bool Lexer::lexAccessChainRecursive(bool access, bool lexStruct) {
-    if (!lexIdentifierToken(access)) {
+bool Lexer::lexAccessChainRecursive(bool lexStruct) {
+    if (!lexIdentifierToken()) {
         return false;
     }
-    return lexAccessChainAfterId(access, lexStruct);
+    return lexAccessChainAfterId(lexStruct);
 }
 
-bool Lexer::lexAccessChainAfterId(bool access, bool lexStruct) {
+bool Lexer::lexAccessChainAfterId(bool lexStruct) {
 
     if(lexStruct) {
         lexWhitespaceToken();
@@ -51,6 +53,7 @@ bool Lexer::lexAccessChainAfterId(bool access, bool lexStruct) {
     }
 
     if (lexOperatorToken('(')) {
+        unsigned start = tokens.size() - 2;
         do {
             lexWhitespaceToken();
             if(!lexExpressionTokens()) {
@@ -61,9 +64,11 @@ bool Lexer::lexAccessChainAfterId(bool access, bool lexStruct) {
         if(!lexOperatorToken(')')) {
             error("expected a ')' for a function call, after starting ')'");
         }
+        compound_from<FunctionCallCST>(start);
     }
 
     while (lexOperatorToken('[')) {
+        unsigned start = tokens.size() - 1;
         lexWhitespaceToken();
         if (!lexExpressionTokens()) {
             error("expected an expression in indexing operators for access chain");
@@ -74,10 +79,11 @@ bool Lexer::lexAccessChainAfterId(bool access, bool lexStruct) {
             error("expected a closing bracket ] in access chain");
             return true;
         }
+        compound_from<IndexOpCST>(start);
     }
 
     while (lexOperatorToken('.')) {
-        if (!lexAccessChainRecursive(access, false)) {
+        if (!lexAccessChainRecursive(false)) {
             error("expected a identifier after the dot . in the access chain");
             return true;
         }

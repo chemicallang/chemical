@@ -7,7 +7,7 @@
 void Lexer::lexIdentifierList() {
     do {
         lexWhitespaceAndNewLines();
-        if (!lexIdentifierToken(false)) {
+        if (!lexIdentifierToken()) {
             break;
         }
         lexWhitespaceToken();

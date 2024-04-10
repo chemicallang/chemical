@@ -179,8 +179,8 @@ public:
         visitCompoundCommon((CompoundCSTToken *) whileCst);
     }
 
-    virtual void visit(ForLoopCST *whileCst) {
-        visitCompoundCommon((CompoundCSTToken *) whileCst);
+    virtual void visit(ForLoopCST *forLoop) {
+        visitCompoundCommon((CompoundCSTToken *) forLoop);
     }
 
     virtual void visit(ArrayTypeCST *arrayType) {

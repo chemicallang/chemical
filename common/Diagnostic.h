@@ -5,19 +5,7 @@
 #include <optional>
 #include <string>
 #include <vector>
-
-class Position {
-public:
-
-    // line and character correspond to position in the source file
-    unsigned int line, character;
-
-    // representation of the position
-    std::string representation() const {
-        return std::to_string(line) + ':' + std::to_string(character);
-    }
-
-};
+#include "Position.h"
 
 class Range {
 public:

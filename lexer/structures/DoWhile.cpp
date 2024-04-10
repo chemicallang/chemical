@@ -5,12 +5,15 @@
 //
 
 #include "lexer/Lexer.h"
+#include "cst/structures/DoWhileCST.h"
 
 bool Lexer::lexDoWhileBlockTokens() {
 
     if(!lexKeywordToken("do")) {
         return false;
     }
+
+    unsigned start = tokens.size() - 1;
 
     // { statement(s) } with continue & break support
     isLexContinueStatement = true;
@@ -44,6 +47,8 @@ bool Lexer::lexDoWhileBlockTokens() {
         error("expected a closing parenthesis ) for while block");
         return true;
     }
+
+    compound_from<DoWhileCST>(start);
 
     return true;
 

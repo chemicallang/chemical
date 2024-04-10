@@ -11,6 +11,7 @@
 #include "ast/base/GlobalInterpretScope.h"
 #include "compiler/Codegen.h"
 #include "utils/CmdUtils.h"
+#include "cst/base/CSTConverter.h"
 #include <filesystem>
 
 int chemical_clang_main(int argc, char **argv);

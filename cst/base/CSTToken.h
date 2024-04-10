@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CSTConverter.h"
 #include "CSTVisitor.h"
 #include "lexer/model/LexTokenType.h"
 #include <string>

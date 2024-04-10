@@ -137,4 +137,8 @@ public:
 
     void visit(ExpressionCST *expressionCst) override;
 
+    void visit(NegativeCST *negativeCst) override;
+
+    void visit(NotCST *notCst) override;
+
 };

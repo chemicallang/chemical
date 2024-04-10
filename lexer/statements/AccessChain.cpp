@@ -23,6 +23,12 @@ bool Lexer::lexAccessChain(bool access, bool lexStruct) {
         return false;
     }
 
+    return lexAccessChainAfterId(access, lexStruct);
+
+}
+
+bool Lexer::lexAccessChainAfterId(bool access, bool lexStruct) {
+
     if(lexStruct) {
         lexWhitespaceToken();
         if(provider.peek() == '{') {

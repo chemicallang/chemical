@@ -24,6 +24,10 @@ public:
         return false;
     }
 
+    void accept(CSTVisitor *visitor) override {
+        visitor->visit(this);
+    }
+
     LexTokenType type() const override {
         return LexTokenType::Number;
     }

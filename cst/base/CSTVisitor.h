@@ -88,6 +88,10 @@ class OperationToken;
 
 class StringToken;
 
+class NumberToken;
+
+class VariableToken;
+
 class LexUserToken;
 
 class CSTVisitor {
@@ -256,6 +260,14 @@ public:
     virtual void visit(StringToken *token) {
         visitLexTokenCommon((LexToken *) token);
     };
+
+    virtual void visit(NumberToken *token) {
+        visitStringCommon((AbstractStringToken *) token);
+    };
+
+    virtual void visit(VariableToken *token) {
+        visitStringCommon((AbstractStringToken *) token);
+    }
 
     virtual void visit(LexUserToken *token) {
         visitLexTokenCommon((LexToken *) token);

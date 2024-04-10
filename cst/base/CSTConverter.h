@@ -91,14 +91,32 @@ public:
 
     void visit(VarInitCST *varInit) override;
 
-    void visit(TypeToken *token) override;
+    void visit(AssignmentCST *assignment) override;
 
     void visit(BodyCST *bodyCst) override;
+
+    // Types
+
+    void visit(TypeToken *token) override;
 
     void visit(GenericTypeCST *genericType) override;
 
     void visit(ArrayTypeCST *arrayType) override;
 
     void visit(FunctionTypeCST *functionType) override;
+
+    // Values
+
+    void visit(StringToken *token) override;
+
+    void visit(CharToken *token) override;
+
+    void visit(NumberToken *token) override;
+
+    void visit(StructValueCST *structValueCst) override;
+
+    void visit(ArrayValueCST *arrayValue) override;
+
+    void visit(VariableToken *token) override;
 
 };

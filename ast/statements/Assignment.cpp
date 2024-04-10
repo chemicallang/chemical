@@ -20,7 +20,7 @@ void AssignStatement::code_gen(Codegen &gen) {
 #endif
 
 AssignStatement::AssignStatement(
-        std::unique_ptr<AccessChain> lhs,
+        std::unique_ptr<Value> lhs,
         std::unique_ptr<Value> value,
         Operation assOp
 ) : lhs(std::move(lhs)), value(std::move(value)), assOp(assOp) {}
@@ -30,7 +30,7 @@ void AssignStatement::accept(Visitor &visitor) {
 }
 
 void AssignStatement::declare_and_link(SymbolResolver &linker) {
-    lhs->declare_and_link(linker);
+    lhs->link(linker);
     value->link(linker);
 }
 

@@ -10,7 +10,6 @@
 
 #include "ast/base/ASTNode.h"
 #include "ast/base/Value.h"
-#include "ast/values/AccessChain.h"
 #include "ast/utils/Operation.h"
 
 class AssignStatement : public ASTNode {
@@ -23,7 +22,7 @@ public:
      * @param value The value being assigned to the identifier.
      */
     AssignStatement(
-            std::unique_ptr<AccessChain> lhs,
+            std::unique_ptr<Value> lhs,
             std::unique_ptr<Value> value,
             Operation assOp
     );
@@ -43,7 +42,7 @@ public:
     std::string representation() const override;
 
 private:
-    std::unique_ptr<AccessChain> lhs;
+    std::unique_ptr<Value> lhs;
     std::unique_ptr<Value> value;
     InterfaceDefinition* definition;
     Operation assOp;

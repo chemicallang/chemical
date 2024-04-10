@@ -128,6 +128,13 @@ public:
     }
 
     /**
+     * after an identifier has been consumed
+     * we call this method to lex an access chain after it
+     * identifier .element1.element2.element3
+     */
+    bool lexAccessChainAfterId(bool access, bool lexStruct = false);
+
+    /**
      * this lexes an access chain like x.y.z or just simply an identifier
      * @param access is this token being lexed in an access statement instead of assignment
      * @param lexStruct also lex a struct if found -> StructName { v1, v2 }

@@ -1,6 +1,7 @@
 // Copyright (c) Qinetik 2024.
 
 #include "lexer/Lexer.h"
+#include "cst/statements/AssignmentCST.h"
 
 bool Lexer::lexLanguageOperatorToken() {
     return lexOperatorToken('+', Operation::Addition) ||
@@ -39,10 +40,13 @@ bool Lexer::lexAssignmentOperatorToken() {
 
 bool Lexer::lexAssignmentTokens() {
 
-    // lex an identifier token
-    if (!lexAccessChain(true, true)) {
+    if(!lexIdentifierToken(true)) {
         return false;
     }
+
+    unsigned start = tokens.size() - 1;
+
+    lexAccessChainAfterId(true, true);
 
     // increment or decrement
     if (lexOperatorToken("++", Operation::PostfixIncrement) || lexOperatorToken("--", Operation::PostfixDecrement)) {
@@ -71,6 +75,10 @@ bool Lexer::lexAssignmentTokens() {
     if (!(lexExpressionTokens(true) || lexArrayInit())) {
         error("expected a value for variable assignment");
         return true;
+    }
+
+    if(isCST()) {
+        compound<AssignmentCST>(start);
     }
 
     return true;

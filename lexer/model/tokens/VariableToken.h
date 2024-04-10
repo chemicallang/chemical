@@ -17,6 +17,10 @@ public:
 
     }
 
+    void accept(CSTVisitor *visitor) override {
+        visitor->visit(this);
+    }
+
     std::optional<std::string> resolution_identifier() override {
         if(access) {
             return value;

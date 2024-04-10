@@ -17,6 +17,10 @@ public:
         value.shrink_to_fit();
     }
 
+    void accept(CSTVisitor *visitor) override {
+        visitor->visit(this);
+    }
+
     unsigned int length() const override {
         // 2 is added because the token start has // and then comment which is value
         return value.length() + 2;

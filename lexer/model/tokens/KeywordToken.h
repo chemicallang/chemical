@@ -8,21 +8,15 @@
 
 #include "LexToken.h"
 
-class KeywordToken : public LexToken {
+class KeywordToken : public AbstractStringToken {
 public:
 
-    std::string keyword;
-
-    KeywordToken(const Position& position, std::string keyword) : LexToken(position), keyword(std::move(keyword)) {
+    KeywordToken(const Position& position, std::string keyword) : AbstractStringToken(position, std::move(keyword)) {
         keyword.shrink_to_fit();
     }
 
     LexTokenType type() const override {
         return LexTokenType::Keyword;
-    }
-
-    unsigned int length() const override {
-        return keyword.length();
     }
 
 #ifdef LSP_BUILD
@@ -31,13 +25,9 @@ public:
     }
 #endif
 
-    void append_representation(std::string &rep) const override {
-        rep.append(keyword);
-    }
-
     [[nodiscard]] std::string type_string() const override {
         std::string buf("Keyword:");
-        buf.append(this->keyword);
+        buf.append(this->value);
         return buf;
     }
 

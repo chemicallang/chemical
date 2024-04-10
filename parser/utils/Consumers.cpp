@@ -66,7 +66,7 @@ std::optional<char> Parser::get_op_token() {
 
 std::optional<std::string> Parser::get_str_op_token() {
     if (position < tokens.size() && tokens[position]->type() == LexTokenType::StringOperator) {
-        return as<StringOperatorToken>()->op;
+        return as<StringOperatorToken>()->value;
     }
     return std::nullopt;
 }
@@ -93,7 +93,7 @@ bool Parser::consume_op(const std::string& token) {
 
 bool Parser::consume(const std::string &keyword) {
     if (tokens.size() != position && tokens[position]->type() == LexTokenType::Keyword &&
-        as<KeywordToken>()->keyword == keyword) {
+        as<KeywordToken>()->value == keyword) {
         position++;
         return true;
     } else {
@@ -104,10 +104,10 @@ bool Parser::consume(const std::string &keyword) {
 KeywordToken* Parser::consume(const std::string &keyword, bool errorOut) {
     if (tokens.size() != position) {
         if (tokens[position]->type() == LexTokenType::Keyword) {
-            if (as<KeywordToken>()->keyword == keyword) {
+            if (as<KeywordToken>()->value == keyword) {
                 return consume<KeywordToken>();
             } else if (errorOut) {
-                error("expected a '" + keyword + "' keyword, got " + as<KeywordToken>()->keyword);
+                error("expected a '" + keyword + "' keyword, got " + as<KeywordToken>()->value);
             }
         } else if (errorOut) {
             error("expected a " + toTypeString(LexTokenType::Keyword) + " token, got " +

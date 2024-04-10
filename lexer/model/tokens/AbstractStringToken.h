@@ -21,8 +21,16 @@ public:
         value.shrink_to_fit();
     }
 
+    bool is_abs_string() override {
+        return true;
+    }
+
     unsigned int length() const override {
         return value.length();
+    }
+
+    void accept(CSTVisitor *visitor) override {
+        visitor->visitStringCommon(this);
     }
 
 #ifdef LSP_BUILD

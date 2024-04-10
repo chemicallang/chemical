@@ -29,6 +29,10 @@ public:
         return LexTokenType::CharOperator;
     }
 
+    void accept(CSTVisitor *visitor) override {
+        visitor->visit(this);
+    }
+
 #ifdef LSP_BUILD
     [[nodiscard]] SemanticTokenType lspType() const override {
         return SemanticTokenType::ls_operator;

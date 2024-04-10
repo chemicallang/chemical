@@ -5,6 +5,7 @@
 //
 
 #include "lexer/Lexer.h"
+#include "cst/structures/BodyCST.h"
 
 void Lexer::lexNestedLevelMultipleStatementsTokens() {
 
@@ -46,6 +47,8 @@ bool Lexer::lexBraceBlock(const std::string& forThing) {
         return false;
     }
 
+    unsigned start = tokens.size() - 1;
+
     // multiple statements
     auto prevImportState = isLexImportStatement;
     isLexImportStatement = false;
@@ -57,6 +60,8 @@ bool Lexer::lexBraceBlock(const std::string& forThing) {
         error("expected a closing brace '}' for [" + forThing + "]");
         return true;
     }
+
+    compound<BodyCST>(start);
 
     return true;
 

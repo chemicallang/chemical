@@ -73,6 +73,13 @@ int main(int argc, char *argv[]) {
     for (const auto &err: lexer.errors) {
         std::cerr << err.representation(srcFilePath, "Lexer") << std::endl;
     }
+    CSTConverter converter;
+    converter.convert(lexer.tokens);
+    for(const auto& err : converter.diagnostics) {
+        std::cerr << err.representation(srcFilePath, "Converter") << std::endl;
+    }
+    Scope scope(std::move(converter.nodes));
+    std::cout << "[Representation]\n" << scope.representation() << std::endl;
 //    auto parser = benchmark.has_value() ? benchParse(std::move(lexer.tokens)) : parse(std::move(lexer.tokens));
 //    for (const auto &err: parser.errors) {
 //        std::cerr << err.representation(srcFilePath, "Parser") << std::endl;

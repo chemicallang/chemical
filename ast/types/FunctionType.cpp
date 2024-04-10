@@ -33,7 +33,19 @@ bool FunctionType::satisfies(ValueType type) const {
 }
 
 std::string FunctionType::representation() const {
-    return "() => " + returnType->representation();
+    std::string rep("(");
+    unsigned i = 0;
+    auto size = params.size();
+    while(i < size) {
+        rep.append(params[i]->representation());
+        if(i < size - 1) {
+            rep.append(", ");
+        }
+        i++;
+    }
+    rep.append(") => ");
+    rep.append(returnType->representation());
+    return rep;
 }
 
 BaseType *FunctionType::copy() const {

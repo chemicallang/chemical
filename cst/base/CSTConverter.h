@@ -14,6 +14,14 @@
 
 class LoopASTNode;
 
+using cst_tokens_ref_type = std::vector<std::unique_ptr<CSTToken>>&;
+
+struct FunctionParamsResult {
+    bool isVariadic;
+    func_params params;
+    unsigned int index;
+};
+
 class CSTConverter : public CSTVisitor {
 public:
 
@@ -105,8 +113,19 @@ public:
      */
     std::optional<std::unique_ptr<BaseType>> opt_type();
 
+    /**
+     * get function params for the given tokens
+     */
+    FunctionParamsResult function_params(cst_tokens_ref_type tokens, unsigned start = 0);
+
+    /**
+     * record an error
+     */
     void error(const std::string &message, CSTToken *start, CSTToken *end, DiagSeverity severity = DiagSeverity::Error);
 
+    /**
+     * record an error
+     */
     void error(const std::string &message, CSTToken *inside, DiagSeverity severity = DiagSeverity::Error);
 
     // nodes
@@ -128,6 +147,8 @@ public:
     // Types
 
     void visit(TypeToken *token) override;
+
+    void visit(PointerTypeCST *pointerType) override;
 
     void visit(GenericTypeCST *genericType) override;
 

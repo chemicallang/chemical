@@ -19,6 +19,8 @@
 #include "cst/types/ArrayTypeCST.h"
 #include "cst/types/GenericTypeCST.h"
 #include "cst/statements/AssignmentCST.h"
+#include "cst/values/NegativeCST.h"
+#include "cst/values/NotCST.h"
 #include "ast/statements/Assignment.h"
 #include "cst/types/FunctionTypeCST.h"
 #include "cst/structures/BodyCST.h"
@@ -32,6 +34,8 @@
 #include "ast/values/DoubleValue.h"
 #include "ast/values/AccessChain.h"
 #include "ast/values/IntValue.h"
+#include "ast/values/Negative.h"
+#include "ast/values/NotValue.h"
 #include "lexer/model/tokens/StringToken.h"
 #include "lexer/model/tokens/CharToken.h"
 #include "ast/values/VariableIdentifier.h"
@@ -276,4 +280,14 @@ void CSTConverter::visit(VariableToken *token) {
 
 void CSTConverter::visit(BoolToken *token) {
     values.emplace_back(std::make_unique<BoolValue>(token->value));
+}
+
+void CSTConverter::visit(NegativeCST *neg) {
+    visit(neg->tokens, 0);
+    values.emplace_back(std::make_unique<NegativeValue>(value()));
+}
+
+void CSTConverter::visit(NotCST *notCst) {
+    visit(notCst->tokens, 0);
+    values.emplace_back(std::make_unique<NotValue>(value()));
 }

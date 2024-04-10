@@ -12,17 +12,11 @@
  * Its named CharOperator because it holds a char, Char has no meaning in terms of syntax
  * The length of this token is always one
  */
-class StringOperatorToken : public LexToken {
+class StringOperatorToken : public AbstractStringToken {
 public:
 
-    std::string op;
-
-    StringOperatorToken(const Position& position, std::string op) : LexToken(position), op(std::move(op)) {
+    StringOperatorToken(const Position& position, std::string op) : AbstractStringToken(position, std::move(op)) {
         op.shrink_to_fit();
-    }
-
-    unsigned int length() const override {
-        return op.size();
     }
 
     LexTokenType type() const override {
@@ -35,19 +29,11 @@ public:
     }
 #endif
 
-    void append_representation(std::string &rep) const override {
-        rep.append(op);
-    }
-
     [[nodiscard]] std::string type_string() const override {
         std::string ret;
         ret.append("Operator:");
-        ret.append(op);
+        ret.append(value);
         return ret;
-    }
-
-    [[nodiscard]] std::string content() const override {
-        return "";
     }
 
 };

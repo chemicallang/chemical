@@ -2,12 +2,15 @@
 
 #pragma once
 
+#include "CSTConverter.h"
+#include "CSTVisitor.h"
 #include <string>
-#include <memory>
 
 class LexToken;
 
 class Position;
+
+class ASTNode;
 
 class CSTToken {
 public:
@@ -27,17 +30,22 @@ public:
     /**
      * get a pointer to the start lex token
      */
-    virtual LexToken* start_token() = 0;
+    virtual LexToken *start_token() = 0;
 
     /**
      * get a pointer to the end lex token
      */
-    virtual LexToken* end_token() = 0;
+    virtual LexToken *end_token() = 0;
 
     /**
      * every token must append its representation to this string
      */
     virtual void append_representation(std::string &rep) const = 0;
+
+    /**
+     * implement the visitor pattern
+     */
+    virtual void accept(CSTVisitor *visitor) = 0;
 
 #ifdef DEBUG
 

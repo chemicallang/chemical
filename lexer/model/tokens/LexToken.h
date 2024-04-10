@@ -91,6 +91,10 @@ public:
         return false;
     }
 
+    virtual bool is_abs_string() {
+        return false;
+    }
+
     LexToken *start_token() override {
         return this;
     }

@@ -14,6 +14,10 @@ public:
 
     }
 
+    void accept(CSTVisitor *visitor) override {
+        visitor->visit(this);
+    }
+
     std::string compound_type_string() const override {
         return "FunctionTypeCST";
     }

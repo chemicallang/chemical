@@ -7,22 +7,21 @@
 #pragma once
 
 #include "LexToken.h"
+#include "AbstractStringToken.h"
 
-class TypeToken : public LexToken {
+class TypeToken : public AbstractStringToken {
 public:
 
-    std::string value;
-
-    TypeToken(const Position& position, std::string type) : LexToken(position), value(std::move(type)) {
-        value.shrink_to_fit();
-    }
-
-    unsigned int length() const override {
-        return value.length();
+    TypeToken(const Position &position, std::string type) : AbstractStringToken(position, std::move(type)) {
+        type.shrink_to_fit();
     }
 
     LexTokenType type() const override {
         return LexTokenType::Type;
+    }
+
+    void accept(CSTVisitor *visitor) override {
+        visitor->visit(this);
     }
 
 #ifdef LSP_BUILD
@@ -31,18 +30,10 @@ public:
     }
 #endif
 
-    void append_representation(std::string &rep) const override {
-        rep.append(value);
-    }
-
     [[nodiscard]] std::string type_string() const override {
         std::string buf("Type:");
         buf.append(value);
         return buf;
-    }
-
-    [[nodiscard]] std::string content() const override {
-        return value;
     }
 
 };

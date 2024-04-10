@@ -338,6 +338,11 @@ public:
     bool lexFunctionSignatureTokens();
 
     /**
+     * lex after func keyword has been incremented
+     */
+    bool lexAfterFuncKeyword();
+
+    /**
      * lexes a function block with parameters
      * @param allow_declaration allows a declaration, without body of the function that is
      * @return

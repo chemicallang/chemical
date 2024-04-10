@@ -4,13 +4,13 @@
 
 #include "cst/base/CompoundCSTToken.h"
 
-class PointerTypeCST : public CompoundCSTToken {
+class AccessChainCST : public CompoundCSTToken {
 public:
 
     /**
      * constructor
      */
-    PointerTypeCST(std::vector<std::unique_ptr<CSTToken>> tokens) : CompoundCSTToken(std::move(tokens)) {
+    AccessChainCST(std::vector<std::unique_ptr<CSTToken>> tokens) : CompoundCSTToken(std::move(tokens)) {
 
     }
 
@@ -18,8 +18,12 @@ public:
         visitor->visit(this);
     }
 
+#ifdef DEBUG
+
     std::string compound_type_string() const override {
-        return "PointerTypeCST";
+        return "AccessChainCST";
     }
+
+#endif
 
 };

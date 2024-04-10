@@ -7,6 +7,7 @@
 #include "lexer/Lexer.h"
 #include "lexer/model/tokens/FunctionToken.h"
 #include "lexer/model/tokens/ParameterToken.h"
+#include "cst/structures/FunctionCST.h"
 
 bool Lexer::lexReturnStatement() {
     if(lexKeywordToken("return")) {
@@ -23,12 +24,14 @@ void Lexer::lexParameterList(bool optionalTypes) {
         lexWhitespaceToken();
         auto name = lexIdentifier();
         if(!name.empty()) {
+            unsigned start = tokens.size();
             tokens.emplace_back(std::make_unique<ParameterToken>(backPosition(name.length()), name));
             lexWhitespaceToken();
             if(lexOperatorToken(':')) {
                 lexWhitespaceToken();
                 if(lexTypeTokens()) {
                     if(lexOperatorToken("...")) {
+                        compound<FunctionParamCST>(start);
                         break;
                     }
                     lexWhitespaceToken();
@@ -36,8 +39,10 @@ void Lexer::lexParameterList(bool optionalTypes) {
                         lexWhitespaceToken();
                         if(!lexValueToken()) {
                             error("expected value after '=' for default value for the parameter");
+                            break;
                         }
                     }
+                    compound<FunctionParamCST>(start);
                 } else {
                     error("missing a type token for the function parameter, expected type after the colon");
                     return;
@@ -51,12 +56,7 @@ void Lexer::lexParameterList(bool optionalTypes) {
     } while(lexOperatorToken(','));
 }
 
-bool Lexer::lexFunctionSignatureTokens() {
-
-    if(!lexKeywordToken("func")) {
-        return false;
-    }
-
+bool Lexer::lexAfterFuncKeyword() {
     lexWhitespaceToken();
     std::string name;
     // TODO take it out as a function on provider
@@ -102,11 +102,25 @@ bool Lexer::lexFunctionSignatureTokens() {
 
 }
 
-bool Lexer::lexFunctionStructureTokens(bool allow_declarations) {
+bool Lexer::lexFunctionSignatureTokens() {
 
-    if(!lexFunctionSignatureTokens()) {
+    if(!lexKeywordToken("func")) {
         return false;
     }
+
+    return lexAfterFuncKeyword();
+
+}
+
+bool Lexer::lexFunctionStructureTokens(bool allow_declarations) {
+
+    if(!lexKeywordToken("func")) {
+        return false;
+    }
+
+    unsigned start = tokens.size() - 1;
+
+    lexAfterFuncKeyword();
 
     // inside the block allow return statements
     auto prevReturn = isLexReturnStatement;
@@ -117,7 +131,7 @@ bool Lexer::lexFunctionStructureTokens(bool allow_declarations) {
     isLexReturnStatement = prevReturn;
 
     if(isCST()) {
-
+        compound<FunctionCST>(start);
     }
 
     return true;

@@ -24,6 +24,10 @@ public:
         // nothing
     }
 
+    void accept(CSTVisitor *visitor) override {
+        visitor->visit(this);
+    }
+
 #ifdef LSP_BUILD
     SemanticTokenModifier modifier;
 

@@ -22,6 +22,10 @@ public:
         return value.length() + 2;
     }
 
+    void accept(CSTVisitor *visitor) override {
+        visitor->visit(this);
+    }
+
     LexTokenType type() const override {
         return LexTokenType::String;
     }

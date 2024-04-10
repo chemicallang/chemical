@@ -122,12 +122,8 @@ set(COMMON_SOURCES
         lexer/structures/Enum.cpp
         lexer/model/tokens/FunctionToken.h
         lexer/model/tokens/ParameterToken.h
-        lexer/model/tokens/PropertyToken.h
         lexer/model/tokens/StructToken.h
-        lexer/model/tokens/ModifierToken.h
-        lexer/model/tokens/ClassToken.h
         lexer/model/tokens/InterfaceToken.h
-        lexer/model/tokens/MethodToken.h
         lexer/model/tokens/AbstractStringToken.h
         lexer/structures/Struct.cpp
         lexer/structures/Interface.cpp
@@ -329,6 +325,30 @@ set(COMMON_SOURCES
         cst/statements/VarInitCST.h
         cst/structures/FunctionCST.h
         cst/types/GenericTypeCST.h
+        cst/statements/AssignmentCST.h
+        cst/statements/ContinueCST.h
+        cst/statements/IfCST.h
+        cst/statements/ImportCST.h
+        cst/statements/ReturnCST.h
+        cst/statements/SwitchCST.h
+        cst/statements/TypealiasCST.h
+        cst/structures/DoWhileCST.h
+        cst/structures/EnumDeclCST.h
+        cst/structures/ForLoopCST.h
+        cst/structures/StructDefCST.h
+        cst/structures/WhileCST.h
+        cst/structures/TryCatchCST.h
+        cst/CSTConvert.cpp
+        cst/values/ExpressionCST.h
+        cst/values/NegativeCST.h
+        cst/values/NotCST.h
+        cst/values/AccessChainCST.h
+        cst/values/ArrayValueCST.h
+        cst/values/StructValueCST.h
+        cst/values/CastCST.h
+        cst/base/CSTConverter.h
+        cst/structures/BodyCST.h
+        cst/base/CSTVisitor.h
 )
 
 # Chemical LSP Executable Target

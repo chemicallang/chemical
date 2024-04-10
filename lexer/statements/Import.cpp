@@ -5,6 +5,7 @@
 //
 
 #include "lexer/Lexer.h"
+#include "cst/statements/ImportCST.h"
 
 bool Lexer::lexImportIdentifierList() {
     if(lexOperatorToken('{')) {
@@ -26,6 +27,7 @@ bool Lexer::lexImportIdentifierList() {
 
 bool Lexer::lexImportStatement() {
     if(lexKeywordToken("import")) {
+        unsigned start = tokens.size() - 1;
         lexWhitespaceToken();
         if(lexStringToken()) {
             return true;
@@ -43,6 +45,9 @@ bool Lexer::lexImportStatement() {
             } else {
                 error("expected a string path in import statement or identifier(s) after the 'import' keyword");
             }
+        }
+        if(isCST()) {
+            compound<ImportCST>(start);
         }
         return true;
     } else{

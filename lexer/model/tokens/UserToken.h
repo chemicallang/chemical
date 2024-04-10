@@ -34,6 +34,10 @@ Position{
 #endif
     }
 
+    void accept(CSTVisitor *visitor) override {
+        visitor->visit(this);
+    }
+
     unsigned int length() const override {
         return this->len;
     }

@@ -1,4 +1,4 @@
 func main(argc : int) {
     var x = 5;
-    x.y += 7;
+    x.y += 7 + 1;
 }

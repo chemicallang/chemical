@@ -35,7 +35,7 @@ void Lexer::lexParameterList(bool optionalTypes) {
                 lexWhitespaceToken();
                 if(lexTypeTokens()) {
                     if(lexOperatorToken("...")) {
-                        compound<FunctionParamCST>();
+                        compound_from<FunctionParamCST>(start);
                         break;
                     }
                     lexWhitespaceToken();
@@ -123,6 +123,8 @@ bool Lexer::lexFunctionStructureTokens(bool allow_declarations) {
         return false;
     }
 
+    unsigned start = tokens.size() - 1;
+
     lexAfterFuncKeyword();
 
     // inside the block allow return statements
@@ -133,7 +135,7 @@ bool Lexer::lexFunctionStructureTokens(bool allow_declarations) {
     }
     isLexReturnStatement = prevReturn;
 
-    compound<FunctionCST>();
+    compound_from<FunctionCST>(start);
 
     return true;
 

@@ -8,15 +8,19 @@
 #include "cst/values/NegativeCST.h"
 #include "cst/values/NotCST.h"
 #include "cst/values/CastCST.h"
+#include "cst/values/ExpressionCST.h"
 
 void Lexer::lexRemainingExpression() {
+
+    auto start = tokens.size() - 1;
+
     lexWhitespaceToken();
     if(lexKeywordToken("as")) {
         lexWhitespaceToken();
         if(!lexTypeTokens()) {
             error("expected a type for casting after 'as' in expression");
         }
-        compound<CastCST>();
+        compound_from<CastCST>(start);
         return;
     }
     if(!lexLanguageOperatorToken()) {
@@ -27,6 +31,9 @@ void Lexer::lexRemainingExpression() {
         error("expected an expression after the operator token in the expression");
         return;
     }
+
+    compound_from<ExpressionCST>(start);
+
 }
 
 bool Lexer::lexExpressionTokens(bool lexStruct){

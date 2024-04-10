@@ -23,9 +23,11 @@
 #include "cst/types/FunctionTypeCST.h"
 #include "cst/structures/BodyCST.h"
 #include "cst/values/AccessChainCST.h"
+#include "cst/values/ExpressionCST.h"
 #include "ast/types/ArrayType.h"
 #include "ast/values/StringValue.h"
 #include "ast/values/FloatValue.h"
+#include "ast/values/Expression.h"
 #include "ast/values/BoolValue.h"
 #include "ast/values/DoubleValue.h"
 #include "ast/values/AccessChain.h"
@@ -75,18 +77,26 @@ void CSTConverter::visit(std::vector<std::unique_ptr<CSTToken>> &tokens, unsigne
     }
 }
 
-std::optional<std::unique_ptr<Value>> CSTConverter::value() {
-    if (values.empty()) return std::nullopt;
+std::unique_ptr<Value> CSTConverter::value() {
     auto value = std::move(values.back());
     values.pop_back();
     return value;
 }
 
-std::optional<std::unique_ptr<BaseType>> CSTConverter::type() {
-    if (types.empty()) return std::nullopt;
-    auto value = std::move(types.back());
+std::unique_ptr<BaseType> CSTConverter::type() {
+    auto type = std::move(types.back());
     types.pop_back();
-    return value;
+    return type;
+}
+
+std::optional<std::unique_ptr<Value>> CSTConverter::opt_value() {
+    if (values.empty()) return std::nullopt;
+    return value();
+}
+
+std::optional<std::unique_ptr<BaseType>> CSTConverter::opt_type() {
+    if (types.empty()) return std::nullopt;
+    return type();
 }
 
 void CSTConverter::error(const std::string &message, CSTToken *start, CSTToken *end, DiagSeverity severity) {
@@ -111,7 +121,7 @@ void CSTConverter::visit(FunctionParamCST *param) {
     auto lastToken = param->tokens[param->tokens.size() - 1].get();
     auto isVariadic = !lastToken->compound() && lastToken->start_token()->is_abs_string() &&
                       ((AbstractStringToken *) lastToken)->value == "...";
-    nodes.emplace_back(std::make_unique<FunctionParam>(identifier, type().value(), param_index, isVariadic, value()));
+    nodes.emplace_back(std::make_unique<FunctionParam>(identifier, type(), param_index, isVariadic, opt_value()));
     param_index++;
 }
 
@@ -142,15 +152,20 @@ void CSTConverter::visit(FunctionCST *function) {
         i++;
     }
 
+    if(char_op(function->tokens[i + 1].get()) == ':') {
+        function->tokens[i + 2]->accept(this);
+        i += 2;
+    }
+
+    auto returnType = opt_type();
+    if (!returnType.has_value()) {
+        returnType.emplace(std::make_unique<VoidType>());
+    }
+
     auto prev_nodes = std::move(nodes);
     visit(function->tokens, i);
     auto body = LoopScope(std::move(nodes));
     nodes = std::move(prev_nodes);
-
-    auto returnType = type();
-    if (!returnType.has_value()) {
-        returnType.emplace(std::make_unique<VoidType>());
-    }
 
     nodes.emplace_back(std::make_unique<FunctionDeclaration>(function->func_name(), std::move(params),
                                                              std::move(returnType.value()), isVariadic,
@@ -162,18 +177,18 @@ void CSTConverter::visit(VarInitCST *varInit) {
     nodes.emplace_back(std::make_unique<VarInitStatement>(
             varInit->is_const(),
             varInit->identifier(),
-            type(),
-            value())
+            opt_type(),
+            opt_value())
     );
 }
 
 void CSTConverter::visit(AssignmentCST *assignment) {
     visit(assignment->tokens, 0);
     auto val = value();
-    auto chain = value().value().release();
+    auto chain = value().release();
     nodes.emplace_back(std::make_unique<AssignStatement>(
             std::unique_ptr<Value>(chain),
-            std::move(val.value()),
+            std::move(val),
             (assignment->tokens[1]->type() == LexTokenType::Operation)
             ? ((OperationToken *) assignment->tokens[1].get())->op : Operation::Assignment
     ));
@@ -198,9 +213,9 @@ void CSTConverter::visit(GenericTypeCST *genericType) {
 
 void CSTConverter::visit(ArrayTypeCST *arrayType) {
     convert(arrayType->tokens);
-    auto val = value();
+    auto val = opt_value();
     auto arraySize = (val.has_value() && val.value()->value_type() == ValueType::Int) ? val.value()->as_int() : -1;
-    types.emplace_back(std::make_unique<ArrayType>(std::move(type().value()), arraySize));
+    types.emplace_back(std::make_unique<ArrayType>(std::move(type()), arraySize));
 }
 
 void CSTConverter::visit(FunctionTypeCST *functionType) {
@@ -246,6 +261,13 @@ void CSTConverter::visit(AccessChainCST *chain) {
     auto ret_chain = std::make_unique<AccessChain>(std::move(values));
     values = std::move(prev_values);
     values.push_back(std::move(ret_chain));
+}
+
+void CSTConverter::visit(ExpressionCST *expr) {
+    visit(expr->tokens, 0);
+    auto second = value();
+    auto first = value();
+    values.emplace_back(std::make_unique<Expression>(std::move(first), std::move(second), ((OperationToken *) expr->tokens[1].get())->op));
 }
 
 void CSTConverter::visit(VariableToken *token) {

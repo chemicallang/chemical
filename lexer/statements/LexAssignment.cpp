@@ -44,8 +44,7 @@ bool Lexer::lexAssignmentTokens() {
         return false;
     }
 
-    // shift start so that access chain is compounded within the assignment
-    next_compound_start = next_compound_start - 1;
+    auto start = tokens.size() - 1;
 
     // increment or decrement
     if (lexOperatorToken("++", Operation::PostfixIncrement) || lexOperatorToken("--", Operation::PostfixDecrement)) {
@@ -76,7 +75,7 @@ bool Lexer::lexAssignmentTokens() {
         return true;
     }
 
-    compound<AssignmentCST>();
+    compound_from<AssignmentCST>(start);
 
     return true;
 

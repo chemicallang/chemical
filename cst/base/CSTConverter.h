@@ -55,35 +55,45 @@ public:
      * @param start start is the inclusive index at which to begin visiting
      * @param end end is exclusive index at which to end visiting
      */
-    void visit(std::vector<std::unique_ptr<CSTToken>>& tokens, unsigned int start, unsigned int end);
+    void visit(std::vector<std::unique_ptr<CSTToken>> &tokens, unsigned int start, unsigned int end);
 
     /**
      * A helper function to visit the tokens starting at start
      */
-    void visit(std::vector<std::unique_ptr<CSTToken>>& tokens, unsigned int start) {
+    void visit(std::vector<std::unique_ptr<CSTToken>> &tokens, unsigned int start) {
         visit(tokens, start, tokens.size());
     }
 
     /**
      * converts the tokens, or visits all the tokens
      */
-    void convert(std::vector<std::unique_ptr<CSTToken>>& tokens) {
+    void convert(std::vector<std::unique_ptr<CSTToken>> &tokens) {
         visit(tokens, 0, tokens.size());
     }
 
     /**
-     * consumes the latest value from the values vector
+     * consumes the latest (last in the vector) value from the values vector
      */
-    std::optional<std::unique_ptr<Value>> value();
+    std::unique_ptr<Value> value();
 
     /**
-     * consumes the latest type from the types vector
+     * consumes the latest (last in the vector) type from the types vector
      */
-    std::optional<std::unique_ptr<BaseType>> type();
+    std::unique_ptr<BaseType> type();
 
-    void error(const std::string& message, CSTToken* start, CSTToken* end, DiagSeverity severity = DiagSeverity::Error);
+    /**
+     * consume the latest value optionally
+     */
+    std::optional<std::unique_ptr<Value>> opt_value();
 
-    void error(const std::string& message, CSTToken* inside, DiagSeverity severity = DiagSeverity::Error);
+    /**
+     * consume the latest type optionally
+     */
+    std::optional<std::unique_ptr<BaseType>> opt_type();
+
+    void error(const std::string &message, CSTToken *start, CSTToken *end, DiagSeverity severity = DiagSeverity::Error);
+
+    void error(const std::string &message, CSTToken *inside, DiagSeverity severity = DiagSeverity::Error);
 
     // nodes
 
@@ -124,5 +134,7 @@ public:
     void visit(BoolToken *token) override;
 
     void visit(AccessChainCST *accessChain) override;
+
+    void visit(ExpressionCST *expressionCst) override;
 
 };

@@ -21,11 +21,12 @@ public:
         tokens.shrink_to_fit();
     }
 
-    /**
-     * only compound tokens can be overridden
-     */
     bool compound() override {
         return true;
+    }
+
+    LexTokenType type() const override {
+        return LexTokenType::Compound;
     }
 
 #ifdef DEBUG

@@ -4,6 +4,7 @@
 
 #include "CSTConverter.h"
 #include "CSTVisitor.h"
+#include "lexer/model/LexTokenType.h"
 #include <string>
 
 class LexToken;
@@ -46,6 +47,11 @@ public:
      * implement the visitor pattern
      */
     virtual void accept(CSTVisitor *visitor) = 0;
+
+    /**
+     * get lex token type of this token
+     */
+    virtual LexTokenType type() const = 0;
 
 #ifdef DEBUG
 

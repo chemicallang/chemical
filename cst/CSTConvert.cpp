@@ -22,15 +22,20 @@
 #include "ast/statements/Assignment.h"
 #include "cst/types/FunctionTypeCST.h"
 #include "cst/structures/BodyCST.h"
+#include "cst/values/AccessChainCST.h"
 #include "ast/types/ArrayType.h"
 #include "ast/values/StringValue.h"
 #include "ast/values/FloatValue.h"
+#include "ast/values/BoolValue.h"
 #include "ast/values/DoubleValue.h"
+#include "ast/values/AccessChain.h"
 #include "ast/values/IntValue.h"
 #include "lexer/model/tokens/StringToken.h"
 #include "lexer/model/tokens/CharToken.h"
 #include "ast/values/VariableIdentifier.h"
+#include "lexer/model/tokens/OperationToken.h"
 #include "lexer/model/tokens/VariableToken.h"
+#include "lexer/model/tokens/BoolToken.h"
 
 inline std::string str_token(std::vector<std::unique_ptr<CSTToken>> &tokens, unsigned int index) {
     return static_cast<AbstractStringToken *>(tokens[index].get())->value;
@@ -169,7 +174,8 @@ void CSTConverter::visit(AssignmentCST *assignment) {
     nodes.emplace_back(std::make_unique<AssignStatement>(
             std::unique_ptr<Value>(chain),
             std::move(val.value()),
-            Operation::Assignment
+            (assignment->tokens[1]->type() == LexTokenType::Operation)
+            ? ((OperationToken *) assignment->tokens[1].get())->op : Operation::Assignment
     ));
 }
 
@@ -234,6 +240,18 @@ void CSTConverter::visit(ArrayValueCST *arrayValue) {
 
 }
 
+void CSTConverter::visit(AccessChainCST *chain) {
+    auto prev_values = std::move(values);
+    visit(chain->tokens, 0);
+    auto ret_chain = std::make_unique<AccessChain>(std::move(values));
+    values = std::move(prev_values);
+    values.push_back(std::move(ret_chain));
+}
+
 void CSTConverter::visit(VariableToken *token) {
     values.emplace_back(std::make_unique<VariableIdentifier>(token->value));
+}
+
+void CSTConverter::visit(BoolToken *token) {
+    values.emplace_back(std::make_unique<BoolValue>(token->value));
 }

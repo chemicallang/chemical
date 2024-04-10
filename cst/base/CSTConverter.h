@@ -85,6 +85,8 @@ public:
 
     void error(const std::string& message, CSTToken* inside, DiagSeverity severity = DiagSeverity::Error);
 
+    // nodes
+
     void visit(FunctionParamCST *param) override;
 
     void visit(FunctionCST *function) override;
@@ -118,5 +120,9 @@ public:
     void visit(ArrayValueCST *arrayValue) override;
 
     void visit(VariableToken *token) override;
+
+    void visit(BoolToken *token) override;
+
+    void visit(AccessChainCST *accessChain) override;
 
 };

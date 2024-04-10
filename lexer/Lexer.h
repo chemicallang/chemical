@@ -43,8 +43,6 @@ public:
 
     inline bool isDebug() { return true; };
 
-    inline bool isCST() { return true; };
-
     explicit Lexer(SourceProvider &provider, std::string path);
 
     /**
@@ -131,8 +129,15 @@ public:
      * after an identifier has been consumed
      * we call this method to lex an access chain after it
      * identifier .element1.element2.element3
+     * this is the method called by lexAccessChain after finding a identifier
      */
     bool lexAccessChainAfterId(bool access, bool lexStruct = false);
+
+    /**
+     * this method does not compound the access chain, so can be called recursively
+     * this method is called by lexAccessChain to not compound access chains nested in it
+     */
+    bool lexAccessChainRecursive(bool access, bool lexStruct = false);
 
     /**
      * this lexes an access chain like x.y.z or just simply an identifier
@@ -542,12 +547,42 @@ public:
     }
 
     /**
-     * put tokens starting from start position in a compound token of specified type
+     * when a nested compound call is expected
+     * this should be called to save the the current last_compound_till in a vector
+     * nested_compound_end must be called after this
+     */
+    void nested_compound_start() {
+        nested_compound_indexes.push_back(next_compound_start);
+        next_compound_start = tokens.size();
+    }
+
+    /**
+     * this must be called if nested_compound_start was called, to restore the last_compound_till
+     */
+    void nested_compound_end() {
+        auto last = nested_compound_indexes.back();
+        nested_compound_indexes.pop_back();
+        next_compound_start = last;
+    }
+
+    /**
+     * put tokens in a compound token of specified type, starting from start
      */
     template<typename T, typename... Args>
     std::enable_if_t<std::is_base_of_v<CSTToken, T>>
-    compound(unsigned int start, Args&&... args) {
+    compound_from(unsigned int start, Args&&... args) {
         tokens.emplace_back(std::make_unique<T>(take_from(start), std::forward<Args>(args)...));
+        next_compound_start = tokens.size();
+    }
+
+    /**
+     * put tokens in a compound token of specified type
+     */
+    template<typename T, typename... Args>
+    std::enable_if_t<std::is_base_of_v<CSTToken, T>>
+    compound(Args&&... args) {
+        tokens.emplace_back(std::make_unique<T>(take_from(next_compound_start), std::forward<Args>(args)...));
+        next_compound_start = tokens.size();
     }
 
     /**
@@ -728,5 +763,18 @@ protected:
      * when true, import statements will be lexed
      */
     bool isLexImportStatement = true;
+
+    /**
+     * the index before which, last compounding of tokens was made, this index hasn't been consumed
+     * when compound is called, we compound from (inclusive) this index to tokens.size (exclusive)
+     * also setting this with new index at tokens.size
+     */
+    unsigned int next_compound_start = 0;
+
+    /**
+     * these are indexes into tokens vector, when a nested compound is expected, the last_compound_till is put on this vector
+     * to be restored later
+     */
+    std::vector<unsigned int> nested_compound_indexes;
 
 };

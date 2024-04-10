@@ -29,8 +29,10 @@ enum class LexTokenType : uint8_t {
     String,
     Struct,
     Type,
+    Bool,
     Variable,
     Macro,
     RawToken,
-    UserToken
+    UserToken,
+    Compound
 };

@@ -90,6 +90,8 @@ class StringToken;
 
 class NumberToken;
 
+class BoolToken;
+
 class VariableToken;
 
 class LexUserToken;
@@ -264,6 +266,10 @@ public:
     virtual void visit(NumberToken *token) {
         visitStringCommon((AbstractStringToken *) token);
     };
+
+    virtual void visit(BoolToken* token) {
+        visitLexTokenCommon((LexToken *) token);
+    }
 
     virtual void visit(VariableToken *token) {
         visitStringCommon((AbstractStringToken *) token);

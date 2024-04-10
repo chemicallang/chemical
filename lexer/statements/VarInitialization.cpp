@@ -15,8 +15,6 @@ bool Lexer::lexVarInitializationTokens(bool allowDeclarations, bool requiredType
         return false;
     }
 
-    unsigned int start = tokens.size() - 1;
-
     // whitespace
     lexWhitespaceToken();
 
@@ -62,9 +60,7 @@ bool Lexer::lexVarInitializationTokens(bool allowDeclarations, bool requiredType
         return true;
     }
 
-    if(isCST()) {
-        compound<VarInitCST>(start);
-    }
+    compound<VarInitCST>();
 
     return true;
 

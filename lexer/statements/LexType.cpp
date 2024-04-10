@@ -28,9 +28,7 @@ bool Lexer::lexTypeTokens() {
         } else {
             error("expected '=>' for lambda function type");
         }
-        if(isCST()) {
-            compound<FunctionTypeCST>(start);
-        }
+        compound_from<FunctionTypeCST>(start);
         return true;
     }
 
@@ -47,23 +45,17 @@ bool Lexer::lexTypeTokens() {
             if(!lexOperatorToken('>')) {
                 error("expected '>' for generic type");
             }
-            if(isCST()) {
-                compound<GenericTypeCST>(start);
-            }
+            compound_from<GenericTypeCST>(start);
         } else if(lexOperatorToken('[')) {
             // optional array size
             lexUnsignedIntAsNumberToken();
             if(!lexOperatorToken(']')) {
                 error("expected ']' for array type");
             }
-            if(isCST()) {
-                compound<ArrayTypeCST>(start);
-            }
+            compound_from<ArrayTypeCST>(start);
         }
         if(lexOperatorToken('*')) {
-            if(isCST()) {
-                compound<PointerTypeCST>(start);
-            }
+            compound_from<PointerTypeCST>(start);
         }
         return true;
     } else {

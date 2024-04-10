@@ -6,6 +6,7 @@
 
 #include "lexer/Lexer.h"
 #include "lexer/model/tokens/CharToken.h"
+#include "lexer/model/tokens/BoolToken.h"
 
 bool Lexer::lexCharToken() {
     if (provider.increment('\'')) {
@@ -34,7 +35,14 @@ bool Lexer::lexCharToken() {
 }
 
 bool Lexer::lexBoolToken() {
-    return lexKeywordToken("true") || lexKeywordToken("false");
+    if(lexKeywordToken("true")) {
+        tokens.emplace_back(std::make_unique<BoolToken>(backPosition(4), true));
+        return true;
+    } else if(lexKeywordToken("false")) {
+        tokens.emplace_back(std::make_unique<BoolToken>(backPosition(5),false));
+        return true;
+    }
+    return false;
 }
 
 bool Lexer::lexValueToken() {

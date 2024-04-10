@@ -108,11 +108,6 @@ public:
      */
     virtual unsigned int length() const = 0;
 
-    /**
-     * Get the type of token this is
-     */
-    virtual LexTokenType type() const = 0;
-
 #ifdef LSP_BUILD
     /**
      * lsp  semantic token type

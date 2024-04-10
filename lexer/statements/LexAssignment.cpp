@@ -40,13 +40,12 @@ bool Lexer::lexAssignmentOperatorToken() {
 
 bool Lexer::lexAssignmentTokens() {
 
-    if(!lexIdentifierToken(true)) {
+    if(!lexAccessChain(true)) {
         return false;
     }
 
-    unsigned start = tokens.size() - 1;
-
-    lexAccessChainAfterId(true, true);
+    // shift start so that access chain is compounded within the assignment
+    next_compound_start = next_compound_start - 1;
 
     // increment or decrement
     if (lexOperatorToken("++", Operation::PostfixIncrement) || lexOperatorToken("--", Operation::PostfixDecrement)) {
@@ -77,9 +76,7 @@ bool Lexer::lexAssignmentTokens() {
         return true;
     }
 
-    if(isCST()) {
-        compound<AssignmentCST>(start);
-    }
+    compound<AssignmentCST>();
 
     return true;
 

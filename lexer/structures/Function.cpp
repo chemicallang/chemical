@@ -20,18 +20,18 @@ bool Lexer::lexReturnStatement() {
 }
 
 void Lexer::lexParameterList(bool optionalTypes) {
+    nested_compound_start();
     do {
         lexWhitespaceToken();
         auto name = lexIdentifier();
         if(!name.empty()) {
-            unsigned start = tokens.size();
             tokens.emplace_back(std::make_unique<ParameterToken>(backPosition(name.length()), name));
             lexWhitespaceToken();
             if(lexOperatorToken(':')) {
                 lexWhitespaceToken();
                 if(lexTypeTokens()) {
                     if(lexOperatorToken("...")) {
-                        compound<FunctionParamCST>(start);
+                        compound<FunctionParamCST>();
                         break;
                     }
                     lexWhitespaceToken();
@@ -42,7 +42,7 @@ void Lexer::lexParameterList(bool optionalTypes) {
                             break;
                         }
                     }
-                    compound<FunctionParamCST>(start);
+                    compound<FunctionParamCST>();
                 } else {
                     error("missing a type token for the function parameter, expected type after the colon");
                     return;
@@ -54,6 +54,7 @@ void Lexer::lexParameterList(bool optionalTypes) {
         }
         lexWhitespaceToken();
     } while(lexOperatorToken(','));
+    nested_compound_end();
 }
 
 bool Lexer::lexAfterFuncKeyword() {
@@ -118,8 +119,6 @@ bool Lexer::lexFunctionStructureTokens(bool allow_declarations) {
         return false;
     }
 
-    unsigned start = tokens.size() - 1;
-
     lexAfterFuncKeyword();
 
     // inside the block allow return statements
@@ -130,9 +129,7 @@ bool Lexer::lexFunctionStructureTokens(bool allow_declarations) {
     }
     isLexReturnStatement = prevReturn;
 
-    if(isCST()) {
-        compound<FunctionCST>(start);
-    }
+    compound<FunctionCST>();
 
     return true;
 

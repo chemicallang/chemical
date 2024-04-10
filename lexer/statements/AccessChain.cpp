@@ -7,6 +7,7 @@
 #include "lexer/Lexer.h"
 #include "lexer/model/tokens/CharOperatorToken.h"
 #include "lexer/model/tokens/VariableToken.h"
+#include "cst/values/AccessChainCST.h"
 
 bool Lexer::storeIdentifier(const std::string& identifier, bool access) {
     if (!identifier.empty()) {
@@ -23,8 +24,21 @@ bool Lexer::lexAccessChain(bool access, bool lexStruct) {
         return false;
     }
 
-    return lexAccessChainAfterId(access, lexStruct);
+    auto start = tokens.size() - 1;
 
+    lexAccessChainAfterId(access, lexStruct);
+
+    compound_from<AccessChainCST>(start);
+
+    return true;
+
+}
+
+bool Lexer::lexAccessChainRecursive(bool access, bool lexStruct) {
+    if (!lexIdentifierToken(access)) {
+        return false;
+    }
+    return lexAccessChainAfterId(access, lexStruct);
 }
 
 bool Lexer::lexAccessChainAfterId(bool access, bool lexStruct) {
@@ -63,7 +77,7 @@ bool Lexer::lexAccessChainAfterId(bool access, bool lexStruct) {
     }
 
     while (lexOperatorToken('.')) {
-        if (!lexAccessChain(access, false)) {
+        if (!lexAccessChainRecursive(access, false)) {
             error("expected a identifier after the dot . in the access chain");
             return true;
         }

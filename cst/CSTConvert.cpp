@@ -12,9 +12,12 @@
 #include "ast/types/CharType.h"
 #include "ast/types/FloatType.h"
 #include "ast/types/VoidType.h"
+#include "ast/types/PointerType.h"
+#include "ast/types/FunctionType.h"
 #include "ast/types/AnyType.h"
 #include "ast/types/DoubleType.h"
 #include "lexer/model/tokens/TypeToken.h"
+#include "cst/types/PointerTypeCST.h"
 #include "ast/types/ReferencedType.h"
 #include "cst/types/ArrayTypeCST.h"
 #include "cst/types/GenericTypeCST.h"
@@ -46,6 +49,7 @@
 #include "cst/statements/ImportCST.h"
 #include "ast/statements/Return.h"
 #include "cst/statements/ReturnCST.h"
+#include "ast/types/GenericType.h"
 
 inline std::string str_token(std::vector<std::unique_ptr<CSTToken>> &tokens, unsigned int index) {
     return static_cast<AbstractStringToken *>(tokens[index].get())->value;
@@ -133,16 +137,14 @@ void CSTConverter::visit(FunctionParamCST *param) {
     param_index++;
 }
 
-void CSTConverter::visit(FunctionCST *function) {
-
+FunctionParamsResult CSTConverter::function_params(cst_tokens_ref_type tokens, unsigned start) {
     param_index = 0;
-
     auto isVariadic = false;
     func_params params;
-    unsigned i = 3;
-    while (i < function->tokens.size()) {
-        if (function->tokens[i]->compound()) {
-            function->tokens[i]->accept(this);
+    unsigned i = start;
+    while (i < tokens.size()) {
+        if (tokens[i]->compound()) {
+            tokens[i]->accept(this);
             param_index++;
             auto param = (FunctionParam *) nodes.back().release();
             params.emplace_back(param);
@@ -151,14 +153,22 @@ void CSTConverter::visit(FunctionCST *function) {
                 isVariadic = true;
                 break;
             }
-        } else if (function->tokens[i]->start_token()->type() == LexTokenType::CharOperator &&
-                   char_op(function->tokens[i].get()) == ',') {
+        } else if (tokens[i]->start_token()->type() == LexTokenType::CharOperator &&
+                   char_op(tokens[i].get()) == ',') {
             // do nothing
         } else {
             break;
         }
         i++;
     }
+    return {isVariadic, std::move(params), i};
+}
+
+void CSTConverter::visit(FunctionCST *function) {
+
+    auto params = function_params(function->tokens, 3);
+
+    auto i = params.index;
 
     if (char_op(function->tokens[i + 1].get()) == ':') {
         function->tokens[i + 2]->accept(this);
@@ -170,9 +180,10 @@ void CSTConverter::visit(FunctionCST *function) {
         returnType.emplace(std::make_unique<VoidType>());
     }
 
-    auto funcDecl = new FunctionDeclaration(function->func_name(), std::move(params),
-                                            std::move(returnType.value()), isVariadic,
+    auto funcDecl = new FunctionDeclaration(function->func_name(), std::move(params.params),
+                                            std::move(returnType.value()), params.isVariadic,
                                             LoopScope{});
+
     nodes.emplace_back(std::unique_ptr<FunctionDeclaration>(funcDecl));
 
     auto prev_nodes = std::move(nodes);
@@ -229,8 +240,14 @@ void CSTConverter::visit(BodyCST *bodyCst) {
     visit(bodyCst->tokens, 0);
 }
 
-void CSTConverter::visit(GenericTypeCST *genericType) {
-    // TODO
+void CSTConverter::visit(PointerTypeCST *cst) {
+    visit(cst->tokens, 0);
+    types.emplace_back(std::make_unique<PointerType>(type()));
+}
+
+void CSTConverter::visit(GenericTypeCST *cst) {
+    visit(cst->tokens, 0);
+    types.emplace_back(std::make_unique<GenericType>(str_token(cst->tokens, 0), type()));
 }
 
 void CSTConverter::visit(ArrayTypeCST *arrayType) {
@@ -240,8 +257,10 @@ void CSTConverter::visit(ArrayTypeCST *arrayType) {
     types.emplace_back(std::make_unique<ArrayType>(std::move(type()), arraySize));
 }
 
-void CSTConverter::visit(FunctionTypeCST *functionType) {
-    // TODO
+void CSTConverter::visit(FunctionTypeCST *funcType) {
+    auto params = function_params(funcType->tokens, 1);
+    visit(funcType->tokens, params.index + 2);
+    types.emplace_back(std::make_unique<FunctionType>(std::move(params.params), type(), params.isVariadic));
 }
 
 

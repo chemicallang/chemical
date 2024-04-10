@@ -56,9 +56,6 @@ public:
     std::optional<std::unique_ptr<Value>> defValue;
 };
 
-
-using func_params = std::vector<std::unique_ptr<FunctionParam>>;
-
 class FunctionDeclaration : public ASTNode {
 public:
 

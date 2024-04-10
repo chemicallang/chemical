@@ -94,6 +94,7 @@ class TernaryValue;
 
 class LambdaFunction;
 
+using func_params = std::vector<std::unique_ptr<FunctionParam>>;
 
 // Visitor Class
 

@@ -12,6 +12,8 @@
 #include <memory>
 #include <vector>
 
+class LoopASTNode;
+
 class CSTConverter : public CSTVisitor {
 public:
 
@@ -44,6 +46,18 @@ public:
      * primitive type map that is initialized when visitor is initialized
      */
     std::unordered_map<std::string, std::function<BaseType *()>> primitive_type_map;
+
+    /**
+     * This is a pointer to current function declaration
+     * All nodes being parsed belong to this function's body
+     */
+    FunctionDeclaration *current_func_decl = nullptr;
+
+    /**
+     * The current loop node
+     * All nodes being parsed belong this loop's body
+     */
+    LoopASTNode *current_loop_node = nullptr;
 
     /**
      * constructor
@@ -104,6 +118,10 @@ public:
     void visit(VarInitCST *varInit) override;
 
     void visit(AssignmentCST *assignment) override;
+
+    void visit(ImportCST *importCst) override;
+
+    void visit(ReturnCST *returnCst) override;
 
     void visit(BodyCST *bodyCst) override;
 

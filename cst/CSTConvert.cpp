@@ -60,6 +60,10 @@
 #include "cst/structures/WhileCST.h"
 #include "ast/structures/DoWhileLoop.h"
 #include "cst/structures/DoWhileCST.h"
+#include "ast/statements/Continue.h"
+#include "cst/statements/ContinueCST.h"
+#include "ast/statements/Break.h"
+#include "cst/statements/BreakCST.h"
 #include "cst/base/CSTConverter.h"
 
 inline std::string str_token(std::vector<std::unique_ptr<CSTToken>> &tokens, unsigned int index) {
@@ -247,6 +251,14 @@ void CSTConverter::visit(TypeToken *token) {
     }
 }
 
+void CSTConverter::visit(ContinueCST *continueCst) {
+    nodes.emplace_back(std::make_unique<ContinueStatement>(current_loop_node));
+}
+
+void CSTConverter::visit(BreakCST *breakCST) {
+    nodes.emplace_back(std::make_unique<BreakStatement>(current_loop_node));
+}
+
 void CSTConverter::visit(BodyCST *bodyCst) {
     visit(bodyCst->tokens, 0);
 }
@@ -260,12 +272,19 @@ void CSTConverter::visit(WhileCST *whileCst) {
     whileCst->tokens[2]->accept(this);
     // get it
     auto cond = value();
-    // visit the body
+    // save current nodes
     auto previous = std::move(nodes);
+    // construct a loop
+    auto loop = new WhileLoop(std::move(cond), LoopScope{});
+    // visit the body
+    auto prevLoop = current_loop_node;
+    current_loop_node = loop;
     visit(whileCst->tokens, 3);
-    auto body = std::move(nodes);
+    current_loop_node = prevLoop;
+    loop->body.nodes = std::move(nodes);
+    // restore nodes
     nodes = std::move(previous);
-    nodes.emplace_back(std::make_unique<WhileLoop>(std::move(cond), LoopScope(std::move(body))));
+    nodes.emplace_back(std::unique_ptr<ASTNode>(loop));
 }
 
 void CSTConverter::visit(DoWhileCST *doWhileCst) {

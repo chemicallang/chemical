@@ -130,6 +130,10 @@ public:
 
     // nodes
 
+    void visit(ContinueCST *continueCst) override;
+
+    void visit(BreakCST *breakCST) override;
+
     void visit(FunctionParamCST *param) override;
 
     void visit(FunctionCST *function) override;

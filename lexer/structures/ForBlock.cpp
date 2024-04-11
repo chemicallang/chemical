@@ -6,13 +6,25 @@
 
 #include "lexer/Lexer.h"
 #include "cst/structures/ForLoopCST.h"
+#include "cst/statements/ContinueCST.h"
+#include "cst/statements/BreakCST.h"
 
 bool Lexer::lexContinueStatement() {
-    return lexKeywordToken("continue");
+    if(lexKeywordToken("continue")) {
+        compound_from<ContinueCST>(tokens.size());
+        return true;
+    } else {
+        return false;
+    }
 }
 
 bool Lexer::lexBreakStatement() {
-    return lexKeywordToken("break");
+    if(lexKeywordToken("break")) {
+        compound_from<BreakCST>(tokens.size());
+        return true;
+    } else {
+        return false;
+    }
 }
 
 bool Lexer::lexForBlockTokens() {

@@ -14,6 +14,8 @@ class AssignmentCST;
 
 class ContinueCST;
 
+class BreakCST;
+
 class ReturnCST;
 
 class SwitchCST;
@@ -125,6 +127,10 @@ public:
 
     virtual void visit(ContinueCST *continueCst) {
         visitCompoundCommon((CompoundCSTToken *) continueCst);
+    }
+
+    virtual void visit(BreakCST *breakCST) {
+        visitCompoundCommon((CompoundCSTToken *) breakCST);
     }
 
     virtual void visit(ReturnCST *returnCst) {

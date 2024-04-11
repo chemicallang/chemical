@@ -108,7 +108,7 @@ std::string to_string(Operation operation) {
         case Operation::InclusiveORWith:
             return "|=";
         default:
-            return "[to_string::UnknownOperation]"; // Handle unknown operation
+            return "[to_string::" + std::to_string((unsigned int) operation) + "]"; // Handle unknown operation
     }
 }
 

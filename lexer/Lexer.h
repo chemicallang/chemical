@@ -512,8 +512,9 @@ public:
      * lexes remaining expression, this is used by lexExpressionTokens
      * this lexes the expression tokens after the first identifier / value
      * for example in expression a + b, after lexing a + b will lexed by this function
+     * @param start is the start of the expression, index in tokens vector !
      */
-    void lexRemainingExpression();
+    void lexRemainingExpression(unsigned start);
 
     /**
      * lexes an expression token which can contain access chain and values

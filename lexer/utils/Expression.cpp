@@ -10,9 +10,7 @@
 #include "cst/values/CastCST.h"
 #include "cst/values/ExpressionCST.h"
 
-void Lexer::lexRemainingExpression() {
-
-    auto start = tokens.size() - 1;
+void Lexer::lexRemainingExpression(unsigned start) {
 
     lexWhitespaceToken();
     if(lexKeywordToken("as")) {
@@ -26,13 +24,14 @@ void Lexer::lexRemainingExpression() {
     if(!lexLanguageOperatorToken()) {
         return;
     }
+    auto op_index = tokens.size() - 1;
     lexWhitespaceToken();
     if(!lexExpressionTokens()) {
         error("expected an expression after the operator token in the expression");
         return;
     }
 
-    compound_from<ExpressionCST>(start);
+    compound_from<ExpressionCST>(start, op_index - start);
 
 }
 
@@ -58,6 +57,8 @@ bool Lexer::lexExpressionTokens(bool lexStruct){
 
     if(lexOperatorToken('(')) {
 
+        unsigned start = tokens.size() - 1;
+
         if(!lexExpressionTokens()) {
             error("expected a nested expression after starting parenthesis ( in the expression");
             return true;
@@ -68,7 +69,7 @@ bool Lexer::lexExpressionTokens(bool lexStruct){
             return true;
         }
 
-        lexRemainingExpression();
+        lexRemainingExpression(start);
 
         return true;
 
@@ -78,7 +79,7 @@ bool Lexer::lexExpressionTokens(bool lexStruct){
         return false;
     }
 
-    lexRemainingExpression();
+    lexRemainingExpression(tokens.size() - 1);
 
     return true;
 

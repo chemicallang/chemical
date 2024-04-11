@@ -355,7 +355,7 @@ void CSTConverter::visit(ExpressionCST *expr) {
     auto second = value();
     auto first = value();
     values.emplace_back(std::make_unique<Expression>(std::move(first), std::move(second),
-                                                     ((OperationToken *) expr->tokens[1].get())->op));
+                                                     ((OperationToken *) expr->tokens[expr->op_index].get())->op));
 }
 
 void CSTConverter::visit(VariableToken *token) {

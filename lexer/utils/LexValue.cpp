@@ -36,10 +36,10 @@ bool Lexer::lexCharToken() {
 }
 
 bool Lexer::lexBoolToken() {
-    if(lexKeywordToken("true")) {
+    if(provider.increment("true")) {
         tokens.emplace_back(std::make_unique<BoolToken>(backPosition(4), true));
         return true;
-    } else if(lexKeywordToken("false")) {
+    } else if(provider.increment("false")) {
         tokens.emplace_back(std::make_unique<BoolToken>(backPosition(5),false));
         return true;
     }

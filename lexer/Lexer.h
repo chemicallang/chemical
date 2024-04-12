@@ -275,10 +275,10 @@ public:
     bool lexBraceBlock(const std::string &forThing = "");
 
     /**
-     * lexex an if statement without the body
+     * lexes an expression for if statement including parens '(' expr ')'
      * @return
      */
-    bool lexIfSignature();
+    void lexIfExpression();
 
     /**
      * lexes import identifier list example : { something, something }
@@ -315,10 +315,11 @@ public:
     bool lexContinueStatement();
 
     /**
-     * lexes a single if statement with the body without else if or else
+     * lexes a single if expr and the body without else if or else
+     * meaning '(' expr ')' '{' body '}'
      * @return
      */
-    bool lexSingleIf();
+    void lexIfExprAndBlock();
 
     /**
      * lex if block

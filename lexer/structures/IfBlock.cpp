@@ -5,56 +5,54 @@
 //
 
 #include "lexer/Lexer.h"
+#include "cst/statements/IfCST.h"
 
-bool Lexer::lexIfSignature() {
-
-    if (!lexKeywordToken("if")) {
-        return false;
-    }
+void Lexer::lexIfExpression() {
 
     lexWhitespaceToken();
 
     if (!lexOperatorToken('(')) {
         error("expected a starting parenthesis ( when lexing a if block");
-        return true;
+        return;
     }
 
     if (!lexExpressionTokens()) {
         error("expected a conditional expression when lexing a if block");
-        return true;
+        return;
     }
 
     if (!lexOperatorToken(')')) {
         error("expected a ending parenthesis ) when lexing a if block");
-        return true;
+        return;
     }
-
-    return true;
 
 }
 
-bool Lexer::lexSingleIf() {
+void Lexer::lexIfExprAndBlock() {
 
-    if (!lexIfSignature()) {
-        return false;
-    } else if (has_errors) {
-        return true;
+    lexIfExpression();
+
+    if (has_errors) {
+        return;
     }
 
     if (!lexBraceBlock("if")) {
         error("expected a brace block when lexing a brace block");
-        return true;
+        return;
     }
-
-    return true;
 
 }
 
 bool Lexer::lexIfBlockTokens() {
 
-    if (!lexSingleIf()) {
+    if(!lexKeywordToken("if")) {
         return false;
-    } else if (has_errors) {
+    }
+
+    auto start = tokens.size() - 1;
+
+    lexIfExprAndBlock();
+    if (has_errors) {
         return true;
     }
 
@@ -68,15 +66,19 @@ bool Lexer::lexIfBlockTokens() {
             if (!lexBraceBlock("else")) {
                 error("expected a brace block after the else while lexing an if statement");
             }
+            compound_from<IfCST>(start);
             return true;
         } else {
-            if (lexSingleIf()) {
+            if(lexKeywordToken("if")) {
+                lexIfExprAndBlock();
                 lexWhitespaceToken();
             } else {
                 error("expected an if statement / brace block after the 'else' but none found");
             }
         }
     }
+
+    compound_from<IfCST>(start);
 
     return true;
 

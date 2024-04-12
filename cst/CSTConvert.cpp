@@ -66,12 +66,18 @@
 #include "cst/statements/BreakCST.h"
 #include "ast/values/ArrayValue.h"
 #include "cst/values/ArrayValueCST.h"
+#include "ast/structures/If.h"
+#include "cst/statements/IfCST.h"
 #include "cst/base/CSTConverter.h"
 
 using tokens_vec_type = std::vector<std::unique_ptr<CSTToken>> &;
 
+inline std::string str_token(CSTToken* token) {
+    return static_cast<AbstractStringToken *>(token)->value;
+}
+
 inline std::string str_token(tokens_vec_type tokens, unsigned int index) {
-    return static_cast<AbstractStringToken *>(tokens[index].get())->value;
+    return str_token(tokens[index].get());
 }
 
 inline char char_op(CSTToken *token) {
@@ -265,6 +271,53 @@ void CSTConverter::visit(BreakCST *breakCST) {
 
 void CSTConverter::visit(BodyCST *bodyCst) {
     visit(bodyCst->tokens, 0);
+}
+
+void CSTConverter::visit(IfCST *ifCst) {
+
+    // if condition
+    ifCst->tokens[2]->accept(this);
+    auto cond = value();
+
+    // first if body
+    auto prev_nodes = std::move(nodes);
+    ifCst->tokens[4]->accept(this);
+    auto body_nodes = std::move(nodes);
+    nodes = std::move(prev_nodes);
+
+    std::vector<std::pair<std::unique_ptr<Value>, Scope>> elseIfs;
+
+    auto i = 5; // position after body
+    while((i + 1) < ifCst->tokens.size() && str_token(ifCst->tokens[i + 1].get()) == "if") {
+
+        i += 3;
+        ifCst->tokens[i]->accept(this);
+        auto elseIfCond = value();
+        i += 2;
+
+        // else if body
+        prev_nodes = std::move(nodes);
+        ifCst->tokens[i]->accept(this);
+        elseIfs.emplace_back(std::move(elseIfCond), Scope(std::move(nodes)));
+        nodes = std::move(prev_nodes);
+
+        // position after the body
+        i++;
+
+    }
+
+    std::optional<Scope> elseBody = std::nullopt;
+
+    // last else
+    if(i < ifCst->tokens.size() && str_token(ifCst->tokens[i].get()) == "else") {
+        prev_nodes = std::move(nodes);
+        ifCst->tokens[i + 1]->accept(this);
+        elseBody.emplace(Scope(std::move(nodes)));
+        nodes = std::move(prev_nodes);
+    }
+
+    nodes.emplace_back(std::make_unique<IfStatement>(std::move(cond), Scope(std::move(body_nodes)), std::move(elseIfs), std::move(elseBody)));
+
 }
 
 void CSTConverter::visit(ForLoopCST *forLoop) {

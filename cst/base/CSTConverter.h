@@ -148,6 +148,8 @@ public:
 
     void visit(BodyCST *bodyCst) override;
 
+    void visit(IfCST *ifCst) override;
+
     void visit(ForLoopCST *forLoop) override;
 
     void visit(WhileCST *whileCst) override;

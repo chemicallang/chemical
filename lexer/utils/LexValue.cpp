@@ -7,6 +7,7 @@
 #include "lexer/Lexer.h"
 #include "lexer/model/tokens/CharToken.h"
 #include "lexer/model/tokens/BoolToken.h"
+#include "cst/values/ArrayValueCST.h"
 
 bool Lexer::lexCharToken() {
     if (provider.increment('\'')) {
@@ -51,6 +52,7 @@ bool Lexer::lexValueToken() {
 
 bool Lexer::lexArrayInit() {
     if (lexOperatorToken('{')) {
+        auto start = tokens.size() - 1;
         do {
             lexWhitespaceToken();
             if (!lexExpressionTokens()) {
@@ -62,21 +64,23 @@ bool Lexer::lexArrayInit() {
             error("expected a '}' when lexing an array");
         }
         lexWhitespaceToken();
-        lexTypeTokens();
-        lexWhitespaceToken();
-        if (lexOperatorToken('(')) {
-            do {
-                lexWhitespaceToken();
-                if (!lexNumberToken()) {
-                    break;
-                }
-                lexWhitespaceToken();
-            } while (lexOperatorToken(','));
+        if(lexTypeTokens()) {
             lexWhitespaceToken();
-            if (!lexOperatorToken(')')) {
-                error("expected a ')' when ending array size");
+            if (lexOperatorToken('(')) {
+                do {
+                    lexWhitespaceToken();
+                    if (!lexNumberToken()) {
+                        break;
+                    }
+                    lexWhitespaceToken();
+                } while (lexOperatorToken(','));
+                lexWhitespaceToken();
+                if (!lexOperatorToken(')')) {
+                    error("expected a ')' when ending array size");
+                }
             }
         }
+        compound_from<ArrayValueCST>(start);
         return true;
     } else {
         return false;

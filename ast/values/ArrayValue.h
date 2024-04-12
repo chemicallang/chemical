@@ -73,29 +73,31 @@ public:
 
     std::string representation() const override {
         std::string rep;
-        rep.append(1, '[');
-        if (values.empty()) {
-            rep.append("]" + elemType.value()->representation() + "(");
-            int i = 0;
-            while (i < sizes.size()) {
-                rep.append(std::to_string(sizes[i]));
-                if (i < sizes.size() - 1) {
-                    rep.append(", ");
-                }
-                i++;
+        rep.append(1, '{');
+        int i = 0;
+        while (i < values.size()) {
+            rep.append(values[i]->representation());
+            if (i != values.size() - 1) {
+                rep.append(1, ',');
             }
-            rep.append(")");
-        } else {
-            int i = 0;
-            while (i < values.size()) {
-                rep.append(values[i]->representation());
-                if (i != values.size() - 1) {
-                    rep.append(1, ',');
+            i++;
+        }
+        rep.append(1, '}');
+        if(elemType.has_value()) {
+            rep.append(elemType.value()->representation());
+            if(!sizes.empty()) {
+                rep.append("(");
+                i = 0;
+                while (i < sizes.size()) {
+                    rep.append(std::to_string(sizes[i]));
+                    if (i < sizes.size() - 1) {
+                        rep.append(", ");
+                    }
+                    i++;
                 }
-                i++;
+                rep.append(")");
             }
         }
-        rep.append(1, ']');
         return rep;
     }
 

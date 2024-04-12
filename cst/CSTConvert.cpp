@@ -272,14 +272,14 @@ void CSTConverter::visit(WhileCST *whileCst) {
     whileCst->tokens[2]->accept(this);
     // get it
     auto cond = value();
-    // save current nodes
-    auto previous = std::move(nodes);
     // construct a loop
     auto loop = new WhileLoop(std::move(cond), LoopScope{});
+    // save current nodes
+    auto previous = std::move(nodes);
     // visit the body
     auto prevLoop = current_loop_node;
     current_loop_node = loop;
-    visit(whileCst->tokens, 3);
+    whileCst->tokens[4]->accept(this);
     current_loop_node = prevLoop;
     loop->body.nodes = std::move(nodes);
     // restore nodes
@@ -288,7 +288,24 @@ void CSTConverter::visit(WhileCST *whileCst) {
 }
 
 void CSTConverter::visit(DoWhileCST *doWhileCst) {
-
+    // visit the 2nd last token which is the expression for condition
+    auto cond_index = doWhileCst->tokens.size() - 2;
+    doWhileCst->tokens[cond_index]->accept(this);
+    // get it
+    auto cond = value();
+    // construct a loop
+    auto loop = new DoWhileLoop(std::move(cond), LoopScope{});
+    // save current nodes
+    auto previous = std::move(nodes);
+    // visit the body
+    auto prevLoop = current_loop_node;
+    current_loop_node = loop;
+    doWhileCst->tokens[1]->accept(this);
+    current_loop_node = prevLoop;
+    loop->body.nodes = std::move(nodes);
+    // restore nodes
+    nodes = std::move(previous);
+    nodes.emplace_back(std::unique_ptr<ASTNode>(loop));
 }
 
 void CSTConverter::visit(PointerTypeCST *cst) {

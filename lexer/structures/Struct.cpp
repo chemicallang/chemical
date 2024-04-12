@@ -7,6 +7,7 @@
 #include "lexer/Lexer.h"
 #include "lexer/model/tokens/StructToken.h"
 #include "lexer/model/tokens/InterfaceToken.h"
+#include "cst/structures/StructDefCST.h"
 
 bool Lexer::lexStructMemberTokens() {
     return lexVarInitializationTokens(true, true) || lexFunctionStructureTokens();
@@ -58,6 +59,7 @@ bool Lexer::lexStructStructureTokens() {
             error("expected a struct block for declaring struct members");
         }
         lexWhitespaceToken();
+        compound_from<StructDefCST>(start_token);
         if(isLexerScoped) {
             collectStructAsLexer(start_token, tokens.size());
             isLexerScoped = false;

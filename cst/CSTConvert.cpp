@@ -64,9 +64,13 @@
 #include "cst/statements/ContinueCST.h"
 #include "ast/statements/Break.h"
 #include "cst/statements/BreakCST.h"
+#include "ast/values/ArrayValue.h"
+#include "cst/values/ArrayValueCST.h"
 #include "cst/base/CSTConverter.h"
 
-inline std::string str_token(std::vector<std::unique_ptr<CSTToken>> &tokens, unsigned int index) {
+using tokens_vec_type = std::vector<std::unique_ptr<CSTToken>> &;
+
+inline std::string str_token(tokens_vec_type tokens, unsigned int index) {
     return static_cast<AbstractStringToken *>(tokens[index].get())->value;
 }
 
@@ -361,7 +365,34 @@ void CSTConverter::visit(StructValueCST *structValueCst) {
 }
 
 void CSTConverter::visit(ArrayValueCST *arrayValue) {
-
+    unsigned i = 1;
+    std::vector<std::unique_ptr<Value>> arrValues;
+    while(char_op(arrayValue->tokens[i].get()) != '}') {
+        if(char_op(arrayValue->tokens[i].get()) != ',') {
+            arrayValue->tokens[i]->accept(this);
+            // consume the value
+            arrValues.emplace_back(value());
+        }
+        i++;
+    }
+    i++;
+    std::optional<std::unique_ptr<BaseType>> arrType = std::nullopt;
+    std::vector<unsigned int> sizes;
+    if(i < arrayValue->tokens.size()) {
+        arrayValue->tokens[i++]->accept(this);
+        arrType = opt_type();
+        if(i < arrayValue->tokens.size() && char_op(arrayValue->tokens[i++].get()) == '(') {
+            while(i < arrayValue->tokens.size() && char_op(arrayValue->tokens[i].get()) != ')') {
+                if(char_op(arrayValue->tokens[i].get()) != ',') {
+                    arrayValue->tokens[i]->accept(this);
+                    // consume the value
+                    sizes.emplace_back(value()->as_int());
+                }
+                i++;
+            }
+        }
+    }
+    values.emplace_back(std::make_unique<ArrayValue>(std::move(arrValues), std::move(arrType), std::move(sizes)));
 }
 
 void CSTConverter::visit(FunctionCallCST *call) {

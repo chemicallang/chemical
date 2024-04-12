@@ -21,4 +21,5 @@ func print_args(argc : int, argv : string*) {
 
 func main(argc : int, argv : string*) {
     x.y += (7 + 1) * (8 + 2);
+    var arr = {2,4,6,8,10}int(1,2);
 }

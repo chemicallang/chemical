@@ -3,6 +3,7 @@
 #include "lexer/Lexer.h"
 #include "cst/statements/AssignmentCST.h"
 #include "cst/values/AccessChainCST.h"
+#include "cst/statements/IncDecCST.h"
 
 bool Lexer::lexLanguageOperatorToken() {
     return lexOperatorToken('+', Operation::Addition) ||
@@ -49,7 +50,7 @@ bool Lexer::lexAssignmentTokens() {
 
     // increment or decrement
     if (lexOperatorToken("++", Operation::PostfixIncrement) || lexOperatorToken("--", Operation::PostfixDecrement)) {
-        ((AccessChainCST*) tokens[start].get())->is_node = true;
+        compound_from<IncDecCST>(start);
         return true;
     }
 

@@ -352,6 +352,7 @@ set(COMMON_SOURCES
         cst/values/FunctionCallCST.h
         cst/values/IndexOpCST.h
         common/Position.h
+        cst/statements/IncDecCST.h
 )
 
 # Chemical LSP Executable Target

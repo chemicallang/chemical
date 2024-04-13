@@ -57,6 +57,7 @@
 #include "ast/structures/ForLoop.h"
 #include "cst/structures/ForLoopCST.h"
 #include "ast/structures/WhileLoop.h"
+#include "ast/values/StructValue.h"
 #include "cst/structures/WhileCST.h"
 #include "ast/structures/DoWhileLoop.h"
 #include "cst/structures/DoWhileCST.h"
@@ -69,7 +70,9 @@
 #include "ast/structures/If.h"
 #include "cst/statements/IfCST.h"
 #include "ast/structures/StructDefinition.h"
+#include "cst/statements/IncDecCST.h"
 #include "cst/structures/StructDefCST.h"
+#include "cst/values/StructValueCST.h"
 #include "cst/base/CSTConverter.h"
 
 using tokens_vec_type = std::vector<std::unique_ptr<CSTToken>> &;
@@ -275,6 +278,12 @@ void CSTConverter::visit(BreakCST *breakCST) {
     nodes.emplace_back(std::make_unique<BreakStatement>(current_loop_node));
 }
 
+void CSTConverter::visit(IncDecCST *incDec) {
+    incDec->tokens[0]->accept(this);
+    auto acOp = ((OperationToken*) incDec->tokens[1].get())->op == Operation::PostfixIncrement ? Operation::Addition : Operation::Subtraction;
+    nodes.emplace_back(std::make_unique<AssignStatement>(value(), std::make_unique<IntValue>(1), acOp));
+}
+
 void CSTConverter::visit(BodyCST *bodyCst) {
     visit(bodyCst->tokens, 0);
 }
@@ -478,8 +487,21 @@ void CSTConverter::visit(NumberToken *token) {
     }
 }
 
-void CSTConverter::visit(StructValueCST *structValueCst) {
-
+void CSTConverter::visit(StructValueCST *cst) {
+    auto name = str_token(cst->tokens[0].get());
+    auto i = 2; // first identifier or '}'
+    std::unordered_map<std::string, std::unique_ptr<Value>> vals;
+    while(!is_char_op(cst->tokens[i].get(), '}')) {
+        auto id = str_token(cst->tokens[i].get());
+        i+= 2;
+        cst->tokens[i]->accept(this);
+        vals[id] = value();
+        i++;
+        if(is_char_op(cst->tokens[i].get(), ',')) {
+            i++;
+        }
+    }
+    values.emplace_back(std::make_unique<StructValue>(name, std::move(vals)));
 }
 
 void CSTConverter::visit(ArrayValueCST *arrayValue) {

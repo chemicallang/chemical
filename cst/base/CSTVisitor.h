@@ -34,6 +34,8 @@ class ForLoopCST;
 
 class EnumDeclCST;
 
+class IncDecCST;
+
 class FunctionParamCST;
 
 class FunctionCST;
@@ -151,6 +153,10 @@ public:
 
     virtual void visit(IfCST *ifCst) {
         visitCompoundCommon((CompoundCSTToken *) ifCst);
+    }
+
+    virtual void visit(IncDecCST *incDec) {
+        visitCompoundCommon((CompoundCSTToken *) incDec);
     }
 
     virtual void visit(BodyCST *bodyCst) {

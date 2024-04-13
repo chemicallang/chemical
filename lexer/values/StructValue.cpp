@@ -1,9 +1,12 @@
 // Copyright (c) Qinetik 2024.
 
 #include "lexer/Lexer.h"
+#include "cst/values/StructValueCST.h"
 
 bool Lexer::lexStructValueTokens() {
     if(lexOperatorToken('{')) {
+
+        unsigned start = tokens.size() - 2;
 
         // lex struct member value tokens
         do {
@@ -32,6 +35,8 @@ bool Lexer::lexStructValueTokens() {
         if(!lexOperatorToken('}')) {
             error("expected '}' for struct value");
         }
+
+        compound_from<StructValueCST>(start);
 
         return true;
     }

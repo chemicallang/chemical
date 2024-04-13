@@ -14,7 +14,7 @@
 
 class LoopASTNode;
 
-using cst_tokens_ref_type = std::vector<std::unique_ptr<CSTToken>>&;
+using cst_tokens_ref_type = std::vector<std::unique_ptr<CSTToken>> &;
 
 struct FunctionParamsResult {
     bool isVariadic;
@@ -23,6 +23,14 @@ struct FunctionParamsResult {
 };
 
 class CSTConverter : public CSTVisitor {
+private:
+
+    /**
+     * are function param types optional, used to check when converting function parameters
+     * since lambda parameter types are optional
+     */
+    bool optional_param_types = false;
+
 public:
 
     /**
@@ -141,6 +149,8 @@ public:
     void visit(VarInitCST *varInit) override;
 
     void visit(SwitchCST *switchCst) override;
+
+    void visit(LambdaCST *cst) override;
 
     void visit(AssignmentCST *assignment) override;
 

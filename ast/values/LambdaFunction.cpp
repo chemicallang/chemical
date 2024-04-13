@@ -85,7 +85,30 @@ void LambdaFunction::link(SymbolResolver &linker, ReturnStatement *returnStmt) {
 }
 
 std::string LambdaFunction::representation() const {
-    return "() => {};";
+    std::string rep("[");
+    unsigned i = 0;
+    unsigned size = captureList.size();
+    while(i < size) {
+        rep.append(captureList[i]);
+        if(i < size - 1){
+            rep.append(1, ',');
+        }
+        i++;
+    }
+    rep.append("](");
+    i = 0;
+    size = params.size();
+    while(i < size) {
+        rep.append(params[i]->representation());
+        if(i < size - 1){
+            rep.append(1, ',');
+        }
+        i++;
+    }
+    rep.append(") => {\n");
+    rep.append(scope.representation());
+    rep.append("\n}");
+    return rep;
 }
 
 ValueType LambdaFunction::value_type() const {

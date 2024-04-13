@@ -51,9 +51,13 @@ void Lexer::lexParameterList(bool optionalTypes) {
                     error("missing a type token for the function parameter, expected type after the colon");
                     return;
                 }
-            } else if(!optionalTypes) {
-                error("expected colon ':' in function parameter list after the parameter name " + name);
-                return;
+            } else {
+                if(optionalTypes) {
+                    compound_from<FunctionParamCST>(start);
+                } else {
+                    error("expected colon ':' in function parameter list after the parameter name " + name);
+                    return;
+                }
             }
         }
         lexWhitespaceToken();

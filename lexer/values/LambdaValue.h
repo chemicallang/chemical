@@ -3,6 +3,7 @@
 #pragma once
 
 #include "lexer/Lexer.h"
+#include "cst/values/LambdaCST.h"
 
 void Lexer::lexIdentifierList() {
     do {
@@ -16,6 +17,8 @@ void Lexer::lexIdentifierList() {
 
 bool Lexer::lexLambdaValue() {
     if (lexOperatorToken('[')) {
+
+        auto start = tokens.size() - 1;
 
         lexIdentifierList();
 
@@ -46,6 +49,8 @@ bool Lexer::lexLambdaValue() {
         if (!lexBraceBlock("lambda")) {
             error("expected lambda body for ");
         }
+
+        compound_from<LambdaCST>(start);
 
         return true;
     } else {

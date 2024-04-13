@@ -96,6 +96,8 @@ class OperationToken;
 
 class StringToken;
 
+class LambdaCST;
+
 class NumberToken;
 
 class BoolToken;
@@ -233,6 +235,10 @@ public:
 
     virtual void visit(IndexOpCST *op) {
         visitCompoundCommon((CompoundCSTToken *) op);
+    }
+
+    virtual void visit(LambdaCST *cst) {
+        visitCompoundCommon((CompoundCSTToken *) cst);
     }
 
     virtual void visit(NegativeCST *negativeCst) {

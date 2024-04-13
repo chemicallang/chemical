@@ -70,12 +70,14 @@
 #include "ast/values/ArrayValue.h"
 #include "cst/values/ArrayValueCST.h"
 #include "ast/structures/If.h"
+#include "ast/values/LambdaFunction.h"
 #include "cst/statements/IfCST.h"
 #include "ast/structures/StructDefinition.h"
 #include "cst/statements/IncDecCST.h"
 #include "cst/structures/StructDefCST.h"
 #include "cst/values/StructValueCST.h"
 #include "cst/base/CSTConverter.h"
+#include "cst/values/LambdaCST.h"
 
 using tokens_vec_type = std::vector<std::unique_ptr<CSTToken>> &;
 
@@ -91,7 +93,7 @@ inline char char_op(CSTToken *token) {
     return static_cast<CharOperatorToken *>(token)->op;
 }
 
-inline bool is_keyword(CSTToken *token, const std::string& x) {
+inline bool is_keyword(CSTToken *token, const std::string &x) {
     return token->type() == LexTokenType::Keyword && str_token(token) == x;
 }
 
@@ -173,10 +175,23 @@ void CSTConverter::visit(FunctionParamCST *param) {
     auto lastToken = param->tokens[param->tokens.size() - 1].get();
     auto isVariadic = !lastToken->compound() && lastToken->start_token()->is_abs_string() &&
                       ((AbstractStringToken *) lastToken)->value == "...";
-    nodes.emplace_back(std::make_unique<FunctionParam>(identifier, type(), param_index, isVariadic, opt_value()));
+    BaseType* baseType;
+    if (optional_param_types) {
+        auto t = opt_type();
+        if(t.has_value()) {
+            baseType = t.value().release();
+        } else {
+            baseType = new VoidType();
+        }
+    } else {
+        baseType = type().release();
+    }
+    nodes.emplace_back(
+            std::make_unique<FunctionParam>(identifier, std::unique_ptr<BaseType>(baseType), param_index, isVariadic, opt_value()));
     param_index++;
 }
 
+// will probably leave the index at ')'
 FunctionParamsResult CSTConverter::function_params(cst_tokens_ref_type tokens, unsigned start) {
     param_index = 0;
     auto isVariadic = false;
@@ -291,6 +306,37 @@ void CSTConverter::visit(IncDecCST *incDec) {
     nodes.emplace_back(std::make_unique<AssignStatement>(value(), std::make_unique<IntValue>(1), acOp));
 }
 
+void CSTConverter::visit(LambdaCST *cst) {
+
+    std::vector<std::string> captureList;
+
+    unsigned i = 1;
+    while (!is_char_op(cst->tokens[i].get(), ']')) {
+        if (cst->tokens[i]->type() == LexTokenType::Variable) {
+            captureList.push_back(((VariableToken *) (cst->tokens[i].get()))->value);
+        }
+        i++;
+    }
+    i += 2;
+
+    auto prev = optional_param_types;
+    optional_param_types = true;
+    auto result = function_params(cst->tokens, i);
+    optional_param_types = prev;
+
+    auto prev_nodes = std::move(nodes);
+    auto prev_decl = current_func_decl;
+    current_func_decl = nullptr;
+    cst->tokens[result.index + 2]->accept(this);
+    current_func_decl = prev_decl;
+    auto scope = Scope(std::move(nodes));
+    nodes = std::move(prev_nodes);
+
+    values.emplace_back(
+            std::make_unique<LambdaFunction>(std::move(captureList), std::move(result.params), result.isVariadic,
+                                             std::move(scope)));
+}
+
 void CSTConverter::visit(BodyCST *bodyCst) {
     visit(bodyCst->tokens, 0);
 }
@@ -350,8 +396,8 @@ void CSTConverter::visit(SwitchCST *switchCst) {
     std::vector<std::pair<std::unique_ptr<Value>, Scope>> cases;
     std::optional<Scope> defScope = std::nullopt;
     auto has_default = false;
-    while(true) {
-        if(is_keyword(switchCst->tokens[i].get(), "case")) {
+    while (true) {
+        if (is_keyword(switchCst->tokens[i].get(), "case")) {
             i++;
             switchCst->tokens[i]->accept(this);
             auto caseVal = value();
@@ -362,14 +408,14 @@ void CSTConverter::visit(SwitchCST *switchCst) {
             nodes = std::move(prev_nodes);
             cases.emplace_back(std::move(caseVal), std::move(scope));
             i++;
-        } else if(is_keyword(switchCst->tokens[i].get(), "default")) {
+        } else if (is_keyword(switchCst->tokens[i].get(), "default")) {
             i += 2; // body
             auto prev_nodes = std::move(nodes);
             switchCst->tokens[i]->accept(this);
             defScope.emplace(Scope(std::move(nodes)));
             nodes = std::move(prev_nodes);
             i++;
-            if(has_default) {
+            if (has_default) {
                 error("multiple defaults in switch statement detected", switchCst->tokens[i - 3].get());
             }
             has_default = true;

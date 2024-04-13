@@ -59,6 +59,10 @@ public:
         return false;
     }
 
+    virtual bool is_struct_value() {
+        return false;
+    }
+
 #ifdef DEBUG
 
     /**

@@ -74,184 +74,187 @@ int main(int argc, char *argv[]) {
     for (const auto &err: lexer.errors) {
         std::cerr << err.representation(srcFilePath, "Lexer") << std::endl;
     }
+    if(!lexer.errors.empty()) {
+        // do not pass errored tokens to converter
+        return 1;
+    }
     CSTConverter converter;
     converter.convert(lexer.tokens);
     for(const auto& err : converter.diagnostics) {
         std::cerr << err.representation(srcFilePath, "Converter") << std::endl;
     }
     Scope scope(std::move(converter.nodes));
-    std::cout << "[Representation]\n" << scope.representation() << std::endl;
+    // TODO benchmark conversion instead
 //    auto parser = benchmark.has_value() ? benchParse(std::move(lexer.tokens)) : parse(std::move(lexer.tokens));
 //    for (const auto &err: parser.errors) {
 //        std::cerr << err.representation(srcFilePath, "Parser") << std::endl;
 //    }
-//    TypeChecker checker;
-//    checker.type_check(parser.nodes);
-//    for (const auto &err: checker.errors) {
-//        std::cerr << err << std::endl;
-//    }
-//    Scope scope(std::move(parser.nodes));
+    TypeChecker checker;
+    checker.type_check(scope.nodes);
+    for (const auto &err: checker.errors) {
+        std::cerr << err << std::endl;
+    }
 //    if(verbose.has_value()) {
-//        std::cout << "[Representation]\n" << scope.representation() << std::endl;
+        std::cout << "[Representation]\n" << scope.representation() << std::endl;
 //    }
-//    if (lexer.has_errors || !parser.errors.empty() || !checker.errors.empty()) return 1;
-//
-//    // TODO typechecker should run after the linker runs
-//
-//    // linking the nodes
-//    {
-//        SymbolResolver linker(srcFilePath);
-//        scope.declare_top_level(linker);
-//        if(!linker.errors.empty()) {
-//            for(const auto& err : linker.errors) {
-//                std::cerr << "[Linker] " << err << std::endl;
-//            }
-//            // TODO preventing linker to stop if errors occur, because we need std.io import to work !
-////            return 1;
-//        }
-//    }
-//
-//    // get and print target
-//    auto target = options.option("target", "t");
-//    if (!target.has_value()) {
-//        target.emplace(llvm::sys::getDefaultTargetTriple());
-//    }
-//    if(verbose.has_value()) {
-//        std::cout << "Target: " << target.value() << std::endl;
-//    }
-//
-//    // actual compilation
-//    Codegen gen(std::move(scope.nodes), srcFilePath, target.value(), argv[0]);
-//    gen.compile();
-//
-//    // check if it requires printing
-//    auto print = options.option("print-ir", "pir");
-//    if (print.has_value()) {
-//        // print to console
-//        gen.print_to_console();
-//    }
-//
-//    auto jit = options.option("jit", "jit");
-//    if(jit.has_value()) {
-//        auto jit_commands = options.collect_subcommand(argc, argv, "jit");
-//        std::vector<const char*> jit_args;
-//        args.reserve(jit_commands.size());
-//        for(const auto& cmd : jit_commands) {
-//            jit_args.push_back(cmd.c_str());
-//        }
-//        gen.just_in_time_compile(jit_args);
-//        gen.print_errors();
-//        return 0;
-//    }
-//
-//    int return_int = 0;
-//    auto output = options.option("output", "o");
-//    if (!output.has_value()) {
-//        output.emplace("compiled");
-//    }
-//
-//    // writing object / ll file when user wants only that !
-//    if(endsWith(output.value(), ".o")) {
-//        gen.save_to_object_file(output.value());
-//        options.print_unhandled();
-//        return 0;
-//    }
-//#ifdef FEAT_ASSEMBLY_GEN
-//    else if(endsWith(output.value(), ".s")) {
-//        gen.save_to_assembly_file(output.value());
-//        options.print_unhandled();
-//        return 0;
-//    }
-//#endif
-//#ifdef FEAT_LLVM_IR_GEN
-//    else if(endsWith(output.value(), ".ll")) {
-//        gen.save_to_file(output.value());
-//        options.print_unhandled();
-//        return 0;
-//    }
-//#endif
-//#ifdef FEAT_BITCODE_GEN
-//    else if(endsWith(output.value(), ".bc")) {
-//        gen.save_as_bc_file(output.value());
-//        options.print_unhandled();
-//        return 0;
-//    }
-//#endif
-//
-//    // creating object file for compilation
-//    std::string object_file_path = output.value() + ".o";
-//    gen.save_to_object_file(object_file_path);
-//    if (!gen.errors.empty()) {
-//        gen.print_errors();
-//        return 1;
-//    }
-//
-//    auto useLinker = options.option("linker", "linker");
-//    if(useLinker.has_value()) {
-//
-//        // creating lld command
-//        std::vector<std::string> linker{object_file_path};
-//
-//        // set output
-//#if defined(_WIN32)
-//        linker.emplace_back("/OUT:"+output.value());
-//#elif defined(__APPLE__)
-//        linker.emplace_back("-o");
-//        linker.emplace_back("./"+output.value());
-//#elif defined(__linux__)
-//        linker.emplace_back("-o");
-//        linker.emplace_back("./"+output.value());
-//#endif
-//
-//        // link with standard libc (unless user opts out)
-//        auto option = options.option("no-libc", "no-libc");
-//        if(!option.has_value()) {
-//#if defined(_WIN32)
-//            linker.emplace_back("-defaultlib:libcmt");
-//#elif defined(__APPLE__)
-//            // TODO test linking with libc on apple
-//            linker.emplace_back("-lc");
-//#elif defined(__linux__)
-//            // TODO test linking with libc on linux
-//            linker.emplace_back("-lc");
-//#endif
-//        }
-//
-//        // add user's linker flags
-//        auto user_libs = options.collect_subcommand(argc, argv, "linker");
-//        // TODO test this
-//        for(const auto& flag : user_libs) {
-//            linker.emplace_back(flag);
-//        }
-//
-//        // invoke lld to create executable
-//        return_int = gen.invoke_lld(linker);
-//
-//    } else {
-//        // use clang by default
-//        std::vector<std::string> clang_flags{argv[0]};
-//        options.option("clang", "clang"); // consume clang cmd
-//        auto consumed = options.collect_subcommand(argc, argv, "clang");
-//        for(const auto& cland_fl : consumed) {
-//            clang_flags.emplace_back(cland_fl);
-//        }
-//        clang_flags.emplace_back(object_file_path);
-//        clang_flags.emplace_back("-o");
-//        clang_flags.emplace_back(output.value());
-//        return_int = gen.invoke_clang(clang_flags);
-//    }
-//
-//    // delete object file which was linked
-//    // Attempt to delete the file using std::filesystem
-//    try {
-//        std::filesystem::remove(object_file_path);
-//    } catch (const std::filesystem::filesystem_error& ex) {
-//        std::cerr << ANSI_COLOR_RED << "couldn't delete object file " << object_file_path << " because " << ex.what() << ANSI_COLOR_RESET << std::endl;
-//        return_int = 1;
-//    }
-//
-//    options.print_unhandled();
-//
-//    return return_int;
+    if (lexer.has_errors || converter.has_errors || !checker.errors.empty()) return 1;
+
+    // TODO typechecker should run after the linker runs
+
+    // linking the nodes
+    {
+        SymbolResolver linker(srcFilePath);
+        scope.declare_top_level(linker);
+        if(!linker.errors.empty()) {
+            for(const auto& err : linker.errors) {
+                std::cerr << "[Linker] " << err << std::endl;
+            }
+            // TODO preventing linker to stop if errors occur, because we need std.io import to work !
+//            return 1;
+        }
+    }
+
+    // get and print target
+    auto target = options.option("target", "t");
+    if (!target.has_value()) {
+        target.emplace(llvm::sys::getDefaultTargetTriple());
+    }
+    if(verbose.has_value()) {
+        std::cout << "Target: " << target.value() << std::endl;
+    }
+
+    // actual compilation
+    Codegen gen(std::move(scope.nodes), srcFilePath, target.value(), argv[0]);
+    gen.compile();
+
+    // check if it requires printing
+    auto print = options.option("print-ir", "pir");
+    if (print.has_value()) {
+        // print to console
+        gen.print_to_console();
+    }
+
+    auto jit = options.option("jit", "jit");
+    if(jit.has_value()) {
+        auto jit_commands = options.collect_subcommand(argc, argv, "jit");
+        std::vector<const char*> jit_args;
+        args.reserve(jit_commands.size());
+        for(const auto& cmd : jit_commands) {
+            jit_args.push_back(cmd.c_str());
+        }
+        gen.just_in_time_compile(jit_args);
+        gen.print_errors();
+        return 0;
+    }
+
+    int return_int = 0;
+    auto output = options.option("output", "o");
+    if (!output.has_value()) {
+        output.emplace("compiled");
+    }
+
+    // writing object / ll file when user wants only that !
+    if(endsWith(output.value(), ".o")) {
+        gen.save_to_object_file(output.value());
+        options.print_unhandled();
+        return 0;
+    }
+#ifdef FEAT_ASSEMBLY_GEN
+    else if(endsWith(output.value(), ".s")) {
+        gen.save_to_assembly_file(output.value());
+        options.print_unhandled();
+        return 0;
+    }
+#endif
+#ifdef FEAT_LLVM_IR_GEN
+    else if(endsWith(output.value(), ".ll")) {
+        gen.save_to_file(output.value());
+        options.print_unhandled();
+        return 0;
+    }
+#endif
+#ifdef FEAT_BITCODE_GEN
+    else if(endsWith(output.value(), ".bc")) {
+        gen.save_as_bc_file(output.value());
+        options.print_unhandled();
+        return 0;
+    }
+#endif
+
+    // creating object file for compilation
+    std::string object_file_path = output.value() + ".o";
+    gen.save_to_object_file(object_file_path);
+    if (!gen.errors.empty()) {
+        gen.print_errors();
+        return 1;
+    }
+
+    auto useLinker = options.option("linker", "linker");
+    if(useLinker.has_value()) {
+
+        // creating lld command
+        std::vector<std::string> linker{object_file_path};
+
+        // set output
+#if defined(_WIN32)
+        linker.emplace_back("/OUT:"+output.value());
+#elif defined(__APPLE__)
+        linker.emplace_back("-o");
+        linker.emplace_back("./"+output.value());
+#elif defined(__linux__)
+        linker.emplace_back("-o");
+        linker.emplace_back("./"+output.value());
+#endif
+
+        // link with standard libc (unless user opts out)
+        auto option = options.option("no-libc", "no-libc");
+        if(!option.has_value()) {
+#if defined(_WIN32)
+            linker.emplace_back("-defaultlib:libcmt");
+#elif defined(__APPLE__)
+            // TODO test linking with libc on apple
+            linker.emplace_back("-lc");
+#elif defined(__linux__)
+            // TODO test linking with libc on linux
+            linker.emplace_back("-lc");
+#endif
+        }
+
+        // add user's linker flags
+        auto user_libs = options.collect_subcommand(argc, argv, "linker");
+        // TODO test this
+        for(const auto& flag : user_libs) {
+            linker.emplace_back(flag);
+        }
+
+        // invoke lld to create executable
+        return_int = gen.invoke_lld(linker);
+
+    } else {
+        // use clang by default
+        std::vector<std::string> clang_flags{argv[0]};
+        options.option("clang", "clang"); // consume clang cmd
+        auto consumed = options.collect_subcommand(argc, argv, "clang");
+        for(const auto& cland_fl : consumed) {
+            clang_flags.emplace_back(cland_fl);
+        }
+        clang_flags.emplace_back(object_file_path);
+        clang_flags.emplace_back("-o");
+        clang_flags.emplace_back(output.value());
+        return_int = gen.invoke_clang(clang_flags);
+    }
+
+    // delete object file which was linked
+    // Attempt to delete the file using std::filesystem
+    try {
+        std::filesystem::remove(object_file_path);
+    } catch (const std::filesystem::filesystem_error& ex) {
+        std::cerr << ANSI_COLOR_RED << "couldn't delete object file " << object_file_path << " because " << ex.what() << ANSI_COLOR_RESET << std::endl;
+        return_int = 1;
+    }
+
+    options.print_unhandled();
+
+    return return_int;
 
 }

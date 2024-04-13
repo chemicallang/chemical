@@ -46,6 +46,7 @@ bool Lexer::lexBraceBlock(const std::string& forThing) {
 
     // starting brace
     if (!lexOperatorToken('{')) {
+        nested_compound_end();
         return false;
     }
 

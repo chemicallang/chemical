@@ -154,6 +154,9 @@ std::optional<std::unique_ptr<BaseType>> CSTConverter::opt_type() {
 }
 
 void CSTConverter::error(const std::string &message, CSTToken *start, CSTToken *end, DiagSeverity severity) {
+    if(severity == DiagSeverity::Error) {
+        has_errors = true;
+    }
     diagnostics.emplace_back(
             Range{
                     start->start_token()->position,
@@ -188,11 +191,11 @@ void CSTConverter::visit(FunctionParamCST *param) {
     }
     nodes.emplace_back(
             std::make_unique<FunctionParam>(identifier, std::unique_ptr<BaseType>(baseType), param_index, isVariadic, opt_value()));
-    param_index++;
 }
 
 // will probably leave the index at ')'
 FunctionParamsResult CSTConverter::function_params(cst_tokens_ref_type tokens, unsigned start) {
+    auto prev_param_index = param_index;
     param_index = 0;
     auto isVariadic = false;
     func_params params;
@@ -206,6 +209,7 @@ FunctionParamsResult CSTConverter::function_params(cst_tokens_ref_type tokens, u
             nodes.pop_back();
             if (param->isVariadic) {
                 isVariadic = true;
+                i++;
                 break;
             }
         } else if (tokens[i]->start_token()->type() == LexTokenType::CharOperator &&
@@ -216,6 +220,7 @@ FunctionParamsResult CSTConverter::function_params(cst_tokens_ref_type tokens, u
         }
         i++;
     }
+    param_index = prev_param_index;
     return {isVariadic, std::move(params), i};
 }
 
@@ -227,7 +232,9 @@ void CSTConverter::visit(FunctionCST *function) {
 
     if (char_op(function->tokens[i + 1].get()) == ':') {
         function->tokens[i + 2]->accept(this);
-        i += 2;
+        i += 3; // position at body
+    } else {
+        i++;
     }
 
     auto returnType = opt_type();
@@ -235,14 +242,23 @@ void CSTConverter::visit(FunctionCST *function) {
         returnType.emplace(std::make_unique<VoidType>());
     }
 
+    std::optional<LoopScope> fnBody = std::nullopt;
+    if(i < function->tokens.size()) {
+        fnBody.emplace(LoopScope{});
+    }
+
     auto funcDecl = new FunctionDeclaration(function->func_name(), std::move(params.params),
                                             std::move(returnType.value()), params.isVariadic,
-                                            LoopScope{});
+                                            std::move(fnBody));
 
     nodes.emplace_back(std::unique_ptr<FunctionDeclaration>(funcDecl));
 
+    if(i >= function->tokens.size()) {
+        return;
+    }
+
     auto prev_nodes = std::move(nodes);
-    visit(function->tokens, i);
+    function->tokens[i]->accept(this);
     current_func_decl = funcDecl;
     funcDecl->body->nodes = std::move(nodes);
     nodes = std::move(prev_nodes);

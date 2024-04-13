@@ -19,6 +19,7 @@
 #include <filesystem>
 #include "lexer/Lexi.h"
 #include "parser/Persi.h"
+#include "cst/base/CSTConverter.h"
 
 namespace fs = std::filesystem;
 
@@ -31,10 +32,19 @@ std::vector<std::unique_ptr<ASTNode>>& ImportStatement::parsed(const std::string
     auto resolved = resolve_rel_path(root_path);
 
     auto lexer = lexFile(resolved.string());
-    // TODO convert to AST
-//    auto parser = parse(std::move(lexer.tokens));
 
-//    imported_ast = std::move(parser.nodes);
+    if(lexer.has_errors) {
+        // TODO handle errors
+    }
+
+    CSTConverter converter;
+    converter.convert(lexer.tokens);
+
+    if(converter.has_errors) {
+        // TODO handle errors
+    }
+
+    imported_ast = std::move(converter.nodes);
 
     return imported_ast;
 

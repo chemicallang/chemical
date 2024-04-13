@@ -30,7 +30,9 @@ bool Lexer::lexAccessChain(bool lexStruct) {
 
     lexAccessChainAfterId(lexStruct);
 
-    compound_from<AccessChainCST>(start);
+    if(!tokens[start]->is_struct_value()) {
+        compound_from<AccessChainCST>(start);
+    }
 
     return true;
 

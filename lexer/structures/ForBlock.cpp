@@ -44,11 +44,13 @@ bool Lexer::lexForBlockTokens() {
     }
 
     // lex strict initialization
-    lexVarInitializationTokens(false);
+    if(!lexVarInitializationTokens(false)) {
+        error("expected a var initialization in for loop");
+    }
 
     // lex ;
     if(!lexOperatorToken(';')){
-        error("expected semicolon ; after the initialization in for block");
+        error("expected semicolon ; after the initialization in for loop");
         return true;
     }
 
@@ -56,10 +58,12 @@ bool Lexer::lexForBlockTokens() {
     lexWhitespaceToken();
 
     // lex conditional expression
-    lexExpressionTokens();
+    if(!lexExpressionTokens()) {
+        error("expected a conditional expression after the var initialization in for loop");
+    }
 
     if(!lexOperatorToken(';')){
-        error("expected semicolon ; after the condition in for block");
+        error("expected semicolon ; after the condition in for loop");
         return true;
     }
 
@@ -68,7 +72,7 @@ bool Lexer::lexForBlockTokens() {
 
     // lex assignment token
     if(!lexAssignmentTokens()) {
-        error("missing assignment in for block");
+        error("missing assignment in for loop after the condition");
         return true;
     }
 

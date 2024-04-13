@@ -156,6 +156,8 @@ public:
 
     void visit(DoWhileCST *doWhileCst) override;
 
+    void visit(StructDefCST *structDef) override;
+
     // Types
 
     void visit(TypeToken *token) override;

@@ -99,7 +99,7 @@ std::string ForLoop::representation() const {
     ret.append(conditionExpr->representation());
     ret.append(1, ';');
     ret.append(incrementerExpr->representation());
-    ret.append("{\n");
+    ret.append("){\n");
     ret.append(body.representation());
     ret.append("\n}");
     return ret;

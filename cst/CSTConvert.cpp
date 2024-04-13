@@ -68,11 +68,13 @@
 #include "cst/values/ArrayValueCST.h"
 #include "ast/structures/If.h"
 #include "cst/statements/IfCST.h"
+#include "ast/structures/StructDefinition.h"
+#include "cst/structures/StructDefCST.h"
 #include "cst/base/CSTConverter.h"
 
 using tokens_vec_type = std::vector<std::unique_ptr<CSTToken>> &;
 
-inline std::string str_token(CSTToken* token) {
+inline std::string str_token(CSTToken *token) {
     return static_cast<AbstractStringToken *>(token)->value;
 }
 
@@ -288,7 +290,7 @@ void CSTConverter::visit(IfCST *ifCst) {
     std::vector<std::pair<std::unique_ptr<Value>, Scope>> elseIfs;
 
     auto i = 5; // position after body
-    while((i + 1) < ifCst->tokens.size() && str_token(ifCst->tokens[i + 1].get()) == "if") {
+    while ((i + 1) < ifCst->tokens.size() && str_token(ifCst->tokens[i + 1].get()) == "if") {
 
         i += 3;
         ifCst->tokens[i]->accept(this);
@@ -309,18 +311,42 @@ void CSTConverter::visit(IfCST *ifCst) {
     std::optional<Scope> elseBody = std::nullopt;
 
     // last else
-    if(i < ifCst->tokens.size() && str_token(ifCst->tokens[i].get()) == "else") {
+    if (i < ifCst->tokens.size() && str_token(ifCst->tokens[i].get()) == "else") {
         prev_nodes = std::move(nodes);
         ifCst->tokens[i + 1]->accept(this);
         elseBody.emplace(Scope(std::move(nodes)));
         nodes = std::move(prev_nodes);
     }
 
-    nodes.emplace_back(std::make_unique<IfStatement>(std::move(cond), Scope(std::move(body_nodes)), std::move(elseIfs), std::move(elseBody)));
+    nodes.emplace_back(std::make_unique<IfStatement>(std::move(cond), Scope(std::move(body_nodes)), std::move(elseIfs),
+                                                     std::move(elseBody)));
 
 }
 
 void CSTConverter::visit(ForLoopCST *forLoop) {
+
+    forLoop->tokens[2]->accept(this);
+    auto varInit = nodes.back().release()->as_var_init();
+    nodes.pop_back();
+    forLoop->tokens[4]->accept(this);
+    auto cond = value();
+    forLoop->tokens[6]->accept(this);
+    auto assignment = (AssignStatement *) (nodes.back().release());
+    nodes.pop_back();
+
+    auto loop = new ForLoop(std::unique_ptr<VarInitStatement>(varInit),
+                            std::move(cond),
+                            std::unique_ptr<ASTNode>(assignment));
+
+    auto prevLoop = current_loop_node;
+    auto prev_nodes = std::move(nodes);
+    current_loop_node = loop;
+    forLoop->tokens[8]->accept(this);
+    loop->body.nodes = std::move(nodes);
+    nodes = std::move(prev_nodes);
+    current_loop_node = prevLoop;
+
+    nodes.emplace_back(std::unique_ptr<ForLoop>(loop));
 
 }
 
@@ -363,6 +389,10 @@ void CSTConverter::visit(DoWhileCST *doWhileCst) {
     // restore nodes
     nodes = std::move(previous);
     nodes.emplace_back(std::unique_ptr<ASTNode>(loop));
+}
+
+void CSTConverter::visit(StructDefCST *structDef) {
+    // struct def
 }
 
 void CSTConverter::visit(PointerTypeCST *cst) {
@@ -420,8 +450,8 @@ void CSTConverter::visit(StructValueCST *structValueCst) {
 void CSTConverter::visit(ArrayValueCST *arrayValue) {
     unsigned i = 1;
     std::vector<std::unique_ptr<Value>> arrValues;
-    while(char_op(arrayValue->tokens[i].get()) != '}') {
-        if(char_op(arrayValue->tokens[i].get()) != ',') {
+    while (char_op(arrayValue->tokens[i].get()) != '}') {
+        if (char_op(arrayValue->tokens[i].get()) != ',') {
             arrayValue->tokens[i]->accept(this);
             // consume the value
             arrValues.emplace_back(value());
@@ -431,12 +461,12 @@ void CSTConverter::visit(ArrayValueCST *arrayValue) {
     i++;
     std::optional<std::unique_ptr<BaseType>> arrType = std::nullopt;
     std::vector<unsigned int> sizes;
-    if(i < arrayValue->tokens.size()) {
+    if (i < arrayValue->tokens.size()) {
         arrayValue->tokens[i++]->accept(this);
         arrType = opt_type();
-        if(i < arrayValue->tokens.size() && char_op(arrayValue->tokens[i++].get()) == '(') {
-            while(i < arrayValue->tokens.size() && char_op(arrayValue->tokens[i].get()) != ')') {
-                if(char_op(arrayValue->tokens[i].get()) != ',') {
+        if (i < arrayValue->tokens.size() && char_op(arrayValue->tokens[i++].get()) == '(') {
+            while (i < arrayValue->tokens.size() && char_op(arrayValue->tokens[i].get()) != ')') {
+                if (char_op(arrayValue->tokens[i].get()) != ',') {
                     arrayValue->tokens[i]->accept(this);
                     // consume the value
                     sizes.emplace_back(value()->as_int());

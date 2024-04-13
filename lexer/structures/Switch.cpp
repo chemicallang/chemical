@@ -1,9 +1,12 @@
 // Copyright (c) Qinetik 2024.
 
 #include "lexer/Lexer.h"
+#include "cst/statements/SwitchCST.h"
+#include "cst/structures/BodyCST.h"
 
 bool Lexer::lexSwitchStatementBlock() {
     if (lexKeywordToken("switch")) {
+        auto start = tokens.size() - 1;
         lexWhitespaceToken();
         if (lexOperatorToken('(')) {
             if (!lexExpressionTokens()) {
@@ -12,6 +15,8 @@ bool Lexer::lexSwitchStatementBlock() {
             if (!lexOperatorToken(')')) {
                 error("expected ')' in switch statement");
             }
+        } else {
+            error("expect '(' after keyword 'switch' for the expression");
         }
         lexWhitespaceAndNewLines();
         if (lexOperatorToken('{')) {
@@ -25,7 +30,9 @@ bool Lexer::lexSwitchStatementBlock() {
                     }
                     lexWhitespaceToken();
                     if (lexOperatorToken(':')) {
+                        auto bStart = tokens.size();
                         lexNestedLevelMultipleStatementsTokens();
+                        compound_from<BodyCST>(bStart);
                         continue;
                     } else if (lexOperatorToken("->")) {
                         lexWhitespaceAndNewLines();
@@ -38,8 +45,11 @@ bool Lexer::lexSwitchStatementBlock() {
                         break;
                     }
                 } else if(lexKeywordToken("default")) {
+                    lexWhitespaceToken();
                     if (lexOperatorToken(':')) {
+                        auto bStart = tokens.size();
                         lexNestedLevelMultipleStatementsTokens();
+                        compound_from<BodyCST>(bStart);
                     } else if (lexOperatorToken("->")) {
                         lexWhitespaceAndNewLines();
                         if(!lexBraceBlock("switch-default")) {
@@ -60,6 +70,7 @@ bool Lexer::lexSwitchStatementBlock() {
         } else {
             error("expected '{' after switch");
         }
+        compound_from<SwitchCST>(start);
         return true;
     }
     return false;

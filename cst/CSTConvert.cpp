@@ -372,7 +372,7 @@ void CSTConverter::visit(IfCST *ifCst) {
     std::vector<std::pair<std::unique_ptr<Value>, Scope>> elseIfs;
 
     auto i = 5; // position after body
-    while ((i + 1) < ifCst->tokens.size() && str_token(ifCst->tokens[i + 1].get()) == "if") {
+    while ((i + 1) < ifCst->tokens.size() && is_keyword(ifCst->tokens[i + 1].get(), "if")) {
 
         i += 3;
         ifCst->tokens[i]->accept(this);

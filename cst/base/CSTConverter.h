@@ -34,6 +34,11 @@ private:
 public:
 
     /**
+     * check if errors are present after conversion
+     */
+    bool has_errors = false;
+
+    /**
      * function parameter index
      */
     unsigned int param_index = 0;

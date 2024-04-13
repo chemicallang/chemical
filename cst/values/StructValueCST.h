@@ -18,6 +18,10 @@ public:
         visitor->visit(this);
     }
 
+    bool is_struct_value() override {
+        return true;
+    }
+
 #ifdef DEBUG
 
     std::string compound_type_string() const override {

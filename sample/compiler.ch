@@ -47,7 +47,7 @@ func test_structs() {
 }
 
 func test_macro() {
-    var html = #html <html></html> #endhtml;
+    var html = "<html></html>";
     printf("check my html : %s\n", html);
 }
 

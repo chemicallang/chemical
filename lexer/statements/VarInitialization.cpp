@@ -50,6 +50,7 @@ bool Lexer::lexVarInitializationTokens(bool allowDeclarations, bool requiredType
         if(!allowDeclarations) {
             error("expected an = sign for the initialization of the variable");
         }
+        compound_from<VarInitCST>(start);
         return true;
     }
 

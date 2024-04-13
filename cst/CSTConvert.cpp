@@ -86,6 +86,10 @@ inline char char_op(CSTToken *token) {
     return static_cast<CharOperatorToken *>(token)->op;
 }
 
+inline bool is_char_op(CSTToken* token, char x) {
+    return token->type() == LexTokenType::CharOperator && char_op(token) == x;
+}
+
 bool VarInitCST::is_const() {
     return str_token(tokens, 0) == "const";
 }
@@ -392,7 +396,38 @@ void CSTConverter::visit(DoWhileCST *doWhileCst) {
 }
 
 void CSTConverter::visit(StructDefCST *structDef) {
-    // struct def
+    std::optional<std::string> overrides = std::nullopt;
+    auto has_override = is_char_op(structDef->tokens[3].get(), ':');
+    if(has_override) {
+        overrides.emplace(str_token(structDef->tokens[4].get()));
+    }
+    unsigned i = has_override ? 5 : 3; // positioned at first node or '}'
+    std::map<std::string, std::unique_ptr<StructMember>> variables;
+    std::map<std::string, std::unique_ptr<FunctionDeclaration>> decls;
+    while(!is_char_op(structDef->tokens[i].get(), '}')) {
+
+        structDef->tokens[i]->accept(this);
+        auto is_var_init = structDef->tokens[i]->is_var_init();
+        auto node = nodes.back().release();
+        nodes.pop_back();
+        if(is_var_init) {
+            auto init = ((VarInitStatement*) node);
+            variables[init->identifier] = std::make_unique<StructMember>(init->identifier, std::move(init->type.value()), std::move(init->value));
+            delete init;
+        } else {
+            decls[((FunctionDeclaration*) node)->name] = std::unique_ptr<FunctionDeclaration>((FunctionDeclaration*) node);
+        }
+
+        if(is_char_op(structDef->tokens[i+1].get(), ';')) {
+            i++;
+        }
+
+        i++;
+
+    }
+
+    nodes.emplace_back(std::make_unique<StructDefinition>(str_token(structDef->tokens[1].get()), std::move(variables), std::move(decls), std::move(overrides)));
+
 }
 
 void CSTConverter::visit(PointerTypeCST *cst) {

@@ -52,6 +52,13 @@ public:
      */
     virtual LexTokenType type() const = 0;
 
+    /**
+     * is the token var init compound token
+     */
+    virtual bool is_var_init() {
+        return false;
+    }
+
 #ifdef DEBUG
 
     /**

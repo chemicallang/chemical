@@ -18,6 +18,10 @@ public:
         visitor->visit(this);
     }
 
+    bool is_var_init() override {
+        return true;
+    }
+
     /**
      * returns if this has const keyword instead of var in the first token
      */

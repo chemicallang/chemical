@@ -61,7 +61,18 @@ void SwitchStatement::accept(Visitor &visitor) {
 
 std::string SwitchStatement::representation() const {
     std::string rep("switch(" + expression->representation() +  ") {\n");
-
-    rep.append("\n}");
+    for(auto& caseVal : scopes) {
+        rep.append("case ");
+        rep.append(caseVal.first->representation());
+        rep.append(":\n");
+        rep.append(caseVal.second.representation());
+        rep.append("\n");
+    }
+    if(defScope.has_value()) {
+        rep.append("default:\n");
+        rep.append(defScope.value().representation());
+        rep.append("\n");
+    }
+    rep.append("}");
     return rep;
 }

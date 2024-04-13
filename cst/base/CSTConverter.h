@@ -140,6 +140,8 @@ public:
 
     void visit(VarInitCST *varInit) override;
 
+    void visit(SwitchCST *switchCst) override;
+
     void visit(AssignmentCST *assignment) override;
 
     void visit(ImportCST *importCst) override;

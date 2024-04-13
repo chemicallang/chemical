@@ -63,6 +63,8 @@
 #include "cst/structures/DoWhileCST.h"
 #include "ast/statements/Continue.h"
 #include "cst/statements/ContinueCST.h"
+#include "ast/statements/SwitchStatement.h"
+#include "cst/statements/SwitchCST.h"
 #include "ast/statements/Break.h"
 #include "cst/statements/BreakCST.h"
 #include "ast/values/ArrayValue.h"
@@ -89,7 +91,11 @@ inline char char_op(CSTToken *token) {
     return static_cast<CharOperatorToken *>(token)->op;
 }
 
-inline bool is_char_op(CSTToken* token, char x) {
+inline bool is_keyword(CSTToken *token, const std::string& x) {
+    return token->type() == LexTokenType::Keyword && str_token(token) == x;
+}
+
+inline bool is_char_op(CSTToken *token, char x) {
     return token->type() == LexTokenType::CharOperator && char_op(token) == x;
 }
 
@@ -280,7 +286,8 @@ void CSTConverter::visit(BreakCST *breakCST) {
 
 void CSTConverter::visit(IncDecCST *incDec) {
     incDec->tokens[0]->accept(this);
-    auto acOp = ((OperationToken*) incDec->tokens[1].get())->op == Operation::PostfixIncrement ? Operation::Addition : Operation::Subtraction;
+    auto acOp = ((OperationToken *) incDec->tokens[1].get())->op == Operation::PostfixIncrement ? Operation::Addition
+                                                                                                : Operation::Subtraction;
     nodes.emplace_back(std::make_unique<AssignStatement>(value(), std::make_unique<IntValue>(1), acOp));
 }
 
@@ -334,6 +341,43 @@ void CSTConverter::visit(IfCST *ifCst) {
     nodes.emplace_back(std::make_unique<IfStatement>(std::move(cond), Scope(std::move(body_nodes)), std::move(elseIfs),
                                                      std::move(elseBody)));
 
+}
+
+void CSTConverter::visit(SwitchCST *switchCst) {
+    switchCst->tokens[2]->accept(this);
+    auto expr = value();
+    auto i = 5; // positioned at first 'case' or 'default'
+    std::vector<std::pair<std::unique_ptr<Value>, Scope>> cases;
+    std::optional<Scope> defScope = std::nullopt;
+    auto has_default = false;
+    while(true) {
+        if(is_keyword(switchCst->tokens[i].get(), "case")) {
+            i++;
+            switchCst->tokens[i]->accept(this);
+            auto caseVal = value();
+            i += 2; // body
+            auto prev_nodes = std::move(nodes);
+            switchCst->tokens[i]->accept(this);
+            auto scope = Scope(std::move(nodes));
+            nodes = std::move(prev_nodes);
+            cases.emplace_back(std::move(caseVal), std::move(scope));
+            i++;
+        } else if(is_keyword(switchCst->tokens[i].get(), "default")) {
+            i += 2; // body
+            auto prev_nodes = std::move(nodes);
+            switchCst->tokens[i]->accept(this);
+            defScope.emplace(Scope(std::move(nodes)));
+            nodes = std::move(prev_nodes);
+            i++;
+            if(has_default) {
+                error("multiple defaults in switch statement detected", switchCst->tokens[i - 3].get());
+            }
+            has_default = true;
+        } else {
+            break;
+        }
+    }
+    nodes.emplace_back(std::make_unique<SwitchStatement>(std::move(expr), std::move(cases), std::move(defScope)));
 }
 
 void CSTConverter::visit(ForLoopCST *forLoop) {
@@ -407,27 +451,30 @@ void CSTConverter::visit(DoWhileCST *doWhileCst) {
 void CSTConverter::visit(StructDefCST *structDef) {
     std::optional<std::string> overrides = std::nullopt;
     auto has_override = is_char_op(structDef->tokens[3].get(), ':');
-    if(has_override) {
+    if (has_override) {
         overrides.emplace(str_token(structDef->tokens[4].get()));
     }
     unsigned i = has_override ? 5 : 3; // positioned at first node or '}'
     std::map<std::string, std::unique_ptr<StructMember>> variables;
     std::map<std::string, std::unique_ptr<FunctionDeclaration>> decls;
-    while(!is_char_op(structDef->tokens[i].get(), '}')) {
+    while (!is_char_op(structDef->tokens[i].get(), '}')) {
 
         structDef->tokens[i]->accept(this);
         auto is_var_init = structDef->tokens[i]->is_var_init();
         auto node = nodes.back().release();
         nodes.pop_back();
-        if(is_var_init) {
-            auto init = ((VarInitStatement*) node);
-            variables[init->identifier] = std::make_unique<StructMember>(init->identifier, std::move(init->type.value()), std::move(init->value));
+        if (is_var_init) {
+            auto init = ((VarInitStatement *) node);
+            variables[init->identifier] = std::make_unique<StructMember>(init->identifier,
+                                                                         std::move(init->type.value()),
+                                                                         std::move(init->value));
             delete init;
         } else {
-            decls[((FunctionDeclaration*) node)->name] = std::unique_ptr<FunctionDeclaration>((FunctionDeclaration*) node);
+            decls[((FunctionDeclaration *) node)->name] = std::unique_ptr<FunctionDeclaration>(
+                    (FunctionDeclaration *) node);
         }
 
-        if(is_char_op(structDef->tokens[i+1].get(), ';')) {
+        if (is_char_op(structDef->tokens[i + 1].get(), ';')) {
             i++;
         }
 
@@ -435,7 +482,8 @@ void CSTConverter::visit(StructDefCST *structDef) {
 
     }
 
-    nodes.emplace_back(std::make_unique<StructDefinition>(str_token(structDef->tokens[1].get()), std::move(variables), std::move(decls), std::move(overrides)));
+    nodes.emplace_back(std::make_unique<StructDefinition>(str_token(structDef->tokens[1].get()), std::move(variables),
+                                                          std::move(decls), std::move(overrides)));
 
 }
 
@@ -491,13 +539,13 @@ void CSTConverter::visit(StructValueCST *cst) {
     auto name = str_token(cst->tokens[0].get());
     auto i = 2; // first identifier or '}'
     std::unordered_map<std::string, std::unique_ptr<Value>> vals;
-    while(!is_char_op(cst->tokens[i].get(), '}')) {
+    while (!is_char_op(cst->tokens[i].get(), '}')) {
         auto id = str_token(cst->tokens[i].get());
-        i+= 2;
+        i += 2;
         cst->tokens[i]->accept(this);
         vals[id] = value();
         i++;
-        if(is_char_op(cst->tokens[i].get(), ',')) {
+        if (is_char_op(cst->tokens[i].get(), ',')) {
             i++;
         }
     }

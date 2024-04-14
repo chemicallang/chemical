@@ -5,8 +5,6 @@
 //
 
 #include "lexer/Lexer.h"
-#include "lexer/model/tokens/InterfaceToken.h"
-#include "lexer/model/tokens/StructToken.h"
 
 void Lexer::lexImplBlockTokens() {
     do {
@@ -21,25 +19,19 @@ void Lexer::lexImplBlockTokens() {
 bool Lexer::lexImplTokens() {
     if (lexKeywordToken("impl")) {
         lexWhitespaceToken();
-        auto name = lexAlpha();
-        if (name.empty()) {
+        if(!lexIdentifierToken()) {
             error("expected interface name after the interface keyword in implementation");
             return true;
-        } else {
-            tokens.emplace_back(std::make_unique<InterfaceToken>(backPosition(name.length()), std::move(name)));
         }
         lexWhitespaceToken();
         if(!lexKeywordToken("for")) {
-            error("expected 'for' in impl block for interface " + name);
+            error("expected 'for' in impl block after interface name");
             return true;
         }
         lexWhitespaceToken();
-        auto struct_name = lexAlpha();
-        if(struct_name.empty()) {
+        if(!lexIdentifierToken()) {
             error("expected a struct name after the 'for' keyword in implementation");
             return true;
-        } else {
-            tokens.emplace_back(std::make_unique<StructToken>(backPosition(struct_name.length()), std::move(struct_name)));
         }
         lexWhitespaceToken();
         if (!lexOperatorToken('{')) {

@@ -117,8 +117,8 @@ public:
         visitCommon((CSTToken *) compound);
     }
 
-    virtual void visitLexTokenCommon(LexToken *compound) {
-        visitCommon((CSTToken *) compound);
+    virtual void visitLexTokenCommon(LexToken *token) {
+        visitCommon((CSTToken *) token);
     }
 
     virtual void visit(VarInitCST *varInit) {

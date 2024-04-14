@@ -3,6 +3,7 @@
 #include "ast/base/ASTNode.h"
 #include "Scope.h"
 #include "ast/base/BaseType.h"
+#include <optional>
 
 using catch_var_type = std::optional<std::pair<std::string, std::unique_ptr<BaseType>>>;
 

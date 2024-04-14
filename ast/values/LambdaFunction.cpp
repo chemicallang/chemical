@@ -2,13 +2,13 @@
 
 #include "LambdaFunction.h"
 #include "ast/structures/FunctionDeclaration.h"
+#include "FunctionCall.h"
+#include "ast/types/FunctionType.h"
+#include "ast/statements/Return.h"
 
 #ifdef COMPILER_BUILD
 
 #include "compiler/llvmimpl.h"
-#include "FunctionCall.h"
-#include "ast/statements/Return.h"
-#include "ast/types/FunctionType.h"
 
 llvm::Type *LambdaFunction::llvm_type(Codegen &gen) {
     return gen.builder->getPtrTy();

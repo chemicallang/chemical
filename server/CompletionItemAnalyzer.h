@@ -6,15 +6,14 @@
 
 #pragma once
 
-#ifdef LSP_BUILD
-#include "SemanticAnalyzer.h"
 #include "LibLsp/lsp/lsp_completion.h"
+#include "cst/base/CSTVisitor.h"
 
-#define DEBUG false
+class Position;
 
-using cursor_position = std::pair<unsigned int, unsigned int>;
+using caret_pos_type = std::pair<unsigned int, unsigned int>;
 
-class CompletionItemAnalyzer : public SemanticAnalyzer {
+class CompletionItemAnalyzer : public CSTVisitor {
 public:
 
     /**
@@ -22,11 +21,7 @@ public:
      * The first indicates the line number (zero based)
      * The second indicates the character number (also zero based)
      */
-    cursor_position position;
-
-    // constructor
-    CompletionItemAnalyzer(std::vector<std::unique_ptr<LexToken>> &tokens, cursor_position position)
-            : SemanticAnalyzer(tokens), position(position) {}
+    caret_pos_type caret_position;
 
     /**
      * all the items that were found when analyzer completed
@@ -34,22 +29,55 @@ public:
     std::vector<lsCompletionItem> items;
 
     /**
+     * constructor
+     */
+    CompletionItemAnalyzer(caret_pos_type position) : caret_position(position) {}
+
+    /**
+     * will return true, if given position is ahead of caret position
+     */
+    bool is_ahead(Position& position) const;
+
+    /**
+     * check if caret is inside this token
+     */
+    bool is_caret_inside(CSTToken* token);
+
+    /**
+     * a helper method to put simple completion items of a kind
+     */
+    void put(const std::string& label, lsCompletionItemKind kind);
+
+    /**
      * finds completion items till the given cursor position, found completion items are put on the items vector
      */
-    void find_completion_items();
+    void visit(std::vector<std::unique_ptr<CSTToken>> &tokens);
 
     /**
      * The function that analyzes
      */
-    inline CompletionList analyze() {
-        find_completion_items();
-        if(DEBUG) {
-            for(const auto & item : items) {
-                std::cout << item.label << std::endl;
-            }
-        }
-        return CompletionList{false, std::move(items)};
-    }
+    CompletionList analyze(std::vector<std::unique_ptr<CSTToken>> &tokens);
+
+    // Visitors
+
+    void visit(VarInitCST *varInit) override;
+
+    void visit(FunctionCST *function) override;
+
+    void visit(IfCST *ifCst) override;
+
+    void visit(WhileCST *whileCst) override;
+
+    void visit(DoWhileCST *doWhileCst) override;
+
+    void visit(ForLoopCST *forLoop) override;
+
+    void visit(SwitchCST *switchCst) override;
+
+    void visit(StructDefCST *structDef) override;
+
+    void visit(MultilineCommentToken *token) override;
+
+    void visit(BodyCST *bodyCst) override;
 
 };
-#endif

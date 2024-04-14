@@ -30,7 +30,11 @@ public:
 
     std::string representation() const override;
 
+#ifdef COMPILER_BUILD
+
     void code_gen(Codegen &gen) override;
+
+#endif
 
     std::filesystem::path resolve_rel_path(const std::string& root_path);
 

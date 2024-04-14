@@ -52,9 +52,9 @@ public:
 
     ASTNode *find_link_in_parent(ASTNode *parent) override;
 
-    bool add_member_index(Codegen &gen, ASTNode *parent, std::vector<llvm::Value *> &indexes) override;
-
 #ifdef COMPILER_BUILD
+
+    bool add_member_index(Codegen &gen, ASTNode *parent, std::vector<llvm::Value *> &indexes) override;
 
     llvm::Type * llvm_type(Codegen &gen) override;
 

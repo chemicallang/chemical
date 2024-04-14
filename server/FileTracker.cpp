@@ -5,11 +5,12 @@
 //
 
 #include "FileTracker.h"
+#include "stream/StreamSourceProvider.h"
 #include <sstream>
 
 #define DEBUG false
 
-std::vector<std::unique_ptr<LexToken>> FileTracker::getLexedFile(const std::string &path) {
+Lexer FileTracker::getLexedFile(const std::string &path) {
     if (overriddenSources.contains(path)) {
 //        if(DEBUG) std::cout << "Retrieved Overridden Source:" << overriddenSources[path] << '\n';
         std::istringstream iss(overriddenSources[path]);

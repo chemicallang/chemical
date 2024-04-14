@@ -3,80 +3,93 @@
 //
 // Created by Waqas Tahir on 11/03/2024.
 //
-#ifdef LSP_BUILD
+
 #include "CompletionItemAnalyzer.h"
 #include "lexer/model/tokens/CharOperatorToken.h"
 #include <unordered_set>
-#include <boost/optional.hpp>
+#include "cst/structures/BodyCST.h"
+#include "cst/statements/VarInitCST.h"
+#include "cst/structures/ForLoopCST.h"
+#include "cst/structures/WhileCST.h"
+#include "cst/structures/DoWhileCST.h"
+#include "cst/statements/IfCST.h"
 
-//template<typename T>
-//inline boost::optional<T> convert_optional(const std::optional<T> &std_opt) {
-//    if (std_opt.has_value()) {
-//        return boost::optional<T>(*std_opt);
-//    } else {
-//        return boost::none;
-//    }
-//}
+#define DEBUG false
 
-void CompletionItemAnalyzer::find_completion_items() {
-    unsigned int i = 0;
-    auto size = tokens.size();
-    std::vector<unsigned int> scopes_prev;
-    std::unordered_set<unsigned int> token_positions;
-//    std::unordered_set<unsigned int> upcoming_scope;
-    unsigned int scope_start = 0;
-    while (i < size) {
-        auto token = tokens[i].get();
-        if (token->lineNumber() > position.first) {
-            // std::cerr << "Broke at " << token->type_string() << " because line numbers : " << std::to_string(token->lineNumber()) << " > " << std::to_string(position.first) << " \n";
+void CompletionItemAnalyzer::put(const std::string &label, lsCompletionItemKind kind) {
+    items.emplace_back(label, kind);
+}
+
+bool CompletionItemAnalyzer::is_ahead(Position &position) const {
+    return position.line > caret_position.first ||
+           (position.line == caret_position.first && position.character > caret_position.second);
+}
+
+bool CompletionItemAnalyzer::is_caret_inside(CSTToken* token) {
+    return is_ahead(token->start_token()->position) && !is_ahead(token->end_token()->position);
+}
+
+void CompletionItemAnalyzer::visit(std::vector<std::unique_ptr<CSTToken>> &tokens) {
+    for (auto &token: tokens) {
+        if (is_ahead(token->start_token()->position)) {
             break;
-        } else if (token->lineNumber() == position.first) {
-            if (token->lineCharNumber() >= position.second) {
-                // std::cerr << "Broke at " << token->type_string() << " because at same line number " << std::to_string(token->lineNumber()) << ", the character numbers " << std::to_string(token->lineCharNumber()) << " >= " << std::to_string(position.second) << '\n';
-                break;
-            }
-        }
-        if (token->type() == LexTokenType::CharOperator) {
-            auto casted = as<CharOperatorToken>(i);
-            if (casted->op == '{') { // a scope begins
-
-                scopes_prev.push_back(scope_start);
-                scope_start = i;
-
-//                for(const auto t : upcoming_scope) {
-//                    token_positions.insert(t);
-//                }
-//                upcoming_scope.clear();
-
-            } else if (casted->op == '}') { // a scope ends
-
-                auto scope_end = i;
-                unsigned int j = scope_start; // from last scope to this scope's end
-                // remove tokens as the nested scope ended before the cursor position
-                while (j < scope_end) {
-                    token_positions.erase(j);
-                    j++;
-                }
-
-                scope_start = scopes_prev.back();
-                scopes_prev.pop_back();
-
-            }
-        } else if(token->lsp_has_comp()){
-            token_positions.insert(i);
-        }
-        i++;
-    }
-    for (const auto token_pos: token_positions) {
-        auto token = tokens[token_pos].get();
-        if (token->lsp_comp_label().has_value()) {
-            items.push_back(lsCompletionItem{
-                    token->lsp_comp_label().value(),
-                    token->lsp_comp_kind()
-            });
         } else {
-            std::cerr << "Token:" << token->type_string() << " stated has completions but returned no label.";
+            token->accept(this);
         }
     }
 }
+
+void CompletionItemAnalyzer::visit(BodyCST *bodyCst) {
+    if(is_caret_inside(bodyCst)) {
+        visit(bodyCst->tokens);
+    }
+}
+
+void CompletionItemAnalyzer::visit(VarInitCST *varInit) {
+    put(varInit->identifier(), lsCompletionItemKind::Variable);
+}
+
+void CompletionItemAnalyzer::visit(FunctionCST *function) {
+
+};
+
+void CompletionItemAnalyzer::visit(IfCST *ifCst) {
+    visit(ifCst->tokens);
+};
+
+void CompletionItemAnalyzer::visit(WhileCST *whileCst) {
+    visit(whileCst->tokens);
+};
+
+void CompletionItemAnalyzer::visit(DoWhileCST *doWhileCst) {
+    visit(doWhileCst->tokens);
+};
+
+void CompletionItemAnalyzer::visit(ForLoopCST *forLoop) {
+    if(is_caret_inside(forLoop->tokens[8].get())) {
+        forLoop->tokens[2]->accept(this);
+        forLoop->tokens[8]->accept(this);
+    }
+};
+
+void CompletionItemAnalyzer::visit(SwitchCST *switchCst) {
+
+};
+
+void CompletionItemAnalyzer::visit(StructDefCST *structDef) {
+
+};
+
+void CompletionItemAnalyzer::visit(MultilineCommentToken *token) {
+
+};
+
+CompletionList CompletionItemAnalyzer::analyze(std::vector<std::unique_ptr<CSTToken>> &tokens) {
+    visit(tokens);
+#if defined DEBUG && DEBUG
+    for(const auto & item : items) {
+            std::cout << item.label << std::endl;
+        }
 #endif
+    return CompletionList{false, std::move(items)};
+}

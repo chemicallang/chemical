@@ -5,8 +5,6 @@
 //
 
 #include "lexer/Lexer.h"
-#include "lexer/model/tokens/EnumToken.h"
-#include "lexer/model/tokens/EnumMemberToken.h"
 
 bool Lexer::lexEnumBlockTokens() {
     if(lexOperatorToken('{')) {
@@ -14,11 +12,8 @@ bool Lexer::lexEnumBlockTokens() {
             lexWhitespaceToken();
             lexNewLineChars();
             lexWhitespaceToken();
-            auto id = lexIdentifier();
-            if(id.empty()) {
-                error("expected a identifier as enum member");
-            } else {
-                tokens.emplace_back(std::make_unique<EnumMemberToken>(backPosition(id.length()), id));
+            if(!lexIdentifierToken()) {
+                break;
             }
             lexWhitespaceToken();
         } while(lexOperatorToken(','));
@@ -35,11 +30,8 @@ bool Lexer::lexEnumBlockTokens() {
 bool Lexer::lexEnumStructureTokens() {
     if(lexKeywordToken("enum")) {
         lexWhitespaceToken();
-        auto id = lexIdentifier();
-        if(id.empty()) {
+        if(!lexIdentifierToken()) {
             error("expected a identifier as enum name");
-        } else {
-            tokens.emplace_back(std::make_unique<EnumToken>(backPosition(id.length()), id));
         }
         lexWhitespaceToken();
         if(!lexEnumBlockTokens()) {

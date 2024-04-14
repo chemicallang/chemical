@@ -5,6 +5,7 @@
 #include "common/Diagnostic.h"
 #include "ast/base/ASTNode.h"
 #include "CSTVisitor.h"
+#include "CSTDiagnoser.h"
 #include <unordered_map>
 #include <string>
 #include <functional>
@@ -22,7 +23,7 @@ struct FunctionParamsResult {
     unsigned int index;
 };
 
-class CSTConverter : public CSTVisitor {
+class CSTConverter : public CSTVisitor, public CSTDiagnoser {
 private:
 
     /**
@@ -32,11 +33,6 @@ private:
     bool optional_param_types = false;
 
 public:
-
-    /**
-     * check if errors are present after conversion
-     */
-    bool has_errors = false;
 
     /**
      * function parameter index
@@ -130,16 +126,6 @@ public:
      * get function params for the given tokens
      */
     FunctionParamsResult function_params(cst_tokens_ref_type tokens, unsigned start = 0);
-
-    /**
-     * record an error
-     */
-    void error(const std::string &message, CSTToken *start, CSTToken *end, DiagSeverity severity = DiagSeverity::Error);
-
-    /**
-     * record an error
-     */
-    void error(const std::string &message, CSTToken *inside, DiagSeverity severity = DiagSeverity::Error);
 
     // nodes
 

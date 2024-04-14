@@ -153,25 +153,6 @@ std::optional<std::unique_ptr<BaseType>> CSTConverter::opt_type() {
     return type();
 }
 
-void CSTConverter::error(const std::string &message, CSTToken *start, CSTToken *end, DiagSeverity severity) {
-    if(severity == DiagSeverity::Error) {
-        has_errors = true;
-    }
-    diagnostics.emplace_back(
-            Range{
-                    start->start_token()->position,
-                    end->end_token()->position
-            },
-            severity,
-            std::nullopt,
-            message
-    );
-}
-
-void CSTConverter::error(const std::string &message, CSTToken *inside, DiagSeverity severity) {
-    error(message, inside->start_token(), inside->end_token(), severity);
-}
-
 void CSTConverter::visit(FunctionParamCST *param) {
     auto identifier = str_token(param->tokens, 0);
     visit(param->tokens, 2);

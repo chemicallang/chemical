@@ -5,8 +5,6 @@
 //
 
 #include "lexer/Lexer.h"
-#include "lexer/model/tokens/FunctionToken.h"
-#include "lexer/model/tokens/ParameterToken.h"
 #include "cst/structures/FunctionCST.h"
 #include "cst/statements/ReturnCST.h"
 
@@ -26,10 +24,8 @@ void Lexer::lexParameterList(bool optionalTypes) {
     nested_compound_start();
     do {
         lexWhitespaceToken();
-        auto name = lexIdentifier();
-        if(!name.empty()) {
-            unsigned int start = tokens.size();
-            tokens.emplace_back(std::make_unique<ParameterToken>(backPosition(name.length()), name));
+        if(lexIdentifierToken()) {
+            unsigned int start = tokens.size() - 1;
             lexWhitespaceToken();
             if(lexOperatorToken(':')) {
                 lexWhitespaceToken();
@@ -55,7 +51,7 @@ void Lexer::lexParameterList(bool optionalTypes) {
                 if(optionalTypes) {
                     compound_from<FunctionParamCST>(start);
                 } else {
-                    error("expected colon ':' in function parameter list after the parameter name " + name);
+                    error("expected colon ':' in function parameter list after the parameter name ");
                     return;
                 }
             }
@@ -66,24 +62,12 @@ void Lexer::lexParameterList(bool optionalTypes) {
 }
 
 bool Lexer::lexAfterFuncKeyword() {
+
     lexWhitespaceToken();
-    std::string name;
-    // TODO take it out as a function on provider
-    if(std::isalpha(provider.peek()) || provider.peek() == '_') {
-        while (!provider.eof() && (std::isalnum(provider.peek()) || provider.peek() == '_')) {
-            name.append(1, provider.readCharacter());
-        }
-    }
-    if(name.empty()) {
-        error("function name is missing, when defining a function");
+
+    if(!lexIdentifierToken()) {
+        error("function name is missing after the keyword 'func'");
         return true;
-    } else {
-#ifdef LSP_BUILD
-        tokens.emplace_back(std::make_unique<FunctionToken>(backPosition(name.length()), name, modifiers));
-        modifiers = 0;
-#else
-        tokens.emplace_back(std::make_unique<FunctionToken>(backPosition(name.length()), name));
-#endif
     }
 
     lexWhitespaceToken();

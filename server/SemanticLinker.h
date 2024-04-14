@@ -6,16 +6,15 @@
 
 #pragma once
 
-#include "SemanticAnalyzer.h"
-#include "ScopeAnalyzer.h"
 #include <unordered_map>
 #include <unordered_set>
+#include "lexer/model/tokens/LexToken.h"
 
-class SemanticLinker : public SemanticAnalyzer {
+class SemanticLinker {
 public:
 
     // constructor
-    SemanticLinker(std::vector<std::unique_ptr<LexToken>> &tokens) : SemanticAnalyzer(tokens) {
+    SemanticLinker(std::vector<std::unique_ptr<LexToken>> &tokens) {
 
     }
 
@@ -41,14 +40,5 @@ public:
      * these tokens may be found in the future if they require
      */
     std::unordered_map<std::string, unsigned int> unresolved;
-
-    void analyze_scopes();
-
-    /**
-     * The function that analyzes
-     */
-    inline void analyze() {
-        analyze_scopes();
-    }
 
 };

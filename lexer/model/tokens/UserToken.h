@@ -42,10 +42,6 @@ Position{
         return this->len;
     }
 
-    unsigned int lsp_modifiers() override {
-        return 0;
-    }
-
     LexTokenType type() const override {
         return LexTokenType::UserToken;
     }

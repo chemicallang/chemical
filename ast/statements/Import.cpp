@@ -1,6 +1,10 @@
 // Copyright (c) Qinetik 2024.
 
 #include "Import.h"
+#include <filesystem>
+#include "lexer/Lexi.h"
+#include "parser/Persi.h"
+#include "cst/base/CSTConverter.h"
 
 #ifdef COMPILER_BUILD
 
@@ -16,46 +20,6 @@
 #include <clang/Lex/PreprocessorOptions.h>
 #include <clang/CodeGen/CodeGenAction.h>
 #include <llvm/Linker/Linker.h>
-#include <filesystem>
-#include "lexer/Lexi.h"
-#include "parser/Persi.h"
-#include "cst/base/CSTConverter.h"
-
-namespace fs = std::filesystem;
-
-std::vector<std::unique_ptr<ASTNode>>& ImportStatement::parsed(const std::string& root_path) {
-
-    if(!imported_ast.empty()) {
-        return imported_ast;
-    }
-
-    auto resolved = resolve_rel_path(root_path);
-
-    std::ifstream file;
-    file.open(resolved.string());
-    if (!file.is_open()) {
-        std::cerr << "IMPORT STATEMENT FAILED with path : " + resolved.string() << std::endl;
-        return imported_ast;
-    }
-    auto lexer = lexFile(file, resolved.string());
-    file.close();
-
-    if(lexer.has_errors) {
-        // TODO handle errors
-    }
-
-    CSTConverter converter;
-    converter.convert(lexer.tokens);
-
-    if(converter.has_errors) {
-        // TODO handle errors
-    }
-
-    imported_ast = std::move(converter.nodes);
-
-    return imported_ast;
-
-}
 
 void ImportStatement::code_gen(Codegen &gen) {
 
@@ -116,6 +80,42 @@ void ImportStatement::code_gen(Codegen &gen) {
 }
 
 #endif
+
+namespace fs = std::filesystem;
+
+std::vector<std::unique_ptr<ASTNode>>& ImportStatement::parsed(const std::string& root_path) {
+
+    if(!imported_ast.empty()) {
+        return imported_ast;
+    }
+
+    auto resolved = resolve_rel_path(root_path);
+
+    std::ifstream file;
+    file.open(resolved.string());
+    if (!file.is_open()) {
+        std::cerr << "IMPORT STATEMENT FAILED with path : " + resolved.string() << std::endl;
+        return imported_ast;
+    }
+    auto lexer = lexFile(file, resolved.string());
+    file.close();
+
+    if(lexer.has_errors) {
+        // TODO handle errors
+    }
+
+    CSTConverter converter;
+    converter.convert(lexer.tokens);
+
+    if(converter.has_errors) {
+        // TODO handle errors
+    }
+
+    imported_ast = std::move(converter.nodes);
+
+    return imported_ast;
+
+}
 
 
 ImportStatement::ImportStatement(std::string filePath, std::vector<std::string> identifiers) : filePath(

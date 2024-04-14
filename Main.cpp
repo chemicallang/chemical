@@ -406,9 +406,9 @@ public:
             }
             auto path = req.params.textDocument.uri.GetAbsolutePath().path;
             auto lexed = fileTracker.getLexedFile(path);
-            CompletionItemAnalyzer analyzer(lexed, std::pair(req.params.position.line, req.params.position.character));
+            CompletionItemAnalyzer analyzer(std::pair(req.params.position.line, req.params.position.character));
             td_completion::response rsp;
-            rsp.result = analyzer.analyze();
+            rsp.result = analyzer.analyze(lexed.tokens);
             return std::move(rsp);
 
         });
@@ -429,8 +429,8 @@ public:
             auto path = req.params.textDocument.uri.GetAbsolutePath().path;
             td_foldingRange::response rsp;
             auto lexed = fileTracker.getLexedFile(path);
-            FoldingRangeAnalyzer analyzer(lexed);
-            analyzer.analyze();
+            FoldingRangeAnalyzer analyzer;
+            analyzer.analyze(lexed.tokens);
             rsp.result = std::move(analyzer.ranges);
             return std::move(rsp);
         });

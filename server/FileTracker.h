@@ -37,7 +37,7 @@ public:
      * @param path
      * @return
      */
-    std::vector<std::unique_ptr<LexToken>> getLexedFile(const std::string& path);
+    Lexer getLexedFile(const std::string& path);
 
     /**
      * Returns the overridden source code for file at path

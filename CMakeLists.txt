@@ -120,10 +120,6 @@ set(COMMON_SOURCES
         lexer/structures/Block.cpp
         lexer/statements/Import.cpp
         lexer/structures/Enum.cpp
-        lexer/model/tokens/FunctionToken.h
-        lexer/model/tokens/ParameterToken.h
-        lexer/model/tokens/StructToken.h
-        lexer/model/tokens/InterfaceToken.h
         lexer/model/tokens/AbstractStringToken.h
         lexer/structures/Struct.cpp
         lexer/structures/Interface.cpp
@@ -205,13 +201,6 @@ set(COMMON_SOURCES
         server/SemanticLinker.h
         lexer/statements/AnnotationMacro.cpp
         lexer/model/tokens/MacroToken.h
-        server/SemanticAnalyzer.h
-        server/FoldingRangeAnalyzer.cpp
-        server/FoldingRangeAnalyzer.h
-        server/CompletionItemAnalyzer.h
-        server/CompletionItemAnalyzer.cpp
-        server/ScopeAnalyzer.h
-        server/ScopeAnalyzer.cpp
         parser/utils/ValueAndOperatorStack.h
         compiler/Codegen.h
         compiler/Codegen.cpp
@@ -354,6 +343,8 @@ set(COMMON_SOURCES
         common/Position.h
         cst/statements/IncDecCST.h
         cst/values/LambdaCST.h
+        cst/base/CSTDiagnoser.h
+        cst/CSTDiagnoser.cpp
 )
 
 # Chemical LSP Executable Target
@@ -363,6 +354,12 @@ add_executable(ChemicalLsp Main.cpp ${COMMON_SOURCES}
         server/PrintUtils.h
         server/PrintUtils.cpp
         server/LspSemanticTokens.cpp
+        server/FoldingRangeAnalyzer.h
+        server/FoldingRangeAnalyzer.cpp
+        server/CompletionItemAnalyzer.h
+        server/CompletionItemAnalyzer.cpp
+        server/SemanticTokensAnalyzer.h
+        server/SemanticTokensAnalyzer.cpp
 )
 
 # Add an executable target for the second executable

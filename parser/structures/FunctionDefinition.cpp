@@ -5,8 +5,6 @@
 //
 
 #include "parser/Parser.h"
-#include "lexer/model/tokens/FunctionToken.h"
-#include "lexer/model/tokens/ParameterToken.h"
 #include "lexer/model/tokens/TypeToken.h"
 #include "ast/types/VoidType.h"
 #include "ast/statements/Return.h"
@@ -36,7 +34,7 @@ std::pair<std::vector<std::unique_ptr<FunctionParam>>, bool> Parser::parseFuncti
     bool isVariadic = false;
     do {
         if (token_type() == LexTokenType::Parameter) {
-            auto paramToken = consume<ParameterToken>();
+            auto paramToken = consume<VariableToken>();
             if(consume_op(':')) {
                 auto type = parseType();
                 if (type.has_value()) {
@@ -80,7 +78,7 @@ std::pair<std::vector<std::unique_ptr<FunctionParam>>, bool> Parser::parseFuncti
 lex_ptr<FunctionDeclaration> Parser::parseFunctionDefinition(bool declarations) {
     if (consume("func")) {
         if (token_type() == LexTokenType::Function) {
-            auto token = consume<FunctionToken>();
+            auto token = consume<VariableToken>();
             if (consume_op('(')) {
                 auto params = parseFunctionParams();
                 if (!consume_op(')')) {

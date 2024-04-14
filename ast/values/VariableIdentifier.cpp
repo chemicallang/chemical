@@ -18,6 +18,13 @@ llvm::Value *VariableIdentifier::llvm_value(Codegen &gen) {
     return linked->llvm_load(gen);
 }
 
+bool VariableIdentifier::add_member_index(Codegen &gen, ASTNode *parent, std::vector<llvm::Value *> &indexes) {
+    if(parent) {
+        return parent->add_child_index(gen, indexes, value);
+    }
+    return true;
+}
+
 #endif
 
 void VariableIdentifier::link(SymbolResolver &linker) {
@@ -39,13 +46,6 @@ ASTNode *VariableIdentifier::find_link_in_parent(ASTNode *parent) {
         linked = found;
     }
     return found;
-}
-
-bool VariableIdentifier::add_member_index(Codegen &gen, ASTNode *parent, std::vector<llvm::Value *> &indexes) {
-    if(parent) {
-        return parent->add_child_index(gen, indexes, value);
-    }
-    return true;
 }
 
 Value *VariableIdentifier::child(InterpretScope &scope, const std::string &name) {

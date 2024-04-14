@@ -6,21 +6,18 @@
 
 #pragma once
 
-#ifdef LSP_BUILD
 #include "LibLsp/lsp/textDocument/foldingRange.h"
+#include "cst/base/CSTVisitor.h"
+#include "cst/base/CSTToken.h"
 
-#include "SemanticAnalyzer.h"
-
-#define DEBUG false
-
-class FoldingRangeAnalyzer : public SemanticAnalyzer {
+class FoldingRangeAnalyzer : public CSTVisitor {
 public:
 
     /**
      * constructor
      * @param tokens
      */
-    FoldingRangeAnalyzer(std::vector<std::unique_ptr<LexToken>> &tokens) : SemanticAnalyzer(tokens) {
+    FoldingRangeAnalyzer() {
 
     }
 
@@ -30,23 +27,39 @@ public:
     std::vector<FoldingRange> ranges;
 
     /**
-     * analyzes scopes to create folding ranges
-     */
-    void analyze_scopes();
-
-    /**
      * The function that analyzes
      */
-    inline void analyze() {
-        analyze_scopes();
-        if (DEBUG) {
-            for (const auto &range: ranges) {
-                std::cout << std::to_string(range.startLine) << ':' << std::to_string(range.startCharacter) << '-'
-                          << std::to_string(range.endLine) << ':' << std::to_string(range.endCharacter) << '-'
-                          << range.kind << std::endl;
-            }
-        }
+    void analyze(std::vector<std::unique_ptr<CSTToken>>& tokens);
+
+    /**
+     * will add a folding range from start to end token
+     */
+    void folding_range(LexToken* start, LexToken* end, bool comment = false);
+
+    /**
+     * will add a folding range for this CSTToken
+     */
+    void folding_range(CSTToken* inside, bool comment = false) {
+        folding_range(inside->start_token(), inside->end_token(), comment);
     }
 
+    // Visitor functions
+
+    void visit(StructDefCST *structDef) override;
+
+    void visit(ForLoopCST *forLoop) override;
+
+    void visit(WhileCST *whileCst) override;
+
+    void visit(DoWhileCST *doWhileCst) override;
+
+    void visit(FunctionCST *function) override;
+
+    void visit(LambdaCST *cst) override;
+
+    void visit(MultilineCommentToken *token) override;
+
+    void visit(BodyCST *bodyCst) override;
+
+
 };
-#endif

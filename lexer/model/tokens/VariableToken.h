@@ -24,21 +24,15 @@ public:
     }
 
 #ifdef LSP_BUILD
+
     [[nodiscard]] SemanticTokenType lspType() const override {
         return SemanticTokenType::ls_variable;
-    }
-
-    bool lsp_has_comp() const override {
-        return !access;
     }
 
     std::optional<lsCompletionItemKind> lsp_comp_kind() const override {
         return lsCompletionItemKind::Variable;
     }
 
-    std::optional<std::string> lsp_comp_label() const override {
-        if(access) return std::nullopt; else return value;
-    }
 #endif
 
     [[nodiscard]] std::string type_string() const override {

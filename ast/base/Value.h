@@ -16,9 +16,10 @@
 #ifdef COMPILER_BUILD
 class Codegen;
 #include "compiler/llvmfwd.h"
-#include "Visitor.h"
 
 #endif
+
+#include "Visitor.h"
 
 #ifdef DEBUG
 #include <iostream>

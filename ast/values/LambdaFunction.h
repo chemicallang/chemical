@@ -47,11 +47,11 @@ public:
 
     llvm::Value *llvm_value(Codegen &gen) override;
 
+#endif
+
     void link(SymbolResolver &linker, FunctionCall *call, unsigned int index) override;
 
     void link(SymbolResolver &linker, ReturnStatement *returnStmt) override;
-
-#endif
 
     ValueType value_type() const override;
 

@@ -5,7 +5,6 @@
 //
 
 #include "lexer/Lexer.h"
-#include "lexer/model/tokens/InterfaceToken.h"
 
 void Lexer::lexInterfaceBlockTokens() {
     do {
@@ -20,12 +19,9 @@ void Lexer::lexInterfaceBlockTokens() {
 bool Lexer::lexInterfaceStructureTokens() {
     if (lexKeywordToken("interface")) {
         lexWhitespaceToken();
-        auto name = lexAlpha();
-        if (name.empty()) {
+        if(!lexIdentifierToken()) {
             error("expected interface name after the interface keyword");
             return true;
-        } else {
-            tokens.emplace_back(std::make_unique<InterfaceToken>(backPosition(name.length()), std::move(name)));
         }
         lexWhitespaceToken();
         if (!lexOperatorToken('{')) {

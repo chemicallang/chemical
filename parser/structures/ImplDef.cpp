@@ -10,7 +10,7 @@
 
 lex_ptr<ImplDefinition> Parser::parseImplementationDefinition() {
     if (consume("impl")) {
-        auto interfaceName = consumeOfType<AbstractStringToken>(LexTokenType::Interface);
+        auto interfaceName = consumeOfType<AbstractStringToken>(LexTokenType::Variable);
         if (interfaceName == nullptr) {
             error("interface name missing for implementation declaration");
             return std::nullopt;
@@ -19,7 +19,7 @@ lex_ptr<ImplDefinition> Parser::parseImplementationDefinition() {
             error("missing 'for' keyword after the implementation declaration");
             return std::nullopt;
         }
-        auto structName = consumeOfType<AbstractStringToken>(LexTokenType::Struct);
+        auto structName = consumeOfType<AbstractStringToken>(LexTokenType::Variable);
         if (structName == nullptr) {
             error("expected a struct name for implementation declaration for interface " + interfaceName->value);
             return std::nullopt;

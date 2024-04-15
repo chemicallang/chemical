@@ -9,11 +9,11 @@
 
 lex_ptr<StructDefinition> Parser::parseStructDefinition() {
     if (consume("struct")) {
-        auto value = consumeOfType<AbstractStringToken>(LexTokenType::Struct);
+        auto value = consumeOfType<AbstractStringToken>(LexTokenType::Variable);
         if (value != nullptr) {
             std::optional<std::string> overrides = std::nullopt;
             if(consume_op(':')) {
-                auto over = consumeOfType<AbstractStringToken>(LexTokenType::Interface);
+                auto over = consumeOfType<AbstractStringToken>(LexTokenType::Variable);
                 if(over != nullptr) {
                     overrides = over->value;
                 } else {

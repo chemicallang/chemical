@@ -33,7 +33,7 @@ std::pair<std::vector<std::unique_ptr<FunctionParam>>, bool> Parser::parseFuncti
     unsigned paramsCount = 0;
     bool isVariadic = false;
     do {
-        if (token_type() == LexTokenType::Parameter) {
+        if (token_type() == LexTokenType::Variable) {
             auto paramToken = consume<VariableToken>();
             if(consume_op(':')) {
                 auto type = parseType();
@@ -77,7 +77,7 @@ std::pair<std::vector<std::unique_ptr<FunctionParam>>, bool> Parser::parseFuncti
  */
 lex_ptr<FunctionDeclaration> Parser::parseFunctionDefinition(bool declarations) {
     if (consume("func")) {
-        if (token_type() == LexTokenType::Function) {
+        if (token_type() == LexTokenType::Variable) {
             auto token = consume<VariableToken>();
             if (consume_op('(')) {
                 auto params = parseFunctionParams();

@@ -10,7 +10,7 @@
 
 lex_ptr<InterfaceDefinition> Parser::parseInterfaceDefinition() {
     if (consume("interface")) {
-        auto name = consumeOfType<AbstractStringToken>(LexTokenType::Interface);
+        auto name = consumeOfType<AbstractStringToken>(LexTokenType::Variable);
         if (name != nullptr) {
             if (consume_op('{')) {
                 std::vector<std::unique_ptr<ASTNode>> members;

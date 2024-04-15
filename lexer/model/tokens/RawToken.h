@@ -23,12 +23,6 @@ public:
         return value.length();
     }
 
-#ifdef LSP_BUILD
-    [[nodiscard]] SemanticTokenType lspType() const override {
-        return SemanticTokenType::ls_string;
-    }
-#endif
-
     [[nodiscard]] std::string type_string() const override {
         return "Raw:" + value;
     }

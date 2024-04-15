@@ -24,12 +24,6 @@ public:
         visitor->visit(this);
     }
 
-#ifdef LSP_BUILD
-    [[nodiscard]] SemanticTokenType lspType() const override {
-        return SemanticTokenType::ls_type;
-    }
-#endif
-
     [[nodiscard]] std::string type_string() const override {
         std::string buf("Type:");
         buf.append(value);

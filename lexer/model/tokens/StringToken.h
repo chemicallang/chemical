@@ -30,12 +30,6 @@ public:
         return LexTokenType::String;
     }
 
-#ifdef LSP_BUILD
-    [[nodiscard]] SemanticTokenType lspType() const override {
-        return SemanticTokenType::ls_string;
-    }
-#endif
-
     void append_representation(std::string &rep) const override {
         rep.append(1, '"');
         rep.append(value);

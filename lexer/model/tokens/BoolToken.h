@@ -21,12 +21,6 @@ public:
         return LexTokenType::Bool;
     }
 
-#ifdef LSP_BUILD
-    [[nodiscard]] SemanticTokenType lspType() const override {
-        return SemanticTokenType::ls_keyword;
-    }
-#endif
-
     unsigned int length() const override {
         if(value) {
             return 4;

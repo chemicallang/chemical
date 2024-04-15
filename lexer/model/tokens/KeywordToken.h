@@ -19,12 +19,6 @@ public:
         return LexTokenType::Keyword;
     }
 
-#ifdef LSP_BUILD
-    [[nodiscard]] SemanticTokenType lspType() const override {
-        return SemanticTokenType::ls_keyword;
-    }
-#endif
-
     [[nodiscard]] std::string type_string() const override {
         std::string buf("Keyword:");
         buf.append(this->value);

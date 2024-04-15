@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include "lexer/model/tokens/LexToken.h"
+#include <memory>
 
 class SemanticLinker {
 public:

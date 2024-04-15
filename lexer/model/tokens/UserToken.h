@@ -3,6 +3,7 @@
 #pragma once
 
 #include "LexToken.h"
+#include "LibLsp/lsp/textDocument/SemanticTokens.h"
 
 struct UserToken {
 
@@ -45,12 +46,6 @@ Position{
     LexTokenType type() const override {
         return LexTokenType::UserToken;
     }
-
-#ifdef LSP_BUILD
-    SemanticTokenType lspType() const override {
-        return this->lsp_type;
-    }
-#endif
 
     void append_representation(std::string &rep) const override {
         rep.append("[UserToken]");

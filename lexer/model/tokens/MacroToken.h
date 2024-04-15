@@ -28,23 +28,6 @@ public:
         visitor->visit(this);
     }
 
-#ifdef LSP_BUILD
-    SemanticTokenModifier modifier;
-
-    MacroToken(
-            const Position &position,
-            std::string name,
-            bool isAnnotation,
-            SemanticTokenModifier modifier
-    ) : LexToken(position), name(std::move(name)), isAnnotation(isAnnotation), modifier(modifier) {
-        // nothing
-    }
-
-    SemanticTokenType lspType() const override {
-        return SemanticTokenType::ls_macro;
-    }
-#endif
-
     LexTokenType type() const override {
         return LexTokenType::Macro;
     }

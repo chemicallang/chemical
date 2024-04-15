@@ -33,20 +33,6 @@ public:
         visitor->visitStringCommon(this);
     }
 
-#ifdef LSP_BUILD
-    [[nodiscard]] SemanticTokenType lspType() const override {
-        return SemanticTokenType::ls_keyword;
-    }
-
-    bool lsp_has_comp() const override {
-        return true;
-    }
-
-    std::optional<std::string> lsp_comp_label() const override {
-        return value;
-    }
-#endif
-
     void append_representation(std::string &rep) const override {
         rep.append(value);
     }

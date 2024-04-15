@@ -23,12 +23,6 @@ public:
         return LexTokenType::StringOperator;
     }
 
-#ifdef LSP_BUILD
-    [[nodiscard]] SemanticTokenType lspType() const override {
-        return SemanticTokenType::ls_operator;
-    }
-#endif
-
     [[nodiscard]] std::string type_string() const override {
         std::string ret;
         ret.append("Operator:");

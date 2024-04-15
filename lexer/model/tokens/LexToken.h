@@ -12,11 +12,6 @@
 #include "common/Diagnostic.h"
 #include "cst/base/CSTToken.h"
 
-#ifdef LSP_BUILD
-#include "LibLsp/lsp/textDocument/SemanticTokens.h"
-#include "LibLsp/lsp/lsp_completion.h"
-#include "LibLsp/JsonRpc/optionalVersion.h"
-#endif
 //#include "rapidjson\rapidjson.h"
 //#include "rapidjson\document.h"		// rapidjson's DOM-style API
 //#include "rapidjson/writer.h"
@@ -107,38 +102,6 @@ public:
      * string length of the token
      */
     virtual unsigned int length() const = 0;
-
-#ifdef LSP_BUILD
-    /**
-     * lsp  semantic token type
-     * @return
-     */
-    virtual SemanticTokenType lspType() const = 0;
-
-    /**
-     * return true if this token should be considered for code completion
-     * @return
-     */
-    virtual bool lsp_has_comp() const {
-        return false;
-    }
-
-    /**
-     * return th completion item label for the lsp
-     * @return
-     */
-    virtual std::optional<std::string> lsp_comp_label() const {
-        return std::nullopt;
-    }
-
-    /**
-     * return the lsp completion item kind
-     * @return
-     */
-    virtual std::optional<lsCompletionItemKind> lsp_comp_kind() const {
-        return std::nullopt;
-    }
-#endif
 
 #ifdef DEBUG
 

@@ -23,18 +23,6 @@ public:
         return LexTokenType::Variable;
     }
 
-#ifdef LSP_BUILD
-
-    [[nodiscard]] SemanticTokenType lspType() const override {
-        return SemanticTokenType::ls_variable;
-    }
-
-    std::optional<lsCompletionItemKind> lsp_comp_kind() const override {
-        return lsCompletionItemKind::Variable;
-    }
-
-#endif
-
     [[nodiscard]] std::string type_string() const override {
         std::string buf("Identifier:");
         buf.append(this->value);

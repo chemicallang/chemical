@@ -47,6 +47,10 @@ public:
 
     // Visitors
 
+    void visit(std::vector<std::unique_ptr<CSTToken>> &tokens, unsigned start, unsigned end);
+
+    void visit(std::vector<std::unique_ptr<CSTToken>> &tokens, unsigned start = 0);
+
     void visitCommon(CSTToken *token) override;
 
     void visitLexTokenCommon(LexToken *token) override;
@@ -84,8 +88,6 @@ public:
     void visit(CommentToken *token) override;
 
     void visit(MultilineCommentToken *token) override;
-
-    void visit(KeywordToken *token) override;
 
     void visit(MacroToken *token) override;
 

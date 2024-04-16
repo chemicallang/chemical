@@ -13,6 +13,7 @@
 #include "cst/structures/WhileCST.h"
 #include "cst/structures/DoWhileCST.h"
 #include "cst/statements/IfCST.h"
+#include "cst/structures/FunctionCST.h"
 
 #define DEBUG false
 
@@ -37,17 +38,41 @@ void SemanticTokensAnalyzer::visitCommon(CSTToken *token) {
 }
 
 void SemanticTokensAnalyzer::visitLexTokenCommon(LexToken *token) {
-    std::string s;
-    token->append_representation(s);
-    std::cerr << "[SemanticTokensAnalyzer] : Token with representation " << s
-              << " called visit common, has been appended as a comment token" << std::endl;
-    put(token, SemanticTokenType::ls_comment);
+    switch (token->type()) {
+        case LexTokenType::Keyword:
+            put(token, SemanticTokenType::ls_keyword);
+            break;
+        case LexTokenType::Variable:
+            put(token, SemanticTokenType::ls_variable);
+            break;
+        case LexTokenType::Type:
+            put(token, SemanticTokenType::ls_type);
+            break;
+        default:
+            std::string s;
+            token->append_representation(s);
+            std::cerr << "[SemanticTokensAnalyzer] : Token with representation " << s
+                      << " and type " << token->type_string()
+                      << " called visit common, has been appended as a comment token" << std::endl;
+            put(token, SemanticTokenType::ls_comment);
+    }
+}
+
+void SemanticTokensAnalyzer::visit(std::vector<std::unique_ptr<CSTToken>> &tokens, unsigned start, unsigned end) {
+    unsigned int i = start;
+    unsigned int till = end;
+    while (i < till) {
+        tokens[i]->accept(this);
+        i++;
+    }
+}
+
+void SemanticTokensAnalyzer::visit(std::vector<std::unique_ptr<CSTToken>> &tokens, unsigned start) {
+    visit(tokens, start, tokens.size());
 }
 
 void SemanticTokensAnalyzer::visitCompoundCommon(CompoundCSTToken *compound) {
-    for (auto &token: compound->tokens) {
-        token->accept(this);
-    }
+    visit(compound->tokens);
 }
 
 void SemanticTokensAnalyzer::visit(BodyCST *bodyCst) {
@@ -59,7 +84,9 @@ void SemanticTokensAnalyzer::visit(VarInitCST *varInit) {
 }
 
 void SemanticTokensAnalyzer::visit(FunctionCST *function) {
-    visitCompoundCommon((CompoundCSTToken *) function);
+    function->tokens[0]->accept(this);
+    put(function->tokens[1]->start_token(), SemanticTokenType::ls_function);
+    visit(function->tokens, 2);
 };
 
 void SemanticTokensAnalyzer::visit(IfCST *ifCst) {
@@ -110,10 +137,6 @@ void SemanticTokensAnalyzer::visit(CharToken *token) {
 
 void SemanticTokensAnalyzer::visit(CommentToken *token) {
     put((LexToken *) token, SemanticTokenType::ls_comment);
-};
-
-void SemanticTokensAnalyzer::visit(KeywordToken *token) {
-    put((LexToken *) token, SemanticTokenType::ls_keyword);
 };
 
 void SemanticTokensAnalyzer::visit(MacroToken *token) {

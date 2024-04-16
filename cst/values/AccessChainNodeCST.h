@@ -4,13 +4,13 @@
 
 #include "cst/base/CompoundCSTToken.h"
 
-class AccessChainCST : public CompoundCSTToken {
+class AccessChainNodeCST : public CompoundCSTToken {
 public:
 
     /**
      * constructor
      */
-    AccessChainCST(std::vector<std::unique_ptr<CSTToken>> tokens) : CompoundCSTToken(std::move(tokens)) {
+    AccessChainNodeCST(std::vector<std::unique_ptr<CSTToken>> tokens) : CompoundCSTToken(std::move(tokens)) {
 
     }
 
@@ -21,7 +21,7 @@ public:
 #ifdef DEBUG
 
     std::string compound_type_string() const override {
-        return "AccessChainCST";
+        return "AccessChainNodeCST";
     }
 
 #endif

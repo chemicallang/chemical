@@ -56,6 +56,8 @@ class PointerTypeCST;
 
 class AccessChainCST;
 
+class AccessChainNodeCST;
+
 class ArrayValueCST;
 
 class CastCST;
@@ -214,6 +216,10 @@ public:
     }
 
     virtual void visit(AccessChainCST *accessChain) {
+        visitCompoundCommon((CompoundCSTToken *) accessChain);
+    }
+
+    virtual void visit(AccessChainNodeCST *accessChain) {
         visitCompoundCommon((CompoundCSTToken *) accessChain);
     }
 

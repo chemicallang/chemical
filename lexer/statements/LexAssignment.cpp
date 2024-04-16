@@ -3,6 +3,7 @@
 #include "lexer/Lexer.h"
 #include "cst/statements/AssignmentCST.h"
 #include "cst/values/AccessChainCST.h"
+#include "cst/values/AccessChainNodeCST.h"
 #include "cst/statements/IncDecCST.h"
 
 bool Lexer::lexLanguageOperatorToken() {
@@ -66,7 +67,9 @@ bool Lexer::lexAssignmentTokens() {
         if(assOp) {
             error("expected an equal for assignment after the assignment operator");
         }
-        ((AccessChainCST*) tokens[start].get())->is_node = true;
+        // converting the previous access chain to a node
+        auto chain = (AccessChainCST*) tokens[start].release();
+        tokens[start] = std::make_unique<AccessChainNodeCST>(std::move(chain->tokens));
         return true;
     }
 

@@ -345,6 +345,7 @@ set(COMMON_SOURCES
         cst/values/LambdaCST.h
         cst/base/CSTDiagnoser.h
         cst/CSTDiagnoser.cpp
+        cst/values/AccessChainNodeCST.h
 )
 
 # Chemical LSP Executable Target

@@ -30,6 +30,7 @@
 #include "cst/types/FunctionTypeCST.h"
 #include "cst/structures/BodyCST.h"
 #include "cst/values/AccessChainCST.h"
+#include "cst/values/AccessChainNodeCST.h"
 #include "cst/values/ExpressionCST.h"
 #include "ast/types/ArrayType.h"
 #include "ast/values/StringValue.h"
@@ -641,11 +642,15 @@ void CSTConverter::visit(AccessChainCST *chain) {
     visit(chain->tokens);
     auto ret_chain = std::make_unique<AccessChain>(std::move(values));
     values = std::move(prev_values);
-    if (chain->is_node) {
-        nodes.push_back(std::move(ret_chain));
-    } else {
-        values.push_back(std::move(ret_chain));
-    }
+    values.push_back(std::move(ret_chain));
+}
+
+void CSTConverter::visit(AccessChainNodeCST *chain) {
+    auto prev_values = std::move(values);
+    visit(chain->tokens);
+    auto ret_chain = std::make_unique<AccessChain>(std::move(values));
+    values = std::move(prev_values);
+    nodes.push_back(std::move(ret_chain));
 }
 
 void CSTConverter::visit(ExpressionCST *expr) {

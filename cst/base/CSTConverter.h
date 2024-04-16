@@ -197,6 +197,8 @@ public:
 
     void visit(AccessChainCST *accessChain) override;
 
+    void visit(AccessChainNodeCST *accessChain) override;
+
     void visit(ExpressionCST *expressionCst) override;
 
     void visit(NegativeCST *negativeCst) override;

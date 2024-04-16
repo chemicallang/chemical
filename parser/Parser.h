@@ -46,7 +46,7 @@ public:
     /**
      * An error is stored in the vector
      */
-    std::vector<Diagnostic> errors;
+    std::vector<Diag> errors;
 
     /**
      * Constructor with the tokens to parse

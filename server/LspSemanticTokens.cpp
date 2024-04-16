@@ -26,7 +26,7 @@ std::vector<SemanticToken> to_semantic_tokens(FileTracker &tracker, const lsDocu
 
     std::vector<std::unique_ptr<CSTToken>> lexed;
 
-    std::vector<Diagnostic> errors;
+    std::vector<Diag> errors;
 
     if (overridden_source.has_value()) {
         if(OVER_SRC_PRINT) std::cout << "[to_semantic_tokens] overridden source : " << overridden_source.value() << '\n';

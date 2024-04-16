@@ -3,7 +3,10 @@
 #pragma once
 
 #include "LexToken.h"
+
+#ifdef LSP_BUILD
 #include "LibLsp/lsp/textDocument/SemanticTokens.h"
+#endif
 
 struct UserToken {
 

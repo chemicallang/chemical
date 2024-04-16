@@ -28,7 +28,7 @@ public:
 
     std::vector<std::unique_ptr<CSTToken>> tokens;
 
-    std::vector<Diagnostic> errors;
+    std::vector<Diag> errors;
 
     /**
      * this is the interpret scope used by the lexer to interpret

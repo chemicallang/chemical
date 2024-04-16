@@ -57,7 +57,7 @@ public:
     /**
      * diagnostics, containing errors and warning
      */
-    std::vector<Diagnostic> diagnostics;
+    std::vector<Diag> diagnostics;
 
     /**
      * primitive type map that is initialized when visitor is initialized

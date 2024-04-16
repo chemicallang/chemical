@@ -51,7 +51,7 @@ public:
     std::string new_text;
 };
 
-class Diagnostic {
+class Diag {
 public:
 
     // The range at which the message applies.

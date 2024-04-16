@@ -15,7 +15,7 @@ public:
     /**
      * diagnostics, containing errors and warning
      */
-    std::vector<Diagnostic> diagnostics;
+    std::vector<Diag> diagnostics;
 
     /**
      * record an error

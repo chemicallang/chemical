@@ -652,6 +652,8 @@ void CSTConverter::visit(AccessChainCST *chain) {
 
 void CSTConverter::visit(ExpressionCST *expr) {
     auto is_braced = is_char_op(expr->tokens[0].get(), '(');
+    auto first_value_index = is_braced ? 1 : 0;
+
     auto op_index = is_braced ? 3 : 1;
     visit(expr->tokens);
     auto second = value();

@@ -18,8 +18,8 @@ public:
         visitor->visit(this);
     }
 
-    bool is_struct_value() override {
-        return true;
+    LexTokenType type() const override {
+        return LexTokenType::CompStructValue;
     }
 
 #ifdef DEBUG

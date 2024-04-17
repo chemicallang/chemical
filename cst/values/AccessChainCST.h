@@ -19,6 +19,10 @@ public:
 
     }
 
+    LexTokenType type() const override {
+        return LexTokenType::CompAccessChain;
+    }
+
     void accept(CSTVisitor *visitor) override {
         visitor->visit(this);
     }

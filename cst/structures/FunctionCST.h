@@ -18,6 +18,10 @@ public:
         visitor->visit(this);
     }
 
+    LexTokenType type() const override {
+        return LexTokenType::CompFunctionParam;
+    }
+
 #ifdef DEBUG
 
     std::string compound_type_string() const override {
@@ -40,6 +44,10 @@ public:
 
     void accept(CSTVisitor *visitor) override {
         visitor->visit(this);
+    }
+
+    LexTokenType type() const override {
+        return LexTokenType::CompFunction;
     }
 
     /**

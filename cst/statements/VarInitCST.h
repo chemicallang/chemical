@@ -18,8 +18,8 @@ public:
         visitor->visit(this);
     }
 
-    bool is_var_init() override {
-        return true;
+    LexTokenType type() const override {
+        return LexTokenType::CompVarInit;
     }
 
     /**

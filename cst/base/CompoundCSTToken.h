@@ -23,14 +23,6 @@ public:
         tokens.shrink_to_fit();
     }
 
-    bool compound() override {
-        return true;
-    }
-
-    LexTokenType type() const override {
-        return LexTokenType::Compound;
-    }
-
 #ifdef DEBUG
 
     LexToken *start_token() override {

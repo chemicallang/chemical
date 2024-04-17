@@ -18,6 +18,10 @@ public:
         visitor->visit(this);
     }
 
+    LexTokenType type() const override {
+        return LexTokenType::CompForLoop;
+    }
+
 #ifdef DEBUG
 
     std::string compound_type_string() const override {

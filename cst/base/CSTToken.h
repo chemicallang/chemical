@@ -21,13 +21,6 @@ public:
     CSTToken() = default;
 
     /**
-     * is token a compound token, meaning token holds multiple children
-     */
-    virtual bool compound() {
-        return false;
-    }
-
-    /**
      * get a pointer to the start lex token
      */
     virtual LexToken *start_token() = 0;
@@ -53,14 +46,24 @@ public:
     virtual LexTokenType type() const = 0;
 
     /**
-     * is the token var init compound token
+     * is token a compound token, meaning token holds multiple children
      */
-    virtual bool is_var_init() {
-        return false;
+    bool compound() {
+        return type() >= LexTokenType::IndexCompStart && type() <= LexTokenType::IndexCompEnd;
     }
 
-    virtual bool is_struct_value() {
-        return false;
+    /**
+     * is the token var init compound token
+     */
+    bool is_var_init() {
+        return type() == LexTokenType::CompVarInit;
+    }
+
+    /**
+     * check if this cst token is a struct value
+     */
+    bool is_struct_value() {
+        return type() == LexTokenType::CompStructValue;
     }
 
 #ifdef DEBUG

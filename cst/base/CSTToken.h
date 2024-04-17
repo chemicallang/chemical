@@ -66,6 +66,27 @@ public:
         return type() == LexTokenType::CompStructValue;
     }
 
+    /**
+     * check if its a compound type
+     */
+    bool is_comp_type() {
+        return type() >= LexTokenType::IndexCompTypeStart && type() <= LexTokenType::IndexCompTypeEnd;
+    }
+
+    /**
+     * check if its a type
+     */
+    bool is_type() {
+        return is_comp_type() && type() == LexTokenType::Type;
+    }
+
+    /**
+     * check if its a value
+     */
+    bool is_value() {
+        return type() >= LexTokenType::IndexCompValueStart && type() <= LexTokenType::IndexCompValueEnd;
+    }
+
 #ifdef DEBUG
 
     /**

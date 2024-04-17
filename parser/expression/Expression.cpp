@@ -18,7 +18,7 @@ void Parser::parseExpressionWith(ValueAndOperatorStack &stack, ValueAndOperatorS
             auto operation = consume_op_token();
             if(operation.has_value()) {
                 auto precedence = (uint8_t) operation.value();
-                auto peak_precedence = stack.peakOperator();
+                auto peak_precedence = stack.safePeakOperator();
                 auto assocLeftToRight = is_assoc_left_to_right(operation.value());
                 if (stack.isEmpty() || stack.peakChar() == '(') {
                     stack.putOperator(operation.value());

@@ -81,10 +81,37 @@ public:
     }
 
     /**
+     * check if its a compound value
+     */
+    [[nodiscard]]
+    bool is_comp_value() const {
+        return type() >= LexTokenType::IndexCompValueStart && type() <= LexTokenType::IndexCompValueEnd;
+    }
+
+    /**
+     * check if its a primitive value
+     */
+    [[nodiscard]]
+    bool is_primitive_value() const {
+        auto t = type();
+        return t == LexTokenType::Char || t == LexTokenType::String || t == LexTokenType::Bool ||
+               t == LexTokenType::Number;
+    }
+
+    /**
+     * check is a reference or variable
+     */
+    [[nodiscard]]
+    bool is_primitive_var() const {
+        return type() == LexTokenType::Variable || is_primitive_value();
+    }
+
+    /**
      * check if its a value
      */
-    bool is_value() {
-        return type() >= LexTokenType::IndexCompValueStart && type() <= LexTokenType::IndexCompValueEnd;
+    [[nodiscard]]
+    bool is_value() const {
+        return is_comp_value() || is_primitive_var();
     }
 
 #ifdef DEBUG

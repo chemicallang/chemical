@@ -41,8 +41,8 @@ enum class Operation : uint8_t {
     TypeConversion,
 
     // Multiplicative operators
-    Multiplication,
     Division,
+    Multiplication,
     Modulus,
 
     // Additive operators
@@ -96,6 +96,11 @@ enum class Operation : uint8_t {
 };
 
 std::string to_string(Operation operation);
+
+/**
+ * This returns the precedence of the given operation
+ */
+uint8_t to_precedence(Operation op);
 
 /**
  * This tells whether the associativity of the given operator is left to right

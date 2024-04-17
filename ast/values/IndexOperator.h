@@ -58,7 +58,7 @@ public:
 #endif
 
     std::string representation() const override {
-        std::string rep;
+        std::string rep(identifier);
         rep.append(1, '[');
         rep.append(value->representation());
         rep.append(1, ']');

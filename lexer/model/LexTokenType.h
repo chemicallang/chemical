@@ -54,9 +54,9 @@ enum class LexTokenType : uint8_t {
     CompFunctionType,
     CompGenericType,
     CompPointerType,
-    CompAccessChain,
 
     // compound values
+    CompAccessChain,
     CompArrayValue,
     CompCastValue,
     CompExpression,
@@ -74,8 +74,8 @@ enum class LexTokenType : uint8_t {
     IndexCompStart = CompAssignment,
     IndexCompEnd = CompStructValue,
     IndexCompTypeStart = CompArrayType,
-    IndexCompTypeEnd = CompAccessChain,
-    IndexCompValueStart = CompArrayValue,
+    IndexCompTypeEnd = CompPointerType,
+    IndexCompValueStart = CompAccessChain,
     IndexCompValueEnd = CompStructValue
 
 };

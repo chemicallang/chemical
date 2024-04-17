@@ -78,6 +78,8 @@
 #include "cst/values/StructValueCST.h"
 #include "cst/base/CSTConverter.h"
 #include "cst/values/LambdaCST.h"
+#include "ast/values/CastedValue.h"
+#include "cst/values/CastCST.h"
 
 using tokens_vec_type = std::vector<std::unique_ptr<CSTToken>> &;
 
@@ -649,11 +651,18 @@ void CSTConverter::visit(AccessChainCST *chain) {
 }
 
 void CSTConverter::visit(ExpressionCST *expr) {
+    auto is_braced = is_char_op(expr->tokens[0].get(), '(');
+    auto op_index = is_braced ? 3 : 1;
     visit(expr->tokens);
     auto second = value();
     auto first = value();
     values.emplace_back(std::make_unique<Expression>(std::move(first), std::move(second),
-                                                     ((OperationToken *) expr->tokens[expr->op_index].get())->op));
+                                                     ((OperationToken *) expr->tokens[op_index].get())->op));
+}
+
+void CSTConverter::visit(CastCST *castCst) {
+    visit(castCst->tokens);
+    values.emplace_back(std::make_unique<CastedValue>(value(), type()));
 }
 
 void CSTConverter::visit(VariableToken *token) {

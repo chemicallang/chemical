@@ -17,6 +17,7 @@ void Lexer::lexRemainingExpression(unsigned start) {
         lexWhitespaceToken();
         if(!lexTypeTokens()) {
             error("expected a type for casting after 'as' in expression");
+            return;
         }
         compound_from<CastCST>(start);
         return;
@@ -24,14 +25,13 @@ void Lexer::lexRemainingExpression(unsigned start) {
     if(!lexLanguageOperatorToken()) {
         return;
     }
-    auto op_index = tokens.size() - 1;
     lexWhitespaceToken();
     if(!lexExpressionTokens()) {
         error("expected an expression after the operator token in the expression");
         return;
     }
 
-    compound_from<ExpressionCST>(start, op_index - start);
+    compound_from<ExpressionCST>(start);
 
 }
 

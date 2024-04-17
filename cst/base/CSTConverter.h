@@ -187,6 +187,8 @@ public:
 
     void visit(ArrayValueCST *arrayValue) override;
 
+    void visit(CastCST *castCst) override;
+
     void visit(FunctionCallCST *call) override;
 
     void visit(IndexOpCST *op) override;

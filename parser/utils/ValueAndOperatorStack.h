@@ -31,8 +31,12 @@ public:
 
     std::vector<VOPItemContainer> container;
 
-    bool isEmpty() {
+    bool empty() {
         return container.empty();
+    }
+
+    inline bool isEmpty() {
+        return empty();
     }
 
     void putAllInto(ValueAndOperatorStack &other) {
@@ -55,7 +59,11 @@ public:
         container.push_back({ItemType::Char, VOPItem{.character = character}});
     }
 
-    std::optional<Operation> peakOperator() {
+    Operation peakOperator() {
+        return (Operation) container.back().item.operation;
+    }
+
+    std::optional<Operation> safePeakOperator() {
         if (has_operation_top()) {
             return (Operation) container.back().item.operation;
         } else {
@@ -85,7 +93,11 @@ public:
         return has_value_top() ? container.back().item.value : nullptr;
     }
 
-    std::optional<char> peakChar() {
+    char peakChar() {
+        return container.back().item.character;
+    }
+
+    std::optional<char> safePeakChar() {
         if (has_character_top()) {
             return container.back().item.character;
         } else {
@@ -96,7 +108,7 @@ public:
     Operation popOperator() {
         auto op = peakOperator();
         container.pop_back();
-        return op.value();
+        return op;
     }
 
     Value *popValue() {
@@ -108,7 +120,7 @@ public:
     char popChar() {
         auto c = peakChar();
         container.pop_back();
-        return c.value();
+        return c;
     }
 
     std::unique_ptr<Expression> toExpression() {

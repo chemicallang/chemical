@@ -80,6 +80,7 @@
 #include "cst/values/LambdaCST.h"
 #include "ast/values/CastedValue.h"
 #include "cst/values/CastCST.h"
+#include "parser/utils/ValueAndOperatorStack.h"
 
 using tokens_vec_type = std::vector<std::unique_ptr<CSTToken>> &;
 
@@ -161,10 +162,10 @@ void CSTConverter::visit(FunctionParamCST *param) {
     auto lastToken = param->tokens[param->tokens.size() - 1].get();
     auto isVariadic = !lastToken->compound() && lastToken->start_token()->is_abs_string() &&
                       ((AbstractStringToken *) lastToken)->value == "...";
-    BaseType* baseType;
+    BaseType *baseType;
     if (optional_param_types) {
         auto t = opt_type();
-        if(t.has_value()) {
+        if (t.has_value()) {
             baseType = t.value().release();
         } else {
             baseType = new VoidType();
@@ -173,7 +174,8 @@ void CSTConverter::visit(FunctionParamCST *param) {
         baseType = type().release();
     }
     nodes.emplace_back(
-            std::make_unique<FunctionParam>(identifier, std::unique_ptr<BaseType>(baseType), param_index, isVariadic, opt_value()));
+            std::make_unique<FunctionParam>(identifier, std::unique_ptr<BaseType>(baseType), param_index, isVariadic,
+                                            opt_value()));
 }
 
 // will probably leave the index at ')'
@@ -226,7 +228,7 @@ void CSTConverter::visit(FunctionCST *function) {
     }
 
     std::optional<LoopScope> fnBody = std::nullopt;
-    if(i < function->tokens.size()) {
+    if (i < function->tokens.size()) {
         fnBody.emplace(LoopScope{});
     }
 
@@ -236,7 +238,7 @@ void CSTConverter::visit(FunctionCST *function) {
 
     nodes.emplace_back(std::unique_ptr<FunctionDeclaration>(funcDecl));
 
-    if(i >= function->tokens.size()) {
+    if (i >= function->tokens.size()) {
         return;
     }
 
@@ -650,16 +652,112 @@ void CSTConverter::visit(AccessChainCST *chain) {
     }
 }
 
+// shunting yard on right parenthesis
+void sy_onRParen(ValueAndOperatorStack &op_stack, ValueAndOperatorStack &output) {
+    //              while the operator at the top of the operator stack is not a left parenthesis:
+    while (!(op_stack.has_character_top() && op_stack.peakChar() == '(')) {
+//                  {assert the operator stack is not empty}
+//                  /* If the stack runs out without finding a left parenthesis, then there are mismatched parentheses. */
+//                  pop the operator from the operator stack into the output queue
+        output.putOperator(op_stack.popOperator());
+    }
+//              {assert there is a left parenthesis at the top of the operator stack}
+//              pop the left parenthesis from the operator stack and discard it
+    op_stack.popChar();
+//              if there is a function token at the top of the operator stack, then:
+    if (op_stack.has_value_top()) {
+//                  pop the function from the operator stack into the output queue
+        output.putValue(op_stack.popValue());
+    }
+}
+
+/**
+ * This is a shunting yard implementation, however this is a little complex because it is implemented for a CST
+ * but the concept is same, only catch is recursion is being used to traverse to the deeply nested first expression to put
+ * it values, operators or parens in order to simulate a flattened CST
+ * https://en.wikipedia.org/wiki/Shunting_yard_algorithm
+ */
+void visitNestedExpr(CSTConverter *converter, CSTToken *expr, ValueAndOperatorStack &op_stack, ValueAndOperatorStack &output) {
+    if (expr->is_value()) {
+        if (expr->type() != LexTokenType::CompExpression) {
+            if (expr->type() == LexTokenType::CompFunctionCall) {
+                // - a function:
+                // push it onto the operator stack
+                expr->accept(converter);
+                op_stack.putValue(converter->value().release());
+            } else {
+                // - a number:
+                // put it into the output queue
+                expr->accept(converter);
+                output.putValue(converter->value().release());
+            }
+        } else {
+            auto nested = ((ExpressionCST *) expr);
+            auto is_braced = is_char_op(nested->tokens[0].get(), '(');
+            auto first_val_index = is_braced ? 1 : 0;
+            auto op_index = is_braced ? 3 : 1;
+            auto second_val_index = op_index + 1;
+            if (is_braced) { //    - a left parenthesis (i.e. "("):
+                // push it onto the operator stack
+                op_stack.putCharacter('(');
+            }
+            // visiting the first value
+            visitNestedExpr(converter, nested->tokens[first_val_index].get(), op_stack, output);
+            if (is_braced) { // a right parenthesis (i.e. ")"):
+                sy_onRParen(op_stack, output);
+            }
+            auto o1 = ((OperationToken *) nested->tokens[op_index].get())->op;
+//            while (
+//                   there is an operator o2 at the top of the operator stack which is not a left parenthesis,
+//                   and (o2 has greater precedence than o1 or (o1 and o2 have the same precedence and o1 is left-associative))
+//            ):
+            auto o1precedence = to_precedence(o1);
+            while (op_stack.has_operation_top() &&
+                   (to_precedence(op_stack.peakOperator()) > o1precedence ||
+                    (to_precedence(op_stack.peakOperator()) == o1precedence && is_assoc_left_to_right(o1)))) {
+//              pop o2 from the operator stack into the output queue
+                output.putOperator(op_stack.popOperator());
+            }
+            // push o1 onto the operator stack
+            op_stack.putOperator(o1);
+            // visiting the second value
+            if(is_char_op(nested->tokens[second_val_index].get(), '(')) {
+                op_stack.putCharacter('(');
+                visitNestedExpr(converter, nested->tokens[second_val_index + 1].get(), op_stack, output);
+                sy_onRParen(op_stack, output);
+            } else {
+                visitNestedExpr(converter, nested->tokens[second_val_index].get(), op_stack, output);
+            }
+        }
+    } else {
+        throw std::exception("unknown type of value provided to visitNestedExpr");
+    }
+}
+
 void CSTConverter::visit(ExpressionCST *expr) {
     auto is_braced = is_char_op(expr->tokens[0].get(), '(');
-    auto first_value_index = is_braced ? 1 : 0;
-
+    auto first_val_index = is_braced ? 1 : 0;
     auto op_index = is_braced ? 3 : 1;
-    visit(expr->tokens);
-    auto second = value();
-    auto first = value();
-    values.emplace_back(std::make_unique<Expression>(std::move(first), std::move(second),
-                                                     ((OperationToken *) expr->tokens[op_index].get())->op));
+    auto second_val_index = op_index + 1;
+    if (expr->tokens[first_val_index]->is_primitive_var() && expr->tokens[second_val_index]->is_primitive_var()) {
+        // no need to create stacks for values that are primitive variables, a single expression like 1 + 2 or x + 1
+        visit(expr->tokens);
+        auto second = value();
+        auto first = value();
+        values.emplace_back(std::make_unique<Expression>(std::move(first), std::move(second),
+                                                         ((OperationToken *) expr->tokens[op_index].get())->op));
+    } else {
+        ValueAndOperatorStack op_stack, output;
+        visitNestedExpr(this, expr, op_stack, output);
+        //  while there are tokens on the operator stack:
+        while (!op_stack.empty()) {
+            //    /* If the operator token on the top of the stack is a parenthesis, then there are mismatched parentheses. */
+            //    {assert the operator on top of the stack is not a (left) parenthesis}
+            //    pop the operator from the operator stack onto the output queue
+            output.putOperator(op_stack.popOperator());
+        }
+        values.emplace_back(output.toExpression());
+    }
 }
 
 void CSTConverter::visit(CastCST *castCst) {

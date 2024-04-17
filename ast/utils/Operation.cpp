@@ -112,6 +112,107 @@ std::string to_string(Operation operation) {
     }
 }
 
+
+uint8_t to_precedence(Operation op) {
+    switch(op) {
+        case Operation::Grouping:
+        case Operation::ScopeResolutionUnary:
+        case Operation::ScopeResolutionBinary:
+            return 16;
+
+        // Function call, subscript, structure member, structure pointer member
+        case Operation::FunctionCall:
+        case Operation::Subscript:
+        case Operation::StructureMember:
+        case Operation::StructurePointerMember:
+            return 15;
+
+        // Postfix increment and decrement
+        case Operation::PostfixIncrement:
+        case Operation::PostfixDecrement:
+            return 14;
+
+        // Unary operators
+        case Operation::LogicalNegate:
+        case Operation::OnesComplement:
+        case Operation::UnaryPlus:
+        case Operation::UnaryMinus:
+        case Operation::PrefixIncrement:
+        case Operation::PrefixDecrement:
+        case Operation::Indirection:
+        case Operation::AddressOf:
+        case Operation::Sizeof:
+        case Operation::TypeConversion:
+            return 13;
+
+        // Multiplicative operators
+        case Operation::Division:
+        case Operation::Multiplication:
+        case Operation::Modulus:
+            return 12;
+
+        // Additive operators
+        case Operation::Addition:
+        case Operation::Subtraction:
+            return 11;
+
+        // Shift operators
+        case Operation::LeftShift:
+        case Operation::RightShift:
+            return 10;
+
+        // Relational operators
+        case Operation::GreaterThan:
+        case Operation::GreaterThanOrEqual:
+        case Operation::LessThan:
+        case Operation::LessThanOrEqual:
+            return 9;
+
+        // Equality operators
+        case Operation::IsEqual:
+        case Operation::IsNotEqual:
+            return 8;
+
+        // Bitwise AND
+        case Operation::BitwiseAND:
+            return 7;
+
+        // Bitwise exclusive OR
+        case Operation::BitwiseXOR:
+            return 6;
+
+        // Bitwise inclusive OR
+        case Operation::BitwiseOR:
+            return 5;
+
+        // Logical AND
+        case Operation::LogicalAND:
+            return 4;
+
+        // Logical OR
+        case Operation::LogicalOR:
+            return 3;
+
+        // Conditional operator
+        case Operation::Conditional:
+            return 2;
+
+        // Assignment operators
+        case Operation::Assignment:
+        case Operation::AddTo:
+        case Operation::SubtractFrom:
+        case Operation::MultiplyBy:
+        case Operation::DivideBy:
+        case Operation::ModuloBy:
+        case Operation::ShiftLeftBy:
+        case Operation::ShiftRightBy:
+        case Operation::ANDWith:
+        case Operation::ExclusiveORWith:
+        case Operation::InclusiveORWith:
+            return 1;
+    }
+}
+
 bool is_assoc_left_to_right(Operation op) {
     switch (op) {
         // Unary operators (right-to-left associativity)

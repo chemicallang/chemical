@@ -7,12 +7,10 @@
 class ExpressionCST : public CompoundCSTToken {
 public:
 
-    unsigned int op_index;
-
     /**
      * constructor
      */
-    ExpressionCST(std::vector<std::unique_ptr<CSTToken>> tokens, unsigned int op_index) : CompoundCSTToken(std::move(tokens)), op_index(op_index) {
+    ExpressionCST(std::vector<std::unique_ptr<CSTToken>> tokens) : CompoundCSTToken(std::move(tokens)){
 
     }
 

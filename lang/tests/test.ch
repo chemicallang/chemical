@@ -24,3 +24,11 @@ func test(name : string*, assert : () => bool) {
         printf("%s Test [%s] failed %s\n", ANSI_COLOR_RED, name, ANSI_COLOR_RESET);
     }
 }
+
+func assertEquals(actual : int, expected : int) : bool {
+    if(actual != expected) {
+        printf("%sExpected %s Got %s%s\n", ANSI_COLOR_RED, expected, actual, ANSI_COLOR_RESET);
+        return false;
+    }
+    return true;
+}

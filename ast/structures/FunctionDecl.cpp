@@ -75,6 +75,7 @@ void FunctionDeclaration::code_gen(Codegen &gen) {
         funcType = func->getFunctionType();
         funcCallee = func;
         body->code_gen(gen);
+        gen.end_function_block();
         gen.current_function = nullptr;
     } else {
         auto callee = gen.declare_function(name, function_type(gen));

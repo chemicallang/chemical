@@ -52,6 +52,13 @@ public:
     void compile();
 
     /**
+     * when a function ends, this method is called to basically end the block
+     * this is because the functions that return void may need a return statement
+     * to end current BasicBlock
+     */
+    void end_function_block();
+
+    /**
      * the method to create a function
      * @param name name of the function
      * @param type type of the function

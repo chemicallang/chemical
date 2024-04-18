@@ -40,11 +40,14 @@ void Codegen::createFunctionBlock(llvm::Function* fn) {
     SetInsertPoint(entry);
 }
 
-llvm::Function* Codegen::create_function(const std::string& name, llvm::FunctionType* type) {
+void Codegen::end_function_block() {
     if(!has_current_block_ended) {
         builder->CreateRetVoid();
         has_current_block_ended = true;
     }
+}
+
+llvm::Function* Codegen::create_function(const std::string& name, llvm::FunctionType* type) {
     current_function = create_function_proto(name, type);
     createFunctionBlock(current_function);
     return current_function;
@@ -56,12 +59,12 @@ llvm::Function* Codegen::create_nested_function(const std::string& name, llvm::F
     auto prev_block = builder->GetInsertBlock();
     auto prev_current_func = current_function;
 
-    has_current_block_ended = true;
     SetInsertPoint(nullptr);
     auto nested_function = create_function_proto(name, type);
     current_function = nested_function;
     createFunctionBlock(nested_function);
     scope.code_gen(*this);
+    end_function_block();
 
     has_current_block_ended = prev_block_ended;
     SetInsertPoint(prev_block);

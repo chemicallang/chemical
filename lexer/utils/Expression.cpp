@@ -49,10 +49,11 @@ bool Lexer::lexExpressionTokens(bool lexStruct){
 
     if(lexOperatorToken('!')) {
         auto start = tokens.size() - 1;
-        if(!lexExpressionTokens()) {
-            error("expected a expression '!' for not");
+        if(!lexAccessChainOrValue(false)) {
+            error("expected an expression after '!' not");
         }
         compound_from<NotCST>(start);
+        lexRemainingExpression(start);
         return true;
     }
 

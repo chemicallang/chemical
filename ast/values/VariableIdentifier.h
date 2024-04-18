@@ -78,6 +78,8 @@ public:
      */
     Value *copy_prim_ref_other(InterpretScope &scope);
 
+    std::unique_ptr<BaseType> create_type() const override;
+
     Value *param_value(InterpretScope &scope) override;
 
     Value *initializer_value(InterpretScope &scope) override;

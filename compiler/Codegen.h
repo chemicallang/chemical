@@ -3,6 +3,7 @@
 #pragma once
 
 #ifdef COMPILER_BUILD
+
 #include <memory>
 #include <utility>
 #include <vector>
@@ -12,6 +13,8 @@
 #include "llvmfwd.h"
 
 class Scope;
+
+class Value;
 
 class Codegen {
 public:
@@ -38,7 +41,8 @@ public:
      * @param nodes
      * @param path
      */
-    explicit Codegen(std::vector<std::unique_ptr<ASTNode>> nodes, std::string path, std::string target_triple, std::string curr_exe_path);
+    explicit Codegen(std::vector<std::unique_ptr<ASTNode>> nodes, std::string path, std::string target_triple,
+                     std::string curr_exe_path);
 
     /**
      * initializes the llvm module and context
@@ -64,12 +68,12 @@ public:
      * @param type type of the function
      * @return
      */
-    llvm::Function* create_function(const std::string& name, llvm::FunctionType* type);
+    llvm::Function *create_function(const std::string &name, llvm::FunctionType *type);
 
     /**
      * create a nested function
      */
-    llvm::Function* create_nested_function(const std::string& name, llvm::FunctionType* type, Scope &scope);
+    llvm::Function *create_nested_function(const std::string &name, llvm::FunctionType *type, Scope &scope);
 
     /**
      * gets or inserts a function, similar to declaration
@@ -77,7 +81,7 @@ public:
      * @param type
      * @return
      */
-    llvm::FunctionCallee declare_function(const std::string& name, llvm::FunctionType* type);
+    llvm::FunctionCallee declare_function(const std::string &name, llvm::FunctionType *type);
 
     /**
      * create a function prototype
@@ -85,7 +89,7 @@ public:
      * @param type type of the function
      * @return
      */
-    llvm::Function* create_function_proto(const std::string& name, llvm::FunctionType* type);
+    llvm::Function *create_function_proto(const std::string &name, llvm::FunctionType *type);
 
     /**
      * create a function's basic block, with the given name
@@ -93,13 +97,13 @@ public:
      * @param fn
      * @return
      */
-    llvm::BasicBlock* createBB(const std::string& name, llvm::Function* fn);
+    llvm::BasicBlock *createBB(const std::string &name, llvm::Function *fn);
 
     /**
      * creates a function block, along with setting the insert point to this entry block
      * @param fn
      */
-    void createFunctionBlock(llvm::Function* fn);
+    void createFunctionBlock(llvm::Function *fn);
 
     /**
      * prints the current module to console
@@ -107,18 +111,20 @@ public:
     void print_to_console();
 
 #ifdef FEAT_LLVM_IR_GEN
+
     /**
      * prints the current module as LLVM IR to a .ll file with given out_path
      * @param out_path
      */
     void save_to_file(const std::string &out_path);
+
 #endif
 
     /**
      * sets up the module for the given target
      * @param target
      */
-    llvm::TargetMachine * setup_for_target(const std::string& TargetTriple);
+    llvm::TargetMachine *setup_for_target(const std::string &TargetTriple);
 
     /**
      * automatically sets up for the current target triple
@@ -131,7 +137,7 @@ public:
      * just in time compilation
      * please note that this takes ownership of the module
      */
-    void just_in_time_compile(std::vector<const char*>& args);
+    void just_in_time_compile(std::vector<const char *> &args);
 
 #ifdef FEAT_BITCODE_GEN
     /**
@@ -157,28 +163,28 @@ public:
     /**
       * You can invoke lld with this function
       */
-    int invoke_lld(const std::vector<std::string>& command_args);
+    int invoke_lld(const std::vector<std::string> &command_args);
 
     /**
      * You can invoke clang with this function
      */
-    int invoke_clang(const std::vector<std::string>& command_args);
+    int invoke_clang(const std::vector<std::string> &command_args);
 
     /**
      * get absolute path to this system header
      */
-    std::string abs_header_path(const std::string& header);
+    std::string abs_header_path(const std::string &header);
 
     /**
      * get containing system headers directory for the following header
      */
-    std::string headers_dir(const std::string& header);
+    std::string headers_dir(const std::string &header);
 
     /**
      * just prints the errors to std out
      */
     void print_errors() {
-        for(const auto& err : errors) {
+        for (const auto &err: errors) {
             std::cerr << err << std::endl;
         }
     }
@@ -191,7 +197,7 @@ public:
      * @param condBlock
      * @param endBlock
      */
-    void loop_body_wrap(llvm::BasicBlock* condBlock, llvm::BasicBlock* endBlock);
+    void loop_body_wrap(llvm::BasicBlock *condBlock, llvm::BasicBlock *endBlock);
 
     /**
      * This sets the insert point to this block
@@ -201,7 +207,7 @@ public:
      * if this block has ended previously to avoid creating branches and returns
      * @param block
      */
-    void SetInsertPoint(llvm::BasicBlock* block);
+    void SetInsertPoint(llvm::BasicBlock *block);
 
     /**
      * The safe version of builder.CreateBr
@@ -210,7 +216,7 @@ public:
      * because you've already shifted to another block
      * @param block
      */
-    void CreateBr(llvm::BasicBlock* block);
+    void CreateBr(llvm::BasicBlock *block);
 
     /**
      * The safe version of builder.CreateRet
@@ -219,7 +225,7 @@ public:
      * because you've already shifted to another block
      * @param value
      */
-    void CreateRet(llvm::Value* value);
+    void CreateRet(llvm::Value *value);
 
     /**
      * The safe version of builder.CreateCondBr
@@ -239,13 +245,13 @@ public:
      * @param rhs
      * @return
      */
-    llvm::Value* operate(Operation op, llvm::Value* lhs, llvm::Value* rhs);
+    llvm::Value *operate(Operation op, Value *lhs, Value *rhs);
 
     /**
      * report an error when generating a node
      * @param err
      */
-    void error(const std::string& err);
+    void error(const std::string &err);
 
     /**
      * destructor takes care of deallocating members
@@ -279,17 +285,17 @@ public:
     /**
      * The function being compiled currently
      */
-    llvm::Function* current_function = nullptr;
+    llvm::Function *current_function = nullptr;
 
     /**
      * This is set by every loop so break statement can exit to this block
      */
-    llvm::BasicBlock* current_loop_exit = nullptr;
+    llvm::BasicBlock *current_loop_exit = nullptr;
 
     /**
      * This is set by every loop so continue statement can continue to this block
      */
-    llvm::BasicBlock* current_loop_continue = nullptr;
+    llvm::BasicBlock *current_loop_continue = nullptr;
 
     /**
      * LLVM context that holds modules
@@ -304,7 +310,7 @@ public:
     /**
      * the builder that builds ir
      */
-    llvm::IRBuilder<llvm::ConstantFolder, llvm::IRBuilderDefaultInserter>* builder;
+    llvm::IRBuilder<llvm::ConstantFolder, llvm::IRBuilderDefaultInserter> *builder;
 
 private:
 
@@ -315,4 +321,5 @@ private:
     bool has_current_block_ended = false;
 
 };
+
 #endif

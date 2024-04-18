@@ -1,5 +1,6 @@
 // Copyright (c) Qinetik 2024.
 
+#include "ast/base/BaseType.h"
 #include "NotValue.h"
 
 #ifdef COMPILER_BUILD
@@ -19,6 +20,10 @@ void NotValue::link(SymbolResolver &linker) {
 
 bool NotValue::primitive() {
     return false;
+}
+
+std::unique_ptr<BaseType> NotValue::create_type() const {
+    return value->create_type();
 }
 
 std::string NotValue::representation() const {

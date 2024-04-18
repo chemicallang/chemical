@@ -1,12 +1,22 @@
 // Copyright (c) Qinetik 2024.
 
 #include "Codegen.h"
+#include "ast/base/Value.h"
+#include "ast/base/BaseType.h"
 
 #ifdef COMPILER_BUILD
+
 #include "llvmimpl.h"
 
-llvm::Value* Codegen::operate(Operation op, llvm::Value* lhs, llvm::Value* rhs) {
-    switch(op) {
+llvm::Value *Codegen::operate(Operation op, Value *first, Value *second) {
+    auto firstType = first->create_type();
+    auto secondType = second->create_type();
+    auto lhs = first->llvm_value(*this);
+    auto rhs = second->llvm_value(*this);
+    auto is_floating = [&firstType, &secondType] () -> bool {
+        return firstType->satisfies(ValueType::Float) || firstType->satisfies(ValueType::Double) || secondType->satisfies(ValueType::Float) || secondType->satisfies(ValueType::Double);
+    };
+    switch (op) {
 //        case Operation::Grouping:
 //            break;
 //        case Operation::ScopeResolutionUnary:
@@ -46,31 +56,71 @@ llvm::Value* Codegen::operate(Operation op, llvm::Value* lhs, llvm::Value* rhs) 
 //        case Operation::TypeConversion:
 //            break;
         case Operation::Multiplication:
-            return builder->CreateMul(lhs, rhs);
+            if(is_floating()) {
+                return builder->CreateFMul(lhs, rhs);
+            } else {
+                return builder->CreateMul(lhs, rhs);
+            }
         case Operation::Division:
-            return builder->CreateSDiv(lhs, rhs); // Signed division
+            if(is_floating()) {
+                return builder->CreateFDiv(lhs, rhs);
+            } else {
+                return builder->CreateSDiv(lhs, rhs);
+            }
         case Operation::Modulus:
             return builder->CreateSRem(lhs, rhs); // Signed remainder
         case Operation::Addition:
-            return builder->CreateAdd(lhs, rhs);
+            if(is_floating()) {
+                return builder->CreateFAdd(lhs, rhs);
+            } else {
+                return builder->CreateAdd(lhs, rhs);
+            }
         case Operation::Subtraction:
-            return builder->CreateSub(lhs, rhs);
+            if(is_floating()) {
+                return builder->CreateFSub(lhs, rhs);
+            } else {
+                return builder->CreateSub(lhs, rhs);
+            }
         case Operation::LeftShift:
             return builder->CreateShl(lhs, rhs);
         case Operation::RightShift:
             return builder->CreateLShr(lhs, rhs);
         case Operation::GreaterThan:
-            return builder->CreateICmpSGT(lhs, rhs); // Signed greater than
+            if(is_floating()) {
+                return builder->CreateFCmpOGT(lhs, rhs); // Signed greater than
+            } else {
+                return builder->CreateICmpSGT(lhs, rhs); // Signed greater than
+            }
         case Operation::GreaterThanOrEqual:
-            return builder->CreateICmpSGE(lhs, rhs); // Signed greater than or equal
+            if(is_floating()) {
+                return builder->CreateFCmpOGE(lhs, rhs); // Signed greater than or equal
+            } else {
+                return builder->CreateICmpSGE(lhs, rhs); // Signed greater than or equal
+            }
         case Operation::LessThan:
-            return builder->CreateICmpSLT(lhs, rhs); // Signed less than
+            if(is_floating()) {
+                return builder->CreateFCmpOLT(lhs, rhs); // Signed less than
+            } else {
+                return builder->CreateICmpSLT(lhs, rhs); // Signed less than
+            }
         case Operation::LessThanOrEqual:
-            return builder->CreateICmpSLE(lhs, rhs); // Signed less than or equal
+            if(is_floating()) {
+                return builder->CreateFCmpOLE(lhs, rhs); // floating less than or equal
+            } else {
+                return builder->CreateICmpSLE(lhs, rhs); // Signed less than or equal
+            }
         case Operation::IsEqual:
-            return builder->CreateICmpEQ(lhs, rhs); // Equal to
+            if(is_floating()) {
+                return builder->CreateFCmpOEQ(lhs, rhs); // Equal to
+            } else {
+                return builder->CreateICmpEQ(lhs, rhs); // Equal to
+            }
         case Operation::IsNotEqual:
-            return builder->CreateICmpNE(lhs, rhs); // Not equal to
+            if(is_floating()) {
+                return builder->CreateFCmpONE(lhs, rhs); // Not equal to
+            } else {
+                return builder->CreateICmpNE(lhs, rhs); // Not equal to
+            }
         case Operation::BitwiseAND:
             return builder->CreateAnd(lhs, rhs);
         case Operation::BitwiseXOR:
@@ -110,4 +160,5 @@ llvm::Value* Codegen::operate(Operation op, llvm::Value* lhs, llvm::Value* rhs) 
 //            break;
     }
 }
+
 #endif

@@ -15,6 +15,14 @@ public:
         return "void";
     }
 
+    BaseTypeKind kind() const override {
+        return BaseTypeKind::Void;
+    }
+
+    bool is_same(BaseType *type) const override {
+        return type->kind() == kind();
+    }
+
     virtual BaseType* copy() const {
         return new VoidType();
     }

@@ -26,8 +26,12 @@ public:
     std::string representation() const override;
 
 #ifdef COMPILER_BUILD
-    llvm::Value * llvm_value(Codegen &gen) override;
+
+    llvm::Value *llvm_value(Codegen &gen) override;
+
 #endif
+
+    std::unique_ptr<BaseType> create_type() const override;
 
     std::unique_ptr<Value> value;
 

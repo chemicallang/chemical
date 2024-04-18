@@ -10,12 +10,15 @@
 #ifdef COMPILER_BUILD
 
 #include "compiler/llvmfwd.h"
+#include "BaseTypeKind.h"
 
 #endif
 
 class PointerType;
 
 class FunctionType;
+
+class Value;
 
 /**
  * BaseType is a base class for all the types there are
@@ -45,6 +48,33 @@ public:
     virtual ASTNode *linked_node() {
         return nullptr;
     }
+
+    /**
+     * return kind of base type
+     */
+    virtual BaseTypeKind kind() const {
+        return BaseTypeKind::Unknown;
+    }
+
+    /**
+     * check if given base type is of same type
+     */
+    virtual bool is_same(BaseType* type) const = 0;
+
+    /**
+     * this is the precedence in an expression
+     * every type is by default 0, however float is 1 and double is 2
+     */
+    virtual unsigned int precedence() {
+        return 0;
+    }
+
+    /**
+     * given the value, the type will promote the value
+     * for example float or doubles will promote integers
+     * it's to note that by default no promotion takes place
+     */
+    virtual std::unique_ptr<Value> promote(Value* value);
 
     /**
      * this basically tells whether the given value type would satisfy this type

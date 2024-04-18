@@ -78,9 +78,9 @@ VarInitStatement::VarInitStatement(
         std::optional<std::unique_ptr<Value>> value
 ) : is_const(is_const), identifier(std::move(identifier)), type(std::move(type)), value(std::move(value)) {}
 
-std::shared_ptr<BaseType> VarInitStatement::create_type() {
+std::unique_ptr<BaseType> VarInitStatement::create_value_type() {
     if(type.has_value()) {
-        return {type.value().get(), [] (BaseType*) {}};
+        return std::unique_ptr<BaseType>(type.value()->copy());
     } else {
         return value.value()->create_type();
     }

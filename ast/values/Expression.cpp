@@ -8,10 +8,43 @@
 #include "compiler/llvmimpl.h"
 
 llvm::Value *Expression::llvm_value(Codegen &gen) {
-    return gen.operate(operation, firstValue->llvm_value(gen), secondValue->llvm_value(gen));
+    promote();
+    return gen.operate(operation, firstValue.get(), secondValue.get());
+}
+
+llvm::Type *Expression::llvm_type(Codegen &gen) {
+    return create_type()->llvm_type(gen);
 }
 
 #endif
+
+void Expression::promote() {
+    auto first = firstValue->create_type();
+    auto second = secondValue->create_type();
+    if (first->is_same(second.get())) {
+        // no promotion required
+    } else {
+        if (first->precedence() >= second->precedence()) {
+            secondValue = first->promote(secondValue.release());
+        } else {
+            firstValue = second->promote(firstValue.release());
+        }
+    }
+}
+
+std::unique_ptr<BaseType> Expression::create_type() const {
+    auto first = firstValue->create_type();
+    auto second = secondValue->create_type();
+    if (first->is_same(second.get())) {
+        return first;
+    } else {
+        if (first->precedence() >= second->precedence()) {
+            return first;
+        } else {
+            return second;
+        }
+    }
+}
 
 /**
   * @brief Construct a new Expression object.

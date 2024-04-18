@@ -1,4 +1,5 @@
 import "test.ch"
+import "floating.ch"
 
 func main() {
     test("4 + 2 / 2 == 5", []() => {
@@ -90,6 +91,8 @@ func main() {
     test("Expression with repeated brackets", []() => {
         return (((((2 + 3) * 4) / 2) - 1) + ((((8 / 2) + 1) * 3) - 2)) == 22;
     });
-    // TODO test power expression
+    test_floating_expr();
     // TODO support negative braced expressions like -(1 + 1)
+    // TODO support float values
+    // TODO test power expression
 }

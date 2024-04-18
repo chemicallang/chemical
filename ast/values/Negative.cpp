@@ -1,6 +1,7 @@
 // Copyright (c) Qinetik 2024.
 
 #include "Negative.h"
+#include "ast/base/BaseType.h"
 
 #ifdef COMPILER_BUILD
 
@@ -15,6 +16,10 @@ llvm::Value *NegativeValue::llvm_value(Codegen &gen) {
 
 void NegativeValue::link(SymbolResolver &linker) {
     value->link(linker);
+}
+
+std::unique_ptr<BaseType> NegativeValue::create_type() const {
+    return value->create_type();
 }
 
 bool NegativeValue::primitive() {

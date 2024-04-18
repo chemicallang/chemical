@@ -39,10 +39,11 @@ bool Lexer::lexExpressionTokens(bool lexStruct){
 
     if(lexOperatorToken('-')) {
         auto start = tokens.size() - 1;
-        if(!lexExpressionTokens()) {
-            error("expected a expression after '-' negative");
+        if(!lexAccessChainOrValue(false)) {
+            error("expected an expression after '-' negative");
         }
         compound_from<NegativeCST>(start);
+        lexRemainingExpression(start);
         return true;
     }
 

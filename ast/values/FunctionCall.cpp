@@ -49,7 +49,7 @@ void FunctionCall::link(SymbolResolver &linker) {
             values[i]->link(linker, this, i);
             i++;
         }
-        if(found->second->as_function() == nullptr && !found->second->create_type()->satisfies(ValueType::Lambda)) {
+        if(found->second->as_function() == nullptr && !found->second->create_value_type()->satisfies(ValueType::Lambda)) {
             linker.error("function call to identifier '" + name + "' is not valid, because its not a function.");
         }
     } else {

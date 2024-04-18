@@ -15,6 +15,14 @@ public:
         return "any";
     }
 
+    BaseTypeKind kind() const override {
+        return BaseTypeKind::Any;
+    }
+
+    bool is_same(BaseType *type) const override {
+        return true;
+    }
+
     virtual BaseType* copy() const {
         return new AnyType();
     }

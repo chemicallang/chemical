@@ -25,8 +25,8 @@ public:
             std::optional<std::unique_ptr<Value>> defValue
     );
 
-    std::shared_ptr<BaseType> create_type() override {
-        return {type.get(), [](BaseType *) {}};
+    std::unique_ptr<BaseType> create_value_type() override {
+        return std::unique_ptr<BaseType>(type->copy());
     }
 
     void accept(Visitor &visitor) override;
@@ -105,7 +105,7 @@ public:
             InterpretScope *fn_scope
     );
 
-    std::shared_ptr<BaseType> create_type() override;
+    std::unique_ptr<BaseType> create_value_type() override;
 
     // called by the return statement
     void set_return(Value *value);

@@ -15,6 +15,14 @@ public:
         return "string";
     }
 
+    BaseTypeKind kind() const override {
+        return BaseTypeKind::String;
+    }
+
+    bool is_same(BaseType *type) const override {
+        return type->kind() == kind();
+    }
+
     virtual BaseType* copy() const {
         return new StringType();
     }

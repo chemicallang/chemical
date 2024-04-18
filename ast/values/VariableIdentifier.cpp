@@ -57,6 +57,10 @@ Value *VariableIdentifier::find_in(InterpretScope &scope, Value *parent) {
     return parent->child(scope, value);
 }
 
+std::unique_ptr<BaseType> VariableIdentifier::create_type() const {
+    return linked->create_value_type();
+}
+
 bool VariableIdentifier::reference() {
     return true;
 }

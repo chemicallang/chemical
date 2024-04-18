@@ -28,6 +28,10 @@ public:
 
     void interpret(InterpretScope &scope) override;
 
+    std::unique_ptr<BaseType> create_type() const override;
+
+    std::unique_ptr<BaseType> create_value_type() override;
+
 #ifdef COMPILER_BUILD
     void code_gen(Codegen &gen) override;
 

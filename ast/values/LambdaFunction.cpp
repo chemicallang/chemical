@@ -37,7 +37,7 @@ void LambdaFunction::link(SymbolResolver &linker, FunctionCall *call, unsigned i
 
     // if the linked is a function decl, it will be its type
     // if it's a variable with a lambda type, it will be its type
-    auto linkedType = call->linked->create_type();
+    auto linkedType = call->linked->create_value_type();
 
     // this is not a function, this error has been probably caught by function call
     if(linkedType->function_type() == nullptr) {
@@ -45,7 +45,7 @@ void LambdaFunction::link(SymbolResolver &linker, FunctionCall *call, unsigned i
     }
 
     // get the type of parameter for the function
-    auto paramType = linkedType->function_type()->params[index]->create_type()->copy();
+    auto paramType = linkedType->function_type()->params[index]->create_value_type()->copy();
 
     if(paramType->function_type() == nullptr) {
         linker.error("cannot pass a lambda, because the function " + call->name + " expects a different type : " + paramType->representation() + " for parameter at " + std::to_string(index));

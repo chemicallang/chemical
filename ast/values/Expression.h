@@ -31,11 +31,17 @@ public:
         visitor.visit(this);
     }
 
+    void promote();
+
 #ifdef COMPILER_BUILD
 
     llvm::Value *llvm_value(Codegen &gen) override;
 
+    llvm::Type * llvm_type(Codegen &gen) override;
+
 #endif
+
+    std::unique_ptr<BaseType> create_type() const override;
 
     void link(SymbolResolver &linker) override;
 

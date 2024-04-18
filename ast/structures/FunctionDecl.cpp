@@ -148,12 +148,12 @@ FunctionDeclaration::FunctionDeclaration(
     params.shrink_to_fit();
 }
 
-std::shared_ptr<BaseType> FunctionDeclaration::create_type() {
+std::unique_ptr<BaseType> FunctionDeclaration::create_value_type() {
     std::vector<std::unique_ptr<FunctionParam>> copied;
     for(const auto& param : params) {
         copied.emplace_back(param->copy());
     }
-    return std::make_shared<FunctionType>(std::move(copied), std::unique_ptr<BaseType>(returnType->copy()), isVariadic);
+    return std::make_unique<FunctionType>(std::move(copied), std::unique_ptr<BaseType>(returnType->copy()), isVariadic);
 }
 
 void FunctionDeclaration::accept(Visitor &visitor) {

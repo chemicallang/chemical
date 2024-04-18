@@ -21,6 +21,14 @@ public:
         throw "referenced type cannot determine whether the given value type satisfies";
     }
 
+    BaseTypeKind kind() const override {
+        return BaseTypeKind::Referenced;
+    }
+
+    bool is_same(BaseType *other) const override {
+        return other->kind() == kind() && static_cast<ReferencedType*>(other)->type == type;
+    }
+
     std::string representation() const override {
         return type;
     }

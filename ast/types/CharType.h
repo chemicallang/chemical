@@ -15,6 +15,14 @@ public:
         return "char";
     }
 
+    BaseTypeKind kind() const override {
+        return BaseTypeKind::Char;
+    }
+
+    bool is_same(BaseType *type) const override {
+        return type->kind() == kind();
+    }
+
     virtual BaseType* copy() const {
         return new CharType();
     }

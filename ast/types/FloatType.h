@@ -15,6 +15,20 @@ public:
         return "float";
     }
 
+    unsigned int precedence() override {
+        return 1;
+    }
+
+    BaseTypeKind kind() const override {
+        return BaseTypeKind::Float;
+    }
+
+    bool is_same(BaseType *type) const override {
+        return type->kind() == kind();
+    }
+
+    std::unique_ptr<Value> promote(Value* value) override;
+
     virtual BaseType* copy() const {
         return new FloatType();
     }

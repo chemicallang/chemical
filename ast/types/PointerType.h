@@ -18,6 +18,14 @@ public:
         return type->satisfies(value_type);
     }
 
+    BaseTypeKind kind() const override {
+        return BaseTypeKind::Pointer;
+    }
+
+    bool is_same(BaseType *other) const override {
+        return other->kind() == kind() && static_cast<PointerType*>(other)->type->is_same(type.get());
+    }
+
     PointerType* pointer_type() override {
         return this;
     }

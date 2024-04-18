@@ -162,8 +162,8 @@ public:
      * get the type from the ASTNode
      * this type can represent the type of value, type of parameter etc.
      */
-    virtual std::shared_ptr<BaseType> create_type() {
-        throw std::runtime_error("create_type called on bare ASTNode, with representation" + representation());
+    virtual std::unique_ptr<BaseType> create_value_type() {
+        throw std::runtime_error("create_value_type called on bare ASTNode, with representation" + representation());
     }
 
 #ifdef COMPILER_BUILD

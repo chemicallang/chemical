@@ -1,6 +1,7 @@
 // Copyright (c) Qinetik 2024.
 
 #include "AccessChain.h"
+#include "ast/base/BaseType.h"
 
 #ifdef COMPILER_BUILD
 
@@ -78,6 +79,14 @@ void AccessChain::link(SymbolResolver &linker) {
 
 AccessChain::AccessChain(std::vector<std::unique_ptr<Value>> values) : values(std::move(values)) {
 
+}
+
+std::unique_ptr<BaseType> AccessChain::create_type() const {
+    return values[values.size() - 1]->create_type();
+}
+
+std::unique_ptr<BaseType> AccessChain::create_value_type() {
+    return create_type();
 }
 
 void AccessChain::accept(Visitor &visitor) {

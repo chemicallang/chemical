@@ -61,7 +61,7 @@ public:
 
     void interpret(InterpretScope &scope) override;
 
-    std::shared_ptr<BaseType> create_type() override;
+    std::unique_ptr<BaseType> create_value_type() override;
 
     /**
      * called by assignment to assign a new value in the scope that this variable was declared

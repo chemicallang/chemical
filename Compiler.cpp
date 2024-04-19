@@ -6,7 +6,6 @@
 
 #include <llvm/TargetParser/Host.h>
 #include "lexer/Lexi.h"
-#include "parser/Persi.h"
 #include "utils/Utils.h"
 #include "ast/base/GlobalInterpretScope.h"
 #include "compiler/Codegen.h"

@@ -133,7 +133,6 @@ set(COMMON_SOURCES
         ast/values/DoubleValue.h
         ast/values/CharValue.h
         ast/base/ASTNode.h
-        parser/Parser.h
         ast/statements/VarInit.h
         ast/statements/Assignment.h
         ast/structures/StructDefinition.h
@@ -148,33 +147,16 @@ set(COMMON_SOURCES
         ast/statements/Return.h
         ast/statements/Break.h
         ast/statements/Continue.h
-        parser/Parser.cpp
-        parser/statements/VarInit.cpp
-        parser/values/Value.cpp
         lexer/model/LexTokenType.h
         utils/Utils.h
         utils/Utils.cpp
-        parser/Persi.cpp
         lexer/utils/TypeUtils.h
         lexer/utils/TypeUtils.cpp
-        parser/utils/Consumers.cpp
-        parser/statements/VarAssign.cpp
         ast/structures/Scope.h
-        parser/structures/Scope.cpp
         ast/values/AccessChain.h
-        parser/expression/AccessChain.cpp
         ast/values/FunctionCall.h
         ast/values/IndexOperator.h
-        parser/expression/Expression.cpp
         ast/values/NotValue.h
-        parser/statements/If.cpp
-        parser/structures/ForLoop.cpp
-        parser/structures/WhileLoop.cpp
-        parser/structures/DoWhileLoop.cpp
-        parser/structures/FunctionDefinition.cpp
-        parser/structures/EnumDefinition.cpp
-        parser/structures/InterfaceDefinition.cpp
-        parser/structures/StructDefinition.cpp
         ast/values/BoolValue.h
         ast/values/ArrayValue.h
         ast/values/VariableIdentifier.h
@@ -189,19 +171,15 @@ set(COMMON_SOURCES
         ast/base/GlobalInterpretScope.cpp
         ast/utils/Operation.cpp
         ast/structures/LoopScope.h
-        parser/statements/Import.cpp
         ast/base/LoopASTNode.h
         ast/structures/ImplDefinition.h
         lexer/structures/ImplDef.cpp
-        parser/structures/ImplDef.cpp
         ast/statements/Comment.h
-        parser/statements/Comment.cpp
         ast/base/Interpretable.h
         server/SemanticLinker.cpp
         server/SemanticLinker.h
         lexer/statements/AnnotationMacro.cpp
         lexer/model/tokens/MacroToken.h
-        parser/utils/ValueAndOperatorStack.h
         compiler/Codegen.h
         compiler/Codegen.cpp
         ast/base/BaseType.h
@@ -220,7 +198,6 @@ set(COMMON_SOURCES
         ast/types/BoolType.h
         ast/types/CharType.h
         ast/types/ArrayType.h
-        parser/utils/Type.cpp
         ast/base/Visitor.h
         ast/types/VoidType.h
         ast/types/AnyType.h
@@ -230,14 +207,12 @@ set(COMMON_SOURCES
         common/Diagnostic.h
         lexer/values/StructValue.cpp
         ast/values/StructValue.h
-        parser/values/StructValue.cpp
         ast/types/ReferencedType.h
         stream/SourceProviderImpl.cpp
         ast/structures/FunctionDecl.cpp
         ast/utils/GlobalFunctions.h
         ast/utils/GlobalFunctions.cpp
         ast/statements/MacroValueStatement.h
-        parser/statements/AnnotationMacro.cpp
         ast/utils/InterpretValues.h
         common/Diagnostic.cpp
         lexer/structures/Collection.cpp
@@ -286,7 +261,6 @@ set(COMMON_SOURCES
         lexer/statements/Typealias.cpp
         ast/statements/Typealias.cpp
         ast/statements/Typealias.h
-        parser/statements/Typealias.cpp
         ast/statements/Continue.cpp
         ast/statements/Return.cpp
         ast/statements/SwitchStatement.cpp
@@ -295,8 +269,6 @@ set(COMMON_SOURCES
         ast/structures/TryCatch.h
         lexer/structures/TryCatch.cpp
         lexer/structures/Switch.cpp
-        parser/structures/Switch.cpp
-        parser/structures/TryCatch.cpp
         ast/statements/Import.cpp
         compiler/SelfInvocation.h
         compiler/SelfInvocation.cpp
@@ -348,6 +320,7 @@ set(COMMON_SOURCES
         ast/base/BaseTypeKind.h
         ast/base/BaseTypeKind.h
         ast/base/BaseType.cpp
+        cst/utils/ValueAndOperatorStack.h
 )
 
 # Chemical LSP Executable Target

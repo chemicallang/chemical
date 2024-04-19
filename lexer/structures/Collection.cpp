@@ -1,7 +1,6 @@
 // Copyright (c) Qinetik 2024.
 
 #include "lexer/Lexer.h"
-#include "parser/Parser.h"
 
 bool Lexer::collectStructAsLexer(unsigned int start, unsigned int end) {
     if(has_errors) {

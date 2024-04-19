@@ -80,7 +80,7 @@
 #include "cst/values/LambdaCST.h"
 #include "ast/values/CastedValue.h"
 #include "cst/values/CastCST.h"
-#include "parser/utils/ValueAndOperatorStack.h"
+#include "cst/utils/ValueAndOperatorStack.h"
 
 using tokens_vec_type = std::vector<std::unique_ptr<CSTToken>> &;
 

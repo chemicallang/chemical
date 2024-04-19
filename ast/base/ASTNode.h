@@ -211,6 +211,17 @@ public:
     }
 
     /**
+     * instead of calling code_gen, this function can be called, to provide more information
+     * so that code generation can be better
+     * for example if statement needs to know whether this is the last node, so that it can
+     * generate end block optionally based on whether there's more code after if statement
+     * in current scope
+     */
+    virtual void code_gen(Codegen &gen, std::vector<std::unique_ptr<ASTNode>>& nodes, unsigned int index) {
+        code_gen(gen);
+    }
+
+    /**
      * add child index in llvm indexes vector
      */
     virtual bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {

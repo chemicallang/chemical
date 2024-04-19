@@ -29,6 +29,7 @@ func assertEquals(actual : int, expected : int) : bool {
     if(actual != expected) {
         printf("%sExpected %s Got %s%s\n", ANSI_COLOR_RED, expected, actual, ANSI_COLOR_RESET);
         return false;
+    } else {
+        return true;
     }
-    return true;
 }

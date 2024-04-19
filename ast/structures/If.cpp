@@ -8,6 +8,10 @@
 #include "compiler/Codegen.h"
 
 void IfStatement::code_gen(Codegen &gen) {
+    code_gen(gen, true);
+}
+
+void IfStatement::code_gen(Codegen &gen, bool gen_last_block) {
 
     // compare
     auto comparison = condition->llvm_value(gen);
@@ -39,7 +43,10 @@ void IfStatement::code_gen(Codegen &gen) {
     }
 
     // end block
-    auto endBlock = llvm::BasicBlock::Create(*gen.ctx, "ifend", gen.current_function);
+    llvm::BasicBlock* endBlock = nullptr;
+    if(gen_last_block) {
+        endBlock = llvm::BasicBlock::Create(*gen.ctx, "ifend", gen.current_function);
+    }
 
     // the block after the first if block
     const auto elseOrEndBlock = elseBlock ? elseBlock : endBlock;
@@ -51,7 +58,11 @@ void IfStatement::code_gen(Codegen &gen) {
     // generating then code
     gen.SetInsertPoint(thenBlock);
     ifBody.code_gen(gen);
-    gen.CreateBr(endBlock);
+    if(endBlock) {
+        gen.CreateBr(endBlock);
+    } else {
+        gen.CreateRet(nullptr);
+    }
 
     // generating else if block
     i = 0;
@@ -68,8 +79,11 @@ void IfStatement::code_gen(Codegen &gen) {
         // generating block code
         gen.SetInsertPoint(pair.second);
         elif.second.code_gen(gen);
-        gen.CreateBr(endBlock);
-
+        if(endBlock) {
+            gen.CreateBr(endBlock);
+        } else {
+            gen.CreateRet(nullptr);
+        }
         i++;
     }
 
@@ -77,12 +91,22 @@ void IfStatement::code_gen(Codegen &gen) {
     if (elseBlock) {
         gen.SetInsertPoint(elseBlock);
         elseBody.value().code_gen(gen);
-        gen.CreateBr(endBlock);
+        if(endBlock) {
+            gen.CreateBr(endBlock);
+        } else {
+            gen.CreateRet(nullptr);
+        }
     }
 
     // set to end block
-    gen.SetInsertPoint(endBlock);
+    if(endBlock) {
+        gen.SetInsertPoint(endBlock);
+    }
 
+}
+
+void IfStatement::code_gen(Codegen &gen, std::vector<std::unique_ptr<ASTNode>> &nodes, unsigned int index) {
+    code_gen(gen, index != nodes.size() - 1);
 }
 
 #endif

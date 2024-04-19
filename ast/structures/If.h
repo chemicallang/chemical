@@ -33,7 +33,13 @@ public:
     void declare_and_link(SymbolResolver &linker) override;
 
 #ifdef COMPILER_BUILD
+
+    void code_gen(Codegen &gen, bool gen_last_block);
+
     void code_gen(Codegen &gen) override;
+
+    void code_gen(Codegen &gen, std::vector<std::unique_ptr<ASTNode>> &nodes, unsigned int index) override;
+
 #endif
 
     void interpret(InterpretScope &scope) override;

@@ -1,4 +1,4 @@
-import "std.ch"
+import "../std/std.ch"
 
 func add(a : int, b : int) : int {
     return a + b;

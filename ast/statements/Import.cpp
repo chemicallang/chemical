@@ -6,6 +6,8 @@
 #include "parser/Persi.h"
 #include "cst/base/CSTConverter.h"
 
+#define DEBUG false
+
 #ifdef COMPILER_BUILD
 
 #include "llvm/IR/LLVMContext.h"
@@ -23,9 +25,16 @@
 
 void ImportStatement::code_gen(Codegen &gen) {
 
-    auto& ast = parsed(gen.path);
-    for(const auto& node : ast) {
-        node->code_gen(gen);
+    auto abs_path = resolve_rel_path(gen.path);
+    auto found = gen.imported.find(abs_path.string());
+    if(found == gen.imported.end()) {
+        auto &ast = parsed(gen.path);
+        for (const auto &node: ast) {
+            node->code_gen(gen);
+        }
+        // clearing the cache to free memory
+        imported_ast.clear();
+        gen.imported[abs_path.string()] = true;
     }
 
     // Resolve the containing directory to given header

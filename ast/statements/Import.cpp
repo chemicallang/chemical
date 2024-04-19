@@ -3,7 +3,6 @@
 #include "Import.h"
 #include <filesystem>
 #include "lexer/Lexi.h"
-#include "parser/Persi.h"
 #include "cst/base/CSTConverter.h"
 
 #define DEBUG false
@@ -17,6 +16,7 @@
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/CompilerInvocation.h"
 #include "clang/Tooling/Tooling.h"
+#include "stream/StreamSourceProvider.h"
 #include <clang/Frontend/CompilerInstance.h>
 #include <clang/Frontend/FrontendActions.h>
 #include <clang/Lex/PreprocessorOptions.h>

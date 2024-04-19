@@ -20,7 +20,7 @@ public:
     );
 
     BaseTypeKind kind() const override {
-        return BaseTypeKind::Pointer;
+        return BaseTypeKind::Function;
     }
 
     bool equal(FunctionType* other) const {

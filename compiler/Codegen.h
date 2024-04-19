@@ -25,6 +25,12 @@ public:
     std::vector<std::unique_ptr<ASTNode>> nodes;
 
     /**
+     * files that have been imported exist in this unordered map
+     * to avoid importing files multiple times, there absolute paths are looked up in this map
+     */
+    std::unordered_map<std::string, bool> imported;
+
+    /**
      * At the moment this stores the position (inside the nodes vector)
      * the position doesn't work with nested nodes, as nested nodes have their own structures
      * for that we may use ASTPointer if required anytime

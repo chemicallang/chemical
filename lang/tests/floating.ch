@@ -1,3 +1,5 @@
+import "test.ch"
+
 func test_floating_expr() {
     test("comparing floating points", []() => {
         return 5.5 == 5.5;

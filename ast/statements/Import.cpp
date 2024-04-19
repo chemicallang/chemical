@@ -25,18 +25,18 @@
 
 void ImportStatement::code_gen(Codegen &gen) {
 
-    auto abs_path = resolve_rel_path(gen.path);
-    auto found = gen.imported.find(abs_path.string());
+    auto abs_path = resolve_rel_path(gen.path).string();
+    auto found = gen.imported.find(abs_path);
     if(found == gen.imported.end()) {
-        auto &ast = parsed(gen.path, [&gen](Diag* diag) {
-            gen.error(diag->ansi_representation("import:" + gen.path));
+        auto &ast = parsed(gen.path, [&abs_path, &gen](Diag* diag) {
+            gen.error(diag->ansi_representation(abs_path, "Import"));
         });
         for (const auto &node: ast) {
             node->code_gen(gen);
         }
         // clearing the cache to free memory
         imported_ast.clear();
-        gen.imported[abs_path.string()] = true;
+        gen.imported[abs_path] = true;
     }
 
     // Resolve the containing directory to given header
@@ -139,8 +139,9 @@ ImportStatement::ImportStatement(std::string filePath, std::vector<std::string> 
 }
 
 void ImportStatement::declare_top_level(SymbolResolver &linker) {
-    auto& ast = parsed(linker.path, [&linker, this](Diag* diag) {
-        linker.error(diag->ansi_representation("import:" + this->filePath));
+    auto abs_path = resolve_rel_path(linker.path).string();
+    auto& ast = parsed(linker.path, [&abs_path, &linker](Diag* diag) {
+        linker.error(diag->ansi_representation(abs_path, "Import"));
     });
     for(const auto& node : ast) {
         node->declare_top_level(linker);
@@ -148,8 +149,9 @@ void ImportStatement::declare_top_level(SymbolResolver &linker) {
 }
 
 void ImportStatement::declare_and_link(SymbolResolver &linker) {
-    auto& ast = parsed(linker.path, [&linker, this](Diag* diag) {
-        linker.error(diag->ansi_representation("import:" + this->filePath));
+    auto abs_path = resolve_rel_path(linker.path).string();
+    auto& ast = parsed(linker.path, [&abs_path, &linker](Diag* diag) {
+        linker.error(diag->ansi_representation(abs_path, "Import"));
     });
     for(const auto& node : ast) {
         node->declare_and_link(linker);

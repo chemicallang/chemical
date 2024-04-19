@@ -12,7 +12,7 @@ public:
 
     // representation of the position
     std::string representation() const {
-        return std::to_string(line) + ':' + std::to_string(character);
+        return std::to_string(line + 1) + ':' + std::to_string(character + 1);
     }
 
 };

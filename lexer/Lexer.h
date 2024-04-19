@@ -518,6 +518,11 @@ public:
     void lexRemainingExpression(unsigned start);
 
     /**
+     * it will lex a braced expression, meaning '(' expr ')'
+     */
+    bool lexBracedExpression();
+
+    /**
      * lexes an expression token which can contain access chain and values
      * @return whether an expression has been lexed, the expression can also be a single identifier or value
      */

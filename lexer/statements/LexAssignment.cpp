@@ -6,7 +6,10 @@
 #include "cst/statements/IncDecCST.h"
 
 bool Lexer::lexLanguageOperatorToken() {
-    return lexOperatorToken('+', Operation::Addition) ||
+    return lexOperatorToken("&&", Operation::LogicalAND) || // logical
+           lexOperatorToken("||", Operation::LogicalOR) ||
+           // arithmetic
+           lexOperatorToken('+', Operation::Addition) ||
            lexOperatorToken('-', Operation::Subtraction) ||
            lexOperatorToken('*', Operation::Multiplication) ||
            lexOperatorToken('/', Operation::Division) ||
@@ -42,7 +45,7 @@ bool Lexer::lexAssignmentOperatorToken() {
 
 bool Lexer::lexAssignmentTokens() {
 
-    if(!lexAccessChain()) {
+    if (!lexAccessChain()) {
         return false;
     }
 
@@ -63,10 +66,10 @@ bool Lexer::lexAssignmentTokens() {
 
     // =
     if (!lexOperatorToken('=')) {
-        if(assOp) {
+        if (assOp) {
             error("expected an equal for assignment after the assignment operator");
         }
-        ((AccessChainCST*) tokens[start].get())->is_node = true;
+        ((AccessChainCST *) tokens[start].get())->is_node = true;
         return true;
     }
 

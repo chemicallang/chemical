@@ -58,6 +58,10 @@ void StructMember::accept(Visitor &visitor) {
     visitor.visit(this);
 }
 
+std::unique_ptr<BaseType> StructMember::create_value_type() {
+    return std::unique_ptr<BaseType>(type->copy());
+}
+
 void StructMember::declare_and_link(SymbolResolver &linker) {
     type->link(linker);
     if(defValue.has_value()) {

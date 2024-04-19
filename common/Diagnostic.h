@@ -81,17 +81,17 @@ public:
      * returns representation of this diagnostic as string
      * @return
      */
-    std::string representation(const std::string &tag = "Diagnostic") const {
-        return "[" + tag + "] " + message + " at " + range.representation();
+    std::string format(const std::string& path, const std::string &tag = "Diagnostic") const {
+        return "[" + tag + "] " + message + " at " + path + ':' + range.representation();
     }
 
     /**
      * returns representation of this diagnostic as string
      * @return
      */
-    std::string ansi_representation(const std::string &tag = "Diagnostic") const {
+    std::string ansi_representation(const std::string& path, const std::string &tag = "Diagnostic") const {
         return (severity.has_value() ? (color(severity.value())) : "") +
-               representation(tag) +
+               format(path, tag) +
                (severity.has_value() ? ("\x1b[0m") : "");
     }
 
@@ -101,7 +101,7 @@ public:
      * @return
      */
     std::string representation(const std::string &path, const std::string &tag) const {
-        return ansi_representation(tag);
+        return ansi_representation(path, tag);
     }
 
 };

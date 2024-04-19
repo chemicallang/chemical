@@ -35,31 +35,8 @@ void Lexer::lexRemainingExpression(unsigned start) {
 
 }
 
-bool Lexer::lexExpressionTokens(bool lexStruct){
-
-    if(lexOperatorToken('-')) {
-        auto start = tokens.size() - 1;
-        if(!lexAccessChainOrValue(false)) {
-            error("expected an expression after '-' negative");
-        }
-        compound_from<NegativeCST>(start);
-        lexRemainingExpression(start);
-        return true;
-    }
-
-    if(lexOperatorToken('!')) {
-        auto start = tokens.size() - 1;
-        if(!lexAccessChainOrValue(false)) {
-            error("expected an expression after '!' not");
-        }
-        compound_from<NotCST>(start);
-        lexRemainingExpression(start);
-        return true;
-    }
-
+bool Lexer::lexBracedExpression() {
     if(lexOperatorToken('(')) {
-
-        unsigned start = tokens.size() - 1;
 
         if(!lexExpressionTokens()) {
             error("expected a nested expression after starting parenthesis ( in the expression");
@@ -71,10 +48,39 @@ bool Lexer::lexExpressionTokens(bool lexStruct){
             return true;
         }
 
-        lexRemainingExpression(start);
-
         return true;
 
+    } else {
+        return false;
+    }
+}
+
+bool Lexer::lexExpressionTokens(bool lexStruct){
+
+    if(lexOperatorToken('-')) {
+        auto start = tokens.size() - 1;
+        if(!(lexBracedExpression() || lexAccessChainOrValue(false))) {
+            error("expected an expression after '-' negative");
+        }
+        compound_from<NegativeCST>(start);
+        lexRemainingExpression(start);
+        return true;
+    }
+
+    if(lexOperatorToken('!')) {
+        auto start = tokens.size() - 1;
+        if(!(lexBracedExpression() || lexAccessChainOrValue(false))) {
+            error("expected an expression after '!' not");
+        }
+        compound_from<NotCST>(start);
+        lexRemainingExpression(start);
+        return true;
+    }
+
+    unsigned start = tokens.size();
+    if(lexBracedExpression()) {
+        lexRemainingExpression(start);
+        return true;
     }
 
     if(!lexAccessChainOrValue(lexStruct)) {

@@ -570,7 +570,8 @@ void CSTConverter::visit(NumberToken *token) {
     try {
         if (token->has_dot()) {
             if (token->is_float()) {
-                values.emplace_back(std::make_unique<FloatValue>(std::stof(token->value)));
+                std::string substring = token->value.substr(0, token->value.size() - 1);
+                values.emplace_back(std::make_unique<FloatValue>(std::stof(substring)));
             } else {
                 values.emplace_back(std::make_unique<DoubleValue>(std::stod(token->value)));
             }

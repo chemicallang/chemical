@@ -20,6 +20,10 @@ bool Lexer::lexUnsignedIntAsNumberToken() {
 bool Lexer::lexNumberToken() {
     auto number = lexNumber();
     if (!number.empty()) {
+        if(provider.increment('f')) {
+            // floating
+            number += 'f';
+        }
         tokens.emplace_back(std::make_unique<NumberToken>(backPosition(number.length()), number));
         return true;
     } else {

@@ -12,7 +12,7 @@ llvm::Type * FloatValue::llvm_type(Codegen &gen) {
 }
 
 llvm::Value * FloatValue::llvm_value(Codegen &gen) {
-    return llvm::ConstantFP::get(llvm_type(gen), value);
+    return llvm::ConstantFP::get(llvm_type(gen), llvm::APFloat(value));
 }
 
 #endif

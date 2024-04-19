@@ -19,9 +19,8 @@ public:
         return value.find('.') != std::string::npos;
     }
 
-    // TODO everything is a double, at the moment
     bool is_float() {
-        return false;
+        return value[value.size() - 1] == 'f';
     }
 
     void accept(CSTVisitor *visitor) override {

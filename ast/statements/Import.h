@@ -9,12 +9,15 @@
 #include <utility>
 
 #include "ast/base/ASTNode.h"
+#include <functional>
 
 namespace std {
     namespace filesystem {
         class path;
     }
 }
+
+class Diag;
 
 class ImportStatement : public ASTNode {
 public:
@@ -43,7 +46,7 @@ public:
      * @param base_path file path should be given, so the imported file path can be resolved
      * relative to it
      */
-    std::vector<std::unique_ptr<ASTNode>>& parsed(const std::string& root_path);
+    std::vector<std::unique_ptr<ASTNode>>& parsed(const std::string& root_path, std::function<void(Diag*)> handler);
 
     void declare_top_level(SymbolResolver &linker) override;
 

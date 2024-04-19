@@ -39,6 +39,8 @@ public:
 
 #endif
 
+    std::unique_ptr<BaseType> create_value_type() override;
+
     std::string representation() const override;
 
 };

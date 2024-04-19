@@ -28,7 +28,9 @@ void ImportStatement::code_gen(Codegen &gen) {
     auto abs_path = resolve_rel_path(gen.path);
     auto found = gen.imported.find(abs_path.string());
     if(found == gen.imported.end()) {
-        auto &ast = parsed(gen.path);
+        auto &ast = parsed(gen.path, [&gen](Diag* diag) {
+            gen.error(diag->ansi_representation("import:" + gen.path));
+        });
         for (const auto &node: ast) {
             node->code_gen(gen);
         }
@@ -92,7 +94,7 @@ void ImportStatement::code_gen(Codegen &gen) {
 
 namespace fs = std::filesystem;
 
-std::vector<std::unique_ptr<ASTNode>>& ImportStatement::parsed(const std::string& root_path) {
+std::vector<std::unique_ptr<ASTNode>>& ImportStatement::parsed(const std::string& root_path, std::function<void(Diag*)> handler) {
 
     if(!imported_ast.empty()) {
         return imported_ast;
@@ -110,14 +112,18 @@ std::vector<std::unique_ptr<ASTNode>>& ImportStatement::parsed(const std::string
     file.close();
 
     if(lexer.has_errors) {
-        // TODO handle errors
+        for(auto& err : lexer.errors) {
+            handler(&err);
+        }
     }
 
     CSTConverter converter;
     converter.convert(lexer.tokens);
 
     if(converter.has_errors) {
-        // TODO handle errors
+        for(auto& err : converter.diagnostics) {
+            handler(&err);
+        }
     }
 
     imported_ast = std::move(converter.nodes);
@@ -133,14 +139,18 @@ ImportStatement::ImportStatement(std::string filePath, std::vector<std::string> 
 }
 
 void ImportStatement::declare_top_level(SymbolResolver &linker) {
-    auto& ast = parsed(linker.path);
+    auto& ast = parsed(linker.path, [&linker, this](Diag* diag) {
+        linker.error(diag->ansi_representation("import:" + this->filePath));
+    });
     for(const auto& node : ast) {
         node->declare_top_level(linker);
     }
 }
 
 void ImportStatement::declare_and_link(SymbolResolver &linker) {
-    auto& ast = parsed(linker.path);
+    auto& ast = parsed(linker.path, [&linker, this](Diag* diag) {
+        linker.error(diag->ansi_representation("import:" + this->filePath));
+    });
     for(const auto& node : ast) {
         node->declare_and_link(linker);
     }

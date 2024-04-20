@@ -4,19 +4,25 @@
 
 #include "ast/base/BaseType.h"
 
-class Int32Type : public BaseType {
+class IntNType : public BaseType {
 public:
+
+    unsigned int number;
+
+    IntNType(unsigned int number) : number(number) {
+        // do nothing
+    }
 
     bool satisfies(ValueType type) const override {
         return type == ValueType::Int;
     }
 
     std::string representation() const override {
-        return "int32";
+        return "int" + std::to_string(number);
     }
 
     BaseTypeKind kind() const override {
-        return BaseTypeKind::Int32;
+        return BaseTypeKind::IntN;
     }
 
     bool is_same(BaseType *type) const override {
@@ -24,7 +30,7 @@ public:
     }
 
     virtual BaseType* copy() const {
-        return new Int32Type();
+        return new IntNType(number);
     }
 
 #ifdef COMPILER_BUILD

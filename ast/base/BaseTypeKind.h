@@ -21,7 +21,7 @@ enum class BaseTypeKind : uint8_t {
     Float,
     Function,
     Generic,
-    Int32,
+    IntN,
     Pointer,
     Referenced,
     String,

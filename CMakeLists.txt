@@ -187,7 +187,7 @@ set(COMMON_SOURCES
         compiler/SymbolResolver.h
         compiler/SymbolResolver.cpp
         compiler/ASTPointer.h
-        ast/types/Int32Type.h
+        ast/types/IntNType.h
         ast/types/FloatType.h
         ast/types/StringType.h
         ast/types/DoubleType.h
@@ -247,7 +247,7 @@ set(COMMON_SOURCES
         ast/types/CharType.cpp
         ast/types/DoubleType.cpp
         ast/types/FloatType.cpp
-        ast/types/Int32Type.cpp
+        ast/types/IntNType.cpp
         ast/types/PointerType.cpp
         ast/types/StringType.cpp
         ast/types/VoidType.cpp

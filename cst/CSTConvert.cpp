@@ -6,7 +6,7 @@
 #include "ast/structures/FunctionDeclaration.h"
 #include "cst/statements/VarInitCST.h"
 #include "ast/statements/VarInit.h"
-#include "ast/types/Int32Type.h"
+#include "ast/types/IntNType.h"
 #include "ast/types/StringType.h"
 #include "ast/types/BoolType.h"
 #include "ast/types/CharType.h"
@@ -116,13 +116,14 @@ std::string FunctionCST::func_name() {
     return str_token(tokens, 1);
 }
 
+// TODO support uint,long,ulong,short,ushort,longlong,ulonglong,longdouble
 CSTConverter::CSTConverter() {
     primitive_type_map["any"] = []() -> BaseType * { return new AnyType(); };
     primitive_type_map["bool"] = []() -> BaseType * { return new BoolType(); };
     primitive_type_map["char"] = []() -> BaseType * { return new CharType(); };
     primitive_type_map["double"] = []() -> BaseType * { return new DoubleType(); };
     primitive_type_map["float"] = []() -> BaseType * { return new FloatType(); };
-    primitive_type_map["int"] = []() -> BaseType * { return new Int32Type(); };
+    primitive_type_map["int"] = []() -> BaseType * { return new IntNType(32); };
     primitive_type_map["string"] = []() -> BaseType * { return new StringType(); };
     primitive_type_map["void"] = []() -> BaseType * { return new VoidType(); };
 }

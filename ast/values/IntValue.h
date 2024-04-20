@@ -7,7 +7,7 @@
 #pragma once
 
 #include "ast/base/Value.h"
-#include "ast/types/Int32Type.h"
+#include "ast/types/IntNType.h"
 
 /**
  * @brief Class representing an integer value.
@@ -45,7 +45,7 @@ public:
     }
 
     [[nodiscard]] std::unique_ptr<BaseType> create_type() const override {
-        return std::make_unique<Int32Type>();
+        return std::make_unique<IntNType>(32);
     }
 
     int as_int() override {

@@ -114,6 +114,7 @@ public:
 
     std::string representation() const override;
 
+    AccessSpecifier specifier;
     std::string name; ///< The name of the function.
     func_params params;
     std::optional<LoopScope> body; ///< The body of the function.

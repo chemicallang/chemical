@@ -1,1 +1,1 @@
-func printf(format : string, args : any...) : int
+func printf(format : string, _ : any...) : int

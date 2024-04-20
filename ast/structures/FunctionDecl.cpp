@@ -71,7 +71,7 @@ llvm::FunctionType *FunctionDeclaration::function_type(Codegen &gen) {
 
 void FunctionDeclaration::code_gen(Codegen &gen) {
     if (body.has_value()) {
-        auto func = gen.create_function(name, function_type(gen));
+        auto func = gen.create_function(name, function_type(gen), specifier);
         funcType = func->getFunctionType();
         funcCallee = func;
         body->code_gen(gen);
@@ -146,6 +146,11 @@ FunctionDeclaration::FunctionDeclaration(
 ) : name(std::move(name)), params(std::move(params)), returnType(std::move(returnType)), body(std::move(body)),
     isVariadic(isVariadic) {
     params.shrink_to_fit();
+    if(this->name == "main") {
+        specifier = AccessSpecifier::Public;
+    } else {
+        specifier = AccessSpecifier::Private;
+    }
 }
 
 std::unique_ptr<BaseType> FunctionDeclaration::create_value_type() {

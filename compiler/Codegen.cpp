@@ -47,8 +47,8 @@ void Codegen::end_function_block() {
     }
 }
 
-llvm::Function* Codegen::create_function(const std::string& name, llvm::FunctionType* type) {
-    current_function = create_function_proto(name, type);
+llvm::Function* Codegen::create_function(const std::string& name, llvm::FunctionType* type, AccessSpecifier specifier) {
+    current_function = create_function_proto(name, type, specifier);
     createFunctionBlock(current_function);
     return current_function;
 }
@@ -60,7 +60,7 @@ llvm::Function* Codegen::create_nested_function(const std::string& name, llvm::F
     auto prev_current_func = current_function;
 
     SetInsertPoint(nullptr);
-    auto nested_function = create_function_proto(name, type);
+    auto nested_function = create_function_proto(name, type, AccessSpecifier::Private);
     current_function = nested_function;
     createFunctionBlock(nested_function);
     scope.code_gen(*this);
@@ -78,8 +78,20 @@ llvm::FunctionCallee Codegen::declare_function(const std::string& name, llvm::Fu
     return module->getOrInsertFunction(name, type);
 }
 
-llvm::Function* Codegen::create_function_proto(const std::string& name, llvm::FunctionType* type) {
-    auto fn = llvm::Function::Create(type, llvm::Function::ExternalLinkage, name, *module);
+llvm::Function* Codegen::create_function_proto(const std::string& name, llvm::FunctionType* type, AccessSpecifier specifier) {
+    llvm::Function::LinkageTypes linkage;
+    switch(specifier) {
+        case AccessSpecifier::Private:
+            linkage = llvm::Function::PrivateLinkage;
+            break;
+        case AccessSpecifier::Public:
+            linkage = llvm::Function::ExternalLinkage;
+            break;
+        case AccessSpecifier::Internal:
+            linkage = llvm::Function::InternalLinkage;
+            break;
+    }
+    auto fn = llvm::Function::Create(type, linkage, name, *module);
     llvm::verifyFunction(*fn);
     return fn;
 }

@@ -11,6 +11,7 @@
 #include "ast/utils/Operation.h"
 #include "SymbolResolver.h"
 #include "llvmfwd.h"
+#include "ast/base/AccessSpecifier.h"
 
 class Scope;
 
@@ -74,7 +75,7 @@ public:
      * @param type type of the function
      * @return
      */
-    llvm::Function *create_function(const std::string &name, llvm::FunctionType *type);
+    llvm::Function *create_function(const std::string &name, llvm::FunctionType *type, AccessSpecifier specifier);
 
     /**
      * create a nested function
@@ -95,7 +96,7 @@ public:
      * @param type type of the function
      * @return
      */
-    llvm::Function *create_function_proto(const std::string &name, llvm::FunctionType *type);
+    llvm::Function *create_function_proto(const std::string &name, llvm::FunctionType *type, AccessSpecifier specifier);
 
     /**
      * create a function's basic block, with the given name

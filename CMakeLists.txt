@@ -187,7 +187,6 @@ set(COMMON_SOURCES
         compiler/SymbolResolver.h
         compiler/SymbolResolver.cpp
         compiler/ASTPointer.h
-        compiler/Branch.cpp
         ast/types/Int32Type.h
         ast/types/FloatType.h
         ast/types/StringType.h
@@ -349,9 +348,11 @@ add_executable(Compiler Compiler.cpp ${COMMON_SOURCES}
         compiler/clang_cc1as_main.cpp
         compiler/InvokeExtension.cpp
         compiler/cc1gen_reproducer_main.cpp
-        compiler/JitInterpret.cpp
         compiler/llvmfwd.h
         compiler/llvmimpl.h
+        compiler/chem_clang.cpp
+        compiler/chem_clang.h
+        compiler/TranslateC.cpp
 )
 
 message(STATUS "FEATURES ${COMPILER_FEATURES}")

@@ -133,6 +133,8 @@ int main(int argc, char *argv[]) {
         gen.print_to_console();
     }
 
+#ifdef FEAT_JUST_IN_TIME
+
     auto jit = options.option("jit", "jit");
     if(jit.has_value()) {
         auto jit_commands = options.collect_subcommand(argc, argv, "jit");
@@ -145,6 +147,8 @@ int main(int argc, char *argv[]) {
         gen.print_errors();
         return 0;
     }
+
+#endif
 
     int return_int = 0;
     auto output = options.option("output", "o");

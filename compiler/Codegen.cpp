@@ -1,6 +1,7 @@
 // Copyright (c) Qinetik 2024.
 
 #ifdef COMPILER_BUILD
+
 #include "ast/base/ASTNode.h"
 #include "Codegen.h"
 #include "ast/structures/Scope.h"
@@ -29,31 +30,31 @@ void Codegen::module_init() {
 }
 
 void Codegen::compile() {
-    for(const auto& node : nodes) {
+    for (const auto &node: nodes) {
         node->code_gen(*this);
         position++;
     }
 }
 
-void Codegen::createFunctionBlock(llvm::Function* fn) {
+void Codegen::createFunctionBlock(llvm::Function *fn) {
     auto entry = createBB("entry", fn);
     SetInsertPoint(entry);
 }
 
 void Codegen::end_function_block() {
-    if(!has_current_block_ended) {
+    if (!has_current_block_ended) {
         builder->CreateRetVoid();
         has_current_block_ended = true;
     }
 }
 
-llvm::Function* Codegen::create_function(const std::string& name, llvm::FunctionType* type, AccessSpecifier specifier) {
+llvm::Function *Codegen::create_function(const std::string &name, llvm::FunctionType *type, AccessSpecifier specifier) {
     current_function = create_function_proto(name, type, specifier);
     createFunctionBlock(current_function);
     return current_function;
 }
 
-llvm::Function* Codegen::create_nested_function(const std::string& name, llvm::FunctionType* type, Scope &scope) {
+llvm::Function *Codegen::create_nested_function(const std::string &name, llvm::FunctionType *type, Scope &scope) {
 
     auto prev_block_ended = has_current_block_ended;
     auto prev_block = builder->GetInsertBlock();
@@ -74,13 +75,14 @@ llvm::Function* Codegen::create_nested_function(const std::string& name, llvm::F
 
 }
 
-llvm::FunctionCallee Codegen::declare_function(const std::string& name, llvm::FunctionType* type) {
+llvm::FunctionCallee Codegen::declare_function(const std::string &name, llvm::FunctionType *type) {
     return module->getOrInsertFunction(name, type);
 }
 
-llvm::Function* Codegen::create_function_proto(const std::string& name, llvm::FunctionType* type, AccessSpecifier specifier) {
+llvm::Function *
+Codegen::create_function_proto(const std::string &name, llvm::FunctionType *type, AccessSpecifier specifier) {
     llvm::Function::LinkageTypes linkage;
-    switch(specifier) {
+    switch (specifier) {
         case AccessSpecifier::Private:
             linkage = llvm::Function::PrivateLinkage;
             break;
@@ -96,7 +98,7 @@ llvm::Function* Codegen::create_function_proto(const std::string& name, llvm::Fu
     return fn;
 }
 
-llvm::BasicBlock* Codegen::createBB(const std::string& name, llvm::Function* fn) {
+llvm::BasicBlock *Codegen::createBB(const std::string &name, llvm::Function *fn) {
     return llvm::BasicBlock::Create(*ctx, name, fn);
 }
 
@@ -104,13 +106,41 @@ void Codegen::print_to_console() {
     module->print(llvm::outs(), nullptr);
 }
 
+void Codegen::SetInsertPoint(llvm::BasicBlock *block) {
+    has_current_block_ended = false;
+    builder->SetInsertPoint(block);
+}
+
+void Codegen::CreateBr(llvm::BasicBlock *block) {
+    if (!has_current_block_ended) {
+        builder->CreateBr(block);
+        has_current_block_ended = true;
+    }
+}
+
+void Codegen::CreateRet(llvm::Value *value) {
+    if (!has_current_block_ended) {
+        builder->CreateRet(value);
+        has_current_block_ended = true;
+    }
+}
+
+void Codegen::CreateCondBr(llvm::Value *Cond, llvm::BasicBlock *True, llvm::BasicBlock *FalseMDNode) {
+    if (!has_current_block_ended) {
+        builder->CreateCondBr(Cond, True, FalseMDNode);
+        has_current_block_ended = true;
+    }
+}
+
 #ifdef FEAT_LLVM_IR_GEN
+
 void Codegen::save_to_file(const std::string &out_path) {
     std::error_code errorCode;
     llvm::raw_fd_ostream outLL(out_path, errorCode);
     module->print(outLL, nullptr);
     outLL.close();
 }
+
 #endif
 
 void Codegen::loop_body_wrap(llvm::BasicBlock *condBlock, llvm::BasicBlock *endBlock) {
@@ -119,7 +149,7 @@ void Codegen::loop_body_wrap(llvm::BasicBlock *condBlock, llvm::BasicBlock *endB
     current_loop_exit = endBlock;
 }
 
-void Codegen::error(const std::string& err){
+void Codegen::error(const std::string &err) {
     std::string errStr = "[Codegen] ERROR\n";
     errStr += "---- message : " + err + "\n";
     errStr += "---- node representation : " + nodes[position]->representation() + '\n';
@@ -130,8 +160,78 @@ void Codegen::error(const std::string& err){
     errors.push_back(errStr);
 }
 
-Codegen::~Codegen(){
+Codegen::~Codegen() {
     delete builder;
+}
+
+#endif
+
+#ifdef FEAT_ASSEMBLY_GEN
+
+/**
+ * saves as assembly file to this path
+ * @param TargetTriple
+ */
+void Codegen::save_to_assembly_file(const std::string &out_path) {
+    save_as_file_type(this, out_path, llvm::CodeGenFileType::CGFT_AssemblyFile);
+}
+
+#endif
+
+#ifdef FEAT_BITCODE_GEN
+
+#include <llvm/Bitcode/BitcodeWriter.h>
+
+void Codegen::save_as_bc_file(const std::string &out_path) {
+
+    setup_for_target();
+
+    std::error_code EC;
+    raw_fd_ostream dest(out_path, EC, sys::fs::OF_None);
+
+    if (EC) {
+        error("Could not open file: " + EC.message());
+        return;
+    }
+
+    WriteBitcodeToFile(*module, dest);
+
+    dest.flush();
+    dest.close();
+
+}
+
+#endif
+
+#ifdef FEAT_JUST_IN_TIME
+
+#include "Codegen.h"
+#include <llvm/ExecutionEngine/ExecutionEngine.h>
+#include <llvm/ExecutionEngine/GenericValue.h>
+#include <llvm/ExecutionEngine/Interpreter.h>
+#include <llvm/ExecutionEngine/MCJIT.h>
+#include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/Module.h>
+
+typedef int (*MainFuncType)(int, char**);
+
+void Codegen::just_in_time_compile(std::vector<const char*>& args) {
+
+    setup_for_target();
+
+    llvm::EngineBuilder engine_builder(std::move(module));
+    std::unique_ptr<llvm::ExecutionEngine> engine(engine_builder.create());
+
+    // Execute main function
+    MainFuncType mainFuncPtr = reinterpret_cast<MainFuncType>(engine->getFunctionAddress("main"));
+
+    if (!mainFuncPtr) {
+        error("Function 'main' not found in module.\n");
+        return;
+    }
+
+    int result = mainFuncPtr(args.size(), const_cast<char**>(args.data()));
+
 }
 
 #endif

@@ -8,6 +8,7 @@ class IntNType : public BaseType {
 public:
 
     unsigned int number;
+    bool is_unsigned = false;
 
     IntNType(unsigned int number) : number(number) {
         // do nothing

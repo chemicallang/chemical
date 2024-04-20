@@ -81,18 +81,6 @@ void save_as_file_type(Codegen* gen, const std::string &out_path, llvm::CodeGenF
 
 }
 
-#ifdef FEAT_ASSEMBLY_GEN
-
-/**
- * saves as assembly file to this path
- * @param TargetTriple
- */
-void Codegen::save_to_assembly_file(const std::string &out_path) {
-    save_as_file_type(this, out_path, llvm::CodeGenFileType::CGFT_AssemblyFile);
-}
-
-#endif
-
 /**
  * saves as object file to this path
  * @param out_path
@@ -100,30 +88,5 @@ void Codegen::save_to_assembly_file(const std::string &out_path) {
 void Codegen::save_to_object_file(const std::string &out_path) {
     save_as_file_type(this, out_path, llvm::CodeGenFileType::CGFT_ObjectFile);
 }
-
-#ifdef FEAT_BITCODE_GEN
-
-#include <llvm/Bitcode/BitcodeWriter.h>
-
-void Codegen::save_as_bc_file(const std::string &out_path) {
-
-    setup_for_target();
-
-    std::error_code EC;
-    raw_fd_ostream dest(out_path, EC, sys::fs::OF_None);
-
-    if (EC) {
-        error("Could not open file: " + EC.message());
-        return;
-    }
-
-    WriteBitcodeToFile(*module, dest);
-
-    dest.flush();
-    dest.close();
-
-}
-
-#endif
 
 #endif

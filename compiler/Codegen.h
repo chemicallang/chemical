@@ -140,11 +140,15 @@ public:
         return setup_for_target(target_triple);
     }
 
+#ifdef FEAT_JUST_IN_TIME
+
     /**
      * just in time compilation
      * please note that this takes ownership of the module
      */
     void just_in_time_compile(std::vector<const char *> &args);
+
+#endif
 
 #ifdef FEAT_BITCODE_GEN
     /**

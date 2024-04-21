@@ -9,6 +9,7 @@
 #include "lexer/model/tokens/VariableToken.h"
 #include "cst/values/AccessChainCST.h"
 #include "cst/values/FunctionCallCST.h"
+#include "cst/values/AddrOfCST.h"
 #include "cst/values/IndexOpCST.h"
 
 bool Lexer::storeIdentifier(const std::string& identifier) {
@@ -36,6 +37,15 @@ bool Lexer::lexAccessChain(bool lexStruct) {
 
     return true;
 
+}
+
+bool Lexer::lexAccessChainOrAddrOf(bool lexStruct) {
+    if(lexOperatorToken('&')) {
+        auto start = tokens.size() - 1;
+        lexAccessChain(false);
+        compound_from<AddrOfCST>(start);
+    }
+    return lexAccessChain(lexStruct);
 }
 
 bool Lexer::lexAccessChainRecursive(bool lexStruct) {

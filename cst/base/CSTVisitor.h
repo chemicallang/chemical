@@ -60,6 +60,8 @@ class ArrayValueCST;
 
 class CastCST;
 
+class AddrOfCST;
+
 class ExpressionCST;
 
 class FunctionCallCST;
@@ -222,6 +224,10 @@ public:
     }
 
     virtual void visit(CastCST *castCst) {
+        visitCompoundCommon((CompoundCSTToken *) castCst);
+    }
+
+    virtual void visit(AddrOfCST *castCst) {
         visitCompoundCommon((CompoundCSTToken *) castCst);
     }
 

@@ -59,6 +59,7 @@ enum class LexTokenType : uint8_t {
     CompAccessChain,
     CompArrayValue,
     CompCastValue,
+    CompAddrOf,
     CompExpression,
     CompFunctionCall,
     CompIndexOp,

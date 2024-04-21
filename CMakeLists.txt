@@ -324,6 +324,7 @@ set(COMMON_SOURCES
         cst/values/AddrOfCST.h
         ast/values/AddrOfValue.h
         ast/values/AddrOfValue.cpp
+        ast/values/DerferenceValue.cpp
 )
 
 # Chemical LSP Executable Target

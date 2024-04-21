@@ -11,6 +11,11 @@ func test_nodes() {
         printf("checkout the address %p\n", &x);
         return true;
     });
+    test("dereferencing works", []() => {
+        var x = 5;
+        var y = &x;
+        return *y == 5;
+    });
     test("for loop", []() => {
        var j = 0;
        for(var i = 0;i < 5; i++) {

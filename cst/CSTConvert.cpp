@@ -44,6 +44,7 @@
 #include "ast/values/Negative.h"
 #include "ast/values/NotValue.h"
 #include "ast/values/AddrOfValue.h"
+#include "ast/values/DereferenceValue.h"
 #include "lexer/model/tokens/StringToken.h"
 #include "lexer/model/tokens/CharToken.h"
 #include "ast/values/VariableIdentifier.h"
@@ -71,6 +72,7 @@
 #include "ast/values/ArrayValue.h"
 #include "cst/values/ArrayValueCST.h"
 #include "cst/values/AddrOfCST.h"
+#include "cst/values/DereferenceCST.h"
 #include "ast/structures/If.h"
 #include "ast/values/LambdaFunction.h"
 #include "cst/statements/IfCST.h"
@@ -780,6 +782,11 @@ void CSTConverter::visit(CastCST *castCst) {
 void CSTConverter::visit(AddrOfCST *addrOf) {
     addrOf->tokens[1]->accept(this);
     values.emplace_back(std::make_unique<AddrOfValue>(value()));
+}
+
+void CSTConverter::visit(DereferenceCST *deref) {
+    deref->tokens[1]->accept(this);
+    values.emplace_back(std::make_unique<DereferenceValue>(value()));
 }
 
 void CSTConverter::visit(VariableToken *token) {

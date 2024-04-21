@@ -62,6 +62,8 @@ class CastCST;
 
 class AddrOfCST;
 
+class DereferenceCST;
+
 class ExpressionCST;
 
 class FunctionCallCST;
@@ -252,6 +254,10 @@ public:
     }
 
     virtual void visit(NotCST *notCst) {
+        visitCompoundCommon((CompoundCSTToken *) notCst);
+    }
+
+    virtual void visit(DereferenceCST *notCst) {
         visitCompoundCommon((CompoundCSTToken *) notCst);
     }
 

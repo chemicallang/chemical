@@ -355,7 +355,7 @@ public:
     /**
      * lex parameter list
      */
-    void lexParameterList(bool optionalTypes = false);
+    void lexParameterList(bool optionalTypes = false, bool defValues = true);
 
     /**
     * lexes a function signature with parameters
@@ -516,6 +516,11 @@ public:
     void lexIdentifierList();
 
     /**
+     * lex lambda after params list
+     */
+    void lexLambdaAfterParamsList(unsigned int start);
+
+    /**
      * lexes a single lambda function (PARAM1, PARAM2)[CAP1, CAP2] => {}
      */
     bool lexLambdaValue();
@@ -529,15 +534,27 @@ public:
     void lexRemainingExpression(unsigned start);
 
     /**
-     * it will lex a braced expression, meaning '(' expr ')'
+     * it will lex a lambda meaning '() => {}' in a paren expression
+     * it assumes you've already consumed '('
      */
-    bool lexBracedExpression();
+    bool lexLambdaAfterLParen();
+
+    /**
+     * it will lex a paren expression, meaning '(' expr ')'
+     * it assumes you've already consumed '('
+     */
+    void lexParenExpressionAfterLParen();
+
+    /**
+     * lex a parenthesized expression '(x + 5)'
+     */
+    bool lexParenExpression();
 
     /**
      * lexes an expression token which can contain access chain and values
      * @return whether an expression has been lexed, the expression can also be a single identifier or value
      */
-    bool lexExpressionTokens(bool lexStruct = false);
+    bool lexExpressionTokens(bool lexStruct = false, bool lambda = true);
 
     /**
      * lexes switch block
@@ -552,17 +569,17 @@ public:
     /**
      * takes elements (by removing) from tokens vector, starting from start position, till end
      */
-    std::vector<std::unique_ptr<CSTToken>> take_from(unsigned int start) {
-        unsigned size = tokens.size() - start;
+    std::vector<std::unique_ptr<CSTToken>> take_from(unsigned int start, unsigned int end) {
+        unsigned size = end - start;
         std::vector<std::unique_ptr<CSTToken>> slice;
         slice.reserve(size);
         unsigned i = start;
-        unsigned end = tokens.size();
         while(i < end) {
             slice.push_back(std::move(tokens[i]));
             i++;
         }
-        tokens.erase(tokens.end() - size, tokens.end());
+        auto begin = tokens.begin() + start;
+        tokens.erase(begin, begin + size);
         return slice;
     }
 
@@ -591,8 +608,21 @@ public:
     template<typename T, typename... Args>
     std::enable_if_t<std::is_base_of_v<CSTToken, T>>
     compound_from(unsigned int start, Args&&... args) {
-        tokens.emplace_back(std::make_unique<T>(take_from(start), std::forward<Args>(args)...));
-        next_compound_start = tokens.size();
+        unsigned int size = tokens.size();
+        tokens.emplace_back(std::make_unique<T>(take_from(start,size), std::forward<Args>(args)...));
+        next_compound_start = size;
+    }
+
+    /**
+     * put tokens in a compound token of specified type, starting from start and ending at range
+     * this should be used carefully as it sets next_compound_start to end
+     * meaning next compound token will begin at this compound_range's end
+     */
+    template<typename T, typename... Args>
+    std::enable_if_t<std::is_base_of_v<CSTToken, T>>
+    compound_range(unsigned int start, unsigned int end, Args&&... args) {
+        tokens.emplace_back(std::make_unique<T>(take_from(start, end), std::forward<Args>(args)...));
+        next_compound_start = end;
     }
 
     /**
@@ -601,8 +631,9 @@ public:
     template<typename T, typename... Args>
     std::enable_if_t<std::is_base_of_v<CSTToken, T>>
     compound(Args&&... args) {
-        tokens.emplace_back(std::make_unique<T>(take_from(next_compound_start), std::forward<Args>(args)...));
-        next_compound_start = tokens.size();
+        unsigned int size = tokens.size();
+        tokens.emplace_back(std::make_unique<T>(take_from(next_compound_start, size), std::forward<Args>(args)...));
+        next_compound_start = size;
     }
 
     /**

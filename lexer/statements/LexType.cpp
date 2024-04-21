@@ -11,10 +11,8 @@
 #include "cst/types/PointerTypeCST.h"
 #include "cst/types/GenericTypeCST.h"
 
-bool Lexer::lexTypeTokens() {
-
+bool Lexer::lexLambdaTypeTokens(unsigned int start) {
     if(lexOperatorToken('(')) {
-        unsigned start = tokens.size() - 1;
         lexParameterList();
         if(!lexOperatorToken(')')) {
             error("expected a ')' after the ')' in lambda function type");
@@ -29,6 +27,28 @@ bool Lexer::lexTypeTokens() {
             error("expected '=>' for lambda function type");
         }
         compound_from<FunctionTypeCST>(start);
+        return true;
+    } else {
+        return false;
+    }
+}
+
+bool Lexer::lexTypeTokens() {
+
+    if(lexOperatorToken('[')) {
+        unsigned start = tokens.size() - 1;
+        if(!lexOperatorToken(']')) {
+            error("expected ']' after '[' for lambda type");
+            return true;
+        }
+        lexWhitespaceToken();
+        if(!lexLambdaTypeTokens(start)) {
+            error("expected a lambda type after '[]'");
+        }
+        return true;
+    }
+
+    if(lexLambdaTypeTokens(tokens.size())) {
         return true;
     }
 

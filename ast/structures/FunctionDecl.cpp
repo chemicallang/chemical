@@ -158,7 +158,7 @@ std::unique_ptr<BaseType> FunctionDeclaration::create_value_type() {
     for(const auto& param : params) {
         copied.emplace_back(param->copy());
     }
-    return std::make_unique<FunctionType>(std::move(copied), std::unique_ptr<BaseType>(returnType->copy()), isVariadic);
+    return std::make_unique<FunctionType>(std::move(copied), std::unique_ptr<BaseType>(returnType->copy()), isVariadic, false);
 }
 
 void FunctionDeclaration::accept(Visitor &visitor) {

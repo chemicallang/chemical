@@ -23,8 +23,9 @@ llvm::Type *FunctionType::llvm_param_type(Codegen &gen) {
 FunctionType::FunctionType(
         func_params params,
         std::unique_ptr<BaseType> returnType,
-        bool isVariadic
-) : params(std::move(params)), returnType(std::move(returnType)), isVariadic(isVariadic) {
+        bool isVariadic,
+        bool isCapturing
+) : params(std::move(params)), returnType(std::move(returnType)), isVariadic(isVariadic), isCapturing(isCapturing) {
 
 };
 
@@ -53,5 +54,5 @@ BaseType *FunctionType::copy() const {
     for (auto &param: params) {
         copied.emplace_back(param->copy());
     }
-    return new FunctionType(std::move(copied), std::unique_ptr<BaseType>(returnType->copy()), isVariadic);
+    return new FunctionType(std::move(copied), std::unique_ptr<BaseType>(returnType->copy()), isVariadic, isCapturing);
 }

@@ -10,6 +10,7 @@
 #include "cst/values/AccessChainCST.h"
 #include "cst/values/FunctionCallCST.h"
 #include "cst/values/AddrOfCST.h"
+#include "cst/values/DereferenceCST.h"
 #include "cst/values/IndexOpCST.h"
 
 bool Lexer::storeIdentifier(const std::string& identifier) {
@@ -44,6 +45,12 @@ bool Lexer::lexAccessChainOrAddrOf(bool lexStruct) {
         auto start = tokens.size() - 1;
         lexAccessChain(false);
         compound_from<AddrOfCST>(start);
+        return true;
+    } else if(lexOperatorToken('*')) {
+        auto start = tokens.size() - 1;
+        lexAccessChain(false);
+        compound_from<DereferenceCST>(start);
+        return true;
     }
     return lexAccessChain(lexStruct);
 }

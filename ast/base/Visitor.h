@@ -84,6 +84,8 @@ class CastedValue;
 
 class AddrOfValue;
 
+class DereferenceValue;
+
 class FunctionCall;
 
 class IndexOperator;
@@ -254,6 +256,10 @@ public:
     }
 
     virtual void visit(AddrOfValue* casted) {
+        visitCommonValue((Value*) casted);
+    }
+
+    virtual void visit(DereferenceValue* casted) {
         visitCommonValue((Value*) casted);
     }
 

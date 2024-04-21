@@ -46,8 +46,8 @@ bool Lexer::lexLambdaValue() {
 
         lexWhitespaceToken();
 
-        if (!lexBraceBlock("lambda")) {
-            error("expected lambda body for ");
+        if (!(lexBraceBlock("lambda") || lexExpressionTokens())) {
+            error("expected lambda body");
         }
 
         compound_from<LambdaCST>(start);

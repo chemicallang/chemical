@@ -181,6 +181,11 @@ public:
     bool lexAssignmentOperatorToken();
 
     /**
+     * lex lambda type tokens
+     */
+    bool lexLambdaTypeTokens(unsigned int start);
+
+    /**
      * lex type tokens
      */
     bool lexTypeTokens();

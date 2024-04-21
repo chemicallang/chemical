@@ -326,13 +326,20 @@ void CSTConverter::visit(LambdaCST *cst) {
     auto result = function_params(cst->tokens, i);
     optional_param_types = prev;
 
-    auto prev_nodes = std::move(nodes);
-    auto prev_decl = current_func_decl;
-    current_func_decl = nullptr;
-    cst->tokens[result.index + 2]->accept(this);
-    current_func_decl = prev_decl;
-    auto scope = Scope(std::move(nodes));
-    nodes = std::move(prev_nodes);
+    Scope scope;
+    auto bodyIndex = result.index + 2;
+    if(cst->tokens[bodyIndex]->type() == LexTokenType::CompBody) {
+        auto prev_nodes = std::move(nodes);
+        auto prev_decl = current_func_decl;
+        current_func_decl = nullptr;
+        cst->tokens[bodyIndex]->accept(this);
+        current_func_decl = prev_decl;
+        scope.nodes = std::move(nodes);
+        nodes = std::move(prev_nodes);
+    } else {
+        visit(cst->tokens, bodyIndex);
+        scope.nodes.emplace_back(new ReturnStatement(value(), nullptr));
+    }
 
     values.emplace_back(
             std::make_unique<LambdaFunction>(std::move(captureList), std::move(result.params), result.isVariadic,
@@ -553,9 +560,10 @@ void CSTConverter::visit(ArrayTypeCST *arrayType) {
 }
 
 void CSTConverter::visit(FunctionTypeCST *funcType) {
-    auto params = function_params(funcType->tokens, 1);
+    bool is_capturing = is_char_op(funcType->tokens[0].get(), '[');
+    auto params = function_params(funcType->tokens, is_capturing ? 3 : 1);
     visit(funcType->tokens, params.index + 2);
-    types.emplace_back(std::make_unique<FunctionType>(std::move(params.params), type(), params.isVariadic));
+    types.emplace_back(std::make_unique<FunctionType>(std::move(params.params), type(), params.isVariadic, is_capturing));
 }
 
 

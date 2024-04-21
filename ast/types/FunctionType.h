@@ -12,11 +12,13 @@ public:
     std::unique_ptr<BaseType> returnType;
     // if the function is variadic, the last type in params is the type given to the variadic parameter
     bool isVariadic;
+    bool isCapturing;
 
     FunctionType(
             func_params params,
             std::unique_ptr<BaseType> returnType,
-            bool isVariadic
+            bool isVariadic,
+            bool isCapturing
     );
 
     BaseTypeKind kind() const override {

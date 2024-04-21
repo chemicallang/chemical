@@ -20,7 +20,7 @@ bool Lexer::lexReturnStatement() {
     }
 }
 
-void Lexer::lexParameterList(bool optionalTypes) {
+void Lexer::lexParameterList(bool optionalTypes, bool defValues) {
     nested_compound_start();
     do {
         lexWhitespaceToken();
@@ -34,12 +34,14 @@ void Lexer::lexParameterList(bool optionalTypes) {
                         compound_from<FunctionParamCST>(start);
                         break;
                     }
-                    lexWhitespaceToken();
-                    if(lexOperatorToken('=')) {
+                    if(defValues) {
                         lexWhitespaceToken();
-                        if(!lexValueToken()) {
-                            error("expected value after '=' for default value for the parameter");
-                            break;
+                        if (lexOperatorToken('=')) {
+                            lexWhitespaceToken();
+                            if (!lexValueToken()) {
+                                error("expected value after '=' for default value for the parameter");
+                                break;
+                            }
                         }
                     }
                     compound_from<FunctionParamCST>(start);

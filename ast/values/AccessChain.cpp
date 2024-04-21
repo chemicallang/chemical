@@ -12,6 +12,10 @@ void AccessChain::code_gen(Codegen &gen) {
     llvm_value(gen);
 }
 
+llvm::Type *AccessChain::llvm_type(Codegen &gen) {
+    return values[values.size() - 1]->llvm_type(gen);
+}
+
 llvm::Value *AccessChain::llvm_value(Codegen &gen) {
     if(values.size() == 1) {
         return values[0]->llvm_value(gen);

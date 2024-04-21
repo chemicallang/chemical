@@ -19,6 +19,10 @@ std::vector<llvm::Value*> to_llvm_args(Codegen& gen, FunctionCall* call, std::ve
     return args;
 }
 
+llvm::Type *FunctionCall::llvm_type(Codegen &gen) {
+    return linked->as_function()->returnType->llvm_type(gen);
+}
+
 llvm::Value *FunctionCall::llvm_value(Codegen &gen) {
     auto fn = gen.module->getFunction(name);
     if(fn != nullptr) {

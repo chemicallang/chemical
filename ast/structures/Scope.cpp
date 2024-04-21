@@ -44,7 +44,9 @@ void Scope::declare_and_link(SymbolResolver &linker) {
 void Scope::code_gen(Codegen &gen) {
     unsigned int i = 0;
     while(i < nodes.size()) {
+//        std::cout << "Generating " + std::to_string(i) << std::endl;
         nodes[i]->code_gen(gen, nodes, i);
+//        std::cout << "Success " + std::to_string(i) << " : " << nodes[i]->representation() << std::endl;
         i++;
     }
 }

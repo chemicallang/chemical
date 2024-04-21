@@ -33,11 +33,15 @@ public:
     std::unique_ptr<BaseType> create_value_type() override;
 
 #ifdef COMPILER_BUILD
+
     void code_gen(Codegen &gen) override;
 
-    llvm::Value* llvm_value(Codegen &gen) override;
+    llvm::Type *llvm_type(Codegen &gen) override;
 
-    llvm::Value* llvm_pointer(Codegen &gen) override;
+    llvm::Value *llvm_value(Codegen &gen) override;
+
+    llvm::Value *llvm_pointer(Codegen &gen) override;
+
 #endif
 
     Value *parent(InterpretScope &scope);

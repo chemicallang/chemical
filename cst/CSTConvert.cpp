@@ -316,14 +316,18 @@ void CSTConverter::visit(LambdaCST *cst) {
 
     std::vector<std::string> captureList;
 
+    auto no_capture_list = is_char_op(cst->tokens[0].get(), '(');
+
     unsigned i = 1;
-    while (!is_char_op(cst->tokens[i].get(), ']')) {
-        if (cst->tokens[i]->type() == LexTokenType::Variable) {
-            captureList.push_back(((VariableToken *) (cst->tokens[i].get()))->value);
+    if(!no_capture_list) {
+        while (!is_char_op(cst->tokens[i].get(), ']')) {
+            if (cst->tokens[i]->type() == LexTokenType::Variable) {
+                captureList.push_back(((VariableToken *) (cst->tokens[i].get()))->value);
+            }
+            i++;
         }
-        i++;
+        i += 2;
     }
-    i += 2;
 
     auto prev = optional_param_types;
     optional_param_types = true;

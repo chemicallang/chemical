@@ -189,6 +189,8 @@ public:
 
     void visit(CastCST *castCst) override;
 
+    void visit(AddrOfCST *addrOf) override;
+
     void visit(FunctionCallCST *call) override;
 
     void visit(IndexOpCST *op) override;

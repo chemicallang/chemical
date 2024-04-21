@@ -6,6 +6,11 @@ struct Point {
 }
 
 func test_nodes() {
+    test("address of works", []() => {
+        var x = 5;
+        printf("checkout the address %p\n", &x);
+        return true;
+    });
     test("for loop", []() => {
        var j = 0;
        for(var i = 0;i < 5; i++) {

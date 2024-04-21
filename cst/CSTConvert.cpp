@@ -43,6 +43,7 @@
 #include "ast/values/IntValue.h"
 #include "ast/values/Negative.h"
 #include "ast/values/NotValue.h"
+#include "ast/values/AddrOfValue.h"
 #include "lexer/model/tokens/StringToken.h"
 #include "lexer/model/tokens/CharToken.h"
 #include "ast/values/VariableIdentifier.h"
@@ -69,6 +70,7 @@
 #include "cst/statements/BreakCST.h"
 #include "ast/values/ArrayValue.h"
 #include "cst/values/ArrayValueCST.h"
+#include "cst/values/AddrOfCST.h"
 #include "ast/structures/If.h"
 #include "ast/values/LambdaFunction.h"
 #include "cst/statements/IfCST.h"
@@ -773,6 +775,11 @@ void CSTConverter::visit(ExpressionCST *expr) {
 void CSTConverter::visit(CastCST *castCst) {
     visit(castCst->tokens);
     values.emplace_back(std::make_unique<CastedValue>(value(), type()));
+}
+
+void CSTConverter::visit(AddrOfCST *addrOf) {
+    addrOf->tokens[1]->accept(this);
+    values.emplace_back(std::make_unique<AddrOfValue>(value()));
 }
 
 void CSTConverter::visit(VariableToken *token) {

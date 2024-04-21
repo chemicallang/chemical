@@ -150,6 +150,12 @@ public:
     bool lexAccessChain(bool lexStruct = false);
 
     /**
+     * it lexes a access chain, but allows a '&' operator before it to get the address of value
+     * so this allows a.b.c or &a.b.c
+     */
+    bool lexAccessChainOrAddrOf(bool lexStruct = false);
+
+    /**
      * lex allowDeclarations or initialization tokens
      * like var x : int; or var x : int = 5;
      * @param allowDeclarations when true, it will allow allowDeclarations only without the value initialization

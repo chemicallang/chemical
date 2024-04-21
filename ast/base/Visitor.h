@@ -82,6 +82,8 @@ class AccessChain;
 
 class CastedValue;
 
+class AddrOfValue;
+
 class FunctionCall;
 
 class IndexOperator;
@@ -248,6 +250,10 @@ public:
     }
 
     virtual void visit(CastedValue* casted) {
+        visitCommonValue((Value*) casted);
+    }
+
+    virtual void visit(AddrOfValue* casted) {
         visitCommonValue((Value*) casted);
     }
 

@@ -321,6 +321,9 @@ set(COMMON_SOURCES
         ast/base/BaseType.cpp
         cst/utils/ValueAndOperatorStack.h
         ast/base/AccessSpecifier.h
+        cst/values/AddrOfCST.h
+        ast/values/AddrOfValue.h
+        ast/values/AddrOfValue.cpp
 )
 
 # Chemical LSP Executable Target

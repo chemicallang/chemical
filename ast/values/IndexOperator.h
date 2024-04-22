@@ -57,6 +57,8 @@ public:
 
 #endif
 
+    std::unique_ptr<BaseType> create_type() const override;
+
     std::string representation() const override {
         std::string rep(identifier);
         rep.append(1, '[');

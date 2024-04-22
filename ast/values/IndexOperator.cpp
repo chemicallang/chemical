@@ -7,6 +7,7 @@
 #ifdef COMPILER_BUILD
 
 #include "compiler/llvmimpl.h"
+#include "ast/types/ArrayType.h"
 
 // TODO isInBounds optimization, when we know that index is in bounds
 llvm::Value *IndexOperator::elem_pointer(Codegen &gen, ASTNode *arr) {
@@ -45,6 +46,16 @@ bool IndexOperator::add_member_index(Codegen &gen, ASTNode *parent, std::vector<
 }
 
 #endif
+
+std::unique_ptr<BaseType> IndexOperator::create_type() const {
+    auto value_type = linked->create_value_type();
+    if(value_type->kind() == BaseTypeKind::Array) {
+        return std::unique_ptr<BaseType>(((ArrayType*) value_type.get())->elem_type->copy());
+    } else {
+        // TODO report error here
+        return nullptr;
+    }
+}
 
 void IndexOperator::link(SymbolResolver &linker) {
     auto found = linker.current.find(identifier);

@@ -55,4 +55,22 @@ func test_nodes() {
         };
         return p.x == 5 && p.y == 6;
     });
+    test("test array", []() => {
+        var arr = {2,4,6,8,10};
+        return arr[0] == 2 && arr[1] == 4 && arr[2] == 6;
+    })
+    test("typealias statement", []() => {
+        typealias myint = int;
+        var y : myint = 5;
+        return y == 5;
+    })
+    /**
+    test("try catch statement", []() => {
+        try {
+
+        } catch(e : int) {
+
+        }
+    })
+    **/
 }

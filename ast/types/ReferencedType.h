@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include <utility>
+
 #include "ast/base/BaseType.h"
 
 class ReferencedType : public BaseType {
@@ -9,24 +11,22 @@ public:
 
     std::string type;
 
-    ASTNode* linked;
+    ASTNode *linked;
 
-    ReferencedType(const std::string type) : type(type) {}
+    ReferencedType(std::string type) : type(std::move(type)) {}
 
     void link(SymbolResolver &linker) override;
 
-    ASTNode * linked_node() override;
+    ASTNode *linked_node() override;
 
-    bool satisfies(ValueType value_type) const override {
-        throw "referenced type cannot determine whether the given value type satisfies";
-    }
+    bool satisfies(ValueType value_type) const override;
 
     BaseTypeKind kind() const override {
         return BaseTypeKind::Referenced;
     }
 
     bool is_same(BaseType *other) const override {
-        return other->kind() == kind() && static_cast<ReferencedType*>(other)->type == type;
+        return other->kind() == kind() && static_cast<ReferencedType *>(other)->type == type;
     }
 
     std::string representation() const override {
@@ -34,11 +34,15 @@ public:
     }
 
     virtual BaseType *copy() const {
-        return new ReferencedType(type);
+        auto t = new ReferencedType(type);
+        t->linked = linked;
+        return t;
     }
 
 #ifdef COMPILER_BUILD
+
     llvm::Type *llvm_type(Codegen &gen) const override;
+
 #endif
 
 };

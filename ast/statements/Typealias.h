@@ -10,18 +10,26 @@ class TypealiasStatement : public ASTNode {
 public:
 
     // before equal
-    std::unique_ptr<BaseType> from;
+    std::string from;
     // after equal
     std::unique_ptr<BaseType> to;
 
     /**
      * @brief Construct a new TypealiasStatement object.
      */
-    TypealiasStatement(std::unique_ptr<BaseType> from, std::unique_ptr<BaseType> to);
+    TypealiasStatement(std::string from, std::unique_ptr<BaseType> to);
+
+    TypealiasStatement* as_typealias() override {
+        return this;
+    }
 
     void interpret(InterpretScope &scope) override;
 
+    llvm::Type *llvm_type(Codegen &gen) override;
+
     void declare_and_link(SymbolResolver &linker) override;
+
+    void undeclare_on_scope_end(SymbolResolver &linker) override;
 
     void accept(Visitor &visitor) override;
 

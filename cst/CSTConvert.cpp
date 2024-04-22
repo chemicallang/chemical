@@ -69,6 +69,8 @@
 #include "cst/statements/SwitchCST.h"
 #include "ast/statements/Break.h"
 #include "cst/statements/BreakCST.h"
+#include "ast/statements/Typealias.h"
+#include "cst/statements/TypealiasCST.h"
 #include "ast/values/ArrayValue.h"
 #include "cst/values/ArrayValueCST.h"
 #include "cst/values/AddrOfCST.h"
@@ -286,6 +288,12 @@ void CSTConverter::visit(ImportCST *cst) {
 void CSTConverter::visit(ReturnCST *cst) {
     visit(cst->tokens, 1);
     nodes.emplace_back(std::make_unique<ReturnStatement>(opt_value(), current_func_decl));
+}
+
+void CSTConverter::visit(TypealiasCST *alias) {
+    auto identifier = str_token(alias->tokens[1].get());
+    alias->tokens[3]->accept(this);
+    nodes.emplace_back(std::make_unique<TypealiasStatement>(identifier, type()));
 }
 
 void CSTConverter::visit(TypeToken *token) {

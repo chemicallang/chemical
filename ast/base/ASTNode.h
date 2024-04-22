@@ -122,6 +122,13 @@ public:
     }
 
     /**
+     * return if this is a typealias statement
+     */
+    virtual TypealiasStatement *as_typealias() {
+        return nullptr;
+    }
+
+    /**
      * return if this is a struct definition
      * @return
      */

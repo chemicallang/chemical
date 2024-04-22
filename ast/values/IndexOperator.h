@@ -47,13 +47,15 @@ public:
 #ifdef COMPILER_BUILD
 
     // TODO isInBounds optimization, when we know that index is in bounds
-    llvm::Value* elem_pointer(Codegen& gen, ASTNode* arr);
+    llvm::Value *elem_pointer(Codegen &gen, ASTNode *arr);
 
-    llvm::Value * llvm_pointer(Codegen &gen) override;
+    llvm::Value *llvm_pointer(Codegen &gen) override;
 
-    llvm::Value * llvm_value(Codegen &gen) override;
+    llvm::Value *llvm_value(Codegen &gen) override;
 
-    bool add_member_index(Codegen& gen, ASTNode* parent, std::vector<llvm::Value *> &indexes) override;
+    llvm::Type *llvm_type(Codegen &gen) override;
+
+    bool add_member_index(Codegen &gen, ASTNode *parent, std::vector<llvm::Value *> &indexes) override;
 
 #endif
 

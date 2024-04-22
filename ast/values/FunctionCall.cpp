@@ -35,6 +35,17 @@ llvm::Value *FunctionCall::llvm_value(Codegen &gen) {
     }
 }
 
+llvm::InvokeInst *FunctionCall::llvm_invoke(Codegen &gen, llvm::BasicBlock* normal, llvm::BasicBlock* unwind) {
+    auto fn = gen.module->getFunction(name);
+    if(fn != nullptr) {
+        auto args = to_llvm_args(gen, this, values, fn->isVarArg());
+        return gen.builder->CreateInvoke(fn, normal, unwind, args);
+    } else {
+        gen.error("Unknown function call through invoke " + name);
+        return nullptr;
+    }
+}
+
 #endif
 
 FunctionCall::FunctionCall(

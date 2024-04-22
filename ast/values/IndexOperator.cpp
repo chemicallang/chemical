@@ -45,6 +45,15 @@ bool IndexOperator::add_member_index(Codegen &gen, ASTNode *parent, std::vector<
     return true;
 }
 
+llvm::Type *IndexOperator::llvm_type(Codegen &gen) {
+    auto value_type = linked->create_value_type();
+    if(value_type->kind() == BaseTypeKind::Array) {
+        return ((ArrayType*) value_type.get())->elem_type->llvm_type(gen);
+    } else {
+        gen.error("cannot get element type from a variable that's not an array");
+    }
+}
+
 #endif
 
 std::unique_ptr<BaseType> IndexOperator::create_type() const {

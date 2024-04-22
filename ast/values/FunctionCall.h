@@ -51,9 +51,11 @@ public:
 
 #ifdef COMPILER_BUILD
 
-    llvm::Type * llvm_type(Codegen &gen) override;
+    llvm::Type *llvm_type(Codegen &gen) override;
 
     llvm::Value *llvm_value(Codegen &gen) override;
+
+    llvm::InvokeInst *llvm_invoke(Codegen &gen, llvm::BasicBlock* normal, llvm::BasicBlock* unwind);
 
 #endif
 

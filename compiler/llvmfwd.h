@@ -16,6 +16,7 @@ namespace llvm {
     class Type;
     class ConstantFolder;
     class IRBuilderDefaultInserter;
+    class InvokeInst;
     template <typename FolderTy, typename InserterTy>
     class IRBuilder;
 }

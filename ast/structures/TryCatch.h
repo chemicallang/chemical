@@ -7,20 +7,22 @@
 
 using catch_var_type = std::optional<std::pair<std::string, std::unique_ptr<BaseType>>>;
 
-class TryCatch : ASTNode {
+class TryCatch : public ASTNode {
 public:
 
-    Scope tryScope;
+    std::unique_ptr<FunctionCall> tryCall;
     catch_var_type catchVar;
     std::optional<Scope> catchScope;
 
-    TryCatch(Scope tryScope, catch_var_type catchVar, std::optional<Scope> catchScope);
+    TryCatch(std::unique_ptr<FunctionCall> tryCall, catch_var_type catchVar, std::optional<Scope> catchScope);
 
 #ifdef COMPILER_BUILD
 
     void code_gen(Codegen &gen) override;
 
 #endif
+
+    void declare_and_link(SymbolResolver &linker) override;
 
     void accept(Visitor &visitor) override;
 

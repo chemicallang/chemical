@@ -5,6 +5,7 @@
 #ifdef COMPILER_BUILD
 
 #include "compiler/llvmimpl.h"
+#include "ast/types/ArrayType.h"
 
 llvm::Value *ArrayValue::llvm_pointer(Codegen &gen) {
     return arr;
@@ -50,3 +51,18 @@ bool ArrayValue::add_child_index(Codegen &gen, std::vector<llvm::Value *> &index
 }
 
 #endif
+
+std::unique_ptr<BaseType> ArrayValue::create_type() const {
+    BaseType* arrElemType;
+    if(elemType.has_value()) {
+        arrElemType = elemType.value()->copy();
+    } else {
+        if(!values.empty()) {
+            arrElemType = values[0]->create_type().release();
+        } else {
+            // TODO report error
+            return nullptr;
+        }
+    }
+    return std::make_unique<ArrayType>(std::unique_ptr<BaseType>(arrElemType), array_size());
+}

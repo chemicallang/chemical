@@ -29,7 +29,7 @@ public:
         return false;
     }
 
-    inline unsigned int array_size() {
+    inline unsigned int array_size() const {
         if (sizes.empty()) {
             return values.size();
         } else {
@@ -53,6 +53,8 @@ public:
     bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, unsigned int index) override;
 
 #endif
+
+    std::unique_ptr<BaseType> create_type() const override;
 
     ValueType value_type() const override {
         return ValueType::Array;

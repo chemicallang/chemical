@@ -149,6 +149,8 @@ public:
 
     void visit(ReturnCST *returnCst) override;
 
+    void visit(TypealiasCST *alias) override;
+
     void visit(BodyCST *bodyCst) override;
 
     void visit(IncDecCST *incDec) override;

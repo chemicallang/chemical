@@ -153,8 +153,8 @@ public:
         visitCompoundCommon((CompoundCSTToken *) importCst);
     }
 
-    virtual void visit(TypealiasCST *importCst) {
-        visitCompoundCommon((CompoundCSTToken *) importCst);
+    virtual void visit(TypealiasCST *alias) {
+        visitCompoundCommon((CompoundCSTToken *) alias);
     }
 
     virtual void visit(IfCST *ifCst) {

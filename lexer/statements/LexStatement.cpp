@@ -14,6 +14,7 @@ bool Lexer::lexTopLevelStatementTokens() {
            (isLexImportStatement && lexImportStatement()) ||
            lexEnumStructureTokens() ||
            lexStructStructureTokens() ||
+           lexTypealiasStatement() ||
            lexInterfaceStructureTokens() ||
            lexImplTokens() ||
            lexFunctionStructureTokens(true);

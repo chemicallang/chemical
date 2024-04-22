@@ -8,12 +8,16 @@
 #include "compiler/llvmimpl.h"
 #include "compiler/Codegen.h"
 
-void SwitchStatement::code_gen(Codegen &gen) {
+void SwitchStatement::code_gen(Codegen &gen, bool last_block) {
 
     auto total_scopes = defScope.has_value() ? (scopes.size() + 1) : scopes.size();
 
     // the end block
-    auto end = llvm::BasicBlock::Create(*gen.ctx, "end", gen.current_function);
+    llvm::BasicBlock* end = nullptr;
+    auto has_end = !(last_block && defScope.has_value());
+    if(has_end) {
+        end = llvm::BasicBlock::Create(*gen.ctx, "end", gen.current_function);
+    }
 
     auto switchInst = gen.builder->CreateSwitch(expression->llvm_value(gen), end, total_scopes);
 
@@ -37,8 +41,14 @@ void SwitchStatement::code_gen(Codegen &gen) {
         switchInst->setDefaultDest(defCase);
     }
 
-    gen.SetInsertPoint(end);
+    if(end) {
+        gen.SetInsertPoint(end);
+    }
 
+}
+
+void SwitchStatement::code_gen(Codegen &gen, std::vector<std::unique_ptr<ASTNode>> &nodes, unsigned int index) {
+    code_gen(gen, index == nodes.size() - 1);
 }
 
 #endif

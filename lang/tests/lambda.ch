@@ -1,10 +1,10 @@
 import "test.ch"
 
-func capturing(lambda : []() => bool) {
+func capturing(lambda : []() => bool) : bool {
     return lambda();
 }
 
-func dontCapture(lambda : () => bool) {
+func dontCapture(lambda : () => bool) : bool {
     return lambda();
 }
 

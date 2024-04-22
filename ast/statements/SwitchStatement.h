@@ -24,7 +24,13 @@ public:
 
 #ifdef COMPILER_BUILD
 
-    void code_gen(Codegen &gen) override;
+    void code_gen(Codegen &gen, bool last_block);
+
+    void code_gen(Codegen &gen) {
+        code_gen(gen, false);
+    }
+
+    void code_gen(Codegen &gen, std::vector<std::unique_ptr<ASTNode>> &nodes, unsigned int index) override;
 
 #endif
 

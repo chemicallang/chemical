@@ -44,6 +44,10 @@ public:
 
 #endif
 
+    AccessChain *as_access_chain() override {
+        return this;
+    }
+
     Value *parent(InterpretScope &scope);
 
     inline Value *parent_value(InterpretScope &scope);

@@ -165,6 +165,8 @@ public:
 
     void visit(StructDefCST *structDef) override;
 
+    void visit(TryCatchCST *tryCatch) override;
+
     // Types
 
     void visit(TypeToken *token) override;

@@ -53,6 +53,8 @@
 #include "lexer/model/tokens/BoolToken.h"
 #include "ast/statements/Import.h"
 #include "cst/statements/ImportCST.h"
+#include "ast/structures/TryCatch.h"
+#include "cst/structures/TryCatchCST.h"
 #include "ast/statements/Return.h"
 #include "cst/statements/ReturnCST.h"
 #include "ast/types/GenericType.h"
@@ -108,6 +110,14 @@ inline bool is_keyword(CSTToken *token, const std::string &x) {
 
 inline bool is_char_op(CSTToken *token, char x) {
     return token->type() == LexTokenType::CharOperator && char_op(token) == x;
+}
+
+Scope take_body(CSTConverter* conv, CSTToken* token) {
+    auto prev_nodes = std::move(conv->nodes);
+    token->accept(conv);
+    Scope scope(std::move(conv->nodes));
+    conv->nodes = std::move(prev_nodes);
+    return scope;
 }
 
 bool VarInitCST::is_const() {
@@ -556,6 +566,23 @@ void CSTConverter::visit(StructDefCST *structDef) {
     nodes.emplace_back(std::make_unique<StructDefinition>(str_token(structDef->tokens[1].get()), std::move(variables),
                                                           std::move(decls), std::move(overrides)));
 
+}
+
+void CSTConverter::visit(TryCatchCST *tryCatch) {
+    auto chain = ((AccessChainCST*) tryCatch->tokens[1].get());
+    if(chain->tokens.size() != 1 || chain->tokens[0]->type() != LexTokenType::CompFunctionCall) {
+        error("expected a function call after try keyword", chain);
+        return;
+    }
+    chain->accept(this);
+    auto call = value().release()->as_access_chain();
+    std::optional<Scope> catchScope = std::nullopt;
+    auto last = tryCatch->tokens[tryCatch->tokens.size() - 1].get();
+    if(is_keyword(tryCatch->tokens[2].get(), "catch") && last->type() == LexTokenType::CompBody) {
+        catchScope.emplace(take_body(this, last));
+    }
+    // TODO catch variable not supported yet
+    nodes.emplace_back(new TryCatch(std::unique_ptr<FunctionCall>((FunctionCall*) call->values[0].release()), std::nullopt, std::move(catchScope)));
 }
 
 void CSTConverter::visit(PointerTypeCST *cst) {

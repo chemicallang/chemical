@@ -31,7 +31,9 @@ void ImportStatement::code_gen(Codegen &gen) {
         auto &ast = parsed(gen.path, [&abs_path, &gen](Diag* diag) {
             gen.error(diag->ansi_representation(abs_path, "Import"));
         });
+//        std::cout << "importing " << abs_path << std::endl;
         for (const auto &node: ast) {
+//            std::cout << node->representation() << std::endl;
             node->code_gen(gen);
         }
         // clearing the cache to free memory
@@ -163,7 +165,7 @@ void ImportStatement::accept(Visitor &visitor) {
 }
 
 std::string ImportStatement::representation() const {
-    return std::string("import \"" + filePath + "\";");
+    return std::string("import \"" + filePath + "\";\n");
 }
 
 std::filesystem::path ImportStatement::resolve_rel_path(const std::string& root_path) {

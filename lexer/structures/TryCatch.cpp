@@ -1,12 +1,14 @@
 // Copyright (c) Qinetik 2024.
 
 #include "lexer/Lexer.h"
+#include "cst/structures/TryCatchCST.h"
 
 bool Lexer::lexTryCatchTokens() {
     if (lexKeywordToken("try")) {
-        lexWhitespaceAndNewLines();
-        if (lexBraceBlock("try")) {
-            lexWhitespaceAndNewLines();
+        unsigned int start = tokens.size() - 1;
+        lexWhitespaceToken();
+        if(lexAccessChain(false)) {
+            lexWhitespaceToken();
             if (lexKeywordToken("catch")) {
                 lexWhitespaceToken();
                 if(lexOperatorToken('(')) {
@@ -30,6 +32,7 @@ bool Lexer::lexTryCatchTokens() {
                 if (!lexBraceBlock("catch")) {
                     error("expected '{' after 'catch' for a block");
                 }
+                compound_from<TryCatchCST>(start);
             } //optional catch
         } else {
             error("expected '{' after 'try' for a block");

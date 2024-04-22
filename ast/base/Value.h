@@ -491,6 +491,13 @@ std::cerr << "child called on base value";
     }
 
     /**
+     * return if value is a access chain
+     */
+    virtual AccessChain* as_access_chain() {
+        return nullptr;
+    }
+
+    /**
      * a function to be overridden by values that can return vectors
      */
     virtual InterpretVectorValue* as_vector() {

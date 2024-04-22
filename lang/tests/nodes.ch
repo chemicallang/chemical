@@ -5,6 +5,11 @@ struct Point {
     var y : int
 }
 
+func exception_throw() {
+   var arr = {0};
+   var x = arr[1]; // out of bounds access
+}
+
 func test_nodes() {
     test("address of works", []() => {
         var x = 5;
@@ -46,6 +51,9 @@ func test_nodes() {
             case 1 -> {
                 return false;
             }
+            default -> {
+                return false;
+            }
        }
     });
     test("struct value initialization", []() => {
@@ -65,12 +73,11 @@ func test_nodes() {
         return y == 5;
     })
     /**
-    test("try catch statement", []() => {
-        try {
-
-        } catch(e : int) {
-
+    test("try catch statement, can catch", []() => {
+        try exception_throw() catch(e : int) {
+            return true;
         }
+        return false;
     })
     **/
 }

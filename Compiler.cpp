@@ -93,9 +93,9 @@ int main(int argc, char *argv[]) {
     for (const auto &err: checker.errors) {
         std::cerr << err << std::endl;
     }
-//    if(verbose.has_value()) {
+    if(verbose.has_value()) {
         std::cout << "[Representation]\n" << scope.representation() << std::endl;
-//    }
+    }
     if (lexer.has_errors || converter.has_errors || !checker.errors.empty()) return 1;
 
     // TODO typechecker should run after the linker runs

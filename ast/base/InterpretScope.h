@@ -121,8 +121,8 @@ public:
      * if we stop in the middle and don't interpret rest of the nodes (loop break, function return), we can't ask
      * all the nodes to cleanup, we only cleanup the nodes till we stopped interpreting
      * if a single node is interpreted, its incremented to 0
-     * when cleaning up, we loop until its bigger than 0
+     * when cleaning up, we loop until its bigger than -1
      */
-    int nodes_interpreted = -1;
+    int  nodes_interpreted = -1;
 
 };

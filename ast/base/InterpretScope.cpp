@@ -73,13 +73,23 @@ void InterpretScope::clean() {
 }
 
 InterpretScope::~InterpretScope() {
-#ifdef DEBUG
-    if (nodes_interpreted == -1) {
-
+    if(this == global || parent == nullptr) {
         // global interpret scope has its own destructor which also checks this
         // after global interpret scope's destructor is called, this destructor is called
         // because of inheritance, but the work is already done
-        if (this == global) return;
+        if(nodes_interpreted == -1) {
+            return;
+        } else {
+#ifdef DEBUG
+    std::cerr << ANSI_COLOR_RED;
+    std::cerr << "global | non owned interpret scope has nodes interpreted != -1" << std::endl;
+    std::cerr << ANSI_COLOR_RESET;
+#endif
+        }
+    }
+#ifdef DEBUG
+    if (nodes_interpreted == -1) {
+
         std::cerr << ANSI_COLOR_RED;
         std::cerr
                 << "nodes_interpreted = -1 , either the scope is empty, or scope doesn't increment nodes_interpreted"

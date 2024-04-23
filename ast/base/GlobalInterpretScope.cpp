@@ -37,7 +37,8 @@ GlobalInterpretScope::~GlobalInterpretScope() {
     if (nodes_interpreted == -1 && warn_no_nodes) {
         std::cerr << ANSI_COLOR_RED
                   << "global nodes_interpreted = -1 , either the scope is empty, or scope doesn't increment nodes_interpreted"
-                  << std::endl;
+                  << std::endl
+                  << ANSI_COLOR_RESET;
     }
 #endif
     while (nodes_interpreted > -1) {

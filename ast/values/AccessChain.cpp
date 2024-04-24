@@ -7,6 +7,7 @@
 
 #include "compiler/llvmimpl.h"
 #include "compiler/Codegen.h"
+#include "ast/types/PointerType.h"
 
 void AccessChain::code_gen(Codegen &gen) {
     llvm_value(gen);
@@ -52,7 +53,12 @@ llvm::Value *AccessChain::llvm_pointer(Codegen &gen) {
                 parent = values[i]->find_link_in_parent(parent);
                 i++;
             }
-            return gen.builder->CreateGEP(values[0]->llvm_type(gen), values[0]->llvm_pointer(gen), idxList);
+            if(values[0]->type_kind() == BaseTypeKind::Pointer) {
+                auto ty = values[0]->create_type();
+                return gen.builder->CreateGEP(((PointerType*) (ty.get()))->type->llvm_type(gen), values[0]->llvm_pointer(gen), idxList);
+            } else {
+                return gen.builder->CreateGEP(values[0]->llvm_type(gen), values[0]->llvm_pointer(gen), idxList);
+            }
         }
     }
 }
@@ -182,6 +188,18 @@ Value *AccessChain::assignment_value(InterpretScope &scope) {
 
 Value *AccessChain::return_value(InterpretScope &scope) {
     return pointer(scope)->return_value(scope);
+}
+
+ASTNode *AccessChain::linked_node() {
+    return values[values.size() - 1]->linked_node();
+}
+
+ValueType AccessChain::value_type() const {
+    return values[values.size() - 1]->value_type();
+}
+
+BaseTypeKind AccessChain::type_kind() const {
+    return values[values.size() - 1]->type_kind();
 }
 
 std::string AccessChain::representation() const {

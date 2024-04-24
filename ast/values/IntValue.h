@@ -60,6 +60,10 @@ public:
         return ValueType::Int;
     }
 
+    BaseTypeKind type_kind() const override {
+        return BaseTypeKind::IntN;
+    }
+
 
 private:
     int value; ///< The integer value.

@@ -8,7 +8,7 @@ class VoidType : public BaseType {
 public:
 
     bool satisfies(ValueType type) const override {
-        return type == ValueType::Void;
+        return false;
     }
 
     std::string representation() const override {

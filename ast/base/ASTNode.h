@@ -20,6 +20,7 @@ class Codegen;
 
 #include "compiler/llvmfwd.h"
 #include "ValueType.h"
+#include "BaseTypeKind.h"
 
 #endif
 
@@ -260,6 +261,20 @@ public:
     }
 
 #endif
+
+    /**
+     * get the type kind represented by this node
+     */
+    virtual BaseTypeKind type_kind() const {
+        return BaseTypeKind::Unknown;
+    }
+
+    /**
+     * get the value type represented by this node
+     */
+    virtual ValueType value_type() const {
+        return ValueType::Unknown;
+    }
 
     /**
      * virtual destructor for the ASTNode

@@ -193,7 +193,3 @@ std::string StructValue::representation() const {
 StructValue *StructValue::as_struct() {
     return this;
 }
-
-ValueType StructValue::value_type() const {
-    return ValueType::Struct;
-}

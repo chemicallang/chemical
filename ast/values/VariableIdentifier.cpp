@@ -11,7 +11,7 @@ llvm::Type *VariableIdentifier::llvm_type(Codegen &gen) {
 }
 
 llvm::Value *VariableIdentifier::llvm_pointer(Codegen &gen) {
-    return declaration()->llvm_ptr;
+    return linked->llvm_pointer(gen);
 }
 
 llvm::Value *VariableIdentifier::llvm_value(Codegen &gen) {
@@ -211,6 +211,14 @@ Value *VariableIdentifier::initializer_value(InterpretScope &scope) {
 
 Value *VariableIdentifier::assignment_value(InterpretScope &scope) {
     return copy_prim_ref_other(scope);
+}
+
+BaseTypeKind VariableIdentifier::type_kind() const {
+    return linked->type_kind();
+}
+
+ValueType VariableIdentifier::value_type() const {
+    return linked->value_type();
 }
 
 std::string VariableIdentifier::representation() const {

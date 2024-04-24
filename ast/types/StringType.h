@@ -19,6 +19,10 @@ public:
         return BaseTypeKind::String;
     }
 
+    ValueType value_type() const override {
+        return ValueType::String;
+    }
+
     bool is_same(BaseType *type) const override {
         return type->kind() == kind();
     }

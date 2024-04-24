@@ -22,8 +22,22 @@ bool Lexer::lexReturnStatement() {
 
 void Lexer::lexParameterList(bool optionalTypes, bool defValues) {
     nested_compound_start();
+    unsigned index = 0; // param identifier index
     do {
         lexWhitespaceToken();
+        if(index == 0) {
+            if(lexOperatorToken('&')) {
+                if(lexIdentifierToken()) {
+                    compound_from<FunctionParamCST>(tokens.size() - 2);
+                    lexWhitespaceToken();
+                    index++;
+                    continue;
+                } else {
+                    error("expected a identifier right after '&' in the first function parameter as a 'self' parameter");
+                    break;
+                }
+            }
+        }
         if(lexIdentifierToken()) {
             unsigned int start = tokens.size() - 1;
             lexWhitespaceToken();
@@ -57,6 +71,7 @@ void Lexer::lexParameterList(bool optionalTypes, bool defValues) {
                     return;
                 }
             }
+            index++;
         }
         lexWhitespaceToken();
     } while(lexOperatorToken(','));

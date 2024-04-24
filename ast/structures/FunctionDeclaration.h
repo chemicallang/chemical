@@ -49,6 +49,20 @@ public:
 
     std::string representation() const override;
 
+    ASTNode *child(const std::string &name) override;
+
+    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
+
+    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, unsigned int index) override;
+
+    void declare_and_link(SymbolResolver &linker) override;
+
+    void undeclare_on_scope_end(SymbolResolver &linker) override;
+
+    ValueType value_type() const override;
+
+    BaseTypeKind type_kind() const override;
+
     unsigned int index;
     std::string name;
     std::unique_ptr<BaseType> type;
@@ -127,8 +141,8 @@ public:
     std::unique_ptr<BaseType> returnType;
 
 #ifdef COMPILER_BUILD
-    llvm::FunctionType* funcType;
-    llvm::Value* funcCallee;
+    llvm::FunctionType *funcType;
+    llvm::Value *funcCallee;
 #endif
 
 private:

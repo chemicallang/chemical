@@ -81,7 +81,9 @@ public:
 
     StructValue *as_struct() override;
 
-    ValueType value_type() const override;
+    ValueType value_type() const override {
+        return ValueType::Struct;
+    }
 
     std::string structName;
     StructDefinition *definition = nullptr;

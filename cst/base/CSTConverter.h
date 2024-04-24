@@ -71,6 +71,12 @@ public:
     FunctionDeclaration *current_func_decl = nullptr;
 
     /**
+     * This is a pointer to current struct declaration
+     * All nodes being parsed belong to this struct
+     */
+    StructDefinition *current_struct_decl = nullptr;
+
+    /**
      * The current loop node
      * All nodes being parsed belong this loop's body
      */

@@ -33,6 +33,14 @@ public:
 
 #endif
 
+    ValueType value_type() const override {
+        return ValueType::Pointer;
+    }
+
+    BaseTypeKind type_kind() const override {
+        return BaseTypeKind::Pointer;
+    }
+
     void link(SymbolResolver &linker) override;
 
     std::string representation() const override;

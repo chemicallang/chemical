@@ -20,6 +20,7 @@ class Codegen;
 #endif
 
 #include "Visitor.h"
+#include "BaseTypeKind.h"
 
 #ifdef DEBUG
 #include <iostream>
@@ -514,6 +515,13 @@ std::cerr << "child called on base value";
     virtual ValueType value_type() const {
         return ValueType::Unknown;
     };
+
+    /**
+     * get the type kind for this value
+     */
+    virtual BaseTypeKind type_kind() const {
+        return BaseTypeKind::Unknown;
+    }
 
     /**
      * virtual default destructor

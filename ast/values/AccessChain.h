@@ -70,6 +70,12 @@ public:
 
     std::string representation() const override;
 
+    ASTNode *linked_node() override;
+
+    ValueType value_type() const override;
+
+    BaseTypeKind type_kind() const override;
+
     std::vector<std::unique_ptr<Value>> values;
 
 };

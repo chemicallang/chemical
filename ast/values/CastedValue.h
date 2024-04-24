@@ -32,6 +32,14 @@ public:
 
 #endif
 
+    ValueType value_type() const override {
+        return type->value_type();
+    }
+
+    BaseTypeKind type_kind() const override {
+        return type->kind();
+    }
+
     std::string representation() const override;
 
 private:

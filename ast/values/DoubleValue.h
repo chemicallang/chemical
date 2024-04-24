@@ -55,6 +55,14 @@ public:
         return &value;
     }
 
+    ValueType value_type() const override {
+        return ValueType::Double;
+    }
+
+    BaseTypeKind type_kind() const override {
+        return BaseTypeKind::Double;
+    }
+
 private:
     double value; ///< The double value.
 };

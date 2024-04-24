@@ -128,6 +128,14 @@ Value *FunctionCall::return_value(InterpretScope &scope) {
     return evaluated_value(scope);
 }
 
+std::unique_ptr<BaseType> FunctionCall::create_type() const {
+    return linked->create_value_type();
+}
+
+llvm::Value * FunctionCall::llvm_pointer(Codegen &gen) {
+    return linked->llvm_pointer(gen);
+}
+
 void FunctionCall::interpret(InterpretScope &scope) {
     auto value = evaluated_value(scope);
     if (value != nullptr && value->primitive()) {

@@ -1,8 +1,14 @@
 import "test.ch"
 
 struct Point {
+
     var x : int
     var y : int
+
+    func sum(x : int, y : int) : int {
+        return x + y;
+    }
+
 }
 
 func test_nodes() {
@@ -57,6 +63,13 @@ func test_nodes() {
             y : 6
         };
         return p.x == 5 && p.y == 6;
+    });
+    test("struct functions without self ref work", []() => {
+         var p = Point {
+             x : 0,
+             y : 0
+         };
+        return p.sum(5, 6) == 11;
     });
     test("test array", []() => {
         var arr = {2,4,6,8,10};

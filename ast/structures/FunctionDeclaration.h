@@ -87,6 +87,11 @@ public:
 
     llvm::FunctionType *function_type(Codegen &gen);
 
+    /**
+     * called by struct when the function is inside a struct
+     */
+    void code_gen_struct(Codegen &gen);
+
     void code_gen(Codegen &gen) override;
 
 #endif

@@ -84,6 +84,10 @@ void FunctionDeclaration::code_gen(Codegen &gen) {
     }
 }
 
+void FunctionDeclaration::code_gen_struct(Codegen &gen) {
+    code_gen(gen);
+}
+
 std::vector<llvm::Type *> FunctionDeclaration::param_types(Codegen &gen) {
     auto size = isVariadic ? (params.size() - 1) : params.size();
     std::vector<llvm::Type *> array(size);

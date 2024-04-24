@@ -9,6 +9,10 @@ struct Point {
         return x + y;
     }
 
+    func sumP(&self) : int {
+        return self.x + self.y;
+    }
+
 }
 
 func test_nodes() {

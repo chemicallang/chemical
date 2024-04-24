@@ -11,3 +11,12 @@ llvm::Type *PointerType::llvm_type(Codegen &gen) const {
 }
 
 #endif
+
+
+void PointerType::link(SymbolResolver &linker) {
+    type->link(linker);
+}
+
+ASTNode *PointerType::linked_node() {
+    return type->linked_node();
+}

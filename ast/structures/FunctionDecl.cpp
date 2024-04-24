@@ -125,6 +125,14 @@ void FunctionParam::accept(Visitor &visitor) {
     visitor.visit(this);
 }
 
+ValueType FunctionParam::value_type() const {
+    return type->value_type();
+}
+
+BaseTypeKind FunctionParam::type_kind() const {
+    return type->kind();
+}
+
 FunctionParam *FunctionParam::copy() const {
     std::optional<std::unique_ptr<Value>> copied = std::nullopt;
     if (defValue.has_value()) {
@@ -139,6 +147,27 @@ FunctionParam *FunctionParam::as_parameter() {
 
 std::string FunctionParam::representation() const {
     return name + " : " + type->representation();
+}
+
+void FunctionParam::declare_and_link(SymbolResolver &linker) {
+    linker.current[name] = this;
+    type->link(linker);
+}
+
+void FunctionParam::undeclare_on_scope_end(SymbolResolver &linker) {
+    linker.current.erase(name);
+}
+
+ASTNode *FunctionParam::child(const std::string &name) {
+    return type->linked_node()->child(name);
+}
+
+bool FunctionParam::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
+    return type->linked_node()->add_child_index(gen, indexes, name);
+}
+
+bool FunctionParam::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, unsigned int index) {
+    return type->linked_node()->add_child_index(gen, indexes, index);
 }
 
 FunctionDeclaration::FunctionDeclaration(
@@ -177,11 +206,11 @@ void FunctionDeclaration::declare_and_link(SymbolResolver &linker) {
     if (body.has_value()) {
         // if has body declare params
         for (auto &param: params) {
-            linker.current[param->name] = param.get();
+            param->declare_and_link(linker);
         }
         body->declare_and_link(linker);
         for (auto &param: params) {
-            linker.current.erase(param->name);
+            param->undeclare_on_scope_end(linker);
         }
     }
 }

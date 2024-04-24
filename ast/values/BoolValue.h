@@ -39,6 +39,14 @@ public:
 
 #endif
 
+    ValueType value_type() const override {
+        return ValueType::Bool;
+    }
+
+    BaseTypeKind type_kind() const override {
+        return BaseTypeKind::Bool;
+    }
+
     std::string representation() const override {
         std::string rep;
         if (value) {

@@ -31,6 +31,14 @@ public:
 
 #endif
 
+    ValueType value_type() const override {
+        return value->value_type();
+    }
+
+    BaseTypeKind type_kind() const override {
+        return value->type_kind();
+    }
+
     std::unique_ptr<BaseType> create_type() const override;
 
     std::unique_ptr<Value> value;

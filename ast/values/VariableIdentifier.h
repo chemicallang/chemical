@@ -88,6 +88,10 @@ public:
 
     std::string representation() const override;
 
+    BaseTypeKind type_kind() const override;
+
+    ValueType value_type() const override;
+
 private:
     ASTNode *linked = nullptr;
     std::string value; ///< The string value.

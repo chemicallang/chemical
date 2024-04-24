@@ -57,6 +57,13 @@ public:
     }
 
     /**
+     * return type of value
+     */
+    virtual ValueType value_type() const {
+        return ValueType::Unknown;
+    }
+
+    /**
      * check if given base type is of same type
      */
     virtual bool is_same(BaseType* type) const = 0;

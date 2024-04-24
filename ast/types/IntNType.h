@@ -18,6 +18,10 @@ public:
         return type == ValueType::Int;
     }
 
+    ValueType value_type() const override {
+        return ValueType::Int;
+    }
+
     std::string representation() const override {
         return "int" + std::to_string(number);
     }

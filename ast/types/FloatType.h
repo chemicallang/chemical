@@ -23,6 +23,10 @@ public:
         return BaseTypeKind::Float;
     }
 
+    ValueType value_type() const override {
+        return ValueType::Float;
+    }
+
     bool is_same(BaseType *type) const override {
         return type->kind() == kind();
     }

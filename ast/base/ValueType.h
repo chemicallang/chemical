@@ -20,11 +20,11 @@ enum class ValueType : uint8_t {
     Bool,
     Char,
     String,
-    Void,
     Array,
     Struct,
     Vector,
     Lambda,
+    Pointer,
     Unknown
 
 };

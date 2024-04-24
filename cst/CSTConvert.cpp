@@ -207,7 +207,14 @@ FunctionParamsResult CSTConverter::function_params(cst_tokens_ref_type tokens, u
     func_params params;
     unsigned i = start;
     while (i < tokens.size()) {
-        if (tokens[i]->compound()) {
+        if(param_index == 0 && is_char_op(tokens[i]->start_token(), '&')) {
+            auto& paramTokens = ((FunctionParamCST*) tokens[i].get())->tokens;
+            auto strId = str_token(paramTokens[1].get());
+            if(strId != "this" && strId != "self") {
+                error("expected self parameter to be named 'self' or 'this'", tokens[i].get());
+            }
+            params.emplace_back(new FunctionParam(strId, std::make_unique<PointerType>(std::make_unique<ReferencedType>(current_struct_decl->name)), 0, false, std::nullopt));
+        } else if (tokens[i]->compound()) {
             tokens[i]->accept(this);
             param_index++;
             auto param = (FunctionParam *) nodes.back().release();
@@ -218,8 +225,7 @@ FunctionParamsResult CSTConverter::function_params(cst_tokens_ref_type tokens, u
                 i++;
                 break;
             }
-        } else if (tokens[i]->start_token()->type() == LexTokenType::CharOperator &&
-                   char_op(tokens[i].get()) == ',') {
+        } else if (is_char_op(tokens[i].get(), ',')) {
             // do nothing
         } else {
             break;
@@ -540,8 +546,10 @@ void CSTConverter::visit(StructDefCST *structDef) {
         overrides.emplace(str_token(structDef->tokens[4].get()));
     }
     unsigned i = has_override ? 5 : 3; // positioned at first node or '}'
-    std::map<std::string, std::unique_ptr<StructMember>> variables;
-    std::map<std::string, std::unique_ptr<FunctionDeclaration>> decls;
+    auto def = new StructDefinition(str_token(structDef->tokens[1].get()), {}, {}, std::move(overrides));
+    current_struct_decl = def;
+    auto& variables = def->variables;
+    auto& decls = def->functions;
     while (!is_char_op(structDef->tokens[i].get(), '}')) {
 
         structDef->tokens[i]->accept(this);
@@ -567,8 +575,7 @@ void CSTConverter::visit(StructDefCST *structDef) {
 
     }
 
-    nodes.emplace_back(std::make_unique<StructDefinition>(str_token(structDef->tokens[1].get()), std::move(variables),
-                                                          std::move(decls), std::move(overrides)));
+    nodes.emplace_back(def);
 
 }
 

@@ -55,6 +55,14 @@ public:
         return &value;
     }
 
+    ValueType value_type() const override {
+        return ValueType::Float;
+    }
+
+    BaseTypeKind type_kind() const override {
+        return BaseTypeKind::Float;
+    }
+
 private:
     float value; ///< The floating-point value.
 };

@@ -68,6 +68,10 @@ public:
         return ValueType::Char;
     }
 
+    BaseTypeKind type_kind() const override {
+        return BaseTypeKind::Char;
+    }
+
 private:
     char value; ///< The character value.
 };

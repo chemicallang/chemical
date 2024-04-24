@@ -23,23 +23,29 @@ public:
     }
 
     bool is_same(BaseType *other) const override {
-        return other->kind() == kind() && static_cast<PointerType*>(other)->type->is_same(type.get());
+        return other->kind() == kind() && static_cast<PointerType *>(other)->type->is_same(type.get());
     }
 
-    PointerType* pointer_type() override {
+    PointerType *pointer_type() override {
         return this;
     }
 
     std::string representation() const override {
-        return  type->representation() + "*";
+        return type->representation() + "*";
     }
 
-    virtual BaseType* copy() const {
+    virtual BaseType *copy() const {
         return new PointerType(std::unique_ptr<BaseType>(type->copy()));
     }
 
+    void link(SymbolResolver &linker) override;
+
+    ASTNode *linked_node() override;
+
 #ifdef COMPILER_BUILD
+
     llvm::Type *llvm_type(Codegen &gen) const override;
+
 #endif
 
 };

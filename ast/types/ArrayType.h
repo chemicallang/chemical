@@ -21,6 +21,10 @@ public:
         return BaseTypeKind::Array;
     }
 
+    ValueType value_type() const override {
+        return ValueType::Array;
+    }
+
     bool equals(ArrayType* type) const {
         return type->array_size != array_size && elem_type->is_same(type->elem_type.get());
     }

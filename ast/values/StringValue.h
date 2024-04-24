@@ -76,6 +76,10 @@ public:
         return ValueType::String;
     }
 
+    BaseTypeKind type_kind() const override {
+        return BaseTypeKind::String;
+    }
+
 private:
     std::string value; ///< The string value.
 };

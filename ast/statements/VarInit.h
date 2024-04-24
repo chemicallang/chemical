@@ -77,6 +77,10 @@ public:
 
     std::string representation() const override;
 
+    ValueType value_type() const override;
+
+    BaseTypeKind type_kind() const override;
+
     bool is_const;
     bool is_reference = false;
     bool has_moved = false;

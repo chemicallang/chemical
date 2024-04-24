@@ -152,6 +152,22 @@ void VarInitStatement::interpret_scope_ends(InterpretScope &scope) {
     }
 }
 
+ValueType VarInitStatement::value_type() const {
+    if(type.has_value()) {
+        return type.value()->value_type();
+    } else {
+        return value.value()->value_type();
+    }
+}
+
+BaseTypeKind VarInitStatement::type_kind() const {
+    if(type.has_value()) {
+        return type.value()->kind();
+    } else {
+        return value.value()->type_kind();
+    }
+}
+
 std::string VarInitStatement::representation() const {
     std::string rep;
     if (is_const) {

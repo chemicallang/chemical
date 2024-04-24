@@ -7,7 +7,9 @@
 #include "compiler/llvmimpl.h"
 
 void StructDefinition::code_gen(Codegen &gen) {
-    llvm::StructType::create(*gen.ctx, elements_type(gen), name);
+    for(auto& function : functions) {
+        function.second->code_gen_struct(gen);
+    }
 }
 
 llvm::Type* StructMember::llvm_type(Codegen &gen) {
@@ -100,7 +102,12 @@ ASTNode *StructDefinition::child(const std::string &varName) {
     if(found != variables.end()) {
         return found->second.get();
     } else {
-        return nullptr;
+        auto found_func = functions.find(varName);
+        if(found_func != functions.end()) {
+            return found_func->second.get();
+        } else {
+            return nullptr;
+        }
     }
 }
 
@@ -122,6 +129,9 @@ void StructDefinition::declare_top_level(SymbolResolver &linker) {
 void StructDefinition::declare_and_link(SymbolResolver &linker) {
     for(const auto& var : variables){
         var.second->declare_and_link(linker);
+    }
+    for(const auto& func : functions) {
+        func.second->declare_and_link(linker);
     }
 }
 

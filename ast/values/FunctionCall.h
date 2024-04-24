@@ -49,6 +49,8 @@ public:
 
     void interpret(InterpretScope &scope) override;
 
+    std::unique_ptr<BaseType> create_type() const override;
+
 #ifdef COMPILER_BUILD
 
     llvm::Type *llvm_type(Codegen &gen) override;
@@ -56,6 +58,8 @@ public:
     llvm::Value *llvm_value(Codegen &gen) override;
 
     llvm::InvokeInst *llvm_invoke(Codegen &gen, llvm::BasicBlock* normal, llvm::BasicBlock* unwind);
+
+    llvm::Value * llvm_pointer(Codegen &gen) override;
 
 #endif
 

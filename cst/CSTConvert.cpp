@@ -108,6 +108,10 @@ inline bool is_keyword(CSTToken *token, const std::string &x) {
     return token->type() == LexTokenType::Keyword && str_token(token) == x;
 }
 
+inline bool is_variable(CSTToken *token, const std::string &x) {
+    return token->type() == LexTokenType::Variable && str_token(token) == x;
+}
+
 inline bool is_char_op(CSTToken *token, char x) {
     return token->type() == LexTokenType::CharOperator && char_op(token) == x;
 }
@@ -684,8 +688,11 @@ void CSTConverter::visit(ArrayValueCST *arrayValue) {
 }
 
 void CSTConverter::visit(FunctionCallCST *call) {
+    auto prev_values = std::move(values);
     visit(call->tokens, 1);
-    values.emplace_back(std::make_unique<FunctionCall>(str_token(call->tokens, 0), std::move(values)));
+    auto func_call = new FunctionCall(str_token(call->tokens, 0), std::move(values));
+    values = std::move(prev_values);
+    values.emplace_back(func_call);
 }
 
 void CSTConverter::visit(IndexOpCST *op) {

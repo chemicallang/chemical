@@ -20,7 +20,11 @@ llvm::Value *AccessChain::llvm_value(Codegen &gen) {
     if(values.size() == 1) {
         return values[0]->llvm_value(gen);
     }
-    return gen.builder->CreateLoad(values[values.size() - 1]->llvm_type(gen), llvm_pointer(gen), "acc");
+    if(values[values.size() - 1]->as_func_call() != nullptr) {
+        return values[values.size() - 1]->llvm_value(gen);
+    } else {
+        return gen.builder->CreateLoad(values[values.size() - 1]->llvm_type(gen), llvm_pointer(gen), "acc");
+    }
 }
 
 llvm::Value *AccessChain::llvm_pointer(Codegen &gen) {
@@ -29,7 +33,7 @@ llvm::Value *AccessChain::llvm_pointer(Codegen &gen) {
     } else {
         auto last = values[values.size() - 1].get();
         if(last->as_func_call() != nullptr) {
-            gen.error("[TODO:] Generate code for a member function call !");
+            return last->llvm_pointer(gen);
         } else {
             std::vector<llvm::Value*> idxList;
 

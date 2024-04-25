@@ -60,6 +60,8 @@
 #include "ast/types/GenericType.h"
 #include "ast/structures/ForLoop.h"
 #include "cst/structures/ForLoopCST.h"
+#include "ast/structures/InterfaceDefinition.h"
+#include "cst/structures/InterfaceCST.h"
 #include "ast/structures/WhileLoop.h"
 #include "ast/values/StructValue.h"
 #include "cst/structures/WhileCST.h"
@@ -80,6 +82,7 @@
 #include "ast/structures/If.h"
 #include "ast/values/LambdaFunction.h"
 #include "cst/statements/IfCST.h"
+#include "ast/structures/StructMember.h"
 #include "ast/structures/StructDefinition.h"
 #include "cst/statements/IncDecCST.h"
 #include "cst/structures/StructDefCST.h"
@@ -116,7 +119,7 @@ inline bool is_char_op(CSTToken *token, char x) {
     return token->type() == LexTokenType::CharOperator && char_op(token) == x;
 }
 
-Scope take_body(CSTConverter* conv, CSTToken* token) {
+Scope take_body(CSTConverter *conv, CSTToken *token) {
     auto prev_nodes = std::move(conv->nodes);
     token->accept(conv);
     Scope scope(std::move(conv->nodes));
@@ -207,13 +210,14 @@ FunctionParamsResult CSTConverter::function_params(cst_tokens_ref_type tokens, u
     func_params params;
     unsigned i = start;
     while (i < tokens.size()) {
-        if(param_index == 0 && is_char_op(tokens[i]->start_token(), '&')) {
-            auto& paramTokens = ((FunctionParamCST*) tokens[i].get())->tokens;
+        if (param_index == 0 && is_char_op(tokens[i]->start_token(), '&')) {
+            auto &paramTokens = ((FunctionParamCST *) tokens[i].get())->tokens;
             auto strId = str_token(paramTokens[1].get());
-            if(strId != "this" && strId != "self") {
+            if (strId != "this" && strId != "self") {
                 error("expected self parameter to be named 'self' or 'this'", tokens[i].get());
             }
-            params.emplace_back(new FunctionParam(strId, std::make_unique<PointerType>(std::make_unique<ReferencedType>(current_struct_decl->name)), 0, false, std::nullopt));
+            params.emplace_back(new FunctionParam(strId, std::make_unique<PointerType>(
+                    std::make_unique<ReferencedType>(current_struct_decl->name)), 0, false, std::nullopt));
         } else if (tokens[i]->compound()) {
             tokens[i]->accept(this);
             param_index++;
@@ -347,7 +351,7 @@ void CSTConverter::visit(LambdaCST *cst) {
     auto no_capture_list = is_char_op(cst->tokens[0].get(), '(');
 
     unsigned i = 1;
-    if(!no_capture_list) {
+    if (!no_capture_list) {
         while (!is_char_op(cst->tokens[i].get(), ']')) {
             if (cst->tokens[i]->type() == LexTokenType::Variable) {
                 captureList.push_back(((VariableToken *) (cst->tokens[i].get()))->value);
@@ -364,7 +368,7 @@ void CSTConverter::visit(LambdaCST *cst) {
 
     Scope scope;
     auto bodyIndex = result.index + 2;
-    if(cst->tokens[bodyIndex]->type() == LexTokenType::CompBody) {
+    if (cst->tokens[bodyIndex]->type() == LexTokenType::CompBody) {
         auto prev_nodes = std::move(nodes);
         auto prev_decl = current_func_decl;
         current_func_decl = nullptr;
@@ -539,23 +543,19 @@ void CSTConverter::visit(DoWhileCST *doWhileCst) {
     nodes.emplace_back(std::unique_ptr<ASTNode>(loop));
 }
 
-void CSTConverter::visit(StructDefCST *structDef) {
-    std::optional<std::string> overrides = std::nullopt;
-    auto has_override = is_char_op(structDef->tokens[3].get(), ':');
-    if (has_override) {
-        overrides.emplace(str_token(structDef->tokens[4].get()));
-    }
-    unsigned i = has_override ? 5 : 3; // positioned at first node or '}'
-    auto def = new StructDefinition(str_token(structDef->tokens[1].get()), {}, {}, std::move(overrides));
-    current_struct_decl = def;
-    auto& variables = def->variables;
-    auto& decls = def->functions;
-    while (!is_char_op(structDef->tokens[i].get(), '}')) {
+unsigned int collect_struct_members(
+        CSTConverter *conv,
+        std::vector<std::unique_ptr<CSTToken>>& tokens,
+        std::map<std::string, std::unique_ptr<StructMember>> &variables,
+        std::map<std::string, std::unique_ptr<FunctionDeclaration>> &decls,
+        unsigned i
+) {
+    while (!is_char_op(tokens[i].get(), '}')) {
 
-        structDef->tokens[i]->accept(this);
-        auto is_var_init = structDef->tokens[i]->is_var_init();
-        auto node = nodes.back().release();
-        nodes.pop_back();
+        tokens[i]->accept(conv);
+        auto is_var_init = tokens[i]->is_var_init();
+        auto node = conv->nodes.back().release();
+        conv->nodes.pop_back();
         if (is_var_init) {
             auto init = ((VarInitStatement *) node);
             variables[init->identifier] = std::make_unique<StructMember>(init->identifier,
@@ -567,21 +567,42 @@ void CSTConverter::visit(StructDefCST *structDef) {
                     (FunctionDeclaration *) node);
         }
 
-        if (is_char_op(structDef->tokens[i + 1].get(), ';')) {
+        if (is_char_op(tokens[i + 1].get(), ';')) {
             i++;
         }
 
         i++;
 
     }
+    return i;
+}
 
+void CSTConverter::visit(StructDefCST *structDef) {
+    std::optional<std::string> overrides = std::nullopt;
+    auto has_override = is_char_op(structDef->tokens[3].get(), ':');
+    if (has_override) {
+        overrides.emplace(str_token(structDef->tokens[4].get()));
+    }
+    unsigned i = has_override ? 5 : 3; // positioned at first node or '}'
+    auto def = new StructDefinition(str_token(structDef->tokens[1].get()), {}, {}, std::move(overrides));
+    current_struct_decl = def;
+    collect_struct_members(this, structDef->tokens, def->variables, def->functions, i);
+    current_struct_decl = nullptr;
     nodes.emplace_back(def);
+}
 
+void CSTConverter::visit(InterfaceCST *interface) {
+    auto def = new InterfaceDefinition(str_token(interface->tokens[1].get()), {}, {});
+    unsigned i = 3; // positioned at first node or '}'
+    current_interface_decl = def;
+    collect_struct_members(this, interface->tokens, def->variables, def->functions, i);
+    current_interface_decl = nullptr;
+    nodes.emplace_back(def);
 }
 
 void CSTConverter::visit(TryCatchCST *tryCatch) {
-    auto chain = ((AccessChainCST*) tryCatch->tokens[1].get());
-    if(chain->tokens.size() != 1 || chain->tokens[0]->type() != LexTokenType::CompFunctionCall) {
+    auto chain = ((AccessChainCST *) tryCatch->tokens[1].get());
+    if (chain->tokens.size() != 1 || chain->tokens[0]->type() != LexTokenType::CompFunctionCall) {
         error("expected a function call after try keyword", chain);
         return;
     }
@@ -589,11 +610,13 @@ void CSTConverter::visit(TryCatchCST *tryCatch) {
     auto call = value().release()->as_access_chain();
     std::optional<Scope> catchScope = std::nullopt;
     auto last = tryCatch->tokens[tryCatch->tokens.size() - 1].get();
-    if(is_keyword(tryCatch->tokens[2].get(), "catch") && last->type() == LexTokenType::CompBody) {
+    if (is_keyword(tryCatch->tokens[2].get(), "catch") && last->type() == LexTokenType::CompBody) {
         catchScope.emplace(take_body(this, last));
     }
     // TODO catch variable not supported yet
-    nodes.emplace_back(new TryCatch(std::unique_ptr<FunctionCall>((FunctionCall*) call->values[0].release()), std::nullopt, std::move(catchScope)));
+    nodes.emplace_back(
+            new TryCatch(std::unique_ptr<FunctionCall>((FunctionCall *) call->values[0].release()), std::nullopt,
+                         std::move(catchScope)));
 }
 
 void CSTConverter::visit(PointerTypeCST *cst) {
@@ -617,7 +640,8 @@ void CSTConverter::visit(FunctionTypeCST *funcType) {
     bool is_capturing = is_char_op(funcType->tokens[0].get(), '[');
     auto params = function_params(funcType->tokens, is_capturing ? 3 : 1);
     visit(funcType->tokens, params.index + 2);
-    types.emplace_back(std::make_unique<FunctionType>(std::move(params.params), type(), params.isVariadic, is_capturing));
+    types.emplace_back(
+            std::make_unique<FunctionType>(std::move(params.params), type(), params.isVariadic, is_capturing));
 }
 
 
@@ -744,7 +768,8 @@ void sy_onRParen(ValueAndOperatorStack &op_stack, ValueAndOperatorStack &output)
  * it values, operators or parens in order to simulate a flattened CST
  * https://en.wikipedia.org/wiki/Shunting_yard_algorithm
  */
-void visitNestedExpr(CSTConverter *converter, CSTToken *expr, ValueAndOperatorStack &op_stack, ValueAndOperatorStack &output) {
+void visitNestedExpr(CSTConverter *converter, CSTToken *expr, ValueAndOperatorStack &op_stack,
+                     ValueAndOperatorStack &output) {
     if (expr->is_value()) {
         if (expr->type() != LexTokenType::CompExpression) {
             if (expr->type() == LexTokenType::CompFunctionCall) {
@@ -788,7 +813,7 @@ void visitNestedExpr(CSTConverter *converter, CSTToken *expr, ValueAndOperatorSt
             // push o1 onto the operator stack
             op_stack.putOperator(o1);
             // visiting the second value
-            if(is_char_op(nested->tokens[second_val_index].get(), '(')) {
+            if (is_char_op(nested->tokens[second_val_index].get(), '(')) {
                 op_stack.putCharacter('(');
                 visitNestedExpr(converter, nested->tokens[second_val_index + 1].get(), op_stack, output);
                 sy_onRParen(op_stack, output);

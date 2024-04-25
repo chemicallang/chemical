@@ -1,5 +1,6 @@
 // Copyright (c) Qinetik 2024.
 
+#include "FunctionParam.h"
 #include "ast/base/GlobalInterpretScope.h"
 #include "ast/types/FunctionType.h"
 
@@ -156,6 +157,10 @@ FunctionParam *FunctionParam::as_parameter() {
 
 std::string FunctionParam::representation() const {
     return name + " : " + type->representation();
+}
+
+std::unique_ptr<BaseType> FunctionParam::create_value_type() {
+    return std::unique_ptr<BaseType>(type->copy());
 }
 
 void FunctionParam::declare_and_link(SymbolResolver &linker) {

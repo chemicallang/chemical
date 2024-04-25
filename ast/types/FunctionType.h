@@ -3,7 +3,7 @@
 #pragma once
 
 #include "ast/base/BaseType.h"
-#include "ast/structures/FunctionDeclaration.h"
+#include "ast/structures/FunctionParam.h"
 
 class FunctionType : public BaseType {
 public:
@@ -25,16 +25,16 @@ public:
         return BaseTypeKind::Function;
     }
 
-    bool equal(FunctionType* other) const {
-        if(isVariadic != other->isVariadic) {
+    bool equal(FunctionType *other) const {
+        if (isVariadic != other->isVariadic) {
             return false;
         }
-        if(!returnType->is_same(other->returnType.get())) {
+        if (!returnType->is_same(other->returnType.get())) {
             return false;
         }
         unsigned i = 0;
-        while(i < params.size()) {
-            if(!params[i]->type->is_same(other->params[i]->type.get())) {
+        while (i < params.size()) {
+            if (!params[i]->type->is_same(other->params[i]->type.get())) {
                 return false;
             }
             i++;
@@ -43,7 +43,7 @@ public:
     }
 
     bool is_same(BaseType *other) const override {
-        return other->kind() == kind() && equal(static_cast<FunctionType*>(other));
+        return other->kind() == kind() && equal(static_cast<FunctionType *>(other));
     }
 
     bool satisfies(ValueType type) const override;

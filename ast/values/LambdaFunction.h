@@ -8,7 +8,7 @@
 
 #include "ast/base/Value.h"
 #include "ast/structures/Scope.h"
-#include "ast/structures/FunctionDeclaration.h"
+#include "ast/types/FunctionType.h"
 
 class FunctionDeclaration;
 

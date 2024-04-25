@@ -1,6 +1,7 @@
 // Copyright (c) Qinetik 2024.
 
 #include "ast/base/GlobalInterpretScope.h"
+#include "ast/structures/FunctionParam.h"
 
 /**
  * this is the type of function that can be inserted into global scope

@@ -1,6 +1,8 @@
 // Copyright (c) Qinetik 2024.
 
+#include "StructMember.h"
 #include "StructDefinition.h"
+#include "FunctionDeclaration.h"
 
 #ifdef COMPILER_BUILD
 

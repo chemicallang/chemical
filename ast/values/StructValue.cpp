@@ -1,6 +1,7 @@
 // Copyright (c) Qinetik 2024.
 
 #include "StructValue.h"
+#include "ast/structures/StructMember.h"
 
 #ifdef COMPILER_BUILD
 

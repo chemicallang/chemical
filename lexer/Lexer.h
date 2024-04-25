@@ -15,6 +15,7 @@
 #include "common/Diagnostic.h"
 #include "ast/base/BaseType.h"
 #include "ast/structures/StructDefinition.h"
+#include "ast/base/GlobalInterpretScope.h"
 #include <memory>
 #include <optional>
 #include <functional>

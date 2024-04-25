@@ -5,19 +5,25 @@
 //
 
 #include "lexer/Lexer.h"
+#include "cst/structures/InterfaceCST.h"
 
 void Lexer::lexInterfaceBlockTokens() {
+    lexWhitespaceToken();
+    lexNewLineChars();
     do {
         lexWhitespaceToken();
-        lexFunctionSignatureTokens() || lexVarInitializationTokens(true);
+        if(!lexVarInitializationTokens(true, true) && !lexFunctionStructureTokens(true)) {
+            break;
+        }
         lexWhitespaceToken();
         lexOperatorToken(';');
         lexWhitespaceToken();
-    } while (lexNewLineChars());
+    }while(lexNewLineChars());
 }
 
 bool Lexer::lexInterfaceStructureTokens() {
     if (lexKeywordToken("interface")) {
+        unsigned start = tokens.size() - 1;
         lexWhitespaceToken();
         if(!lexIdentifierToken()) {
             error("expected interface name after the interface keyword");
@@ -28,14 +34,13 @@ bool Lexer::lexInterfaceStructureTokens() {
             error("expected a '{' when starting an interface");
             return true;
         }
-        lexWhitespaceToken();
-        lexNewLineChars();
         lexInterfaceBlockTokens();
         lexWhitespaceToken();
         if (!lexOperatorToken('}')) {
             error("expected a '}' when ending an interface");
             return true;
         }
+        compound_from<InterfaceCST>(start);
         return true;
     }
     return false;

@@ -94,4 +94,11 @@ func test_nodes() {
         var y : myint = 5;
         return y == 5;
     })
+    test("can call functions declared below call", []() => {
+        return declared_below() == 1;
+    })
+}
+
+func declared_below() : int {
+    return 1;
 }

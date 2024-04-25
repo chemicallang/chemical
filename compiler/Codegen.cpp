@@ -30,6 +30,9 @@ void Codegen::module_init() {
 }
 
 void Codegen::compile() {
+    for(const auto& node : nodes) {
+        node->code_gen_declare(*this);
+    }
     for (const auto &node: nodes) {
         node->code_gen(*this);
         position++;

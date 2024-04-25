@@ -32,6 +32,9 @@ void ImportStatement::code_gen(Codegen &gen) {
             gen.error(diag->ansi_representation(abs_path, "Import"));
         });
 //        std::cout << "importing " << abs_path << std::endl;
+        for(const auto &node : ast) {
+            node->code_gen_declare(gen);
+        }
         for (const auto &node: ast) {
 //            std::cout << node->representation() << std::endl;
             node->code_gen(gen);

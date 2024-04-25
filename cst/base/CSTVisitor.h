@@ -42,6 +42,8 @@ class FunctionCST;
 
 class StructDefCST;
 
+class InterfaceCST;
+
 class TryCatchCST;
 
 class WhileCST;
@@ -187,6 +189,10 @@ public:
 
     virtual void visit(StructDefCST *structDef) {
         visitCompoundCommon((CompoundCSTToken *) structDef);
+    }
+
+    virtual void visit(InterfaceCST *interface) {
+        visitCompoundCommon((CompoundCSTToken *) interface);
     }
 
     virtual void visit(TryCatchCST *tryCatch) {

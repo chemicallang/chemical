@@ -11,6 +11,7 @@
 #include "ast/base/ASTNode.h"
 #include "ast/base/GlobalInterpretScope.h"
 #include "ast/base/Value.h"
+#include <map>
 
 class InterfaceDefinition : public ASTNode {
 public:
@@ -21,8 +22,11 @@ public:
      * @param name The name of the interface.
      * @param methods The methods declared in the interface.
      */
-    InterfaceDefinition(std::string name, std::vector<std::unique_ptr<ASTNode>> members)
-            : name(std::move(name)), members(std::move(members)) {}
+    InterfaceDefinition(
+            std::string name,
+            std::map<std::string, std::unique_ptr<StructMember>> variables,
+            std::map<std::string, std::unique_ptr<FunctionDeclaration>> functions
+    );
 
     void accept(Visitor &visitor) override {
         visitor.visit(this);
@@ -37,21 +41,9 @@ public:
         return false;
     }
 
-    std::string representation() const override {
-        std::string ret("interface " + name + " {\n");
-        auto i = 0;
-        while(i < members.size()) {
-            ret.append(members[i]->representation());
-            if(i < members.size() - 1) {
-                ret.append(1, '\n');
-            }
-            i++;
-        }
-        ret.append("\n}");
-        return ret;
-    }
+    std::string representation() const override;
 
-private:
     std::string name; ///< The name of the interface.
-    std::vector<std::unique_ptr<ASTNode>> members; ///< The methods declared in the interface.
+    std::map<std::string, std::unique_ptr<StructMember>> variables; ///< The members of the struct.
+    std::map<std::string, std::unique_ptr<FunctionDeclaration>> functions;
 };

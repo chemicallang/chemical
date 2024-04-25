@@ -296,6 +296,7 @@ set(COMMON_SOURCES
         cst/structures/EnumDeclCST.h
         cst/structures/ForLoopCST.h
         cst/structures/StructDefCST.h
+        cst/structures/InterfaceCST.h
         cst/structures/WhileCST.h
         cst/structures/TryCatchCST.h
         cst/CSTConvert.cpp
@@ -325,6 +326,9 @@ set(COMMON_SOURCES
         ast/values/AddrOfValue.h
         ast/values/AddrOfValue.cpp
         ast/values/DerferenceValue.cpp
+        ast/structures/InterfaceDefinition.cpp
+        ast/structures/StructMember.h
+        ast/structures/FunctionParam.h
 )
 
 # Chemical LSP Executable Target

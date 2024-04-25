@@ -77,6 +77,12 @@ public:
     StructDefinition *current_struct_decl = nullptr;
 
     /**
+     * This is a pointer to current interface declaration
+     * All nodes being parsed belong to this interface
+     */
+    InterfaceDefinition* current_interface_decl = nullptr;
+
+    /**
      * The current loop node
      * All nodes being parsed belong this loop's body
      */
@@ -170,6 +176,8 @@ public:
     void visit(DoWhileCST *doWhileCst) override;
 
     void visit(StructDefCST *structDef) override;
+
+    void visit(InterfaceCST *interface) override;
 
     void visit(TryCatchCST *tryCatch) override;
 

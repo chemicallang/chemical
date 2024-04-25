@@ -7,7 +7,6 @@
 #pragma once
 
 #include <utility>
-#include "ast/structures/FunctionDeclaration.h"
 #include "ast/base/Value.h"
 #include "ast/statements/VarInit.h"
 #include "ast/utils/ExpressionEvaluator.h"

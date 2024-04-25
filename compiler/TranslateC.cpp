@@ -10,6 +10,7 @@
 #include "ast/base/ASTNode.h"
 #include "ast/base/BaseType.h"
 #include <memory>
+#include "ast/structures/FunctionParam.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/types/IntNType.h"
 #include "ast/types/VoidType.h"

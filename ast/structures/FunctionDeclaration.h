@@ -108,6 +108,8 @@ public:
 
     void code_gen(Codegen &gen) override;
 
+    void code_gen_declare(Codegen &gen) override;
+
 #endif
 
     void declare_top_level(SymbolResolver &linker) override;

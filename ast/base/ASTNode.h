@@ -219,6 +219,16 @@ public:
     }
 
     /**
+     * this can be overridden if node intends to declare itself before generating code for it
+     * functions generate code for just prototype and an empty entry block
+     * when code_gen is called, functions generate code for their bodies
+     * this means that functions that are declared below the current function can be called by the calls inside the bodies of functions above
+     */
+    virtual void code_gen_declare(Codegen &gen) {
+        // node can declare itself
+    }
+
+    /**
      * instead of calling code_gen, this function can be called, to provide more information
      * so that code generation can be better
      * for example if statement needs to know whether this is the last node, so that it can

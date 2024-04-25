@@ -70,21 +70,30 @@ llvm::FunctionType *FunctionDeclaration::function_type(Codegen &gen) {
 }
 
 void FunctionDeclaration::code_gen(Codegen &gen) {
+    if(body.has_value()) {
+        gen.current_function = (llvm::Function*) funcCallee;
+        gen.SetInsertPoint(&gen.current_function->getEntryBlock());
+        body->code_gen(gen);
+        gen.end_function_block();
+        gen.current_function = nullptr;
+    }
+}
+
+void FunctionDeclaration::code_gen_declare(Codegen &gen) {
     if (body.has_value()) {
         auto func = gen.create_function(name, function_type(gen), specifier);
         funcType = func->getFunctionType();
         funcCallee = func;
-        body->code_gen(gen);
-        gen.end_function_block();
-        gen.current_function = nullptr;
     } else {
         auto callee = gen.declare_function(name, function_type(gen));
         funcType = callee.getFunctionType();
         funcCallee = callee.getCallee();
     }
+    gen.current_function = nullptr;
 }
 
 void FunctionDeclaration::code_gen_struct(Codegen &gen) {
+    code_gen_declare(gen);
     code_gen(gen);
 }
 

@@ -75,12 +75,15 @@ func test_nodes() {
          };
         return p.sum(5, 6) == 11;
     });
+    test("direct calls to struct functions", []() => {
+        return Point.sum(6, 6) == 12;
+    });
     test("struct functions with self ref", []() => {
          var p = Point {
-             x : 5,
+             x : 7,
              y : 6
          };
-        return p.sumP() == 11;
+        return p.sumP() == 13;
     });
     test("test array", []() => {
         var arr = {2,4,6,8,10};

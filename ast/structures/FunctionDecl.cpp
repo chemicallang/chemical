@@ -93,6 +93,11 @@ void FunctionDeclaration::code_gen_declare(Codegen &gen) {
     gen.current_function = nullptr;
 }
 
+void FunctionDeclaration::code_gen_interface(Codegen &gen) {
+    code_gen_declare(gen);
+    code_gen(gen);
+}
+
 void FunctionDeclaration::code_gen_struct(Codegen &gen) {
     code_gen_declare(gen);
     code_gen(gen);

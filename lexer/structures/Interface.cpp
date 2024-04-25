@@ -12,9 +12,7 @@ void Lexer::lexInterfaceBlockTokens() {
     lexNewLineChars();
     do {
         lexWhitespaceToken();
-        if(!lexVarInitializationTokens(true, true) && !lexFunctionStructureTokens(true)) {
-            break;
-        }
+        lexVarInitializationTokens(true, true) || lexFunctionStructureTokens(true);
         lexWhitespaceToken();
         lexOperatorToken(';');
         lexWhitespaceToken();

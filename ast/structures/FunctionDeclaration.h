@@ -50,6 +50,11 @@ public:
      */
     void code_gen_struct(Codegen &gen);
 
+    /**
+     * called by interface when the function is inside a interface
+     */
+    void code_gen_interface(Codegen &gen);
+
     void code_gen(Codegen &gen) override;
 
     void code_gen_declare(Codegen &gen) override;

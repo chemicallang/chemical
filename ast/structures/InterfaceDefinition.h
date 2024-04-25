@@ -11,9 +11,10 @@
 #include "ast/base/ASTNode.h"
 #include "ast/base/GlobalInterpretScope.h"
 #include "ast/base/Value.h"
+#include "MembersContainer.h"
 #include <map>
 
-class InterfaceDefinition : public ASTNode {
+class InterfaceDefinition : public MembersContainer {
 public:
 
     /**
@@ -23,9 +24,7 @@ public:
      * @param methods The methods declared in the interface.
      */
     InterfaceDefinition(
-            std::string name,
-            std::map<std::string, std::unique_ptr<StructMember>> variables,
-            std::map<std::string, std::unique_ptr<FunctionDeclaration>> functions
+            std::string name
     );
 
     void accept(Visitor &visitor) override {
@@ -36,14 +35,13 @@ public:
         linker.current[name] = this;
     }
 
-    bool verify(InterpretScope &scope, const std::string& name, const std::vector<std::unique_ptr<VarInitStatement>>& members) {
-        scope.error("Not implemented verifying struct definition with interface");
-        return false;
-    }
+#ifdef COMPILER_BUILD
+
+    void code_gen(Codegen &gen) override;
+
+#endif
 
     std::string representation() const override;
 
     std::string name; ///< The name of the interface.
-    std::map<std::string, std::unique_ptr<StructMember>> variables; ///< The members of the struct.
-    std::map<std::string, std::unique_ptr<FunctionDeclaration>> functions;
 };

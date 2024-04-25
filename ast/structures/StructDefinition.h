@@ -9,10 +9,11 @@
 #include <utility>
 
 #include "ast/base/ASTNode.h"
+#include "MembersContainer.h"
 #include <optional>
 #include <map>
 
-class StructDefinition : public ASTNode {
+class StructDefinition : public MembersContainer {
 public:
 
     /**
@@ -23,8 +24,6 @@ public:
      */
     StructDefinition(
             std::string name,
-            std::map<std::string, std::unique_ptr<StructMember>> fields,
-            std::map<std::string, std::unique_ptr<FunctionDeclaration>> functions,
             std::optional<std::string> overrides
     );
 
@@ -32,15 +31,7 @@ public:
 
     void declare_top_level(SymbolResolver &linker) override;
 
-    void declare_and_link(SymbolResolver &linker) override;
-
     StructDefinition *as_struct_def() override;
-
-    FunctionDeclaration *member(const std::string &name);
-
-    ASTNode *child(const std::string &name) override;
-
-    int child_index(const std::string &name) override;
 
     bool type_check(InterpretScope &scope);
 
@@ -54,10 +45,6 @@ public:
 
     llvm::Type *llvm_type(Codegen &gen) override;
 
-    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
-
-    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, unsigned int index) override;
-
     void code_gen(Codegen &gen) override;
 
 #endif
@@ -67,6 +54,4 @@ public:
     InterpretScope *decl_scope;
     std::string name; ///< The name of the struct.
     std::optional<std::string> overrides;
-    std::map<std::string, std::unique_ptr<StructMember>> variables; ///< The members of the struct.
-    std::map<std::string, std::unique_ptr<FunctionDeclaration>> functions;
 };

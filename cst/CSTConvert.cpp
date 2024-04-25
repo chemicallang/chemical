@@ -584,7 +584,7 @@ void CSTConverter::visit(StructDefCST *structDef) {
         overrides.emplace(str_token(structDef->tokens[4].get()));
     }
     unsigned i = has_override ? 5 : 3; // positioned at first node or '}'
-    auto def = new StructDefinition(str_token(structDef->tokens[1].get()), {}, {}, std::move(overrides));
+    auto def = new StructDefinition(str_token(structDef->tokens[1].get()), std::move(overrides));
     current_struct_decl = def;
     collect_struct_members(this, structDef->tokens, def->variables, def->functions, i);
     current_struct_decl = nullptr;
@@ -592,7 +592,7 @@ void CSTConverter::visit(StructDefCST *structDef) {
 }
 
 void CSTConverter::visit(InterfaceCST *interface) {
-    auto def = new InterfaceDefinition(str_token(interface->tokens[1].get()), {}, {});
+    auto def = new InterfaceDefinition(str_token(interface->tokens[1].get()));
     unsigned i = 3; // positioned at first node or '}'
     current_interface_decl = def;
     collect_struct_members(this, interface->tokens, def->variables, def->functions, i);

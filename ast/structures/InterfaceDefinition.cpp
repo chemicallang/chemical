@@ -3,11 +3,19 @@
 #include "InterfaceDefinition.h"
 #include "StructMember.h"
 
+#ifdef COMPILER_BUILD
+
+void InterfaceDefinition::code_gen(Codegen &gen) {
+    for(auto& function : functions) {
+        function.second->code_gen_interface(gen);
+    }
+}
+
+#endif
+
 InterfaceDefinition::InterfaceDefinition(
-        std::string name,
-        std::map<std::string, std::unique_ptr<StructMember>> variables,
-        std::map<std::string, std::unique_ptr<FunctionDeclaration>> functions
-) : name(std::move(name)), variables(std::move(variables)), functions(std::move(functions)) {
+        std::string name
+) : name(std::move(name)) {
 
 }
 

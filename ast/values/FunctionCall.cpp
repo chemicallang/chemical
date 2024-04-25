@@ -1,14 +1,14 @@
 // Copyright (c) Qinetik 2024.
 
 #include "FunctionCall.h"
+#include "ast/types/FunctionType.h"
 
 #ifdef COMPILER_BUILD
 
 #include "compiler/llvmimpl.h"
 
-std::vector<llvm::Value*> to_llvm_args(Codegen& gen, FunctionCall* call, std::vector<std::unique_ptr<Value>>& values, bool isVariadic) {
-    std::vector<llvm::Value *> args(values.size());
-    for (size_t i = 0; i < values.size(); ++i) {
+void to_llvm_args(Codegen& gen, FunctionCall* call, std::vector<std::unique_ptr<Value>>& values, bool isVariadic, std::vector<llvm::Value *>& args, unsigned int start = 0) {
+    for (size_t i = start; i < values.size(); ++i) {
         args[i] = values[i]->llvm_arg_value(gen, call, i);
         // Ensure proper type promotion for float values passed to printf
         if (isVariadic && llvm::isa<llvm::ConstantFP>(args[i]) &&
@@ -16,6 +16,11 @@ std::vector<llvm::Value*> to_llvm_args(Codegen& gen, FunctionCall* call, std::ve
             args[i] = gen.builder->CreateFPExt(args[i], llvm::Type::getDoubleTy(*gen.ctx));
         }
     }
+}
+
+inline std::vector<llvm::Value*> to_llvm_args(Codegen& gen, FunctionCall* call, std::vector<std::unique_ptr<Value>>& values, bool isVariadic) {
+    std::vector<llvm::Value *> args(values.size());
+    to_llvm_args(gen, call, values, isVariadic, args, 0);
     return args;
 }
 
@@ -23,16 +28,39 @@ llvm::Type *FunctionCall::llvm_type(Codegen &gen) {
     return linked->as_function()->returnType->llvm_type(gen);
 }
 
-llvm::Value *FunctionCall::llvm_value(Codegen &gen) {
-    auto fn = gen.module->getFunction(name);
+llvm::Value* call_with_args(FunctionCall* call, llvm::Function* fn, Codegen &gen, std::vector<llvm::Value*>& args) {
     if(fn != nullptr) {
-        auto args = to_llvm_args(gen, this, values, fn->isVarArg());
         return gen.builder->CreateCall(fn, args);
     } else {
-        // TODO hardcoded false to isVariadic
-        auto args = to_llvm_args(gen, this, values, false);
-        return gen.builder->CreateCall((llvm::FunctionType*) linked->llvm_type(gen), linked->llvm_pointer(gen), args);
+        return gen.builder->CreateCall((llvm::FunctionType*) call->linked->llvm_type(gen),  call->linked->llvm_pointer(gen), args);
     }
+}
+
+llvm::Value *FunctionCall::llvm_value(Codegen &gen) {
+    std::vector<llvm::Value *> args(values.size());
+
+    auto fn = gen.module->getFunction(name);
+    // TODO hardcoded isVarArg when can't get the function
+    to_llvm_args(gen, this, values, fn != nullptr && fn->isVarArg(), args, 0);
+
+    return call_with_args(this, fn, gen,  args);
+}
+
+llvm::Value* FunctionCall::llvm_value(Codegen &gen, std::vector<std::unique_ptr<Value>>& chain) {
+    auto decl = linked->as_function();
+    auto requires_self = decl != nullptr && !decl->params.empty() && (decl->params[0]->name == "this" || decl->params[0]->name == "self");
+    std::vector<llvm::Value *> args(values.size() + (requires_self ? 1 : 0));
+
+    // a pointer to parent
+    if(requires_self) {
+        args[0] = chain[chain.size() - 2]->llvm_pointer(gen);
+    }
+
+    auto fn = gen.module->getFunction(name);
+    // TODO hardcoded isVarArg when can't get the function
+    to_llvm_args(gen, this, values, fn != nullptr && fn->isVarArg(), args, requires_self ? 1 :0);
+
+    return call_with_args(this, fn, gen,  args);
 }
 
 llvm::InvokeInst *FunctionCall::llvm_invoke(Codegen &gen, llvm::BasicBlock* normal, llvm::BasicBlock* unwind) {

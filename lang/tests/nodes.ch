@@ -68,12 +68,19 @@ func test_nodes() {
         };
         return p.x == 5 && p.y == 6;
     });
-    test("struct functions without self ref work", []() => {
+    test("struct functions without self ref", []() => {
          var p = Point {
              x : 0,
              y : 0
          };
         return p.sum(5, 6) == 11;
+    });
+    test("struct functions with self ref", []() => {
+         var p = Point {
+             x : 5,
+             y : 6
+         };
+        return p.sumP() == 11;
     });
     test("test array", []() => {
         var arr = {2,4,6,8,10};

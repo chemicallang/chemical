@@ -8,6 +8,7 @@
 #include "compiler/llvmimpl.h"
 #include "compiler/Codegen.h"
 #include "ast/types/PointerType.h"
+#include "ast/values/FunctionCall.h"
 
 void AccessChain::code_gen(Codegen &gen) {
     llvm_value(gen);
@@ -22,7 +23,7 @@ llvm::Value *AccessChain::llvm_value(Codegen &gen) {
         return values[0]->llvm_value(gen);
     }
     if(values[values.size() - 1]->as_func_call() != nullptr) {
-        return values[values.size() - 1]->llvm_value(gen);
+        return values[values.size() - 1]->as_func_call()->llvm_value(gen, values);
     } else {
         return gen.builder->CreateLoad(values[values.size() - 1]->llvm_type(gen), llvm_pointer(gen), "acc");
     }

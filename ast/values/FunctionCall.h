@@ -61,6 +61,8 @@ public:
 
     llvm::Value * llvm_pointer(Codegen &gen) override;
 
+    llvm::Value* llvm_value(Codegen &gen, std::vector<std::unique_ptr<Value>>& chain);
+
 #endif
 
     std::string representation() const override;

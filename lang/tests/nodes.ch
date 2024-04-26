@@ -15,6 +15,7 @@ struct Point : Calculator {
     var x : int
     var y : int
 
+    // add override keyword to indicate its overriding function present above
     func sum(x : int, y : int) : int {
         return x + y;
     }

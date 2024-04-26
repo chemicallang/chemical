@@ -64,7 +64,9 @@
 #include "cst/structures/InterfaceCST.h"
 #include "ast/structures/WhileLoop.h"
 #include "ast/values/StructValue.h"
+#include "ast/structures/ImplDefinition.h"
 #include "cst/structures/WhileCST.h"
+#include "cst/structures/ImplCST.h"
 #include "ast/structures/DoWhileLoop.h"
 #include "cst/structures/DoWhileCST.h"
 #include "ast/statements/Continue.h"
@@ -602,6 +604,15 @@ void CSTConverter::visit(InterfaceCST *interface) {
     current_interface_decl = def;
     collect_struct_members(this, interface->tokens, def->variables, def->functions, i);
     current_interface_decl = nullptr;
+    nodes.emplace_back(def);
+}
+
+void CSTConverter::visit(ImplCST *impl) {
+    auto def = new ImplDefinition(str_token(impl->tokens[1].get()), std::nullopt);
+    unsigned i = 3; // positioned at first node or '}'
+    current_impl_decl = def;
+    collect_struct_members(this, impl->tokens, def->variables, def->functions, i);
+    current_impl_decl = nullptr;
     nodes.emplace_back(def);
 }
 

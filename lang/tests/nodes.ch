@@ -4,10 +4,18 @@ interface Calculator {
 
     func sum(x : int, y : int) : int
 
+    func divide(x : int, y : int) : int;
+
     func multiply(x : int, y : int) : int {
         return x * y;
     }
 
+}
+
+impl Calculator {
+    func divide(x : int, y : int) : int {
+        return x / y;
+    }
 }
 
 struct Point : Calculator {
@@ -121,6 +129,16 @@ func test_nodes() {
          };
         return p.multiply(5, 5) == 25;
     });
+    test("can call implemented impl functions directly", []() => {
+        return Calculator.divide(5, 5) == 1;
+    })
+    test("can call implemented impl functions using struct value", []() => {
+         var p = Point {
+             x : 7,
+             y : 6
+         };
+        return p.divide(10, 5) == 2;
+    })
 }
 
 func declared_below() : int {

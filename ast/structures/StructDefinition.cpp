@@ -149,23 +149,7 @@ std::string StructDefinition::representation() const {
     } else {
         ret.append("{\n");
     }
-    int i = 0;
-    for (const auto &field: variables) {
-        ret.append(field.second->representation());
-        if (i < variables.size() - 1) {
-            ret.append(1, '\n');
-        }
-        i++;
-    }
-    ret.append("\n}");
-    i = 0;
-    for (const auto &field: functions) {
-        ret.append(field.second->representation());
-        if (i < variables.size() - 1) {
-            ret.append(1, '\n');
-        }
-        i++;
-    }
+    ret.append(MembersContainer::representation());
     ret.append("\n}");
     return ret;
 }

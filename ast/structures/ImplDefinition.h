@@ -11,7 +11,7 @@
 #include "ast/base/Value.h"
 #include "ast/structures/InterfaceDefinition.h"
 
-class ImplDefinition : public ASTNode {
+class ImplDefinition : public MembersContainer {
 public:
 
     /**
@@ -21,10 +21,9 @@ public:
      * @param fields The members of the struct.
      */
     ImplDefinition(
-            std::string struct_name,
             std::string interface_name,
-            std::vector<std::unique_ptr<ASTNode>> fields
-    ) : struct_name(std::move(struct_name)), interface_name(std::move(interface_name)), members(std::move(fields)) {}
+            std::optional<std::string> struct_name
+    ) : struct_name(std::move(struct_name)), interface_name(std::move(interface_name)) {}
 
     void accept(Visitor &visitor) override {
         visitor.visit(this);
@@ -49,26 +48,26 @@ public:
         return true;
     }
 
+#ifdef COMPILER_BUILD
+
+    void code_gen(Codegen &gen) override;
+
+#endif
+
+    void declare_and_link(SymbolResolver &linker) override;
+
     void interpret(InterpretScope &scope) override {
         type_check(scope);
     }
 
     std::string representation() const override {
-        std::string ret("impl " + interface_name + " for " + struct_name + " {\n");
-        int i = 0;
-        while (i < members.size()) {
-            ret.append(members[i]->representation());
-            if (i < members.size() - 1) {
-                ret.append(1, '\n');
-            }
-            i++;
-        }
+        std::string ret("impl " + interface_name + " {\n");
+        ret.append(MembersContainer::representation());
         ret.append("\n}");
         return ret;
     }
 
-private:
-    std::string struct_name; ///< The name of the struct.
+    ASTNode* linked;
+    std::optional<std::string> struct_name; ///< The name of the struct.
     std::string interface_name;
-    std::vector<std::unique_ptr<ASTNode>> members; ///< The members of the struct.
 };

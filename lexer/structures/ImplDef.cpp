@@ -5,35 +5,36 @@
 //
 
 #include "lexer/Lexer.h"
+#include "cst/structures/ImplCST.h"
 
 void Lexer::lexImplBlockTokens() {
     do {
         lexWhitespaceToken();
-        lexFunctionStructureTokens() || lexVarInitializationTokens();
+        lexFunctionStructureTokens() || lexSingleLineCommentTokens() || lexMultiLineCommentTokens();
         lexWhitespaceToken();
         lexOperatorToken(';');
         lexWhitespaceToken();
-    } while (lexNewLineChars());
+        lexNewLineChars();
+    } while(provider.peek() != '}');
 }
 
 bool Lexer::lexImplTokens() {
     if (lexKeywordToken("impl")) {
+        auto start = tokens.size() - 1;
         lexWhitespaceToken();
         if(!lexIdentifierToken()) {
             error("expected interface name after the interface keyword in implementation");
             return true;
         }
         lexWhitespaceToken();
-        if(!lexKeywordToken("for")) {
-            error("expected 'for' in impl block after interface name");
-            return true;
+        if(lexKeywordToken("for")) {
+            lexWhitespaceToken();
+            if(!lexIdentifierToken()) {
+                error("expected a struct name after the 'for' keyword in implementation");
+                return true;
+            }
+            lexWhitespaceToken();
         }
-        lexWhitespaceToken();
-        if(!lexIdentifierToken()) {
-            error("expected a struct name after the 'for' keyword in implementation");
-            return true;
-        }
-        lexWhitespaceToken();
         if (!lexOperatorToken('{')) {
             error("expected a '{' when starting an implementation");
             return true;
@@ -41,11 +42,11 @@ bool Lexer::lexImplTokens() {
         lexWhitespaceToken();
         lexNewLineChars();
         lexImplBlockTokens();
-        lexWhitespaceAndNewLines();
         if (!lexOperatorToken('}')) {
             error("expected a '}' when ending an implementation");
             return true;
         }
+        compound_from<ImplCST>(start);
         return true;
     }
     return false;

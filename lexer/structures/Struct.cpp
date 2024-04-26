@@ -21,7 +21,8 @@ bool Lexer::lexStructBlockTokens() {
             lexWhitespaceToken();
             lexOperatorToken(';');
             lexWhitespaceToken();
-        }while(lexNewLineChars());
+            lexNewLineChars();
+        } while(provider.peek() != '}');
         lexWhitespaceToken();
         if(!lexOperatorToken('}')) {
             error("expected a closing bracket '}' in enum block");

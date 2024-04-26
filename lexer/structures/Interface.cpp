@@ -16,7 +16,8 @@ void Lexer::lexInterfaceBlockTokens() {
         lexWhitespaceToken();
         lexOperatorToken(';');
         lexWhitespaceToken();
-    }while(lexNewLineChars());
+        lexNewLineChars();
+    } while(provider.peek() != '}');
 }
 
 bool Lexer::lexInterfaceStructureTokens() {

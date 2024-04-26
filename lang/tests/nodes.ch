@@ -2,7 +2,7 @@ import "test.ch"
 
 interface Calculator {
 
-    func sum(x : int, y : int) : int;
+    func sum(x : int, y : int) : int
 
     func multiply(x : int, y : int) : int {
         return x * y;

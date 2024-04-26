@@ -39,10 +39,10 @@ void Lexer::lexMultipleStatementsTokens() {
 
 bool Lexer::lexBraceBlock(const std::string& forThing) {
 
-    unsigned start = tokens.size();
-
     // whitespace and new lines
     lexWhitespaceAndNewLines();
+
+    unsigned start = tokens.size();
 
     // starting brace
     if (!lexOperatorToken('{')) {

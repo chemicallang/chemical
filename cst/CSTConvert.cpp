@@ -554,6 +554,11 @@ unsigned int collect_struct_members(
 
         tokens[i]->accept(conv);
         auto is_var_init = tokens[i]->is_var_init();
+        auto is_func_decl = tokens[i]->is_func_decl();
+        if(!is_var_init && !is_func_decl) {
+            i++;
+            continue;
+        }
         auto node = conv->nodes.back().release();
         conv->nodes.pop_back();
         if (is_var_init) {
@@ -579,12 +584,12 @@ unsigned int collect_struct_members(
 
 void CSTConverter::visit(StructDefCST *structDef) {
     std::optional<std::string> overrides = std::nullopt;
-    auto has_override = is_char_op(structDef->tokens[3].get(), ':');
+    auto has_override = is_char_op(structDef->tokens[2].get(), ':');
     if (has_override) {
-        overrides.emplace(str_token(structDef->tokens[4].get()));
+        overrides.emplace(str_token(structDef->tokens[3].get()));
     }
     unsigned i = has_override ? 5 : 3; // positioned at first node or '}'
-    auto def = new StructDefinition(str_token(structDef->tokens[1].get()), std::move(overrides));
+    auto def = new StructDefinition(str_token(structDef->tokens[1].get()), overrides);
     current_struct_decl = def;
     collect_struct_members(this, structDef->tokens, def->variables, def->functions, i);
     current_struct_decl = nullptr;

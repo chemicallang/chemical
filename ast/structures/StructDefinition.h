@@ -13,6 +13,8 @@
 #include <optional>
 #include <map>
 
+class ReferencedType;
+
 class StructDefinition : public MembersContainer {
 public:
 
@@ -24,12 +26,14 @@ public:
      */
     StructDefinition(
             std::string name,
-            std::optional<std::string> overrides
+            const std::optional<std::string>& overrides
     );
 
     void accept(Visitor &visitor) override;
 
     void declare_top_level(SymbolResolver &linker) override;
+
+    void declare_and_link(SymbolResolver &linker) override;
 
     StructDefinition *as_struct_def() override;
 
@@ -53,5 +57,5 @@ public:
 
     InterpretScope *decl_scope;
     std::string name; ///< The name of the struct.
-    std::optional<std::string> overrides;
+    std::optional<std::unique_ptr<ReferencedType>> overrides;
 };

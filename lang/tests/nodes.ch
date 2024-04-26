@@ -2,13 +2,15 @@ import "test.ch"
 
 interface Calculator {
 
+    func sum(x : int, y : int) : int;
+
     func multiply(x : int, y : int) : int {
         return x * y;
-    }
+    };
 
 }
 
-struct Point {
+struct Point : Calculator {
 
     var x : int
     var y : int
@@ -107,6 +109,9 @@ func test_nodes() {
     })
     test("can call interface defined functions directly", []() => {
         return Calculator.multiply(5, 5) == 25;
+    })
+    test("can call interface declared functions directly", []() => {
+        return Calculator.sum(5, 5) == 10;
     })
 }
 

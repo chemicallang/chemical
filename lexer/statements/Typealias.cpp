@@ -20,6 +20,7 @@ bool Lexer::lexTypealiasStatement() {
         } else {
             error("expected a type for typealias statement");
         }
+        return true;
     } else {
         return false;
     }

@@ -6,7 +6,7 @@ interface Calculator {
 
     func multiply(x : int, y : int) : int {
         return x * y;
-    };
+    }
 
 }
 

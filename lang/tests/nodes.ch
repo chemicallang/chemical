@@ -114,6 +114,13 @@ func test_nodes() {
     test("can call interface declared functions directly", []() => {
         return Calculator.sum(5, 5) == 10;
     })
+    test("call interface method from overridden struct value", []() => {
+         var p = Point {
+             x : 7,
+             y : 6
+         };
+        return p.multiply(5, 5) == 25;
+    });
 }
 
 func declared_below() : int {

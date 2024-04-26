@@ -43,6 +43,8 @@ public:
 
     void interpret_scope_ends(InterpretScope &scope) override;
 
+    ASTNode *child(const std::string &name) override;
+
 #ifdef COMPILER_BUILD
 
     std::vector<llvm::Type *> elements_type(Codegen &gen);

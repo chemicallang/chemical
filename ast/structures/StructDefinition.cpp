@@ -119,6 +119,15 @@ void StructDefinition::interpret_scope_ends(InterpretScope &scope) {
     decl_scope = nullptr;
 }
 
+ASTNode* StructDefinition::child(const std::string &name) {
+    auto node = MembersContainer::child(name);
+    if(node) {
+        return node;
+    } else if(overrides.has_value()) {
+        return overrides.value()->linked->child(name);
+    };
+}
+
 #ifdef COMPILER_BUILD
 
 std::vector<llvm::Type *> StructDefinition::elements_type(Codegen &gen) {

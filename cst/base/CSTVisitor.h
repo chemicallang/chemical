@@ -104,6 +104,8 @@ class StringToken;
 
 class LambdaCST;
 
+class ImplCST;
+
 class NumberToken;
 
 class BoolToken;
@@ -245,6 +247,10 @@ public:
 
     virtual void visit(FunctionCallCST *call) {
         visitCompoundCommon((CompoundCSTToken *) call);
+    }
+
+    virtual void visit(ImplCST *impl) {
+        visitCompoundCommon((CompoundCSTToken *) impl);
     }
 
     virtual void visit(IndexOpCST *op) {

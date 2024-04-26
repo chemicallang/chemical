@@ -331,6 +331,8 @@ set(COMMON_SOURCES
         ast/structures/FunctionParam.h
         ast/structures/MembersContainer.h
         ast/structures/MembersContainer.cpp
+        cst/structures/ImplCST.h
+        ast/structures/ImplDefinition.cpp
 )
 
 # Chemical LSP Executable Target

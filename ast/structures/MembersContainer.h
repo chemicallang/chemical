@@ -25,6 +25,8 @@ public:
 
 #endif
 
+    std::string representation() const;
+
     std::map<std::string, std::unique_ptr<StructMember>> variables; ///< The members of the struct.
     std::map<std::string, std::unique_ptr<FunctionDeclaration>> functions;
 

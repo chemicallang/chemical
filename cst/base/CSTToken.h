@@ -60,6 +60,13 @@ public:
     }
 
     /**
+     * check if this token is a compound function declaration
+     */
+    bool is_func_decl() {
+        return type() == LexTokenType::CompFunction;
+    }
+
+    /**
      * check if this cst token is a struct value
      */
     bool is_struct_value() {

@@ -3,6 +3,7 @@
 #include "StructMember.h"
 #include "StructDefinition.h"
 #include "FunctionDeclaration.h"
+#include "ast/types/ReferencedType.h"
 
 #ifdef COMPILER_BUILD
 
@@ -10,6 +11,17 @@
 
 void StructDefinition::code_gen(Codegen &gen) {
     for(auto& function : functions) {
+        if(overrides.has_value()) {
+            auto interface = overrides.value()->linked_node();
+            auto overridden = interface->child(function.second->name);
+            if(overridden) {
+                auto fn = overridden->as_function();
+                if(fn) {
+                    fn->code_gen_override(gen, function.second.get());
+                    continue;
+                }
+            }
+        }
         function.second->code_gen_struct(gen);
     }
 }
@@ -71,8 +83,14 @@ std::string StructMember::representation() const {
 
 StructDefinition::StructDefinition(
         std::string name,
-        std::optional<std::string> overrides
-) : name(std::move(name)), overrides(std::move(overrides)) {}
+        const std::optional<std::string>& overrides
+) : name(std::move(name)) {
+    if(overrides.has_value()) {
+        this->overrides = std::make_unique<ReferencedType>(overrides.value());
+    } else {
+        this->overrides = std::nullopt;
+    }
+}
 
 void StructDefinition::accept(Visitor &visitor) {
     visitor.visit(this);
@@ -80,6 +98,13 @@ void StructDefinition::accept(Visitor &visitor) {
 
 void StructDefinition::declare_top_level(SymbolResolver &linker) {
     linker.current[name] = this;
+}
+
+void StructDefinition::declare_and_link(SymbolResolver &linker) {
+    if(overrides.has_value()) {
+        overrides.value()->link(linker);
+    }
+    MembersContainer::declare_and_link(linker);
 }
 
 StructDefinition *StructDefinition::as_struct_def() {
@@ -111,7 +136,7 @@ std::vector<llvm::Type *> StructDefinition::elements_type(Codegen &gen) {
 std::string StructDefinition::representation() const {
     std::string ret("struct " + name + " ");
     if (overrides.has_value()) {
-        ret.append(": " + overrides.value() + " {\n");
+        ret.append(": " + overrides.value()->representation() + " {\n");
     } else {
         ret.append("{\n");
     }

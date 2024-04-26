@@ -105,7 +105,9 @@ bool Lexer::lexAfterFuncKeyword() {
 
     if(lexOperatorToken(':')) {
         lexWhitespaceToken();
-        lexTypeTokens();
+        if(!lexTypeTokens()) {
+            error("expected a return type for function after ':'");
+        }
     }
 
     return true;

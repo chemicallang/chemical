@@ -17,6 +17,7 @@
 #include "clang/Frontend/CompilerInvocation.h"
 #include "clang/Tooling/Tooling.h"
 #include "stream/StreamSourceProvider.h"
+#include "utils/Utils.h"
 #include <clang/Frontend/CompilerInstance.h>
 #include <clang/Frontend/FrontendActions.h>
 #include <clang/Lex/PreprocessorOptions.h>

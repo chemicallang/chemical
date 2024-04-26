@@ -70,9 +70,9 @@ llvm::FunctionType *FunctionDeclaration::function_type(Codegen &gen) {
     }
 }
 
-void FunctionDeclaration::code_gen(Codegen &gen) {
+void body_gen(Codegen &gen, llvm::Function* funcCallee, std::optional<LoopScope>& body) {
     if(body.has_value()) {
-        gen.current_function = (llvm::Function*) funcCallee;
+        gen.current_function = funcCallee;
         gen.SetInsertPoint(&gen.current_function->getEntryBlock());
         body->code_gen(gen);
         gen.end_function_block();
@@ -80,22 +80,41 @@ void FunctionDeclaration::code_gen(Codegen &gen) {
     }
 }
 
+void FunctionDeclaration::code_gen(Codegen &gen) {
+    body_gen(gen, (llvm::Function*) funcCallee, body);
+}
+
+void create_fn(Codegen& gen, FunctionDeclaration *decl) {
+    auto func = gen.create_function(decl->name, decl->function_type(gen), decl->specifier);
+    decl->funcType = func->getFunctionType();
+    decl->funcCallee = func;
+}
+
+void declare_fn(Codegen& gen, FunctionDeclaration *decl) {
+    auto callee = gen.declare_function(decl->name, decl->function_type(gen));
+    decl->funcType = callee.getFunctionType();
+    decl->funcCallee = callee.getCallee();
+}
+
 void FunctionDeclaration::code_gen_declare(Codegen &gen) {
     if (body.has_value()) {
-        auto func = gen.create_function(name, function_type(gen), specifier);
-        funcType = func->getFunctionType();
-        funcCallee = func;
+        create_fn(gen, this);
     } else {
-        auto callee = gen.declare_function(name, function_type(gen));
-        funcType = callee.getFunctionType();
-        funcCallee = callee.getCallee();
+        declare_fn(gen, this);
     }
     gen.current_function = nullptr;
 }
 
 void FunctionDeclaration::code_gen_interface(Codegen &gen) {
-    code_gen_declare(gen);
-    code_gen(gen);
+    create_fn(gen, this);
+    gen.current_function = nullptr;
+    if(body.has_value()) {
+        code_gen(gen);
+    }
+}
+
+void FunctionDeclaration::code_gen_override(Codegen& gen, FunctionDeclaration* decl) {
+    body_gen(gen, (llvm::Function*) funcCallee, decl->body);
 }
 
 void FunctionDeclaration::code_gen_struct(Codegen &gen) {

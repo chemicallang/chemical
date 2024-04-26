@@ -55,9 +55,21 @@ public:
      */
     void code_gen_interface(Codegen &gen);
 
+    /**
+     * when normal functions occur in file, this function is called
+     */
     void code_gen(Codegen &gen) override;
 
+    /**
+     * this function is used to declare the function before generating code for its body
+     */
     void code_gen_declare(Codegen &gen) override;
+
+    /**
+     * called when a struct overrides a function declared in interface
+     * whereas this function is the function in interface, and passed is the struct one
+     */
+    void code_gen_override(Codegen& gen, FunctionDeclaration* decl);
 
 #endif
 

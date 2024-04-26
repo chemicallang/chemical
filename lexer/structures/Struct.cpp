@@ -8,7 +8,7 @@
 #include "cst/structures/StructDefCST.h"
 
 bool Lexer::lexStructMemberTokens() {
-    return lexVarInitializationTokens(true, true) || lexFunctionStructureTokens();
+    return lexVarInitializationTokens(true, true) || lexFunctionStructureTokens() || lexSingleLineCommentTokens() || lexMultiLineCommentTokens();
 }
 
 bool Lexer::lexStructBlockTokens() {

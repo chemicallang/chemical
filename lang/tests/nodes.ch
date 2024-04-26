@@ -34,7 +34,12 @@ struct Point : Calculator {
 
 }
 
+const MyInt = 5;
+
 func test_nodes() {
+    test("global constant int", []() => {
+        return MyInt == 5;
+    })
     test("address of works", []() => {
         var x = 5;
         printf("checkout the address %p\n", &x);

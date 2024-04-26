@@ -585,25 +585,6 @@ public:
     }
 
     /**
-     * when a nested compound call is expected
-     * this should be called to save the the current last_compound_till in a vector
-     * nested_compound_end must be called after this
-     */
-    void nested_compound_start() {
-        nested_compound_indexes.push_back(next_compound_start);
-        next_compound_start = tokens.size();
-    }
-
-    /**
-     * this must be called if nested_compound_start was called, to restore the last_compound_till
-     */
-    void nested_compound_end() {
-        auto last = nested_compound_indexes.back();
-        nested_compound_indexes.pop_back();
-        next_compound_start = last;
-    }
-
-    /**
      * put tokens in a compound token of specified type, starting from start
      */
     template<typename T, typename... Args>
@@ -611,7 +592,6 @@ public:
     compound_from(unsigned int start, Args&&... args) {
         unsigned int size = tokens.size();
         tokens.emplace_back(std::make_unique<T>(take_from(start,size), std::forward<Args>(args)...));
-        next_compound_start = size;
     }
 
     /**
@@ -623,18 +603,6 @@ public:
     std::enable_if_t<std::is_base_of_v<CSTToken, T>>
     compound_range(unsigned int start, unsigned int end, Args&&... args) {
         tokens.emplace_back(std::make_unique<T>(take_from(start, end), std::forward<Args>(args)...));
-        next_compound_start = end;
-    }
-
-    /**
-     * put tokens in a compound token of specified type
-     */
-    template<typename T, typename... Args>
-    std::enable_if_t<std::is_base_of_v<CSTToken, T>>
-    compound(Args&&... args) {
-        unsigned int size = tokens.size();
-        tokens.emplace_back(std::make_unique<T>(take_from(next_compound_start, size), std::forward<Args>(args)...));
-        next_compound_start = size;
     }
 
     /**
@@ -815,18 +783,5 @@ protected:
      * when true, import statements will be lexed
      */
     bool isLexImportStatement = true;
-
-    /**
-     * the index before which, last compounding of tokens was made, this index hasn't been consumed
-     * when compound is called, we compound from (inclusive) this index to tokens.size (exclusive)
-     * also setting this with new index at tokens.size
-     */
-    unsigned int next_compound_start = 0;
-
-    /**
-     * these are indexes into tokens vector, when a nested compound is expected, the last_compound_till is put on this vector
-     * to be restored later
-     */
-    std::vector<unsigned int> nested_compound_indexes;
 
 };

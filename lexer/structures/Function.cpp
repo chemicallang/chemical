@@ -21,7 +21,6 @@ bool Lexer::lexReturnStatement() {
 }
 
 void Lexer::lexParameterList(bool optionalTypes, bool defValues) {
-    nested_compound_start();
     unsigned index = 0; // param identifier index
     do {
         lexWhitespaceToken();
@@ -75,7 +74,6 @@ void Lexer::lexParameterList(bool optionalTypes, bool defValues) {
         }
         lexWhitespaceToken();
     } while(lexOperatorToken(','));
-    nested_compound_end();
 }
 
 bool Lexer::lexAfterFuncKeyword() {

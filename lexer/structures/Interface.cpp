@@ -29,13 +29,13 @@ bool Lexer::lexInterfaceStructureTokens() {
         }
         lexWhitespaceToken();
         if (!lexOperatorToken('{')) {
-            error("expected a '{' when starting an interface");
+            error("expected a '{' when starting an interface block");
             return true;
         }
         lexInterfaceBlockTokens();
         lexWhitespaceToken();
         if (!lexOperatorToken('}')) {
-            error("expected a '}' when ending an interface");
+            error("expected a '}' when ending an interface block");
             return true;
         }
         compound_from<InterfaceCST>(start);

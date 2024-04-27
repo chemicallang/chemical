@@ -32,13 +32,6 @@ public:
     std::unordered_map<std::string, bool> imported;
 
     /**
-     * At the moment this stores the position (inside the nodes vector)
-     * the position doesn't work with nested nodes, as nested nodes have their own structures
-     * for that we may use ASTPointer if required anytime
-     */
-    unsigned int position = 0;
-
-    /**
      * errors are stored here
      */
     std::vector<std::string> errors = std::vector<std::string>();
@@ -261,8 +254,9 @@ public:
     /**
      * report an error when generating a node
      * @param err
+     * @param node the node in which error occurred
      */
-    void error(const std::string &err);
+    void error(const std::string &err, ASTNode* node = nullptr);
 
     /**
      * destructor takes care of deallocating members
@@ -284,9 +278,14 @@ public:
     std::string curr_exe_path;
 
     /**
-     * path to the file
+     * root path to the file, the path to file where code gen started
      */
     std::string path;
+
+    /**
+     * path to the current file being code_gen
+     */
+    std::string current_path;
 
     /**
      * TargetTriple , which we are generating code for !

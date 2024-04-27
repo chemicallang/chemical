@@ -26,7 +26,8 @@ void StructDefinition::code_gen(Codegen &gen) {
                     }
                 }
             } else {
-                gen.error("Function '" + function.second->name + "' in interface '" + interface->name + "' has already been implemented, Failure in Struct '" + name + "'");
+                gen.error("Function '" + function.second->name + "' in interface '" + interface->name + "' has already been implemented, Failure in Struct '" + name + "'", function.second.get());
+                continue;
             }
         }
         function.second->code_gen_struct(gen);

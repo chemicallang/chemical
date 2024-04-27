@@ -14,7 +14,7 @@ Codegen::Codegen(
         std::string path,
         std::string target_triple,
         std::string curr_exe_path
-) : nodes(std::move(nodes)), path(std::move(path)),
+) : nodes(std::move(nodes)), current_path(path), path(std::move(path)),
     target_triple(std::move(target_triple)),
     curr_exe_path(std::move(curr_exe_path)) {
     module_init();
@@ -35,7 +35,6 @@ void Codegen::compile() {
     }
     for (const auto &node: nodes) {
         node->code_gen(*this);
-        position++;
     }
 }
 
@@ -152,13 +151,16 @@ void Codegen::loop_body_wrap(llvm::BasicBlock *condBlock, llvm::BasicBlock *endB
     current_loop_exit = endBlock;
 }
 
-void Codegen::error(const std::string &err) {
+void Codegen::error(const std::string &err, ASTNode* node) {
     std::string errStr = "[Codegen] ERROR\n";
     errStr += "---- message : " + err + "\n";
-    errStr += "---- node representation : " + nodes[position]->representation() + '\n';
-    errStr += "---- node position : " + std::to_string(position);
+    errStr += "---- file path : " + current_path;
 #ifdef DEBUG
-    std::cerr << errStr << std::endl;
+    std::cerr << errStr;
+    if(node) {
+        std::cerr << "\n" << "---- node representation : " + node->representation();
+    }
+    std::cerr << std::endl;
 #endif
     errors.push_back(errStr);
 }

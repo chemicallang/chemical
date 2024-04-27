@@ -241,15 +241,15 @@ void FunctionDeclaration::declare_top_level(SymbolResolver &linker) {
 }
 
 void FunctionDeclaration::declare_and_link(SymbolResolver &linker) {
+    // if has body declare params
+    for (auto &param: params) {
+        param->declare_and_link(linker);
+    }
     if (body.has_value()) {
-        // if has body declare params
-        for (auto &param: params) {
-            param->declare_and_link(linker);
-        }
         body->declare_and_link(linker);
-        for (auto &param: params) {
-            param->undeclare_on_scope_end(linker);
-        }
+    }
+    for (auto &param: params) {
+        param->undeclare_on_scope_end(linker);
     }
 }
 

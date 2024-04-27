@@ -5,13 +5,18 @@
 
 void ImplDefinition::code_gen(Codegen &gen) {
     for (auto &function: functions) {
-        auto overridden = linked->child(function.second->name);
-        if (overridden) {
-            auto fn = overridden->as_function();
-            if (fn) {
-                fn->code_gen_override(gen, function.second.get());
-                continue;
+        auto interface = (InterfaceDefinition*) linked;
+        if(!interface->has_implemented(function.second->name)) {
+            auto overridden = linked->child(function.second->name);
+            if (overridden) {
+                auto fn = overridden->as_function();
+                if (fn) {
+                    fn->code_gen_override(gen, function.second.get());
+                    interface->set_implemented(function.second->name, true);
+                }
             }
+        } else {
+            gen.error("Function '" + function.second->name + "' in interface '" + interface_name + "' has already been implemented");
         }
     }
 }

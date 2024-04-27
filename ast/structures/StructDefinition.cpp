@@ -7,19 +7,26 @@
 
 #ifdef COMPILER_BUILD
 
+#include "ast/structures/InterfaceDefinition.h"
+
 #include "compiler/llvmimpl.h"
 
 void StructDefinition::code_gen(Codegen &gen) {
     for(auto& function : functions) {
         if(overrides.has_value()) {
-            auto interface = overrides.value()->linked_node();
-            auto overridden = interface->child(function.second->name);
-            if(overridden) {
-                auto fn = overridden->as_function();
-                if(fn) {
-                    fn->code_gen_override(gen, function.second.get());
-                    continue;
+            auto interface = (InterfaceDefinition*) overrides.value()->linked_node();
+            if(!interface->has_implemented(function.second->name)) {
+                auto overridden = interface->child(function.second->name);
+                if (overridden) {
+                    auto fn = overridden->as_function();
+                    if (fn) {
+                        fn->code_gen_override(gen, function.second.get());
+                        interface->set_implemented(function.second->name, true);
+                        continue;
+                    }
                 }
+            } else {
+                gen.error("Function '" + function.second->name + "' in interface '" + interface->name + "' has already been implemented, Failure in Struct '" + name + "'");
             }
         }
         function.second->code_gen_struct(gen);

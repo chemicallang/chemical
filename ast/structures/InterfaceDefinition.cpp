@@ -34,6 +34,19 @@ InterfaceDefinition::InterfaceDefinition(
 
 }
 
+bool InterfaceDefinition::has_implemented(const std::string& name) {
+    auto impl = implemented.find(name);
+    if(impl != implemented.end() && impl->second) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+void InterfaceDefinition::set_implemented(const std::string& name, bool impl) {
+    implemented[name] = impl;
+}
+
 std::string InterfaceDefinition::representation() const {
     std::string ret("interface " + name + " {\n");
     ret.append(MembersContainer::representation());

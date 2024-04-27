@@ -32,6 +32,13 @@ public:
     std::unordered_map<std::string, bool> imported;
 
     /**
+     * This is a map between interface names and their functions map
+     * the value is a map between function names and their corresponding llvm functions
+     * these functions will be removed when code gen has completed.
+     */
+    std::unordered_map<std::string, std::unordered_map<std::string, llvm::Function*>> unimplemented_interfaces;
+
+    /**
      * errors are stored here
      */
     std::vector<std::string> errors = std::vector<std::string>();

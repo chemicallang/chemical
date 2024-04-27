@@ -15,7 +15,9 @@ void InterfaceDefinition::code_gen(Codegen &gen) {
             unimplemented[function.second->name] = (llvm::Function *) function.second->llvm_pointer(gen);
         }
     }
-    gen.unimplemented_interfaces[name] = unimplemented;
+    if(!unimplemented.empty()) {
+        gen.unimplemented_interfaces[name] = unimplemented;
+    }
 }
 
 llvm::Type* InterfaceDefinition::llvm_type(Codegen &gen) {

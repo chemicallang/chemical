@@ -33,6 +33,8 @@ void ImportStatement::code_gen(Codegen &gen) {
             gen.error(diag->ansi_representation(abs_path, "Import"));
         });
 //        std::cout << "importing " << abs_path << std::endl;
+        auto prev_path = gen.current_path;
+        gen.current_path = abs_path;
         for(const auto &node : ast) {
             node->code_gen_declare(gen);
         }
@@ -40,6 +42,7 @@ void ImportStatement::code_gen(Codegen &gen) {
 //            std::cout << node->representation() << std::endl;
             node->code_gen(gen);
         }
+        gen.current_path = prev_path;
         // clearing the cache to free memory
         imported_ast.clear();
         gen.imported[abs_path] = true;

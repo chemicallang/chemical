@@ -39,6 +39,8 @@ public:
 
     void code_gen(Codegen &gen) override;
 
+    llvm::Type* llvm_type(Codegen &gen) override;
+
 #endif
 
     std::string representation() const override;

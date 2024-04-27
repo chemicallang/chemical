@@ -218,8 +218,9 @@ FunctionParamsResult CSTConverter::function_params(cst_tokens_ref_type tokens, u
             if (strId != "this" && strId != "self") {
                 error("expected self parameter to be named 'self' or 'this'", tokens[i].get());
             }
+            auto type = current_struct_decl ? current_struct_decl->name : (current_interface_decl ? current_interface_decl->name : current_impl_decl->struct_name.value());
             params.emplace_back(new FunctionParam(strId, std::make_unique<PointerType>(
-                    std::make_unique<ReferencedType>(current_struct_decl->name)), 0, false, std::nullopt));
+                    std::make_unique<ReferencedType>(type)), 0, false, std::nullopt));
         } else if (tokens[i]->compound()) {
             tokens[i]->accept(this);
             param_index++;
@@ -608,8 +609,15 @@ void CSTConverter::visit(InterfaceCST *interface) {
 }
 
 void CSTConverter::visit(ImplCST *impl) {
-    auto def = new ImplDefinition(str_token(impl->tokens[1].get()), std::nullopt);
-    unsigned i = 3; // positioned at first node or '}'
+    bool has_for = is_keyword(impl->tokens[2].get(), "for");
+    std::optional<std::string> struct_name;
+    if(has_for) {
+        struct_name.emplace(str_token(impl->tokens[3].get()));
+    } else {
+        struct_name = std::nullopt;
+    }
+    auto def = new ImplDefinition(str_token(impl->tokens[1].get()), struct_name);
+    unsigned i = has_for ? 5 : 3; // positioned at first node or '}'
     current_impl_decl = def;
     collect_struct_members(this, impl->tokens, def->variables, def->functions, i);
     current_impl_decl = nullptr;

@@ -10,6 +10,10 @@ interface Calculator {
         return x * y;
     }
 
+    func multiplyP(&self) : int;
+
+    func divideP(&self) : int;
+
 }
 
 impl Calculator {
@@ -32,6 +36,16 @@ struct Point : Calculator {
         return self.x + self.y;
     }
 
+    func multiplyP(&self) : int {
+        return self.x * self.y;
+    }
+
+}
+
+impl Calculator for Point {
+    func divideP(&self) : int {
+        return self.x / self.y;
+    }
 }
 
 const MyInt = 5;
@@ -144,6 +158,20 @@ func test_nodes() {
          };
         return p.divide(10, 5) == 2;
     })
+    test("overridden interface struct functions implemented inside struct with self ref", []() => {
+         var p = Point {
+             x : 5,
+             y : 5
+         };
+        return p.multiplyP() == 25;
+    });
+    test("overridden interface struct functions implemented using impl keyword with self ref", []() => {
+         var p = Point {
+             x : 5,
+             y : 5
+         };
+        return p.divideP() == 1;
+    });
 }
 
 func declared_below() : int {

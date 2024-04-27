@@ -12,35 +12,53 @@
 #include "compiler/llvmimpl.h"
 
 void StructDefinition::code_gen(Codegen &gen) {
-    for(auto& function : functions) {
-        if(overrides.has_value()) {
-            auto interface = (InterfaceDefinition*) overrides.value()->linked_node();
-            if(!interface->has_implemented(function.second->name)) {
-                auto overridden = interface->child(function.second->name);
-                if (overridden) {
-                    auto fn = overridden->as_function();
-                    if (fn) {
-                        fn->code_gen_override(gen, function.second.get());
-                        interface->set_implemented(function.second->name, true);
-                        continue;
-                    }
+    std::unordered_map<std::string, llvm::Function *> *ref = nullptr;
+    InterfaceDefinition *interface = nullptr;
+    if (overrides.has_value()) {
+        auto overridden = gen.unimplemented_interfaces.find(overrides.value()->type);
+        if (overridden == gen.unimplemented_interfaces.end()) {
+            gen.error("Couldn't find overridden interface with name '" + overrides.value()->type +
+                      "' for implementation");
+            return;
+        }
+        ref = &overridden->second;
+        interface = (InterfaceDefinition *) overrides.value()->linked_node();
+    }
+    for (auto &function: functions) {
+        if (overrides.has_value()) {
+            auto overridden = interface->child(function.second->name);
+            if (overridden) {
+                auto found = ref->find(function.second->name);
+                if (found == ref->end()) {
+                    gen.error("Couldn't find function with name " + function.second->name + " in interface " +
+                              overrides.value()->type + " for implementation");
+                    continue;
                 }
-            } else {
-                gen.error("Function '" + function.second->name + "' in interface '" + interface->name + "' has already been implemented, Failure in Struct '" + name + "'", function.second.get());
-                continue;
+                if (found->second == nullptr) {
+                    gen.error(
+                            "Function with name " + function.second->name + " in interface " + overrides.value()->type +
+                            " has already been implemented");
+                    continue;
+                }
+                auto fn = overridden->as_function();
+                if (fn) {
+                    fn->code_gen_override(gen, function.second.get());
+                    found->second = nullptr;
+                    continue;
+                }
             }
         }
         function.second->code_gen_struct(gen);
     }
 }
 
-llvm::Type* StructMember::llvm_type(Codegen &gen) {
+llvm::Type *StructMember::llvm_type(Codegen &gen) {
     return type->llvm_type(gen);
 }
 
 bool StructMember::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &childName) {
     auto linked = type->linked_node();
-    if(!linked) return false;
+    if (!linked) return false;
     linked->add_child_index(gen, indexes, childName);
     return true;
 }
@@ -70,14 +88,14 @@ std::unique_ptr<BaseType> StructMember::create_value_type() {
 
 void StructMember::declare_and_link(SymbolResolver &linker) {
     type->link(linker);
-    if(defValue.has_value()) {
+    if (defValue.has_value()) {
         defValue.value()->link(linker);
     }
 }
 
 ASTNode *StructMember::child(const std::string &childName) {
     auto linked = type->linked_node();
-    if(!linked) return nullptr;
+    if (!linked) return nullptr;
     linked->child(childName);
 }
 
@@ -91,9 +109,9 @@ std::string StructMember::representation() const {
 
 StructDefinition::StructDefinition(
         std::string name,
-        const std::optional<std::string>& overrides
+        const std::optional<std::string> &overrides
 ) : name(std::move(name)) {
-    if(overrides.has_value()) {
+    if (overrides.has_value()) {
         this->overrides = std::make_unique<ReferencedType>(overrides.value());
     } else {
         this->overrides = std::nullopt;
@@ -109,7 +127,7 @@ void StructDefinition::declare_top_level(SymbolResolver &linker) {
 }
 
 void StructDefinition::declare_and_link(SymbolResolver &linker) {
-    if(overrides.has_value()) {
+    if (overrides.has_value()) {
         overrides.value()->link(linker);
     }
     MembersContainer::declare_and_link(linker);
@@ -127,11 +145,11 @@ void StructDefinition::interpret_scope_ends(InterpretScope &scope) {
     decl_scope = nullptr;
 }
 
-ASTNode* StructDefinition::child(const std::string &name) {
+ASTNode *StructDefinition::child(const std::string &name) {
     auto node = MembersContainer::child(name);
-    if(node) {
+    if (node) {
         return node;
-    } else if(overrides.has_value()) {
+    } else if (overrides.has_value()) {
         return overrides.value()->linked->child(name);
     };
 }

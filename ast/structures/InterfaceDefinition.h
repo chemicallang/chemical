@@ -35,10 +35,6 @@ public:
         linker.current[name] = this;
     }
 
-    bool has_implemented(const std::string& name);
-
-    void set_implemented(const std::string& name, bool impl);
-
 #ifdef COMPILER_BUILD
 
     void code_gen(Codegen &gen) override;
@@ -50,7 +46,4 @@ public:
     std::string representation() const override;
 
     std::string name; ///< The name of the interface.
-    // this unordered map tracks if functions with name have been implemented
-    // to prevent duplicate implementations
-    std::unordered_map<std::string, bool> implemented;
 };

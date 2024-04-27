@@ -1,5 +1,10 @@
 import "test.ch"
 
+interface UnInheritedInterface {
+    // this method should be removed from final code_gen
+    func check() : int
+}
+
 interface Calculator {
 
     func sum(x : int, y : int) : int

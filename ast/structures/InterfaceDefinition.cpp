@@ -8,9 +8,14 @@
 #include "compiler/llvmimpl.h"
 
 void InterfaceDefinition::code_gen(Codegen &gen) {
+    std::unordered_map<std::string, llvm::Function*> unimplemented;
     for(auto& function : functions) {
         function.second->code_gen_interface(gen);
+        if(!function.second->body.has_value()) {
+            unimplemented[function.second->name] = (llvm::Function *) function.second->llvm_pointer(gen);
+        }
     }
+    gen.unimplemented_interfaces[name] = unimplemented;
 }
 
 llvm::Type* InterfaceDefinition::llvm_type(Codegen &gen) {
@@ -32,19 +37,6 @@ InterfaceDefinition::InterfaceDefinition(
         std::string name
 ) : name(std::move(name)) {
 
-}
-
-bool InterfaceDefinition::has_implemented(const std::string& name) {
-    auto impl = implemented.find(name);
-    if(impl != implemented.end() && impl->second) {
-        return true;
-    } else {
-        return false;
-    }
-}
-
-void InterfaceDefinition::set_implemented(const std::string& name, bool impl) {
-    implemented[name] = impl;
 }
 
 std::string InterfaceDefinition::representation() const {

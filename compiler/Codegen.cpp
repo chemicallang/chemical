@@ -36,6 +36,13 @@ void Codegen::compile() {
     for (const auto &node: nodes) {
         node->code_gen(*this);
     }
+    for(const auto& interface : unimplemented_interfaces) {
+        for(const auto& func : interface.second) {
+            if(func.second) {
+                func.second->removeFromParent();
+            }
+        }
+    }
 }
 
 void Codegen::createFunctionBlock(llvm::Function *fn) {

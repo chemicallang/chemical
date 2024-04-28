@@ -31,10 +31,6 @@ void TypealiasStatement::declare_and_link(SymbolResolver &linker) {
     to->link(linker);
 }
 
-void TypealiasStatement::undeclare_on_scope_end(SymbolResolver &linker) {
-    linker.erase(from);
-}
-
 void TypealiasStatement::accept(Visitor &visitor) {
     visitor.visit(this);
 }

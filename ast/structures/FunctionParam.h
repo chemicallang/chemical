@@ -46,8 +46,6 @@ public:
 
     void declare_and_link(SymbolResolver &linker) override;
 
-    void undeclare_on_scope_end(SymbolResolver &linker) override;
-
     ValueType value_type() const override;
 
     BaseTypeKind type_kind() const override;

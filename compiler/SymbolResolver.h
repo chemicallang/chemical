@@ -29,10 +29,10 @@ public:
     std::unordered_map<std::string, bool> imported;
 
     /**
-     * When traversing nodes, A node can declare something e.g a variable using variable statement
-     * the identifier for the node is put on this map, so other upcoming nodes can find the node
+     * when traversing nodes, a node can declare itself on the map
+     * this is vector of scopes, the last scope is current scope
      */
-    std::unordered_map<std::string, ASTNode *> current;
+    std::vector<std::unordered_map<std::string, ASTNode*>> current = {{}};
 
     /**
      * errors occurred during linking
@@ -45,6 +45,18 @@ public:
     std::string path;
 
     /**
+     * when a scope beings, this should be called
+     * it would put a unordered_map on current vector
+     */
+    void scope_start();
+
+    /**
+     * when a scope ends, this should be called
+     * it would pop a scope map from the current vector
+     */
+    void scope_end();
+
+    /**
      * find a symbol on current symbol map
      */
     ASTNode *find(const std::string &name);
@@ -53,11 +65,6 @@ public:
      * declares a node with string : name
      */
     void declare(const std::string &name, ASTNode *node);
-
-    /**
-     * erase a symbol from the current symbol map
-     */
-    void erase(const std::string &name);
 
     /**
      * save an error

@@ -113,10 +113,6 @@ void VarInitStatement::declare_and_link(SymbolResolver &linker) {
     }
 }
 
-void VarInitStatement::undeclare_on_scope_end(SymbolResolver &linker) {
-    linker.erase(identifier);
-}
-
 void VarInitStatement::interpret(InterpretScope &scope) {
     if (value.has_value()) {
         auto initializer = value.value()->initializer_value(scope);

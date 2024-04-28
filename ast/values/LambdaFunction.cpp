@@ -54,13 +54,12 @@ void LambdaFunction::link(SymbolResolver &linker, FunctionCall *call, unsigned i
 
     func_type = std::shared_ptr<FunctionType>(paramType->function_type());
 
+    linker.scope_start();
     for (auto &param: params) {
         linker.declare(param->name, param.get());
     }
     scope.declare_and_link(linker);
-    for (auto &param: params) {
-        linker.erase(param->name);
-    }
+    linker.scope_end();
 
 }
 
@@ -74,13 +73,12 @@ void LambdaFunction::link(SymbolResolver &linker, ReturnStatement *returnStmt) {
 
     func_type = std::shared_ptr<FunctionType>(retType->function_type(), [](BaseType*){});
 
+    linker.scope_start();
     for (auto &param: params) {
         linker.declare(param->name, param.get());
     }
     scope.declare_and_link(linker);
-    for (auto &param: params) {
-        linker.current.erase(param->name);
-    }
+    linker.scope_end();
 
 }
 

@@ -28,10 +28,8 @@ bool VariableIdentifier::add_member_index(Codegen &gen, ASTNode *parent, std::ve
 #endif
 
 void VariableIdentifier::link(SymbolResolver &linker) {
-    auto found = linker.current.find(value);
-    if (found != linker.current.end()) {
-        linked = found->second;
-    } else {
+    linked = linker.find(value);
+    if(!linked) {
         linker.error("variable identifier '" + value + "' not found");
     }
 }

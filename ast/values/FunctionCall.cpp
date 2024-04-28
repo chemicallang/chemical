@@ -84,15 +84,14 @@ FunctionCall::FunctionCall(
 }
 
 void FunctionCall::link(SymbolResolver &linker) {
-    auto found = linker.current.find(name);
-    if (found != linker.current.end()) {
-        linked = found->second;
+    linked = linker.find(name);
+    if(linked) {
         unsigned i = 0;
         while(i < values.size()) {
             values[i]->link(linker, this, i);
             i++;
         }
-        if(found->second->as_function() == nullptr && !found->second->create_value_type()->satisfies(ValueType::Lambda)) {
+        if(linked->as_function() == nullptr && !linked->create_value_type()->satisfies(ValueType::Lambda)) {
             linker.error("function call to identifier '" + name + "' is not valid, because its not a function.");
         }
     } else {

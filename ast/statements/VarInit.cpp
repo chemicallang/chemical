@@ -114,7 +114,7 @@ void VarInitStatement::declare_and_link(SymbolResolver &linker) {
 }
 
 void VarInitStatement::undeclare_on_scope_end(SymbolResolver &linker) {
-    linker.current.erase(identifier);
+    linker.erase(identifier);
 }
 
 void VarInitStatement::interpret(InterpretScope &scope) {

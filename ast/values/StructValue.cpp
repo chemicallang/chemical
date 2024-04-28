@@ -82,9 +82,9 @@ bool StructValue::primitive() {
 }
 
 void StructValue::link(SymbolResolver &linker) {
-    auto def = linker.current.find(structName);
-    if (def != linker.current.end()) {
-        auto struct_def = def->second->as_struct_def();
+    auto found = linker.find(structName);
+    if(found) {
+        auto struct_def = found->as_struct_def();
         if (struct_def) {
             definition = struct_def;
             for (const auto &val: values) {
@@ -95,7 +95,7 @@ void StructValue::link(SymbolResolver &linker) {
         }
     } else {
         linker.error("couldn't find struct definition for struct name " + structName);
-    }
+    };
 }
 
 ASTNode *StructValue::linked_node() {

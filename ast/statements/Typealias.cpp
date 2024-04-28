@@ -32,7 +32,7 @@ void TypealiasStatement::declare_and_link(SymbolResolver &linker) {
 }
 
 void TypealiasStatement::undeclare_on_scope_end(SymbolResolver &linker) {
-    linker.current.erase(from);
+    linker.erase(from);
 }
 
 void TypealiasStatement::accept(Visitor &visitor) {

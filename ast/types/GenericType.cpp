@@ -8,10 +8,8 @@
 #endif
 
 void GenericType::link(SymbolResolver &linker) {
-    auto found = linker.current.find(base);
-    if(found != linker.current.end()) {
-        linked = found->second;
-    } else {
+    linked = linker.find(base);
+    if(!linked) {
         linker.error("unresolved symbol, couldn't find generic type " + base);
     }
 }

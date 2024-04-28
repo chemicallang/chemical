@@ -24,10 +24,8 @@ bool ReferencedType::satisfies(ValueType value_type) const {
 }
 
 void ReferencedType::link(SymbolResolver &linker) {
-    auto found = linker.current.find(type);
-    if(found != linker.current.end()) {
-        linked = found->second;
-    } else {
+    linked = linker.find(type);
+    if(!linked) {
         linker.error("unresolved symbol, couldn't find type " + type);
     }
 }

@@ -32,7 +32,7 @@ public:
      * When traversing nodes, A node can declare something e.g a variable using variable statement
      * the identifier for the node is put on this map, so other upcoming nodes can find the node
      */
-    std::unordered_map<std::string, ASTNode*> current;
+    std::unordered_map<std::string, ASTNode *> current;
 
     /**
      * errors occurred during linking
@@ -45,14 +45,24 @@ public:
     std::string path;
 
     /**
+     * find a symbol on current symbol map
+     */
+    ASTNode *find(const std::string &name);
+
+    /**
      * declares a node with string : name
      */
-    void declare(const std::string& name, ASTNode* node);
+    void declare(const std::string &name, ASTNode *node);
+
+    /**
+     * erase a symbol from the current symbol map
+     */
+    void erase(const std::string &name);
 
     /**
      * save an error
      */
-    inline void error(const std::string& err) {
+    inline void error(const std::string &err) {
         errors.push_back(err);
     }
 

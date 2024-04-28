@@ -45,10 +45,8 @@ void ImplDefinition::code_gen(Codegen &gen) {
 
 void ImplDefinition::declare_and_link(SymbolResolver &linker) {
     MembersContainer::declare_and_link(linker);
-    auto found = linker.current.find(interface_name);
-    if(found != linker.current.end()) {
-        linked = found->second;
-    } else {
+    linked = linker.find(interface_name);
+    if(!linked) {
         linker.error("couldn't find interface by name " + interface_name + " for implementation");
     }
 }

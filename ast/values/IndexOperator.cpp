@@ -67,9 +67,8 @@ std::unique_ptr<BaseType> IndexOperator::create_type() const {
 }
 
 void IndexOperator::link(SymbolResolver &linker) {
-    auto found = linker.current.find(identifier);
-    if (found != linker.current.end()) {
-        linked = found->second;
+    linked = linker.find(identifier);
+    if(linked) {
         value->link(linker);
     } else {
         linker.error("no identifier with name '" + identifier + "' found to link for index operator");

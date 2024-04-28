@@ -193,7 +193,7 @@ void FunctionParam::declare_and_link(SymbolResolver &linker) {
 }
 
 void FunctionParam::undeclare_on_scope_end(SymbolResolver &linker) {
-    linker.current.erase(name);
+    linker.erase(name);
 }
 
 ASTNode *FunctionParam::child(const std::string &name) {

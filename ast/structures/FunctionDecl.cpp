@@ -192,10 +192,6 @@ void FunctionParam::declare_and_link(SymbolResolver &linker) {
     type->link(linker);
 }
 
-void FunctionParam::undeclare_on_scope_end(SymbolResolver &linker) {
-    linker.erase(name);
-}
-
 ASTNode *FunctionParam::child(const std::string &name) {
     return type->linked_node()->child(name);
 }
@@ -242,15 +238,14 @@ void FunctionDeclaration::declare_top_level(SymbolResolver &linker) {
 
 void FunctionDeclaration::declare_and_link(SymbolResolver &linker) {
     // if has body declare params
+    linker.scope_start();
     for (auto &param: params) {
         param->declare_and_link(linker);
     }
     if (body.has_value()) {
         body->declare_and_link(linker);
     }
-    for (auto &param: params) {
-        param->undeclare_on_scope_end(linker);
-    }
+    linker.scope_end();
 }
 
 void FunctionDeclaration::interpret(InterpretScope &scope) {

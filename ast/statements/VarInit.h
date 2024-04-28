@@ -57,8 +57,6 @@ public:
 
     void declare_and_link(SymbolResolver &linker) override;
 
-    void undeclare_on_scope_end(SymbolResolver &linker) override;
-
     void interpret(InterpretScope &scope) override;
 
     std::unique_ptr<BaseType> create_value_type() override;

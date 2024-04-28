@@ -66,12 +66,12 @@ void ForLoop::accept(Visitor &visitor) {
 }
 
 void ForLoop::declare_and_link(SymbolResolver &linker) {
+    linker.scope_start();
     initializer->declare_and_link(linker);
     conditionExpr->link(linker);
     incrementerExpr->declare_and_link(linker);
     body.declare_and_link(linker);
-    initializer->undeclare_on_scope_end(linker);
-    incrementerExpr->undeclare_on_scope_end(linker);
+    linker.scope_end();
 }
 
 void ForLoop::interpret(InterpretScope &scope) {

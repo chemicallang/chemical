@@ -124,17 +124,20 @@ void IfStatement::accept(Visitor &visitor) {
 }
 
 void IfStatement::declare_and_link(SymbolResolver &linker) {
+    linker.scope_start();
     condition->link(linker);
     ifBody.declare_and_link(linker);
-    ifBody.undeclare_on_scope_end(linker);
+    linker.scope_end();
     for(auto& elseIf : elseIfs) {
+        linker.scope_start();
         elseIf.first->link(linker);
         elseIf.second.declare_and_link(linker);
-        elseIf.second.undeclare_on_scope_end(linker);
+        linker.scope_end();
     }
     if(elseBody.has_value()) {
+        linker.scope_start();
         elseBody->declare_and_link(linker);
-        elseBody->undeclare_on_scope_end(linker);
+        linker.scope_end();
     }
 }
 

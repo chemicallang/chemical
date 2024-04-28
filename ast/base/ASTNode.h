@@ -67,13 +67,6 @@ public:
     }
 
     /**
-     * undeclare declared things on the scope map
-     */
-    virtual void undeclare_on_scope_end(SymbolResolver &linker) {
-        // does nothing by default
-    }
-
-    /**
      * return a child ASTNode* at index, called by index operator
      * WARNING : index can be -1, if not known at compile time !
      */

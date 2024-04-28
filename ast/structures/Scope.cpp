@@ -31,9 +31,6 @@ void Scope::declare_and_link(SymbolResolver &linker) {
     for (const auto &node: nodes) {
         node->declare_and_link(linker);
     }
-    for (const auto &node: nodes) {
-        node->undeclare_on_scope_end(linker);
-    }
 }
 
 #ifdef COMPILER_BUILD

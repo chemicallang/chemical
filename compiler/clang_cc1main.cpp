@@ -14,7 +14,6 @@
 
 #ifdef COMPILER_BUILD
 
-#include "Codegen.h"
 //===-- cc1_main.cpp - Clang CC1 Compiler Frontend ------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.

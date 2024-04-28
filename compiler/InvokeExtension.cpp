@@ -5,7 +5,6 @@
 #include <sstream>
 #include <clang/Basic/Diagnostic.h>
 #include <llvm/ADT/SmallString.h>
-#include "SelfInvocation.h"
 
 int chemical_clang_main(int argc, char **argv);
 
@@ -31,24 +30,4 @@ int chemical_clang_main2(const std::vector<std::string> &command_args) {
 
 int Codegen::invoke_clang(const std::vector<std::string> &command_args) {
     return chemical_clang_main2(command_args);
-}
-
-std::string Codegen::abs_header_path(const std::string& header) {
-
-    if(system_headers_paths.empty()) {
-        system_headers_paths = std::move(::system_headers_path(curr_exe_path));
-    }
-
-    return ::header_abs_path(system_headers_paths, header);
-
-}
-
-std::string Codegen::headers_dir(const std::string& header) {
-
-    if(system_headers_paths.empty()) {
-        system_headers_paths = std::move(::system_headers_path(curr_exe_path));
-    }
-
-    return ::headers_dir(system_headers_paths, header);
-
 }

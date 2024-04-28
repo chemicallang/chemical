@@ -5,7 +5,7 @@
 #include "ast/base/ASTNode.h"
 #include "Codegen.h"
 #include "ast/structures/Scope.h"
-
+#include "SelfInvocation.h"
 #include <utility>
 #include "llvmimpl.h"
 
@@ -37,9 +37,18 @@ void Codegen::compile() {
         node->code_gen(*this);
     }
     for(const auto& interface : unimplemented_interfaces) {
+        bool has_implemented = false;
+        for(const auto& func : interface.second) {
+            if(!func.second) {
+                has_implemented = true;
+            }
+        }
         for(const auto& func : interface.second) {
             if(func.second) {
                 func.second->removeFromParent();
+                if(has_implemented) {
+                    info("Method " + func.first + " of Interface " + interface.first + " left unimplemented, has been removed.");
+                }
             }
         }
     }
@@ -158,10 +167,22 @@ void Codegen::loop_body_wrap(llvm::BasicBlock *condBlock, llvm::BasicBlock *endB
     current_loop_exit = endBlock;
 }
 
+void Codegen::info(const std::string &err, ASTNode* node) {
+    std::string errStr = "[Codegen] Info\n";
+    errStr += "---- message : " + err + "\n";
+    errStr += "---- file path : " + current_path;
+#ifdef DEBUG
+    std::cout << errStr;
+    if(node) {
+        std::cout << "\n" << "---- node representation : " + node->representation();
+    }
+    std::cout << std::endl;
+#endif
+}
+
 void Codegen::error(const std::string &err, ASTNode* node) {
     std::string errStr = "[Codegen] ERROR\n";
     errStr += "---- message : " + err + "\n";
-    errStr += "---- file path : " + current_path;
 #ifdef DEBUG
     std::cerr << errStr;
     if(node) {
@@ -170,6 +191,16 @@ void Codegen::error(const std::string &err, ASTNode* node) {
     std::cerr << std::endl;
 #endif
     errors.push_back(errStr);
+}
+
+std::string Codegen::headers_dir(const std::string& header) {
+
+    if(system_headers_paths.empty()) {
+        system_headers_paths = std::move(::system_headers_path(curr_exe_path));
+    }
+
+    return ::headers_dir(system_headers_paths, header);
+
 }
 
 Codegen::~Codegen() {

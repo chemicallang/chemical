@@ -259,6 +259,11 @@ public:
     llvm::Value *operate(Operation op, Value *lhs, Value *rhs);
 
     /**
+     * report an info, which is useful for user to know
+     */
+    void info(const std::string& err, ASTNode* node = nullptr);
+
+    /**
      * report an error when generating a node
      * @param err
      * @param node the node in which error occurred

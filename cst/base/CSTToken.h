@@ -102,7 +102,7 @@ public:
     bool is_primitive_value() const {
         auto t = type();
         return t == LexTokenType::Char || t == LexTokenType::String || t == LexTokenType::Bool ||
-               t == LexTokenType::Number;
+               t == LexTokenType::Number || t == LexTokenType::Null;
     }
 
     /**

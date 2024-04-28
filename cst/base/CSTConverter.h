@@ -203,6 +203,8 @@ public:
 
     // Values
 
+    void visit(NullToken *token) override;
+
     void visit(StringToken *token) override;
 
     void visit(CharToken *token) override;

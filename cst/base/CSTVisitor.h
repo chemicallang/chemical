@@ -114,6 +114,8 @@ class VariableToken;
 
 class LexUserToken;
 
+class NullToken;
+
 class CSTVisitor {
 public:
 
@@ -322,6 +324,10 @@ public:
     };
 
     virtual void visit(BoolToken* token) {
+        visitLexTokenCommon((LexToken *) token);
+    }
+
+    virtual void visit(NullToken* token) {
         visitLexTokenCommon((LexToken *) token);
     }
 

@@ -471,6 +471,11 @@ public:
     bool lexAnnotationMacro();
 
     /**
+     * lexes a null value
+     */
+    bool lexNull();
+
+    /**
      * lexes a bool, true or false
      * @return whether a bool has been lexed
      */

@@ -55,7 +55,7 @@ void LambdaFunction::link(SymbolResolver &linker, FunctionCall *call, unsigned i
     func_type = std::shared_ptr<FunctionType>(paramType->function_type());
 
     for (auto &param: params) {
-        linker.current[param->name] = param.get();
+        linker.declare(param->name, param.get());
     }
     scope.declare_and_link(linker);
     for (auto &param: params) {

@@ -188,7 +188,7 @@ std::unique_ptr<BaseType> FunctionParam::create_value_type() {
 }
 
 void FunctionParam::declare_and_link(SymbolResolver &linker) {
-    linker.current[name] = this;
+    linker.declare(name, this);
     type->link(linker);
 }
 
@@ -237,7 +237,7 @@ void FunctionDeclaration::accept(Visitor &visitor) {
 }
 
 void FunctionDeclaration::declare_top_level(SymbolResolver &linker) {
-    linker.current[name] = this;
+    linker.declare(name, this);
 }
 
 void FunctionDeclaration::declare_and_link(SymbolResolver &linker) {

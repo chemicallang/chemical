@@ -123,7 +123,7 @@ void StructDefinition::accept(Visitor &visitor) {
 }
 
 void StructDefinition::declare_top_level(SymbolResolver &linker) {
-    linker.current[name] = this;
+    linker.declare(name, this);
 }
 
 void StructDefinition::declare_and_link(SymbolResolver &linker) {

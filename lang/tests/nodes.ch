@@ -177,6 +177,17 @@ func test_nodes() {
          };
         return p.divideP() == 1;
     });
+    test("supports null value - 1", []() => {
+        var x = 1;
+        var y = &x;
+        y = null;
+        return y == null;
+    })
+    test("supports null value - 2", []() => {
+        var x = 1;
+        var y = &x;
+        return y != null;
+    })
 }
 
 func declared_below() : int {

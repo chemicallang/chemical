@@ -7,6 +7,7 @@
 #include "lexer/Lexer.h"
 #include "lexer/model/tokens/CharToken.h"
 #include "lexer/model/tokens/BoolToken.h"
+#include "lexer/model/tokens/NullToken.h"
 #include "cst/values/ArrayValueCST.h"
 
 bool Lexer::lexCharToken() {
@@ -36,18 +37,28 @@ bool Lexer::lexCharToken() {
 }
 
 bool Lexer::lexBoolToken() {
-    if(provider.increment("true")) {
+    if (provider.increment("true")) {
         tokens.emplace_back(std::make_unique<BoolToken>(backPosition(4), true));
         return true;
-    } else if(provider.increment("false")) {
-        tokens.emplace_back(std::make_unique<BoolToken>(backPosition(5),false));
+    } else if (provider.increment("false")) {
+        tokens.emplace_back(std::make_unique<BoolToken>(backPosition(5), false));
         return true;
     }
     return false;
 }
 
+bool Lexer::lexNull() {
+    if (provider.increment("null")) {
+        tokens.emplace_back(std::make_unique<NullToken>(backPosition(4)));
+        return true;
+    } else {
+        return false;
+    }
+}
+
 bool Lexer::lexValueToken() {
-    return lexCharToken() || lexStringToken() || lexLambdaValue() || lexNumberToken() || lexBoolToken();
+    return lexCharToken() || lexStringToken() || lexLambdaValue() || lexNumberToken() || lexBoolToken() ||
+           lexNull();
 }
 
 bool Lexer::lexArrayInit() {
@@ -64,7 +75,7 @@ bool Lexer::lexArrayInit() {
             error("expected a '}' when lexing an array");
         }
         lexWhitespaceToken();
-        if(lexTypeTokens()) {
+        if (lexTypeTokens()) {
             lexWhitespaceToken();
             if (lexOperatorToken('(')) {
                 do {

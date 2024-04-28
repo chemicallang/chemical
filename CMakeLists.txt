@@ -333,6 +333,9 @@ set(COMMON_SOURCES
         ast/structures/MembersContainer.cpp
         cst/structures/ImplCST.h
         ast/structures/ImplDefinition.cpp
+        ast/values/NullValue.h
+        ast/values/NullValue.cpp
+        lexer/model/tokens/NullToken.h
 )
 
 # Chemical LSP Executable Target

@@ -24,6 +24,7 @@ enum class LexTokenType : uint8_t {
     Keyword,
     Number,
     Type,
+    Null,
     StringOperator,
     Variable,
     RawToken,

@@ -42,6 +42,7 @@
 #include "ast/values/IndexOperator.h"
 #include "ast/values/IntValue.h"
 #include "ast/values/Negative.h"
+#include "ast/values/NullValue.h"
 #include "ast/values/NotValue.h"
 #include "ast/values/AddrOfValue.h"
 #include "ast/values/DereferenceValue.h"
@@ -897,6 +898,10 @@ void CSTConverter::visit(VariableToken *token) {
 
 void CSTConverter::visit(BoolToken *token) {
     values.emplace_back(std::make_unique<BoolValue>(token->value));
+}
+
+void CSTConverter::visit(NullToken *token) {
+    values.emplace_back(std::make_unique<NullValue>());
 }
 
 void CSTConverter::visit(NegativeCST *neg) {

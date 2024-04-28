@@ -94,6 +94,8 @@ class NegativeValue;
 
 class NotValue;
 
+class NullValue;
+
 class TernaryValue;
 
 class LambdaFunction;
@@ -277,6 +279,10 @@ public:
 
     virtual void visit(NotValue* notValue) {
         visitCommonValue((Value*) notValue);
+    }
+
+    virtual void visit(NullValue* nullValue) {
+        visitCommonValue((Value*) nullValue);
     }
 
     virtual void visit(TernaryValue* ternary) {

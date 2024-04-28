@@ -8,6 +8,7 @@
 
 #include <utility>
 
+#include "ast/base/ASTNode.h"
 #include "ast/base/Value.h"
 
 class EnumDeclaration : public ASTNode {
@@ -27,7 +28,7 @@ public:
     }
 
     void declare_top_level(SymbolResolver &linker) override {
-        linker.current[name] = this;
+        linker.declare(name, this);
     }
 
     std::string representation() const override {

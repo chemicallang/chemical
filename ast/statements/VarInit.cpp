@@ -104,7 +104,7 @@ ASTNode *VarInitStatement::child(const std::string &name) {
 }
 
 void VarInitStatement::declare_and_link(SymbolResolver &linker) {
-    linker.current[identifier] = this;
+    linker.declare(identifier, this);
     if (type.has_value()) {
         type.value()->link(linker);
     }

@@ -32,7 +32,7 @@ public:
     }
 
     void declare_top_level(SymbolResolver &linker) override {
-        linker.current[name] = this;
+        linker.declare(name, this);
     }
 
 #ifdef COMPILER_BUILD

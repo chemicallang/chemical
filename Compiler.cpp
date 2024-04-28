@@ -104,6 +104,7 @@ int main(int argc, char *argv[]) {
     {
         SymbolResolver linker(srcFilePath);
         scope.declare_top_level(linker);
+        scope.declare_and_link(linker);
         if(!linker.errors.empty()) {
             for(const auto& err : linker.errors) {
                 std::cerr << "[Linker] " << err << std::endl;

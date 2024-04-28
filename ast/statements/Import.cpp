@@ -149,21 +149,18 @@ ImportStatement::ImportStatement(std::string filePath, std::vector<std::string> 
 
 void ImportStatement::declare_top_level(SymbolResolver &linker) {
     auto abs_path = resolve_rel_path(linker.path).string();
-    auto& ast = parsed(linker.path, [&abs_path, &linker](Diag* diag) {
-        linker.error(diag->ansi_representation(abs_path, "Import"));
-    });
-    for(const auto& node : ast) {
-        node->declare_top_level(linker);
-    }
-}
-
-void ImportStatement::declare_and_link(SymbolResolver &linker) {
-    auto abs_path = resolve_rel_path(linker.path).string();
-    auto& ast = parsed(linker.path, [&abs_path, &linker](Diag* diag) {
-        linker.error(diag->ansi_representation(abs_path, "Import"));
-    });
-    for(const auto& node : ast) {
-        node->declare_and_link(linker);
+    auto found = linker.imported.find(abs_path);
+    if(found == linker.imported.end()) {
+        linker.imported[abs_path] = true;
+        auto &ast = parsed(linker.path, [&abs_path, &linker](Diag *diag) {
+            linker.error(diag->ansi_representation(abs_path, "Import"));
+        });
+        for (const auto &node: ast) {
+            node->declare_top_level(linker);
+        }
+        for (const auto &node: ast) {
+            node->declare_and_link(linker);
+        }
     }
 }
 

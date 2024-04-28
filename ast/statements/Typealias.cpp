@@ -27,7 +27,7 @@ void TypealiasStatement::interpret(InterpretScope &scope) {
 }
 
 void TypealiasStatement::declare_and_link(SymbolResolver &linker) {
-    linker.current[from] = this;
+    linker.declare(from, this);
     to->link(linker);
 }
 

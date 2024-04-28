@@ -25,9 +25,6 @@ void Scope::declare_top_level(SymbolResolver &linker) {
     for (const auto &node: nodes) {
         node->declare_top_level(linker);
     }
-    for (const auto &node: nodes) {
-        node->declare_and_link(linker);
-    }
 }
 
 void Scope::declare_and_link(SymbolResolver &linker) {

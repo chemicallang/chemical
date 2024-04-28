@@ -22,6 +22,13 @@ public:
     SymbolResolver(std::string path);
 
     /**
+     * similar to codegen it also has imported map
+     * TODO delete this map, as symbol resolver needs to be merged into codegen
+     * TODO only one implementation of imported map should exist anyway
+     */
+    std::unordered_map<std::string, bool> imported;
+
+    /**
      * When traversing nodes, A node can declare something e.g a variable using variable statement
      * the identifier for the node is put on this map, so other upcoming nodes can find the node
      */
@@ -36,6 +43,11 @@ public:
      * path of the file being linked
      */
     std::string path;
+
+    /**
+     * declares a node with string : name
+     */
+    void declare(const std::string& name, ASTNode* node);
 
     /**
      * save an error

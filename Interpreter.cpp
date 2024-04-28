@@ -24,7 +24,7 @@ void benchInterpret(Scope& scope, GlobalInterpretScope& interpretScope) {
     {
         SymbolResolver linker;
         for(const auto& func : interpretScope.global_fns) {
-            linker.current[func.first] = func.second.get();
+            linker.declare(func.first, func.second.get());
         }
         scope.declare_top_level(linker);
         if(!linker.errors.empty()){

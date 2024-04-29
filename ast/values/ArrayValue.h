@@ -46,11 +46,18 @@ public:
 
     llvm::Value *llvm_value(Codegen &gen) override;
 
+    unsigned int store_in_array(
+            Codegen &gen,
+            ArrayValue *parent,
+            std::vector<llvm::Value *> idxList,
+            unsigned int index
+    ) override;
+
     llvm::Type *llvm_elem_type(Codegen &gen) override;
 
     llvm::Type *llvm_type(Codegen &gen) override;
 
-    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, unsigned int index) override;
+    bool add_child_indexes(Codegen &gen, std::vector<llvm::Value *> &indexes, std::vector<std::unique_ptr<Value>> &u_inds) override;
 
 #endif
 

@@ -2,6 +2,7 @@
 
 #include "Value.h"
 #include "ast/values/StructValue.h"
+#include "ast/values/ArrayValue.h"
 #include "ast/structures/StructDefinition.h"
 
 #ifdef COMPILER_BUILD
@@ -30,6 +31,18 @@ unsigned int Value::store_in_struct(
     childIdx.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), index));
     auto elementPtr = gen.builder->CreateGEP(child->llvm_type(gen), ptr, childIdx);
     gen.builder->CreateStore(llvm_value(gen), elementPtr);
+    return index + 1;
+}
+
+unsigned int Value::store_in_array(
+        Codegen& gen,
+        ArrayValue* parent,
+        std::vector<llvm::Value *> idxList,
+        unsigned int index
+) {
+    idxList.emplace_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), index));
+    auto elemPtr = gen.builder->CreateGEP(parent->llvm_type(gen), parent->arr, idxList);
+    gen.builder->CreateStore(llvm_value(gen), elemPtr);
     return index + 1;
 }
 

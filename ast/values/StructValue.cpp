@@ -52,8 +52,8 @@ llvm::Type *StructValue::llvm_type(Codegen &gen) {
     return definition->llvm_type(gen);
 }
 
-bool StructValue::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, unsigned int index) {
-    return definition->add_child_index(gen, indexes, index);
+bool StructValue::add_child_indexes(Codegen &gen, std::vector<llvm::Value *> &indexes, std::vector<std::unique_ptr<Value>> &u_inds) {
+    return definition->add_child_indexes(gen, indexes, u_inds);
 }
 
 bool StructValue::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {

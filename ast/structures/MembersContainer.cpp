@@ -25,9 +25,10 @@ bool MembersContainer::add_child_index(
     return true;
 }
 
-bool MembersContainer::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, unsigned int index) {
-    if (index >= variables.size()) return false;
-    indexes.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), index));
+bool MembersContainer::add_child_indexes(Codegen &gen, std::vector<llvm::Value *> &indexes, std::vector<std::unique_ptr<Value>> &u_inds) {
+    for(auto& value : u_inds) {
+        indexes.emplace_back(value->llvm_value(gen));
+    }
     return true;
 }
 

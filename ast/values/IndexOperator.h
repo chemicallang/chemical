@@ -13,8 +13,8 @@
 class IndexOperator : public Value {
 public:
 
-    IndexOperator(std::string identifier, std::unique_ptr<Value> value) : identifier(std::move(identifier)),
-                                                                          value(std::move(value)) {
+    IndexOperator(std::string identifier, std::vector<std::unique_ptr<Value>> indexes) : identifier(std::move(identifier)),
+                                                                          values(std::move(indexes)) {
 
     }
 
@@ -32,17 +32,7 @@ public:
         return false;
     }
 
-    Value *find_in(InterpretScope &scope, Value *parent) override {
-#ifdef DEBUG
-        try {
-            return parent->index(scope, value->evaluated_value(scope)->as_int());
-        } catch (...) {
-            std::cerr << "[InterpretError] index operator only support's integer indexes at the moment";
-        }
-#endif
-        parent->index(scope, value->evaluated_value(scope)->as_int());
-        return nullptr;
-    }
+    Value *find_in(InterpretScope &scope, Value *parent) override;
 
 #ifdef COMPILER_BUILD
 
@@ -64,13 +54,16 @@ public:
     std::string representation() const override {
         std::string rep(identifier);
         rep.append(1, '[');
-        rep.append(value->representation());
+        for(auto& value : values) {
+            rep.append(value->representation());
+            rep.append(1, ',');
+        }
         rep.append(1, ']');
         return rep;
     }
 
     ASTNode *linked;
     std::string identifier;
-    std::unique_ptr<Value> value;
+    std::vector<std::unique_ptr<Value>> values;
 
 };

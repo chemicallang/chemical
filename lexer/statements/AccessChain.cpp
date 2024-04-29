@@ -86,18 +86,20 @@ bool Lexer::lexAccessChainAfterId(bool lexStruct) {
         compound_from<FunctionCallCST>(start);
     }
 
-    while (lexOperatorToken('[')) {
+    if(lexOperatorToken('[')) {
         unsigned start = tokens.size() - 2;
-        lexWhitespaceToken();
-        if (!lexExpressionTokens()) {
-            error("expected an expression in indexing operators for access chain");
-            return true;
-        }
-        lexWhitespaceToken();
-        if (!lexOperatorToken(']')) {
-            error("expected a closing bracket ] in access chain");
-            return true;
-        }
+        do {
+            lexWhitespaceToken();
+            if (!lexExpressionTokens()) {
+                error("expected an expression in indexing operators for access chain");
+                return true;
+            }
+            lexWhitespaceToken();
+            if (!lexOperatorToken(']')) {
+                error("expected a closing bracket ] in access chain");
+                return true;
+            }
+        } while(lexOperatorToken('['));
         compound_from<IndexOpCST>(start);
     }
 

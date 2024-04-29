@@ -40,11 +40,11 @@ bool VarInitStatement::add_child_index(Codegen &gen, std::vector<llvm::Value *> 
     return false;
 }
 
-bool VarInitStatement::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, unsigned int index) {
+bool VarInitStatement::add_child_indexes(Codegen &gen, std::vector<llvm::Value *> &indexes, std::vector<std::unique_ptr<Value>> &u_inds) {
     if (value.has_value()) {
-        return value.value()->add_child_index(gen, indexes, index);
+        return value.value()->add_child_indexes(gen, indexes, u_inds);
     } else if (type.has_value()) {
-        return type.value()->linked_node()->add_child_index(gen, indexes, index);
+        return type.value()->linked_node()->add_child_indexes(gen, indexes, u_inds);
     }
     return false;
 }

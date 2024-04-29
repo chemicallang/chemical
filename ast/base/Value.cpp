@@ -27,7 +27,7 @@ unsigned int Value::store_in_struct(
         unsigned int index
 ) {
     idxList.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), index));
-    auto elementPtr = gen.builder->CreateGEP(parent->llvm_type(gen), ptr, idxList);
+    auto elementPtr = gen.builder->CreateGEP(parent->llvm_type(gen), ptr, idxList, "", gen.inbounds);
     gen.builder->CreateStore(llvm_value(gen), elementPtr);
     return index + 1;
 }
@@ -40,7 +40,7 @@ unsigned int Value::store_in_array(
         unsigned int index
 ) {
     idxList.emplace_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), index));
-    auto elemPtr = gen.builder->CreateGEP(parent->llvm_type(gen), ptr, idxList);
+    auto elemPtr = gen.builder->CreateGEP(parent->llvm_type(gen), ptr, idxList, "", gen.inbounds);
     gen.builder->CreateStore(llvm_value(gen), elemPtr);
     return index + 1;
 }

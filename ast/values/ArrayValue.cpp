@@ -40,7 +40,7 @@ unsigned int ArrayValue::store_in_array(
         std::vector<llvm::Value *> idxList,
         unsigned int index
 ) {
-    idxList.emplace_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), index));
+    idxList.emplace_back(gen.builder->getInt32(index));
     for (size_t i = 0; i < values.size(); ++i) {
         values[i]->store_in_array(gen, parent, ptr, idxList, i);
     }
@@ -52,15 +52,11 @@ unsigned int ArrayValue::store_in_struct(
         StructValue *parent,
         llvm::AllocaInst *ptr,
         std::vector<llvm::Value *> idxList,
-        const std::string &identifier,
         unsigned int index
 ) {
-    if(idxList.empty()) {
-        idxList.emplace_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), 0));
-    }
-    idxList.emplace_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), index));
+    idxList.emplace_back(gen.builder->getInt32(index));
     for (size_t i = 0; i < values.size(); ++i) {
-        values[i]->store_in_struct(gen, parent, ptr, idxList, identifier, i);
+        values[i]->store_in_struct(gen, parent, ptr, idxList, i);
     }
     return index + 1;
 }

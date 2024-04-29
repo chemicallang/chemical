@@ -62,7 +62,6 @@ public:
             StructValue *parent,
             llvm::AllocaInst *ptr,
             std::vector<llvm::Value*> idxList,
-            const std::string &identifier,
             unsigned int index
     ) override;
 

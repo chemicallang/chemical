@@ -1,6 +1,8 @@
 // Copyright (c) Qinetik 2024.
 
 #include "ArrayValue.h"
+#include "StructValue.h"
+#include "ast/structures/StructDefinition.h"
 
 #ifdef COMPILER_BUILD
 
@@ -18,7 +20,7 @@ llvm::AllocaInst* ArrayValue::llvm_allocate(Codegen &gen, const std::string &ide
     std::vector<llvm::Value*> idxList;
     idxList.emplace_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), 0));
     for (size_t i = 0; i < values.size(); ++i) {
-         values[i]->store_in_array(gen, this, idxList, i);
+         values[i]->store_in_array(gen, this, arr, idxList, i);
     }
     return arr;
 }
@@ -34,14 +36,33 @@ llvm::Value *ArrayValue::llvm_value(Codegen &gen) {
 unsigned int ArrayValue::store_in_array(
         Codegen &gen,
         ArrayValue *parent,
+        llvm::AllocaInst* ptr,
         std::vector<llvm::Value *> idxList,
         unsigned int index
 ) {
     idxList.emplace_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), index));
     for (size_t i = 0; i < values.size(); ++i) {
-        values[i]->store_in_array(gen, parent, idxList, i);
+        values[i]->store_in_array(gen, parent, ptr, idxList, i);
     }
     return index + values.size();
+}
+
+unsigned int ArrayValue::store_in_struct(
+        Codegen &gen,
+        StructValue *parent,
+        llvm::AllocaInst *ptr,
+        std::vector<llvm::Value *> idxList,
+        const std::string &identifier,
+        unsigned int index
+) {
+    if(idxList.empty()) {
+        idxList.emplace_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), 0));
+    }
+    idxList.emplace_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), index));
+    for (size_t i = 0; i < values.size(); ++i) {
+        values[i]->store_in_struct(gen, parent, ptr, idxList, identifier, i);
+    }
+    return index + 1;
 }
 
 llvm::Type *ArrayValue::llvm_elem_type(Codegen &gen) {

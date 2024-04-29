@@ -19,7 +19,7 @@ bool Lexer::lexStructValueTokens() {
                     break;
                 }
                 lexWhitespaceToken();
-                if(!lexExpressionTokens(true)) {
+                if(!(lexExpressionTokens(true) || lexArrayInit())) {
                     error("expected an expression after ':' for struct member " + identifier);
                     break;
                 }

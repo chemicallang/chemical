@@ -10,6 +10,7 @@
 #include "ast/structures/InterfaceDefinition.h"
 
 #include "compiler/llvmimpl.h"
+#include "ast/values/IntValue.h"
 
 void StructDefinition::code_gen(Codegen &gen) {
     std::unordered_map<std::string, llvm::Function *> *ref = nullptr;
@@ -60,6 +61,13 @@ bool StructMember::add_child_index(Codegen &gen, std::vector<llvm::Value *> &ind
     auto linked = type->linked_node();
     if (!linked) return false;
     linked->add_child_index(gen, indexes, childName);
+    return true;
+}
+
+bool StructMember::add_child_indexes(Codegen &gen, std::vector<llvm::Value *> &indexes, std::vector<std::unique_ptr<Value>> &u_inds) {
+    for(auto& index : u_inds) {
+        indexes.emplace_back(index->llvm_value(gen));
+    }
     return true;
 }
 

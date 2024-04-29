@@ -729,12 +729,13 @@ void CSTConverter::visit(ArrayValueCST *arrayValue) {
     if (i < arrayValue->tokens.size()) {
         arrayValue->tokens[i++]->accept(this);
         arrType = opt_type();
-        while (i < arrayValue->tokens.size() && is_char_op(arrayValue->tokens[i].get(), '[')) {
-            i++;
-            arrayValue->tokens[i]->accept(this);
-            // consume the value
-            sizes.emplace_back(value()->as_int());
-            if(is_char_op(arrayValue->tokens[i + 1].get(), ']')) {
+        if (i < arrayValue->tokens.size() && char_op(arrayValue->tokens[i++].get()) == '(') {
+            while (i < arrayValue->tokens.size() && char_op(arrayValue->tokens[i].get()) != ')') {
+                if (char_op(arrayValue->tokens[i].get()) != ',') {
+                    arrayValue->tokens[i]->accept(this);
+                    // consume the value
+                    sizes.emplace_back(value()->as_int());
+                }
                 i++;
             }
         }

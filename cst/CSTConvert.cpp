@@ -763,7 +763,8 @@ void CSTConverter::visit(IndexOpCST *op) {
     auto indexes = take_values(this, [&op, this](){
         visit(op->tokens, 1);
     });
-    values.emplace_back(std::make_unique<IndexOperator>(str_token(op->tokens, 0), std::move(indexes)));
+    op->tokens[0]->accept(this);
+    values.emplace_back(std::make_unique<IndexOperator>(value(), std::move(indexes)));
 }
 
 void CSTConverter::visit(AccessChainCST *chain) {

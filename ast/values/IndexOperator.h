@@ -13,7 +13,7 @@
 class IndexOperator : public Value {
 public:
 
-    IndexOperator(std::string identifier, std::vector<std::unique_ptr<Value>> indexes) : identifier(std::move(identifier)),
+    IndexOperator(std::unique_ptr<Value> identifier, std::vector<std::unique_ptr<Value>> indexes) : identifier(std::move(identifier)),
                                                                           values(std::move(indexes)) {
 
     }
@@ -52,7 +52,7 @@ public:
     std::unique_ptr<BaseType> create_type() const override;
 
     std::string representation() const override {
-        std::string rep(identifier);
+        std::string rep(identifier->representation());
         rep.append(1, '[');
         for(auto& value : values) {
             rep.append(value->representation());
@@ -63,7 +63,7 @@ public:
     }
 
     ASTNode *linked;
-    std::string identifier;
+    std::unique_ptr<Value> identifier;
     std::vector<std::unique_ptr<Value>> values;
 
 };

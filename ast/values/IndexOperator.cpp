@@ -32,12 +32,12 @@ llvm::Value *IndexOperator::llvm_value(Codegen &gen) {
 }
 
 bool IndexOperator::add_member_index(Codegen &gen, ASTNode *parent, std::vector<llvm::Value *> &indexes) {
-    if (parent && !parent->add_child_index(gen, indexes, identifier)) {
-        gen.error("couldn't add child index in index operator for identifier " + identifier);
+    if (parent && !identifier->add_member_index(gen, parent, indexes)) {
+        gen.error("couldn't add child index in index operator for identifier " + identifier->representation());
         return false;
     }
     if (!linked->add_child_indexes(gen, indexes, values)) {
-        gen.error("couldn't add child index in index operator for identifier " + identifier);
+        gen.error("couldn't add child index in index operator for identifier " + identifier->representation());
         return false;
     }
     return true;
@@ -65,13 +65,14 @@ std::unique_ptr<BaseType> IndexOperator::create_type() const {
 }
 
 void IndexOperator::link(SymbolResolver &linker) {
-    linked = linker.find(identifier);
+    identifier->link(linker);
+    linked = identifier->linked_node();
     if (linked) {
         for(auto& value : values) {
             value->link(linker);
         }
     } else {
-        linker.error("no identifier with name '" + identifier + "' found to link for index operator");
+        linker.error("no identifier with name '" + identifier->representation() + "' found to link for index operator");
     }
 }
 
@@ -102,9 +103,6 @@ Value *IndexOperator::find_in(InterpretScope &scope, Value *parent) {
 }
 
 ASTNode *IndexOperator::find_link_in_parent(ASTNode *parent) {
-    auto found = parent->child(identifier);
-    if (found) {
-        linked = found;
-    }
-    return found;
+    linked = identifier->find_link_in_parent(parent);
+    return linked;
 }

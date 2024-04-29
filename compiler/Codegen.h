@@ -44,6 +44,12 @@ public:
     std::vector<std::string> errors = std::vector<std::string>();
 
     /**
+     * All get element pointer instructions use this to state that the element pointer is inbounds
+     * If true, results in undefined behavior when accessing element out of bounds, which is the default
+     */
+    bool inbounds = true;
+
+    /**
      * constructor
      * @param nodes
      * @param path

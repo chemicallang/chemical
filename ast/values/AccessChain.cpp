@@ -56,9 +56,9 @@ llvm::Value *AccessChain::llvm_pointer(Codegen &gen) {
             }
             if(values[0]->type_kind() == BaseTypeKind::Pointer) {
                 auto ty = values[0]->create_type();
-                return gen.builder->CreateGEP(((PointerType*) (ty.get()))->type->llvm_type(gen), values[0]->llvm_pointer(gen), idxList);
+                return gen.builder->CreateGEP(((PointerType*) (ty.get()))->type->llvm_type(gen), values[0]->llvm_pointer(gen), idxList, "", gen.inbounds);
             } else {
-                return gen.builder->CreateGEP(values[0]->llvm_type(gen), values[0]->llvm_pointer(gen), idxList);
+                return gen.builder->CreateGEP(values[0]->llvm_type(gen), values[0]->llvm_pointer(gen), idxList, "", gen.inbounds);
             }
         }
     }

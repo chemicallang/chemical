@@ -9,7 +9,6 @@
 #include "compiler/llvmimpl.h"
 #include "ast/types/ArrayType.h"
 
-// TODO isInBounds optimization, when we know that index is in bounds
 llvm::Value *IndexOperator::elem_pointer(Codegen &gen, ASTNode *arr) {
     std::vector<llvm::Value *> idxList;
     auto type = arr->llvm_type(gen);
@@ -20,7 +19,7 @@ llvm::Value *IndexOperator::elem_pointer(Codegen &gen, ASTNode *arr) {
         idxList.emplace_back(value->llvm_value(gen));
     }
     idxList.shrink_to_fit();
-    return gen.builder->CreateGEP(type, arr->llvm_pointer(gen), idxList);
+    return gen.builder->CreateGEP(type, arr->llvm_pointer(gen), idxList, "", gen.inbounds);
 }
 
 llvm::Value *IndexOperator::llvm_pointer(Codegen &gen) {

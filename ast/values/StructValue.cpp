@@ -16,7 +16,7 @@ llvm::AllocaInst *StructValue::llvm_allocate(Codegen &gen, const std::string &id
             gen.error("couldn't get struct child " + value.first + " in definition with name " + definition->name);
         } else {
             std::vector<llvm::Value*> idx {gen.builder->getInt32(0)};
-            value.second->store_in_struct(gen, this, allocaInst, idx, value.first, index);
+            value.second->store_in_struct(gen, this, allocaInst, idx, index);
         }
     }
     return allocaInst;
@@ -27,7 +27,6 @@ unsigned int StructValue::store_in_struct(
         StructValue *parent,
         llvm::AllocaInst *ptr,
         std::vector<llvm::Value*> idxList,
-        const std::string &identifier,
         unsigned int index
 ) {
     for (const auto &value: values) {
@@ -37,7 +36,7 @@ unsigned int StructValue::store_in_struct(
                     "couldn't get embedded struct child " + value.first + " in definition of name " + definition->name +
                     " with parent of name " + parent->definition->name);
         } else {
-            value.second->store_in_struct(gen, this, ptr, {}, value.first, currIndex);
+            value.second->store_in_struct(gen, this, ptr, {}, currIndex);
         }
     }
     return index + values.size();

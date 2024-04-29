@@ -24,7 +24,6 @@ unsigned int Value::store_in_struct(
         StructValue* parent,
         llvm::AllocaInst* ptr,
         std::vector<llvm::Value *> idxList,
-        const std::string& identifier,
         unsigned int index
 ) {
     idxList.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), index));

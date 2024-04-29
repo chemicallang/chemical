@@ -47,6 +47,11 @@ struct Point : Calculator {
 
 }
 
+struct Container {
+    var point : int[2]
+    var is_cool : bool
+}
+
 impl Calculator for Point {
     func divideP(&self) : int {
         return self.x / self.y;
@@ -146,6 +151,13 @@ func test_nodes() {
         arr[1][0] = 6;
         arr[1][1] = 8;
         return arr[0][0] == 2 && arr[0][1] == 4 && arr[1][0] == 6 && arr[1][1] == 8;
+    })
+    test("array inside a struct", []() => {
+        var ct = Container {
+            point : {10,20},
+            is_cool : true
+        }
+        return ct.is_cool && ct.point[0] == 10 && ct.point[1] == 20;
     })
     test("test multi dimensional array", []() => {
         var arr = {{1, 2}, {3, 4}};

@@ -48,7 +48,17 @@ public:
     unsigned int store_in_array(
             Codegen &gen,
             ArrayValue *parent,
+            llvm::AllocaInst* ptr,
             std::vector<llvm::Value *> idxList,
+            unsigned int index
+    ) override;
+
+    unsigned int store_in_struct(
+            Codegen &gen,
+            StructValue *parent,
+            llvm::AllocaInst *ptr,
+            std::vector<llvm::Value *> idxList,
+            const std::string &identifier,
             unsigned int index
     ) override;
 

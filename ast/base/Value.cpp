@@ -20,16 +20,15 @@ llvm::GlobalVariable* Value::llvm_global_variable(Codegen& gen, bool is_const, c
 }
 
 unsigned int Value::store_in_struct(
-        Codegen &gen,
-        StructValue *parent,
-        llvm::AllocaInst *ptr,
-        const std::string &identifier,
+        Codegen& gen,
+        StructValue* parent,
+        llvm::AllocaInst* ptr,
+        std::vector<llvm::Value *> idxList,
+        const std::string& identifier,
         unsigned int index
 ) {
-    auto child = parent->definition->child(identifier);
-    std::vector<llvm::Value *> childIdx;
-    childIdx.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), index));
-    auto elementPtr = gen.builder->CreateGEP(child->llvm_type(gen), ptr, childIdx);
+    idxList.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), index));
+    auto elementPtr = gen.builder->CreateGEP(parent->llvm_type(gen), ptr, idxList);
     gen.builder->CreateStore(llvm_value(gen), elementPtr);
     return index + 1;
 }
@@ -37,11 +36,12 @@ unsigned int Value::store_in_struct(
 unsigned int Value::store_in_array(
         Codegen& gen,
         ArrayValue* parent,
+        llvm::AllocaInst* ptr,
         std::vector<llvm::Value *> idxList,
         unsigned int index
 ) {
     idxList.emplace_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), index));
-    auto elemPtr = gen.builder->CreateGEP(parent->llvm_type(gen), parent->arr, idxList);
+    auto elemPtr = gen.builder->CreateGEP(parent->llvm_type(gen), ptr, idxList);
     gen.builder->CreateStore(llvm_value(gen), elemPtr);
     return index + 1;
 }

@@ -743,6 +743,14 @@ void CSTConverter::visit(ArrayValueCST *arrayValue) {
     values.emplace_back(std::make_unique<ArrayValue>(std::move(arrValues), std::move(arrType), std::move(sizes)));
 }
 
+std::vector<std::unique_ptr<Value>> take_values(CSTConverter* converter, const std::function<void()>& visit) {
+    auto prev_values = std::move(converter->values);
+    visit();
+    auto new_values = std::move(converter->values);
+    converter->values = std::move(prev_values);
+    return new_values;
+}
+
 void CSTConverter::visit(FunctionCallCST *call) {
     auto prev_values = std::move(values);
     visit(call->tokens, 1);
@@ -752,8 +760,10 @@ void CSTConverter::visit(FunctionCallCST *call) {
 }
 
 void CSTConverter::visit(IndexOpCST *op) {
-    visit(op->tokens, 1);
-    values.emplace_back(std::make_unique<IndexOperator>(str_token(op->tokens, 0), value()));
+    auto indexes = take_values(this, [&op, this](){
+        visit(op->tokens, 1);
+    });
+    values.emplace_back(std::make_unique<IndexOperator>(str_token(op->tokens, 0), std::move(indexes)));
 }
 
 void CSTConverter::visit(AccessChainCST *chain) {

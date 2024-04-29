@@ -66,7 +66,7 @@ bool Lexer::lexArrayInit() {
         auto start = tokens.size() - 1;
         do {
             lexWhitespaceToken();
-            if (!lexExpressionTokens()) {
+            if (!(lexExpressionTokens() || lexArrayInit())) {
                 break;
             }
             lexWhitespaceToken();

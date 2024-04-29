@@ -243,13 +243,13 @@ public:
     }
 
     /**
-     * add child index in llvm indexes vector
+     * add child indexes is a method to use when you need to index multiple indexes on a array or struct value
      */
-    virtual bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, unsigned int index) {
+    virtual bool add_child_indexes(Codegen &gen, std::vector<llvm::Value *>& indexes, std::vector<std::unique_ptr<Value>>& u_inds) {
 #ifdef DEBUG
-        std::cerr << "add_child_index(int) called on base ASTNode, representation : " << representation();
+        std::cerr << "add_child_indexes called on base ASTNode, representation : " << representation();
 #endif
-        throw std::runtime_error("add_child_index(int) called on a ASTNode");
+        throw std::runtime_error("add_child_indexes called on a ASTNode");
     }
 
     /**

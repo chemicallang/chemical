@@ -16,7 +16,9 @@ llvm::Value *IndexOperator::elem_pointer(Codegen &gen, ASTNode *arr) {
     if (type->isArrayTy()) {
         idxList.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), 0));
     }
-    idxList.push_back(value->llvm_value(gen));
+    for(auto& value : values) {
+        idxList.emplace_back(value->llvm_value(gen));
+    }
     idxList.shrink_to_fit();
     return gen.builder->CreateGEP(type, arr->llvm_pointer(gen), idxList);
 }
@@ -34,11 +36,7 @@ bool IndexOperator::add_member_index(Codegen &gen, ASTNode *parent, std::vector<
         gen.error("couldn't add child index in index operator for identifier " + identifier);
         return false;
     }
-    if (value->value_type() != ValueType::Int) {
-        gen.error("cannot add index for a non int value type in index operator on identifier " + identifier);
-        return false;
-    }
-    if (!linked->add_child_index(gen, indexes, value->as_int())) {
+    if (!linked->add_child_indexes(gen, indexes, values)) {
         gen.error("couldn't add child index in index operator for identifier " + identifier);
         return false;
     }
@@ -47,8 +45,8 @@ bool IndexOperator::add_member_index(Codegen &gen, ASTNode *parent, std::vector<
 
 llvm::Type *IndexOperator::llvm_type(Codegen &gen) {
     auto value_type = linked->create_value_type();
-    if(value_type->kind() == BaseTypeKind::Array) {
-        return ((ArrayType*) value_type.get())->elem_type->llvm_type(gen);
+    if (value_type->kind() == BaseTypeKind::Array) {
+        return ((ArrayType *) value_type.get())->elem_type->llvm_type(gen);
     } else {
         gen.error("cannot get element type from a variable that's not an array");
     }
@@ -58,8 +56,8 @@ llvm::Type *IndexOperator::llvm_type(Codegen &gen) {
 
 std::unique_ptr<BaseType> IndexOperator::create_type() const {
     auto value_type = linked->create_value_type();
-    if(value_type->kind() == BaseTypeKind::Array) {
-        return std::unique_ptr<BaseType>(((ArrayType*) value_type.get())->elem_type->copy());
+    if (value_type->kind() == BaseTypeKind::Array) {
+        return std::unique_ptr<BaseType>(((ArrayType *) value_type.get())->elem_type->copy());
     } else {
         // TODO report error here
         return nullptr;
@@ -68,8 +66,10 @@ std::unique_ptr<BaseType> IndexOperator::create_type() const {
 
 void IndexOperator::link(SymbolResolver &linker) {
     linked = linker.find(identifier);
-    if(linked) {
-        value->link(linker);
+    if (linked) {
+        for(auto& value : values) {
+            value->link(linker);
+        }
     } else {
         linker.error("no identifier with name '" + identifier + "' found to link for index operator");
     }
@@ -77,7 +77,28 @@ void IndexOperator::link(SymbolResolver &linker) {
 
 ASTNode *IndexOperator::linked_node() {
     if (!linked) return nullptr;
+    auto value = values[0].get();
+    if(values.size() > 1) {
+        std::cerr << "Index operator only supports a single integer index at the moment" << std::endl;
+        return nullptr;
+    }
     return linked->child(value->value_type() == ValueType::Int ? value->as_int() : -1);
+}
+
+Value *IndexOperator::find_in(InterpretScope &scope, Value *parent) {
+    auto value = values[0].get();
+    if(values.size() > 1) {
+        scope.error("Index operator only supports a single integer index at the moment");
+    }
+#ifdef DEBUG
+    try {
+        return parent->index(scope, value->evaluated_value(scope)->as_int());
+    } catch (...) {
+        std::cerr << "[InterpretError] index operator only support's integer indexes at the moment";
+    }
+#endif
+    parent->index(scope, value->evaluated_value(scope)->as_int());
+    return nullptr;
 }
 
 ASTNode *IndexOperator::find_link_in_parent(ASTNode *parent) {

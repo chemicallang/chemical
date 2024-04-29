@@ -217,6 +217,22 @@ std::cerr << "child called on base value";
     );
 
     /**
+     * store this value in the allocated array
+     * this method is same as above store_in_struct
+     *
+     * only this method stores this value in an array
+     * by default it gets the value, stores it in array at the given index, return index + 1
+     *
+     * this method could be overridden by array values to provide different behavior for nested arrays
+     */
+    virtual unsigned int store_in_array(
+        Codegen& gen,
+        ArrayValue* parent,
+        std::vector<llvm::Value *> idxList,
+        unsigned int index
+    );
+
+    /**
      * provides llvm_elem_type, which is the child type for example elem type of an array value
      * @param gen
      * @return
@@ -283,11 +299,11 @@ std::cerr << "child called on base value";
     /**
      * add child index in llvm indexes vector
      */
-    virtual bool add_child_index(Codegen& gen, std::vector<llvm::Value*>& indexes, unsigned int index) {
+    virtual bool add_child_indexes(Codegen& gen, std::vector<llvm::Value*>& indexes, std::vector<std::unique_ptr<Value>>& u_inds) {
 #ifdef DEBUG
-        std::cerr << "add_child_index(int) called on base ASTNode, representation : " << representation();
+        std::cerr << "add_child_indexes called on base ASTNode, representation : " << representation();
 #endif
-        throw std::runtime_error("add_child_index(int) called on a ASTNode");
+        throw std::runtime_error("add_child_indexes called on a ASTNode");
     }
 
 #endif

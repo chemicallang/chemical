@@ -14,6 +14,22 @@ llvm::Value *Codegen::operate(Operation op, Value *first, Value *second) {
     auto secondType = second->create_type();
     auto lhs = first->llvm_value(*this);
     auto rhs = second->llvm_value(*this);
+
+    // Mutating type to fit types
+    if(lhs->getType() != rhs->getType()) {
+        if(lhs->getType()->isArrayTy()) {
+#ifdef DEBUG
+            info("mutating type of array to " + secondType->representation() + " to perform operation");
+#endif
+            lhs->mutateType(rhs->getType());
+        } else if(rhs->getType()->isArrayTy()) {
+#ifdef DEBUG
+            info("mutating type of array to " + firstType->representation() + " to perform operation");
+#endif
+            rhs->mutateType(lhs->getType());
+        }
+    }
+
     auto is_floating = [&firstType, &secondType] () -> bool {
         return firstType->satisfies(ValueType::Float) || firstType->satisfies(ValueType::Double) || secondType->satisfies(ValueType::Float) || secondType->satisfies(ValueType::Double);
     };

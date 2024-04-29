@@ -77,17 +77,16 @@ bool Lexer::lexArrayInit() {
         lexWhitespaceToken();
         if (lexTypeTokens()) {
             lexWhitespaceToken();
-            if (lexOperatorToken('(')) {
-                do {
-                    lexWhitespaceToken();
-                    if (!lexNumberToken()) {
-                        break;
-                    }
-                    lexWhitespaceToken();
-                } while (lexOperatorToken(','));
+            while (lexOperatorToken('[')) {
                 lexWhitespaceToken();
-                if (!lexOperatorToken(')')) {
-                    error("expected a ')' when ending array size");
+                if (!lexNumberToken()) {
+                    error("expected a number token after '[' for array size");
+                    return true;
+                }
+                lexWhitespaceToken();
+                if (!lexOperatorToken(']')) {
+                    error("expected a ']' when ending array size");
+                    return true;
                 }
             }
         }

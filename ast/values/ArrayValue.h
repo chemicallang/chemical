@@ -33,7 +33,6 @@ public:
         if (sizes.empty()) {
             return values.size();
         } else {
-            // TODO support multi dimensional arrays
             return sizes[0];
         }
     }

@@ -47,8 +47,20 @@ unsigned int ArrayValue::store_in_array(
 llvm::Type *ArrayValue::llvm_elem_type(Codegen &gen) {
     llvm::Type *elementType;
     if (values.empty()) {
-        // get empty array type from the user
-        elementType = elemType.value()->llvm_type(gen);
+        if(sizes.size() <= 1) {
+            // get empty array type from the user
+            elementType = elemType.value()->llvm_type(gen);
+        } else {
+            unsigned int i = sizes.size() - 1;
+            while(i > 0) {
+                if(i == sizes.size() - 1) {
+                    elementType = llvm::ArrayType::get(elemType.value()->llvm_type(gen), sizes[i]);
+                } else {
+                    elementType = llvm::ArrayType::get(elementType, sizes[i]);
+                }
+                i--;
+            }
+        }
     } else {
         elementType = values[0]->llvm_type(gen);
     }

@@ -2,6 +2,8 @@
 
 #include "FunctionCall.h"
 #include "ast/types/FunctionType.h"
+#include "ast/values/AccessChain.h"
+#include "ast/values/VariableIdentifier.h"
 
 #ifdef COMPILER_BUILD
 
@@ -60,6 +62,23 @@ llvm::Value* FunctionCall::llvm_value(Codegen &gen, std::vector<std::unique_ptr<
     auto fn = gen.module->getFunction(name);
     // TODO hardcoded isVarArg when can't get the function
     to_llvm_args(gen, this, values, fn != nullptr && fn->isVarArg(), args, requires_self ? 1 :0);
+
+    if(linked->as_struct_member() != nullptr) { // means I'm calling a pointer inside a struct
+
+        // creating access chain to the last member as an identifier instead of function call
+        AccessChain member_access({});
+        unsigned i = 0;
+        while(i < (chain.size() - 1)) {
+            member_access.values.emplace_back(chain[i]->copy());
+            i++;
+        }
+        auto identifier = new VariableIdentifier(name);
+        identifier->linked = linked;
+        member_access.values.emplace_back(identifier);
+
+        return gen.builder->CreateCall(linked->llvm_func_type(gen), member_access.llvm_value(gen), args);
+
+    }
 
     return call_with_args(this, fn, gen,  args);
 }

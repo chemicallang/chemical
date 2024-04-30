@@ -89,8 +89,9 @@ void StructValue::link(SymbolResolver &linker) {
         auto struct_def = found->as_struct_def();
         if (struct_def) {
             definition = struct_def;
+            unsigned i = 0;
             for (const auto &val: values) {
-                val.second->link(linker);
+                val.second->link(linker, this, val.first);
             }
         } else {
             linker.error("given struct name is not a struct definition : " + structName);

@@ -68,6 +68,14 @@ public:
     }
 
     /**
+     * when a value is present inside a struct value, this function is called
+     * can be overridden to retrieve extra information
+     */
+    virtual void link(SymbolResolver& linker, StructValue* value, const std::string& name) {
+        return link(linker);
+    }
+
+    /**
      * values inside a function call, can override this method if they want to access
      * information about call, function at link time
      */

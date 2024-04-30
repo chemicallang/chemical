@@ -12,6 +12,7 @@
 #include "ast/types/VoidType.h"
 #include "ast/base/LoopASTNode.h"
 #include "ast/statements/VarInit.h"
+#include "ast/values/StructValue.h"
 
 llvm::Type *LambdaFunction::llvm_type(Codegen &gen) {
     return gen.builder->getPtrTy();
@@ -101,6 +102,11 @@ void LambdaFunction::link(SymbolResolver &linker, VarInitStatement *stmnt) {
     } else {
         link(linker);
     }
+}
+
+void LambdaFunction::link(SymbolResolver &linker, StructValue *value, const std::string &name) {
+    func_type = std::shared_ptr<FunctionType>((FunctionType*) value->definition->child(name)->create_value_type().release());
+    link_body(this, linker);
 }
 
 void LambdaFunction::link(SymbolResolver &linker, FunctionCall *call, unsigned int index) {

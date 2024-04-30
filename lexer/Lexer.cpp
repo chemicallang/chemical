@@ -8,6 +8,7 @@
 #include "Impls.h"
 #include "lexer/model/tokens/KeywordToken.h"
 #include "ast/utils/GlobalFunctions.h"
+#include "ast/types/ReferencedType.h"
 
 Lexer::Lexer(SourceProvider &provider, std::string path) : provider(provider), path(std::move(path)), interpret_scope(
         GlobalInterpretScope(nullptr, nullptr, nullptr, path)

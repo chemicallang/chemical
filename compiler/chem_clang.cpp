@@ -19,7 +19,7 @@
 #endif
 
 clang::ASTUnit *ClangLoadFromCommandLine(const char **args_begin, const char **args_end,
-                                             struct ErrorMsg **errors_ptr, size_t *errors_len, const char *resources_path)
+                                             struct ErrorMsg **errors_ptr, unsigned long *errors_len, const char *resources_path)
 {
     clang::IntrusiveRefCntPtr<clang::DiagnosticsEngine> diags(clang::CompilerInstance::createDiagnostics(new clang::DiagnosticOptions));
 

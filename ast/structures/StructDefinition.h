@@ -12,8 +12,7 @@
 #include "MembersContainer.h"
 #include <optional>
 #include <map>
-
-class ReferencedType;
+#include "ast/types/ReferencedType.h"
 
 class StructDefinition : public MembersContainer {
 public:

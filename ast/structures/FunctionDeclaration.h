@@ -8,6 +8,7 @@
 
 #include <utility>
 
+#include "ast/structures/FunctionParam.h"
 #include "ast/base/Value.h"
 #include "ast/base/ASTNode.h"
 #include "ast/base/BaseType.h"

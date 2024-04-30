@@ -32,6 +32,8 @@ class FunctionParam;
 
 class BaseType;
 
+class LoopASTNode;
+
 /**
  * @brief Base class for all AST nodes.
  */
@@ -119,6 +121,20 @@ public:
      * return if this is a typealias statement
      */
     virtual TypealiasStatement *as_typealias() {
+        return nullptr;
+    }
+
+    /**
+     * return if this is a return statement
+     */
+    virtual ReturnStatement *as_return() {
+        return nullptr;
+    }
+
+    /**
+     * return if this is a loop ast node
+     */
+    virtual LoopASTNode *as_loop_ast() {
         return nullptr;
     }
 

@@ -28,6 +28,8 @@ public:
 
     llvm::Type *llvm_type(Codegen &gen) override;
 
+    llvm::FunctionType *llvm_func_type(Codegen &gen) override;
+
     llvm::Type *llvm_elem_type(Codegen &gen) override;
 
     llvm::Value *llvm_load(Codegen &gen) override;

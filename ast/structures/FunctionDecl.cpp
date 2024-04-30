@@ -13,6 +13,10 @@ llvm::Type *FunctionParam::llvm_type(Codegen &gen) {
     return type->llvm_type(gen);
 }
 
+llvm::FunctionType *FunctionParam::llvm_func_type(Codegen &gen) {
+    return type->llvm_func_type(gen);
+}
+
 llvm::Type *FunctionParam::llvm_elem_type(Codegen &gen) {
     auto lType = llvm_type(gen);
     if (lType) {

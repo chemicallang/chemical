@@ -60,6 +60,14 @@ public:
     }
 
     /**
+     * when value is contained within VarInitStatement, this function is called
+     * which provides access to var init statement for more information
+     */
+    virtual void link(SymbolResolver& linker, VarInitStatement* stmnt) {
+        return link(linker);
+    }
+
+    /**
      * values inside a function call, can override this method if they want to access
      * information about call, function at link time
      */
@@ -186,6 +194,14 @@ std::cerr << "child called on base value";
     virtual llvm::Type* llvm_type(Codegen& gen) {
         throw std::runtime_error("llvm_type called on bare Value of type " + std::to_string((int) value_type()));
     };
+
+    /**
+     * provide a function type, if this value represents a function
+     * like a function pointer or a lambda
+     */
+    virtual llvm::FunctionType* llvm_func_type(Codegen& gen) {
+        return (llvm::FunctionType*) llvm_type(gen);
+    }
 
     /**
      * allocates this value with this identifier, and also creates a store instruction

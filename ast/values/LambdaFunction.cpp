@@ -9,6 +9,9 @@
 #ifdef COMPILER_BUILD
 
 #include "compiler/llvmimpl.h"
+#include "ast/types/VoidType.h"
+#include "ast/base/LoopASTNode.h"
+#include "ast/statements/VarInit.h"
 
 llvm::Type *LambdaFunction::llvm_type(Codegen &gen) {
     return gen.builder->getPtrTy();
@@ -19,7 +22,11 @@ llvm::Value *LambdaFunction::llvm_value(Codegen &gen) {
         gen.error("Cannot generate lambda function for unknown type");
         return nullptr;
     }
-    return gen.create_nested_function("lambda", (llvm::FunctionType*) func_type->llvm_type(gen), scope);
+    return gen.create_nested_function("lambda", func_type->llvm_func_type(gen), scope);
+}
+
+std::unique_ptr<BaseType> LambdaFunction::create_type() const {
+    return std::unique_ptr<BaseType>(func_type->copy());
 }
 
 #endif
@@ -31,6 +38,69 @@ LambdaFunction::LambdaFunction(
         Scope scope
 ) : captureList(std::move(captureList)), params(std::move(params)), isVariadic(isVariadic), scope(std::move(scope)) {
 
+}
+
+BaseType* find_return_type(std::vector<std::unique_ptr<ASTNode>>& nodes) {
+    for(auto& node : nodes) {
+        if(node->as_return() != nullptr) {
+            auto returnStmt = node->as_return();
+            if(returnStmt->value.has_value()) {
+                return returnStmt->value.value()->create_type().release();
+            } else {
+                return new VoidType();
+            }
+        } else if(node->as_loop_ast() != nullptr) {
+            auto found = find_return_type(node->as_loop_ast()->body.nodes);
+            if(found != nullptr) {
+                return found;
+            }
+        }
+    }
+    return new VoidType();
+}
+
+void link_body(LambdaFunction* fn, SymbolResolver &linker) {
+    linker.scope_start();
+    for (auto &param: fn->params) {
+        param->declare_and_link(linker);
+    }
+    fn->scope.declare_and_link(linker);
+    linker.scope_end();
+}
+
+void LambdaFunction::link(SymbolResolver &linker) {
+
+    linker.info("lambda function type not found, deducing function type by visiting lambda body (expensive operation) performed");
+
+    // finding return type
+    auto returnType = find_return_type(scope.nodes);
+
+    // linking params and their types before copying their types
+    linker.scope_start();
+    for (auto &param: params) {
+        param->declare_and_link(linker);
+    }
+
+    // copying function param
+    func_params funcParams;
+    for(auto& param : params) {
+        funcParams.emplace_back(param->copy());
+    }
+
+    func_type = std::make_unique<FunctionType>(std::move(funcParams), std::unique_ptr<BaseType>(returnType), isVariadic, !captureList.empty());
+
+    scope.declare_and_link(linker);
+    linker.scope_end();
+
+}
+
+void LambdaFunction::link(SymbolResolver &linker, VarInitStatement *stmnt) {
+    if(stmnt->type.has_value()) {
+        func_type = std::shared_ptr<FunctionType>((FunctionType*) stmnt->type.value()->copy());
+        link_body(this, linker);
+    } else {
+        link(linker);
+    }
 }
 
 void LambdaFunction::link(SymbolResolver &linker, FunctionCall *call, unsigned int index) {
@@ -54,12 +124,7 @@ void LambdaFunction::link(SymbolResolver &linker, FunctionCall *call, unsigned i
 
     func_type = std::shared_ptr<FunctionType>(paramType->function_type());
 
-    linker.scope_start();
-    for (auto &param: params) {
-        linker.declare(param->name, param.get());
-    }
-    scope.declare_and_link(linker);
-    linker.scope_end();
+    link_body(this, linker);
 
 }
 
@@ -73,12 +138,7 @@ void LambdaFunction::link(SymbolResolver &linker, ReturnStatement *returnStmt) {
 
     func_type = std::shared_ptr<FunctionType>(retType->function_type(), [](BaseType*){});
 
-    linker.scope_start();
-    for (auto &param: params) {
-        linker.declare(param->name, param.get());
-    }
-    scope.declare_and_link(linker);
-    linker.scope_end();
+    link_body(this, linker);
 
 }
 

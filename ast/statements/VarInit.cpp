@@ -66,7 +66,11 @@ llvm::Type *VarInitStatement::llvm_elem_type(Codegen &gen) {
 
 llvm::Type *VarInitStatement::llvm_type(Codegen &gen) {
     check_has_type(gen);
-    return value.has_value() ? value.value()->llvm_type(gen) : type.value()->llvm_type(gen);
+    return type.has_value() ? type.value()->llvm_type(gen) : value.value()->llvm_type(gen);
+}
+
+llvm::FunctionType *VarInitStatement::llvm_func_type(Codegen &gen) {
+    return type.has_value() ? type.value()->llvm_func_type(gen) : value.value()->llvm_func_type(gen);
 }
 
 #endif
@@ -109,7 +113,7 @@ void VarInitStatement::declare_and_link(SymbolResolver &linker) {
         type.value()->link(linker);
     }
     if (value.has_value()) {
-        value.value()->link(linker);
+        value.value()->link(linker, this);
     }
 }
 

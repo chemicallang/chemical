@@ -154,9 +154,6 @@ public:
      * @return
      */
     virtual VarInitStatement *as_var_init() {
-#ifdef DEBUG
-        std::cerr << "as_var_init called on ASTNode" << std::endl;
-#endif
         return nullptr;
     }
 

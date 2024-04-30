@@ -4,6 +4,10 @@ struct LambdaProvider {
     var provide : () => int
 }
 
+struct Nested {
+    var provider : LambdaProvider
+}
+
 func capturing(lambda : []() => bool) : bool {
     return lambda();
 }
@@ -53,6 +57,16 @@ func test_lambda() {
             }
         }
         return p.provide() == 252;
+    })
+    test("can call lambda stored nested in a struct", []() => {
+        var n = Nested {
+            provider : LambdaProvider {
+               provide : () => {
+                   return 252;
+               }
+           }
+        }
+        return n.provider.provide() == 252;
     })
 }
 

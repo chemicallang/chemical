@@ -62,10 +62,6 @@ public:
 
     llvm::FunctionType *llvm_func_type(Codegen &gen) override;
 
-    llvm::Type *llvm_param_type(Codegen &gen) override;
-
-    llvm::Type * llvm_struct_member_type(Codegen &gen) override;
-
 #endif
 
 };

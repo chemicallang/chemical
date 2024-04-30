@@ -120,9 +120,23 @@ public:
     virtual llvm::Type *llvm_type(Codegen &gen) const = 0;\
 
     /**
+     * return a func type, if this type can represent one
+     */
+    virtual llvm::FunctionType* llvm_func_type(Codegen &gen) {
+        return (llvm::FunctionType*) llvm_type(gen);
+    }
+
+    /**
      * returns this type, but for a llvm parameter
      */
     virtual llvm::Type *llvm_param_type(Codegen &gen) {
+        return llvm_type(gen);
+    }
+
+    /**
+     * return this type, but for a struct member
+     */
+    virtual llvm::Type *llvm_struct_member_type(Codegen &gen) {
         return llvm_type(gen);
     }
 

@@ -30,6 +30,10 @@ void ReturnStatement::accept(Visitor &visitor) {
     visitor.visit(this);
 }
 
+ReturnStatement *ReturnStatement::as_return() {
+    return this;
+}
+
 #ifdef COMPILER_BUILD
 
 void ReturnStatement::code_gen(Codegen &gen) {

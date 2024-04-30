@@ -73,4 +73,18 @@ public:
         errors.push_back(err);
     }
 
+    /**
+     * save a warning
+     */
+    inline void warn(const std::string &wrn) {
+        errors.push_back(wrn);
+    }
+
+    /**
+     * save a information
+     */
+    inline void info(const std::string &inf) {
+        errors.push_back(inf);
+    }
+
 };

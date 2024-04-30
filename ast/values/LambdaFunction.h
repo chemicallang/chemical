@@ -49,6 +49,12 @@ public:
 
 #endif
 
+    std::unique_ptr<BaseType> create_type() const override;
+
+    void link(SymbolResolver &linker) override;
+
+    void link(SymbolResolver &linker, VarInitStatement *stmnt) override;
+
     void link(SymbolResolver &linker, FunctionCall *call, unsigned int index) override;
 
     void link(SymbolResolver &linker, ReturnStatement *returnStmt) override;

@@ -32,7 +32,8 @@ llvm::Value* call_with_args(FunctionCall* call, llvm::Function* fn, Codegen &gen
     if(fn != nullptr) {
         return gen.builder->CreateCall(fn, args);
     } else {
-        return gen.builder->CreateCall((llvm::FunctionType*) call->linked->llvm_type(gen),  call->linked->llvm_pointer(gen), args);
+        auto callee = call->linked->as_var_init() != nullptr ? call->linked->llvm_load(gen) : call->linked->llvm_pointer(gen);
+        return gen.builder->CreateCall(call->linked->llvm_func_type(gen), callee, args);
     }
 }
 

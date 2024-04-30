@@ -54,7 +54,7 @@ void StructDefinition::code_gen(Codegen &gen) {
 }
 
 llvm::Type *StructMember::llvm_type(Codegen &gen) {
-    return type->llvm_type(gen);
+    return type->llvm_struct_member_type(gen);
 }
 
 bool StructMember::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &childName) {
@@ -104,7 +104,7 @@ void StructMember::declare_and_link(SymbolResolver &linker) {
 ASTNode *StructMember::child(const std::string &childName) {
     auto linked = type->linked_node();
     if (!linked) return nullptr;
-    linked->child(childName);
+    return linked->child(childName);
 }
 
 std::string StructMember::representation() const {
@@ -160,6 +160,7 @@ ASTNode *StructDefinition::child(const std::string &name) {
     } else if (overrides.has_value()) {
         return overrides.value()->linked->child(name);
     };
+    return nullptr;
 }
 
 #ifdef COMPILER_BUILD
@@ -167,7 +168,6 @@ ASTNode *StructDefinition::child(const std::string &name) {
 std::vector<llvm::Type *> StructDefinition::elements_type(Codegen &gen) {
     auto vec = std::vector<llvm::Type *>();
     vec.reserve(variables.size());
-    // TODO this doesn't work, a crash happens at variables
     for (const auto &var: variables) {
         vec.push_back(var.second->llvm_type(gen));
     }

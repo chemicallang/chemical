@@ -858,7 +858,7 @@ void visitNestedExpr(CSTConverter *converter, CSTToken *expr, ValueAndOperatorSt
             }
         }
     } else {
-        throw std::exception("unknown type of value provided to visitNestedExpr");
+        throw std::runtime_error("unknown type of value provided to visitNestedExpr");
     }
 }
 

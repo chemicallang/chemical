@@ -5,6 +5,7 @@
 #include "ast/base/ASTNode.h"
 #include <optional>
 #include <map>
+#include "StructMember.h"
 
 class MembersContainer : public ASTNode {
 public:

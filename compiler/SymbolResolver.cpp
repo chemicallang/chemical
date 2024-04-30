@@ -27,6 +27,7 @@ ASTNode *SymbolResolver::find(const std::string &name) {
         }
         i--;
     }
+    return nullptr;
 }
 
 void SymbolResolver::declare(const std::string& name, ASTNode* node) {

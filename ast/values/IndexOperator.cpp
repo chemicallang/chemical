@@ -48,6 +48,7 @@ llvm::Type *IndexOperator::llvm_type(Codegen &gen) {
         return ((ArrayType *) value_type.get())->elem_type->llvm_type(gen);
     } else {
         gen.error("cannot get element type from a variable that's not an array");
+        return nullptr;
     }
 }
 

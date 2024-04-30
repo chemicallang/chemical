@@ -1,6 +1,7 @@
 // Copyright (c) Qinetik 2024.
 
 #include "FunctionType.h"
+#include "ast/base/Value.h"
 
 #ifdef COMPILER_BUILD
 

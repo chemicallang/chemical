@@ -10,12 +10,7 @@
 
 #include "ast/base/ASTNode.h"
 #include <functional>
-
-namespace std {
-    namespace filesystem {
-        class path;
-    }
-}
+#include <filesystem>
 
 class Diag;
 

@@ -19,14 +19,6 @@ llvm::Type *FunctionType::llvm_type(Codegen &gen) const {
     return gen.builder->getPtrTy();
 };
 
-llvm::Type *FunctionType::llvm_param_type(Codegen &gen) {
-    return gen.builder->getPtrTy();
-}
-
-llvm::Type *FunctionType::llvm_struct_member_type(Codegen &gen) {
-    return gen.builder->getPtrTy();
-}
-
 #endif
 
 FunctionType::FunctionType(

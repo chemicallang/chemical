@@ -156,6 +156,12 @@ VarInitStatement *VariableIdentifier::declaration() {
     return linked->as_var_init();
 }
 
+Value* VariableIdentifier::copy() {
+    auto id = new VariableIdentifier(value);
+    id->linked = linked;
+    return id;
+}
+
 Value *VariableIdentifier::evaluated_value(InterpretScope &scope) {
     auto found = scope.find_value(value);
     if (found != nullptr) {

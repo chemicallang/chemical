@@ -1,5 +1,9 @@
 import "test.ch"
 
+struct LambdaProvider {
+    var provide : () => int
+}
+
 func capturing(lambda : []() => bool) : bool {
     return lambda();
 }
@@ -41,6 +45,14 @@ func test_lambda() {
             return 252;
         }
         return x() == 252;
+    })
+    test("can call lambda stored in struct", []() => {
+        var p = LambdaProvider {
+            provide : () => {
+                return 252;
+            }
+        }
+        return p.provide() == 252;
     })
 }
 

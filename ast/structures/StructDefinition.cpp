@@ -57,6 +57,10 @@ llvm::Type *StructMember::llvm_type(Codegen &gen) {
     return type->llvm_struct_member_type(gen);
 }
 
+llvm::FunctionType *StructMember::llvm_func_type(Codegen &gen) {
+    return type->llvm_func_type(gen);
+}
+
 bool StructMember::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &childName) {
     auto linked = type->linked_node();
     if (!linked) return false;

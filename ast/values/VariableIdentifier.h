@@ -67,6 +67,8 @@ public:
 
     Value *evaluated_value(InterpretScope &scope) override;
 
+    Value* copy() override;
+
     /**
      * every identifier's value will be moved to new owner at return
      */
@@ -91,8 +93,9 @@ public:
 
     ValueType value_type() const override;
 
-private:
     ASTNode *linked = nullptr;
+
+private:
     std::string value; ///< The string value.
 
 };

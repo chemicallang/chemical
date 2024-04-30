@@ -118,6 +118,13 @@ public:
     }
 
     /**
+     * return if this is a struct member
+     */
+    virtual StructMember *as_struct_member() {
+        return nullptr;
+    }
+
+    /**
      * return if this is a typealias statement
      */
     virtual TypealiasStatement *as_typealias() {

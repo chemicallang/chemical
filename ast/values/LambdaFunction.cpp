@@ -26,11 +26,15 @@ llvm::Value *LambdaFunction::llvm_value(Codegen &gen) {
     return gen.create_nested_function("lambda", func_type->llvm_func_type(gen), scope);
 }
 
-std::unique_ptr<BaseType> LambdaFunction::create_type() const {
-    return std::unique_ptr<BaseType>(func_type->copy());
+llvm::FunctionType *LambdaFunction::llvm_func_type(Codegen &gen) {
+    return func_type->llvm_func_type(gen);
 }
 
 #endif
+
+std::unique_ptr<BaseType> LambdaFunction::create_type() const {
+    return std::unique_ptr<BaseType>(func_type->copy());
+}
 
 LambdaFunction::LambdaFunction(
         std::vector<std::string> captureList,
@@ -71,7 +75,9 @@ void link_body(LambdaFunction* fn, SymbolResolver &linker) {
 
 void LambdaFunction::link(SymbolResolver &linker) {
 
+#ifdef DEBUG
     linker.info("lambda function type not found, deducing function type by visiting lambda body (expensive operation) performed");
+#endif
 
     // finding return type
     auto returnType = find_return_type(scope.nodes);

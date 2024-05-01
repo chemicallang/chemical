@@ -76,10 +76,10 @@ func test_lambda() {
     })
 }
 
-func fn_rets_1() {
+func fn_rets_1() : int {
     return 1;
 }
 
-func fn_rets_2() {
+func fn_rets_2() : int {
     return 2;
 }

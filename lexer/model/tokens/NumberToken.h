@@ -19,8 +19,36 @@ public:
         return value.find('.') != std::string::npos;
     }
 
+    inline char sec_last() {
+        if(value.size() >= 2) {
+            return value[value.size() - 2];
+        } else {
+            return '\0';
+        }
+    }
+
+    inline char last() {
+        return value[value.size() - 1];
+    }
+
     bool is_float() {
-        return value[value.size() - 1] == 'f';
+        return last() == 'f' || last() == 'F';
+    }
+
+    bool is_long() {
+        return last() == 'l' || last() == 'L';
+    }
+
+    bool is_unsigned() {
+        return sec_last() == 'u' || sec_last() == 'U';
+    }
+
+    inline bool is_signed_long() {
+        return !is_unsigned() && is_long();
+    }
+
+    inline bool is_unsigned_long() {
+        return is_unsigned() && is_long();
     }
 
     void accept(CSTVisitor *visitor) override {

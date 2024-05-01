@@ -1,5 +1,7 @@
 // Copyright (c) Qinetik 2024.
 
+#pragma once
+
 #include "IntNumValue.h"
 
 class UBigIntValue : public IntNumValue {

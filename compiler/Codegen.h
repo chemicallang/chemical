@@ -36,7 +36,7 @@ public:
      * the value is a map between function names and their corresponding llvm functions
      * these functions will be removed when code gen has completed.
      */
-    std::unordered_map<std::string, std::unordered_map<std::string, llvm::Function*>> unimplemented_interfaces;
+    std::unordered_map<std::string, std::unordered_map<std::string, llvm::Function *>> unimplemented_interfaces;
 
     /**
      * errors are stored here
@@ -60,8 +60,13 @@ public:
      * @param nodes
      * @param path
      */
-    explicit Codegen(std::vector<std::unique_ptr<ASTNode>> nodes, std::string path, std::string target_triple,
-                     std::string curr_exe_path);
+    explicit Codegen(
+            std::vector<std::unique_ptr<ASTNode>> nodes,
+            std::string path,
+            std::string target_triple,
+            std::string curr_exe_path,
+            bool is_64_bit // can be determined using static method is_arch_64bit on Codegen
+    );
 
     /**
      * initializes the llvm module and context
@@ -71,7 +76,7 @@ public:
     /**
      * determine whether the system we are compiling for is 64bit or 32bit
      */
-    void determine_arch();
+    static bool is_arch_64bit(const std::string &target_triple);
 
     /**
      * the actual compile function, when called module, ctx and builder members
@@ -278,14 +283,14 @@ public:
     /**
      * report an info, which is useful for user to know
      */
-    void info(const std::string& err, ASTNode* node = nullptr);
+    void info(const std::string &err, ASTNode *node = nullptr);
 
     /**
      * report an error when generating a node
      * @param err
      * @param node the node in which error occurred
      */
-    void error(const std::string &err, ASTNode* node = nullptr);
+    void error(const std::string &err, ASTNode *node = nullptr);
 
     /**
      * destructor takes care of deallocating members

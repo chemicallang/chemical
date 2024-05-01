@@ -142,16 +142,53 @@ std::string FunctionCST::func_name() {
     return str_token(tokens, 1);
 }
 
-// TODO support uint,long,ulong,short,ushort,longlong,ulonglong,longdouble
-CSTConverter::CSTConverter() {
-    primitive_type_map["any"] = []() -> BaseType * { return new AnyType(); };
-    primitive_type_map["bool"] = []() -> BaseType * { return new BoolType(); };
-    primitive_type_map["char"] = []() -> BaseType * { return new CharType(); };
-    primitive_type_map["double"] = []() -> BaseType * { return new DoubleType(); };
-    primitive_type_map["float"] = []() -> BaseType * { return new FloatType(); };
-    primitive_type_map["int"] = []() -> BaseType * { return new IntNType(32); };
-    primitive_type_map["string"] = []() -> BaseType * { return new StringType(); };
-    primitive_type_map["void"] = []() -> BaseType * { return new VoidType(); };
+// TODO support _128bigint, bigfloat
+CSTConverter::CSTConverter(bool is64Bit) {
+    primitive_type_map["any"] = []() -> BaseType * {
+        return new AnyType();
+    };
+    primitive_type_map["bool"] = []() -> BaseType * {
+        return new BoolType();
+    };
+    primitive_type_map["char"] = []() -> BaseType * {
+        return new CharType();
+    };
+    primitive_type_map["double"] = []() -> BaseType * {
+        return new DoubleType();
+    };
+    primitive_type_map["float"] = []() -> BaseType * {
+        return new FloatType();
+    };
+    primitive_type_map["int"] = []() -> BaseType * {
+        return new IntNType(32);
+    };
+    primitive_type_map["uint"] = []() -> BaseType * {
+        return new IntNType(32, true);
+    };
+    primitive_type_map["short"] = []() -> BaseType * {
+        return new IntNType(16);
+    };
+    primitive_type_map["ushort"] = []() -> BaseType * {
+        return new IntNType(16, true);
+    };
+    primitive_type_map["long"] = [is64Bit]() -> BaseType * {
+        return new IntNType(is64Bit ? 64 : 32);
+    };
+    primitive_type_map["ulong"] = [is64Bit]() -> BaseType * {
+        return new IntNType(is64Bit ? 64 : 32, true);
+    };
+    primitive_type_map["bigint"] = []() -> BaseType * {
+        return new IntNType(64);
+    };
+    primitive_type_map["ubigint"] = []() -> BaseType * {
+        return new IntNType(64, true);
+    };
+    primitive_type_map["string"] = []() -> BaseType * {
+        return new StringType();
+    };
+    primitive_type_map["void"] = []() -> BaseType * {
+        return new VoidType();
+    };
 }
 
 void CSTConverter::visit(std::vector<std::unique_ptr<CSTToken>> &tokens, unsigned int start, unsigned int end) {
@@ -219,7 +256,9 @@ FunctionParamsResult CSTConverter::function_params(cst_tokens_ref_type tokens, u
             if (strId != "this" && strId != "self") {
                 error("expected self parameter to be named 'self' or 'this'", tokens[i].get());
             }
-            auto type = current_struct_decl ? current_struct_decl->name : (current_interface_decl ? current_interface_decl->name : current_impl_decl->struct_name.value());
+            auto type = current_struct_decl ? current_struct_decl->name : (current_interface_decl
+                                                                           ? current_interface_decl->name
+                                                                           : current_impl_decl->struct_name.value());
             params.emplace_back(new FunctionParam(strId, std::make_unique<PointerType>(
                     std::make_unique<ReferencedType>(type)), 0, false, std::nullopt));
         } else if (tokens[i]->compound()) {
@@ -549,7 +588,7 @@ void CSTConverter::visit(DoWhileCST *doWhileCst) {
 
 unsigned int collect_struct_members(
         CSTConverter *conv,
-        std::vector<std::unique_ptr<CSTToken>>& tokens,
+        std::vector<std::unique_ptr<CSTToken>> &tokens,
         std::map<std::string, std::unique_ptr<StructMember>> &variables,
         std::map<std::string, std::unique_ptr<FunctionDeclaration>> &decls,
         unsigned i
@@ -559,7 +598,7 @@ unsigned int collect_struct_members(
         tokens[i]->accept(conv);
         auto is_var_init = tokens[i]->is_var_init();
         auto is_func_decl = tokens[i]->is_func_decl();
-        if(!is_var_init && !is_func_decl) {
+        if (!is_var_init && !is_func_decl) {
             i++;
             continue;
         }
@@ -612,7 +651,7 @@ void CSTConverter::visit(InterfaceCST *interface) {
 void CSTConverter::visit(ImplCST *impl) {
     bool has_for = is_keyword(impl->tokens[2].get(), "for");
     std::optional<std::string> struct_name;
-    if(has_for) {
+    if (has_for) {
         struct_name.emplace(str_token(impl->tokens[3].get()));
     } else {
         struct_name = std::nullopt;
@@ -743,7 +782,7 @@ void CSTConverter::visit(ArrayValueCST *arrayValue) {
     values.emplace_back(std::make_unique<ArrayValue>(std::move(arrValues), std::move(arrType), std::move(sizes)));
 }
 
-std::vector<std::unique_ptr<Value>> take_values(CSTConverter* converter, const std::function<void()>& visit) {
+std::vector<std::unique_ptr<Value>> take_values(CSTConverter *converter, const std::function<void()> &visit) {
     auto prev_values = std::move(converter->values);
     visit();
     auto new_values = std::move(converter->values);
@@ -760,7 +799,7 @@ void CSTConverter::visit(FunctionCallCST *call) {
 }
 
 void CSTConverter::visit(IndexOpCST *op) {
-    auto indexes = take_values(this, [&op, this](){
+    auto indexes = take_values(this, [&op, this]() {
         visit(op->tokens, 1);
     });
     op->tokens[0]->accept(this);

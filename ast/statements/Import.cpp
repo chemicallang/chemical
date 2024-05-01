@@ -31,7 +31,7 @@ void ImportStatement::code_gen(Codegen &gen) {
     if(found == gen.imported.end()) {
         auto &ast = parsed(gen.path, [&abs_path, &gen](Diag* diag) {
             gen.error(diag->ansi_representation(abs_path, "Import"));
-        });
+        }, gen.is64Bit);
 //        std::cout << "importing " << abs_path << std::endl;
         auto prev_path = gen.current_path;
         gen.current_path = abs_path;
@@ -103,7 +103,7 @@ void ImportStatement::code_gen(Codegen &gen) {
 
 namespace fs = std::filesystem;
 
-std::vector<std::unique_ptr<ASTNode>>& ImportStatement::parsed(const std::string& root_path, std::function<void(Diag*)> handler) {
+std::vector<std::unique_ptr<ASTNode>>& ImportStatement::parsed(const std::string& root_path, std::function<void(Diag*)> handler, bool is64Bit) {
 
     if(!imported_ast.empty()) {
         return imported_ast;
@@ -126,7 +126,7 @@ std::vector<std::unique_ptr<ASTNode>>& ImportStatement::parsed(const std::string
         }
     }
 
-    CSTConverter converter;
+    CSTConverter converter(is64Bit);
     converter.convert(lexer.tokens);
 
     if(converter.has_errors) {
@@ -154,7 +154,7 @@ void ImportStatement::declare_top_level(SymbolResolver &linker) {
         linker.imported[abs_path] = true;
         auto &ast = parsed(linker.path, [&abs_path, &linker](Diag *diag) {
             linker.error(diag->ansi_representation(abs_path, "Import"));
-        });
+        }, linker.is64Bit);
         for (const auto &node: ast) {
             node->declare_top_level(linker);
         }

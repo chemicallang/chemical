@@ -77,7 +77,20 @@ int main(int argc, char *argv[]) {
         // do not pass errored tokens to converter
         return 1;
     }
-    CSTConverter converter;
+
+    // get and print target
+    auto target = options.option("target", "t");
+    if (!target.has_value()) {
+        target.emplace(llvm::sys::getDefaultTargetTriple());
+    }
+    if(verbose.has_value()) {
+        std::cout << "Target: " << target.value() << std::endl;
+    }
+
+    // determine if is 64bit
+    bool is64Bit = Codegen::is_arch_64bit(target.value());
+
+    CSTConverter converter(is64Bit);
     converter.convert(lexer.tokens);
     for(const auto& err : converter.diagnostics) {
         std::cerr << err.representation(srcFilePath, "Converter") << std::endl;
@@ -102,7 +115,7 @@ int main(int argc, char *argv[]) {
 
     // linking the nodes
     {
-        SymbolResolver linker(srcFilePath);
+        SymbolResolver linker(srcFilePath, is64Bit);
         scope.declare_top_level(linker);
         scope.declare_and_link(linker);
         if(!linker.errors.empty()) {
@@ -114,17 +127,8 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    // get and print target
-    auto target = options.option("target", "t");
-    if (!target.has_value()) {
-        target.emplace(llvm::sys::getDefaultTargetTriple());
-    }
-    if(verbose.has_value()) {
-        std::cout << "Target: " << target.value() << std::endl;
-    }
-
     // actual compilation
-    Codegen gen(std::move(scope.nodes), srcFilePath, target.value(), argv[0]);
+    Codegen gen(std::move(scope.nodes), srcFilePath, target.value(), argv[0], is64Bit);
     gen.compile();
 
     // check if it requires printing

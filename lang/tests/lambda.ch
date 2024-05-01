@@ -50,6 +50,12 @@ func test_lambda() {
         }
         return x() == 252;
     })
+    test("can call lambda without knowing type", []() => {
+        var x = () => {
+            return 253;
+        }
+        return x() == 253;
+    })
     test("can call lambda stored in struct", []() => {
         var p = LambdaProvider {
             provide : () => {

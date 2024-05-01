@@ -29,10 +29,10 @@ public:
      * @param value The integer value.
      */
     LambdaFunction(
-        std::vector<std::string> captureList,
-        std::vector<std::unique_ptr<FunctionParam>> params,
-        bool isVariadic,
-        Scope scope
+            std::vector<std::string> captureList,
+            std::vector<std::unique_ptr<FunctionParam>> params,
+            bool isVariadic,
+            Scope scope
     );
 
     void accept(Visitor &visitor) override {
@@ -46,6 +46,8 @@ public:
     llvm::Type *llvm_type(Codegen &gen) override;
 
     llvm::Value *llvm_value(Codegen &gen) override;
+
+    llvm::FunctionType *llvm_func_type(Codegen &gen) override;
 
 #endif
 

@@ -41,6 +41,8 @@
 #include "ast/values/FunctionCall.h"
 #include "ast/values/IndexOperator.h"
 #include "ast/values/IntValue.h"
+#include "ast/values/LongValue.h"
+#include "ast/values/ULongValue.h"
 #include "ast/values/Negative.h"
 #include "ast/values/NullValue.h"
 #include "ast/values/NotValue.h"
@@ -727,7 +729,15 @@ void CSTConverter::visit(NumberToken *token) {
                 values.emplace_back(std::make_unique<DoubleValue>(std::stod(token->value)));
             }
         } else {
-            values.emplace_back(std::make_unique<IntValue>(std::stoi(token->value)));
+            if(token->is_long()) {
+                if(token->is_unsigned()) {
+                    values.emplace_back(std::make_unique<ULongValue>(std::stoul(token->value)));
+                } else {
+                    values.emplace_back(std::make_unique<LongValue>(std::stol(token->value)));
+                }
+            } else {
+                values.emplace_back(std::make_unique<IntValue>(std::stoi(token->value)));
+            }
         }
     } catch (...) {
         error("invalid number given", token);

@@ -12,18 +12,11 @@
 #include "utils/CmdUtils.h"
 #include "cst/base/CSTConverter.h"
 #include <filesystem>
+#include "utils/StrUtils.h"
 
 int chemical_clang_main(int argc, char **argv);
 
 int chemical_clang_main2(const std::vector<std::string> &command_args);
-
-bool endsWith(const std::string &fullString, const std::string &ending) {
-    if (fullString.length() >= ending.length()) {
-        return (fullString.compare(fullString.length() - ending.length(), ending.length(), ending) == 0);
-    } else {
-        return false;
-    }
-}
 
 int main(int argc, char *argv[]) {
 

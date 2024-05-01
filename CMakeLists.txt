@@ -344,6 +344,8 @@ set(COMMON_SOURCES
         ast/values/ULongValue.h
         ast/values/BigIntValue.h
         ast/values/UBigIntValue.h
+        utils/StrUtils.h
+        utils/StrUtils.cpp
 )
 
 # Chemical LSP Executable Target

@@ -7,8 +7,16 @@
 #pragma once
 
 #include "AbstractStringToken.h"
+#include "utils/StrUtils.h"
 
 class NumberToken : public AbstractStringToken {
+private:
+
+    // check is always suppose to be lowercase
+    static inline bool equal(char value, char check) {
+        return check == value || value == check - 32;
+    }
+
 public:
 
     NumberToken(const Position &position, std::string value) : AbstractStringToken(position, std::move(value)) {
@@ -19,12 +27,16 @@ public:
         return value.find('.') != std::string::npos;
     }
 
-    inline char sec_last() {
-        if(value.size() >= 2) {
-            return value[value.size() - 2];
+    inline char safe_back_at(unsigned int pos) {
+        if(value.size() >= pos) {
+            return value[value.size() - pos];
         } else {
             return '\0';
         }
+    }
+
+    inline char sec_last() {
+        return safe_back_at(2);
     }
 
     inline char last() {
@@ -32,23 +44,15 @@ public:
     }
 
     bool is_float() {
-        return last() == 'f' || last() == 'F';
+        return equal(last(), 'f');
     }
 
     bool is_long() {
-        return last() == 'l' || last() == 'L';
+        return equal(last(), 'l');
     }
 
     bool is_unsigned() {
-        return sec_last() == 'u' || sec_last() == 'U';
-    }
-
-    inline bool is_signed_long() {
-        return !is_unsigned() && is_long();
-    }
-
-    inline bool is_unsigned_long() {
-        return is_unsigned() && is_long();
+        return equal(sec_last(), 'u');
     }
 
     void accept(CSTVisitor *visitor) override {

@@ -61,10 +61,6 @@ public:
         return value;
     }
 
-    void *get_value() override {
-        return &value;
-    }
-
 private:
     bool value;
 };

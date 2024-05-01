@@ -409,15 +409,6 @@ std::cerr << "child called on base value";
     }
 
     /**
-     * This method should return the value for interpretation
-     * By default it returns null pointer
-     * @return
-     */
-    virtual void* get_value() {
-        return nullptr;
-    }
-
-    /**
      * does this value compute the value, in other words (is it an expression -> e.g a + b)
      * @return
      */

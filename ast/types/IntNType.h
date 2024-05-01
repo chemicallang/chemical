@@ -8,9 +8,9 @@ class IntNType : public BaseType {
 public:
 
     unsigned int number;
-    bool is_unsigned = false;
+    bool is_unsigned;
 
-    IntNType(unsigned int number) : number(number) {
+    IntNType(unsigned int number, bool is_unsigned = false) : number(number), is_unsigned(is_unsigned) {
         // do nothing
     }
 

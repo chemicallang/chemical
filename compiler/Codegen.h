@@ -50,6 +50,12 @@ public:
     bool inbounds = true;
 
     /**
+     * whether the system we are compiling for is 64 bit
+     * when compile method is called, this is determined
+     */
+    bool is64Bit = false;
+
+    /**
      * constructor
      * @param nodes
      * @param path
@@ -61,6 +67,11 @@ public:
      * initializes the llvm module and context
      */
     void module_init();
+
+    /**
+     * determine whether the system we are compiling for is 64bit or 32bit
+     */
+    void determine_arch();
 
     /**
      * the actual compile function, when called module, ctx and builder members

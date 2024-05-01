@@ -68,10 +68,6 @@ public:
         return "\"" + value + "\"";
     }
 
-    void *get_value() override {
-        return &value;
-    }
-
     ValueType value_type() const override {
         return ValueType::String;
     }

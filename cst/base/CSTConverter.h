@@ -97,7 +97,7 @@ public:
     /**
      * constructor
      */
-    CSTConverter();
+    CSTConverter(bool is64Bit);
 
     /**
      * visit the tokens, from start to end

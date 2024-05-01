@@ -16,10 +16,12 @@ class ASTNode;
 class SymbolResolver {
 public:
 
+    bool is64Bit;
+
     /**
      * constructor
      */
-    SymbolResolver(std::string path);
+    SymbolResolver(std::string path, bool is64Bit);
 
     /**
      * similar to codegen it also has imported map

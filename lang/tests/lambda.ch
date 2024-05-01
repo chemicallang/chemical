@@ -21,42 +21,42 @@ func passed(pass : () => int) : int {
 }
 
 func test_lambda() {
-    test("testing non capturing lambda works", []() => {
+    test("testing non capturing lambda works", () => {
         return true;
     })
-    test("testing lambda without braces works", []() => true)
-    test("testing non capturing lambda works", []() => {
+    test("testing lambda without braces works", () => true)
+    test("testing non capturing lambda works", () => {
         return dontCapture(() => {
             return true;
         });
     });
-    test("testing non capturing lambda works without body", []() => {
+    test("testing non capturing lambda works without body", () => {
         return dontCapture(() => true);
     });
-    test("testing capturing & nested lambda works", []() => {
+    test("testing capturing & nested lambda works", () => {
         return capturing([]() => {
             return true;
         });
     });
-    test("can pass function pointer as lambda 1", []() => {
+    test("can pass function pointer as lambda 1", () => {
         return passed(fn_rets_1) == 1;
     })
-    test("can pass function pointer as lambda 2", []() => {
+    test("can pass function pointer as lambda 2", () => {
         return passed(fn_rets_2) == 2;
     })
-    test("can call lambda from a variable", []() => {
-        var x : () => int = []() => {
+    test("can call lambda from a variable", () => {
+        var x : () => int = () => {
             return 252;
         }
         return x() == 252;
     })
-    test("can call lambda without knowing type", []() => {
+    test("can call lambda without knowing type", () => {
         var x = () => {
             return 253;
         }
         return x() == 253;
     })
-    test("can call lambda stored in struct", []() => {
+    test("can call lambda stored in struct", () => {
         var p = LambdaProvider {
             provide : () => {
                 return 252;
@@ -64,7 +64,7 @@ func test_lambda() {
         }
         return p.provide() == 252;
     })
-    test("can call lambda stored nested in a struct", []() => {
+    test("can call lambda stored nested in a struct", () => {
         var n = Nested {
             provider : LambdaProvider {
                provide : () => {

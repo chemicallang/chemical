@@ -17,7 +17,21 @@ Codegen::Codegen(
 ) : nodes(std::move(nodes)), current_path(path), path(std::move(path)),
     target_triple(std::move(target_triple)),
     curr_exe_path(std::move(curr_exe_path)) {
+    determine_arch();
     module_init();
+}
+
+void Codegen::determine_arch() {
+    // Parse the target triple string
+    llvm::Triple triple(this->target_triple);
+    // Extract architecture information
+    llvm::Triple::ArchType archType = triple.getArch();
+    // Check if it's a 32-bit or 64-bit architecture
+    is64Bit = archType == llvm::Triple::ArchType::x86_64 ||
+              archType == llvm::Triple::ArchType::ppc64 ||
+              archType == llvm::Triple::ArchType::aarch64 ||
+              archType == llvm::Triple::ArchType::mips64 ||
+              archType == llvm::Triple::ArchType::sparcv9;
 }
 
 void Codegen::module_init() {

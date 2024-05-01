@@ -26,9 +26,7 @@ public:
     }
 
     std::string representation() const override {
-        std::string rep;
-        rep.append(std::to_string(value));
-        return rep;
+        return std::to_string(value);
     }
 
 #ifdef COMPILER_BUILD
@@ -49,10 +47,6 @@ public:
 
     Value *copy() override {
         return new FloatValue(value);
-    }
-
-    void *get_value() override {
-        return &value;
     }
 
     ValueType value_type() const override {

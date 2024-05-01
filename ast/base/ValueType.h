@@ -14,7 +14,17 @@
  */
 enum class ValueType : uint8_t {
 
+    // integer number values start here
     Int,
+    UInt,
+    Short,
+    UShort,
+    Long,
+    ULong,
+    BigInt,
+    UBigInt,
+    // integer number values end here
+
     Float,
     Double,
     Bool,

@@ -51,10 +51,6 @@ public:
         return rep;
     }
 
-    void *get_value() override {
-        return &value;
-    }
-
     ValueType value_type() const override {
         return ValueType::Double;
     }

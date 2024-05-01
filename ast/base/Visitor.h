@@ -60,6 +60,20 @@ class Value;
 
 class IntValue;
 
+class BigIntValue;
+
+class LongValue;
+
+class ShortValue;
+
+class UBigIntValue;
+
+class UIntValue;
+
+class ULongValue;
+
+class UShortValue;
+
 class FloatValue;
 
 class DoubleValue;
@@ -215,6 +229,34 @@ public:
 
     virtual void visit(IntValue* intVal) {
         visitCommonValue((Value*) intVal);
+    }
+
+    virtual void visit(BigIntValue* val) {
+        visitCommonValue((Value*) val);
+    }
+
+    virtual void visit(LongValue* val) {
+        visitCommonValue((Value*) val);
+    }
+
+    virtual void visit(ShortValue* val) {
+        visitCommonValue((Value*) val);
+    }
+
+    virtual void visit(UBigIntValue* val) {
+        visitCommonValue((Value*) val);
+    }
+
+    virtual void visit(UIntValue* val) {
+        visitCommonValue((Value*) val);
+    }
+
+    virtual void visit(ULongValue* val) {
+        visitCommonValue((Value*) val);
+    }
+
+    virtual void visit(UShortValue* val) {
+        visitCommonValue((Value*) val);
     }
 
     virtual void visit(FloatValue* floatVal) {

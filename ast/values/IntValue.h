@@ -6,13 +6,13 @@
 
 #pragma once
 
-#include "ast/base/Value.h"
 #include "ast/types/IntNType.h"
+#include "IntNumValue.h"
 
 /**
  * @brief Class representing an integer value.
  */
-class IntValue : public Value {
+class IntValue : public IntNumValue {
 public:
 
     /**
@@ -27,18 +27,16 @@ public:
     }
 
     std::string representation() const override {
-        std::string rep;
-        rep.append(std::to_string(value));
-        return rep;
+        return std::to_string(value);
     }
 
-#ifdef COMPILER_BUILD
+    unsigned int get_num_bits(bool is64Bit) override {
+        return 32;
+    }
 
-    llvm::Type *llvm_type(Codegen &gen) override;
-
-    llvm::Value *llvm_value(Codegen &gen) override;
-
-#endif
+    uint64_t get_num_value() override {
+        return value;
+    }
 
     Value *copy() override {
         return new IntValue(value);
@@ -50,10 +48,6 @@ public:
 
     int as_int() override {
         return value;
-    }
-
-    void *get_value() override {
-        return &value;
     }
 
     ValueType value_type() const override {

@@ -225,7 +225,7 @@ set(COMMON_SOURCES
         ast/base/Value.cpp
         ast/statements/VarInit.cpp
         ast/structures/StructDefinition.cpp
-        ast/values/IntValue.cpp
+        ast/values/IntNumValue.cpp
         ast/structures/If.cpp
         ast/structures/WhileLoop.cpp
         ast/structures/DoWhileLoop.cpp
@@ -336,6 +336,14 @@ set(COMMON_SOURCES
         ast/values/NullValue.h
         ast/values/NullValue.cpp
         lexer/model/tokens/NullToken.h
+        ast/values/UIntValue.h
+        ast/values/IntNumValue.h
+        ast/values/ShortValue.h
+        ast/values/UShortValue.h
+        ast/values/LongValue.h
+        ast/values/ULongValue.h
+        ast/values/BigIntValue.h
+        ast/values/UBigIntValue.h
 )
 
 # Chemical LSP Executable Target

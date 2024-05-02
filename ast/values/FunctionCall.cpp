@@ -36,7 +36,7 @@ llvm::Value* call_with_args(FunctionCall* call, llvm::Function* fn, Codegen &gen
     } else {
         llvm::Value* callee = nullptr;
         if(call->name->linked_node() != nullptr) {
-            if(call->name->linked_node()->as_var_init() != nullptr) {
+            if(call->name->linked_node()->as_function() == nullptr) {
                 callee = call->name->linked_node()->llvm_load(gen);
             } else {
                 callee = call->name->linked_node()->llvm_pointer(gen);

@@ -67,8 +67,34 @@ public:
 
     std::string representation() const override;
 
+    /**
+     * the linked node
+     * if a function call refers to a function declaration, it will return it
+     * it can return to a pointer, passed through function param, so it can function param
+     * a pointer could be stored in var init, so it could be var init
+     */
+    inline ASTNode* linked() {
+        return name->linked_node();
+    }
+
+    /**
+     * get linked node as a function
+     * you should call this when you are sure, that this call is to a function
+     * which is a function declaration
+     */
+    inline FunctionDeclaration* linked_func() {
+        return name->linked_node()->as_function();
+    }
+
+    /**
+     * if this call refers to a function declaration, returns it, otherwise not
+     * so its safe
+     */
+    inline FunctionDeclaration* safe_linked_func() {
+        return name->linked_node() ? name->linked_node()->as_function() : nullptr;
+    }
+
     std::unique_ptr<Value> name;
     std::vector<std::unique_ptr<Value>> values;
-    ASTNode *linked = nullptr;
 
 };

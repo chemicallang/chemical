@@ -27,7 +27,7 @@ inline std::vector<llvm::Value*> to_llvm_args(Codegen& gen, FunctionCall* call, 
 }
 
 llvm::Type *FunctionCall::llvm_type(Codegen &gen) {
-    return linked->as_function()->returnType->llvm_type(gen);
+    return linked_func()->returnType->llvm_type(gen);
 }
 
 llvm::Value* call_with_args(FunctionCall* call, llvm::Function* fn, Codegen &gen, std::vector<llvm::Value*>& args) {
@@ -55,7 +55,7 @@ llvm::Value* call_with_args(FunctionCall* call, llvm::Function* fn, Codegen &gen
 llvm::Value *FunctionCall::llvm_value(Codegen &gen) {
     std::vector<llvm::Value *> args(values.size());
 
-    auto decl = linked ? linked->as_function() : nullptr;
+    auto decl = safe_linked_func();
     auto fn = decl != nullptr ? (decl->llvm_func()) : nullptr;
     // TODO hardcoded isVarArg when can't get the function
     to_llvm_args(gen, this, values, fn != nullptr && fn->isVarArg(), args, 0);
@@ -64,7 +64,7 @@ llvm::Value *FunctionCall::llvm_value(Codegen &gen) {
 }
 
 llvm::Value* FunctionCall::llvm_value(Codegen &gen, std::vector<std::unique_ptr<Value>>& chain) {
-    auto decl = linked->as_function();
+    auto decl = linked_func();
     auto requires_self = decl != nullptr && !decl->params.empty() && (decl->params[0]->name == "this" || decl->params[0]->name == "self");
     std::vector<llvm::Value *> args(values.size() + (requires_self ? 1 : 0));
 
@@ -77,7 +77,7 @@ llvm::Value* FunctionCall::llvm_value(Codegen &gen, std::vector<std::unique_ptr<
     // TODO hardcoded isVarArg when can't get the function
     to_llvm_args(gen, this, values, fn != nullptr && fn->isVarArg(), args, requires_self ? 1 :0);
 
-    if(linked->as_struct_member() != nullptr) { // means I'm calling a pointer inside a struct
+    if(linked()->as_struct_member() != nullptr) { // means I'm calling a pointer inside a struct
 
         // creating access chain to the last member as an identifier instead of function call
         AccessChain member_access({});
@@ -90,7 +90,7 @@ llvm::Value* FunctionCall::llvm_value(Codegen &gen, std::vector<std::unique_ptr<
 //        identifier->linked = linked;
         member_access.values.emplace_back(name->copy());
 
-        return gen.builder->CreateCall(linked->llvm_func_type(gen), member_access.llvm_value(gen), args);
+        return gen.builder->CreateCall(linked()->llvm_func_type(gen), member_access.llvm_value(gen), args);
 
     }
 
@@ -98,7 +98,7 @@ llvm::Value* FunctionCall::llvm_value(Codegen &gen, std::vector<std::unique_ptr<
 }
 
 llvm::InvokeInst *FunctionCall::llvm_invoke(Codegen &gen, llvm::BasicBlock* normal, llvm::BasicBlock* unwind) {
-    auto decl = linked->as_function();
+    auto decl = linked_func();
     auto fn = decl != nullptr ? (decl->llvm_func()) : nullptr;
     if(fn != nullptr) {
         auto args = to_llvm_args(gen, this, values, fn->isVarArg());
@@ -120,32 +120,26 @@ FunctionCall::FunctionCall(
 
 void FunctionCall::link(SymbolResolver &linker) {
     name->link(linker);
-    linked = name->linked_node();
-    if(linked) {
+    if(linked()) {
         unsigned i = 0;
         while(i < values.size()) {
             values[i]->link(linker, this, i);
             i++;
         }
-        if(linked->as_function() == nullptr && !linked->create_value_type()->satisfies(ValueType::Lambda)) {
+        if(linked_func() == nullptr && !name->create_type()->satisfies(ValueType::Lambda)) {
             linker.error("function call to identifier '" + name->representation() + "' is not valid, because its not a function.");
         }
     }
 }
 
 ASTNode *FunctionCall::linked_node() {
-    if (!linked || !linked->as_function()) return nullptr;
-    return linked->as_function()->returnType->linked_node();
+    if (!safe_linked_func()) return nullptr;
+    return linked_func()->returnType->linked_node();
 }
 
 ASTNode *FunctionCall::find_link_in_parent(ASTNode *node) {
     name->find_link_in_parent(node);
-    auto found = name->linked_node();
-    if (found) {
-        linked = found;
-        return linked;
-    }
-    return nullptr;
+    return name->linked_node();
 }
 
 FunctionCall *FunctionCall::as_func_call() {
@@ -166,8 +160,8 @@ Value *FunctionCall::find_in(InterpretScope &scope, Value *parent) {
 }
 
 Value *FunctionCall::evaluated_value(InterpretScope &scope) {
-    if (linked && linked->as_function()) {
-        return linked->as_function()->call(&scope, values);
+    if (safe_linked_func()) {
+        return linked_func()->call(&scope, values);
     } else {
         scope.error("(function call) calling a function that is not found or has no body, name : " + name->representation());
     }
@@ -200,7 +194,7 @@ std::unique_ptr<BaseType> FunctionCall::create_type() const {
 }
 
 llvm::Value *FunctionCall::llvm_pointer(Codegen &gen) {
-    return linked->llvm_pointer(gen);
+    throw std::runtime_error("llvm_pointer called on a function call");
 }
 
 void FunctionCall::interpret(InterpretScope &scope) {

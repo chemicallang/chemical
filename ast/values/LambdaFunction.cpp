@@ -119,7 +119,7 @@ void LambdaFunction::link(SymbolResolver &linker, FunctionCall *call, unsigned i
 
     // if the linked is a function decl, it will be its type
     // if it's a variable with a lambda type, it will be its type
-    auto linkedType = call->linked->create_value_type();
+    auto linkedType = call->linked()->create_value_type();
 
     // this is not a function, this error has been probably caught by function call
     if(linkedType->function_type() == nullptr) {

@@ -38,10 +38,9 @@ public:
 
     /**
      * this parses the imported file, if already parsed returns cached
-     * @param base_path file path should be given, so the imported file path can be resolved
-     * relative to it
+     * @param path file path should be given
      */
-    std::vector<std::unique_ptr<ASTNode>>& parsed(const std::string& root_path, std::function<void(Diag*)> handler, bool is64Bit);
+    std::vector<std::unique_ptr<ASTNode>>& parsed(const std::string& path, std::function<void(Diag*)> handler, bool is64Bit);
 
     void declare_top_level(SymbolResolver &linker) override;
 

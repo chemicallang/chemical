@@ -21,7 +21,7 @@ public:
     /**
      * constructor
      */
-    SymbolResolver(std::string path, bool is64Bit);
+    SymbolResolver(const std::string& path, bool is64Bit);
 
     /**
      * similar to codegen it also has imported map
@@ -42,9 +42,14 @@ public:
     std::vector<std::string> errors;
 
     /**
-     * path of the file being linked
+     * path to the root file, were symbol resolution started
      */
     std::string path;
+
+    /**
+     * path to the current file, in which symbols are being resolved
+     */
+    std::string current_path;
 
     /**
      * when a scope beings, this should be called

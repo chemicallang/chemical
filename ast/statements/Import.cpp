@@ -26,10 +26,10 @@
 
 void ImportStatement::code_gen(Codegen &gen) {
 
-    auto abs_path = resolve_rel_path(gen.path).string();
+    auto abs_path = resolve_rel_path(gen.current_path).string();
     auto found = gen.imported.find(abs_path);
     if(found == gen.imported.end()) {
-        auto &ast = parsed(gen.path, [&abs_path, &gen](Diag* diag) {
+        auto &ast = parsed(abs_path, [&abs_path, &gen](Diag* diag) {
             gen.error(diag->ansi_representation(abs_path, "Import"));
         }, gen.is64Bit);
 //        std::cout << "importing " << abs_path << std::endl;
@@ -103,21 +103,19 @@ void ImportStatement::code_gen(Codegen &gen) {
 
 namespace fs = std::filesystem;
 
-std::vector<std::unique_ptr<ASTNode>>& ImportStatement::parsed(const std::string& root_path, std::function<void(Diag*)> handler, bool is64Bit) {
+std::vector<std::unique_ptr<ASTNode>>& ImportStatement::parsed(const std::string& resolved, std::function<void(Diag*)> handler, bool is64Bit) {
 
     if(!imported_ast.empty()) {
         return imported_ast;
     }
 
-    auto resolved = resolve_rel_path(root_path);
-
     std::ifstream file;
-    file.open(resolved.string());
+    file.open(resolved);
     if (!file.is_open()) {
-        std::cerr << "IMPORT STATEMENT FAILED with path : " + resolved.string() << ", root_path : " << root_path << std::endl;
+        std::cerr << "IMPORT STATEMENT FAILED with path : " + resolved << std::endl;
         return imported_ast;
     }
-    auto lexer = lexFile(file, resolved.string());
+    auto lexer = lexFile(file, resolved);
     file.close();
 
     if(lexer.has_errors) {
@@ -148,19 +146,22 @@ ImportStatement::ImportStatement(std::string filePath, std::vector<std::string> 
 }
 
 void ImportStatement::declare_top_level(SymbolResolver &linker) {
-    auto abs_path = resolve_rel_path(linker.path).string();
+    auto abs_path = resolve_rel_path(linker.current_path).string();
     auto found = linker.imported.find(abs_path);
     if(found == linker.imported.end()) {
         linker.imported[abs_path] = true;
-        auto &ast = parsed(linker.path, [&abs_path, &linker](Diag *diag) {
+        auto &ast = parsed(abs_path, [&abs_path, &linker](Diag *diag) {
             linker.error(diag->ansi_representation(abs_path, "Import"));
         }, linker.is64Bit);
+        auto previous = linker.current_path;
+        linker.current_path = abs_path;
         for (const auto &node: ast) {
             node->declare_top_level(linker);
         }
         for (const auto &node: ast) {
             node->declare_and_link(linker);
         }
+        linker.current_path = previous;
     }
 }
 
@@ -173,7 +174,7 @@ std::string ImportStatement::representation() const {
 }
 
 std::filesystem::path ImportStatement::resolve_rel_path(const std::string& root_path) {
-    return (((std::filesystem::path) root_path).parent_path() / ((std::filesystem::path) filePath));
+    return std::filesystem::canonical(((std::filesystem::path) root_path).parent_path() / ((std::filesystem::path) filePath));
 }
 
 void ImportStatement::interpret(InterpretScope &scope) {

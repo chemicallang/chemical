@@ -328,13 +328,22 @@ void CSTConverter::visit(FunctionCST *function) {
 }
 
 void CSTConverter::visit(VarInitCST *varInit) {
-    visit(varInit->tokens, 2);
+    visit(varInit->tokens, 3);
+    std::optional<std::unique_ptr<BaseType>> optType = std::nullopt;
+    if(is_char_op(varInit->tokens[2].get(), ':')) {
+        optType.emplace(type());
+    }
+    std::optional<std::unique_ptr<Value>> optVal = std::nullopt;
+    auto token = varInit->tokens[varInit->tokens.size() - 1].get();
+    if(token->is_value()) {
+        optVal.emplace(value());
+    }
     nodes.emplace_back(std::make_unique<VarInitStatement>(
             varInit->is_const(),
             varInit->identifier(),
-            opt_type(),
-            opt_value())
-    );
+            std::move(optType),
+            std::move(optVal)
+    ));
 }
 
 void CSTConverter::visit(AssignmentCST *assignment) {

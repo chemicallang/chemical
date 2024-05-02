@@ -10,13 +10,11 @@ func test_var_init() {
         x = 6;
         return x == 6;
     });
-    /**
     test("can assign to a non initialized variable", () => {
         var x : int
         x = 6;
         return x == 6;
     })
-    **/
     test("can initialize a typed variable", () => {
         var x : int = 5;
         return x == 5;

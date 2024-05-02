@@ -114,7 +114,7 @@ std::vector<std::unique_ptr<ASTNode>>& ImportStatement::parsed(const std::string
     std::ifstream file;
     file.open(resolved.string());
     if (!file.is_open()) {
-        std::cerr << "IMPORT STATEMENT FAILED with path : " + resolved.string() << std::endl;
+        std::cerr << "IMPORT STATEMENT FAILED with path : " + resolved.string() << ", root_path : " << root_path << std::endl;
         return imported_ast;
     }
     auto lexer = lexFile(file, resolved.string());

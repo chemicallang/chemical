@@ -11,11 +11,11 @@
 
 Codegen::Codegen(
         std::vector<std::unique_ptr<ASTNode>> nodes,
-        std::string path,
+        const std::string& path,
         std::string target_triple,
         std::string curr_exe_path,
         bool is_64_bit
-) : nodes(std::move(nodes)), current_path(path), path(std::move(path)),
+) : nodes(std::move(nodes)), current_path(path), path(path),
     target_triple(std::move(target_triple)),
     curr_exe_path(std::move(curr_exe_path)), is64Bit(is_64_bit) {
     module_init();

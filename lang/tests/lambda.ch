@@ -20,6 +20,14 @@ func passed(pass : () => int) : int {
     return pass();
 }
 
+func create_lamb(first : bool) : () => int {
+    if(first) {
+        return () => 5;
+    } else {
+        return () => 10;
+    }
+}
+
 func test_lambda() {
     test("testing non capturing lambda works", () => {
         return true;
@@ -84,6 +92,11 @@ func test_lambda() {
         arr[0] = () => 5;
         arr[1] = () => 10;
         return arr[0]() == 5 && arr[1]() == 10;
+    })
+    test("a function can return lambdas", () => {
+        var f = create_lamb(true);
+        var s = create_lamb(false);
+        return f() == 5 && s() == 10;
     })
 }
 

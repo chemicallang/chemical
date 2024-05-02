@@ -64,6 +64,10 @@ llvm::Value *AccessChain::llvm_pointer(Codegen &gen) {
     }
 }
 
+llvm::FunctionType *AccessChain::llvm_func_type(Codegen &gen) {
+    return values[values.size() - 1]->llvm_func_type(gen);
+}
+
 #endif
 
 void AccessChain::declare_and_link(SymbolResolver &linker) {

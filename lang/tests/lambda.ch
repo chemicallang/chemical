@@ -94,9 +94,7 @@ func test_lambda() {
         return arr[0]() == 5 && arr[1]() == 10;
     })
     test("a function can return lambdas", () => {
-        var f = create_lamb(true);
-        var s = create_lamb(false);
-        return f() == 5 && s() == 10;
+        return create_lamb(true)() == 5 && create_lamb(false)() == 10;
     })
 }
 

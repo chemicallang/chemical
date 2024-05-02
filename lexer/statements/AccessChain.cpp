@@ -95,7 +95,7 @@ bool Lexer::lexAccessChainAfterId(bool lexStruct) {
 
     lexIndexOp();
 
-    if (lexOperatorToken('(')) {
+    while (lexOperatorToken('(')) {
         unsigned start = tokens.size() - 2;
         do {
             lexWhitespaceToken();

@@ -34,15 +34,28 @@ llvm::Value* call_with_args(FunctionCall* call, llvm::Function* fn, Codegen &gen
     if(fn != nullptr) {
         return gen.builder->CreateCall(fn, args);
     } else {
-        auto callee = call->linked->as_var_init() != nullptr ? call->linked->llvm_load(gen) : call->linked->llvm_pointer(gen);
-        return gen.builder->CreateCall(call->linked->llvm_func_type(gen), callee, args);
+        llvm::Value* callee = nullptr;
+        if(call->name->linked_node() != nullptr) {
+            if(call->name->linked_node()->as_var_init() != nullptr) {
+                callee = call->name->linked_node()->llvm_load(gen);
+            } else {
+                callee = call->name->linked_node()->llvm_pointer(gen);
+            }
+        } else {
+            callee = call->name->llvm_value(gen);
+        }
+        if(callee == nullptr) {
+            gen.error("Couldn't get callee value for the function call to " + call->representation());
+            return nullptr;
+        }
+        return gen.builder->CreateCall(call->name->llvm_func_type(gen), callee, args);
     }
 }
 
 llvm::Value *FunctionCall::llvm_value(Codegen &gen) {
     std::vector<llvm::Value *> args(values.size());
 
-    auto decl = linked->as_function();
+    auto decl = linked ? linked->as_function() : nullptr;
     auto fn = decl != nullptr ? (decl->llvm_func()) : nullptr;
     // TODO hardcoded isVarArg when can't get the function
     to_llvm_args(gen, this, values, fn != nullptr && fn->isVarArg(), args, 0);
@@ -117,8 +130,6 @@ void FunctionCall::link(SymbolResolver &linker) {
         if(linked->as_function() == nullptr && !linked->create_value_type()->satisfies(ValueType::Lambda)) {
             linker.error("function call to identifier '" + name->representation() + "' is not valid, because its not a function.");
         }
-    } else {
-        linker.error("no function with name '" + name->representation() + "' found");
     }
 }
 
@@ -185,10 +196,10 @@ Value *FunctionCall::return_value(InterpretScope &scope) {
 }
 
 std::unique_ptr<BaseType> FunctionCall::create_type() const {
-    return linked->create_value_type();
+    return name->create_type();
 }
 
-llvm::Value * FunctionCall::llvm_pointer(Codegen &gen) {
+llvm::Value *FunctionCall::llvm_pointer(Codegen &gen) {
     return linked->llvm_pointer(gen);
 }
 

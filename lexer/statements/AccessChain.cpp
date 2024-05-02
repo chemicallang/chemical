@@ -62,6 +62,28 @@ bool Lexer::lexAccessChainRecursive(bool lexStruct) {
     return lexAccessChainAfterId(lexStruct);
 }
 
+bool Lexer::lexIndexOp() {
+    if(lexOperatorToken('[')) {
+        unsigned start = tokens.size() - 2;
+        do {
+            lexWhitespaceToken();
+            if (!lexExpressionTokens()) {
+                error("expected an expression in indexing operators for access chain");
+                return true;
+            }
+            lexWhitespaceToken();
+            if (!lexOperatorToken(']')) {
+                error("expected a closing bracket ] in access chain");
+                return true;
+            }
+        } while(lexOperatorToken('['));
+        compound_from<IndexOpCST>(start);
+        return true;
+    } else {
+        return false;
+    }
+}
+
 bool Lexer::lexAccessChainAfterId(bool lexStruct) {
 
     if(lexStruct) {
@@ -70,6 +92,8 @@ bool Lexer::lexAccessChainAfterId(bool lexStruct) {
             return lexStructValueTokens();
         }
     }
+
+    lexIndexOp();
 
     if (lexOperatorToken('(')) {
         unsigned start = tokens.size() - 2;
@@ -86,22 +110,7 @@ bool Lexer::lexAccessChainAfterId(bool lexStruct) {
         compound_from<FunctionCallCST>(start);
     }
 
-    if(lexOperatorToken('[')) {
-        unsigned start = tokens.size() - 2;
-        do {
-            lexWhitespaceToken();
-            if (!lexExpressionTokens()) {
-                error("expected an expression in indexing operators for access chain");
-                return true;
-            }
-            lexWhitespaceToken();
-            if (!lexOperatorToken(']')) {
-                error("expected a closing bracket ] in access chain");
-                return true;
-            }
-        } while(lexOperatorToken('['));
-        compound_from<IndexOpCST>(start);
-    }
+    lexIndexOp();
 
     while (lexOperatorToken('.')) {
         if (!lexAccessChainRecursive(false)) {

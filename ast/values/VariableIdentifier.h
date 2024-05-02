@@ -64,7 +64,9 @@ public:
 
     bool add_member_index(Codegen &gen, ASTNode *parent, std::vector<llvm::Value *> &indexes) override;
 
-    llvm::Type * llvm_type(Codegen &gen) override;
+    llvm::Type *llvm_type(Codegen &gen) override;
+
+    llvm::FunctionType *llvm_func_type(Codegen &gen) override;
 
     llvm::Value *llvm_pointer(Codegen &gen) override;
 

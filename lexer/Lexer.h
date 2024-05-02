@@ -127,6 +127,12 @@ public:
     }
 
     /**
+     * lexes a index operator, an index operator starts with '[' and then expression and ']'
+     * so e.g. [1]
+     */
+    bool lexIndexOp();
+
+    /**
      * after an identifier has been consumed
      * we call this method to lex an access chain after it
      * identifier .element1.element2.element3

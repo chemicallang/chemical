@@ -10,6 +10,10 @@ llvm::Type *VariableIdentifier::llvm_type(Codegen &gen) {
     return linked->llvm_type(gen);
 }
 
+llvm::FunctionType *VariableIdentifier::llvm_func_type(Codegen &gen) {
+    return linked->llvm_func_type(gen);
+}
+
 llvm::Value *VariableIdentifier::llvm_pointer(Codegen &gen) {
     return linked->llvm_pointer(gen);
 }

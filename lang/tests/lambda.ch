@@ -83,10 +83,7 @@ func test_lambda() {
         var arr = {}()=>int(2);
         arr[0] = () => 5;
         arr[1] = () => 10;
-        var first = arr[0];
-        var second = arr[1];
-        // TODO support raw calls to array elements
-        return first() == 5 && second() == 10;
+        return arr[0]() == 5 && arr[1]() == 10;
     })
 }
 

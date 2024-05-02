@@ -811,8 +811,10 @@ std::vector<std::unique_ptr<Value>> take_values(CSTConverter *converter, const s
 
 void CSTConverter::visit(FunctionCallCST *call) {
     auto prev_values = std::move(values);
+    call->tokens[0]->accept(this);
+    auto nameVal = value();
     visit(call->tokens, 1);
-    auto func_call = new FunctionCall(str_token(call->tokens, 0), std::move(values));
+    auto func_call = new FunctionCall(std::move(nameVal), std::move(values));
     values = std::move(prev_values);
     values.emplace_back(func_call);
 }

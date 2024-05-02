@@ -510,6 +510,13 @@ std::cerr << "child called on base value";
     }
 
     /**
+     * a function to be overridden by identifier
+     */
+    virtual VariableIdentifier* as_identifier() {
+        return nullptr;
+    }
+
+    /**
      * a function to be overridden by values that can return struct
      */
     virtual StructValue* as_struct() {

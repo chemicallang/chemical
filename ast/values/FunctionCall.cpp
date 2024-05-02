@@ -42,7 +42,8 @@ llvm::Value* call_with_args(FunctionCall* call, llvm::Function* fn, Codegen &gen
 llvm::Value *FunctionCall::llvm_value(Codegen &gen) {
     std::vector<llvm::Value *> args(values.size());
 
-    auto fn = gen.module->getFunction(name);
+    auto decl = linked->as_function();
+    auto fn = decl != nullptr ? (decl->llvm_func()) : nullptr;
     // TODO hardcoded isVarArg when can't get the function
     to_llvm_args(gen, this, values, fn != nullptr && fn->isVarArg(), args, 0);
 
@@ -59,7 +60,7 @@ llvm::Value* FunctionCall::llvm_value(Codegen &gen, std::vector<std::unique_ptr<
         args[0] = chain[chain.size() - 2]->llvm_pointer(gen);
     }
 
-    auto fn = gen.module->getFunction(name);
+    auto fn = decl != nullptr ? decl->llvm_func() : nullptr;
     // TODO hardcoded isVarArg when can't get the function
     to_llvm_args(gen, this, values, fn != nullptr && fn->isVarArg(), args, requires_self ? 1 :0);
 
@@ -72,9 +73,9 @@ llvm::Value* FunctionCall::llvm_value(Codegen &gen, std::vector<std::unique_ptr<
             member_access.values.emplace_back(chain[i]->copy());
             i++;
         }
-        auto identifier = new VariableIdentifier(name);
-        identifier->linked = linked;
-        member_access.values.emplace_back(identifier);
+//        auto identifier = new VariableIdentifier(name);
+//        identifier->linked = linked;
+        member_access.values.emplace_back(name->copy());
 
         return gen.builder->CreateCall(linked->llvm_func_type(gen), member_access.llvm_value(gen), args);
 
@@ -84,12 +85,13 @@ llvm::Value* FunctionCall::llvm_value(Codegen &gen, std::vector<std::unique_ptr<
 }
 
 llvm::InvokeInst *FunctionCall::llvm_invoke(Codegen &gen, llvm::BasicBlock* normal, llvm::BasicBlock* unwind) {
-    auto fn = gen.module->getFunction(name);
+    auto decl = linked->as_function();
+    auto fn = decl != nullptr ? (decl->llvm_func()) : nullptr;
     if(fn != nullptr) {
         auto args = to_llvm_args(gen, this, values, fn->isVarArg());
         return gen.builder->CreateInvoke(fn, normal, unwind, args);
     } else {
-        gen.error("Unknown function call through invoke " + name);
+        gen.error("Unknown function call through invoke " + name->representation());
         return nullptr;
     }
 }
@@ -97,14 +99,15 @@ llvm::InvokeInst *FunctionCall::llvm_invoke(Codegen &gen, llvm::BasicBlock* norm
 #endif
 
 FunctionCall::FunctionCall(
-        std::string name,
+        std::unique_ptr<Value> identifier,
         std::vector<std::unique_ptr<Value>> values
-) : name(std::move(name)), values(std::move(values)) {
+) : name(std::move(identifier)), values(std::move(values)) {
 
 }
 
 void FunctionCall::link(SymbolResolver &linker) {
-    linked = linker.find(name);
+    name->link(linker);
+    linked = name->linked_node();
     if(linked) {
         unsigned i = 0;
         while(i < values.size()) {
@@ -112,10 +115,10 @@ void FunctionCall::link(SymbolResolver &linker) {
             i++;
         }
         if(linked->as_function() == nullptr && !linked->create_value_type()->satisfies(ValueType::Lambda)) {
-            linker.error("function call to identifier '" + name + "' is not valid, because its not a function.");
+            linker.error("function call to identifier '" + name->representation() + "' is not valid, because its not a function.");
         }
     } else {
-        linker.error("no function with name '" + name + "' found");
+        linker.error("no function with name '" + name->representation() + "' found");
     }
 }
 
@@ -125,7 +128,8 @@ ASTNode *FunctionCall::linked_node() {
 }
 
 ASTNode *FunctionCall::find_link_in_parent(ASTNode *node) {
-    auto found = node->child(name);
+    name->find_link_in_parent(node);
+    auto found = name->linked_node();
     if (found) {
         linked = found;
         return linked;
@@ -142,14 +146,19 @@ bool FunctionCall::primitive() {
 }
 
 Value *FunctionCall::find_in(InterpretScope &scope, Value *parent) {
-    return parent->call_member(scope, name, values);
+    auto id = name->as_identifier();
+    if(id != nullptr) {
+        return parent->call_member(scope, id->value, values);
+    } else {
+        scope.error("No identifier for function call");
+    }
 }
 
 Value *FunctionCall::evaluated_value(InterpretScope &scope) {
     if (linked && linked->as_function()) {
         return linked->as_function()->call(&scope, values);
     } else {
-        scope.error("(function call) calling a function that is not found or has no body, name : " + name);
+        scope.error("(function call) calling a function that is not found or has no body, name : " + name->representation());
     }
     return nullptr;
 }
@@ -191,8 +200,7 @@ void FunctionCall::interpret(InterpretScope &scope) {
 }
 
 std::string FunctionCall::representation() const {
-    std::string rep;
-    rep.append(name);
+    std::string rep(name->representation());
     rep.append(1, '(');
     int i = 0;
     while (i < values.size()) {

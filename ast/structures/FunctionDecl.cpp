@@ -66,11 +66,19 @@ llvm::Value *FunctionParam::llvm_load(Codegen &gen) {
     return nullptr;
 }
 
-llvm::FunctionType *FunctionDeclaration::function_type(Codegen &gen) {
+llvm::FunctionType *FunctionDeclaration::llvm_func_type(Codegen &gen) {
     if (params.empty() || (params.size() == 1 && isVariadic)) {
         return llvm::FunctionType::get(returnType->llvm_type(gen), isVariadic);
     } else {
         return llvm::FunctionType::get(returnType->llvm_type(gen), param_types(gen), isVariadic);
+    }
+}
+
+llvm::Function* FunctionDeclaration::llvm_func() {
+    if(body.has_value()) {
+        return (llvm::Function*) funcCallee;
+    } else {
+        return nullptr;
     }
 }
 
@@ -89,13 +97,13 @@ void FunctionDeclaration::code_gen(Codegen &gen) {
 }
 
 void create_fn(Codegen& gen, FunctionDeclaration *decl) {
-    auto func = gen.create_function(decl->name, decl->function_type(gen), decl->specifier);
+    auto func = gen.create_function(decl->name, decl->llvm_func_type(gen), decl->specifier);
     decl->funcType = func->getFunctionType();
     decl->funcCallee = func;
 }
 
 void declare_fn(Codegen& gen, FunctionDeclaration *decl) {
-    auto callee = gen.declare_function(decl->name, decl->function_type(gen));
+    auto callee = gen.declare_function(decl->name, decl->llvm_func_type(gen));
     decl->funcType = callee.getFunctionType();
     decl->funcCallee = callee.getCallee();
 }
@@ -119,6 +127,8 @@ void FunctionDeclaration::code_gen_interface(Codegen &gen) {
 
 void FunctionDeclaration::code_gen_override(Codegen& gen, FunctionDeclaration* decl) {
     body_gen(gen, (llvm::Function*) funcCallee, decl->body);
+    decl->funcCallee = funcCallee;
+    decl->funcType = funcType;
 }
 
 void FunctionDeclaration::code_gen_struct(Codegen &gen) {

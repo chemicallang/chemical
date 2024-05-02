@@ -44,7 +44,7 @@ void ImportStatement::code_gen(Codegen &gen) {
         }
         gen.current_path = prev_path;
         // clearing the cache to free memory
-        imported_ast.clear();
+//        imported_ast.clear();
         gen.imported[abs_path] = true;
     }
 

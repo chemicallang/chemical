@@ -42,6 +42,8 @@ public:
 
     llvm::Value *llvm_pointer(Codegen &gen) override;
 
+    llvm::FunctionType *llvm_func_type(Codegen &gen) override;
+
 #endif
 
     AccessChain *as_access_chain() override {

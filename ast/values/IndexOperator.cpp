@@ -52,6 +52,10 @@ llvm::Type *IndexOperator::llvm_type(Codegen &gen) {
     }
 }
 
+llvm::FunctionType *IndexOperator::llvm_func_type(Codegen &gen) {
+    return create_type()->llvm_func_type(gen);
+}
+
 #endif
 
 std::unique_ptr<BaseType> IndexOperator::create_type() const {
@@ -60,6 +64,7 @@ std::unique_ptr<BaseType> IndexOperator::create_type() const {
         return std::unique_ptr<BaseType>(((ArrayType *) value_type.get())->elem_type->copy());
     } else {
         // TODO report error here
+        std::cerr << "Type of index operator is not an array, unable to get child element type for identifier " + identifier->representation() << std::endl;
         return nullptr;
     }
 }

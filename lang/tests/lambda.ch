@@ -79,6 +79,15 @@ func test_lambda() {
         }
         return n.provider.provide() == 252;
     })
+    test("can call lambda stored in an array", () => {
+        var arr = {}()=>int(2);
+        arr[0] = () => 5;
+        arr[1] = () => 10;
+        var first = arr[0];
+        var second = arr[1];
+        // TODO support raw calls to array elements
+        return first() == 5 && second() == 10;
+    })
 }
 
 func fn_rets_1() : int {

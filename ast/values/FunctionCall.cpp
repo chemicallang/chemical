@@ -30,6 +30,10 @@ llvm::Type *FunctionCall::llvm_type(Codegen &gen) {
     return linked_func()->returnType->llvm_type(gen);
 }
 
+llvm::FunctionType *FunctionCall::llvm_func_type(Codegen &gen) {
+    return linked_func()->returnType->llvm_func_type(gen);
+}
+
 llvm::Value* call_with_args(FunctionCall* call, llvm::Function* fn, Codegen &gen, std::vector<llvm::Value*>& args) {
     if(fn != nullptr) {
         return gen.builder->CreateCall(fn, args);
@@ -37,7 +41,7 @@ llvm::Value* call_with_args(FunctionCall* call, llvm::Function* fn, Codegen &gen
         llvm::Value* callee = nullptr;
         if(call->name->linked_node() != nullptr) {
             if(call->name->linked_node()->as_function() == nullptr) {
-                callee = call->name->linked_node()->llvm_load(gen);
+                callee = call->name->llvm_value(gen);
             } else {
                 callee = call->name->linked_node()->llvm_pointer(gen);
             }
@@ -86,8 +90,6 @@ llvm::Value* FunctionCall::llvm_value(Codegen &gen, std::vector<std::unique_ptr<
             member_access.values.emplace_back(chain[i]->copy());
             i++;
         }
-//        auto identifier = new VariableIdentifier(name);
-//        identifier->linked = linked;
         member_access.values.emplace_back(name->copy());
 
         return gen.builder->CreateCall(linked()->llvm_func_type(gen), member_access.llvm_value(gen), args);
@@ -190,7 +192,8 @@ Value *FunctionCall::return_value(InterpretScope &scope) {
 }
 
 std::unique_ptr<BaseType> FunctionCall::create_type() const {
-    return name->create_type();
+    auto func_type = name->create_type().release()->function_type();
+    return std::unique_ptr<BaseType>(func_type->returnType->copy());
 }
 
 llvm::Value *FunctionCall::llvm_pointer(Codegen &gen) {

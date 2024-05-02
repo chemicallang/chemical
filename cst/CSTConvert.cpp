@@ -318,11 +318,13 @@ void CSTConverter::visit(FunctionCST *function) {
         return;
     }
 
+    auto prev_decl = current_func_decl;
     auto prev_nodes = std::move(nodes);
-    function->tokens[i]->accept(this);
     current_func_decl = funcDecl;
+    function->tokens[i]->accept(this);
     funcDecl->body->nodes = std::move(nodes);
     nodes = std::move(prev_nodes);
+    current_func_decl = prev_decl;
 
 
 }

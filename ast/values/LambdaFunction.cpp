@@ -103,7 +103,7 @@ void LambdaFunction::link(SymbolResolver &linker) {
 
 void LambdaFunction::link(SymbolResolver &linker, VarInitStatement *stmnt) {
     if(stmnt->type.has_value()) {
-        func_type = std::shared_ptr<FunctionType>((FunctionType*) stmnt->type.value()->copy());
+        func_type = std::shared_ptr<FunctionType>((FunctionType*) stmnt->create_value_type().release());
         link_body(this, linker);
     } else {
         link(linker);
@@ -142,13 +142,17 @@ void LambdaFunction::link(SymbolResolver &linker, FunctionCall *call, unsigned i
 
 void LambdaFunction::link(SymbolResolver &linker, ReturnStatement *returnStmt) {
 
-    auto retType = returnStmt->declaration->returnType.get();
-    if(retType->function_type() == nullptr) {
-        linker.error("cannot return lambda, return type of a function is not a function");
+    if(returnStmt->declaration != nullptr) {
+        auto retType = returnStmt->declaration->returnType.get();
+        if(retType->function_type() == nullptr) {
+            linker.error("cannot return lambda, return type of a function is not a function");
+            return;
+        }
+        func_type = std::shared_ptr<FunctionType>(retType->function_type(), [](BaseType*){});
+    } else {
+        link(linker);
         return;
     }
-
-    func_type = std::shared_ptr<FunctionType>(retType->function_type(), [](BaseType*){});
 
     link_body(this, linker);
 

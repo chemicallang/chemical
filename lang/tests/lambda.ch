@@ -33,7 +33,12 @@ func test_lambda() {
     test("testing non capturing lambda works without body", () => {
         return dontCapture(() => true);
     });
-    test("testing capturing & nested lambda works", () => {
+    test("testing non capturing lambda can be passed to capturing lambda", () => {
+        return capturing(() => {
+            return true;
+        });
+    });
+    test("testing capturing lambda works", () => {
         return capturing([]() => {
             return true;
         });

@@ -15,7 +15,7 @@
 class FunctionCall : public Value {
 public:
 
-    FunctionCall(std::string name, std::vector<std::unique_ptr<Value>> values);
+    FunctionCall(std::unique_ptr<Value> identifier, std::vector<std::unique_ptr<Value>> values);
 
     FunctionCall(FunctionCall &&other) = delete;
 
@@ -67,7 +67,7 @@ public:
 
     std::string representation() const override;
 
-    std::string name;
+    std::unique_ptr<Value> name;
     std::vector<std::unique_ptr<Value>> values;
     ASTNode *linked = nullptr;
 

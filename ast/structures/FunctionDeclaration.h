@@ -38,13 +38,15 @@ public:
 
 #ifdef COMPILER_BUILD
 
+    llvm::Function *llvm_func();
+
     llvm::Value *llvm_load(Codegen &gen) override;
 
     llvm::Value *llvm_pointer(Codegen &gen) override;
 
     std::vector<llvm::Type *> param_types(Codegen &gen);
 
-    llvm::FunctionType *function_type(Codegen &gen);
+    llvm::FunctionType *llvm_func_type(Codegen &gen) override;
 
     /**
      * called by struct when the function is inside a struct

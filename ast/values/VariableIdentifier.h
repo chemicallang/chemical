@@ -24,6 +24,11 @@ class VariableIdentifier : public Value {
 public:
 
     /**
+     * string value of identifier
+     */
+    std::string value;
+
+    /**
      * @brief Construct a new VariableIdentifier object.
      *
      * @param value The string value.
@@ -32,6 +37,10 @@ public:
 
     void accept(Visitor &visitor) override {
         visitor.visit(this);
+    }
+
+    VariableIdentifier *as_identifier() override {
+        return this;
     }
 
     Value *child(InterpretScope &scope, const std::string &name) override;
@@ -94,8 +103,5 @@ public:
     ValueType value_type() const override;
 
     ASTNode *linked = nullptr;
-
-private:
-    std::string value; ///< The string value.
 
 };

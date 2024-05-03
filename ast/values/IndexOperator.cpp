@@ -15,7 +15,7 @@ llvm::Value *IndexOperator::elem_pointer(Codegen &gen, ASTNode *arr) {
     if (type->isArrayTy()) {
         idxList.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), 0));
     }
-    for(auto& value : values) {
+    for (auto &value: values) {
         idxList.emplace_back(value->llvm_value(gen));
     }
     idxList.shrink_to_fit();
@@ -23,27 +23,25 @@ llvm::Value *IndexOperator::elem_pointer(Codegen &gen, ASTNode *arr) {
 }
 
 llvm::Value *IndexOperator::llvm_pointer(Codegen &gen) {
-    return elem_pointer(gen, linked);
+    return elem_pointer(gen, parent_val->linked_node());
 }
 
 llvm::Value *IndexOperator::llvm_value(Codegen &gen) {
-    return gen.builder->CreateLoad(linked->llvm_elem_type(gen), elem_pointer(gen, linked), "arr0");
+    return gen.builder->CreateLoad(llvm_type(gen), elem_pointer(gen, parent_val->linked_node()), "idx_op");
 }
 
-bool IndexOperator::add_member_index(Codegen &gen, ASTNode *parent, std::vector<llvm::Value *> &indexes) {
-    if (parent && !identifier->add_member_index(gen, parent, indexes)) {
-        gen.error("couldn't add child index in index operator for identifier " + identifier->representation());
-        return false;
+bool IndexOperator::add_member_index(Codegen &gen, Value *parent, std::vector<llvm::Value *> &indexes) {
+    if (parent->value_type() == ValueType::Array) {
+        indexes.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), 0));
     }
-    if (!linked->add_child_indexes(gen, indexes, values)) {
-        gen.error("couldn't add child index in index operator for identifier " + identifier->representation());
-        return false;
+    for (auto &value: values) {
+        indexes.emplace_back(value->llvm_value(gen));
     }
     return true;
 }
 
 llvm::Type *IndexOperator::llvm_type(Codegen &gen) {
-    auto value_type = linked->create_value_type();
+    auto value_type = parent_val->create_type();
     if (value_type->kind() == BaseTypeKind::Array) {
         return ((ArrayType *) value_type.get())->elem_type->llvm_type(gen);
     } else {
@@ -59,41 +57,28 @@ llvm::FunctionType *IndexOperator::llvm_func_type(Codegen &gen) {
 #endif
 
 std::unique_ptr<BaseType> IndexOperator::create_type() const {
-    auto value_type = linked->create_value_type();
+    auto value_type = parent_val->create_type();
     if (value_type->kind() == BaseTypeKind::Array) {
         return std::unique_ptr<BaseType>(((ArrayType *) value_type.get())->elem_type->copy());
     } else {
         // TODO report error here
-        std::cerr << "Type of index operator is not an array, unable to get child element type for identifier " + identifier->representation() << std::endl;
+        std::cerr << "Type of index operator is not an array, unable to get child element type" << std::endl;
         return nullptr;
     }
 }
 
 void IndexOperator::link(SymbolResolver &linker) {
-    identifier->link(linker);
-    linked = identifier->linked_node();
-    if (linked) {
-        for(auto& value : values) {
-            value->link(linker);
-        }
-    } else {
-        linker.error("no identifier with name '" + identifier->representation() + "' found to link for index operator");
-    }
+    throw std::runtime_error("Cannot link a index operator that does not have a identifier");
 }
 
 ASTNode *IndexOperator::linked_node() {
-    if (!linked) return nullptr;
-    auto value = values[0].get();
-    if(values.size() > 1) {
-        std::cerr << "Index operator only supports a single integer index at the moment" << std::endl;
-        return nullptr;
-    }
-    return linked->child(value->value_type() == ValueType::Int ? value->as_int() : -1);
+    auto value_type = parent_val->create_type();
+    return ((ArrayType *) value_type.get())->elem_type->linked_node();
 }
 
 Value *IndexOperator::find_in(InterpretScope &scope, Value *parent) {
     auto value = values[0].get();
-    if(values.size() > 1) {
+    if (values.size() > 1) {
         scope.error("Index operator only supports a single integer index at the moment");
     }
 #ifdef DEBUG
@@ -107,7 +92,20 @@ Value *IndexOperator::find_in(InterpretScope &scope, Value *parent) {
     return nullptr;
 }
 
-ASTNode *IndexOperator::find_link_in_parent(ASTNode *parent) {
-    linked = identifier->find_link_in_parent(parent);
-    return linked;
+void IndexOperator::find_link_in_parent(Value *parent) {
+    parent_val = parent;
+}
+
+std::string IndexOperator::representation() const {
+    std::string rep("[");
+    unsigned i = 0;
+    while (i < values.size()) {
+        rep.append(values[i]->representation());
+        if (i < values.size() - 1) {
+            rep.append(1, ',');
+        }
+        i++;
+    }
+    rep.append(1, ']');
+    return rep;
 }

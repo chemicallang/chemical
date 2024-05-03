@@ -22,9 +22,9 @@ llvm::Value *VariableIdentifier::llvm_value(Codegen &gen) {
     return linked->llvm_load(gen);
 }
 
-bool VariableIdentifier::add_member_index(Codegen &gen, ASTNode *parent, std::vector<llvm::Value *> &indexes) {
+bool VariableIdentifier::add_member_index(Codegen &gen, Value *parent, std::vector<llvm::Value *> &indexes) {
     if(parent) {
-        return parent->add_child_index(gen, indexes, value);
+        return parent->linked_node()->add_child_index(gen, indexes, value);
     }
     return true;
 }
@@ -42,12 +42,8 @@ ASTNode* VariableIdentifier::linked_node() {
     return linked;
 }
 
-ASTNode *VariableIdentifier::find_link_in_parent(ASTNode *parent) {
-    auto found = parent->child(value);
-    if(found) {
-        linked = found;
-    }
-    return found;
+void VariableIdentifier::find_link_in_parent(Value *parent) {
+    linked = parent->linked_node()->child(value);
 }
 
 Value *VariableIdentifier::child(InterpretScope &scope, const std::string &name) {

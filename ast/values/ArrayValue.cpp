@@ -88,17 +88,27 @@ llvm::Type *ArrayValue::llvm_type(Codegen &gen) {
     return llvm::ArrayType::get(llvm_elem_type(gen), array_size());
 }
 
-bool ArrayValue::add_child_indexes(Codegen &gen, std::vector<llvm::Value *> &indexes, std::vector<std::unique_ptr<Value>> &u_inds) {
-    indexes.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), 0));
-    for(auto& value : u_inds) {
-        indexes.emplace_back(value->llvm_value(gen));
-    }
-    return true;
+bool ArrayValue::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
+    return linked_node()->add_child_index(gen, indexes, name);
 }
 
 #endif
 
-std::unique_ptr<BaseType> ArrayValue::create_type() const {
+ASTNode *ArrayValue::linked_node() {
+    if(values.empty()) {
+        return elemType.value()->linked_node();
+    } else {
+        return values[0]->linked_node();
+    }
+}
+
+void ArrayValue::link(SymbolResolver &linker) {
+    for(auto& value : values) {
+        value->link(linker);
+    }
+}
+
+std::unique_ptr<BaseType> ArrayValue::element_type() const {
     BaseType* arrElemType;
     if(elemType.has_value()) {
         arrElemType = elemType.value()->copy();
@@ -106,9 +116,13 @@ std::unique_ptr<BaseType> ArrayValue::create_type() const {
         if(!values.empty()) {
             arrElemType = values[0]->create_type().release();
         } else {
-            // TODO report error
+            std::cerr << "Cannot determine array element type because element type and values both are missing" << std::endl;
             return nullptr;
         }
     }
-    return std::make_unique<ArrayType>(std::unique_ptr<BaseType>(arrElemType), array_size());
+    return std::unique_ptr<BaseType>(arrElemType);
+}
+
+std::unique_ptr<BaseType> ArrayValue::create_type() const {
+    return std::make_unique<ArrayType>(std::move(element_type()), array_size());
 }

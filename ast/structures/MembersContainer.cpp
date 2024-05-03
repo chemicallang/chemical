@@ -25,13 +25,6 @@ bool MembersContainer::add_child_index(
     return true;
 }
 
-bool MembersContainer::add_child_indexes(Codegen &gen, std::vector<llvm::Value *> &indexes, std::vector<std::unique_ptr<Value>> &u_inds) {
-    for(auto& value : u_inds) {
-        indexes.emplace_back(value->llvm_value(gen));
-    }
-    return true;
-}
-
 #endif
 
 void MembersContainer::declare_and_link(SymbolResolver &linker) {
@@ -87,6 +80,9 @@ std::string MembersContainer::representation() const {
             ret.append(1, '\n');
         }
         i++;
+    }
+    if(!functions.empty()) {
+        ret.append(1, '\n');
     }
     i = 0;
     for (const auto &field: functions) {

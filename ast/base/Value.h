@@ -103,8 +103,15 @@ public:
     /**
      * find linked node in given parent node
      */
-    virtual ASTNode* find_link_in_parent(ASTNode* parent){
-        return nullptr;
+    virtual void find_link_in_parent(Value* parent){
+        // does nothing
+    }
+
+    /**
+     * find linked node in given parent node, symbol resolver is passed in resolution phase
+     */
+    virtual void find_link_in_parent(Value* parent, SymbolResolver& resolver) {
+        return find_link_in_parent(parent);
     }
 
     /**
@@ -304,7 +311,7 @@ std::cerr << "child called on base value";
      * WARNING : parent can be null ptr when this is the first element in access chain
      * @return whether it was successful in access index(s)
      */
-    virtual bool add_member_index(Codegen& gen, ASTNode* parent, std::vector<llvm::Value*>& indexes) {
+    virtual bool add_member_index(Codegen& gen, Value* parent, std::vector<llvm::Value*>& indexes) {
 #ifdef DEBUG
         std::cerr << "add_member_index called on base value, representation : " << representation();
 #endif
@@ -319,16 +326,6 @@ std::cerr << "child called on base value";
         std::cerr << "add_child_index called on base ASTNode, representation : " << representation();
 #endif
         throw std::runtime_error("add_child_index called on a ASTNode");
-    }
-
-    /**
-     * add child index in llvm indexes vector
-     */
-    virtual bool add_child_indexes(Codegen& gen, std::vector<llvm::Value*>& indexes, std::vector<std::unique_ptr<Value>>& u_inds) {
-#ifdef DEBUG
-        std::cerr << "add_child_indexes called on base ASTNode, representation : " << representation();
-#endif
-        throw std::runtime_error("add_child_indexes called on a ASTNode");
     }
 
 #endif

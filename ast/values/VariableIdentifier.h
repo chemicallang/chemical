@@ -58,11 +58,11 @@ public:
 
     ASTNode *linked_node() override;
 
-    ASTNode *find_link_in_parent(ASTNode *parent) override;
+    void find_link_in_parent(Value *parent) override;
 
 #ifdef COMPILER_BUILD
 
-    bool add_member_index(Codegen &gen, ASTNode *parent, std::vector<llvm::Value *> &indexes) override;
+    bool add_member_index(Codegen &gen, Value *parent, std::vector<llvm::Value *> &indexes) override;
 
     llvm::Type *llvm_type(Codegen &gen) override;
 

@@ -219,6 +219,19 @@ func test_nodes() {
         var y = &x;
         return y != null;
     })
+    test("can store struct in an array", () => {
+        var arr = {
+            Point {
+                x : 3,
+                y : 4
+            },
+            Point {
+                x : 5,
+                y : 6
+            }
+        }
+        return arr[0].x == 3 && arr[0].y == 4 && arr[1].x == 5 && arr[1].y == 6;
+    })
 }
 
 func declared_below() : int {

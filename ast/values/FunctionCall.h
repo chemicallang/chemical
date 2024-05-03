@@ -15,7 +15,7 @@
 class FunctionCall : public Value {
 public:
 
-    FunctionCall(std::unique_ptr<Value> identifier, std::vector<std::unique_ptr<Value>> values);
+    FunctionCall(std::vector<std::unique_ptr<Value>> values);
 
     FunctionCall(FunctionCall &&other) = delete;
 
@@ -23,13 +23,15 @@ public:
         visitor.visit(this);
     }
 
+    void link_values(SymbolResolver &linker);
+
     void link(SymbolResolver &linker) override;
 
     FunctionCall *as_func_call() override;
 
     ASTNode *linked_node() override;
 
-    ASTNode *find_link_in_parent(ASTNode *parent) override;
+    void find_link_in_parent(Value *parent, SymbolResolver &resolver) override;
 
     bool primitive() override;
 
@@ -69,14 +71,8 @@ public:
 
     std::string representation() const override;
 
-    /**
-     * the linked node
-     * if a function call refers to a function declaration, it will return it
-     * it can return to a pointer, passed through function param, so it can function param
-     * a pointer could be stored in var init, so it could be var init
-     */
-    inline ASTNode* linked() {
-        return name->linked_node();
+    [[nodiscard]] inline ASTNode* linked() const {
+        return parent_val->linked_node();
     }
 
     /**
@@ -84,19 +80,19 @@ public:
      * you should call this when you are sure, that this call is to a function
      * which is a function declaration
      */
-    inline FunctionDeclaration* linked_func() {
-        return name->linked_node()->as_function();
+    [[nodiscard]] inline FunctionDeclaration* linked_func() const {
+        return linked()->as_function();
     }
 
     /**
      * if this call refers to a function declaration, returns it, otherwise not
      * so its safe
      */
-    inline FunctionDeclaration* safe_linked_func() {
-        return name->linked_node() ? name->linked_node()->as_function() : nullptr;
+    [[nodiscard]] inline FunctionDeclaration* safe_linked_func() const {
+        return linked() ? linked()->as_function() : nullptr;
     }
 
-    std::unique_ptr<Value> name;
+    Value* parent_val;
     std::vector<std::unique_ptr<Value>> values;
 
 };

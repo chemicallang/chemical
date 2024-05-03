@@ -813,10 +813,8 @@ std::vector<std::unique_ptr<Value>> take_values(CSTConverter *converter, const s
 
 void CSTConverter::visit(FunctionCallCST *call) {
     auto prev_values = std::move(values);
-    call->tokens[0]->accept(this);
-    auto nameVal = value();
     visit(call->tokens, 1);
-    auto func_call = new FunctionCall(std::move(nameVal), std::move(values));
+    auto func_call = new FunctionCall(std::move(values));
     values = std::move(prev_values);
     values.emplace_back(func_call);
 }
@@ -825,8 +823,7 @@ void CSTConverter::visit(IndexOpCST *op) {
     auto indexes = take_values(this, [&op, this]() {
         visit(op->tokens, 1);
     });
-    op->tokens[0]->accept(this);
-    values.emplace_back(std::make_unique<IndexOperator>(value(), std::move(indexes)));
+    values.emplace_back(std::make_unique<IndexOperator>(std::move(indexes)));
 }
 
 void CSTConverter::visit(AccessChainCST *chain) {

@@ -166,12 +166,12 @@ void ExpressionEvaluator::prepareFunctions(GlobalInterpretScope& scope) {
 
     //    (bool / bool) -> int
     functionVector[computeBoolToBool(Operation::Division)] = [&](Value *v1, Value *v2) -> Value * {
-        return new BoolValue(v1->as_bool() / v2->as_bool());
+        return new IntValue(v1->as_bool() / v2->as_bool());
     };
 
     //    (bool % bool) -> int
     functionVector[computeBoolToBool(Operation::Modulus)] = [&](Value *v1, Value *v2) -> Value * {
-        return new BoolValue(v1->as_bool() % v2->as_bool());
+        return new IntValue(v1->as_bool() % v2->as_bool());
     };
 
     //    (bool == bool) -> bool
@@ -210,7 +210,7 @@ void ExpressionEvaluator::prepareFunctions(GlobalInterpretScope& scope) {
         return new BoolValue(v1->as_bool() << v2->as_bool());
     };
 
-    //    (bool >> bool) -> int
+    //    (bool >> bool) -> bool
     functionVector[computeBoolToBool(Operation::RightShift)] = [&](Value *v1, Value *v2) -> Value * {
         return new BoolValue(v1->as_bool() >> v2->as_bool());
     };

@@ -61,7 +61,15 @@ public:
             Codegen &gen,
             StructValue *parent,
             llvm::AllocaInst *ptr,
-            std::vector<llvm::Value*> idxList,
+            std::vector<llvm::Value *> idxList,
+            unsigned int index
+    ) override;
+
+    unsigned int store_in_array(
+            Codegen &gen,
+            ArrayValue *parent,
+            llvm::AllocaInst *ptr,
+            std::vector<llvm::Value *> idxList,
             unsigned int index
     ) override;
 
@@ -71,11 +79,11 @@ public:
 
     llvm::Type *llvm_type(Codegen &gen) override;
 
-    bool add_child_indexes(Codegen &gen, std::vector<llvm::Value *> &indexes, std::vector<std::unique_ptr<Value>> &u_inds) override;
-
     bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
 
 #endif
+
+    std::unique_ptr<BaseType> create_type() const override;
 
     std::string representation() const override;
 

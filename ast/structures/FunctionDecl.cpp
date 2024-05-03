@@ -214,10 +214,6 @@ bool FunctionParam::add_child_index(Codegen &gen, std::vector<llvm::Value *> &in
     return type->linked_node()->add_child_index(gen, indexes, name);
 }
 
-bool FunctionParam::add_child_indexes(Codegen &gen, std::vector<llvm::Value *> &indexes, std::vector<std::unique_ptr<Value>> &u_inds) {
-    return type->linked_node()->add_child_indexes(gen, indexes, u_inds);
-}
-
 FunctionDeclaration::FunctionDeclaration(
         std::string name,
         func_params params,

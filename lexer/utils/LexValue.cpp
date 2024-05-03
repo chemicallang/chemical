@@ -65,11 +65,11 @@ bool Lexer::lexArrayInit() {
     if (lexOperatorToken('{')) {
         auto start = tokens.size() - 1;
         do {
-            lexWhitespaceToken();
-            if (!(lexExpressionTokens() || lexArrayInit())) {
+            lexWhitespaceAndNewLines();
+            if (!(lexExpressionTokens(true) || lexArrayInit())) {
                 break;
             }
-            lexWhitespaceToken();
+            lexWhitespaceAndNewLines();
         } while (lexOperatorToken(','));
         if (!lexOperatorToken('}')) {
             error("expected a '}' when lexing an array");

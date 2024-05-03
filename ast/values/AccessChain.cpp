@@ -45,13 +45,12 @@ llvm::Value *AccessChain::llvm_pointer(Codegen &gen) {
                 gen.error("couldn't add member index for fragment '" + values[0]->representation() + "' in access chain '" + representation() + "'");
             }
 
-            auto parent = values[0]->linked_node();
             unsigned i = 1;
             while (i < values.size()) {
-                if(!values[i]->add_member_index(gen, parent, idxList)) {
+                if(!values[i]->add_member_index(gen, values[i - 1].get(), idxList)) {
                     gen.error("couldn't add member index for fragment '" + values[i]->representation() + "' in access chain '" + representation() + "'");
                 }
-                parent = values[i]->find_link_in_parent(parent);
+                values[i]->find_link_in_parent(values[i - 1].get());
                 i++;
             }
             if(values[0]->type_kind() == BaseTypeKind::Pointer) {
@@ -77,20 +76,20 @@ void AccessChain::declare_and_link(SymbolResolver &linker) {
 void AccessChain::link(SymbolResolver &linker) {
     values[0]->link(linker);
     if (values.size() > 1) {
-        auto parent = values[0]->linked_node();
-        if (!parent) {
-            linker.error("couldn't find fragment '" + values[0]->representation() + "' in access chain '" +
-                         representation() + "'");
-            return;
-        }
+//        auto parent = values[0]->linked_node();
+//        if (!parent) {
+//            linker.error("couldn't find first fragment '" + values[0]->representation() + "' in access chain '" +
+//                         representation() + "'");
+//            return;
+//        }
         unsigned i = 1;
         while (i < values.size()) {
-            parent = values[i]->find_link_in_parent(parent);
-            if (!parent) {
-                linker.error("couldn't find fragment '" + values[i]->representation() + "' in access chain '" +
-                             representation() + "'");
-                break;
-            }
+            values[i]->find_link_in_parent(values[i - 1].get(), linker);
+//            if (!parent) {
+//                linker.error("couldn't find fragment '" + values[i]->representation() + "' in access chain '" +
+//                             representation() + "'");
+//                break;
+//            }
             i++;
         }
     }

@@ -42,6 +42,27 @@ unsigned int StructValue::store_in_struct(
     return index + values.size();
 }
 
+unsigned int StructValue::store_in_array(
+        Codegen &gen,
+        ArrayValue *parent,
+        llvm::AllocaInst *ptr,
+        std::vector<llvm::Value *> idxList,
+        unsigned int index
+) {
+    idxList.emplace_back(gen.builder->getInt32(index));
+    for (const auto &value: values) {
+        auto currIndex = definition->child_index(value.first);
+        if (index == -1) {
+            gen.error(
+                    "couldn't get embedded struct child " + value.first + " in definition of name " + definition->name +
+                    " with parent of name " + definition->name);
+        } else {
+            value.second->store_in_array(gen, parent, ptr, idxList, currIndex);
+        }
+    }
+    return index + 1;
+}
+
 llvm::Value *StructValue::llvm_value(Codegen &gen) {
     throw std::runtime_error("cannot allocate a struct without an identifier");
 }
@@ -52,10 +73,6 @@ llvm::Type *StructValue::llvm_elem_type(Codegen &gen) {
 
 llvm::Type *StructValue::llvm_type(Codegen &gen) {
     return definition->llvm_type(gen);
-}
-
-bool StructValue::add_child_indexes(Codegen &gen, std::vector<llvm::Value *> &indexes, std::vector<std::unique_ptr<Value>> &u_inds) {
-    return definition->add_child_indexes(gen, indexes, u_inds);
 }
 
 bool StructValue::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
@@ -172,6 +189,12 @@ Value *StructValue::copy() {
         copied[value.first] = std::unique_ptr<Value>(value.second->copy());
     }
     return new StructValue(structName, std::move(copied), definition);
+}
+
+std::unique_ptr<BaseType> StructValue::create_type() const {
+    auto type = std::make_unique<ReferencedType>(structName);
+    type->linked = definition;
+    return type;
 }
 
 Value *StructValue::child(InterpretScope &scope, const std::string &name) {

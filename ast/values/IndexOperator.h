@@ -13,8 +13,7 @@
 class IndexOperator : public Value {
 public:
 
-    IndexOperator(std::unique_ptr<Value> identifier, std::vector<std::unique_ptr<Value>> indexes) : identifier(std::move(identifier)),
-                                                                          values(std::move(indexes)) {
+    IndexOperator(std::vector<std::unique_ptr<Value>> indexes) : values(std::move(indexes)) {
 
     }
 
@@ -26,7 +25,7 @@ public:
 
     ASTNode *linked_node() override;
 
-    ASTNode *find_link_in_parent(ASTNode *parent) override;
+    void find_link_in_parent(Value *parent) override;
 
     bool primitive() override {
         return false;
@@ -47,25 +46,15 @@ public:
 
     llvm::FunctionType *llvm_func_type(Codegen &gen) override;
 
-    bool add_member_index(Codegen &gen, ASTNode *parent, std::vector<llvm::Value *> &indexes) override;
+    bool add_member_index(Codegen &gen, Value *parent, std::vector<llvm::Value *> &indexes) override;
 
 #endif
 
     std::unique_ptr<BaseType> create_type() const override;
 
-    std::string representation() const override {
-        std::string rep(identifier->representation());
-        rep.append(1, '[');
-        for(auto& value : values) {
-            rep.append(value->representation());
-            rep.append(1, ',');
-        }
-        rep.append(1, ']');
-        return rep;
-    }
+    std::string representation() const override;
 
-    ASTNode *linked;
-    std::unique_ptr<Value> identifier;
+    Value* parent_val;
     std::vector<std::unique_ptr<Value>> values;
 
 };

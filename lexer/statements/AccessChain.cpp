@@ -64,7 +64,7 @@ bool Lexer::lexAccessChainRecursive(bool lexStruct) {
 
 bool Lexer::lexIndexOp() {
     if(lexOperatorToken('[')) {
-        unsigned start = tokens.size() - 2;
+        unsigned start = tokens.size() - 1;
         do {
             lexWhitespaceToken();
             if (!lexExpressionTokens()) {
@@ -96,7 +96,7 @@ bool Lexer::lexAccessChainAfterId(bool lexStruct) {
     lexIndexOp();
 
     while (lexOperatorToken('(')) {
-        unsigned start = tokens.size() - 2;
+        unsigned start = tokens.size() - 1;
         do {
             lexWhitespaceToken();
             if(!lexExpressionTokens()) {

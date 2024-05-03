@@ -68,13 +68,6 @@ bool StructMember::add_child_index(Codegen &gen, std::vector<llvm::Value *> &ind
     return true;
 }
 
-bool StructMember::add_child_indexes(Codegen &gen, std::vector<llvm::Value *> &indexes, std::vector<std::unique_ptr<Value>> &u_inds) {
-    for(auto& index : u_inds) {
-        indexes.emplace_back(index->llvm_value(gen));
-    }
-    return true;
-}
-
 llvm::Type *StructDefinition::llvm_type(Codegen &gen) {
     return llvm::StructType::get(*gen.ctx, elements_type(gen));
 }

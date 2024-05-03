@@ -31,8 +31,6 @@ public:
 
     bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
 
-    bool add_child_indexes(Codegen &gen, std::vector<llvm::Value *> &indexes, std::vector<std::unique_ptr<Value>> &u_inds) override;
-
     llvm::Type *llvm_type(Codegen &gen) override;
 
     llvm::FunctionType *llvm_func_type(Codegen &gen) override;

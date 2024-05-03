@@ -346,6 +346,8 @@ set(COMMON_SOURCES
         ast/values/UBigIntValue.h
         utils/StrUtils.h
         utils/StrUtils.cpp
+        ast/types/StructType.h
+        ast/types/StructType.cpp
 )
 
 # Chemical LSP Executable Target

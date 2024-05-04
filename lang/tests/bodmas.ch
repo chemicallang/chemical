@@ -19,6 +19,9 @@ func test_bodmas() {
     test("(5 + 3) * 2 - 4 / (1 + 1) == 14", () => {
         return ((5 + 3) * 2 - 4 / (1 + 1)) == 14;
     });
+    test("single braced value", () => {
+        return (5 + (5)) == 10;
+    })
     test("Simple addition and multiplication", () => {
         return (2 + 3 * 4) == 14;
     });

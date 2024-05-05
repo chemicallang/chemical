@@ -33,6 +33,10 @@ public:
 
 #endif
 
+    bool can_promote(Value *value) override;
+
+    Value * promote(Value *value) override;
+
     std::unique_ptr<BaseType> create_type() const override {
         return std::make_unique<DoubleType>();
     }

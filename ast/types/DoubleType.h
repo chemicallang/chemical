@@ -15,10 +15,6 @@ public:
         return "double";
     }
 
-    unsigned int precedence() override {
-        return 1;
-    }
-
     BaseTypeKind kind() const override {
         return BaseTypeKind::Double;
     }
@@ -34,8 +30,6 @@ public:
     virtual BaseType* copy() const {
         return new DoubleType();
     }
-
-    std::unique_ptr<Value> promote(Value* value) override;
 
 #ifdef COMPILER_BUILD
     llvm::Type *llvm_type(Codegen &gen) const override;

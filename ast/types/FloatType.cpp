@@ -12,11 +12,3 @@ llvm::Type *FloatType::llvm_type(Codegen &gen) const {
 }
 
 #endif
-
-std::unique_ptr<Value> FloatType::promote(Value* value) {
-    if(value->value_type() == ValueType::Int) {
-        return std::make_unique<FloatValue>((float) value->as_int());
-    } else {
-        return std::unique_ptr<Value>(value);
-    }
-}

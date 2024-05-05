@@ -19,30 +19,25 @@ llvm::Type *Expression::llvm_type(Codegen &gen) {
 #endif
 
 void Expression::promote() {
-    auto first = firstValue->create_type();
-    auto second = secondValue->create_type();
-    if (first->is_same(second.get())) {
-        // no promotion required
-    } else {
-        if (first->precedence() >= second->precedence()) {
-            secondValue = first->promote(secondValue.release());
-        } else {
-            firstValue = second->promote(firstValue.release());
-        }
+#ifdef DEBUG
+    if(firstValue->can_promote(secondValue.get()) && secondValue->can_promote(firstValue.get())) {
+        throw std::runtime_error("Both values can promote each other");
+    }
+#endif
+    if (firstValue->can_promote(secondValue.get())) {
+        secondValue = std::unique_ptr<Value>(firstValue->promote(secondValue.get()));
+    } else if(secondValue->can_promote(firstValue.get())) {
+        firstValue = std::unique_ptr<Value>(secondValue->promote(firstValue.get()));
     }
 }
 
 std::unique_ptr<BaseType> Expression::create_type() const {
-    auto first = firstValue->create_type();
-    auto second = secondValue->create_type();
-    if (first->is_same(second.get())) {
-        return first;
+    if (firstValue->can_promote(secondValue.get())) {
+        return std::unique_ptr<Value>(firstValue->promote(secondValue.get()))->create_type();
+    } else if(secondValue->can_promote(firstValue.get())) {
+        return std::unique_ptr<Value>(secondValue->promote(firstValue.get()))->create_type();
     } else {
-        if (first->precedence() >= second->precedence()) {
-            return first;
-        } else {
-            return second;
-        }
+        return firstValue->create_type();
     }
 }
 

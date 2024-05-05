@@ -68,9 +68,12 @@ void Expression::promote(bool is64Bit) {
         throw std::runtime_error("Both values can promote each other");
     }
 #endif
-    // if one of the values is a literal value
     // TODO only do this if the constant value is in range of the type
-    if(!(!firstValue->primitive() && !secondValue->primitive())) { // if at least one of the value is a primitive
+    // when a literal value is being compared with a variable
+    // but variable has less bits (e.g short variable with constant int32)
+    // we will demote int 32 to a short type, but only if it first in the range of a short
+    // if one of the values is a literal value
+    if(!(!firstValue->primitive() && !secondValue->primitive())) { // if at least one of the value is a literal
         if (firstValue->is_int_n() && secondValue->is_int_n()) { // if both are int n
             if(firstValue->primitive()) {
                 auto secondType = secondValue->create_type();

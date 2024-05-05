@@ -52,9 +52,7 @@ func test_numbers() {
         var i : ushort = 1;
         return i == 1;
     })
-    /**
     test("test constant long is demoted to int32 for comparison with int32", () => {
-        return 123L == 123;
+        return 123 == 123L;
     })
-    **/
 }

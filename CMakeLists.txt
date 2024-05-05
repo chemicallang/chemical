@@ -348,6 +348,13 @@ set(COMMON_SOURCES
         utils/StrUtils.cpp
         ast/types/StructType.h
         ast/types/StructType.cpp
+        ast/types/IntType.h
+        ast/types/UIntType.h
+        ast/types/ShortType.h
+        ast/types/UShortType.h
+        ast/types/UBigIntType.h
+        ast/types/BigIntType.h
+        ast/types/ULongType.h
 )
 
 # Chemical LSP Executable Target

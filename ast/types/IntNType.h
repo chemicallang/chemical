@@ -41,12 +41,14 @@ public:
         return type->kind() == kind();
     }
 
-    virtual BaseType* copy() const {
+    virtual BaseType *copy() const {
         return new IntNType(number);
     }
 
 #ifdef COMPILER_BUILD
+
     llvm::Type *llvm_type(Codegen &gen) const override;
+
 #endif
 
 };

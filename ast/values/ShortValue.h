@@ -1,6 +1,7 @@
 // Copyright (c) Qinetik 2024.
 
 #include "IntNumValue.h"
+#include "ast/types/ShortType.h"
 
 class ShortValue : public IntNumValue {
 public:
@@ -23,12 +24,20 @@ public:
         return std::to_string(value);
     }
 
-    unsigned int get_num_bits(bool is64Bit) override {
+    [[nodiscard]] std::unique_ptr<BaseType> create_type() const override {
+        return std::make_unique<ShortType>();
+    }
+
+    unsigned int get_num_bits() override {
         return 16;
     }
 
     uint64_t get_num_value() override {
         return value;
+    }
+
+    bool is_unsigned() override {
+        return false;
     }
 
     [[nodiscard]] ValueType value_type() const override {

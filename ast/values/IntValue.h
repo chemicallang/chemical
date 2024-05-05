@@ -8,6 +8,7 @@
 
 #include "ast/types/IntNType.h"
 #include "IntNumValue.h"
+#include "ast/types/IntType.h"
 
 /**
  * @brief Class representing an integer value.
@@ -30,7 +31,7 @@ public:
         return std::to_string(value);
     }
 
-    unsigned int get_num_bits(bool is64Bit) override {
+    unsigned int get_num_bits() override {
         return 32;
     }
 
@@ -42,8 +43,12 @@ public:
         return new IntValue(value);
     }
 
+    bool is_unsigned() override {
+        return false;
+    }
+
     [[nodiscard]] std::unique_ptr<BaseType> create_type() const override {
-        return std::make_unique<IntNType>(32);
+        return std::make_unique<IntType>();
     }
 
     int as_int() override {

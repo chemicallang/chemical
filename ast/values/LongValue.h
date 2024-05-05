@@ -3,13 +3,15 @@
 #pragma once
 
 #include "IntNumValue.h"
+#include "ast/types/LongType.h"
 
 class LongValue : public IntNumValue {
 public:
 
     long value;
+    bool is64Bit;
 
-    LongValue(long value) : value(value) {
+    LongValue(long value, bool is64Bit) : value(value), is64Bit(is64Bit) {
 
     }
 
@@ -18,19 +20,27 @@ public:
     }
 
     Value *copy() override {
-        return new LongValue(value);
+        return new LongValue(value, is64Bit);
     }
 
     std::string representation() const override {
         return std::to_string(value);
     }
 
-    unsigned int get_num_bits(bool is64Bit) override {
+    [[nodiscard]] std::unique_ptr<BaseType> create_type() const override {
+        return std::make_unique<LongType>(is64Bit);
+    }
+
+    unsigned int get_num_bits() override {
         if(is64Bit) {
             return 64;
         } else {
             return 32;
         }
+    }
+
+    bool is_unsigned() override {
+        return false;
     }
 
     uint64_t get_num_value() override {

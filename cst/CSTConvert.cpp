@@ -158,7 +158,7 @@ std::string FunctionCST::func_name() {
 }
 
 // TODO support _128bigint, bigfloat
-CSTConverter::CSTConverter(bool is64Bit) {
+CSTConverter::CSTConverter(bool is64Bit) : is64Bit(is64Bit) {
     primitive_type_map["any"] = []() -> BaseType * {
         return new AnyType();
     };
@@ -342,7 +342,7 @@ void CSTConverter::visit(FunctionCST *function) {
 
 }
 
-Value* convertNumber(NumberToken* token, ValueType value_type) {
+Value* convertNumber(NumberToken* token, ValueType value_type, bool is64Bit) {
     switch(value_type) {
         case ValueType::Int:
             return new IntValue(std::stoi(token->value));
@@ -353,9 +353,9 @@ Value* convertNumber(NumberToken* token, ValueType value_type) {
         case ValueType::UShort:
             return new UShortValue(std::stoi(token->value));
         case ValueType::Long:
-            return new LongValue(std::stol(token->value));
+            return new LongValue(std::stol(token->value), is64Bit);
         case ValueType::ULong:
-            return new ULongValue(std::stoul(token->value));
+            return new ULongValue(std::stoul(token->value), is64Bit);
         case ValueType::BigInt:
             return new BigIntValue(std::stoll(token->value));
         case ValueType::UBigInt:
@@ -380,7 +380,7 @@ void CSTConverter::visit(VarInitCST *varInit) {
     if(token->is_value()) {
         if(optType.has_value() && optType.value()->kind() == BaseTypeKind::IntN && token->type() == LexTokenType::Number) {
             // This statement leads to a warning "memory leak", we set the pointer to optVal which is a unique_ptr
-            auto conv = convertNumber((NumberToken*) token, optType.value()->value_type());
+            auto conv = convertNumber((NumberToken*) token, optType.value()->value_type(), is64Bit);
             if(conv) {
                 optVal.emplace(conv);
             } else {
@@ -793,9 +793,9 @@ void CSTConverter::visit(NumberToken *token) {
         } else {
             if(token->is_long()) {
                 if(token->is_unsigned()) {
-                    values.emplace_back(new ULongValue(std::stoul(token->value)));
+                    values.emplace_back(new ULongValue(std::stoul(token->value), is64Bit));
                 } else {
-                    values.emplace_back(new LongValue(std::stol(token->value)));
+                    values.emplace_back(new LongValue(std::stol(token->value), is64Bit));
                 }
             } else {
                 values.emplace_back(new IntValue(std::stoi(token->value)));

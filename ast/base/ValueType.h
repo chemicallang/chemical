@@ -35,7 +35,10 @@ enum class ValueType : uint8_t {
     Vector,
     Lambda,
     Pointer,
-    Unknown
+    Unknown,
+
+    IntNStart = Int,
+    IntNEnd = UBigInt,
 
 };
 

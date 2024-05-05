@@ -344,6 +344,14 @@ std::cerr << "child called on base value";
     }
 
     /**
+     * is an int num value
+     */
+    bool is_int_n() {
+        auto type = value_type();
+        return type >= ValueType::IntNStart && type <= ValueType::IntNEnd;
+    }
+
+    /**
      * if the other value can be promoted, this should return true
      * promotion means changing type to a higher type for expression
      * in an expression firstValue(10) operator(==) secondValue(10)
@@ -354,11 +362,14 @@ std::cerr << "child called on base value";
      * if one of the values is a referenced value, meaning a variable, a cast is performed
      * a (int) == b (short), we will promote b in this example to an int
      *
-     * if one of the variable is a constant, we try to replace the constant, to avoid the cast
-     * a (float) == 10, here 10 will be promoted / replaced with a float value 10.0
+     * in the case of 'a' (float / double) == b (int32), we would promote b to a float / double
      *
-     * if one of the variable is a constant, we do not demote the variable to match the constant type
-     * that's why it's called a promotion, it may mean an implicit cast or a compile time value replacement
+     * in the case of 'a' (long / ulong / bigint / ubigint) == b (int32), we must cast the a variable to a int32
+     * to perform the comparison operation, this will be faster
+     *
+     * in the case of 'a' (short) == b (int32), as 'a' has less bits than int32
+     * if b can fit in the range of a (short), we will demote int32 to a short
+     * otherwise we will
      */
     virtual bool can_promote(Value* value) {
         return false;
@@ -391,6 +402,7 @@ std::cerr << "child called on base value";
 
     /**
      * This method is overridden by primitive values like int, float... to return true
+     * This method returns whether it's a literal
      * @return true when the value is primitive
      */
     virtual bool primitive() {

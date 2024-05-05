@@ -1,9 +1,13 @@
 // Copyright (c) Qinetik 2024.
 
+#include <iostream>
 #include "cst/base/CSTDiagnoser.h"
 #include "lexer/model/tokens/LexToken.h"
 
 void CSTDiagnoser::error(const std::string &message, CSTToken *start, CSTToken *end, DiagSeverity severity) {
+#ifdef DEBUG
+    std::cerr << "Debug reporting error " + message << std::endl;
+#endif
     if (severity == DiagSeverity::Error) {
         has_errors = true;
     }

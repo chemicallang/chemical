@@ -67,6 +67,11 @@
 #include "cst/structures/InterfaceCST.h"
 #include "ast/structures/WhileLoop.h"
 #include "ast/values/StructValue.h"
+#include "ast/values/UIntValue.h"
+#include "ast/values/ShortValue.h"
+#include "ast/values/UShortValue.h"
+#include "ast/values/BigIntValue.h"
+#include "ast/values/UBigIntValue.h"
 #include "ast/structures/ImplDefinition.h"
 #include "cst/structures/WhileCST.h"
 #include "cst/structures/ImplCST.h"
@@ -334,6 +339,7 @@ void CSTConverter::visit(VarInitCST *varInit) {
     std::optional<std::unique_ptr<BaseType>> optType = std::nullopt;
     if(is_char_op(varInit->tokens[2].get(), ':')) {
         optType.emplace(type());
+        expected_type = optType.value().get();
     }
     std::optional<std::unique_ptr<Value>> optVal = std::nullopt;
     auto token = varInit->tokens[varInit->tokens.size() - 1].get();
@@ -346,6 +352,7 @@ void CSTConverter::visit(VarInitCST *varInit) {
             std::move(optType),
             std::move(optVal)
     ));
+    expected_type = nullptr;
 }
 
 void CSTConverter::visit(AssignmentCST *assignment) {
@@ -732,26 +739,64 @@ void CSTConverter::visit(CharToken *token) {
 
 void CSTConverter::visit(NumberToken *token) {
     try {
+        if(expected_type != nullptr) {
+            auto value_type = expected_type->value_type();
+            switch(value_type) {
+                case ValueType::Int:
+                    values.emplace_back(new IntValue(std::stoi(token->value)));
+                    break;
+                case ValueType::UInt:
+                    values.emplace_back(new UIntValue(std::stoi(token->value)));
+                    break;
+                case ValueType::Short:
+                    values.emplace_back(new ShortValue(std::stoi(token->value)));
+                    break;
+                case ValueType::UShort:
+                    values.emplace_back(new UShortValue(std::stoi(token->value)));
+                    break;
+                case ValueType::Long:
+                    values.emplace_back(new LongValue(std::stol(token->value)));
+                    break;
+                case ValueType::ULong:
+                    values.emplace_back(new ULongValue(std::stoul(token->value)));
+                    break;
+                case ValueType::BigInt:
+                    values.emplace_back(new BigIntValue(std::stoll(token->value)));
+                    break;
+                case ValueType::UBigInt:
+                    values.emplace_back(new UBigIntValue(std::stoull(token->value)));
+                    break;
+                case ValueType::Float:
+                    values.emplace_back(new FloatValue(std::stof(token->value)));
+                    break;
+                case ValueType::Double:
+                    values.emplace_back(new DoubleValue(std::stod(token->value)));
+                    break;
+                default:
+                    error("expected value type" + to_string(value_type) + " cannot take a number", token);
+            }
+            return;
+        }
         if (token->has_dot()) {
             if (token->is_float()) {
                 std::string substring = token->value.substr(0, token->value.size() - 1);
-                values.emplace_back(std::make_unique<FloatValue>(std::stof(substring)));
+                values.emplace_back(new FloatValue(std::stof(substring)));
             } else {
-                values.emplace_back(std::make_unique<DoubleValue>(std::stod(token->value)));
+                values.emplace_back(new DoubleValue(std::stod(token->value)));
             }
         } else {
             if(token->is_long()) {
                 if(token->is_unsigned()) {
-                    values.emplace_back(std::make_unique<ULongValue>(std::stoul(token->value)));
+                    values.emplace_back(new ULongValue(std::stoul(token->value)));
                 } else {
-                    values.emplace_back(std::make_unique<LongValue>(std::stol(token->value)));
+                    values.emplace_back(new LongValue(std::stol(token->value)));
                 }
             } else {
-                values.emplace_back(std::make_unique<IntValue>(std::stoi(token->value)));
+                values.emplace_back(new IntValue(std::stoi(token->value)));
             }
         }
     } catch (...) {
-        error("invalid number given", token);
+        error("invalid value provided", token);
     }
 }
 

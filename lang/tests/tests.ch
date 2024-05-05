@@ -3,6 +3,7 @@ import "bodmas.ch"
 import "floating.ch"
 import "nodes.ch"
 import "nodes/varinit.ch"
+import "type/datatype/numbers.ch"
 
 func main() {
     test_var_init();
@@ -10,4 +11,5 @@ func main() {
     test_bodmas();
     test_floating_expr();
     test_nodes();
+    test_numbers();
 }

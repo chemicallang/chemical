@@ -12,10 +12,21 @@
 #include "SymbolResolver.h"
 #include "llvmfwd.h"
 #include "ast/base/AccessSpecifier.h"
+#include "ast/base/BaseTypeKind.h"
+#include "ast/base/ValueType.h"
 
 class Scope;
 
 class Value;
+
+class BaseType;
+
+/**
+ * A caster fn takes a pointer to a value, and a pointer to a type
+ * the function then returns a new value by casting the given value to the given type
+ * the value is created a new on the heap
+ */
+typedef Value*(*CasterFn)(Value* val, BaseType* type);
 
 class Codegen {
 public:
@@ -37,6 +48,15 @@ public:
      * these functions will be removed when code gen has completed.
      */
     std::unordered_map<std::string, std::unordered_map<std::string, llvm::Function *>> unimplemented_interfaces;
+
+    /**
+     * compile time casters that take a value and cast them to a different value
+     * these casters are most likely to not incur a runtime cast
+     * because casting happens at compile time
+     * it should be known that value created by caster is on the heap
+     * the caller has the ownership and must manage memory
+     */
+    std::unordered_map<int, CasterFn> comp_casters;
 
     /**
      * errors are stored here
@@ -74,9 +94,22 @@ public:
     void module_init();
 
     /**
+     * initializes the casters map
+     */
+    void casters_init();
+
+    /**
      * determine whether the system we are compiling for is 64bit or 32bit
      */
     static bool is_arch_64bit(const std::string &target_triple);
+
+    /**
+     * provides a caster_index, which can be used to store or retrieve a caster
+     * from casters map
+     */
+    static constexpr int caster_index(ValueType type, BaseTypeKind kind) {
+        return ((uint8_t) type << 10) | (uint8_t) kind;
+    }
 
     /**
      * the actual compile function, when called module, ctx and builder members

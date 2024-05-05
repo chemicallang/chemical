@@ -12,7 +12,9 @@
 #include <vector>
 #include <memory>
 
-using expression_evaluators = std::unordered_map<int, std::function<Value *(Value *, Value *)>>;
+typedef Value* (*EvaluatorFn)(Value*, Value*);
+
+using expression_evaluators = std::unordered_map<int, EvaluatorFn>;
 
 class GlobalInterpretScope : public InterpretScope {
 public:
@@ -81,7 +83,7 @@ public:
      * indexed functions that evaluate two values into another value are put on this map
      * usually index is determined based on the type of values inputted
      */
-    expression_evaluators expr_evaluators = expression_evaluators();
+    expression_evaluators expr_evaluators;
 
     /**
      * This contains errors that occur during interpretation

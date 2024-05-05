@@ -110,6 +110,8 @@ class NotValue;
 
 class NullValue;
 
+class NumberValue;
+
 class TernaryValue;
 
 class LambdaFunction;
@@ -257,6 +259,10 @@ public:
 
     virtual void visit(UShortValue* val) {
         visitCommonValue((Value*) val);
+    }
+
+    virtual void visit(NumberValue* boolVal) {
+        visitCommonValue((Value*) boolVal);
     }
 
     virtual void visit(FloatValue* floatVal) {

@@ -3,6 +3,7 @@
 #include "IntNumValue.h"
 
 class ShortValue : public IntNumValue {
+public:
 
     short value;
 

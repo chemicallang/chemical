@@ -5,6 +5,7 @@
 #include "IntNumValue.h"
 
 class UShortValue : public IntNumValue {
+public:
 
     unsigned short value;
 

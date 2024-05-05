@@ -95,6 +95,13 @@ public:
     LoopASTNode *current_loop_node = nullptr;
 
     /**
+     * When a type is found in var init statement, we set it to this variable
+     * var x : uint
+     * we must convert the number token after '=' as a uint and not int32
+     */
+    BaseType* expected_type = nullptr;
+
+    /**
      * constructor
      */
     CSTConverter(bool is64Bit);

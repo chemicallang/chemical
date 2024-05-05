@@ -7,7 +7,14 @@
 class IntNType : public BaseType {
 public:
 
+    /**
+     * this is number of bits of the type, not the actual number
+     * int means int32, meaning 32 bit integer
+     */
     unsigned int number;
+    /**
+     * is the type unsigned
+     */
     bool is_unsigned;
 
     IntNType(unsigned int number, bool is_unsigned = false) : number(number), is_unsigned(is_unsigned) {

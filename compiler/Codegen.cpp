@@ -8,6 +8,10 @@
 #include "SelfInvocation.h"
 #include <utility>
 #include "llvmimpl.h"
+#include "ast/base/Value.h"
+#include "ast/base/BaseType.h"
+//#include "ast/values/IntNumValue.h"
+//#include "ast/types/IntNType.h"
 
 Codegen::Codegen(
         std::vector<std::unique_ptr<ASTNode>> nodes,
@@ -19,6 +23,13 @@ Codegen::Codegen(
     target_triple(std::move(target_triple)),
     curr_exe_path(std::move(curr_exe_path)), is64Bit(is_64_bit) {
     module_init();
+}
+
+void Codegen::casters_init() {
+    comp_casters[caster_index(ValueType::Int, BaseTypeKind::IntN)] = [](Value* value, BaseType* type) -> Value* {
+        // TODO
+        return nullptr;
+    };
 }
 
 bool Codegen::is_arch_64bit(const std::string& target_triple) {

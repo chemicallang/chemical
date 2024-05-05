@@ -46,7 +46,7 @@ func test_bodmas() {
     test("Expression with negative numbers", () => {
         return (-3 * (-4 + 2)) == 6;
     });
-    test("Decimal number with integer addition", () => {
+    test("double with integer addition", () => {
         return 4 + 1.5 == 5.5;
     });
     test("Expression with decimal numbers", () => {

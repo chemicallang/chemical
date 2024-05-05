@@ -62,28 +62,6 @@ bool Lexer::lexAccessChainRecursive(bool lexStruct) {
     return lexAccessChainAfterId(lexStruct);
 }
 
-bool Lexer::lexIndexOp() {
-    if(lexOperatorToken('[')) {
-        unsigned start = tokens.size() - 1;
-        do {
-            lexWhitespaceToken();
-            if (!lexExpressionTokens()) {
-                error("expected an expression in indexing operators for access chain");
-                return true;
-            }
-            lexWhitespaceToken();
-            if (!lexOperatorToken(']')) {
-                error("expected a closing bracket ] in access chain");
-                return true;
-            }
-        } while(lexOperatorToken('['));
-        compound_from<IndexOpCST>(start);
-        return true;
-    } else {
-        return false;
-    }
-}
-
 bool Lexer::lexAccessChainAfterId(bool lexStruct) {
 
     if(lexStruct) {
@@ -93,24 +71,38 @@ bool Lexer::lexAccessChainAfterId(bool lexStruct) {
         }
     }
 
-    lexIndexOp();
-
-    while (lexOperatorToken('(')) {
-        unsigned start = tokens.size() - 1;
-        do {
-            lexWhitespaceToken();
-            if(!lexExpressionTokens()) {
-                break;
-            }
-            lexWhitespaceToken();
-        } while (lexOperatorToken(','));
-        if(!lexOperatorToken(')')) {
-            error("expected a ')' for a function call, after starting ')'");
+    while(provider.peek() == '(' || provider.peek() == '[') {
+        while(lexOperatorToken('[')) {
+            unsigned start = tokens.size() - 1;
+            do {
+                lexWhitespaceToken();
+                if (!lexExpressionTokens()) {
+                    error("expected an expression in indexing operators for access chain");
+                    return true;
+                }
+                lexWhitespaceToken();
+                if (!lexOperatorToken(']')) {
+                    error("expected a closing bracket ] in access chain");
+                    return true;
+                }
+            } while (lexOperatorToken('['));
+            compound_from<IndexOpCST>(start);
         }
-        compound_from<FunctionCallCST>(start);
+        while (lexOperatorToken('(')) {
+            unsigned start = tokens.size() - 1;
+            do {
+                lexWhitespaceToken();
+                if(!lexExpressionTokens()) {
+                    break;
+                }
+                lexWhitespaceToken();
+            } while (lexOperatorToken(','));
+            if(!lexOperatorToken(')')) {
+                error("expected a ')' for a function call, after starting ')'");
+            }
+            compound_from<FunctionCallCST>(start);
+        }
     }
-
-    lexIndexOp();
 
     while (lexOperatorToken('.')) {
         if (!lexAccessChainRecursive(false)) {

@@ -102,6 +102,14 @@
 #include "ast/values/CastedValue.h"
 #include "cst/values/CastCST.h"
 #include "cst/utils/ValueAndOperatorStack.h"
+#include "ast/types/IntType.h"
+#include "ast/types/UIntType.h"
+#include "ast/types/ShortType.h"
+#include "ast/types/UShortType.h"
+#include "ast/types/BigIntType.h"
+#include "ast/types/UBigIntType.h"
+#include "ast/types/ULongType.h"
+#include "ast/types/LongType.h"
 
 using tokens_vec_type = std::vector<std::unique_ptr<CSTToken>> &;
 
@@ -167,28 +175,28 @@ CSTConverter::CSTConverter(bool is64Bit) {
         return new FloatType();
     };
     primitive_type_map["int"] = []() -> BaseType * {
-        return new IntNType(32);
+        return new IntType();
     };
     primitive_type_map["uint"] = []() -> BaseType * {
-        return new IntNType(32, true);
+        return new UIntType();
     };
     primitive_type_map["short"] = []() -> BaseType * {
-        return new IntNType(16);
+        return new ShortType();
     };
     primitive_type_map["ushort"] = []() -> BaseType * {
-        return new IntNType(16, true);
+        return new UShortType();
     };
     primitive_type_map["long"] = [is64Bit]() -> BaseType * {
-        return new IntNType(is64Bit ? 64 : 32);
+        return new LongType(is64Bit);
     };
     primitive_type_map["ulong"] = [is64Bit]() -> BaseType * {
-        return new IntNType(is64Bit ? 64 : 32, true);
+        return new ULongType(is64Bit);
     };
     primitive_type_map["bigint"] = []() -> BaseType * {
-        return new IntNType(64);
+        return new BigIntType();
     };
     primitive_type_map["ubigint"] = []() -> BaseType * {
-        return new IntNType(64, true);
+        return new UBigIntType();
     };
     primitive_type_map["string"] = []() -> BaseType * {
         return new StringType();
@@ -334,17 +342,54 @@ void CSTConverter::visit(FunctionCST *function) {
 
 }
 
+Value* convertNumber(NumberToken* token, ValueType value_type) {
+    switch(value_type) {
+        case ValueType::Int:
+            return new IntValue(std::stoi(token->value));
+        case ValueType::UInt:
+            return new UIntValue(std::stoi(token->value));
+        case ValueType::Short:
+            return new ShortValue(std::stoi(token->value));
+        case ValueType::UShort:
+            return new UShortValue(std::stoi(token->value));
+        case ValueType::Long:
+            return new LongValue(std::stol(token->value));
+        case ValueType::ULong:
+            return new ULongValue(std::stoul(token->value));
+        case ValueType::BigInt:
+            return new BigIntValue(std::stoll(token->value));
+        case ValueType::UBigInt:
+            return new UBigIntValue(std::stoull(token->value));
+        case ValueType::Float:
+            return new FloatValue(std::stof(token->value));
+        case ValueType::Double:
+            return new DoubleValue(std::stod(token->value));
+        default:
+            return nullptr;
+    }
+}
+
 void CSTConverter::visit(VarInitCST *varInit) {
-    visit(varInit->tokens, 3);
     std::optional<std::unique_ptr<BaseType>> optType = std::nullopt;
     if(is_char_op(varInit->tokens[2].get(), ':')) {
+        varInit->tokens[3]->accept(this);
         optType.emplace(type());
-        expected_type = optType.value().get();
     }
     std::optional<std::unique_ptr<Value>> optVal = std::nullopt;
     auto token = varInit->tokens[varInit->tokens.size() - 1].get();
     if(token->is_value()) {
-        optVal.emplace(value());
+        if(optType.has_value() && optType.value()->kind() == BaseTypeKind::IntN && token->type() == LexTokenType::Number) {
+            // This statement leads to a warning "memory leak", we set the pointer to optVal which is a unique_ptr
+            auto conv = convertNumber((NumberToken*) token, optType.value()->value_type());
+            if(conv) {
+                optVal.emplace(conv);
+            } else {
+                error("invalid number for the expected type", token);
+            }
+        } else {
+            token->accept(this);
+            optVal.emplace(value());
+        }
     }
     nodes.emplace_back(std::make_unique<VarInitStatement>(
             varInit->is_const(),
@@ -352,7 +397,6 @@ void CSTConverter::visit(VarInitCST *varInit) {
             std::move(optType),
             std::move(optVal)
     ));
-    expected_type = nullptr;
 }
 
 void CSTConverter::visit(AssignmentCST *assignment) {
@@ -739,44 +783,6 @@ void CSTConverter::visit(CharToken *token) {
 
 void CSTConverter::visit(NumberToken *token) {
     try {
-        if(expected_type != nullptr) {
-            auto value_type = expected_type->value_type();
-            switch(value_type) {
-                case ValueType::Int:
-                    values.emplace_back(new IntValue(std::stoi(token->value)));
-                    break;
-                case ValueType::UInt:
-                    values.emplace_back(new UIntValue(std::stoi(token->value)));
-                    break;
-                case ValueType::Short:
-                    values.emplace_back(new ShortValue(std::stoi(token->value)));
-                    break;
-                case ValueType::UShort:
-                    values.emplace_back(new UShortValue(std::stoi(token->value)));
-                    break;
-                case ValueType::Long:
-                    values.emplace_back(new LongValue(std::stol(token->value)));
-                    break;
-                case ValueType::ULong:
-                    values.emplace_back(new ULongValue(std::stoul(token->value)));
-                    break;
-                case ValueType::BigInt:
-                    values.emplace_back(new BigIntValue(std::stoll(token->value)));
-                    break;
-                case ValueType::UBigInt:
-                    values.emplace_back(new UBigIntValue(std::stoull(token->value)));
-                    break;
-                case ValueType::Float:
-                    values.emplace_back(new FloatValue(std::stof(token->value)));
-                    break;
-                case ValueType::Double:
-                    values.emplace_back(new DoubleValue(std::stod(token->value)));
-                    break;
-                default:
-                    error("expected value type" + to_string(value_type) + " cannot take a number", token);
-            }
-            return;
-        }
         if (token->has_dot()) {
             if (token->is_float()) {
                 std::string substring = token->value.substr(0, token->value.size() - 1);

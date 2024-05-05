@@ -110,6 +110,7 @@
 #include "ast/types/UBigIntType.h"
 #include "ast/types/ULongType.h"
 #include "ast/types/LongType.h"
+#include "ast/values/NumberValue.h"
 
 using tokens_vec_type = std::vector<std::unique_ptr<CSTToken>> &;
 
@@ -798,7 +799,7 @@ void CSTConverter::visit(NumberToken *token) {
                     values.emplace_back(new LongValue(std::stol(token->value), is64Bit));
                 }
             } else {
-                values.emplace_back(new IntValue(std::stoi(token->value)));
+                values.emplace_back(new NumberValue(std::stoll(token->value)));
             }
         }
     } catch (...) {

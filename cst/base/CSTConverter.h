@@ -32,6 +32,11 @@ private:
      */
     bool optional_param_types = false;
 
+    /**
+     * is code gen for 64bit
+     */
+    bool is64Bit;
+
 public:
 
     /**

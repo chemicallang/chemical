@@ -8,11 +8,11 @@
 #include "compiler/Codegen.h"
 
 llvm::Type *IntNumValue::llvm_type(Codegen &gen) {
-    return gen.builder->getIntNTy(get_num_bits(gen.is64Bit));
+    return gen.builder->getIntNTy(get_num_bits());
 }
 
 llvm::Value *IntNumValue::llvm_value(Codegen &gen) {
-    return gen.builder->getIntN(get_num_bits(gen.is64Bit), get_num_value());
+    return gen.builder->getIntN(get_num_bits(), get_num_value());
 }
 
 #endif

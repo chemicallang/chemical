@@ -36,10 +36,25 @@ func test_numbers() {
         var w : ubigint = 999;
         return i == w;
     })
-    /**
     test("test unsigned int demotes int32 to uint", () => {
         var i : uint = 1;
         return i == 1;
+    })
+    test("test short comparison demotes int32 to short", () => {
+        var i : short = 1;
+        return i == 1;
+    })
+    test("test short comparison demotes int32 to short", () => {
+        var i : short = 1;
+        return i == 1;
+    })
+    test("test ushort comparison demotes int32 to ushort", () => {
+        var i : ushort = 1;
+        return i == 1;
+    })
+    /**
+    test("test constant long is demoted to int32 for comparison with int32", () => {
+        return 123L == 123;
     })
     **/
 }

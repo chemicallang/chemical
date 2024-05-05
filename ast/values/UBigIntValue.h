@@ -3,6 +3,7 @@
 #pragma once
 
 #include "IntNumValue.h"
+#include "ast/types/UBigIntType.h"
 
 class UBigIntValue : public IntNumValue {
 public:
@@ -25,8 +26,16 @@ public:
         return std::to_string(value);
     }
 
-    unsigned int get_num_bits(bool is64Bit) override {
+    [[nodiscard]] std::unique_ptr<BaseType> create_type() const override {
+        return std::make_unique<UBigIntType>();
+    }
+
+    unsigned int get_num_bits() override {
         return 64;
+    }
+
+    bool is_unsigned() override {
+        return true;
     }
 
     uint64_t get_num_value() override {

@@ -13,12 +13,17 @@ public:
     /**
      * provide the number of bits used by this value
      */
-    virtual unsigned int get_num_bits(bool is64Bit) = 0;
+    virtual unsigned int get_num_bits() = 0;
 
     /**
      * get number value
      */
     virtual uint64_t get_num_value() = 0;
+
+    /**
+     * return if this is a unsigned value
+     */
+    virtual bool is_unsigned() = 0;
 
 #ifdef COMPILER_BUILD
 

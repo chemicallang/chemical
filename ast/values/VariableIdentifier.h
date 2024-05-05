@@ -60,6 +60,10 @@ public:
 
     void find_link_in_parent(Value *parent) override;
 
+    bool primitive() override {
+        return false;
+    }
+
 #ifdef COMPILER_BUILD
 
     bool add_member_index(Codegen &gen, Value *parent, std::vector<llvm::Value *> &indexes) override;

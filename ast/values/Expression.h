@@ -31,7 +31,7 @@ public:
         visitor.visit(this);
     }
 
-    void promote();
+    void promote(bool is64Bit);
 
 #ifdef COMPILER_BUILD
 

@@ -16,3 +16,15 @@ llvm::Value * FloatValue::llvm_value(Codegen &gen) {
 }
 
 #endif
+
+bool FloatValue::can_promote(Value *val) {
+    return val->primitive() && val->value_type() == ValueType::Int;
+}
+
+Value *FloatValue::promote(Value *val) {
+    if(val->primitive() && val->value_type() == ValueType::Int) {
+        return new FloatValue((float) val->as_int());
+    } else {
+        return nullptr;
+    }
+}

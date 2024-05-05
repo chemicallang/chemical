@@ -344,6 +344,38 @@ std::cerr << "child called on base value";
     }
 
     /**
+     * if the other value can be promoted, this should return true
+     * promotion means changing type to a higher type for expression
+     * in an expression firstValue(10) operator(==) secondValue(10)
+     *
+     * the type of both values should be same, when two values of different type
+     * for example a float and an integer are involved, we promote the integer type to a float
+     *
+     * if one of the values is a referenced value, meaning a variable, a cast is performed
+     * a (int) == b (short), we will promote b in this example to an int
+     *
+     * if one of the variable is a constant, we try to replace the constant, to avoid the cast
+     * a (float) == 10, here 10 will be promoted / replaced with a float value 10.0
+     *
+     * if one of the variable is a constant, we do not demote the variable to match the constant type
+     * that's why it's called a promotion, it may mean an implicit cast or a compile time value replacement
+     */
+    virtual bool can_promote(Value* value) {
+        return false;
+    }
+
+    /**
+     * a promotion always results in a new value creation or none at all
+     * promote will only be called if can_promote returns true
+     *
+     * Refer to can_promote for documentation
+     * \see can_promote
+     */
+    virtual Value* promote(Value* value) {
+        return nullptr;
+    }
+
+    /**
      * return a var init statement that this value corresponds to
      */
     virtual VarInitStatement* declaration() {

@@ -55,4 +55,28 @@ func test_numbers() {
     test("test constant long is demoted to int32 for comparison with int32", () => {
         return 123 == 123L;
     })
+    test("test short can be assigned", () => {
+        var i : short = 44;
+        i = 33;
+        return i == 33;
+    })
+    test("test int can be assigned int max", () => {
+        var i : int = 10;
+        i = 2147483647;
+        return i == 2147483647;
+    })
+    // TODO long is 32bit on 64bit windows
+    // TODO to test long for 64bit a larger max value should be used
+    // TODO a larger max value for long only should be used when it's bit size is larger than 32bit
+    // TODO to check that we must develop sizeof macro, we'll also develop bitsizeof
+    test("test long can be assigned long max", () => {
+        var i : long = 10;
+        i = 2147483647;
+        return i == 2147483647;
+    })
+    test("test bigint can be assigned bigint max", () => {
+        var i : bigint = 10;
+        i = 9223372036854775807;
+        return i == 9223372036854775807;
+    })
 }

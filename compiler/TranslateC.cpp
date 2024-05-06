@@ -13,6 +13,7 @@
 #include "ast/structures/FunctionParam.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/types/IntNType.h"
+#include "ast/types/IntType.h"
 #include "ast/types/VoidType.h"
 #include "ast/types/CharType.h"
 #include "ast/types/FloatType.h"
@@ -37,11 +38,11 @@ void TranslateC(const char *abs_path) {
 std::unique_ptr<BaseType> new_type(clang::QualType *type) {
     auto type_str = type->getAsString();
     if (type_str == "int") {
-        return std::make_unique<IntNType>(32);
+        return std::make_unique<IntType>();
     } else if (type_str == "char") {
         return std::make_unique<CharType>();
     } else if (type_str == "char*") {
-        return std::make_unique<IntNType>(32);
+        return std::make_unique<IntType>();
     } else if (type_str == "float") {
         return std::make_unique<FloatType>();
     } else if (type_str == "double") {

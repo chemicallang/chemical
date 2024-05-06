@@ -8,6 +8,7 @@
 
 #include "ast/types/IntNType.h"
 #include "IntNumValue.h"
+#include "ast/types/IntType.h"
 
 /**
  * @brief Class representing a number value integer / long
@@ -37,11 +38,17 @@ public:
 
     void link(SymbolResolver &linker, VarInitStatement *stmnt) override;
 
+    void link(SymbolResolver &linker, AssignStatement *stmnt) override;
+
     void link(SymbolResolver &linker, ReturnStatement *returnStmt) override;
 
     void link(SymbolResolver &linker, FunctionCall *call, unsigned int index) override;
 
     void link(SymbolResolver &linker, StructValue *value, const std::string &name) override;
+
+    NumberValue* as_number_val() override {
+        return this;
+    }
 
     std::string representation() const override {
         return std::to_string(value);
@@ -49,7 +56,7 @@ public:
 
     unsigned int get_num_bits() override;
 
-    uint64_t get_num_value() override {
+    int64_t get_num_value() override {
         return value;
     }
 
@@ -65,7 +72,7 @@ public:
         if(linked_type) {
             return std::unique_ptr<BaseType>(linked_type->copy());
         } else {
-            return std::unique_ptr<BaseType>(new IntNType(32));
+            return std::unique_ptr<BaseType>(new IntType());
         }
     }
 

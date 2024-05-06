@@ -11,6 +11,8 @@ public:
 
     }
 
+    Value *create(int64_t value) override;
+
     ValueType value_type() const override {
         return ValueType::UInt;
     }

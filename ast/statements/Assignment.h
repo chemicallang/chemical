@@ -41,7 +41,6 @@ public:
 
     std::string representation() const override;
 
-private:
     std::unique_ptr<Value> lhs;
     std::unique_ptr<Value> value;
     InterfaceDefinition* definition;

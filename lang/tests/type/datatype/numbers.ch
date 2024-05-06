@@ -83,4 +83,8 @@ func test_numbers() {
         var i : float = 10.0f;
         return i == 10;
     })
+    test("can promote int constants to double when compared with double variable", () => {
+        var i : double = 10.0;
+        return i == 10;
+    })
 }

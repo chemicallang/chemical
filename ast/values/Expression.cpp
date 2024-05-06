@@ -66,24 +66,28 @@ void Expression::shrink_literal_values(BaseType* firstType, BaseType* secondType
 
 void Expression::promote_literal_values(BaseType* firstType, BaseType* secondType) {
 #ifdef DEBUG
-    if(firstValue->can_promote(secondValue.get()) && secondValue->can_promote(firstValue.get())) {
+    if(firstType->can_promote(secondValue.get()) && secondType->can_promote(firstValue.get())) {
         throw std::runtime_error("Both values can promote each other");
     }
 #endif
-    if (firstValue->can_promote(secondValue.get())) {
-        secondValue = std::unique_ptr<Value>(firstValue->promote(secondValue.get()));
-    } else if(secondValue->can_promote(firstValue.get())) {
-        firstValue = std::unique_ptr<Value>(secondValue->promote(firstValue.get()));
+    if (firstType->can_promote(secondValue.get())) {
+        secondValue = std::unique_ptr<Value>(firstType->promote(secondValue.get()));
+    } else if(secondType->can_promote(firstValue.get())) {
+        firstValue = std::unique_ptr<Value>(secondType->promote(firstValue.get()));
     }
 }
 
 std::unique_ptr<BaseType> Expression::create_type() const {
-    if (firstValue->can_promote(secondValue.get())) {
-        return std::unique_ptr<Value>(firstValue->promote(secondValue.get()))->create_type();
-    } else if(secondValue->can_promote(firstValue.get())) {
-        return std::unique_ptr<Value>(secondValue->promote(firstValue.get()))->create_type();
+    auto first = firstValue->create_type();
+    if(first->can_promote(secondValue.get())) {
+        return std::unique_ptr<Value>(first->promote(secondValue.get()))->create_type();
     } else {
-        return firstValue->create_type();
+        auto second = secondValue->create_type();
+        if(second->can_promote(firstValue.get())) {
+            return std::unique_ptr<Value>(second->promote(firstValue.get()))->create_type();
+        } else {
+            return first;
+        }
     }
 }
 

@@ -304,12 +304,14 @@ public:
     void CreateCondBr(llvm::Value *Cond, llvm::BasicBlock *True, llvm::BasicBlock *FalseMDNode);
 
     /**
+    * this operates on two values, left and right
+    * this is used by expressions to operate on two values
+    */
+    llvm::Value *operate(Operation op, Value *lhs, Value *rhs, BaseType* lhsType, BaseType* rhsType);
+
+    /**
      * this operates on two values, left and right
      * this is used by expressions to operate on two values
-     * @param op
-     * @param lhs
-     * @param rhs
-     * @return
      */
     llvm::Value *operate(Operation op, Value *lhs, Value *rhs);
 

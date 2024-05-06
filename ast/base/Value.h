@@ -61,9 +61,17 @@ public:
 
     /**
      * when value is contained within VarInitStatement, this function is called
-     * which provides access to var init statement for more information
+     * which provides access to the statement for more information
      */
     virtual void link(SymbolResolver& linker, VarInitStatement* stmnt) {
+        return link(linker);
+    }
+
+    /**
+     * when value is contained within assign statement, this function is called
+     * which provides access to the  statement for more information
+     */
+    virtual void link(SymbolResolver& linker, AssignStatement* stmnt) {
         return link(linker);
     }
 
@@ -548,6 +556,13 @@ std::cerr << "child called on base value";
         std::cerr << "as_double called on base value, representation : " << representation();
 #endif
         throw std::runtime_error("as_float called on a value");
+    }
+
+    /**
+     * a function to be overridden by number value to return itself
+     */
+    virtual NumberValue* as_number_val() {
+        return nullptr;
     }
 
     /**

@@ -21,6 +21,11 @@ public:
         // do nothing
     }
 
+    /**
+     * creates a Value of this type, but with the given value
+     */
+    virtual Value* create(int64_t value) = 0;
+
     bool satisfies(ValueType type) const override {
         return type == ValueType::Int;
     }
@@ -39,10 +44,6 @@ public:
 
     bool is_same(BaseType *type) const override {
         return type->kind() == kind();
-    }
-
-    virtual BaseType *copy() const {
-        return new IntNType(number);
     }
 
 #ifdef COMPILER_BUILD

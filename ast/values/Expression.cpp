@@ -18,8 +18,12 @@
 #include "ast/values/BigIntValue.h"
 
 llvm::Value *Expression::llvm_value(Codegen &gen) {
-    promote(gen.is64Bit);
-    return gen.operate(operation, firstValue.get(), secondValue.get());
+    auto firstType = firstValue->create_type();
+    auto secondType = secondValue->create_type();
+    replace_number_values(firstType.get(), secondType.get());
+    shrink_literal_values(firstType.get(), secondType.get());
+    promote_literal_values(firstType.get(), secondType.get());
+    return gen.operate(operation, firstValue.get(), secondValue.get(), firstType.get(), secondType.get());
 }
 
 llvm::Type *Expression::llvm_type(Codegen &gen) {
@@ -28,70 +32,44 @@ llvm::Type *Expression::llvm_type(Codegen &gen) {
 
 #endif
 
-Value* create_with_bits(uint64_t value, unsigned int num_bits, bool is_unsigned, bool is64bit) {
-    switch(num_bits) {
-        case 16:
-            if(is_unsigned) {
-                return new UShortValue(value);
-            } else {
-                return new ShortValue(value);
-            }
-        case 32:
-            if(is_unsigned) {
-                return new UIntValue(value);
-            } else {
-                return new IntValue(value);
-            }
-        case 64:
-            if(is64bit) {
-                if(is_unsigned) {
-                    return new ULongValue(value, is64bit);
-                } else {
-                    return new LongValue(value, is64bit);
-                }
-            } else {
-                if(is_unsigned) {
-                    return new UBigIntValue(value);
-                } else {
-                    return new BigIntValue(value);
-                }
-            }
-        default:
-            throw std::runtime_error("unhandled bit number " + std::to_string(value) + " when creating intN value");
-
+void Expression::replace_number_values(BaseType* firstType, BaseType* secondType) {
+    if(firstValue->is_int_n() && secondValue->is_int_n()) {
+        if(firstValue->as_number_val() != nullptr) {
+            auto value = ((IntNumValue*)firstValue.get())->get_num_value();
+            firstValue = std::unique_ptr<Value>(((IntNType*) secondType)->create(value));
+        } else if(secondValue->as_number_val() != nullptr){
+            auto value = ((IntNumValue*)secondValue.get())->get_num_value();
+            secondValue = std::unique_ptr<Value>(((IntNType*) firstType)->create(value));
+        }
     }
 }
 
-void Expression::promote(bool is64Bit) {
+void Expression::shrink_literal_values(BaseType* firstType, BaseType* secondType) {
+    if(!(!firstValue->primitive() && !secondValue->primitive())) { // if at least one of the value is a literal
+        if (firstValue->is_int_n() && secondValue->is_int_n()) { // if both are int n
+            if(firstValue->primitive()) {
+                auto secIntNTy = (IntNType*) secondType;
+                auto firstVal = (IntNumValue*) firstValue.get();
+                if(firstVal->get_num_bits() > secIntNTy->number || (firstVal->get_num_bits() == secIntNTy->number && !firstVal->is_unsigned() && secIntNTy->is_unsigned)) {
+                    firstValue = std::unique_ptr<Value>(secIntNTy->create(firstVal->get_num_value()));
+                }
+            } else {
+                auto firIntTy = (IntNType*) firstType;
+                auto secondVal = (IntNumValue*) secondValue.get();
+                if(secondVal->get_num_bits() > firIntTy->number || (secondVal->get_num_bits() == firIntTy->number && !secondVal->is_unsigned() && firIntTy->is_unsigned)) {
+                    secondValue = std::unique_ptr<Value>(firIntTy->create(secondVal->get_num_value()));
+                }
+            }
+        }
+    }
+}
+
+void Expression::promote_literal_values(BaseType* firstType, BaseType* secondType) {
 #ifdef DEBUG
     if(firstValue->can_promote(secondValue.get()) && secondValue->can_promote(firstValue.get())) {
         throw std::runtime_error("Both values can promote each other");
     }
 #endif
-    // TODO only do this if the constant value is in range of the type
-    // when a literal value is being compared with a variable
-    // but variable has less bits (e.g short variable with constant int32)
-    // we will demote int 32 to a short type, but only if it first in the range of a short
-    // if one of the values is a literal value
-    if(!(!firstValue->primitive() && !secondValue->primitive())) { // if at least one of the value is a literal
-        if (firstValue->is_int_n() && secondValue->is_int_n()) { // if both are int n
-            if(firstValue->primitive()) {
-                auto secondType = secondValue->create_type();
-                auto secIntNTy = (IntNType*) secondType.get();
-                auto firstVal = (IntNumValue*) firstValue.get();
-                if(firstVal->get_num_bits() > secIntNTy->number || (firstVal->get_num_bits() == secIntNTy->number && !firstVal->is_unsigned() && secIntNTy->is_unsigned)) {
-                    firstValue = std::unique_ptr<Value>(create_with_bits(firstVal->get_num_value(), secIntNTy->number, secIntNTy->is_unsigned, is64Bit));
-                }
-            } else {
-                auto firstType = firstValue->create_type();
-                auto firIntTy = (IntNType*) firstType.get();
-                auto secondVal = (IntNumValue*) secondValue.get();
-                if(secondVal->get_num_bits() > firIntTy->number || (secondVal->get_num_bits() == firIntTy->number && !secondVal->is_unsigned() && firIntTy->is_unsigned)) {
-                    secondValue = std::unique_ptr<Value>(create_with_bits(secondVal->get_num_value(), firIntTy->number, firIntTy->is_unsigned, is64Bit));
-                }
-            }
-        }
-    }
     if (firstValue->can_promote(secondValue.get())) {
         secondValue = std::unique_ptr<Value>(firstValue->promote(secondValue.get()));
     } else if(secondValue->can_promote(firstValue.get())) {

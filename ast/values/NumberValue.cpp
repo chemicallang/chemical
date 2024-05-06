@@ -2,6 +2,7 @@
 
 #include "NumberValue.h"
 #include "ast/statements/VarInit.h"
+#include "ast/statements/Assignment.h"
 #include "ast/statements/Return.h"
 #include "ast/values/FunctionCall.h"
 #include "ast/values/StructValue.h"
@@ -43,6 +44,11 @@ void NumberValue::link(SymbolResolver &linker, VarInitStatement *stmnt) {
     if(stmnt->type.has_value()) {
         linked_type = linked(stmnt->type->get());
     }
+}
+
+void NumberValue::link(SymbolResolver &linker, AssignStatement *stmnt) {
+    auto value_type = stmnt->lhs->create_type();
+    linked_type = linked(value_type.get());
 }
 
 void NumberValue::link(SymbolResolver &linker, ReturnStatement *returnStmt) {

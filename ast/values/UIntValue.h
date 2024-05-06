@@ -38,7 +38,7 @@ public:
         return 32;
     }
 
-    uint64_t get_num_value() override {
+    int64_t get_num_value() override {
         return value;
     }
 

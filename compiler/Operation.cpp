@@ -9,9 +9,13 @@
 
 #include "llvmimpl.h"
 
-llvm::Value *Codegen::operate(Operation op, Value *first, Value *second) {
-    auto firstType = first->create_type();
-    auto secondType = second->create_type();
+llvm::Value *Codegen::operate(Operation op, Value *lhs, Value *rhs) {
+    auto firstType = lhs->create_type();
+    auto secondType = rhs->create_type();
+    return operate(op, lhs, rhs, firstType.get(), secondType.get());
+}
+
+llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseType* firstType, BaseType* secondType){
     auto lhs = first->llvm_value(*this);
     auto rhs = second->llvm_value(*this);
 
@@ -34,8 +38,8 @@ llvm::Value *Codegen::operate(Operation op, Value *first, Value *second) {
         return firstType->satisfies(ValueType::Float) || firstType->satisfies(ValueType::Double) || secondType->satisfies(ValueType::Float) || secondType->satisfies(ValueType::Double);
     };
     auto is_unsigned = [&firstType, &secondType, this] () -> bool {
-        auto first_unsigned = firstType->kind() == BaseTypeKind::IntN && ((IntNType*) (firstType.get()))->is_unsigned;
-        auto second_unsigned = secondType->kind() == BaseTypeKind::IntN && ((IntNType*) (firstType.get()))->is_unsigned;
+        auto first_unsigned = firstType->kind() == BaseTypeKind::IntN && ((IntNType*) firstType)->is_unsigned;
+        auto second_unsigned = secondType->kind() == BaseTypeKind::IntN && ((IntNType*) firstType)->is_unsigned;
         if((first_unsigned && !second_unsigned) || (!first_unsigned && second_unsigned)) {
             info("Operation between two IntN types, where one of them is unsigned and the other signed is error prone");
         }

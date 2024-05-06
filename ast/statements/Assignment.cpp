@@ -29,8 +29,8 @@ void AssignStatement::accept(Visitor &visitor) {
 }
 
 void AssignStatement::declare_and_link(SymbolResolver &linker) {
-    lhs->link(linker);
-    value->link(linker);
+    lhs->link(linker, this);
+    value->link(linker, this);
 }
 
 void AssignStatement::interpret(InterpretScope &scope) {

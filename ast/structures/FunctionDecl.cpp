@@ -3,6 +3,8 @@
 #include "FunctionParam.h"
 #include "ast/base/GlobalInterpretScope.h"
 #include "ast/types/FunctionType.h"
+#include "ast/structures/InterfaceDefinition.h"
+#include "ast/structures/StructDefinition.h"
 
 #ifdef COMPILER_BUILD
 
@@ -96,10 +98,14 @@ void FunctionDeclaration::code_gen(Codegen &gen) {
     body_gen(gen, (llvm::Function*) funcCallee, body);
 }
 
-void create_fn(Codegen& gen, FunctionDeclaration *decl) {
-    auto func = gen.create_function(decl->name, decl->llvm_func_type(gen), decl->specifier);
+void create_fn(Codegen& gen, FunctionDeclaration *decl, const std::string& name) {
+    auto func = gen.create_function(name, decl->llvm_func_type(gen), decl->specifier);
     decl->funcType = func->getFunctionType();
     decl->funcCallee = func;
+}
+
+inline void create_fn(Codegen& gen, FunctionDeclaration *decl) {
+    create_fn(gen, decl, decl->name);
 }
 
 void declare_fn(Codegen& gen, FunctionDeclaration *decl) {
@@ -117,8 +123,8 @@ void FunctionDeclaration::code_gen_declare(Codegen &gen) {
     gen.current_function = nullptr;
 }
 
-void FunctionDeclaration::code_gen_interface(Codegen &gen) {
-    create_fn(gen, this);
+void FunctionDeclaration::code_gen_interface(Codegen &gen, InterfaceDefinition* def) {
+    create_fn(gen, this, def->name + "." + name);
     gen.current_function = nullptr;
     if(body.has_value()) {
         code_gen(gen);
@@ -131,8 +137,9 @@ void FunctionDeclaration::code_gen_override(Codegen& gen, FunctionDeclaration* d
     decl->funcType = funcType;
 }
 
-void FunctionDeclaration::code_gen_struct(Codegen &gen) {
-    code_gen_declare(gen);
+void FunctionDeclaration::code_gen_struct(Codegen &gen, StructDefinition* def) {
+    create_fn(gen, this, def->name + "." + name);
+    gen.current_function = nullptr;
     code_gen(gen);
 }
 

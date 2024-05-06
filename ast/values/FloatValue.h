@@ -37,10 +37,6 @@ public:
 
 #endif
 
-    bool can_promote(Value *value) override;
-
-    Value *promote(Value *value) override;
-
     float as_float() override {
         return value;
     }

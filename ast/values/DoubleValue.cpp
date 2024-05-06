@@ -16,15 +16,3 @@ llvm::Value *DoubleValue::llvm_value(Codegen &gen) {
 }
 
 #endif
-
-bool DoubleValue::can_promote(Value *val) {
-    return val->primitive() && val->value_type() == ValueType::Int;
-}
-
-Value* DoubleValue::promote(Value *val) {
-    if(val->primitive() && val->value_type() == ValueType::Int) {
-        return new DoubleValue((double) val->as_int());
-    } else {
-        return nullptr;
-    }
-}

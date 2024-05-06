@@ -23,16 +23,22 @@ public:
         return ValueType::Double;
     }
 
+    bool can_promote(Value *value) override;
+
+    Value *promote(Value *value) override;
+
     bool is_same(BaseType *type) const override {
         return type->kind() == kind();
     }
 
-    virtual BaseType* copy() const {
+    virtual BaseType *copy() const {
         return new DoubleType();
     }
 
 #ifdef COMPILER_BUILD
+
     llvm::Type *llvm_type(Codegen &gen) const override;
+
 #endif
 
 };

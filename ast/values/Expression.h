@@ -44,7 +44,7 @@ public:
      * 123 (int32) == 999999999999, the second number won't fit in int32, we will accept data loss
      * TODO we will perform a check if the constant cannot fit in the type, we'll raise an error
      *
-     * the values are replaced at compile time
+     * the values are replaced before code_gen
      *
      * @param firstType type of the first value
      * @param secondType type of the second value
@@ -58,7 +58,7 @@ public:
      * we will demote int 32 to a short type, but only if it fits in the range of a short
      * TODO only do this if the constant value is in range of the type
      *
-     * the values are replaced at compile time
+     * the values are replaced before code_gen
      *
      * @param firstType type of the first value
      * @param secondType type of the second value
@@ -70,10 +70,8 @@ public:
      * for example a float is being compared with an int32
      * 2.0 == 2 or x (float) == 2.0
      *
-     * this promotion is done at compile time
+     * this promotion is done before code_gen
      *
-     * TODO values must not promote other values
-     * TODO types should promote values, so that variables whose types are known can promote literal values
      */
     void promote_literal_values(BaseType* firstType, BaseType* secondType);
 

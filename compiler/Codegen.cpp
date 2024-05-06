@@ -137,6 +137,7 @@ Codegen::create_function_proto(const std::string &name, llvm::FunctionType *type
             break;
     }
     auto fn = llvm::Function::Create(type, linkage, name, *module);
+    fn->setDSOLocal(true);
     llvm::verifyFunction(*fn);
     return fn;
 }

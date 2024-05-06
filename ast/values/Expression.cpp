@@ -33,7 +33,7 @@ llvm::Type *Expression::llvm_type(Codegen &gen) {
 #endif
 
 void Expression::replace_number_values(BaseType* firstType, BaseType* secondType) {
-    if(firstValue->is_int_n() && secondValue->is_int_n()) {
+    if(firstType->kind() == BaseTypeKind::IntN && secondType->kind() == BaseTypeKind::IntN) {
         if(firstValue->as_number_val() != nullptr) {
             auto value = ((IntNumValue*)firstValue.get())->get_num_value();
             firstValue = std::unique_ptr<Value>(((IntNType*) secondType)->create(value));

@@ -51,12 +51,12 @@ public:
     /**
      * called by struct when the function is inside a struct
      */
-    void code_gen_struct(Codegen &gen);
+    void code_gen_struct(Codegen &gen, StructDefinition* def);
 
     /**
      * called by interface when the function is inside a interface
      */
-    void code_gen_interface(Codegen &gen);
+    void code_gen_interface(Codegen &gen, InterfaceDefinition* def);
 
     /**
      * when normal functions occur in file, this function is called

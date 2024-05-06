@@ -49,7 +49,7 @@ void StructDefinition::code_gen(Codegen &gen) {
                 }
             }
         }
-        function.second->code_gen_struct(gen);
+        function.second->code_gen_struct(gen, this);
     }
 }
 

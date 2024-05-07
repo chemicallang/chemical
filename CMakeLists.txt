@@ -386,7 +386,6 @@ add_executable(Compiler Compiler.cpp ${COMMON_SOURCES}
         compiler/cc1gen_reproducer_main.cpp
         compiler/llvmfwd.h
         compiler/llvmimpl.h
-        compiler/chem_clang.cpp
         compiler/chem_clang.h
         compiler/TranslateC.cpp
 )

@@ -12,13 +12,15 @@
 
 class FunctionDeclaration;
 
+class CapturedVariable;
+
 /**
  * @brief Class representing an integer value.
  */
 class LambdaFunction : public Value {
 public:
 
-    std::vector<std::string> captureList;
+    std::vector<std::unique_ptr<CapturedVariable>> captureList;
     std::vector<std::unique_ptr<FunctionParam>> params;
     bool isVariadic;
     Scope scope;
@@ -29,7 +31,7 @@ public:
      * @param value The integer value.
      */
     LambdaFunction(
-            std::vector<std::string> captureList,
+            std::vector<std::unique_ptr<CapturedVariable>> captureList,
             std::vector<std::unique_ptr<FunctionParam>> params,
             bool isVariadic,
             Scope scope
@@ -42,6 +44,8 @@ public:
     std::string representation() const override;
 
 #ifdef COMPILER_BUILD
+
+    llvm::Type *capture_struct_type(Codegen &gen);
 
     llvm::Type *llvm_type(Codegen &gen) override;
 

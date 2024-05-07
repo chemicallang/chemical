@@ -359,6 +359,7 @@ set(COMMON_SOURCES
         ast/values/NumberValue.cpp
         ast/structures/EnumDecl.cpp
         ast/structures/EnumMember.h
+        ast/structures/CapturedVariable.h
 )
 
 # Chemical LSP Executable Target

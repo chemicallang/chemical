@@ -23,6 +23,8 @@ llvm::Value *Expression::llvm_value(Codegen &gen) {
     replace_number_values(firstType.get(), secondType.get());
     shrink_literal_values(firstType.get(), secondType.get());
     promote_literal_values(firstType.get(), secondType.get());
+    firstType = firstValue->create_type();
+    secondType = secondValue->create_type();
     return gen.operate(operation, firstValue.get(), secondValue.get(), firstType.get(), secondType.get());
 }
 

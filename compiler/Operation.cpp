@@ -45,6 +45,25 @@ llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseTyp
         }
         return first_unsigned || second_unsigned;
     };
+
+    if(firstType->kind() == BaseTypeKind::IntN && secondType->kind() == BaseTypeKind::IntN) {
+        auto fIntN = (IntNType*) firstType;
+        auto secIntN = (IntNType*) secondType;
+        if(fIntN->number < secIntN->number) {
+            if(fIntN->is_unsigned) {
+                lhs = builder->CreateZExt(lhs, secIntN->llvm_type(*this));
+            } else {
+                lhs = builder->CreateSExt(lhs, secIntN->llvm_type(*this));
+            }
+        } else if(fIntN->number > secIntN->number) {
+            if(secIntN->is_unsigned) {
+                rhs = builder->CreateZExt(rhs, fIntN->llvm_type(*this));
+            } else {
+                rhs = builder->CreateSExt(rhs, fIntN->llvm_type(*this));
+            }
+        }
+    }
+
     switch (op) {
 //        case Operation::Grouping:
 //            break;

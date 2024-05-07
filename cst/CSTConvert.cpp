@@ -64,6 +64,7 @@
 #include "cst/statements/ReturnCST.h"
 #include "ast/types/GenericType.h"
 #include "ast/structures/ForLoop.h"
+#include "ast/structures/CapturedVariable.h"
 #include "cst/structures/ForLoopCST.h"
 #include "ast/structures/InterfaceDefinition.h"
 #include "cst/structures/InterfaceCST.h"
@@ -471,15 +472,16 @@ void CSTConverter::visit(IncDecCST *incDec) {
 
 void CSTConverter::visit(LambdaCST *cst) {
 
-    std::vector<std::string> captureList;
+    std::vector<std::unique_ptr<CapturedVariable>> captureList;
 
     auto no_capture_list = is_char_op(cst->tokens[0].get(), '(');
 
     unsigned i = 1;
+    unsigned capInd = 0;
     if (!no_capture_list) {
         while (!is_char_op(cst->tokens[i].get(), ']')) {
             if (cst->tokens[i]->type() == LexTokenType::Variable) {
-                captureList.push_back(((VariableToken *) (cst->tokens[i].get()))->value);
+                captureList.emplace_back(new CapturedVariable(((VariableToken *) (cst->tokens[i].get()))->value, capInd++));
             }
             i++;
         }
@@ -506,9 +508,14 @@ void CSTConverter::visit(LambdaCST *cst) {
         scope.nodes.emplace_back(new ReturnStatement(value(), nullptr));
     }
 
-    values.emplace_back(
-            std::make_unique<LambdaFunction>(std::move(captureList), std::move(result.params), result.isVariadic,
-                                             std::move(scope)));
+    auto lambda = new LambdaFunction(std::move(captureList), std::move(result.params), result.isVariadic,
+            std::move(scope));
+
+    for(auto& c : captureList) {
+        c->lambda = lambda;
+    }
+
+    values.emplace_back(lambda);
 }
 
 void CSTConverter::visit(BodyCST *bodyCst) {

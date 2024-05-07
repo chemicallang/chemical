@@ -10,6 +10,8 @@
 
 #include "ast/types/PointerType.h"
 #include "compiler/llvmimpl.h"
+#include "CapturedVariable.h"
+#include "ast/values/LambdaFunction.h"
 
 llvm::Type *FunctionParam::llvm_type(Codegen &gen) {
     return type->llvm_type(gen);
@@ -167,6 +169,15 @@ llvm::Value *FunctionDeclaration::llvm_load(Codegen &gen) {
 
 llvm::Value *FunctionDeclaration::llvm_pointer(Codegen &gen) {
     return funcCallee;
+}
+
+llvm::Value *CapturedVariable::llvm_load(Codegen &gen) {
+    return gen.builder->CreateLoad(llvm_type(gen), llvm_pointer(gen));
+}
+
+llvm::Value *CapturedVariable::llvm_pointer(Codegen &gen) {
+    auto captured = gen.current_function->getArg(0);
+    return gen.builder->CreateStructGEP(lambda->capture_struct_type(gen), captured, index);
 }
 
 #endif
@@ -352,4 +363,12 @@ Value *FunctionDeclaration::call(InterpretScope *call_scope, std::vector<std::un
         i--;
     }
     return interpretReturn;
+}
+
+std::unique_ptr<BaseType> CapturedVariable::create_value_type() {
+    return linked->create_value_type();
+}
+
+void CapturedVariable::declare_and_link(SymbolResolver &linker) {
+    linked = linker.find(name);
 }

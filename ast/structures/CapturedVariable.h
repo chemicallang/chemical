@@ -1,0 +1,77 @@
+// Copyright (c) Qinetik 2024.
+
+#pragma once
+
+#include "ast/base/ASTNode.h"
+
+class CapturedVariable : public ASTNode {
+public:
+
+    bool capture_by_ref;
+    std::string name;
+    unsigned int index;
+    LambdaFunction *lambda;
+    ASTNode *linked;
+
+
+    CapturedVariable(std::string name, unsigned int index) : name(std::move(name)), index(index) {
+
+    }
+
+    void accept(Visitor &visitor) override {
+        // no visit
+    }
+
+    void declare_and_link(SymbolResolver &linker) override;
+
+    ASTNode *child(const std::string &name) override {
+        return linked->child(name);
+    }
+
+    ASTNode *child(int index) override {
+        return linked->child(index);
+    }
+
+    int child_index(const std::string &name) override {
+        return linked->child_index(name);
+    }
+
+    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override {
+        return linked->add_child_index(gen, indexes, name);
+    }
+
+#ifdef COMPILER_BUILD
+
+    llvm::Value *llvm_load(Codegen &gen) override;
+
+    llvm::Value *llvm_pointer(Codegen &gen) override;
+
+    llvm::Type *llvm_type(Codegen &gen) override {
+        return linked->llvm_type(gen);
+    }
+
+    llvm::FunctionType *llvm_func_type(Codegen &gen) override {
+        return linked->llvm_func_type(gen);
+    }
+
+    llvm::Type *llvm_elem_type(Codegen &gen) override {
+        return linked->llvm_elem_type(gen);
+    }
+
+#endif
+
+    std::unique_ptr<BaseType> create_value_type() override;
+
+    ValueType value_type() const override {
+        return linked->value_type();
+    }
+
+    BaseTypeKind type_kind() const override {
+        return linked->type_kind();
+    }
+
+    std::string representation() const override {
+        return name;
+    }
+
+};

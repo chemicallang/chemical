@@ -1,4 +1,4 @@
-import "test.ch"
+import "../test.ch"
 
 interface UnInheritedInterface {
     // this method should be removed from final code_gen

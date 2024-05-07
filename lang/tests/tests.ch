@@ -1,8 +1,9 @@
-import "lambda.ch"
-import "bodmas.ch"
-import "floating.ch"
-import "nodes.ch"
+import "basic/lambda.ch"
+import "basic/expression.ch"
+import "basic/floating.ch"
+import "basic/nodes.ch"
 import "nodes/varinit.ch"
+import "nodes/struct.ch"
 import "type/datatype/numbers.ch"
 
 func main() {
@@ -12,4 +13,5 @@ func main() {
     test_floating_expr();
     test_nodes();
     test_numbers();
+    test_structs();
 }

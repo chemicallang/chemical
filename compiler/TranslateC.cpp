@@ -200,6 +200,7 @@ clang::ASTUnit *ClangLoadFromCommandLine(
 
             // Ensure the source location is valid before expanding it
             if (fsl.isInvalid()) {
+                std::cerr << "FullSourceLoc is invalid" << std::endl;
                 continue;
             }
             // Expand the location if possible
@@ -230,6 +231,8 @@ clang::ASTUnit *ClangLoadFromCommandLine(
                     msg->source = (const char *) buffer.bytes_begin();
                     msg->offset = SM.getFileOffset(fsl);
                 }
+            } else {
+                std::cerr << "NO Filemanager associated" << std::endl;
             }
         }
 
@@ -241,7 +244,7 @@ clang::ASTUnit *ClangLoadFromCommandLine(
     return ast_unit;
 }
 
-std::vector<std::unique_ptr<ASTNode>> TranslateC(const char *abs_path) {
+std::vector<std::unique_ptr<ASTNode>> TranslateC(const char *abs_path, const char *resources_path) {
     std::unique_ptr<std::vector<const char *>> args(new std::vector<const char *>());
     args->push_back(abs_path);
     unsigned long errors_len = 0;
@@ -252,7 +255,7 @@ std::vector<std::unique_ptr<ASTNode>> TranslateC(const char *abs_path) {
             &(*args)[0] + args->size(),
             nullptr,
             &errors_len,
-            nullptr,
+            resources_path,
             diags
     );
     if (!unit) {

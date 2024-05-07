@@ -9,8 +9,11 @@
 
 llvm::FunctionType *FunctionType::llvm_func_type(Codegen &gen) {
     std::vector<llvm::Type *> paramTypes;
+    if(isCapturing) {
+        paramTypes.emplace_back(gen.builder->getPtrTy());
+    }
     for (auto &param: params) {
-        paramTypes.push_back(param->llvm_type(gen));
+        paramTypes.emplace_back(param->llvm_type(gen));
     }
     return llvm::FunctionType::get(returnType->llvm_type(gen), paramTypes, isVariadic);
 }

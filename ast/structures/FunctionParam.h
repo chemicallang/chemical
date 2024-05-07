@@ -20,7 +20,9 @@ public:
 
     void accept(Visitor &visitor) override;
 
-    FunctionParam *as_parameter() override;
+    FunctionParam *as_func_param() override {
+        return this;
+    }
 
 #ifdef COMPILER_BUILD
 
@@ -55,4 +57,5 @@ public:
     std::unique_ptr<BaseType> type;
     bool isVariadic;
     std::optional<std::unique_ptr<Value>> defValue;
+
 };

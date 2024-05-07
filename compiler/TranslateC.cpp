@@ -1,6 +1,5 @@
 // Copyright (c) Qinetik 2024.
 
-#include "chem_clang.h"
 #include <clang/Frontend/ASTUnit.h>
 #include <clang/Frontend/CompilerInstance.h>
 #include <clang/AST/APValue.h>

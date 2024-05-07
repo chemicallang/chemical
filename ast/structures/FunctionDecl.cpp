@@ -265,6 +265,7 @@ void FunctionDeclaration::declare_and_link(SymbolResolver &linker) {
     for (auto &param: params) {
         param->declare_and_link(linker);
     }
+    returnType->link(linker);
     if (body.has_value()) {
         body->declare_and_link(linker);
     }

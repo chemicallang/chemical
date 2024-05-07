@@ -146,16 +146,16 @@ Scope take_body(CSTConverter *conv, CSTToken *token) {
     return scope;
 }
 
-bool VarInitCST::is_const() {
-    return str_token(tokens, 0) == "const";
+bool is_const(VarInitCST* cst) {
+    return str_token(cst->tokens, 0) == "const";
 }
 
-std::string VarInitCST::identifier() {
-    return str_token(tokens, 1);
+inline std::string identifier(VarInitCST* cst) {
+    return str_token(cst->tokens, 1);
 }
 
-std::string FunctionCST::func_name() {
-    return str_token(tokens, 1);
+inline std::string func_name(FunctionCST* func) {
+    return str_token(func->tokens, 1);
 }
 
 // TODO support _128bigint, bigfloat
@@ -322,7 +322,7 @@ void CSTConverter::visit(FunctionCST *function) {
         fnBody.emplace(LoopScope{});
     }
 
-    auto funcDecl = new FunctionDeclaration(function->func_name(), std::move(params.params),
+    auto funcDecl = new FunctionDeclaration(func_name(function), std::move(params.params),
                                             std::move(returnType.value()), params.isVariadic,
                                             std::move(fnBody));
 
@@ -393,8 +393,8 @@ void CSTConverter::visit(VarInitCST *varInit) {
         }
     }
     nodes.emplace_back(std::make_unique<VarInitStatement>(
-            varInit->is_const(),
-            varInit->identifier(),
+            is_const(varInit),
+            identifier(varInit),
             std::move(optType),
             std::move(optVal)
     ));

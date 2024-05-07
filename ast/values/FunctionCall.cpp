@@ -10,18 +10,48 @@
 #include "compiler/llvmimpl.h"
 
 void to_llvm_args(Codegen& gen, FunctionCall* call, std::vector<std::unique_ptr<Value>>& values, bool isVariadic, std::vector<llvm::Value *>& args, unsigned int start = 0) {
+    llvm::Value* argValue;
+    auto linked = call->parent_val->linked_node();
+
+    std::unique_ptr<FunctionType> expectedFunc;
+    if(linked) {
+        expectedFunc = std::unique_ptr<FunctionType>((FunctionType*) linked->create_value_type().release());
+        // if the called lambda is capturing, take argument next to lambda and pass it into it
+        if (expectedFunc->isCapturing) {
+            if (linked->as_func_param() != nullptr) {
+                args.emplace_back(gen.current_function->getArg(linked->as_func_param()->index + 1));
+            }
+        }
+    }
+
     for (size_t i = start; i < values.size(); ++i) {
-        args[i] = values[i]->llvm_arg_value(gen, call, i);
+        argValue = values[i]->llvm_arg_value(gen, call, i);
         // Ensure proper type promotion for float values passed to printf
-        if (isVariadic && llvm::isa<llvm::ConstantFP>(args[i]) &&
-            args[i]->getType() != llvm::Type::getDoubleTy(*gen.ctx)) {
-            args[i] = gen.builder->CreateFPExt(args[i], llvm::Type::getDoubleTy(*gen.ctx));
+        if (isVariadic && llvm::isa<llvm::ConstantFP>(argValue) &&
+            argValue->getType() != llvm::Type::getDoubleTy(*gen.ctx)) {
+            argValue = gen.builder->CreateFPExt(argValue, llvm::Type::getDoubleTy(*gen.ctx));
+        }
+        args.emplace_back(argValue);
+
+        // expanding passed lambda values, to multiple (passing function pointer & also passing their struct so 1 arg results in 2 args)
+        if(expectedFunc && values[i]->value_type() == ValueType::Lambda) {
+            auto expectedParam = expectedFunc->params[i]->create_value_type();
+            auto expectedFuncType = (FunctionType*) expectedParam.get();
+            auto type = values[i]->create_type();
+            auto funcType = (FunctionType*) type.get();
+            if(expectedFuncType->isCapturing) {
+                if(funcType->isCapturing) {
+                    // TODO must capture the variables specified in a struct and pass that struct
+                } else {
+                    args.emplace_back(llvm::ConstantPointerNull::get(gen.builder->getPtrTy()));
+                }
+            }
         }
     }
 }
 
 inline std::vector<llvm::Value*> to_llvm_args(Codegen& gen, FunctionCall* call, std::vector<std::unique_ptr<Value>>& values, bool isVariadic) {
-    std::vector<llvm::Value *> args(values.size());
+    std::vector<llvm::Value *> args;
     to_llvm_args(gen, call, values, isVariadic, args, 0);
     return args;
 }
@@ -57,7 +87,7 @@ llvm::Value* call_with_args(FunctionCall* call, llvm::Function* fn, Codegen &gen
 }
 
 llvm::Value *FunctionCall::llvm_value(Codegen &gen) {
-    std::vector<llvm::Value *> args(values.size());
+    std::vector<llvm::Value *> args;
 
     auto decl = safe_linked_func();
     auto fn = decl != nullptr ? (decl->llvm_func()) : nullptr;
@@ -70,11 +100,11 @@ llvm::Value *FunctionCall::llvm_value(Codegen &gen) {
 llvm::Value* FunctionCall::llvm_value(Codegen &gen, std::vector<std::unique_ptr<Value>>& chain) {
     auto decl = safe_linked_func();
     auto requires_self = decl != nullptr && !decl->params.empty() && (decl->params[0]->name == "this" || decl->params[0]->name == "self");
-    std::vector<llvm::Value *> args(values.size() + (requires_self ? 1 : 0));
+    std::vector<llvm::Value *> args;
 
     // a pointer to parent
     if(requires_self) {
-        args[0] = chain[chain.size() - 3]->llvm_pointer(gen);
+        args.emplace_back(chain[chain.size() - 3]->llvm_pointer(gen));
     }
 
     auto fn = decl != nullptr ? decl->llvm_func() : nullptr;

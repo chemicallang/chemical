@@ -23,7 +23,31 @@ llvm::Value *LambdaFunction::llvm_value(Codegen &gen) {
         gen.error("Cannot generate lambda function for unknown type");
         return nullptr;
     }
-    return gen.create_nested_function("lambda", func_type->llvm_func_type(gen), scope);
+
+    auto nested = gen.create_nested_function("lambda", func_type->llvm_func_type(gen), scope);
+    if(captureList.empty()) {
+        return nested;
+    } else {
+
+        // create a struct with two pointers
+        auto structType = llvm::StructType::get(gen.builder->getPtrTy(), gen.builder->getPtrTy());
+        auto allocated = gen.builder->CreateAlloca(structType);
+
+        // store lambda function pointer in the first variable
+        auto first = gen.builder->CreateStructGEP(gen.builder->getPtrTy(), allocated, 0);
+        gen.builder->CreateStore(nested, first);
+
+        // create a struct containing captured variables
+        // std::vector<llvm::Type*> vars;
+        // auto capturedType = llvm::StructType::get(*gen.ctx, vars);
+        // TODO cannot do it, because captured variable is a string
+
+        // store a pointer to a struct that contains captured variables
+        auto second = gen.builder->CreateStructGEP(gen.builder->getPtrTy(), allocated, 1);
+        gen.builder->CreateStore(nested, second);
+
+        return allocated;
+    }
 }
 
 llvm::FunctionType *LambdaFunction::llvm_func_type(Codegen &gen) {
@@ -33,7 +57,11 @@ llvm::FunctionType *LambdaFunction::llvm_func_type(Codegen &gen) {
 #endif
 
 std::unique_ptr<BaseType> LambdaFunction::create_type() const {
-    return std::unique_ptr<BaseType>(func_type->copy());
+    auto prev_capturing = func_type->isCapturing;
+    func_type->isCapturing = !captureList.empty();
+    auto copied = std::unique_ptr<BaseType>(func_type->copy());
+    func_type->isCapturing = prev_capturing;
+    return copied;
 }
 
 LambdaFunction::LambdaFunction(
@@ -143,7 +171,7 @@ void LambdaFunction::link(SymbolResolver &linker, FunctionCall *call, unsigned i
 void LambdaFunction::link(SymbolResolver &linker, ReturnStatement *returnStmt) {
 
     if(returnStmt->declaration != nullptr) {
-        auto retType = returnStmt->declaration->returnType.get();
+        auto retType = returnStmt->declaration->returnType->copy();
         if(retType->function_type() == nullptr) {
             linker.error("cannot return lambda, return type of a function is not a function");
             return;

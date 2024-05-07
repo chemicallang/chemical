@@ -105,6 +105,7 @@ public:
     std::optional<LoopScope> body; ///< The body of the function.
     InterpretScope *declarationScope;
     std::unique_ptr<BaseType> returnType;
+    bool isVariadic;
 
 #ifdef COMPILER_BUILD
     llvm::FunctionType *funcType;
@@ -114,5 +115,4 @@ public:
 private:
     Value *interpretReturn = nullptr;
     // if the function is variadic, the last type in params is the type given to the variadic parameter
-    bool isVariadic;
 };

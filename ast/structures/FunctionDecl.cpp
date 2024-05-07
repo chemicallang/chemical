@@ -145,10 +145,17 @@ void FunctionDeclaration::code_gen_struct(Codegen &gen, StructDefinition* def) {
 
 std::vector<llvm::Type *> FunctionDeclaration::param_types(Codegen &gen) {
     auto size = isVariadic ? (params.size() - 1) : params.size();
-    std::vector<llvm::Type *> array(size);
+    std::vector<llvm::Type *> array;
     unsigned i = 0;
     while (i < size) {
-        array[i] = params[i]->type->llvm_param_type(gen);
+        auto type = params[i]->type.get();
+        array.emplace_back(type->llvm_param_type(gen));
+        if(type->function_type() != nullptr) {
+            auto func_type = type->function_type();
+            if(func_type->isCapturing) {
+                array.emplace_back(gen.builder->getPtrTy());
+            }
+        }
         i++;
     }
     return array;
@@ -172,7 +179,10 @@ FunctionParam::FunctionParam(
         std::optional<std::unique_ptr<Value>> defValue
 ) : name(std::move(name)),
     type(std::move(type)),
-    index(index), isVariadic(isVariadic), defValue(std::move(defValue)) {
+    index(index),
+    isVariadic(isVariadic),
+    defValue(std::move(defValue))
+{
     name.shrink_to_fit();
 }
 
@@ -194,10 +204,6 @@ FunctionParam *FunctionParam::copy() const {
         copied.emplace(defValue.value()->copy());
     }
     return new FunctionParam(name, std::unique_ptr<BaseType>(type->copy()), index, isVariadic, std::move(copied));
-}
-
-FunctionParam *FunctionParam::as_parameter() {
-    return this;
 }
 
 std::string FunctionParam::representation() const {

@@ -5,6 +5,7 @@
 //
 
 #include "lexer/Lexer.h"
+#include "cst/structures/EnumDeclCST.h"
 
 bool Lexer::lexEnumBlockTokens() {
     if(lexOperatorToken('{')) {
@@ -29,6 +30,7 @@ bool Lexer::lexEnumBlockTokens() {
 
 bool Lexer::lexEnumStructureTokens() {
     if(lexKeywordToken("enum")) {
+        auto start = tokens.size() - 1;
         lexWhitespaceToken();
         if(!lexIdentifierToken()) {
             error("expected a identifier as enum name");
@@ -37,7 +39,7 @@ bool Lexer::lexEnumStructureTokens() {
         if(!lexEnumBlockTokens()) {
             error("expected an enum block for declaring an enum");
         }
-        lexWhitespaceToken();
+        compound_from<EnumDeclCST>(start);
         return true;
     } else {
         return false;

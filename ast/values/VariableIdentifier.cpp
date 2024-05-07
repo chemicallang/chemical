@@ -31,6 +31,10 @@ bool VariableIdentifier::add_member_index(Codegen &gen, Value *parent, std::vect
 
 #endif
 
+bool VariableIdentifier::is_direct_value_ref() {
+    return linked->as_enum_member() != nullptr;
+}
+
 void VariableIdentifier::link(SymbolResolver &linker) {
     linked = linker.find(value);
     if(!linked) {

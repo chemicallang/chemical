@@ -357,6 +357,8 @@ set(COMMON_SOURCES
         ast/types/ULongType.h
         ast/values/NumberValue.h
         ast/values/NumberValue.cpp
+        ast/structures/EnumDecl.cpp
+        ast/structures/EnumMember.h
 )
 
 # Chemical LSP Executable Target

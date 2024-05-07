@@ -36,6 +36,7 @@
 #include "ast/values/FloatValue.h"
 #include "ast/values/Expression.h"
 #include "ast/values/BoolValue.h"
+#include "cst/structures/EnumDeclCST.h"
 #include "ast/values/DoubleValue.h"
 #include "ast/values/AccessChain.h"
 #include "ast/values/FunctionCall.h"
@@ -57,6 +58,7 @@
 #include "ast/statements/Import.h"
 #include "cst/statements/ImportCST.h"
 #include "ast/structures/TryCatch.h"
+#include "ast/structures/EnumDeclaration.h"
 #include "cst/structures/TryCatchCST.h"
 #include "ast/statements/Return.h"
 #include "cst/statements/ReturnCST.h"
@@ -341,6 +343,21 @@ void CSTConverter::visit(FunctionCST *function) {
     current_func_decl = prev_decl;
 
 
+}
+
+void CSTConverter::visit(EnumDeclCST *decl) {
+    std::unordered_map<std::string, std::unique_ptr<EnumMember>> members;
+    auto i = 3; // first enum member or '}'
+    unsigned position = 0;
+    while(!is_char_op(decl->tokens[i].get(), '}')) {
+        auto name = str_token(decl->tokens[i].get());
+        members[name] = std::make_unique<EnumMember>(name, position++);
+        if(is_char_op(decl->tokens[i + 1].get(), ',')){
+            i++;
+        }
+        i++;
+    }
+    nodes.emplace_back(new EnumDeclaration(str_token(decl->tokens[1].get()), std::move(members)));
 }
 
 Value* convertNumber(NumberToken* token, ValueType value_type, bool is64Bit) {

@@ -194,6 +194,8 @@ public:
 
     void visit(TryCatchCST *tryCatch) override;
 
+    void visit(EnumDeclCST *enumDecl) override;
+
     // Types
 
     void visit(TypeToken *token) override;

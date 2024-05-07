@@ -10,6 +10,7 @@
 
 #include "ast/base/ASTNode.h"
 #include "ast/base/Value.h"
+#include "EnumMember.h"
 
 class EnumDeclaration : public ASTNode {
 public:
@@ -20,7 +21,7 @@ public:
      * @param name The name of the enum.
      * @param values The values of the enum.
      */
-    EnumDeclaration(std::string name, std::unordered_map<std::string, unsigned int> members)
+    EnumDeclaration(std::string name, std::unordered_map<std::string, std::unique_ptr<EnumMember>> members)
             : name(std::move(name)), members(std::move(members)) {}
 
     void accept(Visitor &visitor) override {
@@ -31,10 +32,20 @@ public:
         linker.declare(name, this);
     }
 
+#ifdef COMPILER_BUILD
+
+    void code_gen(Codegen &gen) override {
+        // do nothing
+    }
+
+#endif
+
+    ASTNode *child(const std::string &name) override;
+
     std::string representation() const override {
         std::string rep("enum " + name + " {\n");
         unsigned int i = 0;
-        for(const auto& member : members) {
+        for (const auto &member: members) {
             rep.append(member.first);
             if (i != members.size() - 1) {
                 rep.append(",\n");
@@ -47,5 +58,5 @@ public:
 
 private:
     std::string name; ///< The name of the enum.
-    std::unordered_map<std::string, unsigned int> members; ///< The values of the enum.
+    std::unordered_map<std::string, std::unique_ptr<EnumMember>> members; ///< The values of the enum.
 };

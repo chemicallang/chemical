@@ -34,6 +34,8 @@ class BaseType;
 
 class LoopASTNode;
 
+class EnumMember;
+
 /**
  * @brief Base class for all AST nodes.
  */
@@ -97,6 +99,13 @@ public:
      * @return
      */
     virtual std::string representation() const = 0;
+
+    /**
+     * as enum member
+     */
+    virtual EnumMember* as_enum_member() {
+        return nullptr;
+    }
 
     /**
      * return if this is a parameter

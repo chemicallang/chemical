@@ -19,6 +19,8 @@ llvm::GlobalVariable * StringValue::llvm_global_variable(Codegen &gen, bool is_c
     if(!is_const) {
         gen.error("Global string variables aren't supported at the moment");
     }
+    // TODO global constant string must have type pointer to array
+    // because it returns an array pointer, and we must take [0] from it to reach first pointer
     return gen.builder->CreateGlobalString(value, name, 0, gen.module.get());
 }
 

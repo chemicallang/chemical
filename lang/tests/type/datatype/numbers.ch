@@ -87,4 +87,9 @@ func test_numbers() {
         var i : double = 10.0;
         return i == 10;
     })
+    test("can extend int n type to compare with a different bit type", () => {
+        var i : short = 5;
+        var w : int = 5;
+        return i == w;
+    })
 }

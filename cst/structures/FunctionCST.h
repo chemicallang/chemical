@@ -50,11 +50,6 @@ public:
         return LexTokenType::CompFunction;
     }
 
-    /**
-     * get the function name for this function
-     */
-    std::string func_name();
-
 #ifdef DEBUG
 
     std::string compound_type_string() const override {

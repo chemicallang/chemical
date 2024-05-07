@@ -22,16 +22,6 @@ public:
         return LexTokenType::CompVarInit;
     }
 
-    /**
-     * returns if this has const keyword instead of var in the first token
-     */
-    bool is_const();
-
-    /**
-     * get the identifier, the name of the variable
-     */
-    std::string identifier();
-
 #ifdef DEBUG
 
     std::string compound_type_string() const override {

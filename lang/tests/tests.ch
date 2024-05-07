@@ -4,6 +4,7 @@ import "basic/floating.ch"
 import "basic/nodes.ch"
 import "nodes/varinit.ch"
 import "nodes/struct.ch"
+import "nodes/enum.ch"
 import "type/datatype/numbers.ch"
 
 func main() {
@@ -14,4 +15,5 @@ func main() {
     test_nodes();
     test_numbers();
     test_structs();
+    test_enum();
 }

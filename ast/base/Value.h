@@ -145,6 +145,14 @@ std::cerr << "child called on base value";
     }
 
     /**
+     * let's say this reference is connected to a value that is compile time
+     * for example an enum member, that will become a int32
+     */
+    virtual bool is_direct_value_ref() {
+        return false;
+    }
+
+    /**
      * index operator [] calls this on a value
      */
     virtual Value* index(InterpretScope& scope, int i) {

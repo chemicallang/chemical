@@ -36,8 +36,6 @@ public:
 
     StructDefinition *as_struct_def() override;
 
-    bool type_check(InterpretScope &scope);
-
     void interpret(InterpretScope &scope) override;
 
     void interpret_scope_ends(InterpretScope &scope) override;

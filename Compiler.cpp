@@ -18,6 +18,8 @@ int chemical_clang_main(int argc, char **argv);
 
 int chemical_clang_main2(const std::vector<std::string> &command_args);
 
+std::vector<std::unique_ptr<ASTNode>> TranslateC(const char *abs_path);
+
 int main(int argc, char *argv[]) {
 
     // invoke clang cc1, this is used by clang, because it invokes (current executable)
@@ -56,6 +58,15 @@ int main(int argc, char *argv[]) {
     }
 
     auto srcFilePath = args[0];
+
+    auto translateC = options.option("tc", "tc");
+    if(translateC.has_value()) {
+        auto nodes = TranslateC(srcFilePath.c_str());
+        for(const auto& node : nodes) {
+            std::cout << node->representation() << std::endl;
+        }
+        return 0;
+    }
 
     // Lex, parse & type check
     auto benchmark = options.option("benchmark", "bm");

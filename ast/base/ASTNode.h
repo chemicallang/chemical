@@ -282,6 +282,13 @@ public:
         throw std::runtime_error("llvm_load called on a ASTNode");
     }
 
+    /**
+     * loads the value of the given ASTNode for returning
+     */
+    virtual llvm::Value *llvm_ret_load(Codegen &gen, ReturnStatement* returnStmt) {
+        return llvm_load(gen);
+    }
+
 #endif
 
     /**

@@ -70,6 +70,13 @@ llvm::FunctionType *AccessChain::llvm_func_type(Codegen &gen) {
     return values[values.size() - 1]->llvm_func_type(gen);
 }
 
+llvm::Value *AccessChain::llvm_ret_value(Codegen &gen, ReturnStatement *returnStmt) {
+    if(values.size() == 1) {
+        return values[values.size() - 1]->llvm_ret_value(gen, returnStmt);
+    }
+    return llvm_value(gen);
+}
+
 #endif
 
 void AccessChain::declare_and_link(SymbolResolver &linker) {

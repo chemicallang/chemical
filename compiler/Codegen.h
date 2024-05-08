@@ -162,6 +162,17 @@ public:
     llvm::BasicBlock *createBB(const std::string &name, llvm::Function *fn);
 
     /**
+     * packed lambda struct type
+     * @return struct type of a packed lambda
+     */
+    llvm::StructType* packed_lambda_type();
+
+    /**
+     * packs a lambda into a struct with two pointers
+     */
+    llvm::AllocaInst* pack_lambda(llvm::Function* func_ptr, llvm::Value* captured_struct);
+
+    /**
      * creates a function block, along with setting the insert point to this entry block
      * @param fn
      */

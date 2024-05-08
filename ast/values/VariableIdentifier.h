@@ -78,13 +78,15 @@ public:
 
     llvm::Value *llvm_value(Codegen &gen) override;
 
+    llvm::Value *llvm_ret_value(Codegen &gen, ReturnStatement *returnStmt) override;
+
 #endif
 
     VarInitStatement *declaration() override;
 
     Value *evaluated_value(InterpretScope &scope) override;
 
-    Value* copy() override;
+    Value *copy() override;
 
     /**
      * every identifier's value will be moved to new owner at return

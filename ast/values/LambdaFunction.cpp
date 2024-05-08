@@ -37,19 +37,6 @@ llvm::AllocaInst* LambdaFunction::capture_struct(Codegen &gen) {
     return capturedAlloca;
 }
 
-llvm::AllocaInst* pack_lambda(Codegen &gen, llvm::Function* func_ptr, llvm::AllocaInst* captured_struct) {
-    // create a struct with two pointers
-    auto structType = llvm::StructType::get(gen.builder->getPtrTy(), gen.builder->getPtrTy());
-    auto allocated = gen.builder->CreateAlloca(structType);
-    // store lambda function pointer in the first variable
-    auto first = gen.builder->CreateStructGEP(structType, allocated, 0);
-    gen.builder->CreateStore(func_ptr, first);
-    // store a pointer to a struct that contains captured variables in the second variable
-    auto second = gen.builder->CreateStructGEP(structType, allocated, 1);
-    gen.builder->CreateStore(captured_struct, second);
-    return allocated;
-}
-
 llvm::Value *LambdaFunction::llvm_value(Codegen &gen) {
     if(func_type == nullptr) {
         gen.error("Cannot generate lambda function for unknown type");

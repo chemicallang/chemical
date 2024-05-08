@@ -36,6 +36,8 @@ public:
 
     llvm::Value *llvm_load(Codegen &gen) override;
 
+    llvm::Value *llvm_ret_load(Codegen &gen, ReturnStatement *returnStmt) override;
+
 #endif
 
     FunctionParam *copy() const;

@@ -36,6 +36,13 @@ func create_lamb(first : bool) : () => int {
     }
 }
 
+func ret_new_cap_lamb() : []()=>bool {
+    var captured = true;
+    return [captured]() => {
+        return captured;
+    }
+}
+
 func test_lambda() {
     test("testing non capturing lambda works", () => {
         return true;
@@ -88,6 +95,10 @@ func test_lambda() {
         var message = ret_cap_lambda([captured]() => {
             return captured;
         });
+        return message();
+    })
+    test("packs lambda at return", () => {
+        var message = ret_new_cap_lamb();
         return message();
     })
     test("can pass function pointer as lambda 1", () => {

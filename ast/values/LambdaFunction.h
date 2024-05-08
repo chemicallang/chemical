@@ -25,7 +25,7 @@ public:
     bool isVariadic;
     Scope scope;
 
-    llvm::AllocaInst *captured_struct = nullptr;
+    llvm::Value *captured_struct = nullptr;
 
     /**
      * @brief Construct a new IntValue object.
@@ -61,6 +61,8 @@ public:
     llvm::Type *llvm_type(Codegen &gen) override;
 
     llvm::Value *llvm_value(Codegen &gen) override;
+
+    llvm::Value *llvm_ret_value(Codegen &gen, ReturnStatement *returnStmt) override;
 
     llvm::FunctionType *llvm_func_type(Codegen &gen) override;
 

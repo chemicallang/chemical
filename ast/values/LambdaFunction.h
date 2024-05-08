@@ -62,6 +62,8 @@ public:
 
     llvm::Value *llvm_value(Codegen &gen) override;
 
+    llvm::AllocaInst *llvm_allocate(Codegen &gen, const std::string &identifier) override;
+
     llvm::Value *llvm_ret_value(Codegen &gen, ReturnStatement *returnStmt) override;
 
     llvm::FunctionType *llvm_func_type(Codegen &gen) override;

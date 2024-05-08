@@ -42,7 +42,12 @@ void to_llvm_args(Codegen& gen, FunctionCall* call, std::vector<std::unique_ptr<
                     if(values[i]->primitive()) {
                         args.emplace_back(((LambdaFunction*) values[i].get())->captured_struct);
                     } else {
-                        // TODO referenced lambda's should be passed differently
+                        auto lambda_linked = values[i]->linked_node();
+                        if(lambda_linked->as_func_param() != nullptr) {
+                            args.emplace_back(gen.current_function->getArg(lambda_linked->as_func_param()->index + 1));
+                        } else {
+                            throw std::runtime_error("unknown linked node to lambda referenced value");
+                        }
                     }
                 } else {
                     args.emplace_back(llvm::ConstantPointerNull::get(gen.builder->getPtrTy()));

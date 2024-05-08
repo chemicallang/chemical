@@ -9,6 +9,8 @@
 #include "lexer/model/tokens/KeywordToken.h"
 #include "ast/utils/GlobalFunctions.h"
 #include "ast/types/ReferencedType.h"
+#include "lexer/model/tokens/BoolToken.h"
+#include "lexer/model/tokens/NullToken.h"
 
 Lexer::Lexer(SourceProvider &provider, std::string path) : provider(provider), path(std::move(path)), interpret_scope(
         GlobalInterpretScope(nullptr, nullptr, nullptr, path)
@@ -18,11 +20,24 @@ Lexer::Lexer(SourceProvider &provider, std::string path) : provider(provider), p
 #endif
     define_all(interpret_scope);
     init_annotation_modifiers();
+    init_value_creators();
 }
 
 void Lexer::init_annotation_modifiers() {
-    annotation_modifiers["lexer"] = [&](Lexer *lexer) -> void { lexer->isLexCompTimeLexer = true; };
-    annotation_modifiers["scope:lexer"] = [&](Lexer *lexer) -> void { lexer->isLexerScoped = true; };
+    annotation_modifiers["lexer"] = [](Lexer *lexer) -> void { lexer->isLexCompTimeLexer = true; };
+    annotation_modifiers["scope:lexer"] = [](Lexer *lexer) -> void { lexer->isLexerScoped = true; };
+}
+
+void Lexer::init_value_creators() {
+    value_creators["null"] = [](Lexer *lexer) -> void {
+        lexer->tokens.emplace_back(std::make_unique<NullToken>(lexer->backPosition(4)));
+    };
+    value_creators["true"] = [](Lexer *lexer) -> void {
+        lexer->tokens.emplace_back(std::make_unique<BoolToken>(lexer->backPosition(4), true));
+    };
+    value_creators["false"] = [](Lexer *lexer) -> void {
+        lexer->tokens.emplace_back(std::make_unique<BoolToken>(lexer->backPosition(5), false));
+    };
 }
 
 void Lexer::lexTopLevelMultipleStatementsTokens() {

@@ -24,8 +24,17 @@ bool Lexer::storeIdentifier(const std::string& identifier) {
 
 bool Lexer::lexAccessChain(bool lexStruct) {
 
-    if (!lexIdentifierToken()) {
+    auto id = lexIdentifier();
+    if(id.empty()) {
         return false;
+    }
+
+    auto creator = value_creators.find(id);
+    if(creator != value_creators.end()) {
+        creator->second(this);
+        return true;
+    } else {
+        storeIdentifier(id);
     }
 
     auto start = tokens.size() - 1;

@@ -46,9 +46,21 @@ func test_lambda() {
             return true;
         });
     });
-    test("testing capturing lambda works", () => {
+    test("testing capturing lambda type works with empty capturing lambda", () => {
         return capturing([]() => {
             return true;
+        });
+    });
+    test("testing capturing lambda can capture primitive bool value - 1", () => {
+        var captured = true;
+        return capturing([captured]() => {
+            return captured;
+        });
+    });
+    test("testing capturing lambda can capture primitive bool value - 2", () => {
+        var captured = false;
+        return capturing([captured]() => {
+            return !captured;
         });
     });
     test("can pass function pointer as lambda 1", () => {

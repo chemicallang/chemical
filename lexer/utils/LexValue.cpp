@@ -61,6 +61,10 @@ bool Lexer::lexValueToken() {
            lexNull();
 }
 
+bool Lexer::lexAccessChainValueToken() {
+    return lexCharToken() || lexStringToken() || lexLambdaValue() || lexNumberToken();
+}
+
 bool Lexer::lexArrayInit() {
     if (lexOperatorToken('{')) {
         auto start = tokens.size() - 1;
@@ -99,5 +103,5 @@ bool Lexer::lexArrayInit() {
 }
 
 bool Lexer::lexAccessChainOrValue(bool lexStruct) {
-    return lexValueToken() || lexAccessChainOrAddrOf(lexStruct) || lexAnnotationMacro();
+    return lexAccessChainValueToken() || lexAccessChainOrAddrOf(lexStruct) || lexAnnotationMacro();
 }

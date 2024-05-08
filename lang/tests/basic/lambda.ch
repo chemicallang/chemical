@@ -63,6 +63,12 @@ func test_lambda() {
             return !captured;
         });
     });
+    test("testing capturing lambda can capture by ref", () => {
+        var captured = true;
+        return capturing([&captured]() => {
+            return *captured;
+        });
+    });
     test("can pass function pointer as lambda 1", () => {
         return passed(fn_rets_1) == 1;
     })

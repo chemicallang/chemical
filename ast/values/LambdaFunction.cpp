@@ -19,6 +19,37 @@ llvm::Type *LambdaFunction::llvm_type(Codegen &gen) {
     return gen.builder->getPtrTy();
 }
 
+llvm::AllocaInst* LambdaFunction::capture_struct(Codegen &gen) {
+    // storing captured variables in a struct
+    auto capturedStructType = capture_struct_type(gen);
+    auto capturedAlloca = gen.builder->CreateAlloca(capturedStructType);
+    unsigned i = 0;
+    while(i < captureList.size()) {
+        auto cap = captureList[i].get();
+        auto ptr = gen.builder->CreateStructGEP(capturedStructType, capturedAlloca, i);
+        if(cap->capture_by_ref) {
+            gen.builder->CreateStore(cap->linked->llvm_pointer(gen), ptr);
+        } else {
+            gen.builder->CreateStore(cap->linked->llvm_load(gen), ptr);
+        }
+        i++;
+    }
+    return capturedAlloca;
+}
+
+llvm::AllocaInst* pack_lambda(Codegen &gen, llvm::Function* func_ptr, llvm::AllocaInst* captured_struct) {
+    // create a struct with two pointers
+    auto structType = llvm::StructType::get(gen.builder->getPtrTy(), gen.builder->getPtrTy());
+    auto allocated = gen.builder->CreateAlloca(structType);
+    // store lambda function pointer in the first variable
+    auto first = gen.builder->CreateStructGEP(structType, allocated, 0);
+    gen.builder->CreateStore(func_ptr, first);
+    // store a pointer to a struct that contains captured variables in the second variable
+    auto second = gen.builder->CreateStructGEP(structType, allocated, 1);
+    gen.builder->CreateStore(captured_struct, second);
+    return allocated;
+}
+
 llvm::Value *LambdaFunction::llvm_value(Codegen &gen) {
     if(func_type == nullptr) {
         gen.error("Cannot generate lambda function for unknown type");
@@ -26,36 +57,11 @@ llvm::Value *LambdaFunction::llvm_value(Codegen &gen) {
     }
 
     auto nested = gen.create_nested_function("lambda", func_type->llvm_func_type(gen), scope);
-    if(captureList.empty()) {
-        return nested;
-    } else {
-
-        // create a struct with two pointers
-        auto structType = llvm::StructType::get(gen.builder->getPtrTy(), gen.builder->getPtrTy());
-        auto allocated = gen.builder->CreateAlloca(structType);
-
-        // store lambda function pointer in the first variable
-        auto first = gen.builder->CreateStructGEP(structType, allocated, 0);
-        gen.builder->CreateStore(nested, first);
-
+    if(!captureList.empty()) {
         // storing captured variables in a struct
-        auto capturedStructType = capture_struct_type(gen);
-        auto capturedAlloca = gen.builder->CreateAlloca(capturedStructType);
-        unsigned i = 0;
-        while(i < captureList.size()) {
-            auto cap = captureList[i].get();
-            auto ptr = gen.builder->CreateStructGEP(capturedStructType, capturedAlloca, i);
-            gen.builder->CreateStore(cap->linked->llvm_pointer(gen), ptr);
-            i++;
-        }
-
-        // store a pointer to a struct that contains captured variables
-        auto second = gen.builder->CreateStructGEP(structType, allocated, 1);
-        gen.builder->CreateStore(capturedAlloca, second);
-
-        return nested;
-
+        captured_struct = capture_struct(gen);
     }
+    return nested;
 }
 
 llvm::FunctionType *LambdaFunction::llvm_func_type(Codegen &gen) {
@@ -109,12 +115,7 @@ BaseType* find_return_type(std::vector<std::unique_ptr<ASTNode>>& nodes) {
 }
 
 void link_body(LambdaFunction* fn, SymbolResolver &linker) {
-    linker.scope_start();
-    for (auto &param: fn->params) {
-        param->declare_and_link(linker);
-    }
     fn->scope.declare_and_link(linker);
-    linker.scope_end();
 }
 
 void link_params_and_caps(LambdaFunction* fn, SymbolResolver &linker) {
@@ -124,6 +125,13 @@ void link_params_and_caps(LambdaFunction* fn, SymbolResolver &linker) {
     for (auto &param : fn->params) {
         param->declare_and_link(linker);
     }
+}
+
+void link_full(LambdaFunction* fn, SymbolResolver &linker) {
+    linker.scope_start();
+    link_params_and_caps(fn, linker);
+    link_body(fn, linker);
+    linker.scope_end();
 }
 
 void LambdaFunction::link(SymbolResolver &linker) {
@@ -155,8 +163,7 @@ void LambdaFunction::link(SymbolResolver &linker) {
 void LambdaFunction::link(SymbolResolver &linker, VarInitStatement *stmnt) {
     if(stmnt->type.has_value()) {
         func_type = std::shared_ptr<FunctionType>((FunctionType*) stmnt->create_value_type().release());
-        link_params_and_caps(this, linker);
-        link_body(this, linker);
+        link_full(this, linker);
     } else {
         link(linker);
     }
@@ -164,8 +171,7 @@ void LambdaFunction::link(SymbolResolver &linker, VarInitStatement *stmnt) {
 
 void LambdaFunction::link(SymbolResolver &linker, StructValue *value, const std::string &name) {
     func_type = std::shared_ptr<FunctionType>((FunctionType*) value->definition->child(name)->create_value_type().release());
-    link_params_and_caps(this, linker);
-    link_body(this, linker);
+    link_full(this, linker);
 }
 
 void LambdaFunction::link(SymbolResolver &linker, FunctionCall *call, unsigned int index) {
@@ -189,8 +195,7 @@ void LambdaFunction::link(SymbolResolver &linker, FunctionCall *call, unsigned i
 
     func_type = std::shared_ptr<FunctionType>(paramType->function_type());
 
-    link_params_and_caps(this, linker);
-    link_body(this, linker);
+    link_full(this, linker);
 
 }
 
@@ -208,8 +213,7 @@ void LambdaFunction::link(SymbolResolver &linker, ReturnStatement *returnStmt) {
         return;
     }
 
-    link_params_and_caps(this, linker);
-    link_body(this, linker);
+    link_full(this, linker);
 
 }
 

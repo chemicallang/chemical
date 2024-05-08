@@ -480,8 +480,13 @@ void CSTConverter::visit(LambdaCST *cst) {
     unsigned capInd = 0;
     if (!no_capture_list) {
         while (!is_char_op(cst->tokens[i].get(), ']')) {
+            bool capture_by_ref = false;
+            if(is_char_op(cst->tokens[i].get(), '&')) {
+                capture_by_ref = true;
+                i++;
+            }
             if (cst->tokens[i]->type() == LexTokenType::Variable) {
-                captureList.emplace_back(new CapturedVariable(((VariableToken *) (cst->tokens[i].get()))->value, capInd++));
+                captureList.emplace_back(new CapturedVariable(((VariableToken *) (cst->tokens[i].get()))->value, capInd++, capture_by_ref));
             }
             i++;
         }
@@ -511,7 +516,7 @@ void CSTConverter::visit(LambdaCST *cst) {
     auto lambda = new LambdaFunction(std::move(captureList), std::move(result.params), result.isVariadic,
             std::move(scope));
 
-    for(auto& c : captureList) {
+    for(auto& c : lambda->captureList) {
         c->lambda = lambda;
     }
 

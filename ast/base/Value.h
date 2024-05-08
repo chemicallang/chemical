@@ -235,6 +235,12 @@ std::cerr << "child called on base value";
     }
 
     /**
+     * allocates the given type and stores the given value in it
+     * @return returns pointer to alloca instruction
+     */
+    llvm::AllocaInst* llvm_allocate_with(Codegen& gen, const std::string& identifier, llvm::Value* value, llvm::Type* type);
+
+    /**
      * allocates this value with this identifier, and also creates a store instruction
      * @param gen
      * @param identifier

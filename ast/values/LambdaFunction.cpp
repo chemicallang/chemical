@@ -37,6 +37,15 @@ llvm::AllocaInst* LambdaFunction::capture_struct(Codegen &gen) {
     return capturedAlloca;
 }
 
+llvm::AllocaInst *LambdaFunction::llvm_allocate(Codegen &gen, const std::string &identifier) {
+    if(func_type->isCapturing) {
+        auto lamb = llvm_value(gen);
+        return llvm_allocate_with(gen, identifier, gen.pack_lambda((llvm::Function*) lamb, captured_struct), llvm_type(gen));
+    } else {
+        return Value::llvm_allocate(gen, identifier);
+    }
+}
+
 llvm::Value *LambdaFunction::llvm_value(Codegen &gen) {
     if(func_type == nullptr) {
         gen.error("Cannot generate lambda function for unknown type");
@@ -113,10 +122,6 @@ BaseType* find_return_type(std::vector<std::unique_ptr<ASTNode>>& nodes) {
     return new VoidType();
 }
 
-void link_body(LambdaFunction* fn, SymbolResolver &linker) {
-    fn->scope.declare_and_link(linker);
-}
-
 void link_params_and_caps(LambdaFunction* fn, SymbolResolver &linker) {
     for(auto& cap : fn->captureList) {
         cap->declare_and_link(linker);
@@ -129,7 +134,7 @@ void link_params_and_caps(LambdaFunction* fn, SymbolResolver &linker) {
 void link_full(LambdaFunction* fn, SymbolResolver &linker) {
     linker.scope_start();
     link_params_and_caps(fn, linker);
-    link_body(fn, linker);
+    fn->scope.declare_and_link(linker);
     linker.scope_end();
 }
 
@@ -139,12 +144,11 @@ void LambdaFunction::link(SymbolResolver &linker) {
     linker.info("lambda function type not found, deducing function type by visiting lambda body (expensive operation) performed");
 #endif
 
+    // linking params and their types before copying their types
+    link_full(this, linker);
+
     // finding return type
     auto returnType = find_return_type(scope.nodes);
-
-    // linking params and their types before copying their types
-    linker.scope_start();
-    link_params_and_caps(this, linker);
 
     // copying function param
     func_params funcParams;
@@ -153,9 +157,6 @@ void LambdaFunction::link(SymbolResolver &linker) {
     }
 
     func_type = std::make_unique<FunctionType>(std::move(funcParams), std::unique_ptr<BaseType>(returnType), isVariadic, !captureList.empty());
-
-    scope.declare_and_link(linker);
-    linker.scope_end();
 
 }
 

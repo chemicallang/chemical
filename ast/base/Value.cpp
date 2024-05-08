@@ -9,10 +9,14 @@
 
 #include "compiler/llvmimpl.h"
 
-llvm::AllocaInst *Value::llvm_allocate(Codegen &gen, const std::string &identifier) {
-    auto x = gen.builder->CreateAlloca(llvm_type(gen), nullptr, identifier);
-    gen.builder->CreateStore(llvm_value(gen), x);
+llvm::AllocaInst* Value::llvm_allocate_with(Codegen& gen, const std::string& identifier, llvm::Value* value, llvm::Type* type) {
+    auto x = gen.builder->CreateAlloca(type, nullptr, identifier);
+    gen.builder->CreateStore(value, x);
     return x;
+}
+
+llvm::AllocaInst *Value::llvm_allocate(Codegen &gen, const std::string &identifier) {
+    return llvm_allocate_with(gen, identifier, llvm_value(gen), llvm_type(gen));
 }
 
 llvm::GlobalVariable* Value::llvm_global_variable(Codegen& gen, bool is_const, const std::string& name) {

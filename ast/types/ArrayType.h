@@ -13,8 +13,12 @@ public:
     int array_size;
 
     ArrayType(std::unique_ptr<BaseType> elem_type, int array_size) : elem_type(std::move(elem_type)),
-                                                                              array_size(array_size) {
+                                                                     array_size(array_size) {
 
+    }
+
+    std::unique_ptr<BaseType> create_child_type() const override {
+        return std::unique_ptr<BaseType>(elem_type->copy());
     }
 
     BaseTypeKind kind() const override {
@@ -25,15 +29,15 @@ public:
         return ValueType::Array;
     }
 
-    bool equals(ArrayType* type) const {
+    bool equals(ArrayType *type) const {
         return type->array_size != array_size && elem_type->is_same(type->elem_type.get());
     }
 
     bool is_same(BaseType *type) const override {
-        return kind() == type->kind() && equals(static_cast<ArrayType*>(type));
+        return kind() == type->kind() && equals(static_cast<ArrayType *>(type));
     }
 
-    virtual BaseType* copy() const {
+    virtual BaseType *copy() const {
         return new ArrayType(std::unique_ptr<BaseType>(elem_type->copy()), array_size);
     }
 
@@ -46,7 +50,9 @@ public:
     }
 
 #ifdef COMPILER_BUILD
+
     llvm::Type *llvm_type(Codegen &gen) const override;
+
 #endif
 
 };

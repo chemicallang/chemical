@@ -9,9 +9,8 @@
 #include "compiler/llvmimpl.h"
 #include "ast/types/ArrayType.h"
 
-llvm::Value *IndexOperator::elem_pointer(Codegen &gen, ASTNode *arr) {
+llvm::Value *IndexOperator::elem_pointer(Codegen &gen, llvm::Type *type, llvm::Value *ptr) {
     std::vector<llvm::Value *> idxList;
-    auto type = arr->llvm_type(gen);
     if (type->isArrayTy()) {
         idxList.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), 0));
     }
@@ -19,7 +18,11 @@ llvm::Value *IndexOperator::elem_pointer(Codegen &gen, ASTNode *arr) {
         idxList.emplace_back(value->llvm_value(gen));
     }
     idxList.shrink_to_fit();
-    return gen.builder->CreateGEP(type, arr->llvm_pointer(gen), idxList, "", gen.inbounds);
+    return gen.builder->CreateGEP(type, ptr, idxList, "", gen.inbounds);
+}
+
+llvm::Value *IndexOperator::elem_pointer(Codegen &gen, ASTNode *arr) {
+    return elem_pointer(gen, arr->llvm_type(gen), arr->llvm_pointer(gen));
 }
 
 llvm::Value *IndexOperator::llvm_pointer(Codegen &gen) {
@@ -27,7 +30,12 @@ llvm::Value *IndexOperator::llvm_pointer(Codegen &gen) {
 }
 
 llvm::Value *IndexOperator::llvm_value(Codegen &gen) {
-    return gen.builder->CreateLoad(llvm_type(gen), elem_pointer(gen, parent_val->linked_node()), "idx_op");
+    if(parent_val->value_type() == ValueType::String) {
+        auto ptr = elem_pointer(gen, gen.builder->getInt8Ty(), parent_val->llvm_value(gen));
+        return gen.builder->CreateLoad(gen.builder->getInt8Ty(), ptr);
+    } else {
+        return gen.builder->CreateLoad(llvm_type(gen), elem_pointer(gen, parent_val->linked_node()),"idx_op");
+    }
 }
 
 bool IndexOperator::add_member_index(Codegen &gen, Value *parent, std::vector<llvm::Value *> &indexes) {
@@ -41,13 +49,7 @@ bool IndexOperator::add_member_index(Codegen &gen, Value *parent, std::vector<ll
 }
 
 llvm::Type *IndexOperator::llvm_type(Codegen &gen) {
-    auto value_type = parent_val->create_type();
-    if (value_type->kind() == BaseTypeKind::Array) {
-        return ((ArrayType *) value_type.get())->elem_type->llvm_type(gen);
-    } else {
-        gen.error("cannot get element type from a variable that's not an array");
-        return nullptr;
-    }
+    return parent_val->create_type()->create_child_type()->llvm_type(gen);
 }
 
 llvm::FunctionType *IndexOperator::llvm_func_type(Codegen &gen) {
@@ -56,15 +58,12 @@ llvm::FunctionType *IndexOperator::llvm_func_type(Codegen &gen) {
 
 #endif
 
+bool IndexOperator::is_direct_value_ref() {
+    return parent_val->value_type() == ValueType::String;
+}
+
 std::unique_ptr<BaseType> IndexOperator::create_type() const {
-    auto value_type = parent_val->create_type();
-    if (value_type->kind() == BaseTypeKind::Array) {
-        return std::unique_ptr<BaseType>(((ArrayType *) value_type.get())->elem_type->copy());
-    } else {
-        // TODO report error here
-        std::cerr << "Type of index operator is not an array, unable to get child element type" << std::endl;
-        return nullptr;
-    }
+    return parent_val->create_type()->create_child_type();
 }
 
 void IndexOperator::link(SymbolResolver &linker) {

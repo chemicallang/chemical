@@ -33,6 +33,16 @@ public:
 
     }
 
+    /**
+     * this creates the child type
+     */
+    virtual std::unique_ptr<BaseType> create_child_type() const {
+        return nullptr;
+    }
+
+    /**
+     * copy the type, along with linked node
+     */
     virtual BaseType *copy() const = 0;
 
     /**

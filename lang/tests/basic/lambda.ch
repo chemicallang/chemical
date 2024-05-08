@@ -12,6 +12,10 @@ func capturing(lambda : []() => bool) : bool {
     return lambda();
 }
 
+func delegate(lambda : []() => bool) : bool {
+    return capturing(lambda);
+}
+
 func dontCapture(lambda : () => bool) : bool {
     return lambda();
 }
@@ -67,6 +71,12 @@ func test_lambda() {
         var captured = true;
         return capturing([&captured]() => {
             return *captured;
+        });
+    });
+    test("testing capturing lambda can be passed between functions", () => {
+        var captured = true;
+        return delegate([captured]() => {
+            return captured;
         });
     });
     test("can pass function pointer as lambda 1", () => {

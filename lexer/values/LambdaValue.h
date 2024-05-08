@@ -36,7 +36,17 @@ bool Lexer::lexLambdaValue() {
 
         auto start = tokens.size() - 1;
 
-        lexIdentifierList();
+        do {
+            lexWhitespaceAndNewLines();
+            bool lexed_amp = lexOperatorToken('&');
+            if (!lexIdentifierToken()) {
+                if(lexed_amp) {
+                    error("expected identifier after '&'");
+                }
+                break;
+            }
+            lexWhitespaceToken();
+        } while (lexOperatorToken(','));
 
         if (!lexOperatorToken(']')) {
             error("expected ']' after lambda function capture list");

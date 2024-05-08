@@ -25,6 +25,8 @@ public:
     bool isVariadic;
     Scope scope;
 
+    llvm::AllocaInst *captured_struct = nullptr;
+
     /**
      * @brief Construct a new IntValue object.
      *
@@ -46,6 +48,15 @@ public:
 #ifdef COMPILER_BUILD
 
     llvm::Type *capture_struct_type(Codegen &gen);
+
+protected:
+
+    /**
+     * capture the variables in capture list into a single struct and return it
+     */
+    llvm::AllocaInst *capture_struct(Codegen &gen);
+
+public:
 
     llvm::Type *llvm_type(Codegen &gen) override;
 

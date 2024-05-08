@@ -14,7 +14,7 @@ public:
     ASTNode *linked;
 
 
-    CapturedVariable(std::string name, unsigned int index) : name(std::move(name)), index(index) {
+    CapturedVariable(std::string name, unsigned int index, bool capture_by_ref) : name(std::move(name)), index(index), capture_by_ref(capture_by_ref) {
 
     }
 
@@ -46,9 +46,7 @@ public:
 
     llvm::Value *llvm_pointer(Codegen &gen) override;
 
-    llvm::Type *llvm_type(Codegen &gen) override {
-        return linked->llvm_type(gen);
-    }
+    llvm::Type *llvm_type(Codegen &gen) override;
 
     llvm::FunctionType *llvm_func_type(Codegen &gen) override {
         return linked->llvm_func_type(gen);
@@ -62,16 +60,12 @@ public:
 
     std::unique_ptr<BaseType> create_value_type() override;
 
-    ValueType value_type() const override {
-        return linked->value_type();
-    }
+    ValueType value_type() const override;
 
-    BaseTypeKind type_kind() const override {
-        return linked->type_kind();
-    }
+    BaseTypeKind type_kind() const override;
 
     std::string representation() const override {
-        return name;
+        return (capture_by_ref ? "&" : "") + name;
     }
 
 };

@@ -180,6 +180,14 @@ llvm::Value *CapturedVariable::llvm_pointer(Codegen &gen) {
     return gen.builder->CreateStructGEP(lambda->capture_struct_type(gen), captured, index);
 }
 
+llvm::Type *CapturedVariable::llvm_type(Codegen &gen) {
+    if(capture_by_ref) {
+        return gen.builder->getPtrTy();
+    } else {
+        return linked->llvm_type(gen);
+    }
+}
+
 #endif
 
 FunctionParam::FunctionParam(
@@ -366,9 +374,30 @@ Value *FunctionDeclaration::call(InterpretScope *call_scope, std::vector<std::un
 }
 
 std::unique_ptr<BaseType> CapturedVariable::create_value_type() {
-    return linked->create_value_type();
+    if(capture_by_ref) {
+        return std::make_unique<PointerType>(linked->create_value_type());
+    } else {
+        return linked->create_value_type();
+    }
 }
 
 void CapturedVariable::declare_and_link(SymbolResolver &linker) {
     linked = linker.find(name);
+    linker.declare(name, this);
+}
+
+BaseTypeKind CapturedVariable::type_kind() const {
+    if(capture_by_ref) {
+        return BaseTypeKind::Pointer;
+    } else {
+        return linked->type_kind();
+    }
+}
+
+ValueType CapturedVariable::value_type() const {
+    if(capture_by_ref) {
+        return ValueType::Pointer;
+    } else {
+        return linked->value_type();
+    }
 }

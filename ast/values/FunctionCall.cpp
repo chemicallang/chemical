@@ -4,6 +4,7 @@
 #include "ast/types/FunctionType.h"
 #include "ast/values/AccessChain.h"
 #include "ast/values/VariableIdentifier.h"
+#include "ast/values/LambdaFunction.h"
 
 #ifdef COMPILER_BUILD
 
@@ -11,17 +12,14 @@
 
 void to_llvm_args(Codegen& gen, FunctionCall* call, std::vector<std::unique_ptr<Value>>& values, bool isVariadic, std::vector<llvm::Value *>& args, unsigned int start = 0) {
     llvm::Value* argValue;
-    auto linked = call->parent_val->linked_node();
+    auto linked_node = call->parent_val->linked_node();
+    auto linked = call->parent_val->create_type();
 
-    std::unique_ptr<FunctionType> expectedFunc;
-    if(linked) {
-        expectedFunc = std::unique_ptr<FunctionType>((FunctionType*) linked->create_value_type().release());
-        // if the called lambda is capturing, take argument next to lambda and pass it into it
-        if (expectedFunc->isCapturing) {
-            if (linked->as_func_param() != nullptr) {
-                args.emplace_back(gen.current_function->getArg(linked->as_func_param()->index + 1));
-            }
-        }
+    std::unique_ptr<FunctionType> expectedFunc = std::unique_ptr<FunctionType>((FunctionType*) linked.release());
+
+    // if the called lambda is capturing, take argument next to lambda and pass it into it
+    if (linked_node && expectedFunc->isCapturing && linked_node->as_func_param() != nullptr) {
+        args.emplace_back(gen.current_function->getArg(linked_node->as_func_param()->index + 1));
     }
 
     for (size_t i = start; i < values.size(); ++i) {
@@ -34,14 +32,18 @@ void to_llvm_args(Codegen& gen, FunctionCall* call, std::vector<std::unique_ptr<
         args.emplace_back(argValue);
 
         // expanding passed lambda values, to multiple (passing function pointer & also passing their struct so 1 arg results in 2 args)
-        if(expectedFunc && values[i]->value_type() == ValueType::Lambda) {
+        if(values[i]->value_type() == ValueType::Lambda) {
             auto expectedParam = expectedFunc->params[i]->create_value_type();
             auto expectedFuncType = (FunctionType*) expectedParam.get();
             auto type = values[i]->create_type();
             auto funcType = (FunctionType*) type.get();
             if(expectedFuncType->isCapturing) {
                 if(funcType->isCapturing) {
-                    // TODO must capture the variables specified in a struct and pass that struct
+                    if(values[i]->primitive()) {
+                        args.emplace_back(((LambdaFunction*) values[i].get())->captured_struct);
+                    } else {
+                        // TODO referenced lambda's should be passed differently
+                    }
                 } else {
                     args.emplace_back(llvm::ConstantPointerNull::get(gen.builder->getPtrTy()));
                 }

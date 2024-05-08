@@ -33,9 +33,12 @@ public:
 
     Value *find_in(InterpretScope &scope, Value *parent) override;
 
+    bool is_direct_value_ref() override;
+
 #ifdef COMPILER_BUILD
 
-    // TODO isInBounds optimization, when we know that index is in bounds
+    llvm::Value *elem_pointer(Codegen &gen, llvm::Type*, llvm::Value *ptr);
+
     llvm::Value *elem_pointer(Codegen &gen, ASTNode *arr);
 
     llvm::Value *llvm_pointer(Codegen &gen) override;

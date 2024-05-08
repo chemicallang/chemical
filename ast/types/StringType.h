@@ -7,6 +7,8 @@
 class StringType : public BaseType {
 public:
 
+    std::unique_ptr<BaseType> create_child_type() const override;
+
     bool satisfies(ValueType type) const override {
         return type == ValueType::String;
     }
@@ -27,12 +29,14 @@ public:
         return type->kind() == kind();
     }
 
-    virtual BaseType* copy() const {
+    virtual BaseType *copy() const {
         return new StringType();
     }
 
 #ifdef COMPILER_BUILD
+
     llvm::Type *llvm_type(Codegen &gen) const override;
+
 #endif
 
 };

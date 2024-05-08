@@ -504,6 +504,11 @@ public:
     bool lexValueToken();
 
     /**
+     * values like integer and string, but appearing in access chain
+     */
+    bool lexAccessChainValueToken();
+
+    /**
      * lexes array syntax values like [1,2,3,4]
      * for easy array creation
      * @return
@@ -718,9 +723,14 @@ public:
 protected:
 
     /**
-     * called by constructor
+     * called by constructor to initialize annotation modifiers map
      */
     void init_annotation_modifiers();
+
+    /**
+     * called by constructor to initialize value_creators map
+     */
+    void init_value_creators();
 
     /**
      * collected token modifiers, when annotation modifiers like deprecated are detected
@@ -729,11 +739,23 @@ protected:
      */
     unsigned int modifiers = 0;
 
+    typedef void(*AnnotationModifierFn)(Lexer *lexer);
+
     /**
      * just a map between annotations and their functions, for example
      * key:deprecated -> value:{ modifiers = deprecated; }
      */
-    std::unordered_map<std::string, std::function<void(Lexer *lexer)>> annotation_modifiers;
+    std::unordered_map<std::string, AnnotationModifierFn> annotation_modifiers;
+
+    /**
+     * a value creator function
+     */
+    typedef void(*ValueCreatorFn)(Lexer *lexer);
+
+    /**
+     * when a value like null, true or false is encountered, a function from this map is called
+     */
+    std::unordered_map<std::string, ValueCreatorFn> value_creators;
 
     /**
      * structs declared as lexer by the user

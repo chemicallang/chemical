@@ -25,6 +25,10 @@ public:
         return BaseTypeKind::Function;
     }
 
+    ValueType value_type() const override {
+        return ValueType::Lambda;
+    }
+
     bool equal(FunctionType *other) const {
         if (isVariadic != other->isVariadic) {
             return false;

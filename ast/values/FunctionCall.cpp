@@ -10,12 +10,15 @@
 
 #include "compiler/llvmimpl.h"
 
+inline std::unique_ptr<FunctionType> func_call_func_type(FunctionCall* call) {
+    return std::unique_ptr<FunctionType>((FunctionType*) call->parent_val->create_type().release());
+}
+
 void to_llvm_args(Codegen& gen, FunctionCall* call, std::vector<std::unique_ptr<Value>>& values, bool isVariadic, std::vector<llvm::Value *>& args, unsigned int start = 0) {
     llvm::Value* argValue;
     auto linked_node = call->parent_val->linked_node();
-    auto linked = call->parent_val->create_type();
 
-    std::unique_ptr<FunctionType> expectedFunc = std::unique_ptr<FunctionType>((FunctionType*) linked.release());
+    auto expectedFunc = func_call_func_type(call);
 
     // if the called lambda is capturing, take argument next to lambda and pass it into it
     if (linked_node && expectedFunc->isCapturing && linked_node->as_func_param() != nullptr) {
@@ -64,7 +67,7 @@ inline std::vector<llvm::Value*> to_llvm_args(Codegen& gen, FunctionCall* call, 
 }
 
 llvm::Type *FunctionCall::llvm_type(Codegen &gen) {
-    return linked_func()->returnType->llvm_type(gen);
+    return func_call_func_type(this)->returnType->llvm_type(gen);
 }
 
 llvm::FunctionType *FunctionCall::llvm_func_type(Codegen &gen) {
@@ -116,8 +119,8 @@ llvm::Value *call_capturing_lambda(Codegen &gen, FunctionCall* call, std::unique
 
 llvm::Value *FunctionCall::llvm_value(Codegen &gen) {
 
-    auto func_type = std::unique_ptr<FunctionType>((FunctionType*) parent_val->create_type().release());
-    if(func_type->isCapturing && parent_val->linked_node() != nullptr && parent_val->linked_node()->as_var_init() != nullptr) {
+    auto func_type = func_call_func_type(this);
+    if(func_type->isCapturing && (parent_val->linked_node() == nullptr || parent_val->linked_node()->as_func_param() == nullptr)) {
         return call_capturing_lambda(gen, this, func_type);
     }
 
@@ -133,8 +136,8 @@ llvm::Value *FunctionCall::llvm_value(Codegen &gen) {
 
 llvm::Value* FunctionCall::llvm_value(Codegen &gen, std::vector<std::unique_ptr<Value>>& chain) {
 
-    auto func_type = std::unique_ptr<FunctionType>((FunctionType*) parent_val->create_type().release());
-    if(func_type->isCapturing && parent_val->linked_node() != nullptr && parent_val->linked_node()->as_var_init() != nullptr) {
+    auto func_type = func_call_func_type(this);
+    if(func_type->isCapturing && (parent_val->linked_node() == nullptr || parent_val->linked_node()->as_func_param() == nullptr)) {
         return call_capturing_lambda(gen, this, func_type);
     }
 

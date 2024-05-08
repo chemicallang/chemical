@@ -97,6 +97,10 @@ func test_lambda() {
         });
         return message();
     })
+    test("returned capturing lambda can be called directly", () => {
+        var message = ret_new_cap_lamb()();
+        return message;
+    })
     test("packs lambda at return", () => {
         var message = ret_new_cap_lamb();
         return message();

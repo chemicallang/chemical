@@ -48,7 +48,19 @@ llvm::Value *LambdaFunction::llvm_value(Codegen &gen) {
         // storing captured variables in a struct
         captured_struct = capture_struct(gen);
     }
+//    else {
+//        captured_struct = llvm::ConstantPointerNull::get(llvm::PointerType::get(*gen.ctx, 0));
+//    }
     return nested;
+}
+
+llvm::Value *LambdaFunction::llvm_ret_value(Codegen &gen, ReturnStatement *returnStmt) {
+    if(!func_type->isCapturing) {
+        return llvm_value(gen);
+    } else {
+        auto value = (llvm::Function *) llvm_value(gen); // called first so that captured_struct is set
+        return gen.pack_lambda(value, captured_struct);
+    }
 }
 
 llvm::FunctionType *LambdaFunction::llvm_func_type(Codegen &gen) {

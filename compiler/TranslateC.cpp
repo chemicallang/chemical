@@ -116,7 +116,7 @@ clang::ASTUnit *ClangLoadFromCommandLine(
         struct ErrorMsg **errors_ptr,
         unsigned long *errors_len,
         const char *resources_path,
-        clang::IntrusiveRefCntPtr<clang::DiagnosticsEngine>& diags
+        clang::IntrusiveRefCntPtr<clang::DiagnosticsEngine> diags
 ) {
 
     std::shared_ptr<clang::PCHContainerOperations> pch_container_ops = std::make_shared<clang::PCHContainerOperations>();
@@ -244,20 +244,55 @@ clang::ASTUnit *ClangLoadFromCommandLine(
     return ast_unit;
 }
 
-std::vector<std::unique_ptr<ASTNode>> TranslateC(const char *abs_path, const char *resources_path) {
-    std::unique_ptr<std::vector<const char *>> args(new std::vector<const char *>());
-    args->push_back(abs_path);
-    unsigned long errors_len = 0;
+// Function to convert std::vector<std::string> to char**
+void convertToCharPointers(const std::vector<std::string>& args, char*** begin, char*** end) {
+    // Allocate memory for the array of char pointers
+    char** argv = new char*[args.size()];
+
+    // Copy each string from the vector to the array
+    for (size_t i = 0; i < args.size(); ++i) {
+        // Allocate memory for the C-style string and copy the content
+        argv[i] = new char[args[i].size() + 1]; // +1 for null terminator
+        std::strcpy(argv[i], args[i].c_str());
+    }
+
+    // Set begin and end pointers
+    *begin = argv;
+    *end = argv + args.size();
+}
+
+// Function to free memory allocated for char** pointers
+void freeCharPointers(char** begin, char** end) {
+    for (char** it = begin; it != end; ++it) {
+        delete[] *it; // Free memory for each C-style string
+    }
+    delete[] begin; // Free memory for the array of char pointers
+}
+
+std::vector<std::unique_ptr<ASTNode>> TranslateC(const char* exe_path, const char *abs_path, const char *resources_path) {
+    std::vector<std::string> args;
+    args.emplace_back(exe_path);
+    args.emplace_back(abs_path);
     clang::IntrusiveRefCntPtr<clang::DiagnosticsEngine> diags(
             clang::CompilerInstance::createDiagnostics(new clang::DiagnosticOptions));
+    ErrorMsg* errors;
+    unsigned long errors_len = 0;
+
+    char** args_begin;
+    char** args_end;
+
+    // Convert vector to char** pointers
+    convertToCharPointers(args, &args_begin, &args_end);
+
     auto unit = ClangLoadFromCommandLine(
-            &(*args)[0],
-            &(*args)[0] + args->size(),
-            nullptr,
+            const_cast<const char**>(args_begin),
+            const_cast<const char**>(args_end),
+            &errors,
             &errors_len,
             resources_path,
             diags
     );
+    freeCharPointers(args_begin, args_end);
     if (!unit) {
         std::cerr << "Errors occurred during translation, Length : " << std::to_string(errors_len) << std::endl;
         diags.get()->dump();

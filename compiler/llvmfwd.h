@@ -19,4 +19,5 @@ namespace llvm {
     class InvokeInst;
     template <typename FolderTy, typename InserterTy>
     class IRBuilder;
+    class StructType;
 }

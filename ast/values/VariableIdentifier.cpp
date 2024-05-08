@@ -29,6 +29,10 @@ bool VariableIdentifier::add_member_index(Codegen &gen, Value *parent, std::vect
     return true;
 }
 
+llvm::Value *VariableIdentifier::llvm_ret_value(Codegen &gen, ReturnStatement *returnStmt) {
+    return linked->llvm_ret_load(gen, returnStmt);
+}
+
 #endif
 
 bool VariableIdentifier::is_direct_value_ref() {

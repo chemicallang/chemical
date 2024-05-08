@@ -24,6 +24,10 @@ func passed(pass : () => int) : int {
     return pass();
 }
 
+func ret_cap_lambda(message : []()=>bool) : []()=>bool {
+    return message;
+}
+
 func create_lamb(first : bool) : () => int {
     if(first) {
         return () => 5;
@@ -79,6 +83,13 @@ func test_lambda() {
             return captured;
         });
     });
+    test("testing returning capturing lambda works", () => {
+        var captured = true;
+        var message = ret_cap_lambda([captured]() => {
+            return captured;
+        });
+        return message();
+    })
     test("can pass function pointer as lambda 1", () => {
         return passed(fn_rets_1) == 1;
     })

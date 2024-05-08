@@ -58,9 +58,6 @@ llvm::Value *FunctionParam::llvm_load(Codegen &gen) {
             if (arg.getArgNo() == index) {
                 return (llvm::Value *) &arg;
             }
-//                else { // for debugging
-//                    gen.error("no mismatch" + std::to_string(arg.getArgNo()) + " " + std::to_string(param->index));
-//                }
         }
         gen.error(
                 "couldn't locate argument by name " + name + " at index " + std::to_string(index) + " in the function");
@@ -68,6 +65,10 @@ llvm::Value *FunctionParam::llvm_load(Codegen &gen) {
         gen.error("cannot provide pointer to a function parameter when not generating code for a function");
     }
     return nullptr;
+}
+
+llvm::Value *FunctionParam::llvm_ret_load(Codegen &gen, ReturnStatement *returnStmt) {
+    return type->llvm_return_intercept(gen, llvm_load(gen), this);
 }
 
 llvm::FunctionType *FunctionDeclaration::llvm_func_type(Codegen &gen) {

@@ -71,20 +71,25 @@ llvm::FunctionType *FunctionCall::llvm_func_type(Codegen &gen) {
     return linked_func()->returnType->llvm_func_type(gen);
 }
 
+llvm::Value* get_callee(Codegen &gen, FunctionCall* call) {
+    llvm::Value* callee = nullptr;
+    if(call->linked() != nullptr) {
+        if(call->linked()->as_function() == nullptr) {
+            callee = call->linked()->llvm_load(gen);
+        } else {
+            callee = call->linked()->llvm_pointer(gen);
+        }
+    } else {
+        callee = call->parent_val->llvm_value(gen);
+    }
+    return callee;
+}
+
 llvm::Value* call_with_args(FunctionCall* call, llvm::Function* fn, Codegen &gen, std::vector<llvm::Value*>& args) {
     if(fn != nullptr) {
         return gen.builder->CreateCall(fn, args);
     } else {
-        llvm::Value* callee = nullptr;
-        if(call->linked() != nullptr) {
-            if(call->linked()->as_function() == nullptr) {
-                callee = call->linked()->llvm_load(gen);
-            } else {
-                callee = call->linked()->llvm_pointer(gen);
-            }
-        } else {
-            callee = call->parent_val->llvm_value(gen);
-        }
+        auto callee = get_callee(gen, call);
         if(callee == nullptr) {
             gen.error("Couldn't get callee value for the function call to " + call->representation());
             return nullptr;
@@ -93,7 +98,29 @@ llvm::Value* call_with_args(FunctionCall* call, llvm::Function* fn, Codegen &gen
     }
 }
 
+llvm::Value *call_capturing_lambda(Codegen &gen, FunctionCall* call, std::unique_ptr<FunctionType>& func_type) {
+    std::vector<llvm::Value *> args;
+    auto value = call->parent_val->llvm_value(gen);
+    auto dataPtr = gen.builder->CreateStructGEP(gen.packed_lambda_type(), value, 1);
+    auto data = gen.builder->CreateLoad(gen.builder->getPtrTy(), dataPtr);
+    args.emplace_back(data);
+    auto decl = call->safe_linked_func();
+    auto fn = decl != nullptr ? (decl->llvm_func()) : nullptr;
+    // TODO hardcoded isVarArg when can't get the function
+    to_llvm_args(gen, call, call->values, fn != nullptr && fn->isVarArg(), args, 0);
+    auto structType = gen.packed_lambda_type();
+    auto lambdaPtr = gen.builder->CreateStructGEP(structType, value, 0);
+    auto lambda = gen.builder->CreateLoad(gen.builder->getPtrTy(), lambdaPtr);
+    return gen.builder->CreateCall(call->parent_val->llvm_func_type(gen), lambda, args);
+}
+
 llvm::Value *FunctionCall::llvm_value(Codegen &gen) {
+
+    auto func_type = std::unique_ptr<FunctionType>((FunctionType*) parent_val->create_type().release());
+    if(func_type->isCapturing && parent_val->linked_node() != nullptr && parent_val->linked_node()->as_var_init() != nullptr) {
+        return call_capturing_lambda(gen, this, func_type);
+    }
+
     std::vector<llvm::Value *> args;
 
     auto decl = safe_linked_func();
@@ -105,6 +132,12 @@ llvm::Value *FunctionCall::llvm_value(Codegen &gen) {
 }
 
 llvm::Value* FunctionCall::llvm_value(Codegen &gen, std::vector<std::unique_ptr<Value>>& chain) {
+
+    auto func_type = std::unique_ptr<FunctionType>((FunctionType*) parent_val->create_type().release());
+    if(func_type->isCapturing && parent_val->linked_node() != nullptr && parent_val->linked_node()->as_var_init() != nullptr) {
+        return call_capturing_lambda(gen, this, func_type);
+    }
+
     auto decl = safe_linked_func();
     auto requires_self = decl != nullptr && !decl->params.empty() && (decl->params[0]->name == "this" || decl->params[0]->name == "self");
     std::vector<llvm::Value *> args;

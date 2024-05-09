@@ -30,11 +30,16 @@ llvm::Value *IndexOperator::llvm_pointer(Codegen &gen) {
 }
 
 llvm::Value *IndexOperator::llvm_value(Codegen &gen) {
+    return gen.builder->CreateLoad(llvm_type(gen), elem_pointer(gen, parent_val->linked_node()),"idx_op");
+}
+
+llvm::Value *IndexOperator::access_chain_pointer(Codegen &gen, std::vector<std::unique_ptr<Value>> &values, unsigned int until) {
     if(parent_val->value_type() == ValueType::String) {
-        auto ptr = elem_pointer(gen, gen.builder->getInt8Ty(), parent_val->llvm_value(gen));
-        return gen.builder->CreateLoad(gen.builder->getInt8Ty(), ptr);
+        auto parent_pointer = Value::access_chain_pointer(gen, values, until - 1);
+        auto loaded = gen.builder->CreateLoad(gen.builder->getPtrTy(), parent_pointer);
+        return elem_pointer(gen, gen.builder->getInt8Ty(), loaded);
     } else {
-        return gen.builder->CreateLoad(llvm_type(gen), elem_pointer(gen, parent_val->linked_node()),"idx_op");
+        return Value::access_chain_pointer(gen, values, until);
     }
 }
 
@@ -57,10 +62,6 @@ llvm::FunctionType *IndexOperator::llvm_func_type(Codegen &gen) {
 }
 
 #endif
-
-bool IndexOperator::is_direct_value_ref() {
-    return parent_val->value_type() == ValueType::String;
-}
 
 std::unique_ptr<BaseType> IndexOperator::create_type() const {
     return parent_val->create_type()->create_child_type();

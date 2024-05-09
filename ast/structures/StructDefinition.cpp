@@ -104,6 +104,10 @@ ASTNode *StructMember::child(const std::string &childName) {
     return linked->child(childName);
 }
 
+ValueType StructMember::value_type() const {
+    return type->value_type();
+}
+
 std::string StructMember::representation() const {
     std::string rep(name + " : " + type->representation());
     if (defValue.has_value()) {

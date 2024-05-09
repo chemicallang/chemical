@@ -389,7 +389,10 @@ add_executable(Compiler Compiler.cpp ${COMMON_SOURCES}
         compiler/cc1gen_reproducer_main.cpp
         compiler/llvmfwd.h
         compiler/llvmimpl.h
-        compiler/TranslateC.cpp
+        compiler/ctranslator/TranslateC.cpp
+        compiler/ctranslator/CTranslator.h
+        compiler/ctranslator/CTranslator.cpp
+        compiler/ctranslator/testing.cpp
 )
 
 message(STATUS "FEATURES ${COMPILER_FEATURES}")

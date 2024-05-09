@@ -21,4 +21,8 @@ public:
         return new ShortType();
     }
 
+    std::string representation() const override {
+        return "short";
+    }
+
 };

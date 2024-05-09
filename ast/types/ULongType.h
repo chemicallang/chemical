@@ -21,4 +21,8 @@ public:
         return new ULongType(number == 64);
     }
 
+    std::string representation() const override {
+        return "ulong";
+    }
+
 };

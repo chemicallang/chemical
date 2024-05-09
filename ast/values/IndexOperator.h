@@ -33,15 +33,15 @@ public:
 
     Value *find_in(InterpretScope &scope, Value *parent) override;
 
-    bool is_direct_value_ref() override;
-
 #ifdef COMPILER_BUILD
 
-    llvm::Value *elem_pointer(Codegen &gen, llvm::Type*, llvm::Value *ptr);
+    llvm::Value *elem_pointer(Codegen &gen, llvm::Type *, llvm::Value *ptr);
 
     llvm::Value *elem_pointer(Codegen &gen, ASTNode *arr);
 
     llvm::Value *llvm_pointer(Codegen &gen) override;
+
+    llvm::Value *access_chain_pointer(Codegen &gen, std::vector<std::unique_ptr<Value>> &values, unsigned int until) override;
 
     llvm::Value *llvm_value(Codegen &gen) override;
 
@@ -57,7 +57,7 @@ public:
 
     std::string representation() const override;
 
-    Value* parent_val;
+    Value *parent_val;
     std::vector<std::unique_ptr<Value>> values;
 
 };

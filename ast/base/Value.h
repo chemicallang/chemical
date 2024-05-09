@@ -329,6 +329,15 @@ std::cerr << "child called on base value";
     }
 
     /**
+     * when a identifier is last in the access chain, for example x.y.z here z is the last identifier
+     * this function will be called on it, the values given are the values of access chain
+     * by default this just calls default_chain_pointer
+     * @param values part of access chain, identifier / function call / index operator
+     * @param until the values are considered up until this (exclusive)
+     */
+    virtual llvm::Value* access_chain_pointer(Codegen &gen, std::vector<std::unique_ptr<Value>>& values, unsigned int until);
+
+    /**
      * add member index for the given identifier
      * WARNING : parent can be null ptr when this is the first element in access chain
      * @return whether it was successful in access index(s)

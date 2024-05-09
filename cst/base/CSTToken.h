@@ -52,6 +52,10 @@ public:
         return type() >= LexTokenType::IndexCompStart && type() <= LexTokenType::IndexCompEnd;
     }
 
+    CompoundCSTToken* as_compound() {
+        return (CompoundCSTToken*) this;
+    }
+
     /**
      * is the token var init compound token
      */

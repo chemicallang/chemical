@@ -141,6 +141,10 @@ inline bool is_char_op(CSTToken *token, char x) {
     return token->type() == LexTokenType::CharOperator && char_op(token) == x;
 }
 
+inline bool is_str_op(CSTToken *token, const std::string &x) {
+    return token->type() == LexTokenType::StringOperator && str_token(token) == x;
+}
+
 Scope take_body(CSTConverter *conv, CSTToken *token) {
     auto prev_nodes = std::move(conv->nodes);
     token->accept(conv);
@@ -242,9 +246,6 @@ std::optional<std::unique_ptr<BaseType>> CSTConverter::opt_type() {
 void CSTConverter::visit(FunctionParamCST *param) {
     auto identifier = str_token(param->tokens, 0);
     visit(param->tokens, 2);
-    auto lastToken = param->tokens[param->tokens.size() - 1].get();
-    auto isVariadic = !lastToken->compound() && lastToken->start_token()->is_abs_string() &&
-                      ((AbstractStringToken *) lastToken)->value == "...";
     BaseType *baseType;
     if (optional_param_types) {
         auto t = opt_type();
@@ -256,8 +257,7 @@ void CSTConverter::visit(FunctionParamCST *param) {
     } else {
         baseType = type().release();
     }
-    nodes.emplace_back(
-            std::make_unique<FunctionParam>(identifier, std::unique_ptr<BaseType>(baseType), param_index, isVariadic,
+    nodes.emplace_back(std::make_unique<FunctionParam>(identifier, std::unique_ptr<BaseType>(baseType), param_index,
                                             opt_value()));
 }
 
@@ -279,18 +279,21 @@ FunctionParamsResult CSTConverter::function_params(cst_tokens_ref_type tokens, u
                                                                            ? current_interface_decl->name
                                                                            : current_impl_decl->struct_name.value());
             params.emplace_back(new FunctionParam(strId, std::make_unique<PointerType>(
-                    std::make_unique<ReferencedType>(type)), 0, false, std::nullopt));
+                    std::make_unique<ReferencedType>(type)), 0, std::nullopt));
         } else if (tokens[i]->compound()) {
             tokens[i]->accept(this);
             param_index++;
             auto param = (FunctionParam *) nodes.back().release();
             params.emplace_back(param);
             nodes.pop_back();
-            if (param->isVariadic) {
+            auto& param_tokens = tokens[i]->as_compound()->tokens;
+            auto last_token = param_tokens[param_tokens.size() - 1].get();
+            if (is_str_op(last_token, "...")) {
                 isVariadic = true;
                 i++;
                 break;
             }
+
         } else if (is_char_op(tokens[i].get(), ',')) {
             // do nothing
         } else {

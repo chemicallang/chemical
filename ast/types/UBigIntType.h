@@ -21,4 +21,8 @@ public:
         return new UBigIntType();
     }
 
+    std::string representation() const override {
+        return "ubigint";
+    }
+
 };

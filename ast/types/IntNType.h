@@ -34,10 +34,6 @@ public:
         return ValueType::Int;
     }
 
-    std::string representation() const override {
-        return "int" + std::to_string(number);
-    }
-
     BaseTypeKind kind() const override {
         return BaseTypeKind::IntN;
     }

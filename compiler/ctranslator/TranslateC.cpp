@@ -12,14 +12,14 @@
 #include <memory>
 #include "ast/structures/FunctionParam.h"
 #include "ast/structures/FunctionDeclaration.h"
-#include "ast/types/IntNType.h"
-#include "ast/types/IntType.h"
-#include "ast/types/VoidType.h"
+#include "CTranslator.h"
+#include "ast/types/BoolType.h"
 #include "ast/types/CharType.h"
+#include "ast/types/IntType.h"
+#include "ast/types/UIntType.h"
+#include "ast/types/VoidType.h"
+#include "ast/types/PointerType.h"
 #include "ast/types/FloatType.h"
-#include "ast/types/DoubleType.h"
-#include "ast/types/LongType.h"
-#include "ast/types/BigIntType.h"
 
 namespace clang {
     class ASTUnit;
@@ -52,53 +52,66 @@ struct ErrorMsg {
 #pragma GCC diagnostic pop
 #endif
 
-std::unique_ptr<BaseType> new_type(clang::QualType *type) {
-    auto type_str = type->getAsString();
-    if (type_str == "int") {
-        return std::make_unique<IntType>();
-    } else if (type_str == "char") {
-        return std::make_unique<CharType>();
-    } else if (type_str == "float") {
-        return std::make_unique<FloatType>();
-    } else if (type_str == "double") {
-        return std::make_unique<DoubleType>();
-    } else if (type_str == "long") {
-        return std::make_unique<LongType>(sizeof(long) == 8);
-    } else if (type_str == "long long") {
-        return std::make_unique<BigIntType>();
-    } else if (type_str == "void") {
-        return std::make_unique<VoidType>();
+BaseType *new_type(CTranslator *translator, clang::QualType *type) {
+    auto ptr = type->getTypePtr();
+    if(ptr->isVoidType()) {
+        return new VoidType();
+    } else if(ptr->isPointerType()) {
+        auto point = ptr->getPointeeType();
+        auto pointee = new_type(translator, &point);
+        if(!pointee) return nullptr;
+        return new PointerType(std::unique_ptr<BaseType>(pointee));
+    } else if(ptr->isBooleanType()) {
+        return new BoolType();
+    } else if(ptr->isCharType()) {
+        return new CharType();
+    } else if(ptr->isFloatingType()) {
+        return new FloatType();
+    } else if(ptr->isIntegerType()) {
+        if(ptr->isUnsignedIntegerType()) {
+            return new UIntType();
+        } else {
+            return new IntType();
+        }
     } else {
-        throw std::runtime_error("type not supported");
+        return nullptr;
     }
 }
 
-
-void Translate(clang::ASTUnit *unit, std::vector<std::unique_ptr<ASTNode>> &nodes) {
+void Translate(CTranslator *translator, clang::ASTUnit *unit, std::vector<std::unique_ptr<ASTNode>> &nodes) {
     auto tud = unit->getASTContext().getTranslationUnitDecl();
     for (auto &decl: tud->decls()) {
         if (decl->getKind() == clang::Decl::Kind::Function) {
             auto func_decl = (clang::FunctionDecl *) (decl);
-            func_decl->getName();
             // Check if the declaration is for the printf function
             // Extract function parameters
             func_params params;
             unsigned index = 0;
             for (const auto *param: func_decl->parameters()) {
                 auto type = param->getType();
+                auto chem_type = new_type(translator, &type);
+                if (!chem_type) {
+                    translator->error("couldn't deduce func param type " + type.getAsString());
+                    continue;
+                }
                 params.emplace_back(new FunctionParam(
                         param->getNameAsString(),
-                        new_type(&type),
+                        std::unique_ptr<BaseType>(chem_type),
                         index,
                         std::nullopt
                 ));
                 index++;
             }
             auto ret_type = func_decl->getReturnType();
+            auto chem_type = new_type(translator, &ret_type);
+            if (!chem_type) {
+                translator->error("couldn't deduce func return type " + ret_type.getAsString());
+                continue;
+            }
             nodes.emplace_back(std::make_unique<FunctionDeclaration>(
                     func_decl->getNameAsString(),
                     std::move(params),
-                    new_type(&ret_type),
+                    std::unique_ptr<BaseType>(chem_type),
                     func_decl->isVariadic(),
                     std::nullopt
             ));
@@ -292,11 +305,26 @@ TranslateC(const char *exe_path, const char *abs_path, const char *resources_pat
     freeCharPointers(args_begin, args_end);
     if (!unit) {
         std::cerr << "Errors occurred during translation, Length : " << std::to_string(errors_len) << std::endl;
+        unsigned i = 0;
+        ErrorMsg *err;
+        while (i < errors_len) {
+            err = errors + i;
+            std::cerr << err->msg_ptr << " at " << err->filename_ptr << ":" << err->line << ":" << err->column
+                      << std::endl;
+            i++;
+        }
         diags.get()->dump();
         return {};
     }
     std::vector<std::unique_ptr<ASTNode>> nodes;
-    Translate(unit, nodes);
+    CTranslator translator;
+    Translate(&translator, unit, nodes);
     delete unit;
+    if (!translator.errors.empty()) {
+        std::cerr << "Errors occurred during translation" << std::endl;
+    }
+    for (const auto &err: translator.errors) {
+        std::cerr << err.message << std::endl;
+    }
     return nodes;
 }

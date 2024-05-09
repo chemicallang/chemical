@@ -21,4 +21,8 @@ public:
         return new IntType();
     }
 
+    std::string representation() const override {
+        return "int";
+    }
+
 };

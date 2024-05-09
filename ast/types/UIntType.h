@@ -21,4 +21,8 @@ public:
         return new UIntType();
     }
 
+    std::string representation() const override {
+        return "uint";
+    }
+
 };

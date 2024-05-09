@@ -22,14 +22,7 @@ llvm::Value *AccessChain::llvm_value(Codegen &gen) {
     if(values.size() == 1) {
         return values[0]->llvm_value(gen);
     }
-    if(values[values.size() - 1]->is_direct_value_ref()) {
-        return values[values.size() - 1]->llvm_value(gen);
-    }
-    if(values[values.size() - 1]->as_func_call() != nullptr) {
-        return values[values.size() - 1]->as_func_call()->llvm_value(gen, values);
-    } else {
-        return gen.builder->CreateLoad(values[values.size() - 1]->llvm_type(gen), llvm_pointer(gen), "acc");
-    }
+    return values[values.size() - 1]->access_chain_value(gen, values);
 }
 
 llvm::Value *AccessChain::llvm_pointer(Codegen &gen) {

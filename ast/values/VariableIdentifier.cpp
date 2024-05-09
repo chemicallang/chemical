@@ -35,8 +35,12 @@ llvm::Value *VariableIdentifier::llvm_ret_value(Codegen &gen, ReturnStatement *r
 
 #endif
 
-bool VariableIdentifier::is_direct_value_ref() {
-    return linked->as_enum_member() != nullptr;
+llvm::Value *VariableIdentifier::access_chain_value(Codegen &gen, std::vector<std::unique_ptr<Value>> &values) {
+    if(linked->as_enum_member() != nullptr) {
+        return llvm_value(gen);
+    } else {
+        return Value::access_chain_value(gen, values);
+    }
 }
 
 void VariableIdentifier::link(SymbolResolver &linker) {

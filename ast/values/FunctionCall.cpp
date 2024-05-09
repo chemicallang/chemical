@@ -171,6 +171,10 @@ llvm::Value* FunctionCall::llvm_value(Codegen &gen, std::vector<std::unique_ptr<
     return call_with_args(this, fn, gen,  args);
 }
 
+llvm::Value* FunctionCall::access_chain_value(Codegen &gen, std::vector<std::unique_ptr<Value>> &values) {
+    return llvm_value(gen, values);
+}
+
 llvm::InvokeInst *FunctionCall::llvm_invoke(Codegen &gen, llvm::BasicBlock* normal, llvm::BasicBlock* unwind) {
     auto decl = linked_func();
     auto fn = decl != nullptr ? (decl->llvm_func()) : nullptr;

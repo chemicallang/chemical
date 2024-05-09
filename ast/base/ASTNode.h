@@ -112,9 +112,6 @@ public:
      * @return
      */
     virtual FunctionParam *as_func_param() {
-#ifdef DEBUG
-        std::cerr << "as_parameter called on ASTNode" << std::endl;
-#endif
         return nullptr;
     }
 

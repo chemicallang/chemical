@@ -913,9 +913,13 @@ void CSTConverter::visit(AccessChainCST *chain) {
     auto ret_chain = std::make_unique<AccessChain>(std::move(values));
     values = std::move(prev_values);
     if (chain->is_node) {
-        nodes.push_back(std::move(ret_chain));
+        nodes.emplace_back(std::move(ret_chain));
     } else {
-        values.push_back(std::move(ret_chain));
+        if(ret_chain->values.size() == 1) {
+            values.emplace_back(std::move(ret_chain->values[0]));
+        } else {
+            values.emplace_back(std::move(ret_chain));
+        }
     }
 }
 

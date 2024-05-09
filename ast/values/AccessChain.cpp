@@ -19,29 +19,15 @@ llvm::Type *AccessChain::llvm_type(Codegen &gen) {
 }
 
 llvm::Value *AccessChain::llvm_value(Codegen &gen) {
-    if(values.size() == 1) {
-        return values[0]->llvm_value(gen);
-    }
     return values[values.size() - 1]->access_chain_value(gen, values);
 }
 
 llvm::Value *AccessChain::llvm_pointer(Codegen &gen) {
-    if(values.size() == 1) {
-        return values[0]->llvm_pointer(gen);
-    } else {
-        return values[values.size() - 1]->access_chain_pointer(gen, values, values.size());
-    }
+    return values[values.size() - 1]->access_chain_pointer(gen, values, values.size());
 }
 
 llvm::FunctionType *AccessChain::llvm_func_type(Codegen &gen) {
     return values[values.size() - 1]->llvm_func_type(gen);
-}
-
-llvm::Value *AccessChain::llvm_ret_value(Codegen &gen, ReturnStatement *returnStmt) {
-    if(values.size() == 1) {
-        return values[values.size() - 1]->llvm_ret_value(gen, returnStmt);
-    }
-    return llvm_value(gen);
 }
 
 #endif
@@ -53,20 +39,9 @@ void AccessChain::declare_and_link(SymbolResolver &linker) {
 void AccessChain::link(SymbolResolver &linker) {
     values[0]->link(linker);
     if (values.size() > 1) {
-//        auto parent = values[0]->linked_node();
-//        if (!parent) {
-//            linker.error("couldn't find first fragment '" + values[0]->representation() + "' in access chain '" +
-//                         representation() + "'");
-//            return;
-//        }
         unsigned i = 1;
         while (i < values.size()) {
             values[i]->find_link_in_parent(values[i - 1].get(), linker);
-//            if (!parent) {
-//                linker.error("couldn't find fragment '" + values[i]->representation() + "' in access chain '" +
-//                             representation() + "'");
-//                break;
-//            }
             i++;
         }
     }

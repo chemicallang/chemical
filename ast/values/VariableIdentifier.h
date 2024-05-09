@@ -64,8 +64,6 @@ public:
         return false;
     }
 
-    bool is_direct_value_ref() override;
-
 #ifdef COMPILER_BUILD
 
     bool add_member_index(Codegen &gen, Value *parent, std::vector<llvm::Value *> &indexes) override;
@@ -79,6 +77,8 @@ public:
     llvm::Value *llvm_value(Codegen &gen) override;
 
     llvm::Value *llvm_ret_value(Codegen &gen, ReturnStatement *returnStmt) override;
+
+    llvm::Value *access_chain_value(Codegen &gen, std::vector<std::unique_ptr<Value>> &values) override;
 
 #endif
 

@@ -145,14 +145,6 @@ std::cerr << "child called on base value";
     }
 
     /**
-     * let's say this reference is connected to a value that is compile time
-     * for example an enum member, that will become a int32
-     */
-    virtual bool is_direct_value_ref() {
-        return false;
-    }
-
-    /**
      * index operator [] calls this on a value
      */
     virtual Value* index(InterpretScope& scope, int i) {
@@ -327,6 +319,12 @@ std::cerr << "child called on base value";
     virtual llvm::Value* llvm_ret_value(Codegen& gen, ReturnStatement* returnStmt) {
         return llvm_value(gen);
     }
+
+    /**
+     * called by access chain on the last ref value in the chain
+     * by default it just creates a load instruction on the access_chain_pointer by retriving it from below
+     */
+    virtual llvm::Value* access_chain_value(Codegen &gen, std::vector<std::unique_ptr<Value>>& values);
 
     /**
      * when a identifier is last in the access chain, for example x.y.z here z is the last identifier

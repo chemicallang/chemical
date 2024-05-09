@@ -39,6 +39,8 @@ public:
 
     std::unique_ptr<BaseType> create_value_type() override;
 
+    ValueType value_type() const override;
+
     std::string representation() const override;
 
 };

@@ -33,18 +33,18 @@ llvm::Value *IndexOperator::llvm_value(Codegen &gen) {
     return gen.builder->CreateLoad(llvm_type(gen), elem_pointer(gen, parent_val->linked_node()),"idx_op");
 }
 
-llvm::Value *IndexOperator::access_chain_pointer(Codegen &gen, std::vector<std::unique_ptr<Value>> &values, unsigned int until) {
+llvm::Value *IndexOperator::access_chain_pointer(Codegen &gen, std::vector<std::unique_ptr<Value>> &chain_values, unsigned int until) {
     if(parent_val->value_type() == ValueType::String) {
-        auto parent_pointer = Value::access_chain_pointer(gen, values, until - 1);
+        auto parent_pointer = parent_val->access_chain_pointer(gen, chain_values, until - 1);
         auto loaded = gen.builder->CreateLoad(gen.builder->getPtrTy(), parent_pointer);
         return elem_pointer(gen, gen.builder->getInt8Ty(), loaded);
     } else {
-        return Value::access_chain_pointer(gen, values, until);
+        return Value::access_chain_pointer(gen, chain_values, until);
     }
 }
 
 bool IndexOperator::add_member_index(Codegen &gen, Value *parent, std::vector<llvm::Value *> &indexes) {
-    if (parent->value_type() == ValueType::Array) {
+    if (parent->value_type() == ValueType::Array && indexes.empty()) {
         indexes.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), 0));
     }
     for (auto &value: values) {

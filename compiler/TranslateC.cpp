@@ -5,6 +5,7 @@
 #include <clang/AST/APValue.h>
 #include <clang/AST/Attr.h>
 #include <clang/AST/Expr.h>
+#include <clang/AST/Type.h>
 #include <clang/AST/RecordLayout.h>
 #include "ast/base/ASTNode.h"
 #include "ast/base/BaseType.h"
@@ -51,10 +52,6 @@ struct ErrorMsg {
 #pragma GCC diagnostic pop
 #endif
 
-// TODO nothing works in this file
-// TODO as the code written is completely garbage at the moment
-// TODO this will result in exceptions most probably
-
 std::unique_ptr<BaseType> new_type(clang::QualType *type) {
     auto type_str = type->getAsString();
     if (type_str == "int") {
@@ -93,7 +90,6 @@ void Translate(clang::ASTUnit *unit, std::vector<std::unique_ptr<ASTNode>> &node
                         param->getNameAsString(),
                         new_type(&type),
                         index,
-                        false,
                         std::nullopt
                 ));
                 index++;
@@ -245,9 +241,9 @@ clang::ASTUnit *ClangLoadFromCommandLine(
 }
 
 // Function to convert std::vector<std::string> to char**
-void convertToCharPointers(const std::vector<std::string>& args, char*** begin, char*** end) {
+void convertToCharPointers(const std::vector<std::string> &args, char ***begin, char ***end) {
     // Allocate memory for the array of char pointers
-    char** argv = new char*[args.size()];
+    char **argv = new char *[args.size()];
 
     // Copy each string from the vector to the array
     for (size_t i = 0; i < args.size(); ++i) {
@@ -262,31 +258,32 @@ void convertToCharPointers(const std::vector<std::string>& args, char*** begin, 
 }
 
 // Function to free memory allocated for char** pointers
-void freeCharPointers(char** begin, char** end) {
-    for (char** it = begin; it != end; ++it) {
+void freeCharPointers(char **begin, char **end) {
+    for (char **it = begin; it != end; ++it) {
         delete[] *it; // Free memory for each C-style string
     }
     delete[] begin; // Free memory for the array of char pointers
 }
 
-std::vector<std::unique_ptr<ASTNode>> TranslateC(const char* exe_path, const char *abs_path, const char *resources_path) {
+std::vector<std::unique_ptr<ASTNode>>
+TranslateC(const char *exe_path, const char *abs_path, const char *resources_path) {
     std::vector<std::string> args;
     args.emplace_back(exe_path);
     args.emplace_back(abs_path);
     clang::IntrusiveRefCntPtr<clang::DiagnosticsEngine> diags(
             clang::CompilerInstance::createDiagnostics(new clang::DiagnosticOptions));
-    ErrorMsg* errors;
+    ErrorMsg *errors;
     unsigned long errors_len = 0;
 
-    char** args_begin;
-    char** args_end;
+    char **args_begin;
+    char **args_end;
 
     // Convert vector to char** pointers
     convertToCharPointers(args, &args_begin, &args_end);
 
     auto unit = ClangLoadFromCommandLine(
-            const_cast<const char**>(args_begin),
-            const_cast<const char**>(args_end),
+            const_cast<const char **>(args_begin),
+            const_cast<const char **>(args_end),
             &errors,
             &errors_len,
             resources_path,

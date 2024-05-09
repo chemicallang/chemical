@@ -195,12 +195,10 @@ FunctionParam::FunctionParam(
         std::string name,
         std::unique_ptr<BaseType> type,
         unsigned int index,
-        bool isVariadic,
         std::optional<std::unique_ptr<Value>> defValue
 ) : name(std::move(name)),
     type(std::move(type)),
     index(index),
-    isVariadic(isVariadic),
     defValue(std::move(defValue))
 {
     name.shrink_to_fit();
@@ -223,7 +221,7 @@ FunctionParam *FunctionParam::copy() const {
     if (defValue.has_value()) {
         copied.emplace(defValue.value()->copy());
     }
-    return new FunctionParam(name, std::unique_ptr<BaseType>(type->copy()), index, isVariadic, std::move(copied));
+    return new FunctionParam(name, std::unique_ptr<BaseType>(type->copy()), index, std::move(copied));
 }
 
 std::string FunctionParam::representation() const {

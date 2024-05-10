@@ -16,6 +16,7 @@
 #include "ast/types/PointerType.h"
 #include "ast/types/ArrayType.h"
 #include "ast/structures/StructDefinition.h"
+#include "ast/statements/Typealias.h"
 
 struct ErrorMsg {
     const char *filename_ptr; // can be null
@@ -28,13 +29,13 @@ struct ErrorMsg {
     unsigned offset; // byte offset into source
 };
 
-BaseType *new_type(CTranslator *translator, clang::QualType *type) {
+BaseType* CTranslator::make_type(clang::QualType* type) {
     auto ptr = type->getTypePtr();
     if(ptr->isBuiltinType()) {
         auto builtIn = static_cast<clang::BuiltinType*>(const_cast<clang::Type*>(ptr));
-        auto created = translator->type_makers[builtIn->getKind()](builtIn);
+        auto created = type_makers[builtIn->getKind()](builtIn);
         if(!created) {
-            translator->error("builtin type maker failed with kind " + std::to_string(builtIn->getKind()) + " with representation " + builtIn->getName(clang::PrintingPolicy{clang::LangOptions{}}).str());
+            error("builtin type maker failed with kind " + std::to_string(builtIn->getKind()) + " with representation " + builtIn->getName(clang::PrintingPolicy{clang::LangOptions{}}).str());
         }
         return created;
     } else if(ptr->isStructureType()){
@@ -43,7 +44,7 @@ BaseType *new_type(CTranslator *translator, clang::QualType *type) {
         std::map<std::string, std::unique_ptr<StructMember>> fields;
         for(auto str : decl->fields()) {
             auto field_type = str->getType();
-            auto field_type_conv = new_type(translator, &field_type);
+            auto field_type_conv = make_type(&field_type);
             if(!field_type_conv) {
                 return nullptr;
             }
@@ -51,7 +52,7 @@ BaseType *new_type(CTranslator *translator, clang::QualType *type) {
         }
         auto def = new StructDefinition(decl->getNameAsString(), std::nullopt);
         def->variables = std::move(fields);
-        translator->before_nodes.emplace_back(def);
+        before_nodes.emplace_back(def);
         return new ReferencedType(decl->getNameAsString());
     }
 //    else if(ptr->isArrayType()) { // couldn't make use of it
@@ -65,15 +66,22 @@ BaseType *new_type(CTranslator *translator, clang::QualType *type) {
 //    }
     else if(ptr->isPointerType()) {
         auto point = ptr->getPointeeType();
-        auto pointee = new_type(translator, &point);
+        auto pointee = make_type(&point);
         if(!pointee) {
             return nullptr;
         }
         return new PointerType(std::unique_ptr<BaseType>(pointee));
     } else {
-        translator->error("unknown type given to new_type with representation " + type->getAsString());
+        error("unknown type given to new_type with representation " + type->getAsString());
         return nullptr;
     };
+}
+
+TypealiasStatement* CTranslator::make_typealias(clang::TypedefDecl* decl) {
+    auto decl_type = decl->getUnderlyingType();
+    auto type = make_type(&decl_type);
+    if(type == nullptr) return nullptr;
+    return new TypealiasStatement(decl->getNameAsString(), std::unique_ptr<BaseType>(type));
 }
 
 FunctionDeclaration* CTranslator::make_func(clang::FunctionDecl* func_decl) {
@@ -84,7 +92,7 @@ FunctionDeclaration* CTranslator::make_func(clang::FunctionDecl* func_decl) {
     bool skip_fn = false;
     for (const auto *param: func_decl->parameters()) {
         auto type = param->getType();
-        auto chem_type = new_type(this, &type);
+        auto chem_type = make_type(&type);
         if (!chem_type) {
             skip_fn = true;
             continue;
@@ -101,7 +109,7 @@ FunctionDeclaration* CTranslator::make_func(clang::FunctionDecl* func_decl) {
         return nullptr;
     }
     auto ret_type = func_decl->getReturnType();
-    auto chem_type = new_type(this, &ret_type);
+    auto chem_type = make_type(&ret_type);
     if (!chem_type) {
         return nullptr;
     }

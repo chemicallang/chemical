@@ -6,4 +6,6 @@ namespace clang {
     class BuiltinType;
     class FunctionDecl;
     class Decl;
+    class TypedefDecl;
+    class QualType;
 }

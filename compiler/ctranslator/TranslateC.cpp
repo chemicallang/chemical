@@ -18,6 +18,7 @@
 #include "ast/types/ArrayType.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/statements/Typealias.h"
+#include "ast/statements/VarInit.h"
 
 struct ErrorMsg {
     const char *filename_ptr; // can be null
@@ -104,6 +105,22 @@ TypealiasStatement* CTranslator::make_typealias(clang::TypedefDecl* decl) {
     auto type = make_type(&decl_type);
     if(type == nullptr) return nullptr;
     return new TypealiasStatement(decl->getNameAsString(), std::unique_ptr<BaseType>(type));
+}
+
+Expression* CTranslator::make_expr(clang::Expr* expr) {
+    error("UNIMPLEMENTED: cannot create an expression at the moment");
+    return nullptr;
+}
+
+VarInitStatement* CTranslator::make_var_init(clang::VarDecl* decl) {
+    auto type = decl->getType();
+    auto made_type = make_type(&type);
+    std::optional<std::unique_ptr<Value>> initial = std::nullopt;
+    auto initial_value = (Value*) make_expr(decl->getInit());
+    if(initial_value) {
+        initial.emplace(initial_value);
+    }
+    return new VarInitStatement(false, decl->getNameAsString(), std::unique_ptr<BaseType>(made_type), std::move(initial));
 }
 
 FunctionDeclaration* CTranslator::make_func(clang::FunctionDecl* func_decl) {

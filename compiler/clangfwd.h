@@ -10,4 +10,6 @@ namespace clang {
     class QualType;
     class RecordDecl;
     class EnumDecl;
+    class VarDecl;
+    class Expr;
 }

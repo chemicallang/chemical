@@ -1618,7 +1618,7 @@ void CTranslator::init_node_makers() {
         return nullptr;
     };
     node_makers[ZigClangDeclVar] = [](CTranslator* translator, clang::Decl* decl) -> ASTNode* {
-        return nullptr;
+        return (ASTNode*) translator->make_var_init((clang::VarDecl*) decl);
     };
     node_makers[ZigClangDeclDecomposition] = [](CTranslator* translator, clang::Decl* decl) -> ASTNode* {
         return nullptr;

@@ -43,7 +43,11 @@ BaseType *new_type(CTranslator *translator, clang::QualType *type) {
         std::map<std::string, std::unique_ptr<StructMember>> fields;
         for(auto str : decl->fields()) {
             auto field_type = str->getType();
-            fields[str->getNameAsString()] = std::make_unique<StructMember>(str->getNameAsString(), std::unique_ptr<BaseType>(new_type(translator, &field_type)), std::nullopt);
+            auto field_type_conv = new_type(translator, &field_type);
+            if(!field_type_conv) {
+                return nullptr;
+            }
+            fields[str->getNameAsString()] = std::make_unique<StructMember>(str->getNameAsString(), std::unique_ptr<BaseType>(field_type_conv), std::nullopt);
         }
         auto def = new StructDefinition(decl->getNameAsString(), std::nullopt);
         def->variables = std::move(fields);

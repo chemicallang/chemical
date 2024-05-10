@@ -122,7 +122,7 @@ void Translate(CTranslator *translator, clang::ASTUnit *unit) {
         if(node) {
             translator->nodes.emplace_back(node);
         } else {
-            translator->error("couldn't convert decl with kind " + std::to_string(decl->getKind()));
+            translator->error("couldn't convert decl with kind " + std::to_string(decl->getKind()) + " & kind name " + decl->getDeclKindName());
         }
     }
 }

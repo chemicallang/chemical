@@ -7,19 +7,28 @@
 #include <string>
 #include "ast/base/BaseType.h"
 #include "compiler/clangfwd.h"
+#include "compiler/chem_clang.h"
 
 /**
- * when provided a c type string like char, float, long long
+ * when provided a clang builtin type pointer
  * it'll make a chemical type
+ *
+ * this expects a builtin type of the same kind, which is being used to index it on vector type_makers
  */
 typedef BaseType*(*CTypeMakerFn)(clang::BuiltinType*);
 
-using TypeMakersMap = std::unordered_map<int, CTypeMakerFn>;
-
+/**
+ * a simple struct to represent errors during translation
+ * we'll expand this later
+ */
 struct CTranslatorError {
     std::string message;
 };
 
+/**
+ * The point of this class to provide storage for translation process
+ * for example storage for indexed types, errors and stuff
+ */
 class CTranslator {
 public:
 
@@ -29,9 +38,11 @@ public:
     std::vector<CTranslatorError> errors;
 
     /**
-     * type makers function map
+     * type makers functions vector
+     * enum BuiltinType::Kind, this enum is used as an index on this vector
+     * last enum entry is being used as size of the vector: ZigClangBuiltinTypeOMPIterator
      */
-    TypeMakersMap type_makers;
+    std::vector<CTypeMakerFn> type_makers = std::vector<CTypeMakerFn>(ZigClangBuiltinTypeOMPIterator + 1);
 
     /**
      * constructor

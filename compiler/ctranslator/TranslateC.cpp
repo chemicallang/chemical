@@ -13,17 +13,7 @@
 #include "ast/structures/FunctionParam.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "CTranslator.h"
-#include "ast/types/BoolType.h"
-#include "ast/types/CharType.h"
-#include "ast/types/IntType.h"
-#include "ast/types/UIntType.h"
-#include "ast/types/VoidType.h"
 #include "ast/types/PointerType.h"
-#include "ast/types/FloatType.h"
-
-namespace clang {
-    class ASTUnit;
-}
 
 struct ErrorMsg {
     const char *filename_ptr; // can be null
@@ -36,46 +26,20 @@ struct ErrorMsg {
     unsigned offset; // byte offset into source
 };
 
-#if __GNUC__ >= 8
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wclass-memaccess"
-#endif
-
-#include <clang/Frontend/ASTUnit.h>
-#include <clang/Frontend/CompilerInstance.h>
-#include <clang/AST/APValue.h>
-#include <clang/AST/Attr.h>
-#include <clang/AST/Expr.h>
-#include <clang/AST/RecordLayout.h>
-
-#if __GNUC__ >= 8
-#pragma GCC diagnostic pop
-#endif
-
 BaseType *new_type(CTranslator *translator, clang::QualType *type) {
     auto ptr = type->getTypePtr();
-    if(ptr->isVoidType()) {
-        return new VoidType();
+    if(ptr->isBuiltinType()) {
+        auto builtIn = static_cast<clang::BuiltinType*>(const_cast<clang::Type*>(ptr));
+        auto maker = translator->type_makers[builtIn->getKind()];
+        return maker(builtIn);
     } else if(ptr->isPointerType()) {
         auto point = ptr->getPointeeType();
         auto pointee = new_type(translator, &point);
         if(!pointee) return nullptr;
         return new PointerType(std::unique_ptr<BaseType>(pointee));
-    } else if(ptr->isBooleanType()) {
-        return new BoolType();
-    } else if(ptr->isCharType()) {
-        return new CharType();
-    } else if(ptr->isFloatingType()) {
-        return new FloatType();
-    } else if(ptr->isIntegerType()) {
-        if(ptr->isUnsignedIntegerType()) {
-            return new UIntType();
-        } else {
-            return new IntType();
-        }
     } else {
         return nullptr;
-    }
+    };
 }
 
 void Translate(CTranslator *translator, clang::ASTUnit *unit, std::vector<std::unique_ptr<ASTNode>> &nodes) {

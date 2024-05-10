@@ -393,6 +393,8 @@ add_executable(Compiler Compiler.cpp ${COMMON_SOURCES}
         compiler/ctranslator/CTranslator.h
         compiler/ctranslator/CTranslator.cpp
         compiler/ctranslator/testing.cpp
+        compiler/chem_clang.h
+        compiler/chem_clang.cpp
 )
 
 message(STATUS "FEATURES ${COMPILER_FEATURES}")

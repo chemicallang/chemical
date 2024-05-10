@@ -8,6 +8,7 @@
 #include "ast/base/BaseType.h"
 #include "compiler/clangfwd.h"
 #include "compiler/chem_clang.h"
+#include "ast/base/ASTNode.h"
 
 /**
  * when provided a clang builtin type pointer
@@ -43,6 +44,12 @@ public:
      * last enum entry is being used as size of the vector: ZigClangBuiltinTypeOMPIterator
      */
     std::vector<CTypeMakerFn> type_makers = std::vector<CTypeMakerFn>(ZigClangBuiltinTypeOMPIterator + 1);
+
+    /**
+     * these are nodes that should be added before adding a node
+     * these nodes were created by tra
+     */
+    std::vector<std::unique_ptr<ASTNode>> before_nodes;
 
     /**
      * constructor

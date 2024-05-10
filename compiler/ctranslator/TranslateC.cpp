@@ -14,6 +14,8 @@
 #include "ast/structures/FunctionDeclaration.h"
 #include "CTranslator.h"
 #include "ast/types/PointerType.h"
+#include "ast/types/ArrayType.h"
+#include "ast/structures/StructDefinition.h"
 
 struct ErrorMsg {
     const char *filename_ptr; // can be null
@@ -35,7 +37,29 @@ BaseType *new_type(CTranslator *translator, clang::QualType *type) {
             translator->error("builtin type maker failed with kind " + std::to_string(builtIn->getKind()) + " with representation " + builtIn->getName(clang::PrintingPolicy{clang::LangOptions{}}).str());
         }
         return created;
-    } else if(ptr->isPointerType()) {
+    } else if(ptr->isStructureType()){
+        auto str_type = ptr->getAsStructureType();
+        auto decl = str_type->getAsRecordDecl();
+        std::map<std::string, std::unique_ptr<StructMember>> fields;
+        for(auto str : decl->fields()) {
+            auto field_type = str->getType();
+            fields[str->getNameAsString()] = std::make_unique<StructMember>(str->getNameAsString(), std::unique_ptr<BaseType>(new_type(translator, &field_type)), std::nullopt);
+        }
+        auto def = new StructDefinition(decl->getNameAsString(), std::nullopt);
+        def->variables = std::move(fields);
+        translator->before_nodes.emplace_back(def);
+        return new ReferencedType(decl->getNameAsString());
+    }
+//    else if(ptr->isArrayType()) { // couldn't make use of it
+//        auto point = ptr->getAsArrayTypeUnsafe();
+//        auto elem_type = point->getElementType();
+//        auto pointee = new_type(translator, &elem_type);
+//        if(!pointee) {
+//            return nullptr;
+//        }
+//        return new ArrayType(std::unique_ptr<BaseType>(pointee), -1);
+//    }
+    else if(ptr->isPointerType()) {
         auto point = ptr->getPointeeType();
         auto pointee = new_type(translator, &point);
         if(!pointee) {
@@ -57,10 +81,12 @@ void Translate(CTranslator *translator, clang::ASTUnit *unit, std::vector<std::u
             // Extract function parameters
             func_params params;
             unsigned index = 0;
+            bool skip_fn = false;
             for (const auto *param: func_decl->parameters()) {
                 auto type = param->getType();
                 auto chem_type = new_type(translator, &type);
                 if (!chem_type) {
+                    skip_fn = true;
                     continue;
                 }
                 params.emplace_back(new FunctionParam(
@@ -71,11 +97,18 @@ void Translate(CTranslator *translator, clang::ASTUnit *unit, std::vector<std::u
                 ));
                 index++;
             }
+            if(skip_fn) {
+                continue;
+            }
             auto ret_type = func_decl->getReturnType();
             auto chem_type = new_type(translator, &ret_type);
             if (!chem_type) {
                 continue;
             }
+            for(auto& node : translator->before_nodes) {
+                nodes.emplace_back(std::move(node));
+            }
+            translator->before_nodes.clear();
             nodes.emplace_back(std::make_unique<FunctionDeclaration>(
                     func_decl->getNameAsString(),
                     std::move(params),

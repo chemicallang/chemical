@@ -9,12 +9,12 @@
 
 void Lexer::lexImplBlockTokens() {
     do {
-        lexWhitespaceToken();
-        lexFunctionStructureTokens() || lexSingleLineCommentTokens() || lexMultiLineCommentTokens();
+        lexWhitespaceAndNewLines();
+        if(!(lexFunctionStructureTokens() || lexSingleLineCommentTokens() || lexMultiLineCommentTokens())) {
+            break;
+        }
         lexWhitespaceToken();
         lexOperatorToken(';');
-        lexWhitespaceToken();
-        lexNewLineChars();
     } while(provider.peek() != '}');
 }
 
@@ -39,8 +39,6 @@ bool Lexer::lexImplTokens() {
             error("expected a '{' when starting an implementation");
             return true;
         }
-        lexWhitespaceToken();
-        lexNewLineChars();
         lexImplBlockTokens();
         if (!lexOperatorToken('}')) {
             error("expected a '}' when ending an implementation");

@@ -13,15 +13,13 @@ bool Lexer::lexStructMemberTokens() {
 
 bool Lexer::lexStructBlockTokens() {
     if(lexOperatorToken('{')) {
-        lexWhitespaceToken();
-        lexNewLineChars();
         do {
-            lexWhitespaceToken();
-            lexStructMemberTokens();
+            lexWhitespaceAndNewLines();
+            if(!lexStructMemberTokens()) {
+                break;
+            }
             lexWhitespaceToken();
             lexOperatorToken(';');
-            lexWhitespaceToken();
-            lexNewLineChars();
         } while(provider.peek() != '}');
         lexWhitespaceToken();
         if(!lexOperatorToken('}')) {

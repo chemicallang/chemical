@@ -8,15 +8,13 @@
 #include "cst/structures/InterfaceCST.h"
 
 void Lexer::lexInterfaceBlockTokens() {
-    lexWhitespaceToken();
-    lexNewLineChars();
     do {
-        lexWhitespaceToken();
-        lexVarInitializationTokens(true, true) || lexFunctionStructureTokens(true) || lexSingleLineCommentTokens() || lexMultiLineCommentTokens();
+        lexWhitespaceAndNewLines();
+        if(!(lexVarInitializationTokens(true, true) || lexFunctionStructureTokens(true) || lexSingleLineCommentTokens() || lexMultiLineCommentTokens())) {
+            break;
+        }
         lexWhitespaceToken();
         lexOperatorToken(';');
-        lexWhitespaceToken();
-        lexNewLineChars();
     } while(provider.peek() != '}');
 }
 

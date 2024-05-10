@@ -109,7 +109,7 @@ ValueType StructMember::value_type() const {
 }
 
 std::string StructMember::representation() const {
-    std::string rep(name + " : " + type->representation());
+    std::string rep("var " + name + " : " + type->representation());
     if (defValue.has_value()) {
         rep.append(defValue.value()->representation());
     }

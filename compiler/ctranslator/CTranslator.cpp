@@ -1559,7 +1559,7 @@ void CTranslator::init_node_makers() {
         return nullptr;
     };
     node_makers[ZigClangDeclTypedef] = [](CTranslator* translator, clang::Decl* decl) -> ASTNode* {
-        return nullptr;
+        return (ASTNode*) translator->make_typealias((clang::TypedefDecl*) decl);
     };
     node_makers[ZigClangDeclUnresolvedUsingTypename] = [](CTranslator* translator, clang::Decl* decl) -> ASTNode* {
         return nullptr;

@@ -90,10 +90,20 @@ public:
     void dispatch_before();
 
     /**
+     * when given a c qualified type, it constructs a chemical type
+     */
+    BaseType* make_type(clang::QualType* type);
+
+    /**
      * when provided a pointer to function declaration
      * it'll make a function declaration
      */
     FunctionDeclaration* make_func(clang::FunctionDecl* decl);
+
+    /**
+     * create a typealias statement from typedef declaration
+     */
+    TypealiasStatement* make_typealias(clang::TypedefDecl* decl);
 
     /**
      * put an error in errors, called when an error occurs during translation

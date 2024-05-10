@@ -23,6 +23,8 @@ enum class ValueType : uint8_t {
     ULong,
     BigInt,
     UBigInt,
+    Int128,
+    UInt128,
     // integer number values end here
 
     Float,
@@ -38,7 +40,7 @@ enum class ValueType : uint8_t {
     Unknown,
 
     IntNStart = Int,
-    IntNEnd = UBigInt,
+    IntNEnd = UInt128,
 
 };
 

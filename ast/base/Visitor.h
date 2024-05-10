@@ -76,6 +76,10 @@ class UShortValue;
 
 class FloatValue;
 
+class Int128Value;
+
+class UInt128Value;
+
 class DoubleValue;
 
 class CharValue;
@@ -258,6 +262,14 @@ public:
     }
 
     virtual void visit(UShortValue* val) {
+        visitCommonValue((Value*) val);
+    }
+
+    virtual void visit(Int128Value* val) {
+        visitCommonValue((Value*) val);
+    }
+
+    virtual void visit(UInt128Value* val) {
         visitCommonValue((Value*) val);
     }
 

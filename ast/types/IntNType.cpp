@@ -10,11 +10,13 @@
 #include "ast/values/ULongValue.h"
 #include "ast/values/BigIntValue.h"
 #include "ast/values/UBigIntValue.h"
+#include "ast/values/Int128Value.h"
+#include "ast/values/UInt128Value.h"
 
 #ifdef COMPILER_BUILD
 
 #include "compiler/llvmimpl.h"
-#include "UIntType.h"
+
 
 llvm::Type *IntNType::llvm_type(Codegen &gen) const {
     auto ty = gen.builder->getIntNTy(number);
@@ -56,4 +58,13 @@ Value *BigIntType::create(int64_t value) {
 
 Value *UBigIntType::create(int64_t value) {
     return new UBigIntValue(value);
+}
+
+Value *Int128Type::create(int64_t value) {
+    bool is_neg = value < 0;
+    return new Int128Value(is_neg ? -value : value, is_neg);
+}
+
+Value *UInt128Type::create(int64_t value) {
+    return new UInt128Value(static_cast<uint64_t>(value), (value < 0) ? UINT64_MAX : 0);
 }

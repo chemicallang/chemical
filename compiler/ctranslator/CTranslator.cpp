@@ -1246,7 +1246,7 @@ void CTranslator::init_type_makers() {
         return nullptr;
     };
     type_makers[ZigClangBuiltinTypeChar_S] = [](clang::BuiltinType*) -> BaseType* {
-        return nullptr;
+        return new CharType();
     };
     type_makers[ZigClangBuiltinTypeSChar] = [](clang::BuiltinType*) -> BaseType* {
         return nullptr;
@@ -1428,9 +1428,10 @@ void CTranslator::init_type_makers() {
 }
 
 void CTranslator::error(const std::string& err) {
-#ifdef DEBUG
-    std::cerr << "error :" << err << std::endl;
-#endif
+// this can be turned on if exceptions are occurring and there's output in console
+//#ifdef DEBUG
+//    std::cerr << "error :" << err << std::endl;
+//#endif
     errors.emplace_back(
         err
     );

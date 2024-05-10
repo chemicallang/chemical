@@ -30,14 +30,20 @@ BaseType *new_type(CTranslator *translator, clang::QualType *type) {
     auto ptr = type->getTypePtr();
     if(ptr->isBuiltinType()) {
         auto builtIn = static_cast<clang::BuiltinType*>(const_cast<clang::Type*>(ptr));
-        auto maker = translator->type_makers[builtIn->getKind()];
-        return maker(builtIn);
+        auto created = translator->type_makers[builtIn->getKind()](builtIn);
+        if(!created) {
+            translator->error("builtin type maker failed with kind " + std::to_string(builtIn->getKind()) + " with representation " + builtIn->getName(clang::PrintingPolicy{clang::LangOptions{}}).str());
+        }
+        return created;
     } else if(ptr->isPointerType()) {
         auto point = ptr->getPointeeType();
         auto pointee = new_type(translator, &point);
-        if(!pointee) return nullptr;
+        if(!pointee) {
+            return nullptr;
+        }
         return new PointerType(std::unique_ptr<BaseType>(pointee));
     } else {
+        translator->error("unknown type given to new_type with representation " + type->getAsString());
         return nullptr;
     };
 }
@@ -55,7 +61,6 @@ void Translate(CTranslator *translator, clang::ASTUnit *unit, std::vector<std::u
                 auto type = param->getType();
                 auto chem_type = new_type(translator, &type);
                 if (!chem_type) {
-                    translator->error("couldn't deduce func param type " + type.getAsString());
                     continue;
                 }
                 params.emplace_back(new FunctionParam(
@@ -69,7 +74,6 @@ void Translate(CTranslator *translator, clang::ASTUnit *unit, std::vector<std::u
             auto ret_type = func_decl->getReturnType();
             auto chem_type = new_type(translator, &ret_type);
             if (!chem_type) {
-                translator->error("couldn't deduce func return type " + ret_type.getAsString());
                 continue;
             }
             nodes.emplace_back(std::make_unique<FunctionDeclaration>(
@@ -268,7 +272,7 @@ TranslateC(const char *exe_path, const char *abs_path, const char *resources_pat
     );
     freeCharPointers(args_begin, args_end);
     if (!unit) {
-        std::cerr << "Errors occurred during translation, Length : " << std::to_string(errors_len) << std::endl;
+        std::cerr << std::to_string(errors_len) << " errors occurred when loading C files" << std::endl;
         unsigned i = 0;
         ErrorMsg *err;
         while (i < errors_len) {
@@ -285,7 +289,7 @@ TranslateC(const char *exe_path, const char *abs_path, const char *resources_pat
     Translate(&translator, unit, nodes);
     delete unit;
     if (!translator.errors.empty()) {
-        std::cerr << "Errors occurred during translation" << std::endl;
+        std::cerr << std::to_string(translator.errors.size()) << " errors occurred when translating C files" << std::endl;
     }
     for (const auto &err: translator.errors) {
         std::cerr << err.message << std::endl;

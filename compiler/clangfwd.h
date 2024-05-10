@@ -8,4 +8,5 @@ namespace clang {
     class Decl;
     class TypedefDecl;
     class QualType;
+    class RecordDecl;
 }

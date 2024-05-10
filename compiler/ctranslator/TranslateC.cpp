@@ -49,18 +49,6 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
     } else if(ptr->isStructureType()){
         auto str_type = ptr->getAsStructureType();
         auto decl = str_type->getAsRecordDecl();
-        std::map<std::string, std::unique_ptr<StructMember>> fields;
-        for(auto str : decl->fields()) {
-            auto field_type = str->getType();
-            auto field_type_conv = make_type(&field_type);
-            if(!field_type_conv) {
-                return nullptr;
-            }
-            fields[str->getNameAsString()] = std::make_unique<StructMember>(str->getNameAsString(), std::unique_ptr<BaseType>(field_type_conv), std::nullopt);
-        }
-        auto def = new StructDefinition(decl->getNameAsString(), std::nullopt);
-        def->variables = std::move(fields);
-        before_nodes.emplace_back(def);
         return new ReferencedType(decl->getNameAsString());
     }
 //    else if(ptr->isArrayType()) { // couldn't make use of it
@@ -83,6 +71,21 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
         error("unknown type given to new_type with representation " + type->getAsString());
         return nullptr;
     };
+}
+
+StructDefinition* CTranslator::make_struct(clang::RecordDecl* decl) {
+    std::map<std::string, std::unique_ptr<StructMember>> fields;
+    for(auto str : decl->fields()) {
+        auto field_type = str->getType();
+        auto field_type_conv = make_type(&field_type);
+        if(!field_type_conv) {
+            return nullptr;
+        }
+        fields[str->getNameAsString()] = std::make_unique<StructMember>(str->getNameAsString(), std::unique_ptr<BaseType>(field_type_conv), std::nullopt);
+    }
+    auto def = new StructDefinition(decl->getNameAsString(), std::nullopt);
+    def->variables = std::move(fields);
+    return def;
 }
 
 TypealiasStatement* CTranslator::make_typealias(clang::TypedefDecl* decl) {

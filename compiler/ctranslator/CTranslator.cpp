@@ -1540,7 +1540,7 @@ void CTranslator::init_node_makers() {
         return nullptr;
     };
     node_makers[ZigClangDeclRecord] = [](CTranslator* translator, clang::Decl* decl) -> ASTNode* {
-        return nullptr;
+        return (ASTNode*) translator->make_struct((clang::RecordDecl*) decl);
     };
     node_makers[ZigClangDeclCXXRecord] = [](CTranslator* translator, clang::Decl* decl) -> ASTNode* {
         return nullptr;

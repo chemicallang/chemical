@@ -30,12 +30,20 @@ struct ErrorMsg {
 };
 
 BaseType* CTranslator::make_type(clang::QualType* type) {
+    auto canonical = type->getCanonicalType();
     auto ptr = type->getTypePtr();
+    auto canon_ptr = canonical.getTypePtr();
+    if(canon_ptr != ptr) { // reference
+        if(canon_ptr->isStructureType()) {
+            return make_type(&canonical);
+        }
+        return new ReferencedType(type->getAsString());
+    }
     if(ptr->isBuiltinType()) {
         auto builtIn = static_cast<clang::BuiltinType*>(const_cast<clang::Type*>(ptr));
         auto created = type_makers[builtIn->getKind()](builtIn);
         if(!created) {
-            error("builtin type maker failed with kind " + std::to_string(builtIn->getKind()) + " with representation " + builtIn->getName(clang::PrintingPolicy{clang::LangOptions{}}).str());
+            error("builtin type maker failed with kind " + std::to_string(builtIn->getKind()) + " with representation " + builtIn->getName(clang::PrintingPolicy{clang::LangOptions{}}).str() + " with actual " + type->getAsString());
         }
         return created;
     } else if(ptr->isStructureType()){

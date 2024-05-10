@@ -95,6 +95,11 @@ public:
     BaseType* make_type(clang::QualType* type);
 
     /**
+     * makes an expression from the given clang's expression
+     */
+    Expression* make_expr(clang::Expr* expr);
+
+    /**
      * when provided a pointer to function declaration
      * it'll make a function declaration
      */
@@ -114,6 +119,11 @@ public:
      * create an enum declaration from the given enum decl
      */
     EnumDeclaration* make_enum(clang::EnumDecl* decl);
+
+    /**
+     * create a var init declaration from the given var decl
+     */
+    VarInitStatement* make_var_init(clang::VarDecl* decl);
 
     /**
      * put an error in errors, called when an error occurs during translation

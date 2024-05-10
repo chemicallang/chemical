@@ -106,6 +106,11 @@ public:
     TypealiasStatement* make_typealias(clang::TypedefDecl* decl);
 
     /**
+     * creates a struct definition from the given record decl
+     */
+    StructDefinition* make_struct(clang::RecordDecl* decl);
+
+    /**
      * put an error in errors, called when an error occurs during translation
      */
     void error(const std::string& err);

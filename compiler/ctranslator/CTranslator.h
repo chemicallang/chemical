@@ -10,6 +10,8 @@
 #include "compiler/chem_clang.h"
 #include "ast/base/ASTNode.h"
 
+class CTranslator;
+
 /**
  * when provided a clang builtin type pointer
  * it'll make a chemical type
@@ -17,6 +19,11 @@
  * this expects a builtin type of the same kind, which is being used to index it on vector type_makers
  */
 typedef BaseType*(*CTypeMakerFn)(clang::BuiltinType*);
+
+/**
+ * Node maker fn
+ */
+typedef ASTNode*(*CNodeMakerFn)(CTranslator*, clang::Decl*);
 
 /**
  * a simple struct to represent errors during translation
@@ -41,9 +48,20 @@ public:
     /**
      * type makers functions vector
      * enum BuiltinType::Kind, this enum is used as an index on this vector
-     * last enum entry is being used as size of the vector: ZigClangBuiltinTypeOMPIterator
+     * last enum entry is being used as size of the vector
      */
     std::vector<CTypeMakerFn> type_makers = std::vector<CTypeMakerFn>(ZigClangBuiltinTypeOMPIterator + 1);
+
+    /**
+     * these allow indexing decl kind enum, to provide functions that can make nodes
+     * last enum entry is being used as size of the vector
+     */
+    std::vector<CNodeMakerFn> node_makers = std::vector<CNodeMakerFn>(ZigClangDeclTranslationUnit + 1);
+
+    /**
+     * this is the result after translation
+     */
+    std::vector<std::unique_ptr<ASTNode>> nodes;
 
     /**
      * these are nodes that should be added before adding a node
@@ -60,6 +78,22 @@ public:
      * initializes type makers
      */
     void init_type_makers();
+
+    /**
+     * initializes node makers
+     */
+    void init_node_makers();
+
+    /**
+     * dispatches nodes added to before_nodes vector into nodes
+     */
+    void dispatch_before();
+
+    /**
+     * when provided a pointer to function declaration
+     * it'll make a function declaration
+     */
+    FunctionDeclaration* make_func(clang::FunctionDecl* decl);
 
     /**
      * put an error in errors, called when an error occurs during translation

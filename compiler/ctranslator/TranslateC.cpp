@@ -76,50 +76,53 @@ BaseType *new_type(CTranslator *translator, clang::QualType *type) {
     };
 }
 
-void Translate(CTranslator *translator, clang::ASTUnit *unit, std::vector<std::unique_ptr<ASTNode>> &nodes) {
+FunctionDeclaration* CTranslator::make_func(clang::FunctionDecl* func_decl) {
+    // Check if the declaration is for the printf function
+    // Extract function parameters
+    func_params params;
+    unsigned index = 0;
+    bool skip_fn = false;
+    for (const auto *param: func_decl->parameters()) {
+        auto type = param->getType();
+        auto chem_type = new_type(this, &type);
+        if (!chem_type) {
+            skip_fn = true;
+            continue;
+        }
+        params.emplace_back(new FunctionParam(
+                param->getNameAsString(),
+                std::unique_ptr<BaseType>(chem_type),
+                index,
+                std::nullopt
+        ));
+        index++;
+    }
+    if(skip_fn) {
+        return nullptr;
+    }
+    auto ret_type = func_decl->getReturnType();
+    auto chem_type = new_type(this, &ret_type);
+    if (!chem_type) {
+        return nullptr;
+    }
+    dispatch_before();
+    return new FunctionDeclaration(
+            func_decl->getNameAsString(),
+            std::move(params),
+            std::unique_ptr<BaseType>(chem_type),
+            func_decl->isVariadic(),
+            std::nullopt
+    );
+}
+
+void Translate(CTranslator *translator, clang::ASTUnit *unit) {
     auto tud = unit->getASTContext().getTranslationUnitDecl();
-    for (auto &decl: tud->decls()) {
-        if (decl->getKind() == clang::Decl::Kind::Function) {
-            auto func_decl = (clang::FunctionDecl *) (decl);
-            // Check if the declaration is for the printf function
-            // Extract function parameters
-            func_params params;
-            unsigned index = 0;
-            bool skip_fn = false;
-            for (const auto *param: func_decl->parameters()) {
-                auto type = param->getType();
-                auto chem_type = new_type(translator, &type);
-                if (!chem_type) {
-                    skip_fn = true;
-                    continue;
-                }
-                params.emplace_back(new FunctionParam(
-                        param->getNameAsString(),
-                        std::unique_ptr<BaseType>(chem_type),
-                        index,
-                        std::nullopt
-                ));
-                index++;
-            }
-            if(skip_fn) {
-                continue;
-            }
-            auto ret_type = func_decl->getReturnType();
-            auto chem_type = new_type(translator, &ret_type);
-            if (!chem_type) {
-                continue;
-            }
-            for(auto& node : translator->before_nodes) {
-                nodes.emplace_back(std::move(node));
-            }
-            translator->before_nodes.clear();
-            nodes.emplace_back(std::make_unique<FunctionDeclaration>(
-                    func_decl->getNameAsString(),
-                    std::move(params),
-                    std::unique_ptr<BaseType>(chem_type),
-                    func_decl->isVariadic(),
-                    std::nullopt
-            ));
+    for (auto decl: tud->decls()) {
+        auto node = translator->node_makers[decl->getKind()](translator, decl);
+        if(node) {
+            translator->nodes.emplace_back(node);
+        } else {
+            translator->error("couldn't convert decl with kind " + std::to_string(decl->getKind()));
         }
     }
 }
@@ -321,9 +324,8 @@ TranslateC(const char *exe_path, const char *abs_path, const char *resources_pat
         diags.get()->dump();
         return {};
     }
-    std::vector<std::unique_ptr<ASTNode>> nodes;
     CTranslator translator;
-    Translate(&translator, unit, nodes);
+    Translate(&translator, unit);
     delete unit;
     if (!translator.errors.empty()) {
         std::cerr << std::to_string(translator.errors.size()) << " errors occurred when translating C files" << std::endl;
@@ -331,5 +333,5 @@ TranslateC(const char *exe_path, const char *abs_path, const char *resources_pat
     for (const auto &err: translator.errors) {
         std::cerr << err.message << std::endl;
     }
-    return nodes;
+    return std::move(translator.nodes);
 }

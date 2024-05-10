@@ -15,6 +15,8 @@
 #include "ast/types/ULongType.h"
 #include "ast/types/UBigIntType.h"
 #include "ast/types/ShortType.h"
+#include "ast/types/UInt128Type.h"
+#include "ast/types/Int128Type.h"
 
 CTranslator::CTranslator() {
     init_type_makers();
@@ -1244,7 +1246,7 @@ void CTranslator::init_type_makers() {
         return new UBigIntType();
     };
     type_makers[ZigClangBuiltinTypeUInt128] = [](clang::BuiltinType*) -> BaseType* {
-        return nullptr;
+        return new UInt128Type();
     };
     type_makers[ZigClangBuiltinTypeChar_S] = [](clang::BuiltinType*) -> BaseType* {
         return new CharType();
@@ -1268,7 +1270,7 @@ void CTranslator::init_type_makers() {
         return new BigIntType();
     };
     type_makers[ZigClangBuiltinTypeInt128] = [](clang::BuiltinType*) -> BaseType* {
-        return nullptr;
+        return new Int128Type();
     };
     type_makers[ZigClangBuiltinTypeShortAccum] = [](clang::BuiltinType*) -> BaseType* {
         return nullptr;

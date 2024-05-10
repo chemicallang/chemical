@@ -114,6 +114,8 @@
 #include "ast/types/ULongType.h"
 #include "ast/types/LongType.h"
 #include "ast/values/NumberValue.h"
+#include "ast/types/Int128Type.h"
+#include "ast/types/UInt128Type.h"
 
 using tokens_vec_type = std::vector<std::unique_ptr<CSTToken>> &;
 
@@ -205,6 +207,12 @@ CSTConverter::CSTConverter(bool is64Bit) : is64Bit(is64Bit) {
     };
     primitive_type_map["ubigint"] = []() -> BaseType * {
         return new UBigIntType();
+    };
+    primitive_type_map["__int128"] = []() -> BaseType * {
+        return new Int128Type();
+    };
+    primitive_type_map["__uint128"] = []() -> BaseType * {
+        return new UInt128Type();
     };
     primitive_type_map["string"] = []() -> BaseType * {
         return new StringType();

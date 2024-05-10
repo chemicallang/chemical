@@ -43,7 +43,7 @@ public:
         return true;
     }
 
-    int64_t get_num_value() override {
+    int64_t get_num_value() const override {
         return value;
     }
 

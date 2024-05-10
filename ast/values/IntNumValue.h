@@ -18,7 +18,7 @@ public:
     /**
      * get number value
      */
-    virtual int64_t get_num_value() = 0;
+    virtual int64_t get_num_value() const = 0;
 
     /**
      * return if this is a unsigned value

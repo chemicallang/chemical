@@ -111,6 +111,11 @@ public:
     StructDefinition* make_struct(clang::RecordDecl* decl);
 
     /**
+     * create an enum declaration from the given enum decl
+     */
+    EnumDeclaration* make_enum(clang::EnumDecl* decl);
+
+    /**
      * put an error in errors, called when an error occurs during translation
      */
     void error(const std::string& err);

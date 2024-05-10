@@ -12,6 +12,7 @@
 #include <memory>
 #include "ast/structures/FunctionParam.h"
 #include "ast/structures/FunctionDeclaration.h"
+#include "ast/structures/EnumDeclaration.h"
 #include "CTranslator.h"
 #include "ast/types/PointerType.h"
 #include "ast/types/ArrayType.h"
@@ -71,6 +72,16 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
         error("unknown type given to new_type with representation " + type->getAsString());
         return nullptr;
     };
+}
+
+EnumDeclaration* CTranslator::make_enum(clang::EnumDecl* decl) {
+    std::unordered_map<std::string, std::unique_ptr<EnumMember>> members;
+    unsigned index = 0;
+    for(auto mem : decl->enumerators()) {
+        members[mem->getNameAsString()] = std::make_unique<EnumMember>(mem->getNameAsString(), index);
+        index++;
+    }
+    return new EnumDeclaration(decl->getNameAsString(), std::move(members));
 }
 
 StructDefinition* CTranslator::make_struct(clang::RecordDecl* decl) {

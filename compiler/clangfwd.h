@@ -9,4 +9,5 @@ namespace clang {
     class TypedefDecl;
     class QualType;
     class RecordDecl;
+    class EnumDecl;
 }

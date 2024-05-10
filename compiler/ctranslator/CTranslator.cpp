@@ -1537,7 +1537,7 @@ void CTranslator::init_node_makers() {
         return nullptr;
     };
     node_makers[ZigClangDeclEnum] = [](CTranslator* translator, clang::Decl* decl) -> ASTNode* {
-        return nullptr;
+        return (ASTNode*) translator->make_enum((clang::EnumDecl*) decl);
     };
     node_makers[ZigClangDeclRecord] = [](CTranslator* translator, clang::Decl* decl) -> ASTNode* {
         return (ASTNode*) translator->make_struct((clang::RecordDecl*) decl);

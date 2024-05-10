@@ -38,21 +38,25 @@ very innovative things are planned.
 - [x] Lexer
 - [x] Parser
 - [x] LSP (will add more features later)
+- [x] Native Codegen (mostly done)
+- [x] Necessary C Translation (declarations only)
 - [ ] Interpreter (mostly done)
-- [ ] Native Codegen (mostly done)
-- [ ] CIPs
+- [ ] Compile time Interpreted Plugins
   - [ ] Syntax Modifier Plugins (SMP)
   - [ ] AST Transformation Plugins (ATP)
-  - [ ] Auto Bootstrapping
   - [ ] Annotation / Symbol Processing
-- [ ] Documentation
+- [ ] Maintenance Phase
+  - [ ] Eliminate bugs, Stabilize
+  - [ ] Standard Library
+  - [ ] Documentation
+  - [ ] Support proper C Translation
+  - [ ] Workspace Tooling
 - [ ] Experiment & Research
-  - [ ] Multi language linking
-  - [ ] Multiplatform syntax support
   - [ ] Embeddable Foreign Language Syntax
-  - [ ] Data Oriented Code Generation API
-- [ ] Language Growth & Stability
-- [ ] Workspace Tooling
+  - [ ] Web Support
+- [ ] Language Growth
+  - [ ] Mobile : Android, iOS Support
+  - [ ] More platforms
 
 ### Features
 

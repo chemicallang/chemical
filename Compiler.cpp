@@ -129,7 +129,7 @@ int main(int argc, char *argv[]) {
         scope.declare_and_link(linker);
         if(!linker.errors.empty()) {
             for(const auto& err : linker.errors) {
-                std::cerr << "[Linker] " << err << std::endl;
+                std::cerr << "[SymRes] " << err << std::endl;
             }
             // TODO preventing linker to stop if errors occur, because we need std.io import to work !
 //            return 1;

@@ -1,67 +1,16 @@
 #include "StreamSourceProvider.h"
 
-std::pair<char, bool> SourceProvider::escape_sequence() {
-    char actualChar;
-    auto found = true;
-    unsigned length = 1;
-    switch (peek()) {
-        case 'a':
-            actualChar = '\a';
+void SourceProvider::readEscaping(std::string& value, char stopAt) {
+    bool skip_one;
+    char read;
+    while(!eof()) {
+        read = readCharacter();
+        value.append(1, read);
+        if(read == stopAt && !skip_one) {
             break;
-        case 'f':
-            actualChar = '\f';
-            break;
-        case 'r':
-            actualChar = '\r';
-            break;
-        case 'n':
-            actualChar = '\n';
-            break;
-        case '0':
-            actualChar = '\0';
-            break;
-        case 't':
-            actualChar = '\t';
-            break;
-        case 'v':
-            actualChar = '\v';
-            break;
-        case 'b':
-            actualChar = '\b';
-            break;
-        case '\\':
-            actualChar = '\\';
-            break;
-        case '"':
-            actualChar = '"';
-            break;
-        case '?':
-            actualChar = '\?';
-            break;
-        case 'x':
-            if (peek(1) == '1' && peek(2) == 'b') {
-                actualChar = '\x1b';
-                length = 3;
-            } else {
-                actualChar = 'x';
-                found = false;
-            }
-            break;
-        default:
-            actualChar = peek();
-            found = false;
-            break;
-    }
-
-    // consuming the escape sequence
-    if (found) {
-        while (length > 0) {
-            readCharacter();
-            length--;
         }
-    }
-
-    return {actualChar, found};
+        skip_one = read == '\\';
+    };
 }
 
 std::string SourceProvider::readAnything(char until) {

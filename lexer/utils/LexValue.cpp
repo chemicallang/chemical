@@ -9,21 +9,26 @@
 #include "lexer/model/tokens/BoolToken.h"
 #include "lexer/model/tokens/NullToken.h"
 #include "cst/values/ArrayValueCST.h"
+#include "lexer/model/tokens/StringToken.h"
 
 bool Lexer::lexCharToken() {
     if (provider.increment('\'')) {
+        auto back = backPosition(1);
         std::string value = "'";
-        bool skip_one;
-        char read;
-        while(true) {
-            read = provider.readCharacter();
-            value.append(1, read);
-            if(read == '\'' && !skip_one) {
-                break;
-            }
-            skip_one = read == '\\';
-        };
-        tokens.emplace_back(std::make_unique<CharToken>(backPosition(value.size()), std::move(value)));
+        provider.readEscaping(value, '\'');
+        tokens.emplace_back(std::make_unique<CharToken>(back, std::move(value)));
+        return true;
+    } else {
+        return false;
+    }
+}
+
+bool Lexer::lexStringToken() {
+    if (provider.increment('"')) {
+        auto back = backPosition(1);
+        std::string value = "\"";
+        provider.readEscaping(value, '"');
+        tokens.emplace_back(std::make_unique<StringToken>(back, std::move(value)));
         return true;
     } else {
         return false;

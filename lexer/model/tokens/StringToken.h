@@ -8,18 +8,11 @@
 
 #include "LexToken.h"
 
-class StringToken : public LexToken {
+class StringToken : public AbstractStringToken {
 public:
 
-    std::string value;
+    StringToken(const Position &position, std::string value) : AbstractStringToken(position, std::move(value)) {
 
-    StringToken(const Position& position, std::string value) : LexToken(position), value(std::move(value)) {
-        value.shrink_to_fit();
-    }
-
-    unsigned int length() const override {
-        // 2 is added bacause the token starts at quote, then length of the string, another quote
-        return value.length() + 2;
     }
 
     void accept(CSTVisitor *visitor) override {
@@ -30,20 +23,8 @@ public:
         return LexTokenType::String;
     }
 
-    void append_representation(std::string &rep) const override {
-        rep.append(1, '"');
-        rep.append(value);
-        rep.append(1, '"');
-    }
-
     [[nodiscard]] std::string type_string() const override {
-        std::string buf("String:");
-        buf.append(value);
-        return buf;
-    }
-
-    [[nodiscard]] std::string content() const override {
-        return value;
+        return "String:" + value;
     }
 
 };

@@ -30,7 +30,10 @@ bool Lexer::lexOperatorToken(const std::string& op) {
 
 bool Lexer::lexOperatorToken(char token, Operation op) {
     if(provider.increment(token)) {
-        tokens.emplace_back(std::make_unique<OperationToken>(backPosition(1), std::string(1, token), op));
+        std::string value;
+        value.append(std::to_string((int) op));
+        value.append(1, token);
+        tokens.emplace_back(std::make_unique<OperationToken>(backPosition(1), std::move(value)));
         return true;
     } else {
         return false;
@@ -39,7 +42,10 @@ bool Lexer::lexOperatorToken(char token, Operation op) {
 
 bool Lexer::lexOperatorToken(const std::string &token, Operation op) {
     if(provider.increment(token)) {
-        tokens.emplace_back(std::make_unique<OperationToken>(backPosition(token.length()), token, op));
+        std::string value;
+        value.append(std::to_string((int) op));
+        value.append(token);
+        tokens.emplace_back(std::make_unique<OperationToken>(backPosition(token.length()), value));
         return true;
     } else {
         return false;

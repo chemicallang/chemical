@@ -15,9 +15,7 @@
 class OperationToken : public AbstractStringToken {
 public:
 
-    Operation op;
-
-    OperationToken(const Position& position, std::string value, Operation op) : AbstractStringToken(position, std::move(value)), op(op) {
+    OperationToken(const Position& position, std::string value) : AbstractStringToken(position, std::move(value)) {
 
     }
 

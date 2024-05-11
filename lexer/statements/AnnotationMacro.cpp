@@ -6,6 +6,7 @@
 
 #include "lexer/Lexer.h"
 #include "lexer/model/tokens/MacroToken.h"
+#include "lexer/model/tokens/AnnotationToken.h"
 #include "lexer/model/tokens/RawToken.h"
 #include "ast/values/StructValue.h"
 #include "stream/StreamStructValue.h"
@@ -48,21 +49,14 @@ void extract_user_tokens(InterpretVectorValue *list, Lexer &lexer) {
 bool Lexer::lexAnnotationMacro() {
     if (provider.peek() == '@' || provider.peek() == '#') {
         auto isAnnotation = provider.peek() == '@';
-        provider.readCharacter();
-        auto macro = provider.readAnnotation();
-#ifdef LSP_BUILD
-        SemanticTokenModifier modifier;
-        if(macro == "deprecated") {
-            modifier = SemanticTokenModifier::ls_deprecated;
-        } else if(macro == "readonly") {
-            modifier = SemanticTokenModifier::ls_readonly;
+        auto macro_full = std::string(1, provider.readCharacter());
+        provider.readAnnotationIdentifier(macro_full);
+        auto macro = macro_full.substr(1);
+        if(isAnnotation) {
+            tokens.emplace_back(std::make_unique<AnnotationToken>(backPosition(macro.size() + 1), macro_full));
         } else {
-            modifier = SemanticTokenModifier::LastModifier;
+            tokens.emplace_back(std::make_unique<MacroToken>(backPosition(macro.size() + 1), macro_full));
         }
-        tokens.emplace_back(std::make_unique<MacroToken>(backPosition(macro.size() + 1), std::move(macro), isAnnotation, modifier));
-#else
-        tokens.emplace_back(std::make_unique<MacroToken>(backPosition(macro.size() + 1), macro, isAnnotation));
-#endif
         if (isAnnotation) {
             auto found = annotation_modifiers.find(macro);
             if (found != annotation_modifiers.end()) {
@@ -138,7 +132,7 @@ bool Lexer::lexAnnotationMacro() {
 
             auto before_ending = position();
             if (provider.increment(ending)) {
-                tokens.emplace_back(std::make_unique<MacroToken>(before_ending, "end" + macro, false, true));
+                tokens.emplace_back(std::make_unique<MacroToken>(before_ending, ending));
             } else {
                 auto current = position();
                 auto content = provider.readUntil(ending, false);
@@ -146,7 +140,7 @@ bool Lexer::lexAnnotationMacro() {
                 if (!provider.increment(ending)) {
                     error("expected ending macro with " + ending);
                 } else {
-                    tokens.emplace_back(std::make_unique<MacroToken>(before_ending, "end" + macro, false, true));
+                    tokens.emplace_back(std::make_unique<MacroToken>(before_ending, ending));
                 }
             }
         }

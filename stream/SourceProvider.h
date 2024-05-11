@@ -161,9 +161,18 @@ public:
     std::string readIdentifier();
 
     /**
+     * reads a single annotation into given string, this doesn't read '@'
+     */
+    void readAnnotationIdentifier(std::string into);
+
+    /**
      * reads a single annotation, this doesn't read '@'
      */
-    std::string readAnnotation();
+    std::string readAnnotationIdentifier() {
+        std::string ret;
+        readAnnotationIdentifier(ret);
+        return ret;
+    }
 
     /**
      * reads whitespaces, returns how many whitespaces were read

@@ -149,8 +149,6 @@ set(COMMON_SOURCES
         lexer/model/LexTokenType.h
         utils/Utils.h
         utils/Utils.cpp
-        lexer/utils/TypeUtils.h
-        lexer/utils/TypeUtils.cpp
         ast/structures/Scope.h
         ast/values/AccessChain.h
         ast/values/FunctionCall.h
@@ -363,6 +361,7 @@ set(COMMON_SOURCES
         ast/values/Int128Value.h
         cst/utils/StringHelpers.h
         cst/utils/StringHelpers.cpp
+        cst/base/CSTToken.cpp
 )
 
 # Chemical LSP Executable Target

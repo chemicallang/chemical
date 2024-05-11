@@ -1063,7 +1063,7 @@ void CSTConverter::visit(VariableToken *token) {
 }
 
 void CSTConverter::visit(BoolToken *token) {
-    values.emplace_back(std::make_unique<BoolValue>(token->value));
+    values.emplace_back(std::make_unique<BoolValue>(token->value[0] == 't'));
 }
 
 void CSTConverter::visit(NullToken *token) {

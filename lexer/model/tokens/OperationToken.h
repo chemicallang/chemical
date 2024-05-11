@@ -12,13 +12,12 @@
 /**
  * Its named OperationToken because it holds a operation
  */
-class OperationToken : public LexToken {
+class OperationToken : public AbstractStringToken {
 public:
 
     Operation op;
-    unsigned int len;
 
-    OperationToken(const Position& position, unsigned int length, Operation op) : LexToken(position), len(length), op(op) {
+    OperationToken(const Position& position, std::string value, Operation op) : AbstractStringToken(position, std::move(value)), op(op) {
 
     }
 
@@ -26,27 +25,12 @@ public:
         visitor->visit(this);
     }
 
-    unsigned int length() const override {
-        return len;
-    }
-
     LexTokenType type() const override {
         return LexTokenType::Operation;
     }
 
-    void append_representation(std::string &rep) const override {
-        rep.append(to_string(op));
-    }
-
     [[nodiscard]] std::string type_string() const override {
-        std::string ret;
-        ret.append("Operation:");
-        ret.append(to_string(op));
-        return ret;
-    }
-
-    [[nodiscard]] std::string content() const override {
-        return "";
+        return "Operation:" + value;
     }
 
 };

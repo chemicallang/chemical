@@ -71,6 +71,8 @@ int main(int argc, char *argv[]) {
 
     // Lex, parse & type check
     auto benchmark = options.option("benchmark", "bm").has_value();
+    auto print_representation = options.option("print-representation", "pr").has_value();
+
     Lexer lexer = benchmark ? benchLexFile(srcFilePath) : lexFile(srcFilePath);
     if(verbose.has_value()) {
         printTokens(lexer.tokens);
@@ -106,7 +108,7 @@ int main(int argc, char *argv[]) {
     for (const auto &err: checker.errors) {
         std::cerr << err << std::endl;
     }
-    if(verbose.has_value()) {
+    if(print_representation) {
         std::cout << "[Representation]\n" << scope.representation() << std::endl;
     }
     if (lexer.has_errors || converter.has_errors || !checker.errors.empty()) return 1;
@@ -118,6 +120,9 @@ int main(int argc, char *argv[]) {
         SymbolResolver linker(srcFilePath, is64Bit);
         if(benchmark) {
             linker.benchmark = true;
+        }
+        if(print_representation) {
+            linker.print_representation = true;
         }
         scope.declare_top_level(linker);
         scope.declare_and_link(linker);
@@ -132,9 +137,6 @@ int main(int argc, char *argv[]) {
 
     // actual compilation
     Codegen gen(std::move(scope.nodes), srcFilePath, target.value(), argv[0], is64Bit);
-    if(benchmark) {
-        gen.benchmark = true;
-    }
     gen.compile();
 
     // check if it requires printing

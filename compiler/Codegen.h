@@ -76,6 +76,12 @@ public:
     bool is64Bit = false;
 
     /**
+     * when true, import statements will benchmark the lexing of imported file
+     * and print the results
+     */
+    bool benchmark = false;
+
+    /**
      * constructor
      * @param nodes
      * @param path

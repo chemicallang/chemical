@@ -31,8 +31,7 @@ void ImportStatement::code_gen(Codegen &gen) {
     if(found == gen.imported.end()) {
         auto &ast = parsed(abs_path, [&abs_path, &gen](Diag* diag) {
             gen.error(diag->ansi_representation(abs_path, "Import"));
-        }, gen.is64Bit);
-//        std::cout << "importing " << abs_path << std::endl;
+        }, gen.is64Bit, gen.benchmark);
         auto prev_path = gen.current_path;
         gen.current_path = abs_path;
         for(const auto &node : ast) {
@@ -58,44 +57,6 @@ void ImportStatement::code_gen(Codegen &gen) {
 //    // Absolute path to the header
 //    std::filesystem::path absPath = std::filesystem::path(dir) / filePath;
 //
-//    clang::CompilerInstance ci;
-//    ci.createDiagnostics();
-//
-//    clang::HeaderSearchOptions &headerSearchOpts = ci.getHeaderSearchOpts();
-//    for(const auto& path : gen.system_headers_paths) {
-//        headerSearchOpts.AddPath(path, clang::frontend::Angled, false, false);
-//    }
-//
-//    // Ensure that Clang searches for headers relative to the directory of the file being compiled
-//    // headerSearchOpts.AddPath(".", clang::frontend::Angled, false, false);
-//
-//    // Set the target options to match the current LLVM module
-//    ci.getTargetOpts().Triple = gen.target_triple;
-//
-//    // Set up the compiler instance to use our action
-//    std::shared_ptr<clang::TargetOptions> opts(&ci.getTargetOpts());
-//    ci.setTarget(clang::TargetInfo::CreateTargetInfo(ci.getDiagnostics(), opts));
-//
-//    // Create a compiler instance source file
-//    clang::InputKind inputKind(clang::Language::CXX, clang::InputKind::Format::Source, false, clang::InputKind::HeaderUnit_System, true);
-//    clang::FrontendInputFile input_header_file(absPath.string(), inputKind, true);
-//    ci.getFrontendOpts().Inputs.push_back(input_header_file);
-//
-//    // Create an LLVM-only action
-//    std::unique_ptr<clang::EmitLLVMOnlyAction> action(new clang::EmitLLVMOnlyAction(gen.ctx.get()));
-//
-//    // Create and Execute the llvm only action
-//    if (!ci.ExecuteAction(*action)) {
-//        // Error handling
-//        llvm::errs() << "Failed to import header: " << filePath << "\n";
-//        return;
-//    }
-//
-//    // Retrieve the generated LLVM module
-//    std::unique_ptr<llvm::Module> headerModule = action->takeModule();
-//
-//    // Link the imported module into the current module
-//    llvm::Linker::linkModules(*gen.module, std::move(headerModule));
 
 }
 
@@ -103,7 +64,7 @@ void ImportStatement::code_gen(Codegen &gen) {
 
 namespace fs = std::filesystem;
 
-std::vector<std::unique_ptr<ASTNode>>& ImportStatement::parsed(const std::string& resolved, std::function<void(Diag*)> handler, bool is64Bit) {
+std::vector<std::unique_ptr<ASTNode>>& ImportStatement::parsed(const std::string& resolved, std::function<void(Diag*)> handler, bool is64Bit, bool benchmark) {
 
     if(!imported_ast.empty()) {
         return imported_ast;
@@ -115,7 +76,7 @@ std::vector<std::unique_ptr<ASTNode>>& ImportStatement::parsed(const std::string
         std::cerr << "IMPORT STATEMENT FAILED with path : " + resolved << std::endl;
         return imported_ast;
     }
-    auto lexer = lexFile(file, resolved);
+    auto lexer = benchmark ? benchLexFile(file, resolved) : lexFile(file, resolved);
     file.close();
 
     if(lexer.has_errors) {
@@ -152,7 +113,7 @@ void ImportStatement::declare_top_level(SymbolResolver &linker) {
         linker.imported[abs_path] = true;
         auto &ast = parsed(abs_path, [&abs_path, &linker](Diag *diag) {
             linker.error(diag->ansi_representation(abs_path, "Import"));
-        }, linker.is64Bit);
+        }, linker.is64Bit, linker.benchmark);
         auto previous = linker.current_path;
         linker.current_path = abs_path;
         for (const auto &node: ast) {

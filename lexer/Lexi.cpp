@@ -38,7 +38,7 @@ Lexer benchLexFile(std::istream &file, const std::string& path) {
     auto seconds = std::chrono::duration_cast<std::chrono::seconds>(end - start).count();
 
     // Printing stats
-    std::cout << "[Lex] Completed " << "(Tokens:" << lexer.tokens.size() << ")" << ' ';
+    std::cout << "[Lex] " << path << " Completed " << "(Tokens:" << lexer.tokens.size() << ")" << ' ';
     std::cout << "[Nanoseconds:" << nanos << "]";
     std::cout << "[Microseconds:" << micros << "]";
     std::cout << "[Milliseconds:" << millis << "]" << '\n';

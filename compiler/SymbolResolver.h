@@ -16,7 +16,15 @@ class ASTNode;
 class SymbolResolver {
 public:
 
+    /**
+     * is the codegen for arch 64bit
+     */
     bool is64Bit;
+
+    /**
+     * it will benchmark lexing process
+     */
+    bool benchmark = false;
 
     /**
      * constructor

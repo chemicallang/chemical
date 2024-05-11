@@ -71,7 +71,8 @@ int main(int argc, char *argv[]) {
 
     // Lex, parse & type check
     auto benchmark = options.option("benchmark", "bm").has_value();
-    auto print_representation = options.option("print-representation", "pr").has_value();
+    auto print_representation = options.option("print-ast", "pr-ast").has_value();
+    auto print_ir = options.option("print-ir", "pr-ir").has_value();
 
     Lexer lexer = benchmark ? benchLexFile(srcFilePath) : lexFile(srcFilePath);
     if(verbose.has_value()) {
@@ -140,8 +141,7 @@ int main(int argc, char *argv[]) {
     gen.compile();
 
     // check if it requires printing
-    auto print = options.option("print-ir", "pir");
-    if (print.has_value()) {
+    if (print_ir) {
         // print to console
         gen.print_to_console();
     }

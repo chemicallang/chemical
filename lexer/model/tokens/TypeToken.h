@@ -25,9 +25,7 @@ public:
     }
 
     [[nodiscard]] std::string type_string() const override {
-        std::string buf("Type:");
-        buf.append(value);
-        return buf;
+        return "Type:" + value;
     }
 
 };

@@ -116,6 +116,7 @@
 #include "ast/values/NumberValue.h"
 #include "ast/types/Int128Type.h"
 #include "ast/types/UInt128Type.h"
+#include "utils/StringHelpers.h"
 
 using tokens_vec_type = std::vector<std::unique_ptr<CSTToken>> &;
 
@@ -819,7 +820,17 @@ void CSTConverter::visit(StringToken *token) {
 }
 
 void CSTConverter::visit(CharToken *token) {
-    values.emplace_back(std::make_unique<CharValue>(token->value));
+    char value;
+    if(token->value[1] == '\\') {
+        auto result = escape_single(token->value, 2);
+        value = result.first;
+        if(!result.second) {
+            error("unknown / invalid escape sequence present", token);
+        }
+    } else {
+        value = token->value[1];
+    }
+    values.emplace_back(std::make_unique<CharValue>(value));
 }
 
 void CSTConverter::visit(NumberToken *token) {

@@ -118,14 +118,13 @@
 #include "ast/types/UInt128Type.h"
 #include "utils/StringHelpers.h"
 
-using tokens_vec_type = std::vector<std::unique_ptr<CSTToken>> &;
-
 inline std::string str_token(CSTToken *token) {
     return static_cast<AbstractStringToken *>(token)->value;
 }
 
-inline std::string str_token(tokens_vec_type tokens, unsigned int index) {
-    return str_token(tokens[index].get());
+inline std::string escaped_str_token(CSTToken *token) {
+    auto str = str_token(token);
+    return str.substr(1, str.size() - 2);
 }
 
 inline char char_op(CSTToken *token) {
@@ -157,15 +156,15 @@ Scope take_body(CSTConverter *conv, CSTToken *token) {
 }
 
 bool is_const(VarInitCST* cst) {
-    return str_token(cst->tokens, 0) == "const";
+    return str_token(cst->tokens[0].get()) == "const";
 }
 
 inline std::string identifier(VarInitCST* cst) {
-    return str_token(cst->tokens, 1);
+    return str_token(cst->tokens[1].get());
 }
 
 inline std::string func_name(FunctionCST* func) {
-    return str_token(func->tokens, 1);
+    return str_token(func->tokens[1].get());
 }
 
 // TODO support _128bigint, bigfloat
@@ -253,7 +252,7 @@ std::optional<std::unique_ptr<BaseType>> CSTConverter::opt_type() {
 }
 
 void CSTConverter::visit(FunctionParamCST *param) {
-    auto identifier = str_token(param->tokens, 0);
+    auto identifier = str_token(param->tokens[0].get());
     visit(param->tokens, 2);
     BaseType *baseType;
     if (optional_param_types) {
@@ -444,7 +443,7 @@ void CSTConverter::visit(AssignmentCST *assignment) {
 
 void CSTConverter::visit(ImportCST *cst) {
     std::vector<std::string> ids;
-    nodes.emplace_back(std::make_unique<ImportStatement>(str_token(cst->tokens, 1), ids));
+    nodes.emplace_back(std::make_unique<ImportStatement>(escaped_str_token(cst->tokens[1].get()), ids));
 }
 
 void CSTConverter::visit(ReturnCST *cst) {
@@ -796,7 +795,7 @@ void CSTConverter::visit(PointerTypeCST *cst) {
 
 void CSTConverter::visit(GenericTypeCST *cst) {
     visit(cst->tokens, 0);
-    types.emplace_back(std::make_unique<GenericType>(str_token(cst->tokens, 0), type()));
+    types.emplace_back(std::make_unique<GenericType>(str_token(cst->tokens[0].get()), type()));
 }
 
 void CSTConverter::visit(ArrayTypeCST *arrayType) {
@@ -816,7 +815,10 @@ void CSTConverter::visit(FunctionTypeCST *funcType) {
 
 
 void CSTConverter::visit(StringToken *token) {
-    values.emplace_back(std::make_unique<StringValue>(token->value));
+    auto escaped = escape_all(token->value, 1, token->value.size() - 1, [this, token](const std::string& value, unsigned int index) {
+        error("invalid escape sequence found, character '" + std::string(1, value[index]) + "'", token);
+    });
+    values.emplace_back(std::make_unique<StringValue>(escaped));
 }
 
 void CSTConverter::visit(CharToken *token) {

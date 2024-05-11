@@ -120,12 +120,14 @@ public:
     std::string readUntil(const std::string& ending, bool consume = true);
 
     /**
-     * escapes a sequence at current position, if 'n' is at current position, returns '\n'
-     * you must have consumed a \ (backslash) before calling this function
-     * a pair will be returned, first the escaped character
-     * second the bool indicating whether an escape sequence was found
+     * will read everything to the given string
+     *
+     * will not stop if the stream doesn't end or there's a backslash before stopAt character
+     * useful when reading a string token which must not stop at \"
+     *
+     * will also append the last stopAt character into value
      */
-    std::pair<char, bool> escape_sequence();
+    void readEscaping(std::string& value, char stopAt);
 
     /**
      * reads all characters into a string until char occurs

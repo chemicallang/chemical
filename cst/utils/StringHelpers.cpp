@@ -39,7 +39,7 @@ std::pair<char, unsigned int> escapable_char(const std::string &value, unsigned 
             actualChar = '\?';
             break;
         case 'x':
-            if (value.size() < index + 2 && value[index + 1] == '1' && value[index + 2] == 'b') {
+            if (index + 2 < value.size() && value[index + 1] == '1' && value[index + 2] == 'b') {
                 actualChar = '\x1b';
                 index = index + 2;
             }
@@ -61,4 +61,31 @@ std::pair<char, bool> escape_single(const std::string &value, unsigned i) {
     } else {
         return {'\0', false};
     }
+}
+
+std::string escape_all(const std::string& value, unsigned index, unsigned end, const InvalidSeqHandler& handler) {
+    std::string ret;
+    char current;
+    while(index < end) {
+        current = value[index];
+        if(current == '\\') {
+            if(index + 1 < end) {
+                auto result = escapable_char(value, index + 1);
+                if(result.second == -1) {
+                    handler(value, index + 1);
+                } else {
+                    ret.append(1, result.first);
+                }
+                index = result.second;
+                continue;
+            } else {
+                handler(value, index + 1);
+                break;
+            }
+        } else {
+            ret.append(1, current);
+        }
+        index++;
+    }
+    return ret;
 }

@@ -90,7 +90,6 @@ set(COMMON_SOURCES
         lexer/statements/VarInitialization.cpp
         lexer/statements/LexStatement.cpp
         lexer/utils/LexWhitespace.cpp
-        lexer/utils/LexString.cpp
         lexer/utils/LexNumber.cpp
         lexer/statements/LexType.cpp
         lexer/model/tokens/TypeToken.h

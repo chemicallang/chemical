@@ -15,4 +15,8 @@ func test_strings() {
         }
         return str.value[0] == 'f' && str.value[1] == 'a' && str.value[2] == 'l';
     })
+    test("test escaped characters in strings work", () => {
+        var str = "\n\t";
+        return str[0] == '\n' && str[1] == '\t';
+    })
 }

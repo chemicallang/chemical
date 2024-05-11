@@ -97,11 +97,21 @@ public:
     virtual StreamPosition getStreamPosition() const = 0;
 
     /**
-     * reads anything as long as when lambda returns true
-     * @return
+     * read anything as long as lambda returns true into the given string
      */
     template<typename TFunc>
-    std::string readAnything(TFunc when);
+    void readAnything(std::string& str, TFunc when);
+
+    /**
+     * reads anything as long as lambda returns true
+     * calls readAnything with str
+     */
+    template<typename TFunc>
+    std::string readAnything(TFunc when) {
+        std::string str;
+        readAnything(str, when);
+        return str;
+    }
 
     /**
      * reads until the given ending appears into a string and returns it
@@ -194,14 +204,14 @@ public:
 };
 
 /**
- * The implementation for lexAnything
+ * The implementation for readAnything
  * This is required in header because of template usage
+ *
+ * ready any character as long as the function returns true, into the given str
  */
 template<typename TFunc>
-std::string SourceProvider::readAnything(TFunc when) {
-    std::string str;
+void SourceProvider::readAnything(std::string& str, TFunc when) {
     while (!eof() && when()) {
         str.append(1, readCharacter());
     }
-    return str;
 }

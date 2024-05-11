@@ -8,42 +8,23 @@
 
 #include "LexToken.h"
 
-class MultilineCommentToken : public LexToken {
+class MultilineCommentToken : public AbstractStringToken {
 public:
 
-    std::string value;
+    MultilineCommentToken(const Position &position, std::string value) : AbstractStringToken(position, std::move(value)) {
 
-    MultilineCommentToken(const Position &position, std::string value) : LexToken(position), value(std::move(value)) {
-        value.shrink_to_fit();
     }
 
     void accept(CSTVisitor *visitor) override {
         visitor->visit(this);
     }
 
-    unsigned int length() const override {
-        // 4 is added because the token start has /* and then comment and then */ which is value
-        return value.length() + 4;
-    }
-
     LexTokenType type() const override {
         return LexTokenType::MultilineComment;
     }
 
-    void append_representation(std::string &rep) const override {
-        rep.append("/*");
-        rep.append(value);
-        rep.append("*/");
-    }
-
     [[nodiscard]] std::string type_string() const override {
-        std::string buf("Comment:");
-        buf.append(value);
-        return buf;
-    }
-
-    [[nodiscard]] std::string content() const override {
-        return value;
+        return "MultiComment:" + value;
     }
 
 };

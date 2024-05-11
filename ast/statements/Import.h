@@ -40,7 +40,13 @@ public:
      * this parses the imported file, if already parsed returns cached
      * @param path file path should be given
      */
-    std::vector<std::unique_ptr<ASTNode>>& parsed(const std::string& path, std::function<void(Diag*)> handler, bool is64Bit, bool benchmark);
+    std::vector<std::unique_ptr<ASTNode>>& parsed(
+            const std::string& path,
+            std::function<void(Diag*)> handler,
+            bool is64Bit,
+            bool benchmark,
+            bool print_representation
+    );
 
     void declare_top_level(SymbolResolver &linker) override;
 

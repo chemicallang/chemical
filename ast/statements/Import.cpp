@@ -31,7 +31,7 @@ void ImportStatement::code_gen(Codegen &gen) {
     if(found == gen.imported.end()) {
         auto &ast = parsed(abs_path, [&abs_path, &gen](Diag* diag) {
             gen.error(diag->ansi_representation(abs_path, "Import"));
-        }, gen.is64Bit, gen.benchmark);
+        }, gen.is64Bit, false, false);
         auto prev_path = gen.current_path;
         gen.current_path = abs_path;
         for(const auto &node : ast) {
@@ -64,7 +64,7 @@ void ImportStatement::code_gen(Codegen &gen) {
 
 namespace fs = std::filesystem;
 
-std::vector<std::unique_ptr<ASTNode>>& ImportStatement::parsed(const std::string& resolved, std::function<void(Diag*)> handler, bool is64Bit, bool benchmark) {
+std::vector<std::unique_ptr<ASTNode>>& ImportStatement::parsed(const std::string& resolved, std::function<void(Diag*)> handler, bool is64Bit, bool benchmark, bool print_representation) {
 
     if(!imported_ast.empty()) {
         return imported_ast;
@@ -94,6 +94,12 @@ std::vector<std::unique_ptr<ASTNode>>& ImportStatement::parsed(const std::string
         }
     }
 
+    if(print_representation) {
+        Scope scope(std::move(converter.nodes));
+        std::cout << "[Representation]\n" << scope.representation() << std::endl;
+        converter.nodes = std::move(scope.nodes);
+    }
+
     imported_ast = std::move(converter.nodes);
 
     return imported_ast;
@@ -113,7 +119,7 @@ void ImportStatement::declare_top_level(SymbolResolver &linker) {
         linker.imported[abs_path] = true;
         auto &ast = parsed(abs_path, [&abs_path, &linker](Diag *diag) {
             linker.error(diag->ansi_representation(abs_path, "Import"));
-        }, linker.is64Bit, linker.benchmark);
+        }, linker.is64Bit, linker.benchmark, linker.print_representation);
         auto previous = linker.current_path;
         linker.current_path = abs_path;
         for (const auto &node: ast) {

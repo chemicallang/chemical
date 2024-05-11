@@ -22,9 +22,14 @@ public:
     bool is64Bit;
 
     /**
-     * it will benchmark lexing process
+     * it will benchmark lexing process of the imported files
      */
     bool benchmark = false;
+
+    /**
+     * it will print the representation of the imported files
+     */
+    bool print_representation = false;
 
     /**
      * constructor

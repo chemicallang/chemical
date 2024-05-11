@@ -10,20 +10,23 @@
 
 bool Lexer::lexSingleLineCommentTokens() {
     if(provider.increment("//")) {
-        auto comment = lexAnything([&] () -> bool {
+        std::string comment = "//";
+        provider.readAnything(comment, [this] () -> bool {
             return !hasNewLine();
         });
-        tokens.emplace_back(std::make_unique<CommentToken>(backPosition(comment.length() + 2), comment));
+        tokens.emplace_back(std::make_unique<CommentToken>(backPosition(comment.length()), comment));
         return true;
     } else return false;
 }
 
 bool Lexer::lexMultiLineCommentTokens() {
     if(provider.increment("/*")) {
-        auto comment = lexAnything([&] () -> bool {
+        std::string comment = "/*";
+        provider.readAnything(comment, [this] () -> bool {
             return !provider.increment("*/");
         });
-        tokens.emplace_back(std::make_unique<MultilineCommentToken>(backPosition(comment.length() + 4), comment));
+        comment.append("*/");
+        tokens.emplace_back(std::make_unique<MultilineCommentToken>(backPosition(comment.length()), comment));
         return true;
     } else {
         return false;

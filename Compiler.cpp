@@ -70,11 +70,11 @@ int main(int argc, char *argv[]) {
     }
 
     // Lex, parse & type check
-    auto benchmark = options.option("benchmark", "bm");
-    Lexer lexer = benchmark.has_value() ? benchLexFile(srcFilePath) : lexFile(srcFilePath);
-//    if(verbose.has_value()) {
+    auto benchmark = options.option("benchmark", "bm").has_value();
+    Lexer lexer = benchmark ? benchLexFile(srcFilePath) : lexFile(srcFilePath);
+    if(verbose.has_value()) {
         printTokens(lexer.tokens);
-//    }
+    }
     for (const auto &err: lexer.errors) {
         std::cerr << err.representation(srcFilePath, "Lexer") << std::endl;
     }
@@ -106,9 +106,9 @@ int main(int argc, char *argv[]) {
     for (const auto &err: checker.errors) {
         std::cerr << err << std::endl;
     }
-//    if(verbose.has_value()) {
+    if(verbose.has_value()) {
         std::cout << "[Representation]\n" << scope.representation() << std::endl;
-//    }
+    }
     if (lexer.has_errors || converter.has_errors || !checker.errors.empty()) return 1;
 
     // TODO typechecker should run after the linker runs
@@ -116,6 +116,9 @@ int main(int argc, char *argv[]) {
     // linking the nodes
     {
         SymbolResolver linker(srcFilePath, is64Bit);
+        if(benchmark) {
+            linker.benchmark = true;
+        }
         scope.declare_top_level(linker);
         scope.declare_and_link(linker);
         if(!linker.errors.empty()) {
@@ -129,6 +132,9 @@ int main(int argc, char *argv[]) {
 
     // actual compilation
     Codegen gen(std::move(scope.nodes), srcFilePath, target.value(), argv[0], is64Bit);
+    if(benchmark) {
+        gen.benchmark = true;
+    }
     gen.compile();
 
     // check if it requires printing

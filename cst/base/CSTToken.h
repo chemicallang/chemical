@@ -135,7 +135,7 @@ public:
     /**
      * this is a debug type string, that is given by each token
      */
-    virtual std::string type_string() const = 0;
+    virtual std::string type_string() const;
 
 #endif
 

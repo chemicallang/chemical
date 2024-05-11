@@ -8,10 +8,10 @@
 
 #include "AbstractStringToken.h"
 
-class MacroToken : public AbstractStringToken {
+class AnnotationToken : public AbstractStringToken {
 public:
 
-    MacroToken(
+    AnnotationToken(
             const Position &position,
             std::string value
     ) : AbstractStringToken(position, std::move(value)) {
@@ -23,11 +23,11 @@ public:
     }
 
     LexTokenType type() const override {
-        return LexTokenType::Macro;
+        return LexTokenType::Annotation;
     }
 
     std::string type_string() const override {
-        return "Macro:" + value;
+        return "Annotation:" + value;
     }
 
 };

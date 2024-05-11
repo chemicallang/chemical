@@ -94,6 +94,8 @@ class KeywordToken;
 
 class MacroToken;
 
+class AnnotationToken;
+
 class TypeToken;
 
 class MultilineCommentToken;
@@ -304,6 +306,10 @@ public:
     };
 
     virtual void visit(MacroToken *token) {
+        visitLexTokenCommon((LexToken *) token);
+    };
+
+    virtual void visit(AnnotationToken *token) {
         visitLexTokenCommon((LexToken *) token);
     };
 

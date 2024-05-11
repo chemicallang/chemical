@@ -7,6 +7,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 
 enum class LexTokenType : uint8_t {
 
@@ -18,6 +19,7 @@ enum class LexTokenType : uint8_t {
     String,
     Bool,
     Macro,
+    Annotation,
     UserToken,
 
     // absolute strings
@@ -84,3 +86,5 @@ enum class LexTokenType : uint8_t {
     IndexCompValueEnd = CompStructValue
 
 };
+
+std::string toTypeString(LexTokenType token);

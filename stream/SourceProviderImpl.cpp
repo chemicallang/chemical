@@ -89,15 +89,11 @@ std::string SourceProvider::readIdentifier() {
     }
 }
 
-std::string SourceProvider::readAnnotation() {
+void SourceProvider::readAnnotationIdentifier(std::string str){
     if (std::isalpha(peek()) || peek() == '_') {
-        std::string str;
         while (!eof() && (std::isalnum(peek()) || peek() == '_' || peek() == ':')) {
             str.append(1, readCharacter());
         }
-        return str;
-    } else {
-        return "";
     }
 }
 

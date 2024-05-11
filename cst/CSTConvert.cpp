@@ -147,6 +147,19 @@ inline bool is_str_op(CSTToken *token, const std::string &x) {
     return token->type() == LexTokenType::StringOperator && str_token(token) == x;
 }
 
+Operation get_operation(CSTToken *token) {
+    auto op = (OperationToken*) token;
+    std::string num;
+    unsigned i = 0;
+    while(i < op->value.size()) {
+        if(std::isdigit(op->value[i])) {
+            num.append(1, op->value[i]);
+        }
+        i++;
+    }
+    return (Operation) std::stoi(num);
+}
+
 Scope take_body(CSTConverter *conv, CSTToken *token) {
     auto prev_nodes = std::move(conv->nodes);
     token->accept(conv);
@@ -437,7 +450,7 @@ void CSTConverter::visit(AssignmentCST *assignment) {
             std::unique_ptr<Value>(chain),
             std::move(val),
             (assignment->tokens[1]->type() == LexTokenType::Operation)
-            ? ((OperationToken *) assignment->tokens[1].get())->op : Operation::Assignment
+            ? get_operation(assignment->tokens[1].get()) : Operation::Assignment
     ));
 }
 
@@ -476,8 +489,8 @@ void CSTConverter::visit(BreakCST *breakCST) {
 
 void CSTConverter::visit(IncDecCST *incDec) {
     incDec->tokens[0]->accept(this);
-    auto acOp = ((OperationToken *) incDec->tokens[1].get())->op == Operation::PostfixIncrement ? Operation::Addition
-                                                                                                : Operation::Subtraction;
+    auto acOp = (get_operation(incDec->tokens[1].get()) == Operation::PostfixIncrement ? Operation::Addition
+                                                                                                : Operation::Subtraction);
     nodes.emplace_back(std::make_unique<AssignStatement>(value(), std::make_unique<IntValue>(1), acOp));
 }
 
@@ -1002,7 +1015,7 @@ void visitNestedExpr(CSTConverter *converter, CSTToken *expr, ValueAndOperatorSt
             if (is_braced) { // a right parenthesis (i.e. ")"):
                 sy_onRParen(op_stack, output);
             }
-            auto o1 = ((OperationToken *) nested->tokens[op_index].get())->op;
+            auto o1 = get_operation(nested->tokens[op_index].get());
 //            while (
 //                   there is an operator o2 at the top of the operator stack which is not a left parenthesis,
 //                   and (o2 has greater precedence than o1 or (o1 and o2 have the same precedence and o1 is left-associative))
@@ -1041,7 +1054,7 @@ void CSTConverter::visit(ExpressionCST *expr) {
         auto second = value();
         auto first = value();
         values.emplace_back(std::make_unique<Expression>(std::move(first), std::move(second),
-                                                         ((OperationToken *) expr->tokens[op_index].get())->op));
+                                                         (get_operation(expr->tokens[op_index].get()))));
     } else {
         ValueAndOperatorStack op_stack, output;
         visitNestedExpr(this, expr, op_stack, output);

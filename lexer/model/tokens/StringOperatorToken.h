@@ -9,14 +9,14 @@
 #include "LexToken.h"
 
 /**
- * Its named CharOperator because it holds a char, Char has no meaning in terms of syntax
+ * Its named StringOperator because it holds a string, String has no meaning in terms of syntax
  * The length of this token is always one
  */
 class StringOperatorToken : public AbstractStringToken {
 public:
 
     StringOperatorToken(const Position& position, std::string op) : AbstractStringToken(position, std::move(op)) {
-        op.shrink_to_fit();
+
     }
 
     LexTokenType type() const override {
@@ -24,10 +24,7 @@ public:
     }
 
     [[nodiscard]] std::string type_string() const override {
-        std::string ret;
-        ret.append("Operator:");
-        ret.append(value);
-        return ret;
+        return "Operator:" + value;
     }
 
 };

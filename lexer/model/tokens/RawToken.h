@@ -19,16 +19,8 @@ public:
         return LexTokenType::RawToken;
     }
 
-    unsigned int length() const override {
-        return value.length();
-    }
-
     [[nodiscard]] std::string type_string() const override {
         return "Raw:" + value;
-    }
-
-    [[nodiscard]] std::string content() const override {
-        return value;
     }
 
 };

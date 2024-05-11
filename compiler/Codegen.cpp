@@ -164,7 +164,7 @@ llvm::AllocaInst* Codegen::pack_lambda(llvm::Function* func_ptr, llvm::Value* ca
 }
 
 void Codegen::print_to_console() {
-    module->print(llvm::outs(), nullptr);
+    module->print(llvm::outs(), nullptr, false, true);
 }
 
 void Codegen::SetInsertPoint(llvm::BasicBlock *block) {
@@ -198,7 +198,7 @@ void Codegen::CreateCondBr(llvm::Value *Cond, llvm::BasicBlock *True, llvm::Basi
 void Codegen::save_to_file(const std::string &out_path) {
     std::error_code errorCode;
     llvm::raw_fd_ostream outLL(out_path, errorCode);
-    module->print(outLL, nullptr);
+    module->print(outLL, nullptr, false, true);
     outLL.close();
 }
 

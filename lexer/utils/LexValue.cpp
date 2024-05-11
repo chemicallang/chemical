@@ -12,24 +12,18 @@
 
 bool Lexer::lexCharToken() {
     if (provider.increment('\'')) {
-        auto readChar = provider.readCharacter();
-        if (readChar == '\\') {
-            auto escaped = provider.escape_sequence();
-            readChar = escaped.first;
-            if (provider.increment('\'')) {
-                tokens.emplace_back(std::make_unique<CharToken>(backPosition(4), readChar, 4));
-            } else {
-                tokens.emplace_back(std::make_unique<CharToken>(backPosition(3), readChar, 3));
-                error("expected a ' to end a character");
+        std::string value = "'";
+        bool skip_one;
+        char read;
+        while(true) {
+            read = provider.readCharacter();
+            value.append(1, read);
+            if(read == '\'' && !skip_one) {
+                break;
             }
-        } else {
-            if (provider.increment('\'')) {
-                tokens.emplace_back(std::make_unique<CharToken>(backPosition(3), readChar, 3));
-            } else {
-                tokens.emplace_back(std::make_unique<CharToken>(backPosition(2), readChar, 2));
-                error("expected a ' to end a character");
-            }
-        }
+            skip_one = read == '\\';
+        };
+        tokens.emplace_back(std::make_unique<CharToken>(backPosition(value.size()), std::move(value)));
         return true;
     } else {
         return false;

@@ -362,6 +362,8 @@ set(COMMON_SOURCES
         ast/structures/CapturedVariable.h
         ast/values/UInt128Value.h
         ast/values/Int128Value.h
+        cst/utils/StringHelpers.h
+        cst/utils/StringHelpers.cpp
 )
 
 # Chemical LSP Executable Target

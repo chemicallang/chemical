@@ -25,8 +25,4 @@ public:
         return buf;
     }
 
-    [[nodiscard]] std::string content() const override {
-        return "";
-    }
-
 };

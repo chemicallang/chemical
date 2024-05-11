@@ -523,6 +523,11 @@ std::cerr << "child called on base value";
     }
 
     /**
+     * will return a unsigned int representation
+     */
+    unsigned as_uint();
+
+    /**
      * a function to be overridden by values that can return float
      * @return
      */

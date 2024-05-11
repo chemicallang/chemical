@@ -5,6 +5,7 @@
 #include "ast/values/ArrayValue.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/types/PointerType.h"
+#include "ast/values/UIntValue.h"
 
 #ifdef COMPILER_BUILD
 
@@ -85,3 +86,7 @@ llvm::Value* Value::access_chain_pointer(Codegen &gen, std::vector<std::unique_p
 }
 
 #endif
+
+unsigned Value::as_uint() {
+    return ((UIntValue*) this)->value;
+}

@@ -6,14 +6,12 @@
 
 #pragma once
 
-#include "LexToken.h"
+#include "AbstractStringToken.h"
 
-class BoolToken : public LexToken {
+class BoolToken : public AbstractStringToken {
 public:
 
-    bool value;
-
-    BoolToken(const Position& position, bool value) : LexToken(position), value(value) {
+    BoolToken(const Position& position, std::string value) : AbstractStringToken(position, std::move(value)) {
 
     }
 
@@ -21,38 +19,12 @@ public:
         return LexTokenType::Bool;
     }
 
-    unsigned int length() const override {
-        if(value) {
-            return 4;
-        } else {
-            return 5;
-        }
-    }
-
     void accept(CSTVisitor *visitor) override {
         visitor->visit(this);
     }
 
-    void append_representation(std::string &rep) const override {
-        if(value) {
-            rep.append("true");
-        } else {
-            rep.append("false");
-        }
-    }
-
     [[nodiscard]] std::string type_string() const override {
-        std::string buf("Bool:");
-        if(value) {
-            buf.append("true");
-        } else {
-            buf.append("false");
-        }
-        return buf;
-    }
-
-    [[nodiscard]] std::string content() const override {
-        return "";
+        return "Bool:" + value;
     }
 
 };

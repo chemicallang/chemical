@@ -33,10 +33,10 @@ void Lexer::init_value_creators() {
         lexer->tokens.emplace_back(std::make_unique<NullToken>(lexer->backPosition(4)));
     };
     value_creators["true"] = [](Lexer *lexer) -> void {
-        lexer->tokens.emplace_back(std::make_unique<BoolToken>(lexer->backPosition(4), true));
+        lexer->tokens.emplace_back(std::make_unique<BoolToken>(lexer->backPosition(4), "true"));
     };
     value_creators["false"] = [](Lexer *lexer) -> void {
-        lexer->tokens.emplace_back(std::make_unique<BoolToken>(lexer->backPosition(5), false));
+        lexer->tokens.emplace_back(std::make_unique<BoolToken>(lexer->backPosition(5), "false"));
     };
 }
 

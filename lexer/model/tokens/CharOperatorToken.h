@@ -6,23 +6,17 @@
 
 #pragma once
 
-#include "LexToken.h"
+#include "AbstractStringToken.h"
 
 /**
  * Its named CharOperator because it holds a char, Char has no meaning in terms of syntax
  * The length of this token is always one
  */
-class CharOperatorToken : public LexToken {
+class CharOperatorToken : public AbstractStringToken {
 public:
 
-    char op;
+    CharOperatorToken(const Position& position, std::string ope) : AbstractStringToken(position, std::move(ope)) {
 
-    CharOperatorToken(const Position& position, char op) : LexToken(position), op(op) {
-
-    }
-
-    unsigned int length() const override {
-        return 1;
     }
 
     LexTokenType type() const override {
@@ -33,19 +27,8 @@ public:
         visitor->visit(this);
     }
 
-    void append_representation(std::string &rep) const override {
-        rep.append(1, op);
-    }
-
     [[nodiscard]] std::string type_string() const override {
-        std::string ret;
-        ret.append("Operator:");
-        ret.append(1, op);
-        return ret;
-    }
-
-    [[nodiscard]] std::string content() const override {
-        return "";
+        return "Operator:" + value;
     }
 
 };

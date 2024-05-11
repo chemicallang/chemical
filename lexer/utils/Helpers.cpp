@@ -12,7 +12,7 @@
 
 bool Lexer::lexOperatorToken(char op) {
     if(provider.increment(op)) {
-        tokens.emplace_back(std::make_unique<CharOperatorToken>(backPosition(1), op));
+        tokens.emplace_back(std::make_unique<CharOperatorToken>(backPosition(1), std::string(1, op)));
         return true;
     } else {
         return false;

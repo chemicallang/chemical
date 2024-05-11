@@ -128,7 +128,7 @@ inline std::string str_token(tokens_vec_type tokens, unsigned int index) {
 }
 
 inline char char_op(CSTToken *token) {
-    return static_cast<CharOperatorToken *>(token)->op;
+    return static_cast<CharOperatorToken *>(token)->value[0];
 }
 
 inline bool is_keyword(CSTToken *token, const std::string &x) {
@@ -319,7 +319,7 @@ void CSTConverter::visit(FunctionCST *function) {
 
     auto i = params.index;
 
-    if (char_op(function->tokens[i + 1].get()) == ':') {
+    if (is_char_op(function->tokens[i + 1].get(), ':')) {
         function->tokens[i + 2]->accept(this);
         i += 3; // position at body
     } else {

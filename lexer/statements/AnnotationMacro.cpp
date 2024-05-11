@@ -25,13 +25,13 @@ Value *extract_child(InterpretScope &scope, StructValue *value, const std::strin
 }
 
 LexUserToken *extract_token(InterpretScope &scope, StructValue *value, Lexer &lexer) {
-    auto line = extract_child(scope, value, "line", ValueType::Int, lexer);
-    auto character = extract_child(scope, value, "character", ValueType::Int, lexer);
-    auto length = extract_child(scope, value, "length", ValueType::Int, lexer);
-    if (line == nullptr || character == nullptr || length == nullptr) {
+    auto line = extract_child(scope, value, "line", ValueType::UInt, lexer);
+    auto character = extract_child(scope, value, "character", ValueType::UInt, lexer);
+    auto str_value = extract_child(scope, value, "value", ValueType::String, lexer);
+    if (line == nullptr || character == nullptr || str_value == nullptr) {
         return nullptr;
     }
-    return new LexUserToken(UserToken(line->as_int(), character->as_int(), length->as_int()));
+    return new LexUserToken(Position{line->as_uint(), character->as_uint()}, str_value->as_string());
 }
 
 void extract_user_tokens(InterpretVectorValue *list, Lexer &lexer) {

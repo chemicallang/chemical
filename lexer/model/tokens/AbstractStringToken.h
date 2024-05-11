@@ -33,8 +33,4 @@ public:
         rep.append(value);
     }
 
-    [[nodiscard]] std::string content() const override {
-        return "";
-    }
-
 };

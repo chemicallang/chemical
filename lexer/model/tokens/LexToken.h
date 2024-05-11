@@ -62,27 +62,8 @@ public:
 #endif
 
     /**
-     * content of the token, for example string token can contain ('some name')
-     */
-    virtual std::string content() const = 0;
-
-    /**
      * lex token virtual destructor
      */
     virtual ~LexToken() = default;
-
-//    /**
-//     * deserialize the token
-//     * @param obj
-//     * @return
-//     */
-//    virtual bool deserialize(const rapidjson::Value& obj) = 0;
-//
-//    /**
-//     * serialize the token
-//     * @param writer
-//     * @return
-//     */
-//    virtual bool serialize(rapidjson::Writer<rapidjson::StringBuffer>* writer) const = 0;
 
 };

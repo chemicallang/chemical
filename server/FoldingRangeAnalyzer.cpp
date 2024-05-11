@@ -15,7 +15,7 @@
 #define DEBUG false
 
 inline char char_op(CSTToken *token) {
-    return static_cast<CharOperatorToken *>(token)->op;
+    return static_cast<CharOperatorToken *>(token)->value[0];
 }
 
 inline bool is_char_op(CSTToken *token, char x) {

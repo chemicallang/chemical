@@ -72,4 +72,11 @@ public:
      */
     void declare(const std::string &name, ASTNode *node);
 
+    /**
+     * tag
+     */
+    std::string TAG() override {
+        return "SymRes";
+    }
+
 };

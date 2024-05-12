@@ -1,5 +1,6 @@
 // Copyright (c) Qinetik 2024.
 
+#include "ast/base/ASTNode.h"
 #include "CTranslator.h"
 #include "ast/types/IntType.h"
 #include "ast/types/CharType.h"

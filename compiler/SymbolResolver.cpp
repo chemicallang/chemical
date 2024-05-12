@@ -4,7 +4,7 @@
 #include "ast/base/ASTNode.h"
 #include "SymbolResolver.h"
 
-SymbolResolver::SymbolResolver(const std::string& path, bool is64Bit) : path(path), current_path(path), is64Bit(is64Bit) {
+SymbolResolver::SymbolResolver(std::string curr_exe_path, const std::string& path, bool is64Bit) : ASTProcessor(std::move(curr_exe_path), path), is64Bit(is64Bit) {
 
 }
 

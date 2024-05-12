@@ -14,6 +14,8 @@
 
 class Diag;
 
+class ASTProcessor;
+
 class ImportStatement : public ASTNode {
 public:
 
@@ -34,6 +36,8 @@ public:
 
 #endif
 
+    void replace_at_in_path(ASTProcessor* processor);
+
     std::filesystem::path resolve_rel_path(const std::string& root_path);
 
     /**
@@ -45,7 +49,8 @@ public:
             std::function<void(Diag*)> handler,
             bool is64Bit,
             bool benchmark,
-            bool print_representation
+            bool print_representation,
+            ASTProcessor* processor
     );
 
     void declare_top_level(SymbolResolver &linker) override;

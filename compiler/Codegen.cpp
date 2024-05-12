@@ -10,18 +10,15 @@
 #include "llvmimpl.h"
 #include "ast/base/Value.h"
 #include "ast/base/BaseType.h"
-//#include "ast/values/IntNumValue.h"
-//#include "ast/types/IntNType.h"
 
 Codegen::Codegen(
         std::vector<std::unique_ptr<ASTNode>> nodes,
-        const std::string& path,
+        std::string path,
         std::string target_triple,
         std::string curr_exe_path,
         bool is_64_bit
-) : nodes(std::move(nodes)), current_path(path), path(path),
-    target_triple(std::move(target_triple)),
-    curr_exe_path(std::move(curr_exe_path)), is64Bit(is_64_bit) {
+) : ASTProcessor(std::move(curr_exe_path), std::move(path)), nodes(std::move(nodes)),
+    target_triple(std::move(target_triple)), is64Bit(is_64_bit) {
     module_init();
 }
 
@@ -210,41 +207,6 @@ void Codegen::loop_body_wrap(llvm::BasicBlock *condBlock, llvm::BasicBlock *endB
     current_loop_exit = endBlock;
 }
 
-void Codegen::info(const std::string &err, ASTNode* node) {
-    std::string errStr = "[Codegen] Info\n";
-    errStr += "---- message : " + err + "\n";
-    errStr += "---- file path : " + current_path;
-#ifdef DEBUG
-    std::cout << errStr;
-    if(node) {
-        std::cout << "\n" << "---- node representation : " + node->representation();
-    }
-    std::cout << std::endl;
-#endif
-}
-
-void Codegen::error(const std::string &err, ASTNode* node) {
-    std::string errStr = "[Codegen] ERROR\n";
-    errStr += "---- message : " + err + "\n";
-#ifdef DEBUG
-    std::cerr << errStr;
-    if(node) {
-        std::cerr << "\n" << "---- node representation : " + node->representation();
-    }
-    std::cerr << std::endl;
-#endif
-    errors.push_back(errStr);
-}
-
-std::string Codegen::headers_dir(const std::string& header) {
-
-    if(system_headers_paths.empty()) {
-        system_headers_paths = std::move(::system_headers_path(curr_exe_path));
-    }
-
-    return ::headers_dir(system_headers_paths, header);
-
-}
 
 Codegen::~Codegen() {
     delete builder;

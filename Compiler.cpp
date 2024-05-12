@@ -59,9 +59,9 @@ int main(int argc, char *argv[]) {
 
     auto srcFilePath = args[0];
 
+    auto res = options.option("res", "res");
     auto translateC = options.option("tc", "tc");
     if(translateC.has_value()) {
-        auto res = options.option("res", "res");
         auto nodes = TranslateC(argv[0], srcFilePath.c_str(), res.value().c_str());
         for(const auto& node : nodes) {
             std::cout << node->representation() << std::endl;
@@ -118,12 +118,15 @@ int main(int argc, char *argv[]) {
 
     // linking the nodes
     {
-        SymbolResolver linker(srcFilePath, is64Bit);
+        SymbolResolver linker(argv[0], srcFilePath, is64Bit);
         if(benchmark) {
             linker.benchmark = true;
         }
         if(print_representation) {
             linker.print_representation = true;
+        }
+        if(res.has_value()) {
+            linker.resources_dir = res.value();
         }
         scope.declare_top_level(linker);
         scope.declare_and_link(linker);
@@ -138,6 +141,9 @@ int main(int argc, char *argv[]) {
 
     // actual compilation
     Codegen gen(std::move(scope.nodes), srcFilePath, target.value(), argv[0], is64Bit);
+    if(res.has_value()) {
+        gen.resources_dir = res.value();
+    }
     gen.compile();
 
     // check if it requires printing

@@ -14,6 +14,7 @@
 #include "ast/base/AccessSpecifier.h"
 #include "ast/base/BaseTypeKind.h"
 #include "ast/base/ValueType.h"
+#include "ASTProcessor.h"
 
 class Scope;
 
@@ -28,7 +29,7 @@ class BaseType;
  */
 typedef Value*(*CasterFn)(Value* val, BaseType* type);
 
-class Codegen {
+class Codegen : public ASTProcessor {
 public:
 
     /**
@@ -59,11 +60,6 @@ public:
     std::unordered_map<int, CasterFn> comp_casters;
 
     /**
-     * errors are stored here
-     */
-    std::vector<std::string> errors = std::vector<std::string>();
-
-    /**
      * All get element pointer instructions use this to state that the element pointer is inbounds
      * If true, results in undefined behavior when accessing element out of bounds, which is the default
      */
@@ -82,7 +78,7 @@ public:
      */
     explicit Codegen(
             std::vector<std::unique_ptr<ASTNode>> nodes,
-            const std::string& path,
+            std::string path,
             std::string target_triple,
             std::string curr_exe_path,
             bool is_64_bit // can be determined using static method is_arch_64bit on Codegen
@@ -248,25 +244,6 @@ public:
     int invoke_clang(const std::vector<std::string> &command_args);
 
     /**
-     * get absolute path to this system header
-     */
-    std::string abs_header_path(const std::string &header);
-
-    /**
-     * get containing system headers directory for the following header
-     */
-    std::string headers_dir(const std::string &header);
-
-    /**
-     * just prints the errors to std out
-     */
-    void print_errors() {
-        for (const auto &err: errors) {
-            std::cerr << err << std::endl;
-        }
-    }
-
-    /**
      * when generating code for the body of the loop, it should be wrapped with this function call
      * before and after the body generation
      * this ensures that break and continue instructions work properly by pointing to the given blocks
@@ -327,45 +304,9 @@ public:
     llvm::Value *operate(Operation op, Value *lhs, Value *rhs);
 
     /**
-     * report an info, which is useful for user to know
-     */
-    void info(const std::string &err, ASTNode *node = nullptr);
-
-    /**
-     * report an error when generating a node
-     * @param err
-     * @param node the node in which error occurred
-     */
-    void error(const std::string &err, ASTNode *node = nullptr);
-
-    /**
      * destructor takes care of deallocating members
      */
     ~Codegen();
-
-    /**
-     * these are the resolved places where system headers paths exist
-     * when its empty, its loaded directly by invoking clang (from self)
-     * then once we found them we cache them here, for faster invocation next time
-     */
-    std::vector<std::string> system_headers_paths = {};
-
-    /**
-     * path to the current executable, arg[0]
-     * this is useful if in the middle of code generation
-     * we want to invoke the compiler to get more information !
-     */
-    std::string curr_exe_path;
-
-    /**
-     * root path to the file, the path to file where code gen started
-     */
-    std::string path;
-
-    /**
-     * path to the current file being code_gen
-     */
-    std::string current_path;
 
     /**
      * TargetTriple , which we are generating code for !

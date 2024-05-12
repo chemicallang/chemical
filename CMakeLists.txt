@@ -363,6 +363,7 @@ set(COMMON_SOURCES
         cst/utils/StringHelpers.cpp
         cst/base/CSTToken.cpp
         ast/statements/Break.cpp
+        common/DiagSeverity.h
 )
 
 # Chemical LSP Executable Target

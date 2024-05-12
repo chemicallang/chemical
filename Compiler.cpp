@@ -139,9 +139,7 @@ int main(int argc, char *argv[]) {
         scope.declare_top_level(linker);
         scope.declare_and_link(linker);
         if(!linker.errors.empty()) {
-            for(const auto& err : linker.errors) {
-                std::cerr << "[SymRes] " << err << std::endl;
-            }
+            linker.print_errors();
             // TODO preventing linker to stop if errors occur, because we need std.io import to work !
 //            return 1;
         }

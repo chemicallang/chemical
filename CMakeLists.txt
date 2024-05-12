@@ -364,6 +364,8 @@ set(COMMON_SOURCES
         cst/base/CSTToken.cpp
         ast/statements/Break.cpp
         common/DiagSeverity.h
+        preprocess/ImportGraphMaker.h
+        preprocess/ImportGraphMaker.cpp
 )
 
 # Chemical LSP Executable Target

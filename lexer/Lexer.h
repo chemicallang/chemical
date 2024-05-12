@@ -50,7 +50,13 @@ public:
      * lex everything to LexTokens, tokens go into 'tokens' member property
      * @return
      */
-    virtual void lex();
+    void lex();
+
+    /**
+     * switch path of the lexer to this path
+     * WILL NOT SWITCH provider's PATH
+     */
+    void switch_path(const std::string& path);
 
     /**
      * lexes a number as a string
@@ -258,6 +264,11 @@ public:
      * comments, variable initialization with value, constants
      */
     void lexTopLevelMultipleStatementsTokens();
+
+    /**
+     * All import statements defined at top level will be lexed
+     */
+    void lexTopLevelMultipleImportStatements();
 
     /**
      * lexes a multiple nested level statement, nested level means not top level (must not be in file scope)
@@ -733,12 +744,8 @@ protected:
     void init_value_creators();
 
     /**
-     * collected token modifiers, when annotation modifiers like deprecated are detected
-     * they set bits into this unsigned int, which will be later collected by a declaration like
-     * struct / function
+     * A function that is called upon encountering an annotation
      */
-    unsigned int modifiers = 0;
-
     typedef void(*AnnotationModifierFn)(Lexer *lexer);
 
     /**

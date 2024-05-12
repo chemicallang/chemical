@@ -40,6 +40,19 @@ void Lexer::init_value_creators() {
     };
 }
 
+void Lexer::lexTopLevelMultipleImportStatements() {
+    // lex whitespace and new lines to reach a statement
+    // lex a statement and then optional whitespace, lex semicolon
+    while (true) {
+        lexWhitespaceAndNewLines();
+        if (!lexImportStatement()) {
+            break;
+        }
+        lexWhitespaceToken();
+        lexOperatorToken(';');
+    }
+}
+
 void Lexer::lexTopLevelMultipleStatementsTokens() {
 
     // lex whitespace and new lines to reach a statement
@@ -69,6 +82,10 @@ void Lexer::lexTopLevelMultipleStatementsTokens() {
 void Lexer::lex() {
     lexTopLevelMultipleStatementsTokens();
     tokens.shrink_to_fit();
+}
+
+void Lexer::switch_path(const std::string& new_path) {
+    path = new_path;
 }
 
 void Lexer::diagnostic(Position start, const std::string &message, DiagSeverity severity) {

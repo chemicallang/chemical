@@ -11,6 +11,7 @@
 
 class SourceProvider {
 public:
+
     /**
      * gets the current pos of the stream
      * @return

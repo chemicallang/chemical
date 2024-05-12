@@ -5,6 +5,7 @@
 #include <vector>
 #include <memory>
 #include <unordered_map>
+#include "ASTProcessor.h"
 
 class ASTNode;
 
@@ -13,7 +14,7 @@ class ASTNode;
  * SemanticLinker however provides a way for the tokens to be linked
  * This doesn't link up modules like Linker does which is used for exporting executables
  */
-class SymbolResolver {
+class SymbolResolver : public ASTProcessor {
 public:
 
     /**
@@ -34,7 +35,7 @@ public:
     /**
      * constructor
      */
-    SymbolResolver(const std::string& path, bool is64Bit);
+    SymbolResolver(std::string curr_exe_path, const std::string& path, bool is64Bit);
 
     /**
      * similar to codegen it also has imported map
@@ -48,21 +49,6 @@ public:
      * this is vector of scopes, the last scope is current scope
      */
     std::vector<std::unordered_map<std::string, ASTNode*>> current = {{}};
-
-    /**
-     * errors occurred during linking
-     */
-    std::vector<std::string> errors;
-
-    /**
-     * path to the root file, were symbol resolution started
-     */
-    std::string path;
-
-    /**
-     * path to the current file, in which symbols are being resolved
-     */
-    std::string current_path;
 
     /**
      * when a scope beings, this should be called
@@ -85,26 +71,5 @@ public:
      * declares a node with string : name
      */
     void declare(const std::string &name, ASTNode *node);
-
-    /**
-     * save an error
-     */
-    inline void error(const std::string &err) {
-        errors.push_back(err);
-    }
-
-    /**
-     * save a warning
-     */
-    inline void warn(const std::string &wrn) {
-        errors.push_back(wrn);
-    }
-
-    /**
-     * save a information
-     */
-    inline void info(const std::string &inf) {
-        errors.push_back(inf);
-    }
 
 };

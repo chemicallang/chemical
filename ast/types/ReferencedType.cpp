@@ -18,15 +18,14 @@ bool ReferencedType::satisfies(ValueType value_type) const {
     if(linked->as_typealias() != nullptr) {
         return ((TypealiasStatement*) linked)->to->satisfies(value_type);
     } else {
-        // TODO cannot report an error here can we
-        return false;
+        return linked->create_value_type()->satisfies(value_type);
     };
 }
 
 void ReferencedType::link(SymbolResolver &linker) {
     linked = linker.find(type);
     if(!linked) {
-        linker.error("unresolved symbol, couldn't find type " + type);
+        linker.error("unresolved symbol, couldn't find referenced type " + type);
     }
 }
 

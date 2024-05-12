@@ -35,6 +35,17 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
     auto canonical = type->getCanonicalType();
     auto ptr = type->getTypePtr();
     auto canon_ptr = canonical.getTypePtr();
+    if(type->isConstQualified()) {
+        type->removeLocalConst();
+    }
+    if(ptr->isPointerType()) {
+        auto point = ptr->getPointeeType();
+        auto pointee = make_type(&point);
+        if(!pointee) {
+            return nullptr;
+        }
+        return new PointerType(std::unique_ptr<BaseType>(pointee));
+    }
     if(canon_ptr != ptr) { // reference
         if(canon_ptr->isStructureType()) {
             return make_type(&canonical);
@@ -62,14 +73,7 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
 //        }
 //        return new ArrayType(std::unique_ptr<BaseType>(pointee), -1);
 //    }
-    else if(ptr->isPointerType()) {
-        auto point = ptr->getPointeeType();
-        auto pointee = make_type(&point);
-        if(!pointee) {
-            return nullptr;
-        }
-        return new PointerType(std::unique_ptr<BaseType>(pointee));
-    } else {
+    else {
         error("unknown type given to new_type with representation " + type->getAsString());
         return nullptr;
     };

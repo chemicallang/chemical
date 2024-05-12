@@ -233,7 +233,9 @@ std::unique_ptr<BaseType> FunctionParam::create_value_type() {
 }
 
 void FunctionParam::declare_and_link(SymbolResolver &linker) {
-    linker.declare(name, this);
+    if(!name.empty()) {
+        linker.declare(name, this);
+    }
     type->link(linker);
 }
 

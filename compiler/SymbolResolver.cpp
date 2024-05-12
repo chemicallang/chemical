@@ -36,6 +36,9 @@ void SymbolResolver::declare(const std::string& name, ASTNode* node) {
     if(found == last.end()) {
         last[name] = node;
     } else {
-        error("duplicate symbol being declared " + name + " symbol already exists with node representation : " + found->second->representation());
+        std::string err("duplicate symbol being declared " + name + " symbol already exists\n");
+        err.append("previous : " + found->second->representation() + "\n");
+        err.append("new : " + node->representation() + "\n");
+        error(err);
     }
 }

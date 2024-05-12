@@ -36,17 +36,17 @@ void ASTProcessor::info(const std::string &err, ASTNode *node) {
 void ASTProcessor::error(const std::string &err, ASTNode *node) {
     std::string errStr = "[Codegen] ERROR\n";
     errStr += "---- message : " + err + "\n";
-#ifdef DEBUG
-    std::cerr << errStr;
     if(node) {
-        std::cerr << "\n" << "---- node representation : " + node->representation();
+        errStr += "---- node representation : " + node->representation();
     }
-    std::cerr << std::endl;
+#ifdef DEBUG
+//    std::cerr << errStr << std::endl;
 #endif
     errors.push_back(errStr);
 }
 
 void ASTProcessor::print_errors() {
+    std::cerr << std::to_string(errors.size()) << " errors occurred during [" << TAG() << "] " << std::endl;
     for (const auto &err: errors) {
         std::cerr << err << std::endl;
     }

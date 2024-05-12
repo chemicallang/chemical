@@ -59,12 +59,31 @@ int main(int argc, char *argv[]) {
 
     auto srcFilePath = args[0];
 
+    // get and print target
+    auto target = options.option("target", "t");
+    if (!target.has_value()) {
+        target.emplace(llvm::sys::getDefaultTargetTriple());
+    }
+    if(verbose.has_value()) {
+        std::cout << "Target: " << target.value() << std::endl;
+    }
+    // determine if is 64bit
+    bool is64Bit = Codegen::is_arch_64bit(target.value());
+
     auto res = options.option("res", "res");
     auto translateC = options.option("tc", "tc");
     if(translateC.has_value()) {
         auto nodes = TranslateC(argv[0], srcFilePath.c_str(), res.value().c_str());
         for(const auto& node : nodes) {
             std::cout << node->representation() << std::endl;
+        }
+        auto symRes = options.option("symres", "symres");
+        if(symRes.has_value()) {
+            Scope scope(std::move(nodes));
+            SymbolResolver linker(argv[0], srcFilePath, is64Bit);
+            scope.declare_top_level(linker);
+            scope.declare_and_link(linker);
+            linker.print_errors();
         }
         return 0;
     }
@@ -85,18 +104,6 @@ int main(int argc, char *argv[]) {
         // do not pass errored tokens to converter
         return 1;
     }
-
-    // get and print target
-    auto target = options.option("target", "t");
-    if (!target.has_value()) {
-        target.emplace(llvm::sys::getDefaultTargetTriple());
-    }
-    if(verbose.has_value()) {
-        std::cout << "Target: " << target.value() << std::endl;
-    }
-
-    // determine if is 64bit
-    bool is64Bit = Codegen::is_arch_64bit(target.value());
 
     CSTConverter converter(is64Bit);
     converter.convert(lexer.tokens);

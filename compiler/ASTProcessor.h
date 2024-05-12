@@ -59,6 +59,14 @@ public:
     std::string headers_dir(const std::string &header);
 
     /**
+     * the tag of the process, which will be appended to errors
+     */
+    virtual std::string TAG() {
+        return "ASTProcessor";
+    }
+
+
+    /**
      * report an info, which is useful for user to know
      */
     void info(const std::string &err, ASTNode *node = nullptr);

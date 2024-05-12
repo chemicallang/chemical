@@ -7,7 +7,7 @@
 #include "compiler/llvmimpl.h"
 
 llvm::Type *PointerType::llvm_type(Codegen &gen) const {
-    return type->llvm_type(gen)->getPointerTo();
+    return gen.builder->getPtrTy();
 }
 
 #endif

@@ -3,7 +3,6 @@
 #pragma once
 
 #include "common/Diagnostic.h"
-#include "ast/base/ASTNode.h"
 #include "CSTVisitor.h"
 #include "CSTDiagnoser.h"
 #include <unordered_map>

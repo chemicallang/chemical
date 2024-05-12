@@ -5,10 +5,11 @@
 #include <unordered_map>
 #include <memory>
 #include <string>
+#include <vector>
 #include "ast/base/BaseType.h"
 #include "compiler/clangfwd.h"
 #include "compiler/chem_clang.h"
-#include "ast/base/ASTNode.h"
+#include "ast/base/Visitor.h"
 
 class CTranslator;
 

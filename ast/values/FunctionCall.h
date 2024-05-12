@@ -9,7 +9,6 @@
 #include <vector>
 #include <memory>
 #include "ast/base/Value.h"
-#include "ast/base/ASTNode.h"
 #include "ast/structures/FunctionDeclaration.h"
 
 class FunctionCall : public Value {

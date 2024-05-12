@@ -13,6 +13,7 @@ TryCatch::TryCatch(
 
 #ifdef COMPILER_BUILD
 
+#include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
 
 void TryCatch::code_gen(Codegen &gen) {

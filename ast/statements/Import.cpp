@@ -4,25 +4,15 @@
 #include <filesystem>
 #include "lexer/Lexi.h"
 #include "cst/base/CSTConverter.h"
+#include "compiler/SymbolResolver.h"
 
 #define DEBUG false
 
 #ifdef COMPILER_BUILD
 
-#include "llvm/IR/LLVMContext.h"
-#include "llvm/IR/Module.h"
-#include "llvm/Support/TargetSelect.h"
-#include "clang/CodeGen/CodeGenAction.h"
-#include "clang/Frontend/CompilerInstance.h"
-#include "clang/Frontend/CompilerInvocation.h"
-#include "clang/Tooling/Tooling.h"
+#include "compiler/Codegen.h"
 #include "stream/StreamSourceProvider.h"
 #include "utils/Utils.h"
-#include <clang/Frontend/CompilerInstance.h>
-#include <clang/Frontend/FrontendActions.h>
-#include <clang/Lex/PreprocessorOptions.h>
-#include <clang/CodeGen/CodeGenAction.h>
-#include <llvm/Linker/Linker.h>
 
 void ImportStatement::replace_at_in_path(ASTProcessor* processor) {
     if(filePath[0] != '@') return;

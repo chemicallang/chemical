@@ -5,6 +5,7 @@
 
 #ifdef COMPILER_BUILD
 
+#include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
 #include "IntNumValue.h"
 #include "ast/types/IntNType.h"

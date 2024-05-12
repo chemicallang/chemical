@@ -16,23 +16,16 @@ public:
      */
     BreakStatement(LoopASTNode *node) : node(node) {}
 
-    void interpret(InterpretScope &scope) override {
-        if(node == nullptr) {
-            scope.error("[Break] statement has nullptr to loop node");
-            return;
-        }
-        node->body.stopInterpretOnce();
-        node->stopInterpretation();
-    }
+    void interpret(InterpretScope &scope) override;
 
     void accept(Visitor &visitor) override {
         visitor.visit(this);
     }
 
 #ifdef COMPILER_BUILD
-    void code_gen(Codegen &gen) override {
-        gen.CreateBr(gen.current_loop_exit);
-    }
+
+    void code_gen(Codegen &gen) override;
+
 #endif
 
     std::string representation() const override {

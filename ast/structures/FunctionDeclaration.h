@@ -14,6 +14,7 @@
 #include "ast/base/BaseType.h"
 #include "LoopScope.h"
 #include <optional>
+#include "ast/base/AccessSpecifier.h"
 
 class FunctionDeclaration : public ASTNode {
 public:

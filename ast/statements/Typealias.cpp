@@ -1,6 +1,7 @@
 // Copyright (c) Qinetik 2024.
 
 #include "Typealias.h"
+#include "compiler/SymbolResolver.h"
 
 #ifdef COMPILER_BUILD
 

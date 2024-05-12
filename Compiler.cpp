@@ -9,6 +9,7 @@
 #include "utils/Utils.h"
 #include "ast/base/GlobalInterpretScope.h"
 #include "compiler/Codegen.h"
+#include "compiler/SymbolResolver.h"
 #include "utils/CmdUtils.h"
 #include "cst/base/CSTConverter.h"
 #include <filesystem>

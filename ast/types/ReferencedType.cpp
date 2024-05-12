@@ -2,6 +2,7 @@
 
 #include "ReferencedType.h"
 #include "ast/statements/Typealias.h"
+#include "compiler/SymbolResolver.h"
 
 #ifdef COMPILER_BUILD
 

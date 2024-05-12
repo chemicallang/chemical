@@ -1,9 +1,11 @@
 // Copyright (c) Qinetik 2024.
 
 #include "VarInit.h"
+#include "compiler/SymbolResolver.h"
 
 #ifdef COMPILER_BUILD
 
+#include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
 
 void VarInitStatement::code_gen(Codegen &gen) {

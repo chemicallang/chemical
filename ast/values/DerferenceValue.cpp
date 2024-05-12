@@ -4,6 +4,7 @@
 
 #ifdef COMPILER_BUILD
 
+#include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
 
 llvm::Type *DereferenceValue::llvm_type(Codegen &gen) {

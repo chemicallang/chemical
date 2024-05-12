@@ -1,9 +1,11 @@
 // Copyright (c) Qinetik 2024.
 
 #include "VariableIdentifier.h"
+#include "compiler/SymbolResolver.h"
 
 #ifdef COMPILER_BUILD
 
+#include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
 
 llvm::Type *VariableIdentifier::llvm_type(Codegen &gen) {

@@ -3,6 +3,19 @@
 #include "Return.h"
 #include "ast/structures/FunctionDeclaration.h"
 
+#ifdef COMPILER_BUILD
+#include "compiler/Codegen.h"
+
+void ReturnStatement::code_gen(Codegen &gen) {
+    if (value.has_value()) {
+        gen.CreateRet(value.value()->llvm_ret_value(gen, this));
+    } else {
+        gen.CreateRet(nullptr);
+    }
+}
+
+#endif
+
 
 ReturnStatement::ReturnStatement(
         std::optional<std::unique_ptr<Value>> value,
@@ -33,18 +46,6 @@ void ReturnStatement::accept(Visitor &visitor) {
 ReturnStatement *ReturnStatement::as_return() {
     return this;
 }
-
-#ifdef COMPILER_BUILD
-
-void ReturnStatement::code_gen(Codegen &gen) {
-    if (value.has_value()) {
-        gen.CreateRet(value.value()->llvm_ret_value(gen, this));
-    } else {
-        gen.CreateRet(nullptr);
-    }
-}
-
-#endif
 
 std::string ReturnStatement::representation() const {
     std::string ret;

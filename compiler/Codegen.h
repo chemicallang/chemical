@@ -9,12 +9,14 @@
 #include <vector>
 #include <iostream>
 #include "ast/utils/Operation.h"
-#include "SymbolResolver.h"
 #include "llvmfwd.h"
 #include "ast/base/AccessSpecifier.h"
 #include "ast/base/BaseTypeKind.h"
 #include "ast/base/ValueType.h"
 #include "ASTProcessor.h"
+#include <unordered_map>
+
+class Codegen;
 
 class Scope;
 

@@ -4,8 +4,13 @@
 
 #include "ValueType.h"
 #include <string>
-#include "compiler/Codegen.h"
-#include "compiler/SymbolResolver.h"
+#include <memory>
+
+class Codegen;
+
+class SymbolResolver;
+
+class ASTNode;
 
 #ifdef COMPILER_BUILD
 

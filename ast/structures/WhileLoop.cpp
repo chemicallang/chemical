@@ -1,6 +1,7 @@
 // Copyright (c) Qinetik 2024.
 
 #include "WhileLoop.h"
+#include "compiler/SymbolResolver.h"
 
 #ifdef COMPILER_BUILD
 

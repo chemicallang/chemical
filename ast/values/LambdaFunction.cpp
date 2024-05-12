@@ -6,9 +6,11 @@
 #include "ast/types/FunctionType.h"
 #include "ast/statements/Return.h"
 #include "ast/structures/CapturedVariable.h"
+#include "compiler/SymbolResolver.h"
 
 #ifdef COMPILER_BUILD
 
+#include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
 #include "ast/types/VoidType.h"
 #include "ast/base/LoopASTNode.h"

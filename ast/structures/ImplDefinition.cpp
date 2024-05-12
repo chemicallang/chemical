@@ -2,6 +2,11 @@
 
 #include "ImplDefinition.h"
 #include "StructMember.h"
+#include "compiler/SymbolResolver.h"
+
+#ifdef COMPILER_BUILD
+
+#include "compiler/Codegen.h"
 
 void ImplDefinition::code_gen(Codegen &gen) {
     auto unimplemented = gen.unimplemented_interfaces.find(interface_name);
@@ -42,6 +47,8 @@ void ImplDefinition::code_gen(Codegen &gen) {
 //        }
     }
 }
+
+#endif
 
 void ImplDefinition::declare_and_link(SymbolResolver &linker) {
     MembersContainer::declare_and_link(linker);

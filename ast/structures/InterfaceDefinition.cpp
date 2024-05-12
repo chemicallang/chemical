@@ -2,9 +2,11 @@
 
 #include "InterfaceDefinition.h"
 #include "StructMember.h"
+#include "compiler/SymbolResolver.h"
 
 #ifdef COMPILER_BUILD
 
+#include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
 
 void InterfaceDefinition::code_gen(Codegen &gen) {
@@ -46,4 +48,8 @@ std::string InterfaceDefinition::representation() const {
     ret.append(MembersContainer::representation());
     ret.append("\n}");
     return ret;
+}
+
+void InterfaceDefinition::declare_top_level(SymbolResolver &linker) {
+    linker.declare(name, this);
 }

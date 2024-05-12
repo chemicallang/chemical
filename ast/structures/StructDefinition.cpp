@@ -4,11 +4,12 @@
 #include "StructDefinition.h"
 #include "FunctionDeclaration.h"
 #include "ast/types/ReferencedType.h"
+#include "compiler/SymbolResolver.h"
 
 #ifdef COMPILER_BUILD
 
 #include "ast/structures/InterfaceDefinition.h"
-
+#include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
 #include "ast/values/IntValue.h"
 

@@ -92,41 +92,47 @@ std::vector<std::unique_ptr<ASTNode>>& ImportStatement::parsed(
     }
 
     if(resolved.ends_with(".h") || resolved.ends_with(".c")) {
+
         imported_ast = TranslateC(processor->curr_exe_path.c_str(), resolved.c_str(), processor->resources_dir.c_str());
-        return imported_ast;
-    }
 
-    std::ifstream file;
-    file.open(resolved);
-    if (!file.is_open()) {
-        std::cerr << "IMPORT STATEMENT FAILED with path : " + resolved << std::endl;
-        return imported_ast;
-    }
-    auto lexer = benchmark ? benchLexFile(file, resolved) : lexFile(file, resolved);
-    file.close();
+    } else if(resolved.ends_with(".ch")) {
 
-    if(lexer.has_errors) {
-        for(auto& err : lexer.errors) {
-            handler(&err);
+        std::ifstream file;
+        file.open(resolved);
+        if (!file.is_open()) {
+            std::cerr << "IMPORT STATEMENT FAILED with path : " + resolved << std::endl;
+            return imported_ast;
         }
-    }
+        auto lexer = benchmark ? benchLexFile(file, resolved) : lexFile(file, resolved);
+        file.close();
 
-    CSTConverter converter(is64Bit);
-    converter.convert(lexer.tokens);
-
-    if(converter.has_errors) {
-        for(auto& err : converter.diagnostics) {
-            handler(&err);
+        if(lexer.has_errors) {
+            for(auto& err : lexer.errors) {
+                handler(&err);
+            }
         }
+
+        CSTConverter converter(is64Bit);
+        converter.convert(lexer.tokens);
+
+        if(converter.has_errors) {
+            for(auto& err : converter.diagnostics) {
+                handler(&err);
+            }
+        }
+
+        imported_ast = std::move(converter.nodes);
+
+    } else {
+        processor->error("cannot import file " + resolved + " with unknown extension");
+        return imported_ast;
     }
 
     if(print_representation) {
-        Scope scope(std::move(converter.nodes));
+        Scope scope(std::move(imported_ast));
         std::cout << "[Representation]\n" << scope.representation() << std::endl;
-        converter.nodes = std::move(scope.nodes);
+        imported_ast = std::move(scope.nodes);
     }
-
-    imported_ast = std::move(converter.nodes);
 
     return imported_ast;
 

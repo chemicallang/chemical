@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 #include "Position.h"
+#include "DiagSeverity.h"
 
 class Range {
 public:
@@ -16,19 +17,6 @@ public:
         return start.representation() + " - " + end.representation();
     }
 };
-
-enum class DiagSeverity : uint8_t {
-    // Reports an error.
-    Error = 1,
-    // Reports a warning.
-    Warning = 2,
-    // Reports an information.
-    Information = 3,
-    // Reports a hint.
-    Hint = 4
-};
-
-std::string color(DiagSeverity severity);
 
 enum class DiagTag : uint8_t {
     // redundant code tag

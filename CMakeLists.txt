@@ -362,6 +362,7 @@ set(COMMON_SOURCES
         cst/utils/StringHelpers.h
         cst/utils/StringHelpers.cpp
         cst/base/CSTToken.cpp
+        ast/statements/Break.cpp
 )
 
 # Chemical LSP Executable Target

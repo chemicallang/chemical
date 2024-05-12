@@ -31,9 +31,7 @@ public:
         visitor.visit(this);
     }
 
-    void declare_top_level(SymbolResolver &linker) override {
-        linker.declare(name, this);
-    }
+    void declare_top_level(SymbolResolver &linker) override;
 
 #ifdef COMPILER_BUILD
 

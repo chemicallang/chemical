@@ -9,6 +9,7 @@
 
 #ifdef COMPILER_BUILD
 
+#include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
 
 llvm::AllocaInst* Value::llvm_allocate_with(Codegen& gen, const std::string& identifier, llvm::Value* value, llvm::Type* type) {

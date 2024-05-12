@@ -8,6 +8,7 @@
 
 #ifdef COMPILER_BUILD
 
+#include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
 
 inline std::unique_ptr<FunctionType> func_call_func_type(FunctionCall* call) {
@@ -239,6 +240,7 @@ Value *FunctionCall::find_in(InterpretScope &scope, Value *parent) {
         return parent->call_member(scope, id->value, values);
     } else {
         scope.error("No identifier for function call");
+        return nullptr;
     }
 }
 

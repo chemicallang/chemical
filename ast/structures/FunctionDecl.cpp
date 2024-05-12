@@ -5,10 +5,12 @@
 #include "ast/types/FunctionType.h"
 #include "ast/structures/InterfaceDefinition.h"
 #include "ast/structures/StructDefinition.h"
+#include "compiler/SymbolResolver.h"
 
 #ifdef COMPILER_BUILD
 
 #include "ast/types/PointerType.h"
+#include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
 #include "CapturedVariable.h"
 #include "ast/values/LambdaFunction.h"

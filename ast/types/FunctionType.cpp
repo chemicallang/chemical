@@ -5,6 +5,7 @@
 
 #ifdef COMPILER_BUILD
 
+#include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
 
 llvm::FunctionType *FunctionType::llvm_func_type(Codegen &gen) {
@@ -26,7 +27,7 @@ llvm::Value *FunctionType::llvm_return_intercept(Codegen &gen, llvm::Value *valu
     if(isCapturing) {
         if(node->as_func_param() != nullptr) {
             auto funcParam = node->as_func_param();
-            gen.pack_lambda((llvm::Function*) value, gen.current_function->getArg(funcParam->index + 1));
+            return gen.pack_lambda((llvm::Function*) value, gen.current_function->getArg(funcParam->index + 1));
         } else {
             throw std::runtime_error("unknown calling node");
         }

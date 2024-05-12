@@ -12,7 +12,8 @@
 #include "Interpretable.h"
 #include "typecheck/TypeChecker.h"
 #include "Visitor.h"
-#include "compiler/SymbolResolver.h"
+
+class SymbolResolver;
 
 #ifdef COMPILER_BUILD
 

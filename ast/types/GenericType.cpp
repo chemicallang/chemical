@@ -2,6 +2,7 @@
 
 
 #include "GenericType.h"
+#include "compiler/SymbolResolver.h"
 
 #ifdef COMPILER_BUILD
 

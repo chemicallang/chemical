@@ -1,6 +1,7 @@
 // Copyright (c) Qinetik 2024.
 
 #include "EnumDeclaration.h"
+#include "compiler/SymbolResolver.h"
 
 #ifdef COMPILER_BUILD
 
@@ -29,4 +30,8 @@ ASTNode *EnumDeclaration::child(const std::string &name) {
     } else {
         return mem->second.get();
     }
+}
+
+void EnumDeclaration::declare_top_level(SymbolResolver &linker) {
+    linker.declare(name, this);
 }

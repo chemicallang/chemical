@@ -2,9 +2,11 @@
 
 #include "StructValue.h"
 #include "ast/structures/StructMember.h"
+#include "compiler/SymbolResolver.h"
 
 #ifdef COMPILER_BUILD
 
+#include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
 #include "IntValue.h"
 

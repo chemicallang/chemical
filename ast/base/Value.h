@@ -9,9 +9,10 @@
 #include "Interpretable.h"
 #include "ValueType.h"
 #include "ast/utils/Operation.h"
-#include "compiler/SymbolResolver.h"
 #include <vector>
 #include <memory>
+
+class SymbolResolver;
 
 #ifdef COMPILER_BUILD
 class Codegen;

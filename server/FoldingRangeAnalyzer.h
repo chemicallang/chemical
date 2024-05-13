@@ -47,6 +47,14 @@ public:
 
     void visitVarInit(CompoundCSTToken *varInit) override;
 
+    void visitReturn(CompoundCSTToken *returnCst) override;
+
+    void visitFunctionCall(CompoundCSTToken *call) override;
+
+    void visitAssignment(CompoundCSTToken *assignment) override;
+
+    void visitAccessChain(AccessChainCST *accessChain) override;
+
     void visitEnumDecl(CompoundCSTToken *enumDecl) override;
 
     void visitInterface(CompoundCSTToken *interface) override;

@@ -31,6 +31,22 @@ void FoldingRangeAnalyzer::visitVarInit(CompoundCSTToken *varInit) {
     varInit->tokens[varInit->tokens.size() - 1]->accept(this);
 }
 
+void FoldingRangeAnalyzer::visitReturn(CompoundCSTToken *returnCst) {
+    ::visit(this, returnCst->tokens);
+}
+
+void FoldingRangeAnalyzer::visitFunctionCall(CompoundCSTToken *call) {
+    ::visit(this, call->tokens);
+}
+
+void FoldingRangeAnalyzer::visitAssignment(CompoundCSTToken *assignment) {
+    assignment->tokens[assignment->tokens.size() - 1]->accept(this);
+}
+
+void FoldingRangeAnalyzer::visitAccessChain(AccessChainCST *accessChain) {
+    ::visit(this, ((CompoundCSTToken*) accessChain)->tokens);
+}
+
 void FoldingRangeAnalyzer::visitIf(CompoundCSTToken *ifCst) {
     ::visit(this, ifCst->tokens);
 }

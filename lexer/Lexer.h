@@ -616,9 +616,6 @@ public:
     std::enable_if_t<std::is_base_of_v<CSTToken, T>>
     compound_from(unsigned int start, Args&&... args) {
         unsigned int size = tokens.size();
-#ifdef LSP_BUILD
-      if(!errors.empty()) return;
-#endif
         tokens.emplace_back(std::make_unique<T>(take_from(start, size), std::forward<Args>(args)...));
     }
 

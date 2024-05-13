@@ -37,17 +37,20 @@ bool Lexer::lexStructStructureTokens() {
         lexWhitespaceToken();
         if(!lexIdentifierToken()) {
             error("expected a identifier as struct name");
+            return true;
         }
         lexWhitespaceToken();
         if(lexOperatorToken(':')) {
             lexWhitespaceToken();
             if(!lexIdentifierToken()) {
                 error("expected a interface name after ':' when declaring a struct");
+                return true;
             }
         }
         lexWhitespaceToken();
         if(!lexStructBlockTokens()) {
             error("expected a struct block for declaring struct members");
+            return true;
         }
         lexWhitespaceToken();
         compound_from<StructDefCST>(start_token);

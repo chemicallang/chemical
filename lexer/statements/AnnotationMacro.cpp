@@ -53,16 +53,14 @@ bool Lexer::lexAnnotationMacro() {
         provider.readAnnotationIdentifier(macro_full);
         auto macro = macro_full.substr(1);
         if(isAnnotation) {
-            tokens.emplace_back(std::make_unique<AnnotationToken>(backPosition(macro.size() + 1), macro_full));
+            tokens.emplace_back(std::make_unique<AnnotationToken>(backPosition(macro.size()), macro_full));
         } else {
-            tokens.emplace_back(std::make_unique<MacroToken>(backPosition(macro.size() + 1), macro_full));
+            tokens.emplace_back(std::make_unique<MacroToken>(backPosition(macro.size()), macro_full));
         }
         if (isAnnotation) {
             auto found = annotation_modifiers.find(macro);
             if (found != annotation_modifiers.end()) {
                 found->second(this);
-            } else {
-                info("unknown annotation at lexer level : " + macro + " next char :" + provider.peek());
             }
         } else {
 

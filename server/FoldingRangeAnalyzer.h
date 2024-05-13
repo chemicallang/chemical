@@ -47,6 +47,8 @@ public:
 
     void visitStructDef(CompoundCSTToken *structDef) override;
 
+    void visitIf(CompoundCSTToken *ifCst) override;
+
     void visitForLoop(CompoundCSTToken *forLoop) override;
 
     void visitWhile(CompoundCSTToken *whileCst) override;

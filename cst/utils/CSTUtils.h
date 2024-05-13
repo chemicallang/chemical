@@ -2,7 +2,9 @@
 
 #pragma once
 
+#include <memory>
 #include <string>
+#include "cst/base/CompoundCSTToken.h"
 #include "lexer/model/tokens/AbstractStringToken.h"
 #include "lexer/model/tokens/CharOperatorToken.h"
 
@@ -33,4 +35,20 @@ inline bool is_char_op(CSTToken *token, char x) {
 
 inline bool is_str_op(CSTToken *token, const std::string &x) {
     return token->type() == LexTokenType::StringOperator && str_token(token) == x;
+}
+
+inline std::string var_init_identifier(CompoundCSTToken* cst) {
+    return str_token(cst->tokens[1].get());
+}
+
+inline std::string func_name(CompoundCSTToken* func) {
+    return str_token(func->tokens[1].get());
+}
+
+bool is_var_init_const(CompoundCSTToken* cst);
+
+void visit(CSTVisitor* visitor, std::vector<std::unique_ptr<CSTToken>>& tokens, unsigned int start, unsigned int end);
+
+inline void visit(CSTVisitor* visitor, std::vector<std::unique_ptr<CSTToken>>& tokens) {
+    visit(visitor, tokens, 0, tokens.size());
 }

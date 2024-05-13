@@ -7,16 +7,9 @@
 #include "FoldingRangeAnalyzer.h"
 #include "lexer/model/tokens/CharOperatorToken.h"
 #include "cst/base/CompoundCSTToken.h"
+#include "cst/utils/CSTUtils.h"
 
-#define DEBUG false
-
-inline char char_op(CSTToken *token) {
-    return static_cast<CharOperatorToken *>(token)->value[0];
-}
-
-inline bool is_char_op(CSTToken *token, char x) {
-    return token->type() == LexTokenType::CharOperator && char_op(token) == x;
-}
+#define DEBUG_FOLDING_RANGE false
 
 void FoldingRangeAnalyzer::folding_range(LexToken* start, LexToken* end, bool comment) {
     ranges.push_back(FoldingRange{
@@ -38,6 +31,10 @@ void FoldingRangeAnalyzer::visitStructDef(CompoundCSTToken *structDef) {
     folding_range(structDef->tokens[start]->start_token(), structDef->tokens[i]->start_token());
 };
 
+void FoldingRangeAnalyzer::visitIf(CompoundCSTToken *ifCst) {
+    analyze(ifCst->tokens);
+}
+
 void FoldingRangeAnalyzer::visitForLoop(CompoundCSTToken *forLoop) {
     forLoop->tokens[8]->accept(this);
 };
@@ -51,7 +48,7 @@ void FoldingRangeAnalyzer::visitDoWhile(CompoundCSTToken *doWhileCst) {
 };
 
 void FoldingRangeAnalyzer::visitFunction(CompoundCSTToken *function) {
-
+    function->tokens[function->tokens.size() - 1]->accept(this);
 };
 
 void FoldingRangeAnalyzer::visitLambda(CompoundCSTToken *cst) {
@@ -64,13 +61,12 @@ void FoldingRangeAnalyzer::visit(MultilineCommentToken *token) {
 
 void FoldingRangeAnalyzer::visitBody(CompoundCSTToken *bodyCst) {
     folding_range(bodyCst->start_token(), bodyCst->end_token());
+    ::visit(this, bodyCst->tokens);
 }
 
 void FoldingRangeAnalyzer::analyze(std::vector<std::unique_ptr<CSTToken>> &tokens) {
-    for(const auto& token : tokens) {
-        token->accept(this);
-    }
-#if defined DEBUG && DEBUG
+    ::visit(this, tokens);
+#if defined DEBUG_FOLDING_RANGE && DEBUG_FOLDING_RANGE
         for (const auto &range: ranges) {
             std::cout << std::to_string(range.startLine) << ':' << std::to_string(range.startCharacter) << '-'
                       << std::to_string(range.endLine) << ':' << std::to_string(range.endCharacter) << '-'

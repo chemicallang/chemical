@@ -108,18 +108,6 @@ Scope take_body(CSTConverter *conv, CSTToken *token) {
     return scope;
 }
 
-bool is_const(CompoundCSTToken* cst) {
-    return str_token(cst->tokens[0].get()) == "const";
-}
-
-inline std::string identifier(CompoundCSTToken* cst) {
-    return str_token(cst->tokens[1].get());
-}
-
-inline std::string func_name(CompoundCSTToken* func) {
-    return str_token(func->tokens[1].get());
-}
-
 // TODO support _128bigint, bigfloat
 CSTConverter::CSTConverter(bool is64Bit) : is64Bit(is64Bit) {
     primitive_type_map["any"] = []() -> BaseType * {
@@ -375,8 +363,8 @@ void CSTConverter::visitVarInit(CompoundCSTToken *varInit) {
         }
     }
     nodes.emplace_back(std::make_unique<VarInitStatement>(
-            is_const(varInit),
-            identifier(varInit),
+            is_var_init_const(varInit),
+            var_init_identifier(varInit),
             std::move(optType),
             std::move(optVal)
     ));

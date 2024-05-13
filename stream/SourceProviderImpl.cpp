@@ -123,15 +123,19 @@ void SourceProvider::reset() {
 }
 
 void SourceProvider::readEscaping(std::string &value, char stopAt) {
-    bool skip_one;
+    bool skip_one = false;
     char read;
     while (!eof()) {
         read = readCharacter();
         value.append(1, read);
-        if (read == stopAt && !skip_one) {
-            break;
+        if(skip_one) {
+            skip_one = false;
+        } else {
+            if (read == stopAt) {
+                break;
+            }
+            skip_one = read == '\\';
         }
-        skip_one = read == '\\';
     };
 }
 

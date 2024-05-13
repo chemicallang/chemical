@@ -112,6 +112,8 @@ class NumberToken;
 
 class BoolToken;
 
+class StringOperatorToken;
+
 class VariableToken;
 
 class LexUserToken;
@@ -286,6 +288,10 @@ public:
     }
 
     virtual void visit(CharOperatorToken *token) {
+        visitLexTokenCommon((LexToken *) token);
+    };
+
+    virtual void visit(StringOperatorToken *token) {
         visitLexTokenCommon((LexToken *) token);
     };
 

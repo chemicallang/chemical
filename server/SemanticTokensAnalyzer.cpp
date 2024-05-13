@@ -14,6 +14,7 @@
 #include "cst/structures/DoWhileCST.h"
 #include "cst/statements/IfCST.h"
 #include "cst/structures/FunctionCST.h"
+#include "cst/structures/EnumDeclCST.h"
 
 #define DEBUG false
 
@@ -79,6 +80,12 @@ void SemanticTokensAnalyzer::visit(BodyCST *bodyCst) {
     analyze(bodyCst->tokens);
 }
 
+void SemanticTokensAnalyzer::visit(EnumDeclCST *enumDecl) {
+    enumDecl->tokens[0]->accept(this);
+    put(enumDecl->tokens[1]->start_token(), SemanticTokenType::ls_enum);
+    visit(enumDecl->tokens, 2);
+}
+
 void SemanticTokensAnalyzer::visit(VarInitCST *varInit) {
     visitCompoundCommon((CompoundCSTToken *) varInit);
 }
@@ -127,9 +134,17 @@ void SemanticTokensAnalyzer::visit(BoolToken *token) {
     put((LexToken *) token, SemanticTokenType::ls_keyword);
 };
 
+void SemanticTokensAnalyzer::visit(NullToken *token) {
+    put((LexToken *) token, SemanticTokenType::ls_keyword);
+}
+
 void SemanticTokensAnalyzer::visit(CharOperatorToken *token) {
     put((LexToken *) token, SemanticTokenType::ls_operator);
 };
+
+void SemanticTokensAnalyzer::visit(StringOperatorToken *token) {
+    put((LexToken *) token, SemanticTokenType::ls_operator);
+}
 
 void SemanticTokensAnalyzer::visit(CharToken *token) {
     put((LexToken *) token, SemanticTokenType::ls_string);

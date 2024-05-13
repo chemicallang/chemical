@@ -75,13 +75,19 @@ public:
 
     void visit(StructDefCST *structDef) override;
 
+    void visit(EnumDeclCST *enumDecl) override;
+
     void visit(BodyCST *bodyCst) override;
 
     // Token visitors
 
     void visit(BoolToken *token) override;
 
+    void visit(NullToken *token) override;
+
     void visit(CharOperatorToken *token) override;
+
+    void visit(StringOperatorToken *token) override;
 
     void visit(CharToken *token) override;
 

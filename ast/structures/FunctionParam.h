@@ -33,6 +33,8 @@ public:
 
     llvm::Value *llvm_ret_load(Codegen &gen, ReturnStatement *returnStmt) override;
 
+    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
+
 #endif
 
     FunctionParam *copy() const;
@@ -40,8 +42,6 @@ public:
     std::string representation() const override;
 
     ASTNode *child(const std::string &name) override;
-
-    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
 
     void declare_and_link(SymbolResolver &linker) override;
 

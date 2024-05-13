@@ -35,8 +35,6 @@ llvm::Value *VariableIdentifier::llvm_ret_value(Codegen &gen, ReturnStatement *r
     return linked->llvm_ret_load(gen, returnStmt);
 }
 
-#endif
-
 llvm::Value *VariableIdentifier::access_chain_value(Codegen &gen, std::vector<std::unique_ptr<Value>> &values) {
     if(linked->as_enum_member() != nullptr) {
         return llvm_value(gen);
@@ -44,6 +42,8 @@ llvm::Value *VariableIdentifier::access_chain_value(Codegen &gen, std::vector<st
         return Value::access_chain_value(gen, values);
     }
 }
+
+#endif
 
 void VariableIdentifier::link(SymbolResolver &linker) {
     linked = linker.find(value);

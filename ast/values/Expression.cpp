@@ -2,13 +2,13 @@
 
 #include "Expression.h"
 #include "ast/base/GlobalInterpretScope.h"
+#include "IntNumValue.h"
+#include "ast/types/IntNType.h"
 
 #ifdef COMPILER_BUILD
 
 #include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
-#include "IntNumValue.h"
-#include "ast/types/IntNType.h"
 #include "ast/values/UShortValue.h"
 #include "ast/values/ShortValue.h"
 #include "ast/values/UIntValue.h"

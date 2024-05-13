@@ -7,15 +7,15 @@
 #include "ast/statements/Return.h"
 #include "ast/structures/CapturedVariable.h"
 #include "compiler/SymbolResolver.h"
+#include "ast/types/VoidType.h"
+#include "ast/statements/VarInit.h"
+#include "ast/base/LoopASTNode.h"
+#include "ast/values/StructValue.h"
 
 #ifdef COMPILER_BUILD
 
 #include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
-#include "ast/types/VoidType.h"
-#include "ast/base/LoopASTNode.h"
-#include "ast/statements/VarInit.h"
-#include "ast/values/StructValue.h"
 
 llvm::Type *LambdaFunction::llvm_type(Codegen &gen) {
     return gen.builder->getPtrTy();

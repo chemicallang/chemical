@@ -2,12 +2,12 @@
 
 #include "EnumDeclaration.h"
 #include "compiler/SymbolResolver.h"
+#include "ast/types/IntType.h"
 
 #ifdef COMPILER_BUILD
 
 #include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
-#include "ast/types/IntType.h"
 
 llvm::Value *EnumMember::llvm_load(Codegen &gen) {
     return gen.builder->getInt32(index);

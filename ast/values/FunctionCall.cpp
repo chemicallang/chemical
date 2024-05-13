@@ -188,6 +188,10 @@ llvm::InvokeInst *FunctionCall::llvm_invoke(Codegen &gen, llvm::BasicBlock* norm
     }
 }
 
+llvm::Value *FunctionCall::llvm_pointer(Codegen &gen) {
+    throw std::runtime_error("llvm_pointer called on a function call");
+}
+
 #endif
 
 FunctionCall::FunctionCall(
@@ -278,10 +282,6 @@ std::unique_ptr<BaseType> FunctionCall::create_type() const {
     auto value_type = parent_val->create_type();
     auto func_type = value_type->function_type();
     return std::unique_ptr<BaseType>(func_type->returnType->copy());
-}
-
-llvm::Value *FunctionCall::llvm_pointer(Codegen &gen) {
-    throw std::runtime_error("llvm_pointer called on a function call");
 }
 
 void FunctionCall::interpret(InterpretScope &scope) {

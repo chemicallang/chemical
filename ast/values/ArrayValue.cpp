@@ -3,12 +3,12 @@
 #include "ArrayValue.h"
 #include "StructValue.h"
 #include "ast/structures/StructDefinition.h"
+#include "ast/types/ArrayType.h"
 
 #ifdef COMPILER_BUILD
 
 #include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
-#include "ast/types/ArrayType.h"
 
 llvm::Value *ArrayValue::llvm_pointer(Codegen &gen) {
     return arr;

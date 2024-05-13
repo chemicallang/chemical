@@ -6,13 +6,13 @@
 #include "ast/structures/InterfaceDefinition.h"
 #include "ast/structures/StructDefinition.h"
 #include "compiler/SymbolResolver.h"
+#include "CapturedVariable.h"
+#include "ast/types/PointerType.h"
 
 #ifdef COMPILER_BUILD
 
-#include "ast/types/PointerType.h"
 #include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
-#include "CapturedVariable.h"
 #include "ast/values/LambdaFunction.h"
 
 llvm::Type *FunctionParam::llvm_type(Codegen &gen) {
@@ -191,6 +191,10 @@ llvm::Type *CapturedVariable::llvm_type(Codegen &gen) {
     }
 }
 
+bool FunctionParam::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
+    return type->linked_node()->add_child_index(gen, indexes, name);
+}
+
 #endif
 
 FunctionParam::FunctionParam(
@@ -243,10 +247,6 @@ void FunctionParam::declare_and_link(SymbolResolver &linker) {
 
 ASTNode *FunctionParam::child(const std::string &name) {
     return type->linked_node()->child(name);
-}
-
-bool FunctionParam::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
-    return type->linked_node()->add_child_index(gen, indexes, name);
 }
 
 FunctionDeclaration::FunctionDeclaration(

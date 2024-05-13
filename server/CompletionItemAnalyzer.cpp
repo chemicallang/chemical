@@ -13,6 +13,7 @@
 #include "cst/structures/WhileCST.h"
 #include "cst/structures/DoWhileCST.h"
 #include "cst/statements/IfCST.h"
+#include "cst/utils/CSTUtils.h"
 
 #define DEBUG false
 
@@ -46,7 +47,7 @@ void CompletionItemAnalyzer::visit(BodyCST *bodyCst) {
 }
 
 void CompletionItemAnalyzer::visit(VarInitCST *varInit) {
-    put(varInit->identifier(), lsCompletionItemKind::Variable);
+    put(str_token(varInit->tokens[0].get()), lsCompletionItemKind::Variable);
 }
 
 void CompletionItemAnalyzer::visit(FunctionCST *function) {

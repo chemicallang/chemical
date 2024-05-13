@@ -25,7 +25,11 @@ public:
     bool isVariadic;
     Scope scope;
 
+#ifdef COMPILER_BUILD
+
     llvm::Value *captured_struct = nullptr;
+
+#endif
 
     /**
      * @brief Construct a new IntValue object.

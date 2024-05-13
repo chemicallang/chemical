@@ -75,6 +75,14 @@ void FoldingRangeAnalyzer::visitLambda(CompoundCSTToken *cst) {
     cst->tokens[cst->tokens.size() - 1]->accept(this);
 };
 
+void FoldingRangeAnalyzer::visitSwitch(CompoundCSTToken *switchCst) {
+    folding_range(switchCst->tokens[4]->start_token(), switchCst->tokens[switchCst->tokens.size() - 1]->end_token());
+}
+
+void FoldingRangeAnalyzer::visitStructValue(CompoundCSTToken *cst) {
+    folding_range(cst->tokens[1]->start_token(), cst->tokens[cst->tokens.size() - 1]->end_token());
+}
+
 void FoldingRangeAnalyzer::visitInterface(CompoundCSTToken *interface) {
     folding_range(interface->tokens[2]->start_token(), interface->tokens[interface->tokens.size() - 1]->end_token());
 }

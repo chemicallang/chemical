@@ -55,6 +55,8 @@ public:
 
     void visitAccessChain(AccessChainCST *accessChain) override;
 
+    void visitSwitch(CompoundCSTToken *switchCst) override;
+
     void visitEnumDecl(CompoundCSTToken *enumDecl) override;
 
     void visitInterface(CompoundCSTToken *interface) override;
@@ -78,6 +80,8 @@ public:
     void visit(MultilineCommentToken *token) override;
 
     void visitBody(CompoundCSTToken *bodyCst) override;
+
+    void visitStructValue(CompoundCSTToken *structValueCst) override
 
 
 };

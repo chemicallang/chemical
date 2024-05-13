@@ -39,7 +39,6 @@ std::vector<IGFile> get_imports(
 ) {
 
     // open file
-    importer->stream.close();
     importer->stream.open(abs_path);
     if(!importer->stream.is_open()) {
         importer->errors.push_back(Diag {
@@ -66,6 +65,7 @@ std::vector<IGFile> get_imports(
     }
 
     // take
+    importer->stream.close();
     std::vector<IGFile> nested;
     auto nodes = std::move(importer->converter->nodes);
     for (auto &node: nodes) {

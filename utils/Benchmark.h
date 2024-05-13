@@ -5,7 +5,7 @@
 struct BenchmarkResults {
 
     std::uint64_t start_time; // Native representation of start time
-    std::uint64_t elapsed_time; // Native representation of elapsed time
+    std::uint64_t end_time; // Native representation of elapsed time
 
     void benchmark_begin();
 

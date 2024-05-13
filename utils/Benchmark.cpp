@@ -5,7 +5,7 @@
 
 std::string BenchmarkResults::representation() {
 
-    auto nanos = elapsed_time;
+    auto nanos = end_time - start_time;;
     auto micros = nanos / 1000;
     auto millis = nanos / 1000000;
     auto seconds = nanos / 1000000000;
@@ -29,6 +29,5 @@ void BenchmarkResults::benchmark_begin() {
 }
 
 void BenchmarkResults::benchmark_end() {
-    std::uint64_t end_time = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
-    elapsed_time = end_time - start_time;
+    end_time = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
 }

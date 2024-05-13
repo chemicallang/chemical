@@ -33,6 +33,11 @@ public:
     bool print_representation = false;
 
     /**
+     * when true, re-declaring same symbol will override it
+     */
+    bool override_symbols = false;
+
+    /**
      * constructor
      */
     SymbolResolver(std::string curr_exe_path, const std::string& path, bool is64Bit);

@@ -33,7 +33,7 @@ ASTNode *SymbolResolver::find(const std::string &name) {
 void SymbolResolver::declare(const std::string& name, ASTNode* node) {
     auto& last = current.back();
     auto found = last.find(name);
-    if(found == last.end()) {
+    if(found == last.end() || override_symbols) {
         last[name] = node;
     } else {
         std::string err("duplicate symbol being declared " + name + " symbol already exists\n");

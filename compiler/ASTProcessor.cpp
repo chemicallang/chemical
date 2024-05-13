@@ -50,7 +50,7 @@ void ASTProcessor::error(const std::string &err, ASTNode *node) {
 }
 
 void ASTProcessor::print_errors() {
-    std::cout << std::to_string(errors.size()) << " diagnostics gathered during [" << TAG() << "] " << std::endl;
+    std::cout << "[" << TAG() << "] " << std::to_string(errors.size()) << " diagnostics gathered" << std::endl;
     for (const auto &err: errors) {
         std::cout << color(err.severity) << err.message << ANSI_COLOR_RESET << std::endl;
     }

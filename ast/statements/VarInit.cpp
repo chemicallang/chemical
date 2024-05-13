@@ -13,7 +13,8 @@ void VarInitStatement::code_gen(Codegen &gen) {
         if (value.has_value()) {
             llvm_ptr = value.value()->llvm_global_variable(gen, is_const, identifier);
         } else {
-            gen.error("Global variables must have a value by default !");
+            // TODO declare a global variable
+            gen.info("[Unimplemented] Global variables");
         }
     } else {
         if (value.has_value()) {

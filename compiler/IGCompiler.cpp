@@ -11,6 +11,8 @@
 #include <iostream>
 #include <utility>
 
+std::vector<std::unique_ptr<ASTNode>> TranslateC(const char* exe_path, const char *abs_path, const char *resources_path);
+
 IGCompilerOptions::IGCompilerOptions(
         std::string exe_path,
         std::string target_triple,
@@ -64,7 +66,7 @@ bool compile(Codegen *gen, const std::string &path, IGCompilerOptions *options) 
     resolver.benchmark = options->benchmark;
 
     // The imported map, when a file is imported, it set's it's absolute path true in this map
-    // to avoid re importing files
+    // to avoid re-importing files
     std::unordered_map<std::string, bool> imported;
 
     // beginning
@@ -80,44 +82,77 @@ bool compile(Codegen *gen, const std::string &path, IGCompilerOptions *options) 
         }
         imported[file->abs_path] = true;
 
-//        if(options->verbose) {
-        std::cout << "[IGGraph] Begin Compilation " << file->abs_path << std::endl;
-//        }
-
-        // lex the file
-        lexer.switch_path(file->abs_path);
-        options->benchmark ? benchLexFile(&lexer, file->abs_path) : lexFile(&lexer, file->abs_path);
-        for (const auto &err: lexer.errors) {
-            std::cerr << err.representation(file->abs_path, "Lexer") << std::endl;
-        }
-        if (options->print_tokens) {
-            printTokens(lexer.tokens);
-        }
-        if (lexer.has_errors) {
-            // stop lexing
-            return false;
+        if(options->verbose) {
+            std::cout << "[IGGraph] Begin Compilation " << file->abs_path << std::endl;
         }
 
-        // convert the tokens
-        converter.convert(lexer.tokens);
-        for (const auto &err: converter.diagnostics) {
-            std::cerr << err.representation(path, "Converter") << std::endl;
-        }
-        Scope scope(std::move(converter.nodes));
-        if (options->print_representation) {
-            std::cout << "[Representation]\n" << scope.representation() << std::endl;
-        }
+        Scope scope;
+        auto is_c_file = file->abs_path.ends_with(".h") || file->abs_path.ends_with(".c");
 
-        // clear the lexer tokens
-        lexer.tokens.clear();
+        if(is_c_file) {
+
+            if(options->verbose) {
+                std::cout << "[IGGraph] Translating C " << file->abs_path << std::endl;
+            }
+
+            scope.nodes = TranslateC(gen->curr_exe_path.c_str(), file->abs_path.c_str(), gen->resources_dir.c_str());
+
+        } else {
+
+            if (options->verbose) {
+                std::cout << "[IGGraph] Begin Compilation " << file->abs_path << std::endl;
+            }
+
+            // lex the file
+            lexer.switch_path(file->abs_path);
+            options->benchmark ? benchLexFile(&lexer, file->abs_path) : lexFile(&lexer, file->abs_path);
+            for (const auto &err: lexer.errors) {
+                std::cerr << err.representation(file->abs_path, "Lexer") << std::endl;
+            }
+            if (options->print_tokens) {
+                printTokens(lexer.tokens);
+            }
+            if (lexer.has_errors) {
+                // stop lexing
+                return false;
+            }
+
+            // convert the tokens
+            converter.convert(lexer.tokens);
+            for (const auto &err: converter.diagnostics) {
+                std::cerr << err.representation(path, "Converter") << std::endl;
+            }
+            scope.nodes = std::move(converter.nodes);
+            if (options->print_representation) {
+                std::cout << "[Representation]\n" << scope.representation() << std::endl;
+            }
+
+            // clear the lexer tokens
+            lexer.tokens.clear();
+
+        }
 
         // resolving the symbols
+        std::vector<ASTDiag> previous = {};
+        auto prev_has_errors = resolver.has_errors;
+        if(is_c_file) {
+            resolver.override_symbols = true;
+            previous = std::move(resolver.errors);
+        }
+        resolver.current_path = file->abs_path;
         scope.declare_top_level(resolver);
         scope.declare_and_link(resolver);
+        if(is_c_file) {
+            resolver.print_errors();
+            resolver.override_symbols = false;
+            resolver.errors = std::move(previous);
+            resolver.has_errors = prev_has_errors;
+        }
         if (resolver.has_errors) {
             return false;
         }
 
+        // compiling the nodes
         gen->current_path = file->abs_path;
         gen->nodes = std::move(scope.nodes);
         gen->compile_nodes();

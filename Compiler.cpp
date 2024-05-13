@@ -107,6 +107,7 @@ int main(int argc, char *argv[]) {
     auto benchmark = options.option("benchmark", "bm").has_value();
     auto print_representation = options.option("print-ast", "pr-ast").has_value();
     auto print_ir = options.option("print-ir", "pr-ir").has_value();
+    auto print_cst = options.option("print-cst", "pr-cst").has_value();
 
     Codegen gen({}, srcFilePath, target.value(), argv[0], is64Bit);
     if(res.has_value()) {
@@ -119,6 +120,7 @@ int main(int argc, char *argv[]) {
         IGCompilerOptions compiler_opts(argv[0], target.value(), is64Bit);
         compiler_opts.benchmark = benchmark;
         compiler_opts.print_representation = print_representation;
+        compiler_opts.print_cst = print_cst;
         compiler_opts.print_ig = print_ig;
         if(!compile(&gen, srcFilePath, &compiler_opts)) {
             return 1;

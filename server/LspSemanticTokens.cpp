@@ -5,7 +5,6 @@
 //
 
 #include "LspSemanticTokens.h"
-#include "SemanticLinker.h"
 #include "utils/JsonUtils.h"
 #include "utils/FileUtils.h"
 #include "utils/Utils.h"

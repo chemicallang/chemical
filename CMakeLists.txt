@@ -172,8 +172,6 @@ set(COMMON_SOURCES
         lexer/structures/ImplDef.cpp
         ast/statements/Comment.h
         ast/base/Interpretable.h
-        server/SemanticLinker.cpp
-        server/SemanticLinker.h
         lexer/statements/AnnotationMacro.cpp
         lexer/model/tokens/MacroToken.h
         compiler/Codegen.h

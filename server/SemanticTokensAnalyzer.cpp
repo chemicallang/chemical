@@ -7,14 +7,7 @@
 #include "SemanticTokensAnalyzer.h"
 #include "lexer/model/tokens/CharOperatorToken.h"
 #include <unordered_set>
-#include "cst/structures/BodyCST.h"
-#include "cst/statements/VarInitCST.h"
-#include "cst/structures/ForLoopCST.h"
-#include "cst/structures/WhileCST.h"
-#include "cst/structures/DoWhileCST.h"
-#include "cst/statements/IfCST.h"
-#include "cst/structures/FunctionCST.h"
-#include "cst/structures/EnumDeclCST.h"
+#include "cst/base/CompoundCSTToken.h"
 
 #define DEBUG false
 
@@ -76,47 +69,47 @@ void SemanticTokensAnalyzer::visitCompoundCommon(CompoundCSTToken *compound) {
     visit(compound->tokens);
 }
 
-void SemanticTokensAnalyzer::visit(BodyCST *bodyCst) {
+void SemanticTokensAnalyzer::visitBody(CompoundCSTToken *bodyCst) {
     analyze(bodyCst->tokens);
 }
 
-void SemanticTokensAnalyzer::visit(EnumDeclCST *enumDecl) {
+void SemanticTokensAnalyzer::visitEnumDecl(CompoundCSTToken *enumDecl) {
     enumDecl->tokens[0]->accept(this);
     put(enumDecl->tokens[1]->start_token(), SemanticTokenType::ls_enum);
     visit(enumDecl->tokens, 2);
 }
 
-void SemanticTokensAnalyzer::visit(VarInitCST *varInit) {
+void SemanticTokensAnalyzer::visitVarInit(CompoundCSTToken *varInit) {
     visitCompoundCommon((CompoundCSTToken *) varInit);
 }
 
-void SemanticTokensAnalyzer::visit(FunctionCST *function) {
+void SemanticTokensAnalyzer::visitFunction(CompoundCSTToken *function) {
     function->tokens[0]->accept(this);
     put(function->tokens[1]->start_token(), SemanticTokenType::ls_function);
     visit(function->tokens, 2);
 };
 
-void SemanticTokensAnalyzer::visit(IfCST *ifCst) {
+void SemanticTokensAnalyzer::visitIf(CompoundCSTToken *ifCst) {
     visitCompoundCommon((CompoundCSTToken *) ifCst);
 };
 
-void SemanticTokensAnalyzer::visit(WhileCST *whileCst) {
+void SemanticTokensAnalyzer::visitWhile(CompoundCSTToken *whileCst) {
     visitCompoundCommon((CompoundCSTToken *) whileCst);
 };
 
-void SemanticTokensAnalyzer::visit(DoWhileCST *doWhileCst) {
+void SemanticTokensAnalyzer::visitDoWhile(CompoundCSTToken *doWhileCst) {
     visitCompoundCommon((CompoundCSTToken *) doWhileCst);
 };
 
-void SemanticTokensAnalyzer::visit(ForLoopCST *forLoop) {
+void SemanticTokensAnalyzer::visitForLoop(CompoundCSTToken *forLoop) {
     visitCompoundCommon((CompoundCSTToken *) forLoop);
 };
 
-void SemanticTokensAnalyzer::visit(SwitchCST *switchCst) {
+void SemanticTokensAnalyzer::visitSwitch(CompoundCSTToken *switchCst) {
     visitCompoundCommon((CompoundCSTToken *) switchCst);
 };
 
-void SemanticTokensAnalyzer::visit(StructDefCST *structDef) {
+void SemanticTokensAnalyzer::visitStructDef(CompoundCSTToken *structDef) {
     visitCompoundCommon((CompoundCSTToken *) structDef);
 };
 

@@ -15,7 +15,7 @@ public:
     }
 
     void accept(CSTVisitor *visitor) override {
-        visitor->visit(this);
+        visitor->visitFunctionParam(this);
     }
 
     LexTokenType type() const override {
@@ -43,7 +43,7 @@ public:
     }
 
     void accept(CSTVisitor *visitor) override {
-        visitor->visit(this);
+        visitor->visitFunction(this);
     }
 
     LexTokenType type() const override {

@@ -135,151 +135,151 @@ public:
         visitCommon((CSTToken *) token);
     }
 
-    virtual void visit(VarInitCST *varInit) {
+    virtual void visitVarInit(CompoundCSTToken *varInit) {
         visitCompoundCommon((CompoundCSTToken *) varInit);
     }
 
-    virtual void visit(AssignmentCST *assignment) {
+    virtual void visitAssignment(CompoundCSTToken *assignment) {
         visitCompoundCommon((CompoundCSTToken *) assignment);
     }
 
-    virtual void visit(ContinueCST *continueCst) {
+    virtual void visitContinue(CompoundCSTToken *continueCst) {
         visitCompoundCommon((CompoundCSTToken *) continueCst);
     }
 
-    virtual void visit(BreakCST *breakCST) {
+    virtual void visitBreak(CompoundCSTToken *breakCST) {
         visitCompoundCommon((CompoundCSTToken *) breakCST);
     }
 
-    virtual void visit(ReturnCST *returnCst) {
+    virtual void visitReturn(CompoundCSTToken *returnCst) {
         visitCompoundCommon((CompoundCSTToken *) returnCst);
     }
 
-    virtual void visit(SwitchCST *switchCst) {
+    virtual void visitSwitch(CompoundCSTToken *switchCst) {
         visitCompoundCommon((CompoundCSTToken *) switchCst);
     }
 
-    virtual void visit(ImportCST *importCst) {
+    virtual void visitImport(CompoundCSTToken *importCst) {
         visitCompoundCommon((CompoundCSTToken *) importCst);
     }
 
-    virtual void visit(TypealiasCST *alias) {
+    virtual void visitTypealias(CompoundCSTToken *alias) {
         visitCompoundCommon((CompoundCSTToken *) alias);
     }
 
-    virtual void visit(IfCST *ifCst) {
+    virtual void visitIf(CompoundCSTToken *ifCst) {
         visitCompoundCommon((CompoundCSTToken *) ifCst);
     }
 
-    virtual void visit(IncDecCST *incDec) {
+    virtual void visitIncDec(CompoundCSTToken *incDec) {
         visitCompoundCommon((CompoundCSTToken *) incDec);
     }
 
-    virtual void visit(BodyCST *bodyCst) {
+    virtual void visitBody(CompoundCSTToken *bodyCst) {
         visitCompoundCommon((CompoundCSTToken *) bodyCst);
     }
 
-    virtual void visit(DoWhileCST *doWhileCst) {
+    virtual void visitDoWhile(CompoundCSTToken *doWhileCst) {
         visitCompoundCommon((CompoundCSTToken *) doWhileCst);
     }
 
-    virtual void visit(EnumDeclCST *enumDecl) {
+    virtual void visitEnumDecl(CompoundCSTToken *enumDecl) {
         visitCompoundCommon((CompoundCSTToken *) enumDecl);
     }
 
-    virtual void visit(FunctionParamCST *param) {
+    virtual void visitFunctionParam(CompoundCSTToken *param) {
         visitCompoundCommon((CompoundCSTToken *) param);
     }
 
-    virtual void visit(FunctionCST *function) {
+    virtual void visitFunction(CompoundCSTToken *function) {
         visitCompoundCommon((CompoundCSTToken *) function);
     }
 
-    virtual void visit(StructDefCST *structDef) {
+    virtual void visitStructDef(CompoundCSTToken *structDef) {
         visitCompoundCommon((CompoundCSTToken *) structDef);
     }
 
-    virtual void visit(InterfaceCST *interface) {
+    virtual void visitInterface(CompoundCSTToken *interface) {
         visitCompoundCommon((CompoundCSTToken *) interface);
     }
 
-    virtual void visit(TryCatchCST *tryCatch) {
+    virtual void visitTryCatch(CompoundCSTToken *tryCatch) {
         visitCompoundCommon((CompoundCSTToken *) tryCatch);
     }
 
-    virtual void visit(WhileCST *whileCst) {
+    virtual void visitWhile(CompoundCSTToken *whileCst) {
         visitCompoundCommon((CompoundCSTToken *) whileCst);
     }
 
-    virtual void visit(ForLoopCST *forLoop) {
+    virtual void visitForLoop(CompoundCSTToken *forLoop) {
         visitCompoundCommon((CompoundCSTToken *) forLoop);
     }
 
-    virtual void visit(ArrayTypeCST *arrayType) {
+    virtual void visitArrayType(CompoundCSTToken *arrayType) {
         visitCompoundCommon((CompoundCSTToken *) arrayType);
     }
 
-    virtual void visit(FunctionTypeCST *functionType) {
+    virtual void visitFunctionType(CompoundCSTToken *functionType) {
         visitCompoundCommon((CompoundCSTToken *) functionType);
     }
 
-    virtual void visit(GenericTypeCST *genericType) {
+    virtual void visitGenericType(CompoundCSTToken *genericType) {
         visitCompoundCommon((CompoundCSTToken *) genericType);
     }
 
-    virtual void visit(PointerTypeCST *pointerType) {
+    virtual void visitPointerType(CompoundCSTToken *pointerType) {
         visitCompoundCommon((CompoundCSTToken *) pointerType);
     }
 
-    virtual void visit(AccessChainCST *accessChain) {
+    virtual void visitAccessChain(AccessChainCST *accessChain) {
         visitCompoundCommon((CompoundCSTToken *) accessChain);
     }
 
-    virtual void visit(ArrayValueCST *arrayValue) {
+    virtual void visitArrayValue(CompoundCSTToken *arrayValue) {
         visitCompoundCommon((CompoundCSTToken *) arrayValue);
     }
 
-    virtual void visit(CastCST *castCst) {
+    virtual void visitCast(CompoundCSTToken *castCst) {
         visitCompoundCommon((CompoundCSTToken *) castCst);
     }
 
-    virtual void visit(AddrOfCST *castCst) {
+    virtual void visitAddrOf(CompoundCSTToken *castCst) {
         visitCompoundCommon((CompoundCSTToken *) castCst);
     }
 
-    virtual void visit(ExpressionCST *expressionCst) {
+    virtual void visitExpression(CompoundCSTToken *expressionCst) {
         visitCompoundCommon((CompoundCSTToken *) expressionCst);
     }
 
-    virtual void visit(FunctionCallCST *call) {
+    virtual void visitFunctionCall(CompoundCSTToken *call) {
         visitCompoundCommon((CompoundCSTToken *) call);
     }
 
-    virtual void visit(ImplCST *impl) {
+    virtual void visitImpl(CompoundCSTToken *impl) {
         visitCompoundCommon((CompoundCSTToken *) impl);
     }
 
-    virtual void visit(IndexOpCST *op) {
+    virtual void visitIndexOp(CompoundCSTToken *op) {
         visitCompoundCommon((CompoundCSTToken *) op);
     }
 
-    virtual void visit(LambdaCST *cst) {
+    virtual void visitLambda(CompoundCSTToken *cst) {
         visitCompoundCommon((CompoundCSTToken *) cst);
     }
 
-    virtual void visit(NegativeCST *negativeCst) {
+    virtual void visitNegative(CompoundCSTToken *negativeCst) {
         visitCompoundCommon((CompoundCSTToken *) negativeCst);
     }
 
-    virtual void visit(NotCST *notCst) {
+    virtual void visitNot(CompoundCSTToken *notCst) {
         visitCompoundCommon((CompoundCSTToken *) notCst);
     }
 
-    virtual void visit(DereferenceCST *notCst) {
+    virtual void visitDereference(CompoundCSTToken *notCst) {
         visitCompoundCommon((CompoundCSTToken *) notCst);
     }
 
-    virtual void visit(StructValueCST *structValueCst) {
+    virtual void visitStructValue(CompoundCSTToken *structValueCst) {
         visitCompoundCommon((CompoundCSTToken *) structValueCst);
     }
 

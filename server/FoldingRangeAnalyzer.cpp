@@ -6,11 +6,7 @@
 
 #include "FoldingRangeAnalyzer.h"
 #include "lexer/model/tokens/CharOperatorToken.h"
-#include "cst/structures/StructDefCST.h"
-#include "cst/structures/BodyCST.h"
-#include "cst/structures/ForLoopCST.h"
-#include "cst/structures/WhileCST.h"
-#include "cst/structures/DoWhileCST.h"
+#include "cst/base/CompoundCSTToken.h"
 
 #define DEBUG false
 
@@ -32,7 +28,7 @@ void FoldingRangeAnalyzer::folding_range(LexToken* start, LexToken* end, bool co
     });
 }
 
-void FoldingRangeAnalyzer::visit(StructDefCST *structDef) {
+void FoldingRangeAnalyzer::visitStructDef(CompoundCSTToken *structDef) {
     auto has_override = is_char_op(structDef->tokens[3].get(), ':');
     auto start = has_override ? 4 : 2;
     unsigned i = has_override ? 5 : 3; // positioned at first node or '}'
@@ -42,23 +38,23 @@ void FoldingRangeAnalyzer::visit(StructDefCST *structDef) {
     folding_range(structDef->tokens[start]->start_token(), structDef->tokens[i]->start_token());
 };
 
-void FoldingRangeAnalyzer::visit(ForLoopCST *forLoop) {
+void FoldingRangeAnalyzer::visitForLoop(CompoundCSTToken *forLoop) {
     forLoop->tokens[8]->accept(this);
 };
 
-void FoldingRangeAnalyzer::visit(WhileCST *whileCst) {
+void FoldingRangeAnalyzer::visitWhile(CompoundCSTToken *whileCst) {
     whileCst->tokens[4]->accept(this);
 };
 
-void FoldingRangeAnalyzer::visit(DoWhileCST *doWhileCst) {
+void FoldingRangeAnalyzer::visitDoWhile(CompoundCSTToken *doWhileCst) {
     doWhileCst->tokens[1]->accept(this);
 };
 
-void FoldingRangeAnalyzer::visit(FunctionCST *function) {
+void FoldingRangeAnalyzer::visitFunction(CompoundCSTToken *function) {
 
 };
 
-void FoldingRangeAnalyzer::visit(LambdaCST *cst) {
+void FoldingRangeAnalyzer::visitLambda(CompoundCSTToken *cst) {
 
 };
 
@@ -66,7 +62,7 @@ void FoldingRangeAnalyzer::visit(MultilineCommentToken *token) {
 
 };
 
-void FoldingRangeAnalyzer::visit(BodyCST *bodyCst) {
+void FoldingRangeAnalyzer::visitBody(CompoundCSTToken *bodyCst) {
     folding_range(bodyCst->start_token(), bodyCst->end_token());
 }
 

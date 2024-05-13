@@ -7,15 +7,10 @@
 #include "CompletionItemAnalyzer.h"
 #include "lexer/model/tokens/CharOperatorToken.h"
 #include <unordered_set>
-#include "cst/structures/BodyCST.h"
-#include "cst/statements/VarInitCST.h"
-#include "cst/structures/ForLoopCST.h"
-#include "cst/structures/WhileCST.h"
-#include "cst/structures/DoWhileCST.h"
-#include "cst/statements/IfCST.h"
+#include "cst/base/CompoundCSTToken.h"
 #include "cst/utils/CSTUtils.h"
 
-#define DEBUG false
+#define DEBUG true
 
 void CompletionItemAnalyzer::put(const std::string &label, lsCompletionItemKind kind) {
     items.emplace_back(label, kind);
@@ -40,44 +35,44 @@ void CompletionItemAnalyzer::visit(std::vector<std::unique_ptr<CSTToken>> &token
     }
 }
 
-void CompletionItemAnalyzer::visit(BodyCST *bodyCst) {
+void CompletionItemAnalyzer::visitBody(CompoundCSTToken *bodyCst) {
     if(is_caret_inside(bodyCst)) {
         visit(bodyCst->tokens);
     }
 }
 
-void CompletionItemAnalyzer::visit(VarInitCST *varInit) {
+void CompletionItemAnalyzer::visitVarInit(CompoundCSTToken *varInit) {
     put(str_token(varInit->tokens[0].get()), lsCompletionItemKind::Variable);
 }
 
-void CompletionItemAnalyzer::visit(FunctionCST *function) {
+void CompletionItemAnalyzer::visitFunction(CompoundCSTToken *function) {
 
 };
 
-void CompletionItemAnalyzer::visit(IfCST *ifCst) {
+void CompletionItemAnalyzer::visitIf(CompoundCSTToken *ifCst) {
     visit(ifCst->tokens);
 };
 
-void CompletionItemAnalyzer::visit(WhileCST *whileCst) {
+void CompletionItemAnalyzer::visitWhile(CompoundCSTToken *whileCst) {
     visit(whileCst->tokens);
 };
 
-void CompletionItemAnalyzer::visit(DoWhileCST *doWhileCst) {
+void CompletionItemAnalyzer::visitDoWhile(CompoundCSTToken *doWhileCst) {
     visit(doWhileCst->tokens);
 };
 
-void CompletionItemAnalyzer::visit(ForLoopCST *forLoop) {
+void CompletionItemAnalyzer::visitForLoop(CompoundCSTToken *forLoop) {
     if(is_caret_inside(forLoop->tokens[8].get())) {
         forLoop->tokens[2]->accept(this);
         forLoop->tokens[8]->accept(this);
     }
 };
 
-void CompletionItemAnalyzer::visit(SwitchCST *switchCst) {
+void CompletionItemAnalyzer::visitSwitch(CompoundCSTToken *switchCst) {
 
 };
 
-void CompletionItemAnalyzer::visit(StructDefCST *structDef) {
+void CompletionItemAnalyzer::visitStructDef(CompoundCSTToken *structDef) {
 
 };
 

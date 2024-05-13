@@ -9,11 +9,6 @@ class IGCompilerOptions {
 public:
 
     /**
-     * by default compiles depth first
-     */
-    bool depth_first = true;
-
-    /**
      * benchmark the compilation process
      */
     bool benchmark = false;

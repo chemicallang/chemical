@@ -11,7 +11,8 @@
 #include <iostream>
 #include <utility>
 
-std::vector<std::unique_ptr<ASTNode>> TranslateC(const char* exe_path, const char *abs_path, const char *resources_path);
+std::vector<std::unique_ptr<ASTNode>>
+TranslateC(const char *exe_path, const char *abs_path, const char *resources_path);
 
 IGCompilerOptions::IGCompilerOptions(
         std::string exe_path,
@@ -28,9 +29,10 @@ bool compile(Codegen *gen, const std::string &path, IGCompilerOptions *options) 
     // preparing the import graph
     IGResult result;
     if (options->benchmark) {
-        auto bm = benchmark([options, path, &result]() {
-            result = determine_import_graph(options->exe_path, path);
-        });
+        BenchmarkResults bm{};
+        bm.benchmark_begin();
+        result = determine_import_graph(options->exe_path, path);
+        bm.benchmark_end();
         std::cout << "[IGGraph] " << bm.representation() << std::endl;
     } else {
         result = determine_import_graph(options->exe_path, path);
@@ -72,7 +74,13 @@ bool compile(Codegen *gen, const std::string &path, IGCompilerOptions *options) 
     // beginning
     gen->compile_begin();
 
-    auto done = result.root.depth_first([options, path, &lexer, &converter, &resolver, &gen, &file_nodes, &imported](IGFile *file) {
+    std::vector<ASTDiag> previous = {};
+
+    auto done = result.root.depth_first([
+                                                options, path, &lexer,
+                                                &converter, &resolver, &gen,
+                                                &file_nodes, &imported, &previous
+                                        ](IGFile *file) {
 
         // check if this file has been imported before
         auto done = imported.find(file->abs_path);
@@ -82,16 +90,12 @@ bool compile(Codegen *gen, const std::string &path, IGCompilerOptions *options) 
         }
         imported[file->abs_path] = true;
 
-        if(options->verbose) {
-            std::cout << "[IGGraph] Begin Compilation " << file->abs_path << std::endl;
-        }
-
         Scope scope;
         auto is_c_file = file->abs_path.ends_with(".h") || file->abs_path.ends_with(".c");
 
-        if(is_c_file) {
+        if (is_c_file) {
 
-            if(options->verbose) {
+            if (options->verbose) {
                 std::cout << "[IGGraph] Translating C " << file->abs_path << std::endl;
             }
 
@@ -133,16 +137,15 @@ bool compile(Codegen *gen, const std::string &path, IGCompilerOptions *options) 
         }
 
         // resolving the symbols
-        std::vector<ASTDiag> previous = {};
         auto prev_has_errors = resolver.has_errors;
-        if(is_c_file) {
+        if (is_c_file) {
             resolver.override_symbols = true;
             previous = std::move(resolver.errors);
         }
         resolver.current_path = file->abs_path;
         scope.declare_top_level(resolver);
         scope.declare_and_link(resolver);
-        if(is_c_file) {
+        if (is_c_file) {
             resolver.print_errors();
             resolver.override_symbols = false;
             resolver.errors = std::move(previous);
@@ -163,13 +166,13 @@ bool compile(Codegen *gen, const std::string &path, IGCompilerOptions *options) 
 
     });
 
-    if(!resolver.errors.empty()) {
+    if (!resolver.errors.empty()) {
         std::cout << std::endl;
         resolver.print_errors();
         std::cout << std::endl;
     }
 
-    if(!gen->errors.empty()) {
+    if (!gen->errors.empty()) {
         gen->print_errors();
         std::cout << std::endl;
     }

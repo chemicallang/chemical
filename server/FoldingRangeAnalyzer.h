@@ -45,21 +45,21 @@ public:
 
     // Visitor functions
 
-    void visit(StructDefCST *structDef) override;
+    void visitStructDef(CompoundCSTToken *structDef) override;
 
-    void visit(ForLoopCST *forLoop) override;
+    void visitForLoop(CompoundCSTToken *forLoop) override;
 
-    void visit(WhileCST *whileCst) override;
+    void visitWhile(CompoundCSTToken *whileCst) override;
 
-    void visit(DoWhileCST *doWhileCst) override;
+    void visitDoWhile(CompoundCSTToken *doWhileCst) override;
 
-    void visit(FunctionCST *function) override;
+    void visitFunction(CompoundCSTToken *function) override;
 
-    void visit(LambdaCST *cst) override;
+    void visitLambda(CompoundCSTToken *cst) override;
 
     void visit(MultilineCommentToken *token) override;
 
-    void visit(BodyCST *bodyCst) override;
+    void visitBody(CompoundCSTToken *bodyCst) override;
 
 
 };

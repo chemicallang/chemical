@@ -4,7 +4,6 @@
 #include "lexer/model/tokens/AbstractStringToken.h"
 #include "lexer/model/tokens/CharOperatorToken.h"
 #include "ast/structures/FunctionDeclaration.h"
-#include "cst/statements/VarInitCST.h"
 #include "ast/statements/VarInit.h"
 #include "ast/types/IntNType.h"
 #include "ast/types/StringType.h"
@@ -17,18 +16,8 @@
 #include "ast/types/AnyType.h"
 #include "ast/types/DoubleType.h"
 #include "lexer/model/tokens/TypeToken.h"
-#include "cst/types/PointerTypeCST.h"
 #include "ast/types/ReferencedType.h"
-#include "cst/types/ArrayTypeCST.h"
-#include "cst/types/GenericTypeCST.h"
-#include "cst/statements/AssignmentCST.h"
-#include "cst/values/NegativeCST.h"
-#include "cst/values/FunctionCallCST.h"
-#include "cst/values/IndexOpCST.h"
-#include "cst/values/NotCST.h"
 #include "ast/statements/Assignment.h"
-#include "cst/types/FunctionTypeCST.h"
-#include "cst/structures/BodyCST.h"
 #include "cst/values/AccessChainCST.h"
 #include "cst/values/ExpressionCST.h"
 #include "ast/types/ArrayType.h"
@@ -36,7 +25,6 @@
 #include "ast/values/FloatValue.h"
 #include "ast/values/Expression.h"
 #include "ast/values/BoolValue.h"
-#include "cst/structures/EnumDeclCST.h"
 #include "ast/values/DoubleValue.h"
 #include "ast/values/AccessChain.h"
 #include "ast/values/FunctionCall.h"
@@ -56,18 +44,13 @@
 #include "lexer/model/tokens/VariableToken.h"
 #include "lexer/model/tokens/BoolToken.h"
 #include "ast/statements/Import.h"
-#include "cst/statements/ImportCST.h"
 #include "ast/structures/TryCatch.h"
 #include "ast/structures/EnumDeclaration.h"
-#include "cst/structures/TryCatchCST.h"
 #include "ast/statements/Return.h"
-#include "cst/statements/ReturnCST.h"
 #include "ast/types/GenericType.h"
 #include "ast/structures/ForLoop.h"
 #include "ast/structures/CapturedVariable.h"
-#include "cst/structures/ForLoopCST.h"
 #include "ast/structures/InterfaceDefinition.h"
-#include "cst/structures/InterfaceCST.h"
 #include "ast/structures/WhileLoop.h"
 #include "ast/values/StructValue.h"
 #include "ast/values/UIntValue.h"
@@ -77,33 +60,18 @@
 #include "ast/values/UBigIntValue.h"
 #include "ast/structures/ImplDefinition.h"
 #include "cst/structures/WhileCST.h"
-#include "cst/structures/ImplCST.h"
 #include "ast/structures/DoWhileLoop.h"
-#include "cst/structures/DoWhileCST.h"
 #include "ast/statements/Continue.h"
-#include "cst/statements/ContinueCST.h"
 #include "ast/statements/SwitchStatement.h"
-#include "cst/statements/SwitchCST.h"
 #include "ast/statements/Break.h"
-#include "cst/statements/BreakCST.h"
 #include "ast/statements/Typealias.h"
-#include "cst/statements/TypealiasCST.h"
 #include "ast/values/ArrayValue.h"
-#include "cst/values/ArrayValueCST.h"
-#include "cst/values/AddrOfCST.h"
-#include "cst/values/DereferenceCST.h"
 #include "ast/structures/If.h"
 #include "ast/values/LambdaFunction.h"
-#include "cst/statements/IfCST.h"
 #include "ast/structures/StructMember.h"
 #include "ast/structures/StructDefinition.h"
-#include "cst/statements/IncDecCST.h"
-#include "cst/structures/StructDefCST.h"
-#include "cst/values/StructValueCST.h"
 #include "cst/base/CSTConverter.h"
-#include "cst/values/LambdaCST.h"
 #include "ast/values/CastedValue.h"
-#include "cst/values/CastCST.h"
 #include "cst/utils/ValueAndOperatorStack.h"
 #include "ast/types/IntType.h"
 #include "ast/types/UIntType.h"
@@ -140,15 +108,15 @@ Scope take_body(CSTConverter *conv, CSTToken *token) {
     return scope;
 }
 
-bool is_const(VarInitCST* cst) {
+bool is_const(CompoundCSTToken* cst) {
     return str_token(cst->tokens[0].get()) == "const";
 }
 
-inline std::string identifier(VarInitCST* cst) {
+inline std::string identifier(CompoundCSTToken* cst) {
     return str_token(cst->tokens[1].get());
 }
 
-inline std::string func_name(FunctionCST* func) {
+inline std::string func_name(CompoundCSTToken* func) {
     return str_token(func->tokens[1].get());
 }
 
@@ -236,7 +204,7 @@ std::optional<std::unique_ptr<BaseType>> CSTConverter::opt_type() {
     return type();
 }
 
-void CSTConverter::visit(FunctionParamCST *param) {
+void CSTConverter::visitFunctionParam(CompoundCSTToken *param) {
     auto identifier = str_token(param->tokens[0].get());
     visit(param->tokens, 2);
     BaseType *baseType;
@@ -298,7 +266,7 @@ FunctionParamsResult CSTConverter::function_params(cst_tokens_ref_type tokens, u
     return {isVariadic, std::move(params), i};
 }
 
-void CSTConverter::visit(FunctionCST *function) {
+void CSTConverter::visitFunction(CompoundCSTToken *function) {
 
     auto params = function_params(function->tokens, 3);
 
@@ -342,7 +310,7 @@ void CSTConverter::visit(FunctionCST *function) {
 
 }
 
-void CSTConverter::visit(EnumDeclCST *decl) {
+void CSTConverter::visitEnumDecl(CompoundCSTToken *decl) {
     std::unordered_map<std::string, std::unique_ptr<EnumMember>> members;
     auto i = 3; // first enum member or '}'
     unsigned position = 0;
@@ -384,7 +352,7 @@ Value* convertNumber(NumberToken* token, ValueType value_type, bool is64Bit) {
     }
 }
 
-void CSTConverter::visit(VarInitCST *varInit) {
+void CSTConverter::visitVarInit(CompoundCSTToken *varInit) {
     std::optional<std::unique_ptr<BaseType>> optType = std::nullopt;
     if(is_char_op(varInit->tokens[2].get(), ':')) {
         varInit->tokens[3]->accept(this);
@@ -414,7 +382,7 @@ void CSTConverter::visit(VarInitCST *varInit) {
     ));
 }
 
-void CSTConverter::visit(AssignmentCST *assignment) {
+void CSTConverter::visitAssignment(CompoundCSTToken *assignment) {
     visit(assignment->tokens, 0);
     auto val = value();
     auto chain = value().release();
@@ -426,18 +394,18 @@ void CSTConverter::visit(AssignmentCST *assignment) {
     ));
 }
 
-void CSTConverter::visit(ImportCST *cst) {
+void CSTConverter::visitImport(CompoundCSTToken *cst) {
     if(no_imports) return;
     std::vector<std::string> ids;
     nodes.emplace_back(std::make_unique<ImportStatement>(escaped_str_token(cst->tokens[1].get()), ids));
 }
 
-void CSTConverter::visit(ReturnCST *cst) {
+void CSTConverter::visitReturn(CompoundCSTToken *cst) {
     visit(cst->tokens, 1);
     nodes.emplace_back(std::make_unique<ReturnStatement>(opt_value(), current_func_decl));
 }
 
-void CSTConverter::visit(TypealiasCST *alias) {
+void CSTConverter::visitTypealias(CompoundCSTToken *alias) {
     auto identifier = str_token(alias->tokens[1].get());
     alias->tokens[3]->accept(this);
     nodes.emplace_back(std::make_unique<TypealiasStatement>(identifier, type()));
@@ -452,22 +420,22 @@ void CSTConverter::visit(TypeToken *token) {
     }
 }
 
-void CSTConverter::visit(ContinueCST *continueCst) {
+void CSTConverter::visitContinue(CompoundCSTToken *continueCst) {
     nodes.emplace_back(std::make_unique<ContinueStatement>(current_loop_node));
 }
 
-void CSTConverter::visit(BreakCST *breakCST) {
+void CSTConverter::visitBreak(CompoundCSTToken *breakCST) {
     nodes.emplace_back(std::make_unique<BreakStatement>(current_loop_node));
 }
 
-void CSTConverter::visit(IncDecCST *incDec) {
+void CSTConverter::visitIncDec(CompoundCSTToken *incDec) {
     incDec->tokens[0]->accept(this);
     auto acOp = (get_operation(incDec->tokens[1].get()) == Operation::PostfixIncrement ? Operation::Addition
                                                                                                 : Operation::Subtraction);
     nodes.emplace_back(std::make_unique<AssignStatement>(value(), std::make_unique<IntValue>(1), acOp));
 }
 
-void CSTConverter::visit(LambdaCST *cst) {
+void CSTConverter::visitLambda(CompoundCSTToken *cst) {
 
     std::vector<std::unique_ptr<CapturedVariable>> captureList;
 
@@ -520,11 +488,11 @@ void CSTConverter::visit(LambdaCST *cst) {
     values.emplace_back(lambda);
 }
 
-void CSTConverter::visit(BodyCST *bodyCst) {
+void CSTConverter::visitBody(CompoundCSTToken *bodyCst) {
     visit(bodyCst->tokens, 0);
 }
 
-void CSTConverter::visit(IfCST *ifCst) {
+void CSTConverter::visitIf(CompoundCSTToken *ifCst) {
 
     // if condition
     ifCst->tokens[2]->accept(this);
@@ -572,7 +540,7 @@ void CSTConverter::visit(IfCST *ifCst) {
 
 }
 
-void CSTConverter::visit(SwitchCST *switchCst) {
+void CSTConverter::visitSwitch(CompoundCSTToken *switchCst) {
     switchCst->tokens[2]->accept(this);
     auto expr = value();
     auto i = 5; // positioned at first 'case' or 'default'
@@ -609,7 +577,7 @@ void CSTConverter::visit(SwitchCST *switchCst) {
     nodes.emplace_back(std::make_unique<SwitchStatement>(std::move(expr), std::move(cases), std::move(defScope)));
 }
 
-void CSTConverter::visit(ForLoopCST *forLoop) {
+void CSTConverter::visitForLoop(CompoundCSTToken *forLoop) {
 
     forLoop->tokens[2]->accept(this);
     auto varInit = nodes.back().release()->as_var_init();
@@ -636,7 +604,7 @@ void CSTConverter::visit(ForLoopCST *forLoop) {
 
 }
 
-void CSTConverter::visit(WhileCST *whileCst) {
+void CSTConverter::visitWhile(CompoundCSTToken *whileCst) {
     // visiting the condition expression
     whileCst->tokens[2]->accept(this);
     // get it
@@ -656,7 +624,7 @@ void CSTConverter::visit(WhileCST *whileCst) {
     nodes.emplace_back(std::unique_ptr<ASTNode>(loop));
 }
 
-void CSTConverter::visit(DoWhileCST *doWhileCst) {
+void CSTConverter::visitDoWhile(CompoundCSTToken *doWhileCst) {
     // visit the 2nd last token which is the expression for condition
     auto cond_index = doWhileCst->tokens.size() - 2;
     doWhileCst->tokens[cond_index]->accept(this);
@@ -716,7 +684,7 @@ unsigned int collect_struct_members(
     return i;
 }
 
-void CSTConverter::visit(StructDefCST *structDef) {
+void CSTConverter::visitStructDef(CompoundCSTToken *structDef) {
     std::optional<std::string> overrides = std::nullopt;
     auto has_override = is_char_op(structDef->tokens[2].get(), ':');
     if (has_override) {
@@ -730,7 +698,7 @@ void CSTConverter::visit(StructDefCST *structDef) {
     nodes.emplace_back(def);
 }
 
-void CSTConverter::visit(InterfaceCST *interface) {
+void CSTConverter::visitInterface(CompoundCSTToken *interface) {
     auto def = new InterfaceDefinition(str_token(interface->tokens[1].get()));
     unsigned i = 3; // positioned at first node or '}'
     current_interface_decl = def;
@@ -739,7 +707,7 @@ void CSTConverter::visit(InterfaceCST *interface) {
     nodes.emplace_back(def);
 }
 
-void CSTConverter::visit(ImplCST *impl) {
+void CSTConverter::visitImpl(CompoundCSTToken *impl) {
     bool has_for = is_keyword(impl->tokens[2].get(), "for");
     std::optional<std::string> struct_name;
     if (has_for) {
@@ -755,7 +723,7 @@ void CSTConverter::visit(ImplCST *impl) {
     nodes.emplace_back(def);
 }
 
-void CSTConverter::visit(TryCatchCST *tryCatch) {
+void CSTConverter::visitTryCatch(CompoundCSTToken *tryCatch) {
     auto chain = ((AccessChainCST *) tryCatch->tokens[1].get());
     if (chain->tokens.size() != 1 || chain->tokens[0]->type() != LexTokenType::CompFunctionCall) {
         error("expected a function call after try keyword", chain);
@@ -774,24 +742,24 @@ void CSTConverter::visit(TryCatchCST *tryCatch) {
                          std::move(catchScope)));
 }
 
-void CSTConverter::visit(PointerTypeCST *cst) {
+void CSTConverter::visitPointerType(CompoundCSTToken *cst) {
     visit(cst->tokens, 0);
     types.emplace_back(std::make_unique<PointerType>(type()));
 }
 
-void CSTConverter::visit(GenericTypeCST *cst) {
+void CSTConverter::visitGenericType(CompoundCSTToken *cst) {
     visit(cst->tokens, 0);
     types.emplace_back(std::make_unique<GenericType>(str_token(cst->tokens[0].get()), type()));
 }
 
-void CSTConverter::visit(ArrayTypeCST *arrayType) {
+void CSTConverter::visitArrayType(CompoundCSTToken *arrayType) {
     convert(arrayType->tokens);
     auto val = opt_value();
     auto arraySize = (val.has_value() && val.value()->value_type() == ValueType::Int) ? val.value()->as_int() : -1;
     types.emplace_back(std::make_unique<ArrayType>(std::move(type()), arraySize));
 }
 
-void CSTConverter::visit(FunctionTypeCST *funcType) {
+void CSTConverter::visitFunctionType(CompoundCSTToken *funcType) {
     bool is_capturing = is_char_op(funcType->tokens[0].get(), '[');
     auto params = function_params(funcType->tokens, is_capturing ? 3 : 1);
     visit(funcType->tokens, params.index + 2);
@@ -846,7 +814,7 @@ void CSTConverter::visit(NumberToken *token) {
     }
 }
 
-void CSTConverter::visit(StructValueCST *cst) {
+void CSTConverter::visitStructValue(CompoundCSTToken *cst) {
     auto name = str_token(cst->tokens[0].get());
     auto i = 2; // first identifier or '}'
     std::unordered_map<std::string, std::unique_ptr<Value>> vals;
@@ -863,7 +831,7 @@ void CSTConverter::visit(StructValueCST *cst) {
     values.emplace_back(std::make_unique<StructValue>(name, std::move(vals)));
 }
 
-void CSTConverter::visit(ArrayValueCST *arrayValue) {
+void CSTConverter::visitArrayValue(CompoundCSTToken *arrayValue) {
     unsigned i = 1;
     std::vector<std::unique_ptr<Value>> arrValues;
     while (char_op(arrayValue->tokens[i].get()) != '}') {
@@ -902,7 +870,7 @@ std::vector<std::unique_ptr<Value>> take_values(CSTConverter *converter, const s
     return new_values;
 }
 
-void CSTConverter::visit(FunctionCallCST *call) {
+void CSTConverter::visitFunctionCall(CompoundCSTToken *call) {
     auto prev_values = std::move(values);
     visit(call->tokens, 1);
     auto func_call = new FunctionCall(std::move(values));
@@ -910,14 +878,14 @@ void CSTConverter::visit(FunctionCallCST *call) {
     values.emplace_back(func_call);
 }
 
-void CSTConverter::visit(IndexOpCST *op) {
+void CSTConverter::visitIndexOp(CompoundCSTToken *op) {
     auto indexes = take_values(this, [&op, this]() {
         visit(op->tokens, 1);
     });
     values.emplace_back(std::make_unique<IndexOperator>(std::move(indexes)));
 }
 
-void CSTConverter::visit(AccessChainCST *chain) {
+void CSTConverter::visitAccessChain(AccessChainCST *chain) {
     auto prev_values = std::move(values);
     visit(chain->tokens);
     auto ret_chain = std::make_unique<AccessChain>(std::move(values));
@@ -1016,7 +984,7 @@ void visitNestedExpr(CSTConverter *converter, CSTToken *expr, ValueAndOperatorSt
     }
 }
 
-void CSTConverter::visit(ExpressionCST *expr) {
+void CSTConverter::visitExpression(CompoundCSTToken *expr) {
     auto is_braced = is_char_op(expr->tokens[0].get(), '(');
     auto first_val_index = is_braced ? 1 : 0;
     auto op_index = is_braced ? 3 : 1;
@@ -1042,17 +1010,17 @@ void CSTConverter::visit(ExpressionCST *expr) {
     }
 }
 
-void CSTConverter::visit(CastCST *castCst) {
+void CSTConverter::visitCast(CompoundCSTToken *castCst) {
     visit(castCst->tokens);
     values.emplace_back(std::make_unique<CastedValue>(value(), type()));
 }
 
-void CSTConverter::visit(AddrOfCST *addrOf) {
+void CSTConverter::visitAddrOf(CompoundCSTToken *addrOf) {
     addrOf->tokens[1]->accept(this);
     values.emplace_back(std::make_unique<AddrOfValue>(value()));
 }
 
-void CSTConverter::visit(DereferenceCST *deref) {
+void CSTConverter::visitDereference(CompoundCSTToken *deref) {
     deref->tokens[1]->accept(this);
     values.emplace_back(std::make_unique<DereferenceValue>(value()));
 }
@@ -1069,12 +1037,12 @@ void CSTConverter::visit(NullToken *token) {
     values.emplace_back(std::make_unique<NullValue>());
 }
 
-void CSTConverter::visit(NegativeCST *neg) {
+void CSTConverter::visitNegative(CompoundCSTToken *neg) {
     visit(neg->tokens);
     values.emplace_back(std::make_unique<NegativeValue>(value()));
 }
 
-void CSTConverter::visit(NotCST *notCst) {
+void CSTConverter::visitNot(CompoundCSTToken *notCst) {
     visit(notCst->tokens);
     values.emplace_back(std::make_unique<NotValue>(value()));
 }

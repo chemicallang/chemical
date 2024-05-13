@@ -60,24 +60,24 @@ public:
 
     // Visitors
 
-    void visit(VarInitCST *varInit) override;
+    void visitVarInit(CompoundCSTToken *varInit) override;
 
-    void visit(FunctionCST *function) override;
+    void visitFunction(CompoundCSTToken *function) override;
 
-    void visit(IfCST *ifCst) override;
+    void visitIf(CompoundCSTToken *ifCst) override;
 
-    void visit(WhileCST *whileCst) override;
+    void visitWhile(CompoundCSTToken *whileCst) override;
 
-    void visit(DoWhileCST *doWhileCst) override;
+    void visitDoWhile(CompoundCSTToken *doWhileCst) override;
 
-    void visit(ForLoopCST *forLoop) override;
+    void visitForLoop(CompoundCSTToken *forLoop) override;
 
-    void visit(SwitchCST *switchCst) override;
+    void visitSwitch(CompoundCSTToken *switchCst) override;
 
-    void visit(StructDefCST *structDef) override;
+    void visitStructDef(CompoundCSTToken *structDef) override;
 
     void visit(MultilineCommentToken *token) override;
 
-    void visit(BodyCST *bodyCst) override;
+    void visitBody(CompoundCSTToken *bodyCst) override;
 
 };

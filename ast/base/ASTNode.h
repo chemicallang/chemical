@@ -11,6 +11,8 @@
 #include <string>
 #include "Interpretable.h"
 #include "Visitor.h"
+#include "BaseTypeKind.h"
+#include "ValueType.h"
 
 class SymbolResolver;
 
@@ -19,8 +21,6 @@ class SymbolResolver;
 class Codegen;
 
 #include "compiler/llvmfwd.h"
-#include "ValueType.h"
-#include "BaseTypeKind.h"
 
 #endif
 

@@ -25,13 +25,13 @@ public:
 
     void interpret(InterpretScope &scope) override;
 
-    llvm::Type *llvm_type(Codegen &gen) override;
-
     void declare_and_link(SymbolResolver &linker) override;
 
     void accept(Visitor &visitor) override;
 
 #ifdef COMPILER_BUILD
+
+    llvm::Type *llvm_type(Codegen &gen) override;
 
     void code_gen(Codegen &gen) override;
 

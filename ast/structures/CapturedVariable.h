@@ -36,11 +36,11 @@ public:
         return linked->child_index(name);
     }
 
+#ifdef COMPILER_BUILD
+
     bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override {
         return linked->add_child_index(gen, indexes, name);
     }
-
-#ifdef COMPILER_BUILD
 
     llvm::Value *llvm_load(Codegen &gen) override;
 

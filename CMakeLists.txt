@@ -366,6 +366,9 @@ set(COMMON_SOURCES
         utils/Benchmark.h
         utils/Benchmark.cpp
         utils/functionalfwd.h
+        cst/utils/CSTUtils.h
+        compiler/ASTProcessor.h
+        compiler/ASTProcessor.cpp
 )
 
 # Chemical LSP Executable Target
@@ -400,8 +403,6 @@ add_executable(Compiler Compiler.cpp ${COMMON_SOURCES}
         compiler/ctranslator/CTranslator.cpp
         compiler/chem_clang.h
         compiler/chem_clang.cpp
-        compiler/ASTProcessor.h
-        compiler/ASTProcessor.cpp
         compiler/IGCompiler.h
         compiler/IGCompiler.cpp
 )

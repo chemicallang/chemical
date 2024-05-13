@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "BaseTypeKind.h"
 #include "ValueType.h"
 #include <string>
 #include <memory>
@@ -15,7 +16,6 @@ class ASTNode;
 #ifdef COMPILER_BUILD
 
 #include "compiler/llvmfwd.h"
-#include "BaseTypeKind.h"
 
 #endif
 

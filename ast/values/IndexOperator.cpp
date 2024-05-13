@@ -3,12 +3,12 @@
 #include "IndexOperator.h"
 #include "ast/base/ASTNode.h"
 #include "ast/structures/StructDefinition.h"
+#include "ast/types/ArrayType.h"
 
 #ifdef COMPILER_BUILD
 
 #include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
-#include "ast/types/ArrayType.h"
 
 llvm::Value *IndexOperator::elem_pointer(Codegen &gen, llvm::Type *type, llvm::Value *ptr) {
     std::vector<llvm::Value *> idxList;

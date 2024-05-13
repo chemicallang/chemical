@@ -13,6 +13,14 @@
 #include "compiler/Codegen.h"
 #include "stream/SourceProvider.h"
 
+void ImportStatement::code_gen(Codegen &gen) {
+
+}
+
+#endif
+
+namespace fs = std::filesystem;
+
 void ImportStatement::replace_at_in_path(ASTProcessor* processor) {
     if(filePath[0] != '@') return;
     auto slash = filePath.find('/');
@@ -35,15 +43,6 @@ void ImportStatement::replace_at_in_path(ASTProcessor* processor) {
         processor->error("unknown '@' directive " + atDirective + " in import statement");
     }
 }
-
-void ImportStatement::code_gen(Codegen &gen) {
-
-}
-
-#endif
-
-namespace fs = std::filesystem;
-
 
 ImportStatement::ImportStatement(std::string filePath, std::vector<std::string> identifiers) : filePath(
         std::move(filePath)), identifiers(std::move(identifiers)) {

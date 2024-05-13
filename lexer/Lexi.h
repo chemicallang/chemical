@@ -8,7 +8,23 @@
 
 #include <string>
 #include <fstream>
-#include "lexer/Lexer.h"
+#include "Lexer.h"
+
+/**
+ * same as benchLexFile with istream
+ * benchmark lexing the filename (relative to in the current project)
+ * @param file
+ * @return the tokens
+ */
+void benchLexFile(Lexer* lexer, const std::string &path);
+
+/**
+ * same as lexFile with istream
+ * lex the file at path (relative to in the current project)
+ * @param fileName
+ * @return the tokens
+ */
+void lexFile(Lexer* lexer, const std::string &path);
 
 /**
  * benchmark lexing the given input stream

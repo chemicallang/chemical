@@ -11,7 +11,7 @@
 #ifdef COMPILER_BUILD
 
 #include "compiler/Codegen.h"
-#include "stream/StreamSourceProvider.h"
+#include "stream/SourceProvider.h"
 #include "utils/Utils.h"
 
 void ImportStatement::replace_at_in_path(ASTProcessor* processor) {
@@ -174,7 +174,7 @@ void ImportStatement::interpret(InterpretScope &scope) {
         scope.error("error couldn't import the following file " + absolute_path);
         return;
     }
-    StreamSourceProvider provider(stream);
+    SourceProvider provider(stream);
     Lexer lexer(provider, absolute_path);
     lexer.lex();
     // TODO convert to AST

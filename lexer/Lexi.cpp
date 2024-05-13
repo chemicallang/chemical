@@ -5,54 +5,39 @@
 //
 
 #include "Lexi.h"
-#include <chrono>
-#include "stream/StreamSourceProvider.h"
+#include "lexer/Lexer.h"
+#include "stream/SourceProvider.h"
+#include "utils/Benchmark.h"
 
-/**
- * benchmark lexing the given input stream
- * It will print helpful messages like lexing started and time taken by lexing in milli, mico and nano seconds
- * @param file
- * @return tokens
- */
-Lexer benchLexFile(std::istream &file, const std::string& path) {
-
-    StreamSourceProvider reader(file);
-    Lexer lexer(reader, path);
-
-    // Print started
-    // std::cout << "[Lex] Started" << '\n';
-
-    // Save start time
-    auto start = std::chrono::steady_clock::now();
-
-    // Actual lexing
-    lexer.lex();
-
-    // Save end time
-    auto end = std::chrono::steady_clock::now();
-
-    // Calculating duration in different units
-    auto nanos = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
-    auto micros = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
-    auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-    auto seconds = std::chrono::duration_cast<std::chrono::seconds>(end - start).count();
-
-    // Printing stats
-    std::cout << "[Lex] " << path << " Completed " << "(Tokens:" << lexer.tokens.size() << ")" << ' ';
-    std::cout << "[Nanoseconds:" << nanos << "]";
-    std::cout << "[Microseconds:" << micros << "]";
-    std::cout << "[Milliseconds:" << millis << "]" << '\n';
-
-    return lexer;
-
+void benchLex(Lexer* lexer, const std::string& path) {
+    auto results = benchmark([lexer]() { lexer->lex(); });
+    std::cout << "[Lex] " << path << " Completed " << "(Tokens:" << lexer->tokens.size() << ")" << ' ';
+    std::cout << results.representation() << std::endl;
 }
 
-/**
- * same as benchLexFile with istream
- * benchmark lexing the path (relative to in the current project)
- * @param file
- * @return the tokens
- */
+void benchLexFile(Lexer* lexer, const std::string &path) {
+    auto& fstream = (std::fstream&) (lexer->provider.stream);
+    fstream.close();
+    fstream.open(path);
+    benchLex(lexer, path);
+    fstream.close();
+}
+
+void lexFile(Lexer* lexer, const std::string &path) {
+    auto& fstream = (std::fstream&) (lexer->provider.stream);
+    fstream.close();
+    fstream.open(path);
+    lexer->lex();
+    fstream.close();
+}
+
+Lexer benchLexFile(std::istream &file, const std::string& path) {
+    SourceProvider reader(file);
+    Lexer lexer(reader, path);
+    benchLex(&lexer, path);
+    return lexer;
+}
+
 Lexer benchLexFile(const std::string &path) {
     std::ifstream file;
     file.open(path);
@@ -64,24 +49,13 @@ Lexer benchLexFile(const std::string &path) {
     return lexer;
 }
 
-/**
- * will lex the file from given istream
- * @param file
- * @return the tokens
- */
 Lexer lexFile(std::istream &file, const std::string& path) {
-    StreamSourceProvider reader(file);
+    SourceProvider reader(file);
     Lexer lexer(reader, path);
     lexer.lex();
     return lexer;
 }
 
-/**
- * same as lexFile with istream
- * lex the file at path (relative to in the current project)
- * @param fileName
- * @return the tokens
- */
 Lexer lexFile(const std::string &path) {
     std::ifstream file;
     file.open(path);

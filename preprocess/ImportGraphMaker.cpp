@@ -2,10 +2,11 @@
 
 #include "ImportGraphMaker.h"
 #include "lexer/Lexi.h"
-#include "stream/StreamSourceProvider.h"
+#include "stream/SourceProvider.h"
 #include "cst/base/CSTConverter.h"
 #include "ast/statements/Import.h"
 #include "compiler/ASTProcessor.h"
+#include <functional>
 
 struct Importer {
     ASTProcessor *processor;
@@ -102,7 +103,7 @@ IGFile from_import(
 
 IGResult determine_import_graph(const std::string &exe_path, const std::string &abs_path) {
     std::ifstream file;
-    StreamSourceProvider reader(file);
+    SourceProvider reader(file);
     Lexer lexer(reader, abs_path);
     CSTConverter converter(false);
     ASTProcessor processor(exe_path, abs_path);
@@ -120,24 +121,21 @@ IGResult determine_import_graph(const std::string &exe_path, const std::string &
     };
 }
 
-/**
- * a function that can be user to traverse the IGFile
- */
-typedef void(*IGTraverserFn)(IGFile*);
-
-// traverses the IGFile depth_first
-void depth_first(IGFile* self, IGTraverserFn fn) {
-    for(auto& file : self->files) {
-        depth_first(&file, fn);
+bool IGFile::depth_first(const std::function<bool(IGFile*)>& fn) {
+    for(auto& file : files) {
+        if(!file.depth_first(fn)) return false;
     }
-    fn(self);
+    return fn(this);
 }
 
-// traverses the IGFile breath_first
-void breath_first(IGFile* self, IGTraverserFn fn) {
-    fn(self);
-    for(auto& file : self->files) {
-        depth_first(&file, fn);
+bool IGFile::breath_first(const std::function<bool(IGFile*)>& fn) {
+    if(fn(this)) {
+        for (auto &file: files) {
+            if (!file.depth_first(fn)) return false;
+        }
+        return true;
+    } else {
+        return false;
     }
 }
 

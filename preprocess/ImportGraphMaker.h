@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include "common/Diagnostic.h"
+#include "utils/functionalfwd.h"
 
 /**
  * this doesn't represent any actual file
@@ -32,6 +33,16 @@ struct IGFile {
      * get a list representation from this file
      */
     std::string representation();
+
+    /**
+     * traverse the file depth first
+     */
+    bool depth_first(const std::function<bool(IGFile*)>& fn);
+
+    /**
+     * traverse the file breath first
+     */
+    bool breath_first(const std::function<bool(IGFile*)>& fn);
 
 };
 

@@ -15,6 +15,7 @@
 #include <filesystem>
 #include "utils/StrUtils.h"
 #include "preprocess/ImportGraphMaker.h"
+#include "compiler/IGCompiler.h"
 
 int chemical_clang_main(int argc, char **argv);
 
@@ -62,16 +63,16 @@ int main(int argc, char *argv[]) {
     auto srcFilePath = args[0];
 
     auto print_ig = options.option("print-ig", "pr-ig").has_value();
-    if(print_ig) {
-        auto result = determine_import_graph(argv[0], srcFilePath);
-        if(!result.errors.empty()) {
-            for(auto& err : result.errors) {
-                std::cout << err.ansi_representation(err.doc_url.value(), "IGGraph") << std::endl;
-            }
-        }
-        std::cout << result.root.representation() << std::endl;
-        return 0;
-    }
+//    if(print_ig) {
+//        auto result = determine_import_graph(argv[0], srcFilePath);
+//        if(!result.errors.empty()) {
+//            for(auto& err : result.errors) {
+//                std::cout << err.ansi_representation(err.doc_url.value(), "IGGraph") << std::endl;
+//            }
+//        }
+//        std::cout << result.root.representation() << std::endl;
+//        return 0;
+//    }
 
     // get and print target
     auto target = options.option("target", "t");
@@ -107,38 +108,46 @@ int main(int argc, char *argv[]) {
     auto print_representation = options.option("print-ast", "pr-ast").has_value();
     auto print_ir = options.option("print-ir", "pr-ir").has_value();
 
-    Lexer lexer = benchmark ? benchLexFile(srcFilePath) : lexFile(srcFilePath);
-    if(verbose.has_value()) {
-        printTokens(lexer.tokens);
-    }
-    for (const auto &err: lexer.errors) {
-        std::cerr << err.representation(srcFilePath, "Lexer") << std::endl;
-    }
-    if(!lexer.errors.empty()) {
-        // do not pass errored tokens to converter
-        return 1;
+    Codegen gen({}, srcFilePath, target.value(), argv[0], is64Bit);
+    if(res.has_value()) {
+        gen.resources_dir = res.value();
     }
 
-    CSTConverter converter(is64Bit);
-    converter.convert(lexer.tokens);
-    for(const auto& err : converter.diagnostics) {
-        std::cerr << err.representation(srcFilePath, "Converter") << std::endl;
-    }
-    Scope scope(std::move(converter.nodes));
-    TypeChecker checker;
-    checker.type_check(scope.nodes);
-    for (const auto &err: checker.errors) {
-        std::cerr << err << std::endl;
-    }
-    if(print_representation) {
-        std::cout << "[Representation]\n" << scope.representation() << std::endl;
-    }
-    if (lexer.has_errors || converter.has_errors || !checker.errors.empty()) return 1;
+    auto use_ig = options.option("use-ig", "use-ig").has_value();
+    if(use_ig) {
 
-    // TODO typechecker should run after the linker runs
+        IGCompilerOptions compiler_opts(argv[0], target.value(), is64Bit);
+        compiler_opts.benchmark = benchmark;
+        compiler_opts.print_representation = print_representation;
+        compiler_opts.print_ig = print_ig;
+        if(!compile(&gen, srcFilePath, &compiler_opts)) {
+            return 1;
+        }
 
-    // linking the nodes
-    {
+    } else {
+        Lexer lexer = benchmark ? benchLexFile(srcFilePath) : lexFile(srcFilePath);
+        if(verbose.has_value()) {
+            printTokens(lexer.tokens);
+        }
+        for (const auto &err: lexer.errors) {
+            std::cerr << err.representation(srcFilePath, "Lexer") << std::endl;
+        }
+        if(!lexer.errors.empty()) {
+            // do not pass errored tokens to converter
+            return 1;
+        }
+        CSTConverter converter(is64Bit);
+        converter.convert(lexer.tokens);
+        for(const auto& err : converter.diagnostics) {
+            std::cerr << err.representation(srcFilePath, "Converter") << std::endl;
+        }
+        Scope scope(std::move(converter.nodes));
+        if(print_representation) {
+            std::cout << "[Representation]\n" << scope.representation() << std::endl;
+        }
+        if (lexer.has_errors || converter.has_errors) return 1;
+
+        // linking the nodes
         SymbolResolver linker(argv[0], srcFilePath, is64Bit);
         if(benchmark) {
             linker.benchmark = true;
@@ -153,17 +162,18 @@ int main(int argc, char *argv[]) {
         scope.declare_and_link(linker);
         if(!linker.errors.empty()) {
             linker.print_errors();
-            // TODO preventing linker to stop if errors occur, because we need std.io import to work !
-//            return 1;
+        }
+
+        // actual compilation
+        gen.nodes = std::move(scope.nodes);
+        gen.compile();
+        if(!gen.errors.empty()){
+            gen.print_errors();
+        }
+        if (!gen.has_errors) {
+            return 1;
         }
     }
-
-    // actual compilation
-    Codegen gen(std::move(scope.nodes), srcFilePath, target.value(), argv[0], is64Bit);
-    if(res.has_value()) {
-        gen.resources_dir = res.value();
-    }
-    gen.compile();
 
     // check if it requires printing
     if (print_ir) {
@@ -225,10 +235,6 @@ int main(int argc, char *argv[]) {
     // creating object file for compilation
     std::string object_file_path = output.value() + ".o";
     gen.save_to_object_file(object_file_path);
-    if (!gen.errors.empty()) {
-        gen.print_errors();
-        return 1;
-    }
 
     auto useLinker = options.option("linker", "linker");
     if(useLinker.has_value()) {

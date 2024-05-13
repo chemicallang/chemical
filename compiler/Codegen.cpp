@@ -52,12 +52,25 @@ void Codegen::module_init() {
 }
 
 void Codegen::compile() {
+    compile_begin();
+    compile_nodes();
+    compile_end();
+}
+
+void Codegen::compile_begin() {
+    // no implementation yet
+}
+
+void Codegen::compile_nodes() {
     for(const auto& node : nodes) {
         node->code_gen_declare(*this);
     }
     for (const auto &node: nodes) {
         node->code_gen(*this);
     }
+}
+
+void Codegen::compile_end() {
     for(const auto& interface : unimplemented_interfaces) {
         bool has_implemented = false;
         for(const auto& func : interface.second) {

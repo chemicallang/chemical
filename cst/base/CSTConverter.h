@@ -44,6 +44,11 @@ public:
     unsigned int param_index = 0;
 
     /**
+     * when true, do not create nodes for imports
+     */
+    bool no_imports = false;
+
+    /**
      * nodes found when visiting tokens
      */
     std::vector<std::unique_ptr<ASTNode>> nodes;

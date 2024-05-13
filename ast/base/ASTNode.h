@@ -10,7 +10,6 @@
 #include <memory>
 #include <string>
 #include "Interpretable.h"
-#include "typecheck/TypeChecker.h"
 #include "Visitor.h"
 
 class SymbolResolver;

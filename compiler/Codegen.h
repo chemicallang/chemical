@@ -110,8 +110,28 @@ public:
     }
 
     /**
+     * before compilation begins (calling compile_nodes for the first time), this should be called
+     * this must be called once, even for multiple files
+     */
+    void compile_begin();
+
+    /**
+     * everytime nodes are switched this method must be called
+     */
+    void compile_nodes();
+
+    /**
+     * after compilation has finished, of all files, this method is called
+     * this must be called once, even for multiple files
+     */
+    void compile_end();
+
+    /**
      * the actual compile function, when called module, ctx and builder members
      * are used to fill up the IR
+     *
+     * this just calls compile_begin, compile_nodes and compile_end
+     * this should be used if compiling a single file, whose nodes are present in nodes vector
      */
     void compile();
 

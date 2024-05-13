@@ -31,7 +31,7 @@ public:
     /**
      * print the tokens lexed
      */
-    bool print_tokens = false;
+    bool print_cst = false;
 
     /**
      * verbose

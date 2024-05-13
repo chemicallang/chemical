@@ -109,7 +109,7 @@ bool compile(Codegen *gen, const std::string &path, IGCompilerOptions *options) 
             for (const auto &err: lexer.errors) {
                 std::cerr << err.representation(file->abs_path, "Lexer") << std::endl;
             }
-            if (options->print_tokens) {
+            if (options->print_cst) {
                 printTokens(lexer.tokens);
             }
             if (lexer.has_errors) {

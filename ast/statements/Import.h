@@ -40,19 +40,6 @@ public:
 
     std::filesystem::path resolve_rel_path(const std::string& root_path);
 
-    /**
-     * this parses the imported file, if already parsed returns cached
-     * @param path file path should be given
-     */
-    std::vector<std::unique_ptr<ASTNode>>& parsed(
-            const std::string& path,
-            std::function<void(Diag*)> handler,
-            bool is64Bit,
-            bool benchmark,
-            bool print_representation,
-            ASTProcessor* processor
-    );
-
     void declare_top_level(SymbolResolver &linker) override;
 
     void interpret(InterpretScope &scope);
@@ -60,8 +47,5 @@ public:
 private:
     std::vector<std::string> identifiers;
     std::string filePath; ///< The file path to import.
-
-    // these are cached parsed nodes that are filled when file is imported
-    std::vector<std::unique_ptr<ASTNode>> imported_ast;
 
 };

@@ -114,67 +114,13 @@ int main(int argc, char *argv[]) {
         gen.resources_dir = res.value();
     }
 
-    auto use_ig = options.option("use-ig", "use-ig").has_value();
-    if(use_ig) {
-
-        IGCompilerOptions compiler_opts(argv[0], target.value(), is64Bit);
-        compiler_opts.benchmark = benchmark;
-        compiler_opts.print_representation = print_representation;
-        compiler_opts.print_cst = print_cst;
-        compiler_opts.print_ig = print_ig;
-        if(!compile(&gen, srcFilePath, &compiler_opts)) {
-            return 1;
-        }
-
-    } else {
-        Lexer lexer = benchmark ? benchLexFile(srcFilePath) : lexFile(srcFilePath);
-        if(verbose.has_value()) {
-            printTokens(lexer.tokens);
-        }
-        for (const auto &err: lexer.errors) {
-            std::cerr << err.representation(srcFilePath, "Lexer") << std::endl;
-        }
-        if(!lexer.errors.empty()) {
-            // do not pass errored tokens to converter
-            return 1;
-        }
-        CSTConverter converter(is64Bit);
-        converter.convert(lexer.tokens);
-        for(const auto& err : converter.diagnostics) {
-            std::cerr << err.representation(srcFilePath, "Converter") << std::endl;
-        }
-        Scope scope(std::move(converter.nodes));
-        if(print_representation) {
-            std::cout << "[Representation]\n" << scope.representation() << std::endl;
-        }
-        if (lexer.has_errors || converter.has_errors) return 1;
-
-        // linking the nodes
-        SymbolResolver linker(argv[0], srcFilePath, is64Bit);
-        if(benchmark) {
-            linker.benchmark = true;
-        }
-        if(print_representation) {
-            linker.print_representation = true;
-        }
-        if(res.has_value()) {
-            linker.resources_dir = res.value();
-        }
-        scope.declare_top_level(linker);
-        scope.declare_and_link(linker);
-        if(!linker.errors.empty()) {
-            linker.print_errors();
-        }
-
-        // actual compilation
-        gen.nodes = std::move(scope.nodes);
-        gen.compile();
-        if(!gen.errors.empty()){
-            gen.print_errors();
-        }
-        if (!gen.has_errors) {
-            return 1;
-        }
+    IGCompilerOptions compiler_opts(argv[0], target.value(), is64Bit);
+    compiler_opts.benchmark = benchmark;
+    compiler_opts.print_representation = print_representation;
+    compiler_opts.print_cst = print_cst;
+    compiler_opts.print_ig = print_ig;
+    if(!compile(&gen, srcFilePath, &compiler_opts)) {
+        return 1;
     }
 
     // check if it requires printing

@@ -455,6 +455,7 @@ void CSTConverter::visit(AssignmentCST *assignment) {
 }
 
 void CSTConverter::visit(ImportCST *cst) {
+    if(no_imports) return;
     std::vector<std::string> ids;
     nodes.emplace_back(std::make_unique<ImportStatement>(escaped_str_token(cst->tokens[1].get()), ids));
 }

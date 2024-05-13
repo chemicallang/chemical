@@ -36,6 +36,7 @@ void ASTProcessor::info(const std::string &err, ASTNode *node) {
 }
 
 void ASTProcessor::error(const std::string &err, ASTNode *node) {
+    has_errors = true;
     std::string errStr = "[" + TAG() + "]\n";
     errStr += "---- message : " + err + "\n";
     errStr += "---- file path : " + current_path;

@@ -11,7 +11,7 @@
 #include "utils/Utils.h"
 #include "LibLsp/lsp/AbsolutePath.h"
 #include "LibLsp/lsp/textDocument/publishDiagnostics.h"
-#include "stream/StreamSourceProvider.h"
+#include "stream/SourceProvider.h"
 #include "SemanticTokensAnalyzer.h"
 
 #define DEBUG false
@@ -31,7 +31,7 @@ std::vector<SemanticToken> to_semantic_tokens(FileTracker &tracker, const lsDocu
     if (overridden_source.has_value()) {
         if(OVER_SRC_PRINT) std::cout << "[to_semantic_tokens] overridden source : " << overridden_source.value() << '\n';
         std::istringstream iss(overridden_source.value());
-        StreamSourceProvider reader(iss);
+        SourceProvider reader(iss);
         Lexer lexer(reader, path);
         lexer.lex();
         lexed = std::move(lexer.tokens);
@@ -43,7 +43,7 @@ std::vector<SemanticToken> to_semantic_tokens(FileTracker &tracker, const lsDocu
         if (!file.is_open()) {
             std::cerr << "Unknown error opening the file" << '\n';
         }
-        StreamSourceProvider reader(file);
+        SourceProvider reader(file);
         Lexer lexer(reader, path);
         lexer.lex();
         lexed = std::move(lexer.tokens);

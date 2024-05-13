@@ -22,6 +22,11 @@ class ASTProcessor {
 public:
 
     /**
+     * set to true, if a diagnostic with error severity is added
+     */
+    bool has_errors = false;
+
+    /**
      * the path to resources directory
      */
     std::string resources_dir;

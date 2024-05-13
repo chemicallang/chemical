@@ -93,7 +93,6 @@ set(COMMON_SOURCES
         lexer/utils/LexNumber.cpp
         lexer/statements/LexType.cpp
         lexer/model/tokens/TypeToken.h
-        stream/StreamSourceProvider.h
         stream/StreamPosition.h
         lexer/Lexi.cpp
         lexer/utils/LexValue.cpp
@@ -189,8 +188,6 @@ set(COMMON_SOURCES
         ast/types/StringType.h
         ast/types/DoubleType.h
         ast/values/TernaryValue.h
-        typecheck/TypeChecker.h
-        typecheck/TypeChecker.cpp
         ast/types/BoolType.h
         ast/types/CharType.h
         ast/types/ArrayType.h
@@ -366,6 +363,9 @@ set(COMMON_SOURCES
         common/DiagSeverity.h
         preprocess/ImportGraphMaker.h
         preprocess/ImportGraphMaker.cpp
+        utils/Benchmark.h
+        utils/Benchmark.cpp
+        utils/functionalfwd.h
 )
 
 # Chemical LSP Executable Target
@@ -402,6 +402,8 @@ add_executable(Compiler Compiler.cpp ${COMMON_SOURCES}
         compiler/chem_clang.cpp
         compiler/ASTProcessor.h
         compiler/ASTProcessor.cpp
+        compiler/IGCompiler.h
+        compiler/IGCompiler.cpp
 )
 
 message(STATUS "FEATURES ${COMPILER_FEATURES}")

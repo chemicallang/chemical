@@ -8,45 +8,104 @@
 #include <string>
 #include "StreamPosition.h"
 #include "common/Diagnostic.h"
+#include <iosfwd>
 
 class SourceProvider {
+private:
+
+    /**
+     * this counts lines, zero-based
+     * On every character read, the provider checks if the line has ended and increments
+     */
+    unsigned int lineNumber = 0;
+
+    /**
+     * the current pos (character) to read, relative to the current line (line)
+     * zero-based
+     */
+    unsigned int lineCharacterNumber = 0;
+
+    /**
+     * saves the position into given position
+     */
+    void saveInto(StreamPosition &pos) {
+        pos.pos = currentPosition();
+        pos.line = lineNumber;
+        pos.character = lineCharacterNumber;
+    }
+
+    /**
+     * restores the position of this stream from the given position
+     * @param position
+     */
+    void restore(StreamPosition &position);
+
+    /**
+     * handles the character read from the stream
+     * changes line number and character number based on the character
+     */
+    inline void handleCharacterRead(char c) {
+        if (c == '\n' || c == '\x0C' || (c == '\r' && peek() != '\n')) {
+            // if there's no \n next to \r, the line ending must be CR, so we treat it as line ending
+            lineNumber++;
+            lineCharacterNumber = 0;
+        } else {
+            lineCharacterNumber++;
+        }
+    }
+
 public:
+
+    /**
+     *
+     */
+    std::istream &stream;
+
+    /**
+     * The default constructor
+     */
+    SourceProvider() = default;
+
+    /**
+     * create a source provider with a stream
+     */
+    explicit SourceProvider(std::istream &stream) : stream(stream) {}
 
     /**
      * gets the current pos of the stream
      * @return
      */
-    virtual unsigned int currentPosition() const = 0;
+    unsigned int currentPosition() const;
 
     /**
      * reads a single character and returns it
      * everytime a character is read, it must check if its the line ending character to track lineNumbers
      * @return
      */
-    virtual char readCharacter() = 0;
+    char readCharacter();
     /**
      * checks the stream is not at the end
      * @return
      */
-    virtual bool eof() const = 0;
+    bool eof() const;
     /**
      * peaks the character to read
      * @return
      */
-    virtual char peek() const = 0;
+    char peek() const;
     /**
      * peaks the character at current pos + ahead
      * @param ahead
      * @return
      */
-    virtual char peek(int ahead) = 0;
+    char peek(int ahead);
 
     /**
      * reads the stream until this (stop) character occurs
      * @param stop the stopping character
      * @return everything read until stop character, it doesn't include the stopping character
      */
-    virtual std::string readUntil(char stop) = 0;
+    std::string readUntil(char stop);
 
     /**
      * if text is present at current pos in the stream, increments the stream with text.length()
@@ -54,48 +113,53 @@ public:
      * @param peek peeks only, doesn't increment
      * @return true if incremented by text length otherwise false
      */
-    virtual bool increment(const std::string& text, bool peek = false) = 0;
+    bool increment(const std::string& text, bool peek = false);
 
     /**
      * if char c is present at current pos, increments the stream with character
      * @param c character to look for
      * @return true if incremented by character length = 1, otherwise false
      */
-    virtual bool increment(char c) = 0;
+    bool increment(char c);
 
     /**
      * this will read all the text from current position to end in a string and return it
      * @return
      */
-    virtual std::string readAllFromHere() = 0;
+    std::string readAllFromHere();
 
     /**
      * reads all the text from the stream from the beginning in a string and returns it
      * @return
      */
-    virtual std::string readAllFromBeg() = 0;
+    std::string readAllFromBeg();
 
     /**
      * This for debugging, when called, everything from the current position to the end will be printed to cout
      */
-    virtual void printAll() = 0;
+    void printAll();
 
     /**
      * get zero-based current line number
      */
-    virtual unsigned int getLineNumber() const = 0;
+    unsigned int getLineNumber() const;
 
     /**
      * get zero-based character number
      * @return
      */
-    virtual unsigned int getLineCharNumber() const = 0;
+    unsigned int getLineCharNumber() const;
 
     /**
      * gets the stream position at the current position
      * @return
      */
-    virtual StreamPosition getStreamPosition() const = 0;
+    StreamPosition getStreamPosition() const;
+
+    /**
+     * reset the stream
+     */
+    void reset();
 
     /**
      * read anything as long as lambda returns true into the given string

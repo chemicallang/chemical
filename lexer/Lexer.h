@@ -44,6 +44,9 @@ public:
 
     inline bool isDebug() { return true; };
 
+    /**
+     * initialize the lexer with this provider and path
+     */
     explicit Lexer(SourceProvider &provider, std::string path);
 
     /**

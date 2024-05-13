@@ -5,7 +5,7 @@
 //
 
 #include "FileTracker.h"
-#include "stream/StreamSourceProvider.h"
+#include "stream/SourceProvider.h"
 #include <sstream>
 
 #define DEBUG false
@@ -112,7 +112,7 @@ void replace(
 
     std::istringstream stream(source);
 
-    auto provider = StreamSourceProvider(stream);
+    auto provider = SourceProvider(stream);
 
     std::string nextSource;
 

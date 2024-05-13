@@ -1,12 +1,134 @@
-#include "StreamSourceProvider.h"
+#include "SourceProvider.h"
+#include <iostream>
 
-void SourceProvider::readEscaping(std::string& value, char stopAt) {
+void SourceProvider::restore(StreamPosition &position) {
+    stream.seekg(position.pos, std::ios::beg);
+    lineNumber = position.line;
+    lineCharacterNumber = position.character;
+}
+
+unsigned int SourceProvider::currentPosition() const {
+    return stream.tellg();
+}
+
+char SourceProvider::readCharacter() {
+    auto c = stream.get();
+    handleCharacterRead(c);
+    return c;
+}
+
+bool SourceProvider::eof() const {
+    return stream.eof();
+}
+
+char SourceProvider::peek() const {
+    return stream.peek();
+}
+
+char SourceProvider::peek(int ahead) {
+    unsigned int pos = stream.tellg();
+    stream.seekg(pos + ahead, std::ios::beg);
+    char c = stream.get();
+    stream.seekg(pos, std::ios::beg);
+    return c;
+}
+
+std::string SourceProvider::readUntil(char stop) {
+    auto read = "";
+    char currChar;
+    while (true) {
+        currChar = readCharacter();
+        if (currChar == stop || eof()) {
+            return read;
+        } else {
+            read += currChar;
+        }
+    }
+}
+
+bool SourceProvider::increment(char c) {
+    if (stream.get() == c) {
+        handleCharacterRead(c);
+        return true;
+    } else {
+        stream.seekg(currentPosition() - 1, std::ios::beg);
+        return false;
+    }
+}
+
+std::string SourceProvider::readAllFromHere() {
+    std::string source;
+    while (!eof()) {
+        source += readCharacter();
+    }
+    return source;
+}
+
+std::string SourceProvider::readAllFromBeg() {
+    stream.seekg(0, std::ios::beg);
+    return readAllFromHere();
+}
+
+void SourceProvider::printAll() {
+    while (!eof()) {
+        std::cout << readCharacter();
+    }
+}
+
+bool SourceProvider::increment(const std::string &text, bool peek) {
+
+    if (stream.peek() != text[0]) {
+        return false;
+    }
+
+    // Save current pos
+    auto prevPosition = getStreamPosition();
+
+    bool result = true;
+    int pos = 0;
+    while (!stream.eof() && pos < text.size()) {
+        char c = readCharacter();
+        if (c != text[pos]) {
+            result = false;
+            break;
+        } else {
+            pos++;
+        }
+    }
+
+    // Seek back to original pos
+    if (!result || peek) {
+        restore(prevPosition);
+    }
+
+    return result;
+}
+
+unsigned int SourceProvider::getLineNumber() const {
+    return lineNumber;
+}
+
+unsigned int SourceProvider::getLineCharNumber() const {
+    return lineCharacterNumber;
+}
+
+StreamPosition SourceProvider::getStreamPosition() const {
+    return StreamPosition{static_cast<unsigned int>(currentPosition()), lineNumber, lineCharacterNumber};
+}
+
+void SourceProvider::reset() {
+    this->stream.seekg(0, std::ios::beg);
+    this->lineCharacterNumber = 0;
+    this->lineNumber = 0;
+}
+
+void SourceProvider::readEscaping(std::string &value, char stopAt) {
     bool skip_one;
     char read;
-    while(!eof()) {
+    while (!eof()) {
         read = readCharacter();
         value.append(1, read);
-        if(read == stopAt && !skip_one) {
+        if (read == stopAt && !skip_one) {
             break;
         }
         skip_one = read == '\\';
@@ -89,7 +211,7 @@ std::string SourceProvider::readIdentifier() {
     }
 }
 
-void SourceProvider::readAnnotationIdentifier(std::string str){
+void SourceProvider::readAnnotationIdentifier(std::string str) {
     if (std::isalpha(peek()) || peek() == '_') {
         while (!eof() && (std::isalnum(peek()) || peek() == '_' || peek() == ':')) {
             str.append(1, readCharacter());

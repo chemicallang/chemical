@@ -41,8 +41,6 @@ void Lexer::init_value_creators() {
 }
 
 void Lexer::lexTopLevelMultipleImportStatements() {
-    // lex whitespace and new lines to reach a statement
-    // lex a statement and then optional whitespace, lex semicolon
     while (true) {
         lexWhitespaceAndNewLines();
         if (!lexImportStatement()) {
@@ -80,6 +78,7 @@ void Lexer::lexTopLevelMultipleStatementsTokens() {
 
 
 void Lexer::lex() {
+    lexTopLevelMultipleImportStatements();
     lexTopLevelMultipleStatementsTokens();
     tokens.shrink_to_fit();
 }

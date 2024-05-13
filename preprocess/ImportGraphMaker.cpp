@@ -120,6 +120,27 @@ IGResult determine_import_graph(const std::string &exe_path, const std::string &
     };
 }
 
+/**
+ * a function that can be user to traverse the IGFile
+ */
+typedef void(*IGTraverserFn)(IGFile*);
+
+// traverses the IGFile depth_first
+void depth_first(IGFile* self, IGTraverserFn fn) {
+    for(auto& file : self->files) {
+        depth_first(&file, fn);
+    }
+    fn(self);
+}
+
+// traverses the IGFile breath_first
+void breath_first(IGFile* self, IGTraverserFn fn) {
+    fn(self);
+    for(auto& file : self->files) {
+        depth_first(&file, fn);
+    }
+}
+
 void representation(IGFile& file, std::string& into, unsigned int level) {
     unsigned i = 0;
     while(i < level) {

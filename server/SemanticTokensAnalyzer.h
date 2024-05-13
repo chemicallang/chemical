@@ -81,6 +81,8 @@ public:
 
     // Token visitors
 
+    void visit(AnnotationToken *token) override;
+
     void visit(BoolToken *token) override;
 
     void visit(NullToken *token) override;

@@ -34,10 +34,12 @@ bool Lexer::lexEnumStructureTokens() {
         lexWhitespaceToken();
         if(!lexIdentifierToken()) {
             error("expected a identifier as enum name");
+            return true;
         }
         lexWhitespaceToken();
         if(!lexEnumBlockTokens()) {
             error("expected an enum block for declaring an enum");
+            return true;
         }
         compound_from<EnumDeclCST>(start);
         return true;

@@ -82,21 +82,21 @@ bool Lexer::lexAfterFuncKeyword() {
 
     if(!lexIdentifierToken()) {
         error("function name is missing after the keyword 'func'");
-        return true;
+        return false;
     }
 
     lexWhitespaceToken();
 
     if(!lexOperatorToken('(')) {
         error("expected a starting parenthesis ( in a function signature");
-        return true;
+        return false;
     }
 
     lexParameterList();
 
     if(!lexOperatorToken(')')) {
         error("expected a closing parenthesis ) when ending a function signature");
-        return true;
+        return false;
     }
 
     lexWhitespaceToken();
@@ -105,6 +105,7 @@ bool Lexer::lexAfterFuncKeyword() {
         lexWhitespaceToken();
         if(!lexTypeTokens()) {
             error("expected a return type for function after ':'");
+            return false;
         }
     }
 
@@ -130,7 +131,9 @@ bool Lexer::lexFunctionStructureTokens(bool allow_declarations) {
 
     unsigned start = tokens.size() - 1;
 
-    lexAfterFuncKeyword();
+    if(!lexAfterFuncKeyword()) {
+        return true;
+    }
 
     // inside the block allow return statements
     auto prevReturn = isLexReturnStatement;

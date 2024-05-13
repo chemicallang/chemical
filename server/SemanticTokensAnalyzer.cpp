@@ -158,6 +158,10 @@ void SemanticTokensAnalyzer::visit(MacroToken *token) {
     put((LexToken *) token, SemanticTokenType::ls_macro);
 };
 
+void SemanticTokensAnalyzer::visit(AnnotationToken *token) {
+    put((LexToken *) token, SemanticTokenType::ls_macro);
+}
+
 void SemanticTokensAnalyzer::visit(NumberToken *token) {
     put((LexToken *) token, SemanticTokenType::ls_number);
 };

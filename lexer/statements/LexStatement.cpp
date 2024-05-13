@@ -11,7 +11,6 @@ bool Lexer::lexTopLevelStatementTokens() {
            lexMultiLineCommentTokens() ||
            lexVarInitializationTokens(false) ||
            lexAnnotationMacro() ||
-           (isLexImportStatement && lexImportStatement()) ||
            lexEnumStructureTokens() ||
            lexStructStructureTokens() ||
            lexTypealiasStatement() ||

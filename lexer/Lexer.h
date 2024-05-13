@@ -267,6 +267,7 @@ public:
 
     /**
      * All import statements defined at top level will be lexed
+     * @param should cause error on invalid syntax, or stop
      */
     void lexTopLevelMultipleImportStatements();
 

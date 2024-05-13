@@ -1,17 +1,17 @@
 // Copyright (c) Qinetik 2024.
 
 #include <string>
-#include "utils/functionalfwd.h"
 
 struct BenchmarkResults {
 
-    long long nanos;
-    long long micros;
-    long long millis;
-    long long seconds;
+    std::uint64_t start_time; // Native representation of start time
+    std::uint64_t elapsed_time; // Native representation of elapsed time
+
+    void benchmark_begin();
+
+    void benchmark_end();
 
     std::string representation();
 
-};
 
-BenchmarkResults benchmark(const std::function<void()>& fn);
+};

@@ -47,8 +47,8 @@ int main(int argc, char *argv[]) {
         return chemical_clang_main2(subc);
     }
 
-    auto verbose = options.option("verbose", "v");
-    if(verbose.has_value()) {
+    auto verbose = options.option("verbose", "v").has_value();
+    if(verbose) {
         std::cout << "parsed command : ";
         options.print();
         std::cout << std::endl;
@@ -79,7 +79,7 @@ int main(int argc, char *argv[]) {
     if (!target.has_value()) {
         target.emplace(llvm::sys::getDefaultTargetTriple());
     }
-    if(verbose.has_value()) {
+    if(verbose) {
         std::cout << "Target: " << target.value() << std::endl;
     }
     // determine if is 64bit
@@ -119,6 +119,7 @@ int main(int argc, char *argv[]) {
     compiler_opts.print_representation = print_representation;
     compiler_opts.print_cst = print_cst;
     compiler_opts.print_ig = print_ig;
+    compiler_opts.verbose = verbose;
     if(!compile(&gen, srcFilePath, &compiler_opts)) {
         return 1;
     }

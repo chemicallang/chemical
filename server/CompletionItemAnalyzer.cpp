@@ -10,7 +10,7 @@
 #include "cst/base/CompoundCSTToken.h"
 #include "cst/utils/CSTUtils.h"
 
-#define DEBUG true
+#define DEBUG_COMPLETION false
 
 void CompletionItemAnalyzer::put(const std::string &label, lsCompletionItemKind kind) {
     items.emplace_back(label, kind);
@@ -22,7 +22,7 @@ bool CompletionItemAnalyzer::is_ahead(Position &position) const {
 }
 
 bool CompletionItemAnalyzer::is_caret_inside(CSTToken* token) {
-    return is_ahead(token->start_token()->position) && !is_ahead(token->end_token()->position);
+    return !is_ahead(token->start_token()->position) && is_ahead(token->end_token()->position);
 }
 
 void CompletionItemAnalyzer::visit(std::vector<std::unique_ptr<CSTToken>> &tokens) {
@@ -42,11 +42,11 @@ void CompletionItemAnalyzer::visitBody(CompoundCSTToken *bodyCst) {
 }
 
 void CompletionItemAnalyzer::visitVarInit(CompoundCSTToken *varInit) {
-    put(str_token(varInit->tokens[0].get()), lsCompletionItemKind::Variable);
+    put(str_token(varInit->tokens[1].get()), lsCompletionItemKind::Variable);
 }
 
 void CompletionItemAnalyzer::visitFunction(CompoundCSTToken *function) {
-
+    function->tokens[function->tokens.size() - 1]->accept(this);
 };
 
 void CompletionItemAnalyzer::visitIf(CompoundCSTToken *ifCst) {
@@ -82,7 +82,7 @@ void CompletionItemAnalyzer::visit(MultilineCommentToken *token) {
 
 CompletionList CompletionItemAnalyzer::analyze(std::vector<std::unique_ptr<CSTToken>> &tokens) {
     visit(tokens);
-#if defined DEBUG && DEBUG
+#if defined DEBUG_COMPLETION && DEBUG_COMPLETION
     for(const auto & item : items) {
             std::cout << item.label << std::endl;
         }

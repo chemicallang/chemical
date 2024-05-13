@@ -24,15 +24,15 @@ void FoldingRangeAnalyzer::folding_range(LexToken* start, LexToken* end, bool co
 void FoldingRangeAnalyzer::visitStructDef(CompoundCSTToken *structDef) {
     auto has_override = is_char_op(structDef->tokens[3].get(), ':');
     auto start = has_override ? 4 : 2;
-    unsigned i = has_override ? 5 : 3; // positioned at first node or '}'
-    while (!is_char_op(structDef->tokens[i].get(), '}')) {
-        i++;
-    }
-    folding_range(structDef->tokens[start]->start_token(), structDef->tokens[i]->start_token());
+    folding_range(structDef->tokens[start]->start_token(), structDef->tokens[structDef->tokens.size() - 1]->start_token());
 };
 
+void FoldingRangeAnalyzer::visitVarInit(CompoundCSTToken *varInit) {
+    varInit->tokens[varInit->tokens.size() - 1]->accept(this);
+}
+
 void FoldingRangeAnalyzer::visitIf(CompoundCSTToken *ifCst) {
-    analyze(ifCst->tokens);
+    ::visit(this, ifCst->tokens);
 }
 
 void FoldingRangeAnalyzer::visitForLoop(CompoundCSTToken *forLoop) {
@@ -51,12 +51,25 @@ void FoldingRangeAnalyzer::visitFunction(CompoundCSTToken *function) {
     function->tokens[function->tokens.size() - 1]->accept(this);
 };
 
-void FoldingRangeAnalyzer::visitLambda(CompoundCSTToken *cst) {
+void FoldingRangeAnalyzer::visitEnumDecl(CompoundCSTToken *enumDecl) {
+    folding_range(enumDecl->tokens[2]->start_token(), enumDecl->tokens[enumDecl->tokens.size() - 1]->end_token());
+}
 
+void FoldingRangeAnalyzer::visitLambda(CompoundCSTToken *cst) {
+    cst->tokens[cst->tokens.size() - 1]->accept(this);
 };
 
-void FoldingRangeAnalyzer::visit(MultilineCommentToken *token) {
+void FoldingRangeAnalyzer::visitInterface(CompoundCSTToken *interface) {
+    folding_range(interface->tokens[2]->start_token(), interface->tokens[interface->tokens.size() - 1]->end_token());
+}
 
+void FoldingRangeAnalyzer::visitImpl(CompoundCSTToken *impl) {
+    bool no_for = is_char_op(impl->tokens[2].get(), '{');
+    folding_range(impl->tokens[no_for ? 2 : 4]->start_token(), impl->tokens[impl->tokens.size() - 1]->end_token());
+}
+
+void FoldingRangeAnalyzer::visit(MultilineCommentToken *token) {
+    // TODO represent multi line token with at least 3 tokens
 };
 
 void FoldingRangeAnalyzer::visitBody(CompoundCSTToken *bodyCst) {

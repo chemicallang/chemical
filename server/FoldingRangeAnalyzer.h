@@ -45,7 +45,15 @@ public:
 
     // Visitor functions
 
+    void visitVarInit(CompoundCSTToken *varInit) override;
+
+    void visitEnumDecl(CompoundCSTToken *enumDecl) override;
+
+    void visitInterface(CompoundCSTToken *interface) override;
+
     void visitStructDef(CompoundCSTToken *structDef) override;
+
+    void visitImpl(CompoundCSTToken *impl) override;
 
     void visitIf(CompoundCSTToken *ifCst) override;
 

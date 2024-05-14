@@ -29,13 +29,16 @@ bool CompletionItemAnalyzer::is_caret_inside(CSTToken* token) {
     return !is_ahead(token->start_token()->position) && is_ahead(token->end_token()->position);
 }
 
-void CompletionItemAnalyzer::visit(std::vector<std::unique_ptr<CSTToken>> &tokens) {
-    for (auto &token: tokens) {
+void CompletionItemAnalyzer::visit(std::vector<std::unique_ptr<CSTToken>> &tokens, unsigned int start, unsigned int end) {
+    CSTToken* token;
+    while(start < end) {
+        token = tokens[start].get();
         if (is_ahead(token->start_token()->position)) {
             break;
         } else {
             token->accept(this);
         }
+        start++;
     }
 }
 
@@ -64,12 +67,18 @@ void CompletionItemAnalyzer::visitStructDef(CompoundCSTToken *cst) {
     auto l_brace = has_override ? 4 : 2;
     if(is_caret_ahead(cst->tokens[l_brace]->end_token())) {
         put(str_token(cst->tokens[1].get()), lsCompletionItemKind::Struct);
+        if(is_caret_behind(cst->tokens[cst->tokens.size() - 1]->end_token())) {
+            visit(cst->tokens, l_brace + 1);
+        }
     }
 }
 
 void CompletionItemAnalyzer::visitInterface(CompoundCSTToken *cst) {
     if(is_caret_ahead(cst->tokens[2]->start_token())) {
         put(str_token(cst->tokens[1].get()), lsCompletionItemKind::Interface);
+        if(is_caret_behind(cst->tokens[cst->tokens.size() - 1]->end_token())) {
+            visit(cst->tokens, 3);
+        }
     }
 }
 

@@ -51,6 +51,13 @@ public:
     }
 
     /**
+     * is the cursor / caret behind of the given token
+     */
+    inline bool is_caret_behind(LexToken* token) const {
+        return is_ahead(token);
+    }
+
+    /**
      * check if caret is inside this token
      */
     bool is_caret_inside(CSTToken* token);
@@ -63,7 +70,14 @@ public:
     /**
      * finds completion items till the given cursor position, found completion items are put on the items vector
      */
-    void visit(std::vector<std::unique_ptr<CSTToken>> &tokens);
+    void visit(std::vector<std::unique_ptr<CSTToken>> &tokens, unsigned int start, unsigned int end);
+
+    /**
+     * visit's all tokens from given start
+     */
+    void visit(std::vector<std::unique_ptr<CSTToken>> &tokens, unsigned int start = 0) {
+        visit(tokens, start, tokens.size());
+    }
 
     /**
      * The function that analyzes

@@ -34,6 +34,25 @@ public:
     CompletionItemAnalyzer(caret_pos_type position) : caret_position(position) {}
 
     /**
+     * get the child container that contains the caret within this compound token
+     */
+    CompoundCSTToken* child_container(CompoundCSTToken* compound);
+
+    /**
+     * finds the direct parent compound token
+     * that contains the caret position
+     */
+    CompoundCSTToken* direct_parent(std::vector<std::unique_ptr<CSTToken>> &tokens);
+
+    /**
+     * gets index of the token which is right before caret
+     *
+     * also assumes that caret is present inside these tokens
+     * otherwise -1 if caret is behind all tokens, -2 if ahead of all tokens
+     */
+    int token_before_caret(std::vector<std::unique_ptr<CSTToken>> &tokens);
+
+    /**
      * will return true, if given position is ahead of caret position
      */
     bool is_ahead(Position& position) const;

@@ -39,6 +39,18 @@ public:
     bool is_ahead(Position& position) const;
 
     /**
+     * will return true, if given position is ahead of caret position
+     */
+    bool is_ahead(LexToken* token) const;
+
+    /**
+     * is the cursor ahead of the given token
+     */
+    inline bool is_caret_ahead(LexToken* token) const {
+        return !is_ahead(token);
+    }
+
+    /**
      * check if caret is inside this token
      */
     bool is_caret_inside(CSTToken* token);
@@ -64,6 +76,12 @@ public:
 
     void visitFunction(CompoundCSTToken *function) override;
 
+    void visitEnumDecl(CompoundCSTToken *enumDecl) override;
+
+    void visitStructDef(CompoundCSTToken *structDef) override;
+
+    void visitInterface(CompoundCSTToken *interface) override;
+
     void visitIf(CompoundCSTToken *ifCst) override;
 
     void visitWhile(CompoundCSTToken *whileCst) override;
@@ -73,8 +91,6 @@ public:
     void visitForLoop(CompoundCSTToken *forLoop) override;
 
     void visitSwitch(CompoundCSTToken *switchCst) override;
-
-    void visitStructDef(CompoundCSTToken *structDef) override;
 
     void visit(MultilineCommentToken *token) override;
 

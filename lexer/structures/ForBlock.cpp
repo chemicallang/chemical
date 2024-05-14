@@ -41,11 +41,13 @@ bool Lexer::lexForBlockTokens() {
     // start parenthesis
     if(!lexOperatorToken('(')) {
         error("expected a starting parenthesis ( in a for block");
+        return true;
     }
 
     // lex strict initialization
     if(!lexVarInitializationTokens(false)) {
         error("expected a var initialization in for loop");
+        return true;
     }
 
     // lex ;
@@ -60,6 +62,7 @@ bool Lexer::lexForBlockTokens() {
     // lex conditional expression
     if(!lexExpressionTokens()) {
         error("expected a conditional expression after the var initialization in for loop");
+        return true;
     }
 
     if(!lexOperatorToken(';')){
@@ -79,6 +82,7 @@ bool Lexer::lexForBlockTokens() {
     // end parenthesis
     if(!lexOperatorToken(')')) {
         error("expected a closing parenthesis ) in a for block");
+        return true;
     }
 
     // { statement(s) } with continue & break support
@@ -86,6 +90,7 @@ bool Lexer::lexForBlockTokens() {
     isLexBreakStatement = true;
     if(!lexBraceBlock("forloop")) {
         error("expected a brace block in a for block");
+        return true;
     }
     isLexContinueStatement = false;
     isLexBreakStatement = false;

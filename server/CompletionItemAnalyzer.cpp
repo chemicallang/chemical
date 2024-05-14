@@ -21,6 +21,10 @@ bool CompletionItemAnalyzer::is_ahead(Position &position) const {
            (position.line == caret_position.first && position.character > caret_position.second);
 }
 
+bool CompletionItemAnalyzer::is_ahead(LexToken* token) const {
+    return is_ahead(token->position);
+}
+
 bool CompletionItemAnalyzer::is_caret_inside(CSTToken* token) {
     return !is_ahead(token->start_token()->position) && is_ahead(token->end_token()->position);
 }
@@ -49,6 +53,26 @@ void CompletionItemAnalyzer::visitFunction(CompoundCSTToken *function) {
     function->tokens[function->tokens.size() - 1]->accept(this);
 };
 
+void CompletionItemAnalyzer::visitEnumDecl(CompoundCSTToken *cst) {
+    if(is_caret_ahead(cst->tokens[cst->tokens.size() - 1]->end_token())) {
+        put(str_token(cst->tokens[1].get()), lsCompletionItemKind::Enum);
+    }
+}
+
+void CompletionItemAnalyzer::visitStructDef(CompoundCSTToken *cst) {
+    auto has_override = is_char_op(cst->tokens[3].get(), ':');
+    auto l_brace = has_override ? 4 : 2;
+    if(is_caret_ahead(cst->tokens[l_brace]->end_token())) {
+        put(str_token(cst->tokens[1].get()), lsCompletionItemKind::Struct);
+    }
+}
+
+void CompletionItemAnalyzer::visitInterface(CompoundCSTToken *cst) {
+    if(is_caret_ahead(cst->tokens[2]->start_token())) {
+        put(str_token(cst->tokens[1].get()), lsCompletionItemKind::Interface);
+    }
+}
+
 void CompletionItemAnalyzer::visitIf(CompoundCSTToken *ifCst) {
     visit(ifCst->tokens);
 };
@@ -69,10 +93,6 @@ void CompletionItemAnalyzer::visitForLoop(CompoundCSTToken *forLoop) {
 };
 
 void CompletionItemAnalyzer::visitSwitch(CompoundCSTToken *switchCst) {
-
-};
-
-void CompletionItemAnalyzer::visitStructDef(CompoundCSTToken *structDef) {
 
 };
 

@@ -415,7 +415,7 @@ public:
      * without the `struct` keyword and name identifier
      * @return
      */
-    bool lexStructBlockTokens();
+    void lexStructBlockTokens();
 
     /**
      * lexes a struct block

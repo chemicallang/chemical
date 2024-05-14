@@ -29,6 +29,8 @@ bool Lexer::lexVarInitializationTokens(bool allowDeclarations, bool requiredType
     // whitespace
     lexWhitespaceToken();
 
+    bool has_type = false;
+
     // :
     if (lexOperatorToken(':')) {
 
@@ -36,8 +38,11 @@ bool Lexer::lexVarInitializationTokens(bool allowDeclarations, bool requiredType
         lexWhitespaceToken();
 
         // type
-        if(!lexTypeTokens() && requiredType) {
+        if(lexTypeTokens()) {
+            has_type = true;
+        } else if(requiredType) {
             error("expected type tokens for variable initialization");
+            return true;
         }
 
         // whitespace
@@ -49,8 +54,13 @@ bool Lexer::lexVarInitializationTokens(bool allowDeclarations, bool requiredType
     if (!lexOperatorToken('=')) {
         if(!allowDeclarations) {
             error("expected an = sign for the initialization of the variable");
+            return true;
+        } else if(has_type) {
+            compound_from<VarInitCST>(start);
+        } else {
+            error("a type or value is required to initialize a variable");
+            return true;
         }
-        compound_from<VarInitCST>(start);
         return true;
     }
 

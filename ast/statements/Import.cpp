@@ -6,8 +6,6 @@
 #include "cst/base/CSTConverter.h"
 #include "compiler/SymbolResolver.h"
 
-#define DEBUG false
-
 #ifdef COMPILER_BUILD
 
 #include "compiler/Codegen.h"

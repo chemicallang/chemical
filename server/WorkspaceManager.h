@@ -14,6 +14,7 @@
 #include "lexer/Lexi.h"
 #include "LibLsp/lsp/textDocument/did_change.h"
 #include "utils/lspfwd.h"
+#include "lexer/model/LexResult.h"
 
 class RemoteEndPoint;
 
@@ -80,6 +81,16 @@ public:
      * get semantic tokens full response for the given document uri
      */
     td_semanticTokens_full::response get_semantic_tokens_full(const lsDocumentUri& uri);
+
+    /**
+     * this will publish given diagnostics
+     */
+    void publish_diagnostics(const std::string& path, std::vector<Diag>& diags, bool async);
+
+    /**
+     * get tokens for the given file
+     */
+    LexResult get_lexed(const std::string& path);
 
     /**
      * Lexes the file contents, The contents can be either \n

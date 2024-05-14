@@ -88,6 +88,8 @@ public:
 
     void visitVarInit(CompoundCSTToken *varInit) override;
 
+    void visitAssignment(CompoundCSTToken *assignment) override;
+
     void visitFunction(CompoundCSTToken *function) override;
 
     void visitEnumDecl(CompoundCSTToken *enumDecl) override;
@@ -95,6 +97,8 @@ public:
     void visitStructDef(CompoundCSTToken *structDef) override;
 
     void visitInterface(CompoundCSTToken *interface) override;
+
+    void visitImpl(CompoundCSTToken *impl) override;
 
     void visitIf(CompoundCSTToken *ifCst) override;
 
@@ -105,6 +109,12 @@ public:
     void visitForLoop(CompoundCSTToken *forLoop) override;
 
     void visitSwitch(CompoundCSTToken *switchCst) override;
+
+    void visitLambda(CompoundCSTToken *cst) override;
+
+    void visitStructValue(CompoundCSTToken *structValueCst) override;
+
+    void visitArrayValue(CompoundCSTToken *arrayValue) override;
 
     void visit(MultilineCommentToken *token) override;
 

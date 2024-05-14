@@ -50,6 +50,15 @@ void CompletionItemAnalyzer::visitBody(CompoundCSTToken *bodyCst) {
 
 void CompletionItemAnalyzer::visitVarInit(CompoundCSTToken *varInit) {
     put(str_token(varInit->tokens[1].get()), lsCompletionItemKind::Variable);
+    if(3 < varInit->tokens.size() && is_caret_inside(varInit->tokens[3].get())) {
+        varInit->tokens[3]->accept(this);
+    }
+}
+
+void CompletionItemAnalyzer::visitAssignment(CompoundCSTToken *cst) {
+    if(is_caret_inside(cst->tokens[2].get())) {
+        cst->tokens[2]->accept(this);
+    }
 }
 
 void CompletionItemAnalyzer::visitFunction(CompoundCSTToken *function) {
@@ -82,6 +91,12 @@ void CompletionItemAnalyzer::visitInterface(CompoundCSTToken *cst) {
     }
 }
 
+void CompletionItemAnalyzer::visitImpl(CompoundCSTToken *cst) {
+    if(is_caret_ahead(cst->tokens[2]->start_token()) && is_caret_behind(cst->tokens[cst->tokens.size() - 1]->end_token())) {
+        visit(cst->tokens, 3);
+    }
+}
+
 void CompletionItemAnalyzer::visitIf(CompoundCSTToken *ifCst) {
     visit(ifCst->tokens);
 };
@@ -100,6 +115,22 @@ void CompletionItemAnalyzer::visitForLoop(CompoundCSTToken *forLoop) {
         forLoop->tokens[8]->accept(this);
     }
 };
+
+void CompletionItemAnalyzer::visitLambda(CompoundCSTToken *cst) {
+    cst->tokens[cst->tokens.size() - 1]->accept(this);
+}
+
+void CompletionItemAnalyzer::visitStructValue(CompoundCSTToken *cst) {
+    if(is_caret_ahead(cst->tokens[2]->start_token()) && is_caret_behind(cst->tokens[cst->tokens.size() - 1]->end_token())) {
+        visit(cst->tokens, 3, cst->tokens.size());
+    }
+}
+
+void CompletionItemAnalyzer::visitArrayValue(CompoundCSTToken *arrayValue) {
+    if(is_caret_inside(arrayValue)) {
+        visit(arrayValue->tokens);
+    }
+}
 
 void CompletionItemAnalyzer::visitSwitch(CompoundCSTToken *switchCst) {
 

@@ -36,6 +36,15 @@ public:
     virtual void append_representation(std::string &rep) const = 0;
 
     /**
+     * returns representation of the token
+     */
+    inline std::string representation() {
+        std::string rep;
+        append_representation(rep);
+        return rep;
+    }
+
+    /**
      * implement the visitor pattern
      */
     virtual void accept(CSTVisitor *visitor) = 0;

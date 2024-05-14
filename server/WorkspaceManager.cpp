@@ -4,13 +4,19 @@
 // Created by Waqas Tahir on 21/02/2024.
 //
 
-#include "FileTracker.h"
+#include "WorkspaceManager.h"
 #include "stream/SourceProvider.h"
 #include <sstream>
+#include "LibLsp/lsp/textDocument/foldingRange.h"
+#include "FoldingRangeAnalyzer.h"
+#include "LibLsp/lsp/textDocument/completion.h"
+#include "CompletionItemAnalyzer.h"
+#include "LibLsp/lsp/textDocument/SemanticTokens.h"
+#include "server/LspSemanticTokens.h"
 
 #define DEBUG false
 
-Lexer FileTracker::getLexedFile(const std::string &path) {
+Lexer WorkspaceManager::getLexedFile(const std::string &path) {
     if (overriddenSources.contains(path)) {
 //        if(DEBUG) std::cout << "Retrieved Overridden Source:" << overriddenSources[path] << '\n';
         std::istringstream iss(overriddenSources[path]);
@@ -21,7 +27,7 @@ Lexer FileTracker::getLexedFile(const std::string &path) {
     }
 }
 
-std::optional<std::string> FileTracker::get_overridden_source(const std::string& path) {
+std::optional<std::string> WorkspaceManager::get_overridden_source(const std::string& path) {
     if (overriddenSources.contains(path)) {
         return overriddenSources[path];
     } else {
@@ -29,12 +35,29 @@ std::optional<std::string> FileTracker::get_overridden_source(const std::string&
     }
 }
 
-void FileTracker::onChangedContents(const std::string &path, const std::string &contents) {
+void WorkspaceManager::onChangedContents(const std::string &path, const std::string &contents) {
     overriddenSources[path] = contents;
 }
 
+td_foldingRange::response WorkspaceManager::get_folding_range(const std::string& abs_path) {
+    td_foldingRange::response rsp;
+    auto lexed = getLexedFile(abs_path);
+    FoldingRangeAnalyzer analyzer;
+    analyzer.analyze(lexed.tokens);
+    rsp.result = std::move(analyzer.ranges);
+    return rsp;
+}
+
+td_completion::response WorkspaceManager::get_completion(const std::string &abs_path, unsigned int line, unsigned int character) {
+    auto lexed = getLexedFile(abs_path);
+    CompletionItemAnalyzer analyzer(std::pair(line, character));
+    td_completion::response rsp;
+    rsp.result = analyzer.analyze(lexed.tokens);
+    return std::move(rsp);
+}
+
 void
-FileTracker::onChangedContents(const std::string &path, const std::vector<lsTextDocumentContentChangeEvent> &changes) {
+WorkspaceManager::onChangedContents(const std::string &path, const std::vector<lsTextDocumentContentChangeEvent> &changes) {
 
     // no changes return !
     if (changes.empty()) {
@@ -93,11 +116,11 @@ FileTracker::onChangedContents(const std::string &path, const std::vector<lsText
 
 }
 
-void FileTracker::onClosedFile(const std::string &path) {
+void WorkspaceManager::onClosedFile(const std::string &path) {
     overriddenSources.erase(path);
 }
 
-void FileTracker::clearAllStoredContents() {
+void WorkspaceManager::clearAllStoredContents() {
     overriddenSources.clear();
 }
 

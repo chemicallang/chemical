@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include "FileTracker.h"
+#include "WorkspaceManager.h"
 #include "LibLsp/lsp/textDocument/SemanticTokens.h"
 #include "LibLsp/JsonRpc/RemoteEndPoint.h"
 
-std::vector<SemanticToken> to_semantic_tokens(FileTracker& tracker, const lsDocumentUri &uri, RemoteEndPoint &sp);
+std::vector<SemanticToken> to_semantic_tokens(WorkspaceManager& tracker, const lsDocumentUri &uri, RemoteEndPoint &sp);

@@ -85,6 +85,11 @@ void FoldingRangeAnalyzer::visitStructValue(CompoundCSTToken *cst) {
     ::visit(this, cst->tokens, 2, cst->tokens.size());
 }
 
+void FoldingRangeAnalyzer::visitArrayValue(CompoundCSTToken *cst) {
+    folding_range(cst->tokens[0]->start_token(), cst->tokens[cst->tokens.size() - 1]->end_token());
+    ::visit(this, cst->tokens, 1, cst->tokens.size());
+}
+
 void FoldingRangeAnalyzer::visitInterface(CompoundCSTToken *interface) {
     folding_range(interface->tokens[2]->start_token(), interface->tokens[interface->tokens.size() - 1]->end_token());
     ::visit(this, interface->tokens, 3, interface->tokens.size());

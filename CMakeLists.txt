@@ -368,7 +368,7 @@ set(COMMON_SOURCES
         compiler/ASTProcessor.h
         compiler/ASTProcessor.cpp
         cst/utils/CSTUtils.cpp
-        common/Any.h
+        lexer/model/LexResult.h
 )
 
 # Chemical LSP Executable Target

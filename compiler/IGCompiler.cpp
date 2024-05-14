@@ -10,6 +10,7 @@
 #include "SymbolResolver.h"
 #include <iostream>
 #include <utility>
+#include <functional>
 
 std::vector<std::unique_ptr<ASTNode>>
 TranslateC(const char *exe_path, const char *abs_path, const char *resources_path);

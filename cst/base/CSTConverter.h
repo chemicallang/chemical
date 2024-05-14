@@ -7,7 +7,7 @@
 #include "CSTDiagnoser.h"
 #include <unordered_map>
 #include <string>
-#include <functional>
+#include "utils/functionalfwd.h"
 
 #include <memory>
 #include <vector>
@@ -69,9 +69,15 @@ public:
     std::vector<Diag> diagnostics;
 
     /**
+     * primitive type provide is a function when given a type in string format
+     * like 'int' it will create a AST BaseType
+     */
+    typedef BaseType*(*PrimitiveTypeProvider)(CSTConverter*);
+
+    /**
      * primitive type map that is initialized when visitor is initialized
      */
-    std::unordered_map<std::string, std::function<BaseType *()>> primitive_type_map;
+    std::unordered_map<std::string, PrimitiveTypeProvider> primitive_type_map;
 
     /**
      * This is a pointer to current function declaration

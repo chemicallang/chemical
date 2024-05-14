@@ -1,6 +1,7 @@
 // Copyright (c) Qinetik 2024.
 
 #include "StringHelpers.h"
+#include <functional>
 
 std::pair<char, unsigned int> escapable_char(const std::string &value, unsigned index) {
     char actualChar;

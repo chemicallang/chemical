@@ -8,10 +8,10 @@
 #pragma once
 
 #include "ast/base/Value.h"
-#include <functional>
+#include "utils/functionalfwd.h"
 #include <map>
 
-using MemValueFn = std::function<Value *(InterpretScope &, Value *, std::vector<std::unique_ptr<Value>> &)>;
+typedef Value*(*MemValueFn)(InterpretScope &, Value *, std::vector<std::unique_ptr<Value>> &);
 
 class MemberFnsValue : public Value {
 public:

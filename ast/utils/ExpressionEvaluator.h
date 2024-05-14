@@ -7,7 +7,7 @@
 #pragma once
 
 #include <unordered_map>
-#include <functional>
+#include "utils/functionalfwd.h"
 #include "ast/base/Value.h"
 #include "Operation.h"
 

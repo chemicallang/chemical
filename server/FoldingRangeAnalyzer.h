@@ -81,7 +81,7 @@ public:
 
     void visitBody(CompoundCSTToken *bodyCst) override;
 
-    void visitStructValue(CompoundCSTToken *structValueCst) override
+    void visitStructValue(CompoundCSTToken *structValueCst) override;
 
 
 };

@@ -16,17 +16,6 @@
 
 #define DEBUG false
 
-Lexer WorkspaceManager::getLexedFile(const std::string &path) {
-    if (overriddenSources.contains(path)) {
-//        if(DEBUG) std::cout << "Retrieved Overridden Source:" << overriddenSources[path] << '\n';
-        std::istringstream iss(overriddenSources[path]);
-        return lexFile(iss, path);
-    } else {
-        if(DEBUG) std::cout << "No Overridden Source:" << path << '\n';
-        return lexFile(path);
-    }
-}
-
 std::optional<std::string> WorkspaceManager::get_overridden_source(const std::string& path) {
     if (overriddenSources.contains(path)) {
         return overriddenSources[path];
@@ -41,18 +30,18 @@ void WorkspaceManager::onChangedContents(const std::string &path, const std::str
 
 td_foldingRange::response WorkspaceManager::get_folding_range(const std::string& abs_path) {
     td_foldingRange::response rsp;
-    auto lexed = getLexedFile(abs_path);
+    auto tokens = get_lexed_tokens(abs_path);
     FoldingRangeAnalyzer analyzer;
-    analyzer.analyze(lexed.tokens);
+    analyzer.analyze(tokens);
     rsp.result = std::move(analyzer.ranges);
     return rsp;
 }
 
 td_completion::response WorkspaceManager::get_completion(const std::string &abs_path, unsigned int line, unsigned int character) {
-    auto lexed = getLexedFile(abs_path);
+    auto tokens = get_lexed_tokens(abs_path);
     CompletionItemAnalyzer analyzer(std::pair(line, character));
     td_completion::response rsp;
-    rsp.result = analyzer.analyze(lexed.tokens);
+    rsp.result = analyzer.analyze(tokens);
     return std::move(rsp);
 }
 

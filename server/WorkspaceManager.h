@@ -89,15 +89,19 @@ public:
 
     /**
      * get tokens for the given file
+     *
+     * Lexes the file contents, The contents can be either
+     * 1 - In memory contents of the file (user has made changes to file which aren't saved on disk)
+     * 2 - Direct file contents (the file in the IDE is as its present on disk)
      */
     LexResult get_lexed(const std::string& path);
 
     /**
-     * Lexes the file contents, The contents can be either \n
-     * 1 - In memory contents of the file (user has made changes to file which aren't saved on disk) \n
-     * 2 - Direct file contents (the file in the IDE is as its present on disk) \n
+     * get the tokens only for the given file path
      */
-    Lexer getLexedFile(const std::string& path);
+    std::vector<std::unique_ptr<CSTToken>> get_lexed_tokens(const std::string& path) {
+        return get_lexed(path).tokens;
+    }
 
     /**
      * Returns the overridden source code for file at path

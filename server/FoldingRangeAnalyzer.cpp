@@ -25,6 +25,7 @@ void FoldingRangeAnalyzer::visitStructDef(CompoundCSTToken *structDef) {
     auto has_override = is_char_op(structDef->tokens[3].get(), ':');
     auto start = has_override ? 4 : 2;
     folding_range(structDef->tokens[start]->start_token(), structDef->tokens[structDef->tokens.size() - 1]->start_token());
+    ::visit(this, structDef->tokens, start, structDef->tokens.size());
 };
 
 void FoldingRangeAnalyzer::visitVarInit(CompoundCSTToken *varInit) {
@@ -85,11 +86,14 @@ void FoldingRangeAnalyzer::visitStructValue(CompoundCSTToken *cst) {
 
 void FoldingRangeAnalyzer::visitInterface(CompoundCSTToken *interface) {
     folding_range(interface->tokens[2]->start_token(), interface->tokens[interface->tokens.size() - 1]->end_token());
+    ::visit(this, interface->tokens, 2, interface->tokens.size());
 }
 
 void FoldingRangeAnalyzer::visitImpl(CompoundCSTToken *impl) {
     bool no_for = is_char_op(impl->tokens[2].get(), '{');
-    folding_range(impl->tokens[no_for ? 2 : 4]->start_token(), impl->tokens[impl->tokens.size() - 1]->end_token());
+    auto l_brace = no_for ? 2 : 4;
+    folding_range(impl->tokens[l_brace]->start_token(), impl->tokens[impl->tokens.size() - 1]->end_token());
+    ::visit(this, impl->tokens, l_brace, impl->tokens.size());
 }
 
 void FoldingRangeAnalyzer::visit(MultilineCommentToken *token) {

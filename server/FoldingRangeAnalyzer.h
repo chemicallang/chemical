@@ -83,5 +83,7 @@ public:
 
     void visitStructValue(CompoundCSTToken *structValueCst) override;
 
+    void visitArrayValue(CompoundCSTToken *arrayValue) override;
+
 
 };

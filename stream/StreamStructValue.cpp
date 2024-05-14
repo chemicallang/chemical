@@ -12,28 +12,28 @@ void define_source_stream_fns(GlobalInterpretScope &global) {
     if (globalVec == global.global_vals.end()) {
         // defining vector member function values
         std::unordered_map<std::string, MemValueFn> member_fns;
-        member_fns["currentPosition"] = [&](
+        member_fns["currentPosition"] = [](
                 InterpretScope &scope,
                 Value *value,
                 std::vector<std::unique_ptr<Value>> &params
         ) -> Value * {
             return new IntValue(static_cast<StreamStructValue *>(value)->provider.currentPosition());
         };
-        member_fns["readCharacter"] = [&](
+        member_fns["readCharacter"] = [](
                 InterpretScope &scope,
                 Value *value,
                 std::vector<std::unique_ptr<Value>> &params
         ) -> Value * {
             return new CharValue(static_cast<StreamStructValue *>(value)->provider.readCharacter());
         };
-        member_fns["eof"] = [&](
+        member_fns["eof"] = [](
                 InterpretScope &scope,
                 Value *value,
                 std::vector<std::unique_ptr<Value>> &params
         ) -> Value * {
             return new BoolValue(static_cast<StreamStructValue *>(value)->provider.eof());
         };
-        member_fns["peek"] = [&](
+        member_fns["peek"] = [](
                 InterpretScope &scope,
                 Value *value,
                 std::vector<std::unique_ptr<Value>> &params
@@ -47,7 +47,7 @@ void define_source_stream_fns(GlobalInterpretScope &global) {
             scope.error("peek can take a single optional parameter of type integer");
             return nullptr;
         };
-        member_fns["readUntil"] = [&](
+        member_fns["readUntil"] = [](
                 InterpretScope &scope,
                 Value *value,
                 std::vector<std::unique_ptr<Value>> &params
@@ -59,7 +59,7 @@ void define_source_stream_fns(GlobalInterpretScope &global) {
             scope.error("readUntil requires a single parameter of type character");
             return nullptr;
         };
-        member_fns["increment"] = [&](
+        member_fns["increment"] = [](
                 InterpretScope &scope,
                 Value *value,
                 std::vector<std::unique_ptr<Value>> &params
@@ -78,63 +78,63 @@ void define_source_stream_fns(GlobalInterpretScope &global) {
             scope.error("increment requires a single parameter of type character / string");
             return nullptr;
         };
-        member_fns["getLineNumber"] = [&](
+        member_fns["getLineNumber"] = [](
                 InterpretScope &scope,
                 Value *value,
                 std::vector<std::unique_ptr<Value>> &params
         ) -> Value * {
             return new IntValue(static_cast<StreamStructValue *>(value)->provider.getLineNumber());
         };
-        member_fns["getLineCharNumber"] = [&](
+        member_fns["getLineCharNumber"] = [](
                 InterpretScope &scope,
                 Value *value,
                 std::vector<std::unique_ptr<Value>> &params
         ) -> Value * {
             return new IntValue(static_cast<StreamStructValue *>(value)->provider.getLineCharNumber());
         };
-        member_fns["readAlpha"] = [&](
+        member_fns["readAlpha"] = [](
                 InterpretScope &scope,
                 Value *value,
                 std::vector<std::unique_ptr<Value>> &params
         ) -> Value * {
             return new StringValue(static_cast<StreamStructValue *>(value)->provider.readAlpha());
         };
-        member_fns["readNumber"] = [&](
+        member_fns["readNumber"] = [](
                 InterpretScope &scope,
                 Value *value,
                 std::vector<std::unique_ptr<Value>> &params
         ) -> Value * {
             return new StringValue(static_cast<StreamStructValue *>(value)->provider.readNumber());
         };
-        member_fns["readAlphaNum"] = [&](
+        member_fns["readAlphaNum"] = [](
                 InterpretScope &scope,
                 Value *value,
                 std::vector<std::unique_ptr<Value>> &params
         ) -> Value * {
             return new StringValue(static_cast<StreamStructValue *>(value)->provider.readAlphaNum());
         };
-        member_fns["readIdentifier"] = [&](
+        member_fns["readIdentifier"] = [](
                 InterpretScope &scope,
                 Value *value,
                 std::vector<std::unique_ptr<Value>> &params
         ) -> Value * {
             return new StringValue(static_cast<StreamStructValue *>(value)->provider.readIdentifier());
         };
-        member_fns["readWhitespaces"] = [&](
+        member_fns["readWhitespaces"] = [](
                 InterpretScope &scope,
                 Value *value,
                 std::vector<std::unique_ptr<Value>> &params
         ) -> Value * {
             return new IntValue(static_cast<StreamStructValue *>(value)->provider.readWhitespaces());
         };
-        member_fns["hasNewLine"] = [&](
+        member_fns["hasNewLine"] = [](
                 InterpretScope &scope,
                 Value *value,
                 std::vector<std::unique_ptr<Value>> &params
         ) -> Value * {
             return new BoolValue(static_cast<StreamStructValue *>(value)->provider.hasNewLine());
         };
-        member_fns["readNewLineChars"] = [&](
+        member_fns["readNewLineChars"] = [](
                 InterpretScope &scope,
                 Value *value,
                 std::vector<std::unique_ptr<Value>> &params

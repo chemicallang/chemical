@@ -86,6 +86,7 @@
 #include "ast/types/UInt128Type.h"
 #include "utils/StringHelpers.h"
 #include "utils/CSTUtils.h"
+#include <functional>
 
 Operation get_operation(CSTToken *token) {
     auto op = (OperationToken*) token;
@@ -110,55 +111,55 @@ Scope take_body(CSTConverter *conv, CSTToken *token) {
 
 // TODO support _128bigint, bigfloat
 CSTConverter::CSTConverter(bool is64Bit) : is64Bit(is64Bit) {
-    primitive_type_map["any"] = []() -> BaseType * {
+    primitive_type_map["any"] = [](CSTConverter* converter) -> BaseType * {
         return new AnyType();
     };
-    primitive_type_map["bool"] = []() -> BaseType * {
+    primitive_type_map["bool"] = [](CSTConverter* converter) -> BaseType * {
         return new BoolType();
     };
-    primitive_type_map["char"] = []() -> BaseType * {
+    primitive_type_map["char"] = [](CSTConverter* converter) -> BaseType * {
         return new CharType();
     };
-    primitive_type_map["double"] = []() -> BaseType * {
+    primitive_type_map["double"] = [](CSTConverter* converter) -> BaseType * {
         return new DoubleType();
     };
-    primitive_type_map["float"] = []() -> BaseType * {
+    primitive_type_map["float"] = [](CSTConverter* converter) -> BaseType * {
         return new FloatType();
     };
-    primitive_type_map["int"] = []() -> BaseType * {
+    primitive_type_map["int"] = [](CSTConverter* converter) -> BaseType * {
         return new IntType();
     };
-    primitive_type_map["uint"] = []() -> BaseType * {
+    primitive_type_map["uint"] = [](CSTConverter* converter) -> BaseType * {
         return new UIntType();
     };
-    primitive_type_map["short"] = []() -> BaseType * {
+    primitive_type_map["short"] = [](CSTConverter* converter) -> BaseType * {
         return new ShortType();
     };
-    primitive_type_map["ushort"] = []() -> BaseType * {
+    primitive_type_map["ushort"] = [](CSTConverter* converter) -> BaseType * {
         return new UShortType();
     };
-    primitive_type_map["long"] = [is64Bit]() -> BaseType * {
-        return new LongType(is64Bit);
+    primitive_type_map["long"] = [](CSTConverter* converter) -> BaseType * {
+        return new LongType(converter->is64Bit);
     };
-    primitive_type_map["ulong"] = [is64Bit]() -> BaseType * {
-        return new ULongType(is64Bit);
+    primitive_type_map["ulong"] = [](CSTConverter* converter) -> BaseType * {
+        return new ULongType(converter->is64Bit);
     };
-    primitive_type_map["bigint"] = []() -> BaseType * {
+    primitive_type_map["bigint"] = [](CSTConverter* converter) -> BaseType * {
         return new BigIntType();
     };
-    primitive_type_map["ubigint"] = []() -> BaseType * {
+    primitive_type_map["ubigint"] = [](CSTConverter* converter) -> BaseType * {
         return new UBigIntType();
     };
-    primitive_type_map["__int128"] = []() -> BaseType * {
+    primitive_type_map["__int128"] = [](CSTConverter* converter) -> BaseType * {
         return new Int128Type();
     };
-    primitive_type_map["__uint128"] = []() -> BaseType * {
+    primitive_type_map["__uint128"] = [](CSTConverter* converter) -> BaseType * {
         return new UInt128Type();
     };
-    primitive_type_map["string"] = []() -> BaseType * {
+    primitive_type_map["string"] = [](CSTConverter* converter) -> BaseType * {
         return new StringType();
     };
-    primitive_type_map["void"] = []() -> BaseType * {
+    primitive_type_map["void"] = [](CSTConverter* converter) -> BaseType * {
         return new VoidType();
     };
 }
@@ -404,7 +405,7 @@ void CSTConverter::visit(TypeToken *token) {
     if (primitive == primitive_type_map.end()) {
         types.emplace_back(std::make_unique<ReferencedType>(token->value));
     } else {
-        types.emplace_back(std::unique_ptr<BaseType>(primitive->second()));
+        types.emplace_back(std::unique_ptr<BaseType>(primitive->second(this)));
     }
 }
 

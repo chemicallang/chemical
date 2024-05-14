@@ -6,7 +6,7 @@
 /**
  * this is the type of function that can be inserted into global scope
  */
-using CompTimeFuncType = std::function<Value *(InterpretScope *, std::vector<std::unique_ptr<Value>> &)>;
+typedef Value*(*CompTimeFuncType)(InterpretScope *, std::vector<std::unique_ptr<Value>> &);
 
 /**
  * this takes a c++ lambda function that will run when user calls it during interpretation

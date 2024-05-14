@@ -19,7 +19,7 @@ void define_func(GlobalInterpretScope &scope, const std::string &name, CompTimeF
 }
 
 CompTimeFuncType create_print(GlobalInterpretScope &global) {
-    return [&](InterpretScope *scope, std::vector<std::unique_ptr<Value>> &params) -> Value * {
+    return [](InterpretScope *scope, std::vector<std::unique_ptr<Value>> &params) -> Value * {
         for (auto const &value: params) {
             auto paramValue = value->evaluated_value(*scope);
             if(paramValue == nullptr) {
@@ -37,14 +37,14 @@ CompTimeFuncType create_vector(GlobalInterpretScope &global) {
     if (globalVec == global.global_vals.end()) {
         // defining vector member function values
         std::unordered_map<std::string, MemValueFn> member_fns;
-        member_fns["size"] = [&](
+        member_fns["size"] = [](
                 InterpretScope &scope,
                 Value *value,
                 std::vector<std::unique_ptr<Value>> &params
         ) -> Value * {
             return new IntValue(static_cast<InterpretVectorValue*>(value)->values.size());
         };
-        member_fns["push"] = [&](
+        member_fns["push"] = [](
                 InterpretScope &scope,
                 Value *value,
                 std::vector<std::unique_ptr<Value>> &params
@@ -53,7 +53,7 @@ CompTimeFuncType create_vector(GlobalInterpretScope &global) {
             static_cast<InterpretVectorValue*>(value)->values.emplace_back(params[0]->param_value(scope));
             return nullptr;
         };
-        member_fns["erase"] = [&](
+        member_fns["erase"] = [](
                 InterpretScope &scope,
                 Value *value,
                 std::vector<std::unique_ptr<Value>> &params
@@ -65,8 +65,8 @@ CompTimeFuncType create_vector(GlobalInterpretScope &global) {
         };
         global.global_vals["vector"] = std::make_unique<MemberFnsValue>(std::move(member_fns));
     }
-    return [&](InterpretScope *scope, std::vector<std::unique_ptr<Value>> &params) -> Value * {
-        auto& members = static_cast<MemberFnsValue*>(global.global_vals["vector"].get())->members;
+    return [](InterpretScope *scope, std::vector<std::unique_ptr<Value>> &params) -> Value * {
+        auto& members = static_cast<MemberFnsValue*>(scope->global->global_vals["vector"].get())->members;
         auto values = std::vector<std::unique_ptr<Value>>();
         return new InterpretVectorValue(std::move(values), members);
     };

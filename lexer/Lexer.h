@@ -18,7 +18,7 @@
 #include "ast/base/GlobalInterpretScope.h"
 #include <memory>
 #include <optional>
-#include <functional>
+#include "utils/functionalfwd.h"
 
 class Lexer {
 public:

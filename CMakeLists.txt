@@ -368,21 +368,22 @@ set(COMMON_SOURCES
         compiler/ASTProcessor.h
         compiler/ASTProcessor.cpp
         cst/utils/CSTUtils.cpp
+        common/Any.h
 )
 
 # Chemical LSP Executable Target
 add_executable(ChemicalLsp Main.cpp ${COMMON_SOURCES}
         server/WorkspaceManager.h
         server/WorkspaceManager.cpp
-        server/PrintUtils.h
-        server/PrintUtils.cpp
+        server/utils/PrintUtils.h
+        server/utils/PrintUtils.cpp
         server/LspSemanticTokens.cpp
-        server/FoldingRangeAnalyzer.h
-        server/FoldingRangeAnalyzer.cpp
-        server/CompletionItemAnalyzer.h
-        server/CompletionItemAnalyzer.cpp
-        server/SemanticTokensAnalyzer.h
-        server/SemanticTokensAnalyzer.cpp
+        server/analyzers/FoldingRangeAnalyzer.h
+        server/analyzers/FoldingRangeAnalyzer.cpp
+        server/analyzers/CompletionItemAnalyzer.h
+        server/analyzers/CompletionItemAnalyzer.cpp
+        server/analyzers/SemanticTokensAnalyzer.h
+        server/analyzers/SemanticTokensAnalyzer.cpp
         server/utils/lspfwd.h
 )
 

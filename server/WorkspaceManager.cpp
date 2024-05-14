@@ -8,9 +8,9 @@
 #include "stream/SourceProvider.h"
 #include <sstream>
 #include "LibLsp/lsp/textDocument/foldingRange.h"
-#include "FoldingRangeAnalyzer.h"
+#include "server/analyzers/FoldingRangeAnalyzer.h"
 #include "LibLsp/lsp/textDocument/completion.h"
-#include "CompletionItemAnalyzer.h"
+#include "server/analyzers/CompletionItemAnalyzer.h"
 #include "LibLsp/lsp/textDocument/SemanticTokens.h"
 #include "server/LspSemanticTokens.h"
 

@@ -11,9 +11,9 @@
 #include "LibLsp/lsp/AbsolutePath.h"
 #include "LibLsp/lsp/textDocument/publishDiagnostics.h"
 #include "stream/SourceProvider.h"
-#include "SemanticTokensAnalyzer.h"
+#include "server/analyzers/SemanticTokensAnalyzer.h"
 
-#define DEBUG false
+#define DEBUG_TOKENS false
 #define OVER_SRC_PRINT false
 #define PRINT_TOKENS false
 
@@ -60,9 +60,9 @@ std::vector<SemanticToken> WorkspaceManager::get_semantic_tokens(const lsDocumen
     }
 
     // publishing diagnostics related to the lexing
-    std::vector<lsDiagnostic> diagnostics;
+    Notify_TextDocumentPublishDiagnostics::notify notify;
     for(const auto &error : errors) {
-        diagnostics.push_back(lsDiagnostic{
+        notify.params.diagnostics.push_back(lsDiagnostic{
             lsRange(
                     lsPosition(error.range.start.line, error.range.start.character),
                     lsPosition(error.range.end.line, error.range.end.character)
@@ -74,9 +74,8 @@ std::vector<SemanticToken> WorkspaceManager::get_semantic_tokens(const lsDocumen
                 error.message
         });
     }
-    Notify_TextDocumentPublishDiagnostics::notify notify;
+
     notify.params.uri = lsDocumentUri::FromPath(uri.GetAbsolutePath());
-    notify.params.diagnostics = std::move(diagnostics);
     std::future<void> futureObj = std::async(std::launch::async, [&]{
         remote->sendNotification(notify);
     });
@@ -86,7 +85,7 @@ std::vector<SemanticToken> WorkspaceManager::get_semantic_tokens(const lsDocumen
 //        printTokens(lexed, linker.resolved);
 //    }
 
-    if(DEBUG) {
+    if(DEBUG_TOKENS) {
         auto overridden = get_overridden_source(path);
         if(overridden.has_value()) {
             // Writing the source code to a debug file
@@ -96,7 +95,7 @@ std::vector<SemanticToken> WorkspaceManager::get_semantic_tokens(const lsDocumen
         }
     }
 
-    if(DEBUG) {
+    if(DEBUG_TOKENS) {
         JsonUtils utils;
         utils.serialize("debug/tokens.json", lexed);
     }

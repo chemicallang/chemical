@@ -39,11 +39,8 @@
 #include "LibLsp/lsp/workspace/did_change_configuration.h"
 #include "LibLsp/lsp/client/registerCapability.h"
 #include "LibLsp/lsp/workspace/symbol.h"
-#include "server/PrintUtils.h"
 #include "server/WorkspaceManager.h"
 #include "utils/FileUtils.h"
-#include "server/FoldingRangeAnalyzer.h"
-#include "server/CompletionItemAnalyzer.h"
 
 using namespace boost::asio::ip;
 using namespace std;

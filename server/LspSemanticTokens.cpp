@@ -17,11 +17,20 @@
 #define OVER_SRC_PRINT false
 #define PRINT_TOKENS false
 
-std::vector<SemanticToken> to_semantic_tokens(FileTracker &tracker, const lsDocumentUri &uri, RemoteEndPoint &sp) {
+td_semanticTokens_full::response WorkspaceManager::get_semantic_tokens_full(const lsDocumentUri& uri) {
+    auto toks = get_semantic_tokens(uri);
+    td_semanticTokens_full::response rsp;
+    SemanticTokens tokens;
+    tokens.data = SemanticTokens::encodeTokens(toks);
+    rsp.result = std::move(tokens);
+    return std::move(rsp);
+}
+
+std::vector<SemanticToken> WorkspaceManager::get_semantic_tokens(const lsDocumentUri& uri) {
 
     auto path = uri.GetAbsolutePath().path;
 
-    auto overridden_source = tracker.get_overridden_source(path);
+    auto overridden_source = get_overridden_source(path);
 
     std::vector<std::unique_ptr<CSTToken>> lexed;
 
@@ -69,7 +78,7 @@ std::vector<SemanticToken> to_semantic_tokens(FileTracker &tracker, const lsDocu
     notify.params.uri = lsDocumentUri::FromPath(uri.GetAbsolutePath());
     notify.params.diagnostics = std::move(diagnostics);
     std::future<void> futureObj = std::async(std::launch::async, [&]{
-        sp.sendNotification(notify);
+        remote->sendNotification(notify);
     });
 
     // TODO linked tokens
@@ -78,7 +87,7 @@ std::vector<SemanticToken> to_semantic_tokens(FileTracker &tracker, const lsDocu
 //    }
 
     if(DEBUG) {
-        auto overridden = tracker.get_overridden_source(path);
+        auto overridden = get_overridden_source(path);
         if(overridden.has_value()) {
             // Writing the source code to a debug file
             writeToProjectFile("debug/source.txt", overridden.value());

@@ -40,8 +40,7 @@
 #include "LibLsp/lsp/client/registerCapability.h"
 #include "LibLsp/lsp/workspace/symbol.h"
 #include "server/PrintUtils.h"
-#include "server/LspSemanticTokens.h"
-#include "server/FileTracker.h"
+#include "server/WorkspaceManager.h"
 #include "utils/FileUtils.h"
 #include "server/FoldingRangeAnalyzer.h"
 #include "server/CompletionItemAnalyzer.h"
@@ -86,16 +85,11 @@ bool ShouldIgnoreFileForIndexing(const std::string &path) {
 class Server {
 public:
 
-    FileTracker fileTracker;
-
     RemoteEndPoint &_sp;
-
-
+    WorkspaceManager manager;
     boost::optional<Rsp_Error> need_initialize_error;
-
     std::unique_ptr<ParentProcessWatcher> parent_process_watcher;
     std::shared_ptr<ClientPreferences> clientPreferences;
-
 
     struct ExitMsgMonitor {
         std::atomic_bool is_running_ = true;
@@ -132,6 +126,7 @@ public:
             bool _enable_watch_parent_process
     ) : _sp(server.point), server(_address, _port, protocol_json_handler, endpoint, _log) {
 
+        manager.remote = &server.point;
         need_initialize_error = Rsp_Error();
         need_initialize_error->error.code = lsErrorCodes::ServerNotInitialized;
         need_initialize_error->error.message = "Server is not initialized";
@@ -404,12 +399,7 @@ public:
                 return need_initialize_error.value();
             }
             auto path = req.params.textDocument.uri.GetAbsolutePath().path;
-            auto lexed = fileTracker.getLexedFile(path);
-            CompletionItemAnalyzer analyzer(std::pair(req.params.position.line, req.params.position.character));
-            td_completion::response rsp;
-            rsp.result = analyzer.analyze(lexed.tokens);
-            return std::move(rsp);
-
+            return manager.get_completion(path, req.params.position.line, req.params.position.character);
         });
         _sp.registerHandler([&](const completionItem_resolve::request &req) {
             _log.log(lsp::Log::Level::INFO, "completionItem_resolve");
@@ -425,13 +415,7 @@ public:
             if (need_initialize_error) {
                 return need_initialize_error.value();
             }
-            auto path = req.params.textDocument.uri.GetAbsolutePath().path;
-            td_foldingRange::response rsp;
-            auto lexed = fileTracker.getLexedFile(path);
-            FoldingRangeAnalyzer analyzer;
-            analyzer.analyze(lexed.tokens);
-            rsp.result = std::move(analyzer.ranges);
-            return std::move(rsp);
+            return manager.get_folding_range(req.params.textDocument.uri.GetAbsolutePath().path);
         });
         _sp.registerHandler([&](const td_formatting::request &req,
                                 const CancelMonitor &monitor)
@@ -470,12 +454,7 @@ public:
             if (need_initialize_error) {
                 return need_initialize_error.value();
             }
-            auto toks = to_semantic_tokens(fileTracker, req.params.textDocument.uri, _sp);
-            td_semanticTokens_full::response rsp;
-            SemanticTokens tokens;
-            tokens.data = SemanticTokens::encodeTokens(toks);
-            rsp.result = std::move(tokens);
-            return std::move(rsp);
+            return manager.get_semantic_tokens_full(req.params.textDocument.uri);
         });
 //        _sp.registerHandler([&](const td_references::request &req,
 //                                const CancelMonitor &monitor)
@@ -545,7 +524,7 @@ public:
                 _log.log(lsp::Log::Level::INFO, "No Changes in the code");
             }
 
-            fileTracker.onChangedContents(path.path, params.contentChanges);
+            manager.onChangedContents(path.path, params.contentChanges);
 
             _log.log(lsp::Log::Level::INFO, "TextDocumentDidChange Received 3");
 
@@ -563,7 +542,7 @@ public:
             if (ShouldIgnoreFileForIndexing(path))
                 return;
 
-            fileTracker.onClosedFile(path.path);
+            manager.onClosedFile(path.path);
 
         });
 
@@ -610,7 +589,7 @@ public:
 //
         _sp.registerHandler([&](const td_shutdown::request &notify) {
             _log.log(lsp::Log::Level::INFO, "td_shutdown");
-            fileTracker.clearAllStoredContents();
+            manager.clearAllStoredContents();
             td_shutdown::response rsp;
             return rsp;
         });

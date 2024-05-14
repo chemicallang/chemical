@@ -13,11 +13,34 @@
 #include "lexer/model/tokens/LexToken.h"
 #include "lexer/Lexi.h"
 #include "LibLsp/lsp/textDocument/did_change.h"
+#include "utils/lspfwd.h"
 
-class FileTracker {
+class RemoteEndPoint;
 
+/**
+ * Workspace manager is the operations manager for all IDE related operations
+ * 1 - IDE needs semantic highlighting for a single file
+ * 2 - IDE needs completion items
+ * 3 - User wants to rename a symbol
+ *
+ * Workspace manager provides functions that take into account
+ * caching of files, caching of CST & AST, dispatching operations
+ *
+ * It also takes into account, user workspace configuration, The main job of the
+ * workspace manager is to oversee the process of integration and interaction with IDEs
+ *
+ * It must support at a single time, LSP operations for multiple projects in a single workspace
+ *
+ * It will outlive a session between our LSP and IDE, user opens IDE, LSP starts
+ * along with workspace manager, the instance will die when the IDE closes.
+ */
+class WorkspaceManager {
 private:
 
+    /**
+     * overridden sources contain user edited files
+     * when user edits, they aren't saved directly to disk, so we store edited state here
+     */
     std::unordered_map<std::string, std::string> overriddenSources;
 
     /**
@@ -31,18 +54,42 @@ private:
 public:
 
     /**
+     * the remote end point, we can use this to send diagnostics to client
+     * send notifications and stuff, it's our connection to IDE
+     */
+    RemoteEndPoint* remote;
+
+    /**
+     * get the folding range for the given absolute file path
+     */
+    td_foldingRange::response get_folding_range(const std::string& abs_path);
+
+    /**
+     * get completion response for the given absolute file path
+     * @param line the line number where caret position is
+     * @param character the character number where caret position is
+     */
+    td_completion::response get_completion(const std::string& abs_path, unsigned int line, unsigned int character);
+
+    /**
+     * get semantic tokens for the given document uri
+     */
+    std::vector<SemanticToken> get_semantic_tokens(const lsDocumentUri& uri);
+
+    /**
+     * get semantic tokens full response for the given document uri
+     */
+    td_semanticTokens_full::response get_semantic_tokens_full(const lsDocumentUri& uri);
+
+    /**
      * Lexes the file contents, The contents can be either \n
      * 1 - In memory contents of the file (user has made changes to file which aren't saved on disk) \n
      * 2 - Direct file contents (the file in the IDE is as its present on disk) \n
-     * @param path
-     * @return
      */
     Lexer getLexedFile(const std::string& path);
 
     /**
      * Returns the overridden source code for file at path
-     * @param path
-     * @return
      */
     std::optional<std::string> get_overridden_source(const std::string& path);
 
@@ -50,7 +97,6 @@ public:
      * stores the overridden (changed) contents of the file \n
      * This happens when user has changes in the IDE that aren't present on the file in disk \n
      * so next time when lexing is performed, it returns lexing using overridden contents \n
-     * @param contents
      */
     void onChangedContents(const std::string& path, const std::string& contents);
 
@@ -58,15 +104,12 @@ public:
      * Its called with the changes that have been performed to the contents of a file in the IDE \n
      * Then reads the file, performs the changes to source code (in memory) \n
      * Then calls onChangedContents above to store the changed source coe as overridden contents \n
-     * @param path
-     * @param changes
      */
     void onChangedContents(const std::string& path, const std::vector<lsTextDocumentContentChangeEvent>& changes);
 
     /**
      * when a file is closed by the user in the IDE \n
      * this function removes any cache associated with that file \n
-     * @param path
      */
     void onClosedFile(const std::string& path);
 

@@ -11,6 +11,7 @@ It allows you to rethink how programming languages mix and share concepts to cre
 It's similar to golang, typescript & c++ but there's a lot that cannot be explained about syntax here.
 
 ```golang
+import "file.ch"
 var x : int = 5;
 for(var i = 0; i < 5; i++){
     var arr = {}int(5); // array of five integer elements, uninitialized
@@ -37,7 +38,18 @@ very innovative things are planned.
 
 - [x] Lexer
 - [x] Parser
-- [x] LSP (will add more features later)
+- [x] LSP
+  - [x] Basic syntax highlighting
+  - [x] Basic completion items
+  - [x] Basic diagnostics
+  - [ ] Imported Files support
+  - [ ] Resolve symbol support
+  - [ ] Improved diagnostics support
+  - [ ] Semantic highlighting
+  - [ ] Member access completion items
+  - [ ] Hover doc support
+  - [ ] Find usages support
+  - [ ] Refactor rename
 - [x] Native Codegen (mostly done)
 - [x] Necessary C Translation (declarations only)
 - [ ] Interpreter (mostly done)

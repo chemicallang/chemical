@@ -372,8 +372,8 @@ set(COMMON_SOURCES
 
 # Chemical LSP Executable Target
 add_executable(ChemicalLsp Main.cpp ${COMMON_SOURCES}
-        server/FileTracker.h
-        server/FileTracker.cpp
+        server/WorkspaceManager.h
+        server/WorkspaceManager.cpp
         server/PrintUtils.h
         server/PrintUtils.cpp
         server/LspSemanticTokens.cpp
@@ -383,6 +383,7 @@ add_executable(ChemicalLsp Main.cpp ${COMMON_SOURCES}
         server/CompletionItemAnalyzer.cpp
         server/SemanticTokensAnalyzer.h
         server/SemanticTokensAnalyzer.cpp
+        server/utils/lspfwd.h
 )
 
 # Add an executable target for the second executable

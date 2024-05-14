@@ -11,24 +11,16 @@ bool Lexer::lexStructMemberTokens() {
     return lexVarInitializationTokens(true, true) || lexFunctionStructureTokens() || lexSingleLineCommentTokens() || lexMultiLineCommentTokens();
 }
 
-bool Lexer::lexStructBlockTokens() {
-    if(lexOperatorToken('{')) {
-        do {
-            lexWhitespaceAndNewLines();
-            if(!lexStructMemberTokens()) {
-                break;
-            }
-            lexWhitespaceToken();
-            lexOperatorToken(';');
-        } while(provider.peek() != '}');
-        lexWhitespaceToken();
-        if(!lexOperatorToken('}')) {
-            error("expected a closing bracket '}' in enum block");
+void Lexer::lexStructBlockTokens() {
+    do {
+        lexWhitespaceAndNewLines();
+        if(!lexStructMemberTokens()) {
+            break;
         }
-        return true;
-    } else {
-        return false;
-    }
+        lexWhitespaceToken();
+        lexOperatorToken(';');
+    } while(provider.peek() != '}');
+    lexWhitespaceToken();
 }
 
 bool Lexer::lexStructStructureTokens() {
@@ -48,8 +40,13 @@ bool Lexer::lexStructStructureTokens() {
             }
         }
         lexWhitespaceToken();
-        if(!lexStructBlockTokens()) {
-            error("expected a struct block for declaring struct members");
+        if(!lexOperatorToken('{')) {
+            error("expected a '{' for struct block");
+            return true;
+        }
+        lexStructBlockTokens();
+        if(!lexOperatorToken('}')) {
+            error("expected a closing bracket '}' for struct block");
             return true;
         }
         lexWhitespaceToken();

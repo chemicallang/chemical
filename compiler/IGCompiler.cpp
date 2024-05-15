@@ -77,49 +77,49 @@ bool compile(Codegen *gen, const std::string &path, IGCompilerOptions *options) 
 
     std::vector<ASTDiag> previous = {};
 
-    auto done = result.root.depth_first([
-                                                options, path, &lexer,
-                                                &converter, &resolver, &gen,
-                                                &file_nodes, &imported, &previous
-                                        ](IGFile *file) {
+    auto flat_imports = result.root.flatten_by_dedupe();
 
-        // check if this file has been imported before
-        auto done = imported.find(file->abs_path);
-        if (done != imported.end()) {
-            // continue
-            return true;
+    if(options->verbose) {
+        std::cout << "[IGGraph] Flattened" << std::endl;
+        for (const auto &abs_path: flat_imports) {
+            std::cout << "-- " << abs_path << std::endl;
         }
-        imported[file->abs_path] = true;
+        std::cout << std::endl;
+    }
+
+    bool compile_result = true;
+
+    for(const auto& abs_path : flat_imports) {
 
         Scope scope;
-        auto is_c_file = file->abs_path.ends_with(".h") || file->abs_path.ends_with(".c");
+        auto is_c_file = abs_path.ends_with(".h") || abs_path.ends_with(".c");
 
         if (is_c_file) {
 
             if (options->verbose) {
-                std::cout << "[IGGraph] Translating C " << file->abs_path << std::endl;
+                std::cout << "[IGGraph] Translating C " << abs_path << std::endl;
             }
 
-            scope.nodes = TranslateC(gen->curr_exe_path.c_str(), file->abs_path.c_str(), gen->resources_dir.c_str());
+            scope.nodes = TranslateC(gen->curr_exe_path.c_str(), abs_path.c_str(), gen->resources_dir.c_str());
 
         } else {
 
             if (options->verbose) {
-                std::cout << "[IGGraph] Begin Compilation " << file->abs_path << std::endl;
+                std::cout << "[IGGraph] Begin Compilation " << abs_path << std::endl;
             }
 
             // lex the file
-            lexer.switch_path(file->abs_path);
-            options->benchmark ? benchLexFile(&lexer, file->abs_path) : lexFile(&lexer, file->abs_path);
+            lexer.switch_path(abs_path);
+            options->benchmark ? benchLexFile(&lexer, abs_path) : lexFile(&lexer, abs_path);
             for (const auto &err: lexer.errors) {
-                std::cerr << err.representation(file->abs_path, "Lexer") << std::endl;
+                std::cerr << err.representation(abs_path, "Lexer") << std::endl;
             }
             if (options->print_cst) {
                 printTokens(lexer.tokens);
             }
             if (lexer.has_errors) {
-                // stop lexing
-                return false;
+                compile_result = false;
+                break;
             }
 
             // convert the tokens
@@ -143,7 +143,7 @@ bool compile(Codegen *gen, const std::string &path, IGCompilerOptions *options) 
             resolver.override_symbols = true;
             previous = std::move(resolver.errors);
         }
-        resolver.current_path = file->abs_path;
+        resolver.current_path = abs_path;
         scope.declare_top_level(resolver);
         scope.declare_and_link(resolver);
         if (is_c_file) {
@@ -153,19 +153,17 @@ bool compile(Codegen *gen, const std::string &path, IGCompilerOptions *options) 
             resolver.has_errors = prev_has_errors;
         }
         if (resolver.has_errors) {
-            return false;
+            compile_result = false;
+            break;
         }
 
         // compiling the nodes
-        gen->current_path = file->abs_path;
+        gen->current_path = abs_path;
         gen->nodes = std::move(scope.nodes);
         gen->compile_nodes();
         file_nodes.emplace_back(std::move(gen->nodes));
 
-        // keep going
-        return true;
-
-    });
+    }
 
     if (!resolver.errors.empty()) {
         std::cout << std::endl;
@@ -184,6 +182,6 @@ bool compile(Codegen *gen, const std::string &path, IGCompilerOptions *options) 
         return false;
     }
 
-    return done;
+    return compile_result;
 
 }

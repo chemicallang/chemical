@@ -14,7 +14,7 @@
 #include "LibLsp/lsp/textDocument/SemanticTokens.h"
 #include "server/LspSemanticTokens.h"
 
-#define DEBUG false
+#define DEBUG_REPLACE false
 
 std::optional<std::string> WorkspaceManager::get_overridden_source(const std::string& path) {
     if (overriddenSources.contains(path)) {
@@ -77,16 +77,17 @@ WorkspaceManager::onChangedContents(const std::string &path, const std::vector<l
         source = overriddenSources[path];
     }
 
-    if(DEBUG) std::cout << "loaded the source : " << source << std::endl;
-    if(DEBUG) std::cout << "total changes :" << changes.size() << std::endl;
-
-    if (DEBUG && changes.size() == 1) {
+#if defined DEBUG_REPLACE && DEBUG_REPLACE
+    std::cout << "loaded the source : " << source << std::endl;
+    std::cout << "total changes :" << changes.size() << std::endl;
+    if(changes.size() == 1) {
         auto change = changes[0];
         auto start = change.range.value().start;
         auto end = change.range.value().end;
         std::cout << " change : start : " << start.line << '-' << start.character << " end : " << end.line << '-'
                   << end.character << ";" << std::endl;
     }
+#endif
 
     // make changes to the source code
     for (const auto &change: changes) {
@@ -97,8 +98,9 @@ WorkspaceManager::onChangedContents(const std::string &path, const std::vector<l
         }
     }
 
-
-    if(DEBUG) std::cout << "replaced : " << source << std::endl;
+#if defined DEBUG_REPLACE && DEBUG_REPLACE
+    std::cout << "replaced : " << source << std::endl;
+#endif
 
     // store the overridden sources
     overriddenSources[path] = std::move(source);
@@ -128,7 +130,7 @@ void replace(
 
     std::string nextSource;
 
-    if(DEBUG) std::cout << "reading:";
+    if(DEBUG_REPLACE) std::cout << "reading:";
 
     auto not_replaced = true;
 
@@ -136,19 +138,19 @@ void replace(
         if (not_replaced && (provider.getLineNumber() == lineStart && provider.getLineCharNumber() == charStart)) {
 
             // forwarding to the end without adding character
-            if(DEBUG) std::cout << "[fwd]:[";
+            if(DEBUG_REPLACE) std::cout << "[fwd]:[";
             while (!provider.eof() && !(provider.getLineNumber() == lineEnd && provider.getLineCharNumber() == charEnd)) {
-                if(DEBUG) {
+                if(DEBUG_REPLACE) {
                     std::cout << provider.readCharacter();
                 } else {
                     provider.readCharacter();
                 }
             }
-            if(DEBUG) std::cout << ']';
+            if(DEBUG_REPLACE) std::cout << ']';
 
             // adding replacement
             nextSource += replacement;
-            if(DEBUG) std::cout << "[rep]:[" << replacement << ']';
+            if(DEBUG_REPLACE) std::cout << "[rep]:[" << replacement << ']';
 
             // replaced
             not_replaced = false;
@@ -156,11 +158,11 @@ void replace(
         } else {
             auto c = provider.readCharacter();
             nextSource += c;
-            if(DEBUG) std::cout << c;
+            if(DEBUG_REPLACE) std::cout << c;
         }
     }
 
-    if(DEBUG) std::cout << '\n';
+    if(DEBUG_REPLACE) std::cout << '\n';
 
     source = nextSource;
 

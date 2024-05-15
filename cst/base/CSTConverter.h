@@ -7,7 +7,7 @@
 #include "CSTDiagnoser.h"
 #include <unordered_map>
 #include <string>
-#include "utils/functionalfwd.h"
+#include "utils/fwd/functional.h"
 
 #include <memory>
 #include <vector>

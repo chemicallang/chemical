@@ -272,7 +272,7 @@ set(COMMON_SOURCES
         lexer/values/LambdaValue.h
         lexer/Impls.h
         cst/base/CSTToken.h
-        utils/fwdvector.h
+        utils/fwd/vector.h
         cst/base/CompoundCSTToken.h
         cst/statements/VarInitCST.h
         cst/structures/FunctionCST.h
@@ -363,7 +363,7 @@ set(COMMON_SOURCES
         preprocess/ImportGraphMaker.cpp
         utils/Benchmark.h
         utils/Benchmark.cpp
-        utils/functionalfwd.h
+        utils/fwd/functional.h
         cst/utils/CSTUtils.h
         compiler/ASTProcessor.h
         compiler/ASTProcessor.cpp

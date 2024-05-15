@@ -3,7 +3,7 @@
 #pragma once
 
 #include <string>
-#include "utils/functionalfwd.h"
+#include "utils/fwd/functional.h"
 
 /**
  * will return the escaped character, for 'r' given at index, it will return '\r'

@@ -8,7 +8,7 @@
 #pragma once
 
 #include "ast/base/Value.h"
-#include "utils/functionalfwd.h"
+#include "utils/fwd/functional.h"
 #include <map>
 
 typedef Value*(*MemValueFn)(InterpretScope &, Value *, std::vector<std::unique_ptr<Value>> &);

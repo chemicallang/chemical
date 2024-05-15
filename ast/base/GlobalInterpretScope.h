@@ -8,7 +8,7 @@
 
 #include "InterpretScope.h"
 #include "ast/structures/FunctionDeclaration.h"
-#include "utils/functionalfwd.h"
+#include "utils/fwd/functional.h"
 #include <vector>
 #include <memory>
 

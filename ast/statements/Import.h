@@ -9,7 +9,7 @@
 #include <utility>
 
 #include "ast/base/ASTNode.h"
-#include "utils/functionalfwd.h"
+#include "utils/fwd/functional.h"
 #include <filesystem>
 
 class Diag;

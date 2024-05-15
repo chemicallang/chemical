@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 #include "common/Diagnostic.h"
-#include "utils/functionalfwd.h"
+#include "utils/fwd/functional.h"
 
 /**
  * this doesn't represent any actual file

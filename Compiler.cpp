@@ -49,7 +49,7 @@ int main(int argc, char *argv[]) {
 
     auto verbose = options.option("verbose", "v").has_value();
     if(verbose) {
-        std::cout << "parsed command : ";
+        std::cout << "[Command] ";
         options.print();
         std::cout << std::endl;
     }
@@ -80,7 +80,7 @@ int main(int argc, char *argv[]) {
         target.emplace(llvm::sys::getDefaultTargetTriple());
     }
     if(verbose) {
-        std::cout << "Target: " << target.value() << std::endl;
+        std::cout << "[Target] " << target.value() << std::endl;
     }
     // determine if is 64bit
     bool is64Bit = Codegen::is_arch_64bit(target.value());

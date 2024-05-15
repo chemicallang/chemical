@@ -35,14 +35,11 @@ struct IGFile {
     std::string representation();
 
     /**
-     * traverse the file depth first
+     * flattens the file by deduplication
+     * meaning only a single entry is considered for multiple files with same absolute path
+     * returns de duplicated vector that contains entries from nested files and a entry for self at the last index
      */
-    bool depth_first(const std::function<bool(IGFile*)>& fn);
-
-    /**
-     * traverse the file breath first
-     */
-    bool breath_first(const std::function<bool(IGFile*)>& fn);
+    std::vector<std::string> flatten_by_dedupe();
 
 };
 

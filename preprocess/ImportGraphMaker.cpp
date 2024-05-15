@@ -6,7 +6,6 @@
 #include "cst/base/CSTConverter.h"
 #include "ast/statements/Import.h"
 #include "compiler/ASTProcessor.h"
-#include <functional>
 
 struct Importer {
     ASTProcessor *processor;
@@ -121,22 +120,40 @@ IGResult determine_import_graph(const std::string &exe_path, const std::string &
     };
 }
 
-bool IGFile::depth_first(const std::function<bool(IGFile*)>& fn) {
-    for(auto& file : files) {
-        if(!file.depth_first(fn)) return false;
+//bool IGFile::depth_first(const std::function<bool(IGFile*)>& fn) {
+//    for(auto& file : files) {
+//        if(!file.depth_first(fn)) return false;
+//    }
+//    return fn(this);
+//}
+//
+//bool IGFile::breath_first(const std::function<bool(IGFile*)>& fn) {
+//    if(fn(this)) {
+//        for (auto &file: files) {
+//            if (!file.depth_first(fn)) return false;
+//        }
+//        return true;
+//    } else {
+//        return false;
+//    }
+//}
+
+void recursive_dedupe(IGFile* file, std::unordered_map<std::string, bool>& imported, std::vector<std::string>& imports) {
+    for(auto& nested : file->files) {
+        recursive_dedupe(&nested, imported, imports);
     }
-    return fn(this);
+    auto found = imported.find(file->abs_path);
+    if(found == imported.end()) {
+        imported[file->abs_path] = true;
+        imports.emplace_back(file->abs_path);
+    }
 }
 
-bool IGFile::breath_first(const std::function<bool(IGFile*)>& fn) {
-    if(fn(this)) {
-        for (auto &file: files) {
-            if (!file.depth_first(fn)) return false;
-        }
-        return true;
-    } else {
-        return false;
-    }
+std::vector<std::string> IGFile::flatten_by_dedupe() {
+    std::vector<std::string> imports;
+    std::unordered_map<std::string, bool> imported;
+    recursive_dedupe(this, imported, imports);
+    return imports;
 }
 
 void representation(IGFile& file, std::string& into, unsigned int level) {
@@ -148,7 +165,9 @@ void representation(IGFile& file, std::string& into, unsigned int level) {
         }
         i++;
     }
-    into.append(1, ' ');
+    if(level != 0) {
+        into.append(1, ' ');
+    }
     into.append(file.abs_path);
     into.append(1, '\n');
     for(auto& n : file.files) {

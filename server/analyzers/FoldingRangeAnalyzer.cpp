@@ -102,7 +102,7 @@ void FoldingRangeAnalyzer::visitImpl(CompoundCSTToken *impl) {
     ::visit(this, impl->tokens, l_brace + 1, impl->tokens.size());
 }
 
-void FoldingRangeAnalyzer::visit(MultilineCommentToken *token) {
+void FoldingRangeAnalyzer::visitMultilineComment(LexToken *token) {
     // TODO represent multi line token with at least 3 tokens
 };
 

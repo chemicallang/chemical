@@ -119,50 +119,50 @@ void SemanticTokensAnalyzer::analyze(std::vector<std::unique_ptr<CSTToken>> &cst
     }
 }
 
-void SemanticTokensAnalyzer::visit(MultilineCommentToken *token) {
-    put((LexToken *) token, SemanticTokenType::ls_comment);
+void SemanticTokensAnalyzer::visitMultilineComment(LexToken *token) {
+    put(token, SemanticTokenType::ls_comment);
 };
 
-void SemanticTokensAnalyzer::visit(BoolToken *token) {
-    put((LexToken *) token, SemanticTokenType::ls_keyword);
+void SemanticTokensAnalyzer::visitBoolToken(LexToken *token) {
+    put(token, SemanticTokenType::ls_keyword);
 };
 
-void SemanticTokensAnalyzer::visit(NullToken *token) {
-    put((LexToken *) token, SemanticTokenType::ls_keyword);
+void SemanticTokensAnalyzer::visitNullToken(LexToken *token) {
+    put(token, SemanticTokenType::ls_keyword);
 }
 
-void SemanticTokensAnalyzer::visit(CharOperatorToken *token) {
-    put((LexToken *) token, SemanticTokenType::ls_operator);
+void SemanticTokensAnalyzer::visitCharOperatorToken(LexToken *token) {
+    put(token, SemanticTokenType::ls_operator);
 };
 
-void SemanticTokensAnalyzer::visit(StringOperatorToken *token) {
-    put((LexToken *) token, SemanticTokenType::ls_operator);
+void SemanticTokensAnalyzer::visitStringOperatorToken(LexToken *token) {
+    put(token, SemanticTokenType::ls_operator);
 }
 
-void SemanticTokensAnalyzer::visit(CharToken *token) {
-    put((LexToken *) token, SemanticTokenType::ls_string);
+void SemanticTokensAnalyzer::visitCharToken(LexToken *token) {
+    put(token, SemanticTokenType::ls_string);
 };
 
-void SemanticTokensAnalyzer::visit(CommentToken *token) {
-    put((LexToken *) token, SemanticTokenType::ls_comment);
+void SemanticTokensAnalyzer::visitCommentToken(LexToken *token) {
+    put(token, SemanticTokenType::ls_comment);
 };
 
-void SemanticTokensAnalyzer::visit(MacroToken *token) {
-    put((LexToken *) token, SemanticTokenType::ls_macro);
+void SemanticTokensAnalyzer::visitMacroToken(LexToken *token) {
+    put(token, SemanticTokenType::ls_macro);
 };
 
-void SemanticTokensAnalyzer::visit(AnnotationToken *token) {
-    put((LexToken *) token, SemanticTokenType::ls_macro);
+void SemanticTokensAnalyzer::visitAnnotationToken(LexToken *token) {
+    put(token, SemanticTokenType::ls_macro);
 }
 
-void SemanticTokensAnalyzer::visit(NumberToken *token) {
+void SemanticTokensAnalyzer::visitNumberToken(NumberToken *token) {
     put((LexToken *) token, SemanticTokenType::ls_number);
 };
 
-void SemanticTokensAnalyzer::visit(OperationToken *token) {
-    put((LexToken *) token, SemanticTokenType::ls_operator);
+void SemanticTokensAnalyzer::visitOperationToken(LexToken *token) {
+    put(token, SemanticTokenType::ls_operator);
 };
 
-void SemanticTokensAnalyzer::visit(StringToken *token) {
-    put((LexToken *) token, SemanticTokenType::ls_string);
+void SemanticTokensAnalyzer::visitStringToken(LexToken *token) {
+    put(token, SemanticTokenType::ls_string);
 };

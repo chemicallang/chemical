@@ -147,7 +147,7 @@ public:
 
     void visitArrayValue(CompoundCSTToken *arrayValue) override;
 
-    void visit(MultilineCommentToken *token) override;
+    void visitMultilineComment(LexToken *token) override;
 
     void visitBody(CompoundCSTToken *bodyCst) override;
 

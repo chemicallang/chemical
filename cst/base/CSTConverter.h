@@ -208,7 +208,7 @@ public:
 
     // Types
 
-    void visit(TypeToken *token) override;
+    void visitTypeToken(LexToken *token) override;
 
     void visitPointerType(CompoundCSTToken *pointerType) override;
 
@@ -220,13 +220,13 @@ public:
 
     // Values
 
-    void visit(NullToken *token) override;
+    void visitNullToken(LexToken *token) override;
 
-    void visit(StringToken *token) override;
+    void visitStringToken(LexToken *token) override;
 
-    void visit(CharToken *token) override;
+    void visitCharToken(LexToken *token) override;
 
-    void visit(NumberToken *token) override;
+    void visitNumberToken(NumberToken *token) override;
 
     void visitStructValue(CompoundCSTToken *structValueCst) override;
 
@@ -242,9 +242,9 @@ public:
 
     void visitIndexOp(CompoundCSTToken *op) override;
 
-    void visit(VariableToken *token) override;
+    void visitVariableToken(LexToken *token) override;
 
-    void visit(BoolToken *token) override;
+    void visitBoolToken(LexToken *token) override;
 
     void visitAccessChain(AccessChainCST *accessChain) override;
 

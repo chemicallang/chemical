@@ -285,76 +285,76 @@ public:
         visitCompoundCommon((CompoundCSTToken *) structValueCst);
     }
 
-    virtual void visit(CharOperatorToken *token) {
-        visitLexTokenCommon((LexToken *) token);
+    virtual void visitCharOperatorToken(LexToken *token) {
+        visitLexTokenCommon(token);
     };
 
-    virtual void visit(StringOperatorToken *token) {
-        visitLexTokenCommon((LexToken *) token);
+    virtual void visitStringOperatorToken(LexToken *token) {
+        visitLexTokenCommon(token);
     };
 
-    virtual void visit(CharToken *token) {
-        visitLexTokenCommon((LexToken *) token);
+    virtual void visitCharToken(LexToken *token) {
+        visitLexTokenCommon(token);
     };
 
-    virtual void visit(CommentToken *token) {
-        visitLexTokenCommon((LexToken *) token);
+    virtual void visitCommentToken(LexToken *token) {
+        visitLexTokenCommon(token);
     };
 
-    virtual void visit(TypeToken *token) {
-        visitLexTokenCommon((LexToken *) token);
+    virtual void visitTypeToken(LexToken *token) {
+        visitLexTokenCommon(token);
     };
 
-    virtual void visit(KeywordToken *token) {
-        visitLexTokenCommon((LexToken *) token);
+    virtual void visitKeywordToken(LexToken *token) {
+        visitLexTokenCommon(token);
     };
 
-    virtual void visit(MacroToken *token) {
-        visitLexTokenCommon((LexToken *) token);
+    virtual void visitMacroToken(LexToken *token) {
+        visitLexTokenCommon(token);
     };
 
-    virtual void visit(AnnotationToken *token) {
-        visitLexTokenCommon((LexToken *) token);
+    virtual void visitAnnotationToken(LexToken *token) {
+        visitLexTokenCommon(token);
     };
 
-    virtual void visit(MultilineCommentToken *token) {
-        visitLexTokenCommon((LexToken *) token);
+    virtual void visitMultilineComment(LexToken *token) {
+        visitLexTokenCommon(token);
     };
 
-    virtual void visit(OperationToken *token) {
-        visitLexTokenCommon((LexToken *) token);
+    virtual void visitOperationToken(LexToken *token) {
+        visitLexTokenCommon(token);
     };
 
-    virtual void visit(StringToken *token) {
-        visitLexTokenCommon((LexToken *) token);
+    virtual void visitStringToken(LexToken *token) {
+        visitLexTokenCommon(token);
     };
 
-    virtual void visit(NumberToken *token) {
-        visitLexTokenCommon((LexToken *) token);
-    };
-
-    virtual void visit(BoolToken* token) {
-        visitLexTokenCommon((LexToken *) token);
-    }
-
-    virtual void visit(NullToken* token) {
-        visitLexTokenCommon((LexToken *) token);
-    }
-
-    virtual void visit(VariableToken *token) {
-        visitLexTokenCommon((LexToken *) token);
-    }
-
-    virtual void visit(IdentifierToken *token) {
-        visitLexTokenCommon((LexToken *) token);
-    }
-
-    virtual void visit(RawToken* token) {
+    virtual void visitNumberToken(NumberToken *token) {
         visitLexTokenCommon((LexToken*) token);
+    };
+
+    virtual void visitBoolToken(LexToken* token) {
+        visitLexTokenCommon(token);
     }
 
-    virtual void visit(LexUserToken *token) {
-        visitLexTokenCommon((LexToken *) token);
+    virtual void visitNullToken(LexToken* token) {
+        visitLexTokenCommon(token);
+    }
+
+    virtual void visitVariableToken(LexToken *token) {
+        visitLexTokenCommon(token);
+    }
+
+    virtual void visitIdentifierToken(LexToken *token) {
+        visitLexTokenCommon(token);
+    }
+
+    virtual void visitRawToken(LexToken* token) {
+        visitLexTokenCommon(token);
+    }
+
+    virtual void visitUserToken(LexToken *token) {
+        visitLexTokenCommon(token);
     };
 
 

@@ -15,9 +15,7 @@
 class CharOperatorToken : public LexToken {
 public:
 
-    CharOperatorToken(const Position& position, std::string ope) : LexToken(position, std::move(ope)) {
-
-    }
+    using LexToken::LexToken;
 
     LexTokenType type() const override {
         return LexTokenType::CharOperator;

@@ -15,9 +15,7 @@
 class OperationToken : public LexToken {
 public:
 
-    OperationToken(const Position& position, std::string value) : LexToken(position, std::move(value)) {
-
-    }
+    using LexToken::LexToken;
 
     void accept(CSTVisitor *visitor) override {
         visitor->visitOperationToken(this);

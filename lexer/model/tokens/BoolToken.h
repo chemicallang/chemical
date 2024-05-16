@@ -11,9 +11,7 @@
 class BoolToken : public LexToken {
 public:
 
-    BoolToken(const Position& position, std::string value) : LexToken(position, std::move(value)) {
-
-    }
+    using LexToken::LexToken;
 
     LexTokenType type() const override {
         return LexTokenType::Bool;

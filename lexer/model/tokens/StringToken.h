@@ -11,9 +11,7 @@
 class StringToken : public LexToken {
 public:
 
-    StringToken(const Position &position, std::string value) : LexToken(position, std::move(value)) {
-
-    }
+    using LexToken::LexToken;
 
     void accept(CSTVisitor *visitor) override {
         visitor->visitStringToken(this);

@@ -19,9 +19,7 @@ private:
 
 public:
 
-    NumberToken(const Position &position, std::string value) : LexToken(position, std::move(value)) {
-
-    }
+    using LexToken::LexToken;
 
     bool has_dot() {
         return value.find('.') != std::string::npos;

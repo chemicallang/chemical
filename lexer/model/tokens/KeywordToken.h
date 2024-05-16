@@ -11,9 +11,7 @@
 class KeywordToken : public LexToken {
 public:
 
-    KeywordToken(const Position& position, std::string keyword) : LexToken(position, std::move(keyword)) {
-
-    }
+    using LexToken::LexToken;
 
     void accept(CSTVisitor *visitor) override {
         visitor->visitKeywordToken(this);

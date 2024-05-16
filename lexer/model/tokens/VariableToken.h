@@ -19,9 +19,7 @@ public:
      */
     CSTToken* linked;
 
-    VariableToken(const Position& position, std::string identifier) : LexToken(position, std::move(identifier)) {
-
-    }
+    using LexToken::LexToken;
 
     void accept(CSTVisitor *visitor) override {
         visitor->visitVariableToken(this);

@@ -15,9 +15,7 @@
 class StringOperatorToken : public LexToken {
 public:
 
-    StringOperatorToken(const Position& position, std::string op) : LexToken(position, std::move(op)) {
-
-    }
+    using LexToken::LexToken;
 
     void accept(CSTVisitor *visitor) override {
         visitor->visitStringOperatorToken(this);

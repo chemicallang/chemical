@@ -48,7 +48,7 @@ bool Lexer::lexBoolToken() {
 
 bool Lexer::lexNull() {
     if (provider.increment("null")) {
-        tokens.emplace_back(std::make_unique<NullToken>(backPosition(4)));
+        tokens.emplace_back(std::make_unique<NullToken>(backPosition(4), "null"));
         return true;
     } else {
         return false;

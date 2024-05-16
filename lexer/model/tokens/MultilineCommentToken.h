@@ -11,9 +11,7 @@
 class MultilineCommentToken : public LexToken {
 public:
 
-    MultilineCommentToken(const Position &position, std::string value) : LexToken(position, std::move(value)) {
-
-    }
+    using LexToken::LexToken;
 
     void accept(CSTVisitor *visitor) override {
         visitor->visitMultilineComment(this);

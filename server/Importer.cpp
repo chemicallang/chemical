@@ -49,15 +49,6 @@ ImportUnit WorkspaceManager::get_import_unit(const std::string& abs_path) {
     // TODO provide correct executable path
     // TODO cache the import graph
     auto ig = determine_import_graph("", result->tokens, { abs_path });
-    // return if contains errors
-    if(!ig.errors.empty()) {
-        ImportUnit unit;
-        unit.errors = std::move(ig.errors);
-//        for(auto& err : unit.errors) {
-//            std::cout << "[ErrorUnit]" << err.ansi_representation(err.doc_url.value()) << std::endl;
-//        }
-        return unit;
-    }
     // flatten the import graph and get lex result for each file
     auto flattened = ig.root.flatten_by_dedupe();
     // create and return import unit

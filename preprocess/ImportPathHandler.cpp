@@ -4,12 +4,12 @@
 #include <filesystem>
 #include "compiler/SelfInvocation.h"
 
-std::filesystem::path resolve_rel_path(const std::string& root_path, const std::string& file_path) {
-    return std::filesystem::canonical(((std::filesystem::path) root_path).parent_path() / ((std::filesystem::path) file_path));
-}
-
 std::string resolve_rel_path_str(const std::string& root_path, const std::string& file_path) {
-    return resolve_rel_path(root_path, file_path).string();
+    try {
+        return std::filesystem::canonical(((std::filesystem::path) root_path).parent_path() / ((std::filesystem::path) file_path)).string();
+    } catch (std::filesystem::filesystem_error& e) {
+        return "";
+    }
 }
 
 ImportPathHandler::ImportPathHandler(std::string compiler_exe_path) : compiler_exe_path(std::move(compiler_exe_path)) {

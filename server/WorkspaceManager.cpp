@@ -34,28 +34,9 @@ td_foldingRange::response WorkspaceManager::get_folding_range(const std::string&
 
 td_completion::response WorkspaceManager::get_completion(const std::string &abs_path, unsigned int line, unsigned int character) {
     auto unit = get_import_unit(abs_path);
-    CompletionItemAnalyzer analyzer(std::pair(0, 0));
+    CompletionItemAnalyzer analyzer(std::pair(line, character));
     td_completion::response rsp;
-    unsigned i = 0;
-    auto size = unit.files.size();
-    while(i < size) {
-        auto& file = unit.files[i];
-        if(i == size - 1) { // last file
-            analyzer.caret_position = std::pair(line, character);
-        } else {
-            if(!file->tokens.empty()) { // not last file
-                // set caret position at the end of file, so all tokens are analyzed
-                auto& pos = file->tokens[file->tokens.size() - 1]->end_token()->position;
-                analyzer.caret_position = std::pair(pos.line + 2, 0);
-            } else {
-                i++;
-                continue;
-            }
-        }
-        auto list = analyzer.analyze(file->tokens);
-        std::move(list.items.begin(), list.items.end(), std::back_inserter(rsp.result.items));
-        i++;
-    }
+    rsp.result = analyzer.analyze(&unit);
     return std::move(rsp);
 }
 

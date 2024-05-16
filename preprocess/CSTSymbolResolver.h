@@ -4,11 +4,12 @@
 
 #include "cst/base/CSTVisitor.h"
 #include "BaseSymbolResolver.h"
+#include "cst/base/CSTDiagnoser.h"
 #include <vector>
 #include <unordered_map>
 #include <string>
 
-class CSTSymbolResolver : public BaseSymbolResolver<CSTToken>, public CSTVisitor {
+class CSTSymbolResolver : public BaseSymbolResolver<CSTToken>, public CSTVisitor, public CSTDiagnoser {
 public:
 
     /**
@@ -18,8 +19,35 @@ public:
     std::vector<std::unordered_map<std::string, CSTToken*>> current = {{}};
 
     /**
-     * declares a node with string : name
+     * declares a node with string, the string value is taken from the token
+     * if there's an error it will be on this token too
      */
-    void declare(const std::string &name, CSTToken *node);
+    void declare(LexToken* token, CSTToken *node);
+
+    /**
+     * same as declare above, but will treat CSTToken token as a LexToken
+     */
+    inline void declare(CSTToken* token, CSTToken* node) {
+        declare((LexToken*) token, node);
+    }
+
+    //-------------------------
+    //------------ Visitors
+    //-------------------------
+
+
+    void visitCompoundCommon(CompoundCSTToken *compound) override;
+
+    void visitVarInit(CompoundCSTToken *varInit) override;
+
+    void visitEnumDecl(CompoundCSTToken *enumDecl) override;
+
+    void visitInterface(CompoundCSTToken *interface) override;
+
+    void visitStructDef(CompoundCSTToken *structDef) override;
+
+    void visitAccessChain(AccessChainCST *accessChain) override;
+
+    void visitVariableToken(LexToken *token) override;
 
 };

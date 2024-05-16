@@ -227,6 +227,7 @@ CompoundCSTToken* CompletionItemAnalyzer::chain_before_caret(std::vector<std::un
 
 CompletionList CompletionItemAnalyzer::analyze(ImportUnit* unit) {
 
+    if(unit->files.size() == 1) return analyze(unit->files[0]->tokens);
     CompletionList result;
     if(unit->files.empty()) return result;
 

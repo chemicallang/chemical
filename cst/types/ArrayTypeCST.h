@@ -7,12 +7,7 @@
 class ArrayTypeCST : public CompoundCSTToken {
 public:
 
-    /**
-     * constructor
-     */
-    ArrayTypeCST(std::vector<std::unique_ptr<CSTToken>> tokens) : CompoundCSTToken(std::move(tokens)) {
-
-    }
+    using CompoundCSTToken::CompoundCSTToken;
 
     void accept(CSTVisitor *visitor) override {
         visitor->visitArrayType(this);

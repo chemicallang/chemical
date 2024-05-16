@@ -7,12 +7,7 @@
 class ContinueCST : public CompoundCSTToken {
 public:
 
-    /**
-     * constructor
-     */
-    ContinueCST(std::vector<std::unique_ptr<CSTToken>> tokens) : CompoundCSTToken(std::move(tokens)) {
-
-    }
+    using CompoundCSTToken::CompoundCSTToken;
 
     void accept(CSTVisitor *visitor) override {
         visitor->visitContinue(this);

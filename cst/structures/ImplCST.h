@@ -7,12 +7,7 @@
 class ImplCST : public CompoundCSTToken {
 public:
 
-    /**
-     * constructor
-     */
-    ImplCST(std::vector<std::unique_ptr<CSTToken>> tokens) : CompoundCSTToken(std::move(tokens)) {
-
-    }
+    using CompoundCSTToken::CompoundCSTToken;
 
     void accept(CSTVisitor *visitor) override {
         visitor->visitImpl(this);

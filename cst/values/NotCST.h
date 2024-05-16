@@ -7,12 +7,7 @@
 class NotCST : public CompoundCSTToken {
 public:
 
-    /**
-     * constructor
-     */
-    NotCST(std::vector<std::unique_ptr<CSTToken>> tokens) : CompoundCSTToken(std::move(tokens)) {
-
-    }
+    using CompoundCSTToken::CompoundCSTToken;
 
     void accept(CSTVisitor *visitor) override {
         visitor->visitNot(this);

@@ -7,12 +7,7 @@
 class IncDecCST : public CompoundCSTToken {
 public:
 
-    /**
-     * constructor
-     */
-    IncDecCST(std::vector<std::unique_ptr<CSTToken>> tokens) : CompoundCSTToken(std::move(tokens)) {
-
-    }
+    using CompoundCSTToken::CompoundCSTToken;
 
     void accept(CSTVisitor *visitor) override {
         visitor->visitIncDec(this);

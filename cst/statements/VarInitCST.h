@@ -7,12 +7,7 @@
 class VarInitCST : public CompoundCSTToken {
 public:
 
-    /**
-     * constructor
-     */
-    VarInitCST(std::vector<std::unique_ptr<CSTToken>> tokens) : CompoundCSTToken(std::move(tokens)) {
-
-    }
+    using CompoundCSTToken::CompoundCSTToken;
 
     void accept(CSTVisitor *visitor) override {
         visitor->visitVarInit(this);

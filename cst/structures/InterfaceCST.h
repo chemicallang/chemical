@@ -7,12 +7,7 @@
 class InterfaceCST : public CompoundCSTToken {
 public:
 
-    /**
-     * constructor
-     */
-    InterfaceCST(std::vector<std::unique_ptr<CSTToken>> tokens) : CompoundCSTToken(std::move(tokens)) {
-
-    }
+    using CompoundCSTToken::CompoundCSTToken;
 
     void accept(CSTVisitor *visitor) override {
         visitor->visitInterface(this);

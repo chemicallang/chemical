@@ -7,12 +7,7 @@
 class ExpressionCST : public CompoundCSTToken {
 public:
 
-    /**
-     * constructor
-     */
-    ExpressionCST(std::vector<std::unique_ptr<CSTToken>> tokens) : CompoundCSTToken(std::move(tokens)){
-
-    }
+    using CompoundCSTToken::CompoundCSTToken;
 
     void accept(CSTVisitor *visitor) override {
         visitor->visitExpression(this);

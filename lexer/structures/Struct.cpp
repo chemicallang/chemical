@@ -27,7 +27,7 @@ bool Lexer::lexStructStructureTokens() {
     if(lexKeywordToken("struct")) {
         auto start_token = tokens.size() - 1;
         lexWhitespaceToken();
-        if(!lexVariableToken()) {
+        if(!lexIdentifierToken()) {
             error("expected a identifier as struct name");
             return true;
         }

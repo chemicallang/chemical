@@ -13,6 +13,8 @@ class Position;
 
 using caret_pos_type = std::pair<unsigned int, unsigned int>;
 
+class ImportUnit;
+
 class CompletionItemAnalyzer : public CSTVisitor {
 public:
 
@@ -99,9 +101,19 @@ public:
     }
 
     /**
-     * The function that analyzes
+     * chain before caret
+     */
+    CompoundCSTToken* chain_before_caret(std::vector<std::unique_ptr<CSTToken>> &tokens);
+
+    /**
+     * The function that analyzes tokens
      */
     CompletionList analyze(std::vector<std::unique_ptr<CSTToken>> &tokens);
+
+    /**
+     * analyze an entire import unit for better support for completions across different files
+     */
+    CompletionList analyze(ImportUnit* unit);
 
     // Visitors
 

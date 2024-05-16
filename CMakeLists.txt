@@ -375,6 +375,8 @@ set(COMMON_SOURCES
         preprocess/ImportPathHandler.h
         preprocess/ImportPathHandler.cpp
         lexer/model/tokens/IdentifierToken.h
+        preprocess/CSTSymbolResolver.h
+        preprocess/CSTSymbolResolver.cpp
 )
 
 # Chemical LSP Executable Target

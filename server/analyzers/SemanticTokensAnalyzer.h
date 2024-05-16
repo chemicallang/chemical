@@ -45,6 +45,13 @@ public:
      */
     void put(LexToken* token, unsigned int tokenType, unsigned int tokenModifiers = 0);
 
+    /**
+     * same as put, but will treat CSTToken as a non compound token
+     */
+    inline void put(CSTToken* token, unsigned int tokenType, unsigned int tokenModifiers = 0) {
+        put((LexToken*) token, tokenType, tokenModifiers);
+    }
+
     // Visitors
 
     void visit(std::vector<std::unique_ptr<CSTToken>> &tokens, unsigned start, unsigned end);
@@ -73,7 +80,11 @@ public:
 
     void visitSwitch(CompoundCSTToken *switchCst) override;
 
+    void visitInterface(CompoundCSTToken *interface) override;
+
     void visitStructDef(CompoundCSTToken *structDef) override;
+
+    void visitImpl(CompoundCSTToken *impl) override;
 
     void visitEnumDecl(CompoundCSTToken *enumDecl) override;
 

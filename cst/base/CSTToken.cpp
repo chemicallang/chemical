@@ -77,6 +77,8 @@ std::string toTypeString(LexTokenType token) {
             return "Char";
         case LexTokenType::Comment:
             return "Comment";
+        case LexTokenType::Identifier:
+            return "Identifier";
         case LexTokenType::Keyword:
             return "Keyword";
         case LexTokenType::MultilineComment:

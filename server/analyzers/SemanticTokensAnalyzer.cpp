@@ -8,6 +8,7 @@
 #include "lexer/model/tokens/CharOperatorToken.h"
 #include <unordered_set>
 #include "cst/base/CompoundCSTToken.h"
+#include "cst/utils/CSTUtils.h"
 
 #define DEBUG false
 
@@ -37,6 +38,7 @@ void SemanticTokensAnalyzer::visitLexTokenCommon(LexToken *token) {
             put(token, SemanticTokenType::ls_keyword);
             break;
         case LexTokenType::Variable:
+        case LexTokenType::Identifier:
             put(token, SemanticTokenType::ls_variable);
             break;
         case LexTokenType::Type:
@@ -109,8 +111,29 @@ void SemanticTokensAnalyzer::visitSwitch(CompoundCSTToken *switchCst) {
     visitCompoundCommon((CompoundCSTToken *) switchCst);
 };
 
-void SemanticTokensAnalyzer::visitStructDef(CompoundCSTToken *structDef) {
-    visitCompoundCommon((CompoundCSTToken *) structDef);
+void SemanticTokensAnalyzer::visitInterface(CompoundCSTToken *cst) {
+    cst->tokens[0]->accept(this);
+    put(cst->tokens[1].get(), SemanticTokenType::ls_interface);
+    visit(cst->tokens, 2);
+}
+
+void SemanticTokensAnalyzer::visitImpl(CompoundCSTToken *cst) {
+    bool has_for = is_keyword(cst->tokens[2].get(), "for");
+    cst->tokens[0]->accept(this);
+    put(cst->tokens[1].get(), SemanticTokenType::ls_interface);
+    cst->tokens[2]->accept(this);
+    if(has_for) {
+        put(cst->tokens[3].get(), SemanticTokenType::ls_struct);
+        visit(cst->tokens, 4);
+    } else {
+        visit(cst->tokens, 3);
+    }
+}
+
+void SemanticTokensAnalyzer::visitStructDef(CompoundCSTToken *cst) {
+    cst->tokens[0]->accept(this);
+    put(cst->tokens[1].get(), SemanticTokenType::ls_struct);
+    visit(cst->tokens, 2);
 };
 
 void SemanticTokensAnalyzer::analyze(std::vector<std::unique_ptr<CSTToken>> &cstTokens) {

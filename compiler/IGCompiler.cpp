@@ -81,16 +81,17 @@ bool compile(Codegen *gen, const std::string &path, IGCompilerOptions *options) 
 
     if(options->verbose) {
         std::cout << "[IGGraph] Flattened" << std::endl;
-        for (const auto &abs_path: flat_imports) {
-            std::cout << "-- " << abs_path << std::endl;
+        for (const auto &file: flat_imports) {
+            std::cout << "-- " << file.abs_path << std::endl;
         }
         std::cout << std::endl;
     }
 
     bool compile_result = true;
 
-    for(const auto& abs_path : flat_imports) {
+    for(const auto& file : flat_imports) {
 
+        auto& abs_path = file.abs_path;
         Scope scope;
         auto is_c_file = abs_path.ends_with(".h") || abs_path.ends_with(".c");
 

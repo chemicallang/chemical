@@ -20,6 +20,12 @@ void CSTSymbolResolver::visitCompoundCommon(CompoundCSTToken *compound) {
     ::visit(this, compound->tokens);
 }
 
+void CSTSymbolResolver::visitBody(CompoundCSTToken *cst) {
+    scope_start();
+    ::visit(this, cst->tokens);
+    scope_end();
+}
+
 void CSTSymbolResolver::visitVarInit(CompoundCSTToken *cst) {
     declare(cst->tokens[1].get(), cst);
 }

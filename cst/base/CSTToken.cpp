@@ -57,7 +57,7 @@ std::string CSTToken::type_string() const {
     }
 }
 
-Position CSTToken::start() {
+Position CSTToken::start() const {
     if (compound()) {
         return as_compound()->tokens[0]->as_lex_token()->position;
     } else {

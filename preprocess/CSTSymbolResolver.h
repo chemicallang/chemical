@@ -38,6 +38,8 @@ public:
 
     void visitCompoundCommon(CompoundCSTToken *compound) override;
 
+    void visitBody(CompoundCSTToken *bodyCst) override;
+
     void visitVarInit(CompoundCSTToken *varInit) override;
 
     void visitEnumDecl(CompoundCSTToken *enumDecl) override;

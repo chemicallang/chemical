@@ -23,17 +23,17 @@ public:
     /**
      * get a pointer to the start lex token
      */
-    virtual LexToken *start_token() = 0;
+    LexToken *start_token();
 
     /**
      * get a pointer to the end lex token
      */
-    virtual LexToken *end_token() = 0;
+    LexToken *end_token();
 
     /**
      * every token must append its representation to this string
      */
-    virtual void append_representation(std::string &rep) const = 0;
+    void append_representation(std::string &rep) const;
 
     /**
      * returns representation of the token
@@ -57,12 +57,22 @@ public:
     /**
      * is token a compound token, meaning token holds multiple children
      */
-    bool compound() {
+    bool compound() const {
         return type() >= LexTokenType::IndexCompStart && type() <= LexTokenType::IndexCompEnd;
     }
 
-    CompoundCSTToken* as_compound() {
+    /**
+     * get the token as a compound token
+     */
+    inline CompoundCSTToken* as_compound() const {
         return (CompoundCSTToken*) this;
+    }
+
+    /**
+     * get the token as a lex token
+     */
+    inline LexToken* as_lex_token() const {
+        return (LexToken*) this;
     }
 
     /**
@@ -139,12 +149,12 @@ public:
     /**
      * The start position of the token, for debugging purposes
      */
-    virtual Position start() = 0;
+    Position start();
 
     /**
      * this is a debug type string, that is given by each token
      */
-    virtual std::string type_string() const;
+    std::string type_string() const;
 
 #endif
 

@@ -26,8 +26,4 @@ public:
         return LexTokenType::Macro;
     }
 
-    std::string type_string() const override {
-        return "Macro:" + value;
-    }
-
 };

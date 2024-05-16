@@ -22,12 +22,4 @@ public:
         return LexTokenType::CompBody;
     }
 
-#ifdef DEBUG
-
-    std::string compound_type_string() const override {
-        return "BodyCST";
-    }
-
-#endif
-
 };

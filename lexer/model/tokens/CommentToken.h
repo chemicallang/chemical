@@ -23,8 +23,4 @@ public:
         return LexTokenType::Comment;
     }
 
-    [[nodiscard]] std::string type_string() const override {
-        return "Comment:" + value;
-    }
-
 };

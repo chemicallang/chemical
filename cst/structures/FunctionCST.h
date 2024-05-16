@@ -22,14 +22,6 @@ public:
         return LexTokenType::CompFunctionParam;
     }
 
-#ifdef DEBUG
-
-    std::string compound_type_string() const override {
-        return "FunctionParamCST";
-    }
-
-#endif
-
 };
 
 class FunctionCST : public CompoundCSTToken {
@@ -49,13 +41,5 @@ public:
     LexTokenType type() const override {
         return LexTokenType::CompFunction;
     }
-
-#ifdef DEBUG
-
-    std::string compound_type_string() const override {
-        return "FunctionCST";
-    }
-
-#endif
 
 };

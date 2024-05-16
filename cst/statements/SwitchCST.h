@@ -22,12 +22,4 @@ public:
         return LexTokenType::CompSwitch;
     }
 
-#ifdef DEBUG
-
-    std::string compound_type_string() const override {
-        return "SwitchCST";
-    }
-
-#endif
-
 };

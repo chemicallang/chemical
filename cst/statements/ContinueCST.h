@@ -22,12 +22,4 @@ public:
         return LexTokenType::CompContinue;
     }
 
-#ifdef DEBUG
-
-    std::string compound_type_string() const override {
-        return "ContinueCST";
-    }
-
-#endif
-
 };

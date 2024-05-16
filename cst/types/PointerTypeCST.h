@@ -22,8 +22,4 @@ public:
         return LexTokenType::CompPointerType;
     }
 
-    std::string compound_type_string() const override {
-        return "PointerTypeCST";
-    }
-
 };

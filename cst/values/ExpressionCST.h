@@ -22,12 +22,4 @@ public:
         return LexTokenType::CompExpression;
     }
 
-#ifdef DEBUG
-
-    std::string compound_type_string() const override {
-        return "ExpressionCST";
-    }
-
-#endif
-
 };

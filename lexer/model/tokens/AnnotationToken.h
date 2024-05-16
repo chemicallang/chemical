@@ -6,15 +6,15 @@
 
 #pragma once
 
-#include "AbstractStringToken.h"
+#include "LexToken.h"
 
-class AnnotationToken : public AbstractStringToken {
+class AnnotationToken : public LexToken {
 public:
 
     AnnotationToken(
             const Position &position,
             std::string value
-    ) : AbstractStringToken(position, std::move(value)) {
+    ) : LexToken(position, std::move(value)) {
         // nothing
     }
 

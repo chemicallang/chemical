@@ -5,11 +5,10 @@
 #include <memory>
 #include <string>
 #include "cst/base/CompoundCSTToken.h"
-#include "lexer/model/tokens/AbstractStringToken.h"
 #include "lexer/model/tokens/CharOperatorToken.h"
 
 inline std::string str_token(CSTToken *token) {
-    return static_cast<AbstractStringToken *>(token)->value;
+    return static_cast<LexToken *>(token)->value;
 }
 
 inline std::string escaped_str_token(CSTToken *token) {

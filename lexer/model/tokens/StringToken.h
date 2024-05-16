@@ -8,10 +8,10 @@
 
 #include "LexToken.h"
 
-class StringToken : public AbstractStringToken {
+class StringToken : public LexToken {
 public:
 
-    StringToken(const Position &position, std::string value) : AbstractStringToken(position, std::move(value)) {
+    StringToken(const Position &position, std::string value) : LexToken(position, std::move(value)) {
 
     }
 

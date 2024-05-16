@@ -12,10 +12,10 @@
 /**
  * Its named OperationToken because it holds a operation
  */
-class OperationToken : public AbstractStringToken {
+class OperationToken : public LexToken {
 public:
 
-    OperationToken(const Position& position, std::string value) : AbstractStringToken(position, std::move(value)) {
+    OperationToken(const Position& position, std::string value) : LexToken(position, std::move(value)) {
 
     }
 

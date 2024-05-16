@@ -6,15 +6,15 @@
 
 #pragma once
 
-#include "AbstractStringToken.h"
+#include "LexToken.h"
 
-class MacroToken : public AbstractStringToken {
+class MacroToken : public LexToken {
 public:
 
     MacroToken(
             const Position &position,
             std::string value
-    ) : AbstractStringToken(position, std::move(value)) {
+    ) : LexToken(position, std::move(value)) {
         // nothing
     }
 

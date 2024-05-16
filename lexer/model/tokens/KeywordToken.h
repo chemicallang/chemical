@@ -8,11 +8,15 @@
 
 #include "LexToken.h"
 
-class KeywordToken : public AbstractStringToken {
+class KeywordToken : public LexToken {
 public:
 
-    KeywordToken(const Position& position, std::string keyword) : AbstractStringToken(position, std::move(keyword)) {
-        keyword.shrink_to_fit();
+    KeywordToken(const Position& position, std::string keyword) : LexToken(position, std::move(keyword)) {
+
+    }
+
+    void accept(CSTVisitor *visitor) override {
+        visitor->visit(this);
     }
 
     LexTokenType type() const override {

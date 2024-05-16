@@ -1,7 +1,6 @@
 // Copyright (c) Qinetik 2024.
 
 #include "cst/structures/FunctionCST.h"
-#include "lexer/model/tokens/AbstractStringToken.h"
 #include "lexer/model/tokens/CharOperatorToken.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/statements/VarInit.h"

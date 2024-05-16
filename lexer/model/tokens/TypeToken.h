@@ -7,13 +7,12 @@
 #pragma once
 
 #include "LexToken.h"
-#include "AbstractStringToken.h"
 
-class TypeToken : public AbstractStringToken {
+class TypeToken : public LexToken {
 public:
 
-    TypeToken(const Position &position, std::string type) : AbstractStringToken(position, std::move(type)) {
-        type.shrink_to_fit();
+    TypeToken(const Position &position, std::string type) : LexToken(position, std::move(type)) {
+
     }
 
     LexTokenType type() const override {

@@ -7,12 +7,11 @@
 #pragma once
 
 #include "LexToken.h"
-#include "AbstractStringToken.h"
 
-class NullToken : public AbstractStringToken {
+class NullToken : public LexToken {
 public:
 
-    NullToken(const Position &position) : AbstractStringToken(position, "null") {
+    NullToken(const Position &position) : LexToken(position, "null") {
 
     }
 

@@ -8,10 +8,10 @@
 
 #include "LexToken.h"
 
-class CommentToken : public AbstractStringToken {
+class CommentToken : public LexToken {
 public:
 
-    CommentToken(const Position& position, std::string value) : AbstractStringToken(position, std::move(value)) {
+    CommentToken(const Position& position, std::string value) : LexToken(position, std::move(value)) {
 
     }
 

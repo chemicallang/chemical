@@ -118,7 +118,6 @@ set(COMMON_SOURCES
         lexer/structures/Block.cpp
         lexer/statements/Import.cpp
         lexer/structures/Enum.cpp
-        lexer/model/tokens/AbstractStringToken.h
         lexer/structures/Struct.cpp
         lexer/structures/Interface.cpp
         lexer/structures/DoWhile.cpp
@@ -375,8 +374,6 @@ set(COMMON_SOURCES
         preprocess/ImportGraphVisitor.h
         preprocess/ImportPathHandler.h
         preprocess/ImportPathHandler.cpp
-        utils/fwd/filesystem.h
-        common/Result.h
 )
 
 # Chemical LSP Executable Target

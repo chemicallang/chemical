@@ -6,16 +6,16 @@
 
 #pragma once
 
-#include "AbstractStringToken.h"
+#include "LexToken.h"
 
 /**
  * Its named CharOperator because it holds a char, Char has no meaning in terms of syntax
  * The length of this token is always one
  */
-class CharOperatorToken : public AbstractStringToken {
+class CharOperatorToken : public LexToken {
 public:
 
-    CharOperatorToken(const Position& position, std::string ope) : AbstractStringToken(position, std::move(ope)) {
+    CharOperatorToken(const Position& position, std::string ope) : LexToken(position, std::move(ope)) {
 
     }
 

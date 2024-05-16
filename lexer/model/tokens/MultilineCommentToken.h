@@ -8,10 +8,10 @@
 
 #include "LexToken.h"
 
-class MultilineCommentToken : public AbstractStringToken {
+class MultilineCommentToken : public LexToken {
 public:
 
-    MultilineCommentToken(const Position &position, std::string value) : AbstractStringToken(position, std::move(value)) {
+    MultilineCommentToken(const Position &position, std::string value) : LexToken(position, std::move(value)) {
 
     }
 

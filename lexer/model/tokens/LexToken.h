@@ -21,10 +21,11 @@
 class LexToken : public CSTToken {
 public:
 
+    std::string value;
     Position position;
 
-    LexToken(const Position &position) : position(position) {
-
+    LexToken(const Position &position, std::string value) : position(position), value(std::move(value)) {
+        this->value.shrink_to_fit();
     }
 
     inline unsigned int lineNumber() {
@@ -51,7 +52,13 @@ public:
     /**
      * string length of the token
      */
-    virtual unsigned int length() const = 0;
+    inline unsigned int length() const {
+        return value.size();
+    }
+
+    void append_representation(std::string &rep) const override {
+        rep.append(value);
+    }
 
 #ifdef DEBUG
 

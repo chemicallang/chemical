@@ -78,8 +78,6 @@ class NotCST;
 
 class StructValueCST;
 
-class AbstractStringToken;
-
 class CharOperatorToken;
 
 class CharToken;
@@ -117,6 +115,8 @@ class StringOperatorToken;
 class VariableToken;
 
 class LexUserToken;
+
+class RawToken;
 
 class NullToken;
 
@@ -283,10 +283,6 @@ public:
         visitCompoundCommon((CompoundCSTToken *) structValueCst);
     }
 
-    virtual void visitStringCommon(AbstractStringToken *token) {
-        visitLexTokenCommon((LexToken *) token);
-    }
-
     virtual void visit(CharOperatorToken *token) {
         visitLexTokenCommon((LexToken *) token);
     };
@@ -304,7 +300,7 @@ public:
     };
 
     virtual void visit(TypeToken *token) {
-        visitStringCommon((AbstractStringToken *) token);
+        visitLexTokenCommon((LexToken *) token);
     };
 
     virtual void visit(KeywordToken *token) {
@@ -332,7 +328,7 @@ public:
     };
 
     virtual void visit(NumberToken *token) {
-        visitStringCommon((AbstractStringToken *) token);
+        visitLexTokenCommon((LexToken *) token);
     };
 
     virtual void visit(BoolToken* token) {
@@ -344,7 +340,11 @@ public:
     }
 
     virtual void visit(VariableToken *token) {
-        visitStringCommon((AbstractStringToken *) token);
+        visitLexTokenCommon((LexToken *) token);
+    }
+
+    virtual void visit(RawToken* token) {
+        visitLexTokenCommon((LexToken*) token);
     }
 
     virtual void visit(LexUserToken *token) {

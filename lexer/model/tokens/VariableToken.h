@@ -6,12 +6,12 @@
 
 #pragma once
 
-#include "AbstractStringToken.h"
+#include "LexToken.h"
 
-class VariableToken : public AbstractStringToken {
+class VariableToken : public LexToken {
 public:
 
-    VariableToken(const Position& position, std::string identifier) : AbstractStringToken(position, std::move(identifier)) {
+    VariableToken(const Position& position, std::string identifier) : LexToken(position, std::move(identifier)) {
 
     }
 

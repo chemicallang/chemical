@@ -12,10 +12,10 @@
  * Its named StringOperator because it holds a string, String has no meaning in terms of syntax
  * The length of this token is always one
  */
-class StringOperatorToken : public AbstractStringToken {
+class StringOperatorToken : public LexToken {
 public:
 
-    StringOperatorToken(const Position& position, std::string op) : AbstractStringToken(position, std::move(op)) {
+    StringOperatorToken(const Position& position, std::string op) : LexToken(position, std::move(op)) {
 
     }
 

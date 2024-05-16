@@ -4,10 +4,10 @@
 
 #include "LexToken.h"
 
-class LexUserToken : public AbstractStringToken {
+class LexUserToken : public LexToken {
 public:
 
-    LexUserToken(Position position, std::string value) : AbstractStringToken(position, std::move(value)) {
+    LexUserToken(Position position, std::string value) : LexToken(position, std::move(value)) {
 
     }
 

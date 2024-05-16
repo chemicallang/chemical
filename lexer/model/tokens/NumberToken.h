@@ -6,10 +6,10 @@
 
 #pragma once
 
-#include "AbstractStringToken.h"
+#include "LexToken.h"
 #include "utils/StrUtils.h"
 
-class NumberToken : public AbstractStringToken {
+class NumberToken : public LexToken {
 private:
 
     // check is always suppose to be lowercase
@@ -19,7 +19,7 @@ private:
 
 public:
 
-    NumberToken(const Position &position, std::string value) : AbstractStringToken(position, std::move(value)) {
+    NumberToken(const Position &position, std::string value) : LexToken(position, std::move(value)) {
 
     }
 

@@ -6,12 +6,23 @@
 #include "cst/base/CSTConverter.h"
 #include "ast/statements/Import.h"
 #include "compiler/ASTProcessor.h"
+#include "ImportGraphVisitor.h"
+#include "cst/base/CompoundCSTToken.h"
+#include "cst/utils/CSTUtils.h"
+#include "ImportPathHandler.h"
+
+void ImportGraphVisitor::visitImport(CompoundCSTToken *cst) {
+    imports.emplace_back(
+            FlatIGFile { escaped_str_token(cst->tokens[1].get()) },
+            Range { cst->start_token()->position, cst->end_token()->position }
+    );
+}
 
 struct Importer {
-    ASTProcessor *processor;
+    ImportPathHandler* handler;
     Lexer *lexer;
     std::ifstream& stream;
-    CSTConverter *converter;
+    ImportGraphVisitor *converter;
     std::vector<Diag> &errors;
 };
 
@@ -19,7 +30,7 @@ IGFile from_import(
         Importer *importer,
         IGFile *parent,
         const std::string &base_path,
-        ImportStatement *importSt
+        ImportCollected *importSt
 );
 
 void move_errors(std::vector<Diag> &from, std::vector<Diag> &to, const std::string& abs_path) {
@@ -32,6 +43,35 @@ void move_errors(std::vector<Diag> &from, std::vector<Diag> &to, const std::stri
     from.clear();
 }
 
+std::vector<IGFile> from_tokens(
+        Importer *importer,
+        IGFile *parent,
+        const std::string &abs_path,
+        std::vector<std::unique_ptr<CSTToken>>& tokens
+) {
+    // convert
+    importer->converter->imports.clear();
+    for(auto& token : tokens) {
+        token->accept(importer->converter);
+    }
+
+    // take
+    importer->stream.close();
+    std::vector<IGFile> nested;
+    auto nodes = std::move(importer->converter->imports);
+    for (auto &node: nodes) {
+        nested.emplace_back(
+                from_import(
+                        importer,
+                        parent,
+                        abs_path,
+                        &node
+                )
+        );
+    }
+    return nested;
+}
+
 std::vector<IGFile> get_imports(
         Importer *importer,
         IGFile *parent,
@@ -41,12 +81,13 @@ std::vector<IGFile> get_imports(
     // open file
     importer->stream.open(abs_path);
     if(!importer->stream.is_open()) {
-        importer->errors.push_back(Diag {
-                {0,0,0,0},
+        importer->errors.emplace_back(
+                Range {0,0,0,0},
                 DiagSeverity::Error,
                 abs_path,
                 "couldn't open the file " + abs_path
-        });
+        );
+        return {};
     }
 
     // lex
@@ -55,63 +96,78 @@ std::vector<IGFile> get_imports(
     importer->lexer->lexTopLevelMultipleImportStatements();
     if (importer->lexer->has_errors) {
         move_errors(importer->lexer->errors, importer->errors, abs_path);
+        importer->lexer->has_errors = false;
     }
 
     // convert
-    importer->converter->nodes.clear();
-    importer->converter->convert(importer->lexer->tokens);
-    if (importer->converter->has_errors) {
-        move_errors(importer->converter->diagnostics, importer->errors, abs_path);
-    }
+    return from_tokens(
+        importer,
+        parent,
+        abs_path,
+        importer->lexer->tokens
+    );
 
-    // take
-    importer->stream.close();
-    std::vector<IGFile> nested;
-    auto nodes = std::move(importer->converter->nodes);
-    for (auto &node: nodes) {
-        nested.emplace_back(
-                from_import(
-                        importer,
-                        parent,
-                        abs_path,
-                        (ImportStatement*) node.get()
-                )
-        );
-    }
-
-    return nested;
 }
 
 IGFile from_import(
         Importer *importer,
         IGFile *parent,
         const std::string &base_path,
-        ImportStatement *importSt
+        ImportCollected *importSt
 ) {
     std::string imported_path;
     if (importSt == nullptr) {
         imported_path = base_path;
     } else {
-        importSt->replace_at_in_path(importer->processor);
-        imported_path = importSt->resolve_rel_path(base_path).string();
+        auto result = importer->handler->replace_at_in_path(importSt->file.abs_path);
+        if(result.error.empty()) {
+            imported_path = result.replaced;
+        } else {
+            importer->errors.emplace_back(
+               importSt->range,
+               DiagSeverity::Error,
+               importSt->file.abs_path,
+               result.error
+            );
+        }
+        imported_path = resolve_rel_path_str(base_path, imported_path);
     }
     IGFile file{parent, imported_path};
     file.files = get_imports(importer, &file, imported_path);
     return file;
 }
 
+IGResult determine_import_graph(const std::string& exe_path, std::vector<std::unique_ptr<CSTToken>>& tokens, FlatIGFile asker) {
+    std::ifstream file;
+    SourceProvider reader(file);
+    Lexer lexer(reader, "");
+    ImportGraphVisitor visitor;
+    ImportPathHandler handler(exe_path);
+    IGResult result;
+    Importer importer{
+            &handler,
+            &lexer,
+            file,
+            &visitor,
+            result.errors
+    };
+    result.root = IGFile { nullptr, std::move(asker) };
+    result.root.files = from_tokens(&importer, &result.root, result.root.flat_file.abs_path, tokens);
+    return result;
+}
+
 IGResult determine_import_graph(const std::string &exe_path, const std::string &abs_path) {
     std::ifstream file;
     SourceProvider reader(file);
     Lexer lexer(reader, abs_path);
-    CSTConverter converter(false);
-    ASTProcessor processor(exe_path, abs_path);
+    ImportGraphVisitor visitor;
+    ImportPathHandler handler(exe_path);
     std::vector<Diag> errors;
     Importer importer{
-            &processor,
+            &handler,
             &lexer,
             file,
-            &converter,
+            &visitor,
             errors
     };
     return IGResult{
@@ -138,19 +194,19 @@ IGResult determine_import_graph(const std::string &exe_path, const std::string &
 //    }
 //}
 
-void recursive_dedupe(IGFile* file, std::unordered_map<std::string, bool>& imported, std::vector<std::string>& imports) {
+void recursive_dedupe(IGFile* file, std::unordered_map<std::string, bool>& imported, std::vector<FlatIGFile>& imports) {
     for(auto& nested : file->files) {
         recursive_dedupe(&nested, imported, imports);
     }
-    auto found = imported.find(file->abs_path);
+    auto found = imported.find(file->flat_file.abs_path);
     if(found == imported.end()) {
-        imported[file->abs_path] = true;
-        imports.emplace_back(file->abs_path);
+        imported[file->flat_file.abs_path] = true;
+        imports.emplace_back(file->flat_file);
     }
 }
 
-std::vector<std::string> IGFile::flatten_by_dedupe() {
-    std::vector<std::string> imports;
+std::vector<FlatIGFile> IGFile::flatten_by_dedupe() {
+    std::vector<FlatIGFile> imports;
     std::unordered_map<std::string, bool> imported;
     recursive_dedupe(this, imported, imports);
     return imports;
@@ -168,7 +224,7 @@ void representation(IGFile& file, std::string& into, unsigned int level) {
     if(level != 0) {
         into.append(1, ' ');
     }
-    into.append(file.abs_path);
+    into.append(file.flat_file.abs_path);
     into.append(1, '\n');
     for(auto& n : file.files) {
         representation(n, into, level + 1);

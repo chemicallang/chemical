@@ -49,13 +49,6 @@ public:
     std::string current_path;
 
     /**
-     * these are the resolved places where system headers paths exist
-     * when its empty, its loaded directly by invoking clang (from self)
-     * then once we found them we cache them here, for faster invocation next time
-     */
-    std::vector<std::string> system_headers_paths = {};
-
-    /**
      * errors are stored here
      */
     std::vector<ASTDiag> errors;
@@ -64,11 +57,6 @@ public:
      * constructor
      */
     ASTProcessor(std::string curr_exe_path, const std::string& path);
-
-    /**
-     * get containing system headers directory for the following header
-     */
-    std::string headers_dir(const std::string &header);
 
     /**
      * the tag of the process, which will be appended to errors

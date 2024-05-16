@@ -368,7 +368,15 @@ set(COMMON_SOURCES
         compiler/ASTProcessor.h
         compiler/ASTProcessor.cpp
         cst/utils/CSTUtils.cpp
-        lexer/model/LexResult.h
+        integration/ide/model/LexResult.h
+        integration/ide/model/ImportUnit.h
+        integration/ide/model/FlatIGFile.h
+        integration/ide/model/ImportUnitCache.h
+        preprocess/ImportGraphVisitor.h
+        preprocess/ImportPathHandler.h
+        preprocess/ImportPathHandler.cpp
+        utils/fwd/filesystem.h
+        common/Result.h
 )
 
 # Chemical LSP Executable Target
@@ -385,6 +393,7 @@ add_executable(ChemicalLsp Main.cpp ${COMMON_SOURCES}
         server/analyzers/SemanticTokensAnalyzer.h
         server/analyzers/SemanticTokensAnalyzer.cpp
         server/utils/lspfwd.h
+        server/Importer.cpp
 )
 
 # Add an executable target for the second executable

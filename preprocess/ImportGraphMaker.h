@@ -4,6 +4,8 @@
 #include <vector>
 #include "common/Diagnostic.h"
 #include "utils/fwd/functional.h"
+#include "integration/ide/model/FlatIGFile.h"
+#include <memory>
 
 /**
  * this doesn't represent any actual file
@@ -20,9 +22,9 @@ struct IGFile {
     IGFile* parent;
 
     /**
-     * absolute path to the file
+     * the flat file, which is a representation of it's import statement
      */
-    std::string abs_path;
+    FlatIGFile flat_file;
 
     /**
      * the files imported by this file
@@ -39,7 +41,7 @@ struct IGFile {
      * meaning only a single entry is considered for multiple files with same absolute path
      * returns de duplicated vector that contains entries from nested files and a entry for self at the last index
      */
-    std::vector<std::string> flatten_by_dedupe();
+    std::vector<FlatIGFile> flatten_by_dedupe();
 
 };
 
@@ -59,6 +61,13 @@ struct IGResult {
     std::vector<Diag> errors;
 
 };
+
+class CSTToken;
+
+/**
+ * determines import graph from the given cst tokens
+ */
+IGResult determine_import_graph(const std::string& exe_path, std::vector<std::unique_ptr<CSTToken>>& tokens, FlatIGFile file);
 
 /**
  * determines import graph, which is data structure

@@ -12,7 +12,6 @@
 #include "LibLsp/lsp/textDocument/completion.h"
 #include "server/analyzers/CompletionItemAnalyzer.h"
 #include "LibLsp/lsp/textDocument/SemanticTokens.h"
-#include "server/LspSemanticTokens.h"
 
 #define DEBUG_REPLACE false
 
@@ -24,13 +23,9 @@ std::optional<std::string> WorkspaceManager::get_overridden_source(const std::st
     }
 }
 
-void WorkspaceManager::onChangedContents(const std::string &path, const std::string &contents) {
-    overriddenSources[path] = contents;
-}
-
 td_foldingRange::response WorkspaceManager::get_folding_range(const std::string& abs_path) {
     td_foldingRange::response rsp;
-    auto tokens = get_lexed_tokens(abs_path);
+    auto& tokens = get_lexed_tokens(abs_path);
     FoldingRangeAnalyzer analyzer;
     analyzer.analyze(tokens);
     rsp.result = std::move(analyzer.ranges);
@@ -38,10 +33,29 @@ td_foldingRange::response WorkspaceManager::get_folding_range(const std::string&
 }
 
 td_completion::response WorkspaceManager::get_completion(const std::string &abs_path, unsigned int line, unsigned int character) {
-    auto tokens = get_lexed_tokens(abs_path);
-    CompletionItemAnalyzer analyzer(std::pair(line, character));
+    auto unit = get_import_unit(abs_path);
+    CompletionItemAnalyzer analyzer(std::pair(0, 0));
     td_completion::response rsp;
-    rsp.result = analyzer.analyze(tokens);
+    unsigned i = 0;
+    auto size = unit.files.size();
+    while(i < size) {
+        auto& file = unit.files[i];
+        if(i == size - 1) { // last file
+            analyzer.caret_position = std::pair(line, character);
+        } else {
+            if(!file->tokens.empty()) { // not last file
+                // set caret position at the end of file, so all tokens are analyzed
+                auto& pos = file->tokens[file->tokens.size() - 1]->end_token()->position;
+                analyzer.caret_position = std::pair(pos.line + 2, 0);
+            } else {
+                i++;
+                continue;
+            }
+        }
+        auto list = analyzer.analyze(file->tokens);
+        std::move(list.items.begin(), list.items.end(), std::back_inserter(rsp.result.items));
+        i++;
+    }
     return std::move(rsp);
 }
 
@@ -104,6 +118,8 @@ WorkspaceManager::onChangedContents(const std::string &path, const std::vector<l
 
     // store the overridden sources
     overriddenSources[path] = std::move(source);
+    // invalidate the cached file for this key
+    cache.files.erase(path);
 
 }
 

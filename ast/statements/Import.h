@@ -10,7 +10,6 @@
 
 #include "ast/base/ASTNode.h"
 #include "utils/fwd/functional.h"
-#include <filesystem>
 
 class Diag;
 
@@ -36,15 +35,10 @@ public:
 
 #endif
 
-    void replace_at_in_path(ASTProcessor* processor);
-
-    std::filesystem::path resolve_rel_path(const std::string& root_path);
-
     void declare_top_level(SymbolResolver &linker) override;
 
     void interpret(InterpretScope &scope);
 
-private:
     std::vector<std::string> identifiers;
     std::string filePath; ///< The file path to import.
 

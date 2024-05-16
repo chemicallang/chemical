@@ -4,21 +4,11 @@
 #include "SelfInvocation.h"
 #include <iostream>
 #include "ast/base/ASTNode.h"
+#include <filesystem>
 
 #define ANSI_COLOR_RESET   "\x1b[0m"
 
 ASTProcessor::ASTProcessor(std::string curr_exe_path, const std::string& path) : curr_exe_path(std::move(curr_exe_path)), current_path(path), path(path) {
-
-}
-
-
-std::string ASTProcessor::headers_dir(const std::string& header) {
-
-    if(system_headers_paths.empty()) {
-        system_headers_paths = std::move(::system_headers_path(curr_exe_path));
-    }
-
-    return ::headers_dir(system_headers_paths, header);
 
 }
 

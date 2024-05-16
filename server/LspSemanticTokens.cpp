@@ -4,13 +4,14 @@
 // Created by Waqas Tahir on 10/03/2024.
 //
 
-#include "LspSemanticTokens.h"
 #include "utils/JsonUtils.h"
 #include "utils/FileUtils.h"
 #include "LibLsp/lsp/AbsolutePath.h"
 #include "LibLsp/lsp/textDocument/publishDiagnostics.h"
-#include "stream/SourceProvider.h"
 #include "server/analyzers/SemanticTokensAnalyzer.h"
+#include "WorkspaceManager.h"
+#include "LibLsp/JsonRpc/RemoteEndPoint.h"
+#include <future>
 
 #define DEBUG_TOKENS false
 #define PRINT_TOKENS false
@@ -46,38 +47,12 @@ void WorkspaceManager::publish_diagnostics(const std::string& path, std::vector<
     }
 }
 
-LexResult WorkspaceManager::get_lexed(const std::string& path) {
-    auto overridden_source = get_overridden_source(path);
-    LexResult result;
-    if (overridden_source.has_value()) {
-        std::istringstream iss(overridden_source.value());
-        SourceProvider reader(iss);
-        Lexer lexer(reader, path);
-        lexer.lex();
-        result.tokens = std::move(lexer.tokens);
-        result.diags = std::move(lexer.errors);
-    } else {
-        std::ifstream file;
-        file.open(path);
-        if (!file.is_open()) {
-            std::cerr << "Unknown error opening the file" << '\n';
-        }
-        SourceProvider reader(file);
-        Lexer lexer(reader, path);
-        lexer.lex();
-        result.tokens = std::move(lexer.tokens);
-        result.diags = std::move(lexer.errors);
-        file.close();
-    }
-    return result;
-}
-
 std::vector<SemanticToken> WorkspaceManager::get_semantic_tokens(const lsDocumentUri& uri) {
 
     auto path = uri.GetAbsolutePath().path;
     auto result = get_lexed(path);
     // publishing diagnostics gathered during lexing
-    publish_diagnostics(path, result.diags, true);
+    publish_diagnostics(path, result->diags, true);
 
 #if defined PRINT_TOKENS && PRINT_TOKENS
     printTokens(lexed, linker.resolved);
@@ -97,7 +72,7 @@ std::vector<SemanticToken> WorkspaceManager::get_semantic_tokens(const lsDocumen
 #endif
 
     SemanticTokensAnalyzer analyzer;
-    analyzer.analyze(result.tokens);
+    analyzer.analyze(result->tokens);
     return std::move(analyzer.tokens);
 
 }

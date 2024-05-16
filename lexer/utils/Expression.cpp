@@ -62,7 +62,7 @@ bool Lexer::lexLambdaAfterLParen() {
         return true;
     }
 
-    if (!lexIdentifierToken()) {
+    if (!lexVariableToken()) {
         return false;
     }
 

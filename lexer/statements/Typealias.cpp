@@ -7,7 +7,7 @@ bool Lexer::lexTypealiasStatement() {
     if(lexKeywordToken("typealias")) {
         unsigned start = tokens.size() - 1;
         lexWhitespaceToken();
-        if(lexIdentifierToken()) {
+        if(lexVariableToken()) {
             lexWhitespaceToken();
             if(!lexOperatorToken('=')) {
                 error("expected '=' after the type tokens");

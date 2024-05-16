@@ -123,7 +123,7 @@ public:
      * consumes a identifier token
      * @return true if identifier is not empty, false if it is
      */
-    bool storeIdentifier(const std::string &identifier);
+    bool storeVariable(const std::string &identifier);
 
     /**
      * lex an identifier token into tokens until the until character occurs
@@ -131,8 +131,8 @@ public:
      * @param access is this token being lexed in an access statement instead of assignment
      * @return
      */
-    inline bool lexIdentifierToken() {
-        return storeIdentifier(lexIdentifier());
+    inline bool lexVariableToken() {
+        return storeVariable(lexIdentifier());
     }
 
     /**

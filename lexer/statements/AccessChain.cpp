@@ -13,7 +13,7 @@
 #include "cst/values/DereferenceCST.h"
 #include "cst/values/IndexOpCST.h"
 
-bool Lexer::storeIdentifier(const std::string& identifier) {
+bool Lexer::storeVariable(const std::string& identifier) {
     if (!identifier.empty()) {
         tokens.emplace_back(std::make_unique<VariableToken>(backPosition(identifier.length()), identifier));
         return true;
@@ -34,7 +34,7 @@ bool Lexer::lexAccessChain(bool lexStruct) {
         creator->second(this);
         return true;
     } else {
-        storeIdentifier(id);
+        storeVariable(id);
     }
 
     auto start = tokens.size() - 1;
@@ -65,7 +65,7 @@ bool Lexer::lexAccessChainOrAddrOf(bool lexStruct) {
 }
 
 bool Lexer::lexAccessChainRecursive(bool lexStruct) {
-    if (!lexIdentifierToken()) {
+    if (!lexVariableToken()) {
         return false;
     }
     return lexAccessChainAfterId(lexStruct);

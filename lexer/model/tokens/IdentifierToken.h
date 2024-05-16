@@ -11,9 +11,7 @@
 class IdentifierToken : public LexToken {
 public:
 
-    IdentifierToken(const Position& position, std::string identifier) : LexToken(position, std::move(identifier)) {
-
-    }
+    using LexToken::LexToken;
 
     void accept(CSTVisitor *visitor) override {
         visitor->visitIdentifierToken(this);

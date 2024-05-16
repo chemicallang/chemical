@@ -11,12 +11,7 @@
 class MacroToken : public LexToken {
 public:
 
-    MacroToken(
-            const Position &position,
-            std::string value
-    ) : LexToken(position, std::move(value)) {
-        // nothing
-    }
+    using LexToken::LexToken;
 
     void accept(CSTVisitor *visitor) override {
         visitor->visitMacroToken(this);

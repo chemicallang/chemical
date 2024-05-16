@@ -11,9 +11,7 @@
 class CommentToken : public LexToken {
 public:
 
-    CommentToken(const Position& position, std::string value) : LexToken(position, std::move(value)) {
-
-    }
+    using LexToken::LexToken;
 
     void accept(CSTVisitor *visitor) override {
         visitor->visitCommentToken(this);

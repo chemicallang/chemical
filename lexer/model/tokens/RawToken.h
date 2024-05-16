@@ -11,9 +11,7 @@
 class RawToken : public LexToken {
 public:
 
-    RawToken(const Position& position, std::string value) : LexToken(position, std::move(value)) {
-
-    }
+    using LexToken::LexToken;
 
     void accept(CSTVisitor *visitor) override {
         visitor->visitRawToken(this);

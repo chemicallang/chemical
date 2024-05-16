@@ -11,9 +11,7 @@
 class TypeToken : public LexToken {
 public:
 
-    TypeToken(const Position &position, std::string type) : LexToken(position, std::move(type)) {
-
-    }
+    using LexToken::LexToken;
 
     LexTokenType type() const override {
         return LexTokenType::Type;

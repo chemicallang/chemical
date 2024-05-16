@@ -30,7 +30,7 @@ void Lexer::init_annotation_modifiers() {
 
 void Lexer::init_value_creators() {
     value_creators["null"] = [](Lexer *lexer) -> void {
-        lexer->tokens.emplace_back(std::make_unique<NullToken>(lexer->backPosition(4)));
+        lexer->tokens.emplace_back(std::make_unique<NullToken>(lexer->backPosition(4), "null"));
     };
     value_creators["true"] = [](Lexer *lexer) -> void {
         lexer->tokens.emplace_back(std::make_unique<BoolToken>(lexer->backPosition(4), "true"));

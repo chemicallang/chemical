@@ -119,18 +119,35 @@ IGFile from_import(
     if (importSt == nullptr) {
         imported_path = base_path;
     } else {
-        auto result = importer->handler->replace_at_in_path(importSt->file.abs_path);
-        if(result.error.empty()) {
-            imported_path = result.replaced;
-        } else {
-            importer->errors.emplace_back(
-               importSt->range,
-               DiagSeverity::Error,
-               importSt->file.abs_path,
-               result.error
-            );
+        imported_path = importSt->file.abs_path;
+        if(!imported_path.empty() && imported_path[0] == '@') {
+            auto result = importer->handler->replace_at_in_path(imported_path);
+            if(result.error.empty()) {
+                imported_path = result.replaced;
+            } else {
+                imported_path = "";
+                importer->errors.emplace_back(
+                        importSt->range,
+                        DiagSeverity::Error,
+                        importSt->file.abs_path,
+                        result.error
+                );
+            }
         }
-        imported_path = resolve_rel_path_str(base_path, imported_path);
+        if(!imported_path.empty()) {
+            auto resolved = resolve_rel_path_str(base_path, imported_path);
+            if (resolved.empty()) {
+                importer->errors.emplace_back(
+                        importSt->range,
+                        DiagSeverity::Error,
+                        imported_path,
+                        "couldn't find the file to import " + imported_path
+                );
+                imported_path = "";
+            } else {
+                imported_path = resolved;
+            }
+        }
     }
     IGFile file{parent, imported_path};
     file.files = get_imports(importer, &file, imported_path);

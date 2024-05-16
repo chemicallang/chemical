@@ -5,8 +5,6 @@
 
 std::string resolve_rel_path_str(const std::string &root_path, const std::string &file_path);
 
-std::string resolve_rel_path_str(const std::string &root_path, const std::string &file_path);
-
 /**
  * result of '@' replacement in path
  */

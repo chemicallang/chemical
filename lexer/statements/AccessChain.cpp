@@ -7,6 +7,7 @@
 #include "lexer/Lexer.h"
 #include "lexer/model/tokens/CharOperatorToken.h"
 #include "lexer/model/tokens/VariableToken.h"
+#include "lexer/model/tokens/IdentifierToken.h"
 #include "cst/values/AccessChainCST.h"
 #include "cst/values/FunctionCallCST.h"
 #include "cst/values/AddrOfCST.h"
@@ -24,7 +25,7 @@ bool Lexer::storeVariable(const std::string& identifier) {
 
 bool Lexer::storeIdentifier(const std::string &identifier) {
     if (!identifier.empty()) {
-        tokens.emplace_back(std::make_unique<VariableToken>(backPosition(identifier.length()), identifier));
+        tokens.emplace_back(std::make_unique<IdentifierToken>(backPosition(identifier.length()), identifier));
         return true;
     } else {
         return false;

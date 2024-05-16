@@ -22,7 +22,7 @@ bool Lexer::lexInterfaceStructureTokens() {
     if (lexKeywordToken("interface")) {
         unsigned start = tokens.size() - 1;
         lexWhitespaceToken();
-        if(!lexVariableToken()) {
+        if(!lexIdentifierToken()) {
             error("expected interface name after the interface keyword");
             return true;
         }

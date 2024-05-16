@@ -11,7 +11,7 @@ bool Lexer::lexImportIdentifierList() {
     if (lexOperatorToken('{')) {
         do {
             lexWhitespaceAndNewLines();
-            if (!lexVariableToken()) {
+            if (!lexIdentifierToken()) {
                 break;
             }
             lexWhitespaceToken();
@@ -35,7 +35,7 @@ bool Lexer::lexImportStatement() {
         compound_from<ImportCST>(start);
         return true;
     } else {
-        if (lexVariableToken() || lexImportIdentifierList()) {
+        if (lexIdentifierToken() || lexImportIdentifierList()) {
             lexWhitespaceToken();
             if (lexKeywordToken("from")) {
                 lexWhitespaceToken();

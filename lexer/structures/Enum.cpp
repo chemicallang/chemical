@@ -13,7 +13,7 @@ bool Lexer::lexEnumBlockTokens() {
             lexWhitespaceToken();
             lexNewLineChars();
             lexWhitespaceToken();
-            if(!lexVariableToken()) {
+            if(!lexIdentifierToken()) {
                 break;
             }
             lexWhitespaceToken();
@@ -32,7 +32,7 @@ bool Lexer::lexEnumStructureTokens() {
     if(lexKeywordToken("enum")) {
         auto start = tokens.size() - 1;
         lexWhitespaceToken();
-        if(!lexVariableToken()) {
+        if(!lexIdentifierToken()) {
             error("expected a identifier as enum name");
             return true;
         }

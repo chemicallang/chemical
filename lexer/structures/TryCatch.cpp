@@ -13,7 +13,7 @@ bool Lexer::lexTryCatchTokens() {
                 lexWhitespaceToken();
                 if(lexOperatorToken('(')) {
                     lexWhitespaceToken();
-                    if(!lexIdentifierToken()) {
+                    if(!lexVariableToken()) {
                         error("expected identifier for 'catch' exception variable");
                     }
                     lexWhitespaceToken();

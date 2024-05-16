@@ -27,14 +27,14 @@ bool Lexer::lexStructStructureTokens() {
     if(lexKeywordToken("struct")) {
         auto start_token = tokens.size() - 1;
         lexWhitespaceToken();
-        if(!lexIdentifierToken()) {
+        if(!lexVariableToken()) {
             error("expected a identifier as struct name");
             return true;
         }
         lexWhitespaceToken();
         if(lexOperatorToken(':')) {
             lexWhitespaceToken();
-            if(!lexIdentifierToken()) {
+            if(!lexVariableToken()) {
                 error("expected a interface name after ':' when declaring a struct");
                 return true;
             }

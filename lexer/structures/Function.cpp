@@ -26,7 +26,7 @@ void Lexer::lexParameterList(bool optionalTypes, bool defValues) {
         lexWhitespaceToken();
         if(index == 0) {
             if(lexOperatorToken('&')) {
-                if(lexIdentifierToken()) {
+                if(lexVariableToken()) {
                     compound_from<FunctionParamCST>(tokens.size() - 2);
                     lexWhitespaceToken();
                     index++;
@@ -37,7 +37,7 @@ void Lexer::lexParameterList(bool optionalTypes, bool defValues) {
                 }
             }
         }
-        if(lexIdentifierToken()) {
+        if(lexVariableToken()) {
             unsigned int start = tokens.size() - 1;
             lexWhitespaceToken();
             if(lexOperatorToken(':')) {
@@ -80,7 +80,7 @@ bool Lexer::lexAfterFuncKeyword() {
 
     lexWhitespaceToken();
 
-    if(!lexIdentifierToken()) {
+    if(!lexVariableToken()) {
         error("function name is missing after the keyword 'func'");
         return false;
     }

@@ -29,6 +29,7 @@ enum class LexTokenType : uint8_t {
     Null,
     StringOperator,
     Variable,
+    Identifier,
     RawToken,
 
     // compound statements

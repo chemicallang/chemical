@@ -8,7 +8,7 @@
 void Lexer::lexIdentifierList() {
     do {
         lexWhitespaceAndNewLines();
-        if (!lexIdentifierToken()) {
+        if (!lexVariableToken()) {
             break;
         }
         lexWhitespaceToken();
@@ -39,7 +39,7 @@ bool Lexer::lexLambdaValue() {
         do {
             lexWhitespaceAndNewLines();
             bool lexed_amp = lexOperatorToken('&');
-            if (!lexIdentifierToken()) {
+            if (!lexVariableToken()) {
                 if(lexed_amp) {
                     error("expected identifier after '&'");
                 }

@@ -377,6 +377,7 @@ set(COMMON_SOURCES
         lexer/model/tokens/IdentifierToken.h
         preprocess/CSTSymbolResolver.h
         preprocess/CSTSymbolResolver.cpp
+        preprocess/BaseSymbolResolver.h
 )
 
 # Chemical LSP Executable Target

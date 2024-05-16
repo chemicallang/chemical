@@ -66,7 +66,6 @@ bool compile(Codegen *gen, const std::string &path, IGCompilerOptions *options) 
 
     // creating symbol resolver
     SymbolResolver resolver(options->exe_path, path, options->is64Bit);
-    resolver.benchmark = options->benchmark;
 
     // The imported map, when a file is imported, it set's it's absolute path true in this map
     // to avoid re-importing files

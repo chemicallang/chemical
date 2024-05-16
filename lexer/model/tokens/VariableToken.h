@@ -11,6 +11,14 @@
 class VariableToken : public LexToken {
 public:
 
+    /**
+     * the linked token, it can be null
+     * that's the difference between identifier and variable tokens, variable
+     * tokens can be linked with their definitions (e.g a var init statement)
+     * to link the tokens, CSTSymbolResolver is used.
+     */
+    CSTToken* linked;
+
     VariableToken(const Position& position, std::string identifier) : LexToken(position, std::move(identifier)) {
 
     }

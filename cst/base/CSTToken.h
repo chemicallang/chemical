@@ -38,7 +38,7 @@ public:
     /**
      * returns representation of the token
      */
-    inline std::string representation() {
+    inline std::string representation() const {
         std::string rep;
         append_representation(rep);
         return rep;
@@ -149,7 +149,7 @@ public:
     /**
      * The start position of the token, for debugging purposes
      */
-    Position start();
+    Position start() const;
 
     /**
      * this is a debug type string, that is given by each token

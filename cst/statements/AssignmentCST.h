@@ -7,12 +7,7 @@
 class AssignmentCST : public CompoundCSTToken {
 public:
 
-    /**
-     * constructor
-     */
-    AssignmentCST(std::vector<std::unique_ptr<CSTToken>> tokens) : CompoundCSTToken(std::move(tokens)) {
-
-    }
+    using CompoundCSTToken::CompoundCSTToken;
 
     void accept(CSTVisitor *visitor) override {
         visitor->visitAssignment(this);

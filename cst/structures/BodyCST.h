@@ -7,12 +7,7 @@
 class BodyCST : public CompoundCSTToken {
 public:
 
-    /**
-     * constructor
-     */
-    BodyCST(std::vector<std::unique_ptr<CSTToken>> tokens) : CompoundCSTToken(std::move(tokens)) {
-
-    }
+    using CompoundCSTToken::CompoundCSTToken;
 
     void accept(CSTVisitor *visitor) override {
         visitor->visitBody(this);

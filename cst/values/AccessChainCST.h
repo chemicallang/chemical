@@ -12,12 +12,7 @@ public:
      */
     bool is_node = false;
 
-    /**
-     * constructor
-     */
-    AccessChainCST(std::vector<std::unique_ptr<CSTToken>> tokens) : CompoundCSTToken(std::move(tokens)) {
-
-    }
+    using CompoundCSTToken::CompoundCSTToken;
 
     LexTokenType type() const override {
         return LexTokenType::CompAccessChain;

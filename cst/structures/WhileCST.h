@@ -7,12 +7,7 @@
 class WhileCST : public CompoundCSTToken {
 public:
 
-    /**
-     * constructor
-     */
-    WhileCST(std::vector<std::unique_ptr<CSTToken>> tokens) : CompoundCSTToken(std::move(tokens)) {
-
-    }
+    using CompoundCSTToken::CompoundCSTToken;
 
     void accept(CSTVisitor *visitor) override {
         visitor->visitWhile(this);

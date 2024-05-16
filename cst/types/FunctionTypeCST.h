@@ -7,12 +7,7 @@
 class FunctionTypeCST : public CompoundCSTToken {
 public:
 
-    /**
-     * constructor
-     */
-    FunctionTypeCST(std::vector<std::unique_ptr<CSTToken>> tokens) : CompoundCSTToken(std::move(tokens)) {
-
-    }
+    using CompoundCSTToken::CompoundCSTToken;
 
     void accept(CSTVisitor *visitor) override {
         visitor->visitFunctionType(this);

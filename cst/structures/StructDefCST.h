@@ -7,12 +7,7 @@
 class StructDefCST : public CompoundCSTToken {
 public:
 
-    /**
-     * constructor
-     */
-    StructDefCST(std::vector<std::unique_ptr<CSTToken>> tokens) : CompoundCSTToken(std::move(tokens)) {
-
-    }
+    using CompoundCSTToken::CompoundCSTToken;
 
     void accept(CSTVisitor *visitor) override {
         visitor->visitStructDef(this);

@@ -7,12 +7,7 @@
 class NegativeCST : public CompoundCSTToken {
 public:
 
-    /**
-     * constructor
-     */
-    NegativeCST(std::vector<std::unique_ptr<CSTToken>> tokens) : CompoundCSTToken(std::move(tokens)) {
-
-    }
+    using CompoundCSTToken::CompoundCSTToken;
 
     void accept(CSTVisitor *visitor) override {
         visitor->visitNegative(this);

@@ -120,19 +120,31 @@ public:
     }
 
     /**
-     * consumes a identifier token
+     * consumes a identifier and store as a variable token
      * @return true if identifier is not empty, false if it is
      */
     bool storeVariable(const std::string &identifier);
 
     /**
-     * lex an identifier token into tokens until the until character occurs
+     * consumes a identifier and store as an identifier token
+     * @return true if identifier is not empty, false if it is
+     */
+    bool storeIdentifier(const std::string &identifier);
+
+    /**
+     * lex a variable token into tokens until the until character occurs
      * only lexes the token if the identifier is not empty
-     * @param access is this token being lexed in an access statement instead of assignment
-     * @return
      */
     inline bool lexVariableToken() {
         return storeVariable(lexIdentifier());
+    }
+
+    /**
+     * lex an identifier token into tokens until the until character occurs
+     * only lexes the token if the identifier is not empty
+     */
+    inline bool lexIdentifierToken() {
+        return storeIdentifier(lexIdentifier());
     }
 
     /**

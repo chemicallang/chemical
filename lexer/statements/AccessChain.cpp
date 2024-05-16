@@ -22,6 +22,15 @@ bool Lexer::storeVariable(const std::string& identifier) {
     }
 }
 
+bool Lexer::storeIdentifier(const std::string &identifier) {
+    if (!identifier.empty()) {
+        tokens.emplace_back(std::make_unique<VariableToken>(backPosition(identifier.length()), identifier));
+        return true;
+    } else {
+        return false;
+    }
+}
+
 bool Lexer::lexAccessChain(bool lexStruct) {
 
     auto id = lexIdentifier();

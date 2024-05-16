@@ -399,7 +399,7 @@ void CSTConverter::visitTypealias(CompoundCSTToken *alias) {
     nodes.emplace_back(std::make_unique<TypealiasStatement>(identifier, type()));
 }
 
-void CSTConverter::visit(TypeToken *token) {
+void CSTConverter::visitTypeToken(LexToken *token) {
     auto primitive = primitive_type_map.find(token->value);
     if (primitive == primitive_type_map.end()) {
         types.emplace_back(std::make_unique<ReferencedType>(token->value));
@@ -756,14 +756,14 @@ void CSTConverter::visitFunctionType(CompoundCSTToken *funcType) {
 }
 
 
-void CSTConverter::visit(StringToken *token) {
+void CSTConverter::visitStringToken(LexToken *token) {
     auto escaped = escape_all(token->value, 1, token->value.size() - 1, [this, token](const std::string& value, unsigned int index) {
         error("invalid escape sequence found, character '" + std::string(1, value[index]) + "'", token);
     });
     values.emplace_back(std::make_unique<StringValue>(escaped));
 }
 
-void CSTConverter::visit(CharToken *token) {
+void CSTConverter::visitCharToken(LexToken *token) {
     char value;
     if(token->value[1] == '\\') {
         auto result = escape_single(token->value, 2);
@@ -777,7 +777,7 @@ void CSTConverter::visit(CharToken *token) {
     values.emplace_back(std::make_unique<CharValue>(value));
 }
 
-void CSTConverter::visit(NumberToken *token) {
+void CSTConverter::visitNumberToken(NumberToken *token) {
     try {
         if (token->has_dot()) {
             if (token->is_float()) {
@@ -1013,15 +1013,15 @@ void CSTConverter::visitDereference(CompoundCSTToken *deref) {
     values.emplace_back(std::make_unique<DereferenceValue>(value()));
 }
 
-void CSTConverter::visit(VariableToken *token) {
+void CSTConverter::visitVariableToken(LexToken *token) {
     values.emplace_back(std::make_unique<VariableIdentifier>(token->value));
 }
 
-void CSTConverter::visit(BoolToken *token) {
+void CSTConverter::visitBoolToken(LexToken *token) {
     values.emplace_back(std::make_unique<BoolValue>(token->value[0] == 't'));
 }
 
-void CSTConverter::visit(NullToken *token) {
+void CSTConverter::visitNullToken(LexToken *token) {
     values.emplace_back(std::make_unique<NullValue>());
 }
 

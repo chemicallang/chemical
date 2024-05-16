@@ -180,7 +180,7 @@ void CompletionItemAnalyzer::visitSwitch(CompoundCSTToken *switchCst) {
 
 };
 
-void CompletionItemAnalyzer::visit(MultilineCommentToken *token) {
+void CompletionItemAnalyzer::visitMultilineComment(LexToken *token) {
 
 };
 

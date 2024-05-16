@@ -20,7 +20,7 @@ public:
     }
 
     void accept(CSTVisitor *visitor) override {
-        visitor->visit(this);
+        visitor->visitNullToken(this);
     }
 
 };

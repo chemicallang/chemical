@@ -81,28 +81,28 @@ public:
 
     // Token visitors
 
-    void visit(AnnotationToken *token) override;
+    void visitAnnotationToken(LexToken *token) override;
 
-    void visit(BoolToken *token) override;
+    void visitBoolToken(LexToken *token) override;
 
-    void visit(NullToken *token) override;
+    void visitNullToken(LexToken *token) override;
 
-    void visit(CharOperatorToken *token) override;
+    void visitCharOperatorToken(LexToken *token) override;
 
-    void visit(StringOperatorToken *token) override;
+    void visitStringOperatorToken(LexToken *token) override;
 
-    void visit(CharToken *token) override;
+    void visitCharToken(LexToken *token) override;
 
-    void visit(CommentToken *token) override;
+    void visitCommentToken(LexToken *token) override;
 
-    void visit(MultilineCommentToken *token) override;
+    void visitMultilineComment(LexToken *token) override;
 
-    void visit(MacroToken *token) override;
+    void visitMacroToken(LexToken *token) override;
 
-    void visit(NumberToken *token) override;
+    void visitNumberToken(NumberToken *token) override;
 
-    void visit(OperationToken *token) override;
+    void visitOperationToken(LexToken *token) override;
 
-    void visit(StringToken *token) override;
+    void visitStringToken(LexToken *token) override;
 
 };

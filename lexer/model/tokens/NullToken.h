@@ -23,8 +23,4 @@ public:
         visitor->visit(this);
     }
 
-    [[nodiscard]] std::string type_string() const override {
-        return "null";
-    }
-
 };

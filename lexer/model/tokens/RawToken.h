@@ -23,8 +23,4 @@ public:
         return LexTokenType::RawToken;
     }
 
-    [[nodiscard]] std::string type_string() const override {
-        return "Raw:" + value;
-    }
-
 };

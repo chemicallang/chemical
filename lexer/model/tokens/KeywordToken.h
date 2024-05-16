@@ -23,10 +23,4 @@ public:
         return LexTokenType::Keyword;
     }
 
-    [[nodiscard]] std::string type_string() const override {
-        std::string buf("Keyword:");
-        buf.append(this->value);
-        return buf;
-    }
-
 };

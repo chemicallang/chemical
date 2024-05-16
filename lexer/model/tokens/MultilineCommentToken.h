@@ -23,8 +23,4 @@ public:
         return LexTokenType::MultilineComment;
     }
 
-    [[nodiscard]] std::string type_string() const override {
-        return "MultiComment:" + value;
-    }
-
 };

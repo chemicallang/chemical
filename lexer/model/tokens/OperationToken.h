@@ -27,8 +27,4 @@ public:
         return LexTokenType::Operation;
     }
 
-    [[nodiscard]] std::string type_string() const override {
-        return "Operation:" + value;
-    }
-
 };

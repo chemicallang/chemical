@@ -63,10 +63,4 @@ public:
         return LexTokenType::Number;
     }
 
-    [[nodiscard]] std::string type_string() const override {
-        std::string buf("Number:");
-        buf.append(value);
-        return buf;
-    }
-
 };

@@ -23,10 +23,4 @@ public:
         return LexTokenType::Variable;
     }
 
-    [[nodiscard]] std::string type_string() const override {
-        std::string buf("Identifier:");
-        buf.append(this->value);
-        return buf;
-    }
-
 };

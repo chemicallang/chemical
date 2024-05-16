@@ -12,12 +12,6 @@
 #include "common/Diagnostic.h"
 #include "cst/base/CSTToken.h"
 
-//#include "rapidjson\rapidjson.h"
-//#include "rapidjson\document.h"		// rapidjson's DOM-style API
-//#include "rapidjson/writer.h"
-//#include "rapidjson\stringbuffer.h"	// wrapper of C stream for prettywriter as output
-//#include "rapidjson\prettywriter.h"	// for stringify JSON
-
 class LexToken : public CSTToken {
 public:
 
@@ -36,37 +30,12 @@ public:
         return position.character;
     }
 
-    bool is_abs_string() {
-        auto t = type();
-        return t >= LexTokenType::IndexAbsStrStart && t <= LexTokenType::IndexAbsStrEnd;
-    }
-
-    LexToken *start_token() override {
-        return this;
-    }
-
-    LexToken *end_token() override {
-        return this;
-    }
-
     /**
      * string length of the token
      */
     inline unsigned int length() const {
         return value.size();
     }
-
-    void append_representation(std::string &rep) const override {
-        rep.append(value);
-    }
-
-#ifdef DEBUG
-
-    Position start() override {
-        return position;
-    }
-
-#endif
 
     /**
      * lex token virtual destructor

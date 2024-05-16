@@ -26,8 +26,4 @@ public:
         return LexTokenType::Annotation;
     }
 
-    std::string type_string() const override {
-        return "Annotation:" + value;
-    }
-
 };

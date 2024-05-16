@@ -22,12 +22,4 @@ public:
         return LexTokenType::CompStructValue;
     }
 
-#ifdef DEBUG
-
-    std::string compound_type_string() const override {
-        return "StructValueCST";
-    }
-
-#endif
-
 };

@@ -23,8 +23,4 @@ public:
         return LexTokenType::Char;
     }
 
-    [[nodiscard]] std::string type_string() const override {
-        return "Char:" + value;
-    }
-
 };

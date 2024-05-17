@@ -71,7 +71,7 @@ ImportUnit WorkspaceManager::get_import_unit(const std::string& abs_path, bool p
     CSTSymbolResolver resolver;
     resolver.resolve(&unit);
     if(publish_diags) {
-        publish_diagnostics(abs_path, true, { &result->diags, &resolver.diagnostics });
+        publish_diagnostics(abs_path, true, { &ig.root.errors, &result->diags, &resolver.diagnostics });
     }
     return unit;
 }

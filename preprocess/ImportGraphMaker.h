@@ -32,6 +32,11 @@ struct IGFile {
     std::vector<IGFile> files;
 
     /**
+     * any error importing specifically this file
+     */
+    std::vector<Diag> errors;
+
+    /**
      * get a list representation from this file
      */
     std::string representation();
@@ -54,11 +59,6 @@ struct IGResult {
      * the root import graph file
      */
     IGFile root;
-
-    /**
-     * errors that occurred
-     */
-    std::vector<Diag> errors;
 
 };
 

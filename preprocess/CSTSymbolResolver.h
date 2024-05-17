@@ -28,6 +28,11 @@ public:
     }
 
     /**
+     * resolves the symbol, if not found, puts an error
+     */
+    void resolve_symbol(VariableToken* token);
+
+    /**
      * resolve an import unit
      */
     void resolve(ImportUnit* unit);
@@ -56,5 +61,9 @@ public:
     void visitAccessChain(AccessChainCST *accessChain) override;
 
     void visitVariableToken(LexToken *token) override;
+
+    void visitFunctionCall(CompoundCSTToken *call) override;
+
+    void visitIndexOp(CompoundCSTToken *op) override;
 
 };

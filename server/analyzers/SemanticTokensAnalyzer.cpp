@@ -9,6 +9,7 @@
 #include "cst/base/CompoundCSTToken.h"
 #include "cst/utils/CSTUtils.h"
 #include "lexer/model/tokens/VariableToken.h"
+#include "cst/values/AccessChainCST.h"
 
 #define DEBUG false
 
@@ -200,27 +201,53 @@ void SemanticTokensAnalyzer::visitStringToken(LexToken *token) {
     put(token, SemanticTokenType::ls_string);
 };
 
+void SemanticTokensAnalyzer::put_as_type(CSTToken* token, LexTokenType type) {
+    switch(type) {
+        case LexTokenType::CompStructDef:
+            put(token, SemanticTokenType::ls_struct);
+            return;
+        case LexTokenType::CompInterface:
+            put(token, SemanticTokenType::ls_interface);
+            return;
+        case LexTokenType::CompEnumDecl:
+            put(token, SemanticTokenType::ls_enum);
+            return;
+        case LexTokenType::CompFunction:
+            put(token, SemanticTokenType::ls_function);
+            return;
+        default:
+            put(token, SemanticTokenType::ls_variable);
+            return;
+    }
+}
+
 void SemanticTokensAnalyzer::visitVariableToken(LexToken *token) {
     auto t = ((VariableToken*) token);
     if(t->linked) {
-        switch(t->linked->type()) {
-            case LexTokenType::CompStructDef:
-                put(token, SemanticTokenType::ls_struct);
-                return;
-            case LexTokenType::CompInterface:
-                put(token, SemanticTokenType::ls_interface);
-                return;
-            case LexTokenType::CompEnumDecl:
-                put(token, SemanticTokenType::ls_enum);
-                return;
-            case LexTokenType::CompFunction:
-                put(token, SemanticTokenType::ls_function);
-                return;
-            default:
-                put(token, SemanticTokenType::ls_variable);
-                return;
-        }
+        put_as_type(token, t->linked->type());
     } else {
         put(token, SemanticTokenType::ls_variable);
+    }
+}
+
+void SemanticTokensAnalyzer::visitAccessChain(AccessChainCST *chain) {
+    chain->tokens[0]->accept(this);
+    if(chain->tokens.size() == 1) return;
+    unsigned i = 1;
+    CSTToken* parent = ((VariableToken*) chain->tokens[0].get())->linked;
+    CSTToken* token;
+    while(i < chain->tokens.size()) {
+        token = chain->tokens[i].get();
+        if(token->type() == LexTokenType::Variable) {
+            if(parent->type() == LexTokenType::CompEnumDecl) {
+                put(token, SemanticTokenType::ls_enumMember);
+            } else {
+                token->accept(this);
+            }
+            parent = token->as_variable()->linked;
+        } else {
+            token->accept(this);
+        }
+        i++;
     }
 }

@@ -79,17 +79,15 @@ void CSTSymbolResolver::visitAccessChain(AccessChainCST *cst) {
             current = cst->tokens[i].get();
             switch(current->type()) {
                 case LexTokenType::CharOperator:
-                    continue;
+                    break;
                 case LexTokenType::Variable:
                     ((VariableToken*) current)->linked = previous;
                     previous = current;
                     break;
                 case LexTokenType::CompFunctionCall:
-                    ((VariableToken*) ((CompoundCSTToken*) current)->tokens[0].get())->linked = previous;
                     previous = current;
                     break;
                 case LexTokenType::CompIndexOp:
-                    ((VariableToken*) ((CompoundCSTToken*) current)->tokens[0].get())->linked = previous;
                     previous = current;
                 default:
                     std::cerr << "unknown token found in access chain !!" << std::endl;

@@ -11,16 +11,25 @@
 #include "cst/utils/CSTUtils.h"
 #include "integration/ide/model/ImportUnit.h"
 #include "integration/ide/model/LexResult.h"
+#include "lexer/model/tokens/VariableToken.h"
 
-#define DEBUG_COMPLETION false
+#define DEBUG_COMPLETION true
 
 void CompletionItemAnalyzer::put(const std::string &label, lsCompletionItemKind kind) {
-    items.emplace_back(label, kind);
+    list.items.emplace_back(label, kind);
 }
 
 bool CompletionItemAnalyzer::is_ahead(Position &position) const {
     return position.line > caret_position.first ||
            (position.line == caret_position.first && position.character > caret_position.second);
+}
+
+bool CompletionItemAnalyzer::is_eq_caret(Position& position) const {
+    return position.line == caret_position.first && position.character == caret_position.second;
+}
+
+bool CompletionItemAnalyzer::is_eq_caret(LexToken* token) const {
+    return is_eq_caret(token->position);
 }
 
 bool CompletionItemAnalyzer::is_ahead(LexToken *token) const {
@@ -59,15 +68,28 @@ CompoundCSTToken *CompletionItemAnalyzer::direct_parent(std::vector<std::unique_
     return nullptr;
 }
 
-int CompletionItemAnalyzer::token_before_caret(std::vector<std::unique_ptr<CSTToken>> &tokens) {
+CSTToken* last_direct_parent(CSTToken* token) {
+    if(token->compound()) {
+        auto last = token->as_compound()->tokens[token->as_compound()->tokens.size() - 1].get();
+        if(last->compound()) {
+            return last_direct_parent(last);
+        } else {
+            return token;
+        }
+    } else {
+        return token;
+    }
+}
+
+CSTToken* CompletionItemAnalyzer::token_before_caret(std::vector<std::unique_ptr<CSTToken>> &tokens) {
     int i = 0;
     while (i < tokens.size()) {
-        if (is_caret_behind(tokens[i]->start_token())) {
-            return i - 1;
+        if (is_caret_eq_or_behind(tokens[i]->start_token())) {
+            return last_direct_parent(tokens[i - 1].get());
         }
         i++;
     }
-    return -2;
+    return nullptr;
 }
 
 void
@@ -182,12 +204,16 @@ void CompletionItemAnalyzer::visitSwitch(CompoundCSTToken *switchCst) {
 
 void CompletionItemAnalyzer::visitMultilineComment(LexToken *token) {
 
-};
+}
 
 CompletionList CompletionItemAnalyzer::analyze(std::vector<std::unique_ptr<CSTToken>> &tokens) {
     auto chain = chain_before_caret(tokens);
     if(chain) {
-        std::cout << "[Unimplemented] member access into access chain : " + chain->type_string() << std::endl;
+        if(handle_chain_before_caret(chain)) {
+            return list;
+        } else {
+            std::cout << "[Unknown] member access into access chain : " + chain->type_string() << std::endl;
+        }
     }
     visit(tokens);
 //#if defined DEBUG_COMPLETION && DEBUG_COMPLETION
@@ -195,7 +221,7 @@ CompletionList CompletionItemAnalyzer::analyze(std::vector<std::unique_ptr<CSTTo
 //        std::cout << item.label << std::endl;
 //    }
 //#endif
-    return CompletionList{false, std::move(items)};
+    return std::move(list);
 }
 
 CompoundCSTToken* CompletionItemAnalyzer::chain_before_caret(std::vector<std::unique_ptr<CSTToken>> &tokens) {
@@ -206,11 +232,10 @@ CompoundCSTToken* CompletionItemAnalyzer::chain_before_caret(std::vector<std::un
 #endif
         return nullptr;
     } else {
-        auto before_index = token_before_caret(parent->tokens);
-        if (before_index >= 0) {
-            auto token = parent->tokens[before_index].get();
+        auto token = token_before_caret(parent->tokens);
+        if (token) {
 #if defined DEBUG_COMPLETION && DEBUG_COMPLETION
-            std::cout << "token before index : " + token->representation() << " type " << token->type_string() << std::endl;
+            std::cout << "token before index : " + token->representation() << " type " << token->type_string() << " parent type " << parent->type_string() << std::endl;
 #endif
             if(token->type() == LexTokenType::CompAccessChain) {
                 return (CompoundCSTToken*) token;
@@ -225,17 +250,63 @@ CompoundCSTToken* CompletionItemAnalyzer::chain_before_caret(std::vector<std::un
     }
 }
 
+void CompletionItemAnalyzer::put_identifiers(std::vector<std::unique_ptr<CSTToken>>& tokens, unsigned int start) {
+    CSTToken* token;
+    while(start < tokens.size()) {
+        token = tokens[start].get();
+        if(token->type() == LexTokenType::Identifier) {
+            put(token->as_lex_token()->value, lsCompletionItemKind::EnumMember);
+        }
+        start++;
+    }
+}
+
+bool put_children(CompletionItemAnalyzer* analyzer, CSTToken* parent) {
+    switch(parent->type()) {
+        case LexTokenType::CompEnumDecl:{
+            analyzer->put_identifiers(parent->as_compound()->tokens, 2);
+            return true;
+        }
+        default:
+            return false;
+    }
+}
+
+bool put_children_of_ref(CompletionItemAnalyzer* analyzer, CSTToken* parent) {
+    switch(parent->type()) {
+        case LexTokenType::Variable:{
+            auto linked = ((VariableToken *) parent)->linked;
+            if(linked) {
+                put_children(analyzer, linked);
+                return true;
+            } else {
+                return false;
+            }
+        }
+        default:
+            return false;
+    }
+}
+
+bool CompletionItemAnalyzer::handle_chain_before_caret(CompoundCSTToken* chain) {
+    if(!chain->tokens.empty() && is_char_op(chain->tokens[chain->tokens.size() - 1].get(), '.')) {
+        return put_children_of_ref(this, chain->tokens[chain->tokens.size() - 2].get());
+    }
+    return false;
+}
+
 CompletionList CompletionItemAnalyzer::analyze(ImportUnit* unit) {
 
     if(unit->files.size() == 1) return analyze(unit->files[0]->tokens);
-    CompletionList result;
-    if(unit->files.empty()) return result;
+    if(unit->files.empty()) return list;
 
     // check is caret position before a chain
     auto chain = chain_before_caret(unit->files[unit->files.size() - 1]->tokens);
     if(chain) {
-        if(!chain->tokens.empty() && is_char_op(chain->tokens[chain->tokens.size() - 1].get(), '.')) {
-            std::cout << "[Unimplemented] member access into access chain : " + chain->type_string() << std::endl;
+        if(handle_chain_before_caret(chain)) {
+            return list;
+        } else {
+            std::cout << "[Unknown] member access into access chain : " + chain->type_string() << std::endl;
         }
     }
 
@@ -257,8 +328,7 @@ CompletionList CompletionItemAnalyzer::analyze(ImportUnit* unit) {
             }
         }
         visit(file->tokens);
-        std::move(items.begin(), items.end(), std::back_inserter(result.items));
         i++;
     }
-    return result;
+    return list;
 }

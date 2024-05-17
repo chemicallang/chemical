@@ -28,7 +28,7 @@ public:
     /**
      * all the items that were found when analyzer completed
      */
-    std::vector<lsCompletionItem> items;
+    CompletionList list;
 
     /**
      * constructor
@@ -52,7 +52,7 @@ public:
      * also assumes that caret is present inside these tokens
      * otherwise -1 if caret is behind all tokens, -2 if ahead of all tokens
      */
-    int token_before_caret(std::vector<std::unique_ptr<CSTToken>> &tokens);
+    CSTToken* token_before_caret(std::vector<std::unique_ptr<CSTToken>> &tokens);
 
     /**
      * will return true, if given position is ahead of caret position
@@ -63,6 +63,16 @@ public:
      * will return true, if given position is ahead of caret position
      */
     bool is_ahead(LexToken* token) const;
+
+    /**
+     * is equal to caret position
+     */
+    bool is_eq_caret(Position& position) const;
+
+    /**
+     * is token position equal to caret position
+     */
+    bool is_eq_caret(LexToken* token) const;
 
     /**
      * is the cursor ahead of the given token
@@ -76,6 +86,13 @@ public:
      */
     inline bool is_caret_behind(LexToken* token) const {
         return is_ahead(token);
+    }
+
+    /**
+     * is caret equal or behind the token's position
+     */
+    inline bool is_caret_eq_or_behind(LexToken* token) const {
+        return is_ahead(token) || is_eq_caret(token);
     }
 
     /**
@@ -104,6 +121,17 @@ public:
      * chain before caret
      */
     CompoundCSTToken* chain_before_caret(std::vector<std::unique_ptr<CSTToken>> &tokens);
+
+    /**
+     * put's the identifiers present inside the tokens to the completion list, from start
+     */
+    void put_identifiers(std::vector<std::unique_ptr<CSTToken>>& tokens, unsigned int start = 0);
+
+    /**
+     * would handle given access chain
+     * @return true if handled
+     */
+    bool handle_chain_before_caret(CompoundCSTToken* token);
 
     /**
      * The function that analyzes tokens

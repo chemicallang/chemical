@@ -126,6 +126,7 @@ void CompletionItemAnalyzer::visitAssignment(CompoundCSTToken *cst) {
 }
 
 void CompletionItemAnalyzer::visitFunction(CompoundCSTToken *function) {
+    put(str_token(function->tokens[1].get()), lsCompletionItemKind::Function);
     function->tokens[function->tokens.size() - 1]->accept(this);
 };
 

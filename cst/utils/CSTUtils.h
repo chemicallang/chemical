@@ -48,6 +48,10 @@ bool is_var_init_const(CompoundCSTToken* cst);
 
 void visit(CSTVisitor* visitor, std::vector<std::unique_ptr<CSTToken>>& tokens, unsigned int start, unsigned int end);
 
+inline void visit(CSTVisitor* visitor, std::vector<std::unique_ptr<CSTToken>>& tokens, unsigned int start) {
+    visit(visitor, tokens, start, tokens.size());
+}
+
 inline void visit(CSTVisitor* visitor, std::vector<std::unique_ptr<CSTToken>>& tokens) {
     visit(visitor, tokens, 0, tokens.size());
 }

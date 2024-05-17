@@ -5,10 +5,10 @@
 //
 
 #include "SemanticTokensAnalyzer.h"
-#include "lexer/model/tokens/CharOperatorToken.h"
 #include <unordered_set>
 #include "cst/base/CompoundCSTToken.h"
 #include "cst/utils/CSTUtils.h"
+#include "lexer/model/tokens/VariableToken.h"
 
 #define DEBUG false
 
@@ -189,3 +189,28 @@ void SemanticTokensAnalyzer::visitOperationToken(LexToken *token) {
 void SemanticTokensAnalyzer::visitStringToken(LexToken *token) {
     put(token, SemanticTokenType::ls_string);
 };
+
+void SemanticTokensAnalyzer::visitVariableToken(LexToken *token) {
+    auto t = ((VariableToken*) token);
+    if(t->linked) {
+        switch(t->linked->type()) {
+            case LexTokenType::CompStructDef:
+                put(token, SemanticTokenType::ls_struct);
+                return;
+            case LexTokenType::CompInterface:
+                put(token, SemanticTokenType::ls_interface);
+                return;
+            case LexTokenType::CompEnumDecl:
+                put(token, SemanticTokenType::ls_enum);
+                return;
+            case LexTokenType::CompFunction:
+                put(token, SemanticTokenType::ls_function);
+                return;
+            default:
+                put(token, SemanticTokenType::ls_variable);
+                return;
+        }
+    } else {
+        put(token, SemanticTokenType::ls_variable);
+    }
+}

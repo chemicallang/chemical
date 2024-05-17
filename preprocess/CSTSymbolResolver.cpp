@@ -5,6 +5,8 @@
 #include "cst/utils/CSTUtils.h"
 #include "cst/values/AccessChainCST.h"
 #include "lexer/model/tokens/VariableToken.h"
+#include "integration/ide/model/ImportUnit.h"
+#include "integration/ide/model/LexResult.h"
 
 void CSTSymbolResolver::declare(LexToken *token, CSTToken *node) {
     auto &last = current.back();
@@ -28,18 +30,27 @@ void CSTSymbolResolver::visitBody(CompoundCSTToken *cst) {
 
 void CSTSymbolResolver::visitVarInit(CompoundCSTToken *cst) {
     declare(cst->tokens[1].get(), cst);
+    ::visit(this, cst->tokens, 2);
+}
+
+void CSTSymbolResolver::visitFunction(CompoundCSTToken *cst) {
+    declare(cst->tokens[1].get(), cst);
+    ::visit(this, cst->tokens, 2);
 }
 
 void CSTSymbolResolver::visitEnumDecl(CompoundCSTToken *cst) {
     declare(cst->tokens[1].get(), cst);
+    ::visit(this, cst->tokens, 2);
 }
 
 void CSTSymbolResolver::visitInterface(CompoundCSTToken *cst) {
     declare(cst->tokens[1].get(), cst);
+    ::visit(this, cst->tokens, 2);
 }
 
 void CSTSymbolResolver::visitStructDef(CompoundCSTToken *cst) {
     declare(cst->tokens[1].get(), cst);
+    ::visit(this, cst->tokens, 2);
 }
 
 void CSTSymbolResolver::visitAccessChain(AccessChainCST *cst) {
@@ -54,5 +65,11 @@ void CSTSymbolResolver::visitVariableToken(LexToken *token) {
     auto found = find(token->value);
     if(found) {
         ((VariableToken*) token)->linked = found;
+    }
+}
+
+void CSTSymbolResolver::resolve(ImportUnit* unit) {
+    for (auto& file : unit->files) {
+        ::visit(this, file->tokens);
     }
 }

@@ -9,14 +9,10 @@
 #include <unordered_map>
 #include <string>
 
+class ImportUnit;
+
 class CSTSymbolResolver : public BaseSymbolResolver<CSTToken>, public CSTVisitor, public CSTDiagnoser {
 public:
-
-    /**
-     * when traversing nodes, a node can declare itself on the map
-     * this is vector of scopes, the last scope is current scope
-     */
-    std::vector<std::unordered_map<std::string, CSTToken*>> current = {{}};
 
     /**
      * declares a node with string, the string value is taken from the token
@@ -31,6 +27,11 @@ public:
         declare((LexToken*) token, node);
     }
 
+    /**
+     * resolve an import unit
+     */
+    void resolve(ImportUnit* unit);
+
     //-------------------------
     //------------ Visitors
     //-------------------------
@@ -41,6 +42,8 @@ public:
     void visitBody(CompoundCSTToken *bodyCst) override;
 
     void visitVarInit(CompoundCSTToken *varInit) override;
+
+    void visitFunction(CompoundCSTToken *function) override;
 
     void visitEnumDecl(CompoundCSTToken *enumDecl) override;
 

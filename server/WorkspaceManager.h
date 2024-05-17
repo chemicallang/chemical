@@ -55,6 +55,19 @@ private:
     std::mutex incremental_change_mutex;
 
     /**
+     * map between absolute path of a file and their mutexes
+     * when you require a file is lexed, a mutex is held for each path
+     * so multiple different paths can be lexed at a single time but multiple same paths cannot.
+     */
+    std::unordered_map<std::string, std::mutex> lex_file_mutexes;
+
+    /**
+     * a mutex for the unordered_map access, this is because every call with a path must be processed sequentially
+     * otherwise parallel calls might render lex_file_mutexes useless
+     */
+    std::mutex lex_file_mutexes_map_mutex;
+
+    /**
      * import unit cache, contains different import units
      */
     ImportUnitCache cache;

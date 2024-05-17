@@ -21,9 +21,5 @@ struct LexResult {
      * diagnostics when CSTTokens were lexed / resolved
      */
     std::vector<Diag> diags;
-    /**
-     * whether the CSTTokens have been resolved using a symbol resolver
-     */
-    bool resolved = false;
 
 };

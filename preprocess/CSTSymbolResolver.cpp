@@ -7,6 +7,7 @@
 #include "lexer/model/tokens/VariableToken.h"
 #include "integration/ide/model/ImportUnit.h"
 #include "integration/ide/model/LexResult.h"
+#include <iostream>
 
 void CSTSymbolResolver::declare(LexToken *token, CSTToken *node) {
     auto &last = current.back();
@@ -70,17 +71,53 @@ void CSTSymbolResolver::visitAccessChain(AccessChainCST *cst) {
     if(cst->tokens.size() == 1) {
         cst->tokens[0]->accept(this);
     } else {
-        // TODO implement complete access chain
+        cst->tokens[0]->accept(this);
+        CSTToken* previous = cst->tokens[0].get();
+        CSTToken* current;
+        unsigned i = 1;
+        while(i < cst->tokens.size()) {
+            current = cst->tokens[i].get();
+            switch(current->type()) {
+                case LexTokenType::CharOperator:
+                    continue;
+                case LexTokenType::Variable:
+                    ((VariableToken*) current)->linked = previous;
+                    previous = current;
+                    break;
+                case LexTokenType::CompFunctionCall:
+                    ((VariableToken*) ((CompoundCSTToken*) current)->tokens[0].get())->linked = previous;
+                    previous = current;
+                    break;
+                case LexTokenType::CompIndexOp:
+                    ((VariableToken*) ((CompoundCSTToken*) current)->tokens[0].get())->linked = previous;
+                    previous = current;
+                default:
+                    std::cerr << "unknown token found in access chain !!" << std::endl;
+            }
+            i++;
+        }
+    }
+}
+
+void CSTSymbolResolver::resolve_symbol(VariableToken* token) {
+    auto found = find(token->value);
+    if(found) {
+        token->linked = found;
+    } else {
+        error("unresolved symbol found '" + token->value + "'", token);
     }
 }
 
 void CSTSymbolResolver::visitVariableToken(LexToken *token) {
-    auto found = find(token->value);
-    if(found) {
-        ((VariableToken*) token)->linked = found;
-    } else {
-        error("unresolved symbol found '" + token->value + "'", token);
-    }
+    resolve_symbol((VariableToken*) token);
+}
+
+void CSTSymbolResolver::visitFunctionCall(CompoundCSTToken *cst) {
+    resolve_symbol((VariableToken*) cst->tokens[0].get());
+}
+
+void CSTSymbolResolver::visitIndexOp(CompoundCSTToken *cst) {
+    resolve_symbol((VariableToken*) cst->tokens[0].get());
 }
 
 void CSTSymbolResolver::resolve(ImportUnit* unit) {

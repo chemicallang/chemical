@@ -50,9 +50,10 @@ void WorkspaceManager::publish_diagnostics(const std::string& path, std::vector<
 std::vector<SemanticToken> WorkspaceManager::get_semantic_tokens(const lsDocumentUri& uri) {
 
     auto path = uri.GetAbsolutePath().path;
-    auto result = get_lexed(path);
+    auto unit = get_import_unit(path);
+    auto file = unit.files[unit.files.size() - 1];
     // publishing diagnostics gathered during lexing
-    publish_diagnostics(path, result->diags, true);
+    publish_diagnostics(path, file->diags, true);
 
 #if defined PRINT_TOKENS && PRINT_TOKENS
     printTokens(lexed, linker.resolved);
@@ -72,7 +73,7 @@ std::vector<SemanticToken> WorkspaceManager::get_semantic_tokens(const lsDocumen
 #endif
 
     SemanticTokensAnalyzer analyzer;
-    analyzer.analyze(result->tokens);
+    analyzer.analyze(file->tokens);
     return std::move(analyzer.tokens);
 
 }

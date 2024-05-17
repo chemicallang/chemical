@@ -98,6 +98,8 @@ public:
 
     void visitNullToken(LexToken *token) override;
 
+    void visitVariableToken(LexToken *token) override;
+
     void visitCharOperatorToken(LexToken *token) override;
 
     void visitStringOperatorToken(LexToken *token) override;

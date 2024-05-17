@@ -17,7 +17,7 @@ public:
      * tokens can be linked with their definitions (e.g a var init statement)
      * to link the tokens, CSTSymbolResolver is used.
      */
-    CSTToken* linked;
+    CSTToken* linked = nullptr;
 
     using LexToken::LexToken;
 

@@ -2,9 +2,21 @@
 
 #include "WorkspaceManager.h"
 #include "preprocess/ImportGraphMaker.h"
+#include "preprocess/CSTSymbolResolver.h"
 #include <sstream>
+#include <mutex>
 
 std::shared_ptr<LexResult> WorkspaceManager::get_lexed(const std::string& path) {
+
+    // multiple calls with different paths to this function are allowed
+    // multiple calls with same paths will be processed sequentially
+    lex_file_mutexes_map_mutex.lock();
+    auto lexing = lex_file_mutexes.find(path);
+    // makes a mutex for current path and hold it
+    if(lexing == lex_file_mutexes.end()) lex_file_mutexes[path];
+    std::lock_guard<std::mutex> path_lock(lex_file_mutexes[path]);
+    lex_file_mutexes_map_mutex.unlock();
+
     auto found = cache.files.find(path);
     if(found != cache.files.end()) {
         return found->second;
@@ -56,5 +68,7 @@ ImportUnit WorkspaceManager::get_import_unit(const std::string& abs_path) {
     for(const auto& flat : flattened) {
         unit.files.emplace_back(get_lexed(flat.abs_path));
     }
+    CSTSymbolResolver resolver;
+    resolver.resolve(&unit);
     return unit;
 }

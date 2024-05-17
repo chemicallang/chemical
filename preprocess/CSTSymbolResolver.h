@@ -51,6 +51,8 @@ public:
 
     void visitStructDef(CompoundCSTToken *structDef) override;
 
+    void visitImpl(CompoundCSTToken *impl) override;
+
     void visitAccessChain(AccessChainCST *accessChain) override;
 
     void visitVariableToken(LexToken *token) override;

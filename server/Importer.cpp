@@ -54,7 +54,7 @@ std::shared_ptr<LexResult> WorkspaceManager::get_lexed(const std::string& path) 
     return result;
 }
 
-ImportUnit WorkspaceManager::get_import_unit(const std::string& abs_path) {
+ImportUnit WorkspaceManager::get_import_unit(const std::string& abs_path, bool publish_diags) {
     // get lex result for the absolute path
     auto result = get_lexed(abs_path);
     // create a function that takes cst tokens in the import graph maker and creates a import graph
@@ -70,5 +70,8 @@ ImportUnit WorkspaceManager::get_import_unit(const std::string& abs_path) {
     }
     CSTSymbolResolver resolver;
     resolver.resolve(&unit);
+    if(publish_diags) {
+        publish_diagnostics(abs_path, true, { &result->diags, &resolver.diagnostics });
+    }
     return unit;
 }

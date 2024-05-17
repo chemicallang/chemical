@@ -67,33 +67,22 @@ void CSTSymbolResolver::visitImpl(CompoundCSTToken *impl) {
     scope_end();
 }
 
-void CSTSymbolResolver::visitAccessChain(AccessChainCST *cst) {
-    if(cst->tokens.size() == 1) {
-        cst->tokens[0]->accept(this);
-    } else {
-        cst->tokens[0]->accept(this);
-        CSTToken* previous = cst->tokens[0].get();
-        CSTToken* current;
-        unsigned i = 1;
-        while(i < cst->tokens.size()) {
-            current = cst->tokens[i].get();
-            switch(current->type()) {
-                case LexTokenType::CharOperator:
-                    break;
-                case LexTokenType::Variable:
-                    ((VariableToken*) current)->linked = previous;
-                    previous = current;
-                    break;
-                case LexTokenType::CompFunctionCall:
-                    previous = current;
-                    break;
-                case LexTokenType::CompIndexOp:
-                    previous = current;
-                default:
-                    std::cerr << "unknown token found in access chain !!" << std::endl;
+void CSTSymbolResolver::visitAccessChain(AccessChainCST *chain) {
+    chain->tokens[0]->accept(this);
+    if(chain->tokens.size() == 1) return;
+    unsigned i = 1;
+    CSTToken* parent = ((VariableToken*) chain->tokens[0].get())->linked;
+    CSTToken* token;
+    while(i < chain->tokens.size()) {
+        token = chain->tokens[i].get();
+        // TODO only links if token is a variable, skipped index op and function call
+        if(token->type() == LexTokenType::Variable) {
+            parent = link_child(parent, token);
+            if(!parent) {
+                error("unresolved symbol not found '" + token->representation() + "'", token);
             }
-            i++;
         }
+        i++;
     }
 }
 

@@ -8,6 +8,7 @@
 
 #include "LibLsp/lsp/textDocument/SemanticTokens.h"
 #include "cst/base/CSTVisitor.h"
+#include "lexer/model/LexTokenType.h"
 
 class SemanticTokensAnalyzer : public CSTVisitor {
 private:
@@ -51,6 +52,11 @@ public:
     inline void put(CSTToken* token, unsigned int tokenType, unsigned int tokenModifiers = 0) {
         put((LexToken*) token, tokenType, tokenModifiers);
     }
+
+    /**
+     * given token will be put as the given type
+     */
+    void put_as_type(CSTToken* token, LexTokenType type);
 
     // Visitors
 
@@ -99,6 +105,8 @@ public:
     void visitNullToken(LexToken *token) override;
 
     void visitVariableToken(LexToken *token) override;
+
+    void visitAccessChain(AccessChainCST *accessChain) override;
 
     void visitCharOperatorToken(LexToken *token) override;
 

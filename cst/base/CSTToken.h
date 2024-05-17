@@ -76,6 +76,13 @@ public:
     }
 
     /**
+     * get the token as a variable
+     */
+    inline VariableToken* as_variable() const {
+        return (VariableToken*) this;
+    }
+
+    /**
      * is the token var init compound token
      */
     bool is_var_init() {

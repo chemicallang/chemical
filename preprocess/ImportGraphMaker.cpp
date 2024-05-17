@@ -23,7 +23,6 @@ struct Importer {
     Lexer *lexer;
     std::ifstream& stream;
     ImportGraphVisitor *converter;
-    std::vector<Diag> &errors;
 };
 
 IGFile from_import(
@@ -81,7 +80,7 @@ std::vector<IGFile> get_imports(
     // open file
     importer->stream.open(abs_path);
     if(!importer->stream.is_open()) {
-        importer->errors.emplace_back(
+        parent->errors.emplace_back(
                 Range {0,0,0,0},
                 DiagSeverity::Error,
                 abs_path,
@@ -95,7 +94,7 @@ std::vector<IGFile> get_imports(
     importer->lexer->switch_path(abs_path);
     importer->lexer->lexTopLevelMultipleImportStatements();
     if (importer->lexer->has_errors) {
-        move_errors(importer->lexer->errors, importer->errors, abs_path);
+        move_errors(importer->lexer->errors, parent->errors, abs_path);
         importer->lexer->has_errors = false;
     }
 
@@ -115,18 +114,18 @@ IGFile from_import(
         const std::string &base_path,
         ImportCollected *importSt
 ) {
-    std::string imported_path;
+    IGFile file{parent, ""};
+    auto& flat_file = file.flat_file;
     if (importSt == nullptr) {
-        imported_path = base_path;
+        flat_file.abs_path = base_path;
     } else {
-        imported_path = importSt->file.abs_path;
-        if(!imported_path.empty() && imported_path[0] == '@') {
-            auto result = importer->handler->replace_at_in_path(imported_path);
+        flat_file.abs_path = importSt->file.abs_path;
+        if(!flat_file.abs_path.empty() && flat_file.abs_path[0] == '@') {
+            auto result = importer->handler->replace_at_in_path(flat_file.abs_path);
             if(result.error.empty()) {
-                imported_path = result.replaced;
+                flat_file.abs_path = result.replaced;
             } else {
-                imported_path = "";
-                importer->errors.emplace_back(
+                parent->errors.emplace_back(
                         importSt->range,
                         DiagSeverity::Error,
                         importSt->file.abs_path,
@@ -134,23 +133,21 @@ IGFile from_import(
                 );
             }
         }
-        if(!imported_path.empty()) {
-            auto resolved = resolve_rel_path_str(base_path, imported_path);
+        if(!flat_file.abs_path.empty()) {
+            auto resolved = resolve_rel_path_str(base_path, flat_file.abs_path);
             if (resolved.empty()) {
-                importer->errors.emplace_back(
+                parent->errors.emplace_back(
                         importSt->range,
                         DiagSeverity::Error,
-                        imported_path,
-                        "couldn't find the file to import " + imported_path
+                        file.flat_file.abs_path,
+                        "couldn't find the file to import " + file.flat_file.abs_path
                 );
-                imported_path = "";
             } else {
-                imported_path = resolved;
+                file.flat_file.abs_path = resolved;
             }
         }
     }
-    IGFile file{parent, imported_path};
-    file.files = get_imports(importer, &file, imported_path);
+    file.files = get_imports(importer, &file, file.flat_file.abs_path);
     return file;
 }
 
@@ -165,8 +162,7 @@ IGResult determine_import_graph(const std::string& exe_path, std::vector<std::un
             &handler,
             &lexer,
             file,
-            &visitor,
-            result.errors
+            &visitor
     };
     result.root = IGFile { nullptr, std::move(asker) };
     result.root.files = from_tokens(&importer, &result.root, result.root.flat_file.abs_path, tokens);
@@ -179,17 +175,14 @@ IGResult determine_import_graph(const std::string &exe_path, const std::string &
     Lexer lexer(reader, abs_path);
     ImportGraphVisitor visitor;
     ImportPathHandler handler(exe_path);
-    std::vector<Diag> errors;
     Importer importer{
             &handler,
             &lexer,
             file,
-            &visitor,
-            errors
+            &visitor
     };
     return IGResult{
-            from_import(&importer, nullptr, abs_path, nullptr),
-            std::move(errors)
+            from_import(&importer, nullptr, abs_path, nullptr)
     };
 }
 

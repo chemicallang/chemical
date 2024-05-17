@@ -78,7 +78,17 @@ void SemanticTokensAnalyzer::visitBody(CompoundCSTToken *bodyCst) {
 void SemanticTokensAnalyzer::visitEnumDecl(CompoundCSTToken *enumDecl) {
     enumDecl->tokens[0]->accept(this);
     put(enumDecl->tokens[1]->start_token(), SemanticTokenType::ls_enum);
-    visit(enumDecl->tokens, 2);
+    unsigned i = 2;
+    CSTToken* token;
+    while(i < enumDecl->tokens.size()) {
+        token = enumDecl->tokens[i].get();
+        if(token->is_identifier()) {
+            put(token, SemanticTokenType::ls_enumMember);
+        } else {
+            token->accept(this);
+        }
+        i++;
+    }
 }
 
 void SemanticTokensAnalyzer::visitVarInit(CompoundCSTToken *varInit) {

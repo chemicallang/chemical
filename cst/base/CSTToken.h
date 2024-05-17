@@ -104,6 +104,13 @@ public:
     }
 
     /**
+     * check if token is a identifier
+     */
+    bool is_identifier() {
+        return type() == LexTokenType::Identifier;
+    }
+
+    /**
      * check if its a type
      */
     bool is_type() {

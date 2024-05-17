@@ -25,6 +25,17 @@ IGCompilerOptions::IGCompilerOptions(
 
 }
 
+void print_errors(IGFile* file) {
+    for(auto& sub_file : file->files) {
+        print_errors(&sub_file);
+    }
+    if(!file->errors.empty()) {
+        for (auto& err : file->errors) {
+            std::cout << err.ansi_representation(file->flat_file.abs_path, "IGGraph") << std::endl;
+        }
+    }
+}
+
 bool compile(Codegen *gen, const std::string &path, IGCompilerOptions *options) {
 
     // preparing the import graph
@@ -39,12 +50,7 @@ bool compile(Codegen *gen, const std::string &path, IGCompilerOptions *options) 
         result = determine_import_graph(options->exe_path, path);
     }
 
-    // print errors
-    if (!result.errors.empty()) {
-        for (auto &err: result.errors) {
-            std::cout << err.ansi_representation(err.doc_url.value(), "IGGraph") << std::endl;
-        }
-    }
+    print_errors(&result.root);
 
     // print the ig
     if (options->print_ig) {

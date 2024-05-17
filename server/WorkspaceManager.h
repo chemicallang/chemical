@@ -105,12 +105,12 @@ public:
     /**
      * this will publish given diagnostics
      */
-    void publish_diagnostics(const std::string& path, std::vector<Diag>& diags, bool async);
+    void publish_diagnostics(const std::string& path, bool async, const std::vector<std::vector<Diag>*>& diags);
 
     /**
      * get the import unit for the given absolute path
      */
-    ImportUnit get_import_unit(const std::string& abs_path);
+    ImportUnit get_import_unit(const std::string& abs_path, bool publish_diagnostics = false);
 
     /**
      * get tokens for the given file

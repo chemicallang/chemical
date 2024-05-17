@@ -35,7 +35,9 @@ void CSTSymbolResolver::visitVarInit(CompoundCSTToken *cst) {
 
 void CSTSymbolResolver::visitFunction(CompoundCSTToken *cst) {
     declare(cst->tokens[1].get(), cst);
+    scope_start();
     ::visit(this, cst->tokens, 2);
+    scope_end();
 }
 
 void CSTSymbolResolver::visitEnumDecl(CompoundCSTToken *cst) {
@@ -45,12 +47,23 @@ void CSTSymbolResolver::visitEnumDecl(CompoundCSTToken *cst) {
 
 void CSTSymbolResolver::visitInterface(CompoundCSTToken *cst) {
     declare(cst->tokens[1].get(), cst);
+    scope_start();
     ::visit(this, cst->tokens, 2);
+    scope_end();
 }
 
 void CSTSymbolResolver::visitStructDef(CompoundCSTToken *cst) {
     declare(cst->tokens[1].get(), cst);
+    scope_start();
     ::visit(this, cst->tokens, 2);
+    scope_end();
+}
+
+void CSTSymbolResolver::visitImpl(CompoundCSTToken *impl) {
+    bool has_for = is_keyword(impl->tokens[2].get(), "for");
+    scope_start();
+    ::visit(this, impl->tokens, has_for ? 4 : 2);
+    scope_end();
 }
 
 void CSTSymbolResolver::visitAccessChain(AccessChainCST *cst) {
@@ -65,6 +78,8 @@ void CSTSymbolResolver::visitVariableToken(LexToken *token) {
     auto found = find(token->value);
     if(found) {
         ((VariableToken*) token)->linked = found;
+    } else {
+        error("unresolved symbol found '" + token->value + "'", token);
     }
 }
 

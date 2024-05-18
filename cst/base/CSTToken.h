@@ -104,6 +104,13 @@ public:
     }
 
     /**
+     * is a ref token
+     */
+    bool is_ref() {
+        return type() == LexTokenType::Variable || type() == LexTokenType::Type;
+    }
+
+    /**
      * check if this cst token is a struct value
      */
     bool is_struct_value() {

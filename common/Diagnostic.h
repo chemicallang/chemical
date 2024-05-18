@@ -5,18 +5,8 @@
 #include <optional>
 #include <string>
 #include <vector>
-#include "Position.h"
+#include "Range.h"
 #include "DiagSeverity.h"
-
-class Range {
-public:
-    // the range in the source file
-    Position start, end;
-
-    std::string representation() const {
-        return start.representation() + " - " + end.representation();
-    }
-};
 
 enum class DiagTag : uint8_t {
     // redundant code tag

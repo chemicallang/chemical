@@ -63,3 +63,5 @@ CSTToken* link_child(CSTToken* parent, CSTToken* token);
 CSTToken* get_linked(CSTToken* ref);
 
 CSTToken* get_linked_from_var_init(std::vector<std::unique_ptr<CSTToken>>& tokens);
+
+LexToken* get_token_at_position(std::vector<std::unique_ptr<CSTToken>>& tokens, const Position& position);

@@ -181,13 +181,13 @@ public:
 					completion.resolveProvider = true;
 					capabilities.completionProvider = completion;
 				}
-//				std::pair< boost::optional<bool>, boost::optional<WorkDoneProgressOptions> > option;
-//				option.first = true;
+				std::pair< optional<bool>, optional<WorkDoneProgressOptions> > option;
+				option.first = true;
 
-//				if (!clientPreferences->isDefinitionDynamicRegistered())
-//				{
-//					capabilities.definitionProvider = option;
-//				}
+				if (!clientPreferences->isDefinitionDynamicRegistered())
+				{
+					capabilities.definitionProvider = { true, std::nullopt };
+				}
 				if (!clientPreferences->isFoldgingRangeDynamicRegistered())
 				{
 					capabilities.foldingRangeProvider = std::pair< optional<bool>, optional<FoldingRangeOptions> >();
@@ -324,22 +324,15 @@ public:
 ////				}
 //                    return std::move(rsp);
 //                });
-//        _sp.registerHandler(
-//                [&](const td_definition::request &req, const CancelMonitor &monitor)
-//                        -> lsp::ResponseOrError<td_definition::response> {
-//                    _log.log(lsp::Log::Level::INFO, "td_definition");
-//                    if (need_initialize_error) {
-//                        return need_initialize_error.value();
-//                    }
-////				RequestMonitor _requestMonitor(exit_monitor, monitor);
-////				auto unit = GetUnit(req.params.textDocument);
-//                    td_definition::response rsp;
-////				rsp.result.first = std::vector<lsLocation>();
-////				if (unit){
-////					process_definition(unit, req.params.pos, rsp.result.first.value(), &_requestMonitor);
-////				}
-//                    return std::move(rsp);
-//                });
+        _sp.registerHandler(
+                [&](const td_definition::request &req, const CancelMonitor &monitor)
+                        -> lsp::ResponseOrError<td_definition::response> {
+                    _log.log(lsp::Log::Level::INFO, "td_definition");
+                    if (need_initialize_error) {
+                        return need_initialize_error.value();
+                    }
+                return manager.get_definition(req.params.textDocument.uri, req.params.position);;
+        });
 //
         _sp.registerHandler([&](const td_symbol::request &req) -> lsp::ResponseOrError<td_symbol::response> {
             _log.log(lsp::Log::Level::INFO, "td_symbol");

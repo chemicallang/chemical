@@ -12,10 +12,14 @@
 #include "LibLsp/lsp/textDocument/completion.h"
 #include "server/analyzers/CompletionItemAnalyzer.h"
 #include "LibLsp/lsp/textDocument/SemanticTokens.h"
+#include "LibLsp/lsp/textDocument/did_change.h"
+#include "LibLsp/lsp/textDocument/declaration_definition.h"
+#include "LibLsp/lsp/AbsolutePath.h"
+#include "server/analyzers/GotoDefAnalyzer.h"
 
 #define DEBUG_REPLACE false
 
-std::optional<std::string> WorkspaceManager::get_overridden_source(const std::string& path) {
+std::optional<std::string> WorkspaceManager::get_overridden_source(const std::string &path) {
     if (overriddenSources.contains(path)) {
         return overriddenSources[path];
     } else {
@@ -23,25 +27,48 @@ std::optional<std::string> WorkspaceManager::get_overridden_source(const std::st
     }
 }
 
-td_foldingRange::response WorkspaceManager::get_folding_range(const std::string& abs_path) {
+td_foldingRange::response WorkspaceManager::get_folding_range(const std::string &abs_path) {
     td_foldingRange::response rsp;
-    auto& tokens = get_lexed_tokens(abs_path);
+    auto &tokens = get_lexed_tokens(abs_path);
     FoldingRangeAnalyzer analyzer;
     analyzer.analyze(tokens);
     rsp.result = std::move(analyzer.ranges);
     return rsp;
 }
 
-td_completion::response WorkspaceManager::get_completion(const std::string &abs_path, unsigned int line, unsigned int character) {
+td_completion::response WorkspaceManager::get_completion(
+        const std::string &abs_path,
+        unsigned int line,
+        unsigned int character
+) {
     auto unit = get_import_unit(abs_path);
-    CompletionItemAnalyzer analyzer(std::pair(line, character));
+    CompletionItemAnalyzer analyzer({ line, character });
     td_completion::response rsp;
     rsp.result = analyzer.analyze(&unit);
     return std::move(rsp);
 }
 
+td_definition::response WorkspaceManager::get_definition(const lsDocumentUri &uri, const lsPosition &position) {
+    auto unit = get_import_unit(uri.GetAbsolutePath().path);
+    GotoDefAnalyzer analyzer({position.line, position.character});
+    td_definition::response rsp;
+    rsp.result.first.emplace();
+    auto analyzed = analyzer.analyze(&unit);
+    for (auto &loc: analyzed) {
+        rsp.result.first.value().push_back(lsLocation{
+                lsDocumentUri(AbsolutePath(loc.path)),
+                {
+                        {static_cast<int>(loc.range.start.line), static_cast<int>(loc.range.start.character)},
+                        {static_cast<int>(loc.range.end.line), static_cast<int>(loc.range.end.character)}
+                }
+        });
+    }
+    return rsp;
+}
+
 void
-WorkspaceManager::onChangedContents(const std::string &path, const std::vector<lsTextDocumentContentChangeEvent> &changes) {
+WorkspaceManager::onChangedContents(const std::string &path,
+                                    const std::vector<lsTextDocumentContentChangeEvent> &changes) {
 
     // no changes return !
     if (changes.empty()) {
@@ -127,7 +154,7 @@ void replace(
 
     std::string nextSource;
 
-    if(DEBUG_REPLACE) std::cout << "reading:";
+    if (DEBUG_REPLACE) std::cout << "reading:";
 
     auto not_replaced = true;
 
@@ -135,19 +162,20 @@ void replace(
         if (not_replaced && (provider.getLineNumber() == lineStart && provider.getLineCharNumber() == charStart)) {
 
             // forwarding to the end without adding character
-            if(DEBUG_REPLACE) std::cout << "[fwd]:[";
-            while (!provider.eof() && !(provider.getLineNumber() == lineEnd && provider.getLineCharNumber() == charEnd)) {
-                if(DEBUG_REPLACE) {
+            if (DEBUG_REPLACE) std::cout << "[fwd]:[";
+            while (!provider.eof() &&
+                   !(provider.getLineNumber() == lineEnd && provider.getLineCharNumber() == charEnd)) {
+                if (DEBUG_REPLACE) {
                     std::cout << provider.readCharacter();
                 } else {
                     provider.readCharacter();
                 }
             }
-            if(DEBUG_REPLACE) std::cout << ']';
+            if (DEBUG_REPLACE) std::cout << ']';
 
             // adding replacement
             nextSource += replacement;
-            if(DEBUG_REPLACE) std::cout << "[rep]:[" << replacement << ']';
+            if (DEBUG_REPLACE) std::cout << "[rep]:[" << replacement << ']';
 
             // replaced
             not_replaced = false;
@@ -155,11 +183,11 @@ void replace(
         } else {
             auto c = provider.readCharacter();
             nextSource += c;
-            if(DEBUG_REPLACE) std::cout << c;
+            if (DEBUG_REPLACE) std::cout << c;
         }
     }
 
-    if(DEBUG_REPLACE) std::cout << '\n';
+    if (DEBUG_REPLACE) std::cout << '\n';
 
     source = nextSource;
 

@@ -19,20 +19,6 @@ void CompletionItemAnalyzer::put(const std::string &label, lsCompletionItemKind 
     list.items.emplace_back(label, kind);
 }
 
-bool CompletionItemAnalyzer::is_ahead(Position &position) const {
-    return position.line > caret_position.first ||
-           (position.line == caret_position.first && position.character > caret_position.second);
-}
-
-bool CompletionItemAnalyzer::is_behind(Position& position) const {
-    return position.line < caret_position.first ||
-           (position.line == caret_position.first && position.character < caret_position.second);
-}
-
-bool CompletionItemAnalyzer::is_eq_caret(Position& position) const {
-    return position.line == caret_position.first && position.character == caret_position.second;
-}
-
 bool CompletionItemAnalyzer::is_eq_caret(LexToken* token) const {
     return is_eq_caret(token->position);
 }
@@ -373,7 +359,7 @@ CompletionList CompletionItemAnalyzer::analyze(ImportUnit* unit) {
             if(!file->tokens.empty()) { // not last file
                 // set caret position at the end of file, so all tokens are analyzed
                 auto& pos = file->tokens[file->tokens.size() - 1]->end_token()->position;
-                caret_position = std::pair(pos.line + 2, 0);
+                caret_position = {pos.line + 2, 0};
             } else {
                 i++;
                 continue;

@@ -14,5 +14,12 @@ namespace td_semanticTokens_full {
     struct response;
 }
 
+namespace td_definition {
+    struct response;
+}
+
 struct lsDocumentUri;
 struct SemanticToken;
+struct lsPosition;
+struct lsTextDocumentContentChangeEvent;
+struct lsLocation;

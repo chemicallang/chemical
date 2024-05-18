@@ -23,6 +23,7 @@ std::shared_ptr<LexResult> WorkspaceManager::get_lexed(const std::string& path) 
     }
     auto overridden_source = get_overridden_source(path);
     auto result = std::make_shared<LexResult>();
+    result->abs_path = path;
     if (overridden_source.has_value()) {
         std::istringstream iss(overridden_source.value());
         SourceProvider reader(iss);

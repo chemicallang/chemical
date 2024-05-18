@@ -52,9 +52,7 @@ bool Lexer::lexTypeTokens() {
         return true;
     }
 
-    auto type = lexAnything([&] () -> bool {
-        return std::isalpha(provider.peek());
-    });
+    auto type = provider.readIdentifier();
     if (!type.empty()) {
         unsigned start = tokens.size();
         tokens.emplace_back(std::make_unique<TypeToken>(backPosition(type.length()), type));

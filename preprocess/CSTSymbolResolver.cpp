@@ -6,6 +6,7 @@
 #include "cst/values/AccessChainCST.h"
 #include "integration/ide/model/ImportUnit.h"
 #include "integration/ide/model/LexResult.h"
+#include "compiler/PrimitiveTypeMap.h"
 #include <iostream>
 #include "lexer/model/tokens/RefToken.h"
 
@@ -108,7 +109,15 @@ void CSTSymbolResolver::visitIndexOp(CompoundCSTToken *cst) {
 }
 
 void CSTSymbolResolver::visitTypeToken(LexToken *token) {
-    resolve_symbol((RefToken*) token);
+    auto found = find(token->value);
+    if(found) {
+        token->as_ref()->linked = found;
+    } else {
+        auto prim = TypeMakers::PrimitiveMap.find(token->value);
+        if(prim == TypeMakers::PrimitiveMap.end()) {
+            error("unresolved symbol found '" + token->value + "'", token);
+        }
+    }
 }
 
 void CSTSymbolResolver::resolve(ImportUnit* unit) {

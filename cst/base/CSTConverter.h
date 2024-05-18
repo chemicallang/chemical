@@ -69,17 +69,6 @@ public:
     std::vector<Diag> diagnostics;
 
     /**
-     * primitive type provide is a function when given a type in string format
-     * like 'int' it will create a AST BaseType
-     */
-    typedef BaseType*(*PrimitiveTypeProvider)(CSTConverter*);
-
-    /**
-     * primitive type map that is initialized when visitor is initialized
-     */
-    std::unordered_map<std::string, PrimitiveTypeProvider> primitive_type_map;
-
-    /**
      * This is a pointer to current function declaration
      * All nodes being parsed belong to this function's body
      */

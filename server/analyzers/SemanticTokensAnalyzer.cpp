@@ -8,7 +8,7 @@
 #include <unordered_set>
 #include "cst/base/CompoundCSTToken.h"
 #include "cst/utils/CSTUtils.h"
-#include "lexer/model/tokens/VariableToken.h"
+#include "lexer/model/tokens/RefToken.h"
 #include "cst/values/AccessChainCST.h"
 
 #define DEBUG false
@@ -222,7 +222,7 @@ void SemanticTokensAnalyzer::put_as_type(CSTToken* token, LexTokenType type) {
 }
 
 void SemanticTokensAnalyzer::visitVariableToken(LexToken *token) {
-    auto t = ((VariableToken*) token);
+    auto t = ((RefToken*) token);
     if(t->linked) {
         put_as_type(token, t->linked->type());
     } else {
@@ -234,7 +234,7 @@ void SemanticTokensAnalyzer::visitAccessChain(AccessChainCST *chain) {
     chain->tokens[0]->accept(this);
     if(chain->tokens.size() == 1) return;
     unsigned i = 1;
-    CSTToken* parent = ((VariableToken*) chain->tokens[0].get())->linked;
+    CSTToken* parent = chain->tokens[0]->as_ref()->linked;
     CSTToken* token;
     while(i < chain->tokens.size()) {
         token = chain->tokens[i].get();
@@ -244,7 +244,7 @@ void SemanticTokensAnalyzer::visitAccessChain(AccessChainCST *chain) {
             } else {
                 token->accept(this);
             }
-            parent = token->as_variable()->linked;
+            parent = token->as_ref()->linked;
         } else {
             token->accept(this);
         }

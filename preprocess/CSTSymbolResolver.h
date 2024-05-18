@@ -30,7 +30,7 @@ public:
     /**
      * resolves the symbol, if not found, puts an error
      */
-    void resolve_symbol(VariableToken* token);
+    void resolve_symbol(RefToken* token);
 
     /**
      * resolve an import unit
@@ -65,5 +65,7 @@ public:
     void visitFunctionCall(CompoundCSTToken *call) override;
 
     void visitIndexOp(CompoundCSTToken *op) override;
+
+    void visitTypeToken(LexToken *token) override;
 
 };

@@ -11,7 +11,7 @@
 #include "cst/utils/CSTUtils.h"
 #include "integration/ide/model/ImportUnit.h"
 #include "integration/ide/model/LexResult.h"
-#include "lexer/model/tokens/VariableToken.h"
+#include "lexer/model/tokens/RefToken.h"
 
 #define DEBUG_COMPLETION true
 
@@ -267,6 +267,22 @@ void CompletionItemAnalyzer::put_identifiers(std::vector<std::unique_ptr<CSTToke
     }
 }
 
+void collect_struct_functions(
+        CompletionItemAnalyzer* analyzer,
+        std::vector<std::unique_ptr<CSTToken>>& tokens,
+        unsigned i
+) {
+    CSTToken* token;
+    while(i < tokens.size()) {
+        token = tokens[i].get();
+        if(token->is_func_decl()) {
+            // TODO collect function if it doesn't have a self member
+            analyzer->put(str_token(((CompoundCSTToken*) token)->tokens[1].get()), lsCompletionItemKind::Function);
+        }
+        i++;
+    }
+}
+
 void collect_struct_members(
         CompletionItemAnalyzer* analyzer,
         std::vector<std::unique_ptr<CSTToken>>& tokens,
@@ -275,28 +291,40 @@ void collect_struct_members(
     CSTToken* token;
     while(i < tokens.size()) {
         token = tokens[i].get();
-        if(token->is_var_init()) {
-            analyzer->put(str_token(((CompoundCSTToken*) token)->tokens[1].get()), lsCompletionItemKind::Variable);
-        } else if(token->is_func_decl()) {
+        if(token->is_func_decl() || token->is_var_init()) {
             analyzer->put(str_token(((CompoundCSTToken*) token)->tokens[1].get()), lsCompletionItemKind::Function);
         }
         i++;
     }
 }
 
-bool put_children(CompletionItemAnalyzer* analyzer, CSTToken* parent) {
+bool put_children(CompletionItemAnalyzer* analyzer, CSTToken* parent, bool put_values = false) {
     switch(parent->type()) {
         case LexTokenType::CompEnumDecl:
             analyzer->put_identifiers(parent->as_compound()->tokens, 2);
             return true;
         case LexTokenType::CompStructDef:
         case LexTokenType::CompInterface:
-            collect_struct_members(
+            (put_values ? (collect_struct_members) : (collect_struct_functions))(
                     analyzer,
                     parent->as_compound()->tokens,
                     (is_char_op(parent->as_compound()->tokens[2].get(), ':')) ? 5 : 3
             );
             return true;
+        case LexTokenType::CompVarInit: {
+            auto has_type = is_char_op(parent->as_compound()->tokens[2].get(), ':');
+            if (has_type) {
+                auto linked = get_linked(parent->as_compound()->tokens[3].get());
+                if(linked) {
+                    return put_children(analyzer, linked, true);
+                } else {
+                    return false;
+                }
+            } else {
+                // TODO use the value
+                return false;
+            }
+        }
         default:
             return false;
     }
@@ -305,7 +333,7 @@ bool put_children(CompletionItemAnalyzer* analyzer, CSTToken* parent) {
 bool put_children_of_ref(CompletionItemAnalyzer* analyzer, CSTToken* parent) {
     switch(parent->type()) {
         case LexTokenType::Variable:{
-            auto linked = ((VariableToken *) parent)->linked;
+            auto linked = ((RefToken *) parent)->linked;
             if(linked) {
                 put_children(analyzer, linked);
                 return true;

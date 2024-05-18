@@ -6,12 +6,12 @@
 
 #pragma once
 
-#include "LexToken.h"
+#include "RefToken.h"
 
-class TypeToken : public LexToken {
+class TypeToken : public RefToken {
 public:
 
-    using LexToken::LexToken;
+    using RefToken::RefToken;
 
     LexTokenType type() const override {
         return LexTokenType::Type;

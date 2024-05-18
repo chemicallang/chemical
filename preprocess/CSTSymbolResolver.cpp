@@ -4,10 +4,10 @@
 #include "CSTSymbolResolver.h"
 #include "cst/utils/CSTUtils.h"
 #include "cst/values/AccessChainCST.h"
-#include "lexer/model/tokens/VariableToken.h"
 #include "integration/ide/model/ImportUnit.h"
 #include "integration/ide/model/LexResult.h"
 #include <iostream>
+#include "lexer/model/tokens/RefToken.h"
 
 void CSTSymbolResolver::declare(LexToken *token, CSTToken *node) {
     auto &last = current.back();
@@ -71,7 +71,7 @@ void CSTSymbolResolver::visitAccessChain(AccessChainCST *chain) {
     chain->tokens[0]->accept(this);
     if(chain->tokens.size() == 1) return;
     unsigned i = 1;
-    CSTToken* parent = ((VariableToken*) chain->tokens[0].get())->linked;
+    CSTToken* parent = ((RefToken*) chain->tokens[0].get())->linked;
     CSTToken* token;
     while(i < chain->tokens.size()) {
         token = chain->tokens[i].get();
@@ -86,7 +86,7 @@ void CSTSymbolResolver::visitAccessChain(AccessChainCST *chain) {
     }
 }
 
-void CSTSymbolResolver::resolve_symbol(VariableToken* token) {
+void CSTSymbolResolver::resolve_symbol(RefToken* token) {
     auto found = find(token->value);
     if(found) {
         token->linked = found;
@@ -96,15 +96,19 @@ void CSTSymbolResolver::resolve_symbol(VariableToken* token) {
 }
 
 void CSTSymbolResolver::visitVariableToken(LexToken *token) {
-    resolve_symbol((VariableToken*) token);
+    resolve_symbol((RefToken*) token);
 }
 
 void CSTSymbolResolver::visitFunctionCall(CompoundCSTToken *cst) {
-    resolve_symbol((VariableToken*) cst->tokens[0].get());
+
 }
 
 void CSTSymbolResolver::visitIndexOp(CompoundCSTToken *cst) {
-    resolve_symbol((VariableToken*) cst->tokens[0].get());
+
+}
+
+void CSTSymbolResolver::visitTypeToken(LexToken *token) {
+    resolve_symbol((RefToken*) token);
 }
 
 void CSTSymbolResolver::resolve(ImportUnit* unit) {

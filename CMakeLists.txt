@@ -383,6 +383,8 @@ set(COMMON_SOURCES
         common/Location.h
         common/Range.h
         server/analyzers/GotoDefAnalyzer.cpp
+        server/analyzers/HoverAnalyzer.h
+        server/analyzers/HoverAnalyzer.cpp
 )
 
 # Chemical LSP Executable Target

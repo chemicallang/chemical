@@ -107,6 +107,11 @@ public:
     td_definition::response get_definition(const lsDocumentUri& uri, const lsPosition& position);
 
     /**
+     * get a hover response in the given document at position
+     */
+    td_hover::response get_hover(const lsDocumentUri& uri, const lsPosition& position);
+
+    /**
      * this will publish given diagnostics
      */
     void publish_diagnostics(const std::string& path, bool async, const std::vector<std::vector<Diag>*>& diags);

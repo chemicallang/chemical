@@ -6,20 +6,12 @@
 
 #pragma once
 
-#include "LexToken.h"
+#include "RefToken.h"
 
-class VariableToken : public LexToken {
+class VariableToken : public RefToken {
 public:
 
-    /**
-     * the linked token, it can be null
-     * that's the difference between identifier and variable tokens, variable
-     * tokens can be linked with their definitions (e.g a var init statement)
-     * to link the tokens, CSTSymbolResolver is used.
-     */
-    CSTToken* linked = nullptr;
-
-    using LexToken::LexToken;
+    using RefToken::RefToken;
 
     void accept(CSTVisitor *visitor) override {
         visitor->visitVariableToken(this);

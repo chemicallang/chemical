@@ -4,6 +4,8 @@
 
 class CSTToken;
 
+class RefToken;
+
 class CompoundCSTToken;
 
 class LexToken;

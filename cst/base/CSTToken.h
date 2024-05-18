@@ -83,6 +83,13 @@ public:
     }
 
     /**
+     * get the token as a ref token
+     */
+    inline RefToken* as_ref() {
+        return (RefToken*) this;
+    }
+
+    /**
      * is the token var init compound token
      */
     bool is_var_init() {

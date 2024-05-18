@@ -59,3 +59,5 @@ inline void visit(CSTVisitor* visitor, std::vector<std::unique_ptr<CSTToken>>& t
 CSTToken* find_identifier(std::vector<std::unique_ptr<CSTToken>>& tokens, const std::string& identifier, unsigned start = 0);
 
 CSTToken* link_child(CSTToken* parent, CSTToken* token);
+
+CSTToken* get_linked(CSTToken* ref);

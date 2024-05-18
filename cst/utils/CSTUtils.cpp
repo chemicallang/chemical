@@ -9,6 +9,10 @@ bool is_var_init_const(CompoundCSTToken* cst) {
     return str_token(cst->tokens[0].get()) == "const";
 }
 
+std::string param_name(CompoundCSTToken* param) {
+    return str_token(param->tokens[is_char_op(param->tokens[0].get(), '&') ? 1 : 0].get());
+}
+
 void visit(CSTVisitor* visitor, std::vector<std::unique_ptr<CSTToken>>& tokens, unsigned int start, unsigned int end) {
     while(start < end) {
         tokens[start]->accept(visitor);

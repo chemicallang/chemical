@@ -48,6 +48,20 @@ inline std::string func_name(CompoundCSTToken* func) {
     return str_token(func->tokens[1].get());
 }
 
+inline std::string enum_name(CompoundCSTToken* _enum) {
+    return str_token(_enum->tokens[1].get());
+}
+
+inline std::string struct_name(CompoundCSTToken* _struct) {
+    return str_token(_struct->tokens[1].get());
+}
+
+inline std::string interface_name(CompoundCSTToken* interface) {
+    return str_token(interface->tokens[1].get());
+}
+
+std::string param_name(CompoundCSTToken* param);
+
 bool is_var_init_const(CompoundCSTToken* cst);
 
 void visit(CSTVisitor* visitor, std::vector<std::unique_ptr<CSTToken>>& tokens, unsigned int start, unsigned int end);

@@ -7,6 +7,10 @@
 #include "cst/base/CompoundCSTToken.h"
 #include "lexer/model/tokens/CharOperatorToken.h"
 
+class ImportUnit;
+
+class LexResult;
+
 inline std::string str_token(CSTToken *token) {
     return static_cast<LexToken *>(token)->value;
 }
@@ -65,3 +69,15 @@ CSTToken* get_linked(CSTToken* ref);
 CSTToken* get_linked_from_var_init(std::vector<std::unique_ptr<CSTToken>>& tokens);
 
 LexToken* get_token_at_position(std::vector<std::unique_ptr<CSTToken>>& tokens, const Position& position);
+
+/**
+ * will look for token in a lex result, and if found will return it, can be useful
+ * to find which file a token belongs to, since lex result provides absolute path to it
+ */
+LexResult* find_container(ImportUnit* unit, CSTToken* token);
+
+/**
+ * will find the parent compound token of the given token in the ImportUnit, can be useful
+ *  to find the parent of a enum member (identifier token), which is a enum token
+ */
+//CompoundCSTToken* find_parent(ImportUnit* unit, CSTToken* token);

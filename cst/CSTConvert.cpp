@@ -5,16 +5,9 @@
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/statements/VarInit.h"
 #include "ast/types/IntNType.h"
-#include "ast/types/StringType.h"
-#include "ast/types/BoolType.h"
-#include "ast/types/CharType.h"
-#include "ast/types/FloatType.h"
 #include "ast/types/VoidType.h"
 #include "ast/types/PointerType.h"
 #include "ast/types/FunctionType.h"
-#include "ast/types/AnyType.h"
-#include "ast/types/DoubleType.h"
-#include "lexer/model/tokens/TypeToken.h"
 #include "ast/types/ReferencedType.h"
 #include "ast/statements/Assignment.h"
 #include "cst/values/AccessChainCST.h"
@@ -36,12 +29,10 @@
 #include "ast/values/NotValue.h"
 #include "ast/values/AddrOfValue.h"
 #include "ast/values/DereferenceValue.h"
-#include "lexer/model/tokens/StringToken.h"
 #include "lexer/model/tokens/CharToken.h"
 #include "ast/values/VariableIdentifier.h"
 #include "lexer/model/tokens/OperationToken.h"
 #include "lexer/model/tokens/VariableToken.h"
-#include "lexer/model/tokens/BoolToken.h"
 #include "ast/statements/Import.h"
 #include "ast/structures/TryCatch.h"
 #include "ast/structures/EnumDeclaration.h"
@@ -72,20 +63,11 @@
 #include "cst/base/CSTConverter.h"
 #include "ast/values/CastedValue.h"
 #include "cst/utils/ValueAndOperatorStack.h"
-#include "ast/types/IntType.h"
-#include "ast/types/UIntType.h"
-#include "ast/types/ShortType.h"
-#include "ast/types/UShortType.h"
-#include "ast/types/BigIntType.h"
-#include "ast/types/UBigIntType.h"
-#include "ast/types/ULongType.h"
-#include "ast/types/LongType.h"
 #include "ast/values/NumberValue.h"
-#include "ast/types/Int128Type.h"
-#include "ast/types/UInt128Type.h"
 #include "utils/StringHelpers.h"
 #include "utils/CSTUtils.h"
 #include <functional>
+#include "compiler/PrimitiveTypeMap.h"
 
 Operation get_operation(CSTToken *token) {
     auto op = (OperationToken*) token;
@@ -110,57 +92,7 @@ Scope take_body(CSTConverter *conv, CSTToken *token) {
 
 // TODO support _128bigint, bigfloat
 CSTConverter::CSTConverter(bool is64Bit) : is64Bit(is64Bit) {
-    primitive_type_map["any"] = [](CSTConverter* converter) -> BaseType * {
-        return new AnyType();
-    };
-    primitive_type_map["bool"] = [](CSTConverter* converter) -> BaseType * {
-        return new BoolType();
-    };
-    primitive_type_map["char"] = [](CSTConverter* converter) -> BaseType * {
-        return new CharType();
-    };
-    primitive_type_map["double"] = [](CSTConverter* converter) -> BaseType * {
-        return new DoubleType();
-    };
-    primitive_type_map["float"] = [](CSTConverter* converter) -> BaseType * {
-        return new FloatType();
-    };
-    primitive_type_map["int"] = [](CSTConverter* converter) -> BaseType * {
-        return new IntType();
-    };
-    primitive_type_map["uint"] = [](CSTConverter* converter) -> BaseType * {
-        return new UIntType();
-    };
-    primitive_type_map["short"] = [](CSTConverter* converter) -> BaseType * {
-        return new ShortType();
-    };
-    primitive_type_map["ushort"] = [](CSTConverter* converter) -> BaseType * {
-        return new UShortType();
-    };
-    primitive_type_map["long"] = [](CSTConverter* converter) -> BaseType * {
-        return new LongType(converter->is64Bit);
-    };
-    primitive_type_map["ulong"] = [](CSTConverter* converter) -> BaseType * {
-        return new ULongType(converter->is64Bit);
-    };
-    primitive_type_map["bigint"] = [](CSTConverter* converter) -> BaseType * {
-        return new BigIntType();
-    };
-    primitive_type_map["ubigint"] = [](CSTConverter* converter) -> BaseType * {
-        return new UBigIntType();
-    };
-    primitive_type_map["__int128"] = [](CSTConverter* converter) -> BaseType * {
-        return new Int128Type();
-    };
-    primitive_type_map["__uint128"] = [](CSTConverter* converter) -> BaseType * {
-        return new UInt128Type();
-    };
-    primitive_type_map["string"] = [](CSTConverter* converter) -> BaseType * {
-        return new StringType();
-    };
-    primitive_type_map["void"] = [](CSTConverter* converter) -> BaseType * {
-        return new VoidType();
-    };
+
 }
 
 void CSTConverter::visit(std::vector<std::unique_ptr<CSTToken>> &tokens, unsigned int start, unsigned int end) {
@@ -400,11 +332,11 @@ void CSTConverter::visitTypealias(CompoundCSTToken *alias) {
 }
 
 void CSTConverter::visitTypeToken(LexToken *token) {
-    auto primitive = primitive_type_map.find(token->value);
-    if (primitive == primitive_type_map.end()) {
+    auto primitive = TypeMakers::PrimitiveMap.find(token->value);
+    if (primitive == TypeMakers::PrimitiveMap.end()) {
         types.emplace_back(std::make_unique<ReferencedType>(token->value));
     } else {
-        types.emplace_back(std::unique_ptr<BaseType>(primitive->second(this)));
+        types.emplace_back(std::unique_ptr<BaseType>(primitive->second(is64Bit)));
     }
 }
 

@@ -73,6 +73,10 @@ void CSTSymbolResolver::visitAccessChain(AccessChainCST *chain) {
     if(chain->tokens.size() == 1) return;
     unsigned i = 1;
     CSTToken* parent = ((RefToken*) chain->tokens[0].get())->linked;
+    if(!parent) {
+        error("unresolved symbol not found '" + chain->tokens[0]->representation(), chain->tokens[0].get());
+        return;
+    }
     CSTToken* token;
     while(i < chain->tokens.size()) {
         token = chain->tokens[i].get();

@@ -312,16 +312,10 @@ bool put_children(CompletionItemAnalyzer* analyzer, CSTToken* parent, bool put_v
             );
             return true;
         case LexTokenType::CompVarInit: {
-            auto has_type = is_char_op(parent->as_compound()->tokens[2].get(), ':');
-            if (has_type) {
-                auto linked = get_linked(parent->as_compound()->tokens[3].get());
-                if(linked) {
-                    return put_children(analyzer, linked, true);
-                } else {
-                    return false;
-                }
+            auto linked = get_linked_from_var_init(parent->as_compound()->tokens);
+            if(linked) {
+                return put_children(analyzer, linked, true);
             } else {
-                // TODO use the value
                 return false;
             }
         }

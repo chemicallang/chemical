@@ -62,6 +62,11 @@ public:
     /**
      * will return true, if given position is ahead of caret position
      */
+    bool is_behind(Position& position) const;
+
+    /**
+     * will return true, if given position is ahead of caret position
+     */
     bool is_ahead(LexToken* token) const;
 
     /**

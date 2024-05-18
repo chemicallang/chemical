@@ -24,6 +24,11 @@ bool CompletionItemAnalyzer::is_ahead(Position &position) const {
            (position.line == caret_position.first && position.character > caret_position.second);
 }
 
+bool CompletionItemAnalyzer::is_behind(Position& position) const {
+    return position.line < caret_position.first ||
+           (position.line == caret_position.first && position.character < caret_position.second);
+}
+
 bool CompletionItemAnalyzer::is_eq_caret(Position& position) const {
     return position.line == caret_position.first && position.character == caret_position.second;
 }
@@ -37,7 +42,7 @@ bool CompletionItemAnalyzer::is_ahead(LexToken *token) const {
 }
 
 bool CompletionItemAnalyzer::is_caret_inside(CSTToken *token) {
-    return !is_ahead(token->start_token()->position) && is_ahead(token->end_token()->position);
+    return is_behind(token->start_token()->position) && !is_behind(token->end_token()->position);
 }
 
 CompoundCSTToken *CompletionItemAnalyzer::child_container(CompoundCSTToken *compound) {
@@ -262,12 +267,36 @@ void CompletionItemAnalyzer::put_identifiers(std::vector<std::unique_ptr<CSTToke
     }
 }
 
+void collect_struct_members(
+        CompletionItemAnalyzer* analyzer,
+        std::vector<std::unique_ptr<CSTToken>>& tokens,
+        unsigned i
+) {
+    CSTToken* token;
+    while(i < tokens.size()) {
+        token = tokens[i].get();
+        if(token->is_var_init()) {
+            analyzer->put(str_token(((CompoundCSTToken*) token)->tokens[1].get()), lsCompletionItemKind::Variable);
+        } else if(token->is_func_decl()) {
+            analyzer->put(str_token(((CompoundCSTToken*) token)->tokens[1].get()), lsCompletionItemKind::Function);
+        }
+        i++;
+    }
+}
+
 bool put_children(CompletionItemAnalyzer* analyzer, CSTToken* parent) {
     switch(parent->type()) {
-        case LexTokenType::CompEnumDecl:{
+        case LexTokenType::CompEnumDecl:
             analyzer->put_identifiers(parent->as_compound()->tokens, 2);
             return true;
-        }
+        case LexTokenType::CompStructDef:
+        case LexTokenType::CompInterface:
+            collect_struct_members(
+                    analyzer,
+                    parent->as_compound()->tokens,
+                    (is_char_op(parent->as_compound()->tokens[2].get(), ':')) ? 5 : 3
+            );
+            return true;
         default:
             return false;
     }

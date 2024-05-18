@@ -26,6 +26,20 @@ CSTToken* find_identifier(std::vector<std::unique_ptr<CSTToken>>& tokens, const 
     return nullptr;
 }
 
+CSTToken* find_func_or_var_init(std::vector<std::unique_ptr<CSTToken>>& tokens, const std::string& name, unsigned start) {
+    CSTToken* token;
+    while(start < tokens.size()) {
+        token = tokens[start].get();
+        if(token->is_var_init() || token->is_func_decl()) {
+            if(str_token(token->as_compound()->tokens[1].get()) == name) {
+                return token;
+            }
+        }
+        start++;
+    }
+    return nullptr;
+}
+
 CSTToken* link_child(CSTToken* parent, CSTToken* token) {
     switch(parent->type()) {
         case LexTokenType::CompEnumDecl:
@@ -34,6 +48,12 @@ CSTToken* link_child(CSTToken* parent, CSTToken* token) {
             }
             ((VariableToken*) token)->linked = find_identifier(parent->as_compound()->tokens, token->as_lex_token()->value, 3);
             return ((VariableToken*) token)->linked;
+        case LexTokenType::CompStructDef:
+        case LexTokenType::CompInterface:
+            if(token->type() != LexTokenType::Variable) {
+                return nullptr;
+            }
+            return find_func_or_var_init(parent->as_compound()->tokens, token->as_lex_token()->value, 3);
         default:
             return nullptr;
     }

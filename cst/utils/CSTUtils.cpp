@@ -2,6 +2,8 @@
 
 #include "CSTUtils.h"
 #include "lexer/model/tokens/RefToken.h"
+#include "integration/ide/model/ImportUnit.h"
+#include "integration/ide/model/LexResult.h"
 
 bool is_var_init_const(CompoundCSTToken* cst) {
     return str_token(cst->tokens[0].get()) == "const";
@@ -104,6 +106,16 @@ LexToken* get_token_at_position(std::vector<std::unique_ptr<CSTToken>>& tokens, 
             }
         } else if(!position.is_behind(token->as_lex_token()->position) && position.line == token->as_lex_token()->position.line && (position.character < (token->as_lex_token()->position.character + token->as_lex_token()->value.size()))) {
             return token->as_lex_token();
+        }
+    }
+    return nullptr;
+}
+
+LexResult* find_container(ImportUnit* unit, CSTToken* token) {
+    for(auto& file : unit->files) {
+        auto result = get_token_at_position(file->tokens, token->start_token()->position);
+        if(result && result->start_token() == token->start_token()) {
+            return file.get();
         }
     }
     return nullptr;

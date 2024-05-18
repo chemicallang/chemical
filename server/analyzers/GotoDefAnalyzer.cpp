@@ -15,14 +15,15 @@ std::vector<Location> GotoDefAnalyzer::analyze(ImportUnit* unit) {
     auto token = get_token_at_position(file->tokens, position);
     if(token && token->is_ref()) {
         auto where = token->as_ref()->linked;
+        auto container = find_container(unit, where);
+        if(!container) return {};
         return {
             Location{
                 Range {
                     where->start_token()->position,
                     where->end_token()->position
                 },
-                // TODO we don't know in which file the linked token is, for now current file is being used
-                file->abs_path
+                container->abs_path
             }
         };
     } else {

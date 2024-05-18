@@ -95,3 +95,16 @@ CSTToken* link_child(CSTToken* parent, CSTToken* token) {
             return nullptr;
     }
 }
+
+LexToken* get_token_at_position(std::vector<std::unique_ptr<CSTToken>>& tokens, const Position& position) {
+    for(auto& token : tokens) {
+        if(token->compound()) {
+            if(!position.is_behind(token->start_token()->position) && !position.is_ahead(token->end_token()->position)) {
+                return get_token_at_position(token->as_compound()->tokens, position);
+            }
+        } else if(!position.is_behind(token->as_lex_token()->position) && position.line == token->as_lex_token()->position.line && (position.character < (token->as_lex_token()->position.character + token->as_lex_token()->value.size()))) {
+            return token->as_lex_token();
+        }
+    }
+    return nullptr;
+}

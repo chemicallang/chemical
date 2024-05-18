@@ -8,10 +8,11 @@
 
 #include "LibLsp/lsp/lsp_completion.h"
 #include "cst/base/CSTVisitor.h"
+#include "common/Position.h"
 
 class Position;
 
-using caret_pos_type = std::pair<unsigned int, unsigned int>;
+using caret_pos_type = Position;
 
 class ImportUnit;
 
@@ -23,7 +24,7 @@ public:
      * The first indicates the line number (zero based)
      * The second indicates the character number (also zero based)
      */
-    caret_pos_type caret_position;
+    Position caret_position;
 
     /**
      * all the items that were found when analyzer completed
@@ -56,23 +57,32 @@ public:
 
     /**
      * will return true, if given position is ahead of caret position
+     * @deprecated
      */
-    bool is_ahead(Position& position) const;
+    inline bool is_ahead(Position& position) const {
+        return position.is_ahead(caret_position);
+    }
 
     /**
-     * will return true, if given position is ahead of caret position
+     * will return true, if given position is behind caret position
+     * @deprecated
      */
-    bool is_behind(Position& position) const;
+    inline bool is_behind(Position& position) const {
+        return position.is_behind(caret_position);
+    }
+
+    /**
+     * is equal to caret position
+     * @deprecated
+     */
+    inline bool is_eq_caret(Position& position) const {
+        return position.is_equal(caret_position);
+    }
 
     /**
      * will return true, if given position is ahead of caret position
      */
     bool is_ahead(LexToken* token) const;
-
-    /**
-     * is equal to caret position
-     */
-    bool is_eq_caret(Position& position) const;
 
     /**
      * is token position equal to caret position

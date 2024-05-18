@@ -12,7 +12,6 @@
 #include <unordered_map>
 #include "lexer/model/tokens/LexToken.h"
 #include "lexer/Lexi.h"
-#include "LibLsp/lsp/textDocument/did_change.h"
 #include "utils/lspfwd.h"
 #include "integration/ide/model/LexResult.h"
 #include "integration/ide/model/ImportUnit.h"
@@ -101,6 +100,11 @@ public:
      * get semantic tokens full response for the given document uri
      */
     td_semanticTokens_full::response get_semantic_tokens_full(const lsDocumentUri& uri);
+
+    /**
+     * get definition at position in the given document
+     */
+    td_definition::response get_definition(const lsDocumentUri& uri, const lsPosition& position);
 
     /**
      * this will publish given diagnostics

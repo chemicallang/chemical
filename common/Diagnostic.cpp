@@ -2,6 +2,20 @@
 
 #include "Diagnostic.h"
 
+bool Position::is_ahead(const Position& position) const {
+    return line > position.line ||
+           (line == position.line && character > position.character);
+}
+
+bool Position::is_behind(const Position& position) const {
+    return line < position.line ||
+           (line == position.line && character < position.character);
+}
+
+bool Position::is_equal(const Position& position) const {
+    return line == position.line && character == position.character;
+}
+
 std::string color(DiagSeverity severity) {
     switch (severity) {
         case DiagSeverity::Error:

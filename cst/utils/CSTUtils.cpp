@@ -84,7 +84,8 @@ CSTToken* link_child(CSTToken* parent, CSTToken* token) {
             if(token->type() != LexTokenType::Variable) {
                 return nullptr;
             }
-            return find_func_or_var_init(parent->as_compound()->tokens, token->as_lex_token()->value, 3);
+            ((RefToken*) token)->linked =  find_func_or_var_init(parent->as_compound()->tokens, token->as_lex_token()->value, 3);
+            return ((RefToken*) token)->linked;
         case LexTokenType::CompVarInit: {
             auto linked = get_linked_from_var_init(parent->as_compound()->tokens);
             if (linked) {

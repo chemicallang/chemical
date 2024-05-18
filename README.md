@@ -42,12 +42,12 @@ very innovative things are planned.
   - [x] Basic syntax highlighting
   - [x] Basic completion items
   - [x] Basic diagnostics
-  - [ ] Imported Files support
-  - [ ] Resolve symbol support
+  - [x] Imported Files support
+  - [x] Resolve symbol support
   - [ ] Improved diagnostics support
-  - [ ] Semantic highlighting
+  - [x] Semantic highlighting
   - [ ] Member access completion items
-  - [ ] Hover doc support
+  - [x] Hover doc support
   - [ ] Find usages support
   - [ ] Refactor rename
 - [x] Native Codegen (mostly done)

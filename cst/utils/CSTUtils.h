@@ -61,3 +61,5 @@ CSTToken* find_identifier(std::vector<std::unique_ptr<CSTToken>>& tokens, const 
 CSTToken* link_child(CSTToken* parent, CSTToken* token);
 
 CSTToken* get_linked(CSTToken* ref);
+
+CSTToken* get_linked_from_var_init(std::vector<std::unique_ptr<CSTToken>>& tokens);

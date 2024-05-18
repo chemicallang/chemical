@@ -50,6 +50,25 @@ CSTToken* get_linked(CSTToken* ref) {
     }
 }
 
+CSTToken* get_linked_from_value(CSTToken* value) {
+    switch(value->type()) {
+        case LexTokenType::CompStructValue:
+            return get_linked(value->as_compound()->tokens[0].get());
+        default:
+            return nullptr;
+    }
+}
+
+CSTToken* get_linked_from_var_init(std::vector<std::unique_ptr<CSTToken>>& tokens) {
+    if (is_char_op(tokens[2].get(), ':')) {
+        return get_linked(tokens[3].get());
+    } else if(is_char_op(tokens[2].get(), '=')) {
+        return get_linked_from_value(tokens[3].get());
+    } else {
+        return nullptr;
+    }
+}
+
 CSTToken* link_child(CSTToken* parent, CSTToken* token) {
     switch(parent->type()) {
         case LexTokenType::CompEnumDecl:
@@ -64,18 +83,14 @@ CSTToken* link_child(CSTToken* parent, CSTToken* token) {
                 return nullptr;
             }
             return find_func_or_var_init(parent->as_compound()->tokens, token->as_lex_token()->value, 3);
-        case LexTokenType::CompVarInit:
-            if (is_char_op(parent->as_compound()->tokens[2].get(), ':')) {
-                auto linked = get_linked(parent->as_compound()->tokens[3].get());
-                if(linked) {
-                    return link_child(linked, token);
-                } else {
-                    return nullptr;
-                }
+        case LexTokenType::CompVarInit: {
+            auto linked = get_linked_from_var_init(parent->as_compound()->tokens);
+            if (linked) {
+                return link_child(linked, token);
             } else {
-                // TODO use the value
                 return nullptr;
             }
+        }
         default:
             return nullptr;
     }

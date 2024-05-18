@@ -18,6 +18,10 @@ namespace td_definition {
     struct response;
 }
 
+namespace td_hover {
+    struct response;
+}
+
 struct lsDocumentUri;
 struct SemanticToken;
 struct lsPosition;

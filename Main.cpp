@@ -171,10 +171,10 @@ public:
             textDocumentSync.second = options;
             capabilities.textDocumentSync = textDocumentSync;
 
-//			    if(!clientPreferences->isHoverDynamicRegistered())
-//			    {
-//					capabilities.hoverProvider = true;
-//			    }
+			    if(!clientPreferences->isHoverDynamicRegistered())
+			    {
+					capabilities.hoverProvider = true;
+			    }
 				if (!clientPreferences->isCompletionDynamicRegistered())
 				{
 					lsCompletionOptions completion;
@@ -349,38 +349,7 @@ public:
                     if (need_initialize_error) {
                         return need_initialize_error.value();
                     }
-                    td_hover::response rsp;
-                    /*	if(req_back.params.uri == req.params.uri && req_back.params.pos == req.params.pos && req_back.params.textDocument.uri == req.params.textDocument.uri)
-                        {
-                            return std::move(rsp);
-                        }
-                        else
-                        {
-                            req_back = req;
-                        }*/
-//				RequestMonitor _requestMonitor(exit_monitor, monitor);
-//				auto unit = GetUnit(req.params.textDocument);
-
-//				if (unit)
-//				{
-//					process_hover(unit, req.params.pos, rsp.result, &_requestMonitor);
-//					if(_requestMonitor.isCancelled())
-//					{
-//						rsp.result.contents.second.reset();
-//						rsp.result.contents.first = TextDocumentHover::Left();
-//						return std::move(rsp);
-//					}
-//					if(!rsp.result.contents.first.has_value() && !rsp.result.contents.second.has_value())
-//					{
-//						rsp.result.contents.first = TextDocumentHover::Left();
-//					}
-//				}
-//				else
-//				{
-//					rsp.result.contents.first = TextDocumentHover::Left();
-//				}
-
-                    return std::move(rsp);
+                    return manager.get_hover(req.params.textDocument.uri, req.params.position);
                 });
         _sp.registerHandler([&](const td_completion::request &req, const CancelMonitor &monitor)
                                     -> lsp::ResponseOrError<td_completion::response> {

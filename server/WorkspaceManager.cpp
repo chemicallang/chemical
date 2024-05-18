@@ -16,6 +16,8 @@
 #include "LibLsp/lsp/textDocument/declaration_definition.h"
 #include "LibLsp/lsp/AbsolutePath.h"
 #include "server/analyzers/GotoDefAnalyzer.h"
+#include "LibLsp/lsp/textDocument/hover.h"
+#include "server/analyzers/HoverAnalyzer.h"
 
 #define DEBUG_REPLACE false
 
@@ -62,6 +64,17 @@ td_definition::response WorkspaceManager::get_definition(const lsDocumentUri &ur
                         {static_cast<int>(loc.range.end.line), static_cast<int>(loc.range.end.character)}
                 }
         });
+    }
+    return rsp;
+}
+
+td_hover::response WorkspaceManager::get_hover(const lsDocumentUri& uri, const lsPosition& position) {
+    auto unit = get_import_unit(uri.GetAbsolutePath().path);
+    td_hover::response rsp;
+    HoverAnalyzer analyzer({position.line, position.character});
+    auto value = analyzer.markdown_hover(&unit);
+    if(!value.empty()) {
+        rsp.result.contents.second.emplace("markdown", std::move(value));
     }
     return rsp;
 }

@@ -81,6 +81,7 @@ void CSTSymbolResolver::visitAccessChain(AccessChainCST *chain) {
             parent = link_child(parent, token);
             if(!parent) {
                 error("unresolved symbol not found '" + token->representation() + "'", token);
+                break;
             }
         }
         i++;

@@ -239,7 +239,7 @@ void SemanticTokensAnalyzer::visitAccessChain(AccessChainCST *chain) {
     while(i < chain->tokens.size()) {
         token = chain->tokens[i].get();
         if(token->type() == LexTokenType::Variable) {
-            if(parent->type() == LexTokenType::CompEnumDecl) {
+            if(parent && parent->type() == LexTokenType::CompEnumDecl) {
                 put(token, SemanticTokenType::ls_enumMember);
             } else {
                 token->accept(this);

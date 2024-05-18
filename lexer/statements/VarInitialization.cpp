@@ -48,6 +48,9 @@ bool Lexer::lexVarInitializationTokens(bool allowDeclarations, bool requiredType
         // whitespace
         lexWhitespaceToken();
 
+    } else if(requiredType) {
+        error("expected ':' for type");
+        return true;
     }
 
     // equal sign

@@ -17,18 +17,18 @@ std::vector<Location> GotoDefAnalyzer::analyze(ImportUnit* unit) {
         auto where = token->as_ref()->linked;
         if(where) {
             auto container = find_container(unit, where);
-            if(!container) return {};
-            return {
-                Location{
-                    Range {
-                        where->start_token()->position,
-                        where->end_token()->position
-                    },
-                    container->abs_path
-                }
-            };
+            if(container) {
+                return {
+                    Location{
+                        Range {
+                            where->start_token()->position,
+                            where->end_token()->position
+                        },
+                        container->abs_path
+                    }
+                };
+            }
         }
-    } else {
-        return {};
     }
+    return {};
 }

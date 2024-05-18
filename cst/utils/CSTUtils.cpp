@@ -98,15 +98,27 @@ CSTToken* link_child(CSTToken* parent, CSTToken* token) {
     }
 }
 
+// checks that the given position is behind the given token's end
+bool is_behind_end_of(const Position& position, LexToken* token) {
+    return position.line < token->position.line || (position.line == token->position.line && (position.character < (token->position.character + token->value.size())));
+}
+
 LexToken* get_token_at_position(std::vector<std::unique_ptr<CSTToken>>& tokens, const Position& position) {
-    for(auto& token : tokens) {
+    unsigned i = 0;
+    CSTToken* token;
+    while(i < tokens.size()) {
+        token = tokens[i].get();
+        if(token->compound() && token->as_compound()->tokens.size() == 1) {
+            token = token->as_compound()->tokens[0].get();
+        }
         if(token->compound()) {
-            if(!position.is_behind(token->start_token()->position) && !position.is_ahead(token->end_token()->position)) {
+            if(!position.is_behind(token->start_token()->position) && is_behind_end_of(position, token->end_token())) {
                 return get_token_at_position(token->as_compound()->tokens, position);
             }
         } else if(!position.is_behind(token->as_lex_token()->position) && position.line == token->as_lex_token()->position.line && (position.character < (token->as_lex_token()->position.character + token->as_lex_token()->value.size()))) {
             return token->as_lex_token();
         }
+        i++;
     }
     return nullptr;
 }

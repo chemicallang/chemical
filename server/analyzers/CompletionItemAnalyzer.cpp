@@ -12,11 +12,16 @@
 #include "integration/ide/model/ImportUnit.h"
 #include "integration/ide/model/LexResult.h"
 #include "lexer/model/tokens/RefToken.h"
+#include "Documentation.h"
 
 #define DEBUG_COMPLETION true
 
 void CompletionItemAnalyzer::put(const std::string &label, lsCompletionItemKind kind) {
     list.items.emplace_back(label, kind);
+}
+
+void CompletionItemAnalyzer::put_with_md_doc(const std::string& label, lsCompletionItemKind kind, const std::string& detail, const std::string& doc) {
+    list.items.emplace_back(label, kind, detail, std::pair(std::nullopt, MarkupContent{ "markdown", doc }));
 }
 
 bool CompletionItemAnalyzer::is_eq_caret(LexToken* token) const {
@@ -253,17 +258,33 @@ void CompletionItemAnalyzer::put_identifiers(std::vector<std::unique_ptr<CSTToke
     }
 }
 
+void put_with_doc(CompletionItemAnalyzer* analyzer, const std::string& label, lsCompletionItemKind kind, CompoundCSTToken* token, CompoundCSTToken* parent) {
+    std::string doc;
+    markdown_documentation(doc, analyzer->current_file, nullptr, parent, token);
+    std::string detail;
+    small_detail_of(detail, token);
+    analyzer->put_with_md_doc(label, kind, detail, doc);
+}
+
+void put_function_with_doc(CompletionItemAnalyzer* analyzer, CompoundCSTToken* token, CompoundCSTToken* parent) {
+    put_with_doc(analyzer, str_token(((CompoundCSTToken*) token)->tokens[1].get()), lsCompletionItemKind::Function, token, parent);
+}
+
+void put_var_init_with_doc(CompletionItemAnalyzer* analyzer, CompoundCSTToken* token, CompoundCSTToken* parent) {
+    put_with_doc(analyzer, str_token(((CompoundCSTToken*) token)->tokens[1].get()), lsCompletionItemKind::Variable, token, parent);
+}
+
 void collect_struct_functions(
         CompletionItemAnalyzer* analyzer,
-        std::vector<std::unique_ptr<CSTToken>>& tokens,
+        CompoundCSTToken* parent,
         unsigned i
 ) {
     CSTToken* token;
-    while(i < tokens.size()) {
-        token = tokens[i].get();
+    while(i < parent->tokens.size()) {
+        token = parent->tokens[i].get();
         if(token->is_func_decl()) {
-            // TODO collect function if it doesn't have a self member
-            analyzer->put(str_token(((CompoundCSTToken*) token)->tokens[1].get()), lsCompletionItemKind::Function);
+            // TODO collect function if it doesn't have a self | this member
+            put_function_with_doc(analyzer, token->as_compound(), parent);
         }
         i++;
     }
@@ -271,14 +292,16 @@ void collect_struct_functions(
 
 void collect_struct_members(
         CompletionItemAnalyzer* analyzer,
-        std::vector<std::unique_ptr<CSTToken>>& tokens,
+        CompoundCSTToken* parent,
         unsigned i
 ) {
     CSTToken* token;
-    while(i < tokens.size()) {
-        token = tokens[i].get();
-        if(token->is_func_decl() || token->is_var_init()) {
-            analyzer->put(str_token(((CompoundCSTToken*) token)->tokens[1].get()), token->is_func_decl() ? lsCompletionItemKind::Function : lsCompletionItemKind::Variable);
+    while(i < parent->tokens.size()) {
+        token = parent->tokens[i].get();
+        if(token->is_func_decl()) {
+            put_function_with_doc(analyzer, token->as_compound(), parent);
+        } else if(token->is_var_init()) {
+            put_var_init_with_doc(analyzer, token->as_compound(), parent);
         }
         i++;
     }
@@ -293,7 +316,7 @@ bool put_children(CompletionItemAnalyzer* analyzer, CSTToken* parent, bool put_v
         case LexTokenType::CompInterface:
             (put_values ? (collect_struct_members) : (collect_struct_functions))(
                     analyzer,
-                    parent->as_compound()->tokens,
+                    parent->as_compound(),
                     (is_char_op(parent->as_compound()->tokens[2].get(), ':')) ? 5 : 3
             );
             return true;
@@ -382,6 +405,7 @@ CompletionList CompletionItemAnalyzer::analyze(ImportUnit* unit) {
                 continue;
             }
         }
+        current_file = file.get();
         visit(file->tokens);
         i++;
     }

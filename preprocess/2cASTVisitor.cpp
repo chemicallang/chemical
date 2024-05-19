@@ -549,7 +549,7 @@ void ToCAstVisitor::visit(BigIntType *func) {
 }
 
 void ToCAstVisitor::visit(BoolType *func) {
-    write("bool");
+    write("_Bool");
 }
 
 void ToCAstVisitor::visit(CharType *func) {

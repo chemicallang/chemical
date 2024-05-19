@@ -79,7 +79,7 @@ std::string HoverAnalyzer::markdown_hover(ImportUnit *unit) {
                 switch (linked->type()) {
                     case LexTokenType::CompFunction: {
                         value += "```typescript\n";
-                        value += "function " + func_name(linked->as_compound());
+                        value += "func " + func_name(linked->as_compound());
                         auto signature = get_signature(linked->as_compound());
                         value += '(';
                         unsigned i = 0;
@@ -130,6 +130,13 @@ std::string HoverAnalyzer::markdown_hover(ImportUnit *unit) {
                         } else {
                             // TODO get type by value
                         }
+                        value += "\n```";
+                        break;
+                    case LexTokenType::CompTypealias:
+                        value += "```typescript\n";
+                        value += "typealias " + typealias_name(linked->as_compound());
+                        value += " = ";
+                        linked->as_compound()->tokens[3]->append_representation(value);
                         value += "\n```";
                         break;
                     default:

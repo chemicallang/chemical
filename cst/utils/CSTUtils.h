@@ -44,6 +44,10 @@ inline std::string var_init_identifier(CompoundCSTToken* cst) {
     return str_token(cst->tokens[1].get());
 }
 
+inline std::string typealias_name(CompoundCSTToken* cst) {
+    return str_token(cst->tokens[1].get());
+}
+
 inline std::string func_name(CompoundCSTToken* func) {
     return str_token(func->tokens[1].get());
 }

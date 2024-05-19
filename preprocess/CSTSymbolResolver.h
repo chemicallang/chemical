@@ -48,6 +48,8 @@ public:
 
     void visitVarInit(CompoundCSTToken *varInit) override;
 
+    void visitTypealias(CompoundCSTToken *alias) override;
+
     void visitFunction(CompoundCSTToken *function) override;
 
     void visitEnumDecl(CompoundCSTToken *enumDecl) override;

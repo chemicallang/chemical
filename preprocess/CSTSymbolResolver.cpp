@@ -35,6 +35,11 @@ void CSTSymbolResolver::visitVarInit(CompoundCSTToken *cst) {
     ::visit(this, cst->tokens, 2);
 }
 
+void CSTSymbolResolver::visitTypealias(CompoundCSTToken *cst) {
+    declare(cst->tokens[1].get(), cst);
+    ::visit(this, cst->tokens, 2);
+}
+
 void CSTSymbolResolver::visitFunction(CompoundCSTToken *cst) {
     declare(cst->tokens[1].get(), cst);
     scope_start();

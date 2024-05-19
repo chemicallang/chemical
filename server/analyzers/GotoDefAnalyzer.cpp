@@ -18,11 +18,12 @@ std::vector<Location> GotoDefAnalyzer::analyze(ImportUnit* unit) {
         if(where) {
             auto container = find_containing_file(unit, where);
             if(container) {
+                auto end = where->end_token();
                 return {
                     Location{
                         Range {
                             where->start_token()->position,
-                            where->end_token()->position
+                            {end->position.line, static_cast<unsigned int>(end->position.character + where->end_token()->value.size())}
                         },
                         container->abs_path
                     }

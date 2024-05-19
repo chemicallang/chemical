@@ -108,6 +108,26 @@ bool is_behind_end_of(const Position& position, LexToken* token) {
     return position.line < token->position.line || (position.line == token->position.line && (position.character < (token->position.character + token->value.size())));
 }
 
+token_with_parent get_token_at_position(CompoundCSTToken* container, std::vector<std::unique_ptr<CSTToken>>& tokens, const Position& position) {
+    unsigned i = 0;
+    CSTToken* token;
+    while(i < tokens.size()) {
+        token = tokens[i].get();
+        if(token->compound() && token->as_compound()->tokens.size() == 1) {
+            token = token->as_compound()->tokens[0].get();
+        }
+        if(token->compound()) {
+            if(!position.is_behind(token->start_token()->position) && is_behind_end_of(position, token->end_token())) {
+                return get_token_at_position(token->as_compound(), token->as_compound()->tokens, position);
+            }
+        } else if(!position.is_behind(token->as_lex_token()->position) && position.line == token->as_lex_token()->position.line && (position.character < (token->as_lex_token()->position.character + token->as_lex_token()->value.size()))) {
+            return {container,i};
+        }
+        i++;
+    }
+    return {nullptr, -1};
+}
+
 LexToken* get_token_at_position(std::vector<std::unique_ptr<CSTToken>>& tokens, const Position& position) {
     unsigned i = 0;
     CSTToken* token;
@@ -128,7 +148,7 @@ LexToken* get_token_at_position(std::vector<std::unique_ptr<CSTToken>>& tokens, 
     return nullptr;
 }
 
-LexResult* find_container(ImportUnit* unit, CSTToken* token) {
+LexResult* find_containing_file(ImportUnit* unit, CSTToken* token) {
     for(auto& file : unit->files) {
         auto result = get_token_at_position(file->tokens, token->start_token()->position);
         if(result && result->start_token() == token->start_token()) {
@@ -136,4 +156,19 @@ LexResult* find_container(ImportUnit* unit, CSTToken* token) {
         }
     }
     return nullptr;
+}
+
+token_parent_file find_token_parent(ImportUnit* unit, CSTToken* token) {
+    token_with_parent result;
+    CSTToken* found;
+    for(auto& file : unit->files) {
+        result = get_token_at_position(nullptr, file->tokens, token->start_token()->position);
+        if(result.second != -1) {
+            found = result.first ? result.first->tokens[result.second].get() : file->tokens[result.second].get();
+            if (found->start_token() == token->start_token()) {
+                return { file.get(), result };
+            }
+        }
+    }
+    return { nullptr, { nullptr, -1 } };
 }

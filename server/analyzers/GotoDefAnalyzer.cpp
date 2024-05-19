@@ -16,7 +16,7 @@ std::vector<Location> GotoDefAnalyzer::analyze(ImportUnit* unit) {
     if(token && token->is_ref()) {
         auto where = token->as_ref()->linked;
         if(where) {
-            auto container = find_container(unit, where);
+            auto container = find_containing_file(unit, where);
             if(container) {
                 return {
                     Location{

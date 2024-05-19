@@ -82,16 +82,39 @@ CSTToken* get_linked(CSTToken* ref);
 
 CSTToken* get_linked_from_var_init(std::vector<std::unique_ptr<CSTToken>>& tokens);
 
+/**
+ * first is the container token, which is the direct parent of the token
+ * the second is the index in the tokens vector present in the first compound token
+ */
+using token_with_parent = std::pair<CompoundCSTToken*, unsigned int>;
+
+/**
+ * get the token's parent and index into it's tokens vector at where the token at given position is located
+ * will return nullptr and -1 if not present
+ * @param container this can be a nullptr but it's the token that will be returned, if the token has no parent !
+ * @param tokens the vector in which to look for the position
+ * @param position the position at which token should exist
+ */
+token_with_parent get_token_at_position(CompoundCSTToken* container, std::vector<std::unique_ptr<CSTToken>>& tokens, const Position& position);
+
+/**
+ * get the token at position or nullptr
+ */
 LexToken* get_token_at_position(std::vector<std::unique_ptr<CSTToken>>& tokens, const Position& position);
 
 /**
  * will look for token in a lex result, and if found will return it, can be useful
  * to find which file a token belongs to, since lex result provides absolute path to it
  */
-LexResult* find_container(ImportUnit* unit, CSTToken* token);
+LexResult* find_containing_file(ImportUnit* unit, CSTToken* token);
 
 /**
- * will find the parent compound token of the given token in the ImportUnit, can be useful
- *  to find the parent of a enum member (identifier token), which is a enum token
+ * it will provide token with parent and also a pointer to file
+ * so it gives you 1. token, 2. it's parent token, 3. the file it belongs to
  */
-//CompoundCSTToken* find_parent(ImportUnit* unit, CSTToken* token);
+using token_parent_file = std::pair<LexResult*, token_with_parent>;
+
+/**
+ * given a token, it'll find the file it belongs to and it's parent and index in it's parent
+ */
+token_parent_file find_token_parent(ImportUnit* unit, CSTToken* token);

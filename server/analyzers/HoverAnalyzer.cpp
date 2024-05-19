@@ -5,6 +5,7 @@
 #include "integration/ide/model/ImportUnit.h"
 #include "integration/ide/model/LexResult.h"
 #include "lexer/model/tokens/RefToken.h"
+#include <filesystem>
 
 HoverAnalyzer::HoverAnalyzer(Position position) : position(position) {
 
@@ -12,46 +13,69 @@ HoverAnalyzer::HoverAnalyzer(Position position) : position(position) {
 
 struct FuncParam {
     std::string name;
-    CSTToken* type;
+    CSTToken *type;
 };
 
 struct FuncSignature {
     // function params, name's and type tokens
     std::vector<FuncParam> params;
     // if function signature has a given return type (user wrote it)
-    CSTToken* returnType;
+    CSTToken *returnType;
 };
 
-FuncSignature get_signature(CompoundCSTToken* func) {
+FuncSignature get_signature(CompoundCSTToken *func) {
     std::vector<FuncParam> params;
     unsigned i = 2;
-    CSTToken* token;
-    while(i < func->tokens.size()) {
+    CSTToken *token;
+    while (i < func->tokens.size()) {
         token = func->tokens[i].get();
-        if(token->type() == LexTokenType::CompFunctionParam) {
+        if (token->type() == LexTokenType::CompFunctionParam) {
             params.emplace_back(
-                param_name(token->as_compound()),
-                2 < token->as_compound()->tokens.size() ? token->as_compound()->tokens[2].get() : nullptr
+                    param_name(token->as_compound()),
+                    2 < token->as_compound()->tokens.size() ? token->as_compound()->tokens[2].get() : nullptr
             );
-        } else if(is_char_op(token, ')')) {
+        } else if (is_char_op(token, ')')) {
             break;
         }
         i++;
     }
-    CSTToken* ret = nullptr;
-    if(is_char_op(func->tokens[i + 1].get(), ':')) {
+    CSTToken *ret = nullptr;
+    if (is_char_op(func->tokens[i + 1].get(), ':')) {
         ret = func->tokens[i + 2].get();
     }
     return {std::move(params), ret};
 }
 
-std::string HoverAnalyzer::markdown_hover(ImportUnit* unit) {
+std::string HoverAnalyzer::markdown_hover(ImportUnit *unit) {
     auto file = unit->files[unit->files.size() - 1];
     auto token = get_token_at_position(file->tokens, position);
-    if(token) {
-        if(token->is_ref()) {
+    if (token) {
+        if (token->is_ref()) {
             auto linked = token->as_ref()->linked;
             if (linked) {
+                bool parent_handled = false;
+                auto parent = find_token_parent(unit, linked);
+                if (parent.first != nullptr) {
+                    if (parent.first != file.get()) { // defined in same file
+                        auto relative_path = std::filesystem::relative(
+                                std::filesystem::path(parent.first->abs_path),
+                                std::filesystem::path(file->abs_path).parent_path()
+                        );
+                        value += "**Defined in** : " + relative_path.string() + "\n";
+                    }
+                    if (parent.second.first->type() == LexTokenType::CompEnumDecl &&
+                        linked->type() != LexTokenType::CompEnumDecl) {
+                        value += "```typescript\n";
+                        value += "enum " + enum_name(parent.second.first);
+                        value += "\n```\n";
+                        value += "```typescript\n";
+                        value += enum_name(parent.second.first);
+                        value += ".";
+                        linked->append_representation(value);
+                        value += "\n```";
+                        parent_handled = true;
+                    }
+                }
                 switch (linked->type()) {
                     case LexTokenType::CompFunction: {
                         value += "```typescript\n";
@@ -59,17 +83,17 @@ std::string HoverAnalyzer::markdown_hover(ImportUnit* unit) {
                         auto signature = get_signature(linked->as_compound());
                         value += '(';
                         unsigned i = 0;
-                        FuncParam* param;
-                        while(i < signature.params.size()) {
+                        FuncParam *param;
+                        while (i < signature.params.size()) {
                             param = &signature.params[i];
-                            if(param->type) {
+                            if (param->type) {
                                 value += param->name;
                                 value += " : ";
                                 param->type->append_representation(value);
-                            } else if(param->name == "self") {
+                            } else if (param->name == "self") {
                                 value += "&self";
                             }
-                            if(i != signature.params.size() - 1) {
+                            if (i != signature.params.size() - 1) {
                                 value += ", ";
                             }
                             i++;
@@ -100,7 +124,7 @@ std::string HoverAnalyzer::markdown_hover(ImportUnit* unit) {
                     case LexTokenType::CompVarInit:
                         value += "```typescript\n";
                         value += "var " + var_init_identifier(linked->as_compound());
-                        if(is_char_op(linked->as_compound()->tokens[2].get(), ':')) {
+                        if (is_char_op(linked->as_compound()->tokens[2].get(), ':')) {
                             value += " : ";
                             linked->as_compound()->tokens[3]->append_representation(value);
                         } else {
@@ -109,7 +133,9 @@ std::string HoverAnalyzer::markdown_hover(ImportUnit* unit) {
                         value += "\n```";
                         break;
                     default:
-                        value += "don't know what it is";
+                        if (!parent_handled) {
+                            value += "don't know what it is";
+                        }
                         break;
                 }
             } else {

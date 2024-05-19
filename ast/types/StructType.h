@@ -17,6 +17,10 @@ public:
 
     }
 
+    void accept(Visitor *visitor) override {
+        visitor->visit(this);
+    }
+
     BaseTypeKind kind() const override {
         return BaseTypeKind::Struct;
     }

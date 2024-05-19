@@ -27,8 +27,8 @@ public:
             std::string name
     );
 
-    void accept(Visitor &visitor) override {
-        visitor.visit(this);
+    void accept(Visitor *visitor) override {
+        visitor->visit(this);
     }
 
     void declare_top_level(SymbolResolver &linker) override;

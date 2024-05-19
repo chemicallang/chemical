@@ -9,6 +9,10 @@ public:
 
     std::unique_ptr<BaseType> create_child_type() const override;
 
+    void accept(Visitor *visitor) override {
+        visitor->visit(this);
+    }
+
     bool satisfies(ValueType type) const override {
         return type == ValueType::String;
     }

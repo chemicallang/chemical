@@ -84,8 +84,8 @@ std::unique_ptr<BaseType> VarInitStatement::create_value_type() {
     }
 }
 
-void VarInitStatement::accept(Visitor &visitor) {
-    visitor.visit(this);
+void VarInitStatement::accept(Visitor *visitor) {
+    visitor->visit(this);
 }
 
 VarInitStatement *VarInitStatement::as_var_init() {

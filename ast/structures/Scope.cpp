@@ -17,8 +17,8 @@ Scope::Scope(std::vector<std::unique_ptr<ASTNode>> nodes) : nodes(std::move(node
 
 Scope::Scope(Scope &&other) : nodes(std::move(other.nodes)) {}
 
-void Scope::accept(Visitor &visitor) {
-    visitor.visit(this);
+void Scope::accept(Visitor *visitor) {
+    visitor->visit(this);
 }
 
 void Scope::declare_top_level(SymbolResolver &linker) {

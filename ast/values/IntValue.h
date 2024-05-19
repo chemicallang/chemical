@@ -23,8 +23,8 @@ public:
      */
     IntValue(int value) : value(value) {}
 
-    void accept(Visitor &visitor) override {
-        visitor.visit(this);
+    void accept(Visitor *visitor) override {
+        visitor->visit(this);
     }
 
     std::string representation() const override {

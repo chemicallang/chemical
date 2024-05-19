@@ -24,7 +24,7 @@ public:
 
     void declare_and_link(SymbolResolver &linker) override;
 
-    void accept(Visitor &visitor) override;
+    void accept(Visitor *visitor) override;
 
     std::string representation() const override;
 

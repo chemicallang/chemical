@@ -13,8 +13,8 @@
 class NullValue : public Value {
 public:
 
-    void accept(Visitor &visitor) override {
-        visitor.visit(this);
+    void accept(Visitor *visitor) override {
+        visitor->visit(this);
     }
 
     std::string representation() const {

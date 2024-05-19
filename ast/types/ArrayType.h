@@ -17,6 +17,10 @@ public:
 
     }
 
+    void accept(Visitor *visitor) override {
+        visitor->visit(this);
+    }
+
     std::unique_ptr<BaseType> create_child_type() const override {
         return std::unique_ptr<BaseType>(elem_type->copy());
     }

@@ -28,8 +28,8 @@ void ImportStatement::declare_top_level(SymbolResolver &linker) {
 
 }
 
-void ImportStatement::accept(Visitor &visitor) {
-    visitor.visit(this);
+void ImportStatement::accept(Visitor *visitor) {
+    visitor->visit(this);
 }
 
 std::string ImportStatement::representation() const {

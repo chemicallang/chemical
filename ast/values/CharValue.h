@@ -22,8 +22,8 @@ public:
      */
     CharValue(char value) : value(value) {}
 
-    void accept(Visitor &visitor) override {
-        visitor.visit(this);
+    void accept(Visitor *visitor) override {
+        visitor->visit(this);
     }
 
     std::unique_ptr<BaseType> create_type() const override {
@@ -68,6 +68,5 @@ public:
         return BaseTypeKind::Char;
     }
 
-private:
     char value; ///< The character value.
 };

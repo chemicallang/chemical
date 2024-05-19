@@ -29,7 +29,7 @@ public:
             std::optional<std::unique_ptr<Value>> value
     );
 
-    void accept(Visitor &visitor) override;
+    void accept(Visitor *visitor) override;
 
 #ifdef COMPILER_BUILD
 

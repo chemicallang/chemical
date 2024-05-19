@@ -6,6 +6,8 @@
 
 class ASTNode;
 
+class BaseType;
+
 class VarInitStatement;
 
 class AssignStatement;
@@ -120,7 +122,51 @@ class TernaryValue;
 
 class LambdaFunction;
 
-using func_params = std::vector<std::unique_ptr<FunctionParam>>;
+class AnyType;
+
+class ArrayType;
+
+class BigIntType;
+
+class BoolType;
+
+class CharType;
+
+class DoubleType;
+
+class FloatType;
+
+class FunctionType;
+
+class GenericType;
+
+class Int128Type;
+
+class IntType;
+
+class LongType;
+
+class PointerType;
+
+class ReferencedType;
+
+class ShortType;
+
+class StringType;
+
+class StructType;
+
+class UBigIntType;
+
+class UInt128Type;
+
+class UIntType;
+
+class ULongType;
+
+class UShortType;
+
+class VoidType;
 
 // Visitor Class
 
@@ -132,6 +178,10 @@ public:
     }
 
     virtual void visitCommonValue(Value* value) {
+        // do nothing
+    }
+
+    virtual void visitCommonType(BaseType* value) {
         // do nothing
     }
 
@@ -351,6 +401,98 @@ public:
 
     virtual void visit(LambdaFunction* func) {
         visitCommonValue((Value*) func);
+    }
+
+    virtual void visit(AnyType* func) {
+        visitCommonType((BaseType*) func);
+    }
+
+    virtual void visit(ArrayType* func) {
+        visitCommonType((BaseType*) func);
+    }
+
+    virtual void visit(BigIntType* func) {
+        visitCommonType((BaseType*) func);
+    }
+
+    virtual void visit(BoolType* func) {
+        visitCommonType((BaseType*) func);
+    }
+
+    virtual void visit(CharType* func) {
+        visitCommonType((BaseType*) func);
+    }
+
+    virtual void visit(DoubleType* func) {
+        visitCommonType((BaseType*) func);
+    }
+
+    virtual void visit(FloatType* func) {
+        visitCommonType((BaseType*) func);
+    }
+
+    virtual void visit(FunctionType* func) {
+        visitCommonType((BaseType*) func);
+    }
+
+    virtual void visit(GenericType* func) {
+        visitCommonType((BaseType*) func);
+    }
+
+    virtual void visit(Int128Type* func) {
+        visitCommonType((BaseType*) func);
+    }
+
+    virtual void visit(IntType* func) {
+        visitCommonType((BaseType*) func);
+    }
+
+    virtual void visit(LongType* func) {
+        visitCommonType((BaseType*) func);
+    }
+
+    virtual void visit(PointerType* func) {
+        visitCommonType((BaseType*) func);
+    }
+
+    virtual void visit(ReferencedType* func) {
+        visitCommonType((BaseType*) func);
+    }
+
+    virtual void visit(ShortType* func) {
+        visitCommonType((BaseType*) func);
+    }
+
+    virtual void visit(StringType* func) {
+        visitCommonType((BaseType*) func);
+    }
+
+    virtual void visit(StructType* func) {
+        visitCommonType((BaseType*) func);
+    }
+
+    virtual void visit(UBigIntType* func) {
+        visitCommonType((BaseType*) func);
+    }
+
+    virtual void visit(UInt128Type* func) {
+        visitCommonType((BaseType*) func);
+    }
+
+    virtual void visit(UIntType* func) {
+        visitCommonType((BaseType*) func);
+    }
+
+    virtual void visit(ULongType* func) {
+        visitCommonType((BaseType*) func);
+    }
+
+    virtual void visit(UShortType* func) {
+        visitCommonType((BaseType*) func);
+    }
+
+    virtual void visit(VoidType* func) {
+        visitCommonType((BaseType*) func);
     }
 
 };

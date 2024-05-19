@@ -24,8 +24,8 @@ AssignStatement::AssignStatement(
         Operation assOp
 ) : lhs(std::move(lhs)), value(std::move(value)), assOp(assOp) {}
 
-void AssignStatement::accept(Visitor &visitor) {
-    visitor.visit(this);
+void AssignStatement::accept(Visitor *visitor) {
+    visitor->visit(this);
 }
 
 void AssignStatement::declare_and_link(SymbolResolver &linker) {

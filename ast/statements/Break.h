@@ -18,8 +18,8 @@ public:
 
     void interpret(InterpretScope &scope) override;
 
-    void accept(Visitor &visitor) override {
-        visitor.visit(this);
+    void accept(Visitor *visitor) override {
+        visitor->visit(this);
     }
 
 #ifdef COMPILER_BUILD

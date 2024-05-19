@@ -18,7 +18,7 @@ public:
         std::optional<Scope> defScope
     );
 
-    void accept(Visitor &visitor) override;
+    void accept(Visitor *visitor) override;
 
     void declare_and_link(SymbolResolver &linker) override;
 

@@ -35,8 +35,8 @@ public:
      */
     VariableIdentifier(std::string value) : value(std::move(value)) {}
 
-    void accept(Visitor &visitor) override {
-        visitor.visit(this);
+    void accept(Visitor *visitor) override {
+        visitor->visit(this);
     }
 
     VariableIdentifier *as_identifier() override {

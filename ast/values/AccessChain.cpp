@@ -59,8 +59,8 @@ std::unique_ptr<BaseType> AccessChain::create_value_type() {
     return create_type();
 }
 
-void AccessChain::accept(Visitor &visitor) {
-    visitor.visit(this);
+void AccessChain::accept(Visitor *visitor) {
+    visitor->visit(this);
 }
 
 bool AccessChain::primitive() {

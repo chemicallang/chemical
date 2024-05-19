@@ -27,8 +27,8 @@ public:
             Operation operation
     );
 
-    void accept(Visitor &visitor) override {
-        visitor.visit(this);
+    void accept(Visitor *visitor) override {
+        visitor->visit(this);
     }
 
     /**
@@ -114,8 +114,8 @@ public:
     std::string representation() const override;
 
 
-private:
     std::unique_ptr<Value> firstValue; ///< The first value in the expression.
     std::unique_ptr<Value> secondValue; ///< The second value in the expression.
     Operation operation; ///< The operation between the two values.
+
 };

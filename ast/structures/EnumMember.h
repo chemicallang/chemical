@@ -1,5 +1,7 @@
 // Copyright (c) Qinetik 2024.
 
+#pragma once
+
 #include "ast/base/ASTNode.h"
 
 class EnumMember : public ASTNode {
@@ -12,7 +14,7 @@ public:
 
     }
 
-    void accept(Visitor &visitor) override {
+    void accept(Visitor *visitor) override {
 
     }
 

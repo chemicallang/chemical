@@ -30,7 +30,7 @@ public:
      */
     Scope(Scope &&other);
 
-    void accept(Visitor &visitor) override;
+    void accept(Visitor *visitor) override;
 
     /**
      * a scope's declare_top_level will be called to link all the nodes

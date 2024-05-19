@@ -21,8 +21,8 @@ public:
      */
     FloatValue(float value) : value(value) {}
 
-    void accept(Visitor &visitor) override {
-        visitor.visit(this);
+    void accept(Visitor *visitor) override {
+        visitor->visit(this);
     }
 
     std::string representation() const override {
@@ -57,6 +57,5 @@ public:
         return BaseTypeKind::Float;
     }
 
-private:
     float value; ///< The floating-point value.
 };

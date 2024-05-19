@@ -16,8 +16,8 @@ public:
 
     }
 
-    void accept(Visitor &visitor) override {
-        visitor.visit(this);
+    void accept(Visitor *visitor) override {
+        visitor->visit(this);
     }
 
     Value *copy() override {

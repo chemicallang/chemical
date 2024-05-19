@@ -25,8 +25,8 @@ public:
             std::optional<std::string> struct_name
     ) : struct_name(std::move(struct_name)), interface_name(std::move(interface_name)) {}
 
-    void accept(Visitor &visitor) override {
-        visitor.visit(this);
+    void accept(Visitor *visitor) override {
+        visitor->visit(this);
     }
 
     bool type_check(InterpretScope &scope) {

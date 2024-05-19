@@ -17,8 +17,8 @@ public:
 
     }
 
-    void accept(Visitor &visitor) override {
-        visitor.visit(this);
+    void accept(Visitor *visitor) override {
+        visitor->visit(this);
     }
 
     void link(SymbolResolver &linker) override;

@@ -28,7 +28,7 @@ public:
             const std::optional<std::string>& overrides
     );
 
-    void accept(Visitor &visitor) override;
+    void accept(Visitor *visitor) override;
 
     void declare_top_level(SymbolResolver &linker) override;
 

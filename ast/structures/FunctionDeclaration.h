@@ -16,6 +16,8 @@
 #include <optional>
 #include "ast/base/AccessSpecifier.h"
 
+using func_params = std::vector<std::unique_ptr<FunctionParam>>;
+
 class FunctionDeclaration : public ASTNode {
 public:
 
@@ -35,7 +37,7 @@ public:
             std::optional<LoopScope> body = std::nullopt
     );
 
-    void accept(Visitor &visitor) override;
+    void accept(Visitor *visitor) override;
 
 #ifdef COMPILER_BUILD
 

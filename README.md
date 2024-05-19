@@ -1,4 +1,4 @@
-## Chemical Programming Language
+# Chemical Programming Language
 
 Chemical is an innovative, performant, typesafe user-friendly programming language with a low memory footprint.
 
@@ -6,7 +6,7 @@ Chemical Programming Language brings language tooling by default & is customisab
 It focuses on reusing and adding more to what's already built.
 It allows you to rethink how programming languages mix and share concepts to create solutions that are tailored to syntax preferred by the project you are working on !
 
-### Syntax
+## Syntax
 
 It's similar to golang, typescript & c++ but there's a lot that cannot be explained about syntax here.
 
@@ -31,7 +31,21 @@ func add(a : int, b : int) : int {
 // supports lambdas, switch statements & pointers
 ```
 
-### Progress
+## Features
+
+- Great IDE support
+- Compile Time Evaluation
+- Low memory footprint
+- Translate C to Chemical
+- Translate Chemical to C
+- Import C System Headers
+- No Garbage Collection
+- Compile time memory checks
+- Tiny executables
+- Native language
+- Use as an embedder language
+
+## Progress
 
 A lot of unexplained things in this list, Trust me when I say,
 very innovative things are planned.
@@ -51,8 +65,8 @@ very innovative things are planned.
   - [ ] Find usages support
   - [ ] Refactor rename
   - [ ] Formatting
-- [x] Native Codegen (mostly done)
-- [x] Necessary C Translation (declarations only)
+- [x] Native Codegen
+- [x] Necessary C Translation (can import system headers)
 - [ ] Interpreter (mostly done)
 - [ ] Compile time Interpreted Plugins
   - [ ] Syntax Modifier Plugins (SMP)
@@ -71,25 +85,10 @@ very innovative things are planned.
   - [ ] Mobile : Android, iOS Support
   - [ ] More platforms
 
-### Features
 
-These features are sorted by priority, the features on top are what we will work to provide.
+## Build
 
-- Compile Time Evaluation
-- Low memory footprint
-- No Garbage Collection
-- Compile time memory checks
-  - without sacrificing performance / ease of use
-- Tiny executables
-- Everything Included Kit
-- Native language (being worked on)
-- Use as a code generator
-- Use as an embedder language
-- Use as a scripting language
-
-### Build
-
-#### Requirements
+### Requirements
 
 These requirements are for people who've never set up a C++ / Boost / LLVM Project
 
@@ -99,7 +98,7 @@ These requirements are for people who've never set up a C++ / Boost / LLVM Proje
  - LLVM (Optional -> only if you are working on compiler)
  - Patience with build errors (open an issues for fast response)
 
-#### Instructions
+### Instructions
 
 The project generates three executables (at the moment)
 
@@ -111,20 +110,22 @@ The easiest to set up and work on is interpreter because it has no dependencies.
 
 #### To work on `Interpreter`
 - clone the repo
-  - open in CLion
-  - mostly done, if you fail, open an issue
+- open in CLion
+- open an issue, if you fail
 
 #### To work on `LSP Server`
 - Please install Boost
-  - open an issue, if you fail, I'll respond fast
+  - open an issue, if you fail
+- clone a repo inside this organization named `chemical-vscode`
 
 #### To work on `Compiler`
 - clone a repo present in this organization named `chemical-bootstrap`
-- clone this repo inside `chemical-bootstrap` (folder chemical)
+- create a folder inside `chemical-bootstrap`, name it `chemical`
+- clone this repo inside `chemical`
 - build llvm, `chemical-bootstrap` has build scripts (build.bat or build)
-- make sure it works, open an issue if it doesn't !
+- open an issue, if you fail
 
-### Vision & Design goals
+## Vision & Design goals
 
  - Chemical will never be bootstrapped. At least not in a traditional sense. 
  - Don't want to waste time writing features again and again. 
@@ -133,14 +134,14 @@ The easiest to set up and work on is interpreter because it has no dependencies.
  - Will provide a very easy way to write compiler plugins.
  - No package manager, instead command line Git Interface with modules & shallow clones.
 
-### Contributing
+## Contributing
 
 Chemical Programming Language is an open source work, It also allows you to completely customize it.
 It requires a lot of contributions to support the large number of features that need to be supported,
 so we not just welcome contributions but encourage everybody to contribute. So we can bring our vision to life.
 
 
-### Licensing
+## Licensing
 
 Qinetik owns Chemical, Qinetik is a for-profit company. But we will always keep Chemical as an open source programming language.
 

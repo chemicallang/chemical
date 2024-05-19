@@ -65,14 +65,27 @@ CSTToken* get_linked_from_value(CSTToken* value) {
     }
 }
 
+CSTToken* get_linked_from_type(CSTToken* token) {
+    switch(token->type()) {
+        case LexTokenType::Type:
+        case LexTokenType::Variable:
+            if(token->as_ref()->linked) {
+                return token->as_ref()->linked;
+            } else {
+                return token; // native types aren't linked
+            }
+        case LexTokenType::CompFunctionType:
+            return get_linked_from_type(token->as_compound()->tokens[token->as_compound()->tokens.size() - 1].get());
+        case LexTokenType::CompArrayType:
+            return get_linked(token->as_compound()->tokens[0].get());
+        default:
+            return nullptr;
+    }
+}
+
 CSTToken* get_linked_from_var_init(std::vector<std::unique_ptr<CSTToken>>& tokens) {
     if (is_char_op(tokens[2].get(), ':')) {
-        auto linked = get_linked(tokens[3].get());
-        if(linked) {
-            return linked;
-        } else {
-            return tokens[3].get();
-        }
+        return get_linked_from_type(tokens[3].get());
     } else if(is_char_op(tokens[2].get(), '=')) {
         return get_linked_from_value(tokens[3].get());
     } else {
@@ -115,6 +128,8 @@ CSTToken* get_linked_from_node(CSTToken* token) {
 
 CSTToken* get_child_type(CSTToken* token) {
     switch(token->type()) {
+        case LexTokenType::CompFunctionType:
+            return get_linked_from_type(token->as_compound()->tokens[token->as_compound()->tokens.size() - 1].get());
         case LexTokenType::CompArrayType:
             return get_linked(token->as_compound()->tokens[0].get());
         default:

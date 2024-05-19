@@ -88,10 +88,16 @@ void CSTSymbolResolver::visitAccessChain(AccessChainCST *chain) {
         // TODO only links if token is a variable, skipped index op and function call
         if(token->type() == LexTokenType::Variable) {
             parent = link_child(parent, token);
-            if(!parent) {
-                error("unresolved symbol not found '" + token->representation() + "'", token);
-                break;
+            token->as_ref()->linked = parent;
+        } else if(token->type() == LexTokenType::CompIndexOp) {
+            parent = get_linked_from_node(parent);
+            if(parent) {
+                parent = get_child_type(parent);
             }
+        }
+        if(!parent) {
+            error("unresolved symbol not found '" + token->representation() + "'", token);
+            break;
         }
         i++;
     }

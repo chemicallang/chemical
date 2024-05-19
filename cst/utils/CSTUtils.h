@@ -123,6 +123,16 @@ CSTToken* get_linked_from_var_init(std::vector<std::unique_ptr<CSTToken>>& token
 CSTToken* get_linked_from_typealias(std::vector<std::unique_ptr<CSTToken>>& tokens);
 
 /**
+ * get linked node from the given CST node (var init, struct member)
+ */
+CSTToken* get_linked_from_node(CSTToken* token);
+
+/**
+ * get's the child type, for example if it's an array
+ */
+CSTToken* get_child_type(CSTToken* token);
+
+/**
  * first is the container token, which is the direct parent of the token
  * the second is the index in the tokens vector present in the first compound token
  */

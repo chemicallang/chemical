@@ -46,10 +46,11 @@ very innovative things are planned.
   - [x] Resolve symbol support
   - [ ] Improved diagnostics support
   - [x] Semantic highlighting
-  - [ ] Member access completion items
+  - [x] Member access completion items
   - [x] Hover doc support
   - [ ] Find usages support
   - [ ] Refactor rename
+  - [ ] Formatting
 - [x] Native Codegen (mostly done)
 - [x] Necessary C Translation (declarations only)
 - [ ] Interpreter (mostly done)

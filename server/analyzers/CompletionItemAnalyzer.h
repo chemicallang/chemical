@@ -16,6 +16,8 @@ using caret_pos_type = Position;
 
 class ImportUnit;
 
+class LexResult;
+
 class CompletionItemAnalyzer : public CSTVisitor {
 public:
 
@@ -30,6 +32,11 @@ public:
      * all the items that were found when analyzer completed
      */
     CompletionList list;
+
+    /**
+     * current file being analyzed
+     */
+    LexResult* current_file;
 
     /**
      * constructor
@@ -119,6 +126,11 @@ public:
      * a helper method to put simple completion items of a kind
      */
     void put(const std::string& label, lsCompletionItemKind kind);
+
+    /**
+     * put a completion item with detail and doc
+     */
+    void put_with_md_doc(const std::string& label, lsCompletionItemKind kind, const std::string& detail, const std::string& doc);
 
     /**
      * finds completion items till the given cursor position, found completion items are put on the items vector

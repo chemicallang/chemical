@@ -387,6 +387,7 @@ set(COMMON_SOURCES
         server/analyzers/HoverAnalyzer.cpp
         compiler/PrimitiveTypeMap.h
         compiler/PrimitiveTypemap.cpp
+        server/analyzers/Documentation.h
 )
 
 # Chemical LSP Executable Target

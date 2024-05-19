@@ -305,6 +305,14 @@ bool put_children(CompletionItemAnalyzer* analyzer, CSTToken* parent, bool put_v
                 return false;
             }
         }
+        case LexTokenType::CompTypealias: {
+            auto linked = get_linked_from_typealias(parent->as_compound()->tokens);
+            if(linked) {
+                return put_children(analyzer, linked, put_values);
+            } else {
+                return false;
+            }
+        }
         default:
             return false;
     }

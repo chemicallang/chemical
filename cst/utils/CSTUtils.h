@@ -64,27 +64,63 @@ inline std::string interface_name(CompoundCSTToken* interface) {
     return str_token(interface->tokens[1].get());
 }
 
+/**
+ * what is the parameter name in given comp param token
+ */
 std::string param_name(CompoundCSTToken* param);
 
+/**
+ * is given comp var init token a const
+ */
 bool is_var_init_const(CompoundCSTToken* cst);
 
+/**
+ * visits a range of tokens, from the given vector tokens, starting at start (inclusive) and end (exclusive)
+ */
 void visit(CSTVisitor* visitor, std::vector<std::unique_ptr<CSTToken>>& tokens, unsigned int start, unsigned int end);
 
+/**
+ * a helper for visit
+ */
 inline void visit(CSTVisitor* visitor, std::vector<std::unique_ptr<CSTToken>>& tokens, unsigned int start) {
     visit(visitor, tokens, start, tokens.size());
 }
 
+/**
+ * a helper for visit
+ */
 inline void visit(CSTVisitor* visitor, std::vector<std::unique_ptr<CSTToken>>& tokens) {
     visit(visitor, tokens, 0, tokens.size());
 }
 
+/**
+ * find's the token with given identifier inside the given tokens vector starting at start
+ */
 CSTToken* find_identifier(std::vector<std::unique_ptr<CSTToken>>& tokens, const std::string& identifier, unsigned start = 0);
 
+/**
+ * link's the child 'token' which is present in the given parent token
+ * here the parent maybe a compound enum decl token, and token may be an identifier token present inside the enum
+ * the function will find the enum member in the child and link the ref token with it
+ */
 CSTToken* link_child(CSTToken* parent, CSTToken* token);
 
+/**
+ * gets the linked node from given ref, this ref is a ref token
+ * meaning a referenced variable token, like TypeToken or VariableToken
+ */
 CSTToken* get_linked(CSTToken* ref);
 
+/**
+ * get linked node from var init
+ * this linked node is either present in type (if user gave it) or the value
+ */
 CSTToken* get_linked_from_var_init(std::vector<std::unique_ptr<CSTToken>>& tokens);
+
+/**
+ * get the linked node from given typealias compound tokens
+ */
+CSTToken* get_linked_from_typealias(std::vector<std::unique_ptr<CSTToken>>& tokens);
 
 /**
  * first is the container token, which is the direct parent of the token

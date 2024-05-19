@@ -330,8 +330,7 @@ bool put_children_of_ref(CompletionItemAnalyzer* analyzer, CompoundCSTToken* cha
             auto grandpa = chain->tokens[chain->tokens.size() - 3].get();
             auto linked = get_linked_from_node(grandpa->as_ref()->linked);
             if(!linked) return false;
-            auto child = get_child_type(linked)->as_compound();
-            return put_children(analyzer, child, true);
+            return put_children(analyzer, linked, true);
         }
         case LexTokenType::CompFunctionCall:{
             auto grandpa = chain->tokens[chain->tokens.size() - 3].get();

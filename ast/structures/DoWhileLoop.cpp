@@ -45,8 +45,8 @@ void DoWhileLoop::code_gen(Codegen &gen) {
 DoWhileLoop::DoWhileLoop(std::unique_ptr<Value> condition, LoopScope body)
         : condition(std::move(condition)), LoopASTNode(std::move(body)) {}
 
-void DoWhileLoop::accept(Visitor &visitor) {
-    visitor.visit(this);
+void DoWhileLoop::accept(Visitor *visitor) {
+    visitor->visit(this);
 }
 
 void DoWhileLoop::declare_and_link(SymbolResolver &linker) {

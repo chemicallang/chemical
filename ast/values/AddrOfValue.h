@@ -21,8 +21,8 @@ public:
         return std::make_unique<PointerType>(value->create_type());
     }
 
-    void accept(Visitor &visitor) override {
-        visitor.visit(this);
+    void accept(Visitor *visitor) override {
+        visitor->visit(this);
     }
 
 #ifdef COMPILER_BUILD
@@ -45,6 +45,5 @@ public:
 
     std::string representation() const override;
 
-private:
     std::unique_ptr<Value> value;
 };

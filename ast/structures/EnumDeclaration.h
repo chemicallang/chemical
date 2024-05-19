@@ -24,8 +24,8 @@ public:
     EnumDeclaration(std::string name, std::unordered_map<std::string, std::unique_ptr<EnumMember>> members)
             : name(std::move(name)), members(std::move(members)) {}
 
-    void accept(Visitor &visitor) override {
-        visitor.visit(this);
+    void accept(Visitor *visitor) override {
+        visitor->visit(this);
     }
 
     void declare_top_level(SymbolResolver &linker) override;
@@ -54,7 +54,6 @@ public:
         return rep;
     }
 
-private:
     std::string name; ///< The name of the enum.
     std::unordered_map<std::string, std::unique_ptr<EnumMember>> members; ///< The values of the enum.
 };

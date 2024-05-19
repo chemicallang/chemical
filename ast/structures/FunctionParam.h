@@ -13,7 +13,7 @@ public:
 
     std::unique_ptr<BaseType> create_value_type() override;
 
-    void accept(Visitor &visitor) override;
+    void accept(Visitor *visitor) override;
 
     FunctionParam *as_func_param() override {
         return this;

@@ -39,8 +39,8 @@ void ReturnStatement::declare_and_link(SymbolResolver &linker) {
     }
 }
 
-void ReturnStatement::accept(Visitor &visitor) {
-    visitor.visit(this);
+void ReturnStatement::accept(Visitor *visitor) {
+    visitor->visit(this);
 }
 
 ReturnStatement *ReturnStatement::as_return() {

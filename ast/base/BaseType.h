@@ -6,6 +6,7 @@
 #include "ValueType.h"
 #include <string>
 #include <memory>
+#include "Visitor.h"
 
 class Codegen;
 
@@ -44,6 +45,11 @@ public:
     virtual std::unique_ptr<BaseType> create_child_type() const {
         return nullptr;
     }
+
+    /**
+     * accept the visitor
+     */
+    virtual void accept(Visitor *visitor) = 0;
 
     /**
      * copy the type, along with linked node

@@ -5,6 +5,8 @@
 #include "ast/base/BaseType.h"
 #include "ast/structures/FunctionParam.h"
 
+using func_params = std::vector<std::unique_ptr<FunctionParam>>;
+
 class FunctionType : public BaseType {
 public:
 
@@ -20,6 +22,10 @@ public:
             bool isVariadic,
             bool isCapturing
     );
+
+    void accept(Visitor *visitor) override {
+        visitor->visit(this);
+    }
 
     BaseTypeKind kind() const override {
         return BaseTypeKind::Function;

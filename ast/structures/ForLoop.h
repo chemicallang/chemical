@@ -33,7 +33,7 @@ public:
             LoopScope body
     );
 
-    void accept(Visitor &visitor) override;
+    void accept(Visitor *visitor) override;
 
     void declare_and_link(SymbolResolver &linker) override;
 

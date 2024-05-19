@@ -21,8 +21,8 @@ public:
      */
     DoubleValue(double value) : value(value) {}
 
-    void accept(Visitor &visitor) override {
-        visitor.visit(this);
+    void accept(Visitor *visitor) override {
+        visitor->visit(this);
     }
 
 #ifdef COMPILER_BUILD
@@ -59,6 +59,5 @@ public:
         return BaseTypeKind::Double;
     }
 
-private:
     double value; ///< The double value.
 };

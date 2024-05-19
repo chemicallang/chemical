@@ -50,7 +50,7 @@ public:
     /**
      * accept the visitor
      */
-    virtual void accept(Visitor &visitor) = 0;
+    virtual void accept(Visitor *visitor) = 0;
 
     /**
      * this function is called to allow variable identifiers to link with a node on the map

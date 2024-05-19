@@ -17,7 +17,7 @@ public:
 
     StructMember(std::string name, std::unique_ptr<BaseType> type, std::optional<std::unique_ptr<Value>> defValue);
 
-    void accept(Visitor &visitor) override;
+    void accept(Visitor *visitor) override;
 
     void declare_and_link(SymbolResolver &linker) override;
 

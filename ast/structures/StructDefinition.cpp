@@ -84,8 +84,8 @@ StructMember::StructMember(
 
 }
 
-void StructMember::accept(Visitor &visitor) {
-    visitor.visit(this);
+void StructMember::accept(Visitor *visitor) {
+    visitor->visit(this);
 }
 
 std::unique_ptr<BaseType> StructMember::create_value_type() {
@@ -128,8 +128,8 @@ StructDefinition::StructDefinition(
     }
 }
 
-void StructDefinition::accept(Visitor &visitor) {
-    visitor.visit(this);
+void StructDefinition::accept(Visitor *visitor) {
+    visitor->visit(this);
 }
 
 void StructDefinition::declare_top_level(SymbolResolver &linker) {

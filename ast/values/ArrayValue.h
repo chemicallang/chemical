@@ -21,8 +21,8 @@ public:
         values.shrink_to_fit();
     }
 
-    void accept(Visitor &visitor) override {
-        visitor.visit(this);
+    void accept(Visitor *visitor) override {
+        visitor->visit(this);
     }
 
     bool primitive() override {

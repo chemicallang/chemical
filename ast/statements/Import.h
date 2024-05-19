@@ -25,7 +25,7 @@ public:
      */
     ImportStatement(std::string filePath, std::vector<std::string> identifiers);
 
-    void accept(Visitor &visitor) override;
+    void accept(Visitor *visitor) override;
 
     std::string representation() const override;
 

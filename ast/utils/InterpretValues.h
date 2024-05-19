@@ -22,7 +22,7 @@ public:
 
     }
 
-    void accept(Visitor &visitor) override {
+    void accept(Visitor *visitor) override {
         // no visitor can visit this
     }
 
@@ -41,7 +41,7 @@ public:
 
     }
 
-    void accept(Visitor &visitor) override {
+    void accept(Visitor *visitor) override {
         // no visitor can visit this
     }
 
@@ -110,7 +110,7 @@ public:
 
     }
 
-    void accept(Visitor &visitor) override {
+    void accept(Visitor *visitor) override {
         // no visitor can visit this
     }
 
@@ -161,7 +161,7 @@ public:
 
     }
 
-    void accept(Visitor &visitor) override {
+    void accept(Visitor *visitor) override {
         // no visitor can visit this
     }
 

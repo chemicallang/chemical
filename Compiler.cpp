@@ -16,6 +16,7 @@
 #include "utils/StrUtils.h"
 #include "preprocess/ImportGraphMaker.h"
 #include "compiler/IGCompiler.h"
+#include "preprocess/ToCTranslator.h"
 
 int chemical_clang_main(int argc, char **argv);
 
@@ -86,6 +87,16 @@ int main(int argc, char *argv[]) {
     bool is64Bit = Codegen::is_arch_64bit(target.value());
 
     auto res = options.option("res", "res");
+
+    // translate chemical to C
+    auto translateToC = options.option("t2c", "t2c");
+    if(translateToC.has_value()) {
+        ToCTranslatorOptions translator_opts(argv[0], translateToC.value(), is64Bit);
+        bool good = translate(srcFilePath, &translator_opts);
+        return good ? 0 : 1;
+    }
+
+    // translate C to chemical
     auto translateC = options.option("tc", "tc");
     if(translateC.has_value()) {
         auto nodes = TranslateC(argv[0], srcFilePath.c_str(), res.value().c_str());

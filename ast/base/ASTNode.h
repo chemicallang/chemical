@@ -174,7 +174,7 @@ public:
      * accept the visitor
      * @param visitor
      */
-    virtual void accept(Visitor &visitor) = 0;
+    virtual void accept(Visitor *visitor) = 0;
 
     /**
      * This supposed to be overridden by ASTNodes that put themselves

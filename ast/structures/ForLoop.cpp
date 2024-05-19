@@ -63,8 +63,8 @@ ForLoop::ForLoop(
     conditionExpr(std::move(conditionExpr)), incrementerExpr(std::move(incrementerExpr)),
     LoopASTNode(std::move(body)) {}
 
-void ForLoop::accept(Visitor &visitor) {
-    visitor.visit(this);
+void ForLoop::accept(Visitor *visitor) {
+    visitor->visit(this);
 }
 
 void ForLoop::declare_and_link(SymbolResolver &linker) {

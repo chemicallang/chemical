@@ -60,8 +60,8 @@ void WhileLoop::declare_and_link(SymbolResolver &linker) {
     linker.scope_end();
 }
 
-void WhileLoop::accept(Visitor &visitor) {
-    visitor.visit(this);
+void WhileLoop::accept(Visitor *visitor) {
+    visitor->visit(this);
 }
 
 void WhileLoop::interpret(InterpretScope &scope) {

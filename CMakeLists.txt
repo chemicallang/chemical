@@ -388,8 +388,10 @@ set(COMMON_SOURCES
         compiler/PrimitiveTypeMap.h
         compiler/PrimitiveTypemap.cpp
         server/analyzers/Documentation.h
-        server/analyzers/DocumentSymbolsAnalyzer.h
-        server/analyzers/DocumentSymbolsAnalyzer.cpp
+        preprocess/2cASTVisitor.h
+        preprocess/2cASTVisitor.cpp
+        preprocess/ToCTranslator.h
+        preprocess/ToCTranslator.cpp
 )
 
 # Chemical LSP Executable Target
@@ -405,6 +407,8 @@ add_executable(ChemicalLsp Main.cpp ${COMMON_SOURCES}
         server/analyzers/CompletionItemAnalyzer.cpp
         server/analyzers/SemanticTokensAnalyzer.h
         server/analyzers/SemanticTokensAnalyzer.cpp
+        server/analyzers/DocumentSymbolsAnalyzer.h
+        server/analyzers/DocumentSymbolsAnalyzer.cpp
         server/utils/lspfwd.h
         server/Importer.cpp
 )

@@ -18,8 +18,8 @@ public:
 
     FunctionCall(FunctionCall &&other) = delete;
 
-    void accept(Visitor &visitor) override {
-        visitor.visit(this);
+    void accept(Visitor *visitor) override {
+        visitor->visit(this);
     }
 
     void link_values(SymbolResolver &linker);

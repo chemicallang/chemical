@@ -27,8 +27,8 @@ public:
         return std::make_unique<BoolType>();
     }
 
-    void accept(Visitor &visitor) override {
-        visitor.visit(this);
+    void accept(Visitor *visitor) override {
+        visitor->visit(this);
     }
 
 #ifdef COMPILER_BUILD
@@ -61,6 +61,7 @@ public:
         return value;
     }
 
-private:
+
     bool value;
+
 };

@@ -24,8 +24,8 @@ public:
      */
     StringValue(std::string value) : value(std::move(value)) {}
 
-    void accept(Visitor &visitor) override {
-        visitor.visit(this);
+    void accept(Visitor *visitor) override {
+        visitor->visit(this);
     }
 
     Value *index(InterpretScope &scope, int i) override {
@@ -76,6 +76,5 @@ public:
         return BaseTypeKind::String;
     }
 
-private:
     std::string value; ///< The string value.
 };

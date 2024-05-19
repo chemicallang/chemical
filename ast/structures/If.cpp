@@ -120,8 +120,8 @@ IfStatement::IfStatement(
 ) : condition(std::move(condition)), ifBody(std::move(ifBody)),
     elseIfs(std::move(elseIfs)), elseBody(std::move(elseBody)) {}
 
-void IfStatement::accept(Visitor &visitor) {
-    visitor.visit(this);
+void IfStatement::accept(Visitor *visitor) {
+    visitor->visit(this);
 }
 
 void IfStatement::declare_and_link(SymbolResolver &linker) {

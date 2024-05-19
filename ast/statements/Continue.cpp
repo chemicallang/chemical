@@ -7,8 +7,8 @@
  */
 ContinueStatement::ContinueStatement(LoopASTNode *node) : node(node) {}
 
-void ContinueStatement::accept(Visitor &visitor) {
-    visitor.visit(this);
+void ContinueStatement::accept(Visitor *visitor) {
+    visitor->visit(this);
 }
 
 #ifdef COMPILER_BUILD

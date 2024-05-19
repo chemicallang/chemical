@@ -28,7 +28,7 @@ public:
             std::optional<Scope> elseBody
     );
 
-    void accept(Visitor &visitor) override;
+    void accept(Visitor *visitor) override;
 
     void declare_and_link(SymbolResolver &linker) override;
 

@@ -32,8 +32,8 @@ public:
      */
     NumberValue(int64_t value) : value(value) {}
 
-    void accept(Visitor &visitor) override {
-        visitor.visit(this);
+    void accept(Visitor *visitor) override {
+        visitor->visit(this);
     }
 
     void link(SymbolResolver &linker, VarInitStatement *stmnt) override;

@@ -11,6 +11,10 @@ public:
 
     }
 
+    void accept(Visitor *visitor) override {
+        visitor->visit(this);
+    }
+
     Value *create(int64_t value) override;
 
     ValueType value_type() const override {

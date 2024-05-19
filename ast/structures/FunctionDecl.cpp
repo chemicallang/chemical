@@ -210,8 +210,8 @@ FunctionParam::FunctionParam(
     name.shrink_to_fit();
 }
 
-void FunctionParam::accept(Visitor &visitor) {
-    visitor.visit(this);
+void FunctionParam::accept(Visitor *visitor) {
+    visitor->visit(this);
 }
 
 ValueType FunctionParam::value_type() const {
@@ -273,8 +273,8 @@ std::unique_ptr<BaseType> FunctionDeclaration::create_value_type() {
     return std::make_unique<FunctionType>(std::move(copied), std::unique_ptr<BaseType>(returnType->copy()), isVariadic, false);
 }
 
-void FunctionDeclaration::accept(Visitor &visitor) {
-    visitor.visit(this);
+void FunctionDeclaration::accept(Visitor *visitor) {
+    visitor->visit(this);
 }
 
 void FunctionDeclaration::declare_top_level(SymbolResolver &linker) {

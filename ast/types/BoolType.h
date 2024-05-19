@@ -11,6 +11,10 @@ public:
         return type == ValueType::Bool;
     }
 
+    void accept(Visitor *visitor) override {
+        visitor->visit(this);
+    }
+
     std::string representation() const override {
         return "bool";
     }

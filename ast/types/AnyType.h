@@ -11,6 +11,10 @@ public:
         return true;
     }
 
+    void accept(Visitor *visitor) override {
+        visitor->visit(this);
+    }
+
     std::string representation() const override {
         return "any";
     }

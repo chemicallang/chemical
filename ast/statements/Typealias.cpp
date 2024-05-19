@@ -32,8 +32,8 @@ void TypealiasStatement::declare_and_link(SymbolResolver &linker) {
     to->link(linker);
 }
 
-void TypealiasStatement::accept(Visitor &visitor) {
-    visitor.visit(this);
+void TypealiasStatement::accept(Visitor *visitor) {
+    visitor->visit(this);
 }
 
 std::string TypealiasStatement::representation() const {

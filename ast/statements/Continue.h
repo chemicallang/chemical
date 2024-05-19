@@ -17,7 +17,7 @@ public:
      */
     explicit ContinueStatement(LoopASTNode *node);
 
-    void accept(Visitor &visitor) override;
+    void accept(Visitor *visitor) override;
 
 #ifdef COMPILER_BUILD
     void code_gen(Codegen &gen) override;

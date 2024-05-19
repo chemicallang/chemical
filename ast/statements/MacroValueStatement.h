@@ -23,8 +23,8 @@ public:
         value->evaluated_value(scope);
     }
 
-    void accept(Visitor &visitor) override {
-        visitor.visit(this);
+    void accept(Visitor *visitor) override {
+        visitor->visit(this);
     }
 
 #ifdef COMPILER_BUILD

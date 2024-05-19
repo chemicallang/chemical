@@ -65,8 +65,8 @@ void SwitchStatement::declare_and_link(SymbolResolver &linker) {
     expression->link(linker);
 }
 
-void SwitchStatement::accept(Visitor &visitor) {
-    visitor.visit(this);
+void SwitchStatement::accept(Visitor *visitor) {
+    visitor->visit(this);
 }
 
 std::string SwitchStatement::representation() const {

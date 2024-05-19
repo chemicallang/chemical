@@ -7,6 +7,10 @@
 class CharType : public BaseType {
 public:
 
+    void accept(Visitor *visitor) override {
+        visitor->visit(this);
+    }
+
     bool satisfies(ValueType type) const override {
         return type == ValueType::Char;
     }

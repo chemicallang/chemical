@@ -14,6 +14,10 @@ public:
 
     }
 
+    void accept(Visitor *visitor) override {
+        visitor->visit(this);
+    }
+
     bool satisfies(ValueType value_type) const override {
         return type->satisfies(value_type);
     }

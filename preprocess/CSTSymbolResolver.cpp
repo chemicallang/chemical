@@ -90,9 +90,6 @@ void CSTSymbolResolver::visitAccessChain(AccessChainCST *chain) {
             token->as_ref()->linked = parent;
         } else if(token->type() == LexTokenType::CompIndexOp) {
             parent = get_linked_from_node(parent);
-            if(parent) {
-                parent = get_child_type(parent);
-            }
         } else if(token->type() == LexTokenType::CompFunctionCall) {
             parent = get_linked_from_node(parent);
             if(!parent && i == chain->tokens.size() - 1) {

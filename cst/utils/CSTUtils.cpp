@@ -102,6 +102,14 @@ CSTToken* link_child(CSTToken* parent, CSTToken* token) {
                 return nullptr;
             }
         }
+        case LexTokenType::CompTypealias: {
+            auto linked = get_linked_from_typealias(parent->as_compound()->tokens);
+            if(linked) {
+                return link_child(linked, token);
+            } else {
+                return nullptr;
+            }
+        }
         default:
             return nullptr;
     }

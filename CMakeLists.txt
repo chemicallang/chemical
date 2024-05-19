@@ -388,6 +388,8 @@ set(COMMON_SOURCES
         compiler/PrimitiveTypeMap.h
         compiler/PrimitiveTypemap.cpp
         server/analyzers/Documentation.h
+        server/analyzers/DocumentSymbolsAnalyzer.h
+        server/analyzers/DocumentSymbolsAnalyzer.cpp
 )
 
 # Chemical LSP Executable Target

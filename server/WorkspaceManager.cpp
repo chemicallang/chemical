@@ -18,6 +18,7 @@
 #include "server/analyzers/GotoDefAnalyzer.h"
 #include "LibLsp/lsp/textDocument/hover.h"
 #include "server/analyzers/HoverAnalyzer.h"
+#include "server/analyzers/DocumentSymbolsAnalyzer.h"
 
 #define DEBUG_REPLACE false
 
@@ -65,6 +66,15 @@ td_definition::response WorkspaceManager::get_definition(const lsDocumentUri &ur
                 }
         });
     }
+    return rsp;
+}
+
+td_symbol::response WorkspaceManager::get_symbols(const lsDocumentUri& uri) {
+    auto& tokens = get_lexed_tokens(uri.GetAbsolutePath().path);
+    DocumentSymbolsAnalyzer analyzer;
+    td_symbol::response rsp;
+    analyzer.analyze(tokens);
+    rsp.result = std::move(analyzer.symbols);
     return rsp;
 }
 

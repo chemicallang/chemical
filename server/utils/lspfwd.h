@@ -22,6 +22,10 @@ namespace td_hover {
     struct response;
 }
 
+namespace td_symbol {
+    struct response;
+}
+
 struct lsDocumentUri;
 struct SemanticToken;
 struct lsPosition;

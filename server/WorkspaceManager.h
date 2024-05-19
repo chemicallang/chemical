@@ -107,6 +107,11 @@ public:
     td_definition::response get_definition(const lsDocumentUri& uri, const lsPosition& position);
 
     /**
+     * get symbols in the document
+     */
+    td_symbol::response get_symbols(const lsDocumentUri& uri);
+
+    /**
      * get a hover response in the given document at position
      */
     td_hover::response get_hover(const lsDocumentUri& uri, const lsPosition& position);

@@ -40,28 +40,52 @@ inline bool is_str_op(CSTToken *token, const std::string &x) {
     return token->type() == LexTokenType::StringOperator && str_token(token) == x;
 }
 
+inline CSTToken* var_init_name_tok(CompoundCSTToken* cst) {
+    return cst->tokens[1].get();
+}
+
 inline std::string var_init_identifier(CompoundCSTToken* cst) {
-    return str_token(cst->tokens[1].get());
+    return str_token(var_init_name_tok(cst));
+}
+
+inline CSTToken* typealias_name_tok(CompoundCSTToken* cst) {
+    return cst->tokens[1].get();
 }
 
 inline std::string typealias_name(CompoundCSTToken* cst) {
-    return str_token(cst->tokens[1].get());
+    return str_token(typealias_name_tok(cst));
+}
+
+inline CSTToken* func_name_tok(CompoundCSTToken* func) {
+    return func->tokens[1].get();
 }
 
 inline std::string func_name(CompoundCSTToken* func) {
-    return str_token(func->tokens[1].get());
+    return str_token(func_name_tok(func));
+}
+
+inline CSTToken* enum_name_tok(CompoundCSTToken* _enum) {
+    return _enum->tokens[1].get();
 }
 
 inline std::string enum_name(CompoundCSTToken* _enum) {
-    return str_token(_enum->tokens[1].get());
+    return str_token(enum_name_tok(_enum));
+}
+
+inline CSTToken* struct_name_tok(CompoundCSTToken* _struct) {
+    return _struct->tokens[1].get();
 }
 
 inline std::string struct_name(CompoundCSTToken* _struct) {
-    return str_token(_struct->tokens[1].get());
+    return str_token(struct_name_tok(_struct));
+}
+
+inline CSTToken* interface_name_tok(CompoundCSTToken* interface) {
+    return interface->tokens[1].get();
 }
 
 inline std::string interface_name(CompoundCSTToken* interface) {
-    return str_token(interface->tokens[1].get());
+    return str_token(interface_name_tok(interface));
 }
 
 /**

@@ -197,10 +197,10 @@ public:
 //				{
 //					capabilities.referencesProvider = option;
 //				}
-//				if (!clientPreferences->isDocumentSymbolDynamicRegistered())
-//				{
-//					capabilities.documentSymbolProvider = option;
-//				}
+				if (!clientPreferences->isDocumentSymbolDynamicRegistered())
+				{
+					capabilities.documentSymbolProvider = option;
+				}
 //				if (!clientPreferences->isFormattingDynamicRegistrationSupported())
 //				{
 //					capabilities.documentFormattingProvider = option;
@@ -309,21 +309,6 @@ public:
             _sp.send(request);
 
         });
-//        _sp.registerHandler(
-//                [&](const td_symbol::request &req, const CancelMonitor &monitor)
-//                        -> lsp::ResponseOrError<td_symbol::response> {
-//                    _log.log(lsp::Log::Level::INFO, "td_symbol");
-//                    if (need_initialize_error) {
-//                        return need_initialize_error.value();
-//                    }
-////				auto unit =GetUnit(req.params.textDocument, );
-//                    td_symbol::response rsp;
-////				if (unit){
-//                    // vector<lsDocumentSymbol>
-////					rsp.result = unit->document_symbols;
-////				}
-//                    return std::move(rsp);
-//                });
         _sp.registerHandler(
                 [&](const td_definition::request &req, const CancelMonitor &monitor)
                         -> lsp::ResponseOrError<td_definition::response> {
@@ -333,14 +318,12 @@ public:
                     }
                 return manager.get_definition(req.params.textDocument.uri, req.params.position);;
         });
-//
         _sp.registerHandler([&](const td_symbol::request &req) -> lsp::ResponseOrError<td_symbol::response> {
             _log.log(lsp::Log::Level::INFO, "td_symbol");
             if (need_initialize_error) {
                 return need_initialize_error.value();
             }
-            td_symbol::response rsp;
-            return std::move(rsp);
+            return manager.get_symbols(req.params.textDocument.uri);
         });
         _sp.registerHandler(
                 [&](const td_hover::request &req, const CancelMonitor &monitor)

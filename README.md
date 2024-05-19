@@ -36,6 +36,7 @@ func add(a : int, b : int) : int {
 - Great IDE support
 - Compile Time Evaluation
 - Low memory footprint
+- LLVM Backend
 - Translate C to Chemical
 - Translate Chemical to C
 - Import C System Headers

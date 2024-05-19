@@ -278,7 +278,7 @@ void collect_struct_members(
     while(i < tokens.size()) {
         token = tokens[i].get();
         if(token->is_func_decl() || token->is_var_init()) {
-            analyzer->put(str_token(((CompoundCSTToken*) token)->tokens[1].get()), lsCompletionItemKind::Function);
+            analyzer->put(str_token(((CompoundCSTToken*) token)->tokens[1].get()), token->is_func_decl() ? lsCompletionItemKind::Function : lsCompletionItemKind::Variable);
         }
         i++;
     }
@@ -318,16 +318,20 @@ bool put_children(CompletionItemAnalyzer* analyzer, CSTToken* parent, bool put_v
     }
 }
 
-bool put_children_of_ref(CompletionItemAnalyzer* analyzer, CSTToken* parent) {
+bool put_children_of_ref(CompletionItemAnalyzer* analyzer, CompoundCSTToken* chain) {
+    auto parent = chain->tokens[chain->tokens.size() - 2].get();
     switch(parent->type()) {
-        case LexTokenType::Variable:{
-            auto linked = ((RefToken *) parent)->linked;
-            if(linked) {
-                put_children(analyzer, linked);
-                return true;
-            } else {
-                return false;
-            }
+        case LexTokenType::Variable:
+        case LexTokenType::Type:{
+            if(!parent->as_ref()->linked) return false;
+            return put_children(analyzer, parent->as_ref()->linked);
+        }
+        case LexTokenType::CompIndexOp:{
+            auto grandpa = chain->tokens[chain->tokens.size() - 3].get();
+            auto linked = get_linked_from_node(grandpa->as_ref()->linked);
+            if(!linked) return false;
+            auto child = get_child_type(linked)->as_compound();
+            return put_children(analyzer, child, true);
         }
         default:
             return false;
@@ -336,7 +340,7 @@ bool put_children_of_ref(CompletionItemAnalyzer* analyzer, CSTToken* parent) {
 
 bool CompletionItemAnalyzer::handle_chain_before_caret(CompoundCSTToken* chain) {
     if(!chain->tokens.empty() && is_char_op(chain->tokens[chain->tokens.size() - 1].get(), '.')) {
-        return put_children_of_ref(this, chain->tokens[chain->tokens.size() - 2].get());
+        return put_children_of_ref(this, chain);
     }
     return false;
 }

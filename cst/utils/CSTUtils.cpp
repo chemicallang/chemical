@@ -75,6 +75,10 @@ CSTToken* get_linked_from_var_init(std::vector<std::unique_ptr<CSTToken>>& token
     }
 }
 
+CSTToken* get_linked_from_typealias(std::vector<std::unique_ptr<CSTToken>>& tokens) {
+    return get_linked(tokens[3].get());
+}
+
 CSTToken* link_child(CSTToken* parent, CSTToken* token) {
     switch(parent->type()) {
         case LexTokenType::CompEnumDecl:

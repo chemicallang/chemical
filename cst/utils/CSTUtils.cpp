@@ -67,7 +67,12 @@ CSTToken* get_linked_from_value(CSTToken* value) {
 
 CSTToken* get_linked_from_var_init(std::vector<std::unique_ptr<CSTToken>>& tokens) {
     if (is_char_op(tokens[2].get(), ':')) {
-        return get_linked(tokens[3].get());
+        auto linked = get_linked(tokens[3].get());
+        if(linked) {
+            return linked;
+        } else {
+            return tokens[3].get();
+        }
     } else if(is_char_op(tokens[2].get(), '=')) {
         return get_linked_from_value(tokens[3].get());
     } else {
@@ -79,21 +84,33 @@ CSTToken* get_linked_from_typealias(std::vector<std::unique_ptr<CSTToken>>& toke
     return get_linked(tokens[3].get());
 }
 
+CSTToken* get_linked_from_node(CSTToken* token) {
+    switch(token->type()) {
+        case LexTokenType::CompVarInit:
+            return get_linked_from_var_init(token->as_compound()->tokens);
+        case LexTokenType::CompTypealias:
+            return get_linked_from_typealias(token->as_compound()->tokens);
+        default:
+            return nullptr;
+    }
+}
+
+CSTToken* get_child_type(CSTToken* token) {
+    switch(token->type()) {
+        case LexTokenType::CompArrayType:
+            return get_linked(token->as_compound()->tokens[0].get());
+        default:
+            return nullptr;
+    }
+}
+
 CSTToken* link_child(CSTToken* parent, CSTToken* token) {
     switch(parent->type()) {
         case LexTokenType::CompEnumDecl:
-            if(token->type() != LexTokenType::Variable) {
-                return nullptr;
-            }
-            ((RefToken*) token)->linked = find_identifier(parent->as_compound()->tokens, token->as_lex_token()->value, 3);
-            return ((RefToken*) token)->linked;
+            return find_identifier(parent->as_compound()->tokens, token->as_lex_token()->value, 3);
         case LexTokenType::CompStructDef:
         case LexTokenType::CompInterface:
-            if(token->type() != LexTokenType::Variable) {
-                return nullptr;
-            }
-            ((RefToken*) token)->linked =  find_func_or_var_init(parent->as_compound()->tokens, token->as_lex_token()->value, 3);
-            return ((RefToken*) token)->linked;
+             return find_func_or_var_init(parent->as_compound()->tokens, token->as_lex_token()->value, 3);
         case LexTokenType::CompVarInit: {
             auto linked = get_linked_from_var_init(parent->as_compound()->tokens);
             if (linked) {

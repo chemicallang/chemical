@@ -123,6 +123,11 @@ CSTToken* get_linked_from_var_init(std::vector<std::unique_ptr<CSTToken>>& token
 CSTToken* get_linked_from_typealias(std::vector<std::unique_ptr<CSTToken>>& tokens);
 
 /**
+ * get the linked node from given function compound tokens
+ */
+CSTToken* get_linked_from_func(std::vector<std::unique_ptr<CSTToken>>& tokens);
+
+/**
  * get linked node from the given CST node (var init, struct member)
  */
 CSTToken* get_linked_from_node(CSTToken* token);

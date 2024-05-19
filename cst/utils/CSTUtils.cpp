@@ -84,12 +84,30 @@ CSTToken* get_linked_from_typealias(std::vector<std::unique_ptr<CSTToken>>& toke
     return get_linked(tokens[3].get());
 }
 
+CSTToken* get_linked_from_func(std::vector<std::unique_ptr<CSTToken>>& tokens) {
+    unsigned i = 3;
+    CSTToken* token;
+    while(i < tokens.size()) {
+        token = tokens[i].get();
+        if(is_char_op(token, ')')) {
+            break;
+        }
+        i++;
+    }
+    if(i + 1 < tokens.size() && is_char_op(tokens[i + 1].get(), ':')) {
+        return get_linked(tokens[i + 2].get());
+    }
+    return nullptr;
+}
+
 CSTToken* get_linked_from_node(CSTToken* token) {
     switch(token->type()) {
         case LexTokenType::CompVarInit:
             return get_linked_from_var_init(token->as_compound()->tokens);
         case LexTokenType::CompTypealias:
             return get_linked_from_typealias(token->as_compound()->tokens);
+        case LexTokenType::CompFunction:
+            return get_linked_from_func(token->as_compound()->tokens);
         default:
             return nullptr;
     }

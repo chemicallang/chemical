@@ -4,7 +4,7 @@
 
 #include "ast/base/Visitor.h"
 
-class ValueVisitor : public Visitor {
+class CommonVisitor : public Visitor {
 public:
 
     void visit(Scope *scope) override;

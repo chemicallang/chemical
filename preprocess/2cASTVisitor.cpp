@@ -85,7 +85,7 @@
 #include "ast/values/UInt128Value.h"
 #include "ast/values/UIntValue.h"
 #include "ast/values/ULongValue.h"
-#include "ast/utils/ValueVisitor.h"
+#include "ast/utils/CommonVisitor.h"
 
 ToCAstVisitor::ToCAstVisitor(std::ostream &output) : output(output) {
     declarer = std::make_unique<CDeclareVisitor>(this);
@@ -202,7 +202,7 @@ public:
 
 };
 
-class CDeclareVisitor : public ValueVisitor, public SubVisitor {
+class CDeclareVisitor : public CommonVisitor, public SubVisitor {
 public:
 
     using SubVisitor::SubVisitor;
@@ -222,7 +222,7 @@ public:
 };
 
 void CDeclareVisitor::visit(LambdaFunction *lamb) {
-    ValueVisitor::visit(lamb);
+    CommonVisitor::visit(lamb);
     visitor->new_line_and_indent();
     lamb->func_type->returnType->accept(visitor);
     space();
@@ -252,7 +252,7 @@ void CDeclareVisitor::visit(LambdaFunction *lamb) {
 }
 
 void CDeclareVisitor::visit(FunctionDeclaration *decl) {
-    ValueVisitor::visit(decl);
+    CommonVisitor::visit(decl);
     visitor->new_line_and_indent();
     if(decl->returnType->kind() == BaseTypeKind::Void && decl->name == "main") {
         write("int");

@@ -1,6 +1,6 @@
 // Copyright (c) Qinetik 2024.
 
-#include "ValueVisitor.h"
+#include "CommonVisitor.h"
 #include "ast/statements/VarInit.h"
 #include "ast/statements/Typealias.h"
 #include "ast/statements/Continue.h"
@@ -84,57 +84,57 @@
 //#include "ast/values/UIntValue.h"
 //#include "ast/values/ULongValue.h"
 
-void ValueVisitor::visit(LambdaFunction *func) {
+void CommonVisitor::visit(LambdaFunction *func) {
     func->scope.accept(this);
 }
 
-void ValueVisitor::visit(Scope *scope) {
+void CommonVisitor::visit(Scope *scope) {
     for(auto& node : scope->nodes) {
         node->accept(this);
     }
 }
 
-void ValueVisitor::visit(FunctionCall *call) {
+void CommonVisitor::visit(FunctionCall *call) {
     for(auto& val : call->values) {
         val->accept(this);
     }
 }
 
-void ValueVisitor::visit(VarInitStatement *init) {
+void CommonVisitor::visit(VarInitStatement *init) {
     if(init->value.has_value()) {
         init->value.value()->accept(this);
     }
 }
 
-void ValueVisitor::visit(ReturnStatement *stmt) {
+void CommonVisitor::visit(ReturnStatement *stmt) {
     if(stmt->value.has_value()) {
         stmt->value.value()->accept(this);
     }
 }
 
-void ValueVisitor::visit(AssignStatement *assign) {
+void CommonVisitor::visit(AssignStatement *assign) {
     assign->value->accept(this);
 }
 
-void ValueVisitor::visit(FunctionDeclaration *decl) {
+void CommonVisitor::visit(FunctionDeclaration *decl) {
     if(decl->body.has_value()) {
         decl->body.value().accept(this);
     }
 }
 
-void ValueVisitor::visit(StructDefinition *structDefinition) {
+void CommonVisitor::visit(StructDefinition *structDefinition) {
     for(auto& mem : structDefinition->variables) {
         mem.second->accept(this);
     }
 }
 
-void ValueVisitor::visit(StructMember *member) {
+void CommonVisitor::visit(StructMember *member) {
     if(member->defValue.has_value()) {
         member->defValue.value()->accept(this);
     }
 }
 
-void ValueVisitor::visit(IfStatement *ifStatement) {
+void CommonVisitor::visit(IfStatement *ifStatement) {
     ifStatement->ifBody.accept(this);
     for (auto& elif : ifStatement->elseIfs) {
         elif.second.accept(this);
@@ -144,25 +144,25 @@ void ValueVisitor::visit(IfStatement *ifStatement) {
     }
 }
 
-void ValueVisitor::visit(WhileLoop *loop) {
+void CommonVisitor::visit(WhileLoop *loop) {
     loop->body.accept(this);
 }
 
-void ValueVisitor::visit(DoWhileLoop *loop) {
+void CommonVisitor::visit(DoWhileLoop *loop) {
     loop->body.accept(this);
 }
 
-void ValueVisitor::visit(ForLoop *loop) {
+void CommonVisitor::visit(ForLoop *loop) {
     loop->body.accept(this);
 }
 
-void ValueVisitor::visit(SwitchStatement *stmt) {
+void CommonVisitor::visit(SwitchStatement *stmt) {
     for(auto& scope : stmt->scopes) {
         scope.second.accept(this);
     }
 }
 
-void ValueVisitor::visit(AccessChain *chain) {
+void CommonVisitor::visit(AccessChain *chain) {
     for(auto& val : chain->values) {
         val->accept(this);
     }

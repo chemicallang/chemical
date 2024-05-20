@@ -90,6 +90,7 @@
 
 ToCAstVisitor::ToCAstVisitor(std::ostream &output) : output(output) {
     declarer = std::make_unique<CValueDeclarationVisitor>(this);
+    tld = std::make_unique<CTopLevelDeclarationVisitor>(this, declarer.get());
 }
 
 int random(int min, int max) //range : [min, max]
@@ -263,6 +264,27 @@ public:
 
 };
 
+class CTopLevelDeclarationVisitor : public Visitor, public SubVisitor {
+public:
+
+    CValueDeclarationVisitor* value_visitor;
+
+    CTopLevelDeclarationVisitor(
+            ToCAstVisitor* visitor,
+            CValueDeclarationVisitor* value_visitor
+    );
+
+    void visit(FunctionDeclaration *functionDeclaration) override;
+
+};
+
+CTopLevelDeclarationVisitor::CTopLevelDeclarationVisitor(
+    ToCAstVisitor *visitor,
+    CValueDeclarationVisitor *value_visitor
+) : SubVisitor(visitor), value_visitor(value_visitor) {
+
+}
+
 class CValueDeclarationVisitor : public CommonVisitor, public SubVisitor {
 public:
 
@@ -358,8 +380,11 @@ void CValueDeclarationVisitor::visit(LambdaFunction *lamb) {
     scope(visitor, lamb->scope);
 }
 
-void CValueDeclarationVisitor::visit(FunctionDeclaration *decl) {
-    CommonVisitor::visit(decl);
+void CTopLevelDeclarationVisitor::visit(FunctionDeclaration *decl) {
+    for(auto& param : decl->params) {
+        param->accept(value_visitor);
+    }
+    decl->returnType->accept(value_visitor);
     visitor->new_line_and_indent();
     if(decl->returnType->kind() == BaseTypeKind::Void && decl->name == "main") {
         write("int main");
@@ -382,6 +407,12 @@ void CValueDeclarationVisitor::visit(FunctionDeclaration *decl) {
         write("...");
     }
     write(");");
+}
+
+void CValueDeclarationVisitor::visit(FunctionDeclaration *decl) {
+    if(decl->body.has_value()) {
+        decl->body.value().accept(this);
+    }
 }
 
 void CValueDeclarationVisitor::visit(EnumDeclaration *enumDecl) {
@@ -443,7 +474,12 @@ void CValueDeclarationVisitor::visit(FunctionType *type) {
 
 void ToCAstVisitor::translate(std::vector<std::unique_ptr<ASTNode>>& nodes) {
 
-    // declaring things using declaration visitor
+    // declare the top level things with this visitor
+    for(auto& node : nodes) {
+        node->accept(tld.get());
+    }
+
+    // take out values like lambda from within functions
     for(auto& node : nodes) {
         node->accept(declarer.get());
     }

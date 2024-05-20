@@ -61,7 +61,7 @@
 #include "ast/values/AccessChain.h"
 #include "ast/values/StructValue.h"
 //#include "ast/values/AddrOfValue.h"
-//#include "ast/values/ArrayValue.h"
+#include "ast/values/ArrayValue.h"
 //#include "ast/values/BigIntValue.h"
 //#include "ast/values/BoolValue.h"
 //#include "ast/values/CharValue.h"
@@ -104,6 +104,9 @@ void CommonVisitor::visit(FunctionCall *call) {
 }
 
 void CommonVisitor::visit(VarInitStatement *init) {
+    if(init->type.has_value()) {
+        init->type.value()->accept(this);
+    }
     if(init->value.has_value()) {
         init->value.value()->accept(this);
     }
@@ -120,18 +123,33 @@ void CommonVisitor::visit(AssignStatement *assign) {
 }
 
 void CommonVisitor::visit(FunctionDeclaration *decl) {
+    for(auto& param : decl->params) {
+        param->accept(this);
+    }
     if(decl->body.has_value()) {
         decl->body.value().accept(this);
     }
+    decl->returnType->accept(this);
 }
 
-void CommonVisitor::visit(StructDefinition *structDefinition) {
-    for(auto& mem : structDefinition->variables) {
+void CommonVisitor::visit(FunctionParam *param) {
+    param->type->accept(this);
+    if(param->defValue.has_value()) {
+        param->defValue.value()->accept(this);
+    }
+}
+
+void CommonVisitor::visit(StructDefinition *def) {
+    for(auto& mem : def->variables) {
         mem.second->accept(this);
+    }
+    for(auto& func : def->functions) {
+        func.second->accept(this);
     }
 }
 
 void CommonVisitor::visit(StructMember *member) {
+    member->type->accept(this);
     if(member->defValue.has_value()) {
         member->defValue.value()->accept(this);
     }
@@ -148,20 +166,28 @@ void CommonVisitor::visit(IfStatement *ifStatement) {
 }
 
 void CommonVisitor::visit(WhileLoop *loop) {
+    loop->condition->accept(this);
     loop->body.accept(this);
 }
 
 void CommonVisitor::visit(DoWhileLoop *loop) {
     loop->body.accept(this);
+    loop->condition->accept(this);
 }
 
 void CommonVisitor::visit(ForLoop *loop) {
+    loop->initializer->accept(this);
+    loop->incrementerExpr->accept(this);
     loop->body.accept(this);
 }
 
 void CommonVisitor::visit(SwitchStatement *stmt) {
+    stmt->expression->accept(this);
     for(auto& scope : stmt->scopes) {
         scope.second.accept(this);
+    }
+    if(stmt->defScope.has_value()) {
+        stmt->defScope.value().accept(this);
     }
 }
 
@@ -174,5 +200,11 @@ void CommonVisitor::visit(AccessChain *chain) {
 void CommonVisitor::visit(StructValue *val) {
     for(auto& value : val->values) {
         value.second->accept(this);
+    }
+}
+
+void CommonVisitor::visit(ArrayValue *arr) {
+    for(auto& value : arr->values) {
+        value->accept(this);
     }
 }

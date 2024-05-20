@@ -110,18 +110,26 @@ void ArrayValue::link(SymbolResolver &linker) {
 }
 
 std::unique_ptr<BaseType> ArrayValue::element_type() const {
-    BaseType* arrElemType;
-    if(elemType.has_value()) {
-        arrElemType = elemType.value()->copy();
-    } else {
-        if(!values.empty()) {
-            arrElemType = values[0]->create_type().release();
+    BaseType *elementType;
+    if (values.empty()) {
+        if(sizes.size() <= 1) {
+            // get empty array type from the user
+            elementType = elemType.value()->copy();
         } else {
-            std::cerr << "Cannot determine array element type because element type and values both are missing" << std::endl;
-            return nullptr;
+            unsigned int i = sizes.size() - 1;
+            while(i > 0) {
+                if(i == sizes.size() - 1) {
+                    elementType = new ArrayType(std::unique_ptr<BaseType>(elemType.value()->copy()), sizes[i]);
+                } else {
+                    elementType = new ArrayType(std::unique_ptr<BaseType>(elementType), sizes[i]);
+                }
+                i--;
+            }
         }
+    } else {
+        elementType = values[0]->create_type().release();
     }
-    return std::unique_ptr<BaseType>(arrElemType);
+    return std::unique_ptr<BaseType>(elementType);
 }
 
 std::unique_ptr<BaseType> ArrayValue::create_type() const {

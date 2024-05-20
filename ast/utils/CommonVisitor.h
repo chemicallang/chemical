@@ -45,4 +45,6 @@ public:
 
     void visit(ArrayValue *arrayVal) override;
 
+    void visit(ArrayType *func) override;
+
 };

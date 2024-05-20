@@ -251,6 +251,8 @@ public:
 
     unsigned alias_num = 0;
 
+    unsigned enum_num = 0;
+
     void visit(VarInitStatement *init) override;
 
     void visit(LambdaFunction *func) override;
@@ -334,25 +336,23 @@ void CDeclareVisitor::visit(FunctionDeclaration *decl) {
 }
 
 void CDeclareVisitor::visit(EnumDeclaration *enumDecl) {
-    visitor->new_line_and_indent();
-    write("enum ");
-    write(enumDecl->name);
-    write(" {");
-    visitor->indentation_level+=1;
     unsigned i = 0;
     for(auto& mem : enumDecl->members) {
         visitor->new_line_and_indent();
-        write(mem.second->name);
-        write("=");
+        std::string value = ("__CHENUM_");
+        value += (std::to_string(enum_num++));
+        value += ('_');
+        value += (enumDecl->name);
+        value += (std::to_string(random(100, 999)));
+        value += ("_");
+        value += (mem.first);
+        write("#define ");
+        write(value);
+        write(' ');
         write(std::to_string(mem.second->index));
-        if(i != enumDecl->members.size() - 1) {
-            write(',');
-        }
+        aliases[mem.second.get()] = value;
         i++;
     }
-    visitor->indentation_level-=1;
-    visitor->new_line_and_indent();
-    write("};");
 }
 
 void CDeclareVisitor::visit(StructDefinition *def) {
@@ -613,20 +613,31 @@ void ToCAstVisitor::visit(AccessChain *chain) {
     }
     unsigned i = 0;
     while(i < chain->values.size()) {
-        chain->values[i]->accept(this);
         if(i != chain->values.size() - 1) {
             auto& next = chain->values[i + 1];
             if(next->as_func_call() == nullptr && next->as_index_op() == nullptr) {
                 if(chain->values[i]->linked_node()->as_enum_decl() != nullptr) {
-                    write("::");
+                    auto found = declarer->aliases.find(next->linked_node()->as_enum_member());
+                    if(found != declarer->aliases.end()) {
+                        write(found->second);
+                        i++;
+                    } else {
+                        write("[EnumAC_NOT_FOUND:" + chain->values[i]->representation() + "." + next->representation() + "]");
+                    }
                 } else {
                     if(chain->values[i]->type_kind() == BaseTypeKind::Pointer) {
+                        chain->values[i]->accept(this);
                         write("->");
                     } else {
+                        chain->values[i]->accept(this);
                         write('.');
                     }
                 }
+            } else {
+                chain->values[i]->accept(this);
             }
+        } else {
+            chain->values[i]->accept(this);
         }
         i++;
     }

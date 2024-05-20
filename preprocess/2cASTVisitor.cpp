@@ -297,9 +297,33 @@ public:
 
     void visit(TypealiasStatement *statement) override;
 
-    void visit(FunctionType *func) override;
-
 };
+
+std::string func_type_alias(ToCAstVisitor* visitor, FunctionType* type) {
+    std::string alias = "__chfunctype_";
+    alias += std::to_string(random(100,999)) + "_";
+    alias += std::to_string(visitor->declarer->func_type_num++);
+    func_type_with_id(visitor, type, alias);
+    visitor->declarer->aliases[type] = alias;
+    return alias;
+}
+
+void accept_func_return(ToCAstVisitor* visitor, BaseType* type, const std::string& name) {
+    if(type->kind() == BaseTypeKind::Function) {
+        visitor->write("typedef ");
+        auto alia = func_type_alias(visitor, (FunctionType*) type);
+        visitor->write(';');
+        visitor->new_line_and_indent();
+
+        visitor->write(alia);
+        visitor->space();
+        visitor->write(name);
+    } else {
+        type->accept(visitor);
+        visitor->space();
+        visitor->write(name);
+    }
+}
 
 void CDeclareVisitor::visit(VarInitStatement *init) {
     CommonVisitor::visit(init);
@@ -311,12 +335,10 @@ void CDeclareVisitor::visit(VarInitStatement *init) {
 void CDeclareVisitor::visit(LambdaFunction *lamb) {
     CommonVisitor::visit(lamb);
     visitor->new_line_and_indent();
-    lamb->func_type->returnType->accept(visitor);
-    space();
     std::string lamb_name = "__chemda_";
     lamb_name += std::to_string(random(100,999)) + "_";
     lamb_name += std::to_string(lambda_num++);
-    write(lamb_name);
+    accept_func_return(visitor, lamb->func_type->returnType.get(), lamb_name);
     aliases[lamb] = lamb_name;
     write('(');
     unsigned i = 0;
@@ -345,10 +367,8 @@ void CDeclareVisitor::visit(FunctionDeclaration *decl) {
     if(decl->returnType->kind() == BaseTypeKind::Void && decl->name == "main") {
         write("int");
     } else {
-        decl->returnType->accept(visitor);
+        accept_func_return(visitor, decl->returnType.get(), decl->name);
     }
-    space();
-    write(decl->name);
     write('(');
     unsigned i = 0;
     FunctionParam* param;
@@ -418,14 +438,6 @@ void CDeclareVisitor::visit(TypealiasStatement *stmt) {
         aliases[stmt] = alias;
     }
     write(';');
-}
-
-void CDeclareVisitor::visit(FunctionType *type) {
-//    std::string alias = "__chfunctype_";
-//    alias += std::to_string(random(100,999)) + "_";
-//    alias += std::to_string(func_type_num++);
-//    func_type_with_id(visitor, type, alias);
-//    aliases[type] = alias;
 }
 
 void ToCAstVisitor::translate(std::vector<std::unique_ptr<ASTNode>>& nodes) {
@@ -542,10 +554,8 @@ void ToCAstVisitor::visit(FunctionDeclaration *decl) {
     if(decl->returnType->kind() == BaseTypeKind::Void && decl->name == "main") {
         write("int");
     } else {
-        decl->returnType->accept(this);
+        accept_func_return(this, decl->returnType.get(), decl->name);
     }
-    space();
-    write(decl->name);
     write('(');
     unsigned i = 0;
     FunctionParam* param;

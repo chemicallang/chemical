@@ -6,6 +6,7 @@
 #include <vector>
 #include <memory>
 
+class CTopLevelDeclarationVisitor;
 class CValueDeclarationVisitor;
 
 class ToCAstVisitor : public Visitor {
@@ -17,7 +18,13 @@ public:
     bool top_level_node = true;
 
     /**
-     * a declarer
+     * top level declarations will be declared by this visitor
+     */
+    std::unique_ptr<CTopLevelDeclarationVisitor> tld;
+
+    /**
+     * this visitor takes out values like lambda from within functions
+     * to file level scope
      */
     std::unique_ptr<CValueDeclarationVisitor> declarer;
 

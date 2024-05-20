@@ -3,6 +3,7 @@
 #include "2cASTVisitor.h"
 #include <memory>
 #include <ostream>
+#include <random>
 #include "ast/statements/VarInit.h"
 #include "ast/statements/Typealias.h"
 #include "ast/statements/Continue.h"
@@ -91,6 +92,17 @@ ToCAstVisitor::ToCAstVisitor(std::ostream &output) : output(output) {
     declarer = std::make_unique<CDeclareVisitor>(this);
 }
 
+int random(int min, int max) //range : [min, max]
+{
+    static bool first = true;
+    if (first)
+    {
+        srand( time(NULL) ); //seeding for the first time only!
+        first = false;
+    }
+    return min + rand() % (( max + 1 ) - min);
+}
+
 class ToCAstVisitor;
 
 // will write a scope to visitor
@@ -164,6 +176,32 @@ void write_type_post_id(ToCAstVisitor* visitor, BaseType* type) {
     }
 }
 
+void assign_statement(ToCAstVisitor* visitor, AssignStatement* assign) {
+    assign->lhs->accept(visitor);
+    visitor->write(" = ");
+    assign->value->accept(visitor);
+}
+
+void var_init(ToCAstVisitor* visitor, VarInitStatement* init) {
+    BaseType* type;
+    if (init->type.has_value()) {
+        type = init->type.value().get();
+        init->type.value()->accept(visitor);
+    } else {
+        auto created = init->value.value()->create_type();
+        type = created.get();
+        created->accept(visitor);
+    }
+    visitor->space();
+    visitor->write(init->identifier);
+    write_type_post_id(visitor, type);
+    if(init->value.has_value()) {
+        visitor->write(" = ");
+        init->value.value()->accept(visitor);
+    }
+    visitor->write(';');
+}
+
 class SubVisitor {
 public:
 
@@ -207,9 +245,13 @@ public:
 
     using SubVisitor::SubVisitor;
 
-    std::unordered_map<LambdaFunction*, std::string> lambda_names;
+    std::unordered_map<void*, std::string> aliases;
 
     unsigned lambda_num = 0;
+
+    unsigned alias_num = 0;
+
+    void visit(VarInitStatement *init) override;
 
     void visit(LambdaFunction *func) override;
 
@@ -219,17 +261,27 @@ public:
 
     void visit(StructDefinition *structDefinition) override;
 
+    void visit(TypealiasStatement *statement) override;
+
 };
+
+void CDeclareVisitor::visit(VarInitStatement *init) {
+    CommonVisitor::visit(init);
+    if(!is_top_level_node) return;
+    visitor->new_line_and_indent();
+    var_init(visitor, init);
+}
 
 void CDeclareVisitor::visit(LambdaFunction *lamb) {
     CommonVisitor::visit(lamb);
     visitor->new_line_and_indent();
     lamb->func_type->returnType->accept(visitor);
     space();
-    std::string lamb_name = "__ch_lambda_ch__";
+    std::string lamb_name = "__chemda_";
+    lamb_name += std::to_string(random(100,999)) + "_";
     lamb_name += std::to_string(lambda_num++);
     write(lamb_name);
-    lambda_names[lamb] = lamb_name;
+    aliases[lamb] = lamb_name;
     write('(');
     unsigned i = 0;
     FunctionParam* param;
@@ -278,11 +330,11 @@ void CDeclareVisitor::visit(FunctionDeclaration *decl) {
     if(decl->isVariadic) {
         write("...");
     }
-    write(')');
-    write(';');
+    write(");");
 }
 
 void CDeclareVisitor::visit(EnumDeclaration *enumDecl) {
+    visitor->new_line_and_indent();
     write("enum ");
     write(enumDecl->name);
     write(" {");
@@ -304,6 +356,8 @@ void CDeclareVisitor::visit(EnumDeclaration *enumDecl) {
 }
 
 void CDeclareVisitor::visit(StructDefinition *def) {
+    CommonVisitor::visit(def);
+    visitor->new_line_and_indent();
     write("struct ");
     write(def->name);
     write(" {");
@@ -315,6 +369,23 @@ void CDeclareVisitor::visit(StructDefinition *def) {
     visitor->indentation_level-=1;
     visitor->new_line_and_indent();
     write("};");
+}
+
+void CDeclareVisitor::visit(TypealiasStatement *stmt) {
+    visitor->new_line_and_indent();
+    write("typedef ");
+    stmt->to->accept(visitor);
+    write(' ');
+    if(is_top_level_node) {
+        write(stmt->from);
+    } else {
+        std::string alias = "__chalias_";
+        alias += std::to_string(random(100,999)) + "_";
+        alias += std::to_string(alias_num++);
+        write(alias);
+        aliases[stmt] = alias;
+    }
+    write(';');
 }
 
 void ToCAstVisitor::translate(std::vector<std::unique_ptr<ASTNode>>& nodes) {
@@ -359,29 +430,12 @@ void ToCAstVisitor::write(const std::string& value) {
 }
 
 void ToCAstVisitor::visit(VarInitStatement *init) {
-    BaseType* type;
-    if (init->type.has_value()) {
-        type = init->type.value().get();
-        init->type.value()->accept(this);
-    } else {
-        auto created = init->value.value()->create_type();
-        type = created.get();
-        created->accept(this);
-    }
-    space();
-    write(init->identifier);
-    write_type_post_id(this, type);
-    if(init->value.has_value()) {
-        write(" = ");
-        init->value.value()->accept(this);
-    }
-    write(';');
+    if(top_level_node) return;
+    var_init(this, init);
 }
 
 void ToCAstVisitor::visit(AssignStatement *assign) {
-    assign->lhs->accept(this);
-    write(" = ");
-    assign->value->accept(this);
+    assign_statement(this, assign);
     write(';');
 }
 
@@ -412,13 +466,9 @@ void ToCAstVisitor::visit(ReturnStatement *returnStatement) {
 }
 
 void ToCAstVisitor::visit(DoWhileLoop *doWhileLoop) {
-    write("do {");
-    new_line();
-    indentation_level+=1;
-    doWhileLoop->body.accept(this);
-    indentation_level-=1;
-    new_line_and_indent();
-    write("} while(");
+    write("do ");
+    scope(this, doWhileLoop->body);
+    write(" while(");
     doWhileLoop->condition->accept(this);
     write(");");
 }
@@ -432,7 +482,11 @@ void ToCAstVisitor::visit(ForLoop *forLoop) {
     forLoop->initializer->accept(this);
     forLoop->conditionExpr->accept(this);
     write(';');
-    forLoop->incrementerExpr->accept(this);
+    if(forLoop->incrementerExpr->as_assignment() != nullptr) {
+        assign_statement(this, forLoop->incrementerExpr->as_assignment());
+    } else {
+        forLoop->incrementerExpr->accept(this);
+    }
     write(')');
     scope(this, forLoop->body);
 }
@@ -471,7 +525,9 @@ void ToCAstVisitor::visit(FunctionDeclaration *decl) {
 
 void ToCAstVisitor::visit(IfStatement *decl) {
     write("if(");
+    nested_value = true;
     decl->condition->accept(this);
+    nested_value = false;
     write(')');
     scope(this, decl->ifBody);
     unsigned i = 0;
@@ -526,10 +582,13 @@ void ToCAstVisitor::visit(InterfaceDefinition *def) {
 }
 
 void ToCAstVisitor::visit(Scope *scope) {
+    auto prev = top_level_node;
+    top_level_node = false;
     for(auto& node : scope->nodes) {
         new_line_and_indent();
         node->accept(this);
     }
+    top_level_node = prev;
 }
 
 void ToCAstVisitor::visit(StructDefinition *structDefinition) {
@@ -586,11 +645,7 @@ void ToCAstVisitor::visit(StructMember *member) {
 }
 
 void ToCAstVisitor::visit(TypealiasStatement *stmt) {
-   write("typedef ");
-   stmt->to->accept(this);
-   write(' ');
-   write(stmt->from);
-   write(';');
+    // declared above
 }
 
 void ToCAstVisitor::visit(SwitchStatement *statement) {
@@ -801,8 +856,8 @@ void ToCAstVisitor::visit(TernaryValue *ternary) {
 }
 
 void ToCAstVisitor::visit(LambdaFunction *func) {
-    auto found = declarer->lambda_names.find(func);
-    if(found != declarer->lambda_names.end()) {
+    auto found = declarer->aliases.find(func);
+    if(found != declarer->aliases.end()) {
         write(found->second);
     } else {
         write("[LambdaFunction_NOT_FOUND]");
@@ -838,7 +893,6 @@ void ToCAstVisitor::visit(FloatType *func) {
 }
 
 void ToCAstVisitor::visit(FunctionType *func) {
-    // TODO function pointers
     write("void*");
 }
 
@@ -863,11 +917,18 @@ void ToCAstVisitor::visit(PointerType *func) {
     write('*');
 }
 
-void ToCAstVisitor::visit(ReferencedType *func) {
-    if(func->linked->as_struct_def()) {
+void ToCAstVisitor::visit(ReferencedType *type) {
+    if(type->linked->as_struct_def()) {
         write("struct ");
     }
-    write(func->type);
+    if(type->linked->as_typealias() != nullptr) {
+        auto alias = declarer->aliases.find(type->linked->as_typealias());
+        if(alias != declarer->aliases.end()) {
+            write(alias->second);
+            return;
+        }
+    }
+    write(type->type);
 }
 
 void ToCAstVisitor::visit(ShortType *func) {

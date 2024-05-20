@@ -31,6 +31,10 @@ public:
 
     void declare_and_link(SymbolResolver &linker) override;
 
+    AssignStatement *as_assignment() override {
+        return this;
+    }
+
 #ifdef COMPILER_BUILD
     void code_gen(Codegen &gen) override;
 #endif

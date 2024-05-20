@@ -103,6 +103,13 @@ public:
     /**
      * as enum member
      */
+    virtual EnumDeclaration* as_enum_decl() {
+        return nullptr;
+    }
+
+    /**
+     * as enum member
+     */
     virtual EnumMember* as_enum_member() {
         return nullptr;
     }

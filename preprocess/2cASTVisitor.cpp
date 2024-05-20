@@ -85,14 +85,86 @@
 #include "ast/values/UInt128Value.h"
 #include "ast/values/UIntValue.h"
 #include "ast/values/ULongValue.h"
+#include "ast/utils/ValueVisitor.h"
 
 ToCAstVisitor::ToCAstVisitor(std::ostream &output) : output(output) {
-
+    declarer = std::make_unique<CDeclareVisitor>(this);
 }
 
 class ToCAstVisitor;
 
-class CDeclareVisitor : public Visitor {
+// will write a scope to visitor
+void scope(ToCAstVisitor* visitor, Scope& scope) {
+    visitor->write('{');
+    visitor->indentation_level+=1;
+    scope.accept(visitor);
+    visitor->indentation_level-=1;
+    visitor->new_line_and_indent();
+    visitor->write('}');
+}
+
+void write_encoded(ToCAstVisitor* visitor, char value){
+    switch(value) {
+        case '\a':
+            visitor->write("\\a");
+            break;
+        case '\f':
+            visitor->write("\\f");
+            break;
+        case '\r':
+            visitor->write("\\r");
+            break;
+        case '\n':
+            visitor->write("\\n");
+            break;
+        case '\0':
+            visitor->write("\\0");
+            break;
+        case '\t':
+            visitor->write("\\t");
+            break;
+        case '\v':
+            visitor->write("\\v");
+            break;
+        case '\b':
+            visitor->write("\\b");
+            break;
+        case '\"':
+            visitor->write("\\\"");
+            break;
+        case '\?':
+            visitor->write("\\?");
+            break;
+        case '\x1b':
+            visitor->write("\\x1b");
+            break;
+        default:
+            visitor->write(value);
+            break;
+    }
+}
+
+void write_encoded(ToCAstVisitor* visitor, const std::string& value) {
+    for(char c : value) {
+        write_encoded(visitor, c);
+    }
+}
+
+void write_type_post_id(ToCAstVisitor* visitor, BaseType* type) {
+    if(type->kind() == BaseTypeKind::Array) {
+        visitor->write('[');
+        auto arrType = ((ArrayType*) type);
+        if(arrType->array_size != -1) {
+            visitor->write(std::to_string(arrType->array_size));
+        }
+        visitor->write(']');
+        if(arrType->elem_type->kind() == BaseTypeKind::Array) {
+            write_type_post_id(visitor, arrType->elem_type.get());
+        }
+    }
+}
+
+class SubVisitor {
 public:
 
     /**
@@ -103,15 +175,149 @@ public:
     /**
      * constructor
      */
-    CDeclareVisitor(ToCAstVisitor* visitor) : visitor(visitor) {
+    SubVisitor(ToCAstVisitor* visitor) : visitor(visitor) {
 
     };
 
+    /**
+     * space fn using visitor
+     */
+    inline void space() const {
+        visitor->space();
+    }
+
+    /**
+     * write fn using visitor
+     */
+    inline void write(char value) const {
+        visitor->write(value);
+    }
+
+    /**
+     * write fn using visitor
+     */
+    inline void write(const std::string& value) const {
+        visitor->write(value);
+    }
+
 };
 
-void ToCAstVisitor::translate(std::vector<std::unique_ptr<ASTNode>>& nodes) {
+class CDeclareVisitor : public ValueVisitor, public SubVisitor {
+public:
 
-    declarer = std::make_unique<CDeclareVisitor>(this);
+    using SubVisitor::SubVisitor;
+
+    std::unordered_map<LambdaFunction*, std::string> lambda_names;
+
+    unsigned lambda_num = 0;
+
+    void visit(LambdaFunction *func) override;
+
+    void visit(FunctionDeclaration *functionDeclaration) override;
+
+    void visit(EnumDeclaration *enumDeclaration) override;
+
+    void visit(StructDefinition *structDefinition) override;
+
+};
+
+void CDeclareVisitor::visit(LambdaFunction *lamb) {
+    ValueVisitor::visit(lamb);
+    visitor->new_line_and_indent();
+    lamb->func_type->returnType->accept(visitor);
+    space();
+    std::string lamb_name = "__ch_lambda_ch__";
+    lamb_name += std::to_string(lambda_num++);
+    write(lamb_name);
+    lambda_names[lamb] = lamb_name;
+    write('(');
+    unsigned i = 0;
+    FunctionParam* param;
+    auto size = lamb->func_type->isVariadic ? lamb->func_type->params.size() - 1 : lamb->func_type->params.size();
+    while(i < size) {
+        param = lamb->func_type->params[i].get();
+        param->type->accept(visitor);
+        space();
+        write(param->name);
+        if(i != lamb->func_type->params.size() - 1) {
+            write(", ");
+        }
+        i++;
+    }
+    if(lamb->func_type->isVariadic) {
+        write("...");
+    }
+    write(')');
+    scope(visitor, lamb->scope);
+}
+
+void CDeclareVisitor::visit(FunctionDeclaration *decl) {
+    ValueVisitor::visit(decl);
+    visitor->new_line_and_indent();
+    if(decl->returnType->kind() == BaseTypeKind::Void && decl->name == "main") {
+        write("int");
+    } else {
+        decl->returnType->accept(visitor);
+    }
+    space();
+    write(decl->name);
+    write('(');
+    unsigned i = 0;
+    FunctionParam* param;
+    auto size = decl->isVariadic ? decl->params.size() - 1 : decl->params.size();
+    while(i < size) {
+        param = decl->params[i].get();
+        param->type->accept(visitor);
+        space();
+        write(param->name);
+        if(i != decl->params.size() - 1) {
+            write(", ");
+        }
+        i++;
+    }
+    if(decl->isVariadic) {
+        write("...");
+    }
+    write(')');
+    write(';');
+}
+
+void CDeclareVisitor::visit(EnumDeclaration *enumDecl) {
+    write("enum ");
+    write(enumDecl->name);
+    write(" {");
+    visitor->indentation_level+=1;
+    unsigned i = 0;
+    for(auto& mem : enumDecl->members) {
+        visitor->new_line_and_indent();
+        write(mem.second->name);
+        write("=");
+        write(std::to_string(mem.second->index));
+        if(i != enumDecl->members.size() - 1) {
+            write(',');
+        }
+        i++;
+    }
+    visitor->indentation_level-=1;
+    visitor->new_line_and_indent();
+    write("};");
+}
+
+void CDeclareVisitor::visit(StructDefinition *def) {
+    write("struct ");
+    write(def->name);
+    write(" {");
+    visitor->indentation_level+=1;
+    for(auto& var : def->variables) {
+        visitor->new_line_and_indent();
+        var.second->accept(visitor);
+    }
+    visitor->indentation_level-=1;
+    visitor->new_line_and_indent();
+    write("};");
+}
+
+void ToCAstVisitor::translate(std::vector<std::unique_ptr<ASTNode>>& nodes) {
 
     // declaring things using declaration visitor
     for(auto& node : nodes) {
@@ -140,16 +346,6 @@ void ToCAstVisitor::write(char value) {
     output.put(value);
 }
 
-// will write a scope to visitor
-void scope(ToCAstVisitor* visitor, Scope& scope) {
-    visitor->write('{');
-    visitor->indentation_level+=1;
-    scope.accept(visitor);
-    visitor->indentation_level-=1;
-    visitor->new_line_and_indent();
-    visitor->write('}');
-}
-
 void ToCAstVisitor::indent() {
     unsigned start = 0;
     while(start < indentation_level) {
@@ -163,13 +359,18 @@ void ToCAstVisitor::write(const std::string& value) {
 }
 
 void ToCAstVisitor::visit(VarInitStatement *init) {
+    BaseType* type;
     if (init->type.has_value()) {
+        type = init->type.value().get();
         init->type.value()->accept(this);
     } else {
-        init->value.value()->create_type()->accept(this);
+        auto created = init->value.value()->create_type();
+        type = created.get();
+        created->accept(this);
     }
     space();
     write(init->identifier);
+    write_type_post_id(this, type);
     if(init->value.has_value()) {
         write(" = ");
         init->value.value()->accept(this);
@@ -223,25 +424,12 @@ void ToCAstVisitor::visit(DoWhileLoop *doWhileLoop) {
 }
 
 void ToCAstVisitor::visit(EnumDeclaration *enumDecl) {
-    write("enum ");
-    write(enumDecl->name);
-    write(" {");
-    indentation_level+=1;
-    for(auto& mem : enumDecl->members) {
-        new_line_and_indent();
-        write(mem.second->name);
-        write("=");
-        write(std::to_string(mem.second->index));
-        write(',');
-    }
-    indentation_level-=1;
-    write('}');
+
 }
 
 void ToCAstVisitor::visit(ForLoop *forLoop) {
     write("for(");
     forLoop->initializer->accept(this);
-    write(';');
     forLoop->conditionExpr->accept(this);
     write(';');
     forLoop->incrementerExpr->accept(this);
@@ -254,7 +442,14 @@ void ToCAstVisitor::visit(FunctionParam *functionParam) {
 }
 
 void ToCAstVisitor::visit(FunctionDeclaration *decl) {
-    decl->returnType->accept(this);
+    if(!decl->body.has_value()) {
+        return;
+    }
+    if(decl->returnType->kind() == BaseTypeKind::Void && decl->name == "main") {
+        write("int");
+    } else {
+        decl->returnType->accept(this);
+    }
     space();
     write(decl->name);
     write('(');
@@ -271,11 +466,7 @@ void ToCAstVisitor::visit(FunctionDeclaration *decl) {
         i++;
     }
     write(')');
-    if(decl->body.has_value()) {
-        scope(this, decl->body.value());
-    } else {
-        write(';');
-    }
+    scope(this, decl->body.value());
 }
 
 void ToCAstVisitor::visit(IfStatement *decl) {
@@ -298,12 +489,40 @@ void ToCAstVisitor::visit(IfStatement *decl) {
     }
 }
 
-void ToCAstVisitor::visit(ImplDefinition *implDefinition) {
-    write("[ImplDefinition_UNIMPLEMENTED]");
+void ToCAstVisitor::visit(ImplDefinition *def) {
+    write("impl ");
+    write(def->interface_name);
+    write(" {");
+    indentation_level+=1;
+    for(auto& var : def->variables) {
+        new_line_and_indent();
+        var.second->accept(this);
+    }
+    indentation_level-=1;
+    new_line_and_indent();
+    write("};");
+    for(auto& var : def->functions) {
+        new_line_and_indent();
+        var.second->accept(this);
+    }
 }
 
-void ToCAstVisitor::visit(InterfaceDefinition *interfaceDefinition) {
-    write("[InterfaceDefinition_UNIMPLEMENTED]");
+void ToCAstVisitor::visit(InterfaceDefinition *def) {
+    write("struct ");
+    write(def->name);
+    write(" {");
+    indentation_level+=1;
+    for(auto& var : def->variables) {
+        new_line_and_indent();
+        var.second->accept(this);
+    }
+    indentation_level-=1;
+    new_line_and_indent();
+    write("};");
+    for(auto& var : def->functions) {
+        new_line_and_indent();
+        var.second->accept(this);
+    }
 }
 
 void ToCAstVisitor::visit(Scope *scope) {
@@ -314,7 +533,10 @@ void ToCAstVisitor::visit(Scope *scope) {
 }
 
 void ToCAstVisitor::visit(StructDefinition *structDefinition) {
-    write("[StructDefinition_UNIMPLEMENTED]");
+    for(auto& var : structDefinition->functions) {
+        new_line_and_indent();
+        var.second->accept(this);
+    }
 }
 
 void ToCAstVisitor::visit(WhileLoop *whileLoop) {
@@ -333,8 +555,19 @@ void ToCAstVisitor::visit(AccessChain *chain) {
     unsigned i = 0;
     while(i < chain->values.size()) {
         chain->values[i]->accept(this);
-        if(i != chain->values.size() - 1 && chain->values[i + 1]->as_func_call() == nullptr) {
-            write('.');
+        if(i != chain->values.size() - 1) {
+            auto& next = chain->values[i + 1];
+            if(next->as_func_call() == nullptr && next->as_index_op() == nullptr) {
+                if(chain->values[i]->linked_node()->as_enum_decl() != nullptr) {
+                    write("::");
+                } else {
+                    if(chain->values[i]->type_kind() == BaseTypeKind::Pointer) {
+                        write("->");
+                    } else {
+                        write('.');
+                    }
+                }
+            }
         }
         i++;
     }
@@ -345,11 +578,19 @@ void ToCAstVisitor::visit(MacroValueStatement *statement) {
 }
 
 void ToCAstVisitor::visit(StructMember *member) {
-    write("[StructMember_UNIMPLEMENTED]");
+    member->type->accept(this);
+    space();
+    write(member->name);
+    write_type_post_id(this, member->type.get());
+    write(';');
 }
 
-void ToCAstVisitor::visit(TypealiasStatement *statement) {
-    write("[TypealiasStatement_UNIMPLEMENTED]");
+void ToCAstVisitor::visit(TypealiasStatement *stmt) {
+   write("typedef ");
+   stmt->to->accept(this);
+   write(' ');
+   write(stmt->from);
+   write(';');
 }
 
 void ToCAstVisitor::visit(SwitchStatement *statement) {
@@ -372,11 +613,16 @@ void ToCAstVisitor::visit(SwitchStatement *statement) {
         i++;
     }
     indentation_level -= 1;
+    new_line_and_indent();
     write('}');
 }
 
 void ToCAstVisitor::visit(TryCatch *statement) {
     write("[TryCatch_UNIMPLEMENTED]");
+}
+
+void ToCAstVisitor::visit(IntValue *val) {
+    write(std::to_string(val->value));
 }
 
 void ToCAstVisitor::visit(BigIntValue *val) {
@@ -416,7 +662,7 @@ void ToCAstVisitor::visit(UInt128Value *val) {
 }
 
 void ToCAstVisitor::visit(NumberValue *numValue) {
-    write("[NumberValue_UNIMPLEMENTED]");
+    write(std::to_string(numValue->get_num_value()));
 }
 
 void ToCAstVisitor::visit(FloatValue *val) {
@@ -429,30 +675,47 @@ void ToCAstVisitor::visit(DoubleValue *val) {
 
 void ToCAstVisitor::visit(CharValue *val) {
     write('\'');
-    write(val->value);
+    write_encoded(this, val->value);
     write('\'');
 }
 
 void ToCAstVisitor::visit(StringValue *val) {
     write('"');
-    write(val->value);
+    write_encoded(this, val->value);
     write('"');
 }
 
 void ToCAstVisitor::visit(BoolValue *boolVal) {
     if(boolVal->value) {
-        write("true");
+        write('1');
     } else {
-        write("false");
+        write('0');
     }
 }
 
-void ToCAstVisitor::visit(ArrayValue *arrayVal) {
-    write("[ArrayValue_UNIMPLEMENTED]");
+void ToCAstVisitor::visit(ArrayValue *arr) {
+    write('{');
+    unsigned i = 0;
+    while(i < arr->values.size()) {
+        arr->values[i]->accept(this);
+        if(i != arr->values.size() - 1) {
+            write(',');
+        }
+        i++;
+    }
+    write('}');
 }
 
-void ToCAstVisitor::visit(StructValue *structValue) {
-    write("[StructValue_UNIMPLEMENTED]");
+void ToCAstVisitor::visit(StructValue *val) {
+    write('{');
+    for(auto& value : val->values) {
+        write('.');
+        write(value.first);
+        write(" = ");
+        value.second->accept(this);
+        write(", ");
+    }
+    write('}');
 }
 
 void ToCAstVisitor::visit(VariableIdentifier *identifier) {
@@ -461,11 +724,13 @@ void ToCAstVisitor::visit(VariableIdentifier *identifier) {
 
 void ToCAstVisitor::visit(Expression *expr) {
     write('(');
+    nested_value = true;
     expr->firstValue->accept(this);
     space();
-    to_string(expr->operation);
+    write(to_string(expr->operation));
     space();
     expr->secondValue->accept(this);
+    nested_value = false;
     write(')');
 }
 
@@ -501,6 +766,9 @@ void ToCAstVisitor::visit(FunctionCall *call) {
         i++;
     }
     write(')');
+    if(!nested_value) {
+        write(';');
+    }
 }
 
 void ToCAstVisitor::visit(IndexOperator *op) {
@@ -533,15 +801,20 @@ void ToCAstVisitor::visit(TernaryValue *ternary) {
 }
 
 void ToCAstVisitor::visit(LambdaFunction *func) {
-    write("[LambdaFunction_UNIMPLEMENTED]");
+    auto found = declarer->lambda_names.find(func);
+    if(found != declarer->lambda_names.end()) {
+        write(found->second);
+    } else {
+        write("[LambdaFunction_NOT_FOUND]");
+    }
 }
 
 void ToCAstVisitor::visit(AnyType *func) {
 
 }
 
-void ToCAstVisitor::visit(ArrayType *func) {
-    write("[ArrayType_UNIMPLEMENTED]");
+void ToCAstVisitor::visit(ArrayType *type) {
+    type->elem_type->accept(this);
 }
 
 void ToCAstVisitor::visit(BigIntType *func) {
@@ -591,6 +864,9 @@ void ToCAstVisitor::visit(PointerType *func) {
 }
 
 void ToCAstVisitor::visit(ReferencedType *func) {
+    if(func->linked->as_struct_def()) {
+        write("struct ");
+    }
     write(func->type);
 }
 

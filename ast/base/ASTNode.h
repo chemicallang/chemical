@@ -171,15 +171,20 @@ public:
 
     /**
      * return if this is a var init statement
-     * @return
      */
     virtual VarInitStatement *as_var_init() {
         return nullptr;
     }
 
     /**
+     * return assignment statement if it is one
+     */
+    virtual AssignStatement* as_assignment() {
+        return nullptr;
+    }
+
+    /**
      * accept the visitor
-     * @param visitor
      */
     virtual void accept(Visitor *visitor) = 0;
 

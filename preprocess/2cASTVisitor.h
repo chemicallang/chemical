@@ -12,6 +12,11 @@ class ToCAstVisitor : public Visitor {
 public:
 
     /**
+     * this should be set to true
+     */
+    bool top_level_node = true;
+
+    /**
      * a declarer
      */
     std::unique_ptr<CDeclareVisitor> declarer;

@@ -59,7 +59,7 @@
 #include "ast/values/LambdaFunction.h"
 //#include "ast/values/CastedValue.h"
 #include "ast/values/AccessChain.h"
-//#include "ast/values/StructValue.h"
+#include "ast/values/StructValue.h"
 //#include "ast/values/AddrOfValue.h"
 //#include "ast/values/ArrayValue.h"
 //#include "ast/values/BigIntValue.h"
@@ -89,9 +89,12 @@ void CommonVisitor::visit(LambdaFunction *func) {
 }
 
 void CommonVisitor::visit(Scope *scope) {
+    auto prev = is_top_level_node;
+    is_top_level_node = false;
     for(auto& node : scope->nodes) {
         node->accept(this);
     }
+    is_top_level_node = prev;
 }
 
 void CommonVisitor::visit(FunctionCall *call) {
@@ -165,5 +168,11 @@ void CommonVisitor::visit(SwitchStatement *stmt) {
 void CommonVisitor::visit(AccessChain *chain) {
     for(auto& val : chain->values) {
         val->accept(this);
+    }
+}
+
+void CommonVisitor::visit(StructValue *val) {
+    for(auto& value : val->values) {
+        value.second->accept(this);
     }
 }

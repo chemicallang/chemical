@@ -7,6 +7,8 @@
 class CommonVisitor : public Visitor {
 public:
 
+    bool is_top_level_node = true;
+
     void visit(Scope *scope) override;
 
     void visit(FunctionCall *call) override;
@@ -36,5 +38,7 @@ public:
     void visit(SwitchStatement *statement) override;
 
     void visit(AccessChain *chain) override;
+
+    void visit(StructValue *structValue) override;
 
 };

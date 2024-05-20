@@ -182,24 +182,54 @@ void assign_statement(ToCAstVisitor* visitor, AssignStatement* assign) {
     assign->value->accept(visitor);
 }
 
+void func_type_with_id(ToCAstVisitor* visitor, FunctionType* type, const std::string& id) {
+    type->returnType->accept(visitor);
+    visitor->write('(');
+    visitor->write('*');
+    visitor->write(id);
+    visitor->write(")(");
+    if(type->params.empty()) {
+        visitor->write("void");
+    } else {
+        unsigned i = 0;
+        for(auto& param : type->params) {
+            param->type->accept(visitor);
+            if(i != type->params.size() - 1) {
+                visitor->write(',');
+            }
+            i++;
+        }
+    }
+    visitor->write(")");
+}
+
+void type_with_id(ToCAstVisitor* visitor, BaseType* type, const std::string& id) {
+    if(type->kind() == BaseTypeKind::Function) {
+        func_type_with_id(visitor, (FunctionType*) type, id);
+    } else {
+        type->accept(visitor);
+        visitor->space();
+        visitor->write(id);
+        write_type_post_id(visitor, type);
+    }
+}
+
 void var_init(ToCAstVisitor* visitor, VarInitStatement* init) {
     BaseType* type;
     if (init->type.has_value()) {
         type = init->type.value().get();
-        init->type.value()->accept(visitor);
     } else {
-        auto created = init->value.value()->create_type();
-        type = created.get();
-        created->accept(visitor);
+        type = init->value.value()->create_type().release();
     }
-    visitor->space();
-    visitor->write(init->identifier);
-    write_type_post_id(visitor, type);
+    type_with_id(visitor, type, init->identifier);
     if(init->value.has_value()) {
         visitor->write(" = ");
         init->value.value()->accept(visitor);
     }
     visitor->write(';');
+    if(!init->type.has_value()) {
+        delete type;
+    }
 }
 
 class SubVisitor {
@@ -249,6 +279,8 @@ public:
 
     unsigned lambda_num = 0;
 
+    unsigned func_type_num = 0;
+
     unsigned alias_num = 0;
 
     unsigned enum_num = 0;
@@ -264,6 +296,8 @@ public:
     void visit(StructDefinition *structDefinition) override;
 
     void visit(TypealiasStatement *statement) override;
+
+    void visit(FunctionType *func) override;
 
 };
 
@@ -321,9 +355,7 @@ void CDeclareVisitor::visit(FunctionDeclaration *decl) {
     auto size = decl->isVariadic ? decl->params.size() - 1 : decl->params.size();
     while(i < size) {
         param = decl->params[i].get();
-        param->type->accept(visitor);
-        space();
-        write(param->name);
+        type_with_id(visitor, param->type.get(), param->name);
         if(i != decl->params.size() - 1) {
             write(", ");
         }
@@ -386,6 +418,14 @@ void CDeclareVisitor::visit(TypealiasStatement *stmt) {
         aliases[stmt] = alias;
     }
     write(';');
+}
+
+void CDeclareVisitor::visit(FunctionType *type) {
+//    std::string alias = "__chfunctype_";
+//    alias += std::to_string(random(100,999)) + "_";
+//    alias += std::to_string(func_type_num++);
+//    func_type_with_id(visitor, type, alias);
+//    aliases[type] = alias;
 }
 
 void ToCAstVisitor::translate(std::vector<std::unique_ptr<ASTNode>>& nodes) {
@@ -511,9 +551,7 @@ void ToCAstVisitor::visit(FunctionDeclaration *decl) {
     FunctionParam* param;
     while(i < decl->params.size()) {
         param = decl->params[i].get();
-        param->type->accept(this);
-        space();
-        write(param->name);
+        type_with_id(this, param->type.get(), param->name);
         if(i != decl->params.size() - 1) {
             write(", ");
         }
@@ -903,8 +941,13 @@ void ToCAstVisitor::visit(FloatType *func) {
     write("float");
 }
 
-void ToCAstVisitor::visit(FunctionType *func) {
-    write("void*");
+void ToCAstVisitor::visit(FunctionType *type) {
+    auto found = declarer->aliases.find(type);
+    if(found != declarer->aliases.end()) {
+        write(found->second);
+    } else {
+        func_type_with_id(this, type, "");
+    }
 }
 
 void ToCAstVisitor::visit(GenericType *func) {

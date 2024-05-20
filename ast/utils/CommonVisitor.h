@@ -21,6 +21,8 @@ public:
 
     void visit(FunctionDeclaration *decl) override;
 
+    void visit(FunctionParam *functionParam) override;
+
     void visit(StructDefinition *structDefinition) override;
 
     void visit(StructMember *member) override;
@@ -40,5 +42,7 @@ public:
     void visit(AccessChain *chain) override;
 
     void visit(StructValue *structValue) override;
+
+    void visit(ArrayValue *arrayVal) override;
 
 };

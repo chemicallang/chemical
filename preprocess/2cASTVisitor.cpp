@@ -89,7 +89,7 @@
 #include "ast/utils/CommonVisitor.h"
 
 ToCAstVisitor::ToCAstVisitor(std::ostream &output) : output(output) {
-    declarer = std::make_unique<CDeclareVisitor>(this);
+    declarer = std::make_unique<CValueDeclarationVisitor>(this);
 }
 
 int random(int min, int max) //range : [min, max]
@@ -263,7 +263,7 @@ public:
 
 };
 
-class CDeclareVisitor : public CommonVisitor, public SubVisitor {
+class CValueDeclarationVisitor : public CommonVisitor, public SubVisitor {
 public:
 
     using SubVisitor::SubVisitor;
@@ -317,7 +317,7 @@ void accept_func_return(ToCAstVisitor* visitor, BaseType* type, const std::strin
     visitor->write(name);
 }
 
-void CDeclareVisitor::visit(VarInitStatement *init) {
+void CValueDeclarationVisitor::visit(VarInitStatement *init) {
     if(!init->type.has_value()) {
         // because it can contain function type, so we must emplace it
         // this function type creates a typedef, which is accessible by function type's pointer from aliases map
@@ -329,7 +329,7 @@ void CDeclareVisitor::visit(VarInitStatement *init) {
     var_init(visitor, init);
 }
 
-void CDeclareVisitor::visit(LambdaFunction *lamb) {
+void CValueDeclarationVisitor::visit(LambdaFunction *lamb) {
     CommonVisitor::visit(lamb);
     visitor->new_line_and_indent();
     std::string lamb_name = "__chemda_";
@@ -358,7 +358,7 @@ void CDeclareVisitor::visit(LambdaFunction *lamb) {
     scope(visitor, lamb->scope);
 }
 
-void CDeclareVisitor::visit(FunctionDeclaration *decl) {
+void CValueDeclarationVisitor::visit(FunctionDeclaration *decl) {
     CommonVisitor::visit(decl);
     visitor->new_line_and_indent();
     if(decl->returnType->kind() == BaseTypeKind::Void && decl->name == "main") {
@@ -384,7 +384,7 @@ void CDeclareVisitor::visit(FunctionDeclaration *decl) {
     write(");");
 }
 
-void CDeclareVisitor::visit(EnumDeclaration *enumDecl) {
+void CValueDeclarationVisitor::visit(EnumDeclaration *enumDecl) {
     unsigned i = 0;
     for(auto& mem : enumDecl->members) {
         visitor->new_line_and_indent();
@@ -404,7 +404,7 @@ void CDeclareVisitor::visit(EnumDeclaration *enumDecl) {
     }
 }
 
-void CDeclareVisitor::visit(StructDefinition *def) {
+void CValueDeclarationVisitor::visit(StructDefinition *def) {
     CommonVisitor::visit(def);
     visitor->new_line_and_indent();
     write("struct ");
@@ -420,7 +420,7 @@ void CDeclareVisitor::visit(StructDefinition *def) {
     write("};");
 }
 
-void CDeclareVisitor::visit(TypealiasStatement *stmt) {
+void CValueDeclarationVisitor::visit(TypealiasStatement *stmt) {
     visitor->new_line_and_indent();
     write("typedef ");
     stmt->to->accept(visitor);
@@ -437,7 +437,7 @@ void CDeclareVisitor::visit(TypealiasStatement *stmt) {
     write(';');
 }
 
-void CDeclareVisitor::visit(FunctionType *type) {
+void CValueDeclarationVisitor::visit(FunctionType *type) {
     typedef_func_type(visitor, type);
 }
 

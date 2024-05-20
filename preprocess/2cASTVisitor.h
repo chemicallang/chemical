@@ -6,7 +6,7 @@
 #include <vector>
 #include <memory>
 
-class CDeclareVisitor;
+class CValueDeclarationVisitor;
 
 class ToCAstVisitor : public Visitor {
 public:
@@ -19,7 +19,7 @@ public:
     /**
      * a declarer
      */
-    std::unique_ptr<CDeclareVisitor> declarer;
+    std::unique_ptr<CValueDeclarationVisitor> declarer;
 
     /**
      * a reference to the stream it's going to write results to

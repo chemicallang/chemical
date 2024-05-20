@@ -686,10 +686,7 @@ void ToCAstVisitor::visit(MacroValueStatement *statement) {
 }
 
 void ToCAstVisitor::visit(StructMember *member) {
-    member->type->accept(this);
-    space();
-    write(member->name);
-    write_type_post_id(this, member->type.get());
+    type_with_id(this, member->type.get(), member->name);
     write(';');
 }
 

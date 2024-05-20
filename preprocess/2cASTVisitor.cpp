@@ -204,31 +204,24 @@ void func_type_with_id(ToCAstVisitor* visitor, FunctionType* type, const std::st
 }
 
 void type_with_id(ToCAstVisitor* visitor, BaseType* type, const std::string& id) {
-    if(type->kind() == BaseTypeKind::Function) {
-        func_type_with_id(visitor, (FunctionType*) type, id);
-    } else {
-        type->accept(visitor);
-        visitor->space();
-        visitor->write(id);
-        write_type_post_id(visitor, type);
-    }
+    type->accept(visitor);
+    visitor->space();
+    visitor->write(id);
+    write_type_post_id(visitor, type);
 }
 
 void var_init(ToCAstVisitor* visitor, VarInitStatement* init) {
-    BaseType* type;
-    if (init->type.has_value()) {
-        type = init->type.value().get();
-    } else {
-        type = init->value.value()->create_type().release();
+    if (!init->type.has_value()) {
+        init->type.emplace(init->value.value()->create_type().release());
     }
-    type_with_id(visitor, type, init->identifier);
+    type_with_id(visitor, init->type.value().get(), init->identifier);
     if(init->value.has_value()) {
         visitor->write(" = ");
         init->value.value()->accept(visitor);
     }
     visitor->write(';');
-    if(!init->type.has_value()) {
-        delete type;
+    if(init->value.has_value()) {
+        init->type = std::nullopt;
     }
 }
 
@@ -297,6 +290,8 @@ public:
 
     void visit(TypealiasStatement *statement) override;
 
+    void visit(FunctionType *func) override;
+
 };
 
 std::string func_type_alias(ToCAstVisitor* visitor, FunctionType* type) {
@@ -308,24 +303,26 @@ std::string func_type_alias(ToCAstVisitor* visitor, FunctionType* type) {
     return alias;
 }
 
-void accept_func_return(ToCAstVisitor* visitor, BaseType* type, const std::string& name) {
-    if(type->kind() == BaseTypeKind::Function) {
-        visitor->write("typedef ");
-        auto alia = func_type_alias(visitor, (FunctionType*) type);
-        visitor->write(';');
-        visitor->new_line_and_indent();
+std::string typedef_func_type(ToCAstVisitor* visitor, FunctionType* type) {
+    visitor->new_line_and_indent();
+    visitor->write("typedef ");
+    auto alia = func_type_alias(visitor, type);
+    visitor->write(';');
+    return alia;
+}
 
-        visitor->write(alia);
-        visitor->space();
-        visitor->write(name);
-    } else {
-        type->accept(visitor);
-        visitor->space();
-        visitor->write(name);
-    }
+void accept_func_return(ToCAstVisitor* visitor, BaseType* type, const std::string& name) {
+    type->accept(visitor);
+    visitor->space();
+    visitor->write(name);
 }
 
 void CDeclareVisitor::visit(VarInitStatement *init) {
+    if(!init->type.has_value()) {
+        // because it can contain function type, so we must emplace it
+        // this function type creates a typedef, which is accessible by function type's pointer from aliases map
+        init->type.emplace(init->value.value()->create_type());
+    }
     CommonVisitor::visit(init);
     if(!is_top_level_node) return;
     visitor->new_line_and_indent();
@@ -365,7 +362,7 @@ void CDeclareVisitor::visit(FunctionDeclaration *decl) {
     CommonVisitor::visit(decl);
     visitor->new_line_and_indent();
     if(decl->returnType->kind() == BaseTypeKind::Void && decl->name == "main") {
-        write("int");
+        write("int main");
     } else {
         accept_func_return(visitor, decl->returnType.get(), decl->name);
     }
@@ -438,6 +435,10 @@ void CDeclareVisitor::visit(TypealiasStatement *stmt) {
         aliases[stmt] = alias;
     }
     write(';');
+}
+
+void CDeclareVisitor::visit(FunctionType *type) {
+    typedef_func_type(visitor, type);
 }
 
 void ToCAstVisitor::translate(std::vector<std::unique_ptr<ASTNode>>& nodes) {
@@ -552,7 +553,7 @@ void ToCAstVisitor::visit(FunctionDeclaration *decl) {
         return;
     }
     if(decl->returnType->kind() == BaseTypeKind::Void && decl->name == "main") {
-        write("int");
+        write("int main");
     } else {
         accept_func_return(this, decl->returnType.get(), decl->name);
     }
@@ -953,7 +954,7 @@ void ToCAstVisitor::visit(FunctionType *type) {
     if(found != declarer->aliases.end()) {
         write(found->second);
     } else {
-        func_type_with_id(this, type, "");
+        func_type_with_id(this, type, "NOT_FOUND");
     }
 }
 

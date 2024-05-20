@@ -32,7 +32,7 @@
 //#include "ast/types/FunctionType.h"
 //#include "ast/types/GenericType.h"
 //#include "ast/types/AnyType.h"
-//#include "ast/types/ArrayType.h"
+#include "ast/types/ArrayType.h"
 //#include "ast/types/BigIntType.h"
 //#include "ast/types/BoolType.h"
 //#include "ast/types/CharType.h"
@@ -207,4 +207,8 @@ void CommonVisitor::visit(ArrayValue *arr) {
     for(auto& value : arr->values) {
         value->accept(this);
     }
+}
+
+void CommonVisitor::visit(ArrayType *type) {
+    type->elem_type->accept(this);
 }

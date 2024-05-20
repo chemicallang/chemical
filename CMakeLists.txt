@@ -392,6 +392,8 @@ set(COMMON_SOURCES
         preprocess/2cASTVisitor.cpp
         preprocess/ToCTranslator.h
         preprocess/ToCTranslator.cpp
+        ast/utils/ValueVisitor.cpp
+        ast/utils/ValueVisitor.h
 )
 
 # Chemical LSP Executable Target

@@ -21,6 +21,10 @@ public:
         visitor->visit(this);
     }
 
+    IndexOperator *as_index_op() override {
+        return this;
+    }
+
     void link(SymbolResolver &linker) override;
 
     ASTNode *linked_node() override;

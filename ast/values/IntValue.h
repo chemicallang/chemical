@@ -63,7 +63,5 @@ public:
         return BaseTypeKind::IntN;
     }
 
-
-private:
     int value; ///< The integer value.
 };

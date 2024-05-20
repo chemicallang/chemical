@@ -88,7 +88,6 @@ public:
 
     ValueType value_type() const override;
 
-private:
     std::shared_ptr<FunctionType> func_type = nullptr;
 
 };

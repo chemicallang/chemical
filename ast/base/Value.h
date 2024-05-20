@@ -579,6 +579,13 @@ std::cerr << "child called on base value";
     }
 
     /**
+     * return if value is an index opeartor
+     */
+    virtual IndexOperator* as_index_op() {
+        return nullptr;
+    }
+
+    /**
      * return if value is a access chain
      */
     virtual AccessChain* as_access_chain() {

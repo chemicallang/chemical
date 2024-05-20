@@ -30,6 +30,10 @@ public:
 
     void declare_top_level(SymbolResolver &linker) override;
 
+    EnumDeclaration *as_enum_decl() override {
+        return this;
+    }
+
 #ifdef COMPILER_BUILD
 
     void code_gen(Codegen &gen) override {

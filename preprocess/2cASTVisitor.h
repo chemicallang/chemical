@@ -28,6 +28,11 @@ public:
     unsigned int indentation_level = 0;
 
     /**
+     * if true, function calls won't have a semicolon at the end
+     */
+    bool nested_value = false;
+
+    /**
      * constructor
      */
     ToCAstVisitor(std::ostream& output);
@@ -131,6 +136,8 @@ public:
     void visit(TryCatch* statement) override;
 
     // Value Vis override;
+
+    void visit(IntValue *intVal) override;
 
     void visit(BigIntValue* val) override;
 

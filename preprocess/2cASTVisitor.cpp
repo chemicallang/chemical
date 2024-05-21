@@ -502,8 +502,11 @@ void CTopLevelDeclarationVisitor::visit(StructDefinition *def) {
     for(auto& mem : def->variables) {
         mem.second->accept(value_visitor);
     }
+    InterfaceDefinition* overridden = def->overrides.has_value() ? def->overrides.value()->linked->as_interface_def() : nullptr;
     for(auto& func : def->functions) {
-        declare_by_name(this, func.second.get(), def->name + func.second->name);
+        if(!overridden || overridden->functions.find(func.second->name) == overridden->functions.end()) {
+            declare_by_name(this, func.second.get(), def->name + func.second->name);
+        }
     }
     visitor->new_line_and_indent();
     write("struct ");
@@ -526,9 +529,7 @@ void CTopLevelDeclarationVisitor::visit(InterfaceDefinition *def) {
 }
 
 void CTopLevelDeclarationVisitor::visit(ImplDefinition *def) {
-    for(auto& func : def->functions) {
-        declare_by_name(this, func.second.get(), def->interface_name + func.second->name);
-    }
+
 }
 
 void CValueDeclarationVisitor::visit(TypealiasStatement *stmt) {
@@ -706,28 +707,32 @@ void ToCAstVisitor::visit(FunctionParam *functionParam) {
     write("[FunctionParam_UNIMPLEMENTED]");
 }
 
-void ToCAstVisitor::visit(FunctionDeclaration *decl) {
+void func_decl_with_name(ToCAstVisitor* visitor, FunctionDeclaration* decl, const std::string& name) {
     if(!decl->body.has_value()) {
         return;
     }
-    if(decl->returnType->kind() == BaseTypeKind::Void && decl->name == "main") {
-        write("int main");
+    if(decl->returnType->kind() == BaseTypeKind::Void && name == "main") {
+        visitor->write("int main");
     } else {
-        accept_func_return(this, decl->returnType.get(), decl->name);
+        accept_func_return(visitor, decl->returnType.get(), name);
     }
-    write('(');
+    visitor->write('(');
     unsigned i = 0;
     FunctionParam* param;
     while(i < decl->params.size()) {
         param = decl->params[i].get();
-        type_with_id(this, param->type.get(), param->name);
+        type_with_id(visitor, param->type.get(), param->name);
         if(i != decl->params.size() - 1) {
-            write(", ");
+            visitor->write(", ");
         }
         i++;
     }
-    write(')');
-    scope(this, decl->body.value());
+    visitor->write(')');
+    scope(visitor, decl->body.value());
+}
+
+void ToCAstVisitor::visit(FunctionDeclaration *decl) {
+    func_decl_with_name(this, decl, decl->name);
 }
 
 void ToCAstVisitor::visit(IfStatement *decl) {
@@ -770,10 +775,15 @@ void ToCAstVisitor::visit(Scope *scope) {
     top_level_node = prev;
 }
 
-void ToCAstVisitor::visit(StructDefinition *structDefinition) {
-    for(auto& var : structDefinition->functions) {
+void ToCAstVisitor::visit(StructDefinition *def) {
+    auto overridden = def->overrides.has_value() ? def->overrides.value()->linked->as_interface_def() : nullptr;
+    for(auto& func : def->functions) {
         new_line_and_indent();
-        var.second->accept(this);
+        if(overridden && overridden->functions.find(func.second->name) != overridden->functions.end()) {
+            func_decl_with_name(this, func.second.get(), overridden->name + func.second->name);
+        } else {
+            func_decl_with_name(this, func.second.get(), def->name + func.second->name);
+        }
     }
 }
 

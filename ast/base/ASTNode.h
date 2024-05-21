@@ -36,6 +36,8 @@ class LoopASTNode;
 
 class EnumMember;
 
+class CapturedVariable;
+
 /**
  * @brief Base class for all AST nodes.
  */
@@ -141,6 +143,13 @@ public:
      * return if this is a typealias statement
      */
     virtual TypealiasStatement *as_typealias() {
+        return nullptr;
+    }
+
+    /**
+     * return if this is a captured variable
+     */
+    virtual CapturedVariable *as_captured_var() {
         return nullptr;
     }
 

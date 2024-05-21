@@ -345,6 +345,18 @@ void accept_func_return(ToCAstVisitor* visitor, BaseType* type, const std::strin
     visitor->write(name);
 }
 
+void func_call_params(ToCAstVisitor* visitor, FunctionCall* call) {
+    unsigned i = 0;
+    while(i < call->values.size()) {
+        auto& val = call->values[i];
+        val->accept(visitor);
+        if(i != call->values.size() - 1) {
+            visitor->write(", ");
+        }
+        i++;
+    }
+}
+
 void CValueDeclarationVisitor::visit(VarInitStatement *init) {
     if(!init->type.has_value()) {
         // because it can contain function type, so we must emplace it
@@ -512,7 +524,49 @@ void CValueDeclarationVisitor::visit(TypealiasStatement *stmt) {
 }
 
 void CValueDeclarationVisitor::visit(FunctionType *type) {
-    typedef_func_type(visitor, type);
+    if(type->isCapturing) {
+//        std::string alias = "__chfunctype_";
+//        alias += std::to_string(random(100,999)) + "_";
+//        alias += std::to_string(visitor->declarer->func_type_num++);
+//        visitor->new_line_and_indent();
+//        visitor->write("typedef struct {");
+//        visitor->indentation_level+=1;
+//        visitor->new_line_and_indent();
+//        func_type_with_id(visitor, type, "lambda");
+//        visitor->write(';');
+//        visitor->new_line_and_indent();
+//        visitor->write("void* captured;");
+//        visitor->indentation_level-=1;
+//        visitor->new_line_and_indent();
+//        visitor->write('}');
+//        visitor->space();
+//        visitor->write(alias);
+//        visitor->write(';');
+        visitor->declarer->aliases[type] = visitor->fat_pointer_type;
+    } else {
+        typedef_func_type(visitor, type);
+    }
+}
+
+void declare_fat_pointer(ToCAstVisitor* visitor) {
+    visitor->fat_pointer_type = "__chemical_fat_pointer__";
+    visitor->write("typedef struct {");
+    visitor->indentation_level+=1;
+    visitor->new_line_and_indent();
+    visitor->write("void* lambda;");
+    visitor->new_line_and_indent();
+    visitor->write("void* captured;");
+    visitor->indentation_level-=1;
+    visitor->new_line_and_indent();
+    visitor->write("} ");
+    visitor->write(visitor->fat_pointer_type);
+    visitor->write(';');
+}
+
+void ToCAstVisitor::prepare_translate() {
+    write("#include <stdbool.h>\n");
+    // declaring a fat pointer
+    declare_fat_pointer(this);
 }
 
 void ToCAstVisitor::translate(std::vector<std::unique_ptr<ASTNode>>& nodes) {
@@ -734,6 +788,36 @@ void ToCAstVisitor::visit(WhileLoop *whileLoop) {
 
 }
 
+template<typename current_call>
+void capture_call(ToCAstVisitor* visitor, FunctionType* type, current_call call, std::unique_ptr<Value>& next) {
+    visitor->write('(');
+    visitor->write('(');
+    visitor->write('(');
+    func_type_with_id(visitor, type, "");
+    visitor->write(") ");
+    call();
+    visitor->write(".lambda");
+    visitor->write(')');
+    visitor->write('(');
+    call();
+    visitor->write(".captured");
+    if(!next->as_func_call()->values.empty()) {
+        visitor->write(',');
+    }
+    func_call_params(visitor, next->as_func_call());
+    visitor->write(')');
+    visitor->write(')');
+}
+
+void func_call(ToCAstVisitor* visitor, FunctionType* type, std::unique_ptr<Value>& current, std::unique_ptr<Value>& next, unsigned int& i) {
+    if(type->isCapturing && current->as_func_call() == nullptr) {
+        capture_call(visitor, type, [&current, visitor](){ current->accept(visitor); }, next);
+        i++;
+    } else {
+        current->accept(visitor);
+    }
+}
+
 void ToCAstVisitor::visit(AccessChain *chain) {
     if(chain->values.size() == 1) {
         chain->values[0]->accept(this);
@@ -741,31 +825,62 @@ void ToCAstVisitor::visit(AccessChain *chain) {
     }
     unsigned i = 0;
     while(i < chain->values.size()) {
+        auto& current = chain->values[i];
         if(i != chain->values.size() - 1) {
             auto& next = chain->values[i + 1];
             if(next->as_func_call() == nullptr && next->as_index_op() == nullptr) {
-                if(chain->values[i]->linked_node()->as_enum_decl() != nullptr) {
+                if(current->linked_node()->as_enum_decl() != nullptr) {
                     auto found = declarer->aliases.find(next->linked_node()->as_enum_member());
                     if(found != declarer->aliases.end()) {
                         write(found->second);
                         i++;
                     } else {
-                        write("[EnumAC_NOT_FOUND:" + chain->values[i]->representation() + "." + next->representation() + "]");
+                        write("[EnumAC_NOT_FOUND:" + current->representation() + "." + next->representation() + "]");
                     }
                 } else {
-                    if(chain->values[i]->type_kind() == BaseTypeKind::Pointer) {
-                        chain->values[i]->accept(this);
+                    if(current->type_kind() == BaseTypeKind::Pointer) {
+                        current->accept(this);
                         write("->");
                     } else {
-                        chain->values[i]->accept(this);
+                        current->accept(this);
                         write('.');
                     }
                 }
             } else {
-                chain->values[i]->accept(this);
+                if(next->as_func_call() != nullptr) {
+                    auto type = current->create_type();
+                    if(i + 2 < chain->values.size()) {
+                        auto& next_next = chain->values[i + 2];
+                        auto next_type = next->create_type();
+                        if(next_next->as_func_call() != nullptr && next_type->function_type()->isCapturing) {
+                            write("({ __chemical_fat_pointer__ fp = ");
+                            if(type->function_type()->isCapturing && current->as_func_call() == nullptr) {
+                                capture_call(this, type->function_type(), [&current, this](){
+                                    current->accept(this);
+                                }, next);
+                                i++;
+                            } else {
+                                current->accept(this);
+                                next->accept(this);
+                                auto id = new VariableIdentifier("fp");
+                                auto fp = std::unique_ptr<Value>(id);
+                                capture_call(this, next_type->function_type(), [this](){ write("fp"); }, next_next);
+                                i++;
+                            }
+                            write(";})");
+                            i++;
+                        } else {
+                            func_call(this, type->function_type(), current, next, i);
+                        }
+                    } else {
+                        func_call(this, type->function_type(), current, next, i);
+                    }
+                } else {
+                    current->accept(this);
+                }
             }
         } else {
-            chain->values[i]->accept(this);
+            current->accept(this);
         }
         i++;
     }
@@ -958,15 +1073,7 @@ void ToCAstVisitor::visit(DereferenceValue *casted) {
 
 void ToCAstVisitor::visit(FunctionCall *call) {
     write('(');
-    unsigned i = 0;
-    while(i < call->values.size()) {
-        auto& val = call->values[i];
-        val->accept(this);
-        if(i != call->values.size() - 1) {
-            write(", ");
-        }
-        i++;
-    }
+    func_call_params(this, call);
     write(')');
     if(!nested_value) {
         write(';');
@@ -1005,7 +1112,39 @@ void ToCAstVisitor::visit(TernaryValue *ternary) {
 void ToCAstVisitor::visit(LambdaFunction *func) {
     auto found = declarer->aliases.find(func);
     if(found != declarer->aliases.end()) {
-        write(found->second);
+        if(func->func_type->isCapturing) {
+            write('(');
+            write('(');
+            write(fat_pointer_type);
+            write(')');
+            write('{');
+            write(found->second);
+            write(',');
+            if(func->captureList.empty()) {
+                write("NULL");
+            } else {
+                write("(&(struct ");
+                write(found->second);
+                write("_cap");
+                write(')');
+                write('{');
+                unsigned i = 0;
+                while(i < func->captureList.size()) {
+                    auto& cap = func->captureList[i];
+                    write(cap->name);
+                    if(i != func->captureList.size() - 1) {
+                        write(',');
+                    }
+                    i++;
+                }
+                write('}');
+                write(')');
+            }
+            write('}');
+            write(')');
+        } else {
+            write(found->second);
+        }
     } else {
         write("[LambdaFunction_NOT_FOUND]");
     }

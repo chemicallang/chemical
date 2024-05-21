@@ -91,6 +91,9 @@ bool translate(const std::string &path, ToCTranslatorOptions *options) {
 
     bool compile_result = true;
 
+    // preparing translation
+    visitor.prepare_translate();
+
     for(const auto& file : flat_imports) {
 
         auto& abs_path = file.abs_path;

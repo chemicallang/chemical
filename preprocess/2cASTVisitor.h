@@ -18,7 +18,13 @@ public:
     bool top_level_node = true;
 
     /**
+     * a typedef struct containing two void pointers is prepared
+     */
+    std::string fat_pointer_type;
+
+    /**
      * top level declarations will be declared by this visitor
+     * for example functions and structs, declared so can be used if declared below their usage
      */
     std::unique_ptr<CTopLevelDeclarationVisitor> tld;
 
@@ -85,6 +91,11 @@ public:
      * used to write a string to a stream
      */
     void write(const std::string& value);
+
+    /**
+     * this should be called before calling translate
+     */
+    void prepare_translate();
 
     /**
      * will translate given nodes

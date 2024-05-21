@@ -189,9 +189,15 @@ void func_type_with_id(ToCAstVisitor* visitor, FunctionType* type, const std::st
     visitor->write('*');
     visitor->write(id);
     visitor->write(")(");
-    if(type->params.empty()) {
+    if(type->params.empty() && !type->isCapturing) {
         visitor->write("void");
     } else {
+        if(type->isCapturing) {
+            visitor->write("void*");
+            if(!type->params.empty()) {
+                visitor->write(',');
+            }
+        }
         unsigned i = 0;
         for(auto& param : type->params) {
             param->type->accept(visitor);
@@ -353,13 +359,50 @@ void CValueDeclarationVisitor::visit(VarInitStatement *init) {
 
 void CValueDeclarationVisitor::visit(LambdaFunction *lamb) {
     CommonVisitor::visit(lamb);
-    visitor->new_line_and_indent();
     std::string lamb_name = "__chemda_";
     lamb_name += std::to_string(random(100,999)) + "_";
     lamb_name += std::to_string(lambda_num++);
+    if(!lamb->captureList.empty()) {
+        visitor->new_line_and_indent();
+        visitor->write("struct ");
+        std::string capture_struct_name = lamb_name + "_cap";
+        write(capture_struct_name);
+        visitor->space();
+        visitor->write('{');
+        visitor->indentation_level += 1;
+        for(auto& var : lamb->captureList) {
+            aliases[var.get()] = capture_struct_name;
+            visitor->new_line_and_indent();
+            if(var->capture_by_ref) {
+                PointerType pointer(var->linked->create_value_type());
+                pointer.accept(visitor);
+            } else {
+                var->linked->create_value_type()->accept(visitor);
+            }
+            visitor->space();
+            visitor->write(var->name);
+            visitor->write(';');
+        }
+        visitor->indentation_level -= 1;
+        visitor->new_line_and_indent();
+        visitor->write("};");
+    }
+    visitor->new_line_and_indent();
     accept_func_return(visitor, lamb->func_type->returnType.get(), lamb_name);
     aliases[lamb] = lamb_name;
     write('(');
+
+    // writing the captured struct as a parameter
+    if(lamb->func_type->isCapturing) {
+        visitor->write("void*");
+        if(!lamb->captureList.empty()) {
+            visitor->write(" this");
+        }
+        if(!lamb->params.empty()) {
+            visitor->write(',');
+        }
+    }
+
     unsigned i = 0;
     FunctionParam* param;
     auto size = lamb->func_type->isVariadic ? lamb->func_type->params.size() - 1 : lamb->func_type->params.size();
@@ -867,6 +910,17 @@ void ToCAstVisitor::visit(StructValue *val) {
 }
 
 void ToCAstVisitor::visit(VariableIdentifier *identifier) {
+    if(identifier->linked_node()->as_captured_var() != nullptr) {
+        auto found = declarer->aliases.find(identifier->linked_node()->as_captured_var());
+        if(found == declarer->aliases.end()) {
+            write("this->");
+        } else {
+            write("((struct ");
+            write(found->second);
+            write("*) this)->");
+        }
+
+    }
     write(identifier->value);
 }
 

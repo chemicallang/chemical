@@ -829,6 +829,25 @@ bool func_type_has_self(FunctionType* type) {
     return !type->params.empty() && (type->params[0]->name == "this" || type->params[0]->name == "self");
 }
 
+void func_container_name(ToCAstVisitor* visitor, ASTNode* node, Value* ref) {
+    if(node->as_interface_def()) {
+        visitor->write(node->as_interface_def()->name);
+    } else if(node->as_struct_def()) {
+        if(node->as_struct_def()->overrides.has_value()) {
+            auto interface = node->as_struct_def()->overrides.value()->linked_node()->as_interface_def();
+            if(interface->functions.find(ref->linked_node()->as_function()->name) != interface->functions.end()) {
+                visitor->write(interface->name);
+            } else {
+                visitor->write(node->as_struct_def()->name);
+            }
+        } else {
+            visitor->write(node->as_struct_def()->name);
+        }
+    } else {
+        ref->accept(visitor);
+    }
+}
+
 void ToCAstVisitor::visit(AccessChain *chain) {
     if(chain->values.size() == 1) {
         chain->values[0]->accept(this);
@@ -845,7 +864,7 @@ void ToCAstVisitor::visit(AccessChain *chain) {
                 if(i + 2 < chain->values.size()) {
                     auto &next_next = chain->values[i + 2];
                     if(next_next->as_func_call() != nullptr) {
-                        current->accept(this);
+                        func_container_name(this, current->linked_node(), next.get());
                         next->accept(this);
                         next_next->accept(this);
                         i += 3;
@@ -858,12 +877,15 @@ void ToCAstVisitor::visit(AccessChain *chain) {
                 }
             // functions on struct values
             } else if(current->value_type() == ValueType::Struct) {
+                if(next->linked_node()->as_struct_member()) {
+                    goto otherwise;
+                }
                 if(i + 2 < chain->values.size()) {
                     auto &next_next = chain->values[i + 2];
                     if (next_next->as_func_call() != nullptr) {
                         auto str_type = current->create_type();
                         if(str_type->kind() == BaseTypeKind::Referenced) {
-                            write(((ReferencedType*) str_type.get())->type);
+                            func_container_name(this, str_type->linked_node(), next.get());
                             auto next_type = next->create_type();
                             next->accept(this); // function name
                             write('(');

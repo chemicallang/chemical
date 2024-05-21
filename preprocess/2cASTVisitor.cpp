@@ -1218,6 +1218,9 @@ void ToCAstVisitor::visit(LambdaFunction *func) {
                 unsigned i = 0;
                 while(i < func->captureList.size()) {
                     auto& cap = func->captureList[i];
+                    if(cap->capture_by_ref) {
+                        write('&');
+                    }
                     write(cap->name);
                     if(i != func->captureList.size() - 1) {
                         write(',');

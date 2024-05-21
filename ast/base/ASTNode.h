@@ -171,9 +171,6 @@ public:
      * as interface definition
      */
     virtual InterfaceDefinition *as_interface_def() {
-#ifdef DEBUG
-        std::cerr << "as_interface_def called on ASTNode" << std::endl;
-#endif
         return nullptr;
     }
 
@@ -181,9 +178,6 @@ public:
      * return if this is a struct definition
      */
     virtual StructDefinition *as_struct_def() {
-#ifdef DEBUG
-        std::cerr << "as_struct_def called on ASTNode" << std::endl;
-#endif
         return nullptr;
     }
 

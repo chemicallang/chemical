@@ -27,6 +27,10 @@ public:
             std::string name
     );
 
+    InterfaceDefinition *as_interface_def() override {
+        return this;
+    }
+
     void accept(Visitor *visitor) override {
         visitor->visit(this);
     }

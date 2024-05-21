@@ -282,6 +282,12 @@ public:
 
     void visit(FunctionDeclaration *functionDeclaration) override;
 
+    void visit(StructDefinition *structDefinition) override;
+
+    void visit(InterfaceDefinition *interfaceDefinition) override;
+
+    void visit(ImplDefinition *implDefinition) override;
+
 };
 
 CTopLevelDeclarationVisitor::CTopLevelDeclarationVisitor(
@@ -313,8 +319,6 @@ public:
     void visit(FunctionDeclaration *functionDeclaration) override;
 
     void visit(EnumDeclaration *enumDeclaration) override;
-
-    void visit(StructDefinition *structDefinition) override;
 
     void visit(TypealiasStatement *statement) override;
 
@@ -435,33 +439,37 @@ void CValueDeclarationVisitor::visit(LambdaFunction *lamb) {
     scope(visitor, lamb->scope);
 }
 
-void CTopLevelDeclarationVisitor::visit(FunctionDeclaration *decl) {
+void declare_by_name(CTopLevelDeclarationVisitor* tld, FunctionDeclaration* decl, const std::string& name) {
     for(auto& param : decl->params) {
-        param->accept(value_visitor);
+        param->accept(tld->value_visitor);
     }
-    decl->returnType->accept(value_visitor);
-    visitor->new_line_and_indent();
-    if(decl->returnType->kind() == BaseTypeKind::Void && decl->name == "main") {
-        write("int main");
+    decl->returnType->accept(tld->value_visitor);
+    tld->visitor->new_line_and_indent();
+    if(decl->returnType->kind() == BaseTypeKind::Void && name == "main") {
+        tld->write("int main");
     } else {
-        accept_func_return(visitor, decl->returnType.get(), decl->name);
+        accept_func_return(tld->visitor, decl->returnType.get(), name);
     }
-    write('(');
+    tld->write('(');
     unsigned i = 0;
     FunctionParam* param;
     auto size = decl->isVariadic ? decl->params.size() - 1 : decl->params.size();
     while(i < size) {
         param = decl->params[i].get();
-        type_with_id(visitor, param->type.get(), param->name);
+        type_with_id(tld->visitor, param->type.get(), param->name);
         if(i != decl->params.size() - 1) {
-            write(", ");
+            tld->write(", ");
         }
         i++;
     }
     if(decl->isVariadic) {
-        write("...");
+        tld->write("...");
     }
-    write(");");
+    tld->write(");");
+}
+
+void CTopLevelDeclarationVisitor::visit(FunctionDeclaration *decl) {
+    declare_by_name(this, decl, decl->name);
 }
 
 void CValueDeclarationVisitor::visit(FunctionDeclaration *decl) {
@@ -490,8 +498,13 @@ void CValueDeclarationVisitor::visit(EnumDeclaration *enumDecl) {
     }
 }
 
-void CValueDeclarationVisitor::visit(StructDefinition *def) {
-    CommonVisitor::visit(def);
+void CTopLevelDeclarationVisitor::visit(StructDefinition *def) {
+    for(auto& mem : def->variables) {
+        mem.second->accept(value_visitor);
+    }
+    for(auto& func : def->functions) {
+        declare_by_name(this, func.second.get(), def->name + func.second->name);
+    }
     visitor->new_line_and_indent();
     write("struct ");
     write(def->name);
@@ -504,6 +517,18 @@ void CValueDeclarationVisitor::visit(StructDefinition *def) {
     visitor->indentation_level-=1;
     visitor->new_line_and_indent();
     write("};");
+}
+
+void CTopLevelDeclarationVisitor::visit(InterfaceDefinition *def) {
+    for(auto& func : def->functions) {
+        declare_by_name(this, func.second.get(), def->name + func.second->name);
+    }
+}
+
+void CTopLevelDeclarationVisitor::visit(ImplDefinition *def) {
+    for(auto& func : def->functions) {
+        declare_by_name(this, func.second.get(), def->interface_name + func.second->name);
+    }
 }
 
 void CValueDeclarationVisitor::visit(TypealiasStatement *stmt) {
@@ -728,39 +753,11 @@ void ToCAstVisitor::visit(IfStatement *decl) {
 }
 
 void ToCAstVisitor::visit(ImplDefinition *def) {
-    write("impl ");
-    write(def->interface_name);
-    write(" {");
-    indentation_level+=1;
-    for(auto& var : def->variables) {
-        new_line_and_indent();
-        var.second->accept(this);
-    }
-    indentation_level-=1;
-    new_line_and_indent();
-    write("};");
-    for(auto& var : def->functions) {
-        new_line_and_indent();
-        var.second->accept(this);
-    }
+
 }
 
 void ToCAstVisitor::visit(InterfaceDefinition *def) {
-    write("struct ");
-    write(def->name);
-    write(" {");
-    indentation_level+=1;
-    for(auto& var : def->variables) {
-        new_line_and_indent();
-        var.second->accept(this);
-    }
-    indentation_level-=1;
-    new_line_and_indent();
-    write("};");
-    for(auto& var : def->functions) {
-        new_line_and_indent();
-        var.second->accept(this);
-    }
+
 }
 
 void ToCAstVisitor::visit(Scope *scope) {
@@ -818,6 +815,10 @@ void func_call(ToCAstVisitor* visitor, FunctionType* type, std::unique_ptr<Value
     }
 }
 
+bool func_type_has_self(FunctionType* type) {
+    return !type->params.empty() && (type->params[0]->name == "this" || type->params[0]->name == "self");
+}
+
 void ToCAstVisitor::visit(AccessChain *chain) {
     if(chain->values.size() == 1) {
         chain->values[0]->accept(this);
@@ -828,57 +829,111 @@ void ToCAstVisitor::visit(AccessChain *chain) {
         auto& current = chain->values[i];
         if(i != chain->values.size() - 1) {
             auto& next = chain->values[i + 1];
-            if(next->as_func_call() == nullptr && next->as_index_op() == nullptr) {
-                if(current->linked_node()->as_enum_decl() != nullptr) {
-                    auto found = declarer->aliases.find(next->linked_node()->as_enum_member());
-                    if(found != declarer->aliases.end()) {
-                        write(found->second);
-                        i++;
+
+            // direct functions on structs and interfaces
+            if(current->linked_node() && (current->linked_node()->as_interface_def() || current->linked_node()->as_struct_def())) {
+                if(i + 2 < chain->values.size()) {
+                    auto &next_next = chain->values[i + 2];
+                    if(next_next->as_func_call() != nullptr) {
+                        current->accept(this);
+                        next->accept(this);
+                        next_next->accept(this);
+                        i += 3;
+                        continue;
                     } else {
-                        write("[EnumAC_NOT_FOUND:" + current->representation() + "." + next->representation() + "]");
+                        goto otherwise;
                     }
                 } else {
-                    if(current->type_kind() == BaseTypeKind::Pointer) {
-                        current->accept(this);
-                        write("->");
+                    goto otherwise;
+                }
+            // functions on struct values
+            } else if(current->value_type() == ValueType::Struct) {
+                if(i + 2 < chain->values.size()) {
+                    auto &next_next = chain->values[i + 2];
+                    if (next_next->as_func_call() != nullptr) {
+                        auto str_type = current->create_type();
+                        if(str_type->kind() == BaseTypeKind::Referenced) {
+                            write(((ReferencedType*) str_type.get())->type);
+                            auto next_type = next->create_type();
+                            next->accept(this); // function name
+                            write('(');
+                            if(func_type_has_self(next_type->function_type())) {
+                                write('&');
+                                current->accept(this);
+                                if (!next_next->as_func_call()->values.empty()) {
+                                    write(',');
+                                }
+                            }
+                            func_call_params(this, next_next->as_func_call());
+                            write(')');
+                            i += 3;
+                            continue;
+                        } else {
+                            goto otherwise;
+                        }
                     } else {
-                        current->accept(this);
-                        write('.');
+                        goto otherwise;
                     }
+                } else {
+                    goto otherwise;
                 }
             } else {
-                if(next->as_func_call() != nullptr) {
-                    auto type = current->create_type();
-                    if(i + 2 < chain->values.size()) {
-                        auto& next_next = chain->values[i + 2];
-                        auto next_type = next->create_type();
-                        if(next_next->as_func_call() != nullptr && next_type->function_type()->isCapturing) {
-                            write("({ __chemical_fat_pointer__ fp = ");
-                            if(type->function_type()->isCapturing && current->as_func_call() == nullptr) {
-                                capture_call(this, type->function_type(), [&current, this](){
+                goto otherwise;
+            }
+
+            otherwise:{
+                if(next->as_func_call() == nullptr && next->as_index_op() == nullptr) {
+                    if(current->linked_node()->as_enum_decl() != nullptr) {
+                        auto found = declarer->aliases.find(next->linked_node()->as_enum_member());
+                        if(found != declarer->aliases.end()) {
+                            write(found->second);
+                            i++;
+                        } else {
+                            write("[EnumAC_NOT_FOUND:" + current->representation() + "." + next->representation() + "]");
+                        }
+                    } else {
+                        if(current->type_kind() == BaseTypeKind::Pointer) {
+                            current->accept(this);
+                            write("->");
+                        } else {
+                            current->accept(this);
+                            write('.');
+                        }
+                    }
+                } else {
+                    if(next->as_func_call() != nullptr) {
+                        auto type = current->create_type();
+                        if(i + 2 < chain->values.size()) {
+                            auto& next_next = chain->values[i + 2];
+                            auto next_type = next->create_type();
+                            if(next_next->as_func_call() != nullptr && next_type->function_type()->isCapturing) {
+                                write("({ __chemical_fat_pointer__ fp = ");
+                                if(type->function_type()->isCapturing && current->as_func_call() == nullptr) {
+                                    capture_call(this, type->function_type(), [&current, this](){
+                                        current->accept(this);
+                                    }, next);
+                                    i++;
+                                } else {
                                     current->accept(this);
-                                }, next);
+                                    next->accept(this);
+                                    auto id = new VariableIdentifier("fp");
+                                    auto fp = std::unique_ptr<Value>(id);
+                                    capture_call(this, next_type->function_type(), [this](){ write("fp"); }, next_next);
+                                    i++;
+                                }
+                                write(";})");
                                 i++;
                             } else {
-                                current->accept(this);
-                                next->accept(this);
-                                auto id = new VariableIdentifier("fp");
-                                auto fp = std::unique_ptr<Value>(id);
-                                capture_call(this, next_type->function_type(), [this](){ write("fp"); }, next_next);
-                                i++;
+                                func_call(this, type->function_type(), current, next, i);
                             }
-                            write(";})");
-                            i++;
                         } else {
                             func_call(this, type->function_type(), current, next, i);
                         }
                     } else {
-                        func_call(this, type->function_type(), current, next, i);
+                        current->accept(this);
                     }
-                } else {
-                    current->accept(this);
                 }
-            }
+            };
         } else {
             current->accept(this);
         }

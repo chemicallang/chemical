@@ -864,6 +864,14 @@ void ToCAstVisitor::visit(Scope *scope) {
 
 void ToCAstVisitor::visit(StructDefinition *def) {
     auto overridden = def->overrides.has_value() ? def->overrides.value()->linked->as_interface_def() : nullptr;
+    if(overridden) {
+        for(auto& func : overridden->functions) {
+            new_line_and_indent();
+            if(def->functions.find(func.second->name) == def->functions.end()) {
+                contained_func_decl(this, func.second.get(), overridden->name + func.second->name, false, def);
+            }
+        }
+    }
     for(auto& func : def->functions) {
         new_line_and_indent();
         if(overridden && overridden->functions.find(func.second->name) != overridden->functions.end()) {

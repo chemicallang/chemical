@@ -45,6 +45,7 @@ func add(a : int, b : int) : int {
 
 ## Features
 
+- So easy that you can learn it in a week !
 - Great IDE support
 - Compile Time Evaluation
 - Low memory footprint

@@ -12,6 +12,14 @@
 
 </div>
 
+<div align="center" style="display:grid;place-items:center;">
+
+[![Sponsor][SponsorBadge]][SponsorUrl]
+[![Patreon][PatreonBadge]][PatreonUrl]
+[![Discord][DiscordBadge]][DiscordUrl]
+[![X][XBadge]][XUrl]
+
+</div>
 Chemical is an innovative, performant, typesafe user-friendly programming language with a low memory footprint.
 
 Chemical Programming Language brings language tooling by default & is customisable by the end developer and not a library author.
@@ -167,3 +175,15 @@ app development process.
 
 Chemical's Compiler is open source and MIT licensed and will always remain open source and MIT licensed, You can use Chemical's compiler however you like.
 You don't even need to give credits. But if you do, we'd really appreciate it. 
+
+[WorkflowBadge]: https://github.com/vlang/v/workflows/CI/badge.svg
+[DiscordBadge]: https://img.shields.io/discord/1206227290359337062?label=Discord&logo=discord&logoColor=white
+[PatreonBadge]: https://img.shields.io/endpoint.svg?url=https%3A%2F%2Fshieldsio-patreon.vercel.app%2Fapi%3Fusername%3Dwakaztahir%26type%3Dpatrons&style=flat
+[SponsorBadge]: https://img.shields.io/github/sponsors/wakaztahir?style=flat&logo=github&logoColor=white
+[XBadge]: https://img.shields.io/badge/follow-%40qinetikorg-1DA1F2?logo=x&style=flat&logoColor=white
+
+[WorkflowUrl]: https://github.com/Qinetik/chemical/commits/main
+[DiscordUrl]: https://discord.gg/uYU4SV9avu
+[PatreonUrl]: https://patreon.com/wakaztahir
+[SponsorUrl]: https://github.com/sponsors/wakaztahir
+[XUrl]: https://x.com/qinetikorg

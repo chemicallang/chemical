@@ -1,6 +1,6 @@
 <div align="center" style="display:grid;place-items:center;">
 <p>
-    <a href="https://chemical.qinetik.org/" target="_blank"><img width="80" src="https://raw.githubusercontent.com/Qinetik/chemical/main/lang/assets/Logo.svg?sanitize=true" alt="Chemical logo"></a>
+    <a href="https://chemical.qinetik.org/" target="_blank"><img height="220" src="https://raw.githubusercontent.com/Qinetik/chemical/main/lang/assets/Logo.svg?sanitize=true" alt="Chemical logo"></a>
 </p>
 <h1>The Chemical Programming Language</h1>
 

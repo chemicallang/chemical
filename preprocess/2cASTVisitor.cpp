@@ -179,7 +179,12 @@ void write_type_post_id(ToCAstVisitor* visitor, BaseType* type) {
 
 void assign_statement(ToCAstVisitor* visitor, AssignStatement* assign) {
     assign->lhs->accept(visitor);
-    visitor->write(" = ");
+    visitor->write(' ');
+    if(assign->assOp != Operation::Assignment) {
+        visitor->write(to_string(assign->assOp));
+    }
+    visitor->write('=');
+    visitor->write(' ');
     assign->value->accept(visitor);
 }
 

@@ -211,6 +211,11 @@ void func_type_with_id(ToCAstVisitor* visitor, FunctionType* type, const std::st
 }
 
 void type_with_id(ToCAstVisitor* visitor, BaseType* type, const std::string& id) {
+    if(type->kind() == BaseTypeKind::Pointer && ((PointerType*) type)->type->kind() == BaseTypeKind::Referenced && ((PointerType*) type)->type->linked_node()->as_interface_def() && (id == "self" || id == "this")) {
+        visitor->write("void* ");
+        visitor->write(id);
+        return;
+    }
     type->accept(visitor);
     visitor->space();
     visitor->write(id);

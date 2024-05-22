@@ -8,7 +8,7 @@
 | [Docs](https://github.com/Qinetik/chemical/blob/main/lang/docs/README.md)
 | [Changelog](https://github.com/Qinetik/chemical/blob/main/lang/docs/CHANGELOG.md)
 | [Speed](https://chemical.qinetik.org/speed)
-| [Contributing & compiler design](https://github.com/Qinetik/chemical/blob/main/docs/CONTRIBUTING.md)
+| [Contributing & compiler design](https://github.com/Qinetik/chemical/blob/main/lang/docs/CONTRIBUTING.md)
 
 </div>
 

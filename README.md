@@ -1,4 +1,16 @@
-# Chemical Programming Language
+<div align="center" style="display:grid;place-items:center;">
+<p>
+    <a href="https://chemical.qinetik.org/" target="_blank"><img width="80" src="https://raw.githubusercontent.com/Qinetik/chemical/main/lang/assets/Logo.svg?sanitize=true" alt="Chemical logo"></a>
+</p>
+<h1>The Chemical Programming Language</h1>
+
+[Website](https://chemical.qinetik.org)
+| [Docs](https://github.com/Qinetik/chemical/blob/main/lang/docs/README.md)
+| [Changelog](https://github.com/Qinetik/chemical/blob/main/lang/docs/CHANGELOG.md)
+| [Speed](https://chemical.qinetik.org/speed)
+| [Contributing & compiler design](https://github.com/Qinetik/chemical/blob/main/docs/CONTRIBUTING.md)
+
+</div>
 
 Chemical is an innovative, performant, typesafe user-friendly programming language with a low memory footprint.
 

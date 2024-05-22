@@ -52,7 +52,13 @@ void ImplDefinition::code_gen(Codegen &gen) {
 
 void ImplDefinition::declare_and_link(SymbolResolver &linker) {
     MembersContainer::declare_and_link(linker);
-    linked = linker.find(interface_name);
+    if(struct_name.has_value()) {
+        struct_linked = (StructDefinition*) (linker.find(struct_name.value()));
+        if(!struct_linked) {
+            linker.error("couldn't find struct by name " + struct_name.value() + " for implementation of interface " + interface_name);
+        }
+    }
+    linked = (InterfaceDefinition *) (linker.find(interface_name));
     if(!linked) {
         linker.error("couldn't find interface by name " + interface_name + " for implementation");
     }

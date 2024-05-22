@@ -54,18 +54,20 @@ very innovative things are planned.
 - [x] Lexer
 - [x] Parser
 - [x] LSP
-  - [x] Basic syntax highlighting
-  - [x] Basic completion items
-  - [x] Basic diagnostics
+  - [x] Syntax Highlighting
+  - [x] Completion items
+  - [x] Diagnostics
   - [x] Imported Files support
   - [x] Resolve symbol support
   - [ ] Improved diagnostics support
   - [x] Semantic highlighting
   - [x] Member access completion items
   - [x] Hover doc support
+  - [ ] Inlay Hints
   - [ ] Find usages support
   - [ ] Refactor rename
   - [ ] Formatting
+  - [ ] Codelens support
 - [x] Native Codegen
 - [x] Necessary C Translation (can import system headers)
 - [x] Translate to C (all tests passing)

@@ -68,6 +68,7 @@ very innovative things are planned.
   - [ ] Formatting
 - [x] Native Codegen
 - [x] Necessary C Translation (can import system headers)
+- [x] Translate to C (all tests passing)
 - [ ] Interpreter (mostly done)
 - [ ] Compile time Interpreted Plugins
   - [ ] Syntax Modifier Plugins (SMP)

@@ -67,7 +67,8 @@ public:
         return ret;
     }
 
-    ASTNode* linked;
+    InterfaceDefinition* linked;
+    StructDefinition* struct_linked;
     std::optional<std::string> struct_name; ///< The name of the struct.
     std::string interface_name;
 };

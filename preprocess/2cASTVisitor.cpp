@@ -845,7 +845,10 @@ void ToCAstVisitor::visit(IfStatement *decl) {
 }
 
 void ToCAstVisitor::visit(ImplDefinition *def) {
-
+    for(auto& func : def->functions) {
+        new_line_and_indent();
+        contained_func_decl(this, func.second.get(), def->interface_name + func.second->name, def->struct_name.has_value(), def->struct_linked);
+    }
 }
 
 void ToCAstVisitor::visit(InterfaceDefinition *def) {

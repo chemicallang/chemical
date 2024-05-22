@@ -211,15 +211,28 @@ void func_type_with_id(ToCAstVisitor* visitor, FunctionType* type, const std::st
 }
 
 void type_with_id(ToCAstVisitor* visitor, BaseType* type, const std::string& id) {
-    if(type->kind() == BaseTypeKind::Pointer && ((PointerType*) type)->type->kind() == BaseTypeKind::Referenced && ((PointerType*) type)->type->linked_node()->as_interface_def() && (id == "self" || id == "this")) {
-        visitor->write("void* ");
-        visitor->write(id);
-        return;
-    }
     type->accept(visitor);
     visitor->space();
     visitor->write(id);
     write_type_post_id(visitor, type);
+}
+
+bool should_void_pointer_to_self(BaseType* type, const std::string& id, unsigned index, bool overrides) {
+    if(index == 0 && type->kind() == BaseTypeKind::Pointer && ((PointerType*) type)->type->kind() == BaseTypeKind::Referenced && (id == "self" || id == "this")) {
+        if(((PointerType*) type)->type->linked_node()->as_interface_def() || (((PointerType*) type)->type->linked_node()->as_struct_def() && overrides)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void param_type_with_id(ToCAstVisitor* visitor, BaseType* type, const std::string& id, unsigned index, bool overrides) {
+    if(should_void_pointer_to_self(type, id, index, overrides)) {
+        visitor->write("void* ");
+        visitor->write(id);
+        return;
+    }
+    type_with_id(visitor, type, id);
 }
 
 void var_init(ToCAstVisitor* visitor, VarInitStatement* init) {
@@ -473,6 +486,32 @@ void declare_by_name(CTopLevelDeclarationVisitor* tld, FunctionDeclaration* decl
     tld->write(");");
 }
 
+// when a function is inside struct / interface
+void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaration* decl, const std::string& name, bool overrides) {
+    for(auto& param : decl->params) {
+        param->accept(tld->value_visitor);
+    }
+    decl->returnType->accept(tld->value_visitor);
+    tld->visitor->new_line_and_indent();
+    accept_func_return(tld->visitor, decl->returnType.get(), name);
+    tld->write('(');
+    unsigned i = 0;
+    FunctionParam* param;
+    auto size = decl->isVariadic ? decl->params.size() - 1 : decl->params.size();
+    while(i < size) {
+        param = decl->params[i].get();
+        param_type_with_id(tld->visitor, param->type.get(), param->name, i, overrides);
+        if(i != decl->params.size() - 1) {
+            tld->write(", ");
+        }
+        i++;
+    }
+    if(decl->isVariadic) {
+        tld->write("...");
+    }
+    tld->write(");");
+}
+
 void CTopLevelDeclarationVisitor::visit(FunctionDeclaration *decl) {
     declare_by_name(this, decl, decl->name);
 }
@@ -522,14 +561,14 @@ void CTopLevelDeclarationVisitor::visit(StructDefinition *def) {
     InterfaceDefinition* overridden = def->overrides.has_value() ? def->overrides.value()->linked->as_interface_def() : nullptr;
     for(auto& func : def->functions) {
         if(!overridden || overridden->functions.find(func.second->name) == overridden->functions.end()) {
-            declare_by_name(this, func.second.get(), def->name + func.second->name);
+            declare_contained_func(this, func.second.get(), def->name + func.second->name, false);
         }
     }
 }
 
 void CTopLevelDeclarationVisitor::visit(InterfaceDefinition *def) {
     for(auto& func : def->functions) {
-        declare_by_name(this, func.second.get(), def->name + func.second->name);
+        declare_contained_func(this, func.second.get(), def->name + func.second->name, false);
     }
 }
 
@@ -596,6 +635,7 @@ void declare_fat_pointer(ToCAstVisitor* visitor) {
 
 void ToCAstVisitor::prepare_translate() {
     write("#include <stdbool.h>\n");
+    write("#include <stddef.h>\n");
     // declaring a fat pointer
     declare_fat_pointer(this);
 }
@@ -736,6 +776,48 @@ void func_decl_with_name(ToCAstVisitor* visitor, FunctionDeclaration* decl, cons
     scope(visitor, decl->body.value());
 }
 
+void contained_func_decl(ToCAstVisitor* visitor, FunctionDeclaration* decl, const std::string& name, bool overrides, StructDefinition* def) {
+    if(!decl->body.has_value()) {
+        return;
+    }
+    accept_func_return(visitor, decl->returnType.get(), name);
+    visitor->write('(');
+    unsigned i = 0;
+    FunctionParam* param;
+    std::string self_pointer_name;
+    while(i < decl->params.size()) {
+        param = decl->params[i].get();
+        if(should_void_pointer_to_self(param->type.get(), param->name, i, overrides)) {
+           self_pointer_name = "__ch_self_pointer_329283";
+           visitor->write("void* ");
+           visitor->write(self_pointer_name);
+        } else {
+            type_with_id(visitor, param->type.get(), param->name);
+        }
+        if(i != decl->params.size() - 1) {
+            visitor->write(", ");
+        }
+        i++;
+    }
+    visitor->write(')');
+    visitor->write('{');
+    visitor->indentation_level+=1;
+    if(!self_pointer_name.empty() && def) {
+        visitor->new_line_and_indent();
+        visitor->write("struct ");
+        visitor->write(def->name);
+        visitor->write('*');
+        visitor->space();
+        visitor->write("self = ");
+        visitor->write(self_pointer_name);
+        visitor->write(';');
+    }
+    decl->body.value().accept(visitor);
+    visitor->indentation_level-=1;
+    visitor->new_line_and_indent();
+    visitor->write('}');
+}
+
 void ToCAstVisitor::visit(FunctionDeclaration *decl) {
     func_decl_with_name(this, decl, decl->name);
 }
@@ -785,9 +867,9 @@ void ToCAstVisitor::visit(StructDefinition *def) {
     for(auto& func : def->functions) {
         new_line_and_indent();
         if(overridden && overridden->functions.find(func.second->name) != overridden->functions.end()) {
-            func_decl_with_name(this, func.second.get(), overridden->name + func.second->name);
+            contained_func_decl(this, func.second.get(), overridden->name + func.second->name, true, def);
         } else {
-            func_decl_with_name(this, func.second.get(), def->name + func.second->name);
+            contained_func_decl(this, func.second.get(), def->name + func.second->name, false, def);
         }
     }
 }

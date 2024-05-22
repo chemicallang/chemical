@@ -507,12 +507,6 @@ void CTopLevelDeclarationVisitor::visit(StructDefinition *def) {
     for(auto& mem : def->variables) {
         mem.second->accept(value_visitor);
     }
-    InterfaceDefinition* overridden = def->overrides.has_value() ? def->overrides.value()->linked->as_interface_def() : nullptr;
-    for(auto& func : def->functions) {
-        if(!overridden || overridden->functions.find(func.second->name) == overridden->functions.end()) {
-            declare_by_name(this, func.second.get(), def->name + func.second->name);
-        }
-    }
     visitor->new_line_and_indent();
     write("struct ");
     write(def->name);
@@ -525,6 +519,12 @@ void CTopLevelDeclarationVisitor::visit(StructDefinition *def) {
     visitor->indentation_level-=1;
     visitor->new_line_and_indent();
     write("};");
+    InterfaceDefinition* overridden = def->overrides.has_value() ? def->overrides.value()->linked->as_interface_def() : nullptr;
+    for(auto& func : def->functions) {
+        if(!overridden || overridden->functions.find(func.second->name) == overridden->functions.end()) {
+            declare_by_name(this, func.second.get(), def->name + func.second->name);
+        }
+    }
 }
 
 void CTopLevelDeclarationVisitor::visit(InterfaceDefinition *def) {

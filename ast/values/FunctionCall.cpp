@@ -6,14 +6,14 @@
 #include "ast/values/VariableIdentifier.h"
 #include "ast/values/LambdaFunction.h"
 
+inline std::unique_ptr<FunctionType> func_call_func_type(const FunctionCall* call) {
+    return std::unique_ptr<FunctionType>((FunctionType*) call->parent_val->create_type().release());
+}
+
 #ifdef COMPILER_BUILD
 
 #include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
-
-inline std::unique_ptr<FunctionType> func_call_func_type(const FunctionCall* call) {
-    return std::unique_ptr<FunctionType>((FunctionType*) call->parent_val->create_type().release());
-}
 
 void to_llvm_args(Codegen& gen, FunctionCall* call, std::vector<std::unique_ptr<Value>>& values, bool isVariadic, std::vector<llvm::Value *>& args, unsigned int start = 0) {
     llvm::Value* argValue;

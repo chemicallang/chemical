@@ -7,5 +7,5 @@
 
 struct Location {
     Range range;
-    const std::string& path; // the absolute path to the document where this range exists
+    std::string path; // the absolute path to the document where this range exists
 };

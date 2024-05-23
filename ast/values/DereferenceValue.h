@@ -15,6 +15,10 @@ public:
 
     DereferenceValue(std::unique_ptr<Value> value);
 
+    uint64_t byte_size(bool is64Bit) const override {
+        return value->byte_size(is64Bit);
+    }
+
     Value *copy() override;
 
     std::unique_ptr<BaseType> create_type() const override;

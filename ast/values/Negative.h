@@ -15,6 +15,8 @@ public:
 
     NegativeValue(std::unique_ptr<Value> value) : value(std::move(value)) {}
 
+    uint64_t byte_size(bool is64Bit) const override;
+
     void accept(Visitor *visitor) override {
         visitor->visit(this);
     }

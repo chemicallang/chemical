@@ -129,6 +129,14 @@ StructDefinition::StructDefinition(
     }
 }
 
+uint64_t StructDefinition::byte_size(bool is64Bit) {
+    uint64_t size = 0;
+    for (const auto &item: variables) {
+        size += item.second->type->byte_size(is64Bit);
+    }
+    return size;
+}
+
 void StructDefinition::accept(Visitor *visitor) {
     visitor->visit(this);
 }

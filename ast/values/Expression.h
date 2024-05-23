@@ -75,6 +75,8 @@ public:
      */
     void promote_literal_values(BaseType* firstType, BaseType* secondType);
 
+    uint64_t byte_size(bool is64Bit) const override;
+
 #ifdef COMPILER_BUILD
 
     llvm::Value *llvm_value(Codegen &gen) override;

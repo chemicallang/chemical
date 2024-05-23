@@ -20,6 +20,10 @@ public:
         visitor->visit(this);
     }
 
+    uint64_t byte_size(bool is64Bit) const {
+        return 16;
+    }
+
     Value *copy() override {
         return new Int128Value(magnitude, is_negative);
     }

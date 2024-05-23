@@ -23,6 +23,10 @@ public:
      */
     IntValue(int value) : value(value) {}
 
+    uint64_t byte_size(bool is64Bit) const {
+        return 4;
+    }
+
     void accept(Visitor *visitor) override {
         visitor->visit(this);
     }

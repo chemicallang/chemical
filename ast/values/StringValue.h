@@ -28,6 +28,10 @@ public:
         visitor->visit(this);
     }
 
+    uint64_t byte_size(bool is64Bit) const override {
+        return is64Bit ? 8 : 4;
+    }
+
     Value *index(InterpretScope &scope, int i) override {
 #ifdef DEBUG
         if (i < 0 || i >= value.size()) {

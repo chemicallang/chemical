@@ -109,6 +109,10 @@ StructValue::StructValue(
     declare_default_values(this->values, scope);
 }
 
+uint64_t StructValue::byte_size(bool is64Bit) const {
+    return definition->byte_size(is64Bit);
+}
+
 bool StructValue::primitive() {
     return false;
 }

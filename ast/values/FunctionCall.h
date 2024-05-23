@@ -18,6 +18,8 @@ public:
 
     FunctionCall(FunctionCall &&other) = delete;
 
+    uint64_t byte_size(bool is64Bit) const override;
+
     void accept(Visitor *visitor) override {
         visitor->visit(this);
     }

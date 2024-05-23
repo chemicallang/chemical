@@ -94,6 +94,10 @@ std::unique_ptr<BaseType> Expression::create_type() const {
     }
 }
 
+uint64_t Expression::byte_size(bool is64Bit) const {
+    return create_type()->byte_size(is64Bit);
+}
+
 /**
   * @brief Construct a new Expression object.
   *

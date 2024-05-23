@@ -17,6 +17,8 @@ public:
 
     ReferencedType(std::string type, ASTNode* linked) : type(std::move(type)), linked(linked) {}
 
+    uint64_t byte_size(bool is64Bit) override;
+
     void accept(Visitor *visitor) override {
         visitor->visit(this);
     }

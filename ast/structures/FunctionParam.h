@@ -19,6 +19,14 @@ public:
         return this;
     }
 
+    Value *holding_value() override {
+        return defValue.has_value() ? defValue.value().get() : nullptr;
+    }
+
+    BaseType *holding_value_type() override {
+        return type.get();
+    }
+
 #ifdef COMPILER_BUILD
 
     llvm::Value *llvm_pointer(Codegen &gen) override;

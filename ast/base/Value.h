@@ -117,6 +117,13 @@ public:
     }
 
     /**
+     * get byte size of this value
+     */
+    virtual uint64_t byte_size(bool is64Bit) const {
+        throw std::runtime_error("byte_size called on base Value");
+    }
+
+    /**
      * find linked node in given parent node, symbol resolver is passed in resolution phase
      */
     virtual void find_link_in_parent(Value* parent, SymbolResolver& resolver) {

@@ -32,6 +32,8 @@ public:
 
     std::unique_ptr<BaseType> create_value_type() override;
 
+    uint64_t byte_size(bool is64Bit) const override;
+
 #ifdef COMPILER_BUILD
 
     void code_gen(Codegen &gen) override;

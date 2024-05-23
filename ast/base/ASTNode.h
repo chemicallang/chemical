@@ -97,6 +97,21 @@ public:
     }
 
     /**
+     * any value held by this node, for example var init statement can hold an initializer
+     */
+    virtual Value* holding_value() {
+        return nullptr;
+    }
+
+    /**
+     * any type held by this node, for a value
+     * for example var init can be initialized with a type instead of a value, and this type will be provided
+     */
+    virtual BaseType* holding_value_type() {
+        return nullptr;
+    }
+
+    /**
      * This would return the representation of the node
      * @return
      */

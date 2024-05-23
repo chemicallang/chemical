@@ -40,6 +40,13 @@ public:
     }
 
     /**
+     * get the byte size, of this type
+     */
+    virtual uint64_t byte_size(bool is64Bit) {
+        throw std::exception("byte_size called on base type");
+    }
+
+    /**
      * this creates the child type
      */
     virtual std::unique_ptr<BaseType> create_child_type() const {

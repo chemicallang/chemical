@@ -12,6 +12,7 @@
 #include "LibLsp/JsonRpc/TcpServer.h"
 #include "LibLsp/JsonRpc/WebSocketServer.h"
 #include "LibLsp/lsp/textDocument/document_symbol.h"
+#include "LibLsp/lsp/textDocument/document_link.h"
 #include "LibLsp/lsp/textDocument/references.h"
 #include "LibLsp/lsp/textDocument/SemanticTokens.h"
 #include <boost/program_options.hpp>
@@ -371,6 +372,28 @@ public:
 //				if (unit){
 //					DocumentFormatHandler(unit, rsp.result, req.params.options);
 //				}
+            return std::move(rsp);
+        });
+        _sp.registerHandler([&](const td_links::request &req,
+                                const CancelMonitor &monitor)
+                                    -> lsp::ResponseOrError<td_links::response> {
+            _log.log(lsp::Log::Level::INFO, "td_links");
+            if (need_initialize_error) {
+                return need_initialize_error.value();
+            }
+            td_links::response rsp;
+            // TODO text document links
+            return std::move(rsp);
+        });
+        _sp.registerHandler([&](const td_linkResolve::request &req,
+                                const CancelMonitor &monitor)
+                                    -> lsp::ResponseOrError<td_linkResolve::response> {
+            _log.log(lsp::Log::Level::INFO, "td_linkResolve");
+            if (need_initialize_error) {
+                return need_initialize_error.value();
+            }
+            td_linkResolve::response rsp;
+            // TODO text document link resolution
             return std::move(rsp);
         });
 //        _sp.registerHandler([&](const td_documentColor::request &req,

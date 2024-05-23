@@ -15,9 +15,13 @@ public:
 
     ReferencedType(std::string type) : type(std::move(type)) {}
 
+    ReferencedType(std::string type, ASTNode* linked) : type(std::move(type)), linked(linked) {}
+
     void accept(Visitor *visitor) override {
         visitor->visit(this);
     }
+
+    ValueType value_type() const override;
 
     void link(SymbolResolver &linker) override;
 

@@ -60,7 +60,7 @@ public:
     unsigned int store_in_struct(
             Codegen &gen,
             StructValue *parent,
-            llvm::AllocaInst *ptr,
+            llvm::Value *allocated,
             std::vector<llvm::Value *> idxList,
             unsigned int index
     ) override;
@@ -74,6 +74,8 @@ public:
     ) override;
 
     llvm::Value *llvm_value(Codegen &gen) override;
+
+    llvm::Value *llvm_ret_value(Codegen &gen, ReturnStatement *returnStmt) override;
 
     llvm::Type *llvm_elem_type(Codegen &gen) override;
 

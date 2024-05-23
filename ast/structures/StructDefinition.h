@@ -42,6 +42,10 @@ public:
 
     ASTNode *child(const std::string &name) override;
 
+//    std::unique_ptr<BaseType> create_value_type() override;
+
+    ValueType value_type() const override;
+
 #ifdef COMPILER_BUILD
 
     std::vector<llvm::Type *> elements_type(Codegen &gen);

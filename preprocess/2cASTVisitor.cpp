@@ -717,10 +717,23 @@ void ToCAstVisitor::visit(ImportStatement *importStatement) {
     // leave imports alone
 }
 
+void struct_initialize_inside_braces(ToCAstVisitor* visitor, StructValue* val) {
+    visitor->write("({ struct ");
+    visitor->write(val->definition->name);
+    visitor->write(" ___p = ");
+    val->accept(visitor);
+    visitor->write("; ___p; })");
+}
+
 void ToCAstVisitor::visit(ReturnStatement *returnStatement) {
     if(returnStatement->value.has_value()) {
         write("return ");
-        returnStatement->value.value()->accept(this);
+        auto val = returnStatement->value.value().get();
+        if(val->as_struct()) {
+            struct_initialize_inside_braces(this, (StructValue*) val);
+        } else {
+           val->accept(this);
+        }
         write(';');
     } else {
         write("return;");

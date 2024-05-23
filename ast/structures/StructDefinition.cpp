@@ -4,6 +4,7 @@
 #include "StructDefinition.h"
 #include "FunctionDeclaration.h"
 #include "ast/types/ReferencedType.h"
+#include "ast/types/StructType.h"
 #include "compiler/SymbolResolver.h"
 
 #ifdef COMPILER_BUILD
@@ -163,6 +164,18 @@ ASTNode *StructDefinition::child(const std::string &name) {
         return overrides.value()->linked->child(name);
     };
     return nullptr;
+}
+
+//std::unique_ptr<BaseType> StructDefinition::create_value_type() {
+//    std::vector<std::unique_ptr<BaseType>> mem;
+//    for(auto& var : variables) {
+//        mem.emplace_back(var.second->type->copy());
+//    }
+//    return std::make_unique<StructType>(std::move(mem));
+//}
+
+ValueType StructDefinition::value_type() const {
+    return ValueType::Struct;
 }
 
 #ifdef COMPILER_BUILD

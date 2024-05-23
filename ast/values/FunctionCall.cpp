@@ -118,24 +118,30 @@ llvm::Value *call_capturing_lambda(Codegen &gen, FunctionCall* call, std::unique
     return gen.builder->CreateCall(call->parent_val->llvm_func_type(gen), lambda, args);
 }
 
-llvm::Value *FunctionCall::llvm_value(Codegen &gen) {
-
+llvm::Value *FunctionCall::llvm_value(Codegen &gen, std::vector<llvm::Value*>& args) {
     auto func_type = func_call_func_type(this);
     if(func_type->isCapturing && (parent_val->linked_node() == nullptr || parent_val->linked_node()->as_func_param() == nullptr)) {
         return call_capturing_lambda(gen, this, func_type);
     }
 
-    std::vector<llvm::Value *> args;
-
     auto decl = safe_linked_func();
     auto fn = decl != nullptr ? (decl->llvm_func()) : nullptr;
     // TODO hardcoded isVarArg when can't get the function
-    to_llvm_args(gen, this, values, fn != nullptr && fn->isVarArg(), args, 0);
+    to_llvm_args(gen, this, values, fn != nullptr && fn->isVarArg(), args, args.size());
 
     return call_with_args(this, fn, gen,  args);
 }
 
-llvm::Value* FunctionCall::llvm_value(Codegen &gen, std::vector<std::unique_ptr<Value>>& chain) {
+llvm::Value *FunctionCall::llvm_value(Codegen &gen) {
+    std::vector<llvm::Value *> args;
+    return llvm_value(gen, args);
+}
+
+llvm::Value* FunctionCall::llvm_chain_value(
+        Codegen &gen,
+        std::vector<std::unique_ptr<Value>>& chain,
+        std::vector<llvm::Value*>& args
+) {
 
     auto func_type = func_call_func_type(this);
     if(func_type->isCapturing && (parent_val->linked_node() == nullptr || parent_val->linked_node()->as_func_param() == nullptr)) {
@@ -144,7 +150,6 @@ llvm::Value* FunctionCall::llvm_value(Codegen &gen, std::vector<std::unique_ptr<
 
     auto decl = safe_linked_func();
     auto requires_self = decl != nullptr && !decl->params.empty() && (decl->params[0]->name == "this" || decl->params[0]->name == "self");
-    std::vector<llvm::Value *> args;
 
     // a pointer to parent
     if(requires_self) {
@@ -153,7 +158,7 @@ llvm::Value* FunctionCall::llvm_value(Codegen &gen, std::vector<std::unique_ptr<
 
     auto fn = decl != nullptr ? decl->llvm_func() : nullptr;
     // TODO hardcoded isVarArg when can't get the function
-    to_llvm_args(gen, this, values, fn != nullptr && fn->isVarArg(), args, requires_self ? 1 :0);
+    to_llvm_args(gen, this, values, fn != nullptr && fn->isVarArg(), args, args.size() + (requires_self ? 1 : 0));
 
     if(linked() && linked()->as_struct_member() != nullptr) { // means I'm calling a pointer inside a struct
 
@@ -172,8 +177,9 @@ llvm::Value* FunctionCall::llvm_value(Codegen &gen, std::vector<std::unique_ptr<
     return call_with_args(this, fn, gen,  args);
 }
 
-llvm::Value* FunctionCall::access_chain_value(Codegen &gen, std::vector<std::unique_ptr<Value>> &values) {
-    return llvm_value(gen, values);
+llvm::Value* FunctionCall::access_chain_value(Codegen &gen, std::vector<std::unique_ptr<Value>> &chain) {
+    std::vector<llvm::Value *> args;
+    return llvm_chain_value(gen, chain, args);
 }
 
 llvm::InvokeInst *FunctionCall::llvm_invoke(Codegen &gen, llvm::BasicBlock* normal, llvm::BasicBlock* unwind) {
@@ -190,6 +196,23 @@ llvm::InvokeInst *FunctionCall::llvm_invoke(Codegen &gen, llvm::BasicBlock* norm
 
 llvm::Value *FunctionCall::llvm_pointer(Codegen &gen) {
     throw std::runtime_error("llvm_pointer called on a function call");
+}
+
+bool FunctionCall::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
+    return create_type()->linked_node()->add_child_index(gen, indexes, name);
+}
+
+llvm::AllocaInst *FunctionCall::access_chain_allocate(Codegen &gen, const std::string &identifier, AccessChain* chain) {
+    auto func_type = func_call_func_type(this);
+    if(func_type->returnType->value_type() == ValueType::Struct) {
+        auto allocaInst = gen.builder->CreateAlloca(func_type->returnType->llvm_type(gen), nullptr, identifier);
+        std::vector<llvm::Value *> args;
+        args.emplace_back(allocaInst);
+        llvm_chain_value(gen, chain->values, args);
+        return allocaInst;
+    } else {
+        return Value::access_chain_allocate(gen, identifier, chain);
+    }
 }
 
 #endif

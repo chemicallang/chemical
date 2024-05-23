@@ -46,6 +46,8 @@ public:
 
     ValueType value_type() const override;
 
+    uint64_t byte_size(bool is64Bit);
+
 #ifdef COMPILER_BUILD
 
     std::vector<llvm::Type *> elements_type(Codegen &gen);

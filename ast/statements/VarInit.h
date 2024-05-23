@@ -31,6 +31,14 @@ public:
 
     void accept(Visitor *visitor) override;
 
+    Value* holding_value() override {
+        return value.has_value() ? value.value().get() : nullptr;
+    }
+
+    BaseType* holding_value_type() override {
+        return type.has_value() ? type.value().get() : nullptr;
+    }
+
 #ifdef COMPILER_BUILD
 
     inline void check_has_type(Codegen &gen);

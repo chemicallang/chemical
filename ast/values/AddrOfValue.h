@@ -15,6 +15,10 @@ public:
 
     AddrOfValue(std::unique_ptr<Value> value);
 
+    uint64_t byte_size(bool is64Bit) const override {
+        return is64Bit ? 8 : 4;
+    }
+
     Value *copy() override;
 
     std::unique_ptr<BaseType> create_type() const override {

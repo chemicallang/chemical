@@ -5,10 +5,16 @@
 
 #ifdef COMPILER_BUILD
 #include "compiler/Codegen.h"
+#include "compiler/llvmimpl.h"
 
 void ReturnStatement::code_gen(Codegen &gen) {
     if (value.has_value()) {
-        gen.CreateRet(value.value()->llvm_ret_value(gen, this));
+        if(value.value()->reference() && value.value()->value_type() == ValueType::Struct) {
+            llvm::MaybeAlign noAlign;
+            gen.builder->CreateMemCpy(gen.current_function->getArg(0), noAlign, value.value()->llvm_pointer(gen), noAlign, value.value()->byte_size(gen.is64Bit));
+        } else {
+            gen.CreateRet(value.value()->llvm_ret_value(gen, this));
+        }
     } else {
         gen.CreateRet(nullptr);
     }

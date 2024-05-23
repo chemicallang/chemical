@@ -15,6 +15,14 @@ llvm::Type *ReferencedType::llvm_type(Codegen &gen) const {
 
 #endif
 
+uint64_t ReferencedType::byte_size(bool is64Bit) {
+    auto holdingType = linked->holding_value_type();
+    if(holdingType) return holdingType->byte_size(is64Bit);
+    auto holdingValue = linked->holding_value();
+    if(holdingValue) return holdingValue->byte_size(is64Bit);
+    throw std::runtime_error("unknown byte size for linked value");
+}
+
 ValueType ReferencedType::value_type() const {
     return linked->value_type();
 }

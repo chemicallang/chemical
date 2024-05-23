@@ -12,6 +12,14 @@ llvm::Type *VariableIdentifier::llvm_type(Codegen &gen) {
     return linked->llvm_type(gen);
 }
 
+uint64_t VariableIdentifier::byte_size(bool is64Bit) const {
+    auto holdingType = linked->holding_value_type();
+    if(holdingType) return holdingType->byte_size(is64Bit);
+    auto holdingValue = linked->holding_value();
+    if(holdingValue) return holdingValue->byte_size(is64Bit);
+    throw std::runtime_error("cannot determine byte size for the identifier");
+}
+
 llvm::FunctionType *VariableIdentifier::llvm_func_type(Codegen &gen) {
     return linked->llvm_func_type(gen);
 }

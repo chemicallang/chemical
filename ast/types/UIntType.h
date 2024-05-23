@@ -11,6 +11,10 @@ public:
 
     }
 
+    uint64_t byte_size(bool is64Bit) override {
+        return 4;
+    }
+
     void accept(Visitor *visitor) override {
         visitor->visit(this);
     }

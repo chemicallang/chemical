@@ -14,6 +14,11 @@ llvm::Value *NegativeValue::llvm_value(Codegen &gen) {
 
 #endif
 
+uint64_t NegativeValue::byte_size(bool is64Bit) const {
+// TODO check this out
+    return value->byte_size(is64Bit);
+}
+
 void NegativeValue::link(SymbolResolver &linker) {
     value->link(linker);
 }

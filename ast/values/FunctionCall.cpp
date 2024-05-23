@@ -11,7 +11,7 @@
 #include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
 
-inline std::unique_ptr<FunctionType> func_call_func_type(FunctionCall* call) {
+inline std::unique_ptr<FunctionType> func_call_func_type(const FunctionCall* call) {
     return std::unique_ptr<FunctionType>((FunctionType*) call->parent_val->create_type().release());
 }
 
@@ -221,6 +221,10 @@ FunctionCall::FunctionCall(
         std::vector<std::unique_ptr<Value>> values
 ) : values(std::move(values)) {
 
+}
+
+uint64_t FunctionCall::byte_size(bool is64Bit) const {
+    return func_call_func_type(this)->returnType->byte_size(is64Bit);
 }
 
 void FunctionCall::link_values(SymbolResolver &linker) {

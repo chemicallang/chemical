@@ -25,6 +25,10 @@ public:
         visitor->visit(this);
     }
 
+    uint64_t byte_size(bool is64Bit) const {
+        return 8;
+    }
+
 #ifdef COMPILER_BUILD
 
     llvm::Type *llvm_type(Codegen &gen) override;

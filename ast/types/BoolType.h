@@ -7,6 +7,10 @@
 class BoolType : public BaseType {
 public:
 
+    uint64_t byte_size(bool is64Bit) override {
+        return 1;
+    }
+
     bool satisfies(ValueType type) const override {
         return type == ValueType::Bool;
     }

@@ -23,6 +23,10 @@ public:
         return new BoolValue(value);
     }
 
+    uint64_t byte_size(bool is64Bit) const {
+        return 1;
+    }
+
     std::unique_ptr<BaseType> create_type() const override {
         return std::make_unique<BoolType>();
     }

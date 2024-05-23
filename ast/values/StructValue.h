@@ -53,6 +53,8 @@ public:
 
     ASTNode *linked_node() override;
 
+    uint64_t byte_size(bool is64Bit) const;
+
 #ifdef COMPILER_BUILD
 
     llvm::AllocaInst *llvm_allocate(Codegen &gen, const std::string &identifier) override;

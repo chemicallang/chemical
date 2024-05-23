@@ -15,6 +15,10 @@ llvm::Type *ReferencedType::llvm_type(Codegen &gen) const {
 
 #endif
 
+ValueType ReferencedType::value_type() const {
+    return linked->value_type();
+}
+
 bool ReferencedType::satisfies(ValueType value_type) const {
     if(linked->as_typealias() != nullptr) {
         return ((TypealiasStatement*) linked)->to->satisfies(value_type);

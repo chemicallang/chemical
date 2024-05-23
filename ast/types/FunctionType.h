@@ -77,3 +77,23 @@ public:
 #endif
 
 };
+
+#ifdef COMPILER_BUILD
+
+/**
+ * creates llvm function return type, based on our return type of the function
+ */
+llvm::Type* llvm_func_return(Codegen &gen, BaseType* type);
+
+/**
+ * creates llvm function parameter types, based on our parameter types of the function
+ */
+std::vector<llvm::Type*> llvm_func_param_types(
+        Codegen &gen,
+        std::vector<std::unique_ptr<FunctionParam>>& params,
+        BaseType* returnType,
+        bool isCapturing,
+        bool isVariadic
+);
+
+#endif

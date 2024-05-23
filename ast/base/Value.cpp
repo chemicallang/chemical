@@ -6,6 +6,7 @@
 #include "ast/structures/StructDefinition.h"
 #include "ast/types/PointerType.h"
 #include "ast/values/UIntValue.h"
+#include "ast/values/AccessChain.h"
 
 #ifdef COMPILER_BUILD
 
@@ -26,15 +27,19 @@ llvm::GlobalVariable* Value::llvm_global_variable(Codegen& gen, bool is_const, c
     return new llvm::GlobalVariable(*gen.module, llvm_type(gen), is_const, llvm::GlobalValue::LinkageTypes::PrivateLinkage, (llvm::Constant*) llvm_value(gen), name);
 }
 
+llvm::AllocaInst* Value::access_chain_allocate(Codegen& gen, const std::string& identifier, AccessChain* chain) {
+    return llvm_allocate_with(gen, identifier, chain->llvm_value(gen), chain->llvm_type(gen));
+}
+
 unsigned int Value::store_in_struct(
         Codegen& gen,
         StructValue* parent,
-        llvm::AllocaInst* ptr,
+        llvm::Value* allocated,
         std::vector<llvm::Value *> idxList,
         unsigned int index
 ) {
     idxList.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), index));
-    auto elementPtr = gen.builder->CreateGEP(parent->llvm_type(gen), ptr, idxList, "", gen.inbounds);
+    auto elementPtr = gen.builder->CreateGEP(parent->llvm_type(gen), allocated, idxList, "", gen.inbounds);
     gen.builder->CreateStore(llvm_value(gen), elementPtr);
     return index + 1;
 }

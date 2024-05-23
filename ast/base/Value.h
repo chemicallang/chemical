@@ -257,7 +257,7 @@ std::cerr << "child called on base value";
     virtual unsigned int store_in_struct(
             Codegen& gen,
             StructValue* parent,
-            llvm::AllocaInst* ptr,
+            llvm::Value* allocated,
             std::vector<llvm::Value *> idxList,
             unsigned int index
     );
@@ -320,6 +320,12 @@ std::cerr << "child called on base value";
     virtual llvm::Value* llvm_ret_value(Codegen& gen, ReturnStatement* returnStmt) {
         return llvm_value(gen);
     }
+
+    /**
+     * called by access chain on the last ref value in the chain
+     * by default it allocates chain->llvm_type and stores chain->llvm_value in it
+     */
+    virtual llvm::AllocaInst* access_chain_allocate(Codegen& gen, const std::string& identifier, AccessChain* chain);
 
     /**
      * called by access chain on the last ref value in the chain

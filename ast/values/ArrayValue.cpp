@@ -51,13 +51,13 @@ unsigned int ArrayValue::store_in_array(
 unsigned int ArrayValue::store_in_struct(
         Codegen &gen,
         StructValue *parent,
-        llvm::AllocaInst *ptr,
+        llvm::Value *allocated,
         std::vector<llvm::Value *> idxList,
         unsigned int index
 ) {
     idxList.emplace_back(gen.builder->getInt32(index));
     for (size_t i = 0; i < values.size(); ++i) {
-        values[i]->store_in_struct(gen, parent, ptr, idxList, i);
+        values[i]->store_in_struct(gen, parent, allocated, idxList, i);
     }
     return index + 1;
 }

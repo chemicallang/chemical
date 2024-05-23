@@ -74,10 +74,11 @@ llvm::Value *FunctionParam::llvm_ret_load(Codegen &gen, ReturnStatement *returnS
 }
 
 llvm::FunctionType *FunctionDeclaration::llvm_func_type(Codegen &gen) {
-    if (params.empty() || (params.size() == 1 && isVariadic)) {
-        return llvm::FunctionType::get(returnType->llvm_type(gen), isVariadic);
+    auto paramTypes = param_types(gen);
+    if(paramTypes.empty()) {
+        return llvm::FunctionType::get(llvm_func_return(gen, returnType.get()), isVariadic);
     } else {
-        return llvm::FunctionType::get(returnType->llvm_type(gen), param_types(gen), isVariadic);
+        return llvm::FunctionType::get(llvm_func_return(gen, returnType.get()), paramTypes, isVariadic);
     }
 }
 
@@ -149,21 +150,7 @@ void FunctionDeclaration::code_gen_struct(Codegen &gen, StructDefinition* def) {
 }
 
 std::vector<llvm::Type *> FunctionDeclaration::param_types(Codegen &gen) {
-    auto size = isVariadic ? (params.size() - 1) : params.size();
-    std::vector<llvm::Type *> array;
-    unsigned i = 0;
-    while (i < size) {
-        auto type = params[i]->type.get();
-        array.emplace_back(type->llvm_param_type(gen));
-        if(type->function_type() != nullptr) {
-            auto func_type = type->function_type();
-            if(func_type->isCapturing) {
-                array.emplace_back(gen.builder->getPtrTy());
-            }
-        }
-        i++;
-    }
-    return array;
+    return llvm_func_param_types(gen, params, returnType.get(), false, isVariadic);
 }
 
 llvm::Value *FunctionDeclaration::llvm_load(Codegen &gen) {

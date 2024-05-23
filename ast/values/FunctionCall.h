@@ -58,15 +58,25 @@ public:
 
     llvm::FunctionType *llvm_func_type(Codegen &gen) override;
 
+    llvm::Value *llvm_value(Codegen &gen, std::vector<llvm::Value*>& args);
+
     llvm::Value *llvm_value(Codegen &gen) override;
 
     llvm::InvokeInst *llvm_invoke(Codegen &gen, llvm::BasicBlock* normal, llvm::BasicBlock* unwind);
 
     llvm::Value * llvm_pointer(Codegen &gen) override;
 
-    llvm::Value* llvm_value(Codegen &gen, std::vector<std::unique_ptr<Value>>& chain);
+    llvm::Value* llvm_chain_value(
+            Codegen &gen,
+            std::vector<std::unique_ptr<Value>>& chain,
+            std::vector<llvm::Value*>& args
+    );
 
     llvm::Value * access_chain_value(Codegen &gen, std::vector<std::unique_ptr<Value>> &values) override;
+
+    llvm::AllocaInst *access_chain_allocate(Codegen &gen, const std::string &identifier, AccessChain* chain) override;
+
+    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
 
 #endif
 

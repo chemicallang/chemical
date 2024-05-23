@@ -14,8 +14,12 @@
 #include <ostream>
 #include "2cASTVisitor.h"
 
+#ifdef COMPILER_BUILD
+
 std::vector<std::unique_ptr<ASTNode>>
 TranslateC(const char *exe_path, const char *abs_path, const char *resources_path);
+
+#endif
 
 ToCTranslatorOptions::ToCTranslatorOptions(
         std::string exe_path,
@@ -106,8 +110,11 @@ bool translate(const std::string &path, ToCTranslatorOptions *options) {
                 std::cout << "[IGGraph] Translating C " << abs_path << std::endl;
             }
 
+#ifdef COMPILER_BUILD
             scope.nodes = TranslateC(options->exe_path.c_str(), abs_path.c_str(), options->resources_path.c_str());
-
+#else
+            throw std::runtime_error("cannot translate c file as clang api is not available");
+#endif
         } else {
 
             if (options->verbose) {

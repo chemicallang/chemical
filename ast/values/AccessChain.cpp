@@ -38,11 +38,11 @@ bool AccessChain::add_child_index(Codegen &gen, std::vector<llvm::Value *> &inde
     return values[values.size() - 1]->add_child_index(gen, indexes, name);
 }
 
-uint64_t AccessChain::byte_size(bool is64Bit) const {
-return values[values.size() - 1]->byte_size(is64Bit);
-}
-
 #endif
+
+uint64_t AccessChain::byte_size(bool is64Bit) const {
+    return values[values.size() - 1]->byte_size(is64Bit);
+}
 
 void AccessChain::declare_and_link(SymbolResolver &linker) {
     link(linker);

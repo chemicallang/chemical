@@ -4,15 +4,9 @@
 
 #include <string>
 #include <vector>
-
-#include "common/DiagSeverity.h"
+#include "ASTDiag.h"
 
 class ASTNode;
-
-struct ASTDiag {
-    std::string message;
-    DiagSeverity severity;
-};
 
 /**
  * a class that provides helpful methods and fields that allow to separate stuff from codegen

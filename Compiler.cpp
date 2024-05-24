@@ -17,6 +17,7 @@
 #include "preprocess/ImportGraphMaker.h"
 #include "compiler/IGCompiler.h"
 #include "preprocess/ToCTranslator.h"
+#include "preprocess/RepresentationVisitor.h"
 
 int chemical_clang_main(int argc, char **argv);
 
@@ -100,9 +101,7 @@ int main(int argc, char *argv[]) {
     auto translateC = options.option("tc", "tc");
     if(translateC.has_value()) {
         auto nodes = TranslateC(argv[0], srcFilePath.c_str(), res.value().c_str());
-        for(const auto& node : nodes) {
-            std::cout << node->representation() << std::endl;
-        }
+        // check symbol resolution works
         auto symRes = options.option("symres", "symres");
         if(symRes.has_value()) {
             Scope scope(std::move(nodes));
@@ -110,7 +109,18 @@ int main(int argc, char *argv[]) {
             scope.declare_top_level(linker);
             scope.declare_and_link(linker);
             linker.print_errors();
+            nodes = std::move(scope.nodes);
         }
+        // write translated to the given file
+        std::ofstream out;
+        out.open(translateC.value());
+        if(!out.is_open()) {
+            std::cout << "[TranslateC] Couldn't open the file at path " << translateC.value() << std::endl;
+            return 1;
+        }
+        RepresentationVisitor visitor(out);
+        visitor.translate(nodes);
+        out.close();
         return 0;
     }
 

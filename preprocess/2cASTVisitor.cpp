@@ -87,21 +87,11 @@
 #include "ast/values/UIntValue.h"
 #include "ast/values/ULongValue.h"
 #include "ast/utils/CommonVisitor.h"
+#include "utils/RepresentationUtils.h"
 
 ToCAstVisitor::ToCAstVisitor(std::ostream &output) : output(output) {
     declarer = std::make_unique<CValueDeclarationVisitor>(this);
     tld = std::make_unique<CTopLevelDeclarationVisitor>(this, declarer.get());
-}
-
-int random(int min, int max) //range : [min, max]
-{
-    static bool first = true;
-    if (first)
-    {
-        srand( time(NULL) ); //seeding for the first time only!
-        first = false;
-    }
-    return min + rand() % (( max + 1 ) - min);
 }
 
 class ToCAstVisitor;
@@ -116,50 +106,9 @@ void scope(ToCAstVisitor* visitor, Scope& scope) {
     visitor->write('}');
 }
 
-void write_encoded(ToCAstVisitor* visitor, char value){
-    switch(value) {
-        case '\a':
-            visitor->write("\\a");
-            break;
-        case '\f':
-            visitor->write("\\f");
-            break;
-        case '\r':
-            visitor->write("\\r");
-            break;
-        case '\n':
-            visitor->write("\\n");
-            break;
-        case '\0':
-            visitor->write("\\0");
-            break;
-        case '\t':
-            visitor->write("\\t");
-            break;
-        case '\v':
-            visitor->write("\\v");
-            break;
-        case '\b':
-            visitor->write("\\b");
-            break;
-        case '\"':
-            visitor->write("\\\"");
-            break;
-        case '\?':
-            visitor->write("\\?");
-            break;
-        case '\x1b':
-            visitor->write("\\x1b");
-            break;
-        default:
-            visitor->write(value);
-            break;
-    }
-}
-
 void write_encoded(ToCAstVisitor* visitor, const std::string& value) {
     for(char c : value) {
-        write_encoded(visitor, c);
+        visitor->write(escape_encode(c));
     }
 }
 
@@ -1184,7 +1133,7 @@ void ToCAstVisitor::visit(DoubleValue *val) {
 
 void ToCAstVisitor::visit(CharValue *val) {
     write('\'');
-    write_encoded(this, val->value);
+    write(escape_encode(val->value));
     write('\'');
 }
 

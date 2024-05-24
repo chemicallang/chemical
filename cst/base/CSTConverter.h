@@ -18,7 +18,7 @@ using cst_tokens_ref_type = std::vector<std::unique_ptr<CSTToken>> &;
 
 struct FunctionParamsResult {
     bool isVariadic;
-    func_params params;
+    std::vector<std::unique_ptr<FunctionParam>> params;
     unsigned int index;
 };
 

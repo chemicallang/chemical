@@ -106,17 +106,17 @@ void CSTSymbolResolver::visitAccessChain(AccessChainCST *chain) {
     }
 }
 
-void CSTSymbolResolver::resolve_symbol(RefToken* token) {
-    auto found = find(token->value);
-    if(found) {
-        token->linked = found;
-    } else {
-        error("unresolved symbol found '" + token->value + "'", token);
-    }
+void CSTSymbolResolver::link(RefToken* ref, CSTToken* token) {
+    ref->linked = token;
 }
 
 void CSTSymbolResolver::visitVariableToken(LexToken *token) {
-    resolve_symbol((RefToken*) token);
+    auto found = find(token->value);
+    if(found) {
+        link(token->as_ref(), found);
+    } else {
+        error("unresolved symbol found '" + token->value + "'", token);
+    }
 }
 
 void CSTSymbolResolver::visitFunctionCall(CompoundCSTToken *cst) {
@@ -130,7 +130,7 @@ void CSTSymbolResolver::visitIndexOp(CompoundCSTToken *cst) {
 void CSTSymbolResolver::visitTypeToken(LexToken *token) {
     auto found = find(token->value);
     if(found) {
-        token->as_ref()->linked = found;
+        link(token->as_ref(), found);
     } else {
         auto prim = TypeMakers::PrimitiveMap.find(token->value);
         if(prim == TypeMakers::PrimitiveMap.end()) {

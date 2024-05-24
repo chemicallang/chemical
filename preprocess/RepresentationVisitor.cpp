@@ -375,21 +375,14 @@ void RepresentationVisitor::visit(IfStatement *decl) {
 void write_members(RepresentationVisitor* visitor, MembersContainer* container) {
     int i = 0;
     for (const auto &field: container->variables) {
+        visitor->new_line_and_indent();
         field.second->accept(visitor);
-        if (i < container->variables.size() - 1) {
-            visitor->write('\n');
-        }
         i++;
-    }
-    if(!container->functions.empty()) {
-        visitor->write('\n');
     }
     i = 0;
     for (const auto &field: container->functions) {
+        visitor->new_line_and_indent();
         field.second->accept(visitor);
-        if (i < container->functions.size() - 1) {
-            visitor->write('\n');
-        }
         i++;
     }
 }

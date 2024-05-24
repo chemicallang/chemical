@@ -10,6 +10,7 @@
 #include "LibLsp/lsp/textDocument/foldingRange.h"
 #include "server/analyzers/FoldingRangeAnalyzer.h"
 #include "LibLsp/lsp/textDocument/completion.h"
+#include "LibLsp/lsp/textDocument/document_link.h"
 #include "server/analyzers/CompletionItemAnalyzer.h"
 #include "LibLsp/lsp/textDocument/SemanticTokens.h"
 #include "LibLsp/lsp/textDocument/did_change.h"
@@ -19,6 +20,7 @@
 #include "LibLsp/lsp/textDocument/hover.h"
 #include "server/analyzers/HoverAnalyzer.h"
 #include "server/analyzers/DocumentSymbolsAnalyzer.h"
+#include "server/analyzers/DocumentLinksAnalyzer.h"
 
 #define DEBUG_REPLACE false
 
@@ -48,6 +50,14 @@ td_completion::response WorkspaceManager::get_completion(
     CompletionItemAnalyzer analyzer({ line, character });
     td_completion::response rsp;
     rsp.result = analyzer.analyze(&unit);
+    return std::move(rsp);
+}
+
+td_links::response WorkspaceManager::get_links(const lsDocumentUri& uri) {
+    auto result = get_lexed(uri.GetAbsolutePath().path);
+    DocumentLinksAnalyzer analyzer;
+    td_links::response rsp;
+    rsp.result = analyzer.analyze(result.get());
     return std::move(rsp);
 }
 

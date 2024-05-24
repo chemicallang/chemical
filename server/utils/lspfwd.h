@@ -26,7 +26,12 @@ namespace td_symbol {
     struct response;
 }
 
+namespace td_links {
+    struct response;
+}
+
 struct lsDocumentUri;
+struct lsDocumentLink;
 struct SemanticToken;
 struct lsPosition;
 struct lsTextDocumentContentChangeEvent;

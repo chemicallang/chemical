@@ -381,9 +381,7 @@ public:
             if (need_initialize_error) {
                 return need_initialize_error.value();
             }
-            td_links::response rsp;
-            // TODO text document links
-            return std::move(rsp);
+            return manager.get_links(req.params.textDocument.uri);
         });
         _sp.registerHandler([&](const td_linkResolve::request &req,
                                 const CancelMonitor &monitor)

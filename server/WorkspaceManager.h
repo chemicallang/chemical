@@ -117,6 +117,11 @@ public:
     td_hover::response get_hover(const lsDocumentUri& uri, const lsPosition& position);
 
     /**
+     * get text document links response
+     */
+    td_links::response get_links(const lsDocumentUri& uri);
+
+    /**
      * this will publish given diagnostics
      */
     void publish_diagnostics(const std::string& path, bool async, const std::vector<std::vector<Diag>*>& diags);

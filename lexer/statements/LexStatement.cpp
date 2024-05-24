@@ -9,7 +9,7 @@
 bool Lexer::lexTopLevelStatementTokens() {
     return lexSingleLineCommentTokens() ||
            lexMultiLineCommentTokens() ||
-           lexVarInitializationTokens(false) ||
+           lexVarInitializationTokens(true) ||
            lexAnnotationMacro() ||
            lexEnumStructureTokens() ||
            lexStructStructureTokens() ||

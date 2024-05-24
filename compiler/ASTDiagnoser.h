@@ -21,11 +21,6 @@ public:
     bool has_errors = false;
 
     /**
-     * the path to resources directory
-     */
-    std::string resources_dir;
-
-    /**
      * path to the current executable, arg[0]
      * this is useful if in the middle of code generation
      * we want to invoke the compiler to get more information !

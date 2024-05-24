@@ -390,8 +390,8 @@ public:
             if (need_initialize_error) {
                 return need_initialize_error.value();
             }
+            // No need to support this request, since we send resolved links to the IDE
             td_linkResolve::response rsp;
-            // TODO text document link resolution
             return std::move(rsp);
         });
 //        _sp.registerHandler([&](const td_documentColor::request &req,

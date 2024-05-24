@@ -5,7 +5,7 @@
 #include "stream/SourceProvider.h"
 #include "cst/base/CSTConverter.h"
 #include "ast/statements/Import.h"
-#include "compiler/ASTProcessor.h"
+#include "compiler/ASTDiagnoser.h"
 #include "ImportGraphVisitor.h"
 #include "cst/base/CompoundCSTToken.h"
 #include "cst/utils/CSTUtils.h"
@@ -245,4 +245,15 @@ std::string IGFile::representation() {
     std::string rep;
     ::representation(*this, rep, 0);
     return rep;
+}
+
+void print_errors(IGFile* file) {
+    for(auto& sub_file : file->files) {
+        print_errors(&sub_file);
+    }
+    if(!file->errors.empty()) {
+        for (auto& err : file->errors) {
+            std::cout << err.ansi_representation(file->flat_file.abs_path, "IGGraph") << std::endl;
+        }
+    }
 }

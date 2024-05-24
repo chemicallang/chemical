@@ -13,7 +13,7 @@
 
 class Diag;
 
-class ASTProcessor;
+class ASTDiagnoser;
 
 class ImportStatement : public ASTNode {
 public:

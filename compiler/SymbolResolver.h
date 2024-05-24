@@ -3,7 +3,7 @@
 #pragma once
 
 #include "preprocess/BaseSymbolResolver.h"
-#include "ASTProcessor.h"
+#include "ASTDiagnoser.h"
 
 class ASTNode;
 
@@ -12,7 +12,7 @@ class ASTNode;
  * SemanticLinker however provides a way for the tokens to be linked
  * This doesn't link up modules like Linker does which is used for exporting executables
  */
-class SymbolResolver : public BaseSymbolResolver<ASTNode>, public ASTProcessor {
+class SymbolResolver : public BaseSymbolResolver<ASTNode>, public ASTDiagnoser {
 public:
 
     /**

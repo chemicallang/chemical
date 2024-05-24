@@ -364,8 +364,8 @@ set(COMMON_SOURCES
         utils/Benchmark.cpp
         utils/fwd/functional.h
         cst/utils/CSTUtils.h
-        compiler/ASTProcessor.h
-        compiler/ASTProcessor.cpp
+        compiler/ASTDiagnoser.h
+        compiler/ASTDiagnoser.cpp
         cst/utils/CSTUtils.cpp
         integration/ide/model/LexResult.h
         integration/ide/model/ImportUnit.h
@@ -397,6 +397,8 @@ set(COMMON_SOURCES
         preprocess/RepresentationVisitor.cpp
         preprocess/utils/RepresentationUtils.h
         preprocess/utils/RepresentationUtils.cpp
+        compiler/ASTProcessorOptions.h
+        preprocess/SourceVerify.cpp
 )
 
 # Chemical LSP Executable Target

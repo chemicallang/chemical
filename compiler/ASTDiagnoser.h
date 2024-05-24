@@ -18,7 +18,7 @@ struct ASTDiag {
  * a class that provides helpful methods and fields that allow to separate stuff from codegen
  * that could be useful to other classes, that process AST nodes for codegen purposes
  */
-class ASTProcessor {
+class ASTDiagnoser {
 public:
 
     /**
@@ -56,7 +56,7 @@ public:
     /**
      * constructor
      */
-    ASTProcessor(std::string curr_exe_path, const std::string& path);
+    ASTDiagnoser(std::string curr_exe_path, const std::string& path);
 
     /**
      * the tag of the process, which will be appended to errors

@@ -78,3 +78,8 @@ IGResult determine_import_graph(const std::string& exe_path, const std::string& 
  * construct's a list representation from the given IGFile
  */
 void representation(IGFile& file, std::string& into, unsigned int level = 0);
+
+/**
+ * prints errors in the given file
+ */
+void print_errors(IGFile* file);

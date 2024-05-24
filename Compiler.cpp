@@ -65,16 +65,8 @@ int main(int argc, char *argv[]) {
     auto srcFilePath = args[0];
 
     auto print_ig = options.option("print-ig", "pr-ig").has_value();
-//    if(print_ig) {
-//        auto result = determine_import_graph(argv[0], srcFilePath);
-//        if(!result.errors.empty()) {
-//            for(auto& err : result.errors) {
-//                std::cout << err.ansi_representation(err.doc_url.value(), "IGGraph") << std::endl;
-//            }
-//        }
-//        std::cout << result.root.representation() << std::endl;
-//        return 0;
-//    }
+    auto verify = options.option("verify", "verify").has_value();
+    auto help = options.option("help", "help").has_value();
 
     // get and print target
     auto target = options.option("target", "t");

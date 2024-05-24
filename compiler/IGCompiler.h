@@ -1,47 +1,13 @@
 // Copyright (c) Qinetik 2024.
 
 #include <string>
+#include "ASTProcessorOptions.h"
 
 /**
  * this allows you to control the compilation process
  */
-class IGCompilerOptions {
+class IGCompilerOptions : public ASTProcessorOptions {
 public:
-
-    /**
-     * benchmark the compilation process
-     */
-    bool benchmark = false;
-
-    /**
-     * print the import graph
-     */
-    bool print_ig = false;
-
-    /**
-     * print the representation of files (ASTNodes)
-     */
-    bool print_representation = false;
-
-    /**
-     * print the tokens lexed
-     */
-    bool print_cst = false;
-
-    /**
-     * verbose
-     */
-    bool verbose = false;
-
-    /**
-     * path to resources, give only if import's c files
-     */
-    std::string resources_path;
-
-    /**
-     * path to the current compiler executable
-     */
-    std::string exe_path;
 
     /**
      * the target triple, which codegen is for

@@ -13,7 +13,7 @@
 #include "ast/base/AccessSpecifier.h"
 #include "ast/base/BaseTypeKind.h"
 #include "ast/base/ValueType.h"
-#include "ASTProcessor.h"
+#include "ASTDiagnoser.h"
 #include <unordered_map>
 
 class Codegen;
@@ -31,7 +31,7 @@ class BaseType;
  */
 typedef Value*(*CasterFn)(Value* val, BaseType* type);
 
-class Codegen : public ASTProcessor {
+class Codegen : public ASTDiagnoser {
 public:
 
     /**

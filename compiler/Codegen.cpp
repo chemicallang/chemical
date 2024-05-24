@@ -17,7 +17,7 @@ Codegen::Codegen(
         std::string target_triple,
         std::string curr_exe_path,
         bool is_64_bit
-) : ASTProcessor(std::move(curr_exe_path), std::move(path)), nodes(std::move(nodes)),
+) : ASTDiagnoser(std::move(curr_exe_path), std::move(path)), nodes(std::move(nodes)),
     target_triple(std::move(target_triple)), is64Bit(is_64_bit) {
     module_init();
 }

@@ -277,6 +277,9 @@ public:
             if (clientPreferences->isDocumentSymbolDynamicRegistered()) {
                 collectRegisterCapability(td_symbol::request::kMethodInfo);
             }
+            if(clientPreferences->isDocumentLinkDynamicRegistered()) {
+                  collectRegisterCapability(td_links::request::kMethodInfo);
+            }
             /*if (clientPreferences->isCodeActionDynamicRegistered())
             {
                 collectRegisterCapability(td_codeAction::request::kMethodInfo);

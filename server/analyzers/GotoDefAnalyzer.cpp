@@ -42,17 +42,17 @@ std::vector<Location> GotoDefAnalyzer::analyze(ImportUnit* unit) {
             std::cout << "[GotoDefAnalyzer] Unresolved token at position " << position.representation() << " with type " << token->type_string()  << "and with representation " << token->representation() << std::endl;
         }
     } else if(token && !token->is_ref()) {
-        if(token_parent.first && token_parent.first->type() == LexTokenType::CompImport && token->type() == LexTokenType::String) {
-            auto unquoted_str = escaped_str_token(token);
-            auto resolved = resolve_rel_path_str(file->abs_path, unquoted_str);
-            if(!resolved.empty()) {
-                return { Location { Range { Position { 0, 0}, Position { 0, 0} }, resolved } };
-            } else {
-                std::cout << "[GotoDefAnalyzer] Couldn't resolve import path " << unquoted_str << " by " << file->abs_path << std::endl;
-            }
-        } else {
-            std::cout << "[GotoDefAnalyzer] Unknown static token at position " << position.representation() << " with type " << token->type_string()  << "and with representation " << token->representation() << std::endl;
-        }
+//        if(token_parent.first && token_parent.first->type() == LexTokenType::CompImport && token->type() == LexTokenType::String) {
+//            auto unquoted_str = escaped_str_token(token);
+//            auto resolved = resolve_rel_path_str(file->abs_path, unquoted_str);
+//            if(!resolved.empty()) {
+//                return { Location { Range { Position { 0, 0}, Position { 0, 0} }, resolved } };
+//            } else {
+//                std::cout << "[GotoDefAnalyzer] Couldn't resolve import path " << unquoted_str << " by " << file->abs_path << std::endl;
+//            }
+//        } else {
+//            std::cout << "[GotoDefAnalyzer] Unknown static token at position " << position.representation() << " with type " << token->type_string()  << "and with representation " << token->representation() << std::endl;
+//        }
     }
     return {};
 }

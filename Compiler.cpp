@@ -80,7 +80,11 @@ int main(int argc, char *argv[]) {
         options->print_cst = print_cst;
         options->print_ig = print_ig;
         options->verbose = verbose;
-        options->resources_path = res.value();
+        if(res.has_value()) {
+            options->resources_path = res.value();
+        } else {
+            // TODO make resources path relative to current executable
+        }
     };
 
     // get and print target

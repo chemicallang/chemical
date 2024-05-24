@@ -28,14 +28,16 @@ public:
     }
 
     /**
-     * resolves the symbol, if not found, puts an error
-     */
-    void resolve_symbol(RefToken* token);
-
-    /**
      * resolve an import unit
      */
     void resolve(ImportUnit* unit);
+
+    /**
+     * this just sets the linked field of ref token to the other given token
+     * it's a virtual method so it can be overridden so references can be collected for a token
+     * we're interested in to provide usage statistics
+     */
+    virtual void link(RefToken* ref, CSTToken* token);
 
     //-------------------------
     //------------ Visitors

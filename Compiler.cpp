@@ -18,6 +18,7 @@
 #include "compiler/IGCompiler.h"
 #include "preprocess/ToCTranslator.h"
 #include "preprocess/RepresentationVisitor.h"
+#include "preprocess/SourceVerifier.h"
 
 int chemical_clang_main(int argc, char **argv);
 
@@ -64,9 +65,23 @@ int main(int argc, char *argv[]) {
 
     auto srcFilePath = args[0];
 
-    auto print_ig = options.option("print-ig", "pr-ig").has_value();
-    auto verify = options.option("verify", "verify").has_value();
     auto help = options.option("help", "help").has_value();
+    auto only_verify = options.option("verify", "verify").has_value();
+    auto benchmark = options.option("benchmark", "bm").has_value();
+    auto print_ig = options.option("print-ig", "pr-ig").has_value();
+    auto print_representation = options.option("print-ast", "pr-ast").has_value();
+    auto print_ir = options.option("print-ir", "pr-ir").has_value();
+    auto print_cst = options.option("print-cst", "pr-cst").has_value();
+    auto res = options.option("res", "res");
+
+    auto prepare_options = [&](ASTProcessorOptions* options) -> void {
+        options->benchmark = benchmark;
+        options->print_representation = print_representation;
+        options->print_cst = print_cst;
+        options->print_ig = print_ig;
+        options->verbose = verbose;
+        options->resources_path = res.value();
+    };
 
     // get and print target
     auto target = options.option("target", "t");
@@ -79,12 +94,11 @@ int main(int argc, char *argv[]) {
     // determine if is 64bit
     bool is64Bit = Codegen::is_arch_64bit(target.value());
 
-    auto res = options.option("res", "res");
-
     // translate chemical to C
     auto translateToC = options.option("t2c", "t2c");
     if(translateToC.has_value()) {
         ToCTranslatorOptions translator_opts(argv[0], translateToC.value(), is64Bit);
+        prepare_options(&translator_opts);
         bool good = translate(srcFilePath, &translator_opts);
         return good ? 0 : 1;
     }
@@ -93,16 +107,6 @@ int main(int argc, char *argv[]) {
     auto translateC = options.option("tc", "tc");
     if(translateC.has_value()) {
         auto nodes = TranslateC(argv[0], srcFilePath.c_str(), res.value().c_str());
-        // check symbol resolution works
-        auto symRes = options.option("symres", "symres");
-        if(symRes.has_value()) {
-            Scope scope(std::move(nodes));
-            SymbolResolver linker(argv[0], srcFilePath, is64Bit);
-            scope.declare_top_level(linker);
-            scope.declare_and_link(linker);
-            linker.print_errors();
-            nodes = std::move(scope.nodes);
-        }
         // write translated to the given file
         std::ofstream out;
         out.open(translateC.value());
@@ -113,26 +117,30 @@ int main(int argc, char *argv[]) {
         RepresentationVisitor visitor(out);
         visitor.translate(nodes);
         out.close();
+        // verify if required
+        if(only_verify) {
+            SourceVerifierOptions verify_opts(argv[0]);
+            prepare_options(&verify_opts);
+            if(!verify(translateC.value(), &verify_opts)) {
+                return 1;
+            }
+        }
         return 0;
     }
 
-    // Lex, parse & type check
-    auto benchmark = options.option("benchmark", "bm").has_value();
-    auto print_representation = options.option("print-ast", "pr-ast").has_value();
-    auto print_ir = options.option("print-ir", "pr-ir").has_value();
-    auto print_cst = options.option("print-cst", "pr-cst").has_value();
-
-    Codegen gen({}, srcFilePath, target.value(), argv[0], is64Bit);
-    if(res.has_value()) {
-        gen.resources_dir = res.value();
+    // do not compile
+    if(only_verify) {
+        SourceVerifierOptions verify_opts(argv[0]);
+        prepare_options(&verify_opts);
+        if(!verify(srcFilePath, &verify_opts)) {
+            return 1;
+        }
     }
 
+    // compilation
+    Codegen gen({}, srcFilePath, target.value(), argv[0], is64Bit);
     IGCompilerOptions compiler_opts(argv[0], target.value(), is64Bit);
-    compiler_opts.benchmark = benchmark;
-    compiler_opts.print_representation = print_representation;
-    compiler_opts.print_cst = print_cst;
-    compiler_opts.print_ig = print_ig;
-    compiler_opts.verbose = verbose;
+    prepare_options(&compiler_opts);
     if(!compile(&gen, srcFilePath, &compiler_opts)) {
         return 1;
     }

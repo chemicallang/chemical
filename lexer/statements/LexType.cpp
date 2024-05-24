@@ -72,7 +72,7 @@ bool Lexer::lexTypeTokens() {
             }
             compound_from<ArrayTypeCST>(start);
         }
-        if(lexOperatorToken('*')) {
+        while(lexOperatorToken('*')) {
             compound_from<PointerTypeCST>(start);
         }
         return true;

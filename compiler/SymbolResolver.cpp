@@ -9,6 +9,10 @@ SymbolResolver::SymbolResolver(std::string curr_exe_path, const std::string& pat
 }
 
 void SymbolResolver::declare(const std::string& name, ASTNode* node) {
+    if(name == "_") {
+        // symbols with name '_' aren't declared
+        return;
+    }
     auto& last = current.back();
     auto found = last.find(name);
     if(found == last.end() || override_symbols) {

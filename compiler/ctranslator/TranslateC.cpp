@@ -140,8 +140,12 @@ FunctionDeclaration* CTranslator::make_func(clang::FunctionDecl* func_decl) {
             skip_fn = true;
             continue;
         }
+        auto param_name = param->getNameAsString();
+        if(param_name.empty()) {
+            param_name = "_";
+        }
         params.emplace_back(new FunctionParam(
-                param->getNameAsString(),
+                param_name,
                 std::unique_ptr<BaseType>(chem_type),
                 index,
                 std::nullopt

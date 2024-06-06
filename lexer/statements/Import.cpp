@@ -41,12 +41,15 @@ bool Lexer::lexImportStatement() {
                 lexWhitespaceToken();
                 if (!lexStringToken()) {
                     error("expected path after 'from' in import statement");
+                    return false;
                 }
             } else {
                 error("expected keyword 'from' after the identifier");
+                return false;
             }
         } else {
             error("expected a string path in import statement or identifier(s) after the 'import' keyword");
+            return false;
         }
         compound_from<ImportCST>(start);
     }

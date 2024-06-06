@@ -74,12 +74,11 @@ ImportUnit WorkspaceManager::get_import_unit(const std::string& abs_path, bool p
     // get lex result for the absolute path
     auto result = get_lexed(abs_path);
     // create a function that takes cst tokens in the import graph maker and creates a import graph
-    // TODO provide correct executable path
     std::ifstream file;
     SourceProvider reader(&file);
     Lexer lexer(reader, abs_path);
     ImportGraphVisitor visitor;
-    ImportPathHandler handler("");
+    ImportPathHandler handler(compiler_exe_path());
     WorkspaceImportGraphImporter importer(
             &handler,
             &lexer,

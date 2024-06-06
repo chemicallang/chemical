@@ -121,8 +121,9 @@ public:
     Server(
             const std::string &user_agent,
             const std::string &_port,
-            bool _enable_watch_parent_process
-    ) : _sp(server.point), server(_address, _port, protocol_json_handler, endpoint, _log) {
+            bool _enable_watch_parent_process,
+            std::string lsp_exe_path
+    ) : _sp(server.point), server(_address, _port, protocol_json_handler, endpoint, _log), manager(lsp_exe_path) {
 
         manager.remote = &server.point;
         need_initialize_error = Rsp_Error();
@@ -586,6 +587,11 @@ const char *_PORT_STR = "port";
 
 int main(int argc, char *argv[]) {
 
+    if(argc == 0) {
+        std::cerr << "[LSP] No executable path specified" << std::endl;
+        return 1;
+    }
+
     using namespace boost::program_options;
     options_description desc(" LPG-language-server allowed options");
     desc.add_options()
@@ -619,7 +625,7 @@ int main(int argc, char *argv[]) {
         enable_watch_parent_process = true;
     }
     std::string user_agent = std::string(BOOST_BEAST_VERSION_STRING) + " websocket-server-async";
-    Server server(user_agent, "5007", enable_watch_parent_process);
+    Server server(user_agent, "5007", enable_watch_parent_process, argv[0]);
     auto ret = server.esc_event.wait();
     if (ret) {
         return 0;

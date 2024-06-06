@@ -71,6 +71,11 @@ private:
      */
     ImportUnitCache cache;
 
+    /**
+     * the argv is the path to the lsp executable
+     */
+    std::string lsp_exe_path;
+
 public:
 
     /**
@@ -78,6 +83,16 @@ public:
      * send notifications and stuff, it's our connection to IDE
      */
     RemoteEndPoint* remote;
+
+    /**
+     * constructor
+     */
+    WorkspaceManager(std::string lsp_exe_path);
+
+    /**
+     * will determine compiler executable path, relative to the current lsp exe path
+     */
+    std::string compiler_exe_path();
 
     /**
      * get the folding range for the given absolute file path

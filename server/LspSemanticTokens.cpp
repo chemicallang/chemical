@@ -53,7 +53,7 @@ void WorkspaceManager::publish_diagnostics(const std::string& path, bool async, 
 
 std::vector<SemanticToken> WorkspaceManager::get_semantic_tokens(const lsDocumentUri& uri) {
 
-    auto path = uri.GetAbsolutePath().path;
+    auto path = canonical(uri.GetAbsolutePath().path);
     auto unit = get_import_unit(path, true);
     auto file = unit.files[unit.files.size() - 1];
 

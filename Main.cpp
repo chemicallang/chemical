@@ -344,8 +344,7 @@ public:
             if (need_initialize_error) {
                 return need_initialize_error.value();
             }
-            auto path = req.params.textDocument.uri.GetAbsolutePath().path;
-            return manager.get_completion(path, req.params.position.line, req.params.position.character);
+            return manager.get_completion(req.params.textDocument.uri, req.params.position.line, req.params.position.character);
         });
         _sp.registerHandler([&](const completionItem_resolve::request &req) {
             _log.log(lsp::Log::Level::INFO, "completionItem_resolve");
@@ -361,7 +360,7 @@ public:
             if (need_initialize_error) {
                 return need_initialize_error.value();
             }
-            return manager.get_folding_range(req.params.textDocument.uri.GetAbsolutePath().path);
+            return manager.get_folding_range(req.params.textDocument.uri);
         });
         _sp.registerHandler([&](const td_formatting::request &req,
                                 const CancelMonitor &monitor)
@@ -490,7 +489,7 @@ public:
                 _log.log(lsp::Log::Level::INFO, "No Changes in the code");
             }
 
-            manager.onChangedContents(path.path, params.contentChanges);
+            manager.onChangedContents(params.textDocument.uri, params.contentChanges);
 
             _log.log(lsp::Log::Level::INFO, "TextDocumentDidChange Received 3");
 

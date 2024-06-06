@@ -9,6 +9,37 @@
 #include "integration/ide/model/FlatIGFile.h"
 #include <memory>
 
+class ImportPathHandler;
+class Lexer;
+class ImportGraphVisitor;
+
+class ImportGraphImporter {
+public:
+
+    ImportPathHandler* handler;
+    Lexer *lexer;
+    ImportGraphVisitor *converter;
+    bool isFile = true;
+
+    /**
+     * constructor
+     */
+    ImportGraphImporter(ImportPathHandler* handler, Lexer* lexer, ImportGraphVisitor* converter);
+
+    /**
+     * will prepare source in the lexer
+     * will open the file, or prepare a stringstream in the Lexer
+     * @return true if prepared
+     */
+    bool prepare_source(const std::string& path, std::vector<Diag>& errors);
+
+    /**
+     * will close the source
+     */
+    void close_source();
+
+};
+
 /**
  * this doesn't represent any actual file
  * its just a part of ImportGraph

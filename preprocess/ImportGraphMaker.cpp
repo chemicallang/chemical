@@ -11,19 +11,39 @@
 #include "cst/utils/CSTUtils.h"
 #include "ImportPathHandler.h"
 
+typedef ImportGraphImporter Importer;
+
+ImportGraphImporter::ImportGraphImporter(ImportPathHandler* handler, Lexer* lexer, ImportGraphVisitor* converter) : handler(handler), lexer(lexer), converter(converter) {
+
+};
+
+bool ImportGraphImporter::prepare_source(const std::string& abs_path, std::vector<Diag>& errors) {
+    if(!isFile) return true;
+    auto& stream = (std::ifstream&) lexer->provider.stream;
+    stream.open(abs_path);
+    if(!stream.is_open()) {
+        errors.emplace_back(
+                Range {0,0,0,0},
+                DiagSeverity::Error,
+                abs_path,
+                "couldn't open the file " + abs_path
+        );
+        return false;
+    }
+    return true;
+}
+
+void ImportGraphImporter::close_source() {
+    if(!isFile) return;
+    ((std::ifstream&) lexer->provider.stream).close();
+}
+
 void ImportGraphVisitor::visitImport(CompoundCSTToken *cst) {
     imports.emplace_back(
             FlatIGFile { escaped_str_token(cst->tokens[1].get()) },
             Range { cst->start_token()->position, cst->end_token()->position }
     );
 }
-
-struct Importer {
-    ImportPathHandler* handler;
-    Lexer *lexer;
-    std::ifstream& stream;
-    ImportGraphVisitor *converter;
-};
 
 IGFile from_import(
         Importer *importer,
@@ -55,7 +75,6 @@ std::vector<IGFile> from_tokens(
     }
 
     // take
-    importer->stream.close();
     std::vector<IGFile> nested;
     auto nodes = std::move(importer->converter->imports);
     for (auto &node: nodes) {
@@ -78,14 +97,7 @@ std::vector<IGFile> get_imports(
 ) {
 
     // open file
-    importer->stream.open(abs_path);
-    if(!importer->stream.is_open()) {
-        parent->errors.emplace_back(
-                Range {0,0,0,0},
-                DiagSeverity::Error,
-                abs_path,
-                "couldn't open the file " + abs_path
-        );
+    if(!importer->prepare_source(abs_path, parent->errors)) {
         return {};
     }
 
@@ -97,6 +109,9 @@ std::vector<IGFile> get_imports(
         move_errors(importer->lexer->errors, parent->errors, abs_path);
         importer->lexer->has_errors = false;
     }
+
+    // close source
+    importer->close_source();
 
     // convert
     return from_tokens(
@@ -154,16 +169,15 @@ IGFile from_import(
 IGResult determine_import_graph(const std::string& exe_path, std::vector<std::unique_ptr<CSTToken>>& tokens, FlatIGFile asker) {
     std::ifstream file;
     SourceProvider reader(file);
-    Lexer lexer(reader, "");
+    Lexer lexer(reader, asker.abs_path);
     ImportGraphVisitor visitor;
     ImportPathHandler handler(exe_path);
     IGResult result;
-    Importer importer{
+    ImportGraphImporter importer(
             &handler,
             &lexer,
-            file,
             &visitor
-    };
+    );
     result.root = IGFile { nullptr, std::move(asker) };
     result.root.files = from_tokens(&importer, &result.root, result.root.flat_file.abs_path, tokens);
     return result;
@@ -175,12 +189,11 @@ IGResult determine_import_graph(const std::string &exe_path, const std::string &
     Lexer lexer(reader, abs_path);
     ImportGraphVisitor visitor;
     ImportPathHandler handler(exe_path);
-    Importer importer{
+    ImportGraphImporter importer(
             &handler,
             &lexer,
-            file,
             &visitor
-    };
+    );
     return IGResult{
             from_import(&importer, nullptr, abs_path, nullptr)
     };

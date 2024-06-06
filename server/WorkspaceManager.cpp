@@ -25,6 +25,20 @@
 
 #define DEBUG_REPLACE false
 
+std::string resolve_rel_path_str(const std::string &root_path, const std::string &file_path);
+
+WorkspaceManager::WorkspaceManager(std::string lsp_exe_path) : lsp_exe_path(std::move(lsp_exe_path)) {
+
+}
+
+std::string WorkspaceManager::compiler_exe_path() {
+#if defined(_WIN32)
+    return resolve_rel_path_str(lsp_exe_path, "Compiler.exe");
+#else
+    return resolve_rel_path_str(lsp_exe_path, "Compiler");
+#endif
+}
+
 std::optional<std::string> WorkspaceManager::get_overridden_source(const std::string &path) {
     if (overriddenSources.contains(path)) {
         return overriddenSources[path];

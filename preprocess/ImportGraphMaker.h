@@ -10,27 +10,33 @@
 #include <memory>
 
 class ImportPathHandler;
+
 class Lexer;
+
 class ImportGraphVisitor;
+
+struct IGFile;
+
+class CSTToken;
 
 class ImportGraphImporter {
 public:
 
-    ImportPathHandler* handler;
+    ImportPathHandler *handler;
     Lexer *lexer;
     ImportGraphVisitor *converter;
 
     /**
      * constructor
      */
-    ImportGraphImporter(ImportPathHandler* handler, Lexer* lexer, ImportGraphVisitor* converter);
+    ImportGraphImporter(ImportPathHandler *handler, Lexer *lexer, ImportGraphVisitor *converter);
 
     /**
      * will prepare source in the lexer
      * will open the file, or prepare a stringstream in the Lexer
      * @return true if prepared
      */
-    bool prepare_source(const std::string& path, std::vector<Diag>& errors);
+    bool prepare_source(const std::string &path, std::vector<Diag> &errors);
 
     /**
      * will close the source
@@ -40,12 +46,21 @@ public:
     /**
      * will lex the prepared source
      */
-    void lex_source(const std::string& path, std::vector<Diag>& errors);
+    void lex_source(const std::string &path, std::vector<Diag> &errors);
 
     /**
-     * will prepare_source, lex_source, close_source
+     * get the ig files from tokens
      */
-    virtual bool process(const std::string& path, std::vector<Diag>& errors);
+    std::vector<IGFile> from_tokens(
+            const std::string &path,
+            IGFile *parent,
+            std::vector<std::unique_ptr<CSTToken>> &tokens
+    );
+
+    /**
+     * will call prepare_source, lex_source, close_source, from_tokens
+     */
+    virtual std::vector<IGFile> process(const std::string &path, IGFile *parent);
 
 };
 
@@ -61,7 +76,7 @@ struct IGFile {
      * the pointer to the parent IGFile
      * could be null pointer, if it's the root
      */
-    IGFile* parent;
+    IGFile *parent;
 
     /**
      * the flat file, which is a representation of it's import statement
@@ -104,24 +119,28 @@ struct IGResult {
 
 };
 
-class CSTToken;
+/**
+ * determines the import graph
+ */
+IGResult determine_import_graph(ImportGraphImporter* importer, std::vector<std::unique_ptr<CSTToken>> &tokens, FlatIGFile &file);
 
 /**
  * determines import graph from the given cst tokens
  */
-IGResult determine_import_graph(const std::string& exe_path, std::vector<std::unique_ptr<CSTToken>>& tokens, FlatIGFile file);
+IGResult
+determine_import_graph(const std::string &exe_path, std::vector<std::unique_ptr<CSTToken>> &tokens, FlatIGFile &file);
 
 /**
  * determines import graph, which is data structure
  */
-IGResult determine_import_graph(const std::string& exe_path, const std::string& abs_path);
+IGResult determine_import_graph(const std::string &exe_path, const std::string &abs_path);
 
 /**
  * construct's a list representation from the given IGFile
  */
-void representation(IGFile& file, std::string& into, unsigned int level = 0);
+void representation(IGFile &file, std::string &into, unsigned int level = 0);
 
 /**
  * prints errors in the given file
  */
-void print_errors(IGFile* file);
+void print_errors(IGFile *file);

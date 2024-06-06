@@ -423,6 +423,7 @@ add_executable(ChemicalLsp Main.cpp ${COMMON_SOURCES}
         server/Importer.cpp
         server/analyzers/DocumentLinksAnalyzer.h
         server/analyzers/DocumentLinksAnalyzer.cpp
+        server/utils/WorkspaceImportGraphImporter.h
 )
 
 # Add an executable target for the second executable

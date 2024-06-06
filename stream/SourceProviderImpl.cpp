@@ -2,34 +2,34 @@
 #include <iostream>
 
 void SourceProvider::restore(StreamPosition &position) {
-    stream.seekg(position.pos, std::ios::beg);
+    stream->seekg(position.pos, std::ios::beg);
     lineNumber = position.line;
     lineCharacterNumber = position.character;
 }
 
 unsigned int SourceProvider::currentPosition() const {
-    return stream.tellg();
+    return stream->tellg();
 }
 
 char SourceProvider::readCharacter() {
-    auto c = stream.get();
+    auto c = stream->get();
     handleCharacterRead(c);
     return c;
 }
 
 bool SourceProvider::eof() const {
-    return stream.eof();
+    return stream->eof();
 }
 
 char SourceProvider::peek() const {
-    return stream.peek();
+    return stream->peek();
 }
 
 char SourceProvider::peek(int ahead) {
-    unsigned int pos = stream.tellg();
-    stream.seekg(pos + ahead, std::ios::beg);
-    char c = stream.get();
-    stream.seekg(pos, std::ios::beg);
+    unsigned int pos = stream->tellg();
+    stream->seekg(pos + ahead, std::ios::beg);
+    char c = stream->get();
+    stream->seekg(pos, std::ios::beg);
     return c;
 }
 
@@ -47,11 +47,11 @@ std::string SourceProvider::readUntil(char stop) {
 }
 
 bool SourceProvider::increment(char c) {
-    if (stream.get() == c) {
+    if (stream->get() == c) {
         handleCharacterRead(c);
         return true;
     } else {
-        stream.seekg(currentPosition() - 1, std::ios::beg);
+        stream->seekg(currentPosition() - 1, std::ios::beg);
         return false;
     }
 }
@@ -65,7 +65,7 @@ std::string SourceProvider::readAllFromHere() {
 }
 
 std::string SourceProvider::readAllFromBeg() {
-    stream.seekg(0, std::ios::beg);
+    stream->seekg(0, std::ios::beg);
     return readAllFromHere();
 }
 
@@ -77,7 +77,7 @@ void SourceProvider::printAll() {
 
 bool SourceProvider::increment(const std::string &text, bool peek) {
 
-    if (stream.peek() != text[0]) {
+    if (stream->peek() != text[0]) {
         return false;
     }
 
@@ -86,7 +86,7 @@ bool SourceProvider::increment(const std::string &text, bool peek) {
 
     bool result = true;
     int pos = 0;
-    while (!stream.eof() && pos < text.size()) {
+    while (!stream->eof() && pos < text.size()) {
         char c = readCharacter();
         if (c != text[pos]) {
             result = false;
@@ -117,7 +117,7 @@ StreamPosition SourceProvider::getStreamPosition() const {
 }
 
 void SourceProvider::reset() {
-    this->stream.seekg(0, std::ios::beg);
+    this->stream->seekg(0, std::ios::beg);
     this->lineCharacterNumber = 0;
     this->lineNumber = 0;
 }

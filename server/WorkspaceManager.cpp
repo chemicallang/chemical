@@ -6,6 +6,7 @@
 
 #include "WorkspaceManager.h"
 #include "stream/SourceProvider.h"
+#include <filesystem>
 #include <sstream>
 #include "LibLsp/lsp/textDocument/foldingRange.h"
 #include "server/analyzers/FoldingRangeAnalyzer.h"
@@ -158,7 +159,18 @@ WorkspaceManager::onChangedContents(const std::string &path,
 #endif
 
     // store the overridden sources
-    overriddenSources[path] = std::move(source);
+    std::string canonical_path;
+    try {
+        canonical_path = std::filesystem::canonical(((std::filesystem::path) path)).string();
+    } catch (std::filesystem::filesystem_error& e) {
+        canonical_path = "";
+    }
+    if(!canonical_path.empty()) {
+        overriddenSources[canonical_path] = std::move(source);
+    } else {
+        std::cerr << "[LSP_ERROR] onChangedContents : couldn't determine canonical path for " << path << std::endl;
+    }
+
     // invalidate the cached file for this key
     cache.files.erase(path);
 
@@ -183,7 +195,7 @@ void replace(
 
     std::istringstream stream(source);
 
-    auto provider = SourceProvider(stream);
+    auto provider = SourceProvider(&stream);
 
     std::string nextSource;
 

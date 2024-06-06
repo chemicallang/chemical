@@ -59,7 +59,7 @@ public:
     /**
      * the actual stream being read
      */
-    std::istream &stream;
+    std::istream *stream;
 
     /**
      * The default constructor
@@ -69,7 +69,7 @@ public:
     /**
      * create a source provider with a stream
      */
-    explicit SourceProvider(std::istream &stream) : stream(stream) {}
+    explicit SourceProvider(std::istream *stream) : stream(stream) {}
 
     /**
      * gets the current pos of the stream

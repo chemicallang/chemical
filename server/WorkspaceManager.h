@@ -132,6 +132,12 @@ public:
     ImportUnit get_import_unit(const std::string& abs_path, bool publish_diagnostics = false);
 
     /**
+     * get the lexed file, only if it exists in cache
+     * NOTE: this uses a mutex for each distinct path
+     */
+    std::shared_ptr<LexResult> get_cached(const std::string& path);
+
+    /**
      * get tokens for the given file
      *
      * Lexes the file contents, The contents can be either

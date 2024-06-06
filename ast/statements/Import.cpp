@@ -43,7 +43,7 @@ void ImportStatement::interpret(InterpretScope &scope) {
         scope.error("error couldn't import the following file " + absolute_path);
         return;
     }
-    SourceProvider provider(stream);
+    SourceProvider provider(&stream);
     Lexer lexer(provider, absolute_path);
     lexer.lex();
     // TODO convert to AST

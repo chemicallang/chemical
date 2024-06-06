@@ -19,23 +19,23 @@ void benchLex(Lexer* lexer, const std::string& path) {
 }
 
 void benchLexFile(Lexer* lexer, const std::string &path) {
-    auto& fstream = (std::fstream&) (lexer->provider.stream);
-    fstream.close();
-    fstream.open(path);
+    auto fstream = (std::fstream*) (lexer->provider.stream);
+    fstream->close();
+    fstream->open(path);
     benchLex(lexer, path);
-    fstream.close();
+    fstream->close();
 }
 
 void lexFile(Lexer* lexer, const std::string &path) {
-    auto& fstream = (std::fstream&) (lexer->provider.stream);
-    fstream.close();
-    fstream.open(path);
+    auto fstream = (std::fstream*) (lexer->provider.stream);
+    fstream->close();
+    fstream->open(path);
     lexer->lex();
-    fstream.close();
+    fstream->close();
 }
 
 Lexer benchLexFile(std::istream &file, const std::string& path) {
-    SourceProvider reader(file);
+    SourceProvider reader(&file);
     Lexer lexer(reader, path);
     benchLex(&lexer, path);
     return lexer;
@@ -53,7 +53,7 @@ Lexer benchLexFile(const std::string &path) {
 }
 
 Lexer lexFile(std::istream &file, const std::string& path) {
-    SourceProvider reader(file);
+    SourceProvider reader(&file);
     Lexer lexer(reader, path);
     lexer.lex();
     return lexer;

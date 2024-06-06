@@ -13,12 +13,21 @@
 
 typedef ImportGraphImporter Importer;
 
+void move_errors(std::vector<Diag> &from, std::vector<Diag> &to, const std::string& abs_path) {
+    for (auto &dia: from) {
+        if (dia.severity.has_value() && dia.severity.value() == DiagSeverity::Error) {
+            dia.doc_url.emplace(abs_path);
+            to.emplace_back(std::move(dia));
+        }
+    }
+    from.clear();
+}
+
 ImportGraphImporter::ImportGraphImporter(ImportPathHandler* handler, Lexer* lexer, ImportGraphVisitor* converter) : handler(handler), lexer(lexer), converter(converter) {
 
 };
 
 bool ImportGraphImporter::prepare_source(const std::string& abs_path, std::vector<Diag>& errors) {
-    if(!isFile) return true;
     auto& stream = (std::ifstream&) lexer->provider.stream;
     stream.open(abs_path);
     if(!stream.is_open()) {
@@ -34,8 +43,26 @@ bool ImportGraphImporter::prepare_source(const std::string& abs_path, std::vecto
 }
 
 void ImportGraphImporter::close_source() {
-    if(!isFile) return;
     ((std::ifstream&) lexer->provider.stream).close();
+}
+
+void ImportGraphImporter::lex_source(const std::string& path, std::vector<Diag>& errors) {
+    // lex
+    lexer->tokens.clear();
+    lexer->switch_path(path);
+    lexer->lexTopLevelMultipleImportStatements();
+    if (lexer->has_errors) {
+        move_errors(lexer->errors, errors, path);
+        lexer->has_errors = false;
+    }
+}
+
+bool ImportGraphImporter::process(const std::string &path, std::vector<Diag> &errors) {
+    if(!prepare_source(path, errors)) {
+        return false;
+    }
+    lex_source(path, errors);
+    close_source();
 }
 
 void ImportGraphVisitor::visitImport(CompoundCSTToken *cst) {
@@ -51,16 +78,6 @@ IGFile from_import(
         const std::string &base_path,
         ImportCollected *importSt
 );
-
-void move_errors(std::vector<Diag> &from, std::vector<Diag> &to, const std::string& abs_path) {
-    for (auto &dia: from) {
-        if (dia.severity.has_value() && dia.severity.value() == DiagSeverity::Error) {
-            dia.doc_url.emplace(abs_path);
-            to.emplace_back(std::move(dia));
-        }
-    }
-    from.clear();
-}
 
 std::vector<IGFile> from_tokens(
         Importer *importer,
@@ -97,21 +114,9 @@ std::vector<IGFile> get_imports(
 ) {
 
     // open file
-    if(!importer->prepare_source(abs_path, parent->errors)) {
+    if(!importer->process(abs_path, parent->errors)) {
         return {};
     }
-
-    // lex
-    importer->lexer->tokens.clear();
-    importer->lexer->switch_path(abs_path);
-    importer->lexer->lexTopLevelMultipleImportStatements();
-    if (importer->lexer->has_errors) {
-        move_errors(importer->lexer->errors, parent->errors, abs_path);
-        importer->lexer->has_errors = false;
-    }
-
-    // close source
-    importer->close_source();
 
     // convert
     return from_tokens(

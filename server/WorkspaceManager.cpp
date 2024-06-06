@@ -33,9 +33,9 @@ std::optional<std::string> WorkspaceManager::get_overridden_source(const std::st
     }
 }
 
-td_foldingRange::response WorkspaceManager::get_folding_range(const std::string &abs_path) {
+td_foldingRange::response WorkspaceManager::get_folding_range(const lsDocumentUri& uri) {
     td_foldingRange::response rsp;
-    auto &tokens = get_lexed_tokens(abs_path);
+    auto &tokens = get_lexed_tokens(canonical(uri.GetAbsolutePath().path));
     FoldingRangeAnalyzer analyzer;
     analyzer.analyze(tokens);
     rsp.result = std::move(analyzer.ranges);
@@ -43,11 +43,12 @@ td_foldingRange::response WorkspaceManager::get_folding_range(const std::string 
 }
 
 td_completion::response WorkspaceManager::get_completion(
-        const std::string &abs_path,
+        const lsDocumentUri& uri,
         unsigned int line,
         unsigned int character
 ) {
-    auto unit = get_import_unit(abs_path);
+    auto can_path = canonical(uri.GetAbsolutePath().path);
+    auto unit = get_import_unit(can_path);
     CompletionItemAnalyzer analyzer({ line, character });
     td_completion::response rsp;
     rsp.result = analyzer.analyze(&unit);
@@ -55,7 +56,7 @@ td_completion::response WorkspaceManager::get_completion(
 }
 
 td_links::response WorkspaceManager::get_links(const lsDocumentUri& uri) {
-    auto result = get_lexed(uri.GetAbsolutePath().path);
+    auto result = get_lexed(canonical(uri.GetAbsolutePath().path));
     DocumentLinksAnalyzer analyzer;
     td_links::response rsp;
     rsp.result = analyzer.analyze(result.get());
@@ -63,7 +64,7 @@ td_links::response WorkspaceManager::get_links(const lsDocumentUri& uri) {
 }
 
 td_definition::response WorkspaceManager::get_definition(const lsDocumentUri &uri, const lsPosition &position) {
-    auto unit = get_import_unit(uri.GetAbsolutePath().path);
+    auto unit = get_import_unit(canonical(uri.GetAbsolutePath().path));
     GotoDefAnalyzer analyzer({position.line, position.character});
     td_definition::response rsp;
     rsp.result.first.emplace();
@@ -81,7 +82,7 @@ td_definition::response WorkspaceManager::get_definition(const lsDocumentUri &ur
 }
 
 td_symbol::response WorkspaceManager::get_symbols(const lsDocumentUri& uri) {
-    auto& tokens = get_lexed_tokens(uri.GetAbsolutePath().path);
+    auto& tokens = get_lexed_tokens(canonical(uri.GetAbsolutePath().path));
     DocumentSymbolsAnalyzer analyzer;
     td_symbol::response rsp;
     analyzer.analyze(tokens);
@@ -90,7 +91,7 @@ td_symbol::response WorkspaceManager::get_symbols(const lsDocumentUri& uri) {
 }
 
 td_hover::response WorkspaceManager::get_hover(const lsDocumentUri& uri, const lsPosition& position) {
-    auto unit = get_import_unit(uri.GetAbsolutePath().path);
+    auto unit = get_import_unit(canonical(uri.GetAbsolutePath().path));
     td_hover::response rsp;
     HoverAnalyzer analyzer({position.line, position.character});
     auto value = analyzer.markdown_hover(&unit);
@@ -100,15 +101,27 @@ td_hover::response WorkspaceManager::get_hover(const lsDocumentUri& uri, const l
     return rsp;
 }
 
-void
-WorkspaceManager::onChangedContents(const std::string &path,
-                                    const std::vector<lsTextDocumentContentChangeEvent> &changes) {
+std::string WorkspaceManager::canonical(const std::string& path) {
+    try {
+        return std::filesystem::canonical(((std::filesystem::path) path)).string();
+    } catch (std::filesystem::filesystem_error& e) {
+        std::cerr << "[LSP_ERROR] onChangedContents : couldn't determine canonical path for " << path << std::endl;
+        return "";
+    }
+}
+
+void WorkspaceManager::onChangedContents(
+        const lsDocumentUri &uri,
+        const std::vector<lsTextDocumentContentChangeEvent> &changes
+) {
 
     // no changes return !
     if (changes.empty()) {
 //        std::cout << "no changes in source code";
         return;
     }
+
+    auto path = canonical(uri.GetAbsolutePath().path);
 
     // locking the incremental change mutex, when the object is destroyed, lock is released
     // causing requests to this method be processed sequentially
@@ -159,17 +172,7 @@ WorkspaceManager::onChangedContents(const std::string &path,
 #endif
 
     // store the overridden sources
-    std::string canonical_path;
-    try {
-        canonical_path = std::filesystem::canonical(((std::filesystem::path) path)).string();
-    } catch (std::filesystem::filesystem_error& e) {
-        canonical_path = "";
-    }
-    if(!canonical_path.empty()) {
-        overriddenSources[canonical_path] = std::move(source);
-    } else {
-        std::cerr << "[LSP_ERROR] onChangedContents : couldn't determine canonical path for " << path << std::endl;
-    }
+    overriddenSources[path] = std::move(source);
 
     // invalidate the cached file for this key
     cache.files.erase(path);

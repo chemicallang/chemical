@@ -29,7 +29,12 @@ std::shared_ptr<LexResult> WorkspaceManager::get_cached(const std::string& path)
 std::shared_ptr<LexResult> WorkspaceManager::get_lexed(const std::string& path) {
 
     auto found = get_cached(path);
-    if(found) return found;
+    if(found) {
+        std::cout << "[LSP] Cache hit for " << path << std::endl;
+        return found;
+    } else {
+        std::cout << "[LSP] Cache miss for " << path << std::endl;
+    }
 
     auto overridden_source = get_overridden_source(path);
     auto result = std::make_shared<LexResult>();

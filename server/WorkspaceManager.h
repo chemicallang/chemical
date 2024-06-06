@@ -82,14 +82,14 @@ public:
     /**
      * get the folding range for the given absolute file path
      */
-    td_foldingRange::response get_folding_range(const std::string& abs_path);
+    td_foldingRange::response get_folding_range(const lsDocumentUri& uri);
 
     /**
      * get completion response for the given absolute file path
      * @param line the line number where caret position is
      * @param character the character number where caret position is
      */
-    td_completion::response get_completion(const std::string& abs_path, unsigned int line, unsigned int character);
+    td_completion::response get_completion(const lsDocumentUri& uri, unsigned int line, unsigned int character);
 
     /**
      * get semantic tokens for the given document uri
@@ -159,11 +159,17 @@ public:
     std::optional<std::string> get_overridden_source(const std::string& path);
 
     /**
+     * will give canonical path, when provided an absolute path, or empty string
+     * will also report in cerr if couldn't determine canonical path
+     */
+    std::string canonical(const std::string& path);
+
+    /**
      * Its called with the changes that have been performed to the contents of a file in the IDE \n
      * Then reads the file, performs the changes to source code (in memory) \n
      * Then calls onChangedContents above to store the changed source coe as overridden contents \n
      */
-    void onChangedContents(const std::string& path, const std::vector<lsTextDocumentContentChangeEvent>& changes);
+    void onChangedContents(const lsDocumentUri &uri, const std::vector<lsTextDocumentContentChangeEvent>& changes);
 
     /**
      * when a file is closed by the user in the IDE \n

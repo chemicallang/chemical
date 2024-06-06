@@ -57,7 +57,7 @@ private:
 public:
 
     /**
-     *
+     * the actual stream being read
      */
     std::istream &stream;
 

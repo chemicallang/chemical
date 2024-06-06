@@ -19,7 +19,6 @@ public:
     ImportPathHandler* handler;
     Lexer *lexer;
     ImportGraphVisitor *converter;
-    bool isFile = true;
 
     /**
      * constructor
@@ -37,6 +36,16 @@ public:
      * will close the source
      */
     void close_source();
+
+    /**
+     * will lex the prepared source
+     */
+    void lex_source(const std::string& path, std::vector<Diag>& errors);
+
+    /**
+     * will prepare_source, lex_source, close_source
+     */
+    virtual bool process(const std::string& path, std::vector<Diag>& errors);
 
 };
 

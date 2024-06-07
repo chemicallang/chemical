@@ -6,20 +6,34 @@
 #include "lexer/model/tokens/RefToken.h"
 #include "LibLsp/lsp/lsDocumentUri.h"
 #include "LibLsp/lsp/AbsolutePath.h"
+#include "preprocess/ImportPathHandler.h"
 
-std::string resolve_rel_child_path_str(const std::string& root_path, const std::string& file_path);
+std::string rel_to_lib_system(const std::string& header_path, const std::string& lsp_exe_path);
 
-std::string resolve_rel_parent_path_str(const std::string &root_path, const std::string &file_path);
-
-std::vector<lsDocumentLink> DocumentLinksAnalyzer::analyze(LexResult* result) {
+std::vector<lsDocumentLink> DocumentLinksAnalyzer::analyze(LexResult* result, const std::string& compiler_exe_path, const std::string& lsp_exe_path) {
     std::vector<lsDocumentLink> links;
+    ImportPathHandler path_handler(compiler_exe_path);
     for(auto& token : result->tokens) {
         if(token->type() == LexTokenType::CompImport) {
             auto& value = token->as_compound()->tokens[1];
             auto& pos = value->start_token()->position;
             if(value->type() == LexTokenType::String) {
                 auto unquoted_str = escaped_str_token(value.get());
-                auto resolved = resolve_rel_parent_path_str(result->abs_path, unquoted_str);
+                std::string resolved;
+                if(!unquoted_str.empty() && unquoted_str[0] == '@') {
+                    if(unquoted_str.starts_with("@system")) {
+                        resolved = rel_to_lib_system(unquoted_str.substr(unquoted_str.find('/') + 1), lsp_exe_path);
+                    } else {
+                        auto replaced = path_handler.replace_at_in_path(unquoted_str);
+                        if(replaced.error.empty()) {
+                            resolved = replaced.replaced;
+                        } else {
+                            std::cout << "[DocumentLinksAnalyzer] Error replacing at in path " << unquoted_str << std::endl;
+                        }
+                    }
+                } else {
+                    resolved = resolve_rel_parent_path_str(result->abs_path, unquoted_str);
+                }
                 if(!resolved.empty()) {
                     links.emplace_back(
                             lsRange {

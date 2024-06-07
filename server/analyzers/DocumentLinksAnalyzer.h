@@ -16,6 +16,6 @@ public:
      * token where user asked to goto def
      * It will provide locations, where that symbol has definition
      */
-    std::vector<lsDocumentLink> analyze(LexResult* result);
+    std::vector<lsDocumentLink> analyze(LexResult* result, const std::string& compiler_exe_path, const std::string& lsp_exe_path);
 
 };

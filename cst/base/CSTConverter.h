@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <string>
 #include "utils/fwd/functional.h"
+#include "ast/base/GlobalInterpretScope.h"
 
 #include <memory>
 #include <vector>
@@ -35,6 +36,21 @@ private:
      * is code gen for 64bit
      */
     bool is64Bit;
+
+    /**
+     * macro converter function
+     */
+    typedef void(*MacroConverterFn)(CSTConverter*, CompoundCSTToken* container);
+
+    /**
+     * all the functions that can convert native macros like #eval
+     */
+    std::unordered_map<std::string, MacroConverterFn> macro_converters;
+
+    /**
+     * global interpret scope
+     */
+    GlobalInterpretScope global_scope;
 
 public:
 
@@ -102,6 +118,11 @@ public:
      * constructor
      */
     CSTConverter(bool is64Bit);
+
+    /**
+     * initializes macro converters
+     */
+    void init_macro_converter();
 
     /**
      * visit the tokens, from start to end
@@ -194,6 +215,8 @@ public:
     void visitTryCatch(CompoundCSTToken *tryCatch) override;
 
     void visitEnumDecl(CompoundCSTToken *enumDecl) override;
+
+    void visitMacro(CompoundCSTToken* macroCst) override;
 
     // Types
 

@@ -172,7 +172,6 @@ set(COMMON_SOURCES
         ast/statements/Comment.h
         ast/base/Interpretable.h
         lexer/statements/AnnotationMacro.cpp
-        lexer/model/tokens/MacroToken.h
         compiler/Codegen.h
         compiler/Codegen.cpp
         ast/base/BaseType.h
@@ -402,6 +401,7 @@ set(COMMON_SOURCES
         compiler/ASTProcessor.h
         compiler/ASTDiag.h
         compiler/ASTProcessor.cpp
+        cst/statements/MacroCST.h
 )
 
 # Chemical LSP Executable Target

@@ -19,6 +19,10 @@ GlobalInterpretScope::GlobalInterpretScope(InterpretScope* parent, Scope* scope,
 
 }
 
+GlobalInterpretScope::GlobalInterpretScope(Scope* scope, ASTNode* node, std::string path) : root_path(std::move(path)), InterpretScope(nullptr, this, scope, node) {
+
+}
+
 void GlobalInterpretScope::add_error(const std::string &err) {
 #ifdef DEBUG
     std::cerr << ANSI_COLOR_RED << "[InterpretError] " << err << ANSI_COLOR_RESET << std::endl;
@@ -34,7 +38,7 @@ void GlobalInterpretScope::clean() {
 
 GlobalInterpretScope::~GlobalInterpretScope() {
 #ifdef DEBUG
-    if (nodes_interpreted == -1 && warn_no_nodes) {
+    if (nodes_interpreted == -1 && (codeScope || node)) {
         std::cerr << ANSI_COLOR_RED
                   << "global nodes_interpreted = -1 , either the scope is empty, or scope doesn't increment nodes_interpreted"
                   << std::endl

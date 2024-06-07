@@ -18,7 +18,6 @@ enum class LexTokenType : uint8_t {
     MultilineComment,
     String,
     Bool,
-    Macro,
     Annotation,
     UserToken,
 
@@ -53,6 +52,7 @@ enum class LexTokenType : uint8_t {
     CompInterface,
     CompImpl,
     CompTryCatch,
+    CompMacro,
     CompWhile,
 
     // compound types

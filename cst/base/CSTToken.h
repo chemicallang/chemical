@@ -169,7 +169,7 @@ public:
      */
     [[nodiscard]]
     bool is_value() const {
-        return is_comp_value() || is_primitive_var();
+        return is_comp_value() || is_primitive_var() || type() == LexTokenType::CompMacro;
     }
 
 #ifdef DEBUG

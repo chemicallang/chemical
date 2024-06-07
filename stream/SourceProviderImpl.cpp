@@ -117,7 +117,6 @@ StreamPosition SourceProvider::getStreamPosition() const {
 }
 
 void SourceProvider::reset() {
-    this->stream->seekg(0, std::ios::beg);
     this->lineCharacterNumber = 0;
     this->lineNumber = 0;
 }
@@ -215,7 +214,7 @@ std::string SourceProvider::readIdentifier() {
     }
 }
 
-void SourceProvider::readAnnotationIdentifier(std::string str) {
+void SourceProvider::readAnnotationIdentifier(std::string& str) {
     if (std::isalpha(peek()) || peek() == '_') {
         while (!eof() && (std::isalnum(peek()) || peek() == '_' || peek() == ':')) {
             str.append(1, readCharacter());

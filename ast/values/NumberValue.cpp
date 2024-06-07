@@ -7,6 +7,7 @@
 #include "ast/values/FunctionCall.h"
 #include "ast/values/StructValue.h"
 #include "ast/types/FunctionType.h"
+#include "ast/values/IntValue.h"
 
 unsigned int NumberValue::get_num_bits() {
     if(linked_type == nullptr) {
@@ -30,6 +31,10 @@ ValueType NumberValue::value_type() const {
     } else {
         return linked_type->value_type();
     }
+}
+
+Value* NumberValue::evaluated_value(InterpretScope &scope) {
+    return new IntValue((int) value);
 }
 
 std::unique_ptr<IntNType> linked(BaseType* type) {

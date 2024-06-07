@@ -46,6 +46,12 @@ public:
 
     void link(SymbolResolver &linker, StructValue *value, const std::string &name) override;
 
+    bool computed() override {
+        return true;
+    }
+
+    Value* evaluated_value(InterpretScope &scope) override;
+
     NumberValue* as_number_val() override {
         return this;
     }

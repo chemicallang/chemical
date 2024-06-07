@@ -15,12 +15,10 @@
 Lexer::Lexer(SourceProvider &provider, std::string path) : provider(provider), path(std::move(path)), interpret_scope(
         GlobalInterpretScope(nullptr, nullptr, nullptr, path)
 ) {
-#ifdef DEBUG
-    interpret_scope.warn_no_nodes = false;
-#endif
     define_all(interpret_scope);
     init_annotation_modifiers();
     init_value_creators();
+    init_macro_lexers();
 }
 
 void Lexer::init_annotation_modifiers() {
@@ -37,6 +35,12 @@ void Lexer::init_value_creators() {
     };
     value_creators["false"] = [](Lexer *lexer) -> void {
         lexer->tokens.emplace_back(std::make_unique<BoolToken>(lexer->backPosition(5), "false"));
+    };
+}
+
+void Lexer::init_macro_lexers() {
+    macro_lexers["eval"] = [](Lexer *lexer) -> void {
+        lexer->lexExpressionTokens(false, false);
     };
 }
 
@@ -85,6 +89,11 @@ void Lexer::lex() {
 
 void Lexer::switch_path(const std::string& new_path) {
     path = new_path;
+}
+
+void Lexer::reset() {
+    tokens.clear();
+    provider.reset();
 }
 
 void Lexer::diagnostic(Position start, const std::string &message, DiagSeverity severity) {

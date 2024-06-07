@@ -7,6 +7,7 @@ import "nodes/struct.ch"
 import "nodes/enum.ch"
 import "type/datatype/numbers.ch"
 import "type/datatype/strings.ch"
+import "basic/macros.ch"
 
 func main() {
     test_var_init();
@@ -18,4 +19,5 @@ func main() {
     test_structs();
     test_enum();
     test_strings();
+    test_macros();
 }

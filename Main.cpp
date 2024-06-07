@@ -42,6 +42,7 @@
 #include "LibLsp/lsp/workspace/symbol.h"
 #include "server/WorkspaceManager.h"
 #include "utils/FileUtils.h"
+#include "utils/CmdUtils.h"
 
 using namespace boost::asio::ip;
 using namespace std;
@@ -592,40 +593,48 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    using namespace boost::program_options;
-    options_description desc(" LPG-language-server allowed options");
-    desc.add_options()
-            (_PORT_STR, value<int>(), "tcp port")
-            ("watchParentProcess", "enable watch parent process")
-            ("help,h", "produce help message")
-            ("version,v", VERSION);
+    CmdOptions options;
+    auto args = options.parse_cmd_options(argc, argv, 1);
+
+//    using namespace boost::program_options;
+//    options_description desc(" LPG-language-server allowed options");
+//    desc.add_options()
+//            (_PORT_STR, value<int>(), "tcp port")
+//            ("watchParentProcess", "enable watch parent process")
+//            ("help,h", "produce help message")
+//            ("version,v", VERSION);
+
+//    variables_map vm;
+//    try {
+//        store(parse_command_line(argc, argv, desc), vm);
+//    }
+//    catch (std::exception &e) {
+//        std::cout << "Undefined input.Reason:" << e.what() << std::endl;
+//        return 0;
+//    }
+//    notify(vm);
 
 
-    variables_map vm;
-    try {
-        store(parse_command_line(argc, argv, desc), vm);
-    }
-    catch (std::exception &e) {
-        std::cout << "Undefined input.Reason:" << e.what() << std::endl;
-        return 0;
-    }
-    notify(vm);
-
-
-    if (vm.count("help") || vm.count("h")) {
-        cout << desc << endl;
-        return 1;
-    }
-    if (vm.count("version") || vm.count("v")) {
-        cout << VERSION << endl;
-        return 1;
-    }
+//    if (vm.count("help") || vm.count("h")) {
+//        cout << desc << endl;
+//        return 1;
+//    }
+//    if (vm.count("version") || vm.count("v")) {
+//        cout << VERSION << endl;
+//        return 1;
+//    }
     bool enable_watch_parent_process = false;
-    if (vm.count("watchParentProcess")) {
+    if (options.option("watch-parent-process", "wpp").has_value()) {
         enable_watch_parent_process = true;
     }
     std::string user_agent = std::string(BOOST_BEAST_VERSION_STRING) + " websocket-server-async";
     Server server(user_agent, "5007", enable_watch_parent_process, argv[0]);
+
+    auto resources_path = options.option_e("resources", "res");
+    if(!resources_path.empty()) {
+        server.manager.overridden_resources_path = resources_path;
+    }
+
     auto ret = server.esc_event.wait();
     if (ret) {
         return 0;

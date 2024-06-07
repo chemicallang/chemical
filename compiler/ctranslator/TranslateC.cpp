@@ -343,6 +343,7 @@ void freeCharPointers(char **begin, char **end) {
 
 std::vector<std::unique_ptr<ASTNode>>
 TranslateC(const char *exe_path, const char *abs_path, const char *resources_path) {
+    std::cout << "[TranslateC] Processing " << abs_path << " with resources " << resources_path << " & compiler at "<< exe_path << std::endl;
     std::vector<std::string> args;
     args.emplace_back(exe_path);
     args.emplace_back(abs_path);

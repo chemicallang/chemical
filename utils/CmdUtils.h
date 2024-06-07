@@ -122,6 +122,11 @@ struct CmdOptions {
         }
     }
 
+    std::string option_e(const std::string& opt, const std::string& small_opt, bool consume = true) {
+        auto got = option(opt, small_opt, consume);
+        return got.has_value() ? got.value() : "";
+    }
+
     std::vector<std::string> collect_subcommand(int argc, char *argv[], const std::string& subcommand, int skip = 0, bool consume = true) {
         int i = skip;
         std::vector<std::string> args;

@@ -7,7 +7,7 @@
 #include "lexer/model/tokens/RefToken.h"
 #include <iostream>
 
-std::string resolve_rel_path_str(const std::string &root_path, const std::string &file_path);
+std::string resolve_rel_parent_path_str(const std::string &root_path, const std::string &file_path);
 
 GotoDefAnalyzer::GotoDefAnalyzer(Position position) : position(position) {
     // do nothing

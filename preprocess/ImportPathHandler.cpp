@@ -4,7 +4,11 @@
 #include <filesystem>
 #include "compiler/SelfInvocation.h"
 
-std::string resolve_rel_path_str(const std::string& root_path, const std::string& file_path) {
+std::string resolve_rel_child_path_str(const std::string& root_path, const std::string& file_path) {
+    return (((std::filesystem::path) root_path) / ((std::filesystem::path) file_path)).string();
+}
+
+std::string resolve_rel_parent_path_str(const std::string& root_path, const std::string& file_path) {
     try {
         return std::filesystem::canonical(((std::filesystem::path) root_path).parent_path() / ((std::filesystem::path) file_path)).string();
     } catch (std::filesystem::filesystem_error& e) {

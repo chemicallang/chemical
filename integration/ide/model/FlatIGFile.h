@@ -14,5 +14,8 @@
  * In the future we'll support more fields in import statement, which will be represented in this struct
  */
 struct FlatIGFile {
+    // the path resolved absolutely to the actual file
     std::string abs_path;
+    // the path used by user in import statement
+    std::string import_path;
 };

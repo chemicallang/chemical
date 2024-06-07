@@ -28,7 +28,7 @@ bool compile(Codegen *gen, const std::string &path, IGCompilerOptions *options) 
 
     // creating the lexer
     std::fstream file_stream;
-    SourceProvider provider(file_stream);
+    SourceProvider provider(&file_stream);
     Lexer lexer(provider, path);
 
     // the cst converter

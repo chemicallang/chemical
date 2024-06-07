@@ -7,7 +7,9 @@
 #include "LibLsp/lsp/lsDocumentUri.h"
 #include "LibLsp/lsp/AbsolutePath.h"
 
-std::string resolve_rel_path_str(const std::string &root_path, const std::string &file_path);
+std::string resolve_rel_child_path_str(const std::string& root_path, const std::string& file_path);
+
+std::string resolve_rel_parent_path_str(const std::string &root_path, const std::string &file_path);
 
 std::vector<lsDocumentLink> DocumentLinksAnalyzer::analyze(LexResult* result) {
     std::vector<lsDocumentLink> links;
@@ -17,7 +19,7 @@ std::vector<lsDocumentLink> DocumentLinksAnalyzer::analyze(LexResult* result) {
             auto& pos = value->start_token()->position;
             if(value->type() == LexTokenType::String) {
                 auto unquoted_str = escaped_str_token(value.get());
-                auto resolved = resolve_rel_path_str(result->abs_path, unquoted_str);
+                auto resolved = resolve_rel_parent_path_str(result->abs_path, unquoted_str);
                 if(!resolved.empty()) {
                     links.emplace_back(
                             lsRange {

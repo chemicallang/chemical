@@ -140,7 +140,13 @@ void CSTSymbolResolver::visitTypeToken(LexToken *token) {
 }
 
 void CSTSymbolResolver::resolve(ImportUnit* unit) {
-    for (auto& file : unit->files) {
-        ::visit(this, file->tokens);
+    unsigned i = 0;
+    auto size = unit->files.size();
+    while(i < size) {
+        // clear the diagnostics before last file
+        // so that only last file's diagnostics are considered
+        if(i == size - 1) diagnostics.clear();
+        ::visit(this, unit->files[i]->tokens);
+        i++;
     }
 }

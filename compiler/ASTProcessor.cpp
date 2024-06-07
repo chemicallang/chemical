@@ -80,6 +80,7 @@ ASTImportResult ASTProcessor::import_file(const FlatIGFile &file) {
         }
 
         // lex the file
+        lexer->reset();
         lexer->switch_path(abs_path);
         options->benchmark ? benchLexFile(lexer, abs_path) : lexFile(lexer, abs_path);
         for (const auto &err: lexer->errors) {
@@ -101,9 +102,6 @@ ASTImportResult ASTProcessor::import_file(const FlatIGFile &file) {
         if (options->print_representation) {
             std::cout << "[Representation]\n" << scope.representation() << std::endl;
         }
-
-        // clear the lexer tokens
-        lexer->tokens.clear();
 
     }
 

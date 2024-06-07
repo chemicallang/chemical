@@ -25,6 +25,11 @@ public:
     GlobalInterpretScope(InterpretScope *parent, Scope *scope, ASTNode *node, std::string path);
 
     /**
+     * The constructor
+     */
+    GlobalInterpretScope(Scope *scope, ASTNode *node, std::string path);
+
+    /**
      * deleted copy constructor
      * @param copy
      */
@@ -54,13 +59,6 @@ public:
      * @param err
      */
     void add_error(const std::string &err);
-
-#ifdef DEBUG
-    /**
-     * whether it should warn that there are no nodes
-     */
-    bool warn_no_nodes = true;
-#endif
 
     /**
      * the current interpret position

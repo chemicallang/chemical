@@ -91,8 +91,30 @@ Scope take_body(CSTConverter *conv, CSTToken *token) {
 }
 
 // TODO support _128bigint, bigfloat
-CSTConverter::CSTConverter(bool is64Bit) : is64Bit(is64Bit) {
+CSTConverter::CSTConverter(bool is64Bit) : is64Bit(is64Bit), global_scope(nullptr, nullptr, "") {
+    ExpressionEvaluator::prepareFunctions(global_scope);
+    init_macro_converter();
+}
 
+void CSTConverter::init_macro_converter() {
+    macro_converters["eval"] = [](CSTConverter* converter, CompoundCSTToken* container){
+        if(container->tokens[2]->is_value()) {
+            container->tokens[2]->accept(converter);
+            auto take_value = converter->value();
+            InterpretScope child_scope{&converter->global_scope, &converter->global_scope, nullptr, nullptr};
+            auto evaluated_value = take_value->evaluated_value(child_scope);
+            if(evaluated_value == nullptr) {
+                converter->error("couldn't evaluate value", container);
+                return;
+            }
+            converter->values.emplace_back(evaluated_value);
+            if(!take_value->computed()) {
+                take_value.release(); // release in case evaluated_value and take_value are equal
+            }
+        } else {
+            converter->error("expected a value for eval", container);
+        }
+    };
 }
 
 void CSTConverter::visit(std::vector<std::unique_ptr<CSTToken>> &tokens, unsigned int start, unsigned int end) {
@@ -410,6 +432,16 @@ void CSTConverter::visitLambda(CompoundCSTToken *cst) {
 
 void CSTConverter::visitBody(CompoundCSTToken *bodyCst) {
     visit(bodyCst->tokens, 0);
+}
+
+void CSTConverter::visitMacro(CompoundCSTToken* macroCst) {
+    auto name = str_token(macroCst->tokens[0].get());
+    auto macro = macro_converters.find(name.substr(1));
+    if(macro != macro_converters.end()) {
+        macro->second(this, macroCst);
+    } else {
+        error("couldn't find macro converter for " + name, macroCst);
+    }
 }
 
 void CSTConverter::visitIf(CompoundCSTToken *ifCst) {

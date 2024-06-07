@@ -62,6 +62,11 @@ public:
     void switch_path(const std::string& path);
 
     /**
+     * reset the lexer, for re-lexing a new file, if it has lexed a file before
+     */
+    void reset();
+
+    /**
      * lexes a number as a string
      * @return
      */
@@ -760,6 +765,11 @@ protected:
     void init_value_creators();
 
     /**
+     * initialize macro lexers
+     */
+    void init_macro_lexers();
+
+    /**
      * A function that is called upon encountering an annotation
      */
     typedef void(*AnnotationModifierFn)(Lexer *lexer);
@@ -779,6 +789,16 @@ protected:
      * when a value like null, true or false is encountered, a function from this map is called
      */
     std::unordered_map<std::string, ValueCreatorFn> value_creators;
+
+    /**
+     * a function that lexes something inside a macro
+     */
+    typedef void(*MacroLexerFn)(Lexer *lexer);
+
+    /**
+     * functions for content of the different macro's for example #eval { value_here }
+     */
+    std::unordered_map<std::string, MacroLexerFn> macro_lexers;
 
     /**
      * structs declared as lexer by the user

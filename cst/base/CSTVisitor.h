@@ -92,8 +92,6 @@ class CommentToken;
 
 class KeywordToken;
 
-class MacroToken;
-
 class AnnotationToken;
 
 class TypeToken;
@@ -193,6 +191,10 @@ public:
 
     virtual void visitFunctionParam(CompoundCSTToken *param) {
         visitCompoundCommon((CompoundCSTToken *) param);
+    }
+
+    virtual void visitMacro(CompoundCSTToken* cst) {
+        visitCompoundCommon((CompoundCSTToken *) cst);
     }
 
     virtual void visitFunction(CompoundCSTToken *function) {

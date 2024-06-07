@@ -228,7 +228,7 @@ public:
     /**
      * reads a single annotation into given string, this doesn't read '@'
      */
-    void readAnnotationIdentifier(std::string into);
+    void readAnnotationIdentifier(std::string& into);
 
     /**
      * reads a single annotation, this doesn't read '@'

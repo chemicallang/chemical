@@ -127,6 +127,7 @@ IGFile from_import(
             auto result = importer->handler->replace_at_in_path(flat_file.abs_path);
             if(result.error.empty()) {
                 flat_file.abs_path = result.replaced;
+                flat_file.import_path = importSt->file.abs_path;
             } else {
                 parent->errors.emplace_back(
                         importSt->range,
@@ -137,7 +138,7 @@ IGFile from_import(
             }
         }
         if(!flat_file.abs_path.empty()) {
-            auto resolved = resolve_rel_path_str(base_path, flat_file.abs_path);
+            auto resolved = resolve_rel_parent_path_str(base_path, flat_file.abs_path);
             if (resolved.empty()) {
                 parent->errors.emplace_back(
                         importSt->range,

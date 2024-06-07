@@ -85,14 +85,30 @@ public:
     RemoteEndPoint* remote;
 
     /**
+     * path to resources folder, if empty, will be calculated relative to current executable
+     */
+    std::string overridden_resources_path;
+
+    /**
      * constructor
      */
-    WorkspaceManager(std::string lsp_exe_path);
+    explicit WorkspaceManager(std::string lsp_exe_path);
 
     /**
      * will determine compiler executable path, relative to the current lsp exe path
      */
     std::string compiler_exe_path();
+
+    /**
+     * get the path to resources folder
+     */
+    std::string resources_path();
+
+    /**
+     * get a system header translated to the output path output_path
+     * pair contains output from command line and executable return status code
+     */
+    std::pair<std::string, int> get_c_translated(const std::string& header_abs_path, const std::string& output_path);
 
     /**
      * get the folding range for the given absolute file path
@@ -147,6 +163,11 @@ public:
     ImportUnit get_import_unit(const std::string& abs_path, bool publish_diagnostics = false);
 
     /**
+     * get a locked mutex for this path only
+     */
+    std::mutex& lock_path_mutex(const std::string& path);
+
+    /**
      * get the lexed file, only if it exists in cache
      * NOTE: this uses a mutex for each distinct path
      */
@@ -158,8 +179,20 @@ public:
      * Lexes the file contents, The contents can be either
      * 1 - In memory contents of the file (user has made changes to file which aren't saved on disk)
      * 2 - Direct file contents (the file in the IDE is as its present on disk)
+     *
+     * NOTE: this doesn't support C headers | C files
+     * please use the function which access FlatIGFile, which also requires the path in the import statement
+     * because that path contains whether it's a system header
      */
     std::shared_ptr<LexResult> get_lexed(const std::string& path);
+
+    /**
+     * just like the get_lexed above, but this supports C headers and files because
+     * it checks the path in the import statement, if it's a system header or a normal C file
+     * it stores the C headers in the lib/system/stdio.h for example
+     * relative to the lsp executable path
+     */
+    std::shared_ptr<LexResult> get_lexed(const FlatIGFile& flat_file);
 
     /**
      * get the tokens only for the given file path

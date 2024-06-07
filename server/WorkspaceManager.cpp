@@ -22,10 +22,11 @@
 #include "server/analyzers/HoverAnalyzer.h"
 #include "server/analyzers/DocumentSymbolsAnalyzer.h"
 #include "server/analyzers/DocumentLinksAnalyzer.h"
+#include "compiler/SelfInvocation.h"
 
 #define DEBUG_REPLACE false
 
-std::string resolve_rel_path_str(const std::string &root_path, const std::string &file_path);
+std::string resolve_rel_parent_path_str(const std::string &root_path, const std::string &file_path);
 
 WorkspaceManager::WorkspaceManager(std::string lsp_exe_path) : lsp_exe_path(std::move(lsp_exe_path)) {
 
@@ -33,10 +34,30 @@ WorkspaceManager::WorkspaceManager(std::string lsp_exe_path) : lsp_exe_path(std:
 
 std::string WorkspaceManager::compiler_exe_path() {
 #if defined(_WIN32)
-    return resolve_rel_path_str(lsp_exe_path, "Compiler.exe");
+    return resolve_rel_parent_path_str(lsp_exe_path, "Compiler.exe");
 #else
     return resolve_rel_path_str(lsp_exe_path, "Compiler");
 #endif
+}
+
+std::string WorkspaceManager::resources_path() {
+    if(overridden_resources_path.empty()) {
+        return resolve_rel_parent_path_str(lsp_exe_path, "resources");
+    } else {
+        return overridden_resources_path;
+    }
+}
+
+std::pair<std::string, int> WorkspaceManager::get_c_translated(const std::string& header_abs_path, const std::string& output_path) {
+    std::string output;
+    std::vector<std::string> command = {compiler_exe_path(), '"' + header_abs_path + '"', "-tc", '"' + output_path + '"', "-res", '"' + resources_path() + '"'};
+    std::cout << "[LSP] Command : ";
+    for(auto& cmd : command) {
+        std::cout << cmd << ' ';
+    }
+    std::cout << std::endl;
+    auto res = invoke_capturing_out(command, output);
+    return {output, res};
 }
 
 std::optional<std::string> WorkspaceManager::get_overridden_source(const std::string &path) {

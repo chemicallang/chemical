@@ -233,6 +233,11 @@ public:
 
 };
 
+/**
+ * get's header path in lib/system directory when given header path like stdio.h
+ */
+std::string rel_to_lib_system(const std::string& header_path, const std::string& lsp_exe_path);
+
 extern void replace(
         std::string &source,
         unsigned int lineStart,

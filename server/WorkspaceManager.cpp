@@ -94,7 +94,7 @@ td_links::response WorkspaceManager::get_links(const lsDocumentUri& uri) {
     auto result = get_lexed(canonical(uri.GetAbsolutePath().path));
     DocumentLinksAnalyzer analyzer;
     td_links::response rsp;
-    rsp.result = analyzer.analyze(result.get());
+    rsp.result = analyzer.analyze(result.get(), compiler_exe_path(), lsp_exe_path);
     return std::move(rsp);
 }
 

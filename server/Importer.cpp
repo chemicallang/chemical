@@ -85,16 +85,24 @@ std::shared_ptr<LexResult> WorkspaceManager::get_lexed(const std::string& path) 
     return result;
 }
 
+std::string rel_to_lib_system(const std::string &header_path, const std::string& lsp_exe_path) {
+    auto system_headers = resolve_rel_parent_path_str(lsp_exe_path, "lib/system");
+    if(system_headers.empty()) {
+        std::cerr << "[LSP] Couldn't resolve lib/system directory path relative to LSP executable" << std::endl;
+        return "";
+    }
+    return resolve_rel_child_path_str(system_headers, header_path + ".ch");
+}
+
 std::shared_ptr<LexResult> WorkspaceManager::get_lexed(const FlatIGFile& flat_file) {
     if(flat_file.import_path.ends_with(".h") || flat_file.import_path.ends_with(".c")) {
         if(flat_file.import_path.starts_with("@system")) {
-            auto system_headers = resolve_rel_parent_path_str(lsp_exe_path, "lib/system");
-            if(system_headers.empty()) {
-                std::cerr << "[LSP] Couldn't resolve lib/system directory path relative to LSP executable" << std::endl;
+            auto header_path = flat_file.import_path.substr(flat_file.import_path.find('/') + 1);
+            auto expected_path = rel_to_lib_system(header_path, lsp_exe_path);
+            if(expected_path.empty()) {
+                 std::cerr << "[LSP] Couldn't resolve header path for " << header_path << std::endl;
                 goto empty_return;
             }
-            auto header_path = flat_file.import_path.substr(flat_file.import_path.find('/') + 1);
-            auto expected_path = resolve_rel_child_path_str(system_headers, header_path + ".ch");
 //            std::cout << "[LSP] locking path mutex " << flat_file.abs_path << std::endl;
             // locking path mutex so multiple calls with same paths are considered once for translation
             auto& mutex = lock_path_mutex(flat_file.abs_path);

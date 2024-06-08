@@ -73,6 +73,7 @@ int main(int argc, char *argv[]) {
     auto print_ir = options.option("print-ir", "pr-ir").has_value();
     auto print_cst = options.option("print-cst", "pr-cst").has_value();
     auto res = options.option("res", "res");
+    auto resources_path = res.has_value() ? res.value() : "resources";
 
     auto prepare_options = [&](ASTProcessorOptions* options) -> void {
         options->benchmark = benchmark;
@@ -80,11 +81,7 @@ int main(int argc, char *argv[]) {
         options->print_cst = print_cst;
         options->print_ig = print_ig;
         options->verbose = verbose;
-        if(res.has_value()) {
-            options->resources_path = res.value();
-        } else {
-            // TODO make resources path relative to current executable
-        }
+        options->resources_path = resources_path;
     };
 
     // get and print target
@@ -110,7 +107,7 @@ int main(int argc, char *argv[]) {
     // translate C to chemical
     auto translateC = options.option("tc", "tc");
     if(translateC.has_value()) {
-        auto nodes = TranslateC(argv[0], srcFilePath.c_str(), res.value().c_str());
+        auto nodes = TranslateC(argv[0], srcFilePath.c_str(), resources_path.c_str());
         // write translated to the given file
         std::ofstream out;
         out.open(translateC.value());

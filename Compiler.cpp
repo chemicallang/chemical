@@ -19,6 +19,7 @@
 #include "preprocess/ToCTranslator.h"
 #include "preprocess/RepresentationVisitor.h"
 #include "preprocess/SourceVerifier.h"
+#include "utils/PathUtils.h"
 
 int chemical_clang_main(int argc, char **argv);
 
@@ -73,7 +74,10 @@ int main(int argc, char *argv[]) {
     auto print_ir = options.option("print-ir", "pr-ir").has_value();
     auto print_cst = options.option("print-cst", "pr-cst").has_value();
     auto res = options.option("res", "res");
-    auto resources_path = res.has_value() ? res.value() : "resources";
+    auto resources_path = res.has_value() ? res.value() : resolve_rel_parent_path_str(std::string(argv[0]), "resources");
+    if(resources_path.empty()) {
+        std::cerr << "[Compiler] Couldn't locate resources path relative to compiler's executable" << std::endl;
+    }
 
     auto prepare_options = [&](ASTProcessorOptions* options) -> void {
         options->benchmark = benchmark;

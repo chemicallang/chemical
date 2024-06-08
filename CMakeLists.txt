@@ -402,6 +402,7 @@ set(COMMON_SOURCES
         compiler/ASTDiag.h
         compiler/ASTProcessor.cpp
         cst/statements/MacroCST.h
+        utils/PathUtils.h
 )
 
 # Chemical LSP Executable Target

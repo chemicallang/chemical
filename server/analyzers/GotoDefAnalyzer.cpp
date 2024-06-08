@@ -6,8 +6,7 @@
 #include "integration/ide/model/LexResult.h"
 #include "lexer/model/tokens/RefToken.h"
 #include <iostream>
-
-std::string resolve_rel_parent_path_str(const std::string &root_path, const std::string &file_path);
+#include "utils/PathUtils.h"
 
 GotoDefAnalyzer::GotoDefAnalyzer(Position position) : position(position) {
     // do nothing

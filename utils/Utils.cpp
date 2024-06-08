@@ -8,6 +8,7 @@
 #include "common/Diagnostic.h"
 
 #include <iostream>
+#include <filesystem>
 
 void printToken(CSTToken *token) {
     std::cout << " - [" << token->type_string() << "]" << "(" << token->start().representation() << ")";
@@ -28,5 +29,17 @@ void printTokens(const std::vector<std::unique_ptr<CSTToken>> &lexed, const std:
         printToken(token);
         std::cout << std::endl;
         i++;
+    }
+}
+
+std::string resolve_rel_child_path_str(const std::string& root_path, const std::string& file_path) {
+    return (((std::filesystem::path) root_path) / ((std::filesystem::path) file_path)).string();
+}
+
+std::string resolve_rel_parent_path_str(const std::string& root_path, const std::string& file_path) {
+    try {
+        return std::filesystem::canonical(((std::filesystem::path) root_path).parent_path() / ((std::filesystem::path) file_path)).string();
+    } catch (std::filesystem::filesystem_error& e) {
+        return "";
     }
 }

@@ -3,43 +3,6 @@
 #include "AccessChain.h"
 #include "ast/base/BaseType.h"
 
-#ifdef COMPILER_BUILD
-
-#include "compiler/llvmimpl.h"
-#include "compiler/Codegen.h"
-#include "ast/types/PointerType.h"
-#include "ast/values/FunctionCall.h"
-
-void AccessChain::code_gen(Codegen &gen) {
-    llvm_value(gen);
-}
-
-llvm::Type *AccessChain::llvm_type(Codegen &gen) {
-    return values[values.size() - 1]->llvm_type(gen);
-}
-
-llvm::Value *AccessChain::llvm_value(Codegen &gen) {
-    return values[values.size() - 1]->access_chain_value(gen, values);
-}
-
-llvm::Value *AccessChain::llvm_pointer(Codegen &gen) {
-    return values[values.size() - 1]->access_chain_pointer(gen, values, values.size());
-}
-
-llvm::AllocaInst *AccessChain::llvm_allocate(Codegen &gen, const std::string &identifier) {
-    return values[values.size() - 1]->access_chain_allocate(gen, identifier, this);
-}
-
-llvm::FunctionType *AccessChain::llvm_func_type(Codegen &gen) {
-    return values[values.size() - 1]->llvm_func_type(gen);
-}
-
-bool AccessChain::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
-    return values[values.size() - 1]->add_child_index(gen, indexes, name);
-}
-
-#endif
-
 uint64_t AccessChain::byte_size(bool is64Bit) const {
     return values[values.size() - 1]->byte_size(is64Bit);
 }

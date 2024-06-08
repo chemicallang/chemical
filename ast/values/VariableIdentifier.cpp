@@ -3,48 +3,6 @@
 #include "VariableIdentifier.h"
 #include "compiler/SymbolResolver.h"
 
-#ifdef COMPILER_BUILD
-
-#include "compiler/Codegen.h"
-#include "compiler/llvmimpl.h"
-
-llvm::Type *VariableIdentifier::llvm_type(Codegen &gen) {
-    return linked->llvm_type(gen);
-}
-
-llvm::FunctionType *VariableIdentifier::llvm_func_type(Codegen &gen) {
-    return linked->llvm_func_type(gen);
-}
-
-llvm::Value *VariableIdentifier::llvm_pointer(Codegen &gen) {
-    return linked->llvm_pointer(gen);
-}
-
-llvm::Value *VariableIdentifier::llvm_value(Codegen &gen) {
-    return linked->llvm_load(gen);
-}
-
-bool VariableIdentifier::add_member_index(Codegen &gen, Value *parent, std::vector<llvm::Value *> &indexes) {
-    if(parent) {
-        return parent->linked_node()->add_child_index(gen, indexes, value);
-    }
-    return true;
-}
-
-llvm::Value *VariableIdentifier::llvm_ret_value(Codegen &gen, ReturnStatement *returnStmt) {
-    return linked->llvm_ret_load(gen, returnStmt);
-}
-
-llvm::Value *VariableIdentifier::access_chain_value(Codegen &gen, std::vector<std::unique_ptr<Value>> &values) {
-    if(linked->as_enum_member() != nullptr) {
-        return llvm_value(gen);
-    } else {
-        return Value::access_chain_value(gen, values);
-    }
-}
-
-#endif
-
 uint64_t VariableIdentifier::byte_size(bool is64Bit) const {
     auto holdingType = linked->holding_value_type();
     if(holdingType) return holdingType->byte_size(is64Bit);

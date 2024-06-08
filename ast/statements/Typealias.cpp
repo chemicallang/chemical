@@ -3,19 +3,6 @@
 #include "Typealias.h"
 #include "compiler/SymbolResolver.h"
 
-#ifdef COMPILER_BUILD
-
-void TypealiasStatement::code_gen(Codegen &gen) {
-
-}
-
-llvm::Type *TypealiasStatement::llvm_type(Codegen &gen) {
-    return to->llvm_type(gen);
-}
-
-#endif
-
-
 TypealiasStatement::TypealiasStatement(
         std::string from,
         std::unique_ptr<BaseType> to

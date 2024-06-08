@@ -5,36 +5,6 @@
 #include "IntNumValue.h"
 #include "ast/types/IntNType.h"
 
-#ifdef COMPILER_BUILD
-
-#include "compiler/Codegen.h"
-#include "compiler/llvmimpl.h"
-#include "ast/values/UShortValue.h"
-#include "ast/values/ShortValue.h"
-#include "ast/values/UIntValue.h"
-#include "ast/values/IntValue.h"
-#include "ast/values/ULongValue.h"
-#include "ast/values/LongValue.h"
-#include "ast/values/UBigIntValue.h"
-#include "ast/values/BigIntValue.h"
-
-llvm::Value *Expression::llvm_value(Codegen &gen) {
-    auto firstType = firstValue->create_type();
-    auto secondType = secondValue->create_type();
-    replace_number_values(firstType.get(), secondType.get());
-    shrink_literal_values(firstType.get(), secondType.get());
-    promote_literal_values(firstType.get(), secondType.get());
-    firstType = firstValue->create_type();
-    secondType = secondValue->create_type();
-    return gen.operate(operation, firstValue.get(), secondValue.get(), firstType.get(), secondType.get());
-}
-
-llvm::Type *Expression::llvm_type(Codegen &gen) {
-    return create_type()->llvm_type(gen);
-}
-
-#endif
-
 void Expression::replace_number_values(BaseType* firstType, BaseType* secondType) {
     if(firstType->kind() == BaseTypeKind::IntN && secondType->kind() == BaseTypeKind::IntN) {
         if(firstValue->as_number_val() != nullptr) {

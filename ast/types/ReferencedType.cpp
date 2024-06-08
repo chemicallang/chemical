@@ -4,17 +4,6 @@
 #include "ast/statements/Typealias.h"
 #include "compiler/SymbolResolver.h"
 
-#ifdef COMPILER_BUILD
-
-#include "compiler/llvmimpl.h"
-#include "ast/base/ASTNode.h"
-
-llvm::Type *ReferencedType::llvm_type(Codegen &gen) const {
-    return linked->llvm_type(gen);
-}
-
-#endif
-
 uint64_t ReferencedType::byte_size(bool is64Bit) {
     auto holdingType = linked->holding_value_type();
     if(holdingType) return holdingType->byte_size(is64Bit);

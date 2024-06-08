@@ -3,26 +3,6 @@
 #include "Return.h"
 #include "ast/structures/FunctionDeclaration.h"
 
-#ifdef COMPILER_BUILD
-#include "compiler/Codegen.h"
-#include "compiler/llvmimpl.h"
-
-void ReturnStatement::code_gen(Codegen &gen) {
-    if (value.has_value()) {
-        if(value.value()->reference() && value.value()->value_type() == ValueType::Struct) {
-            llvm::MaybeAlign noAlign;
-            gen.builder->CreateMemCpy(gen.current_function->getArg(0), noAlign, value.value()->llvm_pointer(gen), noAlign, value.value()->byte_size(gen.is64Bit));
-        } else {
-            gen.CreateRet(value.value()->llvm_ret_value(gen, this));
-        }
-    } else {
-        gen.CreateRet(nullptr);
-    }
-}
-
-#endif
-
-
 ReturnStatement::ReturnStatement(
         std::optional<std::unique_ptr<Value>> value,
         FunctionDeclaration *declaration

@@ -20,6 +20,14 @@ set(CMAKE_USER_MAKE_RULES_OVERRIDE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/c_flag_over
 set(CMAKE_USER_MAKE_RULES_OVERRIDE_CXX ${CMAKE_CURRENT_SOURCE_DIR}/cmake/cxx_flag_overrides.cmake)
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
 
+set(ZIG_STATIC off CACHE BOOL "Attempt to build a static zig executable (not compatible with glibc)")
+set(ZIG_SHARED_LLVM off CACHE BOOL "Prefer linking against shared LLVM libraries")
+set(ZIG_STATIC_LLVM ${ZIG_STATIC} CACHE BOOL "Prefer linking against static LLVM libraries")
+
+if (ZIG_SHARED_LLVM AND ZIG_STATIC_LLVM)
+    message(SEND_ERROR "-DZIG_SHARED_LLVM and -DZIG_STATIC_LLVM cannot both be enabled simultaneously")
+endif()
+
 # Debug builds error messages that are more helpful
 # set(CMAKE_BUILD_TYPE "Debug")
 if (CMAKE_BUILD_TYPE MATCHES Debug)
@@ -446,6 +454,7 @@ add_executable(Compiler Compiler.cpp ${COMMON_SOURCES}
         compiler/chem_clang.cpp
         compiler/IGCompiler.h
         compiler/IGCompiler.cpp
+        compiler/llvmbackend/LLVM.cpp
 )
 
 message(STATUS "FEATURES ${COMPILER_FEATURES}")
@@ -482,6 +491,8 @@ target_include_directories(Compiler PRIVATE
 # llvm_map_components_to_libnames(LLVM_EXTRA_LIBS Option)
 
 # Indicate which libraries are present in these vars
+message(STATUS "LLvm Include Dirs ${LLVM_INCLUDE_DIRS}")
+message(STATUS "LLVM Libs Container ${LLVM_LIBDIRS}")
 message(STATUS "LLvm Libs ${LLVM_LIBRARIES}")
 message(STATUS "Clang Libs ${CLANG_LIBRARIES}")
 message(STATUS "LLD Libs ${LLD_LIBRARIES}")

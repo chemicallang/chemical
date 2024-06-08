@@ -2,23 +2,6 @@
 
 #include "CastedValue.h"
 
-#ifdef COMPILER_BUILD
-
-#include "compiler/Codegen.h"
-#include "compiler/llvmimpl.h"
-
-llvm::Type *CastedValue::llvm_type(Codegen &gen) {
-    gen.error("CASTING NOT YET SUPPORTED");
-    return value->llvm_type(gen);
-}
-
-llvm::Value *CastedValue::llvm_value(Codegen &gen) {
-    gen.error("CASTING NOT YET SUPPORTED");
-    return value->llvm_value(gen);
-}
-
-#endif
-
 
 CastedValue::CastedValue(
         std::unique_ptr<Value> value,

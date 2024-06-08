@@ -3,17 +3,6 @@
 #include "StringType.h"
 #include "CharType.h"
 
-#ifdef COMPILER_BUILD
-
-#include "compiler/Codegen.h"
-#include "compiler/llvmimpl.h"
-
-llvm::Type *StringType::llvm_type(Codegen &gen) const {
-    return gen.builder->getInt8PtrTy();
-}
-
-#endif
-
 std::unique_ptr<BaseType> StringType::create_child_type() const {
     return std::unique_ptr<BaseType>(new CharType());
 }

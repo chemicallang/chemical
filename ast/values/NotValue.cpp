@@ -3,17 +3,6 @@
 #include "ast/base/BaseType.h"
 #include "NotValue.h"
 
-#ifdef COMPILER_BUILD
-
-#include "compiler/llvmimpl.h"
-#include "compiler/Codegen.h"
-
-llvm::Value *NotValue::llvm_value(Codegen &gen) {
-    return gen.builder->CreateNot(value->llvm_value(gen));
-}
-
-#endif
-
 void NotValue::link(SymbolResolver &linker) {
     value->link(linker);
 }

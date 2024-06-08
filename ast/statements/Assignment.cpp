@@ -2,22 +2,6 @@
 
 #include "Assignment.h"
 
-#ifdef COMPILER_BUILD
-
-#include "compiler/llvmimpl.h"
-#include "compiler/Codegen.h"
-
-void AssignStatement::code_gen(Codegen &gen) {
-    if (assOp == Operation::Assignment) {
-        gen.builder->CreateStore(value->llvm_value(gen), lhs->llvm_pointer(gen));
-    } else {
-        auto operated = gen.operate(assOp, lhs.get(), value.get());
-        gen.builder->CreateStore(operated, lhs->llvm_pointer(gen));
-    }
-}
-
-#endif
-
 AssignStatement::AssignStatement(
         std::unique_ptr<Value> lhs,
         std::unique_ptr<Value> value,

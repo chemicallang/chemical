@@ -22,10 +22,7 @@ class Codegen;
 
 #include "Visitor.h"
 #include "BaseTypeKind.h"
-
-#ifdef DEBUG
 #include <iostream>
-#endif
 
 class FunctionDeclaration;
 

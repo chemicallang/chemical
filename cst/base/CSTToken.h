@@ -172,8 +172,6 @@ public:
         return is_comp_value() || is_primitive_var() || type() == LexTokenType::CompMacro;
     }
 
-#ifdef DEBUG
-
     /**
      * The start position of the token, for debugging purposes
      */
@@ -183,8 +181,6 @@ public:
      * this is a debug type string, that is given by each token
      */
     std::string type_string() const;
-
-#endif
 
     /**
      * default destructor

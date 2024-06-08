@@ -13,6 +13,7 @@
 #include "Visitor.h"
 #include "BaseTypeKind.h"
 #include "ValueType.h"
+#include <iostream>
 
 class SymbolResolver;
 
@@ -22,10 +23,6 @@ class Codegen;
 
 #include "compiler/llvmfwd.h"
 
-#endif
-
-#ifdef DEBUG
-#include <iostream>
 #endif
 
 class FunctionParam;

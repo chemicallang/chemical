@@ -11,16 +11,6 @@ void ContinueStatement::accept(Visitor *visitor) {
     visitor->visit(this);
 }
 
-#ifdef COMPILER_BUILD
-
-#include "compiler/Codegen.h"
-
-void ContinueStatement::code_gen(Codegen &gen) {
-    gen.CreateBr(gen.current_loop_continue);
-}
-
-#endif
-
 void ContinueStatement::interpret(InterpretScope &scope) {
     if (node == nullptr) {
         scope.error("[Continue] statement has nullptr to loop node");

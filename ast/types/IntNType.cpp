@@ -13,22 +13,6 @@
 #include "ast/values/Int128Value.h"
 #include "ast/values/UInt128Value.h"
 
-#ifdef COMPILER_BUILD
-
-#include "compiler/Codegen.h"
-#include "compiler/llvmimpl.h"
-
-
-llvm::Type *IntNType::llvm_type(Codegen &gen) const {
-    auto ty = gen.builder->getIntNTy(number);
-    if(!ty) {
-        gen.error("Couldn't get intN type for int:" + std::to_string(number));
-    }
-    return ty;
-}
-
-#endif
-
 Value *IntType::create(int64_t value) {
     return new IntValue(value);
 }

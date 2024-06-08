@@ -3,17 +3,6 @@
 #include "Negative.h"
 #include "ast/base/BaseType.h"
 
-#ifdef COMPILER_BUILD
-
-#include "compiler/llvmimpl.h"
-#include "compiler/Codegen.h"
-
-llvm::Value *NegativeValue::llvm_value(Codegen &gen) {
-    return gen.builder->CreateNeg(value->llvm_value(gen));
-}
-
-#endif
-
 uint64_t NegativeValue::byte_size(bool is64Bit) const {
 // TODO check this out
     return value->byte_size(is64Bit);

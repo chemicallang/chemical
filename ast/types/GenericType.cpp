@@ -4,10 +4,6 @@
 #include "GenericType.h"
 #include "compiler/SymbolResolver.h"
 
-#ifdef COMPILER_BUILD
-
-#endif
-
 void GenericType::link(SymbolResolver &linker) {
     linked = linker.find(base);
     if(!linked) {

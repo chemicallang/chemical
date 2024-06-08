@@ -6,17 +6,6 @@
 #include "compiler/SymbolResolver.h"
 #include "preprocess/ImportPathHandler.h"
 
-#ifdef COMPILER_BUILD
-
-#include "compiler/Codegen.h"
-#include "stream/SourceProvider.h"
-
-void ImportStatement::code_gen(Codegen &gen) {
-
-}
-
-#endif
-
 namespace fs = std::filesystem;
 
 ImportStatement::ImportStatement(std::string filePath, std::vector<std::string> identifiers) : filePath(

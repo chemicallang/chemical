@@ -28,7 +28,7 @@ std::string escape_encode(char value) {
         case '\x1b':
             return "\\x1b";
         default:
-            return { 1, value };
+            return std::string(1, value);
     }
 }
 

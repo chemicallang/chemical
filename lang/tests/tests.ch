@@ -20,4 +20,5 @@ func main() {
     test_enum();
     test_strings();
     test_macros();
+    printf("All tests done");
 }

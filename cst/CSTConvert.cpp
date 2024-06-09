@@ -214,7 +214,7 @@ void CSTConverter::visitFunction(CompoundCSTToken *function) {
 
     auto i = params.index;
 
-    if (is_char_op(function->tokens[i + 1].get(), ':')) {
+    if (i + 1 < function->tokens.size() && is_char_op(function->tokens[i + 1].get(), ':')) {
         function->tokens[i + 2]->accept(this);
         i += 3; // position at body
     } else {

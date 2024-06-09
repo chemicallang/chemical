@@ -2,6 +2,7 @@
 set(FEAT_ASSEMBLY_GEN OFF CACHE BOOL  "Enable Assembly File Generation / Supporting .s extension as output")
 set(FEAT_BITCODE_GEN OFF CACHE BOOL  "Enable Bitcode File Generation / Supporting .bc extension as output")
 set(FEAT_LLVM_IR_GEN ON CACHE BOOL  "Enable LLVM IR Generation / Supporting .ll extension as output")
+set(FEAT_INVOKE_LLD OFF CACHE BOOL  "Enable LLVM IR Generation / Supporting .ll extension as output")
 set(FEAT_JUST_IN_TIME OFF CACHE BOOL  "Enable LLVM JIT")
 
 # Create an empty list to store enabled features

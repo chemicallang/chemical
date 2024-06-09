@@ -467,7 +467,7 @@ message(STATUS "Clang Libs ${CLANG_LIBRARIES}")
 message(STATUS "LLD Libs ${LLD_LIBRARIES}")
 
 # Compiler uses llvm
-target_compile_definitions(Compiler PRIVATE COMPILER_BUILD ${COMPILER_FEATURES})
+target_compile_definitions(Compiler PRIVATE COMPILER_BUILD CLANG_LIBS LLD_LIBS ${COMPILER_FEATURES})
 # Lsp uses boost library
 target_compile_definitions(ChemicalLsp PRIVATE LSP_BUILD)
 

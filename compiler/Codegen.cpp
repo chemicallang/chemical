@@ -22,6 +22,8 @@
 #include <llvm/Support/Process.h>
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Support/LLVMDriver.h>
+#include <llvm/Target/TargetMachine.h>
+#include <llvm/IR/Verifier.h>
 
 Codegen::Codegen(
         std::vector<std::unique_ptr<ASTNode>> nodes,
@@ -322,6 +324,8 @@ void Codegen::save_to_object_file(const std::string &out_path) {
     save_as_file_type(this, out_path, llvm::CodeGenFileType::CGFT_ObjectFile);
 }
 
+#ifdef CLANG_LIBS
+
 int chemical_clang_main(int argc, char **argv);
 
 int chemical_clang_main2(const std::vector<std::string> &command_args) {
@@ -347,6 +351,10 @@ int chemical_clang_main2(const std::vector<std::string> &command_args) {
 int Codegen::invoke_clang(const std::vector<std::string> &command_args) {
     return chemical_clang_main2(command_args);
 }
+
+#endif
+
+#ifdef LLD_LIBS
 
 using namespace lld;
 using namespace llvm;
@@ -390,5 +398,7 @@ int Codegen::invoke_lld(const std::vector<std::string> &command_args) {
     ToolContext context{};
     return lld_main(args_cstr.size(), const_cast<char**>(args_cstr.data()), context);
 }
+
+#endif
 
 #endif

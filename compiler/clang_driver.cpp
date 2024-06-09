@@ -10,7 +10,7 @@
 // for functionality in the Driver clang library.
 //
 //===----------------------------------------------------------------------===//
-#ifdef COMPILER_BUILD
+#if defined(COMPILER_BUILD) && defined(CLANG_LIBS)
 
 #include "clang/Driver/Driver.h"
 #include "clang/Basic/DiagnosticOptions.h"

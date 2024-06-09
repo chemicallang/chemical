@@ -255,15 +255,23 @@ public:
      */
     void save_to_object_file(const std::string &out_path);
 
+#ifdef LLD_LIBS
+
     /**
       * You can invoke lld with this function
       */
     int invoke_lld(const std::vector<std::string> &command_args);
 
+#endif
+
+#ifdef CLANG_LIBS
+
     /**
      * You can invoke clang with this function
      */
     int invoke_clang(const std::vector<std::string> &command_args);
+
+#endif
 
     /**
      * when generating code for the body of the loop, it should be wrapped with this function call

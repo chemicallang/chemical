@@ -7,6 +7,7 @@
 #include <string>
 #include <memory>
 #include "Visitor.h"
+#include <iostream>
 
 class Codegen;
 
@@ -43,7 +44,7 @@ public:
      * get the byte size, of this type
      */
     virtual uint64_t byte_size(bool is64Bit) {
-        throw std::exception("byte_size called on base type");
+        throw std::runtime_error("byte_size called on base type");
     }
 
     /**

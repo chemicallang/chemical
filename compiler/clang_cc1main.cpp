@@ -125,7 +125,6 @@ static size_t getCurrentStackAllocation() {
 }
 
 #include <alloca.h>
-#include <llvm/TargetParser/Host.h>
 
 LLVM_ATTRIBUTE_NOINLINE
 static void ensureStackAddressSpace() {

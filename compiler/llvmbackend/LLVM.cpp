@@ -2,6 +2,8 @@
 
 #include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
+#include <llvm/IR/Module.h>
+#include <llvm/IR/Verifier.h>
 #include "ast/base/ASTNode.h"
 #include "ast/types/AnyType.h"
 #include "ast/types/ArrayType.h"

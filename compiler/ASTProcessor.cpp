@@ -67,7 +67,7 @@ ASTImportResult ASTProcessor::import_file(const FlatIGFile &file) {
             std::cout << "[IGGraph] Translating C " << abs_path << std::endl;
         }
 
-#ifdef COMPILER_BUILD
+#if defined(COMPILER_BUILD) && defined(CLANG_LIBS)
         scope.nodes = TranslateC(options->exe_path.c_str(), abs_path.c_str(), options->resources_path.c_str());
 #else
         throw std::runtime_error("cannot translate c file as clang api is not available");

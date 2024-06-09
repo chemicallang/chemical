@@ -383,9 +383,7 @@ void CValueDeclarationVisitor::visit(LambdaFunction *lamb) {
     // writing the captured struct as a parameter
     if(lamb->func_type->isCapturing) {
         visitor->write("void*");
-        if(!lamb->captureList.empty()) {
-            visitor->write(" this");
-        }
+        visitor->write(" this");
         if(!lamb->params.empty()) {
             visitor->write(',');
         }

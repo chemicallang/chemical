@@ -665,11 +665,10 @@ void ToCAstVisitor::visit(ImportStatement *importStatement) {
 }
 
 void struct_initialize_inside_braces(ToCAstVisitor* visitor, StructValue* val) {
-    visitor->write("({ struct ");
+    visitor->write("(struct ");
     visitor->write(val->definition->name);
-    visitor->write(" ___p = ");
+    visitor->write(")");
     val->accept(visitor);
-    visitor->write("; ___p; })");
 }
 
 void ToCAstVisitor::visit(ReturnStatement *returnStatement) {

@@ -1,5 +1,3 @@
-// Copyright (c) Qinetik 2024.
-
 //===-- cc1as_main.cpp - Clang Assembler  ---------------------------------===//
 //
 // Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.

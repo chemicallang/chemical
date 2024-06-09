@@ -10,14 +10,26 @@
 #include "llvmimpl.h"
 #include "ast/base/Value.h"
 #include "ast/base/BaseType.h"
+#include <string>
+#include <system_error>
+#include "lld/Common/Driver.h"
+#include "lld/Common/ErrorHandler.h"
+#include <cstdlib>
+#include <optional>
+#include <llvm/TargetParser/Host.h>
+#include <llvm/IR/LegacyPassManager.h>
+#include <llvm/MC/TargetRegistry.h>
+#include <llvm/Support/Process.h>
+#include <llvm/Support/TargetSelect.h>
+#include <llvm/Support/LLVMDriver.h>
 
 Codegen::Codegen(
         std::vector<std::unique_ptr<ASTNode>> nodes,
-        std::string path,
+        const std::string& path,
         std::string target_triple,
         std::string curr_exe_path,
         bool is_64_bit
-) : ASTDiagnoser(std::move(curr_exe_path), std::move(path)), nodes(std::move(nodes)),
+) : ASTDiagnoser(std::move(curr_exe_path), path), nodes(std::move(nodes)),
     target_triple(std::move(target_triple)), is64Bit(is_64_bit) {
     module_init();
 }
@@ -225,8 +237,6 @@ Codegen::~Codegen() {
     delete builder;
 }
 
-#endif
-
 #ifdef FEAT_ASSEMBLY_GEN
 
 /**
@@ -239,60 +249,146 @@ void Codegen::save_to_assembly_file(const std::string &out_path) {
 
 #endif
 
-#ifdef FEAT_BITCODE_GEN
+using namespace llvm;
+using namespace llvm::sys;
 
-#include <llvm/Bitcode/BitcodeWriter.h>
+TargetMachine * Codegen::setup_for_target(const std::string &TargetTriple) {
 
-void Codegen::save_as_bc_file(const std::string &out_path) {
+    // Initialize the target registry etc.
+    InitializeAllTargetInfos();
+    InitializeAllTargets();
+    InitializeAllTargetMCs();
+    InitializeAllAsmParsers();
+    InitializeAllAsmPrinters();
 
-    setup_for_target();
+    std::string Error = "unknown error related to target lookup";
+    auto Target = TargetRegistry::lookupTarget(TargetTriple, Error);
+
+    // Print an error and exit if we couldn't find the requested target.
+    // This generally occurs if we've forgotten to initialise the
+    // TargetRegistry or we have a bogus target triple.
+    if (!Target) {
+        error(Error);
+        return nullptr;
+    }
+
+    auto CPU = "generic";
+    auto Features = "";
+
+    TargetOptions opt;
+    auto RM = std::optional<Reloc::Model>();
+    auto TheTargetMachine = Target->createTargetMachine(
+            TargetTriple, CPU, Features, opt, RM);
+
+    module->setDataLayout(TheTargetMachine->createDataLayout());
+    module->setTargetTriple(TargetTriple);
+
+    return TheTargetMachine;
+
+}
+
+void save_as_file_type(Codegen* gen, const std::string &out_path, llvm::CodeGenFileType type) {
+
+    auto TheTargetMachine = gen->setup_for_target();
+    if(TheTargetMachine == nullptr) {
+        return;
+    }
 
     std::error_code EC;
     raw_fd_ostream dest(out_path, EC, sys::fs::OF_None);
 
     if (EC) {
-        error("Could not open file: " + EC.message());
+        gen->error("Could not open file: " + EC.message());
         return;
     }
 
-    WriteBitcodeToFile(*module, dest);
+    legacy::PassManager pass;
 
+    if (TheTargetMachine->addPassesToEmitFile(pass, dest, nullptr, type)) {
+        gen->error("TheTargetMachine can't emit a file of this type");
+        return;
+    }
+
+    pass.run(*gen->module);
     dest.flush();
-    dest.close();
 
 }
 
-#endif
+/**
+ * saves as object file to this path
+ * @param out_path
+ */
+void Codegen::save_to_object_file(const std::string &out_path) {
+    save_as_file_type(this, out_path, llvm::CodeGenFileType::CGFT_ObjectFile);
+}
 
-#ifdef FEAT_JUST_IN_TIME
+int chemical_clang_main(int argc, char **argv);
 
-#include "Codegen.h"
-#include <llvm/ExecutionEngine/ExecutionEngine.h>
-#include <llvm/ExecutionEngine/GenericValue.h>
-#include <llvm/ExecutionEngine/Interpreter.h>
-#include <llvm/ExecutionEngine/MCJIT.h>
-#include <llvm/IR/LLVMContext.h>
-#include <llvm/IR/Module.h>
+int chemical_clang_main2(const std::vector<std::string> &command_args) {
+    char** pointers = static_cast<char **>(malloc(command_args.size() * sizeof(char*)));
 
-typedef int (*MainFuncType)(int, char**);
-
-void Codegen::just_in_time_compile(std::vector<const char*>& args) {
-
-    setup_for_target();
-
-    llvm::EngineBuilder engine_builder(std::move(module));
-    std::unique_ptr<llvm::ExecutionEngine> engine(engine_builder.create());
-
-    // Execute main function
-    MainFuncType mainFuncPtr = reinterpret_cast<MainFuncType>(engine->getFunctionAddress("main"));
-
-    if (!mainFuncPtr) {
-        error("Function 'main' not found in module.\n");
-        return;
+    // Allocate memory for each argument
+    for (size_t i = 0; i < command_args.size(); ++i) {
+        pointers[i] = static_cast<char*>(malloc((command_args[i].size() + 1) * sizeof(char)));
+        // Copy the argument
+        strcpy(pointers[i], command_args[i].c_str());
+        pointers[i][command_args[i].size()] = '\0';
     }
 
-    int result = mainFuncPtr(args.size(), const_cast<char**>(args.data()));
+    // invocation
+    auto result = chemical_clang_main(command_args.size(), pointers);
+    for (size_t i = 0; i < command_args.size(); ++i) {
+        free(pointers[i]);
+    }
+    free(pointers);
+    return result;
+}
 
+int Codegen::invoke_clang(const std::vector<std::string> &command_args) {
+    return chemical_clang_main2(command_args);
+}
+
+using namespace lld;
+using namespace llvm;
+using namespace llvm::sys;
+
+LLD_HAS_DRIVER(coff)
+LLD_HAS_DRIVER(elf)
+LLD_HAS_DRIVER(mingw)
+LLD_HAS_DRIVER(macho)
+LLD_HAS_DRIVER(wasm)
+
+int lld_main(int argc, char **argv, const llvm::ToolContext &) {
+
+    sys::Process::UseANSIEscapeCodes(true);
+
+    ArrayRef<const char *> args(argv, argv + argc);
+
+    auto result = lld::lldMain(args, llvm::outs(), llvm::errs(), LLD_ALL_DRIVERS);
+
+    return result.retCode;
+
+}
+
+int Codegen::invoke_lld(const std::vector<std::string> &command_args) {
+    // Convert the vector of strings to an ArrayRef<const char *>
+    std::vector<const char *> args_cstr;
+    args_cstr.reserve(command_args.size() + 1);
+    std::string lld_driver;
+    auto triple = llvm::Triple(sys::getDefaultTargetTriple());
+    if (triple.isOSDarwin())
+        lld_driver = "ld64.lld";
+    else if (triple.isOSWindows())
+        lld_driver = "lld-link";
+    else
+        lld_driver = "ld.lld";
+    args_cstr.push_back(lld_driver.c_str());
+    for (const std::string& arg : command_args) {
+        args_cstr.push_back(arg.c_str());
+    }
+    // invocation
+    ToolContext context{};
+    return lld_main(args_cstr.size(), const_cast<char**>(args_cstr.data()), context);
 }
 
 #endif

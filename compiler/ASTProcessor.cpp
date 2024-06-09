@@ -45,7 +45,7 @@ void ASTProcessor::prepare(const std::string& path) {
 
 std::vector<FlatIGFile> ASTProcessor::flat_imports() {
     auto flat_imports = result.root.flatten_by_dedupe();
-    if(options->verbose) {
+    if(options->print_ig) {
         std::cout << "[IGGraph] Flattened" << std::endl;
         for (const auto &file: flat_imports) {
             std::cout << "-- " << file.abs_path << std::endl;

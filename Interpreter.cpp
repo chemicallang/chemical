@@ -5,13 +5,35 @@
 //
 
 #include "lexer/Lexi.h"
-#include "parser/Persi.h"
 #include "utils/Utils.h"
 #include "ast/utils/ExpressionEvaluator.h"
 #include "ast/base/GlobalInterpretScope.h"
 #include "ast/utils/GlobalFunctions.h"
+#include "cst/base/CSTConverter.h"
+#include "compiler/SymbolResolver.h"
+#include <chrono>
 
-void benchInterpret(Scope& scope, GlobalInterpretScope& interpretScope) {
+int main(int argc, char *argv[]) {
+    if (argc == 0) {
+        std::cout << "A file path argument is required so the file can be parsed";
+        return 0;
+    }
+    auto srcFilePath = argv[1];
+    auto lexer = benchLexFile(srcFilePath);
+//    printTokens(lexer.tokens);
+    for(const auto& err : lexer.errors) {
+        std::cerr << err.representation(argv[1], "Lexer") << std::endl;
+    }
+    CSTConverter converter(true);
+    converter.convert(lexer.tokens);
+    for(const auto& err : converter.diagnostics) {
+        std::cerr << err.representation(argv[1], "Parser") << std::endl;
+    }
+    Scope scope(std::move(converter.nodes));
+//    std::cout << "[Representation]\n" << scope.representation() << "\n";
+    GlobalInterpretScope interpretScope(nullptr, &scope, nullptr, argv[1]);
+    define_all(interpretScope);
+
 
     // Print started
     // std::cout << "[Interpreter] Started" << std::endl;
@@ -22,16 +44,17 @@ void benchInterpret(Scope& scope, GlobalInterpretScope& interpretScope) {
     // Actual interpretation
     ExpressionEvaluator::prepareFunctions(interpretScope);
     {
-        SymbolResolver linker;
+        SymbolResolver linker(argv[0], srcFilePath, true);
         for(const auto& func : interpretScope.global_fns) {
             linker.declare(func.first, func.second.get());
         }
         scope.declare_top_level(linker);
+        scope.declare_and_link(linker);
         if(!linker.errors.empty()){
             for(const auto& err : linker.errors) {
-                std::cerr << "[Linker] " << err << std::endl;
+                std::cerr << "[Linker] " << err.message << std::endl;
             }
-            return;
+            return 1;
         }
     }
     scope.interpret(interpretScope);
@@ -51,31 +74,9 @@ void benchInterpret(Scope& scope, GlobalInterpretScope& interpretScope) {
     std::cout << "[Microseconds:" << micros << "]";
     std::cout << "[Milliseconds:" << millis << "]" << std::endl;
 
-}
-
-int main(int argc, char *argv[]) {
-    if (argc == 0) {
-        std::cout << "A file path argument is required so the file can be parsed";
-        return 0;
-    }
-    auto lexer = benchLexFile(argv[1]);
-//    printTokens(lexer.tokens);
-    for(const auto& err : lexer.errors) {
-        std::cerr << err.representation(argv[1], "Lexer") << std::endl;
-    }
-    Parser parser(std::move(lexer.tokens));
-    parser.isParseInterpretableExpressions = true;
-    benchParse(parser);
-    for(const auto& err : parser.errors) {
-        std::cerr << err.representation(argv[1], "Parser") << std::endl;
-    }
-    Scope scope(std::move(parser.nodes));
-//    std::cout << "[Representation]\n" << scope.representation() << "\n";
-    GlobalInterpretScope interpretScope(nullptr, &scope, nullptr, argv[1]);
-    define_all(interpretScope);
-    benchInterpret(scope, interpretScope);
     for(const auto& err : interpretScope.errors) {
         std::cerr << "[Interpreter] " << err << '\n';
     }
+
     return 0;
 }

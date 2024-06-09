@@ -15,7 +15,7 @@ if (NOT DEFINED CMAKE_PREFIX_PATH)
 endif ()
 
 # We copied this from Zig CMakeLists
-set(ZIG_USE_LLVM_CONFIG ON)
+#set(ZIG_USE_LLVM_CONFIG ON)
 set(CMAKE_USER_MAKE_RULES_OVERRIDE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/c_flag_overrides.cmake)
 set(CMAKE_USER_MAKE_RULES_OVERRIDE_CXX ${CMAKE_CURRENT_SOURCE_DIR}/cmake/cxx_flag_overrides.cmake)
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
@@ -180,8 +180,6 @@ set(COMMON_SOURCES
         ast/statements/Comment.h
         ast/base/Interpretable.h
         lexer/statements/AnnotationMacro.cpp
-        compiler/Codegen.h
-        compiler/Codegen.cpp
         ast/base/BaseType.h
         compiler/Operation.cpp
         compiler/SymbolResolver.h
@@ -199,8 +197,6 @@ set(COMMON_SOURCES
         ast/types/VoidType.h
         ast/types/AnyType.h
         utils/CmdUtils.h
-        compiler/Object.cpp
-        compiler/Linker.cpp
         common/Diagnostic.h
         lexer/values/StructValue.cpp
         ast/values/StructValue.h
@@ -414,7 +410,7 @@ set(COMMON_SOURCES
 )
 
 # Chemical LSP Executable Target
-add_executable(ChemicalLsp Main.cpp ${COMMON_SOURCES}
+add_library(ChemicalLsp Main.cpp ${COMMON_SOURCES}
         server/WorkspaceManager.h
         server/WorkspaceManager.cpp
         server/utils/PrintUtils.h
@@ -438,13 +434,12 @@ add_executable(ChemicalLsp Main.cpp ${COMMON_SOURCES}
 # Add an executable target for the second executable
 add_executable(Interpreter Interpreter.cpp ${COMMON_SOURCES})
 
-# add chemical llvm executable
-add_executable(Compiler Compiler.cpp ${COMMON_SOURCES}
+set(COMPILER_SOURCES
+        compiler/Codegen.h
+        compiler/Codegen.cpp
         compiler/clang_cc1main.cpp
         compiler/clang_driver.cpp
         compiler/clang_cc1as_main.cpp
-        compiler/InvokeExtension.cpp
-        compiler/cc1gen_reproducer_main.cpp
         compiler/llvmfwd.h
         compiler/llvmimpl.h
         compiler/ctranslator/TranslateC.cpp
@@ -455,9 +450,21 @@ add_executable(Compiler Compiler.cpp ${COMMON_SOURCES}
         compiler/IGCompiler.h
         compiler/IGCompiler.cpp
         compiler/llvmbackend/LLVM.cpp
+        compiler/features/BitcodeGen.cpp
+        compiler/features/JustInTime.cpp
 )
 
+# add Compiler executable
+add_executable(Compiler Compiler.cpp ${COMMON_SOURCES} ${COMPILER_SOURCES})
+
+# status messages
 message(STATUS "FEATURES ${COMPILER_FEATURES}")
+# Indicate which libraries are present in these vars
+message(STATUS "LLvm Include Dirs ${LLVM_INCLUDE_DIRS}")
+message(STATUS "LLVM Libs Dirs ${LLVM_LIBDIRS}")
+message(STATUS "LLvm Libs ${LLVM_LIBRARIES}")
+message(STATUS "Clang Libs ${CLANG_LIBRARIES}")
+message(STATUS "LLD Libs ${LLD_LIBRARIES}")
 
 # Compiler uses llvm
 target_compile_definitions(Compiler PRIVATE COMPILER_BUILD ${COMPILER_FEATURES})

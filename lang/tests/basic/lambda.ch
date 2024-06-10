@@ -104,7 +104,6 @@ func test_lambda() {
         };
         return message();
     })
-    /**
     test("returned capturing lambda can be called directly", () => {
         var message = ret_new_cap_lamb()();
         return message;
@@ -113,7 +112,6 @@ func test_lambda() {
         var message = ret_new_cap_lamb();
         return message();
     })
-    **/
     test("can pass function pointer as lambda 1", () => {
         return passed(fn_rets_1) == 1;
     })

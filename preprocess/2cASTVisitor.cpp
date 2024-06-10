@@ -189,16 +189,86 @@ void param_type_with_id(ToCAstVisitor* visitor, BaseType* type, const std::strin
     type_with_id(visitor, type, id);
 }
 
+void func_call_args(ToCAstVisitor* visitor, FunctionCall* call) {
+    unsigned i = 0;
+    while(i < call->values.size()) {
+        auto& val = call->values[i];
+        val->accept(visitor);
+        if(i != call->values.size() - 1) {
+            visitor->write(", ");
+        }
+        i++;
+    }
+}
+
+void access_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& values, unsigned start, unsigned end);
+
+void value_alloca(ToCAstVisitor* visitor, const std::string& identifier, BaseType* type, std::optional<std::unique_ptr<Value>>& value) {
+    type_with_id(visitor, type, identifier);
+    visitor->write(';');
+}
+
+void value_assign_default(ToCAstVisitor* visitor, const std::string& identifier, BaseType* type, Value* value) {
+    if(value->as_access_chain()) {
+        auto chain = value->as_access_chain();
+        auto func_call = chain->values.back()->as_func_call();
+        auto func_call_type = func_call->create_type();
+        if(func_call_type->value_type() == ValueType::Struct) {
+            access_chain(visitor, chain->values, 0, chain->values.size() - 1);
+            visitor->write('(');
+            visitor->write('&');
+            visitor->write(identifier);
+            if(!chain->values.back()->as_func_call()->values.empty()){
+                visitor->write(", ");
+            }
+            func_call_args(visitor, chain->values.back()->as_func_call());
+            visitor->write(");");
+            return;
+        }
+    }
+    visitor->write(identifier);
+    visitor->write(" = ");
+    value->accept(visitor);
+    visitor->write(';');
+}
+
+void value_init_default(ToCAstVisitor* visitor, const std::string& identifier, BaseType* type, std::optional<std::unique_ptr<Value>>& value) {
+    type->accept(visitor);
+    visitor->space();
+    value_assign_default(visitor, identifier, type, value->get());
+}
+
+void value_store_default(ToCAstVisitor* visitor, const std::string& identifier, BaseType* type, std::optional<std::unique_ptr<Value>>& value) {
+    visitor->new_line_and_indent();
+    value_assign_default(visitor, identifier, type, value->get());
+}
+
+void value_store(ToCAstVisitor* visitor, const std::string& identifier, BaseType* type, std::optional<std::unique_ptr<Value>>& value) {
+    if(value.has_value()) {
+        value_store_default(visitor, identifier, type, value);
+    }
+}
+
+void value_alloca_store(ToCAstVisitor* visitor, const std::string& identifier, BaseType* type, std::optional<std::unique_ptr<Value>>& value) {
+    if(value.has_value()) {
+        if(type->value_type() == ValueType::Struct) {
+            // struct instantiation is done in 2 instructions -> declaration and assignment
+            value_alloca(visitor, identifier, type, value);
+            visitor->new_line_and_indent();
+            value_assign_default(visitor, identifier, type, value->get());
+        } else {
+            value_init_default(visitor, identifier, type, value);
+        }
+    } else {
+        value_alloca(visitor, identifier, type, value);
+    }
+}
+
 void var_init(ToCAstVisitor* visitor, VarInitStatement* init) {
     if (!init->type.has_value()) {
         init->type.emplace(init->value.value()->create_type().release());
     }
-    type_with_id(visitor, init->type.value().get(), init->identifier);
-    if(init->value.has_value()) {
-        visitor->write(" = ");
-        init->value.value()->accept(visitor);
-    }
-    visitor->write(';');
+    value_alloca_store(visitor, init->identifier, init->type.value().get(), init->value);
     if(init->value.has_value()) {
         init->type = std::nullopt;
     }
@@ -316,20 +386,49 @@ std::string typedef_func_type(ToCAstVisitor* visitor, FunctionType* type) {
 }
 
 void accept_func_return(ToCAstVisitor* visitor, BaseType* type, const std::string& name) {
-    type->accept(visitor);
+    if(visitor->pass_structs_to_initialize && type->value_type() == ValueType::Struct) {
+        visitor->write("void");
+    } else {
+        type->accept(visitor);
+    }
     visitor->space();
     visitor->write(name);
 }
 
-void func_call_params(ToCAstVisitor* visitor, FunctionCall* call) {
+#define struct_passed_param_name "__chx_struct_ret_param_xx"
+#define fn_call_struct_var_name "chx_fn_cl_struct"
+
+void func_decl_params(ToCAstVisitor* visitor, FunctionDeclaration* decl) {
+    if(visitor->pass_structs_to_initialize && decl->returnType->value_type() == ValueType::Struct) {
+        decl->returnType->accept(visitor);
+        visitor->write("* ");
+        visitor->write(struct_passed_param_name);
+        if(!decl->params.empty()) {
+            visitor->write(", ");
+        }
+    }
     unsigned i = 0;
-    while(i < call->values.size()) {
-        auto& val = call->values[i];
-        val->accept(visitor);
-        if(i != call->values.size() - 1) {
+    FunctionParam* param;
+    auto size = decl->isVariadic ? decl->params.size() - 1 : decl->params.size();
+    while(i < size) {
+        param = decl->params[i].get();
+        type_with_id(visitor, param->type.get(), param->name);
+        if(i != decl->params.size() - 1) {
             visitor->write(", ");
         }
         i++;
+    }
+    if(decl->isVariadic) {
+        visitor->write("...");
+    }
+}
+
+void func_call(ToCAstVisitor* visitor, FunctionCall* call) {
+    visitor->write('(');
+    func_call_args(visitor, call);
+    visitor->write(')');
+    if(!visitor->nested_value) {
+        visitor->write(';');
     }
 }
 
@@ -421,20 +520,7 @@ void declare_by_name(CTopLevelDeclarationVisitor* tld, FunctionDeclaration* decl
         accept_func_return(tld->visitor, decl->returnType.get(), name);
     }
     tld->write('(');
-    unsigned i = 0;
-    FunctionParam* param;
-    auto size = decl->isVariadic ? decl->params.size() - 1 : decl->params.size();
-    while(i < size) {
-        param = decl->params[i].get();
-        type_with_id(tld->visitor, param->type.get(), param->name);
-        if(i != decl->params.size() - 1) {
-            tld->write(", ");
-        }
-        i++;
-    }
-    if(decl->isVariadic) {
-        tld->write("...");
-    }
+    func_decl_params(tld->visitor, decl);
     tld->write(");");
 }
 
@@ -673,11 +759,29 @@ void struct_initialize_inside_braces(ToCAstVisitor* visitor, StructValue* val) {
 
 void ToCAstVisitor::visit(ReturnStatement *returnStatement) {
     if(returnStatement->value.has_value()) {
-        write("return ");
         auto val = returnStatement->value.value().get();
         if(val->as_struct()) {
-            struct_initialize_inside_braces(this, (StructValue*) val);
+            if(pass_structs_to_initialize) {
+                auto size = val->as_struct()->values.size();
+                unsigned i = 0;
+                for(const auto& mem : val->as_struct()->values) {
+                    write(struct_passed_param_name);
+                    write("->");
+                    write(mem.first);
+                    write(" = ");
+                    mem.second->accept(this);
+                    if(i != size - 1){
+                        write(';');
+                        new_line_and_indent();
+                    }
+                    i++;
+                }
+            } else {
+                write("return ");
+                struct_initialize_inside_braces(this, (StructValue*) val);
+            }
         } else {
+            write("return ");
            val->accept(this);
         }
         write(';');
@@ -726,16 +830,7 @@ void func_decl_with_name(ToCAstVisitor* visitor, FunctionDeclaration* decl, cons
         accept_func_return(visitor, decl->returnType.get(), name);
     }
     visitor->write('(');
-    unsigned i = 0;
-    FunctionParam* param;
-    while(i < decl->params.size()) {
-        param = decl->params[i].get();
-        type_with_id(visitor, param->type.get(), param->name);
-        if(i != decl->params.size() - 1) {
-            visitor->write(", ");
-        }
-        i++;
-    }
+    func_decl_params(visitor, decl);
     visitor->write(')');
     scope(visitor, decl->body.value());
 }
@@ -873,7 +968,7 @@ void capture_call(ToCAstVisitor* visitor, FunctionType* type, current_call call,
     if(!next->as_func_call()->values.empty()) {
         visitor->write(',');
     }
-    func_call_params(visitor, next->as_func_call());
+    func_call_args(visitor, next->as_func_call());
     visitor->write(')');
     visitor->write(')');
 }
@@ -884,6 +979,8 @@ void func_call(ToCAstVisitor* visitor, FunctionType* type, std::unique_ptr<Value
         i++;
     } else {
         current->accept(visitor);
+        func_call(visitor, next->as_func_call());
+        i++;
     }
 }
 
@@ -910,25 +1007,60 @@ void func_container_name(ToCAstVisitor* visitor, ASTNode* node, Value* ref) {
     }
 }
 
-void ToCAstVisitor::visit(AccessChain *chain) {
-    if(chain->values.size() == 1) {
-        chain->values[0]->accept(this);
+void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& values, unsigned start, unsigned end) {
+    auto caller_type = values[end - 2]->create_type();
+    auto func_type = caller_type->function_type();
+    if(visitor->pass_structs_to_initialize && func_type->returnType->value_type() == ValueType::Struct) {
+        visitor->write("({ ");
+        func_type->returnType->accept(visitor);
+        visitor->space();
+        visitor->write("__chem_x_1__; ");
+        access_chain(visitor, values, start, end - 1);
+        visitor->write('(');
+        visitor->write('&');
+        visitor->write("__chem_x_1__");
+        if(!values.back()->as_func_call()->values.empty()){
+            visitor->write(", ");
+        }
+        func_call_args(visitor, values.back()->as_func_call());
+        visitor->write("); __chem_x_1__; })");
+    } else {
+        access_chain(visitor, values, start, end - 1);
+        func_call(visitor, values.back()->as_func_call());
+    }
+}
+
+void access_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& values, unsigned start, unsigned end) {
+    if(end - start == 1) {
+        values[start]->accept(visitor);
         return;
     }
-    unsigned i = 0;
-    while(i < chain->values.size()) {
-        auto& current = chain->values[i];
-        if(i != chain->values.size() - 1) {
-            auto& next = chain->values[i + 1];
+    unsigned i = start;
+    // function call would be processed recursively
+    {
+        int j = end - 1;
+        while(j >= 0) {
+            auto& current = values[j];
+            if(current->as_func_call()) {
+                func_call(visitor, values, start, j + 1);
+                return;
+            }
+            j--;
+        }
+    }
+    while(i < end) {
+        auto& current = values[i];
+        if(i != values.size() - 1) {
+            auto& next = values[i + 1];
 
             // direct functions on structs and interfaces
             if(current->linked_node() && (current->linked_node()->as_interface_def() || current->linked_node()->as_struct_def())) {
-                if(i + 2 < chain->values.size()) {
-                    auto &next_next = chain->values[i + 2];
+                if(i + 2 < values.size()) {
+                    auto &next_next = values[i + 2];
                     if(next_next->as_func_call() != nullptr) {
-                        func_container_name(this, current->linked_node(), next.get());
-                        next->accept(this);
-                        next_next->accept(this);
+                        func_container_name(visitor, current->linked_node(), next.get());
+                        next->accept(visitor);
+                        next_next->accept(visitor);
                         i += 3;
                         continue;
                     } else {
@@ -937,29 +1069,29 @@ void ToCAstVisitor::visit(AccessChain *chain) {
                 } else {
                     goto otherwise;
                 }
-            // functions on struct values
+                // functions on struct values
             } else if(current->value_type() == ValueType::Struct) {
                 if(next->linked_node()->as_struct_member()) {
                     goto otherwise;
                 }
-                if(i + 2 < chain->values.size()) {
-                    auto &next_next = chain->values[i + 2];
+                if(i + 2 < values.size()) {
+                    auto &next_next = values[i + 2];
                     if (next_next->as_func_call() != nullptr) {
                         auto str_type = current->create_type();
                         if(str_type->kind() == BaseTypeKind::Referenced) {
-                            func_container_name(this, str_type->linked_node(), next.get());
+                            func_container_name(visitor, str_type->linked_node(), next.get());
                             auto next_type = next->create_type();
-                            next->accept(this); // function name
-                            write('(');
+                            next->accept(visitor); // function name
+                            visitor->write('(');
                             if(func_type_has_self(next_type->function_type())) {
-                                write('&');
-                                current->accept(this);
+                                visitor->write('&');
+                                current->accept(visitor);
                                 if (!next_next->as_func_call()->values.empty()) {
-                                    write(',');
+                                    visitor->write(',');
                                 }
                             }
-                            func_call_params(this, next_next->as_func_call());
-                            write(')');
+                            func_call_args(visitor, next_next->as_func_call());
+                            visitor->write(')');
                             i += 3;
                             continue;
                         } else {
@@ -976,63 +1108,67 @@ void ToCAstVisitor::visit(AccessChain *chain) {
             }
 
             otherwise:{
-                if(next->as_func_call() == nullptr && next->as_index_op() == nullptr) {
-                    if(current->linked_node()->as_enum_decl() != nullptr) {
-                        auto found = declarer->aliases.find(next->linked_node()->as_enum_member());
-                        if(found != declarer->aliases.end()) {
-                            write(found->second);
-                            i++;
-                        } else {
-                            write("[EnumAC_NOT_FOUND:" + current->representation() + "." + next->representation() + "]");
-                        }
+            if(next->as_func_call() == nullptr && next->as_index_op() == nullptr) {
+                if(current->linked_node()->as_enum_decl() != nullptr) {
+                    auto found = visitor->declarer->aliases.find(next->linked_node()->as_enum_member());
+                    if(found != visitor->declarer->aliases.end()) {
+                        visitor->write(found->second);
+                        i++;
                     } else {
-                        if(current->type_kind() == BaseTypeKind::Pointer) {
-                            current->accept(this);
-                            write("->");
-                        } else {
-                            current->accept(this);
-                            write('.');
-                        }
+                        visitor->write("[EnumAC_NOT_FOUND:" + current->representation() + "." + next->representation() + "]");
                     }
                 } else {
-                    if(next->as_func_call() != nullptr) {
-                        auto type = current->create_type();
-                        if(i + 2 < chain->values.size()) {
-                            auto& next_next = chain->values[i + 2];
-                            auto next_type = next->create_type();
-                            if(next_next->as_func_call() != nullptr && next_type->function_type()->isCapturing) {
-                                write("({ __chemical_fat_pointer__ fp = ");
-                                if(type->function_type()->isCapturing && current->as_func_call() == nullptr) {
-                                    capture_call(this, type->function_type(), [&current, this](){
-                                        current->accept(this);
-                                    }, next);
-                                    i++;
-                                } else {
-                                    current->accept(this);
-                                    next->accept(this);
-                                    auto id = new VariableIdentifier("fp");
-                                    auto fp = std::unique_ptr<Value>(id);
-                                    capture_call(this, next_type->function_type(), [this](){ write("fp"); }, next_next);
-                                    i++;
-                                }
-                                write(";})");
-                                i++;
-                            } else {
-                                func_call(this, type->function_type(), current, next, i);
-                            }
-                        } else {
-                            func_call(this, type->function_type(), current, next, i);
-                        }
+                    if(current->type_kind() == BaseTypeKind::Pointer) {
+                        current->accept(visitor);
+                        visitor->write("->");
                     } else {
-                        current->accept(this);
+                        current->accept(visitor);
+                        visitor->write('.');
                     }
                 }
-            };
+            } else {
+                if(next->as_func_call() != nullptr) {
+                    auto type = current->create_type();
+                    if(i + 2 < values.size()) {
+                        auto& next_next = values[i + 2];
+                        auto next_type = next->create_type();
+                        if(next_next->as_func_call() != nullptr && next_type->function_type()->isCapturing) {
+                            visitor->write("({ __chemical_fat_pointer__ fp = ");
+                            if(type->function_type()->isCapturing && current->as_func_call() == nullptr) {
+                                capture_call(visitor, type->function_type(), [&current, visitor](){
+                                    current->accept(visitor);
+                                }, next);
+                                i++;
+                            } else {
+                                current->accept(visitor);
+                                func_call(visitor, next->as_func_call());
+                                auto id = new VariableIdentifier("fp");
+                                auto fp = std::unique_ptr<Value>(id);
+                                capture_call(visitor, next_type->function_type(), [visitor](){ visitor->write("fp"); }, next_next);
+                                i++;
+                            }
+                            visitor->write(";})");
+                            i++;
+                        } else {
+                            func_call(visitor, type->function_type(), current, next, i);
+                        }
+                    } else {
+                        func_call(visitor, type->function_type(), current, next, i);
+                    }
+                } else {
+                    current->accept(visitor);
+                }
+            }
+        };
         } else {
-            current->accept(this);
+            current->accept(visitor);
         }
         i++;
     }
+}
+
+void ToCAstVisitor::visit(AccessChain *chain) {
+    access_chain(this, chain->values, 0, chain->values.size());
 }
 
 void ToCAstVisitor::visit(MacroValueStatement *statement) {
@@ -1221,12 +1357,7 @@ void ToCAstVisitor::visit(DereferenceValue *casted) {
 }
 
 void ToCAstVisitor::visit(FunctionCall *call) {
-    write('(');
-    func_call_params(this, call);
-    write(')');
-    if(!nested_value) {
-        write(';');
-    }
+    write("[ERROR:FunctionCall is part of access chain and it must be generated there]");
 }
 
 void ToCAstVisitor::visit(IndexOperator *op) {

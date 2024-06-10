@@ -13,6 +13,14 @@ class ToCAstVisitor : public Visitor {
 public:
 
     /**
+     * this option is here to support struct initialization in tinyCC compiler
+     * llvm uses the same approach whereby if a function returns a struct
+     * we change it's return type to void and pass that struct as a pointer parameter to the function
+     * allocation of the struct is done at function call
+     */
+    bool pass_structs_to_initialize = true;
+
+    /**
      * this should be set to true
      */
     bool top_level_node = true;

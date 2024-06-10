@@ -10,6 +10,12 @@
 #include "ast/base/ASTNode.h"
 #include "ast/base/Value.h"
 
+/**
+ * access chain represents a way to access things in programming language for example
+ * x.y.z is an access chain, z member of the y of the x is being accessed
+ * x.y.z() where z is a function call, z function is assumed to be present in y and y in z
+ * z.y.z[0] similarly z is an index operator here
+ */
 class AccessChain : public ASTNode, public Value {
 
 public:

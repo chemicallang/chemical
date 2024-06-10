@@ -992,10 +992,13 @@ void func_container_name(ToCAstVisitor* visitor, ASTNode* node, Value* ref) {
 }
 
 void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& values, unsigned start, unsigned end) {
-    auto caller_type = values[end - 2]->create_type();
-    auto func_type = caller_type->function_type();
-    auto last = values[end - 1].get();
+    auto grandpa = ((int) end) - 3 >= 0 ? values[end - 3].get() : nullptr;
+    auto parent = values[end - 2].get();
+    auto parent_type = parent->create_type();
+    auto func_type = parent_type->function_type();
+    auto last = values[end - 1]->as_func_call();
     if(visitor->pass_structs_to_initialize && func_type->returnType->value_type() == ValueType::Struct) {
+        // functions that return struct
         visitor->write("({ ");
         func_type->returnType->accept(visitor);
         visitor->space();
@@ -1009,10 +1012,39 @@ void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& valu
         }
         func_call_args(visitor, last->as_func_call());
         visitor->write("); __chem_x_1__; })");
-    } else {
+    } else if(grandpa) {
+        auto grandpaType = grandpa->create_type();
+        if(grandpa->linked_node() && (grandpa->linked_node()->as_interface_def() || grandpa->linked_node()->as_struct_def())) {
+            // direct functions on interfaces and structs
+            func_container_name(visitor, grandpa->linked_node(), parent);
+            parent->accept(visitor);
+            func_call(visitor, last->as_func_call());
+        } else if(grandpa->value_type() == ValueType::Struct && grandpaType->kind() == BaseTypeKind::Referenced) {
+            // functions on struct values
+            func_container_name(visitor, grandpaType->linked_node(), parent);
+            parent->accept(visitor); // function name
+            visitor->write('(');
+            if(func_type_has_self(func_type)) {
+                visitor->write('&');
+                grandpa->accept(visitor);
+                if (!last->values.empty()) {
+                    visitor->write(',');
+                }
+            }
+            func_call_args(visitor, last->as_func_call());
+            visitor->write(')');
+        } else {
+            goto normal_functions;
+        }
+    }else {
+        goto normal_functions;
+    }
+    return;
+    normal_functions: {
+        // normal functions
         access_chain(visitor, values, start, end - 1);
         func_call(visitor, last->as_func_call());
-    }
+    };
 }
 
 void access_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& values, unsigned start, unsigned end) {

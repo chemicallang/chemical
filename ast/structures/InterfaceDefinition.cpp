@@ -3,6 +3,7 @@
 #include "InterfaceDefinition.h"
 #include "StructMember.h"
 #include "compiler/SymbolResolver.h"
+#include "ast/types/ReferencedType.h"
 
 #ifdef COMPILER_BUILD
 
@@ -41,6 +42,10 @@ InterfaceDefinition::InterfaceDefinition(
         std::string name
 ) : name(std::move(name)) {
 
+}
+
+std::unique_ptr<BaseType> InterfaceDefinition::create_value_type() {
+    return std::make_unique<ReferencedType>(name, this);
 }
 
 std::string InterfaceDefinition::representation() const {

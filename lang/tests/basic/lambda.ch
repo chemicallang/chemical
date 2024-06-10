@@ -90,7 +90,6 @@ func test_lambda() {
             return captured;
         });
     });
-    /**
     test("testing returning capturing lambda works", () => {
         var captured = true;
         var message = ret_cap_lambda([captured]() => {
@@ -98,7 +97,6 @@ func test_lambda() {
         });
         return message();
     })
-    **/
     test("can initialize and call a capturing lambda", () => {
         var x = true;
         var message = [x]() => {

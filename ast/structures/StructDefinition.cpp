@@ -174,13 +174,9 @@ ASTNode *StructDefinition::child(const std::string &name) {
     return nullptr;
 }
 
-//std::unique_ptr<BaseType> StructDefinition::create_value_type() {
-//    std::vector<std::unique_ptr<BaseType>> mem;
-//    for(auto& var : variables) {
-//        mem.emplace_back(var.second->type->copy());
-//    }
-//    return std::make_unique<StructType>(std::move(mem));
-//}
+std::unique_ptr<BaseType> StructDefinition::create_value_type() {
+    return std::make_unique<ReferencedType>(name, this);
+}
 
 ValueType StructDefinition::value_type() const {
     return ValueType::Struct;

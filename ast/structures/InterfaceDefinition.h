@@ -37,6 +37,8 @@ public:
 
     void declare_top_level(SymbolResolver &linker) override;
 
+    std::unique_ptr<BaseType> create_value_type() override;
+
 #ifdef COMPILER_BUILD
 
     void code_gen(Codegen &gen) override;

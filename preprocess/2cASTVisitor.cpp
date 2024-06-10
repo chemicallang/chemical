@@ -634,7 +634,7 @@ void CValueDeclarationVisitor::visit(TypealiasStatement *stmt) {
 
 void CValueDeclarationVisitor::visit(FunctionType *type) {
     if(type->isCapturing) {
-        visitor->declarer->aliases[type] = visitor->fat_pointer_type;
+        visitor->declarer->aliases[type] = visitor->fat_pointer_type + '*';
     } else {
         typedef_func_type(visitor, type);
     }
@@ -944,11 +944,11 @@ void capture_call(ToCAstVisitor* visitor, FunctionType* type, current_call call,
     func_type_with_id(visitor, type, "");
     visitor->write(") ");
     call();
-    visitor->write(".lambda");
+    visitor->write("->lambda");
     visitor->write(')');
     visitor->write('(');
     call();
-    visitor->write(".captured");
+    visitor->write("->captured");
     if(!func_call->values.empty()) {
         visitor->write(',');
     }
@@ -1451,6 +1451,7 @@ void ToCAstVisitor::visit(LambdaFunction *func) {
     if(found != declarer->aliases.end()) {
         if(func->func_type->isCapturing) {
             write('(');
+            write('&');
             write('(');
             write(fat_pointer_type);
             write(')');

@@ -937,7 +937,7 @@ void ToCAstVisitor::visit(WhileLoop *whileLoop) {
 }
 
 template<typename current_call>
-void capture_call(ToCAstVisitor* visitor, FunctionType* type, current_call call, std::unique_ptr<Value>& next) {
+void capture_call(ToCAstVisitor* visitor, FunctionType* type, current_call call, FunctionCall* func_call) {
     visitor->write('(');
     visitor->write('(');
     visitor->write('(');
@@ -949,17 +949,17 @@ void capture_call(ToCAstVisitor* visitor, FunctionType* type, current_call call,
     visitor->write('(');
     call();
     visitor->write(".captured");
-    if(!next->as_func_call()->values.empty()) {
+    if(!func_call->values.empty()) {
         visitor->write(',');
     }
-    func_call_args(visitor, next->as_func_call());
+    func_call_args(visitor, func_call);
     visitor->write(')');
     visitor->write(')');
 }
 
 void func_call(ToCAstVisitor* visitor, FunctionType* type, std::unique_ptr<Value>& current, std::unique_ptr<Value>& next, unsigned int& i) {
     if(type->isCapturing && current->as_func_call() == nullptr) {
-        capture_call(visitor, type, [&current, visitor](){ current->accept(visitor); }, next);
+        capture_call(visitor, type, [&current, visitor](){ current->accept(visitor); }, next->as_func_call());
         i++;
     } else {
         current->accept(visitor);
@@ -1012,6 +1012,11 @@ void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& valu
         }
         func_call_args(visitor, last->as_func_call());
         visitor->write("); __chem_x_1__; })");
+    } else if(func_type->isCapturing) {
+        // function calls to capturing lambdas
+        capture_call(visitor, func_type, [&](){
+            access_chain(visitor, values, start, end - 1);
+        }, last);
     } else if(grandpa) {
         auto grandpaType = grandpa->create_type();
         if(grandpa->linked_node() && (grandpa->linked_node()->as_interface_def() || grandpa->linked_node()->as_struct_def())) {
@@ -1039,7 +1044,7 @@ void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& valu
         } else {
             goto normal_functions;
         }
-    }else {
+    } else {
         goto normal_functions;
     }
     return;

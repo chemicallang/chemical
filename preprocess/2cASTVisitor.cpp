@@ -1016,7 +1016,10 @@ void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& valu
 }
 
 void access_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& values, unsigned start, unsigned end) {
-    if(end - start == 1) {
+    auto diff = end - start;
+    if(diff == 0) {
+        return;
+    } else if(diff == 1) {
         values[start]->accept(visitor);
         return;
     }
@@ -1033,67 +1036,14 @@ void access_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& v
             j--;
         }
     }
+    Value* next;
     while(i < end) {
         auto& current = values[i];
-        if(i != end - 1) {
-            auto& next = values[i + 1];
-
-            // direct functions on structs and interfaces
-            if(current->linked_node() && (current->linked_node()->as_interface_def() || current->linked_node()->as_struct_def())) {
-                if(i + 2 < end) {
-                    auto &next_next = values[i + 2];
-                    if(next_next->as_func_call() != nullptr) {
-                        func_container_name(visitor, current->linked_node(), next.get());
-                        next->accept(visitor);
-                        next_next->accept(visitor);
-                        i += 3;
-                        continue;
-                    } else {
-                        goto otherwise;
-                    }
-                } else {
-                    goto otherwise;
-                }
-                // functions on struct values
-            } else if(current->value_type() == ValueType::Struct) {
-                if(next->linked_node()->as_struct_member()) {
-                    goto otherwise;
-                }
-                if(i + 2 < end) {
-                    auto &next_next = values[i + 2];
-                    if (next_next->as_func_call() != nullptr) {
-                        auto str_type = current->create_type();
-                        if(str_type->kind() == BaseTypeKind::Referenced) {
-                            func_container_name(visitor, str_type->linked_node(), next.get());
-                            auto next_type = next->create_type();
-                            next->accept(visitor); // function name
-                            visitor->write('(');
-                            if(func_type_has_self(next_type->function_type())) {
-                                visitor->write('&');
-                                current->accept(visitor);
-                                if (!next_next->as_func_call()->values.empty()) {
-                                    visitor->write(',');
-                                }
-                            }
-                            func_call_args(visitor, next_next->as_func_call());
-                            visitor->write(')');
-                            i += 3;
-                            continue;
-                        } else {
-                            goto otherwise;
-                        }
-                    } else {
-                        goto otherwise;
-                    }
-                } else {
-                    goto otherwise;
-                }
+        if(i + 1 < values.size()) {
+            next = values[i + 1].get();
+            if(next->as_func_call() || next->as_index_op()) {
+                current->accept(visitor);
             } else {
-                goto otherwise;
-            }
-
-            otherwise:{
-            if(next->as_func_call() == nullptr && next->as_index_op() == nullptr) {
                 if(current->linked_node()->as_enum_decl() != nullptr) {
                     auto found = visitor->declarer->aliases.find(next->linked_node()->as_enum_member());
                     if(found != visitor->declarer->aliases.end()) {
@@ -1103,7 +1053,7 @@ void access_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& v
                         visitor->write("[EnumAC_NOT_FOUND:" + current->representation() + "." + next->representation() + "]");
                     }
                 } else {
-                    if(current->type_kind() == BaseTypeKind::Pointer) {
+                    if (current->type_kind() == BaseTypeKind::Pointer) {
                         current->accept(visitor);
                         visitor->write("->");
                     } else {
@@ -1111,43 +1061,123 @@ void access_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& v
                         visitor->write('.');
                     }
                 }
-            } else {
-                if(next->as_func_call() != nullptr) {
-                    auto type = current->create_type();
-                    if(i + 2 < end) {
-                        auto& next_next = values[i + 2];
-                        auto next_type = next->create_type();
-                        if(next_next->as_func_call() != nullptr && next_type->function_type()->isCapturing) {
-                            visitor->write("({ __chemical_fat_pointer__ fp = ");
-                            if(type->function_type()->isCapturing && current->as_func_call() == nullptr) {
-                                capture_call(visitor, type->function_type(), [&current, visitor](){
-                                    current->accept(visitor);
-                                }, next);
-                                i++;
-                            } else {
-                                current->accept(visitor);
-                                func_call(visitor, next->as_func_call());
-                                auto id = new VariableIdentifier("fp");
-                                auto fp = std::unique_ptr<Value>(id);
-                                capture_call(visitor, next_type->function_type(), [visitor](){ visitor->write("fp"); }, next_next);
-                                i++;
-                            }
-                            visitor->write(";})");
-                            i++;
-                        } else {
-                            func_call(visitor, type->function_type(), current, next, i);
-                        }
-                    } else {
-                        func_call(visitor, type->function_type(), current, next, i);
-                    }
-                } else {
-                    current->accept(visitor);
-                }
             }
-        };
         } else {
             current->accept(visitor);
+            next = nullptr;
         }
+//        if(i != end - 1) {
+//
+//            // direct functions on structs and interfaces
+//            if(current->linked_node() && (current->linked_node()->as_interface_def() || current->linked_node()->as_struct_def())) {
+//                if(i + 2 < end) {
+//                    auto &next_next = values[i + 2];
+//                    if(next_next->as_func_call() != nullptr) {
+//                        func_container_name(visitor, current->linked_node(), next.get());
+//                        next->accept(visitor);
+//                        next_next->accept(visitor);
+//                        i += 3;
+//                        continue;
+//                    } else {
+//                        goto otherwise;
+//                    }
+//                } else {
+//                    goto otherwise;
+//                }
+//                // functions on struct values
+//            } else if(current->value_type() == ValueType::Struct) {
+//                if(next->linked_node()->as_struct_member()) {
+//                    goto otherwise;
+//                }
+//                if(i + 2 < end) {
+//                    auto &next_next = values[i + 2];
+//                    if (next_next->as_func_call() != nullptr) {
+//                        auto str_type = current->create_type();
+//                        if(str_type->kind() == BaseTypeKind::Referenced) {
+//                            func_container_name(visitor, str_type->linked_node(), next.get());
+//                            auto next_type = next->create_type();
+//                            next->accept(visitor); // function name
+//                            visitor->write('(');
+//                            if(func_type_has_self(next_type->function_type())) {
+//                                visitor->write('&');
+//                                current->accept(visitor);
+//                                if (!next_next->as_func_call()->values.empty()) {
+//                                    visitor->write(',');
+//                                }
+//                            }
+//                            func_call_args(visitor, next_next->as_func_call());
+//                            visitor->write(')');
+//                            i += 3;
+//                            continue;
+//                        } else {
+//                            goto otherwise;
+//                        }
+//                    } else {
+//                        goto otherwise;
+//                    }
+//                } else {
+//                    goto otherwise;
+//                }
+//            } else {
+//                goto otherwise;
+//            }
+//
+//            otherwise:{
+//            if(next->as_func_call() == nullptr && next->as_index_op() == nullptr) {
+//                if(current->linked_node()->as_enum_decl() != nullptr) {
+//                    auto found = visitor->declarer->aliases.find(next->linked_node()->as_enum_member());
+//                    if(found != visitor->declarer->aliases.end()) {
+//                        visitor->write(found->second);
+//                        i++;
+//                    } else {
+//                        visitor->write("[EnumAC_NOT_FOUND:" + current->representation() + "." + next->representation() + "]");
+//                    }
+//                } else {
+//                    if(current->type_kind() == BaseTypeKind::Pointer) {
+//                        current->accept(visitor);
+//                        visitor->write("->");
+//                    } else {
+//                        current->accept(visitor);
+//                        visitor->write('.');
+//                    }
+//                }
+//            } else {
+//                if(next->as_func_call() != nullptr) {
+//                    auto type = current->create_type();
+//                    if(i + 2 < end) {
+//                        auto& next_next = values[i + 2];
+//                        auto next_type = next->create_type();
+//                        if(next_next->as_func_call() != nullptr && next_type->function_type()->isCapturing) {
+//                            visitor->write("({ __chemical_fat_pointer__ fp = ");
+//                            if(type->function_type()->isCapturing && current->as_func_call() == nullptr) {
+//                                capture_call(visitor, type->function_type(), [&current, visitor](){
+//                                    current->accept(visitor);
+//                                }, next);
+//                                i++;
+//                            } else {
+//                                current->accept(visitor);
+//                                func_call(visitor, next->as_func_call());
+//                                auto id = new VariableIdentifier("fp");
+//                                auto fp = std::unique_ptr<Value>(id);
+//                                capture_call(visitor, next_type->function_type(), [visitor](){ visitor->write("fp"); }, next_next);
+//                                i++;
+//                            }
+//                            visitor->write(";})");
+//                            i++;
+//                        } else {
+//                            func_call(visitor, type->function_type(), current, next, i);
+//                        }
+//                    } else {
+//                        func_call(visitor, type->function_type(), current, next, i);
+//                    }
+//                } else {
+//                    current->accept(visitor);
+//                }
+//            }
+//        };
+//        } else {
+//
+//        }
         i++;
     }
 }

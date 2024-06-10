@@ -252,7 +252,7 @@ void value_store(ToCAstVisitor* visitor, const std::string& identifier, BaseType
 
 void value_alloca_store(ToCAstVisitor* visitor, const std::string& identifier, BaseType* type, std::optional<std::unique_ptr<Value>>& value) {
     if(value.has_value()) {
-        if(type->value_type() == ValueType::Struct) {
+        if(type->value_type() == ValueType::Struct && value.value()->value_type() != ValueType::Struct) {
             // struct instantiation is done in 2 instructions -> declaration and assignment
             value_alloca(visitor, identifier, type, value);
             visitor->new_line_and_indent();
@@ -1040,7 +1040,7 @@ void access_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& v
 
             // direct functions on structs and interfaces
             if(current->linked_node() && (current->linked_node()->as_interface_def() || current->linked_node()->as_struct_def())) {
-                if(i + 2 < values.size()) {
+                if(i + 2 < end) {
                     auto &next_next = values[i + 2];
                     if(next_next->as_func_call() != nullptr) {
                         func_container_name(visitor, current->linked_node(), next.get());
@@ -1059,7 +1059,7 @@ void access_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& v
                 if(next->linked_node()->as_struct_member()) {
                     goto otherwise;
                 }
-                if(i + 2 < values.size()) {
+                if(i + 2 < end) {
                     auto &next_next = values[i + 2];
                     if (next_next->as_func_call() != nullptr) {
                         auto str_type = current->create_type();
@@ -1114,7 +1114,7 @@ void access_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& v
             } else {
                 if(next->as_func_call() != nullptr) {
                     auto type = current->create_type();
-                    if(i + 2 < values.size()) {
+                    if(i + 2 < end) {
                         auto& next_next = values[i + 2];
                         auto next_type = next->create_type();
                         if(next_next->as_func_call() != nullptr && next_type->function_type()->isCapturing) {

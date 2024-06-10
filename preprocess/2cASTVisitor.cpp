@@ -227,6 +227,7 @@ void value_assign_default(ToCAstVisitor* visitor, const std::string& identifier,
         }
     }
     visitor->write(identifier);
+    write_type_post_id(visitor, type);
     visitor->write(" = ");
     value->accept(visitor);
     visitor->write(';');
@@ -369,7 +370,7 @@ public:
 };
 
 std::string func_type_alias(ToCAstVisitor* visitor, FunctionType* type) {
-    std::string alias = "__chfunctype_";
+    std::string alias = "__chx_functype_";
     alias += std::to_string(random(100,999)) + "_";
     alias += std::to_string(visitor->declarer->func_type_num++);
     func_type_with_id(visitor, type, alias);
@@ -633,23 +634,6 @@ void CValueDeclarationVisitor::visit(TypealiasStatement *stmt) {
 
 void CValueDeclarationVisitor::visit(FunctionType *type) {
     if(type->isCapturing) {
-//        std::string alias = "__chfunctype_";
-//        alias += std::to_string(random(100,999)) + "_";
-//        alias += std::to_string(visitor->declarer->func_type_num++);
-//        visitor->new_line_and_indent();
-//        visitor->write("typedef struct {");
-//        visitor->indentation_level+=1;
-//        visitor->new_line_and_indent();
-//        func_type_with_id(visitor, type, "lambda");
-//        visitor->write(';');
-//        visitor->new_line_and_indent();
-//        visitor->write("void* captured;");
-//        visitor->indentation_level-=1;
-//        visitor->new_line_and_indent();
-//        visitor->write('}');
-//        visitor->space();
-//        visitor->write(alias);
-//        visitor->write(';');
         visitor->declarer->aliases[type] = visitor->fat_pointer_type;
     } else {
         typedef_func_type(visitor, type);
@@ -673,7 +657,7 @@ void declare_fat_pointer(ToCAstVisitor* visitor) {
 
 void ToCAstVisitor::prepare_translate() {
     write("#include <stdbool.h>\n");
-    write("#include <stddef.h>\n");
+    write("#include <stddef.h>\n\n");
     // declaring a fat pointer
     declare_fat_pointer(this);
 }
@@ -1010,6 +994,7 @@ void func_container_name(ToCAstVisitor* visitor, ASTNode* node, Value* ref) {
 void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& values, unsigned start, unsigned end) {
     auto caller_type = values[end - 2]->create_type();
     auto func_type = caller_type->function_type();
+    auto last = values[end - 1].get();
     if(visitor->pass_structs_to_initialize && func_type->returnType->value_type() == ValueType::Struct) {
         visitor->write("({ ");
         func_type->returnType->accept(visitor);
@@ -1019,14 +1004,14 @@ void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& valu
         visitor->write('(');
         visitor->write('&');
         visitor->write("__chem_x_1__");
-        if(!values.back()->as_func_call()->values.empty()){
+        if(!last->as_func_call()->values.empty()){
             visitor->write(", ");
         }
-        func_call_args(visitor, values.back()->as_func_call());
+        func_call_args(visitor, last->as_func_call());
         visitor->write("); __chem_x_1__; })");
     } else {
         access_chain(visitor, values, start, end - 1);
-        func_call(visitor, values.back()->as_func_call());
+        func_call(visitor, last->as_func_call());
     }
 }
 
@@ -1050,7 +1035,7 @@ void access_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& v
     }
     while(i < end) {
         auto& current = values[i];
-        if(i != values.size() - 1) {
+        if(i != end - 1) {
             auto& next = values[i + 1];
 
             // direct functions on structs and interfaces

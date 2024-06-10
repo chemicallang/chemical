@@ -1020,6 +1020,9 @@ void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& valu
             parent->accept(visitor);
             func_call(visitor, last->as_func_call());
         } else if(grandpa->value_type() == ValueType::Struct && grandpaType->kind() == BaseTypeKind::Referenced) {
+            if(parent->linked_node()->as_struct_member()) {
+                goto normal_functions;
+            }
             // functions on struct values
             func_container_name(visitor, grandpaType->linked_node(), parent);
             parent->accept(visitor); // function name

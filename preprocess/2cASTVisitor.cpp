@@ -764,6 +764,25 @@ void ToCAstVisitor::visit(ReturnStatement *returnStatement) {
                 write("return ");
                 struct_initialize_inside_braces(this, (StructValue*) val);
             }
+        } else if(val->value_type() == ValueType::Struct) {
+            auto refType = val->create_type();
+            auto structType = refType->linked_node()->as_struct_def();
+            auto size = structType->variables.size();
+            unsigned i = 0;
+            for(const auto& mem : structType->variables) {
+                write(struct_passed_param_name);
+                write("->");
+                write(mem.first);
+                write(" = ");
+                val->accept(this);
+                write('.');
+                write(mem.first);
+                if(i != size - 1){
+                    write(';');
+                    new_line_and_indent();
+                }
+                i++;
+            }
         } else {
             write("return ");
            val->accept(this);

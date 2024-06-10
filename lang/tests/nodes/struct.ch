@@ -35,7 +35,6 @@ func create_pair_as_variable() : Pair {
 }
 
 func test_structs() {
-    /**
     test("can return a newly created struct", () => {
         var pair = create_pair();
         return pair.a == 33 && pair.b == 55;
@@ -44,6 +43,7 @@ func test_structs() {
         var pair = create_pair_as_variable();
         return pair.a == 44 && pair.b == 66;
     })
+    /**
     test("can call declared in struct and impl", () => {
         return Something.do() == true;
     });

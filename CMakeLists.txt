@@ -15,7 +15,7 @@ if (NOT DEFINED CMAKE_PREFIX_PATH)
 endif ()
 
 # We copied this from Zig CMakeLists
-#set(ZIG_USE_LLVM_CONFIG ON)
+set(ZIG_USE_LLVM_CONFIG ON) # linux build fails if we don't
 set(CMAKE_USER_MAKE_RULES_OVERRIDE ${CMAKE_CURRENT_SOURCE_DIR}/cmake/c_flag_overrides.cmake)
 set(CMAKE_USER_MAKE_RULES_OVERRIDE_CXX ${CMAKE_CURRENT_SOURCE_DIR}/cmake/cxx_flag_overrides.cmake)
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})

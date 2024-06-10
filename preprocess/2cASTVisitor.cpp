@@ -1015,7 +1015,9 @@ void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& valu
     } else if(func_type->isCapturing) {
         // function calls to capturing lambdas
         capture_call(visitor, func_type, [&](){
+            visitor->nested_value = true;
             access_chain(visitor, values, start, end - 1);
+            visitor->nested_value = false;
         }, last);
     } else if(grandpa) {
         auto grandpaType = grandpa->create_type();

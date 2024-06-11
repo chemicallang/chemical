@@ -124,6 +124,8 @@ public:
         return provider.readIdentifier();
     }
 
+    // ------------- Functions exposed to chemical begin here
+
     /**
      * consumes a identifier and store as a variable token
      * @return true if identifier is not empty, false if it is
@@ -608,6 +610,8 @@ public:
      * lexes try catch block statements
      */
     bool lexTryCatchTokens();
+
+    // -------------------------------- Exposed till here
 
     /**
      * takes elements (by removing) from tokens vector, starting from start position, till end

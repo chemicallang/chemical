@@ -81,6 +81,21 @@ endif ()
 # Add the LspCpp library directory
 add_subdirectory(LspCpp)
 
+# Include directories for libtcc
+set(LIBTCC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/libtcc)
+if(WIN32)
+    set(LIBTCC_LIB_DIR ${LIBTCC_DIR}/win-x64)
+    set(LIBTCC_LIB ${LIBTCC_LIB_DIR}/libtcc.lib)
+elseif(UNIX)
+    set(LIBTCC_LIB_DIR ${LIBTCC_DIR}/lin-x64)
+    set(LIBTCC_LIB ${LIBTCC_LIB_DIR}/libtcc.so)
+else()
+    message(FATAL_ERROR "Unknown Operating System, Couldn't Determine libtcc to use")
+endif()
+
+# Link directory so that cmake can find the dll file
+link_directories(${LIBTCC_LIB_DIR})
+
 # Add your common source files (excluding the main files)
 set(COMMON_SOURCES
         lexer/Lexer.cpp
@@ -429,6 +444,7 @@ add_executable(ChemicalLsp Main.cpp ${COMMON_SOURCES}
         server/analyzers/DocumentLinksAnalyzer.h
         server/analyzers/DocumentLinksAnalyzer.cpp
         server/utils/WorkspaceImportGraphImporter.h
+        utils/LibTccTest.cpp
 )
 
 # Add an executable target for the second executable
@@ -476,6 +492,7 @@ target_include_directories(ChemicalLsp PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/LspCpp/include
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${CMAKE_CURRENT_SOURCE_DIR}
+        ${LIBTCC_DIR}/include
 )
 
 # Add include directories for LspCpp
@@ -492,6 +509,7 @@ target_include_directories(Compiler PRIVATE
         ${LLVM_INCLUDE_DIRS}
         ${LLD_INCLUDE_DIRS}
         ${CLANG_INCLUDE_DIRS}
+        ${LIBTCC_DIR}/include
 )
 
 # find the libraries that correspond to llvm
@@ -524,10 +542,10 @@ endif ()
 target_link_libraries(Interpreter)
 
 # Link compiler against CLANG, LLVM, LLD
-target_link_libraries(Compiler ${CLANG_LIBRARIES} ${LLVM_LIBRARIES} ${LLD_LIBRARIES})
+target_link_libraries(Compiler ${CLANG_LIBRARIES} ${LLVM_LIBRARIES} ${LLD_LIBRARIES} ${LIBTCC_LIB})
 
 # Link Lsp with Boost Library
-target_link_libraries(ChemicalLsp Boost::program_options Boost::filesystem lspcpp)
+target_link_libraries(ChemicalLsp Boost::program_options Boost::filesystem lspcpp ${LIBTCC_LIB})
 
 # Set to C++ 20
 message(STATUS "Setting Standard C++ 20")

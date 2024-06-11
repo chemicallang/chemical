@@ -410,7 +410,7 @@ set(COMMON_SOURCES
 )
 
 # Chemical LSP Executable Target
-add_library(ChemicalLsp Main.cpp ${COMMON_SOURCES}
+add_executable(ChemicalLsp Main.cpp ${COMMON_SOURCES}
         server/WorkspaceManager.h
         server/WorkspaceManager.cpp
         server/utils/PrintUtils.h

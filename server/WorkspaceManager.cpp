@@ -36,7 +36,7 @@ std::string WorkspaceManager::compiler_exe_path() {
 #if defined(_WIN32)
     return resolve_rel_parent_path_str(lsp_exe_path, "Compiler.exe");
 #else
-    return resolve_rel_path_str(lsp_exe_path, "Compiler");
+    return resolve_rel_parent_path_str(lsp_exe_path, "Compiler");
 #endif
 }
 

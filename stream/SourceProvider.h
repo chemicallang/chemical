@@ -73,30 +73,28 @@ public:
 
     /**
      * gets the current pos of the stream
-     * @return
      */
     unsigned int currentPosition() const;
 
     /**
      * reads a single character and returns it
      * everytime a character is read, it must check if its the line ending character to track lineNumbers
-     * @return
      */
     char readCharacter();
+
     /**
-     * checks the stream is not at the end
-     * @return
+     * checks the stream is at the end
+     * please also use both peek() == -1
      */
     bool eof() const;
+
     /**
      * peaks the character to read
-     * @return
      */
     char peek() const;
+
     /**
      * peaks the character at current pos + ahead
-     * @param ahead
-     * @return
      */
     char peek(int ahead);
 
@@ -124,7 +122,6 @@ public:
 
     /**
      * this will read all the text from current position to end in a string and return it
-     * @return
      */
     std::string readAllFromHere();
 

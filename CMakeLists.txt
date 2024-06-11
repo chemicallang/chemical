@@ -82,7 +82,7 @@ endif ()
 add_subdirectory(LspCpp)
 
 # Include directories for libtcc
-set(LIBTCC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/libtcc)
+set(LIBTCC_DIR lib/libtcc)
 if(WIN32)
     set(LIBTCC_LIB_DIR ${LIBTCC_DIR}/win-x64)
     set(LIBTCC_LIB ${LIBTCC_LIB_DIR}/libtcc.lib)

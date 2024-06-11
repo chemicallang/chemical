@@ -43,9 +43,9 @@ cp out/build/x64-release/ChemicalLsp.exe $windows64dir/ChemicalLsp.exe
 # copy resources
 cp -r ./lib/include $windows64dir/resources
 # copy tiny cc dll
-cp thirdparty/libtcc/win-x64/libtcc.dll $windows64dir/libtcc.dll
+cp lib/libtcc/win-x64/libtcc.dll $windows64dir/libtcc.dll
 # unzip the tinycc package
-unzip thirdparty/libtcc/win-x64/package.zip -d $windows64dir/packages/tcc
+unzip lib/libtcc/win-x64/package.zip -d $windows64dir/packages/tcc
 
 # -------------------------- linux x86-64
 
@@ -56,9 +56,9 @@ cp out/build/x64-release-wsl/ChemicalLsp $linux64dir/ChemicalLsp
 # copy resources
 cp -r ./lib/include $linux64dir/resources
 # copy tiny cc dll
-cp thirdparty/libtcc/lin-x64/libtcc.so $linux64dir/libtcc.so
+cp lib/libtcc/lin-x64/libtcc.so $linux64dir/libtcc.so
 # unzip the tinycc package
-unzip thirdparty/libtcc/lin-x64/package.zip -d $linux64dir/packages/tcc
+unzip lib/libtcc/lin-x64/package.zip -d $linux64dir/packages/tcc
 
 
 # ------------------------- done

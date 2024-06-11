@@ -1,0 +1,6 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="CompileLinux" type="CompoundRunConfigurationType">
+    <toRun name="CompileLin" targetId="CMakeBuildProfile:DebugWsl" type="CMakeRunConfiguration" />
+    <method v="2" />
+  </configuration>
+</component>

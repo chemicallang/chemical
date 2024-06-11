@@ -1,0 +1,7 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="CompileRunLinux" type="CLionNativeAppRunConfigurationType" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="chemical" TARGET_NAME="Compiler" CONFIG_NAME="Debug" version="1" RUN_PATH="$PROJECT_DIR$/sample/compiled/compiled">
+    <method v="2">
+      <option name="RunConfigurationTask" enabled="false" run_configuration_name="CompilerLin" run_configuration_type="CMakeRunConfiguration" run_configuration_target="CMakeBuildProfile:DebugWsl" />
+    </method>
+  </configuration>
+</component>

@@ -1,0 +1,7 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Interpreter" type="CMakeRunConfiguration" factoryName="Application" PROGRAM_PARAMS="&quot;lang/sample/hello-world.ch&quot;" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="true" WORKING_DIR="file://$PROJECT_DIR$" PASS_PARENT_ENVS_2="true" PROJECT_NAME="chemical" TARGET_NAME="Interpreter" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="chemical" RUN_TARGET_NAME="Interpreter">
+    <method v="2">
+      <option name="com.jetbrains.cidr.execution.CidrBuildBeforeRunTaskProvider$BuildBeforeRunTask" enabled="true" />
+    </method>
+  </configuration>
+</component>

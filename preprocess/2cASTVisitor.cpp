@@ -89,7 +89,7 @@
 #include "ast/utils/CommonVisitor.h"
 #include "utils/RepresentationUtils.h"
 
-ToCAstVisitor::ToCAstVisitor(std::ostream &output, const std::string& path) : output(output), ASTDiagnoser(path) {
+ToCAstVisitor::ToCAstVisitor(std::ostream *output, const std::string& path) : output(output), ASTDiagnoser(path) {
     declarer = std::make_unique<CValueDeclarationVisitor>(this);
     tld = std::make_unique<CTopLevelDeclarationVisitor>(this, declarer.get());
 }
@@ -201,7 +201,11 @@ void func_call_args(ToCAstVisitor* visitor, FunctionCall* call) {
     }
 }
 
-void access_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& values, unsigned start, unsigned end);
+void access_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& values, unsigned start, unsigned end, unsigned size);
+
+void access_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& values, unsigned start, unsigned end) {
+    access_chain(visitor, values, start, end, values.size());
+}
 
 void value_alloca(ToCAstVisitor* visitor, const std::string& identifier, BaseType* type, std::optional<std::unique_ptr<Value>>& value) {
     type_with_id(visitor, type, identifier);
@@ -706,7 +710,7 @@ void ToCAstVisitor::visitCommonValue(Value *value) {
 }
 
 void ToCAstVisitor::write(char value) {
-    output.put(value);
+    output->put(value);
 }
 
 void ToCAstVisitor::indent() {
@@ -718,7 +722,7 @@ void ToCAstVisitor::indent() {
 }
 
 void ToCAstVisitor::write(const std::string& value) {
-    output.write(value.c_str(), value.size());
+    output->write(value.c_str(), value.size());
 }
 
 void ToCAstVisitor::visit(VarInitStatement *init) {
@@ -1102,7 +1106,7 @@ void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& valu
                 return;
             }
             visitor->write('&');
-            access_chain(visitor, values, start, end - 2);
+            access_chain(visitor, values, start, end - 2, end - 2);
             if (!last->values.empty()) {
                 visitor->write(',');
             }
@@ -1115,7 +1119,7 @@ void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& valu
     };
 }
 
-void access_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& values, unsigned start, unsigned end) {
+void access_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& values, unsigned start, unsigned end, unsigned total_size) {
     auto diff = end - start;
     if(diff == 0) {
         return;
@@ -1139,7 +1143,7 @@ void access_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& v
     Value* next;
     while(i < end) {
         auto& current = values[i];
-        if(i + 1 < values.size()) {
+        if(i + 1 < total_size) {
             next = values[i + 1].get();
             if(next->as_func_call() || next->as_index_op()) {
                 current->accept(visitor);

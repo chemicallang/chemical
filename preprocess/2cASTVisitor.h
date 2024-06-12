@@ -46,7 +46,7 @@ public:
     /**
      * a reference to the stream it's going to write results to
      */
-    std::ostream& output;
+    std::ostream* output;
 
     /**
      * 0 means in root, no indentation
@@ -62,7 +62,7 @@ public:
     /**
      * by default function types in struct members are taken out to the top, you can avoid this
      */
-    bool inline_struct_members_fn_types = false;
+    bool inline_struct_members_fn_types = true;
 
     /**
      * when true, output c will be like c++
@@ -74,7 +74,7 @@ public:
      * constructor
      * @param path the current file path being processed
      */
-    ToCAstVisitor(std::ostream& output, const std::string& path);
+    ToCAstVisitor(std::ostream* output, const std::string& path);
 
     /**
      * used to write a character to the stream

@@ -52,7 +52,7 @@ void ImportGraphImporter::lex_source(const std::string& path, std::vector<Diag>&
     lexer->switch_path(path);
     lexer->lexTopLevelMultipleImportStatements();
     if (lexer->has_errors) {
-        move_errors(lexer->errors, errors, path);
+        move_errors(lexer->diagnostics, errors, path);
         lexer->has_errors = false;
     }
 }

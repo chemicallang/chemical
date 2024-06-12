@@ -107,7 +107,7 @@ int main(int argc, char *argv[]) {
         ToCTranslatorOptions translator_opts(argv[0], translateToC.value(), is64Bit);
         prepare_options(&translator_opts);
         bool good = translate(srcFilePath, &translator_opts, [&options](ToCAstVisitor* visitor) -> void {
-            visitor->inline_struct_members_fn_types = options.option("inline-struct-member-fn-types").has_value();
+            visitor->inline_struct_members_fn_types = !options.option("take-out-struct-member-fn-types").has_value();
             visitor->cpp_like = options.option("cpp-like").has_value();
         });
         return good ? 0 : 1;

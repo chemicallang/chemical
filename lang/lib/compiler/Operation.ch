@@ -1,3 +1,4 @@
+@scope:lexer
 enum Operation {
     // Grouping and scope resolution operators
     Grouping,

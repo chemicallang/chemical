@@ -52,7 +52,7 @@ bool Lexer::lexStructStructureTokens() {
         lexWhitespaceToken();
         compound_from<StructDefCST>(start_token);
         if(isLexerScoped) {
-            collectStructAsLexer(start_token, tokens.size());
+            collect_cbi_node(start_token, tokens.size());
             isLexerScoped = false;
         }
         return true;

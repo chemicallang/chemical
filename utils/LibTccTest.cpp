@@ -6,7 +6,7 @@
 #include <iostream>
 #include "libtcc.h"
 
-void handle_error(void *opaque, const char *msg)
+void handle_error_now(void *opaque, const char *msg)
 {
     std::cout << "error happened : " << msg << std::endl;
 }
@@ -55,7 +55,7 @@ int libtcc_test() {
     }
 
     /* set custom error/warning printer */
-    tcc_set_error_func(s, stderr, handle_error);
+    tcc_set_error_func(s, stderr, handle_error_now);
 
     int result;
 

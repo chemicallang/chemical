@@ -1,7 +1,5 @@
 // Copyright (c) Qinetik 2024.
 
-#pragma once
-
 #include "lexer/Lexer.h"
 #include "cst/values/LambdaCST.h"
 

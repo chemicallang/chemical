@@ -286,8 +286,7 @@ set(COMMON_SOURCES
         ast/types/FunctionType.cpp
         ast/values/LambdaFunction.h
         ast/values/LambdaFunction.cpp
-        lexer/values/LambdaValue.h
-        lexer/Impls.h
+        lexer/values/LambdaValue.cpp
         cst/base/CSTToken.h
         utils/fwd/vector.h
         cst/base/CompoundCSTToken.h
@@ -425,6 +424,9 @@ set(COMMON_SOURCES
         integration/ide/bindings/SourceProviderCBI.h
         integration/ide/bindings/LexerCBI.h
         integration/ide/bindings/CBI.cpp
+        lexer/model/CompilerBinder.h
+        lexer/CompilerBinder.cpp
+        lexer/model/CompilerBinderTCC.h
 )
 
 # Chemical LSP Executable Target

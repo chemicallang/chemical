@@ -8,44 +8,7 @@
 #include "lexer/model/tokens/AnnotationToken.h"
 #include "lexer/model/tokens/RawToken.h"
 #include "lexer/model/tokens/IdentifierToken.h"
-#include "ast/values/StructValue.h"
-#include "stream/StreamStructValue.h"
-#include "lexer/model/tokens/UserToken.h"
 #include "cst/statements/MacroCST.h"
-
-Value *extract_child(InterpretScope &scope, StructValue *value, const std::string &name, ValueType type, Lexer &lexer) {
-    auto child = value->child(scope, name);
-    if (child == nullptr) {
-        lexer.error("required value \"" + name + "\" not found in the struct");
-    } else if (child->value_type() != type) {
-        lexer.error("value \"" + name + "\" is a different type, expected " + to_string(type) + ", got " +
-                    to_string(child->value_type()));
-        return nullptr;
-    }
-    return child;
-}
-
-LexUserToken *extract_token(InterpretScope &scope, StructValue *value, Lexer &lexer) {
-    auto line = extract_child(scope, value, "line", ValueType::UInt, lexer);
-    auto character = extract_child(scope, value, "character", ValueType::UInt, lexer);
-    auto str_value = extract_child(scope, value, "value", ValueType::String, lexer);
-    if (line == nullptr || character == nullptr || str_value == nullptr) {
-        return nullptr;
-    }
-    return new LexUserToken(Position{line->as_uint(), character->as_uint()}, str_value->as_string());
-}
-
-void extract_user_tokens(InterpretVectorValue *list, Lexer &lexer) {
-    for (auto &value: list->values) {
-        if (value->value_type() == ValueType::Struct) {
-            auto token = extract_token(lexer.interpret_scope, value->as_struct(), lexer);
-            if (token != nullptr) { lexer.tokens.emplace_back(token); }
-        } else {
-            lexer.error("given vector contains a value that is not a struct, with representation " +
-                        value->representation());
-        }
-    }
-}
 
 bool Lexer::lexAnnotationMacro() {
 
@@ -72,70 +35,24 @@ bool Lexer::lexAnnotationMacro() {
 
     tokens.emplace_back(std::make_unique<IdentifierToken>(backPosition(macro.size()), macro_full));
 
-    lexWhitespaceAndNewLines();
+    lexWhitespaceToken();
     if (lexOperatorToken('{')) {
 
         lexWhitespaceAndNewLines();
 
         // check if this macro has a lexer defined
         auto macro_lexer = macro_lexers.find(macro);
-        auto lex_struct = this->lexer_structs.find(macro);
         if (macro_lexer != macro_lexers.end()) {
             macro_lexer->second(this);
-        } else if (lex_struct != this->lexer_structs.end()) {
-
-            // interpret the struct in the interpret scope, so struct value can find it when initializing
-            lex_struct->second->interpret(interpret_scope);
-
-            // get the function
-            auto fn = lex_struct->second->member("lex");
-            if (fn == nullptr) {
-
-                error("struct doesn't contain a function named lex");
-
-            } else {
-
-                // set the declaration scope for the function to be interpreted in
-                fn->declarationScope = &interpret_scope;
-
-                // create the instance of the struct
-                auto lex_struct_value = std::make_unique<StructValue>(
-                        macro,
-                        std::unordered_map<std::string, std::unique_ptr<Value>>(),
-                        lex_struct->second.get(),
-                        interpret_scope
-                );
-
-                // defining function params, containing the stream source
-                std::vector<std::unique_ptr<Value>> params(1);
-                auto &members = static_cast<MemberFnsValue *>(interpret_scope.global_vals["stream"].get())->members;
-                params[0] = std::make_unique<StreamStructValue>(provider, members);
-
-                // calling the member function lex and getting the tokens
-                lex_struct_value->call_member(interpret_scope, "lex", params);
-                for (const auto &err: interpret_scope.errors) {
-                    error("error in a struct interpreted during lexing " + err);
-                }
-                auto found = lex_struct_value->values.find("tokens");
-                if (found == lex_struct_value->values.end()) {
-                    error("tokens value not found in the struct");
-                } else {
-                    auto tokens_value = found->second.get();
-                    if (tokens_value == nullptr) {
-                        error("received no tokens struct value from lex member function of " + macro);
-                    } else if (tokens_value->value_type() != ValueType::Vector) {
-                        error("received a value that is not a vector from lex member function of " + macro +
-                              ", value : " + tokens_value->representation());
-                    } else {
-                        auto vec = tokens_value->as_vector();
-                        extract_user_tokens(vec, *this);
-                    }
-                }
-            }
         } else {
-            auto current = position();
-            auto content = provider.readUntil('}');
-            tokens.emplace_back(std::make_unique<RawToken>(current, std::move(content)));
+            auto lex_func = binder->provide_lex_func(macro);
+            if(lex_func) {
+                lex_func(&cbi);
+            } else {
+                auto current = position();
+                auto content = provider.readUntil('}');
+                tokens.emplace_back(std::make_unique<RawToken>(current, std::move(content)));
+            }
         }
 
     } else {

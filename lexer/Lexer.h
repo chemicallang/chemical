@@ -15,39 +15,74 @@
 #include "common/Diagnostic.h"
 #include "ast/base/BaseType.h"
 #include "ast/structures/StructDefinition.h"
-#include "ast/base/GlobalInterpretScope.h"
 #include <memory>
 #include <optional>
 #include "utils/fwd/functional.h"
+#include "model/CompilerBinder.h"
+#include "cst/base/CSTDiagnoser.h"
 
-class Lexer {
+class Lexer : public CSTDiagnoser {
 public:
 
+    /**
+     * provides access to the source code to lex
+     */
     SourceProvider &provider;
 
+    /**
+     * path is the path the current file being lexed
+     */
     std::string path;
 
+    /**
+     * tokens are tokens that have been lexed from source code
+     */
     std::vector<std::unique_ptr<CSTToken>> tokens;
 
-    std::vector<Diag> errors;
+    /**
+     * compiler binder, which is used to compile binding code
+     */
+    std::unique_ptr<CompilerBinder> binder;
 
     /**
-     * this is the interpret scope used by the lexer to interpret
-     * things in between lexing
+     * the cbi interface for lexer
      */
-    GlobalInterpretScope interpret_scope;
+    LexerCBI cbi;
 
     /**
-     * this is a flag, that would be set to true, if errors are detected during lexing
+     * this flag allows to control, whether cbi is enabled
      */
-    bool has_errors = false;
-
-    inline bool isDebug() { return true; };
+    bool isCBIEnabled = true;
 
     /**
      * initialize the lexer with this provider and path
      */
     explicit Lexer(SourceProvider &provider, std::string path);
+
+    /**
+     * initialize everything for lexer
+     */
+    void init_complete();
+
+    /**
+     * providing cbi (compiler binding interfaces) to source code, to call functions inside compiler
+     */
+    void init_cbi();
+
+    /**
+     * called by constructor to initialize annotation modifiers map
+     */
+    void init_annotation_modifiers();
+
+    /**
+     * called by constructor to initialize value_creators map
+     */
+    void init_value_creators();
+
+    /**
+     * initialize macro lexers
+     */
+    void init_macro_lexers();
 
     /**
      * lex everything to LexTokens, tokens go into 'tokens' member property
@@ -446,7 +481,7 @@ public:
      * this will try to collect current struct as a lexer
      * @param start is the start position inside the tokens vector
      */
-    bool collectStructAsLexer(unsigned int start, unsigned int end);
+    bool collect_cbi_node(unsigned int start, unsigned int end);
 
     /**
      * lexes a impl block tokens
@@ -748,21 +783,6 @@ public:
 protected:
 
     /**
-     * called by constructor to initialize annotation modifiers map
-     */
-    void init_annotation_modifiers();
-
-    /**
-     * called by constructor to initialize value_creators map
-     */
-    void init_value_creators();
-
-    /**
-     * initialize macro lexers
-     */
-    void init_macro_lexers();
-
-    /**
      * A function that is called upon encountering an annotation
      */
     typedef void(*AnnotationModifierFn)(Lexer *lexer);
@@ -792,16 +812,6 @@ protected:
      * functions for content of the different macro's for example #eval { value_here }
      */
     std::unordered_map<std::string, MacroLexerFn> macro_lexers;
-
-    /**
-     * structs declared as lexer by the user
-     */
-    std::unordered_map<std::string, std::unique_ptr<StructDefinition>> lexer_structs;
-
-    /**
-     * collected nodes that should be destroyed when the lexer is destroyed
-     */
-    std::unordered_map<std::string, std::unique_ptr<ASTNode>> collected;
 
     /**
      * -----------------------------------------

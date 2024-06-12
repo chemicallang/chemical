@@ -38,6 +38,7 @@ bool translate(const std::string &path, ToCTranslatorOptions *options, const std
     std::fstream file_stream;
     SourceProvider provider(&file_stream);
     Lexer lexer(provider, path);
+    lexer.init_complete();
 
     // the cst converter
     CSTConverter converter(true);
@@ -69,7 +70,7 @@ bool translate(const std::string &path, ToCTranslatorOptions *options, const std
         std::cerr << "[2C] Failed to open path : " << options->output_path << std::endl;
         return false;
     }
-    ToCAstVisitor visitor(stream, path);
+    ToCAstVisitor visitor(&stream, path);
     prepare(&visitor);
 
     // preparing translation

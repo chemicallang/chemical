@@ -159,7 +159,7 @@ void init_lexer_cbi(LexerCBI* cbi, Lexer* lexer) {
         return cbi->instance->lexStructStructureTokens();
     };
     cbi->collectStructAsLexer = [](LexerCBI* cbi, unsigned int start, unsigned int end){
-        return cbi->instance->collectStructAsLexer(start, end);
+        return cbi->instance->collect_cbi_node(start, end);
     };
     cbi->lexImplBlockTokens = [](LexerCBI* cbi){
         return cbi->instance->lexImplBlockTokens();

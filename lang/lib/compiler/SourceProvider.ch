@@ -2,6 +2,7 @@
 /**
  * provides access to the source code provided by the user
  */
+@scope:lexer
 struct SourceProvider {
 
     /**

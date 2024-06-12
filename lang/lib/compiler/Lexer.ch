@@ -1,6 +1,9 @@
 import "./SourceProvider.ch"
-import "./Operation.ch"
 
+// TODO change this, enum's don't support @scope:lexer
+typealias Operation = uint
+
+@scope:lexer
 struct Lexer {
 
     var provider : SourceProvider;

@@ -30,6 +30,7 @@ bool compile(Codegen *gen, const std::string &path, IGCompilerOptions *options) 
     std::fstream file_stream;
     SourceProvider provider(&file_stream);
     Lexer lexer(provider, path);
+    lexer.init_complete();
 
     // the cst converter
     CSTConverter converter(options->is64Bit);

@@ -5,20 +5,28 @@
 //
 
 #include "Lexer.h"
-#include "Impls.h"
 #include "lexer/model/tokens/KeywordToken.h"
 #include "ast/utils/GlobalFunctions.h"
 #include "ast/types/ReferencedType.h"
 #include "lexer/model/tokens/BoolToken.h"
 #include "lexer/model/tokens/NullToken.h"
+#include "lexer/model/CompilerBinderTCC.h"
 
-Lexer::Lexer(SourceProvider &provider, std::string path) : provider(provider), path(std::move(path)), interpret_scope(
-        GlobalInterpretScope(nullptr, nullptr, nullptr, path)
-) {
-    define_all(interpret_scope);
+Lexer::Lexer(SourceProvider &provider, std::string path) : provider(provider), path(std::move(path)), cbi() {
+
+}
+
+void Lexer::init_complete() {
     init_annotation_modifiers();
     init_value_creators();
     init_macro_lexers();
+    init_cbi();
+}
+
+void Lexer::init_cbi() {
+    binder = std::make_unique<CompilerBinderTCC>(this);
+    init_lexer_cbi(&cbi, this);
+    binder->init();
 }
 
 void Lexer::init_annotation_modifiers() {
@@ -94,13 +102,14 @@ void Lexer::switch_path(const std::string& new_path) {
 void Lexer::reset() {
     tokens.clear();
     provider.reset();
+    binder->reset_new_file();
 }
 
 void Lexer::diagnostic(Position start, const std::string &message, DiagSeverity severity) {
     if(severity == DiagSeverity::Error) {
         has_errors = true;
     }
-    errors.emplace_back(
+    diagnostics.emplace_back(
             Range{
                     start,
                     {provider.getLineNumber(), provider.getLineCharNumber()}

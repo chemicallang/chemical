@@ -16,7 +16,7 @@ struct html {
 
     var tokens : vector = vector()
 
-    func lex(provider : SourceProvider) {
+    func lex(provider : SourceProvider*) {
         var aToken = UserToken {
             line : provider.getLineNumber(),
             character : provider.getLineCharNumber(),

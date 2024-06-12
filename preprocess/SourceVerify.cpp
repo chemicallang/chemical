@@ -21,6 +21,7 @@ bool verify(const std::string &path, SourceVerifierOptions *options) {
     std::fstream file_stream;
     SourceProvider provider(&file_stream);
     Lexer lexer(provider, path);
+    lexer.init_complete();
 
     // the cst converter
     CSTConverter converter(true);

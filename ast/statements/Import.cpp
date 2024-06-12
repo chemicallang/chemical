@@ -5,6 +5,7 @@
 #include "lexer/Lexi.h"
 #include "compiler/SymbolResolver.h"
 #include "preprocess/ImportPathHandler.h"
+#include "ast/base/GlobalInterpretScope.h"
 
 namespace fs = std::filesystem;
 
@@ -34,6 +35,7 @@ void ImportStatement::interpret(InterpretScope &scope) {
     }
     SourceProvider provider(&stream);
     Lexer lexer(provider, absolute_path);
+    lexer.init_complete();
     lexer.lex();
     // TODO convert to AST
 //    Parser parser(std::move(lexer.tokens));

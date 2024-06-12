@@ -6,6 +6,7 @@
 #include <optional>
 #include <map>
 #include "StructMember.h"
+#include "ordered_map.h"
 
 class MembersContainer : public ASTNode {
 public:
@@ -26,7 +27,7 @@ public:
 
     std::string representation() const;
 
-    std::map<std::string, std::unique_ptr<StructMember>> variables; ///< The members of the struct.
-    std::map<std::string, std::unique_ptr<FunctionDeclaration>> functions;
+    tsl::ordered_map<std::string, std::unique_ptr<StructMember>> variables; ///< The members of the struct.
+    tsl::ordered_map<std::string, std::unique_ptr<FunctionDeclaration>> functions;
 
 };

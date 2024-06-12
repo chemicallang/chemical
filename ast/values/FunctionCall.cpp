@@ -15,14 +15,32 @@ inline std::unique_ptr<FunctionType> func_call_func_type(const FunctionCall* cal
 #include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
 
-void to_llvm_args(Codegen& gen, FunctionCall* call, std::vector<std::unique_ptr<Value>>& values, bool isVariadic, std::vector<llvm::Value *>& args, unsigned int start = 0) {
+void to_llvm_args(
+        Codegen& gen,
+        FunctionCall* call,
+        FunctionType* func_type,
+        std::vector<std::unique_ptr<Value>>& values,
+        bool isVariadic,
+        std::vector<llvm::Value *>& args,
+        std::vector<std::unique_ptr<Value>>* chain,
+        unsigned int start = 0
+) {
+
     llvm::Value* argValue;
     auto linked_node = call->parent_val->linked_node();
 
-    auto expectedFunc = func_call_func_type(call);
+    // check function doesn't require a 'self' argument
+    if(chain) {
+        auto requires_self = !func_type->params.empty() &&
+                             (func_type->params[0]->name == "this" || func_type->params[0]->name == "self");
+        // a pointer to parent
+        if (requires_self) {
+            args.emplace_back((*chain)[chain->size() - 3]->llvm_pointer(gen));
+        }
+    }
 
     // if the called lambda is capturing, take argument next to lambda and pass it into it
-    if (linked_node && expectedFunc->isCapturing && linked_node->as_func_param() != nullptr) {
+    if (linked_node && func_type->isCapturing && linked_node->as_func_param() != nullptr) {
         args.emplace_back(gen.current_function->getArg(linked_node->as_func_param()->index + 1));
     }
 
@@ -37,7 +55,7 @@ void to_llvm_args(Codegen& gen, FunctionCall* call, std::vector<std::unique_ptr<
 
         // expanding passed lambda values, to multiple (passing function pointer & also passing their struct so 1 arg results in 2 args)
         if(values[i]->value_type() == ValueType::Lambda) {
-            auto expectedParam = expectedFunc->params[i]->create_value_type();
+            auto expectedParam = func_type->params[i]->create_value_type();
             auto expectedFuncType = (FunctionType*) expectedParam.get();
             auto type = values[i]->create_type();
             auto funcType = (FunctionType*) type.get();
@@ -59,12 +77,6 @@ void to_llvm_args(Codegen& gen, FunctionCall* call, std::vector<std::unique_ptr<
             }
         }
     }
-}
-
-inline std::vector<llvm::Value*> to_llvm_args(Codegen& gen, FunctionCall* call, std::vector<std::unique_ptr<Value>>& values, bool isVariadic) {
-    std::vector<llvm::Value *> args;
-    to_llvm_args(gen, call, values, isVariadic, args, 0);
-    return args;
 }
 
 llvm::Type *FunctionCall::llvm_type(Codegen &gen) {
@@ -102,7 +114,7 @@ llvm::Value* call_with_args(FunctionCall* call, llvm::Function* fn, Codegen &gen
     }
 }
 
-llvm::Value *call_capturing_lambda(Codegen &gen, FunctionCall* call, std::unique_ptr<FunctionType>& func_type) {
+llvm::Value *call_capturing_lambda(Codegen &gen, FunctionCall* call, FunctionType* func_type, std::vector<std::unique_ptr<Value>>* chain) {
     std::vector<llvm::Value *> args;
     auto value = call->parent_val->llvm_value(gen);
     auto dataPtr = gen.builder->CreateStructGEP(gen.packed_lambda_type(), value, 1);
@@ -111,7 +123,7 @@ llvm::Value *call_capturing_lambda(Codegen &gen, FunctionCall* call, std::unique
     auto decl = call->safe_linked_func();
     auto fn = decl != nullptr ? (decl->llvm_func()) : nullptr;
     // TODO hardcoded isVarArg when can't get the function
-    to_llvm_args(gen, call, call->values, fn != nullptr && fn->isVarArg(), args, 0);
+    to_llvm_args(gen, call, func_type, call->values, fn != nullptr && fn->isVarArg(), args, chain);
     auto structType = gen.packed_lambda_type();
     auto lambdaPtr = gen.builder->CreateStructGEP(structType, value, 0);
     auto lambda = gen.builder->CreateLoad(gen.builder->getPtrTy(), lambdaPtr);
@@ -121,13 +133,13 @@ llvm::Value *call_capturing_lambda(Codegen &gen, FunctionCall* call, std::unique
 llvm::Value *FunctionCall::llvm_value(Codegen &gen, std::vector<llvm::Value*>& args) {
     auto func_type = func_call_func_type(this);
     if(func_type->isCapturing && (parent_val->linked_node() == nullptr || parent_val->linked_node()->as_func_param() == nullptr)) {
-        return call_capturing_lambda(gen, this, func_type);
+        return call_capturing_lambda(gen, this, func_type.get(), nullptr);
     }
 
     auto decl = safe_linked_func();
     auto fn = decl != nullptr ? (decl->llvm_func()) : nullptr;
     // TODO hardcoded isVarArg when can't get the function
-    to_llvm_args(gen, this, values, fn != nullptr && fn->isVarArg(), args, args.size());
+    to_llvm_args(gen, this, func_type.get(), values, fn != nullptr && fn->isVarArg(), args, nullptr, args.size());
 
     return call_with_args(this, fn, gen,  args);
 }
@@ -145,20 +157,14 @@ llvm::Value* FunctionCall::llvm_chain_value(
 
     auto func_type = func_call_func_type(this);
     if(func_type->isCapturing && (parent_val->linked_node() == nullptr || parent_val->linked_node()->as_func_param() == nullptr)) {
-        return call_capturing_lambda(gen, this, func_type);
+        return call_capturing_lambda(gen, this, func_type.get(), &chain);
     }
 
     auto decl = safe_linked_func();
-    auto requires_self = decl != nullptr && !decl->params.empty() && (decl->params[0]->name == "this" || decl->params[0]->name == "self");
-
-    // a pointer to parent
-    if(requires_self) {
-        args.emplace_back(chain[chain.size() - 3]->llvm_pointer(gen));
-    }
 
     auto fn = decl != nullptr ? decl->llvm_func() : nullptr;
     // TODO hardcoded isVarArg when can't get the function
-    to_llvm_args(gen, this, values, fn != nullptr && fn->isVarArg(), args, args.size() + (requires_self ? 1 : 0));
+    to_llvm_args(gen, this, func_type.get(), values, fn != nullptr && fn->isVarArg(), args, &chain, args.size());
 
     if(linked() && linked()->as_struct_member() != nullptr) { // means I'm calling a pointer inside a struct
 
@@ -186,7 +192,9 @@ llvm::InvokeInst *FunctionCall::llvm_invoke(Codegen &gen, llvm::BasicBlock* norm
     auto decl = linked_func();
     auto fn = decl != nullptr ? (decl->llvm_func()) : nullptr;
     if(fn != nullptr) {
-        auto args = to_llvm_args(gen, this, values, fn->isVarArg());
+        auto type = decl->create_value_type();
+        std::vector<llvm::Value *> args;
+        to_llvm_args(gen, this, type->function_type(), values, fn->isVarArg(), args, nullptr);
         return gen.builder->CreateInvoke(fn, normal, unwind, args);
     } else {
         gen.error("Unknown function call through invoke ");

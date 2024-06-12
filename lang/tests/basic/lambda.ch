@@ -43,6 +43,13 @@ func ret_new_cap_lamb() : []()=>bool {
     }
 }
 
+/**
+struct SelfLambda {
+    var i : int
+    var lambda : (&self) => int;
+}
+**/
+
 func test_lambda() {
     test("testing non capturing lambda works", () => {
         return true;
@@ -157,6 +164,17 @@ func test_lambda() {
     test("a function can return lambdas", () => {
         return create_lamb(true)() == 5 && create_lamb(false)() == 10;
     })
+    /**
+    test("supports self lambdas", () => {
+        var self_lamb = SelfLambda {
+            i : 55,
+            lambda : (self) => {
+                return self.i * 2;
+            }
+        }
+        return self_lamb.lambda() == 110;
+    })
+    **/
 }
 
 func fn_rets_1() : int {

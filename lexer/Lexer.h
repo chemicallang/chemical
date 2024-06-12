@@ -576,7 +576,7 @@ public:
      * for example in expression a + b, after lexing a + b will lexed by this function
      * @param start is the start of the expression, index in tokens vector !
      */
-    void lexRemainingExpression(unsigned start);
+    bool lexRemainingExpression(unsigned start);
 
     /**
      * it will lex a lambda meaning '() => {}' in a paren expression
@@ -638,17 +638,6 @@ public:
     compound_from(unsigned int start, Args&&... args) {
         unsigned int size = tokens.size();
         tokens.emplace_back(std::make_unique<T>(take_from(start, size), std::forward<Args>(args)...));
-    }
-
-    /**
-     * put tokens in a compound token of specified type, starting from start and ending at range
-     * this should be used carefully as it sets next_compound_start to end
-     * meaning next compound token will begin at this compound_range's end
-     */
-    template<typename T, typename... Args>
-    std::enable_if_t<std::is_base_of_v<CSTToken, T>>
-    compound_range(unsigned int start, unsigned int end, Args&&... args) {
-        tokens.emplace_back(std::make_unique<T>(take_from(start, end), std::forward<Args>(args)...));
     }
 
     /**

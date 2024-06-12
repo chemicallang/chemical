@@ -156,11 +156,6 @@ public:
     std::unique_ptr<BaseType> type();
 
     /**
-     * consume the latest value optionally
-     */
-    std::optional<std::unique_ptr<Value>> opt_value();
-
-    /**
      * consume the latest type optionally
      */
     std::optional<std::unique_ptr<BaseType>> opt_type();

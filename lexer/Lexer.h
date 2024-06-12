@@ -264,7 +264,7 @@ public:
      * @param op
      * @return whether the token was found
      */
-    bool lexOperatorToken(char token, Operation op);
+    bool lexOperationToken(char token, Operation op);
 
     /**
      * lexes the given operator as a string operator token

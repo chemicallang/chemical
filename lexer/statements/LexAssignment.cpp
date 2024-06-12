@@ -9,35 +9,35 @@ bool Lexer::lexLanguageOperatorToken() {
     return lexOperatorToken("&&", Operation::LogicalAND) || // logical
            lexOperatorToken("||", Operation::LogicalOR) ||
            // arithmetic
-           lexOperatorToken('+', Operation::Addition) ||
-           lexOperatorToken('-', Operation::Subtraction) ||
-           lexOperatorToken('*', Operation::Multiplication) ||
-           lexOperatorToken('/', Operation::Division) ||
-           lexOperatorToken('%', Operation::Modulus) ||
-           lexOperatorToken('&', Operation::BitwiseAND) ||
-           lexOperatorToken('|', Operation::BitwiseOR) ||
-           lexOperatorToken('^', Operation::BitwiseXOR) ||
+           lexOperationToken('+', Operation::Addition) ||
+           lexOperationToken('-', Operation::Subtraction) ||
+           lexOperationToken('*', Operation::Multiplication) ||
+           lexOperationToken('/', Operation::Division) ||
+           lexOperationToken('%', Operation::Modulus) ||
+           lexOperationToken('&', Operation::BitwiseAND) ||
+           lexOperationToken('|', Operation::BitwiseOR) ||
+           lexOperationToken('^', Operation::BitwiseXOR) ||
            // shift
            lexOperatorToken("<<", Operation::LeftShift) ||
-           lexOperatorToken(">>", Operation::RightShift) ||
+            lexOperatorToken(">>", Operation::RightShift) ||
            // conditional
            lexOperatorToken(">=", Operation::GreaterThanOrEqual) ||
-           lexOperatorToken("<=", Operation::LessThanOrEqual) ||
-           lexOperatorToken('>', Operation::GreaterThan) ||
-           lexOperatorToken('<', Operation::LessThan) ||
-           lexOperatorToken("==", Operation::IsEqual) ||
+            lexOperatorToken("<=", Operation::LessThanOrEqual) ||
+            lexOperationToken('>', Operation::GreaterThan) ||
+            lexOperationToken('<', Operation::LessThan) ||
+            lexOperatorToken("==", Operation::IsEqual) ||
            lexOperatorToken("!=", Operation::IsNotEqual);
 }
 
 bool Lexer::lexAssignmentOperatorToken() {
-    return lexOperatorToken('+', Operation::Addition) ||
-           lexOperatorToken('-', Operation::Subtraction) ||
-           lexOperatorToken('*', Operation::Multiplication) ||
-           lexOperatorToken('/', Operation::Division) ||
-           lexOperatorToken('%', Operation::Modulus) ||
-           lexOperatorToken('&', Operation::BitwiseAND) ||
-           lexOperatorToken('|', Operation::BitwiseOR) ||
-           lexOperatorToken('^', Operation::BitwiseXOR) ||
+    return lexOperationToken('+', Operation::Addition) ||
+           lexOperationToken('-', Operation::Subtraction) ||
+           lexOperationToken('*', Operation::Multiplication) ||
+           lexOperationToken('/', Operation::Division) ||
+           lexOperationToken('%', Operation::Modulus) ||
+           lexOperationToken('&', Operation::BitwiseAND) ||
+           lexOperationToken('|', Operation::BitwiseOR) ||
+           lexOperationToken('^', Operation::BitwiseXOR) ||
            // shift
            lexOperatorToken("<<", Operation::LeftShift) ||
            lexOperatorToken(">>", Operation::RightShift);

@@ -424,6 +424,7 @@ set(COMMON_SOURCES
         utils/PathUtils.h
         integration/ide/bindings/SourceProviderCBI.h
         integration/ide/bindings/LexerCBI.h
+        integration/ide/bindings/CBI.cpp
 )
 
 # Chemical LSP Executable Target

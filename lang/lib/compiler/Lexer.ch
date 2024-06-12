@@ -27,7 +27,7 @@ struct Lexer {
      * lex an identifier token into tokens until the until character occurs
      * only lexes the token if the identifier is not empty
      */
-    var lexIdentifierToken : (&self) => void;
+    var lexIdentifierToken : (&self) => bool;
 
     /**
      * after an identifier has been consumed
@@ -449,7 +449,7 @@ struct Lexer {
      * for example in expression a + b, after lexing a + b will lexed by this function
      * @param start is the start of the expression, index in tokens vector !
      */
-    var lexRemainingExpression : (&self, start : uint) => void;
+    var lexRemainingExpression : (&self, start : uint) => bool;
 
     /**
      * it will lex a lambda meaning '() => {}' in a paren expression

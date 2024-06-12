@@ -1,5 +1,8 @@
 // Copyright (c) Qinetik 2024.
 
+#pragma once
+
+#include "SourceProviderCBI.h"
 #include "ast/utils/Operation.h"
 
 class Lexer;
@@ -18,90 +21,92 @@ class Lexer;
  * a instance member field is required, which is added at the end
  */
 struct LexerCBI {
-    struct SourceProvider* provider;
-    bool(*storeVariable)(struct Lexer*,char*);
-    bool(*storeIdentifier)(struct Lexer*,char*);
-    bool(*lexVariableToken)(struct Lexer*);
-    void(*lexIdentifierToken)(struct Lexer*);
-    bool(*lexAccessChainAfterId)(struct Lexer*,bool);
-    bool(*lexAccessChainRecursive)(struct Lexer*,bool);
-    bool(*lexAccessChain)(struct Lexer*,bool);
-    bool(*lexAccessChainOrAddrOf)(struct Lexer*,bool);
-    bool(*lexVarInitializationTokens)(struct Lexer*,bool,bool);
-    bool(*lexAssignmentTokens)(struct Lexer*);
-    bool(*lexLanguageOperatorToken)(struct Lexer*);
-    bool(*lexAssignmentOperatorToken)(struct Lexer*);
-    bool(*lexLambdaTypeTokens)(struct Lexer*,unsigned int);
-    bool(*lexTypeTokens)(struct Lexer*);
-    bool(*lexTopLevelStatementTokens)(struct Lexer*);
-    bool(*lexNestedLevelStatementTokens)(struct Lexer*);
-    bool(*lexStatementTokens)(struct Lexer*);
-    bool(*lexOperatorToken)(struct Lexer*,char);
-    bool(*lexOperatorTokenStr)(struct Lexer*,char*);
-    bool(*lexOperationToken)(struct Lexer*,char,Operation);
-    bool(*lexStrOperationToken)(struct Lexer*,char*,Operation);
-    bool(*lexKeywordToken)(struct Lexer*,char*);
-    void(*lexTopLevelMultipleStatementsTokens)(struct Lexer*);
-    void(*lexTopLevelMultipleImportStatements)(struct Lexer*);
-    void(*lexNestedLevelMultipleStatementsTokens)(struct Lexer*);
-    void(*lexMultipleStatementsTokens)(struct Lexer*);
-    bool(*lexSingleLineCommentTokens)(struct Lexer*);
-    bool(*lexMultiLineCommentTokens)(struct Lexer*);
-    bool(*lexBraceBlock)(struct Lexer*,char*);
-    void(*lexIfExpression)(struct Lexer*);
-    bool(*lexImportIdentifierList)(struct Lexer*);
-    bool(*lexImportStatement)(struct Lexer*);
-    bool(*lexReturnStatement)(struct Lexer*);
-    bool(*lexBreakStatement)(struct Lexer*);
-    bool(*lexTypealiasStatement)(struct Lexer*);
-    bool(*lexContinueStatement)(struct Lexer*);
-    void(*lexIfExprAndBlock)(struct Lexer*);
-    bool(*lexIfBlockTokens)(struct Lexer*);
-    bool(*lexDoWhileBlockTokens)(struct Lexer*);
-    bool(*lexWhileBlockTokens)(struct Lexer*);
-    bool(*lexForBlockTokens)(struct Lexer*);
-    void(*lexParameterList)(struct Lexer*,bool,bool);
-    bool(*lexFunctionSignatureTokens)(struct Lexer*);
-    bool(*lexAfterFuncKeyword)(struct Lexer*);
-    bool(*lexFunctionStructureTokens)(struct Lexer*,bool);
-    void(*lexInterfaceBlockTokens)(struct Lexer*);
-    bool(*lexInterfaceStructureTokens)(struct Lexer*);
-    bool(*lexStructMemberTokens)(struct Lexer*);
-    void(*lexStructBlockTokens)(struct Lexer*);
-    bool(*lexStructStructureTokens)(struct Lexer*);
-    bool(*collectStructAsLexer)(struct Lexer*,unsigned int,unsigned int);
-    void(*lexImplBlockTokens)(struct Lexer*);
-    bool(*lexImplTokens)(struct Lexer*);
-    bool(*lexEnumBlockTokens)(struct Lexer*);
-    bool(*lexEnumStructureTokens)(struct Lexer*);
-    bool(*lexWhitespaceToken)(struct Lexer*);
-    void(*lexWhitespaceAndNewLines)(struct Lexer*);
-    bool(*lexStringToken)(struct Lexer*);
-    bool(*lexCharToken)(struct Lexer*);
-    bool(*lexAnnotationMacro)(struct Lexer*);
-    bool(*lexNull)(struct Lexer*);
-    bool(*lexBoolToken)(struct Lexer*);
-    bool(*lexUnsignedIntAsNumberToken)(struct Lexer*);
-    bool(*lexNumberToken)(struct Lexer*);
-    bool(*lexStructValueTokens)(struct Lexer*);
-    bool(*lexValueToken)(struct Lexer*);
-    bool(*lexAccessChainValueToken)(struct Lexer*);
-    bool(*lexArrayInit)(struct Lexer*);
-    bool(*lexAccessChainOrValue)(struct Lexer*,bool);
-    void(*lexIdentifierList)(struct Lexer*);
-    void(*lexLambdaAfterParamsList)(struct Lexer*,unsigned int);
-    bool(*lexLambdaValue)(struct Lexer*);
-    void(*lexRemainingExpression)(struct Lexer*,unsigned int);
-    bool(*lexLambdaAfterLParen)(struct Lexer*);
-    void(*lexParenExpressionAfterLParen)(struct Lexer*);
-    bool(*lexParenExpression)(struct Lexer*);
-    bool(*lexExpressionTokens)(struct Lexer*,bool,bool);
-    bool(*lexSwitchStatementBlock)(struct Lexer*);
-    bool(*lexTryCatchTokens)(struct Lexer*);
+    struct SourceProviderCBI* provider;
+
+    bool(*storeVariable)(struct LexerCBI*,char*);
+    bool(*storeIdentifier)(struct LexerCBI*,char*);
+    bool(*lexVariableToken)(struct LexerCBI*);
+    bool(*lexIdentifierToken)(struct LexerCBI*);
+    bool(*lexAccessChainAfterId)(struct LexerCBI*,bool);
+    bool(*lexAccessChainRecursive)(struct LexerCBI*,bool);
+    bool(*lexAccessChain)(struct LexerCBI*,bool);
+    bool(*lexAccessChainOrAddrOf)(struct LexerCBI*,bool);
+    bool(*lexVarInitializationTokens)(struct LexerCBI*,bool,bool);
+    bool(*lexAssignmentTokens)(struct LexerCBI*);
+    bool(*lexLanguageOperatorToken)(struct LexerCBI*);
+    bool(*lexAssignmentOperatorToken)(struct LexerCBI*);
+    bool(*lexLambdaTypeTokens)(struct LexerCBI*,unsigned int);
+    bool(*lexTypeTokens)(struct LexerCBI*);
+    bool(*lexTopLevelStatementTokens)(struct LexerCBI*);
+    bool(*lexNestedLevelStatementTokens)(struct LexerCBI*);
+    bool(*lexStatementTokens)(struct LexerCBI*);
+    bool(*lexOperatorToken)(struct LexerCBI*,char);
+    bool(*lexOperatorTokenStr)(struct LexerCBI*,char*);
+    bool(*lexOperationToken)(struct LexerCBI*,char,Operation);
+    bool(*lexStrOperationToken)(struct LexerCBI*,char*,Operation);
+    bool(*lexKeywordToken)(struct LexerCBI*,char*);
+    void(*lexTopLevelMultipleStatementsTokens)(struct LexerCBI*);
+    void(*lexTopLevelMultipleImportStatements)(struct LexerCBI*);
+    void(*lexNestedLevelMultipleStatementsTokens)(struct LexerCBI*);
+    void(*lexMultipleStatementsTokens)(struct LexerCBI*);
+    bool(*lexSingleLineCommentTokens)(struct LexerCBI*);
+    bool(*lexMultiLineCommentTokens)(struct LexerCBI*);
+    bool(*lexBraceBlock)(struct LexerCBI*,char*);
+    void(*lexIfExpression)(struct LexerCBI*);
+    bool(*lexImportIdentifierList)(struct LexerCBI*);
+    bool(*lexImportStatement)(struct LexerCBI*);
+    bool(*lexReturnStatement)(struct LexerCBI*);
+    bool(*lexBreakStatement)(struct LexerCBI*);
+    bool(*lexTypealiasStatement)(struct LexerCBI*);
+    bool(*lexContinueStatement)(struct LexerCBI*);
+    void(*lexIfExprAndBlock)(struct LexerCBI*);
+    bool(*lexIfBlockTokens)(struct LexerCBI*);
+    bool(*lexDoWhileBlockTokens)(struct LexerCBI*);
+    bool(*lexWhileBlockTokens)(struct LexerCBI*);
+    bool(*lexForBlockTokens)(struct LexerCBI*);
+    void(*lexParameterList)(struct LexerCBI*,bool,bool);
+    bool(*lexFunctionSignatureTokens)(struct LexerCBI*);
+    bool(*lexAfterFuncKeyword)(struct LexerCBI*);
+    bool(*lexFunctionStructureTokens)(struct LexerCBI*,bool);
+    void(*lexInterfaceBlockTokens)(struct LexerCBI*);
+    bool(*lexInterfaceStructureTokens)(struct LexerCBI*);
+    bool(*lexStructMemberTokens)(struct LexerCBI*);
+    void(*lexStructBlockTokens)(struct LexerCBI*);
+    bool(*lexStructStructureTokens)(struct LexerCBI*);
+    bool(*collectStructAsLexer)(struct LexerCBI*,unsigned int,unsigned int);
+    void(*lexImplBlockTokens)(struct LexerCBI*);
+    bool(*lexImplTokens)(struct LexerCBI*);
+    bool(*lexEnumBlockTokens)(struct LexerCBI*);
+    bool(*lexEnumStructureTokens)(struct LexerCBI*);
+    bool(*lexWhitespaceToken)(struct LexerCBI*);
+    void(*lexWhitespaceAndNewLines)(struct LexerCBI*);
+    bool(*lexStringToken)(struct LexerCBI*);
+    bool(*lexCharToken)(struct LexerCBI*);
+    bool(*lexAnnotationMacro)(struct LexerCBI*);
+    bool(*lexNull)(struct LexerCBI*);
+    bool(*lexBoolToken)(struct LexerCBI*);
+    bool(*lexUnsignedIntAsNumberToken)(struct LexerCBI*);
+    bool(*lexNumberToken)(struct LexerCBI*);
+    bool(*lexStructValueTokens)(struct LexerCBI*);
+    bool(*lexValueToken)(struct LexerCBI*);
+    bool(*lexAccessChainValueToken)(struct LexerCBI*);
+    bool(*lexArrayInit)(struct LexerCBI*);
+    bool(*lexAccessChainOrValue)(struct LexerCBI*,bool);
+    void(*lexIdentifierList)(struct LexerCBI*);
+    void(*lexLambdaAfterParamsList)(struct LexerCBI*,unsigned int);
+    bool(*lexLambdaValue)(struct LexerCBI*);
+    bool(*lexRemainingExpression)(struct LexerCBI*,unsigned int);
+    bool(*lexLambdaAfterLParen)(struct LexerCBI*);
+    void(*lexParenExpressionAfterLParen)(struct LexerCBI*);
+    bool(*lexParenExpression)(struct LexerCBI*);
+    bool(*lexExpressionTokens)(struct LexerCBI*,bool,bool);
+    bool(*lexSwitchStatementBlock)(struct LexerCBI*);
+    bool(*lexTryCatchTokens)(struct LexerCBI*);
     Lexer* instance;
 };
 
-void init_lexer_cbi(LexerCBI* cbi, Lexer* lexer) {
-    cbi->instance = lexer;
-
-}
+/**
+ * this function should be called on cbi, to make it a valid binding
+ * now cbi is ready to be invoked, to use it, pass it to a user
+ */
+void init_lexer_cbi(LexerCBI* cbi, Lexer* lexer);

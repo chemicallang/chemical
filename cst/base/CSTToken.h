@@ -135,7 +135,7 @@ public:
      * check if its a type
      */
     bool is_type() {
-        return is_comp_type() && type() == LexTokenType::Type;
+        return is_comp_type() || type() == LexTokenType::Type;
     }
 
     /**

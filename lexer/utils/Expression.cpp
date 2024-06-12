@@ -12,31 +12,34 @@
 #include "cst/structures/FunctionCST.h"
 #include "cst/values/AccessChainCST.h"
 
-void Lexer::lexRemainingExpression(unsigned start) {
+bool Lexer::lexRemainingExpression(unsigned start) {
 
     lexWhitespaceToken();
     if (lexKeywordToken("as")) {
         lexWhitespaceToken();
         if (!lexTypeTokens()) {
             error("expected a type for casting after 'as' in expression");
-            return;
+            return true;
         }
         compound_from<CastCST>(start);
-        return;
+        return true;
     }
     if (!lexLanguageOperatorToken()) {
-        return;
+        return false;
     }
     lexWhitespaceToken();
     if (!lexExpressionTokens(false, false)) {
         error("expected an expression after the operator token in the expression");
-        return;
+        return true;
     }
 
     compound_from<ExpressionCST>(start);
+    return true;
 
 }
 
+// lexes lambda after comma which occurs after a parameter param : type,  <-----
+// this can be called after lparen to lex lambda, if it has no parameter
 bool condLexLambdaAfterComma(Lexer *lexer, unsigned int start) {
     lexer->lexNewLineChars();
     if (!lexer->lexOperatorToken(')')) {
@@ -68,8 +71,9 @@ bool Lexer::lexLambdaAfterLParen() {
 
     bool has_whitespace = lexWhitespaceToken();
 
-    if (lexOperatorToken(')')) {
-        compound_range<FunctionParamCST>(start, tokens.size() - 1);
+    if (provider.peek() == ')') {
+        compound_from<FunctionParamCST>(start + 1);
+        lexOperatorToken(')');
         lexLambdaAfterParamsList(start);
         return true;
     } else if (lexOperatorToken(':')) {
@@ -79,7 +83,7 @@ bool Lexer::lexLambdaAfterLParen() {
         } else {
             error("expected a type after ':' when lexing a lambda in parenthesized expression");
         }
-        compound_from<FunctionParamCST>(start);
+        compound_from<FunctionParamCST>(start + 1);
         if (lexOperatorToken(',')) {
             lexParameterList(true, false);
         }
@@ -162,7 +166,9 @@ bool Lexer::lexExpressionTokens(bool lexStruct, bool lambda) {
             return true;
         }
         lexParenExpressionAfterLParen();
-        lexRemainingExpression(start);
+        if(!lexRemainingExpression(start)) {
+            compound_from<ExpressionCST>(start);
+        }
         return true;
     }
 

@@ -136,11 +136,6 @@ std::unique_ptr<BaseType> CSTConverter::type() {
     return type;
 }
 
-std::optional<std::unique_ptr<Value>> CSTConverter::opt_value() {
-    if (values.empty()) return std::nullopt;
-    return value();
-}
-
 std::optional<std::unique_ptr<BaseType>> CSTConverter::opt_type() {
     if (types.empty()) return std::nullopt;
     return type();
@@ -151,7 +146,10 @@ void CSTConverter::visitFunctionParam(CompoundCSTToken *param) {
     visit(param->tokens, 2);
     BaseType *baseType;
     if (optional_param_types) {
-        auto t = opt_type();
+        std::optional<std::unique_ptr<BaseType>> t = std::nullopt;
+        if(2 < param->tokens.size() && param->tokens[2]->is_type()) {
+            t.emplace(type());
+        }
         if (t.has_value()) {
             baseType = t.value().release();
         } else {
@@ -160,8 +158,13 @@ void CSTConverter::visitFunctionParam(CompoundCSTToken *param) {
     } else {
         baseType = type().release();
     }
+    std::optional<std::unique_ptr<Value>> def_value = std::nullopt;
+    if(param->tokens.back()->is_value()) {
+        param->tokens.back()->accept(this);
+        def_value.emplace(value());
+    }
     nodes.emplace_back(std::make_unique<FunctionParam>(identifier, std::unique_ptr<BaseType>(baseType), param_index,
-                                            opt_value()));
+                                            std::move(def_value)));
 }
 
 // will probably leave the index at ')'
@@ -183,7 +186,12 @@ FunctionParamsResult CSTConverter::function_params(cst_tokens_ref_type tokens, u
                                                                            : current_impl_decl->struct_name.value());
             params.emplace_back(new FunctionParam(strId, std::make_unique<PointerType>(
                     std::make_unique<ReferencedType>(type)), 0, std::nullopt));
-        } else if (tokens[i]->compound()) {
+        }
+//        else if(optional_param_types && tokens[i]->type() == LexTokenType::Variable) {
+//            auto strId = str_token(tokens[1].get());
+//            params.emplace_back(new FunctionParam(strId, std::make_unique<VoidType>(), 0, std::nullopt));
+//        }
+        else if (tokens[i]->compound()) {
             tokens[i]->accept(this);
             param_index++;
             auto param = (FunctionParam *) nodes.back().release();
@@ -214,14 +222,16 @@ void CSTConverter::visitFunction(CompoundCSTToken *function) {
 
     auto i = params.index;
 
+    std::optional<std::unique_ptr<BaseType>> returnType = std::nullopt;
+
     if (i + 1 < function->tokens.size() && is_char_op(function->tokens[i + 1].get(), ':')) {
         function->tokens[i + 2]->accept(this);
+        returnType.emplace(type());
         i += 3; // position at body
     } else {
         i++;
     }
 
-    auto returnType = opt_type();
     if (!returnType.has_value()) {
         returnType.emplace(std::make_unique<VoidType>());
     }
@@ -343,8 +353,12 @@ void CSTConverter::visitImport(CompoundCSTToken *cst) {
 }
 
 void CSTConverter::visitReturn(CompoundCSTToken *cst) {
-    visit(cst->tokens, 1);
-    nodes.emplace_back(std::make_unique<ReturnStatement>(opt_value(), current_func_decl));
+    std::optional<std::unique_ptr<Value>> return_value = std::nullopt;
+    if(1 < cst->tokens.size() && cst->tokens[1]->is_value()) {
+        cst->tokens[1]->accept(this);
+        return_value.emplace(value());
+    }
+    nodes.emplace_back(std::make_unique<ReturnStatement>(std::move(return_value), current_func_decl));
 }
 
 void CSTConverter::visitTypealias(CompoundCSTToken *alias) {
@@ -706,7 +720,11 @@ void CSTConverter::visitGenericType(CompoundCSTToken *cst) {
 
 void CSTConverter::visitArrayType(CompoundCSTToken *arrayType) {
     convert(arrayType->tokens);
-    auto val = opt_value();
+    std::optional<std::unique_ptr<Value>> val = std::nullopt;
+    if(arrayType->tokens[2]->is_value()) {
+        arrayType->tokens[2]->accept(this);
+        val.emplace(value());
+    }
     auto arraySize = (val.has_value() && val.value()->value_type() == ValueType::Int) ? val.value()->as_int() : -1;
     types.emplace_back(std::make_unique<ArrayType>(std::move(type()), arraySize));
 }
@@ -798,8 +816,11 @@ void CSTConverter::visitArrayValue(CompoundCSTToken *arrayValue) {
     std::optional<std::unique_ptr<BaseType>> arrType = std::nullopt;
     std::vector<unsigned int> sizes;
     if (i < arrayValue->tokens.size()) {
-        arrayValue->tokens[i++]->accept(this);
-        arrType = opt_type();
+        if(arrayValue->tokens[i]->is_type()) {
+            arrayValue->tokens[i]->accept(this);
+            arrType.emplace(type());
+        }
+        i++;
         if (i < arrayValue->tokens.size() && char_op(arrayValue->tokens[i++].get()) == '(') {
             while (i < arrayValue->tokens.size() && char_op(arrayValue->tokens[i].get()) != ')') {
                 if (char_op(arrayValue->tokens[i].get()) != ',') {
@@ -899,14 +920,17 @@ void visitNestedExpr(CSTConverter *converter, CSTToken *expr, ValueAndOperatorSt
             auto first_val_index = is_braced ? 1 : 0;
             auto op_index = is_braced ? 3 : 1;
             auto second_val_index = op_index + 1;
-            if (is_braced) { //    - a left parenthesis (i.e. "("):
+            if (is_braced) { //    - a left parenthesis '(':
                 // push it onto the operator stack
                 op_stack.putCharacter('(');
             }
             // visiting the first value
             visitNestedExpr(converter, nested->tokens[first_val_index].get(), op_stack, output);
-            if (is_braced) { // a right parenthesis (i.e. ")"):
+            if (is_braced) { // a right parenthesis ')':
                 sy_onRParen(op_stack, output);
+            }
+            if(nested->tokens.size() <= op_index) { // no operator present, just expression like '(' 'nested_expr' ')'
+                return;
             }
             auto o1 = get_operation(nested->tokens[op_index].get());
 //            while (
@@ -938,6 +962,11 @@ void visitNestedExpr(CSTConverter *converter, CSTToken *expr, ValueAndOperatorSt
 
 void CSTConverter::visitExpression(CompoundCSTToken *expr) {
     auto is_braced = is_char_op(expr->tokens[0].get(), '(');
+    if(is_braced && is_char_op(expr->tokens[2].get(), ')') && expr->tokens.size() <= 3) {
+        // handles braced expression (1 + 1) that's it
+        expr->tokens[1]->accept(this);
+        return;
+    }
     auto first_val_index = is_braced ? 1 : 0;
     auto op_index = is_braced ? 3 : 1;
     auto second_val_index = op_index + 1;

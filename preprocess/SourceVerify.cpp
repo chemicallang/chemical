@@ -27,7 +27,7 @@ bool verify(const std::string &path, SourceVerifierOptions *options) {
     converter.no_imports = true;
 
     // creating symbol resolver
-    SymbolResolver resolver(options->exe_path, path, true);
+    SymbolResolver resolver(path, true);
 
     // the processor that does everything
     ASTProcessor processor(

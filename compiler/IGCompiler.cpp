@@ -36,7 +36,7 @@ bool compile(Codegen *gen, const std::string &path, IGCompilerOptions *options) 
     converter.no_imports = true;
 
     // creating symbol resolver
-    SymbolResolver resolver(options->exe_path, path, options->is64Bit);
+    SymbolResolver resolver(path, options->is64Bit);
 
     // the processor that does everything
     ASTProcessor processor(

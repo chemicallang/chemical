@@ -1,6 +1,7 @@
 // Copyright (c) Qinetik 2024.
 
 #include "ast/base/Visitor.h"
+#include "compiler/ASTDiagnoser.h"
 #include <iosfwd>
 #include <string>
 #include <vector>
@@ -9,7 +10,7 @@
 class CTopLevelDeclarationVisitor;
 class CValueDeclarationVisitor;
 
-class ToCAstVisitor : public Visitor {
+class ToCAstVisitor : public Visitor, public ASTDiagnoser {
 public:
 
     /**
@@ -60,8 +61,9 @@ public:
 
     /**
      * constructor
+     * @param path the current file path being processed
      */
-    ToCAstVisitor(std::ostream& output);
+    ToCAstVisitor(std::ostream& output, const std::string& path);
 
     /**
      * used to write a character to the stream

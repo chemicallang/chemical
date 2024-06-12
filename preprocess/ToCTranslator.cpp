@@ -44,7 +44,7 @@ bool translate(const std::string &path, ToCTranslatorOptions *options) {
     converter.no_imports = true;
 
     // creating symbol resolver
-    SymbolResolver resolver(options->exe_path, path, true);
+    SymbolResolver resolver(path, true);
 
     // the processor that does everything
     ASTProcessor processor(
@@ -69,7 +69,7 @@ bool translate(const std::string &path, ToCTranslatorOptions *options) {
         std::cerr << "[2C] Failed to open path : " << options->output_path << std::endl;
         return false;
     }
-    ToCAstVisitor visitor(stream);
+    ToCAstVisitor visitor(stream, path);
 
     // preparing translation
     visitor.prepare_translate();
@@ -84,6 +84,7 @@ bool translate(const std::string &path, ToCTranslatorOptions *options) {
         }
 
         // translating the nodes
+        visitor.current_path = file.abs_path;
         visitor.translate(result.scope.nodes);
         processor.file_nodes.emplace_back(std::move(result.scope.nodes));
 

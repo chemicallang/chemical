@@ -28,7 +28,7 @@ public:
     /**
      * constructor
      */
-    SymbolResolver(std::string curr_exe_path, const std::string& path, bool is64Bit);
+    SymbolResolver(const std::string& path, bool is64Bit);
 
     /**
      * similar to codegen it also has imported map

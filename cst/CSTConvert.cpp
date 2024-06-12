@@ -617,8 +617,8 @@ void CSTConverter::visitDoWhile(CompoundCSTToken *doWhileCst) {
 unsigned int collect_struct_members(
         CSTConverter *conv,
         std::vector<std::unique_ptr<CSTToken>> &tokens,
-        std::map<std::string, std::unique_ptr<StructMember>> &variables,
-        std::map<std::string, std::unique_ptr<FunctionDeclaration>> &decls,
+        tsl::ordered_map<std::string, std::unique_ptr<StructMember>> &variables,
+        tsl::ordered_map<std::string, std::unique_ptr<FunctionDeclaration>> &decls,
         unsigned i
 ) {
     while (!is_char_op(tokens[i].get(), '}')) {

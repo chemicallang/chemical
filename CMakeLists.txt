@@ -495,12 +495,14 @@ target_include_directories(ChemicalLsp PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${LIBTCC_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/tsl-ordered-map
 )
 
 # Add include directories for LspCpp
 target_include_directories(Interpreter PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/tsl-ordered-map
 )
 
 # Add include directories for Compiler
@@ -512,6 +514,7 @@ target_include_directories(Compiler PRIVATE
         ${LLD_INCLUDE_DIRS}
         ${CLANG_INCLUDE_DIRS}
         ${LIBTCC_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/tsl-ordered-map
 )
 
 # find the libraries that correspond to llvm

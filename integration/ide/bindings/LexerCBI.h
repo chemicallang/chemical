@@ -21,8 +21,7 @@ class Lexer;
  * a instance member field is required, which is added at the end
  */
 struct LexerCBI {
-    struct SourceProviderCBI* provider;
-
+    struct SourceProviderCBI provider;
     bool(*storeVariable)(struct LexerCBI*,char*);
     bool(*storeIdentifier)(struct LexerCBI*,char*);
     bool(*lexVariableToken)(struct LexerCBI*);

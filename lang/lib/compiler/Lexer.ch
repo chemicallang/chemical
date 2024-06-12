@@ -3,7 +3,7 @@ import "./Operation.ch"
 
 struct Lexer {
 
-    var provider : SourceProvider*;
+    var provider : SourceProvider;
 
     /**
      * consumes a identifier and store as a variable token

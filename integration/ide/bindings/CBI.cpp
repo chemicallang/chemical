@@ -6,7 +6,8 @@
 #include "stream/SourceProvider.h"
 
 void init_lexer_cbi(LexerCBI* cbi, Lexer* lexer) {
-    struct SourceProviderCBI* provider;
+    cbi->instance = lexer;
+    init_source_provider_cbi(&cbi->provider, &lexer->provider);
     cbi->storeVariable = [](LexerCBI* cbi, char* variable){
         return cbi->instance->storeVariable(variable);
     };
@@ -244,10 +245,10 @@ void init_lexer_cbi(LexerCBI* cbi, Lexer* lexer) {
     cbi->lexTryCatchTokens = [](LexerCBI* cbi){
         return cbi->instance->lexTryCatchTokens();
     };
-    Lexer* instance;
 }
 
 void init_source_provider_cbi(SourceProviderCBI* cbi, SourceProvider* provider) {
+    cbi->instance = provider;
     cbi->currentPosition = [](struct SourceProviderCBI* cbi){
         return cbi->instance->currentPosition();
     };
@@ -322,5 +323,4 @@ void init_source_provider_cbi(SourceProviderCBI* cbi, SourceProvider* provider) 
     cbi->readWhitespacesAndNewLines = [](struct SourceProviderCBI* cbi){
         return cbi->instance->readWhitespacesAndNewLines();
     };
-    cbi->instance = provider;
 }

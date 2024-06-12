@@ -141,6 +141,13 @@ std::optional<std::unique_ptr<BaseType>> CSTConverter::opt_type() {
     return type();
 }
 
+PointerType* current_self_pointer(CSTConverter* converter) {
+    auto type = converter->current_struct_decl ? converter->current_struct_decl->name : (converter->current_interface_decl
+                                                                   ? converter->current_interface_decl->name
+                                                                   : converter->current_impl_decl->struct_name.value());
+    return new PointerType(std::make_unique<ReferencedType>(type));
+}
+
 void CSTConverter::visitFunctionParam(CompoundCSTToken *param) {
     auto identifier = str_token(param->tokens[0].get());
     visit(param->tokens, 2);
@@ -181,11 +188,7 @@ FunctionParamsResult CSTConverter::function_params(cst_tokens_ref_type tokens, u
             if (strId != "this" && strId != "self") {
                 error("expected self parameter to be named 'self' or 'this'", tokens[i].get());
             }
-            auto type = current_struct_decl ? current_struct_decl->name : (current_interface_decl
-                                                                           ? current_interface_decl->name
-                                                                           : current_impl_decl->struct_name.value());
-            params.emplace_back(new FunctionParam(strId, std::make_unique<PointerType>(
-                    std::make_unique<ReferencedType>(type)), 0, std::nullopt));
+            params.emplace_back(new FunctionParam(strId, std::unique_ptr<PointerType>(current_self_pointer(this)), 0, std::nullopt));
         }
 //        else if(optional_param_types && tokens[i]->type() == LexTokenType::Variable) {
 //            auto strId = str_token(tokens[1].get());

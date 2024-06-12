@@ -102,6 +102,13 @@ std::string FunctionType::representation() const {
     return rep;
 }
 
+void FunctionType::link(SymbolResolver &linker) {
+    for (auto &param: params) {
+        param->declare_and_link(linker);
+    }
+    returnType->link(linker);
+}
+
 BaseType *FunctionType::copy() const {
     std::vector<std::unique_ptr<FunctionParam>> copied;
     for (auto &param: params) {

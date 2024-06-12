@@ -27,6 +27,8 @@ public:
         visitor->visit(this);
     }
 
+    void link(SymbolResolver &linker) override;
+
     BaseTypeKind kind() const override {
         return BaseTypeKind::Function;
     }

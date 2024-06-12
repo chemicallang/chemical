@@ -21,18 +21,6 @@ public:
     bool has_errors = false;
 
     /**
-     * path to the current executable, arg[0]
-     * this is useful if in the middle of code generation
-     * we want to invoke the compiler to get more information !
-     */
-    std::string curr_exe_path;
-
-    /**
-     * root path to the file, the path to file where code gen started
-     */
-    std::string path;
-
-    /**
      * path to the current file being code_gen
      */
     std::string current_path;
@@ -45,7 +33,7 @@ public:
     /**
      * constructor
      */
-    ASTDiagnoser(std::string curr_exe_path, const std::string& path);
+    ASTDiagnoser(const std::string& path);
 
     /**
      * the tag of the process, which will be appended to errors

@@ -8,7 +8,7 @@
 
 #define ANSI_COLOR_RESET   "\x1b[0m"
 
-ASTDiagnoser::ASTDiagnoser(std::string curr_exe_path, const std::string& path) : curr_exe_path(std::move(curr_exe_path)), current_path(path), path(path) {
+ASTDiagnoser::ASTDiagnoser(const std::string& path) : current_path(path) {
 
 }
 

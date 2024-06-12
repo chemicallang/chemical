@@ -1,5 +1,7 @@
 // Copyright (c) Qinetik 2024.
 
+#pragma once
+
 class SourceProvider;
 
 /**
@@ -16,29 +18,35 @@ class SourceProvider;
  * a instance member field is required, which is added to the end
  */
 struct SourceProviderCBI {
-    unsigned int(*currentPosition)(struct SourceProvider*);
-    char(*readCharacter)(struct SourceProvider*);
-    bool(*eof)(struct SourceProvider*);
-    char(*peek)(struct SourceProvider*);
-    char(*peek_at)(struct SourceProvider*,int);
-    char*(*readUntil)(struct SourceProvider*,char);
-    bool(*increment)(struct SourceProvider*,char*,bool);
-    bool(*increment_char)(struct SourceProvider*,char);
-    char*(*readAllFromHere)(struct SourceProvider*);
-    unsigned int(*getLineNumber)(struct SourceProvider*);
-    unsigned int(*getLineCharNumber)(struct SourceProvider*);
-    void(*readEscaping)(struct SourceProvider*,char**,char);
-    char*(*readAnything)(struct SourceProvider*,char);
-    char*(*readAlpha)(struct SourceProvider*);
-    char*(*readUnsignedInt)(struct SourceProvider*);
-    char*(*readNumber)(struct SourceProvider*);
-    char*(*readAlphaNum)(struct SourceProvider*);
-    char*(*readIdentifier)(struct SourceProvider*);
-    void(*readAnnotationIdentifierInto)(struct SourceProvider*,char**);
-    char*(*readAnnotationIdentifier)(struct SourceProvider*);
-    unsigned int(*readWhitespaces)(struct SourceProvider*);
-    bool(*hasNewLine)(struct SourceProvider*);
-    bool(*readNewLineChars)(struct SourceProvider*);
-    void(*readWhitespacesAndNewLines)(struct SourceProvider*);
+    unsigned int(*currentPosition)(struct SourceProviderCBI*);
+    char(*readCharacter)(struct SourceProviderCBI*);
+    bool(*eof)(struct SourceProviderCBI*);
+    char(*peek)(struct SourceProviderCBI*);
+    char(*peek_at)(struct SourceProviderCBI*,int);
+    char*(*readUntil)(struct SourceProviderCBI*,char);
+    bool(*increment)(struct SourceProviderCBI*,char*,bool);
+    bool(*increment_char)(struct SourceProviderCBI*,char);
+    char*(*readAllFromHere)(struct SourceProviderCBI*);
+    unsigned int(*getLineNumber)(struct SourceProviderCBI*);
+    unsigned int(*getLineCharNumber)(struct SourceProviderCBI*);
+    void(*readEscaping)(struct SourceProviderCBI*,char*,char);
+    char*(*readAnything)(struct SourceProviderCBI*,char);
+    char*(*readAlpha)(struct SourceProviderCBI*);
+    char*(*readUnsignedInt)(struct SourceProviderCBI*);
+    char*(*readNumber)(struct SourceProviderCBI*);
+    char*(*readAlphaNum)(struct SourceProviderCBI*);
+    char*(*readIdentifier)(struct SourceProviderCBI*);
+    void(*readAnnotationIdentifierInto)(struct SourceProviderCBI*,char*);
+    char*(*readAnnotationIdentifier)(struct SourceProviderCBI*);
+    unsigned int(*readWhitespaces)(struct SourceProviderCBI*);
+    bool(*hasNewLine)(struct SourceProviderCBI*);
+    bool(*readNewLineChars)(struct SourceProviderCBI*);
+    void(*readWhitespacesAndNewLines)(struct SourceProviderCBI*);
     SourceProvider* instance;
 };
+
+/**
+ * this function should be called on cbi, to make it a valid binding
+ * now cbi is ready to be invoked, to use it, pass it to a user
+ */
+void init_source_provider_cbi(SourceProviderCBI* cbi, SourceProvider* provider);

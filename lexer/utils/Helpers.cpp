@@ -28,7 +28,7 @@ bool Lexer::lexOperatorToken(const std::string& op) {
     }
 }
 
-bool Lexer::lexOperatorToken(char token, Operation op) {
+bool Lexer::lexOperationToken(char token, Operation op) {
     if(provider.increment(token)) {
         std::string value;
         value.append(std::to_string((int) op));

@@ -1,6 +1,8 @@
 // Copyright (c) Qinetik 2024.
 
 #include "LambdaFunction.h"
+
+#include <memory>
 #include "ast/structures/FunctionDeclaration.h"
 #include "FunctionCall.h"
 #include "ast/types/FunctionType.h"
@@ -11,6 +13,8 @@
 #include "ast/statements/VarInit.h"
 #include "ast/base/LoopASTNode.h"
 #include "ast/values/StructValue.h"
+#include "ast/types/PointerType.h"
+#include "ast/types/ReferencedType.h"
 
 #ifdef COMPILER_BUILD
 
@@ -173,6 +177,12 @@ void LambdaFunction::link(SymbolResolver &linker, VarInitStatement *stmnt) {
 
 void LambdaFunction::link(SymbolResolver &linker, StructValue *value, const std::string &name) {
     func_type = std::shared_ptr<FunctionType>((FunctionType*) value->definition->child(name)->create_value_type().release());
+    if(!params.empty()) {
+        auto& param = params[0];
+        if((param->name == "self" || param->name == "this") && param->type->kind() == BaseTypeKind::Void) {
+            param->type = std::make_unique<PointerType>(std::make_unique<ReferencedType>(value->definition->name, value->definition));
+        }
+    }
     link_full(this, linker);
 }
 

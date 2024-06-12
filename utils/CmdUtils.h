@@ -104,9 +104,12 @@ struct CmdOptions {
      * @param small_opt the small option key used with -x (single dash)
      * @return
      */
-    std::optional<std::string> option(const std::string& opt, const std::string& small_opt, bool consume = true) {
+    std::optional<std::string> option(const std::string& opt, const std::string& small_opt = "", bool consume = true) {
         auto whole = options.find(opt);
         if(whole == options.end()) {
+            if(small_opt.empty()) {
+                return std::nullopt;
+            }
             auto half = options.find(small_opt);
             if(half == options.end()) {
                 return std::nullopt;

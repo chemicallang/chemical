@@ -29,14 +29,14 @@ struct SourceProvider {
     /**
      * peaks the character at current pos + ahead
      */
-    var peek : (&self, offset : int) => char;
+    var peek_at : (&self, offset : int) => char;
 
     /**
      * reads the stream until this (stop) character occurs
      * @param stop the stopping character
      * @return everything read until stop character, it doesn't include the stopping character
      */
-    var readUntil : (&self, stop : char) : string;
+    var readUntil : (&self, stop : char) => string;
 
     /**
      * if text is present at current pos in the stream, increments the stream with text.length()
@@ -44,14 +44,14 @@ struct SourceProvider {
      * @param peek peeks only, doesn't increment
      * @return true if incremented by text length otherwise false
      */
-    var increment : (&self, text : string, peek : bool) : bool;
+    var increment : (&self, text : string, peek : bool) => bool;
 
     /**
      * if char c is present at current pos, increments the stream with character
      * @param c character to look for
      * @return true if incremented by character length = 1, otherwise false
      */
-    var increment : (&self, c : char) : bool;
+    var increment_char : (&self, c : char) => bool;
 
     /**
      * this will read all the text from current position to end in a string and return it
@@ -113,7 +113,7 @@ struct SourceProvider {
     /**
      * reads a single annotation into given string, this doesn't read '@'
      */
-    var readAnnotationIdentifier : (&self, into : string*) => void;
+    var readAnnotationIdentifierInto : (&self, into : string*) => void;
 
     /**
      * reads a single annotation, this doesn't read '@'

@@ -1,6 +1,7 @@
 import "./SourceProvider.ch"
+import "./Operation.ch"
 
-class Lexer {
+struct Lexer {
 
     var provider : SourceProvider*;
 
@@ -56,7 +57,7 @@ class Lexer {
      * it lexes a access chain, but allows a '&' operator before it to get the address of value
      * so this allows a.b.c or &a.b.c
      */
-    var lexAccessChainOrAddrOf(&self, lexStruct : bool) => bool;
+    var lexAccessChainOrAddrOf : (&self, lexStruct : bool) => bool;
 
     /**
      * lex allowDeclarations or initialization tokens
@@ -131,21 +132,21 @@ class Lexer {
      * @param op
      * @return whether the token was found
      */
-    var lexOperatorToken : (&self, op : string) => bool;
+    var lexOperatorTokenStr : (&self, op : string) => bool;
 
     /**
      * lexes the given operator as length 1 character operator token
      * @param op
      * @return whether the token was found
      */
-    var lexOperatorToken : (&self, token : char, op : Operation) => bool;
+    var lexOperationToken : (&self, token : char, op : Operation) => bool;
 
     /**
      * lexes the given operator as a string operator token
      * @param op
      * @return whether the token was found
      */
-    var lexOperatorToken : (&self, token : string, op : Operation) => bool;
+    var lexStrOperationToken : (&self, token : string, op : Operation) => bool;
 
     /**
      * lexes a keyword token for the given keyword
@@ -221,7 +222,7 @@ class Lexer {
      * lexes break statement
      * @return
      */
-    var lexBreakStatement : (&self) = bool;
+    var lexBreakStatement : (&self) => bool;
 
     /**
      * lexes a single typealias statement

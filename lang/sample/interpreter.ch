@@ -1,9 +1,14 @@
+
+
 @scope:lexer
 struct UserToken {
     var line : int
     var character : int
     var length : int
+    var data : int
 }
+
+enum
 
 @scope:lexer
 @lexer
@@ -15,7 +20,8 @@ struct html {
         var aToken = UserToken {
             line : provider.getLineNumber(),
             character : provider.getLineCharNumber(),
-            length : 0
+            length : 0,
+            data : 0
         }
         this.tokens.push(aToken);
     }

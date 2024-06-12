@@ -32,7 +32,7 @@ ToCTranslatorOptions::ToCTranslatorOptions(
 
 }
 
-bool translate(const std::string &path, ToCTranslatorOptions *options) {
+bool translate(const std::string &path, ToCTranslatorOptions *options, const std::function<void(ToCAstVisitor*)>& prepare) {
 
     // creating the lexer
     std::fstream file_stream;
@@ -70,6 +70,7 @@ bool translate(const std::string &path, ToCTranslatorOptions *options) {
         return false;
     }
     ToCAstVisitor visitor(stream, path);
+    prepare(&visitor);
 
     // preparing translation
     visitor.prepare_translate();

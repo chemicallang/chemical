@@ -9,16 +9,22 @@
 
 bool Lexer::lexEnumBlockTokens() {
     if(lexOperatorToken('{')) {
-        do {
-            lexWhitespaceToken();
-            lexNewLineChars();
-            lexWhitespaceToken();
-            if(!lexIdentifierToken()) {
+        while(true) {
+            lexWhitespaceAndNewLines();
+            if(lexIdentifierToken()) {
+                lexWhitespaceToken();
+                if(lexOperatorToken(',')) {
+                    continue;
+                } else {
+                    lexWhitespaceAndNewLines();
+                    break;
+                }
+            } else if(lexSingleLineCommentTokens() || lexMultiLineCommentTokens()) {
+                continue;
+            } else {
                 break;
             }
-            lexWhitespaceToken();
-        } while(lexOperatorToken(','));
-        lexNewLineChars();
+        };
         if(!lexOperatorToken('}')) {
             error("expected a closing bracket '}' in enum block");
         }

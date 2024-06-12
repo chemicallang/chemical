@@ -60,6 +60,17 @@ public:
     bool nested_value = false;
 
     /**
+     * by default function types in struct members are taken out to the top, you can avoid this
+     */
+    bool inline_struct_members_fn_types = false;
+
+    /**
+     * when true, output c will be like c++
+     * it'll use bool instead of _Bool for example
+     */
+    bool cpp_like = false;
+
+    /**
      * constructor
      * @param path the current file path being processed
      */

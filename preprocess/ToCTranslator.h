@@ -4,6 +4,7 @@
 
 #include <string>
 #include "compiler/ASTProcessorOptions.h"
+#include "utils/fwd/functional.h"
 
 /**
  * this allows you to control the compilation process
@@ -28,4 +29,6 @@ public:
 
 };
 
-bool translate(const std::string& path, ToCTranslatorOptions* options);
+class ToCAstVisitor;
+
+bool translate(const std::string& path, ToCTranslatorOptions* options, const std::function<void(ToCAstVisitor*)>& prepare);

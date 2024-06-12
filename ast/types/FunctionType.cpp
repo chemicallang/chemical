@@ -104,7 +104,7 @@ std::string FunctionType::representation() const {
 
 void FunctionType::link(SymbolResolver &linker) {
     for (auto &param: params) {
-        param->declare_and_link(linker);
+        param->type->link(linker);
     }
     returnType->link(linker);
 }

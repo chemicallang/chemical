@@ -367,6 +367,8 @@ public:
 
     void visit(FunctionType *func) override;
 
+    void visit(StructMember *member) override;
+
 };
 
 std::string func_type_alias(ToCAstVisitor* visitor, FunctionType* type) {
@@ -642,6 +644,12 @@ void CValueDeclarationVisitor::visit(FunctionType *type) {
         visitor->declarer->aliases[type] = visitor->fat_pointer_type + '*';
     } else {
         typedef_func_type(visitor, type);
+    }
+}
+
+void CValueDeclarationVisitor::visit(StructMember *member) {
+    if(!visitor->inline_struct_members_fn_types || member->type->kind() != BaseTypeKind::Function) {
+        CommonVisitor::visit(member);
     }
 }
 
@@ -1171,7 +1179,11 @@ void ToCAstVisitor::visit(MacroValueStatement *statement) {
 }
 
 void ToCAstVisitor::visit(StructMember *member) {
-    type_with_id(this, member->type.get(), member->name);
+    if(inline_struct_members_fn_types && member->type->kind() == BaseTypeKind::Function) {
+        func_type_with_id(this, member->type->function_type(), member->name);
+    } else {
+        type_with_id(this, member->type.get(), member->name);
+    }
     write(';');
 }
 
@@ -1442,7 +1454,11 @@ void ToCAstVisitor::visit(BigIntType *func) {
 }
 
 void ToCAstVisitor::visit(BoolType *func) {
-    write("_Bool");
+    if(cpp_like) {
+        write("bool");
+    } else {
+        write("_Bool");
+    }
 }
 
 void ToCAstVisitor::visit(CharType *func) {

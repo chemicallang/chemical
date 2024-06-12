@@ -422,6 +422,8 @@ set(COMMON_SOURCES
         compiler/ASTProcessor.cpp
         cst/statements/MacroCST.h
         utils/PathUtils.h
+        integration/ide/bindings/SourceProviderCBI.h
+        integration/ide/bindings/LexerCBI.h
 )
 
 # Chemical LSP Executable Target

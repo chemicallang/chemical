@@ -20,6 +20,8 @@
 #include "preprocess/RepresentationVisitor.h"
 #include "preprocess/SourceVerifier.h"
 #include "utils/PathUtils.h"
+#include <functional>
+#include "preprocess/2cASTVisitor.h"
 
 int chemical_clang_main(int argc, char **argv);
 
@@ -104,7 +106,10 @@ int main(int argc, char *argv[]) {
     if(translateToC.has_value()) {
         ToCTranslatorOptions translator_opts(argv[0], translateToC.value(), is64Bit);
         prepare_options(&translator_opts);
-        bool good = translate(srcFilePath, &translator_opts);
+        bool good = translate(srcFilePath, &translator_opts, [&options](ToCAstVisitor* visitor) -> void {
+            visitor->inline_struct_members_fn_types = options.option("inline-struct-member-fn-types").has_value();
+            visitor->cpp_like = options.option("cpp-like").has_value();
+        });
         return good ? 0 : 1;
     }
 

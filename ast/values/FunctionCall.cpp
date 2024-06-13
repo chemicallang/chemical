@@ -35,7 +35,7 @@ void to_llvm_args(
                              (func_type->params[0]->name == "this" || func_type->params[0]->name == "self");
         // a pointer to parent
         if (requires_self) {
-            args.emplace_back((*chain)[chain->size() - 3]->llvm_pointer(gen));
+            args.emplace_back((*chain)[chain->size() - 3]->access_chain_pointer(gen, *chain, chain->size() - 3));
         }
     }
 

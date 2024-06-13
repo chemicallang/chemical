@@ -49,6 +49,8 @@ public:
 
     ValueType value_type() const override;
 
+    BaseTypeKind type_kind() const override;
+
     std::string representation() const override;
 
 };

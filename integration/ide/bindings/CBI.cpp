@@ -5,9 +5,10 @@
 #include "lexer/Lexer.h"
 #include "stream/SourceProvider.h"
 
-void init_lexer_cbi(LexerCBI* cbi, Lexer* lexer) {
+void init_lexer_cbi(LexerCBI* cbi, Lexer* lexer, SourceProviderCBI* provider_cbi) {
     cbi->instance = lexer;
-    init_source_provider_cbi(&cbi->provider, &lexer->provider);
+    cbi->provider = provider_cbi;
+    init_source_provider_cbi(cbi->provider, &lexer->provider);
     cbi->storeVariable = [](LexerCBI* cbi, char* variable){
         return cbi->instance->storeVariable(variable);
     };

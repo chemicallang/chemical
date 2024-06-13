@@ -21,7 +21,7 @@ class Lexer;
  * a instance member field is required, which is added at the end
  */
 struct LexerCBI {
-    struct SourceProviderCBI provider;
+    struct SourceProviderCBI* provider;
     bool(*storeVariable)(struct LexerCBI*,char*);
     bool(*storeIdentifier)(struct LexerCBI*,char*);
     bool(*lexVariableToken)(struct LexerCBI*);
@@ -108,4 +108,4 @@ struct LexerCBI {
  * this function should be called on cbi, to make it a valid binding
  * now cbi is ready to be invoked, to use it, pass it to a user
  */
-void init_lexer_cbi(LexerCBI* cbi, Lexer* lexer);
+void init_lexer_cbi(LexerCBI* cbi, Lexer* lexer, SourceProviderCBI* provider_cbi);

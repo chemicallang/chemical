@@ -30,6 +30,10 @@ public:
         return BaseTypeKind::Pointer;
     }
 
+    ValueType value_type() const override {
+        return ValueType::Pointer;
+    }
+
     bool is_same(BaseType *other) const override {
         return other->kind() == kind() && static_cast<PointerType *>(other)->type->is_same(type.get());
     }

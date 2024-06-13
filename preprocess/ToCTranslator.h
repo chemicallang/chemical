@@ -30,5 +30,6 @@ public:
 };
 
 class ToCAstVisitor;
+class ASTProcessor;
 
-bool translate(const std::string& path, ToCTranslatorOptions* options, const std::function<void(ToCAstVisitor*)>& prepare);
+bool translate(const std::string& path, ToCTranslatorOptions* options, const std::function<void(ToCAstVisitor*, ASTProcessor*)>& prepare);

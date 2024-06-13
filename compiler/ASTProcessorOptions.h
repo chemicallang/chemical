@@ -37,6 +37,11 @@ public:
     bool verbose = false;
 
     /**
+     * is cbi enabled
+     */
+    bool isCBIEnabled = true;
+
+    /**
      * path to resources, give only if import's c files
      */
     std::string resources_path;

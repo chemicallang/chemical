@@ -23,7 +23,7 @@ void llvm_allocate_struct(llvm::Value *inst, Codegen& gen, StructValue* structVa
 }
 
 llvm::AllocaInst *StructValue::llvm_allocate(Codegen &gen, const std::string &identifier) {
-    auto allocaInst = gen.builder->CreateAlloca(llvm_type(gen), nullptr, structName);
+    auto allocaInst = gen.builder->CreateAlloca(llvm_type(gen), nullptr);
     llvm_allocate_struct(allocaInst, gen, this);
     return allocaInst;
 }

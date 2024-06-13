@@ -34,6 +34,22 @@ func create_pair_as_variable() : Pair {
     return p;
 }
 
+struct DeeplyNested3 {
+    var value : int
+}
+
+struct DeeplyNested2 {
+    var nested : DeeplyNested3
+}
+
+struct DeeplyNested1 {
+    var nested : DeeplyNested2
+}
+
+struct DeeplyNested {
+    var nested : DeeplyNested1
+}
+
 func test_structs() {
     test("can return a newly created struct", () => {
         var pair = create_pair();
@@ -42,6 +58,18 @@ func test_structs() {
     test("can return a newly created struct that is referenced", () => {
         var pair = create_pair_as_variable();
         return pair.a == 44 && pair.b == 66;
+    })
+    test("deeply nested struct works", () => {
+        var n = DeeplyNested {
+            nested : DeeplyNested1 {
+                nested : DeeplyNested2 {
+                    nested : DeeplyNested3 {
+                        value : 55
+                    }
+                }
+            }
+        }
+        return n.nested.nested.nested.value == 55;
     })
     /**
     test("can call declared in struct and impl", () => {

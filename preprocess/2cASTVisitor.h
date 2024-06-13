@@ -121,7 +121,8 @@ public:
     /**
      * will translate given nodes
      */
-    void translate(std::vector<std::unique_ptr<ASTNode>>& nodes);
+    template <typename NodesVec>
+    void translate(NodesVec& nodes);
 
     //------------------------------
     //----------Visitors------------
@@ -290,3 +291,24 @@ public:
     ~ToCAstVisitor();
 
 };
+
+template <typename NodesVec>
+void ToCAstVisitor::translate(NodesVec& nodes) {
+
+    // declare the top level things with this visitor
+    for(auto& node : nodes) {
+        node->accept((Visitor*) tld.get());
+    }
+
+    // take out values like lambda from within functions
+    for(auto& node : nodes) {
+        node->accept((Visitor*) declarer.get());
+    }
+
+    // writing
+    for(auto& node : nodes) {
+        new_line_and_indent();
+        node->accept(this);
+    }
+
+}

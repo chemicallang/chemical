@@ -44,17 +44,16 @@ bool Lexer::lexStructStructureTokens() {
             error("expected a '{' for struct block");
             return true;
         }
+        auto prev = isCBICollecting;
+        isCBICollecting = false;
         lexStructBlockTokens();
+        isCBICollecting = prev;
         if(!lexOperatorToken('}')) {
             error("expected a closing bracket '}' for struct block");
             return true;
         }
         lexWhitespaceToken();
-        compound_from<StructDefCST>(start_token);
-        if(isLexerScoped) {
-            collect_cbi_node(start_token, tokens.size());
-            isLexerScoped = false;
-        }
+        compound_collectable<StructDefCST>(start_token);
         return true;
     } else {
         return false;

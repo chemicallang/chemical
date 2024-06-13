@@ -16,7 +16,7 @@ bool Lexer::lexTypealiasStatement() {
             if(!lexTypeTokens()) {
                 error("expected a type after '='");
             }
-            compound_from<TypealiasCST>(start);
+            compound_collectable<TypealiasCST>(start);
         } else {
             error("expected a type for typealias statement");
         }

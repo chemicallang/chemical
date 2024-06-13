@@ -7,33 +7,14 @@
 #include "cst/base/CSTConverter.h"
 #include "preprocess/2cASTVisitor.h"
 #include "compiler/SymbolResolver.h"
+#include "CompilerBinderCommon.h"
 #include <mutex>
 
 /**
  * compiler binder based on tiny c compiler
  */
-class CompilerBinderTCC : public CompilerBinder {
+class CompilerBinderTCC : public CompilerBinderCommon {
 public:
-
-    /**
-     * diagnoser that will take errors
-     */
-    CSTDiagnoser* diagnoser;
-
-    /**
-     * TCC state
-     */
-    TCCState* state = nullptr;
-
-    /**
-     * A single converter is used to convert the tokens given to ASTNodes
-     */
-    CSTConverter converter;
-
-    /**
-     * resolves symbols inside the code
-     */
-    SymbolResolver resolver;
 
     /**
      * A single To C AST Visitor is used to translate converter ASTNodes to 'C'
@@ -41,44 +22,29 @@ public:
     ToCAstVisitor translator;
 
     /**
-     * a start token is cached, to provide error reporting
+     * container a map between cbi_name and tcc state
      */
-    CSTToken* cached_start_token;
+    std::unordered_map<std::string, TCCState*> compiled;
 
     /**
-     * a end token is cached, to provide error reporting
+     * path to current executable, resources required by tcc are located relative to it
      */
-    CSTToken* cached_end_token;
-
-    /**
-     * a mutex is locked when compiling c to ensure a single compilation
-     */
-    std::mutex c_compile_mutex;
+    std::string exe_path;
 
     /**
      * constructor
      */
-    explicit CompilerBinderTCC(CSTDiagnoser* diagnoser);
+    explicit CompilerBinderTCC(CSTDiagnoser* diagnoser, std::string exe_path);
 
     /**
-     * initializes
+     * will compile the following cbi
      */
-    void init() override;
+    bool compile(const std::string &cbi_name) override;
 
     /**
-     * overrides the compile function
+     * provides a pointer to function contained inside cbi
      */
-    bool compile(std::vector<std::unique_ptr<CSTToken>>& tokens) override;
-
-    /**
-     * provides a pointer to function
-     */
-    void* provide_func(const std::string& funcName) override;
-
-    /**
-     * reset new file, would change the error token
-     */
-    void reset_new_file() override;
+    void* provide_func(const std::string& cbi_name, const std::string& funcName) override;
 
     /**
      * a destructor is used to destruct the TCC state

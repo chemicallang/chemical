@@ -34,22 +34,28 @@ public:
     std::unordered_map<std::string, void*> cached_func;
 
     /**
-     * We keep collected nodes here
-     * // TODO shrink these needs before putting in this vector
+     * creates a cbi with name cbi_name
      */
-    std::vector<std::unique_ptr<ASTNode>> collected;
+    virtual void create_cbi(const std::string& cbi_name) = 0;
 
     /**
-     * init is used to initialize the compiler binder
-     * if it's never called, it's assumed compiler binder isn't required
+     * imports collected nodes from a container into a cbi
+     * @param cbi_name cbi name
+     * @param container container name
      */
-    virtual void init() = 0;
+    virtual void import_container(const std::string& cbi_name, const std::string& container) = 0;
 
     /**
-     * compile the given tokens
-     * @return true if compilation succeeded, false if it did not
+     * collects the tokens globally
+     * @param name is the name of container
+     * @param err_no_found should it error out, if container isn't found
      */
-    virtual bool compile(std::vector<std::unique_ptr<CSTToken>>& tokens) = 0;
+    virtual void collect(const std::string& name, std::vector<std::unique_ptr<CSTToken>>& tokens, bool err_no_found) = 0;
+
+    /**
+     * following cbi will be compiled
+     */
+    virtual bool compile(const std::string& cbi_name) = 0;
 
     /**
      * de caches the function given
@@ -73,16 +79,9 @@ public:
     }
 
     /**
-     * provides a pointer to function
-     */
-    virtual void* provide_func(const std::string& funcName) = 0;
-
-    /**
      * provides a function contained within struct
      */
-    inline void* provide_func(const std::string& structName, const std::string& funcName) {
-        return provide_func(func_name(structName, funcName));
-    }
+    virtual void* provide_func(const std::string& cbi_name, const std::string& funcName) = 0;
 
     /**
      * a lex function type is searched in the symbols, if not found nullptr is returned
@@ -90,15 +89,8 @@ public:
      * @param structName is the container struct for which it was generated
      */
     inline cbi_lex_func provide_lex_func(const std::string& structName) {
-        return (cbi_lex_func) provide_func(structName, "lex");
+        return (cbi_lex_func) provide_func(structName, func_name(structName, "lex"));
     }
-
-    /**
-     * this function is called to reset for a new file
-     * compiler binder share state across files
-     * this function only cleans up token references / position for error reporting
-     */
-    virtual void reset_new_file() = 0;
 
     /**
      * destructor

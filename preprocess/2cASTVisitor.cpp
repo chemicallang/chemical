@@ -679,26 +679,6 @@ void ToCAstVisitor::prepare_translate() {
     declare_fat_pointer(this);
 }
 
-void ToCAstVisitor::translate(std::vector<std::unique_ptr<ASTNode>>& nodes) {
-
-    // declare the top level things with this visitor
-    for(auto& node : nodes) {
-        node->accept(tld.get());
-    }
-
-    // take out values like lambda from within functions
-    for(auto& node : nodes) {
-        node->accept(declarer.get());
-    }
-
-    // writing
-    for(auto& node : nodes) {
-        new_line_and_indent();
-        node->accept(this);
-    }
-
-}
-
 ToCAstVisitor::~ToCAstVisitor() = default;
 
 void ToCAstVisitor::visitCommon(ASTNode *node) {

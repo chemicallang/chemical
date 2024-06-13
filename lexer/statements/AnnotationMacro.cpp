@@ -9,6 +9,7 @@
 #include "lexer/model/tokens/RawToken.h"
 #include "lexer/model/tokens/IdentifierToken.h"
 #include "cst/statements/MacroCST.h"
+#include "cst/statements/AnnotationCST.h"
 
 bool Lexer::lexAnnotationMacro() {
 
@@ -23,10 +24,25 @@ bool Lexer::lexAnnotationMacro() {
 
     // if it's annotation
     if (isAnnotation) {
+        unsigned start = tokens.size();
         tokens.emplace_back(std::make_unique<AnnotationToken>(backPosition(macro.size()), macro_full));
+        if(provider.increment('(')) {
+            do {
+                lexWhitespaceToken();
+                if(!lexValueToken()) {
+                    break;
+                }
+                lexWhitespaceToken();
+            } while (lexOperatorToken(','));
+            if(!provider.increment(')')) {
+                error("expected a ')' after '(' to call an annotation");
+                return true;
+            }
+            compound_from<AnnotationCST>(start);
+        }
         auto found = annotation_modifiers.find(macro);
         if (found != annotation_modifiers.end()) {
-            found->second(this);
+            found->second(this, tokens[start].get());
         }
         return true;
     }

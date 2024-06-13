@@ -5,6 +5,7 @@
 #include <string.h>
 #include <iostream>
 #include "libtcc.h"
+#include "Benchmark.h"
 
 void handle_error_now(void *opaque, const char *msg)
 {
@@ -44,8 +45,12 @@ char my_program[] =
         "}\n";
 
 int libtcc_test() {
+
+    BenchmarkResults results{};
+
+    results.benchmark_begin();
+
     TCCState *s;
-    int i;
     int (*func)(int);
 
     s = tcc_new();
@@ -59,9 +64,9 @@ int libtcc_test() {
 
     int result;
 
-    result = tcc_add_include_path(s, "packages/tcc/include");;
+    result = tcc_add_include_path(s, "cmake-build-debug/packages/tcc/include");;
 
-    result = tcc_add_library_path(s, "packages/tcc/lib");
+    result = tcc_add_library_path(s, "cmake-build-debug/packages/tcc/lib");
 
     /* MUST BE CALLED before any compilation */
     result = tcc_set_output_type(s, TCC_OUTPUT_MEMORY);
@@ -94,6 +99,10 @@ int libtcc_test() {
 
     /* delete the state */
     tcc_delete(s);
+
+    results.benchmark_end();
+
+    std::cout << "[LibTccTest] " << results.representation() << std::endl;
 
     return 0;
 

@@ -143,11 +143,7 @@ bool Lexer::lexFunctionStructureTokens(bool allow_declarations) {
     }
     isLexReturnStatement = prevReturn;
 
-    compound_from<FunctionCST>(start);
-    if(isLexerScoped) {
-        collect_cbi_node(start, tokens.size());
-        isLexerScoped = false;
-    }
+    compound_collectable<FunctionCST>(start);
 
     return true;
 

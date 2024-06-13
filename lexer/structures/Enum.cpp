@@ -47,7 +47,7 @@ bool Lexer::lexEnumStructureTokens() {
             error("expected an enum block for declaring an enum");
             return true;
         }
-        compound_from<EnumDeclCST>(start);
+        compound_collectable<EnumDeclCST>(start);
         return true;
     } else {
         return false;

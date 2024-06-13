@@ -31,13 +31,16 @@ bool Lexer::lexInterfaceStructureTokens() {
             error("expected a '{' when starting an interface block");
             return true;
         }
+        auto prev = isCBICollecting;
+        isCBICollecting = false;
         lexInterfaceBlockTokens();
+        isCBICollecting = prev;
         lexWhitespaceToken();
         if (!lexOperatorToken('}')) {
             error("expected a '}' when ending an interface block");
             return true;
         }
-        compound_from<InterfaceCST>(start);
+        compound_collectable<InterfaceCST>(start);
         return true;
     }
     return false;

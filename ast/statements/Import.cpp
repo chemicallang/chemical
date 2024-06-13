@@ -35,8 +35,8 @@ void ImportStatement::interpret(InterpretScope &scope) {
     }
     SourceProvider provider(&stream);
     Lexer lexer(provider, absolute_path);
-    lexer.init_complete();
-    lexer.lex();
+//    lexer.init_complete();
+//    lexer.lex();
     // TODO convert to AST
 //    Parser parser(std::move(lexer.tokens));
 //    parser.parse();

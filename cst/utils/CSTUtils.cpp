@@ -234,3 +234,20 @@ token_parent_file find_token_parent(ImportUnit* unit, CSTToken* token) {
     }
     return { nullptr, { nullptr, -1 } };
 }
+
+std::string annotation_str_param(unsigned index, CSTToken* token) {
+    auto param_index = index + 1;
+    if(index > 0) {
+        param_index += index;
+    }
+    if(token->type() == LexTokenType::CompAnnotation) {
+        auto c = token->as_compound();
+        if(param_index < c->tokens.size()) {
+            auto got = c->tokens[param_index].get();
+            if(got->type() == LexTokenType::String) {
+                return escaped_str_token(got);
+            }
+        }
+    }
+    return "";
+}

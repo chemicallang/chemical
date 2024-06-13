@@ -1,59 +1,40 @@
 // Copyright (c) Qinetik 2024.
 
 #include <sstream>
+#include <utility>
 #include "lexer/model/tokens/IdentifierToken.h"
 #include "lexer/model/CompilerBinder.h"
 #include "lexer/model/CompilerBinderTCC.h"
+#include "utils/PathUtils.h"
+#include "lexer/model/CompilerBinderCommon.h"
 
 IdentifierToken dummy_token_at_start() {
     return IdentifierToken { Position(0,0),""};
 }
 
+void error(CSTDiagnoser* diagnoser, const std::string& msg) {
+    auto dummy = dummy_token_at_start();
+    diagnoser->error(msg, &dummy);
+}
+
 void handle_error(void *opaque, const char *msg){
     auto binder = (CompilerBinderTCC*) opaque;
-    if(binder->cached_start_token && binder->cached_end_token) {
-        binder->diagnoser->error(msg, binder->cached_start_token, binder->cached_end_token);
-    } else {
-        auto dummy = dummy_token_at_start();
-        binder->diagnoser->error(msg, &dummy, &dummy);
-    }
+    error(binder->diagnoser, msg);
 }
 
-CompilerBinderTCC::CompilerBinderTCC(CSTDiagnoser* diagnoser) : converter(false), translator(nullptr, ""), diagnoser(diagnoser), resolver("", false) {
-    cached_start_token = nullptr;
-    cached_end_token = nullptr;
+CompilerBinderCommon::CompilerBinderCommon(CSTDiagnoser* diagnoser) : converter(false), diagnoser(diagnoser), resolver("", false) {
+
 }
 
-void CompilerBinderTCC::init() {
-    state = tcc_new();
-    auto dummy = dummy_token_at_start();
-    if(!state) {
-        diagnoser->error("couldn't initialize tcc state in tcc compiler binder", &dummy);
-    }
-    tcc_set_error_func(state, this, handle_error);
-    int result;
-    result = tcc_add_include_path(state, "packages/tcc/include");
-    if(result == -1) {
-        diagnoser->error("couldn't add include path 'packages/tcc/include' in tcc compiler binder", &dummy);
-    }
-    result = tcc_add_library_path(state, "packages/tcc/lib");
-    if(result == -1) {
-        diagnoser->error("couldn't add library path 'packages/tcc/lib' in tcc compiler binder", &dummy);
-    }
-    result = tcc_set_output_type(state, TCC_OUTPUT_MEMORY);
-    if(result == -1) {
-        diagnoser->error("couldn't set tcc output memory in tcc compiler binder", &dummy);
-    }
-    translator.inline_struct_members_fn_types = true;
+CompilerBinderTCC::CompilerBinderTCC(CSTDiagnoser* diagnoser, std::string exe_path) : CompilerBinderCommon(diagnoser), translator(nullptr, ""), exe_path(std::move(exe_path)) {
+
 }
 
-bool CompilerBinderTCC::compile(std::vector<std::unique_ptr<CSTToken>>& tokens) {
+std::vector<std::unique_ptr<ASTNode>> CompilerBinderCommon::parse(std::vector<std::unique_ptr<CSTToken>>& tokens) {
 
-    if(!state) return false;
-    if(tokens.empty()) return false;
-
-    cached_start_token = tokens[0].get();
-    cached_end_token = tokens[tokens.size() - 1].get();
+    if(tokens.empty()) {
+        return {};
+    }
 
     // convert the tokens
     converter.convert(tokens);
@@ -63,7 +44,7 @@ bool CompilerBinderTCC::compile(std::vector<std::unique_ptr<CSTToken>>& tokens) 
         diagnoser->diagnostics.insert(diagnoser->diagnostics.end(), std::make_move_iterator(converter.diagnostics.begin()), std::make_move_iterator(converter.diagnostics.end()));
     }
     if(converter.has_errors) {
-        return false;
+        return {};
     }
 
     // convert the nodes
@@ -78,55 +59,155 @@ bool CompilerBinderTCC::compile(std::vector<std::unique_ptr<CSTToken>>& tokens) 
     }
     if(resolver.has_errors) {
         for(auto& err : resolver.errors) {
-            diagnoser->error("[SymRes] " + err.message, cached_start_token, cached_end_token);
+            diagnoser->error("[SymRes] " + err.message, tokens[0].get(), tokens[tokens.size() - 1].get());
         }
     }
 
-    // translate nodes to c
+    return nodes;
+
+}
+
+void to_cbi(CompilerBinderCommon* binder, const std::string& cbi_name, std::vector<std::unique_ptr<ASTNode>>& nodes) {
+    auto found_cbi = binder->cbi.find(cbi_name);
+    if(found_cbi != binder->cbi.end()) {
+        for(auto& node : nodes) {
+            found_cbi->second.emplace_back(node.get());
+        }
+    }
+}
+
+void CompilerBinderCommon::collect(const std::string& name, std::vector<std::unique_ptr<CSTToken>> &tokens, bool err_no_found) {
+    auto nodes = parse(tokens);
+    auto found = collected.find(name);
+    if(found == collected.end()) {
+        if(err_no_found) {
+            auto dummy = dummy_token_at_start();
+            diagnoser->error("Couldn't find container for collection by name " + name, &dummy);
+        } else {
+            to_cbi(this, name, nodes);
+            collected[name] = std::move(nodes);
+        }
+    } else {
+        to_cbi(this, name, nodes);
+        auto& container = found->second;
+        container.insert(container.end(), std::make_move_iterator(nodes.begin()), std::make_move_iterator(nodes.end()));
+    }
+}
+
+void CompilerBinderCommon::create_cbi(const std::string &cbi_name) {
+    auto found = collected.find(cbi_name);
+    auto found_cbi = cbi.find(cbi_name);
+    if(found != collected.end() || found_cbi != cbi.end()) {
+        auto dummy = dummy_token_at_start();
+        diagnoser->error("CBI with name " + cbi_name + " already exists", &dummy);
+    } else {
+        collected[cbi_name] = std::vector<std::unique_ptr<ASTNode>> {};
+        cbi[cbi_name] = {};
+    }
+}
+
+void CompilerBinderCommon::import_container(const std::string &cbi_name, const std::string &container) {
+    auto found = collected.find(container);
+    if(found == collected.end()) {
+        auto dummy = dummy_token_at_start();
+        diagnoser->error("Couldn't import container by name " + container, &dummy);
+    } else {
+        auto cbi_found = cbi.find(cbi_name);
+        if(cbi_found != cbi.end()) {
+            for(auto& node : found->second) {
+                cbi_found->second.emplace_back(node.get());
+            }
+        } else {
+            auto dummy = dummy_token_at_start();
+            diagnoser->error("Couldn't find CBI by name " + cbi_name, &dummy);
+        }
+    }
+}
+
+bool CompilerBinderTCC::compile(const std::string& cbi_name) {
+
+    auto found = compiled.find(cbi_name);
+    if(found != compiled.end()) {
+        error(diagnoser, "cbi has already been compiled " + cbi_name);
+        return false;
+    }
+    auto cbi_vec = cbi.find(cbi_name);
+    if(cbi_vec == cbi.end()) {
+        error(diagnoser, "couldn't find CBI by name " + cbi_name);
+        return false;
+    }
+    if(cbi_vec->second.empty()) {
+        error(diagnoser, "cannot compile an empty CBI by name " + cbi_name);
+        return false;
+    }
+    auto state = tcc_new();
+    if(!state) {
+        error(diagnoser, "couldn't initialize tcc state in tcc compiler binder");
+        return false;
+    }
+    tcc_set_error_func(state, this, handle_error);
+    auto tcc_dir = resolve_non_canon_parent_path(exe_path, "packages/tcc");
+    auto include_dir = resolve_rel_child_path_str(tcc_dir, "include");
+    auto lib_dir = resolve_rel_child_path_str(tcc_dir, "lib");
+    int result;
+    result = tcc_add_include_path(state, include_dir.c_str());
+    if(result == -1) {
+        error(diagnoser, "couldn't add include path 'packages/tcc/include' in tcc compiler binder");
+        return false;
+    }
+    result = tcc_add_library_path(state, lib_dir.c_str());
+    if(result == -1) {
+        error(diagnoser, "couldn't add library path 'packages/tcc/lib' in tcc compiler binder");
+        return false;
+    }
+    result = tcc_set_output_type(state, TCC_OUTPUT_MEMORY);
+    if(result == -1) {
+        error(diagnoser, "couldn't set tcc output memory in tcc compiler binder");
+        return false;
+    }
+
+    // translate to c
     std::ostringstream stream;
     translator.output = &stream;
-    translator.translate(nodes);
+    translator.translate(cbi_vec->second);
 
-    // collect nodes
-    collected.insert(collected.end(), std::make_move_iterator(nodes.begin()), std::make_move_iterator(nodes.end()));
-
-    int result;
-
+    // compile
     result = tcc_compile_string(state, stream.str().c_str());
     if(result == -1) {
-        diagnoser->error("couldn't compile c code in binder", cached_start_token, cached_end_token);
+        error(diagnoser, "couldn't compile c code in binder for cbi " + cbi_name);
         return false;
     }
 
     // relocate the code
     result = tcc_relocate(state);
     if(result == -1) {
-        diagnoser->error("couldn't relocate c code in binder", cached_start_token, cached_end_token);
+        error(diagnoser, "couldn't relocate c code in binder for cbi " + cbi_name);
         return false;
     }
 
+    compiled[cbi_name] = state;
     return true;
-
 }
 
-void* CompilerBinderTCC::provide_func(const std::string& funcName) {
-    auto found = cached_func.find(funcName);
+void* CompilerBinderTCC::provide_func(const std::string& cbi_name, const std::string& funcName) {
+    auto complete_cached_name = cbi_name + ':' + funcName;
+    auto found = cached_func.find(complete_cached_name);
     if(found != cached_func.end()) {
         return found->second;
     } else {
-        auto sym = tcc_get_symbol(state, funcName.c_str());
-        cached_func[funcName] = sym;
-        return sym;
+        auto cbi = compiled.find(cbi_name);
+        if(cbi != compiled.end()) {
+            auto sym = tcc_get_symbol(cbi->second, funcName.c_str());
+            cached_func[complete_cached_name] = sym;
+            return sym;
+        } else {
+            return nullptr;
+        }
     }
 }
 
-void CompilerBinderTCC::reset_new_file() {
-    cached_start_token = nullptr;
-    cached_end_token = nullptr;
-}
-
 CompilerBinderTCC::~CompilerBinderTCC() {
-    if(state) {
-        tcc_delete(state);
+    for(auto& unit : compiled) {
+        tcc_delete(unit.second);
     }
 }

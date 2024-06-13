@@ -14,10 +14,12 @@ bool Lexer::collect_cbi_node(unsigned int start, unsigned int end) {
         current++;
     }
     // compile
-    auto result = binder->compile(copied_ptrs);
+    binder->collect(current_cbi, copied_ptrs, !isCBICollectingGlobal);
     // release all the pointers, so tokens don't get deleted
     for(auto& ptr : copied_ptrs) {
         ptr.release();
     }
-    return result;
+    isCBICollecting = false;
+    isCBICollectingGlobal = false;
+    return true;
 }

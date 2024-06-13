@@ -197,3 +197,8 @@ using token_parent_file = std::pair<LexResult*, token_with_parent>;
  * given a token, it'll find the file it belongs to and it's parent and index in it's parent
  */
 token_parent_file find_token_parent(ImportUnit* unit, CSTToken* token);
+
+/**
+ * get the string parameter at index in annotation compound token
+ */
+std::string annotation_str_param(unsigned index, CSTToken* token);

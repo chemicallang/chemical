@@ -38,7 +38,7 @@ bool translate(const std::string &path, ToCTranslatorOptions *options, const std
     std::fstream file_stream;
     SourceProvider provider(&file_stream);
     Lexer lexer(provider, path);
-    lexer.init_complete();
+    lexer.init_complete(options->exe_path);
 
     // the cst converter
     CSTConverter converter(true);

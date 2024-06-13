@@ -277,6 +277,10 @@ public:
         visitCompoundCommon((CompoundCSTToken *) negativeCst);
     }
 
+    virtual void visitAnnotation(CompoundCSTToken *annotation) {
+        visitCompoundCommon((CompoundCSTToken *) annotation);
+    }
+
     virtual void visitNot(CompoundCSTToken *notCst) {
         visitCompoundCommon((CompoundCSTToken *) notCst);
     }

@@ -93,9 +93,6 @@ else()
     message(FATAL_ERROR "Unknown Operating System, Couldn't Determine libtcc to use")
 endif()
 
-# Link directory so that cmake can find the dll file
-link_directories(${LIBTCC_LIB_DIR})
-
 # Add your common source files (excluding the main files)
 set(COMMON_SOURCES
         lexer/Lexer.cpp
@@ -427,6 +424,9 @@ set(COMMON_SOURCES
         lexer/model/CompilerBinder.h
         lexer/CompilerBinder.cpp
         lexer/model/CompilerBinderTCC.h
+        utils/LibTccTest.cpp
+        cst/statements/AnnotationCST.h
+        lexer/model/CompilerBinderCommon.h
 )
 
 # Chemical LSP Executable Target
@@ -449,7 +449,6 @@ add_executable(ChemicalLsp Main.cpp ${COMMON_SOURCES}
         server/analyzers/DocumentLinksAnalyzer.h
         server/analyzers/DocumentLinksAnalyzer.cpp
         server/utils/WorkspaceImportGraphImporter.h
-        utils/LibTccTest.cpp
 )
 
 # Add an executable target for the second executable

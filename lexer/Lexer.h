@@ -50,6 +50,11 @@ public:
     LexerCBI cbi;
 
     /**
+     * the cbi used for collection
+     */
+    std::string current_cbi;
+
+    /**
      * this flag allows to control, whether cbi is enabled
      */
     bool isCBIEnabled = true;
@@ -62,12 +67,12 @@ public:
     /**
      * initialize everything for lexer
      */
-    void init_complete();
+    void init_complete(const std::string& exe_path);
 
     /**
      * providing cbi (compiler binding interfaces) to source code, to call functions inside compiler
      */
-    void init_cbi();
+    void init_cbi(const std::string& exe_path);
 
     /**
      * called by constructor to initialize annotation modifiers map
@@ -676,6 +681,19 @@ public:
     }
 
     /**
+     * a helper function to collect
+     */
+    template<typename T, typename... Args>
+    std::enable_if_t<std::is_base_of_v<CSTToken, T>>
+    compound_collectable(unsigned int start, Args&&... args) {
+        unsigned int size = tokens.size();
+        tokens.emplace_back(std::make_unique<T>(take_from(start, size), std::forward<Args>(args)...));
+        if(isCBICollecting) {
+            collect_cbi_node(start, tokens.size());
+        }
+    }
+
+    /**
      * check if there's a new line at current position
      * @return true if there's a newline otherwise false
      */
@@ -785,7 +803,7 @@ protected:
     /**
      * A function that is called upon encountering an annotation
      */
-    typedef void(*AnnotationModifierFn)(Lexer *lexer);
+    typedef void(*AnnotationModifierFn)(Lexer *lexer, CSTToken* token);
 
     /**
      * just a map between annotations and their functions, for example
@@ -826,16 +844,14 @@ protected:
      */
 
     /**
-     * when true, a struct will be lexed as a lexer, which will defines
-     * a lexer implementation, that lexes tokens found in preprocess directives
+     * when a struct / function is to be collected by cbi
      */
-    bool isLexCompTimeLexer = false;
+    bool isCBICollecting = false;
 
     /**
-     * when true, a struct / function will be lexed as lexer scoped
-     * which means, it will be parsed at lex time
+     * when a struct / function is to be collected by cbi globally
      */
-    bool isLexerScoped = false;
+    bool isCBICollectingGlobal = false;
 
     /**
      * when true, return statements will be lexed

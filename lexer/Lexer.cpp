@@ -16,22 +16,55 @@ Lexer::Lexer(SourceProvider &provider, std::string path) : provider(provider), p
 
 }
 
-void Lexer::init_complete() {
+void Lexer::init_complete(const std::string& exe_path) {
     init_annotation_modifiers();
     init_value_creators();
     init_macro_lexers();
-    init_cbi();
+    init_cbi(exe_path);
 }
 
-void Lexer::init_cbi() {
-    binder = std::make_unique<CompilerBinderTCC>(this);
+void Lexer::init_cbi(const std::string& exe_path) {
+    binder = std::make_unique<CompilerBinderTCC>(this, exe_path);
     init_lexer_cbi(&cbi, this);
-    binder->init();
 }
+
+std::string annotation_str_param(unsigned index, CSTToken* token);
 
 void Lexer::init_annotation_modifiers() {
-    annotation_modifiers["lexer"] = [](Lexer *lexer) -> void { lexer->isLexCompTimeLexer = true; };
-    annotation_modifiers["scope:lexer"] = [](Lexer *lexer) -> void { lexer->isLexerScoped = true; };
+    annotation_modifiers["cbi:global"] = [](Lexer *lexer, CSTToken* token) -> void {
+        lexer->isCBICollecting = true;
+        lexer->isCBICollectingGlobal = true;
+        lexer->current_cbi = annotation_str_param(0, token);;
+    };
+    annotation_modifiers["cbi:create"] = [](Lexer *lexer, CSTToken* token) -> void {
+        auto n = annotation_str_param(0,token);
+        if(n.empty()) {
+            lexer->error("cbi:create called with invalid parameters : " + n);
+            return;
+        }
+        lexer->binder->create_cbi(n);
+    };
+    annotation_modifiers["cbi:import"] = [](Lexer *lexer, CSTToken* token) -> void {
+        auto a = annotation_str_param(0,token);
+        auto b = annotation_str_param(1,token);
+        if(a.empty() || b.empty()) {
+            lexer->error("cbi:import called with invalid parameters : " + a + " , " + b);
+            return;
+        }
+        lexer->binder->import_container(a, b);
+    };
+    annotation_modifiers["cbi:to"] = [](Lexer *lexer, CSTToken* token) -> void {
+        lexer->isCBICollecting = true;
+        lexer->current_cbi = annotation_str_param(0, token);
+    };
+    annotation_modifiers["cbi:compile"] = [](Lexer *lexer, CSTToken* token) -> void {
+        auto a = annotation_str_param(0,token);
+        if(a.empty()) {
+            lexer->error("cbi:compiler called with invalid parameters : " + a);
+            return;
+        }
+        lexer->binder->compile(a);
+    };
 }
 
 void Lexer::init_value_creators() {
@@ -102,7 +135,6 @@ void Lexer::switch_path(const std::string& new_path) {
 void Lexer::reset() {
     tokens.clear();
     provider.reset();
-    binder->reset_new_file();
 }
 
 void Lexer::diagnostic(Position start, const std::string &message, DiagSeverity severity) {

@@ -29,7 +29,11 @@ int chemical_clang_main2(const std::vector<std::string> &command_args);
 
 std::vector<std::unique_ptr<ASTNode>> TranslateC(const char* exe_path, const char *abs_path, const char *resources_path);
 
+int libtcc_test();
+
 int main(int argc, char *argv[]) {
+
+//    libtcc_test();
 
     // invoke clang cc1, this is used by clang, because it invokes (current executable)
     if(argc >= 2 && strcmp(argv[1], "-cc1") == 0) {

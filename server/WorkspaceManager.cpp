@@ -23,10 +23,9 @@
 #include "server/analyzers/DocumentSymbolsAnalyzer.h"
 #include "server/analyzers/DocumentLinksAnalyzer.h"
 #include "compiler/SelfInvocation.h"
+#include "utils/PathUtils.h"
 
 #define DEBUG_REPLACE false
-
-std::string resolve_rel_parent_path_str(const std::string &root_path, const std::string &file_path);
 
 WorkspaceManager::WorkspaceManager(std::string lsp_exe_path) : lsp_exe_path(std::move(lsp_exe_path)) {
 

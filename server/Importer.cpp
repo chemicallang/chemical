@@ -58,7 +58,7 @@ std::shared_ptr<LexResult> WorkspaceManager::get_lexed(const std::string& path) 
         SourceProvider reader(&iss);
         Lexer lexer(reader, path);
         // TODO take out lexer, initializing lexer completely is expensive
-        lexer.init_complete();
+        lexer.init_complete(lsp_exe_path);
         lexer.lex();
         result->tokens = std::move(lexer.tokens);
         result->diags = std::move(lexer.diagnostics);
@@ -77,7 +77,7 @@ std::shared_ptr<LexResult> WorkspaceManager::get_lexed(const std::string& path) 
         SourceProvider reader(&file);
         Lexer lexer(reader, path);
         // TODO take out lexer, initializing lexer completely is expensive
-        lexer.init_complete();
+        lexer.init_complete(lsp_exe_path);
         lexer.lex();
         result->tokens = std::move(lexer.tokens);
         result->diags = std::move(lexer.diagnostics);
@@ -144,7 +144,7 @@ ImportUnit WorkspaceManager::get_import_unit(const std::string& abs_path, bool p
     SourceProvider reader(&file);
     Lexer lexer(reader, abs_path);
     // TODO take out lexer, as initializing lexer completely is expensive
-    lexer.init_complete();
+    lexer.init_complete(lsp_exe_path);
     ImportGraphVisitor visitor;
     ImportPathHandler handler(compiler_exe_path());
     WorkspaceImportGraphImporter importer(

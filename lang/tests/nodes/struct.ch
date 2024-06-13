@@ -50,11 +50,9 @@ struct DeeplyNested {
     var nested : DeeplyNested1
 }
 
-/**
 struct PointerStr {
     var value : DeeplyNested3*
 }
-**/
 
 func test_structs() {
     test("can return a newly created struct", () => {
@@ -77,7 +75,6 @@ func test_structs() {
         }
         return n.nested.nested.nested.value == 55;
     })
-    /**
     test("pointer to struct inside a struct allows access", () => {
         var nested = DeeplyNested3 {
             value : 55
@@ -87,6 +84,7 @@ func test_structs() {
         }
         return str.value.value == 55;
     })
+    /**
     test("can call declared in struct and impl", () => {
         return Something.do() == true;
     });

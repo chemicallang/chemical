@@ -25,18 +25,20 @@ void Lexer::init_complete(const std::string& exe_path) {
 
 void Lexer::init_cbi(const std::string& exe_path) {
     binder = std::make_unique<CompilerBinderTCC>(this, exe_path);
-    init_lexer_cbi(&cbi, this);
+    init_lexer_cbi(&cbi, this, &provider_cbi);
 }
 
 std::string annotation_str_param(unsigned index, CSTToken* token);
 
 void Lexer::init_annotation_modifiers() {
     annotation_modifiers["cbi:global"] = [](Lexer *lexer, CSTToken* token) -> void {
+        if(!lexer->isCBIEnabled) return;
         lexer->isCBICollecting = true;
         lexer->isCBICollectingGlobal = true;
         lexer->current_cbi = annotation_str_param(0, token);;
     };
     annotation_modifiers["cbi:create"] = [](Lexer *lexer, CSTToken* token) -> void {
+        if(!lexer->isCBIEnabled) return;
         auto n = annotation_str_param(0,token);
         if(n.empty()) {
             lexer->error("cbi:create called with invalid parameters : " + n);
@@ -45,6 +47,7 @@ void Lexer::init_annotation_modifiers() {
         lexer->binder->create_cbi(n);
     };
     annotation_modifiers["cbi:import"] = [](Lexer *lexer, CSTToken* token) -> void {
+        if(!lexer->isCBIEnabled) return;
         auto a = annotation_str_param(0,token);
         auto b = annotation_str_param(1,token);
         if(a.empty() || b.empty()) {
@@ -54,10 +57,12 @@ void Lexer::init_annotation_modifiers() {
         lexer->binder->import_container(a, b);
     };
     annotation_modifiers["cbi:to"] = [](Lexer *lexer, CSTToken* token) -> void {
+        if(!lexer->isCBIEnabled) return;
         lexer->isCBICollecting = true;
         lexer->current_cbi = annotation_str_param(0, token);
     };
     annotation_modifiers["cbi:compile"] = [](Lexer *lexer, CSTToken* token) -> void {
+        if(!lexer->isCBIEnabled) return;
         auto a = annotation_str_param(0,token);
         if(a.empty()) {
             lexer->error("cbi:compiler called with invalid parameters : " + a);

@@ -1085,7 +1085,9 @@ void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& valu
                 visitor->error("Function call inside a access chain with lambda that requires self is not allowed");
                 return;
             }
-            visitor->write('&');
+            if(end - 3 >= 0 && values[end - 3]->value_type() != ValueType::Pointer) {
+                visitor->write('&');
+            }
             access_chain(visitor, values, start, end - 2, end - 2);
             if (!last->values.empty()) {
                 visitor->write(',');

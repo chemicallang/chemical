@@ -50,6 +50,11 @@ public:
     LexerCBI cbi;
 
     /**
+     * the cbi interface for source provider
+     */
+    SourceProviderCBI provider_cbi;
+
+    /**
      * the cbi used for collection
      */
     std::string current_cbi;

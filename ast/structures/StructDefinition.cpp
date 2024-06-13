@@ -110,6 +110,10 @@ ValueType StructMember::value_type() const {
     return type->value_type();
 }
 
+BaseTypeKind StructMember::type_kind() const {
+    return type->kind();
+}
+
 std::string StructMember::representation() const {
     std::string rep("var " + name + " : " + type->representation());
     if (defValue.has_value()) {

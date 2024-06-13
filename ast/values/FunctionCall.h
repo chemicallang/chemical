@@ -74,7 +74,7 @@ public:
             std::vector<llvm::Value*>& args
     );
 
-    llvm::Value * access_chain_value(Codegen &gen, std::vector<std::unique_ptr<Value>> &values) override;
+    llvm::Value * access_chain_value(Codegen &gen, std::vector<std::unique_ptr<Value>> &values, unsigned until) override;
 
     llvm::AllocaInst *access_chain_allocate(Codegen &gen, const std::string &identifier, AccessChain* chain) override;
 

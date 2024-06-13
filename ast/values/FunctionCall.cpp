@@ -5,6 +5,7 @@
 #include "ast/values/AccessChain.h"
 #include "ast/values/VariableIdentifier.h"
 #include "ast/values/LambdaFunction.h"
+#include "ast/utils/ASTUtils.h"
 
 inline std::unique_ptr<FunctionType> func_call_func_type(const FunctionCall* call) {
     return std::unique_ptr<FunctionType>((FunctionType*) call->parent_val->create_type().release());
@@ -35,7 +36,15 @@ void to_llvm_args(
                              (func_type->params[0]->name == "this" || func_type->params[0]->name == "self");
         // a pointer to parent
         if (requires_self) {
-            args.emplace_back((*chain)[chain->size() - 3]->access_chain_pointer(gen, *chain, chain->size() - 3));
+            if(chain_contains_func_call(*chain, 0, chain->size() - 3)) {
+                gen.error("cannot pass self when access chain has a function call");
+                return;
+            }
+            if((*chain)[chain->size() - 3]->value_type() == ValueType::Pointer) {
+                args.emplace_back((*chain)[chain->size() - 3]->access_chain_value(gen, *chain, chain->size() - 3));
+            } else {
+                args.emplace_back((*chain)[chain->size() - 3]->access_chain_pointer(gen, *chain, chain->size() - 3));
+            }
         }
     }
 
@@ -183,7 +192,7 @@ llvm::Value* FunctionCall::llvm_chain_value(
     return call_with_args(this, fn, gen,  args);
 }
 
-llvm::Value* FunctionCall::access_chain_value(Codegen &gen, std::vector<std::unique_ptr<Value>> &chain) {
+llvm::Value* FunctionCall::access_chain_value(Codegen &gen, std::vector<std::unique_ptr<Value>> &chain, unsigned until) {
     std::vector<llvm::Value *> args;
     return llvm_chain_value(gen, chain, args);
 }

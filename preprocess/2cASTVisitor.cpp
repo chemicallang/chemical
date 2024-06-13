@@ -88,6 +88,7 @@
 #include "ast/values/ULongValue.h"
 #include "ast/utils/CommonVisitor.h"
 #include "utils/RepresentationUtils.h"
+#include "ast/utils/ASTUtils.h"
 
 ToCAstVisitor::ToCAstVisitor(std::ostream *output, const std::string& path) : output(output), ASTDiagnoser(path) {
     declarer = std::make_unique<CValueDeclarationVisitor>(this);
@@ -1005,16 +1006,6 @@ void func_container_name(ToCAstVisitor* visitor, ASTNode* node, Value* ref) {
     } else {
         ref->accept(visitor);
     }
-}
-
-bool chain_contains_func_call(std::vector<std::unique_ptr<Value>>& values, unsigned start, unsigned end) {
-    while(start < end) {
-        if(values[start]->as_func_call()) {
-            return true;
-        }
-        start++;
-    }
-    return false;
 }
 
 void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& values, unsigned start, unsigned end) {

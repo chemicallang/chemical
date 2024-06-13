@@ -427,6 +427,8 @@ set(COMMON_SOURCES
         utils/LibTccTest.cpp
         cst/statements/AnnotationCST.h
         lexer/model/CompilerBinderCommon.h
+        ast/utils/ASTUtils.h
+        ast/utils/ASTUtils.cpp
 )
 
 # Chemical LSP Executable Target

@@ -61,6 +61,15 @@ llvm::Value* Value::access_chain_value(Codegen &gen, std::vector<std::unique_ptr
     return gen.builder->CreateLoad(values[until - 1]->llvm_type(gen), access_chain_pointer(gen, values, until), "acc");
 }
 
+llvm::Value* create_gep(Codegen &gen, Value* parent, llvm::Value* pointer, std::vector<llvm::Value*>& idxList) {
+    if(parent->type_kind() == BaseTypeKind::Pointer) {
+        auto ty = parent->create_type();
+        return gen.builder->CreateGEP(((PointerType*) (ty.get()))->type->llvm_type(gen), pointer, idxList, "", gen.inbounds);
+    } else {
+        return gen.builder->CreateGEP(parent->llvm_type(gen), pointer, idxList, "", gen.inbounds);
+    }
+}
+
 llvm::Value* Value::access_chain_pointer(Codegen &gen, std::vector<std::unique_ptr<Value>>& values, unsigned int until) {
 
     if(until == 1) {
@@ -74,21 +83,30 @@ llvm::Value* Value::access_chain_pointer(Codegen &gen, std::vector<std::unique_p
     if(!values[0]->add_member_index(gen, nullptr, idxList)) {
         gen.error("couldn't add member index for fragment '" + values[0]->representation() + "' in access chain '" + representation() + "'");
     }
-
+    Value* parent = values[0].get();
+    llvm::Value* pointer = parent->llvm_pointer(gen);
     unsigned i = 1;
     while (i < until) {
-        if(!values[i]->add_member_index(gen, values[i - 1].get(), idxList)) {
-            gen.error("couldn't add member index for fragment '" + values[i]->representation() + "' in access chain '" + representation() + "'");
+        if(values[i]->type_kind() == BaseTypeKind::Pointer) {
+            llvm::Value* gep;
+            if(idxList.empty()) {
+                gep = pointer;
+            } else {
+                gep = create_gep(gen, parent, pointer, idxList);
+            }
+            pointer = gen.builder->CreateLoad(values[i]->llvm_type(gen), gep);
+            parent = values[i].get();
+            idxList.clear();
+        } else {
+            if (!values[i]->add_member_index(gen, values[i - 1].get(), idxList)) {
+                gen.error("couldn't add member index for fragment '" + values[i]->representation() +
+                          "' in access chain '" + representation() + "'");
+            }
+            values[i]->find_link_in_parent(values[i - 1].get());
         }
-        values[i]->find_link_in_parent(values[i - 1].get());
         i++;
     }
-    if(values[0]->type_kind() == BaseTypeKind::Pointer) {
-        auto ty = values[0]->create_type();
-        return gen.builder->CreateGEP(((PointerType*) (ty.get()))->type->llvm_type(gen), values[0]->llvm_pointer(gen), idxList, "", gen.inbounds);
-    } else {
-        return gen.builder->CreateGEP(values[0]->llvm_type(gen), values[0]->llvm_pointer(gen), idxList, "", gen.inbounds);
-    }
+    return create_gep(gen, parent, pointer, idxList);
 }
 
 #endif

@@ -71,7 +71,7 @@ bool StructMember::add_child_index(Codegen &gen, std::vector<llvm::Value *> &ind
 }
 
 llvm::Type *StructDefinition::llvm_type(Codegen &gen) {
-    return llvm::StructType::get(*gen.ctx, elements_type(gen));
+    return llvm::StructType::create(*gen.ctx, elements_type(gen), name);
 }
 
 #endif

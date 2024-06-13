@@ -57,8 +57,8 @@ unsigned int Value::store_in_array(
     return index + 1;
 }
 
-llvm::Value* Value::access_chain_value(Codegen &gen, std::vector<std::unique_ptr<Value>>& values) {
-    return gen.builder->CreateLoad(values[values.size() - 1]->llvm_type(gen), access_chain_pointer(gen, values, values.size()), "acc");
+llvm::Value* Value::access_chain_value(Codegen &gen, std::vector<std::unique_ptr<Value>>& values, unsigned int until) {
+    return gen.builder->CreateLoad(values[until - 1]->llvm_type(gen), access_chain_pointer(gen, values, until), "acc");
 }
 
 llvm::Value* Value::access_chain_pointer(Codegen &gen, std::vector<std::unique_ptr<Value>>& values, unsigned int until) {

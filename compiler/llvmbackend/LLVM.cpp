@@ -197,11 +197,11 @@ llvm::Value *VariableIdentifier::llvm_ret_value(Codegen &gen, ReturnStatement *r
     return linked->llvm_ret_load(gen, returnStmt);
 }
 
-llvm::Value *VariableIdentifier::access_chain_value(Codegen &gen, std::vector<std::unique_ptr<Value>> &values) {
+llvm::Value *VariableIdentifier::access_chain_value(Codegen &gen, std::vector<std::unique_ptr<Value>> &values, unsigned until) {
     if(linked->as_enum_member() != nullptr) {
         return llvm_value(gen);
     } else {
-        return Value::access_chain_value(gen, values);
+        return Value::access_chain_value(gen, values, until);
     }
 }
 
@@ -261,7 +261,7 @@ llvm::Type *AccessChain::llvm_type(Codegen &gen) {
 }
 
 llvm::Value *AccessChain::llvm_value(Codegen &gen) {
-    return values[values.size() - 1]->access_chain_value(gen, values);
+    return values[values.size() - 1]->access_chain_value(gen, values, values.size());
 }
 
 llvm::Value *AccessChain::llvm_pointer(Codegen &gen) {

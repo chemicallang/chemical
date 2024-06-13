@@ -335,7 +335,7 @@ std::cerr << "child called on base value";
      * called by access chain on the last ref value in the chain
      * by default it just creates a load instruction on the access_chain_pointer by retriving it from below
      */
-    virtual llvm::Value* access_chain_value(Codegen &gen, std::vector<std::unique_ptr<Value>>& values);
+    virtual llvm::Value* access_chain_value(Codegen &gen, std::vector<std::unique_ptr<Value>>& values, unsigned int until);
 
     /**
      * when a identifier is last in the access chain, for example x.y.z here z is the last identifier

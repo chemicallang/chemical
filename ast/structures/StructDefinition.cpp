@@ -14,6 +14,13 @@
 #include "compiler/llvmimpl.h"
 #include "ast/values/IntValue.h"
 
+llvm::StructType* StructDefinition::get_struct_type(Codegen& gen) {
+    if(!llvm_struct_type) {
+        llvm_struct_type = llvm::StructType::create(*gen.ctx, elements_type(gen), name);
+    }
+    return llvm_struct_type;
+}
+
 void StructDefinition::code_gen(Codegen &gen) {
     std::unordered_map<std::string, llvm::Function *> *ref = nullptr;
     InterfaceDefinition *interface = nullptr;
@@ -71,7 +78,7 @@ bool StructMember::add_child_index(Codegen &gen, std::vector<llvm::Value *> &ind
 }
 
 llvm::Type *StructDefinition::llvm_type(Codegen &gen) {
-    return llvm::StructType::create(*gen.ctx, elements_type(gen), name);
+    return get_struct_type(gen);
 }
 
 #endif

@@ -56,6 +56,8 @@ public:
 
     void code_gen(Codegen &gen) override;
 
+    llvm::StructType* get_struct_type(Codegen &gen);
+
 #endif
 
     std::string representation() const override;
@@ -63,4 +65,8 @@ public:
     InterpretScope *decl_scope;
     std::string name; ///< The name of the struct.
     std::optional<std::unique_ptr<ReferencedType>> overrides;
+
+#ifdef COMPILER_BUILD
+    llvm::StructType* llvm_struct_type = nullptr;
+#endif
 };

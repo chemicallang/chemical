@@ -36,6 +36,10 @@ std::string resolve_rel_child_path_str(const std::string& root_path, const std::
     return (((std::filesystem::path) root_path) / ((std::filesystem::path) file_path)).string();
 }
 
+std::string resolve_parent_path(const std::string& root_path) {
+    return ((std::filesystem::path) root_path).parent_path().string();
+}
+
 std::string resolve_non_canon_parent_path(const std::string& root_path, const std::string& file_path) {
     return (((std::filesystem::path) root_path).parent_path() / ((std::filesystem::path) file_path)).string();
 }

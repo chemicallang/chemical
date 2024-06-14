@@ -1,12 +1,9 @@
 import "./SourceProvider.ch"
 
-// TODO change this, enum's don't support @scope:lexer
-typealias Operation = uint
-
-@scope:lexer
+@cbi:global("compiler")
 struct Lexer {
 
-    var provider : SourceProvider;
+    var provider : SourceProvider*;
 
     /**
      * consumes a identifier and store as a variable token

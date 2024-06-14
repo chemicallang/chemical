@@ -1,4 +1,4 @@
-@scope:lexer
+@cbi:global("compiler")
 enum Operation {
     // Grouping and scope resolution operators
     Grouping,

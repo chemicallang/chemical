@@ -17,7 +17,7 @@ func error_msg(message : string*) {
     printf("%s%s%s\n", ANSI_COLOR_RED, message, ANSI_COLOR_RESET);
 }
 
-func test(name : string*, assert : () => bool) {
+func test(name : string, assert : () => bool) {
     if(assert()) {
         printf("%s Test [%s] succeeded %s\n", ANSI_COLOR_GREEN, name, ANSI_COLOR_RESET);
     } else {

@@ -140,7 +140,7 @@ int main(int argc, char *argv[]) {
     }
 
     // translate chemical to C
-    auto tcc = options.option("tcc").has_value();
+    auto tcc = options.option("tcc", "tcc").has_value();
 #ifdef COMPILER_BUILD
     if(jit || (output.has_value() && (tcc || output.value().ends_with(".c") || output.value().ends_with(".h")))) {
 #endif

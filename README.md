@@ -55,9 +55,9 @@ func add(a : int, b : int) : int {
 
 - So easy that you can learn it in a week !
 - Great IDE support
-- Compile Time Evaluation
+- The Best Compile Time Evaluation
 - Low memory footprint
-- LLVM Backend
+- LLVM Backend, C Backend (both fully functional)
 - Translate C to Chemical
 - Translate Chemical to C
 - Import C System Headers
@@ -93,10 +93,9 @@ very innovative things are planned.
 - [x] Necessary C Translation (can import system headers)
 - [x] Translate to C (all tests passing)
 - [x] Just In Time Compilation using Tiny CC
-- [ ] Interpreter (mostly done)
-  - Unknown if this is to be supported
-  - So far no use has been found for it
+- [ ] Memory Management
 - [ ] Compile time Interpreted Plugins
+  - [x] Compiler Binding Interface (CBI)
   - [ ] Syntax Modifier Plugins (SMP)
   - [ ] AST Transformation Plugins (ATP)
   - [ ] Annotation / Symbol Processing

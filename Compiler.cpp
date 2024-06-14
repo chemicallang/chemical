@@ -126,7 +126,16 @@ int main(int argc, char *argv[]) {
     bool is64Bit = false;
 #endif
 
-    int return_int = 0;
+    // do not compile
+    if(only_verify) {
+        SourceVerifierOptions verify_opts(argv[0]);
+        prepare_options(&verify_opts);
+        if(verify(srcFilePath, &verify_opts)) {
+            return 0;
+        } else {
+            return 1;
+        }
+    }
 
     // translate chemical to C
     auto t2cOutput = options.option("t2c", "t2c");
@@ -146,10 +155,10 @@ int main(int argc, char *argv[]) {
             visitor->cpp_like = options.option("cpp-like").has_value();
             processor->lexer->isCBIEnabled = !options.option("no-cbi").has_value();
         };
-        bool good;
         bool jit = options.option("jit", "jit").has_value();
         if(t2cOutput.has_value() && t2cOutput.value().ends_with(".c") && !jit) {
-            good = translate(srcFilePath, t2cOutput.value(), &translator_opts, translator_preparer);
+            bool good = translate(srcFilePath, t2cOutput.value(), &translator_opts, translator_preparer);
+            return good ? 0 : 1;
         } else {
             std::string cProgramStr;
             if(srcFilePath.ends_with(".c")) {
@@ -169,14 +178,10 @@ int main(int argc, char *argv[]) {
                     return 1;
                 }
             }
-            return_int = compile_c_string(argv[0], cProgramStr.data(), t2cOutput.has_value() ? t2cOutput.value() : "", jit, benchmark);
-            if(return_int != 0) {
-                return 1;
-            }
+            return compile_c_string(argv[0], cProgramStr.data(), t2cOutput.has_value() ? t2cOutput.value() : "", jit, benchmark);
         }
 
 #ifdef COMPILER_BUILD
-        return good ? 0 : 1;
     }
 #endif
 #ifdef COMPILER_BUILD
@@ -205,19 +210,6 @@ int main(int argc, char *argv[]) {
         }
         return 0;
     }
-
-#endif
-
-    // do not compile
-    if(only_verify) {
-        SourceVerifierOptions verify_opts(argv[0]);
-        prepare_options(&verify_opts);
-        if(!verify(srcFilePath, &verify_opts)) {
-            return 1;
-        }
-    }
-
-#ifdef COMPILER_BUILD
 
     // compilation
     Codegen gen({}, srcFilePath, target.value(), argv[0], is64Bit);
@@ -290,6 +282,8 @@ int main(int argc, char *argv[]) {
     std::string object_file_path = output.value() + ".o";
     gen.save_to_object_file(object_file_path);
 
+    int return_int = 0;
+
     auto useLinker = options.option("linker", "linker");
     if(useLinker.has_value()) {
 
@@ -354,10 +348,9 @@ int main(int argc, char *argv[]) {
         return_int = 1;
     }
 
-#endif
-
     options.print_unhandled();
-
     return return_int;
+
+#endif
 
 }

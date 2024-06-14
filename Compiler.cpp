@@ -4,7 +4,9 @@
 // Created by Waqas Tahir on 28/02/2024.
 //
 
+#ifdef COMPILER_BUILD
 #include <llvm/TargetParser/Host.h>
+#endif
 #include "lexer/Lexi.h"
 #include "utils/Utils.h"
 #include "ast/base/GlobalInterpretScope.h"
@@ -23,6 +25,9 @@
 #include <functional>
 #include "preprocess/2cASTVisitor.h"
 #include "compiler/ASTProcessor.h"
+#include "integration/libtcc/LibTccInteg.h"
+
+#ifdef COMPILER_BUILD
 
 int chemical_clang_main(int argc, char **argv);
 
@@ -30,21 +35,26 @@ int chemical_clang_main2(const std::vector<std::string> &command_args);
 
 std::vector<std::unique_ptr<ASTNode>> TranslateC(const char* exe_path, const char *abs_path, const char *resources_path);
 
+#endif
+
 int libtcc_test();
 
 int main(int argc, char *argv[]) {
 
 //    libtcc_test();
 
+#ifdef COMPILER_BUILD
     // invoke clang cc1, this is used by clang, because it invokes (current executable)
     if(argc >= 2 && strcmp(argv[1], "-cc1") == 0) {
         return chemical_clang_main(argc, argv);
     }
+#endif
 
     // parsing the command
     CmdOptions options;
     auto args = options.parse_cmd_options(argc, argv, 1, {"rclg", "clang", "linker", "jit"});
 
+#ifdef COMPILER_BUILD
     // use raw clang
     auto rawclang = options.option("rclg", "rclg");
     if(rawclang.has_value()) {
@@ -57,6 +67,7 @@ int main(int argc, char *argv[]) {
 //        std::cout << std::endl;
         return chemical_clang_main2(subc);
     }
+#endif
 
     auto verbose = options.option("verbose", "v").has_value();
     if(verbose) {
@@ -82,9 +93,11 @@ int main(int argc, char *argv[]) {
     auto print_cst = options.option("print-cst", "pr-cst").has_value();
     auto res = options.option("res", "res");
     auto resources_path = res.has_value() ? res.value() : resolve_rel_parent_path_str(std::string(argv[0]), "resources");
+#ifdef COMPILER_BUILD
     if(resources_path.empty()) {
         std::cerr << "[Compiler] Couldn't locate resources path relative to compiler's executable" << std::endl;
     }
+#endif
 
     auto prepare_options = [&](ASTProcessorOptions* options) -> void {
         options->benchmark = benchmark;
@@ -95,6 +108,8 @@ int main(int argc, char *argv[]) {
         options->resources_path = resources_path;
     };
 
+#ifdef COMPILER_BUILD
+
     // get and print target
     auto target = options.option("target", "t");
     if (!target.has_value()) {
@@ -103,21 +118,54 @@ int main(int argc, char *argv[]) {
     if(verbose) {
         std::cout << "[Target] " << target.value() << std::endl;
     }
+
     // determine if is 64bit
     bool is64Bit = Codegen::is_arch_64bit(target.value());
 
+#else
+    bool is64Bit = false;
+#endif
+
+    int return_int = 0;
+
     // translate chemical to C
-    auto translateToC = options.option("t2c", "t2c");
-    if(translateToC.has_value()) {
-        ToCTranslatorOptions translator_opts(argv[0], translateToC.value(), is64Bit);
+    auto t2cOutput = options.option("t2c", "t2c");
+#ifdef COMPILER_BUILD
+    if(t2cOutput.has_value()) {
+#endif
+#ifdef TCC_BUILD
+        auto output = options.option("output", "o");
+        if(!t2cOutput.has_value() && output.has_value()) {
+            t2cOutput.emplace(output.value());
+        }
+#endif
+        ToCTranslatorOptions translator_opts(argv[0], is64Bit);
         prepare_options(&translator_opts);
-        bool good = translate(srcFilePath, &translator_opts, [&options](ToCAstVisitor* visitor, ASTProcessor* processor) -> void {
+        auto translator_preparer = [&options](ToCAstVisitor* visitor, ASTProcessor* processor) -> void {
             visitor->inline_struct_members_fn_types = !options.option("take-out-struct-member-fn-types").has_value();
             visitor->cpp_like = options.option("cpp-like").has_value();
             processor->lexer->isCBIEnabled = !options.option("no-cbi").has_value();
-        });
+        };
+        bool good;
+        bool jit = options.option("jit", "jit").has_value();
+        if(t2cOutput.has_value() && t2cOutput.value().ends_with(".c") && !jit) {
+            good = translate(srcFilePath, t2cOutput.value(), &translator_opts, translator_preparer);
+        } else {
+            auto cProgramStr = translate(srcFilePath, &translator_opts, translator_preparer);
+            if(cProgramStr.empty()) {
+                return 1;
+            }
+            return_int = compile_c_string(argv[0], cProgramStr.data(), t2cOutput.has_value() ? t2cOutput.value() : "", jit, benchmark);
+            if(return_int != 0) {
+                return 1;
+            }
+        }
+
+#ifdef COMPILER_BUILD
         return good ? 0 : 1;
     }
+#endif
+#ifdef COMPILER_BUILD
 
     // translate C to chemical
     auto translateC = options.option("tc", "tc");
@@ -144,6 +192,8 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
+#endif
+
     // do not compile
     if(only_verify) {
         SourceVerifierOptions verify_opts(argv[0]);
@@ -152,6 +202,8 @@ int main(int argc, char *argv[]) {
             return 1;
         }
     }
+
+#ifdef COMPILER_BUILD
 
     // compilation
     Codegen gen({}, srcFilePath, target.value(), argv[0], is64Bit);
@@ -166,6 +218,8 @@ int main(int argc, char *argv[]) {
         // print to console
         gen.print_to_console();
     }
+
+#endif
 
 #ifdef FEAT_JUST_IN_TIME
 
@@ -183,8 +237,8 @@ int main(int argc, char *argv[]) {
     }
 
 #endif
+#ifdef COMPILER_BUILD
 
-    int return_int = 0;
     auto output = options.option("output", "o");
     if (!output.has_value()) {
         output.emplace("compiled");
@@ -285,6 +339,8 @@ int main(int argc, char *argv[]) {
         std::cerr << ANSI_COLOR_RED << "couldn't delete object file " << object_file_path << " because " << ex.what() << ANSI_COLOR_RESET << std::endl;
         return_int = 1;
     }
+
+#endif
 
     options.print_unhandled();
 

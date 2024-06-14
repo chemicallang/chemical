@@ -13,11 +13,6 @@ class ToCTranslatorOptions : public ASTProcessorOptions {
 public:
 
     /**
-     * the path to the output, this is a path to a directory
-     */
-    std::string output_path;
-
-    /**
      * is the target triple 64bit
      */
     bool is64Bit;
@@ -25,11 +20,13 @@ public:
     /**
      * constructor
      */
-    ToCTranslatorOptions(std::string exe_path, std::string output_path, bool is64Bit);
+    ToCTranslatorOptions(std::string exe_path, bool is64Bit);
 
 };
 
 class ToCAstVisitor;
 class ASTProcessor;
 
-bool translate(const std::string& path, ToCTranslatorOptions* options, const std::function<void(ToCAstVisitor*, ASTProcessor*)>& prepare);
+std::string translate(const std::string& path, ToCTranslatorOptions* options, const std::function<void(ToCAstVisitor*, ASTProcessor*)>& prepare);
+
+bool translate(const std::string& path, const std::string& output_path, ToCTranslatorOptions* options, const std::function<void(ToCAstVisitor*, ASTProcessor*)>& prepare);

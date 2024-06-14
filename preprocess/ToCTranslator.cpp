@@ -14,6 +14,7 @@
 #include <ostream>
 #include "2cASTVisitor.h"
 #include "compiler/ASTProcessor.h"
+#include <sstream>
 
 #ifdef COMPILER_BUILD
 
@@ -24,15 +25,17 @@ TranslateC(const char *exe_path, const char *abs_path, const char *resources_pat
 
 ToCTranslatorOptions::ToCTranslatorOptions(
         std::string exe_path,
-        std::string output_path,
         bool is64Bit
-) : ASTProcessorOptions(std::move(exe_path)),
-    output_path(std::move(output_path)),
-    is64Bit(is64Bit) {
+) : ASTProcessorOptions(std::move(exe_path)),is64Bit(is64Bit) {
 
 }
 
-bool translate(const std::string &path, ToCTranslatorOptions *options, const std::function<void(ToCAstVisitor*, ASTProcessor*)>& prepare) {
+bool translate(
+        const std::string &path,
+        std::ostream* output_ptr,
+        ToCTranslatorOptions *options,
+        const std::function<void(ToCAstVisitor*, ASTProcessor*)>& prepare
+) {
 
     // creating the lexer
     std::fstream file_stream;
@@ -64,13 +67,7 @@ bool translate(const std::string &path, ToCTranslatorOptions *options, const std
     bool compile_result = true;
 
     // beginning
-    std::ofstream stream;
-    stream.open(options->output_path);
-    if(!stream.is_open()) {
-        std::cerr << "[2C] Failed to open path : " << options->output_path << std::endl;
-        return false;
-    }
-    ToCAstVisitor visitor(&stream, path);
+    ToCAstVisitor visitor(output_ptr, path);
     prepare(&visitor, &processor);
 
     // preparing translation
@@ -93,8 +90,44 @@ bool translate(const std::string &path, ToCTranslatorOptions *options, const std
     }
 
     processor.end();
-    stream.close();
 
     return compile_result;
 
+}
+
+bool translate(
+        const std::string &path,
+        const std::string& output_path,
+        ToCTranslatorOptions *options,
+        const std::function<void(ToCAstVisitor*, ASTProcessor*)>& prepare
+){
+    std::ofstream stream;
+    stream.open(output_path);
+    if (!stream.is_open()) {
+        std::cerr << "[2C] Failed to open path : " << output_path << std::endl;
+        return false;
+    }
+    auto value = translate(
+        path,
+        &stream,
+        options,
+        prepare
+    );
+    stream.close();
+    return value;
+}
+
+std::string translate(const std::string& path, ToCTranslatorOptions* options, const std::function<void(ToCAstVisitor*, ASTProcessor*)>& prepare) {
+    std::stringstream stream;
+    auto value = translate(
+            path,
+            &stream,
+            options,
+            prepare
+    );
+    if(value) {
+        return stream.str();
+    } else {
+        return "";
+    }
 }

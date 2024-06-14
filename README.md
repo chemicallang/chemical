@@ -92,7 +92,10 @@ very innovative things are planned.
 - [x] Native Codegen
 - [x] Necessary C Translation (can import system headers)
 - [x] Translate to C (all tests passing)
+- [x] Just In Time Compilation using Tiny CC
 - [ ] Interpreter (mostly done)
+  - Unknown if this is to be supported
+  - So far no use has been found for it
 - [ ] Compile time Interpreted Plugins
   - [ ] Syntax Modifier Plugins (SMP)
   - [ ] AST Transformation Plugins (ATP)
@@ -125,18 +128,11 @@ These requirements are for people who've never set up a C++ / Boost / LLVM Proje
 
 ### Instructions
 
-The project generates three executables (at the moment)
+The project generates these executables (and maybe more)
 
- - Compiler (source code to executables) (requires llvm)
- - Interpreter (interprets the source code)
+ - Compiler (source code to executables) (requires llvm & clang)
+ - TCC Compiler (a compiler based on Tiny CC compiler)
  - LSP Server (for IDE experience) (requires boost)
-
-The easiest to set up and work on is interpreter because it has no dependencies.
-
-#### To work on `Interpreter`
-- clone the repo
-- open in CLion
-- open an issue, if you fail
 
 #### To work on `LSP Server`
 - Please install Boost

@@ -22,5 +22,5 @@ func main() {
     test_strings();
     test_macros();
     test_arrays();
-    printf("All tests done");
+    print_test_stats();
 }

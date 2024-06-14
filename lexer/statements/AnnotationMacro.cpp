@@ -26,7 +26,7 @@ bool Lexer::lexAnnotationMacro() {
     if (isAnnotation) {
         unsigned start = tokens.size();
         tokens.emplace_back(std::make_unique<AnnotationToken>(backPosition(macro.size()), macro_full));
-        if(provider.increment('(')) {
+        if(lexOperatorToken('(')) {
             do {
                 lexWhitespaceToken();
                 if(!lexValueToken()) {
@@ -34,7 +34,7 @@ bool Lexer::lexAnnotationMacro() {
                 }
                 lexWhitespaceToken();
             } while (lexOperatorToken(','));
-            if(!provider.increment(')')) {
+            if(!lexOperatorToken(')')) {
                 error("expected a ')' after '(' to call an annotation");
                 return true;
             }

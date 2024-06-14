@@ -13,8 +13,7 @@ void VarInitStatement::code_gen(Codegen &gen) {
         if (value.has_value()) {
             llvm_ptr = value.value()->llvm_global_variable(gen, is_const, identifier);
         } else {
-            // TODO declare a global variable
-            gen.info("[Unimplemented] Global variables");
+            llvm_ptr = new llvm::GlobalVariable(*gen.module, llvm_type(gen), is_const, llvm::GlobalValue::LinkageTypes::PrivateLinkage, nullptr, identifier);
         }
     } else {
         if (value.has_value()) {

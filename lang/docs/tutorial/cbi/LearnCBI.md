@@ -34,6 +34,12 @@ You must remember the following 5 basic annotations in CBI
   - put's upcoming thing (function / struct) into a cbi named `html`
 - `@cbi:compile("html")`
   - compiles html cbi so it can be used by the user, nodes can not be added to the cbi after this.
+- `@cbi:begin("html")`
+  - if you are tried of using `@cbi:to` annotations to put structs / functions into CBI, you can put `@cbi:begin` right after `@cbi:create`, and every struct / function will be put into cbi until one of
+  `@cbi:compile` or `@cbi:end` is found
+- `@cbi:end`
+  - end collection of structs / functions into a CBI, every end annotation must have a corresponding `@cbi:begin` annotation
+  that started it
 
 #### Example
 
@@ -47,18 +53,20 @@ import "@compiler/Lexer.h" // this import allows us to use @cbi:import("number",
 @cbi:to("number")
 struct number {
     func lex(lexer : Lexer*) {
-        // you can parse it using your own api
-        // chemical provides it's own api, which allows parsing chemical code
+        var ln = lexer.provider.getLineNumber(); // zero based
+        var cn = lexer.provider.getLineCharNumber(); // zero based
+        // you can parse it using your code
+        // chemical provides it's own API, which allows parsing chemical code
         var num = lexer.provider.readNumber();
-        printf("look ma I read a number : %d", num);
+        printf("look ma I read a number : %s at line %d,%d", num, ln + 1, cn + 1);
     }
 }
 
 @cbi:compile("number");
 
 func main() {
-    var num = #number { 123 }
-    printf("checkout the number : %d", num);
+    #number { 123 }
+    printf("hello world");
 }
 ```
 
@@ -75,6 +83,9 @@ The import `cbi:import("number", "compiler")` will put global cbi node called co
 to have access to chemical's compiler API, It defines useful structs and function types, so that you can call them from your code.
 
 The `cbi:globa("name_of_cbi")` is just like `@cbi:to("number")`, It's put above functions / structs, to collect them, so that they can be imported by other CBI's.
+
+Now to try it out, you should use `@cbi:begin("html")` instead of `@cbi:to("html")`, once begin has been detected, every struct / function you write will be part of the CBI.
+Play around and create a global variable that goes in CBI, on every invocation increment and print it out
 
 ### How does CBI works ?
 

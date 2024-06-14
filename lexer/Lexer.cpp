@@ -61,8 +61,22 @@ void Lexer::init_annotation_modifiers() {
         lexer->isCBICollecting = true;
         lexer->current_cbi = annotation_str_param(0, token);
     };
+    annotation_modifiers["cbi:begin"] = [](Lexer *lexer, CSTToken* token) -> void {
+        if(!lexer->isCBIEnabled) return;
+        lexer->isCBICollecting = true;
+        lexer->isCBIKeepCollecting = true;
+        lexer->current_cbi = annotation_str_param(0, token);
+    };
+    annotation_modifiers["cbi:end"] = [](Lexer *lexer, CSTToken* token) -> void {
+        if(!lexer->isCBIEnabled) return;
+        lexer->isCBICollecting = false;
+        lexer->isCBIKeepCollecting = false;
+        lexer->current_cbi = "";
+    };
     annotation_modifiers["cbi:compile"] = [](Lexer *lexer, CSTToken* token) -> void {
         if(!lexer->isCBIEnabled) return;
+        lexer->isCBIKeepCollecting = false;
+        lexer->current_cbi = "";
         auto a = annotation_str_param(0,token);
         if(a.empty()) {
             lexer->error("cbi:compiler called with invalid parameters : " + a);

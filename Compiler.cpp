@@ -91,6 +91,7 @@ int main(int argc, char *argv[]) {
     auto print_representation = options.option("print-ast", "pr-ast").has_value();
     auto print_ir = options.option("print-ir", "pr-ir").has_value();
     auto print_cst = options.option("print-cst", "pr-cst").has_value();
+    bool jit = options.option("jit", "jit").has_value();
     auto output = options.option("output", "o");
     auto res = options.option("res", "res");
     auto resources_path = res.has_value() ? res.value() : resolve_rel_parent_path_str(std::string(argv[0]), "resources");
@@ -139,13 +140,10 @@ int main(int argc, char *argv[]) {
     }
 
     // translate chemical to C
-    auto t2cOutput = options.option("tcc", "tcc");
+    auto tcc = options.option("tcc").has_value();
 #ifdef COMPILER_BUILD
-    if((output.has_value() && output.value().ends_with(".c")) || t2cOutput.has_value()) {
+    if(jit || (output.has_value() && (tcc || output.value().ends_with(".c") || output.value().ends_with(".h")))) {
 #endif
-        if(!t2cOutput.has_value() && output.has_value()) {
-            t2cOutput.emplace(output.value());
-        }
         ToCTranslatorOptions translator_opts(argv[0], is64Bit);
         prepare_options(&translator_opts);
         auto translator_preparer = [&options](ToCAstVisitor* visitor, ASTProcessor* processor) -> void {
@@ -153,13 +151,12 @@ int main(int argc, char *argv[]) {
             visitor->cpp_like = options.option("cpp-like").has_value();
             processor->lexer->isCBIEnabled = !options.option("no-cbi").has_value();
         };
-        bool jit = options.option("jit", "jit").has_value();
-        if(t2cOutput.has_value() && t2cOutput.value().ends_with(".c") && !jit) {
-            bool good = translate(srcFilePath, t2cOutput.value(), &translator_opts, translator_preparer);
+        if(output.has_value() && (output.value().ends_with(".c") || output.value().ends_with(".h")) && !jit) {
+            bool good = translate(srcFilePath, output.value(), &translator_opts, translator_preparer);
             return good ? 0 : 1;
         } else {
             std::string cProgramStr;
-            if(srcFilePath.ends_with(".c")) {
+            if(srcFilePath.ends_with(".c") || srcFilePath.ends_with(".h")) {
                 std::ifstream input;
                 input.open(srcFilePath);
                 if(!input.is_open()) {
@@ -176,7 +173,7 @@ int main(int argc, char *argv[]) {
                     return 1;
                 }
             }
-            return compile_c_string(argv[0], cProgramStr.data(), t2cOutput.has_value() ? t2cOutput.value() : "", jit, benchmark);
+            return compile_c_string(argv[0], cProgramStr.data(), output.has_value() ? output.value() : "", jit, benchmark);
         }
 
 #ifdef COMPILER_BUILD
@@ -185,14 +182,13 @@ int main(int argc, char *argv[]) {
 #ifdef COMPILER_BUILD
 
     // translate C to chemical
-    auto translateC = options.option("tc", "tc");
-    if(translateC.has_value()) {
+    if((srcFilePath.ends_with(".c") || srcFilePath.ends_with(".h")) && output.has_value() && output.value().ends_with(".ch")) {
         auto nodes = TranslateC(argv[0], srcFilePath.c_str(), resources_path.c_str());
         // write translated to the given file
         std::ofstream out;
-        out.open(translateC.value());
+        out.open(output.value());
         if(!out.is_open()) {
-            std::cout << "[TranslateC] Couldn't open the file at path " << translateC.value() << std::endl;
+            std::cout << "[TranslateC] Couldn't open the file at path " << output.value() << std::endl;
             return 1;
         }
         RepresentationVisitor visitor(out);
@@ -202,7 +198,7 @@ int main(int argc, char *argv[]) {
         if(only_verify) {
             SourceVerifierOptions verify_opts(argv[0]);
             prepare_options(&verify_opts);
-            if(!verify(translateC.value(), &verify_opts)) {
+            if(!verify(output.value(), &verify_opts)) {
                 return 1;
             }
         }

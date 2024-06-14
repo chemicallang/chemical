@@ -151,9 +151,23 @@ int main(int argc, char *argv[]) {
         if(t2cOutput.has_value() && t2cOutput.value().ends_with(".c") && !jit) {
             good = translate(srcFilePath, t2cOutput.value(), &translator_opts, translator_preparer);
         } else {
-            auto cProgramStr = translate(srcFilePath, &translator_opts, translator_preparer);
-            if(cProgramStr.empty()) {
-                return 1;
+            std::string cProgramStr;
+            if(srcFilePath.ends_with(".c")) {
+                std::ifstream input;
+                input.open(srcFilePath);
+                if(!input.is_open()) {
+                    std::cerr << "[Compiler] couldn't open the file at location " << srcFilePath << std::endl;
+                    return 1;
+                }
+                std::stringstream buffer;
+                buffer << input.rdbuf();
+                cProgramStr = std::move(buffer.str());
+                input.close();
+            } else {
+                cProgramStr = translate(srcFilePath, &translator_opts, translator_preparer);
+                if(cProgramStr.empty()) {
+                    return 1;
+                }
             }
             return_int = compile_c_string(argv[0], cProgramStr.data(), t2cOutput.has_value() ? t2cOutput.value() : "", jit, benchmark);
             if(return_int != 0) {

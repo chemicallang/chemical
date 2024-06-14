@@ -429,6 +429,8 @@ set(COMMON_SOURCES
         lexer/model/CompilerBinderCommon.h
         ast/utils/ASTUtils.h
         ast/utils/ASTUtils.cpp
+        integration/libtcc/LibTccInteg.h
+        integration/libtcc/LibTcc.cpp
 )
 
 # Chemical LSP Executable Target
@@ -479,6 +481,9 @@ set(COMPILER_SOURCES
 # add Compiler executable
 add_executable(Compiler Compiler.cpp ${COMMON_SOURCES} ${COMPILER_SOURCES})
 
+# add TCC Compiler executable
+add_executable(TCCCompiler Compiler.cpp ${COMMON_SOURCES})
+
 # status messages
 message(STATUS "FEATURES ${COMPILER_FEATURES}")
 # Indicate which libraries are present in these vars
@@ -490,6 +495,10 @@ message(STATUS "LLD Libs ${LLD_LIBRARIES}")
 
 # Compiler uses llvm
 target_compile_definitions(Compiler PRIVATE COMPILER_BUILD CLANG_LIBS LLD_LIBS ${COMPILER_FEATURES})
+
+# TCC Compiler does not use llvm and clang
+target_compile_definitions(TCCCompiler PRIVATE TCC_BUILD)
+
 # Lsp uses boost library
 target_compile_definitions(ChemicalLsp PRIVATE LSP_BUILD)
 
@@ -521,6 +530,14 @@ target_include_directories(Compiler PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/lib/tsl-ordered-map
 )
 
+# Add include directories for TCCCompiler
+target_include_directories(TCCCompiler PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${LIBTCC_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/tsl-ordered-map
+)
+
 # find the libraries that correspond to llvm
 # llvm_map_components_to_libnames(LLVM_EXTRA_LIBS Option)
 
@@ -535,6 +552,7 @@ if (MSVC)
     # Disable warning C4267: 'argument': conversion from 'size_t' to '...', possible loss of data
     # For Microsoft Visual Studio Compiler Only
     target_compile_options(Compiler PRIVATE /wd4267)
+    target_compile_options(TCCCompiler PRIVATE /wd4267)
     target_compile_options(Interpreter PRIVATE /wd4267)
     target_compile_options(ChemicalLsp PRIVATE /wd4267)
 endif ()
@@ -550,8 +568,11 @@ endif ()
 # This should be removed eventually we don't want boost to boost our exe size
 target_link_libraries(Interpreter)
 
-# Link compiler against CLANG, LLVM, LLD
+# Link compiler against CLANG, LLVM, LLD, LibTCC
 target_link_libraries(Compiler ${CLANG_LIBRARIES} ${LLVM_LIBRARIES} ${LLD_LIBRARIES} ${LIBTCC_LIB})
+
+# Link TCC Compiler against LibTCC
+target_link_libraries(TCCCompiler ${LIBTCC_LIB})
 
 # Link Lsp with Boost Library
 target_link_libraries(ChemicalLsp Boost::program_options Boost::filesystem lspcpp ${LIBTCC_LIB})
@@ -561,3 +582,4 @@ message(STATUS "Setting Standard C++ 20")
 set_property(TARGET ChemicalLsp PROPERTY CXX_STANDARD 20)
 set_property(TARGET Interpreter PROPERTY CXX_STANDARD 20)
 set_property(TARGET Compiler PROPERTY CXX_STANDARD 20)
+set_property(TARGET TCCCompiler PROPERTY CXX_STANDARD 20)

@@ -17,12 +17,34 @@ func error_msg(message : string*) {
     printf("%s%s%s\n", ANSI_COLOR_RED, message, ANSI_COLOR_RESET);
 }
 
+var total_tests = 0;
+var tests_passed = 0;
+var tests_failed = 0;
+
 func test(name : string, assert : () => bool) {
     if(assert()) {
-        printf("%s Test [%s] succeeded %s\n", ANSI_COLOR_GREEN, name, ANSI_COLOR_RESET);
+        printf("%sTest %d [%s] succeeded %s\n", ANSI_COLOR_GREEN, total_tests + 1, name, ANSI_COLOR_RESET);
+        tests_passed++;
     } else {
-        printf("%s Test [%s] failed %s\n", ANSI_COLOR_RED, name, ANSI_COLOR_RESET);
+        printf("%sTest %d [%s] failed %s\n", ANSI_COLOR_RED, total_tests + 1, name, ANSI_COLOR_RESET);
+        tests_failed++;
     }
+    total_tests++;
+}
+
+func print_test_stats() {
+    printf("Total %d", total_tests);
+    printf(" %sPassed %d%s", ANSI_COLOR_GREEN, tests_passed, ANSI_COLOR_RESET);
+
+    if(tests_failed == 0) {
+        printf(" %s", ANSI_COLOR_GREEN);
+    } else {
+        printf(" %s", ANSI_COLOR_RED);
+    }
+
+    printf("Failed %d", tests_failed);
+
+    printf("%s", ANSI_COLOR_RESET);
 }
 
 func assertEquals(actual : int, expected : int) : bool {

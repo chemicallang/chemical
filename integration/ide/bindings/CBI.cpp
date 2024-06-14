@@ -266,7 +266,7 @@ void init_source_provider_cbi(SourceProviderCBI* cbi, SourceProvider* provider) 
         return cbi->instance->peek(ahead);
     };
     cbi->readUntil = [](struct SourceProviderCBI* cbi, char stop){
-        return (char*) cbi->instance->readUntil(stop).c_str();
+        return cbi->instance->readUntil(stop).data();
     };
     cbi->increment = [](struct SourceProviderCBI* cbi, char* text, bool peek){
         return cbi->instance->increment(text, peek);
@@ -275,7 +275,7 @@ void init_source_provider_cbi(SourceProviderCBI* cbi, SourceProvider* provider) 
         return cbi->instance->increment(c);
     };
     cbi->readAllFromHere = [](struct SourceProviderCBI* cbi){
-        return (char*) cbi->instance->readAllFromHere().c_str();
+        return cbi->instance->readAllFromHere().data();
     };
     cbi->getLineNumber = [](struct SourceProviderCBI* cbi){
         return cbi->instance->getLineNumber();
@@ -288,29 +288,29 @@ void init_source_provider_cbi(SourceProviderCBI* cbi, SourceProvider* provider) 
 //        cbi->instance->readEscaping(value, stopAt);
     };
     cbi->readAnything = [](struct SourceProviderCBI* cbi, char until){
-        return (char*) cbi->instance->readAnything(until).c_str();
+        return cbi->instance->readAnything(until).data();
     };
     cbi->readAlpha = [](struct SourceProviderCBI* cbi){
-        return (char*) cbi->instance->readAlpha().c_str();
+        return cbi->instance->readAlpha().data();
     };
     cbi->readUnsignedInt = [](struct SourceProviderCBI* cbi){
-        return (char*) cbi->instance->readUnsignedInt().c_str();
+        return cbi->instance->readUnsignedInt().data();
     };
     cbi->readNumber = [](struct SourceProviderCBI* cbi){
-        return (char*) cbi->instance->readNumber().c_str();
+        return cbi->instance->readNumber().data();
     };
     cbi->readAlphaNum = [](struct SourceProviderCBI* cbi){
-        return (char*) cbi->instance->readAlphaNum().c_str();
+        return cbi->instance->readAlphaNum().data();
     };
     cbi->readIdentifier = [](struct SourceProviderCBI* cbi){
-        return (char*) cbi->instance->readIdentifier().c_str();
+        return cbi->instance->readIdentifier().data();
     };
     cbi->readAnnotationIdentifierInto = [](struct SourceProviderCBI* cbi, char* into){
         throw std::runtime_error("This requires that char* is passed as string");
 //        cbi->instance->readAnnotationIdentifier(into);
     };
     cbi->readAnnotationIdentifier = [](struct SourceProviderCBI* cbi){
-        return (char*) cbi->instance->readAnnotationIdentifier().c_str();
+        return cbi->instance->readAnnotationIdentifier().data();
     };
     cbi->readWhitespaces = [](struct SourceProviderCBI* cbi){
         return cbi->instance->readWhitespaces();

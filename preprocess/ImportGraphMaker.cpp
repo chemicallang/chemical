@@ -10,6 +10,7 @@
 #include "cst/base/CompoundCSTToken.h"
 #include "cst/utils/CSTUtils.h"
 #include "ImportPathHandler.h"
+#include "utils/PathUtils.h"
 
 typedef ImportGraphImporter Importer;
 
@@ -144,7 +145,8 @@ IGFile from_import(
                         importSt->range,
                         DiagSeverity::Error,
                         file.flat_file.abs_path,
-                        "couldn't find the file to import " + file.flat_file.abs_path
+                        "couldn't find the file to import " + file.flat_file.abs_path + " relative to base path " +
+                                resolve_parent_path(base_path)
                 );
             } else {
                 file.flat_file.abs_path = resolved;

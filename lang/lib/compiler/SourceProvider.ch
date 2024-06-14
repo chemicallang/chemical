@@ -1,8 +1,9 @@
+import "./Operation.ch"
 
 /**
  * provides access to the source code provided by the user
  */
-@scope:lexer
+@cbi:global("compiler")
 struct SourceProvider {
 
     /**

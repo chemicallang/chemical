@@ -270,10 +270,12 @@ void CSTConverter::visitEnumDecl(CompoundCSTToken *decl) {
     auto i = 3; // first enum member or '}'
     unsigned position = 0;
     while(!is_char_op(decl->tokens[i].get(), '}')) {
-        auto name = str_token(decl->tokens[i].get());
-        members[name] = std::make_unique<EnumMember>(name, position++);
-        if(is_char_op(decl->tokens[i + 1].get(), ',')){
-            i++;
+        if(decl->tokens[i]->is_identifier()) {
+            auto name = str_token(decl->tokens[i].get());
+            members[name] = std::make_unique<EnumMember>(name, position++);
+            if (is_char_op(decl->tokens[i + 1].get(), ',')) {
+                i++;
+            }
         }
         i++;
     }

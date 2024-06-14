@@ -1481,6 +1481,10 @@ void ToCAstVisitor::visit(PointerType *func) {
 }
 
 void ToCAstVisitor::visit(ReferencedType *type) {
+    if(type->linked->as_enum_decl()){
+        write("int");
+        return;
+    }
     if(type->linked->as_struct_def()) {
         write("struct ");
     }

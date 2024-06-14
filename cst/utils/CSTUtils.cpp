@@ -236,7 +236,7 @@ token_parent_file find_token_parent(ImportUnit* unit, CSTToken* token) {
 }
 
 std::string annotation_str_param(unsigned index, CSTToken* token) {
-    auto param_index = index + 1;
+    auto param_index = index + 2;
     if(index > 0) {
         param_index += index;
     }

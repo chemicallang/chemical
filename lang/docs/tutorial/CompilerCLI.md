@@ -20,7 +20,7 @@ compiler.exe file.ch -o file.c
 ```
 
 #### Translate C into Chemical
-Compiled based on Tiny CC doesn't support this operation
+Compiler based on Tiny CC doesn't support this operation
 
 ```shell
 compiler.exe file.c -o file.ch

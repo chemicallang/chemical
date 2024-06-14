@@ -52,7 +52,7 @@ void Expression::promote_literal_values(BaseType* firstType, BaseType* secondTyp
 }
 
 std::unique_ptr<BaseType> Expression::create_type() const {
-    if(operation == Operation::IsEqual || operation == Operation::IsNotEqual) {
+    if(operation >= Operation::IndexComparisonStart && operation <= Operation::IndexComparisonEnd) {
         return std::make_unique<BoolType>();
     }
     auto first = firstValue->create_type();

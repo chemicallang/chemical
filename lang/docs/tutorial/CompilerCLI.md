@@ -54,7 +54,10 @@ Let's see some other options
   - Just in time compilation is enabled (Tiny CC only)
 - `--tcc`, `-tcc`
   - Force use Tiny CC backend for code generation
-
+- `--res`, `-res`
+  - Resources are required by compiler, present at path `./resources` relative to compiler's executable, 
+    you can override this directory, used when building compiler by source, they are present in 
+    `lib/include` in the current repository
 
 ### Translate To C
 

@@ -76,7 +76,7 @@ bool Lexer::lexVarInitializationTokens(bool allowDeclarations, bool requiredType
         return true;
     }
 
-    compound_from<VarInitCST>(start);
+    compound_collectable<VarInitCST>(start);
 
     return true;
 

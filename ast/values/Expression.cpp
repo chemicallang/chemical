@@ -4,6 +4,7 @@
 #include "ast/base/GlobalInterpretScope.h"
 #include "IntNumValue.h"
 #include "ast/types/IntNType.h"
+#include "ast/types/BoolType.h"
 
 void Expression::replace_number_values(BaseType* firstType, BaseType* secondType) {
     if(firstType->kind() == BaseTypeKind::IntN && secondType->kind() == BaseTypeKind::IntN) {
@@ -51,6 +52,9 @@ void Expression::promote_literal_values(BaseType* firstType, BaseType* secondTyp
 }
 
 std::unique_ptr<BaseType> Expression::create_type() const {
+    if(operation == Operation::IsEqual || operation == Operation::IsNotEqual) {
+        return std::make_unique<BoolType>();
+    }
     auto first = firstValue->create_type();
     if(first->can_promote(secondValue.get())) {
         return std::unique_ptr<Value>(first->promote(secondValue.get()))->create_type();

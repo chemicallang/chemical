@@ -93,7 +93,11 @@ enum class Operation : uint8_t {
     ShiftRightBy,
     ANDWith,
     ExclusiveORWith,
-    InclusiveORWith
+    InclusiveORWith,
+
+    // Indexes into the enum
+    IndexComparisonStart=GreaterThan,
+    IndexComparisonEnd=IsNotEqual
 };
 
 std::string to_string(Operation operation);

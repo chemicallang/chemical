@@ -91,6 +91,7 @@ int main(int argc, char *argv[]) {
     auto print_representation = options.option("print-ast", "pr-ast").has_value();
     auto print_ir = options.option("print-ir", "pr-ir").has_value();
     auto print_cst = options.option("print-cst", "pr-cst").has_value();
+    auto output = options.option("output", "o");
     auto res = options.option("res", "res");
     auto resources_path = res.has_value() ? res.value() : resolve_rel_parent_path_str(std::string(argv[0]), "resources");
 #ifdef COMPILER_BUILD
@@ -138,16 +139,13 @@ int main(int argc, char *argv[]) {
     }
 
     // translate chemical to C
-    auto t2cOutput = options.option("t2c", "t2c");
+    auto t2cOutput = options.option("tcc", "tcc");
 #ifdef COMPILER_BUILD
-    if(t2cOutput.has_value()) {
+    if((output.has_value() && output.value().ends_with(".c")) || t2cOutput.has_value()) {
 #endif
-#ifdef TCC_BUILD
-        auto output = options.option("output", "o");
         if(!t2cOutput.has_value() && output.has_value()) {
             t2cOutput.emplace(output.value());
         }
-#endif
         ToCTranslatorOptions translator_opts(argv[0], is64Bit);
         prepare_options(&translator_opts);
         auto translator_preparer = [&options](ToCAstVisitor* visitor, ASTProcessor* processor) -> void {
@@ -245,7 +243,6 @@ int main(int argc, char *argv[]) {
 #endif
 #ifdef COMPILER_BUILD
 
-    auto output = options.option("output", "o");
     if (!output.has_value()) {
         output.emplace("compiled");
     }

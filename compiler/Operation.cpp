@@ -4,6 +4,8 @@
 #include "ast/base/Value.h"
 #include "ast/base/BaseType.h"
 #include "ast/types/IntNType.h"
+#include "ast/values/IntNumValue.h"
+#include "ast/types/PointerType.h"
 
 #ifdef COMPILER_BUILD
 
@@ -18,6 +20,11 @@ llvm::Value *Codegen::operate(Operation op, Value *lhs, Value *rhs) {
 llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseType* firstType, BaseType* secondType){
     auto lhs = first->llvm_value(*this);
     auto rhs = second->llvm_value(*this);
+
+    if((op == Operation::Addition || op == Operation::Subtraction) && (firstType->kind() == BaseTypeKind::Pointer && second->value_type() == ValueType::Int)) {;
+        llvm::Value* index = op == Operation::Addition ? rhs : builder->CreateNeg(rhs);
+        return builder->CreateGEP(((PointerType*) firstType)->type->llvm_type(*this), lhs, { index }, "", inbounds);
+    }
 
     // Mutating type to fit types
     if(lhs->getType() != rhs->getType()) {

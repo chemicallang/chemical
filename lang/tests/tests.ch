@@ -9,6 +9,7 @@ import "type/datatype/numbers.ch"
 import "type/datatype/strings.ch"
 import "basic/macros.ch"
 import "basic/arrays.ch"
+import "basic/pointers.ch"
 
 func main() {
     test_var_init();
@@ -22,5 +23,6 @@ func main() {
     test_strings();
     test_macros();
     test_arrays();
+    test_pointer_math();
     print_test_stats();
 }

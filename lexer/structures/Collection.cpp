@@ -4,6 +4,10 @@
 
 bool Lexer::collect_cbi_node(unsigned int start, unsigned int end) {
     if(!isCBIEnabled) return false;
+    if(current_cbi.empty()) {
+        error("cannot collect into empty 'cbi', use cbi:begin('name') or cbi:to('name')");
+        return false;
+    }
     if(end - start <= 0) return false;
     std::vector<std::unique_ptr<CSTToken>> copied_ptrs;
     copied_ptrs.reserve(end - start);
@@ -19,7 +23,5 @@ bool Lexer::collect_cbi_node(unsigned int start, unsigned int end) {
     for(auto& ptr : copied_ptrs) {
         ptr.release();
     }
-    isCBICollecting = false;
-    isCBICollectingGlobal = false;
     return true;
 }

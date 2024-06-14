@@ -695,6 +695,10 @@ public:
         tokens.emplace_back(std::make_unique<T>(take_from(start, size), std::forward<Args>(args)...));
         if(isCBICollecting) {
             collect_cbi_node(start, tokens.size());
+            if(!isCBIKeepCollecting) {
+                isCBICollecting = false;
+                isCBICollectingGlobal = false;
+            }
         }
     }
 
@@ -857,6 +861,11 @@ protected:
      * when a struct / function is to be collected by cbi globally
      */
     bool isCBICollectingGlobal = false;
+
+    /**
+     * when true, cbi won't be turned off after a single node has been collected
+     */
+    bool isCBIKeepCollecting = false;
 
     /**
      * when true, return statements will be lexed

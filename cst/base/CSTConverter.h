@@ -38,14 +38,24 @@ private:
     bool is64Bit;
 
     /**
-     * macro converter function
+     * a function that can handle macro
      */
-    typedef void(*MacroConverterFn)(CSTConverter*, CompoundCSTToken* container);
+    typedef void(*MacroHandlerFn)(CSTConverter*, CompoundCSTToken* container);
 
     /**
-     * all the functions that can convert native macros like #eval
+     * all the functions that can handle native macros like #eval
      */
-    std::unordered_map<std::string, MacroConverterFn> macro_converters;
+    std::unordered_map<std::string, MacroHandlerFn> macro_handlers;
+
+    /**
+     * a function that can handle annotation
+     */
+    typedef void(*AnnotationHandlerFn)(CSTConverter*, CSTToken* container);
+
+    /**
+     * all the functions that can handle native annotations
+     */
+    std::unordered_map<std::string, AnnotationHandlerFn> annotation_handlers;
 
     /**
      * global interpret scope
@@ -63,6 +73,18 @@ public:
      * when true, do not create nodes for imports
      */
     bool no_imports = false;
+
+    /**
+     * when true, a single node is not put into nodes vector and then mode is turned off
+     * it allows us to skip converting a struct or function based on an annotation
+     */
+    bool dispose_node = false;
+
+    /**
+     * when turned on, all nodes will not be put into nodes vector
+     * it allows us to keep skipping nodes, until user asks to explicitly not dispose nodes with an annotation
+     */
+    bool keep_disposing = false;
 
     /**
      * nodes found when visiting tokens
@@ -120,9 +142,19 @@ public:
     CSTConverter(bool is64Bit);
 
     /**
-     * initializes macro converters
+     * initializes macro handlers
      */
-    void init_macro_converter();
+    void init_macro_handlers();
+
+    /**
+     * initializes annotation handlers
+     */
+    void init_annotation_handlers();
+
+    /**
+     * the function that should be used to ask if node should be disposed
+     */
+    bool is_dispose();
 
     /**
      * visit the tokens, from start to end
@@ -212,6 +244,10 @@ public:
     void visitEnumDecl(CompoundCSTToken *enumDecl) override;
 
     void visitMacro(CompoundCSTToken* macroCst) override;
+
+    void visitAnnotation(CompoundCSTToken *annotation) override;
+
+    void visitAnnotationToken(LexToken *token) override;
 
     // Types
 

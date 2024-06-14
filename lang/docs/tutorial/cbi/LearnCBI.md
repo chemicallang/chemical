@@ -22,7 +22,7 @@ So if you write a great CBI, you can run it at runtime to parse user's html code
 
 ### Learning CBI
 
-You must remember the following 5 basic annotations in CBI
+You must remember the following basic annotations in CBI
 
 - `@cbi:global("name_of_cbi")` 
   - takes upcoming function / struct to be collected by another CBI
@@ -37,7 +37,7 @@ You must remember the following 5 basic annotations in CBI
 - `@cbi:begin("html")`
   - if you are tried of using `@cbi:to` annotations to put structs / functions into CBI, you can put `@cbi:begin` right after `@cbi:create`, and every struct / function will be put into cbi until one of
   `@cbi:compile` or `@cbi:end` is found
-- `@cbi:end`
+- `@cbi:end()`
   - end collection of structs / functions into a CBI, every end annotation must have a corresponding `@cbi:begin` annotation
   that started it
 
@@ -49,6 +49,9 @@ import "@compiler/Lexer.h" // this import allows us to use @cbi:import("number",
 // the ordering is importing, create should be called first and then import
 @cbi:create("number");
 @cbi:import("number", "compiler");
+
+@dispose(false)
+func printf(format : string, args : any...);
 
 @cbi:to("number")
 struct number {
@@ -96,6 +99,33 @@ to compile everything you've collected at compile time (pre compiling), just in 
 When compiler detects the `#number { 123 }` It checks if number is a CBI created by the user, now when it's found, It's lex function is invoked
 present inside the struct of it's own name, so `number.lex`.
 
+### Runtime CBI and Node Disposing
+
+When you use cbi annotations, the nodes that are put into cbi, aren't considered for compilation, meaning the nodes are retained upto compile time
+and nodes (functions / structs) are disposed after use at compile time, they don't end up in the runtime code
+
+> A Node is anything that is part of the code (AST), like a function or a struct or global variable declaration or an enum
+
+Sometimes however, you may want these nodes to end up in the runtime code, Because you want to do some runtime processing
+using the same functions inside CBI.
+
+Here are key annotations to help you accomplish this
+
+- `@dispose(true)`
+  - if true, disposes a node at compile time, no trace of it at runtime
+  - if false, avoids disposing a node at compile time, so it's available at runtime 
+- `@dispose:begin()`
+  - every node after this annotation will be disposed
+- `@dispose:end()`
+  - every node after this annotation will not be disposed
+
+When you use a cbi annotation like `@cbi:begin`, It automatically calls `@dispose:begin` under the hood, making every node disposable.
+This helps us reduce code that is part of compile time by default.
+
+Similarly `@cbi:to` and `@cbi:global` use `@dispose:false` under the hood. 
+
+To override this behavior you must use dispose annotations as they suit your need to avoid disposing your nodes when using cbi annotations 
+
 ### CBI module
 
 You can make an entire module CBI in the `.lab` file, you don't need to put annotations like `@cbi:to` in that case.
@@ -105,3 +135,7 @@ This improves performance, because every function you write is expected to be co
 code that can be mixed with code that isn't for CBI.
 
 This module won't support any runtime code or any usage of the cbi that it aims to create.
+
+If user wants it to be part of runtime, user can do that in the `.lab` file as well
+
+This approach improves compilation time, The con of this approach is that you lose specificity in disposing nodes, or making them part of CBI which is a very minor con.

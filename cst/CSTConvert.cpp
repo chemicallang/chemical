@@ -93,11 +93,12 @@ Scope take_body(CSTConverter *conv, CSTToken *token) {
 // TODO support _128bigint, bigfloat
 CSTConverter::CSTConverter(bool is64Bit) : is64Bit(is64Bit), global_scope(nullptr, nullptr, "") {
     ExpressionEvaluator::prepareFunctions(global_scope);
-    init_macro_converter();
+    init_macro_handlers();
+    init_annotation_handlers();
 }
 
-void CSTConverter::init_macro_converter() {
-    macro_converters["eval"] = [](CSTConverter* converter, CompoundCSTToken* container){
+void CSTConverter::init_macro_handlers() {
+    macro_handlers["eval"] = [](CSTConverter* converter, CompoundCSTToken* container){
         if(container->tokens[2]->is_value()) {
             container->tokens[2]->accept(converter);
             auto take_value = converter->value();
@@ -117,10 +118,61 @@ void CSTConverter::init_macro_converter() {
     };
 }
 
+void CSTConverter::init_annotation_handlers() {
+    annotation_handlers["cbi:global"] = [](CSTConverter* converter, CSTToken* container){
+        converter->dispose_node = true;
+    };
+    annotation_handlers["cbi:to"] = [](CSTConverter* converter, CSTToken* container){
+        converter->dispose_node = true;
+    };
+    annotation_handlers["cbi:begin"] = [](CSTConverter* converter, CSTToken* container){
+        converter->dispose_node = true;
+        converter->keep_disposing = true;
+    };
+    annotation_handlers["cbi:end"] = [](CSTConverter* converter, CSTToken* container){
+        converter->dispose_node = false;
+        converter->keep_disposing = false;
+    };
+    annotation_handlers["cbi:compile"] = [](CSTConverter* converter, CSTToken* container){
+        converter->dispose_node = false;
+        converter->keep_disposing = false;
+    };
+    annotation_handlers["dispose"] = [](CSTConverter* converter, CSTToken* container){
+        auto result = annotation_bool_arg(0, container);
+        if(result.has_value()) {
+            converter->dispose_node = result.value();
+        } else {
+            converter->error("unknown value given to dispose annotation", container);
+        }
+    };
+    annotation_handlers["dispose:begin"] = [](CSTConverter* converter, CSTToken* container){
+        converter->dispose_node = true;
+        converter->keep_disposing = true;
+    };
+    annotation_handlers["dispose:end"] = [](CSTConverter* converter, CSTToken* container){
+        converter->dispose_node = false;
+        converter->keep_disposing = false;
+    };
+}
+
 void CSTConverter::visit(std::vector<std::unique_ptr<CSTToken>> &tokens, unsigned int start, unsigned int end) {
     while (start < end) {
         tokens[start]->accept(this);
         start++;
+    }
+}
+
+bool CSTConverter::is_dispose() {
+    if(dispose_node) {
+        if(!keep_disposing) {
+            dispose_node = false;
+        }
+        return true;
+    } else {
+        if(keep_disposing) {
+            dispose_node = true;
+        }
+        return false;
     }
 }
 
@@ -221,6 +273,10 @@ FunctionParamsResult CSTConverter::function_params(cst_tokens_ref_type tokens, u
 
 void CSTConverter::visitFunction(CompoundCSTToken *function) {
 
+    if(is_dispose()) {
+        return;
+    }
+
     auto params = function_params(function->tokens, 3);
 
     auto i = params.index;
@@ -266,6 +322,9 @@ void CSTConverter::visitFunction(CompoundCSTToken *function) {
 }
 
 void CSTConverter::visitEnumDecl(CompoundCSTToken *decl) {
+    if(is_dispose()) {
+        return;
+    }
     std::unordered_map<std::string, std::unique_ptr<EnumMember>> members;
     auto i = 3; // first enum member or '}'
     unsigned position = 0;
@@ -310,6 +369,7 @@ Value* convertNumber(NumberToken* token, ValueType value_type, bool is64Bit) {
 }
 
 void CSTConverter::visitVarInit(CompoundCSTToken *varInit) {
+    if(is_dispose()) return;
     std::optional<std::unique_ptr<BaseType>> optType = std::nullopt;
     if(is_char_op(varInit->tokens[2].get(), ':')) {
         varInit->tokens[3]->accept(this);
@@ -367,6 +427,7 @@ void CSTConverter::visitReturn(CompoundCSTToken *cst) {
 }
 
 void CSTConverter::visitTypealias(CompoundCSTToken *alias) {
+    if(is_dispose()) return;
     auto identifier = str_token(alias->tokens[1].get());
     alias->tokens[3]->accept(this);
     nodes.emplace_back(std::make_unique<TypealiasStatement>(identifier, type()));
@@ -455,12 +516,36 @@ void CSTConverter::visitBody(CompoundCSTToken *bodyCst) {
 
 void CSTConverter::visitMacro(CompoundCSTToken* macroCst) {
     auto name = str_token(macroCst->tokens[0].get());
-    auto macro = macro_converters.find(name.substr(1));
-    if(macro != macro_converters.end()) {
+    auto annon_name = name.substr(1);
+    auto macro = macro_handlers.find(annon_name);
+    if (macro != macro_handlers.end()) {
         macro->second(this, macroCst);
     } else {
-        error("couldn't find macro converter for " + name, macroCst);
+        error("couldn't find annotation or macro handler for " + name, macroCst);
     }
+}
+
+void CSTConverter::visitAnnotation(CompoundCSTToken *annotation) {
+    auto name = str_token(annotation->tokens[0].get());
+    auto annon_name = name.substr(1);
+    auto macro = annotation_handlers.find(annon_name);
+    if (macro != annotation_handlers.end()) {
+        macro->second(this, annotation);
+    }
+//    else {
+//        error("couldn't find annotation handler for " + annon_name, annotation);
+//    }
+}
+
+void CSTConverter::visitAnnotationToken(LexToken *token) {
+    auto annon_name = token->value.substr(1);
+    auto macro = annotation_handlers.find(annon_name);
+    if (macro != annotation_handlers.end()) {
+        macro->second(this, token);
+    }
+//    else {
+//        error("couldn't find annotation handler for " + annon_name, annotation);
+//    }
 }
 
 void CSTConverter::visitIf(CompoundCSTToken *ifCst) {
@@ -656,6 +741,9 @@ unsigned int collect_struct_members(
 }
 
 void CSTConverter::visitStructDef(CompoundCSTToken *structDef) {
+    if(is_dispose()) {
+        return;
+    }
     std::optional<std::string> overrides = std::nullopt;
     auto has_override = is_char_op(structDef->tokens[2].get(), ':');
     if (has_override) {
@@ -670,6 +758,9 @@ void CSTConverter::visitStructDef(CompoundCSTToken *structDef) {
 }
 
 void CSTConverter::visitInterface(CompoundCSTToken *interface) {
+    if(is_dispose()) {
+        return;
+    }
     auto def = new InterfaceDefinition(str_token(interface->tokens[1].get()));
     unsigned i = 3; // positioned at first node or '}'
     current_interface_decl = def;
@@ -679,6 +770,9 @@ void CSTConverter::visitInterface(CompoundCSTToken *interface) {
 }
 
 void CSTConverter::visitImpl(CompoundCSTToken *impl) {
+    if(is_dispose()) {
+        return;
+    }
     bool has_for = is_keyword(impl->tokens[2].get(), "for");
     std::optional<std::string> struct_name;
     if (has_for) {

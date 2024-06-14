@@ -199,6 +199,16 @@ using token_parent_file = std::pair<LexResult*, token_with_parent>;
 token_parent_file find_token_parent(ImportUnit* unit, CSTToken* token);
 
 /**
+ * get the annotation token at index in annotation compound token
+ */
+CSTToken* annotation_arg(unsigned index, CSTToken* token);
+
+/**
+ * get the annotation parameter at index in annotation compound token
+ */
+std::optional<bool> annotation_bool_arg(unsigned index, CSTToken* token);
+
+/**
  * get the string parameter at index in annotation compound token
  */
-std::string annotation_str_param(unsigned index, CSTToken* token);
+std::string annotation_str_arg(unsigned index, CSTToken* token);

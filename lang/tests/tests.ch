@@ -8,6 +8,7 @@ import "nodes/enum.ch"
 import "type/datatype/numbers.ch"
 import "type/datatype/strings.ch"
 import "basic/macros.ch"
+import "basic/arrays.ch"
 
 func main() {
     test_var_init();
@@ -20,5 +21,6 @@ func main() {
     test_enum();
     test_strings();
     test_macros();
+    test_arrays();
     printf("All tests done");
 }

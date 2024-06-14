@@ -45,8 +45,8 @@ llvm::Value *IndexOperator::access_chain_pointer(Codegen &gen, std::vector<std::
 }
 
 bool IndexOperator::add_member_index(Codegen &gen, Value *parent, std::vector<llvm::Value *> &indexes) {
-    if (parent->value_type() == ValueType::Array && indexes.empty()) {
-        indexes.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), 0));
+    if (parent->value_type() == ValueType::Array && indexes.empty() && (parent->linked_node() == nullptr || parent->linked_node()->as_func_param() == nullptr )) {
+        indexes.push_back(gen.builder->getInt32(0));
     }
     for (auto &value: values) {
         indexes.emplace_back(value->llvm_value(gen));
@@ -69,7 +69,9 @@ std::unique_ptr<BaseType> IndexOperator::create_type() const {
 }
 
 void IndexOperator::link(SymbolResolver &linker) {
-    throw std::runtime_error("Cannot link a index operator that does not have a identifier");
+    for(auto& value : values) {
+        value->link(linker);
+    }
 }
 
 ASTNode *IndexOperator::linked_node() {
@@ -93,8 +95,11 @@ Value *IndexOperator::find_in(InterpretScope &scope, Value *parent) {
     return nullptr;
 }
 
-void IndexOperator::find_link_in_parent(Value *parent) {
+void IndexOperator::find_link_in_parent(Value *parent, SymbolResolver &resolver) {
     parent_val = parent;
+    for(auto& value : values) {
+        value->link(resolver);
+    }
 }
 
 std::string IndexOperator::representation() const {

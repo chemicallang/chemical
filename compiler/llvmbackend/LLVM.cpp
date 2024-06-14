@@ -50,6 +50,10 @@ llvm::Type *ArrayType::llvm_type(Codegen &gen) const {
     return llvm::ArrayType::get(elem_type->llvm_type(gen), array_size);
 }
 
+llvm::Type *ArrayType::llvm_param_type(Codegen &gen) {
+    return gen.builder->getPtrTy();
+}
+
 llvm::Type *BoolType::llvm_type(Codegen &gen) const {
     return gen.builder->getInt1Ty();
 }
@@ -183,6 +187,9 @@ llvm::Value *VariableIdentifier::llvm_pointer(Codegen &gen) {
 }
 
 llvm::Value *VariableIdentifier::llvm_value(Codegen &gen) {
+    if(linked->value_type() == ValueType::Array) {
+        return gen.builder->CreateGEP(llvm_type(gen), llvm_pointer(gen), {gen.builder->getInt32(0), gen.builder->getInt32(0)}, "", gen.inbounds);;
+    }
     return linked->llvm_load(gen);
 }
 

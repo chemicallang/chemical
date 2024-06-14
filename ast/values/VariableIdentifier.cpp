@@ -22,7 +22,7 @@ ASTNode* VariableIdentifier::linked_node() {
     return linked;
 }
 
-void VariableIdentifier::find_link_in_parent(Value *parent) {
+void VariableIdentifier::find_link_in_parent(Value *parent, SymbolResolver &resolver) {
     linked = parent->linked_node()->child(value);
 }
 

@@ -41,4 +41,22 @@ func test_casts() {
         var num2 = num as float
         return num2 == 1.0f;
     })
+    test("cast a float to a double", () => {
+        var fl = 1.0f
+        var d = fl as double
+        return ((d as int) == 1)
+    })
+    test("cast a double to a float", () => {
+        var d = 1.0 as double
+        var fl = d as float
+        return ((fl as int) == 1)
+    })
+    test("cast a float to a double", () => {
+        var fl = 1.0f
+        return ((fl as double) == 1.0)
+    })
+    test("cast a double to a float", () => {
+        var d = 1.0 as double
+        return ((d as float) == 1.0f)
+    })
 }

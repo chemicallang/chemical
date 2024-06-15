@@ -384,9 +384,16 @@ std::cerr << "child called on base value";
     }
 
     /**
-     * is an int num value
+     * check if this value is an int n
      */
-    bool is_int_n() {
+    virtual bool is_int_n() {
+        return false;
+    }
+
+    /**
+     * is an int num value, this includes referenced values
+     */
+    bool is_value_int_n() {
         auto type = value_type();
         return type >= ValueType::IntNStart && type <= ValueType::IntNEnd;
     }

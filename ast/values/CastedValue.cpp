@@ -17,6 +17,10 @@ Value *CastedValue::copy() {
     );
 }
 
+void CastedValue::link(SymbolResolver &linker) {
+    value->link(linker);
+}
+
 std::string CastedValue::representation() const {
     return value->representation() + " as " + type->representation();
 }

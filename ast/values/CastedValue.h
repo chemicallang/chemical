@@ -24,6 +24,8 @@ public:
         visitor->visit(this);
     }
 
+    void link(SymbolResolver &linker) override;
+
 #ifdef COMPILER_BUILD
 
     llvm::Type *llvm_type(Codegen &gen) override;

@@ -97,10 +97,13 @@ bool Lexer::lexLambdaAfterLParen() {
 
     if(has_whitespace) {
         lexRemainingExpression(start + 1);
-        if(!lexOperatorToken(')')) {
+        if(lexOperatorToken(')')) {
+            compound_from<ExpressionCST>(start);
+        } else if(lexRemainingExpression(start + 1) && lexOperatorToken(')')) {
+            compound_from<ExpressionCST>(start);
+        } else {
             error("expected ')' after the nested parenthesized expression");
         }
-        compound_from<ExpressionCST>(start);
         return true;
     } else {
         lexAccessChainAfterId();

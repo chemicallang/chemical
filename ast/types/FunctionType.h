@@ -29,6 +29,8 @@ public:
 
     void link(SymbolResolver &linker) override;
 
+    bool isInVarArgs(unsigned index);
+
     BaseTypeKind kind() const override {
         return BaseTypeKind::Function;
     }

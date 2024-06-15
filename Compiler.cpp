@@ -52,13 +52,13 @@ int main(int argc, char *argv[]) {
 
     // parsing the command
     CmdOptions options;
-    auto args = options.parse_cmd_options(argc, argv, 1, {"rclg", "clang", "linker", "jit"});
+    auto args = options.parse_cmd_options(argc, argv, 1, {"cc", "clang", "linker", "jit"});
 
 #ifdef COMPILER_BUILD
     // use raw clang
-    auto rawclang = options.option("rclg", "rclg");
+    auto rawclang = options.option("cc", "cc");
     if(rawclang.has_value()) {
-        auto subc = options.collect_subcommand(argc, argv, "rclg");
+        auto subc = options.collect_subcommand(argc, argv, "cc");
         subc.insert(subc.begin(), argv[0]);
 //        std::cout << "rclg  : ";
 //        for(const auto& sub : subc) {

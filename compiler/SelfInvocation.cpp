@@ -43,7 +43,7 @@ int invoke_capturing_out(const std::vector<std::string> &command_args, std::stri
 
 std::vector<std::string> system_headers_path(const std::string &arg0) {
 
-    std::vector<std::string> commands{arg0, "rclg", "-v","-c","-xc++"};
+    std::vector<std::string> commands{arg0, "cc", "-v","-c","-xc++"};
 #ifdef WIN32
     commands.emplace_back("nul");
 #else

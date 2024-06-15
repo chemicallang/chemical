@@ -6,32 +6,33 @@ Let's see the commands in action
 
 #### Compile a single file to executable
 ```shell
-compiler.exe file.ch -o file.exe
+chemical file.ch -o file.exe
 ```
 
 #### Compile a single file to object
 ```shell
-compiler.exe file.ch -o file.o
+chemical file.ch -o file.o
 ```
 
 #### Translate a single file into C
 ```shell
-compiler.exe file.ch -o file.c
+chemical file.ch -o file.c
 ```
 
 #### Translate C into Chemical
 Compiler based on Tiny CC doesn't support this operation
 
 ```shell
-compiler.exe file.c -o file.ch
+chemical file.c -o file.ch
 ```
 
 #### Compile a single file to llvm ir
 ```shell
-compiler.exe file.ch -o file.ll
+compiler file.ch -o file.ll
 ```
 
-As you can see we only changed the extension, That's all it takes
+As you can see we only changed the extension, That's all it takes. The imports used by the single files are compiled too.
+
 
 Apart from extensions above, .bc (llvm bitcode), .s (assembly) are supported, but depends on whether we built the compiler
 with these features enabled. Currently, we don't. But it's likely we may do it in the future

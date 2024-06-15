@@ -59,7 +59,7 @@ fi
 
 if [ "$windows_x64" = true ]; then
   # copy compiler
-  cp out/build/x64-release/Compiler.exe $windows64dir/Compiler.exe
+  cp out/build/x64-release/Compiler.exe $windows64dir/chemical.exe
   # copy lsp
   cp out/build/x64-release/ChemicalLsp.exe $windows64dir/ChemicalLsp.exe
   # copy resources
@@ -74,7 +74,7 @@ fi
 
 if [ "$linux_x86_64" = true ]; then
   # copy compiler
-  cp out/build/x64-release-wsl/Compiler $linux64dir/Compiler
+  cp out/build/x64-release-wsl/Compiler $linux64dir/chemical
   # copy lsp
   cp out/build/x64-release-wsl/ChemicalLsp $linux64dir/ChemicalLsp
   # copy resources
@@ -89,11 +89,11 @@ fi
 
 if [ "$windows_x64_tcc" = true ]; then
   # copy tcc compiler
-  cp out/build/x64-release/TCCCompiler.exe $Win64TccDir/Compiler.exe
+  cp out/build/x64-release/TCCCompiler.exe $Win64TccDir/chemical.exe
   # copy lsp
   cp out/build/x64-release/ChemicalLsp.exe $Win64TccDir/ChemicalLsp.exe
   # copy resources
-  cp -r ./lib/include $Win64TccDir/resources
+  # cp -r ./lib/include $Win64TccDir/resources
   # copy tiny cc dll
   cp lib/libtcc/win-x64/libtcc.dll $Win64TccDir/libtcc.dll
   # unzip the tinycc package
@@ -104,11 +104,11 @@ fi
 
 if [ "$linux_x86_64_tcc" = true ]; then
   # copy tcc compiler
-  cp out/build/x64-release-wsl/TCCCompiler $Lin64TccDir/Compiler
+  cp out/build/x64-release-wsl/TCCCompiler $Lin64TccDir/chemical
   # copy lsp
   cp out/build/x64-release-wsl/ChemicalLsp $Lin64TccDir/ChemicalLsp
   # copy resources
-  cp -r ./lib/include $Lin64TccDir/resources
+  # cp -r ./lib/include $Lin64TccDir/resources
   # copy tiny cc dll
   cp lib/libtcc/lin-x64/libtcc.so $Lin64TccDir/libtcc.so
   # unzip the tinycc package

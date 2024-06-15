@@ -272,6 +272,10 @@ llvm::Value *CastedValue::llvm_value(Codegen &gen) {
         } else {
             return gen.builder->CreateSIToFP(llvm_val, type->llvm_type(gen));
         }
+    } else if(value_type->kind() == BaseTypeKind::Double && type->kind() == BaseTypeKind::Float) {
+        return gen.builder->CreateFPTrunc(llvm_val, type->llvm_type(gen));
+    } else if(value_type->kind() == BaseTypeKind::Float && type->kind() == BaseTypeKind::Double) {
+        return gen.builder->CreateFPExt(llvm_val, type->llvm_type(gen));
     }
 //    auto found= gen.casters.find(Codegen::caster_index(value->value_type(), type->kind()));
 //    if(found != gen.casters.end()) {

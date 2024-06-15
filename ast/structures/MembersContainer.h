@@ -7,8 +7,9 @@
 #include <map>
 #include "StructMember.h"
 #include "ordered_map.h"
+#include "ast/base/AnnotableNode.h"
 
-class MembersContainer : public ASTNode {
+class MembersContainer : public AnnotableNode {
 public:
 
     void declare_and_link(SymbolResolver &linker) override;

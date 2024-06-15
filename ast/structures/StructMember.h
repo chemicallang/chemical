@@ -4,9 +4,9 @@
 
 #include <map>
 #include "ast/base/Value.h"
-#include "ast/base/ASTNode.h"
+#include "ast/base/AnnotableNode.h"
 
-class StructMember : public ASTNode {
+class StructMember : public AnnotableNode {
 public:
 
     std::string name;

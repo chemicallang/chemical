@@ -15,10 +15,11 @@
 #include "LoopScope.h"
 #include <optional>
 #include "ast/base/AccessSpecifier.h"
+#include "ast/base/AnnotableNode.h"
 
 using func_params = std::vector<std::unique_ptr<FunctionParam>>;
 
-class FunctionDeclaration : public ASTNode {
+class FunctionDeclaration : public AnnotableNode {
 public:
 
     /**

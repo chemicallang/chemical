@@ -8,11 +8,11 @@
 
 #include <utility>
 
-#include "ast/base/ASTNode.h"
+#include "ast/base/AnnotableNode.h"
 #include "ast/base/Value.h"
 #include "EnumMember.h"
 
-class EnumDeclaration : public ASTNode {
+class EnumDeclaration : public AnnotableNode {
 public:
 
     /**
@@ -60,4 +60,5 @@ public:
 
     std::string name; ///< The name of the enum.
     std::unordered_map<std::string, std::unique_ptr<EnumMember>> members; ///< The values of the enum.
+
 };

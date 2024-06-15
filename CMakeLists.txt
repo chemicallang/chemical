@@ -437,6 +437,9 @@ set(COMMON_SOURCES
         integration/libtcc/LibTccInteg.h
         integration/libtcc/LibTcc.cpp
         utils/Version.h
+        ast/base/Annotation.h
+        ast/base/Annotation.cpp
+        ast/base/AnnotableNode.h
 )
 
 # Chemical LSP Executable Target

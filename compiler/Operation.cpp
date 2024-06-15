@@ -65,8 +65,13 @@ llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseTyp
         return firstType->satisfies(ValueType::Float) || firstType->satisfies(ValueType::Double) || secondType->satisfies(ValueType::Float) || secondType->satisfies(ValueType::Double);
     };
     auto is_unsigned = [&firstType, &secondType, this] () -> bool {
-        auto first_unsigned = firstType->kind() == BaseTypeKind::IntN && ((IntNType*) firstType)->is_unsigned;
-        auto second_unsigned = secondType->kind() == BaseTypeKind::IntN && ((IntNType*) firstType)->is_unsigned;
+        auto firstKind = firstType->kind();
+        auto secondKind = secondType->kind();
+        if(firstKind == BaseTypeKind::Pointer && secondKind == BaseTypeKind::Pointer) {
+            return true;
+        }
+        auto first_unsigned = firstKind == BaseTypeKind::IntN && ((IntNType*) firstType)->is_unsigned;
+        auto second_unsigned = secondKind == BaseTypeKind::IntN && ((IntNType*) firstType)->is_unsigned;
         if((first_unsigned && !second_unsigned) || (!first_unsigned && second_unsigned)) {
             info("Operation between two IntN types, where one of them is unsigned and the other signed is error prone");
         }

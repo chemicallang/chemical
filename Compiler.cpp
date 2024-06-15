@@ -26,6 +26,7 @@
 #include "preprocess/2cASTVisitor.h"
 #include "compiler/ASTProcessor.h"
 #include "integration/libtcc/LibTccInteg.h"
+#include "utils/Version.h"
 
 #ifdef COMPILER_BUILD
 
@@ -37,11 +38,34 @@ std::vector<std::unique_ptr<ASTNode>> TranslateC(const char* exe_path, const cha
 
 #endif
 
-int libtcc_test();
+void print_help() {
+    std::cout << "[Chemical] "
+                 #ifdef COMPILER_BUILD
+                 "Compiler v"
+                 #endif
+                 #ifdef TCC_BUILD
+                 "Compiler based on Tiny CC v"
+                 #endif
+                 << PROJECT_VERSION_MAJOR << "." << PROJECT_VERSION_MINOR << "." << PROJECT_VERSION_PATCH << "\n"
+                 << std::endl;
+    std::cout << "Compiling a single file : \nchemical.exe <input_filename> -o <output_filename>\n\n"
+                 "<input_filename> extensions supported .c , .h , .ch\n"
+                 "<output_filename> extensions supported .exe, .o, .c, .ch\n"
+                 "use input extension .c and output .ch, when translating C code to Chemical\n"
+                 "use input extension .ch and output .c, when translating Chemical to C code\n\n"
+                 "Invoke Clang : \nchemical.exe cc <clang parameters>\n\n"
+                 "--verify            -o            do not compile, only verify source code\n"
+                 "--jit               -jit          do just in time compilation using Tiny CC"
+                 "--res <dir>         -res <dir>    change the location of resources directory\n"
+                 "--benchmark         -bm           benchmark lexing / parsing / compilation process\n"
+                 "--print-ig          -pr-ig        print import graph of the source file\n"
+                 "--print-ast         -pr-ast       print representation of AST\n"
+                 "--print-cst         -pr-cst       print CST for debugging\n"
+                 "" << std::endl;
+
+}
 
 int main(int argc, char *argv[]) {
-
-//    libtcc_test();
 
 #ifdef COMPILER_BUILD
     // invoke clang cc1, this is used by clang, because it invokes (current executable)
@@ -76,6 +100,11 @@ int main(int argc, char *argv[]) {
         std::cout << std::endl;
     }
 
+    if(options.option("help", "help").has_value()) {
+        print_help();
+        return 0;
+    }
+
     if(args.empty()) {
         std::cerr << cmd_error("no input given\n\n");
         print_usage();
@@ -84,7 +113,6 @@ int main(int argc, char *argv[]) {
 
     auto srcFilePath = args[0];
 
-    auto help = options.option("help", "help").has_value();
     auto only_verify = options.option("verify", "verify").has_value();
     auto benchmark = options.option("benchmark", "bm").has_value();
     auto print_ig = options.option("print-ig", "pr-ig").has_value();

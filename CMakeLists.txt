@@ -3,7 +3,7 @@
 #
 cmake_minimum_required(VERSION 3.8)
 message("CMake version: ${CMAKE_VERSION}")
-project("chemical")
+project("chemical" VERSION 1.0.0)
 
 # use default out/host or out-win/host folder if cmake prefix path is not given
 if (NOT DEFINED CMAKE_PREFIX_PATH)
@@ -39,6 +39,12 @@ option(VERBOSE "Enable verbose output (for debugging)" OFF)
 if (VERBOSE)
     add_definitions(-DVERBOSE) # Define VERBOSE macro
 endif ()
+
+# For printing the version in the compiler
+configure_file(
+        "${PROJECT_SOURCE_DIR}/utils/Version.h.in"
+        "${PROJECT_SOURCE_DIR}/utils/Version.h"
+)
 
 # Enable verbose output
 #set(CMAKE_VERBOSE_MAKEFILE ON)
@@ -424,13 +430,13 @@ set(COMMON_SOURCES
         lexer/model/CompilerBinder.h
         lexer/CompilerBinder.cpp
         lexer/model/CompilerBinderTCC.h
-        utils/LibTccTest.cpp
         cst/statements/AnnotationCST.h
         lexer/model/CompilerBinderCommon.h
         ast/utils/ASTUtils.h
         ast/utils/ASTUtils.cpp
         integration/libtcc/LibTccInteg.h
         integration/libtcc/LibTcc.cpp
+        utils/Version.h
 )
 
 # Chemical LSP Executable Target

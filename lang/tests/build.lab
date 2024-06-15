@@ -34,20 +34,10 @@ override func prepare(&self) : List<Module> {
     }
 }
 
-// you can prepare before everything
-override func before(&self) {
-
-}
-
 // build method
 override func build(&self) {
     // consume the compiler argument output
     var output = self.args.output.consume();
     // create an executable out of this module
     create_executable(self.module, output);
-}
-
-// you can cleanup here
-override fun after(&self) {
-
 }

@@ -440,6 +440,7 @@ set(COMMON_SOURCES
         ast/base/Annotation.h
         ast/base/Annotation.cpp
         ast/base/AnnotableNode.h
+        ast/base/AnnotationKind.h
 )
 
 # Chemical LSP Executable Target

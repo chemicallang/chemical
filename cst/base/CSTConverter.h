@@ -9,6 +9,7 @@
 #include <string>
 #include "utils/fwd/functional.h"
 #include "ast/base/GlobalInterpretScope.h"
+#include "ast/base/Annotation.h"
 
 #include <memory>
 #include <vector>
@@ -107,6 +108,11 @@ public:
     std::vector<Diag> diagnostics;
 
     /**
+     * collected annotations that will be applied to next struct / function
+     */
+    std::vector<Annotation> annotations;
+
+    /**
      * This is a pointer to current function declaration
      * All nodes being parsed belong to this function's body
      */
@@ -194,6 +200,7 @@ public:
 
     /**
      * get function params for the given tokens
+     * @param start is the first parameter token index in the cst tokens vector
      */
     FunctionParamsResult function_params(cst_tokens_ref_type tokens, unsigned start = 0);
 

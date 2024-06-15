@@ -25,4 +25,22 @@ func test_pointer_math() : bool {
         var diff = ptr1 - ptr2;
         return diff == 2;
     })
+    test("pointer comparison works - 1", () => {
+        var arr = {10, 20, 30, 40, 50};
+        var ptr1 = &arr[0] + 2;
+        var ptr2 = &arr[0];
+        return ptr1 > ptr2 && ptr2 < ptr1;
+    })
+    test("pointer comparison works - 2", () => {
+        var arr = {10, 20, 30, 40, 50};
+        var ptr1 = &arr[0] + 2;
+        var ptr2 = &arr[0] + 2;
+        return ptr1 == ptr2;
+    })
+    test("pointer comparison works - 3", () => {
+        var arr = {10, 20, 30, 40, 50};
+        var ptr1 = &arr[0] + 4;
+        var ptr2 = &arr[0];
+        return ptr2 < ptr1;
+    })
 }

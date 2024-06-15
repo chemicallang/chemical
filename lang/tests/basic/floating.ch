@@ -35,4 +35,5 @@ func test_floating_expr() {
         var result = 4 + 1.5;
         return result == 5.5;
     });
+    // TODO test when float is passed to var arg function, it's converted to a double first
 }

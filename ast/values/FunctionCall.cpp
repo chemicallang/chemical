@@ -55,9 +55,9 @@ void to_llvm_args(
 
     for (size_t i = start; i < values.size(); ++i) {
         argValue = values[i]->llvm_arg_value(gen, call, i);
+
         // Ensure proper type promotion for float values passed to printf
-        if (isVariadic && llvm::isa<llvm::ConstantFP>(argValue) &&
-            argValue->getType() != llvm::Type::getDoubleTy(*gen.ctx)) {
+        if (func_type->isVariadic && func_type->isInVarArgs(i) && argValue->getType()->isFloatTy()) {
             argValue = gen.builder->CreateFPExt(argValue, llvm::Type::getDoubleTy(*gen.ctx));
         }
         args.emplace_back(argValue);

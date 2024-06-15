@@ -21,9 +21,29 @@ llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseTyp
     auto lhs = first->llvm_value(*this);
     auto rhs = second->llvm_value(*this);
 
-    if((op == Operation::Addition || op == Operation::Subtraction) && (firstType->kind() == BaseTypeKind::Pointer && second->value_type() == ValueType::Int)) {;
-        llvm::Value* index = op == Operation::Addition ? rhs : builder->CreateNeg(rhs);
-        return builder->CreateGEP(((PointerType*) firstType)->type->llvm_type(*this), lhs, { index }, "", inbounds);
+    if((op == Operation::Addition || op == Operation::Subtraction) && firstType->kind() == BaseTypeKind::Pointer) {
+        auto second_value_type = second->value_type();
+        if(second_value_type == ValueType::Int) {
+            llvm::Value *index = op == Operation::Addition ? rhs : builder->CreateNeg(rhs);
+            return builder->CreateGEP(((PointerType *) firstType)->type->llvm_type(*this), lhs, {index}, "", inbounds);
+        } else if(second_value_type == ValueType::Pointer) {
+            lhs = builder->CreatePointerCast(lhs, is64Bit ? llvm::Type::getInt64Ty(*ctx) : llvm::Type::getInt32Ty(*ctx));
+            rhs = builder->CreatePointerCast(rhs, is64Bit ? llvm::Type::getInt64Ty(*ctx) : llvm::Type::getInt32Ty(*ctx));
+            llvm::Value* final;
+            if(op == Operation::Addition)  {
+                final = builder->CreateAdd(lhs, rhs);
+            } else {
+                final = builder->CreateSub(lhs, rhs);
+            }
+            llvm::Value* sdivRhs;
+            auto byteSize = ((PointerType*) firstType)->type->byte_size(is64Bit);
+            if(is64Bit) {
+                sdivRhs = builder->getInt64(byteSize);
+            } else {
+                sdivRhs = builder->getInt32(byteSize);
+            }
+            return builder->CreateSDiv(final, sdivRhs, "", true);
+        }
     }
 
     // Mutating type to fit types

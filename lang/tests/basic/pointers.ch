@@ -18,4 +18,11 @@ func test_pointer_math() : bool {
         var result6 = *ptr == 50;
         return result1 && result2 && result3 && result4 && result5 && result6;
     });
+    test("pointer subtraction works", () => {
+        var arr = {10, 20, 30, 40, 50};
+        var ptr1 = &arr[0] + 2;
+        var ptr2 = &arr[0];
+        var diff = ptr1 - ptr2;
+        return diff == 2;
+    })
 }

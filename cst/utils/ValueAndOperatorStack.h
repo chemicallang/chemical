@@ -123,7 +123,7 @@ public:
         return c;
     }
 
-    std::unique_ptr<Expression> toExpression() {
+    std::unique_ptr<Expression> toExpression(bool is64Bit) {
         ValueAndOperatorStack stack;
         int i = 0;
         while(i < container.size()) {
@@ -140,7 +140,7 @@ public:
                     auto first = stack.container.back();
                     stack.container.pop_back();
                     stack.putValue(new Expression(std::unique_ptr<Value>(first.item.value),
-                                                  std::unique_ptr<Value>(second.item.value), item.item.operation));
+                                                  std::unique_ptr<Value>(second.item.value), item.item.operation, is64Bit));
                     break;
             }
             i++;

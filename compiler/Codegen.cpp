@@ -37,10 +37,9 @@ Codegen::Codegen(
 }
 
 void Codegen::casters_init() {
-    comp_casters[caster_index(ValueType::Int, BaseTypeKind::IntN)] = [](Value* value, BaseType* type) -> Value* {
-        // TODO
-        return nullptr;
-    };
+//    casters[caster_index(ValueType::Int, BaseTypeKind::IntN)] = [](Codegen* gen, Value* value, BaseType* type) -> Value* {
+//
+//    };
 }
 
 bool Codegen::is_arch_64bit(const std::string& target_triple) {

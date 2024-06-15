@@ -17,7 +17,7 @@ public:
     Value *copy() override;
 
     std::unique_ptr<BaseType> create_type() const override {
-        return {type.get(),{}};
+        return std::unique_ptr<BaseType>(type->copy());
     }
 
     void accept(Visitor *visitor) override {

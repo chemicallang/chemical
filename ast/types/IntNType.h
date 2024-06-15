@@ -17,6 +17,9 @@ public:
      */
     bool is_unsigned;
 
+    /**
+     * constructor
+     */
     IntNType(unsigned int number, bool is_unsigned = false) : number(number), is_unsigned(is_unsigned) {
         // do nothing
     }

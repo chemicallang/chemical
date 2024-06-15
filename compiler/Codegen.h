@@ -29,7 +29,7 @@ class BaseType;
  * the function then returns a new value by casting the given value to the given type
  * the value is created a new on the heap
  */
-typedef Value*(*CasterFn)(Value* val, BaseType* type);
+typedef Value*(*CasterFn)(Codegen* gen, Value* val, BaseType* type);
 
 class Codegen : public ASTDiagnoser {
 public:
@@ -53,13 +53,11 @@ public:
     std::unordered_map<std::string, std::unordered_map<std::string, llvm::Function *>> unimplemented_interfaces;
 
     /**
-     * compile time casters that take a value and cast them to a different value
-     * these casters are most likely to not incur a runtime cast
-     * because casting happens at compile time
+     * casters that take a value and cast them to a different value
      * it should be known that value created by caster is on the heap
      * the caller has the ownership and must manage memory
      */
-    std::unordered_map<int, CasterFn> comp_casters;
+    std::unordered_map<int, CasterFn> casters;
 
     /**
      * All get element pointer instructions use this to state that the element pointer is inbounds

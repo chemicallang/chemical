@@ -24,7 +24,8 @@ public:
     Expression(
             std::unique_ptr<Value> firstValue,
             std::unique_ptr<Value> secondValue,
-            Operation operation
+            Operation operation,
+            bool is64Bit
     );
 
     void accept(Visitor *visitor) override {
@@ -119,5 +120,6 @@ public:
     std::unique_ptr<Value> firstValue; ///< The first value in the expression.
     std::unique_ptr<Value> secondValue; ///< The second value in the expression.
     Operation operation; ///< The operation between the two values.
+    bool is64Bit; // is 64bit operating system
 
 };

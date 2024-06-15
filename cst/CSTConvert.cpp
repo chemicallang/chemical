@@ -1075,7 +1075,7 @@ void CSTConverter::visitExpression(CompoundCSTToken *expr) {
         auto second = value();
         auto first = value();
         values.emplace_back(std::make_unique<Expression>(std::move(first), std::move(second),
-                                                         (get_operation(expr->tokens[op_index].get()))));
+                                                         (get_operation(expr->tokens[op_index].get())), is64Bit));
     } else {
         ValueAndOperatorStack op_stack, output;
         visitNestedExpr(this, expr, op_stack, output);
@@ -1086,7 +1086,7 @@ void CSTConverter::visitExpression(CompoundCSTToken *expr) {
             //    pop the operator from the operator stack onto the output queue
             output.putOperator(op_stack.popOperator());
         }
-        values.emplace_back(output.toExpression());
+        values.emplace_back(output.toExpression(is64Bit));
     }
 }
 

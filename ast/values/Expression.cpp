@@ -5,6 +5,7 @@
 #include "IntNumValue.h"
 #include "ast/types/IntNType.h"
 #include "ast/types/BoolType.h"
+#include "ast/types/LongType.h"
 
 void Expression::replace_number_values(BaseType* firstType, BaseType* secondType) {
     if(firstType->kind() == BaseTypeKind::IntN && secondType->kind() == BaseTypeKind::IntN) {
@@ -56,10 +57,13 @@ std::unique_ptr<BaseType> Expression::create_type() const {
         return std::make_unique<BoolType>();
     }
     auto first = firstValue->create_type();
+    auto second = secondValue->create_type();
+    if(first->value_type() == ValueType::Pointer && second->value_type() == ValueType::Pointer) {
+        return std::make_unique<LongType>(is64Bit);
+    }
     if(first->can_promote(secondValue.get())) {
         return std::unique_ptr<Value>(first->promote(secondValue.get()))->create_type();
     } else {
-        auto second = secondValue->create_type();
         if(second->can_promote(firstValue.get())) {
             return std::unique_ptr<Value>(second->promote(firstValue.get()))->create_type();
         } else {
@@ -82,8 +86,9 @@ uint64_t Expression::byte_size(bool is64Bit) const {
 Expression::Expression(
         std::unique_ptr<Value> firstValue,
         std::unique_ptr<Value> secondValue,
-        Operation operation
-) : firstValue(std::move(firstValue)), secondValue(std::move(secondValue)), operation(operation) {
+        Operation operation,
+        bool is64Bit
+) : firstValue(std::move(firstValue)), secondValue(std::move(secondValue)), operation(operation), is64Bit(is64Bit) {
 
 }
 

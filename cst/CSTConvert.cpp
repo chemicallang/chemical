@@ -118,6 +118,17 @@ void CSTConverter::init_macro_handlers() {
     };
 }
 
+void collect_annotation_func(CSTConverter* converter, CSTToken* container, AnnotationKind kind) {
+    auto compound = container->as_compound();
+    if(!compound) return;
+    auto previous = std::move(converter->values);
+    visit(converter, compound->tokens, 2);
+    auto collected = std::move(converter->values);
+    converter->values = std::move(previous);
+    converter->annotations.emplace_back(kind);
+    converter->annotations.back().values = std::move(collected);
+}
+
 void CSTConverter::init_annotation_handlers() {
     annotation_handlers["cbi:global"] = [](CSTConverter* converter, CSTToken* container){
         converter->dispose_node = true;

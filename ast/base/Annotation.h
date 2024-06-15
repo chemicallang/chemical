@@ -5,13 +5,14 @@
 #include <memory>
 #include <vector>
 #include <string>
+#include "AnnotationKind.h"
 
 class Value;
 
 class Annotation {
 public:
 
-    std::string name;
+    AnnotationKind kind;
     std::vector<Annotation> extends;
     std::vector<std::unique_ptr<Value>> values;
 
@@ -19,19 +20,24 @@ public:
      * constructor
      */
     Annotation(
-            std::string name
+            AnnotationKind kind
     );
+
+    /**
+     * get annotations by this kind
+     */
+    void get_all(std::vector<Annotation*>& into, AnnotationKind expected, bool consider_self = true);
 
     /**
      * gets annotation with name
      */
-    Annotation* get_annotation(const std::string& expected);
+    Annotation* get_annotation(AnnotationKind expected, bool consider_self = true);
 
     /**
      * checks if the given annotation is present
      */
-    inline bool has_annotation(const std::string& expected) {
-        return get_annotation(expected) != nullptr;
+    inline bool has_annotation(AnnotationKind expected) {
+        return get_annotation(kind) != nullptr;
     }
 
 };

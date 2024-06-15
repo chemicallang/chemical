@@ -94,12 +94,16 @@ int main(int argc, char *argv[]) {
     bool jit = options.option("jit", "jit").has_value();
     auto output = options.option("output", "o");
     auto res = options.option("res", "res");
-    auto resources_path = res.has_value() ? res.value() : resolve_rel_parent_path_str(std::string(argv[0]), "resources");
-#ifdef COMPILER_BUILD
-    if(resources_path.empty()) {
-        std::cerr << "[Compiler] Couldn't locate resources path relative to compiler's executable" << std::endl;
-    }
-#endif
+
+    auto get_resources_path = [&res, &argv]() -> std::string{
+        auto resources_path = res.has_value() ? res.value() : resources_path_rel_to_exe(std::string(argv[0]));
+        if(resources_path.empty()) {
+            std::cerr << "[Compiler] Couldn't locate resources path relative to compiler's executable" << std::endl;
+        } else if(!res.has_value()) {
+            res.emplace(resources_path);
+        }
+        return resources_path;
+    };
 
     auto prepare_options = [&](ASTProcessorOptions* options) -> void {
         options->benchmark = benchmark;
@@ -107,7 +111,7 @@ int main(int argc, char *argv[]) {
         options->print_cst = print_cst;
         options->print_ig = print_ig;
         options->verbose = verbose;
-        options->resources_path = resources_path;
+        options->resources_path = get_resources_path();
     };
 
 #ifdef COMPILER_BUILD
@@ -183,7 +187,7 @@ int main(int argc, char *argv[]) {
 
     // translate C to chemical
     if((srcFilePath.ends_with(".c") || srcFilePath.ends_with(".h")) && output.has_value() && output.value().ends_with(".ch")) {
-        auto nodes = TranslateC(argv[0], srcFilePath.c_str(), resources_path.c_str());
+        auto nodes = TranslateC(argv[0], srcFilePath.c_str(), get_resources_path().c_str());
         // write translated to the given file
         std::ofstream out;
         out.open(output.value());

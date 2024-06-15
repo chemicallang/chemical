@@ -46,13 +46,7 @@ std::string WorkspaceManager::compiler_exe_path() {
 
 std::string WorkspaceManager::resources_path() {
     if(overridden_resources_path.empty()) {
-        auto res = resolve_rel_parent_path_str(lsp_exe_path, "resources");
-#ifdef DEBUG
-        if(res.empty()) {
-            res = resolve_rel_parent_path_str(lsp_exe_path, "../lib/include");
-        }
-#endif
-        return res;
+        return resources_path_rel_to_exe(lsp_exe_path);
     } else {
         return overridden_resources_path;
     }

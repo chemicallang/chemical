@@ -51,3 +51,13 @@ std::string resolve_rel_parent_path_str(const std::string& root_path, const std:
         return "";
     }
 }
+
+std::string resources_path_rel_to_exe(const std::string& exe_path) {
+    auto res = resolve_rel_parent_path_str(exe_path, "resources");
+#ifdef DEBUG
+    if(res.empty()) {
+        res = resolve_rel_parent_path_str(exe_path, "../lib/include");
+    }
+#endif
+    return res;
+}

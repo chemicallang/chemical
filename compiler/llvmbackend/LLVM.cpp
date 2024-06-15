@@ -242,29 +242,42 @@ llvm::Type *Expression::llvm_type(Codegen &gen) {
 }
 
 llvm::Type *CastedValue::llvm_type(Codegen &gen) {
-    return value->llvm_type(gen);
+    return type->llvm_type(gen);
 }
 
 llvm::Value *CastedValue::llvm_value(Codegen &gen) {
+    auto llvm_val = value->llvm_value(gen);
     auto value_type = value->create_type();
     if(value_type->kind() == BaseTypeKind::IntN && type->kind() == BaseTypeKind::IntN) {
         auto from_num_type = (IntNType*) value_type.get();
         auto to_num_type = (IntNType*) type.get();
         if(from_num_type->number < to_num_type->number) {
             if (from_num_type->is_unsigned) {
-                return gen.builder->CreateZExt(value->llvm_value(gen), to_num_type->llvm_type(gen));
+                return gen.builder->CreateZExt(llvm_val, to_num_type->llvm_type(gen));
             } else {
-                return gen.builder->CreateSExt(value->llvm_value(gen), to_num_type->llvm_type(gen));
+                return gen.builder->CreateSExt(llvm_val, to_num_type->llvm_type(gen));
             }
         } else if(from_num_type->number > to_num_type->number) {
-            return gen.builder->CreateTrunc(value->llvm_value(gen), to_num_type->llvm_type(gen));
+            return gen.builder->CreateTrunc(llvm_val, to_num_type->llvm_type(gen));
+        }
+    } else if((value_type->kind() == BaseTypeKind::Float || value_type->kind() == BaseTypeKind::Double) && type->kind() == BaseTypeKind::IntN) {
+        if(((IntNType*) type.get())->is_unsigned) {
+            return gen.builder->CreateFPToUI(llvm_val, type->llvm_type(gen));
+        } else {
+            return gen.builder->CreateFPToSI(llvm_val, type->llvm_type(gen));
+        }
+    } else if((value_type->kind() == BaseTypeKind::IntN && (type->kind() == BaseTypeKind::Float || type->kind() == BaseTypeKind::Double))) {
+        if(((IntNType*) type.get())->is_unsigned) {
+            return gen.builder->CreateUIToFP(llvm_val, type->llvm_type(gen));
+        } else {
+            return gen.builder->CreateSIToFP(llvm_val, type->llvm_type(gen));
         }
     }
 //    auto found= gen.casters.find(Codegen::caster_index(value->value_type(), type->kind()));
 //    if(found != gen.casters.end()) {
 //        return std::unique_ptr<Value>(found->second(&gen, value.get(), type.get()))->llvm_value(gen);
 //    }
-    return value->llvm_value(gen);
+    return llvm_val;
 }
 
 llvm::Type *AddrOfValue::llvm_type(Codegen &gen) {

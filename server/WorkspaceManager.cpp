@@ -32,16 +32,27 @@ WorkspaceManager::WorkspaceManager(std::string lsp_exe_path) : lsp_exe_path(std:
 }
 
 std::string WorkspaceManager::compiler_exe_path() {
-#if defined(_WIN32)
-    return resolve_rel_parent_path_str(lsp_exe_path, "Compiler.exe");
+#ifdef DEBUG
+    std::string exe_name = "Compiler";
 #else
-    return resolve_rel_parent_path_str(lsp_exe_path, "Compiler");
+    std::string exe_name = "chemical";
+#endif
+#if defined(_WIN32)
+    return resolve_rel_parent_path_str(lsp_exe_path, exe_name + ".exe");
+#else
+    return resolve_rel_parent_path_str(lsp_exe_path, exe_name);
 #endif
 }
 
 std::string WorkspaceManager::resources_path() {
     if(overridden_resources_path.empty()) {
-        return resolve_rel_parent_path_str(lsp_exe_path, "resources");
+        auto res = resolve_rel_parent_path_str(lsp_exe_path, "resources");
+#ifdef DEBUG
+        if(res.empty()) {
+            res = resolve_rel_parent_path_str(lsp_exe_path, "../lib/include");
+        }
+#endif
+        return res;
     } else {
         return overridden_resources_path;
     }

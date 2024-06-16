@@ -45,7 +45,7 @@ llvm::Type *FunctionParam::llvm_elem_type(Codegen &gen) {
 }
 
 llvm::Value *FunctionParam::llvm_pointer(Codegen &gen) {
-    auto arg = gen.current_function->getArg(index);
+    auto arg = gen.current_function->getArg(func_type->c_or_llvm_arg_start_index() + index);
     if (arg) {
         return arg;
     } else {
@@ -56,13 +56,14 @@ llvm::Value *FunctionParam::llvm_pointer(Codegen &gen) {
 
 llvm::Value *FunctionParam::llvm_load(Codegen &gen) {
     if (gen.current_function != nullptr) {
+        unsigned actual_index = func_type->c_or_llvm_arg_start_index() + index;
         for (const auto &arg: gen.current_function->args()) {
-            if (arg.getArgNo() == index) {
+            if (arg.getArgNo() == actual_index) {
                 return (llvm::Value *) &arg;
             }
         }
         gen.error(
-                "couldn't locate argument by name " + name + " at index " + std::to_string(index) + " in the function");
+                "couldn't locate argument by name " + name + " at index " + std::to_string(actual_index) + " in the function");
     } else {
         gen.error("cannot provide pointer to a function parameter when not generating code for a function");
     }
@@ -188,11 +189,13 @@ FunctionParam::FunctionParam(
         std::string name,
         std::unique_ptr<BaseType> type,
         unsigned int index,
-        std::optional<std::unique_ptr<Value>> defValue
+        std::optional<std::unique_ptr<Value>> defValue,
+        BaseFunctionType* func_type
 ) : name(std::move(name)),
     type(std::move(type)),
     index(index),
-    defValue(std::move(defValue))
+    defValue(std::move(defValue)),
+    func_type(func_type)
 {
     name.shrink_to_fit();
 }
@@ -214,7 +217,7 @@ FunctionParam *FunctionParam::copy() const {
     if (defValue.has_value()) {
         copied.emplace(defValue.value()->copy());
     }
-    return new FunctionParam(name, std::unique_ptr<BaseType>(type->copy()), index, std::move(copied));
+    return new FunctionParam(name, std::unique_ptr<BaseType>(type->copy()), index, std::move(copied), func_type);
 }
 
 std::string FunctionParam::representation() const {
@@ -242,8 +245,10 @@ FunctionDeclaration::FunctionDeclaration(
         std::unique_ptr<BaseType> returnType,
         bool isVariadic,
         std::optional<LoopScope> body
-) : name(std::move(name)), params(std::move(params)), returnType(std::move(returnType)), body(std::move(body)),
-    isVariadic(isVariadic) {
+) : BaseFunctionType(std::move(params), std::move(returnType), isVariadic),
+    name(std::move(name)),
+    body(std::move(body)) {
+
     params.shrink_to_fit();
     if(this->name == "main") {
         specifier = AccessSpecifier::Public;

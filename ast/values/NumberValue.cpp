@@ -63,7 +63,7 @@ void NumberValue::link(SymbolResolver &linker, ReturnStatement *returnStmt) {
 }
 
 void NumberValue::link(SymbolResolver &linker, FunctionCall *call, unsigned int index) {
-    auto value_type = call->linked()->create_value_type();
+    auto value_type = call->parent_val->create_type();
     auto funcType = (FunctionType*) value_type.get();
     linked_type = linked(funcType->params[index]->type.get());
 }

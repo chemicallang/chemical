@@ -4,20 +4,17 @@
 
 #include "ast/base/BaseType.h"
 #include "ast/structures/FunctionParam.h"
+#include "ast/structures/BaseFunctionType.h"
 
 using func_params = std::vector<std::unique_ptr<FunctionParam>>;
 
-class FunctionType : public BaseType {
+class FunctionType : public BaseFunctionType, public BaseType {
 public:
 
-    func_params params;
-    std::unique_ptr<BaseType> returnType;
-    // if the function is variadic, the last type in params is the type given to the variadic parameter
-    bool isVariadic;
     bool isCapturing;
 
     FunctionType(
-            func_params params,
+            std::vector<std::unique_ptr<FunctionParam>> params,
             std::unique_ptr<BaseType> returnType,
             bool isVariadic,
             bool isCapturing
@@ -39,25 +36,12 @@ public:
         return ValueType::Lambda;
     }
 
-    bool equal(FunctionType *other) const {
-        if (isVariadic != other->isVariadic) {
-            return false;
-        }
-        if (!returnType->is_same(other->returnType.get())) {
-            return false;
-        }
-        unsigned i = 0;
-        while (i < params.size()) {
-            if (!params[i]->type->is_same(other->params[i]->type.get())) {
-                return false;
-            }
-            i++;
-        }
-        return true;
+    inline bool equal_type(FunctionType *other) const {
+        return equal(other);
     }
 
     bool is_same(BaseType *other) const override {
-        return other->kind() == kind() && equal(static_cast<FunctionType *>(other));
+        return other->kind() == kind() && equal_type(static_cast<FunctionType *>(other));
     }
 
     bool satisfies(ValueType type) const override;

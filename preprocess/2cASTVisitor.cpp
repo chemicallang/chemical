@@ -483,12 +483,12 @@ void CValueDeclarationVisitor::visit(LambdaFunction *lamb) {
         visitor->write("};");
     }
     visitor->new_line_and_indent();
-    accept_func_return(visitor, lamb->func_type->returnType.get(), lamb_name);
+    accept_func_return(visitor, lamb->returnType.get(), lamb_name);
     aliases[lamb] = lamb_name;
     write('(');
 
     // writing the captured struct as a parameter
-    if(lamb->func_type->isCapturing) {
+    if(lamb->isCapturing) {
         visitor->write("void*");
         visitor->write(" this");
         if(!lamb->params.empty()) {
@@ -498,18 +498,18 @@ void CValueDeclarationVisitor::visit(LambdaFunction *lamb) {
 
     unsigned i = 0;
     FunctionParam* param;
-    auto size = lamb->func_type->isVariadic ? lamb->func_type->params.size() - 1 : lamb->func_type->params.size();
+    auto size = lamb->isVariadic ? lamb->params.size() - 1 : lamb->params.size();
     while(i < size) {
-        param = lamb->func_type->params[i].get();
+        param = lamb->params[i].get();
         param->type->accept(visitor);
         space();
         write(param->name);
-        if(i != lamb->func_type->params.size() - 1) {
+        if(i != lamb->params.size() - 1) {
             write(", ");
         }
         i++;
     }
-    if(lamb->func_type->isVariadic) {
+    if(lamb->isVariadic) {
         write("...");
     }
     write(')');
@@ -985,10 +985,6 @@ void func_call(ToCAstVisitor* visitor, FunctionType* type, std::unique_ptr<Value
     }
 }
 
-bool func_type_has_self(FunctionType* type) {
-    return !type->params.empty() && (type->params[0]->name == "this" || type->params[0]->name == "self");
-}
-
 void func_container_name(ToCAstVisitor* visitor, ASTNode* node, Value* ref) {
     if(node->as_interface_def()) {
         visitor->write(node->as_interface_def()->name);
@@ -1051,7 +1047,7 @@ void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& valu
             func_container_name(visitor, grandpaType->linked_node(), parent);
             parent->accept(visitor); // function name
             visitor->write('(');
-            if(func_type_has_self(func_type)) {
+            if(func_type->has_self_param()) {
                 visitor->write('&');
                 grandpa->accept(visitor);
                 if (!last->values.empty()) {
@@ -1071,7 +1067,7 @@ void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& valu
         // normal functions
         access_chain(visitor, values, start, end - 1);
         visitor->write('(');
-        if(grandpa && func_type_has_self(func_type)) {
+        if(grandpa && func_type->has_self_param()) {
             if(chain_contains_func_call(values, start, end - 2)) {
                 visitor->error("Function call inside a access chain with lambda that requires self is not allowed");
                 return;
@@ -1376,7 +1372,7 @@ void ToCAstVisitor::visit(TernaryValue *ternary) {
 void ToCAstVisitor::visit(LambdaFunction *func) {
     auto found = declarer->aliases.find(func);
     if(found != declarer->aliases.end()) {
-        if(func->func_type->isCapturing) {
+        if(func->isCapturing) {
             write('(');
             write('&');
             write('(');

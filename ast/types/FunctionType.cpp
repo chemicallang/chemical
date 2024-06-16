@@ -78,7 +78,7 @@ FunctionType::FunctionType(
         std::unique_ptr<BaseType> returnType,
         bool isVariadic,
         bool isCapturing
-) : params(std::move(params)), returnType(std::move(returnType)), isVariadic(isVariadic), isCapturing(isCapturing) {
+) : BaseFunctionType(std::move(params), std::move(returnType), isVariadic), isCapturing(isCapturing) {
 
 };
 

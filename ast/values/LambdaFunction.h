@@ -17,12 +17,10 @@ class CapturedVariable;
 /**
  * @brief Class representing an integer value.
  */
-class LambdaFunction : public Value {
+class LambdaFunction : public Value, public FunctionType {
 public:
 
     std::vector<std::unique_ptr<CapturedVariable>> captureList;
-    std::vector<std::unique_ptr<FunctionParam>> params;
-    bool isVariadic;
     Scope scope;
 
 #ifdef COMPILER_BUILD
@@ -70,13 +68,13 @@ public:
 
     llvm::Value *llvm_ret_value(Codegen &gen, ReturnStatement *returnStmt) override;
 
-    llvm::FunctionType *llvm_func_type(Codegen &gen) override;
-
 #endif
 
     std::unique_ptr<BaseType> create_type() const override;
 
     void link(SymbolResolver &linker) override;
+
+    void link(SymbolResolver &linker, FunctionType* func_type);
 
     void link(SymbolResolver &linker, VarInitStatement *stmnt) override;
 
@@ -87,7 +85,5 @@ public:
     void link(SymbolResolver &linker, ReturnStatement *returnStmt) override;
 
     ValueType value_type() const override;
-
-    std::shared_ptr<FunctionType> func_type = nullptr;
 
 };

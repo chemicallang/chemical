@@ -20,7 +20,7 @@ public:
     CompTimeFuncDecl(
             CompTimeFuncType lambda,
             std::string name,
-            func_params params,
+            std::vector<std::unique_ptr<FunctionParam>> params,
             std::unique_ptr<BaseType> returnType,
             bool isVariadic,
             std::optional<LoopScope> body = std::nullopt

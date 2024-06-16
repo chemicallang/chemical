@@ -214,7 +214,7 @@ PointerType* current_self_pointer(CSTConverter* converter) {
 void CSTConverter::visitFunctionParam(CompoundCSTToken *param) {
     auto identifier = str_token(param->tokens[0].get());
     visit(param->tokens, 2);
-    BaseType *baseType;
+    BaseType *baseType = nullptr;
     if (optional_param_types) {
         std::optional<std::unique_ptr<BaseType>> t = std::nullopt;
         if(2 < param->tokens.size() && param->tokens[2]->is_type()) {
@@ -222,8 +222,6 @@ void CSTConverter::visitFunctionParam(CompoundCSTToken *param) {
         }
         if (t.has_value()) {
             baseType = t.value().release();
-        } else {
-            baseType = new VoidType();
         }
     } else {
         baseType = type().release();
@@ -314,6 +312,8 @@ void CSTConverter::visitFunction(CompoundCSTToken *function) {
     auto funcDecl = new FunctionDeclaration(func_name(function), std::move(params.params),
                                             std::move(returnType.value()), params.isVariadic,
                                             std::move(fnBody));
+
+    funcDecl->assign_params();
 
     nodes.emplace_back(std::unique_ptr<FunctionDeclaration>(funcDecl));
 
@@ -513,6 +513,8 @@ void CSTConverter::visitLambda(CompoundCSTToken *cst) {
 
     auto lambda = new LambdaFunction(std::move(captureList), std::move(result.params), result.isVariadic,
             std::move(scope));
+
+    lambda->assign_params();
 
     for(auto& c : lambda->captureList) {
         c->lambda = lambda;

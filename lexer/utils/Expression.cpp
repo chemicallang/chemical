@@ -89,7 +89,9 @@ bool Lexer::lexLambdaOrExprAfterLParen() {
         }
         lexLambdaAfterComma(this, start);
         return true;
-    } else if (lexOperatorToken(',')) {
+    } else if (provider.peek() == ',') {
+        compound_from<FunctionParamCST>(start + 1);
+        lexOperatorToken(',');
         lexParameterList(true, false);
         lexLambdaAfterComma(this, start);
         return true;

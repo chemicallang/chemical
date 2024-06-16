@@ -3,14 +3,9 @@
 #pragma once
 
 #include "ASTNode.h"
-#include "Annotation.h"
+#include "AnnotationParent.h"
 
-class AnnotableNode : public ASTNode {
+class AnnotableNode : public ASTNode, public AnnotationParent {
 public:
-
-    /**
-     * Annotations that this node contains
-     */
-    std::vector<Annotation> annotations;
 
 };

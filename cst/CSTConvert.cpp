@@ -129,7 +129,13 @@ void collect_annotation_func(CSTConverter* converter, CSTToken* container, Annot
     converter->annotations.back().values = std::move(collected);
 }
 
+void ignore_annotation_func(CSTConverter* converter, CSTToken* container) {
+    // do nothing
+}
+
 void CSTConverter::init_annotation_handlers() {
+    annotation_handlers["cbi:create"] = ignore_annotation_func;
+    annotation_handlers["cbi:import"] = ignore_annotation_func;
     annotation_handlers["cbi:global"] = [](CSTConverter* converter, CSTToken* container){
         converter->dispose_node = true;
     };
@@ -544,10 +550,9 @@ void CSTConverter::visitAnnotation(CompoundCSTToken *annotation) {
     auto macro = annotation_handlers.find(annon_name);
     if (macro != annotation_handlers.end()) {
         macro->second(this, annotation);
+    } else {
+        error("couldn't find annotation handler for " + annon_name, annotation);
     }
-//    else {
-//        error("couldn't find annotation handler for " + annon_name, annotation);
-//    }
 }
 
 void CSTConverter::visitAnnotationToken(LexToken *token) {
@@ -555,10 +560,9 @@ void CSTConverter::visitAnnotationToken(LexToken *token) {
     auto macro = annotation_handlers.find(annon_name);
     if (macro != annotation_handlers.end()) {
         macro->second(this, token);
+    } else {
+        error("couldn't find annotation handler for " + annon_name, token);
     }
-//    else {
-//        error("couldn't find annotation handler for " + annon_name, annotation);
-//    }
 }
 
 void CSTConverter::visitIf(CompoundCSTToken *ifCst) {

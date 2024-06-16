@@ -10,7 +10,7 @@ public:
     /**
      * Annotations that this node contains
      */
-    std::vector<Annotation> children;
+    std::vector<Annotation> annotations;
 
     /**
      * traverse

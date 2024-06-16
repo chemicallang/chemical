@@ -119,13 +119,13 @@ void CSTConverter::init_macro_handlers() {
 }
 
 void collect_annotation_func(CSTConverter* converter, CSTToken* container, AnnotationKind kind) {
+    converter->annotations.emplace_back(kind);
+    if(!container->compound()) return;
     auto compound = container->as_compound();
-    if(!compound) return;
     auto previous = std::move(converter->values);
     visit(converter, compound->tokens, 2);
     auto collected = std::move(converter->values);
     converter->values = std::move(previous);
-    converter->annotations.emplace_back(kind);
     converter->annotations.back().values = std::move(collected);
 }
 
@@ -170,6 +170,30 @@ void CSTConverter::init_annotation_handlers() {
         converter->dispose_node = false;
         converter->keep_disposing = false;
     };
+    annotation_handlers["inline"] = [](CSTConverter* converter, CSTToken* container){
+        collect_annotation_func(converter, container, AnnotationKind::Inline);
+    };
+    annotation_handlers["inline:always"] = [](CSTConverter* converter, CSTToken* container){
+        collect_annotation_func(converter, container, AnnotationKind::AlwaysInline);
+    };
+    auto no_inline = [](CSTConverter* converter, CSTToken* container){
+        collect_annotation_func(converter, container, AnnotationKind::NoInline);
+    };
+    annotation_handlers["noinline"] = no_inline;
+    annotation_handlers["inline:no"] = no_inline;
+    annotation_handlers["inline:hint"] = [](CSTConverter* converter, CSTToken* container){
+        collect_annotation_func(converter, container, AnnotationKind::InlineHint);
+    };
+    annotation_handlers["size:opt"] = [](CSTConverter* converter, CSTToken* container){
+        collect_annotation_func(converter, container, AnnotationKind::OptSize);
+    };
+    annotation_handlers["size:min"] = [](CSTConverter* converter, CSTToken* container){
+        collect_annotation_func(converter, container, AnnotationKind::MinSize);
+    };
+}
+
+inline void collect_annotations_in(CSTConverter* converter, AnnotableNode* node) {
+    node->annotations = std::move(converter->annotations);
 }
 
 void CSTConverter::visit(std::vector<std::unique_ptr<CSTToken>> &tokens, unsigned int start, unsigned int end) {
@@ -319,6 +343,8 @@ void CSTConverter::visitFunction(CompoundCSTToken *function) {
                                             std::move(returnType.value()), params.isVariadic,
                                             std::move(fnBody));
 
+    collect_annotations_in(this, funcDecl);
+
     funcDecl->assign_params();
 
     nodes.emplace_back(std::unique_ptr<FunctionDeclaration>(funcDecl));
@@ -355,7 +381,8 @@ void CSTConverter::visitEnumDecl(CompoundCSTToken *decl) {
         }
         i++;
     }
-    nodes.emplace_back(new EnumDeclaration(str_token(decl->tokens[1].get()), std::move(members)));
+    auto enum_decl = new EnumDeclaration(str_token(decl->tokens[1].get()), std::move(members));
+    nodes.emplace_back(enum_decl);
 }
 
 Value* convertNumber(NumberToken* token, ValueType value_type, bool is64Bit) {

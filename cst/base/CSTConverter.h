@@ -24,6 +24,13 @@ struct FunctionParamsResult {
     unsigned int index;
 };
 
+class CSTConverter;
+
+/**
+ * a function that can handle annotation
+ */
+typedef void(*AnnotationHandlerFn)(CSTConverter*, CSTToken* container);
+
 class CSTConverter : public CSTVisitor, public CSTDiagnoser {
 private:
 
@@ -47,11 +54,6 @@ private:
      * all the functions that can handle native macros like #eval
      */
     std::unordered_map<std::string, MacroHandlerFn> macro_handlers;
-
-    /**
-     * a function that can handle annotation
-     */
-    typedef void(*AnnotationHandlerFn)(CSTConverter*, CSTToken* container);
 
     /**
      * all the functions that can handle native annotations

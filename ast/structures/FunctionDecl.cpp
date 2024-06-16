@@ -105,8 +105,36 @@ void FunctionDeclaration::code_gen(Codegen &gen) {
     body_gen(gen, (llvm::Function*) funcCallee, body);
 }
 
+void llvm_func_attr(ASTDiagnoser* diagnoser, llvm::Function* func, AnnotationKind kind) {
+    switch(kind) {
+        case AnnotationKind::Inline:
+            return;
+        case AnnotationKind::AlwaysInline:
+            func->addFnAttr(llvm::Attribute::AlwaysInline);
+            break;
+        case AnnotationKind::NoInline:
+            func->addFnAttr(llvm::Attribute::NoInline);
+            break;
+        case AnnotationKind::InlineHint:
+            func->addFnAttr(llvm::Attribute::InlineHint);
+            break;
+        case AnnotationKind::OptSize:
+            func->addFnAttr(llvm::Attribute::OptimizeForSize);
+            break;
+        case AnnotationKind::MinSize:
+            func->addFnAttr(llvm::Attribute::MinSize);
+            break;
+        default:
+            diagnoser->error("Unknown annotation of kind " + to_string(kind) + " on function won't be considered");
+            return;
+    }
+}
+
 void create_fn(Codegen& gen, FunctionDeclaration *decl, const std::string& name) {
     auto func = gen.create_function(name, decl->llvm_func_type(gen), decl->specifier);
+    decl->traverse([&gen, func](Annotation* annotation){
+        llvm_func_attr(&gen, func, annotation->kind);
+    });
     decl->funcType = func->getFunctionType();
     decl->funcCallee = func;
 }

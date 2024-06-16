@@ -5,6 +5,7 @@
 #include <memory>
 #include <vector>
 #include <string>
+#include "utils/fwd/functional.h"
 #include "AnnotationKind.h"
 
 class Value;
@@ -22,6 +23,11 @@ public:
     Annotation(
             AnnotationKind kind
     );
+
+    /**
+     * traverse
+     */
+    void traverse(bool consider_self, const std::function<void(Annotation*)>& traverser);
 
     /**
      * get annotations by this kind

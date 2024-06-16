@@ -443,6 +443,7 @@ set(COMMON_SOURCES
         ast/base/AnnotationKind.h
         ast/structures/BaseFunctionType.h
         ast/structures/BaseFunctionType.cpp
+        ast/base/AnnotationParent.h
 )
 
 # Chemical LSP Executable Target

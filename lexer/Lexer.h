@@ -627,7 +627,7 @@ public:
      * it will lex a lambda meaning '() => {}' in a paren expression
      * it assumes you've already consumed '('
      */
-    bool lexLambdaAfterLParen();
+    bool lexLambdaOrExprAfterLParen();
 
     /**
      * it will lex a paren expression, meaning '(' expr ')'

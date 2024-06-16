@@ -229,7 +229,7 @@ void init_lexer_cbi(LexerCBI* cbi, Lexer* lexer, SourceProviderCBI* provider_cbi
         return cbi->instance->lexRemainingExpression(start);
     };
     cbi->lexLambdaAfterLParen = [](LexerCBI* cbi){
-        return cbi->instance->lexLambdaAfterLParen();
+        return cbi->instance->lexLambdaOrExprAfterLParen();
     };
     cbi->lexParenExpressionAfterLParen = [](LexerCBI* cbi){
         return cbi->instance->lexParenExpressionAfterLParen();

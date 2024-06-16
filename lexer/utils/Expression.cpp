@@ -55,7 +55,7 @@ void lexLambdaAfterComma(Lexer *lexer, unsigned int start) {
     }
 }
 
-bool Lexer::lexLambdaAfterLParen() {
+bool Lexer::lexLambdaOrExprAfterLParen() {
     unsigned int start = tokens.size() - 1;
 
     lexWhitespaceToken();
@@ -98,7 +98,10 @@ bool Lexer::lexLambdaAfterLParen() {
     if(has_whitespace) {
         lexRemainingExpression(start + 1);
         if(lexOperatorToken(')')) {
-            compound_from<ExpressionCST>(start);
+            if(!lexRemainingExpression(start)) {
+                compound_from<ExpressionCST>(start);
+            }
+            return true;
         } else if(lexRemainingExpression(start + 1) && lexOperatorToken(')')) {
             compound_from<ExpressionCST>(start);
         } else {
@@ -166,7 +169,7 @@ bool Lexer::lexExpressionTokens(bool lexStruct, bool lambda) {
 
     if (lexOperatorToken('(')) {
         unsigned start = tokens.size() - 1;
-        if (lambda && lexLambdaAfterLParen()) {
+        if (lambda && lexLambdaOrExprAfterLParen()) {
             return true;
         }
         lexParenExpressionAfterLParen();

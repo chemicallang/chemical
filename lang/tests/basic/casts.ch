@@ -21,6 +21,12 @@ func test_casts() {
         var num2 : long = 16;
         return (num1 as long > num2);
     })
+    test("test cast without parenthesis works - 3", () => {
+        var d = 1.0 as double
+        var fl = d as float
+        var i = (fl as int) == 1
+        return i;
+    })
     test("cast double to an integer", () => {
         var num = 1.0 as double
         var num2 = num as int

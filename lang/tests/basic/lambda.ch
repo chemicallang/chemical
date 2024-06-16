@@ -66,6 +66,11 @@ struct ProvideStructLamb {
     var lamb : (a : int, b : int) => PointSome
 }
 
+struct ProvideSelfRefStructLamb {
+    var mul : int
+    var lamb : (&self, a : int, b : int) => PointSome
+}
+
 func test_lambda() {
     test("testing non capturing lambda works", () => {
         return true;
@@ -204,6 +209,19 @@ func test_lambda() {
         }
         var c = p.lamb(20, 30);
         return c.a == 20 && c.b == 30;
+    })
+    test("lambdas with self reference can return a struct", () => {
+        var provide = ProvideSelfRefStructLamb {
+            mul : 2,
+            lamb : (self, a, b) => {
+                return PointSome {
+                   a : self.mul * a,
+                   b : self.mul * b
+                }
+            }
+        }
+        var p = provide.lamb(10, 20);
+        return p.a == 20 && p.b == 40;
     })
 }
 

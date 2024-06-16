@@ -62,6 +62,10 @@ func lamb_ret_struct() : (a : int, b : int) => PointSome {
     }
 }
 
+struct ProvideStructLamb {
+    var lamb : (a : int, b : int) => PointSome
+}
+
 func test_lambda() {
     test("testing non capturing lambda works", () => {
         return true;
@@ -185,9 +189,21 @@ func test_lambda() {
         }
         return self_lamb.lambda() == 110;
     })
-    test("lambda can return struct", () => {
+    test("lambda can return struct - 1", () => {
         var p = lamb_ret_struct()(10, 20);
         return p.a == 10 && p.b == 20;
+    })
+    test("lambda can return struct - 2", () => {
+        var p = ProvideStructLamb {
+            lamb : (a : int, b : int) => {
+                return PointSome {
+                    a : a,
+                    b : b
+                }
+            }
+        }
+        var c = p.lamb(20, 30);
+        return c.a == 20 && c.b == 30;
     })
 }
 

@@ -10,7 +10,7 @@
 void define_source_stream_fns(GlobalInterpretScope &global);
 
 void define_func(GlobalInterpretScope &scope, const std::string &name, CompTimeFuncType func, bool isVariadic) {
-    auto decl = std::make_unique<CompTimeFuncDecl>(func, name, func_params(), std::make_unique<VoidType>(),
+    auto decl = std::make_unique<CompTimeFuncDecl>(func, name, std::vector<std::unique_ptr<FunctionParam>>(), std::make_unique<VoidType>(),
                                                    isVariadic);
     std::vector<std::unique_ptr<ASTNode>> nodes;
     decl->body.emplace(LoopScope(std::move(nodes)));

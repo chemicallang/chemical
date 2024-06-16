@@ -1,3 +1,8 @@
+## Rules
+
+1 - Check that `lang/tests/tests.ch` compiles and run's with all tests successful
+2 - Check that `lang/tests/tests.ch` can be translated to C and tests are still successful
+
 ## Project Structure
 
 Here are the folders in the project and their explanation
@@ -8,7 +13,7 @@ Here are the folders in the project and their explanation
   - [Value](../../ast/base/Value.h) class that represents all the values (referenced, primitive & others like Array and Struct)
   - [BaseType](../../ast/base/BaseType.h) class that represents all the type classes in the project like `Int` and `ReferencedType`
   - [Visitor](../../ast/base/Visitor.h) class that allows visiting all nodes in the AST
-    - By default visitor doesn't visit values, suppose you want to process lambda functions in the `AST`, since lambda's are values, they won't be visited, unless you visit the `VarInitStatement` which contains `std::optional<std::unique_ptr<Value>>` value
+    - By default, visitor doesn't visit values, suppose you want to process lambda functions in the `AST`, since lambda's are values, they won't be visited, unless you visit the `VarInitStatement` which contains `std::optional<std::unique_ptr<Value>>` value
     - To visit the values / types, there's a [CommonVisitor](../../ast/utils/CommonVisitor.h) which implements the Visitor class
 
 

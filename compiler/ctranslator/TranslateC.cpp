@@ -130,7 +130,7 @@ VarInitStatement* CTranslator::make_var_init(clang::VarDecl* decl) {
 FunctionDeclaration* CTranslator::make_func(clang::FunctionDecl* func_decl) {
     // Check if the declaration is for the printf function
     // Extract function parameters
-    func_params params;
+    std::vector<std::unique_ptr<FunctionParam>> params;
     unsigned index = 0;
     bool skip_fn = false;
     for (const auto *param: func_decl->parameters()) {
@@ -161,13 +161,15 @@ FunctionDeclaration* CTranslator::make_func(clang::FunctionDecl* func_decl) {
         return nullptr;
     }
     dispatch_before();
-    return new FunctionDeclaration(
+    auto decl = new FunctionDeclaration(
             func_decl->getNameAsString(),
             std::move(params),
             std::unique_ptr<BaseType>(chem_type),
             func_decl->isVariadic(),
             std::nullopt
     );
+    decl->assign_params();
+    return decl;
 }
 
 void Translate(CTranslator *translator, clang::ASTUnit *unit) {

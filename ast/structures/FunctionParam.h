@@ -5,11 +5,18 @@
 #include <optional>
 #include "ast/base/ASTNode.h"
 
+class BaseFunctionType;
+
 class FunctionParam : public ASTNode {
 public:
 
-    FunctionParam(std::string name, std::unique_ptr<BaseType> type, unsigned int index,
-                  std::optional<std::unique_ptr<Value>> defValue);
+    FunctionParam(
+            std::string name,
+            std::unique_ptr<BaseType> type,
+            unsigned int index,
+            std::optional<std::unique_ptr<Value>> defValue,
+            BaseFunctionType* func_type = nullptr
+      );
 
     std::unique_ptr<BaseType> create_value_type() override;
 
@@ -61,5 +68,6 @@ public:
     std::string name;
     std::unique_ptr<BaseType> type;
     std::optional<std::unique_ptr<Value>> defValue;
+    BaseFunctionType* func_type;
 
 };

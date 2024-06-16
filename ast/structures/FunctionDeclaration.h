@@ -16,10 +16,9 @@
 #include <optional>
 #include "ast/base/AccessSpecifier.h"
 #include "ast/base/AnnotableNode.h"
+#include "BaseFunctionType.h"
 
-using func_params = std::vector<std::unique_ptr<FunctionParam>>;
-
-class FunctionDeclaration : public AnnotableNode {
+class FunctionDeclaration : public AnnotableNode, public BaseFunctionType {
 public:
 
     /**
@@ -32,7 +31,7 @@ public:
      */
     FunctionDeclaration(
             std::string name,
-            func_params params,
+            std::vector<std::unique_ptr<FunctionParam>> params,
             std::unique_ptr<BaseType> returnType,
             bool isVariadic,
             std::optional<LoopScope> body = std::nullopt
@@ -104,12 +103,9 @@ public:
     std::string representation() const override;
 
     AccessSpecifier specifier;
-    std::string name; ///< The name of the function.
-    func_params params;
+    std::string name; ///< The name of the function;
     std::optional<LoopScope> body; ///< The body of the function.
     InterpretScope *declarationScope;
-    std::unique_ptr<BaseType> returnType;
-    bool isVariadic;
 
 #ifdef COMPILER_BUILD
     llvm::FunctionType *funcType;

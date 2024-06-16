@@ -130,8 +130,14 @@ void llvm_func_attr(ASTDiagnoser* diagnoser, llvm::Function* func, AnnotationKin
     }
 }
 
+void llvm_func_def_attr(llvm::Function* func) {
+//    func->addFnAttr(llvm::Attribute::UWTable); // this causes error
+    func->addFnAttr(llvm::Attribute::NoUnwind);
+}
+
 void create_fn(Codegen& gen, FunctionDeclaration *decl, const std::string& name) {
     auto func = gen.create_function(name, decl->llvm_func_type(gen), decl->specifier);
+    llvm_func_def_attr(func);
     decl->traverse([&gen, func](Annotation* annotation){
         llvm_func_attr(&gen, func, annotation->kind);
     });

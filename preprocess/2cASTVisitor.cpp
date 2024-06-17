@@ -20,6 +20,7 @@
 #include "ast/structures/FunctionParam.h"
 #include "ast/structures/InterfaceDefinition.h"
 #include "ast/structures/FunctionDeclaration.h"
+#include "ast/structures/ExtensionFunction.h"
 #include "ast/structures/TryCatch.h"
 #include "ast/structures/DoWhileLoop.h"
 #include "ast/structures/If.h"
@@ -149,7 +150,17 @@ void type_with_id(ToCAstVisitor* visitor, BaseType* type, const std::string& id)
 }
 
 void func_type_params(ToCAstVisitor* visitor, BaseFunctionType* decl) {
-    if(visitor->pass_structs_to_initialize && decl->returnType->value_type() == ValueType::Struct) {
+    auto is_struct_return = visitor->pass_structs_to_initialize && decl->returnType->value_type() == ValueType::Struct;
+    auto extension = decl->as_extension_func();
+    if(extension) {
+        extension->receiver.type->accept(visitor);
+        visitor->space();
+        visitor->write(extension->receiver.name);
+        if(is_struct_return || !decl->params.empty()) {
+            visitor->write(", ");
+        }
+    }
+    if(is_struct_return) {
         decl->returnType->accept(visitor);
         visitor->write("* ");
         visitor->write(struct_passed_param_name);
@@ -382,6 +393,8 @@ public:
 
     void visit(FunctionDeclaration *functionDeclaration) override;
 
+    void visit(ExtensionFunction *extensionFunc) override;
+
     void visit(StructDefinition *structDefinition) override;
 
     void visit(InterfaceDefinition *interfaceDefinition) override;
@@ -417,6 +430,8 @@ public:
     void visit(LambdaFunction *func) override;
 
     void visit(FunctionDeclaration *functionDeclaration) override;
+
+    void visit(ExtensionFunction *extensionFunc) override;
 
     void visit(EnumDeclaration *enumDeclaration) override;
 
@@ -560,7 +575,17 @@ void CTopLevelDeclarationVisitor::visit(FunctionDeclaration *decl) {
     declare_by_name(this, decl, decl->name);
 }
 
+void CTopLevelDeclarationVisitor::visit(ExtensionFunction *decl) {
+    declare_by_name(this, decl, decl->name);
+}
+
 void CValueDeclarationVisitor::visit(FunctionDeclaration *decl) {
+    if(decl->body.has_value()) {
+        decl->body.value().accept(this);
+    }
+}
+
+void CValueDeclarationVisitor::visit(ExtensionFunction *decl) {
     if(decl->body.has_value()) {
         decl->body.value().accept(this);
     }
@@ -880,6 +905,10 @@ void ToCAstVisitor::visit(FunctionDeclaration *decl) {
     func_decl_with_name(this, decl, decl->name);
 }
 
+void ToCAstVisitor::visit(ExtensionFunction *decl) {
+    func_decl_with_name(this, decl, decl->name);
+}
+
 void ToCAstVisitor::visit(IfStatement *decl) {
     write("if(");
     nested_value = true;
@@ -984,6 +1013,9 @@ void func_call(ToCAstVisitor* visitor, FunctionType* type, std::unique_ptr<Value
 }
 
 void func_container_name(ToCAstVisitor* visitor, ASTNode* node, Value* ref) {
+    if(ref->linked_node()->as_extension_func()) {
+        return;
+    }
     if(node->as_interface_def()) {
         visitor->write(node->as_interface_def()->name);
     } else if(node->as_struct_def()) {
@@ -997,8 +1029,6 @@ void func_container_name(ToCAstVisitor* visitor, ASTNode* node, Value* ref) {
         } else {
             visitor->write(node->as_struct_def()->name);
         }
-    } else {
-        ref->accept(visitor);
     }
 }
 

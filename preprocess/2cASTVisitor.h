@@ -156,6 +156,8 @@ public:
 
     void visit(FunctionDeclaration* functionDeclaration) override;
 
+    void visit(ExtensionFunction *extensionFunc) override;
+
     void visit(IfStatement* ifStatement) override;
 
     void visit(ImplDefinition* implDefinition) override;

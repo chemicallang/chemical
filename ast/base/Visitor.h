@@ -168,6 +168,8 @@ class UShortType;
 
 class VoidType;
 
+class ExtensionFunction;
+
 class ExtensionFuncReceiver;
 
 // Visitor Class
@@ -237,6 +239,10 @@ public:
 
     virtual void visit(FunctionDeclaration* functionDeclaration) {
         visitCommon((ASTNode*) functionDeclaration);
+    }
+
+    virtual void visit(ExtensionFunction* extensionFunc) {
+        visitCommon((ASTNode*) extensionFunc);
     }
 
     virtual void visit(IfStatement* ifStatement) {

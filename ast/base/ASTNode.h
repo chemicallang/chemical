@@ -147,6 +147,13 @@ public:
     }
 
     /**
+     * get as extension function
+     */
+    virtual ExtensionFunction* as_extension_func() {
+        return nullptr;
+    }
+
+    /**
      * return if this is a parameter
      * @return
      */

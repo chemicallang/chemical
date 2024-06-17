@@ -76,9 +76,35 @@ void Lexer::lexParameterList(bool optionalTypes, bool defValues) {
     } while(lexOperatorToken(','));
 }
 
-bool Lexer::lexAfterFuncKeyword() {
+bool Lexer::lexAfterFuncKeyword(bool allow_extensions) {
 
     lexWhitespaceToken();
+
+    if(allow_extensions) {
+        if(lexOperatorToken('(')) {
+            lexWhitespaceToken();
+            if(!lexIdentifierToken()) {
+                error("expected identifier for receiver in extension function after '('");
+                return false;
+            }
+            lexWhitespaceToken();
+            if(!lexOperatorToken(':')) {
+                error("expected ':' in extension function after identifier for receiver");
+                return false;
+            }
+            lexWhitespaceToken();
+            if(!lexTypeTokens()) {
+                error("expected type after ':' in extension function for receiver");
+                return false;
+            }
+            lexWhitespaceToken();
+            if(!lexOperatorToken(')')) {
+                error("expected ')' in extension function after receiver");
+                return false;
+            }
+            lexWhitespaceToken();
+        }
+    }
 
     if(!lexIdentifierToken()) {
         error("function name is missing after the keyword 'func'");
@@ -123,7 +149,7 @@ bool Lexer::lexFunctionSignatureTokens() {
 
 }
 
-bool Lexer::lexFunctionStructureTokens(bool allow_declarations) {
+bool Lexer::lexFunctionStructureTokens(bool allow_declarations, bool allow_extensions) {
 
     if(!lexKeywordToken("func")) {
         return false;
@@ -131,7 +157,7 @@ bool Lexer::lexFunctionStructureTokens(bool allow_declarations) {
 
     unsigned start = tokens.size() - 1;
 
-    if(!lexAfterFuncKeyword()) {
+    if(!lexAfterFuncKeyword(allow_extensions)) {
         return true;
     }
 

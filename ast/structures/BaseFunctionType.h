@@ -18,6 +18,15 @@ public:
     bool isVariadic;
 
     /**
+     *
+     */
+    BaseFunctionType(
+        std::vector<std::unique_ptr<FunctionParam>> params,
+        std::unique_ptr<BaseType> returnType,
+        bool isVariadic
+    );
+
+    /**
      * assigns func_type field of each function parameter to this
      */
     void assign_params();
@@ -25,12 +34,12 @@ public:
     /**
      * whether this function requires self parameter
      */
-    bool has_self_param();
+    virtual bool has_self_param();
 
     /**
      * start index of c or llvm functions for this type
      */
-    unsigned c_or_llvm_arg_start_index() const;
+    virtual unsigned c_or_llvm_arg_start_index() const;
 
     /**
      * check if this function type is equal to other

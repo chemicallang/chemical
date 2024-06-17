@@ -8,7 +8,6 @@
 #include "compiler/SymbolResolver.h"
 #include "CapturedVariable.h"
 #include "ast/types/PointerType.h"
-#include "ExtensionFunction.h"
 
 #ifdef COMPILER_BUILD
 
@@ -16,15 +15,15 @@
 #include "compiler/llvmimpl.h"
 #include "ast/values/LambdaFunction.h"
 
-llvm::Type *FunctionParam::llvm_type(Codegen &gen) {
+llvm::Type *BaseFunctionParam::llvm_type(Codegen &gen) {
     return type->llvm_type(gen);
 }
 
-llvm::FunctionType *FunctionParam::llvm_func_type(Codegen &gen) {
+llvm::FunctionType *BaseFunctionParam::llvm_func_type(Codegen &gen) {
     return type->llvm_func_type(gen);
 }
 
-llvm::Type *FunctionParam::llvm_elem_type(Codegen &gen) {
+llvm::Type *BaseFunctionParam::llvm_elem_type(Codegen &gen) {
     auto lType = llvm_type(gen);
     if (lType) {
         if (lType->isArrayTy()) {
@@ -45,8 +44,8 @@ llvm::Type *FunctionParam::llvm_elem_type(Codegen &gen) {
     return nullptr;
 }
 
-llvm::Value *FunctionParam::llvm_pointer(Codegen &gen) {
-    auto arg = gen.current_function->getArg(func_type->c_or_llvm_arg_start_index() + index);
+llvm::Value *BaseFunctionParam::llvm_pointer(Codegen &gen) {
+    auto arg = gen.current_function->getArg(calculate_c_or_llvm_index());
     if (arg) {
         return arg;
     } else {
@@ -55,9 +54,9 @@ llvm::Value *FunctionParam::llvm_pointer(Codegen &gen) {
     }
 }
 
-llvm::Value *FunctionParam::llvm_load(Codegen &gen) {
+llvm::Value *BaseFunctionParam::llvm_load(Codegen &gen) {
     if (gen.current_function != nullptr) {
-        unsigned actual_index = func_type->c_or_llvm_arg_start_index() + index;
+        unsigned actual_index = calculate_c_or_llvm_index();
         for (const auto &arg: gen.current_function->args()) {
             if (arg.getArgNo() == actual_index) {
                 return (llvm::Value *) &arg;
@@ -71,7 +70,7 @@ llvm::Value *FunctionParam::llvm_load(Codegen &gen) {
     return nullptr;
 }
 
-llvm::Value *FunctionParam::llvm_ret_load(Codegen &gen, ReturnStatement *returnStmt) {
+llvm::Value *BaseFunctionParam::llvm_ret_load(Codegen &gen, ReturnStatement *returnStmt) {
     return type->llvm_return_intercept(gen, llvm_load(gen), this);
 }
 
@@ -214,11 +213,19 @@ llvm::Type *CapturedVariable::llvm_type(Codegen &gen) {
     }
 }
 
-bool FunctionParam::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
+bool BaseFunctionParam::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
     return type->linked_node()->add_child_index(gen, indexes, name);
 }
 
 #endif
+
+BaseFunctionParam::BaseFunctionParam(
+        std::string name,
+        std::unique_ptr<BaseType> type,
+        BaseFunctionType* func_type
+) : name(std::move(name)), type(std::move(type)), func_type(func_type) {
+
+};
 
 FunctionParam::FunctionParam(
         std::string name,
@@ -226,24 +233,30 @@ FunctionParam::FunctionParam(
         unsigned int index,
         std::optional<std::unique_ptr<Value>> defValue,
         BaseFunctionType* func_type
-) : name(std::move(name)),
-    type(std::move(type)),
+) : BaseFunctionParam(
+        std::move(name),
+        std::move(type),
+        func_type
+    ),
     index(index),
-    defValue(std::move(defValue)),
-    func_type(func_type)
+    defValue(std::move(defValue))
 {
     name.shrink_to_fit();
+}
+
+unsigned FunctionParam::calculate_c_or_llvm_index() {
+    return func_type->c_or_llvm_arg_start_index() + index;
 }
 
 void FunctionParam::accept(Visitor *visitor) {
     visitor->visit(this);
 }
 
-ValueType FunctionParam::value_type() const {
+ValueType BaseFunctionParam::value_type() const {
     return type->value_type();
 }
 
-BaseTypeKind FunctionParam::type_kind() const {
+BaseTypeKind BaseFunctionParam::type_kind() const {
     return type->kind();
 }
 
@@ -255,22 +268,22 @@ FunctionParam *FunctionParam::copy() const {
     return new FunctionParam(name, std::unique_ptr<BaseType>(type->copy()), index, std::move(copied), func_type);
 }
 
-std::string FunctionParam::representation() const {
+std::string BaseFunctionParam::representation() const {
     return name + " : " + type->representation();
 }
 
-std::unique_ptr<BaseType> FunctionParam::create_value_type() {
+std::unique_ptr<BaseType> BaseFunctionParam::create_value_type() {
     return std::unique_ptr<BaseType>(type->copy());
 }
 
-void FunctionParam::declare_and_link(SymbolResolver &linker) {
+void BaseFunctionParam::declare_and_link(SymbolResolver &linker) {
     if(!name.empty()) {
         linker.declare(name, this);
     }
     type->link(linker);
 }
 
-ASTNode *FunctionParam::child(const std::string &name) {
+ASTNode *BaseFunctionParam::child(const std::string &name) {
     return type->linked_node()->child(name);
 }
 
@@ -306,38 +319,6 @@ void FunctionDeclaration::accept(Visitor *visitor) {
 
 void FunctionDeclaration::declare_top_level(SymbolResolver &linker) {
     linker.declare(name, this);
-}
-
-void ExtensionFunction::declare_top_level(SymbolResolver &linker) {
-    ReferencedType* ref;
-    if(type->kind() == BaseTypeKind::Referenced) {
-        ref = (ReferencedType*) type.get();
-    } else if(type->kind() == BaseTypeKind::Pointer) {
-        auto ptr = (PointerType*) type.get();
-        if(ptr->type->kind() == BaseTypeKind::Referenced) {
-            ref = (ReferencedType*) type.get();
-        } else {
-            linker.error("Unsupported type in extension function" + type->representation());
-            return;
-        }
-    } else {
-        linker.error("Unsupported type in extension function " + type->representation());
-        return;
-    }
-    if(!ref->linked) {
-        linker.error("No linkage found for type mentioned in extension function " + type->representation());
-        return;
-    }
-    auto container = ref->linked->as_extendable_members_container();
-    if(!container) {
-        linker.error("Type doesn't support extension functions " + type->representation());
-        return;
-    }
-    if(ref->linked->child(name)) {
-        linker.error("Type already has a field / function, Type " + type->representation() + " has member " + name);
-        return;
-    }
-    container->extension_functions[name] = this;
 }
 
 void FunctionDeclaration::declare_and_link(SymbolResolver &linker) {

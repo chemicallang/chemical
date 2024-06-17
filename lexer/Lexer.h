@@ -446,14 +446,14 @@ public:
     /**
      * lex after func keyword has been incremented
      */
-    bool lexAfterFuncKeyword();
+    bool lexAfterFuncKeyword(bool allow_extensions = false);
 
     /**
      * lexes a function block with parameters
      * @param allow_declaration allows a declaration, without body of the function that is
      * @return
      */
-    bool lexFunctionStructureTokens(bool allow_declaration = false);
+    bool lexFunctionStructureTokens(bool allow_declaration = false, bool allow_extensions = false);
 
     /**
      * lexes interface block, this means { member(s) }

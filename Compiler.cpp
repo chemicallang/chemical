@@ -298,7 +298,7 @@ int main(int argc, char *argv[]) {
 
     // creating object file for compilation
     std::string object_file_path = output.value() + ".o";
-    gen.save_to_object_file(object_file_path);
+    gen.save_to_object_file(object_file_path, mode);
 
     int return_int = 0;
 

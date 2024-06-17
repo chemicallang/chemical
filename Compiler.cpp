@@ -55,6 +55,13 @@ void print_help() {
                  "use input extension .ch and output .c, when translating Chemical to C code\n\n"
                  "Invoke Clang : \nchemical.exe cc <clang parameters>\n\n"
                  "--mode              -m            debug or release mode : debug, release, debug_quick, release_aggressive\n"
+                 "--output            -o            specify a output file, output determined by it's extension\n"
+                 "--out-ll  <path>    -[empty]      specify a path to output a .ll file containing llvm ir\n"
+                 "--out-asm <path>    -[empty]      specify a path to output a .s file containing assembly\n"
+                 "--out-bc  <path>    -[empty]      specify a path to output a .bc file containing llvm bitecode\n"
+                 "--out-obj <path>    -[empty]      specify a path to output a .obj file\n"
+                 "--out-bin <path>    -[empty]      specify a path to output a binary file\n"
+                 "--ignore-extension  -[empty]      ignore the extension --output or -o option\n"
                  "--verify            -o            do not compile, only verify source code\n"
                  "--jit               -jit          do just in time compilation using Tiny CC\n"
                  "--res <dir>         -res <dir>    change the location of resources directory\n"
@@ -252,10 +259,6 @@ int main(int argc, char *argv[]) {
         gen.print_to_console();
     }
 
-    if (!output.has_value()) {
-        output.emplace("compiled");
-    }
-
     OutputMode mode = OutputMode::Debug;
 
     // configuring output mode from command line
@@ -277,46 +280,82 @@ int main(int argc, char *argv[]) {
     }
 #endif
 
-    // writing object / ll file when user wants only that !
-    if(endsWith(output.value(), ".o")) {
-        gen.save_to_object_file(output.value(), mode);
-        options.print_unhandled();
-        return 0;
-    } else if(endsWith(output.value(), ".s")) {
-        gen.save_to_assembly_file(output.value(), mode);
-        options.print_unhandled();
-        return 0;
-    } else if(endsWith(output.value(), ".ll")) {
-        gen.save_to_ll_file(output.value(), mode);
-        options.print_unhandled();
-        return 0;
-    } else if(endsWith(output.value(), ".bc")) {
-        gen.save_to_bc_file(output.value(), mode);
-        options.print_unhandled();
-        return 0;
+    CodegenEmitterOptions emitter_options;
+    configure_emitter_opts(mode, &emitter_options);
+
+    auto ll_out = options.option("out-ll");
+    auto bc_out = options.option("out-bc");
+    auto obj_out = options.option("out-obj");
+    auto asm_out = options.option("out-asm");
+    auto bin_out = options.option("out-bin");
+
+    // should the obj file be deleted after linking
+    bool temporary_obj = false;
+
+    if(output.has_value()) {
+        if(!options.option("ignore-extension").has_value()) {
+            // determining output file based on extension
+            if (endsWith(output.value(), ".o")) {
+                obj_out.emplace(output.value());
+            } else if (endsWith(output.value(), ".s")) {
+                asm_out.emplace(output.value());
+            } else if (endsWith(output.value(), ".ll")) {
+                ll_out.emplace(output.value());
+            } else if (endsWith(output.value(), ".bc")) {
+                bc_out.emplace(output.value());
+            } else if(!bin_out.has_value()) {
+                bin_out.emplace(output.value());
+            }
+        } else if(!bin_out.has_value()) {
+            bin_out.emplace(output.value());
+        }
+    } else if(!bin_out.has_value()){
+        bin_out.emplace("compiled");
     }
 
-    // creating object file for compilation
-    std::string object_file_path = output.value() + ".o";
-    gen.save_to_object_file(object_file_path, mode);
+    // have object file output for the binary we are outputting
+    if (!obj_out.has_value() && bin_out.has_value()) {
+        obj_out.emplace(bin_out.value() + ".o");
+        temporary_obj = true;
+    }
+
+    // files to emit
+    if(ll_out.has_value())
+        emitter_options.ir_path = ll_out.value().data();
+    if(bc_out.has_value())
+        emitter_options.bitcode_path = bc_out.value().data();
+    if(obj_out.has_value())
+        emitter_options.obj_path = obj_out.value().data();
+    if(asm_out.has_value())
+        emitter_options.asm_path = asm_out.value().data();
 
     int return_int = 0;
+
+    // creating object file for compilation
+    auto save_result = gen.save_with_options(&emitter_options);
+    if(!save_result) {
+        return_int = 1;
+    }
+
+    if(!bin_out.has_value()) {
+        return return_int;
+    }
 
     auto useLinker = options.option("linker", "linker");
     if(useLinker.has_value()) {
 
         // creating lld command
-        std::vector<std::string> linker{object_file_path};
+        std::vector<std::string> linker{obj_out.value()};
 
         // set output
 #if defined(_WIN32)
-        linker.emplace_back("/OUT:"+output.value());
+        linker.emplace_back("/OUT:"+bin_out.value());
 #elif defined(__APPLE__)
         linker.emplace_back("-o");
-        linker.emplace_back("./"+output.value());
+        linker.emplace_back("./"+bin_out.value());
 #elif defined(__linux__)
         linker.emplace_back("-o");
-        linker.emplace_back("./"+output.value());
+        linker.emplace_back("./"+bin_out.value());
 #endif
 
         // link with standard libc (unless user opts out)
@@ -351,19 +390,22 @@ int main(int argc, char *argv[]) {
         for(const auto& cland_fl : consumed) {
             clang_flags.emplace_back(cland_fl);
         }
-        clang_flags.emplace_back(object_file_path);
+        clang_flags.emplace_back(obj_out.value());
         clang_flags.emplace_back("-o");
-        clang_flags.emplace_back(output.value());
+        clang_flags.emplace_back(bin_out.value());
         return_int = gen.invoke_clang(clang_flags);
     }
 
-    // delete object file which was linked
-    // Attempt to delete the file using std::filesystem
-    try {
-        std::filesystem::remove(object_file_path);
-    } catch (const std::filesystem::filesystem_error& ex) {
-        std::cerr << ANSI_COLOR_RED << "couldn't delete object file " << object_file_path << " because " << ex.what() << ANSI_COLOR_RESET << std::endl;
-        return_int = 1;
+    if(temporary_obj) {
+        // delete object file which was linked
+        // Attempt to delete the file using std::filesystem
+        try {
+            std::filesystem::remove(obj_out.value());
+        } catch (const std::filesystem::filesystem_error &ex) {
+            std::cerr << ANSI_COLOR_RED << "couldn't delete object file " << obj_out.value() << " because " << ex.what()
+                      << ANSI_COLOR_RESET << std::endl;
+            return_int = 1;
+        }
     }
 
     options.print_unhandled();

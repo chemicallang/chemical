@@ -29,13 +29,13 @@ enum class OutputMode {
      * The release executable, The default optimizations for a release executable are applied
      * No debug information is added to executable, Optimizations are performed
      */
-    Release,
+    ReleaseFast,
 
     /**
      * This mode is same as release, except it allows aggressive optimizations, Please use
      * this mode if you are absolutely sure
      */
-    ReleaseAggressive
+    ReleaseSmall
 
 };
 

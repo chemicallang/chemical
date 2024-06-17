@@ -453,7 +453,7 @@ set(COMMON_SOURCES
         ast/structures/BaseFunctionParam.h
         preprocess/ShrinkingVisitor.h
         preprocess/ShrinkingVisitor.cpp
-        compiler/ReleaseMode.h
+        compiler/OutputMode.h
         compiler/CodegenEmitterOptions.h
 )
 

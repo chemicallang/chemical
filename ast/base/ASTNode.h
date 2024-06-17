@@ -37,6 +37,8 @@ class CapturedVariable;
 
 class ExtendableBase;
 
+class BaseFunctionParam;
+
 /**
  * @brief Base class for all AST nodes.
  */
@@ -134,6 +136,13 @@ public:
      * as enum member
      */
     virtual EnumMember* as_enum_member() {
+        return nullptr;
+    }
+
+    /**
+     * return if this is a base function paam
+     */
+    virtual BaseFunctionParam* as_base_func_param() {
         return nullptr;
     }
 

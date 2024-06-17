@@ -4,6 +4,14 @@
 #include "ast/base/BaseType.h"
 #include "FunctionParam.h"
 
+BaseFunctionType::BaseFunctionType(
+    std::vector<std::unique_ptr<FunctionParam>> params,
+    std::unique_ptr<BaseType> returnType,
+    bool isVariadic
+) : params(std::move(params)), returnType(std::move(returnType)), isVariadic(isVariadic) {
+
+}
+
 void BaseFunctionType::assign_params() {
     for(auto& param : params) {
         param->func_type = this;

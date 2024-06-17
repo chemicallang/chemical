@@ -177,7 +177,7 @@ void StructDefinition::interpret_scope_ends(InterpretScope &scope) {
 }
 
 ASTNode *StructDefinition::child(const std::string &name) {
-    auto node = MembersContainer::child(name);
+    auto node = ExtendableMembersContainerNode::child(name);
     if (node) {
         return node;
     } else if (overrides.has_value()) {

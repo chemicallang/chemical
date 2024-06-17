@@ -68,6 +68,7 @@
 #include "utils/CSTUtils.h"
 #include <functional>
 #include "compiler/PrimitiveTypeMap.h"
+#include "ast/structures/ExtensionFunction.h"
 
 Operation get_operation(CSTToken *token) {
     auto op = (OperationToken*) token;
@@ -312,11 +313,13 @@ FunctionParamsResult CSTConverter::function_params(cst_tokens_ref_type tokens, u
 
 void CSTConverter::visitFunction(CompoundCSTToken *function) {
 
+    auto is_extension = is_char_op(function->tokens[1].get(), '(');
+
     if(is_dispose()) {
         return;
     }
 
-    auto params = function_params(function->tokens, 3);
+    auto params = function_params(function->tokens, is_extension ? 6 : 3);
 
     auto i = params.index;
 
@@ -339,9 +342,25 @@ void CSTConverter::visitFunction(CompoundCSTToken *function) {
         fnBody.emplace(LoopScope{});
     }
 
-    auto funcDecl = new FunctionDeclaration(func_name(function), std::move(params.params),
-                                            std::move(returnType.value()), params.isVariadic,
-                                            std::move(fnBody));
+    FunctionDeclaration* funcDecl;
+
+    if(is_extension) {
+        function->tokens[2]->accept(this);
+        auto param = (FunctionParam*) nodes.back().release();
+        nodes.pop_back();
+        funcDecl = new ExtensionFunction(
+                func_name(function),
+                ExtensionFuncReceiver(std::move(param->name), std::move(param->type)),
+                std::move(params.params),
+                std::move(returnType.value()), params.isVariadic,
+                std::move(fnBody)
+        );
+        delete param;
+    } else {
+        funcDecl = new FunctionDeclaration(func_name(function), std::move(params.params),
+                                                std::move(returnType.value()), params.isVariadic,
+                                                std::move(fnBody));
+    }
 
     collect_annotations_in(this, funcDecl);
 

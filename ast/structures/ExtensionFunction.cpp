@@ -5,6 +5,18 @@
 #include "ast/types/ReferencedType.h"
 #include "ast/base/ExtendableBase.h"
 #include "ast/types/PointerType.h"
+#include "ast/types/FunctionType.h"
+
+#ifdef COMPILER_BUILD
+
+std::vector<llvm::Type *> ExtensionFunction::param_types(Codegen &gen) {
+    std::vector<llvm::Type*> paramTypes;
+    llvm_func_param_type(gen, paramTypes, receiver.type.get());
+    llvm_func_param_types_into(gen, paramTypes, params, returnType.get(), false, isVariadic);
+    return paramTypes;
+}
+
+#endif
 
 ExtensionFuncReceiver::ExtensionFuncReceiver(
     std::string name,
@@ -19,10 +31,14 @@ unsigned int ExtensionFuncReceiver::calculate_c_or_llvm_index() {
 
 void ExtensionFuncReceiver::declare_and_link(SymbolResolver &linker) {
     linker.declare(name, this);
-    type->link(linker);
+}
+
+ASTNode *ExtensionFuncReceiver::child(const std::string &name) {
+    return type->linked_node()->child(name);
 }
 
 void ExtensionFunction::declare_top_level(SymbolResolver &linker) {
+    receiver.type->link(linker);
     ReferencedType* ref;
     auto& type = receiver.type;
     if(type->kind() == BaseTypeKind::Referenced) {
@@ -30,7 +46,7 @@ void ExtensionFunction::declare_top_level(SymbolResolver &linker) {
     } else if(type->kind() == BaseTypeKind::Pointer) {
         auto ptr = (PointerType*) type.get();
         if(ptr->type->kind() == BaseTypeKind::Referenced) {
-            ref = (ReferencedType*) type.get();
+            ref = (ReferencedType*) ptr->type.get();
         } else {
             linker.error("Unsupported type in extension function" + type->representation());
             return;
@@ -92,4 +108,11 @@ void ExtensionFunction::declare_and_link(SymbolResolver &linker) {
         body->declare_and_link(linker);
     }
     linker.scope_end();
+}
+
+std::unique_ptr<BaseType> ExtensionFunction::create_value_type() {
+    auto value_type = FunctionDeclaration::create_value_type();
+    auto functionType = (FunctionType*) value_type.get();
+    functionType->params.insert(functionType->params.begin(), std::make_unique<FunctionParam>("self", std::unique_ptr<BaseType>(receiver.type->copy()), 0, std::nullopt, this));
+    return value_type;
 }

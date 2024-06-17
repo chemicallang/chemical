@@ -16,14 +16,29 @@ llvm::Type* llvm_func_return(Codegen &gen, BaseType* type) {
     }
 }
 
-std::vector<llvm::Type*> llvm_func_param_types(
+void llvm_func_param_type(
         Codegen &gen,
+        std::vector<llvm::Type*>& paramTypes,
+        BaseType* type
+) {
+    paramTypes.emplace_back(type->llvm_param_type(gen));
+    if(type->function_type() != nullptr) {
+        auto func_type = type->function_type();
+        // when a capturing lambda is a parameter, it is treated as two pointer parameters one for the lambda and another for it's data
+        if(func_type->isCapturing) {
+            paramTypes.emplace_back(gen.builder->getPtrTy());
+        }
+    }
+}
+
+void llvm_func_param_types_into(
+        Codegen &gen,
+        std::vector<llvm::Type*>& paramTypes,
         std::vector<std::unique_ptr<FunctionParam>>& params,
         BaseType* returnType,
         bool isCapturing,
         bool isVariadic
 ) {
-    std::vector<llvm::Type*> paramTypes;
     // functions that return struct take a pointer to struct and actually return void
     // so allocation takes place outside function
     if(returnType->value_type() == ValueType::Struct) {
@@ -36,18 +51,13 @@ std::vector<llvm::Type*> llvm_func_param_types(
     auto size = isVariadic ? (params.size() - 1) : params.size();
     unsigned i = 0;
     while (i < size) {
-        auto type = params[i]->type.get();
-        paramTypes.emplace_back(type->llvm_param_type(gen));
-        if(type->function_type() != nullptr) {
-            auto func_type = type->function_type();
-            // when a capturing lambda is a parameter, it is treated as two pointer parameters one for the lambda and another for it's data
-            if(func_type->isCapturing) {
-                paramTypes.emplace_back(gen.builder->getPtrTy());
-            }
-        }
+        llvm_func_param_type(gen, paramTypes, params[i]->type.get());
         i++;
     }
-    return paramTypes;
+}
+
+std::vector<llvm::Type *> FunctionType::param_types(Codegen &gen) {
+    return llvm_func_param_types(gen, params, returnType.get(), isCapturing, isVariadic);
 }
 
 llvm::FunctionType *FunctionType::llvm_func_type(Codegen &gen) {

@@ -13,6 +13,8 @@ public:
         std::unique_ptr<BaseType> type
     );
 
+    ASTNode *child(const std::string &name) override;
+
     unsigned int calculate_c_or_llvm_index() override;
 
     void declare_and_link(SymbolResolver &linker) override;

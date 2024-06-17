@@ -80,30 +80,30 @@ bool Lexer::lexAfterFuncKeyword(bool allow_extensions) {
 
     lexWhitespaceToken();
 
-    if(allow_extensions) {
-        if(lexOperatorToken('(')) {
-            lexWhitespaceToken();
-            if(!lexIdentifierToken()) {
-                error("expected identifier for receiver in extension function after '('");
-                return false;
-            }
-            lexWhitespaceToken();
-            if(!lexOperatorToken(':')) {
-                error("expected ':' in extension function after identifier for receiver");
-                return false;
-            }
-            lexWhitespaceToken();
-            if(!lexTypeTokens()) {
-                error("expected type after ':' in extension function for receiver");
-                return false;
-            }
-            lexWhitespaceToken();
-            if(!lexOperatorToken(')')) {
-                error("expected ')' in extension function after receiver");
-                return false;
-            }
-            lexWhitespaceToken();
+    if(allow_extensions && lexOperatorToken('(')) {
+        lexWhitespaceToken();
+        unsigned start = tokens.size();
+        if(!lexIdentifierToken()) {
+            error("expected identifier for receiver in extension function after '('");
+            return false;
         }
+        lexWhitespaceToken();
+        if(!lexOperatorToken(':')) {
+            error("expected ':' in extension function after identifier for receiver");
+            return false;
+        }
+        lexWhitespaceToken();
+        if(!lexTypeTokens()) {
+            error("expected type after ':' in extension function for receiver");
+            return false;
+        }
+        compound_from<FunctionParamCST>(start);
+        lexWhitespaceToken();
+        if(!lexOperatorToken(')')) {
+            error("expected ')' in extension function after receiver");
+            return false;
+        }
+        lexWhitespaceToken();
     }
 
     if(!lexIdentifierToken()) {

@@ -57,7 +57,11 @@ inline std::string typealias_name(CompoundCSTToken* cst) {
 }
 
 inline CSTToken* func_name_tok(CompoundCSTToken* func) {
-    return func->tokens[1].get();
+    if(is_char_op(func->tokens[1].get(), '(')) {
+        return func->tokens[4].get();
+    } else {
+        return func->tokens[1].get();
+    }
 }
 
 inline std::string func_name(CompoundCSTToken* func) {

@@ -47,7 +47,7 @@ public:
 
     llvm::Value *llvm_pointer(Codegen &gen) override;
 
-    std::vector<llvm::Type *> param_types(Codegen &gen);
+    std::vector<llvm::Type *> param_types(Codegen &gen) override;
 
     llvm::FunctionType *llvm_func_type(Codegen &gen) override;
 

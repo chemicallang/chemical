@@ -13,6 +13,8 @@ class CSTConverter;
 
 class SymbolResolver;
 
+class ShrinkingVisitor;
+
 /**
  * when a file is processed using ASTProcessor, it results in this result
  */

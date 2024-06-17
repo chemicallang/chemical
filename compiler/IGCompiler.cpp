@@ -8,6 +8,7 @@
 #include "cst/base/CSTConverter.h"
 #include "SymbolResolver.h"
 #include "ASTProcessor.h"
+#include "preprocess/ShrinkingVisitor.h"
 #include <iostream>
 #include <utility>
 #include <functional>
@@ -38,6 +39,9 @@ bool compile(Codegen *gen, const std::string &path, IGCompilerOptions *options) 
 
     // creating symbol resolver
     SymbolResolver resolver(path, options->is64Bit);
+
+    // shrinking visitor will shrink everything
+    ShrinkingVisitor shrinker;
 
     // the processor that does everything
     ASTProcessor processor(
@@ -70,6 +74,9 @@ bool compile(Codegen *gen, const std::string &path, IGCompilerOptions *options) 
         gen->current_path = file.abs_path;
         gen->nodes = std::move(result.scope.nodes);
         gen->compile_nodes();
+        if(options->shrink_nodes) {
+            shrinker.visit(gen->nodes);
+        }
         processor.file_nodes.emplace_back(std::move(gen->nodes));
 
     }

@@ -451,6 +451,8 @@ set(COMMON_SOURCES
         ast/structures/ExtensionFuncReceiver.h
         ast/structures/ExtensionFunction.cpp
         ast/structures/BaseFunctionParam.h
+        preprocess/ShrinkingVisitor.h
+        preprocess/ShrinkingVisitor.cpp
 )
 
 # Chemical LSP Executable Target

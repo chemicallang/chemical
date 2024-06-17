@@ -527,6 +527,27 @@ bool save_as_file_type(
 
 }
 
+void configure_emitter_opts(OutputMode mode, CodegenEmitterOptions* options) {
+    switch(mode) {
+        case OutputMode::Debug:
+        case OutputMode::DebugQuick:
+            options->is_debug = true;
+            options->lto = false;
+            options->is_small = false;
+            return;
+        case OutputMode::Release:
+        case OutputMode::ReleaseAggressive:
+            options->is_debug = false;
+            options->lto = true;
+            options->is_small = true;
+            break;
+#ifdef DEBUG
+        default:
+            throw std::runtime_error("[Compiler] unknown output mode");
+#endif
+    }
+}
+
 bool Codegen::save_with_options(CodegenEmitterOptions* options) {
     char* error_message = nullptr;
     bool result = save_as_file_type(this, options, &error_message);
@@ -534,26 +555,30 @@ bool Codegen::save_with_options(CodegenEmitterOptions* options) {
     return result;
 }
 
-bool Codegen::save_to_assembly_file(std::string &out_path) {
+bool Codegen::save_to_assembly_file(std::string &out_path, OutputMode mode) {
     CodegenEmitterOptions options;
+    configure_emitter_opts(mode, &options);
     options.asm_path = out_path.data();
     return save_with_options(&options);
 }
 
-bool Codegen::save_to_object_file(std::string &out_path) {
+bool Codegen::save_to_object_file(std::string &out_path, OutputMode mode) {
     CodegenEmitterOptions options;
+    configure_emitter_opts(mode, &options);
     options.obj_path = out_path.data();
     return save_with_options(&options);
 }
 
-bool Codegen::save_to_bc_file(std::string &out_path) {
+bool Codegen::save_to_bc_file(std::string &out_path, OutputMode mode) {
     CodegenEmitterOptions options;
+    configure_emitter_opts(mode, &options);
     options.bitcode_path = out_path.data();
     return save_with_options(&options);
 }
 
-bool Codegen::save_to_ll_file(std::string &out_path) {
+bool Codegen::save_to_ll_file(std::string &out_path, OutputMode mode) {
     CodegenEmitterOptions options;
+    configure_emitter_opts(mode, &options);
     options.bitcode_path = out_path.data();
     return save_with_options(&options);
 //    // here's some bug related out ll code, that might be useful, if useful put it in #ifdef DEBUG

@@ -14,7 +14,7 @@
 #include "ast/base/BaseTypeKind.h"
 #include "ast/base/ValueType.h"
 #include "ASTDiagnoser.h"
-#include "ReleaseMode.h"
+#include "OutputMode.h"
 #include <unordered_map>
 #include "CodegenEmitterOptions.h"
 
@@ -222,22 +222,22 @@ public:
     /**
      * prints the current module as LLVM IR to a .ll file with given out_path
      */
-    bool save_to_ll_file(std::string &out_path);
+    bool save_to_ll_file(std::string &out_path, OutputMode mode);
 
     /**
      * save as a bitcode file
      */
-    bool save_to_bc_file(std::string &out_path);
+    bool save_to_bc_file(std::string &out_path, OutputMode mode);
 
     /**
      * saves as assembly file to this path
      */
-    bool save_to_assembly_file(std::string &out_path);
+    bool save_to_assembly_file(std::string &out_path, OutputMode mode);
 
     /**
      * saves as object file to this path
      */
-    bool save_to_object_file(std::string &out_path);
+    bool save_to_object_file(std::string &out_path, OutputMode mode);
 
 #ifdef LLD_LIBS
 

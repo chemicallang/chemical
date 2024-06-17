@@ -10,7 +10,7 @@
  * Release modes allow you to change properties quickly for code generation, The parameters customized
  * by release mode, may have more customized commands separately
  */
-enum class ReleaseMode {
+enum class OutputMode {
 
     /**
      * The debug mode, which also contains debug information, about the executable
@@ -38,3 +38,7 @@ enum class ReleaseMode {
     ReleaseAggressive
 
 };
+
+class CodegenEmitterOptions;
+
+void configure_emitter_opts(OutputMode mode, CodegenEmitterOptions* options);

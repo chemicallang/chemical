@@ -256,21 +256,42 @@ int main(int argc, char *argv[]) {
         output.emplace("compiled");
     }
 
+    OutputMode mode = OutputMode::Debug;
+
+    // configuring output mode from command line
+    auto mode_opt = options.option("mode", "m");
+    if(mode_opt.has_value()) {
+        if(mode_opt.value() == "debug") {
+            // ignore
+        } else if(mode_opt.value() == "debug_quick") {
+            mode = OutputMode::DebugQuick;
+        } else if(mode_opt.value() == "release") {
+            mode = OutputMode::Release;
+        } else if(mode_opt.value() == "release_aggressive") {
+            mode = OutputMode::ReleaseAggressive;
+        }
+    }
+#ifdef DEBUG
+    else {
+        mode = OutputMode::DebugQuick;
+    }
+#endif
+
     // writing object / ll file when user wants only that !
     if(endsWith(output.value(), ".o")) {
-        gen.save_to_object_file(output.value());
+        gen.save_to_object_file(output.value(), mode);
         options.print_unhandled();
         return 0;
     } else if(endsWith(output.value(), ".s")) {
-        gen.save_to_assembly_file(output.value());
+        gen.save_to_assembly_file(output.value(), mode);
         options.print_unhandled();
         return 0;
     } else if(endsWith(output.value(), ".ll")) {
-        gen.save_to_ll_file(output.value());
+        gen.save_to_ll_file(output.value(), mode);
         options.print_unhandled();
         return 0;
     } else if(endsWith(output.value(), ".bc")) {
-        gen.save_to_bc_file(output.value());
+        gen.save_to_bc_file(output.value(), mode);
         options.print_unhandled();
         return 0;
     }

@@ -24,6 +24,48 @@
 #include <llvm/Support/LLVMDriver.h>
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/IR/Verifier.h>
+#include <llvm/Analysis/AliasAnalysis.h>
+#include <llvm/Analysis/TargetLibraryInfo.h>
+#include <llvm/Analysis/TargetTransformInfo.h>
+#include <llvm/Bitcode/BitcodeWriter.h>
+#include <llvm/IR/DIBuilder.h>
+#include <llvm/IR/DiagnosticInfo.h>
+#include <llvm/IR/IRBuilder.h>
+#include <llvm/IR/InlineAsm.h>
+#include <llvm/IR/Instructions.h>
+#include <llvm/IR/LegacyPassManager.h>
+#include <llvm/IR/Module.h>
+#include <llvm/IR/OptBisect.h>
+#include <llvm/IR/PassManager.h>
+#include <llvm/IR/Verifier.h>
+#include <llvm/InitializePasses.h>
+#include <llvm/MC/TargetRegistry.h>
+#include <llvm/Passes/OptimizationLevel.h>
+#include <llvm/Passes/PassBuilder.h>
+#include <llvm/Passes/StandardInstrumentations.h>
+#include <llvm/Object/Archive.h>
+#include <llvm/Object/ArchiveWriter.h>
+#include <llvm/Object/COFF.h>
+#include <llvm/Object/COFFImportFile.h>
+#include <llvm/Object/COFFModuleDefinition.h>
+#include <llvm/PassRegistry.h>
+#include <llvm/Support/CommandLine.h>
+#include <llvm/Support/FileSystem.h>
+#include <llvm/Support/Process.h>
+#include <llvm/Support/TimeProfiler.h>
+#include <llvm/Support/Timer.h>
+#include <llvm/Support/raw_ostream.h>
+#include <llvm/Target/TargetMachine.h>
+#include <llvm/Target/CodeGenCWrappers.h>
+#include <llvm/Transforms/IPO.h>
+#include <llvm/Transforms/IPO/AlwaysInliner.h>
+#include <llvm/Transforms/Instrumentation/ThreadSanitizer.h>
+#include <llvm/Transforms/Scalar.h>
+#include <llvm/Transforms/Utils.h>
+#include <llvm/Transforms/Utils/AddDiscriminators.h>
+#include <llvm/Transforms/Utils/CanonicalizeAliases.h>
+#include <llvm/Transforms/Utils/NameAnonGlobals.h>
+#include <llvm-c/Core.h>
 
 Codegen::Codegen(
         std::vector<std::unique_ptr<ASTNode>> nodes,
@@ -216,17 +258,6 @@ void Codegen::CreateCondBr(llvm::Value *Cond, llvm::BasicBlock *True, llvm::Basi
     }
 }
 
-#ifdef FEAT_LLVM_IR_GEN
-
-void Codegen::save_to_file(const std::string &out_path) {
-    std::error_code errorCode;
-    llvm::raw_fd_ostream outLL(out_path, errorCode);
-    module->print(outLL, nullptr, false, true);
-    outLL.close();
-}
-
-#endif
-
 void Codegen::loop_body_wrap(llvm::BasicBlock *condBlock, llvm::BasicBlock *endBlock) {
     // set current loop exit, so it can be broken
     current_loop_continue = condBlock;
@@ -237,18 +268,6 @@ void Codegen::loop_body_wrap(llvm::BasicBlock *condBlock, llvm::BasicBlock *endB
 Codegen::~Codegen() {
     delete builder;
 }
-
-#ifdef FEAT_ASSEMBLY_GEN
-
-/**
- * saves as assembly file to this path
- * @param TargetTriple
- */
-void Codegen::save_to_assembly_file(const std::string &out_path) {
-    save_as_file_type(this, out_path, llvm::CodeGenFileType::CGFT_AssemblyFile);
-}
-
-#endif
 
 using namespace llvm;
 using namespace llvm::sys;
@@ -288,39 +307,261 @@ TargetMachine * Codegen::setup_for_target(const std::string &TargetTriple) {
 
 }
 
-void save_as_file_type(Codegen* gen, const std::string &out_path, llvm::CodeGenFileType type) {
+// LLVM's time profiler can provide a hierarchy view of the time spent
+// in each component. It generates JSON report in Chrome's "Trace Event"
+// format. So the report can be easily visualized by the Chrome browser.
+struct TimeTracerRAII {
+    // Granularity in ms
+    unsigned TimeTraceGranularity;
+    StringRef TimeTraceFile, OutputFilename;
+    bool EnableTimeTrace;
+
+    TimeTracerRAII(StringRef ProgramName, StringRef OF)
+            : TimeTraceGranularity(500U),
+              TimeTraceFile(std::getenv("ZIG_LLVM_TIME_TRACE_FILE")),
+              OutputFilename(OF),
+              EnableTimeTrace(!TimeTraceFile.empty()) {
+        if (EnableTimeTrace) {
+            if (const char *G = std::getenv("ZIG_LLVM_TIME_TRACE_GRANULARITY"))
+                TimeTraceGranularity = (unsigned)std::atoi(G);
+
+            llvm::timeTraceProfilerInitialize(TimeTraceGranularity, ProgramName);
+        }
+    }
+
+    ~TimeTracerRAII() {
+        if (EnableTimeTrace) {
+            if (auto E = llvm::timeTraceProfilerWrite(TimeTraceFile, OutputFilename)) {
+                handleAllErrors(std::move(E), [&](const StringError &SE) {
+                    errs() << SE.getMessage() << "\n";
+                });
+                return;
+            }
+            timeTraceProfilerCleanup();
+        }
+    }
+};
+
+bool save_as_file_type(
+        Codegen* gen,
+        CodegenEmitterOptions* options,
+        char** error_message
+) {
 
     auto TheTargetMachine = gen->setup_for_target();
     if(TheTargetMachine == nullptr) {
-        return;
+        return false;
     }
 
-    std::error_code EC;
-    raw_fd_ostream dest(out_path, EC, sys::fs::OF_None);
+    auto& target_machine = *TheTargetMachine;
+    auto& llvm_module = *gen->module;
 
-    if (EC) {
-        gen->error("Could not open file: " + EC.message());
-        return;
+    raw_fd_ostream *dest_asm_ptr = nullptr;
+    raw_fd_ostream *dest_obj_ptr = nullptr;
+    raw_fd_ostream *dest_bitcode_ptr = nullptr;
+
+    if (options->asm_path) {
+        std::error_code EC;
+        dest_asm_ptr = new(std::nothrow) raw_fd_ostream(options->asm_path, EC, sys::fs::OF_None);
+        if (EC) {
+            *error_message = strdup((const char *)StringRef(EC.message()).bytes_begin());
+            return true;
+        }
+    }
+    if (options->obj_path) {
+        std::error_code EC;
+        dest_obj_ptr = new(std::nothrow) raw_fd_ostream(options->obj_path, EC, sys::fs::OF_None);
+        if (EC) {
+            *error_message = strdup((const char *)StringRef(EC.message()).bytes_begin());
+            return true;
+        }
+    }
+    if (options->bitcode_path) {
+        std::error_code EC;
+        dest_bitcode_ptr = new(std::nothrow) raw_fd_ostream(options->bitcode_path, EC, sys::fs::OF_None);
+        if (EC) {
+            *error_message = strdup((const char *)StringRef(EC.message()).bytes_begin());
+            return true;
+        }
     }
 
-    legacy::PassManager pass;
+    std::unique_ptr<raw_fd_ostream> dest_asm(dest_asm_ptr),
+            dest_obj(dest_obj_ptr),
+            dest_bitcode(dest_bitcode_ptr);
 
-    if (TheTargetMachine->addPassesToEmitFile(pass, dest, nullptr, type)) {
-        gen->error("TheTargetMachine can't emit a file of this type");
-        return;
+    auto PID = sys::Process::getProcessId();
+    std::string ProcName = "chem-";
+    ProcName += std::to_string(PID);
+    TimeTracerRAII TimeTracer(ProcName, options->bitcode_path ? options->bitcode_path : options->obj_path);
+    TheTargetMachine->setO0WantsFastISel(true);
+
+    // Pipeline configurations
+    PipelineTuningOptions pipeline_opts;
+    pipeline_opts.LoopUnrolling = !options->is_debug;
+    pipeline_opts.SLPVectorization = !options->is_debug;
+    pipeline_opts.LoopVectorization = !options->is_debug;
+    pipeline_opts.LoopInterleaving = !options->is_debug;
+    pipeline_opts.MergeFunctions = !options->is_debug;
+
+    // Instrumentations
+    PassInstrumentationCallbacks instr_callbacks;
+    StandardInstrumentations std_instrumentations(llvm_module.getContext(), false);
+    std_instrumentations.registerCallbacks(instr_callbacks);
+
+    std::optional<PGOOptions> opt_pgo_options = {};
+    PassBuilder pass_builder(&target_machine, pipeline_opts,
+                             opt_pgo_options, &instr_callbacks);
+
+
+    LoopAnalysisManager loop_am;
+    FunctionAnalysisManager function_am;
+    CGSCCAnalysisManager cgscc_am;
+    ModuleAnalysisManager module_am;
+
+    // Register the AA manager first so that our version is the one used
+    function_am.registerPass([&] {
+        return pass_builder.buildDefaultAAPipeline();
+    });
+
+    Triple target_triple(llvm_module.getTargetTriple());
+    auto tlii = std::make_unique<TargetLibraryInfoImpl>(target_triple);
+    function_am.registerPass([&] { return TargetLibraryAnalysis(*tlii); });
+
+    // Initialize the AnalysisManagers
+    pass_builder.registerModuleAnalyses(module_am);
+    pass_builder.registerCGSCCAnalyses(cgscc_am);
+    pass_builder.registerFunctionAnalyses(function_am);
+    pass_builder.registerLoopAnalyses(loop_am);
+    pass_builder.crossRegisterProxies(loop_am, function_am,
+                                      cgscc_am, module_am);
+
+    // IR verification
+    if (options->assertions_on) {
+        // Verify the input
+        pass_builder.registerPipelineStartEPCallback(
+                [](ModulePassManager &module_pm, OptimizationLevel OL) {
+                    module_pm.addPass(VerifierPass());
+                });
+        // Verify the output
+        pass_builder.registerOptimizerLastEPCallback(
+                [](ModulePassManager &module_pm, OptimizationLevel OL) {
+                    module_pm.addPass(VerifierPass());
+                });
     }
 
-    pass.run(*gen->module);
-    dest.flush();
+    // Passes specific for release build
+    if (!options->is_debug) {
+        pass_builder.registerPipelineStartEPCallback(
+                [](ModulePassManager &module_pm, OptimizationLevel OL) {
+                    module_pm.addPass(
+                            createModuleToFunctionPassAdaptor(AddDiscriminatorsPass()));
+                });
+    }
+
+    // Thread sanitizer
+    if (options->tsan) {
+        pass_builder.registerOptimizerLastEPCallback([](ModulePassManager &module_pm, OptimizationLevel level) {
+            module_pm.addPass(ModuleThreadSanitizerPass());
+            module_pm.addPass(createModuleToFunctionPassAdaptor(ThreadSanitizerPass()));
+        });
+    }
+
+    ModulePassManager module_pm;
+    OptimizationLevel opt_level;
+    // Setting up the optimization level
+    if (options->is_debug)
+        opt_level = OptimizationLevel::O0;
+    else if (options->is_small)
+        opt_level = OptimizationLevel::Oz;
+    else
+        opt_level = OptimizationLevel::O3;
+
+    // Initialize the PassManager
+    if (opt_level == OptimizationLevel::O0) {
+        module_pm = pass_builder.buildO0DefaultPipeline(opt_level, options->lto);
+    } else if (options->lto) {
+        module_pm = pass_builder.buildLTOPreLinkDefaultPipeline(opt_level);
+    } else {
+        module_pm = pass_builder.buildPerModuleDefaultPipeline(opt_level);
+    }
+
+    // Unfortunately we don't have new PM for code generation
+    legacy::PassManager codegen_pm;
+    codegen_pm.add(
+            createTargetTransformInfoWrapperPass(target_machine.getTargetIRAnalysis()));
+
+    if (dest_obj) {
+        if (target_machine.addPassesToEmitFile(codegen_pm, *dest_obj, nullptr, CGFT_ObjectFile)) {
+            *error_message = strdup("TargetMachine can't emit an object file");
+            return true;
+        }
+    }
+    if (dest_asm) {
+        if (target_machine.addPassesToEmitFile(codegen_pm, *dest_asm, nullptr, CGFT_AssemblyFile)) {
+            *error_message = strdup("TargetMachine can't emit an assembly file");
+            return true;
+        }
+    }
+
+    // Optimization phase
+    module_pm.run(llvm_module, module_am);
+
+    // Code generation phase
+    codegen_pm.run(llvm_module);
+
+    if (options->ir_path) {
+        char* message = nullptr;
+        if (LLVMPrintModuleToFile(wrap(&llvm_module), options->ir_path, &message)) {
+            return false;
+        }
+    }
+    if (options->bitcode_path) {
+        WriteBitcodeToFile(llvm_module, *dest_bitcode_ptr);
+    }
+
+    if (options->time_report) {
+        TimerGroup::printAll(errs());
+    }
+
+    return true;
 
 }
 
-/**
- * saves as object file to this path
- * @param out_path
- */
-void Codegen::save_to_object_file(const std::string &out_path) {
-    save_as_file_type(this, out_path, llvm::CodeGenFileType::CGFT_ObjectFile);
+bool Codegen::save_with_options(CodegenEmitterOptions* options) {
+    char* error_message = nullptr;
+    bool result = save_as_file_type(this, options, &error_message);
+    if(error_message) error(error_message);
+    return result;
+}
+
+bool Codegen::save_to_assembly_file(std::string &out_path) {
+    CodegenEmitterOptions options;
+    options.asm_path = out_path.data();
+    return save_with_options(&options);
+}
+
+bool Codegen::save_to_object_file(std::string &out_path) {
+    CodegenEmitterOptions options;
+    options.obj_path = out_path.data();
+    return save_with_options(&options);
+}
+
+bool Codegen::save_to_bc_file(std::string &out_path) {
+    CodegenEmitterOptions options;
+    options.bitcode_path = out_path.data();
+    return save_with_options(&options);
+}
+
+bool Codegen::save_to_ll_file(std::string &out_path) {
+    CodegenEmitterOptions options;
+    options.bitcode_path = out_path.data();
+    return save_with_options(&options);
+//    // here's some bug related out ll code, that might be useful, if useful put it in #ifdef DEBUG
+//    std::error_code errorCode;
+//    llvm::raw_fd_ostream outLL(out_path, errorCode);
+//    module->print(outLL, nullptr, false, true);
+//    outLL.close();
+//    return true;
 }
 
 #ifdef CLANG_LIBS

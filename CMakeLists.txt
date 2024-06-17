@@ -453,6 +453,8 @@ set(COMMON_SOURCES
         ast/structures/BaseFunctionParam.h
         preprocess/ShrinkingVisitor.h
         preprocess/ShrinkingVisitor.cpp
+        compiler/ReleaseMode.h
+        compiler/CodegenEmitterOptions.h
 )
 
 # Chemical LSP Executable Target
@@ -496,8 +498,6 @@ set(COMPILER_SOURCES
         compiler/IGCompiler.h
         compiler/IGCompiler.cpp
         compiler/llvmbackend/LLVM.cpp
-        compiler/features/BitcodeGen.cpp
-        compiler/features/JustInTime.cpp
 )
 
 # add Compiler executable

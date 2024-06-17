@@ -54,8 +54,9 @@ void print_help() {
                  "use input extension .c and output .ch, when translating C code to Chemical\n"
                  "use input extension .ch and output .c, when translating Chemical to C code\n\n"
                  "Invoke Clang : \nchemical.exe cc <clang parameters>\n\n"
+                 "--mode              -m            debug or release mode : debug, release, debug_quick, release_aggressive\n"
                  "--verify            -o            do not compile, only verify source code\n"
-                 "--jit               -jit          do just in time compilation using Tiny CC"
+                 "--jit               -jit          do just in time compilation using Tiny CC\n"
                  "--res <dir>         -res <dir>    change the location of resources directory\n"
                  "--benchmark         -bm           benchmark lexing / parsing / compilation process\n"
                  "--print-ig          -pr-ig        print import graph of the source file\n"
@@ -251,26 +252,6 @@ int main(int argc, char *argv[]) {
         gen.print_to_console();
     }
 
-#endif
-
-#ifdef FEAT_JUST_IN_TIME
-
-    auto jit = options.option("jit", "jit");
-    if(jit.has_value()) {
-        auto jit_commands = options.collect_subcommand(argc, argv, "jit");
-        std::vector<const char*> jit_args;
-        args.reserve(jit_commands.size());
-        for(const auto& cmd : jit_commands) {
-            jit_args.push_back(cmd.c_str());
-        }
-        gen.just_in_time_compile(jit_args);
-        gen.print_errors();
-        return 0;
-    }
-
-#endif
-#ifdef COMPILER_BUILD
-
     if (!output.has_value()) {
         output.emplace("compiled");
     }
@@ -280,28 +261,19 @@ int main(int argc, char *argv[]) {
         gen.save_to_object_file(output.value());
         options.print_unhandled();
         return 0;
-    }
-#ifdef FEAT_ASSEMBLY_GEN
-    else if(endsWith(output.value(), ".s")) {
+    } else if(endsWith(output.value(), ".s")) {
         gen.save_to_assembly_file(output.value());
         options.print_unhandled();
         return 0;
-    }
-#endif
-#ifdef FEAT_LLVM_IR_GEN
-    else if(endsWith(output.value(), ".ll")) {
-        gen.save_to_file(output.value());
+    } else if(endsWith(output.value(), ".ll")) {
+        gen.save_to_ll_file(output.value());
+        options.print_unhandled();
+        return 0;
+    } else if(endsWith(output.value(), ".bc")) {
+        gen.save_to_bc_file(output.value());
         options.print_unhandled();
         return 0;
     }
-#endif
-#ifdef FEAT_BITCODE_GEN
-    else if(endsWith(output.value(), ".bc")) {
-        gen.save_as_bc_file(output.value());
-        options.print_unhandled();
-        return 0;
-    }
-#endif
 
     // creating object file for compilation
     std::string object_file_path = output.value() + ".o";

@@ -19,6 +19,17 @@ public:
             std::optional<LoopScope> body = std::nullopt
     );
 
+#ifdef COMPILER_BUILD
+
+    std::vector<llvm::Type *> param_types(Codegen &gen) override;
+
+#endif
+
+    /**
+     * creates value type
+     */
+    std::unique_ptr<BaseType> create_value_type() override;
+
     /**
      * requires self, meaning the type must be passed as first argument
      */

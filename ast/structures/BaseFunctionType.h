@@ -5,6 +5,11 @@
 #include <vector>
 #include <memory>
 
+#ifdef COMPILER_BUILD
+#include "compiler/llvmfwd.h"
+class Codegen;
+#endif
+
 class BaseType;
 
 class FunctionParam;
@@ -18,13 +23,19 @@ public:
     bool isVariadic;
 
     /**
-     *
+     * constructor
      */
     BaseFunctionType(
         std::vector<std::unique_ptr<FunctionParam>> params,
         std::unique_ptr<BaseType> returnType,
         bool isVariadic
     );
+
+#ifdef COMPILER_BUILD
+
+    virtual std::vector<llvm::Type *> param_types(Codegen &gen) = 0;
+
+#endif
 
     /**
      * assigns func_type field of each function parameter to this

@@ -56,6 +56,8 @@ public:
 
 #ifdef COMPILER_BUILD
 
+    std::vector<llvm::Type *> param_types(Codegen &gen) override;
+
     llvm::Type *llvm_type(Codegen &gen) const override;
 
     llvm::FunctionType *llvm_func_type(Codegen &gen) override;
@@ -74,14 +76,40 @@ public:
 llvm::Type* llvm_func_return(Codegen &gen, BaseType* type);
 
 /**
+ * add a single param type to param types
+ */
+void llvm_func_param_type(
+        Codegen &gen,
+        std::vector<llvm::Type*>& paramTypes,
+        BaseType* type
+);
+
+/**
  * creates llvm function parameter types, based on our parameter types of the function
  */
-std::vector<llvm::Type*> llvm_func_param_types(
+void llvm_func_param_types_into(
         Codegen &gen,
+        std::vector<llvm::Type*>& paramTypes,
         std::vector<std::unique_ptr<FunctionParam>>& params,
         BaseType* returnType,
         bool isCapturing,
         bool isVariadic
 );
+
+/**
+ * creates llvm function parameter types, based on our parameter types of the function
+ * a helper to call function defined above it
+ */
+inline std::vector<llvm::Type*> llvm_func_param_types(
+        Codegen &gen,
+        std::vector<std::unique_ptr<FunctionParam>>& params,
+        BaseType* returnType,
+        bool isCapturing,
+        bool isVariadic
+) {
+    std::vector<llvm::Type*> paramTypes;
+    llvm_func_param_types_into(gen, paramTypes, params, returnType, isCapturing, isVariadic);
+    return paramTypes;
+}
 
 #endif

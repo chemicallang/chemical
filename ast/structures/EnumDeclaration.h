@@ -8,11 +8,11 @@
 
 #include <utility>
 
-#include "ast/base/AnnotableNode.h"
 #include "ast/base/Value.h"
 #include "EnumMember.h"
+#include "ast/base/ExtendableAnnotableNode.h"
 
-class EnumDeclaration : public AnnotableNode {
+class EnumDeclaration : public ExtendableAnnotableNode {
 public:
 
     /**

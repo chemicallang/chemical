@@ -8,6 +8,7 @@
 #include "compiler/SymbolResolver.h"
 #include "CapturedVariable.h"
 #include "ast/types/PointerType.h"
+#include "ExtensionFunction.h"
 
 #ifdef COMPILER_BUILD
 
@@ -305,6 +306,38 @@ void FunctionDeclaration::accept(Visitor *visitor) {
 
 void FunctionDeclaration::declare_top_level(SymbolResolver &linker) {
     linker.declare(name, this);
+}
+
+void ExtensionFunction::declare_top_level(SymbolResolver &linker) {
+    ReferencedType* ref;
+    if(type->kind() == BaseTypeKind::Referenced) {
+        ref = (ReferencedType*) type.get();
+    } else if(type->kind() == BaseTypeKind::Pointer) {
+        auto ptr = (PointerType*) type.get();
+        if(ptr->type->kind() == BaseTypeKind::Referenced) {
+            ref = (ReferencedType*) type.get();
+        } else {
+            linker.error("Unsupported type in extension function" + type->representation());
+            return;
+        }
+    } else {
+        linker.error("Unsupported type in extension function " + type->representation());
+        return;
+    }
+    if(!ref->linked) {
+        linker.error("No linkage found for type mentioned in extension function " + type->representation());
+        return;
+    }
+    auto container = ref->linked->as_extendable_members_container();
+    if(!container) {
+        linker.error("Type doesn't support extension functions " + type->representation());
+        return;
+    }
+    if(ref->linked->child(name)) {
+        linker.error("Type already has a field / function, Type " + type->representation() + " has member " + name);
+        return;
+    }
+    container->extension_functions[name] = this;
 }
 
 void FunctionDeclaration::declare_and_link(SymbolResolver &linker) {

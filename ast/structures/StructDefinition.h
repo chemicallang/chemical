@@ -13,8 +13,9 @@
 #include <optional>
 #include <map>
 #include "ast/types/ReferencedType.h"
+#include "ast/base/ExtendableMembersContainerNode.h"
 
-class StructDefinition : public MembersContainer {
+class StructDefinition : public ExtendableMembersContainerNode {
 public:
 
     /**

@@ -35,6 +35,8 @@ class EnumMember;
 
 class CapturedVariable;
 
+class ExtendableBase;
+
 /**
  * @brief Base class for all AST nodes.
  */
@@ -113,6 +115,13 @@ public:
      * @return
      */
     virtual std::string representation() const = 0;
+
+    /**
+     * get the extendable members container, if this node has one
+     */
+    virtual ExtendableBase* as_extendable_members_container() {
+        return nullptr;
+    }
 
     /**
      * as enum member

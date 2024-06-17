@@ -14,6 +14,7 @@
 #include <ostream>
 #include "2cASTVisitor.h"
 #include "compiler/ASTProcessor.h"
+#include "ShrinkingVisitor.h"
 #include <sstream>
 
 #ifdef COMPILER_BUILD
@@ -50,6 +51,9 @@ bool translate(
     // creating symbol resolver
     SymbolResolver resolver(path, true);
 
+    // shrinking visitor used to shrink
+    ShrinkingVisitor shrinker;
+
     // the processor that does everything
     ASTProcessor processor(
             options,
@@ -85,6 +89,9 @@ bool translate(
         // translating the nodes
         visitor.current_path = file.abs_path;
         visitor.translate(result.scope.nodes);
+        if(options->shrink_nodes) {
+            shrinker.visit(result.scope.nodes);
+        }
         processor.file_nodes.emplace_back(std::move(result.scope.nodes));
 
     }

@@ -8,6 +8,7 @@
 #include "cst/base/CSTConverter.h"
 #include "compiler/SymbolResolver.h"
 #include "compiler/ASTProcessor.h"
+#include "ShrinkingVisitor.h"
 #include <utility>
 #include <functional>
 
@@ -29,6 +30,9 @@ bool verify(const std::string &path, SourceVerifierOptions *options) {
 
     // creating symbol resolver
     SymbolResolver resolver(path, true);
+
+    // shrinking visitor
+    ShrinkingVisitor shrinker;
 
     // the processor that does everything
     ASTProcessor processor(
@@ -56,6 +60,9 @@ bool verify(const std::string &path, SourceVerifierOptions *options) {
         }
 
         // storing nodes
+        if(options->shrink_nodes) {
+            shrinker.visit(result.scope.nodes);
+        }
         processor.file_nodes.emplace_back(std::move(result.scope.nodes));
 
     }

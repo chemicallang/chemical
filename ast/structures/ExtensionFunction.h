@@ -25,6 +25,14 @@ public:
 
 #endif
 
+    void accept(Visitor *visitor) override {
+        visitor->visit(this);
+    }
+
+    ExtensionFunction * as_extension_func() override {
+        return this;
+    }
+
     /**
      * creates value type
      */

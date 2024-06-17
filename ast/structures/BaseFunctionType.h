@@ -14,6 +14,8 @@ class BaseType;
 
 class FunctionParam;
 
+class ExtensionFunction;
+
 class BaseFunctionType {
 public:
 
@@ -30,6 +32,10 @@ public:
         std::unique_ptr<BaseType> returnType,
         bool isVariadic
     );
+
+    virtual ExtensionFunction* as_extension_func() {
+        return nullptr;
+    }
 
 #ifdef COMPILER_BUILD
 

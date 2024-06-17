@@ -12,9 +12,9 @@
 #include "ast/base/GlobalInterpretScope.h"
 #include "ast/base/Value.h"
 #include "MembersContainer.h"
-#include <map>
+#include "ast/base/ExtendableMembersContainerNode.h"
 
-class InterfaceDefinition : public MembersContainer {
+class InterfaceDefinition : public ExtendableMembersContainerNode {
 public:
 
     /**

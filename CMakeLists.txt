@@ -444,6 +444,10 @@ set(COMMON_SOURCES
         ast/structures/BaseFunctionType.h
         ast/structures/BaseFunctionType.cpp
         ast/base/AnnotationParent.h
+        ast/structures/ExtensionFunction.h
+        ast/base/ExtendableBase.h
+        ast/base/ExtendableBase.cpp
+        ast/base/ExtendableMembersContainerNode.h
 )
 
 # Chemical LSP Executable Target

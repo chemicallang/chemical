@@ -5,8 +5,9 @@
 #include "ast/base/ASTNode.h"
 #include "ast/base/Value.h"
 #include "ast/base/BaseType.h"
+#include "ast/base/ExtendableAnnotableNode.h"
 
-class TypealiasStatement : public ASTNode {
+class TypealiasStatement : public ExtendableAnnotableNode {
 public:
 
     // before equal

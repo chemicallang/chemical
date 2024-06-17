@@ -6,6 +6,7 @@
 #include "ast/types/ReferencedType.h"
 #include "ast/types/StructType.h"
 #include "compiler/SymbolResolver.h"
+#include "InterfaceDefinition.h"
 
 #ifdef COMPILER_BUILD
 

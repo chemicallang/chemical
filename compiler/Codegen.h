@@ -14,7 +14,9 @@
 #include "ast/base/BaseTypeKind.h"
 #include "ast/base/ValueType.h"
 #include "ASTDiagnoser.h"
+#include "ReleaseMode.h"
 #include <unordered_map>
+#include "CodegenEmitterOptions.h"
 
 class Codegen;
 
@@ -199,16 +201,6 @@ public:
      */
     void print_to_console();
 
-#ifdef FEAT_LLVM_IR_GEN
-
-    /**
-     * prints the current module as LLVM IR to a .ll file with given out_path
-     * @param out_path
-     */
-    void save_to_file(const std::string &out_path);
-
-#endif
-
     /**
      * sets up the module for the given target
      * @param target
@@ -222,36 +214,30 @@ public:
         return setup_for_target(target_triple);
     }
 
-#ifdef FEAT_JUST_IN_TIME
+    /**
+     * options will be used to save to files
+     */
+    bool save_with_options(CodegenEmitterOptions* options);
 
     /**
-     * just in time compilation
-     * please note that this takes ownership of the module
+     * prints the current module as LLVM IR to a .ll file with given out_path
      */
-    void just_in_time_compile(std::vector<const char *> &args);
+    bool save_to_ll_file(std::string &out_path);
 
-#endif
-
-#ifdef FEAT_BITCODE_GEN
     /**
      * save as a bitcode file
      */
-    void save_as_bc_file(const std::string &out_path);
-#endif
+    bool save_to_bc_file(std::string &out_path);
 
-#ifdef FEAT_ASSEMBLY_GEN
     /**
      * saves as assembly file to this path
-     * @param TargetTriple
      */
-    void save_to_assembly_file(const std::string &out_path);
-#endif
+    bool save_to_assembly_file(std::string &out_path);
 
     /**
      * saves as object file to this path
-     * @param out_path
      */
-    void save_to_object_file(const std::string &out_path);
+    bool save_to_object_file(std::string &out_path);
 
 #ifdef LLD_LIBS
 

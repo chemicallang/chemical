@@ -54,7 +54,7 @@ void print_help() {
                  "use input extension .c and output .ch, when translating C code to Chemical\n"
                  "use input extension .ch and output .c, when translating Chemical to C code\n\n"
                  "Invoke Clang : \nchemical.exe cc <clang parameters>\n\n"
-                 "--mode              -m            debug or release mode : debug, release, debug_quick, release_aggressive\n"
+                 "--mode              -m            debug or release mode : debug, debug_quick, release_small, release_fast\n"
                  "--output            -o            specify a output file, output determined by it's extension\n"
                  "--out-ll  <path>    -[empty]      specify a path to output a .ll file containing llvm ir\n"
                  "--out-asm <path>    -[empty]      specify a path to output a .s file containing assembly\n"
@@ -268,10 +268,19 @@ int main(int argc, char *argv[]) {
             // ignore
         } else if(mode_opt.value() == "debug_quick") {
             mode = OutputMode::DebugQuick;
-        } else if(mode_opt.value() == "release") {
-            mode = OutputMode::Release;
-        } else if(mode_opt.value() == "release_aggressive") {
-            mode = OutputMode::ReleaseAggressive;
+            if(verbose) {
+                std::cout << "[Compiler] Debug Quick Enabled" << std::endl;
+            }
+        } else if(mode_opt.value() == "release" || mode_opt.value() == "release_fast") {
+            mode = OutputMode::ReleaseFast;
+            if(verbose) {
+                std::cout << "[Compiler] Release Fast Enabled" << std::endl;
+            }
+        } else if(mode_opt.value() == "release_small") {
+            if(verbose) {
+                std::cout << "[Compiler] Release Small Enabled" << std::endl;
+            }
+            mode = OutputMode::ReleaseSmall;
         }
     }
 #ifdef DEBUG

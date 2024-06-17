@@ -47,6 +47,10 @@ struct Point : Calculator {
 
 }
 
+func (point : Point*) double_sum() : int {
+    return 2 * (point.x + point.y);
+}
+
 struct Container {
     var point : int[2]
     var is_cool : bool
@@ -231,6 +235,13 @@ func test_nodes() {
             }
         }
         return arr[0].x == 3 && arr[0].y == 4 && arr[1].x == 5 && arr[1].y == 6;
+    })
+    test("extension functions work", () => {
+        var p = Point {
+            x : 10,
+            y : 20
+        }
+        return p.double_sum() == 60;
     })
 }
 

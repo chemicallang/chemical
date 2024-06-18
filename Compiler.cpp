@@ -62,6 +62,8 @@ void print_help() {
                  "--out-obj <path>    -[empty]      specify a path to output a .obj file\n"
                  "--out-bin <path>    -[empty]      specify a path to output a binary file\n"
                  "--ignore-extension  -[empty]      ignore the extension --output or -o option\n"
+                 "--lto               -[empty]      force link time optimization\n"
+                 "--assertions        -[empty]      enable assertions on generated code\n"
                  "--verify            -o            do not compile, only verify source code\n"
                  "--jit               -jit          do just in time compilation using Tiny CC\n"
                  "--res <dir>         -res <dir>    change the location of resources directory\n"
@@ -337,6 +339,14 @@ int main(int argc, char *argv[]) {
         emitter_options.obj_path = obj_out.value().data();
     if(asm_out.has_value())
         emitter_options.asm_path = asm_out.value().data();
+
+    // extra options to force lto or assertions
+    if(options.option("lto").has_value()) {
+        emitter_options.lto = true;
+    }
+    if(options.option("assertions").has_value()) {
+        emitter_options.assertions_on = true;
+    }
 
     int return_int = 0;
 

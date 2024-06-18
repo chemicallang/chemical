@@ -535,6 +535,12 @@ void configure_emitter_opts(OutputMode mode, CodegenEmitterOptions* options) {
             options->lto = false;
             options->is_small = false;
             return;
+        case OutputMode::DebugComplete:
+            options->is_debug = true;
+            options->lto = false;
+            options->is_small = false;
+            options->assertions_on = true;
+            return;
         case OutputMode::ReleaseFast:
             options->is_debug = false;
             options->lto = true;

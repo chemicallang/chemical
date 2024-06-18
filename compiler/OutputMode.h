@@ -26,14 +26,22 @@ enum class OutputMode {
     DebugQuick,
 
     /**
+     * The executable is outputted with debug information, This takes some time to generate
+     * the executable because all assertions are on, If you want to check your code thoroughly
+     * you should use this mode, This gives us complete guarantee that we can take as much time as
+     * we want
+     */
+    DebugComplete,
+
+    /**
      * The release executable, The default optimizations for a release executable are applied
-     * No debug information is added to executable, Optimizations are performed
+     * No debug information is added to executable, Optimizations are performed for performance
      */
     ReleaseFast,
 
     /**
-     * This mode is same as release, except it allows aggressive optimizations, Please use
-     * this mode if you are absolutely sure
+     * This mode is same as release, except the code generated might be a little slow, This mode
+     * keeps the executable size down, It may sacrifice performance to do that
      */
     ReleaseSmall
 

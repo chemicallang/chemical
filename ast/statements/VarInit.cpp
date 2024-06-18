@@ -24,6 +24,12 @@ void VarInitStatement::code_gen(Codegen &gen) {
     }
 }
 
+void VarInitStatement::code_gen_destruct(Codegen &gen, std::vector<std::unique_ptr<ASTNode>> &nodes, unsigned int index) {
+    if(value.has_value()) {
+        value.value()->llvm_destruct(gen);
+    }
+}
+
 llvm::Value *VarInitStatement::llvm_load(Codegen &gen) {
     if(is_const && value.has_value() && value.value()->value_type() == ValueType::String) {
         // global strings do not require loading

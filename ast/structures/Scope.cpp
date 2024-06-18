@@ -39,12 +39,17 @@ void Scope::code_gen(Codegen &gen) {
     for(auto& node : nodes) {
         node->code_gen_declare(gen);
     }
-    unsigned int i = 0;
+    int i = 0;
     while(i < nodes.size()) {
 //        std::cout << "Generating " + std::to_string(i) << std::endl;
         nodes[i]->code_gen(gen, nodes, i);
 //        std::cout << "Success " + std::to_string(i) << " : " << nodes[i]->representation() << std::endl;
         i++;
+    }
+    i = nodes.size() - 1;
+    while(i >= 0){
+        nodes[i]->code_gen_destruct(gen, nodes, i);
+        i--;
     }
 }
 

@@ -1,6 +1,8 @@
 // Copyright (c) Qinetik 2024.
 
 #include "MembersContainer.h"
+
+#include <ranges>
 #include "compiler/Codegen.h"
 #include "StructMember.h"
 #include "FunctionDeclaration.h"
@@ -58,6 +60,17 @@ ASTNode *MembersContainer::child(const std::string &varName) {
             return nullptr;
         }
     }
+}
+
+FunctionDeclaration* MembersContainer::destructor_func() {
+    Annotation* ann;
+    for (const auto & function : std::ranges::reverse_view(functions)) {
+        ann = function.second->get_annotation(AnnotationKind::Destructor);
+        if(ann) {
+            return function.second.get();
+        }
+    }
+    return nullptr;
 }
 
 int MembersContainer::child_index(const std::string &varName) {

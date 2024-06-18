@@ -23,9 +23,24 @@ void llvm_allocate_struct(llvm::Value *inst, Codegen& gen, StructValue* structVa
 }
 
 llvm::AllocaInst *StructValue::llvm_allocate(Codegen &gen, const std::string &identifier) {
-    auto allocaInst = gen.builder->CreateAlloca(llvm_type(gen), nullptr);
+    allocaInst = gen.builder->CreateAlloca(llvm_type(gen), nullptr);
     llvm_allocate_struct(allocaInst, gen, this);
     return allocaInst;
+}
+
+llvm::Value *StructValue::llvm_pointer(Codegen &gen) {
+    return allocaInst;
+}
+
+void StructValue::llvm_destruct(Codegen& gen) {
+    auto func = definition->destructor_func();
+    if(func) {
+        std::vector<llvm::Value*> args;
+        if(func->has_self_param()) {
+            args.emplace_back(allocaInst);
+        }
+        gen.builder->CreateCall(func->llvm_func_type(gen), func->funcCallee, args);
+    }
 }
 
 unsigned int StructValue::store_in_struct(

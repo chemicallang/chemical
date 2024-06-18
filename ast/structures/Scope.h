@@ -11,24 +11,28 @@
 class Scope : public ASTNode {
 public:
 
+//    /**
+//     * populated when required, for example when generating code, each node in nodes is traversed
+//     * traverse function also takes a Scope*, the child scope which is a node, saves it when found
+//     */
+//    Scope* parent = nullptr;
+//    int index_in_parent = -1;
+
     /**
      * empty constructor
      */
-    Scope() {
-
-    }
+    Scope() = default;
 
     /**
      * @brief Construct a new Scope object.
      * @param nodes All the ASTNode(s) present in the scope
      */
-    Scope(std::vector<std::unique_ptr<ASTNode>> nodes);
+    explicit Scope(std::vector<std::unique_ptr<ASTNode>> nodes);
 
     /**
      * move constructor
-     * @param other
      */
-    Scope(Scope &&other);
+    Scope(Scope &&other) noexcept;
 
     void accept(Visitor *visitor) override;
 
@@ -40,7 +44,9 @@ public:
     void declare_and_link(SymbolResolver &linker) override;
 
 #ifdef COMPILER_BUILD
+
     void code_gen(Codegen &gen) override;
+
 #endif
 
     void interpret(InterpretScope &scope) override;

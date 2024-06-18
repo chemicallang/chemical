@@ -30,7 +30,7 @@ public:
         code_gen(gen, false);
     }
 
-    void code_gen(Codegen &gen, std::vector<std::unique_ptr<ASTNode>> &nodes, unsigned int index) override;
+    void code_gen(Codegen &gen, Scope* scope, unsigned int index) override;
 
 #endif
 

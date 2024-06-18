@@ -315,7 +315,7 @@ public:
      * generate end block optionally based on whether there's more code after if statement
      * in current scope
      */
-    virtual void code_gen(Codegen &gen, std::vector<std::unique_ptr<ASTNode>>& nodes, unsigned int index) {
+    virtual void code_gen(Codegen &gen, Scope* scope, unsigned int index) {
         code_gen(gen);
     }
 
@@ -325,7 +325,7 @@ public:
      * which will then ask struct def to destruct the value, and then struct def will create a call
      * to destructor
      */
-    virtual void code_gen_destruct(Codegen&gen, std::vector<std::unique_ptr<ASTNode>>& nodes, unsigned int index) {
+    virtual void code_gen_destruct(Codegen &gen) {
         // does nothing by default
     }
 

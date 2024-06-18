@@ -455,6 +455,8 @@ set(COMMON_SOURCES
         preprocess/ShrinkingVisitor.cpp
         compiler/OutputMode.h
         compiler/CodegenEmitterOptions.h
+        ast/statements/ThrowStatement.h
+        ast/statements/ThrowStatement.cpp
 )
 
 # Chemical LSP Executable Target

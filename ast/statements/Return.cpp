@@ -5,17 +5,18 @@
 
 ReturnStatement::ReturnStatement(
         std::optional<std::unique_ptr<Value>> value,
-        FunctionDeclaration *declaration
-) : value(std::move(value)), declaration(declaration) {
+        BaseFunctionType *declaration
+) : value(std::move(value)), func_type(declaration) {
 
 }
 
 void ReturnStatement::interpret(InterpretScope &scope) {
-    // TODO lambda returns don't work, since lambda don't correspond to declaration
+    auto decl = func_type->as_func_decl();
+    if(!decl) return;
     if (value.has_value()) {
-        declaration->set_return(value->get()->return_value(scope));
+        decl->set_return(value->get()->return_value(scope));
     } else {
-        declaration->set_return(nullptr);
+        decl->set_return(nullptr);
     }
 }
 

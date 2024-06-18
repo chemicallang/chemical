@@ -115,10 +115,10 @@ public:
     std::vector<Annotation> annotations;
 
     /**
-     * This is a pointer to current function declaration
-     * All nodes being parsed belong to this function's body
+     * This is a pointer to current function type,
+     * All nodes being parsed belong to this function type
      */
-    FunctionDeclaration *current_func_decl = nullptr;
+    BaseFunctionType *current_func_type = nullptr;
 
     /**
      * This is a pointer to current struct declaration
@@ -143,6 +143,11 @@ public:
      * All nodes being parsed belong this loop's body
      */
     LoopASTNode *current_loop_node = nullptr;
+
+    /**
+     * All nodes being parsed belong to this Scope node
+     */
+    Scope* current_scope = nullptr;
 
     /**
      * constructor
@@ -196,11 +201,6 @@ public:
     std::unique_ptr<BaseType> type();
 
     /**
-     * consume the latest type optionally
-     */
-    std::optional<std::unique_ptr<BaseType>> opt_type();
-
-    /**
      * get function params for the given tokens
      * @param start is the first parameter token index in the cst tokens vector
      */
@@ -225,6 +225,8 @@ public:
     void visitAssignment(CompoundCSTToken *assignment) override;
 
     void visitImport(CompoundCSTToken *importCst) override;
+
+    void visitThrow(CompoundCSTToken *throwStmt) override;
 
     void visitReturn(CompoundCSTToken *returnCst) override;
 

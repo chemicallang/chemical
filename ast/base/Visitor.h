@@ -172,6 +172,8 @@ class ExtensionFunction;
 
 class ExtensionFuncReceiver;
 
+class ThrowStatement;
+
 // Visitor Class
 
 class Visitor {
@@ -211,6 +213,10 @@ public:
 
     virtual void visit(ImportStatement* importStatement) {
         visitCommon((ASTNode*) importStatement);
+    }
+
+    virtual void visit(ThrowStatement* throwStmt) {
+        visitCommon((ASTNode*) throwStmt);
     }
 
     virtual void visit(ReturnStatement* returnStatement) {

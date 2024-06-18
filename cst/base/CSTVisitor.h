@@ -169,6 +169,10 @@ public:
         visitCompoundCommon((CompoundCSTToken *) alias);
     }
 
+    virtual void visitThrow(CompoundCSTToken *throwStmt) {
+        visitCompoundCommon((CompoundCSTToken *) throwStmt);
+    }
+
     virtual void visitIf(CompoundCSTToken *ifCst) {
         visitCompoundCommon((CompoundCSTToken *) ifCst);
     }

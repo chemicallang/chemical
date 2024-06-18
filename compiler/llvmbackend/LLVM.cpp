@@ -39,6 +39,7 @@
 #include "ast/statements/Assignment.h"
 #include "ast/statements/Import.h"
 #include "ast/structures/EnumDeclaration.h"
+#include "ast/statements/ThrowStatement.h"
 
 // -------------------- Types
 
@@ -326,7 +327,15 @@ void ContinueStatement::code_gen(Codegen &gen) {
     gen.CreateBr(gen.current_loop_continue);
 }
 
-void ReturnStatement::code_gen(Codegen &gen) {
+void ReturnStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
+    if(!gen.has_current_block_ended) {
+        int i = gen.destruct_nodes.size() - 1;
+        while(i >= 0) {
+            gen.destruct_nodes[i]->code_gen_destruct(gen);
+            i--;
+        }
+        gen.CreateRet(nullptr);
+    }
     if (value.has_value()) {
         if(value.value()->reference() && value.value()->value_type() == ValueType::Struct) {
             llvm::MaybeAlign noAlign;
@@ -334,8 +343,6 @@ void ReturnStatement::code_gen(Codegen &gen) {
         } else {
             gen.CreateRet(value.value()->llvm_ret_value(gen, this));
         }
-    } else {
-        gen.CreateRet(nullptr);
     }
 }
 
@@ -349,6 +356,28 @@ llvm::Type *TypealiasStatement::llvm_type(Codegen &gen) {
 
 void BreakStatement::code_gen(Codegen &gen) {
     gen.CreateBr(gen.current_loop_exit);
+}
+
+void Scope::code_gen(Codegen &gen) {
+    for(auto& node : nodes) {
+        node->code_gen_declare(gen);
+    }
+    int i = 0;
+    while(i < nodes.size()) {
+//        std::cout << "Generating " + std::to_string(i) << std::endl;
+        nodes[i]->code_gen(gen, this, i);
+//        std::cout << "Success " + std::to_string(i) << " : " << nodes[i]->representation() << std::endl;
+        i++;
+    }
+    i = nodes.size() - 1;
+    while(i >= 0){
+        nodes[i]->code_gen_destruct(gen);
+        i--;
+    }
+}
+
+void ThrowStatement::code_gen(Codegen &gen) {
+    throw std::runtime_error("[UNIMPLEMENTED]");
 }
 
 void AssignStatement::code_gen(Codegen &gen) {

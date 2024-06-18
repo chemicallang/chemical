@@ -5,6 +5,7 @@
 //
 
 #include "lexer/Lexer.h"
+#include "cst/statements/ThrowCST.h"
 
 bool Lexer::lexTopLevelStatementTokens() {
     return lexSingleLineCommentTokens() ||
@@ -28,6 +29,7 @@ bool Lexer::lexNestedLevelStatementTokens() {
            (isLexBreakStatement && lexBreakStatement()) ||
            (isLexContinueStatement && lexContinueStatement()) ||
            (isLexReturnStatement && lexReturnStatement()) ||
+           lexThrowStatementTokens() ||
            lexIfBlockTokens() ||
            lexTryCatchTokens() ||
            lexTypealiasStatement() ||
@@ -57,4 +59,20 @@ bool Lexer::lexStatementTokens() {
            lexWhileBlockTokens() ||
            lexFunctionStructureTokens(true) ||
            lexAssignmentTokens();
+}
+
+bool Lexer::lexThrowStatementTokens() {
+    if(lexKeywordToken("throw")) {
+        auto start = tokens.size() - 1;
+        lexWhitespaceToken();
+        if(lexValueToken()) {
+            error("expected a lambda value");
+        } else {
+            return false;
+        }
+        compound_from<ThrowCST>(start);
+        return true;
+    } else {
+        return false;
+    }
 }

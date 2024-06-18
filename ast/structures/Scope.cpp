@@ -13,9 +13,13 @@ void Scope::interpret(InterpretScope &scope) {
     }
 }
 
-Scope::Scope(std::vector<std::unique_ptr<ASTNode>> nodes) : nodes(std::move(nodes)) {}
+Scope::Scope(std::vector<std::unique_ptr<ASTNode>> nodes) : nodes(std::move(nodes)) {
 
-Scope::Scope(Scope &&other) : nodes(std::move(other.nodes)) {}
+}
+
+Scope::Scope(Scope &&other) noexcept : nodes(std::move(other.nodes)) {
+
+}
 
 void Scope::accept(Visitor *visitor) {
     visitor->visit(this);
@@ -32,28 +36,6 @@ void Scope::declare_and_link(SymbolResolver &linker) {
         node->declare_and_link(linker);
     }
 }
-
-#ifdef COMPILER_BUILD
-
-void Scope::code_gen(Codegen &gen) {
-    for(auto& node : nodes) {
-        node->code_gen_declare(gen);
-    }
-    int i = 0;
-    while(i < nodes.size()) {
-//        std::cout << "Generating " + std::to_string(i) << std::endl;
-        nodes[i]->code_gen(gen, nodes, i);
-//        std::cout << "Success " + std::to_string(i) << " : " << nodes[i]->representation() << std::endl;
-        i++;
-    }
-    i = nodes.size() - 1;
-    while(i >= 0){
-        nodes[i]->code_gen_destruct(gen, nodes, i);
-        i--;
-    }
-}
-
-#endif
 
 void Scope::stopInterpretOnce() {
 

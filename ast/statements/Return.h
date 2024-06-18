@@ -9,13 +9,18 @@
 #include "ast/base/ASTNode.h"
 #include "ast/base/Value.h"
 
+class BaseFunctionType;
+
 class ReturnStatement : public ASTNode {
 public:
+
+    BaseFunctionType* func_type = nullptr;
+    std::optional<std::unique_ptr<Value>> value;
 
     /**
      * @brief Construct a new ReturnStatement object.
      */
-    ReturnStatement(std::optional<std::unique_ptr<Value>> value, FunctionDeclaration *declaration);
+    ReturnStatement(std::optional<std::unique_ptr<Value>> value, BaseFunctionType *declaration);
 
     void interpret(InterpretScope &scope) override;
 
@@ -27,13 +32,10 @@ public:
 
 #ifdef COMPILER_BUILD
 
-    void code_gen(Codegen &gen) override;
+    void code_gen(Codegen &gen, Scope *scope, unsigned int index) override;
 
 #endif
 
     std::string representation() const override;
-
-    FunctionDeclaration *declaration;
-    std::optional<std::unique_ptr<Value>> value;
 
 };

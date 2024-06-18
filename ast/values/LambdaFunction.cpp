@@ -237,8 +237,8 @@ void LambdaFunction::link(SymbolResolver &linker, FunctionCall *call, unsigned i
 
 void LambdaFunction::link(SymbolResolver &linker, ReturnStatement *returnStmt) {
 
-    if(returnStmt->declaration != nullptr) {
-        auto retType = returnStmt->declaration->returnType->copy();
+    if(returnStmt->func_type != nullptr) {
+        auto retType = returnStmt->func_type->returnType->copy();
         if(retType->function_type() == nullptr) {
             linker.error("cannot return lambda, return type of a function is not a function");
             return;

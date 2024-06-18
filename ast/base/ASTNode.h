@@ -320,6 +320,16 @@ public:
     }
 
     /**
+     * if a node can destroy itself, for example a variable declaration which contains a struct value
+     * where struct has a destructor, here -> variable init will ask value to destruct itself
+     * which will then ask struct def to destruct the value, and then struct def will create a call
+     * to destructor
+     */
+    virtual void code_gen_destruct(Codegen&gen, std::vector<std::unique_ptr<ASTNode>>& nodes, unsigned int index) {
+        // does nothing by default
+    }
+
+    /**
      * add child index in llvm indexes vector
      */
     virtual bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {

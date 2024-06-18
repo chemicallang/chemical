@@ -215,9 +215,14 @@ std::cerr << "child called on base value";
 #ifdef COMPILER_BUILD
 
     /**
+     * value is supposed to destruct itself, call the destructor, because scope has ended
+     */
+    virtual void llvm_destruct(Codegen& gen) {
+        // does nothing by default
+    }
+
+    /**
      * provides llvm_type for the given value
-     * @param gen
-     * @return
      */
     virtual llvm::Type* llvm_type(Codegen& gen) {
         throw std::runtime_error("llvm_type called on bare Value of type " + std::to_string((int) value_type()));

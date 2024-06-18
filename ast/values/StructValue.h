@@ -59,6 +59,10 @@ public:
 
     llvm::AllocaInst *llvm_allocate(Codegen &gen, const std::string &identifier) override;
 
+    llvm::Value *llvm_pointer(Codegen &gen) override;
+
+    void llvm_destruct(Codegen& gen) override;
+
     unsigned int store_in_struct(
             Codegen &gen,
             StructValue *parent,
@@ -100,5 +104,8 @@ public:
     std::string structName;
     StructDefinition *definition = nullptr;
     std::unordered_map<std::string, std::unique_ptr<Value>> values;
+#ifdef COMPILER_BUILD
+    llvm::AllocaInst* allocaInst;
+#endif
 
 };

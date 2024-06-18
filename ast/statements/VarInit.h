@@ -57,6 +57,8 @@ public:
 
     void code_gen(Codegen &gen) override;
 
+    void code_gen_destruct(Codegen &gen, std::vector<std::unique_ptr<ASTNode>> &nodes, unsigned int index) override;
+
 #endif
 
     ASTNode *child(const std::string &name) override;

@@ -5,12 +5,19 @@
 #include <string>
 
 enum class AnnotationKind {
+
     Inline,
     AlwaysInline,
     NoInline,
     InlineHint,
     OptSize,
-    MinSize
+    MinSize,
+
+    Destructor,
+
+    IndexInlineStart=Inline,
+    IndexInlineEnd=MinSize
+
 };
 
 std::string to_string(AnnotationKind kind);

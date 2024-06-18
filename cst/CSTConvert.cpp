@@ -191,6 +191,9 @@ void CSTConverter::init_annotation_handlers() {
     annotation_handlers["size:min"] = [](CSTConverter* converter, CSTToken* container){
         collect_annotation_func(converter, container, AnnotationKind::MinSize);
     };
+    annotation_handlers["destructor"] = [](CSTConverter* converter, CSTToken* container){
+        collect_annotation_func(converter, container, AnnotationKind::Destructor);
+    };
 }
 
 inline void collect_annotations_in(CSTConverter* converter, AnnotableNode* node) {
@@ -771,6 +774,7 @@ unsigned int collect_struct_members(
         tsl::ordered_map<std::string, std::unique_ptr<FunctionDeclaration>> &decls,
         unsigned i
 ) {
+    auto prev_anns = std::move(conv->annotations);
     while (!is_char_op(tokens[i].get(), '}')) {
 
         tokens[i]->accept(conv);
@@ -800,6 +804,7 @@ unsigned int collect_struct_members(
         i++;
 
     }
+    conv->annotations = std::move(prev_anns);
     return i;
 }
 

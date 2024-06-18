@@ -22,12 +22,11 @@ void VarInitStatement::code_gen(Codegen &gen) {
             llvm_ptr = gen.builder->CreateAlloca(llvm_type(gen), nullptr, identifier);
         }
     }
+    gen.destruct_nodes.emplace_back(this);
 }
 
-void VarInitStatement::code_gen_destruct(Codegen &gen, std::vector<std::unique_ptr<ASTNode>> &nodes, unsigned int index) {
-    if(value.has_value()) {
-        value.value()->llvm_destruct(gen);
-    }
+void VarInitStatement::code_gen_destruct(Codegen &gen) {
+    value.value()->llvm_destruct(gen);
 }
 
 llvm::Value *VarInitStatement::llvm_load(Codegen &gen) {

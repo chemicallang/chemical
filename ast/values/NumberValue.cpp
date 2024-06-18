@@ -57,8 +57,8 @@ void NumberValue::link(SymbolResolver &linker, AssignStatement *stmnt) {
 }
 
 void NumberValue::link(SymbolResolver &linker, ReturnStatement *returnStmt) {
-    if(returnStmt->declaration) {
-        linked_type = linked(returnStmt->declaration->returnType.get());
+    if(returnStmt->func_type) {
+        linked_type = linked(returnStmt->func_type->returnType.get());
     }
 }
 

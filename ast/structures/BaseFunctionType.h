@@ -16,6 +16,8 @@ class FunctionParam;
 
 class ExtensionFunction;
 
+class FunctionDeclaration;
+
 class BaseFunctionType {
 public:
 
@@ -34,6 +36,10 @@ public:
     );
 
     virtual ExtensionFunction* as_extension_func() {
+        return nullptr;
+    }
+
+    virtual FunctionDeclaration* as_func_decl() {
         return nullptr;
     }
 

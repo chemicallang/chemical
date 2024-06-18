@@ -69,6 +69,7 @@
 #include <functional>
 #include "compiler/PrimitiveTypeMap.h"
 #include "ast/structures/ExtensionFunction.h"
+#include "ast/statements/ThrowStatement.h"
 
 Operation get_operation(CSTToken *token) {
     auto op = (OperationToken*) token;
@@ -233,11 +234,6 @@ std::unique_ptr<BaseType> CSTConverter::type() {
     return type;
 }
 
-std::optional<std::unique_ptr<BaseType>> CSTConverter::opt_type() {
-    if (types.empty()) return std::nullopt;
-    return type();
-}
-
 PointerType* current_self_pointer(CSTConverter* converter) {
     auto type = converter->current_struct_decl ? converter->current_struct_decl->name : (converter->current_interface_decl
                                                                    ? converter->current_interface_decl->name
@@ -375,13 +371,13 @@ void CSTConverter::visitFunction(CompoundCSTToken *function) {
         return;
     }
 
-    auto prev_decl = current_func_decl;
+    auto prev_decl = current_func_type;
     auto prev_nodes = std::move(nodes);
-    current_func_decl = funcDecl;
+    current_func_type = funcDecl;
     function->tokens[i]->accept(this);
     funcDecl->body->nodes = std::move(nodes);
     nodes = std::move(prev_nodes);
-    current_func_decl = prev_decl;
+    current_func_type = prev_decl;
 
 
 }
@@ -489,7 +485,7 @@ void CSTConverter::visitReturn(CompoundCSTToken *cst) {
         cst->tokens[1]->accept(this);
         return_value.emplace(value());
     }
-    nodes.emplace_back(std::make_unique<ReturnStatement>(std::move(return_value), current_func_decl));
+    nodes.emplace_back(std::make_unique<ReturnStatement>(std::move(return_value), current_func_type));
 }
 
 void CSTConverter::visitTypealias(CompoundCSTToken *alias) {
@@ -552,22 +548,29 @@ void CSTConverter::visitLambda(CompoundCSTToken *cst) {
     optional_param_types = prev;
 
     Scope scope;
+    ReturnStatement* returnStmt;
     auto bodyIndex = result.index + 2;
     if (cst->tokens[bodyIndex]->type() == LexTokenType::CompBody) {
         auto prev_nodes = std::move(nodes);
-        auto prev_decl = current_func_decl;
-        current_func_decl = nullptr;
+        auto prev_decl = current_func_type;
+        current_func_type = nullptr;
         cst->tokens[bodyIndex]->accept(this);
-        current_func_decl = prev_decl;
+        current_func_type = prev_decl;
         scope.nodes = std::move(nodes);
         nodes = std::move(prev_nodes);
+        returnStmt = nullptr;
     } else {
         visit(cst->tokens, bodyIndex);
-        scope.nodes.emplace_back(new ReturnStatement(value(), nullptr));
+        returnStmt = new ReturnStatement(value(), nullptr);
+        scope.nodes.emplace_back(returnStmt);
     }
 
     auto lambda = new LambdaFunction(std::move(captureList), std::move(result.params), result.isVariadic,
             std::move(scope));
+
+    if(returnStmt) {
+        returnStmt->func_type = lambda;
+    }
 
     lambda->assign_params();
 
@@ -697,6 +700,11 @@ void CSTConverter::visitSwitch(CompoundCSTToken *switchCst) {
         }
     }
     nodes.emplace_back(std::make_unique<SwitchStatement>(std::move(expr), std::move(cases), std::move(defScope)));
+}
+
+void CSTConverter::visitThrow(CompoundCSTToken *throwStmt) {
+    throwStmt->tokens[1]->accept(this);
+    nodes.emplace_back(new ThrowStatement(value()));
 }
 
 void CSTConverter::visitForLoop(CompoundCSTToken *forLoop) {

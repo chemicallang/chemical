@@ -62,6 +62,11 @@ public:
     std::unordered_map<int, CasterFn> casters;
 
     /**
+     * contains references to nodes that must be deleted at the end of scope
+     */
+    std::vector<ASTNode*> destruct_nodes;
+
+    /**
      * All get element pointer instructions use this to state that the element pointer is inbounds
      * If true, results in undefined behavior when accessing element out of bounds, which is the default
      */
@@ -363,8 +368,6 @@ public:
      * the builder that builds ir
      */
     llvm::IRBuilder<llvm::ConstantFolder, llvm::IRBuilderDefaultInserter> *builder;
-
-private:
 
     /**
      * this is set to true when the branch instruction is executed

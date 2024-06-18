@@ -291,6 +291,11 @@ public:
     bool lexStatementTokens();
 
     /**
+     * lex throw statement
+     */
+    bool lexThrowStatementTokens();
+
+    /**
      * lexes the given operator as length 1 character operator token
      * @param op
      * @return whether the token was found

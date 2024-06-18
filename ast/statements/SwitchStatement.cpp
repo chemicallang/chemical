@@ -47,8 +47,8 @@ void SwitchStatement::code_gen(Codegen &gen, bool last_block) {
 
 }
 
-void SwitchStatement::code_gen(Codegen &gen, std::vector<std::unique_ptr<ASTNode>> &nodes, unsigned int index) {
-    code_gen(gen, index == nodes.size() - 1);
+void SwitchStatement::code_gen(Codegen &gen, Scope* scope, unsigned int index) {
+    code_gen(gen, index == scope->nodes.size() - 1);
 }
 
 #endif

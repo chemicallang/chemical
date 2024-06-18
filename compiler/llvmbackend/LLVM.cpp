@@ -334,6 +334,7 @@ void ReturnStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
             gen.destruct_nodes[i]->code_gen_destruct(gen);
             i--;
         }
+        gen.destroy_current_scope = false;
         gen.CreateRet(nullptr);
     }
     if (value.has_value()) {
@@ -359,6 +360,7 @@ void BreakStatement::code_gen(Codegen &gen) {
 }
 
 void Scope::code_gen(Codegen &gen) {
+    unsigned begin = gen.destruct_nodes.size();
     for(auto& node : nodes) {
         node->code_gen_declare(gen);
     }
@@ -369,11 +371,17 @@ void Scope::code_gen(Codegen &gen) {
 //        std::cout << "Success " + std::to_string(i) << " : " << nodes[i]->representation() << std::endl;
         i++;
     }
-    i = nodes.size() - 1;
-    while(i >= 0){
-        nodes[i]->code_gen_destruct(gen);
-        i--;
+    if(gen.destroy_current_scope) {
+        i = nodes.size() - 1;
+        while (i >= 0) {
+            nodes[i]->code_gen_destruct(gen);
+            i--;
+        }
+    } else {
+        gen.destroy_current_scope = true;
     }
+    auto itr = gen.destruct_nodes.begin() + begin;
+    gen.destruct_nodes.erase(itr, gen.destruct_nodes.end());
 }
 
 void ThrowStatement::code_gen(Codegen &gen) {

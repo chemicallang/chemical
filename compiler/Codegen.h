@@ -375,6 +375,12 @@ public:
      */
     bool has_current_block_ended = false;
 
+    /**
+     * by default every scope is destroyed, however a return statement in current scope
+     * sets this to true, because return destroys everything in a function
+     */
+    bool destroy_current_scope = true;
+
 };
 
 #endif

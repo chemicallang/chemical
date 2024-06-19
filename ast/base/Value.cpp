@@ -14,22 +14,22 @@
 #include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
 
-llvm::AllocaInst* Value::llvm_allocate_with(Codegen& gen, const std::string& identifier, llvm::Value* value, llvm::Type* type) {
-    auto x = gen.builder->CreateAlloca(type, nullptr, identifier);
+llvm::AllocaInst* Value::llvm_allocate_with(Codegen& gen, llvm::Value* value, llvm::Type* type) {
+    auto x = gen.builder->CreateAlloca(type, nullptr);
     gen.builder->CreateStore(value, x);
     return x;
 }
 
 llvm::AllocaInst *Value::llvm_allocate(Codegen &gen, const std::string &identifier) {
-    return llvm_allocate_with(gen, identifier, llvm_value(gen), llvm_type(gen));
+    return llvm_allocate_with(gen, llvm_value(gen), llvm_type(gen));
 }
 
 llvm::GlobalVariable* Value::llvm_global_variable(Codegen& gen, bool is_const, const std::string& name) {
     return new llvm::GlobalVariable(*gen.module, llvm_type(gen), is_const, llvm::GlobalValue::LinkageTypes::PrivateLinkage, (llvm::Constant*) llvm_value(gen), name);
 }
 
-llvm::AllocaInst* Value::access_chain_allocate(Codegen& gen, const std::string& identifier, AccessChain* chain) {
-    return llvm_allocate_with(gen, identifier, chain->llvm_value(gen), chain->llvm_type(gen));
+llvm::AllocaInst* Value::access_chain_allocate(Codegen& gen, std::vector<std::unique_ptr<Value>>& values, unsigned int until) {
+    return llvm_allocate_with(gen, values[until - 1]->llvm_value(gen), values[until - 1]->llvm_type(gen));
 }
 
 unsigned int Value::store_in_struct(
@@ -82,16 +82,29 @@ llvm::Value* Value::access_chain_pointer(Codegen &gen, std::vector<std::unique_p
         return values[0]->llvm_pointer(gen);
     }
 
-    std::vector<llvm::Value*> idxList;
+    Value* parent = values[0].get();
+    llvm::Value* pointer = parent->llvm_pointer(gen);
 
+    unsigned i = 1;
+    unsigned j = 1;
+    while(j < until) {
+        if(values[j]->as_func_call()) {
+            pointer = values[j]->access_chain_allocate(gen, values, j + 1);
+            if(j + 1 < values.size()) {
+                parent = values[j].get();
+            }
+            i = j + 1;
+        }
+        j++;
+    }
+
+    std::vector<llvm::Value*> idxList;
     // add member index of first value
     // if this is a index operator, only the integer index will be added since parent is nullptr
     if(!values[0]->add_member_index(gen, nullptr, idxList)) {
         gen.error("couldn't add member index for fragment '" + values[0]->representation() + "' in access chain '" + representation() + "'");
     }
-    Value* parent = values[0].get();
-    llvm::Value* pointer = parent->llvm_pointer(gen);
-    unsigned i = 1;
+
     while (i < until) {
         if(values[i]->type_kind() == BaseTypeKind::Pointer) {
             llvm::Value* gep;

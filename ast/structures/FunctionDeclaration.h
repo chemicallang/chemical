@@ -43,6 +43,8 @@ public:
 
     llvm::Function *llvm_func();
 
+    llvm::Type *llvm_type(Codegen &gen) override;
+
     llvm::Value *llvm_load(Codegen &gen) override;
 
     llvm::Value *llvm_pointer(Codegen &gen) override;

@@ -120,9 +120,28 @@ llvm::Value* call_with_args(FunctionCall* call, llvm::Function* fn, FunctionType
     }
 }
 
+AccessChain parent_chain(FunctionCall* call, std::vector<std::unique_ptr<Value>>& chain) {
+    AccessChain member_access({});
+    unsigned i = 0;
+    while(i < (chain.size() - 1)) {
+        if(chain[i].get() == call) {
+            break;
+        }
+        member_access.values.emplace_back(chain[i]->copy());
+        i++;
+    }
+    return member_access;
+}
+
 llvm::Value *call_capturing_lambda(Codegen &gen, FunctionCall* call, FunctionType* func_type, std::vector<std::unique_ptr<Value>>* chain) {
     std::vector<llvm::Value *> args;
-    auto value = call->parent_val->llvm_value(gen);
+    llvm::Value* value;
+    if(chain) {
+        auto parent_access = parent_chain(call, *chain);
+        value = parent_access.llvm_value(gen);
+    } else {
+        value = call->parent_val->llvm_value(gen);
+    };
     auto dataPtr = gen.builder->CreateStructGEP(gen.packed_lambda_type(), value, 1);
     auto data = gen.builder->CreateLoad(gen.builder->getPtrTy(), dataPtr);
     args.emplace_back(data);
@@ -178,17 +197,9 @@ llvm::Value* FunctionCall::llvm_chain_value(
     if(linked() && linked()->as_struct_member() != nullptr) { // means I'm calling a pointer inside a struct
 
         // creating access chain to the last member as an identifier instead of function call
-        AccessChain member_access({});
-        unsigned i = 0;
-        while(i < (chain.size() - 1)) {
-            if(chain[i].get() == this) {
-                break;
-            }
-            member_access.values.emplace_back(chain[i]->copy());
-            i++;
-        }
+        auto parent_access = parent_chain(this, chain);
 
-        return gen.builder->CreateCall(linked()->llvm_func_type(gen), member_access.llvm_value(gen), args);
+        return gen.builder->CreateCall(linked()->llvm_func_type(gen), parent_access.llvm_value(gen), args);
 
     }
 

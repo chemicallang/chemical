@@ -223,6 +223,10 @@ llvm::Type *DereferenceValue::llvm_type(Codegen &gen) {
     }
 }
 
+llvm::Value *DereferenceValue::llvm_pointer(Codegen& gen) {
+    return value->llvm_value(gen);
+}
+
 llvm::Value *DereferenceValue::llvm_value(Codegen &gen) {
     return gen.builder->CreateLoad(llvm_type(gen), value->llvm_value(gen), "deref");
 }

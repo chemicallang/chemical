@@ -11,12 +11,7 @@ struct Destructible {
 
 }
 
-func caller(callee : () => void) {
-    callee();
-}
-
 func test_destructors() {
-    /**
     test("test that var init struct value destructs", () => {
         var count = 0;
         if(count == 0){
@@ -28,5 +23,4 @@ func test_destructors() {
         }
         return count == 1;
     })
-    **/
 }

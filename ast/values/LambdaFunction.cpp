@@ -53,11 +53,10 @@ llvm::AllocaInst *LambdaFunction::llvm_allocate(Codegen &gen, const std::string 
 }
 
 llvm::Value *LambdaFunction::llvm_value(Codegen &gen) {
-//    if(func_type == nullptr) {
-//        gen.error("Cannot generate lambda function for unknown type");
-//        return nullptr;
-//    }
-    auto nested = gen.create_nested_function("lambda", FunctionType::llvm_func_type(gen), scope);
+    if(func_ptr) {
+        return func_ptr;
+    }
+    func_ptr = gen.create_nested_function("lambda", FunctionType::llvm_func_type(gen), scope);
     if(!captureList.empty()) {
         // storing captured variables in a struct
         captured_struct = capture_struct(gen);
@@ -65,7 +64,16 @@ llvm::Value *LambdaFunction::llvm_value(Codegen &gen) {
 //    else {
 //        captured_struct = llvm::ConstantPointerNull::get(llvm::PointerType::get(*gen.ctx, 0));
 //    }
-    return nested;
+    return func_ptr;
+}
+
+llvm::Value *LambdaFunction::llvm_struct_mem_value(Codegen &gen) {
+    auto lamb = llvm_value(gen);
+    if(isCapturing) {
+        return gen.pack_lambda((llvm::Function*) lamb, captured_struct);
+    } else {
+        return lamb;
+    }
 }
 
 llvm::Value *LambdaFunction::llvm_ret_value(Codegen &gen, ReturnStatement *returnStmt) {

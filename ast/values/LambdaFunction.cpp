@@ -67,13 +67,25 @@ llvm::Value *LambdaFunction::llvm_value(Codegen &gen) {
     return func_ptr;
 }
 
-llvm::Value *LambdaFunction::llvm_struct_mem_value(Codegen &gen) {
-    auto lamb = llvm_value(gen);
-    if(isCapturing) {
-        return gen.pack_lambda((llvm::Function*) lamb, captured_struct);
+llvm::Value* packed_lambda_val(Codegen& gen, LambdaFunction* lambda) {
+    auto lamb = lambda->llvm_value(gen);
+    if(lambda->isCapturing) {
+        return gen.pack_lambda((llvm::Function*) lamb, lambda->captured_struct);
     } else {
         return lamb;
     }
+}
+
+llvm::Value *LambdaFunction::llvm_assign_value(Codegen &gen, Value *lhs) {
+    if(lhs->linked_node() && lhs->linked_node()->as_struct_member()) {
+        return packed_lambda_val(gen, this);
+    } else {
+        return llvm_value(gen);
+    }
+}
+
+llvm::Value *LambdaFunction::llvm_struct_mem_value(Codegen &gen) {
+    return packed_lambda_val(gen, this);
 }
 
 llvm::Value *LambdaFunction::llvm_ret_value(Codegen &gen, ReturnStatement *returnStmt) {

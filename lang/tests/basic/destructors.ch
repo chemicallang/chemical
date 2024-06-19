@@ -46,4 +46,17 @@ func test_destructors() {
         }
         return count == 1 && data_usable;
     })
+    test("test that var init struct without values get destructed", () => {
+        var count = 0;
+        var data_usable = false;
+        if(count == 0){
+            var d : Destructible;
+            d.data = 426
+            d.lamb = [&count]() => {
+                *count = *count + 1;
+            }
+            data_usable = d.data == 426;
+        }
+        return count == 1 && data_usable;
+    })
 }

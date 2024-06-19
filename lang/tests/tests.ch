@@ -12,6 +12,7 @@ import "basic/arrays.ch"
 import "basic/pointers.ch"
 import "basic/casts.ch"
 import "basic/functions.ch"
+import "basic/destructors.ch"
 
 func main() {
     test_var_init();
@@ -28,5 +29,6 @@ func main() {
     test_pointer_math();
     test_casts();
     test_functions();
+    test_destructors();
     print_test_stats();
 }

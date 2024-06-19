@@ -1,6 +1,12 @@
 import "../test.ch"
 
 func test_pointer_math() : bool {
+    test("assignment using a pointer works", () => {
+        var i = 2;
+        var j = &i;
+        *j = *j + 1;
+        return i == 3
+    })
     test("testing basic pointer arithmetic", () => {
         var arr = {10, 20, 30, 40, 50};
         var ptr = &arr[0];

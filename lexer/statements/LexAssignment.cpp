@@ -45,7 +45,7 @@ bool Lexer::lexAssignmentOperatorToken() {
 
 bool Lexer::lexAssignmentTokens() {
 
-    if (!lexAccessChain()) {
+    if (!lexAccessChainOrAddrOf()) {
         return false;
     }
 

@@ -45,7 +45,7 @@ void IfStatement::code_gen(Codegen &gen, bool gen_last_block) {
 
     // end block
     llvm::BasicBlock* endBlock = nullptr;
-    if(gen_last_block) {
+    if(gen_last_block || !elseBlock) {
         endBlock = llvm::BasicBlock::Create(*gen.ctx, "ifend", gen.current_function);
     }
 

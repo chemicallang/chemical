@@ -227,7 +227,7 @@ public:
     /**
      * prints the current module as LLVM IR to a .ll file with given out_path
      */
-    bool save_to_ll_file(std::string &out_path, OutputMode mode);
+    bool save_to_ll_file_for_debugging(std::string &out_path) const;
 
     /**
      * save as a bitcode file

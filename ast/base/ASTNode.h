@@ -324,8 +324,9 @@ public:
      * where struct has a destructor, here -> variable init will ask value to destruct itself
      * which will then ask struct def to destruct the value, and then struct def will create a call
      * to destructor
+     * @param returnValue is the value being returned, which mustn't be destructed
      */
-    virtual void code_gen_destruct(Codegen &gen) {
+    virtual void code_gen_destruct(Codegen &gen, Value* returnValue) {
         // does nothing by default
     }
 

@@ -41,7 +41,7 @@ unsigned int Value::store_in_struct(
 ) {
     idxList.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), index));
     auto elementPtr = gen.builder->CreateGEP(parent->llvm_type(gen), allocated, idxList, "", gen.inbounds);
-    gen.builder->CreateStore(llvm_value(gen), elementPtr);
+    gen.builder->CreateStore(llvm_struct_mem_value(gen), elementPtr);
     return index + 1;
 }
 

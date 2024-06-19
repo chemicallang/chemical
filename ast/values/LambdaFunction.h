@@ -25,6 +25,7 @@ public:
 
 #ifdef COMPILER_BUILD
 
+    llvm::Function* func_ptr = nullptr;
     llvm::Value *captured_struct = nullptr;
 
 #endif
@@ -63,6 +64,8 @@ public:
     llvm::Type *llvm_type(Codegen &gen) override;
 
     llvm::Value *llvm_value(Codegen &gen) override;
+
+    llvm::Value *llvm_struct_mem_value(Codegen &gen) override;
 
     llvm::AllocaInst *llvm_allocate(Codegen &gen, const std::string &identifier) override;
 

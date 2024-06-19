@@ -331,6 +331,15 @@ std::cerr << "child called on base value";
     }
 
     /**
+     * called by store in struct, to store this value into a struct member field in a struct
+     * by default, default llvm_value is stored, however capturing lambda function packs itself into a fat pointer
+     * before storage, so data for captured lambda can easily be sent to lambda function
+     */
+    virtual llvm::Value* llvm_struct_mem_value(Codegen& gen) {
+        return llvm_value(gen);
+    }
+
+    /**
      * called by access chain on the last ref value in the chain
      * by default it allocates chain->llvm_type and stores chain->llvm_value in it
      */

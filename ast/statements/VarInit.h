@@ -57,7 +57,7 @@ public:
 
     void code_gen(Codegen &gen) override;
 
-    void code_gen_destruct(Codegen &gen) override;
+    void code_gen_destruct(Codegen &gen, Value* returnValue) override;
 
 #endif
 

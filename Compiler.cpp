@@ -64,6 +64,7 @@ void print_help() {
                  "--ignore-extension  -[empty]      ignore the extension --output or -o option\n"
                  "--lto               -[empty]      force link time optimization\n"
                  "--assertions        -[empty]      enable assertions on generated code\n"
+                 "--debug-ll          -[empty]      output llvm ir, even with errors, for debugging\n"
                  "--verify            -o            do not compile, only verify source code\n"
                  "--jit               -jit          do just in time compilation using Tiny CC\n"
                  "--res <dir>         -res <dir>    change the location of resources directory\n"
@@ -346,6 +347,11 @@ int main(int argc, char *argv[]) {
     }
     if(options.option("assertions").has_value()) {
         emitter_options.assertions_on = true;
+    }
+
+    if(ll_out.has_value() && options.option("debug-ll").has_value()) {
+        gen.save_to_ll_file_for_debugging(ll_out.value());
+        return 0;
     }
 
     int return_int = 0;

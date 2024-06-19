@@ -331,11 +331,10 @@ void ReturnStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
     if(!gen.has_current_block_ended) {
         int i = gen.destruct_nodes.size() - 1;
         while(i >= 0) {
-            gen.destruct_nodes[i]->code_gen_destruct(gen);
+            gen.destruct_nodes[i]->code_gen_destruct(gen, value.has_value() ? value->get() : nullptr);
             i--;
         }
         gen.destroy_current_scope = false;
-        gen.CreateRet(nullptr);
     }
     if (value.has_value()) {
         if(value.value()->reference() && value.value()->value_type() == ValueType::Struct) {
@@ -344,6 +343,8 @@ void ReturnStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
         } else {
             gen.CreateRet(value.value()->llvm_ret_value(gen, this));
         }
+    } else {
+        gen.CreateRet(nullptr);
     }
 }
 
@@ -374,7 +375,7 @@ void Scope::code_gen(Codegen &gen) {
     if(gen.destroy_current_scope) {
         i = nodes.size() - 1;
         while (i >= 0) {
-            nodes[i]->code_gen_destruct(gen);
+            nodes[i]->code_gen_destruct(gen, nullptr);
             i--;
         }
     } else {

@@ -585,17 +585,13 @@ bool Codegen::save_to_bc_file(std::string &out_path, OutputMode mode) {
     return save_with_options(&options);
 }
 
-bool Codegen::save_to_ll_file(std::string &out_path, OutputMode mode) {
-    CodegenEmitterOptions options;
-    configure_emitter_opts(mode, &options);
-    options.bitcode_path = out_path.data();
-    return save_with_options(&options);
-//    // here's some bug related out ll code, that might be useful, if useful put it in #ifdef DEBUG
-//    std::error_code errorCode;
-//    llvm::raw_fd_ostream outLL(out_path, errorCode);
-//    module->print(outLL, nullptr, false, true);
-//    outLL.close();
-//    return true;
+bool Codegen::save_to_ll_file_for_debugging(std::string &out_path) const {
+    // This code allows printing llvm ir, even if it's buggy code
+    std::error_code errorCode;
+    llvm::raw_fd_ostream outLL(out_path, errorCode);
+    module->print(outLL, nullptr, false, true);
+    outLL.close();
+    return true;
 }
 
 #ifdef CLANG_LIBS

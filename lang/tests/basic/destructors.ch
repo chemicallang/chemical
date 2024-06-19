@@ -22,6 +22,38 @@ func create_destructible(count : int*, data : int) : Destructible {
     }
 }
 
+func test_destruction_at_early_return(count : int*, early_return : bool) {
+    var d = Destructible {
+       lamb : [count]() => {
+           *count = *count + 1;
+       }
+    }
+    if(early_return) {
+        return;
+    }
+    var z = Destructible {
+       lamb : [count]() => {
+           *count = *count + 1;
+       }
+    }
+}
+
+func test_conditional_destruction(count : int*, condition : bool) {
+    var d = Destructible {
+       lamb : [count]() => {
+           *count = *count + 1;
+       }
+    }
+    if(condition) {
+        var z = Destructible {
+           lamb : [count]() => {
+               *count = *count + 1;
+           }
+        }
+        return;
+    }
+}
+
 func test_destructors() {
     test("test that var init struct value destructs", () => {
         var count = 0;
@@ -58,5 +90,25 @@ func test_destructors() {
             data_usable = d.data == 426;
         }
         return count == 1 && data_usable;
+    })
+    test("test destruction at early return : true", () => {
+         var count = 0;
+         test_destruction_at_early_return(&count, true);
+         return count == 1;
+    })
+    test("test destruction at early return : false", () => {
+         var count = 0;
+         test_destruction_at_early_return(&count, false);
+         return count == 2;
+    })
+    test("test conditional destruction : true", () => {
+         var count = 0;
+         test_conditional_destruction(&count, true);
+         return count == 2;
+    })
+    test("test conditional destruction : false", () => {
+         var count = 0;
+         test_conditional_destruction(&count, false);
+         return count == 1;
     })
 }

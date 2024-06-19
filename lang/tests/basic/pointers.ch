@@ -1,6 +1,6 @@
 import "../test.ch"
 
-func test_pointer_math() : bool {
+func test_pointer_math() {
     test("assignment using a pointer works", () => {
         var i = 2;
         var j = &i;

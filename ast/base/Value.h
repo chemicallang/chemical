@@ -340,6 +340,13 @@ std::cerr << "child called on base value";
     }
 
     /**
+     * called by assignment, to assign the current value to left hand side
+     */
+    virtual llvm::Value* llvm_assign_value(Codegen& gen, Value* lhs) {
+        return llvm_value(gen);
+    }
+
+    /**
      * called by access chain on the last ref value in the chain
      * by default it allocates chain->llvm_type and stores chain->llvm_value in it
      */

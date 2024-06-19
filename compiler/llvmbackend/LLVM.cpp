@@ -399,7 +399,7 @@ void ThrowStatement::code_gen(Codegen &gen) {
 
 void AssignStatement::code_gen(Codegen &gen) {
     if (assOp == Operation::Assignment) {
-        gen.builder->CreateStore(value->llvm_value(gen), lhs->llvm_pointer(gen));
+        gen.builder->CreateStore(value->llvm_assign_value(gen, lhs.get()), lhs->llvm_pointer(gen));
     } else {
         auto operated = gen.operate(assOp, lhs.get(), value.get());
         gen.builder->CreateStore(operated, lhs->llvm_pointer(gen));

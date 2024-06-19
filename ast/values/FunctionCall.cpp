@@ -181,6 +181,9 @@ llvm::Value* FunctionCall::llvm_chain_value(
         AccessChain member_access({});
         unsigned i = 0;
         while(i < (chain.size() - 1)) {
+            if(chain[i].get() == this) {
+                break;
+            }
             member_access.values.emplace_back(chain[i]->copy());
             i++;
         }

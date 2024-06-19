@@ -40,14 +40,12 @@ func test_functions() {
         var lamb : () => TestStruct1 = test_struct;
         return lamb().x == 100;
     })
-    /**
     test("test struct member access in chain, member lambda return", () => {
         var mem = MemLamb {
             lamb : test_struct
         }
         return mem.lamb().x == 100;
     })
-    **/
     test("test struct member access in chain, member function return", () => {
         var mem = MemLamb {}
         return mem.mem_func_test().x == 200;

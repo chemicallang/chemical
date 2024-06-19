@@ -22,7 +22,7 @@ class BaseFunctionType {
 public:
 
     std::vector<std::unique_ptr<FunctionParam>> params;
-    std::unique_ptr<BaseType> returnType;
+    std::unique_ptr<BaseType> returnType = nullptr;
     // if the function is variadic, the last type in params is the type given to the variadic parameter
     bool isVariadic;
 

@@ -219,16 +219,16 @@ bool FunctionCall::add_child_index(Codegen &gen, std::vector<llvm::Value *> &ind
     return create_type()->linked_node()->add_child_index(gen, indexes, name);
 }
 
-llvm::AllocaInst *FunctionCall::access_chain_allocate(Codegen &gen, const std::string &identifier, AccessChain* chain) {
+llvm::AllocaInst *FunctionCall::access_chain_allocate(Codegen &gen, std::vector<std::unique_ptr<Value>> &chain_values, unsigned int until) {
     auto func_type = func_call_func_type(this);
     if(func_type->returnType->value_type() == ValueType::Struct) {
-        auto allocaInst = gen.builder->CreateAlloca(func_type->returnType->llvm_type(gen), nullptr, identifier);
+        auto allocaInst = gen.builder->CreateAlloca(func_type->returnType->llvm_type(gen), nullptr);
         std::vector<llvm::Value *> args;
         args.emplace_back(allocaInst);
-        llvm_chain_value(gen, chain->values, args);
+        llvm_chain_value(gen, chain_values, args);
         return allocaInst;
     } else {
-        return Value::access_chain_allocate(gen, identifier, chain);
+        return Value::access_chain_allocate(gen, chain_values, until);
     }
 }
 

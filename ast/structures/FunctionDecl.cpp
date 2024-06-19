@@ -187,6 +187,10 @@ std::vector<llvm::Type *> FunctionDeclaration::param_types(Codegen &gen) {
     return llvm_func_param_types(gen, params, returnType.get(), false, isVariadic);
 }
 
+llvm::Type *FunctionDeclaration::llvm_type(Codegen &gen) {
+    return gen.builder->getPtrTy();
+}
+
 llvm::Value *FunctionDeclaration::llvm_load(Codegen &gen) {
     return llvm_pointer(gen);
 }

@@ -11,6 +11,7 @@ import "basic/macros.ch"
 import "basic/arrays.ch"
 import "basic/pointers.ch"
 import "basic/casts.ch"
+import "basic/functions.ch"
 
 func main() {
     test_var_init();
@@ -26,5 +27,6 @@ func main() {
     test_arrays();
     test_pointer_math();
     test_casts();
+    test_functions();
     print_test_stats();
 }

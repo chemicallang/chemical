@@ -78,7 +78,7 @@ public:
 
     llvm::Value * access_chain_value(Codegen &gen, std::vector<std::unique_ptr<Value>> &values, unsigned until) override;
 
-    llvm::AllocaInst *access_chain_allocate(Codegen &gen, const std::string &identifier, AccessChain* chain) override;
+    llvm::AllocaInst * access_chain_allocate(Codegen &gen, std::vector<std::unique_ptr<Value>> &values, unsigned int until) override;
 
     bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
 

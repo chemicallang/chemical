@@ -46,7 +46,7 @@ llvm::AllocaInst* LambdaFunction::capture_struct(Codegen &gen) {
 llvm::AllocaInst *LambdaFunction::llvm_allocate(Codegen &gen, const std::string &identifier) {
     if(isCapturing) {
         auto lamb = llvm_value(gen);
-        return llvm_allocate_with(gen, identifier, gen.pack_lambda((llvm::Function*) lamb, captured_struct), llvm_type(gen));
+        return llvm_allocate_with(gen, gen.pack_lambda((llvm::Function*) lamb, captured_struct), llvm_type(gen));
     } else {
         return Value::llvm_allocate(gen, identifier);
     }

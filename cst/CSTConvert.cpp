@@ -547,29 +547,21 @@ void CSTConverter::visitLambda(CompoundCSTToken *cst) {
     auto result = function_params(cst->tokens, i);
     optional_param_types = prev;
 
-    Scope scope;
-    ReturnStatement* returnStmt;
+    auto lambda = new LambdaFunction(std::move(captureList), std::move(result.params), result.isVariadic, Scope{});
+
     auto bodyIndex = result.index + 2;
     if (cst->tokens[bodyIndex]->type() == LexTokenType::CompBody) {
         auto prev_nodes = std::move(nodes);
         auto prev_decl = current_func_type;
-        current_func_type = nullptr;
+        current_func_type = lambda;
         cst->tokens[bodyIndex]->accept(this);
         current_func_type = prev_decl;
-        scope.nodes = std::move(nodes);
+        lambda->scope.nodes = std::move(nodes);
         nodes = std::move(prev_nodes);
-        returnStmt = nullptr;
     } else {
         visit(cst->tokens, bodyIndex);
-        returnStmt = new ReturnStatement(value(), nullptr);
-        scope.nodes.emplace_back(returnStmt);
-    }
-
-    auto lambda = new LambdaFunction(std::move(captureList), std::move(result.params), result.isVariadic,
-            std::move(scope));
-
-    if(returnStmt) {
-        returnStmt->func_type = lambda;
+        auto returnStmt = new ReturnStatement(value(), lambda);
+        lambda->scope.nodes.emplace_back(returnStmt);
     }
 
     lambda->assign_params();

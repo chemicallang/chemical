@@ -240,7 +240,7 @@ std::cerr << "child called on base value";
      * allocates the given type and stores the given value in it
      * @return returns pointer to alloca instruction
      */
-    llvm::AllocaInst* llvm_allocate_with(Codegen& gen, const std::string& identifier, llvm::Value* value, llvm::Type* type);
+    llvm::AllocaInst* llvm_allocate_with(Codegen& gen, llvm::Value* value, llvm::Type* type);
 
     /**
      * allocates this value with this identifier, and also creates a store instruction
@@ -334,7 +334,7 @@ std::cerr << "child called on base value";
      * called by access chain on the last ref value in the chain
      * by default it allocates chain->llvm_type and stores chain->llvm_value in it
      */
-    virtual llvm::AllocaInst* access_chain_allocate(Codegen& gen, const std::string& identifier, AccessChain* chain);
+    virtual llvm::AllocaInst* access_chain_allocate(Codegen& gen, std::vector<std::unique_ptr<Value>>& values, unsigned int until);
 
     /**
      * called by access chain on the last ref value in the chain

@@ -310,7 +310,7 @@ llvm::Value *AccessChain::llvm_pointer(Codegen &gen) {
 }
 
 llvm::AllocaInst *AccessChain::llvm_allocate(Codegen &gen, const std::string &identifier) {
-    return values[values.size() - 1]->access_chain_allocate(gen, identifier, this);
+    return values[values.size() - 1]->access_chain_allocate(gen, values, values.size());
 }
 
 void AccessChain::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {

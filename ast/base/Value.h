@@ -217,7 +217,7 @@ std::cerr << "child called on base value";
     /**
      * value is supposed to destruct itself, call the destructor, because scope has ended
      */
-    virtual void llvm_destruct(Codegen& gen) {
+    virtual void llvm_destruct(Codegen& gen, llvm::Value* allocaInst) {
         // does nothing by default
     }
 

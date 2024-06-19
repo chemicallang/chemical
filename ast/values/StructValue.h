@@ -61,7 +61,7 @@ public:
 
     llvm::Value *llvm_pointer(Codegen &gen) override;
 
-    void llvm_destruct(Codegen& gen) override;
+    void llvm_destruct(Codegen &gen, llvm::Value *allocaInst) override;
 
     unsigned int store_in_struct(
             Codegen &gen,

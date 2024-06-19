@@ -282,6 +282,13 @@ public:
     }
 
     /**
+     * will call destructor on allocated value, if required
+     */
+    virtual void llvm_destruct(Codegen& gen, llvm::Value* allocaInst) {
+        // no destruction required
+    }
+
+    /**
      * provides llvm_elem_type, which is the child type for example elem type of an array value
      * @param gen
      * @return

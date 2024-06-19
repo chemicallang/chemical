@@ -64,6 +64,8 @@ public:
 
     llvm::Value *llvm_value(Codegen &gen) override;
 
+    void llvm_destruct(Codegen &gen, llvm::Value *allocaInst) override;
+
     llvm::InvokeInst *llvm_invoke(Codegen &gen, llvm::BasicBlock* normal, llvm::BasicBlock* unwind);
 
     llvm::Value * llvm_pointer(Codegen &gen) override;

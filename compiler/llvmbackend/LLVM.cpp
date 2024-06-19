@@ -313,6 +313,10 @@ llvm::AllocaInst *AccessChain::llvm_allocate(Codegen &gen, const std::string &id
     return values[values.size() - 1]->access_chain_allocate(gen, identifier, this);
 }
 
+void AccessChain::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
+    values[values.size() - 1]->llvm_destruct(gen, allocaInst);
+}
+
 llvm::FunctionType *AccessChain::llvm_func_type(Codegen &gen) {
     return values[values.size() - 1]->llvm_func_type(gen);
 }

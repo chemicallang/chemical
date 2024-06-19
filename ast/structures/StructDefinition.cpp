@@ -82,6 +82,17 @@ llvm::Type *StructDefinition::llvm_type(Codegen &gen) {
     return get_struct_type(gen);
 }
 
+void StructDefinition::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
+    auto func = destructor_func();
+    if(func) {
+        std::vector<llvm::Value*> args;
+        if(func->has_self_param()) {
+            args.emplace_back(allocaInst);
+        }
+        gen.builder->CreateCall(func->llvm_func_type(gen), func->funcCallee, args);
+    }
+}
+
 #endif
 
 

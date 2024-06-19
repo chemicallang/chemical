@@ -32,15 +32,8 @@ llvm::Value *StructValue::llvm_pointer(Codegen &gen) {
     return allocaInst;
 }
 
-void StructValue::llvm_destruct(Codegen& gen) {
-    auto func = definition->destructor_func();
-    if(func) {
-        std::vector<llvm::Value*> args;
-        if(func->has_self_param()) {
-            args.emplace_back(allocaInst);
-        }
-        gen.builder->CreateCall(func->llvm_func_type(gen), func->funcCallee, args);
-    }
+void StructValue::llvm_destruct(Codegen &gen, llvm::Value *givenAlloca) {
+    definition->llvm_destruct(gen, givenAlloca);
 }
 
 unsigned int StructValue::store_in_struct(

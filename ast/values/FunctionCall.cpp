@@ -146,6 +146,14 @@ llvm::Value *FunctionCall::llvm_value(Codegen &gen, std::vector<llvm::Value*>& a
     return call_with_args(this, fn, func_type.get(), gen,  args);
 }
 
+void FunctionCall::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
+    auto funcType = func_call_func_type(this);
+    auto linked = funcType->returnType->linked_node();
+    if(linked) {
+        linked->llvm_destruct(gen, allocaInst);
+    }
+}
+
 llvm::Value *FunctionCall::llvm_value(Codegen &gen) {
     std::vector<llvm::Value *> args;
     return llvm_value(gen, args);

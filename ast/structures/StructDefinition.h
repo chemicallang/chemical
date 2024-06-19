@@ -59,6 +59,8 @@ public:
 
     llvm::StructType* get_struct_type(Codegen &gen);
 
+    void llvm_destruct(Codegen &gen, llvm::Value *allocaInst) override;
+
 #endif
 
     std::string representation() const override;

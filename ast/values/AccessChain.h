@@ -52,6 +52,8 @@ public:
 
     llvm::AllocaInst *llvm_allocate(Codegen &gen, const std::string &identifier) override;
 
+    void llvm_destruct(Codegen &gen, llvm::Value *allocaInst) override;
+
     llvm::FunctionType *llvm_func_type(Codegen &gen) override;
 
     bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;

@@ -27,7 +27,7 @@ void VarInitStatement::code_gen(Codegen &gen) {
 
 void VarInitStatement::code_gen_destruct(Codegen &gen, Value* returnValue) {
     if(returnValue && returnValue->linked_node() == this) return;
-    value.value()->llvm_destruct(gen);
+    value.value()->llvm_destruct(gen, llvm_ptr);
 }
 
 llvm::Value *VarInitStatement::llvm_load(Codegen &gen) {

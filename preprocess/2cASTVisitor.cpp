@@ -199,12 +199,19 @@ void accept_func_return_with_name(ToCAstVisitor* visitor, BaseType* type, const 
 }
 
 void func_type_with_id(ToCAstVisitor* visitor, FunctionType* type, const std::string& id) {
+    if(type->isCapturing) {
+        visitor->write(visitor->fat_pointer_type);
+        visitor->write('*');
+        visitor->space();
+        visitor->write(id);
+        return;
+    }
     accept_func_return(visitor, type->returnType.get());
     visitor->write('(');
     visitor->write('*');
     visitor->write(id);
     visitor->write(")(");
-    if(type->params.empty() && !type->isCapturing) {
+    if(type->params.empty()) {
         visitor->write("void");
     } else {
         if(type->isCapturing) {
@@ -273,8 +280,7 @@ void value_assign_default(ToCAstVisitor* visitor, const std::string& identifier,
     if(value->as_access_chain()) {
         auto chain = value->as_access_chain();
         auto func_call = chain->values.back()->as_func_call();
-        auto func_call_type = func_call->create_type();
-        if(func_call_type->value_type() == ValueType::Struct) {
+        if(func_call && func_call->create_type()->value_type() == ValueType::Struct) {
             auto parent_type = func_call->parent_val->create_type();
             auto func_type = parent_type->function_type();
             auto end = chain->values.size();
@@ -1032,6 +1038,14 @@ void func_container_name(ToCAstVisitor* visitor, ASTNode* node, Value* ref) {
     }
 }
 
+void write_accessor(ToCAstVisitor* visitor, Value* current) {
+    if (current->type_kind() == BaseTypeKind::Pointer) {
+        visitor->write("->");
+    } else {
+        visitor->write('.');
+    }
+}
+
 void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& values, unsigned start, unsigned end) {
     auto grandpa = ((int) end) - 3 >= 0 ? values[end - 3].get() : nullptr;
     auto parent = values[end - 2].get();
@@ -1126,14 +1140,20 @@ void access_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& v
             auto& current = values[j];
             if(current->as_func_call()) {
                 func_call(visitor, values, start, j + 1);
-                return;
+                if(j + 1 < end) {
+                    write_accessor(visitor, values[j].get());
+                    i = j + 1;
+                } else {
+                    return;
+                }
             }
             j--;
         }
     }
+    Value* current;
     Value* next;
     while(i < end) {
-        auto& current = values[i];
+        current = values[i].get();
         if(i + 1 < total_size) {
             next = values[i + 1].get();
             if(next->as_func_call() || next->as_index_op()) {
@@ -1148,13 +1168,8 @@ void access_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& v
                         visitor->write("[EnumAC_NOT_FOUND:" + current->representation() + "." + next->representation() + "]");
                     }
                 } else {
-                    if (current->type_kind() == BaseTypeKind::Pointer) {
-                        current->accept(visitor);
-                        visitor->write("->");
-                    } else {
-                        current->accept(visitor);
-                        visitor->write('.');
-                    }
+                    current->accept(visitor);
+                    write_accessor(visitor, current);
                 }
             }
         } else {

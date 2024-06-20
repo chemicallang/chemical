@@ -23,31 +23,24 @@ void to_llvm_args(
         std::vector<std::unique_ptr<Value>>& values,
         std::vector<llvm::Value *>& args,
         std::vector<std::unique_ptr<Value>>* chain,
-        unsigned int start = 0
+        unsigned int until,
+        unsigned int start
 ) {
 
     llvm::Value* argValue;
-    auto linked_node = call->parent_val->linked_node();
 
     // check function doesn't require a 'self' argument
-    if(chain) {
+    if(chain && func_type->has_self_param()) {
         // a pointer to parent
-        if (func_type->has_self_param()) {
-            if(chain_contains_func_call(*chain, 0, chain->size() - 3)) {
-                gen.error("cannot pass self when access chain has a function call");
-                return;
-            }
-            if((*chain)[chain->size() - 3]->value_type() == ValueType::Pointer) {
-                args.emplace_back((*chain)[chain->size() - 3]->access_chain_value(gen, *chain, chain->size() - 3));
-            } else {
-                args.emplace_back((*chain)[chain->size() - 3]->access_chain_pointer(gen, *chain, chain->size() - 3));
-            }
+        if(chain_contains_func_call(*chain, 0, chain->size() - 3)) {
+            gen.error("cannot pass self when access chain has a function call");
+            return;
         }
-    }
-
-    // if the called lambda is capturing, take argument next to lambda and pass it into it
-    if (linked_node && func_type->isCapturing && linked_node->as_func_param() != nullptr) {
-        args.emplace_back(gen.current_function->getArg(linked_node->as_func_param()->index + 1));
+        if((*chain)[until - 2]->value_type() == ValueType::Pointer) {
+            args.emplace_back((*chain)[until - 2]->access_chain_value(gen, *chain, until - 2));
+        } else {
+            args.emplace_back((*chain)[until - 2]->access_chain_pointer(gen, *chain, until - 2));
+        }
     }
 
     for (size_t i = start; i < values.size(); ++i) {
@@ -60,28 +53,28 @@ void to_llvm_args(
         args.emplace_back(argValue);
 
         // expanding passed lambda values, to multiple (passing function pointer & also passing their struct so 1 arg results in 2 args)
-        if(values[i]->value_type() == ValueType::Lambda) {
-            auto expectedParam = func_type->params[i]->create_value_type();
-            auto expectedFuncType = (FunctionType*) expectedParam.get();
-            auto type = values[i]->create_type();
-            auto funcType = (FunctionType*) type.get();
-            if(expectedFuncType->isCapturing) {
-                if(funcType->isCapturing) {
-                    if(values[i]->primitive()) {
-                        args.emplace_back(((LambdaFunction*) values[i].get())->captured_struct);
-                    } else {
-                        auto lambda_linked = values[i]->linked_node();
-                        if(lambda_linked->as_func_param() != nullptr) {
-                            args.emplace_back(gen.current_function->getArg(lambda_linked->as_func_param()->index + 1));
-                        } else {
-                            throw std::runtime_error("unknown linked node to lambda referenced value");
-                        }
-                    }
-                } else {
-                    args.emplace_back(llvm::ConstantPointerNull::get(gen.builder->getPtrTy()));
-                }
-            }
-        }
+//        if(values[i]->value_type() == ValueType::Lambda) {
+//            auto expectedParam = func_type->params[i]->create_value_type();
+//            auto expectedFuncType = (FunctionType*) expectedParam.get();
+//            auto type = values[i]->create_type();
+//            auto funcType = (FunctionType*) type.get();
+//            if(expectedFuncType->isCapturing) {
+//                if(funcType->isCapturing) {
+//                    if(values[i]->primitive()) {
+//                        args.emplace_back(((LambdaFunction*) values[i].get())->captured_struct);
+//                    } else {
+//                        auto lambda_linked = values[i]->linked_node();
+//                        if(lambda_linked->as_func_param() != nullptr) {
+//                            args.emplace_back(gen.current_function->getArg(lambda_linked->as_func_param()->index + 1));
+//                        } else {
+//                            throw std::runtime_error("unknown linked node to lambda referenced value");
+//                        }
+//                    }
+//                } else {
+//                    args.emplace_back(llvm::ConstantPointerNull::get(gen.builder->getPtrTy()));
+//                }
+//            }
+//        }
     }
 }
 
@@ -133,19 +126,24 @@ AccessChain parent_chain(FunctionCall* call, std::vector<std::unique_ptr<Value>>
     return member_access;
 }
 
-llvm::Value *call_capturing_lambda(Codegen &gen, FunctionCall* call, FunctionType* func_type, std::vector<std::unique_ptr<Value>>* chain) {
+llvm::Value *call_capturing_lambda(
+        Codegen &gen,
+        FunctionCall* call,
+        FunctionType* func_type,
+        std::vector<std::unique_ptr<Value>>* chain,
+        unsigned int until
+) {
     std::vector<llvm::Value *> args;
     llvm::Value* value;
-    if(chain) {
-        auto parent_access = parent_chain(call, *chain);
-        value = parent_access.llvm_value(gen);
+    if(chain && until > 1) {
+        value = (*chain)[until - 1]->access_chain_value(gen, *chain, until - 1);
     } else {
         value = call->parent_val->llvm_value(gen);
     };
     auto dataPtr = gen.builder->CreateStructGEP(gen.packed_lambda_type(), value, 1);
     auto data = gen.builder->CreateLoad(gen.builder->getPtrTy(), dataPtr);
     args.emplace_back(data);
-    to_llvm_args(gen, call, func_type, call->values, args, chain);
+    to_llvm_args(gen, call, func_type, call->values, args, chain, until, 0);
     auto structType = gen.packed_lambda_type();
     auto lambdaPtr = gen.builder->CreateStructGEP(structType, value, 0);
     auto lambda = gen.builder->CreateLoad(gen.builder->getPtrTy(), lambdaPtr);
@@ -154,13 +152,13 @@ llvm::Value *call_capturing_lambda(Codegen &gen, FunctionCall* call, FunctionTyp
 
 llvm::Value *FunctionCall::llvm_value(Codegen &gen, std::vector<llvm::Value*>& args) {
     auto func_type = func_call_func_type(this);
-    if(func_type->isCapturing && (parent_val->linked_node() == nullptr || parent_val->linked_node()->as_func_param() == nullptr)) {
-        return call_capturing_lambda(gen, this, func_type.get(), nullptr);
+    if(func_type->isCapturing) {
+        return call_capturing_lambda(gen, this, func_type.get(), nullptr, 0);
     }
 
     auto decl = safe_linked_func();
     auto fn = decl != nullptr ? (decl->llvm_func()) : nullptr;
-    to_llvm_args(gen, this, func_type.get(), values, args, nullptr, args.size());
+    to_llvm_args(gen, this, func_type.get(), values, args, nullptr, 0, args.size());
 
     return call_with_args(this, fn, func_type.get(), gen,  args);
 }
@@ -180,19 +178,20 @@ llvm::Value *FunctionCall::llvm_value(Codegen &gen) {
 
 llvm::Value* FunctionCall::llvm_chain_value(
         Codegen &gen,
+        std::vector<llvm::Value*>& args,
         std::vector<std::unique_ptr<Value>>& chain,
-        std::vector<llvm::Value*>& args
+        unsigned int until
 ) {
 
     auto func_type = func_call_func_type(this);
-    if(func_type->isCapturing && (parent_val->linked_node() == nullptr || parent_val->linked_node()->as_func_param() == nullptr)) {
-        return call_capturing_lambda(gen, this, func_type.get(), &chain);
+    if(func_type->isCapturing) {
+        return call_capturing_lambda(gen, this, func_type.get(), &chain, until);
     }
 
     auto decl = safe_linked_func();
 
     auto fn = decl != nullptr ? decl->llvm_func() : nullptr;
-    to_llvm_args(gen, this, func_type.get(), values, args, &chain, 0);
+    to_llvm_args(gen, this, func_type.get(), values, args, &chain, until,0);
 
     if(linked() && linked()->as_struct_member() != nullptr) { // means I'm calling a pointer inside a struct
 
@@ -208,7 +207,7 @@ llvm::Value* FunctionCall::llvm_chain_value(
 
 llvm::Value* FunctionCall::access_chain_value(Codegen &gen, std::vector<std::unique_ptr<Value>> &chain, unsigned until) {
     std::vector<llvm::Value *> args;
-    return llvm_chain_value(gen, chain, args);
+    return llvm_chain_value(gen, args, chain, until);
 }
 
 llvm::InvokeInst *FunctionCall::llvm_invoke(Codegen &gen, llvm::BasicBlock* normal, llvm::BasicBlock* unwind) {
@@ -217,7 +216,7 @@ llvm::InvokeInst *FunctionCall::llvm_invoke(Codegen &gen, llvm::BasicBlock* norm
     if(fn != nullptr) {
         auto type = decl->create_value_type();
         std::vector<llvm::Value *> args;
-        to_llvm_args(gen, this, type->function_type(), values, args, nullptr);
+        to_llvm_args(gen, this, type->function_type(), values, args, nullptr, 0, 0);
         return gen.builder->CreateInvoke(fn, normal, unwind, args);
     } else {
         gen.error("Unknown function call through invoke ");
@@ -239,7 +238,7 @@ llvm::AllocaInst *FunctionCall::access_chain_allocate(Codegen &gen, std::vector<
         auto allocaInst = gen.builder->CreateAlloca(func_type->returnType->llvm_type(gen), nullptr);
         std::vector<llvm::Value *> args;
         args.emplace_back(allocaInst);
-        llvm_chain_value(gen, chain_values, args);
+        llvm_chain_value(gen, args, chain_values, until);
         return allocaInst;
     } else {
         return Value::access_chain_allocate(gen, chain_values, until);

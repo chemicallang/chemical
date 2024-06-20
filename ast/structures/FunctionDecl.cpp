@@ -70,10 +70,6 @@ llvm::Value *BaseFunctionParam::llvm_load(Codegen &gen) {
     return nullptr;
 }
 
-llvm::Value *BaseFunctionParam::llvm_ret_load(Codegen &gen, ReturnStatement *returnStmt) {
-    return type->llvm_return_intercept(gen, llvm_load(gen), this);
-}
-
 llvm::FunctionType *FunctionDeclaration::llvm_func_type(Codegen &gen) {
     auto paramTypes = param_types(gen);
     if(paramTypes.empty()) {

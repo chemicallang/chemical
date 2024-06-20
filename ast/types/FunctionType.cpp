@@ -22,13 +22,13 @@ void llvm_func_param_type(
         BaseType* type
 ) {
     paramTypes.emplace_back(type->llvm_param_type(gen));
-    if(type->function_type() != nullptr) {
-        auto func_type = type->function_type();
-        // when a capturing lambda is a parameter, it is treated as two pointer parameters one for the lambda and another for it's data
-        if(func_type->isCapturing) {
-            paramTypes.emplace_back(gen.builder->getPtrTy());
-        }
-    }
+//    if(type->function_type() != nullptr) {
+//        auto func_type = type->function_type();
+//        // when a capturing lambda is a parameter, it is treated as two pointer parameters one for the lambda and another for it's data
+//        if(func_type->isCapturing) {
+//            paramTypes.emplace_back(gen.builder->getPtrTy());
+//        }
+//    }
 }
 
 void llvm_func_param_types_into(
@@ -67,19 +67,6 @@ llvm::FunctionType *FunctionType::llvm_func_type(Codegen &gen) {
 llvm::Type *FunctionType::llvm_type(Codegen &gen) const {
     return gen.builder->getPtrTy();
 };
-
-llvm::Value *FunctionType::llvm_return_intercept(Codegen &gen, llvm::Value *value, ASTNode *node) {
-    if(isCapturing) {
-        if(node->as_func_param() != nullptr) {
-            auto funcParam = node->as_func_param();
-            return gen.pack_lambda((llvm::Function*) value, gen.current_function->getArg(funcParam->index + 1));
-        } else {
-            throw std::runtime_error("unknown calling node");
-        }
-    } else {
-        return value;
-    }
-}
 
 #endif
 

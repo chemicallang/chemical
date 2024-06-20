@@ -306,15 +306,15 @@ llvm::Type *AccessChain::llvm_type(Codegen &gen) {
 }
 
 llvm::Value *AccessChain::llvm_value(Codegen &gen) {
-    return values[values.size() - 1]->access_chain_value(gen, values, values.size());
+    return values[values.size() - 1]->access_chain_value(gen, values, values.size() - 1);
 }
 
 llvm::Value *AccessChain::llvm_pointer(Codegen &gen) {
-    return values[values.size() - 1]->access_chain_pointer(gen, values, values.size());
+    return values[values.size() - 1]->access_chain_pointer(gen, values, values.size() - 1);
 }
 
 llvm::AllocaInst *AccessChain::llvm_allocate(Codegen &gen, const std::string &identifier) {
-    return values[values.size() - 1]->access_chain_allocate(gen, values, values.size());
+    return values[values.size() - 1]->access_chain_allocate(gen, values, values.size() - 1);
 }
 
 void AccessChain::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {

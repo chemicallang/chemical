@@ -111,4 +111,9 @@ func test_destructors() {
          test_conditional_destruction(&count, false);
          return count == 1;
     })
+    test("test destruct struct accessed via function call", () => {
+        var count = 0;
+        var data = create_destructible(&count, 858).data;
+        return count == 1 && data == 858;
+    })
 }

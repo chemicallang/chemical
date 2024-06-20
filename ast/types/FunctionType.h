@@ -62,8 +62,6 @@ public:
 
     llvm::FunctionType *llvm_func_type(Codegen &gen) override;
 
-    llvm::Value *llvm_return_intercept(Codegen &gen, llvm::Value *value, ASTNode *node) override;
-
 #endif
 
 };

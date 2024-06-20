@@ -65,14 +65,6 @@ public:
 
     llvm::Value *llvm_value(Codegen &gen) override;
 
-    llvm::Value *llvm_assign_value(Codegen &gen, Value *lhs) override;
-
-    llvm::Value *llvm_struct_mem_value(Codegen &gen) override;
-
-    llvm::AllocaInst *llvm_allocate(Codegen &gen, const std::string &identifier) override;
-
-    llvm::Value *llvm_ret_value(Codegen &gen, ReturnStatement *returnStmt) override;
-
 #endif
 
     std::unique_ptr<BaseType> create_type() const override;

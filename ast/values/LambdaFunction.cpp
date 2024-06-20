@@ -43,58 +43,28 @@ llvm::AllocaInst* LambdaFunction::capture_struct(Codegen &gen) {
     return capturedAlloca;
 }
 
-llvm::AllocaInst *LambdaFunction::llvm_allocate(Codegen &gen, const std::string &identifier) {
-    if(isCapturing) {
-        auto lamb = llvm_value(gen);
-        return llvm_allocate_with(gen, gen.pack_lambda((llvm::Function*) lamb, captured_struct), llvm_type(gen));
+llvm::Value* packed_lambda_val(Codegen& gen, LambdaFunction* lambda) {
+    if(lambda->isCapturing) {
+        auto captured = lambda->captured_struct;
+        if(!captured) {
+            captured = llvm::ConstantPointerNull::get(llvm::PointerType::get(*gen.ctx, 0));
+        }
+        return gen.pack_lambda(lambda->func_ptr, captured);
     } else {
-        return Value::llvm_allocate(gen, identifier);
+        return lambda->func_ptr;
     }
 }
 
 llvm::Value *LambdaFunction::llvm_value(Codegen &gen) {
     if(func_ptr) {
-        return func_ptr;
+        gen.error("llvm_value called multiple times on LambdaFunction");
     }
     func_ptr = gen.create_nested_function("lambda", FunctionType::llvm_func_type(gen), scope);
     if(!captureList.empty()) {
         // storing captured variables in a struct
         captured_struct = capture_struct(gen);
     }
-//    else {
-//        captured_struct = llvm::ConstantPointerNull::get(llvm::PointerType::get(*gen.ctx, 0));
-//    }
-    return func_ptr;
-}
-
-llvm::Value* packed_lambda_val(Codegen& gen, LambdaFunction* lambda) {
-    auto lamb = lambda->llvm_value(gen);
-    if(lambda->isCapturing) {
-        return gen.pack_lambda((llvm::Function*) lamb, lambda->captured_struct);
-    } else {
-        return lamb;
-    }
-}
-
-llvm::Value *LambdaFunction::llvm_assign_value(Codegen &gen, Value *lhs) {
-    if(lhs->linked_node() && lhs->linked_node()->as_struct_member()) {
-        return packed_lambda_val(gen, this);
-    } else {
-        return llvm_value(gen);
-    }
-}
-
-llvm::Value *LambdaFunction::llvm_struct_mem_value(Codegen &gen) {
     return packed_lambda_val(gen, this);
-}
-
-llvm::Value *LambdaFunction::llvm_ret_value(Codegen &gen, ReturnStatement *returnStmt) {
-    if(!isCapturing) {
-        return llvm_value(gen);
-    } else {
-        auto value = (llvm::Function *) llvm_value(gen); // called first so that captured_struct is set
-        return gen.pack_lambda(value, captured_struct);
-    }
 }
 
 llvm::Type *LambdaFunction::capture_struct_type(Codegen &gen) {

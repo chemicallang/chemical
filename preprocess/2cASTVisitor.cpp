@@ -564,7 +564,7 @@ void declare_params(CValueDeclarationVisitor* value_visitor, std::vector<std::un
 }
 
 void func_that_returns_func_proto(ToCAstVisitor* visitor, FunctionDeclaration* decl, const std::string& name, FunctionType* retFunc) {
-    retFunc->returnType->accept(visitor);
+    accept_func_return(visitor, retFunc->returnType.get());
     visitor->write("(*");
     visitor->write(name);
     visitor->write('(');
@@ -904,7 +904,7 @@ void func_decl_with_name(ToCAstVisitor* visitor, FunctionDeclaration* decl, cons
     if(!decl->body.has_value()) {
         return;
     }
-    if(visitor->inline_fn_types_in_returns && decl->returnType->function_type()) {
+    if(visitor->inline_fn_types_in_returns && decl->returnType->function_type() && !decl->returnType->function_type()->isCapturing) {
         func_that_returns_func_proto(visitor, decl, name, decl->returnType->function_type());
     } else {
         declare_func_with_return(visitor, decl, name);

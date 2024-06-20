@@ -687,6 +687,9 @@ void CValueDeclarationVisitor::visit(TypealiasStatement *stmt) {
 }
 
 void CValueDeclarationVisitor::visit(FunctionType *type) {
+    if(type->isCapturing) {
+        return;
+    }
     typedef_func_type(visitor, type);
 }
 
@@ -1517,6 +1520,11 @@ void ToCAstVisitor::visit(FloatType *func) {
 }
 
 void ToCAstVisitor::visit(FunctionType *type) {
+    if(type->isCapturing) {
+        write(fat_pointer_type);
+        write('*');
+        return;
+    }
     auto found = declarer->aliases.find(type);
     if(found != declarer->aliases.end()) {
         write(found->second);

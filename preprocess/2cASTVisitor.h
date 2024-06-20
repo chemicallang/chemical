@@ -72,7 +72,7 @@ public:
     /**
      * when false, function types in function returns aren typedef at top level
      */
-    bool inline_fn_types_in_returns = false;
+    bool inline_fn_types_in_returns = true;
 
     /**
      * when true, output c will be like c++

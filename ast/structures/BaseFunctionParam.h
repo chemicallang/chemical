@@ -44,8 +44,6 @@ public:
 
     llvm::Value *llvm_load(Codegen &gen) override;
 
-    llvm::Value *llvm_ret_load(Codegen &gen, ReturnStatement *returnStmt) override;
-
     bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
 
 #endif

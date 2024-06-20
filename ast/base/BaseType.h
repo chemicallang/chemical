@@ -189,14 +189,6 @@ public:
         return llvm_type(gen);
     }
 
-    /**
-     * type can intercept the return value and modify it
-     * @param node is the calling node
-     */
-    virtual llvm::Value* llvm_return_intercept(Codegen &gen, llvm::Value* value, ASTNode* node) {
-        return value;
-    }
-
 #endif
 
     virtual ~BaseType() = default;

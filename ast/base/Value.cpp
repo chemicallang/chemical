@@ -29,7 +29,7 @@ llvm::GlobalVariable* Value::llvm_global_variable(Codegen& gen, bool is_const, c
 }
 
 llvm::AllocaInst* Value::access_chain_allocate(Codegen& gen, std::vector<std::unique_ptr<Value>>& values, unsigned int until) {
-    return llvm_allocate_with(gen, values[until - 1]->llvm_value(gen), values[until - 1]->llvm_type(gen));
+    return llvm_allocate_with(gen, values[until]->access_chain_value(gen, values, until), values[until]->llvm_type(gen));
 }
 
 unsigned int Value::store_in_struct(
@@ -59,7 +59,7 @@ unsigned int Value::store_in_array(
 }
 
 llvm::Value* Value::access_chain_value(Codegen &gen, std::vector<std::unique_ptr<Value>>& values, unsigned int until) {
-    return gen.builder->CreateLoad(values[until - 1]->llvm_type(gen), access_chain_pointer(gen, values, until), "acc");
+    return gen.builder->CreateLoad(values[until]->llvm_type(gen), access_chain_pointer(gen, values, until), "acc");
 }
 
 llvm::Value* create_gep(Codegen &gen, Value* parent, llvm::Value* pointer, std::vector<llvm::Value*>& idxList) {
@@ -78,8 +78,10 @@ llvm::Value* create_gep(Codegen &gen, Value* parent, llvm::Value* pointer, std::
 
 llvm::Value* Value::access_chain_pointer(Codegen &gen, std::vector<std::unique_ptr<Value>>& values, unsigned int until) {
 
-    if(until == 1) {
+    if(until == 0) {
         return values[0]->llvm_pointer(gen);
+    } else if(until < 0) {
+        gen.error("access_chain_pointer cannot retrieve a negative index pointer");
     }
 
     Value* parent = values[0].get();
@@ -87,9 +89,9 @@ llvm::Value* Value::access_chain_pointer(Codegen &gen, std::vector<std::unique_p
 
     unsigned i = 1;
     unsigned j = 1;
-    while(j < until) {
+    while(j <= until) {
         if(values[j]->as_func_call()) {
-            pointer = values[j]->access_chain_allocate(gen, values, j + 1);
+            pointer = values[j]->access_chain_allocate(gen, values, j);
             if(j + 1 < values.size()) {
                 parent = values[j].get();
             }
@@ -105,7 +107,7 @@ llvm::Value* Value::access_chain_pointer(Codegen &gen, std::vector<std::unique_p
         gen.error("couldn't add member index for fragment '" + values[0]->representation() + "' in access chain '" + representation() + "'");
     }
 
-    while (i < until) {
+    while (i <= until) {
         if(values[i]->type_kind() == BaseTypeKind::Pointer) {
             llvm::Value* gep;
             if(idxList.empty()) {

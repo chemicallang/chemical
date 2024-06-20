@@ -72,8 +72,9 @@ public:
 
     llvm::Value* llvm_chain_value(
             Codegen &gen,
+            std::vector<llvm::Value*>& args,
             std::vector<std::unique_ptr<Value>>& chain,
-            std::vector<llvm::Value*>& args
+            unsigned int until
     );
 
     llvm::Value * access_chain_value(Codegen &gen, std::vector<std::unique_ptr<Value>> &values, unsigned until) override;

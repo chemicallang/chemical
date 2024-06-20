@@ -65,9 +65,14 @@ public:
     bool inline_struct_members_fn_types = true;
 
     /**
-     * when false, function types in function parameters are typedef at top level
+     * when false, function types in function parameters aren typedef at top level
      */
     bool inline_fn_types_in_params = true;
+
+    /**
+     * when false, function types in function returns aren typedef at top level
+     */
+    bool inline_fn_types_in_returns = false;
 
     /**
      * when true, output c will be like c++

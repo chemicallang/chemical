@@ -218,13 +218,12 @@ void func_type_with_id(ToCAstVisitor* visitor, FunctionType* type, const std::st
             visitor->write(',');
         }
     }
-    if(type->params.empty()) {
-        if(!type->isCapturing) {
-            visitor->write("void");
-        }
-    } else {
-        func_type_params(visitor, type);
-    }
+//    if(type->params.empty()) {
+//        if(!type->isCapturing) {
+//            visitor->write("void");
+//        }
+//    }
+    func_type_params(visitor, type);
     visitor->write(")");
 }
 

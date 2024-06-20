@@ -563,24 +563,48 @@ void declare_params(CValueDeclarationVisitor* value_visitor, std::vector<std::un
     }
 }
 
+void func_that_returns_func_proto(ToCAstVisitor* visitor, FunctionDeclaration* decl, const std::string& name, FunctionType* retFunc) {
+    retFunc->returnType->accept(visitor);
+    visitor->write("(*");
+    visitor->write(name);
+    visitor->write('(');
+    func_type_params(visitor, decl);
+    visitor->write("))(");
+    func_type_params(visitor, retFunc);
+    visitor->write(')');
+}
+
+void declare_func_with_return(ToCAstVisitor* visitor, FunctionDeclaration* decl, const std::string& name) {
+    if(visitor->inline_fn_types_in_returns && decl->returnType->function_type() && !decl->returnType->function_type()->isCapturing) {
+        func_that_returns_func_proto(visitor, decl, name, decl->returnType->function_type());
+    } else {
+        if (decl->returnType->kind() == BaseTypeKind::Void && name == "main") {
+            visitor->write("int main");
+        } else {
+            accept_func_return_with_name(visitor, decl->returnType.get(), name);
+        }
+        visitor->write('(');
+        func_type_params(visitor, decl);
+        visitor->write(')');
+    }
+}
+
 void declare_by_name(CTopLevelDeclarationVisitor* tld, FunctionDeclaration* decl, const std::string& name) {
     declare_params(tld->value_visitor, decl->params);
-    decl->returnType->accept(tld->value_visitor);
-    tld->visitor->new_line_and_indent();
-    if(decl->returnType->kind() == BaseTypeKind::Void && name == "main") {
-        tld->write("int main");
-    } else {
-        accept_func_return_with_name(tld->visitor, decl->returnType.get(), name);
+    if(!tld->visitor->inline_fn_types_in_returns || decl->returnType->function_type() == nullptr) {
+        decl->returnType->accept(tld->value_visitor);
     }
-    tld->write('(');
-    func_type_params(tld->visitor, decl);
-    tld->write(");");
+    tld->visitor->new_line_and_indent();
+    declare_func_with_return(tld->visitor, decl, name);
+    tld->visitor->write(';');
 }
 
 // when a function is inside struct / interface
 void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaration* decl, const std::string& name, bool overrides) {
     declare_params(tld->value_visitor, decl->params);
-    decl->returnType->accept(tld->value_visitor);
+    if(!tld->visitor->inline_fn_types_in_returns || decl->returnType->function_type() == nullptr) {
+        decl->returnType->accept(tld->value_visitor);
+    }
     tld->visitor->new_line_and_indent();
     accept_func_return_with_name(tld->visitor, decl->returnType.get(), name);
     tld->write('(');
@@ -880,14 +904,11 @@ void func_decl_with_name(ToCAstVisitor* visitor, FunctionDeclaration* decl, cons
     if(!decl->body.has_value()) {
         return;
     }
-    if(decl->returnType->kind() == BaseTypeKind::Void && name == "main") {
-        visitor->write("int main");
+    if(visitor->inline_fn_types_in_returns && decl->returnType->function_type()) {
+        func_that_returns_func_proto(visitor, decl, name, decl->returnType->function_type());
     } else {
-        accept_func_return_with_name(visitor, decl->returnType.get(), name);
+        declare_func_with_return(visitor, decl, name);
     }
-    visitor->write('(');
-    func_type_params(visitor, decl);
-    visitor->write(')');
     scope(visitor, decl->body.value());
 }
 

@@ -149,21 +149,29 @@ void type_with_id(ToCAstVisitor* visitor, BaseType* type, const std::string& id)
     write_type_post_id(visitor, type);
 }
 
+void write_struct_return_param(ToCAstVisitor* visitor, BaseFunctionType* decl) {
+    decl->returnType->accept(visitor);
+    visitor->write("* ");
+    visitor->write(struct_passed_param_name);
+}
+
+void extension_func_param(ToCAstVisitor* visitor, ExtensionFunction* extension) {
+    extension->receiver.type->accept(visitor);
+    visitor->space();
+    visitor->write(extension->receiver.name);
+}
+
 void func_type_params(ToCAstVisitor* visitor, BaseFunctionType* decl) {
     auto is_struct_return = visitor->pass_structs_to_initialize && decl->returnType->value_type() == ValueType::Struct;
     auto extension = decl->as_extension_func();
     if(extension) {
-        extension->receiver.type->accept(visitor);
-        visitor->space();
-        visitor->write(extension->receiver.name);
-        if(is_struct_return || !decl->params.empty()) {
+        extension_func_param(visitor, extension);
+        if(is_struct_return || !extension->params.empty()) {
             visitor->write(", ");
         }
     }
     if(is_struct_return) {
-        decl->returnType->accept(visitor);
-        visitor->write("* ");
-        visitor->write(struct_passed_param_name);
+        write_struct_return_param(visitor, decl);
         if(!decl->params.empty()) {
             visitor->write(", ");
         }
@@ -261,10 +269,18 @@ void value_alloca(ToCAstVisitor* visitor, const std::string& identifier, BaseTyp
     visitor->write(';');
 }
 
-void write_self_arg(ToCAstVisitor* visitor, BaseFunctionType* func_type, Value* grandpa, FunctionCall* call) {
+bool write_self_arg_bool(ToCAstVisitor* visitor, BaseFunctionType* func_type, Value* grandpa, FunctionCall* call) {
     if(func_type->has_self_param()) {
         visitor->write('&');
         grandpa->accept(visitor);
+        return true;
+    } else {
+        return false;
+    }
+}
+
+void write_self_arg(ToCAstVisitor* visitor, BaseFunctionType* func_type, Value* grandpa, FunctionCall* call) {
+    if(write_self_arg_bool(visitor, func_type, grandpa, call)) {
         if (!call->values.empty()) {
             visitor->write(',');
         }
@@ -555,6 +571,9 @@ void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaratio
     tld->visitor->new_line_and_indent();
     accept_func_return_with_name(tld->visitor, decl->returnType.get(), name);
     tld->write('(');
+    if(decl->returnType->value_type() == ValueType::Struct) {
+        write_struct_return_param(tld->visitor, decl);
+    }
     unsigned i = 0;
     FunctionParam* param;
     auto size = decl->isVariadic ? decl->params.size() - 1 : decl->params.size();
@@ -862,6 +881,9 @@ void contained_func_decl(ToCAstVisitor* visitor, FunctionDeclaration* decl, cons
     }
     accept_func_return_with_name(visitor, decl->returnType.get(), name);
     visitor->write('(');
+    if(decl->returnType->value_type() == ValueType::Struct) {
+        write_struct_return_param(visitor, decl);
+    }
     unsigned i = 0;
     FunctionParam* param;
     std::string self_pointer_name;
@@ -1043,14 +1065,25 @@ void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& valu
     auto parent_type = parent->create_type();
     auto func_type = parent_type->function_type();
     auto last = values[end - 1]->as_func_call();
+    bool is_lambda = (parent->linked_node() != nullptr && parent->linked_node()->as_struct_member() != nullptr);
     if(visitor->pass_structs_to_initialize && func_type->returnType->value_type() == ValueType::Struct) {
         // functions that return struct
         visitor->write("({ ");
         func_type->returnType->accept(visitor);
         visitor->space();
         visitor->write("__chem_x_1__; ");
-        access_chain(visitor, values, start, end - 1);
-        visitor->write('(');
+        if(grandpa && !is_lambda) {
+            auto grandpaType = grandpa->create_type();
+            func_container_name(visitor, grandpaType->linked_node(), parent);
+            parent->accept(visitor); // function name
+            visitor->write('(');
+            if(write_self_arg_bool(visitor, func_type, grandpa, last)) {
+                visitor->write(", ");
+            }
+        } else {
+            access_chain(visitor, values, start, end - 1);
+            visitor->write('(');
+        }
         visitor->write('&');
         visitor->write("__chem_x_1__");
         if(!last->as_func_call()->values.empty()){
@@ -1135,6 +1168,9 @@ void access_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& v
                     write_accessor(visitor, values[j].get());
                     i = j + 1;
                 } else {
+                    if(!visitor->nested_value) {
+                        visitor->write(';');
+                    }
                     return;
                 }
             }

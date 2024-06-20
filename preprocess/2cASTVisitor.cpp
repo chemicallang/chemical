@@ -199,27 +199,22 @@ void accept_func_return_with_name(ToCAstVisitor* visitor, BaseType* type, const 
 }
 
 void func_type_with_id(ToCAstVisitor* visitor, FunctionType* type, const std::string& id) {
-    if(type->isCapturing) {
-        visitor->write(visitor->fat_pointer_type);
-        visitor->write('*');
-        visitor->space();
-        visitor->write(id);
-        return;
-    }
     accept_func_return(visitor, type->returnType.get());
     visitor->write('(');
     visitor->write('*');
     visitor->write(id);
     visitor->write(")(");
-    if(type->params.empty()) {
-        visitor->write("void");
-    } else {
-        if(type->isCapturing) {
-            visitor->write("void*");
-            if(!type->params.empty()) {
-                visitor->write(',');
-            }
+    if(type->isCapturing) {
+        visitor->write("void*");
+        if(!type->params.empty()) {
+            visitor->write(',');
         }
+    }
+    if(type->params.empty()) {
+        if(!type->isCapturing) {
+            visitor->write("void");
+        }
+    } else {
         func_type_params(visitor, type);
     }
     visitor->write(")");
@@ -674,11 +669,7 @@ void CValueDeclarationVisitor::visit(TypealiasStatement *stmt) {
 }
 
 void CValueDeclarationVisitor::visit(FunctionType *type) {
-    if(type->isCapturing) {
-        visitor->declarer->aliases[type] = visitor->fat_pointer_type + '*';
-    } else {
-        typedef_func_type(visitor, type);
-    }
+    typedef_func_type(visitor, type);
 }
 
 void CValueDeclarationVisitor::visit(StructMember *member) {
@@ -1190,7 +1181,14 @@ void ToCAstVisitor::visit(MacroValueStatement *statement) {
 
 void ToCAstVisitor::visit(StructMember *member) {
     if(inline_struct_members_fn_types && member->type->kind() == BaseTypeKind::Function) {
-        func_type_with_id(this, member->type->function_type(), member->name);
+        if(member->type->function_type()->isCapturing) {
+            write(fat_pointer_type);
+            write('*');
+            space();
+            write(member->name);
+        } else {
+            func_type_with_id(this, member->type->function_type(), member->name);
+        }
     } else {
         type_with_id(this, member->type.get(), member->name);
     }

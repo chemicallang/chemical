@@ -71,6 +71,14 @@ struct ProvideSelfRefStructLamb {
     var lamb : (&self, a : int, b : int) => PointSome
 }
 
+struct LambFactory {
+
+    func create_lamb() : () => int {
+        return () => 233
+    }
+
+}
+
 func test_lambda() {
     test("testing non capturing lambda works", () => {
         return true;
@@ -81,6 +89,10 @@ func test_lambda() {
             return true;
         });
     });
+    test("lambdas created by structs work", () => {
+        var factory = LambFactory{}
+        return factory.create_lamb()() == 233;
+    })
     test("testing non capturing lambda works without body", () => {
         return dontCapture(() => true);
     });

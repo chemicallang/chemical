@@ -60,9 +60,14 @@ public:
     bool nested_value = false;
 
     /**
-     * by default function types in struct members are taken out to the top, you can avoid this
+     * when false, function types in struct members (lambdas) are typedef at top level
      */
     bool inline_struct_members_fn_types = true;
+
+    /**
+     * when false, function types in function parameters are typedef at top level
+     */
+    bool inline_fn_types_in_params = true;
 
     /**
      * when true, output c will be like c++

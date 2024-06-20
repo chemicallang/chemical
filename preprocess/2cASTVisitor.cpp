@@ -142,11 +142,17 @@ void assign_statement(ToCAstVisitor* visitor, AssignStatement* assign) {
 #define struct_passed_param_name "__chx_struct_ret_param_xx"
 #define fn_call_struct_var_name "chx_fn_cl_struct"
 
+void func_type_with_id(ToCAstVisitor* visitor, FunctionType* type, const std::string& id);
+
 void type_with_id(ToCAstVisitor* visitor, BaseType* type, const std::string& id) {
-    type->accept(visitor);
-    visitor->space();
-    visitor->write(id);
-    write_type_post_id(visitor, type);
+    if(visitor->inline_fn_types_in_params && type->function_type() != nullptr && !type->function_type()->isCapturing) {
+        func_type_with_id(visitor, type->function_type(), id);
+    } else {
+        type->accept(visitor);
+        visitor->space();
+        visitor->write(id);
+        write_type_post_id(visitor, type);
+    }
 }
 
 void write_struct_return_param(ToCAstVisitor* visitor, BaseFunctionType* decl) {
@@ -545,10 +551,20 @@ void CValueDeclarationVisitor::visit(LambdaFunction *lamb) {
     scope(visitor, lamb->scope);
 }
 
-void declare_by_name(CTopLevelDeclarationVisitor* tld, FunctionDeclaration* decl, const std::string& name) {
-    for(auto& param : decl->params) {
-        param->accept(tld->value_visitor);
+void declare_params(CValueDeclarationVisitor* value_visitor, std::vector<std::unique_ptr<FunctionParam>>& params) {
+    for(auto& param : params) {
+        if(param->type->kind() == BaseTypeKind::Function && param->type->function_type()->isCapturing) {
+            // do not declare capturing function types
+            continue;
+        }
+        if(!value_visitor->visitor->inline_fn_types_in_params || param->type->kind() != BaseTypeKind::Function) {
+            param->accept(value_visitor);
+        }
     }
+}
+
+void declare_by_name(CTopLevelDeclarationVisitor* tld, FunctionDeclaration* decl, const std::string& name) {
+    declare_params(tld->value_visitor, decl->params);
     decl->returnType->accept(tld->value_visitor);
     tld->visitor->new_line_and_indent();
     if(decl->returnType->kind() == BaseTypeKind::Void && name == "main") {
@@ -563,9 +579,7 @@ void declare_by_name(CTopLevelDeclarationVisitor* tld, FunctionDeclaration* decl
 
 // when a function is inside struct / interface
 void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaration* decl, const std::string& name, bool overrides) {
-    for(auto& param : decl->params) {
-        param->accept(tld->value_visitor);
-    }
+    declare_params(tld->value_visitor, decl->params);
     decl->returnType->accept(tld->value_visitor);
     tld->visitor->new_line_and_indent();
     accept_func_return_with_name(tld->visitor, decl->returnType.get(), name);

@@ -167,7 +167,7 @@ void extension_func_param(ToCAstVisitor* visitor, ExtensionFunction* extension) 
     visitor->write(extension->receiver.name);
 }
 
-void func_type_params(ToCAstVisitor* visitor, BaseFunctionType* decl) {
+void func_type_params(ToCAstVisitor* visitor, BaseFunctionType* decl, unsigned i = 0) {
     auto is_struct_return = visitor->pass_structs_to_initialize && decl->returnType->value_type() == ValueType::Struct;
     auto extension = decl->as_extension_func();
     if(extension) {
@@ -182,7 +182,6 @@ void func_type_params(ToCAstVisitor* visitor, BaseFunctionType* decl) {
             visitor->write(", ");
         }
     }
-    unsigned i = 0;
     FunctionParam* param;
     auto size = decl->isVariadic ? decl->params.size() - 1 : decl->params.size();
     while(i < size) {
@@ -563,15 +562,20 @@ void declare_params(CValueDeclarationVisitor* value_visitor, std::vector<std::un
     }
 }
 
-void func_that_returns_func_proto(ToCAstVisitor* visitor, FunctionDeclaration* decl, const std::string& name, FunctionType* retFunc) {
-    accept_func_return(visitor, retFunc->returnType.get());
-    visitor->write("(*");
+void func_ret_func_proto_after_l_paren(ToCAstVisitor* visitor, FunctionDeclaration* decl, const std::string& name, FunctionType* retFunc, unsigned declFuncParamStart = 0, unsigned retFuncParamStart = 0) {
+    visitor->write('*');
     visitor->write(name);
     visitor->write('(');
-    func_type_params(visitor, decl);
+    func_type_params(visitor, decl, declFuncParamStart);
     visitor->write("))(");
-    func_type_params(visitor, retFunc);
+    func_type_params(visitor, retFunc, retFuncParamStart);
     visitor->write(')');
+}
+
+void func_that_returns_func_proto(ToCAstVisitor* visitor, FunctionDeclaration* decl, const std::string& name, FunctionType* retFunc) {
+    accept_func_return(visitor, retFunc->returnType.get());
+    visitor->write("(");
+    func_ret_func_proto_after_l_paren(visitor, decl, name, retFunc);
 }
 
 void declare_func_with_return(ToCAstVisitor* visitor, FunctionDeclaration* decl, const std::string& name) {
@@ -606,26 +610,31 @@ void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaratio
         decl->returnType->accept(tld->value_visitor);
     }
     tld->visitor->new_line_and_indent();
-    accept_func_return_with_name(tld->visitor, decl->returnType.get(), name);
-    tld->write('(');
-    if(decl->returnType->value_type() == ValueType::Struct) {
-        write_struct_return_param(tld->visitor, decl);
-    }
+    FunctionParam* param = !decl->params.empty() ? decl->params[0].get() : nullptr;
     unsigned i = 0;
-    FunctionParam* param;
-    auto size = decl->isVariadic ? decl->params.size() - 1 : decl->params.size();
-    while(i < size) {
-        param = decl->params[i].get();
-        param_type_with_id(tld->visitor, param->type.get(), param->name, i, overrides);
-        if(i != decl->params.size() - 1) {
-            tld->write(", ");
+    auto write_self_param_now = [decl, tld, param, &i, overrides]() {
+        if(param && should_void_pointer_to_self(param->type.get(), param->name, 0, overrides)) {
+            tld->write("void* ");
+            tld->write(param->name);
+            if(decl->params.size() > 1) {
+                tld->write(", ");
+            }
+            i = 1;
         }
-        i++;
+    };
+    if(tld->visitor->inline_fn_types_in_returns && decl->returnType->function_type() != nullptr && !decl->returnType->function_type()->isCapturing) {
+        accept_func_return(tld->visitor, decl->returnType->function_type()->returnType.get());
+        tld->write('(');
+        write_self_param_now();
+        func_ret_func_proto_after_l_paren(tld->visitor, decl, name, decl->returnType->function_type(), i);
+    } else {
+        accept_func_return_with_name(tld->visitor, decl->returnType.get(), name);
+        tld->write('(');
+        write_self_param_now();
+        func_type_params(tld->visitor, decl, i);
+        tld->write(')');
     }
-    if(decl->isVariadic) {
-        tld->write("...");
-    }
-    tld->write(");");
+    tld->write(';');
 }
 
 void CTopLevelDeclarationVisitor::visit(FunctionDeclaration *decl) {
@@ -916,29 +925,32 @@ void contained_func_decl(ToCAstVisitor* visitor, FunctionDeclaration* decl, cons
     if(!decl->body.has_value()) {
         return;
     }
-    accept_func_return_with_name(visitor, decl->returnType.get(), name);
-    visitor->write('(');
-    if(decl->returnType->value_type() == ValueType::Struct) {
-        write_struct_return_param(visitor, decl);
-    }
-    unsigned i = 0;
-    FunctionParam* param;
     std::string self_pointer_name;
-    while(i < decl->params.size()) {
-        param = decl->params[i].get();
-        if(should_void_pointer_to_self(param->type.get(), param->name, i, overrides)) {
-           self_pointer_name = "__ch_self_pointer_329283";
-           visitor->write("void* ");
-           visitor->write(self_pointer_name);
-        } else {
-            type_with_id(visitor, param->type.get(), param->name);
+    FunctionParam* param = !decl->params.empty() ? decl->params[0].get() : nullptr;
+    unsigned i = 0;
+    auto write_self_param_now = [decl, visitor, param, &i, &self_pointer_name, overrides]() {
+        if(param && should_void_pointer_to_self(param->type.get(), param->name, 0, overrides)) {
+            self_pointer_name = "__ch_self_pointer_329283";
+            visitor->write("void* ");
+            visitor->write(self_pointer_name);
+            if(decl->params.size() > 1) {
+                visitor->write(", ");
+            }
+            i = 1;
         }
-        if(i != decl->params.size() - 1) {
-            visitor->write(", ");
-        }
-        i++;
+    };
+    if(visitor->inline_fn_types_in_returns && decl->returnType->function_type() != nullptr && !decl->returnType->function_type()->isCapturing) {
+        accept_func_return(visitor, decl->returnType->function_type()->returnType.get());
+        visitor->write('(');
+        write_self_param_now();
+        func_ret_func_proto_after_l_paren(visitor, decl, name, decl->returnType->function_type(), i);
+    } else {
+        accept_func_return_with_name(visitor, decl->returnType.get(), name);
+        visitor->write('(');
+        write_self_param_now();
+        func_type_params(visitor, decl, i);
+        visitor->write(')');
     }
-    visitor->write(')');
     visitor->write('{');
     visitor->indentation_level+=1;
     if(!self_pointer_name.empty() && def) {

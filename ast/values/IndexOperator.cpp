@@ -54,6 +54,10 @@ bool IndexOperator::add_member_index(Codegen &gen, Value *parent, std::vector<ll
     return true;
 }
 
+bool IndexOperator::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
+    return create_type()->linked_node()->add_child_index(gen, indexes, name);
+}
+
 llvm::Type *IndexOperator::llvm_type(Codegen &gen) {
     return parent_val->create_type()->create_child_type()->llvm_type(gen);
 }

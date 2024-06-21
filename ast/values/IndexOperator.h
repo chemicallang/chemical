@@ -55,6 +55,8 @@ public:
 
     bool add_member_index(Codegen &gen, Value *parent, std::vector<llvm::Value *> &indexes) override;
 
+    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
+
 #endif
 
     std::unique_ptr<BaseType> create_type() const override;

@@ -29,11 +29,19 @@ public:
         visitor->visit(this);
     }
 
+    ASTNode *linked_node() override {
+        return value->linked_node();
+    }
+
 #ifdef COMPILER_BUILD
 
     llvm::Type *llvm_type(Codegen &gen) override;
 
     llvm::Value *llvm_value(Codegen &gen) override;
+
+    bool add_member_index(Codegen &gen, Value *parent, std::vector<llvm::Value *> &indexes) override;
+
+    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
 
 #endif
 

@@ -4,6 +4,7 @@
 #include <memory>
 #include <ostream>
 #include <random>
+#include <ranges>
 #include "ast/statements/VarInit.h"
 #include "ast/statements/Typealias.h"
 #include "ast/statements/Continue.h"
@@ -1075,7 +1076,7 @@ void ToCAstVisitor::visit(Scope *scope) {
         new_line_and_indent();
         node->accept(this);
     }
-    for(auto& node : scope->nodes) {
+    for(auto& node : std::ranges::reverse_view(scope->nodes)) {
         node->accept(destructor.get());
     }
     top_level_node = prev;

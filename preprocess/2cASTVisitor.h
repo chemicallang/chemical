@@ -319,7 +319,6 @@ void ToCAstVisitor::translate(NodesVec& nodes) {
 
     // writing
     for(auto& node : nodes) {
-        new_line_and_indent();
         node->accept(this);
     }
 

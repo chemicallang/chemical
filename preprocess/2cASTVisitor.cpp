@@ -169,17 +169,28 @@ void extension_func_param(ToCAstVisitor* visitor, ExtensionFunction* extension) 
     visitor->write(extension->receiver.name);
 }
 
+void write_ret_cap_lambda_params(ToCAstVisitor* visitor) {
+    visitor->write("void** __chx_ret_lamb__, void** __chx_ret_cap__");
+}
+
 void func_type_params(ToCAstVisitor* visitor, BaseFunctionType* decl, unsigned i = 0) {
     auto is_struct_return = visitor->pass_structs_to_initialize && decl->returnType->value_type() == ValueType::Struct;
+    auto is_cap_lamb_return = decl->returnType->function_type() && decl->returnType->function_type()->isCapturing;
     auto extension = decl->as_extension_func();
     if(extension) {
         extension_func_param(visitor, extension);
-        if(is_struct_return || !extension->params.empty()) {
+        if(is_cap_lamb_return || is_struct_return || !extension->params.empty()) {
             visitor->write(", ");
         }
     }
     if(is_struct_return) {
         write_struct_return_param(visitor, decl);
+        if(!decl->params.empty() || is_cap_lamb_return) {
+            visitor->write(", ");
+        }
+    }
+    if(is_cap_lamb_return) {
+        write_ret_cap_lambda_params(visitor);
         if(!decl->params.empty()) {
             visitor->write(", ");
         }
@@ -200,7 +211,7 @@ void func_type_params(ToCAstVisitor* visitor, BaseFunctionType* decl, unsigned i
 }
 
 void accept_func_return(ToCAstVisitor* visitor, BaseType* type) {
-    if(visitor->pass_structs_to_initialize && type->value_type() == ValueType::Struct) {
+    if((visitor->pass_structs_to_initialize && type->value_type() == ValueType::Struct) || (type->function_type() && type->function_type()->isCapturing)) {
         visitor->write("void");
     } else {
         type->accept(visitor);

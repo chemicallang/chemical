@@ -101,12 +101,6 @@ llvm::Value* Value::access_chain_pointer(Codegen &gen, std::vector<std::unique_p
     }
 
     std::vector<llvm::Value*> idxList;
-    // add member index of first value
-    // if this is a index operator, only the integer index will be added since parent is nullptr
-    // TODO check if this is required even
-    if(!values[0]->add_member_index(gen, nullptr, idxList)) {
-        gen.error("couldn't add member index for fragment '" + values[0]->representation() + "' in access chain '" + representation() + "'");
-    }
 
     while (i <= until) {
         if(i + 1 <= until && values[i]->type_kind() == BaseTypeKind::Pointer) {
@@ -124,7 +118,6 @@ llvm::Value* Value::access_chain_pointer(Codegen &gen, std::vector<std::unique_p
                 gen.error("couldn't add member index for fragment '" + values[i]->representation() +
                           "' in access chain '" + representation() + "'");
             }
-            values[i]->find_link_in_parent(values[i - 1].get());
         }
         i++;
     }

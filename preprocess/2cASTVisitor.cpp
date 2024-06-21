@@ -763,7 +763,7 @@ void declare_fat_pointer(ToCAstVisitor* visitor) {
 
 void ToCAstVisitor::prepare_translate() {
     write("#include <stdbool.h>\n");
-    write("#include <stddef.h>\n\n");
+    write("#include <stddef.h>\n");
     // declaring a fat pointer
     declare_fat_pointer(this);
 }
@@ -913,6 +913,7 @@ void func_decl_with_name(ToCAstVisitor* visitor, FunctionDeclaration* decl, cons
     if(!decl->body.has_value()) {
         return;
     }
+    visitor->new_line_and_indent();
     if(visitor->inline_fn_types_in_returns && decl->returnType->function_type() && !decl->returnType->function_type()->isCapturing) {
         func_that_returns_func_proto(visitor, decl, name, decl->returnType->function_type());
     } else {
@@ -925,6 +926,7 @@ void contained_func_decl(ToCAstVisitor* visitor, FunctionDeclaration* decl, cons
     if(!decl->body.has_value()) {
         return;
     }
+    visitor->new_line_and_indent();
     std::string self_pointer_name;
     FunctionParam* param = !decl->params.empty() ? decl->params[0].get() : nullptr;
     unsigned i = 0;
@@ -1001,7 +1003,6 @@ void ToCAstVisitor::visit(IfStatement *decl) {
 
 void ToCAstVisitor::visit(ImplDefinition *def) {
     for(auto& func : def->functions) {
-        new_line_and_indent();
         contained_func_decl(this, func.second.get(), def->interface_name + func.second->name, def->struct_name.has_value(), def->struct_linked);
     }
 }
@@ -1024,14 +1025,12 @@ void ToCAstVisitor::visit(StructDefinition *def) {
     auto overridden = def->overrides.has_value() ? def->overrides.value()->linked->as_interface_def() : nullptr;
     if(overridden) {
         for(auto& func : overridden->functions) {
-            new_line_and_indent();
             if(def->functions.find(func.second->name) == def->functions.end()) {
                 contained_func_decl(this, func.second.get(), overridden->name + func.second->name, false, def);
             }
         }
     }
     for(auto& func : def->functions) {
-        new_line_and_indent();
         if(overridden && overridden->functions.find(func.second->name) != overridden->functions.end()) {
             contained_func_decl(this, func.second.get(), overridden->name + func.second->name, true, def);
         } else {

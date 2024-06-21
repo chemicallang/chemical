@@ -94,6 +94,7 @@
 ToCAstVisitor::ToCAstVisitor(std::ostream *output, const std::string& path) : output(output), ASTDiagnoser(path) {
     declarer = std::make_unique<CValueDeclarationVisitor>(this);
     tld = std::make_unique<CTopLevelDeclarationVisitor>(this, declarer.get());
+    destructor = std::make_unique<CDestructionVisitor>(this);
 }
 
 class ToCAstVisitor;
@@ -463,6 +464,62 @@ public:
     void visit(StructMember *member) override;
 
 };
+
+class CDestructionVisitor : public Visitor, public SubVisitor {
+public:
+
+    using SubVisitor::SubVisitor;
+
+    void destruct(const std::string& self_name, ASTNode* linked, FunctionDeclaration* destructor);
+
+    void destruct(const std::string& self_name, ASTNode* linked);
+
+    void visit(VarInitStatement *init) override;
+
+};
+
+void func_container_name(ToCAstVisitor* visitor, ASTNode* parent_node, ASTNode* linked_node);
+
+void CDestructionVisitor::destruct(const std::string& self_name, ASTNode* parent_node, FunctionDeclaration* destructor) {
+    visitor->new_line_and_indent();
+    func_container_name(visitor, parent_node, destructor);
+    visitor->write(destructor->name);
+    visitor->write('(');
+    if(destructor->has_self_param()) {
+        visitor->write('&');
+        visitor->write(self_name);
+    }
+    visitor->write(')');
+    visitor->write(';');
+}
+
+void CDestructionVisitor::destruct(const std::string& self_name, ASTNode* linked) {
+    if(linked->as_struct_def()) {
+        auto destructorFunc = linked->as_struct_def()->destructor_func();
+        if(destructorFunc) {
+            destruct(self_name, linked, destructorFunc);
+        }
+    }
+}
+
+void CDestructionVisitor::visit(VarInitStatement *init) {
+    if(init->value.has_value()) {
+        auto func_call = init->value.value()->as_func_call();
+        if(func_call) {
+            auto return_type = func_call->create_type();
+            auto linked = return_type->linked_node();
+            if(linked) destruct(init->identifier, linked);
+        }
+        auto struct_val = init->value.value()->as_struct();
+        if(struct_val) {
+            auto linked = struct_val->definition;
+            if(linked) destruct(init->identifier, linked);
+        }
+    } else {
+        auto linked = init->type.value()->linked_node();
+        if(linked) destruct(init->identifier, linked);
+    }
+}
 
 std::string func_type_alias(ToCAstVisitor* visitor, FunctionType* type) {
     std::string alias = "__chx_functype_";
@@ -1018,6 +1075,9 @@ void ToCAstVisitor::visit(Scope *scope) {
         new_line_and_indent();
         node->accept(this);
     }
+    for(auto& node : scope->nodes) {
+        node->accept(destructor.get());
+    }
     top_level_node = prev;
 }
 
@@ -1079,22 +1139,22 @@ void func_call(ToCAstVisitor* visitor, FunctionType* type, std::unique_ptr<Value
     }
 }
 
-void func_container_name(ToCAstVisitor* visitor, ASTNode* node, Value* ref) {
-    if(ref->linked_node()->as_extension_func()) {
+void func_container_name(ToCAstVisitor* visitor, ASTNode* parent_node, ASTNode* linked_node) {
+    if(linked_node->as_extension_func()) {
         return;
     }
-    if(node->as_interface_def()) {
-        visitor->write(node->as_interface_def()->name);
-    } else if(node->as_struct_def()) {
-        if(node->as_struct_def()->overrides.has_value()) {
-            auto interface = node->as_struct_def()->overrides.value()->linked_node()->as_interface_def();
-            if(interface->functions.find(ref->linked_node()->as_function()->name) != interface->functions.end()) {
+    if(parent_node->as_interface_def()) {
+        visitor->write(parent_node->as_interface_def()->name);
+    } else if(parent_node->as_struct_def()) {
+        if(parent_node->as_struct_def()->overrides.has_value()) {
+            auto interface = parent_node->as_struct_def()->overrides.value()->linked_node()->as_interface_def();
+            if(interface->functions.find(linked_node->as_function()->name) != interface->functions.end()) {
                 visitor->write(interface->name);
             } else {
-                visitor->write(node->as_struct_def()->name);
+                visitor->write(parent_node->as_struct_def()->name);
             }
         } else {
-            visitor->write(node->as_struct_def()->name);
+            visitor->write(parent_node->as_struct_def()->name);
         }
     }
 }
@@ -1122,7 +1182,7 @@ void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& valu
         visitor->write("__chem_x_1__; ");
         if(grandpa && !is_lambda) {
             auto grandpaType = grandpa->create_type();
-            func_container_name(visitor, grandpaType->linked_node(), parent);
+            func_container_name(visitor, grandpaType->linked_node(), parent->linked_node());
             parent->accept(visitor); // function name
             visitor->write('(');
             if(write_self_arg_bool(visitor, func_type, grandpa, last)) {
@@ -1150,7 +1210,7 @@ void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& valu
         auto grandpaType = grandpa->create_type();
         if(grandpa->linked_node() && (grandpa->linked_node()->as_interface_def() || grandpa->linked_node()->as_struct_def())) {
             // direct functions on interfaces and structs
-            func_container_name(visitor, grandpa->linked_node(), parent);
+            func_container_name(visitor, grandpa->linked_node(), parent->linked_node());
             parent->accept(visitor);
             func_call(visitor, last->as_func_call());
         } else if(grandpa->value_type() == ValueType::Struct && grandpaType->kind() == BaseTypeKind::Referenced) {
@@ -1158,7 +1218,7 @@ void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& valu
                 goto normal_functions;
             }
             // functions on struct values
-            func_container_name(visitor, grandpaType->linked_node(), parent);
+            func_container_name(visitor, grandpaType->linked_node(), parent->linked_node());
             parent->accept(visitor); // function name
             visitor->write('(');
             write_self_arg(visitor, func_type, grandpa, last);

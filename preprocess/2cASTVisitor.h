@@ -9,6 +9,7 @@
 
 class CTopLevelDeclarationVisitor;
 class CValueDeclarationVisitor;
+class CDestructionVisitor;
 
 class ToCAstVisitor : public Visitor, public ASTDiagnoser {
 public:
@@ -42,6 +43,11 @@ public:
      * to file level scope
      */
     std::unique_ptr<CValueDeclarationVisitor> declarer;
+
+    /**
+     * this destruction visitor, calls destructors on things when it's required
+     */
+    std::unique_ptr<CDestructionVisitor> destructor;
 
     /**
      * a reference to the stream it's going to write results to

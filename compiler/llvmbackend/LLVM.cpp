@@ -297,6 +297,14 @@ llvm::Value *AddrOfValue::llvm_value(Codegen &gen) {
     return value->llvm_pointer(gen);
 }
 
+bool AddrOfValue::add_member_index(Codegen &gen, Value *parent, std::vector<llvm::Value *> &indexes) {
+    return value->add_member_index(gen, parent, indexes);
+}
+
+bool AddrOfValue::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
+    return value->add_child_index(gen, indexes, name);
+}
+
 void AccessChain::code_gen(Codegen &gen) {
     llvm_value(gen);
 }

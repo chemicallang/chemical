@@ -19,7 +19,7 @@ func create_destructible(count : int*, data : int) : Destructible {
     return Destructible {
        data : data,
        count : count,
-       lamb : [](count : int*) => {
+       lamb : (count : int*) => {
            *count = *count + 1;
        }
     }
@@ -28,7 +28,7 @@ func create_destructible(count : int*, data : int) : Destructible {
 func test_destruction_at_early_return(count : int*, early_return : bool) {
     var d = Destructible {
        count : count,
-       lamb : [](count : int*) => {
+       lamb : (count : int*) => {
            *count = *count + 1;
        }
     }
@@ -37,7 +37,7 @@ func test_destruction_at_early_return(count : int*, early_return : bool) {
     }
     var z = Destructible {
        count : count,
-       lamb : [](count : int*) => {
+       lamb : (count : int*) => {
            *count = *count + 1;
        }
     }
@@ -46,14 +46,14 @@ func test_destruction_at_early_return(count : int*, early_return : bool) {
 func test_conditional_destruction(count : int*, condition : bool) {
     var d = Destructible {
        count : count,
-       lamb : [](count : int*) => {
+       lamb : (count : int*) => {
            *count = *count + 1;
        }
     }
     if(condition) {
         var z = Destructible {
            count : count,
-           lamb : [](count : int*) => {
+           lamb : (count : int*) => {
                *count = *count + 1;
            }
         }
@@ -69,7 +69,7 @@ func test_destructors() {
             var d = Destructible {
                 data : 892,
                 count : &count,
-                lamb : [](count : int*) => {
+                lamb : (count : int*) => {
                     *count = *count + 1;
                 }
             }
@@ -93,7 +93,7 @@ func test_destructors() {
             var d : Destructible;
             d.data = 426
             d.count = &count;
-            d.lamb = [](count : int*) => {
+            d.lamb = (count : int*) => {
                 *count = *count + 1;
             }
             data_usable = d.data == 426;
@@ -125,4 +125,37 @@ func test_destructors() {
         var data = create_destructible(&count, 858).data;
         return count == 1 && data == 858;
     })
+    test("test destructor is not called on pointer types", () => {
+        var count = 0;
+        if(count == 0) {
+            var d : Destructible
+            d.count = &count;
+            d.lamb = (count : int*) => {
+                *count = *count + 1;
+            }
+            var x : Destructible*
+            x = &d;
+            var y = &d
+        }
+        return count == 1;
+    })
+    /**
+    test("test array values are destructed", () => {
+        var count = 0;
+        if(count == 0) {
+            var arr = {}Destructible(10);
+            var i = 0;
+            var ptr : Destructible*;
+            while(i < 10) {
+                ptr = &arr[i];
+                ptr.count = &count;
+                ptr.lamb = (count : int*) => {
+                    *count = *count + 1;
+                }
+                i++;
+            }
+        }
+        return count == 10;
+    })
+    **/
 }

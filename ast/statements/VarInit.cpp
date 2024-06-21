@@ -29,7 +29,7 @@ void VarInitStatement::code_gen_destruct(Codegen &gen, Value* returnValue) {
     if(returnValue && returnValue->linked_node() == this) return;
     if(value.has_value()) {
         value.value()->llvm_destruct(gen, llvm_ptr);
-    } else if(type.value()->linked_node()){
+    } else if(type.value()->kind() != BaseTypeKind::Pointer && type.value()->linked_node()){
         type.value()->linked_node()->llvm_destruct(gen, llvm_ptr);
     }
 }

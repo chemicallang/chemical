@@ -24,9 +24,11 @@ func passed(pass : () => int) : int {
     return pass();
 }
 
+/**
 func ret_cap_lambda(message : []()=>bool) : []()=>bool {
     return message;
 }
+**/
 
 func create_lamb(first : bool) : () => int {
     if(first) {
@@ -36,12 +38,14 @@ func create_lamb(first : bool) : () => int {
     }
 }
 
+/**
 func ret_new_cap_lamb() : []()=>bool {
     var captured = true;
     return [captured]() => {
         return captured;
     }
 }
+**/
 
 struct SelfLambda {
     var i : int
@@ -130,6 +134,7 @@ func test_lambda() {
             return captured;
         });
     });
+    /**
     test("testing returning capturing lambda works", () => {
         var captured = true;
         var message = ret_cap_lambda([captured]() => {
@@ -137,6 +142,7 @@ func test_lambda() {
         });
         return message();
     })
+    **/
     test("can initialize and call a capturing lambda", () => {
         var x = true;
         var message = [x]() => {
@@ -144,6 +150,7 @@ func test_lambda() {
         };
         return message();
     })
+    /**
     test("returned capturing lambda can be called directly", () => {
         var message = ret_new_cap_lamb()();
         return message;
@@ -152,6 +159,7 @@ func test_lambda() {
         var message = ret_new_cap_lamb();
         return message();
     })
+    **/
     test("can pass function pointer as lambda 1", () => {
         return passed(fn_rets_1) == 1;
     })

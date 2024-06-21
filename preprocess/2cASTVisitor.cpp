@@ -726,6 +726,10 @@ void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaratio
 }
 
 void CTopLevelDeclarationVisitor::visit(FunctionDeclaration *decl) {
+    // TODO we will fix capturing lambda types when introducing generics and unions
+//    if(decl->returnType->function_type() && decl->returnType->function_type()->isCapturing) {
+//        visitor->error("Function name " + decl->name + " returns a capturing lambda, which is not supported");
+//    }
     declare_by_name(this, decl, decl->name);
 }
 

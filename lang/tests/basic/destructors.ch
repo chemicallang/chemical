@@ -4,11 +4,13 @@ struct Destructible {
 
     var data : int
 
-    var lamb : []() => void;
+    var count : int*
+
+    var lamb : (count : int*) => void;
 
     @destructor
     func delete(&self) {
-        self.lamb();
+        self.lamb(self.count);
     }
 
 }
@@ -16,7 +18,8 @@ struct Destructible {
 func create_destructible(count : int*, data : int) : Destructible {
     return Destructible {
        data : data,
-       lamb : [count]() => {
+       count : count,
+       lamb : [](count : int*) => {
            *count = *count + 1;
        }
     }
@@ -24,7 +27,8 @@ func create_destructible(count : int*, data : int) : Destructible {
 
 func test_destruction_at_early_return(count : int*, early_return : bool) {
     var d = Destructible {
-       lamb : [count]() => {
+       count : count,
+       lamb : [](count : int*) => {
            *count = *count + 1;
        }
     }
@@ -32,7 +36,8 @@ func test_destruction_at_early_return(count : int*, early_return : bool) {
         return;
     }
     var z = Destructible {
-       lamb : [count]() => {
+       count : count,
+       lamb : [](count : int*) => {
            *count = *count + 1;
        }
     }
@@ -40,13 +45,15 @@ func test_destruction_at_early_return(count : int*, early_return : bool) {
 
 func test_conditional_destruction(count : int*, condition : bool) {
     var d = Destructible {
-       lamb : [count]() => {
+       count : count,
+       lamb : [](count : int*) => {
            *count = *count + 1;
        }
     }
     if(condition) {
         var z = Destructible {
-           lamb : [count]() => {
+           count : count,
+           lamb : [](count : int*) => {
                *count = *count + 1;
            }
         }
@@ -61,7 +68,8 @@ func test_destructors() {
         if(count == 0){
             var d = Destructible {
                 data : 892,
-                lamb : [&count]() => {
+                count : &count,
+                lamb : [](count : int*) => {
                     *count = *count + 1;
                 }
             }
@@ -84,7 +92,8 @@ func test_destructors() {
         if(count == 0){
             var d : Destructible;
             d.data = 426
-            d.lamb = [&count]() => {
+            d.count = &count;
+            d.lamb = [](count : int*) => {
                 *count = *count + 1;
             }
             data_usable = d.data == 426;

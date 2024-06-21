@@ -98,6 +98,8 @@ bool translate(
 
     processor.end();
 
+    visitor.print_errors();
+
     return compile_result;
 
 }

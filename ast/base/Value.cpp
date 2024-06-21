@@ -108,7 +108,7 @@ llvm::Value* Value::access_chain_pointer(Codegen &gen, std::vector<std::unique_p
     }
 
     while (i <= until) {
-        if(values[i]->type_kind() == BaseTypeKind::Pointer) {
+        if(i + 1 <= until && values[i]->type_kind() == BaseTypeKind::Pointer) {
             llvm::Value* gep;
             if(idxList.empty()) {
                 gep = pointer;

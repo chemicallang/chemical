@@ -34,6 +34,37 @@ llvm::Value *ArrayValue::llvm_value(Codegen &gen) {
     throw std::runtime_error("cannot allocate an array without an identifier");
 }
 
+void ArrayValue::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
+    auto elem_type = element_type();
+    if(!elem_type->linked_node() || !elem_type->linked_node()->as_struct_def()) {
+        return;
+    }
+    auto structDef = elem_type->linked_node()->as_struct_def();
+    auto destructorFunc = structDef->destructor_func();
+    if(!destructorFunc) {
+        return;
+    }
+    auto firstEle = gen.builder->CreateGEP(llvm_type(gen), allocaInst, { gen.builder->getInt32(0), gen.builder->getInt32(0) }, "", gen.inbounds);
+    auto lastEle = gen.builder->CreateGEP(llvm_elem_type(gen), firstEle, { gen.builder->getInt32(array_size()) }, "", gen.inbounds);
+    auto current_block = gen.builder->GetInsertBlock();
+    auto body_block = llvm::BasicBlock::Create(*gen.ctx, "", gen.current_function);
+    gen.CreateBr(body_block);
+    gen.SetInsertPoint(body_block);
+    auto PHI = gen.builder->CreatePHI(gen.builder->getPtrTy(), 2);
+    PHI->addIncoming(lastEle, current_block);
+    auto structPtr = gen.builder->CreateGEP(llvm_elem_type(gen), PHI, { gen.builder->getInt32(-1) }, "", gen.inbounds);
+    PHI->addIncoming(structPtr, body_block);
+    std::vector<llvm::Value*> args;
+    if(destructorFunc->has_self_param()) {
+        args.emplace_back(structPtr);
+    }
+    gen.builder->CreateCall(destructorFunc->llvm_func_type(gen), destructorFunc->funcCallee, args, "");
+    auto result = gen.builder->CreateICmpEQ(structPtr, firstEle);
+    auto end_block = llvm::BasicBlock::Create(*gen.ctx, "", gen.current_function);
+    gen.CreateCondBr(result, end_block, body_block);
+    gen.SetInsertPoint(end_block);
+}
+
 unsigned int ArrayValue::store_in_array(
         Codegen &gen,
         ArrayValue *parent,
@@ -106,6 +137,9 @@ ASTNode *ArrayValue::linked_node() {
 void ArrayValue::link(SymbolResolver &linker) {
     for(auto& value : values) {
         value->link(linker);
+    }
+    if(elemType.has_value()) {
+        elemType.value()->link(linker);
     }
 }
 

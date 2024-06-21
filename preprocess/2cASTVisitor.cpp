@@ -471,9 +471,22 @@ public:
 
     using SubVisitor::SubVisitor;
 
+    bool destroy_current_scope = true;
+
+    bool new_line_before = true;
+
+    std::vector<ASTNode*> destruct_nodes;
+
+    /**
+     * the current return value for current scope, for which nodes are being destructed
+     */
+    Value* current_return = nullptr;
+
     void destruct(const std::string& self_name, ASTNode* linked, FunctionDeclaration* destructor);
 
     void destruct(const std::string& self_name, ASTNode* linked);
+
+    void destruct(const std::string& self_name, FunctionCall* call);
 
     void visit(VarInitStatement *init) override;
 
@@ -482,7 +495,9 @@ public:
 void func_container_name(ToCAstVisitor* visitor, ASTNode* parent_node, ASTNode* linked_node);
 
 void CDestructionVisitor::destruct(const std::string& self_name, ASTNode* parent_node, FunctionDeclaration* destructor) {
-    visitor->new_line_and_indent();
+    if(new_line_before) {
+        visitor->new_line_and_indent();
+    }
     func_container_name(visitor, parent_node, destructor);
     visitor->write(destructor->name);
     visitor->write('(');
@@ -492,6 +507,9 @@ void CDestructionVisitor::destruct(const std::string& self_name, ASTNode* parent
     }
     visitor->write(')');
     visitor->write(';');
+    if(!new_line_before) {
+        visitor->new_line_and_indent();
+    }
 }
 
 void CDestructionVisitor::destruct(const std::string& self_name, ASTNode* linked) {
@@ -503,13 +521,25 @@ void CDestructionVisitor::destruct(const std::string& self_name, ASTNode* linked
     }
 }
 
+void CDestructionVisitor::destruct(const std::string& self_name, FunctionCall* call) {
+    auto return_type = call->create_type();
+    auto linked = return_type->linked_node();
+    if(linked) destruct(self_name, linked);
+}
+
 void CDestructionVisitor::visit(VarInitStatement *init) {
+    if(current_return && current_return->linked_node() == init) {
+        return;
+    }
     if(init->value.has_value()) {
-        auto func_call = init->value.value()->as_func_call();
-        if(func_call) {
-            auto return_type = func_call->create_type();
-            auto linked = return_type->linked_node();
-            if(linked) destruct(init->identifier, linked);
+        auto chain = init->value.value()->as_access_chain();
+        if(chain) {
+            if(chain->values.back()->as_func_call()) {
+                destruct(init->identifier, chain->values.back()->as_func_call());
+                return;
+            } else {
+                // TODO
+            }
         }
         auto struct_val = init->value.value()->as_struct();
         if(struct_val) {
@@ -855,6 +885,7 @@ void ToCAstVisitor::write(const std::string& value) {
 void ToCAstVisitor::visit(VarInitStatement *init) {
     if(top_level_node) return;
     var_init(this, init);
+    destructor->destruct_nodes.emplace_back(init);
 }
 
 void ToCAstVisitor::visit(AssignStatement *assign) {
@@ -886,12 +917,23 @@ void struct_initialize_inside_braces(ToCAstVisitor* visitor, StructValue* val) {
 }
 
 void ToCAstVisitor::visit(ReturnStatement *returnStatement) {
+    int i = destructor->destruct_nodes.size() - 1;
+    auto new_line_prev = destructor->new_line_before;
+    destructor->new_line_before = false;
+    while(i >= 0) {
+        destructor->current_return = returnStatement->value.has_value() ? returnStatement->value.value().get() : nullptr;
+        destructor->destruct_nodes[i]->accept(destructor.get());
+        i--;
+    }
+    destructor->new_line_before = new_line_prev;
+    destructor->current_return = nullptr;
+    destructor->destroy_current_scope = false;
     if(returnStatement->value.has_value()) {
         auto val = returnStatement->value.value().get();
         if(val->as_struct()) {
             if(pass_structs_to_initialize) {
                 auto size = val->as_struct()->values.size();
-                unsigned i = 0;
+                i = 0;
                 for(const auto& mem : val->as_struct()->values) {
                     write(struct_passed_param_name);
                     write("->");
@@ -912,7 +954,7 @@ void ToCAstVisitor::visit(ReturnStatement *returnStatement) {
             auto refType = val->create_type();
             auto structType = refType->linked_node()->as_struct_def();
             auto size = structType->variables.size();
-            unsigned i = 0;
+            i = 0;
             for(const auto& mem : structType->variables) {
                 write(struct_passed_param_name);
                 write("->");
@@ -1072,13 +1114,22 @@ void ToCAstVisitor::visit(InterfaceDefinition *def) {
 void ToCAstVisitor::visit(Scope *scope) {
     auto prev = top_level_node;
     top_level_node = false;
+    unsigned begin = destructor->destruct_nodes.size();
     for(auto& node : scope->nodes) {
         new_line_and_indent();
         node->accept(this);
     }
-    for(auto& node : std::ranges::reverse_view(scope->nodes)) {
-        node->accept(destructor.get());
+    if(destructor->destroy_current_scope) {
+        int i = scope->nodes.size() - 1;
+        while (i >= 0) {
+            scope->nodes[i]->accept(destructor.get());
+            i--;
+        }
+    } else {
+        destructor->destroy_current_scope = true;
     }
+    auto itr = destructor->destruct_nodes.begin() + begin;
+    destructor->destruct_nodes.erase(itr, destructor->destruct_nodes.end());
     top_level_node = prev;
 }
 

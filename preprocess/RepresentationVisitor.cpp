@@ -150,32 +150,6 @@ public:
 
 };
 
-class CTopLevelDeclarationVisitor : public Visitor, public SubVisitor {
-public:
-
-    CValueDeclarationVisitor* value_visitor;
-
-    CTopLevelDeclarationVisitor(
-            RepresentationVisitor* visitor,
-            CValueDeclarationVisitor* value_visitor
-    );
-
-};
-
-CTopLevelDeclarationVisitor::CTopLevelDeclarationVisitor(
-        RepresentationVisitor *visitor,
-        CValueDeclarationVisitor *value_visitor
-) : SubVisitor(visitor), value_visitor(value_visitor) {
-
-}
-
-class CValueDeclarationVisitor : public CommonVisitor, public SubVisitor {
-public:
-
-    using SubVisitor::SubVisitor;
-
-};
-
 void RepresentationVisitor::prepare_translate() {
 
 }

@@ -5,6 +5,10 @@ struct TestStruct1 {
     var y : int
 }
 
+struct TestStruct2 {
+    var test : TestStruct1
+}
+
 func test_struct() : TestStruct1 {
     return TestStruct1 {
         x : 100,
@@ -53,5 +57,15 @@ func test_functions() {
     test("test struct member access in chain, extension function return", () => {
         var mem = MemLamb {}
         return mem.ext_func_test().x == 300;
+    })
+    test("supports function calls that return structs inside struct values", () => {
+        var t = TestStruct2 {
+            test : test_struct()
+        }
+        return t.test.x == 100 && t.test.y == 100
+    })
+    test("supports function calls that return structs inside array values", () => {
+        var arr = {test_struct()}TestStruct2(1)
+        return arr[0].x == 100 && arr[0].y == 100
     })
 }

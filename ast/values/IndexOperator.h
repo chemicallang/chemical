@@ -45,7 +45,7 @@ public:
 
     llvm::Value *llvm_pointer(Codegen &gen) override;
 
-    llvm::Value *access_chain_pointer(Codegen &gen, std::vector<std::unique_ptr<Value>> &values, unsigned int until) override;
+    llvm::Value *access_chain_pointer(Codegen &gen, std::vector<std::unique_ptr<Value>> &values, std::vector<std::pair<Value *, llvm::Value *>> &destructibles, unsigned int until) override;
 
     llvm::Value *llvm_value(Codegen &gen) override;
 

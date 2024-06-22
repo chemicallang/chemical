@@ -364,8 +364,20 @@ std::cerr << "child called on base value";
      * by default this just calls default_chain_pointer
      * @param values part of access chain, identifier / function call / index operator
      * @param until the values are considered up until this (exclusive)
+     *
+     * @param destructibles values allocated inside access chain, for example when x.y().z where y returns a struct which has z as a member
+     * y call means -> allocate a struct, and pass pointer to y, after accessing and loading z, destruct struct created by y
+     * to destruct the struct, destructibles vector is used to keep track of values inside this chain that must be destructed after loading
+     * since this just returns a pointer to it, and doesn't load the value, the value must be preserved till loaded and not destructed.
+     * after pointer received by this function call has been loaded, destructibles vector should be destructed in reverse order
+     *
      */
-    virtual llvm::Value* access_chain_pointer(Codegen &gen, std::vector<std::unique_ptr<Value>>& values, unsigned int until);
+    virtual llvm::Value* access_chain_pointer(
+            Codegen &gen,
+            std::vector<std::unique_ptr<Value>>& values,
+            std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
+            unsigned int until
+    );
 
     /**
      * add member index for the given identifier

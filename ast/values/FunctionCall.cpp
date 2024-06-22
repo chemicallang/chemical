@@ -39,7 +39,8 @@ void to_llvm_args(
         if((*chain)[until - 2]->value_type() == ValueType::Pointer) {
             args.emplace_back((*chain)[until - 2]->access_chain_value(gen, *chain, until - 2));
         } else {
-            args.emplace_back((*chain)[until - 2]->access_chain_pointer(gen, *chain, until - 2));
+            std::vector<std::pair<Value*, llvm::Value*>> destructibles;
+            args.emplace_back((*chain)[until - 2]->access_chain_pointer(gen, *chain, destructibles, until - 2));
         }
     }
 

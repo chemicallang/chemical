@@ -278,6 +278,11 @@ void FunctionCall::link(SymbolResolver &linker) {
 //    }
 }
 
+std::unique_ptr<FunctionType> FunctionCall::create_function_type() {
+    auto func_type = parent_val->create_type();
+    return std::unique_ptr<FunctionType>((FunctionType*) func_type.release());
+}
+
 ASTNode *FunctionCall::linked_node() {
     auto func_type = parent_val->create_type();
     return ((FunctionType*) func_type.get())->returnType->linked_node();

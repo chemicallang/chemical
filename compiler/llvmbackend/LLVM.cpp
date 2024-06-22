@@ -40,6 +40,8 @@
 #include "ast/statements/Import.h"
 #include "ast/structures/EnumDeclaration.h"
 #include "ast/statements/ThrowStatement.h"
+#include "ast/values/FunctionCall.h"
+#include "ast/types/FunctionType.h"
 
 // -------------------- Types
 
@@ -337,6 +339,54 @@ llvm::FunctionType *AccessChain::llvm_func_type(Codegen &gen) {
 bool AccessChain::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
     return values[values.size() - 1]->add_child_index(gen, indexes, name);
 }
+
+bool access_chain_store_in_parent(
+    Codegen &gen,
+    AccessChain* chain,
+    Value *parent,
+    llvm::Value *allocated,
+    std::vector<llvm::Value *>& idxList,
+    unsigned int index
+) {
+    auto func_call = chain->values[chain->values.size() - 1]->as_func_call();
+    if(func_call) {
+        auto func_type = func_call->create_function_type();
+        if(func_type->returnType->value_type() == ValueType::Struct) {
+            auto elem_pointer = chain->get_element_pointer(gen, (Value*) parent, allocated, idxList, index);
+            std::vector<llvm::Value *> args;
+            args.emplace_back(elem_pointer);
+            func_call->llvm_chain_value(gen, args, chain->values, chain->values.size() - 1);
+            return true;
+        }
+    }
+    return false;
+}
+
+unsigned int AccessChain::store_in_struct(
+        Codegen &gen,
+        StructValue *parent,
+        llvm::Value *allocated,
+        std::vector<llvm::Value *> idxList,
+        unsigned int index
+) {
+    if(access_chain_store_in_parent(gen, this, (Value*) parent, allocated, idxList, index)) {
+        return index + 1;
+    }
+    return Value::store_in_struct(gen, parent, allocated, idxList, index);
+}
+
+unsigned int AccessChain::store_in_array(
+        Codegen &gen,
+        ArrayValue *parent,
+        llvm::AllocaInst *allocated,
+        std::vector<llvm::Value *> idxList,
+        unsigned int index
+) {
+    if(access_chain_store_in_parent(gen, this, (Value*) parent, allocated, idxList, index)) {
+        return index + 1;
+    }
+    return Value::store_in_array(gen, parent, allocated, idxList, index);
+};
 
 // --------------------------------------- Statements
 

@@ -139,7 +139,6 @@ func test_destructors() {
         }
         return count == 1;
     })
-    /**
     test("test array values are destructed", () => {
         var count = 0;
         if(count == 0) {
@@ -157,5 +156,4 @@ func test_destructors() {
         }
         return count == 10;
     })
-    **/
 }

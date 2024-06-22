@@ -76,6 +76,18 @@ llvm::Value* create_gep(Codegen &gen, Value* parent, llvm::Value* pointer, std::
     }
 }
 
+// stored pointer into a variable, that must be loaded, before using
+bool is_stored_pointer(Value* value) {
+    auto linked = value->linked_node();
+    if(!linked) return false;
+    if(linked->as_struct_member()) {
+        return linked->as_struct_member()->type->kind() == BaseTypeKind::Pointer;
+    } else if(linked->as_var_init()) {
+        return linked->as_var_init()->type_kind() == BaseTypeKind::Pointer;
+    }
+    return false;
+}
+
 llvm::Value* Value::access_chain_pointer(Codegen &gen, std::vector<std::unique_ptr<Value>>& values, unsigned int until) {
 
     if(until == 0) {
@@ -98,6 +110,10 @@ llvm::Value* Value::access_chain_pointer(Codegen &gen, std::vector<std::unique_p
             i = j + 1;
         }
         j++;
+    }
+
+    if(is_stored_pointer(parent) && i <= until) {
+        pointer = gen.builder->CreateLoad(parent->llvm_type(gen), pointer);
     }
 
     std::vector<llvm::Value*> idxList;

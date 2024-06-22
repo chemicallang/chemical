@@ -49,6 +49,8 @@ public:
 
     uint64_t byte_size(bool is64Bit);
 
+    bool requires_destructor();
+
 #ifdef COMPILER_BUILD
 
     std::vector<llvm::Type *> elements_type(Codegen &gen);

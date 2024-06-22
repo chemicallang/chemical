@@ -35,13 +35,13 @@ llvm::AllocaInst* Value::access_chain_allocate(Codegen& gen, std::vector<std::un
 
 llvm::Value* Value::get_element_pointer(
         Codegen& gen,
-        Value* parent,
+        llvm::Type* in_type,
         llvm::Value* ptr,
         std::vector<llvm::Value *>& idxList,
         unsigned int index
 ) {
     idxList.emplace_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), index));
-    return gen.builder->CreateGEP(parent->llvm_type(gen), ptr, idxList, "", gen.inbounds);
+    return gen.builder->CreateGEP(in_type, ptr, idxList, "", gen.inbounds);
 }
 
 unsigned int Value::store_in_struct(
@@ -51,7 +51,7 @@ unsigned int Value::store_in_struct(
         std::vector<llvm::Value *> idxList,
         unsigned int index
 ) {
-    auto elementPtr = get_element_pointer(gen, parent, allocated, idxList, index);
+    auto elementPtr = Value::get_element_pointer(gen, parent->llvm_type(gen), allocated, idxList, index);
     gen.builder->CreateStore(llvm_value(gen), elementPtr);
     return index + 1;
 }
@@ -63,7 +63,7 @@ unsigned int Value::store_in_array(
         std::vector<llvm::Value *> idxList,
         unsigned int index
 ) {
-    auto elementPtr = get_element_pointer(gen, parent, ptr, idxList, index);
+    auto elementPtr = Value::get_element_pointer(gen, parent->llvm_type(gen), ptr, idxList, index);
     gen.builder->CreateStore(llvm_value(gen), elementPtr);
     return index + 1;
 }

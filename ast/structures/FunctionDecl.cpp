@@ -1,5 +1,7 @@
 // Copyright (c) Qinetik 2024.
 
+#include <memory>
+
 #include "FunctionParam.h"
 #include "ast/base/GlobalInterpretScope.h"
 #include "ast/types/FunctionType.h"
@@ -8,6 +10,8 @@
 #include "compiler/SymbolResolver.h"
 #include "CapturedVariable.h"
 #include "ast/types/PointerType.h"
+#include "ast/types/VoidType.h"
+#include "ast/statements/Return.h"
 
 #ifdef COMPILER_BUILD
 
@@ -173,10 +177,57 @@ void FunctionDeclaration::code_gen_override(Codegen& gen, FunctionDeclaration* d
     decl->funcType = funcType;
 }
 
+void FunctionDeclaration::ensure_destructor(StructDefinition* def) {
+    if(!has_self_param() || params.size() > 1 || params.empty()) {
+        params.clear();
+        params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>(def->name, def)), 0, std::nullopt, this));
+    }
+    returnType = std::make_unique<VoidType>();
+    if(!body.has_value()) {
+        std::vector<std::unique_ptr<ASTNode>> nodes;
+        nodes.emplace_back(new ReturnStatement(std::nullopt, this));
+        body.emplace(std::move(nodes));
+    }
+}
+
 void FunctionDeclaration::code_gen_struct(Codegen &gen, StructDefinition* def) {
     create_fn(gen, this, def->name + "." + name);
     gen.current_function = nullptr;
     code_gen(gen);
+}
+
+void FunctionDeclaration::code_gen_destructor(Codegen& gen, StructDefinition* def) {
+    ensure_destructor(def);
+    create_fn(gen, this, def->name + "." + name);
+    auto func = (llvm::Function*) funcCallee;
+    llvm::BasicBlock* cleanup_block = llvm::BasicBlock::Create(*gen.ctx, "", func);
+    gen.redirect_return = cleanup_block;
+    gen.current_function = nullptr;
+    code_gen(gen);
+    gen.CreateBr(cleanup_block); // ensure branch to cleanup block
+    gen.SetInsertPoint(cleanup_block);
+    unsigned index = 0;
+    for(auto& var : def->variables) {
+        if(var.second->value_type() == ValueType::Struct) {
+            auto mem_def = var.second->type->linked_node()->as_struct_def();
+            auto destructor = mem_def->destructor_func();
+            if(!destructor) {
+                index++;
+                continue;
+            }
+            auto arg = func->getArg(0);
+            std::vector<llvm::Value *> idxList{gen.builder->getInt32(0)};
+            std::vector<llvm::Value*> args;
+            auto element_ptr = Value::get_element_pointer(gen, def->llvm_type(gen), arg, idxList, index);
+            if(destructor->has_self_param()) {
+                args.emplace_back(element_ptr);
+            }
+            gen.builder->CreateCall(destructor->llvm_func_type(gen), destructor->funcCallee, args);
+        }
+        index++;
+    }
+    gen.CreateRet(nullptr);
+    gen.redirect_return = nullptr;
 }
 
 std::vector<llvm::Type *> FunctionDeclaration::param_types(Codegen &gen) {

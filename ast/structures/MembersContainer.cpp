@@ -63,10 +63,8 @@ ASTNode *MembersContainer::child(const std::string &varName) {
 }
 
 FunctionDeclaration* MembersContainer::destructor_func() {
-    Annotation* ann;
     for (const auto & function : std::ranges::reverse_view(functions)) {
-        ann = function.second->get_annotation(AnnotationKind::Destructor);
-        if(ann) {
+        if(function.second->has_annotation(AnnotationKind::Destructor)) {
             return function.second.get();
         }
     }

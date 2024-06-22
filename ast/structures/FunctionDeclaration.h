@@ -39,6 +39,8 @@ public:
 
     void accept(Visitor *visitor) override;
 
+    void ensure_destructor(StructDefinition* def);
+
 #ifdef COMPILER_BUILD
 
     llvm::Function *llvm_func();
@@ -62,6 +64,11 @@ public:
      * called by interface when the function is inside a interface
      */
     void code_gen_interface(Codegen &gen, InterfaceDefinition* def);
+
+    /**
+     * codegen destructor
+     */
+    void code_gen_destructor(Codegen& gen, StructDefinition* def);
 
     /**
      * when normal functions occur in file, this function is called

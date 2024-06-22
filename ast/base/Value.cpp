@@ -8,6 +8,7 @@
 #include "ast/values/UIntValue.h"
 #include "ast/values/AccessChain.h"
 #include "ast/types/ArrayType.h"
+#include <ranges>
 
 #ifdef COMPILER_BUILD
 
@@ -59,7 +60,12 @@ unsigned int Value::store_in_array(
 }
 
 llvm::Value* Value::access_chain_value(Codegen &gen, std::vector<std::unique_ptr<Value>>& values, unsigned int until) {
-    return gen.builder->CreateLoad(values[until]->llvm_type(gen), access_chain_pointer(gen, values, until), "acc");
+    std::vector<std::pair<Value*, llvm::Value*>> destructibles;
+    auto loaded = gen.builder->CreateLoad(values[until]->llvm_type(gen), access_chain_pointer(gen, values, destructibles, until), "acc");
+    for(auto& val : std::ranges::reverse_view(destructibles)) {
+        val.first->llvm_destruct(gen, val.second);
+    }
+    return loaded;
 }
 
 llvm::Value* create_gep(Codegen &gen, Value* parent, llvm::Value* pointer, std::vector<llvm::Value*>& idxList) {
@@ -88,12 +94,15 @@ bool is_stored_pointer(Value* value) {
     return false;
 }
 
-llvm::Value* Value::access_chain_pointer(Codegen &gen, std::vector<std::unique_ptr<Value>>& values, unsigned int until) {
+llvm::Value* Value::access_chain_pointer(
+        Codegen &gen,
+        std::vector<std::unique_ptr<Value>>& values,
+        std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
+        unsigned int until
+) {
 
     if(until == 0) {
         return values[0]->llvm_pointer(gen);
-    } else if(until < 0) {
-        gen.error("access_chain_pointer cannot retrieve a negative index pointer");
     }
 
     Value* parent = values[0].get();
@@ -104,8 +113,9 @@ llvm::Value* Value::access_chain_pointer(Codegen &gen, std::vector<std::unique_p
     while(j <= until) {
         if(values[j]->as_func_call()) {
             pointer = values[j]->access_chain_allocate(gen, values, j);
-            if(j + 1 < values.size()) {
-                parent = values[j].get();
+            parent = values[j].get();
+            if(j + 1 <= until) {
+                destructibles.emplace_back(parent, pointer);
             }
             i = j + 1;
         }

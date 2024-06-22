@@ -125,6 +125,12 @@ func test_destructors() {
         var data = create_destructible(&count, 858).data;
         return count == 1 && data == 858;
     })
+    test("test destructor is called when access chain is inside a function", () => {
+        var count = 0;
+        var get_int = (thing : int) => thing;
+        var data = get_int(create_destructible(&count, 363).data);
+        return count == 1 && data == 363;
+    })
     test("test destructor is not called on pointer types", () => {
         var count = 0;
         if(count == 0) {

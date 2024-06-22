@@ -272,6 +272,19 @@ std::cerr << "child called on base value";
     );
 
     /**
+     * It get's the element pointer in the allocated parent value
+     * the parent can be of type struct or array, so yeah, It allows us to
+     * get an index for element of an array or struct, so we can load it, or store in it
+     */
+    llvm::Value* get_element_pointer(
+            Codegen& gen,
+            Value* parent,
+            llvm::Value* ptr,
+            std::vector<llvm::Value *>& idxList,
+            unsigned int index
+    );
+
+    /**
      * store this value in the allocated array
      * this method is same as above store_in_struct
      *
@@ -327,15 +340,6 @@ std::cerr << "child called on base value";
      * if this class defines specific behavior for return, it should override this method
      */
     virtual llvm::Value* llvm_ret_value(Codegen& gen, ReturnStatement* returnStmt) {
-        return llvm_value(gen);
-    }
-
-    /**
-     * called by store in struct, to store this value into a struct member field in a struct
-     * by default, default llvm_value is stored, however capturing lambda function packs itself into a fat pointer
-     * before storage, so data for captured lambda can easily be sent to lambda function
-     */
-    virtual llvm::Value* llvm_struct_mem_value(Codegen& gen) {
         return llvm_value(gen);
     }
 

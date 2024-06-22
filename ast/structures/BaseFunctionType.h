@@ -69,4 +69,9 @@ public:
      */
     bool equal(BaseFunctionType *other) const;
 
+    /**
+     * virtual destructor
+     */
+    virtual ~BaseFunctionType() = default;
+
 };

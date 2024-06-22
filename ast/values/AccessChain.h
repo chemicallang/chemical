@@ -58,6 +58,22 @@ public:
 
     bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
 
+    unsigned int store_in_struct(
+            Codegen &gen,
+            StructValue *parent,
+            llvm::Value *allocated,
+            std::vector<llvm::Value *> idxList,
+            unsigned int index
+    ) override;
+
+    unsigned int store_in_array(
+            Codegen &gen,
+            ArrayValue *parent,
+            llvm::AllocaInst *ptr,
+            std::vector<llvm::Value *> idxList,
+            unsigned int index
+    ) override;
+
 #endif
 
     AccessChain *as_access_chain() override {

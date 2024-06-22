@@ -15,6 +15,10 @@ struct Destructible {
 
 }
 
+struct Holder1 {
+    var thing : Destructible
+}
+
 func create_destructible(count : int*, data : int) : Destructible {
     return Destructible {
        data : data,
@@ -161,5 +165,14 @@ func test_destructors() {
             }
         }
         return count == 10;
+    })
+    test("test that destructible struct present inside struct values is destructed", () => {
+        var count = 0
+        if(count == 0) {
+            var holder = Holder1 {
+                thing : create_destructible(&count, 332)
+            }
+        }
+        return count == 1
     })
 }

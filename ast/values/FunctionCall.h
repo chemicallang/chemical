@@ -28,6 +28,11 @@ public:
 
     void link(SymbolResolver &linker) override;
 
+    /**
+     * provides the bae function type to which call is being made
+     */
+    std::unique_ptr<FunctionType> create_function_type();
+
     FunctionCall *as_func_call() override;
 
     ASTNode *linked_node() override;

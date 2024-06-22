@@ -352,7 +352,7 @@ bool access_chain_store_in_parent(
     if(func_call) {
         auto func_type = func_call->create_function_type();
         if(func_type->returnType->value_type() == ValueType::Struct) {
-            auto elem_pointer = chain->get_element_pointer(gen, (Value*) parent, allocated, idxList, index);
+            auto elem_pointer = Value::get_element_pointer(gen, parent->llvm_type(gen), allocated, idxList, index);
             std::vector<llvm::Value *> args;
             args.emplace_back(elem_pointer);
             func_call->llvm_chain_value(gen, args, chain->values, chain->values.size() - 1);
@@ -411,7 +411,11 @@ void ReturnStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
             gen.CreateRet(value.value()->llvm_ret_value(gen, this));
         }
     } else {
-        gen.CreateRet(nullptr);
+        if(gen.redirect_return) {
+            gen.CreateBr(gen.redirect_return);
+        } else {
+            gen.CreateRet(nullptr);
+        }
     }
 }
 

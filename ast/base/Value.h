@@ -276,9 +276,9 @@ std::cerr << "child called on base value";
      * the parent can be of type struct or array, so yeah, It allows us to
      * get an index for element of an array or struct, so we can load it, or store in it
      */
-    llvm::Value* get_element_pointer(
+    static llvm::Value* get_element_pointer(
             Codegen& gen,
-            Value* parent,
+            llvm::Type* in_type,
             llvm::Value* ptr,
             std::vector<llvm::Value *>& idxList,
             unsigned int index

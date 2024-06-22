@@ -7,6 +7,10 @@
 #include "ast/types/StructType.h"
 #include "compiler/SymbolResolver.h"
 #include "InterfaceDefinition.h"
+#include "ast/structures/FunctionDeclaration.h"
+#include "ast/structures/FunctionParam.h"
+#include "ast/types/VoidType.h"
+#include "ast/types/PointerType.h"
 
 #ifdef COMPILER_BUILD
 
@@ -35,7 +39,12 @@ void StructDefinition::code_gen(Codegen &gen) {
         ref = &overridden->second;
         interface = (InterfaceDefinition *) overrides.value()->linked_node();
     }
+    bool has_destructor = false;
     for (auto &function: functions) {
+        if(function.second->has_annotation(AnnotationKind::Destructor)) {
+            function.second->code_gen_destructor(gen, this);
+            has_destructor = true;
+        }
         if (overrides.has_value()) {
             auto overridden = interface->child(function.second->name);
             if (overridden) {
@@ -60,6 +69,12 @@ void StructDefinition::code_gen(Codegen &gen) {
             }
         }
         function.second->code_gen_struct(gen, this);
+    }
+    if(!has_destructor && requires_destructor()) {
+        auto decl = new FunctionDeclaration("delete", {}, std::make_unique<VoidType>(), false, std::nullopt);
+        decl->annotations.emplace_back(AnnotationKind::Destructor);
+        functions["delete"] = std::unique_ptr<FunctionDeclaration>(decl);
+        decl->code_gen_destructor(gen, this);
     }
 }
 
@@ -150,6 +165,17 @@ StructDefinition::StructDefinition(
     } else {
         this->overrides = std::nullopt;
     }
+}
+
+bool StructDefinition::requires_destructor() {
+    auto destructor = destructor_func();
+    if(destructor) return true;
+    for(const auto& var : variables) {
+        if(var.second->type->value_type() == ValueType::Struct && var.second->type->linked_node()->as_struct_def()->requires_destructor()) {
+            return true;
+        }
+    }
+    return false;
 }
 
 uint64_t StructDefinition::byte_size(bool is64Bit) {

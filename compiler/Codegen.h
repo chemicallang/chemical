@@ -355,6 +355,13 @@ public:
     llvm::BasicBlock *current_loop_continue = nullptr;
 
     /**
+     * When given, return's are shifted to this block
+     * So when a return statement is detected a branch instruction is made to this block
+     * The return must be void for this to work
+     */
+    llvm::BasicBlock *redirect_return = nullptr;
+
+    /**
      * LLVM context that holds modules
      */
     std::unique_ptr<llvm::LLVMContext> ctx;

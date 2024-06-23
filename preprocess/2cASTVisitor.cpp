@@ -983,7 +983,13 @@ void ToCAstVisitor::visit(ReturnStatement *returnStatement) {
         }
         write(';');
     } else {
-        write("return;");
+        if(return_redirect_block.empty()) {
+            write("return;");
+        } else {
+            write("goto ");
+            write(return_redirect_block);
+            write(';');
+        }
     }
 }
 
@@ -1073,7 +1079,45 @@ void contained_func_decl(ToCAstVisitor* visitor, FunctionDeclaration* decl, cons
         visitor->write(self_pointer_name);
         visitor->write(';');
     }
+    auto is_destructor = decl->has_annotation(AnnotationKind::Destructor);
+    std::string cleanup_block_name;
+    if(is_destructor) {
+        cleanup_block_name = "__chx__dstctr_clnup_blk__";
+        visitor->return_redirect_block = cleanup_block_name;
+    }
     decl->body.value().accept(visitor);
+    if(is_destructor) {
+        visitor->new_line_and_indent();
+        visitor->write(cleanup_block_name);
+        visitor->write(":{");
+        unsigned index = 0;
+        visitor->indentation_level++;
+        for(auto& var : def->variables) {
+            if(var.second->value_type() == ValueType::Struct) {
+                auto mem_def = var.second->type->linked_node()->as_struct_def();
+                auto destructor = mem_def->destructor_func();
+                if(!destructor) {
+                    index++;
+                    continue;
+                }
+                visitor->new_line_and_indent();
+                func_container_name(visitor, mem_def, destructor);
+                visitor->write(destructor->name);
+                visitor->write('(');
+                if(destructor->has_self_param()) {
+                    visitor->write("&self->");
+                    visitor->write(var.second->name);
+                }
+                visitor->write(')');
+                visitor->write(';');
+            }
+            index++;
+        }
+        visitor->indentation_level--;
+        visitor->new_line_and_indent();
+        visitor->write("}");
+        visitor->return_redirect_block = "";
+    }
     visitor->indentation_level-=1;
     visitor->new_line_and_indent();
     visitor->write('}');

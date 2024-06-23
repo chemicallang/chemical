@@ -565,8 +565,10 @@ void CDestructionVisitor::visit(VarInitStatement *init) {
             if(linked) destruct(init->identifier, linked);
         }
     } else {
-        auto linked = init->type.value()->linked_node();
-        if(linked) destruct(init->identifier, linked);
+        if(init->type.value()->value_type() == ValueType::Struct) {
+            auto linked = init->type.value()->linked_node();
+            if (linked) destruct(init->identifier, linked);
+        }
     }
 }
 
@@ -1586,6 +1588,13 @@ void ToCAstVisitor::visit(StructValue *val) {
     auto prev = nested_value;
     nested_value = true;
     for(auto& value : val->values) {
+//        if(value.second->as_access_chain()) {
+//            auto chain = value.second->as_access_chain();
+//            auto call = chain->values.back()->as_func_call();
+//            if(call && call->create_type()->value_type() == ValueType::Struct) {
+//                continue;
+//            }
+//        }
         write('.');
         write(value.first);
         write(" = ");

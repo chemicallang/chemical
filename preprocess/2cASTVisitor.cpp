@@ -790,6 +790,10 @@ void CTopLevelDeclarationVisitor::visit(StructDefinition *def) {
     visitor->indentation_level-=1;
     visitor->new_line_and_indent();
     write("};");
+    if(def->requires_destructor() && def->destructor_func() == nullptr) {
+        auto decl = def->create_destructor();
+        decl->ensure_destructor(def);
+    }
     InterfaceDefinition* overridden = def->overrides.has_value() ? def->overrides.value()->linked->as_interface_def() : nullptr;
     for(auto& func : def->functions) {
         if(!overridden || overridden->functions.find(func.second->name) == overridden->functions.end()) {

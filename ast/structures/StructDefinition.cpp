@@ -71,9 +71,7 @@ void StructDefinition::code_gen(Codegen &gen) {
         function.second->code_gen_struct(gen, this);
     }
     if(!has_destructor && requires_destructor()) {
-        auto decl = new FunctionDeclaration("delete", {}, std::make_unique<VoidType>(), false, std::nullopt);
-        decl->annotations.emplace_back(AnnotationKind::Destructor);
-        functions["delete"] = std::unique_ptr<FunctionDeclaration>(decl);
+        auto decl = create_destructor();
         decl->code_gen_destructor(gen, this);
     }
 }
@@ -176,6 +174,13 @@ bool StructDefinition::requires_destructor() {
         }
     }
     return false;
+}
+
+FunctionDeclaration* StructDefinition::create_destructor() {
+    auto decl = new FunctionDeclaration("delete", {}, std::make_unique<VoidType>(), false, std::nullopt);
+    decl->annotations.emplace_back(AnnotationKind::Destructor);
+    functions["delete"] = std::unique_ptr<FunctionDeclaration>(decl);
+    return decl;
 }
 
 uint64_t StructDefinition::byte_size(bool is64Bit) {

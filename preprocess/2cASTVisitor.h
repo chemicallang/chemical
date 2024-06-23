@@ -81,6 +81,11 @@ public:
     bool inline_fn_types_in_returns = true;
 
     /**
+     * when not empty, return statement would make a goto to this block instead
+     */
+    std::string return_redirect_block;
+
+    /**
      * when true, output c will be like c++
      * it'll use bool instead of _Bool for example
      */

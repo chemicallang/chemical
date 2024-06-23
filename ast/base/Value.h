@@ -626,6 +626,13 @@ std::cerr << "child called on base value";
     }
 
     /**
+     * a function to be overridden by values that can return array value
+     */
+    virtual ArrayValue* as_array_value() {
+        return nullptr;
+    }
+
+    /**
      * return if value is a function call
      */
     virtual FunctionCall* as_func_call() {

@@ -790,11 +790,14 @@ void CValueDeclarationVisitor::visit(EnumDeclaration *enumDecl) {
 }
 
 void CTopLevelDeclarationVisitor::visit(StructDefinition *def) {
-    // forward declaring struct for function types that take a pointer to it
-    visitor->new_line_and_indent();
-    write("struct ");
-    write(def->name);
-    write(';');
+    // no need to forward declare struct when inlining function types
+    if(!visitor->inline_struct_members_fn_types) {
+        // forward declaring struct for function types that take a pointer to it
+        visitor->new_line_and_indent();
+        write("struct ");
+        write(def->name);
+        write(';');
+    }
     for(auto& mem : def->variables) {
         mem.second->accept(value_visitor);
     }

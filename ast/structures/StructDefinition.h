@@ -51,6 +51,8 @@ public:
 
     bool requires_destructor();
 
+    FunctionDeclaration* create_destructor();
+
 #ifdef COMPILER_BUILD
 
     std::vector<llvm::Type *> elements_type(Codegen &gen);

@@ -177,19 +177,6 @@ void FunctionDeclaration::code_gen_override(Codegen& gen, FunctionDeclaration* d
     decl->funcType = funcType;
 }
 
-void FunctionDeclaration::ensure_destructor(StructDefinition* def) {
-    if(!has_self_param() || params.size() > 1 || params.empty()) {
-        params.clear();
-        params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>(def->name, def)), 0, std::nullopt, this));
-    }
-    returnType = std::make_unique<VoidType>();
-    if(!body.has_value()) {
-        std::vector<std::unique_ptr<ASTNode>> nodes;
-        nodes.emplace_back(new ReturnStatement(std::nullopt, this));
-        body.emplace(std::move(nodes));
-    }
-}
-
 void FunctionDeclaration::code_gen_struct(Codegen &gen, StructDefinition* def) {
     create_fn(gen, this, def->name + "." + name);
     gen.current_function = nullptr;
@@ -352,6 +339,19 @@ FunctionDeclaration::FunctionDeclaration(
         specifier = AccessSpecifier::Public;
     } else {
         specifier = AccessSpecifier::Private;
+    }
+}
+
+void FunctionDeclaration::ensure_destructor(StructDefinition* def) {
+    if(!has_self_param() || params.size() > 1 || params.empty()) {
+        params.clear();
+        params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>(def->name, def)), 0, std::nullopt, this));
+    }
+    returnType = std::make_unique<VoidType>();
+    if(!body.has_value()) {
+        std::vector<std::unique_ptr<ASTNode>> nodes;
+        nodes.emplace_back(new ReturnStatement(std::nullopt, this));
+        body.emplace(std::move(nodes));
     }
 }
 

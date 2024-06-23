@@ -37,6 +37,10 @@ public:
         }
     }
 
+    virtual ArrayValue* as_array_value() {
+        return this;
+    }
+
 #ifdef COMPILER_BUILD
 
     llvm::Value *llvm_pointer(Codegen &gen) override;

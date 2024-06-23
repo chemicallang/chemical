@@ -533,12 +533,30 @@ void CDestructionVisitor::visit(VarInitStatement *init) {
     }
     if(init->value.has_value()) {
         auto chain = init->value.value()->as_access_chain();
-        if(chain) {
-            if(chain->values.back()->as_func_call()) {
-                destruct(init->identifier, chain->values.back()->as_func_call());
-                return;
-            } else {
-                // TODO
+        if(chain && chain->values.back()->as_func_call()) {
+            destruct(init->identifier, chain->values.back()->as_func_call());
+            return;
+        }
+        auto array_val = init->value.value()->as_array_value();
+        if(array_val) {
+            auto elem_type = array_val->element_type();
+            if(elem_type->value_type() == ValueType::Struct) {
+                std::string arr_val_itr_name = "_chx_arr_itr_idx_";
+                visitor->new_line_and_indent();
+                visitor->write("for(int ");
+                visitor->write(arr_val_itr_name);
+                visitor->write(" = ");
+                visitor->write(std::to_string(array_val->array_size() - 1));
+                visitor->write("; ");
+                visitor->write(arr_val_itr_name);
+                visitor->write(" >= 0;");
+                visitor->write(arr_val_itr_name);
+                visitor->write("--){");
+                visitor->indentation_level++;
+                destruct(init->identifier + "[" + arr_val_itr_name + "]", elem_type->linked_node());
+                visitor->indentation_level--;
+                visitor->new_line_and_indent();
+                visitor->write('}');
             }
         }
         auto struct_val = init->value.value()->as_struct();

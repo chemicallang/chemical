@@ -1502,6 +1502,8 @@ void ToCAstVisitor::visit(BoolValue *boolVal) {
 void ToCAstVisitor::visit(ArrayValue *arr) {
     write('{');
     unsigned i = 0;
+    auto prev = nested_value;
+    nested_value = true;
     while(i < arr->values.size()) {
         arr->values[i]->accept(this);
         if(i != arr->values.size() - 1) {
@@ -1509,11 +1511,14 @@ void ToCAstVisitor::visit(ArrayValue *arr) {
         }
         i++;
     }
+    nested_value = prev;
     write('}');
 }
 
 void ToCAstVisitor::visit(StructValue *val) {
     write('{');
+    auto prev = nested_value;
+    nested_value = true;
     for(auto& value : val->values) {
         write('.');
         write(value.first);
@@ -1521,6 +1526,7 @@ void ToCAstVisitor::visit(StructValue *val) {
         value.second->accept(this);
         write(", ");
     }
+    nested_value = prev;
     write('}');
 }
 

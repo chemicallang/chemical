@@ -13,6 +13,8 @@ public:
 
     void visit(FunctionCall *call) override;
 
+    void visit(Expression *expr) override;
+
     void visit(VarInitStatement *init) override;
 
     void visit(ReturnStatement *stmt) override;

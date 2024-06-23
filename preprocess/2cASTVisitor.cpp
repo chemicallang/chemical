@@ -593,9 +593,9 @@ void func_call(ToCAstVisitor* visitor, FunctionCall* call) {
     visitor->write('(');
     func_call_args(visitor, call);
     visitor->write(')');
-    if(!visitor->nested_value) {
-        visitor->write(';');
-    }
+//    if(!visitor->nested_value) {
+//        visitor->write(';');
+//    }
 }
 
 void CValueDeclarationVisitor::visit(VarInitStatement *init) {
@@ -1374,9 +1374,9 @@ void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& valu
         }
         func_call_args(visitor, last);
         visitor->write(')');
-        if(!visitor->nested_value) {
-            visitor->write(';');
-        }
+//        if(!visitor->nested_value) {
+//            visitor->write(';');
+//        }
     };
 }
 

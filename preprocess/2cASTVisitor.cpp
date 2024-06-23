@@ -95,6 +95,8 @@
 ToCAstVisitor::ToCAstVisitor(std::ostream *output, const std::string& path) : output(output), ASTDiagnoser(path) {
     declarer = std::make_unique<CValueDeclarationVisitor>(this);
     tld = std::make_unique<CTopLevelDeclarationVisitor>(this, declarer.get());
+    before_stmt = std::make_unique<CBeforeStmtVisitor>(this);
+    after_stmt = std::make_unique<CAfterStmtVisitor>(this);
     destructor = std::make_unique<CDestructionVisitor>(this);
 }
 
@@ -361,9 +363,6 @@ void var_init(ToCAstVisitor* visitor, VarInitStatement* init) {
         init->type.emplace(init->value.value()->create_type().release());
     }
     value_alloca_store(visitor, init->identifier, init->type.value().get(), init->value);
-    if(init->value.has_value()) {
-        init->type = std::nullopt;
-    }
 }
 
 class SubVisitor {
@@ -402,7 +401,70 @@ public:
         visitor->write(value);
     }
 
+    /**
+     * new line and indent to current indentation level
+     */
+    inline void new_line_and_indent() {
+        visitor->new_line_and_indent();
+    }
+
 };
+
+class CBeforeStmtVisitor : public CommonVisitor, public SubVisitor {
+
+    using SubVisitor::SubVisitor;
+
+    void visit(FunctionCall *call) override;
+
+    void visit(VarInitStatement *init) override;
+
+    void visit(LambdaFunction *func) override {
+        // do nothing
+    }
+
+};
+
+class CAfterStmtVisitor : public CommonVisitor, public SubVisitor {
+
+    using SubVisitor::SubVisitor;
+
+    void visit(AccessChain *chain) override;
+
+    void visit(LambdaFunction *func) override {
+        // do nothing
+    }
+
+};
+
+void CBeforeStmtVisitor::visit(FunctionCall *call) {
+    CommonVisitor::visit(call);
+    auto func_type = call->create_function_type();
+    if(func_type->returnType->value_type() == ValueType::Struct) {
+        auto linked = func_type->returnType->linked_node();
+        if(linked->as_struct_def()) {
+            auto def = linked->as_struct_def();
+            write("struct ");
+            write(def->name);
+            write(' ');
+            auto name = visitor->get_local_temp_var_name();
+            visitor->local_allocated[call] = name;
+            write(name);
+            write(';');
+            new_line_and_indent();
+        }
+    }
+}
+
+void CBeforeStmtVisitor::visit(VarInitStatement *init) {
+    if (!init->type.has_value()) {
+        init->type.emplace(init->value.value()->create_type().release());
+    }
+    if(init->value.has_value() && init->type.value()->value_type() == ValueType::Struct && init->value.value()->value_type() != ValueType::Struct) {
+        // do nothing
+    } else {
+        CommonVisitor::visit(init);
+    }
+}
 
 class CTopLevelDeclarationVisitor : public Visitor, public SubVisitor {
 public:
@@ -495,6 +557,31 @@ public:
     void visit(VarInitStatement *init) override;
 
 };
+
+void CAfterStmtVisitor::visit(AccessChain *chain) {
+    CommonVisitor::visit(chain);
+    int index = chain->values.size() - 2;
+    FunctionCall* call;
+    while(index >= 0) {
+        call = chain->values[index]->as_func_call();
+        if(call) {
+            auto func_type = call->create_function_type();
+            if(func_type->returnType->value_type() == ValueType::Struct) {
+                auto linked = func_type->returnType->linked_node();
+                if(linked->as_struct_def()) {
+                    auto destructor = linked->as_struct_def()->destructor_func();
+                    if(destructor) {
+                        auto destructible = visitor->local_allocated.find(call);
+                        if (destructible != visitor->local_allocated.end()) {
+                            visitor->destructor->destruct(destructible->second, linked, destructor);
+                        }
+                    }
+                }
+            }
+        }
+        index--;
+    }
+}
 
 void func_container_name(ToCAstVisitor* visitor, ASTNode* parent_node, ASTNode* linked_node);
 
@@ -939,6 +1026,13 @@ void ToCAstVisitor::indent() {
     }
 }
 
+std::string ToCAstVisitor::get_local_temp_var_name() {
+    std::string name;
+    name.append("__chx__lv__");
+    name.append(std::to_string(local_temp_var_i++));
+    return name;
+}
+
 void ToCAstVisitor::write(const std::string& value) {
     output->write(value.c_str(), value.size());
 }
@@ -1222,7 +1316,9 @@ void ToCAstVisitor::visit(Scope *scope) {
     unsigned begin = destructor->destruct_nodes.size();
     for(auto& node : scope->nodes) {
         new_line_and_indent();
+        node->accept(before_stmt.get());
         node->accept(this);
+        node->accept(after_stmt.get());
     }
     if(destructor->destroy_current_scope) {
         int i = scope->nodes.size() - 1;
@@ -1334,9 +1430,14 @@ void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& valu
     if(visitor->pass_structs_to_initialize && func_type->returnType->value_type() == ValueType::Struct) {
         // functions that return struct
         visitor->write("({ ");
-        func_type->returnType->accept(visitor);
-        visitor->space();
-        visitor->write("__chem_x_1__; ");
+//        func_type->returnType->accept(visitor);
+//        visitor->space();
+//        visitor->write("__chem_x_1__; ");
+        auto allocated = visitor->local_allocated.find(last);
+        if(allocated == visitor->local_allocated.end()) {
+            visitor->write("[NotFoundAllocated]");
+            return;
+        }
         if(grandpa && !is_lambda) {
             auto grandpaType = grandpa->create_type();
             func_container_name(visitor, grandpaType->linked_node(), parent->linked_node());
@@ -1350,12 +1451,14 @@ void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& valu
             visitor->write('(');
         }
         visitor->write('&');
-        visitor->write("__chem_x_1__");
+        visitor->write(allocated->second);
         if(!last->as_func_call()->values.empty()){
             visitor->write(", ");
         }
         func_call_args(visitor, last->as_func_call());
-        visitor->write("); __chem_x_1__; })");
+        visitor->write("); ");
+        visitor->write(allocated->second);
+        visitor->write("; })");
     } else if(func_type->isCapturing) {
         // function calls to capturing lambdas
         capture_call(visitor, func_type, [&](){

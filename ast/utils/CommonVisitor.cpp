@@ -57,16 +57,16 @@
 //#include "ast/values/DoubleValue.h"
 #include "ast/values/FunctionCall.h"
 #include "ast/values/LambdaFunction.h"
-//#include "ast/values/CastedValue.h"
+#include "ast/values/CastedValue.h"
 #include "ast/values/AccessChain.h"
 #include "ast/values/StructValue.h"
-//#include "ast/values/AddrOfValue.h"
+#include "ast/values/AddrOfValue.h"
 #include "ast/values/ArrayValue.h"
 //#include "ast/values/BigIntValue.h"
 //#include "ast/values/BoolValue.h"
 //#include "ast/values/CharValue.h"
-//#include "ast/values/DereferenceValue.h"
-//#include "ast/values/Expression.h"
+#include "ast/values/DereferenceValue.h"
+#include "ast/values/Expression.h"
 //#include "ast/values/FloatValue.h"
 //#include "ast/values/IndexOperator.h"
 //#include "ast/values/Int128Value.h"
@@ -211,4 +211,9 @@ void CommonVisitor::visit(ArrayValue *arr) {
 
 void CommonVisitor::visit(ArrayType *type) {
     type->elem_type->accept(this);
+}
+
+void CommonVisitor::visit(Expression *expr) {
+    expr->firstValue->accept(this);
+    expr->secondValue->accept(this);
 }

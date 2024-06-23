@@ -6,10 +6,13 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <unordered_map>
 
 class CTopLevelDeclarationVisitor;
 class CValueDeclarationVisitor;
 class CDestructionVisitor;
+class CBeforeStmtVisitor;
+class CAfterStmtVisitor;
 
 class ToCAstVisitor : public Visitor, public ASTDiagnoser {
 public:
@@ -33,6 +36,11 @@ public:
     std::string fat_pointer_type;
 
     /**
+     * allocated values locally, based on Value*
+     */
+    std::unordered_map<Value*, std::string> local_allocated;
+
+    /**
      * top level declarations will be declared by this visitor
      * for example functions and structs, declared so can be used if declared below their usage
      */
@@ -43,6 +51,21 @@ public:
      * to file level scope
      */
     std::unique_ptr<CValueDeclarationVisitor> declarer;
+
+    /**
+     * before writing a statement, it's values can be visited with this visitor
+     * this allows to take out some values, or do preparation, for example to allocate struct values
+     * before passing them to functions for initialization
+     */
+    std::unique_ptr<CBeforeStmtVisitor> before_stmt;
+
+    /**
+     * after writing a statement, the whole usage of the value has been final for example
+     * x.y.z().d here z calls a function that returns a struct which has d as a member
+     * after this statement completes, we've stored d in a variable, the struct returned by z
+     * may have a destructor we may like to call
+     */
+    std::unique_ptr<CAfterStmtVisitor> after_stmt;
 
     /**
      * this destruction visitor, calls destructors on things when it's required
@@ -59,6 +82,11 @@ public:
      * 1 means a single '\t' and so on...
      */
     unsigned int indentation_level = 0;
+
+    /**
+     * local temporary variable counter, we create these variables for allocations
+     */
+    unsigned int local_temp_var_i = 0;
 
     /**
      * if true, function calls won't have a semicolon at the end
@@ -106,6 +134,11 @@ public:
      * indentation of \t or spaces will be added for current indentation level
      */
     void indent();
+
+    /**
+     * get a local variable name, that is unique
+     */
+    std::string get_local_temp_var_name();
 
     /**
      * write a new line and indent to the indentation level

@@ -488,6 +488,10 @@ public:
 
     void destruct(const std::string& self_name, FunctionCall* call);
 
+    void destruct_arr(const std::string& self_name, int array_size, ASTNode* linked, FunctionDeclaration* destructor);
+
+    bool destruct_arr(const std::string& self_name, BaseType* elem_type, int array_size);
+
     void visit(VarInitStatement *init) override;
 
 };
@@ -527,6 +531,41 @@ void CDestructionVisitor::destruct(const std::string& self_name, FunctionCall* c
     if(linked) destruct(self_name, linked);
 }
 
+void CDestructionVisitor::destruct_arr(const std::string &self_name, int array_size, ASTNode* linked, FunctionDeclaration* destructorFunc) {
+    std::string arr_val_itr_name = "_chx_arr_itr_idx_";
+    visitor->new_line_and_indent();
+    visitor->write("for(int ");
+    visitor->write(arr_val_itr_name);
+    visitor->write(" = ");
+    visitor->write(std::to_string(array_size - 1));
+    visitor->write("; ");
+    visitor->write(arr_val_itr_name);
+    visitor->write(" >= 0;");
+    visitor->write(arr_val_itr_name);
+    visitor->write("--){");
+    visitor->indentation_level++;
+    destruct(self_name + "[" + arr_val_itr_name + "]", linked, destructorFunc);
+    visitor->indentation_level--;
+    visitor->new_line_and_indent();
+    visitor->write('}');
+}
+
+bool CDestructionVisitor::destruct_arr(const std::string& self_name, BaseType *elem_type, int array_size) {
+    if(elem_type->value_type() == ValueType::Struct) {
+        auto linked = elem_type->linked_node();
+        FunctionDeclaration* destructorFunc;
+        if(linked->as_struct_def()) {
+            destructorFunc = linked->as_struct_def()->destructor_func();
+            if (!destructorFunc) {
+                return false;
+            }
+            destruct_arr(self_name, array_size, linked, destructorFunc);
+            return true;
+        }
+    }
+    return false;
+}
+
 void CDestructionVisitor::visit(VarInitStatement *init) {
     if(current_return && current_return->linked_node() == init) {
         return;
@@ -540,24 +579,8 @@ void CDestructionVisitor::visit(VarInitStatement *init) {
         auto array_val = init->value.value()->as_array_value();
         if(array_val) {
             auto elem_type = array_val->element_type();
-            if(elem_type->value_type() == ValueType::Struct) {
-                std::string arr_val_itr_name = "_chx_arr_itr_idx_";
-                visitor->new_line_and_indent();
-                visitor->write("for(int ");
-                visitor->write(arr_val_itr_name);
-                visitor->write(" = ");
-                visitor->write(std::to_string(array_val->array_size() - 1));
-                visitor->write("; ");
-                visitor->write(arr_val_itr_name);
-                visitor->write(" >= 0;");
-                visitor->write(arr_val_itr_name);
-                visitor->write("--){");
-                visitor->indentation_level++;
-                destruct(init->identifier + "[" + arr_val_itr_name + "]", elem_type->linked_node());
-                visitor->indentation_level--;
-                visitor->new_line_and_indent();
-                visitor->write('}');
-            }
+            destruct_arr(init->identifier, elem_type.get(), array_val->array_size());
+            return;
         }
         auto struct_val = init->value.value()->as_struct();
         if(struct_val) {
@@ -568,6 +591,13 @@ void CDestructionVisitor::visit(VarInitStatement *init) {
         if(init->type.value()->value_type() == ValueType::Struct) {
             auto linked = init->type.value()->linked_node();
             if (linked) destruct(init->identifier, linked);
+        } else if(init->type.value()->kind() == BaseTypeKind::Array) {
+            auto type = (ArrayType*) init->type.value().get();
+            if(type->array_size != -1) {
+                destruct_arr(init->identifier, type->elem_type.get(), type->array_size);
+            } else {
+                // cannot destruct array type without size
+            }
         }
     }
 }

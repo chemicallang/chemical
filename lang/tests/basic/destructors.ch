@@ -86,7 +86,7 @@ func test_destructors() {
         var data_usable = false;
         if(count == 0){
             var d = create_destructible(&count, 334);
-            data_usable = d.data == 334;
+            data_usable = d.data == 334 && count == 0;
         }
         return count == 1 && data_usable;
     })

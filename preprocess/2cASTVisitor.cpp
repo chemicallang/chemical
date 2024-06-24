@@ -1355,6 +1355,7 @@ void ToCAstVisitor::visit(StructDefinition *def) {
 
 void ToCAstVisitor::visit(Namespace *ns) {
     for(auto& node : ns->nodes) {
+        new_line_and_indent();
         node->accept(this);
     }
 }

@@ -76,24 +76,28 @@ func test_functions() {
         return arr[0].x == 100 && arr[0].y == 100
     })
     test("expression test function is not called in 'or' ||", () => {
+        is_expr_test_func_called = false
         if(true || expr_test_func_call()) {
 
         }
         return is_expr_test_func_called == false;
     })
     test("expression test function is called in 'or' ||", () => {
+        is_expr_test_func_called = false
         if(false || expr_test_func_call()) {
 
         }
         return is_expr_test_func_called == true;
     })
-    test("expression test function is not called in 'and' ||", () => {
+    test("expression test function is not called in 'and' &&", () => {
+        is_expr_test_func_called = false
         if(false && expr_test_func_call()) {
 
         }
         return is_expr_test_func_called == false;
     })
-    test("expression test function is called in 'and' ||", () => {
+    test("expression test function is called in 'and' &&", () => {
+        is_expr_test_func_called = false
         if(true && expr_test_func_call()) {
 
         }

@@ -216,6 +216,8 @@ public:
 
     void visit(ImplDefinition* implDefinition) override;
 
+    void visit(UnionDef *def) override;
+
     void visit(InterfaceDefinition* interfaceDefinition) override;
 
     void visit(Scope* scope) override;

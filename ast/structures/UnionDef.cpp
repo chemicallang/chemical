@@ -47,7 +47,7 @@ llvm::Type *UnionDef::llvm_type(Codegen &gen) {
 
 #endif
 
-UnionDef::UnionDef(std::string name) : name(std::move(name)) {
+UnionDef::UnionDef(std::string name) : ExtendableMembersContainerNode(std::move(name)) {
 
 }
 

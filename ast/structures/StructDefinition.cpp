@@ -151,7 +151,7 @@ BaseTypeKind StructMember::type_kind() const {
 StructDefinition::StructDefinition(
         std::string name,
         const std::optional<std::string> &overrides
-) : name(std::move(name)) {
+) : ExtendableMembersContainerNode(std::move(name)) {
     if (overrides.has_value()) {
         this->overrides = std::make_unique<ReferencedType>(overrides.value());
     } else {

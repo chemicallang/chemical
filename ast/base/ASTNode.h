@@ -234,6 +234,13 @@ public:
     }
 
     /**
+     * return if this is a struct definition
+     */
+    virtual UnionDef *as_union_def() {
+        return nullptr;
+    }
+
+    /**
      * return if this is a var init statement
      */
     virtual VarInitStatement *as_var_init() {

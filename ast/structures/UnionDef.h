@@ -7,13 +7,11 @@
 class UnionDef : public ExtendableMembersContainerNode {
 public:
 
-    std::string name;
-
 #ifdef COMPILER_BUILD
     llvm::StructType* llvm_struct_type = nullptr;
 #endif
 
-    UnionDef(std::string name);
+    explicit UnionDef(std::string name);
 
     void accept(Visitor *visitor) override {
         visitor->visit(this);
@@ -22,6 +20,10 @@ public:
     void declare_top_level(SymbolResolver &linker) override;
 
     void declare_and_link(SymbolResolver &linker) override;
+
+    UnionDef *as_union_def() override {
+        return this;
+    }
 
 #ifdef COMPILER_BUILD
 

@@ -17,15 +17,13 @@
 class InterfaceDefinition : public ExtendableMembersContainerNode {
 public:
 
-    std::string name; ///< The name of the interface.
-
     /**
      * @brief Construct a new InterfaceDeclaration object.
      *
      * @param name The name of the interface.
      * @param methods The methods declared in the interface.
      */
-    InterfaceDefinition(
+    explicit InterfaceDefinition(
             std::string name
     );
 

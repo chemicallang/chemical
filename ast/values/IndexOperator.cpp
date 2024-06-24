@@ -110,17 +110,3 @@ void IndexOperator::find_link_in_parent(Value *parent, SymbolResolver &resolver)
         value->link(resolver);
     }
 }
-
-std::string IndexOperator::representation() const {
-    std::string rep("[");
-    unsigned i = 0;
-    while (i < values.size()) {
-        rep.append(values[i]->representation());
-        if (i < values.size() - 1) {
-            rep.append(1, ',');
-        }
-        i++;
-    }
-    rep.append(1, ']');
-    return rep;
-}

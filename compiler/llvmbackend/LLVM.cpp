@@ -25,6 +25,7 @@
 #include "ast/values/Negative.h"
 #include "ast/values/NotValue.h"
 #include "ast/values/NullValue.h"
+#include "ast/structures/Namespace.h"
 #include "ast/values/StringValue.h"
 #include "ast/values/AddrOfValue.h"
 #include "ast/values/DereferenceValue.h"
@@ -481,4 +482,28 @@ llvm::Value *EnumMember::llvm_load(Codegen &gen) {
 
 llvm::Type *EnumMember::llvm_type(Codegen &gen) {
     return gen.builder->getInt32Ty();
+}
+
+// ------------ Structures
+
+void Namespace::code_gen_declare(Codegen &gen) {
+    for(auto& node : nodes) {
+        node->code_gen_declare(gen);
+    }
+}
+
+void Namespace::code_gen(Codegen &gen) {
+    for(auto& node : nodes) {
+        node->code_gen(gen);
+    }
+}
+
+void Namespace::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
+    for(auto& node : nodes) {
+        node->code_gen(gen, scope, index);
+    }
+}
+
+void Namespace::code_gen_destruct(Codegen &gen, Value *returnValue) {
+    throw std::runtime_error("code_gen_destruct on namespace called");
 }

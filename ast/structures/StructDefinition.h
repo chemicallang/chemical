@@ -18,6 +18,14 @@
 class StructDefinition : public ExtendableMembersContainerNode {
 public:
 
+    InterpretScope *decl_scope;
+    std::string name; ///< The name of the struct.
+    std::optional<std::unique_ptr<ReferencedType>> overrides;
+
+#ifdef COMPILER_BUILD
+    llvm::StructType* llvm_struct_type = nullptr;
+#endif
+
     /**
      * @brief Construct a new StructDeclaration object.
      *
@@ -28,6 +36,10 @@ public:
             std::string name,
             const std::optional<std::string>& overrides
     );
+
+    std::string ns_node_identifier() override {
+        return name;
+    }
 
     void accept(Visitor *visitor) override;
 
@@ -67,13 +79,4 @@ public:
 
 #endif
 
-    std::string representation() const override;
-
-    InterpretScope *decl_scope;
-    std::string name; ///< The name of the struct.
-    std::optional<std::unique_ptr<ReferencedType>> overrides;
-
-#ifdef COMPILER_BUILD
-    llvm::StructType* llvm_struct_type = nullptr;
-#endif
 };

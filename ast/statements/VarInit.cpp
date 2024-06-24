@@ -170,22 +170,3 @@ BaseTypeKind VarInitStatement::type_kind() const {
         return value.value()->type_kind();
     }
 }
-
-std::string VarInitStatement::representation() const {
-    std::string rep;
-    if (is_const) {
-        rep.append("const ");
-    } else {
-        rep.append("var ");
-    }
-    rep.append(identifier);
-    if (type.has_value()) {
-        rep.append(" : ");
-        rep.append(type.value()->representation());
-    }
-    if (value.has_value()) {
-        rep.append(" = ");
-        rep.append(value.value()->representation());
-    }
-    return rep;
-}

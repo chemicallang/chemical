@@ -31,14 +31,4 @@ public:
     }
 #endif
 
-    std::string representation() const override {
-        std::string ret;
-        if (multiline) {
-            ret.append("/*" + comment + "*/");
-        } else {
-            ret.append("//" + comment);
-        }
-        return ret;
-    }
-
 };

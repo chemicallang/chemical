@@ -42,10 +42,6 @@ public:
         return new CharValue(value[i]);
     }
 
-    std::string interpret_representation() const override {
-        return value;
-    }
-
     std::string as_string() override {
         return value;
     }
@@ -66,10 +62,6 @@ public:
 
     std::unique_ptr<BaseType> create_type() const override {
         return std::make_unique<StringType>();
-    }
-
-    std::string representation() const override {
-        return "\"" + value + "\"";
     }
 
     ValueType value_type() const override {

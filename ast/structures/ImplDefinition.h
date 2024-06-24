@@ -60,13 +60,6 @@ public:
         type_check(scope);
     }
 
-    std::string representation() const override {
-        std::string ret("impl " + interface_name + " {\n");
-        ret.append(MembersContainer::representation());
-        ret.append("\n}");
-        return ret;
-    }
-
     InterfaceDefinition* linked;
     StructDefinition* struct_linked;
     std::optional<std::string> struct_name; ///< The name of the struct.

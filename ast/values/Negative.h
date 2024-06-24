@@ -25,8 +25,6 @@ public:
 
     bool primitive() override;
 
-    std::string representation() const override;
-
 #ifdef COMPILER_BUILD
 
     llvm::Value *llvm_value(Codegen &gen) override;

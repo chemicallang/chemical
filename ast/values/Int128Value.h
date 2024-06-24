@@ -28,11 +28,6 @@ public:
         return new Int128Value(magnitude, is_negative);
     }
 
-    std::string representation() const override {
-        // TODO representation of __128int
-        return std::to_string(get_num_value());
-    }
-
     [[nodiscard]] std::unique_ptr<BaseType> create_type() const override {
         return std::make_unique<Int128Type>();
     }

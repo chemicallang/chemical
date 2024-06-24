@@ -50,8 +50,6 @@ public:
 
     FunctionParam *copy() const;
 
-    std::string representation() const override;
-
     ASTNode *child(const std::string &name) override;
 
     void declare_and_link(SymbolResolver &linker) override;

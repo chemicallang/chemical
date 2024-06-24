@@ -24,10 +24,6 @@ public:
         return new ShortValue(value);
     }
 
-    std::string representation() const override {
-        return std::to_string(value);
-    }
-
     [[nodiscard]] std::unique_ptr<BaseType> create_type() const override {
         return std::make_unique<ShortType>();
     }

@@ -81,27 +81,3 @@ int MembersContainer::child_index(const std::string &varName) {
     }
     return -1;
 }
-
-std::string MembersContainer::representation() const {
-    std::string ret;
-    int i = 0;
-    for (const auto &field: variables) {
-        ret.append(field.second->representation());
-        if (i < variables.size() - 1) {
-            ret.append(1, '\n');
-        }
-        i++;
-    }
-    if(!functions.empty()) {
-        ret.append(1, '\n');
-    }
-    i = 0;
-    for (const auto &field: functions) {
-        ret.append(field.second->representation());
-        if (i < functions.size() - 1) {
-            ret.append(1, '\n');
-        }
-        i++;
-    }
-    return ret;
-}

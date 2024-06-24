@@ -90,8 +90,6 @@ public:
 
 #endif
 
-    std::string representation() const override;
-
     [[nodiscard]] inline ASTNode* linked() const {
         return parent_val->linked_node();
     }

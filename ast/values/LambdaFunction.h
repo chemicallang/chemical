@@ -46,8 +46,6 @@ public:
         visitor->visit(this);
     }
 
-    std::string representation() const override;
-
 #ifdef COMPILER_BUILD
 
     llvm::Type *capture_struct_type(Codegen &gen);

@@ -158,13 +158,3 @@ bool Expression::compile_time_computable() {
 void Expression::interpret(InterpretScope &scope) {
     evaluate(scope)->interpret(scope);
 }
-
-std::string Expression::representation() const {
-    std::string rep;
-    rep.append(1, '(');
-    rep.append(firstValue->representation());
-    rep.append(to_string(operation));
-    rep.append(secondValue->representation());
-    rep.append(1, ')');
-    return rep;
-}

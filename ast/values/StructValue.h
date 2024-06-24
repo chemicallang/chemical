@@ -93,8 +93,6 @@ public:
 
     std::unique_ptr<BaseType> create_type() const override;
 
-    std::string representation() const override;
-
     StructValue *as_struct() override;
 
     ValueType value_type() const override {

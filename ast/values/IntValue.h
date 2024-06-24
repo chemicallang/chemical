@@ -31,10 +31,6 @@ public:
         visitor->visit(this);
     }
 
-    std::string representation() const override {
-        return std::to_string(value);
-    }
-
     unsigned int get_num_bits() override {
         return 32;
     }

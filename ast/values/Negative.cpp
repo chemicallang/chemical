@@ -19,10 +19,3 @@ std::unique_ptr<BaseType> NegativeValue::create_type() const {
 bool NegativeValue::primitive() {
     return false;
 }
-
-std::string NegativeValue::representation() const {
-    std::string rep;
-    rep.append(1, '-');
-    rep.append(value->representation());
-    return rep;
-}

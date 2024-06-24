@@ -28,12 +28,6 @@ public:
 
 #endif
 
-    std::string representation() const override {
-        std::string ret;
-        ret.append("break;");
-        return ret;
-    }
-
 private:
     LoopASTNode *node;
 

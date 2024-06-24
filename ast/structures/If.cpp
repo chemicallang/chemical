@@ -160,27 +160,3 @@ void IfStatement::interpret(InterpretScope &scope) {
         }
     }
 }
-
-std::string IfStatement::representation() const {
-    std::string rep;
-    rep.append("if(");
-    rep.append(condition->representation());
-    rep.append("){\n");
-    rep.append(ifBody.representation());
-    rep.append("\n}");
-    int i = 0;
-    while (i < elseIfs.size()) {
-        rep.append("else if(");
-        rep.append(elseIfs[i].first->representation());
-        rep.append(") {\n");
-        rep.append(elseIfs[i].second.representation());
-        rep.append("\n}");
-        i++;
-    }
-    if (elseBody.has_value()) {
-        rep.append("else {\n");
-        rep.append(elseBody.value().representation());
-        rep.append("\n}");
-    }
-    return rep;
-}

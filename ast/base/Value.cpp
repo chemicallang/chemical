@@ -9,6 +9,9 @@
 #include "ast/values/AccessChain.h"
 #include "ast/types/ArrayType.h"
 #include <ranges>
+#include "preprocess/RepresentationVisitor.h"
+#include <sstream>
+
 
 #ifdef COMPILER_BUILD
 
@@ -163,4 +166,11 @@ llvm::Value* Value::access_chain_pointer(
 
 unsigned Value::as_uint() {
     return ((UIntValue*) this)->value;
+}
+
+std::string Value::representation() {
+    std::ostringstream ostring;
+    RepresentationVisitor visitor(ostring);
+    accept(&visitor);
+    return ostring.str();
 }

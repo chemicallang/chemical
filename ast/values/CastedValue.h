@@ -42,8 +42,6 @@ public:
         return type->kind();
     }
 
-    std::string representation() const override;
-
     std::unique_ptr<Value> value;
     std::unique_ptr<BaseType> type;
 };

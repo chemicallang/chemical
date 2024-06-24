@@ -27,7 +27,3 @@ Value *DereferenceValue::copy() {
             std::unique_ptr<Value>(value->copy())
     );
 }
-
-std::string DereferenceValue::representation() const {
-    return '*' + value->representation();
-}

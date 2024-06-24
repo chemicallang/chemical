@@ -250,6 +250,8 @@ public:
 
     void visitImpl(CompoundCSTToken *impl) override;
 
+    void visitNamespace(CompoundCSTToken *ns) override;
+
     void visitTryCatch(CompoundCSTToken *tryCatch) override;
 
     void visitEnumDecl(CompoundCSTToken *enumDecl) override;

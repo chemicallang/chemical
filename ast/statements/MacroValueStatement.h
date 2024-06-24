@@ -33,10 +33,6 @@ public:
     }
 #endif
 
-    std::string representation() const override {
-        return "#" + name + " " + value->representation() + " #end" + name;
-    }
-
 private:
     std::unique_ptr<Value> value;
     std::string name;

@@ -75,10 +75,6 @@ void ExtensionFuncReceiver::accept(Visitor *visitor) {
     visitor->visit(this);
 }
 
-std::string ExtensionFuncReceiver::representation() const {
-    return name + " : " + type->representation();
-}
-
 ExtensionFunction::ExtensionFunction(
         std::string name,
         ExtensionFuncReceiver receiver,

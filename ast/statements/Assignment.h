@@ -43,8 +43,6 @@ public:
 
     void interpret_scope_ends(InterpretScope &scope) override;
 
-    std::string representation() const override;
-
     std::unique_ptr<Value> lhs;
     std::unique_ptr<Value> value;
     InterfaceDefinition* definition;

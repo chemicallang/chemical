@@ -29,8 +29,4 @@ public:
         return new UShortType();
     }
 
-    std::string representation() const override {
-        return "ushort";
-    }
-
 };

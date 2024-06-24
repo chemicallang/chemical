@@ -17,6 +17,8 @@
 class InterfaceDefinition : public ExtendableMembersContainerNode {
 public:
 
+    std::string name; ///< The name of the interface.
+
     /**
      * @brief Construct a new InterfaceDeclaration object.
      *
@@ -26,6 +28,10 @@ public:
     InterfaceDefinition(
             std::string name
     );
+
+    std::string ns_node_identifier() override {
+        return name;
+    }
 
     InterfaceDefinition *as_interface_def() override {
         return this;
@@ -47,7 +53,4 @@ public:
 
 #endif
 
-    std::string representation() const override;
-
-    std::string name; ///< The name of the interface.
 };

@@ -70,13 +70,3 @@ void DoWhileLoop::interpret(InterpretScope &scope) {
 void DoWhileLoop::stopInterpretation() {
     stoppedInterpretation = true;
 }
-
-std::string DoWhileLoop::representation() const {
-    std::string ret;
-    ret.append("do {\n");
-    ret.append(body.representation());
-    ret.append("\n} while (");
-    ret.append(condition->representation());
-    ret.append(")");
-    return ret;
-}

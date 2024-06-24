@@ -25,7 +25,7 @@ CompTimeFuncType create_print(GlobalInterpretScope &global) {
             if(paramValue == nullptr) {
                 std::cout << "null";
             } else {
-                std::cout << paramValue->interpret_representation();
+                std::cout << paramValue->representation();
             }
         }
         return nullptr;

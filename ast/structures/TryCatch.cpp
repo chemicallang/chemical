@@ -41,17 +41,3 @@ void TryCatch::declare_and_link(SymbolResolver &linker) {
         catchScope->declare_and_link(linker);
     }
 }
-
-std::string TryCatch::representation() const {
-    std::string rep("try " + tryCall->representation());
-    if(catchScope.has_value()) {
-        rep.append(" catch ");
-        if(catchVar.has_value()) {
-            rep.append("(" + catchVar.value().first + ':' + catchVar.value().second->representation() + ") ");
-        }
-        rep.append("{\n");
-        rep.append(catchScope.value().representation());
-        rep.append("\n}");
-    }
-    return rep;
-}

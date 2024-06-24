@@ -19,7 +19,21 @@
 #include "BaseFunctionType.h"
 
 class FunctionDeclaration : public AnnotableNode, public BaseFunctionType {
+private:
+    Value *interpretReturn = nullptr;
+    // if the function is variadic, the last type in params is the type given to the variadic parameter
+
 public:
+
+    AccessSpecifier specifier;
+    std::string name; ///< The name of the function;
+    std::optional<LoopScope> body; ///< The body of the function.
+    InterpretScope *declarationScope;
+
+#ifdef COMPILER_BUILD
+    llvm::FunctionType *funcType;
+    llvm::Value *funcCallee;
+#endif
 
     /**
      * @brief Construct a new FunctionDeclaration object.
@@ -36,6 +50,10 @@ public:
             bool isVariadic,
             std::optional<LoopScope> body = std::nullopt
     );
+
+    std::string ns_node_identifier() override {
+        return name;
+    }
 
     void accept(Visitor *visitor) override;
 
@@ -109,19 +127,4 @@ public:
 
     FunctionDeclaration *as_function() override;
 
-    std::string representation() const override;
-
-    AccessSpecifier specifier;
-    std::string name; ///< The name of the function;
-    std::optional<LoopScope> body; ///< The body of the function.
-    InterpretScope *declarationScope;
-
-#ifdef COMPILER_BUILD
-    llvm::FunctionType *funcType;
-    llvm::Value *funcCallee;
-#endif
-
-private:
-    Value *interpretReturn = nullptr;
-    // if the function is variadic, the last type in params is the type given to the variadic parameter
 };

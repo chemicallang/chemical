@@ -51,16 +51,6 @@ public:
         return BaseTypeKind::Bool;
     }
 
-    std::string representation() const override {
-        std::string rep;
-        if (value) {
-            rep.append("true");
-        } else {
-            rep.append("false");
-        }
-        return rep;
-    }
-
     bool as_bool() override {
         return value;
     }

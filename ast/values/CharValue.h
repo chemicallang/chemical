@@ -50,20 +50,6 @@ public:
         return value;
     }
 
-    std::string interpret_representation() const override {
-        std::string rep;
-        rep.append(1, value);
-        return rep;
-    }
-
-    std::string representation() const override {
-        std::string rep;
-        rep.append(1, '\'');
-        rep.append(1, value);
-        rep.append(1, '\'');
-        return rep;
-    }
-
     ValueType value_type() const override {
         return ValueType::Char;
     }

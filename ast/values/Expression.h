@@ -114,8 +114,6 @@ public:
      */
     void interpret(InterpretScope &scope) override;
 
-    std::string representation() const override;
-
 
     std::unique_ptr<Value> firstValue; ///< The first value in the expression.
     std::unique_ptr<Value> secondValue; ///< The second value in the expression.

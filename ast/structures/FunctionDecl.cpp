@@ -305,10 +305,6 @@ FunctionParam *FunctionParam::copy() const {
     return new FunctionParam(name, std::unique_ptr<BaseType>(type->copy()), index, std::move(copied), func_type);
 }
 
-std::string BaseFunctionParam::representation() const {
-    return name + " : " + type->representation();
-}
-
 std::unique_ptr<BaseType> BaseFunctionParam::create_value_type() {
     return std::unique_ptr<BaseType>(type->copy());
 }
@@ -402,36 +398,6 @@ void FunctionDeclaration::set_return(Value *value) {
 
 FunctionDeclaration *FunctionDeclaration::as_function() {
     return this;
-}
-
-std::string FunctionDeclaration::representation() const {
-    std::string ret;
-    ret.append("func ");
-    ret.append(name);
-    ret.append(1, '(');
-    int i = 0;
-    while (i < params.size()) {
-        const auto &param = params[i];
-        ret.append(param->representation());
-        if (i < params.size() - 1) {
-            ret.append(", ");
-        } else {
-            if (isVariadic) {
-                ret.append("...");
-            }
-        }
-        i++;
-    }
-    ret.append(1, ')');
-    ret.append(" : ");
-    ret.append(returnType->representation());
-    ret.append(1, ' ');
-    if (body.has_value()) {
-        ret.append("{\n");
-        ret.append(body.value().representation());
-        ret.append("\n}");
-    }
-    return ret;
 }
 
 Value *FunctionDeclaration::call(InterpretScope *call_scope, std::vector<std::unique_ptr<Value>> &call_params,

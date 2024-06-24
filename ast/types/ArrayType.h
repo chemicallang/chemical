@@ -49,10 +49,6 @@ public:
         return type == ValueType::Array;
     }
 
-    std::string representation() const override {
-        return elem_type->representation() + ((array_size == -1) ? "[]" : ("[" + std::to_string(array_size) + "]"));
-    }
-
 #ifdef COMPILER_BUILD
 
     llvm::Type *llvm_type(Codegen &gen) const override;

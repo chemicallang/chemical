@@ -53,6 +53,7 @@
 #include "ast/structures/DoWhileLoop.h"
 #include "ast/statements/Continue.h"
 #include "ast/statements/SwitchStatement.h"
+#include "ast/structures/Namespace.h"
 #include "ast/statements/Break.h"
 #include "ast/statements/Typealias.h"
 #include "ast/values/ArrayValue.h"
@@ -697,6 +698,15 @@ void CSTConverter::visitSwitch(CompoundCSTToken *switchCst) {
 void CSTConverter::visitThrow(CompoundCSTToken *throwStmt) {
     throwStmt->tokens[1]->accept(this);
     nodes.emplace_back(new ThrowStatement(value()));
+}
+
+void CSTConverter::visitNamespace(CompoundCSTToken *ns) {
+    auto prev_nodes = std::move(nodes);
+    visit(ns->tokens, 0);
+    auto pNamespace = new Namespace(str_token(ns->tokens[1].get()));
+    pNamespace->nodes = std::move(nodes);
+    nodes = std::move(prev_nodes);
+    nodes.emplace_back(pNamespace);
 }
 
 void CSTConverter::visitForLoop(CompoundCSTToken *forLoop) {

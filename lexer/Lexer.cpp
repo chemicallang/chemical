@@ -116,7 +116,7 @@ void Lexer::lexTopLevelMultipleImportStatements() {
     }
 }
 
-void Lexer::lexTopLevelMultipleStatementsTokens() {
+void Lexer::lexTopLevelMultipleStatementsTokens(bool break_at_no_stmt) {
 
     // lex whitespace and new lines to reach a statement
     // lex a statement and then optional whitespace, lex semicolon
@@ -124,7 +124,7 @@ void Lexer::lexTopLevelMultipleStatementsTokens() {
     while (true) {
         lexWhitespaceAndNewLines();
         if (!lexTopLevelStatementTokens()) {
-            if (provider.eof() || provider.peek() == -1) {
+            if (break_at_no_stmt || provider.eof() || provider.peek() == -1) {
                 break;
             } else {
                 // skip to new line

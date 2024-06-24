@@ -56,10 +56,6 @@ public:
         return this;
     }
 
-    std::string representation() const override {
-        return std::to_string(value);
-    }
-
     unsigned int get_num_bits() override;
 
     int64_t get_num_value() const override {

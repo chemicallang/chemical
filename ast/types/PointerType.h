@@ -42,10 +42,6 @@ public:
         return this;
     }
 
-    std::string representation() const override {
-        return type->representation() + "*";
-    }
-
     virtual BaseType *copy() const {
         return new PointerType(std::unique_ptr<BaseType>(type->copy()));
     }

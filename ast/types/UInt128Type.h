@@ -29,8 +29,4 @@ public:
         return new UInt128Type();
     }
 
-    std::string representation() const override {
-        return "__uint128";
-    }
-
 };

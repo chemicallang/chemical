@@ -48,13 +48,6 @@ std::unique_ptr<BaseType> InterfaceDefinition::create_value_type() {
     return std::make_unique<ReferencedType>(name, this);
 }
 
-std::string InterfaceDefinition::representation() const {
-    std::string ret("interface " + name + " {\n");
-    ret.append(MembersContainer::representation());
-    ret.append("\n}");
-    return ret;
-}
-
 void InterfaceDefinition::declare_top_level(SymbolResolver &linker) {
     linker.declare(name, this);
 }

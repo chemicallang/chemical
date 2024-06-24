@@ -68,8 +68,4 @@ public:
 
     BaseTypeKind type_kind() const override;
 
-    std::string representation() const override {
-        return (capture_by_ref ? "&" : "") + name;
-    }
-
 };

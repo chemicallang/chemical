@@ -108,8 +108,6 @@ public:
 
     Value *assignment_value(InterpretScope &scope) override;
 
-    std::string representation() const override;
-
     BaseTypeKind type_kind() const override;
 
     ValueType value_type() const override;

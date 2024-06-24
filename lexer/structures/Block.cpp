@@ -37,7 +37,7 @@ void Lexer::lexMultipleStatementsTokens() {
     }
 }
 
-bool Lexer::lexBraceBlock(const std::string& forThing) {
+bool Lexer::lexBraceBlock(const std::string &forThing, void(*nested_lexer)(Lexer*)) {
 
     // whitespace and new lines
     lexWhitespaceAndNewLines();
@@ -52,7 +52,7 @@ bool Lexer::lexBraceBlock(const std::string& forThing) {
     // multiple statements
     auto prevImportState = isLexImportStatement;
     isLexImportStatement = false;
-    lexNestedLevelMultipleStatementsTokens();
+    nested_lexer(this);
     isLexImportStatement = prevImportState;
 
     // ending brace

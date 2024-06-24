@@ -19,10 +19,6 @@ public:
         return type == ValueType::Double;
     }
 
-    std::string representation() const override {
-        return "double";
-    }
-
     BaseTypeKind kind() const override {
         return BaseTypeKind::Double;
     }

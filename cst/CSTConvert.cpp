@@ -68,9 +68,12 @@
 #include "utils/StringHelpers.h"
 #include "utils/CSTUtils.h"
 #include <functional>
+#include <sstream>
 #include "compiler/PrimitiveTypeMap.h"
 #include "ast/structures/ExtensionFunction.h"
 #include "ast/statements/ThrowStatement.h"
+#include "preprocess/RepresentationVisitor.h"
+#include "preprocess/2cASTVisitor.h"
 
 Operation get_operation(CSTToken *token) {
     auto op = (OperationToken*) token;
@@ -88,6 +91,14 @@ Operation get_operation(CSTToken *token) {
 Scope take_body(CSTConverter *conv, CSTToken *token) {
     auto prev_nodes = std::move(conv->nodes);
     token->accept(conv);
+    Scope scope(std::move(conv->nodes));
+    conv->nodes = std::move(prev_nodes);
+    return scope;
+}
+
+Scope take_body(CSTConverter *conv, CompoundCSTToken *token) {
+    auto prev_nodes = std::move(conv->nodes);
+    conv->visit(token->tokens, 0);
     Scope scope(std::move(conv->nodes));
     conv->nodes = std::move(prev_nodes);
     return scope;
@@ -117,6 +128,57 @@ void CSTConverter::init_macro_handlers() {
             }
         } else {
             converter->error("expected a value for eval", container);
+        }
+    };
+    macro_handlers["target:is64bit"] = [](CSTConverter* converter, CompoundCSTToken* container) {
+        converter->values.emplace_back(new BoolValue(converter->is64Bit));
+    };
+    macro_handlers["sizeof"] = [](CSTConverter* converter, CompoundCSTToken* container) {
+        if(container->tokens[2]->is_type()) {
+            container->tokens[2]->accept(converter);
+            auto type = converter->type();
+            auto value = new ULongValue(type->byte_size(converter->is64Bit), converter->is64Bit);
+            converter->values.emplace_back(value);
+        } else {
+            converter->error("expected a type in sizeof", container);
+        }
+    };
+    macro_handlers["tr:debug:chemical"] = [](CSTConverter* converter, CompoundCSTToken* container) {
+        auto body = take_body(converter, container);
+        std::ostringstream ostring;
+        RepresentationVisitor visitor(ostring);
+        visitor.translate(body.nodes);
+        converter->values.emplace_back(new StringValue(ostring.str()));
+    };
+    macro_handlers["tr:debug:chemical:value"] = [](CSTConverter* converter, CompoundCSTToken* container) {
+        if(container->is_value()) {
+            container->accept(converter);
+            auto value = converter->value();
+            std::ostringstream ostring;
+            RepresentationVisitor visitor(ostring);
+            value->accept(&visitor);
+            converter->values.emplace_back(new StringValue(ostring.str()));
+        } else {
+            converter->error("expected a value in tr:debug:chemical:value", container);
+        }
+    };
+    macro_handlers["tr:debug:c"] = [](CSTConverter* converter, CompoundCSTToken* container) {
+        auto body = take_body(converter, container);
+        std::ostringstream ostring;
+        ToCAstVisitor visitor(&ostring, "");
+        visitor.translate(body.nodes);
+        converter->values.emplace_back(new StringValue(ostring.str()));
+    };
+    macro_handlers["tr:debug:c:value"] = [](CSTConverter* converter, CompoundCSTToken* container) {
+        if(container->is_value()) {
+            container->accept(converter);
+            auto value = converter->value();
+            std::ostringstream ostring;
+            ToCAstVisitor visitor(&ostring, "");
+            value->accept(&visitor);
+            converter->values.emplace_back(new StringValue(ostring.str()));
+        } else {
+            converter->error("expected a value in tr:debug:c:value", container);
         }
     };
 }

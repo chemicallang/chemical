@@ -68,6 +68,15 @@ Value *AccessChain::parent(InterpretScope &scope) {
     return current;
 }
 
+bool AccessChain::has_function_call() {
+    for(auto& val : values) {
+        if(val->as_func_call()) {
+            return true;
+        }
+    }
+    return false;
+}
+
 inline Value *AccessChain::parent_value(InterpretScope &scope) {
 #ifdef DEBUG
     auto p = parent(scope);

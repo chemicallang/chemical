@@ -99,9 +99,10 @@ bool is_stored_pointer(Value* value) {
     auto linked = value->linked_node();
     if(!linked) return false;
     if(linked->as_struct_member()) {
-        return linked->as_struct_member()->type->kind() == BaseTypeKind::Pointer;
+        return linked->as_struct_member()->type->is_pointer();
     } else if(linked->as_var_init()) {
-        return linked->as_var_init()->type_kind() == BaseTypeKind::Pointer;
+        auto kind = linked->as_var_init()->type_kind();
+        return kind == BaseTypeKind::Pointer || kind == BaseTypeKind::String;
     }
     return false;
 }
@@ -141,7 +142,7 @@ llvm::Value* Value::access_chain_pointer(
     std::vector<llvm::Value*> idxList;
 
     while (i <= until) {
-        if(i + 1 <= until && values[i]->type_kind() == BaseTypeKind::Pointer) {
+        if(i + 1 <= until && values[i]->is_pointer()) {
             llvm::Value* gep;
             if(idxList.empty()) {
                 gep = pointer;

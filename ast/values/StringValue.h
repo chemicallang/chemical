@@ -60,9 +60,7 @@ public:
         return new StringValue(value);
     }
 
-    std::unique_ptr<BaseType> create_type() const override {
-        return std::make_unique<StringType>();
-    }
+    std::unique_ptr<BaseType> create_type() const override;
 
     ValueType value_type() const override {
         return ValueType::String;

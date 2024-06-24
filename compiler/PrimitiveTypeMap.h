@@ -65,7 +65,7 @@ namespace TypeMakers {
             {"ubigint",   TypeMakers::make_ubigint_type},
             {"__int128",  TypeMakers::make___int128_type},
             {"__uint128", TypeMakers::make___uint128_type},
-            {"string",    TypeMakers::make_string_type},
+//            {"string",    TypeMakers::make_string_type},
             {"void",      TypeMakers::make_void_type},
     };
 

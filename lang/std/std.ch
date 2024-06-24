@@ -1,4 +1,4 @@
-func printf(format : string, _ : any...) : int
+func printf(format : char*, _ : any...) : int
 
 /**
 typealias size_t = ulong
@@ -9,7 +9,7 @@ func quick_exit(code : int)
 
 func abort()
 
-void perror(error_message : string)
+void perror(error_message : char*)
 
 func malloc(size : size_t) : void*
 

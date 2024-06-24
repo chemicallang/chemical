@@ -320,9 +320,7 @@ std::cerr << "child called on base value";
      * if statements need to run a block, on condition, that block is given to this function as end_block
      * this way expression values can optimize expressions and then progress into this block without calculating multiple things
      */
-    virtual llvm::Value* llvm_conditional_value(Codegen& gen, llvm::BasicBlock* end_block) {
-        return llvm_value(gen);
-    }
+    virtual void llvm_conditional_branch(Codegen& gen, llvm::BasicBlock* then_block, llvm::BasicBlock* otherwise_block);
 
     /**
      * this method is called by function call to get the parameter value for this Value

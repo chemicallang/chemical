@@ -34,7 +34,7 @@ bool compile(Codegen *gen, const std::string &path, IGCompilerOptions *options) 
     lexer.init_complete(options->exe_path);
 
     // the cst converter
-    CSTConverter converter(options->is64Bit);
+    CSTConverter converter(options->is64Bit, options->target_triple);
     converter.no_imports = true;
 
     // creating symbol resolver

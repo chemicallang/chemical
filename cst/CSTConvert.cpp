@@ -106,7 +106,7 @@ Scope take_body(CSTConverter *conv, CompoundCSTToken *token) {
 }
 
 // TODO support _128bigint, bigfloat
-CSTConverter::CSTConverter(bool is64Bit) : is64Bit(is64Bit), global_scope(nullptr, nullptr, "") {
+CSTConverter::CSTConverter(bool is64Bit, std::string target) : is64Bit(is64Bit), target(std::move(target)), global_scope(nullptr, nullptr, "") {
     ExpressionEvaluator::prepareFunctions(global_scope);
     init_macro_handlers();
     init_annotation_handlers();
@@ -130,6 +130,9 @@ void CSTConverter::init_macro_handlers() {
         } else {
             converter->error("expected a value for eval", container);
         }
+    };
+    macro_handlers["target"] = [](CSTConverter* converter, CompoundCSTToken* container) {
+        converter->values.emplace_back(new StringValue(converter->target));
     };
     macro_handlers["target:is64bit"] = [](CSTConverter* converter, CompoundCSTToken* container) {
         converter->values.emplace_back(new BoolValue(converter->is64Bit));

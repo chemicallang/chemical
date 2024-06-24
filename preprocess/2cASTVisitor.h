@@ -222,6 +222,8 @@ public:
 
     void visit(StructDefinition* structDefinition) override;
 
+    void visit(Namespace *ns) override;
+
     void visit(WhileLoop* whileLoop) override;
 
     void visit(AccessChain* chain) override;

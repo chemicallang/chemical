@@ -19,6 +19,7 @@
 #include "ast/structures/StructMember.h"
 #include "ast/structures/ImplDefinition.h"
 #include "ast/structures/FunctionParam.h"
+#include "ast/structures/Namespace.h"
 #include "ast/structures/InterfaceDefinition.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/structures/ExtensionFunction.h"
@@ -1349,6 +1350,12 @@ void ToCAstVisitor::visit(StructDefinition *def) {
         } else {
             contained_func_decl(this, func.second.get(), def->name + func.second->name, false, def);
         }
+    }
+}
+
+void ToCAstVisitor::visit(Namespace *ns) {
+    for(auto& node : ns->nodes) {
+        node->accept(this);
     }
 }
 

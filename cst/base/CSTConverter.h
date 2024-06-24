@@ -46,6 +46,11 @@ private:
     bool is64Bit;
 
     /**
+     * the target is provided to the source code
+     */
+    std::string target;
+
+    /**
      * a function that can handle macro
      */
     typedef void(*MacroHandlerFn)(CSTConverter*, CompoundCSTToken* container);
@@ -152,7 +157,7 @@ public:
     /**
      * constructor
      */
-    CSTConverter(bool is64Bit);
+    CSTConverter(bool is64Bit, std::string target);
 
     /**
      * initializes macro handlers

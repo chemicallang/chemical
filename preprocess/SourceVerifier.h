@@ -11,6 +11,8 @@ public:
 
     using ASTProcessorOptions::ASTProcessorOptions;
 
+    std::string target = "verify";
+
 };
 
 /**

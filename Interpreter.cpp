@@ -24,7 +24,7 @@ int main(int argc, char *argv[]) {
     for(const auto& err : lexer.errors) {
         std::cerr << err.representation(argv[1], "Lexer") << std::endl;
     }
-    CSTConverter converter(true);
+    CSTConverter converter(true, "interpreter");
     converter.convert(lexer.tokens);
     for(const auto& err : converter.diagnostics) {
         std::cerr << err.representation(argv[1], "Parser") << std::endl;

@@ -20,7 +20,7 @@ func test_sizeof() {
             return i == 4;
         }
     })
-    test("test sizeof long", () => {
+    test("test sizeof struct", () => {
         var i = #sizeof { SizeOfStrT1 }
         return i == 12;
     })

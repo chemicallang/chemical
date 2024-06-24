@@ -45,7 +45,7 @@ bool translate(
     lexer.init_complete(options->exe_path);
 
     // the cst converter
-    CSTConverter converter(true);
+    CSTConverter converter(true, "2cTranslator");
     converter.no_imports = true;
 
     // creating symbol resolver

@@ -25,7 +25,7 @@ bool verify(const std::string &path, SourceVerifierOptions *options) {
     lexer.init_complete(options->exe_path);
 
     // the cst converter
-    CSTConverter converter(true);
+    CSTConverter converter(true, options->target);
     converter.no_imports = true;
 
     // creating symbol resolver

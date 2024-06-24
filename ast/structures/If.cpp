@@ -15,8 +15,6 @@ void IfStatement::code_gen(Codegen &gen) {
 void IfStatement::code_gen(Codegen &gen, bool gen_last_block) {
 
     // compare
-    auto comparison = condition->llvm_value(gen);
-
     llvm::BasicBlock *elseBlock = nullptr;
 
     // creating a then block
@@ -54,7 +52,7 @@ void IfStatement::code_gen(Codegen &gen, bool gen_last_block) {
     auto nextBlock = !elseIfsBlocks.empty() ? elseIfsBlocks[0].first : elseOrEndBlock;
 
     // Branch based on comparison result
-    gen.CreateCondBr(comparison, thenBlock, nextBlock);
+    condition->llvm_conditional_branch(gen, thenBlock, nextBlock);
 
     // generating then code
     gen.SetInsertPoint(thenBlock);
@@ -73,9 +71,8 @@ void IfStatement::code_gen(Codegen &gen, bool gen_last_block) {
 
         // generating condition code
         gen.SetInsertPoint(pair.first);
-        comparison = elif.first->llvm_value(gen);
         nextBlock = ((i + 1) < elseIfsBlocks.size()) ? elseIfsBlocks[i + 1].first : elseOrEndBlock;
-        gen.CreateCondBr(comparison, pair.second, nextBlock);
+        elif.first->llvm_conditional_branch(gen, pair.second, nextBlock);
 
         // generating block code
         gen.SetInsertPoint(pair.second);

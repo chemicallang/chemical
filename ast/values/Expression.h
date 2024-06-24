@@ -84,11 +84,9 @@ public:
 
     llvm::Type *llvm_type(Codegen &gen) override;
 
-    llvm::Value *llvm_logical_expr(Codegen &gen, BaseType* firstType, BaseType* secondType, llvm::BasicBlock* optional_end);
+    llvm::Value *llvm_logical_expr(Codegen &gen, BaseType* firstType, BaseType* secondType);
 
-    llvm::Value *llvm_conditional_value(Codegen &gen, llvm::BasicBlock *end_block) override;
-
-    llvm::Value *llvm_value(Codegen &gen, llvm::BasicBlock* end_block);
+    void llvm_conditional_branch(Codegen& gen, llvm::BasicBlock* then_block, llvm::BasicBlock* otherwise_block);
 
 #endif
 

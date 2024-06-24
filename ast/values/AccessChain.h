@@ -40,6 +40,8 @@ public:
 
     uint64_t byte_size(bool is64Bit) const override;
 
+    bool has_function_call();
+
 #ifdef COMPILER_BUILD
 
     void code_gen(Codegen &gen) override;

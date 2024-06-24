@@ -234,7 +234,39 @@ llvm::Value *DereferenceValue::llvm_value(Codegen &gen) {
     return gen.builder->CreateLoad(llvm_type(gen), value->llvm_value(gen), "deref");
 }
 
-llvm::Value *Expression::llvm_value(Codegen &gen) {
+llvm::Value *Expression::llvm_logical_expr(Codegen &gen, BaseType* firstType, BaseType* secondType, llvm::BasicBlock* optional_end) {
+    if((operation == Operation::LogicalAND || operation == Operation::LogicalOR)) {
+        auto second_expr = secondValue->value_type() == ValueType::Expression;
+        auto second_chain = secondValue->as_access_chain();
+        if(second_expr || (second_chain && second_chain->has_function_call())) {
+            auto first = firstValue->llvm_value(gen);
+            auto current_block = gen.builder->GetInsertBlock();
+            llvm::BasicBlock* second_block = llvm::BasicBlock::Create(*gen.ctx, "", gen.current_function);
+            llvm::BasicBlock* end_block;
+            if(optional_end) {
+                end_block = optional_end;
+            } else {
+                end_block = llvm::BasicBlock::Create(*gen.ctx, "", gen.current_function);
+            }
+            if(operation == Operation::LogicalAND) {
+                gen.CreateCondBr(first, second_block, end_block);
+            } else {
+                gen.CreateCondBr(first, end_block, second_block);
+            }
+            gen.SetInsertPoint(second_block);
+            auto second = secondValue->llvm_value(gen);
+            gen.CreateBr(end_block);
+            gen.SetInsertPoint(end_block);
+            auto phi = gen.builder->CreatePHI(gen.builder->getInt1Ty(), 2);
+            phi->addIncoming(gen.builder->getInt1(operation == Operation::LogicalOR), current_block);
+            phi->addIncoming(second, second_block);
+            return phi;
+        }
+    }
+    return nullptr;
+}
+
+llvm::Value *Expression::llvm_value(Codegen &gen, llvm::BasicBlock *end_block) {
     auto firstType = firstValue->create_type();
     auto secondType = secondValue->create_type();
     replace_number_values(firstType.get(), secondType.get());
@@ -242,7 +274,17 @@ llvm::Value *Expression::llvm_value(Codegen &gen) {
     promote_literal_values(firstType.get(), secondType.get());
     firstType = firstValue->create_type();
     secondType = secondValue->create_type();
+    auto logical = llvm_logical_expr(gen, firstType.get(), secondType.get(), end_block);
+    if(logical) return logical;
     return gen.operate(operation, firstValue.get(), secondValue.get(), firstType.get(), secondType.get());
+}
+
+llvm::Value *Expression::llvm_conditional_value(Codegen &gen, llvm::BasicBlock *end_block) {
+    return llvm_value(gen, end_block);
+}
+
+llvm::Value *Expression::llvm_value(Codegen &gen) {
+    return llvm_value(gen, nullptr);
 }
 
 llvm::Type *Expression::llvm_type(Codegen &gen) {

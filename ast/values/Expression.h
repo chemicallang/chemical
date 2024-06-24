@@ -82,7 +82,13 @@ public:
 
     llvm::Value *llvm_value(Codegen &gen) override;
 
-    llvm::Type * llvm_type(Codegen &gen) override;
+    llvm::Type *llvm_type(Codegen &gen) override;
+
+    llvm::Value *llvm_logical_expr(Codegen &gen, BaseType* firstType, BaseType* secondType, llvm::BasicBlock* optional_end);
+
+    llvm::Value *llvm_conditional_value(Codegen &gen, llvm::BasicBlock *end_block) override;
+
+    llvm::Value *llvm_value(Codegen &gen, llvm::BasicBlock* end_block);
 
 #endif
 
@@ -107,6 +113,10 @@ public:
     Value *initializer_value(InterpretScope &scope) override;
 
     bool compile_time_computable() override;
+
+    ValueType value_type() const override {
+        return ValueType::Expression;
+    }
 
     /**
      * evaluates the current expression and also interprets the evaluated value

@@ -7,6 +7,7 @@
 #include "ast/types/FunctionType.h"
 #include "ast/structures/InterfaceDefinition.h"
 #include "ast/structures/StructDefinition.h"
+#include "ast/structures/UnionDef.h"
 #include "compiler/SymbolResolver.h"
 #include "CapturedVariable.h"
 #include "ast/types/PointerType.h"
@@ -178,6 +179,12 @@ void FunctionDeclaration::code_gen_override(Codegen& gen, FunctionDeclaration* d
 }
 
 void FunctionDeclaration::code_gen_struct(Codegen &gen, StructDefinition* def) {
+    create_fn(gen, this, def->name + "." + name);
+    gen.current_function = nullptr;
+    code_gen(gen);
+}
+
+void FunctionDeclaration::code_gen_union(Codegen &gen, UnionDef* def) {
     create_fn(gen, this, def->name + "." + name);
     gen.current_function = nullptr;
     code_gen(gen);

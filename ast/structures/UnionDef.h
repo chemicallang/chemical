@@ -19,13 +19,24 @@ public:
         visitor->visit(this);
     }
 
+    void declare_top_level(SymbolResolver &linker) override;
+
+    void declare_and_link(SymbolResolver &linker) override;
+
 #ifdef COMPILER_BUILD
+
+    void code_gen(Codegen &gen) override;
 
     llvm::Type* largest_member_type(Codegen &gen);
 
     llvm::StructType* get_struct_type(Codegen &gen);
 
     llvm::Type *llvm_type(Codegen &gen) override;
+
+    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override {
+        // no index is added, as values are stored directly in type
+        return true;
+    }
 
 #endif
 

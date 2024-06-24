@@ -14,8 +14,11 @@ void TypealiasStatement::interpret(InterpretScope &scope) {
 
 }
 
-void TypealiasStatement::declare_and_link(SymbolResolver &linker) {
+void TypealiasStatement::declare_top_level(SymbolResolver &linker) {
     linker.declare(from, this);
+}
+
+void TypealiasStatement::declare_and_link(SymbolResolver &linker) {
     to->link(linker);
 }
 

@@ -123,6 +123,7 @@ void link_params_and_caps(LambdaFunction* fn, SymbolResolver &linker) {
 void link_full(LambdaFunction* fn, SymbolResolver &linker) {
     linker.scope_start();
     link_params_and_caps(fn, linker);
+    fn->scope.declare_top_level(linker);
     fn->scope.declare_and_link(linker);
     linker.scope_end();
 }

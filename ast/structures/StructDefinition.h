@@ -19,7 +19,6 @@ class StructDefinition : public ExtendableMembersContainerNode {
 public:
 
     InterpretScope *decl_scope;
-    std::string name; ///< The name of the struct.
     std::optional<std::unique_ptr<ReferencedType>> overrides;
 
 #ifdef COMPILER_BUILD

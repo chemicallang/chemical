@@ -6,7 +6,7 @@ func realloc(block : void*, size : size_t) : void*
 
 func free(block : void*)
 
-typealias size_t = ulong
+typealias size_t = ubigint
 
 func memcpy(
     _Dst : void*,

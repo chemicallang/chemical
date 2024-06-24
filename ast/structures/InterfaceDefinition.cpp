@@ -40,7 +40,7 @@ llvm::Type* InterfaceDefinition::llvm_type(Codegen &gen) {
 
 InterfaceDefinition::InterfaceDefinition(
         std::string name
-) : name(std::move(name)) {
+) : ExtendableMembersContainerNode(std::move(name)) {
 
 }
 

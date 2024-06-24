@@ -8,6 +8,7 @@
 #include "StructMember.h"
 #include "ordered_map.h"
 #include "ast/base/AnnotableNode.h"
+#include "FunctionDeclaration.h"
 
 class MembersContainer : public AnnotableNode {
 public:
@@ -30,8 +31,6 @@ public:
     bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
 
 #endif
-
-    std::string representation() const;
 
     tsl::ordered_map<std::string, std::unique_ptr<StructMember>> variables; ///< The members of the struct.
     tsl::ordered_map<std::string, std::unique_ptr<FunctionDeclaration>> functions;

@@ -911,6 +911,7 @@ void CValueDeclarationVisitor::visit(EnumDeclaration *enumDecl) {
 }
 
 void CTopLevelDeclarationVisitor::visit(UnionDef *def) {
+    visitor->new_line_and_indent();
     write("union ");
     write(def->name);
     write(" {");
@@ -1204,7 +1205,7 @@ void func_decl_with_name(ToCAstVisitor* visitor, FunctionDeclaration* decl, cons
     scope(visitor, decl->body.value());
 }
 
-void contained_func_decl(ToCAstVisitor* visitor, FunctionDeclaration* decl, const std::string& name, bool overrides, StructDefinition* def) {
+void contained_func_decl(ToCAstVisitor* visitor, FunctionDeclaration* decl, const std::string& name, bool overrides, ExtendableMembersContainerNode* def) {
     if(!decl->body.has_value()) {
         return;
     }
@@ -1370,6 +1371,12 @@ void ToCAstVisitor::visit(StructDefinition *def) {
         } else {
             contained_func_decl(this, func.second.get(), def->name + func.second->name, false, def);
         }
+    }
+}
+
+void ToCAstVisitor::visit(UnionDef *def) {
+    for(auto& func : def->functions) {
+        contained_func_decl(this, func.second.get(), def->name + func.second->name, false, def);
     }
 }
 
@@ -1968,6 +1975,8 @@ void ToCAstVisitor::visit(ReferencedType *type) {
     }
     if(type->linked->as_struct_def()) {
         write("struct ");
+    } else if(type->linked->as_union_def()) {
+        write("union ");
     }
     if(type->linked->as_typealias() != nullptr) {
         auto alias = declarer->aliases.find(type->linked->as_typealias());

@@ -248,6 +248,11 @@ public:
     }
 
     /**
+     * get the byte size, of this type
+     */
+    virtual uint64_t byte_size(bool is64Bit);
+
+    /**
      * accept the visitor
      */
     virtual void accept(Visitor *visitor) = 0;

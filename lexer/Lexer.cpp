@@ -99,9 +99,35 @@ void Lexer::init_value_creators() {
     };
 }
 
+void ignore_macro_lexer_fn(Lexer *lexer){
+
+}
+
 void Lexer::init_macro_lexers() {
     macro_lexers["eval"] = [](Lexer *lexer) -> void {
         lexer->lexExpressionTokens(false, false);
+    };
+    macro_lexers["sizeof"] = [](Lexer *lexer) -> void {
+        if(!lexer->lexTypeTokens()) {
+            lexer->error("expected a type in sizeof macro");
+        }
+    };
+    macro_lexers["target:is64bit"] = ignore_macro_lexer_fn;
+    macro_lexers["tr:debug:chemical"] = [](Lexer *lexer) -> void {
+        lexer->lexNestedLevelMultipleStatementsTokens();
+    };
+    macro_lexers["tr:debug:chemical:value"] = [](Lexer *lexer) -> void {
+        if(!lexer->lexExpressionTokens(false, false)) {
+            lexer->error("expected an expression for debug translation of chemical value");
+        }
+    };
+    macro_lexers["tr:debug:c"] = [](Lexer *lexer) -> void {
+        lexer->lexNestedLevelMultipleStatementsTokens();
+    };
+    macro_lexers["tr:debug:c:value"] = [](Lexer *lexer) -> void {
+        if(!lexer->lexExpressionTokens(false, false)) {
+            lexer->error("expected an expression for debug translation of c");
+        }
     };
 }
 

@@ -5,11 +5,7 @@
 #include "compiler/SymbolResolver.h"
 
 uint64_t ReferencedType::byte_size(bool is64Bit) {
-    auto holdingType = linked->holding_value_type();
-    if(holdingType) return holdingType->byte_size(is64Bit);
-    auto holdingValue = linked->holding_value();
-    if(holdingValue) return holdingValue->byte_size(is64Bit);
-    throw std::runtime_error("unknown byte size for linked value");
+    return linked->byte_size(is64Bit);
 }
 
 ValueType ReferencedType::value_type() const {

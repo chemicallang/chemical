@@ -120,6 +120,8 @@ public:
 
     void visit(InterfaceDefinition* interfaceDefinition) override;
 
+    void visit(Namespace *ns) override;
+
     void visit(Scope* scope) override;
 
     void visit(StructDefinition* structDefinition) override;

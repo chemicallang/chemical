@@ -28,6 +28,8 @@ class EnumDeclaration;
 
 class ForLoop;
 
+class UnionDef;
+
 class FunctionParam;
 
 class FunctionDeclaration;
@@ -275,6 +277,10 @@ public:
 
     virtual void visit(StructDefinition* structDefinition) {
         visitCommon((ASTNode*) structDefinition);
+    }
+
+    virtual void visit(UnionDef* def) {
+        visitCommon((ASTNode*) def);
     }
 
     virtual void visit(WhileLoop* whileLoop) {

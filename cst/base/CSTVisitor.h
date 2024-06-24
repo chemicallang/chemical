@@ -209,6 +209,10 @@ public:
         visitCompoundCommon((CompoundCSTToken *) structDef);
     }
 
+    virtual void visitUnionDef(CompoundCSTToken *unionDef) {
+        visitCompoundCommon((CompoundCSTToken *) unionDef);
+    }
+
     virtual void visitInterface(CompoundCSTToken *interface) {
         visitCompoundCommon((CompoundCSTToken *) interface);
     }

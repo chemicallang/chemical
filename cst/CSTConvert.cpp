@@ -49,6 +49,7 @@
 #include "ast/values/BigIntValue.h"
 #include "ast/values/UBigIntValue.h"
 #include "ast/structures/ImplDefinition.h"
+#include "ast/structures/UnionDef.h"
 #include "cst/structures/WhileCST.h"
 #include "ast/structures/DoWhileLoop.h"
 #include "ast/statements/Continue.h"
@@ -303,7 +304,7 @@ std::unique_ptr<BaseType> CSTConverter::type() {
 PointerType* current_self_pointer(CSTConverter* converter) {
     auto type = converter->current_struct_decl ? converter->current_struct_decl->name : (converter->current_interface_decl
                                                                    ? converter->current_interface_decl->name
-                                                                   : converter->current_impl_decl->struct_name.value());
+                                                                   : (converter->current_union_decl ? converter->current_union_decl->name : converter->current_impl_decl->struct_name.value()));
     return new PointerType(std::make_unique<ReferencedType>(type));
 }
 
@@ -909,6 +910,18 @@ void CSTConverter::visitInterface(CompoundCSTToken *interface) {
     current_interface_decl = def;
     collect_struct_members(this, interface->tokens, def->variables, def->functions, i);
     current_interface_decl = nullptr;
+    nodes.emplace_back(def);
+}
+
+void CSTConverter::visitUnionDef(CompoundCSTToken *unionDef) {
+    if(is_dispose()) {
+        return;
+    }
+    unsigned i = 3; // positioned at first node or '}'
+    auto def = new UnionDef(str_token(unionDef->tokens[1].get()));
+    current_union_decl = def;
+    collect_struct_members(this, unionDef->tokens, def->variables, def->functions, i);
+    current_union_decl = nullptr;
     nodes.emplace_back(def);
 }
 

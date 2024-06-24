@@ -14,13 +14,15 @@
 
 #ifdef COMPILER_BUILD
 
-#include "ast/structures/InterfaceDefinition.h"
 #include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
 #include "ast/values/IntValue.h"
 
 llvm::StructType* StructDefinition::get_struct_type(Codegen& gen) {
     if(!llvm_struct_type) {
+        if(has_annotation(AnnotationKind::Anonymous)) {
+            return llvm::StructType::get(*gen.ctx, elements_type(gen));
+        }
         llvm_struct_type = llvm::StructType::create(*gen.ctx, elements_type(gen), name);
     }
     return llvm_struct_type;

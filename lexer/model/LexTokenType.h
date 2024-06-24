@@ -51,6 +51,7 @@ enum class LexTokenType : uint8_t {
     CompFunctionParam,
     CompFunction,
     CompStructDef,
+    CompUnionDef,
     CompInterface,
     CompImpl,
     CompNamespace,

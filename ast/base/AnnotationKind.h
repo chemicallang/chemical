@@ -15,6 +15,8 @@ enum class AnnotationKind {
 
     Destructor,
 
+    Anonymous,
+
     IndexInlineStart=Inline,
     IndexInlineEnd=MinSize
 

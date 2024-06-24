@@ -23,6 +23,7 @@
 #include "ast/structures/DoWhileLoop.h"
 #include "ast/structures/If.h"
 #include "ast/structures/StructDefinition.h"
+#include "ast/structures/Namespace.h"
 #include "ast/structures/ForLoop.h"
 #include "ast/structures/LoopScope.h"
 #include "ast/structures/CapturedVariable.h"
@@ -476,6 +477,22 @@ void RepresentationVisitor::visit(SwitchStatement *statement) {
         i++;
     }
     indentation_level -= 1;
+    new_line_and_indent();
+    write('}');
+}
+
+void RepresentationVisitor::visit(Namespace *ns) {
+    if(ns->nodes.empty()) return;
+    write("namespace ");
+    write(ns->name);
+    space();
+    write('{');
+    indentation_level++;
+    for(auto& node : ns->nodes) {
+        new_line_and_indent();
+        node->accept(this);
+    }
+    indentation_level--;
     new_line_and_indent();
     write('}');
 }

@@ -36,7 +36,7 @@ void TryCatch::accept(Visitor *visitor) {
 }
 
 void TryCatch::declare_and_link(SymbolResolver &linker) {
-    tryCall->link(linker);
+    tryCall->link(linker, (std::unique_ptr<Value>&) tryCall);
     if(catchScope.has_value()) {
         catchScope->declare_and_link(linker);
     }

@@ -70,7 +70,7 @@ void ForLoop::accept(Visitor *visitor) {
 void ForLoop::declare_and_link(SymbolResolver &linker) {
     linker.scope_start();
     initializer->declare_and_link(linker);
-    conditionExpr->link(linker);
+    conditionExpr->link(linker, conditionExpr);
     incrementerExpr->declare_and_link(linker);
     body.declare_and_link(linker);
     linker.scope_end();

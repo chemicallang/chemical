@@ -128,7 +128,7 @@ std::unique_ptr<BaseType> StructMember::create_value_type() {
 void StructMember::declare_and_link(SymbolResolver &linker) {
     type->link(linker);
     if (defValue.has_value()) {
-        defValue.value()->link(linker);
+        defValue.value()->link(linker, defValue.value());
     }
 }
 

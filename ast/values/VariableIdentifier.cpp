@@ -11,7 +11,7 @@ uint64_t VariableIdentifier::byte_size(bool is64Bit) const {
     throw std::runtime_error("cannot determine byte size for the identifier");
 }
 
-void VariableIdentifier::link(SymbolResolver &linker) {
+void VariableIdentifier::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
     linked = linker.find(value);
     if(!linked) {
         linker.error("variable identifier '" + value + "' not found");

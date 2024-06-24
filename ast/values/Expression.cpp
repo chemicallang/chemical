@@ -92,9 +92,9 @@ Expression::Expression(
 
 }
 
-void Expression::link(SymbolResolver &linker) {
-    firstValue->link(linker);
-    secondValue->link(linker);
+void Expression::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
+    firstValue->link(linker, firstValue);
+    secondValue->link(linker, secondValue);
 }
 
 bool Expression::primitive() {

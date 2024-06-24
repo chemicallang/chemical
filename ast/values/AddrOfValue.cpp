@@ -9,8 +9,8 @@ AddrOfValue::AddrOfValue(
 
 }
 
-void AddrOfValue::link(SymbolResolver &linker) {
-    value->link(linker);
+void AddrOfValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
+    value->link(linker, value);
 }
 
 Value *AddrOfValue::copy() {

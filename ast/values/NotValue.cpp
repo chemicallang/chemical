@@ -3,8 +3,8 @@
 #include "ast/base/BaseType.h"
 #include "NotValue.h"
 
-void NotValue::link(SymbolResolver &linker) {
-    value->link(linker);
+void NotValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
+    value->link(linker, value);
 }
 
 bool NotValue::primitive() {

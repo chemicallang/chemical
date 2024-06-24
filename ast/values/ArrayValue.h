@@ -77,7 +77,7 @@ public:
 
     ASTNode *linked_node() override;
 
-    void link(SymbolResolver &linker) override;
+    void link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) override;
 
     std::unique_ptr<BaseType> element_type() const;
 

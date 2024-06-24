@@ -25,7 +25,7 @@ public:
         return this;
     }
 
-    void link(SymbolResolver &linker) override;
+    void link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) override;
 
     ASTNode *linked_node() override;
 

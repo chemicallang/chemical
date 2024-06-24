@@ -126,12 +126,12 @@ void IfStatement::accept(Visitor *visitor) {
 
 void IfStatement::declare_and_link(SymbolResolver &linker) {
     linker.scope_start();
-    condition->link(linker);
+    condition->link(linker, condition);
     ifBody.declare_and_link(linker);
     linker.scope_end();
     for(auto& elseIf : elseIfs) {
         linker.scope_start();
-        elseIf.first->link(linker);
+        elseIf.first->link(linker, elseIf.first);
         elseIf.second.declare_and_link(linker);
         linker.scope_end();
     }

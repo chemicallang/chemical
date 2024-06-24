@@ -58,17 +58,6 @@ public:
         return type == ValueType::Struct;
     }
 
-    std::string representation() const override {
-        std::string rep("struct {\n");
-        auto i = 0;
-        while (i < elem_types.size()) {
-            rep.append("e" + std::to_string(i) + elem_types[i]->representation());
-            i++;
-        }
-        rep.append("\n}");
-        return rep;
-    }
-
 #ifdef COMPILER_BUILD
 
     llvm::Type *llvm_type(Codegen &gen) const override;

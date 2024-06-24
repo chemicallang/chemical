@@ -61,8 +61,6 @@ public:
 
     std::unique_ptr<BaseType> create_type() const override;
 
-    std::string representation() const override;
-
     Value *parent_val;
     std::vector<std::unique_ptr<Value>> values;
 

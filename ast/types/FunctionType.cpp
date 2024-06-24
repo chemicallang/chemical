@@ -87,22 +87,6 @@ bool FunctionType::satisfies(ValueType type) const {
     return type == ValueType::Lambda;
 }
 
-std::string FunctionType::representation() const {
-    std::string rep("(");
-    unsigned i = 0;
-    auto size = params.size();
-    while(i < size) {
-        rep.append(params[i]->representation());
-        if(i < size - 1) {
-            rep.append(", ");
-        }
-        i++;
-    }
-    rep.append(") => ");
-    rep.append(returnType->representation());
-    return rep;
-}
-
 void FunctionType::link(SymbolResolver &linker) {
     for (auto &param: params) {
         param->type->link(linker);

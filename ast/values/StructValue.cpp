@@ -228,20 +228,6 @@ Value *StructValue::child(InterpretScope &scope, const std::string &name) {
     return value->second.get();
 }
 
-std::string StructValue::representation() const {
-    std::string rep(structName + " {\n");
-    unsigned i = 0;
-    for (const auto &value: values) {
-        rep.append(value.first);
-        rep.append(" : ");
-        rep.append(value.second->representation());
-        if (i < values.size() - 1) rep.append(",\n");
-        i++;
-    }
-    rep.append("\n}");
-    return rep;
-}
-
 StructValue *StructValue::as_struct() {
     return this;
 }

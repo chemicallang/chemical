@@ -18,9 +18,3 @@ void ContinueStatement::interpret(InterpretScope &scope) {
     }
     node->body.stopInterpretOnce();
 }
-
-std::string ContinueStatement::representation() const {
-    std::string ret;
-    ret.append("continue;");
-    return ret;
-}

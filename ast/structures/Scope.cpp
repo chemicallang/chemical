@@ -40,16 +40,3 @@ void Scope::declare_and_link(SymbolResolver &linker) {
 void Scope::stopInterpretOnce() {
 
 }
-
-std::string Scope::representation() const {
-    std::string rep;
-    int i = 0;
-    while (i < nodes.size()) {
-        rep.append(nodes[i]->representation());
-        if (i != nodes.size() - 1) {
-            rep.append(1, '\n');
-        }
-        i++;
-    }
-    return rep;
-}

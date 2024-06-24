@@ -78,13 +78,3 @@ void WhileLoop::interpret(InterpretScope &scope) {
 void WhileLoop::stopInterpretation() {
     stoppedInterpretation = true;
 }
-
-std::string WhileLoop::representation() const {
-    std::string ret;
-    ret.append("while(");
-    ret.append(condition->representation());
-    ret.append(") {\n");
-    ret.append(body.representation());
-    ret.append("\n}");
-    return ret;
-}

@@ -44,20 +44,6 @@ public:
 
     ASTNode *child(const std::string &name) override;
 
-    std::string representation() const override {
-        std::string rep("enum " + name + " {\n");
-        unsigned int i = 0;
-        for (const auto &member: members) {
-            rep.append(member.first);
-            if (i != members.size() - 1) {
-                rep.append(",\n");
-            }
-            i++;
-        }
-        rep.append("\n}");
-        return rep;
-    }
-
     std::string name; ///< The name of the enum.
     std::unordered_map<std::string, std::unique_ptr<EnumMember>> members; ///< The values of the enum.
 

@@ -25,8 +25,6 @@ public:
 
     void interpret(InterpretScope &scope) override;
 
-    std::string representation() const override;
-
 private:
     LoopASTNode *node;
 

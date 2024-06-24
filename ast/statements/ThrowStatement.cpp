@@ -10,11 +10,3 @@ ThrowStatement::ThrowStatement(std::unique_ptr<Value> value) : value(std::move(v
 void ThrowStatement::accept(Visitor *visitor) {
     visitor->visit(this);
 }
-
-std::string ThrowStatement::representation() const {
-    std::string rep;
-    rep.append("throw ");
-    rep.append(value->representation());
-    rep.append(1, ';');
-    return rep;
-}

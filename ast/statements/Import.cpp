@@ -22,10 +22,6 @@ void ImportStatement::accept(Visitor *visitor) {
     visitor->visit(this);
 }
 
-std::string ImportStatement::representation() const {
-    return std::string("import \"" + filePath + "\";\n");
-}
-
 void ImportStatement::interpret(InterpretScope &scope) {
     auto absolute_path = resolve_rel_parent_path_str(scope.global->root_path, filePath);
     std::ifstream stream(absolute_path);

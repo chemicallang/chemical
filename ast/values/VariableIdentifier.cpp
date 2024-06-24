@@ -204,7 +204,3 @@ BaseTypeKind VariableIdentifier::type_kind() const {
 ValueType VariableIdentifier::value_type() const {
     return linked->value_type();
 }
-
-std::string VariableIdentifier::representation() const {
-    return value;
-}

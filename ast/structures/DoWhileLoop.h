@@ -40,8 +40,6 @@ public:
 
     void stopInterpretation() override;
 
-    std::string representation() const override;
-
     std::unique_ptr<Value> condition;
 
 private:

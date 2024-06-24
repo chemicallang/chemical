@@ -104,36 +104,6 @@ public:
         return new ArrayValue(std::move(copied_values), std::move(copied_elem_type), sizes);
     }
 
-    std::string representation() const override {
-        std::string rep;
-        rep.append(1, '{');
-        int i = 0;
-        while (i < values.size()) {
-            rep.append(values[i]->representation());
-            if (i != values.size() - 1) {
-                rep.append(1, ',');
-            }
-            i++;
-        }
-        rep.append(1, '}');
-        if(elemType.has_value()) {
-            rep.append(elemType.value()->representation());
-            if(!sizes.empty()) {
-                rep.append("(");
-                i = 0;
-                while (i < sizes.size()) {
-                    rep.append(std::to_string(sizes[i]));
-                    if (i < sizes.size() - 1) {
-                        rep.append(", ");
-                    }
-                    i++;
-                }
-                rep.append(")");
-            }
-        }
-        return rep;
-    }
-
     std::vector<std::unique_ptr<Value>> values;
     std::optional<std::unique_ptr<BaseType>> elemType;
     std::vector<unsigned int> sizes;

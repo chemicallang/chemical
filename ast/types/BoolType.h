@@ -19,10 +19,6 @@ public:
         visitor->visit(this);
     }
 
-    std::string representation() const override {
-        return "bool";
-    }
-
     BaseTypeKind kind() const override {
         return BaseTypeKind::Bool;
     }

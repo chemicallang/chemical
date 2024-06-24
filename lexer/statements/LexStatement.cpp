@@ -17,7 +17,8 @@ bool Lexer::lexTopLevelStatementTokens() {
            lexTypealiasStatement() ||
            lexInterfaceStructureTokens() ||
            lexImplTokens() ||
-           lexFunctionStructureTokens(true, true);
+           lexFunctionStructureTokens(true, true) ||
+           lexNamespaceTokens();
 }
 
 bool Lexer::lexNestedLevelStatementTokens() {

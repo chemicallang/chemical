@@ -25,8 +25,4 @@ public:
         return new BigIntType();
     }
 
-    std::string representation() const override {
-        return "bigint";
-    }
-
 };

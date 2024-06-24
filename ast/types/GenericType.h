@@ -35,10 +35,6 @@ public:
         return type->satisfies(value_type);
     }
 
-    std::string representation() const override {
-        return  '<' + type->representation() + '>';
-    }
-
     virtual BaseType* copy() const {
         return new GenericType(base, std::unique_ptr<BaseType>(type->copy()));
     }

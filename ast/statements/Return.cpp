@@ -33,16 +33,3 @@ void ReturnStatement::accept(Visitor *visitor) {
 ReturnStatement *ReturnStatement::as_return() {
     return this;
 }
-
-std::string ReturnStatement::representation() const {
-    std::string ret;
-    ret.append("return");
-    if (value.has_value()) {
-        ret.append(1, ' ');
-        ret.append(value.value()->representation());
-        ret.append(1, ';');
-    } else {
-        ret.append(1, ';');
-    }
-    return ret;
-}

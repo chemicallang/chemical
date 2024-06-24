@@ -29,9 +29,5 @@ public:
         return new LongType(number == 64);
     }
 
-    std::string representation() const override {
-        return "long";
-    }
-
 
 };

@@ -155,9 +155,8 @@ public:
 
     /**
      * representation is representation of the type
-     * @return
      */
-    virtual std::string representation() const = 0;
+    std::string representation();
 
 #ifdef COMPILER_BUILD
 

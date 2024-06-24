@@ -45,8 +45,6 @@ public:
 
     void stopInterpretation() override;
 
-    std::string representation() const override;
-
     std::unique_ptr<VarInitStatement> initializer;
     std::unique_ptr<Value> conditionExpr;
     std::unique_ptr<ASTNode> incrementerExpr;

@@ -57,8 +57,6 @@ public:
      */
     virtual void stopInterpretOnce();
 
-    std::string representation() const override;
-
     std::vector<std::unique_ptr<ASTNode>> nodes;
 
 };

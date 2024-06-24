@@ -50,8 +50,6 @@ public:
         return this;
     }
 
-    std::string representation() const override;
-
     virtual BaseType *copy() const;
 
 #ifdef COMPILER_BUILD

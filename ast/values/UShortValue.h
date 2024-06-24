@@ -26,10 +26,6 @@ public:
         return new UShortValue(value);
     }
 
-    std::string representation() const override {
-        return std::to_string(value);
-    }
-
     [[nodiscard]] std::unique_ptr<BaseType> create_type() const override {
         return std::make_unique<UShortType>();
     }

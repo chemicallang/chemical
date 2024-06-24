@@ -146,14 +146,6 @@ BaseTypeKind StructMember::type_kind() const {
     return type->kind();
 }
 
-std::string StructMember::representation() const {
-    std::string rep("var " + name + " : " + type->representation());
-    if (defValue.has_value()) {
-        rep.append(defValue.value()->representation());
-    }
-    return rep;
-}
-
 StructDefinition::StructDefinition(
         std::string name,
         const std::optional<std::string> &overrides
@@ -248,15 +240,3 @@ std::vector<llvm::Type *> StructDefinition::elements_type(Codegen &gen) {
 }
 
 #endif
-
-std::string StructDefinition::representation() const {
-    std::string ret("struct " + name + " ");
-    if (overrides.has_value()) {
-        ret.append(": " + overrides.value()->representation() + " {\n");
-    } else {
-        ret.append("{\n");
-    }
-    ret.append(MembersContainer::representation());
-    ret.append("\n}");
-    return ret;
-}

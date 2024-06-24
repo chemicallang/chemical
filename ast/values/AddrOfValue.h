@@ -55,7 +55,5 @@ public:
 
     void link(SymbolResolver &linker) override;
 
-    std::string representation() const override;
-
     std::unique_ptr<Value> value;
 };

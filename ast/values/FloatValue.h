@@ -29,10 +29,6 @@ public:
         visitor->visit(this);
     }
 
-    std::string representation() const override {
-        return std::to_string(value);
-    }
-
 #ifdef COMPILER_BUILD
 
     llvm::Type *llvm_type(Codegen &gen) override;

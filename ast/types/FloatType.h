@@ -19,10 +19,6 @@ public:
         return type == ValueType::Float;
     }
 
-    std::string representation() const override {
-        return "float";
-    }
-
     BaseTypeKind kind() const override {
         return BaseTypeKind::Float;
     }

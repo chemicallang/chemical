@@ -114,9 +114,17 @@ public:
 
     /**
      * This would return the representation of the node
-     * @return
      */
-    virtual std::string representation() const = 0;
+    std::string representation();
+
+    /**
+     * when this node is inside a namespace, what identifier can be used
+     * to access this node, for example a function inside a namespace, returns it's name
+     * so namespace::function_name can be used to access it
+     */
+    virtual std::string ns_node_identifier() {
+        return "";
+    }
 
     /**
      * get the extendable members container, if this node has one
@@ -208,6 +216,13 @@ public:
      * as interface definition
      */
     virtual InterfaceDefinition *as_interface_def() {
+        return nullptr;
+    }
+
+    /**
+     * as namespace
+     */
+    virtual Namespace* as_namespace() {
         return nullptr;
     }
 

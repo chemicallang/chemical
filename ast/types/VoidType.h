@@ -15,10 +15,6 @@ public:
         visitor->visit(this);
     }
 
-    std::string representation() const override {
-        return "void";
-    }
-
     BaseTypeKind kind() const override {
         return BaseTypeKind::Void;
     }

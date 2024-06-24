@@ -49,12 +49,6 @@ public:
         return value;
     }
 
-    std::string representation() const override {
-        std::string rep;
-        rep.append(std::to_string(value));
-        return rep;
-    }
-
     ValueType value_type() const override {
         return ValueType::Double;
     }

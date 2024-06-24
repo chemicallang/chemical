@@ -53,17 +53,6 @@ public:
         return this;
     }
 
-    std::string representation() const override {
-        std::string rep;
-        unsigned i = 0;
-        while(i < values.size()){
-            rep.append(values[i]->representation());
-            if(i < values.size() - 1) rep.append(1, ',');
-            i++;
-        }
-        return rep;
-    }
-
     Value *
     call_member(InterpretScope &scope, const std::string &name, std::vector<std::unique_ptr<Value>> &vals) override {
         auto fn = members.find(name);

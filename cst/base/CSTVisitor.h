@@ -213,6 +213,10 @@ public:
         visitCompoundCommon((CompoundCSTToken *) interface);
     }
 
+    virtual void visitNamespace(CompoundCSTToken* ns) {
+        visitCompoundCommon((CompoundCSTToken *) ns);
+    }
+
     virtual void visitTryCatch(CompoundCSTToken *tryCatch) {
         visitCompoundCommon((CompoundCSTToken *) tryCatch);
     }

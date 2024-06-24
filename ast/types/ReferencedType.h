@@ -39,10 +39,6 @@ public:
         return other->kind() == kind() && static_cast<ReferencedType *>(other)->type == type;
     }
 
-    std::string representation() const override {
-        return type;
-    }
-
     virtual BaseType *copy() const {
         auto t = new ReferencedType(type);
         t->linked = linked;

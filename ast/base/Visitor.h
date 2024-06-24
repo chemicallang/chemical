@@ -174,6 +174,8 @@ class ExtensionFuncReceiver;
 
 class ThrowStatement;
 
+class Namespace;
+
 // Visitor Class
 
 class Visitor {
@@ -257,6 +259,10 @@ public:
 
     virtual void visit(ImplDefinition* implDefinition) {
         visitCommon((ASTNode*) implDefinition);
+    }
+
+    virtual void visit(Namespace* ns) {
+        visitCommon((ASTNode*) ns);
     }
 
     virtual void visit(InterfaceDefinition* interfaceDefinition) {

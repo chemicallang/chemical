@@ -22,7 +22,3 @@ void TypealiasStatement::declare_and_link(SymbolResolver &linker) {
 void TypealiasStatement::accept(Visitor *visitor) {
     visitor->visit(this);
 }
-
-std::string TypealiasStatement::representation() const {
-    return "typealias " + from + " = " + to->representation();
-}

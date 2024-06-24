@@ -15,10 +15,6 @@ public:
         visitor->visit(this);
     }
 
-    std::string representation() const override {
-        return "any";
-    }
-
     BaseTypeKind kind() const override {
         return BaseTypeKind::Any;
     }

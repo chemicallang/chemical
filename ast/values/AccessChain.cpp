@@ -60,7 +60,7 @@ Value *AccessChain::parent(InterpretScope &scope) {
         current = values[i]->find_in(scope, current);
         if (current == nullptr) {
             scope.error(
-                    "(access chain) " + representation() + " child " + values[i]->representation() + " not found");
+                    "(access chain) " + Value::representation() + " child " + values[i]->representation() + " not found");
             return nullptr;
         }
         i++;
@@ -72,9 +72,9 @@ inline Value *AccessChain::parent_value(InterpretScope &scope) {
 #ifdef DEBUG
     auto p = parent(scope);
     if (p == nullptr) {
-        scope.error("parent is nullptr in access cain " + representation());
+        scope.error("parent is nullptr in access cain " + Value::representation());
     } else if (p->evaluated_value(scope) == nullptr) {
-        scope.error("evaluated value of parent is nullptr in access chain " + representation() + " pointer " +
+        scope.error("evaluated value of parent is nullptr in access chain " + Value::representation() + " pointer " +
                     p->representation());
     }
 #endif
@@ -87,10 +87,6 @@ void AccessChain::set_identifier_value(InterpretScope &scope, Value *rawValue, O
     } else {
         values[values.size() - 1]->set_value_in(scope, parent_value(scope), rawValue->assignment_value(scope), op);
     }
-}
-
-std::string AccessChain::interpret_representation() const {
-    return "[AccessChainInterpretRepresentation]";
 }
 
 Value *AccessChain::pointer(InterpretScope &scope) {
@@ -131,17 +127,4 @@ ValueType AccessChain::value_type() const {
 
 BaseTypeKind AccessChain::type_kind() const {
     return values[values.size() - 1]->type_kind();
-}
-
-std::string AccessChain::representation() const {
-    std::string rep;
-    int i = 0;
-    while (i < values.size()) {
-        rep.append(values[i]->representation());
-        if (i != values.size() - 1) {
-            rep.append(1, '.');
-        }
-        i++;
-    }
-    return rep;
 }

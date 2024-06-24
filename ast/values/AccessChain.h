@@ -86,8 +86,6 @@ public:
 
     void set_identifier_value(InterpretScope &scope, Value *rawValue, Operation op) override;
 
-    std::string interpret_representation() const override;
-
     Value *pointer(InterpretScope &scope);
 
     Value *evaluated_value(InterpretScope &scope) override;
@@ -99,8 +97,6 @@ public:
     Value *assignment_value(InterpretScope &scope) override;
 
     Value *return_value(InterpretScope &scope) override;
-
-    std::string representation() const override;
 
     ASTNode *linked_node() override;
 

@@ -193,23 +193,13 @@ std::cerr << "child called on base value";
      * this doesn't need to be 100% accurate
      * @return
      */
-    virtual std::string representation() const {
-        return "[Value:Base:Representation]";
-    }
-
-    /**
-     * This would return the representation of the node
-     * @return
-     */
-    virtual std::string interpret_representation() const {
-        return representation();
-    };
+    std::string representation();
 
     /**
      * create a base type that represents the type of this value
      */
     virtual std::unique_ptr<BaseType> create_type() const {
-        throw std::runtime_error("create_type called on bare Value, with representation : " + representation() + " , type : " + std::to_string((unsigned int) value_type()));
+        throw std::runtime_error("create_type called on bare Value with type : " + std::to_string((unsigned int) value_type()));
     };
 
 #ifdef COMPILER_BUILD

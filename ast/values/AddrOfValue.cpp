@@ -18,7 +18,3 @@ Value *AddrOfValue::copy() {
             std::unique_ptr<Value>(value->copy())
     );
 }
-
-std::string AddrOfValue::representation() const {
-    return '&' + value->representation();
-}

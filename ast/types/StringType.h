@@ -17,10 +17,6 @@ public:
         return type == ValueType::String;
     }
 
-    std::string representation() const override {
-        return "string";
-    }
-
     BaseTypeKind kind() const override {
         return BaseTypeKind::String;
     }

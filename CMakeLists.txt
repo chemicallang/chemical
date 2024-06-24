@@ -457,6 +457,11 @@ set(COMMON_SOURCES
         compiler/CodegenEmitterOptions.h
         ast/statements/ThrowStatement.h
         ast/statements/ThrowStatement.cpp
+        ast/structures/Namespace.h
+        ast/structures/Namespace.cpp
+        lexer/structures/Namespace.cpp
+        cst/structures/NamespaceCST.h
+        ast/base/ASTNode.cpp
 )
 
 # Chemical LSP Executable Target

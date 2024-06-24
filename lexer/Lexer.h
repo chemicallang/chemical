@@ -96,7 +96,6 @@ public:
 
     /**
      * lex everything to LexTokens, tokens go into 'tokens' member property
-     * @return
      */
     void lex();
 
@@ -113,7 +112,6 @@ public:
 
     /**
      * lexes a number as a string
-     * @return
      */
     inline std::string lexNumber() {
         return provider.readNumber();
@@ -129,7 +127,6 @@ public:
 
     /**
      * lexes anything as long as when lambda returns true
-     * @return
      */
     template<typename TFunc>
     inline std::string lexAnything(TFunc when) {
@@ -154,7 +151,6 @@ public:
 
     /**
      * lex a alpha numeric string until until character occurs
-     * @return
      */
     inline std::string lexAlphaNum() {
         return provider.readAlphaNum();
@@ -163,7 +159,6 @@ public:
     /**
      * lexes an identifier
      * it doesn't add it as a token use lex Identifier token for that
-     * @return
      */
     inline std::string lexIdentifier() {
         return provider.readIdentifier();
@@ -219,7 +214,6 @@ public:
      * this lexes an access chain like x.y.z or just simply an identifier
      * @param assChain is the access chain in an assignment
      * @param lexStruct also lex a struct if found -> StructName { v1, v2 }
-     * @return
      */
     bool lexAccessChain(bool lexStruct = false);
 
@@ -274,7 +268,6 @@ public:
      * lexes a single top level statement, top level means in file scope, These include
      * functions, structs, interfaces, implementations, enum, annotations
      * comments, variable initialization with value, constants
-     * @return
      */
     bool lexTopLevelStatementTokens();
 
@@ -335,7 +328,7 @@ public:
      * functions, structs, interfaces, implementations
      * comments, variable initialization with value, constants
      */
-    void lexTopLevelMultipleStatementsTokens();
+    void lexTopLevelMultipleStatementsTokens(bool break_at_no_stmt = false);
 
     /**
      * All import statements defined at top level will be lexed
@@ -368,11 +361,19 @@ public:
     /**
      * lexes a brace block, { statement(s) }
      */
-    bool lexBraceBlock(const std::string &forThing = "");
+    bool lexBraceBlock(const std::string &forThing, void(*nested_lexer)(Lexer*));
+
+    /**
+     * lexes a brace block, { statement(s) }
+     */
+    bool lexBraceBlock(const std::string &forThing = "") {
+        return lexBraceBlock(forThing, [](Lexer* lexer){
+            lexer->lexNestedLevelMultipleStatementsTokens();
+        });
+    }
 
     /**
      * lexes an expression for if statement including parens '(' expr ')'
-     * @return
      */
     void lexIfExpression();
 
@@ -383,19 +384,16 @@ public:
 
     /**
      * lexes import statement
-     * @return
      */
     bool lexImportStatement();
 
     /**
      * lexes return statement
-     * @return
      */
     bool lexReturnStatement();
 
     /**
      * lexes break statement
-     * @return
      */
     bool lexBreakStatement();
 
@@ -406,14 +404,12 @@ public:
 
     /**
      * lexes continue statement
-     * @return
      */
     bool lexContinueStatement();
 
     /**
      * lexes a single if expr and the body without else if or else
      * meaning '(' expr ')' '{' body '}'
-     * @return
      */
     void lexIfExprAndBlock();
 
@@ -456,39 +452,38 @@ public:
     /**
      * lexes a function block with parameters
      * @param allow_declaration allows a declaration, without body of the function that is
-     * @return
      */
     bool lexFunctionStructureTokens(bool allow_declaration = false, bool allow_extensions = false);
 
     /**
      * lexes interface block, this means { member(s) }
      * without the `interface` keyword and name identifier
-     * @return
      */
     void lexInterfaceBlockTokens();
 
     /**
      * lexes a interface structure
-     * @return
      */
     bool lexInterfaceStructureTokens();
 
     /**
+     * lex namespace tokens
+     */
+    bool lexNamespaceTokens();
+
+    /**
      * lexes a single member of the struct
-     * @return
      */
     bool lexStructMemberTokens();
 
     /**
      * lexes struct block, this means { member(s) }
      * without the `struct` keyword and name identifier
-     * @return
      */
     void lexStructBlockTokens();
 
     /**
      * lexes a struct block
-     * @return
      */
     bool lexStructStructureTokens();
 
@@ -500,32 +495,27 @@ public:
 
     /**
      * lexes a impl block tokens
-     * @return
      */
     void lexImplBlockTokens();
 
     /**
      * lexes a impl block
-     * @return
      */
     bool lexImplTokens();
 
     /**
      * lexes an enum block, this means { enum(s) }
      * without the `enum` keyword and name identifier
-     * @return
      */
     bool lexEnumBlockTokens();
 
     /**
      * lexes a enum block
-     * @return
      */
     bool lexEnumStructureTokens();
 
     /**
      * lex whitespace tokens
-     * @return
      */
     bool lexWhitespaceToken();
 
@@ -550,7 +540,6 @@ public:
 
     /**
      * lex hash macro
-     * @return
      */
     bool lexAnnotationMacro();
 
@@ -578,7 +567,6 @@ public:
 
     /**
      * lexes tokens for a complete struct object initialization
-     * @return
      */
     bool lexStructValueTokens();
 
@@ -595,13 +583,11 @@ public:
     /**
      * lexes array syntax values like [1,2,3,4]
      * for easy array creation
-     * @return
      */
     bool lexArrayInit();
 
     /**
      * lexes access chain like x.y.z or a value like 10, could be int, string, char
-     * @return
      */
     bool lexAccessChainOrValue(bool lexStruct = false);
 
@@ -718,7 +704,6 @@ public:
     /**
      * All the chars that cause new line
      * for example \n \r
-     * @return
      */
     inline bool lexNewLineChars() {
         return provider.readNewLineChars();
@@ -784,7 +769,6 @@ public:
 
     /**
      * returns the token position at the very current position
-     * @return
      */
     inline Position position() {
         return provider.position();
@@ -798,7 +782,6 @@ public:
      * You can provide the length of the token to this function \n\n
      * Note that token must be on the same line
      * @param back
-     * @return
      */
     inline Position backPosition(unsigned int back) {
         return provider.backPosition(back);
@@ -806,7 +789,6 @@ public:
 
     /**
      * gets the line number from the provider
-     * @return
      */
     inline unsigned int lineNumber() {
         return provider.getLineNumber();

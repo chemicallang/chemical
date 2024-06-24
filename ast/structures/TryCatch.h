@@ -26,6 +26,4 @@ public:
 
     void accept(Visitor *visitor) override;
 
-    std::string representation() const override;
-
 };

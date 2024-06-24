@@ -462,6 +462,8 @@ set(COMMON_SOURCES
         lexer/structures/Namespace.cpp
         cst/structures/NamespaceCST.h
         ast/base/ASTNode.cpp
+        ast/values/SizeOfValue.h
+        ast/values/SizeOfValue.cpp
 )
 
 # Chemical LSP Executable Target

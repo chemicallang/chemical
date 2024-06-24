@@ -7,12 +7,12 @@ uint64_t AccessChain::byte_size(bool is64Bit) const {
     return values[values.size() - 1]->byte_size(is64Bit);
 }
 
-void AccessChain::declare_and_link(SymbolResolver &linker) {
-    link(linker);
+void AccessChain::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
+    declare_and_link(linker);
 }
 
-void AccessChain::link(SymbolResolver &linker) {
-    values[0]->link(linker);
+void AccessChain::declare_and_link(SymbolResolver &linker) {
+    values[0]->link(linker, values[0]);
     if (values.size() > 1) {
         unsigned i = 1;
         while (i < values.size()) {

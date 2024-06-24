@@ -26,7 +26,7 @@ public:
 
     void link_values(SymbolResolver &linker);
 
-    void link(SymbolResolver &linker) override;
+    void link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr) override;
 
     /**
      * provides the bae function type to which call is being made

@@ -52,7 +52,7 @@ void DoWhileLoop::accept(Visitor *visitor) {
 void DoWhileLoop::declare_and_link(SymbolResolver &linker) {
     linker.scope_start();
     body.declare_and_link(linker);
-    condition->link(linker);
+    condition->link(linker, condition);
     linker.scope_end();
 }
 

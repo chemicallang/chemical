@@ -77,9 +77,9 @@ std::unique_ptr<BaseType> IndexOperator::create_type() const {
     return parent_val->create_type()->create_child_type();
 }
 
-void IndexOperator::link(SymbolResolver &linker) {
+void IndexOperator::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
     for(auto& value : values) {
-        value->link(linker);
+        value->link(linker, value);
     }
 }
 
@@ -107,6 +107,6 @@ Value *IndexOperator::find_in(InterpretScope &scope, Value *parent) {
 void IndexOperator::find_link_in_parent(Value *parent, SymbolResolver &resolver) {
     parent_val = parent;
     for(auto& value : values) {
-        value->link(resolver);
+        value->link(resolver, value);
     }
 }

@@ -125,7 +125,7 @@ bool StructValue::primitive() {
     return false;
 }
 
-void StructValue::link(SymbolResolver &linker) {
+void StructValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
     auto found = linker.find(structName);
     if(found) {
         auto struct_def = found->as_struct_def();

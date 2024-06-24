@@ -74,6 +74,7 @@
 #include "ast/statements/ThrowStatement.h"
 #include "preprocess/RepresentationVisitor.h"
 #include "preprocess/2cASTVisitor.h"
+#include "ast/values/SizeOfValue.h"
 
 Operation get_operation(CSTToken *token) {
     auto op = (OperationToken*) token;
@@ -136,8 +137,7 @@ void CSTConverter::init_macro_handlers() {
     macro_handlers["sizeof"] = [](CSTConverter* converter, CompoundCSTToken* container) {
         if(container->tokens[2]->is_type()) {
             container->tokens[2]->accept(converter);
-            auto type = converter->type();
-            auto value = new ULongValue(type->byte_size(converter->is64Bit), converter->is64Bit);
+            auto value = new SizeOfValue(converter->type().release());
             converter->values.emplace_back(value);
         } else {
             converter->error("expected a type in sizeof", container);

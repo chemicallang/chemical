@@ -134,9 +134,9 @@ ASTNode *ArrayValue::linked_node() {
     }
 }
 
-void ArrayValue::link(SymbolResolver &linker) {
+void ArrayValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
     for(auto& value : values) {
-        value->link(linker);
+        value->link(linker, value);
     }
     if(elemType.has_value()) {
         elemType.value()->link(linker);

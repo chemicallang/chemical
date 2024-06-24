@@ -22,7 +22,7 @@ public:
 
     AccessChain(std::vector<std::unique_ptr<Value>> values);
 
-    void link(SymbolResolver &linker) override;
+    void link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) override;
 
     void declare_and_link(SymbolResolver &linker) override;
 

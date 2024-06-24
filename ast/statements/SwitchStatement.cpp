@@ -62,7 +62,7 @@ SwitchStatement::SwitchStatement(
 }
 
 void SwitchStatement::declare_and_link(SymbolResolver &linker) {
-    expression->link(linker);
+    expression->link(linker, expression);
 }
 
 void SwitchStatement::accept(Visitor *visitor) {

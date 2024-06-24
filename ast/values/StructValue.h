@@ -31,7 +31,7 @@ public:
 
     bool primitive() override;
 
-    void link(SymbolResolver &linker) override;
+    void link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) override;
 
     Value *call_member(
             InterpretScope &scope,

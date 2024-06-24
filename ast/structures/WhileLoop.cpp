@@ -55,7 +55,7 @@ WhileLoop::WhileLoop(std::unique_ptr<Value> condition, LoopScope body)
 
 void WhileLoop::declare_and_link(SymbolResolver &linker) {
     linker.scope_start();
-    condition->link(linker);
+    condition->link(linker, condition);
     body.declare_and_link(linker);
     linker.scope_end();
 }

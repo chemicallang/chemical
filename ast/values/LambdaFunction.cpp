@@ -127,7 +127,7 @@ void link_full(LambdaFunction* fn, SymbolResolver &linker) {
     linker.scope_end();
 }
 
-void LambdaFunction::link(SymbolResolver &linker) {
+void LambdaFunction::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
 
 #ifdef DEBUG
     linker.info("lambda function type not found, deducing function type by visiting lambda body (expensive operation) performed");
@@ -182,7 +182,7 @@ void LambdaFunction::link(SymbolResolver &linker, VarInitStatement *stmnt) {
         link(linker, (FunctionType*) retrieved.get());
         link_full(this, linker);
     } else {
-        link(linker);
+        Value::link(linker, stmnt);
     }
 }
 
@@ -236,7 +236,7 @@ void LambdaFunction::link(SymbolResolver &linker, ReturnStatement *returnStmt) {
         link(linker, retType->function_type());
         delete retType;
     } else {
-        link(linker);
+        Value::link(linker, returnStmt);
         return;
     }
 

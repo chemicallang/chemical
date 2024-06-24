@@ -2,7 +2,11 @@
 
 #include "Value.h"
 #include "ast/values/StructValue.h"
+#include "ast/statements/Assignment.h"
 #include "ast/values/ArrayValue.h"
+#include "ast/values/StructValue.h"
+#include "ast/values/FunctionCall.h"
+#include "ast/statements/Return.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/types/PointerType.h"
 #include "ast/values/UIntValue.h"
@@ -11,7 +15,6 @@
 #include <ranges>
 #include "preprocess/RepresentationVisitor.h"
 #include <sstream>
-
 
 #ifdef COMPILER_BUILD
 
@@ -174,4 +177,24 @@ std::string Value::representation() {
     RepresentationVisitor visitor(ostring);
     accept(&visitor);
     return ostring.str();
+}
+
+void Value::link(SymbolResolver& linker, VarInitStatement* stmnt) {
+    link(linker, stmnt->value.value());
+}
+
+void Value::link(SymbolResolver& linker, AssignStatement* stmnt) {
+    link(linker, stmnt->value);
+}
+
+void Value::link(SymbolResolver& linker, StructValue* value, const std::string& name) {
+    link(linker, value->values[name]);
+}
+
+void Value::link(SymbolResolver& linker, FunctionCall* call, unsigned int index) {
+    link(linker, call->values[index]);
+}
+
+void Value::link(SymbolResolver& linker, ReturnStatement* returnStmt) {
+    link(linker, returnStmt->value.value());
 }

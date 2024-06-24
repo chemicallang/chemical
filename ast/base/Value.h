@@ -52,8 +52,11 @@ public:
     /**
      * this function is called to allow variable identifiers to link with a node on the map
      * that will help it provide information, to allow it to generate code, or interpret
+     * The reason it takes a reference to unique_ptr<Value> is because the current value
+     * can basically replace itself in the pointer, some compile time values like sizeof
+     * replace themselves at resolution phase
      */
-    virtual void link(SymbolResolver& linker) {
+    virtual void link(SymbolResolver& linker, std::unique_ptr<Value>& value_ptr) {
         // does nothing by default
     }
 
@@ -61,41 +64,31 @@ public:
      * when value is contained within VarInitStatement, this function is called
      * which provides access to the statement for more information
      */
-    virtual void link(SymbolResolver& linker, VarInitStatement* stmnt) {
-        return link(linker);
-    }
+    virtual void link(SymbolResolver& linker, VarInitStatement* stmnt);
 
     /**
      * when value is contained within assign statement, this function is called
      * which provides access to the  statement for more information
      */
-    virtual void link(SymbolResolver& linker, AssignStatement* stmnt) {
-        return link(linker);
-    }
+    virtual void link(SymbolResolver& linker, AssignStatement* stmnt);
 
     /**
      * when a value is present inside a struct value, this function is called
      * can be overridden to retrieve extra information
      */
-    virtual void link(SymbolResolver& linker, StructValue* value, const std::string& name) {
-        return link(linker);
-    }
+    virtual void link(SymbolResolver& linker, StructValue* value, const std::string& name);
 
     /**
      * values inside a function call, can override this method if they want to access
      * information about call, function at link time
      */
-    virtual void link(SymbolResolver& linker, FunctionCall* call, unsigned int index) {
-        return link(linker);
-    }
+    virtual void link(SymbolResolver& linker, FunctionCall* call, unsigned int index);
 
     /**
      * when a value is required to be linked by a return statement, this function is called
      * overriding this method, allows to access the return statement, function of return
      */
-    virtual void link(SymbolResolver& linker, ReturnStatement* returnStmt) {
-        return link(linker);
-    }
+    virtual void link(SymbolResolver& linker, ReturnStatement* returnStmt);
 
     /**
      * it must return the node that will be used to find the next node in the access chain

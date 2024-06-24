@@ -24,7 +24,7 @@ public:
         visitor->visit(this);
     }
 
-    void link(SymbolResolver &linker) override;
+    void link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) override;
 
 #ifdef COMPILER_BUILD
 

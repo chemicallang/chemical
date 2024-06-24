@@ -37,7 +37,7 @@ public:
 
 #endif
 
-    void link(SymbolResolver &linker) override;
+    void link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) override;
 
     std::unique_ptr<Value> value;
 };

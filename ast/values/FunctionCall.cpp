@@ -266,7 +266,7 @@ void FunctionCall::link_values(SymbolResolver &linker) {
     }
 }
 
-void FunctionCall::link(SymbolResolver &linker) {
+void FunctionCall::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr) {
     throw std::runtime_error("cannot link a function call wihout identifier");
 //    name->link(linker);
 //    linked = name->linked_node();

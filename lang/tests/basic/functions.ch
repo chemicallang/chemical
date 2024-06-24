@@ -36,6 +36,13 @@ func (mem : MemLamb*) ext_func_test() : TestStruct1 {
     }
 }
 
+var is_expr_test_func_called = false;
+
+func expr_test_func_call() : bool {
+    is_expr_test_func_called = true;
+    return true;
+}
+
 func test_functions() {
     test("test struct member access in chain, tld function return", () => {
         return test_struct().x == 100;
@@ -67,5 +74,29 @@ func test_functions() {
     test("supports function calls that return structs inside array values", () => {
         var arr = {test_struct()}TestStruct2(1)
         return arr[0].x == 100 && arr[0].y == 100
+    })
+    test("expression test function is not called in 'or' ||", () => {
+        if(true || expr_test_func_call()) {
+
+        }
+        return is_expr_test_func_called == false;
+    })
+    test("expression test function is called in 'or' ||", () => {
+        if(false || expr_test_func_call()) {
+
+        }
+        return is_expr_test_func_called == true;
+    })
+    test("expression test function is not called in 'and' ||", () => {
+        if(false && expr_test_func_call()) {
+
+        }
+        return is_expr_test_func_called == false;
+    })
+    test("expression test function is called in 'and' ||", () => {
+        if(true && expr_test_func_call()) {
+
+        }
+        return is_expr_test_func_called == true;
     })
 }

@@ -13,6 +13,7 @@ import "basic/pointers.ch"
 import "basic/casts.ch"
 import "basic/functions.ch"
 import "basic/destructors.ch"
+import "nodes/union.ch"
 
 func main() {
     test_var_init();
@@ -30,5 +31,6 @@ func main() {
     test_casts();
     test_functions();
     test_destructors();
+    // test_unions();
     print_test_stats();
 }

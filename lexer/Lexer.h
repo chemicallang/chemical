@@ -487,6 +487,22 @@ public:
      */
     bool lexStructStructureTokens();
 
+        /**
+     * lexes a single member of the struct
+     */
+    bool lexUnionMemberTokens();
+
+    /**
+     * lexes struct block, this means { member(s) }
+     * without the `struct` keyword and name identifier
+     */
+    void lexUnionBlockTokens();
+
+    /**
+     * lexes a struct block
+     */
+    bool lexUnionStructureTokens();
+
     /**
      * this will try to collect current struct as a lexer
      * @param start is the start position inside the tokens vector

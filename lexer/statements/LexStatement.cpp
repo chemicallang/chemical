@@ -14,6 +14,7 @@ bool Lexer::lexTopLevelStatementTokens() {
            lexAnnotationMacro() ||
            lexEnumStructureTokens() ||
            lexStructStructureTokens() ||
+           lexUnionStructureTokens() ||
            lexTypealiasStatement() ||
            lexInterfaceStructureTokens() ||
            lexImplTokens() ||
@@ -54,6 +55,7 @@ bool Lexer::lexStatementTokens() {
            lexIfBlockTokens() ||
            lexForBlockTokens() ||
            lexStructStructureTokens() ||
+           lexUnionStructureTokens() ||
            lexInterfaceStructureTokens() ||
            lexImplTokens() ||
            lexDoWhileBlockTokens() ||

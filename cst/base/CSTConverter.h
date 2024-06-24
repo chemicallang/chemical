@@ -132,6 +132,12 @@ public:
     StructDefinition *current_struct_decl = nullptr;
 
     /**
+     * This is a pointer to current union declaration
+     * All nodes being parsed belong to this union
+     */
+    UnionDef *current_union_decl = nullptr;
+
+    /**
      * This is a pointer to current interface declaration
      * All nodes being parsed belong to this interface
      */
@@ -254,6 +260,8 @@ public:
     void visitInterface(CompoundCSTToken *interface) override;
 
     void visitImpl(CompoundCSTToken *impl) override;
+
+    void visitUnionDef(CompoundCSTToken *unionDef) override;
 
     void visitNamespace(CompoundCSTToken *ns) override;
 

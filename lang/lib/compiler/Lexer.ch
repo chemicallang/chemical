@@ -132,7 +132,7 @@ struct Lexer {
      * @param op
      * @return whether the token was found
      */
-    var lexOperatorTokenStr : (&self, op : string) => bool;
+    var lexOperatorTokenStr : (&self, op : String*) => bool;
 
     /**
      * lexes the given operator as length 1 character operator token
@@ -153,7 +153,7 @@ struct Lexer {
      * @param keyword
      * @return  whether the keyword was found
      */
-    var lexKeywordToken : (&self, keyword : string) => bool;
+    var lexKeywordToken : (&self, keyword : String*) => bool;
 
     /**
      * All top levels statements lexed, These include

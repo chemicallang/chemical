@@ -27,6 +27,7 @@
 #include "ast/structures/DoWhileLoop.h"
 #include "ast/structures/If.h"
 #include "ast/structures/StructDefinition.h"
+#include "ast/structures/UnionDef.h"
 #include "ast/structures/ForLoop.h"
 #include "ast/structures/LoopScope.h"
 #include "ast/structures/CapturedVariable.h"
@@ -483,6 +484,8 @@ public:
 
     void visit(StructDefinition *structDefinition) override;
 
+    void visit(UnionDef *def) override;
+
     void visit(InterfaceDefinition *interfaceDefinition) override;
 
     void visit(ImplDefinition *implDefinition) override;
@@ -904,6 +907,23 @@ void CValueDeclarationVisitor::visit(EnumDeclaration *enumDecl) {
         write(std::to_string(mem.second->index));
         aliases[mem.second.get()] = value;
         i++;
+    }
+}
+
+void CTopLevelDeclarationVisitor::visit(UnionDef *def) {
+    write("union ");
+    write(def->name);
+    write(" {");
+    visitor->indentation_level+=1;
+    for(auto& var : def->variables) {
+        visitor->new_line_and_indent();
+        var.second->accept(visitor);
+    }
+    visitor->indentation_level-=1;
+    visitor->new_line_and_indent();
+    write("};");
+    for(auto& func : def->functions) {
+        declare_contained_func(this, func.second.get(), def->name + func.second->name, false);
     }
 }
 

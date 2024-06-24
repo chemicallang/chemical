@@ -79,6 +79,11 @@ public:
     void code_gen_struct(Codegen &gen, StructDefinition* def);
 
     /**
+     * called by union when the function is inside a union
+     */
+    void code_gen_union(Codegen &gen, UnionDef* def);
+
+    /**
      * called by interface when the function is inside a interface
      */
     void code_gen_interface(Codegen &gen, InterfaceDefinition* def);

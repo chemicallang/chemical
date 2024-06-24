@@ -1,11 +1,19 @@
 // Copyright (c) Qinetik 2024.
 
 #include "UnionDef.h"
+#include "FunctionDeclaration.h"
+#include "compiler/SymbolResolver.h"
 
 #ifdef COMPILER_BUILD
 
 #include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
+
+void UnionDef::code_gen(Codegen &gen) {
+    for (auto &function: functions) {
+        function.second->code_gen_union(gen, this);
+    }
+}
 
 llvm::Type* UnionDef::largest_member_type(Codegen& gen) {
     StructMember* member = nullptr;
@@ -41,4 +49,12 @@ llvm::Type *UnionDef::llvm_type(Codegen &gen) {
 
 UnionDef::UnionDef(std::string name) : name(std::move(name)) {
 
+}
+
+void UnionDef::declare_top_level(SymbolResolver &linker) {
+    linker.declare(name, this);
+}
+
+void UnionDef::declare_and_link(SymbolResolver &linker) {
+    MembersContainer::declare_and_link(linker);
 }

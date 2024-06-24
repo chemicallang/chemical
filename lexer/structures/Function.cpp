@@ -23,7 +23,7 @@ bool Lexer::lexReturnStatement() {
 void Lexer::lexParameterList(bool optionalTypes, bool defValues) {
     unsigned index = 0; // param identifier index
     do {
-        lexWhitespaceToken();
+        lexWhitespaceAndNewLines();
         if(index == 0) {
             if(lexOperatorToken('&')) {
                 if(lexIdentifierToken()) {
@@ -119,6 +119,8 @@ bool Lexer::lexAfterFuncKeyword(bool allow_extensions) {
     }
 
     lexParameterList();
+
+    lexWhitespaceAndNewLines();
 
     if(!lexOperatorToken(')')) {
         error("expected a closing parenthesis ) when ending a function signature");

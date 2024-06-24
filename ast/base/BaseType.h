@@ -158,6 +158,13 @@ public:
      */
     std::string representation();
 
+    /**
+     * check if this type is a pointer
+     */
+    bool is_pointer() {
+        return kind() == BaseTypeKind::Pointer || kind() == BaseTypeKind::String;
+    }
+
 #ifdef COMPILER_BUILD
 
     /**

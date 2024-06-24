@@ -202,6 +202,11 @@ std::cerr << "child called on base value";
         throw std::runtime_error("create_type called on bare Value with type : " + std::to_string((unsigned int) value_type()));
     };
 
+    virtual bool is_pointer() {
+        auto k = type_kind();
+        return k == BaseTypeKind::Pointer || k == BaseTypeKind::String;
+    }
+
 #ifdef COMPILER_BUILD
 
     /**

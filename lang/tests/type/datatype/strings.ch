@@ -1,7 +1,7 @@
 import "../../test.ch"
 
 struct Str {
-    var value : string
+    var value : char*
 }
 
 func test_strings() {

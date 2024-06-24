@@ -14,6 +14,10 @@ public:
 
     }
 
+    std::unique_ptr<BaseType> create_child_type() const override {
+        return std::unique_ptr<BaseType>(type->copy());
+    }
+
     uint64_t byte_size(bool is64Bit) override {
         return is64Bit ? 8 : 4;
     }

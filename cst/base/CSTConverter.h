@@ -83,6 +83,11 @@ public:
     bool no_imports = false;
 
     /**
+     * enable or disable CBI
+     */
+    bool isCBIEnabled = true;
+
+    /**
      * when true, a single node is not put into nodes vector and then mode is turned off
      * it allows us to skip converting a struct or function based on an annotation
      */

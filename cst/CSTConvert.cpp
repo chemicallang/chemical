@@ -206,20 +206,25 @@ void CSTConverter::init_annotation_handlers() {
     annotation_handlers["cbi:create"] = ignore_annotation_func;
     annotation_handlers["cbi:import"] = ignore_annotation_func;
     annotation_handlers["cbi:global"] = [](CSTConverter* converter, CSTToken* container){
+        if(!converter->isCBIEnabled) return;
         converter->dispose_node = true;
     };
     annotation_handlers["cbi:to"] = [](CSTConverter* converter, CSTToken* container){
+        if(!converter->isCBIEnabled) return;
         converter->dispose_node = true;
     };
     annotation_handlers["cbi:begin"] = [](CSTConverter* converter, CSTToken* container){
+        if(!converter->isCBIEnabled) return;
         converter->dispose_node = true;
         converter->keep_disposing = true;
     };
     annotation_handlers["cbi:end"] = [](CSTConverter* converter, CSTToken* container){
+        if(!converter->isCBIEnabled) return;
         converter->dispose_node = false;
         converter->keep_disposing = false;
     };
     annotation_handlers["cbi:compile"] = [](CSTConverter* converter, CSTToken* container){
+        if(!converter->isCBIEnabled) return;
         converter->dispose_node = false;
         converter->keep_disposing = false;
     };

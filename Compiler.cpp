@@ -67,6 +67,8 @@ void print_help() {
                  "--debug-ll          -[empty]      output llvm ir, even with errors, for debugging\n"
                  "--verify            -o            do not compile, only verify source code\n"
                  "--jit               -jit          do just in time compilation using Tiny CC\n"
+                 "--no-cbi            -[empty]      this ignores cbi annotations when translating\n"
+                 "--cpp-like          -[empty]      configure output of c translation to be like c++\n"
                  "--res <dir>         -res <dir>    change the location of resources directory\n"
                  "--benchmark         -bm           benchmark lexing / parsing / compilation process\n"
                  "--print-ig          -pr-ig        print import graph of the source file\n"
@@ -192,7 +194,10 @@ int main(int argc, char *argv[]) {
         auto translator_preparer = [&options](ToCAstVisitor* visitor, ASTProcessor* processor) -> void {
             visitor->inline_struct_members_fn_types = !options.option("take-out-struct-member-fn-types").has_value();
             visitor->cpp_like = options.option("cpp-like").has_value();
-            processor->lexer->isCBIEnabled = !options.option("no-cbi").has_value();
+            if(options.option("no-cbi").has_value()) {
+                processor->lexer->isCBIEnabled = false;
+                processor->converter->isCBIEnabled = false;
+            }
         };
         if(output.has_value() && (output.value().ends_with(".c") || output.value().ends_with(".h")) && !jit) {
             bool good = translate(srcFilePath, output.value(), &translator_opts, translator_preparer);

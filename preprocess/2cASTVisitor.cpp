@@ -1196,6 +1196,8 @@ void func_decl_with_name(ToCAstVisitor* visitor, FunctionDeclaration* decl, cons
     if(!decl->body.has_value()) {
         return;
     }
+    auto prev_func_decl = visitor->current_func_type;
+    visitor->current_func_type = decl;
     visitor->new_line_and_indent();
     if(visitor->inline_fn_types_in_returns && decl->returnType->function_type() && !decl->returnType->function_type()->isCapturing) {
         func_that_returns_func_proto(visitor, decl, name, decl->returnType->function_type());
@@ -1203,12 +1205,15 @@ void func_decl_with_name(ToCAstVisitor* visitor, FunctionDeclaration* decl, cons
         declare_func_with_return(visitor, decl, name);
     }
     scope(visitor, decl->body.value());
+    visitor->current_func_type = prev_func_decl;
 }
 
 void contained_func_decl(ToCAstVisitor* visitor, FunctionDeclaration* decl, const std::string& name, bool overrides, ExtendableMembersContainerNode* def) {
     if(!decl->body.has_value()) {
         return;
     }
+    auto prev_func_decl = visitor->current_func_type;
+    visitor->current_func_type = decl;
     visitor->new_line_and_indent();
     std::string self_pointer_name;
     FunctionParam* param = !decl->params.empty() ? decl->params[0].get() : nullptr;
@@ -1290,6 +1295,7 @@ void contained_func_decl(ToCAstVisitor* visitor, FunctionDeclaration* decl, cons
     visitor->indentation_level-=1;
     visitor->new_line_and_indent();
     visitor->write('}');
+    visitor->current_func_type = prev_func_decl;
 }
 
 void ToCAstVisitor::visit(FunctionDeclaration *decl) {
@@ -1357,6 +1363,8 @@ void ToCAstVisitor::visit(Scope *scope) {
 }
 
 void ToCAstVisitor::visit(StructDefinition *def) {
+    auto prev_members_container = current_members_container;
+    current_members_container = def;
     auto overridden = def->overrides.has_value() ? def->overrides.value()->linked->as_interface_def() : nullptr;
     if(overridden) {
         for(auto& func : overridden->functions) {
@@ -1372,6 +1380,7 @@ void ToCAstVisitor::visit(StructDefinition *def) {
             contained_func_decl(this, func.second.get(), def->name + func.second->name, false, def);
         }
     }
+    current_members_container = prev_members_container;
 }
 
 void ToCAstVisitor::visit(UnionDef *def) {
@@ -1528,17 +1537,34 @@ void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& valu
     return;
     normal_functions: {
         // normal functions
+        bool contains_useless_self = false;
+        if(visitor->current_members_container && !is_lambda) {
+            func_container_name(visitor, visitor->current_members_container, parent->linked_node());
+            contains_useless_self = values[start]->as_identifier() && values[start]->as_identifier()->value == "self";
+            if(contains_useless_self) {
+                start++;
+            }
+        }
         access_chain(visitor, values, start, end - 1);
         visitor->write('(');
-        if(grandpa && func_type->has_self_param()) {
-            if(chain_contains_func_call(values, start, end - 2)) {
-                visitor->error("Function call inside a access chain with lambda that requires self is not allowed");
-                return;
+        if(func_type->has_self_param()) {
+            if(grandpa && !contains_useless_self) {
+                if (chain_contains_func_call(values, start, end - 2)) {
+                    visitor->error("Function call inside a access chain with lambda that requires self is not allowed");
+                    return;
+                }
+                if (end - 3 >= 0 && values[end - 3]->value_type() != ValueType::Pointer) {
+                    visitor->write('&');
+                }
+                access_chain(visitor, values, start, end - 2, end - 2);
+            } else if(visitor->current_func_type && !is_lambda) {
+                auto self_arg = visitor->current_func_type->get_self_param();
+                if(self_arg) {
+                    visitor->write(self_arg->name);
+                } else {
+                    visitor->error("couldn't pass self arg where current function has none.");
+                }
             }
-            if(end - 3 >= 0 && values[end - 3]->value_type() != ValueType::Pointer) {
-                visitor->write('&');
-            }
-            access_chain(visitor, values, start, end - 2, end - 2);
             if (!last->values.empty()) {
                 visitor->write(',');
             }

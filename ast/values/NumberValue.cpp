@@ -51,7 +51,7 @@ void NumberValue::link(SymbolResolver &linker, VarInitStatement *stmnt) {
     }
 }
 
-void NumberValue::link(SymbolResolver &linker, AssignStatement *stmnt) {
+void NumberValue::link(SymbolResolver &linker, AssignStatement *stmnt, bool lhs) {
     auto value_type = stmnt->lhs->create_type();
     linked_type = linked(value_type.get());
 }

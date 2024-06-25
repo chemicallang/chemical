@@ -38,7 +38,7 @@ public:
 
     void link(SymbolResolver &linker, VarInitStatement *stmnt) override;
 
-    void link(SymbolResolver &linker, AssignStatement *stmnt) override;
+    void link(SymbolResolver &linker, AssignStatement *stmnt, bool lhs) override;
 
     void link(SymbolResolver &linker, ReturnStatement *returnStmt) override;
 

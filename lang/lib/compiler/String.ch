@@ -20,7 +20,7 @@ struct String {
     /**
      * resize the string to a new capacity
      */
-    func resize(new_capacity : ulong) {
+    func resize(&self, new_capacity : ulong) {
         var new_data = realloc(data, new_capacity) as char*;
         if (new_data) {
             data = new_data;
@@ -31,7 +31,7 @@ struct String {
     /**
      * append a character to a string
      */
-    func append_char(c : char) {
+    func append_char(&self, c : char) {
         if(length + 1 >= capacity) {
             resize(length + 1 + 10);
         }
@@ -43,7 +43,7 @@ struct String {
     /**
      * append a string to this string, with given length
      */
-    func append_str_of_len(s : char*, len : size_t) {
+    func append_str_of_len(&self, s : char*, len : size_t) {
         if(length + len >= capacity) {
             resize(length + len + 3);
         }
@@ -55,7 +55,7 @@ struct String {
     /**
      * append another string to this string
      */
-    func append_str(s : char*) {
+    func append_str(&self, s : char*) {
         var len = strlen(s);
         append_str_of_len(s, len);
     }
@@ -64,7 +64,7 @@ struct String {
      * frees the string
      */
     @destructor
-    func delete() {
+    func delete(&self) {
         free(data);
     }
 

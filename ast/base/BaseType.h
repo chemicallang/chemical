@@ -7,6 +7,7 @@
 #include <string>
 #include <memory>
 #include "Visitor.h"
+#include "std/hybrid_ptr.h"
 #include <iostream>
 
 class Codegen;
@@ -34,13 +35,6 @@ class BaseType {
 public:
 
     /**
-     * constructor
-     */
-    BaseType() {
-
-    }
-
-    /**
      * get the byte size, of this type
      */
     virtual uint64_t byte_size(bool is64Bit) {
@@ -52,6 +46,13 @@ public:
      */
     virtual std::unique_ptr<BaseType> create_child_type() const {
         return nullptr;
+    }
+
+    /**
+     * get a pointer to it's child type
+     */
+    virtual hybrid_ptr<BaseType> get_child_type() {
+        throw std::runtime_error("byte_size called on base type");
     }
 
     /**

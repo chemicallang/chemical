@@ -77,7 +77,7 @@ llvm::Type *LambdaFunction::capture_struct_type(Codegen &gen) {
 
 #endif
 
-std::unique_ptr<BaseType> LambdaFunction::create_type() const {
+std::unique_ptr<BaseType> LambdaFunction::create_type() {
     auto func_type = std::unique_ptr<FunctionType>((FunctionType*) FunctionType::copy());
     func_type->isCapturing = !captureList.empty();
     return func_type;

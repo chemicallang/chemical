@@ -12,7 +12,7 @@
 /**
  * @brief Class representing a floating-point value.
  */
-class FloatValue : public Value {
+class FloatValue : public Value, public FloatType {
 public:
     /**
      * @brief Construct a new FloatValue object.
@@ -21,7 +21,11 @@ public:
      */
     FloatValue(float value) : value(value) {}
 
-    uint64_t byte_size(bool is64Bit) const {
+    hybrid_ptr<BaseType> get_base_type() override {
+        return hybrid_ptr<BaseType> { this, false };
+    }
+
+    uint64_t byte_size(bool is64Bit) {
         return 4;
     }
 
@@ -41,7 +45,7 @@ public:
         return value;
     }
 
-    std::unique_ptr<BaseType> create_type() const override {
+    std::unique_ptr<BaseType> create_type() override {
         return std::make_unique<FloatType>();
     }
 

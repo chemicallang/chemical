@@ -7,8 +7,18 @@
 class ULongType : public IntNType {
 public:
 
-    ULongType(bool is64Bit) : IntNType(is64Bit ? 64 : 32, true) {
+    bool is64Bit;
 
+    ULongType(bool is64Bit) : is64Bit(is64Bit) {
+
+    }
+
+    unsigned int num_bits() const override {
+        return is64Bit ? 64 : 32;
+    }
+
+    bool is_unsigned() override {
+        return true;
     }
 
     uint64_t byte_size(bool is64Bit) override {
@@ -26,7 +36,7 @@ public:
     }
 
     BaseType *copy() const override {
-        return new ULongType(number == 64);
+        return new ULongType(is64Bit);
     }
 
 };

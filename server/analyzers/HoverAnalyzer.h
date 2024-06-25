@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "common/Position.h"
+#include "integration/common/Position.h"
 
 class ImportUnit;
 

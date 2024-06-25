@@ -7,8 +7,12 @@
 class BigIntType : public IntNType {
 public:
 
-    BigIntType() : IntNType(64, false) {
+    unsigned int num_bits() const override {
+        return 64;
+    }
 
+    bool is_unsigned() override {
+        return false;
     }
 
     void accept(Visitor *visitor) override {

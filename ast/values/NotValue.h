@@ -37,7 +37,9 @@ public:
         return value->type_kind();
     }
 
-    std::unique_ptr<BaseType> create_type() const override;
+    std::unique_ptr<BaseType> create_type() override;
+
+    hybrid_ptr<BaseType> get_base_type() override;
 
     std::unique_ptr<Value> value;
 

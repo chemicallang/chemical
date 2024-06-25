@@ -16,7 +16,11 @@ public:
 
     Value *copy() override;
 
-    std::unique_ptr<BaseType> create_type() const override {
+    hybrid_ptr<BaseType> get_base_type() override {
+        return hybrid_ptr<BaseType> { type.get(), false };
+    }
+
+    std::unique_ptr<BaseType> create_type() override {
         return std::unique_ptr<BaseType>(type->copy());
     }
 

@@ -6,7 +6,7 @@
 #include <utility>
 #include <vector>
 #include <memory>
-#include "common/Position.h"
+#include "integration/common/Position.h"
 
 class CompoundCSTToken : public CSTToken {
 public:

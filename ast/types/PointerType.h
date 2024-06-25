@@ -18,6 +18,10 @@ public:
         return std::unique_ptr<BaseType>(type->copy());
     }
 
+    hybrid_ptr<BaseType> get_child_type() override {
+        return hybrid_ptr<BaseType> { type.get(), false };
+    }
+
     uint64_t byte_size(bool is64Bit) override {
         return is64Bit ? 8 : 4;
     }

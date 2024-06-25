@@ -43,6 +43,8 @@ public:
 
     std::unique_ptr<BaseType> create_value_type() override;
 
+    hybrid_ptr<BaseType> get_value_type() override;
+
 #ifdef COMPILER_BUILD
 
     void code_gen(Codegen &gen) override;

@@ -9,7 +9,7 @@
 #include <string>
 #include <optional>
 #include "lexer/model/LexTokenType.h"
-#include "common/Diagnostic.h"
+#include "integration/common/Diagnostic.h"
 #include "cst/base/CSTToken.h"
 
 class LexToken : public CSTToken {

@@ -3,8 +3,9 @@
 #pragma once
 
 #include "ast/base/ASTNode.h"
+#include "ast/types/IntType.h"
 
-class EnumMember : public ASTNode {
+class EnumMember : public ASTNode, public IntType {
 public:
 
     std::string name;
@@ -32,5 +33,7 @@ public:
 #endif
 
     std::unique_ptr<BaseType> create_value_type() override;
+
+    hybrid_ptr<BaseType> get_value_type() override;
 
 };

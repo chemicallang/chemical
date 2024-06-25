@@ -13,7 +13,7 @@
 /**
  * @brief Class representing an integer value.
  */
-class IntValue : public IntNumValue {
+class IntValue : public IntNumValue, public IntType {
 public:
 
     /**
@@ -23,7 +23,7 @@ public:
      */
     IntValue(int value) : value(value) {}
 
-    uint64_t byte_size(bool is64Bit) const {
+    uint64_t byte_size(bool is64Bit) {
         return 4;
     }
 
@@ -47,8 +47,12 @@ public:
         return false;
     }
 
-    [[nodiscard]] std::unique_ptr<BaseType> create_type() const override {
+    [[nodiscard]] std::unique_ptr<BaseType> create_type() override {
         return std::make_unique<IntType>();
+    }
+
+    hybrid_ptr<BaseType> get_base_type() override {
+        return hybrid_ptr<BaseType> { this, false };
     }
 
     int as_int() override {

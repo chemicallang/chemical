@@ -71,6 +71,8 @@ public:
 
     std::unique_ptr<BaseType> create_value_type() override;
 
+    hybrid_ptr<BaseType> get_value_type() override;
+
     /**
      * called by assignment to assign a new value in the scope that this variable was declared
      */

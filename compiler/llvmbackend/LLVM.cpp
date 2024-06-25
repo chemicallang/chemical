@@ -76,9 +76,9 @@ llvm::Type *FloatType::llvm_type(Codegen &gen) const {
 }
 
 llvm::Type *IntNType::llvm_type(Codegen &gen) const {
-    auto ty = gen.builder->getIntNTy(number);
+    auto ty = gen.builder->getIntNTy(num_bits());
     if(!ty) {
-        gen.error("Couldn't get intN type for int:" + std::to_string(number));
+        gen.error("Couldn't get intN type for int:" + std::to_string(num_bits()));
     }
     return ty;
 }
@@ -308,23 +308,23 @@ llvm::Value *CastedValue::llvm_value(Codegen &gen) {
     if(value_type->kind() == BaseTypeKind::IntN && type->kind() == BaseTypeKind::IntN) {
         auto from_num_type = (IntNType*) value_type.get();
         auto to_num_type = (IntNType*) type.get();
-        if(from_num_type->number < to_num_type->number) {
-            if (from_num_type->is_unsigned) {
+        if(from_num_type->num_bits() < to_num_type->num_bits()) {
+            if (from_num_type->is_unsigned()) {
                 return gen.builder->CreateZExt(llvm_val, to_num_type->llvm_type(gen));
             } else {
                 return gen.builder->CreateSExt(llvm_val, to_num_type->llvm_type(gen));
             }
-        } else if(from_num_type->number > to_num_type->number) {
+        } else if(from_num_type->num_bits() > to_num_type->num_bits()) {
             return gen.builder->CreateTrunc(llvm_val, to_num_type->llvm_type(gen));
         }
     } else if((value_type->kind() == BaseTypeKind::Float || value_type->kind() == BaseTypeKind::Double) && type->kind() == BaseTypeKind::IntN) {
-        if(((IntNType*) type.get())->is_unsigned) {
+        if(((IntNType*) type.get())->is_unsigned()) {
             return gen.builder->CreateFPToUI(llvm_val, type->llvm_type(gen));
         } else {
             return gen.builder->CreateFPToSI(llvm_val, type->llvm_type(gen));
         }
     } else if((value_type->kind() == BaseTypeKind::IntN && (type->kind() == BaseTypeKind::Float || type->kind() == BaseTypeKind::Double))) {
-        if(((IntNType*) type.get())->is_unsigned) {
+        if(((IntNType*) value_type.get())->is_unsigned()) {
             return gen.builder->CreateUIToFP(llvm_val, type->llvm_type(gen));
         } else {
             return gen.builder->CreateSIToFP(llvm_val, type->llvm_type(gen));

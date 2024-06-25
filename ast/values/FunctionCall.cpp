@@ -266,7 +266,7 @@ FunctionCall::FunctionCall(
 
 }
 
-uint64_t FunctionCall::byte_size(bool is64Bit) const {
+uint64_t FunctionCall::byte_size(bool is64Bit) {
     return func_call_func_type(this)->returnType->byte_size(is64Bit);
 }
 
@@ -353,7 +353,7 @@ Value *FunctionCall::return_value(InterpretScope &scope) {
     return evaluated_value(scope);
 }
 
-std::unique_ptr<BaseType> FunctionCall::create_type() const {
+std::unique_ptr<BaseType> FunctionCall::create_type() {
     auto value_type = parent_val->create_type();
     auto func_type = value_type->function_type();
     return std::unique_ptr<BaseType>(func_type->returnType->copy());

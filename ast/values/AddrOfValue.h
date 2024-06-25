@@ -13,15 +13,21 @@
 class AddrOfValue : public Value {
 public:
 
+    std::unique_ptr<Value> value;
+
     AddrOfValue(std::unique_ptr<Value> value);
 
-    uint64_t byte_size(bool is64Bit) const override {
+    uint64_t byte_size(bool is64Bit) override {
         return is64Bit ? 8 : 4;
     }
 
     Value *copy() override;
 
-    std::unique_ptr<BaseType> create_type() const override {
+    hybrid_ptr<BaseType> get_base_type() override {
+        return hybrid_ptr<BaseType> { new PointerType(value->create_type()) };
+    }
+
+    std::unique_ptr<BaseType> create_type() override {
         return std::make_unique<PointerType>(value->create_type());
     }
 
@@ -55,5 +61,4 @@ public:
 
     void link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) override;
 
-    std::unique_ptr<Value> value;
 };

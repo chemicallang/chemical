@@ -14,6 +14,11 @@
 class Expression : public Value {
 public:
 
+    std::unique_ptr<Value> firstValue; ///< The first value in the expression.
+    std::unique_ptr<Value> secondValue; ///< The second value in the expression.
+    Operation operation; ///< The operation between the two values.
+    bool is64Bit; // is 64bit operating system
+
     /**
      * @brief Construct a new Expression object.
      *
@@ -76,7 +81,7 @@ public:
      */
     void promote_literal_values(BaseType* firstType, BaseType* secondType);
 
-    uint64_t byte_size(bool is64Bit) const override;
+    uint64_t byte_size(bool is64Bit) override;
 
 #ifdef COMPILER_BUILD
 
@@ -90,7 +95,9 @@ public:
 
 #endif
 
-    std::unique_ptr<BaseType> create_type() const override;
+    std::unique_ptr<BaseType> create_type() override;
+
+    hybrid_ptr<BaseType> get_base_type() override;
 
     void link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) override;
 
@@ -121,11 +128,5 @@ public:
      * @param scope
      */
     void interpret(InterpretScope &scope) override;
-
-
-    std::unique_ptr<Value> firstValue; ///< The first value in the expression.
-    std::unique_ptr<Value> secondValue; ///< The second value in the expression.
-    Operation operation; ///< The operation between the two values.
-    bool is64Bit; // is 64bit operating system
 
 };

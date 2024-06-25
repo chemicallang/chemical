@@ -14,7 +14,7 @@
 /**
  * @brief Class representing a string value.
  */
-class StringValue : public Value {
+class StringValue : public Value, public StringType {
 public:
 
     /**
@@ -24,11 +24,15 @@ public:
      */
     StringValue(std::string value) : value(std::move(value)) {}
 
+    hybrid_ptr<BaseType> get_base_type() override {
+        return hybrid_ptr<BaseType> { this, false };
+    }
+
     void accept(Visitor *visitor) override {
         visitor->visit(this);
     }
 
-    uint64_t byte_size(bool is64Bit) const override {
+    uint64_t byte_size(bool is64Bit) override {
         return is64Bit ? 8 : 4;
     }
 
@@ -60,7 +64,7 @@ public:
         return new StringValue(value);
     }
 
-    std::unique_ptr<BaseType> create_type() const override;
+    std::unique_ptr<BaseType> create_type() override;
 
     ValueType value_type() const override {
         return ValueType::String;

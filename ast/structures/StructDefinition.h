@@ -56,6 +56,8 @@ public:
 
     std::unique_ptr<BaseType> create_value_type() override;
 
+    hybrid_ptr<BaseType> get_value_type() override;
+
     ValueType value_type() const override;
 
     uint64_t byte_size(bool is64Bit) override;

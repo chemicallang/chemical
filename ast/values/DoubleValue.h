@@ -12,7 +12,7 @@
 /**
  * @brief Class representing a double value.
  */
-class DoubleValue : public Value {
+class DoubleValue : public Value, public DoubleType {
 public:
     /**
      * @brief Construct a new DoubleValue object.
@@ -25,7 +25,7 @@ public:
         visitor->visit(this);
     }
 
-    uint64_t byte_size(bool is64Bit) const {
+    uint64_t byte_size(bool is64Bit) {
         return 8;
     }
 
@@ -37,8 +37,12 @@ public:
 
 #endif
 
-    std::unique_ptr<BaseType> create_type() const override {
+    std::unique_ptr<BaseType> create_type() override {
         return std::make_unique<DoubleType>();
+    }
+
+    hybrid_ptr<BaseType> get_base_type() override {
+        return hybrid_ptr<BaseType> { this, false };
     }
 
     Value *copy() override {

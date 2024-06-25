@@ -42,6 +42,8 @@ public:
      */
     std::unique_ptr<BaseType> create_value_type() override;
 
+    hybrid_ptr<BaseType> get_value_type() override;
+
     /**
      * all extension functions require self, because they are extensions on self, which is the receiver
      */

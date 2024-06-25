@@ -4,7 +4,7 @@
 
 #include <vector>
 #include <memory>
-#include "common/Diagnostic.h"
+#include "integration/common/Diagnostic.h"
 
 struct LexResult;
 

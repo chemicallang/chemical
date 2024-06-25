@@ -12,8 +12,10 @@ public:
 
     int array_size;
 
-    ArrayType(std::unique_ptr<BaseType> elem_type, int array_size) : elem_type(std::move(elem_type)),
-                                                                     array_size(array_size) {
+    ArrayType(
+        std::unique_ptr<BaseType> elem_type,
+        int array_size
+    ) : elem_type(std::move(elem_type)), array_size(array_size) {
 
     }
 
@@ -23,6 +25,10 @@ public:
 
     std::unique_ptr<BaseType> create_child_type() const override {
         return std::unique_ptr<BaseType>(elem_type->copy());
+    }
+
+    hybrid_ptr<BaseType> get_child_type() override {
+        return hybrid_ptr<BaseType> { elem_type.get(), false };
     }
 
     BaseTypeKind kind() const override {

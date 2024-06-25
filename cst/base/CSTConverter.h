@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "common/Diagnostic.h"
+#include "integration/common/Diagnostic.h"
 #include "CSTVisitor.h"
 #include "CSTDiagnoser.h"
 #include <unordered_map>

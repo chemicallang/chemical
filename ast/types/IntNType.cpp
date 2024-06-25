@@ -30,11 +30,11 @@ Value *UShortType::create(int64_t value) {
 }
 
 Value *LongType::create(int64_t value) {
-    return new LongValue(value, number == 64);
+    return new LongValue(value, num_bits() == 64);
 }
 
 Value *ULongType::create(int64_t value) {
-    return new ULongValue(value, number == 64);
+    return new ULongValue(value, num_bits() == 64);
 }
 
 Value *BigIntType::create(int64_t value) {

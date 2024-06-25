@@ -4,6 +4,6 @@
 #include "ast/types/PointerType.h"
 #include "ast/types/CharType.h"
 
-std::unique_ptr<BaseType> StringValue::create_type() const {
+std::unique_ptr<BaseType> StringValue::create_type() {
     return std::make_unique<PointerType>(std::make_unique<CharType>());
 }

@@ -73,8 +73,12 @@ llvm::FunctionType *IndexOperator::llvm_func_type(Codegen &gen) {
 
 #endif
 
-std::unique_ptr<BaseType> IndexOperator::create_type() const {
+std::unique_ptr<BaseType> IndexOperator::create_type() {
     return parent_val->create_type()->create_child_type();
+}
+
+hybrid_ptr<BaseType> IndexOperator::get_base_type() {
+    return parent_val->get_base_type()->get_child_type();
 }
 
 void IndexOperator::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {

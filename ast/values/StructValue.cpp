@@ -117,7 +117,7 @@ StructValue::StructValue(
     declare_default_values(this->values, scope);
 }
 
-uint64_t StructValue::byte_size(bool is64Bit) const {
+uint64_t StructValue::byte_size(bool is64Bit) {
     return definition->byte_size(is64Bit);
 }
 
@@ -216,10 +216,16 @@ Value *StructValue::copy() {
     return new StructValue(structName, std::move(copied), definition);
 }
 
-std::unique_ptr<BaseType> StructValue::create_type() const {
+std::unique_ptr<BaseType> StructValue::create_type() {
     auto type = std::make_unique<ReferencedType>(structName);
     type->linked = definition;
     return type;
+}
+
+hybrid_ptr<BaseType> StructValue::get_base_type() {
+    auto type = new ReferencedType(structName);
+    type->linked = definition;
+    return hybrid_ptr<BaseType> { type };
 }
 
 Value *StructValue::child(InterpretScope &scope, const std::string &name) {

@@ -5,7 +5,7 @@
 #include "IntNumValue.h"
 #include "ast/types/UIntType.h"
 
-class UIntValue : public IntNumValue {
+class UIntValue : public IntNumValue, public UIntType {
 public:
 
     unsigned int value;
@@ -14,7 +14,11 @@ public:
 
     }
 
-    uint64_t byte_size(bool is64Bit) const {
+    hybrid_ptr<BaseType> get_base_type() override {
+        return hybrid_ptr<BaseType> { this, false };
+    }
+
+    uint64_t byte_size(bool is64Bit) {
         return 4;
     }
 
@@ -26,7 +30,7 @@ public:
         return new UIntValue(value);
     }
 
-    [[nodiscard]] std::unique_ptr<BaseType> create_type() const override {
+    [[nodiscard]] std::unique_ptr<BaseType> create_type() override {
         return std::make_unique<UIntType>();
     }
 

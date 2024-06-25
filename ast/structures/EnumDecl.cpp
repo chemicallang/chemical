@@ -8,6 +8,10 @@ std::unique_ptr<BaseType> EnumMember::create_value_type() {
     return std::make_unique<IntType>();
 }
 
+hybrid_ptr<BaseType> EnumMember::get_value_type() {
+    return hybrid_ptr<BaseType> { this, false };
+}
+
 ASTNode *EnumDeclaration::child(const std::string &name) {
     auto mem = members.find(name);
     if(mem == members.end()) {

@@ -13,7 +13,7 @@
 class NullValue : public Value {
 public:
 
-    uint64_t byte_size(bool is64Bit) const override {
+    uint64_t byte_size(bool is64Bit) override {
         return is64Bit ? 8 : 4;
     }
 
@@ -39,6 +39,8 @@ public:
         return BaseTypeKind::Pointer;
     }
 
-    std::unique_ptr<BaseType> create_type() const override;
+    std::unique_ptr<BaseType> create_type() override;
+
+    hybrid_ptr<BaseType> get_base_type() override;
 
 };

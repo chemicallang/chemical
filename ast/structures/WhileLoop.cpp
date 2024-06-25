@@ -19,8 +19,7 @@ void WhileLoop::code_gen(Codegen &gen) {
 
     // loop condition
     gen.SetInsertPoint(loopCond);
-    auto comparison = condition->llvm_value(gen);
-    gen.CreateCondBr(comparison, loopThen, exitBlock);
+    condition->llvm_conditional_branch(gen, loopThen, exitBlock);
 
     // loop then
     gen.SetInsertPoint(loopThen);

@@ -18,8 +18,14 @@ void BaseFunctionType::assign_params() {
     }
 }
 
-bool BaseFunctionType::has_self_param() {
-    return !params.empty() && (params[0]->name == "this" || params[0]->name == "self");
+BaseFunctionParam* BaseFunctionType::get_self_params() {
+    if(!params.empty()) {
+        auto& param = params[0];
+        if(param->name == "this" || param->name == "self") {
+            return param.get();
+        }
+    }
+    return nullptr;
 }
 
 unsigned BaseFunctionType::c_or_llvm_arg_start_index() const {

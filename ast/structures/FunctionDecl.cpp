@@ -103,7 +103,9 @@ void body_gen(Codegen &gen, llvm::Function* funcCallee, std::optional<LoopScope>
 }
 
 void FunctionDeclaration::code_gen(Codegen &gen) {
+    gen.current_func_type = this;
     body_gen(gen, (llvm::Function*) funcCallee, body);
+    gen.current_func_type = this;
 }
 
 void llvm_func_attr(llvm::Function* func, AnnotationKind kind) {
@@ -165,11 +167,14 @@ void FunctionDeclaration::code_gen_declare(Codegen &gen) {
 }
 
 void FunctionDeclaration::code_gen_interface(Codegen &gen, InterfaceDefinition* def) {
+    auto prev = gen.current_members_container;
+    gen.current_members_container = def;
     create_fn(gen, this, def->name + "." + name);
     gen.current_function = nullptr;
     if(body.has_value()) {
         code_gen(gen);
     }
+    gen.current_members_container = prev;
 }
 
 void FunctionDeclaration::code_gen_override(Codegen& gen, FunctionDeclaration* decl) {
@@ -179,15 +184,21 @@ void FunctionDeclaration::code_gen_override(Codegen& gen, FunctionDeclaration* d
 }
 
 void FunctionDeclaration::code_gen_struct(Codegen &gen, StructDefinition* def) {
+    auto prev = gen.current_members_container;
+    gen.current_members_container = def;
     create_fn(gen, this, def->name + "." + name);
     gen.current_function = nullptr;
     code_gen(gen);
+    gen.current_members_container = prev;
 }
 
 void FunctionDeclaration::code_gen_union(Codegen &gen, UnionDef* def) {
+    auto prev = gen.current_members_container;
+    gen.current_members_container = def;
     create_fn(gen, this, def->name + "." + name);
     gen.current_function = nullptr;
     code_gen(gen);
+    gen.current_members_container = prev;
 }
 
 void FunctionDeclaration::code_gen_destructor(Codegen& gen, StructDefinition* def) {

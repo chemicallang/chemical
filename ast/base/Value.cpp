@@ -166,6 +166,10 @@ llvm::Value* Value::access_chain_pointer(
     return create_gep(gen, parent, pointer, idxList);
 }
 
+void Value::llvm_conditional_branch(Codegen& gen, llvm::BasicBlock* then_block, llvm::BasicBlock* otherwise_block) {
+    gen.CreateCondBr(llvm_value(gen), then_block, otherwise_block);
+}
+
 #endif
 
 unsigned Value::as_uint() {
@@ -197,8 +201,4 @@ void Value::link(SymbolResolver& linker, FunctionCall* call, unsigned int index)
 
 void Value::link(SymbolResolver& linker, ReturnStatement* returnStmt) {
     link(linker, returnStmt->value.value());
-}
-
-void Value::llvm_conditional_branch(Codegen& gen, llvm::BasicBlock* then_block, llvm::BasicBlock* otherwise_block) {
-    gen.CreateCondBr(llvm_value(gen), then_block, otherwise_block);
 }

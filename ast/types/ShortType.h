@@ -7,8 +7,12 @@
 class ShortType : public IntNType {
 public:
 
-    ShortType() : IntNType(16, false) {
+    unsigned int num_bits() const override {
+        return 16;
+    }
 
+    bool is_unsigned() override {
+        return false;
     }
 
     uint64_t byte_size(bool is64Bit) override {

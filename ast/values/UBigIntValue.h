@@ -5,7 +5,7 @@
 #include "IntNumValue.h"
 #include "ast/types/UBigIntType.h"
 
-class UBigIntValue : public IntNumValue {
+class UBigIntValue : public IntNumValue, public UBigIntType {
 public:
 
     unsigned long long value;
@@ -14,7 +14,11 @@ public:
 
     }
 
-    uint64_t byte_size(bool is64Bit) const {
+    hybrid_ptr<BaseType> get_base_type() override {
+        return hybrid_ptr<BaseType> { this, false };
+    }
+
+    uint64_t byte_size(bool is64Bit) {
         return 8;
     }
 
@@ -26,7 +30,7 @@ public:
         return new UBigIntValue(value);
     }
 
-    [[nodiscard]] std::unique_ptr<BaseType> create_type() const override {
+    [[nodiscard]] std::unique_ptr<BaseType> create_type() override {
         return std::make_unique<UBigIntType>();
     }
 

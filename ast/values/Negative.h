@@ -15,7 +15,9 @@ public:
 
     NegativeValue(std::unique_ptr<Value> value) : value(std::move(value)) {}
 
-    uint64_t byte_size(bool is64Bit) const override;
+    hybrid_ptr<BaseType> get_base_type() override;
+
+    uint64_t byte_size(bool is64Bit) override;
 
     void accept(Visitor *visitor) override {
         visitor->visit(this);
@@ -31,7 +33,7 @@ public:
 
 #endif
 
-    std::unique_ptr<BaseType> create_type() const override;
+    std::unique_ptr<BaseType> create_type() override;
 
     ValueType value_type() const override {
         return value->value_type();

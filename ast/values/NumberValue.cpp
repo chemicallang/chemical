@@ -13,7 +13,7 @@ unsigned int NumberValue::get_num_bits() {
     if(linked_type == nullptr) {
         return 32;
     } else {
-        return linked_type->number;
+        return linked_type->num_bits();
     }
 }
 
@@ -21,7 +21,7 @@ bool NumberValue::is_unsigned() {
     if(linked_type == nullptr) {
         return false;
     } else {
-        return linked_type->is_unsigned;
+        return linked_type->is_unsigned();
     }
 }
 

@@ -3,7 +3,7 @@
 #pragma once
 
 #include <vector>
-#include "common/Location.h"
+#include "integration/common/Location.h"
 #include "LibLsp/lsp/textDocument/document_link.h"
 
 class LexResult;

@@ -9,7 +9,7 @@
 #include "ast/base/Value.h"
 #include "ast/types/BoolType.h"
 
-class BoolValue : public Value {
+class BoolValue : public Value, public BoolType {
 public:
 
     /**
@@ -23,11 +23,15 @@ public:
         return new BoolValue(value);
     }
 
-    uint64_t byte_size(bool is64Bit) const {
+    uint64_t byte_size(bool is64Bit) {
         return 1;
     }
 
-    std::unique_ptr<BaseType> create_type() const override {
+    hybrid_ptr<BaseType> get_base_type() override {
+        return hybrid_ptr<BaseType> { this, false };
+    }
+
+    std::unique_ptr<BaseType> create_type() override {
         return std::make_unique<BoolType>();
     }
 

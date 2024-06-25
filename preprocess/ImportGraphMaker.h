@@ -4,7 +4,7 @@
 
 #include <string>
 #include <vector>
-#include "common/Diagnostic.h"
+#include "integration/common/Diagnostic.h"
 #include "utils/fwd/functional.h"
 #include "integration/ide/model/FlatIGFile.h"
 #include <memory>

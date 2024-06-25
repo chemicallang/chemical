@@ -10,14 +10,25 @@
 #include <vector>
 #include <memory>
 #include "ast/base/Value.h"
-#include "ast/base/BaseType.h"
+#include "ast/types/ArrayType.h"
 
 class ArrayValue : public Value {
 public:
 
-    ArrayValue(std::vector<std::unique_ptr<Value>> values, std::optional<std::unique_ptr<BaseType>> type,
-               std::vector<unsigned int> sizes) : values(std::move(values)), elemType(std::move(type)),
-                                                  sizes(std::move(sizes)) {
+    std::vector<std::unique_ptr<Value>> values;
+    std::optional<std::unique_ptr<BaseType>> elemType;
+    std::vector<unsigned int> sizes;
+
+#ifdef COMPILER_BUILD
+    // TODO this arr value should be stored in code gen since its related to that
+    llvm::AllocaInst *arr;
+#endif
+
+    ArrayValue(
+            std::vector<std::unique_ptr<Value>> values,
+            std::optional<std::unique_ptr<BaseType>> type,
+            std::vector<unsigned int> sizes
+    ) : values(std::move(values)), elemType(std::move(type)), sizes(std::move(sizes)) {
         values.shrink_to_fit();
     }
 
@@ -81,7 +92,9 @@ public:
 
     std::unique_ptr<BaseType> element_type() const;
 
-    std::unique_ptr<BaseType> create_type() const override;
+    std::unique_ptr<BaseType> create_type() override;
+
+    hybrid_ptr<BaseType> get_base_type() override;
 
     ValueType value_type() const override {
         return ValueType::Array;
@@ -103,14 +116,5 @@ public:
         }
         return new ArrayValue(std::move(copied_values), std::move(copied_elem_type), sizes);
     }
-
-    std::vector<std::unique_ptr<Value>> values;
-    std::optional<std::unique_ptr<BaseType>> elemType;
-    std::vector<unsigned int> sizes;
-
-#ifdef COMPILER_BUILD
-    // TODO this arr value should be stored in code gen since its related to that
-    llvm::AllocaInst *arr;
-#endif
 
 };

@@ -48,6 +48,10 @@ std::unique_ptr<BaseType> InterfaceDefinition::create_value_type() {
     return std::make_unique<ReferencedType>(name, this);
 }
 
+hybrid_ptr<BaseType> InterfaceDefinition::get_value_type() {
+    return hybrid_ptr<BaseType> { new ReferencedType(name, this) };
+}
+
 void InterfaceDefinition::declare_top_level(SymbolResolver &linker) {
     linker.declare(name, this);
 }

@@ -8,20 +8,20 @@ class IntNType : public BaseType {
 public:
 
     /**
-     * this is number of bits of the type, not the actual number
-     * int means int32, meaning 32 bit integer
+     * is this int n type unsigned
      */
-    unsigned int number;
-    /**
-     * is the type unsigned
-     */
-    bool is_unsigned;
+    virtual bool is_unsigned() = 0;
 
     /**
-     * constructor
+     * the number of bits, int means int32 which has 32 bits
      */
-    IntNType(unsigned int number, bool is_unsigned = false) : number(number), is_unsigned(is_unsigned) {
-        // do nothing
+    virtual unsigned int num_bits() const = 0;
+
+    /**
+     * helper
+     */
+    inline unsigned int number() {
+        return num_bits();
     }
 
     /**

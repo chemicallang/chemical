@@ -18,7 +18,7 @@ public:
 
     FunctionCall(FunctionCall &&other) = delete;
 
-    uint64_t byte_size(bool is64Bit) const override;
+    uint64_t byte_size(bool is64Bit) override;
 
     void accept(Visitor *visitor) override {
         visitor->visit(this);
@@ -57,7 +57,7 @@ public:
 
     void interpret(InterpretScope &scope) override;
 
-    std::unique_ptr<BaseType> create_type() const override;
+    std::unique_ptr<BaseType> create_type() override;
 
 #ifdef COMPILER_BUILD
 

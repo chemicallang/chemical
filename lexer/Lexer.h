@@ -12,7 +12,7 @@
 #include "lexer/model/tokens/LexToken.h"
 #include "lexer/model/tokens/NumberToken.h"
 #include "ast/utils/Operation.h"
-#include "common/Diagnostic.h"
+#include "integration/common/Diagnostic.h"
 #include "ast/base/BaseType.h"
 #include "ast/structures/StructDefinition.h"
 #include <memory>

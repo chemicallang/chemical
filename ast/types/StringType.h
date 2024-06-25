@@ -9,6 +9,8 @@ public:
 
     std::unique_ptr<BaseType> create_child_type() const override;
 
+    hybrid_ptr<BaseType> get_child_type() override;
+
     void accept(Visitor *visitor) override {
         visitor->visit(this);
     }

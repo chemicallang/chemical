@@ -7,8 +7,12 @@
 class UIntType : public IntNType {
 public:
 
-    UIntType() : IntNType(32, true) {
+    unsigned int num_bits() const override {
+        return 32;
+    }
 
+    bool is_unsigned() override {
+        return true;
     }
 
     uint64_t byte_size(bool is64Bit) override {

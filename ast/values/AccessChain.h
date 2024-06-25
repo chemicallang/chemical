@@ -34,11 +34,15 @@ public:
 
     void interpret(InterpretScope &scope) override;
 
-    std::unique_ptr<BaseType> create_type() const override;
+    std::unique_ptr<BaseType> create_type() override;
 
     std::unique_ptr<BaseType> create_value_type() override;
 
-    uint64_t byte_size(bool is64Bit) const override;
+    hybrid_ptr<BaseType> get_base_type() override;
+
+    hybrid_ptr<BaseType> get_value_type() override;
+
+    uint64_t byte_size(bool is64Bit) override;
 
 #ifdef COMPILER_BUILD
 

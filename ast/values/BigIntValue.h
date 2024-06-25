@@ -5,7 +5,7 @@
 #include "IntNumValue.h"
 #include "ast/types/BigIntType.h"
 
-class BigIntValue : public IntNumValue {
+class BigIntValue : public IntNumValue, public BigIntType {
 public:
 
     long long value;
@@ -14,7 +14,7 @@ public:
 
     }
 
-    uint64_t byte_size(bool is64Bit) const override {
+    uint64_t byte_size(bool is64Bit) override {
         return 8;
     }
 
@@ -26,7 +26,11 @@ public:
         return new BigIntValue(value);
     }
 
-    [[nodiscard]] std::unique_ptr<BaseType> create_type() const override {
+    hybrid_ptr<BaseType> get_base_type() override {
+        return hybrid_ptr<BaseType> { this, false };
+    }
+
+    [[nodiscard]] std::unique_ptr<BaseType> create_type() override {
         return std::make_unique<BigIntType>();
     }
 

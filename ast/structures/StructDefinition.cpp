@@ -127,6 +127,10 @@ std::unique_ptr<BaseType> StructMember::create_value_type() {
     return std::unique_ptr<BaseType>(type->copy());
 }
 
+hybrid_ptr<BaseType> StructMember::get_value_type() {
+    return hybrid_ptr<BaseType> { type.get(), false };
+}
+
 void StructMember::declare_and_link(SymbolResolver &linker) {
     linker.declare(name, this);
     type->link(linker);
@@ -225,6 +229,10 @@ ASTNode *StructDefinition::child(const std::string &name) {
 
 std::unique_ptr<BaseType> StructDefinition::create_value_type() {
     return std::make_unique<ReferencedType>(name, this);
+}
+
+hybrid_ptr<BaseType> StructDefinition::get_value_type() {
+    return hybrid_ptr<BaseType> { new ReferencedType(name, this) };
 }
 
 ValueType StructDefinition::value_type() const {

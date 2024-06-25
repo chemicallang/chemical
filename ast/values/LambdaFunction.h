@@ -65,7 +65,7 @@ public:
 
 #endif
 
-    std::unique_ptr<BaseType> create_type() const override;
+    std::unique_ptr<BaseType> create_type() override;
 
     void link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) override;
 

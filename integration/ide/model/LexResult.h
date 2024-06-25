@@ -3,7 +3,7 @@
 #pragma once
 
 #include "cst/base/CSTToken.h"
-#include "common/Diagnostic.h"
+#include "integration/common/Diagnostic.h"
 #include "FlatIGFile.h"
 #include <memory>
 

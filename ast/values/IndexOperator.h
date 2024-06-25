@@ -13,9 +13,11 @@
 class IndexOperator : public Value {
 public:
 
-    IndexOperator(std::vector<std::unique_ptr<Value>> indexes) : values(std::move(indexes)) {
+    explicit IndexOperator(std::vector<std::unique_ptr<Value>> indexes) : values(std::move(indexes)) {
 
     }
+
+    hybrid_ptr<BaseType> get_base_type() override;
 
     void accept(Visitor *visitor) override {
         visitor->visit(this);
@@ -59,7 +61,7 @@ public:
 
 #endif
 
-    std::unique_ptr<BaseType> create_type() const override;
+    std::unique_ptr<BaseType> create_type() override;
 
     Value *parent_val;
     std::vector<std::unique_ptr<Value>> values;

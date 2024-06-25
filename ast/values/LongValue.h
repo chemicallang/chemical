@@ -5,17 +5,20 @@
 #include "IntNumValue.h"
 #include "ast/types/LongType.h"
 
-class LongValue : public IntNumValue {
+class LongValue : public IntNumValue, public LongType {
 public:
 
     long value;
-    bool is64Bit;
 
-    LongValue(long value, bool is64Bit) : value(value), is64Bit(is64Bit) {
+    LongValue(long value, bool is64Bit) : value(value), LongType(is64Bit) {
 
     }
 
-    uint64_t byte_size(bool is64Bit) const {
+    hybrid_ptr<BaseType> get_base_type() override {
+        return hybrid_ptr<BaseType> { this, false };
+    }
+
+    uint64_t byte_size(bool is64Bit) {
         return is64Bit ? 8 : 4;
     }
 
@@ -27,7 +30,7 @@ public:
         return new LongValue(value, is64Bit);
     }
 
-    [[nodiscard]] std::unique_ptr<BaseType> create_type() const override {
+    [[nodiscard]] std::unique_ptr<BaseType> create_type() override {
         return std::make_unique<LongType>(is64Bit);
     }
 

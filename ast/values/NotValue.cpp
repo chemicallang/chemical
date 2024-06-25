@@ -11,6 +11,10 @@ bool NotValue::primitive() {
     return false;
 }
 
-std::unique_ptr<BaseType> NotValue::create_type() const {
+std::unique_ptr<BaseType> NotValue::create_type() {
     return value->create_type();
+}
+
+hybrid_ptr<BaseType> NotValue::get_base_type() {
+    return value->get_base_type();
 }

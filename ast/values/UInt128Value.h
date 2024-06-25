@@ -6,7 +6,7 @@
 #include "ast/types/BigIntType.h"
 #include "ast/types/UInt128Type.h"
 
-class UInt128Value : public IntNumValue {
+class UInt128Value : public IntNumValue, public UInt128Type {
 public:
 
     uint64_t low;
@@ -16,7 +16,11 @@ public:
 
     }
 
-    uint64_t byte_size(bool is64Bit) const {
+    hybrid_ptr<BaseType> get_base_type() override {
+        return hybrid_ptr<BaseType> { this, false };
+    }
+
+    uint64_t byte_size(bool is64Bit) {
         return 16;
     }
 
@@ -28,7 +32,7 @@ public:
         return new UInt128Value(low, high);
     }
 
-    [[nodiscard]] std::unique_ptr<BaseType> create_type() const override {
+    [[nodiscard]] std::unique_ptr<BaseType> create_type() override {
         return std::make_unique<UInt128Type>();
     }
 

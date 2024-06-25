@@ -5,7 +5,7 @@
 #include "compiler/SymbolResolver.h"
 #include "ast/base/BaseType.h"
 
-uint64_t AccessChain::byte_size(bool is64Bit) const {
+uint64_t AccessChain::byte_size(bool is64Bit) {
     return values[values.size() - 1]->byte_size(is64Bit);
 }
 
@@ -28,8 +28,16 @@ AccessChain::AccessChain(std::vector<std::unique_ptr<Value>> values) : values(st
 
 }
 
-std::unique_ptr<BaseType> AccessChain::create_type() const {
+std::unique_ptr<BaseType> AccessChain::create_type() {
     return values[values.size() - 1]->create_type();
+}
+
+hybrid_ptr<BaseType> AccessChain::get_base_type() {
+    return values[values.size() - 1]->get_base_type();
+}
+
+hybrid_ptr<BaseType> AccessChain::get_value_type() {
+    return values[values.size() - 1]->get_base_type();
 }
 
 std::unique_ptr<BaseType> AccessChain::create_value_type() {

@@ -8,7 +8,7 @@
 
 #include "LibLsp/lsp/lsp_completion.h"
 #include "cst/base/CSTVisitor.h"
-#include "common/Position.h"
+#include "integration/common/Position.h"
 
 class Position;
 

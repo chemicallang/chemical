@@ -93,6 +93,14 @@ std::unique_ptr<BaseType> VarInitStatement::create_value_type() {
     }
 }
 
+hybrid_ptr<BaseType> VarInitStatement::get_value_type() {
+    if(type.has_value()) {
+        return hybrid_ptr<BaseType> { type->get(), false };
+    } else {
+        return value.value()->get_base_type();
+    }
+}
+
 void VarInitStatement::accept(Visitor *visitor) {
     visitor->visit(this);
 }

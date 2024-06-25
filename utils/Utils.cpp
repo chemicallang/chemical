@@ -5,7 +5,7 @@
 //
 
 #include "Utils.h"
-#include "common/Diagnostic.h"
+#include "integration/common/Diagnostic.h"
 
 #include <iostream>
 #include <filesystem>

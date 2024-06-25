@@ -112,3 +112,7 @@ std::unique_ptr<BaseType> ExtensionFunction::create_value_type() {
     functionType->params.insert(functionType->params.begin(), std::make_unique<FunctionParam>("self", std::unique_ptr<BaseType>(receiver.type->copy()), 0, std::nullopt, this));
     return value_type;
 }
+
+hybrid_ptr<BaseType> ExtensionFunction::get_value_type() {
+    return hybrid_ptr<BaseType> { create_value_type().release() };
+}

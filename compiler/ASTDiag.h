@@ -3,7 +3,7 @@
 #pragma once
 
 #include <string>
-#include "common/DiagSeverity.h"
+#include "integration/common/DiagSeverity.h"
 
 struct ASTDiag {
     std::string message;

@@ -6,7 +6,7 @@
 #include "compiler/SymbolResolver.h"
 #include "ast/values/AccessChain.h"
 
-uint64_t VariableIdentifier::byte_size(bool is64Bit) const {
+uint64_t VariableIdentifier::byte_size(bool is64Bit) {
     auto holdingType = linked->holding_value_type();
     if(holdingType) return holdingType->byte_size(is64Bit);
     auto holdingValue = linked->holding_value();
@@ -63,8 +63,12 @@ Value *VariableIdentifier::find_in(InterpretScope &scope, Value *parent) {
     return parent->child(scope, value);
 }
 
-std::unique_ptr<BaseType> VariableIdentifier::create_type() const {
+std::unique_ptr<BaseType> VariableIdentifier::create_type() {
     return linked->create_value_type();
+}
+
+hybrid_ptr<BaseType> VariableIdentifier::get_base_type() {
+    return linked->get_value_type();
 }
 
 bool VariableIdentifier::reference() {

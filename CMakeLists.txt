@@ -215,7 +215,7 @@ set(COMMON_SOURCES
         ast/types/VoidType.h
         ast/types/AnyType.h
         utils/CmdUtils.h
-        common/Diagnostic.h
+        integration/common/Diagnostic.h
         lexer/values/StructValue.cpp
         ast/values/StructValue.h
         ast/types/ReferencedType.h
@@ -225,7 +225,7 @@ set(COMMON_SOURCES
         ast/utils/GlobalFunctions.cpp
         ast/statements/MacroValueStatement.h
         ast/utils/InterpretValues.h
-        common/Diagnostic.cpp
+        integration/common/Diagnostic.cpp
         lexer/structures/Collection.cpp
         stream/StreamStructValue.h
         stream/StreamStructValue.cpp
@@ -323,7 +323,7 @@ set(COMMON_SOURCES
         cst/base/CSTVisitor.h
         cst/values/FunctionCallCST.h
         cst/values/IndexOpCST.h
-        common/Position.h
+        integration/common/Position.h
         cst/statements/IncDecCST.h
         cst/values/LambdaCST.h
         cst/base/CSTDiagnoser.h
@@ -377,7 +377,7 @@ set(COMMON_SOURCES
         cst/utils/StringHelpers.cpp
         cst/base/CSTToken.cpp
         ast/statements/Break.cpp
-        common/DiagSeverity.h
+        integration/common/DiagSeverity.h
         preprocess/ImportGraphMaker.h
         preprocess/ImportGraphMaker.cpp
         utils/Benchmark.h
@@ -400,8 +400,8 @@ set(COMMON_SOURCES
         preprocess/BaseSymbolResolver.h
         lexer/model/tokens/RefToken.h
         server/analyzers/GotoDefAnalyzer.h
-        common/Location.h
-        common/Range.h
+        integration/common/Location.h
+        integration/common/Range.h
         server/analyzers/GotoDefAnalyzer.cpp
         server/analyzers/HoverAnalyzer.h
         server/analyzers/HoverAnalyzer.cpp
@@ -469,6 +469,7 @@ set(COMMON_SOURCES
         ast/structures/UnionDef.cpp
         cst/structures/UnionCST.h
         lexer/structures/Union.cpp
+        std/hybrid_ptr.h
 )
 
 # Chemical LSP Executable Target

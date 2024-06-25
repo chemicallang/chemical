@@ -131,6 +131,8 @@ public:
 
     std::unique_ptr<BaseType> create_value_type() override;
 
+    hybrid_ptr<BaseType> get_value_type() override;
+
     // called by the return statement
     void set_return(Value *value);
 

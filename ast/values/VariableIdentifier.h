@@ -27,6 +27,7 @@ public:
      * string value of identifier
      */
     std::string value;
+    ASTNode *linked = nullptr;
 
     /**
      * @brief Construct a new VariableIdentifier object.
@@ -35,7 +36,7 @@ public:
      */
     VariableIdentifier(std::string value) : value(std::move(value)) {}
 
-    uint64_t byte_size(bool is64Bit) const override;
+    uint64_t byte_size(bool is64Bit) override;
 
     void accept(Visitor *visitor) override {
         visitor->visit(this);
@@ -102,7 +103,9 @@ public:
      */
     Value *copy_prim_ref_other(InterpretScope &scope);
 
-    std::unique_ptr<BaseType> create_type() const override;
+    std::unique_ptr<BaseType> create_type() override;
+
+    hybrid_ptr<BaseType> get_base_type() override;
 
     Value *param_value(InterpretScope &scope) override;
 
@@ -113,7 +116,5 @@ public:
     BaseTypeKind type_kind() const override;
 
     ValueType value_type() const override;
-
-    ASTNode *linked = nullptr;
 
 };

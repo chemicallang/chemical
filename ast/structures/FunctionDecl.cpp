@@ -319,6 +319,10 @@ std::unique_ptr<BaseType> BaseFunctionParam::create_value_type() {
     return std::unique_ptr<BaseType>(type->copy());
 }
 
+hybrid_ptr<BaseType> BaseFunctionParam::get_value_type() {
+    return hybrid_ptr<BaseType> { type.get(), false };
+}
+
 void BaseFunctionParam::declare_and_link(SymbolResolver &linker) {
     if(!name.empty()) {
         linker.declare(name, this);
@@ -367,6 +371,10 @@ std::unique_ptr<BaseType> FunctionDeclaration::create_value_type() {
         copied.emplace_back(param->copy());
     }
     return std::make_unique<FunctionType>(std::move(copied), std::unique_ptr<BaseType>(returnType->copy()), isVariadic, false);
+}
+
+hybrid_ptr<BaseType> FunctionDeclaration::get_value_type() {
+    return hybrid_ptr<BaseType> { create_value_type().release() };
 }
 
 void FunctionDeclaration::accept(Visitor *visitor) {
@@ -450,6 +458,14 @@ std::unique_ptr<BaseType> CapturedVariable::create_value_type() {
         return std::make_unique<PointerType>(linked->create_value_type());
     } else {
         return linked->create_value_type();
+    }
+}
+
+hybrid_ptr<BaseType> CapturedVariable::get_value_type() {
+    if(capture_by_ref) {
+        return hybrid_ptr<BaseType> { new PointerType(linked->create_value_type()), true };
+    } else {
+        return linked->get_value_type();
     }
 }
 

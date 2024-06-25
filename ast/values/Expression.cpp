@@ -25,13 +25,13 @@ void Expression::shrink_literal_values(BaseType* firstType, BaseType* secondType
             if(firstValue->primitive()) {
                 auto secIntNTy = (IntNType*) secondType;
                 auto firstVal = (IntNumValue*) firstValue.get();
-                if(firstVal->get_num_bits() > secIntNTy->number || (firstVal->get_num_bits() == secIntNTy->number && !firstVal->is_unsigned() && secIntNTy->is_unsigned)) {
+                if(firstVal->get_num_bits() > secIntNTy->num_bits() || (firstVal->get_num_bits() == secIntNTy->num_bits() && !firstVal->is_unsigned() && secIntNTy->is_unsigned())) {
                     firstValue = std::unique_ptr<Value>(secIntNTy->create(firstVal->get_num_value()));
                 }
             } else {
                 auto firIntTy = (IntNType*) firstType;
                 auto secondVal = (IntNumValue*) secondValue.get();
-                if(secondVal->get_num_bits() > firIntTy->number || (secondVal->get_num_bits() == firIntTy->number && !secondVal->is_unsigned() && firIntTy->is_unsigned)) {
+                if(secondVal->get_num_bits() > firIntTy->num_bits() || (secondVal->get_num_bits() == firIntTy->num_bits() && !secondVal->is_unsigned() && firIntTy->is_unsigned())) {
                     secondValue = std::unique_ptr<Value>(firIntTy->create(secondVal->get_num_value()));
                 }
             }
@@ -52,7 +52,7 @@ void Expression::promote_literal_values(BaseType* firstType, BaseType* secondTyp
     }
 }
 
-std::unique_ptr<BaseType> Expression::create_type() const {
+std::unique_ptr<BaseType> Expression::create_type() {
     if(operation >= Operation::IndexComparisonStart && operation <= Operation::IndexComparisonEnd) {
         return std::make_unique<BoolType>();
     }
@@ -72,7 +72,11 @@ std::unique_ptr<BaseType> Expression::create_type() const {
     }
 }
 
-uint64_t Expression::byte_size(bool is64Bit) const {
+hybrid_ptr<BaseType> Expression::get_base_type() {
+    return hybrid_ptr<BaseType> { create_type().release(), true };
+}
+
+uint64_t Expression::byte_size(bool is64Bit) {
     return create_type()->byte_size(is64Bit);
 }
 

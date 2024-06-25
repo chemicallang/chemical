@@ -70,8 +70,8 @@ llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseTyp
         if(firstKind == BaseTypeKind::Pointer && secondKind == BaseTypeKind::Pointer) {
             return true;
         }
-        auto first_unsigned = firstKind == BaseTypeKind::IntN && ((IntNType*) firstType)->is_unsigned;
-        auto second_unsigned = secondKind == BaseTypeKind::IntN && ((IntNType*) firstType)->is_unsigned;
+        auto first_unsigned = firstKind == BaseTypeKind::IntN && ((IntNType*) firstType)->is_unsigned();
+        auto second_unsigned = secondKind == BaseTypeKind::IntN && ((IntNType*) firstType)->is_unsigned();
         if((first_unsigned && !second_unsigned) || (!first_unsigned && second_unsigned)) {
             info("Operation between two IntN types, where one of them is unsigned and the other signed is error prone");
         }
@@ -81,14 +81,14 @@ llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseTyp
     if(firstType->kind() == BaseTypeKind::IntN && secondType->kind() == BaseTypeKind::IntN) {
         auto fIntN = (IntNType*) firstType;
         auto secIntN = (IntNType*) secondType;
-        if(fIntN->number < secIntN->number) {
-            if(fIntN->is_unsigned) {
+        if(fIntN->num_bits() < secIntN->num_bits()) {
+            if(fIntN->is_unsigned()) {
                 lhs = builder->CreateZExt(lhs, secIntN->llvm_type(*this));
             } else {
                 lhs = builder->CreateSExt(lhs, secIntN->llvm_type(*this));
             }
-        } else if(fIntN->number > secIntN->number) {
-            if(secIntN->is_unsigned) {
+        } else if(fIntN->num_bits() > secIntN->num_bits()) {
+            if(secIntN->is_unsigned()) {
                 rhs = builder->CreateZExt(rhs, fIntN->llvm_type(*this));
             } else {
                 rhs = builder->CreateSExt(rhs, fIntN->llvm_type(*this));

@@ -11,6 +11,7 @@
 #include "ast/utils/Operation.h"
 #include <vector>
 #include <memory>
+#include "std/hybrid_ptr.h"
 
 class SymbolResolver;
 
@@ -109,7 +110,7 @@ public:
     /**
      * get byte size of this value
      */
-    virtual uint64_t byte_size(bool is64Bit) const {
+    virtual uint64_t byte_size(bool is64Bit) {
         throw std::runtime_error("byte_size called on base Value");
     }
 
@@ -189,9 +190,16 @@ std::cerr << "child called on base value";
     std::string representation();
 
     /**
+     * this returns a hybrid pointer to base type
+     */
+    virtual hybrid_ptr<BaseType> get_base_type() {
+        throw std::runtime_error("get_base_type called on bare Value with type : " + std::to_string((unsigned int) value_type()));
+    }
+
+    /**
      * create a base type that represents the type of this value
      */
-    virtual std::unique_ptr<BaseType> create_type() const {
+    virtual std::unique_ptr<BaseType> create_type() {
         throw std::runtime_error("create_type called on bare Value with type : " + std::to_string((unsigned int) value_type()));
     };
 

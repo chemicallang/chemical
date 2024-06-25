@@ -91,7 +91,11 @@ public:
 
 #endif
 
-    std::unique_ptr<BaseType> create_type() const override;
+    std::unique_ptr<BaseType> create_type() override;
+
+    uint64_t byte_size(bool is64Bit) override;
+
+    hybrid_ptr<BaseType> get_base_type() override;
 
     StructValue *as_struct() override;
 

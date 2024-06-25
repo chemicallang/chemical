@@ -3,7 +3,7 @@
 #include "IntNumValue.h"
 #include "ast/types/ShortType.h"
 
-class ShortValue : public IntNumValue {
+class ShortValue : public IntNumValue, public ShortType {
 public:
 
     short value;
@@ -12,7 +12,11 @@ public:
 
     }
 
-    uint64_t byte_size(bool is64Bit) const override {
+    hybrid_ptr<BaseType> get_base_type() override {
+        return hybrid_ptr<BaseType> { this, false };
+    }
+
+    uint64_t byte_size(bool is64Bit) override {
         return 2;
     }
 
@@ -24,7 +28,7 @@ public:
         return new ShortValue(value);
     }
 
-    [[nodiscard]] std::unique_ptr<BaseType> create_type() const override {
+    [[nodiscard]] std::unique_ptr<BaseType> create_type() override {
         return std::make_unique<ShortType>();
     }
 

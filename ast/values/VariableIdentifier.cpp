@@ -1,7 +1,10 @@
 // Copyright (c) Qinetik 2024.
 
 #include "VariableIdentifier.h"
+
+#include <memory>
 #include "compiler/SymbolResolver.h"
+#include "ast/values/AccessChain.h"
 
 uint64_t VariableIdentifier::byte_size(bool is64Bit) const {
     auto holdingType = linked->holding_value_type();
@@ -13,7 +16,24 @@ uint64_t VariableIdentifier::byte_size(bool is64Bit) const {
 
 void VariableIdentifier::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
     linked = linker.find(value);
-    if(!linked) {
+    if(linked) {
+        auto member = linked->as_struct_member();
+        if(member) {
+            if(!linker.current_func_type) {
+                linker.error("couldn't link identifier with struct member, with name '" + value + '\'');
+                return;
+            }
+            // struct members, don't need to be accessed like self.a or this.a
+            // because we'll append self and this automatically
+            auto self_param = linker.current_func_type->get_self_params();
+            auto self_id = new VariableIdentifier(self_param->name);
+            self_id->linked = self_param;
+            std::vector<std::unique_ptr<Value>> values;
+            values.emplace_back(self_id);
+            values.emplace_back(value_ptr.release());
+            value_ptr = std::make_unique<AccessChain>(std::move(values));
+        }
+    } else {
         linker.error("variable identifier '" + value + "' not found");
     }
 }

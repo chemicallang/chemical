@@ -7,6 +7,8 @@
 
 class ASTNode;
 
+class BaseFunctionType;
+
 /**
  * ASTLinker provides a way for the nodes to be linked
  * SemanticLinker however provides a way for the tokens to be linked
@@ -24,6 +26,11 @@ public:
      * when true, re-declaring same symbol will override it
      */
     bool override_symbols = false;
+
+    /**
+     * current function type, for which code is being linked
+     */
+    BaseFunctionType* current_func_type = nullptr;
 
     /**
      * constructor

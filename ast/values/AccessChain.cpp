@@ -1,6 +1,8 @@
 // Copyright (c) Qinetik 2024.
 
 #include "AccessChain.h"
+#include "Variableidentifier.h"
+#include "compiler/SymbolResolver.h"
 #include "ast/base/BaseType.h"
 
 uint64_t AccessChain::byte_size(bool is64Bit) const {
@@ -66,15 +68,6 @@ Value *AccessChain::parent(InterpretScope &scope) {
         i++;
     }
     return current;
-}
-
-bool AccessChain::has_function_call() {
-    for(auto& val : values) {
-        if(val->as_func_call()) {
-            return true;
-        }
-    }
-    return false;
 }
 
 inline Value *AccessChain::parent_value(InterpretScope &scope) {

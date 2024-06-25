@@ -359,6 +359,11 @@ public:
     llvm::BasicBlock *current_loop_continue = nullptr;
 
     /**
+     * the statements being generated are from this function type
+     */
+    BaseFunctionType* current_func_type = nullptr;
+
+    /**
      * When given, return's are shifted to this block
      * So when a return statement is detected a branch instruction is made to this block
      * The return must be void for this to work

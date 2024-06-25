@@ -30,17 +30,29 @@ void to_llvm_args(
     llvm::Value* argValue;
 
     // check function doesn't require a 'self' argument
-    if(chain && func_type->has_self_param()) {
+    auto self_param = func_type->get_self_param();
+    if(chain && self_param) {
         // a pointer to parent
-        if(chain_contains_func_call(*chain, 0, chain->size() - 3)) {
+        if (chain_contains_func_call(*chain, 0, chain->size() - 3)) {
             gen.error("cannot pass self when access chain has a function call");
             return;
         }
-        if((*chain)[until - 2]->value_type() == ValueType::Pointer) {
-            args.emplace_back((*chain)[until - 2]->access_chain_value(gen, *chain, until - 2));
-        } else {
-            std::vector<std::pair<Value*, llvm::Value*>> destructibles;
-            args.emplace_back((*chain)[until - 2]->access_chain_pointer(gen, *chain, destructibles, until - 2));
+        int parent_index = (int) until - 2;
+        if (parent_index >= 0 && parent_index < chain->size()) {
+            if ((*chain)[parent_index]->value_type() == ValueType::Pointer) {
+                args.emplace_back((*chain)[parent_index]->access_chain_value(gen, *chain, parent_index));
+            } else {
+                std::vector<std::pair<Value *, llvm::Value *>> destructibles;
+                args.emplace_back((*chain)[parent_index]->access_chain_pointer(gen, *chain, destructibles, parent_index));
+            }
+        } else if(gen.current_func_type) {
+            auto passing_self_arg = gen.current_func_type->get_self_param();
+            if(passing_self_arg && passing_self_arg->type->is_same(self_param->type.get())) {
+                args.emplace_back(passing_self_arg->llvm_load(gen));
+            } else {
+                gen.error("function without a self argument cannot call methods that require self arg");
+                return;
+            }
         }
     }
 

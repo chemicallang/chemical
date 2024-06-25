@@ -18,7 +18,7 @@ void BaseFunctionType::assign_params() {
     }
 }
 
-BaseFunctionParam* BaseFunctionType::get_self_params() {
+BaseFunctionParam* BaseFunctionType::get_self_param() {
     if(!params.empty()) {
         auto& param = params[0];
         if(param->name == "this" || param->name == "self") {

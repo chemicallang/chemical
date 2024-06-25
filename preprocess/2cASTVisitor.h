@@ -14,6 +14,9 @@ class CDestructionVisitor;
 class CBeforeStmtVisitor;
 class CAfterStmtVisitor;
 
+class BaseFunctionType;
+class MembersContainer;
+
 class ToCAstVisitor : public Visitor, public ASTDiagnoser {
 public:
 
@@ -71,6 +74,16 @@ public:
      * this destruction visitor, calls destructors on things when it's required
      */
     std::unique_ptr<CDestructionVisitor> destructor;
+
+    /**
+     * the function type for which code is being generated
+     */
+    BaseFunctionType* current_func_type = nullptr;
+
+    /**
+     * current members container to which functions belong
+     */
+    MembersContainer* current_members_container = nullptr;
 
     /**
      * a reference to the stream it's going to write results to

@@ -478,6 +478,8 @@ public:
             CValueDeclarationVisitor* value_visitor
     );
 
+    void visit(TypealiasStatement *statement) override;
+
     void visit(FunctionDeclaration *functionDeclaration) override;
 
     void visit(ExtensionFunction *extensionFunc) override;
@@ -910,6 +912,15 @@ void CValueDeclarationVisitor::visit(EnumDeclaration *enumDecl) {
     }
 }
 
+void CTopLevelDeclarationVisitor::visit(TypealiasStatement *stmt) {
+    visitor->new_line_and_indent();
+    write("typedef ");
+    stmt->to->accept(visitor);
+    write(' ');
+    write(stmt->from);
+    write(';');
+}
+
 void CTopLevelDeclarationVisitor::visit(UnionDef *def) {
     visitor->new_line_and_indent();
     write("union ");
@@ -975,19 +986,16 @@ void CTopLevelDeclarationVisitor::visit(ImplDefinition *def) {
 }
 
 void CValueDeclarationVisitor::visit(TypealiasStatement *stmt) {
+    if(is_top_level_node) return;
     visitor->new_line_and_indent();
     write("typedef ");
     stmt->to->accept(visitor);
     write(' ');
-    if(is_top_level_node) {
-        write(stmt->from);
-    } else {
-        std::string alias = "__chalias_";
-        alias += std::to_string(random(100,999)) + "_";
-        alias += std::to_string(alias_num++);
-        write(alias);
-        aliases[stmt] = alias;
-    }
+    std::string alias = "__chalias_";
+    alias += std::to_string(random(100,999)) + "_";
+    alias += std::to_string(alias_num++);
+    write(alias);
+    aliases[stmt] = alias;
     write(';');
 }
 

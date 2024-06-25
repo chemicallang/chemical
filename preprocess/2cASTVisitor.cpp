@@ -1835,7 +1835,10 @@ void ToCAstVisitor::visit(CastedValue *casted) {
     casted->type->accept(this);
     write(')');
     write(' ');
+    auto prev_nested = nested_value;
+    nested_value = true;
     casted->value->accept(this);
+    nested_value = prev_nested;
     write(')');
 }
 

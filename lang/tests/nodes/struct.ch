@@ -1,5 +1,9 @@
 import "../test.ch"
 
+func sum_this_please(a : int, b : int) : int {
+    return a + b;
+}
+
 struct Pair {
 
     var a : int
@@ -15,6 +19,10 @@ struct Pair {
 
     func check_indirect_call(&self) : int {
         return get_pair_sum();
+    }
+
+    func check_outside_call(&self) : int {
+        return sum_this_please(a, b);
     }
 
 }
@@ -104,5 +112,12 @@ func test_structs() {
             b : 10
         }
         return p.check_indirect_call() == 20;
+    })
+    test("functions present outside struct can be called inside struct", () => {
+        var p = Pair {
+            a : 10,
+            b : 10
+        }
+        return p.check_outside_call() == 20;
     })
 }

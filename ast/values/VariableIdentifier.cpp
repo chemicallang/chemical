@@ -38,7 +38,7 @@ void VariableIdentifier::link(SymbolResolver &linker, std::unique_ptr<Value>& va
             if(self_param) {
                 prepend_self(linker, value_ptr, self_param);
             } else {
-                linker.error("couldn't link identifier with struct member / function, with name '" + value + '\'');
+                linker.error("couldn't link identifier '" + value + "', because function doesn't take a self argument");
             }
         }
     } else {

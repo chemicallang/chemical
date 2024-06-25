@@ -188,8 +188,12 @@ void Value::link(SymbolResolver& linker, VarInitStatement* stmnt) {
     link(linker, stmnt->value.value());
 }
 
-void Value::link(SymbolResolver& linker, AssignStatement* stmnt) {
-    link(linker, stmnt->value);
+void Value::link(SymbolResolver& linker, AssignStatement* stmnt, bool lhs) {
+    if(lhs) {
+        link(linker, stmnt->lhs);
+    } else {
+        link(linker, stmnt->value);
+    }
 }
 
 void Value::link(SymbolResolver& linker, StructValue* value, const std::string& name) {

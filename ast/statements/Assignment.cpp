@@ -13,8 +13,8 @@ void AssignStatement::accept(Visitor *visitor) {
 }
 
 void AssignStatement::declare_and_link(SymbolResolver &linker) {
-    lhs->link(linker, this);
-    value->link(linker, this);
+    lhs->link(linker, this, true);
+    value->link(linker, this, false);
 }
 
 void AssignStatement::interpret(InterpretScope &scope) {

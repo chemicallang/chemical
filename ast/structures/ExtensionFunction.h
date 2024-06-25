@@ -39,10 +39,10 @@ public:
     std::unique_ptr<BaseType> create_value_type() override;
 
     /**
-     * requires self, meaning the type must be passed as first argument
+     * all extension functions require self, because they are extensions on self, which is the receiver
      */
-    bool has_self_param() override {
-        return true;
+    BaseFunctionParam *get_self_params() override {
+        return &receiver;
     }
 
     /**

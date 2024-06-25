@@ -26,6 +26,10 @@ class Value;
 
 class BaseType;
 
+class BaseFunctionType;
+
+class MembersContainer;
+
 /**
  * A caster fn takes a pointer to a value, and a pointer to a type
  * the function then returns a new value by casting the given value to the given type
@@ -360,6 +364,16 @@ public:
      * The return must be void for this to work
      */
     llvm::BasicBlock *redirect_return = nullptr;
+
+    /**
+     * the code being generated belongs to this function type
+     */
+    BaseFunctionType *current_func_type = nullptr;
+
+    /**
+     * current members container for which code is being generated
+     */
+    MembersContainer *current_members_container = nullptr;
 
     /**
      * LLVM context that holds modules

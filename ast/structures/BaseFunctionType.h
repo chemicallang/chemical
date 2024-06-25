@@ -12,6 +12,8 @@ class Codegen;
 
 class BaseType;
 
+class BaseFunctionParam;
+
 class FunctionParam;
 
 class ExtensionFunction;
@@ -55,9 +57,16 @@ public:
     void assign_params();
 
     /**
+     * get the self parameter of the function if it exists
+     */
+    virtual BaseFunctionParam* get_self_params();
+
+    /**
      * whether this function requires self parameter
      */
-    virtual bool has_self_param();
+    bool has_self_param() {
+        return get_self_params() != nullptr;
+    }
 
     /**
      * start index of c or llvm functions for this type

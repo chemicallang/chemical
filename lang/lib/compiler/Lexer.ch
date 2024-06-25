@@ -9,13 +9,13 @@ struct Lexer {
      * consumes a identifier and store as a variable token
      * @return true if identifier is not empty, false if it is
      */
-    var storeVariable : (&self, identifier : string) => bool;
+    var storeVariable : (&self, identifier : String*) => bool;
 
     /**
      * consumes a identifier and store as an identifier token
      * @return true if identifier is not empty, false if it is
      */
-    var storeIdentifier : (&self, identifier : string) => bool;
+    var storeIdentifier : (&self, identifier : String*) => bool;
 
     /**
      * lex a variable token into tokens until the until character occurs
@@ -146,7 +146,7 @@ struct Lexer {
      * @param op
      * @return whether the token was found
      */
-    var lexStrOperationToken : (&self, token : string, op : Operation) => bool;
+    var lexStrOperationToken : (&self, token : String*, op : Operation) => bool;
 
     /**
      * lexes a keyword token for the given keyword
@@ -193,7 +193,7 @@ struct Lexer {
     /**
      * lexes a brace block, { statement(s) }
      */
-    var lexBraceBlock : (&self, forThing : string) => bool;
+    var lexBraceBlock : (&self, forThing : String*) => bool;
 
     /**
      * lexes an expression for if statement including parens '(' expr ')'

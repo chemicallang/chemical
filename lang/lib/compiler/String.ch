@@ -1,4 +1,4 @@
-import "../std/std.ch"
+import "../../std/std.ch"
 
 @cbi:global("compiler")
 struct String {
@@ -21,7 +21,7 @@ struct String {
      * resize the string to a new capacity
      */
     func resize(new_capacity : ulong) {
-        auto new_data = realloc(data, new_capacity) as char*;
+        var new_data = realloc(data, new_capacity) as char*;
         if (new_data) {
             data = new_data;
             capacity = new_capacity;
@@ -43,7 +43,7 @@ struct String {
     /**
      * append a string to this string, with given length
      */
-    func append_str(s : char*, len : size_t) {
+    func append_str_of_len(s : char*, len : size_t) {
         if(length + len >= capacity) {
             resize(length + len + 3);
         }
@@ -56,8 +56,8 @@ struct String {
      * append another string to this string
      */
     func append_str(s : char*) {
-        size_t len = strlen(s);
-        append_str(s, len);
+        var len = strlen(s);
+        append_str_of_len(s, len);
     }
 
     /**

@@ -4,6 +4,7 @@
 
 #include <ranges>
 #include "compiler/Codegen.h"
+#include "compiler/SymbolResolver.h"
 #include "StructMember.h"
 #include "FunctionDeclaration.h"
 
@@ -30,12 +31,15 @@ bool MembersContainer::add_child_index(
 #endif
 
 void MembersContainer::declare_and_link(SymbolResolver &linker) {
+    linker.scope_start();
     for (const auto &var: variables) {
         var.second->declare_and_link(linker);
     }
     for (const auto &func: functions) {
+        func.second->declare_top_level(linker);
         func.second->declare_and_link(linker);
     }
+    linker.scope_end();
 }
 
 FunctionDeclaration *MembersContainer::member(const std::string &name) {

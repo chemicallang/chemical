@@ -195,24 +195,6 @@ llvm::Value *VariableIdentifier::llvm_value(Codegen &gen) {
     if(linked->value_type() == ValueType::Array) {
         return gen.builder->CreateGEP(llvm_type(gen), llvm_pointer(gen), {gen.builder->getInt32(0), gen.builder->getInt32(0)}, "", gen.inbounds);;
     }
-    if(linked->as_struct_member() && gen.current_func_type && gen.current_members_container) {
-        auto self_param = gen.current_func_type->get_self_params();
-        if(self_param) {
-            auto index = self_param->calculate_c_or_llvm_index();
-            auto self_arg = gen.current_function->getArg(index);
-            auto mem_index = gen.current_members_container->child_index(value);
-            if(mem_index != -1) {
-                auto loaded = gen.builder->CreateGEP(
-                        gen.current_members_container->llvm_type(gen), self_arg,
-                        {gen.builder->getInt32(0), gen.builder->getInt32(mem_index)}, "",
-                        gen.inbounds
-                );
-                return gen.builder->CreateLoad(llvm_type(gen), loaded);
-            } else {
-                gen.error("couldn't find struct member " + value);
-            }
-        }
-    }
     return linked->llvm_load(gen);
 }
 

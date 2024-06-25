@@ -1,8 +1,14 @@
 import "../test.ch"
 
 struct Pair {
+
     var a : int
     var b : int
+
+    func get_pair_sum(&self) : int {
+        return a + b;
+    }
+
 }
 
 func create_pair() : Pair {
@@ -69,5 +75,12 @@ func test_structs() {
             value : &nested
         }
         return str.value.value == 55;
+    })
+    test("struct members can be accessed without using self. or this.", () => {
+        var p = Pair {
+            a : 10,
+            b : 10
+        }
+        return p.get_pair_sum() == 20;
     })
 }

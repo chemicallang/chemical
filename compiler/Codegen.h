@@ -366,16 +366,6 @@ public:
     llvm::BasicBlock *redirect_return = nullptr;
 
     /**
-     * the code being generated belongs to this function type
-     */
-    BaseFunctionType *current_func_type = nullptr;
-
-    /**
-     * current members container for which code is being generated
-     */
-    MembersContainer *current_members_container = nullptr;
-
-    /**
      * LLVM context that holds modules
      */
     std::unique_ptr<llvm::LLVMContext> ctx;

@@ -9,6 +9,14 @@ struct Pair {
         return a + b;
     }
 
+    func check_direct_call(&self) : int {
+        return self.get_pair_sum();
+    }
+
+    func check_indirect_call(&self) : int {
+        return get_pair_sum();
+    }
+
 }
 
 func create_pair() : Pair {
@@ -82,5 +90,19 @@ func test_structs() {
             b : 10
         }
         return p.get_pair_sum() == 20;
+    })
+    test("struct functions can be accessed using self. or this.", () => {
+        var p = Pair {
+            a : 10,
+            b : 10
+        }
+        return p.check_direct_call() == 20;
+    })
+    test("struct functions can be accessed without using self. or this.", () => {
+        var p = Pair {
+            a : 10,
+            b : 10
+        }
+        return p.check_indirect_call() == 20;
     })
 }

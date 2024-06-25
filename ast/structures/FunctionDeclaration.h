@@ -55,6 +55,10 @@ public:
         return name;
     }
 
+    std::string func_opt_name() override {
+        return name;
+    }
+
     void accept(Visitor *visitor) override;
 
     void ensure_destructor(StructDefinition* def);

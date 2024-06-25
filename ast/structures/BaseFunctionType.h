@@ -4,6 +4,7 @@
 
 #include <vector>
 #include <memory>
+#include <string>
 
 #ifdef COMPILER_BUILD
 #include "compiler/llvmfwd.h"
@@ -45,6 +46,13 @@ public:
         return nullptr;
     }
 
+    /**
+     * optional name for the function, used for errors and debugging mostly
+     */
+    virtual std::string func_opt_name() {
+       return "";
+    }
+
 #ifdef COMPILER_BUILD
 
     virtual std::vector<llvm::Type *> param_types(Codegen &gen) = 0;
@@ -59,13 +67,13 @@ public:
     /**
      * get the self parameter of the function if it exists
      */
-    virtual BaseFunctionParam* get_self_params();
+    virtual BaseFunctionParam* get_self_param();
 
     /**
      * whether this function requires self parameter
      */
     bool has_self_param() {
-        return get_self_params() != nullptr;
+        return get_self_param() != nullptr;
     }
 
     /**

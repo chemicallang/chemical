@@ -56,6 +56,8 @@ public:
 
     void set_identifier_value(InterpretScope &scope, Value *rawValue, Operation op) override;
 
+    void prepend_self(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr, BaseFunctionParam* self_param);
+
     void link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) override;
 
     ASTNode *linked_node() override;

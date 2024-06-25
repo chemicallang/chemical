@@ -75,6 +75,7 @@ unsigned int Value::store_in_array(
 }
 
 llvm::Value* Value::access_chain_value(Codegen &gen, std::vector<std::unique_ptr<Value>>& values, unsigned int until) {
+    if(until == 0) return values[0]->llvm_value(gen);
     std::vector<std::pair<Value*, llvm::Value*>> destructibles;
     auto loaded = gen.builder->CreateLoad(values[until]->llvm_type(gen), access_chain_pointer(gen, values, destructibles, until), "acc");
     for(auto& val : std::ranges::reverse_view(destructibles)) {

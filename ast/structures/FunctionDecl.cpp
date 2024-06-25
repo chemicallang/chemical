@@ -92,18 +92,21 @@ llvm::Function* FunctionDeclaration::llvm_func() {
     }
 }
 
-void body_gen(Codegen &gen, llvm::Function* funcCallee, std::optional<LoopScope>& body) {
+void body_gen(Codegen &gen, llvm::Function* funcCallee, std::optional<LoopScope>& body, BaseFunctionType* func_type) {
     if(body.has_value()) {
+        auto prev_func_type = gen.current_func_type;
+        gen.current_func_type = func_type;
         gen.current_function = funcCallee;
         gen.SetInsertPoint(&gen.current_function->getEntryBlock());
         body->code_gen(gen);
         gen.end_function_block();
         gen.current_function = nullptr;
+        gen.current_func_type = prev_func_type;
     }
 }
 
 void FunctionDeclaration::code_gen(Codegen &gen) {
-    body_gen(gen, (llvm::Function*) funcCallee, body);
+    body_gen(gen, (llvm::Function*) funcCallee, body, this);
 }
 
 void llvm_func_attr(llvm::Function* func, AnnotationKind kind) {
@@ -173,7 +176,7 @@ void FunctionDeclaration::code_gen_interface(Codegen &gen, InterfaceDefinition* 
 }
 
 void FunctionDeclaration::code_gen_override(Codegen& gen, FunctionDeclaration* decl) {
-    body_gen(gen, (llvm::Function*) funcCallee, decl->body);
+    body_gen(gen, (llvm::Function*) funcCallee, decl->body, decl);
     decl->funcCallee = funcCallee;
     decl->funcType = funcType;
 }

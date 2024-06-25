@@ -33,6 +33,10 @@ public:
         return this;
     }
 
+    std::string func_opt_name() override {
+        return name;
+    }
+
     /**
      * creates value type
      */
@@ -41,7 +45,7 @@ public:
     /**
      * all extension functions require self, because they are extensions on self, which is the receiver
      */
-    BaseFunctionParam *get_self_params() override {
+    BaseFunctionParam *get_self_param() override {
         return &receiver;
     }
 

@@ -26,6 +26,11 @@ public:
      */
     FunctionDeclaration* destructor_func();
 
+    /**
+     * returns true if function belonds to this members container
+     */
+    bool contains_func(FunctionDeclaration* decl);
+
 #ifdef COMPILER_BUILD
 
     bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;

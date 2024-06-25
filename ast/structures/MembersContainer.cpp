@@ -75,6 +75,15 @@ FunctionDeclaration* MembersContainer::destructor_func() {
     return nullptr;
 }
 
+bool MembersContainer::contains_func(FunctionDeclaration* decl) {
+    for(auto& function : functions) {
+        if(function.second.get() == decl) {
+            return true;
+        }
+    }
+    return false;
+}
+
 int MembersContainer::child_index(const std::string &varName) {
     auto i = 0;
     for (const auto &var: variables) {

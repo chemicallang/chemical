@@ -1538,7 +1538,9 @@ void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& valu
     normal_functions: {
         // normal functions
         bool contains_useless_self = false;
-        if(visitor->current_members_container && !is_lambda) {
+        auto linked_node = parent->linked_node();
+        auto as_func_decl = parent->linked_node() ? linked_node->as_function() : nullptr;
+        if(visitor->current_members_container && !is_lambda && as_func_decl && visitor->current_members_container->contains_func(as_func_decl)) {
             func_container_name(visitor, visitor->current_members_container, parent->linked_node());
             contains_useless_self = values[start]->as_identifier() && values[start]->as_identifier()->value == "self";
             if(contains_useless_self) {

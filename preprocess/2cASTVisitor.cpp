@@ -18,6 +18,8 @@
 #include "ast/structures/EnumDeclaration.h"
 #include "ast/structures/StructMember.h"
 #include "ast/structures/ImplDefinition.h"
+#include "ast/structures/UnnamedUnion.h"
+#include "ast/structures/UnnamedStruct.h"
 #include "ast/structures/FunctionParam.h"
 #include "ast/structures/Namespace.h"
 #include "ast/structures/InterfaceDefinition.h"
@@ -1369,6 +1371,39 @@ void ToCAstVisitor::visit(Scope *scope) {
     auto itr = destructor->destruct_nodes.begin() + begin;
     destructor->destruct_nodes.erase(itr, destructor->destruct_nodes.end());
     top_level_node = prev;
+}
+
+void ToCAstVisitor::visit(UnnamedUnion *def) {
+    new_line_and_indent();
+    write("union ");
+    write('{');
+    indentation_level+=1;
+    for(auto& var : def->variables) {
+        new_line_and_indent();
+        var.second->accept(this);
+    }
+    indentation_level-=1;
+    new_line_and_indent();
+    write('}');
+    space();
+    write(def->name);
+    write(';');
+}
+
+void ToCAstVisitor::visit(UnnamedStruct *def) {
+    write("struct ");
+    write('{');
+    indentation_level+=1;
+    for(auto& var : def->variables) {
+        new_line_and_indent();
+        var.second->accept(this);
+    }
+    indentation_level-=1;
+    new_line_and_indent();
+    write('}');
+    space();
+    write(def->name);
+    write(';');
 }
 
 void ToCAstVisitor::visit(StructDefinition *def) {

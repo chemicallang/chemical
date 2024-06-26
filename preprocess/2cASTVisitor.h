@@ -237,6 +237,10 @@ public:
 
     void visit(StructDefinition* structDefinition) override;
 
+    void visit(UnnamedUnion *def) override;
+
+    void visit(UnnamedStruct *def) override;
+
     void visit(Namespace *ns) override;
 
     void visit(WhileLoop* whileLoop) override;

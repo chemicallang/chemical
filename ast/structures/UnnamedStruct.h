@@ -24,6 +24,8 @@ public:
         return total_byte_size(is64Bit);
     }
 
+    hybrid_ptr<BaseType> get_value_type() override;
+
 #ifdef COMPILER_BUILD
 
     llvm::Type *llvm_type(Codegen &gen) override;
@@ -37,5 +39,13 @@ public:
     }
 
 #endif
+
+    ValueType value_type() const override {
+        return ValueType::Struct;
+    }
+
+    BaseTypeKind type_kind() const override {
+        return BaseTypeKind::Struct;
+    }
 
 };

@@ -33,9 +33,12 @@ public:
 
     llvm::Type *llvm_type(Codegen &gen) override;
 
-    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override {
-        // no index is added, as values are stored directly in type
-        return true;
+    bool add_child_index(
+        Codegen &gen,
+        std::vector<llvm::Value *> &indexes,
+        const std::string &name
+    ) override {
+        return llvm_union_child_index(gen, indexes, name);
     }
 
 #endif

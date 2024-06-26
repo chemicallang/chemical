@@ -24,12 +24,18 @@ public:
         return largest_member()->byte_size(is64Bit);
     }
 
+    hybrid_ptr<BaseType> get_value_type() override;
+
 #ifdef COMPILER_BUILD
 
     llvm::Type * llvm_type(Codegen &gen) override;
 
-    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override {
-        return true;
+    bool add_child_index(
+        Codegen &gen,
+        std::vector<llvm::Value *> &indexes,
+        const std::string &name
+    ) override {
+        return llvm_union_child_index(gen, indexes, name);
     }
 
 #endif

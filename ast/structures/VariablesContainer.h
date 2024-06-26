@@ -30,6 +30,12 @@ public:
             const std::string &name
     );
 
+    bool llvm_union_child_index(
+            Codegen &gen,
+            std::vector<llvm::Value *> &indexes,
+            const std::string &name
+    );
+
 #endif
 
 };

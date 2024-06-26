@@ -24,8 +24,8 @@ func test_unions() {
     })
     test("test that int float union works - 2", () => {
         var u : IntFloatUnion
-        u.b = 1.2;
-        return u.b == 1.2;
+        u.b = 1.2f;
+        return u.b == 1.2f;
     })
     test("test a complex union of two structs - 1", () => {
         var tu : TwoStructs
@@ -38,6 +38,6 @@ func test_unions() {
         var tu : TwoStructs
         tu.Second.data = 123;
         tu.Second.length = 456;
-        return *tu.Second.data == 123 && tu.Second.length == 456;
+        return tu.Second.data == 123 && tu.Second.length == 456;
     })
 }

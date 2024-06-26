@@ -186,6 +186,15 @@ public:
     bool is_dispose();
 
     /**
+     * pop the last node from nodes vector node
+     */
+    ASTNode* pop_last_node() {
+        auto last = nodes.back().release();
+        nodes.pop_back();
+        return last;
+    }
+
+    /**
      * visit the tokens, from start to end
      * @param start start is the inclusive index at which to begin visiting
      * @param end end is exclusive index at which to end visiting

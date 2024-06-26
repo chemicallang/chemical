@@ -1276,7 +1276,8 @@ void contained_func_decl(ToCAstVisitor* visitor, FunctionDeclaration* decl, cons
         visitor->indentation_level++;
         for(auto& var : def->variables) {
             if(var.second->value_type() == ValueType::Struct) {
-                auto mem_def = var.second->type->linked_node()->as_struct_def();
+                auto mem_type = var.second->get_value_type();
+                auto mem_def = mem_type->linked_node()->as_struct_def();
                 auto destructor = mem_def->destructor_func();
                 if(!destructor) {
                     index++;

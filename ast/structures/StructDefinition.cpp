@@ -115,10 +115,7 @@ void StructDefinition::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
 
 #endif
 
-BaseDefMember::BaseDefMember(
-    std::string name,
-    std::unique_ptr<BaseType> type
-) : name(std::move(name)), type(std::move(type)) {
+BaseDefMember::BaseDefMember(std::string name) : name(std::move(name)) {
 
 }
 
@@ -126,7 +123,7 @@ StructMember::StructMember(
         std::string name,
         std::unique_ptr<BaseType> type,
         std::optional<std::unique_ptr<Value>> defValue
-) : BaseDefMember(std::move(name), std::move(type)), defValue(std::move(defValue)) {
+) : BaseDefMember(std::move(name)), type(std::move(type)), defValue(std::move(defValue)) {
 
 }
 
@@ -140,19 +137,6 @@ std::unique_ptr<BaseType> StructMember::create_value_type() {
 
 hybrid_ptr<BaseType> StructMember::get_value_type() {
     return hybrid_ptr<BaseType> { type.get(), false };
-}
-
-BaseDefMember *StructMember::copy() {
-    auto defVal = defValue.has_value() ? defValue.value()->copy() : nullptr;
-    auto member = new StructMember(
-        name,
-        std::unique_ptr<BaseType>(type->copy()),
-        std::nullopt
-    );
-    if(defVal) {
-        member->defValue.emplace(defVal);
-    }
-    return member;
 }
 
 void StructMember::declare_and_link(SymbolResolver &linker) {
@@ -177,6 +161,12 @@ BaseTypeKind StructMember::type_kind() const {
     return type->kind();
 }
 
+UnnamedStruct::UnnamedStruct(
+        std::string name
+) : BaseDefMember(std::move(name)) {
+
+}
+
 StructDefinition::StructDefinition(
         std::string name,
         const std::optional<std::string> &overrides
@@ -192,7 +182,8 @@ bool StructDefinition::requires_destructor() {
     auto destructor = destructor_func();
     if(destructor) return true;
     for(const auto& var : variables) {
-        if(var.second->type->value_type() == ValueType::Struct && var.second->type->linked_node()->as_struct_def()->requires_destructor()) {
+        auto mem_type = var.second->get_value_type();
+        if(mem_type->value_type() == ValueType::Struct && mem_type->linked_node()->as_struct_def()->requires_destructor()) {
             return true;
         }
     }
@@ -209,7 +200,8 @@ FunctionDeclaration* StructDefinition::create_destructor() {
 uint64_t StructDefinition::byte_size(bool is64Bit) {
     uint64_t size = 0;
     for (const auto &item: variables) {
-        size += item.second->type->byte_size(is64Bit);
+        auto mem_type = item.second->get_value_type();
+        size += mem_type->byte_size(is64Bit);
     }
     return size;
 }

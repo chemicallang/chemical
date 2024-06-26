@@ -48,6 +48,10 @@ llvm::Type *UnionDef::llvm_type(Codegen &gen) {
 
 #endif
 
+UnnamedUnion::UnnamedUnion(std::string name) : BaseDefMember(std::move(name)) {
+
+}
+
 UnionDef::UnionDef(std::string name) : ExtendableMembersContainerNode(std::move(name)) {
 
 }

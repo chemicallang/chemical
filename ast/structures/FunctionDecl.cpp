@@ -206,7 +206,8 @@ void FunctionDeclaration::code_gen_destructor(Codegen& gen, StructDefinition* de
     unsigned index = 0;
     for(auto& var : def->variables) {
         if(var.second->value_type() == ValueType::Struct) {
-            auto mem_def = var.second->type->linked_node()->as_struct_def();
+            auto mem_type = var.second->get_value_type();
+            auto mem_def = mem_type->linked_node()->as_struct_def();
             auto destructor = mem_def->destructor_func();
             if(!destructor) {
                 index++;

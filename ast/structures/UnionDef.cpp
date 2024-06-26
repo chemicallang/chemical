@@ -26,7 +26,7 @@ llvm::Type *UnnamedUnion::llvm_type(Codegen &gen) {
     return llvm::StructType::get(*gen.ctx, members);
 }
 
-llvm::StructType* UnionDef::get_struct_type(Codegen &gen) {
+llvm::Type *UnionDef::llvm_type(Codegen &gen) {
     auto largest = largest_member();
     if(!largest) {
         gen.error("Couldn't determine the largest member of the union with name " + name);
@@ -40,10 +40,6 @@ llvm::StructType* UnionDef::get_struct_type(Codegen &gen) {
         llvm_struct_type = llvm::StructType::create(*gen.ctx, members, "union." + name);
     }
     return llvm_struct_type;
-}
-
-llvm::Type *UnionDef::llvm_type(Codegen &gen) {
-    return get_struct_type(gen);
 }
 
 #endif

@@ -12,11 +12,23 @@ public:
 
     tsl::ordered_map<std::string, std::unique_ptr<BaseDefMember>> variables;
 
+    int variable_index(const std::string &name);
+
+    uint64_t total_byte_size(bool is64Bit);
+
+    BaseDefMember *child_def_member(const std::string &name);
+
     BaseDefMember* largest_member();
 
 #ifdef COMPILER_BUILD
 
     std::vector<llvm::Type *> elements_type(Codegen &gen);
+
+    bool llvm_struct_child_index(
+            Codegen &gen,
+            std::vector<llvm::Value *> &indexes,
+            const std::string &name
+    );
 
 #endif
 

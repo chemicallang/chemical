@@ -7,6 +7,10 @@
 class BigIntType : public IntNType {
 public:
 
+    uint64_t byte_size(bool is64Bit) override {
+        return 8;
+    }
+
     unsigned int num_bits() const override {
         return 64;
     }

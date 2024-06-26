@@ -50,6 +50,8 @@
 #include "ast/values/UBigIntValue.h"
 #include "ast/structures/ImplDefinition.h"
 #include "ast/structures/UnionDef.h"
+#include "ast/structures/UnnamedUnion.h"
+#include "ast/structures/UnnamedStruct.h"
 #include "cst/structures/WhileCST.h"
 #include "ast/structures/DoWhileLoop.h"
 #include "ast/statements/Continue.h"
@@ -857,25 +859,34 @@ unsigned int collect_struct_members(
 ) {
     auto prev_anns = std::move(conv->annotations);
     while (!is_char_op(tokens[i].get(), '}')) {
-
         tokens[i]->accept(conv);
-        auto is_var_init = tokens[i]->is_var_init();
-        auto is_func_decl = tokens[i]->is_func_decl();
-        if (!is_var_init && !is_func_decl) {
+        if (tokens[i]->is_var_init()) {
+            auto node = (VarInitStatement *) conv->pop_last_node();
+            auto thing = new StructMember(
+                    node->identifier,
+                    std::move(node->type.value()),
+                    std::move(node->value)
+            );
+            variables[node->identifier] = std::unique_ptr<StructMember>(thing);
+            delete node;
+        } else if(tokens[i]->is_func_decl()){
+            auto node = (FunctionDeclaration *) conv->pop_last_node();
+            decls[node->name] = std::unique_ptr<FunctionDeclaration>(node);
+        } else if(tokens[i]->is_struct_def()) {
+            auto node = (StructDefinition*) conv->pop_last_node();
+            auto thing = new UnnamedStruct(node->name);
+            variables[node->name] = std::unique_ptr<UnnamedStruct>(thing);
+            thing->variables = std::move(node->variables);
+            delete node;
+        } else if(tokens[i]->is_union_def()) {
+            auto node = (UnionDef*) conv->pop_last_node();
+            auto thing = new UnnamedUnion(node->name);
+            variables[node->name] = std::unique_ptr<UnnamedUnion>(thing);
+            thing->variables = std::move(node->variables);
+            delete node;
+        } else {
             i++;
             continue;
-        }
-        auto node = conv->nodes.back().release();
-        conv->nodes.pop_back();
-        if (is_var_init) {
-            auto init = ((VarInitStatement *) node);
-            variables[init->identifier] = std::make_unique<StructMember>(init->identifier,
-                                                                         std::move(init->type.value()),
-                                                                         std::move(init->value));
-            delete init;
-        } else {
-            decls[((FunctionDeclaration *) node)->name] = std::unique_ptr<FunctionDeclaration>(
-                    (FunctionDeclaration *) node);
         }
 
         if (is_char_op(tokens[i + 1].get(), ';')) {

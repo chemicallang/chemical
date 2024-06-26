@@ -104,6 +104,20 @@ public:
     }
 
     /**
+     * this can be a union definition, unnamed union also uses the same type
+     */
+    bool is_union_def() {
+        return type() == LexTokenType::CompUnionDef;
+    }
+
+    /**
+     * this can be a union definition, unnamed union also uses the same type
+     */
+    bool is_struct_def() {
+        return type() == LexTokenType::CompStructDef;
+    }
+
+    /**
      * is a ref token
      */
     bool is_ref() {

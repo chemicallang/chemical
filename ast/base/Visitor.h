@@ -52,6 +52,10 @@ class MacroValueStatement;
 
 class StructMember;
 
+class UnnamedUnion;
+
+class UnnamedStruct;
+
 class TypealiasStatement;
 
 class SwitchStatement;
@@ -282,6 +286,14 @@ public:
     }
 
     virtual void visit(UnionDef* def) {
+        visitCommon((ASTNode*) def);
+    }
+
+    virtual void visit(UnnamedStruct* def) {
+        visitCommon((ASTNode*) def);
+    }
+
+    virtual void visit(UnnamedUnion* def) {
         visitCommon((ASTNode*) def);
     }
 

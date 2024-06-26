@@ -8,17 +8,13 @@ class BaseDefMember : public AnnotableNode {
 public:
 
     std::string name;
-    std::unique_ptr<BaseType> type;
 
     BaseDefMember(
-        std::string name,
-        std::unique_ptr<BaseType> type
+        std::string name
     );
 
     virtual Value* default_value() {
         return nullptr;
     }
-
-    virtual BaseDefMember* copy() = 0;
 
 };

@@ -9,6 +9,7 @@
 class StructMember : public BaseDefMember {
 public:
 
+    std::unique_ptr<BaseType> type;
     std::optional<std::unique_ptr<Value>> defValue;
 
     StructMember(
@@ -21,8 +22,6 @@ public:
         if(defValue.has_value()) return defValue->get();
         return nullptr;
     }
-
-    BaseDefMember* copy() override;
 
     void accept(Visitor *visitor) override;
 

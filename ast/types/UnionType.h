@@ -40,16 +40,13 @@ public:
     }
 
     virtual BaseType *copy() const {
-        auto def = new UnionType();
-        for (auto &elem: variables) {
-            def->variables[elem.first] = std::unique_ptr<BaseDefMember>(elem.second->copy());
-        }
-        return def;
+        throw std::runtime_error("copy called on union type");
     }
 
     bool satisfies(ValueType type) const override {
         for(auto& member : variables) {
-            if(member.second->type->satisfies(type)) {
+            auto mem_type = member.second->create_value_type();
+            if(mem_type->satisfies(type)) {
                 return true;
             }
         }

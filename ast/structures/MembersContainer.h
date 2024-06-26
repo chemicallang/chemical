@@ -22,7 +22,9 @@ public:
 
     ASTNode *child(const std::string &name) override;
 
-    int child_index(const std::string &name) override;
+    int child_index(const std::string &var_name) override {
+        return VariablesContainer::variable_index(var_name);
+    }
 
     /**
      * will provide a destructor function if there's one
@@ -36,7 +38,13 @@ public:
 
 #ifdef COMPILER_BUILD
 
-    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
+    bool add_child_index(
+            Codegen &gen,
+            std::vector<llvm::Value *> &indexes,
+            const std::string &name
+    ) override {
+        return VariablesContainer::llvm_struct_child_index(gen, indexes, name);
+    }
 
 #endif
 

@@ -904,13 +904,15 @@ void CSTConverter::visitStructDef(CompoundCSTToken *structDef) {
     if(is_dispose()) {
         return;
     }
+    bool named = structDef->tokens[1]->is_identifier();
+    unsigned i = named ? 2 : 1; // expected index of the ':'
     std::optional<std::string> overrides = std::nullopt;
-    auto has_override = is_char_op(structDef->tokens[2].get(), ':');
+    auto has_override = is_char_op(structDef->tokens[i].get(), ':');
     if (has_override) {
-        overrides.emplace(str_token(structDef->tokens[3].get()));
+        overrides.emplace(str_token(structDef->tokens[i + 1].get()));
     }
-    unsigned i = has_override ? 5 : 3; // positioned at first node or '}'
-    auto def = new StructDefinition(str_token(structDef->tokens[1].get()), overrides);
+    i = has_override ? i + 3 : i + 1; // positioned at first node or '}'
+    auto def = new StructDefinition(str_token(structDef->tokens[named ? 1 : structDef->tokens.size() - 1].get()), overrides);
     current_struct_decl = def;
     collect_struct_members(this, structDef->tokens, def->variables, def->functions, i);
     current_struct_decl = nullptr;
@@ -933,8 +935,9 @@ void CSTConverter::visitUnionDef(CompoundCSTToken *unionDef) {
     if(is_dispose()) {
         return;
     }
+    bool named = unionDef->tokens[1]->is_identifier();
     unsigned i = 3; // positioned at first node or '}'
-    auto def = new UnionDef(str_token(unionDef->tokens[1].get()));
+    auto def = new UnionDef(str_token(unionDef->tokens[named ? 1 : unionDef->tokens.size() - 1].get()));
     current_union_decl = def;
     collect_struct_members(this, unionDef->tokens, def->variables, def->functions, i);
     current_union_decl = nullptr;

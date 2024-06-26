@@ -60,7 +60,9 @@ public:
 
     ValueType value_type() const override;
 
-    uint64_t byte_size(bool is64Bit) override;
+    uint64_t byte_size(bool is64Bit) override {
+        return total_byte_size(is64Bit);
+    }
 
     bool requires_destructor();
 

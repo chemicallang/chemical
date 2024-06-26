@@ -13,19 +13,19 @@
 #include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
 
-bool MembersContainer::add_child_index(
+bool VariablesContainer::llvm_struct_child_index(
         Codegen &gen,
         std::vector<llvm::Value *> &indexes,
         const std::string &child_name
 ) {
-    auto index = child_index(child_name);
+    auto index = variable_index(child_name);
     if (index == -1) {
         return false;
     }
     if (indexes.empty()) {
-        indexes.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), 0));
+        indexes.emplace_back(gen.builder->getInt32(0));
     }
-    indexes.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), index));
+    indexes.emplace_back(gen.builder->getInt32(index));
     return true;
 }
 
@@ -40,6 +40,15 @@ std::vector<llvm::Type *> VariablesContainer::elements_type(Codegen &gen) {
 
 #endif
 
+BaseDefMember *VariablesContainer::child_def_member(const std::string &name) {
+    auto found = variables.find(name);
+    if (found != variables.end()) {
+        return found->second.get();
+    } else {
+        return nullptr;
+    }
+}
+
 BaseDefMember* VariablesContainer::largest_member() {
     BaseDefMember* member = nullptr;
     for(auto& var : variables) {
@@ -52,6 +61,15 @@ BaseDefMember* VariablesContainer::largest_member() {
     } else {
         return nullptr;
     }
+}
+
+uint64_t VariablesContainer::total_byte_size(bool is64Bit) {
+    uint64_t size = 0;
+    for (const auto &item: variables) {
+        auto mem_type = item.second->get_value_type();
+        size += mem_type->byte_size(is64Bit);
+    }
+    return size;
 }
 
 void MembersContainer::declare_and_link(SymbolResolver &linker) {
@@ -108,7 +126,7 @@ bool MembersContainer::contains_func(FunctionDeclaration* decl) {
     return false;
 }
 
-int MembersContainer::child_index(const std::string &varName) {
+int VariablesContainer::variable_index(const std::string &varName) {
     auto i = 0;
     for (const auto &var: variables) {
         if (var.first == varName) {

@@ -29,6 +29,27 @@ bool VariablesContainer::llvm_struct_child_index(
     return true;
 }
 
+bool VariablesContainer::llvm_union_child_index(
+        Codegen &gen,
+        std::vector<llvm::Value *> &indexes,
+        const std::string &name
+) {
+    auto largest = largest_member();
+    if(largest) {
+        auto value_type = largest->get_value_type();
+        // this should only be added if we are not inlining struct types inside union
+        if(value_type->value_type() == ValueType::Struct) {
+            if(indexes.empty()) {
+                indexes.emplace_back(gen.builder->getInt32(0));
+            }
+            indexes.emplace_back(gen.builder->getInt32(0));
+        }
+    } else {
+        return true;
+    }
+    return true;
+}
+
 std::vector<llvm::Type *> VariablesContainer::elements_type(Codegen &gen) {
     auto vec = std::vector<llvm::Type *>();
     vec.reserve(variables.size());

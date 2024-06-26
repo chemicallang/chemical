@@ -242,6 +242,10 @@ hybrid_ptr<BaseType> StructDefinition::get_value_type() {
     return hybrid_ptr<BaseType> { new ReferencedType(name, this) };
 }
 
+hybrid_ptr<BaseType> UnnamedStruct::get_value_type() {
+    return hybrid_ptr<BaseType> { new ReferencedType(name, this) };
+}
+
 ValueType StructDefinition::value_type() const {
     return ValueType::Struct;
 }

@@ -31,6 +31,6 @@ func main() {
     test_casts();
     test_functions();
     test_destructors();
-    // test_unions();
+    test_unions();
     print_test_stats();
 }

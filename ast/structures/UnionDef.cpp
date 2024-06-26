@@ -52,6 +52,10 @@ UnnamedUnion::UnnamedUnion(std::string name) : BaseDefMember(std::move(name)) {
 
 }
 
+hybrid_ptr<BaseType> UnnamedUnion::get_value_type() {
+    return largest_member()->get_value_type();
+}
+
 UnionDef::UnionDef(std::string name) : ExtendableMembersContainerNode(std::move(name)) {
 
 }

@@ -29,7 +29,7 @@ func test_unions() {
     })
     test("test a complex union of two structs - 1", () => {
         var tu : TwoStructs
-        int y = 55;
+        var y = 55;
         tu.First.data = &y;
         tu.First.length = 345678;
         return *tu.First.data == 55 && tu.First.length == 345678;

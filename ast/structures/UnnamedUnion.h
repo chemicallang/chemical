@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "UnnamedUnion.h"
 #include "VariablesContainer.h"
 #include "BaseDefMember.h"
 

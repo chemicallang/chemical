@@ -11,6 +11,7 @@
 #include "ast/structures/FunctionParam.h"
 #include "ast/types/VoidType.h"
 #include "ast/types/PointerType.h"
+#include "UnnamedStruct.h"
 
 #ifdef COMPILER_BUILD
 
@@ -95,6 +96,10 @@ bool StructMember::add_child_index(Codegen &gen, std::vector<llvm::Value *> &ind
 
 llvm::Type *StructDefinition::llvm_type(Codegen &gen) {
     return get_struct_type(gen);
+}
+
+llvm::Type *UnnamedStruct::llvm_type(Codegen &gen) {
+    return llvm::StructType::get(*gen.ctx, elements_type(gen));
 }
 
 void StructDefinition::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
@@ -257,16 +262,3 @@ hybrid_ptr<BaseType> StructDefinition::get_value_type() {
 ValueType StructDefinition::value_type() const {
     return ValueType::Struct;
 }
-
-#ifdef COMPILER_BUILD
-
-std::vector<llvm::Type *> StructDefinition::elements_type(Codegen &gen) {
-    auto vec = std::vector<llvm::Type *>();
-    vec.reserve(variables.size());
-    for (const auto &var: variables) {
-        vec.push_back(var.second->llvm_type(gen));
-    }
-    return vec;
-}
-
-#endif

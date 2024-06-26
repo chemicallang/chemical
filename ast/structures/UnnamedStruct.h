@@ -5,12 +5,12 @@
 #include "VariablesContainer.h"
 #include "BaseDefMember.h"
 
-class UnnamedUnion : public BaseDefMember, public VariablesContainer {
+class UnnamedStruct : public BaseDefMember, public VariablesContainer {
 public:
 
 #ifdef COMPILER_BUILD
 
-    llvm::Type * llvm_type(Codegen &gen) override;
+    llvm::Type *llvm_type(Codegen &gen) override;
 
 #endif
 

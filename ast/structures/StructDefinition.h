@@ -68,8 +68,6 @@ public:
 
 #ifdef COMPILER_BUILD
 
-    std::vector<llvm::Type *> elements_type(Codegen &gen);
-
     llvm::Type *llvm_type(Codegen &gen) override;
 
     void code_gen(Codegen &gen) override;

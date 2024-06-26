@@ -14,4 +14,10 @@ public:
 
     BaseDefMember* largest_member();
 
+#ifdef COMPILER_BUILD
+
+    std::vector<llvm::Type *> elements_type(Codegen &gen);
+
+#endif
+
 };

@@ -29,6 +29,15 @@ bool MembersContainer::add_child_index(
     return true;
 }
 
+std::vector<llvm::Type *> VariablesContainer::elements_type(Codegen &gen) {
+    auto vec = std::vector<llvm::Type *>();
+    vec.reserve(variables.size());
+    for (const auto &var: variables) {
+        vec.push_back(var.second->llvm_type(gen));
+    }
+    return vec;
+}
+
 #endif
 
 BaseDefMember* VariablesContainer::largest_member() {

@@ -64,7 +64,7 @@ llvm::FunctionType *FunctionType::llvm_func_type(Codegen &gen) {
     return llvm::FunctionType::get(llvm_func_return(gen, returnType.get()), llvm_func_param_types(gen, params, returnType.get(), isCapturing, isVariadic), isVariadic);
 }
 
-llvm::Type *FunctionType::llvm_type(Codegen &gen) const {
+llvm::Type *FunctionType::llvm_type(Codegen &gen) {
     return gen.builder->getPtrTy();
 };
 

@@ -142,6 +142,8 @@ class FunctionType;
 
 class GenericType;
 
+class UnionType;
+
 class Int128Type;
 
 class IntType;
@@ -499,6 +501,10 @@ public:
 
     virtual void visit(StructType* func) {
         visitCommonType((BaseType*) func);
+    }
+
+    virtual void visit(UnionType* unionType) {
+        visitCommonType((BaseType*) unionType);
     }
 
     virtual void visit(UBigIntType* func) {

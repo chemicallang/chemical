@@ -173,7 +173,7 @@ public:
      * @param gen
      * @return
      */
-    virtual llvm::Type *llvm_type(Codegen &gen) const = 0;
+    virtual llvm::Type *llvm_type(Codegen &gen) = 0;
 
     /**
      * return a func type, if this type can represent one

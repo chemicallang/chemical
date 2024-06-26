@@ -3,13 +3,14 @@
 #include "MembersContainer.h"
 
 #include <ranges>
-#include "compiler/Codegen.h"
 #include "compiler/SymbolResolver.h"
 #include "StructMember.h"
 #include "FunctionDeclaration.h"
+#include "VariablesContainer.h"
 
 #ifdef COMPILER_BUILD
 
+#include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
 
 bool MembersContainer::add_child_index(
@@ -29,6 +30,20 @@ bool MembersContainer::add_child_index(
 }
 
 #endif
+
+BaseDefMember* VariablesContainer::largest_member() {
+    BaseDefMember* member = nullptr;
+    for(auto& var : variables) {
+        if(member == nullptr || var.second->byte_size(true) > member->byte_size(true)) {
+            member = var.second.get();
+        }
+    }
+    if(member) {
+        return member;
+    } else {
+        return nullptr;
+    }
+}
 
 void MembersContainer::declare_and_link(SymbolResolver &linker) {
     linker.scope_start();

@@ -29,8 +29,6 @@ public:
 
     void code_gen(Codegen &gen) override;
 
-    llvm::Type* largest_member_type(Codegen &gen);
-
     llvm::StructType* get_struct_type(Codegen &gen);
 
     llvm::Type *llvm_type(Codegen &gen) override;

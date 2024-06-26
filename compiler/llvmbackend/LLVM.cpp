@@ -14,6 +14,7 @@
 #include "ast/types/IntNType.h"
 #include "ast/types/PointerType.h"
 #include "ast/types/ReferencedType.h"
+#include "ast/types/UnionType.h"
 #include "ast/types/StringType.h"
 #include "ast/types/StructType.h"
 #include "ast/types/VoidType.h"
@@ -47,11 +48,11 @@
 
 // -------------------- Types
 
-llvm::Type *AnyType::llvm_type(Codegen &gen) const {
+llvm::Type *AnyType::llvm_type(Codegen &gen) {
     throw std::runtime_error("llvm_type called on any type");
 }
 
-llvm::Type *ArrayType::llvm_type(Codegen &gen) const {
+llvm::Type *ArrayType::llvm_type(Codegen &gen) {
     return llvm::ArrayType::get(elem_type->llvm_type(gen), array_size);
 }
 
@@ -59,23 +60,23 @@ llvm::Type *ArrayType::llvm_param_type(Codegen &gen) {
     return gen.builder->getPtrTy();
 }
 
-llvm::Type *BoolType::llvm_type(Codegen &gen) const {
+llvm::Type *BoolType::llvm_type(Codegen &gen) {
     return gen.builder->getInt1Ty();
 }
 
-llvm::Type *CharType::llvm_type(Codegen &gen) const {
+llvm::Type *CharType::llvm_type(Codegen &gen) {
     return gen.builder->getInt8Ty();
 }
 
-llvm::Type *DoubleType::llvm_type(Codegen &gen) const {
+llvm::Type *DoubleType::llvm_type(Codegen &gen) {
     return gen.builder->getDoubleTy();
 }
 
-llvm::Type *FloatType::llvm_type(Codegen &gen) const {
+llvm::Type *FloatType::llvm_type(Codegen &gen) {
     return gen.builder->getFloatTy();
 }
 
-llvm::Type *IntNType::llvm_type(Codegen &gen) const {
+llvm::Type *IntNType::llvm_type(Codegen &gen) {
     auto ty = gen.builder->getIntNTy(num_bits());
     if(!ty) {
         gen.error("Couldn't get intN type for int:" + std::to_string(num_bits()));
@@ -83,19 +84,19 @@ llvm::Type *IntNType::llvm_type(Codegen &gen) const {
     return ty;
 }
 
-llvm::Type *PointerType::llvm_type(Codegen &gen) const {
+llvm::Type *PointerType::llvm_type(Codegen &gen) {
     return gen.builder->getPtrTy();
 }
 
-llvm::Type *ReferencedType::llvm_type(Codegen &gen) const {
+llvm::Type *ReferencedType::llvm_type(Codegen &gen) {
     return linked->llvm_type(gen);
 }
 
-llvm::Type *StringType::llvm_type(Codegen &gen) const {
+llvm::Type *StringType::llvm_type(Codegen &gen) {
     return gen.builder->getInt8PtrTy();
 }
 
-llvm::Type *StructType::llvm_type(Codegen &gen) const {
+llvm::Type *StructType::llvm_type(Codegen &gen) {
     std::vector<llvm::Type *> types;
     for (auto &elem: elem_types) {
         types.emplace_back(elem->llvm_type(gen));
@@ -103,7 +104,17 @@ llvm::Type *StructType::llvm_type(Codegen &gen) const {
     return llvm::StructType::get(*gen.ctx, types);
 }
 
-llvm::Type *VoidType::llvm_type(Codegen &gen) const {
+llvm::Type *UnionType::llvm_type(Codegen &gen) {
+    auto largest = largest_member();
+    if(!largest) {
+        gen.error("couldn't find the largest member in the union");
+        return nullptr;
+    }
+    std::vector<llvm::Type*> struct_type{ largest->llvm_type(gen) };
+    return llvm::StructType::get(*gen.ctx, struct_type);
+}
+
+llvm::Type *VoidType::llvm_type(Codegen &gen) {
     return gen.builder->getVoidTy();
 }
 

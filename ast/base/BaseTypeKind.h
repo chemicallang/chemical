@@ -16,6 +16,7 @@ enum class BaseTypeKind : uint8_t {
     Any,
     Array,
     Struct,
+    Union,
     Bool,
     Char,
     Double,

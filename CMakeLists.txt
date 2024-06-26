@@ -470,6 +470,11 @@ set(COMMON_SOURCES
         cst/structures/UnionCST.h
         lexer/structures/Union.cpp
         std/hybrid_ptr.h
+        ast/types/UnionType.h
+        ast/types/UnionType.cpp
+        ast/structures/VariablesContainer.h
+        ast/structures/BaseDefMember.h
+        ast/structures/UnnamedUnion.h
 )
 
 # Chemical LSP Executable Target

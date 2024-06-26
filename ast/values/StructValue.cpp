@@ -201,9 +201,11 @@ void StructValue::declare_default_values(
                 std::unique_ptr<Value>> &into,
         InterpretScope &scope
 ) {
+    Value* defValue;
     for (const auto &field: definition->variables) {
-        if (into.find(field.second->name) == into.end() && field.second->defValue.has_value()) {
-            into[field.second->name] = std::unique_ptr<Value>(field.second->defValue.value()->initializer_value(scope));
+        defValue = field.second->default_value();
+        if (into.find(field.second->name) == into.end() && defValue) {
+            into[field.second->name] = std::unique_ptr<Value>(defValue->initializer_value(scope));
         }
     }
 }

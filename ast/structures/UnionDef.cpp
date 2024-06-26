@@ -1,5 +1,6 @@
 // Copyright (c) Qinetik 2024.
 
+#include "UnnamedUnion.h"
 #include "UnionDef.h"
 #include "FunctionDeclaration.h"
 #include "compiler/SymbolResolver.h"
@@ -15,24 +16,24 @@ void UnionDef::code_gen(Codegen &gen) {
     }
 }
 
-llvm::Type* UnionDef::largest_member_type(Codegen& gen) {
-    StructMember* member = nullptr;
-    for(auto& var : variables) {
-        if(member == nullptr || var.second->byte_size(gen.is64Bit) > member->byte_size(gen.is64Bit)) {
-            member = var.second.get();
-        }
-    }
-    if(member) {
-        return member->llvm_type(gen);
-    } else {
-        gen.error("Couldn't determine the largest member of the union with name " + name);
+llvm::Type *UnnamedUnion::llvm_type(Codegen &gen) {
+    auto largest = largest_member();
+    if(!largest) {
+        gen.error("couldn't find the largest member in the union");
         return nullptr;
     }
+    std::vector<llvm::Type*> members {largest->llvm_type(gen)};
+    return llvm::StructType::get(*gen.ctx, members);
 }
 
 llvm::StructType* UnionDef::get_struct_type(Codegen &gen) {
+    auto largest = largest_member();
+    if(!largest) {
+        gen.error("Couldn't determine the largest member of the union with name " + name);
+        return nullptr;
+    }
     if(!llvm_struct_type) {
-        std::vector<llvm::Type*> members {largest_member_type(gen)};
+        std::vector<llvm::Type*> members {largest->llvm_type(gen)};
         if(has_annotation(AnnotationKind::Anonymous)) {
             return llvm::StructType::get(*gen.ctx, members);
         }

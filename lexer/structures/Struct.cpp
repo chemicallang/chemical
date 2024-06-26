@@ -12,6 +12,7 @@ bool Lexer::lexStructMemberTokens() {
             lexFunctionStructureTokens() ||
             lexSingleLineCommentTokens() ||
             lexMultiLineCommentTokens() ||
+            lexUnionStructureTokens(true, true) ||
             lexAnnotationMacro();
 }
 
@@ -27,13 +28,17 @@ void Lexer::lexStructBlockTokens() {
     lexWhitespaceToken();
 }
 
-bool Lexer::lexStructStructureTokens() {
+bool Lexer::lexStructStructureTokens(bool unnamed, bool direct_init) {
     if(lexKeywordToken("struct")) {
         auto start_token = tokens.size() - 1;
         lexWhitespaceToken();
-        if(!lexIdentifierToken()) {
-            error("expected a identifier as struct name");
-            return true;
+        bool has_identifier = false;
+        if(!unnamed) {
+            has_identifier = lexIdentifierToken();
+            if (!has_identifier) {
+                error("expected a identifier as struct name");
+                return true;
+            }
         }
         lexWhitespaceToken();
         if(lexOperatorToken(':')) {
@@ -56,7 +61,10 @@ bool Lexer::lexStructStructureTokens() {
             error("expected a closing bracket '}' for struct block");
             return true;
         }
-        lexWhitespaceToken();
+        if(lexWhitespaceToken() && !has_identifier && direct_init && !lexIdentifierToken()) {
+            error("expected an identifier after the '}' for anonymous struct definition");
+            return true;
+        }
         compound_collectable<StructDefCST>(start_token);
         return true;
     } else {

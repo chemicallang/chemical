@@ -9,9 +9,12 @@
 #include "ordered_map.h"
 #include "ast/base/AnnotableNode.h"
 #include "FunctionDeclaration.h"
+#include "VariablesContainer.h"
 
-class MembersContainer : public AnnotableNode {
+class MembersContainer : public AnnotableNode, public VariablesContainer {
 public:
+
+    tsl::ordered_map<std::string, std::unique_ptr<FunctionDeclaration>> functions;
 
     void declare_and_link(SymbolResolver &linker) override;
 
@@ -36,8 +39,5 @@ public:
     bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
 
 #endif
-
-    tsl::ordered_map<std::string, std::unique_ptr<StructMember>> variables; ///< The members of the struct.
-    tsl::ordered_map<std::string, std::unique_ptr<FunctionDeclaration>> functions;
 
 };

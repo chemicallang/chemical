@@ -4,18 +4,25 @@
 
 #include <map>
 #include "ast/base/Value.h"
-#include "ast/base/AnnotableNode.h"
+#include "BaseDefMember.h"
 
-class StructMember : public AnnotableNode {
+class StructMember : public BaseDefMember {
 public:
-
-    std::string name;
-
-    std::unique_ptr<BaseType> type;
 
     std::optional<std::unique_ptr<Value>> defValue;
 
-    StructMember(std::string name, std::unique_ptr<BaseType> type, std::optional<std::unique_ptr<Value>> defValue);
+    StructMember(
+            std::string name,
+            std::unique_ptr<BaseType> type,
+            std::optional<std::unique_ptr<Value>> defValue
+    );
+
+    Value *default_value() override {
+        if(defValue.has_value()) return defValue->get();
+        return nullptr;
+    }
+
+    BaseDefMember* copy() override;
 
     void accept(Visitor *visitor) override;
 

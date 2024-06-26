@@ -12,6 +12,7 @@ bool Lexer::lexUnionMemberTokens() {
             lexFunctionStructureTokens() ||
             lexSingleLineCommentTokens() ||
             lexMultiLineCommentTokens() ||
+            lexStructStructureTokens(true, true) ||
             lexAnnotationMacro();
 }
 
@@ -27,19 +28,15 @@ void Lexer::lexUnionBlockTokens() {
     lexWhitespaceToken();
 }
 
-bool Lexer::lexUnionStructureTokens() {
+bool Lexer::lexUnionStructureTokens(bool unnamed, bool direct_init) {
     if(lexKeywordToken("union")) {
         auto start_token = tokens.size() - 1;
         lexWhitespaceToken();
-        if(!lexIdentifierToken()) {
-            error("expected a identifier as union name");
-            return true;
-        }
-        lexWhitespaceToken();
-        if(lexOperatorToken(':')) {
-            lexWhitespaceToken();
-            if(!lexVariableToken()) {
-                error("expected a interface name after ':' when declaring a union");
+        bool has_identifier = false;
+        if(!unnamed) {
+            has_identifier = lexIdentifierToken();
+            if (!has_identifier) {
+                error("expected a identifier as union name");
                 return true;
             }
         }
@@ -56,7 +53,10 @@ bool Lexer::lexUnionStructureTokens() {
             error("expected a closing bracket '}' for union block");
             return true;
         }
-        lexWhitespaceToken();
+        if(lexWhitespaceToken() && !has_identifier && direct_init && !lexIdentifierToken()) {
+            error("expected an identifier after the '}' for anonymous union definition");
+            return true;
+        }
         compound_collectable<UnionDefCST>(start_token);
         return true;
     } else {

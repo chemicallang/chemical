@@ -90,7 +90,7 @@ EnumDeclaration* CTranslator::make_enum(clang::EnumDecl* decl) {
 }
 
 StructDefinition* CTranslator::make_struct(clang::RecordDecl* decl) {
-    tsl::ordered_map<std::string, std::unique_ptr<StructMember>> fields;
+    tsl::ordered_map<std::string, std::unique_ptr<BaseDefMember>> fields;
     for(auto str : decl->fields()) {
         auto field_type = str->getType();
         auto field_type_conv = make_type(&field_type);

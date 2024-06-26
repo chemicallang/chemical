@@ -57,7 +57,7 @@ public:
 
 #ifdef COMPILER_BUILD
 
-    llvm::Type *llvm_type(Codegen &gen) const override;
+    llvm::Type *llvm_type(Codegen &gen) override;
 
     llvm::Type *llvm_param_type(Codegen &gen) override;
 

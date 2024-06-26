@@ -485,7 +485,7 @@ public:
     /**
      * lexes a struct block
      */
-    bool lexStructStructureTokens();
+    bool lexStructStructureTokens(bool unnamed = false, bool direct_init = false);
 
         /**
      * lexes a single member of the struct
@@ -501,7 +501,7 @@ public:
     /**
      * lexes a struct block
      */
-    bool lexUnionStructureTokens();
+    bool lexUnionStructureTokens(bool unnamed = false, bool direct_init = false);
 
     /**
      * this will try to collect current struct as a lexer

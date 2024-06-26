@@ -1,8 +1,8 @@
 import "../test.ch"
 
-union IntFloatUnion {
+union IntDoubleUnion {
     var a : int;
-    var b : float;
+    var b : double;
 }
 
 union TwoStructs {
@@ -18,12 +18,12 @@ union TwoStructs {
 
 func test_unions() {
     test("test that int float union works - 1", () => {
-        var u : IntFloatUnion
+        var u : IntDoubleUnion
         u.a = 5;
         return u.a == 5;
     })
     test("test that int float union works - 2", () => {
-        var u : IntFloatUnion
+        var u : IntDoubleUnion
         u.b = 1.2f;
         return u.b == 1.2f;
     })

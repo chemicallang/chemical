@@ -7,11 +7,7 @@
 #include "ast/values/AccessChain.h"
 
 uint64_t VariableIdentifier::byte_size(bool is64Bit) {
-    auto holdingType = linked->holding_value_type();
-    if(holdingType) return holdingType->byte_size(is64Bit);
-    auto holdingValue = linked->holding_value();
-    if(holdingValue) return holdingValue->byte_size(is64Bit);
-    throw std::runtime_error("cannot determine byte size for the identifier");
+    return linked->byte_size(is64Bit);
 }
 
 void VariableIdentifier::prepend_self(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr, BaseFunctionParam* self_param) {

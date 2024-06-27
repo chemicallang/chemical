@@ -87,11 +87,11 @@ bool FunctionType::satisfies(ValueType type) const {
     return type == ValueType::Lambda;
 }
 
-void FunctionType::link(SymbolResolver &linker) {
+void FunctionType::link(SymbolResolver &linker, std::unique_ptr<BaseType>& current) {
     for (auto &param: params) {
-        param->type->link(linker);
+        param->type->link(linker, param->type);
     }
-    returnType->link(linker);
+    returnType->link(linker, returnType);
 }
 
 BaseType *FunctionType::copy() const {

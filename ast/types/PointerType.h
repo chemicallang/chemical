@@ -54,7 +54,7 @@ public:
         return new PointerType(std::unique_ptr<BaseType>(type->copy()));
     }
 
-    void link(SymbolResolver &linker) override;
+    void link(SymbolResolver &linker, std::unique_ptr<BaseType>& current) override;
 
     ASTNode *linked_node() override;
 

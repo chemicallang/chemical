@@ -12,6 +12,6 @@ SizeOfValue::SizeOfValue(BaseType* for_type) : for_type(for_type) {
 }
 
 void SizeOfValue::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr) {
-    for_type->link(linker);
+    for_type->link(linker, for_type);
     value_ptr = std::make_unique<ULongValue>(for_type->byte_size(linker.is64Bit), linker.is64Bit);
 }

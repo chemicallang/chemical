@@ -241,6 +241,10 @@ public:
         visitCompoundCommon((CompoundCSTToken *) functionType);
     }
 
+    virtual void visitReferencedValueType(CompoundCSTToken *ref_value) {
+        visitCompoundCommon((CompoundCSTToken *) ref_value);
+    }
+
     virtual void visitGenericType(CompoundCSTToken *genericType) {
         visitCompoundCommon((CompoundCSTToken *) genericType);
     }

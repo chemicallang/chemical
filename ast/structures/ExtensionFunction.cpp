@@ -38,7 +38,7 @@ ASTNode *ExtensionFuncReceiver::child(const std::string &name) {
 }
 
 void ExtensionFunction::declare_top_level(SymbolResolver &linker) {
-    receiver.type->link(linker);
+    receiver.type->link(linker, receiver.type);
     ReferencedType* ref;
     auto& type = receiver.type;
     if(type->kind() == BaseTypeKind::Referenced) {
@@ -99,7 +99,7 @@ void ExtensionFunction::declare_and_link(SymbolResolver &linker) {
     for (auto &param: params) {
         param->declare_and_link(linker);
     }
-    returnType->link(linker);
+    returnType->link(linker, returnType);
     if (body.has_value()) {
         body->declare_and_link(linker);
     }

@@ -293,6 +293,8 @@ public:
 
     void visitTypeToken(LexToken *token) override;
 
+    void visitReferencedValueType(CompoundCSTToken *ref_value) override;
+
     void visitPointerType(CompoundCSTToken *pointerType) override;
 
     void visitGenericType(CompoundCSTToken *genericType) override;

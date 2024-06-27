@@ -20,7 +20,7 @@ bool ReferencedType::satisfies(ValueType value_type) const {
     };
 }
 
-void ReferencedType::link(SymbolResolver &linker) {
+void ReferencedType::link(SymbolResolver &linker, std::unique_ptr<BaseType>& current) {
     linked = linker.find(type);
     if(!linked) {
         linker.error("unresolved symbol, couldn't find referenced type " + type);

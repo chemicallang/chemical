@@ -476,6 +476,8 @@ set(COMMON_SOURCES
         ast/structures/BaseDefMember.h
         ast/structures/UnnamedUnion.h
         ast/values/NamespaceIdentifier.h
+        ast/types/ReferencedValueType.h
+        cst/types/ReferencedValueTypeCST.h
 )
 
 # Chemical LSP Executable Target

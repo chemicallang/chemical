@@ -19,7 +19,15 @@ void TypealiasStatement::declare_top_level(SymbolResolver &linker) {
 }
 
 void TypealiasStatement::declare_and_link(SymbolResolver &linker) {
-    actual_type->link(linker);
+    actual_type->link(linker, actual_type);
+}
+
+std::unique_ptr<BaseType> TypealiasStatement::create_value_type() {
+    return std::unique_ptr<BaseType>(actual_type->copy());
+}
+
+hybrid_ptr<BaseType> TypealiasStatement::get_value_type() {
+    return hybrid_ptr<BaseType> { actual_type.get(), false };
 }
 
 void TypealiasStatement::accept(Visitor *visitor) {

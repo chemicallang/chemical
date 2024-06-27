@@ -19,5 +19,5 @@ Value *CastedValue::copy() {
 
 void CastedValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
     value->link(linker, value);
-    type->link(linker);
+    type->link(linker, type);
 }

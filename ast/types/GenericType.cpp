@@ -4,7 +4,7 @@
 #include "GenericType.h"
 #include "compiler/SymbolResolver.h"
 
-void GenericType::link(SymbolResolver &linker) {
+void GenericType::link(SymbolResolver &linker, std::unique_ptr<BaseType>& current) {
     linked = linker.find(base);
     if(!linked) {
         linker.error("unresolved symbol, couldn't find generic type " + base);

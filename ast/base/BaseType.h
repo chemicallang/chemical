@@ -68,7 +68,7 @@ public:
     /**
      * a type, or a referenced type, can link itself with its definition
      */
-    virtual void link(SymbolResolver &linker) {
+    virtual void link(SymbolResolver &linker, std::unique_ptr<BaseType>& current) {
         // does nothing by default
     }
 

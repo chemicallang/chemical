@@ -158,6 +158,8 @@ class PointerType;
 
 class ReferencedType;
 
+class ReferencedValueType;
+
 class ShortType;
 
 class StringType;
@@ -501,6 +503,10 @@ public:
 
     virtual void visit(ReferencedType* func) {
         visitCommonType((BaseType*) func);
+    }
+
+    virtual void visit(ReferencedValueType* ref_type) {
+        visitCommonType((BaseType*) ref_type);
     }
 
     virtual void visit(ShortType* func) {

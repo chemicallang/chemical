@@ -141,7 +141,7 @@ hybrid_ptr<BaseType> StructMember::get_value_type() {
 
 void StructMember::declare_and_link(SymbolResolver &linker) {
     linker.declare(name, this);
-    type->link(linker);
+    type->link(linker, type);
     if (defValue.has_value()) {
         defValue.value()->link(linker, defValue.value());
     }
@@ -203,7 +203,7 @@ void StructDefinition::accept(Visitor *visitor) {
 
 void StructDefinition::declare_top_level(SymbolResolver &linker) {
     if (overrides.has_value()) {
-        overrides.value()->link(linker);
+        overrides.value()->link(linker, reinterpret_cast<std::unique_ptr<BaseType>&>(overrides.value()));
     }
     linker.declare(name, this);
 }

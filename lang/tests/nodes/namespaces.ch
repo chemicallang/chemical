@@ -11,6 +11,7 @@ namespace cool {
     func pair2_sum(p : Pair2*) : int {
         return p.a + p.b;
     }
+    typealias kinda_int = int
 }
 
 namespace cool {
@@ -31,6 +32,12 @@ func test_namespaces() {
             a : 1,
             b : 2
         }
+        return p.a == 1 && p.b == 2;
+    })
+    test("test that namespace structs work without values", () => {
+        var p : cool::Pair2
+        p.a = 1;
+        p.b = 2;
         return p.a == 1 && p.b == 2;
     })
     test("test that namespace functions can call each other", () => {
@@ -60,5 +67,10 @@ func test_namespaces() {
             b : 2
         }
         return cool::pair2_ext_sum(&p) == 3;
+    })
+    test("test typealias from namespace works", () => {
+        var t : cool::kinda_int
+        t = 5;
+        return t == 5;
     })
 }

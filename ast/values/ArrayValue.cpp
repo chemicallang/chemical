@@ -139,7 +139,7 @@ void ArrayValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr)
         value->link(linker, value);
     }
     if(elemType.has_value()) {
-        elemType.value()->link(linker);
+        elemType.value()->link(linker, elemType.value());
     }
 }
 

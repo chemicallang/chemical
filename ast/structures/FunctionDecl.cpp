@@ -328,7 +328,7 @@ void BaseFunctionParam::declare_and_link(SymbolResolver &linker) {
     if(!name.empty()) {
         linker.declare(name, this);
     }
-    type->link(linker);
+    type->link(linker, type);
 }
 
 ASTNode *BaseFunctionParam::child(const std::string &name) {
@@ -394,7 +394,7 @@ void FunctionDeclaration::declare_and_link(SymbolResolver &linker) {
     for (auto &param: params) {
         param->declare_and_link(linker);
     }
-    returnType->link(linker);
+    returnType->link(linker, returnType);
     if (body.has_value()) {
         body->declare_and_link(linker);
     }

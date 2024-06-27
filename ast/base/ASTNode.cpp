@@ -18,5 +18,5 @@ uint64_t ASTNode::byte_size(bool is64Bit) {
     if(holdingType) return holdingType->byte_size(is64Bit);
     auto holdingValue = holding_value();
     if(holdingValue) return holdingValue->byte_size(is64Bit);
-    throw std::runtime_error("unknown byte size for linked value");
+    throw std::runtime_error("unknown byte size for linked node");
 }

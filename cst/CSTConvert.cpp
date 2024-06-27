@@ -79,6 +79,7 @@
 #include "preprocess/2cASTVisitor.h"
 #include "ast/values/SizeOfValue.h"
 #include "ast/values/NamespaceIdentifier.h"
+#include "ast/types/ReferencedValueType.h"
 
 Operation get_operation(CSTToken *token) {
     auto op = (OperationToken*) token;
@@ -577,6 +578,11 @@ void CSTConverter::visitTypeToken(LexToken *token) {
     } else {
         types.emplace_back(std::unique_ptr<BaseType>(primitive->second(is64Bit)));
     }
+}
+
+void CSTConverter::visitReferencedValueType(CompoundCSTToken *ref_value) {
+    ref_value->tokens[0]->accept(this);
+    types.emplace_back(new ReferencedValueType(value()));
 }
 
 void CSTConverter::visitContinue(CompoundCSTToken *continueCst) {

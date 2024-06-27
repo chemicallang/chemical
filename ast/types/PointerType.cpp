@@ -2,8 +2,8 @@
 
 #include "PointerType.h"
 
-void PointerType::link(SymbolResolver &linker) {
-    type->link(linker);
+void PointerType::link(SymbolResolver &linker, std::unique_ptr<BaseType>& current) {
+    type->link(linker, type);
 }
 
 ASTNode *PointerType::linked_node() {

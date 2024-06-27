@@ -19,7 +19,7 @@ public:
         visitor->visit(this);
     }
 
-    void link(SymbolResolver &linker) override;
+    void link(SymbolResolver &linker, std::unique_ptr<BaseType>& current) override;
 
     ASTNode * linked_node() override;
 

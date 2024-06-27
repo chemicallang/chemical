@@ -25,6 +25,8 @@ public:
 
     Value *create(int64_t value) override;
 
+    bool satisfies(Value *value) override;
+
     ValueType value_type() const override {
         return ValueType::BigInt;
     }

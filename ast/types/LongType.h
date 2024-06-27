@@ -21,6 +21,8 @@ public:
         return false;
     }
 
+    bool satisfies(Value *value) override;
+
     uint64_t byte_size(bool is64Bit) override {
         return is64Bit ? 8 : 4;
     }

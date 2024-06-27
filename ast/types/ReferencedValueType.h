@@ -47,6 +47,8 @@ public:
         return value->get_base_type()->is_same(other);
     }
 
+    bool satisfies(Value *value) override;
+
     virtual BaseType *copy() const {
         return new ReferencedValueType(std::unique_ptr<Value>(value->copy()));
     }

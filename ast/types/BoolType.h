@@ -27,6 +27,8 @@ public:
         return ValueType::Bool;
     }
 
+    bool satisfies(Value *value) override;
+
     bool is_same(BaseType *type) const override {
         return type->kind() == kind();
     }

@@ -135,10 +135,16 @@ public:
 
     /**
      * this basically tells whether the given value type would satisfy this type
-     * @param type
-     * @return
+     * @deprecated
      */
     virtual bool satisfies(ValueType type) const = 0;
+
+    /**
+     * whether the given value satisfies the current type
+     */
+    virtual bool satisfies(Value* value) {
+        throw std::runtime_error("satisfies Value* called on base type");
+    }
 
     /**
      * pointer type returns pointer type

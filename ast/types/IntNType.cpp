@@ -53,3 +53,35 @@ Value *Int128Type::create(int64_t value) {
 Value *UInt128Type::create(int64_t value) {
     return new UInt128Value(static_cast<uint64_t>(value), (value < 0) ? UINT64_MAX : 0);
 }
+
+bool BigIntType::satisfies(Value *value) {
+    return value->value_type() == ValueType::BigInt;
+}
+
+bool IntType::satisfies(Value *value) {
+    return value->value_type() == ValueType::Int;
+}
+
+bool LongType::satisfies(Value *value) {
+    return value->value_type() == ValueType::Long;
+}
+
+bool ShortType::satisfies(Value *value) {
+    return value->value_type() == ValueType::Short;
+}
+
+bool UBigIntType::satisfies(Value *value) {
+    return value->value_type() == ValueType::UBigInt;
+}
+
+bool UInt128Type::satisfies(Value *value) {
+    return value->value_type() == ValueType::UInt128;
+}
+
+bool ULongType::satisfies(Value *value) {
+    return value->value_type() == ValueType::ULong;
+}
+
+bool UShortType::satisfies(Value *value) {
+    return value->value_type() == ValueType::UShort;
+}

@@ -23,6 +23,8 @@ public:
         visitor->visit(this);
     }
 
+    bool satisfies(Value *value) override;
+
     std::unique_ptr<BaseType> create_child_type() const override {
         return std::unique_ptr<BaseType>(elem_type->copy());
     }
@@ -40,7 +42,7 @@ public:
     }
 
     bool equals(ArrayType *type) const {
-        return type->array_size != array_size && elem_type->is_same(type->elem_type.get());
+        return type->array_size == array_size && elem_type->is_same(type->elem_type.get());
     }
 
     bool is_same(BaseType *type) const override {

@@ -35,6 +35,8 @@ public:
         return BaseTypeKind::Referenced;
     }
 
+    bool satisfies(Value *value) override;
+
     bool is_same(BaseType *other) const override {
         return other->kind() == kind() && static_cast<ReferencedType *>(other)->linked == linked;
     }

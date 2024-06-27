@@ -1138,21 +1138,17 @@ void CSTConverter::visitAccessChain(AccessChainCST *chain) {
     auto prev_values = std::move(values);
     unsigned int i = 0;
     unsigned int size = chain->tokens.size();
-    bool is_ns_identifier = false;
     CSTToken* token;
     while(i < size) {
         token = chain->tokens[i].get();
         if(is_str_op(token, "::")) {
-            is_ns_identifier = true;
-        } else if(is_ns_identifier) {
-            if(token->type() == LexTokenType::Variable) {
-                token->accept(this);
-                auto id = value();
-                values.emplace_back(new NamespaceIdentifier(((VariableIdentifier *) id.get())->value));
+            auto prev = value();
+            auto as_id = prev->as_identifier();
+            if(as_id) {
+                values.emplace_back(new NamespaceIdentifier(as_id->value));
             } else {
-                token->accept(this);
+                values.emplace_back(std::move(prev));
             }
-            is_ns_identifier = false;
         } else {
             token->accept(this);
         }

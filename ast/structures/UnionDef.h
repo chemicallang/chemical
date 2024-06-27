@@ -13,6 +13,10 @@ public:
 
     explicit UnionDef(std::string name);
 
+    std::string ns_node_identifier() override {
+        return name;
+    }
+
     void accept(Visitor *visitor) override {
         visitor->visit(this);
     }

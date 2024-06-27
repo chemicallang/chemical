@@ -14,7 +14,7 @@ ValueType ReferencedType::value_type() const {
 
 bool ReferencedType::satisfies(ValueType value_type) const {
     if(linked->as_typealias() != nullptr) {
-        return ((TypealiasStatement*) linked)->to->satisfies(value_type);
+        return ((TypealiasStatement*) linked)->actual_type->satisfies(value_type);
     } else {
         return linked->create_value_type()->satisfies(value_type);
     };

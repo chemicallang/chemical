@@ -11,17 +11,24 @@ class TypealiasStatement : public ExtendableAnnotableNode {
 public:
 
     // before equal
-    std::string from;
+    std::string identifier;
     // after equal
-    std::unique_ptr<BaseType> to;
+    std::unique_ptr<BaseType> actual_type;
 
     /**
      * @brief Construct a new TypealiasStatement object.
      */
-    TypealiasStatement(std::string from, std::unique_ptr<BaseType> to);
+    TypealiasStatement(
+            std::string identifier,
+            std::unique_ptr<BaseType> actual_type
+    );
 
     TypealiasStatement* as_typealias() override {
         return this;
+    }
+
+    std::string ns_node_identifier() override {
+        return identifier;
     }
 
     void interpret(InterpretScope &scope) override;

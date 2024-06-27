@@ -6,6 +6,8 @@
 #include "ast/values/VariableIdentifier.h"
 #include "ast/values/LambdaFunction.h"
 #include "ast/utils/ASTUtils.h"
+#include "ast/structures/StructDefinition.h"
+#include "compiler/SymbolResolver.h""
 
 inline std::unique_ptr<FunctionType> func_call_func_type(const FunctionCall* call) {
     return std::unique_ptr<FunctionType>((FunctionType*) call->parent_val->create_type().release());
@@ -279,7 +281,7 @@ void FunctionCall::link_values(SymbolResolver &linker) {
 }
 
 void FunctionCall::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr) {
-    throw std::runtime_error("cannot link a function call wihout identifier");
+    throw std::runtime_error("cannot link a function call without identifier");
 //    name->link(linker);
 //    linked = name->linked_node();
 //    if(linked) {
@@ -302,6 +304,20 @@ ASTNode *FunctionCall::linked_node() {
 
 void FunctionCall::find_link_in_parent(Value *parent, SymbolResolver &resolver) {
     parent_val = parent;
+    // relinking parent with constructor of the struct
+    // if it's linked with struct
+    auto parent_id = parent->as_identifier();
+    auto parent_linked = parent_val->linked_node();
+    if(parent_id && parent_linked->as_struct_def()) {
+        StructDefinition* parent_struct = parent_linked->as_struct_def();
+        auto constructorFunc = parent_struct->constructor_func();
+        if(constructorFunc) {
+            parent_id->linked = constructorFunc;
+            constructorFunc->ensure_constructor(parent_struct);
+        } else {
+            resolver.error("struct with name " + parent_struct->name + " doesn't have a constructor", parent_struct);
+        }
+    }
     link_values(resolver);
 }
 

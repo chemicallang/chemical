@@ -129,6 +129,15 @@ ASTNode *MembersContainer::child(const std::string &varName) {
     }
 }
 
+FunctionDeclaration* MembersContainer::constructor_func() {
+    for (const auto & function : functions) {
+        if(function.second->has_annotation(AnnotationKind::Constructor)) {
+            return function.second.get();
+        }
+    }
+    return nullptr;
+}
+
 FunctionDeclaration* MembersContainer::destructor_func() {
     for (const auto & function : std::ranges::reverse_view(functions)) {
         if(function.second->has_annotation(AnnotationKind::Destructor)) {

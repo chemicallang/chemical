@@ -13,6 +13,7 @@ enum class AnnotationKind {
     OptSize,
     MinSize,
 
+    Constructor,
     Destructor,
 
     Anonymous,

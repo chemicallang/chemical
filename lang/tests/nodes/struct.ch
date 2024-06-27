@@ -9,6 +9,15 @@ struct Pair {
     var a : int
     var b : int
 
+    @constructor
+    func pair(c : int) {
+        var r = c / 2;
+        return Pair {
+            a : r,
+            b : r
+        }
+    }
+
     func get_pair_sum(&self) : int {
         return a + b;
     }
@@ -119,5 +128,9 @@ func test_structs() {
             b : 10
         }
         return p.check_outside_call() == 20;
+    })
+    test("test struct constructor can be called", () => {
+        var p = Pair(4)
+        return p.a == 2 && p.b == 2;
     })
 }

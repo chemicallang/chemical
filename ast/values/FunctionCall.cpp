@@ -205,7 +205,7 @@ llvm::Value* FunctionCall::llvm_chain_value(
 
     auto decl = safe_linked_func();
     if(decl && decl->has_annotation(AnnotationKind::CompTime)) {
-        auto val = decl->call(&gen.comptime_scope, values);
+        auto val = std::unique_ptr<Value>(decl->call(&gen.comptime_scope, values));
         if(!val) {
             gen.error("compile time function didn't return a value");
             return nullptr;

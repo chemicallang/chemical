@@ -89,7 +89,7 @@ very innovative things are planned.
   - [ ] Refactor rename
   - [ ] Formatting
   - [ ] Codelens support
-- [x] Native Codegen
+- [x] Native Codegen (LLVM)
 - [x] Necessary C Translation (can import system headers)
 - [x] Translate to C (all tests passing)
 - [x] Just In Time Compilation using Tiny CC

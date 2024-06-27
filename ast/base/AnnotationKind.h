@@ -6,6 +6,7 @@
 
 enum class AnnotationKind {
 
+    // Inline or Size related annotations
     Inline,
     AlwaysInline,
     NoInline,
@@ -13,9 +14,13 @@ enum class AnnotationKind {
     OptSize,
     MinSize,
 
+    CompTime, // functions that are compile time
+
+    // constructor or de constructor allow functions to be called automatically
     Constructor,
     Destructor,
 
+    // structs or unions can be declared anonymous
     Anonymous,
 
     IndexInlineStart=Inline,

@@ -40,21 +40,21 @@ func test_namespaces() {
         }
         return cool::pair2_sum(&p) == 3;
     })
-    test("test that namespace extended functions work", () => {
+    test("test that namespace extended functions work - 1", () => {
         var p = cool::Pair2 {
             a : 1,
             b : 2
         }
         return cool::pair2_mul(&p) == 2;
     })
-    test("test that namespace extended functions work", () => {
+    test("test that namespace extended functions work - 2", () => {
         var p = cool::Pair2 {
             a : 1,
             b : 2
         }
         return cool::pair2_indirect_mul(&p) == 2;
     })
-    test("test that namespace extended functions work", () => {
+    test("test that namespace extended functions work - 3", () => {
         var p = cool::Pair2 {
             a : 1,
             b : 2

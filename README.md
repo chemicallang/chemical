@@ -93,7 +93,8 @@ very innovative things are planned.
 - [x] Necessary C Translation (can import system headers)
 - [x] Translate to C (all tests passing)
 - [x] Just In Time Compilation using Tiny CC
-- [ ] Memory Management
+- [x] Memory Management
+  - [x] C++ like constructors & destructors
 - [ ] Compile time Interpreted Plugins
   - [x] Compiler Binding Interface (CBI)
   - [ ] Syntax Modifier Plugins (SMP)

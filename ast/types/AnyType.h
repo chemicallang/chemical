@@ -19,6 +19,10 @@ public:
         return BaseTypeKind::Any;
     }
 
+    bool satisfies(Value *value) override {
+        return true;
+    }
+
     bool is_same(BaseType *type) const override {
         return true;
     }

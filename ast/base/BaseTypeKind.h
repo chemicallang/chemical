@@ -27,6 +27,7 @@ enum class BaseTypeKind : uint8_t {
     Pointer,
     Referenced,
     String,
+    Literal,
     Void,
     Unknown
 };

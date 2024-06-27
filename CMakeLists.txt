@@ -249,14 +249,10 @@ set(COMMON_SOURCES
         ast/values/StringValue.cpp
         ast/values/NotValue.cpp
         ast/values/Negative.cpp
-        ast/types/AnyType.cpp
         ast/values/FunctionCall.cpp
         ast/values/BoolValue.cpp
         ast/values/DoubleValue.cpp
         ast/values/FloatValue.cpp
-        ast/types/ArrayType.cpp
-        ast/types/BoolType.cpp
-        ast/types/CharType.cpp
         ast/types/DoubleType.cpp
         ast/types/FloatType.cpp
         ast/types/IntNType.cpp
@@ -478,6 +474,9 @@ set(COMMON_SOURCES
         ast/values/NamespaceIdentifier.h
         ast/types/ReferencedValueType.h
         cst/types/ReferencedValueTypeCST.h
+        ast/types/LiteralType.h
+        ast/types/Types.cpp
+        ast/types/ArrayType.cpp
 )
 
 # Chemical LSP Executable Target

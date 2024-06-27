@@ -170,6 +170,8 @@ class UBigIntType;
 
 class UInt128Type;
 
+class LiteralType;
+
 class UIntType;
 
 class ULongType;
@@ -523,6 +525,10 @@ public:
 
     virtual void visit(UnionType* unionType) {
         visitCommonType((BaseType*) unionType);
+    }
+
+    virtual void visit(LiteralType* func) {
+        visitCommonType((BaseType*) func);
     }
 
     virtual void visit(UBigIntType* func) {

@@ -42,6 +42,8 @@ public:
         return ValueType::Pointer;
     }
 
+    bool satisfies(Value *value) override;
+
     bool is_same(BaseType *other) const override {
         return other->kind() == kind() && static_cast<PointerType *>(other)->type->is_same(type.get());
     }

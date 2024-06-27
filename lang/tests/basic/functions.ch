@@ -43,6 +43,10 @@ func expr_test_func_call() : bool {
     return true;
 }
 
+func can_take_literal_type(my_int : literal::int) : int {
+    return my_int + 3;
+}
+
 func test_functions() {
     test("test struct member access in chain, tld function return", () => {
         return test_struct().x == 100;
@@ -102,5 +106,8 @@ func test_functions() {
 
         }
         return is_expr_test_func_called == true;
+    })
+    test("function can take literal type", () => {
+        return can_take_literal_type(2) == 5
     })
 }

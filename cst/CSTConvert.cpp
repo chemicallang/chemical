@@ -38,6 +38,7 @@
 #include "ast/structures/EnumDeclaration.h"
 #include "ast/statements/Return.h"
 #include "ast/types/GenericType.h"
+#include "ast/types/LiteralType.h"
 #include "ast/structures/ForLoop.h"
 #include "ast/structures/CapturedVariable.h"
 #include "ast/structures/InterfaceDefinition.h"
@@ -585,7 +586,23 @@ void CSTConverter::visitTypeToken(LexToken *token) {
 
 void CSTConverter::visitReferencedValueType(CompoundCSTToken *ref_value) {
     ref_value->tokens[0]->accept(this);
-    types.emplace_back(new ReferencedValueType(value()));
+    auto ref = std::make_unique<ReferencedValueType>(value());
+    auto chain = ref->value->as_access_chain();
+    if(chain) {
+        auto id = chain->values[0]->as_identifier();
+        if(id->value == "literal" && 1 < chain->values.size()) {
+            id = chain->values[1]->as_identifier();
+            auto found = TypeMakers::PrimitiveMap.find(id->value);
+            if(found != TypeMakers::PrimitiveMap.end()) {
+                types.emplace_back(new LiteralType(std::unique_ptr<BaseType>(found->second(is64Bit))));
+                return;
+            } else {
+                error("couldn't find literal type by name " + id->value, ref_value);
+                return;
+            }
+        }
+    }
+    types.emplace_back(std::move(ref));
 }
 
 void CSTConverter::visitContinue(CompoundCSTToken *continueCst) {

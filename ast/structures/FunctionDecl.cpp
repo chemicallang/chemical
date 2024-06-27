@@ -106,6 +106,9 @@ void body_gen(Codegen &gen, llvm::Function* funcCallee, std::optional<LoopScope>
 }
 
 void FunctionDeclaration::code_gen(Codegen &gen) {
+    if(has_annotation(AnnotationKind::CompTime)) {
+        return;
+    }
     body_gen(gen, (llvm::Function*) funcCallee, body, this);
 }
 
@@ -182,18 +185,27 @@ void FunctionDeclaration::code_gen_override(Codegen& gen, FunctionDeclaration* d
 }
 
 void FunctionDeclaration::code_gen_struct(Codegen &gen, StructDefinition* def) {
+    if(has_annotation(AnnotationKind::CompTime)) {
+        return;
+    }
     create_fn(gen, this, def->name + "." + name);
     gen.current_function = nullptr;
     code_gen(gen);
 }
 
 void FunctionDeclaration::code_gen_union(Codegen &gen, UnionDef* def) {
+    if(has_annotation(AnnotationKind::CompTime)) {
+        return;
+    }
     create_fn(gen, this, def->name + "." + name);
     gen.current_function = nullptr;
     code_gen(gen);
 }
 
 void FunctionDeclaration::code_gen_constructor(Codegen& gen, StructDefinition* def) {
+    if(has_annotation(AnnotationKind::CompTime)) {
+        return;
+    }
     code_gen_struct(gen, def);
 }
 

@@ -268,6 +268,9 @@ void CSTConverter::init_annotation_handlers() {
     annotation_handlers["size:min"] = [](CSTConverter* converter, CSTToken* container){
         collect_annotation_func(converter, container, AnnotationKind::MinSize);
     };
+    annotation_handlers["constructor"] = [](CSTConverter* converter, CSTToken* container) {
+        collect_annotation_func(converter, container, AnnotationKind::Constructor);
+    };
     annotation_handlers["destructor"] = [](CSTConverter* converter, CSTToken* container){
         collect_annotation_func(converter, container, AnnotationKind::Destructor);
     };

@@ -27,6 +27,11 @@ public:
     }
 
     /**
+     * will provide a constructor function if there's one
+     */
+    FunctionDeclaration* constructor_func();
+
+    /**
      * will provide a destructor function if there's one
      */
     FunctionDeclaration* destructor_func();

@@ -61,6 +61,8 @@ public:
 
     void accept(Visitor *visitor) override;
 
+    void ensure_constructor(StructDefinition* def);
+
     void ensure_destructor(StructDefinition* def);
 
 #ifdef COMPILER_BUILD
@@ -96,6 +98,11 @@ public:
      * codegen destructor
      */
     void code_gen_destructor(Codegen& gen, StructDefinition* def);
+
+    /**
+     * codegen constructor
+     */
+    void code_gen_constructor(Codegen& gen, StructDefinition* def);
 
     /**
      * when normal functions occur in file, this function is called

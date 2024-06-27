@@ -193,6 +193,10 @@ void FunctionDeclaration::code_gen_union(Codegen &gen, UnionDef* def) {
     code_gen(gen);
 }
 
+void FunctionDeclaration::code_gen_constructor(Codegen& gen, StructDefinition* def) {
+    code_gen_struct(gen, def);
+}
+
 void FunctionDeclaration::code_gen_destructor(Codegen& gen, StructDefinition* def) {
     ensure_destructor(def);
     create_fn(gen, this, def->name + "." + name);
@@ -351,6 +355,10 @@ FunctionDeclaration::FunctionDeclaration(
     } else {
         specifier = AccessSpecifier::Private;
     }
+}
+
+void FunctionDeclaration::ensure_constructor(StructDefinition* def) {
+    returnType = std::make_unique<ReferencedType>(def->name, def);
 }
 
 void FunctionDeclaration::ensure_destructor(StructDefinition* def) {

@@ -48,6 +48,10 @@ void StructDefinition::code_gen(Codegen &gen) {
             function.second->code_gen_destructor(gen, this);
             has_destructor = true;
         }
+        if(function.second->has_annotation(AnnotationKind::Constructor)) {
+            function.second->code_gen_constructor(gen, this);
+            continue;
+        }
         if (overrides.has_value()) {
             auto overridden = interface->child(function.second->name);
             if (overridden) {

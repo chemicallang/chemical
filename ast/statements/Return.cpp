@@ -11,7 +11,7 @@ ReturnStatement::ReturnStatement(
 }
 
 void ReturnStatement::interpret(InterpretScope &scope) {
-    auto decl = func_type->as_func_decl();
+    auto decl = func_type->as_function();
     if(!decl) return;
     if (value.has_value()) {
         decl->set_return(value->get()->return_value(scope));

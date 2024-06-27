@@ -162,6 +162,9 @@ void declare_fn(Codegen& gen, FunctionDeclaration *decl) {
 }
 
 void FunctionDeclaration::code_gen_declare(Codegen &gen) {
+    if(has_annotation(AnnotationKind::CompTime)) {
+        return;
+    }
     if (body.has_value()) {
         create_fn(gen, this);
     } else {
@@ -428,7 +431,7 @@ void FunctionDeclaration::interpret(InterpretScope &scope) {
 
 Value *FunctionDeclaration::call(InterpretScope *call_scope, std::vector<std::unique_ptr<Value>> &call_params) {
     if (!body.has_value()) return nullptr;
-    InterpretScope fn_scope(declarationScope, declarationScope->global, &body.value(), this);
+    InterpretScope fn_scope(declarationScope, call_scope->global, &body.value(), this);
     return call(call_scope, call_params, &fn_scope);
 }
 

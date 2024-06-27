@@ -103,17 +103,17 @@ bool StructValue::add_child_index(Codegen &gen, std::vector<llvm::Value *> &inde
 #endif
 
 StructValue::StructValue(
-        std::string structName,
+        std::unique_ptr<Value> ref,
         std::unordered_map<std::string, std::unique_ptr<Value>> values,
         StructDefinition *definition
-) : structName(std::move(structName)), values(std::move(values)), definition(definition) {}
+) : ref(std::move(ref)), values(std::move(values)), definition(definition) {}
 
 StructValue::StructValue(
-        std::string structName,
+        std::unique_ptr<Value> ref,
         std::unordered_map<std::string, std::unique_ptr<Value>> values,
         StructDefinition *definition,
         InterpretScope &scope
-) : structName(std::move(structName)), values(std::move(values)), definition(definition) {
+) : ref(std::move(ref)), values(std::move(values)), definition(definition) {
     declare_default_values(this->values, scope);
 }
 
@@ -126,7 +126,8 @@ bool StructValue::primitive() {
 }
 
 void StructValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
-    auto found = linker.find(structName);
+    ref->link(linker, ref);
+    auto found = ref->linked_node();
     if(found) {
         auto struct_def = found->as_struct_def();
         if (struct_def) {
@@ -136,10 +137,10 @@ void StructValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr
                 val.second->link(linker, this, val.first);
             }
         } else {
-            linker.error("given struct name is not a struct definition : " + structName);
+            linker.error("given struct name is not a struct definition : " + ref->representation());
         }
     } else {
-        linker.error("couldn't find struct definition for struct name " + structName);
+        linker.error("couldn't find struct definition for struct name " + ref->representation());
     };
 }
 
@@ -154,7 +155,7 @@ Value *StructValue::call_member(
 ) {
     auto fn = definition->member(name);
     if (fn == nullptr) {
-        scope.error("couldn't find member function by name " + name + " in a struct by name " + structName);
+        scope.error("couldn't find member function by name " + name + " in a struct by name " + ref->representation());
         return nullptr;
     }
 #ifdef DEBUG
@@ -193,7 +194,7 @@ Value *StructValue::initializer_value(InterpretScope &scope) {
         copied[value.first] = std::unique_ptr<Value>(value.second->initializer_value(scope));
     }
     declare_default_values(copied, scope);
-    return new StructValue(structName, std::move(copied), definition);
+    return new StructValue(std::unique_ptr<Value>(ref->copy()), std::move(copied), definition);
 }
 
 void StructValue::declare_default_values(
@@ -215,17 +216,17 @@ Value *StructValue::copy() {
     for (const auto &value: values) {
         copied[value.first] = std::unique_ptr<Value>(value.second->copy());
     }
-    return new StructValue(structName, std::move(copied), definition);
+    return new StructValue(std::unique_ptr<Value>(ref->copy()), std::move(copied), definition);
 }
 
 std::unique_ptr<BaseType> StructValue::create_type() {
-    auto type = std::make_unique<ReferencedType>(structName);
+    auto type = std::make_unique<ReferencedType>(ref->representation());
     type->linked = definition;
     return type;
 }
 
 hybrid_ptr<BaseType> StructValue::get_base_type() {
-    auto type = new ReferencedType(structName);
+    auto type = new ReferencedType(ref->representation());
     type->linked = definition;
     return hybrid_ptr<BaseType> { type };
 }

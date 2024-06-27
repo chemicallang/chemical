@@ -74,18 +74,21 @@ bool Lexer::lexAccessChainOrAddrOf(bool lexStruct) {
     return lexAccessChain(lexStruct);
 }
 
-bool Lexer::lexAccessChainRecursive(bool lexStruct) {
+bool Lexer::lexAccessChainRecursive(bool lexStruct, unsigned chain_length) {
     if (!lexVariableToken()) {
         return false;
     }
-    return lexAccessChainAfterId(lexStruct);
+    return lexAccessChainAfterId(lexStruct, chain_length + 1);
 }
 
-bool Lexer::lexAccessChainAfterId(bool lexStruct) {
+bool Lexer::lexAccessChainAfterId(bool lexStruct, unsigned chain_length) {
 
     if(lexStruct) {
         lexWhitespaceToken();
         if(provider.peek() == '{') {
+            if(chain_length > 1) {
+                compound_from<AccessChainCST>(tokens.size() - chain_length);
+            }
             return lexStructValueTokens();
         }
     }
@@ -123,11 +126,12 @@ bool Lexer::lexAccessChainAfterId(bool lexStruct) {
         }
     }
 
-    while (lexOperatorToken('.')) {
-        if (!lexAccessChainRecursive(false)) {
-            error("expected a identifier after the dot . in the access chain");
-            return true;
-        }
+    if(lexOperatorToken('.') && !lexAccessChainRecursive(false)) {
+        error("expected a identifier after the dot . in the access chain");
+        return true;
+    } else if(lexOperatorToken("::") && !lexAccessChainRecursive(lexStruct, chain_length + 1)) {
+        error("expected a identifier after the :: in the access chain");
+        return true;
     }
 
     return true;

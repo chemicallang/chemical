@@ -17,6 +17,7 @@
 #include "OutputMode.h"
 #include <unordered_map>
 #include "CodegenEmitterOptions.h"
+#include "ast/base/GlobalInterpretScope.h"
 
 class Codegen;
 
@@ -39,6 +40,12 @@ typedef Value*(*CasterFn)(Codegen* gen, Value* val, BaseType* type);
 
 class Codegen : public ASTDiagnoser {
 public:
+
+    /**
+     * global interpret scope, is the scope used for compile time evaluation
+     * of code
+     */
+    GlobalInterpretScope comptime_scope;
 
     /**
      * nodes that are being traversed to generate the machine code

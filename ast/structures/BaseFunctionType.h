@@ -42,7 +42,7 @@ public:
         return nullptr;
     }
 
-    virtual FunctionDeclaration* as_func_decl() {
+    virtual FunctionDeclaration *as_function() {
         return nullptr;
     }
 

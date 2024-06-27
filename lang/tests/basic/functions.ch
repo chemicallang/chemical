@@ -47,6 +47,11 @@ func can_take_literal_type(my_int : literal::int) : int {
     return my_int + 3;
 }
 
+@comptime
+func comptime_sum(a : int, b : int) {
+    return a + b;
+}
+
 func test_functions() {
     test("test struct member access in chain, tld function return", () => {
         return test_struct().x == 100;
@@ -109,5 +114,8 @@ func test_functions() {
     })
     test("function can take literal type", () => {
         return can_take_literal_type(2) == 5
+    })
+    test("test comptime sum works", () => {
+        return comptime_sum(3, 6) == 9;
     })
 }

@@ -113,6 +113,10 @@ public:
 
     Value *evaluated_value(InterpretScope &scope) override;
 
+    Value *return_value(InterpretScope &scope) override {
+        return evaluated_value(scope);
+    }
+
     bool evaluated_bool(InterpretScope &scope) override;
 
     Value *initializer_value(InterpretScope &scope) override;

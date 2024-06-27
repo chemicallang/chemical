@@ -485,7 +485,7 @@ void TypealiasStatement::code_gen(Codegen &gen) {
 }
 
 llvm::Type *TypealiasStatement::llvm_type(Codegen &gen) {
-    return to->llvm_type(gen);
+    return actual_type->llvm_type(gen);
 }
 
 void BreakStatement::code_gen(Codegen &gen) {

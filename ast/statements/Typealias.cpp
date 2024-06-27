@@ -4,9 +4,9 @@
 #include "compiler/SymbolResolver.h"
 
 TypealiasStatement::TypealiasStatement(
-        std::string from,
-        std::unique_ptr<BaseType> to
-) : from(std::move(from)), to(std::move(to)) {
+        std::string identifier,
+        std::unique_ptr<BaseType> actual_type
+) : identifier(std::move(identifier)), actual_type(std::move(actual_type)) {
 
 }
 
@@ -15,11 +15,11 @@ void TypealiasStatement::interpret(InterpretScope &scope) {
 }
 
 void TypealiasStatement::declare_top_level(SymbolResolver &linker) {
-    linker.declare(from, this);
+    linker.declare(identifier, this);
 }
 
 void TypealiasStatement::declare_and_link(SymbolResolver &linker) {
-    to->link(linker);
+    actual_type->link(linker);
 }
 
 void TypealiasStatement::accept(Visitor *visitor) {

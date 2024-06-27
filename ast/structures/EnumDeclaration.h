@@ -30,6 +30,10 @@ public:
 
     void declare_top_level(SymbolResolver &linker) override;
 
+    std::string ns_node_identifier() override {
+        return name;
+    }
+
     EnumDeclaration *as_enum_decl() override {
         return this;
     }

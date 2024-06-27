@@ -917,9 +917,9 @@ void CValueDeclarationVisitor::visit(EnumDeclaration *enumDecl) {
 void CTopLevelDeclarationVisitor::visit(TypealiasStatement *stmt) {
     visitor->new_line_and_indent();
     write("typedef ");
-    stmt->to->accept(visitor);
+    stmt->actual_type->accept(visitor);
     write(' ');
-    write(stmt->from);
+    write(stmt->identifier);
     write(';');
 }
 
@@ -991,7 +991,7 @@ void CValueDeclarationVisitor::visit(TypealiasStatement *stmt) {
     if(is_top_level_node) return;
     visitor->new_line_and_indent();
     write("typedef ");
-    stmt->to->accept(visitor);
+    stmt->actual_type->accept(visitor);
     write(' ');
     std::string alias = "__chalias_";
     alias += std::to_string(random(100,999)) + "_";

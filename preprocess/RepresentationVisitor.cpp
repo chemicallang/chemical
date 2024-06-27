@@ -452,9 +452,9 @@ void RepresentationVisitor::visit(StructMember *member) {
 
 void RepresentationVisitor::visit(TypealiasStatement *stmt) {
     write("typealias ");
-    write(stmt->from);
+    write(stmt->identifier);
     write(" = ");
-    stmt->to->accept(this);
+    stmt->actual_type->accept(this);
 }
 
 void RepresentationVisitor::visit(SwitchStatement *statement) {

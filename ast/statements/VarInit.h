@@ -41,6 +41,10 @@ public:
 
 #ifdef COMPILER_BUILD
 
+    std::string ns_node_identifier() override {
+        return identifier;
+    }
+
     inline void check_has_type(Codegen &gen);
 
     llvm::Value *llvm_pointer(Codegen &gen) override;

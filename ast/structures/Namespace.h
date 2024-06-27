@@ -16,6 +16,10 @@ public:
      */
     explicit Namespace(std::string name);
 
+    Namespace *as_namespace() override {
+        return this;
+    }
+
     std::string ns_node_identifier() override {
         return name;
     }

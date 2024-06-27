@@ -40,6 +40,8 @@ void VariableIdentifier::link(SymbolResolver &linker, std::unique_ptr<Value>& va
             } else {
                 linker.error("couldn't link identifier '" + value + "', because function doesn't take a self argument");
             }
+        } else if(linked->as_namespace() && !can_link_with_namespace()){
+            linker.error("cannot link identifier with namespace " + value);
         }
     } else {
         linker.error("variable identifier '" + value + "' not found");

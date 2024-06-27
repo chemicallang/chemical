@@ -17,10 +17,11 @@
  * z.y.z[0] similarly z is an index operator here
  */
 class AccessChain : public ASTNode, public Value {
-
 public:
 
-    AccessChain(std::vector<std::unique_ptr<Value>> values);
+    AccessChain() = default;
+
+    explicit AccessChain(std::vector<std::unique_ptr<Value>> values);
 
     void link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) override;
 

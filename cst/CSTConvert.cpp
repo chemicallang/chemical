@@ -78,6 +78,7 @@
 #include "preprocess/RepresentationVisitor.h"
 #include "preprocess/2cASTVisitor.h"
 #include "ast/values/SizeOfValue.h"
+#include "ast/values/NamespaceIdentifier.h"
 
 Operation get_operation(CSTToken *token) {
     auto op = (OperationToken*) token;
@@ -1059,7 +1060,8 @@ void CSTConverter::visitNumberToken(NumberToken *token) {
 }
 
 void CSTConverter::visitStructValue(CompoundCSTToken *cst) {
-    auto name = str_token(cst->tokens[0].get());
+    cst->tokens[0]->accept(this);
+    auto name = value();
     auto i = 2; // first identifier or '}'
     std::unordered_map<std::string, std::unique_ptr<Value>> vals;
     while (!is_char_op(cst->tokens[i].get(), '}')) {
@@ -1072,7 +1074,7 @@ void CSTConverter::visitStructValue(CompoundCSTToken *cst) {
             i++;
         }
     }
-    values.emplace_back(std::make_unique<StructValue>(name, std::move(vals)));
+    values.emplace_back(std::make_unique<StructValue>(std::move(name), std::move(vals)));
 }
 
 void CSTConverter::visitArrayValue(CompoundCSTToken *arrayValue) {
@@ -1134,7 +1136,28 @@ void CSTConverter::visitIndexOp(CompoundCSTToken *op) {
 
 void CSTConverter::visitAccessChain(AccessChainCST *chain) {
     auto prev_values = std::move(values);
-    visit(chain->tokens);
+    unsigned int i = 0;
+    unsigned int size = chain->tokens.size();
+    bool is_ns_identifier = false;
+    CSTToken* token;
+    while(i < size) {
+        token = chain->tokens[i].get();
+        if(is_str_op(token, "::")) {
+            is_ns_identifier = true;
+        } else if(is_ns_identifier) {
+            if(token->type() == LexTokenType::Variable) {
+                token->accept(this);
+                auto id = value();
+                values.emplace_back(new NamespaceIdentifier(((VariableIdentifier *) id.get())->value));
+            } else {
+                token->accept(this);
+            }
+            is_ns_identifier = false;
+        } else {
+            token->accept(this);
+        }
+        i++;
+    }
     auto ret_chain = std::make_unique<AccessChain>(std::move(values));
     values = std::move(prev_values);
     if (chain->is_node) {

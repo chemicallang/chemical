@@ -13,13 +13,13 @@ class StructValue : public Value {
 public:
 
     StructValue(
-            std::string structName,
+            std::unique_ptr<Value> ref,
             std::unordered_map<std::string, std::unique_ptr<Value>> values,
             StructDefinition *definition = nullptr
     );
 
     StructValue(
-            std::string structName,
+            std::unique_ptr<Value> ref,
             std::unordered_map<std::string, std::unique_ptr<Value>> values,
             StructDefinition *definition,
             InterpretScope &scope
@@ -103,7 +103,7 @@ public:
         return ValueType::Struct;
     }
 
-    std::string structName;
+    std::unique_ptr<Value> ref;
     StructDefinition *definition = nullptr;
     std::unordered_map<std::string, std::unique_ptr<Value>> values;
 #ifdef COMPILER_BUILD

@@ -53,6 +53,10 @@ public:
 
     bool reference() override;
 
+    virtual bool can_link_with_namespace() {
+        return false;
+    };
+
     void set_value_in(InterpretScope &scope, Value *parent, Value *next_value, Operation op) override;
 
     void set_identifier_value(InterpretScope &scope, Value *rawValue, Operation op) override;

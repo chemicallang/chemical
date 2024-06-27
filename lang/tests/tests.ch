@@ -14,6 +14,7 @@ import "basic/casts.ch"
 import "basic/functions.ch"
 import "basic/destructors.ch"
 import "nodes/union.ch"
+import "nodes/namespaces.ch"
 
 func main() {
     test_var_init();
@@ -32,5 +33,6 @@ func main() {
     test_functions();
     test_destructors();
     test_unions();
+    test_namespaces();
     print_test_stats();
 }

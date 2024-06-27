@@ -201,14 +201,14 @@ public:
      * this is the method called by lexAccessChain after finding a identifier
      * @param assChain is the access chain in an assignment
      */
-    bool lexAccessChainAfterId(bool lexStruct = false);
+    bool lexAccessChainAfterId(bool lexStruct = false, unsigned int chain_length = 1);
 
     /**
      * this method does not compound the access chain, so can be called recursively
      * this method is called by lexAccessChain to not compound access chains nested in it
      * @param assChain is the access chain in an assignment
      */
-    bool lexAccessChainRecursive(bool lexStruct = false);
+    bool lexAccessChainRecursive(bool lexStruct = false, unsigned int chain_length = 0);
 
     /**
      * this lexes an access chain like x.y.z or just simply an identifier

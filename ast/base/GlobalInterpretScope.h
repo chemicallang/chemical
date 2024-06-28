@@ -16,6 +16,8 @@ typedef Value* (*EvaluatorFn)(Value*, Value*);
 
 using expression_evaluators = std::unordered_map<int, EvaluatorFn>;
 
+class SymbolResolver;
+
 class GlobalInterpretScope : public InterpretScope {
 public:
 
@@ -34,6 +36,13 @@ public:
      * use default move constructor
      */
     GlobalInterpretScope(GlobalInterpretScope&& global) = default;
+
+    /**
+     * will prepare compiler functions in the symbol resolver
+     * namely the compiler namespace, which allows to interact with compiler api
+     * with less complexity than CBI
+     */
+    void prepare_compiler_functions(SymbolResolver& resolver);
 
     /**
      * cleans the scope
@@ -64,7 +73,7 @@ public:
     /**
      * global functions that are evaluated during interpretation
      */
-    std::unordered_map<std::string, std::unique_ptr<FunctionDeclaration>> global_fns;
+    std::unordered_map<std::string, std::unique_ptr<ASTNode>> global_nodes;
 
     /**
      * global values that are used by global fns

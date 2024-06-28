@@ -331,7 +331,7 @@ void FunctionCall::find_link_in_parent(Value *parent, SymbolResolver &resolver) 
     // if it's linked with struct
     auto parent_id = parent->as_identifier();
     auto parent_linked = parent_val->linked_node();
-    if(parent_id && parent_linked->as_struct_def()) {
+    if(parent_id && parent_linked && parent_linked->as_struct_def()) {
         StructDefinition* parent_struct = parent_linked->as_struct_def();
         auto constructorFunc = parent_struct->constructor_func(values);
         if(constructorFunc) {

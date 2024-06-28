@@ -40,6 +40,9 @@ bool compile(Codegen *gen, const std::string &path, IGCompilerOptions *options) 
     // creating symbol resolver
     SymbolResolver resolver(path, options->is64Bit);
 
+    // allow user the compiler (namespace) functions in @comptime
+    gen->comptime_scope.prepare_compiler_functions(resolver);
+
     // shrinking visitor will shrink everything
     ShrinkingVisitor shrinker;
 

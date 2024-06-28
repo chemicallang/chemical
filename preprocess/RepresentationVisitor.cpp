@@ -554,15 +554,15 @@ void RepresentationVisitor::visit(DoubleValue *val) {
 }
 
 void RepresentationVisitor::visit(CharValue *val) {
-    write('\'');
+    if(!interpret_representation) write('\'');
     write(escape_encode(val->value));
-    write('\'');
+    if(!interpret_representation) write('\'');
 }
 
 void RepresentationVisitor::visit(StringValue *val) {
-    write('"');
+    if(!interpret_representation) write('"');
     write_encoded(this, val->value);
-    write('"');
+    if(!interpret_representation) write('"');
 }
 
 void RepresentationVisitor::visit(BoolValue *boolVal) {

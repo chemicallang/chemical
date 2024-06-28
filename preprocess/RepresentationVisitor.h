@@ -26,6 +26,11 @@ public:
     unsigned int indentation_level = 0;
 
     /**
+     * interpret representation means, no quotes on strings or characters basically
+     */
+    bool interpret_representation = false;
+
+    /**
      * if true, function calls won't have a semicolon at the end
      */
     bool nested_value = false;

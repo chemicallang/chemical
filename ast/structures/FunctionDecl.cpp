@@ -427,7 +427,6 @@ Value *FunctionDeclaration::call(
     std::vector<std::unique_ptr<Value>> &call_params,
     Value* parent
 ) {
-    if (!body.has_value()) return nullptr;
     InterpretScope fn_scope(nullptr, call_scope->global);
     return call(call_scope, call_params, parent, &fn_scope);
 }
@@ -448,7 +447,6 @@ Value *FunctionDeclaration::call(
     Value* parent,
     InterpretScope *fn_scope
 ) {
-    if (!body.has_value()) return nullptr;
     auto self_param = get_self_param();
     auto params_given = call_args.size() + (self_param ? parent ? 1 : 0 : 0);
     if (params.size() != params_given) {

@@ -224,7 +224,6 @@ set(COMMON_SOURCES
         ast/utils/GlobalFunctions.h
         ast/utils/GlobalFunctions.cpp
         ast/statements/MacroValueStatement.h
-        ast/utils/InterpretValues.h
         integration/common/Diagnostic.cpp
         lexer/structures/Collection.cpp
         lexer/model/tokens/UserToken.h

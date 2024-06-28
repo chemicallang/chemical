@@ -87,13 +87,13 @@ public:
 
     Value *parent(InterpretScope &scope);
 
-    inline Value *parent_value(InterpretScope &scope);
+    inline hybrid_ptr<Value> parent_value(InterpretScope &scope);
 
     void set_identifier_value(InterpretScope &scope, Value *rawValue, Operation op) override;
 
     Value *pointer(InterpretScope &scope);
 
-    Value *evaluated_value(InterpretScope &scope) override;
+    Value *scope_value(InterpretScope &scope) override;
 
     Value *param_value(InterpretScope &scope) override;
 
@@ -102,6 +102,8 @@ public:
     Value *assignment_value(InterpretScope &scope) override;
 
     Value *return_value(InterpretScope &scope) override;
+
+    hybrid_ptr<Value> evaluated_value(InterpretScope &scope) override;
 
     ASTNode *linked_node() override;
 

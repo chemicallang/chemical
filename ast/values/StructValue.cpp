@@ -10,21 +10,21 @@
 #include "compiler/llvmimpl.h"
 #include "IntValue.h"
 
-void llvm_allocate_struct(llvm::Value *inst, Codegen& gen, StructValue* structValue) {
-    for (const auto &value: structValue->values) {
-        auto index = structValue->definition->child_index(value.first);
+void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen) {
+    for (const auto &value: values) {
+        auto index = definition->child_index(value.first);
         if (index == -1) {
-            gen.error("couldn't get struct child " + value.first + " in definition with name " + structValue->definition->name);
+            gen.error("couldn't get struct child " + value.first + " in definition with name " + definition->name);
         } else {
             std::vector<llvm::Value*> idx {gen.builder->getInt32(0)};
-            value.second->store_in_struct(gen, structValue, inst, idx, index);
+            value.second->store_in_struct(gen, this, inst, idx, index);
         }
     }
 }
 
 llvm::AllocaInst *StructValue::llvm_allocate(Codegen &gen, const std::string &identifier) {
     allocaInst = gen.builder->CreateAlloca(llvm_type(gen), nullptr);
-    llvm_allocate_struct(allocaInst, gen, this);
+    initialize_alloca(allocaInst, gen);
     return allocaInst;
 }
 
@@ -84,7 +84,7 @@ llvm::Value *StructValue::llvm_value(Codegen &gen) {
 llvm::Value *StructValue::llvm_ret_value(Codegen &gen, ReturnStatement *returnStmt) {
     // TODO make sure this argument corresponds to the struct
     auto structPassed = gen.current_function->getArg(0);
-    llvm_allocate_struct(structPassed, gen, this);
+    initialize_alloca(structPassed, gen);
     return nullptr;
 }
 
@@ -182,10 +182,6 @@ void StructValue::set_child_value(const std::string &name, Value *value, Operati
     // this is probably gonna delete by itself
     delete ptr->second.release();
     ptr->second = std::unique_ptr<Value>(value);
-}
-
-Value *StructValue::evaluated_value(InterpretScope &scope) {
-    return this;
 }
 
 Value *StructValue::initializer_value(InterpretScope &scope) {

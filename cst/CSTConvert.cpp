@@ -125,13 +125,13 @@ void CSTConverter::init_macro_handlers() {
             auto take_value = converter->value();
             InterpretScope child_scope{&converter->global_scope, &converter->global_scope};
             auto evaluated_value = take_value->evaluated_value(child_scope);
-            if(evaluated_value == nullptr) {
+            if(evaluated_value.get() == nullptr) {
                 converter->error("couldn't evaluate value", container);
                 return;
             }
-            converter->values.emplace_back(evaluated_value);
-            if(!take_value->computed()) {
-                take_value.release(); // release in case evaluated_value and take_value are equal
+            converter->values.emplace_back(evaluated_value.release());
+            if(take_value.get() == evaluated_value.get()) {
+                take_value.release();
             }
         } else {
             converter->error("expected a value for eval", container);

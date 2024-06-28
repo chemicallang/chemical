@@ -20,7 +20,7 @@ CompTimeFuncType create_print(GlobalInterpretScope &global) {
     return [](InterpretScope *scope, std::vector<std::unique_ptr<Value>> &params) -> Value * {
         for (auto const &value: params) {
             auto paramValue = value->evaluated_value(*scope);
-            if(paramValue == nullptr) {
+            if(paramValue.get() == nullptr) {
                 std::cout << "null";
             } else {
                 std::cout << paramValue->representation();

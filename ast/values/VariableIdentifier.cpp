@@ -172,12 +172,12 @@ Value* VariableIdentifier::copy() {
     return id;
 }
 
-Value *VariableIdentifier::evaluated_value(InterpretScope &scope) {
+hybrid_ptr<Value> VariableIdentifier::evaluated_value(InterpretScope &scope) {
     auto found = scope.find_value(value);
     if (found != nullptr) {
-        return found;
+        return hybrid_ptr<Value> { found , false };
     } else {
-        return nullptr;
+        return hybrid_ptr<Value> { nullptr , false };
     }
 }
 
@@ -190,8 +190,6 @@ Value *VariableIdentifier::return_value(InterpretScope &scope) {
     }
     auto store = val.first->second;
     val.second.erase(val.first);
-    // TODO this will only move a single identifier
-    // TODO this won't move struct children !
     auto decl = declaration();
     if (decl) {
         decl->moved();
@@ -201,30 +199,14 @@ Value *VariableIdentifier::return_value(InterpretScope &scope) {
     return store;
 }
 
-Value* VariableIdentifier::copy_prim_ref_other(InterpretScope& scope) {
+Value *VariableIdentifier::scope_value(InterpretScope &scope) {
     // evaluates the value, if its primitive copies it
     // otherwise, we pass another reference to the value, in the function calls
     auto val = scope.find_value_iterator(value);
     if (val.first == val.second.end() || val.first->second == nullptr) {
         return nullptr;
     }
-    if (val.first->second->primitive()) {
-        return val.first->second->copy();
-    } else {
-        return val.first->second;
-    }
-}
-
-Value *VariableIdentifier::param_value(InterpretScope &scope) {
-    return copy_prim_ref_other(scope);
-}
-
-Value *VariableIdentifier::initializer_value(InterpretScope &scope) {
-    return copy_prim_ref_other(scope);
-}
-
-Value *VariableIdentifier::assignment_value(InterpretScope &scope) {
-    return copy_prim_ref_other(scope);
+    return val.first->second->copy();
 }
 
 BaseTypeKind VariableIdentifier::type_kind() const {

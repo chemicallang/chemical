@@ -41,8 +41,6 @@ public:
 
     void set_child_value(const std::string &name, Value *value, Operation op) override;
 
-    Value *evaluated_value(InterpretScope &scope) override;
-
     Value *initializer_value(InterpretScope &scope) override;
 
     void declare_default_values(std::unordered_map<std::string, std::unique_ptr<Value>> &into, InterpretScope &scope);
@@ -56,6 +54,8 @@ public:
     uint64_t byte_size(bool is64Bit) const;
 
 #ifdef COMPILER_BUILD
+
+    void initialize_alloca(llvm::Value *inst, Codegen& gen);
 
     llvm::AllocaInst *llvm_allocate(Codegen &gen, const std::string &identifier) override;
 

@@ -107,19 +107,18 @@ public:
 
     /**
      * evaluates both values and returns the result as unique_tr to Value
-     * @return
      */
-    inline Value *evaluate(InterpretScope &scope);
+    Value *evaluate(InterpretScope &scope);
 
-    Value *evaluated_value(InterpretScope &scope) override;
+    Value *scope_value(InterpretScope &scope) override {
+        return evaluate(scope);
+    }
 
-    Value *return_value(InterpretScope &scope) override {
-        return evaluated_value(scope);
+    hybrid_ptr<Value> evaluated_value(InterpretScope &scope) override {
+        return hybrid_ptr<Value> { evaluate(scope) };
     }
 
     bool evaluated_bool(InterpretScope &scope) override;
-
-    Value *initializer_value(InterpretScope &scope) override;
 
     bool compile_time_computable() override;
 

@@ -113,16 +113,13 @@ bool Expression::computed() {
  * evaluates both values and returns the result as unique_tr to Value
  * @return
  */
-inline Value *Expression::evaluate(InterpretScope &scope) {
+Value *Expression::evaluate(InterpretScope &scope) {
     auto fEvl = firstValue->evaluated_value(scope);
     auto sEvl = secondValue->evaluated_value(scope);
     auto index = ExpressionEvaluator::index(fEvl->value_type(), sEvl->value_type(), operation);
     auto found = scope.global->expr_evaluators.find(index);
     if (found != scope.global->expr_evaluators.end()) {
-        auto result = scope.global->expr_evaluators[index](fEvl, sEvl);
-        if (firstValue->computed()) delete fEvl;
-        if (secondValue->computed()) delete sEvl;
-        return result;
+        return scope.global->expr_evaluators[index](fEvl.get(), sEvl.get());
     } else {
         scope.error(
                 "Cannot evaluate expression as the method with index " + std::to_string(index) +
@@ -130,10 +127,6 @@ inline Value *Expression::evaluate(InterpretScope &scope) {
                 to_string(sEvl->value_type()));
         return nullptr;
     }
-}
-
-Value *Expression::evaluated_value(InterpretScope &scope) {
-    return evaluate(scope);
 }
 
 bool Expression::evaluated_bool(InterpretScope &scope) {
@@ -145,10 +138,6 @@ bool Expression::evaluated_bool(InterpretScope &scope) {
     delete eval;
     // return the expression value
     return value;
-}
-
-Value *Expression::initializer_value(InterpretScope &scope) {
-    return evaluated_value(scope);
 }
 
 bool Expression::compile_time_computable() {

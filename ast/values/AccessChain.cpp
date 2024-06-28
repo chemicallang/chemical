@@ -57,10 +57,7 @@ bool AccessChain::reference() {
 }
 
 void AccessChain::interpret(InterpretScope &scope) {
-    auto v = evaluated_value(scope);
-    if (v != nullptr && v->primitive()) {
-        delete v;
-    }
+    evaluated_value(scope);
 }
 
 Value *AccessChain::parent(InterpretScope &scope) {
@@ -78,12 +75,12 @@ Value *AccessChain::parent(InterpretScope &scope) {
     return current;
 }
 
-inline Value *AccessChain::parent_value(InterpretScope &scope) {
+inline hybrid_ptr<Value> AccessChain::parent_value(InterpretScope &scope) {
 #ifdef DEBUG
     auto p = parent(scope);
     if (p == nullptr) {
         scope.error("parent is nullptr in access cain " + Value::representation());
-    } else if (p->evaluated_value(scope) == nullptr) {
+    } else if (p->evaluated_value(scope).get() == nullptr) {
         scope.error("evaluated value of parent is nullptr in access chain " + Value::representation() + " pointer " +
                     p->representation());
     }
@@ -95,7 +92,8 @@ void AccessChain::set_identifier_value(InterpretScope &scope, Value *rawValue, O
     if (values.size() <= 1) {
         values[0]->set_identifier_value(scope, rawValue, op);
     } else {
-        values[values.size() - 1]->set_value_in(scope, parent_value(scope), rawValue->assignment_value(scope), op);
+        auto parent = parent_value(scope);
+        values[values.size() - 1]->set_value_in(scope, parent.get(), rawValue->assignment_value(scope), op);
     }
 }
 
@@ -103,12 +101,17 @@ Value *AccessChain::pointer(InterpretScope &scope) {
     if (values.size() <= 1) {
         return values[0].get();
     } else {
-        return values[values.size() - 1]->find_in(scope, parent_value(scope));
+        auto parent = parent_value(scope);
+        return values[values.size() - 1]->find_in(scope, parent.get());
     }
 }
 
-Value *AccessChain::evaluated_value(InterpretScope &scope) {
+hybrid_ptr<Value> AccessChain::evaluated_value(InterpretScope &scope) {
     return pointer(scope)->evaluated_value(scope);
+}
+
+Value *AccessChain::scope_value(InterpretScope &scope) {
+    return pointer(scope)->scope_value(scope);
 }
 
 Value *AccessChain::param_value(InterpretScope &scope) {

@@ -188,8 +188,7 @@ void FunctionDeclaration::code_gen_override(Codegen& gen, FunctionDeclaration* d
 }
 
 void FunctionDeclaration::code_gen_struct(Codegen &gen, StructDefinition* def) {
-    if(has_annotation(AnnotationKind::CompTime) && !has_annotation(AnnotationKind::Constructor)) {
-        gen.error("comptime annotation is only allowed on constructor methods");
+    if(has_annotation(AnnotationKind::CompTime)) {
         return;
     }
     create_fn(gen, this, def->name + "." + name);
@@ -198,8 +197,7 @@ void FunctionDeclaration::code_gen_struct(Codegen &gen, StructDefinition* def) {
 }
 
 void FunctionDeclaration::code_gen_union(Codegen &gen, UnionDef* def) {
-    if(has_annotation(AnnotationKind::CompTime) && !has_annotation(AnnotationKind::Constructor)) {
-        gen.error("comptime annotation is only allowed on constructor methods");
+    if(has_annotation(AnnotationKind::CompTime)) {
         return;
     }
     create_fn(gen, this, def->name + "." + name);

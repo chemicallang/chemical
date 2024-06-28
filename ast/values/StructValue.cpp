@@ -231,6 +231,8 @@ Value *StructValue::child(InterpretScope &scope, const std::string &name) {
         auto func = definition->member(name);
         if(func) {
             return this;
+        } else {
+            return nullptr;
         }
     }
     return value->second.get();

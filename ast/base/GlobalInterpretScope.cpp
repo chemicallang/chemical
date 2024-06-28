@@ -15,7 +15,7 @@
 #define ANSI_COLOR_RED     "\x1b[91m"
 #define ANSI_COLOR_RESET   "\x1b[0m"
 
-GlobalInterpretScope::GlobalInterpretScope() : InterpretScope(this, this) {
+GlobalInterpretScope::GlobalInterpretScope() : InterpretScope(nullptr, this) {
 
 }
 

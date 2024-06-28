@@ -28,7 +28,6 @@ public:
     AccessSpecifier specifier;
     std::string name; ///< The name of the function;
     std::optional<LoopScope> body; ///< The body of the function.
-    InterpretScope *declarationScope;
 
 #ifdef COMPILER_BUILD
     llvm::FunctionType *funcType;
@@ -126,14 +125,17 @@ public:
 
     void declare_and_link(SymbolResolver &linker) override;
 
-    void interpret(InterpretScope &scope) override;
-
-    virtual Value *call(InterpretScope *call_scope, std::vector<std::unique_ptr<Value>> &call_params);
+    virtual Value *call(
+        InterpretScope *call_scope,
+        std::vector<std::unique_ptr<Value>> &call_params,
+        Value* parent_val
+    );
 
     virtual Value *call(
-            InterpretScope *call_scope,
-            std::vector<std::unique_ptr<Value>> &call_params,
-            InterpretScope *fn_scope
+        InterpretScope *call_scope,
+        std::vector<std::unique_ptr<Value>> &call_args,
+        Value* parent_val,
+        InterpretScope *fn_scope
     );
 
     std::unique_ptr<BaseType> create_value_type() override;

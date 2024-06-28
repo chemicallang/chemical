@@ -206,7 +206,7 @@ llvm::Value* FunctionCall::llvm_chain_value(
 
     auto decl = safe_linked_func();
     if(decl && decl->has_annotation(AnnotationKind::CompTime)) {
-        auto val = std::unique_ptr<Value>(decl->call(&gen.comptime_scope, values));
+        auto val = std::unique_ptr<Value>(decl->call(&gen.comptime_scope, values, nullptr));
         if(!val) {
             gen.error("compile time function didn't return a value");
             return nullptr;
@@ -354,13 +354,18 @@ Value *FunctionCall::find_in(InterpretScope &scope, Value *parent) {
     }
 }
 
-Value *FunctionCall::scope_value(InterpretScope &scope) {
-    if (safe_linked_func()) {
-        return linked_func()->call(&scope, values);
+Value* interpret_value(FunctionCall* call, InterpretScope &scope, Value* parent) {
+    auto func = call->safe_linked_func();
+    if (func) {
+        return func->call(&scope, call->values, parent);
     } else {
         scope.error("(function call) calling a function that is not found or has no body");
     }
     return nullptr;
+}
+
+Value *FunctionCall::scope_value(InterpretScope &scope) {
+    return interpret_value(this, scope, nullptr);
 }
 
 hybrid_ptr<Value> FunctionCall::evaluated_value(InterpretScope &scope) {
@@ -368,11 +373,8 @@ hybrid_ptr<Value> FunctionCall::evaluated_value(InterpretScope &scope) {
 }
 
 hybrid_ptr<Value> FunctionCall::evaluated_chain_value(InterpretScope &scope, hybrid_ptr<Value> &parent) {
-    if(parent.get() == nullptr) {
-        return hybrid_ptr<Value>{ scope_value(scope) };
-    } else {
-        return hybrid_ptr<Value> { nullptr, false };
-    }
+    auto value = interpret_value(this, scope, parent.get());
+    return hybrid_ptr<Value>{ value };
 }
 
 Value *FunctionCall::copy() {

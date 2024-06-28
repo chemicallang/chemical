@@ -123,8 +123,6 @@ public:
 
     /**
      * if this value has a child by this name, it should return a pointer to it
-     * @param name
-     * @return
      */
     virtual Value* child(InterpretScope& scope, const std::string& name) {
 #ifdef DEBUG

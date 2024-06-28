@@ -20,7 +20,7 @@ public:
      * @param scope
      */
     virtual void interpret(InterpretScope &scope) {
-        scope.error("[Interpretable] interpret called on base class");
+        throw "interpret called on base class";
     }
 
 };

@@ -5,6 +5,7 @@
 #include <memory>
 #include "compiler/SymbolResolver.h"
 #include "ast/values/AccessChain.h"
+#include "ast/values/StructValue.h"
 
 uint64_t VariableIdentifier::byte_size(bool is64Bit) {
     return linked->byte_size(is64Bit);
@@ -179,6 +180,13 @@ hybrid_ptr<Value> VariableIdentifier::evaluated_value(InterpretScope &scope) {
     } else {
         return hybrid_ptr<Value> { nullptr , false };
     }
+}
+
+hybrid_ptr<Value> VariableIdentifier::evaluated_chain_value(InterpretScope &scope, hybrid_ptr<Value> &parent) {
+    if(parent) {
+        return hybrid_ptr<Value> { parent->child(scope, value), false };
+    }
+    return hybrid_ptr<Value> { nullptr, false };
 }
 
 Value *VariableIdentifier::return_value(InterpretScope &scope) {

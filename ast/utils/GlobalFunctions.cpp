@@ -12,7 +12,6 @@ void define_func(GlobalInterpretScope &scope, const std::string &name, CompTimeF
                                                    isVariadic);
     std::vector<std::unique_ptr<ASTNode>> nodes;
     decl->body.emplace(LoopScope(std::move(nodes)));
-    decl->interpret(scope);
     scope.global_fns[name] = std::move(decl);
 }
 

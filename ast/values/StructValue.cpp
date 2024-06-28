@@ -169,7 +169,7 @@ Value *StructValue::call_member(
 #endif
     InterpretScope child(definition->decl_scope, scope.global);
     child.declare("this", this);
-    auto value = fn->call(&scope, params, &child);
+    auto value = fn->call(&scope, params, this, &child);
     return value;
 }
 
@@ -186,10 +186,10 @@ void StructValue::set_child_value(const std::string &name, Value *value, Operati
 
 Value *StructValue::initializer_value(InterpretScope &scope) {
     std::unordered_map<std::string, std::unique_ptr<Value>> copied(values.size());
+    declare_default_values(copied, scope);
     for (const auto &value: values) {
         copied[value.first] = std::unique_ptr<Value>(value.second->initializer_value(scope));
     }
-    declare_default_values(copied, scope);
     return new StructValue(std::unique_ptr<Value>(ref->copy()), std::move(copied), definition);
 }
 
@@ -229,7 +229,12 @@ hybrid_ptr<BaseType> StructValue::get_base_type() {
 
 Value *StructValue::child(InterpretScope &scope, const std::string &name) {
     auto value = values.find(name);
-    if (value == values.end()) return nullptr;
+    if (value == values.end()) {
+        auto func = definition->member(name);
+        if(func) {
+            return this;
+        }
+    }
     return value->second.get();
 }
 

@@ -95,6 +95,8 @@ public:
 
     hybrid_ptr<Value> evaluated_value(InterpretScope &scope) override;
 
+    hybrid_ptr<Value> evaluated_chain_value(InterpretScope &scope, hybrid_ptr<Value> &parent) override;
+
     Value *copy() override;
 
     /**

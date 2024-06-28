@@ -111,7 +111,8 @@ hybrid_ptr<Value> AccessChain::evaluated_value(InterpretScope &scope) {
     hybrid_ptr<Value> evaluated = values[0]->evaluated_value(scope);
     unsigned i = 1;
     while(i < values.size()) {
-        evaluated = values[i]->evaluated_chain_value(scope, evaluated);
+        auto newevaluated = values[i]->evaluated_chain_value(scope, evaluated);
+        evaluated = std::move(newevaluated);
         i++;
     }
     return evaluated;
@@ -126,7 +127,12 @@ Value *AccessChain::param_value(InterpretScope &scope) {
 }
 
 Value *AccessChain::initializer_value(InterpretScope &scope) {
-    return evaluated_value(scope).release();
+    auto thing = evaluated_value(scope);
+    if(thing.get_will_free()){
+        return thing.release();
+    } else {
+        return thing->copy();
+    }
 }
 
 Value *AccessChain::assignment_value(InterpretScope &scope) {
@@ -134,7 +140,12 @@ Value *AccessChain::assignment_value(InterpretScope &scope) {
 }
 
 Value *AccessChain::return_value(InterpretScope &scope) {
-    return pointer(scope)->return_value(scope);
+    auto thing = evaluated_value(scope);
+    if(thing.get_will_free()){
+        return thing.release();
+    } else {
+        return thing->copy();
+    }
 }
 
 ASTNode *AccessChain::linked_node() {

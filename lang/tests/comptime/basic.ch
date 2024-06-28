@@ -18,12 +18,22 @@ func pair_66() : Pair66 {
     }
 }
 
+@comptime
+func pair_66_ref() : Pair66 {
+    var x = pair_66();
+    return x;
+}
+
 func test_comptime() {
     test("test comptime sum works", () => {
         return comptime_sum(3, 6) == 9;
     })
     test("test comptime function can return struct", () => {
         var pair = pair_66();
+        return pair.a == 33 && pair.b == 11;
+    })
+    test("test comptime function can return struct from a reference", () => {
+        var pair = pair_66_ref();
         return pair.a == 33 && pair.b == 11;
     })
 }

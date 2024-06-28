@@ -541,13 +541,17 @@ std::cerr << "child called on base value";
     }
 
     /**
-     * This method is a helper method that evaluates the current value as a boolean
-     * The only difference between this and as_bool is that when this is called
-     * Not only bool is returned, the computations performed inside this value is deleted
-     * @return
+     * called by access chain, to evaluate this value, in the parent
      */
-    virtual bool evaluated_bool(InterpretScope& scope) {
-        return this->evaluated_value(scope)->as_bool();
+    virtual hybrid_ptr<Value> evaluated_chain_value(InterpretScope& scope, hybrid_ptr<Value>& parent) {
+        throw std::runtime_error("evaluated chain value called on base value");
+    }
+
+    /**
+     * just a helper method, to evaluate a value as a boolean
+     */
+    inline bool evaluated_bool(InterpretScope& scope) {
+        return evaluated_value(scope)->as_bool();
     }
 
     /**

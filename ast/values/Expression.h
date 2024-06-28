@@ -118,8 +118,6 @@ public:
         return hybrid_ptr<Value> { evaluate(scope) };
     }
 
-    bool evaluated_bool(InterpretScope &scope) override;
-
     bool compile_time_computable() override;
 
     ValueType value_type() const override {

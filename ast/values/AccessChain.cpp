@@ -107,7 +107,14 @@ Value *AccessChain::pointer(InterpretScope &scope) {
 }
 
 hybrid_ptr<Value> AccessChain::evaluated_value(InterpretScope &scope) {
-    return pointer(scope)->evaluated_value(scope);
+    if(values.size() == 1) return values[0]->evaluated_value(scope);
+    hybrid_ptr<Value> evaluated = values[0]->evaluated_value(scope);
+    unsigned i = 1;
+    while(i < values.size()) {
+        evaluated = values[i]->evaluated_chain_value(scope, evaluated);
+        i++;
+    }
+    return evaluated;
 }
 
 Value *AccessChain::scope_value(InterpretScope &scope) {
@@ -119,7 +126,7 @@ Value *AccessChain::param_value(InterpretScope &scope) {
 }
 
 Value *AccessChain::initializer_value(InterpretScope &scope) {
-    return pointer(scope)->initializer_value(scope);
+    return evaluated_value(scope).release();
 }
 
 Value *AccessChain::assignment_value(InterpretScope &scope) {

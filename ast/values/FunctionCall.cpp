@@ -364,7 +364,15 @@ Value *FunctionCall::scope_value(InterpretScope &scope) {
 }
 
 hybrid_ptr<Value> FunctionCall::evaluated_value(InterpretScope &scope) {
-    return hybrid_ptr<Value> {scope_value(scope)};
+    return hybrid_ptr<Value> {scope_value(scope) };
+}
+
+hybrid_ptr<Value> FunctionCall::evaluated_chain_value(InterpretScope &scope, hybrid_ptr<Value> &parent) {
+    if(parent.get() == nullptr) {
+        return hybrid_ptr<Value>{ scope_value(scope) };
+    } else {
+        return hybrid_ptr<Value> { nullptr, false };
+    }
 }
 
 Value *FunctionCall::copy() {

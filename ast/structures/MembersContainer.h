@@ -29,7 +29,7 @@ public:
     /**
      * will provide a constructor function if there's one
      */
-    FunctionDeclaration* constructor_func();
+    FunctionDeclaration* constructor_func(std::vector<std::unique_ptr<Value>>& forArgs);
 
     /**
      * will provide a destructor function if there's one

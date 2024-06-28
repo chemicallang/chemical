@@ -127,9 +127,9 @@ ASTNode *MembersContainer::child(const std::string &varName) {
     }
 }
 
-FunctionDeclaration* MembersContainer::constructor_func() {
+FunctionDeclaration* MembersContainer::constructor_func(std::vector<std::unique_ptr<Value>>& forArgs) {
     for (const auto & function : functions) {
-        if(function.second->has_annotation(AnnotationKind::Constructor)) {
+        if(function.second->has_annotation(AnnotationKind::Constructor) && function.second->satisfy_args(forArgs)) {
             return function.second.get();
         }
     }

@@ -5,6 +5,24 @@ struct Pair66 {
     var a : int
     var b : int
 
+    @comptime
+    @constructor
+    func pair2() {
+        return Pair66 {
+            a : 10,
+            b : 10
+        }
+    }
+
+    @comptime
+    @constructor
+    func pair1(d : literal::int) {
+        return Pair66 {
+            a : d / 2
+            b : d / 2
+        }
+    }
+
     func sum(&self) : int {
         return a + b;
     }
@@ -50,5 +68,13 @@ func test_comptime() {
     })
     test("test comptime function can call struct functions", () => {
         return call_struct_func() == 44;
+    })
+    test("test comptime constructor function can be called", () => {
+        var p = Pair66();
+        return p.a == 10 && p.b == 10;
+    })
+    test("test that appropriate comptime constructor function is selected", () => {
+        var p = Pair66(10);
+        return p.a == 5 && p.b == 5;
     })
 }

@@ -27,11 +27,12 @@ void ASTDiagnoser::info(const std::string &err, ASTNode *node) {
 
 void ASTDiagnoser::error(const std::string &err, ASTNode *node) {
     has_errors = true;
-    std::string errStr = "[" + TAG() + "]\n";
+    auto tag = TAG();
+    std::string errStr = "[" + tag + "]\n";
     errStr += "---- message : " + err + "\n";
     errStr += "---- file path : " + current_path;
     if(node) {
-        errStr += "---- node representation : " + node->representation();
+        errStr += "\n---- node representation : " + node->representation();
     }
 #ifdef DEBUG
 //    std::cerr << errStr << std::endl;

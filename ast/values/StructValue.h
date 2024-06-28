@@ -41,7 +41,7 @@ public:
 
     void set_child_value(const std::string &name, Value *value, Operation op) override;
 
-    Value *initializer_value(InterpretScope &scope) override;
+    Value *scope_value(InterpretScope &scope) override;
 
     void declare_default_values(std::unordered_map<std::string, std::unique_ptr<Value>> &into, InterpretScope &scope);
 

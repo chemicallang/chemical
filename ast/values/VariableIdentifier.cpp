@@ -149,10 +149,8 @@ void VariableIdentifier::set_identifier_value(InterpretScope &scope, Value *rawV
 
     }
 
-    // delete previous value if its a primitive / not a reference & exists
-    if (itr.first != itr.second.end() && (!var_init->is_reference || itr.first->second->primitive())) {
-        delete itr.first->second;
-    }
+    // delete previous value
+    delete itr.first->second;
 
     if (itr.first == itr.second.end()) {
         var_init->declare(nextValue);
@@ -198,18 +196,11 @@ Value *VariableIdentifier::return_value(InterpretScope &scope) {
     }
     auto store = val.first->second;
     val.second.erase(val.first);
-    auto decl = declaration();
-    if (decl) {
-        decl->moved();
-    } else {
-        scope.error("couldn't find var init for moving the value");
-    }
     return store;
 }
 
 Value *VariableIdentifier::scope_value(InterpretScope &scope) {
-    // evaluates the value, if its primitive copies it
-    // otherwise, we pass another reference to the value, in the function calls
+    // evaluates the value, copies it
     auto val = scope.find_value_iterator(value);
     if (val.first == val.second.end() || val.first->second == nullptr) {
         return nullptr;

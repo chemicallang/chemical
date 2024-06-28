@@ -182,7 +182,7 @@ void StructValue::set_child_value(const std::string &name, Value *value, Operati
     ptr->second = std::unique_ptr<Value>(value);
 }
 
-Value *StructValue::initializer_value(InterpretScope &scope) {
+Value *StructValue::scope_value(InterpretScope &scope) {
     std::unordered_map<std::string, std::unique_ptr<Value>> copied(values.size());
     declare_default_values(copied, scope);
     for (const auto &value: values) {

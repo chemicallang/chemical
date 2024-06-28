@@ -21,6 +21,8 @@ class ExtensionFunction;
 
 class FunctionDeclaration;
 
+class Value;
+
 class BaseFunctionType {
 public:
 
@@ -37,6 +39,13 @@ public:
         std::unique_ptr<BaseType> returnType,
         bool isVariadic
     );
+
+    /**
+     * check if these args satisfy, this is useful, if calling a constructor
+     * user provides the arguments, we check arguments against params, to see if it's compatible
+     * if not, another function is selected that is compatible with arguments provided
+     */
+    virtual bool satisfy_args(std::vector<std::unique_ptr<Value>>& forArgs);
 
     virtual ExtensionFunction* as_extension_func() {
         return nullptr;

@@ -1,0 +1,29 @@
+import "../test.ch"
+
+struct Pair66 {
+    var a : int
+    var b : int
+}
+
+@comptime
+func comptime_sum(a : int, b : int) {
+    return a + b;
+}
+
+@comptime
+func pair_66() : Pair66 {
+    return Pair66 {
+        a : 33,
+        b : 11
+    }
+}
+
+func test_comptime() {
+    test("test comptime sum works", () => {
+        return comptime_sum(3, 6) == 9;
+    })
+    test("test comptime function can return struct", () => {
+        var pair = pair_66();
+        return pair.a == 33 && pair.b == 11;
+    })
+}

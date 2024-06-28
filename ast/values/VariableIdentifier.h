@@ -93,7 +93,7 @@ public:
 
     VarInitStatement *declaration() override;
 
-    Value *evaluated_value(InterpretScope &scope) override;
+    hybrid_ptr<Value> evaluated_value(InterpretScope &scope) override;
 
     Value *copy() override;
 
@@ -102,20 +102,11 @@ public:
      */
     Value *return_value(InterpretScope &scope) override;
 
-    /**
-     * copy the value if its primitive, otherwise make a reference
-     */
-    Value *copy_prim_ref_other(InterpretScope &scope);
+    Value *scope_value(InterpretScope &scope) override;
 
     std::unique_ptr<BaseType> create_type() override;
 
     hybrid_ptr<BaseType> get_base_type() override;
-
-    Value *param_value(InterpretScope &scope) override;
-
-    Value *initializer_value(InterpretScope &scope) override;
-
-    Value *assignment_value(InterpretScope &scope) override;
 
     BaseTypeKind type_kind() const override;
 

@@ -474,31 +474,44 @@ std::cerr << "child called on base value";
     }
 
     /**
+     * scope value is the value that would be put on the interpret scope value map
+     * if user writes var x = 5, we can just place a copy of 5 on the interpret scope
+     *
+     * if user writes var e = 1 + 1, we need to calculate 1 + 1, that would mean a new value is created
+     * and then we put that value on the scope, so expressions can override this method to provide the value
+     *
+     * this method will always create a copy of the value, which means the caller must handle the returned value
+     */
+    virtual Value* scope_value(InterpretScope& scope) {
+       return copy();
+    }
+
+    /**
      * this is the initializer value, which is called by the var init statement
      */
     virtual Value* initializer_value(InterpretScope& scope) {
-        return copy();
+        return scope_value(scope);
     }
 
     /**
      * this is the assignment value, which is called by the assignment statement (without var)
      */
     virtual Value* assignment_value(InterpretScope& scope) {
-        return copy();
+        return scope_value(scope);
     }
 
     /**
      * this is the parameter value that is sent to function calls
      */
     virtual Value* param_value(InterpretScope& scope) {
-        return copy();
+        return scope_value(scope);
     }
 
     /**
      * called by return statement to get the return_value of this value
      */
     virtual Value* return_value(InterpretScope& scope) {
-        return copy();
+        return scope_value(scope);
     }
 
     /**
@@ -523,8 +536,8 @@ std::cerr << "child called on base value";
      * so it can find its value and return pointer to the Value object that actually holds the value
      * @return
      */
-    virtual Value* evaluated_value(InterpretScope& scope) {
-        return this;
+    virtual hybrid_ptr<Value> evaluated_value(InterpretScope& scope) {
+        return hybrid_ptr<Value> { this, false };
     }
 
     /**

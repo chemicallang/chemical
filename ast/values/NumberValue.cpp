@@ -33,7 +33,7 @@ ValueType NumberValue::value_type() const {
     }
 }
 
-Value* NumberValue::evaluated_value(InterpretScope &scope) {
+Value *NumberValue::scope_value(InterpretScope &scope) {
     return new IntValue((int) value);
 }
 

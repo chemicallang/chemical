@@ -43,17 +43,11 @@ public:
 
     Value *find_in(InterpretScope &scope, Value *parent) override;
 
-    Value *evaluated_value(InterpretScope &scope) override;
+    Value *scope_value(InterpretScope &scope) override;
+
+    hybrid_ptr<Value> evaluated_value(InterpretScope &scope) override;
 
     Value *copy() override;
-
-    Value *initializer_value(InterpretScope &scope) override;
-
-    Value *assignment_value(InterpretScope &scope) override;
-
-    Value *param_value(InterpretScope &scope) override;
-
-    Value *return_value(InterpretScope &scope) override;
 
     void interpret(InterpretScope &scope) override;
 

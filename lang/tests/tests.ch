@@ -15,6 +15,7 @@ import "basic/functions.ch"
 import "basic/destructors.ch"
 import "nodes/union.ch"
 import "nodes/namespaces.ch"
+import "comptime/basic.ch"
 
 func main() {
     test_var_init();
@@ -34,5 +35,6 @@ func main() {
     test_destructors();
     test_unions();
     test_namespaces();
+    test_comptime();
     print_test_stats();
 }

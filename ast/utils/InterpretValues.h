@@ -131,10 +131,6 @@ public:
         return (Value *) this;
     }
 
-    Value *evaluated_value(InterpretScope &scope) override {
-        return this;
-    }
-
 };
 
 class InterpretMapValue : public Value {
@@ -180,10 +176,6 @@ public:
 
     Value *copy() override {
         return (Value *) this;
-    }
-
-    Value *evaluated_value(InterpretScope &scope) override {
-        return this;
     }
 
 };

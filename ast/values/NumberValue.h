@@ -50,7 +50,7 @@ public:
         return true;
     }
 
-    Value* evaluated_value(InterpretScope &scope) override;
+    Value *scope_value(InterpretScope &scope) override;
 
     NumberValue* as_number_val() override {
         return this;

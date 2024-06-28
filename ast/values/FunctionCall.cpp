@@ -7,7 +7,8 @@
 #include "ast/values/LambdaFunction.h"
 #include "ast/utils/ASTUtils.h"
 #include "ast/structures/StructDefinition.h"
-#include "compiler/SymbolResolver.h""
+#include "compiler/SymbolResolver.h"
+#include "ast/values/StructValue.h"
 
 inline std::unique_ptr<FunctionType> func_call_func_type(const FunctionCall* call) {
     return std::unique_ptr<FunctionType>((FunctionType*) call->parent_val->create_type().release());
@@ -210,7 +211,13 @@ llvm::Value* FunctionCall::llvm_chain_value(
             gen.error("compile time function didn't return a value");
             return nullptr;
         }
-        return val->llvm_value(gen);
+        auto as_struct = val->as_struct();
+        if(as_struct && !args.empty()) {
+            as_struct->initialize_alloca(args[0], gen);
+            return nullptr;
+        } else {
+            return val->llvm_value(gen);
+        }
     }
 
     auto fn = decl != nullptr ? decl->llvm_func() : nullptr;
@@ -347,7 +354,7 @@ Value *FunctionCall::find_in(InterpretScope &scope, Value *parent) {
     }
 }
 
-Value *FunctionCall::evaluated_value(InterpretScope &scope) {
+Value *FunctionCall::scope_value(InterpretScope &scope) {
     if (safe_linked_func()) {
         return linked_func()->call(&scope, values);
     } else {
@@ -356,25 +363,13 @@ Value *FunctionCall::evaluated_value(InterpretScope &scope) {
     return nullptr;
 }
 
+hybrid_ptr<Value> FunctionCall::evaluated_value(InterpretScope &scope) {
+    return hybrid_ptr<Value> {scope_value(scope)};
+}
+
 Value *FunctionCall::copy() {
     std::cerr << "copy called on function call" << std::endl;
     return nullptr;
-}
-
-Value *FunctionCall::initializer_value(InterpretScope &scope) {
-    return evaluated_value(scope);
-}
-
-Value *FunctionCall::assignment_value(InterpretScope &scope) {
-    return evaluated_value(scope);
-}
-
-Value *FunctionCall::param_value(InterpretScope &scope) {
-    return evaluated_value(scope);
-}
-
-Value *FunctionCall::return_value(InterpretScope &scope) {
-    return evaluated_value(scope);
 }
 
 std::unique_ptr<BaseType> FunctionCall::create_type() {
@@ -384,8 +379,5 @@ std::unique_ptr<BaseType> FunctionCall::create_type() {
 }
 
 void FunctionCall::interpret(InterpretScope &scope) {
-    auto value = evaluated_value(scope);
-    if (value != nullptr && value->primitive()) {
-        delete value;
-    }
+    evaluated_value(scope);
 }

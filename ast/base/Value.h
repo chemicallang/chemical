@@ -672,16 +672,6 @@ std::cerr << "child called on base value";
     }
 
     /**
-     * a function to be overridden by values that can return vectors
-     */
-    virtual InterpretVectorValue* as_vector() {
-#ifdef DEBUG
-        std::cerr << "as_vector called on base value, representation : " << representation();
-#endif
-        throw std::runtime_error("as_vector called on a value");
-    }
-
-    /**
      * returns the type of value
      * @return
      */

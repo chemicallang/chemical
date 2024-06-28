@@ -38,27 +38,3 @@ public:
     }
 
 };
-
-/**
- * defines a single function
- * @param scope global scope
- * @param name name of the function
- * @param func definition of the function
- */
-void define_func(GlobalInterpretScope &scope, const std::string &name, CompTimeFuncType func, bool isVariadic = false);
-
-/**
- * this creates the vector function, which returns a vector
- */
-CompTimeFuncType create_vector(GlobalInterpretScope &global);
-
-/**
- * this creates the normal print function
- */
-CompTimeFuncType create_print(GlobalInterpretScope &global);
-
-/**
- * defines all functions in global scope
- * these functions are interpreted functions like print and vector
- */
-void define_all(GlobalInterpretScope &scope);

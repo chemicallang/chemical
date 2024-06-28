@@ -87,8 +87,6 @@ public:
      */
     void moved();
 
-    void interpret_scope_ends(InterpretScope &scope) override;
-
     ValueType value_type() const override;
 
     BaseTypeKind type_kind() const override;

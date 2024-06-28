@@ -12,8 +12,8 @@
 #define ANSI_COLOR_RED     "\x1b[91m"
 #define ANSI_COLOR_RESET   "\x1b[0m"
 
-InterpretScope::InterpretScope(InterpretScope *parent, GlobalInterpretScope *global, Scope *scope, ASTNode *node)
-        : parent(parent), global(global), codeScope(scope), node(node) {}
+InterpretScope::InterpretScope(InterpretScope *parent, GlobalInterpretScope *global)
+        : parent(parent), global(global){}
 
 void InterpretScope::declare(const std::string &name, Value *value) {
     values[name] = value;
@@ -68,47 +68,12 @@ void InterpretScope::print_values() {
 }
 
 void InterpretScope::clean() {
+    for(auto& value : values) {
+        delete value.second;
+    }
     values.clear();
-    nodes_interpreted = -1;
 }
 
 InterpretScope::~InterpretScope() {
-    if(this == global || parent == nullptr) {
-        // global interpret scope has its own destructor which also checks this
-        // after global interpret scope's destructor is called, this destructor is called
-        // because of inheritance, but the work is already done
-        if(nodes_interpreted == -1) {
-            return;
-        } else {
-#ifdef DEBUG
-    std::cerr << ANSI_COLOR_RED;
-    std::cerr << "global | non owned interpret scope has nodes interpreted != -1" << std::endl;
-    std::cerr << ANSI_COLOR_RESET;
-#endif
-        }
-    }
-#ifdef DEBUG
-    if (nodes_interpreted == -1 && (codeScope || node)) {
-
-        std::cerr << ANSI_COLOR_RED;
-        std::cerr
-                << "nodes_interpreted = -1 , either the scope is empty, or scope doesn't increment nodes_interpreted"
-                << std::endl;
-        if (node != nullptr) {
-            std::cerr << "here's the representation of node : " << node->representation()
-                      << std::endl;
-        } else {
-            std::cerr << "nodes present in the current scope\n";
-            for(const auto& node : codeScope->nodes) {
-                std::cerr << node->representation() + '\n';
-            }
-            std::cerr << std::endl;
-        }
-        std::cerr << ANSI_COLOR_RESET;
-    }
-#endif
-    while (nodes_interpreted > -1) {
-        codeScope->nodes[nodes_interpreted]->interpret_scope_ends(*this);
-        nodes_interpreted--;
-    }
+    InterpretScope::clean();
 }

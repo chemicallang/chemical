@@ -227,8 +227,6 @@ set(COMMON_SOURCES
         ast/utils/InterpretValues.h
         integration/common/Diagnostic.cpp
         lexer/structures/Collection.cpp
-        stream/StreamStructValue.h
-        stream/StreamStructValue.cpp
         lexer/model/tokens/UserToken.h
         ast/structures/Scope.cpp
         ast/structures/LoopScope.cpp

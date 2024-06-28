@@ -15,11 +15,7 @@
 #define ANSI_COLOR_RED     "\x1b[91m"
 #define ANSI_COLOR_RESET   "\x1b[0m"
 
-GlobalInterpretScope::GlobalInterpretScope(InterpretScope* parent, Scope* scope, ASTNode* node, std::string path) : root_path(std::move(path)), InterpretScope(parent, this, scope, node) {
-
-}
-
-GlobalInterpretScope::GlobalInterpretScope(Scope* scope, ASTNode* node, std::string path) : root_path(std::move(path)), InterpretScope(nullptr, this, scope, node) {
+GlobalInterpretScope::GlobalInterpretScope() : InterpretScope(this, this) {
 
 }
 
@@ -36,17 +32,4 @@ void GlobalInterpretScope::clean() {
     curr_node_position = 0;
 }
 
-GlobalInterpretScope::~GlobalInterpretScope() {
-#ifdef DEBUG
-    if (nodes_interpreted == -1 && (codeScope || node)) {
-        std::cerr << ANSI_COLOR_RED
-                  << "global nodes_interpreted = -1 , either the scope is empty, or scope doesn't increment nodes_interpreted"
-                  << std::endl
-                  << ANSI_COLOR_RESET;
-    }
-#endif
-    while (nodes_interpreted > -1) {
-        codeScope->nodes[nodes_interpreted]->interpret_scope_ends(*this);
-        nodes_interpreted--;
-    }
-}
+GlobalInterpretScope::~GlobalInterpretScope() = default;

@@ -112,7 +112,7 @@ Scope take_body(CSTConverter *conv, CompoundCSTToken *token) {
 }
 
 // TODO support _128bigint, bigfloat
-CSTConverter::CSTConverter(bool is64Bit, std::string target) : is64Bit(is64Bit), target(std::move(target)), global_scope(nullptr, nullptr, "") {
+CSTConverter::CSTConverter(bool is64Bit, std::string target) : is64Bit(is64Bit), target(std::move(target)), global_scope() {
     ExpressionEvaluator::prepareFunctions(global_scope);
     init_macro_handlers();
     init_annotation_handlers();
@@ -123,7 +123,7 @@ void CSTConverter::init_macro_handlers() {
         if(container->tokens[2]->is_value()) {
             container->tokens[2]->accept(converter);
             auto take_value = converter->value();
-            InterpretScope child_scope{&converter->global_scope, &converter->global_scope, nullptr, nullptr};
+            InterpretScope child_scope{&converter->global_scope, &converter->global_scope};
             auto evaluated_value = take_value->evaluated_value(child_scope);
             if(evaluated_value == nullptr) {
                 converter->error("couldn't evaluate value", container);

@@ -56,7 +56,7 @@ void DoWhileLoop::declare_and_link(SymbolResolver &linker) {
 }
 
 void DoWhileLoop::interpret(InterpretScope &scope) {
-    InterpretScope child(&scope, scope.global, &body, this);
+    InterpretScope child(&scope, scope.global);
     do {
         body.interpret(child);
         if (stoppedInterpretation) {

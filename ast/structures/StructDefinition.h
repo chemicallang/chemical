@@ -50,8 +50,6 @@ public:
 
     void interpret(InterpretScope &scope) override;
 
-    void interpret_scope_ends(InterpretScope &scope) override;
-
     ASTNode *child(const std::string &name) override;
 
     std::unique_ptr<BaseType> create_value_type() override;

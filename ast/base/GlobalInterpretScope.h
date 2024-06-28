@@ -22,12 +22,7 @@ public:
     /**
      * The constructor
      */
-    GlobalInterpretScope(InterpretScope *parent, Scope *scope, ASTNode *node, std::string path);
-
-    /**
-     * The constructor
-     */
-    GlobalInterpretScope(Scope *scope, ASTNode *node, std::string path);
+    GlobalInterpretScope();
 
     /**
      * deleted copy constructor
@@ -87,10 +82,5 @@ public:
      * This contains errors that occur during interpretation
      */
     std::vector<std::string> errors;
-
-    /**
-     * root path is the path of the file, interpretation begun at
-     */
-    std::string root_path;
 
 };

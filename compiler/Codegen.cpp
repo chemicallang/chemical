@@ -75,7 +75,7 @@ Codegen::Codegen(
         std::string target_triple,
         std::string curr_exe_path,
         bool is_64_bit
-) : ASTDiagnoser(path), comptime_scope(nullptr, nullptr, ""), nodes(std::move(nodes)),
+) : ASTDiagnoser(path), comptime_scope(), nodes(std::move(nodes)),
     target_triple(std::move(target_triple)), is64Bit(is_64_bit) {
     ExpressionEvaluator::prepareFunctions(comptime_scope);
     define_all(comptime_scope);

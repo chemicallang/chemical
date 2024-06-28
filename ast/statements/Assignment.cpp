@@ -20,8 +20,3 @@ void AssignStatement::declare_and_link(SymbolResolver &linker) {
 void AssignStatement::interpret(InterpretScope &scope) {
     lhs->set_identifier_value(scope, value.get(), assOp);
 }
-
-void AssignStatement::interpret_scope_ends(InterpretScope &scope) {
-    // when the var initializer ast node or the holder ast node goes out of scope
-    // the newly created value due to function call initializer_value will be destroyed
-}

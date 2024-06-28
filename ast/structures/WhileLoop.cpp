@@ -64,7 +64,7 @@ void WhileLoop::accept(Visitor *visitor) {
 }
 
 void WhileLoop::interpret(InterpretScope &scope) {
-    InterpretScope child(&scope, scope.global, &body, this);
+    InterpretScope child(&scope, scope.global);
     while (condition->evaluated_bool(child)) {
         body.interpret(child);
         if (stoppedInterpretation) {

@@ -151,18 +151,6 @@ void VarInitStatement::moved() {
     has_moved = true;
 }
 
-void VarInitStatement::interpret_scope_ends(InterpretScope &scope) {
-    auto found = scope.find_value_iterator(identifier);
-    if (found.first != found.second.end()) {
-        if (!is_reference) {
-            delete found.first->second;
-        }
-        found.second.erase(found.first);
-    } else if (!has_moved) {
-        scope.error("cannot clear non existent variable on the value map " + identifier);
-    }
-}
-
 ValueType VarInitStatement::value_type() const {
     if(type.has_value()) {
         return type.value()->value_type();

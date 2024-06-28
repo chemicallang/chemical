@@ -266,15 +266,6 @@ public:
     virtual void accept(Visitor *visitor) = 0;
 
     /**
-     * This supposed to be overridden by ASTNodes that put themselves
-     * on global value map, to clean up when the current interpret scope ends
-     * this method can be overridden
-     */
-    virtual void interpret_scope_ends(InterpretScope &scope) {
-
-    }
-
-    /**
      * get the type from the ASTNode
      * this type can represent the type of value, type of parameter etc.
      */

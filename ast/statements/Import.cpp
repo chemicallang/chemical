@@ -23,14 +23,14 @@ void ImportStatement::accept(Visitor *visitor) {
 }
 
 void ImportStatement::interpret(InterpretScope &scope) {
-    auto absolute_path = resolve_rel_parent_path_str(scope.global->root_path, filePath);
-    std::ifstream stream(absolute_path);
-    if (stream.fail()) {
-        scope.error("error couldn't import the following file " + absolute_path);
-        return;
-    }
-    SourceProvider provider(&stream);
-    Lexer lexer(provider, absolute_path);
+//    auto absolute_path = resolve_rel_parent_path_str(scope.global->root_path, filePath);
+//    std::ifstream stream(absolute_path);
+//    if (stream.fail()) {
+//        scope.error("error couldn't import the following file " + absolute_path);
+//        return;
+//    }
+//    SourceProvider provider(&stream);
+//    Lexer lexer(provider, absolute_path);
 //    lexer.init_complete();
 //    lexer.lex();
     // TODO convert to AST

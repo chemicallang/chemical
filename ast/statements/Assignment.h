@@ -41,8 +41,6 @@ public:
 
     void interpret(InterpretScope& scope) override;
 
-    void interpret_scope_ends(InterpretScope &scope) override;
-
     std::unique_ptr<Value> lhs;
     std::unique_ptr<Value> value;
     InterfaceDefinition* definition;

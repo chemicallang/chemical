@@ -224,10 +224,6 @@ void StructDefinition::interpret(InterpretScope &scope) {
     decl_scope = &scope;
 }
 
-void StructDefinition::interpret_scope_ends(InterpretScope &scope) {
-    decl_scope = nullptr;
-}
-
 ASTNode *StructDefinition::child(const std::string &name) {
     auto node = ExtendableMembersContainerNode::child(name);
     if (node) {

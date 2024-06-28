@@ -179,8 +179,6 @@ void StructValue::set_child_value(const std::string &name, Value *value, Operati
         std::cerr << "couldn't find child by name " + name + " in struct";
         return;
     }
-    // this is probably gonna delete by itself
-    delete ptr->second.release();
     ptr->second = std::unique_ptr<Value>(value);
 }
 
@@ -195,7 +193,7 @@ Value *StructValue::initializer_value(InterpretScope &scope) {
 
 void StructValue::declare_default_values(
         std::unordered_map<std::string,
-                std::unique_ptr<Value>> &into,
+        std::unique_ptr<Value>> &into,
         InterpretScope &scope
 ) {
     Value* defValue;

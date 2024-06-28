@@ -95,14 +95,6 @@ public:
 
     Value *scope_value(InterpretScope &scope) override;
 
-    Value *param_value(InterpretScope &scope) override;
-
-    Value *initializer_value(InterpretScope &scope) override;
-
-    Value *assignment_value(InterpretScope &scope) override;
-
-    Value *return_value(InterpretScope &scope) override;
-
     hybrid_ptr<Value> evaluated_value(InterpretScope &scope) override;
 
     ASTNode *linked_node() override;

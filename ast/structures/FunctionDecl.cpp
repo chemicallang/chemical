@@ -188,7 +188,8 @@ void FunctionDeclaration::code_gen_override(Codegen& gen, FunctionDeclaration* d
 }
 
 void FunctionDeclaration::code_gen_struct(Codegen &gen, StructDefinition* def) {
-    if(has_annotation(AnnotationKind::CompTime)) {
+    if(has_annotation(AnnotationKind::CompTime) && !has_annotation(AnnotationKind::Constructor)) {
+        gen.error("comptime annotation is only allowed on constructor methods");
         return;
     }
     create_fn(gen, this, def->name + "." + name);
@@ -197,7 +198,8 @@ void FunctionDeclaration::code_gen_struct(Codegen &gen, StructDefinition* def) {
 }
 
 void FunctionDeclaration::code_gen_union(Codegen &gen, UnionDef* def) {
-    if(has_annotation(AnnotationKind::CompTime)) {
+    if(has_annotation(AnnotationKind::CompTime) && !has_annotation(AnnotationKind::Constructor)) {
+        gen.error("comptime annotation is only allowed on constructor methods");
         return;
     }
     create_fn(gen, this, def->name + "." + name);
@@ -206,9 +208,6 @@ void FunctionDeclaration::code_gen_union(Codegen &gen, UnionDef* def) {
 }
 
 void FunctionDeclaration::code_gen_constructor(Codegen& gen, StructDefinition* def) {
-    if(has_annotation(AnnotationKind::CompTime)) {
-        return;
-    }
     code_gen_struct(gen, def);
 }
 
@@ -452,8 +451,8 @@ Value *FunctionDeclaration::call(
     InterpretScope *fn_scope
 ) {
     if (!body.has_value()) return nullptr;
-    auto prev_func_type = fn_scope->current_func_type;
-    fn_scope->current_func_type = this;
+    auto prev_func_type = fn_scope->global->current_func_type;
+    fn_scope->global->current_func_type = this;
     auto self_param = get_self_param();
     auto params_given = call_args.size() + (self_param ? parent ? 1 : 0 : 0);
     if (params.size() != params_given) {
@@ -476,7 +475,7 @@ Value *FunctionDeclaration::call(
     if(self_param) {
         fn_scope->erase_value(self_param->name);
     }
-    fn_scope->current_func_type = prev_func_type;
+    fn_scope->global->current_func_type = prev_func_type;
     return interpretReturn;
 }
 

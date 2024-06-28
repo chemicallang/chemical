@@ -129,10 +129,10 @@ llvm::Value* call_with_args(FunctionCall* call, llvm::Function* fn, FunctionType
     }
 }
 
-AccessChain parent_chain(FunctionCall* call, std::vector<std::unique_ptr<Value>>& chain) {
+AccessChain parent_chain(FunctionCall* call, std::vector<std::unique_ptr<Value>>& chain, int till) {
     AccessChain member_access(std::vector<std::unique_ptr<Value>> {});
     unsigned i = 0;
-    while(i < (chain.size() - 1)) {
+    while(i < till) {
         if(chain[i].get() == call) {
             break;
         }
@@ -140,6 +140,14 @@ AccessChain parent_chain(FunctionCall* call, std::vector<std::unique_ptr<Value>>
         i++;
     }
     return member_access;
+}
+
+AccessChain parent_chain(FunctionCall* call, std::vector<std::unique_ptr<Value>>& chain) {
+    return parent_chain(call, chain, chain.size() - 1);
+}
+
+AccessChain grandparent_chain(FunctionCall* call, std::vector<std::unique_ptr<Value>>& chain) {
+    return parent_chain(call, chain, chain.size() - 2);
 }
 
 llvm::Value *call_capturing_lambda(

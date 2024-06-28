@@ -84,11 +84,6 @@ public:
     virtual ~InterpretScope();
 
     /**
-     * current function type
-     */
-    BaseFunctionType* current_func_type = nullptr;
-
-    /**
       * This contains a map between identifiers and its values, of the current scope
       */
     std::unordered_map<std::string, Value *> values;

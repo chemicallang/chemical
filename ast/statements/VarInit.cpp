@@ -144,13 +144,6 @@ void VarInitStatement::declare(Value *new_value) {
     decl_scope->declare(identifier, new_value);
 }
 
-/**
- * called when the value associated with this var init has been moved
- */
-void VarInitStatement::moved() {
-    has_moved = true;
-}
-
 ValueType VarInitStatement::value_type() const {
     if(type.has_value()) {
         return type.value()->value_type();

@@ -12,7 +12,6 @@ func compiler_vector_sum(a : int) {
     var i = 0;
     while(i < vec.size()) {
         sum += vec.get(i);
-        compiler::print(vec.get(i), ',');
         i++;
     }
     return sum

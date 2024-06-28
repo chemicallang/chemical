@@ -106,11 +106,9 @@ void MembersContainer::declare_and_link(SymbolResolver &linker) {
 }
 
 FunctionDeclaration *MembersContainer::member(const std::string &name) {
-    for (const auto &field: functions) {
-        auto decl = field.second->as_function();
-        if (decl != nullptr && decl->name == name) {
-            return decl;
-        }
+    auto func = functions.find(name);
+    if(func != functions.end()) {
+        return func->second.get();
     }
     return nullptr;
 }

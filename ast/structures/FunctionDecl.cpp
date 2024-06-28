@@ -425,14 +425,14 @@ void FunctionDeclaration::declare_and_link(SymbolResolver &linker) {
     linker.current_func_type = prev_func_type;
 }
 
-void FunctionDeclaration::interpret(InterpretScope &scope) {
-    declarationScope = &scope;
-}
-
-Value *FunctionDeclaration::call(InterpretScope *call_scope, std::vector<std::unique_ptr<Value>> &call_params) {
+Value *FunctionDeclaration::call(
+    InterpretScope *call_scope,
+    std::vector<std::unique_ptr<Value>> &call_params,
+    Value* parent
+) {
     if (!body.has_value()) return nullptr;
-    InterpretScope fn_scope(declarationScope, call_scope->global);
-    return call(call_scope, call_params, &fn_scope);
+    InterpretScope fn_scope(nullptr, call_scope->global);
+    return call(call_scope, call_params, parent, &fn_scope);
 }
 
 // called by the return statement
@@ -445,35 +445,38 @@ FunctionDeclaration *FunctionDeclaration::as_function() {
     return this;
 }
 
-Value *FunctionDeclaration::call(InterpretScope *call_scope, std::vector<std::unique_ptr<Value>> &call_params,
-                                 InterpretScope *fn_scope) {
+Value *FunctionDeclaration::call(
+    InterpretScope *call_scope,
+    std::vector<std::unique_ptr<Value>> &call_args,
+    Value* parent,
+    InterpretScope *fn_scope
+) {
     if (!body.has_value()) return nullptr;
-    if (params.size() != call_params.size()) {
+    auto prev_func_type = fn_scope->current_func_type;
+    fn_scope->current_func_type = this;
+    auto self_param = get_self_param();
+    auto params_given = call_args.size() + (self_param ? parent ? 1 : 0 : 0);
+    if (params.size() != params_given) {
         fn_scope->error("function " + name + " requires " + std::to_string(params.size()) + ", but given params are " +
-                        std::to_string(call_params.size()));
+                        std::to_string(call_args.size()));
         return nullptr;
     }
-    auto i = 0;
+    if(self_param) {
+        fn_scope->declare(self_param->name, parent);
+    }
+    auto i = self_param ? 1 : 0;
     while (i < params.size()) {
-        fn_scope->declare(params[i]->name, call_params[i]->param_value(*call_scope));
+        fn_scope->declare(params[i]->name, call_args[i]->param_value(*call_scope));
         i++;
     }
     auto previous = call_scope->global->curr_node_position;
     call_scope->global->curr_node_position = 0;
     body.value().interpret(*fn_scope);
     call_scope->global->curr_node_position = previous;
-    // delete all the primitive values that were copied into the function
-    i--;
-    while (i > -1) {
-        auto itr = fn_scope->find_value_iterator(params[i]->name);
-        if (itr.first != itr.second.end()) {
-            if (itr.first->second != nullptr && itr.first->second->primitive()) {
-                delete itr.first->second;
-            }
-            itr.second.erase(itr.first);
-        }
-        i--;
+    if(self_param) {
+        fn_scope->erase_value(self_param->name);
     }
+    fn_scope->current_func_type = prev_func_type;
     return interpretReturn;
 }
 

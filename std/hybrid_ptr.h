@@ -24,12 +24,19 @@ public:
     }
 
     hybrid_ptr& operator=(hybrid_ptr&& other) noexcept {
-        if (this != &other) {
+        if(other) {
+            if(ptr.get() == other.get() || !should_free) {
+                ptr.release();
+            }
             ptr = std::move(other.ptr);
             should_free = other.should_free;
             other.should_free = false;
         }
         return *this;
+    }
+
+    bool get_will_free() {
+        return should_free;
     }
 
     // Destructor

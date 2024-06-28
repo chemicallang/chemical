@@ -22,6 +22,8 @@ using node_iterator = node_map::iterator;
 using value_map = std::unordered_map<std::string, Value*>;
 using value_iterator = value_map::iterator;
 
+class BaseFunctionType;
+
 class InterpretScope {
 public:
 
@@ -80,6 +82,11 @@ public:
      * must be deleted in the destructor
      */
     virtual ~InterpretScope();
+
+    /**
+     * current function type
+     */
+    BaseFunctionType* current_func_type = nullptr;
 
     /**
       * This contains a map between identifiers and its values, of the current scope

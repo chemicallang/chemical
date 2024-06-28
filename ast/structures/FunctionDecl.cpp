@@ -451,8 +451,6 @@ Value *FunctionDeclaration::call(
     InterpretScope *fn_scope
 ) {
     if (!body.has_value()) return nullptr;
-    auto prev_func_type = fn_scope->global->current_func_type;
-    fn_scope->global->current_func_type = this;
     auto self_param = get_self_param();
     auto params_given = call_args.size() + (self_param ? parent ? 1 : 0 : 0);
     if (params.size() != params_given) {
@@ -475,7 +473,6 @@ Value *FunctionDeclaration::call(
     if(self_param) {
         fn_scope->erase_value(self_param->name);
     }
-    fn_scope->global->current_func_type = prev_func_type;
     return interpretReturn;
 }
 

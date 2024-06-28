@@ -62,11 +62,6 @@ public:
     unsigned int curr_node_position = 0;
 
     /**
-     * current function type
-     */
-    BaseFunctionType* current_func_type = nullptr;
-
-    /**
      * global functions that are evaluated during interpretation
      */
     std::unordered_map<std::string, std::unique_ptr<FunctionDeclaration>> global_fns;

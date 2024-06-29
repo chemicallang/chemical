@@ -80,12 +80,15 @@ enum class LexTokenType : uint8_t {
     CompNot,
     CompStructValue,
 
+    // other things
+    CompGenericList,
+
     // indexes
-    IndexLastToken = CompStructValue,
+    IndexLastToken = CompGenericList,
     IndexAbsStrStart = Keyword,
     IndexAbsStrEnd = RawToken,
     IndexCompStart = CompAssignment,
-    IndexCompEnd = CompStructValue,
+    IndexCompEnd = CompGenericList,
     IndexCompTypeStart = CompArrayType,
     IndexCompTypeEnd = CompPointerType,
     IndexCompValueStart = CompAccessChain,

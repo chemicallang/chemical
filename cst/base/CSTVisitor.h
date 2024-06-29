@@ -281,6 +281,10 @@ public:
         visitCompoundCommon((CompoundCSTToken *) impl);
     }
 
+    virtual void visitGenericList(CompoundCSTToken* list) {
+        visitCompoundCommon((CompoundCSTToken *) list);
+    }
+
     virtual void visitIndexOp(CompoundCSTToken *op) {
         visitCompoundCommon((CompoundCSTToken *) op);
     }

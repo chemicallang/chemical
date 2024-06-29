@@ -474,6 +474,7 @@ set(COMMON_SOURCES
         ast/types/LiteralType.h
         ast/types/Types.cpp
         ast/types/ArrayType.cpp
+        cst/statements/GenericListCST.h
 )
 
 # Chemical LSP Executable Target

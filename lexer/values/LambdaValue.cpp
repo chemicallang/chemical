@@ -3,9 +3,19 @@
 #include "lexer/Lexer.h"
 #include "cst/values/LambdaCST.h"
 
+void Lexer::lexTypeList() {
+    do {
+        lexWhitespaceToken();
+        if (!lexTypeTokens()) {
+            break;
+        }
+        lexWhitespaceToken();
+    } while (lexOperatorToken(','));
+}
+
 void Lexer::lexIdentifierList() {
     do {
-        lexWhitespaceAndNewLines();
+        lexWhitespaceToken();
         if (!lexVariableToken()) {
             break;
         }

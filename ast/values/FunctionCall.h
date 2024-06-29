@@ -14,7 +14,13 @@
 class FunctionCall : public Value {
 public:
 
-    FunctionCall(std::vector<std::unique_ptr<Value>> values);
+    Value* parent_val;
+    std::vector<std::unique_ptr<ReferencedType>> generic_list;
+    std::vector<std::unique_ptr<Value>> values;
+
+    FunctionCall(
+            std::vector<std::unique_ptr<Value>> values
+    );
 
     FunctionCall(FunctionCall &&other) = delete;
 
@@ -106,8 +112,5 @@ public:
     [[nodiscard]] inline FunctionDeclaration* safe_linked_func() const {
         return linked() ? linked()->as_function() : nullptr;
     }
-
-    Value* parent_val;
-    std::vector<std::unique_ptr<Value>> values;
 
 };

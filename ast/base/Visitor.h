@@ -78,6 +78,8 @@ class UBigIntValue;
 
 class UIntValue;
 
+class UCharValue;
+
 class ULongValue;
 
 class UShortValue;
@@ -161,6 +163,8 @@ class ReferencedType;
 class ReferencedValueType;
 
 class ShortType;
+
+class UCharType;
 
 class StringType;
 
@@ -387,6 +391,10 @@ public:
         visitCommonValue((Value*) charVal);
     }
 
+    virtual void visit(UCharValue* charVal) {
+        visitCommonValue((Value*) charVal);
+    }
+
     virtual void visit(StringValue* stringVal) {
         visitCommonValue((Value*) stringVal);
     }
@@ -469,6 +477,10 @@ public:
 
     virtual void visit(CharType* func) {
         visitCommonType((BaseType*) func);
+    }
+
+    virtual void visit(UCharType* uchar) {
+        visitCommonType((BaseType*) uchar);
     }
 
     virtual void visit(DoubleType* func) {

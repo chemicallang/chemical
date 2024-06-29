@@ -4,6 +4,7 @@
 #include "ast/types/AnyType.h"
 #include "ast/types/BoolType.h"
 #include "ast/types/CharType.h"
+#include "ast/types/UCharType.h"
 #include "ast/types/DoubleType.h"
 #include "ast/types/FloatType.h"
 #include "ast/types/IntType.h"
@@ -31,6 +32,10 @@ namespace TypeMakers {
 
     BaseType *make_char_type(bool is64Bit) {
         return new CharType();
+    }
+
+    BaseType *make_uchar_type(bool is64Bit) {
+        return new UCharType();
     }
 
     BaseType *make_double_type(bool is64Bit) {

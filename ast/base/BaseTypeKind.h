@@ -30,4 +30,5 @@ enum class BaseTypeKind : uint8_t {
     Literal,
     Void,
     Unknown
+
 };

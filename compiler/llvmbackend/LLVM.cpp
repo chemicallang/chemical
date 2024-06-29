@@ -9,6 +9,7 @@
 #include "ast/types/ArrayType.h"
 #include "ast/types/BoolType.h"
 #include "ast/types/CharType.h"
+#include "ast/types/UCharType.h"
 #include "ast/types/DoubleType.h"
 #include "ast/types/FloatType.h"
 #include "ast/types/IntNType.h"
@@ -65,6 +66,10 @@ llvm::Type *BoolType::llvm_type(Codegen &gen) {
 }
 
 llvm::Type *CharType::llvm_type(Codegen &gen) {
+    return gen.builder->getInt8Ty();
+}
+
+llvm::Type *UCharType::llvm_type(Codegen &gen) {
     return gen.builder->getInt8Ty();
 }
 

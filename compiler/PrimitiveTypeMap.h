@@ -21,6 +21,8 @@ namespace TypeMakers {
 
     BaseType *make_char_type(bool is64Bit);
 
+    BaseType *make_uchar_type(bool is64Bit);
+
     BaseType *make_double_type(bool is64Bit);
 
     BaseType *make_float_type(bool is64Bit);
@@ -53,6 +55,7 @@ namespace TypeMakers {
             {"any",       TypeMakers::make_any_type},
             {"bool",      TypeMakers::make_bool_type},
             {"char",      TypeMakers::make_char_type},
+            {"uchar",      TypeMakers::make_uchar_type},
             {"double",    TypeMakers::make_double_type},
             {"float",     TypeMakers::make_float_type},
             {"int",       TypeMakers::make_int_type},

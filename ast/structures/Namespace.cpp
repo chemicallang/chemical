@@ -10,7 +10,7 @@ Namespace::Namespace(std::string name) : name(std::move(name)) {
 void Namespace::declare_top_level(SymbolResolver &linker) {
     auto previous = linker.find(name);
     if(previous) {
-        auto root = previous->as_namespace();
+        root = previous->as_namespace();
         if(root) {
             for(auto& node : nodes) {
                 root->extended[node->ns_node_identifier()] = node.get();
@@ -28,8 +28,14 @@ void Namespace::declare_top_level(SymbolResolver &linker) {
 
 void Namespace::declare_and_link(SymbolResolver &linker) {
     linker.scope_start();
-    for(auto& node : nodes) {
-        node->declare_top_level(linker);
+    if(root) {
+        for(auto& node : root->extended) {
+            node.second->declare_top_level(linker);
+        }
+    } else {
+        for(auto& node : nodes) {
+            node->declare_top_level(linker);
+        }
     }
     for(auto& node : nodes) {
         node->declare_and_link(linker);

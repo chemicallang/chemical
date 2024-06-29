@@ -30,6 +30,10 @@ hybrid_ptr<BaseType> TypealiasStatement::get_value_type() {
     return hybrid_ptr<BaseType> { actual_type.get(), false };
 }
 
+uint64_t TypealiasStatement::byte_size(bool is64Bit) {
+    return actual_type->byte_size(is64Bit);
+}
+
 void TypealiasStatement::accept(Visitor *visitor) {
     visitor->visit(this);
 }

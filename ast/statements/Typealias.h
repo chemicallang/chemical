@@ -31,6 +31,8 @@ public:
         return identifier;
     }
 
+    uint64_t byte_size(bool is64Bit) override;
+
     std::unique_ptr<BaseType> create_value_type() override;
 
     hybrid_ptr<BaseType> get_value_type() override;

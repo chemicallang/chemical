@@ -19,6 +19,14 @@ public:
 
     }
 
+    uint64_t byte_size(bool is64Bit) override {
+        if(array_size == -1) {
+            throw std::runtime_error("array size not known, byte size required");
+        } else {
+            return array_size * elem_type->byte_size(is64Bit);
+        }
+    }
+
     void accept(Visitor *visitor) override {
         visitor->visit(this);
     }

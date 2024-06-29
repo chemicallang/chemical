@@ -152,7 +152,9 @@ void StructMember::declare_and_link(SymbolResolver &linker) {
 }
 
 void UnnamedStruct::declare_and_link(SymbolResolver &linker) {
+    linker.scope_start();
     VariablesContainer::declare_and_link(linker);
+    linker.scope_end();
     linker.declare(name, this);
 }
 

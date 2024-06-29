@@ -65,6 +65,8 @@ void UnionDef::declare_and_link(SymbolResolver &linker) {
 }
 
 void UnnamedUnion::declare_and_link(SymbolResolver &linker) {
+    linker.scope_start();
     VariablesContainer::declare_and_link(linker);
+    linker.scope_end();
     linker.declare(name, this);
 }

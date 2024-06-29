@@ -174,11 +174,47 @@ llvm::Value *NullValue::llvm_value(Codegen &gen) {
 }
 
 llvm::Type *StringValue::llvm_type(Codegen &gen) {
-    return gen.builder->getInt8PtrTy();
+    if(is_array) {
+        return llvm::ArrayType::get(gen.builder->getInt8Ty(), length);
+    } else {
+        return gen.builder->getInt8PtrTy();
+    }
 }
 
-llvm::Value * StringValue::llvm_value(Codegen &gen) {
-    return gen.builder->CreateGlobalStringPtr(value);
+llvm::Value *StringValue::llvm_value(Codegen &gen) {
+    if(is_array) {
+        std::vector<llvm::Constant*> arr;
+        for(auto c : value) {
+            arr.emplace_back(gen.builder->getInt8(c));
+        }
+        int remaining = length - value.size();
+        while(remaining > 0) {
+            arr.emplace_back(gen.builder->getInt8('\0'));
+            remaining--;
+        }
+        auto array_type = (llvm::ArrayType*) llvm_type(gen);
+        auto initializer = llvm::ConstantArray::get(array_type, arr);
+        return new llvm::GlobalVariable(
+            *gen.module,
+            array_type,
+            true,
+            llvm::GlobalValue::LinkageTypes::PrivateLinkage,
+            initializer
+        );
+    } else {
+        return gen.builder->CreateGlobalStringPtr(value);
+    }
+}
+
+llvm::AllocaInst *StringValue::llvm_allocate(Codegen &gen, const std::string &identifier) {
+    if(is_array) {
+        auto alloc = gen.builder->CreateAlloca(llvm_type(gen), nullptr);
+        auto arr = llvm_value(gen);
+        gen.builder->CreateMemCpy(alloc, llvm::MaybeAlign(), arr, llvm::MaybeAlign(), length);
+        return alloc;
+    } else {
+        return Value::llvm_allocate(gen, identifier);
+    }
 }
 
 llvm::GlobalVariable * StringValue::llvm_global_variable(Codegen &gen, bool is_const, const std::string &name) {

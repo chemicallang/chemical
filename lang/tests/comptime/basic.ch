@@ -54,6 +54,11 @@ func call_struct_func() : int {
     return x.sum();
 }
 
+@comptime
+func determine_str_len(str : literal::string) {
+    return compiler::strlen(str);
+}
+
 func test_comptime() {
     test("test comptime sum works", () => {
         return comptime_sum(3, 6) == 9;
@@ -76,5 +81,8 @@ func test_comptime() {
     test("test that appropriate comptime constructor function is selected", () => {
         var p = Pair66(10);
         return p.a == 5 && p.b == 5;
+    })
+    test("determine string length, using comptime", () => {
+        return determine_str_len("hello") == 5;
     })
 }

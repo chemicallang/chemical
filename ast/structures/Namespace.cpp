@@ -27,12 +27,14 @@ void Namespace::declare_top_level(SymbolResolver &linker) {
 }
 
 void Namespace::declare_and_link(SymbolResolver &linker) {
+    linker.scope_start();
     for(auto& node : nodes) {
         node->declare_top_level(linker);
     }
     for(auto& node : nodes) {
         node->declare_and_link(linker);
     }
+    linker.scope_end();
 }
 
 ASTNode *Namespace::child(const std::string &child_name) {

@@ -595,14 +595,20 @@ void CSTConverter::visitReferencedValueType(CompoundCSTToken *ref_value) {
         auto id = chain->values[0]->as_identifier();
         if(id->value == "literal" && 1 < chain->values.size()) {
             id = chain->values[1]->as_identifier();
-            auto found = TypeMakers::PrimitiveMap.find(id->value);
-            if(found != TypeMakers::PrimitiveMap.end()) {
-                types.emplace_back(new LiteralType(std::unique_ptr<BaseType>(found->second(is64Bit))));
-                return;
+            BaseType* child_type;
+            if(id->value == "string") {
+                child_type = new StringType();
             } else {
-                error("couldn't find literal type by name " + id->value, ref_value);
-                return;
+                auto found = TypeMakers::PrimitiveMap.find(id->value);
+                if (found != TypeMakers::PrimitiveMap.end()) {
+                    child_type = found->second(is64Bit);
+                } else {
+                    error("couldn't find literal type by name " + id->value, ref_value);
+                    return;
+                }
             }
+            types.emplace_back(new LiteralType(std::unique_ptr<BaseType>(child_type)));
+            return;
         }
     }
     types.emplace_back(std::move(ref));

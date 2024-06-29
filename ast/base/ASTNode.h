@@ -186,6 +186,20 @@ public:
     }
 
     /**
+     * return if this is an unnamed union
+     */
+    virtual UnnamedUnion *as_unnamed_union() {
+        return nullptr;
+    }
+
+    /**
+     * return if this is an unnamed struct
+     */
+    virtual UnnamedStruct *as_unnamed_struct() {
+        return nullptr;
+    }
+
+    /**
      * return if this is a typealias statement
      */
     virtual TypealiasStatement *as_typealias() {

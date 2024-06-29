@@ -10,6 +10,7 @@ public:
     std::string name;
     std::vector<std::unique_ptr<ASTNode>> nodes;
     std::unordered_map<std::string, ASTNode*> extended;
+    Namespace* root = nullptr; // the root's namespace extended map contains pointers to all nodes
 
     /**
      * constructor

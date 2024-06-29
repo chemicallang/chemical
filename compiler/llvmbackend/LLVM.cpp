@@ -456,8 +456,7 @@ bool access_chain_store_in_parent(
         if(func_type->returnType->value_type() == ValueType::Struct) {
             auto elem_pointer = Value::get_element_pointer(gen, parent->llvm_type(gen), allocated, idxList, index);
             std::vector<llvm::Value *> args;
-            args.emplace_back(elem_pointer);
-            func_call->llvm_chain_value(gen, args, chain->values, chain->values.size() - 1);
+            func_call->llvm_chain_value(gen, args, chain->values, chain->values.size() - 1, elem_pointer);
             return true;
         }
     }

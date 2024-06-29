@@ -83,7 +83,8 @@ public:
             Codegen &gen,
             std::vector<llvm::Value*>& args,
             std::vector<std::unique_ptr<Value>>& chain,
-            unsigned int until
+            unsigned int until,
+            llvm::Value* returnedStruct = nullptr
     );
 
     llvm::Value * access_chain_value(Codegen &gen, std::vector<std::unique_ptr<Value>> &values, unsigned until) override;

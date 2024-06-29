@@ -19,6 +19,10 @@ Value *IntType::create(int64_t value) {
     return new IntValue(value);
 }
 
+Value *CharType::create(int64_t value) {
+    return new CharValue(value);
+}
+
 Value *UCharType::create(int64_t value) {
     return new UCharValue(value);
 }

@@ -2,18 +2,28 @@
 
 #pragma once
 
-#include "ast/base/BaseType.h"
+#include "IntNType.h"
 
-class CharType : public BaseType {
+class CharType : public IntNType {
 public:
 
     uint64_t byte_size(bool is64Bit) override {
         return 1;
     }
 
+    unsigned int num_bits() const override {
+        return 8;
+    }
+
+    bool is_unsigned() override {
+        return false;
+    }
+
     void accept(Visitor *visitor) override {
         visitor->visit(this);
     }
+
+    Value *create(int64_t value) override;
 
     bool satisfies(ValueType type) const override {
         return type == ValueType::Char;

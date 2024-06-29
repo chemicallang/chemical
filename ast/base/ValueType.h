@@ -17,6 +17,7 @@ enum class ValueType : uint8_t {
     // integer number values start here
     Int,
     UInt,
+    Char,
     UChar,
     Short,
     UShort,
@@ -31,7 +32,6 @@ enum class ValueType : uint8_t {
     Float,
     Double,
     Bool,
-    Char,
     String,
     Expression,
     Array,

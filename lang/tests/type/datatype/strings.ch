@@ -19,4 +19,12 @@ func test_strings() {
         var str = "\n\t";
         return str[0] == '\n' && str[1] == '\t';
     })
+    test("string arrays work too", () => {
+        var str : char[] = "hello"
+        return str[0] == 'h' && str[4] == 'o' && str[5] == '\0'
+    })
+    test("string arrays over sized work too", () => {
+        var str : char[10] = "hello"
+        return str[0] == 'h' && str[4] == 'o' && str[5] == '\0' && str[6] == '\0' && str[9] == '\0';
+    })
 }

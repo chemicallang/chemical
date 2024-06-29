@@ -6,6 +6,7 @@
 #include <utility>
 #include "ast/types/VoidType.h"
 #include "ast/values/IntValue.h"
+#include "ast/values/UBigIntValue.h"
 #include "ast/values/StructValue.h"
 #include "compiler/SymbolResolver.h"
 #include "ast/structures/Namespace.h"
@@ -13,6 +14,7 @@
 #include "ast/structures/FunctionParam.h"
 #include "ast/types/PointerType.h"
 #include "ast/types/ReferencedType.h"
+#include "ast/types/UBigIntType.h"
 #include "preprocess/RepresentationVisitor.h"
 
 namespace InterpretVector {
@@ -155,6 +157,31 @@ public:
     }
 };
 
+class InterpretStrLen : public FunctionDeclaration {
+public:
+    explicit InterpretStrLen() : FunctionDeclaration(
+            "strlen",
+            std::vector<std::unique_ptr<FunctionParam>> {},
+            std::make_unique<UBigIntType>(),
+            true,
+            std::nullopt
+    ) {
+
+    }
+    Value *call(InterpretScope *call_scope, std::vector<std::unique_ptr<Value>> &call_args, Value *parent_val, InterpretScope *fn_scope) override {
+        if(call_args.empty()) {
+            call_scope->error("strlen called without arguments");
+            return nullptr;
+        }
+        auto value = call_args[0]->evaluated_value(*call_scope);
+        if(value->reference() || value->value_type() != ValueType::String) {
+            call_scope->error("strlen called with invalid arguments");
+            return nullptr;
+        }
+        return new UBigIntValue(value->as_string().length());
+    }
+};
+
 void GlobalInterpretScope::prepare_compiler_functions(SymbolResolver& resolver) {
 
     global_nodes["compiler"] = std::make_unique<Namespace>("compiler");
@@ -162,6 +189,7 @@ void GlobalInterpretScope::prepare_compiler_functions(SymbolResolver& resolver) 
     resolver.declare("compiler", compiler_ns);
 
     compiler_ns->nodes.emplace_back(new InterpretPrint());
+    compiler_ns->nodes.emplace_back(new InterpretStrLen());
     compiler_ns->nodes.emplace_back(new InterpretVector::InterpretVectorNode());
 
     compiler_ns->declare_top_level(resolver);

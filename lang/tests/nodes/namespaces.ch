@@ -15,13 +15,13 @@ namespace cool {
 }
 
 namespace cool {
-    func pair2_ext_sum(p : Pair2*) : int {
-        return pair2_sum(p);
+    func pair2_ext_sum(p : cool::Pair2*) : int {
+        return cool::pair2_sum(p);
     }
-    func pair2_indirect_mul(p : Pair2*) : int {
-        return pair2_mul(p);
+    func pair2_indirect_mul(p : cool::Pair2*) : int {
+        return cool::pair2_mul(p);
     }
-    func pair2_mul(p : Pair2*) : int {
+    func pair2_mul(p : cool::Pair2*) : int {
         return p.a * p.b;
     }
 }

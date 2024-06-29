@@ -98,8 +98,10 @@ void MembersContainer::declare_and_link(SymbolResolver &linker) {
     for (const auto &var: variables) {
         var.second->declare_and_link(linker);
     }
-    for (const auto &func: functions) {
+    for(const auto& func : functions) {
         func.second->declare_top_level(linker);
+    }
+    for (const auto &func: functions) {
         func.second->declare_and_link(linker);
     }
     linker.scope_end();

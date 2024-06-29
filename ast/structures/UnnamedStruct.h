@@ -33,6 +33,10 @@ public:
 
     hybrid_ptr<BaseType> get_value_type() override;
 
+    UnnamedStruct *as_unnamed_struct() override {
+        return this;
+    }
+
 #ifdef COMPILER_BUILD
 
     llvm::Type *llvm_type(Codegen &gen) override;

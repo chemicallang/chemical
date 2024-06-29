@@ -33,6 +33,10 @@ public:
 
     hybrid_ptr<BaseType> get_value_type() override;
 
+    UnnamedUnion *as_unnamed_union() override {
+        return this;
+    }
+
 #ifdef COMPILER_BUILD
 
     llvm::Type * llvm_type(Codegen &gen) override;

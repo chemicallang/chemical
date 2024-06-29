@@ -25,8 +25,7 @@ void VariableIdentifier::prepend_self(SymbolResolver &linker, std::unique_ptr<Va
 void VariableIdentifier::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
     linked = linker.find(value);
     if(linked) {
-        auto member = linked->as_struct_member();
-        if(member) {
+        if(linked->as_struct_member() || linked->as_unnamed_union() || linked->as_unnamed_struct()) {
             if(!linker.current_func_type) {
                 linker.error("couldn't link identifier with struct member / function, with name '" + value + '\'');
                 return;

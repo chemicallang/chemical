@@ -11,3 +11,15 @@ bool chain_contains_func_call(std::vector<std::unique_ptr<Value>>& values, int s
     }
     return false;
 }
+
+void evaluate_values(std::vector<std::unique_ptr<Value>>& values, InterpretScope& scope) {
+    for(auto& value : values) {
+        auto evaluated = value->evaluated_value(scope);
+        if(evaluated.get() == value.get()) continue;
+        if(evaluated.get_will_free()) {
+            value.reset(evaluated.release());
+        } else {
+            value.reset(evaluated->copy());
+        }
+    }
+}

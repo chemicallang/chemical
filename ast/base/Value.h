@@ -539,6 +539,14 @@ std::cerr << "child called on base value";
     }
 
     /**
+     * evaluate the children of this value, if this is called on a function call
+     * the arguments of the function call will be
+     */
+    virtual void evaluate_children(InterpretScope& scope) {
+
+    }
+
+    /**
      * called by access chain, to evaluate this value, in the parent
      */
     virtual hybrid_ptr<Value> evaluated_chain_value(InterpretScope& scope, hybrid_ptr<Value>& parent) {

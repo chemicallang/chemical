@@ -4,6 +4,7 @@
 #include "Variableidentifier.h"
 #include "compiler/SymbolResolver.h"
 #include "ast/base/BaseType.h"
+#include "ast/utils/ASTUtils.h"
 
 uint64_t AccessChain::byte_size(bool is64Bit) {
     return values[values.size() - 1]->byte_size(is64Bit);
@@ -73,6 +74,12 @@ Value *AccessChain::parent(InterpretScope &scope) {
         i++;
     }
     return current;
+}
+
+void AccessChain::evaluate_children(InterpretScope &scope) {
+    for(auto& value : values) {
+        value->evaluate_children(scope);
+    }
 }
 
 inline hybrid_ptr<Value> AccessChain::parent_value(InterpretScope &scope) {

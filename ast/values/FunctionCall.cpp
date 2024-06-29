@@ -214,7 +214,8 @@ llvm::Value* FunctionCall::llvm_chain_value(
 
     auto decl = safe_linked_func();
     if(decl && decl->has_annotation(AnnotationKind::CompTime)) {
-        auto val = std::unique_ptr<Value>(decl->call(&gen.comptime_scope, values, nullptr));
+        auto ret = std::unique_ptr<Value>(decl->call(&gen.comptime_scope, values, nullptr));
+        auto val = ret->evaluated_value(gen.comptime_scope);
         if(!val) {
             gen.error("compile time function didn't return a value");
             return nullptr;
@@ -383,6 +384,10 @@ hybrid_ptr<Value> FunctionCall::evaluated_value(InterpretScope &scope) {
 hybrid_ptr<Value> FunctionCall::evaluated_chain_value(InterpretScope &scope, hybrid_ptr<Value> &parent) {
     auto value = interpret_value(this, scope, parent.get());
     return hybrid_ptr<Value>{ value };
+}
+
+void FunctionCall::evaluate_children(InterpretScope &scope) {
+    evaluate_values(values, scope);
 }
 
 Value *FunctionCall::copy() {

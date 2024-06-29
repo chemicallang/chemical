@@ -85,6 +85,8 @@ public:
         return this;
     }
 
+    void evaluate_children(InterpretScope &scope) override;
+
     Value *parent(InterpretScope &scope);
 
     inline hybrid_ptr<Value> parent_value(InterpretScope &scope);

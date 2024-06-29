@@ -59,6 +59,15 @@ func determine_str_len(str : literal::string) {
     return compiler::strlen(str);
 }
 
+func runtime_sum(a : int, b : int) : int {
+    return a + b;
+}
+
+@comptime
+func sum_multiple(x : int) : int {
+    return compiler::wrap(runtime_sum(x * 2, x * 2));
+}
+
 func test_comptime() {
     test("test comptime sum works", () => {
         return comptime_sum(3, 6) == 9;
@@ -84,5 +93,8 @@ func test_comptime() {
     })
     test("determine string length, using comptime", () => {
         return determine_str_len("hello") == 5;
+    })
+    test("compiler wrap functionally works", () => {
+        return sum_multiple(20) == 80;
     })
 }

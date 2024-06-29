@@ -55,6 +55,8 @@ public:
 
     hybrid_ptr<Value> evaluated_chain_value(InterpretScope &scope, hybrid_ptr<Value> &parent) override;
 
+    void evaluate_children(InterpretScope &scope) override;
+
     Value *copy() override;
 
     void interpret(InterpretScope &scope) override;

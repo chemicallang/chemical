@@ -15,6 +15,7 @@
 #include "ast/types/PointerType.h"
 #include "ast/types/ReferencedType.h"
 #include "ast/types/UBigIntType.h"
+#include "ast/types/AnyType.h"
 #include "preprocess/RepresentationVisitor.h"
 
 namespace InterpretVector {
@@ -170,15 +171,51 @@ public:
     }
     Value *call(InterpretScope *call_scope, std::vector<std::unique_ptr<Value>> &call_args, Value *parent_val, InterpretScope *fn_scope) override {
         if(call_args.empty()) {
-            call_scope->error("strlen called without arguments");
+            call_scope->error("compiler::strlen called without arguments");
             return nullptr;
         }
         auto value = call_args[0]->evaluated_value(*call_scope);
         if(value->reference() || value->value_type() != ValueType::String) {
-            call_scope->error("strlen called with invalid arguments");
+            call_scope->error("compiler::strlen called with invalid arguments");
             return nullptr;
         }
         return new UBigIntValue(value->as_string().length());
+    }
+};
+
+class WrapValue : public Value {
+public:
+    Value* underlying;
+    explicit WrapValue(Value* underlying) : underlying(underlying) {
+
+    }
+    void accept(Visitor *visitor) override {
+        throw std::runtime_error("compiler::wrap value cannot be visited");
+    }
+    Value *scope_value(InterpretScope &scope) override {
+        return new WrapValue(underlying);
+    }
+    hybrid_ptr<Value> evaluated_value(InterpretScope &scope) override {
+        return hybrid_ptr<Value> { underlying, false };
+    }
+};
+
+class InterpretWrap : public FunctionDeclaration {
+public:
+    explicit InterpretWrap() : FunctionDeclaration(
+            "wrap",
+            std::vector<std::unique_ptr<FunctionParam>> {},
+            // TODO fix return type
+            std::make_unique<VoidType>(),
+            true,
+            std::nullopt
+    ) {
+        params.emplace_back(std::make_unique<FunctionParam>("value", std::make_unique<AnyType>(), 0, std::nullopt, this));
+    }
+    Value *call(InterpretScope *call_scope, std::vector<std::unique_ptr<Value>> &call_args, Value *parent_val, InterpretScope *fn_scope) override {
+        auto underlying = call_args[0].get();
+        underlying->evaluate_children(*call_scope);
+        return new WrapValue(underlying);
     }
 };
 
@@ -190,6 +227,7 @@ void GlobalInterpretScope::prepare_compiler_functions(SymbolResolver& resolver) 
 
     compiler_ns->nodes.emplace_back(new InterpretPrint());
     compiler_ns->nodes.emplace_back(new InterpretStrLen());
+    compiler_ns->nodes.emplace_back(new InterpretWrap());
     compiler_ns->nodes.emplace_back(new InterpretVector::InterpretVectorNode());
 
     compiler_ns->declare_top_level(resolver);

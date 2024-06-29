@@ -5,6 +5,8 @@
 #include "ast/values/IntValue.h"
 #include "ast/values/UIntValue.h"
 #include "ast/values/ShortValue.h"
+#include "ast/values/CharValue.h"
+#include "ast/values/UCharValue.h"
 #include "ast/values/UShortValue.h"
 #include "ast/values/LongValue.h"
 #include "ast/values/ULongValue.h"
@@ -15,6 +17,10 @@
 
 Value *IntType::create(int64_t value) {
     return new IntValue(value);
+}
+
+Value *UCharType::create(int64_t value) {
+    return new UCharValue(value);
 }
 
 Value *UIntType::create(int64_t value) {

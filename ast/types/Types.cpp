@@ -4,6 +4,7 @@
 #include "ArrayType.h"
 #include "BoolType.h"
 #include "CharType.h"
+#include "UCharType.h"
 #include "DoubleType.h"
 #include "FloatType.h"
 #include "PointerType.h"
@@ -22,6 +23,10 @@ bool BoolType::satisfies(Value *value) {
 
 bool CharType::satisfies(Value *value) {
     return value->value_type() == ValueType::Char;
+}
+
+bool UCharType::satisfies(Value *value) {
+    return value->value_type() == ValueType::UChar;
 }
 
 bool DoubleType::satisfies(Value *value) {

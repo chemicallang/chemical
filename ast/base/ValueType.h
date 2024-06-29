@@ -17,6 +17,7 @@ enum class ValueType : uint8_t {
     // integer number values start here
     Int,
     UInt,
+    UChar,
     Short,
     UShort,
     Long,

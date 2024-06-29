@@ -1029,14 +1029,15 @@ void CSTConverter::visitGenericType(CompoundCSTToken *cst) {
 }
 
 void CSTConverter::visitArrayType(CompoundCSTToken *arrayType) {
-    convert(arrayType->tokens);
+    arrayType->tokens[0]->accept(this);
+    std::unique_ptr<BaseType> elem_type = type();
     std::optional<std::unique_ptr<Value>> val = std::nullopt;
     if(arrayType->tokens[2]->is_value()) {
         arrayType->tokens[2]->accept(this);
         val.emplace(value());
     }
     auto arraySize = (val.has_value() && val.value()->value_type() == ValueType::Int) ? val.value()->as_int() : -1;
-    types.emplace_back(std::make_unique<ArrayType>(std::move(type()), arraySize));
+    types.emplace_back(std::make_unique<ArrayType>(std::move(elem_type), arraySize));
 }
 
 void CSTConverter::visitFunctionType(CompoundCSTToken *funcType) {

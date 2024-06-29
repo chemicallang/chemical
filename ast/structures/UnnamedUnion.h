@@ -16,6 +16,8 @@ public:
         visitor->visit(this);
     }
 
+    void declare_and_link(SymbolResolver &linker) override;
+
     ASTNode *child(const std::string &name) override {
         return VariablesContainer::child_def_member(name);
     }

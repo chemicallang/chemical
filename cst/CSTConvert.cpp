@@ -318,10 +318,10 @@ std::unique_ptr<BaseType> CSTConverter::type() {
 }
 
 PointerType* current_self_pointer(CSTConverter* converter) {
-    auto type = converter->current_struct_decl ? converter->current_struct_decl->name : (converter->current_interface_decl
-                                                                   ? converter->current_interface_decl->name
-                                                                   : (converter->current_union_decl ? converter->current_union_decl->name : converter->current_impl_decl->struct_name.value()));
-    return new PointerType(std::make_unique<ReferencedType>(type));
+    MembersContainer* current_members_container = converter->current_struct_decl ? converter->current_struct_decl : (converter->current_interface_decl
+                                                                                                              ? converter->current_interface_decl : (converter->current_union_decl ? (MembersContainer*) converter->current_union_decl : converter->current_impl_decl));
+    auto type = current_members_container->ns_node_identifier();
+    return new PointerType(std::make_unique<ReferencedType>(type, current_members_container));
 }
 
 void CSTConverter::visitFunctionParam(CompoundCSTToken *param) {
@@ -949,9 +949,10 @@ void CSTConverter::visitStructDef(CompoundCSTToken *structDef) {
     }
     i = has_override ? i + 3 : i + 1; // positioned at first node or '}'
     auto def = new StructDefinition(str_token(structDef->tokens[named ? 1 : structDef->tokens.size() - 1].get()), overrides);
+    auto prev_struct_decl = current_struct_decl;
     current_struct_decl = def;
     collect_struct_members(this, structDef->tokens, def->variables, def->functions, i);
-    current_struct_decl = nullptr;
+    current_struct_decl = prev_struct_decl;
     nodes.emplace_back(def);
 }
 
@@ -972,7 +973,7 @@ void CSTConverter::visitUnionDef(CompoundCSTToken *unionDef) {
         return;
     }
     bool named = unionDef->tokens[1]->is_identifier();
-    unsigned i = 3; // positioned at first node or '}'
+    unsigned i = named ? 3 : 2; // positioned at first node or '}'
     auto def = new UnionDef(str_token(unionDef->tokens[named ? 1 : unionDef->tokens.size() - 1].get()));
     current_union_decl = def;
     collect_struct_members(this, unionDef->tokens, def->variables, def->functions, i);

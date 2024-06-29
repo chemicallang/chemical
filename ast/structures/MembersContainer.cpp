@@ -164,3 +164,9 @@ int VariablesContainer::variable_index(const std::string &varName) {
     }
     return -1;
 }
+
+void VariablesContainer::declare_and_link(SymbolResolver &linker) {
+    for (auto& variable : variables) {
+        variable.second->declare_and_link(linker);
+    }
+}

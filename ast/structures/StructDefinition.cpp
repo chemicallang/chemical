@@ -151,6 +151,11 @@ void StructMember::declare_and_link(SymbolResolver &linker) {
     }
 }
 
+void UnnamedStruct::declare_and_link(SymbolResolver &linker) {
+    VariablesContainer::declare_and_link(linker);
+    linker.declare(name, this);
+}
+
 ASTNode *StructMember::child(const std::string &childName) {
     auto linked = type->linked_node();
     if (!linked) return nullptr;

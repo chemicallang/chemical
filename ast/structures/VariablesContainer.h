@@ -20,6 +20,8 @@ public:
 
     BaseDefMember* largest_member();
 
+    virtual void declare_and_link(SymbolResolver &linker);
+
 #ifdef COMPILER_BUILD
 
     std::vector<llvm::Type *> elements_type(Codegen &gen);

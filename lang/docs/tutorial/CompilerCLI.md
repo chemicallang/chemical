@@ -59,6 +59,10 @@ Let's see some other options
   - Resources are required by compiler, present at path `./resources` relative to compiler's executable, 
     you can override this directory, used when building compiler by source, they are present in 
     `lib/include` in the current repository
+- `--help`
+  - This document may have gotten old, but this `--help` will provide you with latest commands and options
+  - available in the CLI, with a small description so you can understand what they are for.
+
 
 ### Translate To C
 

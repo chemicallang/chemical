@@ -17,12 +17,18 @@
 class StringValue : public Value, public StringType {
 public:
 
+    std::string value;
+    unsigned int length;
+    bool is_array = false;
+
     /**
      * @brief Construct a new StringValue object.
      *
      * @param value The string value.
      */
-    StringValue(std::string value) : value(std::move(value)) {}
+    StringValue(std::string value) : length(value.size()), value(std::move(value)) {}
+
+    void link(SymbolResolver &linker, VarInitStatement *stmnt) override;
 
     hybrid_ptr<BaseType> get_base_type() override {
         return hybrid_ptr<BaseType> { this, false };
@@ -56,6 +62,8 @@ public:
 
     llvm::Value *llvm_value(Codegen &gen) override;
 
+    llvm::AllocaInst *llvm_allocate(Codegen &gen, const std::string &identifier) override;
+
     llvm::GlobalVariable * llvm_global_variable(Codegen &gen, bool is_const, const std::string &name) override;
 
 #endif
@@ -74,5 +82,4 @@ public:
         return BaseTypeKind::String;
     }
 
-    std::string value; ///< The string value.
 };

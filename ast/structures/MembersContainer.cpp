@@ -147,6 +147,17 @@ FunctionDeclaration* MembersContainer::destructor_func() {
     return nullptr;
 }
 
+bool MembersContainer::requires_destructor() {
+    auto destructor = destructor_func();
+    if(destructor) return true;
+    for(const auto& var : variables) {
+        if(var.second->requires_destructor()) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool MembersContainer::contains_func(FunctionDeclaration* decl) {
     for(auto& function : functions) {
         if(function.second.get() == decl) {

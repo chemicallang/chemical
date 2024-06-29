@@ -62,8 +62,6 @@ public:
         return total_byte_size(is64Bit);
     }
 
-    bool requires_destructor();
-
     FunctionDeclaration* create_destructor();
 
 #ifdef COMPILER_BUILD

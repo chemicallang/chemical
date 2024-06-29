@@ -1149,9 +1149,23 @@ std::vector<std::unique_ptr<Value>> take_values(CSTConverter *converter, const s
 }
 
 void CSTConverter::visitFunctionCall(CompoundCSTToken *call) {
+    std::vector<std::unique_ptr<ReferencedType>> generic_list;
+    if(call->tokens[0]->type() == LexTokenType::CompGenericList) {
+        auto& generic_tokens = call->tokens;
+        unsigned i = 0;
+        CSTToken* token;
+        while(i < generic_tokens.size()) {
+            token = generic_tokens[i].get();
+            if(token->type() == LexTokenType::Variable) {
+                generic_list.emplace_back(new ReferencedType(str_token(token)));
+            }
+            i++;
+        }
+    }
     auto prev_values = std::move(values);
     visit(call->tokens, 1);
     auto func_call = new FunctionCall(std::move(values));
+    func_call->generic_list = std::move(generic_list);
     values = std::move(prev_values);
     values.emplace_back(func_call);
 }

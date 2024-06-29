@@ -195,6 +195,11 @@ public:
     }
 
     /**
+     * lexes a function call, that is args ')' without function name
+     */
+    void lexFunctionCallAfterLParen(unsigned back_start);
+
+    /**
      * after an identifier has been consumed
      * we call this method to lex an access chain after it
      * identifier .element1.element2.element3
@@ -606,6 +611,11 @@ public:
      * lexes access chain like x.y.z or a value like 10, could be int, string, char
      */
     bool lexAccessChainOrValue(bool lexStruct = false);
+
+    /**
+     * lexes a identifier list like id1,id2
+     */
+    void lexTypeList();
 
     /**
      * lexes a identifier list like id1,id2

@@ -13,6 +13,7 @@
 #include "cst/values/AddrOfCST.h"
 #include "cst/values/DereferenceCST.h"
 #include "cst/values/IndexOpCST.h"
+#include "cst/statements/GenericListCST.h"
 
 bool Lexer::storeVariable(const std::string& identifier) {
     if (!identifier.empty()) {
@@ -81,6 +82,21 @@ bool Lexer::lexAccessChainRecursive(bool lexStruct, unsigned chain_length) {
     return lexAccessChainAfterId(lexStruct, chain_length + 1);
 }
 
+void Lexer::lexFunctionCallAfterLParen(unsigned back_start) {
+    unsigned start = tokens.size() - back_start;
+    do {
+        lexWhitespaceToken();
+        if(!lexExpressionTokens()) {
+            break;
+        }
+        lexWhitespaceToken();
+    } while (lexOperatorToken(','));
+    if(!lexOperatorToken(')')) {
+        error("expected a ')' for a function call, after starting ')'");
+    }
+    compound_from<FunctionCallCST>(start);
+}
+
 bool Lexer::lexAccessChainAfterId(bool lexStruct, unsigned chain_length) {
 
     if(lexStruct) {
@@ -110,19 +126,24 @@ bool Lexer::lexAccessChainAfterId(bool lexStruct, unsigned chain_length) {
             } while (lexOperatorToken('['));
             compound_from<IndexOpCST>(start);
         }
-        while (lexOperatorToken('(')) {
-            unsigned start = tokens.size() - 1;
-            do {
-                lexWhitespaceToken();
-                if(!lexExpressionTokens()) {
-                    break;
+        while(true) {
+            if (lexOperatorToken('(')) {
+                lexFunctionCallAfterLParen(1);
+            } else if(lexOperatorToken('<')) {
+                unsigned start = tokens.size() - 1;
+                lexIdentifierList();
+                if(!lexOperatorToken('>')) {
+                    error("expected a '>' for generic list in function call");
                 }
-                lexWhitespaceToken();
-            } while (lexOperatorToken(','));
-            if(!lexOperatorToken(')')) {
-                error("expected a ')' for a function call, after starting ')'");
+                compound_from<GenericListCST>(start);
+                if(lexOperatorToken('(')){
+                    lexFunctionCallAfterLParen(2);
+                } else {
+                    error("expected a '(' after the generic list in function call");
+                }
+            } else {
+                break;
             }
-            compound_from<FunctionCallCST>(start);
         }
     }
 

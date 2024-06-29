@@ -204,7 +204,8 @@ llvm::Value* FunctionCall::llvm_chain_value(
         Codegen &gen,
         std::vector<llvm::Value*>& args,
         std::vector<std::unique_ptr<Value>>& chain,
-        unsigned int until
+        unsigned int until,
+        llvm::Value* returnedStruct
 ) {
 
     auto func_type = func_call_func_type(this);
@@ -213,6 +214,9 @@ llvm::Value* FunctionCall::llvm_chain_value(
     }
 
     auto decl = safe_linked_func();
+    llvm::Value* returnedValue = returnedStruct;
+    auto returnsStruct = func_type->returnType->value_type() == ValueType::Struct;
+
     if(decl && decl->has_annotation(AnnotationKind::CompTime)) {
         auto ret = std::unique_ptr<Value>(decl->call(&gen.comptime_scope, values, nullptr));
         auto val = ret->evaluated_value(gen.comptime_scope);
@@ -221,27 +225,42 @@ llvm::Value* FunctionCall::llvm_chain_value(
             return nullptr;
         }
         auto as_struct = val->as_struct();
-        if(as_struct && !args.empty()) {
-            as_struct->initialize_alloca(args[0], gen);
-            return nullptr;
+        if(as_struct) {
+            if(!returnedStruct) {
+                returnedValue = gen.builder->CreateAlloca(func_type->returnType->llvm_type(gen), nullptr);
+            }
+            as_struct->initialize_alloca((llvm::AllocaInst*) returnedValue, gen);
+            return returnedValue;
         } else {
             return val->llvm_value(gen);
         }
     }
 
+    if(returnsStruct) {
+        if(!returnedStruct) {
+            returnedValue = gen.builder->CreateAlloca(func_type->returnType->llvm_type(gen), nullptr);
+        }
+        args.emplace_back(returnedValue);
+    }
+
     auto fn = decl != nullptr ? decl->llvm_func() : nullptr;
     to_llvm_args(gen, this, func_type.get(), values, args, &chain, until,0);
+
+    llvm::Value* call_value;
 
     if(linked() && linked()->as_struct_member() != nullptr) { // means I'm calling a pointer inside a struct
 
         // creating access chain to the last member as an identifier instead of function call
         auto parent_access = parent_chain(this, chain);
 
-        return gen.builder->CreateCall(linked()->llvm_func_type(gen), parent_access.llvm_value(gen), args);
+        call_value = gen.builder->CreateCall(linked()->llvm_func_type(gen), parent_access.llvm_value(gen), args);
 
+    } else {
+        call_value = call_with_args(this, fn, func_type.get(), gen, args);
     }
 
-    return call_with_args(this, fn, func_type.get(), gen,  args);
+    return returnedValue ? returnedValue : call_value;
+
 }
 
 llvm::Value* FunctionCall::access_chain_value(Codegen &gen, std::vector<std::unique_ptr<Value>> &chain, unsigned until) {
@@ -274,11 +293,9 @@ bool FunctionCall::add_child_index(Codegen &gen, std::vector<llvm::Value *> &ind
 llvm::AllocaInst *FunctionCall::access_chain_allocate(Codegen &gen, std::vector<std::unique_ptr<Value>> &chain_values, unsigned int until) {
     auto func_type = func_call_func_type(this);
     if(func_type->returnType->value_type() == ValueType::Struct) {
-        auto allocaInst = gen.builder->CreateAlloca(func_type->returnType->llvm_type(gen), nullptr);
+        // we allocate the returned struct, llvm_chain_value function
         std::vector<llvm::Value *> args;
-        args.emplace_back(allocaInst);
-        llvm_chain_value(gen, args, chain_values, until);
-        return allocaInst;
+        return (llvm::AllocaInst*) llvm_chain_value(gen, args, chain_values, until);
     } else {
         return Value::access_chain_allocate(gen, chain_values, until);
     }

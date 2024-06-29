@@ -7,6 +7,16 @@ struct Pair66 {
 
     @comptime
     @constructor
+    func check(value : bool) {
+        if(value){
+            return compiler::wrap(first())
+        } else {
+            return compiler::wrap(second())
+        }
+    }
+
+    @comptime
+    @constructor
     func pair2() {
         return Pair66 {
             a : 10,
@@ -20,6 +30,22 @@ struct Pair66 {
         return Pair66 {
             a : d / 2
             b : d / 2
+        }
+    }
+
+    @constructor
+    func first() {
+        return Pair {
+            a : 15,
+            b : 15
+        }
+    }
+
+    @constructor
+    func second() {
+        return Pair {
+            a : 20,
+            b : 20
         }
     }
 
@@ -90,6 +116,14 @@ func test_comptime() {
     test("test that appropriate comptime constructor function is selected", () => {
         var p = Pair66(10);
         return p.a == 5 && p.b == 5;
+    })
+    test("test comptime constructor can delegate to actual constructor - 1", () => {
+        var p = Pair66(true)
+        return p.a == 15 && p.b == 15;
+    })
+    test("test comptime constructor can delegate to actual constructor - 2", () => {
+        var p = Pair66(false)
+        return p.a == 20 && p.b == 20;
     })
     test("determine string length, using comptime", () => {
         return determine_str_len("hello") == 5;

@@ -19,6 +19,7 @@
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/structures/TryCatch.h"
 #include "ast/structures/DoWhileLoop.h"
+#include "ast/structures/Namespace.h"
 #include "ast/structures/If.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/ForLoop.h"
@@ -173,6 +174,12 @@ void CommonVisitor::visit(WhileLoop *loop) {
 void CommonVisitor::visit(DoWhileLoop *loop) {
     loop->body.accept(this);
     loop->condition->accept(this);
+}
+
+void CommonVisitor::visit(Namespace *ns) {
+    for(auto& node : ns->nodes){
+        node->accept(this);
+    }
 }
 
 void CommonVisitor::visit(ForLoop *loop) {

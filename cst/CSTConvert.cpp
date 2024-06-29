@@ -319,8 +319,14 @@ std::unique_ptr<BaseType> CSTConverter::type() {
 
 PointerType* current_self_pointer(CSTConverter* converter) {
     MembersContainer* current_members_container = converter->current_struct_decl ? converter->current_struct_decl : (converter->current_interface_decl
-                                                                                                              ? converter->current_interface_decl : (converter->current_union_decl ? (MembersContainer*) converter->current_union_decl : converter->current_impl_decl));
-    auto type = current_members_container->ns_node_identifier();
+                                                                                                              ? converter->current_interface_decl : ((MembersContainer*) converter->current_union_decl));
+    std::string type;
+    if(!current_members_container && converter->current_impl_decl) {
+        current_members_container = converter->current_impl_decl;
+        type = converter->current_impl_decl->struct_name.value();
+    } else {
+        type = current_members_container->ns_node_identifier();
+    }
     return new PointerType(std::make_unique<ReferencedType>(type, current_members_container));
 }
 

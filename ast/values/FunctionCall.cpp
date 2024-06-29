@@ -337,7 +337,6 @@ void FunctionCall::find_link_in_parent(Value *parent, SymbolResolver &resolver) 
         auto constructorFunc = parent_struct->constructor_func(values);
         if(constructorFunc) {
             parent_id->linked = constructorFunc;
-            constructorFunc->ensure_constructor(parent_struct);
         } else {
             resolver.error("struct with name " + parent_struct->name + " doesn't have a constructor that satisfies given arguments " + representation(), parent_struct);
         }

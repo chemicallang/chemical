@@ -213,6 +213,11 @@ void StructDefinition::declare_top_level(SymbolResolver &linker) {
 
 void StructDefinition::declare_and_link(SymbolResolver &linker) {
     MembersContainer::declare_and_link(linker);
+    for(auto& func : functions) {
+        if(func.second->has_annotation(AnnotationKind::Constructor)) {
+            func.second->ensure_constructor(this);
+        }
+    }
 }
 
 StructDefinition *StructDefinition::as_struct_def() {

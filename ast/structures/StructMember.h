@@ -29,6 +29,8 @@ public:
 
     ASTNode *child(const std::string &name) override;
 
+    bool requires_destructor() override;
+
     StructMember *as_struct_member() override {
         return this;
     }

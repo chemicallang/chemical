@@ -18,6 +18,11 @@ public:
 
     void declare_and_link(SymbolResolver &linker) override;
 
+    // TODO destructor support for struct
+    bool requires_destructor() override {
+        return false;
+    }
+
     ASTNode *child(const std::string &name) override {
         return VariablesContainer::child_def_member(name);
     }

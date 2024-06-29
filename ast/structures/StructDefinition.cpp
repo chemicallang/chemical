@@ -189,16 +189,8 @@ StructDefinition::StructDefinition(
     }
 }
 
-bool StructDefinition::requires_destructor() {
-    auto destructor = destructor_func();
-    if(destructor) return true;
-    for(const auto& var : variables) {
-        auto mem_type = var.second->get_value_type();
-        if(mem_type->value_type() == ValueType::Struct && mem_type->linked_node()->as_struct_def()->requires_destructor()) {
-            return true;
-        }
-    }
-    return false;
+bool StructMember::requires_destructor() {
+    return type->value_type() == ValueType::Struct && type->linked_node()->as_struct_def()->requires_destructor();
 }
 
 FunctionDeclaration* StructDefinition::create_destructor() {

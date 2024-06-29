@@ -32,6 +32,11 @@ public:
     FunctionDeclaration* constructor_func(std::vector<std::unique_ptr<Value>>& forArgs);
 
     /**
+     * checks if this struct type requires destructor
+     */
+    bool requires_destructor();
+
+    /**
      * will provide a destructor function if there's one
      */
     FunctionDeclaration* destructor_func();

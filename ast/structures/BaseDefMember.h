@@ -13,6 +13,8 @@ public:
         std::string name
     );
 
+    virtual bool requires_destructor() = 0;
+
     virtual Value* default_value() {
         return nullptr;
     }

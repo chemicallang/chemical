@@ -74,6 +74,9 @@ bool translate(
     ToCAstVisitor visitor(output_ptr, path);
     prepare(&visitor, &processor);
 
+    // allow user the compiler (namespace) functions in @comptime
+    visitor.comptime_scope.prepare_compiler_functions(resolver);
+
     // preparing translation
     visitor.prepare_translate();
 

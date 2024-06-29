@@ -2,6 +2,7 @@
 
 #include "ast/base/Visitor.h"
 #include "compiler/ASTDiagnoser.h"
+#include "ast/base/GlobalInterpretScope.h"
 #include <iosfwd>
 #include <string>
 #include <vector>
@@ -19,6 +20,11 @@ class MembersContainer;
 
 class ToCAstVisitor : public Visitor, public ASTDiagnoser {
 public:
+
+    /**
+     * compile time interpret scope
+     */
+    GlobalInterpretScope comptime_scope;
 
     /**
      * this option is here to support struct initialization in tinyCC compiler
@@ -318,6 +324,8 @@ public:
     void visit(TernaryValue* ternary) override;
 
     void visit(LambdaFunction* func) override;
+
+    void visit(LiteralType *func) override;
 
     void visit(AnyType* func) override;
 

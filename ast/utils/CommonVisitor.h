@@ -27,6 +27,8 @@ public:
 
     void visit(StructDefinition *structDefinition) override;
 
+    void visit(Namespace *ns) override;
+
     void visit(StructMember *member) override;
 
     void visit(LambdaFunction *func) override;

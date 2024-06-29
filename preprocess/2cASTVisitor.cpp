@@ -50,6 +50,7 @@
 #include "ast/types/Int128Type.h"
 #include "ast/types/IntNType.h"
 #include "ast/types/IntType.h"
+#include "ast/types/LiteralType.h"
 #include "ast/types/LongType.h"
 #include "ast/types/ShortType.h"
 #include "ast/types/StringType.h"
@@ -441,8 +442,12 @@ class CAfterStmtVisitor : public CommonVisitor, public SubVisitor {
 };
 
 void CBeforeStmtVisitor::visit(FunctionCall *call) {
-    CommonVisitor::visit(call);
     auto func_type = call->create_function_type();
+    auto decl = call->safe_linked_func();
+    if(decl && decl->has_annotation(AnnotationKind::CompTime)) {
+        return;
+    }
+    CommonVisitor::visit(call);
     if(func_type->returnType->value_type() == ValueType::Struct) {
         auto linked = func_type->returnType->linked_node();
         if(linked->as_struct_def()) {
@@ -475,6 +480,8 @@ public:
 
     CValueDeclarationVisitor* value_visitor;
 
+    std::string namespace_id;
+
     CTopLevelDeclarationVisitor(
             ToCAstVisitor* visitor,
             CValueDeclarationVisitor* value_visitor
@@ -487,6 +494,8 @@ public:
     void visit(ExtensionFunction *extensionFunc) override;
 
     void visit(StructDefinition *structDefinition) override;
+
+    void visit(Namespace *ns) override;
 
     void visit(UnionDef *def) override;
 
@@ -812,6 +821,9 @@ void func_that_returns_func_proto(ToCAstVisitor* visitor, FunctionDeclaration* d
 }
 
 void declare_func_with_return(ToCAstVisitor* visitor, FunctionDeclaration* decl, const std::string& name) {
+    if(decl->has_annotation(AnnotationKind::CompTime)) {
+        return;
+    }
     if(visitor->inline_fn_types_in_returns && decl->returnType->function_type() && !decl->returnType->function_type()->isCapturing) {
         func_that_returns_func_proto(visitor, decl, name, decl->returnType->function_type());
     } else {
@@ -827,6 +839,9 @@ void declare_func_with_return(ToCAstVisitor* visitor, FunctionDeclaration* decl,
 }
 
 void declare_by_name(CTopLevelDeclarationVisitor* tld, FunctionDeclaration* decl, const std::string& name) {
+    if(decl->has_annotation(AnnotationKind::CompTime)) {
+        return;
+    }
     declare_params(tld->value_visitor, decl->params);
     if(!tld->visitor->inline_fn_types_in_returns || decl->returnType->function_type() == nullptr) {
         decl->returnType->accept(tld->value_visitor);
@@ -838,6 +853,9 @@ void declare_by_name(CTopLevelDeclarationVisitor* tld, FunctionDeclaration* decl
 
 // when a function is inside struct / interface
 void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaration* decl, const std::string& name, bool overrides) {
+    if(decl->has_annotation(AnnotationKind::CompTime)) {
+        return;
+    }
     declare_params(tld->value_visitor, decl->params);
     if(!tld->visitor->inline_fn_types_in_returns || decl->returnType->function_type() == nullptr) {
         decl->returnType->accept(tld->value_visitor);
@@ -875,21 +893,21 @@ void CTopLevelDeclarationVisitor::visit(FunctionDeclaration *decl) {
 //    if(decl->returnType->function_type() && decl->returnType->function_type()->isCapturing) {
 //        visitor->error("Function name " + decl->name + " returns a capturing lambda, which is not supported");
 //    }
-    declare_by_name(this, decl, decl->name);
+    declare_by_name(this, decl, namespace_id + decl->name);
 }
 
 void CTopLevelDeclarationVisitor::visit(ExtensionFunction *decl) {
-    declare_by_name(this, decl, decl->name);
+    declare_by_name(this, decl, namespace_id + decl->name);
 }
 
 void CValueDeclarationVisitor::visit(FunctionDeclaration *decl) {
-    if(decl->body.has_value()) {
+    if(decl->body.has_value() && !decl->has_annotation(AnnotationKind::CompTime)) {
         decl->body.value().accept(this);
     }
 }
 
 void CValueDeclarationVisitor::visit(ExtensionFunction *decl) {
-    if(decl->body.has_value()) {
+    if(decl->body.has_value() && !decl->has_annotation(AnnotationKind::CompTime)) {
         decl->body.value().accept(this);
     }
 }
@@ -919,6 +937,7 @@ void CTopLevelDeclarationVisitor::visit(TypealiasStatement *stmt) {
     write("typedef ");
     stmt->actual_type->accept(visitor);
     write(' ');
+    write(namespace_id);
     write(stmt->identifier);
     write(';');
 }
@@ -926,6 +945,7 @@ void CTopLevelDeclarationVisitor::visit(TypealiasStatement *stmt) {
 void CTopLevelDeclarationVisitor::visit(UnionDef *def) {
     visitor->new_line_and_indent();
     write("union ");
+    write(namespace_id);
     write(def->name);
     write(" {");
     visitor->indentation_level+=1;
@@ -941,12 +961,21 @@ void CTopLevelDeclarationVisitor::visit(UnionDef *def) {
     }
 }
 
+void CTopLevelDeclarationVisitor::visit(Namespace *ns) {
+    namespace_id += ns->name;
+    for(auto& node : ns->nodes) {
+        node->accept(this);
+    }
+    namespace_id = namespace_id.substr(0, namespace_id.size() - ns->name.size());
+}
+
 void CTopLevelDeclarationVisitor::visit(StructDefinition *def) {
     // no need to forward declare struct when inlining function types
     if(!visitor->inline_struct_members_fn_types) {
         // forward declaring struct for function types that take a pointer to it
         visitor->new_line_and_indent();
         write("struct ");
+        write(namespace_id);
         write(def->name);
         write(';');
     }
@@ -955,6 +984,7 @@ void CTopLevelDeclarationVisitor::visit(StructDefinition *def) {
     }
     visitor->new_line_and_indent();
     write("struct ");
+    write(namespace_id);
     write(def->name);
     write(" {");
     visitor->indentation_level+=1;
@@ -1034,6 +1064,7 @@ void ToCAstVisitor::prepare_translate() {
     write("#include <stddef.h>\n");
     // declaring a fat pointer
     declare_fat_pointer(this);
+    ExpressionEvaluator::prepareFunctions(comptime_scope);
 }
 
 ToCAstVisitor::~ToCAstVisitor() = default;
@@ -1203,7 +1234,7 @@ void ToCAstVisitor::visit(FunctionParam *functionParam) {
 }
 
 void func_decl_with_name(ToCAstVisitor* visitor, FunctionDeclaration* decl, const std::string& name) {
-    if(!decl->body.has_value()) {
+    if(!decl->body.has_value() || decl->has_annotation(AnnotationKind::CompTime)) {
         return;
     }
     auto prev_func_decl = visitor->current_func_type;
@@ -1219,7 +1250,7 @@ void func_decl_with_name(ToCAstVisitor* visitor, FunctionDeclaration* decl, cons
 }
 
 void contained_func_decl(ToCAstVisitor* visitor, FunctionDeclaration* decl, const std::string& name, bool overrides, ExtendableMembersContainerNode* def) {
-    if(!decl->body.has_value()) {
+    if(!decl->body.has_value() || decl->has_annotation(AnnotationKind::CompTime)) {
         return;
     }
     auto prev_func_decl = visitor->current_func_type;
@@ -1435,7 +1466,6 @@ void ToCAstVisitor::visit(UnionDef *def) {
 
 void ToCAstVisitor::visit(Namespace *ns) {
     for(auto& node : ns->nodes) {
-        new_line_and_indent();
         node->accept(this);
     }
 }
@@ -1501,6 +1531,9 @@ void func_container_name(ToCAstVisitor* visitor, ASTNode* parent_node, ASTNode* 
 }
 
 void write_accessor(ToCAstVisitor* visitor, Value* current) {
+    if(current->linked_node() && current->linked_node()->as_namespace()) {
+        return;
+    }
     if (current->type_kind() == BaseTypeKind::Pointer) {
         visitor->write("->");
     } else {
@@ -1509,11 +1542,22 @@ void write_accessor(ToCAstVisitor* visitor, Value* current) {
 }
 
 void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& values, unsigned start, unsigned end) {
-    auto grandpa = ((int) end) - 3 >= 0 ? values[end - 3].get() : nullptr;
+    auto last = values[end - 1]->as_func_call();
+    auto func_decl = last->safe_linked_func();
     auto parent = values[end - 2].get();
+    if(func_decl && func_decl->has_annotation(AnnotationKind::CompTime)) {
+        auto value = std::unique_ptr<Value>(func_decl->call(&visitor->comptime_scope, last->values, nullptr));
+        if(!value) {
+            visitor->error("comptime function call didn't return anything");
+            return;
+        }
+        auto eval = value->evaluated_value(visitor->comptime_scope);
+        eval->accept(visitor);
+        return;
+    }
+    auto grandpa = ((int) end) - 3 >= 0 ? values[end - 3].get() : nullptr;
     auto parent_type = parent->create_type();
     auto func_type = parent_type->function_type();
-    auto last = values[end - 1]->as_func_call();
     bool is_lambda = (parent->linked_node() != nullptr && parent->linked_node()->as_struct_member() != nullptr);
     if(visitor->pass_structs_to_initialize && func_type->returnType->value_type() == ValueType::Struct) {
         // functions that return struct
@@ -1554,7 +1598,7 @@ void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& valu
             access_chain(visitor, values, start, end - 1);
             visitor->nested_value = false;
         }, last);
-    } else if(grandpa) {
+    } else if(grandpa && !grandpa->linked_node()->as_namespace()) {
         auto grandpaType = grandpa->create_type();
         if(grandpa->linked_node() && (grandpa->linked_node()->as_interface_def() || grandpa->linked_node()->as_struct_def())) {
             // direct functions on interfaces and structs
@@ -1978,6 +2022,10 @@ void ToCAstVisitor::visit(LambdaFunction *func) {
 
 void ToCAstVisitor::visit(AnyType *func) {
 
+}
+
+void ToCAstVisitor::visit(LiteralType *literal) {
+    literal->underlying->accept(this);
 }
 
 void ToCAstVisitor::visit(ArrayType *type) {

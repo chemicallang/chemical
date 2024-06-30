@@ -285,6 +285,8 @@ void param_type_with_id(ToCAstVisitor* visitor, BaseType* type, const std::strin
 }
 
 void func_call_args(ToCAstVisitor* visitor, FunctionCall* call) {
+    auto prev_value = visitor->nested_value;
+    visitor->nested_value = true;
     unsigned i = 0;
     while(i < call->values.size()) {
         auto& val = call->values[i];
@@ -294,6 +296,7 @@ void func_call_args(ToCAstVisitor* visitor, FunctionCall* call) {
         }
         i++;
     }
+    visitor->nested_value = prev_value;
 }
 
 void access_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& values, unsigned start, unsigned end, unsigned size);
@@ -1263,20 +1266,10 @@ void ToCAstVisitor::visit(ReturnStatement *returnStatement) {
             auto structType = refType->linked_node()->as_struct_def();
             auto size = structType->variables.size();
             i = 0;
-            for(const auto& mem : structType->variables) {
-                write(struct_passed_param_name);
-                write("->");
-                write(mem.first);
-                write(" = ");
-                val->accept(this);
-                write('.');
-                write(mem.first);
-                if(i != size - 1){
-                    write(';');
-                    new_line_and_indent();
-                }
-                i++;
-            }
+            write('*');
+            write(struct_passed_param_name);
+            write(" = ");
+            val->accept(this);
         } else {
             write("return ");
            val->accept(this);

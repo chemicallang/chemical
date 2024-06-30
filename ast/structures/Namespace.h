@@ -11,11 +11,16 @@ public:
     std::vector<std::unique_ptr<ASTNode>> nodes;
     std::unordered_map<std::string, ASTNode*> extended;
     Namespace* root = nullptr; // the root's namespace extended map contains pointers to all nodes
+    ASTNode* parent_node;
 
     /**
      * constructor
      */
-    explicit Namespace(std::string name);
+    Namespace(std::string name, ASTNode* parent_node);
+
+    ASTNode *parent() override {
+        return parent_node;
+    }
 
     Namespace *as_namespace() override {
         return this;

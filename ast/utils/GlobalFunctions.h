@@ -23,9 +23,10 @@ public:
             std::vector<std::unique_ptr<FunctionParam>> params,
             std::unique_ptr<BaseType> returnType,
             bool isVariadic,
+            ASTNode* parent_node,
             std::optional<LoopScope> body = std::nullopt
     ) : lambda(std::move(lambda)),
-        FunctionDeclaration(std::move(name), std::move(params), std::move(returnType), isVariadic, std::move(body)) {
+        FunctionDeclaration(std::move(name), std::move(params), std::move(returnType), isVariadic, parent_node, std::move(body)) {
 
     }
 

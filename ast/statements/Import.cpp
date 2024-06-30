@@ -9,8 +9,11 @@
 
 namespace fs = std::filesystem;
 
-ImportStatement::ImportStatement(std::string filePath, std::vector<std::string> identifiers) : filePath(
-        std::move(filePath)), identifiers(std::move(identifiers)) {
+ImportStatement::ImportStatement(
+        std::string filePath,
+        std::vector<std::string> identifiers,
+        ASTNode* parent_node
+) : filePath(std::move(filePath)), identifiers(std::move(identifiers)), parent_node(parent_node) {
     this->filePath.shrink_to_fit();
 }
 

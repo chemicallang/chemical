@@ -25,7 +25,7 @@ void AccessChain::declare_and_link(SymbolResolver &linker) {
     }
 }
 
-AccessChain::AccessChain(std::vector<std::unique_ptr<Value>> values) : values(std::move(values)) {
+AccessChain::AccessChain(std::vector<std::unique_ptr<Value>> values, ASTNode* parent_node) : values(std::move(values)), parent_node(parent_node) {
 
 }
 

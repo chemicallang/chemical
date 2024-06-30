@@ -66,9 +66,14 @@ public:
 
     /**
      * these are nodes that should be added before adding a node
-     * these nodes were created by tra
+     * these nodes were created by translation
      */
     std::vector<std::unique_ptr<ASTNode>> before_nodes;
+
+    /**
+     * nodes being added belong to this parent node
+     */
+    ASTNode* parent_node = nullptr;
 
     /**
      * constructor

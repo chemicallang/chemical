@@ -5,8 +5,9 @@
 
 TypealiasStatement::TypealiasStatement(
         std::string identifier,
-        std::unique_ptr<BaseType> actual_type
-) : identifier(std::move(identifier)), actual_type(std::move(actual_type)) {
+        std::unique_ptr<BaseType> actual_type,
+        ASTNode* parent_node
+) : identifier(std::move(identifier)), actual_type(std::move(actual_type)), parent_node(parent_node) {
 
 }
 

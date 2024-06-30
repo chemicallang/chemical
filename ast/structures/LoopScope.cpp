@@ -16,7 +16,7 @@ void LoopScope::interpret(InterpretScope &scope) {
 }
 
 
-LoopScope::LoopScope(std::vector<std::unique_ptr<ASTNode>> nodes) : Scope(std::move(nodes)) {
+LoopScope::LoopScope(std::vector<std::unique_ptr<ASTNode>> nodes, ASTNode* parent_node) : Scope(std::move(nodes), parent_node) {
 
 }
 

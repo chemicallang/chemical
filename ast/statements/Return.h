@@ -14,13 +14,22 @@ class BaseFunctionType;
 class ReturnStatement : public ASTNode {
 public:
 
+    ASTNode* parent_node;
     BaseFunctionType* func_type = nullptr;
     std::optional<std::unique_ptr<Value>> value;
 
     /**
      * @brief Construct a new ReturnStatement object.
      */
-    ReturnStatement(std::optional<std::unique_ptr<Value>> value, BaseFunctionType *declaration);
+    ReturnStatement(
+        std::optional<std::unique_ptr<Value>> value,
+        BaseFunctionType *declaration,
+        ASTNode* parent_node
+    );
+
+    ASTNode *parent() override {
+        return parent_node;
+    }
 
     void interpret(InterpretScope &scope) override;
 

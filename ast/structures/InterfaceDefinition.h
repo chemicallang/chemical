@@ -17,15 +17,22 @@
 class InterfaceDefinition : public ExtendableMembersContainerNode {
 public:
 
+    ASTNode* parent_node;
+
     /**
      * @brief Construct a new InterfaceDeclaration object.
      *
      * @param name The name of the interface.
      * @param methods The methods declared in the interface.
      */
-    explicit InterfaceDefinition(
-            std::string name
+    InterfaceDefinition(
+            std::string name,
+            ASTNode* parent_node
     );
+
+    ASTNode *parent() override {
+        return parent_node;
+    }
 
     std::string ns_node_identifier() override {
         return name;

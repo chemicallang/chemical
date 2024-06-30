@@ -113,9 +113,10 @@ IfStatement::IfStatement(
         std::unique_ptr<Value> condition,
         Scope ifBody,
         std::vector<std::pair<std::unique_ptr<Value>, Scope>> elseIfs,
-        std::optional<Scope> elseBody
+        std::optional<Scope> elseBody,
+        ASTNode* parent_node
 ) : condition(std::move(condition)), ifBody(std::move(ifBody)),
-    elseIfs(std::move(elseIfs)), elseBody(std::move(elseBody)) {}
+    elseIfs(std::move(elseIfs)), elseBody(std::move(elseBody)), parent_node(parent_node) {}
 
 void IfStatement::accept(Visitor *visitor) {
     visitor->visit(this);

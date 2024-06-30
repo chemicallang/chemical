@@ -82,8 +82,9 @@ VarInitStatement::VarInitStatement(
         bool is_const,
         std::string identifier,
         std::optional<std::unique_ptr<BaseType>> type,
-        std::optional<std::unique_ptr<Value>> value
-) : is_const(is_const), identifier(std::move(identifier)), type(std::move(type)), value(std::move(value)) {}
+        std::optional<std::unique_ptr<Value>> value,
+        ASTNode* parent_node
+) : is_const(is_const), identifier(std::move(identifier)), type(std::move(type)), value(std::move(value)), parent_node(parent_node) {}
 
 std::unique_ptr<BaseType> VarInitStatement::create_value_type() {
     if(type.has_value()) {
@@ -132,7 +133,6 @@ void VarInitStatement::interpret(InterpretScope &scope) {
     if (value.has_value()) {
         auto initializer = value.value()->initializer_value(scope);
         scope.declare(identifier, initializer);
-        is_reference = initializer == nullptr || !initializer->primitive();
     }
     decl_scope = &scope;
 }

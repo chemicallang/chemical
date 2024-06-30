@@ -28,6 +28,7 @@ public:
     AccessSpecifier specifier;
     std::string name; ///< The name of the function;
     std::optional<LoopScope> body; ///< The body of the function.
+    ASTNode* parent_node;
 
 #ifdef COMPILER_BUILD
     llvm::FunctionType *funcType;
@@ -47,8 +48,13 @@ public:
             std::vector<std::unique_ptr<FunctionParam>> params,
             std::unique_ptr<BaseType> returnType,
             bool isVariadic,
+            ASTNode* parent_node,
             std::optional<LoopScope> body = std::nullopt
     );
+
+    ASTNode *parent() override {
+        return parent_node;
+    }
 
     std::string ns_node_identifier() override {
         return name;

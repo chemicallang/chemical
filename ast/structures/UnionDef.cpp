@@ -44,7 +44,7 @@ llvm::Type *UnionDef::llvm_type(Codegen &gen) {
 
 #endif
 
-UnnamedUnion::UnnamedUnion(std::string name) : BaseDefMember(std::move(name)) {
+UnnamedUnion::UnnamedUnion(std::string name, ASTNode* parent_node) : BaseDefMember(std::move(name)), parent_node(parent_node) {
 
 }
 
@@ -52,7 +52,7 @@ hybrid_ptr<BaseType> UnnamedUnion::get_value_type() {
     return largest_member()->get_value_type();
 }
 
-UnionDef::UnionDef(std::string name) : ExtendableMembersContainerNode(std::move(name)) {
+UnionDef::UnionDef(std::string name, ASTNode* parent_node) : ExtendableMembersContainerNode(std::move(name)), parent_node(parent_node) {
 
 }
 

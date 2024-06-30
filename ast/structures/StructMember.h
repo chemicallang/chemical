@@ -11,12 +11,18 @@ public:
 
     std::unique_ptr<BaseType> type;
     std::optional<std::unique_ptr<Value>> defValue;
+    ASTNode* parent_node;
 
     StructMember(
             std::string name,
             std::unique_ptr<BaseType> type,
-            std::optional<std::unique_ptr<Value>> defValue
+            std::optional<std::unique_ptr<Value>> defValue,
+            ASTNode* parent_node
     );
+
+    ASTNode *parent() override {
+        return parent_node;
+    }
 
     Value *default_value() override {
         if(defValue.has_value()) return defValue->get();

@@ -39,8 +39,9 @@ llvm::Type* InterfaceDefinition::llvm_type(Codegen &gen) {
 #endif
 
 InterfaceDefinition::InterfaceDefinition(
-        std::string name
-) : ExtendableMembersContainerNode(std::move(name)) {
+        std::string name,
+        ASTNode* parent_node
+) : ExtendableMembersContainerNode(std::move(name)), parent_node(parent_node) {
 
 }
 

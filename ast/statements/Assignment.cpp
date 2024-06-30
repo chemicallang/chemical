@@ -5,8 +5,11 @@
 AssignStatement::AssignStatement(
         std::unique_ptr<Value> lhs,
         std::unique_ptr<Value> value,
-        Operation assOp
-) : lhs(std::move(lhs)), value(std::move(value)), assOp(assOp) {}
+        Operation assOp,
+        ASTNode* parent_node
+) : lhs(std::move(lhs)), value(std::move(value)), assOp(assOp), parent_node(parent_node) {
+
+}
 
 void AssignStatement::accept(Visitor *visitor) {
     visitor->visit(this);

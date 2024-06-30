@@ -15,6 +15,12 @@
 class AssignStatement : public ASTNode {
 public:
 
+    std::unique_ptr<Value> lhs;
+    std::unique_ptr<Value> value;
+    InterfaceDefinition* definition;
+    Operation assOp;
+    ASTNode* parent_node;
+
     /**
      * @brief Construct a new AssignStatement object.
      *
@@ -24,8 +30,13 @@ public:
     AssignStatement(
             std::unique_ptr<Value> lhs,
             std::unique_ptr<Value> value,
-            Operation assOp
+            Operation assOp,
+            ASTNode* parent_node
     );
+
+    ASTNode *parent() override {
+        return parent_node;
+    }
 
     void accept(Visitor *visitor) override;
 
@@ -41,8 +52,4 @@ public:
 
     void interpret(InterpretScope& scope) override;
 
-    std::unique_ptr<Value> lhs;
-    std::unique_ptr<Value> value;
-    InterfaceDefinition* definition;
-    Operation assOp;
 };

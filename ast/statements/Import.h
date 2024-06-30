@@ -18,12 +18,24 @@ class ASTDiagnoser;
 class ImportStatement : public ASTNode {
 public:
 
+    std::vector<std::string> identifiers;
+    std::string filePath; ///< The file path to import.
+    ASTNode* parent_node;
+
     /**
      * @brief Construct a new ImportStatement object.
      *
      * @param filePath The file path to import.
      */
-    ImportStatement(std::string filePath, std::vector<std::string> identifiers);
+    ImportStatement(
+        std::string filePath,
+        std::vector<std::string> identifiers,
+        ASTNode* parent_node
+    );
+
+    ASTNode *parent() override {
+        return parent_node;
+    }
 
     void accept(Visitor *visitor) override;
 
@@ -36,8 +48,5 @@ public:
     void declare_top_level(SymbolResolver &linker) override;
 
     void interpret(InterpretScope &scope);
-
-    std::vector<std::string> identifiers;
-    std::string filePath; ///< The file path to import.
 
 };

@@ -10,12 +10,20 @@
 #include "ast/base/LoopASTNode.h"
 
 class ContinueStatement : public ASTNode {
+private:
+    LoopASTNode *node;
 public:
+
+    ASTNode* parent_node;
 
     /**
      * @brief Construct a new ContinueStatement object.
      */
-    explicit ContinueStatement(LoopASTNode *node);
+    ContinueStatement(LoopASTNode *node, ASTNode* parent_node);
+
+    ASTNode *parent() override {
+        return parent_node;
+    }
 
     void accept(Visitor *visitor) override;
 
@@ -24,8 +32,5 @@ public:
 #endif
 
     void interpret(InterpretScope &scope) override;
-
-private:
-    LoopASTNode *node;
 
 };

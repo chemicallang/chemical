@@ -14,6 +14,12 @@
 class ImplDefinition : public MembersContainer {
 public:
 
+    InterfaceDefinition* linked;
+    StructDefinition* struct_linked;
+    std::optional<std::string> struct_name; ///< The name of the struct.
+    std::string interface_name;
+    ASTNode* parent_node;
+
     /**
      * @brief Construct a new ImplDefinition object.
      *
@@ -22,8 +28,13 @@ public:
      */
     ImplDefinition(
             std::string interface_name,
-            std::optional<std::string> struct_name
-    ) : struct_name(std::move(struct_name)), interface_name(std::move(interface_name)) {}
+            std::optional<std::string> struct_name,
+            ASTNode* parent_node
+    ) : struct_name(std::move(struct_name)), interface_name(std::move(interface_name)), parent_node(parent_node) {}
+
+    ASTNode *parent() override {
+        return parent_node;
+    }
 
     void accept(Visitor *visitor) override {
         visitor->visit(this);
@@ -60,8 +71,4 @@ public:
         type_check(scope);
     }
 
-    InterfaceDefinition* linked;
-    StructDefinition* struct_linked;
-    std::optional<std::string> struct_name; ///< The name of the struct.
-    std::string interface_name;
 };

@@ -11,13 +11,21 @@
 #include "Scope.h"
 
 class DoWhileLoop : public LoopASTNode {
+private:
+    bool stoppedInterpretation = false;
 public:
+    std::unique_ptr<Value> condition;
+    ASTNode* parent_node;
 
     /**
      * Initialize an empty do while loop
      */
-    DoWhileLoop() {
+    explicit DoWhileLoop(ASTNode* parent) : parent_node(parent) {
 
+    }
+
+    ASTNode * parent() override {
+        return parent_node;
     }
 
     /**
@@ -40,8 +48,4 @@ public:
 
     void stopInterpretation() override;
 
-    std::unique_ptr<Value> condition;
-
-private:
-    bool stoppedInterpretation = false;
 };

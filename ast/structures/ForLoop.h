@@ -14,13 +14,16 @@
 class ForLoop : public LoopASTNode {
 public:
 
+    ASTNode* parent_node;
+
     /**
      * @brief Construct a new ForLoop object with an empty body
      */
     ForLoop(
             std::unique_ptr<VarInitStatement> initializer,
             std::unique_ptr<Value> conditionExpr,
-            std::unique_ptr<ASTNode> incrementerExpr
+            std::unique_ptr<ASTNode> incrementerExpr,
+            ASTNode* parent_node
     );
 
     /**
@@ -30,8 +33,13 @@ public:
             std::unique_ptr<VarInitStatement> initializer,
             std::unique_ptr<Value> conditionExpr,
             std::unique_ptr<ASTNode> incrementerExpr,
-            LoopScope body
+            LoopScope body,
+            ASTNode* parent_node
     );
+
+    ASTNode *parent() override {
+        return parent_node;
+    }
 
     void accept(Visitor *visitor) override;
 

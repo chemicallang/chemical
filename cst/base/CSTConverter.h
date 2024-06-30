@@ -125,6 +125,11 @@ public:
     std::vector<Annotation> annotations;
 
     /**
+     * all nodes being parsed belong to this function type
+     */
+    ASTNode* parent_node = nullptr;
+
+    /**
      * This is a pointer to current function type,
      * All nodes being parsed belong to this function type
      */

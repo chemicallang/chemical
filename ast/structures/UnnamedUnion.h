@@ -8,9 +8,16 @@
 class UnnamedUnion : public BaseDefMember, public VariablesContainer {
 public:
 
-    explicit UnnamedUnion(
-        std::string name
+    ASTNode* parent_node;
+
+    UnnamedUnion(
+        std::string name,
+        ASTNode* parent_node
     );
+
+    ASTNode *parent() override {
+        return parent_node;
+    }
 
     void accept(Visitor *visitor) override {
         visitor->visit(this);

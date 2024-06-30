@@ -36,18 +36,18 @@ namespace InterpretVector {
 
     class InterpretVectorConstructor : public FunctionDeclaration {
     public:
-        InterpretVectorNode* node;
-        explicit InterpretVectorConstructor(InterpretVectorNode* node) : node(node), FunctionDeclaration(
+        explicit InterpretVectorConstructor(InterpretVectorNode* node) : FunctionDeclaration(
                 "constructor",
                 std::vector<std::unique_ptr<FunctionParam>> {},
                 std::make_unique<ReferencedType>("Vector", node),
                 false,
+                (ASTNode*) node,
                 std::nullopt
         ) {
             annotations.emplace_back(AnnotationKind::Constructor);
         }
         Value *call(InterpretScope *call_scope, std::vector<std::unique_ptr<Value>> &call_args, Value *parent_val, InterpretScope *fn_scope) override {
-            return new InterpretVectorVal(node);
+            return new InterpretVectorVal((InterpretVectorNode*) parent_node);
         }
     };
 
@@ -58,6 +58,7 @@ namespace InterpretVector {
             std::vector<std::unique_ptr<FunctionParam>> {},
             std::make_unique<IntType>(),
             false,
+            (ASTNode*) node,
             std::nullopt
         ) {
             params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>("Vector", (ASTNode*) node)), 0, std::nullopt, this));
@@ -74,6 +75,7 @@ namespace InterpretVector {
                 std::vector<std::unique_ptr<FunctionParam>> {},
                 std::make_unique<IntType>(),
                 false,
+                (ASTNode*) node,
                 std::nullopt
         ) {
             params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>("Vector", (ASTNode*) node)), 0, std::nullopt, this));
@@ -89,6 +91,7 @@ namespace InterpretVector {
                 std::vector<std::unique_ptr<FunctionParam>> {},
                 std::make_unique<VoidType>(),
                 false,
+                (ASTNode*) node,
                 std::nullopt
         ) {
             params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>("Vector", (ASTNode*) node)), 0, std::nullopt, this));
@@ -105,6 +108,7 @@ namespace InterpretVector {
                 std::vector<std::unique_ptr<FunctionParam>> {},
                 std::make_unique<VoidType>(),
                 false,
+                (ASTNode*) node,
                 std::nullopt
         ) {
             params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>("Vector", (ASTNode*) node)), 0, std::nullopt, this));
@@ -118,7 +122,7 @@ namespace InterpretVector {
 
     class InterpretVectorNode : public StructDefinition {
     public:
-        InterpretVectorNode() : StructDefinition("Vector", std::nullopt) {
+        explicit InterpretVectorNode(ASTNode* parent_node) : StructDefinition("Vector", std::nullopt, parent_node) {
             functions["constructor"] = std::make_unique<InterpretVectorConstructor>(this);
             functions["size"] = std::make_unique<InterpretVectorSize>(this);
             functions["get"] = std::make_unique<InterpretVectorGet>(this);
@@ -133,11 +137,12 @@ class InterpretPrint : public FunctionDeclaration {
 public:
     std::ostringstream ostring;
     RepresentationVisitor visitor;
-    explicit InterpretPrint() : FunctionDeclaration(
+    explicit InterpretPrint(ASTNode* parent_node) : FunctionDeclaration(
             "print",
             std::vector<std::unique_ptr<FunctionParam>> {},
             std::make_unique<VoidType>(),
             true,
+            parent_node,
             std::nullopt
     ), visitor(ostring) {
         visitor.interpret_representation = true;
@@ -160,11 +165,12 @@ public:
 
 class InterpretStrLen : public FunctionDeclaration {
 public:
-    explicit InterpretStrLen() : FunctionDeclaration(
+    explicit InterpretStrLen(ASTNode* parent_node) : FunctionDeclaration(
             "strlen",
             std::vector<std::unique_ptr<FunctionParam>> {},
             std::make_unique<UBigIntType>(),
             true,
+            parent_node,
             std::nullopt
     ) {
 
@@ -202,12 +208,13 @@ public:
 
 class InterpretWrap : public FunctionDeclaration {
 public:
-    explicit InterpretWrap() : FunctionDeclaration(
+    explicit InterpretWrap(ASTNode* parent_node) : FunctionDeclaration(
             "wrap",
             std::vector<std::unique_ptr<FunctionParam>> {},
             // TODO fix return type
             std::make_unique<VoidType>(),
             true,
+            parent_node,
             std::nullopt
     ) {
         params.emplace_back(std::make_unique<FunctionParam>("value", std::make_unique<AnyType>(), 0, std::nullopt, this));
@@ -221,14 +228,14 @@ public:
 
 void GlobalInterpretScope::prepare_compiler_functions(SymbolResolver& resolver) {
 
-    global_nodes["compiler"] = std::make_unique<Namespace>("compiler");
+    global_nodes["compiler"] = std::make_unique<Namespace>("compiler", nullptr);
     auto compiler_ns = (Namespace*) global_nodes["compiler"].get();
     resolver.declare("compiler", compiler_ns);
 
-    compiler_ns->nodes.emplace_back(new InterpretPrint());
-    compiler_ns->nodes.emplace_back(new InterpretStrLen());
-    compiler_ns->nodes.emplace_back(new InterpretWrap());
-    compiler_ns->nodes.emplace_back(new InterpretVector::InterpretVectorNode());
+    compiler_ns->nodes.emplace_back(new InterpretPrint(compiler_ns));
+    compiler_ns->nodes.emplace_back(new InterpretStrLen(compiler_ns));
+    compiler_ns->nodes.emplace_back(new InterpretWrap(compiler_ns));
+    compiler_ns->nodes.emplace_back(new InterpretVector::InterpretVectorNode(compiler_ns));
 
     compiler_ns->declare_top_level(resolver);
     compiler_ns->declare_and_link(resolver);

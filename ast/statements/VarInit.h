@@ -16,6 +16,13 @@
 class VarInitStatement : public ASTNode {
 public:
 
+    bool is_const;
+    InterpretScope *decl_scope = nullptr;
+    std::string identifier; ///< The identifier being initialized.
+    std::optional<std::unique_ptr<BaseType>> type;
+    std::optional<std::unique_ptr<Value>> value; ///< The value being assigned to the identifier.
+    ASTNode* parent_node;
+
     /**
      * @brief Construct a new InitStatement object.
      *
@@ -26,8 +33,13 @@ public:
             bool is_const,
             std::string identifier,
             std::optional<std::unique_ptr<BaseType>> type,
-            std::optional<std::unique_ptr<Value>> value
+            std::optional<std::unique_ptr<Value>> value,
+            ASTNode* parent_node
     );
+
+    ASTNode *parent() override {
+        return parent_node;
+    }
 
     void accept(Visitor *visitor) override;
 
@@ -90,14 +102,6 @@ public:
     ValueType value_type() const override;
 
     BaseTypeKind type_kind() const override;
-
-    bool is_const;
-    bool is_reference = false;
-    bool has_moved = false;
-    InterpretScope *decl_scope = nullptr;
-    std::string identifier; ///< The identifier being initialized.
-    std::optional<std::unique_ptr<BaseType>> type;
-    std::optional<std::unique_ptr<Value>> value; ///< The value being assigned to the identifier.
 
 #ifdef COMPILER_BUILD
     llvm::Value *llvm_ptr;

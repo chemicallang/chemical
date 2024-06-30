@@ -58,7 +58,7 @@ std::vector<FlatIGFile> ASTProcessor::flat_imports() {
 ASTImportResult ASTProcessor::import_file(const FlatIGFile &file) {
 
     auto& abs_path = file.abs_path;
-    Scope scope;
+    Scope scope(nullptr);
     auto is_c_file = abs_path.ends_with(".h") || abs_path.ends_with(".c");
 
     if (is_c_file) {
@@ -90,7 +90,7 @@ ASTImportResult ASTProcessor::import_file(const FlatIGFile &file) {
             printTokens(lexer->tokens);
         }
         if (lexer->has_errors) {
-            return {{},false};
+            return {{ nullptr },false};
         }
 
         // convert the tokens
@@ -121,9 +121,9 @@ ASTImportResult ASTProcessor::import_file(const FlatIGFile &file) {
         resolver->has_errors = prev_has_errors;
     }
     if (resolver->has_errors) {
-        return {{}, false};
+        return {{ nullptr }, false};
     }
-    return {std::move(scope), true};
+    return { std::move(scope), true};
 }
 
 void ASTProcessor::end() {

@@ -16,6 +16,7 @@ public:
             std::vector<std::unique_ptr<FunctionParam>> params,
             std::unique_ptr<BaseType> returnType,
             bool isVariadic,
+            ASTNode* parent_node,
             std::optional<LoopScope> body = std::nullopt
     );
 

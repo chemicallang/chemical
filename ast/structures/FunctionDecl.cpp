@@ -356,10 +356,11 @@ FunctionDeclaration::FunctionDeclaration(
         func_params params,
         std::unique_ptr<BaseType> returnType,
         bool isVariadic,
+        ASTNode* parent_node,
         std::optional<LoopScope> body
 ) : BaseFunctionType(std::move(params), std::move(returnType), isVariadic),
     name(std::move(name)),
-    body(std::move(body)) {
+    body(std::move(body)), parent_node(parent_node) {
 
     params.shrink_to_fit();
     if(this->name == "main") {
@@ -380,9 +381,8 @@ void FunctionDeclaration::ensure_destructor(StructDefinition* def) {
     }
     returnType = std::make_unique<VoidType>();
     if(!body.has_value()) {
-        std::vector<std::unique_ptr<ASTNode>> nodes;
-        nodes.emplace_back(new ReturnStatement(std::nullopt, this));
-        body.emplace(std::move(nodes));
+        body.emplace(std::vector<std::unique_ptr<ASTNode>> {}, this);
+        body.value().nodes.emplace_back(new ReturnStatement(std::nullopt, this, &body.value()));
     }
 }
 

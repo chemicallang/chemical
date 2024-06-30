@@ -75,6 +75,12 @@ public:
     }
 
     /**
+     * this function provides a pointer to the parent ASTNode
+     * a var init inside for loop, gets a pointer to the for loop
+     */
+    virtual ASTNode *parent() = 0;
+
+    /**
      * return a child ASTNode* at index, called by index operator
      * WARNING : index can be -1, if not known at compile time !
      */

@@ -2163,6 +2163,11 @@ void ToCAstVisitor::visit(ReferencedType *type) {
             return;
         }
     }
+    auto parent = type->linked->parent();
+    if(parent && parent->as_namespace()) {
+        auto ns = parent->as_namespace();
+        write(ns->name);
+    }
     write(type->type);
 }
 

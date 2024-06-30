@@ -11,6 +11,8 @@
 #include "ast/base/Value.h"
 #include "ast/structures/FunctionDeclaration.h"
 
+class ASTDiagnoser;
+
 class FunctionCall : public Value {
 public:
 
@@ -42,6 +44,8 @@ public:
     FunctionCall *as_func_call() override;
 
     ASTNode *linked_node() override;
+
+    void find_link_in_parent(Value *parent, ASTDiagnoser* diagnoser) override;
 
     void find_link_in_parent(Value *parent, SymbolResolver &resolver) override;
 

@@ -39,6 +39,8 @@ class FunctionCall;
 
 class BaseType;
 
+class ASTDiagnoser;
+
 /**
  * @brief Base class for all values in the AST.
  */
@@ -101,10 +103,20 @@ public:
     }
 
     /**
-     * find linked node in given parent node
+     * find linked node in given parent node, This doesn't pass a symbol
+     * resolver, values that are present in access chain, identifiers,
+     * function calls and others must override this method, these values
+     * find link through parent value, only, in the other function where
+     * symbol resolver is passed, make a call to this function and implement
+     * functionality that requires symbol resolver in that function
+     *
+     * This allows re linking values when parent has changed due to copying of
+     * access chain, which happens a lot in comptime functions
+     *
+     * The diagnoser must also be checked because it can be passed as nullptr
      */
-    virtual void find_link_in_parent(Value* parent){
-        // does nothing
+    virtual void find_link_in_parent(Value* parent, ASTDiagnoser* diagnoser) {
+        // by default, does nothing
     }
 
     /**
@@ -118,7 +130,7 @@ public:
      * find linked node in given parent node, symbol resolver is passed in resolution phase
      */
     virtual void find_link_in_parent(Value* parent, SymbolResolver& resolver) {
-        return find_link_in_parent(parent);
+        return find_link_in_parent(parent, nullptr);
     }
 
     /**

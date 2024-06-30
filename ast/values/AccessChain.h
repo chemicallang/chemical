@@ -34,9 +34,13 @@ public:
 
     void link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) override;
 
+    void link_without_parent();
+
     void declare_and_link(SymbolResolver &linker) override;
 
     void accept(Visitor *visitor) override;
+
+    Value *copy() override;
 
     bool primitive() override;
 

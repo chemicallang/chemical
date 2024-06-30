@@ -48,8 +48,17 @@ ASTNode* VariableIdentifier::linked_node() {
     return linked;
 }
 
+void VariableIdentifier::find_link_in_parent(Value *parent, ASTDiagnoser *diagnoser) {
+    auto linked_node = parent->linked_node();
+    if(linked_node) {
+        linked = parent->linked_node()->child(value);
+    } else if (diagnoser){
+        diagnoser->error("couldn't link child '" + value + "' because parent '" + parent->representation() + "' couldn't be resolved.");
+    }
+}
+
 void VariableIdentifier::find_link_in_parent(Value *parent, SymbolResolver &resolver) {
-    linked = parent->linked_node()->child(value);
+    find_link_in_parent(parent, &resolver);
 }
 
 Value *VariableIdentifier::child(InterpretScope &scope, const std::string &name) {

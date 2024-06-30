@@ -108,6 +108,10 @@ Value *IndexOperator::find_in(InterpretScope &scope, Value *parent) {
     return nullptr;
 }
 
+void IndexOperator::find_link_in_parent(Value *parent, ASTDiagnoser *diagnoser) {
+    parent_val = parent;
+}
+
 void IndexOperator::find_link_in_parent(Value *parent, SymbolResolver &resolver) {
     parent_val = parent;
     for(auto& value : values) {

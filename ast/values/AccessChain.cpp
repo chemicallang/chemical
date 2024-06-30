@@ -14,6 +14,16 @@ void AccessChain::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr
     declare_and_link(linker);
 }
 
+void AccessChain::link_without_parent() {
+    if (values.size() > 1) {
+        unsigned i = 1;
+        while (i < values.size()) {
+            values[i]->find_link_in_parent(values[i - 1].get(), nullptr);
+            i++;
+        }
+    }
+}
+
 void AccessChain::declare_and_link(SymbolResolver &linker) {
     values[0]->link(linker, values[0]);
     if (values.size() > 1) {
@@ -55,6 +65,15 @@ bool AccessChain::primitive() {
 
 bool AccessChain::reference() {
     return true;
+}
+
+Value *AccessChain::copy() {
+    auto chain = new AccessChain(parent_node);
+    for(auto& value : values) {
+        chain->values.emplace_back(value->copy());
+    }
+    chain->link_without_parent();
+    return chain;
 }
 
 void AccessChain::interpret(InterpretScope &scope) {

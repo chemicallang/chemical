@@ -22,8 +22,7 @@ struct string {
     @comptime
     @constructor
     func make(value : literal::string) {
-        var len = compiler::strlen(value)
-        return compiler::wrap(constructor(value, len))
+        return compiler::wrap(constructor(value, compiler::strlen(value)))
     }
 
     @constructor
@@ -33,6 +32,14 @@ struct string {
         s.storage.constant.length = length;
         s.state = '0'
         return s;
+    }
+
+    func size(&self) : size_t {
+        return storage.constant.length;
+    }
+
+    func equals(&self, other : string*) : bool {
+        return size() == other.size() && strcmp(self, other) == 0;
     }
 
     func data(&self) : char* {

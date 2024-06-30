@@ -2011,13 +2011,14 @@ void ToCAstVisitor::visit(VariableIdentifier *identifier) {
 
 void ToCAstVisitor::visit(Expression *expr) {
     write('(');
+    auto prev_nested = nested_value;
     nested_value = true;
     expr->firstValue->accept(this);
     space();
     write(to_string(expr->operation));
     space();
     expr->secondValue->accept(this);
-    nested_value = false;
+    nested_value = prev_nested;
     write(')');
 }
 

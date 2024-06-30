@@ -191,18 +191,18 @@ public:
 
 class WrapValue : public Value {
 public:
-    Value* underlying;
-    explicit WrapValue(Value* underlying) : underlying(underlying) {
+    std::unique_ptr<Value> underlying;
+    explicit WrapValue(std::unique_ptr<Value> underlying) : underlying(std::move(underlying)) {
 
     }
     void accept(Visitor *visitor) override {
         throw std::runtime_error("compiler::wrap value cannot be visited");
     }
     Value *scope_value(InterpretScope &scope) override {
-        return new WrapValue(underlying);
+        return new WrapValue(std::unique_ptr<Value>(underlying->copy()));
     }
     hybrid_ptr<Value> evaluated_value(InterpretScope &scope) override {
-        return hybrid_ptr<Value> { underlying, false };
+        return hybrid_ptr<Value> { underlying.get(), false };
     }
 };
 
@@ -220,9 +220,9 @@ public:
         params.emplace_back(std::make_unique<FunctionParam>("value", std::make_unique<AnyType>(), 0, std::nullopt, this));
     }
     Value *call(InterpretScope *call_scope, std::vector<std::unique_ptr<Value>> &call_args, Value *parent_val, InterpretScope *fn_scope) override {
-        auto underlying = call_args[0].get();
+        auto underlying = call_args[0]->copy();
         underlying->evaluate_children(*call_scope);
-        return new WrapValue(underlying);
+        return new WrapValue(std::unique_ptr<Value>(underlying));
     }
 };
 

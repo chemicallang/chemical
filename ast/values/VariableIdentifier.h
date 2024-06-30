@@ -67,6 +67,8 @@ public:
 
     ASTNode *linked_node() override;
 
+    void find_link_in_parent(Value *parent, ASTDiagnoser *diagnoser) override;
+
     void find_link_in_parent(Value *parent, SymbolResolver &resolver) override;
 
     bool primitive() override {

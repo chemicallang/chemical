@@ -322,15 +322,7 @@ void FunctionCall::link_values(SymbolResolver &linker) {
 }
 
 void FunctionCall::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr) {
-    throw std::runtime_error("cannot link a function call without identifier");
-//    name->link(linker);
-//    linked = name->linked_node();
-//    if(linked) {
-//        link_values(linker);
-//        if(linked_func() == nullptr && !name->create_type()->satisfies(ValueType::Lambda)) {
-//            linker.error("function call to identifier '" + name->representation() + "' is not valid, because its not a function.");
-//        }
-//    }
+    link_values(linker);
 }
 
 std::unique_ptr<FunctionType> FunctionCall::create_function_type() {
@@ -343,7 +335,7 @@ ASTNode *FunctionCall::linked_node() {
     return ((FunctionType*) func_type.get())->returnType->linked_node();
 }
 
-void FunctionCall::find_link_in_parent(Value *parent, SymbolResolver &resolver) {
+void FunctionCall::find_link_in_parent(Value *parent, ASTDiagnoser* diagnoser) {
     parent_val = parent;
     // relinking parent with constructor of the struct
     // if it's linked with struct
@@ -355,9 +347,13 @@ void FunctionCall::find_link_in_parent(Value *parent, SymbolResolver &resolver) 
         if(constructorFunc) {
             parent_id->linked = constructorFunc;
         } else {
-            resolver.error("struct with name " + parent_struct->name + " doesn't have a constructor that satisfies given arguments " + representation(), parent_struct);
+            diagnoser->error("struct with name " + parent_struct->name + " doesn't have a constructor that satisfies given arguments " + representation(), parent_struct);
         }
     }
+}
+
+void FunctionCall::find_link_in_parent(Value *parent, SymbolResolver &resolver) {
+    find_link_in_parent(parent, &resolver);
     link_values(resolver);
 }
 
@@ -407,8 +403,12 @@ void FunctionCall::evaluate_children(InterpretScope &scope) {
 }
 
 Value *FunctionCall::copy() {
-    std::cerr << "copy called on function call" << std::endl;
-    return nullptr;
+    auto call = new FunctionCall({});
+    for(auto& value : values) {
+        call->values.emplace_back(value->copy());
+    }
+    call->parent_val = parent_val;
+    return call;
 }
 
 std::unique_ptr<BaseType> FunctionCall::create_type() {

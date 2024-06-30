@@ -6,6 +6,7 @@
 #include "ast/structures/InterfaceDefinition.h"
 #include "ast/structures/ImplDefinition.h"
 #include "ast/structures/ExtensionFunction.h"
+#include "ast/structures/Namespace.h"
 
 void ShrinkingVisitor::visit(std::vector<std::unique_ptr<ASTNode>>& nodes) {
     for(auto& node : nodes) {
@@ -43,5 +44,11 @@ void ShrinkingVisitor::visit(InterfaceDefinition *def) {
 void ShrinkingVisitor::visit(ImplDefinition *def) {
     for(auto& func : def->functions) {
         shrink(func.second->body);
+    }
+}
+
+void ShrinkingVisitor::visit(Namespace *ns) {
+    for(auto& node : ns->nodes) {
+        node->accept(this);
     }
 }

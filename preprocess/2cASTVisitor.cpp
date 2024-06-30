@@ -151,6 +151,18 @@ void assign_statement(ToCAstVisitor* visitor, AssignStatement* assign) {
 #define struct_passed_param_name "__chx_struct_ret_param_xx"
 #define fn_call_struct_var_name "chx_fn_cl_struct"
 
+// nodes inside namespaces for example namespace name is written before their name
+void node_parent_name(ToCAstVisitor* visitor, ASTNode* node) {
+    if(!node) return;
+    std::string name;
+    auto parent = node->parent();
+    while(parent && parent->as_namespace()) {
+        name = parent->as_namespace()->name + name;
+        parent = parent->parent();
+    }
+    visitor->write(name);
+}
+
 void func_type_with_id(ToCAstVisitor* visitor, FunctionType* type, const std::string& id);
 
 void type_with_id(ToCAstVisitor* visitor, BaseType* type, const std::string& id) {
@@ -214,9 +226,14 @@ void accept_func_return(ToCAstVisitor* visitor, BaseType* type) {
     }
 }
 
-void accept_func_return_with_name(ToCAstVisitor* visitor, BaseType* type, const std::string& name) {
-    accept_func_return(visitor, type);
+// func_type is declared with it's return type and name
+void accept_func_return_with_name(ToCAstVisitor* visitor, BaseFunctionType* func_type, const std::string& name) {
+    accept_func_return(visitor, func_type->returnType.get());
     visitor->space();
+    auto parent = func_type->parent();
+    if(parent) {
+        node_parent_name(visitor, parent);
+    }
     visitor->write(name);
 }
 
@@ -813,7 +830,7 @@ void CValueDeclarationVisitor::visit(LambdaFunction *lamb) {
         visitor->write("};");
     }
     visitor->new_line_and_indent();
-    accept_func_return_with_name(visitor, lamb->returnType.get(), lamb_name);
+    accept_func_return_with_name(visitor, lamb, lamb_name);
     aliases[lamb] = lamb_name;
     write('(');
 
@@ -868,7 +885,7 @@ void declare_func_with_return(ToCAstVisitor* visitor, FunctionDeclaration* decl,
         if (decl->returnType->kind() == BaseTypeKind::Void && name == "main") {
             visitor->write("int main");
         } else {
-            accept_func_return_with_name(visitor, decl->returnType.get(), name);
+            accept_func_return_with_name(visitor, decl, name);
         }
         visitor->write('(');
         func_type_params(visitor, decl);
@@ -917,7 +934,7 @@ void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaratio
         write_self_param_now();
         func_ret_func_proto_after_l_paren(tld->visitor, decl, name, decl->returnType->function_type(), i);
     } else {
-        accept_func_return_with_name(tld->visitor, decl->returnType.get(), name);
+        accept_func_return_with_name(tld->visitor, decl, name);
         tld->write('(');
         write_self_param_now();
         func_type_params(tld->visitor, decl, i);
@@ -931,11 +948,11 @@ void CTopLevelDeclarationVisitor::visit(FunctionDeclaration *decl) {
 //    if(decl->returnType->function_type() && decl->returnType->function_type()->isCapturing) {
 //        visitor->error("Function name " + decl->name + " returns a capturing lambda, which is not supported");
 //    }
-    declare_by_name(this, decl, namespace_id + decl->name);
+    declare_by_name(this, decl, decl->name);
 }
 
 void CTopLevelDeclarationVisitor::visit(ExtensionFunction *decl) {
-    declare_by_name(this, decl, namespace_id + decl->name);
+    declare_by_name(this, decl, decl->name);
 }
 
 void CValueDeclarationVisitor::visit(FunctionDeclaration *decl) {
@@ -975,7 +992,7 @@ void CTopLevelDeclarationVisitor::visit(TypealiasStatement *stmt) {
     write("typedef ");
     stmt->actual_type->accept(visitor);
     write(' ');
-    write(namespace_id);
+    node_parent_name(visitor, stmt);
     write(stmt->identifier);
     write(';');
 }
@@ -983,7 +1000,7 @@ void CTopLevelDeclarationVisitor::visit(TypealiasStatement *stmt) {
 void CTopLevelDeclarationVisitor::visit(UnionDef *def) {
     visitor->new_line_and_indent();
     write("union ");
-    write(namespace_id);
+    node_parent_name(visitor, def);
     write(def->name);
     write(" {");
     visitor->indentation_level+=1;
@@ -1314,7 +1331,7 @@ void contained_func_decl(ToCAstVisitor* visitor, FunctionDeclaration* decl, cons
         write_self_param_now();
         func_ret_func_proto_after_l_paren(visitor, decl, name, decl->returnType->function_type(), i);
     } else {
-        accept_func_return_with_name(visitor, decl->returnType.get(), name);
+        accept_func_return_with_name(visitor, decl, name);
         visitor->write('(');
         write_self_param_now();
         func_type_params(visitor, decl, i);
@@ -1549,6 +1566,7 @@ void func_call(ToCAstVisitor* visitor, FunctionType* type, std::unique_ptr<Value
 }
 
 void func_container_name(ToCAstVisitor* visitor, ASTNode* parent_node, ASTNode* linked_node) {
+    node_parent_name(visitor, linked_node);
     if(linked_node->as_extension_func()) {
         return;
     }
@@ -1674,7 +1692,7 @@ void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& valu
         // normal functions
         bool contains_useless_self = false;
         auto linked_node = parent->linked_node();
-        auto as_func_decl = parent->linked_node() ? linked_node->as_function() : nullptr;
+        auto as_func_decl = linked_node ? linked_node->as_function() : nullptr;
         if(visitor->current_members_container && !is_lambda && as_func_decl && visitor->current_members_container->contains_func(as_func_decl)) {
             func_container_name(visitor, visitor->current_members_container, parent->linked_node());
             contains_useless_self = values[start]->as_identifier() && values[start]->as_identifier()->value == "self";
@@ -2151,10 +2169,13 @@ void ToCAstVisitor::visit(ReferencedType *type) {
         write("int");
         return;
     }
+    std::string name = type->type;
     if(type->linked->as_struct_def()) {
         write("struct ");
+        name = type->linked->as_struct_def()->name;
     } else if(type->linked->as_union_def()) {
         write("union ");
+        name = type->linked->as_union_def()->name;
     }
     if(type->linked->as_typealias() != nullptr) {
         auto alias = declarer->aliases.find(type->linked->as_typealias());
@@ -2163,12 +2184,12 @@ void ToCAstVisitor::visit(ReferencedType *type) {
             return;
         }
     }
-    auto parent = type->linked->parent();
-    if(parent && parent->as_namespace()) {
-        auto ns = parent->as_namespace();
-        write(ns->name);
-    }
-    write(type->type);
+    node_parent_name(this, type->linked);
+    write(name);
+}
+
+void ToCAstVisitor::visit(ReferencedValueType *ref_type) {
+    write("[ref_value_type]");
 }
 
 void ToCAstVisitor::visit(ShortType *func) {

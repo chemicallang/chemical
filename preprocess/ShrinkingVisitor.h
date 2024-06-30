@@ -35,4 +35,6 @@ private:
 
     void visit(ImplDefinition *implDefinition) override;
 
+    void visit(Namespace *ns) override;
+
 };

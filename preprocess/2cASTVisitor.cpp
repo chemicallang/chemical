@@ -340,18 +340,40 @@ void evaluate_func(
         visitor->error("comptime function call didn't return anything");
         return;
     }
+    auto returns_struct = func_decl->returnType->value_type() == ValueType::Struct;
     auto eval = value->evaluated_value(visitor->comptime_scope);
-    if(!assign_id.empty() && eval->as_struct()) {
-        auto struc = eval->as_struct();
-        visitor->write(assign_id);
-        visitor->write(" = ");
-        visitor->write('(');
-        visitor->write("struct ");
-        visitor->write(struc->definition->name);
-        visitor->write(')');
+    bool go_before = true;
+    bool remove_allocated = false;
+    if(!assign_id.empty() && returns_struct) {
+        // there's already a assign_id available, do not allocate struct by going to before stmt
+        go_before = false;
+        if(eval->as_struct()) {
+            auto struc = eval->as_struct();
+            visitor->write(assign_id);
+            visitor->write(" = ");
+            visitor->write('(');
+            visitor->write("struct ");
+            visitor->write(struc->definition->name);
+            visitor->write(')');
+        } else if(eval->as_access_chain()) {
+            auto& chain = eval->as_access_chain()->values;
+            auto last = chain[chain.size() - 1].get();
+            if(last->as_func_call()) {
+                visitor->local_allocated[last] = assign_id;
+                remove_allocated = true;
+            }
+        }
     }
-    eval->accept((Visitor*) visitor->before_stmt.get());
+    if(go_before) {
+        eval->accept((Visitor *) visitor->before_stmt.get());
+    }
     eval->accept(visitor);
+    if(remove_allocated) {
+        auto found = visitor->local_allocated.find(eval.get());
+        if(found != visitor->local_allocated.end()) {
+            visitor->local_allocated.erase(found);
+        }
+    }
     if(!visitor->nested_value) {
         visitor->write(';');
     }

@@ -20,6 +20,10 @@ public:
             bool isCapturing
     );
 
+    ASTNode *parent() override {
+        return nullptr;
+    }
+
     void accept(Visitor *visitor) override {
         visitor->visit(this);
     }

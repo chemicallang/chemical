@@ -23,6 +23,8 @@ class FunctionDeclaration;
 
 class Value;
 
+class ASTNode;
+
 class BaseFunctionType {
 public:
 
@@ -39,6 +41,8 @@ public:
         std::unique_ptr<BaseType> returnType,
         bool isVariadic
     );
+
+    virtual ASTNode* parent() = 0;
 
     /**
      * check if these args satisfy, this is useful, if calling a constructor

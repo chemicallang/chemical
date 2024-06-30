@@ -357,6 +357,8 @@ public:
 
     void visit(ReferencedType* func) override;
 
+    void visit(ReferencedValueType *ref_type) override;
+
     void visit(ShortType* func) override;
 
     void visit(StringType* func) override;

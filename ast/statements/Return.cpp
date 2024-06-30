@@ -5,8 +5,9 @@
 
 ReturnStatement::ReturnStatement(
         std::optional<std::unique_ptr<Value>> value,
-        BaseFunctionType *declaration
-) : value(std::move(value)), func_type(declaration) {
+        BaseFunctionType *declaration,
+        ASTNode* parent_node
+) : value(std::move(value)), func_type(declaration), parent_node(parent_node) {
 
 }
 

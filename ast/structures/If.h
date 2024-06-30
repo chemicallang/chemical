@@ -14,6 +14,12 @@
 class IfStatement : public ASTNode {
 public:
 
+    std::unique_ptr<Value> condition;
+    Scope ifBody;
+    std::vector<std::pair<std::unique_ptr<Value>, Scope>> elseIfs;
+    std::optional<Scope> elseBody;
+    ASTNode* parent_node;
+
     /**
      * @brief Construct a new IfStatement object.
      *
@@ -25,8 +31,13 @@ public:
             std::unique_ptr<Value> condition,
             Scope ifBody,
             std::vector<std::pair<std::unique_ptr<Value>, Scope>> elseIfs,
-            std::optional<Scope> elseBody
+            std::optional<Scope> elseBody,
+            ASTNode* parent_node
     );
+
+    ASTNode *parent() override {
+        return parent_node;
+    }
 
     void accept(Visitor *visitor) override;
 
@@ -44,8 +55,4 @@ public:
 
     void interpret(InterpretScope &scope) override;
 
-    std::unique_ptr<Value> condition;
-    Scope ifBody;
-    std::vector<std::pair<std::unique_ptr<Value>, Scope>> elseIfs;
-    std::optional<Scope> elseBody;
 };

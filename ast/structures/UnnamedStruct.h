@@ -8,9 +8,16 @@
 class UnnamedStruct : public BaseDefMember, public VariablesContainer {
 public:
 
-    explicit UnnamedStruct(
-        std::string name
+    ASTNode* parent_node;
+
+    UnnamedStruct(
+        std::string name,
+        ASTNode* parent_node
     );
+
+    ASTNode *parent() override {
+        return parent_node;
+    }
 
     void accept(Visitor *visitor) override {
         visitor->visit(this);

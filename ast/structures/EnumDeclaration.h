@@ -15,14 +15,23 @@
 class EnumDeclaration : public ExtendableAnnotableNode {
 public:
 
+    ASTNode* parent_node;
+
     /**
      * @brief Construct a new EnumDeclaration object.
      *
      * @param name The name of the enum.
      * @param values The values of the enum.
      */
-    EnumDeclaration(std::string name, std::unordered_map<std::string, std::unique_ptr<EnumMember>> members)
-            : name(std::move(name)), members(std::move(members)) {}
+    EnumDeclaration(
+            std::string name,
+            std::unordered_map<std::string, std::unique_ptr<EnumMember>> members,
+            ASTNode* parent_node
+    ) : name(std::move(name)), members(std::move(members)), parent_node(parent_node) {}
+
+    ASTNode *parent() override {
+        return parent_node;
+    }
 
     void accept(Visitor *visitor) override {
         visitor->visit(this);

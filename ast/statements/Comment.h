@@ -11,11 +11,15 @@
 class Comment : public ASTNode {
 public:
 
+    ASTNode* parent_node;
     std::string comment;
-
     bool multiline;
 
-    Comment(std::string comment, bool multiline) : comment(std::move(comment)), multiline(multiline) {}
+    Comment(std::string comment, bool multiline, ASTNode* parent) : comment(std::move(comment)), multiline(multiline), parent_node(parent) {}
+
+    ASTNode *parent() override {
+        return parent_node;
+    }
 
     void interpret(InterpretScope &scope) override {
         // do nothing, since it's a comment

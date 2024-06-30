@@ -7,11 +7,17 @@
 class UnionDef : public ExtendableMembersContainerNode {
 public:
 
+    ASTNode* parent_node;
+
 #ifdef COMPILER_BUILD
     llvm::StructType* llvm_struct_type = nullptr;
 #endif
 
-    explicit UnionDef(std::string name);
+    UnionDef(std::string name, ASTNode* parent_node);
+
+    ASTNode *parent() override {
+        return parent_node;
+    }
 
     std::string ns_node_identifier() override {
         return name;

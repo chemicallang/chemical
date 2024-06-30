@@ -9,12 +9,20 @@
 #include "ast/base/ASTNode.h"
 
 class BreakStatement : public ASTNode {
+private:
+    LoopASTNode *node;
 public:
+
+    ASTNode* parent_node;
 
     /**
      * @brief Construct a new Break statement object.
      */
-    BreakStatement(LoopASTNode *node) : node(node) {}
+    BreakStatement(LoopASTNode *node, ASTNode* parent_node) : node(node), parent_node(parent_node) {}
+
+    ASTNode *parent() override {
+        return parent_node;
+    }
 
     void interpret(InterpretScope &scope) override;
 
@@ -27,8 +35,5 @@ public:
     void code_gen(Codegen &gen) override;
 
 #endif
-
-private:
-    LoopASTNode *node;
 
 };

@@ -10,9 +10,18 @@ public:
 
     std::string name;
     unsigned int index;
+    ASTNode* parent_node;
 
-    EnumMember(const std::string& name, unsigned int index) : name(name), index(index) {
+    EnumMember(
+        const std::string& name,
+        unsigned int index,
+        ASTNode* parent_node
+    ) : name(name), index(index), parent_node(parent_node) {
 
+    }
+
+    ASTNode *parent() override {
+        return parent_node;
     }
 
     void accept(Visitor *visitor) override {

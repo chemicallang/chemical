@@ -95,20 +95,35 @@ Operation get_operation(CSTToken *token) {
     return (Operation) std::stoi(num);
 }
 
-Scope take_body(CSTConverter *conv, CSTToken *token) {
+std::vector<std::unique_ptr<ASTNode>> take_body_nodes(CSTConverter *conv, CSTToken *token, ASTNode* parent_node) {
     auto prev_nodes = std::move(conv->nodes);
+    auto prev_parent = conv->parent_node;
+    conv->parent_node = parent_node;
     token->accept(conv);
-    Scope scope(std::move(conv->nodes));
+    conv->parent_node = prev_parent;
+    auto nodes = std::move(conv->nodes);
     conv->nodes = std::move(prev_nodes);
-    return scope;
+    return nodes;
 }
 
-Scope take_body(CSTConverter *conv, CompoundCSTToken *token) {
+std::vector<std::unique_ptr<ASTNode>> take_comp_body_nodes(CSTConverter *conv, CompoundCSTToken *token, ASTNode* parent_node) {
     auto prev_nodes = std::move(conv->nodes);
+    auto prev_parent = conv->parent_node;
+    conv->parent_node = parent_node;
     conv->visit(token->tokens, 0);
-    Scope scope(std::move(conv->nodes));
+    conv->parent_node = prev_parent;
+    auto nodes = std::move(conv->nodes);
     conv->nodes = std::move(prev_nodes);
-    return scope;
+    return nodes;
+}
+
+
+Scope take_body(CSTConverter *conv, CSTToken *token, ASTNode* parent_node) {
+    return {take_body_nodes(conv, token, parent_node), parent_node };
+}
+
+Scope take_body_compound(CSTConverter *conv, CompoundCSTToken *token, ASTNode* parent_node) {
+    return {take_comp_body_nodes(conv, token, parent_node), parent_node };
 }
 
 // TODO support _128bigint, bigfloat
@@ -153,7 +168,7 @@ void CSTConverter::init_macro_handlers() {
         }
     };
     macro_handlers["tr:debug:chemical"] = [](CSTConverter* converter, CompoundCSTToken* container) {
-        auto body = take_body(converter, container);
+        auto body = take_body_compound(converter, container, converter->parent_node);
         std::ostringstream ostring;
         RepresentationVisitor visitor(ostring);
         visitor.translate(body.nodes);
@@ -172,7 +187,7 @@ void CSTConverter::init_macro_handlers() {
         }
     };
     macro_handlers["tr:debug:c"] = [](CSTConverter* converter, CompoundCSTToken* container) {
-        auto body = take_body(converter, container);
+        auto body = take_body_compound(converter, container, converter->parent_node);
         std::ostringstream ostring;
         ToCAstVisitor visitor(&ostring, "");
         visitor.translate(body.nodes);
@@ -425,11 +440,6 @@ void CSTConverter::visitFunction(CompoundCSTToken *function) {
         returnType.emplace(std::make_unique<VoidType>());
     }
 
-    std::optional<LoopScope> fnBody = std::nullopt;
-    if (i < function->tokens.size()) {
-        fnBody.emplace(LoopScope{});
-    }
-
     FunctionDeclaration* funcDecl;
 
     if(is_extension) {
@@ -438,16 +448,23 @@ void CSTConverter::visitFunction(CompoundCSTToken *function) {
         nodes.pop_back();
         funcDecl = new ExtensionFunction(
                 func_name(function),
-                ExtensionFuncReceiver(std::move(param->name), std::move(param->type)),
+                ExtensionFuncReceiver(std::move(param->name), std::move(param->type), nullptr),
                 std::move(params.params),
                 std::move(returnType.value()), params.isVariadic,
-                std::move(fnBody)
+                parent_node,
+                std::nullopt
         );
+        ((ExtensionFunction*) funcDecl)->receiver.parent_node = funcDecl;
         delete param;
     } else {
         funcDecl = new FunctionDeclaration(func_name(function), std::move(params.params),
                                                 std::move(returnType.value()), params.isVariadic,
-                                                std::move(fnBody));
+                                                parent_node,
+                                                std::nullopt);
+    }
+
+    if (i < function->tokens.size()) {
+        funcDecl->body.emplace(LoopScope{ funcDecl });
     }
 
     collect_annotations_in(this, funcDecl);
@@ -461,11 +478,8 @@ void CSTConverter::visitFunction(CompoundCSTToken *function) {
     }
 
     auto prev_decl = current_func_type;
-    auto prev_nodes = std::move(nodes);
     current_func_type = funcDecl;
-    function->tokens[i]->accept(this);
-    funcDecl->body->nodes = std::move(nodes);
-    nodes = std::move(prev_nodes);
+    funcDecl->body->nodes = take_body_nodes(this, function->tokens[i].get(), funcDecl);
     current_func_type = prev_decl;
 
 
@@ -475,20 +489,19 @@ void CSTConverter::visitEnumDecl(CompoundCSTToken *decl) {
     if(is_dispose()) {
         return;
     }
-    std::unordered_map<std::string, std::unique_ptr<EnumMember>> members;
+    auto enum_decl = new EnumDeclaration(str_token(decl->tokens[1].get()), std::unordered_map<std::string, std::unique_ptr<EnumMember>> {}, parent_node);
     auto i = 3; // first enum member or '}'
     unsigned position = 0;
     while(!is_char_op(decl->tokens[i].get(), '}')) {
         if(decl->tokens[i]->is_identifier()) {
             auto name = str_token(decl->tokens[i].get());
-            members[name] = std::make_unique<EnumMember>(name, position++);
+            enum_decl->members[name] = std::make_unique<EnumMember>(name, position++, enum_decl);
             if (is_char_op(decl->tokens[i + 1].get(), ',')) {
                 i++;
             }
         }
         i++;
     }
-    auto enum_decl = new EnumDeclaration(str_token(decl->tokens[1].get()), std::move(members));
     nodes.emplace_back(enum_decl);
 }
 
@@ -546,7 +559,8 @@ void CSTConverter::visitVarInit(CompoundCSTToken *varInit) {
             is_var_init_const(varInit),
             var_init_identifier(varInit),
             std::move(optType),
-            std::move(optVal)
+            std::move(optVal),
+            parent_node
     ));
 }
 
@@ -558,14 +572,15 @@ void CSTConverter::visitAssignment(CompoundCSTToken *assignment) {
             std::unique_ptr<Value>(chain),
             std::move(val),
             (assignment->tokens[1]->type() == LexTokenType::Operation)
-            ? get_operation(assignment->tokens[1].get()) : Operation::Assignment
+            ? get_operation(assignment->tokens[1].get()) : Operation::Assignment,
+            parent_node
     ));
 }
 
 void CSTConverter::visitImport(CompoundCSTToken *cst) {
     if(no_imports) return;
     std::vector<std::string> ids;
-    nodes.emplace_back(std::make_unique<ImportStatement>(escaped_str_token(cst->tokens[1].get()), ids));
+    nodes.emplace_back(std::make_unique<ImportStatement>(escaped_str_token(cst->tokens[1].get()), ids, parent_node));
 }
 
 void CSTConverter::visitReturn(CompoundCSTToken *cst) {
@@ -574,14 +589,14 @@ void CSTConverter::visitReturn(CompoundCSTToken *cst) {
         cst->tokens[1]->accept(this);
         return_value.emplace(value());
     }
-    nodes.emplace_back(std::make_unique<ReturnStatement>(std::move(return_value), current_func_type));
+    nodes.emplace_back(std::make_unique<ReturnStatement>(std::move(return_value), current_func_type, parent_node));
 }
 
 void CSTConverter::visitTypealias(CompoundCSTToken *alias) {
     if(is_dispose()) return;
     auto identifier = str_token(alias->tokens[1].get());
     alias->tokens[3]->accept(this);
-    nodes.emplace_back(std::make_unique<TypealiasStatement>(identifier, type()));
+    nodes.emplace_back(std::make_unique<TypealiasStatement>(identifier, type(), parent_node));
 }
 
 void CSTConverter::visitTypeToken(LexToken *token) {
@@ -621,18 +636,18 @@ void CSTConverter::visitReferencedValueType(CompoundCSTToken *ref_value) {
 }
 
 void CSTConverter::visitContinue(CompoundCSTToken *continueCst) {
-    nodes.emplace_back(std::make_unique<ContinueStatement>(current_loop_node));
+    nodes.emplace_back(std::make_unique<ContinueStatement>(current_loop_node, parent_node));
 }
 
 void CSTConverter::visitBreak(CompoundCSTToken *breakCST) {
-    nodes.emplace_back(std::make_unique<BreakStatement>(current_loop_node));
+    nodes.emplace_back(std::make_unique<BreakStatement>(current_loop_node, parent_node));
 }
 
 void CSTConverter::visitIncDec(CompoundCSTToken *incDec) {
     incDec->tokens[0]->accept(this);
     auto acOp = (get_operation(incDec->tokens[1].get()) == Operation::PostfixIncrement ? Operation::Addition
                                                                                                 : Operation::Subtraction);
-    nodes.emplace_back(std::make_unique<AssignStatement>(value(), std::make_unique<IntValue>(1), acOp));
+    nodes.emplace_back(std::make_unique<AssignStatement>(value(), std::make_unique<IntValue>(1), acOp, parent_node));
 }
 
 void CSTConverter::visitLambda(CompoundCSTToken *cst) {
@@ -663,20 +678,17 @@ void CSTConverter::visitLambda(CompoundCSTToken *cst) {
     auto result = function_params(cst->tokens, i);
     optional_param_types = prev;
 
-    auto lambda = new LambdaFunction(std::move(captureList), std::move(result.params), result.isVariadic, Scope{});
+    auto lambda = new LambdaFunction(std::move(captureList), std::move(result.params), result.isVariadic, Scope {parent_node});
 
     auto bodyIndex = result.index + 2;
     if (cst->tokens[bodyIndex]->type() == LexTokenType::CompBody) {
-        auto prev_nodes = std::move(nodes);
         auto prev_decl = current_func_type;
         current_func_type = lambda;
-        cst->tokens[bodyIndex]->accept(this);
+        lambda->scope.nodes = take_body_nodes(this, cst->tokens[bodyIndex].get(), &lambda->scope);
         current_func_type = prev_decl;
-        lambda->scope.nodes = std::move(nodes);
-        nodes = std::move(prev_nodes);
     } else {
         visit(cst->tokens, bodyIndex);
-        auto returnStmt = new ReturnStatement(value(), lambda);
+        auto returnStmt = new ReturnStatement(value(), lambda, &lambda->scope);
         lambda->scope.nodes.emplace_back(returnStmt);
     }
 
@@ -731,13 +743,17 @@ void CSTConverter::visitIf(CompoundCSTToken *ifCst) {
     ifCst->tokens[2]->accept(this);
     auto cond = value();
 
-    // first if body
-    auto prev_nodes = std::move(nodes);
-    ifCst->tokens[4]->accept(this);
-    auto body_nodes = std::move(nodes);
-    nodes = std::move(prev_nodes);
+    auto if_statement = new IfStatement(
+            std::move(cond),
+            Scope {nullptr},
+            std::vector<std::pair<std::unique_ptr<Value>, Scope>>{},
+            std::nullopt,
+            parent_node
+    );
 
-    std::vector<std::pair<std::unique_ptr<Value>, Scope>> elseIfs;
+    // first if body
+    if_statement->ifBody.parent_node = if_statement;
+    if_statement->ifBody.nodes = take_body_nodes(this, ifCst->tokens[4].get(), &if_statement->ifBody);
 
     auto i = 5; // position after body
     while ((i + 1) < ifCst->tokens.size() && is_keyword(ifCst->tokens[i + 1].get(), "if")) {
@@ -748,28 +764,22 @@ void CSTConverter::visitIf(CompoundCSTToken *ifCst) {
         i += 2;
 
         // else if body
-        prev_nodes = std::move(nodes);
-        ifCst->tokens[i]->accept(this);
-        elseIfs.emplace_back(std::move(elseIfCond), Scope(std::move(nodes)));
-        nodes = std::move(prev_nodes);
+        if_statement->elseIfs.emplace_back( std::move(elseIfCond), Scope {if_statement });
+        auto& elseif_pair = if_statement->elseIfs.back();
+        elseif_pair.second.nodes = take_body_nodes(this, ifCst->tokens[i].get(), &elseif_pair.second);
 
         // position after the body
         i++;
 
     }
 
-    std::optional<Scope> elseBody = std::nullopt;
-
     // last else
     if (i < ifCst->tokens.size() && str_token(ifCst->tokens[i].get()) == "else") {
-        prev_nodes = std::move(nodes);
-        ifCst->tokens[i + 1]->accept(this);
-        elseBody.emplace(Scope(std::move(nodes)));
-        nodes = std::move(prev_nodes);
+        if_statement->elseBody.emplace(if_statement);
+        if_statement->elseBody->nodes = take_body_nodes(this, ifCst->tokens[i + 1].get(), &if_statement->elseBody.value());
     }
 
-    nodes.emplace_back(std::make_unique<IfStatement>(std::move(cond), Scope(std::move(body_nodes)), std::move(elseIfs),
-                                                     std::move(elseBody)));
+    nodes.emplace_back(if_statement);
 
 }
 
@@ -777,8 +787,12 @@ void CSTConverter::visitSwitch(CompoundCSTToken *switchCst) {
     switchCst->tokens[2]->accept(this);
     auto expr = value();
     auto i = 5; // positioned at first 'case' or 'default'
-    std::vector<std::pair<std::unique_ptr<Value>, Scope>> cases;
-    std::optional<Scope> defScope = std::nullopt;
+    auto switch_statement = new SwitchStatement(
+                std::move(expr),
+                std::vector<std::pair<std::unique_ptr<Value>, Scope>> {},
+                std::nullopt,
+                parent_node
+    );
     auto has_default = false;
     while (true) {
         if (is_keyword(switchCst->tokens[i].get(), "case")) {
@@ -786,18 +800,15 @@ void CSTConverter::visitSwitch(CompoundCSTToken *switchCst) {
             switchCst->tokens[i]->accept(this);
             auto caseVal = value();
             i += 2; // body
-            auto prev_nodes = std::move(nodes);
-            switchCst->tokens[i]->accept(this);
-            auto scope = Scope(std::move(nodes));
-            nodes = std::move(prev_nodes);
-            cases.emplace_back(std::move(caseVal), std::move(scope));
+            switch_statement->scopes.emplace_back(std::move(caseVal), Scope { switch_statement });
+            auto& switch_case = switch_statement->scopes.back();
+            switch_case.second.nodes = take_body_nodes(this, switchCst->tokens[i].get(), &switch_case.second);
             i++;
         } else if (is_keyword(switchCst->tokens[i].get(), "default")) {
             i += 2; // body
-            auto prev_nodes = std::move(nodes);
-            switchCst->tokens[i]->accept(this);
-            defScope.emplace(Scope(std::move(nodes)));
-            nodes = std::move(prev_nodes);
+            switch_statement->defScope.emplace(Scope { switch_statement });
+            auto& defScope = switch_statement->defScope.value();
+            defScope.nodes = take_body_nodes(this, switchCst->tokens[i].get(), &defScope);
             i++;
             if (has_default) {
                 error("multiple defaults in switch statement detected", switchCst->tokens[i - 3].get());
@@ -807,20 +818,17 @@ void CSTConverter::visitSwitch(CompoundCSTToken *switchCst) {
             break;
         }
     }
-    nodes.emplace_back(std::make_unique<SwitchStatement>(std::move(expr), std::move(cases), std::move(defScope)));
+    nodes.emplace_back(switch_statement);
 }
 
 void CSTConverter::visitThrow(CompoundCSTToken *throwStmt) {
     throwStmt->tokens[1]->accept(this);
-    nodes.emplace_back(new ThrowStatement(value()));
+    nodes.emplace_back(new ThrowStatement(value(), parent_node));
 }
 
 void CSTConverter::visitNamespace(CompoundCSTToken *ns) {
-    auto prev_nodes = std::move(nodes);
-    visit(ns->tokens, 0);
-    auto pNamespace = new Namespace(str_token(ns->tokens[1].get()));
-    pNamespace->nodes = std::move(nodes);
-    nodes = std::move(prev_nodes);
+    auto pNamespace = new Namespace(str_token(ns->tokens[1].get()), parent_node);
+    pNamespace->nodes = take_comp_body_nodes(this, ns, pNamespace);
     nodes.emplace_back(pNamespace);
 }
 
@@ -837,14 +845,11 @@ void CSTConverter::visitForLoop(CompoundCSTToken *forLoop) {
 
     auto loop = new ForLoop(std::unique_ptr<VarInitStatement>(varInit),
                             std::move(cond),
-                            std::unique_ptr<ASTNode>(assignment));
+                            std::unique_ptr<ASTNode>(assignment), parent_node);
 
     auto prevLoop = current_loop_node;
-    auto prev_nodes = std::move(nodes);
     current_loop_node = loop;
-    forLoop->tokens[8]->accept(this);
-    loop->body.nodes = std::move(nodes);
-    nodes = std::move(prev_nodes);
+    loop->body.nodes = take_body_nodes(this, forLoop->tokens[8].get(), loop);
     current_loop_node = prevLoop;
 
     nodes.emplace_back(std::unique_ptr<ForLoop>(loop));
@@ -857,15 +862,15 @@ void CSTConverter::visitWhile(CompoundCSTToken *whileCst) {
     // get it
     auto cond = value();
     // construct a loop
-    auto loop = new WhileLoop(std::move(cond), LoopScope{});
+    auto loop = new WhileLoop(std::move(cond), LoopScope{nullptr}, parent_node);
+    loop->body.parent_node = loop;
     // save current nodes
     auto previous = std::move(nodes);
     // visit the body
     auto prevLoop = current_loop_node;
     current_loop_node = loop;
-    whileCst->tokens[4]->accept(this);
+    loop->body.nodes = take_body_nodes(this, whileCst->tokens[4].get(), loop);
     current_loop_node = prevLoop;
-    loop->body.nodes = std::move(nodes);
     // restore nodes
     nodes = std::move(previous);
     nodes.emplace_back(std::unique_ptr<ASTNode>(loop));
@@ -878,15 +883,15 @@ void CSTConverter::visitDoWhile(CompoundCSTToken *doWhileCst) {
     // get it
     auto cond = value();
     // construct a loop
-    auto loop = new DoWhileLoop(std::move(cond), LoopScope{});
+    auto loop = new DoWhileLoop(std::move(cond), LoopScope{nullptr});
+    loop->body.parent_node = loop;
     // save current nodes
     auto previous = std::move(nodes);
     // visit the body
     auto prevLoop = current_loop_node;
     current_loop_node = loop;
-    doWhileCst->tokens[1]->accept(this);
+    loop->body.nodes = take_body_nodes(this, doWhileCst->tokens[1].get(), loop);
     current_loop_node = prevLoop;
-    loop->body.nodes = std::move(nodes);
     // restore nodes
     nodes = std::move(previous);
     nodes.emplace_back(std::unique_ptr<ASTNode>(loop));
@@ -907,7 +912,8 @@ unsigned int collect_struct_members(
             auto thing = new StructMember(
                     node->identifier,
                     std::move(node->type.value()),
-                    std::move(node->value)
+                    std::move(node->value),
+                    conv->parent_node
             );
             variables[node->identifier] = std::unique_ptr<StructMember>(thing);
             delete node;
@@ -916,13 +922,13 @@ unsigned int collect_struct_members(
             decls[node->name] = std::unique_ptr<FunctionDeclaration>(node);
         } else if(tokens[i]->is_struct_def()) {
             auto node = (StructDefinition*) conv->pop_last_node();
-            auto thing = new UnnamedStruct(node->name);
+            auto thing = new UnnamedStruct(node->name, conv->parent_node);
             variables[node->name] = std::unique_ptr<UnnamedStruct>(thing);
             thing->variables = std::move(node->variables);
             delete node;
         } else if(tokens[i]->is_union_def()) {
             auto node = (UnionDef*) conv->pop_last_node();
-            auto thing = new UnnamedUnion(node->name);
+            auto thing = new UnnamedUnion(node->name, conv->parent_node);
             variables[node->name] = std::unique_ptr<UnnamedUnion>(thing);
             thing->variables = std::move(node->variables);
             delete node;
@@ -954,10 +960,13 @@ void CSTConverter::visitStructDef(CompoundCSTToken *structDef) {
         overrides.emplace(str_token(structDef->tokens[i + 1].get()));
     }
     i = has_override ? i + 3 : i + 1; // positioned at first node or '}'
-    auto def = new StructDefinition(str_token(structDef->tokens[named ? 1 : structDef->tokens.size() - 1].get()), overrides);
+    auto def = new StructDefinition(str_token(structDef->tokens[named ? 1 : structDef->tokens.size() - 1].get()), overrides, parent_node);
     auto prev_struct_decl = current_struct_decl;
     current_struct_decl = def;
+    auto prev_parent = parent_node;
+    parent_node = def;
     collect_struct_members(this, structDef->tokens, def->variables, def->functions, i);
+    parent_node = prev_parent;
     current_struct_decl = prev_struct_decl;
     nodes.emplace_back(def);
 }
@@ -966,10 +975,13 @@ void CSTConverter::visitInterface(CompoundCSTToken *interface) {
     if(is_dispose()) {
         return;
     }
-    auto def = new InterfaceDefinition(str_token(interface->tokens[1].get()));
+    auto def = new InterfaceDefinition(str_token(interface->tokens[1].get()), parent_node);
     unsigned i = 3; // positioned at first node or '}'
     current_interface_decl = def;
+    auto prev_parent = parent_node;
+    parent_node = def;
     collect_struct_members(this, interface->tokens, def->variables, def->functions, i);
+    parent_node = prev_parent;
     current_interface_decl = nullptr;
     nodes.emplace_back(def);
 }
@@ -980,9 +992,12 @@ void CSTConverter::visitUnionDef(CompoundCSTToken *unionDef) {
     }
     bool named = unionDef->tokens[1]->is_identifier();
     unsigned i = named ? 3 : 2; // positioned at first node or '}'
-    auto def = new UnionDef(str_token(unionDef->tokens[named ? 1 : unionDef->tokens.size() - 1].get()));
+    auto def = new UnionDef(str_token(unionDef->tokens[named ? 1 : unionDef->tokens.size() - 1].get()), parent_node);
     current_union_decl = def;
+    auto prev_parent = parent_node;
+    parent_node = def;
     collect_struct_members(this, unionDef->tokens, def->variables, def->functions, i);
+    parent_node = prev_parent;
     current_union_decl = nullptr;
     nodes.emplace_back(def);
 }
@@ -998,10 +1013,13 @@ void CSTConverter::visitImpl(CompoundCSTToken *impl) {
     } else {
         struct_name = std::nullopt;
     }
-    auto def = new ImplDefinition(str_token(impl->tokens[1].get()), struct_name);
+    auto def = new ImplDefinition(str_token(impl->tokens[1].get()), struct_name, parent_node);
     unsigned i = has_for ? 5 : 3; // positioned at first node or '}'
     current_impl_decl = def;
+    auto prev_parent = parent_node;
+    parent_node = def;
     collect_struct_members(this, impl->tokens, def->variables, def->functions, i);
+    parent_node = prev_parent;
     current_impl_decl = nullptr;
     nodes.emplace_back(def);
 }
@@ -1014,15 +1032,14 @@ void CSTConverter::visitTryCatch(CompoundCSTToken *tryCatch) {
     }
     chain->accept(this);
     auto call = value().release()->as_access_chain();
-    std::optional<Scope> catchScope = std::nullopt;
+    auto try_catch = new TryCatch(std::unique_ptr<FunctionCall>((FunctionCall *) call->values[0].release()), std::nullopt,
+                                  std::nullopt, parent_node);
     auto last = tryCatch->tokens[tryCatch->tokens.size() - 1].get();
     if (is_keyword(tryCatch->tokens[2].get(), "catch") && last->type() == LexTokenType::CompBody) {
-        catchScope.emplace(take_body(this, last));
+        try_catch->catchScope.emplace(take_body(this, last, try_catch));
     }
     // TODO catch variable not supported yet
-    nodes.emplace_back(
-            new TryCatch(std::unique_ptr<FunctionCall>((FunctionCall *) call->values[0].release()), std::nullopt,
-                         std::move(catchScope)));
+    nodes.emplace_back(try_catch);
 }
 
 void CSTConverter::visitPointerType(CompoundCSTToken *cst) {
@@ -1211,7 +1228,7 @@ void CSTConverter::visitAccessChain(AccessChainCST *chain) {
         }
         i++;
     }
-    auto ret_chain = std::make_unique<AccessChain>(std::move(values));
+    auto ret_chain = std::make_unique<AccessChain>(std::move(values), parent_node);
     values = std::move(prev_values);
     if (chain->is_node) {
         nodes.emplace_back(std::move(ret_chain));

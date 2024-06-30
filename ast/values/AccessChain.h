@@ -19,9 +19,18 @@
 class AccessChain : public ASTNode, public Value {
 public:
 
-    AccessChain() = default;
+    std::vector<std::unique_ptr<Value>> values;
+    ASTNode* parent_node;
 
-    explicit AccessChain(std::vector<std::unique_ptr<Value>> values);
+    AccessChain(ASTNode* parent_node) : parent_node(parent_node) {
+
+    }
+
+    AccessChain(std::vector<std::unique_ptr<Value>> values, ASTNode* parent_node);
+
+    ASTNode *parent() override {
+        return parent_node;
+    }
 
     void link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) override;
 
@@ -104,7 +113,5 @@ public:
     ValueType value_type() const override;
 
     BaseTypeKind type_kind() const override;
-
-    std::vector<std::unique_ptr<Value>> values;
 
 };

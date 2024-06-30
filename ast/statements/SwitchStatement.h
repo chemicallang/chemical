@@ -11,12 +11,18 @@ public:
     std::unique_ptr<Value> expression;
     std::vector<std::pair<std::unique_ptr<Value>, Scope>> scopes;
     std::optional<Scope> defScope;
+    ASTNode* parent_node;
 
     SwitchStatement(
         std::unique_ptr<Value> expression,
         std::vector<std::pair<std::unique_ptr<Value>, Scope>> scopes,
-        std::optional<Scope> defScope
+        std::optional<Scope> defScope,
+        ASTNode* parent_node
     );
+
+    ASTNode *parent() override {
+        return parent_node;
+    }
 
     void accept(Visitor *visitor) override;
 

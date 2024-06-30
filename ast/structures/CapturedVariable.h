@@ -18,6 +18,10 @@ public:
 
     }
 
+    ASTNode *parent() override {
+        return nullptr;
+    }
+
     void accept(Visitor *visitor) override {
         // no visit
     }

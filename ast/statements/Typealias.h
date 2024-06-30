@@ -14,14 +14,20 @@ public:
     std::string identifier;
     // after equal
     std::unique_ptr<BaseType> actual_type;
+    ASTNode* parent_node;
 
     /**
      * @brief Construct a new TypealiasStatement object.
      */
     TypealiasStatement(
             std::string identifier,
-            std::unique_ptr<BaseType> actual_type
+            std::unique_ptr<BaseType> actual_type,
+            ASTNode* parent_node
     );
+
+    ASTNode *parent() override {
+        return parent_node;
+    }
 
     TypealiasStatement* as_typealias() override {
         return this;

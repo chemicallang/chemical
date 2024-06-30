@@ -11,11 +11,11 @@ void Scope::interpret(InterpretScope &scope) {
     }
 }
 
-Scope::Scope(std::vector<std::unique_ptr<ASTNode>> nodes) : nodes(std::move(nodes)) {
+Scope::Scope(std::vector<std::unique_ptr<ASTNode>> nodes, ASTNode* parent_node) : nodes(std::move(nodes)), parent_node(parent_node) {
 
 }
 
-Scope::Scope(Scope &&other) noexcept : nodes(std::move(other.nodes)) {
+Scope::Scope(Scope &&other) noexcept : nodes(std::move(other.nodes)), parent_node(other.parent_node) {
 
 }
 

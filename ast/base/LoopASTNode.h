@@ -20,7 +20,7 @@ public:
     /**
      * Initialize an empty loop ast node
      */
-    LoopASTNode() {
+    explicit LoopASTNode() : body(this) {
 
     }
 
@@ -28,7 +28,7 @@ public:
      * initialize with the given body
      * @param body
      */
-    LoopASTNode(LoopScope body) : body(std::move(body)) {
+    explicit LoopASTNode(LoopScope body) : body(std::move(body)) {
 
     }
 

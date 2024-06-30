@@ -5,7 +5,7 @@
 /**
  * @brief Construct a new ContinueStatement object.
  */
-ContinueStatement::ContinueStatement(LoopASTNode *node) : node(node) {}
+ContinueStatement::ContinueStatement(LoopASTNode *node, ASTNode* parent_node) : node(node), parent_node(parent_node) {}
 
 void ContinueStatement::accept(Visitor *visitor) {
     visitor->visit(this);

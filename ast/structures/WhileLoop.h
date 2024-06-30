@@ -14,11 +14,15 @@
 class WhileLoop : public LoopASTNode {
 public:
 
+    std::unique_ptr<Value> condition;
+    bool stoppedInterpretation = false;
+    ASTNode* parent_node;
+
     /**
      * initializes the loop with only a condition and empty body
      * @param condition
      */
-    WhileLoop(std::unique_ptr<Value> condition);
+    WhileLoop(std::unique_ptr<Value> condition, ASTNode* parent_node);
 
     /**
      * @brief Construct a new WhileLoop object.
@@ -26,7 +30,11 @@ public:
      * @param condition The loop condition.
      * @param body The body of the while loop.
      */
-    WhileLoop(std::unique_ptr<Value> condition, LoopScope body);
+    WhileLoop(std::unique_ptr<Value> condition, LoopScope body, ASTNode* parent_node);
+
+    ASTNode *parent() override {
+        return parent_node;
+    }
 
     void accept(Visitor *visitor) override;
 
@@ -40,6 +48,4 @@ public:
 
     void stopInterpretation() override;
 
-    std::unique_ptr<Value> condition;
-    bool stoppedInterpretation = false;
 };

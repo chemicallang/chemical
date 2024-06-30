@@ -130,7 +130,7 @@ llvm::Value* call_with_args(FunctionCall* call, llvm::Function* fn, FunctionType
 }
 
 AccessChain parent_chain(FunctionCall* call, std::vector<std::unique_ptr<Value>>& chain, int till) {
-    AccessChain member_access(std::vector<std::unique_ptr<Value>> {});
+    AccessChain member_access(std::vector<std::unique_ptr<Value>> {}, nullptr);
     unsigned i = 0;
     while(i < till) {
         if(chain[i].get() == call) {

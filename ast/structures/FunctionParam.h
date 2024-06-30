@@ -21,6 +21,10 @@ public:
             BaseFunctionType* func_type = nullptr
       );
 
+    ASTNode *parent() override {
+        return (ASTNode*) func_type;
+    }
+
     unsigned int calculate_c_or_llvm_index() override;
 
     void accept(Visitor *visitor) override;
@@ -37,6 +41,6 @@ public:
         return type.get();
     }
 
-    FunctionParam *copy() const;
+    [[nodiscard]] FunctionParam *copy() const;
 
 };

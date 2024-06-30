@@ -16,7 +16,7 @@ public:
     /**
      * empty constructor
      */
-    LoopScope() : Scope() {
+    LoopScope(ASTNode* parent_node) : Scope(parent_node) {
 
     }
 
@@ -24,8 +24,12 @@ public:
      * construct with given nodes
      * @param nodes
      */
-    LoopScope(std::vector<std::unique_ptr<ASTNode>> nodes);
+    LoopScope(std::vector<std::unique_ptr<ASTNode>> nodes, ASTNode* parent_node);
 
+    /**
+     * this just continuously interprets nodes in scope, without stopping unless user
+     * uses one of break or return statements
+     */
     void interpret(InterpretScope& scope) override;
 
     /**

@@ -19,7 +19,7 @@ void VariableIdentifier::prepend_self(SymbolResolver &linker, std::unique_ptr<Va
     std::vector<std::unique_ptr<Value>> values;
     values.emplace_back(self_id);
     values.emplace_back(value_ptr.release());
-    value_ptr = std::make_unique<AccessChain>(std::move(values));
+    value_ptr = std::make_unique<AccessChain>(std::move(values), nullptr);
 }
 
 void VariableIdentifier::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
@@ -115,14 +115,14 @@ void VariableIdentifier::set_identifier_value(InterpretScope &scope, Value *rawV
 #endif
         if (var_init->position > value_var_init->position) {
             // going down, declared above and now being assigned to declaration below (take reference / make decl below a reference)
-            var_init->is_reference = true;
+//            var_init->is_reference = true;
         } else {
             // going up, declared below and now being assigned to declaration above (move the value / make decl above a reference)
-            value_var_init->is_reference = true;
-            var_init->is_reference = false;
+//            value_var_init->is_reference = true;
+//            var_init->is_reference = false;
         }
     } else {
-        var_init->is_reference = false;
+//        var_init->is_reference = false;
     }
 
     // iterator for previous value

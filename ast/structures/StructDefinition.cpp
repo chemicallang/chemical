@@ -126,8 +126,9 @@ BaseDefMember::BaseDefMember(std::string name) : name(std::move(name)) {
 StructMember::StructMember(
         std::string name,
         std::unique_ptr<BaseType> type,
-        std::optional<std::unique_ptr<Value>> defValue
-) : BaseDefMember(std::move(name)), type(std::move(type)), defValue(std::move(defValue)) {
+        std::optional<std::unique_ptr<Value>> defValue,
+        ASTNode* parent_node
+) : BaseDefMember(std::move(name)), type(std::move(type)), defValue(std::move(defValue)), parent_node(parent_node) {
 
 }
 
@@ -173,15 +174,17 @@ BaseTypeKind StructMember::type_kind() const {
 }
 
 UnnamedStruct::UnnamedStruct(
-        std::string name
-) : BaseDefMember(std::move(name)) {
+        std::string name,
+        ASTNode* parent_node
+) : BaseDefMember(std::move(name)), parent_node(parent_node) {
 
 }
 
 StructDefinition::StructDefinition(
         std::string name,
-        const std::optional<std::string> &overrides
-) : ExtendableMembersContainerNode(std::move(name)) {
+        const std::optional<std::string> &overrides,
+        ASTNode* parent_node
+) : ExtendableMembersContainerNode(std::move(name)), parent_node(parent_node) {
     if (overrides.has_value()) {
         this->overrides = std::make_unique<ReferencedType>(overrides.value());
     } else {
@@ -194,7 +197,7 @@ bool StructMember::requires_destructor() {
 }
 
 FunctionDeclaration* StructDefinition::create_destructor() {
-    auto decl = new FunctionDeclaration("delete", {}, std::make_unique<VoidType>(), false, std::nullopt);
+    auto decl = new FunctionDeclaration("delete", {}, std::make_unique<VoidType>(), false, this, std::nullopt);
     decl->annotations.emplace_back(AnnotationKind::Destructor);
     functions["delete"] = std::unique_ptr<FunctionDeclaration>(decl);
     return decl;

@@ -80,27 +80,26 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
 }
 
 EnumDeclaration* CTranslator::make_enum(clang::EnumDecl* decl) {
+    auto enum_decl = new EnumDeclaration(decl->getNameAsString(), {}, parent_node);
     std::unordered_map<std::string, std::unique_ptr<EnumMember>> members;
     unsigned index = 0;
     for(auto mem : decl->enumerators()) {
-        members[mem->getNameAsString()] = std::make_unique<EnumMember>(mem->getNameAsString(), index);
+        enum_decl->members[mem->getNameAsString()] = std::make_unique<EnumMember>(mem->getNameAsString(), index, enum_decl);
         index++;
     }
-    return new EnumDeclaration(decl->getNameAsString(), std::move(members));
+    return enum_decl;
 }
 
 StructDefinition* CTranslator::make_struct(clang::RecordDecl* decl) {
-    tsl::ordered_map<std::string, std::unique_ptr<BaseDefMember>> fields;
+    auto def = new StructDefinition(decl->getNameAsString(), std::nullopt, parent_node);
     for(auto str : decl->fields()) {
         auto field_type = str->getType();
         auto field_type_conv = make_type(&field_type);
         if(!field_type_conv) {
             return nullptr;
         }
-        fields[str->getNameAsString()] = std::make_unique<StructMember>(str->getNameAsString(), std::unique_ptr<BaseType>(field_type_conv), std::nullopt);
+        def->variables[str->getNameAsString()] = std::make_unique<StructMember>(str->getNameAsString(), std::unique_ptr<BaseType>(field_type_conv), std::nullopt, def);
     }
-    auto def = new StructDefinition(decl->getNameAsString(), std::nullopt);
-    def->variables = std::move(fields);
     return def;
 }
 
@@ -108,7 +107,7 @@ TypealiasStatement* CTranslator::make_typealias(clang::TypedefDecl* decl) {
     auto decl_type = decl->getUnderlyingType();
     auto type = make_type(&decl_type);
     if(type == nullptr) return nullptr;
-    return new TypealiasStatement(decl->getNameAsString(), std::unique_ptr<BaseType>(type));
+    return new TypealiasStatement(decl->getNameAsString(), std::unique_ptr<BaseType>(type), parent_node);
 }
 
 Expression* CTranslator::make_expr(clang::Expr* expr) {
@@ -124,7 +123,7 @@ VarInitStatement* CTranslator::make_var_init(clang::VarDecl* decl) {
     if(initial_value) {
         initial.emplace(initial_value);
     }
-    return new VarInitStatement(false, decl->getNameAsString(), std::unique_ptr<BaseType>(made_type), std::move(initial));
+    return new VarInitStatement(false, decl->getNameAsString(), std::unique_ptr<BaseType>(made_type), std::move(initial), parent_node);
 }
 
 FunctionDeclaration* CTranslator::make_func(clang::FunctionDecl* func_decl) {
@@ -166,6 +165,7 @@ FunctionDeclaration* CTranslator::make_func(clang::FunctionDecl* func_decl) {
             std::move(params),
             std::unique_ptr<BaseType>(chem_type),
             func_decl->isVariadic(),
+            parent_node,
             std::nullopt
     );
     decl->assign_params();

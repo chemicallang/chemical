@@ -13,8 +13,18 @@ public:
     std::unique_ptr<FunctionCall> tryCall;
     catch_var_type catchVar;
     std::optional<Scope> catchScope;
+    ASTNode* parent_node;
 
-    TryCatch(std::unique_ptr<FunctionCall> tryCall, catch_var_type catchVar, std::optional<Scope> catchScope);
+    TryCatch(
+            std::unique_ptr<FunctionCall> tryCall,
+            catch_var_type catchVar,
+            std::optional<Scope> catchScope,
+            ASTNode* parent_node
+    );
+
+    ASTNode *parent() override {
+        return parent_node;
+    }
 
 #ifdef COMPILER_BUILD
 

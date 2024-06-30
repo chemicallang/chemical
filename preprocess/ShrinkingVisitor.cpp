@@ -21,29 +21,36 @@ void shrink(std::optional<LoopScope>& scope) {
     }
 }
 
+void shrink(FunctionDeclaration* decl) {
+    if(decl->has_annotation(AnnotationKind::CompTime)) {
+        return;
+    }
+    shrink(decl->body);
+}
+
 void ShrinkingVisitor::visit(FunctionDeclaration *funcDecl) {
-    shrink(funcDecl->body);
+    shrink(funcDecl);
 }
 
 void ShrinkingVisitor::visit(ExtensionFunction *exFunc) {
-    shrink(exFunc->body);
+    shrink(exFunc);
 }
 
 void ShrinkingVisitor::visit(StructDefinition *def) {
     for(auto& func : def->functions) {
-        shrink(func.second->body);
+        shrink(func.second.get());
     }
 }
 
 void ShrinkingVisitor::visit(InterfaceDefinition *def) {
     for(auto& func : def->functions) {
-        shrink(func.second->body);
+        shrink(func.second.get());
     }
 }
 
 void ShrinkingVisitor::visit(ImplDefinition *def) {
     for(auto& func : def->functions) {
-        shrink(func.second->body);
+        shrink(func.second.get());
     }
 }
 

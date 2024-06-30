@@ -661,6 +661,8 @@ void CAfterStmtVisitor::visit(AccessChain *chain) {
     }
 }
 
+void func_container_name(ToCAstVisitor* visitor, FunctionDeclaration* func_node);
+
 void func_container_name(ToCAstVisitor* visitor, ASTNode* parent_node, ASTNode* linked_node);
 
 void CDestructionVisitor::destruct(const std::string& self_name, ASTNode* parent_node, FunctionDeclaration* destructor) {
@@ -1569,10 +1571,20 @@ void func_call(ToCAstVisitor* visitor, FunctionType* type, std::unique_ptr<Value
     }
 }
 
+// this automatically determines which parent to pass through
+void func_container_name(ToCAstVisitor* visitor, FunctionDeclaration* func_node) {
+    node_parent_name(visitor, func_node);
+    visitor->write(func_node->name);
+}
+
+// the parent_node is the parent of the function node
+// linked_node is the actual function node
 void func_container_name(ToCAstVisitor* visitor, ASTNode* parent_node, ASTNode* linked_node) {
+    node_parent_name(visitor, parent_node);
     if(linked_node->as_extension_func()) {
         return;
     }
+    if(!parent_node) return;
     if(parent_node->as_interface_def()) {
         visitor->write(parent_node->as_interface_def()->name);
     } else if(parent_node->as_struct_def()) {
@@ -1693,20 +1705,16 @@ void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& valu
     return;
     normal_functions: {
         // normal functions
-        bool contains_useless_self = false;
         auto linked_node = parent->linked_node();
         auto as_func_decl = linked_node ? linked_node->as_function() : nullptr;
-        if(visitor->current_members_container && !is_lambda && as_func_decl && visitor->current_members_container->contains_func(as_func_decl)) {
-            func_container_name(visitor, visitor->current_members_container, parent->linked_node());
-            contains_useless_self = values[start]->as_identifier() && values[start]->as_identifier()->value == "self";
-            if(contains_useless_self) {
-                start++;
-            }
+        if(func_decl) {
+            func_container_name(visitor, func_decl);
+        } else {
+            func_name_chain(visitor, values, start, end - 1);
         }
-        func_name_chain(visitor, values, start, end - 1);
         visitor->write('(');
         if(func_type->has_self_param()) {
-            if(grandpa && !contains_useless_self) {
+            if(grandpa) {
                 if (chain_contains_func_call(values, start, end - 2)) {
                     visitor->error("Function call inside a access chain with lambda that requires self is not allowed");
                     return;

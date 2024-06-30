@@ -32,6 +32,10 @@ func strlen(
     _Str : char*
 ) : size_t;
 
+@cbi:global("compiler")
+@dispose(false)
+func strcmp (str1 : char*, str2 : char*) : int;
+
 /**
 func exit(code : int)
 func quick_exit(code : int)

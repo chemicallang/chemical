@@ -273,6 +273,8 @@ void func_call_args(ToCAstVisitor* visitor, FunctionCall* call) {
 
 void access_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& values, unsigned start, unsigned end, unsigned size);
 
+void func_name_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& values, unsigned start, unsigned end);
+
 void access_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& values, unsigned start, unsigned end) {
     access_chain(visitor, values, start, end, values.size());
 }
@@ -300,17 +302,36 @@ void write_self_arg(ToCAstVisitor* visitor, BaseFunctionType* func_type, Value* 
     }
 }
 
+void evaluate_func(ToCAstVisitor* visitor, FunctionDeclaration* func_decl, FunctionCall* call) {
+    auto value = std::unique_ptr<Value>(func_decl->call(&visitor->comptime_scope, call->values, nullptr));
+    if(!value) {
+        visitor->error("comptime function call didn't return anything");
+        return;
+    }
+    auto eval = value->evaluated_value(visitor->comptime_scope);
+    eval->accept((Visitor*) visitor->before_stmt.get());
+    eval->accept(visitor);
+    eval->accept((Visitor*) visitor->after_stmt.get());
+}
+
 void value_assign_default(ToCAstVisitor* visitor, const std::string& identifier, BaseType* type, Value* value) {
     if(value->as_access_chain()) {
         auto chain = value->as_access_chain();
         auto func_call = chain->values.back()->as_func_call();
+        if(func_call) {
+            auto linked_func = func_call->safe_linked_func();
+            if(linked_func && linked_func->has_annotation(AnnotationKind::CompTime)) {
+                evaluate_func(visitor, linked_func, func_call);
+                return;
+            }
+        }
         if(func_call && func_call->create_type()->value_type() == ValueType::Struct) {
             auto parent_type = func_call->parent_val->create_type();
             auto func_type = parent_type->function_type();
             auto end = chain->values.size();
             auto grandpa = end - 3 < end ? chain->values[end - 3].get() : nullptr;
             visitor->nested_value = true;
-            access_chain(visitor, chain->values, 0, chain->values.size() - 1);
+            func_name_chain(visitor, chain->values, 0, chain->values.size() - 1);
             visitor->nested_value = false;
             visitor->write('(');
             visitor->write('&');
@@ -1541,18 +1562,20 @@ void write_accessor(ToCAstVisitor* visitor, Value* current) {
     }
 }
 
+void func_name(ToCAstVisitor* visitor, Value* ref, FunctionDeclaration* func_decl) {
+//    if(func_decl && func_decl->has_annotation(AnnotationKind::Constructor)) {
+//        visitor->write(func_decl->name);
+//    } else {
+        ref->accept(visitor); // function name
+//    }
+}
+
 void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& values, unsigned start, unsigned end) {
     auto last = values[end - 1]->as_func_call();
     auto func_decl = last->safe_linked_func();
     auto parent = values[end - 2].get();
     if(func_decl && func_decl->has_annotation(AnnotationKind::CompTime)) {
-        auto value = std::unique_ptr<Value>(func_decl->call(&visitor->comptime_scope, last->values, nullptr));
-        if(!value) {
-            visitor->error("comptime function call didn't return anything");
-            return;
-        }
-        auto eval = value->evaluated_value(visitor->comptime_scope);
-        eval->accept(visitor);
+        evaluate_func(visitor, func_decl, last);
         return;
     }
     auto grandpa = ((int) end) - 3 >= 0 ? values[end - 3].get() : nullptr;
@@ -1573,12 +1596,19 @@ void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& valu
         if(grandpa && !is_lambda) {
             auto grandpaType = grandpa->create_type();
             func_container_name(visitor, grandpaType->linked_node(), parent->linked_node());
-            parent->accept(visitor); // function name
+            func_name(visitor, parent, func_decl);
             visitor->write('(');
             if(write_self_arg_bool(visitor, func_type, grandpa, last)) {
                 visitor->write(", ");
             }
         } else {
+            if(func_decl && func_decl->has_annotation(AnnotationKind::Constructor)) {
+                // struct name for the constructor, getting through return type
+                auto linked = func_decl->returnType->linked_node();
+                if(linked && linked->as_struct_def()) {
+                    visitor->write(linked->as_struct_def()->name);
+                }
+            }
             access_chain(visitor, values, start, end - 1);
             visitor->write('(');
         }
@@ -1603,7 +1633,7 @@ void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& valu
         if(grandpa->linked_node() && (grandpa->linked_node()->as_interface_def() || grandpa->linked_node()->as_struct_def())) {
             // direct functions on interfaces and structs
             func_container_name(visitor, grandpa->linked_node(), parent->linked_node());
-            parent->accept(visitor);
+            func_name(visitor, parent, func_decl);
             func_call(visitor, last->as_func_call());
         } else if(grandpa->value_type() == ValueType::Struct && grandpaType->kind() == BaseTypeKind::Referenced) {
             if(parent->linked_node()->as_struct_member()) {
@@ -1611,7 +1641,7 @@ void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& valu
             }
             // functions on struct values
             func_container_name(visitor, grandpaType->linked_node(), parent->linked_node());
-            parent->accept(visitor); // function name
+            func_name(visitor, parent, func_decl);
             visitor->write('(');
             write_self_arg(visitor, func_type, grandpa, last);
             func_call_args(visitor, last->as_func_call());
@@ -1635,7 +1665,7 @@ void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& valu
                 start++;
             }
         }
-        access_chain(visitor, values, start, end - 1);
+        func_name_chain(visitor, values, start, end - 1);
         visitor->write('(');
         if(func_type->has_self_param()) {
             if(grandpa && !contains_useless_self) {
@@ -1665,6 +1695,10 @@ void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& valu
 //            visitor->write(';');
 //        }
     };
+}
+
+void func_name_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& values, unsigned start, unsigned end) {
+    access_chain(visitor, values, start, end, values.size());
 }
 
 void access_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& values, unsigned start, unsigned end, unsigned total_size) {
@@ -2080,6 +2114,10 @@ void ToCAstVisitor::visit(Int128Type *func) {
 
 void ToCAstVisitor::visit(IntType *func) {
     write("int");
+}
+
+void ToCAstVisitor::visit(UCharType *uchar) {
+    write("unsigned char");
 }
 
 void ToCAstVisitor::visit(LongType *func) {

@@ -298,6 +298,8 @@ void func_call_args(ToCAstVisitor* visitor, FunctionCall* call) {
 
 void access_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& values, unsigned start, unsigned end, unsigned size);
 
+void func_container_name(ToCAstVisitor* visitor, FunctionDeclaration* func_node);
+
 void func_name_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& values, unsigned start, unsigned end);
 
 void access_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& values, unsigned start, unsigned end) {
@@ -368,12 +370,17 @@ void value_assign_default(ToCAstVisitor* visitor, const std::string& identifier,
             }
         }
         if(func_call && func_call->create_type()->value_type() == ValueType::Struct) {
+            auto func_decl = func_call->safe_linked_func();
             auto parent_type = func_call->parent_val->create_type();
             auto func_type = parent_type->function_type();
             auto end = chain->values.size();
             auto grandpa = end - 3 < end ? chain->values[end - 3].get() : nullptr;
             visitor->nested_value = true;
-            func_name_chain(visitor, chain->values, 0, chain->values.size() - 1);
+            if(func_decl) {
+                func_container_name(visitor, func_decl);
+            } else {
+                func_name_chain(visitor, chain->values, 0, chain->values.size() - 1);
+            }
             visitor->nested_value = false;
             visitor->write('(');
             visitor->write('&');

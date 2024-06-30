@@ -152,12 +152,20 @@ void assign_statement(ToCAstVisitor* visitor, AssignStatement* assign) {
 #define fn_call_struct_var_name "chx_fn_cl_struct"
 
 // nodes inside namespaces for example namespace name is written before their name
-void node_parent_name(ToCAstVisitor* visitor, ASTNode* node) {
+void node_parent_name(ToCAstVisitor* visitor, ASTNode* node, bool take_parent = true) {
     if(!node) return;
     std::string name;
-    auto parent = node->parent();
-    while(parent && parent->as_namespace()) {
-        name = parent->as_namespace()->name + name;
+    auto parent = take_parent ? node->parent() : node;
+    while(parent) {
+        if(parent->as_namespace()) {
+            name = parent->as_namespace()->name + name;
+        } else if(parent->as_struct_def()) {
+            name = parent->as_struct_def()->name + name;
+        } else if(parent->as_union_def()) {
+            name = parent->as_union_def()->name + name;
+        } else {
+            name = "[UNKNOWN_PARENT_NAME]" + name;
+        }
         parent = parent->parent();
     }
     visitor->write(name);
@@ -227,13 +235,13 @@ void accept_func_return(ToCAstVisitor* visitor, BaseType* type) {
 }
 
 // func_type is declared with it's return type and name
-void accept_func_return_with_name(ToCAstVisitor* visitor, BaseFunctionType* func_type, const std::string& name) {
+// the last take_parent allows to skip appending one direct parent name, useful
+// when the interface name is to be used, so interface appends the name in given name parameter
+// take_parent is true, so this function skips direct parent but grandparents and other names are appended
+void accept_func_return_with_name(ToCAstVisitor* visitor, BaseFunctionType* func_type, const std::string& name, bool take_parent = false) {
     accept_func_return(visitor, func_type->returnType.get());
     visitor->space();
-    auto parent = func_type->parent();
-    if(parent) {
-        node_parent_name(visitor, parent);
-    }
+    node_parent_name(visitor, take_parent ? func_type->parent() : func_type->as_function());
     visitor->write(name);
 }
 
@@ -534,8 +542,6 @@ class CTopLevelDeclarationVisitor : public Visitor, public SubVisitor {
 public:
 
     CValueDeclarationVisitor* value_visitor;
-
-    std::string namespace_id;
 
     CTopLevelDeclarationVisitor(
             ToCAstVisitor* visitor,
@@ -934,7 +940,7 @@ void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaratio
         write_self_param_now();
         func_ret_func_proto_after_l_paren(tld->visitor, decl, name, decl->returnType->function_type(), i);
     } else {
-        accept_func_return_with_name(tld->visitor, decl, name);
+        accept_func_return_with_name(tld->visitor, decl, name, true);
         tld->write('(');
         write_self_param_now();
         func_type_params(tld->visitor, decl, i);
@@ -1017,11 +1023,9 @@ void CTopLevelDeclarationVisitor::visit(UnionDef *def) {
 }
 
 void CTopLevelDeclarationVisitor::visit(Namespace *ns) {
-    namespace_id += ns->name;
     for(auto& node : ns->nodes) {
         node->accept(this);
     }
-    namespace_id = namespace_id.substr(0, namespace_id.size() - ns->name.size());
 }
 
 void CTopLevelDeclarationVisitor::visit(StructDefinition *def) {
@@ -1030,7 +1034,7 @@ void CTopLevelDeclarationVisitor::visit(StructDefinition *def) {
         // forward declaring struct for function types that take a pointer to it
         visitor->new_line_and_indent();
         write("struct ");
-        write(namespace_id);
+        node_parent_name(visitor, def);
         write(def->name);
         write(';');
     }
@@ -1039,7 +1043,7 @@ void CTopLevelDeclarationVisitor::visit(StructDefinition *def) {
     }
     visitor->new_line_and_indent();
     write("struct ");
-    write(namespace_id);
+    node_parent_name(visitor, def);
     write(def->name);
     write(" {");
     visitor->indentation_level+=1;
@@ -1331,7 +1335,7 @@ void contained_func_decl(ToCAstVisitor* visitor, FunctionDeclaration* decl, cons
         write_self_param_now();
         func_ret_func_proto_after_l_paren(visitor, decl, name, decl->returnType->function_type(), i);
     } else {
-        accept_func_return_with_name(visitor, decl, name);
+        accept_func_return_with_name(visitor, decl, name, true);
         visitor->write('(');
         write_self_param_now();
         func_type_params(visitor, decl, i);
@@ -1566,7 +1570,6 @@ void func_call(ToCAstVisitor* visitor, FunctionType* type, std::unique_ptr<Value
 }
 
 void func_container_name(ToCAstVisitor* visitor, ASTNode* parent_node, ASTNode* linked_node) {
-    node_parent_name(visitor, linked_node);
     if(linked_node->as_extension_func()) {
         return;
     }

@@ -302,15 +302,32 @@ void write_self_arg(ToCAstVisitor* visitor, BaseFunctionType* func_type, Value* 
     }
 }
 
-void evaluate_func(ToCAstVisitor* visitor, FunctionDeclaration* func_decl, FunctionCall* call) {
+void evaluate_func(
+        ToCAstVisitor* visitor,
+        FunctionDeclaration* func_decl,
+        FunctionCall* call,
+        const std::string& assign_id = ""
+) {
     auto value = std::unique_ptr<Value>(func_decl->call(&visitor->comptime_scope, call->values, nullptr));
     if(!value) {
         visitor->error("comptime function call didn't return anything");
         return;
     }
     auto eval = value->evaluated_value(visitor->comptime_scope);
+    if(!assign_id.empty() && eval->as_struct()) {
+        auto struc = eval->as_struct();
+        visitor->write(assign_id);
+        visitor->write(" = ");
+        visitor->write('(');
+        visitor->write("struct ");
+        visitor->write(struc->definition->name);
+        visitor->write(')');
+    }
     eval->accept((Visitor*) visitor->before_stmt.get());
     eval->accept(visitor);
+    if(!visitor->nested_value) {
+        visitor->write(';');
+    }
     eval->accept((Visitor*) visitor->after_stmt.get());
 }
 
@@ -321,7 +338,7 @@ void value_assign_default(ToCAstVisitor* visitor, const std::string& identifier,
         if(func_call) {
             auto linked_func = func_call->safe_linked_func();
             if(linked_func && linked_func->has_annotation(AnnotationKind::CompTime)) {
-                evaluate_func(visitor, linked_func, func_call);
+                evaluate_func(visitor, linked_func, func_call, identifier);
                 return;
             }
         }

@@ -349,6 +349,8 @@ public:
 
     void visit(IntType* func) override;
 
+    void visit(UCharType *uchar) override;
+
     void visit(LongType* func) override;
 
     void visit(PointerType* func) override;

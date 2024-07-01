@@ -19,6 +19,8 @@ public:
 
     uint64_t byte_size(bool is64Bit) override;
 
+    hybrid_ptr<BaseType> get_pure_type() override;
+
     void accept(Visitor *visitor) override {
         visitor->visit(this);
     }

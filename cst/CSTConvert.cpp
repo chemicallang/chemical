@@ -384,6 +384,7 @@ FunctionParamsResult CSTConverter::function_params(cst_tokens_ref_type tokens, u
                 error("expected self parameter to be named 'self' or 'this'", tokens[i].get());
             }
             params.emplace_back(new FunctionParam(strId, std::unique_ptr<PointerType>(current_self_pointer(this)), 0, std::nullopt));
+            param_index = 1;
         }
 //        else if(optional_param_types && tokens[i]->type() == LexTokenType::Variable) {
 //            auto strId = str_token(tokens[1].get());

@@ -129,6 +129,15 @@ Value *Expression::evaluate(InterpretScope &scope) {
     }
 }
 
+Value *Expression::copy() {
+    return new Expression(
+        std::unique_ptr<Value>(firstValue->copy()),
+        std::unique_ptr<Value>(secondValue->copy()),
+        operation,
+        is64Bit
+    );
+}
+
 bool Expression::compile_time_computable() {
     return firstValue->compile_time_computable() && secondValue->compile_time_computable();
 }

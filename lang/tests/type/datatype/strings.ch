@@ -1,5 +1,5 @@
 import "../../test.ch"
-import "../../../std/string.ch"
+// import "../../../std/string.ch"
 
 struct Str {
     var value : char*

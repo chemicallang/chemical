@@ -50,7 +50,12 @@ llvm::Type *BaseFunctionParam::llvm_elem_type(Codegen &gen) {
 }
 
 llvm::Value *BaseFunctionParam::llvm_pointer(Codegen &gen) {
-    auto arg = gen.current_function->getArg(calculate_c_or_llvm_index());
+    auto index = calculate_c_or_llvm_index();
+    if(index > gen.current_function->arg_size()) {
+        gen.error("couldn't get argument with name " + name + " since function has " + std::to_string(gen.current_function->arg_size()) + " arguments");
+        return nullptr;
+    }
+    auto arg = gen.current_function->getArg(index);
     if (arg) {
         return arg;
     } else {
@@ -61,14 +66,7 @@ llvm::Value *BaseFunctionParam::llvm_pointer(Codegen &gen) {
 
 llvm::Value *BaseFunctionParam::llvm_load(Codegen &gen) {
     if (gen.current_function != nullptr) {
-        unsigned actual_index = calculate_c_or_llvm_index();
-        for (const auto &arg: gen.current_function->args()) {
-            if (arg.getArgNo() == actual_index) {
-                return (llvm::Value *) &arg;
-            }
-        }
-        gen.error(
-                "couldn't locate argument by name " + name + " at index " + std::to_string(actual_index) + " in the function");
+        return llvm_pointer(gen);
     } else {
         gen.error("cannot provide pointer to a function parameter when not generating code for a function");
     }
@@ -182,19 +180,44 @@ void FunctionDeclaration::code_gen_interface(Codegen &gen, InterfaceDefinition* 
 }
 
 void FunctionDeclaration::code_gen_override(Codegen& gen, FunctionDeclaration* decl) {
-    body_gen(gen, (llvm::Function*) funcCallee, decl->body, decl);
-    decl->funcCallee = funcCallee;
-    decl->funcType = funcType;
+    body_gen(gen, (llvm::Function*) decl->funcCallee, body, this);
 }
 
-void FunctionDeclaration::code_gen_struct(Codegen &gen, StructDefinition* def) {
+void FunctionDeclaration::code_gen_declare(Codegen &gen, StructDefinition* def) {
     if(has_annotation(AnnotationKind::CompTime)) {
         return;
     }
+    if(has_annotation(AnnotationKind::Destructor)) {
+        ensure_destructor(def);
+    }
     create_fn(gen, this, def->name + "." + name);
+}
+
+void FunctionDeclaration::code_gen_override_declare(Codegen &gen, FunctionDeclaration* decl) {
+    funcCallee = decl->funcCallee;
+    funcType = decl->funcType;
+}
+
+void FunctionDeclaration::code_gen_body(Codegen &gen, StructDefinition* def) {
+    if(has_annotation(AnnotationKind::CompTime)) {
+        return;
+    }
+    if(has_annotation(AnnotationKind::Destructor)) {
+        code_gen_destructor(gen, def);
+        return;
+    }
     gen.current_function = nullptr;
     code_gen(gen);
 }
+
+//void FunctionDeclaration::code_gen_struct(Codegen &gen, StructDefinition* def) {
+//    if(has_annotation(AnnotationKind::CompTime)) {
+//        return;
+//    }
+//    create_fn(gen, this, def->name + "." + name);
+//    gen.current_function = nullptr;
+//    code_gen(gen);
+//}
 
 void FunctionDeclaration::code_gen_union(Codegen &gen, UnionDef* def) {
     if(has_annotation(AnnotationKind::CompTime)) {
@@ -205,13 +228,11 @@ void FunctionDeclaration::code_gen_union(Codegen &gen, UnionDef* def) {
     code_gen(gen);
 }
 
-void FunctionDeclaration::code_gen_constructor(Codegen& gen, StructDefinition* def) {
-    code_gen_struct(gen, def);
-}
+//void FunctionDeclaration::code_gen_constructor(Codegen& gen, StructDefinition* def) {
+//    code_gen_struct(gen, def);
+//}
 
 void FunctionDeclaration::code_gen_destructor(Codegen& gen, StructDefinition* def) {
-    ensure_destructor(def);
-    create_fn(gen, this, def->name + "." + name);
     auto func = (llvm::Function*) funcCallee;
     llvm::BasicBlock* cleanup_block = llvm::BasicBlock::Create(*gen.ctx, "", func);
     gen.redirect_return = cleanup_block;

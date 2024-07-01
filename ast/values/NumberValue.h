@@ -64,7 +64,9 @@ public:
 
     Value *copy() override {
         auto copy = new NumberValue(value);
-        copy->linked_type = std::unique_ptr<IntNType>((IntNType*) linked_type->copy());
+        if(linked_type) {
+            copy->linked_type = std::unique_ptr<IntNType>((IntNType *) linked_type->copy());
+        }
         return copy;
     }
 

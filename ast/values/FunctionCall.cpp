@@ -417,6 +417,16 @@ std::unique_ptr<BaseType> FunctionCall::create_type() {
     return std::unique_ptr<BaseType>(func_type->returnType->copy());
 }
 
+hybrid_ptr<BaseType> FunctionCall::get_base_type() {
+    auto parent_type = parent_val->get_base_type();
+    auto func_type = parent_type->function_type();
+    if(parent_type.get_will_free()) {
+        return hybrid_ptr<BaseType> { func_type->returnType.release(), true };
+    } else {
+        return hybrid_ptr<BaseType> { func_type->returnType.get(), false };
+    }
+}
+
 void FunctionCall::interpret(InterpretScope &scope) {
     evaluated_value(scope);
 }

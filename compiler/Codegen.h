@@ -341,6 +341,11 @@ public:
     llvm::Value *operate(Operation op, Value *lhs, Value *rhs);
 
     /**
+     * implicitly cast given value from type to to type, if no cast is available value is returned
+     */
+    llvm::Value *implicit_cast(llvm::Value* value, BaseType* from_type, BaseType* to_type);
+
+    /**
      * destructor takes care of deallocating members
      */
     ~Codegen();

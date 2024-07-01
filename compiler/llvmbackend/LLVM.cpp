@@ -513,7 +513,13 @@ void ReturnStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
             llvm::MaybeAlign noAlign;
             gen.builder->CreateMemCpy(gen.current_function->getArg(0), noAlign, value.value()->llvm_pointer(gen), noAlign, value.value()->byte_size(gen.is64Bit));
         } else {
-            gen.CreateRet(value.value()->llvm_ret_value(gen, this));
+            auto llvm_value = value.value()->llvm_ret_value(gen, this);
+            if(func_type) {
+                auto value_type = value.value()->get_pure_type();
+                auto to_type = func_type->returnType->get_pure_type();
+                llvm_value = gen.implicit_cast(llvm_value, value_type.get(), to_type.get());
+            }
+            gen.CreateRet(llvm_value);
         }
     } else {
         if(gen.redirect_return) {

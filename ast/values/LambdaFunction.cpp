@@ -83,6 +83,12 @@ std::unique_ptr<BaseType> LambdaFunction::create_type() {
     return func_type;
 }
 
+hybrid_ptr<BaseType> LambdaFunction::get_base_type() {
+    auto func_type = (FunctionType*) FunctionType::copy();
+    func_type->isCapturing = !captureList.empty();
+    return hybrid_ptr<BaseType> { func_type, true };
+}
+
 LambdaFunction::LambdaFunction(
         std::vector<std::unique_ptr<CapturedVariable>> captureList,
         std::vector<std::unique_ptr<FunctionParam>> params,

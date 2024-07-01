@@ -67,6 +67,8 @@ public:
 
     std::unique_ptr<BaseType> create_type() override;
 
+    hybrid_ptr<BaseType> get_base_type() override;
+
 #ifdef COMPILER_BUILD
 
     llvm::Type *llvm_type(Codegen &gen) override;

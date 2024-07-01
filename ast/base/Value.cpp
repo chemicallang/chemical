@@ -184,6 +184,16 @@ std::string Value::representation() {
     return ostring.str();
 }
 
+hybrid_ptr<BaseType> Value::get_pure_type() {
+    auto base_type = get_base_type();
+    auto pure_type = base_type->get_pure_type();
+    if(pure_type.get() == base_type.get()) {
+        return base_type;
+    } else {
+        return pure_type;
+    }
+}
+
 void Value::link(SymbolResolver& linker, VarInitStatement* stmnt) {
     link(linker, stmnt->value.value());
 }

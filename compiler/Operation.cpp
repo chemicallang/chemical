@@ -23,6 +23,7 @@ llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseTyp
     auto lhs = first->llvm_value(*this);
     auto rhs = second->llvm_value(*this);
 
+    // subtraction or addition to the pointer, pointer math
     if((op == Operation::Addition || op == Operation::Subtraction) && firstType->kind() == BaseTypeKind::Pointer) {
         auto second_value_type = second->value_type();
         if(second_value_type == ValueType::Int) {
@@ -80,6 +81,7 @@ llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseTyp
         return first_unsigned || second_unsigned;
     };
 
+    // implicit cast int n types
     if(firstType->kind() == BaseTypeKind::IntN && secondType->kind() == BaseTypeKind::IntN) {
         auto fIntN = (IntNType*) firstType;
         auto secIntN = (IntNType*) secondType;

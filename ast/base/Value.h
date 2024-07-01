@@ -207,6 +207,11 @@ std::cerr << "child called on base value";
     }
 
     /**
+     * get pure type from the base type
+     */
+    hybrid_ptr<BaseType> get_pure_type();
+
+    /**
      * create a base type that represents the type of this value
      */
     virtual std::unique_ptr<BaseType> create_type() {

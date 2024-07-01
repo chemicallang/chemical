@@ -16,6 +16,7 @@
 #include "lld/Common/ErrorHandler.h"
 #include "ast/utils/GlobalFunctions.h"
 #include "ast/utils/ExpressionEvaluator.h"
+#include "ast/types/IntNType.h"
 #include <cstdlib>
 #include <optional>
 #include <llvm/TargetParser/Host.h>
@@ -266,6 +267,22 @@ void Codegen::loop_body_wrap(llvm::BasicBlock *condBlock, llvm::BasicBlock *endB
     current_loop_exit = endBlock;
 }
 
+llvm::Value *Codegen::implicit_cast(llvm::Value* value, BaseType* from_type, BaseType* to_type) {
+    if(from_type->kind() == BaseTypeKind::IntN && to_type->kind() == BaseTypeKind::IntN) {
+        auto from_num_type = (IntNType*) from_type;
+        auto to_num_type = (IntNType*) to_type;
+        if(from_num_type->num_bits() < to_num_type->num_bits()) {
+            if (from_num_type->is_unsigned()) {
+                return builder->CreateZExt(value, to_num_type->llvm_type(*this));
+            } else {
+                return builder->CreateSExt(value, to_num_type->llvm_type(*this));
+            }
+        } else if(from_num_type->num_bits() > to_num_type->num_bits()) {
+            return builder->CreateTrunc(value, to_num_type->llvm_type(*this));
+        }
+    }
+    return value;
+}
 
 Codegen::~Codegen() {
     delete builder;

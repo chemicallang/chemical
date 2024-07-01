@@ -29,7 +29,7 @@ void ImplDefinition::code_gen(Codegen &gen) {
         if (overridden) {
             auto fn = overridden->as_function();
             if (fn) {
-                fn->code_gen_override(gen, function.second.get());
+                function.second->code_gen_override(gen, fn);
                 unimp_func->second = nullptr;
             }
         }

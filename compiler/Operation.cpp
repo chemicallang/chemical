@@ -13,8 +13,10 @@
 
 llvm::Value *Codegen::operate(Operation op, Value *lhs, Value *rhs) {
     auto firstType = lhs->create_type();
+    auto first_pure = firstType->get_pure_type();
     auto secondType = rhs->create_type();
-    return operate(op, lhs, rhs, firstType.get(), secondType.get());
+    auto second_pure = secondType->get_pure_type();
+    return operate(op, lhs, rhs, first_pure.get(), second_pure.get());
 }
 
 llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseType* firstType, BaseType* secondType){

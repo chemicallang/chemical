@@ -313,14 +313,18 @@ llvm::Value *Expression::llvm_logical_expr(Codegen &gen, BaseType* firstType, Ba
 llvm::Value *Expression::llvm_value(Codegen &gen) {
     auto firstType = firstValue->create_type();
     auto secondType = secondValue->create_type();
-    replace_number_values(firstType.get(), secondType.get());
-    shrink_literal_values(firstType.get(), secondType.get());
-    promote_literal_values(firstType.get(), secondType.get());
+    auto first_pure = firstType->get_pure_type();
+    auto second_pure = secondType->get_pure_type();
+    replace_number_values(first_pure.get(), second_pure.get());
+    shrink_literal_values(first_pure.get(), second_pure.get());
+    promote_literal_values(first_pure.get(), second_pure.get());
     firstType = firstValue->create_type();
+    first_pure = firstType->get_pure_type();
     secondType = secondValue->create_type();
-    auto logical = llvm_logical_expr(gen, firstType.get(), secondType.get());
+    second_pure = secondType->get_pure_type();
+    auto logical = llvm_logical_expr(gen, first_pure.get(), second_pure.get());
     if(logical) return logical;
-    return gen.operate(operation, firstValue.get(), secondValue.get(), firstType.get(), secondType.get());
+    return gen.operate(operation, firstValue.get(), secondValue.get(), first_pure.get(), second_pure.get());
 }
 
 // a || b

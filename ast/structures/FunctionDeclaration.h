@@ -85,9 +85,15 @@ public:
     llvm::FunctionType *llvm_func_type(Codegen &gen) override;
 
     /**
-     * called by struct when the function is inside a struct
+     * called by struct to declare functions, so they can be cal
      */
-    void code_gen_struct(Codegen &gen, StructDefinition* def);
+    void code_gen_declare(Codegen &gen, StructDefinition* def);
+
+    /**
+     * called by struct definition to generate body for already declared
+     * function
+     */
+    void code_gen_body(Codegen &gen, StructDefinition* def);
 
     /**
      * called by union when the function is inside a union
@@ -100,14 +106,11 @@ public:
     void code_gen_interface(Codegen &gen, InterfaceDefinition* def);
 
     /**
-     * codegen destructor
+     * codegen destructor is called by function declaration itself
+     * when a destructor's body is to be generated, mustn't be called
+     * by outside functions
      */
     void code_gen_destructor(Codegen& gen, StructDefinition* def);
-
-    /**
-     * codegen constructor
-     */
-    void code_gen_constructor(Codegen& gen, StructDefinition* def);
 
     /**
      * when normal functions occur in file, this function is called
@@ -120,8 +123,18 @@ public:
     void code_gen_declare(Codegen &gen) override;
 
     /**
+     * (this) is the function that is overriding
+     * the given decl is the function that is being overridden
+     * in the struct when a function is overriding another function, this method is
+     * called on the overrider with the function that is being overridden
+     */
+    void code_gen_override_declare(Codegen &gen, FunctionDeclaration* decl);
+
+    /**
      * called when a struct overrides a function declared in interface
-     * whereas this function is the function in interface, and passed is the struct one
+     * whereas this function is the function that is overriding the function
+     * that is being passed in as a parameter, the function being passed in the parameter
+     * is present in an interface (so it can be overridden)
      */
     void code_gen_override(Codegen& gen, FunctionDeclaration* decl);
 

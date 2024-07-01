@@ -42,44 +42,74 @@ void StructDefinition::code_gen(Codegen &gen) {
         ref = &overridden->second;
         interface = (InterfaceDefinition *) overrides.value()->linked_node();
     }
-    bool has_destructor = false;
-    for (auto &function: functions) {
-        if(function.second->has_annotation(AnnotationKind::Destructor)) {
-            function.second->code_gen_destructor(gen, this);
-            has_destructor = true;
-        }
-        if(function.second->has_annotation(AnnotationKind::Constructor)) {
-            function.second->code_gen_constructor(gen, this);
-            continue;
-        }
+
+    // returns the function that is being overridden by given function in the parameter
+    auto get_overriding = [&](FunctionDeclaration* function) -> FunctionDeclaration* {
         if (overrides.has_value()) {
-            auto overridden = interface->child(function.second->name);
+            auto overridden = interface->child(function->name);
+            if(overridden) {
+                return overridden->as_function();
+            } else {
+                return nullptr;
+            }
+        } else {
+            return nullptr;
+        }
+    };
+
+    // tries to override the function present in interface
+    // returns true if current function should be skipped because it has been overridden
+    // or errored out
+    auto override = [&](FunctionDeclaration* function) -> bool {
+        if (overrides.has_value()) {
+            auto overridden = interface->child(function->name);
             if (overridden) {
-                auto found = ref->find(function.second->name);
+                auto found = ref->find(function->name);
                 if (found == ref->end()) {
-                    gen.error("Couldn't find function with name " + function.second->name + " in interface " +
+                    gen.error("Couldn't find function with name " + function->name + " in interface " +
                               overrides.value()->type + " for implementation");
-                    continue;
+                    return true;
                 }
                 if (found->second == nullptr) {
                     gen.error(
-                            "Function with name " + function.second->name + " in interface " + overrides.value()->type +
+                            "Function with name " + function->name + " in interface " + overrides.value()->type +
                             " has already been implemented");
-                    continue;
+                    return true;
                 }
                 auto fn = overridden->as_function();
                 if (fn) {
-                    fn->code_gen_override(gen, function.second.get());
+                    function->code_gen_override(gen, fn);
                     found->second = nullptr;
-                    continue;
+                    return true;
+                } else {
+                    gen.error("Function being overridden with name " + function->name + " in interface is not a function");
                 }
             }
         }
-        function.second->code_gen_struct(gen, this);
+        return false;
+    };
+
+    bool has_destructor = false;
+    for(auto& function : functions) {
+        auto overriding = get_overriding(function.second.get());
+        if(overriding) {
+            function.second->code_gen_override_declare(gen, overriding);
+            continue;
+        }
+        if(function.second->has_annotation(AnnotationKind::Destructor)) {
+            has_destructor = true;
+        }
+        function.second->code_gen_declare(gen, this);
     }
     if(!has_destructor && requires_destructor()) {
-        auto decl = create_destructor();
-        decl->code_gen_destructor(gen, this);
+        // the destructor exists after this call, next loop will generate body for it
+        create_destructor()->code_gen_declare(gen, this);
+    }
+    for (auto &function: functions) {
+        if(override(function.second.get())) {
+            continue;
+        }
+        function.second->code_gen_body(gen, this);
     }
 }
 

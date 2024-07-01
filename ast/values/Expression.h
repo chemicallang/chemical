@@ -110,6 +110,8 @@ public:
      */
     Value *evaluate(InterpretScope &scope);
 
+    Value *copy() override;
+
     Value *scope_value(InterpretScope &scope) override {
         return evaluate(scope);
     }

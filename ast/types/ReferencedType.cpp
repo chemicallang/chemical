@@ -12,6 +12,10 @@ ValueType ReferencedType::value_type() const {
     return linked->value_type();
 }
 
+hybrid_ptr<BaseType> ReferencedType::get_pure_type() {
+    return linked->get_value_type();
+}
+
 bool ReferencedType::satisfies(ValueType value_type) const {
     if(linked->as_typealias() != nullptr) {
         return ((TypealiasStatement*) linked)->actual_type->satisfies(value_type);

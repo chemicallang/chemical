@@ -1,5 +1,15 @@
 import "../../test.ch"
 
+func implicit_cast_ret_test() : bigint {
+    var i : int = 55 as int;
+    return i;
+}
+
+func implicit_cast_ret_test_2() : int {
+    var i : bigint = 55 as bigint;
+    return i;
+}
+
 func test_numbers() {
     test("test unsigned int works", () => {
         var i : uint = 33;
@@ -91,5 +101,11 @@ func test_numbers() {
         var i : short = 5;
         var w : int = 5;
         return i == w;
+    })
+    test("implicit casting at return from lesser to greater int n type", () => {
+        return implicit_cast_ret_test() == 55;
+    })
+    test("implicit casting at return from greater to lesser int n type", () => {
+        return implicit_cast_ret_test_2() == 55;
     })
 }

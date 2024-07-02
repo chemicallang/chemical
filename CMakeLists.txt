@@ -478,6 +478,7 @@ set(COMMON_SOURCES
         ast/base/ChainValue.h
         ast/base/ASTAny.h
         ast/base/ASTAny.cpp
+        ast/base/ChainPart.h
 )
 
 # Chemical LSP Executable Target

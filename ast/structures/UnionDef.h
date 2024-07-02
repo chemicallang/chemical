@@ -16,9 +16,19 @@ public:
 
     UnionDef(std::string name, ASTNode* parent_node);
 
+    std::string union_name() override {
+        return name;
+    }
+
+    VariablesContainer *as_variables_container() override {
+        return this;
+    }
+
     VariablesContainer *variables_container() override {
         return this;
     }
+
+    VariablesContainer *copy_container() override;
 
     ASTNode *parent() override {
         return parent_node;
@@ -46,11 +56,33 @@ public:
         return this;
     }
 
+    ASTNode *linked_node() override {
+        return this;
+    }
+
+    bool is_anonymous() override {
+        return has_annotation(AnnotationKind::Anonymous);
+    }
+
 #ifdef COMPILER_BUILD
 
     void code_gen(Codegen &gen) override;
 
-    llvm::Type *llvm_type(Codegen &gen) override;
+    llvm::Type *llvm_type(Codegen &gen) override {
+        return UnionType::llvm_type(gen);
+    }
+
+    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<Value>> &values, unsigned int index) override {
+        return UnionType::llvm_chain_type(gen, values, index);
+    }
+
+    llvm::StructType *llvm_union_get_stored_type() override {
+        return llvm_struct_type;
+    }
+
+    void llvm_union_type_store(llvm::StructType* type) override {
+        llvm_struct_type = type;
+    }
 
     bool add_child_index(
         Codegen &gen,

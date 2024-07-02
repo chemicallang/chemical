@@ -65,6 +65,14 @@ public:
 
     void link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) override;
 
+    void link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr, bool prepend);
+
+    void link(SymbolResolver &linker, Value *parent, std::vector<std::unique_ptr<Value>> &values, unsigned int index) override;
+
+    void link_with(ASTNode *parent) override {
+        linked = parent;
+    }
+
     ASTNode *linked_node() override;
 
     void find_link_in_parent(Value *parent, ASTDiagnoser *diagnoser) override;
@@ -80,6 +88,8 @@ public:
     bool add_member_index(Codegen &gen, Value *parent, std::vector<llvm::Value *> &indexes) override;
 
     llvm::Type *llvm_type(Codegen &gen) override;
+
+    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<Value>> &chain, unsigned int index) override;
 
     llvm::FunctionType *llvm_func_type(Codegen &gen) override;
 

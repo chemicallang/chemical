@@ -67,6 +67,10 @@ llvm::Type *IndexOperator::llvm_type(Codegen &gen) {
     return parent_val->create_type()->create_child_type()->llvm_type(gen);
 }
 
+llvm::Type *IndexOperator::llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<Value>> &chain, unsigned int index) {
+    return parent_val->create_type()->create_child_type()->llvm_chain_type(gen, chain, index);
+}
+
 llvm::FunctionType *IndexOperator::llvm_func_type(Codegen &gen) {
     return create_type()->llvm_func_type(gen);
 }
@@ -88,6 +92,7 @@ void IndexOperator::link(SymbolResolver &linker, std::unique_ptr<Value>& value_p
 }
 
 ASTNode *IndexOperator::linked_node() {
+    // TODO use get type instead
     auto value_type = parent_val->create_type();
     return ((ArrayType *) value_type.get())->elem_type->linked_node();
 }

@@ -22,9 +22,15 @@ public:
 
     virtual void declare_and_link(SymbolResolver &linker);
 
+    virtual VariablesContainer* copy_container() {
+        throw std::runtime_error("copy container called on variables container, should be overridden");
+    }
+
 #ifdef COMPILER_BUILD
 
     std::vector<llvm::Type *> elements_type(Codegen &gen);
+
+    std::vector<llvm::Type *> elements_type(Codegen &gen, std::vector<std::unique_ptr<Value>>& chain, unsigned index);
 
     bool llvm_struct_child_index(
             Codegen &gen,

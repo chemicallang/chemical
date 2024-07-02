@@ -17,32 +17,6 @@ void UnionDef::code_gen(Codegen &gen) {
     }
 }
 
-llvm::Type *UnnamedUnion::llvm_type(Codegen &gen) {
-    auto largest = largest_member();
-    if(!largest) {
-        gen.error("couldn't find the largest member in the union");
-        return nullptr;
-    }
-    std::vector<llvm::Type*> members {largest->llvm_type(gen)};
-    return llvm::StructType::get(*gen.ctx, members);
-}
-
-llvm::Type *UnionDef::llvm_type(Codegen &gen) {
-    auto largest = largest_member();
-    if(!largest) {
-        gen.error("Couldn't determine the largest member of the union with name " + name);
-        return nullptr;
-    }
-    if(!llvm_struct_type) {
-        std::vector<llvm::Type*> members {largest->llvm_type(gen)};
-        if(has_annotation(AnnotationKind::Anonymous)) {
-            return llvm::StructType::get(*gen.ctx, members);
-        }
-        llvm_struct_type = llvm::StructType::create(*gen.ctx, members, "union." + name);
-    }
-    return llvm_struct_type;
-}
-
 #endif
 
 UnnamedUnion::UnnamedUnion(std::string name, ASTNode* parent_node) : BaseDefMember(std::move(name)), parent_node(parent_node) {
@@ -59,6 +33,14 @@ UnionDef::UnionDef(std::string name, ASTNode* parent_node) : ExtendableMembersCo
 
 BaseType *UnionDef::copy() const {
     return new ReferencedType(name, (ASTNode*) this);
+}
+
+VariablesContainer *UnionDef::copy_container() {
+    auto container = new UnionDef(name, parent_node);
+    for(auto& variable : variables) {
+        container->variables[variable.first] = std::unique_ptr<BaseDefMember>(variable.second->copy_member());
+    }
+    return container;
 }
 
 BaseType *UnnamedUnion::copy() const {
@@ -86,4 +68,16 @@ void UnnamedUnion::declare_and_link(SymbolResolver &linker) {
     VariablesContainer::declare_and_link(linker);
     linker.scope_end();
     linker.declare(name, this);
+}
+
+BaseDefMember *UnnamedUnion::copy_member() {
+    auto unnamed = new UnnamedUnion(name, parent_node);
+    for(auto& variable : variables) {
+        unnamed->variables[variable.first] = std::unique_ptr<BaseDefMember>(variable.second->copy_member());
+    }
+    return unnamed;
+}
+
+VariablesContainer *UnnamedUnion::copy_container() {
+    return (VariablesContainer*) copy_member();
 }

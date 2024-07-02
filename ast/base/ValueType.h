@@ -36,6 +36,7 @@ enum class ValueType : uint8_t {
     Expression,
     Array,
     Struct,
+    Union,
     Vector,
     Lambda,
     Pointer,

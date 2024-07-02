@@ -65,6 +65,17 @@ public:
     }
 
     /**
+     * called by access chain, to link a value inside values in a chain
+     * it allows variable identifier to prevent auto appending self, when access chain has already done it
+     */
+    virtual void link(
+            SymbolResolver& linker,
+            Value* parent,
+            std::vector<std::unique_ptr<Value>>& values,
+            unsigned index
+    );
+
+    /**
      * when value is contained within VarInitStatement, this function is called
      * which provides access to the statement for more information
      */
@@ -121,10 +132,11 @@ public:
     }
 
     /**
-     * get byte size of this value
+     * this applies only to chain values that can directly link with given node
+     * only variable identifier at the moment
      */
-    virtual uint64_t byte_size(bool is64Bit) {
-        throw std::runtime_error("byte_size called on base Value");
+    virtual void link_with(ASTNode* parent) {
+        throw std::runtime_error("cannot link this value with given parent");
     }
 
     /**
@@ -132,6 +144,13 @@ public:
      */
     virtual void find_link_in_parent(Value* parent, SymbolResolver& resolver) {
         return find_link_in_parent(parent, nullptr);
+    }
+
+    /**
+     * get byte size of this value
+     */
+    virtual uint64_t byte_size(bool is64Bit) {
+        throw std::runtime_error("byte_size called on base Value");
     }
 
     /**
@@ -208,14 +227,11 @@ std::cerr << "child called on base value";
     }
 
     /**
-     * This function get's the type so that user's access chain is considered
-     * for example user's types con contain unions, when you get a struct type containing a union
-     * typically union gives type for it's largest member so memory for that is allocated and everything
-     * can be stored in a single place, BUT when accessing a union, you may not access the largest member
-     * of the union, and you want unions to consider that, so this function does exactly that
-     * it will not use the largest member of the union if you don't access it
+     * should build chain type returns true if a single identifier is linked with a union
+     * meaning if you try to access a child of a union, this method would return true
+     * because unions mean different types
      */
-    static hybrid_ptr<BaseType> get_chain_type(std::vector<std::unique_ptr<Value>>& chain, unsigned index);
+    static bool should_build_chain_type(std::vector<std::unique_ptr<Value>>& chain, unsigned index);
 
     /**
      * get pure type from the base type

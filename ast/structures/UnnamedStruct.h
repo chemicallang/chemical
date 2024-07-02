@@ -20,6 +20,14 @@ public:
         return this;
     }
 
+    VariablesContainer *as_variables_container() override {
+        return this;
+    }
+
+    BaseDefMember *copy_member() override;
+
+    VariablesContainer *copy_container() override;
+
     ASTNode *parent() override {
         return parent_node;
     }
@@ -49,12 +57,20 @@ public:
         return this;
     }
 
+    ASTNode *linked_node() override {
+        return this;
+    }
+
     BaseType *copy() const override;
 
 #ifdef COMPILER_BUILD
 
-    llvm::Type * llvm_type(Codegen &gen) override {
+    llvm::Type  *llvm_type(Codegen &gen) override {
         return StructType::llvm_type(gen);
+    }
+
+    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<Value>> &values, unsigned int index) override {
+        return StructType::llvm_chain_type(gen, values, index);
     }
 
     bool add_child_index(

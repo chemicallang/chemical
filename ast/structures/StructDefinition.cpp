@@ -105,7 +105,11 @@ void StructDefinition::code_gen(Codegen &gen) {
 }
 
 llvm::Type *StructMember::llvm_type(Codegen &gen) {
-    return type->llvm_struct_member_type(gen);
+    return type->llvm_type(gen);
+}
+
+llvm::Type *StructMember::llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<Value>> &values, unsigned int index) {
+    return type->llvm_chain_type(gen, values, index);
 }
 
 llvm::FunctionType *StructMember::llvm_func_type(Codegen &gen) {
@@ -157,6 +161,14 @@ hybrid_ptr<BaseType> StructMember::get_value_type() {
     return hybrid_ptr<BaseType> { type.get(), false };
 }
 
+BaseDefMember *StructMember::copy_member() {
+    std::optional<std::unique_ptr<Value>> def_value = std::nullopt;
+    if(defValue.has_value()) {
+        def_value.emplace(defValue.value()->copy());
+    }
+    return new StructMember(name, std::unique_ptr<BaseType>(type->copy()), std::move(def_value), parent_node);
+}
+
 void StructMember::declare_and_link(SymbolResolver &linker) {
     linker.declare(name, this);
     type->link(linker, type);
@@ -170,6 +182,18 @@ void UnnamedStruct::declare_and_link(SymbolResolver &linker) {
     VariablesContainer::declare_and_link(linker);
     linker.scope_end();
     linker.declare(name, this);
+}
+
+BaseDefMember *UnnamedStruct::copy_member() {
+    auto unnamed = new UnnamedStruct(name, parent_node);
+    for(auto& variable : variables) {
+        unnamed->variables[variable.first] = std::unique_ptr<BaseDefMember>(variable.second->copy_member());
+    }
+    return unnamed;
+}
+
+VariablesContainer *UnnamedStruct::copy_container() {
+    return (VariablesContainer*) copy_member();
 }
 
 ASTNode *StructMember::child(const std::string &childName) {
@@ -256,6 +280,17 @@ ASTNode *StructDefinition::child(const std::string &name) {
         return overrides.value()->linked->child(name);
     };
     return nullptr;
+}
+
+VariablesContainer *StructDefinition::copy_container() {
+    auto def = new StructDefinition(name, std::nullopt, parent_node);
+    if(overrides.has_value()) {
+        def->overrides = std::unique_ptr<ReferencedType>((ReferencedType *) overrides.value()->copy());
+    }
+    for(auto& variable : variables) {
+        def->variables[variable.first] = std::unique_ptr<BaseDefMember>(variable.second->copy_member());
+    }
+    return def;
 }
 
 std::unique_ptr<BaseType> StructDefinition::create_value_type() {

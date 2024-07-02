@@ -54,7 +54,16 @@ std::vector<llvm::Type *> VariablesContainer::elements_type(Codegen &gen) {
     auto vec = std::vector<llvm::Type *>();
     vec.reserve(variables.size());
     for (const auto &var: variables) {
-        vec.push_back(var.second->llvm_type(gen));
+        vec.emplace_back(var.second->llvm_type(gen));
+    }
+    return vec;
+}
+
+std::vector<llvm::Type *> VariablesContainer::elements_type(Codegen &gen, std::vector<std::unique_ptr<Value>>& chain, unsigned index) {
+    auto vec = std::vector<llvm::Type *>();
+    vec.reserve(variables.size());
+    for (const auto &var: variables) {
+        vec.emplace_back(var.second->llvm_chain_type(gen, chain, index + 1));
     }
     return vec;
 }

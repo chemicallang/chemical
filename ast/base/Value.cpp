@@ -20,6 +20,7 @@
 
 #include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
+#include "ast/structures/StructMember.h"
 
 llvm::AllocaInst* Value::llvm_allocate_with(Codegen& gen, llvm::Value* value, llvm::Type* type) {
     auto x = gen.builder->CreateAlloca(type, nullptr);
@@ -84,7 +85,8 @@ llvm::Value* Value::access_chain_value(Codegen &gen, std::vector<std::unique_ptr
     return loaded;
 }
 
-llvm::Value* create_gep(Codegen &gen, Value* parent, llvm::Value* pointer, std::vector<llvm::Value*>& idxList) {
+llvm::Value* create_gep(Codegen &gen, std::vector<std::unique_ptr<Value>>& values, unsigned index, llvm::Value* pointer, std::vector<llvm::Value*>& idxList) {
+    const auto parent = values[index].get();
     auto type_kind = parent->type_kind();
     if(type_kind == BaseTypeKind::Array && parent->linked_node() && parent->linked_node()->as_func_param()) {
         auto type = parent->create_type();
@@ -92,9 +94,9 @@ llvm::Value* create_gep(Codegen &gen, Value* parent, llvm::Value* pointer, std::
         return gen.builder->CreateGEP(arr_type->elem_type->llvm_type(gen), pointer, idxList, "", gen.inbounds);
     } else if(type_kind == BaseTypeKind::Pointer) {
         auto ty = parent->create_type();
-        return gen.builder->CreateGEP(((PointerType*) (ty.get()))->type->llvm_type(gen), pointer, idxList, "", gen.inbounds);
+        return gen.builder->CreateGEP(((PointerType*) (ty.get()))->type->llvm_chain_type(gen, values, index), pointer, idxList, "", gen.inbounds);
     } else {
-        return gen.builder->CreateGEP(parent->llvm_type(gen), pointer, idxList, "", gen.inbounds);
+        return gen.builder->CreateGEP(parent->llvm_chain_type(gen, values, index), pointer, idxList, "", gen.inbounds);
     }
 }
 
@@ -122,6 +124,7 @@ llvm::Value* Value::access_chain_pointer(
         return values[0]->llvm_pointer(gen);
     }
 
+    unsigned parent_index = 0;
     Value* parent = values[0].get();
     llvm::Value* pointer = parent->llvm_pointer(gen);
 
@@ -131,6 +134,7 @@ llvm::Value* Value::access_chain_pointer(
         if(values[j]->as_func_call()) {
             pointer = values[j]->access_chain_allocate(gen, values, j);
             parent = values[j].get();
+            parent_index = j;
             if(j + 1 <= until) {
                 destructibles.emplace_back(parent, pointer);
             }
@@ -151,10 +155,11 @@ llvm::Value* Value::access_chain_pointer(
             if(idxList.empty()) {
                 gep = pointer;
             } else {
-                gep = create_gep(gen, parent, pointer, idxList);
+                gep = create_gep(gen, values, parent_index, pointer, idxList);
             }
             pointer = gen.builder->CreateLoad(values[i]->llvm_type(gen), gep);
             parent = values[i].get();
+            parent_index = i;
             idxList.clear();
         } else {
             if (!values[i]->add_member_index(gen, values[i - 1].get(), idxList)) {
@@ -164,7 +169,7 @@ llvm::Value* Value::access_chain_pointer(
         }
         i++;
     }
-    return create_gep(gen, parent, pointer, idxList);
+    return create_gep(gen, values, parent_index, pointer, idxList);
 }
 
 void Value::llvm_conditional_branch(Codegen& gen, llvm::BasicBlock* then_block, llvm::BasicBlock* otherwise_block) {
@@ -194,12 +199,36 @@ hybrid_ptr<BaseType> Value::get_pure_type() {
     }
 }
 
-hybrid_ptr<BaseType> Value::get_chain_type(std::vector<std::unique_ptr<Value>>& chain, unsigned index) {
-    return chain[index]->get_base_type();
+bool Value::should_build_chain_type(std::vector<std::unique_ptr<Value>>& chain, unsigned index) {
+    ASTNode* linked;
+    VariablesContainer* union_container = nullptr;
+    while(index < chain.size()) {
+        linked = chain[index]->linked_node();
+        if(linked && (linked->as_union_def() || linked->as_unnamed_union())) {
+            union_container = linked->as_variables_container();
+        } else if(union_container && linked != union_container->largest_member()) {
+            return true;
+        }
+        index++;
+    }
+    return false;
 }
 
 void Value::link(SymbolResolver& linker, VarInitStatement* stmnt) {
     link(linker, stmnt->value.value());
+}
+
+void Value::link(
+    SymbolResolver& linker,
+    Value* parent,
+    std::vector<std::unique_ptr<Value>>& values,
+    unsigned index
+) {
+    if(parent) {
+        find_link_in_parent(parent, linker);
+    } else {
+        link(linker, values[index]);
+    }
 }
 
 void Value::link(SymbolResolver& linker, AssignStatement* stmnt, bool lhs) {

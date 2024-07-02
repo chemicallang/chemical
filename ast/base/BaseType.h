@@ -7,6 +7,7 @@
 #include <string>
 #include <memory>
 #include "Visitor.h"
+#include "ASTAny.h"
 #include "std/hybrid_ptr.h"
 #include <iostream>
 
@@ -15,12 +16,6 @@ class Codegen;
 class SymbolResolver;
 
 class ASTNode;
-
-#ifdef COMPILER_BUILD
-
-#include "compiler/llvmfwd.h"
-
-#endif
 
 class PointerType;
 
@@ -31,7 +26,7 @@ class Value;
 /**
  * BaseType is a base class for all the types there are
  */
-class BaseType {
+class BaseType : public ASTAny {
 public:
 
     /**
@@ -139,13 +134,13 @@ public:
     /**
      * check if given base type is of same type
      */
-    virtual bool is_same(BaseType* type) const = 0;
+    virtual bool is_same(BaseType* type) = 0;
 
     /**
      * this basically tells whether the given value type would satisfy this type
      * @deprecated
      */
-    virtual bool satisfies(ValueType type) const = 0;
+    virtual bool satisfies(ValueType type) = 0;
 
     /**
      * whether the given value satisfies the current type
@@ -181,13 +176,6 @@ public:
     }
 
 #ifdef COMPILER_BUILD
-
-    /**
-     * return the llvm type that corresponds to this base type
-     * @param gen
-     * @return
-     */
-    virtual llvm::Type *llvm_type(Codegen &gen) = 0;
 
     /**
      * return a func type, if this type can represent one

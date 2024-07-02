@@ -4,8 +4,9 @@
 
 #include "VariablesContainer.h"
 #include "BaseDefMember.h"
+#include "ast/types/UnionType.h"
 
-class UnnamedUnion : public BaseDefMember, public VariablesContainer {
+class UnnamedUnion : public BaseDefMember, public VariablesContainer, public UnionType {
 public:
 
     ASTNode* parent_node;
@@ -14,6 +15,10 @@ public:
         std::string name,
         ASTNode* parent_node
     );
+
+    VariablesContainer *variables_container() override {
+        return this;
+    }
 
     ASTNode *parent() override {
         return parent_node;
@@ -43,6 +48,8 @@ public:
     UnnamedUnion *as_unnamed_union() override {
         return this;
     }
+
+    BaseType *copy() const override;
 
 #ifdef COMPILER_BUILD
 

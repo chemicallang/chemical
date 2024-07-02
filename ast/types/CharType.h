@@ -25,10 +25,6 @@ public:
 
     Value *create(int64_t value) override;
 
-    bool satisfies(ValueType type) const override {
-        return type == ValueType::Char;
-    }
-
     BaseTypeKind kind() const override {
         return BaseTypeKind::Char;
     }
@@ -39,7 +35,7 @@ public:
 
     bool satisfies(Value *value) override;
 
-    bool is_same(BaseType *type) const override {
+    bool is_same(BaseType *type) override {
         return type->kind() == kind();
     }
 

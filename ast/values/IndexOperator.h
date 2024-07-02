@@ -8,9 +8,9 @@
 
 #include <memory>
 #include <utility>
-#include "ast/base/Value.h"
+#include "ast/base/ChainValue.h"
 
-class IndexOperator : public Value {
+class IndexOperator : public ChainValue {
 public:
 
     explicit IndexOperator(std::vector<std::unique_ptr<Value>> indexes) : values(std::move(indexes)) {

@@ -4,6 +4,7 @@
 #include "UnionDef.h"
 #include "FunctionDeclaration.h"
 #include "compiler/SymbolResolver.h"
+#include "ast/types/ReferencedType.h"
 
 #ifdef COMPILER_BUILD
 
@@ -49,11 +50,27 @@ UnnamedUnion::UnnamedUnion(std::string name, ASTNode* parent_node) : BaseDefMemb
 }
 
 hybrid_ptr<BaseType> UnnamedUnion::get_value_type() {
-    return largest_member()->get_value_type();
+    return hybrid_ptr<BaseType> { this, false };
 }
 
 UnionDef::UnionDef(std::string name, ASTNode* parent_node) : ExtendableMembersContainerNode(std::move(name)), parent_node(parent_node) {
 
+}
+
+BaseType *UnionDef::copy() const {
+    return new ReferencedType(name, (ASTNode*) this);
+}
+
+BaseType *UnnamedUnion::copy() const {
+    return new ReferencedType(name, (ASTNode*) this);
+}
+
+std::unique_ptr<BaseType> UnionDef::create_value_type() {
+    return std::unique_ptr<BaseType>(copy());
+}
+
+hybrid_ptr<BaseType> UnionDef::get_value_type() {
+    return hybrid_ptr<BaseType> { this, false };
 }
 
 void UnionDef::declare_top_level(SymbolResolver &linker) {

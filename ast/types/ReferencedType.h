@@ -31,7 +31,7 @@ public:
 
     ASTNode *linked_node() override;
 
-    bool satisfies(ValueType value_type) const override;
+    bool satisfies(ValueType value_type) override;
 
     BaseTypeKind kind() const override {
         return BaseTypeKind::Referenced;
@@ -39,7 +39,7 @@ public:
 
     bool satisfies(Value *value) override;
 
-    bool is_same(BaseType *other) const override {
+    bool is_same(BaseType *other) override {
         return other->kind() == kind() && static_cast<ReferencedType *>(other)->linked == linked;
     }
 

@@ -6,15 +6,17 @@
 #include "ast/base/BaseType.h"
 #include <memory>
 
+class VariablesContainer;
+
 class StructType : public BaseType {
 public:
 
-    std::vector<std::unique_ptr<BaseType>> elem_types;
-
     StructType() = default;
 
-    StructType(std::vector<std::unique_ptr<BaseType>> elem_types) : elem_types(std::move(elem_types)) {
+    virtual VariablesContainer* variables_container() = 0;
 
+    virtual std::string struct_name() {
+        return "";
     }
 
     void accept(Visitor *visitor) override {
@@ -29,36 +31,31 @@ public:
         return ValueType::Struct;
     }
 
-    bool equals(StructType *type) const {
-        if (elem_types.size() != type->elem_types.size()) return false;
-        auto equal = true;
-        unsigned i = 0;
-        while (i < elem_types.size()) {
-            if (!elem_types[i]->is_same(type->elem_types[i].get())) {
-                return false;
-            }
-            i++;
-        }
-        return equal;
-    }
+    bool equals(StructType *type);
 
-    bool is_same(BaseType *type) const override {
+    bool is_same(BaseType *type) override {
         return kind() == type->kind() && equals(static_cast<StructType *>(type));
     }
 
-    virtual BaseType *copy() const {
-        auto def = new StructType();
-        for (auto &elem: elem_types) {
-            def->elem_types.emplace_back(elem->copy());
-        }
-        return def;
-    }
+    virtual BaseType *copy() const = 0;
 
-    bool satisfies(ValueType type) const override {
+    bool satisfies(ValueType type) override {
         return type == ValueType::Struct;
     }
 
 #ifdef COMPILER_BUILD
+
+    virtual bool is_anonymous() {
+        return true;
+    }
+
+    virtual llvm::StructType* llvm_stored_type() {
+        return nullptr;
+    }
+
+    virtual void llvm_store_type(llvm::StructType* type) {
+        // does not store by default
+    }
 
     llvm::Type *llvm_type(Codegen &gen) override;
 

@@ -2,9 +2,10 @@
 
 #pragma once
 
+#include "ast/types/UnionType.h"
 #include "ast/base/ExtendableMembersContainerNode.h"
 
-class UnionDef : public ExtendableMembersContainerNode {
+class UnionDef : public ExtendableMembersContainerNode, public UnionType {
 public:
 
     ASTNode* parent_node;
@@ -14,6 +15,10 @@ public:
 #endif
 
     UnionDef(std::string name, ASTNode* parent_node);
+
+    VariablesContainer *variables_container() override {
+        return this;
+    }
 
     ASTNode *parent() override {
         return parent_node;
@@ -26,6 +31,12 @@ public:
     void accept(Visitor *visitor) override {
         visitor->visit(this);
     }
+
+    std::unique_ptr<BaseType> create_value_type() override;
+
+    hybrid_ptr<BaseType> get_value_type() override;
+
+    BaseType *copy() const override;
 
     void declare_top_level(SymbolResolver &linker) override;
 

@@ -16,7 +16,7 @@ hybrid_ptr<BaseType> ReferencedType::get_pure_type() {
     return linked->get_value_type();
 }
 
-bool ReferencedType::satisfies(ValueType value_type) const {
+bool ReferencedType::satisfies(ValueType value_type) {
     if(linked->as_typealias() != nullptr) {
         return ((TypealiasStatement*) linked)->actual_type->satisfies(value_type);
     } else {

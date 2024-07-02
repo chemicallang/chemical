@@ -29,19 +29,15 @@ public:
      */
     virtual Value* create(int64_t value) = 0;
 
-    bool satisfies(ValueType type) const override {
-        return type == ValueType::Int;
-    }
-
-    ValueType value_type() const override {
-        return ValueType::Int;
+    bool satisfies(ValueType type) override {
+        return type == value_type();
     }
 
     BaseTypeKind kind() const override {
         return BaseTypeKind::IntN;
     }
 
-    bool is_same(BaseType *type) const override {
+    bool is_same(BaseType *type) override {
         return type->kind() == kind();
     }
 

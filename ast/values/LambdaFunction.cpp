@@ -199,7 +199,7 @@ void LambdaFunction::link(SymbolResolver &linker, StructValue *value, const std:
     if(!params.empty()) {
         auto& param = params[0];
         if((param->name == "self" || param->name == "this") && param->type->kind() == BaseTypeKind::Void) {
-            param->type = std::make_unique<PointerType>(std::make_unique<ReferencedType>(value->definition->name, value->definition));
+            param->type = std::make_unique<PointerType>(value->definition->get_value_type());
         }
     }
     link_full(this, linker);

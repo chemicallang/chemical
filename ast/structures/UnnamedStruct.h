@@ -4,8 +4,9 @@
 
 #include "VariablesContainer.h"
 #include "BaseDefMember.h"
+#include "ast/types/StructType.h"
 
-class UnnamedStruct : public BaseDefMember, public VariablesContainer {
+class UnnamedStruct : public BaseDefMember, public VariablesContainer, public StructType {
 public:
 
     ASTNode* parent_node;
@@ -14,6 +15,10 @@ public:
         std::string name,
         ASTNode* parent_node
     );
+
+    VariablesContainer *variables_container() override {
+        return this;
+    }
 
     ASTNode *parent() override {
         return parent_node;
@@ -44,9 +49,13 @@ public:
         return this;
     }
 
+    BaseType *copy() const override;
+
 #ifdef COMPILER_BUILD
 
-    llvm::Type *llvm_type(Codegen &gen) override;
+    llvm::Type * llvm_type(Codegen &gen) override {
+        return StructType::llvm_type(gen);
+    }
 
     bool add_child_index(
             Codegen &gen,

@@ -7,7 +7,7 @@
 class VoidType : public BaseType {
 public:
 
-    bool satisfies(ValueType type) const override {
+    bool satisfies(ValueType type) override {
         return false;
     }
 
@@ -23,7 +23,7 @@ public:
         return false;
     }
 
-    bool is_same(BaseType *type) const override {
+    bool is_same(BaseType *type) override {
         return type->kind() == kind();
     }
 

@@ -11,7 +11,7 @@ public:
         return 1;
     }
 
-    bool satisfies(ValueType type) const override {
+    bool satisfies(ValueType type) override {
         return type == ValueType::Bool;
     }
 
@@ -29,7 +29,7 @@ public:
 
     bool satisfies(Value *value) override;
 
-    bool is_same(BaseType *type) const override {
+    bool is_same(BaseType *type) override {
         return type->kind() == kind();
     }
 

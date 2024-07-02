@@ -14,11 +14,11 @@
 #include <map>
 #include "ast/types/ReferencedType.h"
 #include "ast/base/ExtendableMembersContainerNode.h"
+#include "ast/types/StructType.h"
 
-class StructDefinition : public ExtendableMembersContainerNode {
+class StructDefinition : public ExtendableMembersContainerNode, public StructType {
 public:
 
-    InterpretScope *decl_scope;
     std::optional<std::unique_ptr<ReferencedType>> overrides;
     ASTNode* parent_node;
 
@@ -46,6 +46,14 @@ public:
         return name;
     }
 
+    std::string struct_name() override {
+        return name;
+    }
+
+    VariablesContainer *variables_container() override {
+        return this;
+    }
+
     void accept(Visitor *visitor) override;
 
     void declare_top_level(SymbolResolver &linker) override;
@@ -53,8 +61,6 @@ public:
     void declare_and_link(SymbolResolver &linker) override;
 
     StructDefinition *as_struct_def() override;
-
-    void interpret(InterpretScope &scope) override;
 
     ASTNode *child(const std::string &name) override;
 
@@ -70,13 +76,27 @@ public:
 
     FunctionDeclaration* create_destructor();
 
+    BaseType *copy() const override;
+
 #ifdef COMPILER_BUILD
 
-    llvm::Type *llvm_type(Codegen &gen) override;
+    bool is_anonymous() override {
+        return has_annotation(AnnotationKind::Anonymous);
+    }
+
+    llvm::StructType* llvm_stored_type() override {
+        return llvm_struct_type;
+    }
+
+    void llvm_store_type(llvm::StructType* type) override {
+        llvm_struct_type = type;
+    }
+
+    llvm::Type *llvm_type(Codegen &gen) override {
+        return StructType::llvm_type(gen);
+    }
 
     void code_gen(Codegen &gen) override;
-
-    llvm::StructType* get_struct_type(Codegen &gen);
 
     void llvm_destruct(Codegen &gen, llvm::Value *allocaInst) override;
 

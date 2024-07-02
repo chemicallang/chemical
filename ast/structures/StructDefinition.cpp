@@ -18,16 +18,7 @@
 #include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
 #include "ast/values/IntValue.h"
-
-llvm::StructType* StructDefinition::get_struct_type(Codegen& gen) {
-    if(!llvm_struct_type) {
-        if(has_annotation(AnnotationKind::Anonymous)) {
-            return llvm::StructType::get(*gen.ctx, elements_type(gen));
-        }
-        llvm_struct_type = llvm::StructType::create(*gen.ctx, elements_type(gen), name);
-    }
-    return llvm_struct_type;
-}
+#include "ast/types/ReferencedType.h"
 
 void StructDefinition::code_gen(Codegen &gen) {
     std::unordered_map<std::string, llvm::Function *> *ref = nullptr;
@@ -128,14 +119,6 @@ bool StructMember::add_child_index(Codegen &gen, std::vector<llvm::Value *> &ind
     return true;
 }
 
-llvm::Type *StructDefinition::llvm_type(Codegen &gen) {
-    return get_struct_type(gen);
-}
-
-llvm::Type *UnnamedStruct::llvm_type(Codegen &gen) {
-    return llvm::StructType::get(*gen.ctx, elements_type(gen));
-}
-
 void StructDefinition::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
     auto func = destructor_func();
     if(func) {
@@ -222,6 +205,14 @@ StructDefinition::StructDefinition(
     }
 }
 
+BaseType *StructDefinition::copy() const {
+    return new ReferencedType(name, (ASTNode *) this);
+}
+
+BaseType *UnnamedStruct::copy() const {
+    return new ReferencedType(name, (ASTNode *) this);
+}
+
 bool StructMember::requires_destructor() {
     return type->value_type() == ValueType::Struct && type->linked_node()->as_struct_def()->requires_destructor();
 }
@@ -257,10 +248,6 @@ StructDefinition *StructDefinition::as_struct_def() {
     return this;
 }
 
-void StructDefinition::interpret(InterpretScope &scope) {
-    decl_scope = &scope;
-}
-
 ASTNode *StructDefinition::child(const std::string &name) {
     auto node = ExtendableMembersContainerNode::child(name);
     if (node) {
@@ -276,11 +263,11 @@ std::unique_ptr<BaseType> StructDefinition::create_value_type() {
 }
 
 hybrid_ptr<BaseType> StructDefinition::get_value_type() {
-    return hybrid_ptr<BaseType> { new ReferencedType(name, this) };
+    return hybrid_ptr<BaseType> { this, false };
 }
 
 hybrid_ptr<BaseType> UnnamedStruct::get_value_type() {
-    return hybrid_ptr<BaseType> { new ReferencedType(name, this) };
+    return hybrid_ptr<BaseType> { this, false };
 }
 
 ValueType StructDefinition::value_type() const {

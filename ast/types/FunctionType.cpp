@@ -83,7 +83,7 @@ bool FunctionType::isInVarArgs(unsigned index) {
     return isVariadic && index >= (params.size() - 1);
 }
 
-bool FunctionType::satisfies(ValueType type) const {
+bool FunctionType::satisfies(ValueType type) {
     return type == ValueType::Lambda;
 }
 

@@ -11,6 +11,7 @@
 class Scope : public ASTNode {
 public:
 
+    std::vector<std::unique_ptr<ASTNode>> nodes;
     ASTNode* parent_node;
 
     /**
@@ -57,7 +58,5 @@ public:
      * like loop scope, which can be stopped in the middle of the loop
      */
     virtual void stopInterpretOnce();
-
-    std::vector<std::unique_ptr<ASTNode>> nodes;
 
 };

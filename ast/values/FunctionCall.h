@@ -8,12 +8,12 @@
 
 #include <vector>
 #include <memory>
-#include "ast/base/Value.h"
+#include "ast/base/ChainValue.h"
 #include "ast/structures/FunctionDeclaration.h"
 
 class ASTDiagnoser;
 
-class FunctionCall : public Value {
+class FunctionCall : public ChainValue {
 public:
 
     Value* parent_val;

@@ -27,11 +27,11 @@ public:
         return BaseTypeKind::Generic;
     }
 
-    bool is_same(BaseType *other) const override {
+    bool is_same(BaseType *other) override {
         return other->kind() == kind();
     }
 
-    bool satisfies(ValueType value_type) const override {
+    bool satisfies(ValueType value_type) override {
         return type->satisfies(value_type);
     }
 

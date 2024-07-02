@@ -29,7 +29,6 @@ void GlobalInterpretScope::add_error(const std::string &err) {
 void GlobalInterpretScope::clean() {
     InterpretScope::clean();
     errors.clear();
-    curr_node_position = 0;
 }
 
 GlobalInterpretScope::~GlobalInterpretScope() = default;

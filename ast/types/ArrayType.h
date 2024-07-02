@@ -53,7 +53,7 @@ public:
         return type->array_size == array_size && elem_type->is_same(type->elem_type.get());
     }
 
-    bool is_same(BaseType *type) const override {
+    bool is_same(BaseType *type) override {
         return kind() == type->kind() && equals(static_cast<ArrayType *>(type));
     }
 
@@ -61,7 +61,7 @@ public:
         return new ArrayType(std::unique_ptr<BaseType>(elem_type->copy()), array_size);
     }
 
-    bool satisfies(ValueType type) const override {
+    bool satisfies(ValueType type) override {
         return type == ValueType::Array;
     }
 

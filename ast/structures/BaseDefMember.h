@@ -16,6 +16,8 @@ public:
 
     virtual bool requires_destructor() = 0;
 
+    virtual BaseDefMember* copy_member() = 0;
+
     virtual Value* default_value() {
         return nullptr;
     }

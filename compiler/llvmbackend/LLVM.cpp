@@ -94,37 +94,83 @@ llvm::Type *PointerType::llvm_type(Codegen &gen) {
     return gen.builder->getPtrTy();
 }
 
+llvm::Type *PointerType::llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<Value>> &values, unsigned int index) {
+    if(index == values.size() - 1) {
+        return gen.builder->getPtrTy();
+    } else {
+        return type->llvm_chain_type(gen, values, index);
+    }
+}
+
 llvm::Type *ReferencedType::llvm_type(Codegen &gen) {
     return linked->llvm_type(gen);
+}
+
+llvm::Type *ReferencedType::llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<Value>> &values, unsigned int index) {
+    return linked->llvm_chain_type(gen, values, index);
 }
 
 llvm::Type *StringType::llvm_type(Codegen &gen) {
     return gen.builder->getInt8PtrTy();
 }
 
-llvm::Type *StructType::llvm_type(Codegen &gen) {
+llvm::Type *StructType::with_elements_type(Codegen &gen, const std::vector<llvm::Type *>& elements, bool anonymous) {
+    if(anonymous) {
+        return llvm::StructType::get(*gen.ctx, elements);
+    }
     auto stored = llvm_stored_type();
     if(!stored) {
-        auto container = variables_container();
-        if(is_anonymous()) {
-            return llvm::StructType::get(*gen.ctx, container->elements_type(gen));
-        }
-        auto new_stored = llvm::StructType::create(*gen.ctx, container->elements_type(gen), struct_name());
+        auto new_stored = llvm::StructType::create(*gen.ctx, elements, struct_name());
         llvm_store_type(new_stored);
         return new_stored;
     }
     return stored;
 }
 
+llvm::Type *StructType::llvm_type(Codegen &gen) {
+    auto container = variables_container();
+    return with_elements_type(gen, container->elements_type(gen), is_anonymous());
+}
+
+llvm::Type *StructType::llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<Value>> &values, unsigned int index) {
+    auto container = variables_container();
+    return with_elements_type(gen, container->elements_type(gen, values, index), true);
+}
+
 llvm::Type *UnionType::llvm_type(Codegen &gen) {
     auto container = variables_container();
     auto largest = container->largest_member();
     if(!largest) {
-        gen.error("couldn't find the largest member in the union");
+        gen.error("Couldn't determine the largest member of the union with name " + union_name());
         return nullptr;
     }
-    std::vector<llvm::Type*> struct_type{ largest->llvm_type(gen) };
-    return llvm::StructType::get(*gen.ctx, struct_type);
+    auto stored = llvm_union_get_stored_type();
+    if(!stored) {
+        std::vector<llvm::Type*> members {largest->llvm_type(gen)};
+        if(is_anonymous()) {
+            return llvm::StructType::get(*gen.ctx, members);
+        }
+        stored = llvm::StructType::create(*gen.ctx, members, "union." + union_name());
+        llvm_union_type_store(stored);
+        return stored;
+    }
+    return stored;
+}
+
+llvm::Type *UnionType::llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<Value>> &values, unsigned int index) {
+    auto container = variables_container();
+    if(index + 1 < values.size()) {
+        auto linked = values[index + 1]->linked_node();
+        if(linked) {
+            for (auto &member: container->variables) {
+                if (member.second.get() == linked) {
+                    std::vector<llvm::Type *> struct_type{member.second->llvm_chain_type(gen, values, index + 1)};
+                    return llvm::StructType::get(*gen.ctx, struct_type);
+                }
+            }
+        }
+    }
+    return llvm_type(gen);
 }
 
 llvm::Type *VoidType::llvm_type(Codegen &gen) {
@@ -241,6 +287,10 @@ llvm::GlobalVariable * StringValue::llvm_global_variable(Codegen &gen, bool is_c
 
 llvm::Type *VariableIdentifier::llvm_type(Codegen &gen) {
     return linked->llvm_type(gen);
+}
+
+llvm::Type *VariableIdentifier::llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<Value>> &chain, unsigned int index) {
+    return linked->llvm_chain_type(gen, chain, index);
 }
 
 llvm::FunctionType *VariableIdentifier::llvm_func_type(Codegen &gen) {

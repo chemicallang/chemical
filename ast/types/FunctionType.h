@@ -20,6 +20,10 @@ public:
             bool isCapturing
     );
 
+    virtual bool is_capturing() {
+        return isCapturing;
+    }
+
     ASTNode *parent() override {
         return nullptr;
     }

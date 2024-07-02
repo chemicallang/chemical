@@ -25,11 +25,30 @@ void AccessChain::link_without_parent() {
 }
 
 void AccessChain::declare_and_link(SymbolResolver &linker) {
-    values[0]->link(linker, values[0]);
+
+    values[0]->link(linker, nullptr, values, 0);
+
+    // auto prepend self identifier, if not present and linked with struct member, anon union or anon struct
+    auto linked = values[0]->linked_node();
+    if(linked && (linked->as_struct_member() || linked->as_unnamed_union() || linked->as_unnamed_struct())) {
+        if (!linker.current_func_type) {
+            linker.error("couldn't link identifier with struct member / function, with name '" + values[0]->representation() + '\'');
+            return;
+        }
+        auto self_param = linker.current_func_type->get_self_param();
+        if (self_param) {
+            auto self_id = new VariableIdentifier(self_param->name);
+            self_id->linked = self_param;
+            values.insert(values.begin(), std::unique_ptr<Value>(self_id));
+        } else {
+            linker.error("couldn't link identifier '" + values[0]->representation() + "', because function doesn't take a self argument");
+        }
+    }
+
     if (values.size() > 1) {
         unsigned i = 1;
         while (i < values.size()) {
-            values[i]->find_link_in_parent(values[i - 1].get(), linker);
+            values[i]->link(linker, values[i - 1].get(), values, i);
             i++;
         }
     }

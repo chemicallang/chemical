@@ -22,10 +22,10 @@ void VariableIdentifier::prepend_self(SymbolResolver &linker, std::unique_ptr<Va
     value_ptr = std::make_unique<AccessChain>(std::move(values), nullptr);
 }
 
-void VariableIdentifier::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
+void VariableIdentifier::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr, bool prepend) {
     linked = linker.find(value);
     if(linked) {
-        if(linked->as_struct_member() || linked->as_unnamed_union() || linked->as_unnamed_struct()) {
+        if(prepend && (linked->as_struct_member() || linked->as_unnamed_union() || linked->as_unnamed_struct())) {
             if(!linker.current_func_type) {
                 linker.error("couldn't link identifier with struct member / function, with name '" + value + '\'');
                 return;
@@ -41,6 +41,23 @@ void VariableIdentifier::link(SymbolResolver &linker, std::unique_ptr<Value>& va
         }
     } else {
         linker.error("variable identifier '" + value + "' not found");
+    }
+}
+
+void VariableIdentifier::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
+    link(linker, value_ptr, true);
+}
+
+void VariableIdentifier::link(
+    SymbolResolver &linker,
+    Value *parent,
+    std::vector<std::unique_ptr<Value>> &values,
+    unsigned int index
+) {
+    if(parent) {
+        find_link_in_parent(parent, linker);
+    } else {
+        link(linker, values[index], false);
     }
 }
 

@@ -15,6 +15,10 @@ public:
 
     virtual VariablesContainer* variables_container() = 0;
 
+    virtual std::string union_name() {
+        return "";
+    }
+
     void accept(Visitor *visitor) override {
         visitor->visit(this);
     }
@@ -37,9 +41,23 @@ public:
 
     bool satisfies(ValueType type) override;
 
+    virtual bool is_anonymous() {
+        return true;
+    }
+
 #ifdef COMPILER_BUILD
 
+    virtual llvm::StructType *llvm_union_get_stored_type() {
+        return nullptr;
+    }
+
+    virtual void llvm_union_type_store(llvm::StructType* type) {
+        // does nothing
+    }
+
     llvm::Type *llvm_type(Codegen &gen) override;
+
+    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<Value>> &values, unsigned int index) override;
 
 #endif
 

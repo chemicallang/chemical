@@ -98,6 +98,10 @@ llvm::Type *FunctionCall::llvm_type(Codegen &gen) {
     return func_call_func_type(this)->returnType->llvm_type(gen);
 }
 
+llvm::Type *FunctionCall::llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<Value>> &values, unsigned int index) {
+    return func_call_func_type(this)->returnType->llvm_chain_type(gen, values, index);
+}
+
 llvm::FunctionType *FunctionCall::llvm_func_type(Codegen &gen) {
     return linked_func()->returnType->llvm_func_type(gen);
 }
@@ -331,6 +335,7 @@ std::unique_ptr<FunctionType> FunctionCall::create_function_type() {
 }
 
 ASTNode *FunctionCall::linked_node() {
+    // TODO use get type instead
     auto func_type = parent_val->create_type();
     return ((FunctionType*) func_type.get())->returnType->linked_node();
 }

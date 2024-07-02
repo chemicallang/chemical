@@ -33,6 +33,8 @@ class ExtendableBase;
 
 class BaseFunctionParam;
 
+class VariablesContainer;
+
 /**
  * @brief Base class for all AST nodes.
  */
@@ -230,6 +232,13 @@ public:
     }
 
     /**
+     * return if this is a variables container
+     */
+    virtual VariablesContainer *as_variables_container() {
+        return nullptr;
+    }
+
+    /**
      * return if this is a struct definition
      */
     virtual StructDefinition *as_struct_def() {
@@ -287,8 +296,6 @@ public:
 
     /**
      * returns a llvm pointer
-     * @param gen
-     * @return
      */
     virtual llvm::Value *llvm_pointer(Codegen &gen) {
         throw std::runtime_error("llvm_pointer called on bare ASTNode, with representation" + representation());

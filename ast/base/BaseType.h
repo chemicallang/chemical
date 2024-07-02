@@ -191,13 +191,6 @@ public:
         return llvm_type(gen);
     }
 
-    /**
-     * return this type, but for a struct member
-     */
-    virtual llvm::Type *llvm_struct_member_type(Codegen &gen) {
-        return llvm_type(gen);
-    }
-
 #endif
 
     virtual ~BaseType() = default;

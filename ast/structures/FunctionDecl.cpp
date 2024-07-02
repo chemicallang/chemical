@@ -24,6 +24,10 @@ llvm::Type *BaseFunctionParam::llvm_type(Codegen &gen) {
     return type->llvm_type(gen);
 }
 
+llvm::Type *BaseFunctionParam::llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<Value>> &values, unsigned int index) {
+    return type->llvm_chain_type(gen, values, index);
+}
+
 llvm::FunctionType *BaseFunctionParam::llvm_func_type(Codegen &gen) {
     return type->llvm_func_type(gen);
 }

@@ -9,6 +9,7 @@
 #include <vector>
 #include <memory>
 #include <string>
+#include "ASTAny.h"
 #include "Interpretable.h"
 #include "Visitor.h"
 #include "BaseTypeKind.h"
@@ -17,14 +18,6 @@
 #include <iostream>
 
 class SymbolResolver;
-
-#ifdef COMPILER_BUILD
-
-class Codegen;
-
-#include "compiler/llvmfwd.h"
-
-#endif
 
 class FunctionParam;
 
@@ -43,19 +36,8 @@ class BaseFunctionParam;
 /**
  * @brief Base class for all AST nodes.
  */
-class ASTNode : public Interpretable {
+class ASTNode : public Interpretable, public ASTAny {
 public:
-
-    /**
-     * the position of of the ASTNode is its position in the current function
-     * this calculated when interpreting ASTNodes
-     *
-     * var i = 0 // 0
-     * if(i == 0) { // 1
-     *    i = 1; // 2
-     * }
-     */
-    unsigned int position = 0;
 
     /**
      * declare something on the scope map
@@ -310,15 +292,6 @@ public:
      */
     virtual llvm::Value *llvm_pointer(Codegen &gen) {
         throw std::runtime_error("llvm_pointer called on bare ASTNode, with representation" + representation());
-    };
-
-    /**
-     * provides llvm_type if this statement declares a type
-     * @param gen
-     * @return
-     */
-    virtual llvm::Type *llvm_type(Codegen &gen) {
-        throw std::runtime_error("llvm_type called on bare ASTNode, with representation" + representation());
     };
 
     /**

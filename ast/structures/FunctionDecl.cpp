@@ -483,10 +483,7 @@ Value *FunctionDeclaration::call(
         fn_scope->declare(params[i]->name, call_args[i]->param_value(*call_scope));
         i++;
     }
-    auto previous = call_scope->global->curr_node_position;
-    call_scope->global->curr_node_position = 0;
     body.value().interpret(*fn_scope);
-    call_scope->global->curr_node_position = previous;
     if(self_param) {
         fn_scope->erase_value(self_param->name);
     }

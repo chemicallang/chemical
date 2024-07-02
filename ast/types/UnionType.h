@@ -4,12 +4,16 @@
 
 #include "ast/base/BaseType.h"
 #include "ordered_map.h"
-#include "ast/structures/VariablesContainer.h"
+#include "ast/structures/BaseDefMember.h"
 
-class UnionType : public BaseType, public VariablesContainer {
+class VariablesContainer;
+
+class UnionType : public BaseType {
 public:
 
     UnionType() = default;
+
+    virtual VariablesContainer* variables_container() = 0;
 
     void accept(Visitor *visitor) override {
         visitor->visit(this);
@@ -19,39 +23,19 @@ public:
         return BaseTypeKind::Union;
     }
 
-    uint64_t byte_size(bool is64Bit) override {
-        uint64_t size = 0;
-        uint64_t previous;
-        for(auto& mem : variables) {
-            previous = mem.second->byte_size(is64Bit);
-            if(previous > size) {
-                size = previous;
-            }
-        }
-        return size;
-    }
+    uint64_t byte_size(bool is64Bit) override;
 
     bool equals(UnionType *type) const {
         return type->byte_size(true) == const_cast<UnionType*>(this)->byte_size(true);
     }
 
-    bool is_same(BaseType *type) const override {
+    bool is_same(BaseType *type) override {
         return kind() == type->kind() && equals(static_cast<UnionType *>(type));
     }
 
-    virtual BaseType *copy() const {
-        throw std::runtime_error("copy called on union type");
-    }
+    virtual BaseType *copy() const = 0;
 
-    bool satisfies(ValueType type) const override {
-        for(auto& member : variables) {
-            auto mem_type = member.second->create_value_type();
-            if(mem_type->satisfies(type)) {
-                return true;
-            }
-        }
-        return false;
-    }
+    bool satisfies(ValueType type) override;
 
 #ifdef COMPILER_BUILD
 

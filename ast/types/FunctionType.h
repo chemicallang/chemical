@@ -44,11 +44,11 @@ public:
         return equal(other);
     }
 
-    bool is_same(BaseType *other) const override {
+    bool is_same(BaseType *other) override {
         return other->kind() == kind() && equal_type(static_cast<FunctionType *>(other));
     }
 
-    bool satisfies(ValueType type) const override;
+    bool satisfies(ValueType type) override;
 
     FunctionType *function_type() override {
         return this;

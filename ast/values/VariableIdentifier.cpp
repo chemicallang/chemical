@@ -115,23 +115,6 @@ void VariableIdentifier::set_identifier_value(InterpretScope &scope, Value *rawV
                         " to assign to " + value);
             return;
         }
-#ifdef DEBUG
-        if (var_init->position == value_var_init->position) {
-            scope.error("two init statements have the same position in AST, first : " + var_init->representation() +
-                        " second : " + value_var_init->representation() +
-                        ", triggered by assignment between their variables");
-        }
-#endif
-        if (var_init->position > value_var_init->position) {
-            // going down, declared above and now being assigned to declaration below (take reference / make decl below a reference)
-//            var_init->is_reference = true;
-        } else {
-            // going up, declared below and now being assigned to declaration above (move the value / make decl above a reference)
-//            value_var_init->is_reference = true;
-//            var_init->is_reference = false;
-        }
-    } else {
-//        var_init->is_reference = false;
     }
 
     // iterator for previous value

@@ -17,7 +17,7 @@ public:
         return underlying->byte_size(is64Bit);
     }
 
-    bool satisfies(ValueType type) const override {
+    bool satisfies(ValueType type) override {
         return underlying->satisfies(type);
     }
 
@@ -35,7 +35,7 @@ public:
         return underlying->value_type();
     }
 
-    bool is_same(BaseType *type) const override {
+    bool is_same(BaseType *type) override {
         return type->kind() == BaseTypeKind::Literal && ((LiteralType*) type)->underlying->is_same(underlying.get());
     }
 

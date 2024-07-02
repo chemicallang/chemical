@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ast/base/AnnotableNode.h"
+#include "ordered_map.h"
 
 class BaseDefMember : public AnnotableNode {
 public:
@@ -20,3 +21,5 @@ public:
     }
 
 };
+
+typedef tsl::ordered_map<std::string, std::unique_ptr<BaseDefMember>> VariablesMembersType;

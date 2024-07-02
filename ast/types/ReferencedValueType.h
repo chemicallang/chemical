@@ -35,7 +35,7 @@ public:
         return value->linked_node();
     }
 
-    bool satisfies(ValueType value_type) const override {
+    bool satisfies(ValueType value_type) override {
         return value->get_base_type()->satisfies(value_type);
     }
 
@@ -43,7 +43,7 @@ public:
         return value->get_base_type()->kind();
     }
 
-    bool is_same(BaseType *other) const override {
+    bool is_same(BaseType *other) override {
         return value->get_base_type()->is_same(other);
     }
 

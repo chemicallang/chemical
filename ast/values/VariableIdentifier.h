@@ -7,7 +7,7 @@
 #pragma once
 
 #include <utility>
-#include "ast/base/Value.h"
+#include "ast/base/ChainValue.h"
 #include "ast/statements/VarInit.h"
 #include "ast/utils/ExpressionEvaluator.h"
 
@@ -20,7 +20,7 @@
 /**
  * @brief Class representing a VariableIdentifier.
  */
-class VariableIdentifier : public Value {
+class VariableIdentifier : public ChainValue {
 public:
 
     /**

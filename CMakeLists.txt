@@ -475,6 +475,9 @@ set(COMMON_SOURCES
         ast/types/Types.cpp
         ast/types/ArrayType.cpp
         cst/statements/GenericListCST.h
+        ast/base/ChainValue.h
+        ast/base/ASTAny.h
+        ast/base/ASTAny.cpp
 )
 
 # Chemical LSP Executable Target

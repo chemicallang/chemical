@@ -65,12 +65,6 @@ public:
     void add_error(const std::string &err);
 
     /**
-     * the current interpret position
-     * this is assigned to the position variable of the ASTNode
-     */
-    unsigned int curr_node_position = 0;
-
-    /**
      * global functions that are evaluated during interpretation
      */
     std::unordered_map<std::string, std::unique_ptr<ASTNode>> global_nodes;

@@ -8,9 +8,13 @@
 class PointerType : public BaseType {
 public:
 
-    std::unique_ptr<BaseType> type;
+    hybrid_ptr<BaseType> type;
 
-    PointerType(std::unique_ptr<BaseType> type) : type(std::move(type)) {
+    explicit PointerType(std::unique_ptr<BaseType> type) : type(type.release(), true) {
+
+    }
+
+    explicit PointerType(hybrid_ptr<BaseType> type) : type(std::move(type)) {
 
     }
 
@@ -30,7 +34,7 @@ public:
         visitor->visit(this);
     }
 
-    bool satisfies(ValueType value_type) const override {
+    bool satisfies(ValueType value_type) override {
         return type->satisfies(value_type);
     }
 
@@ -44,7 +48,7 @@ public:
 
     bool satisfies(Value *value) override;
 
-    bool is_same(BaseType *other) const override {
+    bool is_same(BaseType *other) override {
         return other->kind() == kind() && static_cast<PointerType *>(other)->type->is_same(type.get());
     }
 

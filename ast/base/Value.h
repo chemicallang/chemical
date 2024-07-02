@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "ASTAny.h"
 #include "Interpretable.h"
 #include "ValueType.h"
 #include "ast/utils/Operation.h"
@@ -44,7 +45,7 @@ class ASTDiagnoser;
 /**
  * @brief Base class for all values in the AST.
  */
-class Value : public Interpretable {
+class Value : public Interpretable, public ASTAny {
 public:
 
     /**
@@ -207,6 +208,16 @@ std::cerr << "child called on base value";
     }
 
     /**
+     * This function get's the type so that user's access chain is considered
+     * for example user's types con contain unions, when you get a struct type containing a union
+     * typically union gives type for it's largest member so memory for that is allocated and everything
+     * can be stored in a single place, BUT when accessing a union, you may not access the largest member
+     * of the union, and you want unions to consider that, so this function does exactly that
+     * it will not use the largest member of the union if you don't access it
+     */
+    static hybrid_ptr<BaseType> get_chain_type(std::vector<std::unique_ptr<Value>>& chain, unsigned index);
+
+    /**
      * get pure type from the base type
      */
     hybrid_ptr<BaseType> get_pure_type();
@@ -231,13 +242,6 @@ std::cerr << "child called on base value";
     virtual void llvm_destruct(Codegen& gen, llvm::Value* allocaInst) {
         // does nothing by default
     }
-
-    /**
-     * provides llvm_type for the given value
-     */
-    virtual llvm::Type* llvm_type(Codegen& gen) {
-        throw std::runtime_error("llvm_type called on bare Value of type " + std::to_string((int) value_type()));
-    };
 
     /**
      * provide a function type, if this value represents a function

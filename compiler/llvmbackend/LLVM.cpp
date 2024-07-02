@@ -42,6 +42,7 @@
 #include "ast/statements/Assignment.h"
 #include "ast/statements/Import.h"
 #include "ast/structures/EnumDeclaration.h"
+#include "ast/structures/VariablesContainer.h"
 #include "ast/structures/MembersContainer.h"
 #include "ast/statements/ThrowStatement.h"
 #include "ast/values/FunctionCall.h"
@@ -102,15 +103,22 @@ llvm::Type *StringType::llvm_type(Codegen &gen) {
 }
 
 llvm::Type *StructType::llvm_type(Codegen &gen) {
-    std::vector<llvm::Type *> types;
-    for (auto &elem: elem_types) {
-        types.emplace_back(elem->llvm_type(gen));
+    auto stored = llvm_stored_type();
+    if(!stored) {
+        auto container = variables_container();
+        if(is_anonymous()) {
+            return llvm::StructType::get(*gen.ctx, container->elements_type(gen));
+        }
+        auto new_stored = llvm::StructType::create(*gen.ctx, container->elements_type(gen), struct_name());
+        llvm_store_type(new_stored);
+        return new_stored;
     }
-    return llvm::StructType::get(*gen.ctx, types);
+    return stored;
 }
 
 llvm::Type *UnionType::llvm_type(Codegen &gen) {
-    auto largest = largest_member();
+    auto container = variables_container();
+    auto largest = container->largest_member();
     if(!largest) {
         gen.error("couldn't find the largest member in the union");
         return nullptr;

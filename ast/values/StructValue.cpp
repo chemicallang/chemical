@@ -159,15 +159,12 @@ Value *StructValue::call_member(
         return nullptr;
     }
 #ifdef DEBUG
-    if (definition->decl_scope == nullptr) {
-        scope.error("declaration scope is nullptr for struct value");
-    }
     if (!fn->body.has_value()) {
         scope.error("function doesn't have body in a struct " + name);
         return nullptr;
     }
 #endif
-    InterpretScope child(definition->decl_scope, scope.global);
+    InterpretScope child(nullptr, scope.global);
     child.declare("this", this);
     auto value = fn->call(&scope, params, this, &child);
     return value;

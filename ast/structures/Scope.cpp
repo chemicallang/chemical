@@ -5,9 +5,7 @@
 
 void Scope::interpret(InterpretScope &scope) {
     for (const auto &node: nodes) {
-        node->position = scope.global->curr_node_position;
         node->interpret(scope);
-        scope.global->curr_node_position++;
     }
 }
 

@@ -194,6 +194,10 @@ hybrid_ptr<BaseType> Value::get_pure_type() {
     }
 }
 
+hybrid_ptr<BaseType> Value::get_chain_type(std::vector<std::unique_ptr<Value>>& chain, unsigned index) {
+    return chain[index]->get_base_type();
+}
+
 void Value::link(SymbolResolver& linker, VarInitStatement* stmnt) {
     link(linker, stmnt->value.value());
 }

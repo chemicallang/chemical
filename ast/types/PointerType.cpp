@@ -3,7 +3,9 @@
 #include "PointerType.h"
 
 void PointerType::link(SymbolResolver &linker, std::unique_ptr<BaseType>& current) {
-    type->link(linker, type);
+    std::unique_ptr<BaseType> temp_ptr(type.release());
+    temp_ptr->link(linker, temp_ptr);
+    type.reset(temp_ptr.release());
 }
 
 ASTNode *PointerType::linked_node() {

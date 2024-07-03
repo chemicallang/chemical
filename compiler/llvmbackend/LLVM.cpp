@@ -558,6 +558,22 @@ void ContinueStatement::code_gen(Codegen &gen) {
 }
 
 void ReturnStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
+    // before destruction, get the return value
+    llvm::Value* return_value = nullptr;
+    if(value.has_value()) {
+        if(value.value()->reference() && value.value()->value_type() == ValueType::Struct) {
+            llvm::MaybeAlign noAlign;
+            gen.builder->CreateMemCpy(gen.current_function->getArg(0), noAlign, value.value()->llvm_pointer(gen), noAlign, value.value()->byte_size(gen.is64Bit));
+        } else {
+            return_value = value.value()->llvm_ret_value(gen, this);
+            if(func_type) {
+                auto value_type = value.value()->get_pure_type();
+                auto to_type = func_type->returnType->get_pure_type();
+                return_value = gen.implicit_cast(return_value, value_type.get(), to_type.get());
+            }
+        }
+    }
+    // destruction
     if(!gen.has_current_block_ended) {
         int i = gen.destruct_nodes.size() - 1;
         while(i >= 0) {
@@ -566,24 +582,14 @@ void ReturnStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
         }
         gen.destroy_current_scope = false;
     }
+    // return the return value calculated above
     if (value.has_value()) {
-        if(value.value()->reference() && value.value()->value_type() == ValueType::Struct) {
-            llvm::MaybeAlign noAlign;
-            gen.builder->CreateMemCpy(gen.current_function->getArg(0), noAlign, value.value()->llvm_pointer(gen), noAlign, value.value()->byte_size(gen.is64Bit));
-        } else {
-            auto llvm_value = value.value()->llvm_ret_value(gen, this);
-            if(func_type) {
-                auto value_type = value.value()->get_pure_type();
-                auto to_type = func_type->returnType->get_pure_type();
-                llvm_value = gen.implicit_cast(llvm_value, value_type.get(), to_type.get());
-            }
-            gen.CreateRet(llvm_value);
-        }
+        gen.CreateRet(return_value);
     } else {
         if(gen.redirect_return) {
             gen.CreateBr(gen.redirect_return);
         } else {
-            gen.CreateRet(nullptr);
+            gen.CreateRet(return_value);
         }
     }
 }

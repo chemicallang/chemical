@@ -45,7 +45,8 @@ struct string {
     }
 
     func equals(&self, other : string*) : bool {
-        return size() == other.size() && strcmp(self.data(), other.data()) == 0;
+        const self_size = size();
+        return self_size == other.size() && memcmp(self.data(), other.data(), self_size) == 0;
     }
 
     func move_const_to_buffer(&self) {

@@ -79,22 +79,13 @@ void StructDefinition::code_gen(Codegen &gen) {
         }
         return false;
     };
-
-    bool has_destructor = false;
     for(auto& function : functions) {
         auto overriding = get_overriding(function.second.get());
         if(overriding) {
             function.second->code_gen_override_declare(gen, overriding);
             continue;
         }
-        if(function.second->has_annotation(AnnotationKind::Destructor)) {
-            has_destructor = true;
-        }
         function.second->code_gen_declare(gen, this);
-    }
-    if(!has_destructor && requires_destructor()) {
-        // the destructor exists after this call, next loop will generate body for it
-        create_destructor()->code_gen_declare(gen, this);
     }
     for (auto &function: functions) {
         if(override(function.second.get())) {
@@ -260,11 +251,23 @@ void StructDefinition::declare_top_level(SymbolResolver &linker) {
 }
 
 void StructDefinition::declare_and_link(SymbolResolver &linker) {
-    MembersContainer::declare_and_link(linker);
+    bool has_destructor = false;
     for(auto& func : functions) {
         if(func.second->has_annotation(AnnotationKind::Constructor)) {
             func.second->ensure_constructor(this);
         }
+        if(func.second->has_annotation(AnnotationKind::Destructor)) {
+            has_destructor = true;
+        }
+    }
+    MembersContainer::declare_and_link(linker);
+    if(!has_destructor && requires_destructor()) {
+        auto found = functions.find("delete");
+        if(found != functions.end()) {
+            linker.error("default destructor is created by name 'delete' , a function by name 'delete' already exists in struct '" + name + "', please create a destructor by hand if you'd like to reserve 'delete' for your own usage");
+            return;
+        }
+        create_destructor();
     }
 }
 

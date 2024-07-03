@@ -60,7 +60,7 @@ void IfStatement::code_gen(Codegen &gen, bool gen_last_block) {
     if(endBlock) {
         gen.CreateBr(endBlock);
     } else {
-        gen.CreateRet(nullptr);
+        gen.DefaultRet();
     }
 
     // generating else if block
@@ -80,7 +80,7 @@ void IfStatement::code_gen(Codegen &gen, bool gen_last_block) {
         if(endBlock) {
             gen.CreateBr(endBlock);
         } else {
-            gen.CreateRet(nullptr);
+            gen.DefaultRet();
         }
         i++;
     }
@@ -92,7 +92,7 @@ void IfStatement::code_gen(Codegen &gen, bool gen_last_block) {
         if(endBlock) {
             gen.CreateBr(endBlock);
         } else {
-            gen.CreateRet(nullptr);
+            gen.DefaultRet();
         }
     }
 

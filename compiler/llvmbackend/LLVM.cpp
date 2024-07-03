@@ -586,11 +586,7 @@ void ReturnStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
     if (value.has_value()) {
         gen.CreateRet(return_value);
     } else {
-        if(gen.redirect_return) {
-            gen.CreateBr(gen.redirect_return);
-        } else {
-            gen.CreateRet(return_value);
-        }
+        gen.DefaultRet();
     }
 }
 

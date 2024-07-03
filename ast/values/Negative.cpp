@@ -21,5 +21,5 @@ hybrid_ptr<BaseType> NegativeValue::get_base_type() {
 }
 
 bool NegativeValue::primitive() {
-    return false;
+    return value->primitive();
 }

@@ -4,6 +4,10 @@ func printf(format : char*, _ : any...) : int
 
 @cbi:global("compiler")
 @dispose(false)
+func sprintf(to : char*, format : char*, _ : any...) : int
+
+@cbi:global("compiler")
+@dispose(false)
 typealias size_t = ubigint
 
 @cbi:global("compiler")
@@ -35,6 +39,14 @@ func strlen(
 @cbi:global("compiler")
 @dispose(false)
 func strcmp (str1 : char*, str2 : char*) : int;
+
+@cbi:global("compiler")
+@dispose(false)
+func strncmp(str1 : char*, str2 : char*, n : size_t) : int
+
+@cbi:global("compiler")
+@dispose(false)
+func memcmp(ptr1 : void*, ptr2 : void*, num : size_t) : int
 
 /**
 func exit(code : int)

@@ -217,6 +217,16 @@ public:
 
     void visit(ImportStatement* importStatement) override;
 
+    /**
+     * does the return value require 'return' keyword before it
+     */
+    bool requires_return(Value* val);
+
+    /**
+     * write the return value
+     */
+    void return_value(Value* val);
+
     void visit(ReturnStatement* returnStatement) override;
 
     void visit(DoWhileLoop* doWhileLoop) override;

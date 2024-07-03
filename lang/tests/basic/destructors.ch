@@ -166,6 +166,23 @@ func test_destructors() {
         }
         return count == 10;
     })
+    test("test array types are destructed", () => {
+        var count = 0;
+        if(count == 0) {
+            var arr : Destructible[10];
+            var i = 0;
+            var ptr : Destructible*;
+            while(i < 10) {
+                ptr = &arr[i];
+                ptr.count = &count;
+                ptr.lamb = (count : int*) => {
+                    *count = *count + 1;
+                }
+                i++;
+            }
+        }
+        return count == 10;
+    })
     test("test that destructible struct present inside struct values is destructed", () => {
         var count = 0
         if(count == 0) {

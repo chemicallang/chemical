@@ -33,6 +33,8 @@ public:
 
     bool satisfies(Value *value) override;
 
+    void link(SymbolResolver &linker, std::unique_ptr<BaseType> &current) override;
+
     std::unique_ptr<BaseType> create_child_type() const override {
         return std::unique_ptr<BaseType>(elem_type->copy());
     }

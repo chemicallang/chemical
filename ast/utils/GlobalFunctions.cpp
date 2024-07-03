@@ -169,20 +169,38 @@ public:
             "strlen",
             std::vector<std::unique_ptr<FunctionParam>> {},
             std::make_unique<UBigIntType>(),
-            true,
+            false,
             parent_node,
             std::nullopt
     ) {
-
+        annotations.emplace_back(AnnotationKind::CompTime);
     }
     Value *call(InterpretScope *call_scope, std::vector<std::unique_ptr<Value>> &call_args, Value *parent_val, InterpretScope *fn_scope) override {
         if(call_args.empty()) {
             call_scope->error("compiler::strlen called without arguments");
             return nullptr;
         }
-        auto value = call_args[0]->evaluated_value(*call_scope);
-        if(value->reference() || value->value_type() != ValueType::String) {
+        const auto val = call_args[0].get();
+        if(val->value_type() != ValueType::String) {
             call_scope->error("compiler::strlen called with invalid arguments");
+            return nullptr;
+        }
+        hybrid_ptr<Value> value{nullptr, false};
+        if(val->reference()) {
+            auto linked = val->linked_node();
+            if(linked && !linked->as_func_param()) {
+                auto holding = linked->holding_value();
+                if(holding) {
+                    value = hybrid_ptr<Value>{holding, false};
+                }
+            } else {
+                value = call_args[0]->evaluated_value(*call_scope);
+            }
+        } else {
+            value = call_args[0]->evaluated_value(*call_scope);
+        }
+        if(!value) {
+            call_scope->error("couldn't get value for compiler::strlen");
             return nullptr;
         }
         return new UBigIntValue(value->as_string().length());

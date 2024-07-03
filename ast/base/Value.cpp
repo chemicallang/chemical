@@ -132,7 +132,7 @@ llvm::Value* Value::access_chain_pointer(
     unsigned j = 1;
     while(j <= until) {
         if(values[j]->as_func_call()) {
-            pointer = values[j]->access_chain_allocate(gen, values, j);
+            pointer = values[j]->access_chain_value(gen, values, j);
             parent = values[j].get();
             parent_index = j;
             if(j + 1 <= until) {

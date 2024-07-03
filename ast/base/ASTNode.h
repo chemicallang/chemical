@@ -325,14 +325,6 @@ public:
     };
 
     /**
-     * code_gen function that generates llvm Value
-     * @return
-     */
-    virtual void code_gen(Codegen &gen) {
-        throw std::runtime_error("ASTNode code_gen called on bare ASTNode, with representation : " + representation());
-    }
-
-    /**
      * this can be overridden if node intends to declare itself before generating code for it
      * functions generate code for just prototype and an empty entry block
      * when code_gen is called, functions generate code for their bodies
@@ -340,6 +332,13 @@ public:
      */
     virtual void code_gen_declare(Codegen &gen) {
         // node can declare itself
+    }
+
+    /**
+     * code_gen function that generates llvm Value
+     */
+    virtual void code_gen(Codegen &gen) {
+        throw std::runtime_error("ASTNode code_gen called on bare ASTNode, with representation : " + representation());
     }
 
     /**

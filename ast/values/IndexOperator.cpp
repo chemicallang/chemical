@@ -40,10 +40,11 @@ llvm::Value *IndexOperator::access_chain_pointer(
         std::vector<std::pair<Value *, llvm::Value *>> &destructibles,
         unsigned int until
 ) {
-    if(parent_val->value_type() == ValueType::String) {
-        auto parent_pointer = parent_val->access_chain_pointer(gen, chain_values, destructibles, until - 1);
-        auto loaded = gen.builder->CreateLoad(gen.builder->getPtrTy(), parent_pointer);
-        return elem_pointer(gen, gen.builder->getInt8Ty(), loaded);
+    auto pure_type = parent_val->get_pure_type();
+    if(pure_type->is_pointer()) {
+        auto parent_value = parent_val->access_chain_value(gen, chain_values, until - 1);
+        auto child_type = pure_type->get_child_type();
+        return elem_pointer(gen, child_type->llvm_type(gen), parent_value);
     } else {
         return Value::access_chain_pointer(gen, chain_values, destructibles, until);
     }

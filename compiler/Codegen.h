@@ -162,7 +162,6 @@ public:
      * the method to create a function
      * @param name name of the function
      * @param type type of the function
-     * @return
      */
     llvm::Function *create_function(const std::string &name, llvm::FunctionType *type, AccessSpecifier specifier);
 
@@ -173,9 +172,6 @@ public:
 
     /**
      * gets or inserts a function, similar to declaration
-     * @param name
-     * @param type
-     * @return
      */
     llvm::FunctionCallee declare_function(const std::string &name, llvm::FunctionType *type);
 
@@ -183,15 +179,11 @@ public:
      * create a function prototype
      * @param name name of the function
      * @param type type of the function
-     * @return
      */
     llvm::Function *create_function_proto(const std::string &name, llvm::FunctionType *type, AccessSpecifier specifier);
 
     /**
      * create a function's basic block, with the given name
-     * @param name
-     * @param fn
-     * @return
      */
     llvm::BasicBlock *createBB(const std::string &name, llvm::Function *fn);
 
@@ -208,7 +200,6 @@ public:
 
     /**
      * creates a function block, along with setting the insert point to this entry block
-     * @param fn
      */
     void createFunctionBlock(llvm::Function *fn);
 
@@ -219,7 +210,6 @@ public:
 
     /**
      * sets up the module for the given target
-     * @param target
      */
     llvm::TargetMachine *setup_for_target(const std::string &TargetTriple);
 
@@ -277,9 +267,6 @@ public:
      * when generating code for the body of the loop, it should be wrapped with this function call
      * before and after the body generation
      * this ensures that break and continue instructions work properly by pointing to the given blocks
-     * @param gen
-     * @param condBlock
-     * @param endBlock
      */
     void loop_body_wrap(llvm::BasicBlock *condBlock, llvm::BasicBlock *endBlock);
 
@@ -289,7 +276,6 @@ public:
      * used because llvm doesn't support multiple consecutive returns or branches
      * so if we know the block has changed, we can track
      * if this block has ended previously to avoid creating branches and returns
-     * @param block
      */
     void SetInsertPoint(llvm::BasicBlock *block);
 
@@ -298,7 +284,6 @@ public:
      * this will avoid creating multiple terminator instructions
      * once you call this, no longer can you create branch, or return instructions
      * because you've already shifted to another block
-     * @param block
      */
     void CreateBr(llvm::BasicBlock *block);
 
@@ -307,17 +292,19 @@ public:
      * this will avoid creating multiple terminator instructions
      * once you call this, no longer can you create branch, or return instructions
      * because you've already shifted to another block
-     * @param value
      */
     void CreateRet(llvm::Value *value);
 
     /**
+     * creates a default return, it returns void
+     * this takes into account the redirect_return required for cleanup blocks in
+     * destructors, it should be used instead of CreateRet(nullptr) or CreateRetVoid()
+     */
+    void DefaultRet();
+
+    /**
      * The safe version of builder.CreateCondBr
      * this will avoid creating multiple terminator instructions
-     * @param Cond
-     * @param True
-     * @param False
-     * @return
      */
     void CreateCondBr(llvm::Value *Cond, llvm::BasicBlock *True, llvm::BasicBlock *FalseMDNode);
 

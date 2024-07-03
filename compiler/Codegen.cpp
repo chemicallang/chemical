@@ -254,6 +254,14 @@ void Codegen::CreateRet(llvm::Value *value) {
     }
 }
 
+void Codegen::DefaultRet() {
+    if(redirect_return) {
+        CreateBr(redirect_return);
+    } else {
+        CreateRet(nullptr);
+    }
+}
+
 void Codegen::CreateCondBr(llvm::Value *Cond, llvm::BasicBlock *True, llvm::BasicBlock *FalseMDNode) {
     if (!has_current_block_ended) {
         builder->CreateCondBr(Cond, True, FalseMDNode);

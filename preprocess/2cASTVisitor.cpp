@@ -1588,7 +1588,6 @@ void ToCAstVisitor::visit(Scope *scope) {
 }
 
 void ToCAstVisitor::visit(UnnamedUnion *def) {
-    new_line_and_indent();
     write("union ");
     write('{');
     indentation_level+=1;

@@ -69,6 +69,10 @@ public:
 
     hybrid_ptr<BaseType> get_base_type() override;
 
+    BaseTypeKind type_kind() const override;
+
+    ValueType value_type() const override;
+
 #ifdef COMPILER_BUILD
 
     llvm::Type *llvm_type(Codegen &gen) override;

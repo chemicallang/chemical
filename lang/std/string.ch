@@ -157,6 +157,33 @@ struct string {
         return s;
     }
 
+    func substring(&self, start : size_t, end : size_t) : string {
+        var s : string
+        const actual_len : size_t = end - start;
+        if(actual_len <= 16) {
+            s.state = '1'
+            s.storage.sso.length = actual_len
+            const d = data()
+            for(var i = 0; i < actual_len; i++) {
+                s.storage.sso.buffer[i] = d[start + i]
+            }
+            s.storage.sso.buffer[actual_len] = '\0'
+        } else {
+            s.state = '2'
+            const new_cap = actual_len * 2
+            var new_heap = malloc(new_cap) as char*
+            const d = data()
+            for(var i = 0; i < actual_len; i++) {
+                new_heap[i] = d[start + i]
+            }
+            s.storage.heap.data = new_heap
+            s.storage.heap.data[actual_len] = '\0'
+            s.storage.heap.length = actual_len
+            s.storage.heap.capacity = new_cap
+        }
+        return s;
+    }
+
     func append(&self, value : char) {
         const length = size();
         if((state == '0' || state == '1') && length <= 16) {

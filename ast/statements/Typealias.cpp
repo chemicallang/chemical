@@ -38,3 +38,11 @@ uint64_t TypealiasStatement::byte_size(bool is64Bit) {
 void TypealiasStatement::accept(Visitor *visitor) {
     visitor->visit(this);
 }
+
+BaseTypeKind TypealiasStatement::type_kind() const {
+    return actual_type->kind();
+}
+
+ValueType TypealiasStatement::value_type() const {
+    return actual_type->value_type();
+}

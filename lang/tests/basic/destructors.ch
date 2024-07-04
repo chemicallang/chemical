@@ -29,6 +29,40 @@ func create_destructible(count : int*, data : int) : Destructible {
     }
 }
 
+func destructible_but_last_if(count : int*, data : int) {
+    var d = Destructible {
+       data : data,
+       count : count,
+       lamb : (count : int*) => {
+           *count = *count + 1;
+       }
+    }
+    var i = 55;
+    if(i == 55) {
+        var x = 33
+    } else {
+        var j = 12
+    }
+}
+
+func destructible_but_last_if_returns(count : int*, data : int) {
+    var d = Destructible {
+       data : data,
+       count : count,
+       lamb : (count : int*) => {
+           *count = *count + 1;
+       }
+    }
+    var i = 55;
+    if(i == 55) {
+        var t = 99
+        return;
+    } else {
+        var p = 99
+        return;
+    }
+}
+
 func test_destruction_at_early_return(count : int*, early_return : bool) {
     var d = Destructible {
        count : count,
@@ -191,5 +225,15 @@ func test_destructors() {
             }
         }
         return count == 1
+    })
+    test("test that destructor works, when last if don't return", () => {
+        var count = 0
+        destructible_but_last_if(&count, 454);
+        return count == 1;
+    })
+    test("test that destructor works, when last if returns completely", () => {
+        var count = 0
+        destructible_but_last_if_returns(&count, 655);
+        return count == 1;
     })
 }

@@ -87,7 +87,7 @@ struct string {
 
     // ensures that capacity is larger than length given and memory is mutable
     func ensure_mut(&self, length : size_t) {
-        if((state == '0' || state == '1') && length < 16) {
+        if((state == '0' || state == '1') && length <= 16) {
             if(state == '0') {
                 move_const_to_buffer();
             }
@@ -100,6 +100,21 @@ struct string {
                 resize(length);
             }
         }
+    }
+
+    func set(&self, index : size_t, value : char) {
+        if(state == '0') {
+            move_const_to_buffer();
+        }
+        switch(state) {
+            case '1' -> {
+                storage.sso.buffer[index] = value;
+            }
+            case '2' -> {
+                storage.heap.data[index] = value;
+            }
+        }
+        return;
     }
 
     func append_with_len(&self, value : char*, len : size_t) {
@@ -144,7 +159,7 @@ struct string {
 
     func append(&self, value : char) {
         const length = size();
-        if((state == '0' || state == '1') && length < 15) {
+        if((state == '0' || state == '1') && length <= 16) {
             if(state == '0') {
                 move_const_to_buffer();
             }

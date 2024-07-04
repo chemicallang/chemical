@@ -114,7 +114,6 @@ struct string {
                 storage.heap.data[index] = value;
             }
         }
-        return;
     }
 
     func get(&self, index : size_t) : char {
@@ -225,22 +224,36 @@ struct string {
     }
 
     func capacity(&self) : size_t {
-        if(state == '0') {
-            return storage.constant.length;
-        } else if(state == '1') {
-            return 16;
-        } else {
-            return storage.heap.capacity
+        switch(state) {
+            case '0' -> {
+                return storage.constant.length;
+            }
+            case '1' -> {
+                return 16;
+            }
+            case '2' -> {
+                return storage.heap.capacity;
+            }
+            default -> {
+                return 0;
+            }
         }
     }
 
     func data(&self) : char* {
-        if(state == '0') {
-            return storage.constant.data
-        } else if(state == '1') {
-            return &storage.sso.buffer[0];
-        } else {
-            return storage.heap.data;
+        switch(state) {
+            case '0' -> {
+                return storage.constant.data
+            }
+            case '1' -> {
+                return &storage.sso.buffer[0];
+            }
+            case '2' -> {
+                return storage.heap.data;
+            }
+            default -> {
+                return null;
+            }
         }
     }
 

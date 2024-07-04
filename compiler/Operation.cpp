@@ -26,7 +26,7 @@ llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseTyp
     // subtraction or addition to the pointer, pointer math
     if((op == Operation::Addition || op == Operation::Subtraction) && firstType->kind() == BaseTypeKind::Pointer) {
         auto second_value_type = second->value_type();
-        if(second_value_type == ValueType::Int) {
+        if(second_value_type >= ValueType::IntNStart && second_value_type <= ValueType::IntNEnd) {
             llvm::Value *index = op == Operation::Addition ? rhs : builder->CreateNeg(rhs);
             return builder->CreateGEP(((PointerType *) firstType)->type->llvm_type(*this), lhs, {index}, "", inbounds);
         } else if(second_value_type == ValueType::Pointer) {

@@ -9,6 +9,7 @@
 #include "ast/structures/StructDefinition.h"
 #include "compiler/SymbolResolver.h"
 #include "ast/values/StructValue.h"
+#include "ast/base/BaseType.h"
 
 inline std::unique_ptr<FunctionType> func_call_func_type(const FunctionCall* call) {
     return std::unique_ptr<FunctionType>((FunctionType*) call->parent_val->create_type().release());
@@ -430,6 +431,14 @@ hybrid_ptr<BaseType> FunctionCall::get_base_type() {
     } else {
         return hybrid_ptr<BaseType> { func_type->returnType.get(), false };
     }
+}
+
+BaseTypeKind FunctionCall::type_kind() const {
+    return const_cast<FunctionCall*>(this)->get_base_type()->kind();
+}
+
+ValueType FunctionCall::value_type() const {
+    return const_cast<FunctionCall*>(this)->get_base_type()->value_type();
 }
 
 void FunctionCall::interpret(InterpretScope &scope) {

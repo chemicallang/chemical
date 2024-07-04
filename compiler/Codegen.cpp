@@ -10,6 +10,7 @@
 #include "llvmimpl.h"
 #include "ast/base/Value.h"
 #include "ast/base/BaseType.h"
+#include "ast/structures/StructDefinition.h"
 #include <string>
 #include <system_error>
 #include "lld/Common/Driver.h"
@@ -208,6 +209,38 @@ Codegen::create_function_proto(const std::string &name, llvm::FunctionType *type
     auto fn = llvm::Function::Create(type, linkage, name, *module);
     fn->setDSOLocal(true);
     return fn;
+}
+
+void Codegen::destruct(llvm::Value* allocaInst, unsigned int array_size, BaseType* elem_type) {
+    if(!elem_type->linked_node() || !elem_type->linked_node()->as_struct_def()) {
+        return;
+    }
+    auto structDef = elem_type->linked_node()->as_struct_def();
+    auto destructorFunc = structDef->destructor_func();
+    if(!destructorFunc) {
+        return;
+    }
+    auto& gen = *this;
+    auto llvm_type = llvm::ArrayType::get(elem_type->llvm_type(gen), array_size);
+    auto firstEle = builder->CreateGEP(llvm_type, allocaInst, { builder->getInt32(0), builder->getInt32(0) }, "", inbounds);
+    auto lastEle = builder->CreateGEP(elem_type->llvm_type(gen), firstEle, { builder->getInt32(array_size) }, "", inbounds);
+    auto current_block = builder->GetInsertBlock();
+    auto body_block = llvm::BasicBlock::Create(*ctx, "", current_function);
+    CreateBr(body_block);
+    SetInsertPoint(body_block);
+    auto PHI = builder->CreatePHI(builder->getPtrTy(), 2);
+    PHI->addIncoming(lastEle, current_block);
+    auto structPtr = builder->CreateGEP(elem_type->llvm_type(gen), PHI, { builder->getInt32(-1) }, "", inbounds);
+    PHI->addIncoming(structPtr, body_block);
+    std::vector<llvm::Value*> args;
+    if(destructorFunc->has_self_param()) {
+        args.emplace_back(structPtr);
+    }
+    builder->CreateCall(destructorFunc->llvm_func_type(gen), destructorFunc->funcCallee, args, "");
+    auto result = builder->CreateICmpEQ(structPtr, firstEle);
+    auto end_block = llvm::BasicBlock::Create(*ctx, "", current_function);
+    CreateCondBr(result, end_block, body_block);
+    SetInsertPoint(end_block);
 }
 
 llvm::BasicBlock *Codegen::createBB(const std::string &name, llvm::Function *fn) {

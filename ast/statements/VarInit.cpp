@@ -2,6 +2,8 @@
 
 #include "VarInit.h"
 #include "compiler/SymbolResolver.h"
+#include "ast/types/ArrayType.h"
+#include "ast/values/VariableIdentifier.h"
 
 #ifdef COMPILER_BUILD
 
@@ -26,11 +28,30 @@ void VarInitStatement::code_gen(Codegen &gen) {
 }
 
 void VarInitStatement::code_gen_destruct(Codegen &gen, Value* returnValue) {
-    if(returnValue && returnValue->linked_node() == this) return;
+    if(returnValue) {
+        auto id = returnValue->as_identifier();
+        if(id && id->linked == this) {
+            return;
+        }
+    }
     if(value.has_value()) {
         value.value()->llvm_destruct(gen, llvm_ptr);
-    } else if(type.value()->kind() != BaseTypeKind::Pointer && type.value()->linked_node()){
-        type.value()->linked_node()->llvm_destruct(gen, llvm_ptr);
+    } else {
+        auto kind = type.value()->kind();
+        switch(kind) {
+            case BaseTypeKind::Referenced:
+                type.value()->linked_node()->llvm_destruct(gen, llvm_ptr);
+                break;
+            case BaseTypeKind::Array: {
+                const auto arr_type = (ArrayType *) type.value().get();
+                if(arr_type->elem_type->kind() == BaseTypeKind::Referenced) {
+                    gen.destruct(llvm_ptr, arr_type->array_size, arr_type->elem_type.get());
+                }
+                break;
+            }
+            default:
+                break;
+        }
     }
 }
 

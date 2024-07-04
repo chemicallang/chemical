@@ -410,7 +410,7 @@ void value_assign_default(ToCAstVisitor* visitor, const std::string& identifier,
             visitor->write('(');
             visitor->write('&');
             visitor->write(identifier);
-            if(!chain->values.back()->as_func_call()->values.empty()){
+            if(!chain->values.back()->as_func_call()->values.empty() || func_type->has_self_param()){
                 visitor->write(", ");
             }
             if(grandpa) write_self_arg(visitor, func_type, grandpa, func_call);
@@ -445,7 +445,7 @@ void value_store(ToCAstVisitor* visitor, const std::string& identifier, BaseType
 
 void value_alloca_store(ToCAstVisitor* visitor, const std::string& identifier, BaseType* type, std::optional<std::unique_ptr<Value>>& value) {
     if(value.has_value()) {
-        if(type->value_type() == ValueType::Struct && value.value()->value_type() != ValueType::Struct) {
+        if(type->value_type() == ValueType::Struct && value.value()->as_access_chain()) {
             // struct instantiation is done in 2 instructions -> declaration and assignment
             value_alloca(visitor, identifier, type, value);
             visitor->new_line_and_indent();

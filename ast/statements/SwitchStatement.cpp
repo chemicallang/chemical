@@ -64,6 +64,13 @@ SwitchStatement::SwitchStatement(
 
 void SwitchStatement::declare_and_link(SymbolResolver &linker) {
     expression->link(linker, expression);
+    for(auto& scope : scopes) {
+        scope.first->link(linker, scope.first);
+        scope.second.declare_and_link(linker);
+    }
+    if(defScope.has_value()) {
+        defScope.value().declare_and_link(linker);
+    }
 }
 
 void SwitchStatement::accept(Visitor *visitor) {

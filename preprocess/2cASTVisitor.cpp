@@ -563,7 +563,7 @@ void CBeforeStmtVisitor::visit(VarInitStatement *init) {
     if (!init->type.has_value()) {
         init->type.emplace(init->value.value()->create_type().release());
     }
-    if(init->value.has_value() && init->type.value()->value_type() == ValueType::Struct && init->value.value()->value_type() != ValueType::Struct) {
+    if(init->value.has_value() && init->type.value()->value_type() == ValueType::Struct && init->value.value()->as_access_chain()) {
         // do nothing
     } else {
         CommonVisitor::visit(init);

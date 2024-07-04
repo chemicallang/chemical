@@ -1971,6 +1971,8 @@ void ToCAstVisitor::visit(SwitchStatement *statement) {
 
         indentation_level += 1;
         scope.second.accept(this);
+        new_line_and_indent();
+        write("break;");
         indentation_level -= 1;
         i++;
     }

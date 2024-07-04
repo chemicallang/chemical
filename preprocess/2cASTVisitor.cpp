@@ -1976,6 +1976,15 @@ void ToCAstVisitor::visit(SwitchStatement *statement) {
         indentation_level -= 1;
         i++;
     }
+    if(statement->defScope.has_value()) {
+        new_line_and_indent();
+        write("default:");
+        indentation_level +=1;
+        statement->defScope.value().accept(this);
+        new_line_and_indent();
+        write("break;");
+        indentation_level -=1;
+    }
     indentation_level -= 1;
     new_line_and_indent();
     write('}');

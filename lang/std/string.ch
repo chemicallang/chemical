@@ -117,6 +117,23 @@ struct string {
         return;
     }
 
+    func get(&self, index : size_t) : char {
+        switch(state) {
+            case '0' -> {
+                return storage.constant.data[index];
+            }
+            case '1' -> {
+                return storage.sso.buffer[index];
+            }
+            case '2' -> {
+                return storage.heap.data[index]
+            }
+            default -> {
+                return '\0'
+            }
+        }
+    }
+
     func append_with_len(&self, value : char*, len : size_t) {
         ensure_mut(size() + len);
         var i : size_t = 0;

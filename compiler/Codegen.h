@@ -264,6 +264,11 @@ public:
 #endif
 
     /**
+     * destructs an array
+     */
+    void destruct(llvm::Value* allocaInst, unsigned int array_size, BaseType* elem_type);
+
+    /**
      * when generating code for the body of the loop, it should be wrapped with this function call
      * before and after the body generation
      * this ensures that break and continue instructions work properly by pointing to the given blocks

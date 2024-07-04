@@ -238,12 +238,16 @@ void FunctionDeclaration::code_gen_union(Codegen &gen, UnionDef* def) {
 
 void FunctionDeclaration::code_gen_destructor(Codegen& gen, StructDefinition* def) {
     auto func = (llvm::Function*) funcCallee;
-    llvm::BasicBlock* cleanup_block = llvm::BasicBlock::Create(*gen.ctx, "", func);
-    gen.redirect_return = cleanup_block;
-    gen.current_function = nullptr;
-    code_gen(gen);
-    gen.CreateBr(cleanup_block); // ensure branch to cleanup block
-    gen.SetInsertPoint(cleanup_block);
+    if(body.has_value() && !body->nodes.empty()) {
+        llvm::BasicBlock* cleanup_block = llvm::BasicBlock::Create(*gen.ctx, "", func);
+        gen.redirect_return = cleanup_block;
+        gen.current_function = nullptr;
+        code_gen(gen);
+        gen.CreateBr(cleanup_block); // ensure branch to cleanup block
+        gen.SetInsertPoint(cleanup_block);
+    } else {
+        gen.SetInsertPoint(&gen.current_function->getEntryBlock());
+    }
     unsigned index = 0;
     for(auto& var : def->variables) {
         if(var.second->value_type() == ValueType::Struct) {

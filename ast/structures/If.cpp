@@ -12,7 +12,7 @@ void IfStatement::code_gen(Codegen &gen) {
     code_gen(gen, true);
 }
 
-void IfStatement::code_gen(Codegen &gen, bool gen_last_block) {
+void IfStatement::code_gen(Codegen &gen, bool is_last_block) {
 
     // compare
     llvm::BasicBlock *elseBlock = nullptr;
@@ -42,10 +42,7 @@ void IfStatement::code_gen(Codegen &gen, bool gen_last_block) {
     }
 
     // end block
-    llvm::BasicBlock* endBlock = nullptr;
-    if(gen_last_block || !elseBlock) {
-        endBlock = llvm::BasicBlock::Create(*gen.ctx, "ifend", gen.current_function);
-    }
+    llvm::BasicBlock* endBlock = llvm::BasicBlock::Create(*gen.ctx, "ifend", gen.current_function);
 
     // the block after the first if block
     const auto elseOrEndBlock = elseBlock ? elseBlock : endBlock;
@@ -57,12 +54,14 @@ void IfStatement::code_gen(Codegen &gen, bool gen_last_block) {
     // generating then code
     gen.SetInsertPoint(thenBlock);
     ifBody.code_gen(gen);
+    bool is_then_returns = gen.has_current_block_ended;
     if(endBlock) {
         gen.CreateBr(endBlock);
     } else {
         gen.DefaultRet();
     }
 
+    bool all_elseifs_return = true;
     // generating else if block
     i = 0;
     while (i < elseIfsBlocks.size()) {
@@ -77,6 +76,9 @@ void IfStatement::code_gen(Codegen &gen, bool gen_last_block) {
         // generating block code
         gen.SetInsertPoint(pair.second);
         elif.second.code_gen(gen);
+        if(!gen.has_current_block_ended) {
+            all_elseifs_return = false;
+        }
         if(endBlock) {
             gen.CreateBr(endBlock);
         } else {
@@ -86,9 +88,11 @@ void IfStatement::code_gen(Codegen &gen, bool gen_last_block) {
     }
 
     // generating else block
+    bool is_else_returns = false;
     if (elseBlock) {
         gen.SetInsertPoint(elseBlock);
         elseBody.value().code_gen(gen);
+        is_else_returns = gen.has_current_block_ended;
         if(endBlock) {
             gen.CreateBr(endBlock);
         } else {
@@ -96,9 +100,14 @@ void IfStatement::code_gen(Codegen &gen, bool gen_last_block) {
         }
     }
 
-    // set to end block
     if(endBlock) {
-        gen.SetInsertPoint(endBlock);
+        // set to end block
+        if (is_then_returns && all_elseifs_return && is_else_returns) {
+            endBlock->eraseFromParent();
+            gen.destroy_current_scope = false;
+        } else {
+            gen.SetInsertPoint(endBlock);
+        }
     }
 
 }

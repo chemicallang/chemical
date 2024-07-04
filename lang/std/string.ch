@@ -186,7 +186,7 @@ struct string {
 
     func append(&self, value : char) {
         const length = size();
-        if((state == '0' || state == '1') && length <= 16) {
+        if((state == '0' || state == '1') && length < 16) {
             if(state == '0') {
                 move_const_to_buffer();
             }

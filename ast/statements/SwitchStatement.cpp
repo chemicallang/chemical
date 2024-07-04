@@ -13,36 +13,50 @@ void SwitchStatement::code_gen(Codegen &gen, bool last_block) {
     auto total_scopes = defScope.has_value() ? (scopes.size() + 1) : scopes.size();
 
     // the end block
-    llvm::BasicBlock* end = nullptr;
-    auto has_end = !(last_block && defScope.has_value());
-    if(has_end) {
-        end = llvm::BasicBlock::Create(*gen.ctx, "end", gen.current_function);
-    }
+    llvm::BasicBlock* end = llvm::BasicBlock::Create(*gen.ctx, "end", gen.current_function);
 
     auto switchInst = gen.builder->CreateSwitch(expression->llvm_value(gen), end, total_scopes);
+
+    bool all_scopes_return = true;
 
     for(auto& scope : scopes) {
         auto caseBlock = llvm::BasicBlock::Create(*gen.ctx, "case", gen.current_function);
         gen.SetInsertPoint(caseBlock);
         scope.second.code_gen(gen);
+        if(!gen.has_current_block_ended) {
+            all_scopes_return = false;
+        }
         gen.CreateBr(end);
 
-        // TODO check value is of type constant integer
+        // TODO check value is of type constant integer (check in analysis phase)
         switchInst->addCase((llvm::ConstantInt*) scope.first->llvm_value(gen), caseBlock);
 
     }
+
+    bool def_scope_returns = true;
 
     // default case
     if(defScope.has_value()) {
         auto defCase = llvm::BasicBlock::Create(*gen.ctx, "default", gen.current_function);
         gen.SetInsertPoint(defCase);
         defScope.value().code_gen(gen);
+        if(!gen.has_current_block_ended) {
+            def_scope_returns = false;
+        }
         gen.CreateBr(end);
         switchInst->setDefaultDest(defCase);
     }
 
     if(end) {
-        gen.SetInsertPoint(end);
+        if (all_scopes_return && def_scope_returns && last_block) {
+            end->eraseFromParent();
+            gen.destroy_current_scope = false;
+            if(!defScope.has_value()) {
+                gen.error("A default case must be present when generating switch instruction or it must not be the last statement in the function");
+            }
+        } else {
+            gen.SetInsertPoint(end);
+        }
     }
 
 }

@@ -126,22 +126,6 @@ public:
     }
 
     /**
-     * lexes anything as long as when lambda returns true
-     */
-    template<typename TFunc>
-    inline std::string lexAnything(TFunc when) {
-        return provider.readAnything(when);
-    }
-
-    /**
-     * lex all characters into a string until char occurs
-     * @return the string that was found
-     */
-    inline std::string lexAnything(char until = ' ') {
-        return provider.readAnything(until);
-    }
-
-    /**
      * lex a string that contains alphabetical characters only
      * @return alphabetical string or empty if not found
      */

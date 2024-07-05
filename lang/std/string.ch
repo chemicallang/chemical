@@ -35,12 +35,19 @@ struct string {
     }
 
     func size(&self) : size_t {
-        if(state == '0') {
-            return storage.constant.length;
-        } else if(state == '1') {
-            return storage.sso.length;
-        } else {
-            return storage.heap.length;
+        switch(state) {
+            case '0' -> {
+                return storage.constant.length;
+            }
+            case '1' -> {
+                return storage.sso.length;
+            }
+            case '2' -> {
+                return storage.heap.length;
+            }
+            default -> {
+                return 0
+            }
         }
     }
 
@@ -103,10 +110,11 @@ struct string {
     }
 
     func set(&self, index : size_t, value : char) {
-        if(state == '0') {
-            move_const_to_buffer();
-        }
         switch(state) {
+            case '0' -> {
+                move_const_to_buffer();
+                storage.sso.buffer[index] = value;
+            }
             case '1' -> {
                 storage.sso.buffer[index] = value;
             }
@@ -176,7 +184,7 @@ struct string {
     func substring(&self, start : size_t, end : size_t) : string {
         var s : string
         const actual_len : size_t = end - start;
-        if(actual_len <= 16) {
+        if(actual_len < 16) {
             s.state = '1'
             s.storage.sso.length = actual_len
             const d = data()

@@ -189,14 +189,14 @@ public:
     /**
      * a number will be read into a chemical string
      */
-    void readNumber(chem::string& string);
+    void readNumber(chem::string* string);
 
     /**
      * reads a number from the stream
      */
     std::string readNumber() {
         chem::string content((const char*) nullptr);
-        readNumber(content);
+        readNumber(&content);
         return content.to_std_string();
     }
 

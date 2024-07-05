@@ -27,7 +27,7 @@ CompilerBinderCommon::CompilerBinderCommon(CSTDiagnoser* diagnoser) : converter(
 }
 
 CompilerBinderTCC::CompilerBinderTCC(CSTDiagnoser* diagnoser, std::string exe_path) : CompilerBinderCommon(diagnoser), translator(nullptr, ""), exe_path(std::move(exe_path)) {
-
+    translator.comptime_scope.prepare_compiler_functions(resolver);
 }
 
 std::vector<std::unique_ptr<ASTNode>> CompilerBinderCommon::parse(std::vector<std::unique_ptr<CSTToken>>& tokens) {
@@ -169,12 +169,13 @@ bool CompilerBinderTCC::compile(const std::string& cbi_name) {
     // translate to c
     std::ostringstream stream;
     translator.output = &stream;
+    translator.prepare_translate();
     translator.translate(cbi_vec->second);
 
     // compile
     result = tcc_compile_string(state, stream.str().c_str());
     if(result == -1) {
-        error(diagnoser, "couldn't compile c code in binder for cbi " + cbi_name);
+        error(diagnoser, "couldn't compile c code in binder for cbi " + cbi_name + ", where c code:\n" + stream.str());
         return false;
     }
 

@@ -3,6 +3,9 @@
 #pragma once
 
 class SourceProvider;
+namespace chem {
+    struct string;
+}
 
 /**
  * A CBI is a Compiler Binding Interface
@@ -33,7 +36,7 @@ struct SourceProviderCBI {
     char*(*readAnything)(struct SourceProviderCBI*,char);
     char*(*readAlpha)(struct SourceProviderCBI*);
     char*(*readUnsignedInt)(struct SourceProviderCBI*);
-    char*(*readNumber)(struct SourceProviderCBI*);
+    void(*readNumber)(struct chem::string*, struct SourceProviderCBI*);
     char*(*readAlphaNum)(struct SourceProviderCBI*);
     char*(*readIdentifier)(struct SourceProviderCBI*);
     void(*readAnnotationIdentifierInto)(struct SourceProviderCBI*,char*);

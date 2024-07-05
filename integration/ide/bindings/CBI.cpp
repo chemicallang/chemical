@@ -5,6 +5,13 @@
 #include "lexer/Lexer.h"
 #include "stream/SourceProvider.h"
 
+chem::string* init_chem_string(chem::string* str) {
+    str->storage.constant.data = nullptr;
+    str->storage.constant.length = 0;
+    str->state = '0';
+    return str;
+}
+
 void init_lexer_cbi(LexerCBI* cbi, Lexer* lexer, SourceProviderCBI* provider_cbi) {
     cbi->instance = lexer;
     cbi->provider = provider_cbi;
@@ -296,8 +303,8 @@ void init_source_provider_cbi(SourceProviderCBI* cbi, SourceProvider* provider) 
     cbi->readUnsignedInt = [](struct SourceProviderCBI* cbi){
         return cbi->instance->readUnsignedInt().data();
     };
-    cbi->readNumber = [](struct SourceProviderCBI* cbi){
-        return cbi->instance->readNumber().data();
+    cbi->readNumber = [](struct chem::string* str, struct SourceProviderCBI* cbi){
+        cbi->instance->readNumber(init_chem_string(str));
     };
     cbi->readAlphaNum = [](struct SourceProviderCBI* cbi){
         return cbi->instance->readAlphaNum().data();

@@ -1,5 +1,8 @@
 import "./Operation.ch"
-import "./String.ch"
+import "../../std/string.ch"
+
+@cbi:global("compiler")
+typealias String = char*;
 
 /**
  * provides access to the source code provided by the user
@@ -101,7 +104,7 @@ struct SourceProvider {
     /**
      * reads a number from the stream
      */
-    var readNumber : (&self) => String;
+    var readNumber : (&self) => string;
 
     /**
      * reads a alphanumeric string

@@ -1,5 +1,7 @@
 import "./std.ch"
 
+@cbi:global("compiler")
+@dispose(false)
 struct string {
 
     union {

@@ -314,18 +314,30 @@ void value_alloca(ToCAstVisitor* visitor, const std::string& identifier, BaseTyp
     visitor->write(';');
 }
 
-bool write_self_arg_bool(ToCAstVisitor* visitor, BaseFunctionType* func_type, Value* grandpa, FunctionCall* call) {
+void write_accessor(ToCAstVisitor* visitor, Value* current);
+
+bool write_self_arg_bool(ToCAstVisitor* visitor, BaseFunctionType* func_type, std::vector<std::unique_ptr<Value>>& values, unsigned int grandpa_index, FunctionCall* call) {
     if(func_type->has_self_param()) {
-        visitor->write('&');
-        grandpa->accept(visitor);
+        auto grandpa = values[grandpa_index].get();
+        if(!grandpa->is_pointer()) {
+            visitor->write('&');
+        }
+        unsigned index = 0;
+        while(index <= grandpa_index) {
+            values[index]->accept(visitor);
+            if(index < grandpa_index) {
+                write_accessor(visitor, values[index].get());
+            }
+            index++;
+        }
         return true;
     } else {
         return false;
     }
 }
 
-void write_self_arg(ToCAstVisitor* visitor, BaseFunctionType* func_type, Value* grandpa, FunctionCall* call) {
-    if(write_self_arg_bool(visitor, func_type, grandpa, call)) {
+void write_self_arg(ToCAstVisitor* visitor, BaseFunctionType* func_type, std::vector<std::unique_ptr<Value>>& values, unsigned int grandpa_index, FunctionCall* call) {
+    if(write_self_arg_bool(visitor, func_type, values, grandpa_index, call)) {
         if (!call->values.empty()) {
             visitor->write(',');
         }
@@ -399,7 +411,7 @@ void value_assign_default(ToCAstVisitor* visitor, const std::string& identifier,
             auto parent_type = func_call->parent_val->create_type();
             auto func_type = parent_type->function_type();
             auto end = chain->values.size();
-            auto grandpa = end - 3 < end ? chain->values[end - 3].get() : nullptr;
+            auto grandpa = ((int) end - 3) >= 0 ? chain->values[end - 3].get() : nullptr;
             visitor->nested_value = true;
             if(func_decl) {
                 func_container_name(visitor, func_decl);
@@ -413,7 +425,7 @@ void value_assign_default(ToCAstVisitor* visitor, const std::string& identifier,
             if(!chain->values.back()->as_func_call()->values.empty() || func_type->has_self_param()){
                 visitor->write(", ");
             }
-            if(grandpa) write_self_arg(visitor, func_type, grandpa, func_call);
+            if(grandpa) write_self_arg(visitor, func_type, chain->values, ((int) ((int) end - 3)), func_call);
             func_call_args(visitor, chain->values.back()->as_func_call());
             visitor->write(");");
             return;
@@ -1769,7 +1781,7 @@ void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& valu
             func_container_name(visitor, grandpaType->linked_node(), parent->linked_node());
             func_name(visitor, parent, func_decl);
             visitor->write('(');
-            if(write_self_arg_bool(visitor, func_type, grandpa, last)) {
+            if(write_self_arg_bool(visitor, func_type, values, (((int) end) - 3), last)) {
                 visitor->write(", ");
             }
         } else {
@@ -1814,7 +1826,7 @@ void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& valu
             func_container_name(visitor, grandpaType->linked_node(), parent->linked_node());
             func_name(visitor, parent, func_decl);
             visitor->write('(');
-            write_self_arg(visitor, func_type, grandpa, last);
+            write_self_arg(visitor, func_type, values, (((int) end) - 3), last);
             func_call_args(visitor, last->as_func_call());
             visitor->write(')');
         } else {

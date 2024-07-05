@@ -659,11 +659,11 @@ struct DestructionJob {
     DestructionJobType type;
     std::string self_name;
     union {
-        struct destruct_job {
+        struct {
             ASTNode* parent_node;
             FunctionDeclaration* destructor;
         } default_job;
-        struct array_job {
+        struct {
             int array_size;
             ASTNode* linked;
             FunctionDeclaration* destructorFunc;

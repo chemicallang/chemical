@@ -139,9 +139,11 @@ void SourceProvider::readEscaping(std::string &value, char stopAt) {
 }
 
 std::string SourceProvider::readAnything(char until) {
-    return readAnything([&]() -> bool {
-        return peek() != until;
-    });
+    std::string content;
+    while (!eof() && peek() != until) {
+        content.append(1, readCharacter());
+    }
+    return content;
 }
 
 std::string SourceProvider::readUntil(const std::string &ending, bool consume) {
@@ -157,18 +159,24 @@ std::string SourceProvider::readUntil(const std::string &ending, bool consume) {
 
 std::string SourceProvider::readUnsignedInt() {
     if (!std::isdigit(peek())) return "";
-    return readAnything([&]() -> bool {
-        auto p = peek();
-        return p >= '0' && p <= '9';
-    });
+    std::string content;
+    while (true) {
+        const char p = peek();
+        if(!eof() && p >= '0' && p <= '9') {
+            content.append(1, readCharacter());
+        } else {
+            break;
+        }
+    }
+    return content;
 }
 
 std::string SourceProvider::readNumber() {
     if (peek() != '-' && !std::isdigit(peek())) return "";
     auto appearedDot = false;
     auto first_char = true;
-    return readAnything([&]() -> bool {
-        auto c = peek();
+    std::string content;
+    const auto keep_reading = [](const char c, bool& appearedDot, bool& first_char)->bool {
         if (first_char) {
             first_char = false;
             if (c == '-') {
@@ -183,7 +191,11 @@ std::string SourceProvider::readNumber() {
         } else {
             return false;
         }
-    });
+    };
+    while (!eof() && keep_reading(peek(), appearedDot, first_char)) {
+        content.append(1, readCharacter());
+    }
+    return content;
 }
 
 std::string SourceProvider::readAlpha() {

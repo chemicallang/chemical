@@ -159,23 +159,6 @@ public:
     void reset();
 
     /**
-     * read anything as long as lambda returns true into the given string
-     */
-    template<typename TFunc>
-    void readAnything(std::string& str, TFunc when);
-
-    /**
-     * reads anything as long as lambda returns true
-     * calls readAnything with str
-     */
-    template<typename TFunc>
-    std::string readAnything(TFunc when) {
-        std::string str;
-        readAnything(str, when);
-        return str;
-    }
-
-    /**
      * reads until the given ending appears into a string and returns it
      * @param consume, should it also consume the ending text
      */
@@ -275,16 +258,3 @@ public:
     Position backPosition(unsigned int back);
 
 };
-
-/**
- * The implementation for readAnything
- * This is required in header because of template usage
- *
- * ready any character as long as the function returns true, into the given str
- */
-template<typename TFunc>
-void SourceProvider::readAnything(std::string& str, TFunc when) {
-    while (!eof() && when()) {
-        str.append(1, readCharacter());
-    }
-}

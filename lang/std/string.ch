@@ -59,9 +59,12 @@ struct string {
     func move_const_to_buffer(&self) {
         const data = storage.constant.data;
         const length = storage.constant.length;
-        for(var i = 0; i < length; i++) {
-            storage.sso.buffer[i] = data[i];
+        if(data != null) {
+            for(var i = 0; i < length; i++) {
+                storage.sso.buffer[i] = data[i];
+            }
         }
+        storage.sso.buffer[length] = '\0'
         storage.sso.length = length;
         state = '1'
     }
@@ -94,7 +97,7 @@ struct string {
 
     // ensures that capacity is larger than length given and memory is mutable
     func ensure_mut(&self, length : size_t) {
-        if((state == '0' || state == '1') && length <= 16) {
+        if((state == '0' || state == '1') && length < 16) {
             if(state == '0') {
                 move_const_to_buffer();
             }

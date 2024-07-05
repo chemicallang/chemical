@@ -171,11 +171,10 @@ std::string SourceProvider::readUnsignedInt() {
     return content;
 }
 
-std::string SourceProvider::readNumber() {
-    if (peek() != '-' && !std::isdigit(peek())) return "";
+void SourceProvider::readNumber(chem::string& string) {
+    if (peek() != '-' && !std::isdigit(peek())) return;
     auto appearedDot = false;
     auto first_char = true;
-    std::string content;
     const auto keep_reading = [](const char c, bool& appearedDot, bool& first_char)->bool {
         if (first_char) {
             first_char = false;
@@ -193,9 +192,8 @@ std::string SourceProvider::readNumber() {
         }
     };
     while (!eof() && keep_reading(peek(), appearedDot, first_char)) {
-        content.append(1, readCharacter());
+        string.append(readCharacter());
     }
-    return content;
 }
 
 std::string SourceProvider::readAlpha() {

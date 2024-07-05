@@ -109,9 +109,12 @@ namespace chem {
         void move_const_to_buffer(){
             const char* data = storage.constant.data;
             size_t length = storage.constant.length;
-            for(int i = 0;(i < length);i += 1){
-                storage.sso.buffer[i] = data[i];
+            if(data) {
+                for (int i = 0; (i < length); i += 1) {
+                    storage.sso.buffer[i] = data[i];
+                }
             }
+            storage.sso.buffer[length] = '\0';
             storage.sso.length = length;
             state = '1';
         }
@@ -143,7 +146,7 @@ namespace chem {
         }
 
         void ensure_mut(size_t length){
-            if((((state == '0') || (state == '1')) && (length <= 16))){
+            if((((state == '0') || (state == '1')) && (length < 16))){
                 if(state == '0'){
                     move_const_to_buffer();
                 }
@@ -309,7 +312,9 @@ namespace chem {
         }
 
         std::string to_std_string () {
-            return { data() };
+            const auto d = data();
+            if(!d) return "";
+            return { d };
         }
 
         ~string(){

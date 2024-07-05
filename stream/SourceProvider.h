@@ -9,6 +9,7 @@
 #include "StreamPosition.h"
 #include "integration/common/Diagnostic.h"
 #include <iosfwd>
+#include "std/chem_string.h"
 
 class SourceProvider {
 private:
@@ -60,11 +61,6 @@ public:
      * the actual stream being read
      */
     std::istream *stream;
-
-    /**
-     * The default constructor
-     */
-    SourceProvider() = default;
 
     /**
      * create a source provider with a stream
@@ -191,9 +187,18 @@ public:
     std::string readUnsignedInt();
 
     /**
+     * a number will be read into a chemical string
+     */
+    void readNumber(chem::string& string);
+
+    /**
      * reads a number from the stream
      */
-    std::string readNumber();
+    std::string readNumber() {
+        chem::string content((const char*) nullptr);
+        readNumber(content);
+        return content.to_std_string();
+    }
 
     /**
      * reads a alphanumeric string

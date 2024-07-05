@@ -586,11 +586,7 @@ const char VERSION[] = "LPG-language-server 0.2.3 (" __DATE__ ")";
 
 const char *_PORT_STR = "port";
 
-int libtcc_test();
-
 int main(int argc, char *argv[]) {
-
-    libtcc_test();
 
     if(argc == 0) {
         std::cerr << "[LSP] No executable path specified" << std::endl;

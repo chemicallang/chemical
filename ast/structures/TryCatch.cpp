@@ -2,6 +2,7 @@
 
 #include "TryCatch.h"
 #include "ast/values/FunctionCall.h"
+#include "ast/types/ReferencedType.h"
 
 TryCatch::TryCatch(
         std::unique_ptr<FunctionCall> tryCall,

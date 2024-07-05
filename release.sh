@@ -8,7 +8,7 @@
 
 # Assembling Release from already built package
 
-version=v1.0
+version=v1.0.1
 
 # Targets to build
 linux_x86_64=true
@@ -17,15 +17,15 @@ linux_x86_64_tcc=true
 windows_x64_tcc=true
 
 # Command line parameter variables
-zip_all_at_end=false
-delete_dirs_at_end=false
+zip_all_at_end=true
+delete_dirs_at_end=true
 
 # Loop through each command parameter
 for param in "$@"; do
-    if [ "$param" = "--zip" ]; then
-        zip_all_at_end=true
-    elif [ "$param" = "--del-dirs" ]; then
-        delete_dirs_at_end=true
+    if [ "$param" = "--no-zip" ]; then
+        zip_all_at_end=false
+    elif [ "$param" = "--no-del-dirs" ]; then
+        delete_dirs_at_end=false
     fi
 done
 

@@ -2,6 +2,7 @@
 
 #include "BaseFunctionType.h"
 #include "ast/base/BaseType.h"
+#include "ast/base/Value.h"
 #include "FunctionParam.h"
 
 BaseFunctionType::BaseFunctionType(

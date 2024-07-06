@@ -26,6 +26,21 @@ namespace cool {
     }
 }
 
+namespace closed_bro {
+    func bring_me_in() : int {
+        return 11;
+    }
+}
+
+namespace all_closed {
+    func check_im_closed() : int {
+        return 22;
+    }
+}
+
+using closed_bro::bring_me_in;
+using namespace all_closed;
+
 func test_namespaces() {
     test("test that namespace structs work", () => {
         var p = cool::Pair2 {
@@ -72,5 +87,11 @@ func test_namespaces() {
         var t : cool::kinda_int
         t = 5;
         return t == 5;
+    })
+    test("test using statement can bring identifier into current scope - 2", () => {
+        return check_im_closed() == 22;
+    })
+    test("test using statement can bring identifier into current scope - 2", () => {
+        return bring_me_in() == 11;
     })
 }

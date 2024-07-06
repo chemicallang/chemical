@@ -279,35 +279,30 @@ public:
 
     /**
      * lexes the given operator as length 1 character operator token
-     * @param op
      * @return whether the token was found
      */
     bool lexOperatorToken(char op);
 
     /**
      * lexes the given operator as a string operator token
-     * @param op
      * @return whether the token was found
      */
     bool lexOperatorToken(const std::string &op);
 
     /**
      * lexes the given operator as length 1 character operator token
-     * @param op
      * @return whether the token was found
      */
     bool lexOperationToken(char token, Operation op);
 
     /**
      * lexes the given operator as a string operator token
-     * @param op
      * @return whether the token was found
      */
     bool lexOperatorToken(const std::string &token, Operation op);
 
     /**
      * lexes a keyword token for the given keyword
-     * @param keyword
      * @return  whether the keyword was found
      */
     bool lexKeywordToken(const std::string &keyword);
@@ -429,7 +424,6 @@ public:
 
     /**
     * lexes a function signature with parameters
-    * @return
     */
     bool lexFunctionSignatureTokens();
 
@@ -657,6 +651,11 @@ public:
      */
     bool lexTryCatchTokens();
 
+    /**
+     * lex using statement
+     */
+    bool lexUsingStatement();
+
     // -------------------------------- Exposed till here
 
     /**
@@ -739,8 +738,6 @@ public:
      * This just calls the diagnostic method above
      * It has a range, so it will start at the last token that was consumed
      * and up until the current stream position
-     * @param message
-     * @param severity
      */
     inline void diagnostic(const std::string &message, DiagSeverity severity) {
         std::string rep;
@@ -791,7 +788,6 @@ public:
      * You should get position after reading the characters and basically subtract the length of the token \n\n
      * You can provide the length of the token to this function \n\n
      * Note that token must be on the same line
-     * @param back
      */
     inline Position backPosition(unsigned int back) {
         return provider.backPosition(back);

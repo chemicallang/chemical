@@ -112,6 +112,10 @@ public:
 
     hybrid_ptr<Value> evaluated_value(InterpretScope &scope) override;
 
+    std::string representation() {
+        return Value::representation();
+    }
+
     ASTNode *linked_node() override;
 
     ValueType value_type() const override;

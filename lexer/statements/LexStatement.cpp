@@ -6,12 +6,14 @@
 
 #include "lexer/Lexer.h"
 #include "cst/statements/ThrowCST.h"
+#include "cst/statements/UsingCST.h"
 
 bool Lexer::lexTopLevelStatementTokens() {
     return lexSingleLineCommentTokens() ||
            lexMultiLineCommentTokens() ||
            lexVarInitializationTokens(true) ||
            lexAnnotationMacro() ||
+           lexUsingStatement() ||
            lexEnumStructureTokens() ||
            lexStructStructureTokens() ||
            lexUnionStructureTokens() ||
@@ -32,6 +34,7 @@ bool Lexer::lexNestedLevelStatementTokens() {
            (isLexContinueStatement && lexContinueStatement()) ||
            (isLexReturnStatement && lexReturnStatement()) ||
            lexThrowStatementTokens() ||
+           lexUsingStatement() ||
            lexIfBlockTokens() ||
            lexTryCatchTokens() ||
            lexTypealiasStatement() ||
@@ -74,6 +77,26 @@ bool Lexer::lexThrowStatementTokens() {
             return false;
         }
         compound_from<ThrowCST>(start);
+        return true;
+    } else {
+        return false;
+    }
+}
+
+bool Lexer::lexUsingStatement() {
+    if(lexKeywordToken("using")) {
+        auto start = tokens.size() - 1;
+        lexWhitespaceToken();
+        if(lexKeywordToken("namespace")) {
+            lexWhitespaceToken();
+        }
+        do {
+            if(!lexIdentifierToken()) {
+                error("expected a identifier in using statement");
+                return true;
+            }
+        } while(lexOperatorToken("::"));
+        compound_from<UsingCST>(start);
         return true;
     } else {
         return false;

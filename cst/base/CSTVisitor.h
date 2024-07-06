@@ -173,6 +173,14 @@ public:
         visitCompoundCommon((CompoundCSTToken *) throwStmt);
     }
 
+    virtual void visitUsing(CompoundCSTToken *usingStmt) {
+        visitCompoundCommon((CompoundCSTToken *) usingStmt);
+    }
+
+    virtual void visitDelete(CompoundCSTToken *delStmt) {
+        visitCompoundCommon((CompoundCSTToken *) delStmt);
+    }
+
     virtual void visitIf(CompoundCSTToken *ifCst) {
         visitCompoundCommon((CompoundCSTToken *) ifCst);
     }

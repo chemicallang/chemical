@@ -351,7 +351,7 @@ void evaluate_func(
         FunctionCall* call,
         const std::string& assign_id = ""
 ) {
-    auto value = std::unique_ptr<Value>(func_decl->call(&visitor->comptime_scope, call->values, nullptr));
+    auto value = std::unique_ptr<Value>(func_decl->call(&visitor->comptime_scope, call, nullptr));
     if(!value) {
         visitor->error("comptime function call didn't return anything");
         return;

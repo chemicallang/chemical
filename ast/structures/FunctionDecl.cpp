@@ -12,6 +12,7 @@
 #include "CapturedVariable.h"
 #include "ast/types/PointerType.h"
 #include "ast/types/VoidType.h"
+#include "ast/values/FunctionCall.h"
 #include "ast/statements/Return.h"
 
 #ifdef COMPILER_BUILD
@@ -453,11 +454,11 @@ void FunctionDeclaration::declare_and_link(SymbolResolver &linker) {
 
 Value *FunctionDeclaration::call(
     InterpretScope *call_scope,
-    std::vector<std::unique_ptr<Value>> &call_params,
+    FunctionCall* call_obj,
     Value* parent
 ) {
     InterpretScope fn_scope(nullptr, call_scope->global);
-    return call(call_scope, call_params, parent, &fn_scope);
+    return call(call_scope, call_obj->values, parent, &fn_scope);
 }
 
 // called by the return statement

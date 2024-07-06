@@ -146,7 +146,7 @@ public:
 
     virtual Value *call(
         InterpretScope *call_scope,
-        std::vector<std::unique_ptr<Value>> &call_params,
+        FunctionCall* call,
         Value* parent_val
     );
 

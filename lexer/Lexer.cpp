@@ -6,7 +6,6 @@
 
 #include "Lexer.h"
 #include "lexer/model/tokens/KeywordToken.h"
-#include "ast/utils/GlobalFunctions.h"
 #include "ast/types/ReferencedType.h"
 #include "lexer/model/tokens/BoolToken.h"
 #include "lexer/model/tokens/NullToken.h"

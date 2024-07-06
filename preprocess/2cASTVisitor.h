@@ -323,6 +323,8 @@ public:
 
     void visit(AddrOfValue* casted) override;
 
+    void visit(RetStructParamValue *paramVal) override;
+
     void visit(DereferenceValue* casted) override;
 
     void visit(FunctionCall* call) override;

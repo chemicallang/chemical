@@ -6,6 +6,7 @@
 #include <llvm/IR/Verifier.h>
 #include "ast/base/ASTNode.h"
 #include "ast/types/AnyType.h"
+#include "ast/values/RetStructParamValue.h"
 #include "ast/types/ArrayType.h"
 #include "ast/types/BoolType.h"
 #include "ast/types/CharType.h"
@@ -457,6 +458,10 @@ llvm::Value *CastedValue::llvm_value(Codegen &gen) {
     return llvm_val;
 }
 
+bool CastedValue::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
+    return type->linked_node()->add_child_index(gen, indexes, name);
+}
+
 llvm::Type *AddrOfValue::llvm_type(Codegen &gen) {
     return gen.builder->getPtrTy();
 }
@@ -471,6 +476,15 @@ bool AddrOfValue::add_member_index(Codegen &gen, Value *parent, std::vector<llvm
 
 bool AddrOfValue::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
     return value->add_child_index(gen, indexes, name);
+}
+
+llvm::Value* RetStructParamValue::llvm_value(Codegen &gen) {
+    if(gen.current_func_type->returnType->value_type() != ValueType::Struct) {
+        gen.error("expected current function to have a struct return type for compiler::return_struct");
+        return nullptr;
+    }
+    // TODO implicitly returning struct parameter index is hardcoded
+    return gen.current_function->getArg(0);
 }
 
 void AccessChain::code_gen(Codegen &gen) {

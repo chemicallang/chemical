@@ -112,6 +112,8 @@ class CastedValue;
 
 class AddrOfValue;
 
+class RetStructParamValue;
+
 class DereferenceValue;
 
 class FunctionCall;
@@ -449,6 +451,10 @@ public:
 
     virtual void visit(IndexOperator* op) {
         visitCommonValue((Value*) op);
+    }
+
+    virtual void visit(RetStructParamValue* paramVal) {
+        visitCommonValue((Value*) paramVal);
     }
 
     virtual void visit(NegativeValue* negValue) {

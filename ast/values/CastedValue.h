@@ -30,11 +30,15 @@ public:
 
     void link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) override;
 
+    ASTNode *linked_node() override;
+
 #ifdef COMPILER_BUILD
 
     llvm::Type *llvm_type(Codegen &gen) override;
 
     llvm::Value *llvm_value(Codegen &gen) override;
+
+    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
 
 #endif
 

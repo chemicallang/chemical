@@ -557,13 +557,17 @@ void CSTConverter::visitVarInit(CompoundCSTToken *varInit) {
             optVal.emplace(value());
         }
     }
-    nodes.emplace_back(std::make_unique<VarInitStatement>(
-            is_var_init_const(varInit),
-            var_init_identifier(varInit),
-            std::move(optType),
-            std::move(optVal),
-            parent_node
-    ));
+    auto init = new VarInitStatement(
+        is_var_init_const(varInit),
+        var_init_identifier(varInit),
+        std::move(optType),
+        std::move(optVal),
+        parent_node
+    );
+
+    collect_annotations_in(this, init);
+
+    nodes.emplace_back(init);
 }
 
 void CSTConverter::visitAssignment(CompoundCSTToken *assignment) {

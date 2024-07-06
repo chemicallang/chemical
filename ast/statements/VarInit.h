@@ -13,7 +13,7 @@
 #include "ast/base/BaseType.h"
 #include "ast/base/GlobalInterpretScope.h"
 
-class VarInitStatement : public ASTNode {
+class VarInitStatement : public AnnotableNode {
 public:
 
     bool is_const;
@@ -50,6 +50,8 @@ public:
     BaseType* holding_value_type() override {
         return type.has_value() ? type.value().get() : nullptr;
     }
+
+    bool is_top_level();
 
 #ifdef COMPILER_BUILD
 

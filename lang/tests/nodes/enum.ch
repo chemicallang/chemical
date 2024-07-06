@@ -17,6 +17,10 @@ func take_my_enum_again_dawg(numnum : Thing) : bool {
     return numnum == Thing.Veg
 }
 
+func take_my_thing() : Thing {
+    return Thing.Veg
+}
+
 func test_enum() {
     test("enum index works", () => {
         return Thing.Fruit == 0 && Thing.Veg == 1;
@@ -50,5 +54,8 @@ func test_enum() {
     test("check enums can be passed to functions - 3", () => {
         var a = Thing.Fruit
         return take_my_enum_dawg(a)
+    })
+    test("test enums can be returned from functions", () => {
+        return take_my_thing() == Thing.Veg;
     })
 }

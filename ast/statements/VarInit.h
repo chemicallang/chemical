@@ -96,11 +96,6 @@ public:
      */
     void declare(Value *new_value);
 
-    /**
-     * called when the value associated with this var init has been moved
-     */
-    void moved();
-
     ValueType value_type() const override;
 
     BaseTypeKind type_kind() const override;

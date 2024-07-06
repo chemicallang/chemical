@@ -898,6 +898,7 @@ void CValueDeclarationVisitor::visit(VarInitStatement *init) {
     CommonVisitor::visit(init);
     if(!is_top_level_node) return;
     visitor->new_line_and_indent();
+    write("static ");
     var_init(visitor, init);
 }
 

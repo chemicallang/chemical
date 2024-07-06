@@ -239,6 +239,7 @@ void accept_func_return(ToCAstVisitor* visitor, BaseType* type) {
 // when the interface name is to be used, so interface appends the name in given name parameter
 // take_parent is true, so this function skips direct parent but grandparents and other names are appended
 void accept_func_return_with_name(ToCAstVisitor* visitor, BaseFunctionType* func_type, const std::string& name, bool take_parent = false) {
+    visitor->write("static ");
     accept_func_return(visitor, func_type->returnType.get());
     visitor->space();
     node_parent_name(visitor, take_parent ? func_type->parent() : func_type->as_function());
@@ -979,6 +980,7 @@ void func_ret_func_proto_after_l_paren(ToCAstVisitor* visitor, FunctionDeclarati
 }
 
 void func_that_returns_func_proto(ToCAstVisitor* visitor, FunctionDeclaration* decl, const std::string& name, FunctionType* retFunc) {
+    visitor->write("static ");
     accept_func_return(visitor, retFunc->returnType.get());
     visitor->write("(");
     func_ret_func_proto_after_l_paren(visitor, decl, name, retFunc);
@@ -1038,6 +1040,7 @@ void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaratio
         }
     };
     if(tld->visitor->inline_fn_types_in_returns && decl->returnType->function_type() != nullptr && !decl->returnType->function_type()->isCapturing) {
+        tld->value_visitor->write("static ");
         accept_func_return(tld->visitor, decl->returnType->function_type()->returnType.get());
         tld->write('(');
         write_self_param_now();
@@ -1466,6 +1469,7 @@ void contained_func_decl(ToCAstVisitor* visitor, FunctionDeclaration* decl, cons
         }
     };
     if(visitor->inline_fn_types_in_returns && decl->returnType->function_type() != nullptr && !decl->returnType->function_type()->isCapturing) {
+        visitor->write("static ");
         accept_func_return(visitor, decl->returnType->function_type()->returnType.get());
         visitor->write('(');
         write_self_param_now();

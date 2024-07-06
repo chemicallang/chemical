@@ -14,6 +14,7 @@ enum class AnnotationKind {
     OptSize,
     MinSize,
 
+    Api, // functions that are exposed to other modules
     CompTime, // functions that are compile time
 
     // constructor or de constructor allow functions to be called automatically

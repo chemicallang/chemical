@@ -238,8 +238,10 @@ void accept_func_return(ToCAstVisitor* visitor, BaseType* type) {
 // the last take_parent allows to skip appending one direct parent name, useful
 // when the interface name is to be used, so interface appends the name in given name parameter
 // take_parent is true, so this function skips direct parent but grandparents and other names are appended
-void accept_func_return_with_name(ToCAstVisitor* visitor, BaseFunctionType* func_type, const std::string& name, bool take_parent = false) {
-    visitor->write("static ");
+void accept_func_return_with_name(ToCAstVisitor* visitor, BaseFunctionType* func_type, const std::string& name, bool take_parent, bool is_static) {
+    if(is_static) {
+        visitor->write("static ");
+    }
     accept_func_return(visitor, func_type->returnType.get());
     visitor->space();
     node_parent_name(visitor, take_parent ? func_type->parent() : func_type->as_function());
@@ -933,7 +935,7 @@ void CValueDeclarationVisitor::visit(LambdaFunction *lamb) {
         visitor->write("};");
     }
     visitor->new_line_and_indent();
-    accept_func_return_with_name(visitor, lamb, lamb_name);
+    accept_func_return_with_name(visitor, lamb, lamb_name, false, true);
     aliases[lamb] = lamb_name;
     write('(');
 
@@ -978,7 +980,9 @@ void func_ret_func_proto_after_l_paren(ToCAstVisitor* visitor, FunctionDeclarati
 }
 
 void func_that_returns_func_proto(ToCAstVisitor* visitor, FunctionDeclaration* decl, const std::string& name, FunctionType* retFunc) {
-    visitor->write("static ");
+    if(decl->body.has_value()) {
+        visitor->write("static ");
+    }
     accept_func_return(visitor, retFunc->returnType.get());
     visitor->write("(");
     func_ret_func_proto_after_l_paren(visitor, decl, name, retFunc);
@@ -994,7 +998,7 @@ void declare_func_with_return(ToCAstVisitor* visitor, FunctionDeclaration* decl,
         if (decl->returnType->kind() == BaseTypeKind::Void && name == "main") {
             visitor->write("int main");
         } else {
-            accept_func_return_with_name(visitor, decl, name);
+            accept_func_return_with_name(visitor, decl, name, false, decl->body.has_value() && !decl->is_exported());
         }
         visitor->write('(');
         func_type_params(visitor, decl);
@@ -1044,7 +1048,7 @@ void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaratio
         write_self_param_now();
         func_ret_func_proto_after_l_paren(tld->visitor, decl, name, decl->returnType->function_type(), i);
     } else {
-        accept_func_return_with_name(tld->visitor, decl, name, true);
+        accept_func_return_with_name(tld->visitor, decl, name, true, decl->body.has_value() && !decl->is_exported());
         tld->write('(');
         write_self_param_now();
         func_type_params(tld->visitor, decl, i);
@@ -1472,7 +1476,7 @@ void contained_func_decl(ToCAstVisitor* visitor, FunctionDeclaration* decl, cons
         write_self_param_now();
         func_ret_func_proto_after_l_paren(visitor, decl, name, decl->returnType->function_type(), i);
     } else {
-        accept_func_return_with_name(visitor, decl, name, true);
+        accept_func_return_with_name(visitor, decl, name, true, decl->body.has_value() && !decl->is_exported());
         visitor->write('(');
         write_self_param_now();
         func_type_params(visitor, decl, i);

@@ -64,6 +64,9 @@ public:
         return name;
     }
 
+    // whether the function is exported to other modules (@api)
+    bool is_exported();
+
     void accept(Visitor *visitor) override;
 
     void ensure_constructor(StructDefinition* def);

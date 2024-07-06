@@ -12,10 +12,8 @@ struct Pair {
     @constructor
     func pair(c : int) {
         var r = c / 2;
-        return Pair {
-            a : r,
-            b : r
-        }
+        a = r;
+        b = r;
     }
 
     func get_pair_sum(&self) : int {

@@ -33,6 +33,8 @@ class ExtendableBase;
 
 class BaseFunctionParam;
 
+class AnnotableNode;
+
 class VariablesContainer;
 
 /**
@@ -121,6 +123,13 @@ public:
      * get the extendable members container, if this node has one
      */
     virtual ExtendableBase* as_extendable_members_container() {
+        return nullptr;
+    }
+
+    /**
+     * return this as an annotable node
+     */
+    virtual AnnotableNode* as_annotable_node() {
         return nullptr;
     }
 

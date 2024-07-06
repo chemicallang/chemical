@@ -11,11 +11,11 @@ uint64_t VariableIdentifier::byte_size(bool is64Bit) {
     return linked->byte_size(is64Bit);
 }
 
-void VariableIdentifier::prepend_self(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr, BaseFunctionParam* self_param) {
+void VariableIdentifier::prepend_self(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr, const std::string& name, ASTNode* linked) {
     // struct members / functions, don't need to be accessed like self.a or this.a
     // because we'll append self and this automatically
-    auto self_id = new VariableIdentifier(self_param->name);
-    self_id->linked = self_param;
+    auto self_id = new VariableIdentifier(name);
+    self_id->linked = linked;
     std::vector<std::unique_ptr<Value>> values;
     values.emplace_back(self_id);
     values.emplace_back(value_ptr.release());
@@ -32,9 +32,19 @@ void VariableIdentifier::link(SymbolResolver &linker, std::unique_ptr<Value>& va
             }
             auto self_param = linker.current_func_type->get_self_param();
             if(self_param) {
-                prepend_self(linker, value_ptr, self_param);
+                prepend_self(linker, value_ptr, self_param->name, self_param);
             } else {
-                linker.error("couldn't link identifier '" + value + "', because function doesn't take a self argument");
+                auto decl = linker.current_func_type->as_function();
+                if(decl && decl->has_annotation(AnnotationKind::Constructor) && !decl->has_annotation(AnnotationKind::CompTime)) {
+                    auto found = linker.find("this");
+                    if(found) {
+                        prepend_self(linker, value_ptr, "this", found);
+                    } else {
+                        linker.error("couldn't find this in constructor for linking identifier '" + value + "'");
+                    }
+                } else {
+                    linker.error("couldn't link identifier '" + value + "', because function doesn't take a self argument");
+                }
             }
         } else if(linked->as_namespace() && !can_link_with_namespace()){
             linker.error("cannot link identifier with namespace " + value);

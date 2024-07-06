@@ -221,7 +221,6 @@ set(COMMON_SOURCES
         ast/types/ReferencedType.h
         stream/SourceProviderImpl.cpp
         ast/structures/FunctionDecl.cpp
-        ast/utils/GlobalFunctions.h
         ast/utils/GlobalFunctions.cpp
         ast/statements/MacroValueStatement.h
         integration/common/Diagnostic.cpp

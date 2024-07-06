@@ -1,13 +1,14 @@
 // Copyright (c) Qinetik 2024.
 
-#include "GlobalFunctions.h"
-
+#include "ast/base/GlobalInterpretScope.h"
+#include "ast/structures/FunctionParam.h"
 #include "sstream"
 #include <utility>
 #include "ast/types/VoidType.h"
 #include "ast/values/IntValue.h"
 #include "ast/values/UBigIntValue.h"
 #include "ast/values/StructValue.h"
+#include "ast/values/FunctionCall.h"
 #include "compiler/SymbolResolver.h"
 #include "ast/structures/Namespace.h"
 #include "ast/structures/StructDefinition.h"
@@ -49,7 +50,7 @@ namespace InterpretVector {
         ) {
             annotations.emplace_back(AnnotationKind::Constructor);
         }
-        Value *call(InterpretScope *call_scope, std::vector<std::unique_ptr<Value>> &call_args, Value *parent_val, InterpretScope *fn_scope) override {
+        Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val) override {
             return new InterpretVectorVal((InterpretVectorNode*) parent_node);
         }
     };
@@ -66,7 +67,7 @@ namespace InterpretVector {
         ) {
             params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(node->get_value_type()), 0, std::nullopt, this));
         }
-        Value *call(InterpretScope *call_scope, std::vector<std::unique_ptr<Value>> &call_args, Value *parent_val, InterpretScope *fn_scope) override {
+        Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val) override {
             return new IntValue(static_cast<InterpretVectorVal*>(parent_val)->values.size());
         }
     };
@@ -83,8 +84,8 @@ namespace InterpretVector {
         ) {
             params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(node->get_value_type()), 0, std::nullopt, this));
         }
-        Value *call(InterpretScope *call_scope, std::vector<std::unique_ptr<Value>> &call_args, Value *parent_val, InterpretScope *fn_scope) override {
-            return static_cast<InterpretVectorVal*>(parent_val)->values[call_args[0]->evaluated_value(*call_scope)->as_int()]->scope_value(*call_scope);
+        Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val) override {
+            return static_cast<InterpretVectorVal*>(parent_val)->values[call->values[0]->evaluated_value(*call_scope)->as_int()]->scope_value(*call_scope);
         }
     };
     class InterpretVectorPush : public FunctionDeclaration {
@@ -99,8 +100,8 @@ namespace InterpretVector {
         ) {
             params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(node->get_value_type()), 0, std::nullopt, this));
         }
-        Value *call(InterpretScope *call_scope, std::vector<std::unique_ptr<Value>> &call_args, Value *parent_val, InterpretScope *fn_scope) override {
-            static_cast<InterpretVectorVal*>(parent_val)->values.emplace_back(call_args[0]->scope_value(*call_scope));
+        Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val) override {
+            static_cast<InterpretVectorVal*>(parent_val)->values.emplace_back(call->values[0]->scope_value(*call_scope));
             return nullptr;
         }
     };
@@ -116,9 +117,9 @@ namespace InterpretVector {
         ) {
             params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(node->get_value_type()), 0, std::nullopt, this));
         }
-        Value *call(InterpretScope *call_scope, std::vector<std::unique_ptr<Value>> &call_args, Value *parent_val, InterpretScope *fn_scope) override {
+        Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val) override {
             auto& ref = static_cast<InterpretVectorVal*>(parent_val)->values;
-            ref.erase(ref.begin() + call_args[0]->evaluated_value(*call_scope)->as_int());
+            ref.erase(ref.begin() + call->values[0]->evaluated_value(*call_scope)->as_int());
             return nullptr;
         }
     };
@@ -147,10 +148,10 @@ public:
     ), visitor(ostring) {
         visitor.interpret_representation = true;
     }
-    Value *call(InterpretScope *call_scope, std::vector<std::unique_ptr<Value>> &call_args, Value *parent_val, InterpretScope *fn_scope) override {
+    Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val) override {
         ostring.str("");
         ostring.clear();
-        for (auto const &value: call_args) {
+        for (auto const &value: call->values) {
             auto paramValue = value->evaluated_value(*call_scope);
             if(paramValue.get() == nullptr) {
                 ostring.write("null", 4);
@@ -175,12 +176,12 @@ public:
     ) {
         annotations.emplace_back(AnnotationKind::CompTime);
     }
-    Value *call(InterpretScope *call_scope, std::vector<std::unique_ptr<Value>> &call_args, Value *parent_val, InterpretScope *fn_scope) override {
-        if(call_args.empty()) {
+    Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val) override {
+        if(call->values.empty()) {
             call_scope->error("compiler::strlen called without arguments");
             return nullptr;
         }
-        const auto val = call_args[0].get();
+        const auto val = call->values[0].get();
         if(val->value_type() != ValueType::String) {
             call_scope->error("compiler::strlen called with invalid arguments");
             return nullptr;
@@ -194,10 +195,10 @@ public:
                     value = hybrid_ptr<Value>{holding, false};
                 }
             } else {
-                value = call_args[0]->evaluated_value(*call_scope);
+                value = call->values[0]->evaluated_value(*call_scope);
             }
         } else {
-            value = call_args[0]->evaluated_value(*call_scope);
+            value = call->values[0]->evaluated_value(*call_scope);
         }
         if(!value) {
             call_scope->error("couldn't get value for compiler::strlen");
@@ -237,10 +238,27 @@ public:
     ) {
         params.emplace_back(std::make_unique<FunctionParam>("value", std::make_unique<AnyType>(), 0, std::nullopt, this));
     }
-    Value *call(InterpretScope *call_scope, std::vector<std::unique_ptr<Value>> &call_args, Value *parent_val, InterpretScope *fn_scope) override {
-        auto underlying = call_args[0]->copy();
+    Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val) override {
+        auto underlying = call->values[0]->copy();
         underlying->evaluate_children(*call_scope);
         return new WrapValue(std::unique_ptr<Value>(underlying));
+    }
+};
+
+class InterpretRetStructPtr : public FunctionDeclaration {
+public:
+    explicit InterpretRetStructPtr(ASTNode* parent_node) : FunctionDeclaration(
+            "return_struct",
+            std::vector<std::unique_ptr<FunctionParam>> {},
+            // TODO fix return type
+            std::make_unique<PointerType>(std::make_unique<VoidType>()),
+            true,
+            parent_node,
+            std::nullopt
+    ) {
+    }
+    Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val) override {
+        return nullptr;
     }
 };
 
@@ -253,6 +271,7 @@ void GlobalInterpretScope::prepare_compiler_functions(SymbolResolver& resolver) 
     compiler_ns->nodes.emplace_back(new InterpretPrint(compiler_ns));
     compiler_ns->nodes.emplace_back(new InterpretStrLen(compiler_ns));
     compiler_ns->nodes.emplace_back(new InterpretWrap(compiler_ns));
+    compiler_ns->nodes.emplace_back(new InterpretRetStructPtr(compiler_ns));
     compiler_ns->nodes.emplace_back(new InterpretVector::InterpretVectorNode(compiler_ns));
 
     compiler_ns->declare_top_level(resolver);

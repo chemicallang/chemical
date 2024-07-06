@@ -8,7 +8,6 @@
 #include "utils/Utils.h"
 #include "ast/utils/ExpressionEvaluator.h"
 #include "ast/base/GlobalInterpretScope.h"
-#include "ast/utils/GlobalFunctions.h"
 #include "cst/base/CSTConverter.h"
 #include "compiler/SymbolResolver.h"
 #include <chrono>

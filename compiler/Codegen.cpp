@@ -15,7 +15,6 @@
 #include <system_error>
 #include "lld/Common/Driver.h"
 #include "lld/Common/ErrorHandler.h"
-#include "ast/utils/GlobalFunctions.h"
 #include "ast/utils/ExpressionEvaluator.h"
 #include "ast/types/IntNType.h"
 #include <cstdlib>

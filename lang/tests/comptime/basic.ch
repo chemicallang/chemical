@@ -95,7 +95,7 @@ func sum_multiple(x : int) : int {
 }
 
 func ret_struct_boi() : Pair66 {
-    var p = compiler::return_struct() as Pair66*
+    const p = compiler::return_struct() as Pair66*
     p.a = 343
     p.b = 979
     return;

@@ -264,9 +264,17 @@ public:
 #endif
 
     /**
+     * destructs an array, also allows to add extra logic after destruction via lambda
+     * the llvm::Value* provided in lambda is of the struct present in the array
+     */
+    void destruct(llvm::Value* allocaInst, unsigned int array_size, BaseType* elem_type, void* data, void(*after_destruct)(Codegen*, llvm::Value*, void* data));
+
+    /**
      * destructs an array
      */
-    void destruct(llvm::Value* allocaInst, unsigned int array_size, BaseType* elem_type);
+    void destruct(llvm::Value* allocaInst, unsigned int array_size, BaseType* elem_type) {
+        destruct(allocaInst, array_size, elem_type, nullptr, nullptr);
+    }
 
     /**
      * when generating code for the body of the loop, it should be wrapped with this function call

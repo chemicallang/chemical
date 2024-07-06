@@ -481,6 +481,8 @@ set(COMMON_SOURCES
         ast/base/ChainPart.h
         ast/statements/UsingStmt.h
         ast/statements/Using.cpp
+        ast/statements/DeleteStmt.h
+        ast/statements/DeleteStmt.cpp
 )
 
 # Chemical LSP Executable Target

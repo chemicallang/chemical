@@ -211,7 +211,7 @@ Codegen::create_function_proto(const std::string &name, llvm::FunctionType *type
     return fn;
 }
 
-void Codegen::destruct(llvm::Value* allocaInst, unsigned int array_size, BaseType* elem_type) {
+void Codegen::destruct(llvm::Value* allocaInst, unsigned int array_size, BaseType* elem_type, void* data, void(*after_destruct)(Codegen*, llvm::Value*, void*)) {
     if(!elem_type->linked_node() || !elem_type->linked_node()->as_struct_def()) {
         return;
     }
@@ -237,6 +237,7 @@ void Codegen::destruct(llvm::Value* allocaInst, unsigned int array_size, BaseTyp
         args.emplace_back(structPtr);
     }
     builder->CreateCall(destructorFunc->llvm_func_type(gen), destructorFunc->funcCallee, args, "");
+    if(after_destruct) after_destruct(this, structPtr, data);
     auto result = builder->CreateICmpEQ(structPtr, firstEle);
     auto end_block = llvm::BasicBlock::Create(*ctx, "", current_function);
     CreateCondBr(result, end_block, body_block);

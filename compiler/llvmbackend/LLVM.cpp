@@ -644,6 +644,10 @@ void ImportStatement::code_gen(Codegen &gen) {
 
 }
 
+llvm::Type *EnumDeclaration::llvm_type(Codegen &gen) {
+    return gen.builder->getInt32Ty();
+}
+
 // ----------- Members
 
 llvm::Value *EnumMember::llvm_load(Codegen &gen) {

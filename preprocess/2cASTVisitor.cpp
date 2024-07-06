@@ -659,6 +659,7 @@ enum class DestructionJobType {
 struct DestructionJob {
     DestructionJobType type;
     std::string self_name;
+    ASTNode* initializer;
     union {
         struct {
             ASTNode* parent_node;
@@ -683,22 +684,17 @@ public:
 
     std::vector<DestructionJob> destruct_jobs;
 
-    /**
-     * the current return value for current scope, for which nodes are being destructed
-     */
-    Value* current_return = nullptr;
-
     void destruct(const std::string& self_name, ASTNode* linked, FunctionDeclaration* destructor);
 
-    void destruct(const std::string& self_name, ASTNode* linked);
+    void destruct(const std::string& self_name, ASTNode* initializer, StructDefinition* linked);
 
-    void destruct(const std::string& self_name, FunctionCall* call);
+    void destruct(const std::string& self_name, ASTNode* initializer, FunctionCall* call);
 
     void destruct_arr(const std::string& self_name, int array_size, ASTNode* linked, FunctionDeclaration* destructor);
 
-    void destruct(const DestructionJob& job);
+    void destruct(const DestructionJob& job, Value* current_return);
 
-    bool destruct_arr(const std::string& self_name, BaseType* elem_type, int array_size);
+    bool destruct_arr(const std::string& self_name, ASTNode* initializer, BaseType* elem_type, int array_size);
 
     void visit(VarInitStatement *init) override;
 
@@ -751,26 +747,26 @@ void CDestructionVisitor::destruct(const std::string& self_name, ASTNode* parent
     }
 }
 
-void CDestructionVisitor::destruct(const std::string& self_name, ASTNode* linked) {
-    if(linked->as_struct_def()) {
-        auto destructorFunc = linked->as_struct_def()->destructor_func();
-        if(destructorFunc) {
-            destruct_jobs.emplace_back(DestructionJob{
-                    .type = DestructionJobType::Default,
-                    .self_name = self_name,
-                    .default_job = {
-                            linked,
-                            destructorFunc
-                    }
-            });
-        }
+void CDestructionVisitor::destruct(const std::string& self_name, ASTNode* initializer, StructDefinition* linked) {
+    if(!linked) return;
+    auto destructorFunc = linked->destructor_func();
+    if(destructorFunc) {
+        destruct_jobs.emplace_back(DestructionJob{
+                .type = DestructionJobType::Default,
+                .self_name = self_name,
+                .initializer = initializer,
+                .default_job = {
+                        linked,
+                        destructorFunc
+                }
+        });
     }
 }
 
-void CDestructionVisitor::destruct(const std::string& self_name, FunctionCall* call) {
+void CDestructionVisitor::destruct(const std::string& self_name, ASTNode* initializer, FunctionCall* call) {
     auto return_type = call->create_type();
     auto linked = return_type->linked_node();
-    if(linked) destruct(self_name, linked);
+    if(linked) destruct(self_name, initializer, linked->as_struct_def());
 }
 
 void CDestructionVisitor::destruct_arr(const std::string &self_name, int array_size, ASTNode* linked, FunctionDeclaration* destructorFunc) {
@@ -792,7 +788,13 @@ void CDestructionVisitor::destruct_arr(const std::string &self_name, int array_s
     visitor->write('}');
 }
 
-void CDestructionVisitor::destruct(const DestructionJob& job) {
+void CDestructionVisitor::destruct(const DestructionJob& job, Value* current_return) {
+    if(current_return) {
+        const auto id = current_return->as_identifier();
+        if (id && id->linked == job.initializer) {
+            return;
+        }
+    }
     switch(job.type) {
         case DestructionJobType::Default:
             destruct(job.self_name, job.default_job.parent_node, job.default_job.destructor);
@@ -803,7 +805,7 @@ void CDestructionVisitor::destruct(const DestructionJob& job) {
     }
 }
 
-bool CDestructionVisitor::destruct_arr(const std::string& self_name, BaseType *elem_type, int array_size) {
+bool CDestructionVisitor::destruct_arr(const std::string& self_name, ASTNode* initializer, BaseType *elem_type, int array_size) {
     if(elem_type->value_type() == ValueType::Struct) {
         auto linked = elem_type->linked_node();
         FunctionDeclaration* destructorFunc;
@@ -815,6 +817,7 @@ bool CDestructionVisitor::destruct_arr(const std::string& self_name, BaseType *e
             destruct_jobs.emplace_back(DestructionJob{
                 .type = DestructionJobType::Array,
                 .self_name = self_name,
+                .initializer = initializer,
                 .array_job = {
                     array_size,
                     linked,
@@ -828,34 +831,31 @@ bool CDestructionVisitor::destruct_arr(const std::string& self_name, BaseType *e
 }
 
 void CDestructionVisitor::visit(VarInitStatement *init) {
-    if(current_return && current_return->linked_node() == init) {
-        return;
-    }
     if(init->value.has_value()) {
         auto chain = init->value.value()->as_access_chain();
         if(chain && chain->values.back()->as_func_call()) {
-            destruct(init->identifier, chain->values.back()->as_func_call());
+            destruct(init->identifier, init, chain->values.back()->as_func_call());
             return;
         }
         auto array_val = init->value.value()->as_array_value();
         if(array_val) {
             auto elem_type = array_val->element_type();
-            destruct_arr(init->identifier, elem_type.get(), array_val->array_size());
+            destruct_arr(init->identifier, init, elem_type.get(), array_val->array_size());
             return;
         }
         auto struct_val = init->value.value()->as_struct();
         if(struct_val) {
             auto linked = struct_val->definition;
-            if(linked) destruct(init->identifier, linked);
+            if(linked) destruct(init->identifier, init, linked);
         }
     } else {
         if(init->type.value()->value_type() == ValueType::Struct) {
             auto linked = init->type.value()->linked_node();
-            if (linked) destruct(init->identifier, linked);
+            if (linked) destruct(init->identifier, init, linked->as_struct_def());
         } else if(init->type.value()->kind() == BaseTypeKind::Array) {
             auto type = (ArrayType*) init->type.value().get();
             if(type->array_size != -1) {
-                destruct_arr(init->identifier, type->elem_type.get(), type->array_size);
+                destruct_arr(init->identifier, init, type->elem_type.get(), type->array_size);
             } else {
                 // cannot destruct array type without size
             }
@@ -948,14 +948,11 @@ void CValueDeclarationVisitor::visit(LambdaFunction *lamb) {
     func_type_params(visitor, lamb);
     write(')');
     auto prev_destroy_scope = visitor->destructor->destroy_current_scope;
-    auto prev_return = visitor->destructor->current_return;
-    visitor->destructor->current_return = nullptr;
     visitor->destructor->destroy_current_scope = true;
     auto previous_destruct_jobs = std::move(visitor->destructor->destruct_jobs);
     scope(visitor, lamb->scope);
     visitor->destructor->destruct_jobs = std::move(previous_destruct_jobs);
     visitor->destructor->destroy_current_scope = prev_destroy_scope;
-    visitor->destructor->current_return = prev_return;
 }
 
 void declare_params(CValueDeclarationVisitor* value_visitor, std::vector<std::unique_ptr<FunctionParam>>& params) {
@@ -1373,13 +1370,12 @@ void ToCAstVisitor::visit(ReturnStatement *returnStatement) {
     int i = ((int) destructor->destruct_jobs.size()) - 1;
     auto new_line_prev = destructor->new_line_before;
     destructor->new_line_before = false;
-    destructor->current_return = returnStatement->value.has_value() ? returnStatement->value.value().get() : nullptr;
+    auto current_return = returnStatement->value.has_value() ? returnStatement->value.value().get() : nullptr;
     while(i >= 0) {
-        destructor->destruct(destructor->destruct_jobs[i]);
+        destructor->destruct(destructor->destruct_jobs[i], current_return);
         i--;
     }
     destructor->new_line_before = new_line_prev;
-    destructor->current_return = nullptr;
     destructor->destroy_current_scope = false;
     if(returnStatement->value.has_value()) {
         if(handle_return_after) {
@@ -1593,7 +1589,7 @@ void ToCAstVisitor::visit(Scope *scope) {
     if(destructor->destroy_current_scope) {
         int i = ((int) destructor->destruct_jobs.size()) - 1;
         while (i >= (int) begin) {
-            destructor->destruct(destructor->destruct_jobs[i]);
+            destructor->destruct(destructor->destruct_jobs[i], nullptr);
             i--;
         }
     } else {

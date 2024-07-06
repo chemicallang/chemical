@@ -15,13 +15,14 @@ BaseFunctionType::BaseFunctionType(
 
 bool BaseFunctionType::satisfy_args(std::vector<std::unique_ptr<Value>>& forArgs) {
     auto has_self = has_self_param();
-    auto required_args_len = (has_self ? 1 : 0) + params.size();
+    unsigned offset = has_self ? 1 : 0;
+    auto required_args_len = params.size() - offset;
     if(forArgs.size() != required_args_len) {
         return false;
     }
-    unsigned i = has_self ? 1 : 0; // first argument for implicit self
+    unsigned i = offset; // first argument for implicit self
     while(i < params.size()) {
-        if(!params[i]->type->satisfies(forArgs[i].get())) {
+        if(!params[i]->type->satisfies(forArgs[i - offset].get())) {
             return false;
         }
         i++;

@@ -41,7 +41,19 @@ void AccessChain::declare_and_link(SymbolResolver &linker) {
             self_id->linked = self_param;
             values.insert(values.begin(), std::unique_ptr<Value>(self_id));
         } else {
-            linker.error("couldn't link identifier '" + values[0]->representation() + "', because function doesn't take a self argument");
+            auto decl = linker.current_func_type->as_function();
+            if(decl && decl->has_annotation(AnnotationKind::Constructor) && !decl->has_annotation(AnnotationKind::CompTime)) {
+                auto found = linker.find("this");
+                if(found) {
+                    auto self_id = new VariableIdentifier("this");
+                    self_id->linked = found;
+                    values.insert(values.begin(), std::unique_ptr<Value>(self_id));
+                } else {
+                    linker.error("couldn't find this in constructor for linking identifier '" + values[0]->representation() + "'");
+                }
+            } else {
+                linker.error("couldn't link identifier '" + values[0]->representation() + "', because function doesn't take a self argument");
+            }
         }
     }
 

@@ -13,6 +13,7 @@ bool Lexer::lexStructMemberTokens() {
             lexSingleLineCommentTokens() ||
             lexMultiLineCommentTokens() ||
             lexUnionStructureTokens(true, true) ||
+            lexStructStructureTokens(true, true) ||
             lexAnnotationMacro();
 }
 

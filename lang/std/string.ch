@@ -29,11 +29,9 @@ struct string {
 
     @constructor
     func constructor(value : char*, length : size_t) {
-        var s : string
-        s.storage.constant.data = value;
-        s.storage.constant.length = length;
-        s.state = '0'
-        return s;
+        storage.constant.data = value;
+        storage.constant.length = length;
+        state = '0'
     }
 
     func size(&self) : size_t {

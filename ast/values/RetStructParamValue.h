@@ -27,6 +27,10 @@ public:
 
     std::unique_ptr<BaseType> create_type() override;
 
+    Value *copy() override {
+        return new RetStructParamValue();
+    }
+
     BaseTypeKind type_kind() const override {
         return BaseTypeKind::Pointer;
     }

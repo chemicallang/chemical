@@ -285,6 +285,9 @@ void CSTConverter::init_annotation_handlers() {
     annotation_handlers["size:min"] = [](CSTConverter* converter, CSTToken* container){
         collect_annotation_func(converter, container, AnnotationKind::MinSize);
     };
+    annotation_handlers["api"] = [](CSTConverter* converter, CSTToken* container){
+        collect_annotation_func(converter, container, AnnotationKind::Api);
+    };
     annotation_handlers["comptime"] = [](CSTConverter* converter, CSTToken* container){
         collect_annotation_func(converter, container, AnnotationKind::CompTime);
     };
@@ -986,6 +989,7 @@ void CSTConverter::visitStructDef(CompoundCSTToken *structDef) {
     collect_struct_members(this, structDef->tokens, def->variables, def->functions, i);
     parent_node = prev_parent;
     current_struct_decl = prev_struct_decl;
+    collect_annotations_in(this, def);
     nodes.emplace_back(def);
 }
 

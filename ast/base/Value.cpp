@@ -106,7 +106,7 @@ bool is_stored_pointer(Value* value) {
     if(!linked) return false;
     if(linked->as_struct_member()) {
         return linked->as_struct_member()->type->is_pointer();
-    } else if(linked->as_var_init()) {
+    } else if(linked->as_var_init() && !linked->as_var_init()->is_const) {
         auto kind = linked->as_var_init()->type_kind();
         return kind == BaseTypeKind::Pointer || kind == BaseTypeKind::String;
     }

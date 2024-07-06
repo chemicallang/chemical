@@ -482,6 +482,8 @@ set(COMMON_SOURCES
         ast/statements/Using.cpp
         ast/statements/DeleteStmt.h
         ast/statements/DeleteStmt.cpp
+        ast/values/RetStructParamValue.h
+        ast/values/RetStructParamValue.cpp
 )
 
 # Chemical LSP Executable Target

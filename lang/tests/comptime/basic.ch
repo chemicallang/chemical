@@ -94,6 +94,13 @@ func sum_multiple(x : int) : int {
     return compiler::wrap(runtime_sum(x * 2, x * 2));
 }
 
+func ret_struct_boi() : Pair66 {
+    var p = compiler::return_struct() as Pair66*
+    p.a = 343
+    p.b = 979
+    return;
+}
+
 func test_comptime() {
     test("test comptime sum works", () => {
         return comptime_sum(3, 6) == 9;
@@ -130,5 +137,9 @@ func test_comptime() {
     })
     test("compiler wrap functionally works", () => {
         return sum_multiple(20) == 80;
+    })
+    test("can gain access to implicitly passed struct", ()=> {
+        var p = ret_struct_boi()
+        return p.a == 343 && p.b == 979;
     })
 }

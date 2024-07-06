@@ -21,3 +21,7 @@ void CastedValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr
     value->link(linker, value);
     type->link(linker, type);
 }
+
+ASTNode *CastedValue::linked_node() {
+    return type->linked_node();
+}

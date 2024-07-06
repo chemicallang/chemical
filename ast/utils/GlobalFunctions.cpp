@@ -7,6 +7,7 @@
 #include "ast/types/VoidType.h"
 #include "ast/values/IntValue.h"
 #include "ast/values/UBigIntValue.h"
+#include "ast/values/RetStructParamValue.h"
 #include "ast/values/StructValue.h"
 #include "ast/values/FunctionCall.h"
 #include "compiler/SymbolResolver.h"
@@ -256,9 +257,10 @@ public:
             parent_node,
             std::nullopt
     ) {
+        annotations.emplace_back(AnnotationKind::CompTime);
     }
     Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val) override {
-        return nullptr;
+        return new RetStructParamValue();
     }
 };
 

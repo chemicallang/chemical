@@ -2163,6 +2163,10 @@ void ToCAstVisitor::visit(AddrOfValue *casted) {
     casted->value->accept(this);
 }
 
+void ToCAstVisitor::visit(RetStructParamValue *paramVal) {
+    write(struct_passed_param_name);
+}
+
 void ToCAstVisitor::visit(DereferenceValue *casted) {
     write('*');
     casted->value->accept(this);

@@ -12,6 +12,10 @@
 
 void VarInitStatement::code_gen(Codegen &gen) {
     if (gen.current_function == nullptr) {
+        if(is_const && has_annotation(AnnotationKind::CompTime)) {
+            llvm_ptr = value.value()->llvm_value(gen);
+            return;
+        }
         if (value.has_value()) {
             llvm_ptr = value.value()->llvm_global_variable(gen, is_const, identifier);
         } else {
@@ -19,6 +23,10 @@ void VarInitStatement::code_gen(Codegen &gen) {
         }
     } else {
         if (value.has_value()) {
+            if(is_const) {
+                llvm_ptr = value.value()->llvm_value(gen);
+                return;
+            }
             llvm_ptr = value.value()->llvm_allocate(gen, identifier);
         } else {
             llvm_ptr = gen.builder->CreateAlloca(llvm_type(gen), nullptr, identifier);
@@ -56,9 +64,17 @@ void VarInitStatement::code_gen_destruct(Codegen &gen, Value* returnValue) {
 }
 
 llvm::Value *VarInitStatement::llvm_load(Codegen &gen) {
-    if(is_const && value.has_value() && value.value()->value_type() == ValueType::String) {
-        // global strings do not require loading
-        return llvm_pointer(gen);
+    if(is_const) {
+        if(is_top_level()) {
+            if (has_annotation(AnnotationKind::CompTime)) {
+                return llvm_pointer(gen);
+            }
+        } else if(value.has_value()) {
+            return llvm_pointer(gen);
+        }
+        if(value.has_value() && value.value()->value_type() == ValueType::String) {
+            return llvm_pointer(gen);
+        }
     }
     auto v = llvm_pointer(gen);
     return gen.builder->CreateLoad(llvm_type(gen), v, identifier);
@@ -111,6 +127,10 @@ VarInitStatement::VarInitStatement(
         std::optional<std::unique_ptr<Value>> value,
         ASTNode* parent_node
 ) : is_const(is_const), identifier(std::move(identifier)), type(std::move(type)), value(std::move(value)), parent_node(parent_node) {}
+
+bool VarInitStatement::is_top_level() {
+    return parent_node == nullptr || parent_node->as_namespace();
+}
 
 std::unique_ptr<BaseType> VarInitStatement::create_value_type() {
     if(type.has_value()) {

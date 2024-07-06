@@ -273,6 +273,10 @@ public:
 
     void visit(TryCatch* statement) override;
 
+    void visit(UsingStmt *usingStmt) override {
+        // does nothing
+    }
+
     // Value Vis override;
 
     void visit(IntValue *intVal) override;

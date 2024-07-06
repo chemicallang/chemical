@@ -258,6 +258,8 @@ public:
 
     void visitThrow(CompoundCSTToken *throwStmt) override;
 
+    void visitUsing(CompoundCSTToken *usingStmt) override;
+
     void visitReturn(CompoundCSTToken *returnCst) override;
 
     void visitTypealias(CompoundCSTToken *alias) override;

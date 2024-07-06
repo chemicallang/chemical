@@ -81,6 +81,7 @@
 #include "ast/values/SizeOfValue.h"
 #include "ast/values/NamespaceIdentifier.h"
 #include "ast/types/ReferencedValueType.h"
+#include "ast/statements/UsingStmt.h"
 
 Operation get_operation(CSTToken *token) {
     auto op = (OperationToken*) token;
@@ -591,6 +592,18 @@ void CSTConverter::visitReturn(CompoundCSTToken *cst) {
         return_value.emplace(value());
     }
     nodes.emplace_back(std::make_unique<ReturnStatement>(std::move(return_value), current_func_type, parent_node));
+}
+
+void CSTConverter::visitUsing(CompoundCSTToken *usingStmt) {
+    std::vector<std::unique_ptr<Value>> curr_values;
+    unsigned i = 1;
+    while(i < usingStmt->tokens.size()) {
+        if(usingStmt->tokens[i]->is_identifier()) {
+            curr_values.emplace_back(new NamespaceIdentifier(str_token(usingStmt->tokens[i].get())));
+        }
+        i++;
+    }
+    nodes.emplace_back(std::make_unique<UsingStmt>(std::move(curr_values), parent_node, is_keyword(usingStmt->tokens[1].get(), "namespace")));
 }
 
 void CSTConverter::visitTypealias(CompoundCSTToken *alias) {

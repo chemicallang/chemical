@@ -161,7 +161,7 @@ namespace chem {
             }
         }
 
-        void set(size_t index, char value){
+        void set(const size_t index, const char value){
             switch(state) {
                 case '0':
                     move_const_to_buffer();
@@ -176,7 +176,17 @@ namespace chem {
             }
         }
 
-        char get(size_t index){
+        // will paste the given string at given index, requires capacity
+        void set(size_t index, const char* value, const size_t len) {
+            auto d = mutable_data();
+            size_t i = 0;
+            while(i < len) {
+                d[i + index] = value[i];
+                i++;
+            }
+        }
+
+        char get(const size_t index){
             switch(state) {
                 case '0':
                     return storage.constant.data[index];
@@ -191,6 +201,29 @@ namespace chem {
 
         char operator[](size_t index){
             return get(index);
+        }
+
+        // will make string start at given index, requires that capacity exists
+        void offset_data(char* const data, const unsigned int start) {
+            const auto len = size();
+            long i = (long) (start + len);
+            const auto start_plus_one = start + 1;
+            while(i >= 0) {
+                data[i] = data[i - start_plus_one];
+                i--;
+            }
+        }
+
+        void prepend(const char* value, const size_t len) {
+            const auto cur_len = size();
+            const auto cap = capacity();
+            if(cur_len + len < cap) {
+                const auto d = mutable_data();
+                offset_data(d,len);
+                set(0, value, len);
+            } else {
+                // TODO
+            }
         }
 
         void append(const char* value, size_t len){
@@ -210,7 +243,8 @@ namespace chem {
             append(value->data(), value->size());
         }
 
-        string copy() {
+        [[nodiscard]]
+        string copy() const {
             string s((const char*) nullptr);
             s.state = state;
             switch(state) {
@@ -298,6 +332,21 @@ namespace chem {
         }
 
         [[nodiscard]]
+        char* mutable_data() {
+            switch(state) {
+                case '0':
+                    move_const_to_buffer();
+                    return &storage.sso.buffer[0];
+                case '1':
+                    return &storage.sso.buffer[0];
+                case '2':
+                    return storage.heap.data;
+                default:
+                    return nullptr;
+            }
+        }
+
+        [[nodiscard]]
         const char* data() const {
             switch(state) {
                 case '0':
@@ -321,6 +370,24 @@ namespace chem {
             if(state == '2'){
                 free(storage.heap.data);
             }
+        }
+
+        chem::string operator+(const chem::string& str) const {
+            auto s = copy();
+            s.append(str.data());
+            return s;
+        }
+
+        chem::string operator+(const char* str) const {
+            auto s = copy();
+            s.append(str);
+            return s;
+        }
+
+        friend chem::string operator+(const char* const left, chem::string& right) {
+            chem::string s(left);
+            s.append(right.data());
+            return s;
         }
 
     };

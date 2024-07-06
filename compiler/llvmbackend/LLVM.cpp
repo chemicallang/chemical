@@ -42,9 +42,11 @@
 #include "ast/statements/Assignment.h"
 #include "ast/statements/Import.h"
 #include "ast/structures/EnumDeclaration.h"
+#include "ast/structures/StructDefinition.h"
 #include "ast/structures/VariablesContainer.h"
 #include "ast/structures/MembersContainer.h"
 #include "ast/statements/ThrowStatement.h"
+#include "ast/statements/DeleteStmt.h"
 #include "ast/values/FunctionCall.h"
 #include "ast/types/FunctionType.h"
 
@@ -637,6 +639,40 @@ void AssignStatement::code_gen(Codegen &gen) {
     } else {
         auto operated = gen.operate(assOp, lhs.get(), value.get());
         gen.builder->CreateStore(operated, lhs->llvm_pointer(gen));
+    }
+}
+
+void DeleteStmt::code_gen(Codegen &gen) {
+    auto pure_type = identifier->get_pure_type();
+    if(is_array) {
+        if(pure_type->kind() != BaseTypeKind::Array) {
+            gen.error("std::delete couldn't get array type");
+            return;
+        }
+        auto arr_type = (ArrayType*) pure_type.get();
+        auto elem_type = arr_type->elem_type->get_pure_type();
+        if(elem_type->kind() != BaseTypeKind::Pointer) {
+            gen.error("only array of pointers can be deleted using std::delete");
+            return;
+        }
+        auto pointee = ((PointerType*) elem_type.get())->type.get();
+        gen.destruct(identifier->llvm_pointer(gen), arr_type->array_size, pointee, this, [](Codegen* gen, llvm::Value* structPtr, void* data){
+            const auto stmt = (DeleteStmt*) data;
+            std::vector<llvm::Value*> args;
+            args.emplace_back(structPtr);
+            gen->builder->CreateCall(stmt->free_func_linked->llvm_func_type(*gen), stmt->free_func_linked->funcCallee, args);
+        });
+    } else {
+        auto def = pure_type->linked_node()->as_struct_def();
+        auto destructor = def->destructor_func();
+        std::vector<llvm::Value *> destr_args;
+        if (destructor->has_self_param()) {
+            destr_args.emplace_back(identifier->llvm_value(gen));
+        }
+        gen.builder->CreateCall(destructor->llvm_func_type(gen), destructor->funcCallee, destr_args);
+        std::vector<llvm::Value*> args;
+        args.emplace_back(identifier->llvm_pointer(gen));
+        gen.builder->CreateCall(free_func_linked->llvm_func_type(gen), free_func_linked->funcCallee, args);
     }
 }
 

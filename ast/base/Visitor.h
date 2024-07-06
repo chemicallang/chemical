@@ -190,6 +190,8 @@ class ExtensionFuncReceiver;
 
 class ThrowStatement;
 
+class DeleteStmt;
+
 class UsingStmt;
 
 class Namespace;
@@ -241,6 +243,10 @@ public:
 
     virtual void visit(UsingStmt* usingStmt) {
         visitCommon((ASTNode*) usingStmt);
+    }
+
+    virtual void visit(DeleteStmt* delStmt) {
+        visitCommon((ASTNode*) delStmt);
     }
 
     virtual void visit(ReturnStatement* returnStatement) {

@@ -24,3 +24,11 @@ ASTNode *EnumDeclaration::child(const std::string &name) {
 void EnumDeclaration::declare_top_level(SymbolResolver &linker) {
     linker.declare(name, this);
 }
+
+std::unique_ptr<BaseType> EnumDeclaration::create_value_type() {
+    return std::make_unique<IntType>();
+}
+
+hybrid_ptr<BaseType> EnumDeclaration::get_value_type() {
+    return hybrid_ptr<BaseType> { new IntType(), true };
+}

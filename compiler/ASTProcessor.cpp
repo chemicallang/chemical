@@ -73,7 +73,7 @@ void ASTProcessor::sym_res(Scope& scope, bool is_c_file, const std::string& abs_
     scope.declare_and_link(*resolver);
     if(options->benchmark) {
         bm_results->benchmark_end();
-        std::cout << "[SymRes] " << abs_path << " Completed " << bm_results->representation() << std::endl;
+        std::cout << "[SymRes] " << " Completed " << bm_results->representation() << std::endl;
     }
     if (is_c_file) {
         resolver->print_errors();
@@ -88,6 +88,10 @@ ASTImportResult ASTProcessor::import_file_no_sym_res(const FlatIGFile& file) {
     auto& abs_path = file.abs_path;
     Scope scope(nullptr);
     auto is_c_file = abs_path.ends_with(".h") || abs_path.ends_with(".c");
+
+    if(options->benchmark || options->verbose) {
+        std::cout << std::endl << "[Processing] " << abs_path << std::endl;
+    }
 
     if (is_c_file) {
 
@@ -135,7 +139,7 @@ ASTImportResult ASTProcessor::import_file_no_sym_res(const FlatIGFile& file) {
         converter->convert(lexer->tokens);
         if(options->benchmark) {
             bm_results->benchmark_end();
-            std::cout << "[Cst2Ast] " << file.abs_path << " Completed " << ' ' << bm_results->representation() << std::endl;
+            std::cout << "[Cst2Ast] " << "Completed " << ' ' << bm_results->representation() << std::endl;
         }
         for (const auto &err: converter->diagnostics) {
             std::cerr << err.representation(abs_path, "Converter") << std::endl;

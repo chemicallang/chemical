@@ -70,6 +70,7 @@ public:
     /**
      * gets the current pos of the stream
      */
+    [[nodiscard]]
     unsigned int currentPosition() const;
 
     /**
@@ -82,11 +83,13 @@ public:
      * checks the stream is at the end
      * please also use both peek() == -1
      */
+    [[nodiscard]]
     bool eof() const;
 
     /**
      * peaks the character to read
      */
+    [[nodiscard]]
     char peek() const;
 
     /**
@@ -99,7 +102,17 @@ public:
      * @param stop the stopping character
      * @return everything read until stop character, it doesn't include the stopping character
      */
-    std::string readUntil(char stop);
+    void readUntil(chem::string* into, char stop);
+
+    /**
+     * helper
+     */
+    [[nodiscard]]
+    std::string readUntil(char stop) {
+        chem::string str;
+        readUntil(&str, stop);
+        return str.to_std_string();
+    }
 
     /**
      * if text is present at current pos in the stream, increments the stream with text.length()
@@ -119,12 +132,14 @@ public:
     /**
      * this will read all the text from current position to end in a string and return it
      */
+    [[nodiscard]]
     std::string readAllFromHere();
 
     /**
      * reads all the text from the stream from the beginning in a string and returns it
      * @return
      */
+    [[nodiscard]]
     std::string readAllFromBeg();
 
     /**
@@ -135,18 +150,20 @@ public:
     /**
      * get zero-based current line number
      */
+    [[nodiscard]]
     unsigned int getLineNumber() const;
 
     /**
      * get zero-based character number
-     * @return
      */
+    [[nodiscard]]
     unsigned int getLineCharNumber() const;
 
     /**
      * gets the stream position at the current position
      * @return
      */
+    [[nodiscard]]
     StreamPosition getStreamPosition() const;
 
     /**
@@ -158,7 +175,18 @@ public:
      * reads until the given ending appears into a string and returns it
      * @param consume, should it also consume the ending text
      */
+    [[nodiscard]]
     std::string readUntil(const std::string& ending, bool consume = true);
+
+    /**
+     * will read everything to the given string
+     *
+     * will not stop if the stream doesn't end or there's a backslash before stopAt character
+     * useful when reading a string token which must not stop at \"
+     *
+     * will also append the last stopAt character into value
+     */
+    void readEscaping(chem::string* value, char stopAt);
 
     /**
      * will read everything to the given string
@@ -172,19 +200,49 @@ public:
 
     /**
      * reads all characters into a string until char occurs
-     * @return the string that was found
      */
-    std::string readAnything(char until = ' ');
+    void readAnything(chem::string* str, char until = ' ');
 
     /**
-     * reads a alphabetical string
+     * reads all characters into a string until char occurs
+     * @return the string that was found
      */
-    std::string readAlpha();
+    [[nodiscard]]
+    std::string readAnything(char until = ' ') {
+        chem::string str((const char*) nullptr);
+        readAnything(&str, until);
+        return str.to_std_string();
+    }
+
+    /**
+    * reads a alphabetical string
+    */
+    void readAlpha(chem::string* str);
+
+    /**
+     * helper
+     */
+    [[nodiscard]]
+    std::string readAlpha() {
+        chem::string str;
+        readAlpha(&str);
+        return str.to_std_string();
+    }
 
     /**
      * reads an unsigned integer as string, returns "" if no integer found
      */
-    std::string readUnsignedInt();
+    void readUnsignedInt(chem::string* str);
+
+    /**
+     * helper
+     */
+    [[nodiscard]]
+    std::string readUnsignedInt() {
+        chem::string str;
+        readUnsignedInt(&str);
+        return str.to_std_string();
+    }
 
     /**
      * a number will be read into a chemical string
@@ -194,8 +252,9 @@ public:
     /**
      * reads a number from the stream
      */
+    [[nodiscard]]
     std::string readNumber() {
-        chem::string content((const char*) nullptr);
+        chem::string content;
         readNumber(&content);
         return content.to_std_string();
     }
@@ -203,25 +262,46 @@ public:
     /**
      * reads a alphanumeric string
      */
-    std::string readAlphaNum();
+    void readAlphaNum(chem::string* str);
+
+    /**
+     * helper
+     */
+    [[nodiscard]]
+    std::string readAlphaNum() {
+        chem::string str;
+        readAlphaNum(&str);
+        return str.to_std_string();
+    }
 
     /**
      * reads a single identifier
      */
-    std::string readIdentifier();
+    void readIdentifier(chem::string* str);
+
+    /**
+     * reads a single identifier
+     */
+    [[nodiscard]]
+    std::string readIdentifier() {
+        chem::string str;
+        readIdentifier(&str);
+        return str.to_std_string();
+    }
 
     /**
      * reads a single annotation into given string, this doesn't read '@'
      */
-    void readAnnotationIdentifier(std::string& into);
+    void readAnnotationIdentifier(chem::string* into);
 
     /**
      * reads a single annotation, this doesn't read '@'
      */
+    [[nodiscard]]
     std::string readAnnotationIdentifier() {
-        std::string ret;
-        readAnnotationIdentifier(ret);
-        return ret;
+        chem::string ret;
+        readAnnotationIdentifier(&ret);
+        return ret.to_std_string();
     }
 
     /**

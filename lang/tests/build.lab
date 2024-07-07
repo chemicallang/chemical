@@ -1,43 +1,53 @@
-// name of the artifact
-name : "ChemicalTests"
+import "./std/std.lab" as stdlab
+import "./basic/build.lab" as basic
 
-// the type of artifact you are creating "app" | "lib"
-type : "lib"
+const name = "ChemicalTests"
+const type = "lib"
+const version = "1.0.0"
 
-// your app's or library's version in 0.0.0 format
-version : 1.0.0
-
-// your own data, any name can be used
-data : int
-
-// prepare the module, called before everything
-// this is also called by IDE
-override func prepare(&self) : List<Module> {
-    return {
-        Module {
-            name : "basic",
-            src : "./basic"
-        },
-        Module {
-            name : "type",
-            src : "./type"
-        },
-        Module {
-             // name of the artifact
-            name : self.name,
-            src : "./tests.ch",
-            dependencies : {
-                "basic",
-                "type"
-            }
-        },
-    }
+enum ArtifactType {
+    App,
+    Lib,
+    CLib
 }
 
-// build method
-override func build(&self) {
-    // consume the compiler argument output
-    var output = self.args.output.consume();
-    // create an executable out of this module
-    create_executable(self.module, output);
+struct BuildContext {
+
+
+}
+
+struct Artifact {
+    name : string
+    type : ArtifactType
+    dependencies : vector<Artifact>
+}
+
+struct CLibraryArtifact : Artifact {
+
+}
+
+func build(ctx : BuildContext*) : Artifact {
+
+    Artifact artifact;
+
+    artifact.paths.push(string("./comptime"))
+    artifact.paths.push(string("./basic"))
+    artifact.paths.push(string("./nodes"))
+
+    artifact.dependencies.push(stdlab.build(ctx));
+    artifact.dependencies.push(basic.build(ctx));
+
+    return artifact;
+
+
+    const stdlib : ChemLib* = ctx.import("std", "../std")
+
+    const basic : ChemLib* = ctx.lib("basic", "./basic", { stdlib })
+
+    ctx.lib_from("comptime", { "./comptime/basic.ch", "./comptime/vector.ch" })
+
+    // importing a c library
+    ctx.include_c_headers("./cfold/**/*.h")
+    ctx.include_c_sources("./cfold/**/*.c")
+
 }

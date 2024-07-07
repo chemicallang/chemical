@@ -272,8 +272,8 @@ void init_source_provider_cbi(SourceProviderCBI* cbi, SourceProvider* provider) 
     cbi->peek_at = [](struct SourceProviderCBI* cbi, int ahead){
         return cbi->instance->peek(ahead);
     };
-    cbi->readUntil = [](struct SourceProviderCBI* cbi, char stop){
-        return cbi->instance->readUntil(stop).data();
+    cbi->readUntil = [](struct chem::string* str, struct SourceProviderCBI* cbi, char stop){
+        cbi->instance->readUntil(str, stop);
     };
     cbi->increment = [](struct SourceProviderCBI* cbi, char* text, bool peek){
         return cbi->instance->increment(text, peek);
@@ -281,43 +281,35 @@ void init_source_provider_cbi(SourceProviderCBI* cbi, SourceProvider* provider) 
     cbi->increment_char = [](struct SourceProviderCBI* cbi, char c){
         return cbi->instance->increment(c);
     };
-    cbi->readAllFromHere = [](struct SourceProviderCBI* cbi){
-        return cbi->instance->readAllFromHere().data();
-    };
     cbi->getLineNumber = [](struct SourceProviderCBI* cbi){
         return cbi->instance->getLineNumber();
     };
     cbi->getLineCharNumber = [](struct SourceProviderCBI* cbi){
         return cbi->instance->getLineCharNumber();
     };
-    cbi->readEscaping = [](struct SourceProviderCBI* cbi, char* value, char stopAt){
-        throw std::runtime_error("This requires that char* is passed as string");
-//        cbi->instance->readEscaping(value, stopAt);
+    cbi->readEscaping = [](struct SourceProviderCBI* cbi, chem::string* value, char stopAt){
+        cbi->instance->readEscaping(value, stopAt);
     };
-    cbi->readAnything = [](struct SourceProviderCBI* cbi, char until){
-        return cbi->instance->readAnything(until).data();
+    cbi->readAnything = [](chem::string* str, struct SourceProviderCBI* cbi, char until){
+        cbi->instance->readAnything(init_chem_string(str), until);
     };
-    cbi->readAlpha = [](struct SourceProviderCBI* cbi){
-        return cbi->instance->readAlpha().data();
+    cbi->readAlpha = [](chem::string* str, struct SourceProviderCBI* cbi){
+        cbi->instance->readAlpha(init_chem_string(str));
     };
-    cbi->readUnsignedInt = [](struct SourceProviderCBI* cbi){
-        return cbi->instance->readUnsignedInt().data();
+    cbi->readUnsignedInt = [](chem::string* str, struct SourceProviderCBI* cbi){
+        cbi->instance->readUnsignedInt(init_chem_string(str));
     };
     cbi->readNumber = [](struct chem::string* str, struct SourceProviderCBI* cbi){
         cbi->instance->readNumber(init_chem_string(str));
     };
-    cbi->readAlphaNum = [](struct SourceProviderCBI* cbi){
-        return cbi->instance->readAlphaNum().data();
+    cbi->readAlphaNum = [](chem::string* str, struct SourceProviderCBI* cbi){
+        cbi->instance->readAlphaNum(init_chem_string(str));
     };
-    cbi->readIdentifier = [](struct SourceProviderCBI* cbi){
-        return cbi->instance->readIdentifier().data();
+    cbi->readIdentifier = [](chem::string* str, struct SourceProviderCBI* cbi){
+        cbi->instance->readIdentifier(init_chem_string(str));
     };
-    cbi->readAnnotationIdentifierInto = [](struct SourceProviderCBI* cbi, char* into){
-        throw std::runtime_error("This requires that char* is passed as string");
-//        cbi->instance->readAnnotationIdentifier(into);
-    };
-    cbi->readAnnotationIdentifier = [](struct SourceProviderCBI* cbi){
-        return cbi->instance->readAnnotationIdentifier().data();
+    cbi->readAnnotationIdentifier = [](chem::string* str, struct SourceProviderCBI* cbi){
+        cbi->instance->readAnnotationIdentifier(init_chem_string(str));
     };
     cbi->readWhitespaces = [](struct SourceProviderCBI* cbi){
         return cbi->instance->readWhitespaces();

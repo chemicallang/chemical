@@ -9,20 +9,7 @@
 class IGCompilerOptions : public ASTProcessorOptions {
 public:
 
-    /**
-     * the target triple, which codegen is for
-     */
-    std::string target_triple;
-
-    /**
-     * is the target triple 64bit
-     */
-    bool is64Bit;
-
-    /**
-     * constructor
-     */
-    IGCompilerOptions(std::string exe_path, std::string target_triple, bool is64Bit);
+    using ASTProcessorOptions::ASTProcessorOptions;
 
 };
 

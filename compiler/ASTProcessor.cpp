@@ -21,9 +21,6 @@ std::vector<std::unique_ptr<ASTNode>> TranslateC(
 
 void ASTProcessor::prepare(const std::string& path) {
 
-    // do not create imports for import statements
-    converter->no_imports = true;
-
     // preparing the import graph
     if (options->benchmark) {
         BenchmarkResults bm{};
@@ -73,7 +70,7 @@ void ASTProcessor::sym_res(Scope& scope, bool is_c_file, const std::string& abs_
     scope.declare_and_link(*resolver);
     if(options->benchmark) {
         bm_results->benchmark_end();
-        std::cout << "[SymRes] " << " Completed " << bm_results->representation() << std::endl;
+        std::cout << "[SymRes]" << " Completed " << bm_results->representation() << std::endl;
     }
     if (is_c_file) {
         resolver->print_errors();
@@ -114,21 +111,25 @@ ASTImportResult ASTProcessor::import_file_no_sym_res(const FlatIGFile& file) {
         std::unique_ptr<BenchmarkResults> bm_results;
 
         // lex the file
-        lexer->reset();
-        lexer->switch_path(abs_path);
+        std::fstream stream;
+        SourceProvider provider(&stream);
+        Lexer lexer(provider, abs_path);
+        lexer.init_complete(options->exe_path);
+        lexer.isCBIEnabled = options->isCBIEnabled;
+
         if(options->benchmark) {
             bm_results = std::make_unique<BenchmarkResults>();
-            benchLexFile(lexer, abs_path, *bm_results);
+            benchLexFile(&lexer, abs_path, *bm_results);
         } else {
-            lexFile(lexer, abs_path);
+            lexFile(&lexer, abs_path);
         }
-        for (const auto &err: lexer->diagnostics) {
+        for (const auto &err: lexer.diagnostics) {
             std::cerr << err.representation(abs_path, "Lexer") << std::endl;
         }
         if (options->print_cst) {
-            printTokens(lexer->tokens);
+            printTokens(lexer.tokens);
         }
-        if (lexer->has_errors) {
+        if (lexer.has_errors) {
             return {{ nullptr },false};
         }
 
@@ -136,15 +137,19 @@ ASTImportResult ASTProcessor::import_file_no_sym_res(const FlatIGFile& file) {
         if(options->benchmark) {
             bm_results->benchmark_begin();
         }
-        converter->convert(lexer->tokens);
+
+        CSTConverter converter(options->is64Bit, options->target_triple);
+        converter.no_imports = true;
+        converter.isCBIEnabled = options->isCBIEnabled;
+        converter.convert(lexer.tokens);
         if(options->benchmark) {
             bm_results->benchmark_end();
-            std::cout << "[Cst2Ast] " << "Completed " << ' ' << bm_results->representation() << std::endl;
+            std::cout << "[Cst2Ast]" << "Completed " << ' ' << bm_results->representation() << std::endl;
         }
-        for (const auto &err: converter->diagnostics) {
+        for (const auto &err: converter.diagnostics) {
             std::cerr << err.representation(abs_path, "Converter") << std::endl;
         }
-        scope.nodes = std::move(converter->nodes);
+        scope.nodes = std::move(converter.nodes);
         if (options->print_representation) {
             std::cout << "[Representation]\n" << scope.representation() << std::endl;
         }

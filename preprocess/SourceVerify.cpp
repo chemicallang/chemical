@@ -18,16 +18,6 @@ TranslateC(const char *exe_path, const char *abs_path, const char *resources_pat
 bool verify(const std::string &path, SourceVerifierOptions *options) {
 
 
-    // creating the lexer
-    std::fstream file_stream;
-    SourceProvider provider(&file_stream);
-    Lexer lexer(provider, path);
-    lexer.init_complete(options->exe_path);
-
-    // the cst converter
-    CSTConverter converter(true, options->target);
-    converter.no_imports = true;
-
     // creating symbol resolver
     SymbolResolver resolver(path, true);
 
@@ -37,8 +27,6 @@ bool verify(const std::string &path, SourceVerifierOptions *options) {
     // the processor that does everything
     ASTProcessor processor(
             options,
-            &lexer,
-            &converter,
             &resolver
     );
 

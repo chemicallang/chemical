@@ -12,15 +12,7 @@
 class ToCTranslatorOptions : public ASTProcessorOptions {
 public:
 
-    /**
-     * is the target triple 64bit
-     */
-    bool is64Bit;
-
-    /**
-     * constructor
-     */
-    ToCTranslatorOptions(std::string exe_path, bool is64Bit);
+    using ASTProcessorOptions::ASTProcessorOptions;
 
 };
 

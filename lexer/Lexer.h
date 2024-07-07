@@ -21,6 +21,21 @@
 #include "model/CompilerBinder.h"
 #include "cst/base/CSTDiagnoser.h"
 
+/**
+ * A function that is called upon encountering an annotation
+ */
+typedef void(*AnnotationModifierFn)(Lexer *lexer, CSTToken* token);
+
+/**
+ * a value creator function
+ */
+typedef void(*ValueCreatorFn)(Lexer *lexer);
+
+/**
+ * a function that lexes something inside a macro
+ */
+typedef void(*MacroLexerFn)(Lexer *lexer);
+
 class Lexer : public CSTDiagnoser {
 public:
 
@@ -65,6 +80,21 @@ public:
     bool isCBIEnabled = true;
 
     /**
+     * when a struct / function is to be collected by cbi
+     */
+    bool isCBICollecting = false;
+
+    /**
+     * when a struct / function is to be collected by cbi globally
+     */
+    bool isCBICollectingGlobal = false;
+
+    /**
+     * when true, cbi won't be turned off after a single node has been collected
+     */
+    bool isCBIKeepCollecting = false;
+
+    /**
      * initialize the lexer with this provider and path
      */
     explicit Lexer(SourceProvider &provider, std::string path);
@@ -78,11 +108,6 @@ public:
      * providing cbi (compiler binding interfaces) to source code, to call functions inside compiler
      */
     void init_cbi(const std::string& exe_path);
-
-    /**
-     * called by constructor to initialize annotation modifiers map
-     */
-    void init_annotation_modifiers();
 
     /**
      * called by constructor to initialize value_creators map
@@ -803,37 +828,6 @@ public:
 protected:
 
     /**
-     * A function that is called upon encountering an annotation
-     */
-    typedef void(*AnnotationModifierFn)(Lexer *lexer, CSTToken* token);
-
-    /**
-     * just a map between annotations and their functions, for example
-     * key:deprecated -> value:{ modifiers = deprecated; }
-     */
-    std::unordered_map<std::string, AnnotationModifierFn> annotation_modifiers;
-
-    /**
-     * a value creator function
-     */
-    typedef void(*ValueCreatorFn)(Lexer *lexer);
-
-    /**
-     * when a value like null, true or false is encountered, a function from this map is called
-     */
-    std::unordered_map<std::string, ValueCreatorFn> value_creators;
-
-    /**
-     * a function that lexes something inside a macro
-     */
-    typedef void(*MacroLexerFn)(Lexer *lexer);
-
-    /**
-     * functions for content of the different macro's for example #eval { value_here }
-     */
-    std::unordered_map<std::string, MacroLexerFn> macro_lexers;
-
-    /**
      * -----------------------------------------
      * Developer Note:
      * when the member bool starts with "is" (e.g isLexReturnStatement)
@@ -844,21 +838,6 @@ protected:
      * so these variables can be switched on and off in the middle of the lexing
      * -----------------------------------------
      */
-
-    /**
-     * when a struct / function is to be collected by cbi
-     */
-    bool isCBICollecting = false;
-
-    /**
-     * when a struct / function is to be collected by cbi globally
-     */
-    bool isCBICollectingGlobal = false;
-
-    /**
-     * when true, cbi won't be turned off after a single node has been collected
-     */
-    bool isCBIKeepCollecting = false;
 
     /**
      * when true, return statements will be lexed

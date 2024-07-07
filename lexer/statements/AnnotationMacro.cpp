@@ -4,7 +4,8 @@
 // Created by Waqas Tahir on 10/03/2024.
 //
 
-#include "lexer/Lexer.h"
+#include "lexer/utils/AnnotationModifiers.h"
+#include "lexer/utils/MacroLexers.h"
 #include "lexer/model/tokens/AnnotationToken.h"
 #include "lexer/model/tokens/RawToken.h"
 #include "lexer/model/tokens/IdentifierToken.h"
@@ -43,8 +44,8 @@ bool Lexer::lexAnnotationMacro() {
             }
             compound_from<AnnotationCST>(start);
         }
-        auto found = annotation_modifiers.find(macro);
-        if (found != annotation_modifiers.end()) {
+        auto found = AnnotationModifiers.find(macro);
+        if (found != AnnotationModifiers.end()) {
             found->second(this, tokens[start].get());
         }
         return true;
@@ -60,8 +61,8 @@ bool Lexer::lexAnnotationMacro() {
         lexWhitespaceAndNewLines();
 
         // check if this macro has a lexer defined
-        auto macro_lexer = macro_lexers.find(macro);
-        if (macro_lexer != macro_lexers.end()) {
+        auto macro_lexer = MacroLexers.find(macro);
+        if (macro_lexer != MacroLexers.end()) {
             macro_lexer->second(this);
         } else {
             auto lex_func = binder->provide_lex_func(macro);

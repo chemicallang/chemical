@@ -105,6 +105,4 @@ public:
 /**
  * this function can be called concurrently, to import files
  */
-ASTImportResult concurrent_processor(int id, int job_id, const FlatIGFile& file, ASTProcessor* processor) {
-    return processor->import_file(file);
-}
+ASTImportResult concurrent_processor(int id, int job_id, const FlatIGFile& file, ASTProcessor* processor);

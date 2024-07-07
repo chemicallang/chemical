@@ -7,8 +7,6 @@
 #include "Lexer.h"
 #include "lexer/model/tokens/KeywordToken.h"
 #include "ast/types/ReferencedType.h"
-#include "lexer/model/tokens/BoolToken.h"
-#include "lexer/model/tokens/NullToken.h"
 #include "lexer/model/CompilerBinderTCC.h"
 
 Lexer::Lexer(SourceProvider &provider, std::string path) : provider(provider), path(std::move(path)), cbi() {
@@ -16,111 +14,12 @@ Lexer::Lexer(SourceProvider &provider, std::string path) : provider(provider), p
 }
 
 void Lexer::init_complete(const std::string& exe_path) {
-    init_annotation_modifiers();
-    init_value_creators();
-    init_macro_lexers();
     init_cbi(exe_path);
 }
 
 void Lexer::init_cbi(const std::string& exe_path) {
     binder = std::make_unique<CompilerBinderTCC>(this, exe_path);
     init_lexer_cbi(&cbi, this, &provider_cbi);
-}
-
-std::string annotation_str_arg(unsigned index, CSTToken* token);
-
-void Lexer::init_annotation_modifiers() {
-    annotation_modifiers["cbi:global"] = [](Lexer *lexer, CSTToken* token) -> void {
-        if(!lexer->isCBIEnabled) return;
-        lexer->isCBICollecting = true;
-        lexer->isCBICollectingGlobal = true;
-        lexer->current_cbi = annotation_str_arg(0, token);;
-    };
-    annotation_modifiers["cbi:create"] = [](Lexer *lexer, CSTToken* token) -> void {
-        if(!lexer->isCBIEnabled) return;
-        auto n = annotation_str_arg(0, token);
-        if(n.empty()) {
-            lexer->error("cbi:create called with invalid parameters : " + n);
-            return;
-        }
-        lexer->binder->create_cbi(n);
-    };
-    annotation_modifiers["cbi:import"] = [](Lexer *lexer, CSTToken* token) -> void {
-        if(!lexer->isCBIEnabled) return;
-        auto a = annotation_str_arg(0, token);
-        auto b = annotation_str_arg(1, token);
-        if(a.empty() || b.empty()) {
-            lexer->error("cbi:import called with invalid parameters : " + a + " , " + b);
-            return;
-        }
-        lexer->binder->import_container(a, b);
-    };
-    annotation_modifiers["cbi:to"] = [](Lexer *lexer, CSTToken* token) -> void {
-        if(!lexer->isCBIEnabled) return;
-        lexer->isCBICollecting = true;
-        lexer->current_cbi = annotation_str_arg(0, token);
-    };
-    annotation_modifiers["cbi:begin"] = [](Lexer *lexer, CSTToken* token) -> void {
-        if(!lexer->isCBIEnabled) return;
-        lexer->isCBICollecting = true;
-        lexer->isCBIKeepCollecting = true;
-        lexer->current_cbi = annotation_str_arg(0, token);
-    };
-    annotation_modifiers["cbi:end"] = [](Lexer *lexer, CSTToken* token) -> void {
-        if(!lexer->isCBIEnabled) return;
-        lexer->isCBICollecting = false;
-        lexer->isCBIKeepCollecting = false;
-        lexer->current_cbi = "";
-    };
-    annotation_modifiers["cbi:compile"] = [](Lexer *lexer, CSTToken* token) -> void {
-        if(!lexer->isCBIEnabled) return;
-        lexer->isCBICollecting = false;
-        lexer->isCBIKeepCollecting = false;
-        lexer->current_cbi = "";
-        auto a = annotation_str_arg(0, token);
-        if(a.empty()) {
-            lexer->error("cbi:compiler called with invalid parameters : " + a);
-            return;
-        }
-        lexer->binder->compile(a);
-    };
-}
-
-void Lexer::init_value_creators() {
-    value_creators["null"] = [](Lexer *lexer) -> void {
-        lexer->tokens.emplace_back(std::make_unique<NullToken>(lexer->backPosition(4), "null"));
-    };
-    value_creators["true"] = [](Lexer *lexer) -> void {
-        lexer->tokens.emplace_back(std::make_unique<BoolToken>(lexer->backPosition(4), "true"));
-    };
-    value_creators["false"] = [](Lexer *lexer) -> void {
-        lexer->tokens.emplace_back(std::make_unique<BoolToken>(lexer->backPosition(5), "false"));
-    };
-}
-
-void ignore_macro_lexer_fn(Lexer *lexer){
-
-}
-void nested_level_macro_lexer_fn(Lexer *lexer){
-    lexer->lexNestedLevelMultipleStatementsTokens();
-}
-void eval_expression_macro_lexer_fn(Lexer* lexer) {
-    lexer->lexExpressionTokens(false, false);
-}
-
-void Lexer::init_macro_lexers() {
-    macro_lexers["eval"] = eval_expression_macro_lexer_fn;
-    macro_lexers["sizeof"] = [](Lexer *lexer) -> void {
-        if(!lexer->lexTypeTokens()) {
-            lexer->error("expected a type in sizeof macro");
-        }
-    };
-    macro_lexers["target"] = ignore_macro_lexer_fn;
-    macro_lexers["target:is64bit"] = ignore_macro_lexer_fn;
-    macro_lexers["tr:debug:chemical"] = nested_level_macro_lexer_fn;
-    macro_lexers["tr:debug:chemical:value"] = eval_expression_macro_lexer_fn;
-    macro_lexers["tr:debug:c"] = nested_level_macro_lexer_fn;
-    macro_lexers["tr:debug:c:value"] = eval_expression_macro_lexer_fn;
 }
 
 void Lexer::lexTopLevelMultipleImportStatements() {

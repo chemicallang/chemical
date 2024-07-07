@@ -4,7 +4,7 @@
 // Created by Waqas Tahir on 26/02/2024.
 //
 
-#include "lexer/Lexer.h"
+#include "lexer/utils/ValueCreators.h"
 #include "lexer/model/tokens/CharOperatorToken.h"
 #include "lexer/model/tokens/VariableToken.h"
 #include "lexer/model/tokens/IdentifierToken.h"
@@ -40,8 +40,8 @@ bool Lexer::lexAccessChain(bool lexStruct) {
         return false;
     }
 
-    auto creator = value_creators.find(id);
-    if(creator != value_creators.end()) {
+    auto creator = ValueCreators.find(id);
+    if(creator != ValueCreators.end()) {
         creator->second(this);
         return true;
     } else {

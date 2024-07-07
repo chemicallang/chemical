@@ -9,6 +9,7 @@
 #include "compiler/SymbolResolver.h"
 #include "compiler/ASTProcessor.h"
 #include "ShrinkingVisitor.h"
+#include "ctpl.h"
 #include <utility>
 #include <functional>
 
@@ -38,11 +39,27 @@ bool verify(const std::string &path, SourceVerifierOptions *options) {
 
     bool compile_result = true;
 
+    ctpl::thread_pool pool((int) std::thread::hardware_concurrency()); // Initialize thread pool with the number of available hardware threads
+    std::vector<std::future<ASTImportResult>> futures;
+    int i = 0;
+    for(const auto& file : flat_imports) {
+        futures.push_back(pool.push(concurrent_processor, i, file, &processor));
+        i++;
+    }
+
+    i = 0;
     for(const auto& file : flat_imports) {
 
         // importing
-        auto result = processor.import_file(file);
+        auto result = futures[i].get();
         if(!result.continue_processing) {
+            compile_result = false;
+            break;
+        }
+
+        // symbol resolution
+        processor.sym_res(result.scope, result.is_c_file, file.abs_path);
+        if (resolver.has_errors) {
             compile_result = false;
             break;
         }
@@ -53,6 +70,7 @@ bool verify(const std::string &path, SourceVerifierOptions *options) {
         }
         processor.file_nodes.emplace_back(std::move(result.scope.nodes));
 
+        i++;
     }
 
     processor.end();

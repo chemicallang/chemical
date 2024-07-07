@@ -7,6 +7,7 @@
 #include "lexer/Lexi.h"
 #include "compiler/SymbolResolver.h"
 #include "utils/Benchmark.h"
+#include <sstream>
 #include "utils/Utils.h"
 
 #ifdef COMPILER_BUILD
@@ -70,7 +71,7 @@ void ASTProcessor::sym_res(Scope& scope, bool is_c_file, const std::string& abs_
     scope.declare_and_link(*resolver);
     if(options->benchmark) {
         bm_results->benchmark_end();
-        std::cout << "[SymRes]" << " Completed " << bm_results->representation() << std::endl;
+        std::cout << std::endl << "[SymRes] " << abs_path << " Completed " << bm_results->representation() << std::endl;
     }
     if (is_c_file) {
         resolver->print_errors();
@@ -80,20 +81,21 @@ void ASTProcessor::sym_res(Scope& scope, bool is_c_file, const std::string& abs_
     }
 }
 
-ASTImportResult ASTProcessor::import_file_no_sym_res(const FlatIGFile& file) {
+ASTImportResult ASTProcessor::import_file(const FlatIGFile& file) {
 
     auto& abs_path = file.abs_path;
     Scope scope(nullptr);
     auto is_c_file = abs_path.ends_with(".h") || abs_path.ends_with(".c");
 
+    std::ostringstream out;
     if(options->benchmark || options->verbose) {
-        std::cout << std::endl << "[Processing] " << abs_path << std::endl;
+        out << "[Processing] " << abs_path << '\n';
     }
 
     if (is_c_file) {
 
         if (options->verbose) {
-            std::cout << "[IGGraph] Translating C " << abs_path << std::endl;
+            out << "[IGGraph] Translating C " << abs_path << '\n';
         }
 
 #if defined(COMPILER_BUILD) && defined(CLANG_LIBS)
@@ -105,7 +107,7 @@ ASTImportResult ASTProcessor::import_file_no_sym_res(const FlatIGFile& file) {
     } else {
 
         if (options->verbose) {
-            std::cout << "[IGGraph] Begin Compilation " << abs_path << std::endl;
+            out << "[IGGraph] Begin Compilation " << abs_path << '\n';
         }
 
         std::unique_ptr<BenchmarkResults> bm_results;
@@ -120,6 +122,7 @@ ASTImportResult ASTProcessor::import_file_no_sym_res(const FlatIGFile& file) {
         if(options->benchmark) {
             bm_results = std::make_unique<BenchmarkResults>();
             benchLexFile(&lexer, abs_path, *bm_results);
+            out << "[Lex]" << " Completed " << bm_results->representation() << '\n';
         } else {
             lexFile(&lexer, abs_path);
         }
@@ -130,7 +133,7 @@ ASTImportResult ASTProcessor::import_file_no_sym_res(const FlatIGFile& file) {
             printTokens(lexer.tokens);
         }
         if (lexer.has_errors) {
-            return {{ nullptr },false};
+            return {{ nullptr },false, is_c_file };
         }
 
         // convert the tokens
@@ -144,29 +147,22 @@ ASTImportResult ASTProcessor::import_file_no_sym_res(const FlatIGFile& file) {
         converter.convert(lexer.tokens);
         if(options->benchmark) {
             bm_results->benchmark_end();
-            std::cout << "[Cst2Ast]" << "Completed " << ' ' << bm_results->representation() << std::endl;
+            out << "[Cst2Ast]" << " Completed " << ' ' << bm_results->representation() << '\n';
         }
         for (const auto &err: converter.diagnostics) {
             std::cerr << err.representation(abs_path, "Converter") << std::endl;
         }
         scope.nodes = std::move(converter.nodes);
         if (options->print_representation) {
-            std::cout << "[Representation]\n" << scope.representation() << std::endl;
+            out << "[Representation]\n" << scope.representation() << '\n';
         }
 
     }
 
-    return { std::move(scope), true, is_c_file };
-}
+    std::cout << std::endl << out.str() << std::flush;
 
-ASTImportResult ASTProcessor::import_file(const FlatIGFile& file) {
-    auto imp_res = import_file_no_sym_res(file);
-    // resolving the symbols
-    sym_res(imp_res.scope, imp_res.is_c_file, file.abs_path);
-    if (resolver->has_errors) {
-        return {{ nullptr }, false, imp_res.is_c_file };
-    }
-    return imp_res;
+    return { std::move(scope), true, is_c_file };
+
 }
 
 void ASTProcessor::end() {

@@ -20,6 +20,10 @@ std::vector<std::unique_ptr<ASTNode>> TranslateC(
 
 #endif
 
+ASTImportResult concurrent_processor(int id, int job_id, const FlatIGFile& file, ASTProcessor* processor) {
+    return processor->import_file(file);
+}
+
 void ASTProcessor::prepare(const std::string& path) {
 
     // preparing the import graph

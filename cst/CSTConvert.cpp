@@ -131,7 +131,6 @@ Scope take_body_compound(CSTConverter *conv, CompoundCSTToken *token, ASTNode* p
 CSTConverter::CSTConverter(bool is64Bit, std::string target) : is64Bit(is64Bit), target(std::move(target)), global_scope() {
     ExpressionEvaluator::prepareFunctions(global_scope);
     init_macro_handlers();
-    init_annotation_handlers();
 }
 
 void CSTConverter::init_macro_handlers() {
@@ -208,6 +207,15 @@ void CSTConverter::init_macro_handlers() {
     };
 }
 
+struct AnnotationHandler {
+    AnnotationHandlerFn func;
+    AnnotationKind kind;
+};
+
+void ignore_annotation_func(CSTConverter* converter, CSTToken* container, AnnotationKind kind) {
+    // do nothing
+}
+
 void collect_annotation_func(CSTConverter* converter, CSTToken* container, AnnotationKind kind) {
     converter->annotations.emplace_back(kind);
     if(!container->compound()) return;
@@ -219,85 +227,60 @@ void collect_annotation_func(CSTConverter* converter, CSTToken* container, Annot
     converter->annotations.back().values = std::move(collected);
 }
 
-void ignore_annotation_func(CSTConverter* converter, CSTToken* container) {
-    // do nothing
-}
-
-void CSTConverter::init_annotation_handlers() {
-    annotation_handlers["cbi:create"] = ignore_annotation_func;
-    annotation_handlers["cbi:import"] = ignore_annotation_func;
-    annotation_handlers["cbi:global"] = [](CSTConverter* converter, CSTToken* container){
-        if(!converter->isCBIEnabled) return;
-        converter->dispose_node = true;
-    };
-    annotation_handlers["cbi:to"] = [](CSTConverter* converter, CSTToken* container){
-        if(!converter->isCBIEnabled) return;
-        converter->dispose_node = true;
-    };
-    annotation_handlers["cbi:begin"] = [](CSTConverter* converter, CSTToken* container){
-        if(!converter->isCBIEnabled) return;
-        converter->dispose_node = true;
-        converter->keep_disposing = true;
-    };
-    annotation_handlers["cbi:end"] = [](CSTConverter* converter, CSTToken* container){
-        if(!converter->isCBIEnabled) return;
-        converter->dispose_node = false;
-        converter->keep_disposing = false;
-    };
-    annotation_handlers["cbi:compile"] = [](CSTConverter* converter, CSTToken* container){
-        if(!converter->isCBIEnabled) return;
-        converter->dispose_node = false;
-        converter->keep_disposing = false;
-    };
-    annotation_handlers["dispose"] = [](CSTConverter* converter, CSTToken* container){
-        auto result = annotation_bool_arg(0, container);
-        if(result.has_value()) {
-            converter->dispose_node = result.value();
-        } else {
-            converter->error("unknown value given to dispose annotation", container);
-        }
-    };
-    annotation_handlers["dispose:begin"] = [](CSTConverter* converter, CSTToken* container){
-        converter->dispose_node = true;
-        converter->keep_disposing = true;
-    };
-    annotation_handlers["dispose:end"] = [](CSTConverter* converter, CSTToken* container){
-        converter->dispose_node = false;
-        converter->keep_disposing = false;
-    };
-    annotation_handlers["inline"] = [](CSTConverter* converter, CSTToken* container){
-        collect_annotation_func(converter, container, AnnotationKind::Inline);
-    };
-    annotation_handlers["inline:always"] = [](CSTConverter* converter, CSTToken* container){
-        collect_annotation_func(converter, container, AnnotationKind::AlwaysInline);
-    };
-    auto no_inline = [](CSTConverter* converter, CSTToken* container){
-        collect_annotation_func(converter, container, AnnotationKind::NoInline);
-    };
-    annotation_handlers["noinline"] = no_inline;
-    annotation_handlers["inline:no"] = no_inline;
-    annotation_handlers["inline:hint"] = [](CSTConverter* converter, CSTToken* container){
-        collect_annotation_func(converter, container, AnnotationKind::InlineHint);
-    };
-    annotation_handlers["size:opt"] = [](CSTConverter* converter, CSTToken* container){
-        collect_annotation_func(converter, container, AnnotationKind::OptSize);
-    };
-    annotation_handlers["size:min"] = [](CSTConverter* converter, CSTToken* container){
-        collect_annotation_func(converter, container, AnnotationKind::MinSize);
-    };
-    annotation_handlers["api"] = [](CSTConverter* converter, CSTToken* container){
-        collect_annotation_func(converter, container, AnnotationKind::Api);
-    };
-    annotation_handlers["comptime"] = [](CSTConverter* converter, CSTToken* container){
-        collect_annotation_func(converter, container, AnnotationKind::CompTime);
-    };
-    annotation_handlers["constructor"] = [](CSTConverter* converter, CSTToken* container) {
-        collect_annotation_func(converter, container, AnnotationKind::Constructor);
-    };
-    annotation_handlers["destructor"] = [](CSTConverter* converter, CSTToken* container){
-        collect_annotation_func(converter, container, AnnotationKind::Destructor);
-    };
-}
+const std::unordered_map<std::string, const AnnotationHandler> AnnotationHandlers = {
+        { "cbi:create", AnnotationHandler { ignore_annotation_func } },
+        { "cbi:import", AnnotationHandler { ignore_annotation_func } },
+        { "cbi:global", { [](CSTConverter* converter, CSTToken* container, AnnotationKind kind){
+            if(!converter->isCBIEnabled) return;
+            converter->dispose_node = true;
+        }}},
+        { "cbi:to", { [](CSTConverter* converter, CSTToken* container, AnnotationKind kind){
+            if(!converter->isCBIEnabled) return;
+            converter->dispose_node = true;
+        }}},
+        { "cbi:begin", { [](CSTConverter* converter, CSTToken* container, AnnotationKind kind){
+            if(!converter->isCBIEnabled) return;
+            converter->dispose_node = true;
+            converter->keep_disposing = true;
+        }}},
+        { "cbi:end", { [](CSTConverter* converter, CSTToken* container, AnnotationKind kind){
+            if(!converter->isCBIEnabled) return;
+            converter->dispose_node = false;
+            converter->keep_disposing = false;
+        }}},
+        { "cbi:compile", { [](CSTConverter* converter, CSTToken* container, AnnotationKind kind){
+            if(!converter->isCBIEnabled) return;
+            converter->dispose_node = false;
+            converter->keep_disposing = false;
+        }}},
+        { "dispose", { [](CSTConverter* converter, CSTToken* container, AnnotationKind kind){
+            auto result = annotation_bool_arg(0, container);
+            if(result.has_value()) {
+                converter->dispose_node = result.value();
+            } else {
+                converter->error("unknown value given to dispose annotation", container);
+            }
+        }}},
+        { "dispose:end", { [](CSTConverter* converter, CSTToken* container, AnnotationKind kind){
+            converter->dispose_node = false;
+            converter->keep_disposing = false;
+        }}},
+        { "dispose:begin:", { [](CSTConverter* converter, CSTToken* container, AnnotationKind kind){
+            converter->dispose_node = true;
+            converter->keep_disposing = true;
+        }}},
+        { "inline:", { collect_annotation_func, AnnotationKind::Inline } },
+        { "inline:always", { collect_annotation_func, AnnotationKind::AlwaysInline } },
+        { "noinline", { collect_annotation_func, AnnotationKind::NoInline } },
+        { "inline:no", { collect_annotation_func, AnnotationKind::NoInline } },
+        { "inline:hint", { collect_annotation_func, AnnotationKind::InlineHint } },
+        { "size:opt", { collect_annotation_func, AnnotationKind::OptSize } },
+        { "size:min", { collect_annotation_func, AnnotationKind::MinSize } },
+        { "api", { collect_annotation_func, AnnotationKind::Api } },
+        { "comptime", { collect_annotation_func, AnnotationKind::CompTime } },
+        { "constructor", { collect_annotation_func, AnnotationKind::Constructor } },
+        { "destructor", { collect_annotation_func, AnnotationKind::Destructor } },
+};
 
 inline void collect_annotations_in(CSTConverter* converter, AnnotableNode* node) {
     node->annotations = std::move(converter->annotations);
@@ -740,9 +723,9 @@ void CSTConverter::visitMacro(CompoundCSTToken* macroCst) {
 void CSTConverter::visitAnnotation(CompoundCSTToken *annotation) {
     auto name = str_token(annotation->tokens[0].get());
     auto annon_name = name.substr(1);
-    auto macro = annotation_handlers.find(annon_name);
-    if (macro != annotation_handlers.end()) {
-        macro->second(this, annotation);
+    auto macro = AnnotationHandlers.find(annon_name);
+    if (macro != AnnotationHandlers.end()) {
+        macro->second.func(this, annotation, macro->second.kind);
     } else {
         error("couldn't find annotation handler for " + annon_name, annotation);
     }
@@ -750,9 +733,9 @@ void CSTConverter::visitAnnotation(CompoundCSTToken *annotation) {
 
 void CSTConverter::visitAnnotationToken(LexToken *token) {
     auto annon_name = token->value.substr(1);
-    auto macro = annotation_handlers.find(annon_name);
-    if (macro != annotation_handlers.end()) {
-        macro->second(this, token);
+    auto macro = AnnotationHandlers.find(annon_name);
+    if (macro != AnnotationHandlers.end()) {
+        macro->second.func(this, token, macro->second.kind);
     } else {
         error("couldn't find annotation handler for " + annon_name, token);
     }

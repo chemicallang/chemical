@@ -484,6 +484,9 @@ set(COMMON_SOURCES
         ast/statements/DeleteStmt.cpp
         ast/values/RetStructParamValue.h
         ast/values/RetStructParamValue.cpp
+        lexer/utils/AnnotationModifiers.h
+        lexer/utils/ValueCreators.h
+        lexer/utils/MacroLexers.h
 )
 
 # Chemical LSP Executable Target

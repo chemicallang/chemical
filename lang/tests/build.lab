@@ -1,31 +1,16 @@
-import "./std/std.lab" as stdlab
-import "./basic/build.lab" as basic
+import "../std/lab.ch"
+// import "./std/std.lab" as stdlab
+// import "./basic/build.lab" as basic
 
-const name = "ChemicalTests"
+const name = "chemical-tests"
 const type = "lib"
 const version = "1.0.0"
-
-struct BuildContext {
-
-    var dir_module : (name : const string, path : string, dependencies : Module*[]) => Module*;
-
-}
-
-enum ModuleType {
-    Directory
-}
-
-@no_init
-struct Module {
-    var name : string
-    var type : ModuleType
-}
 
 func build(ctx : BuildContext*) : Module {
 
     // one of the following
     var std_mod : Module* = ctx.dir_module("std", "./std");
-    var std_mod : Module* = stdlab.build()
+    // var std_mod : Module* = stdlab.build()
 
     var basic_mod : Module* = ctx.dir_module("basic", "./basic", {
         std_mod

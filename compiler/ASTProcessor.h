@@ -88,12 +88,6 @@ public:
      * lex, parse and resolve symbols in file and return Scope containing nodes
      * without performing any symbol resolution
      */
-    ASTImportResult import_file_no_sym_res(const FlatIGFile& file);
-
-    /**
-     * lex, parse and resolve symbols in file and return Scope containing nodes
-     * this performs symbol resolution on returned ast import result
-     */
     ASTImportResult import_file(const FlatIGFile& file);
 
     /**
@@ -107,3 +101,10 @@ public:
     void end();
 
 };
+
+/**
+ * this function can be called concurrently, to import files
+ */
+ASTImportResult concurrent_processor(int id, int job_id, const FlatIGFile& file, ASTProcessor* processor) {
+    return processor->import_file(file);
+}

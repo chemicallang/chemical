@@ -553,40 +553,40 @@ target_compile_definitions(TCCCompiler PRIVATE TCC_BUILD)
 # Lsp uses boost library
 target_compile_definitions(ChemicalLsp PRIVATE LSP_BUILD)
 
+# Define common include directories
+set(COMMON_INCLUDE_DIRS
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/tsl-ordered-map
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/ctpl
+)
+
 # Add include directories for LspCpp
 target_include_directories(ChemicalLsp PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/LspCpp/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
-        ${CMAKE_CURRENT_SOURCE_DIR}
         ${LIBTCC_DIR}/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/lib/tsl-ordered-map
+        ${COMMON_INCLUDE_DIRS}
 )
 
 # Add include directories for LspCpp
 target_include_directories(Interpreter PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/lib/tsl-ordered-map
+        ${COMMON_INCLUDE_DIRS}
 )
 
 # Add include directories for Compiler
 target_include_directories(Compiler PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${COMMON_INCLUDE_DIRS}
         # Include llvm directories for the compiler executable
         ${LLVM_INCLUDE_DIRS}
         ${LLD_INCLUDE_DIRS}
         ${CLANG_INCLUDE_DIRS}
         ${LIBTCC_DIR}/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/lib/tsl-ordered-map
 )
 
 # Add include directories for TCCCompiler
 target_include_directories(TCCCompiler PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${COMMON_INCLUDE_DIRS}
         ${LIBTCC_DIR}/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/lib/tsl-ordered-map
 )
 
 # find the libraries that correspond to llvm

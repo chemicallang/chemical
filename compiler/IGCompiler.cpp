@@ -9,6 +9,7 @@
 #include "SymbolResolver.h"
 #include "ASTProcessor.h"
 #include "preprocess/ShrinkingVisitor.h"
+#include "ctpl.h"
 #include <iostream>
 #include <utility>
 #include <functional>

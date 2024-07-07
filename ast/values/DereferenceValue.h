@@ -21,8 +21,6 @@ public:
 
     Value *copy() override;
 
-    BaseType *get_base_type_ref();
-
     hybrid_ptr<BaseType> get_base_type() override;
 
     std::unique_ptr<BaseType> create_type() override;

@@ -110,16 +110,6 @@ public:
     void init_cbi(const std::string& exe_path);
 
     /**
-     * called by constructor to initialize value_creators map
-     */
-    void init_value_creators();
-
-    /**
-     * initialize macro lexers
-     */
-    void init_macro_lexers();
-
-    /**
      * lex everything to LexTokens, tokens go into 'tokens' member property
      */
     void lex();

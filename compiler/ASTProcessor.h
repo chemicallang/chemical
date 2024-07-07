@@ -21,6 +21,7 @@ class ShrinkingVisitor;
 struct ASTImportResult {
     Scope scope;
     bool continue_processing;
+    bool is_c_file;
 };
 
 /**
@@ -95,8 +96,20 @@ public:
 
     /**
      * lex, parse and resolve symbols in file and return Scope containing nodes
+     * without performing any symbol resolution
+     */
+    ASTImportResult import_file_no_sym_res(const FlatIGFile& file);
+
+    /**
+     * lex, parse and resolve symbols in file and return Scope containing nodes
+     * this performs symbol resolution on returned ast import result
      */
     ASTImportResult import_file(const FlatIGFile& file);
+
+    /**
+     * function that performs symbol resolution
+     */
+    void sym_res(Scope& scope, bool is_c_file, const std::string& abs_path);
 
     /**
      * called when all files are done

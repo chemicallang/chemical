@@ -13,8 +13,7 @@ void benchLex(Lexer* lexer, const std::string& path, BenchmarkResults& results) 
     results.benchmark_begin();
     lexer->lex();
     results.benchmark_end();
-    std::cout << "[Lex] " << path << " Completed " << "(Tokens:" << lexer->tokens.size() << ")" << ' ';
-    std::cout << results.representation() << std::endl;
+    std::cout << "[Lex] " << " Completed " << results.representation() << std::endl;
 }
 
 void benchLexFile(Lexer* lexer, const std::string &path, BenchmarkResults& results) {

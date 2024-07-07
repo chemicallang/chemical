@@ -33,15 +33,14 @@ char SourceProvider::peek(int ahead) {
     return c;
 }
 
-std::string SourceProvider::readUntil(char stop) {
-    auto read = "";
+void SourceProvider::readUntil(chem::string* into, char stop) {
     char currChar;
     while (true) {
         currChar = readCharacter();
         if (currChar == stop || eof()) {
-            return read;
+            return;
         } else {
-            read += currChar;
+            into->append(currChar);
         }
     }
 }
@@ -121,6 +120,23 @@ void SourceProvider::reset() {
     this->lineNumber = 0;
 }
 
+void SourceProvider::readEscaping(chem::string* value, char stopAt) {
+    bool skip_one = false;
+    char read;
+    while (!eof()) {
+        read = readCharacter();
+        value->append(read);
+        if(skip_one) {
+            skip_one = false;
+        } else {
+            if (read == stopAt) {
+                break;
+            }
+            skip_one = read == '\\';
+        }
+    };
+}
+
 void SourceProvider::readEscaping(std::string &value, char stopAt) {
     bool skip_one = false;
     char read;
@@ -138,12 +154,10 @@ void SourceProvider::readEscaping(std::string &value, char stopAt) {
     };
 }
 
-std::string SourceProvider::readAnything(char until) {
-    std::string content;
+void SourceProvider::readAnything(chem::string* str, char until) {
     while (!eof() && peek() != until) {
-        content.append(1, readCharacter());
+        str->append(readCharacter());
     }
-    return content;
 }
 
 std::string SourceProvider::readUntil(const std::string &ending, bool consume) {
@@ -157,18 +171,16 @@ std::string SourceProvider::readUntil(const std::string &ending, bool consume) {
     return content;
 }
 
-std::string SourceProvider::readUnsignedInt() {
-    if (!std::isdigit(peek())) return "";
-    std::string content;
+void SourceProvider::readUnsignedInt(chem::string* str) {
+    if (!std::isdigit(peek())) return;
     while (true) {
         const char p = peek();
         if(!eof() && p >= '0' && p <= '9') {
-            content.append(1, readCharacter());
+            str->append(readCharacter());
         } else {
             break;
         }
     }
-    return content;
 }
 
 void SourceProvider::readNumber(chem::string* string) {
@@ -196,38 +208,30 @@ void SourceProvider::readNumber(chem::string* string) {
     }
 }
 
-std::string SourceProvider::readAlpha() {
-    std::string str;
+void SourceProvider::readAlpha(chem::string* str) {
     while (!eof() && std::isalpha(peek())) {
-        str.append(1, readCharacter());
+        str->append(readCharacter());
     }
-    return str;
 }
 
-std::string SourceProvider::readAlphaNum() {
-    std::string str;
+void SourceProvider::readAlphaNum(chem::string* str) {
     while (!eof() && std::isalnum(peek())) {
-        str.append(1, readCharacter());
+        str->append(readCharacter());
     }
-    return str;
 }
 
-std::string SourceProvider::readIdentifier() {
+void SourceProvider::readIdentifier(chem::string* str) {
     if (std::isalpha(peek()) || peek() == '_') {
-        std::string str;
         while (!eof() && (std::isalnum(peek()) || peek() == '_')) {
-            str.append(1, readCharacter());
+            str->append(readCharacter());
         }
-        return str;
-    } else {
-        return "";
     }
 }
 
-void SourceProvider::readAnnotationIdentifier(std::string& str) {
+void SourceProvider::readAnnotationIdentifier(chem::string* str) {
     if (std::isalpha(peek()) || peek() == '_') {
         while (!eof() && (std::isalnum(peek()) || peek() == '_' || peek() == ':')) {
-            str.append(1, readCharacter());
+            str->append(readCharacter());
         }
     }
 }

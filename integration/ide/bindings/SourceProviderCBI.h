@@ -3,6 +3,7 @@
 #pragma once
 
 class SourceProvider;
+
 namespace chem {
     struct string;
 }
@@ -21,30 +22,28 @@ namespace chem {
  * a instance member field is required, which is added to the end
  */
 struct SourceProviderCBI {
-    unsigned int(*currentPosition)(struct SourceProviderCBI*);
-    char(*readCharacter)(struct SourceProviderCBI*);
-    bool(*eof)(struct SourceProviderCBI*);
-    char(*peek)(struct SourceProviderCBI*);
-    char(*peek_at)(struct SourceProviderCBI*,int);
-    char*(*readUntil)(struct SourceProviderCBI*,char);
-    bool(*increment)(struct SourceProviderCBI*,char*,bool);
-    bool(*increment_char)(struct SourceProviderCBI*,char);
-    char*(*readAllFromHere)(struct SourceProviderCBI*);
-    unsigned int(*getLineNumber)(struct SourceProviderCBI*);
-    unsigned int(*getLineCharNumber)(struct SourceProviderCBI*);
-    void(*readEscaping)(struct SourceProviderCBI*,char*,char);
-    char*(*readAnything)(struct SourceProviderCBI*,char);
-    char*(*readAlpha)(struct SourceProviderCBI*);
-    char*(*readUnsignedInt)(struct SourceProviderCBI*);
-    void(*readNumber)(struct chem::string*, struct SourceProviderCBI*);
-    char*(*readAlphaNum)(struct SourceProviderCBI*);
-    char*(*readIdentifier)(struct SourceProviderCBI*);
-    void(*readAnnotationIdentifierInto)(struct SourceProviderCBI*,char*);
-    char*(*readAnnotationIdentifier)(struct SourceProviderCBI*);
-    unsigned int(*readWhitespaces)(struct SourceProviderCBI*);
-    bool(*hasNewLine)(struct SourceProviderCBI*);
-    bool(*readNewLineChars)(struct SourceProviderCBI*);
-    void(*readWhitespacesAndNewLines)(struct SourceProviderCBI*);
+    unsigned int(*currentPosition)(struct SourceProviderCBI* self);
+    char(*readCharacter)(struct SourceProviderCBI* self);
+    bool(*eof)(struct SourceProviderCBI* self);
+    char(*peek)(struct SourceProviderCBI* self);
+    char(*peek_at)(struct SourceProviderCBI* self, int offset);
+    void(*readUntil)(struct chem::string* __chx_struct_ret_param_xx, struct SourceProviderCBI* self, char stop);
+    bool(*increment)(struct SourceProviderCBI* self, char* text, bool peek);
+    bool(*increment_char)(struct SourceProviderCBI* self, char c);
+    unsigned int(*getLineNumber)(struct SourceProviderCBI* self);
+    unsigned int(*getLineCharNumber)(struct SourceProviderCBI* self);
+    void(*readEscaping)(struct SourceProviderCBI* self, struct chem::string* value, char stopAt);
+    void(*readAnything)(struct chem::string* __chx_struct_ret_param_xx, struct SourceProviderCBI* self, char until);
+    void(*readAlpha)(struct chem::string* __chx_struct_ret_param_xx, struct SourceProviderCBI* self);
+    void(*readUnsignedInt)(struct chem::string* __chx_struct_ret_param_xx, struct SourceProviderCBI* self);
+    void(*readNumber)(struct chem::string* __chx_struct_ret_param_xx, struct SourceProviderCBI* self);
+    void(*readAlphaNum)(struct chem::string* __chx_struct_ret_param_xx, struct SourceProviderCBI* self);
+    void(*readIdentifier)(struct chem::string* __chx_struct_ret_param_xx, struct SourceProviderCBI* self);
+    void(*readAnnotationIdentifier)(struct chem::string* __chx_struct_ret_param_xx, struct SourceProviderCBI* self);
+    unsigned int(*readWhitespaces)(struct SourceProviderCBI* self);
+    bool(*hasNewLine)(struct SourceProviderCBI* self);
+    bool(*readNewLineChars)(struct SourceProviderCBI* self);
+    void(*readWhitespacesAndNewLines)(struct SourceProviderCBI* self);
     SourceProvider* instance;
 };
 

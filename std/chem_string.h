@@ -49,6 +49,12 @@ namespace chem {
             state = '0';
         }
 
+        constexpr string() {
+            storage.constant.data = nullptr;
+            storage.constant.length = 0;
+            state = '0';
+        }
+
         string(string& str) = delete;
 
         string(string&& other) noexcept {
@@ -296,7 +302,7 @@ namespace chem {
 
         void append(char value) {
             size_t length = size();;
-            if((((state == '0') || (state == '1')) && (length < 16))){
+            if((((state == '0') || (state == '1')) && (length < 15))){
                 if(state == '0'){
                     move_const_to_buffer();
                 }

@@ -18,9 +18,12 @@ bool Lexer::lexAnnotationMacro() {
     }
 
     auto isAnnotation = provider.peek() == '@';
-    auto macro_full = std::string(1, provider.readCharacter());
-    provider.readAnnotationIdentifier(macro_full);
-    auto macro = macro_full.substr(1);
+    chem::string macro_full_chem;
+    macro_full_chem.append(provider.readCharacter());
+//    auto macro_full = std::string(1, provider.readCharacter());
+    provider.readAnnotationIdentifier(&macro_full_chem);
+    auto macro_full = macro_full_chem.to_std_string();
+    auto macro = macro_full_chem.substring(1, macro_full_chem.size()).to_std_string();
 
     // if it's annotation
     if (isAnnotation) {

@@ -42,7 +42,7 @@ struct SourceProvider {
      * @param stop the stopping character
      * @return everything read until stop character, it doesn't include the stopping character
      */
-    var readUntil : (&self, stop : char) => String;
+    var readUntil : (&self, stop : char) => string;
 
     /**
      * if text is present at current pos in the stream, increments the stream with text.length()
@@ -50,7 +50,7 @@ struct SourceProvider {
      * @param peek peeks only, doesn't increment
      * @return true if incremented by text length otherwise false
      */
-    var increment : (&self, text : String, peek : bool) => bool;
+    var increment : (&self, text : char*, peek : bool) => bool;
 
     /**
      * if char c is present at current pos, increments the stream with character
@@ -58,12 +58,6 @@ struct SourceProvider {
      * @return true if incremented by character length = 1, otherwise false
      */
     var increment_char : (&self, c : char) => bool;
-
-    /**
-     * this will read all the text from current position to end in a string and return it
-     * useful for debugging only
-     */
-    var readAllFromHere : (&self) => String
 
     /**
      * get zero-based current line number
@@ -83,23 +77,23 @@ struct SourceProvider {
      *
      * will also append the last stopAt character into value
      */
-    var readEscaping : (&self, value : String*, stopAt : char) => void;
+    var readEscaping : (&self, value : string*, stopAt : char) => void;
 
     /**
      * reads all characters into a string until char occurs
      * @return the string that was found
      */
-    var readAnything : (&self, until : char) => String;
+    var readAnything : (&self, until : char) => string;
 
     /**
      * reads a alphabetical string
      */
-    var readAlpha : (&self) => String;
+    var readAlpha : (&self) => string;
 
     /**
      * reads an unsigned integer as string, returns "" if no integer found
      */
-    var readUnsignedInt : (&self) => String;
+    var readUnsignedInt : (&self) => string;
 
     /**
      * reads a number from the stream
@@ -109,22 +103,17 @@ struct SourceProvider {
     /**
      * reads a alphanumeric string
      */
-    var readAlphaNum : (&self) => String;
+    var readAlphaNum : (&self) => string;
 
     /**
      * reads a single identifier
      */
-    var readIdentifier : (&self) => String;
-
-    /**
-     * reads a single annotation into given string, this doesn't read '@'
-     */
-    var readAnnotationIdentifierInto : (&self, into : String*) => void;
+    var readIdentifier : (&self) => string;
 
     /**
      * reads a single annotation, this doesn't read '@'
      */
-    var readAnnotationIdentifier : (&self) => String;
+    var readAnnotationIdentifier : (&self) => string;
 
     /**
      * reads whitespaces, returns how many whitespaces were read

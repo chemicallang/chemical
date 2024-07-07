@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include <utility>
+
 #include "ast/structures/Scope.h"
 #include "ASTProcessorOptions.h"
 #include "preprocess/ImportGraphMaker.h"
@@ -52,16 +54,6 @@ public:
     std::unordered_map<std::string, bool> imported;
 
     /**
-     * the lexer that will be used to lex all files
-     */
-    Lexer* lexer;
-
-    /**
-     * the converter that will be used to convert the lexed tokens
-     */
-    CSTConverter* converter;
-
-    /**
      * the symbol resolver that will resolve all the symbols
      */
     SymbolResolver* resolver;
@@ -77,10 +69,8 @@ public:
      */
     ASTProcessor(
             ASTProcessorOptions* options,
-            Lexer* lexer,
-            CSTConverter* converter,
             SymbolResolver* resolver
-    ) : options(options), lexer(lexer), converter(converter), resolver(resolver) {
+    ) : options(options), resolver(resolver) {
 
     }
 

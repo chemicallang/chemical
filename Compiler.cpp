@@ -146,13 +146,14 @@ int main(int argc, char *argv[]) {
         return resources_path;
     };
 
-    auto prepare_options = [&](ASTProcessorOptions* options) -> void {
-        options->benchmark = benchmark;
-        options->print_representation = print_representation;
-        options->print_cst = print_cst;
-        options->print_ig = print_ig;
-        options->verbose = verbose;
-        options->resources_path = get_resources_path();
+    auto prepare_options = [&](ASTProcessorOptions* opts) -> void {
+        opts->benchmark = benchmark;
+        opts->print_representation = print_representation;
+        opts->print_cst = print_cst;
+        opts->print_ig = print_ig;
+        opts->verbose = verbose;
+        opts->resources_path = get_resources_path();
+        opts->isCBIEnabled = !options.option("no-cbi").has_value();
     };
 
 #ifdef COMPILER_BUILD
@@ -170,12 +171,13 @@ int main(int argc, char *argv[]) {
     bool is64Bit = Codegen::is_arch_64bit(target.value());
 
 #else
+    std::optional<std::string> target = "native";
     bool is64Bit = false;
 #endif
 
     // do not compile
     if(only_verify) {
-        SourceVerifierOptions verify_opts(argv[0]);
+        SourceVerifierOptions verify_opts(argv[0], target.value(), is64Bit);
         prepare_options(&verify_opts);
         if(verify(srcFilePath, &verify_opts)) {
             return 0;
@@ -189,14 +191,13 @@ int main(int argc, char *argv[]) {
 #ifdef COMPILER_BUILD
     if(jit || (output.has_value() && (tcc || output.value().ends_with(".c") || output.value().ends_with(".h")))) {
 #endif
-        ToCTranslatorOptions translator_opts(argv[0], is64Bit);
+        ToCTranslatorOptions translator_opts(argv[0], target.value(), is64Bit);
         prepare_options(&translator_opts);
         auto translator_preparer = [&options](ToCAstVisitor* visitor, ASTProcessor* processor) -> void {
             visitor->inline_struct_members_fn_types = !options.option("take-out-struct-member-fn-types").has_value();
             visitor->cpp_like = options.option("cpp-like").has_value();
             if(options.option("no-cbi").has_value()) {
-                processor->lexer->isCBIEnabled = false;
-                processor->converter->isCBIEnabled = false;
+                processor->options->isCBIEnabled = false;
             }
         };
         if(output.has_value() && (output.value().ends_with(".c") || output.value().ends_with(".h")) && !jit) {
@@ -244,7 +245,7 @@ int main(int argc, char *argv[]) {
         out.close();
         // verify if required
         if(only_verify) {
-            SourceVerifierOptions verify_opts(argv[0]);
+            SourceVerifierOptions verify_opts(argv[0], target.value(), is64Bit);
             prepare_options(&verify_opts);
             if(!verify(output.value(), &verify_opts)) {
                 return 1;

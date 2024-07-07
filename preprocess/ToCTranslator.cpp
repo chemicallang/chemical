@@ -24,29 +24,12 @@ TranslateC(const char *exe_path, const char *abs_path, const char *resources_pat
 
 #endif
 
-ToCTranslatorOptions::ToCTranslatorOptions(
-        std::string exe_path,
-        bool is64Bit
-) : ASTProcessorOptions(std::move(exe_path)),is64Bit(is64Bit) {
-
-}
-
 bool translate(
         const std::string &path,
         std::ostream* output_ptr,
         ToCTranslatorOptions *options,
         const std::function<void(ToCAstVisitor*, ASTProcessor*)>& prepare
 ) {
-
-    // creating the lexer
-    std::fstream file_stream;
-    SourceProvider provider(&file_stream);
-    Lexer lexer(provider, path);
-    lexer.init_complete(options->exe_path);
-
-    // the cst converter
-    CSTConverter converter(true, "2cTranslator");
-    converter.no_imports = true;
 
     // creating symbol resolver
     SymbolResolver resolver(path, true);
@@ -57,8 +40,6 @@ bool translate(
     // the processor that does everything
     ASTProcessor processor(
             options,
-            &lexer,
-            &converter,
             &resolver
     );
 

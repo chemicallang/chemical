@@ -47,6 +47,16 @@ public:
     bool isCBIEnabled = true;
 
     /**
+     * the target triple, which codegen is for
+     */
+    std::string target_triple;
+
+    /**
+     * is target system 64Bit
+     */
+    bool is64Bit;
+
+    /**
      * path to resources, give only if import's c files
      */
     std::string resources_path;
@@ -60,8 +70,10 @@ public:
      * constructor
      */
     ASTProcessorOptions(
-            std::string exe_path
-    ) : exe_path(std::move(exe_path)) {
+            std::string exe_path,
+            std::string target_triple,
+            bool is64Bit
+    ) : exe_path(std::move(exe_path)), target_triple(std::move(target_triple)), is64Bit(is64Bit) {
 
     }
 

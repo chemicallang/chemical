@@ -5,49 +5,32 @@ const name = "ChemicalTests"
 const type = "lib"
 const version = "1.0.0"
 
-enum ArtifactType {
-    App,
-    Lib,
-    CLib
-}
-
 struct BuildContext {
 
+    var dir_module : (name : const string, path : string, dependencies : Module*[]) => Module*;
 
 }
 
-struct Artifact {
-    name : string
-    type : ArtifactType
-    dependencies : vector<Artifact>
+enum ModuleType {
+    Directory
 }
 
-struct CLibraryArtifact : Artifact {
-
+@no_init
+struct Module {
+    var name : string
+    var type : ModuleType
 }
 
-func build(ctx : BuildContext*) : Artifact {
+func build(ctx : BuildContext*) : Module {
 
-    Artifact artifact;
+    // one of the following
+    var std_mod : Module* = ctx.dir_module("std", "./std");
+    var std_mod : Module* = stdlab.build()
 
-    artifact.paths.push(string("./comptime"))
-    artifact.paths.push(string("./basic"))
-    artifact.paths.push(string("./nodes"))
+    var basic_mod : Module* = ctx.dir_module("basic", "./basic", {
+        std_mod
+    })
 
-    artifact.dependencies.push(stdlab.build(ctx));
-    artifact.dependencies.push(basic.build(ctx));
-
-    return artifact;
-
-
-    const stdlib : ChemLib* = ctx.import("std", "../std")
-
-    const basic : ChemLib* = ctx.lib("basic", "./basic", { stdlib })
-
-    ctx.lib_from("comptime", { "./comptime/basic.ch", "./comptime/vector.ch" })
-
-    // importing a c library
-    ctx.include_c_headers("./cfold/**/*.h")
-    ctx.include_c_sources("./cfold/**/*.c")
+    return ctx.dir_module("chemical-tests", "./", { basic_mod })
 
 }

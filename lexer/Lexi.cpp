@@ -9,8 +9,7 @@
 #include "stream/SourceProvider.h"
 #include "utils/Benchmark.h"
 
-void benchLex(Lexer* lexer, const std::string& path) {
-    BenchmarkResults results{};
+void benchLex(Lexer* lexer, const std::string& path, BenchmarkResults& results) {
     results.benchmark_begin();
     lexer->lex();
     results.benchmark_end();
@@ -18,12 +17,17 @@ void benchLex(Lexer* lexer, const std::string& path) {
     std::cout << results.representation() << std::endl;
 }
 
-void benchLexFile(Lexer* lexer, const std::string &path) {
+void benchLexFile(Lexer* lexer, const std::string &path, BenchmarkResults& results) {
     auto fstream = (std::fstream*) (lexer->provider.stream);
     fstream->close();
     fstream->open(path);
-    benchLex(lexer, path);
+    benchLex(lexer, path, results);
     fstream->close();
+}
+
+void benchLexFile(Lexer* lexer, const std::string &path) {
+    BenchmarkResults results{};
+    benchLexFile(lexer, path, results);
 }
 
 void lexFile(Lexer* lexer, const std::string &path) {
@@ -37,7 +41,8 @@ void lexFile(Lexer* lexer, const std::string &path) {
 Lexer benchLexFile(std::istream &file, const std::string& path) {
     SourceProvider reader(&file);
     Lexer lexer(reader, path);
-    benchLex(&lexer, path);
+    BenchmarkResults results{};
+    benchLex(&lexer, path, results);
     return lexer;
 }
 

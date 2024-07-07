@@ -9,11 +9,18 @@
 #include <string>
 #include <fstream>
 #include "Lexer.h"
+#include "utils/Benchmark.h"
 
 /**
  * same as benchLexFile with istream
  * benchmark lexing the filename (relative to in the current project)
- * @param file
+ * @return the tokens
+ */
+void benchLexFile(Lexer* lexer, const std::string &path, BenchmarkResults& results);
+
+/**
+ * same as benchLexFile with istream
+ * benchmark lexing the filename (relative to in the current project)
  * @return the tokens
  */
 void benchLexFile(Lexer* lexer, const std::string &path);
@@ -37,14 +44,12 @@ Lexer benchLexFile(std::istream &file, const std::string &path);
 /**
  * same as benchLexFile with istream
  * benchmark lexing the filename (relative to in the current project)
- * @param file
  * @return the tokens
  */
 Lexer benchLexFile(const std::string &path);
 
 /**
  * will lex the file from given istream
- * @param file
  * @return the tokens
  */
 Lexer lexFile(std::istream &file, const std::string &path);
@@ -52,7 +57,6 @@ Lexer lexFile(std::istream &file, const std::string &path);
 /**
  * same as lexFile with istream
  * lex the file at path (relative to in the current project)
- * @param fileName
  * @return the tokens
  */
 Lexer lexFile(const std::string &path);

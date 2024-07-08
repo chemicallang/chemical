@@ -55,29 +55,20 @@ public:
     std::vector<std::unique_ptr<CSTToken>> tokens;
 
     /**
-     * compiler binder, which is used to compile binding code
+     * the binder that will be used to compile binding code
+     * if not present, cbi is considered disabled
      */
-    std::unique_ptr<CompilerBinder> binder;
+    CompilerBinder* binder;
 
     /**
-     * the cbi interface for lexer
+     * a pointer to lexer cbi that will be passed to cbi functions
      */
-    LexerCBI cbi;
-
-    /**
-     * the cbi interface for source provider
-     */
-    SourceProviderCBI provider_cbi;
+    LexerCBI* cbi;
 
     /**
      * the cbi used for collection
      */
     std::string current_cbi;
-
-    /**
-     * this flag allows to control, whether cbi is enabled
-     */
-    bool isCBIEnabled = true;
 
     /**
      * when a struct / function is to be collected by cbi
@@ -97,17 +88,12 @@ public:
     /**
      * initialize the lexer with this provider and path
      */
-    explicit Lexer(SourceProvider &provider, std::string path);
-
-    /**
-     * initialize everything for lexer
-     */
-    void init_complete(const std::string& exe_path);
-
-    /**
-     * providing cbi (compiler binding interfaces) to source code, to call functions inside compiler
-     */
-    void init_cbi(const std::string& exe_path);
+    Lexer(
+        SourceProvider &provider,
+        std::string path,
+        CompilerBinder* binder = nullptr,
+        LexerCBI* cbi = nullptr
+    );
 
     /**
      * lex everything to LexTokens, tokens go into 'tokens' member property

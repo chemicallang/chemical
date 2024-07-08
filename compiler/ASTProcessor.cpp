@@ -9,6 +9,7 @@
 #include "utils/Benchmark.h"
 #include <sstream>
 #include "utils/Utils.h"
+#include "lexer/model/CompilerBinderTCC.h"
 
 #ifdef COMPILER_BUILD
 
@@ -22,6 +23,18 @@ std::vector<std::unique_ptr<ASTNode>> TranslateC(
 
 ASTImportResult concurrent_processor(int id, int job_id, const FlatIGFile& file, ASTProcessor* processor) {
     return processor->import_file(file);
+}
+
+ASTProcessor::ASTProcessor(
+        ASTProcessorOptions* options,
+        SymbolResolver* resolver
+) : options(options), resolver(resolver) {
+    if(options->isCBIEnabled) {
+        binder = std::make_unique<CompilerBinderTCC>(nullptr, options->exe_path);
+        lexer_cbi = std::make_unique<LexerCBI>();
+        provider_cbi = std::make_unique<SourceProviderCBI>();
+        prep_lexer_cbi(lexer_cbi.get(), provider_cbi.get());
+    }
 }
 
 void ASTProcessor::prepare(const std::string& path) {
@@ -122,9 +135,10 @@ ASTImportResult ASTProcessor::import_file(const FlatIGFile& file) {
         // lex the file
         std::fstream stream;
         SourceProvider provider(&stream);
-        Lexer lexer(provider, abs_path);
-        lexer.init_complete(options->exe_path);
-        lexer.isCBIEnabled = options->isCBIEnabled;
+        Lexer lexer(provider, abs_path, binder.get(), lexer_cbi.get());
+        if(options->isCBIEnabled) {
+            bind_lexer_cbi(lexer_cbi.get(), provider_cbi.get(), &lexer);
+        }
 
         if(options->benchmark) {
             bm_results = std::make_unique<BenchmarkResults>();
@@ -166,7 +180,9 @@ ASTImportResult ASTProcessor::import_file(const FlatIGFile& file) {
 
     }
 
-    std::cout << std::endl << out.str() << std::flush;
+    if(!out.view().empty()) {
+        std::cout << std::endl << out.str() << std::flush;
+    }
 
     return { std::move(scope), true, is_c_file };
 

@@ -106,6 +106,14 @@ struct LexerCBI {
 
 /**
  * this function should be called on cbi, to make it a valid binding
- * now cbi is ready to be invoked, to use it, pass it to a user
+ * now cbi has been prepared, but it lacks instance, for which bind should be used
+ * this should be done once, to ensure cbi methods can be called
  */
-void init_lexer_cbi(LexerCBI* cbi, Lexer* lexer, SourceProviderCBI* provider_cbi);
+void prep_lexer_cbi(LexerCBI* cbi, SourceProviderCBI* provider);
+
+/**
+ * this function is used to connect the given lexer to the lexer cbi
+ * this can be done again and again, to change instance of lexer that will receive calls
+ * from cbi
+ */
+void bind_lexer_cbi(LexerCBI* cbi, SourceProviderCBI* provider_cbi, Lexer* lexer);

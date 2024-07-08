@@ -8,6 +8,7 @@
 #include "ASTProcessorOptions.h"
 #include "preprocess/ImportGraphMaker.h"
 #include "ASTDiag.h"
+#include "lexer/model/CompilerBinder.h"
 
 class Lexer;
 
@@ -54,6 +55,23 @@ public:
     std::unordered_map<std::string, bool> imported;
 
     /**
+     * compiler binder that will be used through out processing
+     */
+    std::unique_ptr<CompilerBinder> binder;
+
+    /**
+     * the lexer cbi, that is initialized if cbi enabled
+     * passed to lexer cbi
+     */
+    std::unique_ptr<LexerCBI> lexer_cbi;
+
+    /**
+     * the source provider cbi, that is initialized if cbi enabled
+     * passed to lexer cbi
+     */
+    std::unique_ptr<SourceProviderCBI> provider_cbi;
+
+    /**
      * the symbol resolver that will resolve all the symbols
      */
     SymbolResolver* resolver;
@@ -70,9 +88,7 @@ public:
     ASTProcessor(
             ASTProcessorOptions* options,
             SymbolResolver* resolver
-    ) : options(options), resolver(resolver) {
-
-    }
+    );
 
     /**
      * prepared the processing of AST

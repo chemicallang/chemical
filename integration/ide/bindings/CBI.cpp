@@ -12,10 +12,19 @@ chem::string* init_chem_string(chem::string* str) {
     return str;
 }
 
-void init_lexer_cbi(LexerCBI* cbi, Lexer* lexer, SourceProviderCBI* provider_cbi) {
+void bind_source_provider_cbi(SourceProviderCBI* cbi, SourceProvider* provider) {
+    cbi->instance = provider;
+}
+
+void bind_lexer_cbi(LexerCBI* cbi, SourceProviderCBI* provider_cbi, Lexer* lexer) {
     cbi->instance = lexer;
     cbi->provider = provider_cbi;
-    init_source_provider_cbi(cbi->provider, &lexer->provider);
+    bind_source_provider_cbi(provider_cbi, &lexer->provider);
+}
+
+void prep_lexer_cbi(LexerCBI* cbi, SourceProviderCBI* provider) {
+    cbi->provider = provider;
+    prep_source_provider_cbi(provider);
     cbi->storeVariable = [](LexerCBI* cbi, char* variable){
         return cbi->instance->storeVariable(variable);
     };
@@ -255,8 +264,7 @@ void init_lexer_cbi(LexerCBI* cbi, Lexer* lexer, SourceProviderCBI* provider_cbi
     };
 }
 
-void init_source_provider_cbi(SourceProviderCBI* cbi, SourceProvider* provider) {
-    cbi->instance = provider;
+void prep_source_provider_cbi(SourceProviderCBI* cbi) {
     cbi->currentPosition = [](struct SourceProviderCBI* cbi){
         return cbi->instance->currentPosition();
     };

@@ -6,7 +6,7 @@ const name = "chemical-tests"
 const type = "lib"
 const version = "1.0.0"
 
-func build(ctx : BuildContext*) : Module {
+func build(ctx : BuildContext*) : Module* {
 
     // one of the following
     var std_mod : Module* = ctx.dir_module("std", "./std");

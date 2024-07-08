@@ -3,7 +3,9 @@
 #include "SourceProviderCBI.h"
 #include "LexerCBI.h"
 #include "lexer/Lexer.h"
+#include "BuildContextCBI.h"
 #include "stream/SourceProvider.h"
+#include "compiler/lab/LabBuildContext.h"
 
 chem::string* init_chem_string(chem::string* str) {
     str->storage.constant.data = nullptr;
@@ -331,4 +333,14 @@ void prep_source_provider_cbi(SourceProviderCBI* cbi) {
     cbi->readWhitespacesAndNewLines = [](struct SourceProviderCBI* cbi){
         return cbi->instance->readWhitespacesAndNewLines();
     };
+}
+
+void prep_build_context_cbi(BuildContextCBI* cbi) {
+    cbi->dir_module = [](BuildContextCBI* self, chem::string* name, chem::string* path, LabModule** dependencies, unsigned int dep_len) -> LabModule* {
+        return self->instance->dir_module(name, path, dependencies, dep_len);
+    };
+}
+
+void bind_build_context_cbi(BuildContextCBI* cbi, LabBuildContext* context) {
+    cbi->instance = context;
 }

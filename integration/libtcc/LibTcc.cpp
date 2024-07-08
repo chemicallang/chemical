@@ -1,7 +1,6 @@
 // Copyright (c) Qinetik 2024.
 
 #include "LibTccInteg.h"
-#include "libtcc.h"
 #include <iostream>
 #include <vector>
 #include "utils/Benchmark.h"
@@ -11,12 +10,7 @@ void handle_tcc_error(void *opaque, const char *msg){
     std::cout << "[Compiler] Error Compiling : " << msg << std::endl;
 }
 
-int compile_c_string(char* exe_path, char* program, const std::string& outputFileName, bool jit, bool benchmark) {
-
-    BenchmarkResults results{};
-    if(benchmark) {
-        results.benchmark_begin();
-    }
+TCCState* compile_c_to_tcc_state(char* exe_path, char* program, const std::string& outputFileName, bool jit) {
 
     // creating a tcc state
     TCCState *s;
@@ -37,13 +31,13 @@ int compile_c_string(char* exe_path, char* program, const std::string& outputFil
     result = tcc_add_include_path(s, include_dir.data());;
     if(result == -1) {
         std::cerr << "[Compiler] Couldn't include tcc include package" << std::endl;
-        return 1;
+        return nullptr;
     }
 
     result = tcc_add_library_path(s, lib_dir.data());
     if(result == -1) {
         std::cerr << "[Compiler] Couldn't add tcc library package" << std::endl;
-        return 1;
+        return nullptr;
     }
 
     int outputType = TCC_OUTPUT_MEMORY;
@@ -59,11 +53,27 @@ int compile_c_string(char* exe_path, char* program, const std::string& outputFil
     result = tcc_set_output_type(s, outputType);
     if(result == -1) {
         std::cerr << "Couldn't set tcc output type" << std::endl;
-        return 1;
+        return nullptr;
     }
 
     if (tcc_compile_string(s, program) == -1) {
         std::cerr << "Couldn't compile the program" << std::endl;
+        return nullptr;
+    }
+
+    return s;
+
+}
+
+int compile_c_string(char* exe_path, char* program, const std::string& outputFileName, bool jit, bool benchmark) {
+
+    BenchmarkResults results{};
+    if(benchmark) {
+        results.benchmark_begin();
+    }
+
+    auto s = compile_c_to_tcc_state(exe_path, program, outputFileName, jit);
+    if(!s) {
         return 1;
     }
 
@@ -86,4 +96,3 @@ int compile_c_string(char* exe_path, char* program, const std::string& outputFil
     return 0;
 
 }
-

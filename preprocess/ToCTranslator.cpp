@@ -80,35 +80,10 @@ bool translate(
             break;
         }
 
-        // symbol resolution
-        processor.sym_res(result.scope, result.is_c_file, file.abs_path);
-        if (resolver.has_errors) {
+        if(!processor.translate_to_c(visitor, result, shrinker, file)) {
             compile_result = false;
             break;
         }
-        resolver.reset_errors();
-
-        // translating the nodes
-        visitor.current_path = file.abs_path;
-        std::unique_ptr<BenchmarkResults> bm_results;
-        if(options->benchmark) {
-            bm_results = std::make_unique<BenchmarkResults>();
-            bm_results->benchmark_begin();
-        }
-        visitor.translate(result.scope.nodes);
-        if(options->benchmark) {
-            bm_results->benchmark_end();
-            std::cout << std::endl << "[2cTranslation] " << file.abs_path << " Completed " << bm_results->representation() << std::endl;
-        }
-        if(options->shrink_nodes) {
-            shrinker.visit(result.scope.nodes);
-        }
-        processor.file_nodes.emplace_back(std::move(result.scope.nodes));
-        if(!visitor.errors.empty()) {
-            visitor.print_errors(file.abs_path);
-            std::cout << std::endl;
-        }
-        visitor.reset_errors();
 
         i++;
     }

@@ -143,6 +143,10 @@ func test_structs() {
         const p = Pair { a : 99, b : 98 }
         return test_pair(p);
     })
+    test("test const function calls returning struct values can be passed as args", () => {
+        const p = give_pair();
+        return test_pair(p);
+    })
     test("test const struct values can be passed as args", () => {
         return test_pair(Pair { a : 99, b : 98 })
     })

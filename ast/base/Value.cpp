@@ -189,6 +189,15 @@ std::string Value::representation() {
     return ostring.str();
 }
 
+hybrid_ptr<BaseType> Value::get_child_type() {
+    auto base_type = get_base_type();
+    if(base_type.get_will_free()) {
+        return hybrid_ptr<BaseType> { base_type->create_child_type().release() };
+    } else {
+        return base_type->get_child_type();
+    }
+}
+
 hybrid_ptr<BaseType> Value::get_pure_type() {
     auto base_type = get_base_type();
     auto pure_type = base_type->get_pure_type();

@@ -280,6 +280,7 @@ const std::unordered_map<std::string, const AnnotationHandler> AnnotationHandler
         { "comptime", { collect_annotation_func, AnnotationKind::CompTime } },
         { "constructor", { collect_annotation_func, AnnotationKind::Constructor } },
         { "destructor", { collect_annotation_func, AnnotationKind::Destructor } },
+        { "no_init", { collect_annotation_func, AnnotationKind::NoInit }},
 };
 
 inline void collect_annotations_in(CSTConverter* converter, AnnotableNode* node) {

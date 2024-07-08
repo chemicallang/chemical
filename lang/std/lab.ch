@@ -1,3 +1,5 @@
+import "./string.ch"
+
 enum ModuleType {
     Directory
 }
@@ -10,6 +12,6 @@ struct Module {
 
 struct BuildContext {
 
-    var dir_module : (name : const string, path : string, dependencies : Module*[]) => Module*;
+    var dir_module : (name : string, path : string, dependencies : Module**) => Module*;
 
 }

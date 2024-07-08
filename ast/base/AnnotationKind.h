@@ -17,6 +17,8 @@ enum class AnnotationKind {
     Api, // functions that are exposed to other modules
     CompTime, // functions that are compile time
 
+    NoInit, // structs that should not be initialized
+
     // constructor or de constructor allow functions to be called automatically
     Constructor,
     Destructor,

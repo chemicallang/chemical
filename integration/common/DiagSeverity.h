@@ -14,3 +14,5 @@ enum class DiagSeverity : uint8_t {
 };
 
 std::string color(DiagSeverity severity);
+
+std::string to_string(DiagSeverity severity);

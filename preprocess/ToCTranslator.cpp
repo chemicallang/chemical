@@ -86,6 +86,7 @@ bool translate(
             compile_result = false;
             break;
         }
+        resolver.reset_errors();
 
         // translating the nodes
         visitor.current_path = file.abs_path;
@@ -94,13 +95,16 @@ bool translate(
             shrinker.visit(result.scope.nodes);
         }
         processor.file_nodes.emplace_back(std::move(result.scope.nodes));
+        if(!visitor.errors.empty()) {
+            visitor.print_errors(file.abs_path);
+            std::cout << std::endl;
+        }
+        visitor.reset_errors();
 
         i++;
     }
 
     processor.end();
-
-    visitor.print_errors();
 
     return compile_result;
 

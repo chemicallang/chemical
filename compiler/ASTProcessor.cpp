@@ -77,8 +77,11 @@ void ASTProcessor::sym_res(Scope& scope, bool is_c_file, const std::string& abs_
         bm_results->benchmark_end();
         std::cout << std::endl << "[SymRes] " << abs_path << " Completed " << bm_results->representation() << std::endl;
     }
+    if(!resolver->errors.empty()) {
+        resolver->print_errors(abs_path);
+        std::cout << std::endl;
+    }
     if (is_c_file) {
-        resolver->print_errors();
         resolver->override_symbols = false;
         resolver->errors = std::move(previous);
         resolver->has_errors = prev_has_errors;
@@ -170,9 +173,5 @@ ASTImportResult ASTProcessor::import_file(const FlatIGFile& file) {
 }
 
 void ASTProcessor::end() {
-    if (!resolver->errors.empty()) {
-        std::cout << std::endl;
-        resolver->print_errors();
-        std::cout << std::endl;
-    }
+
 }

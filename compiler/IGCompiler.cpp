@@ -68,6 +68,7 @@ bool compile(Codegen *gen, const std::string &path, IGCompilerOptions *options) 
             compile_result = false;
             break;
         }
+        resolver.reset_errors();
 
         // compiling the nodes
         gen->current_path = file.abs_path;
@@ -77,16 +78,16 @@ bool compile(Codegen *gen, const std::string &path, IGCompilerOptions *options) 
             shrinker.visit(gen->nodes);
         }
         processor.file_nodes.emplace_back(std::move(gen->nodes));
+        if(!gen->errors.empty()) {
+            gen->print_errors(file.abs_path);
+            std::cout << std::endl;
+        }
+        gen->reset_errors();
 
         i++;
     }
 
     processor.end();
-
-    if (!gen->errors.empty()) {
-        gen->print_errors();
-        std::cout << std::endl;
-    }
 
     gen->compile_end();
 

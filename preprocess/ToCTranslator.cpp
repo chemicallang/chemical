@@ -90,7 +90,16 @@ bool translate(
 
         // translating the nodes
         visitor.current_path = file.abs_path;
+        std::unique_ptr<BenchmarkResults> bm_results;
+        if(options->benchmark) {
+            bm_results = std::make_unique<BenchmarkResults>();
+            bm_results->benchmark_begin();
+        }
         visitor.translate(result.scope.nodes);
+        if(options->benchmark) {
+            bm_results->benchmark_end();
+            std::cout << std::endl << "[2cTranslation] " << file.abs_path << " Completed " << bm_results->representation() << std::endl;
+        }
         if(options->shrink_nodes) {
             shrinker.visit(result.scope.nodes);
         }

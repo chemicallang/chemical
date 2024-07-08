@@ -73,7 +73,16 @@ bool compile(Codegen *gen, const std::string &path, IGCompilerOptions *options) 
         // compiling the nodes
         gen->current_path = file.abs_path;
         gen->nodes = std::move(result.scope.nodes);
+        std::unique_ptr<BenchmarkResults> bm_results;
+        if(options->benchmark) {
+            bm_results = std::make_unique<BenchmarkResults>();
+            bm_results->benchmark_begin();
+        }
         gen->compile_nodes();
+        if(options->benchmark) {
+            bm_results->benchmark_end();
+            std::cout << std::endl << "[Compile] " << file.abs_path << " Completed " << bm_results->representation() << std::endl;
+        }
         if(options->shrink_nodes) {
             shrinker.visit(gen->nodes);
         }

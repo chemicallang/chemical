@@ -122,7 +122,7 @@ bool lab_build(LabBuildContext& context, const std::string& path, LabBuildCompil
     processor.end();
 
     auto str = output_ptr.str();
-    auto state = compile_c_to_tcc_state(options->exe_path.data(), str.data(), "", false, false);
+    auto state = compile_c_to_tcc_state(options->exe_path.data(), str.data(), "", false);
     TCCDeletor auto_del(state); // automatic destroy
 
     auto build = (LabModule*(*)(BuildContextCBI*)) tcc_get_symbol(state, "build");

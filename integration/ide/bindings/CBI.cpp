@@ -336,8 +336,8 @@ void prep_source_provider_cbi(SourceProviderCBI* cbi) {
 }
 
 void prep_build_context_cbi(BuildContextCBI* cbi) {
-    cbi->dir_module = [](BuildContextCBI* self, chem::string* name, chem::string* path, LabModule** dependencies, unsigned int dep_len) -> LabModule* {
-        return self->instance->dir_module(name, path, dependencies, dep_len);
+    cbi->add_with_type = [](LabModuleType type, BuildContextCBI* self, chem::string* name, chem::string* path, LabModule** dependencies, unsigned int dep_len) -> LabModule* {
+        return self->instance->add_with_type(type, name, path, dependencies, dep_len);
     };
 }
 

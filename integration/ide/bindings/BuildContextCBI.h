@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "compiler/lab/LabModuleType.h"
 #include "std/chem_string.h"
 
 struct LabBuildContext;
@@ -10,7 +11,7 @@ struct LabModule;
 
 struct BuildContextCBI {
 
-    LabModule*(*dir_module)(BuildContextCBI* self, chem::string* name, chem::string* path, LabModule** dependencies, unsigned int dep_len);
+    LabModule*(*add_with_type)(LabModuleType type, BuildContextCBI* self, chem::string* name, chem::string* path, LabModule** dependencies, unsigned int dep_len);
 
     LabBuildContext* instance;
 

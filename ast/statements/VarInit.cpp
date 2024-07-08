@@ -144,7 +144,12 @@ hybrid_ptr<BaseType> VarInitStatement::get_value_type() {
     if(type.has_value()) {
         return hybrid_ptr<BaseType> { type->get(), false };
     } else {
-        return value.value()->get_base_type();
+        auto base_type = value.value()->get_base_type();
+        if(base_type.get_will_free()) {
+            type.emplace(std::unique_ptr<BaseType>(base_type.get()));
+            base_type.do_not_free();
+        }
+        return base_type;
     }
 }
 

@@ -487,6 +487,10 @@ set(COMMON_SOURCES
         lexer/utils/AnnotationModifiers.h
         lexer/utils/ValueCreators.h
         lexer/utils/MacroLexers.h
+        integration/ide/bindings/BuildContextCBI.h
+        compiler/lab/LabBuildContext.h
+        compiler/lab/LabModule.h
+        compiler/lab/LabBuildContext.cpp
 )
 
 # Chemical LSP Executable Target

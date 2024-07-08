@@ -18,6 +18,8 @@ class SymbolResolver;
 
 class ShrinkingVisitor;
 
+class ToCAstVisitor;
+
 /**
  * when a file is processed using ASTProcessor, it results in this result
  */
@@ -110,6 +112,24 @@ public:
      * function that performs symbol resolution
      */
     void sym_res(Scope& scope, bool is_c_file, const std::string& abs_path);
+
+    /**
+     * translates given import result to c using visitor
+     * doesn't perform symbol resolution
+     */
+    void translate_to_c_no_sym_res(
+        ToCAstVisitor& visitor,
+        Scope& import_res,
+        ShrinkingVisitor& shrinker,
+        const FlatIGFile& file
+    );
+
+
+    /**
+     * translates given import result (retrieved via import_file) to c using visitor
+     * @return true if success, false if failure (returns early on failure)
+     */
+    bool translate_to_c(ToCAstVisitor& visitor, ASTImportResult& import_res, ShrinkingVisitor& shrinker, const FlatIGFile& file);
 
     /**
      * called when all files are done

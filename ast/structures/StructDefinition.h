@@ -106,6 +106,10 @@ public:
         return StructType::llvm_type(gen);
     }
 
+    llvm::Type *llvm_param_type(Codegen &gen) override {
+        return StructType::llvm_param_type(gen);
+    }
+
     llvm::Type *llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<Value>> &values, unsigned int index) override {
         return StructType::llvm_chain_type(gen, values, index);
     }

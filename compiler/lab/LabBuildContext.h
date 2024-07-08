@@ -23,15 +23,16 @@ public:
     LabModule* root_module = nullptr;
 
     /**
-     * a directory with no build.lab file, is considered a directory module
-     * files inside are sorted so that independent files that don't depend on other files
-     * are compiled first
+     * adds the given module with type
      */
-    LabModule* dir_module(
-        chem::string* name,
-        chem::string* path,
-        LabModule** dependencies,
-        unsigned int dep_len
+    LabModule* add_with_type(
+            LabModuleType type,
+            chem::string* name,
+            chem::string* path,
+            LabModule** dependencies,
+            unsigned int dep_len
     );
+
+    static void add_dependencies(LabModule* mod, LabModule** dependencies, unsigned int dep_len);
 
 };

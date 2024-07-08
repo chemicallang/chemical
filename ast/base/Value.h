@@ -227,6 +227,13 @@ std::cerr << "child called on base value";
     }
 
     /**
+     * this method should be preferred over get_base_type()->get_child_type()
+     * because parent type returned type will die when get_base_type goes out of scope making
+     * child_type pointer invalid
+     */
+    hybrid_ptr<BaseType> get_child_type();
+
+    /**
      * should build chain type returns true if a single identifier is linked with a union
      * meaning if you try to access a child of a union, this method would return true
      * because unions mean different types

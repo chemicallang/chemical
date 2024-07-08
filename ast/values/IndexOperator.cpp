@@ -83,7 +83,7 @@ std::unique_ptr<BaseType> IndexOperator::create_type() {
 }
 
 hybrid_ptr<BaseType> IndexOperator::get_base_type() {
-    return parent_val->get_base_type()->get_child_type();
+    return parent_val->get_child_type();
 }
 
 void IndexOperator::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {

@@ -9,17 +9,8 @@
 #include "ast/types/ReferencedType.h"
 #include "lexer/model/CompilerBinderTCC.h"
 
-Lexer::Lexer(SourceProvider &provider, std::string path) : provider(provider), path(std::move(path)), cbi() {
+Lexer::Lexer(SourceProvider &provider, std::string path, CompilerBinder* binder, LexerCBI* cbi) : provider(provider), path(std::move(path)), cbi(cbi), binder(binder) {
 
-}
-
-void Lexer::init_complete(const std::string& exe_path) {
-    init_cbi(exe_path);
-}
-
-void Lexer::init_cbi(const std::string& exe_path) {
-    binder = std::make_unique<CompilerBinderTCC>(this, exe_path);
-    init_lexer_cbi(&cbi, this, &provider_cbi);
 }
 
 void Lexer::lexTopLevelMultipleImportStatements() {

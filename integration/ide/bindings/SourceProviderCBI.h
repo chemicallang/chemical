@@ -49,6 +49,12 @@ struct SourceProviderCBI {
 
 /**
  * this function should be called on cbi, to make it a valid binding
- * now cbi is ready to be invoked, to use it, pass it to a user
+ * must be called at least once
  */
-void init_source_provider_cbi(SourceProviderCBI* cbi, SourceProvider* provider);
+void prep_source_provider_cbi(SourceProviderCBI* cbi);
+
+/**
+ * this function is called to connect given cbi with an instance
+ * so calls to the cbi are calls to the given instance
+ */
+void bind_source_provider_cbi(SourceProviderCBI* cbi, SourceProvider* provider);

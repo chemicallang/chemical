@@ -23,7 +23,7 @@ void VarInitStatement::code_gen(Codegen &gen) {
         }
     } else {
         if (value.has_value()) {
-            if(is_const) {
+            if(is_const && !value.value()->as_struct() && !value.value()->as_array_value()) {
                 llvm_ptr = value.value()->llvm_value(gen);
                 return;
             }

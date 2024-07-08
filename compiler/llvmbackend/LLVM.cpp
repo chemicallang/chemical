@@ -109,6 +109,10 @@ llvm::Type *ReferencedType::llvm_type(Codegen &gen) {
     return linked->llvm_type(gen);
 }
 
+llvm::Type *ReferencedType::llvm_param_type(Codegen &gen) {
+    return linked->llvm_param_type(gen);
+}
+
 llvm::Type *ReferencedType::llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<Value>> &values, unsigned int index) {
     return linked->llvm_chain_type(gen, values, index);
 }
@@ -133,6 +137,10 @@ llvm::Type *StructType::with_elements_type(Codegen &gen, const std::vector<llvm:
 llvm::Type *StructType::llvm_type(Codegen &gen) {
     auto container = variables_container();
     return with_elements_type(gen, container->elements_type(gen), is_anonymous());
+}
+
+llvm::Type *StructType::llvm_param_type(Codegen &gen) {
+    return gen.builder->getPtrTy();
 }
 
 llvm::Type *StructType::llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<Value>> &values, unsigned int index) {

@@ -79,6 +79,8 @@ public:
 
     llvm::Value *llvm_value(Codegen &gen) override;
 
+    llvm::Value *llvm_arg_value(Codegen &gen, FunctionCall *call, unsigned int index) override;
+
     llvm::Value *llvm_ret_value(Codegen &gen, ReturnStatement *returnStmt) override;
 
     llvm::Type *llvm_elem_type(Codegen &gen) override;

@@ -313,6 +313,13 @@ public:
     /**
      * return a llvm func type, so that this ASTNode can be called
      */
+    virtual llvm::Type* llvm_param_type(Codegen &gen) {
+        return llvm_type(gen);
+    }
+
+    /**
+     * return a llvm func type, so that this ASTNode can be called
+     */
     virtual llvm::FunctionType* llvm_func_type(Codegen &gen) {
         return (llvm::FunctionType*) llvm_type(gen);
     }

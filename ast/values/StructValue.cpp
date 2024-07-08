@@ -81,6 +81,10 @@ llvm::Value *StructValue::llvm_value(Codegen &gen) {
     throw std::runtime_error("cannot allocate a struct without an identifier");
 }
 
+llvm::Value *StructValue::llvm_arg_value(Codegen &gen, FunctionCall *call, unsigned int index) {
+    return llvm_allocate(gen, "");
+}
+
 llvm::Value *StructValue::llvm_ret_value(Codegen &gen, ReturnStatement *returnStmt) {
     // TODO make sure this argument corresponds to the struct
     auto structPassed = gen.current_function->getArg(0);

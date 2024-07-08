@@ -69,6 +69,14 @@ struct PointerStr {
     var value : DeeplyNested3*
 }
 
+func give_pair() : Pair {
+    return Pair { a : 99, b : 98 }
+}
+
+func test_pair(p : Pair) : bool {
+    return p.a == 99 && p.b == 98
+}
+
 func test_structs() {
     test("can return a newly created struct", () => {
         var pair = create_pair();
@@ -130,5 +138,15 @@ func test_structs() {
     test("test struct constructor can be called", () => {
         var p = Pair(4)
         return p.a == 2 && p.b == 2;
+    })
+    test("test direct struct values can be passed as args", () => {
+        const p = Pair { a : 99, b : 98 }
+        return test_pair(p);
+    })
+    test("test const struct values can be passed as args", () => {
+        return test_pair(Pair { a : 99, b : 98 })
+    })
+    test("test that function calls that return struct, can be passed as args", () => {
+        return test_pair(give_pair())
     })
 }

@@ -60,4 +60,14 @@ public:
      */
     void print_errors();
 
+    /**
+     * just prints the errors to std out
+     */
+    void print_errors(const std::string& path);
+
+    /**
+     * resets errors
+     */
+    void reset_errors();
+
 };

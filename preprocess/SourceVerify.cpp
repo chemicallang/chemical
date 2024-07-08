@@ -63,6 +63,7 @@ bool verify(const std::string &path, SourceVerifierOptions *options) {
             compile_result = false;
             break;
         }
+        resolver.reset_errors();
 
         // storing nodes
         if(options->shrink_nodes) {

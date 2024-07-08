@@ -27,6 +27,21 @@ std::string color(DiagSeverity severity) {
         case DiagSeverity::Hint:
             return "\x1b[96m";
         default:
-            return "no color for, unknown diag severity";
+            return "[UnknownDiagSeverity]";
+    }
+}
+
+std::string to_string(DiagSeverity severity) {
+    switch (severity) {
+        case DiagSeverity::Error:
+            return "ERROR";
+        case DiagSeverity::Warning:
+            return "WARN";
+        case DiagSeverity::Information:
+            return "INFO";
+        case DiagSeverity::Hint:
+            return "HINT";
+        default:
+            return "[UnknownDiagSeverity]";
     }
 }

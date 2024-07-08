@@ -13,12 +13,7 @@ ASTDiagnoser::ASTDiagnoser(const std::string& path) : current_path(path) {
 }
 
 void ASTDiagnoser::info(const std::string &err, ASTNode *node) {
-    std::string errStr = "[" + TAG() + "]\n";
-    errStr += "---- message : " + err + "\n";
-    errStr += "---- file path : " + current_path;
-    if(node) {
-        errStr += "---- node representation : " + node->representation();
-    }
+    std::string errStr = "[INFO] " + err;
 #ifdef DEBUG
 //    std::cerr << errStr << std::endl;
 #endif
@@ -27,13 +22,7 @@ void ASTDiagnoser::info(const std::string &err, ASTNode *node) {
 
 void ASTDiagnoser::error(const std::string &err, ASTNode *node) {
     has_errors = true;
-    auto tag = TAG();
-    std::string errStr = "[" + tag + "]\n";
-    errStr += "---- message : " + err + "\n";
-    errStr += "---- file path : " + current_path;
-    if(node) {
-        errStr += "\n---- node representation : " + node->representation();
-    }
+    std::string errStr = "[ERROR] " + err;
 #ifdef DEBUG
 //    std::cerr << errStr << std::endl;
 #endif
@@ -45,4 +34,16 @@ void ASTDiagnoser::print_errors() {
     for (const auto &err: errors) {
         std::cout << color(err.severity) << err.message << ANSI_COLOR_RESET << std::endl;
     }
+}
+
+void ASTDiagnoser::print_errors(const std::string& path) {
+    std::cout << "[" << TAG() << "] " << std::to_string(errors.size()) << " diagnostics in " << path << std::endl;
+    for (const auto &err: errors) {
+        std::cout << color(err.severity) << err.message << ANSI_COLOR_RESET << std::endl;
+    }
+}
+
+void ASTDiagnoser::reset_errors() {
+    has_errors = false;
+    errors.clear();
 }

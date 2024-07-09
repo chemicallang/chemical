@@ -4,6 +4,7 @@
 
 #include "std/chem_string.h"
 #include "LabModule.h"
+#include "LabExecutable.h"
 #include "integration/ide/model/FlatIGFile.h"
 #include <vector>
 
@@ -17,15 +18,25 @@
 class LabBuildContext {
 public:
 
+    // the build directory that will be used for file generation
+    std::string build_dir;
     // all the modules created during the build process
     std::vector<LabModule> modules;
-    // the pointer to root module, that must be set before any build begins
-    LabModule* root_module = nullptr;
+    // all the executables created during the build process
+    std::vector<LabExecutable> executables;
+
+    /**
+     * constructor
+     */
+    explicit LabBuildContext(
+        std::string lab_file,
+        std::string build_dir = ""
+    );
 
     /**
      * add given dependencies to the given module
      */
-    static void add_dependencies(LabModule* mod, LabModule** dependencies, unsigned int dep_len);
+    static void add_dependencies(std::vector<LabModule*>& into, LabModule** dependencies, unsigned int dep_len);
 
     /**
      * it creates a flat vector containing pointers to lab modules, sorted
@@ -48,6 +59,15 @@ public:
             LabModuleType type,
             chem::string* name,
             chem::string* path,
+            LabModule** dependencies,
+            unsigned int dep_len
+    );
+
+    /**
+     * adds an executable entry that'll be built
+     */
+    LabExecutable* build_exe(
+            chem::string* name,
             LabModule** dependencies,
             unsigned int dep_len
     );

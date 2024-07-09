@@ -44,9 +44,6 @@ bool translate(
             &resolver
     );
 
-    // prepare
-    processor.prepare(path);
-
     // get flat imports
     auto flat_imports = processor.flat_imports(path);
 

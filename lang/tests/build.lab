@@ -1,6 +1,6 @@
 import "../std/lab.ch"
 
-func build(ctx : BuildContext*) : Module* {
+func build(ctx : BuildContext*) {
 
     const curr_path = #file:path{};
     const curr_path_str = string(curr_path);
@@ -9,6 +9,10 @@ func build(ctx : BuildContext*) : Module* {
     const path = parent_dir_path.copy();
     path.append_char_ptr("tests.ch");
 
-    return ctx.add_with_type(ModuleType.File, &name, &path, null, 0);
+    const module = ctx.add_with_type(ModuleType.File, &name, &path, null, 0);
+
+    var dependencies = { module }
+
+    ctx.build_exe(&name, &dependencies[0], 1);
 
 }

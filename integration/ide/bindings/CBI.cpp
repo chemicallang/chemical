@@ -340,6 +340,9 @@ void prep_build_context_cbi(BuildContextCBI* cbi) {
     cbi->add_with_type = [](BuildContextCBI* self, LabModuleType type, chem::string* name, chem::string* path, LabModule** dependencies, unsigned int dep_len) -> LabModule* {
         return self->instance->add_with_type(type, name, path, dependencies, dep_len);
     };
+    cbi->build_exe = [](BuildContextCBI* self, chem::string* name, LabModule** dependencies, unsigned int dep_len) -> LabExecutable* {
+        return self->instance->build_exe(name, dependencies, dep_len);
+    };
 }
 
 void bind_build_context_cbi(BuildContextCBI* cbi, LabBuildContext* context) {

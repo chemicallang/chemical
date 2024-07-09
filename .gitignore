@@ -5,3 +5,4 @@ out
 debug
 lang/sample/compiled
 lang/compiled
+lang/tests/build

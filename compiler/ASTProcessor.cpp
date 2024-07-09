@@ -41,10 +41,6 @@ ASTProcessor::ASTProcessor(
     }
 }
 
-void ASTProcessor::prepare(const std::string& path) {
-
-}
-
 std::vector<FlatIGFile> ASTProcessor::flat_imports(const std::string& path) {
 
     IGResult result;
@@ -85,7 +81,7 @@ LabModule* ASTProcessor::get_root_module(LabBuildContext& context, const std::st
     if(path.ends_with(".lab")) {
         LabBuildCompilerOptions lbc_opts(options->exe_path, options->target_triple, options->is64Bit);
         lab_build(context, path, &lbc_opts);
-        return context.root_module;
+        return nullptr; // TODO this method
     } else if(path.ends_with(".ch")) {
         chem::string name("ChemMod");
         chem::string path_str(path.data());

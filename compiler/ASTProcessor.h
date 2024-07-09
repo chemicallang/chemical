@@ -51,7 +51,7 @@ public:
      * The imported map, when a file is imported, it set's it's absolute path true in this map
      * to avoid re-importing files
      */
-    std::unordered_map<std::string, bool> imported;
+//    std::unordered_map<std::string, bool> imported;
 
     /**
      * compiler binder that will be used through out processing
@@ -88,11 +88,6 @@ public:
             ASTProcessorOptions* options,
             SymbolResolver* resolver
     );
-
-    /**
-     * prepared the processing of AST
-     */
-    void prepare(const std::string& path);
 
     /**
      * get flat imports
@@ -137,7 +132,12 @@ public:
      * translates given import result (retrieved via import_file) to c using visitor
      * @return true if success, false if failure (returns early on failure)
      */
-    bool translate_to_c(ToCAstVisitor& visitor, ASTImportResult& import_res, ShrinkingVisitor& shrinker, const FlatIGFile& file);
+    bool translate_to_c(
+        ToCAstVisitor& visitor,
+        ASTImportResult& import_res,
+        ShrinkingVisitor& shrinker,
+        const FlatIGFile& file
+    );
 
     /**
      * called when all files are done

@@ -833,6 +833,10 @@ bool CDestructionVisitor::destruct_arr(const std::string& self_name, ASTNode* in
 }
 
 void CDestructionVisitor::visit(VarInitStatement *init) {
+    if(init->value_type() == ValueType::Pointer) {
+        // do not destruct pointers
+        return;
+    }
     if(init->value.has_value()) {
         auto chain = init->value.value()->as_access_chain();
         if(chain && chain->values.back()->as_func_call()) {

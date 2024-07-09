@@ -44,6 +44,10 @@ std::string resolve_non_canon_parent_path(const std::string& root_path, const st
     return (((std::filesystem::path) root_path).parent_path() / ((std::filesystem::path) file_path)).string();
 }
 
+std::string resolve_sibling(const std::string& rel_to, const std::string& sibling) {
+    return (((std::filesystem::path) rel_to).parent_path() / ((std::filesystem::path) sibling)).string();
+}
+
 std::string resolve_rel_parent_path_str(const std::string& root_path, const std::string& file_path) {
     try {
         return std::filesystem::canonical(((std::filesystem::path) root_path).parent_path() / ((std::filesystem::path) file_path)).string();

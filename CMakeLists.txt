@@ -493,6 +493,8 @@ set(COMMON_SOURCES
         compiler/lab/LabBuildContext.cpp
         compiler/lab/LabModuleType.h
         compiler/lab/LabBuildCompiler.cpp
+        compiler/lab/LabExecutable.h
+        compiler/LinkerUtils.h
 )
 
 # Chemical LSP Executable Target
@@ -536,6 +538,8 @@ set(COMPILER_SOURCES
         compiler/IGCompiler.h
         compiler/IGCompiler.cpp
         compiler/llvmbackend/LLVM.cpp
+        compiler/ASTCompiler.cpp
+        compiler/ASTCompiler.h
 )
 
 # add Compiler executable

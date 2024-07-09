@@ -702,7 +702,7 @@ int lld_main(int argc, char **argv, const llvm::ToolContext &) {
 
 }
 
-int Codegen::invoke_lld(const std::vector<std::string> &command_args) {
+int invoke_lld(const std::vector<std::string> &command_args) {
     // Convert the vector of strings to an ArrayRef<const char *>
     std::vector<const char *> args_cstr;
     args_cstr.reserve(command_args.size() + 1);
@@ -723,6 +723,70 @@ int Codegen::invoke_lld(const std::vector<std::string> &command_args) {
     return lld_main(args_cstr.size(), const_cast<char**>(args_cstr.data()), context);
 }
 
+int Codegen::invoke_lld(const std::vector<std::string> &command_args) {
+    return ::invoke_lld(command_args);
+}
+
 #endif
 
 #endif
+
+int link_objects(
+    std::vector<std::string>& linkables,
+    const std::string& bin_out,
+    const std::string& comp_exe_path, // our compiler's executable path, needed for self invocation
+    const std::vector<std::string>& flags, // passed to clang or lld,
+    bool use_lld = false,
+    bool libc = true
+) {
+    if(use_lld) {
+
+        // creating lld command
+
+        // set output
+#if defined(_WIN32)
+        linkables.emplace_back("/OUT:"+bin_out);
+#elif defined(__APPLE__)
+        linkables.emplace_back("-o");
+        linkables.emplace_back("./"+bin_out.value());
+#elif defined(__linux__)
+        linkables.emplace_back("-o");
+        linkables.emplace_back("./"+bin_out.value());
+#endif
+
+        // link with standard libc (unless user opts out)
+        if(!libc) {
+#if defined(_WIN32)
+            linkables.emplace_back("-defaultlib:libcmt");
+#elif defined(__APPLE__)
+            // TODO test linking with libc on apple
+            linker.emplace_back("-lc");
+#elif defined(__linux__)
+            // TODO test linking with libc on linux
+            linker.emplace_back("-lc");
+#endif
+        }
+
+        // add user's linker flags
+        for(const auto& flag : flags) {
+            linkables.emplace_back(flag);
+        }
+
+        // invoke lld to create executable
+        return invoke_lld(linkables);
+
+    } else {
+        // use clang by default
+        std::vector<std::string> clang_flags{comp_exe_path};
+        for(const auto& cland_fl : flags) {
+            clang_flags.emplace_back(cland_fl);
+        }
+        for(auto& linkable : linkables) {
+            clang_flags.emplace_back(linkable);
+        }
+        clang_flags.emplace_back("-o");
+        clang_flags.emplace_back(bin_out);
+        return chemical_clang_main2(clang_flags);
+    }
+
+}

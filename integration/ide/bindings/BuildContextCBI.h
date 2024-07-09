@@ -9,9 +9,13 @@ struct LabBuildContext;
 
 struct LabModule;
 
+struct LabExecutable;
+
 struct BuildContextCBI {
 
     LabModule*(*add_with_type)(BuildContextCBI* self, LabModuleType type, chem::string* name, chem::string* path, LabModule** dependencies, unsigned int dep_len);
+
+    LabExecutable*(*build_exe)(BuildContextCBI* self, chem::string* name, LabModule** dependencies, unsigned int dep_len);
 
     LabBuildContext* instance;
 

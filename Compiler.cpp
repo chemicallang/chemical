@@ -9,6 +9,7 @@
 #endif
 #include "lexer/Lexi.h"
 #include "utils/Utils.h"
+#include "compiler/LinkerUtils.h"
 #include "ast/base/GlobalInterpretScope.h"
 #include "compiler/Codegen.h"
 #include "compiler/SymbolResolver.h"
@@ -27,6 +28,7 @@
 #include "compiler/ASTProcessor.h"
 #include "integration/libtcc/LibTccInteg.h"
 #include "utils/Version.h"
+#include "compiler/lab/LabBuildCompiler.h"
 
 #ifdef COMPILER_BUILD
 
@@ -254,20 +256,6 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
-    // compilation
-    Codegen gen({}, target.value(), argv[0], is64Bit, "");
-    IGCompilerOptions compiler_opts(argv[0], target.value(), is64Bit);
-    prepare_options(&compiler_opts);
-    if(!compile(&gen, srcFilePath, &compiler_opts)) {
-        return 1;
-    }
-
-    // check if it requires printing
-    if (print_ir) {
-        // print to console
-        gen.print_to_console();
-    }
-
     OutputMode mode = OutputMode::Debug;
 
     // configuring output mode from command line
@@ -297,6 +285,34 @@ int main(int argc, char *argv[]) {
         mode = OutputMode::DebugQuick;
     }
 #endif
+
+    // build a .lab file
+    if(srcFilePath.ends_with(".lab")) {
+        LabBuildContext context(srcFilePath);
+        LabBuildCompilerOptions compiler_opts(argv[0], target.value(), is64Bit);
+        compiler_opts.def_mode = mode;
+        if(options.option("lto").has_value()) {
+            compiler_opts.def_lto_on = true;
+        }
+        if(options.option("assertions").has_value()) {
+            compiler_opts.def_assertions_on = true;
+        }
+        return lab_build(context, srcFilePath, &compiler_opts);
+    }
+
+    // compilation
+    Codegen gen({}, target.value(), argv[0], is64Bit, "");
+    IGCompilerOptions compiler_opts(argv[0], target.value(), is64Bit);
+    prepare_options(&compiler_opts);
+    if(!compile(&gen, srcFilePath, &compiler_opts)) {
+        return 1;
+    }
+
+    // check if it requires printing
+    if (print_ir) {
+        // print to console
+        gen.print_to_console();
+    }
 
     CodegenEmitterOptions emitter_options;
     configure_emitter_opts(mode, &emitter_options);

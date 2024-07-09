@@ -36,7 +36,7 @@ class MembersContainer;
  * the function then returns a new value by casting the given value to the given type
  * the value is created a new on the heap
  */
-typedef Value*(*CasterFn)(Codegen* gen, Value* val, BaseType* type);
+//typedef Value*(*CasterFn)(Codegen* gen, Value* val, BaseType* type);
 
 class Codegen : public ASTDiagnoser {
 public:
@@ -56,7 +56,7 @@ public:
      * files that have been imported exist in this unordered map
      * to avoid importing files multiple times, there absolute paths are looked up in this map
      */
-    std::unordered_map<std::string, bool> imported;
+//    std::unordered_map<std::string, bool> imported;
 
     /**
      * This is a map between interface names and their functions map
@@ -70,7 +70,7 @@ public:
      * it should be known that value created by caster is on the heap
      * the caller has the ownership and must manage memory
      */
-    std::unordered_map<int, CasterFn> casters;
+//    std::unordered_map<int, CasterFn> casters;
 
     /**
      * contains references to nodes that must be deleted at the end of scope
@@ -116,24 +116,25 @@ public:
      * provides a caster_index, which can be used to store or retrieve a caster
      * from casters map
      */
-    static constexpr int caster_index(ValueType type, BaseTypeKind kind) {
-        return ((uint8_t) type << 10) | (uint8_t) kind;
-    }
+//    static constexpr int caster_index(ValueType type, BaseTypeKind kind) {
+//        return ((uint8_t) type << 10) | (uint8_t) kind;
+//    }
 
     /**
      * before compilation begins (calling compile_nodes for the first time), this should be called
-     * this must be called once, even for multiple files
+     * this must be called once for a single module
      */
     void compile_begin();
 
     /**
-     * everytime nodes are switched this method must be called
+     * everytime nodes are switched this method must be called, typically
+     * when compiling different modules, nodes are changed
      */
     void compile_nodes();
 
     /**
      * after compilation has finished, of all files, this method is called
-     * this must be called once, even for multiple files
+     * this must be called once, for a single module
      */
     void compile_end();
 

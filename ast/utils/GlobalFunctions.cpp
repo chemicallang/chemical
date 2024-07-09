@@ -66,7 +66,7 @@ namespace InterpretVector {
             node,
             std::nullopt
         ) {
-            params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(node->get_value_type()), 0, std::nullopt, this));
+            params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>("Vector", node)), 0, std::nullopt, this));
         }
         Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val) override {
             return new IntValue(static_cast<InterpretVectorVal*>(parent_val)->values.size());
@@ -83,7 +83,7 @@ namespace InterpretVector {
                 node,
                 std::nullopt
         ) {
-            params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(node->get_value_type()), 0, std::nullopt, this));
+            params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>("Vector", node)), 0, std::nullopt, this));
         }
         Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val) override {
             return static_cast<InterpretVectorVal*>(parent_val)->values[call->values[0]->evaluated_value(*call_scope)->as_int()]->scope_value(*call_scope);
@@ -99,7 +99,7 @@ namespace InterpretVector {
                 node,
                 std::nullopt
         ) {
-            params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(node->get_value_type()), 0, std::nullopt, this));
+            params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>("Vector", node)), 0, std::nullopt, this));
         }
         Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val) override {
             static_cast<InterpretVectorVal*>(parent_val)->values.emplace_back(call->values[0]->scope_value(*call_scope));
@@ -116,7 +116,7 @@ namespace InterpretVector {
                 node,
                 std::nullopt
         ) {
-            params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(node->get_value_type()), 0, std::nullopt, this));
+            params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>("Vector", node)), 0, std::nullopt, this));
         }
         Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val) override {
             auto& ref = static_cast<InterpretVectorVal*>(parent_val)->values;

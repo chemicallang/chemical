@@ -8,6 +8,7 @@
 #include "cst/base/CSTConverter.h"
 #include "compiler/SymbolResolver.h"
 #include "compiler/ASTProcessor.h"
+#include "ast/structures/Namespace.h"
 #include "preprocess/ShrinkingVisitor.h"
 #include "preprocess/2cASTVisitor.h"
 #include "compiler/lab/LabBuildContext.h"
@@ -25,7 +26,7 @@ TranslateC(const char *exe_path, const char *abs_path, const char *resources_pat
 bool lab_build(LabBuildContext& context, const std::string& path, LabBuildCompilerOptions* options) {
 
     // creating symbol resolver
-    SymbolResolver resolver(path, options->is64Bit);
+    SymbolResolver resolver(options->is64Bit);
 
     // shrinking visitor will shrink everything
     ShrinkingVisitor shrinker;
@@ -40,7 +41,7 @@ bool lab_build(LabBuildContext& context, const std::string& path, LabBuildCompil
     processor.prepare(path);
 
     // get flat imports
-    auto flat_imports = processor.flat_imports();
+    auto flat_imports = processor.flat_imports(path);
 
     bool compile_result = true;
 
@@ -99,18 +100,25 @@ bool lab_build(LabBuildContext& context, const std::string& path, LabBuildCompil
         bool is_last = i == flat_imports.size() - 1;
         if(is_last) {
             auto found = finder(resolver, file.abs_path);
-            if(found) {
-                found->annotations.emplace_back(AnnotationKind::Api);
-            } else {
-                return false;
+            if(!found) {
+                compile_result = false;
+                break;
             }
+            // expose the last file's build method, so it's callable
+            found->annotations.emplace_back(AnnotationKind::Api);
         } else if(file.abs_path.ends_with(".lab")) {
-            auto found = finder(resolver, file.abs_path, false);
-            if(found) {
-                // empty function names and anonymous means, 2c translator will replace the name, as if it's a lambda
-                // this allows only a single build method, in root .lab file, all other build methods are c static and mangled function names
-                found->name = "";
-                found->annotations.emplace_back(AnnotationKind::Anonymous);
+            if(file.as_identifier.empty()) {
+                std::cerr << "[BuildLab] .lab file cannot be imported without an 'as' identifier in import statement, error importing " << file.abs_path << std::endl;
+                compile_result = false;
+                break;
+            } else {
+                // put every imported file in it's own namespace so build methods don't clash
+                auto ns = new Namespace(file.as_identifier, nullptr);
+                for(auto& node : result.scope.nodes) {
+                    node->set_parent(ns);
+                }
+                ns->nodes = std::move(result.scope.nodes);
+                result.scope.nodes.emplace_back(ns);
             }
         }
 
@@ -125,13 +133,16 @@ bool lab_build(LabBuildContext& context, const std::string& path, LabBuildCompil
     auto state = compile_c_to_tcc_state(options->exe_path.data(), str.data(), "", false);
     TCCDeletor auto_del(state); // automatic destroy
 
+    // relocate the code before calling
+    tcc_relocate(state);
+
     auto build = (LabModule*(*)(BuildContextCBI*)) tcc_get_symbol(state, "build");
     if(!build) {
         std::cerr << "[LabBuild] Couldn't get build function symbol in translated c :\n" << str << std::endl;
-        return 1;
+        return false;
     }
 
-    BuildContextCBI cbi;
+    BuildContextCBI cbi{};
 
     prep_build_context_cbi(&cbi);
     bind_build_context_cbi(&cbi, &context);

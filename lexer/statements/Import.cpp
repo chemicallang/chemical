@@ -32,6 +32,11 @@ bool Lexer::lexImportStatement() {
     unsigned int start = tokens.size() - 1;
     lexWhitespaceToken();
     if (lexStringToken()) {
+        if(lexWhitespaceToken() && lexKeywordToken("as")) {
+            if(!lexIdentifierToken()) {
+                error("expected identifier after 'as' in import statement");
+            }
+        }
         compound_from<ImportCST>(start);
         return true;
     } else {

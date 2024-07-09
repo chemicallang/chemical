@@ -6,6 +6,7 @@
 #include "BuildContextCBI.h"
 #include "stream/SourceProvider.h"
 #include "compiler/lab/LabBuildContext.h"
+#include "utils/PathUtils.h"
 
 chem::string* init_chem_string(chem::string* str) {
     str->storage.constant.data = nullptr;
@@ -336,7 +337,7 @@ void prep_source_provider_cbi(SourceProviderCBI* cbi) {
 }
 
 void prep_build_context_cbi(BuildContextCBI* cbi) {
-    cbi->add_with_type = [](LabModuleType type, BuildContextCBI* self, chem::string* name, chem::string* path, LabModule** dependencies, unsigned int dep_len) -> LabModule* {
+    cbi->add_with_type = [](BuildContextCBI* self, LabModuleType type, chem::string* name, chem::string* path, LabModule** dependencies, unsigned int dep_len) -> LabModule* {
         return self->instance->add_with_type(type, name, path, dependencies, dep_len);
     };
 }

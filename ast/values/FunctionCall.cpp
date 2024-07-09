@@ -359,8 +359,9 @@ void FunctionCall::find_link_in_parent(Value *parent, ASTDiagnoser* diagnoser) {
 }
 
 void FunctionCall::find_link_in_parent(Value *parent, SymbolResolver &resolver) {
-    find_link_in_parent(parent, &resolver);
+    parent_val = parent;
     link_values(resolver);
+    find_link_in_parent(parent, &resolver);
 }
 
 FunctionCall *FunctionCall::as_func_call() {

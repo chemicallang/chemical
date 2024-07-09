@@ -14,7 +14,7 @@ void eval_expression_macro_lexer_fn(Lexer* lexer) {
     lexer->lexExpressionTokens(false, false);
 }
 
-const std::unordered_map<std::string, MacroLexerFn> MacroLexers = {
+const std::unordered_map<std::string, MacroLexerFn> MacroHandlers = {
         { "eval", eval_expression_macro_lexer_fn },
         { "sizeof", [](Lexer *lexer) -> void {
             if(!lexer->lexTypeTokens()) {
@@ -23,6 +23,7 @@ const std::unordered_map<std::string, MacroLexerFn> MacroLexers = {
         }},
         { "target", ignore_macro_lexer_fn },
         { "target:is64bit", ignore_macro_lexer_fn },
+        { "file:path", ignore_macro_lexer_fn },
         { "tr:debug:chemical", nested_level_macro_lexer_fn },
         { "tr:debug:chemical:value", eval_expression_macro_lexer_fn },
         { "tr:debug:c", nested_level_macro_lexer_fn },

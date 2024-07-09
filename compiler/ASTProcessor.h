@@ -9,6 +9,8 @@
 #include "preprocess/ImportGraphMaker.h"
 #include "ASTDiag.h"
 #include "lexer/model/CompilerBinder.h"
+#include "compiler/lab/LabModule.h"
+#include "compiler/lab/LabBuildContext.h"
 
 class Lexer;
 
@@ -39,11 +41,6 @@ public:
      * processor options
      */
     ASTProcessorOptions* options;
-
-    /**
-     * the import graph result that is calculated before everything
-     */
-    IGResult result;
 
     /**
      * The nodes that will be retained during compilation
@@ -100,7 +97,18 @@ public:
     /**
      * get flat imports
      */
-    std::vector<FlatIGFile> flat_imports();
+    std::vector<FlatIGFile> flat_imports(const std::string& path);
+
+    /**
+     * get module for the given file, the returned module depends upon the file extension
+     */
+    LabModule* get_root_module(LabBuildContext& context, const std::string& path);
+
+    /**
+     * will determine the source files required by this module, in order
+     * they should be compiled
+     */
+    std::vector<FlatIGFile> determine_mod_imports(LabModule* module);
 
     /**
      * lex, parse and resolve symbols in file and return Scope containing nodes

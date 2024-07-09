@@ -11,6 +11,9 @@
 #include "utils/Utils.h"
 #include "lexer/model/CompilerBinderTCC.h"
 #include "preprocess/ShrinkingVisitor.h"
+#include "utils/PathUtils.h"
+#include "compiler/lab/LabBuildCompiler.h"
+#include "std/chem_string.h"
 
 #ifdef COMPILER_BUILD
 
@@ -40,6 +43,12 @@ ASTProcessor::ASTProcessor(
 
 void ASTProcessor::prepare(const std::string& path) {
 
+}
+
+std::vector<FlatIGFile> ASTProcessor::flat_imports(const std::string& path) {
+
+    IGResult result;
+
     // preparing the import graph
     if (options->benchmark) {
         BenchmarkResults bm{};
@@ -59,9 +68,6 @@ void ASTProcessor::prepare(const std::string& path) {
         std::cout << result.root.representation() << std::endl;
     }
 
-}
-
-std::vector<FlatIGFile> ASTProcessor::flat_imports() {
     auto flat_imports = result.root.flatten_by_dedupe();
     if(options->print_ig) {
         std::cout << "[IGGraph] Flattened" << std::endl;
@@ -70,7 +76,32 @@ std::vector<FlatIGFile> ASTProcessor::flat_imports() {
         }
         std::cout << std::endl;
     }
+
     return flat_imports;
+
+}
+
+LabModule* ASTProcessor::get_root_module(LabBuildContext& context, const std::string& path) {
+    if(path.ends_with(".lab")) {
+        LabBuildCompilerOptions lbc_opts(options->exe_path, options->target_triple, options->is64Bit);
+        lab_build(context, path, &lbc_opts);
+        return context.root_module;
+    } else if(path.ends_with(".ch")) {
+        chem::string name("ChemMod");
+        chem::string path_str(path.data());
+        return context.add_with_type(LabModuleType::RootFile, &name, &path_str, nullptr, 0);
+    } else {
+        return nullptr;
+    }
+}
+
+std::vector<FlatIGFile> ASTProcessor::determine_mod_imports(LabModule* module) {
+    switch(module->type) {
+        case LabModuleType::RootFile:
+            return flat_imports(module->path.to_std_string());
+        case LabModuleType::Directory:
+            throw std::runtime_error("NOT YET IMPLEMENTED DIRECTORY THING");
+    }
 }
 
 void ASTProcessor::sym_res(Scope& scope, bool is_c_file, const std::string& abs_path) {
@@ -79,7 +110,6 @@ void ASTProcessor::sym_res(Scope& scope, bool is_c_file, const std::string& abs_
         resolver->override_symbols = true;
         previous = std::move(resolver->errors);
     }
-    resolver->current_path = abs_path;
     std::unique_ptr<BenchmarkResults> bm_results;
     if(options->benchmark) {
         bm_results = std::make_unique<BenchmarkResults>();
@@ -163,7 +193,7 @@ ASTImportResult ASTProcessor::import_file(const FlatIGFile& file) {
             bm_results->benchmark_begin();
         }
 
-        CSTConverter converter(options->is64Bit, options->target_triple);
+        CSTConverter converter(file.abs_path, options->is64Bit, options->target_triple);
         converter.no_imports = true;
         converter.isCBIEnabled = options->isCBIEnabled;
         converter.convert(lexer.tokens);
@@ -196,7 +226,6 @@ void ASTProcessor::translate_to_c_no_sym_res(
         const FlatIGFile& file
 ) {
     // translating the nodes
-    visitor.current_path = file.abs_path;
     std::unique_ptr<BenchmarkResults> bm_results;
     if(options->benchmark) {
         bm_results = std::make_unique<BenchmarkResults>();

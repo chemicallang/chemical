@@ -34,6 +34,13 @@ struct string {
         state = '0'
     }
 
+    @constructor
+    func make_no_len(value : char*) {
+        storage.constant.data = value;
+        storage.constant.length = strlen(value);
+        state = '0'
+    }
+
     func size(&self) : size_t {
         switch(state) {
             case '0' -> {

@@ -12,10 +12,6 @@
 #include <vector>
 #include <memory>
 
-typedef Value* (*EvaluatorFn)(Value*, Value*);
-
-using expression_evaluators = std::unordered_map<int, EvaluatorFn>;
-
 class SymbolResolver;
 
 class GlobalInterpretScope : public InterpretScope {
@@ -73,13 +69,6 @@ public:
      * global values that are used by global fns
      */
     std::unordered_map<std::string, std::unique_ptr<Value>> global_vals;
-
-    /**
-     * expression evaluators evaluate expressions
-     * indexed functions that evaluate two values into another value are put on this map
-     * usually index is determined based on the type of values inputted
-     */
-    expression_evaluators expr_evaluators;
 
     /**
      * This contains errors that occur during interpretation

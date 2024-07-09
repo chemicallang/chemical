@@ -23,6 +23,25 @@ public:
     LabModule* root_module = nullptr;
 
     /**
+     * add given dependencies to the given module
+     */
+    static void add_dependencies(LabModule* mod, LabModule** dependencies, unsigned int dep_len);
+
+    /**
+     * it creates a flat vector containing pointers to lab modules, sorted
+     *
+     * It de-dupes, meaning avoids duplicates, it won't add two pointers
+     * that are same, so dependencies that occur again and again, would
+     * only be compiled once
+     *
+     * why sort ? Modules that should be compiled first are present first
+     * The first module that should be compiled is at zero index, The last
+     * module would be the given module, compiled at last
+     *
+     */
+    static std::vector<LabModule*> flatten_dedupe_sorted(LabModule* mod);
+
+    /**
      * adds the given module with type
      */
     LabModule* add_with_type(
@@ -32,7 +51,5 @@ public:
             LabModule** dependencies,
             unsigned int dep_len
     );
-
-    static void add_dependencies(LabModule* mod, LabModule** dependencies, unsigned int dep_len);
 
 };

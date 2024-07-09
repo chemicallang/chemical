@@ -61,8 +61,8 @@ bool Lexer::lexAnnotationMacro() {
         lexWhitespaceAndNewLines();
 
         // check if this macro has a lexer defined
-        auto macro_lexer = MacroLexers.find(macro);
-        if (macro_lexer != MacroLexers.end()) {
+        auto macro_lexer = MacroHandlers.find(macro);
+        if (macro_lexer != MacroHandlers.end()) {
             macro_lexer->second(this);
         } else {
             auto lex_func = binder->provide_lex_func(macro);

@@ -128,85 +128,86 @@ Scope take_body_compound(CSTConverter *conv, CompoundCSTToken *token, ASTNode* p
 }
 
 // TODO support _128bigint, bigfloat
-CSTConverter::CSTConverter(bool is64Bit, std::string target) : is64Bit(is64Bit), target(std::move(target)), global_scope() {
-    ExpressionEvaluator::prepareFunctions(global_scope);
-    init_macro_handlers();
+CSTConverter::CSTConverter(std::string path, bool is64Bit, std::string target) : path(std::move(path)), is64Bit(is64Bit), target(std::move(target)), global_scope() {
+
 }
 
-void CSTConverter::init_macro_handlers() {
-    macro_handlers["eval"] = [](CSTConverter* converter, CompoundCSTToken* container){
-        if(container->tokens[2]->is_value()) {
-            container->tokens[2]->accept(converter);
-            auto take_value = converter->value();
-            InterpretScope child_scope{&converter->global_scope, &converter->global_scope};
-            auto evaluated_value = take_value->evaluated_value(child_scope);
-            if(evaluated_value.get() == nullptr) {
-                converter->error("couldn't evaluate value", container);
-                return;
+const std::unordered_map<std::string, MacroHandlerFn> MacroHandlers = {
+        { "eval", [](CSTConverter* converter, CompoundCSTToken* container){
+            if(container->tokens[2]->is_value()) {
+                container->tokens[2]->accept(converter);
+                auto take_value = converter->value();
+                InterpretScope child_scope{&converter->global_scope, &converter->global_scope};
+                auto evaluated_value = take_value->evaluated_value(child_scope);
+                if(evaluated_value.get() == nullptr) {
+                    converter->error("couldn't evaluate value", container);
+                    return;
+                }
+                converter->values.emplace_back(evaluated_value.release());
+                if(take_value.get() == evaluated_value.get()) {
+                    take_value.release();
+                }
+            } else {
+                converter->error("expected a value for eval", container);
             }
-            converter->values.emplace_back(evaluated_value.release());
-            if(take_value.get() == evaluated_value.get()) {
-                take_value.release();
+        }},
+        { "target", [](CSTConverter* converter, CompoundCSTToken* container) {
+            converter->values.emplace_back(new StringValue(converter->target));
+        }},
+        { "file:path", [](CSTConverter* converter, CompoundCSTToken* container) {
+            converter->values.emplace_back(new StringValue(converter->path));
+        }},
+        {"target:is64bit", [](CSTConverter* converter, CompoundCSTToken* container) {
+            converter->values.emplace_back(new BoolValue(converter->is64Bit));
+        }},
+        {"sizeof", [](CSTConverter* converter, CompoundCSTToken* container) {
+            if(container->tokens[2]->is_type()) {
+                container->tokens[2]->accept(converter);
+                auto value = new SizeOfValue(converter->type().release());
+                converter->values.emplace_back(value);
+            } else {
+                converter->error("expected a type in sizeof", container);
             }
-        } else {
-            converter->error("expected a value for eval", container);
-        }
-    };
-    macro_handlers["target"] = [](CSTConverter* converter, CompoundCSTToken* container) {
-        converter->values.emplace_back(new StringValue(converter->target));
-    };
-    macro_handlers["target:is64bit"] = [](CSTConverter* converter, CompoundCSTToken* container) {
-        converter->values.emplace_back(new BoolValue(converter->is64Bit));
-    };
-    macro_handlers["sizeof"] = [](CSTConverter* converter, CompoundCSTToken* container) {
-        if(container->tokens[2]->is_type()) {
-            container->tokens[2]->accept(converter);
-            auto value = new SizeOfValue(converter->type().release());
-            converter->values.emplace_back(value);
-        } else {
-            converter->error("expected a type in sizeof", container);
-        }
-    };
-    macro_handlers["tr:debug:chemical"] = [](CSTConverter* converter, CompoundCSTToken* container) {
-        auto body = take_body_compound(converter, container, converter->parent_node);
-        std::ostringstream ostring;
-        RepresentationVisitor visitor(ostring);
-        visitor.translate(body.nodes);
-        converter->values.emplace_back(new StringValue(ostring.str()));
-    };
-    macro_handlers["tr:debug:chemical:value"] = [](CSTConverter* converter, CompoundCSTToken* container) {
-        if(container->is_value()) {
-            container->accept(converter);
-            auto value = converter->value();
+        }},
+        {"tr:debug:chemical", [](CSTConverter* converter, CompoundCSTToken* container) {
+            auto body = take_body_compound(converter, container, converter->parent_node);
             std::ostringstream ostring;
             RepresentationVisitor visitor(ostring);
-            value->accept(&visitor);
+            visitor.translate(body.nodes);
             converter->values.emplace_back(new StringValue(ostring.str()));
-        } else {
-            converter->error("expected a value in tr:debug:chemical:value", container);
-        }
-    };
-    macro_handlers["tr:debug:c"] = [](CSTConverter* converter, CompoundCSTToken* container) {
-        auto body = take_body_compound(converter, container, converter->parent_node);
-        std::ostringstream ostring;
-        ToCAstVisitor visitor(&ostring, "");
-        visitor.translate(body.nodes);
-        converter->values.emplace_back(new StringValue(ostring.str()));
-    };
-    macro_handlers["tr:debug:c:value"] = [](CSTConverter* converter, CompoundCSTToken* container) {
-        if(container->is_value()) {
-            container->accept(converter);
-            auto value = converter->value();
+        }},
+        {"tr:debug:chemical:value", [](CSTConverter* converter, CompoundCSTToken* container) {
+            if(container->is_value()) {
+                container->accept(converter);
+                auto value = converter->value();
+                std::ostringstream ostring;
+                RepresentationVisitor visitor(ostring);
+                value->accept(&visitor);
+                converter->values.emplace_back(new StringValue(ostring.str()));
+            } else {
+                converter->error("expected a value in tr:debug:chemical:value", container);
+            }
+        }},
+        {"tr:debug:c", [](CSTConverter* converter, CompoundCSTToken* container) {
+            auto body = take_body_compound(converter, container, converter->parent_node);
             std::ostringstream ostring;
             ToCAstVisitor visitor(&ostring, "");
-            value->accept(&visitor);
+            visitor.translate(body.nodes);
             converter->values.emplace_back(new StringValue(ostring.str()));
-        } else {
-            converter->error("expected a value in tr:debug:c:value", container);
-        }
-    };
-}
-
+        }},
+        {"tr:debug:c:value",[](CSTConverter* converter, CompoundCSTToken* container) {
+            if(container->is_value()) {
+                container->accept(converter);
+                auto value = converter->value();
+                std::ostringstream ostring;
+                ToCAstVisitor visitor(&ostring, "");
+                value->accept(&visitor);
+                converter->values.emplace_back(new StringValue(ostring.str()));
+            } else {
+                converter->error("expected a value in tr:debug:c:value", container);
+            }
+        }}
+};
 struct AnnotationHandler {
     AnnotationHandlerFn func;
     AnnotationKind kind;
@@ -321,16 +322,19 @@ std::unique_ptr<BaseType> CSTConverter::type() {
 }
 
 PointerType* current_self_pointer(CSTConverter* converter) {
-    MembersContainer* current_members_container = converter->current_struct_decl ? converter->current_struct_decl : (converter->current_interface_decl
-                                                                                                              ? converter->current_interface_decl : ((MembersContainer*) converter->current_union_decl));
-    std::string type;
-    if(!current_members_container && converter->current_impl_decl) {
-        current_members_container = converter->current_impl_decl;
-        type = converter->current_impl_decl->struct_name.value();
-    } else {
-        type = current_members_container->ns_node_identifier();
+#ifdef DEBUG
+    if(!converter->current_members_container) {
+        throw std::runtime_error("members container is nullptr");
     }
-    return new PointerType(std::make_unique<ReferencedType>(type, current_members_container));
+#endif
+    std::string type;
+    auto impl_container = converter->current_members_container->as_impl_def();
+    if(impl_container) {
+        type = impl_container->struct_name.value();
+    } else {
+        type = converter->current_members_container->ns_node_identifier();
+    }
+    return new PointerType(std::make_unique<ReferencedType>(type, converter->current_members_container));
 }
 
 void CSTConverter::visitFunctionParam(CompoundCSTToken *param) {
@@ -713,8 +717,8 @@ void CSTConverter::visitBody(CompoundCSTToken *bodyCst) {
 void CSTConverter::visitMacro(CompoundCSTToken* macroCst) {
     auto name = str_token(macroCst->tokens[0].get());
     auto annon_name = name.substr(1);
-    auto macro = macro_handlers.find(annon_name);
-    if (macro != macro_handlers.end()) {
+    auto macro = MacroHandlers.find(annon_name);
+    if (macro != MacroHandlers.end()) {
         macro->second(this, macroCst);
     } else {
         error("couldn't find annotation or macro handler for " + name, macroCst);
@@ -966,13 +970,13 @@ void CSTConverter::visitStructDef(CompoundCSTToken *structDef) {
     }
     i = has_override ? i + 3 : i + 1; // positioned at first node or '}'
     auto def = new StructDefinition(str_token(structDef->tokens[named ? 1 : structDef->tokens.size() - 1].get()), overrides, parent_node);
-    auto prev_struct_decl = current_struct_decl;
-    current_struct_decl = def;
+    auto prev_struct_decl = current_members_container;
+    current_members_container = def;
     auto prev_parent = parent_node;
     parent_node = def;
     collect_struct_members(this, structDef->tokens, def->variables, def->functions, i);
     parent_node = prev_parent;
-    current_struct_decl = prev_struct_decl;
+    current_members_container = prev_struct_decl;
     collect_annotations_in(this, def);
     nodes.emplace_back(def);
 }
@@ -983,12 +987,13 @@ void CSTConverter::visitInterface(CompoundCSTToken *interface) {
     }
     auto def = new InterfaceDefinition(str_token(interface->tokens[1].get()), parent_node);
     unsigned i = 3; // positioned at first node or '}'
-    current_interface_decl = def;
+    auto prev_container = current_members_container;
+    current_members_container = def;
     auto prev_parent = parent_node;
     parent_node = def;
     collect_struct_members(this, interface->tokens, def->variables, def->functions, i);
     parent_node = prev_parent;
-    current_interface_decl = nullptr;
+    current_members_container = prev_container;
     nodes.emplace_back(def);
 }
 
@@ -999,12 +1004,13 @@ void CSTConverter::visitUnionDef(CompoundCSTToken *unionDef) {
     bool named = unionDef->tokens[1]->is_identifier();
     unsigned i = named ? 3 : 2; // positioned at first node or '}'
     auto def = new UnionDef(str_token(unionDef->tokens[named ? 1 : unionDef->tokens.size() - 1].get()), parent_node);
-    current_union_decl = def;
+    auto prev_container = current_members_container;
+    current_members_container = def;
     auto prev_parent = parent_node;
     parent_node = def;
     collect_struct_members(this, unionDef->tokens, def->variables, def->functions, i);
     parent_node = prev_parent;
-    current_union_decl = nullptr;
+    current_members_container = prev_container;
     nodes.emplace_back(def);
 }
 
@@ -1021,12 +1027,13 @@ void CSTConverter::visitImpl(CompoundCSTToken *impl) {
     }
     auto def = new ImplDefinition(str_token(impl->tokens[1].get()), struct_name, parent_node);
     unsigned i = has_for ? 5 : 3; // positioned at first node or '}'
-    current_impl_decl = def;
+    auto prev_container = current_members_container;
+    current_members_container = def;
     auto prev_parent = parent_node;
     parent_node = def;
     collect_struct_members(this, impl->tokens, def->variables, def->functions, i);
     parent_node = prev_parent;
-    current_impl_decl = nullptr;
+    current_members_container = prev_container;
     nodes.emplace_back(def);
 }
 

@@ -251,29 +251,10 @@ namespace chem {
 
         [[nodiscard]]
         string copy() const {
-            string s((const char*) nullptr);
-            s.state = state;
-            switch(state) {
-                case '0':
-                    s.storage.constant.data = storage.constant.data;
-                    s.storage.constant.length = storage.constant.length;
-                    break;
-                case '1':
-                    s.storage.sso.length = storage.sso.length;
-                    memcpy(s.storage.sso.buffer, storage.sso.buffer, storage.sso.length);
-                    break;
-                case '2':
-                    char* new_heap = ((char*) malloc(storage.heap.capacity));
-                    memcpy(new_heap, storage.heap.data, storage.heap.length);
-                    s.storage.heap.data = new_heap;
-                    s.storage.heap.length = storage.heap.length;
-                    s.storage.heap.capacity = storage.heap.capacity;
-                    break;
-            }
-            return s;
+            return substring(0, size());
         }
 
-        string substring(size_t start, size_t end) {
+        string substring(size_t start, size_t end) const {
             struct string s((const char*) nullptr);
             size_t actual_len = (end - start);
             if((actual_len < 16)){

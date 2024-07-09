@@ -97,7 +97,7 @@
 #include "utils/RepresentationUtils.h"
 #include "ast/utils/ASTUtils.h"
 
-ToCAstVisitor::ToCAstVisitor(std::ostream *output, const std::string& path) : output(output), ASTDiagnoser(path) {
+ToCAstVisitor::ToCAstVisitor(std::ostream *output, const std::string& path) : output(output), ASTDiagnoser() {
     declarer = std::make_unique<CValueDeclarationVisitor>(this);
     tld = std::make_unique<CTopLevelDeclarationVisitor>(this, declarer.get());
     before_stmt = std::make_unique<CBeforeStmtVisitor>(this);
@@ -1231,7 +1231,6 @@ void ToCAstVisitor::prepare_translate() {
     write("#include <stddef.h>\n");
     // declaring a fat pointer
     declare_fat_pointer(this);
-    ExpressionEvaluator::prepareFunctions(comptime_scope);
 }
 
 ToCAstVisitor::~ToCAstVisitor() = default;

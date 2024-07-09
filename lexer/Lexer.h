@@ -309,6 +309,12 @@ public:
     bool lexKeywordToken(const std::string &keyword);
 
     /**
+     * lexes a whitespaces keyword, at least a single whitespace should be present after the keyword
+     * @return  whether the keyword was found
+     */
+    bool lexWSKeywordToken(const std::string &keyword);
+
+    /**
      * All top levels statements lexed, These include
      * functions, structs, interfaces, implementations
      * comments, variable initialization with value, constants

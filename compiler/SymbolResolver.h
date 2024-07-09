@@ -35,7 +35,7 @@ public:
     /**
      * constructor
      */
-    SymbolResolver(const std::string& path, bool is64Bit);
+    SymbolResolver(bool is64Bit);
 
     /**
      * similar to codegen it also has imported map

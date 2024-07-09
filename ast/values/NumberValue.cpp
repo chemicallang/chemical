@@ -65,8 +65,12 @@ void NumberValue::link(SymbolResolver &linker, ReturnStatement *returnStmt) {
 
 void NumberValue::link(SymbolResolver &linker, FunctionCall *call, unsigned int index) {
     auto value_type = call->parent_val->create_type();
-    auto funcType = (FunctionType*) value_type.get();
-    linked_type = linked(funcType->params[index]->type.get());
+    auto funcType = value_type->function_type();
+    if(funcType) {
+        linked_type = linked(funcType->params[index]->type.get());
+    } else {
+        // this can happen when parent is linked with a constructor
+    }
 }
 
 void NumberValue::link(SymbolResolver &linker, StructValue *structValue, const std::string &name) {

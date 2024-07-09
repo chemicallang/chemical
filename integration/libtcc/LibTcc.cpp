@@ -7,7 +7,7 @@
 #include "utils/PathUtils.h"
 
 void handle_tcc_error(void *opaque, const char *msg){
-    std::cout << "[Compiler] Error Compiling : " << msg << std::endl;
+    std::cout << "[2cTcc] Error : " << msg << std::endl;
 }
 
 TCCState* compile_c_to_tcc_state(char* exe_path, char* program, const std::string& outputFileName, bool jit) {

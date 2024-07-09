@@ -2,6 +2,7 @@
 
 #include <string>
 #include "ASTProcessorOptions.h"
+#include "OutputMode.h"
 
 /**
  * this allows you to control the compilation process
@@ -10,6 +11,11 @@ class IGCompilerOptions : public ASTProcessorOptions {
 public:
 
     using ASTProcessorOptions::ASTProcessorOptions;
+
+    /**
+     * output mode determines the type of files saved
+     */
+    OutputMode mode;
 
 };
 

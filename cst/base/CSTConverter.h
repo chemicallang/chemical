@@ -25,6 +25,7 @@ struct FunctionParamsResult {
 };
 
 class CSTConverter;
+class MembersContainer;
 
 /**
  * a function that can handle macro
@@ -44,26 +45,6 @@ private:
      * since lambda parameter types are optional
      */
     bool optional_param_types = false;
-
-    /**
-     * is code gen for 64bit
-     */
-    bool is64Bit;
-
-    /**
-     * the target is provided to the source code
-     */
-    std::string target;
-
-    /**
-     * all the functions that can handle native macros like #eval
-     */
-    std::unordered_map<std::string, MacroHandlerFn> macro_handlers;
-
-    /**
-     * global interpret scope
-     */
-    GlobalInterpretScope global_scope;
 
 public:
 
@@ -131,28 +112,10 @@ public:
     BaseFunctionType *current_func_type = nullptr;
 
     /**
-     * This is a pointer to current struct declaration
-     * All nodes being parsed belong to this struct
+     * This is a pointer to current members container
+     * All nodes being pased belong to this membes container
      */
-    StructDefinition *current_struct_decl = nullptr;
-
-    /**
-     * This is a pointer to current union declaration
-     * All nodes being parsed belong to this union
-     */
-    UnionDef *current_union_decl = nullptr;
-
-    /**
-     * This is a pointer to current interface declaration
-     * All nodes being parsed belong to this interface
-     */
-    InterfaceDefinition* current_interface_decl = nullptr;
-
-    /**
-     * This is a pointer to current impl declaration
-     * All nodes being parsed belong to this implementation
-     */
-    ImplDefinition* current_impl_decl = nullptr;
+    MembersContainer* current_members_container = nullptr;
 
     /**
      * The current loop node
@@ -161,24 +124,30 @@ public:
     LoopASTNode *current_loop_node = nullptr;
 
     /**
-     * All nodes being parsed belong to this Scope node
+     * global interpret scope
      */
-    Scope* current_scope = nullptr;
+    GlobalInterpretScope global_scope;
+
+    /**
+     * the target is provided to the source code
+     */
+    std::string target;
+
+    /**
+     * the path to file being converted, could be empty, if we are just
+     * converting anonymous tokens
+     */
+    std::string path;
+
+    /**
+     * is code gen for 64bit
+     */
+    bool is64Bit;
 
     /**
      * constructor
      */
-    CSTConverter(bool is64Bit, std::string target);
-
-    /**
-     * initializes macro handlers
-     */
-    void init_macro_handlers();
-
-    /**
-     * initializes annotation handlers
-     */
-    void init_annotation_handlers();
+    CSTConverter(std::string path, bool is64Bit, std::string target);
 
     /**
      * the function that should be used to ask if node should be disposed

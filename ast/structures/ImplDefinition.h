@@ -32,6 +32,10 @@ public:
             ASTNode* parent_node
     ) : struct_name(std::move(struct_name)), interface_name(std::move(interface_name)), parent_node(parent_node) {}
 
+    void set_parent(ASTNode* new_parent) override {
+        parent_node = new_parent;
+    }
+
     ASTNode *parent() override {
         return parent_node;
     }
@@ -40,23 +44,8 @@ public:
         visitor->visit(this);
     }
 
-    bool type_check(InterpretScope &scope) {
-//        if (overrides.has_value()) {
-//            auto inter = scope.find(overrides.value());
-//            if (inter.first) {
-//                auto interVal = inter.second->second->as_interface();
-//                if (interVal != nullptr) {
-//                    if (!interVal->verify(scope, name, members)) {
-//                        return false;
-//                    }
-//                } else {
-//                    scope.error("provided overridden value is not an interface");
-//                }
-//            } else {
-//                scope.error("couldn't find the overridden interface " + overrides.value());
-//            }
-//        }
-        return true;
+    ImplDefinition *as_impl_def() override {
+        return this;
     }
 
 #ifdef COMPILER_BUILD
@@ -66,9 +55,5 @@ public:
 #endif
 
     void declare_and_link(SymbolResolver &linker) override;
-
-    void interpret(InterpretScope &scope) override {
-        type_check(scope);
-    }
 
 };

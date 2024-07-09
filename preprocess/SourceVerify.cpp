@@ -20,7 +20,7 @@ bool verify(const std::string &path, SourceVerifierOptions *options) {
 
 
     // creating symbol resolver
-    SymbolResolver resolver(path, true);
+    SymbolResolver resolver(true);
 
     // shrinking visitor
     ShrinkingVisitor shrinker;
@@ -35,7 +35,7 @@ bool verify(const std::string &path, SourceVerifierOptions *options) {
     processor.prepare(path);
 
     // get flat imports
-    auto flat_imports = processor.flat_imports();
+    auto flat_imports = processor.flat_imports(path);
 
     bool compile_result = true;
 

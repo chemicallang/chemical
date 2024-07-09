@@ -21,11 +21,6 @@ public:
     bool has_errors = false;
 
     /**
-     * path to the current file being code_gen
-     */
-    std::string current_path;
-
-    /**
      * errors are stored here
      */
     std::vector<ASTDiag> errors;
@@ -33,7 +28,7 @@ public:
     /**
      * constructor
      */
-    ASTDiagnoser(const std::string& path);
+    ASTDiagnoser() = default;
 
     /**
      * the tag of the process, which will be appended to errors
@@ -54,11 +49,6 @@ public:
      * @param node the node in which error occurred
      */
     void error(const std::string &err, ASTNode *node = nullptr);
-
-    /**
-     * just prints the errors to std out
-     */
-    void print_errors();
 
     /**
      * just prints the errors to std out

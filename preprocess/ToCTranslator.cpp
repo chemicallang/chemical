@@ -33,7 +33,7 @@ bool translate(
 ) {
 
     // creating symbol resolver
-    SymbolResolver resolver(path, true);
+    SymbolResolver resolver(true);
 
     // shrinking visitor used to shrink
     ShrinkingVisitor shrinker;
@@ -48,7 +48,7 @@ bool translate(
     processor.prepare(path);
 
     // get flat imports
-    auto flat_imports = processor.flat_imports();
+    auto flat_imports = processor.flat_imports(path);
 
     bool compile_result = true;
 

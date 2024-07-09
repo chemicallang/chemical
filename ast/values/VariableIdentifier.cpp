@@ -161,9 +161,9 @@ void VariableIdentifier::set_identifier_value(InterpretScope &scope, Value *rawV
 
         // get the previous value, perform operation on it
         auto prevValue = itr.first->second;
-        nextValue = scope.global->expr_evaluators[
-                ExpressionEvaluator::index(prevValue->value_type(), prevValue->value_type(), op)
-        ](prevValue, newValue);
+        nextValue = ExpressionEvaluators::ExpressionEvaluatorsMap.at(
+            ExpressionEvaluators::index(prevValue->value_type(), prevValue->value_type(), op)
+        )(prevValue, newValue);
 
     }
 

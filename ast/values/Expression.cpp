@@ -116,10 +116,10 @@ bool Expression::computed() {
 Value *Expression::evaluate(InterpretScope &scope) {
     auto fEvl = firstValue->evaluated_value(scope);
     auto sEvl = secondValue->evaluated_value(scope);
-    auto index = ExpressionEvaluator::index(fEvl->value_type(), sEvl->value_type(), operation);
-    auto found = scope.global->expr_evaluators.find(index);
-    if (found != scope.global->expr_evaluators.end()) {
-        return scope.global->expr_evaluators[index](fEvl.get(), sEvl.get());
+    auto index = ExpressionEvaluators::index(fEvl->value_type(), sEvl->value_type(), operation);
+    auto found = ExpressionEvaluators::ExpressionEvaluatorsMap.find(index);
+    if (found != ExpressionEvaluators::ExpressionEvaluatorsMap.end()) {
+        return ExpressionEvaluators::ExpressionEvaluatorsMap.at(index)(fEvl.get(), sEvl.get());
     } else {
         scope.error(
                 "Cannot evaluate expression as the method with index " + std::to_string(index) +

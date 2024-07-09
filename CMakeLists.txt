@@ -492,6 +492,7 @@ set(COMMON_SOURCES
         compiler/lab/LabModule.h
         compiler/lab/LabBuildContext.cpp
         compiler/lab/LabModuleType.h
+        compiler/lab/LabBuildCompiler.cpp
 )
 
 # Chemical LSP Executable Target

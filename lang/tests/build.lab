@@ -1,21 +1,14 @@
 import "../std/lab.ch"
-// import "./std/std.lab" as stdlab
-// import "./basic/build.lab" as basic
-
-const name = "chemical-tests"
-const type = "lib"
-const version = "1.0.0"
 
 func build(ctx : BuildContext*) : Module* {
 
-    // one of the following
-    var std_mod : Module* = ctx.dir_module("std", "./std");
-    // var std_mod : Module* = stdlab.build()
+    const curr_path = #file:path{};
+    const curr_path_str = string(curr_path);
+    const parent_dir_path = curr_path_str.substring(0, curr_path_str.size() - 9)
+    const name = string("chemical-tests");
+    const path = parent_dir_path.copy();
+    path.append_char_ptr("tests.ch");
 
-    var basic_mod : Module* = ctx.dir_module("basic", "./basic", {
-        std_mod
-    })
-
-    return ctx.dir_module("chemical-tests", "./", { basic_mod })
+    return ctx.add_with_type(ModuleType.File, &name, &path, null, 0);
 
 }

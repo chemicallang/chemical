@@ -72,20 +72,19 @@
 
 Codegen::Codegen(
         std::vector<std::unique_ptr<ASTNode>> nodes,
-        const std::string& path,
         std::string target_triple,
         std::string curr_exe_path,
-        bool is_64_bit
-) : ASTDiagnoser(path), comptime_scope(), nodes(std::move(nodes)),
+        bool is_64_bit,
+        const std::string& module_name
+) : ASTDiagnoser(), comptime_scope(), nodes(std::move(nodes)),
     target_triple(std::move(target_triple)), is64Bit(is_64_bit) {
-    ExpressionEvaluator::prepareFunctions(comptime_scope);
-    module_init();
-}
-
-void Codegen::casters_init() {
-//    casters[caster_index(ValueType::Int, BaseTypeKind::IntN)] = [](Codegen* gen, Value* value, BaseType* type) -> Value* {
-//
-//    };
+    // create llvm context
+    ctx = std::make_unique<llvm::LLVMContext>();
+    // creating a new ir builder
+    builder = new llvm::IRBuilder<>(*ctx);
+    if(!module_name.empty()) {
+        module_init(module_name);
+    }
 }
 
 bool Codegen::is_arch_64bit(const std::string& target_triple) {
@@ -101,13 +100,8 @@ bool Codegen::is_arch_64bit(const std::string& target_triple) {
               archType == llvm::Triple::ArchType::sparcv9;
 }
 
-void Codegen::module_init() {
-    // context and module
-    ctx = std::make_unique<llvm::LLVMContext>();
-    module = std::make_unique<llvm::Module>("TodoName", *ctx);
-
-    // creating a new builder for the module
-    builder = new llvm::IRBuilder<>(*ctx);
+void Codegen::module_init(const std::string& module_name) {
+    module = std::make_unique<llvm::Module>(module_name, *ctx);
 }
 
 void Codegen::compile() {

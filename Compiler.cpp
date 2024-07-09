@@ -255,7 +255,7 @@ int main(int argc, char *argv[]) {
     }
 
     // compilation
-    Codegen gen({}, srcFilePath, target.value(), argv[0], is64Bit);
+    Codegen gen({}, target.value(), argv[0], is64Bit, "");
     IGCompilerOptions compiler_opts(argv[0], target.value(), is64Bit);
     prepare_options(&compiler_opts);
     if(!compile(&gen, srcFilePath, &compiler_opts)) {

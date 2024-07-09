@@ -96,21 +96,16 @@ public:
      */
     explicit Codegen(
             std::vector<std::unique_ptr<ASTNode>> nodes,
-            const std::string& path,
             std::string target_triple,
             std::string curr_exe_path,
-            bool is_64_bit // can be determined using static method is_arch_64bit on Codegen
+            bool is_64_bit, // can be determined using static method is_arch_64bit on Codegen
+            const std::string& module_name = "ChemMod"
     );
 
     /**
      * initializes the llvm module and context
      */
-    void module_init();
-
-    /**
-     * initializes the casters map
-     */
-    void casters_init();
+    void module_init(const std::string& module_name);
 
     /**
      * determine whether the system we are compiling for is 64bit or 32bit

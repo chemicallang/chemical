@@ -24,6 +24,10 @@ public:
         visitor->visit(this);
     }
 
+    void set_parent(ASTNode* new_parent) override {
+        chain.set_parent(new_parent);
+    }
+
     ASTNode *parent() override {
         return chain.parent_node;
     }

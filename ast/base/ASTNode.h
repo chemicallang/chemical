@@ -67,6 +67,14 @@ public:
     virtual ASTNode *parent() = 0;
 
     /**
+     * this function provides a pointer to the parent ASTNode
+     * a var init inside for loop, gets a pointer to the for loop
+     */
+    virtual void set_parent(ASTNode*) {
+        throw std::runtime_error("set_parent called on base ast node");
+    }
+
+    /**
      * return a child ASTNode* at index, called by index operator
      * WARNING : index can be -1, if not known at compile time !
      */
@@ -251,6 +259,13 @@ public:
      * return if this is a struct definition
      */
     virtual StructDefinition *as_struct_def() {
+        return nullptr;
+    }
+
+    /**
+     * return if this is a implementation def
+     */
+    virtual ImplDefinition* as_impl_def() {
         return nullptr;
     }
 

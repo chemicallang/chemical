@@ -30,6 +30,10 @@ public:
 
     VariablesContainer *copy_container() override;
 
+    void set_parent(ASTNode* new_parent) override {
+        parent_node = new_parent;
+    }
+
     ASTNode *parent() override {
         return parent_node;
     }

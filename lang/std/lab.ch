@@ -1,7 +1,7 @@
 import "./string.ch"
 
 enum ModuleType {
-    RootFile,
+    File,
     Directory
 }
 
@@ -14,6 +14,6 @@ struct Module {
 
 struct BuildContext {
 
-    var add_with_type : (type : LabModuleType, name : string, path : string, dependencies : Module**, len : uint) => Module*;
+    var add_with_type : (&self, type : ModuleType, name : string*, abs_path : string*, dependencies : Module**, len : uint) => Module*;
 
 }

@@ -59,8 +59,12 @@ void ImportGraphImporter::lex_source(const std::string& path, std::vector<Diag>&
 }
 
 void ImportGraphVisitor::visitImport(CompoundCSTToken *cst) {
+    std::string as_identifier;
+    if(2 < cst->tokens.size() && is_keyword(cst->tokens[2].get(), "as")) {
+        as_identifier = str_token(cst->tokens[3].get());
+    }
     imports.emplace_back(
-            FlatIGFile { escaped_str_token(cst->tokens[1].get()) },
+            FlatIGFile { escaped_str_token(cst->tokens[1].get()), escaped_str_token(cst->tokens[1].get()), std::move(as_identifier) },
             Range { cst->start_token()->position, cst->end_token()->position }
     );
 }
@@ -212,6 +216,11 @@ IGResult determine_import_graph(const std::string &exe_path, const std::string &
 //    }
 //}
 
+/**
+ * TODO
+ * 1 - avoid direct cyclic dependencies a depends on b and b depends on a
+ * 2 - avoid indirect cyclic dependencies a depends on b and b depends on c and c depends on a
+ */
 void recursive_dedupe(IGFile* file, std::unordered_map<std::string, bool>& imported, std::vector<FlatIGFile>& imports) {
     for(auto& nested : file->files) {
         recursive_dedupe(&nested, imported, imports);

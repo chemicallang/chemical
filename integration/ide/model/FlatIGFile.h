@@ -18,4 +18,6 @@ struct FlatIGFile {
     std::string abs_path;
     // the path used by user in import statement
     std::string import_path;
+    // as identifier
+    std::string as_identifier;
 };

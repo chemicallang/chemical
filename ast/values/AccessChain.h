@@ -28,6 +28,10 @@ public:
 
     AccessChain(std::vector<std::unique_ptr<Value>> values, ASTNode* parent_node);
 
+    void set_parent(ASTNode* new_parent) override {
+        parent_node = new_parent;
+    }
+
     ASTNode *parent() override {
         return parent_node;
     }

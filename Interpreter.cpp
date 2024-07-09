@@ -41,7 +41,6 @@ int main(int argc, char *argv[]) {
     auto start = std::chrono::steady_clock::now();
 
     // Actual interpretation
-    ExpressionEvaluator::prepareFunctions(interpretScope);
     {
         SymbolResolver linker(argv[0], srcFilePath, true);
         for(const auto& func : interpretScope.global_fns) {

@@ -248,8 +248,13 @@ int lab_build(LabBuildContext& context, const std::string& path, LabBuildCompile
         }
 
         // configure output path
-        auto obj_path = resolve_rel_child_path_str(exe_build_dir, exe.name.to_std_string() + ".o");
-        emitter_options.obj_path = obj_path.data();
+        bool is_use_obj_format = true;
+        auto obj_path = resolve_rel_child_path_str(exe_build_dir, exe.name.to_std_string() + (is_use_obj_format ? ".obj" : ".bc"));
+        if(is_use_obj_format) {
+            emitter_options.obj_path = obj_path.data();
+        } else {
+            emitter_options.bitcode_path = obj_path.data();
+        }
 
         // compile dependent modules for this executable
         for(auto mod : exe.dependencies) {
@@ -320,7 +325,12 @@ int lab_build(LabBuildContext& context, const std::string& path, LabBuildCompile
         }
         link_result = link_objects(linkables, exe.abs_path.to_std_string(), options->exe_path, {});
         if(link_result == 1) {
-            std::cerr << "Failed to link" << std::endl;
+            std::cerr << "Failed to link \n";
+            for(auto& linkable : linkables) {
+                std::cerr << '\t' << linkable << '\n';
+            }
+            std::cerr << "into " << exe.abs_path.data();
+            std::cerr << std::endl;
             return link_result;
         }
         linkables.clear();

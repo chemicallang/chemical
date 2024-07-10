@@ -16,6 +16,6 @@ public:
     }
 };
 
-TCCState* compile_c_to_tcc_state(char* exe_path, char* program, const std::string& outputFileName, bool jit);
+TCCState* compile_c_to_tcc_state(char* exe_path, const char* program, const std::string& outputFileName, bool jit);
 
-int compile_c_string(char* exe_path, char* program, const std::string& outputFileName, bool jit, bool benchmark);
+int compile_c_string(char* exe_path, const char* program, const std::string& outputFileName, bool jit, bool benchmark);

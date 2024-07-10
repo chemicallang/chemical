@@ -46,6 +46,15 @@ std::vector<LabModule*> LabBuildContext::flatten_dedupe_sorted(LabModule* mod) {
     return modules;
 }
 
+std::vector<LabModule*> LabBuildContext::flatten_dedupe_sorted(const std::vector<LabModule*>& modules) {
+    std::vector<LabModule*> new_modules;
+    std::unordered_map<LabModule*, bool> imported;
+    for(auto mod : modules) {
+        recursive_dedupe(mod, imported, new_modules);
+    }
+    return new_modules;
+}
+
 LabModule *LabBuildContext::add_with_type(
     LabModuleType type,
     chem::string *name,

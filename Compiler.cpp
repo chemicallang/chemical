@@ -67,6 +67,7 @@ void print_help() {
                  "--lto               -[empty]      force link time optimization\n"
                  "--assertions        -[empty]      enable assertions on generated code\n"
                  "--debug-ll          -[empty]      output llvm ir, even with errors, for debugging\n"
+                 "--out-build-c       -[empty]      output modules translated to c, when building build.lab\n"
                  "--verify            -o            do not compile, only verify source code\n"
                  "--jit               -jit          do just in time compilation using Tiny CC\n"
                  "--no-cbi            -[empty]      this ignores cbi annotations when translating\n"
@@ -193,68 +194,47 @@ int main(int argc, char *argv[]) {
 #ifdef COMPILER_BUILD
     if(jit || (output.has_value() && (tcc || output.value().ends_with(".c") || output.value().ends_with(".h")))) {
 #endif
-        ToCTranslatorOptions translator_opts(argv[0], target.value(), is64Bit);
-        prepare_options(&translator_opts);
-        auto translator_preparer = [&options](ToCAstVisitor* visitor, ASTProcessor* processor) -> void {
-            visitor->inline_struct_members_fn_types = !options.option("take-out-struct-member-fn-types").has_value();
-            visitor->cpp_like = options.option("cpp-like").has_value();
-            if(options.option("no-cbi").has_value()) {
-                processor->options->isCBIEnabled = false;
-            }
-        };
-        if(output.has_value() && (output.value().ends_with(".c") || output.value().ends_with(".h")) && !jit) {
-            bool good = translate(srcFilePath, output.value(), &translator_opts, translator_preparer);
-            return good ? 0 : 1;
-        } else {
-            std::string cProgramStr;
-            if(srcFilePath.ends_with(".c") || srcFilePath.ends_with(".h")) {
-                std::ifstream input;
-                input.open(srcFilePath);
-                if(!input.is_open()) {
-                    std::cerr << "[Compiler] couldn't open the file at location " << srcFilePath << std::endl;
-                    return 1;
+        if(!srcFilePath.ends_with(".lab") || (output.has_value() && output.value().ends_with(".c"))) {
+            ToCTranslatorOptions translator_opts(argv[0], target.value(), is64Bit);
+            prepare_options(&translator_opts);
+            auto translator_preparer = [&options](ToCAstVisitor *visitor, ASTProcessor *processor) -> void {
+                visitor->inline_struct_members_fn_types = !options.option(
+                        "take-out-struct-member-fn-types").has_value();
+                visitor->cpp_like = options.option("cpp-like").has_value();
+                if (options.option("no-cbi").has_value()) {
+                    processor->options->isCBIEnabled = false;
                 }
-                std::stringstream buffer;
-                buffer << input.rdbuf();
-                cProgramStr = std::move(buffer.str());
-                input.close();
+            };
+            if (output.has_value() && (output.value().ends_with(".c") || output.value().ends_with(".h")) && !jit) {
+                bool good = translate(srcFilePath, output.value(), &translator_opts, translator_preparer);
+                return good ? 0 : 1;
             } else {
-                cProgramStr = translate(srcFilePath, &translator_opts, translator_preparer);
-                if(cProgramStr.empty()) {
-                    return 1;
+                std::string cProgramStr;
+                if (srcFilePath.ends_with(".c") || srcFilePath.ends_with(".h")) {
+                    std::ifstream input;
+                    input.open(srcFilePath);
+                    if (!input.is_open()) {
+                        std::cerr << "[Compiler] couldn't open the file at location " << srcFilePath << std::endl;
+                        return 1;
+                    }
+                    std::stringstream buffer;
+                    buffer << input.rdbuf();
+                    cProgramStr = std::move(buffer.str());
+                    input.close();
+                } else {
+                    cProgramStr = translate(srcFilePath, &translator_opts, translator_preparer);
+                    if (cProgramStr.empty()) {
+                        return 1;
+                    }
                 }
+                return compile_c_string(argv[0], cProgramStr.data(), output.has_value() ? output.value() : "", jit,
+                                        benchmark);
             }
-            return compile_c_string(argv[0], cProgramStr.data(), output.has_value() ? output.value() : "", jit, benchmark);
         }
 
 #ifdef COMPILER_BUILD
     }
 #endif
-#ifdef COMPILER_BUILD
-
-    // translate C to chemical
-    if((srcFilePath.ends_with(".c") || srcFilePath.ends_with(".h")) && output.has_value() && output.value().ends_with(".ch")) {
-        auto nodes = TranslateC(argv[0], srcFilePath.c_str(), get_resources_path().c_str());
-        // write translated to the given file
-        std::ofstream out;
-        out.open(output.value());
-        if(!out.is_open()) {
-            std::cout << "[TranslateC] Couldn't open the file at path " << output.value() << std::endl;
-            return 1;
-        }
-        RepresentationVisitor visitor(out);
-        visitor.translate(nodes);
-        out.close();
-        // verify if required
-        if(only_verify) {
-            SourceVerifierOptions verify_opts(argv[0], target.value(), is64Bit);
-            prepare_options(&verify_opts);
-            if(!verify(output.value(), &verify_opts)) {
-                return 1;
-            }
-        }
-        return 0;
-    }
 
     OutputMode mode = OutputMode::Debug;
 
@@ -297,7 +277,38 @@ int main(int argc, char *argv[]) {
         if(options.option("assertions").has_value()) {
             compiler_opts.def_assertions_on = true;
         }
+        compiler_opts.out_build_c = options.option("out-build-c").has_value();
         return lab_build(context, srcFilePath, &compiler_opts);
+    }
+
+#ifdef TCC_BUILD
+    std::cerr << "Unknown Input / Output given to TCC based chemical compiler" << std::endl;
+    return 1;
+#endif
+
+#ifdef COMPILER_BUILD
+    // translate C to chemical
+    if((srcFilePath.ends_with(".c") || srcFilePath.ends_with(".h")) && output.has_value() && output.value().ends_with(".ch")) {
+        auto nodes = TranslateC(argv[0], srcFilePath.c_str(), get_resources_path().c_str());
+        // write translated to the given file
+        std::ofstream out;
+        out.open(output.value());
+        if(!out.is_open()) {
+            std::cout << "[TranslateC] Couldn't open the file at path " << output.value() << std::endl;
+            return 1;
+        }
+        RepresentationVisitor visitor(out);
+        visitor.translate(nodes);
+        out.close();
+        // verify if required
+        if(only_verify) {
+            SourceVerifierOptions verify_opts(argv[0], target.value(), is64Bit);
+            prepare_options(&verify_opts);
+            if(!verify(output.value(), &verify_opts)) {
+                return 1;
+            }
+        }
+        return 0;
     }
 
     // compilation

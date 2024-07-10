@@ -53,6 +53,12 @@ public:
     static std::vector<LabModule*> flatten_dedupe_sorted(LabModule* mod);
 
     /**
+     * same as above, only it operates on multiple modules, it de-dupes the dependent modules
+     * of the given list of modules and also sorts them
+     */
+    static std::vector<LabModule*> flatten_dedupe_sorted(const std::vector<LabModule*>& modules);
+
+    /**
      * adds the given module with type
      */
     LabModule* add_with_type(

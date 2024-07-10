@@ -7,10 +7,10 @@
 #include "utils/PathUtils.h"
 
 void handle_tcc_error(void *opaque, const char *msg){
-    std::cout << "[2cTcc] Error : " << msg << std::endl;
+    std::cout << "[2cTcc] " << msg << " compiling to " << ((char*) opaque) << std::endl;
 }
 
-TCCState* compile_c_to_tcc_state(char* exe_path, char* program, const std::string& outputFileName, bool jit) {
+TCCState* compile_c_to_tcc_state(char* exe_path, const char* program, const std::string& outputFileName, bool jit) {
 
     // creating a tcc state
     TCCState *s;
@@ -21,7 +21,7 @@ TCCState* compile_c_to_tcc_state(char* exe_path, char* program, const std::strin
     }
 
     /* set custom error/warning printer */
-    tcc_set_error_func(s, stderr, handle_tcc_error);
+    tcc_set_error_func(s, (char*) outputFileName.data(), handle_tcc_error);
 
     int result;
 
@@ -65,7 +65,7 @@ TCCState* compile_c_to_tcc_state(char* exe_path, char* program, const std::strin
 
 }
 
-int compile_c_string(char* exe_path, char* program, const std::string& outputFileName, bool jit, bool benchmark) {
+int compile_c_string(char* exe_path, const char* program, const std::string& outputFileName, bool jit, bool benchmark) {
 
     BenchmarkResults results{};
     if(benchmark) {

@@ -18,6 +18,23 @@ public:
     std::string build_folder;
 
     /**
+     * use tcc compiler to build and generate executable
+     */
+    bool use_tcc = false;
+
+    /**
+     * will force use object file format
+     * // TODO make this by default false, once our bitcode generation is valid
+     * // Currently set to true, so object files are emitted
+     */
+    bool use_mod_obj_format = true;
+
+    /**
+     * if translating to c, translated modules are outputted as c files
+     */
+    bool out_build_c = false;
+
+    /**
      * default output mode
      */
     OutputMode def_mode = OutputMode::Debug;

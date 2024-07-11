@@ -37,7 +37,7 @@ bool verify(const std::string &path, SourceVerifierOptions *options) {
     bool compile_result = true;
 
     ctpl::thread_pool pool((int) std::thread::hardware_concurrency()); // Initialize thread pool with the number of available hardware threads
-    std::vector<std::future<ASTImportResult>> futures;
+    std::vector<std::future<ASTImportResultExt>> futures;
     int i = 0;
     for(const auto& file : flat_imports) {
         futures.push_back(pool.push(concurrent_processor, i, file, &processor));

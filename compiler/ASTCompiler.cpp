@@ -18,7 +18,7 @@ void ASTCompiler::compile_nodes(
     gen->compile_nodes();
     if(options->benchmark) {
         bm_results->benchmark_end();
-        std::cout << std::endl << "[Compile] " << file.abs_path << " Completed " << bm_results->representation() << std::endl;
+        std::cout << "[Compile] " << file.abs_path << " Completed " << bm_results->representation() << std::endl;
     }
     if(options->shrink_nodes) {
         shrinker.visit(gen->nodes);

@@ -13,10 +13,6 @@ Scope::Scope(std::vector<std::unique_ptr<ASTNode>> nodes, ASTNode* parent_node) 
 
 }
 
-Scope::Scope(Scope &&other) noexcept : nodes(std::move(other.nodes)), parent_node(other.parent_node) {
-
-}
-
 void Scope::accept(Visitor *visitor) {
     visitor->visit(this);
 }

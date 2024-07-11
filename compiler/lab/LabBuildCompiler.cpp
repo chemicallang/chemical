@@ -300,8 +300,11 @@ int lab_build(LabBuildContext& context, const std::string& path, LabBuildCompile
             std::vector<std::future<ASTImportResult>> futures;
             i = 0;
             for(const auto& file : flat_imports) {
-                futures.push_back(pool.push(concurrent_processor, i, file, processor.get()));
-                i++;
+                auto already_imported = processor->shrinked_nodes.find(file.abs_path);
+                if(already_imported == processor->shrinked_nodes.end()) {
+                    futures.push_back(pool.push(concurrent_processor, i, file, processor.get()));
+                    i++;
+                }
             }
 
 #ifdef COMPILER_BUILD
@@ -315,15 +318,26 @@ int lab_build(LabBuildContext& context, const std::string& path, LabBuildCompile
                 c_visitor.prepare_translate();
             }
 
+            ASTImportResult result { { nullptr }, false, false };
+
             // sequentially compile each file
             i = 0;
             for(const auto& file : flat_imports) {
 
-                // get the processed result
-                auto result = futures[i].get();
-                if(!result.continue_processing) {
-                    compile_result = false;
-                    break;
+                auto imported = processor->shrinked_nodes.find(file.abs_path);
+                bool already_imported = imported != processor->shrinked_nodes.end();
+                // already imported
+                if(already_imported) {
+                    result.scope.nodes = std::move(imported->second);
+                    result.continue_processing = true;
+                    result.is_c_file = false;
+                } else {
+                    // get the processed result
+                    result = std::move(futures[i].get());
+                    if(!result.continue_processing) {
+                        compile_result = false;
+                        break;
+                    }
                 }
 
                 // symbol resolution
@@ -347,8 +361,11 @@ int lab_build(LabBuildContext& context, const std::string& path, LabBuildCompile
                     processor->compile_nodes(gen.get(), shrinker, file);
                 }
 #endif
-
-                i++;
+                if(already_imported) {
+                    imported->second = std::move(result.scope.nodes);
+                } else {
+                    i++;
+                }
             }
 
             futures.clear();

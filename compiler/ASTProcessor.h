@@ -26,9 +26,11 @@ class ToCAstVisitor;
  * when a file is processed using ASTProcessor, it results in this result
  */
 struct ASTImportResult {
+
     Scope scope;
     bool continue_processing;
     bool is_c_file;
+
 };
 
 /**
@@ -43,9 +45,20 @@ public:
     ASTProcessorOptions* options;
 
     /**
-     * The nodes that will be retained during compilation
+     * When a file is processed, we shrink it's nodes (remove function bodies) using the
+     * ShrinkingVisitor and then keep them on this map, with absolute path to files as keys
+     *
+     * Now when user has a module that depends on another module, We don't want to waste memory
+     * We first process the first module, each file's nodes are shrinked and put on this map
+     *
+     * When user imports a file, in the other module, this map is checked to see if that file has been
+     * already processed (generated code for), if it has, this map contains function signatures alive and well
+     * we declare those functions in this module basically importing them
+     *
+     * This Allows caching files in a module that have been processed to be imported by other modules that depend on it
+     *
      */
-    std::vector<std::vector<std::unique_ptr<ASTNode>>> file_nodes;
+    std::unordered_map<std::string, std::vector<std::unique_ptr<ASTNode>>> shrinked_nodes;
 
     /**
      * compiler binder that will be used through out processing

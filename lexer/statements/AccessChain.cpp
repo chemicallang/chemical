@@ -86,7 +86,7 @@ void Lexer::lexFunctionCallAfterLParen(unsigned back_start) {
     unsigned start = tokens.size() - back_start;
     do {
         lexWhitespaceToken();
-        if(!lexExpressionTokens(true)) {
+        if(!(lexExpressionTokens(true) || lexArrayInit())) {
             break;
         }
         lexWhitespaceToken();

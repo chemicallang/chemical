@@ -3,8 +3,8 @@ import "../std/lab.ch"
 func build(ctx : BuildContext*) {
 
     const str_arg = string("hello");
-    if(ctx.has_arg(&str_arg)) {
-        const said = ctx.get_arg(&str_arg);
+    if(ctx.has_arg(str_arg)) {
+        const said = ctx.get_arg(str_arg);
         printf("WOW : Hello World I guess, you said %s \n", said.data());
     }
 
@@ -15,10 +15,8 @@ func build(ctx : BuildContext*) {
     const path = parent_dir_path.copy();
     path.append_char_ptr("tests.ch");
 
-    const module = ctx.add_with_type(ModuleType.File, &name, &path, null, 0);
+    const module = ctx.add_with_type(ModuleType.File, name, path, null, 0);
 
-    var dependencies = { module }
-
-    ctx.build_exe(&name, &dependencies[0], 1);
+    ctx.build_exe(name, { module }, 1);
 
 }

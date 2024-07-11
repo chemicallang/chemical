@@ -33,6 +33,12 @@ struct ASTImportResult {
 
 };
 
+struct ASTImportResultExt : ASTImportResult {
+
+    std::string cli_out;
+
+};
+
 /**
  * this will be called ASTProcessor
  */
@@ -116,7 +122,7 @@ public:
      * lex, parse and resolve symbols in file and return Scope containing nodes
      * without performing any symbol resolution
      */
-    ASTImportResult import_file(const FlatIGFile& file);
+    ASTImportResultExt import_file(const FlatIGFile& file);
 
     /**
      * function that performs symbol resolution
@@ -156,4 +162,4 @@ public:
 /**
  * this function can be called concurrently, to import files
  */
-ASTImportResult concurrent_processor(int id, int job_id, const FlatIGFile& file, ASTProcessor* processor);
+ASTImportResultExt concurrent_processor(int id, int job_id, const FlatIGFile& file, ASTProcessor* processor);

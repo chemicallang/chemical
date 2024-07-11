@@ -14,6 +14,7 @@
 #include "utils/PathUtils.h"
 #include "compiler/lab/LabBuildCompiler.h"
 #include "std/chem_string.h"
+#include "rang.hpp"
 
 #ifdef COMPILER_BUILD
 
@@ -25,7 +26,7 @@ std::vector<std::unique_ptr<ASTNode>> TranslateC(
 
 #endif
 
-ASTImportResult concurrent_processor(int id, int job_id, const FlatIGFile& file, ASTProcessor* processor) {
+ASTImportResultExt concurrent_processor(int id, int job_id, const FlatIGFile& file, ASTProcessor* processor) {
     return processor->import_file(file);
 }
 
@@ -115,7 +116,7 @@ void ASTProcessor::sym_res(Scope& scope, bool is_c_file, const std::string& abs_
     scope.declare_and_link(*resolver);
     if(options->benchmark) {
         bm_results->benchmark_end();
-        std::cout << std::endl << "[SymRes] " << abs_path << " Completed " << bm_results->representation() << std::endl;
+        std::cout << "[SymRes] " << abs_path << " Completed " << bm_results->representation() << std::endl;
     }
     if(!resolver->errors.empty()) {
         resolver->print_errors(abs_path);
@@ -127,16 +128,13 @@ void ASTProcessor::sym_res(Scope& scope, bool is_c_file, const std::string& abs_
     }
 }
 
-ASTImportResult ASTProcessor::import_file(const FlatIGFile& file) {
+ASTImportResultExt ASTProcessor::import_file(const FlatIGFile& file) {
 
     auto& abs_path = file.abs_path;
     Scope scope(nullptr);
     auto is_c_file = abs_path.ends_with(".h") || abs_path.ends_with(".c");
 
     std::ostringstream out;
-    if(options->benchmark || options->verbose) {
-        out << "[Processing] " << abs_path << '\n';
-    }
 
     if (is_c_file) {
 
@@ -180,7 +178,7 @@ ASTImportResult ASTProcessor::import_file(const FlatIGFile& file) {
             printTokens(lexer.tokens);
         }
         if (lexer.has_errors) {
-            return {{ nullptr },false, is_c_file };
+            return { Scope { nullptr },false, is_c_file, std::move(out.str()) };
         }
 
         // convert the tokens
@@ -206,11 +204,7 @@ ASTImportResult ASTProcessor::import_file(const FlatIGFile& file) {
 
     }
 
-    if(!out.view().empty()) {
-        std::cout << std::endl << out.str() << std::flush;
-    }
-
-    return { std::move(scope), true, is_c_file };
+    return { std::move(scope), true, is_c_file, std::move(out.str()) };
 
 }
 
@@ -229,7 +223,7 @@ void ASTProcessor::translate_to_c_no_sym_res(
     visitor.translate(import_res.nodes);
     if(options->benchmark) {
         bm_results->benchmark_end();
-        std::cout << std::endl << "[2cTranslation] " << file.abs_path << " Completed " << bm_results->representation() << std::endl;
+        std::cout << "[2cTranslation] " << file.abs_path << " Completed " << bm_results->representation() << std::endl;
     }
     if(options->shrink_nodes) {
         shrinker.visit(import_res.nodes);

@@ -97,7 +97,7 @@ int lab_build(LabBuildContext& context, const std::string& path, LabBuildCompile
     ctpl::thread_pool pool((int) std::thread::hardware_concurrency()); // Initialize thread pool with the number of available hardware threads
 
     {
-        std::vector<std::future<ASTImportResult>> lab_futures;
+        std::vector<std::future<ASTImportResultExt>> lab_futures;
         int i = 0;
         for (const auto &file: flat_imports) {
             lab_futures.push_back(pool.push(concurrent_processor, i, file, &lab_processor));
@@ -302,7 +302,7 @@ int lab_build(LabBuildContext& context, const std::string& path, LabBuildCompile
             flat_imports = processor->determine_mod_imports(mod);
 
             // send all files for concurrent processing (lex and parse)
-            std::vector<std::future<ASTImportResult>> futures;
+            std::vector<std::future<ASTImportResultExt>> futures;
             i = 0;
             for(const auto& file : flat_imports) {
                 auto already_imported = processor->shrinked_nodes.find(file.abs_path);
@@ -323,7 +323,7 @@ int lab_build(LabBuildContext& context, const std::string& path, LabBuildCompile
                 c_visitor.prepare_translate();
             }
 
-            ASTImportResult result { { nullptr }, false, false };
+            ASTImportResultExt result { Scope { nullptr }, false, false, "" };
 
             // sequentially compile each file
             i = 0;
@@ -343,6 +343,12 @@ int lab_build(LabBuildContext& context, const std::string& path, LabBuildCompile
                         compile_result = false;
                         break;
                     }
+                }
+
+                // print the benchmark or verbose output received from processing
+                if((options->benchmark || options->verbose) && !result.cli_out.empty()) {
+                    std::cout << rang::style::bold << rang::fg::magenta << "[Processing] " << file.abs_path << rang::fg::reset << rang::style::reset << '\n';
+                    std::cout << result.cli_out << std::flush;
                 }
 
                 // symbol resolution

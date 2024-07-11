@@ -40,8 +40,10 @@ TCCState* compile_c_to_tcc_state(char* exe_path, const char* program, const std:
         return nullptr;
     }
 
-    int outputType = TCC_OUTPUT_MEMORY;
-    if(!jit && !outputFileName.empty()){
+    int outputType = TCC_OUTPUT_EXE;
+    if(jit || outputFileName.empty()) {
+        outputType = TCC_OUTPUT_MEMORY;
+    } else {
         if(outputFileName.ends_with(".exe")) {
             outputType = TCC_OUTPUT_EXE;
         } else if(outputFileName.ends_with(".o")) {
@@ -50,13 +52,14 @@ TCCState* compile_c_to_tcc_state(char* exe_path, const char* program, const std:
             outputType = TCC_OUTPUT_DLL;
         }
     }
+
     result = tcc_set_output_type(s, outputType);
     if(result == -1) {
         std::cerr << "Couldn't set tcc output type" << std::endl;
         return nullptr;
     }
 
-    if (tcc_compile_string(s, program) == -1) {
+    if (program != nullptr && tcc_compile_string(s, program) == -1) {
         std::cerr << "Couldn't compile the program" << std::endl;
         return nullptr;
     }
@@ -90,8 +93,34 @@ int compile_c_string(char* exe_path, const char* program, const std::string& out
 
     if(benchmark) {
         results.benchmark_end();
-        std::cout << "[Compiler] " << results.representation() << std::endl;
+        std::cout << "[Tcc] " << results.representation() << std::endl;
     }
+
+    return 0;
+
+}
+
+int tcc_link_objects(char* exe_path, const std::string& outputFileName, std::vector<std::string>& objects) {
+
+    auto s = compile_c_to_tcc_state(exe_path, nullptr, exe_path, false);
+    if(!s) {
+        return 1;
+    }
+
+    // auto delete state
+    TCCDeletor del_auto(s);
+
+    // adding object files
+    std::string command;
+    for(auto& obj : objects) {
+        if(tcc_add_file(s, obj.data()) == -1) {
+            std::cerr << "[Tcc] couldn't link " << obj << std::endl;
+            return 1;
+        }
+    }
+
+    // output file
+    tcc_output_file(s, outputFileName.data());
 
     return 0;
 

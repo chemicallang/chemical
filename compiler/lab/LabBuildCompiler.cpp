@@ -185,7 +185,7 @@ int lab_build(LabBuildContext& context, const std::string& path, LabBuildCompile
 
     // compiling the c output from build.labs
     auto str = output_ptr.str();
-    auto state = compile_c_to_tcc_state(options->exe_path.data(), str.data(), "", false);
+    auto state = compile_c_to_tcc_state(options->exe_path.data(), str.data(), "", true);
     TCCDeletor auto_del(state); // automatic destroy
 
     // relocate the code before calling
@@ -433,8 +433,7 @@ int lab_build(LabBuildContext& context, const std::string& path, LabBuildCompile
 #ifdef COMPILER_BUILD
         link_result = link_objects(linkables, exe.abs_path.to_std_string(), options->exe_path, {});
 #else
-        // TODO implement linking using TCC here
-        link_result = 1;
+        link_result = tcc_link_objects(options->exe_path.data(), exe.abs_path.data(), linkables);
 #endif
         if(link_result == 1) {
             std::cerr << "Failed to link \n";

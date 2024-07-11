@@ -120,6 +120,10 @@ public:
         return hybrid_ptr<Value> { evaluate(scope) };
     }
 
+    std::unique_ptr<Value> create_evaluated_value(InterpretScope &scope) override {
+        return std::unique_ptr<Value>(evaluate(scope));
+    }
+
     bool compile_time_computable() override;
 
     ValueType value_type() const override {

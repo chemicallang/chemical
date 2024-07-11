@@ -49,7 +49,12 @@ public:
      * user provides the arguments, we check arguments against params, to see if it's compatible
      * if not, another function is selected that is compatible with arguments provided
      */
-    virtual bool satisfy_args(std::vector<std::unique_ptr<Value>>& forArgs);
+    bool satisfy_args(std::vector<std::unique_ptr<Value>>& forArgs);
+
+    /**
+     * get function param for argument index
+     */
+    FunctionParam* func_param_for_arg_at(unsigned index);
 
     virtual ExtensionFunction* as_extension_func() {
         return nullptr;

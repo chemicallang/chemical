@@ -364,7 +364,7 @@ int lab_build(LabBuildContext& context, const std::string& path, LabBuildCompile
                 if(dependencies.size() == 1) {
                     obj_path = exe.abs_path.to_std_string();
                 }
-                compile_result = compile_c_string(options->exe_path.data(), output_ptr.view().data(), obj_path, false, options->benchmark);
+                compile_result = compile_c_string(options->exe_path.data(), output_ptr.str().data(), obj_path, false, options->benchmark);
                 if(compile_result == 1) {
                     break;
                 }

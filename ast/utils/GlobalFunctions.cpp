@@ -224,6 +224,9 @@ public:
     hybrid_ptr<Value> evaluated_value(InterpretScope &scope) override {
         return hybrid_ptr<Value> { underlying.get(), false };
     }
+    std::unique_ptr<Value> create_evaluated_value(InterpretScope &scope) override {
+        return std::move(underlying);
+    }
 };
 
 class InterpretWrap : public FunctionDeclaration {

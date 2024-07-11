@@ -108,6 +108,12 @@ struct IGFile {
 };
 
 /**
+ * performs the same as flatten_by_dedupe on a single IGFile, however it operates on multiple files
+ * it sorts them properly
+ */
+std::vector<FlatIGFile> flatten_by_dedupe(std::vector<IGFile>& files);
+
+/**
  * ImportGraph is constructed to analyse / process dependencies of a source file
  */
 struct IGResult {
@@ -122,13 +128,20 @@ struct IGResult {
 /**
  * determines the import graph
  */
-IGResult determine_import_graph(ImportGraphImporter* importer, std::vector<std::unique_ptr<CSTToken>> &tokens, FlatIGFile &file);
+IGResult determine_import_graph(
+    ImportGraphImporter* importer,
+    std::vector<std::unique_ptr<CSTToken>> &tokens,
+    FlatIGFile &file
+);
 
 /**
  * determines import graph from the given cst tokens
  */
-IGResult
-determine_import_graph(const std::string &exe_path, std::vector<std::unique_ptr<CSTToken>> &tokens, FlatIGFile &file);
+IGResult determine_import_graph(
+    const std::string &exe_path,
+    std::vector<std::unique_ptr<CSTToken>> &tokens,
+    FlatIGFile &file
+);
 
 /**
  * determines import graph, which is data structure

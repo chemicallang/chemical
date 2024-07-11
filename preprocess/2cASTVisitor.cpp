@@ -184,10 +184,32 @@ void type_with_id(ToCAstVisitor* visitor, BaseType* type, const std::string& id)
     }
 }
 
+inline bool is_param_type_ref_struct(BaseType* type) {
+    return type->kind() == BaseTypeKind::Referenced && type->linked_node()->as_struct_def();
+}
+
+void param_type_with_id(ToCAstVisitor* visitor, BaseType* type, const std::string& id) {
+    if(is_param_type_ref_struct(type)) {
+        PointerType ptr_type(hybrid_ptr<BaseType>{ type, false });
+        type_with_id(visitor, &ptr_type, id);
+    } else {
+        type_with_id(visitor, type, id);
+    }
+}
+
 void write_struct_return_param(ToCAstVisitor* visitor, BaseFunctionType* decl) {
     decl->returnType->accept(visitor);
     visitor->write("* ");
     visitor->write(struct_passed_param_name);
+}
+
+// don't know what to call '(' struct 'name' ')'
+void write_struct_def_value_call(ToCAstVisitor* visitor, StructDefinition* def) {
+    visitor->write('(');
+    visitor->write("struct ");
+    node_parent_name(visitor, def);
+    visitor->write(def->name);
+    visitor->write(')');
 }
 
 void extension_func_param(ToCAstVisitor* visitor, ExtensionFunction* extension) {
@@ -215,7 +237,7 @@ void func_type_params(ToCAstVisitor* visitor, BaseFunctionType* decl, unsigned i
     auto size = decl->isVariadic ? decl->params.size() - 1 : decl->params.size();
     while(i < size) {
         param = decl->params[i].get();
-        type_with_id(visitor, param->type.get(), param->name);
+        param_type_with_id(visitor, param->type.get(), param->name);
         if(i != decl->params.size() - 1) {
             visitor->write(", ");
         }
@@ -278,21 +300,29 @@ bool should_void_pointer_to_self(BaseType* type, const std::string& id, unsigned
     return false;
 }
 
-void param_type_with_id(ToCAstVisitor* visitor, BaseType* type, const std::string& id, unsigned index, bool overrides) {
-    if(should_void_pointer_to_self(type, id, index, overrides)) {
-        visitor->write("void* ");
-        visitor->write(id);
-        return;
-    }
-    type_with_id(visitor, type, id);
-}
+//void param_type_with_id(ToCAstVisitor* visitor, BaseType* type, const std::string& id, unsigned index, bool overrides) {
+//    if(should_void_pointer_to_self(type, id, index, overrides)) {
+//        visitor->write("void* ");
+//        visitor->write(id);
+//        return;
+//    }
+//    type_with_id(visitor, type, id);
+//}
 
-void func_call_args(ToCAstVisitor* visitor, FunctionCall* call) {
+void func_call_args(ToCAstVisitor* visitor, FunctionCall* call, BaseFunctionType* func_type) {
     auto prev_value = visitor->nested_value;
     visitor->nested_value = true;
     unsigned i = 0;
+    FunctionParam* param;
     while(i < call->values.size()) {
+        param = func_type->func_param_for_arg_at(i);
         auto& val = call->values[i];
+        if(is_param_type_ref_struct(param->type.get())) {
+            visitor->write('&');
+            if(!val->reference() && val->value_type() == ValueType::Struct) {
+                write_struct_def_value_call(visitor, val->as_struct()->definition);
+            }
+        }
         val->accept(visitor);
         if(i != call->values.size() - 1) {
             visitor->write(", ");
@@ -305,6 +335,8 @@ void func_call_args(ToCAstVisitor* visitor, FunctionCall* call) {
 void access_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& values, unsigned start, unsigned end, unsigned size);
 
 void func_container_name(ToCAstVisitor* visitor, FunctionDeclaration* func_node);
+
+void func_container_name(ToCAstVisitor* visitor, ASTNode* parent_node, ASTNode* linked_node);
 
 void func_name_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& values, unsigned start, unsigned end);
 
@@ -347,55 +379,81 @@ void write_self_arg(ToCAstVisitor* visitor, BaseFunctionType* func_type, std::ve
     }
 }
 
-void evaluate_func(
+Value* evaluated_func_val(
         ToCAstVisitor* visitor,
         FunctionDeclaration* func_decl,
+        FunctionCall* call
+) {
+    Value* eval;
+    auto found_eval = visitor->evaluated_func_calls.find(call);
+    if(found_eval == visitor->evaluated_func_calls.end()) {
+        auto value = std::unique_ptr<Value>(func_decl->call(&visitor->comptime_scope, call, nullptr));
+        if(!value) {
+            visitor->error("comptime function call didn't return anything");
+            return nullptr;
+        }
+        auto eval_call = value->create_evaluated_value(visitor->comptime_scope);
+        if(eval_call) {
+            eval = eval_call.release();
+        } else {
+            eval = value.release();
+        }
+        visitor->evaluated_func_calls[call] = std::unique_ptr<Value>(eval);
+    } else {
+        eval = found_eval->second.get();
+    }
+    return eval;
+}
+
+void visit_evaluated_func_val(
+        ToCAstVisitor* visitor,
+        Visitor* actual_visitor,
+        FunctionDeclaration* func_decl,
         FunctionCall* call,
+        Value* eval,
         const std::string& assign_id = ""
 ) {
-    auto value = std::unique_ptr<Value>(func_decl->call(&visitor->comptime_scope, call, nullptr));
-    if(!value) {
-        visitor->error("comptime function call didn't return anything");
-        return;
-    }
     auto returns_struct = func_decl->returnType->value_type() == ValueType::Struct;
-    auto eval = value->evaluated_value(visitor->comptime_scope);
-    bool go_before = true;
-    bool remove_allocated = false;
+    FunctionCall* remove_alloc = nullptr;
+    bool write_semi = false;
     if(!assign_id.empty() && returns_struct) {
-        // there's already a assign_id available, do not allocate struct by going to before stmt
-        go_before = false;
         if(eval->as_struct()) {
             auto struc = eval->as_struct();
             visitor->write(assign_id);
             visitor->write(" = ");
-            visitor->write('(');
-            visitor->write("struct ");
-            visitor->write(struc->definition->name);
-            visitor->write(')');
+            write_struct_def_value_call(visitor, struc->definition);
+            write_semi = true;
         } else if(eval->as_access_chain()) {
             auto& chain = eval->as_access_chain()->values;
             auto last = chain[chain.size() - 1].get();
             if(last->as_func_call()) {
                 visitor->local_allocated[last] = assign_id;
-                remove_allocated = true;
+                remove_alloc = last->as_func_call();
             }
         }
     }
-    if(go_before) {
-        eval->accept((Visitor *) visitor->before_stmt.get());
-    }
-    eval->accept(visitor);
-    if(remove_allocated) {
-        auto found = visitor->local_allocated.find(eval.get());
+    eval->accept(actual_visitor);
+    if(remove_alloc) {
+        auto found = visitor->local_allocated.find(remove_alloc);
         if(found != visitor->local_allocated.end()) {
             visitor->local_allocated.erase(found);
         }
     }
-    if(!visitor->nested_value) {
+    if(write_semi) {
         visitor->write(';');
     }
-    eval->accept((Visitor*) visitor->after_stmt.get());
+}
+
+Value* evaluate_func(
+        ToCAstVisitor* visitor,
+        Visitor* actual_visitor,
+        FunctionDeclaration* func_decl,
+        FunctionCall* call,
+        const std::string& assign_id = ""
+) {
+    Value* eval = evaluated_func_val(visitor, func_decl, call);
+    visit_evaluated_func_val(visitor, actual_visitor, func_decl, call, eval, assign_id);
+    return eval;
 }
 
 void value_assign_default(ToCAstVisitor* visitor, const std::string& identifier, BaseType* type, Value* value) {
@@ -405,7 +463,9 @@ void value_assign_default(ToCAstVisitor* visitor, const std::string& identifier,
         if(func_call) {
             auto linked_func = func_call->safe_linked_func();
             if(linked_func && linked_func->has_annotation(AnnotationKind::CompTime)) {
-                evaluate_func(visitor, linked_func, func_call, identifier);
+                auto eval = evaluated_func_val(visitor, linked_func, func_call);
+                eval->accept((Visitor*) visitor->before_stmt.get());
+                visit_evaluated_func_val(visitor, visitor, linked_func, func_call, eval, identifier);
                 return;
             }
         }
@@ -429,7 +489,7 @@ void value_assign_default(ToCAstVisitor* visitor, const std::string& identifier,
                 visitor->write(", ");
             }
             if(grandpa) write_self_arg(visitor, func_type, chain->values, ((int) ((int) end - 3)), func_call);
-            func_call_args(visitor, chain->values.back()->as_func_call());
+            func_call_args(visitor, chain->values.back()->as_func_call(), func_type);
             visitor->write(");");
             return;
         }
@@ -447,23 +507,23 @@ void value_init_default(ToCAstVisitor* visitor, const std::string& identifier, B
     value_assign_default(visitor, identifier, type, value->get());
 }
 
-void value_store_default(ToCAstVisitor* visitor, const std::string& identifier, BaseType* type, std::optional<std::unique_ptr<Value>>& value) {
-    visitor->new_line_and_indent();
-    value_assign_default(visitor, identifier, type, value->get());
-}
-
-void value_store(ToCAstVisitor* visitor, const std::string& identifier, BaseType* type, std::optional<std::unique_ptr<Value>>& value) {
-    if(value.has_value()) {
-        value_store_default(visitor, identifier, type, value);
-    }
-}
+//void value_store_default(ToCAstVisitor* visitor, const std::string& identifier, BaseType* type, std::optional<std::unique_ptr<Value>>& value) {
+//    visitor->new_line_and_indent();
+//    value_assign_default(visitor, identifier, type, value->get());
+//}
+//
+//void value_store(ToCAstVisitor* visitor, const std::string& identifier, BaseType* type, std::optional<std::unique_ptr<Value>>& value) {
+//    if(value.has_value()) {
+//        value_store_default(visitor, identifier, type, value);
+//    }
+//}
 
 void value_alloca_store(ToCAstVisitor* visitor, const std::string& identifier, BaseType* type, std::optional<std::unique_ptr<Value>>& value) {
     if(value.has_value()) {
         if(type->value_type() == ValueType::Struct && value.value()->as_access_chain()) {
             // struct instantiation is done in 2 instructions -> declaration and assignment
-            value_alloca(visitor, identifier, type, value);
-            visitor->new_line_and_indent();
+//            value_alloca(visitor, identifier, type, value);
+//            visitor->new_line_and_indent();
             value_assign_default(visitor, identifier, type, value->get());
         } else {
             value_init_default(visitor, identifier, type, value);
@@ -531,6 +591,10 @@ class CBeforeStmtVisitor : public CommonVisitor, public SubVisitor {
 
     void visit(FunctionCall *call) override;
 
+    void visit(AccessChain *chain) override;
+
+    void process_init_value(Value* value, VarInitStatement* init);
+
     void visit(VarInitStatement *init) override;
 
     void visit(LambdaFunction *func) override {
@@ -551,6 +615,26 @@ class CAfterStmtVisitor : public CommonVisitor, public SubVisitor {
 
 };
 
+void allocate_struct_by_name(ToCAstVisitor* visitor, StructDefinition* def, const std::string& name) {
+    visitor->write("struct ");
+    node_parent_name(visitor, def);
+    visitor->write(def->name);
+    visitor->write(' ');
+    visitor->write(name);
+    visitor->write(';');
+    visitor->new_line_and_indent();
+}
+
+void allocate_struct_for_func_call(ToCAstVisitor* visitor, StructDefinition* def, FunctionCall* call, const std::string& name) {
+    auto found = visitor->local_allocated.find(call);
+    if(found != visitor->local_allocated.end()) {
+        // already allocated
+        return;
+    }
+    visitor->local_allocated[call] = name;
+    allocate_struct_by_name(visitor, def, name);
+}
+
 void CBeforeStmtVisitor::visit(FunctionCall *call) {
     auto func_type = call->create_function_type();
     auto decl = call->safe_linked_func();
@@ -561,15 +645,115 @@ void CBeforeStmtVisitor::visit(FunctionCall *call) {
     if(func_type->returnType->value_type() == ValueType::Struct) {
         auto linked = func_type->returnType->linked_node();
         if(linked->as_struct_def()) {
-            auto def = linked->as_struct_def();
-            write("struct ");
-            write(def->name);
-            write(' ');
-            auto name = visitor->get_local_temp_var_name();
-            visitor->local_allocated[call] = name;
-            write(name);
-            write(';');
-            new_line_and_indent();
+            allocate_struct_for_func_call(visitor, linked->as_struct_def(), call, visitor->get_local_temp_var_name());
+        }
+    }
+}
+
+void chain_after_func(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& values, unsigned start, const unsigned end, const unsigned total_size);
+
+void func_name(ToCAstVisitor* visitor, Value* ref, FunctionDeclaration* func_decl) {
+//    if(func_decl && func_decl->has_annotation(AnnotationKind::Constructor)) {
+//        visitor->write(func_decl->name);
+//    } else {
+    ref->accept(visitor); // function name
+//    }
+}
+
+void func_call_that_returns_struct(ToCAstVisitor* visitor, CBeforeStmtVisitor* actual_visitor, std::vector<std::unique_ptr<Value>>& values, unsigned start, unsigned end) {
+    auto last = values[end - 1]->as_func_call();
+    auto func_decl = last->safe_linked_func();
+    auto parent = values[end - 2].get();
+    if (func_decl && func_decl->has_annotation(AnnotationKind::CompTime)) {
+        return;
+    }
+    auto grandpa = ((int) end) - 3 >= 0 ? values[end - 3].get() : nullptr;
+    auto parent_type = parent->create_type();
+    auto func_type = parent_type->function_type();
+    bool is_lambda = (parent->linked_node() != nullptr && parent->linked_node()->as_struct_member() != nullptr);
+    if (visitor->pass_structs_to_initialize && func_type->returnType->value_type() == ValueType::Struct) {
+        if(visitor->debug_comments) {
+            visitor->write("// function call being taken out that returns struct");
+            visitor->new_line_and_indent();
+        }
+        // functions that return struct
+        auto allocated = visitor->local_allocated.find(last);
+        if (allocated == visitor->local_allocated.end()) {
+            visitor->write("[NotFoundAllocated]");
+            return;
+        }
+        if (grandpa && !is_lambda) {
+            auto grandpaType = grandpa->create_type();
+            func_container_name(visitor, grandpaType->linked_node(), parent->linked_node());
+            func_name(visitor, parent, func_decl);
+            visitor->write('(');
+            if (write_self_arg_bool(visitor, func_type, values, (((int) end) - 3), last)) {
+                visitor->write(", ");
+            }
+        } else {
+            if (func_decl && func_decl->has_annotation(AnnotationKind::Constructor)) {
+                // struct name for the constructor, getting through return type
+                auto linked = func_decl->returnType->linked_node();
+                if (linked && linked->as_struct_def()) {
+                    visitor->write(linked->as_struct_def()->name);
+                }
+            }
+            access_chain(visitor, values, start, end - 1);
+            visitor->write('(');
+        }
+        visitor->write('&');
+        visitor->write(allocated->second);
+        if (!last->as_func_call()->values.empty()) {
+            visitor->write(", ");
+        }
+        func_call_args(visitor, last->as_func_call(), func_type);
+        visitor->write(");");
+        visitor->new_line_and_indent();
+    }
+}
+
+void CBeforeStmtVisitor::visit(AccessChain *chain) {
+
+    CommonVisitor::visit(chain);
+
+    const auto start = 0;
+    const auto end = chain->values.size();
+    auto& values = chain->values;
+    unsigned i = start;
+    // function call would be processed recursively
+    {
+        int j = end - 1;
+        while(j >= 0) {
+            auto& current = values[j];
+            auto call = current->as_func_call();
+            if(call) {
+                func_call_that_returns_struct(visitor, this, values, start, j + 1);
+            }
+            j--;
+        }
+    }
+
+}
+
+void CBeforeStmtVisitor::process_init_value(Value* value, VarInitStatement* init) {
+    if(value && value->value_type() == ValueType::Struct) {
+        auto chain = value->as_access_chain();
+        if(!chain) return;
+        auto call = chain->values[chain->values.size() - 1]->as_func_call();
+        if(call) {
+            auto decl = call->safe_linked_func();
+            auto func_type = call->create_function_type();
+            auto linked = func_type->returnType->linked_node();
+            if(decl && decl->has_annotation(AnnotationKind::CompTime)) {
+                auto eval = evaluated_func_val(visitor, decl, call);
+                if(eval->as_struct()) {
+                    allocate_struct_by_name(visitor, eval->as_struct()->definition, init->identifier);
+                }
+                process_init_value(eval, init);
+                return;
+            } else if(linked->as_struct_def()) {
+                allocate_struct_for_func_call(visitor, linked->as_struct_def(), call, init->identifier);
+            }
         }
     }
 }
@@ -577,6 +761,9 @@ void CBeforeStmtVisitor::visit(FunctionCall *call) {
 void CBeforeStmtVisitor::visit(VarInitStatement *init) {
     if (!init->type.has_value()) {
         init->type.emplace(init->value.value()->create_type().release());
+    }
+    if(init->value.has_value()) {
+        process_init_value(init->value.value().get(), init);
     }
     if(init->value.has_value() && init->type.value()->value_type() == ValueType::Struct && init->value.value()->as_access_chain()) {
         // do nothing
@@ -886,9 +1073,9 @@ std::string typedef_func_type(ToCAstVisitor* visitor, FunctionType* type) {
     return alia;
 }
 
-void func_call(ToCAstVisitor* visitor, FunctionCall* call) {
+void func_call(ToCAstVisitor* visitor, FunctionCall* call, BaseFunctionType* func_type) {
     visitor->write('(');
-    func_call_args(visitor, call);
+    func_call_args(visitor, call, func_type);
     visitor->write(')');
 //    if(!visitor->nested_value) {
 //        visitor->write(';');
@@ -1696,7 +1883,7 @@ void capture_call(ToCAstVisitor* visitor, FunctionType* type, current_call call,
     if(!func_call->values.empty()) {
         visitor->write(',');
     }
-    func_call_args(visitor, func_call);
+    func_call_args(visitor, func_call, type);
     visitor->write(')');
     visitor->write(')');
 }
@@ -1707,7 +1894,7 @@ void func_call(ToCAstVisitor* visitor, FunctionType* type, std::unique_ptr<Value
         i++;
     } else {
         current->accept(visitor);
-        func_call(visitor, next->as_func_call());
+        func_call(visitor, next->as_func_call(), type);
         i++;
     }
 }
@@ -1722,7 +1909,7 @@ void func_container_name(ToCAstVisitor* visitor, FunctionDeclaration* func_node)
 // linked_node is the actual function node
 void func_container_name(ToCAstVisitor* visitor, ASTNode* parent_node, ASTNode* linked_node) {
     node_parent_name(visitor, parent_node);
-    if(linked_node->as_extension_func()) {
+    if(linked_node && linked_node->as_extension_func()) {
         return;
     }
     if(!parent_node) return;
@@ -1743,7 +1930,12 @@ void func_container_name(ToCAstVisitor* visitor, ASTNode* parent_node, ASTNode* 
 }
 
 void write_accessor(ToCAstVisitor* visitor, Value* current) {
-    if(current->linked_node() && current->linked_node()->as_namespace()) {
+    auto linked = current->linked_node();
+    if(linked && linked->as_namespace()) {
+        return;
+    }
+    if(linked && linked->as_base_func_param() && is_param_type_ref_struct(linked->as_base_func_param()->type.get())){
+        visitor->write("->");
         return;
     }
     if (current->type_kind() == BaseTypeKind::Pointer) {
@@ -1753,20 +1945,12 @@ void write_accessor(ToCAstVisitor* visitor, Value* current) {
     }
 }
 
-void func_name(ToCAstVisitor* visitor, Value* ref, FunctionDeclaration* func_decl) {
-//    if(func_decl && func_decl->has_annotation(AnnotationKind::Constructor)) {
-//        visitor->write(func_decl->name);
-//    } else {
-        ref->accept(visitor); // function name
-//    }
-}
-
 void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& values, unsigned start, unsigned end) {
     auto last = values[end - 1]->as_func_call();
     auto func_decl = last->safe_linked_func();
     auto parent = values[end - 2].get();
     if(func_decl && func_decl->has_annotation(AnnotationKind::CompTime)) {
-        evaluate_func(visitor, func_decl, last);
+        evaluate_func(visitor, visitor, func_decl, last);
         return;
     }
     auto grandpa = ((int) end) - 3 >= 0 ? values[end - 3].get() : nullptr;
@@ -1775,43 +1959,12 @@ void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& valu
     bool is_lambda = (parent->linked_node() != nullptr && parent->linked_node()->as_struct_member() != nullptr);
     if(visitor->pass_structs_to_initialize && func_type->returnType->value_type() == ValueType::Struct) {
         // functions that return struct
-        visitor->write("({ ");
-//        func_type->returnType->accept(visitor);
-//        visitor->space();
-//        visitor->write("__chem_x_1__; ");
         auto allocated = visitor->local_allocated.find(last);
         if(allocated == visitor->local_allocated.end()) {
             visitor->write("[NotFoundAllocated]");
             return;
         }
-        if(grandpa && !is_lambda) {
-            auto grandpaType = grandpa->create_type();
-            func_container_name(visitor, grandpaType->linked_node(), parent->linked_node());
-            func_name(visitor, parent, func_decl);
-            visitor->write('(');
-            if(write_self_arg_bool(visitor, func_type, values, (((int) end) - 3), last)) {
-                visitor->write(", ");
-            }
-        } else {
-            if(func_decl && func_decl->has_annotation(AnnotationKind::Constructor)) {
-                // struct name for the constructor, getting through return type
-                auto linked = func_decl->returnType->linked_node();
-                if(linked && linked->as_struct_def()) {
-                    visitor->write(linked->as_struct_def()->name);
-                }
-            }
-            access_chain(visitor, values, start, end - 1);
-            visitor->write('(');
-        }
-        visitor->write('&');
         visitor->write(allocated->second);
-        if(!last->as_func_call()->values.empty()){
-            visitor->write(", ");
-        }
-        func_call_args(visitor, last->as_func_call());
-        visitor->write("); ");
-        visitor->write(allocated->second);
-        visitor->write("; })");
     } else if(func_type->isCapturing) {
         // function calls to capturing lambdas
         capture_call(visitor, func_type, [&](){
@@ -1825,7 +1978,7 @@ void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& valu
             // direct functions on interfaces and structs
             func_container_name(visitor, grandpa->linked_node(), parent->linked_node());
             func_name(visitor, parent, func_decl);
-            func_call(visitor, last->as_func_call());
+            func_call(visitor, last->as_func_call(), func_type);
         } else if(grandpa->value_type() == ValueType::Struct && grandpaType->kind() == BaseTypeKind::Referenced) {
             if(parent->linked_node()->as_struct_member()) {
                 goto normal_functions;
@@ -1835,7 +1988,7 @@ void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& valu
             func_name(visitor, parent, func_decl);
             visitor->write('(');
             write_self_arg(visitor, func_type, values, (((int) end) - 3), last);
-            func_call_args(visitor, last->as_func_call());
+            func_call_args(visitor, last->as_func_call(), func_type);
             visitor->write(')');
         } else {
             goto normal_functions;
@@ -1876,7 +2029,7 @@ void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& valu
                 visitor->write(',');
             }
         }
-        func_call_args(visitor, last);
+        func_call_args(visitor, last, func_type);
         visitor->write(')');
 //        if(!visitor->nested_value) {
 //            visitor->write(';');
@@ -1888,7 +2041,38 @@ void func_name_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>
     access_chain(visitor, values, start, end, values.size());
 }
 
-void access_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& values, unsigned start, unsigned end, unsigned total_size) {
+void chain_after_func(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& values, unsigned start, const unsigned end, const unsigned total_size) {
+    Value* current;
+    Value* next;
+    while(start < end) {
+        current = values[start].get();
+        if(start + 1 < total_size) {
+            next = values[start + 1].get();
+            if(next->as_func_call() || next->as_index_op()) {
+                current->accept(visitor);
+            } else {
+                if(current->linked_node()->as_enum_decl() != nullptr) {
+                    auto found = visitor->declarer->aliases.find(next->linked_node()->as_enum_member());
+                    if(found != visitor->declarer->aliases.end()) {
+                        visitor->write(found->second);
+                        start++;
+                    } else {
+                        visitor->write("[EnumAC_NOT_FOUND:" + current->representation() + "." + next->representation() + "]");
+                    }
+                } else {
+                    current->accept(visitor);
+                    write_accessor(visitor, current);
+                }
+            }
+        } else {
+            current->accept(visitor);
+            next = nullptr;
+        }
+        start++;
+    }
+}
+
+void access_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& values, const unsigned start, const unsigned end, const unsigned total_size) {
     auto diff = end - start;
     if(diff == 0) {
         return;
@@ -1917,34 +2101,7 @@ void access_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& v
             j--;
         }
     }
-    Value* current;
-    Value* next;
-    while(i < end) {
-        current = values[i].get();
-        if(i + 1 < total_size) {
-            next = values[i + 1].get();
-            if(next->as_func_call() || next->as_index_op()) {
-                current->accept(visitor);
-            } else {
-                if(current->linked_node()->as_enum_decl() != nullptr) {
-                    auto found = visitor->declarer->aliases.find(next->linked_node()->as_enum_member());
-                    if(found != visitor->declarer->aliases.end()) {
-                        visitor->write(found->second);
-                        i++;
-                    } else {
-                        visitor->write("[EnumAC_NOT_FOUND:" + current->representation() + "." + next->representation() + "]");
-                    }
-                } else {
-                    current->accept(visitor);
-                    write_accessor(visitor, current);
-                }
-            }
-        } else {
-            current->accept(visitor);
-            next = nullptr;
-        }
-        i++;
-    }
+    chain_after_func(visitor, values, i, end, total_size);
 }
 
 void ToCAstVisitor::visit(AccessChain *chain) {

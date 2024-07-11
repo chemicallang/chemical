@@ -34,6 +34,10 @@ llvm::Value *ArrayValue::llvm_value(Codegen &gen) {
     throw std::runtime_error("cannot allocate an array without an identifier");
 }
 
+llvm::Value *ArrayValue::llvm_arg_value(Codegen &gen, FunctionCall *call, unsigned int index) {
+    return llvm_allocate(gen, "");
+}
+
 void ArrayValue::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
     auto elem_type = element_type();
     gen.destruct(allocaInst, array_size(), elem_type.get());

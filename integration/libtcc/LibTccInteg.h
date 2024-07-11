@@ -4,6 +4,7 @@
 
 #include "libtcc.h"
 #include <string>
+#include <vector>
 
 class TCCDeletor {
 public:
@@ -19,3 +20,5 @@ public:
 TCCState* compile_c_to_tcc_state(char* exe_path, const char* program, const std::string& outputFileName, bool jit);
 
 int compile_c_string(char* exe_path, const char* program, const std::string& outputFileName, bool jit, bool benchmark);
+
+int tcc_link_objects(char* exe_path, const std::string& outputFileName, std::vector<std::string>& objects);

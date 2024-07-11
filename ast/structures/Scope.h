@@ -30,7 +30,12 @@ public:
     /**
      * move constructor
      */
-    Scope(Scope &&other) noexcept;
+    Scope(Scope &&other) noexcept = default;
+
+    /**
+     * move assignment constructor
+     */
+    Scope& operator =(Scope &&other) noexcept = default;
 
     void set_parent(ASTNode* new_parent) override {
         parent_node = new_parent;

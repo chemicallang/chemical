@@ -235,7 +235,7 @@ void ASTProcessor::translate_to_c_no_sym_res(
     if(options->shrink_nodes) {
         shrinker.visit(import_res.nodes);
     }
-    file_nodes.emplace_back(std::move(import_res.nodes));
+    shrinked_nodes[file.abs_path] = std::move(import_res.nodes);
     if(!visitor.errors.empty()) {
         visitor.print_errors(file.abs_path);
         std::cout << std::endl;

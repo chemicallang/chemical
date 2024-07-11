@@ -66,7 +66,7 @@ bool verify(const std::string &path, SourceVerifierOptions *options) {
         if(options->shrink_nodes) {
             shrinker.visit(result.scope.nodes);
         }
-        processor.file_nodes.emplace_back(std::move(result.scope.nodes));
+        processor.shrinked_nodes[file.abs_path] = std::move(result.scope.nodes);
 
         i++;
     }

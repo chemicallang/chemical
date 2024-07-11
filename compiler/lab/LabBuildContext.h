@@ -104,6 +104,18 @@ public:
     }
 
     /**
+     * adds the given module with type multiple files
+     */
+    LabModule* c_file_module(
+            chem::string* name,
+            chem::string* path,
+            LabModule** dependencies,
+            unsigned int dep_len
+    ) {
+        return add_with_type(LabModuleType::CFile, name->copy(), &path, 1, dependencies, dep_len);
+    }
+
+    /**
      * adds an executable entry that'll be built
      */
     LabExecutable* build_exe(

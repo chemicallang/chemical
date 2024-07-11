@@ -1,5 +1,16 @@
 import "../std/lab.ch"
 
+func curr_dir() : string {
+    const curr_path_str = string(#file:path{});
+    return curr_path_str.substring(0, curr_path_str.size() - 9)
+}
+
+func relative_path(path : string) : string {
+    const dir = curr_dir();
+    dir.append_str(path);
+    return dir;
+}
+
 func build(ctx : BuildContext*) {
 
     const str_arg = string("hello");
@@ -8,14 +19,9 @@ func build(ctx : BuildContext*) {
         printf("WOW : Hello World I guess, you said %s \n", said.data());
     }
 
-    const curr_path = #file:path{};
-    const curr_path_str = string(curr_path);
-    const parent_dir_path = curr_path_str.substring(0, curr_path_str.size() - 9)
     const name = string("chemical-tests");
-    const path = parent_dir_path.copy();
-    path.append_char_ptr("tests.ch");
-
-    const module = ctx.file_module(name, path, null, 0);
+    const ext_module = ctx.c_file_module(string("ext_c"), relative_path(string("ext/file.c")), null, 0)
+    const module = ctx.file_module(name, relative_path(string("tests.ch")), null, 0);
 
     ctx.build_exe(name, { module }, 1);
 

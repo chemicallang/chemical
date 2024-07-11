@@ -114,6 +114,12 @@ int lab_build(LabBuildContext& context, const std::string& path, LabBuildCompile
                 break;
             }
 
+            // print the benchmark or verbose output received from processing
+            if((options->benchmark || options->verbose) && !result.cli_out.empty()) {
+                std::cout << rang::style::bold << rang::fg::magenta << "[Processing] " << file.abs_path << rang::fg::reset << rang::style::reset << '\n';
+                std::cout << result.cli_out << std::flush;
+            }
+
             // symbol resolution
             lab_processor.sym_res(result.scope, result.is_c_file, file.abs_path);
             if (lab_resolver.has_errors) {

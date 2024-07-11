@@ -353,6 +353,14 @@ namespace chem {
             return { d };
         }
 
+        bool ends_with(const std::string& data) {
+            return to_std_string().ends_with(data);
+        }
+
+        bool ends_with(const chem::string& str) {
+            return to_std_string().ends_with(str.data());
+        }
+
         ~string(){
             if(state == '2'){
                 free(storage.heap.data);

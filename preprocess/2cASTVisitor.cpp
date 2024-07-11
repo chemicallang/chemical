@@ -221,15 +221,15 @@ void extension_func_param(ToCAstVisitor* visitor, ExtensionFunction* extension) 
 void func_type_params(ToCAstVisitor* visitor, BaseFunctionType* decl, unsigned i = 0) {
     auto is_struct_return = visitor->pass_structs_to_initialize && decl->returnType->value_type() == ValueType::Struct;
     auto extension = decl->as_extension_func();
-    if(extension) {
-        extension_func_param(visitor, extension);
-        if(is_struct_return || !extension->params.empty()) {
+    if(is_struct_return) {
+        write_struct_return_param(visitor, decl);
+        if(!decl->params.empty() || extension) {
             visitor->write(", ");
         }
     }
-    if(is_struct_return) {
-        write_struct_return_param(visitor, decl);
-        if(!decl->params.empty()) {
+    if(extension) {
+        extension_func_param(visitor, extension);
+        if(!extension->params.empty()) {
             visitor->write(", ");
         }
     }
@@ -476,28 +476,29 @@ void value_assign_default(ToCAstVisitor* visitor, const std::string& identifier,
             }
         }
         if(func_call && func_call->create_type()->value_type() == ValueType::Struct) {
-            auto func_decl = func_call->safe_linked_func();
-            auto parent_type = func_call->parent_val->create_type();
-            auto func_type = parent_type->function_type();
-            auto end = chain->values.size();
-            auto grandpa = ((int) end - 3) >= 0 ? chain->values[end - 3].get() : nullptr;
-            visitor->nested_value = true;
-            if(func_decl) {
-                func_container_name(visitor, func_decl);
-            } else {
-                func_name_chain(visitor, chain->values, 0, chain->values.size() - 1);
-            }
-            visitor->nested_value = false;
-            visitor->write('(');
-            visitor->write('&');
-            visitor->write(identifier);
-            if(!chain->values.back()->as_func_call()->values.empty() || func_type->has_self_param()){
-                visitor->write(", ");
-            }
-            if(grandpa) write_self_arg(visitor, func_type, chain->values, ((int) ((int) end - 3)), func_call);
-            func_call_args(visitor, chain->values.back()->as_func_call(), func_type);
-            visitor->write(");");
             return;
+//            auto func_decl = func_call->safe_linked_func();
+//            auto parent_type = func_call->parent_val->create_type();
+//            auto func_type = parent_type->function_type();
+//            auto end = chain->values.size();
+//            auto grandpa = ((int) end - 3) >= 0 ? chain->values[end - 3].get() : nullptr;
+//            visitor->nested_value = true;
+//            if(func_decl) {
+//                func_container_name(visitor, func_decl);
+//            } else {
+//                func_name_chain(visitor, chain->values, 0, chain->values.size() - 1);
+//            }
+//            visitor->nested_value = false;
+//            visitor->write('(');
+//            visitor->write('&');
+//            visitor->write(identifier);
+//            if(!chain->values.back()->as_func_call()->values.empty() || func_type->has_self_param()){
+//                visitor->write(", ");
+//            }
+//            if(grandpa) write_self_arg(visitor, func_type, chain->values, ((int) ((int) end - 3)), func_call);
+//            func_call_args(visitor, chain->values.back()->as_func_call(), func_type);
+//            visitor->write(");");
+//            return;
         }
     }
     visitor->write(identifier);
@@ -599,6 +600,7 @@ public:
 };
 
 class CBeforeStmtVisitor : public CommonVisitor, public SubVisitor {
+public:
 
     using SubVisitor::SubVisitor;
 
@@ -606,9 +608,15 @@ class CBeforeStmtVisitor : public CommonVisitor, public SubVisitor {
 
     void visit(AccessChain *chain) override;
 
-    void process_init_value(Value* value, VarInitStatement* init);
+    void process_comp_time_call(FunctionDeclaration* decl, FunctionCall* call, const std::string& identifier);
+
+    void process_init_value(Value* value, const std::string& identifier);
 
     void visit(VarInitStatement *init) override;
+
+    void visit(Scope *scope) override {
+        // do nothing
+    }
 
     void visit(LambdaFunction *func) override {
         // do nothing
@@ -652,6 +660,14 @@ void CBeforeStmtVisitor::visit(FunctionCall *call) {
     auto func_type = call->create_function_type();
     auto decl = call->safe_linked_func();
     if(decl && decl->has_annotation(AnnotationKind::CompTime)) {
+        auto eval = evaluated_func_val(visitor, decl, call);
+        auto identifier = visitor->get_local_temp_var_name();
+        if(eval->as_struct()) {
+            allocate_struct_by_name(visitor, eval->as_struct()->definition, identifier);
+            visitor->local_allocated[eval] = identifier;
+        }
+        process_init_value(eval, identifier);
+        eval->accept(this);
         return;
     }
     CommonVisitor::visit(call);
@@ -695,32 +711,46 @@ void func_call_that_returns_struct(ToCAstVisitor* visitor, CBeforeStmtVisitor* a
             visitor->write("[NotFoundAllocated]");
             return;
         }
+        if(func_decl) {
+            func_container_name(visitor, func_decl);
+        } else {
+            auto prev_nested = visitor->nested_value;
+            visitor->nested_value = true;
+            func_name_chain(visitor, values, start, end - 1);
+            visitor->nested_value = prev_nested;
+        }
         if (grandpa && !is_lambda) {
             auto grandpaType = grandpa->create_type();
-            func_container_name(visitor, grandpaType->linked_node(), parent->linked_node());
-            func_name(visitor, parent, func_decl);
+//            func_container_name(visitor, grandpaType->linked_node(), parent->linked_node());
+//            func_name(visitor, parent, func_decl);
             visitor->write('(');
-            if (write_self_arg_bool(visitor, func_type, values, (((int) end) - 3), last)) {
-                visitor->write(", ");
-            }
         } else {
-            if (func_decl && func_decl->has_annotation(AnnotationKind::Constructor)) {
-                // struct name for the constructor, getting through return type
-                auto linked = func_decl->returnType->linked_node();
-                if (linked && linked->as_struct_def()) {
-                    visitor->write(linked->as_struct_def()->name);
-                }
-            }
-            access_chain(visitor, values, start, end - 1);
+//            if (func_decl && func_decl->has_annotation(AnnotationKind::Constructor)) {
+//                // struct name for the constructor, getting through return type
+//                auto linked = func_decl->returnType->linked_node();
+//                if (linked && linked->as_struct_def()) {
+//                    visitor->write(linked->as_struct_def()->name);
+//                }
+//            }
+//            access_chain(visitor, values, start, end - 1);
             visitor->write('(');
         }
         visitor->write('&');
         visitor->write(allocated->second);
-        if (!last->as_func_call()->values.empty()) {
+        if (!last->values.empty() || func_type->has_self_param()) {
             visitor->write(", ");
         }
+        if (write_self_arg_bool(visitor, func_type, values, (((int) end) - 3), last)) {
+            if(!last->values.empty()) {
+                visitor->write(", ");
+            }
+        }
+//        if(grandpa) write_self_arg(visitor, func_type, values, ((int) ((int) end - 3)), last);
         func_call_args(visitor, last->as_func_call(), func_type);
-        visitor->write(");");
+        visitor->write(')');
+        if(!visitor->nested_value) {
+            visitor->write(';');
+        }
         visitor->new_line_and_indent();
     }
 }
@@ -748,7 +778,16 @@ void CBeforeStmtVisitor::visit(AccessChain *chain) {
 
 }
 
-void CBeforeStmtVisitor::process_init_value(Value* value, VarInitStatement* init) {
+void CBeforeStmtVisitor::process_comp_time_call(FunctionDeclaration* decl, FunctionCall* call, const std::string& identifier) {
+    auto eval = evaluated_func_val(visitor, decl, call);
+    if(eval->as_struct()) {
+        allocate_struct_by_name(visitor, eval->as_struct()->definition, identifier);
+        visitor->local_allocated[eval] = identifier;
+    }
+    process_init_value(eval, identifier);
+}
+
+void CBeforeStmtVisitor::process_init_value(Value* value, const std::string& identifier) {
     if(value && value->value_type() == ValueType::Struct) {
         auto chain = value->as_access_chain();
         if(!chain) return;
@@ -758,14 +797,10 @@ void CBeforeStmtVisitor::process_init_value(Value* value, VarInitStatement* init
             auto func_type = call->create_function_type();
             auto linked = func_type->returnType->linked_node();
             if(decl && decl->has_annotation(AnnotationKind::CompTime)) {
-                auto eval = evaluated_func_val(visitor, decl, call);
-                if(eval->as_struct()) {
-                    allocate_struct_by_name(visitor, eval->as_struct()->definition, init->identifier);
-                }
-                process_init_value(eval, init);
+                process_comp_time_call(decl, call, identifier);
                 return;
             } else if(linked->as_struct_def()) {
-                allocate_struct_for_func_call(visitor, linked->as_struct_def(), call, init->identifier);
+                allocate_struct_for_func_call(visitor, linked->as_struct_def(), call, identifier);
             }
         }
     }
@@ -776,13 +811,9 @@ void CBeforeStmtVisitor::visit(VarInitStatement *init) {
         init->type.emplace(init->value.value()->create_type().release());
     }
     if(init->value.has_value()) {
-        process_init_value(init->value.value().get(), init);
+        process_init_value(init->value.value().get(), init->identifier);
     }
-    if(init->value.has_value() && init->type.value()->value_type() == ValueType::Struct && init->value.value()->as_access_chain()) {
-        // do nothing
-    } else {
-        CommonVisitor::visit(init);
-    }
+    CommonVisitor::visit(init);
 }
 
 class CTopLevelDeclarationVisitor : public Visitor, public SubVisitor {

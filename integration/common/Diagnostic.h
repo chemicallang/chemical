@@ -57,29 +57,14 @@ public:
 
     /**
      * returns representation of this diagnostic as string
-     * @return
      */
     std::string format(const std::string& path, const std::string &tag = "Diagnostic") const {
         return "[" + tag + "] " + message + " at " + path + ':' + range.representation();
     }
 
     /**
-     * returns representation of this diagnostic as string
-     * @return
+     * prints the current diagnostic to console
      */
-    std::string ansi_representation(const std::string& path, const std::string &tag = "Diagnostic") const {
-        return (severity.has_value() ? (color(severity.value())) : "") +
-               format(path, tag) +
-               (severity.has_value() ? ("\x1b[0m") : "");
-    }
-
-    /**
-     * returns representation of this diagnostic as a string, also includes file path
-     * @param path
-     * @return
-     */
-    std::string representation(const std::string &path, const std::string &tag) const {
-        return ansi_representation(path, tag);
-    }
+    std::ostream& ansi(std::ostream& os, const std::string& path, const std::string &tag = "Diagnostic") const;
 
 };

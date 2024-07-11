@@ -1,5 +1,6 @@
 // Copyright (c) Qinetik 2024.
 
+#include "rang.hpp"
 #include "LabBuildCompiler.h"
 #include "preprocess/ImportGraphMaker.h"
 #include "utils/Benchmark.h"
@@ -223,6 +224,8 @@ int lab_build(LabBuildContext& context, const std::string& path, LabBuildCompile
     // generating outputs (executables)
     for(auto& exe : context.executables) {
 
+        std::cout << rang::bg::magenta << rang::fg::black << "[BuildLab]" << " Building executable '" << exe.name.data() << "' at path " << exe.abs_path.data() << rang::bg::reset << rang::fg::reset << std::endl;
+
         std::string exe_build_dir = exe.build_dir.to_std_string();
         // create the build directory for this executable
         if(!std::filesystem::exists(exe_build_dir)) {
@@ -292,6 +295,8 @@ int lab_build(LabBuildContext& context, const std::string& path, LabBuildCompile
 
         // compile dependent modules for this executable
         for(auto mod : dependencies) {
+
+            std::cout << rang::bg::green << rang::fg::gray << "[BuildLab]" << " Building module '" << mod->name.data() << "' at path " << obj_path << rang::bg::reset << rang::fg::reset << std::endl;
 
             // get flat file map of this module
             flat_imports = processor->determine_mod_imports(mod);

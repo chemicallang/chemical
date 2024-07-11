@@ -28,7 +28,7 @@ void ASTDiagnoser::error(const std::string &err, ASTNode *node) {
 void ASTDiagnoser::print_errors(const std::string& path) {
     std::cout << "[" << TAG() << "] " << std::to_string(errors.size()) << " diagnostics in " << path << std::endl;
     for (const auto &err: errors) {
-        std::cout << color(err.severity) << err.message << ANSI_COLOR_RESET << std::endl;
+        color(std::cout, err.severity) << err.message << ANSI_COLOR_RESET << std::endl;
     }
 }
 

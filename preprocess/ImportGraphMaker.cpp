@@ -279,7 +279,7 @@ void print_errors(IGFile* file) {
     }
     if(!file->errors.empty()) {
         for (auto& err : file->errors) {
-            std::cout << err.ansi_representation(file->flat_file.abs_path, "IGGraph") << std::endl;
+            err.ansi(std::cout, file->flat_file.abs_path, "IGGraph") << std::endl;
         }
     }
 }

@@ -15,7 +15,7 @@ func build(ctx : BuildContext*) {
     const path = parent_dir_path.copy();
     path.append_char_ptr("tests.ch");
 
-    const module = ctx.add_with_type(ModuleType.File, name, path, null, 0);
+    const module = ctx.file_module(name, path, null, 0);
 
     ctx.build_exe(name, { module }, 1);
 

@@ -5,16 +5,15 @@
 enum class LabModuleType {
 
     /**
-     * a root file module means, one file, everything it imports will be merged into a one
-     * single module
+     * a files module is which contains chemical source files
      */
-    RootFile = 0,
+    Files = 0,
 
     /**
      * a directory with no build.lab file, is considered a directory module
      * files inside are sorted so that independent files that don't depend on other files
      * are compiled first
      */
-    Directory = 1
+    Directory = 2
 
 };

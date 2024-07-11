@@ -20,7 +20,9 @@ struct Executable {
 
 struct BuildContext {
 
-    var add_with_type : (&self, type : ModuleType, name : string, abs_path : string, dependencies : Module**, len : uint) => Module*;
+    var file_module : (&self, name : string, abs_path : string, dependencies : Module**, len : uint) => Module*;
+
+    var files_module : (&self, name : string, paths : string**, paths_len : uint, dependencies : Module**, len : uint) => Module*;
 
     var build_exe : (&self, name : string, dependencies : Module**, len : uint) => Executable*;
 

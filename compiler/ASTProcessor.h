@@ -103,14 +103,16 @@ public:
     );
 
     /**
-     * get flat imports
+     * this allows to convert more than one path and get flat imports
      */
-    std::vector<FlatIGFile> flat_imports(const std::string& path);
+    std::vector<FlatIGFile> flat_imports_mul(const std::vector<const char*>& paths);
 
     /**
-     * get module for the given file, the returned module depends upon the file extension
+     * get flat imports
      */
-    LabModule* get_root_module(LabBuildContext& context, const std::string& path);
+    std::vector<FlatIGFile> flat_imports(const std::string& path) {
+        return flat_imports_mul({ path.data() });
+    }
 
     /**
      * will determine the source files required by this module, in order

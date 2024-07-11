@@ -13,6 +13,8 @@ struct BenchmarkResults {
 
     void benchmark_end();
 
+    void plus(const BenchmarkResults& results);
+
     std::string representation();
 
 

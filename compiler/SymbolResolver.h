@@ -35,14 +35,7 @@ public:
     /**
      * constructor
      */
-    SymbolResolver(bool is64Bit);
-
-    /**
-     * similar to codegen it also has imported map
-     * TODO delete this map, as symbol resolver needs to be merged into codegen
-     * TODO only one implementation of imported map should exist anyway
-     */
-    std::unordered_map<std::string, bool> imported;
+    explicit SymbolResolver(bool is64Bit);
 
     /**
      * declares a node with string : name

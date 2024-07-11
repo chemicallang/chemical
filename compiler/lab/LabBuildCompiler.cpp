@@ -68,13 +68,13 @@ int lab_build(LabBuildContext& context, const std::string& path, LabBuildCompile
 
     // beginning
     std::stringstream output_ptr;
-    ToCAstVisitor lab_c_visitor(&output_ptr, path);
+    ToCAstVisitor c_visitor(&output_ptr, path);
 
     // allow user the compiler (namespace) functions in @comptime
-    lab_c_visitor.comptime_scope.prepare_compiler_functions(lab_resolver);
+    c_visitor.comptime_scope.prepare_compiler_namespace(lab_resolver);
 
     // preparing translation
-    lab_c_visitor.prepare_translate();
+    c_visitor.prepare_translate();
 
     // function can find the build method in lab file
     auto finder = [](SymbolResolver& resolver, const std::string& abs_path, bool error = true) -> FunctionDeclaration* {
@@ -163,7 +163,7 @@ int lab_build(LabBuildContext& context, const std::string& path, LabBuildCompile
             }
 
             // translate build.lab file to c
-            lab_processor.translate_to_c_no_sym_res(lab_c_visitor, result.scope, shrinker, file);
+            lab_processor.translate_to_c_no_sym_res(c_visitor, result.scope, shrinker, file);
 
             i++;
         }
@@ -237,9 +237,6 @@ int lab_build(LabBuildContext& context, const std::string& path, LabBuildCompile
         std::unique_ptr<ASTCompiler> processor;
         std::unique_ptr<CodegenEmitterOptions> emitter_options;
 #else
-        ToCAstVisitor visitor(&output_ptr, path);
-        // allow user the compiler (namespace) functions in @comptime
-        visitor.comptime_scope.prepare_compiler_functions(resolver);
         std::unique_ptr<ASTProcessor> processor;
 #endif
 
@@ -247,8 +244,8 @@ int lab_build(LabBuildContext& context, const std::string& path, LabBuildCompile
             // clear build.lab c output
             output_ptr.clear();
             output_ptr.str("");
-            // preparing translation
-            visitor.prepare_translate();
+            // allow user the compiler (namespace) functions in @comptime
+            c_visitor.comptime_scope.rebind_compiler_namespace(resolver);
 #ifdef COMPILER_BUILD
             processor.reset(new ASTCompiler(options, &resolver));
 #else
@@ -260,7 +257,7 @@ int lab_build(LabBuildContext& context, const std::string& path, LabBuildCompile
             // creating codegen, processor  for this executable
             gen.reset(new Codegen({}, options->target_triple, options->exe_path, options->is64Bit, ""));
             // prepare compiler functions in codegen scope
-            gen->comptime_scope.prepare_compiler_functions(resolver);
+            gen->comptime_scope.prepare_compiler_namespace(resolver);
             // ast compiler aids in code generation
             processor.reset(new ASTCompiler(options, &resolver));
             // emitter options allow to configure type of build (debug or release)
@@ -313,6 +310,11 @@ int lab_build(LabBuildContext& context, const std::string& path, LabBuildCompile
             gen->compile_begin();
 #endif
 
+            if(use_tcc) {
+                // preparing translation
+                c_visitor.prepare_translate();
+            }
+
             // sequentially compile each file
             i = 0;
             for(const auto& file : flat_imports) {
@@ -333,8 +335,10 @@ int lab_build(LabBuildContext& context, const std::string& path, LabBuildCompile
                 resolver.reset_errors();
 
                 if(use_tcc) {
+                    // reset the c visitor to use with another file
+                    c_visitor.reset();
                     // translating to c
-                    processor->translate_to_c_no_sym_res(visitor, result.scope, shrinker, file);
+                    processor->translate_to_c_no_sym_res(c_visitor, result.scope, shrinker, file);
                 }
 #ifdef COMPILER_BUILD
                 else {

@@ -583,6 +583,13 @@ public:
         visitor->new_line_and_indent();
     }
 
+    /**
+     * reset the visitor, to translate another set of nodes
+     */
+    virtual void reset() {
+        // does nothing
+    }
+
 };
 
 class CBeforeStmtVisitor : public CommonVisitor, public SubVisitor {
@@ -838,6 +845,10 @@ public:
 
     void visit(StructMember *member) override;
 
+    void reset() override {
+        aliases.clear();
+    }
+
 };
 
 enum class DestructionJobType {
@@ -886,6 +897,12 @@ public:
     bool destruct_arr(const std::string& self_name, ASTNode* initializer, BaseType* elem_type, int array_size);
 
     void visit(VarInitStatement *init) override;
+
+    void reset() override {
+        destroy_current_scope = true;
+        new_line_before = true;
+        destruct_jobs.clear();
+    }
 
 };
 
@@ -1422,6 +1439,22 @@ void ToCAstVisitor::prepare_translate() {
     write("#include <stddef.h>\n");
     // declaring a fat pointer
     declare_fat_pointer(this);
+}
+
+void ToCAstVisitor::reset() {
+    local_allocated.clear();
+    evaluated_func_calls.clear();
+    current_func_type = nullptr;
+    current_members_container = nullptr;
+    indentation_level = 0;
+    local_temp_var_i = 0;
+    nested_value = false;
+    return_redirect_block = "";
+    declarer->reset();
+    tld->reset();
+    before_stmt->reset();
+    after_stmt->reset();
+    destructor->reset();
 }
 
 ToCAstVisitor::~ToCAstVisitor() = default;

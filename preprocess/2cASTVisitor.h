@@ -128,6 +128,13 @@ public:
     bool nested_value = false;
 
     /**
+     * when not empty, return statement would make a goto to this block instead
+     */
+    std::string return_redirect_block;
+
+    // --------- Configuration Variables ------------------
+
+    /**
      * when false, function types in struct members (lambdas) are typedef at top level
      */
     bool inline_struct_members_fn_types = true;
@@ -141,11 +148,6 @@ public:
      * when false, function types in function returns aren typedef at top level
      */
     bool inline_fn_types_in_returns = true;
-
-    /**
-     * when not empty, return statement would make a goto to this block instead
-     */
-    std::string return_redirect_block;
 
     /**
      * when true, output c will be like c++
@@ -205,6 +207,13 @@ public:
      * this should be called before calling translate
      */
     void prepare_translate();
+
+    /**
+     * this should be called after translating one set of nodes (belonging to a single file)
+     * so the visitor can be reused to translate another set of nodes
+     * you could create another visitor, but that might be too expensive
+     */
+    void reset();
 
     /**
      * will translate given nodes

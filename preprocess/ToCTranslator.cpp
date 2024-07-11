@@ -54,7 +54,7 @@ bool translate(
     prepare(&visitor, &processor);
 
     // allow user the compiler (namespace) functions in @comptime
-    visitor.comptime_scope.prepare_compiler_functions(resolver);
+    visitor.comptime_scope.prepare_compiler_namespace(resolver);
 
     // preparing translation
     visitor.prepare_translate();
@@ -77,6 +77,10 @@ bool translate(
             break;
         }
 
+        // reset the visitor so it can be used for another file
+        visitor.reset();
+
+        // translating
         if(!processor.translate_to_c(visitor, result, shrinker, file)) {
             compile_result = false;
             break;

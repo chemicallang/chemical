@@ -68,13 +68,13 @@ int lab_build(LabBuildContext& context, const std::string& path, LabBuildCompile
 
     // beginning
     std::stringstream output_ptr;
-    ToCAstVisitor visitor(&output_ptr, path);
+    ToCAstVisitor lab_c_visitor(&output_ptr, path);
 
     // allow user the compiler (namespace) functions in @comptime
-    visitor.comptime_scope.prepare_compiler_functions(lab_resolver);
+    lab_c_visitor.comptime_scope.prepare_compiler_functions(lab_resolver);
 
     // preparing translation
-    visitor.prepare_translate();
+    lab_c_visitor.prepare_translate();
 
     // function can find the build method in lab file
     auto finder = [](SymbolResolver& resolver, const std::string& abs_path, bool error = true) -> FunctionDeclaration* {
@@ -163,7 +163,7 @@ int lab_build(LabBuildContext& context, const std::string& path, LabBuildCompile
             }
 
             // translate build.lab file to c
-            lab_processor.translate_to_c_no_sym_res(visitor, result.scope, shrinker, file);
+            lab_processor.translate_to_c_no_sym_res(lab_c_visitor, result.scope, shrinker, file);
 
             i++;
         }
@@ -237,6 +237,7 @@ int lab_build(LabBuildContext& context, const std::string& path, LabBuildCompile
         std::unique_ptr<ASTCompiler> processor;
         std::unique_ptr<CodegenEmitterOptions> emitter_options;
 #else
+        ToCAstVisitor visitor(&output_ptr, path);
         // allow user the compiler (namespace) functions in @comptime
         visitor.comptime_scope.prepare_compiler_functions(resolver);
         std::unique_ptr<ASTProcessor> processor;

@@ -5,8 +5,7 @@
 #include <iostream>
 #include "ast/base/ASTNode.h"
 #include <filesystem>
-
-#define ANSI_COLOR_RESET   "\x1b[0m"
+#include "rang.hpp"
 
 void ASTDiagnoser::info(const std::string &err, ASTNode *node) {
     std::string errStr = "[INFO] " + err;
@@ -26,9 +25,9 @@ void ASTDiagnoser::error(const std::string &err, ASTNode *node) {
 }
 
 void ASTDiagnoser::print_errors(const std::string& path) {
-    std::cout << "[" << TAG() << "] " << std::to_string(errors.size()) << " diagnostics in " << path << std::endl;
+    std::cout << rang::fg::cyan << "[" << TAG() << "] " << std::to_string(errors.size()) << " diagnostics in " << path << rang::fg::reset << std::endl;
     for (const auto &err: errors) {
-        color(std::cout, err.severity) << err.message << ANSI_COLOR_RESET << std::endl;
+        color(std::cout, err.severity) << err.message << rang::bg::reset << rang::fg::reset << std::endl;
     }
 }
 

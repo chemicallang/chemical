@@ -60,6 +60,8 @@ public:
 
     llvm::Value *llvm_value(Codegen &gen) override;
 
+    llvm::Value *llvm_arg_value(Codegen &gen, FunctionCall *call, unsigned int index) override;
+
     void llvm_destruct(Codegen &gen, llvm::Value *allocaInst) override;
 
     unsigned int store_in_array(

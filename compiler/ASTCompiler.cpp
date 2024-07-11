@@ -26,7 +26,6 @@ void ASTCompiler::compile_nodes(
     shrinked_nodes[file.abs_path] = std::move(gen->nodes);
     if(!gen->errors.empty()) {
         gen->print_errors(file.abs_path);
-        std::cout << std::endl;
     }
     gen->reset_errors();
 }

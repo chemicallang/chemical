@@ -119,7 +119,6 @@ void ASTProcessor::sym_res(Scope& scope, bool is_c_file, const std::string& abs_
     }
     if(!resolver->errors.empty()) {
         resolver->print_errors(abs_path);
-        std::cout << std::endl;
     }
     if (is_c_file) {
         resolver->override_symbols = false;

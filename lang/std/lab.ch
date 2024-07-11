@@ -9,7 +9,6 @@ enum ModuleType {
 struct Module {
     var type : ModuleType
     var name : string
-    var path : string
 }
 
 @no_init

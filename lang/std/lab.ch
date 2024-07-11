@@ -26,7 +26,7 @@ struct BuildContext {
 
     var has_arg : (&self, name : string*) => bool
 
-    var get_arg : (&self, name : string*) => string*
+    var get_arg : (&self, name : string*) => string
 
     var remove_arg : (&self, name : string*) => void
 

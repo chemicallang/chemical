@@ -1290,6 +1290,7 @@ void CValueDeclarationVisitor::visit(ExtensionFunction *decl) {
 }
 
 void CValueDeclarationVisitor::visit(EnumDeclaration *enumDecl) {
+    if(visitor->inline_enum_member_access) return;
     unsigned i = 0;
     for(auto& mem : enumDecl->members) {
         visitor->new_line_and_indent();
@@ -2085,12 +2086,17 @@ void chain_after_func(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>
                 current->accept(visitor);
             } else {
                 if(current->linked_node()->as_enum_decl() != nullptr) {
-                    auto found = visitor->declarer->aliases.find(next->linked_node()->as_enum_member());
-                    if(found != visitor->declarer->aliases.end()) {
-                        visitor->write(found->second);
+                    if(visitor->inline_enum_member_access) {
+                        visitor->write(std::to_string(next->linked_node()->as_enum_member()->index));
                         start++;
                     } else {
-                        visitor->write("[EnumAC_NOT_FOUND:" + current->representation() + "." + next->representation() + "]");
+                        auto found = visitor->declarer->aliases.find(next->linked_node()->as_enum_member());
+                        if (found != visitor->declarer->aliases.end()) {
+                            visitor->write(found->second);
+                            start++;
+                        } else {
+                            visitor->write("[EnumAC_NOT_FOUND:" + current->representation() + "." + next->representation() +"]");
+                        }
                     }
                 } else {
                     current->accept(visitor);

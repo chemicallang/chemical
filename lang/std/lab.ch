@@ -24,4 +24,10 @@ struct BuildContext {
 
     var build_exe : (&self, name : string*, dependencies : Module**, len : uint) => Executable*;
 
+    var has_arg : (&self, name : string*) => bool
+
+    var get_arg : (&self, name : string*) => string*
+
+    var remove_arg : (&self, name : string*) => void
+
 }

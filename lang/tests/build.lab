@@ -2,6 +2,12 @@ import "../std/lab.ch"
 
 func build(ctx : BuildContext*) {
 
+    const str_arg = string("hello");
+    if(ctx.has_arg(&str_arg)) {
+        const said = ctx.get_arg(&str_arg);
+        printf("WOW : Hello World I guess, you said %s \n", said.data());
+    }
+
     const curr_path = #file:path{};
     const curr_path_str = string(curr_path);
     const parent_dir_path = curr_path_str.substring(0, curr_path_str.size() - 9)

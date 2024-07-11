@@ -7,6 +7,7 @@
 #include "LabExecutable.h"
 #include "integration/ide/model/FlatIGFile.h"
 #include <vector>
+#include <unordered_map>
 
 /**
  * A Lab build context is just a container
@@ -24,6 +25,8 @@ public:
     std::vector<LabModule> modules;
     // all the executables created during the build process
     std::vector<LabExecutable> executables;
+    // build arguments given to the build lab
+    std::unordered_map<std::string, std::string> build_args;
 
     /**
      * constructor
@@ -77,5 +80,20 @@ public:
             LabModule** dependencies,
             unsigned int dep_len
     );
+
+    /**
+     * has this build argument
+     */
+    bool has_arg(chem::string* name);
+
+    /**
+     * consume this build argument
+     */
+    void get_arg(chem::string* str, chem::string* name);
+
+    /**
+     * remove this build argument
+     */
+    void remove_arg(chem::string* name);
 
 };

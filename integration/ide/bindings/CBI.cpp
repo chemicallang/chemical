@@ -343,6 +343,15 @@ void prep_build_context_cbi(BuildContextCBI* cbi) {
     cbi->build_exe = [](BuildContextCBI* self, chem::string* name, LabModule** dependencies, unsigned int dep_len) -> LabExecutable* {
         return self->instance->build_exe(name, dependencies, dep_len);
     };
+    cbi->has_arg = [](BuildContextCBI* self, chem::string* name) -> bool {
+        return self->instance->has_arg(name);
+    };
+    cbi->get_arg = [](chem::string* str, BuildContextCBI* self, chem::string* name) {
+        return self->instance->get_arg(init_chem_string(str), name);
+    };
+    cbi->remove_arg = [](BuildContextCBI* self, chem::string* name) {
+        return self->instance->remove_arg(name);
+    };
 }
 
 void bind_build_context_cbi(BuildContextCBI* cbi, LabBuildContext* context) {

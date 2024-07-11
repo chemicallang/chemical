@@ -322,6 +322,12 @@ void func_call_args(ToCAstVisitor* visitor, FunctionCall* call, BaseFunctionType
             if(!val->reference() && val->value_type() == ValueType::Struct) {
                 write_struct_def_value_call(visitor, val->as_struct()->definition);
             }
+        } else if(!val->reference() && val->value_type() == ValueType::Array) {
+            visitor->write('(');
+            auto base_type = val->get_base_type();
+            base_type->accept(visitor);
+            visitor->write("[]");
+            visitor->write(')');
         }
         val->accept(visitor);
         if(i != call->values.size() - 1) {

@@ -576,10 +576,20 @@ std::cerr << "child called on base value";
      * This can be used to get the value after evaluation
      * for ex : identifier represents a variable that contains a value, its not a value itself, but yields a value
      * so it can find its value and return pointer to the Value object that actually holds the value
-     * @return
      */
     virtual hybrid_ptr<Value> evaluated_value(InterpretScope& scope) {
         return hybrid_ptr<Value> { this, false };
+    }
+
+    /**
+     * This method should be used carefully, as it returns nullptr by default
+     *
+     * when value is evaluated, we just get a non releasable pointer, but this function
+     * gets the released value, from the interpret scope provided
+     *
+     */
+    virtual std::unique_ptr<Value> create_evaluated_value(InterpretScope& scope) {
+        return nullptr;
     }
 
     /**
@@ -593,7 +603,7 @@ std::cerr << "child called on base value";
     /**
      * called by access chain, to evaluate this value, in the parent
      */
-    virtual hybrid_ptr<Value> evaluated_chain_value(InterpretScope& scope, hybrid_ptr<Value>& parent) {
+    virtual hybrid_ptr<Value> evaluated_chain_value(InterpretScope& scope, Value* parent) {
         throw std::runtime_error("evaluated chain value called on base value");
     }
 

@@ -40,6 +40,15 @@ public:
     bool top_level_node = true;
 
     /**
+     * whether to output debug comments or not
+     */
+#ifdef DEBUG
+    bool debug_comments = true;
+#else
+    bool debug_comments = false;
+#endif
+
+    /**
      * a typedef struct containing two void pointers is prepared
      */
     std::string fat_pointer_type;
@@ -48,6 +57,12 @@ public:
      * allocated values locally, based on Value*
      */
     std::unordered_map<Value*, std::string> local_allocated;
+
+    /**
+     * comptime functions are evaluated once and put on this unordered map
+     * once used, they are disposed as well
+     */
+    std::unordered_map<FunctionCall*, std::unique_ptr<Value>> evaluated_func_calls;
 
     /**
      * top level declarations will be declared by this visitor

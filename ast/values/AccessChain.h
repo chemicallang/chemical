@@ -114,7 +114,9 @@ public:
 
     Value *scope_value(InterpretScope &scope) override;
 
-    hybrid_ptr<Value> evaluated_value(InterpretScope &scope) override;
+    hybrid_ptr<Value> evaluated_value(InterpretScope &scope);
+
+    std::unique_ptr<Value> create_evaluated_value(InterpretScope &scope) override;
 
     std::string representation() {
         return Value::representation();

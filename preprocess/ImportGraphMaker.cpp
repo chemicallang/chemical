@@ -239,6 +239,15 @@ std::vector<FlatIGFile> IGFile::flatten_by_dedupe() {
     return imports;
 }
 
+std::vector<FlatIGFile> flatten_by_dedupe(std::vector<IGFile>& files) {
+    std::vector<FlatIGFile> imports;
+    std::unordered_map<std::string, bool> imported;
+    for(auto& file : files) {
+        recursive_dedupe(&file, imported, imports);
+    }
+    return imports;
+}
+
 void representation(IGFile& file, std::string& into, unsigned int level) {
     unsigned i = 0;
     while(i < level) {

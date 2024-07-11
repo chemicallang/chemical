@@ -168,10 +168,25 @@ hybrid_ptr<Value> AccessChain::evaluated_value(InterpretScope &scope) {
     hybrid_ptr<Value> evaluated = values[0]->evaluated_value(scope);
     unsigned i = 1;
     while(i < values.size()) {
-        evaluated = values[i]->evaluated_chain_value(scope, evaluated);
+        evaluated = values[i]->evaluated_chain_value(scope, evaluated.get());
         i++;
     }
     return evaluated;
+}
+
+std::unique_ptr<Value> AccessChain::create_evaluated_value(InterpretScope &scope) {
+    if(values.size() == 1) return values[0]->create_evaluated_value(scope);
+    auto evaluated = values[0]->evaluated_value(scope);
+    unsigned i = 1;
+    while(i < values.size()) {
+        evaluated = values[i]->evaluated_chain_value(scope, evaluated.get());
+        i++;
+    }
+    if(evaluated.get_will_free()) {
+        return std::unique_ptr<Value>(evaluated.release());
+    } else {
+        return std::unique_ptr<Value>(evaluated->copy());
+    }
 }
 
 Value *AccessChain::scope_value(InterpretScope &scope) {

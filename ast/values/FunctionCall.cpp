@@ -400,9 +400,12 @@ hybrid_ptr<Value> FunctionCall::evaluated_value(InterpretScope &scope) {
     return hybrid_ptr<Value> {scope_value(scope) };
 }
 
-hybrid_ptr<Value> FunctionCall::evaluated_chain_value(InterpretScope &scope, hybrid_ptr<Value> &parent) {
-    auto value = interpret_value(this, scope, parent.get());
-    return hybrid_ptr<Value>{ value };
+std::unique_ptr<Value> FunctionCall::create_evaluated_value(InterpretScope &scope) {
+    return std::unique_ptr<Value>(scope_value(scope));
+}
+
+hybrid_ptr<Value> FunctionCall::evaluated_chain_value(InterpretScope &scope, Value* parent) {
+    return hybrid_ptr<Value>{ interpret_value(this, scope, parent) };
 }
 
 void FunctionCall::evaluate_children(InterpretScope &scope) {

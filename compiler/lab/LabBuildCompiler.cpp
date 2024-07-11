@@ -242,11 +242,11 @@ int lab_build(LabBuildContext& context, const std::string& path, LabBuildCompile
         SymbolResolver resolver(options->is64Bit);
 
 #ifdef COMPILER_BUILD
-        std::unique_ptr<Codegen> gen;
-        std::unique_ptr<ASTCompiler> processor;
-        std::unique_ptr<CodegenEmitterOptions> emitter_options;
+        ASTCompiler processor(options, &resolver);
+        Codegen gen({}, options->target_triple, options->exe_path, options->is64Bit, "");
+        CodegenEmitterOptions emitter_options;
 #else
-        std::unique_ptr<ASTProcessor> processor;
+        ASTProcessor processor(options, &resolver);
 #endif
 
         if(use_tcc) {
@@ -255,29 +255,20 @@ int lab_build(LabBuildContext& context, const std::string& path, LabBuildCompile
             output_ptr.str("");
             // allow user the compiler (namespace) functions in @comptime
             c_visitor.comptime_scope.rebind_compiler_namespace(resolver);
-#ifdef COMPILER_BUILD
-            processor.reset(new ASTCompiler(options, &resolver));
-#else
-            processor.reset(new ASTProcessor(options, &resolver));
-#endif
         }
 #ifdef COMPILER_BUILD
         else {
             // creating codegen, processor  for this executable
-            gen.reset(new Codegen({}, options->target_triple, options->exe_path, options->is64Bit, ""));
             // prepare compiler functions in codegen scope
-            gen->comptime_scope.prepare_compiler_namespace(resolver);
-            // ast compiler aids in code generation
-            processor.reset(new ASTCompiler(options, &resolver));
+            gen.comptime_scope.prepare_compiler_namespace(resolver);
             // emitter options allow to configure type of build (debug or release)
-            emitter_options.reset(new CodegenEmitterOptions());
             // configuring the emitter options
-            configure_emitter_opts(options->def_mode, emitter_options.get());
+            configure_emitter_opts(options->def_mode, &emitter_options);
             if (options->def_lto_on) {
-                emitter_options->lto = true;
+                emitter_options.lto = true;
             }
             if (options->def_assertions_on) {
-                emitter_options->assertions_on = true;
+                emitter_options.assertions_on = true;
             }
         }
 #endif
@@ -290,9 +281,9 @@ int lab_build(LabBuildContext& context, const std::string& path, LabBuildCompile
         auto obj_path = resolve_rel_child_path_str(exe_build_dir, exe.name.to_std_string() + (is_use_obj_format ? ".obj" : ".bc"));
 #ifdef COMPILER_BUILD
         if(is_use_obj_format) {
-            emitter_options->obj_path = obj_path.data();
+            emitter_options.obj_path = obj_path.data();
         } else {
-            emitter_options->bitcode_path = obj_path.data();
+            emitter_options.bitcode_path = obj_path.data();
         }
 #endif
 
@@ -305,23 +296,23 @@ int lab_build(LabBuildContext& context, const std::string& path, LabBuildCompile
             std::cout << rang::bg::gray << rang::fg::black << "[BuildLab]" << " Building module '" << mod->name.data() << "' at path '" << obj_path << '\'' << rang::bg::reset << rang::fg::reset << std::endl;
 
             // get flat file map of this module
-            flat_imports = processor->determine_mod_imports(mod);
+            flat_imports = processor.determine_mod_imports(mod);
 
             // send all files for concurrent processing (lex and parse)
             std::vector<std::future<ASTImportResultExt>> futures;
             i = 0;
             for(const auto& file : flat_imports) {
-                auto already_imported = processor->shrinked_nodes.find(file.abs_path);
-                if(already_imported == processor->shrinked_nodes.end()) {
-                    futures.push_back(pool.push(concurrent_processor, i, file, processor.get()));
+                auto already_imported = processor.shrinked_nodes.find(file.abs_path);
+                if(already_imported == processor.shrinked_nodes.end()) {
+                    futures.push_back(pool.push(concurrent_processor, i, file, &processor));
                     i++;
                 }
             }
 
 #ifdef COMPILER_BUILD
             // prepare for code generation of this module
-            gen->module_init(mod->name.to_std_string());
-            gen->compile_begin();
+            gen.module_init(mod->name.to_std_string());
+            gen.compile_begin();
 #endif
 
             if(use_tcc) {
@@ -335,8 +326,8 @@ int lab_build(LabBuildContext& context, const std::string& path, LabBuildCompile
             i = 0;
             for(const auto& file : flat_imports) {
 
-                auto imported = processor->shrinked_nodes.find(file.abs_path);
-                bool already_imported = imported != processor->shrinked_nodes.end();
+                auto imported = processor.shrinked_nodes.find(file.abs_path);
+                bool already_imported = imported != processor.shrinked_nodes.end();
                 // already imported
                 if(already_imported) {
                     result.scope.nodes = std::move(imported->second);
@@ -358,7 +349,7 @@ int lab_build(LabBuildContext& context, const std::string& path, LabBuildCompile
                 }
 
                 // symbol resolution
-                processor->sym_res(result.scope, result.is_c_file, file.abs_path);
+                processor.sym_res(result.scope, result.is_c_file, file.abs_path);
                 if (resolver.has_errors) {
                     compile_result = false;
                     break;
@@ -369,13 +360,13 @@ int lab_build(LabBuildContext& context, const std::string& path, LabBuildCompile
                     // reset the c visitor to use with another file
                     c_visitor.reset();
                     // translating to c
-                    processor->translate_to_c_no_sym_res(c_visitor, result.scope, shrinker, file);
+                    processor.translate_to_c_no_sym_res(c_visitor, result.scope, shrinker, file);
                 }
 #ifdef COMPILER_BUILD
                 else {
                     // compiling the nodes
-                    gen->nodes = std::move(result.scope.nodes);
-                    processor->compile_nodes(gen.get(), shrinker, file);
+                    gen.nodes = std::move(result.scope.nodes);
+                    processor.compile_nodes(&gen, shrinker, file);
                 }
 #endif
                 if(already_imported) {
@@ -386,7 +377,7 @@ int lab_build(LabBuildContext& context, const std::string& path, LabBuildCompile
             }
 
             futures.clear();
-            processor->end();
+            processor.end();
             if(use_tcc) {
                 if(options->out_build_c) {
                     std::ofstream out_c;
@@ -417,15 +408,15 @@ int lab_build(LabBuildContext& context, const std::string& path, LabBuildCompile
             }
 #ifdef COMPILER_BUILD
             else {
-                gen->compile_end();
+                gen.compile_end();
             }
             // errors in a single module means no linking
-            if (gen->has_errors) {
+            if (gen.has_errors) {
                 compile_result = 1;
                 break;
             }
             // creating a object or bitcode file
-            save_result = gen->save_with_options(emitter_options.get());
+            save_result = gen.save_with_options(&emitter_options);
             if(save_result) {
                 linkables.emplace_back(obj_path);
             } else {

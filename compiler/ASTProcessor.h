@@ -48,12 +48,6 @@ public:
     std::vector<std::vector<std::unique_ptr<ASTNode>>> file_nodes;
 
     /**
-     * The imported map, when a file is imported, it set's it's absolute path true in this map
-     * to avoid re-importing files
-     */
-//    std::unordered_map<std::string, bool> imported;
-
-    /**
      * compiler binder that will be used through out processing
      */
     std::unique_ptr<CompilerBinder> binder;

@@ -267,19 +267,24 @@ public:
     }
 };
 
-void GlobalInterpretScope::prepare_compiler_functions(SymbolResolver& resolver) {
-
+Namespace* GlobalInterpretScope::create_compiler_namespace() {
     global_nodes["compiler"] = std::make_unique<Namespace>("compiler", nullptr);
     auto compiler_ns = (Namespace*) global_nodes["compiler"].get();
-    resolver.declare("compiler", compiler_ns);
-
     compiler_ns->nodes.emplace_back(new InterpretPrint(compiler_ns));
     compiler_ns->nodes.emplace_back(new InterpretStrLen(compiler_ns));
     compiler_ns->nodes.emplace_back(new InterpretWrap(compiler_ns));
     compiler_ns->nodes.emplace_back(new InterpretRetStructPtr(compiler_ns));
     compiler_ns->nodes.emplace_back(new InterpretVector::InterpretVectorNode(compiler_ns));
+    return compiler_ns;
+}
 
+void GlobalInterpretScope::prepare_compiler_namespace(SymbolResolver& resolver) {
+    auto compiler_ns = create_compiler_namespace();
     compiler_ns->declare_top_level(resolver);
     compiler_ns->declare_and_link(resolver);
+}
 
+void GlobalInterpretScope::rebind_compiler_namespace(SymbolResolver &resolver) {
+    auto compiler_ns = (Namespace*) global_nodes["compiler"].get();
+    compiler_ns->declare_top_level(resolver);
 }

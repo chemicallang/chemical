@@ -175,7 +175,7 @@ ASTImportResult ASTProcessor::import_file(const FlatIGFile& file) {
             lexFile(&lexer, abs_path);
         }
         for (const auto &err: lexer.diagnostics) {
-            std::cerr << err.representation(abs_path, "Lexer") << std::endl;
+            err.ansi(std::cerr, abs_path, "Lexer") << std::endl;
         }
         if (options->print_cst) {
             printTokens(lexer.tokens);
@@ -198,7 +198,7 @@ ASTImportResult ASTProcessor::import_file(const FlatIGFile& file) {
             out << "[Cst2Ast]" << " Completed " << ' ' << bm_results->representation() << '\n';
         }
         for (const auto &err: converter.diagnostics) {
-            std::cerr << err.representation(abs_path, "Converter") << std::endl;
+            err.ansi(std::cerr, abs_path, "Converter") << std::endl;
         }
         scope.nodes = std::move(converter.nodes);
         if (options->print_representation) {

@@ -572,6 +572,7 @@ set(COMMON_INCLUDE_DIRS
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${CMAKE_CURRENT_SOURCE_DIR}/lib/tsl-ordered-map
         ${CMAKE_CURRENT_SOURCE_DIR}/lib/ctpl
+        ${CMAKE_CURRENT_SOURCE_DIR}/lib/rang
 )
 
 # Add include directories for LspCpp

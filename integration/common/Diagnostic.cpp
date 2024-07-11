@@ -1,5 +1,6 @@
 // Copyright (c) Qinetik 2024.
 
+#include "rang.hpp"
 #include "Diagnostic.h"
 
 bool Position::is_ahead(const Position& position) const {
@@ -16,19 +17,22 @@ bool Position::is_equal(const Position& position) const {
     return line == position.line && character == position.character;
 }
 
-std::string color(DiagSeverity severity) {
+std::ostream& color(std::ostream& os, DiagSeverity severity) {
     switch (severity) {
         case DiagSeverity::Error:
-            return "\x1b[91m";
+            os << rang::fg::red;
+            break;
         case DiagSeverity::Warning:
-            return "\x1b[93m";
+            os << rang::fg::yellow;
+            break;
         case DiagSeverity::Information:
-            return "\x1b[94m";
+            os << rang::fg::gray;
+            break;
         case DiagSeverity::Hint:
-            return "\x1b[96m";
-        default:
-            return "[UnknownDiagSeverity]";
+            os << rang::fg::cyan;
+            break;
     }
+    return os;
 }
 
 std::string to_string(DiagSeverity severity) {
@@ -44,4 +48,9 @@ std::string to_string(DiagSeverity severity) {
         default:
             return "[UnknownDiagSeverity]";
     }
+}
+
+std::ostream& Diag::ansi(std::ostream& os, const std::string& path, const std::string &tag) const {
+    color(os, severity.value()) << format(path, tag) << rang::bg::reset << rang::fg::reset;
+    return os;
 }

@@ -42,7 +42,19 @@ ASTProcessor::ASTProcessor(
     }
 }
 
-std::vector<FlatIGFile> ASTProcessor::flat_imports(const std::string& path) {
+void put_import_graph(IGResult& result, const std::string& exe_path, const std::vector<const char*>& paths) {
+    IGResult local;
+    if(paths.size() == 1) {
+        result = determine_import_graph(exe_path, paths[0]);
+    } else {
+        for (auto path : paths) {
+            local = determine_import_graph(exe_path, path);
+            result.root.files.emplace_back(local.root);
+        }
+    }
+}
+
+std::vector<FlatIGFile> ASTProcessor::flat_imports_mul(const std::vector<const char*>& paths) {
 
     IGResult result;
 
@@ -50,11 +62,11 @@ std::vector<FlatIGFile> ASTProcessor::flat_imports(const std::string& path) {
     if (options->benchmark) {
         BenchmarkResults bm{};
         bm.benchmark_begin();
-        result = determine_import_graph(options->exe_path, path);
+        put_import_graph(result, options->exe_path, paths);
         bm.benchmark_end();
         std::cout << "[IGGraph] " << bm.representation() << std::endl;
     } else {
-        result = determine_import_graph(options->exe_path, path);
+        put_import_graph(result, options->exe_path, paths);
     }
 
     // print errors in ig
@@ -75,27 +87,20 @@ std::vector<FlatIGFile> ASTProcessor::flat_imports(const std::string& path) {
     }
 
     return flat_imports;
-
-}
-
-LabModule* ASTProcessor::get_root_module(LabBuildContext& context, const std::string& path) {
-    if(path.ends_with(".lab")) {
-        LabBuildCompilerOptions lbc_opts(options->exe_path, options->target_triple, options->is64Bit);
-        lab_build(context, path, &lbc_opts);
-        return nullptr; // TODO this method
-    } else if(path.ends_with(".ch")) {
-        chem::string name("ChemMod");
-        chem::string path_str(path.data());
-        return context.add_with_type(LabModuleType::RootFile, &name, &path_str, nullptr, 0);
-    } else {
-        return nullptr;
-    }
 }
 
 std::vector<FlatIGFile> ASTProcessor::determine_mod_imports(LabModule* module) {
     switch(module->type) {
-        case LabModuleType::RootFile:
-            return flat_imports(module->path.to_std_string());
+        case LabModuleType::Files:
+            if(module->paths.size() == 1) {
+                return flat_imports(module->paths[0].data());
+            } else {
+                std::vector<const char*> paths;
+                for(auto& str : module->paths) {
+                    paths.emplace_back(str.data());
+                }
+                return flat_imports_mul(paths);
+            }
         case LabModuleType::Directory:
             throw std::runtime_error("NOT YET IMPLEMENTED DIRECTORY THING");
     }

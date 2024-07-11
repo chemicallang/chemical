@@ -42,6 +42,11 @@ public:
     static void add_dependencies(std::vector<LabModule*>& into, LabModule** dependencies, unsigned int dep_len);
 
     /**
+     * add given dependencies to the given module
+     */
+    static void add_paths(std::vector<chem::string>& into, chem::string** paths, unsigned int path_len);
+
+    /**
      * it creates a flat vector containing pointers to lab modules, sorted
      *
      * It de-dupes, meaning avoids duplicates, it won't add two pointers
@@ -66,11 +71,37 @@ public:
      */
     LabModule* add_with_type(
             LabModuleType type,
+            chem::string name,
+            chem::string** paths,
+            unsigned int path_len,
+            LabModule** dependencies,
+            unsigned int dep_len
+    );
+
+    /**
+     * adds the given module with type file
+     */
+    LabModule* file_module(
             chem::string* name,
             chem::string* path,
             LabModule** dependencies,
             unsigned int dep_len
-    );
+    ) {
+        return add_with_type(LabModuleType::Files, name->copy(), &path, 1, dependencies, dep_len);
+    }
+
+    /**
+     * adds the given module with type multiple files
+     */
+    LabModule* files_module(
+            chem::string* name,
+            chem::string** paths,
+            unsigned int path_len,
+            LabModule** dependencies,
+            unsigned int dep_len
+    ) {
+        return add_with_type(LabModuleType::Files, name->copy(), paths, path_len, dependencies, dep_len);
+    }
 
     /**
      * adds an executable entry that'll be built

@@ -23,6 +23,17 @@ void LabBuildContext::add_dependencies(std::vector<LabModule*>& into, LabModule 
     }
 }
 
+void LabBuildContext::add_paths(std::vector<chem::string>& into, chem::string** paths, unsigned int path_len) {
+    if(!paths || path_len == 0) return;
+    auto ptr = *paths;
+    unsigned i = 0;
+    while (i < path_len) {
+        into.emplace_back(ptr->copy());
+        ptr++;
+        i++;
+    }
+}
+
 void recursive_dedupe(LabModule* file, std::unordered_map<LabModule*, bool>& imported, std::vector<LabModule*>& flat_map) {
     for(auto nested : file->dependencies) {
         recursive_dedupe(nested, imported, flat_map);
@@ -57,12 +68,15 @@ std::vector<LabModule*> LabBuildContext::flatten_dedupe_sorted(const std::vector
 
 LabModule *LabBuildContext::add_with_type(
     LabModuleType type,
-    chem::string *name,
-    chem::string *path, LabModule **dependencies,
+    chem::string name,
+    chem::string** paths,
+    unsigned int path_len,
+    LabModule **dependencies,
     unsigned int dep_len
 ) {
-    modules.emplace_back(type, name->copy(), path->copy());
+    modules.emplace_back(type, std::move(name));
     auto mod = &modules.back();
+    LabBuildContext::add_paths(mod->paths, paths, path_len);
     LabBuildContext::add_dependencies(mod->dependencies, dependencies, dep_len);
     return mod;
 }

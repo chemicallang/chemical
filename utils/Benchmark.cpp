@@ -31,3 +31,8 @@ void BenchmarkResults::benchmark_begin() {
 void BenchmarkResults::benchmark_end() {
     end_time = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
 }
+
+void BenchmarkResults::plus(const BenchmarkResults& results) {
+    start_time += results.start_time;
+    end_time += results.end_time;
+}

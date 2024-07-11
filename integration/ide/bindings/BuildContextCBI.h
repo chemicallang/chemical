@@ -13,7 +13,9 @@ struct LabExecutable;
 
 struct BuildContextCBI {
 
-    LabModule*(*add_with_type)(BuildContextCBI* self, LabModuleType type, chem::string* name, chem::string* path, LabModule** dependencies, unsigned int dep_len);
+    LabModule*(*file_module)(BuildContextCBI* self, chem::string* name, chem::string* path, LabModule** dependencies, unsigned int dep_len);
+
+    LabModule*(*files_module)(BuildContextCBI* self, chem::string* name, chem::string** path, unsigned int path_len, LabModule** dependencies, unsigned int dep_len);
 
     LabExecutable*(*build_exe)(BuildContextCBI* self, chem::string* name, LabModule** dependencies, unsigned int dep_len);
 

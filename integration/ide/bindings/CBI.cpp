@@ -337,8 +337,11 @@ void prep_source_provider_cbi(SourceProviderCBI* cbi) {
 }
 
 void prep_build_context_cbi(BuildContextCBI* cbi) {
-    cbi->add_with_type = [](BuildContextCBI* self, LabModuleType type, chem::string* name, chem::string* path, LabModule** dependencies, unsigned int dep_len) -> LabModule* {
-        return self->instance->add_with_type(type, name, path, dependencies, dep_len);
+    cbi->file_module = [](BuildContextCBI* self, chem::string* name, chem::string* path, LabModule** dependencies, unsigned int dep_len) -> LabModule* {
+        return self->instance->file_module(name, path, dependencies, dep_len);
+    };
+    cbi->files_module = [](BuildContextCBI* self, chem::string* name, chem::string** path, unsigned int path_len, LabModule** dependencies, unsigned int dep_len) -> LabModule* {
+        return self->instance->files_module(name, path, path_len, dependencies, dep_len);
     };
     cbi->build_exe = [](BuildContextCBI* self, chem::string* name, LabModule** dependencies, unsigned int dep_len) -> LabExecutable* {
         return self->instance->build_exe(name, dependencies, dep_len);

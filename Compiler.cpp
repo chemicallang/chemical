@@ -68,6 +68,7 @@ void print_help() {
                  "--assertions        -[empty]      enable assertions on generated code\n"
                  "--debug-ll          -[empty]      output llvm ir, even with errors, for debugging\n"
                  "--out-build-c       -[empty]      output modules translated to c, when building build.lab\n"
+                 "--arg-[arg]         -arg-[arg]    can be used to provide arguments to build.lab\n"
                  "--verify            -o            do not compile, only verify source code\n"
                  "--jit               -jit          do just in time compilation using Tiny CC\n"
                  "--no-cbi            -[empty]      this ignores cbi annotations when translating\n"
@@ -279,6 +280,12 @@ int main(int argc, char *argv[]) {
             compiler_opts.def_assertions_on = true;
         }
         compiler_opts.out_build_c = options.option("out-build-c").has_value();
+        // giving build args to lab build context
+        for(auto& opt : options.options) {
+            if(opt.first.starts_with("arg-")) {
+                context.build_args[opt.first.substr(4)] = opt.second;
+            }
+        }
         return lab_build(context, srcFilePath, &compiler_opts);
     }
 

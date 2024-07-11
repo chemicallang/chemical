@@ -150,6 +150,11 @@ public:
     bool inline_fn_types_in_returns = true;
 
     /**
+     * by default it takes out enum values for debugging purposes
+     */
+    bool inline_enum_member_access = true;
+
+    /**
      * when true, output c will be like c++
      * it'll use bool instead of _Bool for example
      */

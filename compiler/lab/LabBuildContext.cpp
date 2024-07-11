@@ -84,3 +84,21 @@ LabExecutable* LabBuildContext::build_exe(
     LabBuildContext::add_dependencies(exe->dependencies, dependencies, dep_len);
     return exe;
 }
+
+bool LabBuildContext::has_arg(chem::string* name) {
+    return build_args.find(name->to_std_string()) != build_args.end();
+}
+
+void LabBuildContext::get_arg(chem::string* str, chem::string* name) {
+    auto found = build_args.find(name->to_std_string());
+    if(found != build_args.end()) {
+        str->append(found->second.data(), found->second.size());
+    }
+}
+
+void LabBuildContext::remove_arg(chem::string* name) {
+    auto found = build_args.find(name->to_std_string());
+    if(found != build_args.end()) {
+        build_args.erase(found);
+    }
+}

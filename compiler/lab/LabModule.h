@@ -11,7 +11,7 @@
 struct LabModule {
 
     // type of the module
-    int type;
+    LabModuleType type;
     // name of the module
     chem::string name;
     // bitcode file path for this module

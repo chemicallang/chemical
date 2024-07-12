@@ -2,7 +2,7 @@
 
 #pragma once
 
-enum class LabModuleType {
+enum class LabModuleType : int {
 
     /**
      * a files module is which contains chemical source files, if any c files

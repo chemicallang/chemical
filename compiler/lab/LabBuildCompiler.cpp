@@ -27,8 +27,11 @@
 #include <utility>
 #include <functional>
 
-std::vector<std::unique_ptr<ASTNode>>
-TranslateC(const char *exe_path, const char *abs_path, const char *resources_path);
+std::vector<std::unique_ptr<ASTNode>> TranslateC(
+    const char *exe_path,
+    const char *abs_path,
+    const char *resources_path
+);
 
 static bool verify_lib_build_func_type(FunctionDeclaration* found, const std::string& abs_path) {
     if(found->returnType->kind() == BaseTypeKind::Pointer) {
@@ -109,7 +112,7 @@ int LabBuildCompiler::do_job(LabJob* job) {
     }
 }
 
-ProcessModulesResult LabBuildCompiler::process_modules(LabJob* exe) {
+int LabBuildCompiler::process_modules(LabJob* exe) {
 
     // the flag that forces usage of tcc
     const bool use_tcc = options->use_tcc;
@@ -173,9 +176,6 @@ ProcessModulesResult LabBuildCompiler::process_modules(LabJob* exe) {
     // configure output path
     const bool is_use_obj_format = options->use_mod_obj_format;
 
-    // linkables
-    std::vector<std::string> linkables;
-
     // flatten the dependencies
     auto dependencies = flatten_dedupe_sorted(exe->dependencies);
 
@@ -183,20 +183,15 @@ ProcessModulesResult LabBuildCompiler::process_modules(LabJob* exe) {
     std::vector<FlatIGFile> flat_imports;
     int i;
     int compile_result = 0;
-    int link_result;
-    bool user_required_object;
-    bool save_result;
 
     // compile dependent modules for this executable
     for(auto mod : dependencies) {
 
         auto found = generated.find(mod);
         if(found != generated.end()) {
-            linkables.emplace_back(found->second);
+            exe->linkables.emplace_back(found->second);
             continue;
         }
-
-        user_required_object = !mod->object_path.empty();
 
         {
             auto obj_path = resolve_rel_child_path_str(exe_build_dir, exe->name.to_std_string() +
@@ -314,7 +309,7 @@ ProcessModulesResult LabBuildCompiler::process_modules(LabJob* exe) {
             if(compile_result == 1) {
                 break;
             }
-            linkables.emplace_back(obj_path);
+            exe->linkables.emplace_back(obj_path);
             generated[mod] = obj_path;
             // clear the current c string
             output_ptr.clear();
@@ -345,10 +340,10 @@ ProcessModulesResult LabBuildCompiler::process_modules(LabJob* exe) {
         }
 
         // creating a object or bitcode file
-        save_result = gen.save_with_options(&emitter_options);
+        const bool save_result = gen.save_with_options(&emitter_options);
         if(save_result) {
             const auto gen_path = is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data();
-            linkables.emplace_back(gen_path);
+            exe->linkables.emplace_back(gen_path);
             generated[mod] = gen_path;
         } else {
             std::cerr << "[BuildLab] failed to emit file " << (is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data()) << " " << std::endl;
@@ -357,7 +352,7 @@ ProcessModulesResult LabBuildCompiler::process_modules(LabJob* exe) {
 
     }
 
-    return ProcessModulesResult { std::move(linkables), compile_result };
+    return compile_result;
 
 
 }
@@ -384,20 +379,20 @@ int LabBuildCompiler::link(std::vector<std::string>& linkables, const std::strin
 
 int LabBuildCompiler::do_executable_job(LabJob* job) {
     auto result = process_modules(job);
-    if(result.return_status == 1) {
+    if(result == 1) {
         return 1;
     }
     // link will automatically detect the extension at the end
-    return link(result.linkables, job->abs_path.to_std_string());
+    return link(job->linkables, job->abs_path.to_std_string());
 }
 
 int LabBuildCompiler::do_library_job(LabJob* job) {
     auto result = process_modules(job);
-    if(result.return_status == 1) {
+    if(result == 1) {
         return 1;
     }
     // link will automatically detect the extension at the end
-    return link(result.linkables, job->abs_path.to_std_string());
+    return link(job->linkables, job->abs_path.to_std_string());
 }
 
 int LabBuildCompiler::do_to_c_job(LabJob* job) {

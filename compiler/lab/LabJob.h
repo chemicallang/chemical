@@ -17,6 +17,8 @@ struct LabJob {
     chem::string abs_path;
     // absolute path to build dir for this job
     chem::string build_dir;
+    // these are linkable object or bitcode files required by the module
+    std::vector<std::string> linkables;
     // dependencies are the pointers to modules that this module depends on
     // these modules will be compiled first
     std::vector<LabModule*> dependencies;

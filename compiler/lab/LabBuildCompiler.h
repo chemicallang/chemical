@@ -60,13 +60,6 @@ public:
 
 class LabBuildContext;
 
-struct ProcessModulesResult {
-    // contains absolute paths to linkable objects (bitcode or obj format)
-    std::vector<std::string> linkables;
-    // return status code
-    int return_status;
-};
-
 /**
  * lab build compiler, doesn't relate to building a .lab file
  * it provides easy methods to do what can be done with a .lab file
@@ -101,7 +94,7 @@ public:
     /**
      * processes modules, generates code, or all modules required for linking but doesn't link
      */
-    ProcessModulesResult process_modules(LabJob* job);
+    int process_modules(LabJob* job);
 
     /**
      * link process modules result

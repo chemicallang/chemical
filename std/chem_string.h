@@ -8,6 +8,8 @@
 
 namespace chem {
 
+    constexpr int STR_BUFF_SIZE = 16;
+
     /**
      * the string used in chemical
      */
@@ -24,7 +26,7 @@ namespace chem {
                 size_t capacity;
             } heap;
             struct {
-                char buffer[16];
+                char buffer[STR_BUFF_SIZE];
                 unsigned char length;
             } sso;
         } storage;
@@ -40,12 +42,6 @@ namespace chem {
                                      std::char_traits<char>::length(Str)
                                      #endif
                                          : 0;
-            state = '0';
-        }
-
-        constexpr string(const char *Str, size_t length) {
-            storage.constant.data = Str;
-            storage.constant.length = length;
             state = '0';
         }
 
@@ -65,7 +61,7 @@ namespace chem {
                     storage.constant.length = other.storage.constant.length;
                     break;
                 case '1':
-                    memcpy(storage.sso.buffer, other.storage.sso.buffer, 16);
+                    memcpy(storage.sso.buffer, other.storage.sso.buffer, STR_BUFF_SIZE);
                     storage.sso.length = other.storage.sso.length;
                     break;
                 case '2':
@@ -79,16 +75,32 @@ namespace chem {
             }
         }
 
-        string(char* value, size_t length) {
+        string(const char* value, size_t length) {
             storage.constant.data = value;
             storage.constant.length = length;
             state = '0';
+            ensure_mut(length);
+        }
+
+        string(const chem::string& value) {
+            const auto length = value.size();
+            storage.constant.data = value.data();
+            storage.constant.length = length;
+            state = '0';
+            if(value.state != '0') {
+                ensure_mut(length);
+            }
+        }
+
+        string(const std::string& value) : string(value.data(), value.size()) {
+
         }
 
         string(char* value) : string(value, strlen(value)){
 
         }
 
+        [[nodiscard]]
         size_t size() const {
             switch(state) {
                 case '0':
@@ -106,10 +118,6 @@ namespace chem {
         bool equals(const string& other) const {
             size_t self_size = size();
             return ((self_size == other.size()) && (memcmp(data(), other.data(), self_size) == 0));
-        }
-
-        bool operator ==(const string& other) const{
-            return equals(other);
         }
 
         void move_const_to_buffer(){
@@ -152,7 +160,7 @@ namespace chem {
         }
 
         void ensure_mut(size_t length){
-            if((((state == '0') || (state == '1')) && (length < 16))){
+            if((((state == '0') || (state == '1')) && (length < STR_BUFF_SIZE))){
                 if(state == '0'){
                     move_const_to_buffer();
                 }
@@ -167,21 +175,6 @@ namespace chem {
             }
         }
 
-        void set(const size_t index, const char value){
-            switch(state) {
-                case '0':
-                    move_const_to_buffer();
-                    storage.sso.buffer[index] = value;
-                    break;
-                case '1':
-                    storage.sso.buffer[index] = value;
-                    break;
-                case '2':
-                    storage.heap.data[index] = value;
-                    break;
-            }
-        }
-
         // will paste the given string at given index, requires capacity
         void set(size_t index, const char* value, const size_t len) {
             auto d = mutable_data();
@@ -190,23 +183,6 @@ namespace chem {
                 d[i + index] = value[i];
                 i++;
             }
-        }
-
-        char get(const size_t index){
-            switch(state) {
-                case '0':
-                    return storage.constant.data[index];
-                case '1':
-                    return storage.sso.buffer[index];
-                case '2':
-                    return storage.heap.data[index];
-                default:
-                    return '\0';
-            }
-        }
-
-        char operator[](size_t index){
-            return get(index);
         }
 
         // will make string start at given index, requires that capacity exists
@@ -258,10 +234,11 @@ namespace chem {
             return substring(0, size());
         }
 
+        [[nodiscard]]
         string substring(size_t start, size_t end) const {
             struct string s((const char*) nullptr);
-            size_t actual_len = (end - start);
-            if((actual_len < 16)){
+            const size_t actual_len = (end - start);
+            if((actual_len < STR_BUFF_SIZE)){
                 s.state = '1';
                 s.storage.sso.length = actual_len;
                 const char* d = data();
@@ -287,7 +264,7 @@ namespace chem {
 
         void append(char value) {
             size_t length = size();;
-            if((((state == '0') || (state == '1')) && (length < 15))){
+            if((((state == '0') || (state == '1')) && (length < (STR_BUFF_SIZE - 1)))){
                 if(state == '0'){
                     move_const_to_buffer();
                 }
@@ -308,6 +285,34 @@ namespace chem {
             }
         }
 
+        char get(const size_t index){
+            switch(state) {
+                case '0':
+                    return storage.constant.data[index];
+                case '1':
+                    return storage.sso.buffer[index];
+                case '2':
+                    return storage.heap.data[index];
+                default:
+                    return '\0';
+            }
+        }
+
+        void set(const size_t index, const char value){
+            switch(state) {
+                case '0':
+                    move_const_to_buffer();
+                    storage.sso.buffer[index] = value;
+                    break;
+                case '1':
+                    storage.sso.buffer[index] = value;
+                    break;
+                case '2':
+                    storage.heap.data[index] = value;
+                    break;
+            }
+        }
+
         [[nodiscard]]
         bool empty() const {
             return size() == 0;
@@ -319,7 +324,7 @@ namespace chem {
                 case '0':
                     return storage.constant.length;
                 case '1':
-                    return 16;
+                    return STR_BUFF_SIZE;
                 case '2':
                     return storage.heap.capacity;
                 default:
@@ -356,17 +361,20 @@ namespace chem {
             }
         }
 
-        std::string to_std_string () {
+        [[nodiscard]]
+        std::string to_std_string() const {
             const auto d = data();
             if(!d) return "";
             return { d };
         }
 
-        bool ends_with(const std::string& data) {
+        [[nodiscard]]
+        bool ends_with(const std::string& data) const {
             return to_std_string().ends_with(data);
         }
 
-        bool ends_with(const chem::string& str) {
+        [[nodiscard]]
+        bool ends_with(const chem::string& str) const {
             return to_std_string().ends_with(str.data());
         }
 
@@ -374,6 +382,14 @@ namespace chem {
             if(state == '2'){
                 free(storage.heap.data);
             }
+        }
+
+        bool operator ==(const chem::string& other) const{
+            return equals(other);
+        }
+
+        char operator[](size_t index){
+            return get(index);
         }
 
         chem::string operator+(const chem::string& str) const {
@@ -388,13 +404,14 @@ namespace chem {
             return s;
         }
 
-        friend chem::string operator+(const char* const left, chem::string& right) {
-            chem::string s(left);
-            s.append(right.data());
-            return s;
-        }
+        friend chem::string operator+(const char* const left, chem::string& right);
+
+        // Friend function to overload the << operator
+        friend std::ostream& operator<<(std::ostream& os, const chem::string& str);
 
     };
 
 
 }
+
+std::ostream& chem::operator<<(std::ostream& os, const chem::string& str);

@@ -496,6 +496,7 @@ set(COMMON_SOURCES
         compiler/lab/LabJob.h
         compiler/LinkerUtils.h
         compiler/lab/LabJobType.h
+        std/chem_string.cpp
 )
 
 # Chemical LSP Executable Target

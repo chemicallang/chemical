@@ -290,6 +290,27 @@ public:
     }
 };
 
+class InterpretIsClang : public FunctionDeclaration {
+public:
+    explicit InterpretIsClang(ASTNode* parent_node) : FunctionDeclaration(
+            "is_clang_based",
+            std::vector<std::unique_ptr<FunctionParam>> {},
+            std::make_unique<BoolType>(),
+            false,
+            parent_node,
+            std::nullopt
+    ) {
+        annotations.emplace_back(AnnotationKind::CompTime);
+    }
+    Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val) override {
+#ifdef COMPILER_BUILD
+        return new BoolValue(true);
+#else
+        return new BoolValue(false);
+#endif
+    }
+};
+
 Namespace* GlobalInterpretScope::create_compiler_namespace() {
     global_nodes["compiler"] = std::make_unique<Namespace>("compiler", nullptr);
     auto compiler_ns = (Namespace*) global_nodes["compiler"].get();
@@ -298,6 +319,7 @@ Namespace* GlobalInterpretScope::create_compiler_namespace() {
     compiler_ns->nodes.emplace_back(new InterpretWrap(compiler_ns));
     compiler_ns->nodes.emplace_back(new InterpretRetStructPtr(compiler_ns));
     compiler_ns->nodes.emplace_back(new InterpretIsTcc(compiler_ns));
+    compiler_ns->nodes.emplace_back(new InterpretIsClang(compiler_ns));
     compiler_ns->nodes.emplace_back(new InterpretVector::InterpretVectorNode(compiler_ns));
     return compiler_ns;
 }

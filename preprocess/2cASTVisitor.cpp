@@ -385,6 +385,27 @@ void write_self_arg(ToCAstVisitor* visitor, BaseFunctionType* func_type, std::ve
     }
 }
 
+Value* evaluate_comptime_func(
+        ToCAstVisitor* visitor,
+        FunctionDeclaration* func_decl,
+        FunctionCall* call
+) {
+    Value* eval;
+    auto value = std::unique_ptr<Value>(func_decl->call(&visitor->comptime_scope, call, nullptr));
+    if(!value) {
+        visitor->error("comptime function call didn't return anything");
+        return nullptr;
+    }
+    auto eval_call = value->create_evaluated_value(visitor->comptime_scope);
+    if(eval_call) {
+        eval = eval_call.release();
+    } else {
+        eval = value.release();
+    }
+    visitor->evaluated_func_calls[call] = std::unique_ptr<Value>(eval);
+    return eval;
+}
+
 Value* evaluated_func_val(
         ToCAstVisitor* visitor,
         FunctionDeclaration* func_decl,
@@ -393,18 +414,7 @@ Value* evaluated_func_val(
     Value* eval;
     auto found_eval = visitor->evaluated_func_calls.find(call);
     if(found_eval == visitor->evaluated_func_calls.end()) {
-        auto value = std::unique_ptr<Value>(func_decl->call(&visitor->comptime_scope, call, nullptr));
-        if(!value) {
-            visitor->error("comptime function call didn't return anything");
-            return nullptr;
-        }
-        auto eval_call = value->create_evaluated_value(visitor->comptime_scope);
-        if(eval_call) {
-            eval = eval_call.release();
-        } else {
-            eval = value.release();
-        }
-        visitor->evaluated_func_calls[call] = std::unique_ptr<Value>(eval);
+        eval = evaluate_comptime_func(visitor, func_decl, call);
     } else {
         eval = found_eval->second.get();
     }

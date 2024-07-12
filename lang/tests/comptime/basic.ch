@@ -52,6 +52,11 @@ struct Pair66 {
 }
 
 @comptime
+func comptime_primitive() : int {
+    return 10;
+}
+
+@comptime
 func comptime_sum(a : int, b : int) {
     return a + b;
 }
@@ -137,5 +142,12 @@ func test_comptime() {
     test("can gain access to implicitly passed struct", ()=> {
         var p = ret_struct_boi()
         return p.a == 343 && p.b == 979;
+    })
+    test("test comptime functions returning primitive work", () => {
+        return comptime_primitive() == 10;
+    })
+    test("test comptime functions returning primitive can be stored", () => {
+        const prim = comptime_primitive();
+        return prim == 10;
     })
 }

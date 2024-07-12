@@ -357,10 +357,14 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
 
 }
 
-int LabBuildCompiler::link(std::vector<std::string>& linkables, const std::string& output_path) {
+int LabBuildCompiler::link(std::vector<chem::string>& linkables, const std::string& output_path) {
     int link_result;
 #ifdef COMPILER_BUILD
-    link_result = link_objects(linkables, output_path, options->exe_path, {});
+    std::vector<std::string> data;
+    for(auto& obj : linkables) {
+        data.emplace_back(obj.data());
+    }
+    link_result = link_objects(data, output_path, options->exe_path, {});
 #else
     link_result = tcc_link_objects(options->exe_path.data(), output_path, linkables);
 #endif

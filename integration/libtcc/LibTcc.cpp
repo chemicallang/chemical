@@ -123,7 +123,7 @@ int compile_c_string(char* exe_path, const char* program, const std::string& out
 
 }
 
-int tcc_link_objects(char* exe_path, const std::string& outputFileName, std::vector<std::string>& objects) {
+int tcc_link_objects(char* exe_path, const std::string& outputFileName, std::vector<chem::string>& objects) {
 
     auto s = compile_c_to_tcc_state(exe_path, nullptr, exe_path, false, false);
     if(!s) {

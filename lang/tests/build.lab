@@ -32,8 +32,8 @@ func build(ctx : BuildContext*) {
     const ext_module = ctx.c_file_module(string("ext_c"), relative_path(string("ext/file.c")), null, 0)
     const module = ctx.file_module(name, relative_path(string("tests.ch")), null, 0);
 
-    const do_llvm_ir = true;
-    const do_asm = false;
+    const do_llvm_ir = compiler::is_clang_based();
+    const do_asm = compiler::is_clang_based();
     const do_c = compiler::is_tcc_based();
 
     if(do_llvm_ir) {

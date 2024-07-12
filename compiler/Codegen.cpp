@@ -784,6 +784,17 @@ int link_objects(
         for(auto& linkable : linkables) {
             clang_flags.emplace_back(linkable);
         }
+#if defined(_WINDOWS)
+    if(bin_out.ends_with(".dll")) {
+            clang_flags.emplace_back("-shared");
+    }
+#elif defined(__linux__)
+        if(bin_out.ends_with(".so")) {
+            clang_flags.emplace_back("-shared");
+    }
+#else
+#error "Unknown OS"
+#endif
         clang_flags.emplace_back("-o");
         clang_flags.emplace_back(bin_out);
         return chemical_clang_main2(clang_flags);

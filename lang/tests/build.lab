@@ -59,6 +59,7 @@ func build(ctx : BuildContext*) {
         printf("Translating C at path %s\n", module.translate_c_path.data());
     }
 
+    ctx.build_lib(name, { module }, 1);
     ctx.build_exe(name, { module }, 1);
 
 }

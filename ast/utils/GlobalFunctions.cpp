@@ -5,12 +5,14 @@
 #include "sstream"
 #include <utility>
 #include "ast/types/VoidType.h"
+#include "ast/types/StringType.h"
 #include "ast/types/BoolType.h"
 #include "ast/values/IntValue.h"
 #include "ast/values/BoolValue.h"
 #include "ast/values/UBigIntValue.h"
 #include "ast/values/RetStructParamValue.h"
 #include "ast/values/StructValue.h"
+#include "ast/values/StringValue.h"
 #include "ast/values/FunctionCall.h"
 #include "compiler/SymbolResolver.h"
 #include "ast/structures/Namespace.h"
@@ -21,6 +23,7 @@
 #include "ast/types/UBigIntType.h"
 #include "ast/types/AnyType.h"
 #include "preprocess/RepresentationVisitor.h"
+#include "utils/Version.h"
 
 namespace InterpretVector {
 
@@ -269,6 +272,29 @@ public:
     }
 };
 
+class InterpretCompilerVersion : public FunctionDeclaration {
+public:
+    explicit InterpretCompilerVersion(ASTNode* parent_node) : FunctionDeclaration(
+            "version",
+            std::vector<std::unique_ptr<FunctionParam>> {},
+            std::make_unique<StringType>(),
+            false,
+            parent_node,
+            std::nullopt
+    ) {
+        annotations.emplace_back(AnnotationKind::CompTime);
+    }
+    Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val) override {
+        std::string val;
+        val.append(std::to_string(PROJECT_VERSION_MAJOR));
+        val.append(1, '.');
+        val.append(std::to_string(PROJECT_VERSION_MINOR));
+        val.append(1, '.');
+        val.append(std::to_string(PROJECT_VERSION_PATCH));
+        return new StringValue(std::move(val));
+    }
+};
+
 class InterpretIsTcc : public FunctionDeclaration {
 public:
     explicit InterpretIsTcc(ASTNode* parent_node) : FunctionDeclaration(
@@ -318,6 +344,7 @@ Namespace* GlobalInterpretScope::create_compiler_namespace() {
     compiler_ns->nodes.emplace_back(new InterpretStrLen(compiler_ns));
     compiler_ns->nodes.emplace_back(new InterpretWrap(compiler_ns));
     compiler_ns->nodes.emplace_back(new InterpretRetStructPtr(compiler_ns));
+    compiler_ns->nodes.emplace_back(new InterpretCompilerVersion(compiler_ns));
     compiler_ns->nodes.emplace_back(new InterpretIsTcc(compiler_ns));
     compiler_ns->nodes.emplace_back(new InterpretIsClang(compiler_ns));
     compiler_ns->nodes.emplace_back(new InterpretVector::InterpretVectorNode(compiler_ns));

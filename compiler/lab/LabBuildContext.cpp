@@ -67,7 +67,7 @@ LabJob* LabBuildContext::build_exe(
     return exe;
 }
 
-LabJob* LabBuildContext::build_lib(
+LabJob* LabBuildContext::build_dynamic_lib(
         chem::string* name,
         LabModule** dependencies,
         unsigned int dep_len

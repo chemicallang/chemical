@@ -209,6 +209,16 @@ public:
     void write(const std::string& value);
 
     /**
+     * write a debug comment
+     */
+    void debug_comment(const std::string& value) {
+        if(debug_comments) {
+            write(value);
+            new_line_and_indent();
+        }
+    }
+
+    /**
      * this should be called before calling translate
      */
     void prepare_translate();

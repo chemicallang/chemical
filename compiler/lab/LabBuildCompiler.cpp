@@ -114,7 +114,13 @@ ProcessModulesResult LabBuildCompiler::process_modules(LabJob* exe) {
     // the flag that forces usage of tcc
     const bool use_tcc = options->use_tcc;
 
-    std::cout << rang::bg::blue << rang::fg::black << "[BuildLab]" << " Building executable '" << exe->name.data() << "' at path '" << exe->abs_path.data() << '\'' << rang::bg::reset << rang::fg::reset << std::endl;
+    std::cout << rang::bg::blue << rang::fg::black << "[BuildLab]" << " Building ";
+    if(exe->type == LabJobType::Executable) {
+        std::cout << "executable";
+    } else {
+        std::cout << "library";
+    }
+    std::cout << ' ' << '\'' << exe->name.data() << "' at path '" << exe->abs_path.data() << '\'' << rang::bg::reset << rang::fg::reset << std::endl;
 
     std::string exe_build_dir = exe->build_dir.to_std_string();
     // create the build directory for this executable
@@ -309,6 +315,7 @@ ProcessModulesResult LabBuildCompiler::process_modules(LabJob* exe) {
                 break;
             }
             linkables.emplace_back(obj_path);
+            generated[mod] = obj_path;
             // clear the current c string
             output_ptr.clear();
             output_ptr.str("");

@@ -22,6 +22,8 @@ func module_path(ctx : BuildContext*, module : Module*) : string {
 
 func build(ctx : BuildContext*) {
 
+    const compiler_version = compiler::version();
+    printf("Compiler Version = %s\n", compiler_version);
     const str_arg = string("hello");
     if(ctx.has_arg(str_arg)) {
         const said = ctx.get_arg(str_arg);
@@ -54,7 +56,7 @@ func build(ctx : BuildContext*) {
         module.translate_c_path = module_path(ctx, module)
         module.translate_c_path.append_str(&name);
         module.translate_c_path.append_char_ptr(".c")
-        printf("The translate c path is %s\n", module.translate_c_path.data());
+        printf("Translating C at path %s\n", module.translate_c_path.data());
     }
 
     ctx.build_exe(name, { module }, 1);

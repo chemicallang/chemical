@@ -79,8 +79,6 @@ LabJob* LabBuildContext::build_dynamic_lib(
     auto output_path = resolve_sibling(build_dir_path, name->to_std_string());
 #ifdef _WIN32
         output_path += ".dll";
-#elif __APPLE__
-        output_path += ".dylib";
 #elif __linux__
         output_path += ".so";
 #else

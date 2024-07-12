@@ -116,7 +116,7 @@ very innovative things are planned.
   - [ ] Directory module automatic compilation
   - [ ] Can import other modules (implemented but untested)
   - [ ] Run executables after building them
-  - [ ] Can generate shared objects / dll
+  - [x] Can generate shared objects / dll
   - [ ] Can compile and link C module
   - [ ] Configure compile / link parameters
 - [ ] Maintenance Phase

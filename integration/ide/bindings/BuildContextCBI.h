@@ -21,7 +21,7 @@ struct BuildContextCBI {
 
     LabJob*(*build_exe)(BuildContextCBI* self, chem::string* name, LabModule** dependencies, unsigned int dep_len);
 
-    LabJob*(*build_library)(BuildContextCBI* self, chem::string* name, LabModule** dependencies, unsigned int dep_len);
+    LabJob*(*build_dynamic_lib)(BuildContextCBI* self, chem::string* name, LabModule** dependencies, unsigned int dep_len);
 
     void(*build_path)(chem::string* str, BuildContextCBI* self);
 

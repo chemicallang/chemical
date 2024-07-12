@@ -109,7 +109,7 @@ public:
     /**
      * adds a library entry that'll be built
      */
-    LabJob* build_lib(
+    LabJob* build_dynamic_lib(
             chem::string* name,
             LabModule** dependencies,
             unsigned int dep_len

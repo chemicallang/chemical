@@ -45,7 +45,7 @@ struct BuildContext {
 
     var build_exe : (&self, name : string, dependencies : Module**, len : uint) => LabJob*;
 
-    var build_lib : (&self, name : string, dependencies : Module**, len : uint) => LabJob*;
+    var build_dynamic_lib : (&self, name : string, dependencies : Module**, len : uint) => LabJob*;
 
     var build_path : (&self) => string;
 

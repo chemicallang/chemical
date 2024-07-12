@@ -194,7 +194,7 @@ ProcessModulesResult LabBuildCompiler::process_modules(LabJob* exe) {
 
         {
             auto obj_path = resolve_rel_child_path_str(exe_build_dir, exe->name.to_std_string() +
-                                                                      (is_use_obj_format ? ".obj" : ".bc"));
+                                                                      (is_use_obj_format ? ".o" : ".bc"));
             if (is_use_obj_format) {
                 if (mod->object_path.empty()) {
                     mod->object_path.append(obj_path);
@@ -304,17 +304,11 @@ ProcessModulesResult LabBuildCompiler::process_modules(LabJob* exe) {
 
         if(use_tcc) {
             auto obj_path = mod->object_path.to_std_string();
-            // compile the current c string
-            if(dependencies.size() == 1 && !user_required_object) {
-                obj_path = exe->abs_path.to_std_string();
-            }
             compile_result = compile_c_string(options->exe_path.data(), output_ptr.str().data(), obj_path, false, options->benchmark, is_debug(options->def_mode));
             if(compile_result == 1) {
                 break;
             }
-            if(dependencies.size() != 1 || user_required_object) {
-                linkables.emplace_back(obj_path);
-            }
+            linkables.emplace_back(obj_path);
             // clear the current c string
             output_ptr.clear();
             output_ptr.str("");

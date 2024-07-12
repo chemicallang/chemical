@@ -32,17 +32,19 @@ namespace chem {
         } storage;
         char state;
 
-        constexpr string(const char *Str) {
+        constexpr explicit string(const char *Str) {
             storage.constant.data = Str;
-            storage.constant.length = Str ?
-                                     // GCC 7 doesn't have constexpr char_traits. Fall back to __builtin_strlen.
-                                     #if defined(_GLIBCXX_RELEASE) && _GLIBCXX_RELEASE < 8
-                                     __builtin_strlen(Str)
-                                     #else
-                                     std::char_traits<char>::length(Str)
-                                     #endif
-                                         : 0;
+            const size_t length = Str ?
+                           // GCC 7 doesn't have constexpr char_traits. Fall back to __builtin_strlen.
+                           #if defined(_GLIBCXX_RELEASE) && _GLIBCXX_RELEASE < 8
+                           __builtin_strlen(Str)
+                           #else
+                           std::char_traits<char>::length(Str)
+                           #endif
+                               : 0;
+            storage.constant.length = length;
             state = '0';
+//            ensure_mut(length);
         }
 
         constexpr string() {
@@ -75,14 +77,14 @@ namespace chem {
             }
         }
 
-        string(const char* value, size_t length) {
+        explicit string(const char* value, const size_t length) {
             storage.constant.data = value;
             storage.constant.length = length;
             state = '0';
             ensure_mut(length);
         }
 
-        string(const chem::string& value) {
+        explicit string(const chem::string& value) {
             const auto length = value.size();
             storage.constant.data = value.data();
             storage.constant.length = length;
@@ -92,31 +94,17 @@ namespace chem {
             }
         }
 
-        string(const std::string& value) : string(value.data(), value.size()) {
+        explicit string(const std::string& value) : string(value.data(), value.size()) {
 
         }
 
-        string(char* value) : string(value, strlen(value)){
+        explicit string(char* value) : string(value, strlen(value)){
 
-        }
-
-        [[nodiscard]]
-        size_t size() const {
-            switch(state) {
-                case '0':
-                    return storage.constant.length;
-                case '1':
-                    return storage.sso.length;
-                case '2':
-                    return storage.heap.length;
-                default:
-                    return 0;
-            }
         }
 
         [[nodiscard]]
         bool equals(const string& other) const {
-            size_t self_size = size();
+            const size_t self_size = size();
             return ((self_size == other.size()) && (memcmp(data(), other.data(), self_size) == 0));
         }
 
@@ -133,7 +121,7 @@ namespace chem {
             state = '1';
         }
 
-        void move_data_to_heap(const char* from_data, size_t length, size_t capacity){
+        void move_data_to_heap(const char* from_data, const size_t length, const size_t capacity){
             char* data = ((char*) malloc(capacity));
             int i = 0;
             while((i < length)) {
@@ -147,7 +135,7 @@ namespace chem {
             state = '2';
         }
 
-        void resize(size_t new_capacity){
+        void resize(const size_t new_capacity){
             char* data = ((char*) realloc(storage.heap.data, new_capacity));
             int i = 0;
             while((i < storage.heap.length)) {
@@ -159,7 +147,7 @@ namespace chem {
             storage.heap.capacity = new_capacity;
         }
 
-        void ensure_mut(size_t length){
+        void ensure_mut(const size_t length){
             if((((state == '0') || (state == '1')) && (length < STR_BUFF_SIZE))){
                 if(state == '0'){
                     move_const_to_buffer();
@@ -176,7 +164,7 @@ namespace chem {
         }
 
         // will paste the given string at given index, requires capacity
-        void set(size_t index, const char* value, const size_t len) {
+        void set(const size_t index, const char* value, const size_t len) {
             auto d = mutable_data();
             size_t i = 0;
             while(i < len) {
@@ -221,7 +209,7 @@ namespace chem {
             append(value, strlen(value));
         }
 
-        void append(struct string* value){
+        void append(const string* value){
             append(value->data(), value->size());
         }
 
@@ -235,7 +223,7 @@ namespace chem {
         }
 
         [[nodiscard]]
-        string substring(size_t start, size_t end) const {
+        string substring(const size_t start, const size_t end, const size_t new_cap) const {
             struct string s((const char*) nullptr);
             const size_t actual_len = (end - start);
             if((actual_len < STR_BUFF_SIZE)){
@@ -248,7 +236,6 @@ namespace chem {
                 s.storage.sso.buffer[actual_len] = '\0';
             } else {
                 s.state = '2';
-                size_t new_cap = (actual_len * 2);
                 char* new_heap = ((char*) malloc(new_cap));
                 const char* d = data();
                 for(int i = 0;(i < actual_len);i += 1){
@@ -262,8 +249,18 @@ namespace chem {
             return s;
         }
 
-        void append(char value) {
-            size_t length = size();;
+        [[nodiscard]]
+        string substring(const size_t start, const size_t end) const {
+            return substring(start, end, end - start + 5);
+        }
+
+        [[nodiscard]]
+        string substring(const size_t start) const {
+            return substring(start, size());
+        }
+
+        void append(const char value) {
+            const size_t length = size();
             if((((state == '0') || (state == '1')) && (length < (STR_BUFF_SIZE - 1)))){
                 if(state == '0'){
                     move_const_to_buffer();
@@ -282,6 +279,20 @@ namespace chem {
                 storage.heap.data[length] = value;
                 storage.heap.data[(length + 1)] = '\0';
                 storage.heap.length = (length + 1);
+            }
+        }
+
+        [[nodiscard]]
+        size_t size() const {
+            switch(state) {
+                case '0':
+                    return storage.constant.length;
+                case '1':
+                    return storage.sso.length;
+                case '2':
+                    return storage.heap.length;
+                default:
+                    return 0;
             }
         }
 
@@ -333,11 +344,10 @@ namespace chem {
         }
 
         [[nodiscard]]
-        char* mutable_data() {
+        const char* data() const {
             switch(state) {
                 case '0':
-                    move_const_to_buffer();
-                    return &storage.sso.buffer[0];
+                    return storage.constant.data;
                 case '1':
                     return &storage.sso.buffer[0];
                 case '2':
@@ -348,10 +358,11 @@ namespace chem {
         }
 
         [[nodiscard]]
-        const char* data() const {
+        char* mutable_data() {
             switch(state) {
                 case '0':
-                    return storage.constant.data;
+                    move_const_to_buffer();
+                    return &storage.sso.buffer[0];
                 case '1':
                     return &storage.sso.buffer[0];
                 case '2':
@@ -388,7 +399,7 @@ namespace chem {
             return equals(other);
         }
 
-        char operator[](size_t index){
+        char operator[](const size_t index){
             return get(index);
         }
 
@@ -403,8 +414,6 @@ namespace chem {
             s.append(str);
             return s;
         }
-
-        friend chem::string operator+(const char* const left, chem::string& right);
 
         // Friend function to overload the << operator
         friend std::ostream& operator<<(std::ostream& os, const chem::string& str);

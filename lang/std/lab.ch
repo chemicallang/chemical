@@ -22,10 +22,17 @@ struct Module {
     var translate_c_path : string;
 }
 
+enum LabJobType {
+    Executable,
+    Library
+}
+
 @no_init
-struct Executable {
+struct LabJob {
+    var type : LabJobType
     var name : string
     var abs_path : string
+    var build_dir : string
 }
 
 struct BuildContext {
@@ -36,7 +43,9 @@ struct BuildContext {
 
     var c_file_module : (&self, name : string, path : string, dependencies : Module**, len : uint) => Module*
 
-    var build_exe : (&self, name : string, dependencies : Module**, len : uint) => Executable*;
+    var build_exe : (&self, name : string, dependencies : Module**, len : uint) => LabJob*;
+
+    var build_lib : (&self, name : string, dependencies : Module**, len : uint) => LabJob*;
 
     var build_path : (&self) => string;
 

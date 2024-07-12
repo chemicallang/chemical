@@ -50,7 +50,7 @@ bool translate(
     bool compile_result = true;
 
     // beginning
-    ToCAstVisitor visitor(output_ptr, path);
+    ToCAstVisitor visitor(output_ptr);
     prepare(&visitor, &processor);
 
     // allow user the compiler (namespace) functions in @comptime

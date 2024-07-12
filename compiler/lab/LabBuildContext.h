@@ -4,10 +4,12 @@
 
 #include "std/chem_string.h"
 #include "LabModule.h"
-#include "LabExecutable.h"
+#include "LabJob.h"
 #include "integration/ide/model/FlatIGFile.h"
 #include <vector>
 #include <unordered_map>
+
+std::vector<LabModule*> flatten_dedupe_sorted(const std::vector<LabModule*>& modules);
 
 /**
  * A Lab build context is just a container
@@ -24,7 +26,7 @@ public:
     // all the modules created during the build process
     std::vector<LabModule> modules;
     // all the executables created during the build process
-    std::vector<LabExecutable> executables;
+    std::vector<LabJob> executables;
     // build arguments given to the build lab
     std::unordered_map<std::string, std::string> build_args;
 
@@ -45,26 +47,6 @@ public:
      * add given dependencies to the given module
      */
     static void add_paths(std::vector<chem::string>& into, chem::string** paths, unsigned int path_len);
-
-    /**
-     * it creates a flat vector containing pointers to lab modules, sorted
-     *
-     * It de-dupes, meaning avoids duplicates, it won't add two pointers
-     * that are same, so dependencies that occur again and again, would
-     * only be compiled once
-     *
-     * why sort ? Modules that should be compiled first are present first
-     * The first module that should be compiled is at zero index, The last
-     * module would be the given module, compiled at last
-     *
-     */
-    static std::vector<LabModule*> flatten_dedupe_sorted(LabModule* mod);
-
-    /**
-     * same as above, only it operates on multiple modules, it de-dupes the dependent modules
-     * of the given list of modules and also sorts them
-     */
-    static std::vector<LabModule*> flatten_dedupe_sorted(const std::vector<LabModule*>& modules);
 
     /**
      * adds the given module with type
@@ -118,7 +100,16 @@ public:
     /**
      * adds an executable entry that'll be built
      */
-    LabExecutable* build_exe(
+    LabJob* build_exe(
+            chem::string* name,
+            LabModule** dependencies,
+            unsigned int dep_len
+    );
+
+    /**
+     * adds a library entry that'll be built
+     */
+    LabJob* build_lib(
             chem::string* name,
             LabModule** dependencies,
             unsigned int dep_len

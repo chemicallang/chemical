@@ -9,7 +9,7 @@ struct LabBuildContext;
 
 struct LabModule;
 
-struct LabExecutable;
+struct LabJob;
 
 struct BuildContextCBI {
 
@@ -19,7 +19,9 @@ struct BuildContextCBI {
 
     LabModule*(*c_file_module)(BuildContextCBI* self, chem::string* name, chem::string* path, LabModule** dependencies, unsigned int dep_len);
 
-    LabExecutable*(*build_exe)(BuildContextCBI* self, chem::string* name, LabModule** dependencies, unsigned int dep_len);
+    LabJob*(*build_exe)(BuildContextCBI* self, chem::string* name, LabModule** dependencies, unsigned int dep_len);
+
+    LabJob*(*build_library)(BuildContextCBI* self, chem::string* name, LabModule** dependencies, unsigned int dep_len);
 
     void(*build_path)(chem::string* str, BuildContextCBI* self);
 

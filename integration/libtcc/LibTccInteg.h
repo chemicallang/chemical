@@ -5,6 +5,7 @@
 #include "libtcc.h"
 #include <string>
 #include <vector>
+#include "std/chem_string.h"
 
 class TCCDeletor {
 public:

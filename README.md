@@ -97,6 +97,7 @@ very innovative things are planned.
 - [x] Just In Time Compilation using Tiny CC
 - [x] Custom Build System
 - [ ] Improved support for Comp Time
+- [ ] Improved support for Typealiases
 - [x] Memory Management
   - [x] C++ like constructors & destructors
   - [ ] Strict checks for undefined behaviour
@@ -106,6 +107,18 @@ very innovative things are planned.
   - [ ] Syntax Modifier Plugins (SMP)
   - [ ] AST Transformation Plugins (ATP)
   - [ ] Annotation / Symbol Processing
+- [x] Build System based on Chemical
+  - [x] Compile single / multiple root file as modules
+  - [x] Link multiple modules (currently only Clang based)
+  - [x] Work with both TCC and Clang based
+  - [x] Translate Files to C (currently only TCC based)
+  - [x] Generate llvm ir / assembly / bitcode / object files
+  - [ ] Directory module automatic compilation
+  - [ ] Can import other modules (implemented but untested)
+  - [ ] Run executables after building them
+  - [ ] Can generate shared objects / dll
+  - [ ] Can compile and link C module
+  - [ ] Configure compile / link parameters
 - [ ] Maintenance Phase
   - [ ] Eliminate bugs, Stabilize
   - [ ] Standard Library

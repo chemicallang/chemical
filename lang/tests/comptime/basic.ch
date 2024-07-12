@@ -102,6 +102,18 @@ func ret_struct_boi() : Pair66 {
     return;
 }
 
+struct CompTimeCounter {
+    @comptime
+    @constructor
+    func constructor(thing : int*) {
+        return compiler::wrap(actual(thing, 1));
+    }
+    @constructor
+    func actual(thing : int*, inc : int) {
+        *thing = *thing + inc;
+    }
+}
+
 func test_comptime() {
     test("test comptime sum works", () => {
         return comptime_sum(3, 6) == 9;
@@ -149,5 +161,10 @@ func test_comptime() {
     test("test comptime functions returning primitive can be stored", () => {
         const prim = comptime_primitive();
         return prim == 10;
+    })
+    test("test comptime delegated constructor get's called once", () => {
+        var i = 0;
+        var c = CompTimeCounter(&i);
+        return i == 1;
     })
 }

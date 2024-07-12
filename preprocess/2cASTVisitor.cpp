@@ -479,14 +479,24 @@ void value_assign_default(ToCAstVisitor* visitor, const std::string& identifier,
         if(func_call) {
             auto linked_func = func_call->safe_linked_func();
             if(linked_func && linked_func->has_annotation(AnnotationKind::CompTime)) {
-                auto eval = evaluated_func_val(visitor, linked_func, func_call);
-                eval->accept((Visitor*) visitor->before_stmt.get());
+
+                Value* eval;
+                auto found_eval = visitor->evaluated_func_calls.find(func_call);
+                bool not_found = found_eval == visitor->evaluated_func_calls.end();
+                if(not_found) {
+                    eval = evaluate_comptime_func(visitor, linked_func, func_call);
+                } else {
+                    eval = found_eval->second.get();
+                }
                 if(eval->primitive()) {
                     visitor->write(identifier);
                     visitor->write(" = ");
                 }
+                if(not_found) {
+                    eval->accept((Visitor*) visitor->before_stmt.get());
+                }
                 visit_evaluated_func_val(visitor, visitor, linked_func, func_call, eval, identifier);
-                if(eval->primitive()) {
+                if(!eval->reference()) {
                     visitor->write(';');
                 }
                 return;
@@ -558,6 +568,7 @@ void value_alloca_store(ToCAstVisitor* visitor, const std::string& identifier, B
 }
 
 void var_init(ToCAstVisitor* visitor, VarInitStatement* init) {
+    visitor->debug_comment("// var_init defining the value");
     if (!init->type.has_value()) {
         init->type.emplace(init->value.value()->create_type().release());
     }
@@ -718,10 +729,7 @@ void func_call_that_returns_struct(ToCAstVisitor* visitor, CBeforeStmtVisitor* a
     auto func_type = parent_type->function_type();
     bool is_lambda = (parent->linked_node() != nullptr && parent->linked_node()->as_struct_member() != nullptr);
     if (visitor->pass_structs_to_initialize && func_type->returnType->value_type() == ValueType::Struct) {
-        if(visitor->debug_comments) {
-            visitor->write("// function call being taken out that returns struct");
-            visitor->new_line_and_indent();
-        }
+        visitor->debug_comment("// function call being taken out that returns struct");
         // functions that return struct
         auto allocated = visitor->local_allocated.find(last);
         if (allocated == visitor->local_allocated.end()) {
@@ -827,6 +835,7 @@ void CBeforeStmtVisitor::visit(VarInitStatement *init) {
     if (!init->type.has_value()) {
         init->type.emplace(init->value.value()->create_type().release());
     }
+    visitor->debug_comment("// visiting var init in before");
     if(init->value.has_value()) {
         process_init_value(init->value.value().get(), init->identifier);
     }

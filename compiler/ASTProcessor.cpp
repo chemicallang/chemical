@@ -90,7 +90,7 @@ std::vector<FlatIGFile> ASTProcessor::flat_imports_mul(const std::vector<const c
 }
 
 std::vector<FlatIGFile> ASTProcessor::determine_mod_imports(LabModule* module) {
-    switch(module->type) {
+    switch((LabModuleType) module->type) {
         case LabModuleType::Files:
             if(module->paths.size() == 1) {
                 return flat_imports(module->paths[0].data());

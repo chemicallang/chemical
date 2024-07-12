@@ -30,11 +30,6 @@ public:
     bool use_mod_obj_format = true;
 
     /**
-     * if translating to c, translated modules are outputted as c files
-     */
-    bool out_build_c = false;
-
-    /**
      * default output mode
      */
     OutputMode def_mode = OutputMode::Debug;

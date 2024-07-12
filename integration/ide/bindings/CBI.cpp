@@ -349,6 +349,9 @@ void prep_build_context_cbi(BuildContextCBI* cbi) {
     cbi->build_exe = [](BuildContextCBI* self, chem::string* name, LabModule** dependencies, unsigned int dep_len) -> LabExecutable* {
         return self->instance->build_exe(name, dependencies, dep_len);
     };
+    cbi->build_path = [](chem::string* str, BuildContextCBI* self) {
+        return self->instance->build_path(init_chem_string(str));
+    };
     cbi->has_arg = [](BuildContextCBI* self, chem::string* name) -> bool {
         return self->instance->has_arg(name);
     };

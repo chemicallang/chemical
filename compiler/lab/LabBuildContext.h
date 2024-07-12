@@ -125,6 +125,13 @@ public:
     );
 
     /**
+     * provides build path into given string
+     */
+    void build_path(chem::string* str) {
+        str->append(build_dir);
+    }
+
+    /**
      * has this build argument
      */
     bool has_arg(chem::string* name);

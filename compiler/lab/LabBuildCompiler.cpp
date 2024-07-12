@@ -185,7 +185,7 @@ int lab_build(LabBuildContext& context, const std::string& path, LabBuildCompile
 
     // compiling the c output from build.labs
     auto str = output_ptr.str();
-    auto state = compile_c_to_tcc_state(options->exe_path.data(), str.data(), "", true);
+    auto state = compile_c_to_tcc_state(options->exe_path.data(), str.data(), "", true, is_debug(options->def_mode));
     TCCDeletor auto_del(state); // automatic destroy
 
     // relocate the code before calling
@@ -278,22 +278,32 @@ int lab_build(LabBuildContext& context, const std::string& path, LabBuildCompile
 #ifdef TCC_BUILD
         is_use_obj_format = true;
 #endif
-        auto obj_path = resolve_rel_child_path_str(exe_build_dir, exe.name.to_std_string() + (is_use_obj_format ? ".obj" : ".bc"));
-#ifdef COMPILER_BUILD
-        if(is_use_obj_format) {
-            emitter_options.obj_path = obj_path.data();
-        } else {
-            emitter_options.bitcode_path = obj_path.data();
-        }
-#endif
 
         // flatten the dependencies
         auto dependencies = LabBuildContext::flatten_dedupe_sorted(exe.dependencies);
 
+        bool user_required_object;
+
         // compile dependent modules for this executable
         for(auto mod : dependencies) {
 
-            std::cout << rang::bg::gray << rang::fg::black << "[BuildLab]" << " Building module '" << mod->name.data() << "' at path '" << obj_path << '\'' << rang::bg::reset << rang::fg::reset << std::endl;
+            user_required_object = !mod->object_path.empty();
+
+            {
+                auto obj_path = resolve_rel_child_path_str(exe_build_dir, exe.name.to_std_string() +
+                                                                          (is_use_obj_format ? ".obj" : ".bc"));
+                if (is_use_obj_format) {
+                    if (mod->object_path.empty()) {
+                        mod->object_path.append(obj_path);
+                    }
+                } else {
+                    if (mod->bitcode_path.empty()) {
+                        mod->bitcode_path.append(obj_path);
+                    }
+                }
+            }
+
+            std::cout << rang::bg::gray << rang::fg::black << "[BuildLab]" << " Building module '" << mod->name.data() << "' at path '" << (is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data()) << '\'' << rang::bg::reset << rang::fg::reset << std::endl;
 
             // get flat file map of this module
             flat_imports = processor.determine_mod_imports(mod);
@@ -378,36 +388,37 @@ int lab_build(LabBuildContext& context, const std::string& path, LabBuildCompile
 
             futures.clear();
             processor.end();
-            if(use_tcc) {
-                if(options->out_build_c) {
-                    std::ofstream out_c;
-                    std::string c_file_path = obj_path + ".c";
-                    out_c.open(c_file_path);
-                    if(out_c.is_open()) {
-                        out_c << output_ptr.view();
-                        out_c.close();
-                    } else {
-                        std::cerr << "[LabBuild] couldn't open " << c_file_path << std::endl;
-                    }
+            if(use_tcc && !mod->translate_c_path.empty()) {
+                std::ofstream out_c;
+                out_c.open(mod->translate_c_path.data());
+                if(out_c.is_open()) {
+                    out_c << output_ptr.view();
+                    out_c.close();
+                } else {
+                    std::cerr << "[LabBuild] couldn't open " << mod->translate_c_path.data() << std::endl;
                 }
+            }
+
+            if(use_tcc) {
+                auto obj_path = mod->object_path.to_std_string();
                 // compile the current c string
-                if(dependencies.size() == 1) {
+                if(dependencies.size() == 1 && !user_required_object) {
                     obj_path = exe.abs_path.to_std_string();
                 }
-                compile_result = compile_c_string(options->exe_path.data(), output_ptr.str().data(), obj_path, false, options->benchmark);
+                compile_result = compile_c_string(options->exe_path.data(), output_ptr.str().data(), obj_path, false, options->benchmark, is_debug(options->def_mode));
                 if(compile_result == 1) {
                     break;
                 }
-                if(dependencies.size() != 1) {
+                if(dependencies.size() != 1 || user_required_object) {
                     linkables.emplace_back(obj_path);
                 }
-
                 // clear the current c string
                 output_ptr.clear();
                 output_ptr.str("");
             }
+
 #ifdef COMPILER_BUILD
-            else {
+            if(!use_tcc) {
                 gen.compile_end();
             }
             // errors in a single module means no linking
@@ -415,12 +426,26 @@ int lab_build(LabBuildContext& context, const std::string& path, LabBuildCompile
                 compile_result = 1;
                 break;
             }
+            // which files to emit
+            if(!mod->llvm_ir_path.empty()) {
+                emitter_options.ir_path = mod->llvm_ir_path.data();
+            }
+            if(!mod->asm_path.empty()) {
+                emitter_options.asm_path = mod->asm_path.data();
+            }
+            if(!mod->bitcode_path.empty()) {
+                emitter_options.bitcode_path = mod->bitcode_path.data();
+            }
+            if(!mod->object_path.empty()) {
+                emitter_options.obj_path = mod->object_path.data();
+            }
+
             // creating a object or bitcode file
             save_result = gen.save_with_options(&emitter_options);
             if(save_result) {
-                linkables.emplace_back(obj_path);
+                linkables.emplace_back(is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data());
             } else {
-                std::cerr << "[BuildLab] failed to emit file " << obj_path << " " << std::endl;
+                std::cerr << "[BuildLab] failed to emit file " << (is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data()) << " " << std::endl;
             }
 #endif
 

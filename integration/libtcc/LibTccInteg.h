@@ -22,4 +22,4 @@ TCCState* compile_c_to_tcc_state(char* exe_path, const char* program, const std:
 
 int compile_c_string(char* exe_path, const char* program, const std::string& outputFileName, bool jit, bool benchmark, bool debug);
 
-int tcc_link_objects(char* exe_path, const std::string& outputFileName, std::vector<std::string>& objects);
+int tcc_link_objects(char* exe_path, const std::string& outputFileName, std::vector<chem::string>& objects);

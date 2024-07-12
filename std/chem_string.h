@@ -44,7 +44,6 @@ namespace chem {
                                : 0;
             storage.constant.length = length;
             state = '0';
-//            ensure_mut(length);
         }
 
         constexpr string() {
@@ -81,7 +80,7 @@ namespace chem {
             storage.constant.data = value;
             storage.constant.length = length;
             state = '0';
-            ensure_mut(length);
+            ensure_mut(length + 1);
         }
 
         explicit string(const chem::string& value) {
@@ -90,7 +89,7 @@ namespace chem {
             storage.constant.length = length;
             state = '0';
             if(value.state != '0') {
-                ensure_mut(length);
+                ensure_mut(length + 1);
             }
         }
 
@@ -147,18 +146,18 @@ namespace chem {
             storage.heap.capacity = new_capacity;
         }
 
-        void ensure_mut(const size_t length){
-            if((((state == '0') || (state == '1')) && (length < STR_BUFF_SIZE))){
+        void ensure_mut(const size_t capacity){
+            if((((state == '0') || (state == '1')) && (capacity < STR_BUFF_SIZE))){
                 if(state == '0'){
                     move_const_to_buffer();
                 }
             } else {
                 if(state == '0'){
-                    move_data_to_heap(storage.constant.data, storage.constant.length, length);
+                    move_data_to_heap(storage.constant.data, storage.constant.length, capacity);
                 }else if(state == '1'){
-                    move_data_to_heap(&storage.sso.buffer[0], storage.sso.length, length);
-                }else if(storage.heap.capacity <= length){
-                    resize(length);
+                    move_data_to_heap(&storage.sso.buffer[0], storage.sso.length, capacity);
+                }else if(storage.heap.capacity <= capacity){
+                    resize(capacity);
                 }
             }
         }
@@ -197,7 +196,7 @@ namespace chem {
         }
 
         void append(const char* value, size_t len){
-            ensure_mut((size() + len));
+            ensure_mut((size() + len + 10));
             size_t i = 0;
             while((i < len)) {
                 append(value[i]);

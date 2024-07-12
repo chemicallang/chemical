@@ -99,7 +99,7 @@ public:
     /**
      * link process modules result
      */
-    int link(std::vector<std::string>& result, const std::string& path);
+    int link(std::vector<chem::string>& result, const std::string& path);
 
     /**
      * does executable job (generates executable)

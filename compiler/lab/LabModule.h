@@ -11,9 +11,19 @@
 struct LabModule {
 
     // type of the module
-    LabModuleType type;
+    int type;
     // name of the module
     chem::string name;
+    // bitcode file path for this module
+    chem::string bitcode_path;
+    // object file path for this module
+    chem::string object_path;
+    // if not empty, module's llvm ir is written to at this path
+    chem::string llvm_ir_path;
+    // if not empty, module's assembly is written to at this path
+    chem::string asm_path;
+    // if not empty, module is translated to c at this path
+    chem::string translate_c_path;
     // this path point to a c (.c, .h) file, a chemical file, a directory or a build.lab
     // depends on the type of module
     std::vector<chem::string> paths;

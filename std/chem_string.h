@@ -66,7 +66,7 @@ namespace chem {
                     break;
                 case '1':
                     memcpy(storage.sso.buffer, other.storage.sso.buffer, 16);
-                    storage.constant.length = other.storage.constant.length;
+                    storage.sso.length = other.storage.sso.length;
                     break;
                 case '2':
                     storage.heap.data = other.storage.heap.data;
@@ -249,6 +249,10 @@ namespace chem {
             append(value->data(), value->size());
         }
 
+        void append(const std::string& str) {
+            append(str.data(), str.size());
+        }
+
         [[nodiscard]]
         string copy() const {
             return substring(0, size());
@@ -302,6 +306,11 @@ namespace chem {
                 storage.heap.data[(length + 1)] = '\0';
                 storage.heap.length = (length + 1);
             }
+        }
+
+        [[nodiscard]]
+        bool empty() const {
+            return size() == 0;
         }
 
         [[nodiscard]]

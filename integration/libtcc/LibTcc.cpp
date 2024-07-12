@@ -7,10 +7,10 @@
 #include "utils/PathUtils.h"
 
 void handle_tcc_error(void *opaque, const char *msg){
-    std::cout << "[2cTcc] " << msg << " compiling to " << ((char*) opaque) << std::endl;
+    std::cout << "[Tcc] " << msg << " in " << ((char*) opaque) << std::endl;
 }
 
-TCCState* compile_c_to_tcc_state(char* exe_path, const char* program, const std::string& outputFileName, bool jit) {
+TCCState* compile_c_to_tcc_state(char* exe_path, const char* program, const std::string& outputFileName, bool jit, bool debug) {
 
     // creating a tcc state
     TCCState *s;
@@ -53,6 +53,16 @@ TCCState* compile_c_to_tcc_state(char* exe_path, const char* program, const std:
         }
     }
 
+    if(debug) {
+        // generates slower code in debug versions, but allows proper debugging
+        tcc_set_options(s, "-g -b -bt 4");
+        tcc_set_backtrace_func(s, nullptr, [](void *udata, void *pc, const char *file, int line, const char *func, const char *msg) {
+               std::cerr << "[Tcc] error '" << msg << "' in runtime function " << func << " in file "
+                         << file << ':' << line << std::endl;
+               return 1;
+       });
+    }
+
     result = tcc_set_output_type(s, outputType);
     if(result == -1) {
         std::cerr << "Couldn't set tcc output type" << std::endl;
@@ -64,18 +74,31 @@ TCCState* compile_c_to_tcc_state(char* exe_path, const char* program, const std:
         return nullptr;
     }
 
+    // we will use our heap context
+    // this way c and our program and can free or allocate for each other
+    if(jit) {
+        tcc_undefine_symbol(s, "malloc");
+        tcc_undefine_symbol(s, "realloc");
+        tcc_undefine_symbol(s, "free");
+        tcc_undefine_symbol(s, "memcpy");
+        tcc_add_symbol(s, "malloc", (void*) malloc);
+        tcc_add_symbol(s, "realloc", (void*) realloc);
+        tcc_add_symbol(s, "free", (void*) free);
+        tcc_add_symbol(s, "memcpy", (void*) memcpy);
+    }
+
     return s;
 
 }
 
-int compile_c_string(char* exe_path, const char* program, const std::string& outputFileName, bool jit, bool benchmark) {
+int compile_c_string(char* exe_path, const char* program, const std::string& outputFileName, bool jit, bool benchmark, bool debug) {
 
     BenchmarkResults results{};
     if(benchmark) {
         results.benchmark_begin();
     }
 
-    auto s = compile_c_to_tcc_state(exe_path, program, outputFileName, jit);
+    auto s = compile_c_to_tcc_state(exe_path, program, outputFileName, jit, debug);
     if(!s) {
         return 1;
     }
@@ -102,7 +125,7 @@ int compile_c_string(char* exe_path, const char* program, const std::string& out
 
 int tcc_link_objects(char* exe_path, const std::string& outputFileName, std::vector<std::string>& objects) {
 
-    auto s = compile_c_to_tcc_state(exe_path, nullptr, exe_path, false);
+    auto s = compile_c_to_tcc_state(exe_path, nullptr, exe_path, false, false);
     if(!s) {
         return 1;
     }

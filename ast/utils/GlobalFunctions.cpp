@@ -5,7 +5,9 @@
 #include "sstream"
 #include <utility>
 #include "ast/types/VoidType.h"
+#include "ast/types/BoolType.h"
 #include "ast/values/IntValue.h"
+#include "ast/values/BoolValue.h"
 #include "ast/values/UBigIntValue.h"
 #include "ast/values/RetStructParamValue.h"
 #include "ast/values/StructValue.h"
@@ -267,6 +269,27 @@ public:
     }
 };
 
+class InterpretIsTcc : public FunctionDeclaration {
+public:
+    explicit InterpretIsTcc(ASTNode* parent_node) : FunctionDeclaration(
+            "is_tcc_based",
+            std::vector<std::unique_ptr<FunctionParam>> {},
+            std::make_unique<BoolType>(),
+            false,
+            parent_node,
+            std::nullopt
+    ) {
+        annotations.emplace_back(AnnotationKind::CompTime);
+    }
+    Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val) override {
+#ifdef TCC_BUILD
+        return new BoolValue(true);
+#else
+        return new BoolValue(false);
+#endif
+    }
+};
+
 Namespace* GlobalInterpretScope::create_compiler_namespace() {
     global_nodes["compiler"] = std::make_unique<Namespace>("compiler", nullptr);
     auto compiler_ns = (Namespace*) global_nodes["compiler"].get();
@@ -274,6 +297,7 @@ Namespace* GlobalInterpretScope::create_compiler_namespace() {
     compiler_ns->nodes.emplace_back(new InterpretStrLen(compiler_ns));
     compiler_ns->nodes.emplace_back(new InterpretWrap(compiler_ns));
     compiler_ns->nodes.emplace_back(new InterpretRetStructPtr(compiler_ns));
+    compiler_ns->nodes.emplace_back(new InterpretIsTcc(compiler_ns));
     compiler_ns->nodes.emplace_back(new InterpretVector::InterpretVectorNode(compiler_ns));
     return compiler_ns;
 }

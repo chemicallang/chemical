@@ -10,8 +10,8 @@ public:
     bool time_report = true;
     bool tsan = false;
     bool lto = false;
-    char* asm_path = nullptr;
-    char* obj_path = nullptr;
-    char* ir_path = nullptr;
-    char* bitcode_path = nullptr;
+    const char* asm_path = nullptr;
+    const char* obj_path = nullptr;
+    const char* ir_path = nullptr;
+    const char* bitcode_path = nullptr;
 };

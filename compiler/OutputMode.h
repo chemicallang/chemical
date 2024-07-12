@@ -47,6 +47,10 @@ enum class OutputMode {
 
 };
 
+inline bool is_debug(OutputMode mode) {
+    return mode == OutputMode::Debug || mode == OutputMode::DebugComplete;
+}
+
 class CodegenEmitterOptions;
 
 void configure_emitter_opts(OutputMode mode, CodegenEmitterOptions* options);

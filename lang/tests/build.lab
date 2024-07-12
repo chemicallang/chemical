@@ -11,6 +11,15 @@ func relative_path(path : string) : string {
     return dir;
 }
 
+func module_path(ctx : BuildContext*, module : Module*) : string {
+    const new_path = ctx.build_path();
+    new_path.append('/');
+    new_path.append_str(&module.name);
+    new_path.append_char_ptr(".dir");
+    new_path.append('/')
+    return new_path;
+}
+
 func build(ctx : BuildContext*) {
 
     const str_arg = string("hello");
@@ -22,6 +31,31 @@ func build(ctx : BuildContext*) {
     const name = string("chemical-tests");
     const ext_module = ctx.c_file_module(string("ext_c"), relative_path(string("ext/file.c")), null, 0)
     const module = ctx.file_module(name, relative_path(string("tests.ch")), null, 0);
+
+    const do_llvm_ir = true;
+    const do_asm = false;
+    const do_c = true;
+
+    if(do_llvm_ir) {
+        module.llvm_ir_path = module_path(ctx, module)
+        module.llvm_ir_path.append_str(&name);
+        module.llvm_ir_path.append_char_ptr(".ll")
+        printf("The llvm ir path is %s\n", module.llvm_ir_path.data());
+    }
+
+    if(do_asm) {
+        module.asm_path = module_path(ctx, module)
+        module.asm_path.append_str(&name);
+        module.asm_path.append_char_ptr(".s")
+        printf("The asm path is %s\n", module.asm_path.data());
+    }
+
+    if(do_c && compiler::is_tcc_based()) {
+        module.translate_c_path = module_path(ctx, module)
+        module.translate_c_path.append_str(&name);
+        module.translate_c_path.append_char_ptr(".c")
+        printf("The translate c path is %s\n", module.translate_c_path.data());
+    }
 
     ctx.build_exe(name, { module }, 1);
 

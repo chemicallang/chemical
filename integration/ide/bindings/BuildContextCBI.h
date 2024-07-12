@@ -21,6 +21,8 @@ struct BuildContextCBI {
 
     LabExecutable*(*build_exe)(BuildContextCBI* self, chem::string* name, LabModule** dependencies, unsigned int dep_len);
 
+    void(*build_path)(chem::string* str, BuildContextCBI* self);
+
     bool(*has_arg)(BuildContextCBI* self, chem::string* name);
 
     void(*get_arg)(chem::string* str, BuildContextCBI* self, chem::string* name);

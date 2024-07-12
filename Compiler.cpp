@@ -67,7 +67,6 @@ void print_help() {
                  "--lto               -[empty]      force link time optimization\n"
                  "--assertions        -[empty]      enable assertions on generated code\n"
                  "--debug-ll          -[empty]      output llvm ir, even with errors, for debugging\n"
-                 "--out-build-c       -[empty]      output modules translated to c, when building build.lab\n"
                  "--arg-[arg]         -arg-[arg]    can be used to provide arguments to build.lab\n"
                  "--verify            -o            do not compile, only verify source code\n"
                  "--jit               -jit          do just in time compilation using Tiny CC\n"
@@ -190,6 +189,36 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    OutputMode mode = OutputMode::Debug;
+
+    // configuring output mode from command line
+    auto mode_opt = options.option("mode", "m");
+    if(mode_opt.has_value()) {
+        if(mode_opt.value() == "debug") {
+            // ignore
+        } else if(mode_opt.value() == "debug_quick") {
+            mode = OutputMode::DebugQuick;
+            if(verbose) {
+                std::cout << "[Compiler] Debug Quick Enabled" << std::endl;
+            }
+        } else if(mode_opt.value() == "release" || mode_opt.value() == "release_fast") {
+            mode = OutputMode::ReleaseFast;
+            if(verbose) {
+                std::cout << "[Compiler] Release Fast Enabled" << std::endl;
+            }
+        } else if(mode_opt.value() == "release_small") {
+            if(verbose) {
+                std::cout << "[Compiler] Release Small Enabled" << std::endl;
+            }
+            mode = OutputMode::ReleaseSmall;
+        }
+    }
+#ifdef DEBUG
+    else {
+        mode = OutputMode::DebugQuick;
+    }
+#endif
+
     // translate chemical to C
     auto tcc = options.option("tcc", "tcc").has_value();
 #ifdef COMPILER_BUILD
@@ -229,41 +258,11 @@ int main(int argc, char *argv[]) {
                     }
                 }
                 return compile_c_string(argv[0], cProgramStr.data(), output.has_value() ? output.value() : "", jit,
-                                        benchmark);
+                                        benchmark, is_debug(mode));
             }
         }
 
 #ifdef COMPILER_BUILD
-    }
-#endif
-
-    OutputMode mode = OutputMode::Debug;
-
-    // configuring output mode from command line
-    auto mode_opt = options.option("mode", "m");
-    if(mode_opt.has_value()) {
-        if(mode_opt.value() == "debug") {
-            // ignore
-        } else if(mode_opt.value() == "debug_quick") {
-            mode = OutputMode::DebugQuick;
-            if(verbose) {
-                std::cout << "[Compiler] Debug Quick Enabled" << std::endl;
-            }
-        } else if(mode_opt.value() == "release" || mode_opt.value() == "release_fast") {
-            mode = OutputMode::ReleaseFast;
-            if(verbose) {
-                std::cout << "[Compiler] Release Fast Enabled" << std::endl;
-            }
-        } else if(mode_opt.value() == "release_small") {
-            if(verbose) {
-                std::cout << "[Compiler] Release Small Enabled" << std::endl;
-            }
-            mode = OutputMode::ReleaseSmall;
-        }
-    }
-#ifdef DEBUG
-    else {
-        mode = OutputMode::DebugQuick;
     }
 #endif
 
@@ -279,7 +278,6 @@ int main(int argc, char *argv[]) {
         if(options.option("assertions").has_value()) {
             compiler_opts.def_assertions_on = true;
         }
-        compiler_opts.out_build_c = options.option("out-build-c").has_value();
         // giving build args to lab build context
         for(auto& opt : options.options) {
             if(opt.first.starts_with("arg-")) {

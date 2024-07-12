@@ -1,13 +1,21 @@
 // Copyright (c) Qinetik 2024.
 
-#include "std/chem_string.h"
+#pragma once
 
-struct LabExecutable {
-    // name of the executable, this name shouldn't contain .exe at the end
+#include <vector>
+#include "std/chem_string.h"
+#include "LabJobType.h"
+
+class LabModule;
+
+struct LabJob {
+    // the type of job
+    LabJobType type;
+    // name of the job / executable / lib
     chem::string name;
-    // absolute path to the executable which is determined by the compiler
+    // absolute path to the job's output (exe or lib)
     chem::string abs_path;
-    // absolute path to build dir path
+    // absolute path to build dir for this job
     chem::string build_dir;
     // dependencies are the pointers to modules that this module depends on
     // these modules will be compiled first

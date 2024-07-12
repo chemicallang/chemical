@@ -49,7 +49,362 @@ static bool verify_app_build_func_type(FunctionDeclaration* found, const std::st
     return true;
 }
 
-int lab_build(LabBuildContext& context, const std::string& path, LabBuildCompilerOptions* options) {
+void recursive_dedupe(LabModule* file, std::unordered_map<LabModule*, bool>& imported, std::vector<LabModule*>& flat_map) {
+    for(auto nested : file->dependencies) {
+        recursive_dedupe(nested, imported, flat_map);
+    }
+    auto found = imported.find(file);
+    if(found == imported.end()) {
+        imported[file] = true;
+        flat_map.emplace_back(file);
+    }
+}
+
+/**
+ * it creates a flat vector containing pointers to lab modules, sorted
+ *
+ * It de-dupes, meaning avoids duplicates, it won't add two pointers
+ * that are same, so dependencies that occur again and again, would
+ * only be compiled once
+ *
+ * why sort ? Modules that should be compiled first are present first
+ * The first module that should be compiled is at zero index, The last
+ * module would be the given module, compiled at last
+ * TODO
+ * 1 - avoid direct cyclic dependencies a depends on b and b depends on a
+ * 2 - avoid indirect cyclic dependencies a depends on b and b depends on c and c depends on a
+ */
+std::vector<LabModule*> flatten_dedupe_sorted(LabModule* mod) {
+    std::vector<LabModule*> modules;
+    std::unordered_map<LabModule*, bool> imported;
+    recursive_dedupe(mod, imported, modules);
+    return modules;
+}
+
+/**
+ * same as above, only it operates on multiple modules, it de-dupes the dependent modules
+ * of the given list of modules and also sorts them
+ */
+std::vector<LabModule*> flatten_dedupe_sorted(const std::vector<LabModule*>& modules) {
+    std::vector<LabModule*> new_modules;
+    std::unordered_map<LabModule*, bool> imported;
+    for(auto mod : modules) {
+        recursive_dedupe(mod, imported, new_modules);
+    }
+    return new_modules;
+}
+
+LabBuildCompiler::LabBuildCompiler(LabBuildCompilerOptions *options) : options(options), pool((int) std::thread::hardware_concurrency()) {
+
+}
+
+int LabBuildCompiler::do_job(LabJob* job) {
+    switch(job->type) {
+        case LabJobType::Executable:
+            return do_executable_job(job);
+        case LabJobType::Library:
+            return do_library_job(job);
+        case LabJobType::ToCTranslation:
+            return do_to_c_job(job);
+    }
+}
+
+ProcessModulesResult LabBuildCompiler::process_modules(LabJob* exe) {
+
+    // the flag that forces usage of tcc
+    const bool use_tcc = options->use_tcc;
+
+    std::cout << rang::bg::blue << rang::fg::black << "[BuildLab]" << " Building executable '" << exe->name.data() << "' at path '" << exe->abs_path.data() << '\'' << rang::bg::reset << rang::fg::reset << std::endl;
+
+    std::string exe_build_dir = exe->build_dir.to_std_string();
+    // create the build directory for this executable
+    if(!std::filesystem::exists(exe_build_dir)) {
+        std::filesystem::create_directory(exe_build_dir);
+    }
+
+    // a new symbol resolver for every executable
+    SymbolResolver resolver(options->is64Bit);
+
+    // shrinking visitor will shrink everything
+    ShrinkingVisitor shrinker;
+
+    // beginning
+    std::stringstream output_ptr;
+    ToCAstVisitor c_visitor(&output_ptr);
+
+#ifdef COMPILER_BUILD
+    ASTCompiler processor(options, &resolver);
+    Codegen gen({}, options->target_triple, options->exe_path, options->is64Bit, "");
+    CodegenEmitterOptions emitter_options;
+#else
+    ASTProcessor processor(options, &resolver);
+#endif
+
+    if(use_tcc) {
+        // clear build.lab c output
+        output_ptr.clear();
+        output_ptr.str("");
+        // allow user the compiler (namespace) functions in @comptime
+        c_visitor.comptime_scope.prepare_compiler_namespace(resolver);
+    }
+#ifdef COMPILER_BUILD
+    else {
+        // creating codegen, processor  for this executable
+        // prepare compiler functions in codegen scope
+        gen.comptime_scope.prepare_compiler_namespace(resolver);
+        // emitter options allow to configure type of build (debug or release)
+        // configuring the emitter options
+        configure_emitter_opts(options->def_mode, &emitter_options);
+        if (options->def_lto_on) {
+            emitter_options.lto = true;
+        }
+        if (options->def_assertions_on) {
+            emitter_options.assertions_on = true;
+        }
+    }
+#endif
+
+    // configure output path
+    const bool is_use_obj_format = options->use_mod_obj_format;
+
+    // linkables
+    std::vector<std::string> linkables;
+
+    // flatten the dependencies
+    auto dependencies = flatten_dedupe_sorted(exe->dependencies);
+
+    // allocating required variables before going into loop
+    std::vector<FlatIGFile> flat_imports;
+    int i;
+    int compile_result = 0;
+    int link_result;
+    bool user_required_object;
+    bool save_result;
+
+    // compile dependent modules for this executable
+    for(auto mod : dependencies) {
+
+        auto found = generated.find(mod);
+        if(found != generated.end()) {
+            linkables.emplace_back(found->second);
+            continue;
+        }
+
+        user_required_object = !mod->object_path.empty();
+
+        {
+            auto obj_path = resolve_rel_child_path_str(exe_build_dir, exe->name.to_std_string() +
+                                                                      (is_use_obj_format ? ".obj" : ".bc"));
+            if (is_use_obj_format) {
+                if (mod->object_path.empty()) {
+                    mod->object_path.append(obj_path);
+                }
+            } else {
+                if (mod->bitcode_path.empty()) {
+                    mod->bitcode_path.append(obj_path);
+                }
+            }
+        }
+
+        std::cout << rang::bg::gray << rang::fg::black << "[BuildLab]" << " Building module '" << mod->name.data() << "' at path '" << (is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data()) << '\'' << rang::bg::reset << rang::fg::reset << std::endl;
+
+        // get flat file map of this module
+        flat_imports = processor.determine_mod_imports(mod);
+
+        // send all files for concurrent processing (lex and parse)
+        std::vector<std::future<ASTImportResultExt>> futures;
+        i = 0;
+        for(const auto& file : flat_imports) {
+            auto already_imported = processor.shrinked_nodes.find(file.abs_path);
+            if(already_imported == processor.shrinked_nodes.end()) {
+                futures.push_back(pool.push(concurrent_processor, i, file, &processor));
+                i++;
+            }
+        }
+
+#ifdef COMPILER_BUILD
+        // prepare for code generation of this module
+        gen.module_init(mod->name.to_std_string());
+        gen.compile_begin();
+#endif
+
+        if(use_tcc) {
+            // preparing translation
+            c_visitor.prepare_translate();
+        }
+
+        ASTImportResultExt result { Scope { nullptr }, false, false, "" };
+
+        // sequentially compile each file
+        i = 0;
+        for(const auto& file : flat_imports) {
+
+            auto imported = processor.shrinked_nodes.find(file.abs_path);
+            bool already_imported = imported != processor.shrinked_nodes.end();
+            // already imported
+            if(already_imported) {
+                result.scope.nodes = std::move(imported->second);
+                result.continue_processing = true;
+                result.is_c_file = false;
+            } else {
+                // get the processed result
+                result = std::move(futures[i].get());
+                if(!result.continue_processing) {
+                    compile_result = false;
+                    break;
+                }
+            }
+
+            // print the benchmark or verbose output received from processing
+            if((options->benchmark || options->verbose) && !result.cli_out.empty()) {
+                std::cout << rang::style::bold << rang::fg::magenta << "[Processing] " << file.abs_path << rang::fg::reset << rang::style::reset << '\n';
+                std::cout << result.cli_out << std::flush;
+            }
+
+            // symbol resolution
+            processor.sym_res(result.scope, result.is_c_file, file.abs_path);
+            if (resolver.has_errors) {
+                compile_result = false;
+                break;
+            }
+            resolver.reset_errors();
+
+            if(use_tcc) {
+                // reset the c visitor to use with another file
+                c_visitor.reset();
+                // translating to c
+                processor.translate_to_c_no_sym_res(c_visitor, result.scope, shrinker, file);
+            }
+#ifdef COMPILER_BUILD
+            else {
+                // compiling the nodes
+                gen.nodes = std::move(result.scope.nodes);
+                processor.compile_nodes(&gen, shrinker, file);
+            }
+#endif
+            if(already_imported) {
+                imported->second = std::move(result.scope.nodes);
+            } else {
+                i++;
+            }
+        }
+
+        futures.clear();
+        processor.end();
+        if(use_tcc && !mod->translate_c_path.empty()) {
+            std::ofstream out_c;
+            out_c.open(mod->translate_c_path.data());
+            if(out_c.is_open()) {
+                out_c << output_ptr.view();
+                out_c.close();
+            } else {
+                std::cerr << "[LabBuild] couldn't open " << mod->translate_c_path.data() << std::endl;
+            }
+        }
+
+        if(use_tcc) {
+            auto obj_path = mod->object_path.to_std_string();
+            // compile the current c string
+            if(dependencies.size() == 1 && !user_required_object) {
+                obj_path = exe->abs_path.to_std_string();
+            }
+            compile_result = compile_c_string(options->exe_path.data(), output_ptr.str().data(), obj_path, false, options->benchmark, is_debug(options->def_mode));
+            if(compile_result == 1) {
+                break;
+            }
+            if(dependencies.size() != 1 || user_required_object) {
+                linkables.emplace_back(obj_path);
+            }
+            // clear the current c string
+            output_ptr.clear();
+            output_ptr.str("");
+        }
+
+#ifdef COMPILER_BUILD
+        if(!use_tcc) {
+            gen.compile_end();
+        }
+        // errors in a single module means no linking
+        if (gen.has_errors) {
+            compile_result = 1;
+            break;
+        }
+        // which files to emit
+        if(!mod->llvm_ir_path.empty()) {
+            emitter_options.ir_path = mod->llvm_ir_path.data();
+        }
+        if(!mod->asm_path.empty()) {
+            emitter_options.asm_path = mod->asm_path.data();
+        }
+        if(!mod->bitcode_path.empty()) {
+            emitter_options.bitcode_path = mod->bitcode_path.data();
+        }
+        if(!mod->object_path.empty()) {
+            emitter_options.obj_path = mod->object_path.data();
+        }
+
+        // creating a object or bitcode file
+        save_result = gen.save_with_options(&emitter_options);
+        if(save_result) {
+            const auto gen_path = is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data();
+            linkables.emplace_back(gen_path);
+            generated[mod] = gen_path;
+        } else {
+            std::cerr << "[BuildLab] failed to emit file " << (is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data()) << " " << std::endl;
+        }
+#endif
+
+    }
+
+    return ProcessModulesResult { std::move(linkables), compile_result };
+
+
+}
+
+int LabBuildCompiler::link(std::vector<std::string>& linkables, const std::string& output_path) {
+    int link_result;
+#ifdef COMPILER_BUILD
+    link_result = link_objects(linkables, output_path, options->exe_path, {});
+#else
+    link_result = tcc_link_objects(options->exe_path.data(), output_path, linkables);
+#endif
+    if(link_result == 1) {
+        std::cerr << "Failed to link \n";
+        for(auto& linkable : linkables) {
+            std::cerr << '\t' << linkable << '\n';
+        }
+        std::cerr << "into " << output_path;
+        std::cerr << std::endl;
+        return link_result;
+    }
+
+    return 0;
+}
+
+int LabBuildCompiler::do_executable_job(LabJob* job) {
+    auto result = process_modules(job);
+    if(result.return_status == 1) {
+        return 1;
+    }
+    // link will automatically detect the extension at the end
+    return link(result.linkables, job->abs_path.to_std_string());
+}
+
+int LabBuildCompiler::do_library_job(LabJob* job) {
+    auto result = process_modules(job);
+    if(result.return_status == 1) {
+        return 1;
+    }
+    // link will automatically detect the extension at the end
+    return link(result.linkables, job->abs_path.to_std_string());
+}
+
+int LabBuildCompiler::do_to_c_job(LabJob* job) {
+    // TODO this job
+    return 1;
+}
+
+int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string& path) {
 
     // shrinking visitor will shrink everything
     ShrinkingVisitor shrinker;
@@ -69,7 +424,7 @@ int lab_build(LabBuildContext& context, const std::string& path, LabBuildCompile
 
     // beginning
     std::stringstream output_ptr;
-    ToCAstVisitor c_visitor(&output_ptr, path);
+    ToCAstVisitor c_visitor(&output_ptr);
 
     // allow user the compiler (namespace) functions in @comptime
     c_visitor.comptime_scope.prepare_compiler_namespace(lab_resolver);
@@ -92,9 +447,6 @@ int lab_build(LabBuildContext& context, const std::string& path, LabBuildCompile
         }
         return nullptr;
     };
-
-    // creating a thread pool for all our jobs in the lab build
-    ctpl::thread_pool pool((int) std::thread::hardware_concurrency()); // Initialize thread pool with the number of available hardware threads
 
     {
         std::vector<std::future<ASTImportResultExt>> lab_futures;
@@ -206,273 +558,23 @@ int lab_build(LabBuildContext& context, const std::string& path, LabBuildCompile
     // call the root build.lab build's function
     build(&cbi);
 
-    // all the objects that should be linked for each executable
-    std::vector<std::string> linkables;
-    int link_result;
-
     // mkdir the build directory
     if(!std::filesystem::exists(context.build_dir)) {
         std::filesystem::create_directory(context.build_dir);
     }
 
-    // for each object file
-    bool save_result;
-
-    // the index into futures
-    int i;
-
-    // the flag that forces usage of tcc
-    bool use_tcc = options->use_tcc;
-#ifdef TCC_BUILD
-    use_tcc = true;
-#endif
+    int job_result = compile_result;
 
     // generating outputs (executables)
     for(auto& exe : context.executables) {
 
-        std::cout << rang::bg::blue << rang::fg::black << "[BuildLab]" << " Building executable '" << exe.name.data() << "' at path '" << exe.abs_path.data() << '\'' << rang::bg::reset << rang::fg::reset << std::endl;
-
-        std::string exe_build_dir = exe.build_dir.to_std_string();
-        // create the build directory for this executable
-        if(!std::filesystem::exists(exe_build_dir)) {
-            std::filesystem::create_directory(exe_build_dir);
+        job_result = do_job(&exe);
+        if(job_result == 1) {
+            std::cerr << rang::bg::blue << rang::fg::black << "[BuildLab]" << " error performing job '" << exe.name.data() << "', returned status code 1" << rang::bg::reset << rang::fg::reset << std::endl;
         }
-
-        // a new symbol resolver for every executable
-        SymbolResolver resolver(options->is64Bit);
-
-#ifdef COMPILER_BUILD
-        ASTCompiler processor(options, &resolver);
-        Codegen gen({}, options->target_triple, options->exe_path, options->is64Bit, "");
-        CodegenEmitterOptions emitter_options;
-#else
-        ASTProcessor processor(options, &resolver);
-#endif
-
-        if(use_tcc) {
-            // clear build.lab c output
-            output_ptr.clear();
-            output_ptr.str("");
-            // allow user the compiler (namespace) functions in @comptime
-            c_visitor.comptime_scope.rebind_compiler_namespace(resolver);
-        }
-#ifdef COMPILER_BUILD
-        else {
-            // creating codegen, processor  for this executable
-            // prepare compiler functions in codegen scope
-            gen.comptime_scope.prepare_compiler_namespace(resolver);
-            // emitter options allow to configure type of build (debug or release)
-            // configuring the emitter options
-            configure_emitter_opts(options->def_mode, &emitter_options);
-            if (options->def_lto_on) {
-                emitter_options.lto = true;
-            }
-            if (options->def_assertions_on) {
-                emitter_options.assertions_on = true;
-            }
-        }
-#endif
-
-        // configure output path
-        bool is_use_obj_format = options->use_mod_obj_format;
-#ifdef TCC_BUILD
-        is_use_obj_format = true;
-#endif
-
-        // flatten the dependencies
-        auto dependencies = LabBuildContext::flatten_dedupe_sorted(exe.dependencies);
-
-        bool user_required_object;
-
-        // compile dependent modules for this executable
-        for(auto mod : dependencies) {
-
-            user_required_object = !mod->object_path.empty();
-
-            {
-                auto obj_path = resolve_rel_child_path_str(exe_build_dir, exe.name.to_std_string() +
-                                                                          (is_use_obj_format ? ".obj" : ".bc"));
-                if (is_use_obj_format) {
-                    if (mod->object_path.empty()) {
-                        mod->object_path.append(obj_path);
-                    }
-                } else {
-                    if (mod->bitcode_path.empty()) {
-                        mod->bitcode_path.append(obj_path);
-                    }
-                }
-            }
-
-            std::cout << rang::bg::gray << rang::fg::black << "[BuildLab]" << " Building module '" << mod->name.data() << "' at path '" << (is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data()) << '\'' << rang::bg::reset << rang::fg::reset << std::endl;
-
-            // get flat file map of this module
-            flat_imports = processor.determine_mod_imports(mod);
-
-            // send all files for concurrent processing (lex and parse)
-            std::vector<std::future<ASTImportResultExt>> futures;
-            i = 0;
-            for(const auto& file : flat_imports) {
-                auto already_imported = processor.shrinked_nodes.find(file.abs_path);
-                if(already_imported == processor.shrinked_nodes.end()) {
-                    futures.push_back(pool.push(concurrent_processor, i, file, &processor));
-                    i++;
-                }
-            }
-
-#ifdef COMPILER_BUILD
-            // prepare for code generation of this module
-            gen.module_init(mod->name.to_std_string());
-            gen.compile_begin();
-#endif
-
-            if(use_tcc) {
-                // preparing translation
-                c_visitor.prepare_translate();
-            }
-
-            ASTImportResultExt result { Scope { nullptr }, false, false, "" };
-
-            // sequentially compile each file
-            i = 0;
-            for(const auto& file : flat_imports) {
-
-                auto imported = processor.shrinked_nodes.find(file.abs_path);
-                bool already_imported = imported != processor.shrinked_nodes.end();
-                // already imported
-                if(already_imported) {
-                    result.scope.nodes = std::move(imported->second);
-                    result.continue_processing = true;
-                    result.is_c_file = false;
-                } else {
-                    // get the processed result
-                    result = std::move(futures[i].get());
-                    if(!result.continue_processing) {
-                        compile_result = false;
-                        break;
-                    }
-                }
-
-                // print the benchmark or verbose output received from processing
-                if((options->benchmark || options->verbose) && !result.cli_out.empty()) {
-                    std::cout << rang::style::bold << rang::fg::magenta << "[Processing] " << file.abs_path << rang::fg::reset << rang::style::reset << '\n';
-                    std::cout << result.cli_out << std::flush;
-                }
-
-                // symbol resolution
-                processor.sym_res(result.scope, result.is_c_file, file.abs_path);
-                if (resolver.has_errors) {
-                    compile_result = false;
-                    break;
-                }
-                resolver.reset_errors();
-
-                if(use_tcc) {
-                    // reset the c visitor to use with another file
-                    c_visitor.reset();
-                    // translating to c
-                    processor.translate_to_c_no_sym_res(c_visitor, result.scope, shrinker, file);
-                }
-#ifdef COMPILER_BUILD
-                else {
-                    // compiling the nodes
-                    gen.nodes = std::move(result.scope.nodes);
-                    processor.compile_nodes(&gen, shrinker, file);
-                }
-#endif
-                if(already_imported) {
-                    imported->second = std::move(result.scope.nodes);
-                } else {
-                    i++;
-                }
-            }
-
-            futures.clear();
-            processor.end();
-            if(use_tcc && !mod->translate_c_path.empty()) {
-                std::ofstream out_c;
-                out_c.open(mod->translate_c_path.data());
-                if(out_c.is_open()) {
-                    out_c << output_ptr.view();
-                    out_c.close();
-                } else {
-                    std::cerr << "[LabBuild] couldn't open " << mod->translate_c_path.data() << std::endl;
-                }
-            }
-
-            if(use_tcc) {
-                auto obj_path = mod->object_path.to_std_string();
-                // compile the current c string
-                if(dependencies.size() == 1 && !user_required_object) {
-                    obj_path = exe.abs_path.to_std_string();
-                }
-                compile_result = compile_c_string(options->exe_path.data(), output_ptr.str().data(), obj_path, false, options->benchmark, is_debug(options->def_mode));
-                if(compile_result == 1) {
-                    break;
-                }
-                if(dependencies.size() != 1 || user_required_object) {
-                    linkables.emplace_back(obj_path);
-                }
-                // clear the current c string
-                output_ptr.clear();
-                output_ptr.str("");
-            }
-
-#ifdef COMPILER_BUILD
-            if(!use_tcc) {
-                gen.compile_end();
-            }
-            // errors in a single module means no linking
-            if (gen.has_errors) {
-                compile_result = 1;
-                break;
-            }
-            // which files to emit
-            if(!mod->llvm_ir_path.empty()) {
-                emitter_options.ir_path = mod->llvm_ir_path.data();
-            }
-            if(!mod->asm_path.empty()) {
-                emitter_options.asm_path = mod->asm_path.data();
-            }
-            if(!mod->bitcode_path.empty()) {
-                emitter_options.bitcode_path = mod->bitcode_path.data();
-            }
-            if(!mod->object_path.empty()) {
-                emitter_options.obj_path = mod->object_path.data();
-            }
-
-            // creating a object or bitcode file
-            save_result = gen.save_with_options(&emitter_options);
-            if(save_result) {
-                linkables.emplace_back(is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data());
-            } else {
-                std::cerr << "[BuildLab] failed to emit file " << (is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data()) << " " << std::endl;
-            }
-#endif
-
-        }
-
-
-        if(compile_result == 1 || linkables.empty()) {
-            break;
-        }
-#ifdef COMPILER_BUILD
-        link_result = link_objects(linkables, exe.abs_path.to_std_string(), options->exe_path, {});
-#else
-        link_result = tcc_link_objects(options->exe_path.data(), exe.abs_path.data(), linkables);
-#endif
-        if(link_result == 1) {
-            std::cerr << "Failed to link \n";
-            for(auto& linkable : linkables) {
-                std::cerr << '\t' << linkable << '\n';
-            }
-            std::cerr << "into " << exe.abs_path.data();
-            std::cerr << std::endl;
-            return link_result;
-        }
-        linkables.clear();
 
     }
 
-    return compile_result;
+    return job_result;
 
 }

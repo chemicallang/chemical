@@ -346,8 +346,11 @@ void prep_build_context_cbi(BuildContextCBI* cbi) {
     cbi->c_file_module = [](BuildContextCBI* self, chem::string* name, chem::string* path, LabModule** dependencies, unsigned int dep_len) -> LabModule* {
         return self->instance->c_file_module(name, path, dependencies, dep_len);
     };
-    cbi->build_exe = [](BuildContextCBI* self, chem::string* name, LabModule** dependencies, unsigned int dep_len) -> LabExecutable* {
+    cbi->build_exe = [](BuildContextCBI* self, chem::string* name, LabModule** dependencies, unsigned int dep_len) -> LabJob* {
         return self->instance->build_exe(name, dependencies, dep_len);
+    };
+    cbi->build_library = [](BuildContextCBI* self, chem::string* name, LabModule** dependencies, unsigned int dep_len) -> LabJob* {
+        return self->instance->build_lib(name, dependencies, dep_len);
     };
     cbi->build_path = [](chem::string* str, BuildContextCBI* self) {
         return self->instance->build_path(init_chem_string(str));

@@ -270,6 +270,7 @@ int main(int argc, char *argv[]) {
     if(srcFilePath.ends_with(".lab")) {
         LabBuildContext context(srcFilePath);
         LabBuildCompilerOptions compiler_opts(argv[0], target.value(), is64Bit);
+        LabBuildCompiler compiler(&compiler_opts);
         prepare_options(&compiler_opts);
         compiler_opts.def_mode = mode;
         if(options.option("lto").has_value()) {
@@ -284,7 +285,7 @@ int main(int argc, char *argv[]) {
                 context.build_args[opt.first.substr(4)] = opt.second;
             }
         }
-        return lab_build(context, srcFilePath, &compiler_opts);
+        return compiler.build_lab_file(context, srcFilePath);
     }
 
 #ifdef TCC_BUILD

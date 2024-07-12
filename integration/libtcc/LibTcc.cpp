@@ -48,7 +48,7 @@ TCCState* compile_c_to_tcc_state(char* exe_path, const char* program, const std:
             outputType = TCC_OUTPUT_EXE;
         } else if(outputFileName.ends_with(".o")) {
             outputType = TCC_OUTPUT_OBJ;
-        } else if(outputFileName.ends_with(".dll")) {
+        } else if(outputFileName.ends_with(".dll") || outputFileName.ends_with(".so")) {
             outputType = TCC_OUTPUT_DLL;
         }
     }

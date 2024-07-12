@@ -26,7 +26,7 @@ CompilerBinderCommon::CompilerBinderCommon(CSTDiagnoser* diagnoser) : converter(
 
 }
 
-CompilerBinderTCC::CompilerBinderTCC(CSTDiagnoser* diagnoser, std::string exe_path) : CompilerBinderCommon(diagnoser), translator(nullptr, ""), exe_path(std::move(exe_path)) {
+CompilerBinderTCC::CompilerBinderTCC(CSTDiagnoser* diagnoser, std::string exe_path) : CompilerBinderCommon(diagnoser), translator(nullptr), exe_path(std::move(exe_path)) {
     translator.comptime_scope.prepare_compiler_namespace(resolver);
 }
 

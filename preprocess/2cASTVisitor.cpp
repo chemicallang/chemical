@@ -97,7 +97,7 @@
 #include "utils/RepresentationUtils.h"
 #include "ast/utils/ASTUtils.h"
 
-ToCAstVisitor::ToCAstVisitor(std::ostream *output, const std::string& path) : output(output), ASTDiagnoser() {
+ToCAstVisitor::ToCAstVisitor(std::ostream *output) : output(output), ASTDiagnoser() {
     declarer = std::make_unique<CValueDeclarationVisitor>(this);
     tld = std::make_unique<CTopLevelDeclarationVisitor>(this, declarer.get());
     before_stmt = std::make_unique<CBeforeStmtVisitor>(this);

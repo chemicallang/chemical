@@ -164,7 +164,7 @@ public:
      * constructor
      * @param path the current file path being processed
      */
-    ToCAstVisitor(std::ostream* output, const std::string& path);
+    ToCAstVisitor(std::ostream* output);
 
     /**
      * used to write a character to the stream

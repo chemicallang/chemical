@@ -471,7 +471,14 @@ void value_assign_default(ToCAstVisitor* visitor, const std::string& identifier,
             if(linked_func && linked_func->has_annotation(AnnotationKind::CompTime)) {
                 auto eval = evaluated_func_val(visitor, linked_func, func_call);
                 eval->accept((Visitor*) visitor->before_stmt.get());
+                if(eval->primitive()) {
+                    visitor->write(identifier);
+                    visitor->write(" = ");
+                }
                 visit_evaluated_func_val(visitor, visitor, linked_func, func_call, eval, identifier);
+                if(eval->primitive()) {
+                    visitor->write(';');
+                }
                 return;
             }
         }

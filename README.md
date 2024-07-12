@@ -109,7 +109,7 @@ very innovative things are planned.
   - [ ] Annotation / Symbol Processing
 - [x] Build System based on Chemical
   - [x] Compile single / multiple root file as modules
-  - [x] Link multiple modules (currently only Clang based)
+  - [x] Link multiple modules
   - [x] Work with both TCC and Clang based
   - [x] Translate Files to C (currently only TCC based)
   - [x] Generate llvm ir / assembly / bitcode / object files

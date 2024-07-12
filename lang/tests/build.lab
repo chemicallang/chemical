@@ -34,7 +34,7 @@ func build(ctx : BuildContext*) {
 
     const do_llvm_ir = true;
     const do_asm = false;
-    const do_c = true;
+    const do_c = compiler::is_tcc_based();
 
     if(do_llvm_ir) {
         module.llvm_ir_path = module_path(ctx, module)
@@ -50,7 +50,7 @@ func build(ctx : BuildContext*) {
         printf("The asm path is %s\n", module.asm_path.data());
     }
 
-    if(do_c && compiler::is_tcc_based()) {
+    if(do_c) {
         module.translate_c_path = module_path(ctx, module)
         module.translate_c_path.append_str(&name);
         module.translate_c_path.append_char_ptr(".c")

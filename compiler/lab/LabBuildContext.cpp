@@ -110,6 +110,20 @@ LabJob* LabBuildContext::translate_to_chemical(
     return job;
 }
 
+LabJob* LabBuildContext::translate_to_c(
+        chem::string* chem_path,
+        chem::string* out_path
+) {
+    auto job = new LabJob(LabJobType::ToCTranslation, chem::string("ToCJob"));
+    executables.emplace_back(job);
+    job->abs_path.append(out_path);
+    auto reduntant_mod = new LabModule(LabModuleType::Files, chem::string("ChemFile"));
+    reduntant_mod->paths.emplace_back(chem_path->copy());
+    modules.emplace_back(reduntant_mod);
+    job->dependencies.emplace_back(reduntant_mod);
+    return job;
+}
+
 LabJob* LabBuildContext::build_exe(
         chem::string* name,
         LabModule** dependencies,

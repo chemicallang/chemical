@@ -338,16 +338,6 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
 
         futures.clear();
         processor.end();
-        if(use_tcc && !mod->translate_c_path.empty()) {
-            std::ofstream out_c;
-            out_c.open(mod->translate_c_path.data());
-            if(out_c.is_open()) {
-                out_c << output_ptr.view();
-                out_c.close();
-            } else {
-                std::cerr << "[LabBuild] couldn't open " << mod->translate_c_path.data() << std::endl;
-            }
-        }
 
         if(use_tcc) {
             auto obj_path = mod->object_path.to_std_string();

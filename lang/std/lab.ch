@@ -19,8 +19,6 @@ struct Module {
     var llvm_ir_path : string;
     // if not empty, module's assembly is written to at this path
     var asm_path : string;
-    // if not empty, module is translated to c at this path
-    var translate_c_path : string;
 }
 
 enum LabJobType {
@@ -53,6 +51,8 @@ struct BuildContext {
     var object_module : (&self, name : string, path : string) => Module*
 
     var translate_to_chemical : (&self, c_path : string, output_path : string) => LabJob*;
+
+    var translate_to_c : (&self, chem_path : string, output_path : string) => LabJob*;
 
     var build_exe : (&self, name : string, dependencies : Module**, len : uint) => LabJob*;
 

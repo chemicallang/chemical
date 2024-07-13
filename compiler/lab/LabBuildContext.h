@@ -124,6 +124,14 @@ public:
     );
 
     /**
+     * translate a chemical file to c
+     */
+    LabJob* translate_to_c(
+            chem::string* chem_path,
+            chem::string* out_path
+    );
+
+    /**
      * adds an executable entry that'll be built
      */
     LabJob* build_exe(

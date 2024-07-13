@@ -34,13 +34,6 @@ func gen_ir(ctx : BuildContext*, exe_name : string*, module : Module*) {
     printf("module : %s, llvm ir : %s\n", module.name.data(), module.llvm_ir_path.data());
 }
 
-func gen_c(ctx : BuildContext*, exe_name : string*, module : Module*) {
-    module.translate_c_path = exe_dir_path(ctx, exe_name)
-    module.translate_c_path.append_str(&module.name);
-    module.translate_c_path.append_char_ptr(".c")
-    printf("module : %s, c file : %s\n", module.name.data(), module.translate_c_path.data());
-}
-
 func build(ctx : BuildContext*) {
 
     const compiler_version = compiler::version();
@@ -57,7 +50,7 @@ func build(ctx : BuildContext*) {
 
     const do_llvm_ir = compiler::is_clang_based();
     const do_asm = false;
-    const do_c = compiler::is_tcc_based();
+    const do_c = true;
     const do_to_c = compiler::is_clang_based();
 
     if(do_llvm_ir) {
@@ -71,12 +64,14 @@ func build(ctx : BuildContext*) {
         printf("The asm path is %s\n", module.asm_path.data());
     }
 
-    if(do_c) {
-        gen_c(ctx, &exe_name, module);
-    }
-
     ctx.build_dynamic_lib(exe_name, { module }, 1);
     ctx.build_exe(exe_name, { module }, 1);
+
+    if(do_c) {
+        const output_file = exe_dir_file(ctx, &exe_name, &module.name, ".c")
+        const input_file = relative_path(string("tests.ch"))
+        ctx.translate_to_c(input_file, output_file);
+    }
 
     if(do_to_c) {
         const output_file = exe_dir_file(ctx, &exe_name, &ext_module.name, ".ch")

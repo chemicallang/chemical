@@ -96,8 +96,11 @@ very innovative things are planned.
 - [x] Translate to C (all tests passing)
 - [x] Just In Time Compilation using Tiny CC
 - [x] Custom Build System
+- [x] Multi Threaded Compiler
+  - [ ] Planned work on performance
+  - [ ] Currently, stability and MVP are being preferred
 - [ ] Improved support for Comp Time
-- [ ] Improved support for Typealiases
+- [ ] Improved support for Type Aliases
 - [x] Memory Management
   - [x] C++ like constructors & destructors
   - [ ] Strict checks for undefined behaviour
@@ -133,6 +136,41 @@ very innovative things are planned.
   - [ ] Mobile : Android, iOS Support
   - [ ] More platforms
 
+
+## Language Features
+
+- [x] C like Syntax
+- [x] Structs, no Classes
+- [x] C++ like Namespaces
+- [x] C like Arrays
+- [x] C++ Enums (int storage by default)
+- [x] C Unions (raw)
+- [x] Native Lambda Support
+  - [x] Capturing lambda also supported (though requires a little bit of work)
+- [x] Macros support (so powerful, that you can embed another compiler, we're planning to embed a html / css compiler)
+- [x] C like implicit and explicit casting (only some things may be stricter)
+- [x] Java / Kotlin like Annotations
+  - [x] This will ensure smoother code generation
+- [x] Kotlin's extension functions
+- [x] Raw pointers
+- [x] Full support for constructors (including comptime)
+- [x] Destructors in Structs
+- [x] Type Aliases (like typedef)
+- [x] Pass struct to functions (passes a pointer as param)
+- [x] Return structs from functions (passes a pointer, memcpy like C++)
+- [x] Explicit copying, there's no implicit copying, you must call .copy()
+- [x] Const Function Params, cannot change value of parameter
+- [x] Comptime Support
+- [ ] Same name function overloading
+- [ ] Generics
+- [ ] Virtual Functions like C++
+- [ ] On Demand Function Mangling
+  - [ ] When a conflict is detected, we mangle the un-important symbol
+  - [ ] If user wants to expose both symbols, we generate an error
+
+As you can see, our language features promote insane code generation, Type Safety with Power,
+Guaranteed Performance with ease of use, A heaven for Library Developers. But there's one thing that isn't being reflected
+which is IDE interaction. Because that's the most powerful feature.
 
 ## Build
 

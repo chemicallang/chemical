@@ -218,12 +218,14 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                 if (compile_result == 1) {
                     break;
                 }
+                exe->linkables.emplace_back(mod->object_path.copy());
                 continue;
 #else
                 compile_result = compile_c_file(options->exe_path.data(), mod->paths[0].data(), mod->object_path.to_std_string(), false, false, false);
                 if(compile_result == 1) {
                     break;
                 }
+                exe->linkables.emplace_back(mod->object_path.copy());
                 continue;
 #endif
             }

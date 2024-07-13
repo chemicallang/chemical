@@ -11,13 +11,27 @@ func relative_path(path : string) : string {
     return dir;
 }
 
-func module_path(ctx : BuildContext*, module : Module*) : string {
+func exe_dir_path(ctx : BuildContext*, exe_name : string*) : string {
     const new_path = ctx.build_path();
     new_path.append('/');
-    new_path.append_str(&module.name);
+    new_path.append_str(exe_name);
     new_path.append_char_ptr(".dir");
     new_path.append('/')
     return new_path;
+}
+
+func gen_ir(ctx : BuildContext*, exe_name : string*, module : Module*) {
+    module.llvm_ir_path = exe_dir_path(ctx, exe_name)
+    module.llvm_ir_path.append_str(&module.name);
+    module.llvm_ir_path.append_char_ptr(".ll")
+    printf("module : %s, llvm ir : %s\n", module.name.data(), module.llvm_ir_path.data());
+}
+
+func gen_c(ctx : BuildContext*, exe_name : string*, module : Module*) {
+    module.translate_c_path = exe_dir_path(ctx, exe_name)
+    module.translate_c_path.append_str(&module.name);
+    module.translate_c_path.append_char_ptr(".c")
+    printf("module : %s, c file : %s\n", module.name.data(), module.translate_c_path.data());
 }
 
 func build(ctx : BuildContext*) {
@@ -30,36 +44,32 @@ func build(ctx : BuildContext*) {
         printf("WOW : Hello World I guess, you said %s \n", said.data());
     }
 
-    const name = string("chemical-tests");
+    const exe_name = string("chemical-tests");
     const ext_module = ctx.c_file_module(string("ext_c"), relative_path(string("ext/file.c")), null, 0)
-    const module = ctx.chemical_file_module(name, relative_path(string("tests.ch")), { ext_module }, 1);
+    const module = ctx.chemical_file_module(exe_name, relative_path(string("tests.ch")), { ext_module }, 1);
 
     const do_llvm_ir = compiler::is_clang_based();
     const do_asm = false;
     const do_c = compiler::is_tcc_based();
 
     if(do_llvm_ir) {
-        module.llvm_ir_path = module_path(ctx, module)
-        module.llvm_ir_path.append_str(&name);
-        module.llvm_ir_path.append_char_ptr(".ll")
-        printf("The llvm ir path is %s\n", module.llvm_ir_path.data());
+        gen_ir(ctx, &exe_name, ext_module);
+        gen_ir(ctx, &exe_name, module);
     }
 
     if(do_asm) {
-        module.asm_path = module_path(ctx, module)
-        module.asm_path.append_str(&name);
+        module.asm_path = exe_dir_path(ctx, &exe_name)
+        module.asm_path.append_str(&module.name);
         module.asm_path.append_char_ptr(".s")
         printf("The asm path is %s\n", module.asm_path.data());
     }
 
     if(do_c) {
-        module.translate_c_path = module_path(ctx, module)
-        module.translate_c_path.append_str(&name);
-        module.translate_c_path.append_char_ptr(".c")
-        printf("Translating C at path %s\n", module.translate_c_path.data());
+        gen_c(ctx, &exe_name, ext_module);
+        gen_c(ctx, &exe_name, module);
     }
 
-    ctx.build_dynamic_lib(name, { module }, 1);
-    ctx.build_exe(name, { module }, 1);
+    ctx.build_dynamic_lib(exe_name, { module }, 1);
+    ctx.build_exe(exe_name, { module }, 1);
 
 }

@@ -15,6 +15,7 @@ enum class AnnotationKind {
     MinSize,
 
     Api, // functions that are exposed to other modules
+    Extern, // it means declaration is available in other module, @api is implied, also makes the declaration public by default
     CompTime, // functions that are compile time
 
     NoInit, // structs that should not be initialized

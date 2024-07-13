@@ -101,11 +101,11 @@ LabJob* LabBuildContext::build_exe(
         LabModule** dependencies,
         unsigned int dep_len
 ) {
-    executables.emplace_back(LabJobType::Executable, name->copy());
-    auto exe = &executables.back();
+    auto exe = new LabJob(LabJobType::Executable, name->copy());
+    executables.emplace_back(exe);
     auto build_dir_path = resolve_rel_child_path_str(build_dir, name->to_std_string() + ".dir");
     exe->build_dir.append(build_dir_path.data(), build_dir_path.size());
-    auto exe_path = resolve_sibling(build_dir_path, name->to_std_string());
+    auto exe_path = resolve_rel_child_path_str(build_dir_path, name->to_std_string());
 #ifdef _WINDOWS
     exe_path += ".exe";
 #endif
@@ -119,11 +119,11 @@ LabJob* LabBuildContext::build_dynamic_lib(
         LabModule** dependencies,
         unsigned int dep_len
 ) {
-    executables.emplace_back(LabJobType::Library, name->copy());
-    auto exe = &executables.back();
+    auto exe = new LabJob(LabJobType::Executable, name->copy());
+    executables.emplace_back(exe);
     auto build_dir_path = resolve_rel_child_path_str(build_dir, name->to_std_string() + ".dir");
     exe->build_dir.append(build_dir_path.data(), build_dir_path.size());
-    auto output_path = resolve_sibling(build_dir_path, name->to_std_string());
+    auto output_path = resolve_rel_child_path_str(build_dir_path, name->to_std_string());
 #ifdef _WIN32
         output_path += ".dll";
 #elif __linux__

@@ -53,7 +53,6 @@ func build(ctx : BuildContext*) {
     const do_c = compiler::is_tcc_based();
 
     if(do_llvm_ir) {
-        gen_ir(ctx, &exe_name, ext_module);
         gen_ir(ctx, &exe_name, module);
     }
 
@@ -65,7 +64,6 @@ func build(ctx : BuildContext*) {
     }
 
     if(do_c) {
-        gen_c(ctx, &exe_name, ext_module);
         gen_c(ctx, &exe_name, module);
     }
 

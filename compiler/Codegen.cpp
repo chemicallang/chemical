@@ -639,7 +639,7 @@ bool Codegen::save_to_bc_file(std::string &out_path, OutputMode mode) {
     return save_with_options(&options);
 }
 
-bool Codegen::save_to_ll_file_for_debugging(std::string &out_path) const {
+bool Codegen::save_to_ll_file_for_debugging(const std::string &out_path) const {
     // This code allows printing llvm ir, even if it's buggy code
     std::error_code errorCode;
     llvm::raw_fd_ostream outLL(out_path, errorCode);

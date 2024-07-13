@@ -112,6 +112,8 @@ int LabBuildCompiler::do_job(LabJob* job) {
             return do_to_c_job(job);
         case LabJobType::ToChemicalTranslation:
             return do_to_chemical_job(job);
+        case LabJobType::ProcessingOnly:
+            return process_modules(job);
     }
 }
 
@@ -126,12 +128,18 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
     } else {
         std::cout << "library";
     }
-    std::cout << ' ' << '\'' << exe->name.data() << "' at path '" << exe->abs_path.data() << '\'' << rang::bg::reset << rang::fg::reset << std::endl;
+    if(!exe->name.empty()) {
+        std::cout << ' ' << '\'' << exe->name.data() << '\'';
+    }
+    std::cout << " at path '" << exe->abs_path.data() << '\'' << rang::bg::reset << rang::fg::reset << std::endl;
 
-    std::string exe_build_dir = exe->build_dir.to_std_string();
-    // create the build directory for this executable
-    if(!std::filesystem::exists(exe_build_dir)) {
-        std::filesystem::create_directory(exe_build_dir);
+    std::string exe_build_dir;
+    if(!exe->build_dir.empty()) {
+        exe_build_dir = exe->build_dir.to_std_string();
+        // create the build directory for this executable
+        if (!std::filesystem::exists(exe_build_dir)) {
+            std::filesystem::create_directory(exe_build_dir);
+        }
     }
 
     // a new symbol resolver for every executable
@@ -211,7 +219,11 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
         }
 
         if(mod->type == LabModuleType::CFile) {
-            std::cout << rang::bg::gray << rang::fg::black << "[BuildLab]" << " Compiling c '" << mod->name.data() << "' at path '" << (is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data()) << '\'' << rang::bg::reset << rang::fg::reset << std::endl;
+            std::cout << rang::bg::gray << rang::fg::black << "[BuildLab]" << " Compiling c ";
+            if(!mod->name.empty()) {
+                std::cout << '\'' << mod->name.data() << "' ";
+            }
+            std::cout << "at path '" << (is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data()) << '\'' << rang::bg::reset << rang::fg::reset << std::endl;
         }
 
         switch(mod->type) {
@@ -237,7 +249,11 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                 continue;
         }
 
-        std::cout << rang::bg::gray << rang::fg::black << "[BuildLab]" << " Building module '" << mod->name.data() << "' at path '" << (is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data()) << '\'' << rang::bg::reset << rang::fg::reset << std::endl;
+        std::cout << rang::bg::gray << rang::fg::black << "[BuildLab]" << " Building module ";
+        if(!mod->name.empty()) {
+            std::cout << '\'' << mod->name.data() << "' ";
+        }
+        std::cout << "at path '" << (is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data()) << '\'' << rang::bg::reset << rang::fg::reset << std::endl;
 
         // get flat file map of this module
         flat_imports = processor.determine_mod_imports(mod);
@@ -358,6 +374,9 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
         // which files to emit
         if(!mod->llvm_ir_path.empty()) {
             emitter_options.ir_path = mod->llvm_ir_path.data();
+            if(options->debug_ir) {
+                gen.save_to_ll_file_for_debugging(mod->llvm_ir_path.data());
+            }
         }
         if(!mod->asm_path.empty()) {
             emitter_options.asm_path = mod->asm_path.data();
@@ -430,8 +449,83 @@ int LabBuildCompiler::do_library_job(LabJob* job) {
 }
 
 int LabBuildCompiler::do_to_c_job(LabJob* job) {
-    // TODO this job
-    return 1;
+
+    std::ofstream stream;
+    stream.open(job->abs_path.data());
+    if (!stream.is_open()) {
+        std::cerr << rang::fg::red << "[2C] Failed to open path : " << job->abs_path.data() << rang::fg::reset << std::endl;
+        return false;
+    }
+
+    // creating symbol resolver
+    SymbolResolver resolver(true);
+
+    // shrinking visitor used to shrink
+    ShrinkingVisitor shrinker;
+
+    // the processor that does everything
+    ASTProcessor processor(
+            options,
+            &resolver
+    );
+
+    int compile_result = 0;
+
+    // beginning
+    ToCAstVisitor visitor(&stream);
+    // TODO prepare c visitor from options
+
+    // allow user the compiler (namespace) functions in @comptime
+    visitor.comptime_scope.prepare_compiler_namespace(resolver);
+
+    // preparing translation
+    visitor.prepare_translate();
+
+    // get flattened modules
+    auto flattened_modules = flatten_dedupe_sorted(job->dependencies);
+
+    std::vector<std::future<ASTImportResultExt>> futures;
+
+    for(auto mod : flattened_modules) {
+
+        // get flat imports
+        auto flat_imports = processor.determine_mod_imports(mod);
+
+        // parallel parsing
+        futures.clear();
+        int i = 0;
+        for(const auto& file : flat_imports) {
+            futures.push_back(pool.push(concurrent_processor, i, file, &processor));
+            i++;
+        }
+
+        i = 0;
+        for(const auto& file : flat_imports) {
+
+            // importing
+            auto result = futures[i].get();
+            if(!result.continue_processing) {
+                compile_result = 1;
+                break;
+            }
+
+            // reset the visitor so it can be used for another file
+            visitor.reset();
+
+            // translating
+            if(!processor.translate_to_c(visitor, result, shrinker, file)) {
+                compile_result = 1;
+                break;
+            }
+
+            i++;
+        }
+    }
+
+    stream.close();
+    processor.end();
+
+    return compile_result;
 }
 
 #ifdef COMPILER_BUILD
@@ -459,6 +553,7 @@ int LabBuildCompiler::do_to_chemical_job(LabJob* job) {
     return 0;
 #else
     std::cerr << "Translating c files to chemical can only be done by the compiler executable, please check using compiler::is_clang_based() in build.lab" << std::endl;
+    return 1;
 #endif
 }
 

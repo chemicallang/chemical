@@ -26,7 +26,7 @@ public:
     // all the modules created during the build process
     std::vector<std::unique_ptr<LabModule>> modules;
     // all the executables created during the build process
-    std::vector<LabJob> executables;
+    std::vector<std::unique_ptr<LabJob>> executables;
     // build arguments given to the build lab
     std::unordered_map<std::string, std::string> build_args;
 

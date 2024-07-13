@@ -16,3 +16,14 @@ int link_objects(
         bool use_lld = false,
         bool libc = true
 );
+
+/**
+ * it'll compile the given file to generate a single .o file using clang
+ * it uses -c to generate object file from .c file
+ */
+int compile_c_file_to_object(
+        const char* c_file,
+        const char* out_file,
+        const std::string& comp_exe_path,
+        const std::vector<std::string>& flags
+);

@@ -18,7 +18,7 @@
 #include "integration/ide/bindings/BuildContextCBI.h"
 #include "integration/libtcc/LibTccInteg.h"
 #include "ctpl.h"
-#include "compiler/LinkerUtils.h"
+#include "compiler/InvokeUtils.h"
 #include "utils/PathUtils.h"
 #include "compiler/ASTCompiler.h"
 #include <sstream>
@@ -196,7 +196,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
         {
             auto obj_path = resolve_rel_child_path_str(exe_build_dir, exe->name.to_std_string() +
                                                                       (is_use_obj_format ? ".o" : ".bc"));
-            if (is_use_obj_format) {
+            if (is_use_obj_format || mod->type == LabModuleType::CFile) {
                 if (mod->object_path.empty()) {
                     mod->object_path.append(obj_path);
                 }
@@ -205,6 +205,31 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                     mod->bitcode_path.append(obj_path);
                 }
             }
+        }
+
+        if(mod->type == LabModuleType::CFile) {
+            std::cout << rang::bg::gray << rang::fg::black << "[BuildLab]" << " Compiling c '" << mod->name.data() << "' at path '" << (is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data()) << '\'' << rang::bg::reset << rang::fg::reset << std::endl;
+        }
+
+        switch(mod->type) {
+            case LabModuleType::CFile: {
+#ifdef COMPILER_BUILD
+                compile_result = compile_c_file_to_object(mod->paths[0].data(), mod->object_path.data(), options->exe_path, {});
+                if (compile_result == 1) {
+                    break;
+                }
+                continue;
+#else
+                compile_result = compile_c_file(options->exe_path.data(), mod->paths[0].data(), mod->object_path.to_std_string(), false, false, false);
+                if(compile_result == 1) {
+                    break;
+                }
+                continue;
+#endif
+            }
+            case LabModuleType::ObjFile:
+                exe->linkables.emplace_back(mod->paths[0].copy());
+                continue;
         }
 
         std::cout << rang::bg::gray << rang::fg::black << "[BuildLab]" << " Building module '" << mod->name.data() << "' at path '" << (is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data()) << '\'' << rang::bg::reset << rang::fg::reset << std::endl;

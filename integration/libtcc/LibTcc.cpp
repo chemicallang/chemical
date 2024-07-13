@@ -5,6 +5,8 @@
 #include <vector>
 #include "utils/Benchmark.h"
 #include "utils/PathUtils.h"
+#include <fstream>
+#include <sstream>
 
 void handle_tcc_error(void *opaque, const char *msg){
     std::cout << "[Tcc] " << msg << " in " << ((char*) opaque) << std::endl;
@@ -121,6 +123,28 @@ int compile_c_string(char* exe_path, const char* program, const std::string& out
 
     return 0;
 
+}
+
+std::optional<std::string> read_file_to_string(const char* file_path) {
+    std::ifstream input;
+    input.open(file_path);
+    if (!input.is_open()) {
+        return std::nullopt;
+    }
+    std::stringstream buffer;
+    buffer << input.rdbuf();
+    input.close();
+    return buffer.str();
+}
+
+int compile_c_file(char* exe_path, const char* c_file_path, const std::string& outputFileName, bool jit, bool benchmark, bool debug) {
+    auto read = read_file_to_string(c_file_path);
+    if(read.has_value()) {
+        return compile_c_string(exe_path, read.value().data(), outputFileName, jit, benchmark, debug);
+    } else {
+        std::cerr << "couldn't open c file at " << c_file_path << " for compilation" << std::endl;
+        return 1;
+    }
 }
 
 int tcc_link_objects(char* exe_path, const std::string& outputFileName, std::vector<chem::string>& objects) {

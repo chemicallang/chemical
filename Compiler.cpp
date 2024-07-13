@@ -9,7 +9,7 @@
 #endif
 #include "lexer/Lexi.h"
 #include "utils/Utils.h"
-#include "compiler/LinkerUtils.h"
+#include "compiler/InvokeUtils.h"
 #include "ast/base/GlobalInterpretScope.h"
 #include "compiler/Codegen.h"
 #include "compiler/SymbolResolver.h"
@@ -241,16 +241,13 @@ int main(int argc, char *argv[]) {
             } else {
                 std::string cProgramStr;
                 if (srcFilePath.ends_with(".c") || srcFilePath.ends_with(".h")) {
-                    std::ifstream input;
-                    input.open(srcFilePath);
-                    if (!input.is_open()) {
+                    auto read = read_file_to_string(srcFilePath.data());
+                    if(read.has_value()) {
+                        cProgramStr = std::move(read.value());
+                    } else {
                         std::cerr << "[Compiler] couldn't open the file at location " << srcFilePath << std::endl;
                         return 1;
                     }
-                    std::stringstream buffer;
-                    buffer << input.rdbuf();
-                    cProgramStr = std::move(buffer.str());
-                    input.close();
                 } else {
                     cProgramStr = translate(srcFilePath, &translator_opts, translator_preparer);
                     if (cProgramStr.empty()) {

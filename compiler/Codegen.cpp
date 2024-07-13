@@ -801,3 +801,20 @@ int link_objects(
     }
 
 }
+
+int compile_c_file_to_object(
+        const char* c_file,
+        const char* out_file,
+        const std::string& comp_exe_path,
+        const std::vector<std::string>& flags
+) {
+    std::vector<std::string> clang_flags{comp_exe_path};
+    for(const auto& cland_fl : flags) {
+        clang_flags.emplace_back(cland_fl);
+    }
+    clang_flags.emplace_back("-c");
+    clang_flags.emplace_back(c_file);
+    clang_flags.emplace_back("-o");
+    clang_flags.emplace_back(out_file);
+    return chemical_clang_main2(clang_flags);
+}

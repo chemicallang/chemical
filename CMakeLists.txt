@@ -494,7 +494,7 @@ set(COMMON_SOURCES
         compiler/lab/LabModuleType.h
         compiler/lab/LabBuildCompiler.cpp
         compiler/lab/LabJob.h
-        compiler/LinkerUtils.h
+        compiler/InvokeUtils.h
         compiler/lab/LabJobType.h
         std/chem_string.cpp
 )

@@ -30,6 +30,15 @@ public:
     // build arguments given to the build lab
     std::unordered_map<std::string, std::string> build_args;
 
+private:
+
+    /**
+     * get a module with file path, of type
+     */
+    LabModule* create_of_type(LabModuleType type, chem::string* path, unsigned number);
+
+public:
+
     /**
      * constructor
      */
@@ -61,21 +70,20 @@ public:
     );
 
     /**
-     * adds the given module with type file
-     */
-    LabModule* file_module(
-            chem::string* name,
-            chem::string* path,
-            LabModule** dependencies,
-            unsigned int dep_len
-    ) {
-        return add_with_type(LabModuleType::Files, name->copy(), &path, 1, dependencies, dep_len);
-    }
-
-    /**
      * adds the given module with type multiple files
      */
     LabModule* files_module(
+            chem::string* name,
+            chem::string** paths,
+            unsigned int path_len,
+            LabModule** dependencies,
+            unsigned int dep_len
+    );
+
+    /**
+     * when path's list contains only chemical files
+     */
+    LabModule* chemical_files_module(
             chem::string* name,
             chem::string** paths,
             unsigned int path_len,
@@ -86,7 +94,7 @@ public:
     }
 
     /**
-     * adds the given module with type multiple files
+     * add the given module as a c translation unit
      */
     LabModule* c_file_module(
             chem::string* name,
@@ -95,6 +103,16 @@ public:
             unsigned int dep_len
     ) {
         return add_with_type(LabModuleType::CFile, name->copy(), &path, 1, dependencies, dep_len);
+    }
+
+    /**
+     * add the given module as an obj file, that'll be linked with final executable
+     */
+    LabModule* obj_file_module(
+            chem::string* name,
+            chem::string* path
+    ) {
+        return add_with_type(LabModuleType::ObjFile, name->copy(), &path, 1, nullptr, 0);
     }
 
     /**

@@ -49,6 +49,53 @@ LabModule *LabBuildContext::add_with_type(
     return mod;
 }
 
+LabModule* LabBuildContext::create_of_type(LabModuleType type, chem::string* path, unsigned number) {
+    const char* prefix;
+    switch(type) {
+        case LabModuleType::CFile:
+            prefix = "CFile-";
+            break;
+        case LabModuleType::ObjFile:
+            prefix = "ObjFile-";
+            break;
+        default:
+            prefix = "UnkFile-";
+            break;
+    }
+    auto mod = add_with_type(type, chem::string(prefix + std::to_string(modules.size()) + '-' + std::to_string(number)), nullptr, 0, nullptr, 0);
+    mod->paths.emplace_back(path->copy());
+    return mod;
+}
+
+LabModule* LabBuildContext::files_module(
+        chem::string* name,
+        chem::string** paths,
+        unsigned int path_len,
+        LabModule** dependencies,
+        unsigned int dep_len
+) {
+    // create a module with no files
+    auto mod = add_with_type(LabModuleType::Files, name->copy(), nullptr, 0, dependencies, dep_len);
+    if(paths && path_len != 0) {
+        auto ptr = *paths;
+        unsigned i = 0;
+        while (i < path_len) {
+            if(ptr->ends_with(".ch")) {
+                mod->paths.emplace_back(ptr->copy());
+            } else if(ptr->ends_with(".c")) {
+                mod->dependencies.emplace_back(create_of_type(LabModuleType::CFile, ptr, i));
+            } else if(ptr->ends_with(".o")) {
+                mod->dependencies.emplace_back(create_of_type(LabModuleType::ObjFile, ptr, i));
+            } else {
+
+            }
+            ptr++;
+            i++;
+        }
+    }
+    return mod;
+}
+
 LabJob* LabBuildContext::build_exe(
         chem::string* name,
         LabModule** dependencies,

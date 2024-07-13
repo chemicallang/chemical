@@ -337,14 +337,17 @@ void prep_source_provider_cbi(SourceProviderCBI* cbi) {
 }
 
 void prep_build_context_cbi(BuildContextCBI* cbi) {
-    cbi->file_module = [](BuildContextCBI* self, chem::string* name, chem::string* path, LabModule** dependencies, unsigned int dep_len) -> LabModule* {
-        return self->instance->file_module(name, path, dependencies, dep_len);
-    };
     cbi->files_module = [](BuildContextCBI* self, chem::string* name, chem::string** path, unsigned int path_len, LabModule** dependencies, unsigned int dep_len) -> LabModule* {
         return self->instance->files_module(name, path, path_len, dependencies, dep_len);
     };
+    cbi->chemical_files_module = [](BuildContextCBI* self, chem::string* name, chem::string** path, unsigned int path_len, LabModule** dependencies, unsigned int dep_len) -> LabModule* {
+        return self->instance->chemical_files_module(name, path, path_len, dependencies, dep_len);
+    };
     cbi->c_file_module = [](BuildContextCBI* self, chem::string* name, chem::string* path, LabModule** dependencies, unsigned int dep_len) -> LabModule* {
         return self->instance->c_file_module(name, path, dependencies, dep_len);
+    };
+    cbi->object_module = [](BuildContextCBI* self, chem::string* name, chem::string* path) -> LabModule* {
+        return self->instance->obj_file_module(name, path);
     };
     cbi->build_exe = [](BuildContextCBI* self, chem::string* name, LabModule** dependencies, unsigned int dep_len) -> LabJob* {
         return self->instance->build_exe(name, dependencies, dep_len);

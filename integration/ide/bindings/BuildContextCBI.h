@@ -23,6 +23,8 @@ struct BuildContextCBI {
 
     LabJob*(*build_dynamic_lib)(BuildContextCBI* self, chem::string* name, LabModule** dependencies, unsigned int dep_len);
 
+    void(*add_object)(BuildContextCBI* self, LabJob* job, chem::string* path);
+
     void(*build_path)(chem::string* str, BuildContextCBI* self);
 
     bool(*has_arg)(BuildContextCBI* self, chem::string* name);

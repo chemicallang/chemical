@@ -118,7 +118,7 @@ very innovative things are planned.
   - [ ] Run executables after building them
   - [x] Can generate shared objects / dll
   - [ ] Can generate static libraries
-  - [ ] Can compile and link C module
+  - [x] Can compile and link C module
   - [ ] Configure compile / link parameters
 - [ ] Maintenance Phase
   - [ ] Eliminate bugs, Stabilize

@@ -47,6 +47,8 @@ struct BuildContext {
 
     var build_dynamic_lib : (&self, name : string, dependencies : Module**, len : uint) => LabJob*;
 
+    var add_object : (&self, job : LabJob*, path : string) => void;
+
     var build_path : (&self) => string;
 
     var has_arg : (&self, name : string) => bool

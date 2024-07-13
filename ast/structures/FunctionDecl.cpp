@@ -449,6 +449,10 @@ void FunctionDeclaration::accept(Visitor *visitor) {
 }
 
 void FunctionDeclaration::declare_top_level(SymbolResolver &linker) {
+    if(has_annotation(AnnotationKind::Extern)) {
+        annotations.emplace_back(AnnotationKind::Api);
+        specifier = AccessSpecifier::Public;
+    }
     linker.declare(name, this);
 }
 

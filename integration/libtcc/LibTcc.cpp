@@ -12,7 +12,7 @@ void handle_tcc_error(void *opaque, const char *msg){
     std::cout << "[Tcc] " << msg << " in " << ((char*) opaque) << std::endl;
 }
 
-TCCState* compile_c_to_tcc_state(char* exe_path, const char* program, const std::string& outputFileName, bool jit, bool debug) {
+TCCState* setup_tcc_state(char* exe_path, const std::string& outputFileName, bool jit, bool debug) {
 
     // creating a tcc state
     TCCState *s;
@@ -23,7 +23,7 @@ TCCState* compile_c_to_tcc_state(char* exe_path, const char* program, const std:
     }
 
     /* set custom error/warning printer */
-    tcc_set_error_func(s, (char*) outputFileName.data(), handle_tcc_error);
+    tcc_set_error_func(s, (char *) outputFileName.data(), handle_tcc_error);
 
     int result;
 
@@ -31,47 +31,56 @@ TCCState* compile_c_to_tcc_state(char* exe_path, const char* program, const std:
     auto include_dir = resolve_rel_child_path_str(tcc_dir, "include");
     auto lib_dir = resolve_rel_child_path_str(tcc_dir, "lib");
     result = tcc_add_include_path(s, include_dir.data());;
-    if(result == -1) {
+    if (result == -1) {
         std::cerr << "[Compiler] Couldn't include tcc include package" << std::endl;
         return nullptr;
     }
 
     result = tcc_add_library_path(s, lib_dir.data());
-    if(result == -1) {
+    if (result == -1) {
         std::cerr << "[Compiler] Couldn't add tcc library package" << std::endl;
         return nullptr;
     }
 
     int outputType = TCC_OUTPUT_EXE;
-    if(jit || outputFileName.empty()) {
+    if (jit || outputFileName.empty()) {
         outputType = TCC_OUTPUT_MEMORY;
     } else {
-        if(outputFileName.ends_with(".exe")) {
+        if (outputFileName.ends_with(".exe")) {
             outputType = TCC_OUTPUT_EXE;
-        } else if(outputFileName.ends_with(".o")) {
+        } else if (outputFileName.ends_with(".o")) {
             outputType = TCC_OUTPUT_OBJ;
-        } else if(outputFileName.ends_with(".dll") || outputFileName.ends_with(".so")) {
+        } else if (outputFileName.ends_with(".dll") || outputFileName.ends_with(".so")) {
             outputType = TCC_OUTPUT_DLL;
         }
     }
 
-    if(debug) {
+    if (debug) {
         // generates slower code in debug versions, but allows proper debugging
         tcc_set_options(s, "-g -b -bt 4");
-        tcc_set_backtrace_func(s, nullptr, [](void *udata, void *pc, const char *file, int line, const char *func, const char *msg) {
-               std::cerr << "[Tcc] error '" << msg << "' in runtime function " << func << " in file "
-                         << file << ':' << line << std::endl;
-               return 1;
-       });
+        tcc_set_backtrace_func(s, nullptr, [](void *udata, void *pc, const char *file, int line, const char *func,
+                                              const char *msg) {
+            std::cerr << "[Tcc] error '" << msg << "' in runtime function " << func << " in file "
+                      << file << ':' << line << std::endl;
+            return 1;
+        });
     }
 
     result = tcc_set_output_type(s, outputType);
-    if(result == -1) {
+    if (result == -1) {
         std::cerr << "Couldn't set tcc output type" << std::endl;
         return nullptr;
     }
 
-    if (program != nullptr && tcc_compile_string(s, program) == -1) {
+    return s;
+
+}
+
+TCCState* compile_c_to_tcc_state(char* exe_path, const char* program, const std::string& outputFileName, bool jit, bool debug) {
+
+    auto s = setup_tcc_state(exe_path, outputFileName, jit, debug);
+
+    if (tcc_compile_string(s, program) == -1) {
         std::cerr << "Couldn't compile the program" << std::endl;
         return nullptr;
     }
@@ -149,7 +158,7 @@ int compile_c_file(char* exe_path, const char* c_file_path, const std::string& o
 
 int tcc_link_objects(char* exe_path, const std::string& outputFileName, std::vector<chem::string>& objects) {
 
-    auto s = compile_c_to_tcc_state(exe_path, nullptr, exe_path, false, false);
+    auto s = setup_tcc_state(exe_path, outputFileName, false, false);
     if(!s) {
         return 1;
     }
@@ -167,7 +176,10 @@ int tcc_link_objects(char* exe_path, const std::string& outputFileName, std::vec
     }
 
     // output file
-    tcc_output_file(s, outputFileName.data());
+    if(tcc_output_file(s, outputFileName.data()) == -1) {
+        std::cerr << "[Tcc] couldn't output file " << outputFileName << std::endl;
+        return 1;
+    }
 
     return 0;
 

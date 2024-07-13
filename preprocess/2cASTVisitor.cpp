@@ -261,6 +261,9 @@ void accept_func_return(ToCAstVisitor* visitor, BaseType* type) {
 // when the interface name is to be used, so interface appends the name in given name parameter
 // take_parent is true, so this function skips direct parent but grandparents and other names are appended
 void accept_func_return_with_name(ToCAstVisitor* visitor, BaseFunctionType* func_type, const std::string& name, bool take_parent, bool is_static) {
+    if(func_type->as_function() && func_type->as_function()->has_annotation(AnnotationKind::Extern)) {
+        visitor->write("extern ");
+    }
     if(is_static) {
         visitor->write("static ");
     }

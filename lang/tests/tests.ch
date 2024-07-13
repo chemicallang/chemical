@@ -17,6 +17,7 @@ import "nodes/union.ch"
 import "nodes/namespaces.ch"
 import "comptime/basic.ch"
 import "comptime/vector.ch"
+import "basic/external.ch"
 
 func main() {
     test_var_init();
@@ -38,5 +39,6 @@ func main() {
     test_namespaces();
     test_comptime();
     test_compiler_vector();
+    test_external_functions();
     print_test_stats();
 }

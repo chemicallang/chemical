@@ -117,6 +117,11 @@ public:
     int do_to_c_job(LabJob* job);
 
     /**
+     * does job to translate c to chemical
+     */
+    int do_to_chemical_job(LabJob* job);
+
+    /**
      * will perform the job returning result
      */
     int do_job(LabJob* job);

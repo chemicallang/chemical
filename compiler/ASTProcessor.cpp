@@ -30,6 +30,15 @@ ASTImportResultExt concurrent_processor(int id, int job_id, const FlatIGFile& fi
     return processor->import_file(file);
 }
 
+std::string ASTProcessorOptions::get_resources_path() {
+    if(!resources_path.empty()) return resources_path;
+    resources_path = resources_path_rel_to_exe(exe_path);
+    if(resources_path.empty()) {
+        std::cerr << "[Compiler] Couldn't locate resources path relative to compiler's executable" << std::endl;
+    }
+    return resources_path;
+}
+
 ASTProcessor::ASTProcessor(
         ASTProcessorOptions* options,
         SymbolResolver* resolver

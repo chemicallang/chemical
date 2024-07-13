@@ -25,7 +25,9 @@ struct Module {
 
 enum LabJobType {
     Executable,
-    Library
+    Library,
+    ToCTranslation,
+    ToChemicalTranslation
 }
 
 @no_init
@@ -49,6 +51,8 @@ struct BuildContext {
 
     // a single .o file
     var object_module : (&self, name : string, path : string) => Module*
+
+    var translate_to_chemical : (&self, c_path : string, output_path : string) => LabJob*;
 
     var build_exe : (&self, name : string, dependencies : Module**, len : uint) => LabJob*;
 

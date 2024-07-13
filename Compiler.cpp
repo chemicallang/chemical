@@ -51,7 +51,7 @@ void print_help() {
                  << PROJECT_VERSION_MAJOR << "." << PROJECT_VERSION_MINOR << "." << PROJECT_VERSION_PATCH << "\n"
                  << std::endl;
     std::cout << "Compiling a single file : \nchemical.exe <input_filename> -o <output_filename>\n\n"
-                 "<input_filename> extensions supported .c , .h , .ch\n"
+                 "<input_filename> extensions supported .c , .ch\n"
                  "<output_filename> extensions supported .exe, .o, .c, .ch\n"
                  "use input extension .c and output .ch, when translating C code to Chemical\n"
                  "use input extension .ch and output .c, when translating Chemical to C code\n\n"
@@ -222,7 +222,7 @@ int main(int argc, char *argv[]) {
     // translate chemical to C
     auto tcc = options.option("tcc", "tcc").has_value();
 #ifdef COMPILER_BUILD
-    if(jit || (output.has_value() && (tcc || output.value().ends_with(".c") || output.value().ends_with(".h")))) {
+    if(jit || (output.has_value() && (tcc || output.value().ends_with(".c")))) {
 #endif
         if(!srcFilePath.ends_with(".lab") || (output.has_value() && output.value().ends_with(".c"))) {
             ToCTranslatorOptions translator_opts(argv[0], target.value(), is64Bit);
@@ -235,12 +235,12 @@ int main(int argc, char *argv[]) {
                     processor->options->isCBIEnabled = false;
                 }
             };
-            if (output.has_value() && (output.value().ends_with(".c") || output.value().ends_with(".h")) && !jit) {
+            if (output.has_value() && output.value().ends_with(".c") && !jit) {
                 bool good = translate(srcFilePath, output.value(), &translator_opts, translator_preparer);
                 return good ? 0 : 1;
             } else {
                 std::string cProgramStr;
-                if (srcFilePath.ends_with(".c") || srcFilePath.ends_with(".h")) {
+                if (srcFilePath.ends_with(".c")) {
                     auto read = read_file_to_string(srcFilePath.data());
                     if(read.has_value()) {
                         cProgramStr = std::move(read.value());

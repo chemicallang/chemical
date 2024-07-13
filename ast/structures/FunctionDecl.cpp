@@ -449,14 +449,14 @@ void FunctionDeclaration::accept(Visitor *visitor) {
 }
 
 void FunctionDeclaration::declare_top_level(SymbolResolver &linker) {
-    if(has_annotation(AnnotationKind::Extern)) {
-        annotations.emplace_back(AnnotationKind::Api);
-        specifier = AccessSpecifier::Public;
-    }
     linker.declare(name, this);
 }
 
 void FunctionDeclaration::declare_and_link(SymbolResolver &linker) {
+    if(has_annotation(AnnotationKind::Extern)) {
+        annotations.emplace_back(AnnotationKind::Api);
+        specifier = AccessSpecifier::Public;
+    }
     // if has body declare params
     linker.scope_start();
     auto prev_func_type = linker.current_func_type;

@@ -77,4 +77,6 @@ public:
 
     }
 
+    std::string get_resources_path();
+
 };

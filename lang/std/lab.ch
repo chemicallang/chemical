@@ -3,6 +3,7 @@ import "./string.ch"
 enum ModuleType {
     File,
     CFile,
+    ObjFile,
     Directory
 }
 
@@ -37,11 +38,17 @@ struct LabJob {
 
 struct BuildContext {
 
-    var file_module : (&self, name : string, abs_path : string, dependencies : Module**, len : uint) => Module*;
-
+    // support's paths with .o, .c and .ch extensions
     var files_module : (&self, name : string, paths : string**, paths_len : uint, dependencies : Module**, len : uint) => Module*;
 
+    // when paths only contain chemical files
+    var chemical_files_module : (&self, name : string, paths : string**, paths_len : uint, dependencies : Module**, len : uint) => Module*;
+
+    // a single .c file
     var c_file_module : (&self, name : string, path : string, dependencies : Module**, len : uint) => Module*
+
+    // a single .o file
+    var object_module : (&self, name : string, path : string) => Module*
 
     var build_exe : (&self, name : string, dependencies : Module**, len : uint) => LabJob*;
 
@@ -56,5 +63,13 @@ struct BuildContext {
     var get_arg : (&self, name : string) => string
 
     var remove_arg : (&self, name : string) => void
+
+    func chemical_file_module(&self, name : string, path : string, dependencies : Module**, len : uint) : Module* {
+        return chemical_files_module(name, &path, 1, dependencies, len);
+    }
+
+    func file_module(&self, name : string, path : string, dependencies : Module**, len : uint) : Module* {
+        return files_module(name, &path, 1, dependencies, len);
+    }
 
 }

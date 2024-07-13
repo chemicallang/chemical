@@ -309,6 +309,13 @@ bool should_void_pointer_to_self(BaseType* type, const std::string& id, unsigned
 //    type_with_id(visitor, type, id);
 //}
 
+bool is_func_param_ref_struct(ASTNode* node) {
+    if(!node) return false;
+    auto param = node->as_func_param();
+    if(!param) return false;
+    return is_param_type_ref_struct(param->type.get());
+}
+
 void func_call_args(ToCAstVisitor* visitor, FunctionCall* call, BaseFunctionType* func_type) {
     auto prev_value = visitor->nested_value;
     visitor->nested_value = true;
@@ -317,7 +324,7 @@ void func_call_args(ToCAstVisitor* visitor, FunctionCall* call, BaseFunctionType
     while(i < call->values.size()) {
         param = func_type->func_param_for_arg_at(i);
         auto& val = call->values[i];
-        if(is_param_type_ref_struct(param->type.get())) {
+        if(is_param_type_ref_struct(param->type.get()) && !is_func_param_ref_struct(val->linked_node())) {
             visitor->write('&');
             if(!val->reference() && val->value_type() == ValueType::Struct) {
                 write_struct_def_value_call(visitor, val->as_struct()->definition);

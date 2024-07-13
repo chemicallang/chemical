@@ -497,6 +497,8 @@ set(COMMON_SOURCES
         compiler/InvokeUtils.h
         compiler/lab/LabJobType.h
         std/chem_string.cpp
+        ast/structures/MultiFunctionNode.h
+        ast/structures/MultiFunctionNode.cpp
 )
 
 # Chemical LSP Executable Target

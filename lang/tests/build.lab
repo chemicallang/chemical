@@ -20,6 +20,13 @@ func exe_dir_path(ctx : BuildContext*, exe_name : string*) : string {
     return new_path;
 }
 
+func exe_dir_file(ctx : BuildContext*, exe_name : string*, file_name : string*, extension : char*) : string {
+    const exe_dir = exe_dir_path(ctx, exe_name);
+    exe_dir.append_str(file_name);
+    exe_dir.append_char_ptr(extension);
+    return exe_dir;
+}
+
 func gen_ir(ctx : BuildContext*, exe_name : string*, module : Module*) {
     module.llvm_ir_path = exe_dir_path(ctx, exe_name)
     module.llvm_ir_path.append_str(&module.name);
@@ -51,6 +58,7 @@ func build(ctx : BuildContext*) {
     const do_llvm_ir = compiler::is_clang_based();
     const do_asm = false;
     const do_c = compiler::is_tcc_based();
+    const do_to_c = compiler::is_clang_based();
 
     if(do_llvm_ir) {
         gen_ir(ctx, &exe_name, module);
@@ -69,5 +77,11 @@ func build(ctx : BuildContext*) {
 
     ctx.build_dynamic_lib(exe_name, { module }, 1);
     ctx.build_exe(exe_name, { module }, 1);
+
+    if(do_to_c) {
+        const output_file = exe_dir_file(ctx, &exe_name, &ext_module.name, ".ch")
+        const input_file = relative_path(string("ext/file.c"))
+        ctx.translate_to_chemical(input_file, output_file);
+    }
 
 }

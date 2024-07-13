@@ -19,4 +19,9 @@ enum class LabJobType : int {
      */
     ToCTranslation = 2,
 
+    /**
+     * This job basically emits a chemical file, we translate c to chemical
+     */
+    ToChemicalTranslation = 3,
+
 };

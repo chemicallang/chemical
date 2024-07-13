@@ -21,6 +21,7 @@
 #include "compiler/InvokeUtils.h"
 #include "utils/PathUtils.h"
 #include "compiler/ASTCompiler.h"
+#include "preprocess/RepresentationVisitor.h"
 #include <sstream>
 #include <filesystem>
 #include <iostream>
@@ -109,6 +110,8 @@ int LabBuildCompiler::do_job(LabJob* job) {
             return do_library_job(job);
         case LabJobType::ToCTranslation:
             return do_to_c_job(job);
+        case LabJobType::ToChemicalTranslation:
+            return do_to_chemical_job(job);
     }
 }
 
@@ -429,6 +432,34 @@ int LabBuildCompiler::do_library_job(LabJob* job) {
 int LabBuildCompiler::do_to_c_job(LabJob* job) {
     // TODO this job
     return 1;
+}
+
+#ifdef COMPILER_BUILD
+std::vector<std::unique_ptr<ASTNode>> TranslateC(
+        const char *exe_path,
+        const char *abs_path,
+        const char *resources_path
+);
+#endif
+
+int LabBuildCompiler::do_to_chemical_job(LabJob* job) {
+#ifdef COMPILER_BUILD
+    std::ofstream output;
+    output.open(job->abs_path.data());
+    if(!output.is_open()) {
+        std::cerr << rang::fg::red << "[BuildLab] " << "couldn't open the file for writing translated chemical from c at '" << job->abs_path.data() << '\'' << rang::fg::reset << std::endl;
+        return 1;
+    }
+    for(auto mod : job->dependencies) {
+        RepresentationVisitor visitor(output);
+        auto nodes = TranslateC(options->exe_path.data(), mod->paths[0].data(), options->get_resources_path().c_str());
+        visitor.translate(nodes);
+    }
+    output.close();
+    return 0;
+#else
+    std::cerr << "Translating c files to chemical can only be done by the compiler executable, please check using compiler::is_clang_based() in build.lab" << std::endl;
+#endif
 }
 
 int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string& path) {

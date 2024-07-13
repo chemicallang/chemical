@@ -69,8 +69,8 @@ func build(ctx : BuildContext*) {
 
     if(do_c) {
         const output_file = exe_dir_file(ctx, &exe_name, &module.name, ".c")
-        const input_file = relative_path(string("tests.ch"))
-        ctx.translate_to_c(input_file, output_file);
+        // const input_file = relative_path(string("tests.ch"))
+        ctx.translate_mod_to_c(module, output_file);
     }
 
     if(do_to_c) {

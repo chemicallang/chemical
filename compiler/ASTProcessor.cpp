@@ -110,6 +110,9 @@ std::vector<FlatIGFile> ASTProcessor::determine_mod_imports(LabModule* module) {
                 }
                 return flat_imports_mul(paths);
             }
+        case LabModuleType::ObjFile:
+        case LabModuleType::CFile:
+            return {};
         case LabModuleType::Directory:
             throw std::runtime_error("NOT YET IMPLEMENTED DIRECTORY THING");
     }

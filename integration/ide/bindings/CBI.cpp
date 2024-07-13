@@ -352,8 +352,8 @@ void prep_build_context_cbi(BuildContextCBI* cbi) {
     cbi->translate_to_chemical = [](BuildContextCBI* self, chem::string* c_path, chem::string* output_path) -> LabJob* {
         return self->instance->translate_to_chemical(c_path, output_path);
     };
-    cbi->translate_to_c = [](BuildContextCBI* self, chem::string* chem_path, chem::string* output_path) -> LabJob* {
-        return self->instance->translate_to_c(chem_path, output_path);
+    cbi->translate_mod_to_c = [](BuildContextCBI* self, LabModule* module, chem::string* output_path) -> LabJob* {
+        return self->instance->translate_to_c(module, output_path);
     };
     cbi->build_exe = [](BuildContextCBI* self, chem::string* name, LabModule** dependencies, unsigned int dep_len) -> LabJob* {
         return self->instance->build_exe(name, dependencies, dep_len);

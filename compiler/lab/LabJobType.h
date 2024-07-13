@@ -24,4 +24,9 @@ enum class LabJobType : int {
      */
     ToChemicalTranslation = 3,
 
+    /**
+     * This means do not link, only process the modules
+     */
+    ProcessingOnly = 4,
+
 };

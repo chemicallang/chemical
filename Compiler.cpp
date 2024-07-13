@@ -29,6 +29,7 @@
 #include "integration/libtcc/LibTccInteg.h"
 #include "utils/Version.h"
 #include "compiler/lab/LabBuildCompiler.h"
+#include "rang.hpp"
 
 #ifdef COMPILER_BUILD
 
@@ -109,7 +110,7 @@ int main(int argc, char *argv[]) {
     }
 #endif
 
-    auto verbose = options.option("verbose", "v").has_value();
+    auto verbose = options.option("verbose", "vv").has_value();
     if(verbose) {
         std::cout << "[Command] ";
         options.print();
@@ -122,22 +123,15 @@ int main(int argc, char *argv[]) {
     }
 
     if(args.empty()) {
-        std::cerr << cmd_error("no input given\n\n");
+        std::cerr << rang::fg::red << "no input given\n\n" << rang::fg::reset;
         print_usage();
         return 1;
     }
 
-    auto srcFilePath = args[0];
-
-    auto only_verify = options.option("verify", "verify").has_value();
-    auto benchmark = options.option("benchmark", "bm").has_value();
-    auto print_ig = options.option("print-ig", "pr-ig").has_value();
-    auto print_representation = options.option("print-ast", "pr-ast").has_value();
-    auto print_ir = options.option("print-ir", "pr-ir").has_value();
-    auto print_cst = options.option("print-cst", "pr-cst").has_value();
     bool jit = options.option("jit", "jit").has_value();
     auto output = options.option("output", "o");
     auto res = options.option("res", "res");
+    auto dash_c = options.option("", "c");
 
     auto get_resources_path = [&res, &argv]() -> std::string{
         auto resources_path = res.has_value() ? res.value() : resources_path_rel_to_exe(std::string(argv[0]));
@@ -149,14 +143,20 @@ int main(int argc, char *argv[]) {
         return resources_path;
     };
 
-    auto prepare_options = [&](ASTProcessorOptions* opts) -> void {
-        opts->benchmark = benchmark;
-        opts->print_representation = print_representation;
-        opts->print_cst = print_cst;
-        opts->print_ig = print_ig;
+    auto prepare_options = [&](LabBuildCompilerOptions* opts) -> void {
+        opts->benchmark = options.option("benchmark", "bm").has_value();
+        opts->print_representation = options.option("print-ast", "pr-ast").has_value();
+        opts->print_cst = options.option("print-cst", "pr-cst").has_value();
+        opts->print_ig = options.option("print-ig", "pr-ig").has_value();
         opts->verbose = verbose;
         opts->resources_path = get_resources_path();
         opts->isCBIEnabled = !options.option("no-cbi").has_value();
+        if(options.option("lto").has_value()) {
+            opts->def_lto_on = true;
+        }
+        if(options.option("assertions").has_value()) {
+            opts->def_assertions_on = true;
+        }
     };
 
 #ifdef COMPILER_BUILD
@@ -177,17 +177,6 @@ int main(int argc, char *argv[]) {
     std::optional<std::string> target = "native";
     bool is64Bit = false;
 #endif
-
-    // do not compile
-    if(only_verify) {
-        SourceVerifierOptions verify_opts(argv[0], target.value(), is64Bit);
-        prepare_options(&verify_opts);
-        if(verify(srcFilePath, &verify_opts)) {
-            return 0;
-        } else {
-            return 1;
-        }
-    }
 
     OutputMode mode = OutputMode::Debug;
 
@@ -219,118 +208,30 @@ int main(int argc, char *argv[]) {
     }
 #endif
 
-    // translate chemical to C
-    auto tcc = options.option("tcc", "tcc").has_value();
-#ifdef COMPILER_BUILD
-    if(jit || (output.has_value() && (tcc || output.value().ends_with(".c")))) {
-#endif
-        if(!srcFilePath.ends_with(".lab") || (output.has_value() && output.value().ends_with(".c"))) {
-            ToCTranslatorOptions translator_opts(argv[0], target.value(), is64Bit);
-            prepare_options(&translator_opts);
-            auto translator_preparer = [&options](ToCAstVisitor *visitor, ASTProcessor *processor) -> void {
-                visitor->inline_struct_members_fn_types = !options.option(
-                        "take-out-struct-member-fn-types").has_value();
-                visitor->cpp_like = options.option("cpp-like").has_value();
-                if (options.option("no-cbi").has_value()) {
-                    processor->options->isCBIEnabled = false;
-                }
-            };
-            if (output.has_value() && output.value().ends_with(".c") && !jit) {
-                bool good = translate(srcFilePath, output.value(), &translator_opts, translator_preparer);
-                return good ? 0 : 1;
-            } else {
-                std::string cProgramStr;
-                if (srcFilePath.ends_with(".c")) {
-                    auto read = read_file_to_string(srcFilePath.data());
-                    if(read.has_value()) {
-                        cProgramStr = std::move(read.value());
-                    } else {
-                        std::cerr << "[Compiler] couldn't open the file at location " << srcFilePath << std::endl;
-                        return 1;
-                    }
-                } else {
-                    cProgramStr = translate(srcFilePath, &translator_opts, translator_preparer);
-                    if (cProgramStr.empty()) {
-                        return 1;
-                    }
-                }
-                return compile_c_string(argv[0], cProgramStr.data(), output.has_value() ? output.value() : "", jit,
-                                        benchmark, is_debug(mode));
-            }
-        }
-
-#ifdef COMPILER_BUILD
-    }
-#endif
-
     // build a .lab file
-    if(srcFilePath.ends_with(".lab")) {
-        LabBuildContext context(srcFilePath);
+    if(args[0].ends_with(".lab")) {
+        LabBuildContext context(args[0]);
         LabBuildCompilerOptions compiler_opts(argv[0], target.value(), is64Bit);
         LabBuildCompiler compiler(&compiler_opts);
         prepare_options(&compiler_opts);
         compiler_opts.def_mode = mode;
-        if(options.option("lto").has_value()) {
-            compiler_opts.def_lto_on = true;
-        }
-        if(options.option("assertions").has_value()) {
-            compiler_opts.def_assertions_on = true;
-        }
+
         // giving build args to lab build context
         for(auto& opt : options.options) {
             if(opt.first.starts_with("arg-")) {
                 context.build_args[opt.first.substr(4)] = opt.second;
             }
         }
-        return compiler.build_lab_file(context, srcFilePath);
+        return compiler.build_lab_file(context, args[0]);
     }
-
-#ifdef TCC_BUILD
-    std::cerr << "Unknown Input / Output given to TCC based chemical compiler" << std::endl;
-    return 1;
-#endif
 
 #ifdef COMPILER_BUILD
-    // translate C to chemical
-    if((srcFilePath.ends_with(".c") || srcFilePath.ends_with(".h")) && output.has_value() && output.value().ends_with(".ch")) {
-        auto nodes = TranslateC(argv[0], srcFilePath.c_str(), get_resources_path().c_str());
-        // write translated to the given file
-        std::ofstream out;
-        out.open(output.value());
-        if(!out.is_open()) {
-            std::cout << "[TranslateC] Couldn't open the file at path " << output.value() << std::endl;
-            return 1;
-        }
-        RepresentationVisitor visitor(out);
-        visitor.translate(nodes);
-        out.close();
-        // verify if required
-        if(only_verify) {
-            SourceVerifierOptions verify_opts(argv[0], target.value(), is64Bit);
-            prepare_options(&verify_opts);
-            if(!verify(output.value(), &verify_opts)) {
-                return 1;
-            }
-        }
-        return 0;
-    }
 
     // compilation
-    Codegen gen({}, target.value(), argv[0], is64Bit, "");
-    IGCompilerOptions compiler_opts(argv[0], target.value(), is64Bit);
+    LabBuildCompilerOptions compiler_opts(argv[0], target.value(), is64Bit);
+    LabBuildCompiler compiler(&compiler_opts);
     prepare_options(&compiler_opts);
-    if(!compile(&gen, srcFilePath, &compiler_opts)) {
-        return 1;
-    }
-
-    // check if it requires printing
-    if (print_ir) {
-        // print to console
-        gen.print_to_console();
-    }
-
-    CodegenEmitterOptions emitter_options;
-    configure_emitter_opts(mode, &emitter_options);
+    compiler_opts.def_mode = mode;
 
     auto ll_out = options.option("out-ll");
     auto bc_out = options.option("out-bc");
@@ -365,112 +266,67 @@ int main(int argc, char *argv[]) {
     // have object file output for the binary we are outputting
     if (!obj_out.has_value() && bin_out.has_value()) {
         obj_out.emplace(bin_out.value() + ".o");
-        temporary_obj = true;
+        temporary_obj = !dash_c.has_value();
+    }
+
+    LabModule module(LabModuleType::Files);
+    std::vector<std::unique_ptr<LabModule>> dependencies;
+    for(auto& arg : args) {
+        if(arg.ends_with(".c")) {
+            auto dep = new LabModule(LabModuleType::CFile);
+            dependencies.emplace_back(dep);
+            dep->paths.emplace_back(arg);
+            module.dependencies.emplace_back(dep);
+        } else if(arg.ends_with(".o")) {
+            auto dep = new LabModule(LabModuleType::ObjFile);
+            dependencies.emplace_back(dep);
+            dep->paths.emplace_back(arg);
+            module.dependencies.emplace_back(dep);
+        } else {
+            module.paths.emplace_back(arg);
+        }
     }
 
     // files to emit
-    if(ll_out.has_value())
-        emitter_options.ir_path = ll_out.value().data();
+    if(ll_out.has_value()) {
+        module.llvm_ir_path.append(ll_out.value());
+        if (options.option("debug-ll").has_value()) {
+            compiler_opts.debug_ir = true;
+        }
+    }
     if(bc_out.has_value())
-        emitter_options.bitcode_path = bc_out.value().data();
+        module.bitcode_path.append(bc_out.value());
     if(obj_out.has_value())
-        emitter_options.obj_path = obj_out.value().data();
+        module.object_path.append(obj_out.value());
     if(asm_out.has_value())
-        emitter_options.asm_path = asm_out.value().data();
+        module.asm_path.append(asm_out.value());
 
-    // extra options to force lto or assertions
-    if(options.option("lto").has_value()) {
-        emitter_options.lto = true;
-    }
-    if(options.option("assertions").has_value()) {
-        emitter_options.assertions_on = true;
-    }
-
-    if(ll_out.has_value() && options.option("debug-ll").has_value()) {
-        gen.save_to_ll_file_for_debugging(ll_out.value());
-        return 0;
-    }
-
-    int return_int = 0;
-
-    // creating object file for compilation
-    auto save_result = gen.save_with_options(&emitter_options);
-    if(!save_result) {
-        return_int = 1;
-    }
-
-    if(!bin_out.has_value()) {
-        return return_int;
-    }
-
-    auto useLinker = options.option("linker", "linker");
-    if(useLinker.has_value()) {
-
-        // creating lld command
-        std::vector<std::string> linker{obj_out.value()};
-
-        // set output
-#if defined(_WIN32)
-        linker.emplace_back("/OUT:"+bin_out.value());
-#elif defined(__APPLE__)
-        linker.emplace_back("-o");
-        linker.emplace_back("./"+bin_out.value());
-#elif defined(__linux__)
-        linker.emplace_back("-o");
-        linker.emplace_back("./"+bin_out.value());
-#endif
-
-        // link with standard libc (unless user opts out)
-        auto option = options.option("no-libc", "no-libc");
-        if(!option.has_value()) {
-#if defined(_WIN32)
-            linker.emplace_back("-defaultlib:libcmt");
-#elif defined(__APPLE__)
-            // TODO test linking with libc on apple
-            linker.emplace_back("-lc");
-#elif defined(__linux__)
-            // TODO test linking with libc on linux
-            linker.emplace_back("-lc");
-#endif
+    LabJob job(LabJobType::Executable);
+    if(dash_c.has_value()) {
+        job.type = LabJobType::ProcessingOnly;
+    } else if(output.has_value()) {
+        if(output.value().ends_with(".c")) {
+            job.type = LabJobType::ToCTranslation;
+        } else if(output.value().ends_with(".ch")) {
+            job.type = LabJobType::ToChemicalTranslation;
         }
-
-        // add user's linker flags
-        auto user_libs = options.collect_subcommand(argc, argv, "linker");
-        // TODO test this
-        for(const auto& flag : user_libs) {
-            linker.emplace_back(flag);
-        }
-
-        // invoke lld to create executable
-        return_int = gen.invoke_lld(linker);
-
-    } else {
-        // use clang by default
-        std::vector<std::string> clang_flags{argv[0]};
-        options.option("clang", "clang"); // consume clang cmd
-        auto consumed = options.collect_subcommand(argc, argv, "clang");
-        for(const auto& cland_fl : consumed) {
-            clang_flags.emplace_back(cland_fl);
-        }
-        clang_flags.emplace_back(obj_out.value());
-        clang_flags.emplace_back("-o");
-        clang_flags.emplace_back(bin_out.value());
-        return_int = gen.invoke_clang(clang_flags);
     }
+    job.dependencies.emplace_back(&module);
+    if(output.has_value()) {
+        job.abs_path.append(output.value());
+    }
+    auto return_int = compiler.do_job(&job);
 
+    // delete object file which was linked
     if(temporary_obj) {
-        // delete object file which was linked
-        // Attempt to delete the file using std::filesystem
         try {
             std::filesystem::remove(obj_out.value());
         } catch (const std::filesystem::filesystem_error &ex) {
-            std::cerr << ANSI_COLOR_RED << "couldn't delete object file " << obj_out.value() << " because " << ex.what()
-                      << ANSI_COLOR_RESET << std::endl;
+            std::cerr << rang::fg::red << "error: couldn't delete temporary object file " << obj_out.value() << " because " << ex.what() << rang::fg::reset << std::endl;
             return_int = 1;
         }
     }
 
-    options.print_unhandled();
     return return_int;
 
 #endif

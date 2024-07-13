@@ -40,10 +40,20 @@ public:
 #else
     bool use_mod_obj_format = true;
 #endif
+
     /**
      * default output mode
      */
     OutputMode def_mode = OutputMode::Debug;
+
+    /**
+     * whether the generated ir should be debuggable ir
+     */
+#ifdef DEBUG
+    bool debug_ir = true;
+#else
+    bool debug_ir = false;
+#endif
 
     /**
      * lto is on or not, mostly re configured using the output mode above

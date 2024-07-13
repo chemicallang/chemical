@@ -194,7 +194,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
         }
 
         {
-            auto obj_path = resolve_rel_child_path_str(exe_build_dir, exe->name.to_std_string() +
+            auto obj_path = resolve_rel_child_path_str(exe_build_dir, mod->name.to_std_string() +
                                                                       (is_use_obj_format ? ".o" : ".bc"));
             if (is_use_obj_format || mod->type == LabModuleType::CFile) {
                 if (mod->object_path.empty()) {

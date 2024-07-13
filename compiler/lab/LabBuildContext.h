@@ -127,7 +127,7 @@ public:
      * translate a chemical file to c
      */
     LabJob* translate_to_c(
-            chem::string* chem_path,
+            LabModule* redundant,
             chem::string* out_path
     );
 

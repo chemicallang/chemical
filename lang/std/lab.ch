@@ -52,7 +52,7 @@ struct BuildContext {
 
     var translate_to_chemical : (&self, c_path : string, output_path : string) => LabJob*;
 
-    var translate_to_c : (&self, chem_path : string, output_path : string) => LabJob*;
+    var translate_mod_to_c : (&self, module : Module*, output_path : string) => LabJob*
 
     var build_exe : (&self, name : string, dependencies : Module**, len : uint) => LabJob*;
 
@@ -74,6 +74,11 @@ struct BuildContext {
 
     func file_module(&self, name : string, path : string, dependencies : Module**, len : uint) : Module* {
         return files_module(name, &path, 1, dependencies, len);
+    }
+
+    func translate_to_c(&self, chem_path : string, output_path : string) : LabJob* {
+        var mod = file_module("TempChem", chem_path, null, 0);
+        return translate_mod_to_c(mod, output_path);
     }
 
 }

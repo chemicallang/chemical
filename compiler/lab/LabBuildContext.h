@@ -24,7 +24,7 @@ public:
     // the build directory that will be used for file generation
     std::string build_dir;
     // all the modules created during the build process
-    std::vector<LabModule> modules;
+    std::vector<std::unique_ptr<LabModule>> modules;
     // all the executables created during the build process
     std::vector<LabJob> executables;
     // build arguments given to the build lab

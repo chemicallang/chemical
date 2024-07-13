@@ -42,8 +42,8 @@ LabModule *LabBuildContext::add_with_type(
     LabModule **dependencies,
     unsigned int dep_len
 ) {
-    modules.emplace_back(type, std::move(name));
-    auto mod = &modules.back();
+    auto mod = new LabModule(type, std::move(name));
+    modules.emplace_back(mod);
     LabBuildContext::add_paths(mod->paths, paths, path_len);
     LabBuildContext::add_dependencies(mod->dependencies, dependencies, dep_len);
     return mod;

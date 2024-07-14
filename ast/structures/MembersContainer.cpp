@@ -183,7 +183,11 @@ bool MembersContainer::insert_multi_func(std::unique_ptr<FunctionDeclaration> de
             return false;
         } else if(result.new_multi_func_node) {
             multi_nodes.emplace_back(result.new_multi_func_node);
+            // storing pointer to MultiFunctionNode as FunctionDeclaration
+            // this can create errors, if not handled properly
+            indexes[decl->name] = (FunctionDeclaration*) result.new_multi_func_node;
         }
+        functions_container.emplace_back(std::move(decl));
     }
     return true;
 }

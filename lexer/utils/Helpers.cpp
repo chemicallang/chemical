@@ -28,12 +28,16 @@ bool Lexer::lexOperatorToken(const std::string& op) {
     }
 }
 
+void Lexer::storeOperationToken(char token, Operation op) {
+    std::string value;
+    value.append(std::to_string((int) op));
+    value.append(1, token);
+    tokens.emplace_back(std::make_unique<OperationToken>(backPosition(1), std::move(value)));
+}
+
 bool Lexer::lexOperationToken(char token, Operation op) {
     if(provider.increment(token)) {
-        std::string value;
-        value.append(std::to_string((int) op));
-        value.append(1, token);
-        tokens.emplace_back(std::make_unique<OperationToken>(backPosition(1), std::move(value)));
+        storeOperationToken(token, op);
         return true;
     } else {
         return false;
@@ -69,4 +73,75 @@ bool Lexer::lexKeywordToken(const std::string& keyword) {
     } else {
         return false;
     }
+}
+
+static bool read_gen_type_token(Lexer& lexer);
+
+static bool read_arr_type_token(Lexer& lexer);
+
+static bool read_pointer_type(Lexer& lexer);
+
+static bool read_type_involving_token(Lexer& lexer) {
+    auto& provider = lexer.provider;
+    if(!provider.readIdentifier().empty()) {
+        read_gen_type_token(lexer) || read_arr_type_token(lexer) || read_pointer_type(lexer);
+        return true;
+    } else {
+        return false;
+    }
+}
+
+static bool read_pointer_type(Lexer& lexer) {
+    auto& provider = lexer.provider;
+    if(provider.increment('*')) {
+        while(provider.increment('*')) {
+            // do nothing
+        }
+        return true;
+    } else {
+        return false;
+    }
+}
+
+static bool read_arr_type_token(Lexer& lexer) {
+    auto& provider = lexer.provider;
+    if(provider.increment('[')) {
+        provider.readUnsignedInt();
+        if(!provider.increment(']')) {
+            lexer.error("unknown token in look ahead operation for generics, expected '>'");
+        }
+        return true;
+    } else {
+        return false;
+    }
+}
+
+static bool read_gen_type_token(Lexer& lexer) {
+    auto& provider = lexer.provider;
+    if(provider.increment('<')) {
+        read_type_involving_token(lexer);
+        if(!provider.increment('>')) {
+            lexer.error("unknown token in look ahead operation for generics, expected '>'");
+        }
+        return true;
+    } else {
+        return false;
+    }
+}
+
+bool Lexer::isGenericEndAhead() {
+    StreamPosition position{};
+    provider.save(position);
+    provider.increment('<');
+    auto& lexer = *this;
+    do {
+        readWhitespace();
+        if (!read_type_involving_token(lexer)) {
+            break;
+        }
+        readWhitespace();
+    } while (provider.increment(','));
+    const bool is_generic = provider.increment('>');
+    provider.restore(position);
+    return is_generic;
 }

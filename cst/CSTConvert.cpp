@@ -1234,15 +1234,16 @@ std::vector<std::unique_ptr<Value>> take_values(CSTConverter *converter, const s
 }
 
 void CSTConverter::visitFunctionCall(CompoundCSTToken *call) {
-    std::vector<std::unique_ptr<ReferencedType>> generic_list;
+    std::vector<std::unique_ptr<BaseType>> generic_list;
     if(call->tokens[0]->type() == LexTokenType::CompGenericList) {
-        auto& generic_tokens = call->tokens;
+        auto& generic_tokens = call->tokens[0]->as_compound()->tokens;
         unsigned i = 0;
         CSTToken* token;
         while(i < generic_tokens.size()) {
             token = generic_tokens[i].get();
-            if(token->type() == LexTokenType::Variable) {
-                generic_list.emplace_back(new ReferencedType(str_token(token)));
+            if(token->is_type()) {
+                token->accept(this);
+                generic_list.emplace_back(type());
             }
             i++;
         }

@@ -17,7 +17,7 @@ class FunctionCall : public ChainValue {
 public:
 
     Value* parent_val;
-    std::vector<std::unique_ptr<ReferencedType>> generic_list;
+    std::vector<std::unique_ptr<BaseType>> generic_list;
     std::vector<std::unique_ptr<Value>> values;
     int16_t generic_iteration = 0;
 

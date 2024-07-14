@@ -16,7 +16,7 @@ void Lexer::lexTypeList() {
 void Lexer::lexIdentifierList() {
     do {
         lexWhitespaceToken();
-        if (!lexVariableToken()) {
+        if (!lexIdentifierToken()) {
             break;
         }
         lexWhitespaceToken();

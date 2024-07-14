@@ -119,14 +119,6 @@ public:
     }
 
     /**
-     * read whitespaces at the current pos
-     * @return the number of whitespaces ' ' read
-     */
-    inline unsigned int readWhitespaces() {
-        return provider.readWhitespaces();
-    }
-
-    /**
      * lex a string that contains alphabetical characters only
      * @return alphabetical string or empty if not found
      */
@@ -178,6 +170,11 @@ public:
     inline bool lexIdentifierToken() {
         return storeIdentifier(lexIdentifier());
     }
+
+    /**
+     * lexes a function call, after the '<' for generic start
+     */
+    void lexFunctionCallAfterGenericStart();
 
     /**
      * lexes a function call, that is args ')' without function name
@@ -237,6 +234,14 @@ public:
     bool lexLanguageOperatorToken();
 
     /**
+     * this is invoked by expressions , when user types sum < identifier, it can mean two things
+     * 1 - is sum less than identifier  (expression)
+     * 2 - sum < identifier >  (generic)
+     * when we encounter a less than sign, we call this function to check if there's a generic end (>) ahead
+     */
+    bool isGenericEndAhead();
+
+    /**
      * This lexes a operation token before assignment '='
      * for example +=, -=
      * in this case, equal sign is ignored and operation is determined solely based on the token before it
@@ -289,6 +294,11 @@ public:
      * @return whether the token was found
      */
     bool lexOperatorToken(const std::string &op);
+
+    /**
+     * store an operation token
+     */
+    void storeOperationToken(char token, Operation op);
 
     /**
      * lexes the given operator as length 1 character operator token
@@ -524,6 +534,11 @@ public:
      * lexes a enum block
      */
     bool lexEnumStructureTokens();
+
+    /**
+     * reads whitespace at current position
+     */
+    bool readWhitespace();
 
     /**
      * lex whitespace tokens

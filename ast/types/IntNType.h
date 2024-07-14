@@ -38,7 +38,7 @@ public:
     }
 
     bool is_same(BaseType *type) override {
-        return type->kind() == kind();
+        return type->kind() == kind() && ((IntNType*) type)->num_bits() == num_bits();
     }
 
 #ifdef COMPILER_BUILD

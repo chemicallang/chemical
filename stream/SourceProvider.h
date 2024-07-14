@@ -27,21 +27,6 @@ private:
     unsigned int lineCharacterNumber = 0;
 
     /**
-     * saves the position into given position
-     */
-    void saveInto(StreamPosition &pos) {
-        pos.pos = currentPosition();
-        pos.line = lineNumber;
-        pos.character = lineCharacterNumber;
-    }
-
-    /**
-     * restores the position of this stream from the given position
-     * @param position
-     */
-    void restore(StreamPosition &position);
-
-    /**
      * handles the character read from the stream
      * changes line number and character number based on the character
      */
@@ -323,6 +308,21 @@ public:
      * reads all whitespaces along with new lines
      */
     void readWhitespacesAndNewLines();
+
+    /**
+     * saves the position into given position
+     */
+    void save(StreamPosition &pos) const {
+        pos.pos = currentPosition();
+        pos.line = lineNumber;
+        pos.character = lineCharacterNumber;
+    }
+
+    /**
+     * restores the position of this stream from the given position
+     * @param position
+     */
+    void restore(StreamPosition &position);
 
     /**
      * returns the token position at the very current position

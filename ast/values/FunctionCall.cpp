@@ -359,7 +359,7 @@ void FunctionCall::relink_multi_func(ASTDiagnoser* diagnoser) {
     }
 }
 
-void FunctionCall::find_link_in_parent(Value *parent, ASTDiagnoser* diagnoser) {
+void FunctionCall::find_link_in_parent(Value *parent, ASTDiagnoser* diagnoser, bool relink_multi) {
     parent_val = parent;
     // relinking parent with constructor of the struct
     // if it's linked with struct
@@ -372,15 +372,16 @@ void FunctionCall::find_link_in_parent(Value *parent, ASTDiagnoser* diagnoser) {
         } else {
             diagnoser->error("struct with name " + parent_struct->name + " doesn't have a constructor that satisfies given arguments " + representation(), parent_struct);
         }
-    } else {
+    } else if(relink_multi){
         relink_multi_func(diagnoser);
     }
 }
 
 void FunctionCall::find_link_in_parent(Value *parent, SymbolResolver &resolver) {
     parent_val = parent;
+    relink_multi_func(&resolver);
     link_values(resolver);
-    find_link_in_parent(parent, &resolver);
+    find_link_in_parent(parent, &resolver, false);
 }
 
 FunctionCall *FunctionCall::as_func_call() {

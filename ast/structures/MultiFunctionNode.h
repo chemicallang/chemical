@@ -20,6 +20,12 @@ public:
      */
     MultiFunctionNode(std::string name);
 
+    FunctionDeclaration* func_for_call(std::vector<std::unique_ptr<Value>>& args);
+
+    MultiFunctionNode *as_multi_func_node() override {
+        return this;
+    }
+
     void accept(Visitor *visitor) override {
         // don't do anything
     }

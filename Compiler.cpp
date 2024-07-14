@@ -67,7 +67,7 @@ void print_help() {
                  "--ignore-extension  -[empty]      ignore the extension --output or -o option\n"
                  "--lto               -[empty]      force link time optimization\n"
                  "--assertions        -[empty]      enable assertions on generated code\n"
-                 "--debug-ll          -[empty]      output llvm ir, even with errors, for debugging\n"
+                 "--debug-ir          -[empty]      output llvm ir, even with errors, for debugging\n"
                  "--arg-[arg]         -arg-[arg]    can be used to provide arguments to build.lab\n"
                  "--verify            -o            do not compile, only verify source code\n"
                  "--jit               -jit          do just in time compilation using Tiny CC\n"
@@ -290,7 +290,7 @@ int main(int argc, char *argv[]) {
     // files to emit
     if(ll_out.has_value()) {
         module.llvm_ir_path.append(ll_out.value());
-        if (options.option("debug-ll").has_value()) {
+        if (options.option("debug-ir").has_value()) {
             compiler_opts.debug_ir = true;
         }
     }
@@ -302,7 +302,7 @@ int main(int argc, char *argv[]) {
         module.asm_path.append(asm_out.value());
 
     LabJob job(LabJobType::Executable);
-    if(dash_c.has_value()) {
+    if(dash_c.has_value() || !bin_out.has_value()) {
         job.type = LabJobType::ProcessingOnly;
     } else if(output.has_value()) {
         if(output.value().ends_with(".c")) {

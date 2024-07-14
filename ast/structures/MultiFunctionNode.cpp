@@ -8,6 +8,15 @@ MultiFunctionNode::MultiFunctionNode(std::string name) : name(std::move(name)) {
 
 }
 
+FunctionDeclaration* MultiFunctionNode::func_for_call(std::vector<std::unique_ptr<Value>>& args) {
+    for(auto func : functions) {
+        if(func->satisfy_args(args)) {
+            return func;
+        }
+    }
+    return nullptr;
+}
+
 void MultiFunctionNode::declare_and_link(SymbolResolver &linker) {
 
     // link all the functions

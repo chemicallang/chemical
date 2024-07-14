@@ -47,7 +47,11 @@ public:
 
     void relink_multi_func(ASTDiagnoser* diagnoser);
 
-    void find_link_in_parent(Value *parent, ASTDiagnoser* diagnoser) override;
+    void find_link_in_parent(Value *parent, ASTDiagnoser* diagnoser, bool relink_multi);
+
+    void find_link_in_parent(Value *parent, ASTDiagnoser* diagnoser) override {
+        find_link_in_parent(parent, diagnoser, true);
+    }
 
     void find_link_in_parent(Value *parent, SymbolResolver &resolver) override;
 

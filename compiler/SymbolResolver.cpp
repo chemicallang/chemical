@@ -38,31 +38,15 @@ void SymbolResolver::declare_function(const std::string& name, FunctionDeclarati
     if(found == last.end()) {
         last[name] = declaration;
     } else {
-        auto previous = found->second->as_function();
-        auto multi = found->second->as_multi_func_node();
-        if(multi) {
-            bool failed = false;
-            for(auto func : multi->functions) {
-                if(func->do_param_types_match(declaration->params)) {
-                    dup_sym_error(name, func, declaration);
-                    failed = true;
-                }
+        auto result = handle_name_overridable_function(name, found->second, declaration);
+        if(!result.duplicates.empty()) {
+            for(auto dup : result.duplicates) {
+                dup_sym_error(name, dup, declaration);
             }
-            if(failed) return;
-            multi->functions.emplace_back(declaration);
-        } else if(previous) {
-            if(!previous->do_param_types_match(declaration->params)) {
-                multi = new MultiFunctionNode(name);
-                multi->functions.emplace_back(previous);
-                multi->functions.emplace_back(declaration);
-                helper_nodes.emplace_back(multi);
-                // override the previous symbol
-                last[name] = multi;
-            } else {
-                dup_sym_error(name, found->second, declaration);
-            }
-        } else {
-            dup_sym_error(name, found->second, declaration);
+        } else if(result.new_multi_func_node) {
+            helper_nodes.emplace_back(result.new_multi_func_node);
+            // override the previous symbol
+            last[name] = result.new_multi_func_node;
         }
     }
 }

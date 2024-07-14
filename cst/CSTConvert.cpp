@@ -41,6 +41,7 @@
 #include "ast/types/LiteralType.h"
 #include "ast/structures/ForLoop.h"
 #include "ast/structures/CapturedVariable.h"
+#include "ast/structures/MultiFunctionNode.h"
 #include "ast/structures/InterfaceDefinition.h"
 #include "ast/structures/WhileLoop.h"
 #include "ast/values/StructValue.h"

@@ -4,6 +4,13 @@
 
 #include "ast/base/ASTNode.h"
 
+struct OverridableFuncHandlingResult {
+    // duplicate nodes already present on the map, with same name
+    std::vector<ASTNode*> duplicates;
+    // any new multi function node, that should be handled
+    MultiFunctionNode* new_multi_func_node;
+};
+
 /**
  * multi function node is created when two functions with same name exist
  * however parameter types may be different, this allows us c++ like behavior of
@@ -37,3 +44,9 @@ public:
     void declare_and_link(SymbolResolver &linker) override;
 
 };
+
+OverridableFuncHandlingResult handle_name_overridable_function(
+        const std::string& name,
+        ASTNode* previous_node,
+        FunctionDeclaration* declaration
+);

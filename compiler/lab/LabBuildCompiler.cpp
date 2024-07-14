@@ -204,7 +204,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
             continue;
         }
 
-        {
+        if(exe->type == LabJobType::Executable || exe->type == LabJobType::Library){
             auto obj_path = resolve_rel_child_path_str(exe_build_dir, mod->name.to_std_string() +
                                                                       (is_use_obj_format ? ".o" : ".bc"));
             if (is_use_obj_format || mod->type == LabModuleType::CFile) {
@@ -234,6 +234,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                     break;
                 }
                 exe->linkables.emplace_back(mod->object_path.copy());
+                generated[mod] = mod->object_path.to_std_string();
                 continue;
 #else
                 compile_result = compile_c_file(options->exe_path.data(), mod->paths[0].data(), mod->object_path.to_std_string(), false, false, false);
@@ -241,6 +242,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                     break;
                 }
                 exe->linkables.emplace_back(mod->object_path.copy());
+                generated[mod] = mod->object_path.to_std_string();
                 continue;
 #endif
             }
@@ -249,11 +251,14 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                 continue;
         }
 
-        std::cout << rang::bg::gray << rang::fg::black << "[BuildLab]" << " Building module ";
-        if(!mod->name.empty()) {
-            std::cout << '\'' << mod->name.data() << "' ";
+        const auto mod_data_path = is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data();
+        if(mod_data_path) {
+            std::cout << rang::bg::gray << rang::fg::black << "[BuildLab]" << " Building module ";
+            if (!mod->name.empty()) {
+                std::cout << '\'' << mod->name.data() << "' ";
+            }
+            std::cout << "at path '" << mod_data_path << '\'' << rang::bg::reset << rang::fg::reset << std::endl;
         }
-        std::cout << "at path '" << (is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data()) << '\'' << rang::bg::reset << rang::fg::reset << std::endl;
 
         // get flat file map of this module
         flat_imports = processor.determine_mod_imports(mod);
@@ -382,8 +387,10 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
         const bool save_result = gen.save_with_options(&emitter_options);
         if(save_result) {
             const auto gen_path = is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data();
-            exe->linkables.emplace_back(gen_path);
-            generated[mod] = gen_path;
+            if(gen_path) {
+                exe->linkables.emplace_back(gen_path);
+                generated[mod] = gen_path;
+            }
         } else {
             std::cerr << "[BuildLab] failed to emit file " << (is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data()) << " " << std::endl;
         }

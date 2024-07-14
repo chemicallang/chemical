@@ -21,14 +21,17 @@
 class FunctionDeclaration : public AnnotableNode, public BaseFunctionType {
 private:
     Value *interpretReturn = nullptr;
-    // if the function is variadic, the last type in params is the type given to the variadic parameter
-
 public:
 
     AccessSpecifier specifier;
     std::string name; ///< The name of the function;
     std::optional<LoopScope> body; ///< The body of the function.
     ASTNode* parent_node;
+
+    /**
+     * when involved in multi function node (due to same name, different parameters)
+     */
+    uint8_t multi_func_index = 0;
 
 #ifdef COMPILER_BUILD
     llvm::FunctionType *funcType;

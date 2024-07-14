@@ -10,6 +10,7 @@
 #include "compiler/SymbolResolver.h"
 #include "ast/values/StructValue.h"
 #include "ast/base/BaseType.h"
+#include "ast/structures/MultiFunctionNode.h"
 
 inline std::unique_ptr<FunctionType> func_call_func_type(const FunctionCall* call) {
     return std::unique_ptr<FunctionType>((FunctionType*) call->parent_val->create_type().release());
@@ -341,20 +342,38 @@ ASTNode *FunctionCall::linked_node() {
     return ((FunctionType*) func_type.get())->returnType->linked_node();
 }
 
+void FunctionCall::relink_multi_func(ASTDiagnoser* diagnoser) {
+    auto parent = parent_val->as_identifier();
+    if(parent) {
+        if(parent->linked) {
+            auto multi = parent->linked->as_multi_func_node();
+            if(multi) {
+                auto func = multi->func_for_call(values);
+                if(func) {
+                    parent->linked = func;
+                } else {
+                    diagnoser->error("couldn't find function with name " + parent->value + " that satisfies given arguments");
+                }
+            }
+        }
+    }
+}
+
 void FunctionCall::find_link_in_parent(Value *parent, ASTDiagnoser* diagnoser) {
     parent_val = parent;
     // relinking parent with constructor of the struct
     // if it's linked with struct
     auto parent_id = parent->as_identifier();
-    auto parent_linked = parent_val->linked_node();
-    if(parent_id && parent_linked && parent_linked->as_struct_def()) {
-        StructDefinition* parent_struct = parent_linked->as_struct_def();
+    if(parent_id && parent_id->linked && parent_id->linked->as_struct_def()) {
+        StructDefinition* parent_struct = parent_id->linked->as_struct_def();
         auto constructorFunc = parent_struct->constructor_func(values);
         if(constructorFunc) {
             parent_id->linked = constructorFunc;
         } else {
             diagnoser->error("struct with name " + parent_struct->name + " doesn't have a constructor that satisfies given arguments " + representation(), parent_struct);
         }
+    } else {
+        relink_multi_func(diagnoser);
     }
 }
 

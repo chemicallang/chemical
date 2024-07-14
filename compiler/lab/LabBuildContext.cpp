@@ -144,7 +144,7 @@ LabJob* LabBuildContext::build_dynamic_lib(
         LabModule** dependencies,
         unsigned int dep_len
 ) {
-    auto exe = new LabJob(LabJobType::Executable, name->copy());
+    auto exe = new LabJob(LabJobType::Library, name->copy());
     executables.emplace_back(exe);
     auto build_dir_path = resolve_rel_child_path_str(build_dir, name->to_std_string() + ".dir");
     exe->build_dir.append(build_dir_path.data(), build_dir_path.size());

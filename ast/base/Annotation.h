@@ -25,6 +25,16 @@ public:
     );
 
     /**
+     * deleted copy constructor
+     */
+    Annotation(const Annotation& ann) = delete;
+
+    /**
+     * default move constructor
+     */
+    Annotation(Annotation&&) = default;
+
+    /**
      * traverse
      */
     void traverse(bool consider_self, const std::function<void(Annotation*)>& traverser);
@@ -45,5 +55,7 @@ public:
     inline bool has_annotation(AnnotationKind expected) {
         return get_annotation(kind) != nullptr;
     }
+
+    ~Annotation();
 
 };

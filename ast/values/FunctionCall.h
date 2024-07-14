@@ -9,7 +9,7 @@
 #include <vector>
 #include <memory>
 #include "ast/base/ChainValue.h"
-#include "ast/structures/FunctionDeclaration.h"
+#include "ast/base/ASTNode.h"
 
 class ASTDiagnoser;
 
@@ -19,8 +19,9 @@ public:
     Value* parent_val;
     std::vector<std::unique_ptr<ReferencedType>> generic_list;
     std::vector<std::unique_ptr<Value>> values;
+    int16_t generic_iteration = 0;
 
-    FunctionCall(
+    explicit FunctionCall(
             std::vector<std::unique_ptr<Value>> values
     );
 

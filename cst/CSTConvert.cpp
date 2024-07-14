@@ -363,33 +363,39 @@ void CSTConverter::visitFunctionParam(CompoundCSTToken *param) {
                                             std::move(def_value)));
 }
 
+struct FunctionParamsResult {
+    bool isVariadic;
+    std::vector<std::unique_ptr<FunctionParam>> params;
+    unsigned int index;
+};
+
 // will probably leave the index at ')'
-FunctionParamsResult CSTConverter::function_params(cst_tokens_ref_type tokens, unsigned start) {
-    auto prev_param_index = param_index;
-    param_index = 0;
+FunctionParamsResult function_params(CSTConverter* converter, cst_tokens_ref_type tokens, unsigned start) {
+    auto prev_param_index = converter->param_index;
+    converter->param_index = 0;
     auto isVariadic = false;
     func_params params;
     unsigned i = start;
     while (i < tokens.size()) {
-        if (param_index == 0 && is_char_op(tokens[i]->start_token(), '&')) {
+        if (converter->param_index == 0 && is_char_op(tokens[i]->start_token(), '&')) {
             auto &paramTokens = ((FunctionParamCST *) tokens[i].get())->tokens;
             auto strId = str_token(paramTokens[1].get());
             if (strId != "this" && strId != "self") {
-                error("expected self parameter to be named 'self' or 'this'", tokens[i].get());
+                converter->error("expected self parameter to be named 'self' or 'this'", tokens[i].get());
             }
-            params.emplace_back(new FunctionParam(strId, std::unique_ptr<PointerType>(current_self_pointer(this)), 0, std::nullopt));
-            param_index = 1;
+            params.emplace_back(new FunctionParam(strId, std::unique_ptr<PointerType>(current_self_pointer(converter)), 0, std::nullopt));
+            converter->param_index = 1;
         }
 //        else if(optional_param_types && tokens[i]->type() == LexTokenType::Variable) {
 //            auto strId = str_token(tokens[1].get());
 //            params.emplace_back(new FunctionParam(strId, std::make_unique<VoidType>(), 0, std::nullopt));
 //        }
         else if (tokens[i]->compound()) {
-            tokens[i]->accept(this);
-            param_index++;
-            auto param = (FunctionParam *) nodes.back().release();
+            tokens[i]->accept(converter);
+            converter->param_index++;
+            auto param = (FunctionParam *) converter->nodes.back().release();
             params.emplace_back(param);
-            nodes.pop_back();
+            converter->nodes.pop_back();
             auto& param_tokens = tokens[i]->as_compound()->tokens;
             auto last_token = param_tokens[param_tokens.size() - 1].get();
             if (is_str_op(last_token, "...")) {
@@ -405,7 +411,7 @@ FunctionParamsResult CSTConverter::function_params(cst_tokens_ref_type tokens, u
         }
         i++;
     }
-    param_index = prev_param_index;
+    converter->param_index = prev_param_index;
     return {isVariadic, std::move(params), i};
 }
 
@@ -417,7 +423,7 @@ void convert_generic_list(
 ) {
     unsigned i = 1;
     GenericTypeParameter* parameter;
-    while(compound->tokens[i]->is_identifier()) {
+    while(i < compound->tokens.size() && compound->tokens[i]->is_identifier()) {
         std::unique_ptr<BaseType> def_type = nullptr;
         if(is_char_op(compound->tokens[i + 1].get(), '=')) {
             compound->tokens[i + 2]->accept(converter);
@@ -443,7 +449,7 @@ void CSTConverter::visitFunction(CompoundCSTToken *function) {
 
     const auto params_start = is_generic ? generic_start + 2 : is_extension ? 6 : 3;
 
-    auto params = function_params(function->tokens, params_start);
+    auto params = function_params(this, function->tokens, params_start);
 
     auto i = params.index;
 
@@ -716,7 +722,7 @@ void CSTConverter::visitLambda(CompoundCSTToken *cst) {
 
     auto prev = optional_param_types;
     optional_param_types = true;
-    auto result = function_params(cst->tokens, i);
+    auto result = function_params(this, cst->tokens, i);
     optional_param_types = prev;
 
     auto lambda = new LambdaFunction(std::move(captureList), std::move(result.params), result.isVariadic, Scope {parent_node});
@@ -1114,7 +1120,7 @@ void CSTConverter::visitArrayType(CompoundCSTToken *arrayType) {
 
 void CSTConverter::visitFunctionType(CompoundCSTToken *funcType) {
     bool is_capturing = is_char_op(funcType->tokens[0].get(), '[');
-    auto params = function_params(funcType->tokens, is_capturing ? 3 : 1);
+    auto params = function_params(this, funcType->tokens, is_capturing ? 3 : 1);
     visit(funcType->tokens, params.index + 2);
     types.emplace_back(
             std::make_unique<FunctionType>(std::move(params.params), type(), params.isVariadic, is_capturing));
@@ -1442,3 +1448,5 @@ void CSTConverter::visitNot(CompoundCSTToken *notCst) {
     visit(notCst->tokens);
     values.emplace_back(std::make_unique<NotValue>(value()));
 }
+
+CSTConverter::~CSTConverter() = default;

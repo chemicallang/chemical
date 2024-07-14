@@ -18,11 +18,11 @@ class LoopASTNode;
 
 using cst_tokens_ref_type = std::vector<std::unique_ptr<CSTToken>> &;
 
-struct FunctionParamsResult {
-    bool isVariadic;
-    std::vector<std::unique_ptr<FunctionParam>> params;
-    unsigned int index;
-};
+class FunctionParam;
+
+class BaseType;
+
+
 
 class CSTConverter;
 class MembersContainer;
@@ -194,12 +194,6 @@ public:
      */
     std::unique_ptr<BaseType> type();
 
-    /**
-     * get function params for the given tokens
-     * @param start is the first parameter token index in the cst tokens vector
-     */
-    FunctionParamsResult function_params(cst_tokens_ref_type tokens, unsigned start = 0);
-
     // nodes
 
     void visitContinue(CompoundCSTToken *continueCst) override;
@@ -309,5 +303,7 @@ public:
     void visitNegative(CompoundCSTToken *negativeCst) override;
 
     void visitNot(CompoundCSTToken *notCst) override;
+
+    ~CSTConverter();
 
 };

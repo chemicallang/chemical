@@ -39,6 +39,8 @@ Annotation* Annotation::get_annotation(AnnotationKind expected, bool consider_se
     return nullptr;
 }
 
+Annotation::~Annotation() = default;
+
 void AnnotationParent::traverse(const std::function<void(Annotation*)>& traverser) {
     for(auto& ann : annotations) {
         ann.traverse(true, traverser);

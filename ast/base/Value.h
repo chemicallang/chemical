@@ -222,9 +222,7 @@ std::cerr << "child called on base value";
     /**
      * this returns a hybrid pointer to base type
      */
-    virtual hybrid_ptr<BaseType> get_base_type() {
-        throw std::runtime_error("get_base_type called on bare Value with type : " + std::to_string((unsigned int) value_type()));
-    }
+    virtual hybrid_ptr<BaseType> get_base_type();
 
     /**
      * this method should be preferred over get_base_type()->get_child_type()
@@ -248,9 +246,7 @@ std::cerr << "child called on base value";
     /**
      * create a base type that represents the type of this value
      */
-    virtual std::unique_ptr<BaseType> create_type() {
-        throw std::runtime_error("create_type called on bare Value with type : " + std::to_string((unsigned int) value_type()));
-    };
+    virtual std::unique_ptr<BaseType> create_type();
 
     virtual bool is_pointer() {
         auto k = type_kind();
@@ -588,9 +584,7 @@ std::cerr << "child called on base value";
      * gets the released value, from the interpret scope provided
      *
      */
-    virtual std::unique_ptr<Value> create_evaluated_value(InterpretScope& scope) {
-        return nullptr;
-    }
+    virtual std::unique_ptr<Value> create_evaluated_value(InterpretScope& scope);
 
     /**
      * evaluate the children of this value, if this is called on a function call
@@ -603,9 +597,7 @@ std::cerr << "child called on base value";
     /**
      * called by access chain, to evaluate this value, in the parent
      */
-    virtual hybrid_ptr<Value> evaluated_chain_value(InterpretScope& scope, Value* parent) {
-        throw std::runtime_error("evaluated chain value called on base value");
-    }
+    virtual hybrid_ptr<Value> evaluated_chain_value(InterpretScope& scope, Value* parent);
 
     /**
      * just a helper method, to evaluate a value as a boolean

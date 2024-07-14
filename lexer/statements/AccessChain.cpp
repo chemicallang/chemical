@@ -97,6 +97,26 @@ void Lexer::lexFunctionCallAfterLParen(unsigned back_start) {
     compound_from<FunctionCallCST>(start);
 }
 
+void Lexer::lexFunctionCallAfterGenericStart() {
+    unsigned start = tokens.size() - 1;
+    do {
+        lexWhitespaceToken();
+        if (!lexTypeTokens()) {
+            break;
+        }
+        lexWhitespaceToken();
+    } while (lexOperatorToken(','));
+    if(!lexOperatorToken('>')) {
+        error("expected a '>' for generic list in function call");
+    }
+    compound_from<GenericListCST>(start);
+    if(lexOperatorToken('(')){
+        lexFunctionCallAfterLParen(2);
+    } else {
+        error("expected a '(' after the generic list in function call");
+    }
+}
+
 bool Lexer::lexAccessChainAfterId(bool lexStruct, unsigned chain_length) {
 
     if(lexStruct) {
@@ -130,17 +150,7 @@ bool Lexer::lexAccessChainAfterId(bool lexStruct, unsigned chain_length) {
             if (lexOperatorToken('(')) {
                 lexFunctionCallAfterLParen(1);
             } else if(lexOperatorToken('<')) {
-                unsigned start = tokens.size() - 1;
-                lexIdentifierList();
-                if(!lexOperatorToken('>')) {
-                    error("expected a '>' for generic list in function call");
-                }
-                compound_from<GenericListCST>(start);
-                if(lexOperatorToken('(')){
-                    lexFunctionCallAfterLParen(2);
-                } else {
-                    error("expected a '(' after the generic list in function call");
-                }
+                lexFunctionCallAfterGenericStart();
             } else {
                 break;
             }

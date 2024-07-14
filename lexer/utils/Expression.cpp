@@ -185,6 +185,20 @@ bool Lexer::lexExpressionTokens(bool lexStruct, bool lambda) {
         return false;
     }
 
+    lexWhitespaceToken();
+
+    if (provider.peek() == '<' && isGenericEndAhead()) {
+        auto start = tokens.size() - 1;
+        lexOperatorToken('<');
+        lexFunctionCallAfterGenericStart();
+        if(lexOperatorToken('.') && !lexAccessChainRecursive(false)) {
+            error("expected a identifier after the dot . in the access chain");
+            return true;
+        }
+        compound_from<AccessChainCST>(start);
+        return true;
+    }
+
     lexRemainingExpression(tokens.size() - 1);
 
     return true;

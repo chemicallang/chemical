@@ -82,7 +82,7 @@ llvm::Value *BaseFunctionParam::llvm_load(Codegen &gen) {
 }
 
 llvm::FunctionType *FunctionDeclaration::llvm_func_type(Codegen &gen) {
-    if(!llvm_data.empty()) {
+    if(!llvm_data.empty() && active_iteration < llvm_data.size()) {
         return llvm_data[active_iteration].second;
     }
     auto paramTypes = param_types(gen);

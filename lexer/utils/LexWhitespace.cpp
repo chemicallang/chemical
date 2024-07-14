@@ -7,7 +7,11 @@
 #include "lexer/model/tokens/RawToken.h"
 #include <memory>
 
-bool Lexer::lexWhitespaceToken() {
+bool Lexer::readWhitespace() {
     if(provider.peek() != ' ' && provider.peek() != '\t') return false;
-    return readWhitespaces() > 0;
+    return provider.readWhitespaces() > 0;
+}
+
+bool Lexer::lexWhitespaceToken() {
+    return readWhitespace();
 }

@@ -8,14 +8,10 @@ MultiFunctionNode::MultiFunctionNode(std::string name) : name(std::move(name)) {
 
 }
 
-void MultiFunctionNode::declare_top_level(SymbolResolver &linker) {
-    linker.declare(name, this);
-}
-
 void MultiFunctionNode::declare_and_link(SymbolResolver &linker) {
 
     // link all the functions
-    for(auto& func : functions) {
+    for(auto func : functions) {
         func->declare_and_link(linker);
     }
 

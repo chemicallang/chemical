@@ -449,7 +449,7 @@ void FunctionDeclaration::accept(Visitor *visitor) {
 }
 
 void FunctionDeclaration::declare_top_level(SymbolResolver &linker) {
-    linker.declare(name, this);
+    linker.declare_function(name, this);
 }
 
 void FunctionDeclaration::declare_and_link(SymbolResolver &linker) {

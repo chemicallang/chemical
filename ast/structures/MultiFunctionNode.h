@@ -25,7 +25,7 @@ public:
     /**
      * constructor
      */
-    MultiFunctionNode(std::string name);
+    explicit MultiFunctionNode(std::string name);
 
     FunctionDeclaration* func_for_call(std::vector<std::unique_ptr<Value>>& args);
 

@@ -355,9 +355,9 @@ void write_members(RepresentationVisitor* visitor, MembersContainer* container) 
         i++;
     }
     i = 0;
-    for (const auto &field: container->functions) {
+    for (const auto &field: container->functions()) {
         visitor->new_line_and_indent();
-        field.second->accept(visitor);
+        field->accept(visitor);
         i++;
     }
 }

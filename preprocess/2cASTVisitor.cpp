@@ -1407,8 +1407,8 @@ void CTopLevelDeclarationVisitor::visit(UnionDef *def) {
     visitor->indentation_level-=1;
     visitor->new_line_and_indent();
     write("};");
-    for(auto& func : def->functions) {
-        declare_contained_func(this, func.second.get(), def->name + func.second->name, false);
+    for(auto& func : def->functions()) {
+        declare_contained_func(this, func.get(), def->name + func->name, false);
     }
 }
 
@@ -1449,16 +1449,16 @@ void CTopLevelDeclarationVisitor::visit(StructDefinition *def) {
         decl->ensure_destructor(def);
     }
     InterfaceDefinition* overridden = def->overrides.has_value() ? def->overrides.value()->linked->as_interface_def() : nullptr;
-    for(auto& func : def->functions) {
-        if(!overridden || !overridden->contains_func(func.second->name)) {
-            declare_contained_func(this, func.second.get(), def->name + func.second->name, false);
+    for(auto& func : def->functions()) {
+        if(!overridden || !overridden->contains_func(func->name)) {
+            declare_contained_func(this, func.get(), def->name + func->name, false);
         }
     }
 }
 
 void CTopLevelDeclarationVisitor::visit(InterfaceDefinition *def) {
-    for(auto& func : def->functions) {
-        declare_contained_func(this, func.second.get(), def->name + func.second->name, false);
+    for(auto& func : def->functions()) {
+        declare_contained_func(this, func.get(), def->name + func->name, false);
     }
 }
 
@@ -1868,8 +1868,8 @@ void ToCAstVisitor::visit(IfStatement *decl) {
 }
 
 void ToCAstVisitor::visit(ImplDefinition *def) {
-    for(auto& func : def->functions) {
-        contained_func_decl(this, func.second.get(), def->interface_name + func.second->name, def->struct_name.has_value(), def->struct_linked);
+    for(auto& func : def->functions()) {
+        contained_func_decl(this, func.get(), def->interface_name + func->name, def->struct_name.has_value(), def->struct_linked);
     }
 }
 
@@ -1938,25 +1938,25 @@ void ToCAstVisitor::visit(StructDefinition *def) {
     current_members_container = def;
     auto overridden = def->overrides.has_value() ? def->overrides.value()->linked->as_interface_def() : nullptr;
     if(overridden) {
-        for(auto& func : overridden->functions) {
-            if(!def->contains_func(func.second->name)) {
-                contained_func_decl(this, func.second.get(), overridden->name + func.second->name, false, def);
+        for(auto& func : overridden->functions()) {
+            if(!def->contains_func(func->name)) {
+                contained_func_decl(this, func.get(), overridden->name + func->name, false, def);
             }
         }
     }
-    for(auto& func : def->functions) {
-        if(overridden && overridden->contains_func(func.second->name)) {
-            contained_func_decl(this, func.second.get(), overridden->name + func.second->name, true, def);
+    for(auto& func : def->functions()) {
+        if(overridden && overridden->contains_func(func->name)) {
+            contained_func_decl(this, func.get(), overridden->name + func->name, true, def);
         } else {
-            contained_func_decl(this, func.second.get(), def->name + func.second->name, false, def);
+            contained_func_decl(this, func.get(), def->name + func->name, false, def);
         }
     }
     current_members_container = prev_members_container;
 }
 
 void ToCAstVisitor::visit(UnionDef *def) {
-    for(auto& func : def->functions) {
-        contained_func_decl(this, func.second.get(), def->name + func.second->name, false, def);
+    for(auto& func : def->functions()) {
+        contained_func_decl(this, func.get(), def->name + func->name, false, def);
     }
 }
 

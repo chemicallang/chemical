@@ -12,10 +12,10 @@
 
 void InterfaceDefinition::code_gen(Codegen &gen) {
     std::unordered_map<std::string, llvm::Function*> unimplemented;
-    for(auto& function : functions) {
-        function.second->code_gen_interface(gen, this);
-        if(!function.second->body.has_value()) {
-            unimplemented[function.second->name] = (llvm::Function *) function.second->llvm_pointer(gen);
+    for(auto& function : functions()) {
+        function->code_gen_interface(gen, this);
+        if(!function->body.has_value()) {
+            unimplemented[function->name] = (llvm::Function *) function->llvm_pointer(gen);
         }
     }
     if(!unimplemented.empty()) {

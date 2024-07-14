@@ -144,8 +144,8 @@ void CommonVisitor::visit(StructDefinition *def) {
     for(auto& mem : def->variables) {
         mem.second->accept(this);
     }
-    for(auto& func : def->functions) {
-        func.second->accept(this);
+    for(auto& func : def->functions()) {
+        func->accept(this);
     }
 }
 

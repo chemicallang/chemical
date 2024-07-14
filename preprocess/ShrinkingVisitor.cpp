@@ -37,20 +37,20 @@ void ShrinkingVisitor::visit(ExtensionFunction *exFunc) {
 }
 
 void ShrinkingVisitor::visit(StructDefinition *def) {
-    for(auto& func : def->functions) {
-        shrink(func.second.get());
+    for(auto& func : def->functions()) {
+        shrink(func.get());
     }
 }
 
 void ShrinkingVisitor::visit(InterfaceDefinition *def) {
-    for(auto& func : def->functions) {
-        shrink(func.second.get());
+    for(auto& func : def->functions()) {
+        shrink(func.get());
     }
 }
 
 void ShrinkingVisitor::visit(ImplDefinition *def) {
-    for(auto& func : def->functions) {
-        shrink(func.second.get());
+    for(auto& func : def->functions()) {
+        shrink(func.get());
     }
 }
 

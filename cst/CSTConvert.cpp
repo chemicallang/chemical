@@ -910,11 +910,12 @@ void CSTConverter::visitDoWhile(CompoundCSTToken *doWhileCst) {
 
 unsigned int collect_struct_members(
         CSTConverter *conv,
-        std::vector<std::unique_ptr<CSTToken>> &tokens,
-        tsl::ordered_map<std::string, std::unique_ptr<BaseDefMember>> &variables,
-        tsl::ordered_map<std::string, std::unique_ptr<FunctionDeclaration>> &decls,
+        CompoundCSTToken* comp_token,
+        MembersContainer *container,
         unsigned i
 ) {
+    auto& tokens = comp_token->tokens;
+    auto& variables = container->variables;
     auto prev_anns = std::move(conv->annotations);
     while (!is_char_op(tokens[i].get(), '}')) {
         tokens[i]->accept(conv);
@@ -930,7 +931,9 @@ unsigned int collect_struct_members(
             delete node;
         } else if(tokens[i]->is_func_decl()){
             auto node = (FunctionDeclaration *) conv->pop_last_node();
-            decls[node->name] = std::unique_ptr<FunctionDeclaration>(node);
+            if(!container->insert_multi_func(std::unique_ptr<FunctionDeclaration>(node))) {
+                conv->error("conflict inserting function with name " + node->name, tokens[i].get());
+            }
         } else if(tokens[i]->is_struct_def()) {
             auto node = (StructDefinition*) conv->pop_last_node();
             auto thing = new UnnamedStruct(node->name, conv->parent_node);
@@ -976,7 +979,7 @@ void CSTConverter::visitStructDef(CompoundCSTToken *structDef) {
     current_members_container = def;
     auto prev_parent = parent_node;
     parent_node = def;
-    collect_struct_members(this, structDef->tokens, def->variables, def->functions, i);
+    collect_struct_members(this, structDef, def, i);
     parent_node = prev_parent;
     current_members_container = prev_struct_decl;
     collect_annotations_in(this, def);
@@ -993,7 +996,7 @@ void CSTConverter::visitInterface(CompoundCSTToken *interface) {
     current_members_container = def;
     auto prev_parent = parent_node;
     parent_node = def;
-    collect_struct_members(this, interface->tokens, def->variables, def->functions, i);
+    collect_struct_members(this, interface, def, i);
     parent_node = prev_parent;
     current_members_container = prev_container;
     nodes.emplace_back(def);
@@ -1010,7 +1013,7 @@ void CSTConverter::visitUnionDef(CompoundCSTToken *unionDef) {
     current_members_container = def;
     auto prev_parent = parent_node;
     parent_node = def;
-    collect_struct_members(this, unionDef->tokens, def->variables, def->functions, i);
+    collect_struct_members(this, unionDef, def, i);
     parent_node = prev_parent;
     current_members_container = prev_container;
     nodes.emplace_back(def);
@@ -1033,7 +1036,7 @@ void CSTConverter::visitImpl(CompoundCSTToken *impl) {
     current_members_container = def;
     auto prev_parent = parent_node;
     parent_node = def;
-    collect_struct_members(this, impl->tokens, def->variables, def->functions, i);
+    collect_struct_members(this, impl, def, i);
     parent_node = prev_parent;
     current_members_container = prev_container;
     nodes.emplace_back(def);

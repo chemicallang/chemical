@@ -42,9 +42,19 @@ public:
     FunctionDeclaration* destructor_func();
 
     /**
+     * insert the given function into this members container
+     */
+    void insert_func(std::unique_ptr<FunctionDeclaration> decl);
+
+    /**
      * returns true if function belonds to this members container
      */
     bool contains_func(FunctionDeclaration* decl);
+
+    /**
+     * is there a function with this name
+     */
+    bool contains_func(const std::string& name);
 
 #ifdef COMPILER_BUILD
 

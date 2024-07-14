@@ -499,6 +499,7 @@ set(COMMON_SOURCES
         std/chem_string.cpp
         ast/structures/MultiFunctionNode.h
         ast/structures/MultiFunctionNode.cpp
+        ast/structures/GenericTypeParameter.h
 )
 
 # Chemical LSP Executable Target

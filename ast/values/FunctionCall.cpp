@@ -380,6 +380,10 @@ void FunctionCall::find_link_in_parent(Value *parent, ASTDiagnoser* diagnoser, b
 void FunctionCall::find_link_in_parent(Value *parent, SymbolResolver &resolver) {
     parent_val = parent;
     relink_multi_func(&resolver);
+    if(parent_val->linked_node() && parent_val->linked_node()->as_function()) {
+        auto func = parent_val->linked_node()->as_function();
+        func->register_call(this);
+    }
     link_values(resolver);
     find_link_in_parent(parent, &resolver, false);
 }

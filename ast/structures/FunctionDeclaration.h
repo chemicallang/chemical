@@ -17,6 +17,7 @@
 #include "ast/base/AccessSpecifier.h"
 #include "ast/base/AnnotableNode.h"
 #include "BaseFunctionType.h"
+#include "GenericTypeParameter.h"
 
 class FunctionDeclaration : public AnnotableNode, public BaseFunctionType {
 private:
@@ -24,8 +25,9 @@ private:
 public:
 
     AccessSpecifier specifier;
-    std::string name; ///< The name of the function;
-    std::optional<LoopScope> body; ///< The body of the function.
+    std::string name;
+    std::vector<std::unique_ptr<GenericTypeParameter>> generic_params;
+    std::optional<LoopScope> body;
     ASTNode* parent_node;
 
     /**
@@ -79,6 +81,12 @@ public:
     void ensure_constructor(StructDefinition* def);
 
     void ensure_destructor(StructDefinition* def);
+
+    /**
+     * a call notifies a function, during symbol resolution that it exists
+     * when this happens, generics are checked, proper types are registered in generic
+     */
+    void register_call(FunctionCall* call);
 
 #ifdef COMPILER_BUILD
 

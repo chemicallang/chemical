@@ -384,6 +384,41 @@ ASTNode *BaseFunctionParam::child(const std::string &name) {
     return type->linked_node()->child(name);
 }
 
+GenericTypeParameter::GenericTypeParameter(
+        std::string identifier,
+        std::unique_ptr<BaseType> def_type,
+        FunctionDeclaration* parent_node
+) : identifier(std::move(identifier)),
+def_type(std::move(def_type)), parent_node(parent_node) {
+
+}
+
+void GenericTypeParameter::declare_and_link(SymbolResolver &linker) {
+    linker.declare(identifier, this);
+}
+
+void GenericTypeParameter::register_usage(std::unique_ptr<BaseType> type) {
+    if(type) {
+        usage.emplace_back(std::move(type));
+    } else {
+        if(def_type) {
+            usage.emplace_back(def_type->copy());
+        } else {
+            std::cerr << "expected a generic type argument for parameter " << identifier << " in function " << parent_node->name << std::endl;
+        }
+    }
+}
+
+//bool GenericTypeParameter::exists_usage(BaseType* type) {
+//    type = type != nullptr ? type : def_type.get();
+//    for(auto& use : usage) {
+//        if(use->is_same(type)) {
+//            return true;
+//        }
+//    }
+//    return false;
+//}
+
 FunctionDeclaration::FunctionDeclaration(
         std::string name,
         func_params params,
@@ -432,6 +467,41 @@ void FunctionDeclaration::ensure_destructor(StructDefinition* def) {
     }
 }
 
+void FunctionDeclaration::register_call(FunctionCall* call) {
+    if(!generic_params.empty()) {
+        unsigned i = 0;
+        bool requires_registering = true;
+        unsigned j;
+        while(i < generic_params[0]->usage.size()) {
+            j = 0;
+            bool all_params_found = true;
+            for(auto& param : generic_params) {
+                const auto generic_arg = j < call->generic_list.size() ? call->generic_list[j].get() : nullptr;
+                const auto generic_arg_pure = generic_arg ? generic_arg : param->def_type.get();
+                if(!param->usage[i]->is_same(generic_arg_pure)) {
+                    all_params_found = false;
+                    break;
+                }
+                j++;
+            }
+            if(all_params_found) {
+                requires_registering = false;
+                break;
+            }
+            i++;
+        }
+        if(requires_registering) {
+            i = 0;
+            for (auto &param: generic_params) {
+                param->register_usage(
+                        call->generic_list[i] != nullptr ? std::unique_ptr<BaseType>(call->generic_list[i]->copy())
+                                                         : nullptr);
+                i++;
+            }
+        }
+    }
+}
+
 std::unique_ptr<BaseType> FunctionDeclaration::create_value_type() {
     std::vector<std::unique_ptr<FunctionParam>> copied;
     for(const auto& param : params) {
@@ -459,6 +529,9 @@ void FunctionDeclaration::declare_and_link(SymbolResolver &linker) {
     }
     // if has body declare params
     linker.scope_start();
+    for(auto& gen_param : generic_params) {
+        gen_param->declare_and_link(linker);
+    }
     auto prev_func_type = linker.current_func_type;
     linker.current_func_type = this;
     for (auto &param: params) {

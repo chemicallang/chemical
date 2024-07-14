@@ -15,21 +15,21 @@ void ImplDefinition::code_gen(Codegen &gen) {
         return;
     }
 //    auto interface = (InterfaceDefinition*) linked;
-    for (auto &function: functions) {
-        auto unimp_func = unimplemented->second.find(function.second->name);
+    for (auto &function: functions()) {
+        auto unimp_func = unimplemented->second.find(function->name);
         if(unimp_func == unimplemented->second.end()) {
             gen.error("Couldn't find function in interface " + interface_name);
             continue;
         }
         if(!unimp_func->second) {
-            gen.error("Function '" + function.second->name + "' in interface '" + interface_name + "' has already been implemented");
+            gen.error("Function '" + function->name + "' in interface '" + interface_name + "' has already been implemented");
             continue;
         }
-        auto overridden = linked->child(function.second->name);
+        auto overridden = linked->child(function->name);
         if (overridden) {
             auto fn = overridden->as_function();
             if (fn) {
-                function.second->code_gen_override(gen, fn);
+                function->code_gen_override(gen, fn);
                 unimp_func->second = nullptr;
             }
         }

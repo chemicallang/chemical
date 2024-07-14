@@ -5,6 +5,7 @@
 #include <ranges>
 #include "compiler/SymbolResolver.h"
 #include "StructMember.h"
+#include "MultiFunctionNode.h"
 #include "FunctionDeclaration.h"
 #include "VariablesContainer.h"
 
@@ -107,19 +108,19 @@ void MembersContainer::declare_and_link(SymbolResolver &linker) {
     for (const auto &var: variables) {
         var.second->declare_and_link(linker);
     }
-    for(const auto& func : functions) {
-        func.second->declare_top_level(linker);
+    for(const auto& func : functions()) {
+        func->declare_top_level(linker);
     }
-    for (const auto &func: functions) {
-        func.second->declare_and_link(linker);
+    for (const auto &func: functions()) {
+        func->declare_and_link(linker);
     }
     linker.scope_end();
 }
 
 FunctionDeclaration *MembersContainer::member(const std::string &name) {
-    auto func = functions.find(name);
-    if(func != functions.end()) {
-        return func->second.get();
+    auto func = indexes.find(name);
+    if(func != indexes.end()) {
+        return func->second;
     }
     return nullptr;
 }
@@ -129,9 +130,9 @@ ASTNode *MembersContainer::child(const std::string &varName) {
     if (found != variables.end()) {
         return found->second.get();
     } else {
-        auto found_func = functions.find(varName);
-        if (found_func != functions.end()) {
-            return found_func->second.get();
+        auto found_func = indexes.find(varName);
+        if (found_func != indexes.end()) {
+            return found_func->second;
         } else {
             return nullptr;
         }
@@ -139,18 +140,18 @@ ASTNode *MembersContainer::child(const std::string &varName) {
 }
 
 FunctionDeclaration* MembersContainer::constructor_func(std::vector<std::unique_ptr<Value>>& forArgs) {
-    for (const auto & function : functions) {
-        if(function.second->has_annotation(AnnotationKind::Constructor) && function.second->satisfy_args(forArgs)) {
-            return function.second.get();
+    for (const auto & function : functions()) {
+        if(function->has_annotation(AnnotationKind::Constructor) && function->satisfy_args(forArgs)) {
+            return function.get();
         }
     }
     return nullptr;
 }
 
 FunctionDeclaration* MembersContainer::destructor_func() {
-    for (const auto & function : std::ranges::reverse_view(functions)) {
-        if(function.second->has_annotation(AnnotationKind::Destructor)) {
-            return function.second.get();
+    for (const auto & function : std::ranges::reverse_view(functions())) {
+        if(function->has_annotation(AnnotationKind::Destructor)) {
+            return function.get();
         }
     }
     return nullptr;
@@ -167,21 +168,28 @@ bool MembersContainer::requires_destructor() {
     return false;
 }
 
-bool MembersContainer::contains_func(FunctionDeclaration* decl) {
-    for(auto& function : functions) {
-        if(function.second.get() == decl) {
-            return true;
-        }
-    }
-    return false;
+void MembersContainer::insert_func(std::unique_ptr<FunctionDeclaration> decl) {
+    indexes[decl->name] = decl.get();
+    functions_container.emplace_back(std::move(decl));
 }
 
-void MembersContainer::insert_func(std::unique_ptr<FunctionDeclaration> decl) {
-    functions[decl->name] = std::move(decl);
+bool MembersContainer::insert_multi_func(std::unique_ptr<FunctionDeclaration> decl) {
+    auto found = indexes.find(decl->name);
+    if(found == indexes.end()) {
+        insert_func(std::move(decl));
+    } else {
+        auto result = handle_name_overridable_function(decl->name, found->second, decl.get());
+        if(!result.duplicates.empty()) {
+            return false;
+        } else if(result.new_multi_func_node) {
+            multi_nodes.emplace_back(result.new_multi_func_node);
+        }
+    }
+    return true;
 }
 
 bool MembersContainer::contains_func(const std::string& name) {
-    return functions.find(name) != functions.end();
+    return indexes.find(name) != indexes.end();
 }
 
 int VariablesContainer::variable_index(const std::string &varName) {

@@ -12,8 +12,8 @@
 #include "compiler/llvmimpl.h"
 
 void UnionDef::code_gen(Codegen &gen) {
-    for (auto &function: functions) {
-        function.second->code_gen_union(gen, this);
+    for (auto &function: functions()) {
+        function->code_gen_union(gen, this);
     }
 }
 

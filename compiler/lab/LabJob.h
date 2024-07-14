@@ -6,7 +6,7 @@
 #include "std/chem_string.h"
 #include "LabJobType.h"
 
-class LabModule;
+struct LabModule;
 
 struct LabJob {
     // the type of job

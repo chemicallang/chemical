@@ -79,19 +79,19 @@ void StructDefinition::code_gen(Codegen &gen) {
         }
         return false;
     };
-    for(auto& function : functions) {
-        auto overriding = get_overriding(function.second.get());
+    for(auto& function : functions()) {
+        auto overriding = get_overriding(function.get());
         if(overriding) {
-            function.second->code_gen_override_declare(gen, overriding);
+            function->code_gen_override_declare(gen, overriding);
             continue;
         }
-        function.second->code_gen_declare(gen, this);
+        function->code_gen_declare(gen, this);
     }
-    for (auto &function: functions) {
-        if(override(function.second.get())) {
+    for (auto &function: functions()) {
+        if(override(function.get())) {
             continue;
         }
-        function.second->code_gen_body(gen, this);
+        function->code_gen_body(gen, this);
     }
 }
 
@@ -254,11 +254,11 @@ void StructDefinition::declare_top_level(SymbolResolver &linker) {
 
 void StructDefinition::declare_and_link(SymbolResolver &linker) {
     bool has_destructor = false;
-    for(auto& func : functions) {
-        if(func.second->has_annotation(AnnotationKind::Constructor)) {
-            func.second->ensure_constructor(this);
+    for(auto& func : functions()) {
+        if(func->has_annotation(AnnotationKind::Constructor)) {
+            func->ensure_constructor(this);
         }
-        if(func.second->has_annotation(AnnotationKind::Destructor)) {
+        if(func->has_annotation(AnnotationKind::Destructor)) {
             has_destructor = true;
         }
     }

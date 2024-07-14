@@ -6,15 +6,23 @@
 #include <optional>
 #include <map>
 #include "StructMember.h"
-#include "ordered_map.h"
 #include "ast/base/AnnotableNode.h"
 #include "FunctionDeclaration.h"
 #include "VariablesContainer.h"
+#include "MultiFunctionNode.h"
 
 class MembersContainer : public AnnotableNode, public VariablesContainer {
+private:
+
+    std::vector<std::unique_ptr<FunctionDeclaration>> functions_container;
+    std::unordered_map<std::string, FunctionDeclaration*> indexes;
+    std::vector<std::unique_ptr<MultiFunctionNode>> multi_nodes;
+
 public:
 
-    tsl::ordered_map<std::string, std::unique_ptr<FunctionDeclaration>> functions;
+    const std::vector<std::unique_ptr<FunctionDeclaration>>& functions() {
+        return functions_container;
+    }
 
     void declare_and_link(SymbolResolver &linker) override;
 
@@ -47,9 +55,10 @@ public:
     void insert_func(std::unique_ptr<FunctionDeclaration> decl);
 
     /**
-     * returns true if function belonds to this members container
+     * insert a function that can have same name for multiple declarations
+     * @return true, if could insert the function, false if there's a conflict
      */
-    bool contains_func(FunctionDeclaration* decl);
+    bool insert_multi_func(std::unique_ptr<FunctionDeclaration> decl);
 
     /**
      * is there a function with this name

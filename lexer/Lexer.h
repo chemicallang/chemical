@@ -435,6 +435,11 @@ public:
     bool lexFunctionSignatureTokens();
 
     /**
+     * this occurs right after the function name
+     */
+    bool lexGenericParametersList();
+
+    /**
      * lex after func keyword has been incremented
      */
     bool lexAfterFuncKeyword(bool allow_extensions = false);

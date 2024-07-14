@@ -7,6 +7,7 @@
 #include "lexer/Lexer.h"
 #include "cst/structures/FunctionCST.h"
 #include "cst/statements/ReturnCST.h"
+#include "cst/structures/GenericParamsListCST.h"
 
 bool Lexer::lexReturnStatement() {
     if(lexKeywordToken("return")) {
@@ -76,6 +77,38 @@ void Lexer::lexParameterList(bool optionalTypes, bool defValues) {
     } while(lexOperatorToken(','));
 }
 
+bool Lexer::lexGenericParametersList() {
+    if(lexOperatorToken('<')) {
+        unsigned start = tokens.size() - 1;
+        while(true) {
+            lexWhitespaceToken();
+            if(!lexIdentifierToken()) {
+                break;
+            }
+            lexWhitespaceToken();
+            if(lexOperatorToken('=')) {
+                lexWhitespaceToken();
+                if(!lexTypeTokens()) {
+                    error("expected a default type after '=' in generic parameter list");
+                    return true;
+                }
+            }
+            lexWhitespaceToken();
+            if(!lexOperatorToken(',')) {
+                break;
+            }
+        }
+        if(!lexOperatorToken('>')) {
+            error("expected a '>' for ending the generic parameters list");
+            return true;
+        }
+        compound_from<GenericParamsListCST>(start);
+        return true;
+    } else {
+        return false;
+    }
+}
+
 bool Lexer::lexAfterFuncKeyword(bool allow_extensions) {
 
     lexWhitespaceToken();
@@ -108,6 +141,12 @@ bool Lexer::lexAfterFuncKeyword(bool allow_extensions) {
 
     if(!lexIdentifierToken()) {
         error("function name is missing after the keyword 'func'");
+        return false;
+    }
+
+    lexWhitespaceToken();
+
+    if(lexGenericParametersList() && has_errors) {
         return false;
     }
 

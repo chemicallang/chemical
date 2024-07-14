@@ -409,6 +409,26 @@ FunctionParamsResult CSTConverter::function_params(cst_tokens_ref_type tokens, u
     return {isVariadic, std::move(params), i};
 }
 
+void convert_generic_list(
+    CSTConverter *converter,
+    CompoundCSTToken* compound,
+    std::vector<std::unique_ptr<GenericTypeParameter>>& generic_list,
+    FunctionDeclaration* parent_node
+) {
+    unsigned i = 1;
+    GenericTypeParameter* parameter;
+    while(compound->tokens[i]->is_identifier()) {
+        std::unique_ptr<BaseType> def_type = nullptr;
+        if(is_char_op(compound->tokens[i + 1].get(), '=')) {
+            compound->tokens[i + 2]->accept(converter);
+            def_type = converter->type();
+        }
+        parameter = new GenericTypeParameter(str_token(compound->tokens[i].get()), std::move(def_type), parent_node);
+        generic_list.emplace_back(parameter);
+        i += 4; // 4 -> +1 -> '=' , +2 -> 'type' , +3 -> ',' , +4 -> next identifier
+    }
+}
+
 void CSTConverter::visitFunction(CompoundCSTToken *function) {
 
     auto is_extension = is_char_op(function->tokens[1].get(), '(');
@@ -417,7 +437,13 @@ void CSTConverter::visitFunction(CompoundCSTToken *function) {
         return;
     }
 
-    auto params = function_params(function->tokens, is_extension ? 6 : 3);
+    const auto generic_start = is_extension ? 7 : 2;
+
+    const auto is_generic = generic_start < function->tokens.size() && function->tokens[generic_start]->type() == LexTokenType::CompGenericParamsList;
+
+    const auto params_start = is_generic ? generic_start + 2 : is_extension ? 6 : 3;
+
+    auto params = function_params(function->tokens, params_start);
 
     auto i = params.index;
 
@@ -456,6 +482,10 @@ void CSTConverter::visitFunction(CompoundCSTToken *function) {
                                                 std::move(returnType.value()), params.isVariadic,
                                                 parent_node,
                                                 std::nullopt);
+    }
+
+    if(is_generic) {
+        convert_generic_list(this, function->tokens[generic_start]->as_compound(), funcDecl->generic_params, funcDecl);
     }
 
     if (i < function->tokens.size()) {

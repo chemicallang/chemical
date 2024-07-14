@@ -201,6 +201,10 @@ public:
         visitCompoundCommon((CompoundCSTToken *) enumDecl);
     }
 
+    virtual void visitGenericParamsList(CompoundCSTToken *enumDecl) {
+        visitCompoundCommon((CompoundCSTToken *) enumDecl);
+    }
+
     virtual void visitFunctionParam(CompoundCSTToken *param) {
         visitCompoundCommon((CompoundCSTToken *) param);
     }

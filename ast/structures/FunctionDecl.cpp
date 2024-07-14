@@ -82,6 +82,9 @@ llvm::Value *BaseFunctionParam::llvm_load(Codegen &gen) {
 }
 
 llvm::FunctionType *FunctionDeclaration::llvm_func_type(Codegen &gen) {
+    if(!llvm_data.empty()) {
+        return llvm_data[active_iteration].second;
+    }
     auto paramTypes = param_types(gen);
     if(paramTypes.empty()) {
         return llvm::FunctionType::get(llvm_func_return(gen, returnType.get()), isVariadic);
@@ -91,11 +94,7 @@ llvm::FunctionType *FunctionDeclaration::llvm_func_type(Codegen &gen) {
 }
 
 llvm::Function* FunctionDeclaration::llvm_func() {
-    if(body.has_value()) {
-        return (llvm::Function*) funcCallee;
-    } else {
-        return nullptr;
-    }
+    return (llvm::Function*) llvm_data[active_iteration].first;
 }
 
 void body_gen(Codegen &gen, llvm::Function* funcCallee, std::optional<LoopScope>& body, BaseFunctionType* func_type) {
@@ -111,11 +110,35 @@ void body_gen(Codegen &gen, llvm::Function* funcCallee, std::optional<LoopScope>
     }
 }
 
+void body_gen(Codegen &gen, FunctionDeclaration* decl, llvm::Function* funcCallee) {
+    body_gen(gen, funcCallee, decl->body, decl);
+}
+
+int16_t FunctionDeclaration::total_generic_iterations() {
+    if(generic_params.empty()) {
+        return 1;
+    } else {
+        return (int16_t) generic_params[0]->usage.size();
+    }
+}
+
 void FunctionDeclaration::code_gen(Codegen &gen) {
     if(has_annotation(AnnotationKind::CompTime)) {
         return;
     }
-    body_gen(gen, (llvm::Function*) funcCallee, body, this);
+    if(generic_params.empty()) {
+        body_gen(gen, this, llvm_func());
+    } else {
+        const auto total = total_generic_iterations();
+        int16_t i = 0;
+        while(i < total) {
+            set_active_iteration(i);
+            body_gen(gen, this, llvm_func());
+            i++;
+        }
+        // set it back to zero
+        set_active_iteration(0);
+    }
 }
 
 void llvm_func_attr(llvm::Function* func, AnnotationKind kind) {
@@ -147,14 +170,38 @@ void llvm_func_def_attr(llvm::Function* func) {
     func->addFnAttr(llvm::Attribute::NoUnwind);
 }
 
-void create_fn(Codegen& gen, FunctionDeclaration *decl, const std::string& name) {
+void set_llvm_data(FunctionDeclaration* decl, llvm::Value* func_callee, llvm::FunctionType* func_type) {
+    if(decl->active_iteration >= decl->llvm_data.size()) {
+        decl->llvm_data.emplace_back(func_callee, func_type);
+    } else {
+        decl->llvm_data[decl->active_iteration].first = func_callee;
+        decl->llvm_data[decl->active_iteration].second = func_type;
+    }
+}
+
+void create_non_generic_fn(Codegen& gen, FunctionDeclaration *decl, const std::string& name) {
     auto func = gen.create_function(name, decl->llvm_func_type(gen), decl->specifier);
     llvm_func_def_attr(func);
     decl->traverse([func](Annotation* annotation){
         llvm_func_attr(func, annotation->kind);
     });
-    decl->funcType = func->getFunctionType();
-    decl->funcCallee = func;
+    set_llvm_data(decl, func, func->getFunctionType());
+}
+
+void create_fn(Codegen& gen, FunctionDeclaration *decl, const std::string& name) {
+    if(decl->generic_params.empty()) {
+        create_non_generic_fn(gen, decl, name);
+    } else {
+        const auto total_use = decl->generic_params[0]->usage.size();
+        int16_t i = 0;
+        while(i < total_use) {
+            decl->set_active_iteration(i);
+            create_non_generic_fn(gen, decl, name);
+            i++;
+        }
+        // set it back to zero
+        decl->set_active_iteration(0);
+    }
 }
 
 inline void create_fn(Codegen& gen, FunctionDeclaration *decl) {
@@ -163,8 +210,7 @@ inline void create_fn(Codegen& gen, FunctionDeclaration *decl) {
 
 void declare_fn(Codegen& gen, FunctionDeclaration *decl) {
     auto callee = gen.declare_function(decl->name, decl->llvm_func_type(gen));
-    decl->funcType = callee.getFunctionType();
-    decl->funcCallee = callee.getCallee();
+    set_llvm_data(decl, callee.getCallee(), callee.getFunctionType());
 }
 
 void FunctionDeclaration::code_gen_declare(Codegen &gen) {
@@ -188,7 +234,7 @@ void FunctionDeclaration::code_gen_interface(Codegen &gen, InterfaceDefinition* 
 }
 
 void FunctionDeclaration::code_gen_override(Codegen& gen, FunctionDeclaration* decl) {
-    body_gen(gen, (llvm::Function*) decl->funcCallee, body, this);
+    body_gen(gen, this, decl->llvm_func());
 }
 
 void FunctionDeclaration::code_gen_declare(Codegen &gen, StructDefinition* def) {
@@ -202,8 +248,7 @@ void FunctionDeclaration::code_gen_declare(Codegen &gen, StructDefinition* def) 
 }
 
 void FunctionDeclaration::code_gen_override_declare(Codegen &gen, FunctionDeclaration* decl) {
-    funcCallee = decl->funcCallee;
-    funcType = decl->funcType;
+    set_llvm_data(this, decl->llvm_pointer(gen), decl->llvm_func_type(gen));
 }
 
 void FunctionDeclaration::code_gen_body(Codegen &gen, StructDefinition* def) {
@@ -241,7 +286,7 @@ void FunctionDeclaration::code_gen_union(Codegen &gen, UnionDef* def) {
 //}
 
 void FunctionDeclaration::code_gen_destructor(Codegen& gen, StructDefinition* def) {
-    auto func = (llvm::Function*) funcCallee;
+    auto func = llvm_func();
     if(body.has_value() && !body->nodes.empty()) {
         llvm::BasicBlock* cleanup_block = llvm::BasicBlock::Create(*gen.ctx, "", func);
         gen.redirect_return = cleanup_block;
@@ -269,7 +314,7 @@ void FunctionDeclaration::code_gen_destructor(Codegen& gen, StructDefinition* de
             if(destructor->has_self_param()) {
                 args.emplace_back(element_ptr);
             }
-            gen.builder->CreateCall(destructor->llvm_func_type(gen), destructor->funcCallee, args);
+            gen.builder->CreateCall(destructor->llvm_func_type(gen), destructor->llvm_pointer(gen), args);
         }
         index++;
     }
@@ -290,7 +335,7 @@ llvm::Value *FunctionDeclaration::llvm_load(Codegen &gen) {
 }
 
 llvm::Value *FunctionDeclaration::llvm_pointer(Codegen &gen) {
-    return funcCallee;
+    return llvm_data[active_iteration].first;
 }
 
 llvm::Value *CapturedVariable::llvm_load(Codegen &gen) {
@@ -464,6 +509,13 @@ void FunctionDeclaration::ensure_destructor(StructDefinition* def) {
     if(!body.has_value()) {
         body.emplace(std::vector<std::unique_ptr<ASTNode>> {}, this);
         body.value().nodes.emplace_back(new ReturnStatement(std::nullopt, this, &body.value()));
+    }
+}
+
+void FunctionDeclaration::set_active_iteration(int16_t iteration) {
+    active_iteration = iteration;
+    for(auto& param : generic_params) {
+        param->active_iteration = iteration;
     }
 }
 

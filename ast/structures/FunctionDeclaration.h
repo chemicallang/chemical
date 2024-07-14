@@ -29,15 +29,19 @@ public:
     std::vector<std::unique_ptr<GenericTypeParameter>> generic_params;
     std::optional<LoopScope> body;
     ASTNode* parent_node;
-
+    /**
+     * if this is a generic function (it has generic parameters), generic parameters
+     * pretend to be different types on different iterations, iterations are number of usages
+     * that we determined during symbol resolution, by default zero means no active
+     */
+    int16_t active_iteration = 0;
     /**
      * when involved in multi function node (due to same name, different parameters)
      */
     uint8_t multi_func_index = 0;
 
 #ifdef COMPILER_BUILD
-    llvm::FunctionType *funcType;
-    llvm::Value *funcCallee;
+    std::vector<std::pair<llvm::Value*, llvm::FunctionType*>> llvm_data;
 #endif
 
     /**
@@ -56,6 +60,12 @@ public:
             ASTNode* parent_node,
             std::optional<LoopScope> body = std::nullopt
     );
+
+    /**
+     * how many actual functions are generated from this generic function
+     * non-generic functions return 1
+     */
+    int16_t total_generic_iterations();
 
     void set_parent(ASTNode* new_parent) override {
         parent_node = new_parent;
@@ -81,6 +91,12 @@ public:
     void ensure_constructor(StructDefinition* def);
 
     void ensure_destructor(StructDefinition* def);
+
+    /**
+     * set's the active iteration for a generic function
+     * this helps generics types pretend to be certain type
+     */
+    void set_active_iteration(int16_t iteration);
 
     /**
      * a call notifies a function, during symbol resolution that it exists

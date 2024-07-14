@@ -682,7 +682,7 @@ void DeleteStmt::code_gen(Codegen &gen) {
             const auto stmt = (DeleteStmt*) data;
             std::vector<llvm::Value*> args;
             args.emplace_back(structPtr);
-            gen->builder->CreateCall(stmt->free_func_linked->llvm_func_type(*gen), stmt->free_func_linked->funcCallee, args);
+            gen->builder->CreateCall(stmt->free_func_linked->llvm_func_type(*gen), stmt->free_func_linked->llvm_pointer(*gen), args);
         });
     } else {
         auto def = pure_type->linked_node()->as_struct_def();
@@ -691,10 +691,10 @@ void DeleteStmt::code_gen(Codegen &gen) {
         if (destructor->has_self_param()) {
             destr_args.emplace_back(identifier->llvm_value(gen));
         }
-        gen.builder->CreateCall(destructor->llvm_func_type(gen), destructor->funcCallee, destr_args);
+        gen.builder->CreateCall(destructor->llvm_func_type(gen), destructor->llvm_pointer(gen), destr_args);
         std::vector<llvm::Value*> args;
         args.emplace_back(identifier->llvm_pointer(gen));
-        gen.builder->CreateCall(free_func_linked->llvm_func_type(gen), free_func_linked->funcCallee, args);
+        gen.builder->CreateCall(free_func_linked->llvm_func_type(gen), free_func_linked->llvm_pointer(gen), args);
     }
 }
 

@@ -229,7 +229,7 @@ void Codegen::destruct(llvm::Value* allocaInst, unsigned int array_size, BaseTyp
     if(destructorFunc->has_self_param()) {
         args.emplace_back(structPtr);
     }
-    builder->CreateCall(destructorFunc->llvm_func_type(gen), destructorFunc->funcCallee, args, "");
+    builder->CreateCall(destructorFunc->llvm_func_type(gen), destructorFunc->llvm_pointer(gen), args, "");
     if(after_destruct) after_destruct(this, structPtr, data);
     auto result = builder->CreateICmpEQ(structPtr, firstEle);
     auto end_block = llvm::BasicBlock::Create(*ctx, "", current_function);

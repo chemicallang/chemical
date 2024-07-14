@@ -121,7 +121,7 @@ void StructDefinition::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
         if(func->has_self_param()) {
             args.emplace_back(allocaInst);
         }
-        gen.builder->CreateCall(func->llvm_func_type(gen), func->funcCallee, args);
+        gen.builder->CreateCall(func->llvm_func_type(gen), func->llvm_pointer(gen), args);
     }
 }
 

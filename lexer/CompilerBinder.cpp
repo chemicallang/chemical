@@ -7,6 +7,7 @@
 #include "lexer/model/CompilerBinderTCC.h"
 #include "utils/PathUtils.h"
 #include "lexer/model/CompilerBinderCommon.h"
+#include "ast/base/ASTNode.h"
 
 IdentifierToken dummy_token_at_start() {
     return IdentifierToken { Position(0,0),""};

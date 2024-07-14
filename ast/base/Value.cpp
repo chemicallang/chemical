@@ -22,6 +22,22 @@
 #include "compiler/llvmimpl.h"
 #include "ast/structures/StructMember.h"
 
+hybrid_ptr<BaseType> Value::get_base_type() {
+    throw std::runtime_error("get_base_type called on bare Value with type : " + std::to_string((unsigned int) value_type()));
+}
+
+std::unique_ptr<BaseType> Value::create_type() {
+    throw std::runtime_error("create_type called on bare Value with type : " + std::to_string((unsigned int) value_type()));
+}
+
+std::unique_ptr<Value> Value::create_evaluated_value(InterpretScope& scope) {
+    return nullptr;
+}
+
+hybrid_ptr<Value> Value::evaluated_chain_value(InterpretScope& scope, Value* parent) {
+    throw std::runtime_error("evaluated chain value called on base value");
+}
+
 llvm::AllocaInst* Value::llvm_allocate_with(Codegen& gen, llvm::Value* value, llvm::Type* type) {
     auto x = gen.builder->CreateAlloca(type, nullptr);
     gen.builder->CreateStore(value, x);

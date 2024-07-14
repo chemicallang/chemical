@@ -220,6 +220,9 @@ llvm::Value* FunctionCall::llvm_chain_value(
     }
 
     auto decl = safe_linked_func();
+    if(decl && !decl->generic_params.empty()) {
+        decl->set_active_iteration(generic_iteration);
+    }
     llvm::Value* returnedValue = returnedStruct;
     auto returnsStruct = func_type->returnType->value_type() == ValueType::Struct;
 
@@ -380,12 +383,18 @@ void FunctionCall::find_link_in_parent(Value *parent, ASTDiagnoser* diagnoser, b
 void FunctionCall::find_link_in_parent(Value *parent, SymbolResolver &resolver) {
     parent_val = parent;
     relink_multi_func(&resolver);
+    FunctionDeclaration* func_decl = nullptr;
     if(parent_val->linked_node() && parent_val->linked_node()->as_function()) {
-        auto func = parent_val->linked_node()->as_function();
-        func->register_call(this);
+        func_decl = parent_val->linked_node()->as_function();
+        generic_iteration = func_decl->register_call(this);
+        func_decl->set_active_iteration(generic_iteration);
     }
     link_values(resolver);
     find_link_in_parent(parent, &resolver, false);
+    if(func_decl) {
+        // set active iteration to -1, all generic types would fail if accessed without setting iteration
+        func_decl->set_active_iteration(-1);
+    }
 }
 
 FunctionCall *FunctionCall::as_func_call() {

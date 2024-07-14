@@ -99,10 +99,17 @@ public:
     void set_active_iteration(int16_t iteration);
 
     /**
+     * get iteration for call, if it exists, otherwise returns -1
+     * non generic functions return 0
+     */
+    int16_t get_iteration_for(FunctionCall* call);
+
+    /**
      * a call notifies a function, during symbol resolution that it exists
      * when this happens, generics are checked, proper types are registered in generic
+     * @return iteration that corresponds to this call
      */
-    void register_call(FunctionCall* call);
+    int16_t register_call(FunctionCall* call);
 
 #ifdef COMPILER_BUILD
 

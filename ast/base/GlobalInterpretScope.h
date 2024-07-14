@@ -7,10 +7,11 @@
 #pragma once
 
 #include "InterpretScope.h"
-#include "ast/structures/FunctionDeclaration.h"
 #include "utils/fwd/functional.h"
 #include <vector>
 #include <memory>
+
+class Namespace;
 
 class SymbolResolver;
 

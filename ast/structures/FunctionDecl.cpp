@@ -136,8 +136,8 @@ void FunctionDeclaration::code_gen(Codegen &gen) {
             body_gen(gen, this, llvm_func());
             i++;
         }
-        // set it back to zero
-        set_active_iteration(0);
+        // we set active iteration to -1, so all generics would fail if acessed without setting active iteration
+        set_active_iteration(-1);
     }
 }
 
@@ -199,8 +199,8 @@ void create_fn(Codegen& gen, FunctionDeclaration *decl, const std::string& name)
             create_non_generic_fn(gen, decl, name);
             i++;
         }
-        // set it back to zero
-        decl->set_active_iteration(0);
+        // we set active iteration to -1, so all generics would fail without setting active_iteration
+        decl->set_active_iteration(-1);
     }
 }
 
@@ -442,27 +442,17 @@ void GenericTypeParameter::declare_and_link(SymbolResolver &linker) {
     linker.declare(identifier, this);
 }
 
-void GenericTypeParameter::register_usage(std::unique_ptr<BaseType> type) {
+void GenericTypeParameter::register_usage(BaseType* type) {
     if(type) {
-        usage.emplace_back(std::move(type));
+        usage.emplace_back(type);
     } else {
         if(def_type) {
-            usage.emplace_back(def_type->copy());
+            usage.emplace_back(def_type.get());
         } else {
             std::cerr << "expected a generic type argument for parameter " << identifier << " in function " << parent_node->name << std::endl;
         }
     }
 }
-
-//bool GenericTypeParameter::exists_usage(BaseType* type) {
-//    type = type != nullptr ? type : def_type.get();
-//    for(auto& use : usage) {
-//        if(use->is_same(type)) {
-//            return true;
-//        }
-//    }
-//    return false;
-//}
 
 FunctionDeclaration::FunctionDeclaration(
         std::string name,
@@ -513,18 +503,22 @@ void FunctionDeclaration::ensure_destructor(StructDefinition* def) {
 }
 
 void FunctionDeclaration::set_active_iteration(int16_t iteration) {
-    active_iteration = iteration;
-    for(auto& param : generic_params) {
+    if(iteration == -1) {
+        active_iteration = 0;
+    } else {
+        active_iteration = iteration;
+    }
+    for (auto &param: generic_params) {
         param->active_iteration = iteration;
     }
 }
 
-void FunctionDeclaration::register_call(FunctionCall* call) {
+int16_t FunctionDeclaration::get_iteration_for(FunctionCall* call) {
     if(!generic_params.empty()) {
-        unsigned i = 0;
-        bool requires_registering = true;
+        int16_t i = 0;
         unsigned j;
-        while(i < generic_params[0]->usage.size()) {
+        const auto total = generic_params[0]->usage.size();
+        while(i < total) {
             j = 0;
             bool all_params_found = true;
             for(auto& param : generic_params) {
@@ -537,20 +531,34 @@ void FunctionDeclaration::register_call(FunctionCall* call) {
                 j++;
             }
             if(all_params_found) {
-                requires_registering = false;
                 break;
             }
             i++;
         }
-        if(requires_registering) {
+        if(i == total) {
+            return -1;
+        }
+        return i;
+    } else {
+        return 0;
+    }
+}
+
+int16_t FunctionDeclaration::register_call(FunctionCall* call) {
+    if(!generic_params.empty()) {
+        int16_t i = get_iteration_for(call);
+        if(i == -1) {
             i = 0;
             for (auto &param: generic_params) {
-                param->register_usage(
-                        call->generic_list[i] != nullptr ? std::unique_ptr<BaseType>(call->generic_list[i]->copy())
-                                                         : nullptr);
+                param->register_usage(i < call->generic_list.size() ? call->generic_list[i].get() : nullptr);
                 i++;
             }
+            i = total_generic_iterations();
+            i -= 1;
         }
+        return i;
+    } else {
+        return 0;
     }
 }
 
@@ -576,7 +584,7 @@ void FunctionDeclaration::declare_top_level(SymbolResolver &linker) {
 
 void FunctionDeclaration::declare_and_link(SymbolResolver &linker) {
     if(has_annotation(AnnotationKind::Extern)) {
-        annotations.emplace_back(AnnotationKind::Api);
+        annotations.push_back(AnnotationKind::Api);
         specifier = AccessSpecifier::Public;
     }
     // if has body declare params

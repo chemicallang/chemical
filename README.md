@@ -162,7 +162,7 @@ very innovative things are planned.
 - [x] Explicit copying, there's no implicit copying, you must call .copy()
 - [x] Const Function Params, cannot change value of parameter
 - [x] Comptime Support
-- [ ] Same name function overloading
+- [x] Same name function overloading
 - [ ] Generics
 - [ ] Virtual & Interface like C++ & Rust
 - [ ] On Demand Function Mangling

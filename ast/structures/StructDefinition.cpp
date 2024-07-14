@@ -237,7 +237,7 @@ FunctionDeclaration* StructDefinition::create_destructor() {
     decl->params.emplace_back(new FunctionParam("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>(name, this)), 0, std::nullopt, decl));
     decl->body.emplace(LoopScope{nullptr});
     decl->annotations.emplace_back(AnnotationKind::Destructor);
-    functions["delete"] = std::unique_ptr<FunctionDeclaration>(decl);
+    insert_func(std::unique_ptr<FunctionDeclaration>(decl));
     return decl;
 }
 
@@ -264,8 +264,7 @@ void StructDefinition::declare_and_link(SymbolResolver &linker) {
     }
     MembersContainer::declare_and_link(linker);
     if(!has_destructor && requires_destructor()) {
-        auto found = functions.find("delete");
-        if(found != functions.end()) {
+        if(contains_func("delete")) {
             linker.error("default destructor is created by name 'delete' , a function by name 'delete' already exists in struct '" + name + "', please create a destructor by hand if you'd like to reserve 'delete' for your own usage");
             return;
         }

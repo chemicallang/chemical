@@ -131,11 +131,11 @@ namespace InterpretVector {
     };
 
     InterpretVectorNode::InterpretVectorNode(ASTNode* parent_node) : StructDefinition("Vector", std::nullopt, parent_node) {
-        functions["constructor"] = std::make_unique<InterpretVectorConstructor>(this);
-        functions["size"] = std::make_unique<InterpretVectorSize>(this);
-        functions["get"] = std::make_unique<InterpretVectorGet>(this);
-        functions["push"] = std::make_unique<InterpretVectorPush>(this);
-        functions["erase"] = std::make_unique<InterpretVectorErase>(this);
+        insert_func(std::make_unique<InterpretVectorConstructor>(this));
+        insert_func(std::make_unique<InterpretVectorSize>(this));
+        insert_func(std::make_unique<InterpretVectorGet>(this));
+        insert_func(std::make_unique<InterpretVectorPush>(this));
+        insert_func(std::make_unique<InterpretVectorErase>(this));
     }
 
 }

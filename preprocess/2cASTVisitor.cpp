@@ -1450,7 +1450,7 @@ void CTopLevelDeclarationVisitor::visit(StructDefinition *def) {
     }
     InterfaceDefinition* overridden = def->overrides.has_value() ? def->overrides.value()->linked->as_interface_def() : nullptr;
     for(auto& func : def->functions) {
-        if(!overridden || overridden->functions.find(func.second->name) == overridden->functions.end()) {
+        if(!overridden || !overridden->contains_func(func.second->name)) {
             declare_contained_func(this, func.second.get(), def->name + func.second->name, false);
         }
     }
@@ -1939,13 +1939,13 @@ void ToCAstVisitor::visit(StructDefinition *def) {
     auto overridden = def->overrides.has_value() ? def->overrides.value()->linked->as_interface_def() : nullptr;
     if(overridden) {
         for(auto& func : overridden->functions) {
-            if(def->functions.find(func.second->name) == def->functions.end()) {
+            if(!def->contains_func(func.second->name)) {
                 contained_func_decl(this, func.second.get(), overridden->name + func.second->name, false, def);
             }
         }
     }
     for(auto& func : def->functions) {
-        if(overridden && overridden->functions.find(func.second->name) != overridden->functions.end()) {
+        if(overridden && overridden->contains_func(func.second->name)) {
             contained_func_decl(this, func.second.get(), overridden->name + func.second->name, true, def);
         } else {
             contained_func_decl(this, func.second.get(), def->name + func.second->name, false, def);
@@ -2025,7 +2025,7 @@ void func_container_name(ToCAstVisitor* visitor, ASTNode* parent_node, ASTNode* 
     } else if(parent_node->as_struct_def()) {
         if(parent_node->as_struct_def()->overrides.has_value()) {
             auto interface = parent_node->as_struct_def()->overrides.value()->linked_node()->as_interface_def();
-            if(interface->functions.find(linked_node->as_function()->name) != interface->functions.end()) {
+            if(interface->contains_func(linked_node->as_function()->name)) {
                 visitor->write(interface->name);
             } else {
                 visitor->write(parent_node->as_struct_def()->name);

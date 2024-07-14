@@ -176,6 +176,14 @@ bool MembersContainer::contains_func(FunctionDeclaration* decl) {
     return false;
 }
 
+void MembersContainer::insert_func(std::unique_ptr<FunctionDeclaration> decl) {
+    functions[decl->name] = std::move(decl);
+}
+
+bool MembersContainer::contains_func(const std::string& name) {
+    return functions.find(name) != functions.end();
+}
+
 int VariablesContainer::variable_index(const std::string &varName) {
     auto i = 0;
     for (const auto &var: variables) {

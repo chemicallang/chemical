@@ -35,6 +35,8 @@ class BaseFunctionParam;
 
 class AnnotableNode;
 
+class MultiFunctionNode;
+
 class VariablesContainer;
 
 /**
@@ -138,6 +140,13 @@ public:
      * return this as an annotable node
      */
     virtual AnnotableNode* as_annotable_node() {
+        return nullptr;
+    }
+
+    /**
+     * return this as a multi function node
+     */
+    virtual MultiFunctionNode* as_multi_func_node() {
         return nullptr;
     }
 

@@ -51,7 +51,7 @@ func build(ctx : BuildContext*) {
     const do_llvm_ir = compiler::is_clang_based();
     const do_asm = false;
     const do_c = true;
-    const do_to_c = compiler::is_clang_based();
+    const do_to_ch = compiler::is_clang_based();
 
     if(do_llvm_ir) {
         gen_ir(ctx, &exe_name, module);
@@ -73,7 +73,7 @@ func build(ctx : BuildContext*) {
         ctx.translate_mod_to_c(module, output_file);
     }
 
-    if(do_to_c) {
+    if(do_to_ch) {
         const output_file = exe_dir_file(ctx, &exe_name, &ext_module.name, ".ch")
         const input_file = relative_path(string("ext/file.c"))
         ctx.translate_to_chemical(input_file, output_file);

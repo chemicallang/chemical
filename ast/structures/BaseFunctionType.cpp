@@ -39,6 +39,18 @@ bool BaseFunctionType::satisfy_args(std::vector<std::unique_ptr<Value>>& forArgs
     return true;
 }
 
+bool BaseFunctionType::do_param_types_match(std::vector<std::unique_ptr<FunctionParam>>& param_types) {
+    if(params.size() != param_types.size()) return false;
+    unsigned i = 0;
+    for(auto& param : params) {
+        if(!param_types[i]->type->is_same(param->type.get())) {
+            return false;
+        }
+        i++;
+    }
+    return true;
+}
+
 void BaseFunctionType::assign_params() {
     for(auto& param : params) {
         param->func_type = this;

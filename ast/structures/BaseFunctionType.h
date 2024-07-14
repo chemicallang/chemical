@@ -56,6 +56,11 @@ public:
      */
     FunctionParam* func_param_for_arg_at(unsigned index);
 
+    /**
+     * do parameter types match with the given function parameter types
+     */
+    bool do_param_types_match(std::vector<std::unique_ptr<FunctionParam>>& param_types);
+
     virtual ExtensionFunction* as_extension_func() {
         return nullptr;
     }

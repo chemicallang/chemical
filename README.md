@@ -122,6 +122,7 @@ very innovative things are planned.
   - [x] Can generate shared objects / dll
   - [ ] Can generate static libraries
   - [x] Can compile and link C module
+  - [ ] Watch mode, so files can be compiled incrementally
   - [ ] Configure compile / link parameters
 - [ ] Maintenance Phase
   - [ ] Eliminate bugs, Stabilize
@@ -163,7 +164,7 @@ very innovative things are planned.
 - [x] Comptime Support
 - [ ] Same name function overloading
 - [ ] Generics
-- [ ] Virtual Functions like C++
+- [ ] Virtual & Interface like C++ & Rust
 - [ ] On Demand Function Mangling
   - [ ] When a conflict is detected, we mangle the un-important symbol
   - [ ] If user wants to expose both symbols, we generate an error

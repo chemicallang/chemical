@@ -261,7 +261,8 @@ void accept_func_return(ToCAstVisitor* visitor, BaseType* type) {
 // when the interface name is to be used, so interface appends the name in given name parameter
 // take_parent is true, so this function skips direct parent but grandparents and other names are appended
 void accept_func_return_with_name(ToCAstVisitor* visitor, BaseFunctionType* func_type, const std::string& name, bool take_parent, bool is_static) {
-    if(func_type->as_function() && func_type->as_function()->has_annotation(AnnotationKind::Extern)) {
+    auto func_decl = func_type->as_function();
+    if(func_decl && func_decl->has_annotation(AnnotationKind::Extern)) {
         visitor->write("extern ");
     }
     if(is_static) {
@@ -271,6 +272,10 @@ void accept_func_return_with_name(ToCAstVisitor* visitor, BaseFunctionType* func
     visitor->space();
     node_parent_name(visitor, take_parent ? func_type->parent() : func_type->as_function());
     visitor->write(name);
+    if(func_decl && func_decl->multi_func_index != 0) {
+        visitor->write("__cmf_");
+        visitor->write(std::to_string(func_decl->multi_func_index));
+    }
 }
 
 void func_type_with_id(ToCAstVisitor* visitor, FunctionType* type, const std::string& id) {
@@ -720,11 +725,19 @@ void CBeforeStmtVisitor::visit(FunctionCall *call) {
 void chain_after_func(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& values, unsigned start, const unsigned end, const unsigned total_size);
 
 void func_name(ToCAstVisitor* visitor, Value* ref, FunctionDeclaration* func_decl) {
-//    if(func_decl && func_decl->has_annotation(AnnotationKind::Constructor)) {
-//        visitor->write(func_decl->name);
-//    } else {
     ref->accept(visitor); // function name
-//    }
+    if(func_decl->multi_func_index != 0) {
+        visitor->write("__cmf_");
+        visitor->write(std::to_string(func_decl->multi_func_index));
+    }
+}
+
+void func_name(ToCAstVisitor* visitor, FunctionDeclaration* func_decl) {
+    visitor->write(func_decl->name);
+    if(func_decl->multi_func_index != 0) {
+        visitor->write("__cmf_");
+        visitor->write(std::to_string(func_decl->multi_func_index));
+    }
 }
 
 void func_call_that_returns_struct(ToCAstVisitor* visitor, CBeforeStmtVisitor* actual_visitor, std::vector<std::unique_ptr<Value>>& values, unsigned start, unsigned end) {
@@ -2009,7 +2022,8 @@ void func_call(ToCAstVisitor* visitor, FunctionType* type, std::unique_ptr<Value
 // this automatically determines which parent to pass through
 void func_container_name(ToCAstVisitor* visitor, FunctionDeclaration* func_node) {
     node_parent_name(visitor, func_node);
-    visitor->write(func_node->name);
+    func_name(visitor, func_node);
+//    visitor->write(func_node->name);
 }
 
 // the parent_node is the parent of the function node

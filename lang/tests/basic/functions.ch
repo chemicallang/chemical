@@ -47,6 +47,64 @@ func can_take_literal_type(my_int : literal::int) : int {
     return my_int + 3;
 }
 
+func sno_func() : int {
+    return 10;
+}
+
+func sno_func(a : int) : int {
+    return a;
+}
+
+func sno_func(a : int, b : int) : int {
+    return a + b;
+}
+
+func test_name_overriding() {
+    test("correct function is called when same names overriding - 1", () => {
+        return sno_func() == 10
+    })
+    test("correct function is called when same names overriding - 2", () => {
+        return sno_func(20) == 20
+    })
+    test("correct function is called when same names overriding - 3", () => {
+        return sno_func(20, 20) == 40
+    })
+}
+
+struct SnoPair {
+
+    var a : int
+    var b : int
+
+    func plus(&self) : int {
+        return a + b;
+    }
+
+    func plus(&self, c : int) : int {
+        return a + b + c;
+    }
+
+    func plus(&self, c : int, d : int) : int{
+        return a + b + c + d;
+    }
+
+}
+
+func test_name_overriding_in_struct() {
+    test("correct function is called when same names overriding in struct - 1", () => {
+        var p = SnoPair { a : 10, b : 10 }
+        return p.plus() == 20;
+    })
+    test("correct function is called when same names overriding in struct - 1", () => {
+        var p = SnoPair { a : 10, b : 10 }
+        return p.plus(10) == 30;
+    })
+    test("correct function is called when same names overriding in struct - 1", () => {
+        var p = SnoPair { a : 10, b : 10 }
+        return p.plus(10, 10) == 40;
+    })
+}
+
 func test_functions() {
     test("test struct member access in chain, tld function return", () => {
         return test_struct().x == 100;
@@ -110,4 +168,6 @@ func test_functions() {
     test("function can take literal type", () => {
         return can_take_literal_type(2) == 5
     })
+    test_name_overriding();
+    test_name_overriding_in_struct();
 }

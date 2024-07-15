@@ -5,7 +5,7 @@
 #include <memory>
 #include <string>
 #include "cst/base/CompoundCSTToken.h"
-#include "lexer/model/tokens/CharOperatorToken.h"
+#include "lexer/model/tokens/LexToken.h"
 
 class ImportUnit;
 
@@ -21,7 +21,7 @@ inline std::string escaped_str_token(CSTToken *token) {
 }
 
 inline char char_op(CSTToken *token) {
-    return static_cast<CharOperatorToken *>(token)->value[0];
+    return static_cast<LexToken *>(token)->value[0];
 }
 
 inline bool is_keyword(CSTToken *token, const std::string &x) {

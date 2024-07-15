@@ -1,7 +1,5 @@
 // Copyright (c) Qinetik 2024.
 
-#include "cst/structures/FunctionCST.h"
-#include "lexer/model/tokens/CharOperatorToken.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/statements/VarInit.h"
 #include "ast/types/IntNType.h"
@@ -10,8 +8,6 @@
 #include "ast/types/FunctionType.h"
 #include "ast/types/ReferencedType.h"
 #include "ast/statements/Assignment.h"
-#include "cst/values/AccessChainCST.h"
-#include "cst/values/ExpressionCST.h"
 #include "ast/types/ArrayType.h"
 #include "ast/values/StringValue.h"
 #include "ast/values/FloatValue.h"
@@ -29,10 +25,7 @@
 #include "ast/values/NotValue.h"
 #include "ast/values/AddrOfValue.h"
 #include "ast/values/DereferenceValue.h"
-#include "lexer/model/tokens/CharToken.h"
 #include "ast/values/VariableIdentifier.h"
-#include "lexer/model/tokens/OperationToken.h"
-#include "lexer/model/tokens/VariableToken.h"
 #include "ast/statements/Import.h"
 #include "ast/structures/TryCatch.h"
 #include "ast/structures/EnumDeclaration.h"
@@ -54,7 +47,6 @@
 #include "ast/structures/UnionDef.h"
 #include "ast/structures/UnnamedUnion.h"
 #include "ast/structures/UnnamedStruct.h"
-#include "cst/structures/WhileCST.h"
 #include "ast/structures/DoWhileLoop.h"
 #include "ast/statements/Continue.h"
 #include "ast/statements/SwitchStatement.h"
@@ -85,12 +77,11 @@
 #include "ast/statements/UsingStmt.h"
 
 Operation get_operation(CSTToken *token) {
-    auto op = (OperationToken*) token;
     std::string num;
     unsigned i = 0;
-    while(i < op->value.size()) {
-        if(std::isdigit(op->value[i])) {
-            num.append(1, op->value[i]);
+    while(i < ((LexToken*) token)->value.size()) {
+        if(std::isdigit(((LexToken*) token)->value[i])) {
+            num.append(1, ((LexToken*) token)->value[i]);
         }
         i++;
     }
@@ -378,7 +369,7 @@ FunctionParamsResult function_params(CSTConverter* converter, cst_tokens_ref_typ
     unsigned i = start;
     while (i < tokens.size()) {
         if (converter->param_index == 0 && is_char_op(tokens[i]->start_token(), '&')) {
-            auto &paramTokens = ((FunctionParamCST *) tokens[i].get())->tokens;
+            auto &paramTokens = ((CompoundCSTToken *) tokens[i].get())->tokens;
             auto strId = str_token(paramTokens[1].get());
             if (strId != "this" && strId != "self") {
                 converter->error("expected self parameter to be named 'self' or 'this'", tokens[i].get());
@@ -713,7 +704,7 @@ void CSTConverter::visitLambda(CompoundCSTToken *cst) {
                 i++;
             }
             if (cst->tokens[i]->type() == LexTokenType::Variable) {
-                captureList.emplace_back(new CapturedVariable(((VariableToken *) (cst->tokens[i].get()))->value, capInd++, capture_by_ref));
+                captureList.emplace_back(new CapturedVariable(((LexToken *) (cst->tokens[i].get()))->value, capInd++, capture_by_ref));
             }
             i++;
         }
@@ -1079,7 +1070,7 @@ void CSTConverter::visitImpl(CompoundCSTToken *impl) {
 }
 
 void CSTConverter::visitTryCatch(CompoundCSTToken *tryCatch) {
-    auto chain = ((AccessChainCST *) tryCatch->tokens[1].get());
+    auto chain = (CompoundCSTToken*) tryCatch->tokens[1].get();
     if (chain->tokens.size() != 1 || chain->tokens[0]->type() != LexTokenType::CompFunctionCall) {
         error("expected a function call after try keyword", chain);
         return;
@@ -1263,7 +1254,7 @@ void CSTConverter::visitIndexOp(CompoundCSTToken *op) {
     values.emplace_back(std::make_unique<IndexOperator>(std::move(indexes)));
 }
 
-void CSTConverter::visitAccessChain(AccessChainCST *chain) {
+void CSTConverter::visitAccessChain(CompoundCSTToken *chain) {
     auto prev_values = std::move(values);
     unsigned int i = 0;
     unsigned int size = chain->tokens.size();
@@ -1285,7 +1276,7 @@ void CSTConverter::visitAccessChain(AccessChainCST *chain) {
     }
     auto ret_chain = std::make_unique<AccessChain>(std::move(values), parent_node);
     values = std::move(prev_values);
-    if (chain->is_node) {
+    if (chain->type() == LexTokenType::CompAccessChainNode) {
         nodes.emplace_back(std::move(ret_chain));
     } else {
         if(ret_chain->values.size() == 1) {
@@ -1337,7 +1328,7 @@ void visitNestedExpr(CSTConverter *converter, CSTToken *expr, ValueAndOperatorSt
                 output.putValue(converter->value().release());
             }
         } else {
-            auto nested = ((ExpressionCST *) expr);
+            auto nested = ((CompoundCSTToken *) expr);
             auto is_braced = is_char_op(nested->tokens[0].get(), '(');
             auto first_val_index = is_braced ? 1 : 0;
             auto op_index = is_braced ? 3 : 1;

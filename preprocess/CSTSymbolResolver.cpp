@@ -3,12 +3,10 @@
 #include "lexer/model/tokens/LexToken.h"
 #include "CSTSymbolResolver.h"
 #include "cst/utils/CSTUtils.h"
-#include "cst/values/AccessChainCST.h"
 #include "integration/ide/model/ImportUnit.h"
 #include "integration/ide/model/LexResult.h"
 #include "compiler/PrimitiveTypeMap.h"
 #include <iostream>
-#include "lexer/model/tokens/RefToken.h"
 
 void CSTSymbolResolver::declare(LexToken *token, CSTToken *node) {
     auto &last = current.back();
@@ -73,11 +71,13 @@ void CSTSymbolResolver::visitImpl(CompoundCSTToken *impl) {
     scope_end();
 }
 
-void CSTSymbolResolver::visitAccessChain(AccessChainCST *chain) {
+void CSTSymbolResolver::visitAccessChain(CompoundCSTToken *chain) {
     chain->tokens[0]->accept(this);
     if(chain->tokens.size() == 1) return;
     unsigned i = 1;
-    CSTToken* parent = ((RefToken*) chain->tokens[0].get())->linked;
+    // TODO
+    throw std::runtime_error("TODO");
+    CSTToken* parent;// = ((LexToken*) chain->tokens[0].get())->linked;
     if(!parent) {
         error("unresolved symbol not found '" + chain->tokens[0]->representation(), chain->tokens[0].get());
         return;
@@ -87,7 +87,9 @@ void CSTSymbolResolver::visitAccessChain(AccessChainCST *chain) {
         token = chain->tokens[i].get();
         if(token->type() == LexTokenType::Variable) {
             parent = link_child(parent, token);
-            token->as_ref()->linked = parent;
+            // TODO ref token died due to performance fire
+            // token->as_ref()->linked = parent;
+            throw std::runtime_error("TODO");
         } else if(token->type() == LexTokenType::CompIndexOp) {
             parent = get_linked_from_node(parent);
         } else if(token->type() == LexTokenType::CompFunctionCall) {
@@ -106,14 +108,16 @@ void CSTSymbolResolver::visitAccessChain(AccessChainCST *chain) {
     }
 }
 
-void CSTSymbolResolver::link(RefToken* ref, CSTToken* token) {
-    ref->linked = token;
+void CSTSymbolResolver::link(LexToken* ref, CSTToken* token) {
+//    ref->linked = token;
+    throw std::runtime_error("TODO");
 }
 
 void CSTSymbolResolver::visitVariableToken(LexToken *token) {
     auto found = find(token->value);
     if(found) {
-        link(token->as_ref(), found);
+        throw std::runtime_error("TODO");
+//        link(token->as_ref(), found);
     } else {
         error("unresolved symbol found '" + token->value + "'", token);
     }
@@ -130,7 +134,8 @@ void CSTSymbolResolver::visitIndexOp(CompoundCSTToken *cst) {
 void CSTSymbolResolver::visitTypeToken(LexToken *token) {
     auto found = find(token->value);
     if(found) {
-        link(token->as_ref(), found);
+        throw std::runtime_error("TODO");
+//        link(token->as_ref(), found);
     } else {
         auto prim = TypeMakers::PrimitiveMap.find(token->value);
         if(prim == TypeMakers::PrimitiveMap.end()) {

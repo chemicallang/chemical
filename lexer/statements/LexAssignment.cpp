@@ -1,9 +1,6 @@
 // Copyright (c) Qinetik 2024.
 
 #include "lexer/Lexer.h"
-#include "cst/statements/AssignmentCST.h"
-#include "cst/values/AccessChainCST.h"
-#include "cst/statements/IncDecCST.h"
 
 bool Lexer::lexLanguageOperatorToken() {
     return lexOperatorToken("&&", Operation::LogicalAND) || // logical
@@ -53,7 +50,7 @@ bool Lexer::lexAssignmentTokens() {
 
     // increment or decrement
     if (lexOperatorToken("++", Operation::PostfixIncrement) || lexOperatorToken("--", Operation::PostfixDecrement)) {
-        compound_from<IncDecCST>(start, LexTokenType::CompIncDec);
+        compound_from(start, LexTokenType::CompIncDec);
         return true;
     }
 
@@ -69,7 +66,7 @@ bool Lexer::lexAssignmentTokens() {
         if (assOp) {
             error("expected an equal for assignment after the assignment operator");
         }
-        ((AccessChainCST *) tokens[start].get())->is_node = true;
+        tokens[start].get()->tok_type = LexTokenType::CompAccessChainNode;
         return true;
     }
 
@@ -82,7 +79,7 @@ bool Lexer::lexAssignmentTokens() {
         return true;
     }
 
-    compound_from<AssignmentCST>(start, LexTokenType::CompAssignment);
+    compound_from(start, LexTokenType::CompAssignment);
 
     return true;
 

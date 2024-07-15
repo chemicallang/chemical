@@ -4,123 +4,11 @@
 
 class CSTToken;
 
-class RefToken;
-
 class CompoundCSTToken;
 
 class LexToken;
 
-class VarInitCST;
-
-class AssignmentCST;
-
-class ContinueCST;
-
-class BreakCST;
-
-class ReturnCST;
-
-class SwitchCST;
-
-class ImportCST;
-
-class TypealiasCST;
-
-class IfCST;
-
-class BodyCST;
-
-class DoWhileCST;
-
-class ForLoopCST;
-
-class EnumDeclCST;
-
-class IncDecCST;
-
-class FunctionParamCST;
-
-class FunctionCST;
-
-class StructDefCST;
-
-class InterfaceCST;
-
-class TryCatchCST;
-
-class WhileCST;
-
-class ArrayTypeCST;
-
-class FunctionTypeCST;
-
-class GenericTypeCST;
-
-class PointerTypeCST;
-
-class AccessChainCST;
-
-class ArrayValueCST;
-
-class CastCST;
-
-class AddrOfCST;
-
-class DereferenceCST;
-
-class ExpressionCST;
-
-class FunctionCallCST;
-
-class IndexOpCST;
-
-class NegativeCST;
-
-class NotCST;
-
-class StructValueCST;
-
-class CharOperatorToken;
-
-class CharToken;
-
-class CharOperatorToken;
-
-class CharToken;
-
-class CommentToken;
-
-class KeywordToken;
-
-class AnnotationToken;
-
-class TypeToken;
-
-class MultilineCommentToken;
-
-class OperationToken;
-
-class StringToken;
-
-class LambdaCST;
-
-class ImplCST;
-
 class NumberToken;
-
-class BoolToken;
-
-class StringOperatorToken;
-
-class IdentifierToken;
-
-class VariableToken;
-
-class LexUserToken;
-
-class RawToken;
-
-class NullToken;
 
 class CSTVisitor {
 public:
@@ -265,7 +153,7 @@ public:
         visitCompoundCommon((CompoundCSTToken *) pointerType);
     }
 
-    virtual void visitAccessChain(AccessChainCST *accessChain) {
+    virtual void visitAccessChain(CompoundCSTToken *accessChain) {
         visitCompoundCommon((CompoundCSTToken *) accessChain);
     }
 

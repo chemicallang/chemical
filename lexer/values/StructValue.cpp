@@ -1,7 +1,6 @@
 // Copyright (c) Qinetik 2024.
 
 #include "lexer/Lexer.h"
-#include "cst/values/StructValueCST.h"
 
 bool Lexer::lexStructValueTokens() {
     if(lexOperatorToken('{')) {
@@ -36,7 +35,7 @@ bool Lexer::lexStructValueTokens() {
             error("expected '}' for struct value");
         }
 
-        compound_from<StructValueCST>(start, LexTokenType::CompStructValue);
+        compound_from(start, LexTokenType::CompStructValue);
 
         return true;
     }

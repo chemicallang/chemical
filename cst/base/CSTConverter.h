@@ -296,7 +296,7 @@ public:
 
     void visitBoolToken(LexToken *token) override;
 
-    void visitAccessChain(AccessChainCST *accessChain) override;
+    void visitAccessChain(CompoundCSTToken *accessChain) override;
 
     void visitExpression(CompoundCSTToken *expressionCst) override;
 

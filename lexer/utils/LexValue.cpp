@@ -5,18 +5,13 @@
 //
 
 #include "lexer/Lexer.h"
-#include "lexer/model/tokens/CharToken.h"
-#include "lexer/model/tokens/BoolToken.h"
-#include "lexer/model/tokens/NullToken.h"
-#include "cst/values/ArrayValueCST.h"
-#include "lexer/model/tokens/StringToken.h"
 
 bool Lexer::lexCharToken() {
     if (provider.increment('\'')) {
         auto back = backPosition(1);
         std::string value = "'";
         provider.readEscaping(value, '\'');
-        tokens.emplace_back(std::make_unique<CharToken>(LexTokenType::Char, back, std::move(value)));
+        tokens.emplace_back(std::make_unique<LexToken>(LexTokenType::Char, back, std::move(value)));
         return true;
     } else {
         return false;
@@ -28,7 +23,7 @@ bool Lexer::lexStringToken() {
         auto back = backPosition(1);
         std::string value = "\"";
         provider.readEscaping(value, '"');
-        tokens.emplace_back(std::make_unique<StringToken>(LexTokenType::String, back, std::move(value)));
+        tokens.emplace_back(std::make_unique<LexToken>(LexTokenType::String, back, std::move(value)));
         return true;
     } else {
         return false;
@@ -37,10 +32,10 @@ bool Lexer::lexStringToken() {
 
 bool Lexer::lexBoolToken() {
     if (provider.increment("true")) {
-        tokens.emplace_back(std::make_unique<BoolToken>(LexTokenType::Bool, backPosition(4), "true"));
+        tokens.emplace_back(std::make_unique<LexToken>(LexTokenType::Bool, backPosition(4), "true"));
         return true;
     } else if (provider.increment("false")) {
-        tokens.emplace_back(std::make_unique<BoolToken>(LexTokenType::Bool, backPosition(5), "false"));
+        tokens.emplace_back(std::make_unique<LexToken>(LexTokenType::Bool, backPosition(5), "false"));
         return true;
     }
     return false;
@@ -48,7 +43,7 @@ bool Lexer::lexBoolToken() {
 
 bool Lexer::lexNull() {
     if (provider.increment("null")) {
-        tokens.emplace_back(std::make_unique<NullToken>(LexTokenType::Null, backPosition(4), "null"));
+        tokens.emplace_back(std::make_unique<LexToken>(LexTokenType::Null, backPosition(4), "null"));
         return true;
     } else {
         return false;
@@ -94,7 +89,7 @@ bool Lexer::lexArrayInit() {
                 }
             }
         }
-        compound_from<ArrayValueCST>(start, LexTokenType::CompArrayValue);
+        compound_from(start, LexTokenType::CompArrayValue);
         return true;
     } else {
         return false;

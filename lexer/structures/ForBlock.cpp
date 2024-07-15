@@ -5,13 +5,10 @@
 //
 
 #include "lexer/Lexer.h"
-#include "cst/structures/ForLoopCST.h"
-#include "cst/statements/ContinueCST.h"
-#include "cst/statements/BreakCST.h"
 
 bool Lexer::lexContinueStatement() {
     if(lexKeywordToken("continue")) {
-        compound_from<ContinueCST>(tokens.size(), LexTokenType::CompContinue);
+        compound_from(tokens.size(), LexTokenType::CompContinue);
         return true;
     } else {
         return false;
@@ -20,7 +17,7 @@ bool Lexer::lexContinueStatement() {
 
 bool Lexer::lexBreakStatement() {
     if(lexKeywordToken("break")) {
-        compound_from<BreakCST>(tokens.size(), LexTokenType::CompBreak);
+        compound_from(tokens.size(), LexTokenType::CompBreak);
         return true;
     } else {
         return false;
@@ -95,7 +92,7 @@ bool Lexer::lexForBlockTokens() {
     isLexContinueStatement = false;
     isLexBreakStatement = false;
 
-    compound_from<ForLoopCST>(start, LexTokenType::CompForLoop);
+    compound_from(start, LexTokenType::CompForLoop);
 
     return true;
 

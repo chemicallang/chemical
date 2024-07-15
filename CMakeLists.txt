@@ -103,12 +103,7 @@ endif()
 set(COMMON_SOURCES
         lexer/Lexer.cpp
         lexer/Lexer.h
-        lexer/model/tokens/CharOperatorToken.h
-        lexer/model/tokens/VariableToken.h
-        lexer/model/tokens/NumberToken.h
-        lexer/model/tokens/KeywordToken.h
         lexer/model/tokens/LexToken.h
-        lexer/model/tokens/RawToken.h
         stream/SourceProvider.h
         lexer/Lexi.h
         lexer/statements/LexAssignment.cpp
@@ -118,7 +113,6 @@ set(COMMON_SOURCES
         lexer/utils/LexWhitespace.cpp
         lexer/utils/LexNumber.cpp
         lexer/statements/LexType.cpp
-        lexer/model/tokens/TypeToken.h
         stream/StreamPosition.h
         lexer/Lexi.cpp
         lexer/utils/LexValue.cpp
@@ -127,16 +121,10 @@ set(COMMON_SOURCES
         utils/JsonUtils.h
         utils/FileUtils.h
         utils/FileUtils.cpp
-        lexer/model/tokens/StringToken.h
-        lexer/model/tokens/CharToken.h
         lexer/statements/Comment.cpp
-        lexer/model/tokens/CommentToken.h
         lexer/utils/Helpers.cpp
         lexer/statements/AccessChain.cpp
-        lexer/model/tokens/MultilineCommentToken.h
         lexer/structures/ForBlock.cpp
-        lexer/model/tokens/StringOperatorToken.h
-        lexer/model/tokens/StringOperatorToken.h
         lexer/structures/WhileBlock.cpp
         lexer/structures/IfBlock.cpp
         lexer/structures/Function.cpp
@@ -225,7 +213,6 @@ set(COMMON_SOURCES
         ast/statements/MacroValueStatement.h
         integration/common/Diagnostic.cpp
         lexer/structures/Collection.cpp
-        lexer/model/tokens/UserToken.h
         ast/structures/Scope.cpp
         ast/structures/LoopScope.cpp
         ast/types/PointerType.h
@@ -285,39 +272,10 @@ set(COMMON_SOURCES
         cst/base/CSTToken.h
         utils/fwd/vector.h
         cst/base/CompoundCSTToken.h
-        cst/statements/VarInitCST.h
-        cst/structures/FunctionCST.h
-        cst/types/GenericTypeCST.h
-        cst/statements/AssignmentCST.h
-        cst/statements/ContinueCST.h
-        cst/statements/IfCST.h
-        cst/statements/ImportCST.h
-        cst/statements/ReturnCST.h
-        cst/statements/SwitchCST.h
-        cst/statements/TypealiasCST.h
-        cst/structures/DoWhileCST.h
-        cst/structures/EnumDeclCST.h
-        cst/structures/ForLoopCST.h
-        cst/structures/StructDefCST.h
-        cst/structures/InterfaceCST.h
-        cst/structures/WhileCST.h
-        cst/structures/TryCatchCST.h
         cst/CSTConvert.cpp
-        cst/values/ExpressionCST.h
-        cst/values/NegativeCST.h
-        cst/values/NotCST.h
-        cst/values/AccessChainCST.h
-        cst/values/ArrayValueCST.h
-        cst/values/StructValueCST.h
-        cst/values/CastCST.h
         cst/base/CSTConverter.h
-        cst/structures/BodyCST.h
         cst/base/CSTVisitor.h
-        cst/values/FunctionCallCST.h
-        cst/values/IndexOpCST.h
         integration/common/Position.h
-        cst/statements/IncDecCST.h
-        cst/values/LambdaCST.h
         cst/base/CSTDiagnoser.h
         cst/CSTDiagnoser.cpp
         ast/base/BaseTypeKind.h
@@ -325,7 +283,6 @@ set(COMMON_SOURCES
         ast/base/BaseType.cpp
         cst/utils/ValueAndOperatorStack.h
         ast/base/AccessSpecifier.h
-        cst/values/AddrOfCST.h
         ast/values/AddrOfValue.h
         ast/values/AddrOfValue.cpp
         ast/values/DerferenceValue.cpp
@@ -334,11 +291,9 @@ set(COMMON_SOURCES
         ast/structures/FunctionParam.h
         ast/structures/MembersContainer.h
         ast/structures/MembersContainer.cpp
-        cst/structures/ImplCST.h
         ast/structures/ImplDefinition.cpp
         ast/values/NullValue.h
         ast/values/NullValue.cpp
-        lexer/model/tokens/NullToken.h
         ast/values/UIntValue.h
         ast/values/IntNumValue.h
         ast/values/ShortValue.h
@@ -386,11 +341,9 @@ set(COMMON_SOURCES
         preprocess/ImportGraphVisitor.h
         preprocess/ImportPathHandler.h
         preprocess/ImportPathHandler.cpp
-        lexer/model/tokens/IdentifierToken.h
         preprocess/CSTSymbolResolver.h
         preprocess/CSTSymbolResolver.cpp
         preprocess/BaseSymbolResolver.h
-        lexer/model/tokens/RefToken.h
         server/analyzers/GotoDefAnalyzer.h
         integration/common/Location.h
         integration/common/Range.h
@@ -414,7 +367,6 @@ set(COMMON_SOURCES
         compiler/ASTProcessor.h
         compiler/ASTDiag.h
         compiler/ASTProcessor.cpp
-        cst/statements/MacroCST.h
         utils/PathUtils.h
         integration/ide/bindings/SourceProviderCBI.h
         integration/ide/bindings/LexerCBI.h
@@ -422,7 +374,6 @@ set(COMMON_SOURCES
         lexer/model/CompilerBinder.h
         lexer/CompilerBinder.cpp
         lexer/model/CompilerBinderTCC.h
-        cst/statements/AnnotationCST.h
         lexer/model/CompilerBinderCommon.h
         ast/utils/ASTUtils.h
         ast/utils/ASTUtils.cpp
@@ -452,14 +403,12 @@ set(COMMON_SOURCES
         ast/structures/Namespace.h
         ast/structures/Namespace.cpp
         lexer/structures/Namespace.cpp
-        cst/structures/NamespaceCST.h
         ast/base/ASTNode.cpp
         ast/values/SizeOfValue.h
         ast/values/SizeOfValue.cpp
         std/chem_string.h
         ast/structures/UnionDef.h
         ast/structures/UnionDef.cpp
-        cst/structures/UnionCST.h
         lexer/structures/Union.cpp
         std/hybrid_ptr.h
         ast/types/UnionType.h
@@ -469,11 +418,9 @@ set(COMMON_SOURCES
         ast/structures/UnnamedUnion.h
         ast/values/NamespaceIdentifier.h
         ast/types/ReferencedValueType.h
-        cst/types/ReferencedValueTypeCST.h
         ast/types/LiteralType.h
         ast/types/Types.cpp
         ast/types/ArrayType.cpp
-        cst/statements/GenericListCST.h
         ast/base/ChainValue.h
         ast/base/ASTAny.h
         ast/base/ASTAny.cpp

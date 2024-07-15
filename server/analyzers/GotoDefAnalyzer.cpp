@@ -4,7 +4,6 @@
 #include "cst/utils/CSTUtils.h"
 #include "integration/ide/model/ImportUnit.h"
 #include "integration/ide/model/LexResult.h"
-#include "lexer/model/tokens/RefToken.h"
 #include <iostream>
 #include "utils/PathUtils.h"
 
@@ -22,24 +21,26 @@ std::vector<Location> GotoDefAnalyzer::analyze(ImportUnit* unit) {
     auto& tokens_vec = token_parent.first ? token_parent.first->tokens : file->tokens;
     auto token = tokens_vec[token_parent.second].get();
     if(token && token->is_ref()) {
-        auto where = token->as_ref()->linked;
-        if(where) {
-            auto container = find_containing_file(unit, where);
-            if(container) {
-                auto end = where->end_token();
-                return {
-                    Location{
-                        Range {
-                            where->start_token()->position,
-                            {end->position.line, static_cast<unsigned int>(end->position.character + where->end_token()->value.size())}
-                        },
-                        container->abs_path
-                    }
-                };
-            }
-        } else {
-            std::cout << "[GotoDefAnalyzer] Unresolved token at position " << position.representation() << " with type " << token->type_string()  << "and with representation " << token->representation() << std::endl;
-        }
+        // TODO when ref token was removed, as_ref was removed, with it the linked variable
+        // TODO figure out another way to get to linked, or store it
+//        auto where = token->as_ref()->linked;
+//        if(where) {
+//            auto container = find_containing_file(unit, where);
+//            if(container) {
+//                auto end = where->end_token();
+//                return {
+//                    Location{
+//                        Range {
+//                            where->start_token()->position,
+//                            {end->position.line, static_cast<unsigned int>(end->position.character + where->end_token()->value.size())}
+//                        },
+//                        container->abs_path
+//                    }
+//                };
+//            }
+//        } else {
+//            std::cout << "[GotoDefAnalyzer] Unresolved token at position " << position.representation() << " with type " << token->type_string()  << "and with representation " << token->representation() << std::endl;
+//        }
     } else if(token && !token->is_ref()) {
 //        if(token_parent.first && token_parent.first->type() == LexTokenType::CompImport && token->type() == LexTokenType::String) {
 //            auto unquoted_str = escaped_str_token(token);

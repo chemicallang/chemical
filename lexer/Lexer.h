@@ -15,6 +15,7 @@
 #include "integration/common/Diagnostic.h"
 #include "ast/base/BaseType.h"
 #include "ast/structures/StructDefinition.h"
+#include "cst/base/CompoundCSTToken.h"
 #include <memory>
 #include <optional>
 #include "utils/fwd/functional.h"
@@ -705,21 +706,16 @@ public:
     /**
      * put tokens in a compound token of specified type, starting from start
      */
-    template<typename T, typename... Args>
-    std::enable_if_t<std::is_base_of_v<CSTToken, T>>
-    compound_from(unsigned int start, Args&&... args) {
-        unsigned int size = tokens.size();
-        tokens.emplace_back(std::make_unique<T>(take_from(start, size), std::forward<Args>(args)...));
+    void compound_from(unsigned int start, LexTokenType type) {
+        tokens.emplace_back(std::make_unique<CompoundCSTToken>(take_from(start, tokens.size()), type));
     }
 
     /**
      * a helper function to collect
      */
-    template<typename T, typename... Args>
-    std::enable_if_t<std::is_base_of_v<CSTToken, T>>
-    compound_collectable(unsigned int start, Args&&... args) {
+    void compound_collectable(unsigned int start, LexTokenType type) {
         unsigned int size = tokens.size();
-        tokens.emplace_back(std::make_unique<T>(take_from(start, size), std::forward<Args>(args)...));
+        tokens.emplace_back(std::make_unique<CompoundCSTToken>(take_from(start, size), type));
         if(isCBICollecting) {
             collect_cbi_node(start, tokens.size());
             if(!isCBIKeepCollecting) {

@@ -5,7 +5,6 @@
 //
 
 #include "lexer/Lexer.h"
-#include "cst/structures/InterfaceCST.h"
 
 void Lexer::lexInterfaceBlockTokens() {
     do {
@@ -40,7 +39,7 @@ bool Lexer::lexInterfaceStructureTokens() {
             error("expected a '}' when ending an interface block");
             return true;
         }
-        compound_collectable<InterfaceCST>(start, LexTokenType::CompInterface);
+        compound_collectable(start, LexTokenType::CompInterface);
         return true;
     }
     return false;

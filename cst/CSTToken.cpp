@@ -1,6 +1,7 @@
 // Copyright (c) Qinetik 2024.
 
 #include "base/CSTToken.h"
+#include "cst/base/CSTVisitor.h"
 #include <iostream>
 
 void CSTToken::accept(CSTVisitor *visitor) {
@@ -58,6 +59,9 @@ void CSTToken::accept(CSTVisitor *visitor) {
             return;
         case LexTokenType::CompAssignment:
             visitor->visitAssignment((CompoundCSTToken*) this);
+            return;
+        case LexTokenType::CompAccessChainNode:
+            visitor->visitAccessChain((CompoundCSTToken*) this);
             return;
         case LexTokenType::CompAnnotation:
             visitor->visitAnnotation((CompoundCSTToken*) this);
@@ -159,7 +163,7 @@ void CSTToken::accept(CSTVisitor *visitor) {
             visitor->visitPointerType((CompoundCSTToken*) this);
             return;
         case LexTokenType::CompAccessChain:
-            visitor->visitAccessChain((AccessChainCST*) this);
+            visitor->visitAccessChain((CompoundCSTToken*) this);
             return;
         case LexTokenType::CompArrayValue:
             visitor->visitArrayValue((CompoundCSTToken*) this);
@@ -198,8 +202,8 @@ void CSTToken::accept(CSTVisitor *visitor) {
             visitor->visitGenericList((CompoundCSTToken*) this);
             return;
 #ifdef DEBUG
-        default:
-            std::cerr << "UNKNOWN TOKEN TYPE " + std::to_string((uint8_t) tok_type) << std::endl;
+//        default:
+//            std::cerr << "UNKNOWN TOKEN TYPE " + std::to_string((uint8_t) tok_type) << std::endl;
 #endif
     }
 }

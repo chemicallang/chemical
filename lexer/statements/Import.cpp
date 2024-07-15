@@ -5,7 +5,6 @@
 //
 
 #include "lexer/Lexer.h"
-#include "cst/statements/ImportCST.h"
 
 bool Lexer::lexImportIdentifierList() {
     if (lexOperatorToken('{')) {
@@ -37,7 +36,7 @@ bool Lexer::lexImportStatement() {
                 error("expected identifier after 'as' in import statement");
             }
         }
-        compound_from<ImportCST>(start, LexTokenType::CompImport);
+        compound_from(start, LexTokenType::CompImport);
         return true;
     } else {
         if (lexIdentifierToken() || lexImportIdentifierList()) {
@@ -56,7 +55,7 @@ bool Lexer::lexImportStatement() {
             error("expected a string path in import statement or identifier(s) after the 'import' keyword");
             return false;
         }
-        compound_from<ImportCST>(start, LexTokenType::CompImport);
+        compound_from(start, LexTokenType::CompImport);
     }
     return true;
 }

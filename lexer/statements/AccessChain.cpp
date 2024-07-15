@@ -129,6 +129,11 @@ bool Lexer::lexAccessChainAfterId(bool lexStruct, unsigned chain_length) {
         }
     }
 
+    if (provider.peek() == '<' && isGenericEndAhead()) {
+        lexOperatorToken('<');
+        lexFunctionCallAfterGenericStart();
+    }
+
     while(provider.peek() == '(' || provider.peek() == '[') {
         while(lexOperatorToken('[')) {
             unsigned start = tokens.size() - 1;

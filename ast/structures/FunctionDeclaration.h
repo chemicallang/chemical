@@ -99,6 +99,14 @@ public:
     void set_active_iteration(int16_t iteration);
 
     /**
+     * set's the generic active iteration safely
+     */
+    inline void set_active_iteration_safely(int16_t itr) {
+        if(itr < -1) return;
+        set_active_iteration(itr);
+    }
+
+    /**
      * get iteration for call, if it exists, otherwise returns -1
      * non generic functions return 0
      */

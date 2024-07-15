@@ -12,10 +12,6 @@
 #include "ast/base/BaseType.h"
 #include "ast/structures/MultiFunctionNode.h"
 
-inline std::unique_ptr<FunctionType> func_call_func_type(const FunctionCall* call) {
-    return std::unique_ptr<FunctionType>((FunctionType*) call->parent_val->create_type().release());
-}
-
 #ifdef COMPILER_BUILD
 
 #include "compiler/Codegen.h"
@@ -97,11 +93,15 @@ void to_llvm_args(
 }
 
 llvm::Type *FunctionCall::llvm_type(Codegen &gen) {
-    return func_call_func_type(this)->returnType->llvm_type(gen);
+    auto decl = safe_linked_func();
+    int16_t prev_itr = set_curr_itr_on_decl();
+    const auto type = get_base_type()->llvm_type(gen);
+    decl->set_active_iteration_safely(prev_itr);
+    return type;
 }
 
 llvm::Type *FunctionCall::llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<Value>> &values, unsigned int index) {
-    return func_call_func_type(this)->returnType->llvm_chain_type(gen, values, index);
+    return get_base_type()->llvm_chain_type(gen, values, index);
 }
 
 llvm::FunctionType *FunctionCall::llvm_func_type(Codegen &gen) {
@@ -181,7 +181,7 @@ llvm::Value *call_capturing_lambda(
 }
 
 llvm::Value *FunctionCall::llvm_value(Codegen &gen, std::vector<llvm::Value*>& args) {
-    auto func_type = func_call_func_type(this);
+    auto func_type = get_function_type();
     if(func_type->isCapturing) {
         return call_capturing_lambda(gen, this, func_type.get(), nullptr, 0);
     }
@@ -194,7 +194,7 @@ llvm::Value *FunctionCall::llvm_value(Codegen &gen, std::vector<llvm::Value*>& a
 }
 
 void FunctionCall::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
-    auto funcType = func_call_func_type(this);
+    auto funcType = get_function_type();
     auto linked = funcType->returnType->linked_node();
     if(linked) {
         linked->llvm_destruct(gen, allocaInst);
@@ -214,7 +214,7 @@ llvm::Value* FunctionCall::llvm_chain_value(
         llvm::Value* returnedStruct
 ) {
 
-    auto func_type = func_call_func_type(this);
+    auto func_type = get_function_type();
     if(func_type->isCapturing) {
         return call_capturing_lambda(gen, this, func_type.get(), &chain, until);
     }
@@ -300,7 +300,7 @@ bool FunctionCall::add_child_index(Codegen &gen, std::vector<llvm::Value *> &ind
 }
 
 llvm::AllocaInst *FunctionCall::access_chain_allocate(Codegen &gen, std::vector<std::unique_ptr<Value>> &chain_values, unsigned int until) {
-    auto func_type = func_call_func_type(this);
+    auto func_type = get_function_type();
     if(func_type->returnType->value_type() == ValueType::Struct) {
         // we allocate the returned struct, llvm_chain_value function
         std::vector<llvm::Value *> args;
@@ -319,7 +319,7 @@ FunctionCall::FunctionCall(
 }
 
 uint64_t FunctionCall::byte_size(bool is64Bit) {
-    return func_call_func_type(this)->returnType->byte_size(is64Bit);
+    return get_base_type()->byte_size(is64Bit);
 }
 
 void FunctionCall::link_values(SymbolResolver &linker) {
@@ -339,10 +339,31 @@ std::unique_ptr<FunctionType> FunctionCall::create_function_type() {
     return std::unique_ptr<FunctionType>((FunctionType*) func_type.release());
 }
 
+hybrid_ptr<FunctionType> FunctionCall::get_function_type() {
+    auto decl = safe_linked_func();
+    if(decl) {
+        return hybrid_ptr<FunctionType> { create_function_type().release() };
+    }
+    auto func_type = parent_val->get_base_type();
+    if(func_type->function_type()) {
+        return hybrid_ptr<FunctionType>{(FunctionType *) func_type.release(), func_type.get_will_free()};
+    } else {
+        return hybrid_ptr<FunctionType>{nullptr, false };
+    }
+}
+
+int16_t FunctionCall::set_curr_itr_on_decl() {
+    int16_t prev_itr = -2;
+    const auto decl = safe_linked_func();
+    if(decl && !decl->generic_params.empty()) {
+        prev_itr = decl->active_iteration;
+        decl->set_active_iteration(generic_iteration);
+    }
+    return prev_itr;
+}
+
 ASTNode *FunctionCall::linked_node() {
-    // TODO use get type instead
-    auto func_type = parent_val->create_type();
-    return ((FunctionType*) func_type.get())->returnType->linked_node();
+    return get_base_type()->linked_node();
 }
 
 void FunctionCall::relink_multi_func(ASTDiagnoser* diagnoser) {
@@ -383,17 +404,17 @@ void FunctionCall::find_link_in_parent(Value *parent, ASTDiagnoser* diagnoser, b
 void FunctionCall::find_link_in_parent(Value *parent, SymbolResolver &resolver) {
     parent_val = parent;
     relink_multi_func(&resolver);
-    FunctionDeclaration* func_decl = nullptr;
-    if(parent_val->linked_node() && parent_val->linked_node()->as_function()) {
-        func_decl = parent_val->linked_node()->as_function();
+    FunctionDeclaration* func_decl = safe_linked_func();
+    int16_t prev_itr;
+    if(func_decl && !func_decl->generic_params.empty()) {
+        prev_itr = func_decl->active_iteration;
         generic_iteration = func_decl->register_call(this);
         func_decl->set_active_iteration(generic_iteration);
     }
     link_values(resolver);
     find_link_in_parent(parent, &resolver, false);
-    if(func_decl) {
-        // set active iteration to -1, all generic types would fail if accessed without setting iteration
-        func_decl->set_active_iteration(-1);
+    if(func_decl && !func_decl->generic_params.empty()) {
+        func_decl->set_active_iteration(prev_itr);
     }
 }
 
@@ -455,18 +476,26 @@ Value *FunctionCall::copy() {
 }
 
 std::unique_ptr<BaseType> FunctionCall::create_type() {
-    auto value_type = parent_val->create_type();
-    auto func_type = value_type->function_type();
-    return std::unique_ptr<BaseType>(func_type->returnType->copy());
+    auto prev_itr = set_curr_itr_on_decl();
+    auto func_type = create_function_type();
+    auto pure_type = func_type->returnType->get_pure_type();
+    if(prev_itr >= -1) safe_linked_func()->set_active_iteration(prev_itr);
+    return std::unique_ptr<BaseType>(pure_type->copy());
 }
 
 hybrid_ptr<BaseType> FunctionCall::get_base_type() {
-    auto parent_type = parent_val->get_base_type();
-    auto func_type = parent_type->function_type();
-    if(parent_type.get_will_free()) {
-        return hybrid_ptr<BaseType> { func_type->returnType.release(), true };
+    auto prev_itr = set_curr_itr_on_decl();
+    auto func_type = get_function_type();
+    auto pure_return = func_type->returnType->get_pure_type();
+    if(prev_itr >= -1) safe_linked_func()->set_active_iteration(prev_itr);
+    if(pure_return.get_will_free()) {
+        return pure_return;
     } else {
-        return hybrid_ptr<BaseType> { func_type->returnType.get(), false };
+        if(func_type.get_will_free()) {
+            return hybrid_ptr<BaseType> { func_type->returnType.release(), true };
+        } else {
+            return hybrid_ptr<BaseType> { func_type->returnType.get(), false };
+        }
     }
 }
 

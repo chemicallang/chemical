@@ -30,12 +30,30 @@ public:
         return std::unique_ptr<BaseType>(usage[active_iteration]->copy());
     }
 
+    [[nodiscard]]
     ValueType value_type() const override {
-        return usage[active_iteration]->value_type();
+        if(active_iteration == -1) {
+            return ValueType::Unknown;
+        } else {
+            return usage[active_iteration]->value_type();
+        }
+    }
+
+    [[nodiscard]]
+    BaseTypeKind type_kind() const override {
+        if(active_iteration == -1) {
+            return BaseTypeKind::Unknown;
+        } else {
+            return usage[active_iteration]->kind();
+        }
     }
 
     BaseType *holding_value_type() override {
         return usage[active_iteration];
+    }
+
+    GenericTypeParameter *as_generic_type_param() override {
+        return this;
     }
 
 #ifdef COMPILER_BUILD

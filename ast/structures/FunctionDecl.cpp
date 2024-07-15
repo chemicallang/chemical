@@ -114,14 +114,6 @@ void body_gen(Codegen &gen, FunctionDeclaration* decl, llvm::Function* funcCalle
     body_gen(gen, funcCallee, decl->body, decl);
 }
 
-int16_t FunctionDeclaration::total_generic_iterations() {
-    if(generic_params.empty()) {
-        return 1;
-    } else {
-        return (int16_t) generic_params[0]->usage.size();
-    }
-}
-
 void FunctionDeclaration::code_gen(Codegen &gen) {
     if(has_annotation(AnnotationKind::CompTime)) {
         return;
@@ -486,6 +478,15 @@ bool FunctionDeclaration::is_exported() {
     return false;
 }
 
+
+int16_t FunctionDeclaration::total_generic_iterations() {
+    if(generic_params.empty()) {
+        return 1;
+    } else {
+        return (int16_t) generic_params[0]->usage.size();
+    }
+}
+
 void FunctionDeclaration::ensure_constructor(StructDefinition* def) {
     returnType = std::make_unique<ReferencedType>(def->name, def);
 }
@@ -503,6 +504,11 @@ void FunctionDeclaration::ensure_destructor(StructDefinition* def) {
 }
 
 void FunctionDeclaration::set_active_iteration(int16_t iteration) {
+#ifdef DEBUG
+    if(iteration < -1) {
+        throw std::runtime_error("please fix iteration, which is less than -1, generic iteration is always greater than or equal to -1");
+    }
+#endif
     if(iteration == -1) {
         active_iteration = 0;
     } else {

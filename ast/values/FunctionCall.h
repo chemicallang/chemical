@@ -38,9 +38,14 @@ public:
     void link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr) override;
 
     /**
-     * provides the bae function type to which call is being made
+     * provides the base function type to which call is being made
      */
     std::unique_ptr<FunctionType> create_function_type();
+
+    /**
+     * provides the base function type to which call is being made
+     */
+    hybrid_ptr<FunctionType> get_function_type();
 
     FunctionCall *as_func_call() override;
 
@@ -74,13 +79,27 @@ public:
 
     void interpret(InterpretScope &scope) override;
 
+    /**
+     * this returns the return type of the function
+     */
     std::unique_ptr<BaseType> create_type() override;
 
+    /**
+     * this returns the return type of the function
+     */
     hybrid_ptr<BaseType> get_base_type() override;
 
     BaseTypeKind type_kind() const override;
 
     ValueType value_type() const override;
+
+    /**
+     * will set the current generic iteration on function declaration
+     * returning the previous generic iteration, so you can restore it
+     * previous iteration is equal to -2, if couldn't set because it's
+     * not a generic function
+     */
+    int16_t set_curr_itr_on_decl();
 
 #ifdef COMPILER_BUILD
 

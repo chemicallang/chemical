@@ -28,11 +28,13 @@
 #include <utility>
 #include <functional>
 
+#ifdef COMPILER_BUILD
 std::vector<std::unique_ptr<ASTNode>> TranslateC(
     const char *exe_path,
     const char *abs_path,
     const char *resources_path
 );
+#endif
 
 static bool verify_lib_build_func_type(FunctionDeclaration* found, const std::string& abs_path) {
     if(found->returnType->kind() == BaseTypeKind::Pointer) {
@@ -524,14 +526,6 @@ int LabBuildCompiler::do_to_c_job(LabJob* job) {
 
     return compile_result;
 }
-
-#ifdef COMPILER_BUILD
-std::vector<std::unique_ptr<ASTNode>> TranslateC(
-        const char *exe_path,
-        const char *abs_path,
-        const char *resources_path
-);
-#endif
 
 int LabBuildCompiler::do_to_chemical_job(LabJob* job) {
 #ifdef COMPILER_BUILD

@@ -272,9 +272,15 @@ void accept_func_return_with_name(ToCAstVisitor* visitor, BaseFunctionType* func
     visitor->space();
     node_parent_name(visitor, take_parent ? func_type->parent() : func_type->as_function());
     visitor->write(name);
-    if(func_decl && func_decl->multi_func_index != 0) {
-        visitor->write("__cmf_");
-        visitor->write(std::to_string(func_decl->multi_func_index));
+    if(func_decl) {
+        if(func_decl->multi_func_index != 0) {
+            visitor->write("__cmf_");
+            visitor->write(std::to_string(func_decl->multi_func_index));
+        }
+        if(func_decl->active_iteration != 0) {
+            visitor->write("__cgf_");
+            visitor->write(std::to_string(func_decl->active_iteration));
+        }
     }
 }
 
@@ -702,16 +708,23 @@ void allocate_struct_for_func_call(ToCAstVisitor* visitor, StructDefinition* def
 void CBeforeStmtVisitor::visit(FunctionCall *call) {
     auto func_type = call->create_function_type();
     auto decl = call->safe_linked_func();
-    if(decl && decl->has_annotation(AnnotationKind::CompTime)) {
-        auto eval = evaluated_func_val(visitor, decl, call);
-        auto identifier = visitor->get_local_temp_var_name();
-        if(eval->as_struct()) {
-            allocate_struct_by_name(visitor, eval->as_struct()->definition, identifier);
-            visitor->local_allocated[eval] = identifier;
+    int16_t prev_iteration;
+    if(decl) {
+        if(!decl->generic_params.empty()) {
+            prev_iteration = decl->active_iteration;
+            decl->set_active_iteration(call->generic_iteration);
         }
-        process_init_value(eval, identifier);
-        eval->accept(this);
-        return;
+        if(decl->has_annotation(AnnotationKind::CompTime)) {
+            auto eval = evaluated_func_val(visitor, decl, call);
+            auto identifier = visitor->get_local_temp_var_name();
+            if(eval->as_struct()) {
+                allocate_struct_by_name(visitor, eval->as_struct()->definition, identifier);
+                visitor->local_allocated[eval] = identifier;
+            }
+            process_init_value(eval, identifier);
+            eval->accept(this);
+            return;
+        }
     }
     CommonVisitor::visit(call);
     if(func_type->returnType->value_type() == ValueType::Struct) {
@@ -719,6 +732,9 @@ void CBeforeStmtVisitor::visit(FunctionCall *call) {
         if(linked->as_struct_def()) {
             allocate_struct_for_func_call(visitor, linked->as_struct_def(), call, visitor->get_local_temp_var_name());
         }
+    }
+    if(decl && !decl->generic_params.empty()) {
+        decl->set_active_iteration(prev_iteration);
     }
 }
 
@@ -737,6 +753,10 @@ void func_name(ToCAstVisitor* visitor, FunctionDeclaration* func_decl) {
     if(func_decl->multi_func_index != 0) {
         visitor->write("__cmf_");
         visitor->write(std::to_string(func_decl->multi_func_index));
+    }
+    if(func_decl->active_iteration != 0) {
+        visitor->write("__cgf_");
+        visitor->write(std::to_string(func_decl->active_iteration));
     }
 }
 
@@ -1356,7 +1376,19 @@ void CTopLevelDeclarationVisitor::visit(FunctionDeclaration *decl) {
 //    if(decl->returnType->function_type() && decl->returnType->function_type()->isCapturing) {
 //        visitor->error("Function name " + decl->name + " returns a capturing lambda, which is not supported");
 //    }
-    declare_by_name(this, decl, decl->name);
+    if(decl->generic_params.empty()) {
+        declare_by_name(this, decl, decl->name);
+    } else {
+        auto size = decl->total_generic_iterations();
+        int16_t i = 0;
+        while(i < size) {
+            decl->set_active_iteration(i);
+            declare_by_name(this, decl, decl->name);
+            i++;
+        }
+        // set the active iteration to -1, so whoever accesses it without setting it to zero receives an error
+        decl->set_active_iteration(-1);
+    }
 }
 
 void CTopLevelDeclarationVisitor::visit(ExtensionFunction *decl) {
@@ -1758,6 +1790,22 @@ void func_decl_with_name(ToCAstVisitor* visitor, FunctionDeclaration* decl, cons
     visitor->current_func_type = prev_func_decl;
 }
 
+void func_decl_with_name(ToCAstVisitor* visitor, FunctionDeclaration* decl) {
+    if(!decl->generic_params.empty()) {
+        int16_t itr = 0;
+        int16_t total = decl->total_generic_iterations();
+        while(itr < total) {
+            decl->set_active_iteration(itr);
+            func_decl_with_name(visitor, decl, decl->name);
+            itr++;
+        }
+        // set to -1, so whoever tries to access generic parameters types, they receive an error if active iteration is not set again
+        decl->set_active_iteration(-1);
+    } else {
+        func_decl_with_name(visitor, decl, decl->name);
+    }
+}
+
 void contained_func_decl(ToCAstVisitor* visitor, FunctionDeclaration* decl, const std::string& name, bool overrides, ExtendableMembersContainerNode* def) {
     if(!decl->body.has_value() || decl->has_annotation(AnnotationKind::CompTime)) {
         return;
@@ -1851,11 +1899,11 @@ void contained_func_decl(ToCAstVisitor* visitor, FunctionDeclaration* decl, cons
 }
 
 void ToCAstVisitor::visit(FunctionDeclaration *decl) {
-    func_decl_with_name(this, decl, decl->name);
+    func_decl_with_name(this, decl);
 }
 
 void ToCAstVisitor::visit(ExtensionFunction *decl) {
-    func_decl_with_name(this, decl, decl->name);
+    func_decl_with_name(this, decl);
 }
 
 void ToCAstVisitor::visit(IfStatement *decl) {
@@ -2066,6 +2114,17 @@ void write_accessor(ToCAstVisitor* visitor, Value* current) {
     }
 }
 
+class FuncGenericItrResetter {
+public:
+    FunctionDeclaration* decl;
+    int16_t iteration;
+    ~FuncGenericItrResetter() {
+        if(decl) {
+            decl->set_active_iteration(iteration);
+        }
+    }
+};
+
 void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& values, unsigned start, unsigned end) {
     auto last = values[end - 1]->as_func_call();
     auto func_decl = last->safe_linked_func();
@@ -2073,6 +2132,12 @@ void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& valu
     if(func_decl && func_decl->has_annotation(AnnotationKind::CompTime)) {
         evaluate_func(visitor, visitor, func_decl, last);
         return;
+    }
+    FuncGenericItrResetter resetter{};
+    if(func_decl && !func_decl->generic_params.empty()) {
+        resetter.decl = func_decl;
+        resetter.iteration = func_decl->active_iteration;
+        func_decl->set_active_iteration(last->generic_iteration);
     }
     auto grandpa = ((int) end) - 3 >= 0 ? values[end - 3].get() : nullptr;
     auto parent_type = parent->create_type();
@@ -2627,6 +2692,11 @@ void ToCAstVisitor::visit(ReferencedType *type) {
     } else if(type->linked->as_union_def()) {
         write("union ");
         name = type->linked->as_union_def()->name;
+    }
+    if(type->linked->as_generic_type_param()) {
+        const auto gen = type->linked->as_generic_type_param();
+        gen->get_value_type()->accept(this);
+        return;
     }
     if(type->linked->as_typealias() != nullptr) {
         auto alias = declarer->aliases.find(type->linked->as_typealias());

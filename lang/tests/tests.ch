@@ -18,6 +18,7 @@ import "nodes/namespaces.ch"
 import "comptime/basic.ch"
 import "comptime/vector.ch"
 import "basic/external.ch"
+import "generic/basic.ch"
 
 func main() {
     test_var_init();
@@ -40,5 +41,6 @@ func main() {
     test_comptime();
     test_compiler_vector();
     test_external_functions();
+    test_basic_generics();
     print_test_stats();
 }

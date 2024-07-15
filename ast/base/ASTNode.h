@@ -39,6 +39,8 @@ class MultiFunctionNode;
 
 class VariablesContainer;
 
+class GenericTypeParameter;
+
 /**
  * @brief Base class for all AST nodes.
  */
@@ -127,6 +129,13 @@ public:
      */
     virtual std::string ns_node_identifier() {
         return "";
+    }
+
+    /**
+     * return this as a generic type parameter if its one
+     */
+    virtual GenericTypeParameter* as_generic_type_param() {
+        return nullptr;
     }
 
     /**

@@ -122,6 +122,7 @@ very innovative things are planned.
   - [x] Can generate shared objects / dll
   - [ ] Can generate static libraries
   - [x] Can compile and link C module
+  - [ ] Github modules
   - [ ] Watch mode, so files can be compiled incrementally
   - [ ] Configure compile / link parameters
 - [ ] Maintenance Phase

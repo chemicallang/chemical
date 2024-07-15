@@ -500,6 +500,7 @@ set(COMMON_SOURCES
         ast/structures/MultiFunctionNode.h
         ast/structures/MultiFunctionNode.cpp
         ast/structures/GenericTypeParameter.h
+        cst/CSTToken.cpp
 )
 
 # Chemical LSP Executable Target

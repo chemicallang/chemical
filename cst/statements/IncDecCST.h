@@ -9,8 +9,4 @@ public:
 
     using CompoundCSTToken::CompoundCSTToken;
 
-    void accept(CSTVisitor *visitor) override {
-        visitor->visitIncDec(this);
-    }
-
 };

@@ -13,8 +13,4 @@ public:
 
     using LexToken::LexToken;
 
-    void accept(CSTVisitor *visitor) override {
-        visitor->visitNullToken(this);
-    }
-
 };

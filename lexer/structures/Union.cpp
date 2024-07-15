@@ -57,7 +57,7 @@ bool Lexer::lexUnionStructureTokens(bool unnamed, bool direct_init) {
             error("expected an identifier after the '}' for anonymous union definition");
             return true;
         }
-        compound_collectable<UnionDefCST>(start_token);
+        compound_collectable<UnionDefCST>(start_token, LexTokenType::CompUnionDef);
         return true;
     } else {
         return false;

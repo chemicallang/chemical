@@ -53,7 +53,7 @@ bool Lexer::lexAssignmentTokens() {
 
     // increment or decrement
     if (lexOperatorToken("++", Operation::PostfixIncrement) || lexOperatorToken("--", Operation::PostfixDecrement)) {
-        compound_from<IncDecCST>(start);
+        compound_from<IncDecCST>(start, LexTokenType::CompIncDec);
         return true;
     }
 
@@ -82,7 +82,7 @@ bool Lexer::lexAssignmentTokens() {
         return true;
     }
 
-    compound_from<AssignmentCST>(start);
+    compound_from<AssignmentCST>(start, LexTokenType::CompAssignment);
 
     return true;
 

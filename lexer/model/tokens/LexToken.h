@@ -18,7 +18,11 @@ public:
     Position position;
     std::string value;
 
-    LexToken(const Position &position, std::string value) : position(position), value(std::move(value)) {
+    LexToken(
+            LexTokenType type,
+            const Position &position,
+            std::string value
+    ) : CSTToken(type), position(position), value(std::move(value)) {
         this->value.shrink_to_fit();
     }
 

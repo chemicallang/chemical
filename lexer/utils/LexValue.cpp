@@ -16,7 +16,7 @@ bool Lexer::lexCharToken() {
         auto back = backPosition(1);
         std::string value = "'";
         provider.readEscaping(value, '\'');
-        tokens.emplace_back(std::make_unique<CharToken>(back, std::move(value)));
+        tokens.emplace_back(std::make_unique<CharToken>(LexTokenType::Char, back, std::move(value)));
         return true;
     } else {
         return false;
@@ -28,7 +28,7 @@ bool Lexer::lexStringToken() {
         auto back = backPosition(1);
         std::string value = "\"";
         provider.readEscaping(value, '"');
-        tokens.emplace_back(std::make_unique<StringToken>(back, std::move(value)));
+        tokens.emplace_back(std::make_unique<StringToken>(LexTokenType::String, back, std::move(value)));
         return true;
     } else {
         return false;
@@ -37,10 +37,10 @@ bool Lexer::lexStringToken() {
 
 bool Lexer::lexBoolToken() {
     if (provider.increment("true")) {
-        tokens.emplace_back(std::make_unique<BoolToken>(backPosition(4), "true"));
+        tokens.emplace_back(std::make_unique<BoolToken>(LexTokenType::Bool, backPosition(4), "true"));
         return true;
     } else if (provider.increment("false")) {
-        tokens.emplace_back(std::make_unique<BoolToken>(backPosition(5), "false"));
+        tokens.emplace_back(std::make_unique<BoolToken>(LexTokenType::Bool, backPosition(5), "false"));
         return true;
     }
     return false;
@@ -48,7 +48,7 @@ bool Lexer::lexBoolToken() {
 
 bool Lexer::lexNull() {
     if (provider.increment("null")) {
-        tokens.emplace_back(std::make_unique<NullToken>(backPosition(4), "null"));
+        tokens.emplace_back(std::make_unique<NullToken>(LexTokenType::Null, backPosition(4), "null"));
         return true;
     } else {
         return false;
@@ -94,7 +94,7 @@ bool Lexer::lexArrayInit() {
                 }
             }
         }
-        compound_from<ArrayValueCST>(start);
+        compound_from<ArrayValueCST>(start, LexTokenType::CompArrayValue);
         return true;
     } else {
         return false;

@@ -13,8 +13,4 @@ public:
         visitor->visitDoWhile(this);
     }
 
-    LexTokenType type() const override {
-        return LexTokenType::CompDoWhile;
-    }
-
 };

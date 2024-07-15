@@ -17,8 +17,4 @@ public:
         visitor->visitAnnotationToken(this);
     }
 
-    LexTokenType type() const override {
-        return LexTokenType::Annotation;
-    }
-
 };

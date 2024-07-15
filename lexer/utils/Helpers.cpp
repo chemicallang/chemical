@@ -12,7 +12,7 @@
 
 bool Lexer::lexOperatorToken(char op) {
     if(provider.increment(op)) {
-        tokens.emplace_back(std::make_unique<CharOperatorToken>(backPosition(1), std::string(1, op)));
+        tokens.emplace_back(std::make_unique<CharOperatorToken>(LexTokenType::CharOperator, backPosition(1), std::string(1, op)));
         return true;
     } else {
         return false;
@@ -21,7 +21,7 @@ bool Lexer::lexOperatorToken(char op) {
 
 bool Lexer::lexOperatorToken(const std::string& op) {
     if(provider.increment(op)) {
-        tokens.emplace_back(std::make_unique<StringOperatorToken>(backPosition(op.length()), op));
+        tokens.emplace_back(std::make_unique<StringOperatorToken>(LexTokenType::StringOperator, backPosition(op.length()), op));
         return true;
     } else {
         return false;
@@ -32,7 +32,7 @@ void Lexer::storeOperationToken(char token, Operation op) {
     std::string value;
     value.append(std::to_string((int) op));
     value.append(1, token);
-    tokens.emplace_back(std::make_unique<OperationToken>(backPosition(1), std::move(value)));
+    tokens.emplace_back(std::make_unique<OperationToken>(LexTokenType::Operation, backPosition(1), std::move(value)));
 }
 
 bool Lexer::lexOperationToken(char token, Operation op) {
@@ -49,7 +49,7 @@ bool Lexer::lexOperatorToken(const std::string &token, Operation op) {
         std::string value;
         value.append(std::to_string((int) op));
         value.append(token);
-        tokens.emplace_back(std::make_unique<OperationToken>(backPosition(token.length()), value));
+        tokens.emplace_back(std::make_unique<OperationToken>(LexTokenType::Operation, backPosition(token.length()), value));
         return true;
     } else {
         return false;
@@ -59,7 +59,7 @@ bool Lexer::lexOperatorToken(const std::string &token, Operation op) {
 bool Lexer::lexWSKeywordToken(const std::string &keyword) {
     if(provider.increment(keyword) && provider.peek() == ' ') {
         lexWhitespaceToken();
-        tokens.emplace_back(std::make_unique<KeywordToken>(backPosition(keyword.length()), keyword));
+        tokens.emplace_back(std::make_unique<KeywordToken>(LexTokenType::Keyword, backPosition(keyword.length()), keyword));
         return true;
     } else {
         return false;
@@ -68,7 +68,7 @@ bool Lexer::lexWSKeywordToken(const std::string &keyword) {
 
 bool Lexer::lexKeywordToken(const std::string& keyword) {
     if(provider.increment(keyword)) {
-        tokens.emplace_back(std::make_unique<KeywordToken>(backPosition(keyword.length()), keyword));
+        tokens.emplace_back(std::make_unique<KeywordToken>(LexTokenType::Keyword, backPosition(keyword.length()), keyword));
         return true;
     } else {
         return false;

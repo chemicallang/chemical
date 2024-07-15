@@ -13,8 +13,4 @@ public:
         visitor->visitIndexOp(this);
     }
 
-    LexTokenType type() const override {
-        return LexTokenType::CompIndexOp;
-    }
-
 };

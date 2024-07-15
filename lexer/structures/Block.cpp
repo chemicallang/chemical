@@ -61,7 +61,7 @@ bool Lexer::lexBraceBlock(const std::string &forThing, void(*nested_lexer)(Lexer
         return true;
     }
 
-    compound_from<BodyCST>(start);
+    compound_from<BodyCST>(start, LexTokenType::CompBody);
 
     return true;
 

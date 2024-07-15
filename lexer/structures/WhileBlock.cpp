@@ -43,7 +43,7 @@ bool Lexer::lexWhileBlockTokens() {
     isLexContinueStatement = prevLexContinue;
     isLexBreakStatement = prevLexBreak;
 
-    compound_from<WhileCST>(start);
+    compound_from<WhileCST>(start, LexTokenType::CompWhile);
 
     return true;
 

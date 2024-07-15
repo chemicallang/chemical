@@ -14,10 +14,6 @@ public:
 
     using CompoundCSTToken::CompoundCSTToken;
 
-    LexTokenType type() const override {
-        return LexTokenType::CompAccessChain;
-    }
-
     void accept(CSTVisitor *visitor) override {
         visitor->visitAccessChain(this);
     }

@@ -13,8 +13,4 @@ public:
         visitor->visitLambda(this);
     }
 
-    LexTokenType type() const override {
-        return LexTokenType::CompLambda;
-    }
-
 };

@@ -13,8 +13,4 @@ public:
         visitor->visitAddrOf(this);
     }
 
-    LexTokenType type() const override {
-        return LexTokenType::CompAddrOf;
-    }
-
 };

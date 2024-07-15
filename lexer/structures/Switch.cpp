@@ -32,7 +32,7 @@ bool Lexer::lexSwitchStatementBlock() {
                     if (lexOperatorToken(':')) {
                         auto bStart = tokens.size();
                         lexNestedLevelMultipleStatementsTokens();
-                        compound_from<BodyCST>(bStart);
+                        compound_from<BodyCST>(bStart, LexTokenType::CompBody);
                         continue;
                     } else if (lexOperatorToken("->")) {
                         lexWhitespaceAndNewLines();
@@ -49,7 +49,7 @@ bool Lexer::lexSwitchStatementBlock() {
                     if (lexOperatorToken(':')) {
                         auto bStart = tokens.size();
                         lexNestedLevelMultipleStatementsTokens();
-                        compound_from<BodyCST>(bStart);
+                        compound_from<BodyCST>(bStart, LexTokenType::CompBody);
                     } else if (lexOperatorToken("->")) {
                         lexWhitespaceAndNewLines();
                         if(!lexBraceBlock("switch-default")) {
@@ -70,7 +70,7 @@ bool Lexer::lexSwitchStatementBlock() {
         } else {
             error("expected '{' after switch");
         }
-        compound_from<SwitchCST>(start);
+        compound_from<SwitchCST>(start, LexTokenType::CompSwitch);
         return true;
     }
     return false;

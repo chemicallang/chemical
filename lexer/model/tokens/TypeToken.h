@@ -13,10 +13,6 @@ public:
 
     using RefToken::RefToken;
 
-    LexTokenType type() const override {
-        return LexTokenType::Type;
-    }
-
     void accept(CSTVisitor *visitor) override {
         visitor->visitTypeToken(this);
     }

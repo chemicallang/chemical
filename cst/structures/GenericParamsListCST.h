@@ -13,8 +13,4 @@ public:
         visitor->visitGenericParamsList(this);
     }
 
-    LexTokenType type() const override {
-        return LexTokenType::CompGenericParamsList;
-    }
-
 };

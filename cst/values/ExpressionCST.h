@@ -13,8 +13,4 @@ public:
         visitor->visitExpression(this);
     }
 
-    LexTokenType type() const override {
-        return LexTokenType::CompExpression;
-    }
-
 };

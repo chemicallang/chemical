@@ -29,7 +29,7 @@ bool Lexer::lexAnnotationMacro() {
     // if it's annotation
     if (isAnnotation) {
         unsigned start = tokens.size();
-        tokens.emplace_back(std::make_unique<AnnotationToken>(backPosition(macro.size()), macro_full));
+        tokens.emplace_back(std::make_unique<AnnotationToken>(LexTokenType::Annotation, backPosition(macro.size()), macro_full));
         if(lexOperatorToken('(')) {
             do {
                 lexWhitespaceToken();
@@ -42,7 +42,7 @@ bool Lexer::lexAnnotationMacro() {
                 error("expected a ')' after '(' to call an annotation");
                 return true;
             }
-            compound_from<AnnotationCST>(start);
+            compound_from<AnnotationCST>(start, LexTokenType::CompAnnotation);
         }
         auto found = AnnotationModifiers.find(macro);
         if (found != AnnotationModifiers.end()) {
@@ -53,7 +53,7 @@ bool Lexer::lexAnnotationMacro() {
 
     auto start = tokens.size();
 
-    tokens.emplace_back(std::make_unique<IdentifierToken>(backPosition(macro.size()), macro_full));
+    tokens.emplace_back(std::make_unique<IdentifierToken>(LexTokenType::Identifier, backPosition(macro.size()), macro_full));
 
     lexWhitespaceToken();
     if (lexOperatorToken('{')) {
@@ -71,7 +71,7 @@ bool Lexer::lexAnnotationMacro() {
             } else {
                 auto current = position();
                 auto content = provider.readUntil('}');
-                tokens.emplace_back(std::make_unique<RawToken>(current, std::move(content)));
+                tokens.emplace_back(std::make_unique<RawToken>(LexTokenType::RawToken, current, std::move(content)));
             }
         }
 
@@ -86,7 +86,7 @@ bool Lexer::lexAnnotationMacro() {
         return true;
     }
 
-    compound_from<MacroCST>(start);
+    compound_from<MacroCST>(start, LexTokenType::CompMacro);
     return true;
 
 }

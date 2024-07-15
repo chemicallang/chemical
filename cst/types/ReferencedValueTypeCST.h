@@ -13,8 +13,4 @@ public:
         visitor->visitReferencedValueType(this);
     }
 
-    LexTokenType type() const override {
-        return LexTokenType::CompReferencedValueType;
-    }
-
 };

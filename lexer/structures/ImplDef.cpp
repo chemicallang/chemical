@@ -47,7 +47,7 @@ bool Lexer::lexImplTokens() {
             error("expected a '}' when ending an implementation");
             return true;
         }
-        compound_collectable<ImplCST>(start);
+        compound_collectable<ImplCST>(start, LexTokenType::CompImpl);
         return true;
     }
     return false;

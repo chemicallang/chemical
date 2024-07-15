@@ -13,8 +13,4 @@ public:
         visitor->visitTypealias(this);
     }
 
-    LexTokenType type() const override {
-        return LexTokenType::CompTypealias;
-    }
-
 };

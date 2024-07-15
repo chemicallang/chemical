@@ -16,9 +16,16 @@ class CSTToken {
 public:
 
     /**
+     * the type of token
+     */
+    LexTokenType tok_type;
+
+    /**
      * default constructor
      */
-    CSTToken() = default;
+    explicit CSTToken(LexTokenType tok_type) : tok_type(tok_type) {
+        // do nothing
+    }
 
     /**
      * get a pointer to the start lex token
@@ -52,7 +59,9 @@ public:
     /**
      * get lex token type of this token
      */
-    virtual LexTokenType type() const = 0;
+    inline LexTokenType type() const {
+        return tok_type;
+    }
 
     /**
      * is token a compound token, meaning token holds multiple children

@@ -17,8 +17,4 @@ public:
         visitor->visitCharToken(this);
     }
 
-    LexTokenType type() const override {
-        return LexTokenType::Char;
-    }
-
 };

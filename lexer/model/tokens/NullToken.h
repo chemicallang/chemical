@@ -13,10 +13,6 @@ public:
 
     using LexToken::LexToken;
 
-    LexTokenType type() const override {
-        return LexTokenType::Null;
-    }
-
     void accept(CSTVisitor *visitor) override {
         visitor->visitNullToken(this);
     }

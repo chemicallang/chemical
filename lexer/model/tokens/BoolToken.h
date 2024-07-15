@@ -13,10 +13,6 @@ public:
 
     using LexToken::LexToken;
 
-    LexTokenType type() const override {
-        return LexTokenType::Bool;
-    }
-
     void accept(CSTVisitor *visitor) override {
         visitor->visitBoolToken(this);
     }

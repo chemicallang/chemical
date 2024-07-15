@@ -11,7 +11,7 @@
 
 bool Lexer::lexContinueStatement() {
     if(lexKeywordToken("continue")) {
-        compound_from<ContinueCST>(tokens.size());
+        compound_from<ContinueCST>(tokens.size(), LexTokenType::CompContinue);
         return true;
     } else {
         return false;
@@ -20,7 +20,7 @@ bool Lexer::lexContinueStatement() {
 
 bool Lexer::lexBreakStatement() {
     if(lexKeywordToken("break")) {
-        compound_from<BreakCST>(tokens.size());
+        compound_from<BreakCST>(tokens.size(), LexTokenType::CompBreak);
         return true;
     } else {
         return false;
@@ -95,7 +95,7 @@ bool Lexer::lexForBlockTokens() {
     isLexContinueStatement = false;
     isLexBreakStatement = false;
 
-    compound_from<ForLoopCST>(start);
+    compound_from<ForLoopCST>(start, LexTokenType::CompForLoop);
 
     return true;
 

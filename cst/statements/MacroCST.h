@@ -13,8 +13,4 @@ public:
         visitor->visitMacro(this);
     }
 
-    LexTokenType type() const override {
-        return LexTokenType::CompMacro;
-    }
-
 };

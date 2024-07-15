@@ -13,8 +13,4 @@ public:
         visitor->visitDereference(this);
     }
 
-    LexTokenType type() const override {
-        return LexTokenType::CompDeference;
-    }
-
 };

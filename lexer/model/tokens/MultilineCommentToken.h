@@ -17,8 +17,4 @@ public:
         visitor->visitMultilineComment(this);
     }
 
-    LexTokenType type() const override {
-        return LexTokenType::MultilineComment;
-    }
-
 };

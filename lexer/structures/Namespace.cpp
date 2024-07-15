@@ -15,7 +15,7 @@ bool Lexer::lexNamespaceTokens() {
             lexer->lexTopLevelMultipleStatementsTokens(true);
         });
         if(result) {
-            compound_from<NamespaceCST>(start);
+            compound_from<NamespaceCST>(start, LexTokenType::CompNamespace);
         }
         return result;
     }

@@ -13,8 +13,4 @@ public:
         visitor->visitContinue(this);
     }
 
-    LexTokenType type() const override {
-        return LexTokenType::CompContinue;
-    }
-
 };

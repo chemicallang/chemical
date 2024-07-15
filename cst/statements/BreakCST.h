@@ -13,8 +13,4 @@ public:
         visitor->visitBreak(this);
     }
 
-    LexTokenType type() const override {
-        return LexTokenType::CompBreak;
-    }
-
 };

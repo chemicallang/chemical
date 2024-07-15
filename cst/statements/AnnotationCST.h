@@ -13,8 +13,4 @@ public:
         visitor->visitAnnotation(this);
     }
 
-    LexTokenType type() const override {
-        return LexTokenType::CompAnnotation;
-    }
-
 };

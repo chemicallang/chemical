@@ -13,8 +13,4 @@ public:
         visitor->visitUsing(this);
     }
 
-    LexTokenType type() const override {
-        return LexTokenType::CompUsing;
-    }
-
 };

@@ -13,8 +13,4 @@ public:
         visitor->visitNot(this);
     }
 
-    LexTokenType type() const override {
-        return LexTokenType::CompNot;
-    }
-
 };

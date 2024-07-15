@@ -8,12 +8,12 @@
 
 const std::unordered_map<std::string, ValueCreatorFn> ValueCreators = {
         {"null", [](Lexer *lexer) -> void {
-            lexer->tokens.emplace_back(std::make_unique<NullToken>(lexer->backPosition(4), "null"));
+            lexer->tokens.emplace_back(std::make_unique<NullToken>(LexTokenType::Null, lexer->backPosition(4), "null"));
         }},
         {"true", [](Lexer *lexer) -> void {
-            lexer->tokens.emplace_back(std::make_unique<BoolToken>(lexer->backPosition(4), "true"));
+            lexer->tokens.emplace_back(std::make_unique<BoolToken>(LexTokenType::Bool, lexer->backPosition(4), "true"));
         }},
         {"false", [](Lexer *lexer) -> void {
-            lexer->tokens.emplace_back(std::make_unique<BoolToken>(lexer->backPosition(5), "false"));
+            lexer->tokens.emplace_back(std::make_unique<BoolToken>(LexTokenType::Bool, lexer->backPosition(5), "false"));
         }}
 };

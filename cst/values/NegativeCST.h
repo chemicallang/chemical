@@ -13,8 +13,4 @@ public:
         visitor->visitNegative(this);
     }
 
-    LexTokenType type() const override {
-        return LexTokenType::CompNegative;
-    }
-
 };

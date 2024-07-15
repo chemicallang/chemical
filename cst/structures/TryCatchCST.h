@@ -13,8 +13,4 @@ public:
         visitor->visitTryCatch(this);
     }
 
-    LexTokenType type() const override {
-        return LexTokenType::CompTryCatch;
-    }
-
 };

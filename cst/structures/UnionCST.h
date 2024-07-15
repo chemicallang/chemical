@@ -13,8 +13,4 @@ public:
         visitor->visitUnionDef(this);
     }
 
-    LexTokenType type() const override {
-        return LexTokenType::CompUnionDef;
-    }
-
 };

@@ -13,8 +13,4 @@ public:
         visitor->visitNamespace(this);
     }
 
-    LexTokenType type() const override {
-        return LexTokenType::CompNamespace;
-    }
-
 };

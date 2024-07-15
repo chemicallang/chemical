@@ -66,7 +66,7 @@ bool Lexer::lexIfBlockTokens() {
             if (!lexBraceBlock("else")) {
                 error("expected a brace block after the else while lexing an if statement");
             }
-            compound_from<IfCST>(start);
+            compound_from<IfCST>(start, LexTokenType::CompIf);
             return true;
         } else {
             if(lexKeywordToken("if")) {
@@ -78,7 +78,7 @@ bool Lexer::lexIfBlockTokens() {
         }
     }
 
-    compound_from<IfCST>(start);
+    compound_from<IfCST>(start, LexTokenType::CompIf);
 
     return true;
 

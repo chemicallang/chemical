@@ -13,8 +13,4 @@ public:
         visitor->visitFunctionCall(this);
     }
 
-    LexTokenType type() const override {
-        return LexTokenType::CompFunctionCall;
-    }
-
 };

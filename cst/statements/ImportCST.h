@@ -13,8 +13,4 @@ public:
         visitor->visitImport(this);
     }
 
-    LexTokenType type() const override {
-        return LexTokenType::CompImport;
-    }
-
 };

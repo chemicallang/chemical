@@ -13,8 +13,4 @@ public:
         visitor->visitStructValue(this);
     }
 
-    LexTokenType type() const override {
-        return LexTokenType::CompStructValue;
-    }
-
 };

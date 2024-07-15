@@ -13,8 +13,4 @@ public:
         visitor->visitForLoop(this);
     }
 
-    LexTokenType type() const override {
-        return LexTokenType::CompForLoop;
-    }
-
 };

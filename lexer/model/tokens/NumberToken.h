@@ -57,8 +57,4 @@ public:
         visitor->visitNumberToken(this);
     }
 
-    LexTokenType type() const override {
-        return LexTokenType::Number;
-    }
-
 };

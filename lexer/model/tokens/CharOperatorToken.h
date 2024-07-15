@@ -17,10 +17,6 @@ public:
 
     using LexToken::LexToken;
 
-    LexTokenType type() const override {
-        return LexTokenType::CharOperator;
-    }
-
     void accept(CSTVisitor *visitor) override {
         visitor->visitCharOperatorToken(this);
     }

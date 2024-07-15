@@ -13,8 +13,4 @@ public:
         visitor->visitArrayValue(this);
     }
 
-    LexTokenType type() const override {
-        return LexTokenType::CompArrayValue;
-    }
-
 };

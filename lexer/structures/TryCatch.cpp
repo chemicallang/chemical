@@ -32,7 +32,7 @@ bool Lexer::lexTryCatchTokens() {
                 if (!lexBraceBlock("catch")) {
                     error("expected '{' after 'catch' for a block");
                 }
-                compound_from<TryCatchCST>(start);
+                compound_from<TryCatchCST>(start, LexTokenType::CompTryCatch);
             } //optional catch
         } else {
             error("expected '{' after 'try' for a block");

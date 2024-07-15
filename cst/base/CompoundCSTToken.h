@@ -19,7 +19,10 @@ public:
     /**
      * the constructor for CompoundCSTToken
      */
-    CompoundCSTToken(std::vector<std::unique_ptr<CSTToken>> tokens) : tokens(std::move(tokens)) {
+    CompoundCSTToken(
+            std::vector<std::unique_ptr<CSTToken>> tokens,
+            LexTokenType type
+    ) : CSTToken(type), tokens(std::move(tokens)) {
         tokens.shrink_to_fit();
     }
 

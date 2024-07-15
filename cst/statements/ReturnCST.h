@@ -13,8 +13,4 @@ public:
         visitor->visitReturn(this);
     }
 
-    LexTokenType type() const override {
-        return LexTokenType::CompReturn;
-    }
-
 };

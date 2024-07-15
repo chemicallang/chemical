@@ -37,7 +37,7 @@ bool Lexer::lexImportStatement() {
                 error("expected identifier after 'as' in import statement");
             }
         }
-        compound_from<ImportCST>(start);
+        compound_from<ImportCST>(start, LexTokenType::CompImport);
         return true;
     } else {
         if (lexIdentifierToken() || lexImportIdentifierList()) {
@@ -56,7 +56,7 @@ bool Lexer::lexImportStatement() {
             error("expected a string path in import statement or identifier(s) after the 'import' keyword");
             return false;
         }
-        compound_from<ImportCST>(start);
+        compound_from<ImportCST>(start, LexTokenType::CompImport);
     }
     return true;
 }

@@ -21,8 +21,4 @@ public:
         visitor->visitStringOperatorToken(this);
     }
 
-    LexTokenType type() const override {
-        return LexTokenType::StringOperator;
-    }
-
 };

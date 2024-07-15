@@ -13,8 +13,4 @@ public:
         visitor->visitPointerType(this);
     }
 
-    LexTokenType type() const override {
-        return LexTokenType::CompPointerType;
-    }
-
 };

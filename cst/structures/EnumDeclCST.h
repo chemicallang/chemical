@@ -13,8 +13,4 @@ public:
         visitor->visitEnumDecl(this);
     }
 
-    LexTokenType type() const override {
-        return LexTokenType::CompEnumDecl;
-    }
-
 };

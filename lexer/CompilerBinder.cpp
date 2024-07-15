@@ -10,7 +10,7 @@
 #include "ast/base/ASTNode.h"
 
 IdentifierToken dummy_token_at_start() {
-    return IdentifierToken { Position(0,0),""};
+    return IdentifierToken { LexTokenType::Identifier, Position(0,0),""};
 }
 
 void error(CSTDiagnoser* diagnoser, const std::string& msg) {

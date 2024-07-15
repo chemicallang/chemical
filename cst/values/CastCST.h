@@ -13,8 +13,4 @@ public:
         visitor->visitCast(this);
     }
 
-    LexTokenType type() const override {
-        return LexTokenType::CompCastValue;
-    }
-
 };

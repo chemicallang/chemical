@@ -17,8 +17,4 @@ public:
         visitor->visitKeywordToken(this);
     }
 
-    LexTokenType type() const override {
-        return LexTokenType::Keyword;
-    }
-
 };

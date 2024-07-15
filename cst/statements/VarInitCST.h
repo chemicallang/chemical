@@ -13,8 +13,4 @@ public:
         visitor->visitVarInit(this);
     }
 
-    LexTokenType type() const override {
-        return LexTokenType::CompVarInit;
-    }
-
 };

@@ -17,8 +17,4 @@ public:
         visitor->visitCommentToken(this);
     }
 
-    LexTokenType type() const override {
-        return LexTokenType::Comment;
-    }
-
 };

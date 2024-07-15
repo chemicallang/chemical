@@ -13,8 +13,4 @@ public:
         visitor->visitBody(this);
     }
 
-    LexTokenType type() const override {
-        return LexTokenType::CompBody;
-    }
-
 };

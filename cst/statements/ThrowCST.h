@@ -13,8 +13,4 @@ public:
         visitor->visitThrow(this);
     }
 
-    LexTokenType type() const override {
-        return LexTokenType::CompThrow;
-    }
-
 };

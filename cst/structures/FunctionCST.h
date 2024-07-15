@@ -13,28 +13,15 @@ public:
         visitor->visitFunctionParam(this);
     }
 
-    LexTokenType type() const override {
-        return LexTokenType::CompFunctionParam;
-    }
-
 };
 
 class FunctionCST : public CompoundCSTToken {
 public:
 
-    /**
-     * constructor
-     */
-    FunctionCST(std::vector<std::unique_ptr<CSTToken>> tokens) : CompoundCSTToken(std::move(tokens)) {
-
-    }
+    using CompoundCSTToken::CompoundCSTToken;
 
     void accept(CSTVisitor *visitor) override {
         visitor->visitFunction(this);
-    }
-
-    LexTokenType type() const override {
-        return LexTokenType::CompFunction;
     }
 
 };

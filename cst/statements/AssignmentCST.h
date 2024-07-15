@@ -13,8 +13,4 @@ public:
         visitor->visitAssignment(this);
     }
 
-    LexTokenType type() const override {
-        return LexTokenType::CompAssignment;
-    }
-
 };

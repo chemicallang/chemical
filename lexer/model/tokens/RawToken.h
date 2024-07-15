@@ -17,8 +17,4 @@ public:
         visitor->visitRawToken(this);
     }
 
-    LexTokenType type() const override {
-        return LexTokenType::RawToken;
-    }
-
 };

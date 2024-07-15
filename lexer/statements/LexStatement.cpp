@@ -76,7 +76,7 @@ bool Lexer::lexThrowStatementTokens() {
         } else {
             return false;
         }
-        compound_from<ThrowCST>(start);
+        compound_from<ThrowCST>(start, LexTokenType::CompThrow);
         return true;
     } else {
         return false;
@@ -96,7 +96,7 @@ bool Lexer::lexUsingStatement() {
                 return true;
             }
         } while(lexOperatorToken("::"));
-        compound_from<UsingCST>(start);
+        compound_from<UsingCST>(start, LexTokenType::CompUsing);
         return true;
     } else {
         return false;

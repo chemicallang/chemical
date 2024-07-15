@@ -21,8 +21,4 @@ public:
         visitor->visitOperationToken(this);
     }
 
-    LexTokenType type() const override {
-        return LexTokenType::Operation;
-    }
-
 };

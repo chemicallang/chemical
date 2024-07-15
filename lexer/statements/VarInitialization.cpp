@@ -59,7 +59,7 @@ bool Lexer::lexVarInitializationTokens(bool allowDeclarations, bool requiredType
             error("expected an = sign for the initialization of the variable");
             return true;
         } else if(has_type) {
-            compound_from<VarInitCST>(start);
+            compound_from<VarInitCST>(start, LexTokenType::CompVarInit);
         } else {
             error("a type or value is required to initialize a variable");
             return true;
@@ -76,7 +76,7 @@ bool Lexer::lexVarInitializationTokens(bool allowDeclarations, bool requiredType
         return true;
     }
 
-    compound_collectable<VarInitCST>(start);
+    compound_collectable<VarInitCST>(start, LexTokenType::CompVarInit);
 
     return true;
 

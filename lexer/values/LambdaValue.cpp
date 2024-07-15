@@ -36,7 +36,7 @@ void Lexer::lexLambdaAfterParamsList(unsigned int start) {
         error("expected lambda body");
     }
 
-    compound_from<LambdaCST>(start);
+    compound_from<LambdaCST>(start, LexTokenType::CompLambda);
 }
 
 bool Lexer::lexLambdaValue() {

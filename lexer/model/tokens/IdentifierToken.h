@@ -17,8 +17,4 @@ public:
         visitor->visitIdentifierToken(this);
     }
 
-    LexTokenType type() const override {
-        return LexTokenType::Identifier;
-    }
-
 };

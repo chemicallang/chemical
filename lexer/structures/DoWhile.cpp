@@ -48,7 +48,7 @@ bool Lexer::lexDoWhileBlockTokens() {
         return true;
     }
 
-    compound_from<DoWhileCST>(start);
+    compound_from<DoWhileCST>(start, LexTokenType::CompDoWhile);
 
     return true;
 

@@ -13,8 +13,4 @@ public:
         visitor->visitSwitch(this);
     }
 
-    LexTokenType type() const override {
-        return LexTokenType::CompSwitch;
-    }
-
 };

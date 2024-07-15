@@ -13,8 +13,4 @@ public:
         visitor->visitIncDec(this);
     }
 
-    LexTokenType type() const override {
-        return LexTokenType::CompIncDec;
-    }
-
 };

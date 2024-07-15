@@ -36,7 +36,7 @@ bool Lexer::lexStructValueTokens() {
             error("expected '}' for struct value");
         }
 
-        compound_from<StructValueCST>(start);
+        compound_from<StructValueCST>(start, LexTokenType::CompStructValue);
 
         return true;
     }

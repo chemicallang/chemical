@@ -53,8 +53,4 @@ public:
         return equal(sec_last(), 'u');
     }
 
-    void accept(CSTVisitor *visitor) override {
-        visitor->visitNumberToken(this);
-    }
-
 };

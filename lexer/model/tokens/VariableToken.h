@@ -13,8 +13,4 @@ public:
 
     using RefToken::RefToken;
 
-    void accept(CSTVisitor *visitor) override {
-        visitor->visitVariableToken(this);
-    }
-
 };

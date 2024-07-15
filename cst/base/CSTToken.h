@@ -54,7 +54,7 @@ public:
     /**
      * implement the visitor pattern
      */
-    virtual void accept(CSTVisitor *visitor) = 0;
+    void accept(CSTVisitor *visitor);
 
     /**
      * get lex token type of this token

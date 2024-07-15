@@ -17,8 +17,4 @@ public:
 
     using LexToken::LexToken;
 
-    void accept(CSTVisitor *visitor) override {
-        visitor->visitCharOperatorToken(this);
-    }
-
 };

@@ -9,19 +9,11 @@ public:
 
     using CompoundCSTToken::CompoundCSTToken;
 
-    void accept(CSTVisitor *visitor) override {
-        visitor->visitFunctionParam(this);
-    }
-
 };
 
 class FunctionCST : public CompoundCSTToken {
 public:
 
     using CompoundCSTToken::CompoundCSTToken;
-
-    void accept(CSTVisitor *visitor) override {
-        visitor->visitFunction(this);
-    }
 
 };

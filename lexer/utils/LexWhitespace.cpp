@@ -4,7 +4,6 @@
 // Created by Waqas Tahir on 16/02/2024.
 //
 #include "lexer/Lexer.h"
-#include "lexer/model/tokens/RawToken.h"
 #include <memory>
 
 bool Lexer::readWhitespace() {

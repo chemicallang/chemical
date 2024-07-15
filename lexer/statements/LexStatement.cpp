@@ -5,8 +5,6 @@
 //
 
 #include "lexer/Lexer.h"
-#include "cst/statements/ThrowCST.h"
-#include "cst/statements/UsingCST.h"
 
 bool Lexer::lexTopLevelStatementTokens() {
     return lexSingleLineCommentTokens() ||
@@ -76,7 +74,7 @@ bool Lexer::lexThrowStatementTokens() {
         } else {
             return false;
         }
-        compound_from<ThrowCST>(start, LexTokenType::CompThrow);
+        compound_from(start, LexTokenType::CompThrow);
         return true;
     } else {
         return false;
@@ -96,7 +94,7 @@ bool Lexer::lexUsingStatement() {
                 return true;
             }
         } while(lexOperatorToken("::"));
-        compound_from<UsingCST>(start, LexTokenType::CompUsing);
+        compound_from(start, LexTokenType::CompUsing);
         return true;
     } else {
         return false;

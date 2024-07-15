@@ -5,8 +5,6 @@
 //
 
 #include "lexer/Lexer.h"
-#include "lexer/model/tokens/CommentToken.h"
-#include "lexer/model/tokens/MultilineCommentToken.h"
 
 bool Lexer::lexSingleLineCommentTokens() {
     if(provider.increment("//")) {
@@ -14,7 +12,7 @@ bool Lexer::lexSingleLineCommentTokens() {
         while(!provider.eof() && !hasNewLine()) {
             comment.append(1, provider.readCharacter());
         }
-        tokens.emplace_back(std::make_unique<CommentToken>(LexTokenType::Comment, backPosition(comment.length()), comment));
+        tokens.emplace_back(std::make_unique<LexToken>(LexTokenType::Comment, backPosition(comment.length()), comment));
         return true;
     } else return false;
 }
@@ -26,7 +24,7 @@ bool Lexer::lexMultiLineCommentTokens() {
             comment.append(1, provider.readCharacter());
         }
         comment.append("*/");
-        tokens.emplace_back(std::make_unique<MultilineCommentToken>(LexTokenType::MultilineComment, backPosition(comment.length()), comment));
+        tokens.emplace_back(std::make_unique<LexToken>(LexTokenType::MultilineComment, backPosition(comment.length()), comment));
         return true;
     } else {
         return false;

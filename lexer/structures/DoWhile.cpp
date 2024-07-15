@@ -5,7 +5,6 @@
 //
 
 #include "lexer/Lexer.h"
-#include "cst/structures/DoWhileCST.h"
 
 bool Lexer::lexDoWhileBlockTokens() {
 
@@ -48,7 +47,7 @@ bool Lexer::lexDoWhileBlockTokens() {
         return true;
     }
 
-    compound_from<DoWhileCST>(start, LexTokenType::CompDoWhile);
+    compound_from(start, LexTokenType::CompDoWhile);
 
     return true;
 

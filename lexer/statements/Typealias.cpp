@@ -1,7 +1,6 @@
 // Copyright (c) Qinetik 2024.
 
 #include "lexer/Lexer.h"
-#include "cst/statements/TypealiasCST.h"
 
 bool Lexer::lexTypealiasStatement() {
     if(lexKeywordToken("typealias")) {
@@ -16,7 +15,7 @@ bool Lexer::lexTypealiasStatement() {
             if(!lexTypeTokens()) {
                 error("expected a type after '='");
             }
-            compound_collectable<TypealiasCST>(start, LexTokenType::CompTypealias);
+            compound_collectable(start, LexTokenType::CompTypealias);
         } else {
             error("expected a type for typealias statement");
         }

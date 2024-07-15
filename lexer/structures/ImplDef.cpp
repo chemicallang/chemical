@@ -5,7 +5,6 @@
 //
 
 #include "lexer/Lexer.h"
-#include "cst/structures/ImplCST.h"
 
 void Lexer::lexImplBlockTokens() {
     do {
@@ -47,7 +46,7 @@ bool Lexer::lexImplTokens() {
             error("expected a '}' when ending an implementation");
             return true;
         }
-        compound_collectable<ImplCST>(start, LexTokenType::CompImpl);
+        compound_collectable(start, LexTokenType::CompImpl);
         return true;
     }
     return false;

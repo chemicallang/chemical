@@ -1,7 +1,6 @@
 // Copyright (c) Qinetik 2024.
 
 #include "lexer/Lexer.h"
-#include "cst/values/LambdaCST.h"
 
 void Lexer::lexTypeList() {
     do {
@@ -36,7 +35,7 @@ void Lexer::lexLambdaAfterParamsList(unsigned int start) {
         error("expected lambda body");
     }
 
-    compound_from<LambdaCST>(start, LexTokenType::CompLambda);
+    compound_from(start, LexTokenType::CompLambda);
 }
 
 bool Lexer::lexLambdaValue() {

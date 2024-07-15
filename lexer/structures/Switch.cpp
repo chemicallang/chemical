@@ -1,8 +1,6 @@
 // Copyright (c) Qinetik 2024.
 
 #include "lexer/Lexer.h"
-#include "cst/statements/SwitchCST.h"
-#include "cst/structures/BodyCST.h"
 
 bool Lexer::lexSwitchStatementBlock() {
     if (lexKeywordToken("switch")) {
@@ -32,7 +30,7 @@ bool Lexer::lexSwitchStatementBlock() {
                     if (lexOperatorToken(':')) {
                         auto bStart = tokens.size();
                         lexNestedLevelMultipleStatementsTokens();
-                        compound_from<BodyCST>(bStart, LexTokenType::CompBody);
+                        compound_from(bStart, LexTokenType::CompBody);
                         continue;
                     } else if (lexOperatorToken("->")) {
                         lexWhitespaceAndNewLines();
@@ -49,7 +47,7 @@ bool Lexer::lexSwitchStatementBlock() {
                     if (lexOperatorToken(':')) {
                         auto bStart = tokens.size();
                         lexNestedLevelMultipleStatementsTokens();
-                        compound_from<BodyCST>(bStart, LexTokenType::CompBody);
+                        compound_from(bStart, LexTokenType::CompBody);
                     } else if (lexOperatorToken("->")) {
                         lexWhitespaceAndNewLines();
                         if(!lexBraceBlock("switch-default")) {
@@ -70,7 +68,7 @@ bool Lexer::lexSwitchStatementBlock() {
         } else {
             error("expected '{' after switch");
         }
-        compound_from<SwitchCST>(start, LexTokenType::CompSwitch);
+        compound_from(start, LexTokenType::CompSwitch);
         return true;
     }
     return false;

@@ -5,7 +5,6 @@
 //
 
 #include "lexer/Lexer.h"
-#include "cst/structures/StructDefCST.h"
 
 bool Lexer::lexStructMemberTokens() {
     return lexVarInitializationTokens(true, true) ||
@@ -66,7 +65,7 @@ bool Lexer::lexStructStructureTokens(bool unnamed, bool direct_init) {
             error("expected an identifier after the '}' for anonymous struct definition");
             return true;
         }
-        compound_collectable<StructDefCST>(start_token, LexTokenType::CompStructDef);
+        compound_collectable(start_token, LexTokenType::CompStructDef);
         return true;
     } else {
         return false;

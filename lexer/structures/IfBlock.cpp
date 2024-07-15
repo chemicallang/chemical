@@ -5,7 +5,6 @@
 //
 
 #include "lexer/Lexer.h"
-#include "cst/statements/IfCST.h"
 
 void Lexer::lexIfExpression() {
 
@@ -66,7 +65,7 @@ bool Lexer::lexIfBlockTokens() {
             if (!lexBraceBlock("else")) {
                 error("expected a brace block after the else while lexing an if statement");
             }
-            compound_from<IfCST>(start, LexTokenType::CompIf);
+            compound_from(start, LexTokenType::CompIf);
             return true;
         } else {
             if(lexKeywordToken("if")) {
@@ -78,7 +77,7 @@ bool Lexer::lexIfBlockTokens() {
         }
     }
 
-    compound_from<IfCST>(start, LexTokenType::CompIf);
+    compound_from(start, LexTokenType::CompIf);
 
     return true;
 

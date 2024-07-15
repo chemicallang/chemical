@@ -2,15 +2,15 @@
 
 #include <sstream>
 #include <utility>
-#include "lexer/model/tokens/IdentifierToken.h"
+#include "lexer/model/tokens/LexToken.h"
 #include "lexer/model/CompilerBinder.h"
 #include "lexer/model/CompilerBinderTCC.h"
 #include "utils/PathUtils.h"
 #include "lexer/model/CompilerBinderCommon.h"
 #include "ast/base/ASTNode.h"
 
-IdentifierToken dummy_token_at_start() {
-    return IdentifierToken { LexTokenType::Identifier, Position(0,0),""};
+LexToken dummy_token_at_start() {
+    return LexToken { LexTokenType::Identifier, Position(0,0),""};
 }
 
 void error(CSTDiagnoser* diagnoser, const std::string& msg) {

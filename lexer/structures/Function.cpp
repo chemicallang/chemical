@@ -5,16 +5,13 @@
 //
 
 #include "lexer/Lexer.h"
-#include "cst/structures/FunctionCST.h"
-#include "cst/statements/ReturnCST.h"
-#include "cst/structures/GenericParamsListCST.h"
 
 bool Lexer::lexReturnStatement() {
     if(lexKeywordToken("return")) {
         unsigned int start = tokens.size() - 1;
         lexWhitespaceToken();
         lexExpressionTokens(true);
-        compound_from<ReturnCST>(start, LexTokenType::CompReturn);
+        compound_from(start, LexTokenType::CompReturn);
         return true;
     } else {
         return false;
@@ -28,7 +25,7 @@ void Lexer::lexParameterList(bool optionalTypes, bool defValues) {
         if(index == 0) {
             if(lexOperatorToken('&')) {
                 if(lexIdentifierToken()) {
-                    compound_from<FunctionParamCST>(tokens.size() - 2, LexTokenType::CompFunctionParam);
+                    compound_from(tokens.size() - 2, LexTokenType::CompFunctionParam);
                     lexWhitespaceToken();
                     index++;
                     continue;
@@ -45,7 +42,7 @@ void Lexer::lexParameterList(bool optionalTypes, bool defValues) {
                 lexWhitespaceToken();
                 if(lexTypeTokens()) {
                     if(lexOperatorToken("...")) {
-                        compound_from<FunctionParamCST>(start, LexTokenType::CompFunctionParam);
+                        compound_from(start, LexTokenType::CompFunctionParam);
                         break;
                     }
                     if(defValues) {
@@ -58,14 +55,14 @@ void Lexer::lexParameterList(bool optionalTypes, bool defValues) {
                             }
                         }
                     }
-                    compound_from<FunctionParamCST>(start, LexTokenType::CompFunctionParam);
+                    compound_from(start, LexTokenType::CompFunctionParam);
                 } else {
                     error("missing a type token for the function parameter, expected type after the colon");
                     return;
                 }
             } else {
                 if(optionalTypes) {
-                    compound_from<FunctionParamCST>(start, LexTokenType::CompFunctionParam);
+                    compound_from(start, LexTokenType::CompFunctionParam);
                 } else {
                     error("expected colon ':' in function parameter list after the parameter name ");
                     return;
@@ -102,7 +99,7 @@ bool Lexer::lexGenericParametersList() {
             error("expected a '>' for ending the generic parameters list");
             return true;
         }
-        compound_from<GenericParamsListCST>(start, LexTokenType::CompGenericParamsList);
+        compound_from(start, LexTokenType::CompGenericParamsList);
         return true;
     } else {
         return false;
@@ -130,7 +127,7 @@ bool Lexer::lexAfterFuncKeyword(bool allow_extensions) {
             error("expected type after ':' in extension function for receiver");
             return false;
         }
-        compound_from<FunctionParamCST>(start, LexTokenType::CompFunctionParam);
+        compound_from(start, LexTokenType::CompFunctionParam);
         lexWhitespaceToken();
         if(!lexOperatorToken(')')) {
             error("expected ')' in extension function after receiver");
@@ -210,7 +207,7 @@ bool Lexer::lexFunctionStructureTokens(bool allow_declarations, bool allow_exten
     }
     isLexReturnStatement = prevReturn;
 
-    compound_collectable<FunctionCST>(start, LexTokenType::CompFunction);
+    compound_collectable(start, LexTokenType::CompFunction);
 
     return true;
 

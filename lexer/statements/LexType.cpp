@@ -5,14 +5,6 @@
 //
 
 #include "lexer/Lexer.h"
-#include "lexer/model/tokens/TypeToken.h"
-#include "lexer/model/tokens/VariableToken.h"
-#include "cst/types/FunctionTypeCST.h"
-#include "cst/types/ReferencedValueTypeCST.h"
-#include "cst/values/AccessChainCST.h"
-#include "cst/types/ArrayTypeCST.h"
-#include "cst/types/PointerTypeCST.h"
-#include "cst/types/GenericTypeCST.h"
 
 bool Lexer::lexLambdaTypeTokens(unsigned int start) {
     if(lexOperatorToken('(')) {
@@ -29,7 +21,7 @@ bool Lexer::lexLambdaTypeTokens(unsigned int start) {
         } else {
             error("expected '=>' for lambda function type");
         }
-        compound_from<FunctionTypeCST>(start, LexTokenType::CompFunctionType);
+        compound_from(start, LexTokenType::CompFunctionType);
         return true;
     } else {
         return false;
@@ -61,7 +53,7 @@ bool Lexer::lexTypeTokens() {
     unsigned start = tokens.size();
     while(true) {
         if(provider.peek() == ':' && provider.peek(1) == ':') {
-            tokens.emplace_back(std::make_unique<VariableToken>(LexTokenType::Variable, backPosition(type.length()), type));
+            tokens.emplace_back(std::make_unique<LexToken>(LexTokenType::Variable, backPosition(type.length()), type));
             lexOperatorToken("::");
             auto new_type = provider.readIdentifier();
             if(new_type.empty()) {
@@ -73,11 +65,11 @@ bool Lexer::lexTypeTokens() {
             }
         } else {
             if(has_multiple) {
-                tokens.emplace_back(std::make_unique<VariableToken>(LexTokenType::Variable, backPosition(type.length()), type));
-                compound_from<AccessChainCST>(start, LexTokenType::CompAccessChain);
-                compound_from<ReferencedValueTypeCST>(start, LexTokenType::CompReferencedValueType);
+                tokens.emplace_back(std::make_unique<LexToken>(LexTokenType::Variable, backPosition(type.length()), type));
+                compound_from(start, LexTokenType::CompAccessChain);
+                compound_from(start, LexTokenType::CompReferencedValueType);
             } else {
-                tokens.emplace_back(std::make_unique<TypeToken>(LexTokenType::Type, backPosition(type.length()), type));
+                tokens.emplace_back(std::make_unique<LexToken>(LexTokenType::Type, backPosition(type.length()), type));
             }
             break;
         }
@@ -90,17 +82,17 @@ bool Lexer::lexTypeTokens() {
         if(!lexOperatorToken('>')) {
             error("expected '>' for generic type");
         }
-        compound_from<GenericTypeCST>(start, LexTokenType::CompGenericType);
+        compound_from(start, LexTokenType::CompGenericType);
     } else if(lexOperatorToken('[')) {
         // optional array size
         lexUnsignedIntAsNumberToken();
         if(!lexOperatorToken(']')) {
             error("expected ']' for array type");
         }
-        compound_from<ArrayTypeCST>(start, LexTokenType::CompArrayType);
+        compound_from(start, LexTokenType::CompArrayType);
     }
     while(lexOperatorToken('*')) {
-        compound_from<PointerTypeCST>(start, LexTokenType::CompPointerType);
+        compound_from(start, LexTokenType::CompPointerType);
     }
 
     return true;

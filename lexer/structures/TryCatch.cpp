@@ -1,7 +1,6 @@
 // Copyright (c) Qinetik 2024.
 
 #include "lexer/Lexer.h"
-#include "cst/structures/TryCatchCST.h"
 
 bool Lexer::lexTryCatchTokens() {
     if (lexKeywordToken("try")) {
@@ -32,7 +31,7 @@ bool Lexer::lexTryCatchTokens() {
                 if (!lexBraceBlock("catch")) {
                     error("expected '{' after 'catch' for a block");
                 }
-                compound_from<TryCatchCST>(start, LexTokenType::CompTryCatch);
+                compound_from(start, LexTokenType::CompTryCatch);
             } //optional catch
         } else {
             error("expected '{' after 'try' for a block");

@@ -1,7 +1,6 @@
 // Copyright (c) Qinetik 2024.
 
 #include "lexer/Lexer.h"
-#include "cst/structures/NamespaceCST.h"
 
 bool Lexer::lexNamespaceTokens() {
     if(lexKeywordToken("namespace")) {
@@ -15,7 +14,7 @@ bool Lexer::lexNamespaceTokens() {
             lexer->lexTopLevelMultipleStatementsTokens(true);
         });
         if(result) {
-            compound_from<NamespaceCST>(start, LexTokenType::CompNamespace);
+            compound_from(start, LexTokenType::CompNamespace);
         }
         return result;
     }

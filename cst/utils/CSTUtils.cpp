@@ -1,7 +1,6 @@
 // Copyright (c) Qinetik 2024.
 
 #include "CSTUtils.h"
-#include "lexer/model/tokens/RefToken.h"
 #include "integration/ide/model/ImportUnit.h"
 #include "integration/ide/model/LexResult.h"
 
@@ -50,7 +49,10 @@ CSTToken* get_linked(CSTToken* ref) {
     switch(ref->type()) {
         case LexTokenType::Variable:
         case LexTokenType::Type:
-            return ((RefToken*) ref)->linked;
+            // TODO ref token died
+            throw "TODO";
+//            return ((RefToken*) ref)->linked;
+            return nullptr;
         default:
             return nullptr;
     }
@@ -69,11 +71,12 @@ CSTToken* get_linked_from_type(CSTToken* token) {
     switch(token->type()) {
         case LexTokenType::Type:
         case LexTokenType::Variable:
-            if(token->as_ref()->linked) {
-                return token->as_ref()->linked;
-            } else {
-                return token; // native types aren't linked
-            }
+            throw "VARIABLE BRO";
+//            if(token->as_ref()->linked) {
+//                return token->as_ref()->linked;
+//            } else {
+//                return token; // native types aren't linked
+//            }
         case LexTokenType::CompFunctionType:
             return get_linked_from_type(token->as_compound()->tokens[token->as_compound()->tokens.size() - 1].get());
         case LexTokenType::CompArrayType:

@@ -5,7 +5,6 @@
 //
 
 #include "lexer/Lexer.h"
-#include "cst/structures/BodyCST.h"
 
 void Lexer::lexNestedLevelMultipleStatementsTokens() {
 
@@ -61,7 +60,7 @@ bool Lexer::lexBraceBlock(const std::string &forThing, void(*nested_lexer)(Lexer
         return true;
     }
 
-    compound_from<BodyCST>(start, LexTokenType::CompBody);
+    compound_from(start, LexTokenType::CompBody);
 
     return true;
 

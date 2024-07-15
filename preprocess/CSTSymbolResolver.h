@@ -37,7 +37,7 @@ public:
      * it's a virtual method so it can be overridden so references can be collected for a token
      * we're interested in to provide usage statistics
      */
-    virtual void link(RefToken* ref, CSTToken* token);
+    virtual void link(LexToken* ref, CSTToken* token);
 
     //-------------------------
     //------------ Visitors
@@ -62,7 +62,7 @@ public:
 
     void visitImpl(CompoundCSTToken *impl) override;
 
-    void visitAccessChain(AccessChainCST *accessChain) override;
+    void visitAccessChain(CompoundCSTToken *accessChain) override;
 
     void visitVariableToken(LexToken *token) override;
 

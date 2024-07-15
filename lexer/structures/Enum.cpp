@@ -5,7 +5,6 @@
 //
 
 #include "lexer/Lexer.h"
-#include "cst/structures/EnumDeclCST.h"
 
 bool Lexer::lexEnumBlockTokens() {
     if(lexOperatorToken('{')) {
@@ -47,7 +46,7 @@ bool Lexer::lexEnumStructureTokens() {
             error("expected an enum block for declaring an enum");
             return true;
         }
-        compound_collectable<EnumDeclCST>(start, LexTokenType::CompEnumDecl);
+        compound_collectable(start, LexTokenType::CompEnumDecl);
         return true;
     } else {
         return false;

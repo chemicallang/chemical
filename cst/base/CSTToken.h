@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CSTVisitor.h"
 #include "lexer/model/LexTokenType.h"
 #include <string>
 
@@ -11,6 +10,10 @@ class LexToken;
 class Position;
 
 class ASTNode;
+
+class CSTVisitor;
+
+class CompoundCSTToken;
 
 class CSTToken {
 public:
@@ -82,20 +85,6 @@ public:
      */
     inline LexToken* as_lex_token() const {
         return (LexToken*) this;
-    }
-
-    /**
-     * get the token as a variable
-     */
-    inline VariableToken* as_variable() const {
-        return (VariableToken*) this;
-    }
-
-    /**
-     * get the token as a ref token
-     */
-    inline RefToken* as_ref() {
-        return (RefToken*) this;
     }
 
     /**

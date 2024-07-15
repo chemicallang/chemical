@@ -5,12 +5,6 @@
 //
 
 #include "lexer/Lexer.h"
-#include "cst/values/NegativeCST.h"
-#include "cst/values/NotCST.h"
-#include "cst/values/CastCST.h"
-#include "cst/values/ExpressionCST.h"
-#include "cst/structures/FunctionCST.h"
-#include "cst/values/AccessChainCST.h"
 
 bool Lexer::lexRemainingExpression(unsigned start) {
 
@@ -21,7 +15,7 @@ bool Lexer::lexRemainingExpression(unsigned start) {
             error("expected a type for casting after 'as' in expression");
             return true;
         }
-        compound_from<CastCST>(start, LexTokenType::CompCastValue);
+        compound_from(start, LexTokenType::CompCastValue);
         return true;
     }
     if (!lexLanguageOperatorToken()) {
@@ -33,7 +27,7 @@ bool Lexer::lexRemainingExpression(unsigned start) {
         return true;
     }
 
-    compound_from<ExpressionCST>(start, LexTokenType::CompExpression);
+    compound_from(start, LexTokenType::CompExpression);
     return true;
 
 }
@@ -72,7 +66,7 @@ bool Lexer::lexLambdaOrExprAfterLParen() {
     bool has_whitespace = lexWhitespaceToken();
 
     if (provider.peek() == ')') {
-        compound_from<FunctionParamCST>(start + 1, LexTokenType::CompFunctionParam);
+        compound_from(start + 1, LexTokenType::CompFunctionParam);
         lexOperatorToken(')');
         lexLambdaAfterParamsList(start);
         return true;
@@ -83,14 +77,14 @@ bool Lexer::lexLambdaOrExprAfterLParen() {
         } else {
             error("expected a type after ':' when lexing a lambda in parenthesized expression");
         }
-        compound_from<FunctionParamCST>(start + 1, LexTokenType::CompFunctionParam);
+        compound_from(start + 1, LexTokenType::CompFunctionParam);
         if (lexOperatorToken(',')) {
             lexParameterList(true, false);
         }
         lexLambdaAfterComma(this, start);
         return true;
     } else if (provider.peek() == ',') {
-        compound_from<FunctionParamCST>(start + 1, LexTokenType::CompFunctionParam);
+        compound_from(start + 1, LexTokenType::CompFunctionParam);
         lexOperatorToken(',');
         lexParameterList(true, false);
         lexLambdaAfterComma(this, start);
@@ -101,11 +95,11 @@ bool Lexer::lexLambdaOrExprAfterLParen() {
         lexRemainingExpression(start + 1);
         if(lexOperatorToken(')')) {
             if(!lexRemainingExpression(start)) {
-                compound_from<ExpressionCST>(start, LexTokenType::CompExpression);
+                compound_from(start, LexTokenType::CompExpression);
             }
             return true;
         } else if(lexRemainingExpression(start + 1) && lexOperatorToken(')')) {
-            compound_from<ExpressionCST>(start, LexTokenType::CompExpression);
+            compound_from(start, LexTokenType::CompExpression);
         } else {
             error("expected ')' after the nested parenthesized expression");
         }
@@ -113,7 +107,7 @@ bool Lexer::lexLambdaOrExprAfterLParen() {
     } else {
         lexAccessChainAfterId();
         if(!tokens[start + 1]->is_struct_value()) {
-            compound_from<AccessChainCST>(start + 1, LexTokenType::CompAccessChain);
+            compound_from(start + 1, LexTokenType::CompAccessChain);
         }
         lexRemainingExpression(start);
         if(!lexOperatorToken(')')) {
@@ -154,7 +148,7 @@ bool Lexer::lexExpressionTokens(bool lexStruct, bool lambda) {
         if (!(lexParenExpression() || lexAccessChainOrValue(false))) {
             error("expected an expression after '-' negative");
         }
-        compound_from<NegativeCST>(start, LexTokenType::CompNegative);
+        compound_from(start, LexTokenType::CompNegative);
         lexRemainingExpression(start);
         return true;
     }
@@ -164,7 +158,7 @@ bool Lexer::lexExpressionTokens(bool lexStruct, bool lambda) {
         if (!(lexParenExpression() || lexAccessChainOrValue(false))) {
             error("expected an expression after '!' not");
         }
-        compound_from<NotCST>(start, LexTokenType::CompNot);
+        compound_from(start, LexTokenType::CompNot);
         lexRemainingExpression(start);
         return true;
     }
@@ -176,7 +170,7 @@ bool Lexer::lexExpressionTokens(bool lexStruct, bool lambda) {
         }
         lexParenExpressionAfterLParen();
         if(!lexRemainingExpression(start)) {
-            compound_from<ExpressionCST>(start, LexTokenType::CompExpression);
+            compound_from(start, LexTokenType::CompExpression);
         }
         return true;
     }
@@ -195,7 +189,7 @@ bool Lexer::lexExpressionTokens(bool lexStruct, bool lambda) {
             error("expected a identifier after the dot . in the access chain");
             return true;
         }
-        compound_from<AccessChainCST>(start, LexTokenType::CompAccessChain);
+        compound_from(start, LexTokenType::CompAccessChain);
         return true;
     }
 

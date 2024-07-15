@@ -33,6 +33,7 @@ enum class LexTokenType : uint8_t {
 
     // compound statements
     CompAssignment,
+    CompAccessChainNode,
     CompAnnotation,
     CompBreak,
     CompContinue,

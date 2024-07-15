@@ -5,7 +5,6 @@
 //
 
 #include "lexer/Lexer.h"
-#include "cst/structures/WhileCST.h"
 
 bool Lexer::lexWhileBlockTokens() {
 
@@ -43,7 +42,7 @@ bool Lexer::lexWhileBlockTokens() {
     isLexContinueStatement = prevLexContinue;
     isLexBreakStatement = prevLexBreak;
 
-    compound_from<WhileCST>(start, LexTokenType::CompWhile);
+    compound_from(start, LexTokenType::CompWhile);
 
     return true;
 

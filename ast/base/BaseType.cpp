@@ -10,3 +10,5 @@ std::string BaseType::representation() {
     accept(&visitor);
     return ostring.str();
 }
+
+BaseType::~BaseType() = default;

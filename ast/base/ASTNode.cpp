@@ -20,3 +20,5 @@ uint64_t ASTNode::byte_size(bool is64Bit) {
     if(holdingValue) return holdingValue->byte_size(is64Bit);
     throw std::runtime_error("unknown byte size for linked node");
 }
+
+ASTNode::~ASTNode() = default;

@@ -30,6 +30,26 @@ class BaseType : public ASTAny {
 public:
 
     /**
+     * default constructor
+     */
+    BaseType() = default;
+
+    /**
+     * deleted copy constructor
+     */
+    BaseType(const BaseType& other) = delete;
+
+    /**
+     * default move constructor
+     */
+    BaseType(BaseType&& other) = default;
+
+    /**
+     * move assignment operator
+     */
+    BaseType& operator =(BaseType &&other) = default;
+
+    /**
      * get the byte size, of this type
      */
     virtual uint64_t byte_size(bool is64Bit) {
@@ -193,6 +213,6 @@ public:
 
 #endif
 
-    virtual ~BaseType() = default;
+    virtual ~BaseType();
 
 };

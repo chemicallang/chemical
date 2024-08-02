@@ -31,6 +31,11 @@ public:
     }
 
     /**
+     * deleted copy constructor
+     */
+    CSTToken(const CSTToken& other) = delete;
+
+    /**
      * get a pointer to the start lex token
      */
     LexToken *start_token();

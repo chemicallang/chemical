@@ -275,3 +275,5 @@ void Value::link(SymbolResolver& linker, FunctionCall* call, unsigned int index)
 void Value::link(SymbolResolver& linker, ReturnStatement* returnStmt) {
     link(linker, returnStmt->value.value());
 }
+
+Value::~Value() = default;

@@ -49,6 +49,26 @@ class Value : public Interpretable, public ASTAny {
 public:
 
     /**
+     * default constructor
+     */
+    Value() = default;
+
+    /**
+     * deleted copy constructor
+     */
+    Value(const Value& other) = delete;
+
+    /**
+     * default move constructor
+     */
+    Value(Value&& other) = default;
+
+    /**
+     * move assignment operator
+     */
+    Value& operator =(Value &&other) = default;
+
+    /**
      * accept the visitor
      */
     virtual void accept(Visitor *visitor) = 0;
@@ -743,6 +763,6 @@ std::cerr << "child called on base value";
     /**
      * virtual default destructor
      */
-    virtual ~Value() = default;
+    virtual ~Value();
 
 };

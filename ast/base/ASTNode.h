@@ -48,6 +48,26 @@ class ASTNode : public Interpretable, public ASTAny {
 public:
 
     /**
+     * default constructor
+     */
+    ASTNode() = default;
+
+    /**
+     * deleted copy constructor
+     */
+    ASTNode(const ASTNode& other) = delete;
+
+    /**
+     * default move constructor
+     */
+    ASTNode(ASTNode&& other) = default;
+
+    /**
+     * move assignment constructor
+     */
+    ASTNode& operator =(ASTNode &&other) noexcept = default;
+
+    /**
      * declare something on the scope map
      * that must be retained in nested level scopes
      * for example top level functions can be called within functions
@@ -459,6 +479,6 @@ public:
     /**
      * virtual destructor for the ASTNode
      */
-    virtual ~ASTNode() = default;
+    virtual ~ASTNode();
 
 };

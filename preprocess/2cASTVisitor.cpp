@@ -184,8 +184,16 @@ void type_with_id(ToCAstVisitor* visitor, BaseType* type, const std::string& id)
     }
 }
 
+inline StructDefinition* get_param_type_ref_struct(BaseType* type) {
+    if(type->kind() == BaseTypeKind::Referenced) {
+        return type->linked_node()->as_struct_def();
+    } else {
+        return nullptr;
+    }
+}
+
 inline bool is_param_type_ref_struct(BaseType* type) {
-    return type->kind() == BaseTypeKind::Referenced && type->linked_node()->as_struct_def();
+    return get_param_type_ref_struct(type) != nullptr;
 }
 
 void param_type_with_id(ToCAstVisitor* visitor, BaseType* type, const std::string& id) {
@@ -323,11 +331,15 @@ bool should_void_pointer_to_self(BaseType* type, const std::string& id, unsigned
 //    type_with_id(visitor, type, id);
 //}
 
-bool is_func_param_ref_struct(ASTNode* node) {
-    if(!node) return false;
+StructDefinition* get_func_param_ref_struct(ASTNode* node) {
+    if(!node) return nullptr;
     auto param = node->as_func_param();
-    if(!param) return false;
-    return is_param_type_ref_struct(param->type.get());
+    if(!param) return nullptr;
+    return get_param_type_ref_struct(param->type.get());
+}
+
+bool is_func_param_ref_struct(ASTNode* node) {
+    return get_func_param_ref_struct(node) != nullptr;
 }
 
 void func_call_args(ToCAstVisitor* visitor, FunctionCall* call, BaseFunctionType* func_type) {
@@ -338,7 +350,7 @@ void func_call_args(ToCAstVisitor* visitor, FunctionCall* call, BaseFunctionType
     while(i < call->values.size()) {
         param = func_type->func_param_for_arg_at(i);
         auto& val = call->values[i];
-        if(is_param_type_ref_struct(param->type.get()) && !is_func_param_ref_struct(val->linked_node())) {
+        if(get_param_type_ref_struct(param->type.get()) && !is_func_param_ref_struct(val->linked_node())) {
             visitor->write('&');
             if(!val->reference() && val->value_type() == ValueType::Struct) {
                 write_struct_def_value_call(visitor, val->as_struct()->definition);

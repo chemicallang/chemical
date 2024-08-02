@@ -148,6 +148,15 @@ FunctionDeclaration* MembersContainer::constructor_func(std::vector<std::unique_
     return nullptr;
 }
 
+FunctionDeclaration* MembersContainer::implicit_constructor_func(Value* value) {
+    for (const auto & function : functions()) {
+        if(function->has_annotation(AnnotationKind::Implicit) && function->params.size() == 1 && function->params[0]->type->satisfies(value)) {
+            return function.get();
+        }
+    }
+    return nullptr;
+}
+
 FunctionDeclaration* MembersContainer::destructor_func() {
     for (const auto & function : std::ranges::reverse_view(functions())) {
         if(function->has_annotation(AnnotationKind::Destructor)) {

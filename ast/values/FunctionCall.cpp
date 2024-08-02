@@ -11,6 +11,7 @@
 #include "ast/values/StructValue.h"
 #include "ast/base/BaseType.h"
 #include "ast/structures/MultiFunctionNode.h"
+#include "ast/utils/ASTUtils.h"
 
 #ifdef COMPILER_BUILD
 
@@ -323,8 +324,21 @@ uint64_t FunctionCall::byte_size(bool is64Bit) {
 }
 
 void FunctionCall::link_values(SymbolResolver &linker) {
+    auto func_type = get_function_type();
     unsigned i = 0;
     while(i < values.size()) {
+        const auto param = func_type->func_param_for_arg_at(i);
+        if(param) {
+            const auto struct_def = param->type->linked_struct_def();
+            if (struct_def) {
+                auto implicit_constructor = struct_def->implicit_constructor_func(values[i].get());
+                if (implicit_constructor) {
+                    values[i] = call_with_arg(implicit_constructor, std::move(values[i]));
+                    i++;
+                    continue;
+                }
+            }
+        }
         values[i]->link(linker, this, i);
         i++;
     }
@@ -411,8 +425,8 @@ void FunctionCall::find_link_in_parent(Value *parent, SymbolResolver &resolver) 
         generic_iteration = func_decl->register_call(this);
         func_decl->set_active_iteration(generic_iteration);
     }
-    link_values(resolver);
     find_link_in_parent(parent, &resolver, false);
+    link_values(resolver);
     if(func_decl && !func_decl->generic_params.empty()) {
         func_decl->set_active_iteration(prev_itr);
     }

@@ -586,13 +586,33 @@ void FunctionDeclaration::accept(Visitor *visitor) {
 
 void FunctionDeclaration::declare_top_level(SymbolResolver &linker) {
     linker.declare_function(name, this);
-}
-
-void FunctionDeclaration::declare_and_link(SymbolResolver &linker) {
     if(has_annotation(AnnotationKind::Extern)) {
         annotations.push_back(AnnotationKind::Api);
         specifier = AccessSpecifier::Public;
     }
+    /**
+     * when a user has a call to function which is declared below current function, that function
+     * has a parameter of type ref struct, the struct has implicit constructor for the value we are passing
+     * we need to know the struct, we require the function's parameters to be linked, however that happens declare_and_link which happens
+     * when function's body is linked, then an error happens, so we must link the types of parameters of all functions before linking bodies
+     * in a single scope
+     *
+     * TODO However this requires that all the types used for parameters of functions must be declared above the function, because it will link
+     *  in declaration stage, If the need arises that types need to be declared below a function, we should refactor this code,
+     *
+     * Here we are not declaring parameters, just declaring generic ones, we are linking parameters
+     */
+    linker.scope_start();
+    for(auto& gen_param : generic_params) {
+        gen_param->declare_and_link(linker);
+    }
+    for(auto& param : params) {
+        param->type->link(linker, param->type);
+    }
+    linker.scope_end();
+}
+
+void FunctionDeclaration::declare_and_link(SymbolResolver &linker) {
     // if has body declare params
     linker.scope_start();
     for(auto& gen_param : generic_params) {

@@ -20,6 +20,8 @@ enum class AnnotationKind {
 
     NoInit, // structs that should not be initialized
 
+    Implicit, // implicit constructor annotation, allows for automatic type conversion
+
     // constructor or de constructor allow functions to be called automatically
     Constructor,
     Destructor,

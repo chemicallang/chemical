@@ -4,6 +4,7 @@
 #include "StructValue.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/types/ArrayType.h"
+#include "ast/utils/ASTUtils.h"
 
 #ifdef COMPILER_BUILD
 
@@ -113,17 +114,30 @@ ASTNode *ArrayValue::linked_node() {
 }
 
 void ArrayValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
-    for(auto& value : values) {
-        value->link(linker, value);
-    }
     if(elemType.has_value()) {
         elemType.value()->link(linker, elemType.value());
+        const auto elem_type = element_type();
+        const auto def = elem_type->linked_struct_def();
+        if(def && !values.empty()) {
+            const auto implicit = def->implicit_constructor_func(values[0].get());
+            if(implicit) {
+                unsigned i = 0;
+                while (i < values.size()) {
+                    values[i] = call_with_arg(implicit, std::move(values[i]));
+                    i++;
+                }
+                return;
+            }
+        }
+    }
+    for(auto& value : values) {
+        value->link(linker, value);
     }
 }
 
 std::unique_ptr<BaseType> ArrayValue::element_type() const {
     BaseType *elementType;
-    if (values.empty()) {
+    if (elemType.has_value()) {
         if(sizes.size() <= 1) {
             // get empty array type from the user
             elementType = elemType.value()->copy();

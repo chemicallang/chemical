@@ -77,6 +77,26 @@ func test_pair(p : Pair) : bool {
     return p.a == 99 && p.b == 98
 }
 
+struct ImpPair {
+
+    var data : int
+
+    @constructor
+    @implicit
+    func make(d : int) {
+        data = d
+    }
+
+}
+
+func check_implicit(p : ImpPair) : bool {
+    return p.data == 55;
+}
+
+struct ImpContainer {
+    var imp : ImpPair
+}
+
 func test_structs() {
     test("can return a newly created struct", () => {
         var pair = create_pair();
@@ -152,5 +172,18 @@ func test_structs() {
     })
     test("test that function calls that return struct, can be passed as args", () => {
         return test_pair(give_pair())
+    })
+    test("implicit constructors work in function parameters", () => {
+        return check_implicit(55);
+    })
+    test("implicit constructors inside structs work", () => {
+        var p = ImpContainer {
+            imp : 55
+        }
+        return p.imp.data == 55;
+    })
+    test("implicit constructors inside array values work", () => {
+        var arr = { 55 }ImpPair(1)
+        return arr[0].data == 55;
     })
 }

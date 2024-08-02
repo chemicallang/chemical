@@ -51,6 +51,13 @@ func add(a : int, b : int) : int {
 // supports lambdas, switch statements & pointers
 ```
 
+## Installation
+
+1 - Download the ZIP file (in assets) from the [releases](https://github.com/qinetik/chemical/releases) page  
+2 - Extract the ZIP file, put the path of the folder in the PATH environment variable   
+3 - Check it works `chemical -v`  
+4 - Run `chemical configure` will configure chemical (so it's ready for your OS)
+
 ## Features
 
 - So easy that you can learn it in a week !

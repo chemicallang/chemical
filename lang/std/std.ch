@@ -1,51 +1,29 @@
-@cbi:global("compiler")
-@dispose(false)
 func printf(format : char*, _ : any...) : int
 
-@cbi:global("compiler")
-@dispose(false)
 func sprintf(to : char*, format : char*, _ : any...) : int
 
-@cbi:global("compiler")
-@dispose(false)
 typealias size_t = ubigint
 
-@cbi:global("compiler")
-@dispose(false)
 func malloc(size : size_t) : void*
 
-@cbi:global("compiler")
-@dispose(false)
 func realloc(block : void*, size : size_t) : void*
 
-@cbi:global("compiler")
-@dispose(false)
 func free(block : void*)
 
-@cbi:global("compiler")
-@dispose(false)
 func memcpy(
     _Dst : void*,
     _Src : void*,
     _Size : size_t
 ) : void*;
 
-@cbi:global("compiler")
-@dispose(false)
 func strlen(
     _Str : char*
 ) : size_t;
 
-@cbi:global("compiler")
-@dispose(false)
 func strcmp (str1 : char*, str2 : char*) : int;
 
-@cbi:global("compiler")
-@dispose(false)
 func strncmp(str1 : char*, str2 : char*, n : size_t) : int
 
-@cbi:global("compiler")
-@dispose(false)
 func memcmp(ptr1 : void*, ptr2 : void*, num : size_t) : int
 
 /**

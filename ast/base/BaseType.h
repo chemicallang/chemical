@@ -195,6 +195,11 @@ public:
         return kind() == BaseTypeKind::Pointer || kind() == BaseTypeKind::String;
     }
 
+    /**
+     * if this type is linked with a struct definition, it can be retrieved using this function
+     */
+    StructDefinition* linked_struct_def();
+
 #ifdef COMPILER_BUILD
 
     /**

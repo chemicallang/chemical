@@ -40,6 +40,12 @@ public:
     FunctionDeclaration* constructor_func(std::vector<std::unique_ptr<Value>>& forArgs);
 
     /**
+     * will provide a implicit constructor function if there's one for the given value
+     * the implicit constructor is used for type conversion
+     */
+    FunctionDeclaration* implicit_constructor_func(Value* type);
+
+    /**
      * checks if this struct type requires destructor
      */
     bool requires_destructor();

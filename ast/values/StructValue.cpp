@@ -3,6 +3,7 @@
 #include "StructValue.h"
 #include "ast/structures/StructMember.h"
 #include "compiler/SymbolResolver.h"
+#include "ast/utils/ASTUtils.h"
 
 #ifdef COMPILER_BUILD
 
@@ -136,9 +137,21 @@ void StructValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr
         auto struct_def = found->as_struct_def();
         if (struct_def) {
             definition = struct_def;
-            unsigned i = 0;
-            for (const auto &val: values) {
-                val.second->link(linker, this, val.first);
+            for (auto &val: values) {
+                auto member = definition->variables.find(val.first);
+                if(definition->variables.end() == member) {
+                    val.second->link(linker, this, val.first);
+                } else {
+                    auto linked_struct = member->second->get_value_type()->linked_struct_def();
+                    if(linked_struct) {
+                        auto implicit = linked_struct->implicit_constructor_func(val.second.get());
+                        if(implicit) {
+                            val.second = call_with_arg(implicit, std::move(val.second));
+                            continue;
+                        }
+                    }
+                    val.second->link(linker, this, val.first);
+                }
             }
         } else {
             linker.error("given struct name is not a struct definition : " + ref->representation());

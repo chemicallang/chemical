@@ -1309,7 +1309,8 @@ void declare_func_with_return(ToCAstVisitor* visitor, FunctionDeclaration* decl,
     if(visitor->inline_fn_types_in_returns && decl->returnType->function_type() && !decl->returnType->function_type()->isCapturing) {
         func_that_returns_func_proto(visitor, decl, name, decl->returnType->function_type());
     } else {
-        if (decl->returnType->kind() == BaseTypeKind::Void && name == "main") {
+        const auto ret_kind = decl->returnType->kind();
+        if ((ret_kind == BaseTypeKind::Void || ret_kind == BaseTypeKind::IntN) && name == "main") {
             visitor->write("int main");
         } else {
             accept_func_return_with_name(visitor, decl, name, false, decl->body.has_value() && !decl->is_exported());

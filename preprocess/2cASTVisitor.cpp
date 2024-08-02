@@ -1363,7 +1363,8 @@ void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaratio
         write_self_param_now();
         func_ret_func_proto_after_l_paren(tld->visitor, decl, name, decl->returnType->function_type(), i);
     } else {
-        accept_func_return_with_name(tld->visitor, decl, name, true, decl->body.has_value() && !decl->is_exported());
+        auto is_parent_interface = decl->parent_node->as_interface_def() != nullptr;
+        accept_func_return_with_name(tld->visitor, decl, name, true, (is_parent_interface || decl->body.has_value()) && !decl->is_exported());
         tld->write('(');
         write_self_param_now();
         func_type_params(tld->visitor, decl, i);

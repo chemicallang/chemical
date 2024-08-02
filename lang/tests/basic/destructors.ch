@@ -99,6 +99,10 @@ func test_conditional_destruction(count : int*, condition : bool) {
     }
 }
 
+func test_struct_param_destrutor(d : Destructible) {
+
+}
+
 func test_destructors() {
     test("test that var init struct value destructs", () => {
         var count = 0;
@@ -234,6 +238,13 @@ func test_destructors() {
     test("test that destructor works, when last if returns completely", () => {
         var count = 0
         destructible_but_last_if_returns(&count, 655);
+        return count == 1;
+    })
+    test("test structs passed to functions as parameters are automatically destructed", () => {
+        var count = 0;
+        if(count == 0) {
+            test_struct_param_destrutor(create_destructible(&count, 223))
+        }
         return count == 1;
     })
 }

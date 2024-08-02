@@ -493,6 +493,7 @@ set(COMPILER_SOURCES
         compiler/llvmbackend/LLVM.cpp
         compiler/ASTCompiler.cpp
         compiler/ASTCompiler.h
+        compiler/llvm-ar.cpp
 )
 
 # add Compiler executable

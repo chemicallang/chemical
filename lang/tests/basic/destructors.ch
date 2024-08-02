@@ -240,7 +240,21 @@ func test_destructors() {
         destructible_but_last_if_returns(&count, 655);
         return count == 1;
     })
-    test("test structs passed to functions as parameters are automatically destructed", () => {
+    test("test structs passed to functions as parameters are automatically destructed - 1", () => {
+        var count = 0;
+        if(count == 0) {
+            test_struct_param_destrutor(
+                Destructible {
+                    count : &count,
+                    lamb : (count : int*) => {
+                        *count = *count + 1;
+                    }
+                }
+           )
+        }
+        return count == 1;
+    })
+    test("test structs passed to functions as parameters are automatically destructed - 2", () => {
         var count = 0;
         if(count == 0) {
             test_struct_param_destrutor(create_destructible(&count, 223))

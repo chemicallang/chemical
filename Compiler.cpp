@@ -225,8 +225,6 @@ int main(int argc, char *argv[]) {
         return compiler.build_lab_file(context, args[0]);
     }
 
-#ifdef COMPILER_BUILD
-
     // compilation
     LabBuildCompilerOptions compiler_opts(argv[0], target.value(), is64Bit);
     LabBuildCompiler compiler(&compiler_opts);
@@ -328,7 +326,5 @@ int main(int argc, char *argv[]) {
     }
 
     return return_int;
-
-#endif
 
 }

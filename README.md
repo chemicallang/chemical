@@ -34,7 +34,7 @@ It's similar to golang, typescript & c++ but there's a lot that cannot be explai
 import "file.ch"
 var x : int = 5;
 for(var i = 0; i < 5; i++){
-    var arr = {}int(5); // array of five integer elements, uninitialized
+    var arr : int[5] // array of five integer elements, uninitialized
     if(i == 3) {
         x += 2;
     }

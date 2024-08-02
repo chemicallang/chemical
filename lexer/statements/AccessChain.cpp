@@ -76,14 +76,15 @@ bool Lexer::lexAccessChainRecursive(bool lexStruct, unsigned chain_length) {
 void Lexer::lexFunctionCallAfterLParen(unsigned back_start) {
     unsigned start = tokens.size() - back_start;
     do {
-        lexWhitespaceToken();
+        lexWhitespaceAndNewLines();
         if(!(lexExpressionTokens(true) || lexArrayInit())) {
             break;
         }
         lexWhitespaceToken();
     } while (lexOperatorToken(','));
+    lexWhitespaceAndNewLines();
     if(!lexOperatorToken(')')) {
-        error("expected a ')' for a function call, after starting ')'");
+        error("expected a ')' for a function call, after starting '('");
     }
     compound_from(start, LexTokenType::CompFunctionCall);
 }

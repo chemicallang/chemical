@@ -177,6 +177,8 @@ bool Lexer::lexExpressionTokens(bool lexStruct, bool lambda) {
 
     if (!lexAccessChainOrValue(lexStruct)) {
         return false;
+    } else if(lexStruct && tokens[tokens.size() - 1]->is_struct_value()) {
+        return true;
     }
 
     lexWhitespaceToken();

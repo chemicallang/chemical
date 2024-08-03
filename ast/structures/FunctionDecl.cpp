@@ -567,11 +567,11 @@ void FunctionDeclaration::declare_top_level(SymbolResolver &linker) {
 void FunctionDeclaration::declare_and_link(SymbolResolver &linker) {
     // if has body declare params
     linker.scope_start();
+    auto prev_func_type = linker.current_func_type;
+    linker.current_func_type = this;
     for(auto& gen_param : generic_params) {
         gen_param->declare_and_link(linker);
     }
-    auto prev_func_type = linker.current_func_type;
-    linker.current_func_type = this;
     for (auto &param: params) {
         param->declare_and_link(linker);
     }

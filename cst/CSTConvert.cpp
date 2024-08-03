@@ -1097,8 +1097,16 @@ void CSTConverter::visitPointerType(CompoundCSTToken *cst) {
 }
 
 void CSTConverter::visitGenericType(CompoundCSTToken *cst) {
-    visit(cst->tokens, 0);
-    types.emplace_back(std::make_unique<GenericType>(str_token(cst->tokens[0].get()), type()));
+    auto generic_type = new GenericType(str_token(cst->tokens[0].get()));
+    unsigned i = 1;
+    while(i < cst->tokens.size()) {
+        if(cst->tokens[i]->is_type()) {
+            cst->tokens[i]->accept(this);
+            generic_type->types.emplace_back(type());
+        }
+        i++;
+    }
+    types.emplace_back(generic_type);
 }
 
 void CSTConverter::visitArrayType(CompoundCSTToken *arrayType) {

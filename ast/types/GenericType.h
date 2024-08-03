@@ -2,18 +2,18 @@
 
 #pragma once
 
+#include <utility>
 #include "ast/base/BaseType.h"
 
 class GenericType : public BaseType {
 public:
 
-    std::string base;
-    std::unique_ptr<BaseType> type;
-    ASTNode* linked;
+    std::unique_ptr<ReferencedType> referenced;
+    std::vector<std::unique_ptr<BaseType>> types;
 
-    GenericType(std::string base, std::unique_ptr<BaseType> type) : base(std::move(base)), type(std::move(type)) {
+    GenericType(std::unique_ptr<ReferencedType> referenced);
 
-    }
+    GenericType(std::string base);
 
     void accept(Visitor *visitor) override {
         visitor->visit(this);
@@ -23,6 +23,7 @@ public:
 
     ASTNode * linked_node() override;
 
+    [[nodiscard]]
     BaseTypeKind kind() const override {
         return BaseTypeKind::Generic;
     }
@@ -31,18 +32,15 @@ public:
         return other->kind() == kind();
     }
 
-    bool satisfies(ValueType value_type) override {
-        return type->satisfies(value_type);
-    }
+    bool satisfies(ValueType value_type) override;
 
-    virtual BaseType* copy() const {
-        return new GenericType(base, std::unique_ptr<BaseType>(type->copy()));
-    }
+    [[nodiscard]]
+    BaseType* copy() const override;
 
 #ifdef COMPILER_BUILD
-    llvm::Type *llvm_type(Codegen &gen) override {
-        return type->llvm_type(gen);
-    }
+
+    llvm::Type *llvm_type(Codegen &gen) override;
+
 #endif
 
 };

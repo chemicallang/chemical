@@ -76,9 +76,14 @@ bool Lexer::lexTypeTokens() {
     }
 
     if(lexOperatorToken('<')) {
-        if(!lexTypeTokens()) {
-            error("expected a type within '<' '>' for generic type");
-        }
+        do {
+            lexWhitespaceToken();
+            if(!lexTypeTokens()) {
+                break;
+            }
+            lexWhitespaceToken();
+        } while(lexOperatorToken(','));
+        lexWhitespaceToken();
         if(!lexOperatorToken('>')) {
             error("expected '>' for generic type");
         }

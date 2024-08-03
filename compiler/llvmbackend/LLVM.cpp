@@ -8,6 +8,7 @@
 #include "ast/types/AnyType.h"
 #include "ast/values/RetStructParamValue.h"
 #include "ast/types/ArrayType.h"
+#include "ast/types/GenericType.h"
 #include "ast/types/BoolType.h"
 #include "ast/types/CharType.h"
 #include "ast/types/UCharType.h"
@@ -115,6 +116,11 @@ llvm::Type *ReferencedType::llvm_param_type(Codegen &gen) {
 
 llvm::Type *ReferencedType::llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<Value>> &values, unsigned int index) {
     return linked->llvm_chain_type(gen, values, index);
+}
+
+llvm::Type *GenericType::llvm_type(Codegen &gen) {
+    // TODO given types in generic type aren't being considered
+    return referenced->llvm_type(gen);
 }
 
 llvm::Type *StringType::llvm_type(Codegen &gen) {

@@ -26,7 +26,8 @@ void to_llvm_args(
         std::vector<llvm::Value *>& args,
         std::vector<std::unique_ptr<Value>>* chain,
         unsigned int until,
-        unsigned int start
+        unsigned int start,
+        std::vector<std::pair<Value*, llvm::Value*>>& destructibles
 ) {
 
     llvm::Value* argValue;
@@ -42,9 +43,8 @@ void to_llvm_args(
         int parent_index = (int) until - 2;
         if (parent_index >= 0 && parent_index < chain->size()) {
             if ((*chain)[parent_index]->value_type() == ValueType::Pointer) {
-                args.emplace_back((*chain)[parent_index]->access_chain_value(gen, *chain, parent_index));
+                args.emplace_back((*chain)[parent_index]->access_chain_value(gen, *chain, parent_index, destructibles));
             } else {
-                std::vector<std::pair<Value *, llvm::Value *>> destructibles;
                 args.emplace_back((*chain)[parent_index]->access_chain_pointer(gen, *chain, destructibles, parent_index));
             }
         } else if(gen.current_func_type) {
@@ -60,6 +60,10 @@ void to_llvm_args(
 
     for (size_t i = start; i < values.size(); ++i) {
         argValue = values[i]->llvm_arg_value(gen, call, i);
+
+        if(values[i]->value_type() == ValueType::Struct) {
+            destructibles.emplace_back(values[i].get(), argValue);
+        }
 
         // Ensure proper type promotion for float values passed to printf
         if (func_type->isVariadic && func_type->isInVarArgs(i) && argValue->getType()->isFloatTy()) {
@@ -162,19 +166,20 @@ llvm::Value *call_capturing_lambda(
         FunctionCall* call,
         FunctionType* func_type,
         std::vector<std::unique_ptr<Value>>* chain,
-        unsigned int until
+        unsigned int until,
+        std::vector<std::pair<Value*, llvm::Value*>>& destructibles
 ) {
     std::vector<llvm::Value *> args;
     llvm::Value* value;
     if(chain && until > 1) {
-        value = (*chain)[until - 1]->access_chain_value(gen, *chain, until - 1);
+        value = (*chain)[until - 1]->access_chain_value(gen, *chain, until - 1, destructibles);
     } else {
         value = call->parent_val->llvm_value(gen);
     };
     auto dataPtr = gen.builder->CreateStructGEP(gen.packed_lambda_type(), value, 1);
     auto data = gen.builder->CreateLoad(gen.builder->getPtrTy(), dataPtr);
     args.emplace_back(data);
-    to_llvm_args(gen, call, func_type, call->values, args, chain, until, 0);
+    to_llvm_args(gen, call, func_type, call->values, args, chain, until, 0, destructibles);
     auto structType = gen.packed_lambda_type();
     auto lambdaPtr = gen.builder->CreateStructGEP(structType, value, 0);
     auto lambda = gen.builder->CreateLoad(gen.builder->getPtrTy(), lambdaPtr);
@@ -182,15 +187,17 @@ llvm::Value *call_capturing_lambda(
 }
 
 llvm::Value *FunctionCall::llvm_value(Codegen &gen, std::vector<llvm::Value*>& args) {
+    std::vector<std::pair<Value*, llvm::Value*>> destructibles;
     auto func_type = get_function_type();
     if(func_type->isCapturing) {
-        return call_capturing_lambda(gen, this, func_type.get(), nullptr, 0);
+        return call_capturing_lambda(gen, this, func_type.get(), nullptr, 0, destructibles);
     }
 
     auto decl = safe_linked_func();
     auto fn = decl != nullptr ? (decl->llvm_func()) : nullptr;
-    to_llvm_args(gen, this, func_type.get(), values, args, nullptr, 0, args.size());
+    to_llvm_args(gen, this, func_type.get(), values, args, nullptr, 0, args.size(), destructibles);
 
+    // TODO handle destructibles here
     return call_with_args(this, fn, func_type.get(), gen,  args);
 }
 
@@ -212,12 +219,13 @@ llvm::Value* FunctionCall::llvm_chain_value(
         std::vector<llvm::Value*>& args,
         std::vector<std::unique_ptr<Value>>& chain,
         unsigned int until,
+        std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
         llvm::Value* returnedStruct
 ) {
 
     auto func_type = get_function_type();
     if(func_type->isCapturing) {
-        return call_capturing_lambda(gen, this, func_type.get(), &chain, until);
+        return call_capturing_lambda(gen, this, func_type.get(), &chain, until, destructibles);
     }
 
     auto decl = safe_linked_func();
@@ -254,7 +262,7 @@ llvm::Value* FunctionCall::llvm_chain_value(
     }
 
     auto fn = decl != nullptr ? decl->llvm_func() : nullptr;
-    to_llvm_args(gen, this, func_type.get(), values, args, &chain, until,0);
+    to_llvm_args(gen, this, func_type.get(), values, args, &chain, until,0, destructibles);
 
     llvm::Value* call_value;
 
@@ -273,9 +281,9 @@ llvm::Value* FunctionCall::llvm_chain_value(
 
 }
 
-llvm::Value* FunctionCall::access_chain_value(Codegen &gen, std::vector<std::unique_ptr<Value>> &chain, unsigned until) {
+llvm::Value* FunctionCall::access_chain_value(Codegen &gen, std::vector<std::unique_ptr<Value>> &chain, unsigned until, std::vector<std::pair<Value*, llvm::Value*>>& destructibles) {
     std::vector<llvm::Value *> args;
-    return llvm_chain_value(gen, args, chain, until);
+    return llvm_chain_value(gen, args, chain, until, destructibles);
 }
 
 llvm::InvokeInst *FunctionCall::llvm_invoke(Codegen &gen, llvm::BasicBlock* normal, llvm::BasicBlock* unwind) {
@@ -284,7 +292,9 @@ llvm::InvokeInst *FunctionCall::llvm_invoke(Codegen &gen, llvm::BasicBlock* norm
     if(fn != nullptr) {
         auto type = decl->create_value_type();
         std::vector<llvm::Value *> args;
-        to_llvm_args(gen, this, type->function_type(), values, args, nullptr, 0, 0);
+        std::vector<std::pair<Value*, llvm::Value*>> destructibles;
+        // TODO handle destructibles here
+        to_llvm_args(gen, this, type->function_type(), values, args, nullptr, 0, 0, destructibles);
         return gen.builder->CreateInvoke(fn, normal, unwind, args);
     } else {
         gen.error("Unknown function call through invoke ");
@@ -305,7 +315,9 @@ llvm::AllocaInst *FunctionCall::access_chain_allocate(Codegen &gen, std::vector<
     if(func_type->returnType->value_type() == ValueType::Struct) {
         // we allocate the returned struct, llvm_chain_value function
         std::vector<llvm::Value *> args;
-        return (llvm::AllocaInst*) llvm_chain_value(gen, args, chain_values, until);
+        std::vector<std::pair<Value*, llvm::Value*>> destructibles;
+        // TODO handle destructibles here
+        return (llvm::AllocaInst*) llvm_chain_value(gen, args, chain_values, until, destructibles);
     } else {
         return Value::access_chain_allocate(gen, chain_values, until);
     }

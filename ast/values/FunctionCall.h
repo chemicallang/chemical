@@ -124,10 +124,11 @@ public:
             std::vector<llvm::Value*>& args,
             std::vector<std::unique_ptr<Value>>& chain,
             unsigned int until,
+            std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
             llvm::Value* returnedStruct = nullptr
     );
 
-    llvm::Value * access_chain_value(Codegen &gen, std::vector<std::unique_ptr<Value>> &values, unsigned until) override;
+    llvm::Value * access_chain_value(Codegen &gen, std::vector<std::unique_ptr<Value>> &values, unsigned until, std::vector<std::pair<Value*, llvm::Value*>>& destructibles) override;
 
     llvm::AllocaInst * access_chain_allocate(Codegen &gen, std::vector<std::unique_ptr<Value>> &values, unsigned int until) override;
 

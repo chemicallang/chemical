@@ -330,11 +330,11 @@ llvm::Value *VariableIdentifier::llvm_ret_value(Codegen &gen, ReturnStatement *r
     return linked->llvm_ret_load(gen, returnStmt);
 }
 
-llvm::Value *VariableIdentifier::access_chain_value(Codegen &gen, std::vector<std::unique_ptr<Value>> &values, unsigned until) {
+llvm::Value *VariableIdentifier::access_chain_value(Codegen &gen, std::vector<std::unique_ptr<Value>> &values, unsigned until, std::vector<std::pair<Value*, llvm::Value*>>& destructibles) {
     if(linked->as_enum_member() != nullptr) {
         return llvm_value(gen);
     } else {
-        return Value::access_chain_value(gen, values, until);
+        return Value::access_chain_value(gen, values, until, destructibles);
     }
 }
 
@@ -496,7 +496,15 @@ llvm::Value* RetStructParamValue::llvm_value(Codegen &gen) {
 }
 
 void AccessChain::code_gen(Codegen &gen) {
-    llvm_value(gen);
+    auto value = llvm_value(gen);
+    const auto call = values.back()->as_func_call();
+    if(call) {
+        auto ret_type = call->get_base_type();
+        auto linked_struct = ret_type->linked_struct_def();
+        if(linked_struct) {
+            linked_struct->llvm_destruct(gen, value);
+        }
+    }
 }
 
 llvm::Type *AccessChain::llvm_type(Codegen &gen) {
@@ -504,12 +512,17 @@ llvm::Type *AccessChain::llvm_type(Codegen &gen) {
 }
 
 llvm::Value *AccessChain::llvm_value(Codegen &gen) {
-    return values[values.size() - 1]->access_chain_value(gen, values, values.size() - 1);
+    std::vector<std::pair<Value*, llvm::Value*>> destructibles;
+    auto value = values[values.size() - 1]->access_chain_value(gen, values, values.size() - 1, destructibles);
+    Value::destruct(gen, destructibles);
+    return value;
 }
 
 llvm::Value *AccessChain::llvm_pointer(Codegen &gen) {
     std::vector<std::pair<Value*, llvm::Value*>> destructibles;
-    return values[values.size() - 1]->access_chain_pointer(gen, values, destructibles, values.size() - 1);
+    auto value = values[values.size() - 1]->access_chain_pointer(gen, values, destructibles, values.size() - 1);
+    Value::destruct(gen, destructibles);
+    return value;
 }
 
 llvm::AllocaInst *AccessChain::llvm_allocate(Codegen &gen, const std::string &identifier) {
@@ -542,7 +555,9 @@ bool access_chain_store_in_parent(
         if(func_type->returnType->value_type() == ValueType::Struct) {
             auto elem_pointer = Value::get_element_pointer(gen, parent->llvm_type(gen), allocated, idxList, index);
             std::vector<llvm::Value *> args;
-            func_call->llvm_chain_value(gen, args, chain->values, chain->values.size() - 1, elem_pointer);
+            std::vector<std::pair<Value*, llvm::Value*>> destructibles;
+            // TODO handle destructibles here, what to do, do we need to destruct them ?
+            func_call->llvm_chain_value(gen, args, chain->values, chain->values.size() - 1, destructibles,elem_pointer);
             return true;
         }
     }

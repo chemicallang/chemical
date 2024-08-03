@@ -99,7 +99,7 @@ public:
 
     llvm::Value *llvm_ret_value(Codegen &gen, ReturnStatement *returnStmt) override;
 
-    llvm::Value *access_chain_value(Codegen &gen, std::vector<std::unique_ptr<Value>> &values, unsigned until) override;
+    llvm::Value *access_chain_value(Codegen &gen, std::vector<std::unique_ptr<Value>> &values, unsigned until, std::vector<std::pair<Value*, llvm::Value*>>& destructibles) override;
 
 #endif
 

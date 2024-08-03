@@ -75,14 +75,15 @@ unsigned int Value::store_in_array(
     return index + 1;
 }
 
-llvm::Value* Value::access_chain_value(Codegen &gen, std::vector<std::unique_ptr<Value>>& values, unsigned int until) {
-    if(until == 0) return values[0]->llvm_value(gen);
-    std::vector<std::pair<Value*, llvm::Value*>> destructibles;
-    auto loaded = gen.builder->CreateLoad(values[until]->llvm_type(gen), access_chain_pointer(gen, values, destructibles, until), "acc");
+void Value::destruct(Codegen& gen, std::vector<std::pair<Value*, llvm::Value*>>& destructibles) {
     for(auto& val : std::ranges::reverse_view(destructibles)) {
         val.first->llvm_destruct(gen, val.second);
     }
-    return loaded;
+}
+
+llvm::Value* Value::access_chain_value(Codegen &gen, std::vector<std::unique_ptr<Value>>& values, unsigned int until, std::vector<std::pair<Value*, llvm::Value*>>& destructibles) {
+    if(until == 0) return values[0]->llvm_value(gen);
+    return gen.builder->CreateLoad(values[until]->llvm_type(gen), access_chain_pointer(gen, values, destructibles, until), "acc");
 }
 
 llvm::Value* create_gep(Codegen &gen, std::vector<std::unique_ptr<Value>>& values, unsigned index, llvm::Value* pointer, std::vector<llvm::Value*>& idxList) {
@@ -131,9 +132,10 @@ llvm::Value* Value::access_chain_pointer(
     unsigned i = 1;
     unsigned j = 1;
     while(j <= until) {
-        if(values[j]->as_func_call()) {
-            pointer = values[j]->access_chain_value(gen, values, j);
-            parent = values[j].get();
+        const auto func_call = values[j]->as_func_call();
+        if(func_call) {
+            pointer = func_call->access_chain_value(gen, values, j, destructibles);
+            parent = func_call;
             parent_index = j;
             if(j + 1 <= until) {
                 destructibles.emplace_back(parent, pointer);

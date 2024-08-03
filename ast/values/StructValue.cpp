@@ -147,6 +147,14 @@ void StructValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr
             for(auto& arg : generic_list) {
                 arg->link(linker, arg);
             }
+            int16_t prev_itr;
+            // setting active generic iteration
+            if(!definition->generic_params.empty()) {
+                prev_itr = definition->active_iteration;
+                generic_iteration = definition->register_value(this);
+                definition->set_active_iteration(generic_iteration);
+            }
+            // linking values
             for (auto &val: values) {
                 val.second->link(linker, this, val.first);
                 auto member = definition->variables.find(val.first);
@@ -157,6 +165,10 @@ void StructValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr
                         val.second = call_with_arg(implicit, std::move(val.second), linker);
                     }
                 }
+            }
+            // setting iteration back
+            if(!definition->generic_params.empty()) {
+                definition->set_active_iteration(prev_itr);
             }
         } else {
             linker.error("given struct name is not a struct definition : " + ref->representation());

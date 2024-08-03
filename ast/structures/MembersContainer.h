@@ -42,6 +42,31 @@ public:
     }
 
     /**
+     * how many actual functions are generated from this generic function
+     * non-generic functions return 1
+     */
+    int16_t total_generic_iterations();
+
+    /**
+     * register value for the struct
+     */
+    int16_t register_value(StructValue* structValue);
+
+    /**
+     * set's the active iteration for a generic function
+     * this helps generics types pretend to be certain type
+     */
+    void set_active_iteration(int16_t iteration);
+
+    /**
+     * set's the generic active iteration safely
+     */
+    inline void set_active_iteration_safely(int16_t itr) {
+        if(itr < -1) return;
+        set_active_iteration(itr);
+    }
+
+    /**
      * will provide a constructor function if there's one
      */
     FunctionDeclaration* constructor_func(std::vector<std::unique_ptr<Value>>& forArgs);
@@ -77,6 +102,8 @@ public:
      * is there a function with this name
      */
     bool contains_func(const std::string& name);
+
+
 
 #ifdef COMPILER_BUILD
 

@@ -327,16 +327,14 @@ void FunctionCall::link_values(SymbolResolver &linker) {
     auto func_type = get_function_type();
     unsigned i = 0;
     while(i < values.size()) {
+        values[i]->link(linker, this, i);
         const auto param = func_type->func_param_for_arg_at(i);
         if(param) {
             auto implicit_constructor = implicit_constructor_for(param->type.get(), values[i].get());
             if (implicit_constructor) {
                 values[i] = call_with_arg(implicit_constructor, std::move(values[i]), linker);
-                i++;
-                continue;
             }
         }
-        values[i]->link(linker, this, i);
         i++;
     }
 }

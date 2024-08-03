@@ -184,14 +184,24 @@ func test_structs() {
     test("implicit constructors work in function parameters", () => {
         return check_implicit(55);
     })
-    test("implicit constructors inside structs work", () => {
+    test("implicit constructors inside structs work - 1", () => {
         var p = ImpContainer {
             imp : 55
         }
         return p.imp.data == 55;
     })
-    test("implicit constructors inside array values work", () => {
+    test("implicit constructors inside structs work - 2", () => {
+        var p = ImpContainer {
+            imp : ImpPair(55)
+        }
+        return p.imp.data == 55;
+    })
+    test("implicit constructors inside array values work - 1", () => {
         var arr = { 55 }ImpPair(1)
+        return arr[0].data == 55;
+    })
+    test("implicit constructors inside array values work - 2", () => {
+        var arr = { ImpPair(55) }ImpPair(1)
         return arr[0].data == 55;
     })
     test("implicit constructors in return work - 1", () => {

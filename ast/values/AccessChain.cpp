@@ -67,7 +67,7 @@ void AccessChain::declare_and_link(SymbolResolver &linker) {
     }
 }
 
-AccessChain::AccessChain(std::vector<std::unique_ptr<Value>> values, ASTNode* parent_node) : values(std::move(values)), parent_node(parent_node) {
+AccessChain::AccessChain(std::vector<std::unique_ptr<Value>> values, ASTNode* parent_node, bool is_node) : values(std::move(values)), parent_node(parent_node), is_node(is_node) {
 
 }
 
@@ -100,7 +100,7 @@ bool AccessChain::reference() {
 }
 
 Value *AccessChain::copy() {
-    auto chain = new AccessChain(parent_node);
+    auto chain = new AccessChain(parent_node, is_node);
     for(auto& value : values) {
         chain->values.emplace_back(value->copy());
     }

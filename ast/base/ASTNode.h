@@ -294,6 +294,13 @@ public:
     }
 
     /**
+     * return if this is a scope
+     */
+    virtual Scope *as_scope() {
+        return nullptr;
+    }
+
+    /**
      * return if this is a struct definition
      */
     virtual StructDefinition *as_struct_def() {

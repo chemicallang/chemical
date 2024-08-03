@@ -691,7 +691,15 @@ class CAfterStmtVisitor : public CommonVisitor, public SubVisitor {
 
     void visit(AccessChain *chain) override;
 
+    void visit(FunctionCall *call) override;
+
+    void destruct_chain(AccessChain *chain, bool destruct_last);
+
     void visit(LambdaFunction *func) override {
+        // do nothing
+    }
+
+    void visit(Scope *scope) override {
         // do nothing
     }
 
@@ -1024,9 +1032,8 @@ public:
 
 };
 
-void CAfterStmtVisitor::visit(AccessChain *chain) {
-    CommonVisitor::visit(chain);
-    int index = chain->values.size() - 2;
+void CAfterStmtVisitor::destruct_chain(AccessChain *chain, bool destruct_last) {
+    int index = ((int) chain->values.size()) - (destruct_last ? 1 : 2);
     FunctionCall* call;
     while(index >= 0) {
         call = chain->values[index]->as_func_call();
@@ -1046,6 +1053,22 @@ void CAfterStmtVisitor::visit(AccessChain *chain) {
             }
         }
         index--;
+    }
+}
+
+void CAfterStmtVisitor::visit(AccessChain *chain) {
+    CommonVisitor::visit(chain);
+    destruct_chain(chain, chain->is_node);
+}
+
+void CAfterStmtVisitor::visit(FunctionCall *call) {
+    for(auto& val : call->values) {
+        const auto chain = val->as_access_chain();
+        if(chain) {
+            destruct_chain(chain, true);
+        } else {
+            val->accept(this);
+        }
     }
 }
 

@@ -19,7 +19,7 @@ void VariableIdentifier::prepend_self(SymbolResolver &linker, std::unique_ptr<Va
     std::vector<std::unique_ptr<Value>> values;
     values.emplace_back(self_id);
     values.emplace_back(value_ptr.release());
-    value_ptr = std::make_unique<AccessChain>(std::move(values), nullptr);
+    value_ptr = std::make_unique<AccessChain>(std::move(values), nullptr, false);
 }
 
 void VariableIdentifier::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr, bool prepend) {

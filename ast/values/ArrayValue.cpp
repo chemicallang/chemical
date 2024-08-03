@@ -123,7 +123,7 @@ void ArrayValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr)
             if(implicit) {
                 unsigned i = 0;
                 while (i < values.size()) {
-                    values[i] = call_with_arg(implicit, std::move(values[i]));
+                    values[i] = call_with_arg(implicit, std::move(values[i]), linker);
                     i++;
                 }
                 return;

@@ -97,6 +97,14 @@ struct ImpContainer {
     var imp : ImpPair
 }
 
+func give_implicit_return() : ImpPair {
+    return 65;
+}
+
+func give_explicit_return() : ImpPair {
+    return ImpPair(65)
+}
+
 func test_structs() {
     test("can return a newly created struct", () => {
         var pair = create_pair();
@@ -185,5 +193,13 @@ func test_structs() {
     test("implicit constructors inside array values work", () => {
         var arr = { 55 }ImpPair(1)
         return arr[0].data == 55;
+    })
+    test("implicit constructors in return work - 1", () => {
+        const p = give_implicit_return();
+        return p.data == 65;
+    })
+    test("implicit constructors in return work - 2", () => {
+        const p = give_explicit_return();
+        return p.data == 65;
     })
 }

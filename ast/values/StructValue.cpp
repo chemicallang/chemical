@@ -142,13 +142,11 @@ void StructValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr
                 if(definition->variables.end() == member) {
                     val.second->link(linker, this, val.first);
                 } else {
-                    auto linked_struct = member->second->get_value_type()->linked_struct_def();
-                    if(linked_struct) {
-                        auto implicit = linked_struct->implicit_constructor_func(val.second.get());
-                        if(implicit) {
-                            val.second = call_with_arg(implicit, std::move(val.second));
-                            continue;
-                        }
+                    const auto mem_type = member->second->get_value_type();
+                    auto implicit = implicit_constructor_for(mem_type.get(), val.second.get());
+                    if(implicit) {
+                        val.second = call_with_arg(implicit, std::move(val.second), linker);
+                        continue;
                     }
                     val.second->link(linker, this, val.first);
                 }

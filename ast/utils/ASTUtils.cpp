@@ -4,6 +4,7 @@
 #include "ast/values/AccessChain.h"
 #include "ast/values/VariableIdentifier.h"
 #include "ast/structures/FunctionDeclaration.h"
+#include "ast/structures/StructDefinition.h"
 #include "ast/values/FunctionCall.h"
 
 bool chain_contains_func_call(std::vector<std::unique_ptr<Value>>& values, int start, int end) {
@@ -28,7 +29,7 @@ void evaluate_values(std::vector<std::unique_ptr<Value>>& values, InterpretScope
     }
 }
 
-std::unique_ptr<Value> call_with_arg(FunctionDeclaration* decl, std::unique_ptr<Value> arg) {
+std::unique_ptr<Value> call_with_arg(FunctionDeclaration* decl, std::unique_ptr<Value> arg, SymbolResolver& resolver) {
     auto chain = std::make_unique<AccessChain>(nullptr);
     auto id = std::make_unique<VariableIdentifier>(decl->name);
     id->linked = decl;
@@ -36,6 +37,15 @@ std::unique_ptr<Value> call_with_arg(FunctionDeclaration* decl, std::unique_ptr<
     auto imp_call = std::make_unique<FunctionCall>(std::vector<std::unique_ptr<Value>> {});
     imp_call->parent_val = chain->values[0].get();
     imp_call->values.emplace_back(std::move(arg));
+    imp_call->values[0]->link(resolver, imp_call.get(), 0);
     chain->values.emplace_back(std::move(imp_call));
     return chain;
+}
+
+FunctionDeclaration* implicit_constructor_for(BaseType* type, Value* value) {
+    const auto linked_def = type->linked_struct_def();
+    if(linked_def) {
+        return linked_def->implicit_constructor_func(value);
+    }
+    return nullptr;
 }

@@ -12,9 +12,24 @@
 class StructValue : public Value {
 public:
 
+    std::unique_ptr<Value> ref;
+    std::vector<std::unique_ptr<BaseType>> generic_list;
+    StructDefinition *definition = nullptr;
+    std::unordered_map<std::string, std::unique_ptr<Value>> values;
+#ifdef COMPILER_BUILD
+    llvm::AllocaInst* allocaInst;
+#endif
+
+//    StructValue(
+//            std::unique_ptr<Value> ref,
+//            std::unordered_map<std::string, std::unique_ptr<Value>> values,
+//            StructDefinition *definition = nullptr
+//    );
+
     StructValue(
             std::unique_ptr<Value> ref,
             std::unordered_map<std::string, std::unique_ptr<Value>> values,
+            std::vector<std::unique_ptr<BaseType>> generic_list,
             StructDefinition *definition = nullptr
     );
 
@@ -102,12 +117,5 @@ public:
     ValueType value_type() const override {
         return ValueType::Struct;
     }
-
-    std::unique_ptr<Value> ref;
-    StructDefinition *definition = nullptr;
-    std::unordered_map<std::string, std::unique_ptr<Value>> values;
-#ifdef COMPILER_BUILD
-    llvm::AllocaInst* allocaInst;
-#endif
 
 };

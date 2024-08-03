@@ -411,7 +411,7 @@ void convert_generic_list(
     CSTConverter *converter,
     CompoundCSTToken* compound,
     std::vector<std::unique_ptr<GenericTypeParameter>>& generic_list,
-    FunctionDeclaration* parent_node
+    ASTNode* parent_node
 ) {
     unsigned i = 1;
     GenericTypeParameter* parameter;
@@ -1003,6 +1003,9 @@ void CSTConverter::visitStructDef(CompoundCSTToken *structDef) {
     }
     i = has_override ? i + 3 : i + 1; // positioned at first node or '}'
     auto def = new StructDefinition(str_token(structDef->tokens[named ? 1 : structDef->tokens.size() - 1].get()), overrides, parent_node);
+    if(structDef->tokens[2]->type() == LexTokenType::CompGenericParamsList) {
+        convert_generic_list(this, structDef->tokens[2]->as_compound(), def->generic_params, def);
+    }
     auto prev_struct_decl = current_members_container;
     current_members_container = def;
     auto prev_parent = parent_node;
@@ -1167,20 +1170,23 @@ void CSTConverter::visitNumberToken(NumberToken *token) {
 
 void CSTConverter::visitStructValue(CompoundCSTToken *cst) {
     cst->tokens[0]->accept(this);
-    auto name = value();
-    auto i = 2; // first identifier or '}'
-    std::unordered_map<std::string, std::unique_ptr<Value>> vals;
+    const auto has_generic_list = cst->tokens[1]->type() == LexTokenType::CompGenericList;
+    auto struct_value = new StructValue(value(), {}, {}, nullptr);
+    if(has_generic_list) {
+        to_generic_arg_list(struct_value->generic_list, cst->tokens[1]->as_compound());
+    }
+    auto i = has_generic_list ? 3 : 2; // first identifier or '}'
     while (!is_char_op(cst->tokens[i].get(), '}')) {
         auto id = str_token(cst->tokens[i].get());
         i += 2;
         cst->tokens[i]->accept(this);
-        vals[id] = value();
+        struct_value->values[id] = value();
         i++;
         if (is_char_op(cst->tokens[i].get(), ',')) {
             i++;
         }
     }
-    values.emplace_back(std::make_unique<StructValue>(std::move(name), std::move(vals)));
+    values.emplace_back(struct_value);
 }
 
 void CSTConverter::visitArrayValue(CompoundCSTToken *arrayValue) {
@@ -1225,20 +1231,24 @@ std::vector<std::unique_ptr<Value>> take_values(CSTConverter *converter, const s
     return new_values;
 }
 
+void CSTConverter::to_generic_arg_list(std::vector<std::unique_ptr<BaseType>>& generic_list, CompoundCSTToken* container) {
+    auto& generic_tokens = container->tokens;
+    unsigned i = 0;
+    CSTToken* token;
+    while(i < generic_tokens.size()) {
+        token = generic_tokens[i].get();
+        if(token->is_type()) {
+            token->accept(this);
+            generic_list.emplace_back(type());
+        }
+        i++;
+    }
+}
+
 void CSTConverter::visitFunctionCall(CompoundCSTToken *call) {
     std::vector<std::unique_ptr<BaseType>> generic_list;
     if(call->tokens[0]->type() == LexTokenType::CompGenericList) {
-        auto& generic_tokens = call->tokens[0]->as_compound()->tokens;
-        unsigned i = 0;
-        CSTToken* token;
-        while(i < generic_tokens.size()) {
-            token = generic_tokens[i].get();
-            if(token->is_type()) {
-                token->accept(this);
-                generic_list.emplace_back(type());
-            }
-            i++;
-        }
+        to_generic_arg_list(generic_list, call->tokens[0]->as_compound());
     }
     auto prev_values = std::move(values);
     visit(call->tokens, 1);

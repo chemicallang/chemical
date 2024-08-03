@@ -107,11 +107,18 @@ bool StructValue::add_child_index(Codegen &gen, std::vector<llvm::Value *> &inde
 
 #endif
 
+//StructValue::StructValue(
+//        std::unique_ptr<Value> ref,
+//        std::unordered_map<std::string, std::unique_ptr<Value>> values,
+//        StructDefinition *definition
+//) : ref(std::move(ref)), values(std::move(values)), definition(definition) {}
+
 StructValue::StructValue(
         std::unique_ptr<Value> ref,
         std::unordered_map<std::string, std::unique_ptr<Value>> values,
+        std::vector<std::unique_ptr<BaseType>> generic_list,
         StructDefinition *definition
-) : ref(std::move(ref)), values(std::move(values)), definition(definition) {}
+) : ref(std::move(ref)), values(std::move(values)), definition(definition), generic_list(std::move(generic_list)) {}
 
 StructValue::StructValue(
         std::unique_ptr<Value> ref,
@@ -137,6 +144,9 @@ void StructValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr
         auto struct_def = found->as_struct_def();
         if (struct_def) {
             definition = struct_def;
+            for(auto& arg : generic_list) {
+                arg->link(linker, arg);
+            }
             for (auto &val: values) {
                 val.second->link(linker, this, val.first);
                 auto member = definition->variables.find(val.first);
@@ -192,12 +202,20 @@ void StructValue::set_child_value(const std::string &name, Value *value, Operati
 }
 
 Value *StructValue::scope_value(InterpretScope &scope) {
-    std::unordered_map<std::string, std::unique_ptr<Value>> copied(values.size());
-    declare_default_values(copied, scope);
+    auto struct_value = new StructValue(
+            std::unique_ptr<Value>(ref->copy()),
+            std::unordered_map<std::string, std::unique_ptr<Value>>(values.size()),
+            std::vector<std::unique_ptr<BaseType>>(generic_list.size()),
+            definition
+    );
+    declare_default_values(struct_value->values, scope);
     for (const auto &value: values) {
-        copied[value.first] = std::unique_ptr<Value>(value.second->initializer_value(scope));
+        struct_value->values[value.first] = std::unique_ptr<Value>(value.second->initializer_value(scope));
     }
-    return new StructValue(std::unique_ptr<Value>(ref->copy()), std::move(copied), definition);
+    for(const auto& arg : generic_list) {
+        struct_value->generic_list.emplace_back(arg->copy());
+    }
+    return struct_value;
 }
 
 void StructValue::declare_default_values(
@@ -215,11 +233,19 @@ void StructValue::declare_default_values(
 }
 
 Value *StructValue::copy() {
-    std::unordered_map<std::string, std::unique_ptr<Value>> copied(values.size());
+    auto struct_value = new StructValue(
+        std::unique_ptr<Value>(ref->copy()),
+        std::unordered_map<std::string, std::unique_ptr<Value>>(values.size()),
+        std::vector<std::unique_ptr<BaseType>>(generic_list.size()),
+        definition
+    );
     for (const auto &value: values) {
-        copied[value.first] = std::unique_ptr<Value>(value.second->copy());
+        struct_value->values[value.first] = std::unique_ptr<Value>(value.second->copy());
     }
-    return new StructValue(std::unique_ptr<Value>(ref->copy()), std::move(copied), definition);
+    for(const auto& arg : generic_list) {
+        struct_value->generic_list.emplace_back(arg->copy());
+    }
+    return struct_value;
 }
 
 std::unique_ptr<BaseType> StructValue::create_type() {

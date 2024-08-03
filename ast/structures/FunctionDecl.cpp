@@ -424,7 +424,7 @@ ASTNode *BaseFunctionParam::child(const std::string &name) {
 GenericTypeParameter::GenericTypeParameter(
         std::string identifier,
         std::unique_ptr<BaseType> def_type,
-        FunctionDeclaration* parent_node
+        ASTNode* parent_node
 ) : identifier(std::move(identifier)),
 def_type(std::move(def_type)), parent_node(parent_node) {
 
@@ -441,7 +441,7 @@ void GenericTypeParameter::register_usage(BaseType* type) {
         if(def_type) {
             usage.emplace_back(def_type.get());
         } else {
-            std::cerr << "expected a generic type argument for parameter " << identifier << " in function " << parent_node->name << std::endl;
+            std::cerr << "expected a generic type argument for parameter " << identifier << " in node " << parent_node->ns_node_identifier() << std::endl;
         }
     }
 }

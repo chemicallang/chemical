@@ -11,12 +11,16 @@ public:
     std::unique_ptr<BaseType> def_type;
     std::vector<BaseType*> usage;
     int16_t active_iteration = -1; // <-- index of active type in usage vector
-    FunctionDeclaration* parent_node;
+    ASTNode* parent_node;
 
     /**
      * constructor
      */
-    GenericTypeParameter(std::string identifier, std::unique_ptr<BaseType> def_type, FunctionDeclaration* parent_node);
+    GenericTypeParameter(
+        std::string identifier,
+        std::unique_ptr<BaseType> def_type,
+        ASTNode* parent_node
+    );
 
     void declare_and_link(SymbolResolver &linker) override;
 
@@ -77,7 +81,7 @@ public:
 #endif
 
     ASTNode *parent() override {
-        return (ASTNode*) parent_node;
+        return parent_node;
     }
 
     void accept(Visitor *visitor) override {

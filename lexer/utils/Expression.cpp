@@ -185,8 +185,7 @@ bool Lexer::lexExpressionTokens(bool lexStruct, bool lambda) {
 
     if (provider.peek() == '<' && isGenericEndAhead()) {
         auto start = tokens.size() - 1;
-        lexOperatorToken('<');
-        lexFunctionCallAfterGenericStart();
+        lexFunctionCallWithGenericArgsList();
         if(lexOperatorToken('.') && !lexAccessChainRecursive(false)) {
             error("expected a identifier after the dot . in the access chain");
             return true;

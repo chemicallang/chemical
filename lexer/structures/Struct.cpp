@@ -41,6 +41,8 @@ bool Lexer::lexStructStructureTokens(bool unnamed, bool direct_init) {
             }
         }
         lexWhitespaceToken();
+        lexGenericParametersList();
+        lexWhitespaceToken();
         if(lexOperatorToken(':')) {
             lexWhitespaceToken();
             if(!lexVariableToken()) {

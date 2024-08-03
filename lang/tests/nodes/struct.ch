@@ -181,8 +181,11 @@ func test_structs() {
     test("test that function calls that return struct, can be passed as args", () => {
         return test_pair(give_pair())
     })
-    test("implicit constructors work in function parameters", () => {
+    test("implicit constructors work in function parameters - 1", () => {
         return check_implicit(55);
+    })
+    test("implicit constructors work in function parameters - 2", () => {
+        return check_implicit(ImpPair(55));
     })
     test("implicit constructors inside structs work - 1", () => {
         var p = ImpContainer {

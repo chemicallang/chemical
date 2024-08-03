@@ -211,10 +211,12 @@ public:
     /**
      * write a debug comment
      */
-    void debug_comment(const std::string& value) {
+    void debug_comment(const std::string& value, bool new_line = true) {
         if(debug_comments) {
+            write("/** ");
             write(value);
-            new_line_and_indent();
+            write(" **/");
+            if(new_line) new_line_and_indent();
         }
     }
 

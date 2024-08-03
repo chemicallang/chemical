@@ -356,6 +356,7 @@ void func_call_args(ToCAstVisitor* visitor, FunctionCall* call, BaseFunctionType
             if(allocated != visitor->local_allocated.end()) {
                 visitor->write(allocated->second);
             } else {
+                visitor->debug_comment("this struct (returned or literal) wasn't allocated by before stmt visitor", false);
                 // TODO this struct isn't allocated, if it has a destructor it won't be called, fix this
                 val->accept(visitor);
             }
@@ -610,7 +611,7 @@ void value_alloca_store(ToCAstVisitor* visitor, const std::string& identifier, B
 }
 
 void var_init(ToCAstVisitor* visitor, VarInitStatement* init) {
-    visitor->debug_comment("// var_init defining the value");
+    visitor->debug_comment("var_init defining the value");
     if (!init->type.has_value()) {
         init->type.emplace(init->value.value()->create_type().release());
     }
@@ -815,7 +816,7 @@ void func_call_that_returns_struct(ToCAstVisitor* visitor, CBeforeStmtVisitor* a
     auto func_type = parent_type->function_type();
     bool is_lambda = (parent->linked_node() != nullptr && parent->linked_node()->as_struct_member() != nullptr);
     if (visitor->pass_structs_to_initialize && func_type->returnType->value_type() == ValueType::Struct) {
-        visitor->debug_comment("// function call being taken out that returns struct");
+        visitor->debug_comment("function call being taken out that returns struct");
         // functions that return struct
         auto allocated = visitor->local_allocated.find(last);
         if (allocated == visitor->local_allocated.end()) {
@@ -921,7 +922,7 @@ void CBeforeStmtVisitor::visit(VarInitStatement *init) {
     if (!init->type.has_value()) {
         init->type.emplace(init->value.value()->create_type().release());
     }
-    visitor->debug_comment("// visiting var init in before");
+    visitor->debug_comment("visiting var init in before");
     if(init->value.has_value()) {
         process_init_value(init->value.value().get(), init->identifier);
     }

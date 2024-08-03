@@ -118,16 +118,17 @@ void ArrayValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr)
         elemType.value()->link(linker, elemType.value());
         const auto elem_type = element_type();
         const auto def = elem_type->linked_struct_def();
-        if(def && !values.empty()) {
-            const auto implicit = def->implicit_constructor_func(values[0].get());
-            if(implicit) {
-                unsigned i = 0;
-                while (i < values.size()) {
+        if(def) {
+            unsigned i = 0;
+            while (i < values.size()) {
+                values[i]->link(linker, values[i]);
+                const auto implicit = def->implicit_constructor_func(values[i].get());
+                if(implicit) {
                     values[i] = call_with_arg(implicit, std::move(values[i]), linker);
-                    i++;
                 }
-                return;
+                i++;
             }
+            return;
         }
     }
     for(auto& value : values) {

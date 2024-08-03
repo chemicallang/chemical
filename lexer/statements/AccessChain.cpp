@@ -73,24 +73,29 @@ bool Lexer::lexAccessChainRecursive(bool lexStruct, unsigned chain_length) {
     return lexAccessChainAfterId(lexStruct, chain_length + 1);
 }
 
-void Lexer::lexFunctionCallAfterLParen(unsigned back_start) {
-    unsigned start = tokens.size() - back_start;
-    do {
+bool Lexer::lexFunctionCall(unsigned back_start) {
+    if(lexOperatorToken('(')) {
+        unsigned start = tokens.size() - back_start;
+        do {
+            lexWhitespaceAndNewLines();
+            if (!(lexExpressionTokens(true) || lexArrayInit())) {
+                break;
+            }
+            lexWhitespaceToken();
+        } while (lexOperatorToken(','));
         lexWhitespaceAndNewLines();
-        if(!(lexExpressionTokens(true) || lexArrayInit())) {
-            break;
+        if (!lexOperatorToken(')')) {
+            error("expected a ')' for a function call, after starting '('");
+            return true;
         }
-        lexWhitespaceToken();
-    } while (lexOperatorToken(','));
-    lexWhitespaceAndNewLines();
-    if(!lexOperatorToken(')')) {
-        error("expected a ')' for a function call, after starting '('");
+        compound_from(start, LexTokenType::CompFunctionCall);
+        return true;
+    } else {
+        return false;
     }
-    compound_from(start, LexTokenType::CompFunctionCall);
 }
 
-void Lexer::lexFunctionCallAfterGenericStart() {
-    unsigned start = tokens.size() - 1;
+void Lexer::lexGenericArgsList() {
     do {
         lexWhitespaceToken();
         if (!lexTypeTokens()) {
@@ -98,12 +103,27 @@ void Lexer::lexFunctionCallAfterGenericStart() {
         }
         lexWhitespaceToken();
     } while (lexOperatorToken(','));
-    if(!lexOperatorToken('>')) {
-        error("expected a '>' for generic list in function call");
+}
+
+bool Lexer::lexGenericArgsListCompound() {
+    if(lexOperatorToken('<')) {
+        unsigned start = tokens.size() - 1;
+        lexGenericArgsList();
+        if (!lexOperatorToken('>')) {
+            error("expected a '>' for generic list in function call");
+            return true;
+        }
+        compound_from(start, LexTokenType::CompGenericList);
+        return true;
+    } else {
+        return false;
     }
-    compound_from(start, LexTokenType::CompGenericList);
-    if(lexOperatorToken('(')){
-        lexFunctionCallAfterLParen(2);
+}
+
+void Lexer::lexFunctionCallWithGenericArgsList() {
+    lexGenericArgsListCompound();
+    if(provider.peek() == '('){
+        lexFunctionCall(2);
     } else {
         error("expected a '(' after the generic list in function call");
     }
@@ -121,9 +141,20 @@ bool Lexer::lexAccessChainAfterId(bool lexStruct, unsigned chain_length) {
         }
     }
 
+    // when there is generic args after the identifier StructName<int, float> or func_name<int, float>()
     if (provider.peek() == '<' && isGenericEndAhead()) {
-        lexOperatorToken('<');
-        lexFunctionCallAfterGenericStart();
+        lexGenericArgsListCompound();
+        lexWhitespaceToken();
+        if(provider.peek() == '(') {
+            lexFunctionCall(2);
+        } else if(lexStruct && provider.peek() == '{') {
+            if(chain_length > 1) {
+                compound_from(tokens.size() - chain_length, LexTokenType::CompAccessChain);
+            }
+            return lexStructValueTokens();
+        } else {
+            error("expected a '(' or '{' after the generic list for a function call or struct initialization");
+        }
     }
 
     while(provider.peek() == '(' || provider.peek() == '[') {
@@ -144,10 +175,10 @@ bool Lexer::lexAccessChainAfterId(bool lexStruct, unsigned chain_length) {
             compound_from(start, LexTokenType::CompIndexOp);
         }
         while(true) {
-            if (lexOperatorToken('(')) {
-                lexFunctionCallAfterLParen(1);
-            } else if(lexOperatorToken('<')) {
-                lexFunctionCallAfterGenericStart();
+            if (provider.peek() == '(') {
+                lexFunctionCall(1);
+            } else if(provider.peek() == '<') {
+                lexFunctionCallWithGenericArgsList();
             } else {
                 break;
             }

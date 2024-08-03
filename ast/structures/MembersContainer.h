@@ -20,6 +20,13 @@ private:
 
 public:
 
+    std::vector<std::unique_ptr<GenericTypeParameter>> generic_params;
+    /**
+     * generic parameters pretend to be different types on different iterations, iterations are number of usages
+     * that we determined during symbol resolution, by default zero means no active
+     */
+    int16_t active_iteration = 0;
+
     const std::vector<std::unique_ptr<FunctionDeclaration>>& functions() {
         return functions_container;
     }

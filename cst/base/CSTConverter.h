@@ -194,6 +194,11 @@ public:
      */
     std::unique_ptr<BaseType> type();
 
+    /**
+     * take a compound cst token of type generic arg list and convert its tokens to generic arg list
+     */
+    void to_generic_arg_list(std::vector<std::unique_ptr<BaseType>>& generic_list, CompoundCSTToken* container);
+
     // nodes
 
     void visitContinue(CompoundCSTToken *continueCst) override;

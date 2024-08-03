@@ -105,6 +105,9 @@ uint64_t VariablesContainer::total_byte_size(bool is64Bit) {
 
 void MembersContainer::declare_and_link(SymbolResolver &linker) {
     linker.scope_start();
+    for(auto& gen_param : generic_params) {
+        gen_param->declare_and_link(linker);
+    }
     for (const auto &var: variables) {
         var.second->declare_and_link(linker);
     }

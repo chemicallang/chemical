@@ -173,14 +173,27 @@ public:
     }
 
     /**
+     * it will lex generic args list, it should be called after the '<'
+     * after this function a '>' should be lexed as well, and then
+     * compound it into a generic args list
+     */
+    void lexGenericArgsList();
+
+    /**
+     * this will compound the generic args list
+     * It expects '<' and then generic args and then '>'
+     */
+    bool lexGenericArgsListCompound();
+
+    /**
      * lexes a function call, after the '<' for generic start
      */
-    void lexFunctionCallAfterGenericStart();
+    void lexFunctionCallWithGenericArgsList();
 
     /**
      * lexes a function call, that is args ')' without function name
      */
-    void lexFunctionCallAfterLParen(unsigned back_start);
+    bool lexFunctionCall(unsigned back_start);
 
     /**
      * after an identifier has been consumed

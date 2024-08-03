@@ -6,6 +6,7 @@
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/values/FunctionCall.h"
+#include "GenericUtils.h"
 
 bool chain_contains_func_call(std::vector<std::unique_ptr<Value>>& values, int start, int end) {
     while(start < end) {
@@ -48,4 +49,61 @@ FunctionDeclaration* implicit_constructor_for(BaseType* type, Value* value) {
         return linked_def->implicit_constructor_func(value);
     }
     return nullptr;
+}
+
+int16_t get_iteration_for(std::vector<std::unique_ptr<GenericTypeParameter>>& generic_params, std::vector<std::unique_ptr<BaseType>>& generic_list) {
+    if(!generic_params.empty()) {
+        int16_t i = 0;
+        unsigned j;
+        const auto total = generic_params[0]->usage.size();
+        while(i < total) {
+            j = 0;
+            bool all_params_found = true;
+            for(auto& param : generic_params) {
+                const auto generic_arg = j < generic_list.size() ? generic_list[j].get() : nullptr;
+                const auto generic_arg_pure = generic_arg ? generic_arg : param->def_type.get();
+                if(!param->usage[i]->is_same(generic_arg_pure)) {
+                    all_params_found = false;
+                    break;
+                }
+                j++;
+            }
+            if(all_params_found) {
+                break;
+            }
+            i++;
+        }
+        if(i == total) {
+            return -1;
+        }
+        return i;
+    } else {
+        return 0;
+    }
+}
+
+int16_t total_generic_iterations(std::vector<std::unique_ptr<GenericTypeParameter>>& generic_params) {
+    if(generic_params.empty()) {
+        return 1;
+    } else {
+        return (int16_t) generic_params[0]->usage.size();
+    }
+}
+
+int16_t register_generic_usage(std::vector<std::unique_ptr<GenericTypeParameter>>& generic_params, std::vector<std::unique_ptr<BaseType>>& generic_list) {
+    if(!generic_params.empty()) {
+        int16_t i = get_iteration_for(generic_params, generic_list);
+        if(i == -1) {
+            i = 0;
+            for (auto &param: generic_params) {
+                param->register_usage(i < generic_list.size() ? generic_list[i].get() : nullptr);
+                i++;
+            }
+            i = total_generic_iterations(generic_params);
+            i -= 1;
+        }
+        return i;
+    } else {
+        return 0;
+    }
 }

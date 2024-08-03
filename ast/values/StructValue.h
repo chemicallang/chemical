@@ -16,6 +16,7 @@ public:
     std::vector<std::unique_ptr<BaseType>> generic_list;
     StructDefinition *definition = nullptr;
     std::unordered_map<std::string, std::unique_ptr<Value>> values;
+    int16_t generic_iteration = 0;
 #ifdef COMPILER_BUILD
     llvm::AllocaInst* allocaInst;
 #endif

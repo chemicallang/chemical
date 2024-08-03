@@ -8,6 +8,8 @@
 #include "MultiFunctionNode.h"
 #include "FunctionDeclaration.h"
 #include "VariablesContainer.h"
+#include "ast/values/StructValue.h"
+#include "ast/utils/GenericUtils.h"
 
 #ifdef COMPILER_BUILD
 
@@ -139,6 +141,30 @@ ASTNode *MembersContainer::child(const std::string &varName) {
         } else {
             return nullptr;
         }
+    }
+}
+
+int16_t MembersContainer::register_value(StructValue* value) {
+    return register_generic_usage(generic_params, value->generic_list);
+}
+
+int16_t MembersContainer::total_generic_iterations() {
+    return ::total_generic_iterations(generic_params);
+}
+
+void MembersContainer::set_active_iteration(int16_t iteration) {
+#ifdef DEBUG
+    if(iteration < -1) {
+        throw std::runtime_error("please fix iteration, which is less than -1, generic iteration is always greater than or equal to -1");
+    }
+#endif
+    if(iteration == -1) {
+        active_iteration = 0;
+    } else {
+        active_iteration = iteration;
+    }
+    for (auto &param: generic_params) {
+        param->active_iteration = iteration;
     }
 }
 

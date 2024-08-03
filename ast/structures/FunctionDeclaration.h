@@ -107,12 +107,6 @@ public:
     }
 
     /**
-     * get iteration for call, if it exists, otherwise returns -1
-     * non generic functions return 0
-     */
-    int16_t get_iteration_for(FunctionCall* call);
-
-    /**
      * a call notifies a function, during symbol resolution that it exists
      * when this happens, generics are checked, proper types are registered in generic
      * @return iteration that corresponds to this call

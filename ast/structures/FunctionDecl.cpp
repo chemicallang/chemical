@@ -17,6 +17,7 @@
 #include "ast/types/VoidType.h"
 #include "ast/values/FunctionCall.h"
 #include "ast/statements/Return.h"
+#include "ast/utils/GenericUtils.h"
 
 #ifdef COMPILER_BUILD
 
@@ -480,11 +481,7 @@ bool FunctionDeclaration::is_exported() {
 
 
 int16_t FunctionDeclaration::total_generic_iterations() {
-    if(generic_params.empty()) {
-        return 1;
-    } else {
-        return (int16_t) generic_params[0]->usage.size();
-    }
+    return ::total_generic_iterations(generic_params);
 }
 
 void FunctionDeclaration::ensure_constructor(StructDefinition* def) {
@@ -519,53 +516,8 @@ void FunctionDeclaration::set_active_iteration(int16_t iteration) {
     }
 }
 
-int16_t FunctionDeclaration::get_iteration_for(FunctionCall* call) {
-    if(!generic_params.empty()) {
-        int16_t i = 0;
-        unsigned j;
-        const auto total = generic_params[0]->usage.size();
-        while(i < total) {
-            j = 0;
-            bool all_params_found = true;
-            for(auto& param : generic_params) {
-                const auto generic_arg = j < call->generic_list.size() ? call->generic_list[j].get() : nullptr;
-                const auto generic_arg_pure = generic_arg ? generic_arg : param->def_type.get();
-                if(!param->usage[i]->is_same(generic_arg_pure)) {
-                    all_params_found = false;
-                    break;
-                }
-                j++;
-            }
-            if(all_params_found) {
-                break;
-            }
-            i++;
-        }
-        if(i == total) {
-            return -1;
-        }
-        return i;
-    } else {
-        return 0;
-    }
-}
-
 int16_t FunctionDeclaration::register_call(FunctionCall* call) {
-    if(!generic_params.empty()) {
-        int16_t i = get_iteration_for(call);
-        if(i == -1) {
-            i = 0;
-            for (auto &param: generic_params) {
-                param->register_usage(i < call->generic_list.size() ? call->generic_list[i].get() : nullptr);
-                i++;
-            }
-            i = total_generic_iterations();
-            i -= 1;
-        }
-        return i;
-    } else {
-        return 0;
-    }
+    return register_generic_usage(generic_params, call->generic_list);
 }
 
 std::unique_ptr<BaseType> FunctionDeclaration::create_value_type() {

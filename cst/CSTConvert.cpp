@@ -1275,9 +1275,10 @@ void CSTConverter::visitAccessChain(CompoundCSTToken *chain) {
         }
         i++;
     }
-    auto ret_chain = std::make_unique<AccessChain>(std::move(values), parent_node);
+    const auto is_node = chain->type() == LexTokenType::CompAccessChainNode;
+    auto ret_chain = std::make_unique<AccessChain>(std::move(values), parent_node, is_node);
     values = std::move(prev_values);
-    if (chain->type() == LexTokenType::CompAccessChainNode) {
+    if (is_node) {
         nodes.emplace_back(std::move(ret_chain));
     } else {
         if(ret_chain->values.size() == 1) {

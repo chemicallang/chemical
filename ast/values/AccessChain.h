@@ -21,12 +21,13 @@ public:
 
     std::vector<std::unique_ptr<Value>> values;
     ASTNode* parent_node;
+    bool is_node;
 
-    AccessChain(ASTNode* parent_node) : parent_node(parent_node) {
+    AccessChain(ASTNode* parent_node, bool is_node) : parent_node(parent_node), is_node(is_node) {
 
     }
 
-    AccessChain(std::vector<std::unique_ptr<Value>> values, ASTNode* parent_node);
+    AccessChain(std::vector<std::unique_ptr<Value>> values, ASTNode* parent_node, bool is_node);
 
     void set_parent(ASTNode* new_parent) override {
         parent_node = new_parent;

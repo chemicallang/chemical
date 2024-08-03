@@ -50,6 +50,10 @@ public:
 
 #endif
 
+    Scope *as_scope() override {
+        return this;
+    }
+
     void interpret(InterpretScope &scope) override;
 
     /**

@@ -30,7 +30,7 @@ void evaluate_values(std::vector<std::unique_ptr<Value>>& values, InterpretScope
 }
 
 std::unique_ptr<Value> call_with_arg(FunctionDeclaration* decl, std::unique_ptr<Value> arg, SymbolResolver& resolver) {
-    auto chain = std::make_unique<AccessChain>(nullptr);
+    auto chain = std::make_unique<AccessChain>(nullptr, false);
     auto id = std::make_unique<VariableIdentifier>(decl->name);
     id->linked = decl;
     chain->values.emplace_back(std::move(id));

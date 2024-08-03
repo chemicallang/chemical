@@ -351,10 +351,19 @@ void func_call_args(ToCAstVisitor* visitor, FunctionCall* call, BaseFunctionType
         param = func_type->func_param_for_arg_at(i);
         auto& val = call->values[i];
         if(get_param_type_ref_struct(param->type.get()) && !is_func_param_ref_struct(val->linked_node())) {
+            auto allocated = visitor->local_allocated.find(val.get());
             visitor->write('&');
-            if(!val->reference() && val->value_type() == ValueType::Struct) {
-                write_struct_def_value_call(visitor, val->as_struct()->definition);
+            if(allocated != visitor->local_allocated.end()) {
+                visitor->write(allocated->second);
+            } else {
+                // TODO this struct isn't allocated, if it has a destructor it won't be called, fix this
+                val->accept(visitor);
             }
+            if (i != call->values.size() - 1) {
+                visitor->write(", ");
+            }
+            i++;
+            continue;
         } else if(!val->reference() && val->value_type() == ValueType::Array) {
             visitor->write('(');
             auto base_type = val->get_base_type();
@@ -363,7 +372,7 @@ void func_call_args(ToCAstVisitor* visitor, FunctionCall* call, BaseFunctionType
             visitor->write(')');
         }
         val->accept(visitor);
-        if(i != call->values.size() - 1) {
+        if (i != call->values.size() - 1) {
             visitor->write(", ");
         }
         i++;
@@ -705,24 +714,32 @@ class CAfterStmtVisitor : public CommonVisitor, public SubVisitor {
 
 };
 
-void allocate_struct_by_name(ToCAstVisitor* visitor, StructDefinition* def, const std::string& name) {
+void allocate_struct_by_name(ToCAstVisitor* visitor, StructDefinition* def, const std::string& name, Value* initializer = nullptr) {
     visitor->write("struct ");
     node_parent_name(visitor, def);
     visitor->write(def->name);
     visitor->write(' ');
     visitor->write(name);
+    if(initializer) {
+        visitor->write(" = ");
+        initializer->accept(visitor);
+    }
     visitor->write(';');
     visitor->new_line_and_indent();
 }
 
-void allocate_struct_for_func_call(ToCAstVisitor* visitor, StructDefinition* def, FunctionCall* call, const std::string& name) {
-    auto found = visitor->local_allocated.find(call);
+void allocate_struct_for_value(ToCAstVisitor* visitor, StructDefinition* def, Value* value, const std::string& name, Value* initializer) {
+    auto found = visitor->local_allocated.find(value);
     if(found != visitor->local_allocated.end()) {
         // already allocated
         return;
     }
-    visitor->local_allocated[call] = name;
-    allocate_struct_by_name(visitor, def, name);
+    visitor->local_allocated[value] = name;
+    allocate_struct_by_name(visitor, def, name, initializer);
+}
+
+void allocate_struct_for_func_call(ToCAstVisitor* visitor, StructDefinition* def, FunctionCall* call, const std::string& name, Value* initializer = nullptr) {
+    allocate_struct_for_value(visitor, def, call, name, initializer);
 }
 
 void CBeforeStmtVisitor::visit(FunctionCall *call) {
@@ -747,6 +764,12 @@ void CBeforeStmtVisitor::visit(FunctionCall *call) {
         }
     }
     CommonVisitor::visit(call);
+    for(auto& value : call->values) {
+        const auto struct_val = value->as_struct();
+        if(struct_val) {
+            allocate_struct_for_value(visitor, struct_val->definition, struct_val, visitor->get_local_temp_var_name(), struct_val);
+        }
+    }
     if(func_type->returnType->value_type() == ValueType::Struct) {
         auto linked = func_type->returnType->linked_node();
         if(linked->as_struct_def()) {
@@ -1067,7 +1090,17 @@ void CAfterStmtVisitor::visit(FunctionCall *call) {
         if(chain) {
             destruct_chain(chain, true);
         } else {
-            val->accept(this);
+            const auto struc = val->as_struct();
+            if(struc) {
+                auto found = visitor->local_allocated.find(struc);
+                if(found != visitor->local_allocated.end()) {
+                    visitor->destructor->destruct(found->second, nullptr, struc->definition);
+                } else {
+                    val->accept(this);
+                }
+            } else {
+                val->accept(this);
+            }
         }
     }
 }

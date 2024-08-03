@@ -210,9 +210,20 @@ int main(int argc, char *argv[]) {
 
     // build a .lab file
     if(args[0].ends_with(".lab")) {
-        LabBuildContext context(args[0]);
+
         LabBuildCompilerOptions compiler_opts(argv[0], target.value(), is64Bit);
         LabBuildCompiler compiler(&compiler_opts);
+
+        // translate the build.lab to a c file (for debugging)
+        if(output.has_value() && output.value().ends_with(".c")) {
+            LabJob job(LabJobType::ToCTranslation, chem::string("[BuildLabTranslation]"), chem::string(output.value()), chem::string(compiler_opts.build_folder), { }, { });
+            LabModule module(LabModuleType::Files, chem::string("[BuildLabFile]"), chem::string((const char*) nullptr), chem::string((const char*) nullptr), chem::string((const char*) nullptr), chem::string((const char*) nullptr), { }, { });
+            module.paths.emplace_back(args[0]);
+            job.dependencies.emplace_back(&module);
+            return compiler.do_to_c_job(&job);
+        }
+
+        LabBuildContext context(args[0]);
         prepare_options(&compiler_opts);
         compiler_opts.def_mode = mode;
 

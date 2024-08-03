@@ -261,4 +261,11 @@ func test_destructors() {
         }
         return count == 1;
     })
+    test("struct created in a access chain node, not assigned to a variable is destructed", () => {
+        var count = 0;
+        if(count == 0) {
+            create_destructible(&count, 676)
+        }
+        return count == 1;
+    })
 }

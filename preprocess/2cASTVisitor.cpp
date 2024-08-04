@@ -152,6 +152,19 @@ void assign_statement(ToCAstVisitor* visitor, AssignStatement* assign) {
 #define struct_passed_param_name "__chx_struct_ret_param_xx"
 #define fn_call_struct_var_name "chx_fn_cl_struct"
 
+static std::string struct_name_str(ToCAstVisitor* visitor, ExtendableMembersContainerNode* def) {
+    if(def->generic_params.empty()) {
+        return def->name;
+    } else {
+        return def->name + "__cgs__" + std::to_string(def->active_iteration);
+    }
+}
+
+// without the parent node name
+static void struct_name(ToCAstVisitor* visitor, ExtendableMembersContainerNode* def) {
+    visitor->write(struct_name_str(visitor, def));
+}
+
 // nodes inside namespaces for example namespace name is written before their name
 void node_parent_name(ToCAstVisitor* visitor, ASTNode* node, bool take_parent = true) {
     if(!node) return;
@@ -161,7 +174,7 @@ void node_parent_name(ToCAstVisitor* visitor, ASTNode* node, bool take_parent = 
         if(parent->as_namespace()) {
             name = parent->as_namespace()->name + name;
         } else if(parent->as_struct_def()) {
-            name = parent->as_struct_def()->name + name;
+            name = struct_name_str(visitor, parent->as_struct_def()) + name;
         } else if(parent->as_union_def()) {
             name = parent->as_union_def()->name + name;
         } else if(parent->as_interface_def()) {
@@ -219,7 +232,7 @@ void write_struct_def_value_call(ToCAstVisitor* visitor, StructDefinition* def) 
     visitor->write('(');
     visitor->write("struct ");
     node_parent_name(visitor, def);
-    visitor->write(def->name);
+    struct_name(visitor, def);
     visitor->write(')');
 }
 
@@ -721,7 +734,7 @@ class CAfterStmtVisitor : public CommonVisitor, public SubVisitor {
 void allocate_struct_by_name(ToCAstVisitor* visitor, StructDefinition* def, const std::string& name, Value* initializer = nullptr) {
     visitor->write("struct ");
     node_parent_name(visitor, def);
-    visitor->write(def->name);
+    struct_name(visitor, def);
     visitor->write(' ');
     visitor->write(name);
     if(initializer) {
@@ -941,6 +954,8 @@ public:
             ToCAstVisitor* visitor,
             CValueDeclarationVisitor* value_visitor
     );
+
+    void declare_struct(StructDefinition* structDef);
 
     void visit(TypealiasStatement *statement) override;
 
@@ -1537,7 +1552,7 @@ void CTopLevelDeclarationVisitor::visit(Namespace *ns) {
     }
 }
 
-void CTopLevelDeclarationVisitor::visit(StructDefinition *def) {
+void CTopLevelDeclarationVisitor::declare_struct(StructDefinition* def) {
     // no need to forward declare struct when inlining function types
     if(!visitor->inline_struct_members_fn_types) {
         // forward declaring struct for function types that take a pointer to it
@@ -1553,7 +1568,7 @@ void CTopLevelDeclarationVisitor::visit(StructDefinition *def) {
     visitor->new_line_and_indent();
     write("struct ");
     node_parent_name(visitor, def);
-    write(def->name);
+    struct_name(visitor, def);
     write(" {");
     visitor->indentation_level+=1;
     for(auto& var : def->variables) {
@@ -1570,7 +1585,21 @@ void CTopLevelDeclarationVisitor::visit(StructDefinition *def) {
     InterfaceDefinition* overridden = def->overrides.has_value() ? def->overrides.value()->linked->as_interface_def() : nullptr;
     for(auto& func : def->functions()) {
         if(!overridden || !overridden->contains_func(func->name)) {
-            declare_contained_func(this, func.get(), def->name + func->name, false);
+            declare_contained_func(this, func.get(), struct_name_str(visitor, def) + func->name, false);
+        }
+    }
+}
+
+void CTopLevelDeclarationVisitor::visit(StructDefinition* def) {
+    if(def->generic_params.empty()) {
+        declare_struct(def);
+    } else {
+        const auto total = def->total_generic_iterations();
+        int16_t itr = 0;
+        while(itr < total) {
+            def->set_active_iteration(itr);
+            declare_struct(def);
+            itr++;
         }
     }
 }
@@ -1919,7 +1948,7 @@ void contained_func_decl(ToCAstVisitor* visitor, FunctionDeclaration* decl, cons
     if(!self_pointer_name.empty() && def) {
         visitor->new_line_and_indent();
         visitor->write("struct ");
-        visitor->write(def->name);
+        struct_name(visitor, def);
         visitor->write('*');
         visitor->space();
         visitor->write("self = ");
@@ -2068,6 +2097,16 @@ void ToCAstVisitor::visit(UnnamedStruct *def) {
     write(';');
 }
 
+static void contained_struct_functions(ToCAstVisitor* visitor, StructDefinition* def, InterfaceDefinition* overridden) {
+    for(auto& func : def->functions()) {
+        if(overridden && overridden->contains_func(func->name)) {
+            contained_func_decl(visitor, func.get(), overridden->name + func->name, true, def);
+        } else {
+            contained_func_decl(visitor, func.get(), struct_name_str(visitor, def) + func->name, false, def);
+        }
+    }
+}
+
 void ToCAstVisitor::visit(StructDefinition *def) {
     auto prev_members_container = current_members_container;
     current_members_container = def;
@@ -2079,12 +2118,18 @@ void ToCAstVisitor::visit(StructDefinition *def) {
             }
         }
     }
-    for(auto& func : def->functions()) {
-        if(overridden && overridden->contains_func(func->name)) {
-            contained_func_decl(this, func.get(), overridden->name + func->name, true, def);
-        } else {
-            contained_func_decl(this, func.get(), def->name + func->name, false, def);
+    if(def->generic_params.empty()) {
+        contained_struct_functions(this, def, overridden);
+    } else {
+        auto prev = def->active_iteration;
+        const auto total_itr = def->total_generic_iterations();
+        int16_t itr = 0;
+        while (itr < total_itr) {
+            def->set_active_iteration(itr);
+            contained_struct_functions(this, def, overridden);
+            itr++;
         }
+        def->set_active_iteration(prev);
     }
     current_members_container = prev_members_container;
 }
@@ -2162,7 +2207,7 @@ void func_container_name(ToCAstVisitor* visitor, FunctionDeclaration* func_node)
                 }
             } else {
                 node_parent_name(visitor, struct_parent);
-                visitor->write(struct_parent->name);
+                struct_name(visitor, struct_parent);
                 func_name(visitor, func_node);
                 return;
             }
@@ -2188,10 +2233,10 @@ void func_container_name(ToCAstVisitor* visitor, ASTNode* parent_node, ASTNode* 
             if(interface->contains_func(linked_node->as_function()->name)) {
                 visitor->write(interface->name);
             } else {
-                visitor->write(parent_node->as_struct_def()->name);
+                struct_name(visitor, parent_node->as_struct_def());
             }
         } else {
-            visitor->write(parent_node->as_struct_def()->name);
+            struct_name(visitor, parent_node->as_struct_def());
         }
     }
 }
@@ -2786,7 +2831,7 @@ void ToCAstVisitor::visit(ReferencedType *type) {
     std::string name = type->type;
     if(type->linked->as_struct_def()) {
         write("struct ");
-        name = type->linked->as_struct_def()->name;
+        name = struct_name_str(this, type->linked->as_struct_def());
     } else if(type->linked->as_union_def()) {
         write("union ");
         name = type->linked->as_union_def()->name;
@@ -2826,7 +2871,7 @@ void ToCAstVisitor::visit(StructType *val) {
 void ToCAstVisitor::visit(ReferencedStructType *structType) {
     write("struct ");
     node_parent_name(this, structType->definition);
-    write(structType->definition->name);
+    struct_name(this, structType->definition);
 }
 
 void ToCAstVisitor::visit(UBigIntType *func) {

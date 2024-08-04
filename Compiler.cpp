@@ -175,7 +175,11 @@ int main(int argc, char *argv[]) {
 
 #else
     std::optional<std::string> target = "native";
+#if defined(_WIN64) || defined(__x86_64__) || defined(__ppc64__)
+    bool is64Bit = true;
+#else
     bool is64Bit = false;
+#endif
 #endif
 
     OutputMode mode = OutputMode::Debug;

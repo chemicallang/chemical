@@ -17,7 +17,7 @@ void UsingStmt::declare_and_link(SymbolResolver &linker) {
     chain.declare_and_link(linker);
     auto linked = chain.linked_node();
     if(!linked) {
-        linker.error("couldn't find linked node with '" + chain.representation() + "' in using statement");
+        linker.error("couldn't find linked node with '" + chain.chain_representation() + "' in using statement");
         return;
     }
     if(is_namespace) {
@@ -27,7 +27,7 @@ void UsingStmt::declare_and_link(SymbolResolver &linker) {
                 node->declare_top_level(linker);
             }
         } else {
-            linker.error("expected '" + chain.representation() + "' to be a namespace in using statement, however it isn't");
+            linker.error("expected '" + chain.chain_representation() + "' to be a namespace in using statement, however it isn't");
         }
     } else {
         linked->declare_top_level(linker);

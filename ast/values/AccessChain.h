@@ -119,14 +119,16 @@ public:
 
     std::unique_ptr<Value> create_evaluated_value(InterpretScope &scope) override;
 
-    std::string representation() {
+    inline std::string chain_representation() {
         return Value::representation();
     }
 
     ASTNode *linked_node() override;
 
+    [[nodiscard]]
     ValueType value_type() const override;
 
+    [[nodiscard]]
     BaseTypeKind type_kind() const override;
 
 };

@@ -20,6 +20,23 @@
 #include "ast/values/IntValue.h"
 #include "ast/types/ReferencedType.h"
 
+void StructDefinition::struct_func_gen(Codegen& gen, const std::function<bool(FunctionDeclaration* function)>& override, const std::function<FunctionDeclaration*(FunctionDeclaration* function)>& get_overriding) {
+    for(auto& function : functions()) {
+        auto overriding = get_overriding(function.get());
+        if(overriding) {
+            function->code_gen_override_declare(gen, overriding);
+            continue;
+        }
+        function->code_gen_declare(gen, this);
+    }
+    for (auto &function: functions()) {
+        if(override(function.get())) {
+            continue;
+        }
+        function->code_gen_body(gen, this);
+    }
+}
+
 void StructDefinition::code_gen(Codegen &gen) {
     std::unordered_map<std::string, llvm::Function *> *ref = nullptr;
     InterfaceDefinition *interface = nullptr;
@@ -79,20 +96,21 @@ void StructDefinition::code_gen(Codegen &gen) {
         }
         return false;
     };
-    for(auto& function : functions()) {
-        auto overriding = get_overriding(function.get());
-        if(overriding) {
-            function->code_gen_override_declare(gen, overriding);
-            continue;
+
+    if(generic_params.empty()) {
+        struct_func_gen(gen, override, get_overriding);
+    } else {
+        auto prev_active_iteration = active_iteration;
+        auto total = total_generic_iterations();
+        int16_t i = 0;
+        while(i < total) {
+            set_active_iteration(i);
+            struct_func_gen(gen, override, get_overriding);
+            i++;
         }
-        function->code_gen_declare(gen, this);
+        set_active_iteration(prev_active_iteration);
     }
-    for (auto &function: functions()) {
-        if(override(function.get())) {
-            continue;
-        }
-        function->code_gen_body(gen, this);
-    }
+
 }
 
 llvm::Type *StructMember::llvm_type(Codegen &gen) {

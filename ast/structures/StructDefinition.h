@@ -23,7 +23,7 @@ public:
     ASTNode* parent_node;
 
 #ifdef COMPILER_BUILD
-    llvm::StructType* llvm_struct_type = nullptr;
+    std::vector<llvm::StructType*> llvm_struct_types = {};
 #endif
 
     /**
@@ -82,6 +82,7 @@ public:
 
     hybrid_ptr<BaseType> get_value_type() override;
 
+    [[nodiscard]]
     ValueType value_type() const override;
 
     uint64_t byte_size(bool is64Bit) override {
@@ -90,6 +91,7 @@ public:
 
     FunctionDeclaration* create_destructor();
 
+    [[nodiscard]]
     BaseType *copy() const override;
 
 #ifdef COMPILER_BUILD
@@ -99,11 +101,20 @@ public:
     }
 
     llvm::StructType* llvm_stored_type() override {
-        return llvm_struct_type;
+        if(active_iteration < llvm_struct_types.size()) {
+            return llvm_struct_types[active_iteration];
+        } else {
+            return nullptr;
+        }
     }
 
     void llvm_store_type(llvm::StructType* type) override {
-        llvm_struct_type = type;
+        const auto size = llvm_struct_types.size();
+        if(active_iteration == size) {
+            llvm_struct_types.emplace_back(type);
+        } else {
+            throw std::runtime_error("invalid active iteration during llvm_store_type");
+        }
     }
 
     llvm::Type *llvm_type(Codegen &gen) override {
@@ -117,6 +128,12 @@ public:
     llvm::Type *llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<Value>> &values, unsigned int index) override {
         return StructType::llvm_chain_type(gen, values, index);
     }
+
+    void struct_func_gen(
+        Codegen& gen,
+        const std::function<bool(FunctionDeclaration* function)>& override,
+        const std::function<FunctionDeclaration*(FunctionDeclaration* function)>& get_overriding
+    );
 
     void code_gen(Codegen &gen) override;
 

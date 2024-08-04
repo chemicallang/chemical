@@ -137,7 +137,7 @@ bool Lexer::lexAccessChainAfterId(bool lexStruct, unsigned chain_length) {
             if(chain_length > 1) {
                 compound_from(tokens.size() - chain_length, LexTokenType::CompAccessChain);
             }
-            return lexStructValueTokens();
+            return lexStructValueTokens(1);
         }
     }
 
@@ -151,7 +151,7 @@ bool Lexer::lexAccessChainAfterId(bool lexStruct, unsigned chain_length) {
             if(chain_length > 1) {
                 compound_from(tokens.size() - chain_length, LexTokenType::CompAccessChain);
             }
-            return lexStructValueTokens();
+            return lexStructValueTokens(2);
         } else {
             error("expected a '(' or '{' after the generic list for a function call or struct initialization");
         }

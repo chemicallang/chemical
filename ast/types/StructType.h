@@ -23,10 +23,12 @@ public:
         visitor->visit(this);
     }
 
+    [[nodiscard]]
     BaseTypeKind kind() const override {
         return BaseTypeKind::Struct;
     }
 
+    [[nodiscard]]
     ValueType value_type() const override {
         return ValueType::Struct;
     }

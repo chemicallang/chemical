@@ -125,6 +125,8 @@ public:
 
     std::vector<llvm::Type *> param_types(Codegen &gen) override;
 
+    llvm::FunctionType *create_llvm_func_type(Codegen &gen);
+
     llvm::FunctionType *llvm_func_type(Codegen &gen) override;
 
     /**

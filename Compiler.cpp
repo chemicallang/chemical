@@ -37,6 +37,8 @@ int chemical_clang_main(int argc, char **argv);
 
 int chemical_clang_main2(const std::vector<std::string> &command_args);
 
+int llvm_ar_main2(const std::vector<std::string> &command_args);
+
 std::vector<std::unique_ptr<ASTNode>> TranslateC(const char* exe_path, const char *abs_path, const char *resources_path);
 
 #endif
@@ -93,7 +95,23 @@ int main(int argc, char *argv[]) {
 
     // parsing the command
     CmdOptions options;
-    auto args = options.parse_cmd_options(argc, argv, 1, {"cc", "clang", "linker", "jit"});
+    auto args = options.parse_cmd_options(argc, argv, 1, {"cc", "ar", "clang", "linker", "jit"});
+
+#ifdef COMPILER_BUILD
+    // use llvm archiver
+    auto llvm_ar = options.option("ar", "ar");
+    if(llvm_ar.has_value()) {
+        auto subc = options.collect_subcommand(argc, argv, "ar");
+//        subc.insert(subc.begin(), argv[0]);
+        subc.insert(subc.begin(), "ar");
+//        std::cout << "ar  : ";
+//        for(const auto& sub : subc) {
+//            std::cout << sub;
+//        }
+//        std::cout << std::endl;
+        return llvm_ar_main2(subc);
+    }
+#endif
 
 #ifdef COMPILER_BUILD
     // use raw clang

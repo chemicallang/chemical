@@ -1465,7 +1465,7 @@ static int llvm_ar_main(int argc, char **argv, const llvm::ToolContext &) {
   fail("not ranlib, ar, lib or dlltool");
 }
 
-extern "C" int ChemLlvmAr_main(int, char **);
+//extern "C" int ChemLlvmAr_main(int, char **);
 int ChemLlvmAr_main(int argc, char **argv) {
   return llvm_ar_main(argc, argv, {argv[0], nullptr, false});
 }

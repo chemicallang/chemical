@@ -57,11 +57,9 @@ inline std::string typealias_name(CompoundCSTToken* cst) {
 }
 
 inline CSTToken* func_name_tok(CompoundCSTToken* func) {
-    if(is_char_op(func->tokens[1].get(), '(')) {
-        return func->tokens[4].get();
-    } else {
-        return func->tokens[1].get();
-    }
+    const auto is_generic = func->tokens[1]->type() == LexTokenType::CompGenericParamsList;
+    const auto is_extension = is_char_op(func->tokens[is_generic ? 2 : 1].get(), '(');
+    return func->tokens[1 + (is_extension ? 3 : 0) + (is_generic ? 1 : 0)].get();
 }
 
 inline std::string func_name(CompoundCSTToken* func) {

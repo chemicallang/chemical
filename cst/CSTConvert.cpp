@@ -433,17 +433,17 @@ void convert_generic_list(
 
 void CSTConverter::visitFunction(CompoundCSTToken *function) {
 
-    auto is_extension = is_char_op(function->tokens[1].get(), '(');
-
     if(is_dispose()) {
         return;
     }
 
-    const auto generic_start = is_extension ? 7 : 2;
+    const auto is_generic = function->tokens[1]->type() == LexTokenType::CompGenericParamsList;
 
-    const auto is_generic = generic_start < function->tokens.size() && function->tokens[generic_start]->type() == LexTokenType::CompGenericParamsList;
+    const auto extension_start = is_generic ? 2 : 1;
 
-    const auto params_start = is_generic ? generic_start + 2 : is_extension ? 6 : 3;
+    const auto is_extension = is_char_op(function->tokens[extension_start].get(), '(');
+
+    const auto params_start = 3 + (is_extension ? 3 : 0) + (is_generic ? 1 : 0);
 
     auto params = function_params(this, function->tokens, params_start);
 
@@ -466,7 +466,7 @@ void CSTConverter::visitFunction(CompoundCSTToken *function) {
     FunctionDeclaration* funcDecl;
 
     if(is_extension) {
-        function->tokens[2]->accept(this);
+        function->tokens[extension_start + 1]->accept(this);
         auto param = (FunctionParam*) nodes.back().release();
         nodes.pop_back();
         funcDecl = new ExtensionFunction(
@@ -487,7 +487,7 @@ void CSTConverter::visitFunction(CompoundCSTToken *function) {
     }
 
     if(is_generic) {
-        convert_generic_list(this, function->tokens[generic_start]->as_compound(), funcDecl->generic_params, funcDecl);
+        convert_generic_list(this, function->tokens[1]->as_compound(), funcDecl->generic_params, funcDecl);
     }
 
     if (i < function->tokens.size()) {

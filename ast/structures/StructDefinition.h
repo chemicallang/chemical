@@ -89,6 +89,14 @@ public:
         return total_byte_size(is64Bit);
     }
 
+    uint64_t byte_size(bool is64Bit, int16_t iteration) {
+        auto prev = active_iteration;
+        set_active_iteration(iteration);
+        auto size = total_byte_size(is64Bit);
+        set_active_iteration(prev);
+        return size;
+    }
+
     FunctionDeclaration* create_destructor();
 
     [[nodiscard]]
@@ -119,6 +127,14 @@ public:
 
     llvm::Type *llvm_type(Codegen &gen) override {
         return StructType::llvm_type(gen);
+    }
+
+    llvm::Type *llvm_type(Codegen &gen, int16_t iteration) {
+        auto prev = active_iteration;
+        set_active_iteration(iteration);
+        auto type = llvm_type(gen);
+        set_active_iteration(prev);
+        return type;
     }
 
     llvm::Type *llvm_param_type(Codegen &gen) override {

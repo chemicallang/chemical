@@ -82,16 +82,20 @@ llvm::Value *BaseFunctionParam::llvm_load(Codegen &gen) {
     return nullptr;
 }
 
-llvm::FunctionType *FunctionDeclaration::llvm_func_type(Codegen &gen) {
-    if(!llvm_data.empty() && active_iteration < llvm_data.size()) {
-        return llvm_data[active_iteration].second;
-    }
+llvm::FunctionType *FunctionDeclaration::create_llvm_func_type(Codegen &gen) {
     auto paramTypes = param_types(gen);
     if(paramTypes.empty()) {
         return llvm::FunctionType::get(llvm_func_return(gen, returnType.get()), isVariadic);
     } else {
         return llvm::FunctionType::get(llvm_func_return(gen, returnType.get()), paramTypes, isVariadic);
     }
+}
+
+llvm::FunctionType *FunctionDeclaration::llvm_func_type(Codegen &gen) {
+    if(!llvm_data.empty() && active_iteration < llvm_data.size()) {
+        return llvm_data[active_iteration].second;
+    }
+    return create_llvm_func_type(gen);
 }
 
 llvm::Function* FunctionDeclaration::llvm_func() {
@@ -173,7 +177,7 @@ void set_llvm_data(FunctionDeclaration* decl, llvm::Value* func_callee, llvm::Fu
 }
 
 void create_non_generic_fn(Codegen& gen, FunctionDeclaration *decl, const std::string& name) {
-    auto func = gen.create_function(name, decl->llvm_func_type(gen), decl->specifier);
+    auto func = gen.create_function(name, decl->create_llvm_func_type(gen), decl->specifier);
     llvm_func_def_attr(func);
     decl->traverse([func](Annotation* annotation){
         llvm_func_attr(func, annotation->kind);
@@ -202,7 +206,7 @@ inline void create_fn(Codegen& gen, FunctionDeclaration *decl) {
 }
 
 void declare_fn(Codegen& gen, FunctionDeclaration *decl) {
-    auto callee = gen.declare_function(decl->name, decl->llvm_func_type(gen));
+    auto callee = gen.declare_function(decl->name, decl->create_llvm_func_type(gen));
     set_llvm_data(decl, callee.getCallee(), callee.getFunctionType());
 }
 

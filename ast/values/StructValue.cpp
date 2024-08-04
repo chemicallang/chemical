@@ -98,7 +98,11 @@ llvm::Type *StructValue::llvm_elem_type(Codegen &gen) {
 }
 
 llvm::Type *StructValue::llvm_type(Codegen &gen) {
-    return definition->llvm_type(gen);
+    if(definition->generic_params.empty()) {
+        return definition->llvm_type(gen);
+    } else {
+        return definition->llvm_type(gen, generic_iteration);
+    }
 }
 
 bool StructValue::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
@@ -130,7 +134,11 @@ StructValue::StructValue(
 }
 
 uint64_t StructValue::byte_size(bool is64Bit) {
-    return definition->byte_size(is64Bit);
+    if(definition->generic_params.empty()) {
+        return definition->byte_size(is64Bit);
+    } else {
+        return definition->byte_size(is64Bit, generic_iteration);
+    }
 }
 
 bool StructValue::primitive() {

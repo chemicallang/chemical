@@ -216,14 +216,16 @@ void StructValue::set_child_value(const std::string &name, Value *value, Operati
 Value *StructValue::scope_value(InterpretScope &scope) {
     auto struct_value = new StructValue(
             std::unique_ptr<Value>(ref->copy()),
-            std::unordered_map<std::string, std::unique_ptr<Value>>(values.size()),
-            std::vector<std::unique_ptr<BaseType>>(generic_list.size()),
+            std::unordered_map<std::string, std::unique_ptr<Value>>(),
+            std::vector<std::unique_ptr<BaseType>>(),
             definition
     );
     declare_default_values(struct_value->values, scope);
+    struct_value->values.reserve(values.size());
     for (const auto &value: values) {
         struct_value->values[value.first] = std::unique_ptr<Value>(value.second->initializer_value(scope));
     }
+    struct_value->generic_list.reserve(generic_list.size());
     for(const auto& arg : generic_list) {
         struct_value->generic_list.emplace_back(arg->copy());
     }
@@ -247,13 +249,15 @@ void StructValue::declare_default_values(
 Value *StructValue::copy() {
     auto struct_value = new StructValue(
         std::unique_ptr<Value>(ref->copy()),
-        std::unordered_map<std::string, std::unique_ptr<Value>>(values.size()),
-        std::vector<std::unique_ptr<BaseType>>(generic_list.size()),
+        std::unordered_map<std::string, std::unique_ptr<Value>>(),
+        std::vector<std::unique_ptr<BaseType>>(),
         definition
     );
+    struct_value->values.reserve(values.size());
     for (const auto &value: values) {
         struct_value->values[value.first] = std::unique_ptr<Value>(value.second->copy());
     }
+    struct_value->generic_list.reserve(generic_list.size());
     for(const auto& arg : generic_list) {
         struct_value->generic_list.emplace_back(arg->copy());
     }

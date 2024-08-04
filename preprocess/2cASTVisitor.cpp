@@ -594,10 +594,18 @@ void value_assign_default(ToCAstVisitor* visitor, const std::string& identifier,
     visitor->write(';');
 }
 
-void value_init_default(ToCAstVisitor* visitor, const std::string& identifier, BaseType* type, std::optional<std::unique_ptr<Value>>& value) {
+void value_init_default(ToCAstVisitor* visitor, const std::string& identifier, BaseType* type, Value* value) {
+    const auto struct_value = value->as_struct();
+    int16_t prev_itr = 0;
+    const auto is_generic = struct_value && !struct_value->definition->generic_params.empty();
+    if(struct_value && is_generic) {
+        prev_itr = struct_value->definition->active_iteration;
+        struct_value->definition->set_active_iteration(struct_value->generic_iteration);
+    }
     type->accept(visitor);
     visitor->space();
-    value_assign_default(visitor, identifier, type, value->get());
+    value_assign_default(visitor, identifier, type, value);
+    if(struct_value && is_generic) struct_value->definition->set_active_iteration(prev_itr);
 }
 
 //void value_store_default(ToCAstVisitor* visitor, const std::string& identifier, BaseType* type, std::optional<std::unique_ptr<Value>>& value) {
@@ -619,7 +627,7 @@ void value_alloca_store(ToCAstVisitor* visitor, const std::string& identifier, B
 //            visitor->new_line_and_indent();
             value_assign_default(visitor, identifier, type, value->get());
         } else {
-            value_init_default(visitor, identifier, type, value);
+            value_init_default(visitor, identifier, type, value->get());
         }
     } else {
         value_alloca(visitor, identifier, type, value);

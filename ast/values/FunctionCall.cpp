@@ -114,23 +114,6 @@ llvm::FunctionType *FunctionCall::llvm_func_type(Codegen &gen) {
     return linked_func()->returnType->llvm_func_type(gen);
 }
 
-static StructDefinition* get_generic_struct(BaseType* type) {
-    auto linked_struct = type->linked_struct_def();
-    if(linked_struct && !linked_struct->generic_params.empty()) {
-        return linked_struct;
-    } else {
-        return nullptr;
-    }
-}
-
-static Value* get_grandpa_value(std::vector<std::unique_ptr<Value>> &chain_values, unsigned int index) {
-    if(index - 2 < chain_values.size()) {
-        return chain_values[index - 2].get();
-    } else {
-        return nullptr;
-    }
-}
-
 std::pair<llvm::Value*, llvm::FunctionType*>* FunctionCall::llvm_generic_func_data(std::vector<std::unique_ptr<Value>> &chain_values, unsigned int index) {
     const auto func_decl = safe_linked_func();
     if(func_decl) {
@@ -139,7 +122,7 @@ std::pair<llvm::Value*, llvm::FunctionType*>* FunctionCall::llvm_generic_func_da
         // create_type being called the first statement, so an exception has to be made
         if (gran && !(gran->linked_node() && gran->linked_node()->as_namespace())) {
             const auto gran_type = gran->create_type();
-            const auto generic_struct = get_generic_struct(gran_type.get());
+            const auto generic_struct = gran_type->get_generic_struct();
             if (generic_struct) {
                 const auto ref_struct = (ReferencedStructType *) gran_type.get();
                 return &generic_struct->llvm_generic_func_data(func_decl, ref_struct->generic_iteration, generic_iteration);

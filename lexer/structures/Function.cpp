@@ -110,6 +110,12 @@ bool Lexer::lexAfterFuncKeyword(bool allow_extensions) {
 
     lexWhitespaceToken();
 
+    if(lexGenericParametersList() && has_errors) {
+        return false;
+    }
+
+    lexWhitespaceToken();
+
     if(allow_extensions && lexOperatorToken('(')) {
         lexWhitespaceToken();
         unsigned start = tokens.size();
@@ -138,12 +144,6 @@ bool Lexer::lexAfterFuncKeyword(bool allow_extensions) {
 
     if(!lexIdentifierToken()) {
         error("function name is missing after the keyword 'func'");
-        return false;
-    }
-
-    lexWhitespaceToken();
-
-    if(lexGenericParametersList() && has_errors) {
         return false;
     }
 

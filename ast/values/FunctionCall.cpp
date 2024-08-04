@@ -135,7 +135,9 @@ std::pair<llvm::Value*, llvm::FunctionType*>* FunctionCall::llvm_generic_func_da
     const auto func_decl = safe_linked_func();
     if(func_decl) {
         const auto gran = get_grandpa_value(chain_values, index);
-        if (gran) {
+        // grandpa value can refer to a namespace, which is unable to create_type
+        // create_type being called the first statement, so an exception has to be made
+        if (gran && !(gran->linked_node() && gran->linked_node()->as_namespace())) {
             const auto gran_type = gran->create_type();
             const auto generic_struct = get_generic_struct(gran_type.get());
             if (generic_struct) {
@@ -187,16 +189,16 @@ llvm::Value* call_with_args(
         unsigned int index,
         std::vector<std::pair<Value*, llvm::Value*>>& destructibles
 ) {
-    if(fn != nullptr) {
-        return gen.builder->CreateCall(fn, args);
-    } else {
+//    if(fn != nullptr) {
+//        return gen.builder->CreateCall(fn, args);
+//    } else {
         auto callee = call->llvm_linked_func_callee(gen, chain_values, index, destructibles);
         if(callee == nullptr) {
             gen.error("Couldn't get callee value for the function call to " + call->representation());
             return nullptr;
         }
         return gen.builder->CreateCall(call->llvm_linked_func_type(gen, chain_values, index), callee, args);
-    }
+//    }
 }
 
 AccessChain parent_chain(FunctionCall* call, std::vector<std::unique_ptr<Value>>& chain, int till) {

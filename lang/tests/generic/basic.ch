@@ -1,6 +1,6 @@
 import "../test.ch"
 
-func gen_sum <T = int, K = int, R = int> (a : T, b : K) : R {
+func <T = int, K = int, R = int> gen_sum(a : T, b : K) : R {
     return a + b;
 }
 

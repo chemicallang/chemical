@@ -15,9 +15,9 @@ public:
 
     virtual VariablesContainer* variables_container() = 0;
 
-    virtual std::string struct_name() {
-        return "";
-    }
+    virtual std::string struct_name() = 0;
+
+    virtual int16_t get_generic_iteration() = 0;
 
     void accept(Visitor *visitor) override {
         visitor->visit(this);

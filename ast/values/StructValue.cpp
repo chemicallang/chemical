@@ -4,6 +4,7 @@
 #include "ast/structures/StructMember.h"
 #include "compiler/SymbolResolver.h"
 #include "ast/utils/ASTUtils.h"
+#include "ast/types/ReferencedStructType.h"
 
 #ifdef COMPILER_BUILD
 
@@ -273,15 +274,17 @@ Value *StructValue::copy() {
 }
 
 std::unique_ptr<BaseType> StructValue::create_type() {
-    auto type = std::make_unique<ReferencedType>(ref->representation());
-    type->linked = definition;
-    return type;
+    return std::make_unique<ReferencedStructType>(definition, generic_iteration);
+//    auto type = std::make_unique<ReferencedType>(ref->representation());
+//    type->linked = definition;
+//    return type;
 }
 
 hybrid_ptr<BaseType> StructValue::get_base_type() {
-    auto type = new ReferencedType(ref->representation());
-    type->linked = definition;
-    return hybrid_ptr<BaseType> { type };
+    return hybrid_ptr<BaseType> { new ReferencedStructType(definition, generic_iteration) };
+//    auto type = new ReferencedType(ref->representation());
+//    type->linked = definition;
+//    return hybrid_ptr<BaseType> { type };
 }
 
 Value *StructValue::child(InterpretScope &scope, const std::string &name) {

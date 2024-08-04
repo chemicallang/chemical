@@ -38,6 +38,10 @@ public:
             ASTNode* parent_node
     );
 
+    int16_t get_generic_iteration() override {
+        return active_iteration;
+    }
+
     VariablesContainer *copy_container() override;
 
     ASTNode *linked_node() override {

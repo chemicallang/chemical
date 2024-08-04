@@ -414,16 +414,20 @@ void convert_generic_list(
     ASTNode* parent_node
 ) {
     unsigned i = 1;
+    unsigned inc = 0;
     GenericTypeParameter* parameter;
     while(i < compound->tokens.size() && compound->tokens[i]->is_identifier()) {
         std::unique_ptr<BaseType> def_type = nullptr;
         if(is_char_op(compound->tokens[i + 1].get(), '=')) {
             compound->tokens[i + 2]->accept(converter);
             def_type = converter->type();
+            inc = 4;
+        } else {
+            inc = 2;
         }
         parameter = new GenericTypeParameter(str_token(compound->tokens[i].get()), std::move(def_type), parent_node);
         generic_list.emplace_back(parameter);
-        i += 4; // 4 -> +1 -> '=' , +2 -> 'type' , +3 -> ',' , +4 -> next identifier
+        i += inc; // 4 -> +1 -> '=' , +2 -> 'type' , +3 -> ',' , +4 -> next identifier
     }
 }
 

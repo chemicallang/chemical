@@ -2,10 +2,10 @@
 
 #include "lexer/Lexer.h"
 
-bool Lexer::lexStructValueTokens() {
+bool Lexer::lexStructValueTokens(unsigned back_start) {
     if(lexOperatorToken('{')) {
 
-        unsigned start = tokens.size() - 2;
+        unsigned start = tokens.size() - 1 - back_start;
 
         // lex struct member value tokens
         do {

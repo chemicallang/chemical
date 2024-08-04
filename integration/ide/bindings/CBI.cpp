@@ -221,7 +221,8 @@ void prep_lexer_cbi(LexerCBI* cbi, SourceProviderCBI* provider) {
         return cbi->instance->lexNumberToken();
     };
     cbi->lexStructValueTokens = [](LexerCBI* cbi){
-        return cbi->instance->lexStructValueTokens();
+        // TODO back_start not taken into account
+        return cbi->instance->lexStructValueTokens(1);
     };
     cbi->lexValueToken = [](LexerCBI* cbi){
         return cbi->instance->lexValueToken();

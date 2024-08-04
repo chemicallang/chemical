@@ -608,7 +608,7 @@ public:
     /**
      * lexes tokens for a complete struct object initialization
      */
-    bool lexStructValueTokens();
+    bool lexStructValueTokens(unsigned back_start);
 
     /**
      * lexes value tokens like integer, string

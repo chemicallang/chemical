@@ -27,6 +27,18 @@ public:
      */
     int16_t active_iteration = 0;
 
+#ifdef COMPILER_BUILD
+    /**
+     * here the generic llvm data, which corresponds to generic iterations, for example
+     * if user types a generic struct, which contains a generic function
+     * the complete specializations of generics will be stored at different indexes
+     * where 0 would be the first complete specialization
+     * here the vector contains another vector, the contained corresponds to generic iterations of the
+     * functions, so that generic functions can be stored inside generic structs
+     */
+    std::unordered_map<FunctionDeclaration*, std::vector<std::vector<std::pair<llvm::Value*, llvm::FunctionType*>>>> generic_llvm_data;
+#endif
+
     const std::vector<std::unique_ptr<FunctionDeclaration>>& functions() {
         return functions_container;
     }
@@ -106,6 +118,17 @@ public:
 
 
 #ifdef COMPILER_BUILD
+
+    /**
+     * inside a generic struct
+     * by giving struct's generic iteration, you can get llvm's function data for the given iteration of the function
+     * inside a generic struct
+     * where struct iteration means struct is generic and it's complete specialization for that itr
+     * where func iteration menas func is generic and it's complete specialization for that itr
+     * if function is not generic, just use 0 as func_itr, here if struct is generic, function will not be generic, unless
+     * function has other generic parameters that are not present in struct
+     */
+    std::pair<llvm::Value*, llvm::FunctionType*>& llvm_generic_func_data(FunctionDeclaration* decl, int16_t struct_itr, int16_t func_itr);
 
     bool add_child_index(
             Codegen &gen,

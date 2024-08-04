@@ -10,6 +10,7 @@
 #include "compiler/SymbolResolver.h"
 #include "ast/values/StructValue.h"
 #include "ast/base/BaseType.h"
+#include "ast/types/ReferencedStructType.h"
 #include "ast/structures/MultiFunctionNode.h"
 #include "ast/utils/ASTUtils.h"
 
@@ -113,8 +114,7 @@ llvm::FunctionType *FunctionCall::llvm_func_type(Codegen &gen) {
     return linked_func()->returnType->llvm_func_type(gen);
 }
 
-static StructDefinition* get_generic_struct(Value* value) {
-    auto type = value->create_type();
+static StructDefinition* get_generic_struct(BaseType* type) {
     auto linked_struct = type->linked_struct_def();
     if(linked_struct && !linked_struct->generic_params.empty()) {
         return linked_struct;
@@ -131,19 +131,28 @@ static Value* get_grandpa_value(std::vector<std::unique_ptr<Value>> &chain_value
     }
 }
 
-static StructDefinition* get_grandpa_generic_struct(std::vector<std::unique_ptr<Value>> &chain_values, unsigned int index) {
-    const auto grandpa = get_grandpa_value(chain_values, index);
-    return grandpa ? get_generic_struct(grandpa) : nullptr;
+std::pair<llvm::Value*, llvm::FunctionType*>* FunctionCall::llvm_generic_func_data(std::vector<std::unique_ptr<Value>> &chain_values, unsigned int index) {
+    const auto func_decl = safe_linked_func();
+    if(func_decl) {
+        const auto gran = get_grandpa_value(chain_values, index);
+        if (gran) {
+            const auto gran_type = gran->create_type();
+            const auto generic_struct = get_generic_struct(gran_type.get());
+            if (generic_struct) {
+                const auto ref_struct = (ReferencedStructType *) gran_type.get();
+                return &generic_struct->llvm_generic_func_data(func_decl, ref_struct->generic_iteration, generic_iteration);
+            }
+        }
+    }
+    return nullptr;
 }
 
 llvm::FunctionType *FunctionCall::llvm_linked_func_type(Codegen& gen, std::vector<std::unique_ptr<Value>> &chain_values, unsigned int index) {
-    const auto generic_struct = get_grandpa_generic_struct(chain_values, index);
-    if(generic_struct) {
-        // TODO fix this, get exact generic func type
-        return get_function_type()->llvm_func_type(gen);
-    } else {
-        return get_function_type()->llvm_func_type(gen);
+    const auto generic_data = llvm_generic_func_data(chain_values, index);
+    if(generic_data) {
+        return generic_data->second;
     }
+    return get_function_type()->llvm_func_type(gen);
 }
 
 llvm::Value *FunctionCall::llvm_linked_func_callee(
@@ -152,6 +161,10 @@ llvm::Value *FunctionCall::llvm_linked_func_callee(
         unsigned int index,
         std::vector<std::pair<Value*, llvm::Value*>>& destructibles
 ) {
+    const auto generic_data = llvm_generic_func_data(chain_values, index);
+    if(generic_data) {
+        return generic_data->first;
+    }
     llvm::Value* callee = nullptr;
     if(linked() != nullptr) {
         if(linked()->as_function() == nullptr) {

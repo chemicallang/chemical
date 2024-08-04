@@ -29,4 +29,9 @@ public:
 
     ASTNode *linked_node() override;
 
+    [[nodiscard]]
+    BaseTypeKind kind() const override {
+        return BaseTypeKind::ReferencedStruct;
+    }
+
 };

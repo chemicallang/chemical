@@ -71,6 +71,10 @@ std::vector<llvm::Type *> VariablesContainer::elements_type(Codegen &gen, std::v
     return vec;
 }
 
+std::pair<llvm::Value*, llvm::FunctionType*>& MembersContainer::llvm_generic_func_data(FunctionDeclaration* decl, int16_t struct_itr, int16_t func_itr) {
+    return generic_llvm_data[decl][struct_itr][func_itr];
+}
+
 #endif
 
 BaseDefMember *VariablesContainer::child_def_member(const std::string &name) {

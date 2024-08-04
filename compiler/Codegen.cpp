@@ -650,11 +650,8 @@ bool Codegen::save_to_ll_file_for_debugging(const std::string &out_path) const {
 
 #ifdef CLANG_LIBS
 
-int chemical_clang_main(int argc, char **argv);
-
-int chemical_clang_main2(const std::vector<std::string> &command_args) {
+static char** convert_to_pointers(const std::vector<std::string> &command_args) {
     char** pointers = static_cast<char **>(malloc(command_args.size() * sizeof(char*)));
-
     // Allocate memory for each argument
     for (size_t i = 0; i < command_args.size(); ++i) {
         pointers[i] = static_cast<char*>(malloc((command_args[i].size() + 1) * sizeof(char)));
@@ -662,13 +659,33 @@ int chemical_clang_main2(const std::vector<std::string> &command_args) {
         strcpy(pointers[i], command_args[i].c_str());
         pointers[i][command_args[i].size()] = '\0';
     }
+    return pointers;
+}
 
-    // invocation
-    auto result = chemical_clang_main(command_args.size(), pointers);
-    for (size_t i = 0; i < command_args.size(); ++i) {
+static void free_pointers(char** pointers, size_t size) {
+    for (size_t i = 0; i < size; ++i) {
         free(pointers[i]);
     }
     free(pointers);
+}
+
+int chemical_clang_main(int argc, char **argv);
+
+int ChemLlvmAr_main(int argc, char **argv);
+
+int chemical_clang_main2(const std::vector<std::string> &command_args) {
+    char** pointers = convert_to_pointers(command_args);
+    // invocation
+    auto result = chemical_clang_main(command_args.size(), pointers);
+    free_pointers(pointers, command_args.size());
+    return result;
+}
+
+int llvm_ar_main2(const std::vector<std::string> &command_args) {
+    char** pointers = convert_to_pointers(command_args);
+    // invocation
+    auto result = ChemLlvmAr_main(command_args.size(), pointers);
+    free_pointers(pointers, command_args.size());
     return result;
 }
 

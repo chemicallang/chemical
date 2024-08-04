@@ -100,12 +100,38 @@ void StructDefinition::code_gen(Codegen &gen) {
     if(generic_params.empty()) {
         struct_func_gen(gen, override, get_overriding);
     } else {
-        auto prev_active_iteration = active_iteration;
+
         auto total = total_generic_iterations();
+
+        for(auto& function : functions()) {
+            generic_llvm_data[function.get()] = {};
+            auto& func_data = generic_llvm_data[function.get()];
+            func_data.reserve(total);
+            int16_t j = 0;
+            while(j < total) {
+                func_data.emplace_back();
+                j++;
+            }
+        }
+
+        auto prev_active_iteration = active_iteration;
         int16_t i = 0;
         while(i < total) {
             set_active_iteration(i);
             struct_func_gen(gen, override, get_overriding);
+
+            // copying the function iterations
+            for(auto& function : functions()) {
+                auto& func_data = generic_llvm_data[function.get()];
+                auto& struct_itr = func_data[i];
+                int16_t j = 0;
+                const auto func_total = function->total_generic_iterations();
+                while(j < func_total) {
+                    struct_itr = function->llvm_data;
+                    j++;
+                }
+            }
+
             i++;
         }
         set_active_iteration(prev_active_iteration);

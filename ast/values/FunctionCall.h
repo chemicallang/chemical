@@ -111,6 +111,8 @@ public:
 
     llvm::FunctionType *llvm_linked_func_type(Codegen& gen, std::vector<std::unique_ptr<Value>> &chain_values, unsigned int index);
 
+    std::pair<llvm::Value*, llvm::FunctionType*>* llvm_generic_func_data(std::vector<std::unique_ptr<Value>> &chain_values, unsigned int index);
+
     llvm::Value *llvm_linked_func_callee(
             Codegen& gen,
             std::vector<std::unique_ptr<Value>> &chain_values,
@@ -122,7 +124,7 @@ public:
 
     llvm::InvokeInst *llvm_invoke(Codegen &gen, llvm::BasicBlock* normal, llvm::BasicBlock* unwind);
 
-    llvm::Value * llvm_pointer(Codegen &gen) override;
+    llvm::Value *llvm_pointer(Codegen &gen) override;
 
     llvm::Value* llvm_chain_value(
             Codegen &gen,

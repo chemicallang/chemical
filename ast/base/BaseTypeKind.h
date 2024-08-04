@@ -26,6 +26,7 @@ enum class BaseTypeKind : uint8_t {
     IntN,
     Pointer,
     Referenced,
+    ReferencedStruct,
     String,
     Literal,
     Void,

@@ -422,6 +422,8 @@ public:
 
     void visit(StructType* func) override;
 
+    void visit(ReferencedStructType *structType) override;
+
     void visit(UBigIntType* func) override;
 
     void visit(UInt128Type* func) override;

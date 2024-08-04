@@ -16,12 +16,20 @@ public:
         ASTNode* parent_node
     );
 
+    std::string struct_name() override {
+        return "";
+    }
+
     VariablesContainer *variables_container() override {
         return this;
     }
 
     VariablesContainer *as_variables_container() override {
         return this;
+    }
+
+    int16_t get_generic_iteration() override {
+        return 0;
     }
 
     BaseDefMember *copy_member() override;

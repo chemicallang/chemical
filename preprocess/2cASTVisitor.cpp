@@ -57,6 +57,7 @@
 #include "ast/types/StructType.h"
 #include "ast/types/UBigIntType.h"
 #include "ast/types/UInt128Type.h"
+#include "ast/types/ReferencedStructType.h"
 #include "ast/types/UIntType.h"
 #include "ast/types/ULongType.h"
 #include "ast/types/UShortType.h"
@@ -163,6 +164,8 @@ void node_parent_name(ToCAstVisitor* visitor, ASTNode* node, bool take_parent = 
             name = parent->as_struct_def()->name + name;
         } else if(parent->as_union_def()) {
             name = parent->as_union_def()->name + name;
+        } else if(parent->as_interface_def()) {
+            name = parent->as_interface_def()->name + name;
         } else {
             name = "[UNKNOWN_PARENT_NAME]" + name;
         }
@@ -2140,9 +2143,33 @@ void func_call(ToCAstVisitor* visitor, FunctionType* type, std::unique_ptr<Value
 
 // this automatically determines which parent to pass through
 void func_container_name(ToCAstVisitor* visitor, FunctionDeclaration* func_node) {
+    const auto parent = func_node->parent();
+    if(parent) {
+        const auto struct_parent = parent->as_struct_def();
+        if(struct_parent) {
+            if(struct_parent->overrides.has_value()) {
+                auto interface = struct_parent->overrides.value()->linked_node()->as_interface_def();
+                if(interface->contains_func(func_node->name)) {
+                    node_parent_name(visitor, struct_parent);
+                    visitor->write(interface->name);
+                    func_name(visitor, func_node);
+                    return;
+                } else {
+                    node_parent_name(visitor, struct_parent);
+                    visitor->write(struct_parent->name);
+                    func_name(visitor, func_node);
+                    return;
+                }
+            } else {
+                node_parent_name(visitor, struct_parent);
+                visitor->write(struct_parent->name);
+                func_name(visitor, func_node);
+                return;
+            }
+        }
+    }
     node_parent_name(visitor, func_node);
     func_name(visitor, func_node);
-//    visitor->write(func_node->name);
 }
 
 // the parent_node is the parent of the function node
@@ -2794,6 +2821,12 @@ void ToCAstVisitor::visit(StringType *func) {
 
 void ToCAstVisitor::visit(StructType *val) {
     write("[StructType_UNIMPLEMENTED]");
+}
+
+void ToCAstVisitor::visit(ReferencedStructType *structType) {
+    write("struct ");
+    node_parent_name(this, structType->definition);
+    write(structType->definition->name);
 }
 
 void ToCAstVisitor::visit(UBigIntType *func) {

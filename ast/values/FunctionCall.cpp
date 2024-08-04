@@ -123,12 +123,17 @@ static StructDefinition* get_generic_struct(Value* value) {
     }
 }
 
-static StructDefinition* get_grandpa_generic_struct(std::vector<std::unique_ptr<Value>> &chain_values, unsigned int index) {
+static Value* get_grandpa_value(std::vector<std::unique_ptr<Value>> &chain_values, unsigned int index) {
     if(index - 2 < chain_values.size()) {
-        return get_generic_struct(chain_values[index - 2].get());
+        return chain_values[index - 2].get();
     } else {
         return nullptr;
     }
+}
+
+static StructDefinition* get_grandpa_generic_struct(std::vector<std::unique_ptr<Value>> &chain_values, unsigned int index) {
+    const auto grandpa = get_grandpa_value(chain_values, index);
+    return grandpa ? get_generic_struct(grandpa) : nullptr;
 }
 
 llvm::FunctionType *FunctionCall::llvm_linked_func_type(Codegen& gen, std::vector<std::unique_ptr<Value>> &chain_values, unsigned int index) {

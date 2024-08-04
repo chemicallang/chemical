@@ -13,10 +13,8 @@ std::string BaseType::representation() {
 }
 
 StructDefinition* BaseType::linked_struct_def() {
-    if(kind() == BaseTypeKind::Referenced) {
-        return linked_node()->as_struct_def();
-    }
-    return nullptr;
+    const auto linked = linked_node();
+    return linked ? linked->as_struct_def() : nullptr;
 }
 
 BaseType::~BaseType() = default;

@@ -109,9 +109,14 @@ public:
 
     llvm::FunctionType *llvm_func_type(Codegen &gen) override;
 
-    llvm::Value *llvm_value(Codegen &gen, std::vector<llvm::Value*>& args);
+    llvm::FunctionType *llvm_linked_func_type(Codegen& gen, std::vector<std::unique_ptr<Value>> &chain_values, unsigned int index);
 
-    llvm::Value *llvm_value(Codegen &gen) override;
+    llvm::Value *llvm_linked_func_callee(
+            Codegen& gen,
+            std::vector<std::unique_ptr<Value>> &chain_values,
+            unsigned int index,
+            std::vector<std::pair<Value*, llvm::Value*>>& destructibles
+    );
 
     void llvm_destruct(Codegen &gen, llvm::Value *allocaInst) override;
 

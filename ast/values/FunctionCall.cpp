@@ -113,30 +113,71 @@ llvm::FunctionType *FunctionCall::llvm_func_type(Codegen &gen) {
     return linked_func()->returnType->llvm_func_type(gen);
 }
 
-llvm::Value* get_callee(Codegen &gen, FunctionCall* call) {
+static StructDefinition* get_generic_struct(Value* value) {
+    auto type = value->create_type();
+    auto linked_struct = type->linked_struct_def();
+    if(linked_struct && !linked_struct->generic_params.empty()) {
+        return linked_struct;
+    } else {
+        return nullptr;
+    }
+}
+
+static StructDefinition* get_grandpa_generic_struct(std::vector<std::unique_ptr<Value>> &chain_values, unsigned int index) {
+    if(index - 2 < chain_values.size()) {
+        return get_generic_struct(chain_values[index - 2].get());
+    } else {
+        return nullptr;
+    }
+}
+
+llvm::FunctionType *FunctionCall::llvm_linked_func_type(Codegen& gen, std::vector<std::unique_ptr<Value>> &chain_values, unsigned int index) {
+    const auto generic_struct = get_grandpa_generic_struct(chain_values, index);
+    if(generic_struct) {
+        // TODO fix this, get exact generic func type
+        return get_function_type()->llvm_func_type(gen);
+    } else {
+        return get_function_type()->llvm_func_type(gen);
+    }
+}
+
+llvm::Value *FunctionCall::llvm_linked_func_callee(
+        Codegen& gen,
+        std::vector<std::unique_ptr<Value>> &chain_values,
+        unsigned int index,
+        std::vector<std::pair<Value*, llvm::Value*>>& destructibles
+) {
     llvm::Value* callee = nullptr;
-    if(call->linked() != nullptr) {
-        if(call->linked()->as_function() == nullptr) {
-            callee = call->linked()->llvm_load(gen);
+    if(linked() != nullptr) {
+        if(linked()->as_function() == nullptr) {
+            callee = linked()->llvm_load(gen);
         } else {
-            callee = call->linked()->llvm_pointer(gen);
+            callee = linked()->llvm_pointer(gen);
         }
     } else {
-        callee = call->parent_val->llvm_value(gen);
+        callee = parent_val->access_chain_value(gen, chain_values, index - 1, destructibles);
     }
     return callee;
 }
 
-llvm::Value* call_with_args(FunctionCall* call, llvm::Function* fn, FunctionType* func_type, Codegen &gen, std::vector<llvm::Value*>& args) {
+llvm::Value* call_with_args(
+        FunctionCall* call,
+        llvm::Function* fn,
+        Codegen &gen,
+        std::vector<llvm::Value*>& args,
+        std::vector<std::unique_ptr<Value>> &chain_values,
+        unsigned int index,
+        std::vector<std::pair<Value*, llvm::Value*>>& destructibles
+) {
     if(fn != nullptr) {
         return gen.builder->CreateCall(fn, args);
     } else {
-        auto callee = get_callee(gen, call);
+        auto callee = call->llvm_linked_func_callee(gen, chain_values, index, destructibles);
         if(callee == nullptr) {
             gen.error("Couldn't get callee value for the function call to " + call->representation());
             return nullptr;
         }
-        return gen.builder->CreateCall(func_type->llvm_func_type(gen), callee, args);
+        return gen.builder->CreateCall(call->llvm_linked_func_type(gen, chain_values, index), callee, args);
     }
 }
 
@@ -186,32 +227,12 @@ llvm::Value *call_capturing_lambda(
     return gen.builder->CreateCall(func_type->llvm_func_type(gen), lambda, args);
 }
 
-llvm::Value *FunctionCall::llvm_value(Codegen &gen, std::vector<llvm::Value*>& args) {
-    std::vector<std::pair<Value*, llvm::Value*>> destructibles;
-    auto func_type = get_function_type();
-    if(func_type->isCapturing) {
-        return call_capturing_lambda(gen, this, func_type.get(), nullptr, 0, destructibles);
-    }
-
-    auto decl = safe_linked_func();
-    auto fn = decl != nullptr ? (decl->llvm_func()) : nullptr;
-    to_llvm_args(gen, this, func_type.get(), values, args, nullptr, 0, args.size(), destructibles);
-
-    // TODO handle destructibles here
-    return call_with_args(this, fn, func_type.get(), gen,  args);
-}
-
 void FunctionCall::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
     auto funcType = get_function_type();
     auto linked = funcType->returnType->linked_node();
     if(linked) {
         linked->llvm_destruct(gen, allocaInst);
     }
-}
-
-llvm::Value *FunctionCall::llvm_value(Codegen &gen) {
-    std::vector<llvm::Value *> args;
-    return llvm_value(gen, args);
 }
 
 llvm::Value* FunctionCall::llvm_chain_value(
@@ -274,7 +295,7 @@ llvm::Value* FunctionCall::llvm_chain_value(
         call_value = gen.builder->CreateCall(linked()->llvm_func_type(gen), parent_access.llvm_value(gen), args);
 
     } else {
-        call_value = call_with_args(this, fn, func_type.get(), gen, args);
+        call_value = call_with_args(this, fn, gen, args, chain, until, destructibles);
     }
 
     return returnedValue ? returnedValue : call_value;

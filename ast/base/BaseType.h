@@ -200,6 +200,11 @@ public:
      */
     StructDefinition* linked_struct_def();
 
+    /**
+     * get linked generic struct from this type, if there's any
+     */
+    StructDefinition* get_generic_struct();
+
 #ifdef COMPILER_BUILD
 
     /**

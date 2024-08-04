@@ -132,3 +132,5 @@ public:
     BaseTypeKind type_kind() const override;
 
 };
+
+Value* get_grandpa_value(std::vector<std::unique_ptr<Value>> &chain_values, unsigned int index);

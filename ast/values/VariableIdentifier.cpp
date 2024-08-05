@@ -11,18 +11,18 @@ uint64_t VariableIdentifier::byte_size(bool is64Bit) {
     return linked->byte_size(is64Bit);
 }
 
-void VariableIdentifier::prepend_self(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr, const std::string& name, ASTNode* linked) {
+void VariableIdentifier::prepend_self(SymbolResolver &linker, std::unique_ptr<ChainValue>& value_ptr, const std::string& name, ASTNode* linked) {
     // struct members / functions, don't need to be accessed like self.a or this.a
     // because we'll append self and this automatically
     auto self_id = new VariableIdentifier(name);
     self_id->linked = linked;
-    std::vector<std::unique_ptr<Value>> values;
+    std::vector<std::unique_ptr<ChainValue>> values;
     values.emplace_back(self_id);
     values.emplace_back(value_ptr.release());
     value_ptr = std::make_unique<AccessChain>(std::move(values), nullptr, false);
 }
 
-void VariableIdentifier::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr, bool prepend) {
+void VariableIdentifier::link(SymbolResolver &linker, std::unique_ptr<ChainValue>& value_ptr, bool prepend) {
     linked = linker.find(value);
     if(linked) {
         if(prepend && (linked->as_struct_member() || linked->as_unnamed_union() || linked->as_unnamed_struct())) {
@@ -55,13 +55,13 @@ void VariableIdentifier::link(SymbolResolver &linker, std::unique_ptr<Value>& va
 }
 
 void VariableIdentifier::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
-    link(linker, value_ptr, true);
+    link(linker, (std::unique_ptr<ChainValue> &) (value_ptr), true);
 }
 
 void VariableIdentifier::link(
     SymbolResolver &linker,
-    Value *parent,
-    std::vector<std::unique_ptr<Value>> &values,
+    ChainValue *parent,
+    std::vector<std::unique_ptr<ChainValue>> &values,
     unsigned int index
 ) {
     if(parent) {
@@ -75,7 +75,7 @@ ASTNode* VariableIdentifier::linked_node() {
     return linked;
 }
 
-void VariableIdentifier::find_link_in_parent(Value *parent, ASTDiagnoser *diagnoser) {
+void VariableIdentifier::find_link_in_parent(ChainValue *parent, ASTDiagnoser *diagnoser) {
     auto linked_node = parent->linked_node();
     if(linked_node) {
         linked = parent->linked_node()->child(value);
@@ -84,7 +84,7 @@ void VariableIdentifier::find_link_in_parent(Value *parent, ASTDiagnoser *diagno
     }
 }
 
-void VariableIdentifier::find_link_in_parent(Value *parent, SymbolResolver &resolver) {
+void VariableIdentifier::find_link_in_parent(ChainValue *parent, SymbolResolver &resolver) {
     find_link_in_parent(parent, &resolver);
 }
 

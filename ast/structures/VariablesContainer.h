@@ -30,7 +30,7 @@ public:
 
     std::vector<llvm::Type *> elements_type(Codegen &gen);
 
-    std::vector<llvm::Type *> elements_type(Codegen &gen, std::vector<std::unique_ptr<Value>>& chain, unsigned index);
+    std::vector<llvm::Type *> elements_type(Codegen &gen, std::vector<std::unique_ptr<ChainValue>>& chain, unsigned index);
 
     bool llvm_struct_child_index(
             Codegen &gen,

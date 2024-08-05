@@ -32,8 +32,6 @@ class InterfaceDefinition;
 
 class StructValue;
 
-class InterpretVectorValue;
-
 class VarInitStatement;
 
 class FunctionCall;
@@ -83,17 +81,6 @@ public:
     virtual void link(SymbolResolver& linker, std::unique_ptr<Value>& value_ptr) {
         // does nothing by default
     }
-
-    /**
-     * called by access chain, to link a value inside values in a chain
-     * it allows variable identifier to prevent auto appending self, when access chain has already done it
-     */
-    virtual void link(
-            SymbolResolver& linker,
-            Value* parent,
-            std::vector<std::unique_ptr<Value>>& values,
-            unsigned index
-    );
 
     /**
      * when value is contained within VarInitStatement, this function is called
@@ -147,7 +134,7 @@ public:
      *
      * The diagnoser must also be checked because it can be passed as nullptr
      */
-    virtual void find_link_in_parent(Value* parent, ASTDiagnoser* diagnoser) {
+    virtual void find_link_in_parent(ChainValue* parent, ASTDiagnoser* diagnoser) {
         // by default, does nothing
     }
 
@@ -162,7 +149,7 @@ public:
     /**
      * find linked node in given parent node, symbol resolver is passed in resolution phase
      */
-    virtual void find_link_in_parent(Value* parent, SymbolResolver& resolver) {
+    virtual void find_link_in_parent(ChainValue* parent, SymbolResolver& resolver) {
         return find_link_in_parent(parent, nullptr);
     }
 
@@ -267,11 +254,6 @@ std::cerr << "child called on base value";
      * create a base type that represents the type of this value
      */
     virtual std::unique_ptr<BaseType> create_type();
-
-    /**
-     * when value is part of access chain, this should be called
-     */
-    virtual std::unique_ptr<BaseType> create_type(std::vector<std::unique_ptr<Value>>& chain, unsigned int index);
 
     /**
      * is this value has a pointer type (includes strings)
@@ -421,63 +403,9 @@ std::cerr << "child called on base value";
     }
 
     /**
-     * called by access chain on the last ref value in the chain
-     * by default it allocates chain->llvm_type and stores chain->llvm_value in it
-     */
-    virtual llvm::AllocaInst* access_chain_allocate(Codegen& gen, std::vector<std::unique_ptr<Value>>& values, unsigned int until);
-
-    /**
-     * called by access chain on the last ref value in the chain
-     * by default it just creates a load instruction on the access_chain_pointer by retrieving it from below
-     *
-     * this takes a vector destructibles which allows you to append objects to the destructibles, that will be destructed
-     */
-    virtual llvm::Value* access_chain_value(
-            Codegen &gen,
-            std::vector<std::unique_ptr<Value>>& values,
-            unsigned int until,
-            std::vector<std::pair<Value*, llvm::Value*>>& destructibles
-    );
-
-    /**
      * destruct the given destructibles
      */
     static void destruct(Codegen& gen, std::vector<std::pair<Value*, llvm::Value*>>& destructibles);
-
-    /**
-     * helper function to call the actual access_chain_value
-     */
-    llvm::Value* access_chain_value(
-            Codegen &gen,
-            std::vector<std::unique_ptr<Value>>& values,
-            unsigned int until
-    ) {
-        std::vector<std::pair<Value*, llvm::Value*>> destructibles;
-        auto value = access_chain_value(gen, values, until, destructibles);
-        destruct(gen, destructibles);
-        return value;
-    }
-
-    /**
-     * when a identifier is last in the access chain, for example x.y.z here z is the last identifier
-     * this function will be called on it, the values given are the values of access chain
-     * by default this just calls default_chain_pointer
-     * @param values part of access chain, identifier / function call / index operator
-     * @param until the values are considered up until this (exclusive)
-     *
-     * @param destructibles values allocated inside access chain, for example when x.y().z where y returns a struct which has z as a member
-     * y call means -> allocate a struct, and pass pointer to y, after accessing and loading z, destruct struct created by y
-     * to destruct the struct, destructibles vector is used to keep track of values inside this chain that must be destructed after loading
-     * since this just returns a pointer to it, and doesn't load the value, the value must be preserved till loaded and not destructed.
-     * after pointer received by this function call has been loaded, destructibles vector should be destructed in reverse order
-     *
-     */
-    virtual llvm::Value* access_chain_pointer(
-            Codegen &gen,
-            std::vector<std::unique_ptr<Value>>& values,
-            std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
-            unsigned int until
-    );
 
     /**
      * add member index for the given identifier

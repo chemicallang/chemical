@@ -397,15 +397,15 @@ void func_call_args(ToCAstVisitor* visitor, FunctionCall* call, BaseFunctionType
     visitor->nested_value = prev_value;
 }
 
-void access_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& values, unsigned start, unsigned end, unsigned size);
+void access_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<ChainValue>>& values, unsigned start, unsigned end, unsigned size);
 
 void func_container_name(ToCAstVisitor* visitor, FunctionDeclaration* func_node);
 
 void func_container_name(ToCAstVisitor* visitor, ASTNode* parent_node, ASTNode* linked_node);
 
-void func_name_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& values, unsigned start, unsigned end);
+void func_name_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<ChainValue>>& values, unsigned start, unsigned end);
 
-void access_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& values, unsigned start, unsigned end) {
+void access_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<ChainValue>>& values, unsigned start, unsigned end) {
     access_chain(visitor, values, start, end, values.size());
 }
 
@@ -416,7 +416,7 @@ void value_alloca(ToCAstVisitor* visitor, const std::string& identifier, BaseTyp
 
 void write_accessor(ToCAstVisitor* visitor, Value* current);
 
-bool write_self_arg_bool(ToCAstVisitor* visitor, BaseFunctionType* func_type, std::vector<std::unique_ptr<Value>>& values, unsigned int grandpa_index, FunctionCall* call) {
+bool write_self_arg_bool(ToCAstVisitor* visitor, BaseFunctionType* func_type, std::vector<std::unique_ptr<ChainValue>>& values, unsigned int grandpa_index, FunctionCall* call) {
     if(func_type->has_self_param()) {
         auto grandpa = values[grandpa_index].get();
         if(!grandpa->is_pointer()) {
@@ -436,7 +436,7 @@ bool write_self_arg_bool(ToCAstVisitor* visitor, BaseFunctionType* func_type, st
     }
 }
 
-void write_self_arg(ToCAstVisitor* visitor, BaseFunctionType* func_type, std::vector<std::unique_ptr<Value>>& values, unsigned int grandpa_index, FunctionCall* call) {
+void write_self_arg(ToCAstVisitor* visitor, BaseFunctionType* func_type, std::vector<std::unique_ptr<ChainValue>>& values, unsigned int grandpa_index, FunctionCall* call) {
     if(write_self_arg_bool(visitor, func_type, values, grandpa_index, call)) {
         if (!call->values.empty()) {
             visitor->write(',');
@@ -806,7 +806,7 @@ void CBeforeStmtVisitor::visit(FunctionCall *call) {
     }
 }
 
-void chain_after_func(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& values, unsigned start, const unsigned end, const unsigned total_size);
+void chain_after_func(ToCAstVisitor* visitor, std::vector<std::unique_ptr<ChainValue>>& values, unsigned start, const unsigned end, const unsigned total_size);
 
 void func_name(ToCAstVisitor* visitor, Value* ref, FunctionDeclaration* func_decl) {
     ref->accept(visitor); // function name
@@ -828,7 +828,7 @@ void func_name(ToCAstVisitor* visitor, FunctionDeclaration* func_decl) {
     }
 }
 
-void func_call_that_returns_struct(ToCAstVisitor* visitor, CBeforeStmtVisitor* actual_visitor, std::vector<std::unique_ptr<Value>>& values, unsigned start, unsigned end) {
+void func_call_that_returns_struct(ToCAstVisitor* visitor, CBeforeStmtVisitor* actual_visitor, std::vector<std::unique_ptr<ChainValue>>& values, unsigned start, unsigned end) {
     auto last = values[end - 1]->as_func_call();
     auto func_decl = last->safe_linked_func();
     auto parent = values[end - 2].get();
@@ -2276,7 +2276,7 @@ public:
     }
 };
 
-void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& values, unsigned start, unsigned end) {
+void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<ChainValue>>& values, unsigned start, unsigned end) {
     auto last = values[end - 1]->as_func_call();
     auto func_decl = last->safe_linked_func();
     auto parent = values[end - 2].get();
@@ -2384,11 +2384,11 @@ void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& valu
     };
 }
 
-void func_name_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& values, unsigned start, unsigned end) {
+void func_name_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<ChainValue>>& values, unsigned start, unsigned end) {
     access_chain(visitor, values, start, end, values.size());
 }
 
-void chain_after_func(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& values, unsigned start, const unsigned end, const unsigned total_size) {
+void chain_after_func(ToCAstVisitor* visitor, std::vector<std::unique_ptr<ChainValue>>& values, unsigned start, const unsigned end, const unsigned total_size) {
     Value* current;
     Value* next;
     while(start < end) {
@@ -2424,7 +2424,7 @@ void chain_after_func(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>
     }
 }
 
-void access_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& values, const unsigned start, const unsigned end, const unsigned total_size) {
+void access_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<ChainValue>>& values, const unsigned start, const unsigned end, const unsigned total_size) {
     auto diff = end - start;
     if(diff == 0) {
         return;

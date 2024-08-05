@@ -15,7 +15,7 @@ public:
     bool is_namespace = false;
 
     UsingStmt(
-        std::vector<std::unique_ptr<Value>> values,
+        std::vector<std::unique_ptr<ChainValue>> values,
         ASTNode* parent_node,
         bool is_namespace
     );

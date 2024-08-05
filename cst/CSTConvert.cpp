@@ -624,7 +624,7 @@ void CSTConverter::visitReturn(CompoundCSTToken *cst) {
 }
 
 void CSTConverter::visitUsing(CompoundCSTToken *usingStmt) {
-    std::vector<std::unique_ptr<Value>> curr_values;
+    std::vector<std::unique_ptr<ChainValue>> curr_values;
     unsigned i = 1;
     while(i < usingStmt->tokens.size()) {
         if(usingStmt->tokens[i]->is_identifier()) {
@@ -1298,7 +1298,10 @@ void CSTConverter::visitAccessChain(CompoundCSTToken *chain) {
         i++;
     }
     const auto is_node = chain->type() == LexTokenType::CompAccessChainNode;
-    auto ret_chain = std::make_unique<AccessChain>(std::move(values), parent_node, is_node);
+    auto ret_chain = std::make_unique<AccessChain>(std::vector<std::unique_ptr<ChainValue>> {}, parent_node, is_node);
+    for(auto& value : values) {
+        ret_chain->values.emplace_back((ChainValue*) value.release());
+    }
     values = std::move(prev_values);
     if (is_node) {
         nodes.emplace_back(std::move(ret_chain));

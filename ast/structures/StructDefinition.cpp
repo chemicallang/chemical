@@ -143,7 +143,7 @@ llvm::Type *StructMember::llvm_type(Codegen &gen) {
     return type->llvm_type(gen);
 }
 
-llvm::Type *StructMember::llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<Value>> &values, unsigned int index) {
+llvm::Type *StructMember::llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned int index) {
     return type->llvm_chain_type(gen, values, index);
 }
 

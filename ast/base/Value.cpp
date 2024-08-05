@@ -1,6 +1,6 @@
 // Copyright (c) Qinetik 2024.
 
-#include "Value.h"
+#include "ChainValue.h"
 #include "ast/values/StructValue.h"
 #include "ast/statements/Assignment.h"
 #include "ast/values/ArrayValue.h"
@@ -36,7 +36,7 @@ llvm::GlobalVariable* Value::llvm_global_variable(Codegen& gen, bool is_const, c
     return new llvm::GlobalVariable(*gen.module, llvm_type(gen), is_const, llvm::GlobalValue::LinkageTypes::PrivateLinkage, (llvm::Constant*) llvm_value(gen), name);
 }
 
-llvm::AllocaInst* Value::access_chain_allocate(Codegen& gen, std::vector<std::unique_ptr<Value>>& values, unsigned int until) {
+llvm::AllocaInst* ChainValue::access_chain_allocate(Codegen& gen, std::vector<std::unique_ptr<ChainValue>>& values, unsigned int until) {
     return llvm_allocate_with(gen, values[until]->access_chain_value(gen, values, until), values[until]->llvm_type(gen));
 }
 
@@ -81,12 +81,12 @@ void Value::destruct(Codegen& gen, std::vector<std::pair<Value*, llvm::Value*>>&
     }
 }
 
-llvm::Value* Value::access_chain_value(Codegen &gen, std::vector<std::unique_ptr<Value>>& values, unsigned int until, std::vector<std::pair<Value*, llvm::Value*>>& destructibles) {
+llvm::Value* ChainValue::access_chain_value(Codegen &gen, std::vector<std::unique_ptr<ChainValue>>& values, unsigned int until, std::vector<std::pair<Value*, llvm::Value*>>& destructibles) {
     if(until == 0) return values[0]->llvm_value(gen);
     return gen.builder->CreateLoad(values[until]->llvm_type(gen), access_chain_pointer(gen, values, destructibles, until), "acc");
 }
 
-llvm::Value* create_gep(Codegen &gen, std::vector<std::unique_ptr<Value>>& values, unsigned index, llvm::Value* pointer, std::vector<llvm::Value*>& idxList) {
+llvm::Value* create_gep(Codegen &gen, std::vector<std::unique_ptr<ChainValue>>& values, unsigned index, llvm::Value* pointer, std::vector<llvm::Value*>& idxList) {
     const auto parent = values[index].get();
     auto type_kind = parent->type_kind();
     if(type_kind == BaseTypeKind::Array && parent->linked_node() && parent->linked_node()->as_func_param()) {
@@ -114,9 +114,9 @@ bool is_stored_pointer(Value* value) {
     return false;
 }
 
-llvm::Value* Value::access_chain_pointer(
+llvm::Value* ChainValue::access_chain_pointer(
         Codegen &gen,
-        std::vector<std::unique_ptr<Value>>& values,
+        std::vector<std::unique_ptr<ChainValue>>& values,
         std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
         unsigned int until
 ) {
@@ -188,7 +188,7 @@ std::unique_ptr<BaseType> Value::create_type() {
     throw std::runtime_error("create_type called on bare Value with type : " + std::to_string((unsigned int) value_type()));
 }
 
-std::unique_ptr<BaseType> Value::create_type(std::vector<std::unique_ptr<Value>>& chain, unsigned int index) {
+std::unique_ptr<BaseType> ChainValue::create_type(std::vector<std::unique_ptr<ChainValue>>& chain, unsigned int index) {
     return create_type();
 }
 
@@ -249,16 +249,16 @@ void Value::link(SymbolResolver& linker, VarInitStatement* stmnt) {
     link(linker, stmnt->value.value());
 }
 
-void Value::link(
+void ChainValue::link(
     SymbolResolver& linker,
-    Value* parent,
-    std::vector<std::unique_ptr<Value>>& values,
+    ChainValue* parent,
+    std::vector<std::unique_ptr<ChainValue>>& values,
     unsigned index
 ) {
     if(parent) {
         find_link_in_parent(parent, linker);
     } else {
-        link(linker, values[index]);
+        link(linker, (std::unique_ptr<Value>&) values[index]);
     }
 }
 

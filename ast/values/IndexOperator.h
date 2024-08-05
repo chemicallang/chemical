@@ -31,9 +31,9 @@ public:
 
     ASTNode *linked_node() override;
 
-    void find_link_in_parent(Value *parent, ASTDiagnoser *diagnoser) override;
+    void find_link_in_parent(ChainValue *parent, ASTDiagnoser *diagnoser) override;
 
-    void find_link_in_parent(Value *parent, SymbolResolver &resolver) override;
+    void find_link_in_parent(ChainValue *parent, SymbolResolver &resolver) override;
 
     bool primitive() override {
         return false;
@@ -49,13 +49,13 @@ public:
 
     llvm::Value *llvm_pointer(Codegen &gen) override;
 
-    llvm::Value *access_chain_pointer(Codegen &gen, std::vector<std::unique_ptr<Value>> &values, std::vector<std::pair<Value *, llvm::Value *>> &destructibles, unsigned int until) override;
+    llvm::Value *access_chain_pointer(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, std::vector<std::pair<Value *, llvm::Value *>> &destructibles, unsigned int until) override;
 
     llvm::Value *llvm_value(Codegen &gen) override;
 
     llvm::Type *llvm_type(Codegen &gen) override;
 
-    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<Value>> &chain, unsigned int index) override;
+    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &chain, unsigned int index) override;
 
     llvm::FunctionType *llvm_func_type(Codegen &gen) override;
 
@@ -67,7 +67,7 @@ public:
 
     std::unique_ptr<BaseType> create_type() override;
 
-    Value *parent_val;
+    ChainValue *parent_val;
     std::vector<std::unique_ptr<Value>> values;
 
 };

@@ -8,7 +8,7 @@
 #include "ast/values/FunctionCall.h"
 #include "GenericUtils.h"
 
-bool chain_contains_func_call(std::vector<std::unique_ptr<Value>>& values, int start, int end) {
+bool chain_contains_func_call(std::vector<std::unique_ptr<ChainValue>>& values, int start, int end) {
     while(start < end) {
         if(values[start]->as_func_call()) {
             return true;

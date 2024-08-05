@@ -8,7 +8,7 @@
 
 #include <memory>
 #include "ast/base/ASTNode.h"
-#include "ast/base/Value.h"
+#include "ast/base/ChainValue.h"
 
 /**
  * access chain represents a way to access things in programming language for example
@@ -16,10 +16,10 @@
  * x.y.z() where z is a function call, z function is assumed to be present in y and y in z
  * z.y.z[0] similarly z is an index operator here
  */
-class AccessChain : public ASTNode, public Value {
+class AccessChain : public ASTNode, public ChainValue {
 public:
 
-    std::vector<std::unique_ptr<Value>> values;
+    std::vector<std::unique_ptr<ChainValue>> values;
     ASTNode* parent_node;
     bool is_node;
 
@@ -27,7 +27,7 @@ public:
 
     }
 
-    AccessChain(std::vector<std::unique_ptr<Value>> values, ASTNode* parent_node, bool is_node);
+    AccessChain(std::vector<std::unique_ptr<ChainValue>> values, ASTNode* parent_node, bool is_node);
 
     void set_parent(ASTNode* new_parent) override {
         parent_node = new_parent;
@@ -133,6 +133,6 @@ public:
 
 };
 
-Value* get_grandpa_value(std::vector<std::unique_ptr<Value>> &chain_values, unsigned int index);
+Value* get_grandpa_value(std::vector<std::unique_ptr<ChainValue>> &chain_values, unsigned int index);
 
-std::pair<StructDefinition*, ReferencedStructType*> get_grandpa_generic_struct(std::vector<std::unique_ptr<Value>>& chain_values, unsigned int index);
+std::pair<StructDefinition*, ReferencedStructType*> get_grandpa_generic_struct(std::vector<std::unique_ptr<ChainValue>>& chain_values, unsigned int index);

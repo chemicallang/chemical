@@ -61,13 +61,13 @@ public:
 
     void set_identifier_value(InterpretScope &scope, Value *rawValue, Operation op) override;
 
-    void prepend_self(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr, const std::string& name, ASTNode* linked);
+    void prepend_self(SymbolResolver &linker, std::unique_ptr<ChainValue>& value_ptr, const std::string& name, ASTNode* linked);
 
     void link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) override;
 
-    void link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr, bool prepend);
+    void link(SymbolResolver &linker, std::unique_ptr<ChainValue>& value_ptr, bool prepend);
 
-    void link(SymbolResolver &linker, Value *parent, std::vector<std::unique_ptr<Value>> &values, unsigned int index) override;
+    void link(SymbolResolver &linker, ChainValue *parent, std::vector<std::unique_ptr<ChainValue>> &values, unsigned int index) override;
 
     void link_with(ASTNode *parent) override {
         linked = parent;
@@ -75,9 +75,9 @@ public:
 
     ASTNode *linked_node() override;
 
-    void find_link_in_parent(Value *parent, ASTDiagnoser *diagnoser) override;
+    void find_link_in_parent(ChainValue *parent, ASTDiagnoser *diagnoser) override;
 
-    void find_link_in_parent(Value *parent, SymbolResolver &resolver) override;
+    void find_link_in_parent(ChainValue *parent, SymbolResolver &resolver) override;
 
     bool primitive() override {
         return false;
@@ -89,7 +89,7 @@ public:
 
     llvm::Type *llvm_type(Codegen &gen) override;
 
-    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<Value>> &chain, unsigned int index) override;
+    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &chain, unsigned int index) override;
 
     llvm::FunctionType *llvm_func_type(Codegen &gen) override;
 
@@ -99,7 +99,7 @@ public:
 
     llvm::Value *llvm_ret_value(Codegen &gen, ReturnStatement *returnStmt) override;
 
-    llvm::Value *access_chain_value(Codegen &gen, std::vector<std::unique_ptr<Value>> &values, unsigned until, std::vector<std::pair<Value*, llvm::Value*>>& destructibles) override;
+    llvm::Value *access_chain_value(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned until, std::vector<std::pair<Value*, llvm::Value*>>& destructibles) override;
 
 #endif
 

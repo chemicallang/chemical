@@ -74,7 +74,7 @@ public:
         return usage[active_iteration]->llvm_func_type(gen);
     }
 
-    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<Value>> &values, unsigned int index) override {
+    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned int index) override {
         return usage[active_iteration]->llvm_chain_type(gen, values, index);
     }
 

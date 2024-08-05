@@ -36,7 +36,7 @@ llvm::Value *IndexOperator::llvm_value(Codegen &gen) {
 
 llvm::Value *IndexOperator::access_chain_pointer(
         Codegen &gen,
-        std::vector<std::unique_ptr<Value>> &chain_values,
+        std::vector<std::unique_ptr<ChainValue>> &chain_values,
         std::vector<std::pair<Value *, llvm::Value *>> &destructibles,
         unsigned int until
 ) {
@@ -46,7 +46,7 @@ llvm::Value *IndexOperator::access_chain_pointer(
         auto child_type = pure_type->get_child_type();
         return elem_pointer(gen, child_type->llvm_type(gen), parent_value);
     } else {
-        return Value::access_chain_pointer(gen, chain_values, destructibles, until);
+        return ChainValue::access_chain_pointer(gen, chain_values, destructibles, until);
     }
 }
 
@@ -68,7 +68,7 @@ llvm::Type *IndexOperator::llvm_type(Codegen &gen) {
     return parent_val->create_type()->create_child_type()->llvm_type(gen);
 }
 
-llvm::Type *IndexOperator::llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<Value>> &chain, unsigned int index) {
+llvm::Type *IndexOperator::llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &chain, unsigned int index) {
     return parent_val->create_type()->create_child_type()->llvm_chain_type(gen, chain, index);
 }
 
@@ -114,11 +114,11 @@ Value *IndexOperator::find_in(InterpretScope &scope, Value *parent) {
     return nullptr;
 }
 
-void IndexOperator::find_link_in_parent(Value *parent, ASTDiagnoser *diagnoser) {
+void IndexOperator::find_link_in_parent(ChainValue *parent, ASTDiagnoser *diagnoser) {
     parent_val = parent;
 }
 
-void IndexOperator::find_link_in_parent(Value *parent, SymbolResolver &resolver) {
+void IndexOperator::find_link_in_parent(ChainValue *parent, SymbolResolver &resolver) {
     parent_val = parent;
     for(auto& value : values) {
         value->link(resolver, value);

@@ -40,7 +40,7 @@ void AccessChain::declare_and_link(SymbolResolver &linker) {
         if (self_param) {
             auto self_id = new VariableIdentifier(self_param->name);
             self_id->linked = self_param;
-            values.insert(values.begin(), std::unique_ptr<Value>(self_id));
+            values.insert(values.begin(), std::unique_ptr<ChainValue>(self_id));
         } else {
             auto decl = linker.current_func_type->as_function();
             if(decl && decl->has_annotation(AnnotationKind::Constructor) && !decl->has_annotation(AnnotationKind::CompTime)) {
@@ -48,7 +48,7 @@ void AccessChain::declare_and_link(SymbolResolver &linker) {
                 if(found) {
                     auto self_id = new VariableIdentifier("this");
                     self_id->linked = found;
-                    values.insert(values.begin(), std::unique_ptr<Value>(self_id));
+                    values.insert(values.begin(), std::unique_ptr<ChainValue>(self_id));
                 } else {
                     linker.error("couldn't find this in constructor for linking identifier '" + values[0]->representation() + "'");
                 }
@@ -67,7 +67,7 @@ void AccessChain::declare_and_link(SymbolResolver &linker) {
     }
 }
 
-AccessChain::AccessChain(std::vector<std::unique_ptr<Value>> values, ASTNode* parent_node, bool is_node) : values(std::move(values)), parent_node(parent_node), is_node(is_node) {
+AccessChain::AccessChain(std::vector<std::unique_ptr<ChainValue>> values, ASTNode* parent_node, bool is_node) : values(std::move(values)), parent_node(parent_node), is_node(is_node) {
 
 }
 
@@ -102,7 +102,7 @@ bool AccessChain::reference() {
 Value *AccessChain::copy() {
     auto chain = new AccessChain(parent_node, is_node);
     for(auto& value : values) {
-        chain->values.emplace_back(value->copy());
+        chain->values.emplace_back((ChainValue*) value->copy());
     }
     chain->link_without_parent();
     return chain;
@@ -211,7 +211,7 @@ BaseTypeKind AccessChain::type_kind() const {
     return values[values.size() - 1]->type_kind();
 }
 
-Value* get_grandpa_value(std::vector<std::unique_ptr<Value>> &chain_values, unsigned int index) {
+Value* get_grandpa_value(std::vector<std::unique_ptr<ChainValue>> &chain_values, unsigned int index) {
     if(index - 2 < chain_values.size()) {
         return chain_values[index - 2].get();
     } else {
@@ -219,7 +219,7 @@ Value* get_grandpa_value(std::vector<std::unique_ptr<Value>> &chain_values, unsi
     }
 }
 
-std::pair<StructDefinition*, ReferencedStructType*> get_grandpa_generic_struct(std::vector<std::unique_ptr<Value>>& chain_values, unsigned int index) {
+std::pair<StructDefinition*, ReferencedStructType*> get_grandpa_generic_struct(std::vector<std::unique_ptr<ChainValue>>& chain_values, unsigned int index) {
     if(index - 2 < chain_values.size()) {
         const auto linked = chain_values[index - 1]->linked_node();
         const auto func_decl = linked ? linked->as_function() : nullptr;

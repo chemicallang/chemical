@@ -6,7 +6,7 @@
 #include "UsingStmt.h"
 
 UsingStmt::UsingStmt(
-    std::vector<std::unique_ptr<Value>> values,
+    std::vector<std::unique_ptr<ChainValue>> values,
     ASTNode* parent_node,
     bool is_namespace
 ) : chain(std::move(values), parent_node, false), is_namespace(is_namespace) {

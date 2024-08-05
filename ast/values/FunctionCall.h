@@ -16,7 +16,7 @@ class ASTDiagnoser;
 class FunctionCall : public ChainValue {
 public:
 
-    Value* parent_val;
+    ChainValue* parent_val;
     std::vector<std::unique_ptr<BaseType>> generic_list;
     std::vector<std::unique_ptr<Value>> values;
     int16_t generic_iteration = 0;
@@ -53,13 +53,13 @@ public:
 
     void relink_multi_func(ASTDiagnoser* diagnoser);
 
-    void find_link_in_parent(Value *parent, ASTDiagnoser* diagnoser, bool relink_multi);
+    void find_link_in_parent(ChainValue *parent, ASTDiagnoser* diagnoser, bool relink_multi);
 
-    void find_link_in_parent(Value *parent, ASTDiagnoser* diagnoser) override {
+    void find_link_in_parent(ChainValue *parent, ASTDiagnoser* diagnoser) override {
         find_link_in_parent(parent, diagnoser, true);
     }
 
-    void find_link_in_parent(Value *parent, SymbolResolver &resolver) override;
+    void find_link_in_parent(ChainValue *parent, SymbolResolver &resolver) override;
 
     bool primitive() override;
 
@@ -88,7 +88,7 @@ public:
      * this returns the return type of the function, it must be called in access chain
      * to account for generic types that depend on struct
      */
-    std::unique_ptr<BaseType> create_type(std::vector<std::unique_ptr<Value>>& chain, unsigned int index) override;
+    std::unique_ptr<BaseType> create_type(std::vector<std::unique_ptr<ChainValue>>& chain, unsigned int index) override;
 
     /**
      * this returns the return type of the function
@@ -113,17 +113,28 @@ public:
 
     llvm::Type *llvm_type(Codegen &gen) override;
 
-    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<Value>> &values, unsigned int index) override;
+    llvm::Type *llvm_chain_type(
+            Codegen &gen,
+            std::vector<std::unique_ptr<ChainValue>> &values,
+            unsigned int index
+    ) override;
 
     llvm::FunctionType *llvm_func_type(Codegen &gen) override;
 
-    llvm::FunctionType *llvm_linked_func_type(Codegen& gen, std::vector<std::unique_ptr<Value>> &chain_values, unsigned int index);
+    llvm::FunctionType *llvm_linked_func_type(
+            Codegen& gen,
+            std::vector<std::unique_ptr<ChainValue>> &chain_values,
+            unsigned int index
+    );
 
-    std::pair<llvm::Value*, llvm::FunctionType*>* llvm_generic_func_data(std::vector<std::unique_ptr<Value>> &chain_values, unsigned int index);
+    std::pair<llvm::Value*, llvm::FunctionType*>* llvm_generic_func_data(
+            std::vector<std::unique_ptr<ChainValue>> &chain_values,
+            unsigned int index
+    );
 
     llvm::Value *llvm_linked_func_callee(
             Codegen& gen,
-            std::vector<std::unique_ptr<Value>> &chain_values,
+            std::vector<std::unique_ptr<ChainValue>> &chain_values,
             unsigned int index,
             std::vector<std::pair<Value*, llvm::Value*>>& destructibles
     );
@@ -137,15 +148,15 @@ public:
     llvm::Value* llvm_chain_value(
             Codegen &gen,
             std::vector<llvm::Value*>& args,
-            std::vector<std::unique_ptr<Value>>& chain,
+            std::vector<std::unique_ptr<ChainValue>>& chain,
             unsigned int until,
             std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
             llvm::Value* returnedStruct = nullptr
     );
 
-    llvm::Value * access_chain_value(Codegen &gen, std::vector<std::unique_ptr<Value>> &values, unsigned until, std::vector<std::pair<Value*, llvm::Value*>>& destructibles) override;
+    llvm::Value *access_chain_value(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned until, std::vector<std::pair<Value*, llvm::Value*>>& destructibles) override;
 
-    llvm::AllocaInst * access_chain_allocate(Codegen &gen, std::vector<std::unique_ptr<Value>> &values, unsigned int until) override;
+    llvm::AllocaInst *access_chain_allocate(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned int until) override;
 
     bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
 

@@ -109,7 +109,7 @@ llvm::Type *VarInitStatement::llvm_type(Codegen &gen) {
     return type.has_value() ? type.value()->llvm_type(gen) : value.value()->llvm_type(gen);
 }
 
-llvm::Type *VarInitStatement::llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<Value>> &values, unsigned int index) {
+llvm::Type *VarInitStatement::llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned int index) {
     check_has_type(gen);
     return type.has_value() ? type.value()->llvm_chain_type(gen, values, index) : value.value()->llvm_chain_type(gen, values, index);
 }

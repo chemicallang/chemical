@@ -2324,8 +2324,7 @@ void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<ChainValue>>&
             int16_t prev_iteration;
             if(generic_struct) {
                 prev_iteration = generic_struct->active_iteration;
-                const auto generic_iteration = ((ReferencedStructType*) grandpaType.get())->generic_iteration;
-                generic_struct->set_active_iteration(generic_iteration);
+                generic_struct->set_active_iteration(grandpaType->get_generic_iteration());
             }
             // functions on struct values
             func_container_name(visitor, grandpaType->linked_node(), parent->linked_node());
@@ -2816,8 +2815,12 @@ void ToCAstVisitor::visit(FunctionType *type) {
     }
 }
 
-void ToCAstVisitor::visit(GenericType *func) {
-    write("[GenericType_UNIMPLEMENTED]");
+void ToCAstVisitor::visit(GenericType *gen_type) {
+    const auto gen_struct = gen_type->referenced->get_generic_struct();
+    const auto prev_itr = gen_struct->active_iteration;
+    gen_struct->set_active_iteration(gen_type->generic_iteration);
+    gen_type->referenced->accept(this);
+    gen_struct->set_active_iteration(prev_itr);
 }
 
 void ToCAstVisitor::visit(Int128Type *func) {

@@ -6,6 +6,8 @@
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/base/BaseType.h"
 #include "ast/utils/ASTUtils.h"
+#include "ast/structures/StructDefinition.h"
+#include "ast/types/ReferencedStructType.h"
 
 uint64_t AccessChain::byte_size(bool is64Bit) {
     return values[values.size() - 1]->byte_size(is64Bit);
@@ -72,7 +74,11 @@ AccessChain::AccessChain(std::vector<std::unique_ptr<ChainValue>> values, ASTNod
 }
 
 std::unique_ptr<BaseType> AccessChain::create_type() {
-    return values[values.size() - 1]->create_type(values, values.size() - 1);
+    std::unordered_map<uint16_t, int16_t> active;
+    set_generic_iterations(active);
+    auto type = values[values.size() - 1]->create_type(values, values.size() - 1);
+    restore_active_iterations(active);
+    return type;
 }
 
 hybrid_ptr<BaseType> AccessChain::get_base_type() {
@@ -237,4 +243,31 @@ std::pair<StructDefinition*, ReferencedStructType*> get_grandpa_generic_struct(s
         }
     }
     return { nullptr, nullptr };
+}
+
+void AccessChain::set_generic_iterations(std::unordered_map<uint16_t, int16_t>& active_iterations) {
+    uint16_t i = 0;
+    for(auto& value : values) {
+        // namespace cannot create type
+        const auto type = value->create_type();
+        if (type) {
+            const auto type_itr = type->get_generic_iteration();
+            if(type_itr != -1) {
+                const auto generic_struct = type->get_generic_struct();
+                if (generic_struct) {
+                    active_iterations[i] = generic_struct->active_iteration;
+                    generic_struct->set_active_iteration(type_itr);
+                }
+            }
+        }
+        i++;
+    }
+}
+
+void AccessChain::restore_active_iterations(std::unordered_map<uint16_t, int16_t>& restore) {
+    for(auto& pair : restore) {
+        const auto& value = values[pair.first];
+        const auto generic_struct = value->create_type()->get_generic_struct();
+        generic_struct->set_active_iteration(pair.second);
+    }
 }

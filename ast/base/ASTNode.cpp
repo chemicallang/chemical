@@ -21,4 +21,12 @@ uint64_t ASTNode::byte_size(bool is64Bit) {
     throw std::runtime_error("unknown byte size for linked node");
 }
 
+std::unique_ptr<BaseType> ASTNode::create_value_type() {
+    return nullptr;
+}
+
+hybrid_ptr<BaseType> ASTNode::get_value_type() {
+    return hybrid_ptr<BaseType> { nullptr, false };
+}
+
 ASTNode::~ASTNode() = default;

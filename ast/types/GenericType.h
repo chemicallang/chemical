@@ -10,6 +10,7 @@ public:
 
     std::unique_ptr<ReferencedType> referenced;
     std::vector<std::unique_ptr<BaseType>> types;
+    int16_t generic_iteration = -1;
 
     GenericType(std::unique_ptr<ReferencedType> referenced);
 
@@ -21,7 +22,13 @@ public:
 
     void link(SymbolResolver &linker, std::unique_ptr<BaseType>& current) override;
 
-    ASTNode * linked_node() override;
+    void report_generic_usage();
+
+    int16_t get_generic_iteration() override {
+        return generic_iteration;
+    }
+
+    ASTNode *linked_node() override;
 
     [[nodiscard]]
     BaseTypeKind kind() const override {

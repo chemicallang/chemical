@@ -119,8 +119,12 @@ llvm::Type *ReferencedType::llvm_chain_type(Codegen &gen, std::vector<std::uniqu
 }
 
 llvm::Type *GenericType::llvm_type(Codegen &gen) {
-    // TODO given types in generic type aren't being considered
-    return referenced->llvm_type(gen);
+    const auto gen_struct = referenced->get_generic_struct();
+    const auto prev_itr = gen_struct->active_iteration;
+    gen_struct->set_active_iteration(generic_iteration);
+    auto type = referenced->llvm_type(gen);
+    gen_struct->set_active_iteration(prev_itr);
+    return type;
 }
 
 llvm::Type *StringType::llvm_type(Codegen &gen) {
@@ -514,19 +518,29 @@ void AccessChain::code_gen(Codegen &gen) {
 }
 
 llvm::Type *AccessChain::llvm_type(Codegen &gen) {
-    return values[values.size() - 1]->llvm_type(gen);
+    std::unordered_map<uint16_t, int16_t> active;
+    set_generic_iterations(active);
+    auto type = values[values.size() - 1]->llvm_type(gen);
+    restore_active_iterations(active);
+    return type;
 }
 
 llvm::Value *AccessChain::llvm_value(Codegen &gen) {
     std::vector<std::pair<Value*, llvm::Value*>> destructibles;
+    std::unordered_map<uint16_t, int16_t> active;
+    set_generic_iterations(active);
     auto value = values[values.size() - 1]->access_chain_value(gen, values, values.size() - 1, destructibles);
+    restore_active_iterations(active);
     Value::destruct(gen, destructibles);
     return value;
 }
 
 llvm::Value *AccessChain::llvm_pointer(Codegen &gen) {
     std::vector<std::pair<Value*, llvm::Value*>> destructibles;
+    std::unordered_map<uint16_t, int16_t> active;
+    set_generic_iterations(active);
     auto value = values[values.size() - 1]->access_chain_pointer(gen, values, destructibles, values.size() - 1);
+    restore_active_iterations(active);
     Value::destruct(gen, destructibles);
     return value;
 }

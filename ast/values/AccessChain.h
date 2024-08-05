@@ -147,4 +147,4 @@ public:
 
 Value* get_grandpa_value(std::vector<std::unique_ptr<ChainValue>> &chain_values, unsigned int index);
 
-std::pair<StructDefinition*, ReferencedStructType*> get_grandpa_generic_struct(std::vector<std::unique_ptr<ChainValue>>& chain_values, unsigned int index);
+std::pair<StructDefinition*, int16_t> get_grandpa_generic_struct(std::vector<std::unique_ptr<ChainValue>>& chain_values, unsigned int index);

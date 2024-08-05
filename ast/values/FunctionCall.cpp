@@ -117,7 +117,7 @@ llvm::FunctionType *FunctionCall::llvm_func_type(Codegen &gen) {
 std::pair<llvm::Value*, llvm::FunctionType*>* FunctionCall::llvm_generic_func_data(std::vector<std::unique_ptr<ChainValue>> &chain_values, unsigned int index) {
     auto gen_str = get_grandpa_generic_struct(chain_values, index);
     if(gen_str.first) {
-        return &gen_str.first->llvm_generic_func_data(linked_func(), gen_str.second->generic_iteration, generic_iteration);
+        return &gen_str.first->llvm_generic_func_data(linked_func(), gen_str.second, generic_iteration);
     }
     return nullptr;
 }
@@ -522,7 +522,7 @@ std::unique_ptr<BaseType> FunctionCall::create_type(std::vector<std::unique_ptr<
     auto data = get_grandpa_generic_struct(chain, index);
     if(data.first) {
         auto prev_itr = data.first->active_iteration;
-        data.first->set_active_iteration(data.second->generic_iteration);
+        data.first->set_active_iteration(data.second);
         auto type = create_type();
         data.first->set_active_iteration(prev_itr);
         return type;

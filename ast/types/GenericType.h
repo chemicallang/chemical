@@ -14,6 +14,8 @@ public:
 
     GenericType(std::unique_ptr<ReferencedType> referenced);
 
+    GenericType(std::unique_ptr<ReferencedType> referenced, int16_t generic_itr);
+
     GenericType(std::string base);
 
     void accept(Visitor *visitor) override {

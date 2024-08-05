@@ -1,6 +1,5 @@
 // Copyright (c) Qinetik 2024.
 
-#include "ReferencedStructType.h"
 #include "ast/structures/VariablesContainer.h"
 #include "ast/structures/StructDefinition.h"
 
@@ -22,24 +21,4 @@ bool StructType::equals(StructType *type) {
         i++;
     }
     return true;
-}
-
-ReferencedStructType::ReferencedStructType(StructDefinition* definition, int16_t iteration) : definition(definition), generic_iteration(iteration) {
-
-}
-
-VariablesContainer *ReferencedStructType::variables_container() {
-    return definition;
-}
-
-std::string ReferencedStructType::struct_name() {
-    return definition->name;
-}
-
-BaseType *ReferencedStructType::copy() const {
-    return new ReferencedStructType(definition, generic_iteration);
-}
-
-ASTNode *ReferencedStructType::linked_node() {
-    return definition;
 }

@@ -16,6 +16,18 @@ struct PairGen <T, U, V> {
     }
 }
 
+struct ShortPairGen {
+    var pair : PairGen<short, short, short>
+    @constructor
+    func make() {
+        pair.a = 33;
+        pair.b = 10;
+    }
+    func add(&self) : short {
+        return pair.add();
+    }
+}
+
 func test_basic_generics() {
     test("test that basic generic function with no generic args works", () => {
         return gen_sum(10, 20) == 30;
@@ -37,5 +49,9 @@ func test_basic_generics() {
     test("test that generic struct works - 2", () => {
         var p = PairGen <long, long, long> { a : 20, b : 15 }
         return p.add() == 35
+    })
+    test("generic struct can be stored in another struct - 1", () => {
+        var p = ShortPairGen()
+        return p.add() == 43;
     })
 }

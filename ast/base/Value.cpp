@@ -188,6 +188,10 @@ std::unique_ptr<BaseType> Value::create_type() {
     throw std::runtime_error("create_type called on bare Value with type : " + std::to_string((unsigned int) value_type()));
 }
 
+std::unique_ptr<BaseType> Value::create_type(std::vector<std::unique_ptr<Value>>& chain, unsigned int index) {
+    return create_type();
+}
+
 std::unique_ptr<Value> Value::create_evaluated_value(InterpretScope& scope) {
     return nullptr;
 }

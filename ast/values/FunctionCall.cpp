@@ -115,19 +115,9 @@ llvm::FunctionType *FunctionCall::llvm_func_type(Codegen &gen) {
 }
 
 std::pair<llvm::Value*, llvm::FunctionType*>* FunctionCall::llvm_generic_func_data(std::vector<std::unique_ptr<Value>> &chain_values, unsigned int index) {
-    const auto func_decl = safe_linked_func();
-    if(func_decl) {
-        const auto gran = get_grandpa_value(chain_values, index);
-        // grandpa value can refer to a namespace, which is unable to create_type
-        // create_type being called the first statement, so an exception has to be made
-        if (gran && !(gran->linked_node() && gran->linked_node()->as_namespace())) {
-            const auto gran_type = gran->create_type();
-            const auto generic_struct = gran_type->get_generic_struct();
-            if (generic_struct) {
-                const auto ref_struct = (ReferencedStructType *) gran_type.get();
-                return &generic_struct->llvm_generic_func_data(func_decl, ref_struct->generic_iteration, generic_iteration);
-            }
-        }
+    auto gen_str = get_grandpa_generic_struct(chain_values, index);
+    if(gen_str.first) {
+        return &gen_str.first->llvm_generic_func_data(linked_func(), gen_str.second->generic_iteration, generic_iteration);
     }
     return nullptr;
 }
@@ -526,6 +516,19 @@ std::unique_ptr<BaseType> FunctionCall::create_type() {
     auto pure_type = func_type->returnType->get_pure_type();
     if(prev_itr >= -1) safe_linked_func()->set_active_iteration(prev_itr);
     return std::unique_ptr<BaseType>(pure_type->copy());
+}
+
+std::unique_ptr<BaseType> FunctionCall::create_type(std::vector<std::unique_ptr<Value>>& chain, unsigned int index) {
+    auto data = get_grandpa_generic_struct(chain, index);
+    if(data.first) {
+        auto prev_itr = data.first->active_iteration;
+        data.first->set_active_iteration(data.second->generic_iteration);
+        auto type = create_type();
+        data.first->set_active_iteration(prev_itr);
+        return type;
+    } else {
+        return create_type();
+    }
 }
 
 hybrid_ptr<BaseType> FunctionCall::get_base_type() {

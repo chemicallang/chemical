@@ -85,12 +85,20 @@ public:
     std::unique_ptr<BaseType> create_type() override;
 
     /**
+     * this returns the return type of the function, it must be called in access chain
+     * to account for generic types that depend on struct
+     */
+    std::unique_ptr<BaseType> create_type(std::vector<std::unique_ptr<Value>>& chain, unsigned int index) override;
+
+    /**
      * this returns the return type of the function
      */
     hybrid_ptr<BaseType> get_base_type() override;
 
+    [[nodiscard]]
     BaseTypeKind type_kind() const override;
 
+    [[nodiscard]]
     ValueType value_type() const override;
 
     /**

@@ -4,6 +4,7 @@
 #include "GenericType.h"
 #include "compiler/SymbolResolver.h"
 #include "ReferencedType.h"
+#include "ast/structures/StructDefinition.h"
 
 GenericType::GenericType(std::unique_ptr<ReferencedType> referenced) : referenced(std::move(referenced)) {
 
@@ -17,8 +18,16 @@ void GenericType::link(SymbolResolver &linker, std::unique_ptr<BaseType>& curren
     referenced->link(linker, (std::unique_ptr<BaseType>&) referenced);
 }
 
+void GenericType::report_generic_usage() {
+    const auto generic_struct = referenced->get_generic_struct();
+    if(generic_struct) {
+        generic_iteration = generic_struct->register_generic_args(types);
+    }
+}
+
 BaseType* GenericType::copy() const {
     auto gen = new GenericType(std::unique_ptr<ReferencedType>((ReferencedType*) referenced->copy()));
+    gen->generic_iteration = generic_iteration;
     for(auto& type : types) {
         gen->types.emplace_back(type->copy());
     }

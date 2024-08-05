@@ -163,6 +163,13 @@ public:
     virtual bool satisfies(ValueType type) = 0;
 
     /**
+     * will get the generic iteration or -1 if this type can't provide one
+     */
+    virtual int16_t get_generic_iteration() {
+        return -1;
+    }
+
+    /**
      * whether the given value satisfies the current type
      */
     virtual bool satisfies(Value* value) {

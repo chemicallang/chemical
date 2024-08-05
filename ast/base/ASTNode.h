@@ -349,17 +349,13 @@ public:
      * get the type from the ASTNode
      * this type can represent the type of value, type of parameter etc.
      */
-    virtual std::unique_ptr<BaseType> create_value_type() {
-        throw std::runtime_error("create_value_type called on bare ASTNode, with representation" + representation());
-    }
+    virtual std::unique_ptr<BaseType> create_value_type();
 
     /**
      * this returns a hybrid pointer, which decreases the number of allocations, because
      * type of value may be known by the value
      */
-    virtual hybrid_ptr<BaseType> get_value_type() {
-        throw std::runtime_error("create_value_type called on bare ASTNode, with representation" + representation());
-    }
+    virtual hybrid_ptr<BaseType> get_value_type();
 
 #ifdef COMPILER_BUILD
 

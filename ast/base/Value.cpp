@@ -185,7 +185,7 @@ hybrid_ptr<BaseType> Value::get_base_type() {
 }
 
 std::unique_ptr<BaseType> Value::create_type() {
-    throw std::runtime_error("create_type called on bare Value with type : " + std::to_string((unsigned int) value_type()));
+    return nullptr;
 }
 
 std::unique_ptr<BaseType> ChainValue::create_type(std::vector<std::unique_ptr<ChainValue>>& chain, unsigned int index) {

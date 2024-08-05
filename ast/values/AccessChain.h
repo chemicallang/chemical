@@ -119,6 +119,18 @@ public:
 
     std::unique_ptr<Value> create_evaluated_value(InterpretScope &scope) override;
 
+    /**
+     * for every chain value that is connected to a generic struct value, we get the iteration
+     * from the struct value and set it to corresponding struct definition
+     * @param active_iterations a map is given so that previous iterations can be saved to this map
+     */
+    void set_generic_iterations(std::unordered_map<uint16_t, int16_t>& active_iterations);
+
+    /**
+     * set the active iterations from a saved map
+     */
+    void restore_active_iterations(std::unordered_map<uint16_t, int16_t>& restore);
+
     inline std::string chain_representation() {
         return Value::representation();
     }

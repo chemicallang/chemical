@@ -127,6 +127,15 @@ llvm::Type *GenericType::llvm_type(Codegen &gen) {
     return type;
 }
 
+llvm::Type *GenericType::llvm_param_type(Codegen &gen) {
+    const auto gen_struct = referenced->get_generic_struct();
+    const auto prev_itr = gen_struct->active_iteration;
+    gen_struct->set_active_iteration(generic_iteration);
+    auto type = referenced->llvm_param_type(gen);
+    gen_struct->set_active_iteration(prev_itr);
+    return type;
+}
+
 llvm::Type *StringType::llvm_type(Codegen &gen) {
     return gen.builder->getInt8PtrTy();
 }

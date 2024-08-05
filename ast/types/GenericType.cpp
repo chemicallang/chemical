@@ -16,13 +16,14 @@ GenericType::GenericType(std::string base) : referenced(new ReferencedType(std::
 
 void GenericType::link(SymbolResolver &linker, std::unique_ptr<BaseType>& current) {
     referenced->link(linker, (std::unique_ptr<BaseType>&) referenced);
-}
-
-void GenericType::report_generic_usage() {
     const auto generic_struct = referenced->get_generic_struct();
     if(generic_struct) {
         generic_iteration = generic_struct->register_generic_args(types);
     }
+}
+
+void GenericType::report_generic_usage() {
+
 }
 
 BaseType* GenericType::copy() const {
@@ -32,6 +33,10 @@ BaseType* GenericType::copy() const {
         gen->types.emplace_back(type->copy());
     }
     return gen;
+}
+
+ValueType GenericType::value_type() const {
+    return referenced->value_type();
 }
 
 bool GenericType::satisfies(ValueType value_type) {

@@ -52,7 +52,7 @@ unsigned int StructValue::store_in_struct(
                     "couldn't get embedded struct child " + value.first + " in definition of name " + definition->name +
                     " with parent of name " + parent->definition->name);
         } else {
-            value.second->store_in_struct(gen, this, allocated, {}, currIndex);
+            value.second->store_in_struct(gen, this, allocated, idxList, currIndex);
         }
     }
     return index + values.size();

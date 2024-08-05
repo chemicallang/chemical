@@ -167,26 +167,7 @@ struct string {
     }
 
     func copy(&self) : string {
-        var s : string
-        s.state = state;
-        switch(state) {
-            case '0' -> {
-                s.storage.constant.data = storage.constant.data
-                s.storage.constant.length = storage.constant.length
-            }
-            case '1' -> {
-                s.storage.sso.length = storage.sso.length
-                memcpy(s.storage.sso.buffer, storage.sso.buffer, storage.sso.length)
-            }
-            case '2' -> {
-                var new_heap = malloc(storage.heap.capacity) as char*
-                memcpy(new_heap, storage.heap.data, storage.heap.length)
-                s.storage.heap.data = new_heap
-                s.storage.heap.length = storage.heap.length
-                s.storage.heap.capacity = storage.heap.capacity
-            }
-        }
-        return s;
+        return substring(0, size())
     }
 
     func substring(&self, start : size_t, end : size_t) : string {

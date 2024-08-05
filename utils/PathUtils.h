@@ -14,3 +14,6 @@ std::string resolve_sibling(const std::string& rel_to, const std::string& siblin
 std::string resolve_rel_parent_path_str(const std::string& root_path, const std::string& file_path);
 
 std::string resources_path_rel_to_exe(const std::string& exe_path);
+
+// resolve relative paths (relative to current working directory)
+std::string absolute_path(const std::string& relative);

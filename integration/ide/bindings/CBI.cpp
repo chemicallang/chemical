@@ -7,6 +7,7 @@
 #include "stream/SourceProvider.h"
 #include "compiler/lab/LabBuildContext.h"
 #include "utils/PathUtils.h"
+#include "utils/ProcessUtils.h"
 
 chem::string* init_chem_string(chem::string* str) {
     str->storage.constant.data = nullptr;
@@ -376,6 +377,18 @@ void prep_build_context_cbi(BuildContextCBI* cbi) {
     };
     cbi->remove_arg = [](BuildContextCBI* self, chem::string* name) {
         return self->instance->remove_arg(name);
+    };
+    cbi->launch_executable = [](BuildContextCBI* self, chem::string* path, bool same_window) {
+        auto copied = path->to_std_string();
+        copied = absolute_path(copied);
+        if(same_window) {
+            copied = '\"' + copied + '\"';
+        }
+        return launch_executable(copied.data(), same_window);
+    };
+    cbi->on_finished = [](BuildContextCBI* self, void(*lambda)(void*), void* data) {
+        self->instance->on_finished = lambda;
+        self->instance->on_finished_data = data;
     };
 }
 

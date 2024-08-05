@@ -886,9 +886,19 @@ void func_call_that_returns_struct(ToCAstVisitor* visitor, CBeforeStmtVisitor* a
         if (!last->values.empty() || func_type->has_self_param()) {
             visitor->write(", ");
         }
-        if (write_self_arg_bool(visitor, func_type, values, (((int) end) - 3), last)) {
-            if(!last->values.empty()) {
+        if(end >= 3) {
+            if (write_self_arg_bool(visitor, func_type, values, (((int) end) - 3), last)) {
+                if (!last->values.empty()) {
+                    visitor->write(", ");
+                }
+            }
+        } else if(visitor->current_func_type) {
+            auto self_param = visitor->current_func_type->get_self_param();
+            if(self_param) {
+                visitor->write(self_param->name);
                 visitor->write(", ");
+            } else {
+//                visitor->error("No self param can be passed to a function, because current function doesn't take a self arg");
             }
         }
 //        if(grandpa) write_self_arg(visitor, func_type, values, ((int) ((int) end - 3)), last);

@@ -29,6 +29,10 @@ public:
     std::vector<std::unique_ptr<LabJob>> executables;
     // build arguments given to the build lab
     std::unordered_map<std::string, std::string> build_args;
+    // the lambda that will be called on exist
+    void(*on_finished)(void*) = nullptr;
+    // the data pointer that'll be passed to on_finished at end
+    void* on_finished_data = nullptr;
 
 private:
 

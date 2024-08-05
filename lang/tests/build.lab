@@ -34,6 +34,13 @@ func gen_ir(ctx : BuildContext*, exe_name : string*, module : Module*) {
     printf("module : %s, llvm ir : %s\n", module.name.data(), module.llvm_ir_path.data());
 }
 
+struct JobAndContext {
+    var ctx : BuildContext*
+    var job : LabJob*
+}
+
+var jc : JobAndContext
+
 func build(ctx : BuildContext*) {
 
     const compiler_version = compiler::version();
@@ -69,7 +76,7 @@ func build(ctx : BuildContext*) {
     }
 
     ctx.build_dynamic_lib(exe_name, { module }, 1);
-    ctx.build_exe(exe_name, { module }, 1);
+    const exe_job = ctx.build_exe(exe_name, { module }, 1);
 
     if(do_c) {
         const output_file = exe_dir_file(ctx, &exe_name, &module.name, ".c")
@@ -82,5 +89,13 @@ func build(ctx : BuildContext*) {
         const input_file = relative_path(string("ext/file.c"))
         ctx.translate_to_chemical(input_file, output_file);
     }
+
+    jc.ctx = ctx;
+    jc.job = exe_job;
+
+    ctx.on_finished((data : void*) => {
+        const jx = data as JobAndContext*
+        jx.ctx.launch_executable(jx.job.abs_path.copy(), true);
+    }, &jc);
 
 }

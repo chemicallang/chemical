@@ -217,7 +217,7 @@ void LambdaFunction::link(SymbolResolver &linker, FunctionCall *call, unsigned i
     }
 
     // get the type of parameter for the function
-    auto paramType = linkedType->function_type()->params[index]->create_value_type()->copy();
+    auto paramType = linkedType->function_type()->func_param_for_arg_at(index)->create_value_type()->copy();
 
     if(paramType->function_type() == nullptr) {
         linker.error("cannot pass a lambda, because the function expects a different type : " + paramType->representation() + " for parameter at " + std::to_string(index));

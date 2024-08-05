@@ -68,6 +68,10 @@ struct BuildContext {
 
     var remove_arg : (&self, name : string) => void
 
+    var launch_executable : (&self, path : string, same_window : bool) => int;
+
+    var on_finished : (&self, lambda : (data : void*) => void, data : void*) => void;
+
     func chemical_file_module(&self, name : string, path : string, dependencies : Module**, len : uint) : Module* {
         return chemical_files_module(name, &path, 1, dependencies, len);
     }

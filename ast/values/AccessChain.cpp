@@ -72,7 +72,7 @@ AccessChain::AccessChain(std::vector<std::unique_ptr<Value>> values, ASTNode* pa
 }
 
 std::unique_ptr<BaseType> AccessChain::create_type() {
-    return values[values.size() - 1]->create_type();
+    return values[values.size() - 1]->create_type(values, values.size() - 1);
 }
 
 hybrid_ptr<BaseType> AccessChain::get_base_type() {
@@ -217,4 +217,24 @@ Value* get_grandpa_value(std::vector<std::unique_ptr<Value>> &chain_values, unsi
     } else {
         return nullptr;
     }
+}
+
+std::pair<StructDefinition*, ReferencedStructType*> get_grandpa_generic_struct(std::vector<std::unique_ptr<Value>>& chain_values, unsigned int index) {
+    if(index - 2 < chain_values.size()) {
+        const auto linked = chain_values[index - 1]->linked_node();
+        const auto func_decl = linked ? linked->as_function() : nullptr;
+        if (func_decl) {
+            const auto gran = get_grandpa_value(chain_values, index);
+            // grandpa value can refer to a namespace, which is unable to create_type
+            // create_type being called the first statement, so an exception has to be made
+            if (gran && !(gran->linked_node() && gran->linked_node()->as_namespace())) {
+                const auto gran_type = gran->create_type();
+                const auto generic_struct = gran_type->get_generic_struct();
+                if (generic_struct) {
+                    return {generic_struct, (ReferencedStructType *) gran_type.get()};
+                }
+            }
+        }
+    }
+    return { nullptr, nullptr };
 }

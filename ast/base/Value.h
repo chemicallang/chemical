@@ -268,8 +268,17 @@ std::cerr << "child called on base value";
      */
     virtual std::unique_ptr<BaseType> create_type();
 
-    virtual bool is_pointer() {
-        auto k = type_kind();
+    /**
+     * when value is part of access chain, this should be called
+     */
+    virtual std::unique_ptr<BaseType> create_type(std::vector<std::unique_ptr<Value>>& chain, unsigned int index);
+
+    /**
+     * is this value has a pointer type (includes strings)
+     */
+    [[nodiscard]]
+    bool is_pointer() const {
+        const auto k = type_kind();
         return k == BaseTypeKind::Pointer || k == BaseTypeKind::String;
     }
 

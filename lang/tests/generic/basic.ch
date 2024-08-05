@@ -16,6 +16,10 @@ struct PairGen <T, U, V> {
     }
 }
 
+func mul_int_pair(pair_gen : PairGen<int, int, int>) : int {
+    return pair_gen.a * pair_gen.b;
+}
+
 struct ShortPairGen {
     var pair : PairGen<short, short, short>
     @constructor
@@ -62,5 +66,11 @@ func test_basic_generics() {
             }
         }
         return p.add() == 61 && p.pair.add() == 61;
+    })
+    test("generic struct can be passed as function arg", () => {
+        return mul_int_pair(PairGen <int, int, int> {
+            a : 2,
+            b : 9
+        }) == 18
     })
 }

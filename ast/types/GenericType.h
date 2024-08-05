@@ -35,6 +35,9 @@ public:
         return BaseTypeKind::Generic;
     }
 
+    [[nodiscard]]
+    ValueType value_type() const override;
+
     bool is_same(BaseType *other) override {
         return other->kind() == kind();
     }
@@ -47,6 +50,8 @@ public:
 #ifdef COMPILER_BUILD
 
     llvm::Type *llvm_type(Codegen &gen) override;
+
+    llvm::Type *llvm_param_type(Codegen &gen) override;
 
 #endif
 

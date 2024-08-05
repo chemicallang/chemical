@@ -201,7 +201,7 @@ void type_with_id(ToCAstVisitor* visitor, BaseType* type, const std::string& id)
 }
 
 inline StructDefinition* get_param_type_ref_struct(BaseType* type) {
-    if(type->kind() == BaseTypeKind::Referenced) {
+    if(type->kind() == BaseTypeKind::Referenced || type->kind() == BaseTypeKind::Generic) {
         return type->linked_node()->as_struct_def();
     } else {
         return nullptr;

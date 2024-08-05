@@ -10,6 +10,10 @@ GenericType::GenericType(std::unique_ptr<ReferencedType> referenced) : reference
 
 }
 
+GenericType::GenericType(std::unique_ptr<ReferencedType> referenced, int16_t generic_itr) : referenced(std::move(referenced)), generic_iteration(generic_itr) {
+
+}
+
 GenericType::GenericType(std::string base) : referenced(new ReferencedType(std::move(base))) {
 
 }

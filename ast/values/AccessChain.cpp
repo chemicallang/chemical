@@ -7,7 +7,6 @@
 #include "ast/base/BaseType.h"
 #include "ast/utils/ASTUtils.h"
 #include "ast/structures/StructDefinition.h"
-#include "ast/types/ReferencedStructType.h"
 
 uint64_t AccessChain::byte_size(bool is64Bit) {
     return values[values.size() - 1]->byte_size(is64Bit);

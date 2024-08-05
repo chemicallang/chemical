@@ -57,7 +57,6 @@
 #include "ast/types/StructType.h"
 #include "ast/types/UBigIntType.h"
 #include "ast/types/UInt128Type.h"
-#include "ast/types/ReferencedStructType.h"
 #include "ast/types/UIntType.h"
 #include "ast/types/ULongType.h"
 #include "ast/types/UShortType.h"
@@ -763,6 +762,17 @@ void allocate_struct_for_value(ToCAstVisitor* visitor, StructDefinition* def, Va
     allocate_struct_by_name(visitor, def, name, initializer);
 }
 
+void allocate_struct_for_struct_value(ToCAstVisitor* visitor, StructDefinition* def, StructValue* value, const std::string& name, Value* initializer = nullptr) {
+    if(def->generic_params.empty()) {
+        allocate_struct_for_value(visitor, def, value, name, initializer);
+    } else {
+        auto prev_itr = def->active_iteration;
+        def->set_active_iteration(value->generic_iteration);
+        allocate_struct_for_value(visitor, def, value, name, initializer);
+        def->set_active_iteration(prev_itr);
+    }
+}
+
 void allocate_struct_for_func_call(ToCAstVisitor* visitor, StructDefinition* def, FunctionCall* call, const std::string& name, Value* initializer = nullptr) {
     allocate_struct_for_value(visitor, def, call, name, initializer);
 }
@@ -792,7 +802,7 @@ void CBeforeStmtVisitor::visit(FunctionCall *call) {
     for(auto& value : call->values) {
         const auto struct_val = value->as_struct();
         if(struct_val) {
-            allocate_struct_for_value(visitor, struct_val->definition, struct_val, visitor->get_local_temp_var_name(), struct_val);
+            allocate_struct_for_struct_value(visitor, struct_val->definition, struct_val, visitor->get_local_temp_var_name(), struct_val);
         }
     }
     if(func_type->returnType->value_type() == ValueType::Struct) {
@@ -2887,12 +2897,6 @@ void ToCAstVisitor::visit(StringType *func) {
 
 void ToCAstVisitor::visit(StructType *val) {
     write("[StructType_UNIMPLEMENTED]");
-}
-
-void ToCAstVisitor::visit(ReferencedStructType *structType) {
-    write("struct ");
-    node_parent_name(this, structType->definition);
-    struct_name(this, structType->definition);
 }
 
 void ToCAstVisitor::visit(UBigIntType *func) {

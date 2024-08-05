@@ -10,7 +10,6 @@
 #include "compiler/SymbolResolver.h"
 #include "ast/values/StructValue.h"
 #include "ast/base/BaseType.h"
-#include "ast/types/ReferencedStructType.h"
 #include "ast/structures/MultiFunctionNode.h"
 #include "ast/utils/ASTUtils.h"
 

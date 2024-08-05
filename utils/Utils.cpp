@@ -9,6 +9,8 @@
 
 #include <iostream>
 #include <filesystem>
+#include <stdio.h>
+#include <stdlib.h>
 
 void printToken(CSTToken *token) {
     std::cout << " - [" << token->type_string() << "]" << "(" << token->start().representation() << ")";
@@ -65,3 +67,62 @@ std::string resources_path_rel_to_exe(const std::string& exe_path) {
 #endif
     return res;
 }
+
+std::string absolute_path(const std::string& relative) {
+    return std::filesystem::absolute(relative).string();
+}
+
+#ifdef _WIN32
+#include <windows.h>
+int launch_executable(char* path, bool same_window) {
+    if (same_window) {
+        // Launch in the same window
+        return system(path);
+    } else {
+        // Launch in a new window
+        STARTUPINFO si;
+        PROCESS_INFORMATION pi;
+        ZeroMemory(&si, sizeof(si));
+        si.cb = sizeof(si);
+        ZeroMemory(&pi, sizeof(pi));
+
+        if (!CreateProcess(NULL, path, NULL, NULL, FALSE, CREATE_NEW_CONSOLE, NULL, NULL, &si, &pi)) {
+            fprintf(stderr, "CreateProcess failed (%d).\n", GetLastError());
+            return 1;
+        }
+
+        // Wait until child process exits.
+        WaitForSingleObject(pi.hProcess, INFINITE);
+
+        // Close process and thread handles.
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
+        return 0;
+    }
+}
+#else
+#include <unistd.h>
+int launch_executable(char* path, bool same_window) {
+    if (same_window) {
+        // Launch in the same window
+        return system(path);
+    } else {
+        // Launch in a new window
+        pid_t pid = fork();
+        if (pid == 0) {
+            // Child process
+            execl(path, path, NULL);
+            std::cerr << "execl failed for executable path " << path << std::endl;
+            return 1;
+        } else if (pid < 0) {
+            // Fork failed
+            std::cerr << "Process fork failed for executable path " << path << std::endl;
+            return 1;
+        } else {
+            // Parent process
+            wait(NULL); // Wait for child process to complete
+            return 0;
+        }
+    }
+}
+#endif

@@ -719,6 +719,11 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
 
     }
 
+    // running the on_finished lambda
+    if(context.on_finished) {
+        context.on_finished(context.on_finished_data);
+    }
+
     return job_result;
 
 }

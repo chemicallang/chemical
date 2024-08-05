@@ -495,6 +495,7 @@ set(COMPILER_SOURCES
         compiler/ASTCompiler.cpp
         compiler/ASTCompiler.h
         compiler/llvm-ar.cpp
+        utils/ProcessUtils.h
 )
 
 # add Compiler executable

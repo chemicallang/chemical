@@ -225,24 +225,23 @@ Value* get_grandpa_value(std::vector<std::unique_ptr<ChainValue>> &chain_values,
     }
 }
 
-std::pair<StructDefinition*, ReferencedStructType*> get_grandpa_generic_struct(std::vector<std::unique_ptr<ChainValue>>& chain_values, unsigned int index) {
+std::pair<StructDefinition*, int16_t> get_grandpa_generic_struct(std::vector<std::unique_ptr<ChainValue>>& chain_values, unsigned int index) {
     if(index - 2 < chain_values.size()) {
         const auto linked = chain_values[index - 1]->linked_node();
         const auto func_decl = linked ? linked->as_function() : nullptr;
         if (func_decl) {
             const auto gran = get_grandpa_value(chain_values, index);
             // grandpa value can refer to a namespace, which is unable to create_type
-            // create_type being called the first statement, so an exception has to be made
-            if (gran && !(gran->linked_node() && gran->linked_node()->as_namespace())) {
-                const auto gran_type = gran->create_type();
+            const auto gran_type = gran->create_type();
+            if (gran_type) {
                 const auto generic_struct = gran_type->get_generic_struct();
                 if (generic_struct) {
-                    return {generic_struct, (ReferencedStructType *) gran_type.get()};
+                    return {generic_struct, gran_type->get_generic_iteration()};
                 }
             }
         }
     }
-    return { nullptr, nullptr };
+    return { nullptr, -1 };
 }
 
 void AccessChain::set_generic_iterations(std::unordered_map<uint16_t, int16_t>& active_iterations) {

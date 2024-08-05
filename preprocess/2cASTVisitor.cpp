@@ -2316,9 +2316,16 @@ void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& valu
             func_container_name(visitor, grandpa->linked_node(), parent->linked_node());
             func_name(visitor, parent, func_decl);
             func_call(visitor, last->as_func_call(), func_type);
-        } else if(grandpa->value_type() == ValueType::Struct && grandpaType->kind() == BaseTypeKind::Referenced) {
+        } else if(grandpaType->linked_struct_def()) {
             if(parent->linked_node()->as_struct_member()) {
                 goto normal_functions;
+            }
+            auto generic_struct = grandpaType->get_generic_struct();
+            int16_t prev_iteration;
+            if(generic_struct) {
+                prev_iteration = generic_struct->active_iteration;
+                const auto generic_iteration = ((ReferencedStructType*) grandpaType.get())->generic_iteration;
+                generic_struct->set_active_iteration(generic_iteration);
             }
             // functions on struct values
             func_container_name(visitor, grandpaType->linked_node(), parent->linked_node());
@@ -2327,6 +2334,9 @@ void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<Value>>& valu
             write_self_arg(visitor, func_type, values, (((int) end) - 3), last);
             func_call_args(visitor, last->as_func_call(), func_type);
             visitor->write(')');
+            if(generic_struct) {
+                generic_struct->set_active_iteration(prev_iteration);
+            }
         } else {
             goto normal_functions;
         }

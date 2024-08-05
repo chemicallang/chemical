@@ -54,4 +54,13 @@ func test_basic_generics() {
         var p = ShortPairGen()
         return p.add() == 43;
     })
+    test("generic struct can be stored in another struct - 2", () => {
+        var p = ShortPairGen {
+            pair : PairGen<short, short, short> {
+                a : 20,
+                b : 41
+            }
+        }
+        return p.add() == 61 && p.pair.add() == 61;
+    })
 }

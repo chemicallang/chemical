@@ -34,6 +34,10 @@ struct Pair {
 
 }
 
+struct IntPair {
+    var pair : Pair
+}
+
 func create_pair() : Pair {
     return Pair {
         a : 33,
@@ -214,5 +218,14 @@ func test_structs() {
     test("implicit constructors in return work - 2", () => {
         const p = give_explicit_return();
         return p.data == 65;
+    })
+    test("contained pair can be initialized properly", () => {
+        var p = IntPair {
+            pair : Pair {
+                a : 14,
+                b : 12
+            }
+        };
+        return p.pair.get_pair_sum() == 26
     })
 }

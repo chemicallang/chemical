@@ -322,4 +322,13 @@ func test_destructors() {
         }
         return count == 1;
     })
+    test("generic struct destructor is called when inside array value", () => {
+        var count = 0;
+        if(count == 0) {
+            var d : GenDestruct<int>[1] = {
+                GenDestruct<int> { data : 454, count : &count, lamb : destruct_inc_count  }
+            }
+        }
+        return count == 1;
+    })
 }

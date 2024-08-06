@@ -88,7 +88,8 @@ bool Lexer::lexTypeTokens() {
             error("expected '>' for generic type");
         }
         compound_from(start, LexTokenType::CompGenericType);
-    } else if(lexOperatorToken('[')) {
+    }
+    if(lexOperatorToken('[')) {
         // optional array size
         lexUnsignedIntAsNumberToken();
         if(!lexOperatorToken(']')) {

@@ -773,8 +773,15 @@ void allocate_struct_for_struct_value(ToCAstVisitor* visitor, StructDefinition* 
     }
 }
 
-void allocate_struct_for_func_call(ToCAstVisitor* visitor, StructDefinition* def, FunctionCall* call, const std::string& name, Value* initializer = nullptr) {
-    allocate_struct_for_value(visitor, def, call, name, initializer);
+void allocate_struct_for_func_call(ToCAstVisitor* visitor, StructDefinition* def, FunctionCall* call, FunctionType* func_type, const std::string& name, Value* initializer = nullptr) {
+    if(func_type->returnType->kind() == BaseTypeKind::Generic) {
+        auto prev_itr = def->active_iteration;
+        def->set_active_iteration(func_type->returnType->get_generic_iteration());
+        allocate_struct_for_value(visitor, def, call, name, initializer);
+        def->set_active_iteration(prev_itr);
+    } else {
+        allocate_struct_for_value(visitor, def, call, name, initializer);
+    }
 }
 
 void CBeforeStmtVisitor::visit(FunctionCall *call) {
@@ -808,7 +815,7 @@ void CBeforeStmtVisitor::visit(FunctionCall *call) {
     if(func_type->returnType->value_type() == ValueType::Struct) {
         auto linked = func_type->returnType->linked_node();
         if(linked->as_struct_def()) {
-            allocate_struct_for_func_call(visitor, linked->as_struct_def(), call, visitor->get_local_temp_var_name());
+            allocate_struct_for_func_call(visitor, linked->as_struct_def(), call, func_type.get(), visitor->get_local_temp_var_name());
         }
     }
     if(decl && !decl->generic_params.empty()) {
@@ -956,7 +963,7 @@ void CBeforeStmtVisitor::process_init_value(Value* value, const std::string& ide
                 process_comp_time_call(decl, call, identifier);
                 return;
             } else if(linked->as_struct_def()) {
-                allocate_struct_for_func_call(visitor, linked->as_struct_def(), call, identifier);
+                allocate_struct_for_func_call(visitor, linked->as_struct_def(), call, func_type.get(), identifier);
             }
         }
     }

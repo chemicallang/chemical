@@ -383,7 +383,15 @@ func test_destructors() {
         const d = create_long_gen_dest(343, &count, destruct_inc_count).data
         return count == 1;
     })
-    test("comptime constructor struct is also destructed, when passing to function call", () => {
+    test("comptime constructor struct is destructed, when in var init", () => {
+        my_string_destr_count = 0;
+        if(true) {
+            const input_file = my_string("ext/file.c")
+        }
+        return my_string_destr_count == 1;
+    })
+    test("comptime constructor struct is destructed, when passing to function call", () => {
+        my_string_destr_count = 0;
         if(true) {
             const input_file = relative_path(my_string("ext/file.c"))
         }

@@ -290,6 +290,8 @@ public:
 
     void visit(InterfaceDefinition* interfaceDefinition) override;
 
+    void visit_scope(Scope *scope, unsigned destruct_begin);
+
     void visit(Scope* scope) override;
 
     void visit(StructDefinition* structDefinition) override;

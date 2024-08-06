@@ -1068,6 +1068,7 @@ struct DestructionJob {
             StructDefinition* parent_node;
             int16_t generic_iteration;
             FunctionDeclaration* destructor;
+            bool is_pointer;
         } default_job;
         struct {
             int array_size;
@@ -1089,19 +1090,37 @@ public:
 
     std::vector<DestructionJob> destruct_jobs;
 
-    void destruct(const std::string& self_name, StructDefinition* linked, int16_t generic_iteration, FunctionDeclaration* destructor);
+    void destruct(
+            const std::string& self_name,
+            StructDefinition* linked,
+            int16_t generic_iteration,
+            FunctionDeclaration* destructor,
+            bool is_pointer
+    );
 
-    void destruct(const std::string& self_name, ASTNode* initializer, int16_t generic_iteration, StructDefinition* linked);
+    void queue_destruct(
+            const std::string& self_name,
+            ASTNode* initializer,
+            int16_t generic_iteration,
+            StructDefinition* linked,
+            bool is_pointer = false
+    );
 
-    void destruct(const std::string& self_name, ASTNode* initializer, FunctionCall* call);
+    void queue_destruct(const std::string& self_name, ASTNode* initializer, FunctionCall* call);
 
     void destruct_arr(const std::string& self_name, int array_size, StructDefinition* linked, int16_t generic_iteration, FunctionDeclaration* destructor);
 
     void destruct(const DestructionJob& job, Value* current_return);
 
-    bool destruct_arr(const std::string& self_name, ASTNode* initializer, BaseType* elem_type, int array_size);
+    bool queue_destruct_arr(const std::string& self_name, ASTNode* initializer, BaseType* elem_type, int array_size);
 
     void visit(VarInitStatement *init) override;
+
+    void dispatch_jobs_from_no_clean(int begin);
+
+    void dispatch_jobs_from(int begin);
+
+    void queue_destruct_decl_params(FunctionDeclaration* decl);
 
     void process_init_value(VarInitStatement *init, Value* value);
 
@@ -1147,7 +1166,13 @@ void CAfterStmtVisitor::destruct_chain(AccessChain *chain, bool destruct_last) {
                     if(destructor) {
                         auto destructible = visitor->local_allocated.find(call);
                         if (destructible != visitor->local_allocated.end()) {
-                            visitor->destructor->destruct(destructible->second, struct_def, generic_iteration, destructor);
+                            visitor->destructor->destruct(
+                                    destructible->second,
+                                    struct_def,
+                                    generic_iteration,
+                                    destructor,
+                                    false
+                            );
                         }
                     }
                 }
@@ -1176,28 +1201,33 @@ void CAfterStmtVisitor::visit(FunctionCall *call) {
     for(auto& val : call->values) {
         const auto chain = val->as_access_chain();
         if(chain) {
-            destruct_chain(chain, true);
+            // if we ever pass struct as a reference, where struct is created at call time
+            // we can set destruct_last to true, to destruct the struct after this call
+            destruct_chain(chain, false);
         } else {
-            const auto struc = val->as_struct();
-            if(struc) {
-                auto found = visitor->local_allocated.find(struc);
-                if(found != visitor->local_allocated.end()) {
-                    visitor->destructor->destruct(found->second, nullptr, struc->generic_iteration, struc->definition);
-                } else {
-                    val->accept(this);
-                }
-            } else {
+            // if we ever pass struct as a reference, where struct is created at call time
+            // we can set destruct_last to true, to destruct the struct after this call
+//            const auto struc = val->as_struct();
+//            if(struc) {
+//                auto found = visitor->local_allocated.find(struc);
+//                if(found != visitor->local_allocated.end()) {
+//                    visitor->destructor->queue_destruct(
+//                            found->second,
+//                            nullptr,
+//                            struc->generic_iteration,
+//                            struc->definition
+//                    );
+//                } else {
+//                    val->accept(this);
+//                }
+//            } else {
                 val->accept(this);
-            }
+//            }
         }
     }
 }
 
-void func_container_name(ToCAstVisitor* visitor, FunctionDeclaration* func_node);
-
-void func_container_name(ToCAstVisitor* visitor, ASTNode* parent_node, ASTNode* linked_node);
-
-void CDestructionVisitor::destruct(const std::string& self_name, StructDefinition* parent_node, int16_t generic_iteration, FunctionDeclaration* destructor) {
+void CDestructionVisitor::destruct(const std::string& self_name, StructDefinition* parent_node, int16_t generic_iteration, FunctionDeclaration* destructor, bool is_pointer) {
     int16_t prev_itr;
     if(!parent_node->generic_params.empty()) {
         prev_itr = parent_node->active_iteration;
@@ -1210,7 +1240,9 @@ void CDestructionVisitor::destruct(const std::string& self_name, StructDefinitio
     visitor->write(destructor->name);
     visitor->write('(');
     if(destructor->has_self_param()) {
-        visitor->write('&');
+        if(!is_pointer) {
+            visitor->write('&');
+        }
         visitor->write(self_name);
     }
     visitor->write(')');
@@ -1223,7 +1255,7 @@ void CDestructionVisitor::destruct(const std::string& self_name, StructDefinitio
     }
 }
 
-void CDestructionVisitor::destruct(const std::string& self_name, ASTNode* initializer, int16_t generic_iteration, StructDefinition* linked) {
+void CDestructionVisitor::queue_destruct(const std::string& self_name, ASTNode* initializer, int16_t generic_iteration, StructDefinition* linked, bool is_pointer) {
     if(!linked) return;
     auto destructorFunc = linked->destructor_func();
     if(destructorFunc) {
@@ -1234,16 +1266,17 @@ void CDestructionVisitor::destruct(const std::string& self_name, ASTNode* initia
                 .default_job = {
                         linked,
                         generic_iteration,
-                        destructorFunc
+                        destructorFunc,
+                        is_pointer
                 }
         });
     }
 }
 
-void CDestructionVisitor::destruct(const std::string& self_name, ASTNode* initializer, FunctionCall* call) {
+void CDestructionVisitor::queue_destruct(const std::string& self_name, ASTNode* initializer, FunctionCall* call) {
     auto return_type = call->create_type();
     auto linked = return_type->linked_node();
-    if(linked) destruct(self_name, initializer, return_type->get_generic_iteration(), linked->as_struct_def());
+    if(linked) queue_destruct(self_name, initializer, return_type->get_generic_iteration(), linked->as_struct_def());
 }
 
 void CDestructionVisitor::destruct_arr(const std::string &self_name, int array_size, StructDefinition* linked, int16_t generic_iteration, FunctionDeclaration* destructorFunc) {
@@ -1259,7 +1292,7 @@ void CDestructionVisitor::destruct_arr(const std::string &self_name, int array_s
     visitor->write(arr_val_itr_name);
     visitor->write("--){");
     visitor->indentation_level++;
-    destruct(self_name + "[" + arr_val_itr_name + "]", linked, generic_iteration, destructorFunc);
+    destruct(self_name + "[" + arr_val_itr_name + "]", linked, generic_iteration, destructorFunc, false);
     visitor->indentation_level--;
     visitor->new_line_and_indent();
     visitor->write('}');
@@ -1274,7 +1307,7 @@ void CDestructionVisitor::destruct(const DestructionJob& job, Value* current_ret
     }
     switch(job.type) {
         case DestructionJobType::Default:
-            destruct(job.self_name, job.default_job.parent_node, job.default_job.generic_iteration, job.default_job.destructor);
+            destruct(job.self_name, job.default_job.parent_node, job.default_job.generic_iteration, job.default_job.destructor, job.default_job.is_pointer);
             break;
         case DestructionJobType::Array:
             destruct_arr(job.self_name, job.array_job.array_size, job.array_job.linked, job.array_job.generic_iteration, job.array_job.destructorFunc);
@@ -1282,7 +1315,35 @@ void CDestructionVisitor::destruct(const DestructionJob& job, Value* current_ret
     }
 }
 
-bool CDestructionVisitor::destruct_arr(const std::string& self_name, ASTNode* initializer, BaseType *elem_type, int array_size) {
+void CDestructionVisitor::dispatch_jobs_from_no_clean(int begin) {
+    int i = ((int) destruct_jobs.size()) - 1;
+    while (i >= (int) begin) {
+        destruct(destruct_jobs[i], nullptr);
+        i--;
+    }
+}
+
+void CDestructionVisitor::dispatch_jobs_from(int begin) {
+    dispatch_jobs_from_no_clean(begin);
+    auto itr = destruct_jobs.begin() + begin;
+    destruct_jobs.erase(itr, destruct_jobs.end());
+}
+
+void CDestructionVisitor::queue_destruct_decl_params(FunctionDeclaration* decl) {
+    for(auto& d_param : decl->params) {
+        if(d_param->type->kind() == BaseTypeKind::Referenced || d_param->type->kind() == BaseTypeKind::Generic) {
+            auto linked_struct = d_param->type->linked_struct_def();
+            if(linked_struct) {
+                const auto destructor_func = linked_struct->destructor_func();
+                if(destructor_func) {
+                    queue_destruct(d_param->name, d_param.get(), d_param->type->get_generic_iteration(), linked_struct, true);
+                }
+            }
+        }
+    }
+}
+
+bool CDestructionVisitor::queue_destruct_arr(const std::string& self_name, ASTNode* initializer, BaseType *elem_type, int array_size) {
     if(elem_type->value_type() == ValueType::Struct) {
         auto linked = elem_type->linked_node();
         FunctionDeclaration* destructorFunc;
@@ -1317,19 +1378,19 @@ bool CDestructionVisitor::destruct_arr(const std::string& self_name, ASTNode* in
 void CDestructionVisitor::process_init_value(VarInitStatement *init, Value* init_value) {
     auto chain = init_value->as_access_chain();
     if(chain && chain->values.back()->as_func_call()) {
-        destruct(init->identifier, init, chain->values.back()->as_func_call());
+        queue_destruct(init->identifier, init, chain->values.back()->as_func_call());
         return;
     }
     auto array_val = init_value->as_array_value();
     if(array_val) {
         auto elem_type = array_val->element_type();
-        destruct_arr(init->identifier, init, elem_type.get(), array_val->array_size());
+        queue_destruct_arr(init->identifier, init, elem_type.get(), array_val->array_size());
         return;
     }
     auto struct_val = init_value->as_struct();
     if(struct_val) {
         auto linked = struct_val->definition;
-        if(linked) destruct(init->identifier, init, struct_val->generic_iteration, linked);
+        if(linked) queue_destruct(init->identifier, init, struct_val->generic_iteration, linked);
     }
 }
 
@@ -1358,11 +1419,13 @@ void CDestructionVisitor::visit(VarInitStatement *init) {
     } else {
         if(init->type.value()->value_type() == ValueType::Struct) {
             auto linked = init->type.value()->linked_node();
-            if (linked) destruct(init->identifier, init, init->type.value()->get_generic_iteration(), linked->as_struct_def());
+            if (linked)
+                queue_destruct(init->identifier, init, init->type.value()->get_generic_iteration(),
+                               linked->as_struct_def());
         } else if(init->type.value()->kind() == BaseTypeKind::Array) {
             auto type = (ArrayType*) init->type.value().get();
             if(type->array_size != -1) {
-                destruct_arr(init->identifier, init, type->elem_type.get(), type->array_size);
+                queue_destruct_arr(init->identifier, init, type->elem_type.get(), type->array_size);
             } else {
                 // cannot destruct array type without size
             }
@@ -1993,7 +2056,14 @@ void func_decl_with_name(ToCAstVisitor* visitor, FunctionDeclaration* decl, cons
     } else {
         declare_func_with_return(visitor, decl, name);
     }
-    scope(visitor, decl->body.value());
+    unsigned begin = visitor->destructor->destruct_jobs.size();
+    visitor->destructor->queue_destruct_decl_params(decl);
+    visitor->write('{');
+    visitor->indentation_level+=1;
+    visitor->visit_scope(&decl->body.value(), (int) begin);
+    visitor->indentation_level-=1;
+    visitor->new_line_and_indent();
+    visitor->write('}');
     visitor->current_func_type = prev_func_decl;
 }
 
@@ -2065,7 +2135,9 @@ void contained_func_decl(ToCAstVisitor* visitor, FunctionDeclaration* decl, cons
         cleanup_block_name = "__chx__dstctr_clnup_blk__";
         visitor->return_redirect_block = cleanup_block_name;
     }
-    decl->body.value().accept(visitor);
+    unsigned begin = visitor->destructor->destruct_jobs.size();
+    visitor->destructor->queue_destruct_decl_params(decl);
+    visitor->visit_scope(&decl->body.value(), (int) begin);
     if(is_destructor) {
         visitor->new_line_and_indent();
         visitor->write(cleanup_block_name);
@@ -2145,10 +2217,9 @@ void ToCAstVisitor::visit(InterfaceDefinition *def) {
 
 }
 
-void ToCAstVisitor::visit(Scope *scope) {
+void ToCAstVisitor::visit_scope(Scope *scope, unsigned destruct_begin) {
     auto prev = top_level_node;
     top_level_node = false;
-    unsigned begin = destructor->destruct_jobs.size();
     for(auto& node : scope->nodes) {
         new_line_and_indent();
         node->accept(before_stmt.get());
@@ -2156,17 +2227,17 @@ void ToCAstVisitor::visit(Scope *scope) {
         node->accept(after_stmt.get());
     }
     if(destructor->destroy_current_scope) {
-        int i = ((int) destructor->destruct_jobs.size()) - 1;
-        while (i >= (int) begin) {
-            destructor->destruct(destructor->destruct_jobs[i], nullptr);
-            i--;
-        }
+        destructor->dispatch_jobs_from_no_clean((int) destruct_begin);
     } else {
         destructor->destroy_current_scope = true;
     }
-    auto itr = destructor->destruct_jobs.begin() + begin;
+    auto itr = destructor->destruct_jobs.begin() + destruct_begin;
     destructor->destruct_jobs.erase(itr, destructor->destruct_jobs.end());
     top_level_node = prev;
+}
+
+void ToCAstVisitor::visit(Scope *scope) {
+    visit_scope(scope, destructor->destruct_jobs.size());
 }
 
 void ToCAstVisitor::visit(UnnamedUnion *def) {

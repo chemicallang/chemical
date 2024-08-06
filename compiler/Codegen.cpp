@@ -229,7 +229,17 @@ void Codegen::destruct(llvm::Value* allocaInst, unsigned int array_size, BaseTyp
     if(destructorFunc->has_self_param()) {
         args.emplace_back(structPtr);
     }
-    builder->CreateCall(destructorFunc->llvm_func_type(gen), destructorFunc->llvm_pointer(gen), args, "");
+    llvm::FunctionType* func_type;
+    llvm::Value* func_callee;
+    if(structDef->is_generic()) {
+        const auto llvm_data = structDef->llvm_generic_func_data(destructorFunc, structDef->active_iteration, destructorFunc->active_iteration);
+        func_type = llvm_data.second;
+        func_callee = llvm_data.first;
+    } else {
+        func_type = destructorFunc->llvm_func_type(gen);
+        func_callee = destructorFunc->llvm_pointer(gen);
+    }
+    builder->CreateCall(func_type, func_callee, args, "");
     if(after_destruct) after_destruct(this, structPtr, data);
     auto result = builder->CreateICmpEQ(structPtr, firstEle);
     auto end_block = llvm::BasicBlock::Create(*ctx, "", current_function);

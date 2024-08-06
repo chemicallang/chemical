@@ -1103,6 +1103,8 @@ public:
 
     void visit(VarInitStatement *init) override;
 
+    void process_init_value(VarInitStatement *init, Value* value);
+
     void reset() override {
         destroy_current_scope = true;
         new_line_before = true;
@@ -1117,6 +1119,21 @@ void CAfterStmtVisitor::destruct_chain(AccessChain *chain, bool destruct_last) {
     while(index >= 0) {
         call = chain->values[index]->as_func_call();
         if(call) {
+            const auto decl = call->safe_linked_func();
+            if(decl && decl->has_annotation(AnnotationKind::CompTime)) {
+                auto eval = visitor->evaluated_func_calls.find(call);
+                if(eval != visitor->evaluated_func_calls.end()) {
+                    const auto comp_chain = eval->second->as_access_chain();
+                    if(comp_chain) {
+                        destruct_chain(comp_chain, true);
+                    } else {
+                        eval->second->accept(this);
+                    }
+                } else {
+                    std::cerr << "[2c] warn: evaluated function call value not found in after statement visitor" << std::endl;
+                }
+                return;
+            }
             auto func_type = call->create_function_type();
             if(func_type->returnType->value_type() == ValueType::Struct) {
                 auto linked = func_type->returnType->linked_node();
@@ -1146,6 +1163,16 @@ void CAfterStmtVisitor::visit(AccessChain *chain) {
 }
 
 void CAfterStmtVisitor::visit(FunctionCall *call) {
+//    auto decl = call->safe_linked_func();
+//    if(decl && decl->has_annotation(AnnotationKind::CompTime)) {
+//        auto eval = visitor->evaluated_func_calls.find(call);
+//        if(eval != visitor->evaluated_func_calls.end()) {
+//            eval->second->accept(this);
+//            return;
+//        } else {
+//            std::cerr << "[2c] warn: evaluated function call value not found in after statement visitor" << std::endl;
+//        }
+//    }
     for(auto& val : call->values) {
         const auto chain = val->as_access_chain();
         if(chain) {
@@ -1287,28 +1314,47 @@ bool CDestructionVisitor::destruct_arr(const std::string& self_name, ASTNode* in
     return false;
 }
 
+void CDestructionVisitor::process_init_value(VarInitStatement *init, Value* init_value) {
+    auto chain = init_value->as_access_chain();
+    if(chain && chain->values.back()->as_func_call()) {
+        destruct(init->identifier, init, chain->values.back()->as_func_call());
+        return;
+    }
+    auto array_val = init_value->as_array_value();
+    if(array_val) {
+        auto elem_type = array_val->element_type();
+        destruct_arr(init->identifier, init, elem_type.get(), array_val->array_size());
+        return;
+    }
+    auto struct_val = init_value->as_struct();
+    if(struct_val) {
+        auto linked = struct_val->definition;
+        if(linked) destruct(init->identifier, init, struct_val->generic_iteration, linked);
+    }
+}
+
 void CDestructionVisitor::visit(VarInitStatement *init) {
     if(init->value_type() == ValueType::Pointer) {
         // do not destruct pointers
         return;
     }
     if(init->value.has_value()) {
-        auto chain = init->value.value()->as_access_chain();
+        auto init_value = init->value->get();
+        auto chain = init_value->as_access_chain();
         if(chain && chain->values.back()->as_func_call()) {
-            destruct(init->identifier, init, chain->values.back()->as_func_call());
-            return;
+            const auto func_call = chain->values.back()->as_func_call();
+            auto decl = func_call->safe_linked_func();
+            if(decl && decl->has_annotation(AnnotationKind::CompTime)) {
+                auto found = visitor->evaluated_func_calls.find(func_call);
+                if(found != visitor->evaluated_func_calls.end()) {
+                    init_value = found->second.get();
+                } else {
+                    std::cerr << "[2c] warn: evaluated function call value not found in after statement visitor for " << func_call->representation() << std::endl;
+                }
+            }
         }
-        auto array_val = init->value.value()->as_array_value();
-        if(array_val) {
-            auto elem_type = array_val->element_type();
-            destruct_arr(init->identifier, init, elem_type.get(), array_val->array_size());
-            return;
-        }
-        auto struct_val = init->value.value()->as_struct();
-        if(struct_val) {
-            auto linked = struct_val->definition;
-            if(linked) destruct(init->identifier, init, struct_val->generic_iteration, linked);
-        }
+        process_init_value(init, init_value);
+        return;
     } else {
         if(init->type.value()->value_type() == ValueType::Struct) {
             auto linked = init->type.value()->linked_node();

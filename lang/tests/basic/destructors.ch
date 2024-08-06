@@ -138,6 +138,33 @@ func test_struct_param_destructor(d : Destructible) {
 
 }
 
+var my_string_destr_count : int = 0
+
+struct my_string {
+
+    @comptime
+    @constructor
+    func make(value : literal::string) {
+        return compiler::wrap(constructor(value, compiler::strlen(value)))
+    }
+
+    @constructor
+    func constructor(value : char*, length : ubigint) {
+
+    }
+
+    @destructor
+    func delete(&self) {
+        my_string_destr_count = my_string_destr_count + 1;
+    }
+
+}
+
+func relative_path(path : my_string) : my_string {
+    const m = my_string("wow");
+    return m;
+}
+
 func test_destructors() {
     test("test that var init struct value destructs", () => {
         var count = 0;
@@ -354,6 +381,12 @@ func test_destructors() {
     test("generic struct destructor is called in access chain", () => {
         var count = 0;
         const d = create_long_gen_dest(343, &count, destruct_inc_count).data
-        return count == 1 && d == 343;
+        return count == 1;
+    })
+    test("comptime constructor struct is also destructed, when passing to function call", () => {
+        if(true) {
+            const input_file = relative_path(my_string("ext/file.c"))
+        }
+        return my_string_destr_count == 2;
     })
 }

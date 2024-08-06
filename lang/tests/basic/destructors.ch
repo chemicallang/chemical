@@ -15,6 +15,33 @@ struct Destructible {
 
 }
 
+struct GenDestruct<T> {
+
+    var data : T
+
+    var count : int*
+
+    var lamb : (count : int*) => void;
+
+    @destructor
+    func delete(&self) {
+        self.lamb(self.count);
+    }
+
+}
+
+struct GenDestructOwner {
+    var d : GenDestruct<long>
+}
+
+func create_long_gen_dest(data : long, count : int*, lamb : (count : int*) => void) : GenDestruct<long> {
+    return GenDestruct<long> {
+        data : data,
+        count : count,
+        lamb : lamb
+    }
+}
+
 struct Holder1 {
     var thing : Destructible
 }
@@ -27,6 +54,10 @@ func create_destructible(count : int*, data : int) : Destructible {
            *count = *count + 1;
        }
     }
+}
+
+func destruct_inc_count(count : int*) {
+    *count = *count + 1;
 }
 
 func destructible_but_last_if(count : int*, data : int) {
@@ -265,6 +296,29 @@ func test_destructors() {
         var count = 0;
         if(count == 0) {
             create_destructible(&count, 676)
+        }
+        return count == 1;
+    })
+    test("generic structs destructor is called in var init struct value", () => {
+        var count = 0;
+        if(count == 0) {
+            var d = GenDestruct<int> { data : 454, count : &count, lamb : destruct_inc_count  }
+        }
+        return count == 1
+    })
+    test("generic structs destructor is called when created through function call", () => {
+        var count = 0;
+        if(count == 0) {
+            var d = create_long_gen_dest(343, &count, destruct_inc_count);
+        }
+        return count == 1;
+    })
+    test("generic struct destructor is called when inside another struct", () => {
+        var count = 0;
+        if(count == 0) {
+            var d = GenDestructOwner {
+                d : GenDestruct<int> { data : 454, count : &count, lamb : destruct_inc_count  }
+            }
         }
         return count == 1;
     })

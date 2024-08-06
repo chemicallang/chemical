@@ -685,7 +685,7 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
     auto state = compile_c_to_tcc_state(options->exe_path.data(), str.data(), "", true, is_debug(options->def_mode));
 
     if(state == nullptr) {
-        const auto out_path = resolve_non_canon_parent_path(path, "build.lab.c");
+        const auto out_path = resolve_non_canon_parent_path(context.build_dir, "build.lab.c");
         writeToFile(out_path, str);
         std::cerr << "[LabBuild] Couldn't build lab file due to error in translation, translated C written at " << out_path << std::endl;
         return 1;

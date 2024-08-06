@@ -687,7 +687,7 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
     if(state == nullptr) {
         const auto out_path = resolve_rel_child_path_str(context.build_dir, "build.lab.c");
         writeToFile(out_path, str);
-        std::cerr << "[LabBuild] Couldn't build lab file due to error in translation, translated C written at " << out_path << std::endl;
+        std::cerr << rang::fg::red << "[LabBuild] Couldn't build lab file due to error in translation, translated C written at " << out_path << rang::fg::reset << std::endl;
         return 1;
     }
 

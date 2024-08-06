@@ -27,6 +27,7 @@
 #include <iostream>
 #include <utility>
 #include <functional>
+#include "utils/FileUtils.h"
 
 #ifdef COMPILER_BUILD
 std::vector<std::unique_ptr<ASTNode>> TranslateC(
@@ -682,6 +683,14 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
     // compiling the c output from build.labs
     auto str = output_ptr.str();
     auto state = compile_c_to_tcc_state(options->exe_path.data(), str.data(), "", true, is_debug(options->def_mode));
+
+    if(state == nullptr) {
+        const auto out_path = resolve_rel_child_path_str(options->build_folder, "build.lab.c");
+        writeToFile(out_path, str);
+        std::cerr << "[LabBuild] Couldn't build lab file due to error in translation, translated C written at " << out_path << std::endl;
+        return 1;
+    }
+
     TCCDeletor auto_del(state); // automatic destroy
 
     // relocate the code before calling

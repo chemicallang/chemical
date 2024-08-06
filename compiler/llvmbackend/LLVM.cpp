@@ -670,8 +670,7 @@ void BreakStatement::code_gen(Codegen &gen) {
     gen.CreateBr(gen.current_loop_exit);
 }
 
-void Scope::code_gen(Codegen &gen) {
-    unsigned begin = gen.destruct_nodes.size();
+void Scope::code_gen(Codegen &gen, unsigned destruct_begin) {
     for(auto& node : nodes) {
         node->code_gen_declare(gen);
     }
@@ -683,16 +682,20 @@ void Scope::code_gen(Codegen &gen) {
         i++;
     }
     if(gen.destroy_current_scope) {
-        i = nodes.size() - 1;
-        while (i >= 0) {
-            nodes[i]->code_gen_destruct(gen, nullptr);
+        i = ((int) gen.destruct_nodes.size()) - 1;
+        while (i >= (int) destruct_begin) {
+            gen.destruct_nodes[i]->code_gen_destruct(gen, nullptr);
             i--;
         }
     } else {
         gen.destroy_current_scope = true;
     }
-    auto itr = gen.destruct_nodes.begin() + begin;
+    auto itr = gen.destruct_nodes.begin() + destruct_begin;
     gen.destruct_nodes.erase(itr, gen.destruct_nodes.end());
+}
+
+void Scope::code_gen(Codegen &gen) {
+    code_gen(gen, gen.destruct_nodes.size());
 }
 
 void ThrowStatement::code_gen(Codegen &gen) {

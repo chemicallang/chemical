@@ -37,6 +37,12 @@ llvm::FunctionType *BaseFunctionParam::llvm_func_type(Codegen &gen) {
     return type->llvm_func_type(gen);
 }
 
+void BaseFunctionParam::code_gen_destruct(Codegen &gen, Value *returnValue) {
+    if(!(returnValue && returnValue->as_identifier() && returnValue->linked_node() == this)) {
+        type->linked_node()->llvm_destruct(gen, gen.current_function->getArg(calculate_c_or_llvm_index()));
+    }
+}
+
 llvm::Type *BaseFunctionParam::llvm_elem_type(Codegen &gen) {
     auto lType = llvm_type(gen);
     if (lType) {
@@ -102,13 +108,27 @@ llvm::Function* FunctionDeclaration::llvm_func() {
     return (llvm::Function*) llvm_data[active_iteration].first;
 }
 
+void BaseFunctionType::queue_destruct_params(Codegen& gen) {
+    for(auto& param : params) {
+        const auto k = param->type->kind();
+        if(k == BaseTypeKind::Referenced || k == BaseTypeKind::Generic) {
+            const auto def = param->type->linked_struct_def();
+            if(def && def->destructor_func()) {
+                gen.destruct_nodes.emplace_back(param.get());
+            }
+        }
+    }
+}
+
 void body_gen(Codegen &gen, llvm::Function* funcCallee, std::optional<LoopScope>& body, BaseFunctionType* func_type) {
     if(body.has_value()) {
         auto prev_func_type = gen.current_func_type;
         gen.current_func_type = func_type;
         gen.current_function = funcCallee;
+        const auto destruct_begin = gen.destruct_nodes.size();
+        func_type->queue_destruct_params(gen);
         gen.SetInsertPoint(&gen.current_function->getEntryBlock());
-        body->code_gen(gen);
+        body->code_gen(gen, destruct_begin);
         gen.end_function_block();
         gen.current_function = nullptr;
         gen.current_func_type = prev_func_type;

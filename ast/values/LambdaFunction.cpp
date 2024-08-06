@@ -59,7 +59,7 @@ llvm::Value *LambdaFunction::llvm_value(Codegen &gen) {
     if(func_ptr) {
         gen.error("llvm_value called multiple times on LambdaFunction");
     }
-    func_ptr = gen.create_nested_function("lambda", FunctionType::llvm_func_type(gen), scope);
+    func_ptr = gen.create_nested_function("lambda", FunctionType::llvm_func_type(gen), this, scope);
     if(!captureList.empty()) {
         // storing captured variables in a struct
         captured_struct = capture_struct(gen);

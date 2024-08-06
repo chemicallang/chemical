@@ -80,6 +80,8 @@ public:
 
     virtual std::vector<llvm::Type *> param_types(Codegen &gen) = 0;
 
+    void queue_destruct_params(Codegen &gen);
+
 #endif
 
     /**

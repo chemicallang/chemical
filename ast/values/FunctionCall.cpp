@@ -61,9 +61,9 @@ void to_llvm_args(
     for (size_t i = start; i < values.size(); ++i) {
         argValue = values[i]->llvm_arg_value(gen, call, i);
 
-        if(values[i]->value_type() == ValueType::Struct) {
-            destructibles.emplace_back(values[i].get(), argValue);
-        }
+//        if(values[i]->value_type() == ValueType::Struct) {
+//            destructibles.emplace_back(values[i].get(), argValue);
+//        }
 
         // Ensure proper type promotion for float values passed to printf
         if (func_type->isVariadic && func_type->isInVarArgs(i) && argValue->getType()->isFloatTy()) {
@@ -220,6 +220,17 @@ llvm::Value *call_capturing_lambda(
 }
 
 void FunctionCall::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
+    const auto func = safe_linked_func();
+    if(func && func->has_annotation(AnnotationKind::CompTime)) {
+        auto eval = gen.evaluated_func_calls.find(this);
+        if(eval != gen.evaluated_func_calls.end()) {
+            eval->second->llvm_destruct(gen, allocaInst);
+            return;
+        } else {
+            // should this be reported ?
+//            gen.info("couldn't find evaluated value of the function to destruct");
+        }
+    }
     auto funcType = get_function_type();
     auto linked = funcType->returnType->linked_node();
     if(linked) {
@@ -258,12 +269,19 @@ llvm::Value* FunctionCall::llvm_chain_value(
     auto returnsStruct = func_type->returnType->value_type() == ValueType::Struct;
 
     if(decl && decl->has_annotation(AnnotationKind::CompTime)) {
+        Value* val;
         auto ret = std::unique_ptr<Value>(decl->call(&gen.comptime_scope, this, nullptr));
-        auto val = ret->evaluated_value(gen.comptime_scope);
-        if(!val) {
+        if(!ret) {
             gen.error("compile time function didn't return a value");
             return nullptr;
         }
+        auto eval = ret->create_evaluated_value(gen.comptime_scope);
+        if(eval) {
+            val = eval.release();
+        } else {
+            val = ret.release();
+        }
+        gen.evaluated_func_calls[this] = std::unique_ptr<Value>(val);
         auto as_struct = val->as_struct();
         if(as_struct) {
             if(!returnedStruct) {

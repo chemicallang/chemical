@@ -5,6 +5,7 @@
 #include "ast/types/ArrayType.h"
 #include "ast/values/VariableIdentifier.h"
 #include "ast/types/GenericType.h"
+#include "ast/structures/StructDefinition.h"
 
 #ifdef COMPILER_BUILD
 
@@ -26,6 +27,7 @@ void VarInitStatement::code_gen(Codegen &gen) {
         if (value.has_value()) {
             if(is_const && !value.value()->as_struct() && !value.value()->as_array_value()) {
                 llvm_ptr = value.value()->llvm_value(gen);
+                gen.destruct_nodes.emplace_back(this);
                 return;
             }
             llvm_ptr = value.value()->llvm_allocate(gen, identifier);
@@ -47,13 +49,22 @@ void VarInitStatement::code_gen_destruct(Codegen &gen, Value* returnValue) {
         value.value()->llvm_destruct(gen, llvm_ptr);
     } else {
         auto kind = type.value()->kind();
-        switch(kind) {
+        switch (kind) {
             case BaseTypeKind::Referenced:
                 type.value()->linked_node()->llvm_destruct(gen, llvm_ptr);
                 break;
+            case BaseTypeKind::Generic: {
+                const auto generic_struct = type.value()->get_generic_struct();
+                const auto prev_itr = generic_struct->active_iteration;
+                generic_struct->set_active_iteration(type.value()->get_generic_iteration());
+                generic_struct->llvm_destruct(gen, llvm_ptr);
+                generic_struct->set_active_iteration(prev_itr);
+                break;
+            }
             case BaseTypeKind::Array: {
                 const auto arr_type = (ArrayType *) type.value().get();
-                if(arr_type->elem_type->kind() == BaseTypeKind::Referenced) {
+                if (arr_type->elem_type->kind() == BaseTypeKind::Referenced ||
+                arr_type->elem_type->kind() == BaseTypeKind::Generic) {
                     gen.destruct(llvm_ptr, arr_type->array_size, arr_type->elem_type.get());
                 }
                 break;

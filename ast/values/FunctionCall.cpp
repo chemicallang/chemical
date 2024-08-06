@@ -223,7 +223,16 @@ void FunctionCall::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
     auto funcType = get_function_type();
     auto linked = funcType->returnType->linked_node();
     if(linked) {
+        int16_t prev_itr;
+        const auto struct_def = linked->as_struct_def();
+        if(struct_def && struct_def->is_generic()) {
+            prev_itr = struct_def->active_iteration;
+            struct_def->set_active_iteration(funcType->returnType->get_generic_iteration());
+        }
         linked->llvm_destruct(gen, allocaInst);
+        if(struct_def && struct_def->is_generic()) {
+            struct_def->set_active_iteration(prev_itr);
+        }
     }
 }
 

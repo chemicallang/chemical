@@ -67,6 +67,8 @@ public:
 
     ASTNode *linked_node() override;
 
+    bool is_generic();
+
 #ifdef COMPILER_BUILD
 
     void initialize_alloca(llvm::Value *inst, Codegen& gen);

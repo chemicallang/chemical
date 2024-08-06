@@ -72,6 +72,10 @@ public:
         return this;
     }
 
+    bool is_generic() {
+        return !generic_params.empty();
+    }
+
     void accept(Visitor *visitor) override;
 
     void declare_top_level(SymbolResolver &linker) override;

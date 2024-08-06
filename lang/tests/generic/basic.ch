@@ -16,6 +16,10 @@ struct PairGen <T, U, V> {
     }
 }
 
+func create_pair_gen() : PairGen<int, int, int> {
+    return PairGen <int,int,int> { a : 12, b : 13 }
+}
+
 func mul_int_pair(pair_gen : PairGen<int, int, int>) : int {
     return pair_gen.a * pair_gen.b;
 }
@@ -72,5 +76,9 @@ func test_basic_generics() {
             a : 2,
             b : 9
         }) == 18
+    })
+    test("generic structs can be returned", () => {
+        const p = create_pair_gen();
+        return p.add() == 25;
     })
 }

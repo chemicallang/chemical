@@ -30,6 +30,10 @@ struct GenDestruct<T> {
 
 }
 
+func take_gen_destruct_short(d : GenDestruct<short>) {
+
+}
+
 struct GenDestructOwner {
     var d : GenDestruct<long>
 }
@@ -328,6 +332,22 @@ func test_destructors() {
             var d : GenDestruct<int>[1] = {
                 GenDestruct<int> { data : 454, count : &count, lamb : destruct_inc_count  }
             }
+        }
+        return count == 1;
+    })
+    test("generic struct destructor is called when passed to a function - 1", () => {
+        var count = 0;
+        if(count == 0) {
+            take_gen_destruct_short(GenDestruct<short> {
+                data : 889, count : &count, lamb : destruct_inc_count
+            });
+        }
+        return count == 1;
+    })
+    test("generic struct destructor is called when passed to a function - 2", () => {
+        var count = 0;
+        if(count == 0) {
+            take_gen_destruct_short(create_long_gen_dest(343, &count, destruct_inc_count));
         }
         return count == 1;
     })

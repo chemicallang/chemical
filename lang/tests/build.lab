@@ -63,6 +63,7 @@ func build(ctx : BuildContext*) {
     const do_asm = false;
     const do_c = !is_minimal;
     const do_to_ch = !is_minimal && compiler::is_clang_based();
+    const do_dyn_lib = !is_minimal;
 
     if(do_llvm_ir) {
         gen_ir(ctx, &exe_name, module);
@@ -75,7 +76,10 @@ func build(ctx : BuildContext*) {
         printf("The asm path is %s\n", module.asm_path.data());
     }
 
-    ctx.build_dynamic_lib(exe_name, { module }, 1);
+    if(do_dyn_lib) {
+        ctx.build_dynamic_lib(exe_name, { module }, 1);
+    }
+
     const exe_job = ctx.build_exe(exe_name, { module }, 1);
 
     if(do_c) {

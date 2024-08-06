@@ -23,7 +23,7 @@ public:
     ASTNode* parent_node;
 
 #ifdef COMPILER_BUILD
-    std::vector<llvm::StructType*> llvm_struct_types = {};
+    std::unordered_map<int16_t, llvm::StructType*> llvm_struct_types;
 #endif
 
     /**
@@ -112,42 +112,17 @@ public:
         return has_annotation(AnnotationKind::Anonymous);
     }
 
-    llvm::StructType* llvm_stored_type() override {
-        if(active_iteration < llvm_struct_types.size()) {
-            return llvm_struct_types[active_iteration];
-        } else {
-            return nullptr;
-        }
-    }
+    llvm::StructType* llvm_stored_type() override;
 
-    void llvm_store_type(llvm::StructType* type) override {
-        const auto size = llvm_struct_types.size();
-        if(active_iteration == size) {
-            llvm_struct_types.emplace_back(type);
-        } else {
-            throw std::runtime_error("invalid active iteration during llvm_store_type");
-        }
-    }
+    void llvm_store_type(llvm::StructType* type) override;
 
-    llvm::Type *llvm_type(Codegen &gen) override {
-        return StructType::llvm_type(gen);
-    }
+    llvm::Type *llvm_type(Codegen &gen) override;
 
-    llvm::Type *llvm_type(Codegen &gen, int16_t iteration) {
-        auto prev = active_iteration;
-        set_active_iteration(iteration);
-        auto type = llvm_type(gen);
-        set_active_iteration(prev);
-        return type;
-    }
+    llvm::Type *llvm_type(Codegen &gen, int16_t iteration);
 
-    llvm::Type *llvm_param_type(Codegen &gen) override {
-        return StructType::llvm_param_type(gen);
-    }
+    llvm::Type *llvm_param_type(Codegen &gen) override;
 
-    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned int index) override {
-        return StructType::llvm_chain_type(gen, values, index);
-    }
+    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned int index) override;
 
     void struct_func_gen(
         Codegen& gen,

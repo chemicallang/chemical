@@ -351,4 +351,9 @@ func test_destructors() {
         }
         return count == 1;
     })
+    test("generic struct destructor is called in access chain", () => {
+        var count = 0;
+        const d = create_long_gen_dest(343, &count, destruct_inc_count).data
+        return count == 1 && d == 343;
+    })
 }

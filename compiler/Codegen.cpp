@@ -160,22 +160,29 @@ llvm::Function *Codegen::create_function(const std::string &name, llvm::Function
     return current_function;
 }
 
-llvm::Function *Codegen::create_nested_function(const std::string &name, llvm::FunctionType *type, Scope &scope) {
+llvm::Function *Codegen::create_nested_function(const std::string &name, llvm::FunctionType *type, BaseFunctionType* func_type, Scope &scope) {
 
+    auto prev_destruct_nodes = std::move(destruct_nodes);
+    auto prev_destroy_scope = destroy_current_scope;
     auto prev_block_ended = has_current_block_ended;
     auto prev_block = builder->GetInsertBlock();
     auto prev_current_func = current_function;
 
+    destroy_current_scope = true;
     SetInsertPoint(nullptr);
     auto nested_function = create_function_proto(name, type, AccessSpecifier::Private);
     current_function = nested_function;
+    const auto destruct_begin = destruct_nodes.size();
+    func_type->queue_destruct_params(*this);
     createFunctionBlock(nested_function);
-    scope.code_gen(*this);
+    scope.code_gen(*this, destruct_begin);
     end_function_block();
 
     has_current_block_ended = prev_block_ended;
     SetInsertPoint(prev_block);
     current_function = prev_current_func;
+    destruct_nodes = std::move(prev_destruct_nodes);
+    destroy_current_scope = prev_destroy_scope;
 
     return nested_function;
 

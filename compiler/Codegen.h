@@ -31,6 +31,8 @@ class BaseFunctionType;
 
 class MembersContainer;
 
+class FunctionCall;
+
 /**
  * A caster fn takes a pointer to a value, and a pointer to a type
  * the function then returns a new value by casting the given value to the given type
@@ -67,9 +69,14 @@ public:
 //    std::unordered_map<int, CasterFn> casters;
 
     /**
-     * contains references to nodes that must be deleted at the end of scope
+     * contains references to nodes that must be destructed at return
      */
     std::vector<ASTNode*> destruct_nodes;
+
+    /**
+     * when a function is evaluated, it's value is stored on this map, so it can be looked up for destruction
+     */
+    std::unordered_map<FunctionCall*, std::unique_ptr<Value>> evaluated_func_calls;
 
     /**
      * All get element pointer instructions use this to state that the element pointer is inbounds
@@ -158,7 +165,7 @@ public:
     /**
      * create a nested function
      */
-    llvm::Function *create_nested_function(const std::string &name, llvm::FunctionType *type, Scope &scope);
+    llvm::Function *create_nested_function(const std::string &name, llvm::FunctionType *type, BaseFunctionType* func_type, Scope &scope);
 
     /**
      * gets or inserts a function, similar to declaration

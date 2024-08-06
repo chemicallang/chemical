@@ -51,6 +51,11 @@ public:
     void error(const std::string &err, ASTNode *node = nullptr);
 
     /**
+     * report a warning
+     */
+    void warn(const std::string &err, ASTNode *node = nullptr);
+
+    /**
      * just prints the errors to std out
      */
     void print_errors(const std::string& path);

@@ -48,6 +48,8 @@ public:
 
     void code_gen(Codegen &gen) override;
 
+    void code_gen(Codegen &gen, unsigned destruct_begin);
+
 #endif
 
     Scope *as_scope() override {

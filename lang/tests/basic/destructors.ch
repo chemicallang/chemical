@@ -390,7 +390,7 @@ func test_destructors() {
         }
         return my_string_destr_count == 1;
     })
-    test("comptime constructor struct is destructed, when passing to function call", () => {
+    test("comptime constructor struct is destructed, when passing to function call and returning from it", () => {
         my_string_destr_count = 0;
         if(true) {
             const input_file = relative_path(my_string("ext/file.c"))

@@ -35,7 +35,15 @@ llvm::Value *StructValue::llvm_pointer(Codegen &gen) {
 }
 
 void StructValue::llvm_destruct(Codegen &gen, llvm::Value *givenAlloca) {
+    int16_t prev_itr;
+    if(is_generic()) {
+        prev_itr = definition->active_iteration;
+        definition->set_active_iteration(generic_iteration);
+    }
     definition->llvm_destruct(gen, givenAlloca);
+    if(is_generic()) {
+        definition->set_active_iteration(prev_itr);
+    }
 }
 
 unsigned int StructValue::store_in_struct(
@@ -189,6 +197,10 @@ void StructValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr
 
 ASTNode *StructValue::linked_node() {
     return definition;
+}
+
+bool StructValue::is_generic() {
+    return definition->is_generic();
 }
 
 Value *StructValue::call_member(

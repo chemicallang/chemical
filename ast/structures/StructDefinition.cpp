@@ -166,7 +166,17 @@ void StructDefinition::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
         if(func->has_self_param()) {
             args.emplace_back(allocaInst);
         }
-        gen.builder->CreateCall(func->llvm_func_type(gen), func->llvm_pointer(gen), args);
+        llvm::FunctionType* func_type;
+        llvm::Value* func_callee;
+        if(is_generic()) {
+            const auto data = llvm_generic_func_data(func, active_iteration, func->active_iteration);
+            func_type = data.second;
+            func_callee = data.first;
+        } else {
+            func_type = func->llvm_func_type(gen);
+            func_callee = func->llvm_pointer(gen);
+        }
+        gen.builder->CreateCall(func_type, func_callee, args);
     }
 }
 

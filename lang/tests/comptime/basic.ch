@@ -5,6 +5,7 @@ struct Pair66 {
     var a : int
     var b : int
 
+    @implicit
     @comptime
     @constructor
     func check(value : bool) {
@@ -110,6 +111,14 @@ func ret_struct_comptime_b() : Pair66 {
     return Pair66(false)
 }
 
+func ret_struct_implicit() : Pair66 {
+    return true;
+}
+
+func ret_struct_implicit_b() : Pair66 {
+    return false;
+}
+
 struct CompTimeCounter {
     @comptime
     @constructor
@@ -175,12 +184,20 @@ func test_comptime() {
         var c = CompTimeCounter(&i);
         return i == 1;
     })
-    test("comptime constructor initialized struct can be returned", () => {
+    test("comptime constructor initialized struct can be returned - 1", () => {
         const d = ret_struct_comptime();
         return d.a == 15 && d.b == 15;
     })
-    test("comptime constructor initialized struct can be returned", () => {
+    test("comptime constructor initialized struct can be returned - 2", () => {
         const d = ret_struct_comptime_b();
+        return d.a == 20 && d.b == 20;
+    })
+    test("comptime constructor can be implicit - 1", () => {
+        const d = ret_struct_implicit();
+        return d.a == 15 && d.b == 15;
+    })
+    test("comptime constructor can be implicit - 2", () => {
+        const d = ret_struct_implicit_b();
         return d.a == 20 && d.b == 20;
     })
 }

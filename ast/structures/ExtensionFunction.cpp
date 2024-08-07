@@ -53,11 +53,34 @@ static std::string get_referenced(BaseType* type) {
 }
 
 void ExtensionFunction::declare_top_level(SymbolResolver &linker) {
-    auto referenced = get_referenced(receiver.type.get());
-    auto linked = linker.find(referenced);
+
+    /**
+     * when a user has a call to function which is declared below current function, that function
+     * has a parameter of type ref struct, the struct has implicit constructor for the value we are passing
+     * we need to know the struct, we require the function's parameters to be linked, however that happens declare_and_link which happens
+     * when function's body is linked, then an error happens, so we must link the types of parameters of all functions before linking bodies
+     * in a single scope
+     *
+     * TODO However this requires that all the types used for parameters of functions must be declared above the function, because it will link
+     *  in declaration stage, If the need arises that types need to be declared below a function, we should refactor this code,
+     *
+     * Here we are not declaring parameters, just declaring generic ones, we are linking parameters
+     */
+    linker.scope_start();
+    for(auto& gen_param : generic_params) {
+        gen_param->declare_and_link(linker);
+    }
+    receiver.type->link(linker, receiver.type);
+    for(auto& param : params) {
+        param->type->link(linker, param->type);
+    }
+    linker.scope_end();
+
+//    auto referenced = get_referenced(receiver.type.get());
+    auto linked = receiver.type->linked_node();
     auto& type = receiver.type;
     if(!linked) {
-        linker.error("couldn't find container with name \"" + referenced + "\" in extension function receiver type \"" + type->representation() + "\"");
+        linker.error("couldn't find container in extension function ith receiver type \"" + type->representation() + "\"");
         return;
     }
     auto container = linked->as_extendable_members_container();
@@ -96,7 +119,6 @@ ExtensionFunction::ExtensionFunction(
 }
 
 void ExtensionFunction::declare_and_link(SymbolResolver &linker) {
-    receiver.type->link(linker, receiver.type);
     // if has body declare params
     linker.scope_start();
     receiver.declare_and_link(linker);

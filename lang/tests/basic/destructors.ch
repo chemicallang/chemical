@@ -419,4 +419,17 @@ func test_destructors() {
         const d = test_return_struct_param(Destructible { data : 777, count : &count, lamb : destruct_inc_count });
         return d.data == 777 && count == 0;
     })
+    test("lambda doesn't destruct outside it's scope", () => {
+        var count = 0;
+        var d = Destructible { data : 677, count : &count, lamb : destruct_inc_count }
+        var lamb : () => void = () => {
+            return;
+        }
+        var lamb2 : () => void = () => {
+
+        }
+        lamb();
+        lamb2();
+        return count == 0 && d.data == 677;
+    })
 }

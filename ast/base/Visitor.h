@@ -130,6 +130,8 @@ class NumberValue;
 
 class TernaryValue;
 
+class SizeOfValue;
+
 class LambdaFunction;
 
 class AnyType;
@@ -473,6 +475,10 @@ public:
 
     virtual void visit(TernaryValue* ternary) {
         visitCommonValue((Value*) ternary);
+    }
+
+    virtual void visit(SizeOfValue* size_of) {
+        visitCommonValue((Value*) size_of);
     }
 
     virtual void visit(LambdaFunction* func) {

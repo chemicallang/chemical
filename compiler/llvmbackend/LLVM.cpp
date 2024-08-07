@@ -29,6 +29,7 @@
 #include "ast/values/Negative.h"
 #include "ast/values/NotValue.h"
 #include "ast/values/NullValue.h"
+#include "ast/values/SizeOfValue.h"
 #include "ast/structures/Namespace.h"
 #include "ast/values/StringValue.h"
 #include "ast/values/AddrOfValue.h"
@@ -512,6 +513,11 @@ llvm::Value* RetStructParamValue::llvm_value(Codegen &gen) {
     }
     // TODO implicitly returning struct parameter index is hardcoded
     return gen.current_function->getArg(0);
+}
+
+llvm::Value* SizeOfValue::llvm_value(Codegen &gen) {
+    value = for_type->byte_size(gen.is64Bit);
+    return UBigIntValue::llvm_value(gen);
 }
 
 void AccessChain::code_gen(Codegen &gen) {

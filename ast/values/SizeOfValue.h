@@ -2,22 +2,30 @@
 
 #pragma once
 
-#include "ast/base/Value.h"
+#include "ast/values/UBigIntValue.h"
 
 /**
- * will replace itself at resolution phase with the size of the given type
+ * will determine the size of a given type
  */
-class SizeOfValue : public Value {
-private:
-    std::unique_ptr<BaseType> for_type;
+class SizeOfValue : public UBigIntValue {
 public:
+
+    std::unique_ptr<BaseType> for_type;
 
     explicit SizeOfValue(BaseType *for_type);
 
     void accept(Visitor *visitor) override {
-        throw std::runtime_error("A SizeOfValue cannot be visited, because it's replaced at resolution phase");
+        visitor->visit(this);
     }
 
     void link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr) override;
+
+    void calculate_size(bool is64Bit);
+
+#ifdef COMPILER_BUILD
+
+    llvm::Value *llvm_value(Codegen &gen) override;
+
+#endif
 
 };

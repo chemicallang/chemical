@@ -40,6 +40,16 @@ public:
     bool top_level_node = true;
 
     /**
+     * is system 64bit
+     */
+    bool is64Bit = true;
+
+    /**
+     * should C's sizeof operator be used instead of our sizeof macro
+     */
+    bool use_sizeof = false;
+
+    /**
      * whether to output debug comments or not
      */
 #ifdef DEBUG
@@ -359,6 +369,8 @@ public:
     void visit(StructValue* structValue) override;
 
     void visit(VariableIdentifier* identifier) override;
+
+    void visit(SizeOfValue *size_of) override;
 
     void visit(Expression* expr) override;
 

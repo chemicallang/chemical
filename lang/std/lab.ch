@@ -28,12 +28,20 @@ enum LabJobType {
     ToChemicalTranslation
 }
 
+enum LabJobStatus {
+    Pending,
+    Launched,
+    Success,
+    Failure
+}
+
 @no_init
 struct LabJob {
     var type : LabJobType
     var name : string
     var abs_path : string
     var build_dir : string
+    var status : LabJobStatus
 }
 
 struct BuildContext {

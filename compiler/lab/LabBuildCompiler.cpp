@@ -106,18 +106,33 @@ LabBuildCompiler::LabBuildCompiler(LabBuildCompilerOptions *options) : options(o
 }
 
 int LabBuildCompiler::do_job(LabJob* job) {
+    job->status = LabJobStatus::Launched;
+    int return_int;
     switch(job->type) {
         case LabJobType::Executable:
-            return do_executable_job(job);
+            return_int = do_executable_job(job);
+            break;
         case LabJobType::Library:
-            return do_library_job(job);
+            return_int = do_library_job(job);
+            break;
         case LabJobType::ToCTranslation:
-            return do_to_c_job(job);
+            return_int = do_to_c_job(job);
+            break;
         case LabJobType::ToChemicalTranslation:
-            return do_to_chemical_job(job);
+            return_int = do_to_chemical_job(job);
+            break;
         case LabJobType::ProcessingOnly:
-            return process_modules(job);
+            return_int = process_modules(job);
+            break;
     }
+    if(job->status == LabJobStatus::Launched) {
+        if(return_int == 0) {
+            job->status = LabJobStatus::Success;
+        } else {
+            job->status = LabJobStatus::Failure;
+        }
+    }
+    return return_int;
 }
 
 int LabBuildCompiler::process_modules(LabJob* exe) {
@@ -305,7 +320,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                 // get the processed result
                 result = std::move(futures[i].get());
                 if(!result.continue_processing) {
-                    compile_result = false;
+                    compile_result = 1;
                     break;
                 }
             }
@@ -319,7 +334,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
             // symbol resolution
             processor.sym_res(result.scope, result.is_c_file, file.abs_path);
             if (resolver.has_errors) {
-                compile_result = false;
+                compile_result = 1;
                 break;
             }
             resolver.reset_errors();
@@ -427,7 +442,7 @@ int LabBuildCompiler::link(std::vector<chem::string>& linkables, const std::stri
         return link_result;
     }
 
-    return 0;
+    return link_result;
 }
 
 int LabBuildCompiler::do_executable_job(LabJob* job) {

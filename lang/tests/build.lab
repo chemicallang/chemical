@@ -99,7 +99,9 @@ func build(ctx : BuildContext*) {
 
     ctx.on_finished((data : void*) => {
         const jx = data as JobAndContext*
-        jx.ctx.launch_executable(jx.job.abs_path.copy(), true);
+        if(jx.job.status == LabJobStatus.Success) {
+            jx.ctx.launch_executable(jx.job.abs_path.copy(), true);
+        }
     }, &jc);
 
 }

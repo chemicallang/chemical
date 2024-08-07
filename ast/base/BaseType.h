@@ -212,6 +212,11 @@ public:
      */
     StructDefinition* get_generic_struct();
 
+    /**
+     * this type references a struct
+     */
+    bool is_ref_struct();
+
 #ifdef COMPILER_BUILD
 
     /**

@@ -1967,8 +1967,11 @@ void ToCAstVisitor::return_value(Value* val) {
         write(struct_passed_param_name);
         write(" = ");
         const auto id = val->as_identifier();
-        if(id && id->linked->as_func_param()) {
-            write('*');
+        if(id) {
+            const auto func_param = id->linked->as_func_param();
+            if(func_param && func_param->type->is_ref_struct()) {
+                write('*');
+            }
         }
         val->accept(this);
     } else {

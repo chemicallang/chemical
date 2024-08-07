@@ -19,6 +19,7 @@ import "comptime/basic.ch"
 import "comptime/vector.ch"
 import "basic/external.ch"
 import "generic/basic.ch"
+import "type/datatype/vectors.ch"
 
 func main() {
     test_var_init();
@@ -42,5 +43,6 @@ func main() {
     test_compiler_vector();
     test_external_functions();
     test_basic_generics();
+    test_vectors();
     print_test_stats();
 }

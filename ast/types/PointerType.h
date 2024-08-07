@@ -18,6 +18,10 @@ public:
 
     }
 
+    int16_t get_generic_iteration() override {
+        return type->get_generic_iteration();
+    }
+
     std::unique_ptr<BaseType> create_child_type() const override {
         return std::unique_ptr<BaseType>(type->copy());
     }

@@ -561,7 +561,13 @@ llvm::Value *AccessChain::llvm_pointer(Codegen &gen) {
 }
 
 llvm::AllocaInst *AccessChain::llvm_allocate(Codegen &gen, const std::string &identifier) {
-    return values[values.size() - 1]->access_chain_allocate(gen, values, values.size() - 1);
+    std::vector<std::pair<Value*, llvm::Value*>> destructibles;
+    std::unordered_map<uint16_t, int16_t> active;
+    set_generic_iterations(active);
+    auto value = values[values.size() - 1]->access_chain_allocate(gen, values, values.size() - 1);
+    restore_active_iterations(active);
+    Value::destruct(gen, destructibles);
+    return value;
 }
 
 void AccessChain::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {

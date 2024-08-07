@@ -10,6 +10,7 @@
 #include "compiler/SymbolResolver.h"
 #include "ast/values/StructValue.h"
 #include "ast/base/BaseType.h"
+#include "ast/types/GenericType.h"
 #include "ast/structures/MultiFunctionNode.h"
 #include "ast/utils/ASTUtils.h"
 
@@ -445,6 +446,10 @@ void FunctionCall::find_link_in_parent(ChainValue *parent, ASTDiagnoser* diagnos
         auto constructorFunc = parent_struct->constructor_func(values);
         if(constructorFunc) {
             parent_id->linked = constructorFunc;
+            // calling a constructor of a generic struct where constructor is not generic
+            if(constructorFunc->generic_params.empty() && parent_struct->is_generic()) {
+                generic_iteration = parent_struct->register_generic_args(generic_list);
+            }
         } else {
             diagnoser->error("struct with name " + parent_struct->name + " doesn't have a constructor that satisfies given arguments " + representation(), parent_struct);
         }
@@ -523,11 +528,22 @@ Value *FunctionCall::copy() {
     for(auto& value : values) {
         call->values.emplace_back(value->copy());
     }
+    for(auto& gen_arg : generic_list) {
+        call->generic_list.emplace_back(gen_arg->copy());
+    }
     call->parent_val = parent_val;
+    call->generic_iteration = generic_iteration;
     return call;
 }
 
 std::unique_ptr<BaseType> FunctionCall::create_type() {
+    const auto func_decl = safe_linked_func();
+    if(func_decl && func_decl->generic_params.empty() && func_decl->has_annotation(AnnotationKind::Constructor)) {
+        const auto struct_def = func_decl->parent_node->as_struct_def();
+        if(struct_def->is_generic()) {
+            return std::make_unique<GenericType>(std::make_unique<ReferencedType>(struct_def->name, struct_def), generic_iteration);
+        }
+    }
     auto prev_itr = set_curr_itr_on_decl();
     auto func_type = create_function_type();
     auto pure_type = func_type->returnType->get_pure_type();

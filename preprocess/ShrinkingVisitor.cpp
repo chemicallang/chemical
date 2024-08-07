@@ -29,14 +29,23 @@ void shrink(FunctionDeclaration* decl) {
 }
 
 void ShrinkingVisitor::visit(FunctionDeclaration *funcDecl) {
+    if(funcDecl->is_generic() && funcDecl->specifier != AccessSpecifier::Private) {
+        return;
+    }
     shrink(funcDecl);
 }
 
 void ShrinkingVisitor::visit(ExtensionFunction *exFunc) {
+    if(exFunc->is_generic() && exFunc->specifier != AccessSpecifier::Private) {
+        return;
+    }
     shrink(exFunc);
 }
 
 void ShrinkingVisitor::visit(StructDefinition *def) {
+    if(def->is_generic() && def->specifier != AccessSpecifier::Private) {
+        return;
+    }
     for(auto& func : def->functions()) {
         shrink(func.get());
     }

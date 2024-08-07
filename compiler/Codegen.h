@@ -33,6 +33,8 @@ class MembersContainer;
 
 class FunctionCall;
 
+class FunctionDeclaration;
+
 /**
  * A caster fn takes a pointer to a value, and a pointer to a type
  * the function then returns a new value by casting the given value to the given type
@@ -259,6 +261,12 @@ public:
     int invoke_clang(const std::vector<std::string> &command_args);
 
 #endif
+
+    /**
+     * the given call is linked with given comptime function decl, that is evaluated to receive the return value
+     * using this function, the evaluation is done once, so this function caches the return value
+     */
+    std::unique_ptr<Value>& eval_comptime(FunctionCall* call, FunctionDeclaration* decl);
 
     /**
      * destructs an array, also allows to add extra logic after destruction via lambda

@@ -102,6 +102,14 @@ func ret_struct_boi() : Pair66 {
     return;
 }
 
+func ret_struct_comptime() : Pair66 {
+    return Pair66(true)
+}
+
+func ret_struct_comptime_b() : Pair66 {
+    return Pair66(false)
+}
+
 struct CompTimeCounter {
     @comptime
     @constructor
@@ -166,5 +174,13 @@ func test_comptime() {
         var i = 0;
         var c = CompTimeCounter(&i);
         return i == 1;
+    })
+    test("comptime constructor initialized struct can be returned", () => {
+        const d = ret_struct_comptime();
+        return d.a == 15 && d.b == 15;
+    })
+    test("comptime constructor initialized struct can be returned", () => {
+        const d = ret_struct_comptime_b();
+        return d.a == 20 && d.b == 20;
     })
 }

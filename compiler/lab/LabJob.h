@@ -8,6 +8,13 @@
 
 struct LabModule;
 
+enum class LabJobStatus {
+    Pending = 0,
+    Launched = 1,
+    Success = 2,
+    Failure = 3
+};
+
 struct LabJob {
     // the type of job
     LabJobType type;
@@ -17,6 +24,8 @@ struct LabJob {
     chem::string abs_path;
     // absolute path to build dir for this job
     chem::string build_dir;
+    // the status of the job
+    LabJobStatus status = LabJobStatus::Pending;
     // these are linkable object or bitcode files required by the module
     std::vector<chem::string> linkables;
     // dependencies are the pointers to modules that this module depends on

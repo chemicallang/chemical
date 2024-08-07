@@ -1120,7 +1120,7 @@ public:
 
     void dispatch_jobs_from(int begin);
 
-    void queue_destruct_decl_params(FunctionDeclaration* decl);
+    void queue_destruct_decl_params(BaseFunctionType* decl);
 
     void process_init_value(VarInitStatement *init, Value* value);
 
@@ -1329,7 +1329,7 @@ void CDestructionVisitor::dispatch_jobs_from(int begin) {
     destruct_jobs.erase(itr, destruct_jobs.end());
 }
 
-void CDestructionVisitor::queue_destruct_decl_params(FunctionDeclaration* decl) {
+void CDestructionVisitor::queue_destruct_decl_params(BaseFunctionType* decl) {
     for(auto& d_param : decl->params) {
         if(d_param->type->kind() == BaseTypeKind::Referenced || d_param->type->kind() == BaseTypeKind::Generic) {
             auto linked_struct = d_param->type->linked_struct_def();
@@ -1433,6 +1433,18 @@ void CDestructionVisitor::visit(VarInitStatement *init) {
     }
 }
 
+// this will also destruct given function type's params at the end of scope
+void scope(ToCAstVisitor* visitor, Scope& scope, BaseFunctionType* decl) {
+    unsigned begin = visitor->destructor->destruct_jobs.size();
+    visitor->destructor->queue_destruct_decl_params(decl);
+    visitor->write('{');
+    visitor->indentation_level+=1;
+    visitor->visit_scope(&scope, (int) begin);
+    visitor->indentation_level-=1;
+    visitor->new_line_and_indent();
+    visitor->write('}');
+}
+
 std::string func_type_alias(ToCAstVisitor* visitor, FunctionType* type) {
     std::string alias = "__chx_functype_";
     alias += std::to_string(random(100,999)) + "_";
@@ -1520,7 +1532,7 @@ void CValueDeclarationVisitor::visit(LambdaFunction *lamb) {
     auto prev_destroy_scope = visitor->destructor->destroy_current_scope;
     visitor->destructor->destroy_current_scope = true;
     auto previous_destruct_jobs = std::move(visitor->destructor->destruct_jobs);
-    scope(visitor, lamb->scope);
+    scope(visitor, lamb->scope, lamb);
     visitor->destructor->destruct_jobs = std::move(previous_destruct_jobs);
     visitor->destructor->destroy_current_scope = prev_destroy_scope;
 }
@@ -2056,14 +2068,7 @@ void func_decl_with_name(ToCAstVisitor* visitor, FunctionDeclaration* decl, cons
     } else {
         declare_func_with_return(visitor, decl, name);
     }
-    unsigned begin = visitor->destructor->destruct_jobs.size();
-    visitor->destructor->queue_destruct_decl_params(decl);
-    visitor->write('{');
-    visitor->indentation_level+=1;
-    visitor->visit_scope(&decl->body.value(), (int) begin);
-    visitor->indentation_level-=1;
-    visitor->new_line_and_indent();
-    visitor->write('}');
+    scope(visitor, decl->body.value(), decl);
     visitor->current_func_type = prev_func_decl;
 }
 

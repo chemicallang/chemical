@@ -138,6 +138,14 @@ func test_struct_param_destructor(d : Destructible) {
 
 }
 
+func send_lambda_struct(data : int, count : int*, lamb : (d : Destructible) => void) {
+    lamb(Destructible {
+        data : data,
+        count : count,
+        lamb : destruct_inc_count
+    })
+}
+
 var my_string_destr_count : int = 0
 
 struct my_string {
@@ -396,5 +404,10 @@ func test_destructors() {
             const input_file = relative_path(my_string("ext/file.c"))
         }
         return my_string_destr_count == 2;
+    })
+    test("lambda taking a struct, the struct is destructed", () => {
+        var count = 0;
+        send_lambda_struct(347, &count, (d) => {})
+        return count == 1;
     })
 }

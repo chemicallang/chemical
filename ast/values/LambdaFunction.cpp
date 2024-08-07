@@ -149,6 +149,14 @@ void LambdaFunction::link(SymbolResolver &linker, std::unique_ptr<Value>& value_
 
 }
 
+void link_given_params(SymbolResolver& resolver, const std::vector<std::unique_ptr<FunctionParam>>& params) {
+    for(auto& param : params) {
+        if(param->type) {
+            param->type->link(resolver, param->type);
+        }
+    }
+}
+
 void copy_func_params_types(const std::vector<std::unique_ptr<FunctionParam>>& from_params, std::vector<std::unique_ptr<FunctionParam>>& to_params, SymbolResolver& resolver) {
     if(to_params.size() > from_params.size()) {
         resolver.error("Lambda function type expects " + std::to_string(from_params.size()) + " however given " + std::to_string(to_params.size()));
@@ -156,14 +164,12 @@ void copy_func_params_types(const std::vector<std::unique_ptr<FunctionParam>>& f
     }
     auto total = from_params.size();
     auto start = 0;
-    FunctionParam* from_param;
-    FunctionParam* to_param;
     while(start < total) {
-        from_param = from_params[start].get();
+        const auto from_param = from_params[start].get();
         if(start >= to_params.size()) {
             to_params.emplace_back(nullptr);
         }
-        to_param = to_params[start].get();
+        const auto to_param = to_params[start].get();
         if(!to_param->type) {
             to_param->type = std::unique_ptr<BaseType>(from_param->type->copy());
         } else if(!to_param->type->is_same(from_param->type.get())) {
@@ -174,6 +180,7 @@ void copy_func_params_types(const std::vector<std::unique_ptr<FunctionParam>>& f
 }
 
 void LambdaFunction::link(SymbolResolver &linker, FunctionType* func_type) {
+    link_given_params(linker, params);
     copy_func_params_types(func_type->params, params, linker);
     if(!returnType) {
         returnType = std::unique_ptr<BaseType>(func_type->returnType->copy());

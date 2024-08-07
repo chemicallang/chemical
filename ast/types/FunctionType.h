@@ -36,10 +36,14 @@ public:
 
     bool isInVarArgs(unsigned index);
 
+    uint64_t byte_size(bool is64Bit) override;
+
+    [[nodiscard]]
     BaseTypeKind kind() const override {
         return BaseTypeKind::Function;
     }
 
+    [[nodiscard]]
     ValueType value_type() const override {
         return ValueType::Lambda;
     }

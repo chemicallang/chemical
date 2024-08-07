@@ -138,6 +138,10 @@ func test_struct_param_destructor(d : Destructible) {
 
 }
 
+func test_return_struct_param(d : Destructible) : Destructible {
+    return d;
+}
+
 func send_lambda_struct(data : int, count : int*, lamb : (d : Destructible) => void) {
     lamb(Destructible {
         data : data,
@@ -409,5 +413,10 @@ func test_destructors() {
         var count = 0;
         send_lambda_struct(347, &count, (d) => {})
         return count == 1;
+    })
+    test("returning struct parameter doesn't destruct it", () => {
+        var count = 0;
+        const d = test_return_struct_param(Destructible { data : 777, count : &count, lamb : destruct_inc_count });
+        return d.data == 777 && count == 0;
     })
 }

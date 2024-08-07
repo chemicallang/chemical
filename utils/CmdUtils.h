@@ -32,9 +32,9 @@ struct CmdOptions {
     /**
      * The map of options (--option) and arguments (--option argument)
      * where if another option is encountered after an option, the first is stored with value true
-     * if arguments are envountered without options before them, they are stored with "" as values
+     * if arguments are encountered without options before them, they are stored with "" as values
      */
-    std::map<std::string, std::string> options;
+    tsl::ordered_map<std::string, std::string> options;
 
     /**
      * just prints the command to cout
@@ -94,6 +94,15 @@ struct CmdOptions {
         }
         args.shrink_to_fit();
         return args;
+    }
+
+    std::optional<std::pair<std::string, std::string>> at(unsigned i) {
+        const auto itr = options.begin() + i;
+        if(itr != options.end()) {
+            return std::pair<std::string, std::string> { itr->first, itr->second };
+        } else {
+            return std::nullopt;
+        }
     }
 
     /**

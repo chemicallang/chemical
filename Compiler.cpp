@@ -95,7 +95,14 @@ int main(int argc, char *argv[]) {
 
     // parsing the command
     CmdOptions options;
-    auto args = options.parse_cmd_options(argc, argv, 1, {"cc", "ar", "clang", "linker", "jit"});
+    auto args = options.parse_cmd_options(argc, argv, 1, {"cc", "ar", "configure", "linker"});
+
+    // check if configure is called
+    auto config_option = options.option("configure");
+    if(config_option.has_value()) {
+        std::cout << "Successfully configured Chemical Compiler for your OS" << std::endl;
+        return 0;
+    }
 
 #ifdef COMPILER_BUILD
     // use llvm archiver

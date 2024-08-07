@@ -457,6 +457,9 @@ def_type(std::move(def_type)), parent_node(parent_node) {
 
 void GenericTypeParameter::declare_and_link(SymbolResolver &linker) {
     linker.declare(identifier, this);
+    if(def_type) {
+        def_type->link(linker, def_type);
+    }
 }
 
 void GenericTypeParameter::register_usage(BaseType* type) {

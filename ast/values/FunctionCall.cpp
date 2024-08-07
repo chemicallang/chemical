@@ -269,19 +269,10 @@ llvm::Value* FunctionCall::llvm_chain_value(
     auto returnsStruct = func_type->returnType->value_type() == ValueType::Struct;
 
     if(decl && decl->has_annotation(AnnotationKind::CompTime)) {
-        Value* val;
-        auto ret = std::unique_ptr<Value>(decl->call(&gen.comptime_scope, this, nullptr));
-        if(!ret) {
-            gen.error("compile time function didn't return a value");
+        auto& val = gen.eval_comptime(this, decl);
+        if(!val) {
             return nullptr;
         }
-        auto eval = ret->create_evaluated_value(gen.comptime_scope);
-        if(eval) {
-            val = eval.release();
-        } else {
-            val = ret.release();
-        }
-        gen.evaluated_func_calls[this] = std::unique_ptr<Value>(val);
         auto as_struct = val->as_struct();
         if(as_struct) {
             if(!returnedStruct) {

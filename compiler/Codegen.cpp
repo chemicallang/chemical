@@ -211,6 +211,29 @@ Codegen::create_function_proto(const std::string &name, llvm::FunctionType *type
     return fn;
 }
 
+std::unique_ptr<Value>& Codegen::eval_comptime(FunctionCall* call, FunctionDeclaration* decl) {
+    auto found = evaluated_func_calls.find(call);
+    if(found != evaluated_func_calls.end()) {
+        return found->second;
+    } else {
+        Value* val;
+        auto ret = std::unique_ptr<Value>(decl->call(&comptime_scope, call, nullptr));
+        if(!ret) {
+            warn("compile time function didn't return a value", decl);
+            evaluated_func_calls[call] = std::unique_ptr<Value>(val);
+            return evaluated_func_calls[call];
+        }
+        auto eval = ret->create_evaluated_value(comptime_scope);
+        if(eval) {
+            val = eval.release();
+        } else {
+            val = ret.release();
+        }
+        evaluated_func_calls[call] = std::unique_ptr<Value>(val);
+        return evaluated_func_calls[call];
+    }
+}
+
 void Codegen::destruct(llvm::Value* allocaInst, unsigned int array_size, BaseType* elem_type, void* data, void(*after_destruct)(Codegen*, llvm::Value*, void*)) {
     if(!elem_type->linked_node() || !elem_type->linked_node()->as_struct_def()) {
         return;

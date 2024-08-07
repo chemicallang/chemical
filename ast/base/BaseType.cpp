@@ -27,4 +27,16 @@ StructDefinition* BaseType::get_generic_struct() {
     }
 }
 
+bool BaseType::is_ref_struct() {
+    const auto k = kind();
+    if(k == BaseTypeKind::Generic) {
+        return true;
+    } else if(k == BaseTypeKind::Referenced) {
+        const auto linked = linked_node();
+        return linked && linked->as_struct_def() != nullptr;
+    } else {
+        return false;
+    }
+}
+
 BaseType::~BaseType() = default;

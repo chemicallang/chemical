@@ -71,6 +71,10 @@ public:
         parent_node = new_parent;
     }
 
+    bool is_generic() {
+        return !generic_params.empty();
+    }
+
     ASTNode *parent() override {
         return parent_node;
     }

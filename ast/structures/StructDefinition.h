@@ -19,6 +19,7 @@
 class StructDefinition : public ExtendableMembersContainerNode, public StructType {
 public:
 
+    AccessSpecifier specifier;
     std::optional<std::unique_ptr<ReferencedType>> overrides;
     ASTNode* parent_node;
 

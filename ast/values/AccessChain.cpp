@@ -228,7 +228,7 @@ std::pair<StructDefinition*, int16_t> get_grandpa_generic_struct(std::vector<std
     if(index - 2 < chain_values.size()) {
         const auto linked = chain_values[index - 1]->linked_node();
         const auto func_decl = linked ? linked->as_function() : nullptr;
-        if (func_decl) {
+        if (func_decl && func_decl->as_extension_func() == nullptr) {
             const auto gran = get_grandpa_value(chain_values, index);
             // grandpa value can refer to a namespace, which is unable to create_type
             const auto gran_type = gran->create_type();

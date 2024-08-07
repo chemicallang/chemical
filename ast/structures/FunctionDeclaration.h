@@ -92,6 +92,8 @@ public:
 
     void ensure_destructor(StructDefinition* def);
 
+    using BaseFunctionType::as_extension_func;
+
     /**
      * set's the active iteration for a generic function
      * this helps generics types pretend to be certain type

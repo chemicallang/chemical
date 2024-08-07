@@ -5,6 +5,7 @@
 #include "ast/types/ReferencedType.h"
 #include "ast/base/ExtendableBase.h"
 #include "ast/types/PointerType.h"
+#include "ast/types/GenericType.h"
 #include "ast/types/FunctionType.h"
 
 #ifdef COMPILER_BUILD
@@ -38,35 +39,34 @@ ASTNode *ExtensionFuncReceiver::child(const std::string &name) {
     return type->linked_node()->child(name);
 }
 
-void ExtensionFunction::declare_top_level(SymbolResolver &linker) {
-    receiver.type->link(linker, receiver.type);
-    ReferencedType* ref;
-    auto& type = receiver.type;
-    if(type->kind() == BaseTypeKind::Referenced) {
-        ref = (ReferencedType*) type.get();
-    } else if(type->kind() == BaseTypeKind::Pointer) {
-        auto ptr = (PointerType*) type.get();
-        if(ptr->type->kind() == BaseTypeKind::Referenced) {
-            ref = (ReferencedType*) ptr->type.get();
-        } else {
-            linker.error("Unsupported type in extension function" + type->representation());
-            return;
-        }
+static std::string get_referenced(BaseType* type) {
+    const auto kind = type->kind();
+    if(kind == BaseTypeKind::Referenced) {
+        return ((ReferencedType*) type)->type;
+    } else if(kind == BaseTypeKind::Generic) {
+        return ((GenericType*) type)->referenced->type;
+    } else if(kind == BaseTypeKind::Pointer) {
+        return get_referenced(((PointerType*) type)->type.get());
     } else {
-        linker.error("Unsupported type in extension function " + type->representation());
+        return "";
+    }
+}
+
+void ExtensionFunction::declare_top_level(SymbolResolver &linker) {
+    auto referenced = get_referenced(receiver.type.get());
+    auto linked = linker.find(referenced);
+    auto& type = receiver.type;
+    if(!linked) {
+        linker.error("couldn't find container with name \"" + referenced + "\" in extension function receiver type \"" + type->representation() + "\"");
         return;
     }
-    if(!ref->linked) {
-        linker.error("No linkage found for type mentioned in extension function " + type->representation());
-        return;
-    }
-    auto container = ref->linked->as_extendable_members_container();
+    auto container = linked->as_extendable_members_container();
     if(!container) {
-        linker.error("Type doesn't support extension functions " + type->representation());
+        linker.error("type doesn't support extension functions " + type->representation());
         return;
     }
-    if(ref->linked->child(name)) {
-        linker.error("Type already has a field / function, Type " + type->representation() + " has member " + name);
+    if(linked->child(name)) {
+        linker.error("type already has a field / function, Type " + type->representation() + " has member " + name);
         return;
     }
     container->extension_functions[name] = this;
@@ -96,6 +96,7 @@ ExtensionFunction::ExtensionFunction(
 }
 
 void ExtensionFunction::declare_and_link(SymbolResolver &linker) {
+    receiver.type->link(linker, receiver.type);
     // if has body declare params
     linker.scope_start();
     receiver.declare_and_link(linker);

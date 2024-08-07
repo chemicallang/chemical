@@ -90,6 +90,7 @@
 #include "ast/values/StringValue.h"
 #include "ast/values/TernaryValue.h"
 #include "ast/values/UBigIntValue.h"
+#include "ast/values/SizeOfValue.h"
 #include "ast/values/UInt128Value.h"
 #include "ast/values/UIntValue.h"
 #include "ast/values/ULongValue.h"
@@ -2824,6 +2825,18 @@ void ToCAstVisitor::visit(VariableIdentifier *identifier) {
 
     }
     write(identifier->value);
+}
+
+void ToCAstVisitor::visit(SizeOfValue *size_of) {
+    if(use_sizeof) {
+        write("sizeof");
+        write('(');
+        size_of->for_type->accept(this);
+        write(')');
+    } else {
+        size_of->calculate_size(is64Bit);
+        size_of->UBigIntValue::accept(this);
+    }
 }
 
 void ToCAstVisitor::visit(Expression *expr) {

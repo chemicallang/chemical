@@ -8,6 +8,7 @@
 #include "compiler/lab/LabBuildContext.h"
 #include "utils/PathUtils.h"
 #include "utils/ProcessUtils.h"
+#include "compiler/InvokeUtils.h"
 
 chem::string* init_chem_string(chem::string* str) {
     str->storage.constant.data = nullptr;

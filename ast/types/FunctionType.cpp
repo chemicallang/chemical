@@ -83,6 +83,14 @@ bool FunctionType::isInVarArgs(unsigned index) {
     return isVariadic && index >= (params.size() - 1);
 }
 
+uint64_t FunctionType::byte_size(bool is64Bit) {
+    if(is_capturing()) {
+        return is64Bit ? 16 : 8;
+    } else {
+        return is64Bit ? 8 : 4;
+    }
+}
+
 bool FunctionType::satisfies(ValueType type) {
     return type == ValueType::Lambda;
 }

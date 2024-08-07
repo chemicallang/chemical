@@ -1966,6 +1966,10 @@ void ToCAstVisitor::return_value(Value* val) {
         write('*');
         write(struct_passed_param_name);
         write(" = ");
+        const auto id = val->as_identifier();
+        if(id && id->linked->as_func_param()) {
+            write('*');
+        }
         val->accept(this);
     } else {
         val->accept(this);

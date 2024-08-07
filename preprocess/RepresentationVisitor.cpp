@@ -560,9 +560,13 @@ void RepresentationVisitor::visit(CharValue *val) {
 }
 
 void RepresentationVisitor::visit(StringValue *val) {
-    if(!interpret_representation) write('"');
-    write_encoded(this, val->value);
-    if(!interpret_representation) write('"');
+    if(interpret_representation) {
+        write(val->value);
+    } else {
+        write('"');
+        write_encoded(this, val->value);
+        write('"');
+    }
 }
 
 void RepresentationVisitor::visit(BoolValue *boolVal) {

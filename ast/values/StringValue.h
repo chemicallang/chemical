@@ -74,10 +74,12 @@ public:
 
     std::unique_ptr<BaseType> create_type() override;
 
+    [[nodiscard]]
     ValueType value_type() const override {
         return ValueType::String;
     }
 
+    [[nodiscard]]
     BaseTypeKind type_kind() const override {
         return BaseTypeKind::String;
     }

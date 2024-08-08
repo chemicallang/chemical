@@ -44,14 +44,6 @@ std::unique_ptr<Value> call_with_arg(FunctionDeclaration* decl, std::unique_ptr<
     return chain;
 }
 
-FunctionDeclaration* implicit_constructor_for(BaseType* type, Value* value) {
-    const auto linked_def = type->linked_struct_def();
-    if(linked_def) {
-        return linked_def->implicit_constructor_func(value);
-    }
-    return nullptr;
-}
-
 int16_t get_iteration_for(std::vector<std::unique_ptr<GenericTypeParameter>>& generic_params, std::vector<std::unique_ptr<BaseType>>& generic_list) {
     if(!generic_params.empty()) {
         int16_t i = 0;

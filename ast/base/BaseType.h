@@ -157,6 +157,13 @@ public:
     virtual bool is_same(BaseType* type) = 0;
 
     /**
+     * check if given type satisfies the this type
+     */
+    virtual bool satisfies(BaseType* type) {
+        return is_same(type);
+    }
+
+    /**
      * this basically tells whether the given value type would satisfy this type
      * @deprecated
      */
@@ -216,6 +223,12 @@ public:
      * this type references a struct
      */
     bool is_ref_struct();
+
+    /**
+     * searches a implicit constructor for given value, using the linked struct with this type
+     * otherwise nullptr
+     */
+    FunctionDeclaration* implicit_constructor_for(Value* value);
 
 #ifdef COMPILER_BUILD
 

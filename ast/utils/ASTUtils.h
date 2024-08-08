@@ -14,8 +14,3 @@ void evaluate_values(std::vector<std::unique_ptr<Value>>& values, InterpretScope
  * call the given function declaration with given argument
  */
 std::unique_ptr<Value> call_with_arg(FunctionDeclaration* decl, std::unique_ptr<Value> arg, SymbolResolver& resolver);
-
-/**
- * the type must be linked with a struct definition and has a implicit constructor for it to work
- */
-FunctionDeclaration* implicit_constructor_for(BaseType* type, Value* value);

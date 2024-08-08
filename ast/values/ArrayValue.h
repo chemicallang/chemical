@@ -107,7 +107,8 @@ public:
     }
 
     Value *copy() override {
-        std::vector<std::unique_ptr<Value>> copied_values(values.size());
+        std::vector<std::unique_ptr<Value>> copied_values;
+        copied_values.reserve(values.size());
         for (const auto &value: values) {
             copied_values.emplace_back(value->copy());
         }

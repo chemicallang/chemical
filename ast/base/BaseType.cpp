@@ -39,4 +39,21 @@ bool BaseType::is_ref_struct() {
     }
 }
 
+FunctionDeclaration* BaseType::implicit_constructor_for(Value *value) {
+    const auto linked_def = linked_struct_def();
+    if(linked_def) {
+        const auto prev_itr = linked_def->active_iteration;
+        const auto itr = get_generic_iteration();
+        if(itr != -1) {
+            linked_def->set_active_iteration(itr);
+        }
+        const auto implicit_constructor = linked_def->implicit_constructor_func(value);
+        if(itr != -1) {
+            linked_def->set_active_iteration(prev_itr);
+        }
+        return implicit_constructor;
+    }
+    return nullptr;
+}
+
 BaseType::~BaseType() = default;

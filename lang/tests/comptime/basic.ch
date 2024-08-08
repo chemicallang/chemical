@@ -84,7 +84,7 @@ func call_struct_func() : int {
 
 @comptime
 func determine_str_len(str : literal::string) {
-    return compiler::strlen(str);
+    return compiler::size(str);
 }
 
 func runtime_sum(a : int, b : int) : int {

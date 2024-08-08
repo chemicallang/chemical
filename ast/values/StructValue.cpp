@@ -168,7 +168,7 @@ void StructValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr
             // setting active generic iteration
             if(!definition->generic_params.empty()) {
                 prev_itr = definition->active_iteration;
-                generic_iteration = definition->register_value(this);
+                generic_iteration = definition->register_value(linker, this);
                 definition->set_active_iteration(generic_iteration);
             }
             // linking values

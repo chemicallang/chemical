@@ -90,20 +90,17 @@ int16_t total_generic_iterations(std::vector<std::unique_ptr<GenericTypeParamete
     }
 }
 
-int16_t register_generic_usage(std::vector<std::unique_ptr<GenericTypeParameter>>& generic_params, std::vector<std::unique_ptr<BaseType>>& generic_list) {
-    if(!generic_params.empty()) {
-        int16_t i = get_iteration_for(generic_params, generic_list);
-        if(i == -1) {
-            i = 0;
-            for (auto &param: generic_params) {
-                param->register_usage(i < generic_list.size() ? generic_list[i].get() : nullptr);
-                i++;
-            }
-            i = total_generic_iterations(generic_params);
-            i -= 1;
-        }
-        return i;
-    } else {
-        return 0;
+int16_t register_generic_usage_no_check(std::vector<std::unique_ptr<GenericTypeParameter>>& generic_params, std::vector<std::unique_ptr<BaseType>>& generic_list) {
+    int16_t i = 0;
+    for (auto &param: generic_params) {
+        param->register_usage(i < generic_list.size() ? generic_list[i].get() : nullptr);
+        i++;
     }
+    return (int16_t) ((int16_t) total_generic_iterations(generic_params) - (int16_t) 1);
+}
+
+int16_t register_generic_usage(std::vector<std::unique_ptr<GenericTypeParameter>>& generic_params, std::vector<std::unique_ptr<BaseType>>& generic_list) {
+    int16_t i = get_iteration_for(generic_params, generic_list);
+    if(i != -1) return i;
+    return register_generic_usage_no_check(generic_params, generic_list);
 }

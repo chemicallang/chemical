@@ -117,7 +117,7 @@ public:
      * when this happens, generics are checked, proper types are registered in generic
      * @return iteration that corresponds to this call
      */
-    int16_t register_call(FunctionCall* call);
+    int16_t register_call(SymbolResolver& resolver, FunctionCall* call);
 
 #ifdef COMPILER_BUILD
 

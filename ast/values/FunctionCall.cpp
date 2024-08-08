@@ -436,11 +436,10 @@ void FunctionCall::relink_multi_func(ASTDiagnoser* diagnoser) {
     }
 }
 
-void FunctionCall::find_link_in_parent(ChainValue *parent, ASTDiagnoser* diagnoser, bool relink_multi) {
-    parent_val = parent;
+void FunctionCall::link_constructor(SymbolResolver &resolver) {
     // relinking parent with constructor of the struct
     // if it's linked with struct
-    auto parent_id = parent->as_identifier();
+    auto parent_id = parent_val->as_identifier();
     if(parent_id && parent_id->linked && parent_id->linked->as_struct_def()) {
         StructDefinition* parent_struct = parent_id->linked->as_struct_def();
         auto constructorFunc = parent_struct->constructor_func(values);
@@ -448,14 +447,16 @@ void FunctionCall::find_link_in_parent(ChainValue *parent, ASTDiagnoser* diagnos
             parent_id->linked = constructorFunc;
             // calling a constructor of a generic struct where constructor is not generic
             if(constructorFunc->generic_params.empty() && parent_struct->is_generic()) {
-                generic_iteration = parent_struct->register_generic_args(generic_list);
+                generic_iteration = parent_struct->register_generic_args(resolver, generic_list);
             }
         } else {
-            diagnoser->error("struct with name " + parent_struct->name + " doesn't have a constructor that satisfies given arguments " + representation(), parent_struct);
+            resolver.error("struct with name " + parent_struct->name + " doesn't have a constructor that satisfies given arguments " + representation(), parent_struct);
         }
-    } else if(relink_multi){
-        relink_multi_func(diagnoser);
     }
+}
+
+void FunctionCall::relink_parent(ChainValue *parent) {
+    parent_val = parent;
 }
 
 void FunctionCall::find_link_in_parent(ChainValue *parent, SymbolResolver &resolver) {
@@ -465,10 +466,10 @@ void FunctionCall::find_link_in_parent(ChainValue *parent, SymbolResolver &resol
     int16_t prev_itr;
     if(func_decl && !func_decl->generic_params.empty()) {
         prev_itr = func_decl->active_iteration;
-        generic_iteration = func_decl->register_call(this);
+        generic_iteration = func_decl->register_call(resolver, this);
         func_decl->set_active_iteration(generic_iteration);
     }
-    find_link_in_parent(parent, &resolver, false);
+    link_constructor(resolver);
     link_values(resolver);
     if(func_decl && !func_decl->generic_params.empty()) {
         func_decl->set_active_iteration(prev_itr);

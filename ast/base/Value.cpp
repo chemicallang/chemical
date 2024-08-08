@@ -276,6 +276,10 @@ void ChainValue::link(
     }
 }
 
+void ChainValue::relink_parent(ChainValue* parent) {
+    throw std::runtime_error("relink_parent called on base chain value");
+}
+
 void Value::link(SymbolResolver& linker, AssignStatement* stmnt, bool lhs) {
     if(lhs) {
         link(linker, stmnt->lhs);

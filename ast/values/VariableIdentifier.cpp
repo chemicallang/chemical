@@ -84,6 +84,10 @@ void VariableIdentifier::find_link_in_parent(ChainValue *parent, ASTDiagnoser *d
     }
 }
 
+void VariableIdentifier::relink_parent(ChainValue *parent) {
+    find_link_in_parent(parent, nullptr);
+}
+
 void VariableIdentifier::find_link_in_parent(ChainValue *parent, SymbolResolver &resolver) {
     find_link_in_parent(parent, &resolver);
 }

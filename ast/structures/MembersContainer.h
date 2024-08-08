@@ -62,12 +62,12 @@ public:
     /**
      * register the generic args, so code is generated for these types, a generic iteration is returned
      */
-    int16_t register_generic_args(std::vector<std::unique_ptr<BaseType>>& types);
+    int16_t register_generic_args(SymbolResolver& resolver, std::vector<std::unique_ptr<BaseType>>& types);
 
     /**
      * register value for the struct
      */
-    int16_t register_value(StructValue* structValue);
+    int16_t register_value(SymbolResolver& resolver, StructValue* structValue);
 
     /**
      * set's the active iteration for a generic function

@@ -39,7 +39,12 @@ public:
 
     void link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) override;
 
-    void link_without_parent();
+    void find_link_in_parent(ChainValue *parent, SymbolResolver &resolver) override;
+
+    /**
+     * will call relink_parent on values starting from second value
+     */
+    void relink_parent();
 
     void declare_and_link(SymbolResolver &linker) override;
 

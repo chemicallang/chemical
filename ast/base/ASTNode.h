@@ -99,9 +99,7 @@ public:
      * this function provides a pointer to the parent ASTNode
      * a var init inside for loop, gets a pointer to the for loop
      */
-    virtual void set_parent(ASTNode*) {
-        throw std::runtime_error("set_parent called on base ast node");
-    }
+    virtual void set_parent(ASTNode*);
 
     /**
      * return a child ASTNode* at index, called by index operator
@@ -367,9 +365,7 @@ public:
     /**
      * returns a llvm pointer
      */
-    virtual llvm::Value *llvm_pointer(Codegen &gen) {
-        throw std::runtime_error("llvm_pointer called on bare ASTNode, with representation" + representation());
-    };
+    virtual llvm::Value *llvm_pointer(Codegen &gen);
 
     /**
      * return a llvm func type, so that this ASTNode can be called
@@ -397,9 +393,7 @@ public:
      * @param gen
      * @return
      */
-    virtual llvm::Type *llvm_elem_type(Codegen &gen) {
-        throw std::runtime_error("llvm_elem_type called on bare ASTNode, with representation" + representation());
-    };
+    virtual llvm::Type *llvm_elem_type(Codegen &gen);
 
     /**
      * this can be overridden if node intends to declare itself before generating code for it
@@ -414,9 +408,7 @@ public:
     /**
      * code_gen function that generates llvm Value
      */
-    virtual void code_gen(Codegen &gen) {
-        throw std::runtime_error("ASTNode code_gen called on bare ASTNode, with representation : " + representation());
-    }
+    virtual void code_gen(Codegen &gen);
 
     /**
      * instead of calling code_gen, this function can be called, to provide more information
@@ -441,25 +433,25 @@ public:
     }
 
     /**
+     * this function allows us to code_gen for imported generics
+     * generic nodes emit code once, their usage is detected at symbol resolution, however
+     * when generic nodes are imported from other files, they can't emit code, because code_gen
+     * is not called on them, however this function is called on imported nodes, that registered
+     * themselves in symbol resolver because of another usage for which code wasn't generated before
+     * function checks strictly that no code is generated for already present functions
+     */
+    virtual void code_gen_imported_generics(Codegen &gen);
+
+    /**
      * add child index in llvm indexes vector
      */
-    virtual bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
-#ifdef DEBUG
-        std::cerr << "add_child_index called on base ASTNode, representation : " << representation();
-#endif
-        throw std::runtime_error("add_child_index called on a ASTNode");
-    }
+    virtual bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name);
 
     /**
      * loads the value of the given ASTNode
      * this is called by variable identifier, on linked nodes (var init, function parameters)
      */
-    virtual llvm::Value *llvm_load(Codegen &gen) {
-#ifdef DEBUG
-        std::cerr << "llvm_load called on base ASTNode, representation : " << representation();
-#endif
-        throw std::runtime_error("llvm_load called on a ASTNode");
-    }
+    virtual llvm::Value *llvm_load(Codegen &gen);
 
     /**
      * loads the value of the given ASTNode for returning

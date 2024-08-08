@@ -51,6 +51,12 @@ public:
     void error(const std::string &err, ASTNode *node = nullptr);
 
     /**
+     * an early error reports itself early, this is useful if known
+     * the program can crash due to bad pointer being returned due to error
+     */
+    void early_error(const std::string &err, ASTNode *node = nullptr);
+
+    /**
      * report a warning
      */
     void warn(const std::string &err, ASTNode *node = nullptr);

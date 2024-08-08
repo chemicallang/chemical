@@ -332,12 +332,14 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
             }
 
             // symbol resolution
-            processor.sym_res(result.scope, result.is_c_file, file.abs_path);
-            if (resolver.has_errors) {
-                compile_result = 1;
-                break;
+            if(!already_imported) {
+                processor.sym_res(result.scope, result.is_c_file, file.abs_path);
+                if (resolver.has_errors) {
+                    compile_result = 1;
+                    break;
+                }
+                resolver.reset_errors();
             }
-            resolver.reset_errors();
 
             if(use_tcc) {
                 // reset the c visitor to use with another file

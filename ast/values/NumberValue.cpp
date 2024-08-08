@@ -39,7 +39,7 @@ Value *NumberValue::scope_value(InterpretScope &scope) {
 
 std::unique_ptr<IntNType> linked(BaseType* type) {
     auto pure = type->get_pure_type();
-    if(pure->kind() == BaseTypeKind::IntN) {
+    if(pure && pure->kind() == BaseTypeKind::IntN) {
         return std::unique_ptr<IntNType>(((IntNType*) pure->copy()));
     } else {
         return nullptr;
@@ -66,7 +66,7 @@ void NumberValue::link(SymbolResolver &linker, ReturnStatement *returnStmt) {
 void NumberValue::link(SymbolResolver &linker, FunctionCall *call, unsigned int index) {
     auto funcType = call->get_function_type();
     if(funcType) {
-        linked_type = linked(funcType->params[index]->type.get());
+        linked_type = linked(funcType->func_param_for_arg_at(index)->type.get());
     } else {
         // this can happen when parent is linked with a constructor
     }

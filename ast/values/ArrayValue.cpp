@@ -5,6 +5,7 @@
 #include "ast/structures/StructDefinition.h"
 #include "ast/types/ArrayType.h"
 #include "ast/utils/ASTUtils.h"
+#include "compiler/SymbolResolver.h"
 
 #ifdef COMPILER_BUILD
 
@@ -136,6 +137,16 @@ void ArrayValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr)
     }
 }
 
+void ArrayValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr, BaseType *type) {
+    link(linker, value_ptr);
+    if(!elemType.has_value() && values.empty()) {
+        if(type && type->kind() == BaseTypeKind::Array) {
+            const auto arr_type = (ArrayType*) type;
+            elemType.emplace(arr_type->elem_type->copy());
+        }
+    }
+}
+
 std::unique_ptr<BaseType> ArrayValue::element_type() const {
     BaseType *elementType;
     if (elemType.has_value()) {
@@ -154,7 +165,11 @@ std::unique_ptr<BaseType> ArrayValue::element_type() const {
             }
         }
     } else {
-        elementType = values[0]->create_type().release();
+        if(values.empty()) {
+            elementType = nullptr;
+        } else {
+            elementType = values[0]->create_type().release();
+        }
     }
     return std::unique_ptr<BaseType>(elementType);
 }

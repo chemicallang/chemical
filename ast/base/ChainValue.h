@@ -46,6 +46,13 @@ public:
      */
     virtual std::unique_ptr<BaseType> create_type(std::vector<std::unique_ptr<ChainValue>>& chain, unsigned int index);
 
+    /**
+     * if this chain value is connected to a type that has a generic iteration
+     * this will set it, also returns the previous generic iteration no the struct
+     * otherwise -2
+     */
+    int16_t set_generic_iteration();
+
 #ifdef COMPILER_BUILD
 
     /**

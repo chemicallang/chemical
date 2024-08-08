@@ -9,10 +9,10 @@
 #include <utility>
 #include <vector>
 #include <memory>
-#include "ast/base/Value.h"
+#include "ast/values/TypeLinkedValue.h"
 #include "ast/types/ArrayType.h"
 
-class ArrayValue : public Value {
+class ArrayValue : public TypeLinkedValue {
 public:
 
     std::vector<std::unique_ptr<Value>> values;
@@ -91,6 +91,8 @@ public:
     ASTNode *linked_node() override;
 
     void link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) override;
+
+    void link(SymbolResolver &linker, std::unique_ptr<Value> &, BaseType *type) override;
 
     std::unique_ptr<BaseType> element_type() const;
 

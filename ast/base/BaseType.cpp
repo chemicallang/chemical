@@ -56,4 +56,16 @@ FunctionDeclaration* BaseType::implicit_constructor_for(Value *value) {
     return nullptr;
 }
 
+int16_t BaseType::set_generic_iteration(int16_t iteration) {
+    if(iteration != -1) {
+        const auto generic_struct = get_generic_struct();
+        if (generic_struct) {
+            const auto prev_itr = generic_struct->active_iteration;
+            generic_struct->set_active_iteration(iteration);
+            return prev_itr;
+        }
+    }
+    return -2;
+}
+
 BaseType::~BaseType() = default;

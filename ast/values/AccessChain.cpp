@@ -33,6 +33,7 @@ void AccessChain::relink_parent() {
 void AccessChain::declare_and_link(SymbolResolver &linker) {
 
     values[0]->link(linker, nullptr, values, 0);
+    values[0]->set_generic_iteration();
 
     // auto prepend self identifier, if not present and linked with struct member, anon union or anon struct
     auto linked = values[0]->linked_node();
@@ -251,16 +252,9 @@ void AccessChain::set_generic_iterations(std::unordered_map<uint16_t, int16_t>& 
     uint16_t i = 0;
     for(auto& value : values) {
         // namespace cannot create type
-        const auto type = value->create_type();
-        if (type) {
-            const auto type_itr = type->get_generic_iteration();
-            if(type_itr != -1) {
-                const auto generic_struct = type->get_generic_struct();
-                if (generic_struct) {
-                    active_iterations[i] = generic_struct->active_iteration;
-                    generic_struct->set_active_iteration(type_itr);
-                }
-            }
+        const auto prev_itr = value->set_generic_iteration();
+        if(prev_itr > -2) {
+            active_iterations[i] = prev_itr;
         }
         i++;
     }

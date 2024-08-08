@@ -56,8 +56,8 @@ func build(ctx : BuildContext*) {
         printf("Minimal Build Detected\n");
     }
     const exe_name = string("chemical-tests");
-    const ext_module = ctx.c_file_module(string("ext_c"), relative_path(string("ext/file.c")), null, 0)
-    const module = ctx.chemical_file_module(exe_name, relative_path(string("tests.ch")), { ext_module }, 1);
+    const ext_module = ctx.c_file_module(string("ext_c"), relative_path(string("ext/file.c")), { })
+    const module = ctx.chemical_file_module(exe_name, relative_path(string("tests.ch")), { ext_module });
 
     const do_llvm_ir = !is_minimal && compiler::is_clang_based();
     const do_asm = false;
@@ -77,10 +77,10 @@ func build(ctx : BuildContext*) {
     }
 
     if(do_dyn_lib) {
-        ctx.build_dynamic_lib(exe_name, { module }, 1);
+        ctx.build_dynamic_lib(exe_name, { module });
     }
 
-    const exe_job = ctx.build_exe(exe_name, { module }, 1);
+    const exe_job = ctx.build_exe(exe_name, { module });
 
     if(do_c) {
         const output_file = exe_dir_file(ctx, &exe_name, &module.name, ".c")

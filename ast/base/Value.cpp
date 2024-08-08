@@ -259,6 +259,17 @@ bool Value::should_build_chain_type(std::vector<std::unique_ptr<Value>>& chain, 
     return false;
 }
 
+int16_t ChainValue::set_generic_iteration() {
+    const auto type = create_type();
+    if (type) {
+        const auto prev_itr = type->set_generic_iteration(type->get_generic_iteration());
+        if(prev_itr > -2) {
+            return prev_itr;
+        }
+    }
+    return -2;
+}
+
 void Value::link(SymbolResolver& linker, VarInitStatement* stmnt) {
     link(linker, stmnt->value.value());
 }

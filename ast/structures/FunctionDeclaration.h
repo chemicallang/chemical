@@ -39,6 +39,11 @@ public:
      * when involved in multi function node (due to same name, different parameters)
      */
     uint8_t multi_func_index = 0;
+    /**
+     * this index corresponds to number of iterations in llvm_data, for which function bodies
+     * have been generated, so next time we should start at this index to generate bodies
+     */
+    int16_t bodies_gen_index = 0;
 
 #ifdef COMPILER_BUILD
     std::vector<std::pair<llvm::Value*, llvm::FunctionType*>> llvm_data;
@@ -167,6 +172,11 @@ public:
      * when normal functions occur in file, this function is called
      */
     void code_gen(Codegen &gen) override;
+
+    /**
+     * generic code gen
+     */
+    void code_gen_generic(Codegen &gen) override;
 
     /**
      * this function is used to declare the function before generating code for its body

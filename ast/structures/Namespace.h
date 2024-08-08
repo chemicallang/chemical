@@ -2,9 +2,9 @@
 
 #pragma once
 
-#include "ast/base/ASTNode.h"
+#include "ast/base/AnnotableNode.h"
 
-class Namespace : public ASTNode {
+class Namespace : public AnnotableNode {
 public:
 
     std::string name;

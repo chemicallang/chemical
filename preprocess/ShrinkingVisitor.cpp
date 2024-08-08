@@ -58,7 +58,5 @@ void ShrinkingVisitor::visit(ImplDefinition *def) {
 }
 
 void ShrinkingVisitor::visit(Namespace *ns) {
-    for(auto& node : ns->nodes) {
-        node->accept(this);
-    }
+    visit(ns->nodes);
 }

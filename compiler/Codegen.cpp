@@ -115,12 +115,7 @@ void Codegen::compile_begin() {
 }
 
 void Codegen::compile_nodes() {
-    for(const auto& node : nodes) {
-        node->code_gen_declare(*this);
-    }
-    for (const auto &node: nodes) {
-        node->code_gen(*this);
-    }
+    compile_nodes(nodes);
 }
 
 void Codegen::compile_end() {

@@ -130,6 +130,10 @@ void StructDefinition::code_gen(Codegen &gen) {
     }
 }
 
+void StructDefinition::code_gen_generic(Codegen &gen) {
+    code_gen(gen);
+}
+
 void StructDefinition::acquire_function_iterations(int16_t iteration) {
     for(auto& function : functions()) {
         auto& func_data = generic_llvm_data[function.get()];

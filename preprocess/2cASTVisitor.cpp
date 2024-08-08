@@ -1727,6 +1727,7 @@ void CTopLevelDeclarationVisitor::visit(UnionDef *def) {
 }
 
 void CTopLevelDeclarationVisitor::visit(Namespace *ns) {
+    if(ns->has_annotation(AnnotationKind::CompTime)) return;
     for(auto& node : ns->nodes) {
         node->accept(this);
     }

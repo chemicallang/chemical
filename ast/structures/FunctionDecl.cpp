@@ -120,7 +120,7 @@ void BaseFunctionType::queue_destruct_params(Codegen& gen) {
     }
 }
 
-void body_gen(Codegen &gen, llvm::Function* funcCallee, std::optional<LoopScope>& body, BaseFunctionType* func_type) {
+void body_gen(Codegen &gen, llvm::Function* funcCallee, std::optional<LoopScope>& body, FunctionDeclaration* func_type) {
     if(body.has_value()) {
         auto prev_func_type = gen.current_func_type;
         gen.current_func_type = func_type;
@@ -147,15 +147,18 @@ void FunctionDeclaration::code_gen(Codegen &gen) {
         body_gen(gen, this, llvm_func());
     } else {
         const auto total = total_generic_iterations();
-        int16_t i = 0;
-        while(i < total) {
-            set_active_iteration(i);
+        while(bodies_gen_index < total) {
+            set_active_iteration(bodies_gen_index);
             body_gen(gen, this, llvm_func());
-            i++;
+            bodies_gen_index++;
         }
         // we set active iteration to -1, so all generics would fail if acessed without setting active iteration
         set_active_iteration(-1);
     }
+}
+
+void FunctionDeclaration::code_gen_generic(Codegen &gen) {
+    code_gen(gen);
 }
 
 void llvm_func_attr(llvm::Function* func, AnnotationKind kind) {
@@ -214,8 +217,8 @@ void create_fn(Codegen& gen, FunctionDeclaration *decl, const std::string& name)
     if(decl->generic_params.empty()) {
         create_non_generic_fn(gen, decl, name);
     } else {
-        const auto total_use = decl->generic_params[0]->usage.size();
-        int16_t i = 0;
+        const auto total_use = decl->total_generic_iterations();
+        auto i = (int16_t) decl->llvm_data.size();
         while(i < total_use) {
             decl->set_active_iteration(i);
             create_non_generic_fn(gen, decl, name);
@@ -549,7 +552,7 @@ void FunctionDeclaration::set_active_iteration(int16_t iteration) {
 }
 
 int16_t FunctionDeclaration::register_call(SymbolResolver& resolver, FunctionCall* call) {
-    return register_generic_usage(generic_params, call->generic_list);
+    return register_generic_usage(resolver, this, generic_params, call->generic_list);
 }
 
 std::unique_ptr<BaseType> FunctionDeclaration::create_value_type() {

@@ -133,6 +133,13 @@ public:
      * everytime nodes are switched this method must be called, typically
      * when compiling different modules, nodes are changed
      */
+    template<typename NodesVec>
+    void compile_nodes(NodesVec& nodes);
+
+    /**
+     * everytime nodes are switched this method must be called, typically
+     * when compiling different modules, nodes are changed
+     */
     void compile_nodes();
 
     /**
@@ -415,5 +422,15 @@ public:
     bool destroy_current_scope = true;
 
 };
+
+template<typename NodesVec>
+void Codegen::compile_nodes(NodesVec& nodes_vec) {
+    for(const auto& node : nodes_vec) {
+        node->code_gen_declare(*this);
+    }
+    for (const auto &node: nodes_vec) {
+        node->code_gen(*this);
+    }
+}
 
 #endif

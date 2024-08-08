@@ -778,18 +778,27 @@ llvm::Type *EnumMember::llvm_type(Codegen &gen) {
 // ------------ Structures
 
 void Namespace::code_gen_declare(Codegen &gen) {
+    if(has_annotation(AnnotationKind::CompTime)) {
+        return;
+    }
     for(auto& node : nodes) {
         node->code_gen_declare(gen);
     }
 }
 
 void Namespace::code_gen(Codegen &gen) {
+    if(has_annotation(AnnotationKind::CompTime)) {
+        return;
+    }
     for(auto& node : nodes) {
         node->code_gen(gen);
     }
 }
 
 void Namespace::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
+    if(has_annotation(AnnotationKind::CompTime)) {
+        return;
+    }
     for(auto& node : nodes) {
         node->code_gen(gen, scope, index);
     }

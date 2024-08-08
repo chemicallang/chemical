@@ -19,7 +19,7 @@
 class StructDefinition : public ExtendableMembersContainerNode, public StructType {
 public:
 
-    AccessSpecifier specifier;
+    AccessSpecifier specifier = AccessSpecifier::Internal;
     std::optional<std::unique_ptr<ReferencedType>> overrides;
     ASTNode* parent_node;
 
@@ -156,6 +156,8 @@ public:
     void acquire_function_iterations(int16_t iteration);
 
     void code_gen(Codegen &gen) override;
+
+    void code_gen_generic(Codegen &gen) override;
 
     void llvm_destruct(Codegen &gen, llvm::Value *allocaInst) override;
 

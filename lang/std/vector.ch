@@ -60,7 +60,7 @@ struct vector<T> {
     }
 
     func data(&self) : T* {
-        return data;
+        return data_ptr;
     }
 
     func remove(&self, index : size_t) {

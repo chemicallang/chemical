@@ -149,7 +149,7 @@ ASTNode *MembersContainer::child(const std::string &varName) {
 }
 
 int16_t MembersContainer::register_generic_args(SymbolResolver& resolver, std::vector<std::unique_ptr<BaseType>>& types) {
-    return register_generic_usage(generic_params, types);
+    return register_generic_usage(resolver, this, generic_params, types);
 }
 
 int16_t MembersContainer::register_value(SymbolResolver& resolver, StructValue* value) {

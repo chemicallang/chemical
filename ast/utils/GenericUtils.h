@@ -30,5 +30,13 @@ int16_t register_generic_usage_no_check(std::vector<std::unique_ptr<GenericTypeP
  * a call notifies a function, during symbol resolution that it exists
  * when this happens, generics are checked, proper types are registered in generic
  * @return iteration that corresponds to this call
+ *
+ * this function will put root node of given node on the symbol resolver's map if generic args
+ * couldn't find iteration and had to create one
  */
-int16_t register_generic_usage(std::vector<std::unique_ptr<GenericTypeParameter>>& generic_params, std::vector<std::unique_ptr<BaseType>>& generic_list);
+int16_t register_generic_usage(
+    SymbolResolver& resolver,
+    ASTNode* node,
+    std::vector<std::unique_ptr<GenericTypeParameter>>& generic_params,
+    std::vector<std::unique_ptr<BaseType>>& generic_list
+);

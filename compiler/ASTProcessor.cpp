@@ -129,8 +129,15 @@ void ASTProcessor::sym_res(Scope& scope, bool is_c_file, const std::string& abs_
         bm_results = std::make_unique<BenchmarkResults>();
         bm_results->benchmark_begin();
     }
+    resolver->imported_generic.clear();
     scope.declare_top_level(*resolver);
     scope.declare_and_link(*resolver);
+    for(auto& node : scope.nodes) {
+        auto found = resolver->imported_generic.find(node.get());
+        if(found != resolver->imported_generic.end()) {
+            resolver->imported_generic.erase(found);
+        }
+    }
     if(options->benchmark) {
         bm_results->benchmark_end();
         std::cout << "[SymRes] " << abs_path << " Completed " << bm_results->representation() << std::endl;
@@ -236,6 +243,12 @@ void ASTProcessor::translate_to_c(
         bm_results = std::make_unique<BenchmarkResults>();
         bm_results->benchmark_begin();
     }
+    std::vector<ASTNode*> imported_generics;
+    imported_generics.reserve(resolver->imported_generic.size());
+    for(auto& node : resolver->imported_generic) {
+        imported_generics.emplace_back(node.first);
+    }
+    visitor.translate(imported_generics);
     visitor.translate(import_res.nodes);
     if(options->benchmark) {
         bm_results->benchmark_end();

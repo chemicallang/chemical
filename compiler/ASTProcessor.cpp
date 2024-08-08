@@ -225,10 +225,9 @@ ASTImportResultExt ASTProcessor::import_file(const FlatIGFile& file) {
 
 }
 
-void ASTProcessor::translate_to_c_no_sym_res(
+void ASTProcessor::translate_to_c(
         ToCAstVisitor& visitor,
         Scope& import_res,
-        ShrinkingVisitor& shrinker,
         const FlatIGFile& file
 ) {
     // translating the nodes
@@ -247,8 +246,15 @@ void ASTProcessor::translate_to_c_no_sym_res(
         std::cout << std::endl;
     }
     visitor.reset_errors();
-    shrinker.visit(import_res.nodes);
-    shrinked_nodes[file.abs_path] = std::move(import_res.nodes);
+}
+
+void ASTProcessor::shrink_nodes(
+        ShrinkingVisitor& shrinker,
+        Scope& result,
+        const FlatIGFile& file
+) {
+    shrinker.visit(result.nodes);
+    shrinked_nodes[file.abs_path] = std::move(result.nodes);
 }
 
 void ASTProcessor::end() {

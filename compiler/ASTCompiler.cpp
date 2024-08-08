@@ -7,9 +7,10 @@
 
 void ASTCompiler::compile_nodes(
         Codegen* gen,
-        ShrinkingVisitor& shrinker,
+        Scope& import_res,
         const FlatIGFile &file
 ) {
+    gen->nodes = std::move(import_res.nodes);
     std::unique_ptr<BenchmarkResults> bm_results;
     if(options->benchmark) {
         bm_results = std::make_unique<BenchmarkResults>();
@@ -24,6 +25,5 @@ void ASTCompiler::compile_nodes(
         gen->print_errors(file.abs_path);
     }
     gen->reset_errors();
-    shrinker.visit(gen->nodes);
-    shrinked_nodes[file.abs_path] = std::move(gen->nodes);
+    import_res.nodes = std::move(gen->nodes);
 }

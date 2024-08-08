@@ -11,7 +11,7 @@ public:
 
     void compile_nodes(
         Codegen* gen,
-        ShrinkingVisitor& shrinker,
+        Scope& import_res,
         const FlatIGFile &file
     );
 

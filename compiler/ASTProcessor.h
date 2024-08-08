@@ -135,10 +135,18 @@ public:
      * translates given import result to c using visitor
      * doesn't perform symbol resolution
      */
-    void translate_to_c_no_sym_res(
+    void translate_to_c(
         ToCAstVisitor& visitor,
         Scope& import_res,
-        ShrinkingVisitor& shrinker,
+        const FlatIGFile& file
+    );
+
+    /**
+     * shrink the imported nodes
+     */
+    void shrink_nodes(
+        ShrinkingVisitor& visitor,
+        Scope& import_res,
         const FlatIGFile& file
     );
 

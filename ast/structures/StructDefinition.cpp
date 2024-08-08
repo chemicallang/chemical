@@ -21,8 +21,8 @@
 #include "ast/values/IntValue.h"
 #include "ast/types/ReferencedType.h"
 
-void StructDefinition::struct_func_gen(Codegen& gen) {
-    for(auto& function : functions()) {
+void StructDefinition::struct_func_gen(Codegen& gen, const std::vector<std::unique_ptr<FunctionDeclaration>>& funcs) {
+    for(auto& function : funcs) {
         auto overriding = get_overriding(function.get());
         if(overriding) {
             function->code_gen_override_declare(gen, overriding);
@@ -30,7 +30,7 @@ void StructDefinition::struct_func_gen(Codegen& gen) {
         }
         function->code_gen_declare(gen, this);
     }
-    for (auto &function: functions()) {
+    for (auto &function: funcs) {
         if(llvm_override(gen, function.get())) {
             continue;
         }
@@ -80,40 +80,59 @@ bool StructDefinition::llvm_override(Codegen& gen, FunctionDeclaration* function
     return false;
 }
 
+class AutoReleasedFunctionsContainer {
+public:
+    std::vector<std::unique_ptr<FunctionDeclaration>> functions;
+    ~AutoReleasedFunctionsContainer() {
+        for(auto& func : functions) {
+            func.release();
+        }
+    }
+};
+
 void StructDefinition::code_gen(Codegen &gen) {
     if(generic_params.empty()) {
-        struct_func_gen(gen);
+        struct_func_gen(gen, functions());
     } else {
+        // WHY IS THIS ALGORITHM SO COMPLICATED ?
+        // because we must check which generic iteration has already been generated
+        // and skip generating for functions for that generic iteration
         const auto total = total_generic_iterations();
         auto prev_active_iteration = active_iteration;
-        int16_t i = 0;
-        while(i < total) {
-            set_active_iteration(i);
-            struct_func_gen(gen);
-            acquire_function_iterations(i, total);
-            i++;
+        int16_t struct_itr = 0;
+        while(struct_itr < total) {
+            AutoReleasedFunctionsContainer container;
+            for (auto &function: functions()) {
+                auto &func_data = generic_llvm_data[function.get()]; // <--- automatic insertion
+                if (struct_itr == func_data.size()) {
+                    container.functions.emplace_back(function.get());
+                    func_data.emplace_back();
+                } else if (struct_itr < func_data.size()) {
+                    auto &func_iters = func_data[struct_itr];
+                    if (func_iters.empty() || func_iters.size() < function->total_generic_iterations()) {
+                        container.functions.emplace_back(function.get());
+                    }
+                } else {
+#ifdef DEBUG
+                    throw std::runtime_error("expected struct iteration to be smaller than initialized iterations");
+#endif
+                }
+            }
+            // generating code and copying iterations
+            if(!container.functions.empty()) {
+                set_active_iteration(struct_itr);
+                struct_func_gen(gen, container.functions);
+                acquire_function_iterations(struct_itr);
+            }
+            struct_itr++;
         }
         set_active_iteration(prev_active_iteration);
     }
-
 }
 
-void StructDefinition::acquire_function_iterations(int16_t iteration, const int16_t total) {
+void StructDefinition::acquire_function_iterations(int16_t iteration) {
     for(auto& function : functions()) {
-        auto func_data_itr = generic_llvm_data.find(function.get());
-        if(func_data_itr == generic_llvm_data.end()) {
-            generic_llvm_data[function.get()] = {};
-            func_data_itr = generic_llvm_data.find(function.get());
-        }
-        auto& func_data = func_data_itr->second;
-        if(func_data.size() < total) {
-            func_data.reserve(total);
-            int16_t j = 0;
-            while(j < total) {
-                func_data.emplace_back();
-                j++;
-            }
-        }
+        auto& func_data = generic_llvm_data[function.get()];
         func_data[iteration] = function->llvm_data;
     }
 }

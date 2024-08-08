@@ -147,13 +147,13 @@ public:
     /**
      * generate code for all functions in this struct
      */
-    void struct_func_gen(Codegen& gen);
+    void struct_func_gen(Codegen& gen, const std::vector<std::unique_ptr<FunctionDeclaration>>& funcs);
 
     /**
      * for the given struct iteration, we acquire all the function iterations and put them
      * in the llvm_struct types
      */
-    void acquire_function_iterations(int16_t iteration, const int16_t total);
+    void acquire_function_iterations(int16_t iteration);
 
     void code_gen(Codegen &gen) override;
 

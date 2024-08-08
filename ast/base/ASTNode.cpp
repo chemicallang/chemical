@@ -89,13 +89,13 @@ llvm::Value *ASTNode::llvm_load(Codegen &gen) {
 #endif
 }
 
-//void ASTNode::code_gen_imported_generics(Codegen &gen) {
-//#ifdef DEBUG
-//    throw std::runtime_error("llvm_load called on a ASTNode");
-//#else
-//    gen.early_error("ASTNode::llvm_load called, on node : " + representation());
-//#endif
-//}
+void ASTNode::code_gen_generic(Codegen &gen) {
+#ifdef DEBUG
+    throw std::runtime_error("llvm_load called on a ASTNode");
+#else
+    gen.early_error("ASTNode::llvm_load called, on node : " + representation());
+#endif
+}
 
 #endif
 

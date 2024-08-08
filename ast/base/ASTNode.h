@@ -440,7 +440,7 @@ public:
      * themselves in symbol resolver because of another usage for which code wasn't generated before
      * function checks strictly that no code is generated for already present functions
      */
-//    virtual void code_gen_imported_generics(Codegen &gen);
+    virtual void code_gen_generic(Codegen &gen);
 
     /**
      * add child index in llvm indexes vector

@@ -142,18 +142,6 @@ public:
         const FlatIGFile& file
     );
 
-
-    /**
-     * translates given import result (retrieved via import_file) to c using visitor
-     * @return true if success, false if failure (returns early on failure)
-     */
-    bool translate_to_c(
-        ToCAstVisitor& visitor,
-        ASTImportResult& import_res,
-        ShrinkingVisitor& shrinker,
-        const FlatIGFile& file
-    );
-
     /**
      * called when all files are done
      */

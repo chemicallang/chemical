@@ -188,7 +188,12 @@ void llvm_func_def_attr(llvm::Function* func) {
 }
 
 void set_llvm_data(FunctionDeclaration* decl, llvm::Value* func_callee, llvm::FunctionType* func_type) {
-    if(decl->active_iteration >= decl->llvm_data.size()) {
+#ifdef DEBUG
+    if(decl->active_iteration > decl->llvm_data.size()) {
+        throw std::runtime_error("decl's generic active iteration is greater than total llvm_data size");
+    }
+#endif
+    if(decl->active_iteration == decl->llvm_data.size()) {
         decl->llvm_data.emplace_back(func_callee, func_type);
     } else {
         decl->llvm_data[decl->active_iteration].first = func_callee;

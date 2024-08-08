@@ -148,12 +148,12 @@ ASTNode *MembersContainer::child(const std::string &varName) {
     }
 }
 
-int16_t MembersContainer::register_generic_args(std::vector<std::unique_ptr<BaseType>>& types) {
+int16_t MembersContainer::register_generic_args(SymbolResolver& resolver, std::vector<std::unique_ptr<BaseType>>& types) {
     return register_generic_usage(generic_params, types);
 }
 
-int16_t MembersContainer::register_value(StructValue* value) {
-    return register_generic_usage(generic_params, value->generic_list);
+int16_t MembersContainer::register_value(SymbolResolver& resolver, StructValue* value) {
+    return register_generic_args(resolver, value->generic_list);
 }
 
 int16_t MembersContainer::total_generic_iterations() {

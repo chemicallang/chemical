@@ -29,6 +29,19 @@ public:
     );
 
     /**
+     * find linked node in given parent node, symbol resolver is passed in resolution phase
+     */
+    virtual void find_link_in_parent(ChainValue* parent, SymbolResolver& resolver) = 0;
+
+    /**
+     * relink with the parent chain value, as it has changed
+     *
+     * This allows re linking values when parent has changed due to copying of
+     * access chain, which happens a lot in comptime functions
+     */
+    virtual void relink_parent(ChainValue* parent);
+
+    /**
      * when value is part of access chain, this should be called
      */
     virtual std::unique_ptr<BaseType> create_type(std::vector<std::unique_ptr<ChainValue>>& chain, unsigned int index);

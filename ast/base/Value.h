@@ -122,38 +122,6 @@ public:
     }
 
     /**
-     * find linked node in given parent node, This doesn't pass a symbol
-     * resolver, values that are present in access chain, identifiers,
-     * function calls and others must override this method, these values
-     * find link through parent value, only, in the other function where
-     * symbol resolver is passed, make a call to this function and implement
-     * functionality that requires symbol resolver in that function
-     *
-     * This allows re linking values when parent has changed due to copying of
-     * access chain, which happens a lot in comptime functions
-     *
-     * The diagnoser must also be checked because it can be passed as nullptr
-     */
-    virtual void find_link_in_parent(ChainValue* parent, ASTDiagnoser* diagnoser) {
-        // by default, does nothing
-    }
-
-    /**
-     * this applies only to chain values that can directly link with given node
-     * only variable identifier at the moment
-     */
-    virtual void link_with(ASTNode* parent) {
-        throw std::runtime_error("cannot link this value with given parent");
-    }
-
-    /**
-     * find linked node in given parent node, symbol resolver is passed in resolution phase
-     */
-    virtual void find_link_in_parent(ChainValue* parent, SymbolResolver& resolver) {
-        return find_link_in_parent(parent, nullptr);
-    }
-
-    /**
      * get byte size of this value
      */
     virtual uint64_t byte_size(bool is64Bit) {

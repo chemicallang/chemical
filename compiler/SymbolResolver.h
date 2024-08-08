@@ -5,6 +5,7 @@
 #include "preprocess/BaseSymbolResolver.h"
 #include "ASTDiagnoser.h"
 #include <memory>
+#include <ordered_map.h>
 
 class ASTNode;
 
@@ -43,6 +44,22 @@ public:
      * they are re-linked with correct function, based on arguments
      */
     std::vector<std::unique_ptr<ASTNode>> helper_nodes;
+
+    /**
+     * When generating code for a file, we generate code sequentially for each node, even generics
+     * We cannot code_gen upon detecting usage of generic node because it looses the context, the node may be present in
+     * another node, which calls code_gen differently or sets some parameters before calling it
+     *
+     * If generic node in current file, we detect usage at symbol resolution, and generate code later sequentially
+     * since we already know what types use the generic node
+     *
+     * when in another file, we only call code_gen on nodes present in the current file
+     * so if a generic node imported from another file has a different use of type, we must now generate code for it
+     *
+     * since this generic node is not present in current file, when use of a different type is detected at symbol resolution
+     * the node is put on this map, then before generating code for the file, we generate code for these nodes
+     */
+    tsl::ordered_map<ASTNode*, bool> imported_generic;
 
     /**
      * constructor

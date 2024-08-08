@@ -21,6 +21,18 @@ uint64_t ASTNode::byte_size(bool is64Bit) {
     throw std::runtime_error("unknown byte size for linked node");
 }
 
+ASTNode* ASTNode::root_parent() {
+    ASTNode* current = this;
+    while(true) {
+        const auto parent = current->parent();
+        if(parent) {
+            current = parent;
+        } else {
+            return current;
+        }
+    };
+}
+
 std::unique_ptr<BaseType> ASTNode::create_value_type() {
     return nullptr;
 }

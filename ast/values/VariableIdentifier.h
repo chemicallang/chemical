@@ -69,13 +69,11 @@ public:
 
     void link(SymbolResolver &linker, ChainValue *parent, std::vector<std::unique_ptr<ChainValue>> &values, unsigned int index) override;
 
-    void link_with(ASTNode *parent) override {
-        linked = parent;
-    }
+    void relink_parent(ChainValue *parent) override;
 
     ASTNode *linked_node() override;
 
-    void find_link_in_parent(ChainValue *parent, ASTDiagnoser *diagnoser) override;
+    void find_link_in_parent(ChainValue *parent, ASTDiagnoser *diagnoser);
 
     void find_link_in_parent(ChainValue *parent, SymbolResolver &resolver) override;
 

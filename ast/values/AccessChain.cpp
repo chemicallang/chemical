@@ -16,11 +16,15 @@ void AccessChain::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr
     declare_and_link(linker);
 }
 
-void AccessChain::link_without_parent() {
+void AccessChain::find_link_in_parent(ChainValue *parent, SymbolResolver &resolver) {
+    throw std::runtime_error("AccessChain doesn't support find_link_in_parent, because it can't be embedded in itself");
+}
+
+void AccessChain::relink_parent() {
     if (values.size() > 1) {
         unsigned i = 1;
         while (i < values.size()) {
-            values[i]->find_link_in_parent(values[i - 1].get(), nullptr);
+            values[i]->relink_parent(values[i - 1].get());
             i++;
         }
     }
@@ -109,7 +113,7 @@ Value *AccessChain::copy() {
     for(auto& value : values) {
         chain->values.emplace_back((ChainValue*) value->copy());
     }
-    chain->link_without_parent();
+    chain->relink_parent();
     return chain;
 }
 

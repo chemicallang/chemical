@@ -91,6 +91,11 @@ public:
     virtual ASTNode *parent() = 0;
 
     /**
+     * This get's the root parent of the current node
+     */
+    ASTNode* root_parent();
+
+    /**
      * this function provides a pointer to the parent ASTNode
      * a var init inside for loop, gets a pointer to the for loop
      */

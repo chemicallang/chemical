@@ -543,7 +543,7 @@ void FunctionDeclaration::set_active_iteration(int16_t iteration) {
     }
 }
 
-int16_t FunctionDeclaration::register_call(FunctionCall* call) {
+int16_t FunctionDeclaration::register_call(SymbolResolver& resolver, FunctionCall* call) {
     return register_generic_usage(generic_params, call->generic_list);
 }
 

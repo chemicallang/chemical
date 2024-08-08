@@ -13,6 +13,9 @@
 class IndexOperator : public ChainValue {
 public:
 
+    ChainValue *parent_val;
+    std::vector<std::unique_ptr<Value>> values;
+
     explicit IndexOperator(std::vector<std::unique_ptr<Value>> indexes) : values(std::move(indexes)) {
 
     }
@@ -31,9 +34,9 @@ public:
 
     ASTNode *linked_node() override;
 
-    void find_link_in_parent(ChainValue *parent, ASTDiagnoser *diagnoser) override;
-
     void find_link_in_parent(ChainValue *parent, SymbolResolver &resolver) override;
+
+    void relink_parent(ChainValue *parent) override;
 
     bool primitive() override {
         return false;
@@ -66,8 +69,5 @@ public:
 #endif
 
     std::unique_ptr<BaseType> create_type() override;
-
-    ChainValue *parent_val;
-    std::vector<std::unique_ptr<Value>> values;
 
 };

@@ -43,6 +43,8 @@ public:
         return other->kind() == kind() && static_cast<ReferencedType *>(other)->linked == linked;
     }
 
+    bool satisfies(BaseType *type) override;
+
     virtual BaseType *copy() const {
         auto t = new ReferencedType(type);
         t->linked = linked;

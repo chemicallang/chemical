@@ -24,6 +24,11 @@ bool ReferencedType::satisfies(ValueType value_type) {
     };
 }
 
+bool ReferencedType::satisfies(BaseType *type) {
+    const auto value_type = linked->get_value_type();
+    return value_type->satisfies(type);
+}
+
 void ReferencedType::link(SymbolResolver &linker, std::unique_ptr<BaseType>& current) {
     linked = linker.find(type);
     if(!linked) {

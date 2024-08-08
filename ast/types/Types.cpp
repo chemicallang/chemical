@@ -14,7 +14,12 @@
 #include "LiteralType.h"
 
 bool ArrayType::satisfies(Value *value) {
-    return value->get_base_type()->is_same(this);
+    if(value->value_type() != ValueType::Array) return false;
+    const auto pure_type = value->get_pure_type();
+    if(pure_type->kind() != BaseTypeKind::Array) return false;
+    const auto arr_type = (ArrayType*) pure_type.get();
+    if(array_size != -1 && arr_type->array_size != -1 && array_size != arr_type->array_size) return false;
+    return elem_type->satisfies(arr_type->elem_type.get());
 }
 
 bool BoolType::satisfies(Value *value) {

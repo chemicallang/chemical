@@ -13,6 +13,7 @@
 #include "ast/values/RetStructParamValue.h"
 #include "ast/values/StructValue.h"
 #include "ast/values/StringValue.h"
+#include "ast/values/ArrayValue.h"
 #include "ast/values/FunctionCall.h"
 #include "compiler/SymbolResolver.h"
 #include "ast/structures/Namespace.h"
@@ -176,10 +177,10 @@ public:
     }
 };
 
-class InterpretStrLen : public FunctionDeclaration {
+class InterpretSize : public FunctionDeclaration {
 public:
-    explicit InterpretStrLen(ASTNode* parent_node) : FunctionDeclaration(
-            "strlen",
+    explicit InterpretSize(ASTNode* parent_node) : FunctionDeclaration(
+            "size",
             std::vector<std::unique_ptr<FunctionParam>> {},
             std::make_unique<UBigIntType>(),
             false,
@@ -190,12 +191,13 @@ public:
     }
     Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val) override {
         if(call->values.empty()) {
-            call_scope->error("compiler::strlen called without arguments");
+            call_scope->error("compiler::size called without arguments");
             return nullptr;
         }
         const auto val = call->values[0].get();
-        if(val->value_type() != ValueType::String) {
-            call_scope->error("compiler::strlen called with invalid arguments");
+        const auto val_type = val->value_type();
+        if(val_type != ValueType::String && val_type != ValueType::Array) {
+            call_scope->error("compiler::size called with invalid arguments");
             return nullptr;
         }
         hybrid_ptr<Value> value{nullptr, false};
@@ -213,10 +215,17 @@ public:
             value = call->values[0]->evaluated_value(*call_scope);
         }
         if(!value) {
-            call_scope->error("couldn't get value for compiler::strlen");
+            call_scope->error("couldn't get value for compiler::size");
             return nullptr;
         }
-        return new UBigIntValue(value->as_string().length());
+        switch(val_type) {
+            case ValueType::String:
+                return new UBigIntValue(value->as_string().length());
+            case ValueType::Array:
+                return new UBigIntValue(value->as_array_value()->array_size());
+            default:
+                return new UBigIntValue(0);
+        }
     }
 };
 
@@ -348,12 +357,12 @@ Namespace* GlobalInterpretScope::create_compiler_namespace() {
     auto compiler_ns = (Namespace*) global_nodes["compiler"].get();
     compiler_ns->annotations.emplace_back(AnnotationKind::CompTime);
     compiler_ns->nodes.emplace_back(new InterpretPrint(compiler_ns));
-    compiler_ns->nodes.emplace_back(new InterpretStrLen(compiler_ns));
     compiler_ns->nodes.emplace_back(new InterpretWrap(compiler_ns));
     compiler_ns->nodes.emplace_back(new InterpretRetStructPtr(compiler_ns));
     compiler_ns->nodes.emplace_back(new InterpretCompilerVersion(compiler_ns));
     compiler_ns->nodes.emplace_back(new InterpretIsTcc(compiler_ns));
     compiler_ns->nodes.emplace_back(new InterpretIsClang(compiler_ns));
+    compiler_ns->nodes.emplace_back(new InterpretSize(compiler_ns));
     compiler_ns->nodes.emplace_back(new InterpretVector::InterpretVectorNode(compiler_ns));
     return compiler_ns;
 }

@@ -177,7 +177,7 @@ void StructValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr
                 auto member = definition->variables.find(val.first);
                 if(definition->variables.end() != member) {
                     const auto mem_type = member->second->get_value_type();
-                    auto implicit = implicit_constructor_for(mem_type.get(), val.second.get());
+                    auto implicit = mem_type->implicit_constructor_for(val.second.get());
                     if(implicit) {
                         val.second = call_with_arg(implicit, std::move(val.second), linker);
                     }

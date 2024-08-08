@@ -19,6 +19,8 @@ bool ArrayType::satisfies(Value *value) {
     if(pure_type->kind() != BaseTypeKind::Array) return false;
     const auto arr_type = (ArrayType*) pure_type.get();
     if(array_size != -1 && arr_type->array_size != -1 && array_size != arr_type->array_size) return false;
+    // can't get array element type, because array is empty probably and has no type declaration to lean on
+    if(!arr_type->elem_type) return true;
     return elem_type->satisfies(arr_type->elem_type.get());
 }
 

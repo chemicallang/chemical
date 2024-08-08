@@ -230,6 +230,13 @@ public:
      */
     FunctionDeclaration* implicit_constructor_for(Value* value);
 
+    /**
+     * if this type supports get_generic_struct
+     * this method get's the generic struct and set's the given iteration to it
+     * @return -2 if unsuccessful, otherwise previous iteration of the struct
+     */
+    int16_t set_generic_iteration(int16_t iteration);
+
 #ifdef COMPILER_BUILD
 
     /**

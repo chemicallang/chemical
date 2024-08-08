@@ -28,6 +28,9 @@ void GenericType::link(SymbolResolver &linker, std::unique_ptr<BaseType>& curren
     if(generic_struct) {
         generic_iteration = generic_struct->register_generic_args(linker, types);
     }
+    for(auto& type : types) {
+        type->link(linker, type);
+    }
 }
 
 void GenericType::report_generic_usage() {

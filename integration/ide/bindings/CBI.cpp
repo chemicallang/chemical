@@ -340,14 +340,14 @@ void prep_source_provider_cbi(SourceProviderCBI* cbi) {
 }
 
 void prep_build_context_cbi(BuildContextCBI* cbi) {
-    cbi->files_module = [](BuildContextCBI* self, chem::string* name, chem::string** path, unsigned int path_len, LabModule** dependencies, unsigned int dep_len) -> LabModule* {
-        return self->instance->files_module(name, path, path_len, dependencies, dep_len);
+    cbi->files_module = [](BuildContextCBI* self, chem::string* name, chem::string** path, unsigned int path_len, ModuleArrayRef* dependencies) -> LabModule* {
+        return self->instance->files_module(name, path, path_len, dependencies->ptr, dependencies->size);
     };
-    cbi->chemical_files_module = [](BuildContextCBI* self, chem::string* name, chem::string** path, unsigned int path_len, LabModule** dependencies, unsigned int dep_len) -> LabModule* {
-        return self->instance->chemical_files_module(name, path, path_len, dependencies, dep_len);
+    cbi->chemical_files_module = [](BuildContextCBI* self, chem::string* name, chem::string** path, unsigned int path_len, ModuleArrayRef* dependencies) -> LabModule* {
+        return self->instance->chemical_files_module(name, path, path_len, dependencies->ptr, dependencies->size);
     };
-    cbi->c_file_module = [](BuildContextCBI* self, chem::string* name, chem::string* path, LabModule** dependencies, unsigned int dep_len) -> LabModule* {
-        return self->instance->c_file_module(name, path, dependencies, dep_len);
+    cbi->c_file_module = [](BuildContextCBI* self, chem::string* name, chem::string* path, ModuleArrayRef* dependencies) -> LabModule* {
+        return self->instance->c_file_module(name, path, dependencies->ptr, dependencies->size);
     };
     cbi->object_module = [](BuildContextCBI* self, chem::string* name, chem::string* path) -> LabModule* {
         return self->instance->obj_file_module(name, path);
@@ -358,11 +358,11 @@ void prep_build_context_cbi(BuildContextCBI* cbi) {
     cbi->translate_mod_to_c = [](BuildContextCBI* self, LabModule* module, chem::string* output_path) -> LabJob* {
         return self->instance->translate_to_c(module, output_path);
     };
-    cbi->build_exe = [](BuildContextCBI* self, chem::string* name, LabModule** dependencies, unsigned int dep_len) -> LabJob* {
-        return self->instance->build_exe(name, dependencies, dep_len);
+    cbi->build_exe = [](BuildContextCBI* self, chem::string* name, ModuleArrayRef* dependencies) -> LabJob* {
+        return self->instance->build_exe(name, dependencies->ptr, dependencies->size);
     };
-    cbi->build_dynamic_lib = [](BuildContextCBI* self, chem::string* name, LabModule** dependencies, unsigned int dep_len) -> LabJob* {
-        return self->instance->build_dynamic_lib(name, dependencies, dep_len);
+    cbi->build_dynamic_lib = [](BuildContextCBI* self, chem::string* name, ModuleArrayRef* dependencies) -> LabJob* {
+        return self->instance->build_dynamic_lib(name, dependencies->ptr, dependencies->size);
     };
     cbi->add_object = [](BuildContextCBI* self, LabJob* job, chem::string* path) {
         job->linkables.emplace_back(path->copy());

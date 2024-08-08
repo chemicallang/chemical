@@ -446,6 +446,8 @@ set(COMMON_SOURCES
         ast/structures/GenericTypeParameter.h
         cst/CSTToken.cpp
         ast/utils/GenericUtils.h
+        ast/values/TypeLinkedValue.h
+        ast/values/TypeLinkedValue.cpp
 )
 
 # Chemical LSP Executable Target

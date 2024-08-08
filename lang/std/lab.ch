@@ -1,4 +1,5 @@
 import "./string.ch"
+import "./array_ref.ch"
 
 enum ModuleType {
     File,
@@ -47,13 +48,13 @@ struct LabJob {
 struct BuildContext {
 
     // support's paths with .o, .c and .ch extensions
-    var files_module : (&self, name : string, paths : string**, paths_len : uint, dependencies : Module**, len : uint) => Module*;
+    var files_module : (&self, name : string, paths : string**, paths_len : uint, dependencies : ArrayRef<Module*>) => Module*;
 
     // when paths only contain chemical files
-    var chemical_files_module : (&self, name : string, paths : string**, paths_len : uint, dependencies : Module**, len : uint) => Module*;
+    var chemical_files_module : (&self, name : string, paths : string**, paths_len : uint, dependencies : ArrayRef<Module*>) => Module*;
 
     // a single .c file
-    var c_file_module : (&self, name : string, path : string, dependencies : Module**, len : uint) => Module*
+    var c_file_module : (&self, name : string, path : string, dependencies : ArrayRef<Module*>) => Module*
 
     // a single .o file
     var object_module : (&self, name : string, path : string) => Module*
@@ -62,9 +63,9 @@ struct BuildContext {
 
     var translate_mod_to_c : (&self, module : Module*, output_path : string) => LabJob*
 
-    var build_exe : (&self, name : string, dependencies : Module**, len : uint) => LabJob*;
+    var build_exe : (&self, name : string, dependencies : ArrayRef<Module*>) => LabJob*;
 
-    var build_dynamic_lib : (&self, name : string, dependencies : Module**, len : uint) => LabJob*;
+    var build_dynamic_lib : (&self, name : string, dependencies : ArrayRef<Module*>) => LabJob*;
 
     var add_object : (&self, job : LabJob*, path : string) => void;
 
@@ -80,16 +81,16 @@ struct BuildContext {
 
     var on_finished : (&self, lambda : (data : void*) => void, data : void*) => void;
 
-    func chemical_file_module(&self, name : string, path : string, dependencies : Module**, len : uint) : Module* {
-        return chemical_files_module(name, &path, 1, dependencies, len);
+    func chemical_file_module(&self, name : string, path : string, dependencies : ArrayRef<Module*>) : Module* {
+        return chemical_files_module(name, &path, 1, dependencies);
     }
 
-    func file_module(&self, name : string, path : string, dependencies : Module**, len : uint) : Module* {
-        return files_module(name, &path, 1, dependencies, len);
+    func file_module(&self, name : string, path : string, dependencies : ArrayRef<Module*>) : Module* {
+        return files_module(name, &path, 1, dependencies);
     }
 
     func translate_to_c(&self, chem_path : string, output_path : string) : LabJob* {
-        var mod = file_module("TempChem", chem_path, null, 0);
+        var mod = file_module("TempChem", chem_path, {});
         return translate_mod_to_c(mod, output_path);
     }
 

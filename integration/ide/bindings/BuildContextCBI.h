@@ -11,13 +11,18 @@ struct LabModule;
 
 struct LabJob;
 
+struct ModuleArrayRef {
+    LabModule** ptr;
+    size_t size;
+};
+
 struct BuildContextCBI {
 
-    LabModule*(*files_module)(BuildContextCBI* self, chem::string* name, chem::string** path, unsigned int path_len, LabModule** dependencies, unsigned int dep_len);
+    LabModule*(*files_module)(BuildContextCBI* self, chem::string* name, chem::string** path, unsigned int path_len, ModuleArrayRef* dependencies);
 
-    LabModule*(*chemical_files_module)(BuildContextCBI* self, chem::string* name, chem::string** path, unsigned int path_len, LabModule** dependencies, unsigned int dep_len);
+    LabModule*(*chemical_files_module)(BuildContextCBI* self, chem::string* name, chem::string** path, unsigned int path_len, ModuleArrayRef* dependencies);
 
-    LabModule*(*c_file_module)(BuildContextCBI* self, chem::string* name, chem::string* path, LabModule** dependencies, unsigned int dep_len);
+    LabModule*(*c_file_module)(BuildContextCBI* self, chem::string* name, chem::string* path, ModuleArrayRef* dependencies);
 
     LabModule*(*object_module)(BuildContextCBI* self, chem::string* name, chem::string* path);
 
@@ -25,9 +30,9 @@ struct BuildContextCBI {
 
     LabJob*(*translate_mod_to_c)(BuildContextCBI* self, LabModule* chem_path, chem::string* output_path);
 
-    LabJob*(*build_exe)(BuildContextCBI* self, chem::string* name, LabModule** dependencies, unsigned int dep_len);
+    LabJob*(*build_exe)(BuildContextCBI* self, chem::string* name, ModuleArrayRef* dependencies);
 
-    LabJob*(*build_dynamic_lib)(BuildContextCBI* self, chem::string* name, LabModule** dependencies, unsigned int dep_len);
+    LabJob*(*build_dynamic_lib)(BuildContextCBI* self, chem::string* name, ModuleArrayRef* dependencies);
 
     void(*add_object)(BuildContextCBI* self, LabJob* job, chem::string* path);
 

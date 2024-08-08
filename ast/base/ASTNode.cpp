@@ -6,6 +6,10 @@
 #include "preprocess/RepresentationVisitor.h"
 #include <sstream>
 
+#if !defined(DEBUG) && defined(COMPILER_BUILD)
+#include "compiler/Codegen.h"
+#endif
+
 std::string ASTNode::representation() {
     std::ostringstream ostring;
     RepresentationVisitor visitor(ostring);
@@ -32,6 +36,68 @@ ASTNode* ASTNode::root_parent() {
         }
     };
 }
+
+void ASTNode::set_parent(ASTNode* parent) {
+#ifdef DEBUG
+    throw std::runtime_error("set_parent called on base ast node");
+#endif
+}
+
+#ifdef COMPILER_BUILD
+
+llvm::Value *ASTNode::llvm_pointer(Codegen &gen) {
+#ifdef DEBUG
+    throw std::runtime_error("llvm_pointer called on bare ASTNode, with representation" + representation());
+#else
+    gen.early_error("ASTNode::llvm_pointer called, on node : " + representation());
+    return nullptr;
+#endif
+};
+
+llvm::Type *ASTNode::llvm_elem_type(Codegen &gen) {
+#ifdef DEBUG
+    throw std::runtime_error("llvm_elem_type called on bare ASTNode, with representation" + representation());
+#else
+    gen.early_error("ASTNode::llvm_elem_type called, on node : " + representation());
+    return nullptr;
+#endif
+};
+
+void ASTNode::code_gen(Codegen &gen) {
+#ifdef DEBUG
+    throw std::runtime_error("ASTNode code_gen called on bare ASTNode, with representation : " + representation());
+#else
+    gen.early_error("ASTNode::code_gen called, on node : " + representation());
+#endif
+}
+
+bool ASTNode::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
+#ifdef DEBUG
+    throw std::runtime_error("add_child_index called on a ASTNode");
+#else
+    gen.early_error("ASTNode::add_child_index called, on node : " + representation());
+    return false;
+#endif
+}
+
+llvm::Value *ASTNode::llvm_load(Codegen &gen) {
+#ifdef DEBUG
+    throw std::runtime_error("llvm_load called on a ASTNode");
+#else
+    gen.early_error("ASTNode::llvm_load called, on node : " + representation());
+    return nullptr;
+#endif
+}
+
+void ASTNode::code_gen_imported_generics(Codegen &gen) {
+#ifdef DEBUG
+    throw std::runtime_error("llvm_load called on a ASTNode");
+#else
+    gen.early_error("ASTNode::llvm_load called, on node : " + representation());
+#endif
+}
+
+#endif
 
 std::unique_ptr<BaseType> ASTNode::create_value_type() {
     return nullptr;

@@ -345,20 +345,20 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                 // reset the c visitor to use with another file
                 c_visitor.reset();
                 // translating to c
-                processor.translate_to_c_no_sym_res(c_visitor, result.scope, shrinker, file);
+                processor.translate_to_c(c_visitor, result.scope, file);
             }
 #ifdef COMPILER_BUILD
             else {
                 // compiling the nodes
-                gen.nodes = std::move(result.scope.nodes);
-                processor.compile_nodes(&gen, shrinker, file);
+                processor.compile_nodes(&gen, result.scope, file);
             }
 #endif
-            if(already_imported) {
-                imported->second = std::move(result.scope.nodes);
-            } else {
+
+            if(!already_imported) {
+                processor.shrink_nodes(shrinker, result.scope, file);
                 i++;
             }
+
         }
 
         futures.clear();
@@ -538,7 +538,10 @@ int LabBuildCompiler::do_to_c_job(LabJob* job) {
             resolver.reset_errors();
 
             // translating
-            processor.translate_to_c_no_sym_res(visitor, result.scope, shrinker, file);
+            processor.translate_to_c(visitor, result.scope, file);
+
+            // shrinking the nodes
+            processor.shrink_nodes(shrinker, result.scope, file);
 
             i++;
         }
@@ -689,7 +692,10 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
             }
 
             // translate build.lab file to c
-            lab_processor.translate_to_c_no_sym_res(c_visitor, result.scope, shrinker, file);
+            lab_processor.translate_to_c(c_visitor, result.scope, file);
+
+            // shrinking the nodes
+            lab_processor.shrink_nodes(shrinker, result.scope, file);
 
             i++;
         }

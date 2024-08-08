@@ -361,7 +361,6 @@ set(COMMON_SOURCES
         preprocess/utils/RepresentationUtils.h
         preprocess/utils/RepresentationUtils.cpp
         compiler/ASTProcessorOptions.h
-        preprocess/SourceVerify.cpp
         compiler/ASTProcessor.h
         compiler/ASTDiag.h
         compiler/ASTProcessor.cpp

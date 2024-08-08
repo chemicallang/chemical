@@ -37,11 +37,6 @@ public:
     bool verbose = false;
 
     /**
-     * shrink nodes for each file after processing
-     */
-    bool shrink_nodes = true;
-
-    /**
      * is cbi enabled
      */
     bool isCBIEnabled = true;

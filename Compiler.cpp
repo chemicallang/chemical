@@ -19,7 +19,6 @@
 #include "utils/StrUtils.h"
 #include "preprocess/ImportGraphMaker.h"
 #include "preprocess/RepresentationVisitor.h"
-#include "preprocess/SourceVerifier.h"
 #include "utils/PathUtils.h"
 #include <functional>
 #include "preprocess/2cASTVisitor.h"
@@ -69,7 +68,7 @@ void print_help() {
                  "--assertions        -[empty]      enable assertions on generated code\n"
                  "--debug-ir          -[empty]      output llvm ir, even with errors, for debugging\n"
                  "--arg-[arg]         -arg-[arg]    can be used to provide arguments to build.lab\n"
-                 "--verify            -o            do not compile, only verify source code\n"
+//                 "--verify            -o            do not compile, only verify source code\n"
                  "--jit               -jit          do just in time compilation using Tiny CC\n"
                  "--no-cbi            -[empty]      this ignores cbi annotations when translating\n"
                  "--cpp-like          -[empty]      configure output of c translation to be like c++\n"

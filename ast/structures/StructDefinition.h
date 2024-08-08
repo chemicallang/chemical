@@ -24,6 +24,10 @@ public:
     ASTNode* parent_node;
 
 #ifdef COMPILER_BUILD
+    /**
+     * the key here is the generic iteration, where as the value corresponds to
+     * a llvm struct type, we create a struct type once, and then cache it
+     */
     std::unordered_map<int16_t, llvm::StructType*> llvm_struct_types;
 #endif
 
@@ -111,6 +115,11 @@ public:
     [[nodiscard]]
     BaseType *copy() const override;
 
+    /**
+     * get the function being overridden of this struct, the interface whose function
+     */
+    FunctionDeclaration* get_overriding(FunctionDeclaration* function);
+
 #ifdef COMPILER_BUILD
 
     bool is_anonymous() override {
@@ -129,11 +138,22 @@ public:
 
     llvm::Type *llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned int index) override;
 
-    void struct_func_gen(
-        Codegen& gen,
-        const std::function<bool(FunctionDeclaration* function)>& override,
-        const std::function<FunctionDeclaration*(FunctionDeclaration* function)>& get_overriding
-    );
+    /**
+     * will try to override the given function if there's an interface and it exists
+     * in the inherited struct / interface, otherwise returns false
+     */
+    bool llvm_override(Codegen& gen, FunctionDeclaration* declaration);
+
+    /**
+     * generate code for all functions in this struct
+     */
+    void struct_func_gen(Codegen& gen);
+
+    /**
+     * for the given struct iteration, we acquire all the function iterations and put them
+     * in the llvm_struct types
+     */
+    void acquire_function_iterations(int16_t iteration, const int16_t total);
 
     void code_gen(Codegen &gen) override;
 

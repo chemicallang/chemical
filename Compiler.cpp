@@ -18,8 +18,6 @@
 #include <filesystem>
 #include "utils/StrUtils.h"
 #include "preprocess/ImportGraphMaker.h"
-#include "compiler/IGCompiler.h"
-#include "preprocess/ToCTranslator.h"
 #include "preprocess/RepresentationVisitor.h"
 #include "preprocess/SourceVerifier.h"
 #include "utils/PathUtils.h"

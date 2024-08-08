@@ -20,12 +20,12 @@ void ASTCompiler::compile_nodes(
         bm_results->benchmark_end();
         std::cout << "[Compile] " << file.abs_path << " Completed " << bm_results->representation() << std::endl;
     }
-    if(options->shrink_nodes) {
-        shrinker.visit(gen->nodes);
-    }
-    shrinked_nodes[file.abs_path] = std::move(gen->nodes);
     if(!gen->errors.empty()) {
         gen->print_errors(file.abs_path);
     }
     gen->reset_errors();
+    if(options->shrink_nodes) {
+        shrinker.visit(gen->nodes);
+    }
+    shrinked_nodes[file.abs_path] = std::move(gen->nodes);
 }

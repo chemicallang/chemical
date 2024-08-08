@@ -355,8 +355,6 @@ set(COMMON_SOURCES
         server/analyzers/Documentation.h
         preprocess/2cASTVisitor.h
         preprocess/2cASTVisitor.cpp
-        preprocess/ToCTranslator.h
-        preprocess/ToCTranslator.cpp
         ast/utils/CommonVisitor.cpp
         ast/utils/CommonVisitor.h
         preprocess/RepresentationVisitor.cpp
@@ -489,8 +487,6 @@ set(COMPILER_SOURCES
         compiler/ctranslator/CTranslator.cpp
         compiler/chem_clang.h
         compiler/chem_clang.cpp
-        compiler/IGCompiler.h
-        compiler/IGCompiler.cpp
         compiler/llvmbackend/LLVM.cpp
         compiler/ASTCompiler.cpp
         compiler/ASTCompiler.h

@@ -529,11 +529,16 @@ int LabBuildCompiler::do_to_c_job(LabJob* job) {
             // reset the visitor so it can be used for another file
             visitor.reset();
 
-            // translating
-            if(!processor.translate_to_c(visitor, result, shrinker, file)) {
+            // perform symbol resolution
+            processor.sym_res(result.scope, result.is_c_file, file.abs_path);
+            if (resolver.has_errors) {
                 compile_result = 1;
                 break;
             }
+            resolver.reset_errors();
+
+            // translating
+            processor.translate_to_c_no_sym_res(visitor, result.scope, shrinker, file);
 
             i++;
         }

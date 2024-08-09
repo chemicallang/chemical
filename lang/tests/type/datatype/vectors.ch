@@ -44,4 +44,18 @@ func test_vectors() {
         }
         return sum == act_sum;
     })
+    test("test can change vector elements at index", () => {
+        var v = vector<int>();
+        v.push(10);
+        v.push(20);
+        v.push(30);
+        v.push(40);
+        v.push(50);
+        v.set(0, 50);
+        v.set(1, 40);
+        v.set(2, 30);
+        v.set(3, 20);
+        v.set(4, 10);
+        return v.get(0) == 50 && v.get(1) == 40 && v.get(2) == 30 && v.get(3) == 20 && v.get(4) == 10;
+    })
 }

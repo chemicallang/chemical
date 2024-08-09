@@ -7,7 +7,7 @@ func compiler_vector_sum(a : int) : int {
     vec.push(10);
     vec.push(20);
     vec.push(40);
-    vec.erase(3);
+    vec.remove(3);
     var sum = 0;
     var i = 0;
     while(i < vec.size()) {
@@ -24,7 +24,7 @@ func compiler_vector_sum_l(a : long) : long {
     vec.push(10);
     vec.push(20);
     vec.push(40);
-    vec.erase(3);
+    vec.remove(3);
     var sum = 0;
     var i = 0;
     while(i < vec.size()) {

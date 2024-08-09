@@ -24,7 +24,7 @@ private:
     Value *interpretReturn = nullptr;
 public:
 
-    AccessSpecifier specifier;
+    AccessSpecifier specifier = AccessSpecifier::Internal;
     std::string name;
     std::vector<std::unique_ptr<GenericTypeParameter>> generic_params;
     std::optional<LoopScope> body;

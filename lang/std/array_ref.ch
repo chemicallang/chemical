@@ -2,7 +2,7 @@ import "./std.ch"
 
 struct ArrayRef<T> {
 
-    var ptr : T*
+    var data : T*
     var size : size_t
 
     @implicit
@@ -14,7 +14,7 @@ struct ArrayRef<T> {
 
     @constructor
     func constructor(array_ptr : T*, array_size : size_t) {
-        ptr = array_ptr;
+        data = array_ptr;
         size = array_size;
     }
 

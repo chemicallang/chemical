@@ -48,6 +48,8 @@ public:
 
     bool satisfies(ValueType value_type) override;
 
+    bool satisfies(Value *value) override;
+
     [[nodiscard]]
     BaseType* copy() const override;
 

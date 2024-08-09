@@ -450,7 +450,7 @@ Value* evaluate_comptime_func(
         FunctionCall* call
 ) {
     Value* eval;
-    auto value = std::unique_ptr<Value>(func_decl->call(&visitor->comptime_scope, call, nullptr));
+    auto value = std::unique_ptr<Value>(func_decl->call(&visitor->comptime_scope, call, nullptr, false));
     if(!value) {
         visitor->error("comptime function call didn't return anything");
         return nullptr;

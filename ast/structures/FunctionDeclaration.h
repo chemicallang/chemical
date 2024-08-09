@@ -208,14 +208,16 @@ public:
     virtual Value *call(
         InterpretScope *call_scope,
         FunctionCall* call,
-        Value* parent_val
+        Value* parent_val,
+        bool evaluate_refs = true
     );
 
     virtual Value *call(
         InterpretScope *call_scope,
         std::vector<std::unique_ptr<Value>> &call_args,
         Value* parent_val,
-        InterpretScope *fn_scope
+        InterpretScope *fn_scope,
+        bool evaluate_refs = true
     );
 
     std::unique_ptr<BaseType> create_value_type() override;

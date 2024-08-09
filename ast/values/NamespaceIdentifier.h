@@ -9,6 +9,8 @@ public:
 
     using VariableIdentifier::VariableIdentifier;
 
+    Value *copy() override;
+
     bool can_link_with_namespace() override {
         return true;
     }

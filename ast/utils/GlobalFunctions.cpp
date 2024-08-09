@@ -116,10 +116,10 @@ namespace InterpretVector {
             return nullptr;
         }
     };
-    class InterpretVectorErase : public FunctionDeclaration {
+    class InterpretVectorRemove : public FunctionDeclaration {
     public:
-        explicit InterpretVectorErase(InterpretVectorNode* node) : FunctionDeclaration(
-                "erase",
+        explicit InterpretVectorRemove(InterpretVectorNode* node) : FunctionDeclaration(
+                "remove",
                 std::vector<std::unique_ptr<FunctionParam>> {},
                 std::make_unique<VoidType>(),
                 false,
@@ -142,7 +142,7 @@ namespace InterpretVector {
         insert_func(std::make_unique<InterpretVectorSize>(this));
         insert_func(std::make_unique<InterpretVectorGet>(this));
         insert_func(std::make_unique<InterpretVectorPush>(this));
-        insert_func(std::make_unique<InterpretVectorErase>(this));
+        insert_func(std::make_unique<InterpretVectorRemove>(this));
     }
 
 }
@@ -177,6 +177,27 @@ public:
     }
 };
 
+hybrid_ptr<Value> resolve_ref(Value* val, InterpretScope *call_scope) {
+    hybrid_ptr<Value> value{nullptr, false};
+    if(val->reference()) {
+        auto linked = val->linked_node();
+        if(linked && !linked->as_func_param()) {
+            auto holding = linked->holding_value();
+            if(holding) {
+                value = hybrid_ptr<Value>{holding, false};
+            }
+        } else {
+            value = val->evaluated_value(*call_scope);
+        }
+    } else {
+        value = val->evaluated_value(*call_scope);
+    }
+    if(value && value->reference()) {
+        return resolve_ref(value.get(), call_scope);
+    }
+    return value;
+}
+
 class InterpretSize : public FunctionDeclaration {
 public:
     explicit InterpretSize(ASTNode* parent_node) : FunctionDeclaration(
@@ -200,20 +221,7 @@ public:
             call_scope->error("compiler::size called with invalid arguments");
             return nullptr;
         }
-        hybrid_ptr<Value> value{nullptr, false};
-        if(val->reference()) {
-            auto linked = val->linked_node();
-            if(linked && !linked->as_func_param()) {
-                auto holding = linked->holding_value();
-                if(holding) {
-                    value = hybrid_ptr<Value>{holding, false};
-                }
-            } else {
-                value = call->values[0]->evaluated_value(*call_scope);
-            }
-        } else {
-            value = call->values[0]->evaluated_value(*call_scope);
-        }
+        auto value = resolve_ref(val, call_scope);
         if(!value) {
             call_scope->error("couldn't get value for compiler::size");
             return nullptr;

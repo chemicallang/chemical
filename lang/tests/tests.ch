@@ -20,6 +20,7 @@ import "comptime/vector.ch"
 import "basic/external.ch"
 import "generic/basic.ch"
 import "type/datatype/vectors.ch"
+import "type/datatype/array_refs.ch"
 
 func main() {
     test_var_init();
@@ -44,5 +45,6 @@ func main() {
     test_external_functions();
     test_basic_generics();
     test_vectors();
+    test_array_refs();
     print_test_stats();
 }

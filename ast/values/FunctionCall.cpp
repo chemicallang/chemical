@@ -170,7 +170,8 @@ llvm::Value* call_with_args(
             gen.error("Couldn't get callee value for the function call to " + call->representation());
             return nullptr;
         }
-        return gen.builder->CreateCall(call->llvm_linked_func_type(gen, chain_values, index), callee, args);
+        const auto llvm_func_type = call->llvm_linked_func_type(gen, chain_values, index);
+        return gen.builder->CreateCall(llvm_func_type, callee, args);
 //    }
 }
 
@@ -566,6 +567,13 @@ std::unique_ptr<BaseType> FunctionCall::create_type(std::vector<std::unique_ptr<
 }
 
 hybrid_ptr<BaseType> FunctionCall::get_base_type() {
+    const auto func_decl = safe_linked_func();
+    if(func_decl && func_decl->generic_params.empty() && func_decl->has_annotation(AnnotationKind::Constructor)) {
+        const auto struct_def = func_decl->parent_node->as_struct_def();
+        if(struct_def->is_generic()) {
+            return hybrid_ptr<BaseType> { new GenericType(std::make_unique<ReferencedType>(struct_def->name, struct_def), generic_iteration), true };
+        }
+    }
     auto prev_itr = set_curr_itr_on_decl();
     auto func_type = get_function_type();
     auto pure_return = func_type->returnType->get_pure_type();

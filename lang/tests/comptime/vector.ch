@@ -1,7 +1,7 @@
 import "../test.ch"
 
 @comptime
-func compiler_vector_sum(a : int) {
+func compiler_vector_sum(a : int) : int {
     var vec = compiler::vector<int>();
     vec.push(a);
     vec.push(10);
@@ -18,7 +18,7 @@ func compiler_vector_sum(a : int) {
 }
 
 @comptime
-func compiler_vector_sum_l(a : long) {
+func compiler_vector_sum_l(a : long) : long {
     var vec = compiler::vector<long>();
     vec.push(a);
     vec.push(10);

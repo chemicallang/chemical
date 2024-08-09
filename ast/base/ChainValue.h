@@ -17,6 +17,10 @@ public:
     using Value::create_type;
     using Value::link;
 
+    ChainValue * as_chain_value() override {
+        return this;
+    }
+
     /**
      * called by access chain, to link a value inside values in a chain
      * it allows variable identifier to prevent auto appending self, when access chain has already done it

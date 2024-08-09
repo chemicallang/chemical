@@ -133,7 +133,7 @@ public:
      */
     virtual Value* child(InterpretScope& scope, const std::string& name) {
 #ifdef DEBUG
-std::cerr << "child called on base value";
+std::cerr << "child called on base value with representation " + representation();
 #endif
         return nullptr;
     }
@@ -555,6 +555,13 @@ std::cerr << "child called on base value";
      */
     inline bool evaluated_bool(InterpretScope& scope) {
         return evaluated_value(scope)->as_bool();
+    }
+
+    /**
+     * return if this is a chain value
+     */
+    virtual ChainValue* as_chain_value() {
+        return nullptr;
     }
 
     /**

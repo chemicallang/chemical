@@ -1,6 +1,6 @@
 // Copyright (c) Qinetik 2024.
 
-#include "VariableIdentifier.h"
+#include "NamespaceIdentifier.h"
 
 #include <memory>
 #include "compiler/SymbolResolver.h"
@@ -93,7 +93,12 @@ void VariableIdentifier::find_link_in_parent(ChainValue *parent, SymbolResolver 
 }
 
 Value *VariableIdentifier::child(InterpretScope &scope, const std::string &name) {
-    return evaluated_value(scope)->child(scope, name);
+    const auto eval = evaluated_value(scope);
+    if(eval.get()) {
+        return eval->child(scope, name);
+    } else {
+        return nullptr;
+    }
 }
 
 // will find value by this name in the parent
@@ -189,6 +194,12 @@ VarInitStatement *VariableIdentifier::declaration() {
 
 Value* VariableIdentifier::copy() {
     auto id = new VariableIdentifier(value);
+    id->linked = linked;
+    return id;
+}
+
+Value *NamespaceIdentifier::copy() {
+    auto id = new NamespaceIdentifier(value);
     id->linked = linked;
     return id;
 }

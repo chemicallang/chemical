@@ -27,7 +27,7 @@ void ReturnStatement::declare_and_link(SymbolResolver &linker) {
         value.value()->link(linker, this);
         if(func_type->returnType) {
             const auto implicit = func_type->returnType->implicit_constructor_for(value.value().get());
-            if (implicit) {
+            if (implicit && implicit != func_type && implicit->parent_node != func_type->parent()) {
                 value.emplace(call_with_arg(implicit, std::move(value.value()), linker));
                 return;
             }

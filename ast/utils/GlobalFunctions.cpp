@@ -59,7 +59,7 @@ namespace InterpretVector {
         ) {
             annotations.emplace_back(AnnotationKind::Constructor);
         }
-        Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val) override {
+        Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
             return new InterpretVectorVal((InterpretVectorNode*) parent_node);
         }
     };
@@ -76,7 +76,7 @@ namespace InterpretVector {
         ) {
             params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>("vector", node)), 0, std::nullopt, this));
         }
-        Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val) override {
+        Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
             return new IntValue(static_cast<InterpretVectorVal*>(parent_val)->values.size());
         }
     };
@@ -94,7 +94,7 @@ namespace InterpretVector {
             params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>("vector", node)), 0, std::nullopt, this));
             params.emplace_back(std::make_unique<FunctionParam>("index", std::make_unique<AnyType>(), 0, std::nullopt, this));
         }
-        Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val) override {
+        Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
             return static_cast<InterpretVectorVal*>(parent_val)->values[call->values[0]->evaluated_value(*call_scope)->as_int()]->scope_value(*call_scope);
         }
     };
@@ -111,7 +111,7 @@ namespace InterpretVector {
             params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>("vector", node)), 0, std::nullopt, this));
             params.emplace_back(std::make_unique<FunctionParam>("value", std::make_unique<ReferencedType>("T", node->generic_params[0].get()), 1, std::nullopt, this));
         }
-        Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val) override {
+        Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
             static_cast<InterpretVectorVal*>(parent_val)->values.emplace_back(call->values[0]->scope_value(*call_scope));
             return nullptr;
         }
@@ -129,7 +129,7 @@ namespace InterpretVector {
             params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>("vector", node)), 0, std::nullopt, this));
             params.emplace_back(std::make_unique<FunctionParam>("index", std::make_unique<AnyType>(), 0, std::nullopt, this));
         }
-        Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val) override {
+        Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
             auto& ref = static_cast<InterpretVectorVal*>(parent_val)->values;
             ref.erase(ref.begin() + call->values[0]->evaluated_value(*call_scope)->as_int());
             return nullptr;
@@ -161,7 +161,7 @@ public:
     ), visitor(ostring) {
         visitor.interpret_representation = true;
     }
-    Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val) override {
+    Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
         ostring.str("");
         ostring.clear();
         for (auto const &value: call->values) {
@@ -189,7 +189,7 @@ public:
     ) {
         annotations.emplace_back(AnnotationKind::CompTime);
     }
-    Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val) override {
+    Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
         if(call->values.empty()) {
             call_scope->error("compiler::size called without arguments");
             return nullptr;
@@ -238,7 +238,7 @@ public:
     void accept(Visitor *visitor) override {
         throw std::runtime_error("compiler::wrap value cannot be visited");
     }
-    Value *scope_value(InterpretScope &scope) override {
+    Value *copy() override {
         return new WrapValue(std::unique_ptr<Value>(underlying->copy()));
     }
     hybrid_ptr<Value> evaluated_value(InterpretScope &scope) override {
@@ -266,10 +266,32 @@ public:
 //        returnType = std::make_unique<ReferencedType>("T", generic_params[0].get());
         params.emplace_back(std::make_unique<FunctionParam>("value", std::make_unique<AnyType>(), 0, std::nullopt, this));
     }
-    Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val) override {
+    Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
         auto underlying = call->values[0]->copy();
         underlying->evaluate_children(*call_scope);
         return new WrapValue(std::unique_ptr<Value>(underlying));
+    }
+};
+
+class InterpretUnwrap : public FunctionDeclaration {
+public:
+    explicit InterpretUnwrap(ASTNode* parent_node) : FunctionDeclaration(
+            "unwrap",
+            std::vector<std::unique_ptr<FunctionParam>> {},
+            std::make_unique<AnyType>(),
+            true,
+            parent_node,
+            std::nullopt
+    ) {
+        annotations.emplace_back(AnnotationKind::CompTime);
+        // having a generic type parameter T requires that user gives type during function call to wrap
+        // when we can successfully avoid giving type for generic parameters in functions, we should do this
+//        generic_params.emplace_back(new GenericTypeParameter("T", nullptr, this));
+//        returnType = std::make_unique<ReferencedType>("T", generic_params[0].get());
+        params.emplace_back(std::make_unique<FunctionParam>("value", std::make_unique<AnyType>(), 0, std::nullopt, this));
+    }
+    Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+        return call->values[0]->evaluated_value(*call_scope)->copy();
     }
 };
 
@@ -286,7 +308,7 @@ public:
     ) {
         annotations.emplace_back(AnnotationKind::CompTime);
     }
-    Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val) override {
+    Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
         return new RetStructParamValue();
     }
 };
@@ -303,7 +325,7 @@ public:
     ) {
         annotations.emplace_back(AnnotationKind::CompTime);
     }
-    Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val) override {
+    Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
         std::string val;
         val.append(std::to_string(PROJECT_VERSION_MAJOR));
         val.append(1, '.');
@@ -326,7 +348,7 @@ public:
     ) {
         annotations.emplace_back(AnnotationKind::CompTime);
     }
-    Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val) override {
+    Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
 #ifdef TCC_BUILD
         return new BoolValue(true);
 #else
@@ -347,7 +369,7 @@ public:
     ) {
         annotations.emplace_back(AnnotationKind::CompTime);
     }
-    Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val) override {
+    Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
 #ifdef COMPILER_BUILD
         return new BoolValue(true);
 #else
@@ -362,6 +384,7 @@ Namespace* GlobalInterpretScope::create_compiler_namespace() {
     compiler_ns->annotations.emplace_back(AnnotationKind::CompTime);
     compiler_ns->nodes.emplace_back(new InterpretPrint(compiler_ns));
     compiler_ns->nodes.emplace_back(new InterpretWrap(compiler_ns));
+    compiler_ns->nodes.emplace_back(new InterpretUnwrap(compiler_ns));
     compiler_ns->nodes.emplace_back(new InterpretRetStructPtr(compiler_ns));
     compiler_ns->nodes.emplace_back(new InterpretCompilerVersion(compiler_ns));
     compiler_ns->nodes.emplace_back(new InterpretIsTcc(compiler_ns));

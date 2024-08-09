@@ -179,7 +179,19 @@ hybrid_ptr<Value> AccessChain::evaluated_value(InterpretScope &scope) {
     hybrid_ptr<Value> evaluated = values[0]->evaluated_value(scope);
     unsigned i = 1;
     while(i < values.size()) {
-        evaluated = values[i]->evaluated_chain_value(scope, evaluated.get());
+        auto next = values[i]->evaluated_chain_value(scope, evaluated.get());
+        if(next.get() == nullptr && evaluated.get() && evaluated->as_chain_value() && i == 1) {
+            auto c = (AccessChain*) copy();
+            if(evaluated.get_will_free()) {
+                c->values[0].reset((ChainValue*) evaluated.release());
+            } else {
+                c->values[0].reset((ChainValue*) evaluated->copy());
+            }
+            c->relink_parent();
+            return hybrid_ptr<Value> { c, true };
+        } else {
+            evaluated = std::move(next);
+        }
         i++;
     }
     return evaluated;

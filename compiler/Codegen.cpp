@@ -211,7 +211,7 @@ std::unique_ptr<Value>& Codegen::eval_comptime(FunctionCall* call, FunctionDecla
     if(found != evaluated_func_calls.end()) {
         return found->second;
     } else {
-        auto ret = std::unique_ptr<Value>(decl->call(&comptime_scope, call, nullptr));
+        auto ret = std::unique_ptr<Value>(decl->call(&comptime_scope, call, nullptr, false));
         if(!ret) {
 //            warn("compile time function didn't return a value", decl);
             evaluated_func_calls[call] = std::unique_ptr<Value>(nullptr);

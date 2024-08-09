@@ -625,10 +625,11 @@ void FunctionDeclaration::declare_and_link(SymbolResolver &linker) {
 Value *FunctionDeclaration::call(
     InterpretScope *call_scope,
     FunctionCall* call_obj,
-    Value* parent
+    Value* parent,
+    bool evaluate_refs
 ) {
     InterpretScope fn_scope(nullptr, call_scope->global);
-    return call(call_scope, call_obj->values, parent, &fn_scope);
+    return call(call_scope, call_obj->values, parent, &fn_scope, evaluate_refs);
 }
 
 // called by the return statement
@@ -645,7 +646,8 @@ Value *FunctionDeclaration::call(
     InterpretScope *call_scope,
     std::vector<std::unique_ptr<Value>> &call_args,
     Value* parent,
-    InterpretScope *fn_scope
+    InterpretScope *fn_scope,
+    bool evaluate_refs
 ) {
     auto self_param = get_self_param();
     auto params_given = call_args.size() + (self_param ? parent ? 1 : 0 : 0);
@@ -659,7 +661,17 @@ Value *FunctionDeclaration::call(
     }
     auto i = self_param ? 1 : 0;
     while (i < params.size()) {
-        fn_scope->declare(params[i]->name, call_args[i]->param_value(*call_scope));
+        Value* param_val;
+        if(evaluate_refs) {
+            param_val = call_args[i]->param_value(*call_scope);
+        } else {
+            if(call_args[i]->reference()) {
+                param_val = call_args[i]->copy();
+            } else {
+                param_val = call_args[i]->param_value(*call_scope);
+            }
+        }
+        fn_scope->declare(params[i]->name, param_val);
         i++;
     }
     body.value().interpret(*fn_scope);

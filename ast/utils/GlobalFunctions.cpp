@@ -254,12 +254,16 @@ public:
     explicit InterpretWrap(ASTNode* parent_node) : FunctionDeclaration(
             "wrap",
             std::vector<std::unique_ptr<FunctionParam>> {},
-            // TODO fix return type
-            std::make_unique<VoidType>(),
+            std::make_unique<AnyType>(),
             true,
             parent_node,
             std::nullopt
     ) {
+        annotations.emplace_back(AnnotationKind::CompTime);
+        // having a generic type parameter T requires that user gives type during function call to wrap
+        // when we can successfully avoid giving type for generic parameters in functions, we should do this
+//        generic_params.emplace_back(new GenericTypeParameter("T", nullptr, this));
+//        returnType = std::make_unique<ReferencedType>("T", generic_params[0].get());
         params.emplace_back(std::make_unique<FunctionParam>("value", std::make_unique<AnyType>(), 0, std::nullopt, this));
     }
     Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val) override {

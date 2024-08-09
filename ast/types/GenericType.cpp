@@ -34,7 +34,7 @@ void GenericType::link(SymbolResolver &linker, std::unique_ptr<BaseType>& curren
 }
 
 void GenericType::report_generic_usage() {
-
+    // we did this when linking
 }
 
 BaseType* GenericType::copy() const {
@@ -52,6 +52,13 @@ ValueType GenericType::value_type() const {
 
 bool GenericType::satisfies(ValueType value_type) {
     return referenced->satisfies(value_type);
+}
+
+bool GenericType::satisfies(Value *value) {
+    auto prev_itr = set_generic_iteration(generic_iteration);
+    const auto res = referenced->satisfies(value);
+    set_generic_iteration(prev_itr);
+    return res;
 }
 
 ASTNode *GenericType::linked_node() {

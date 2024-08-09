@@ -266,7 +266,8 @@ void ASTProcessor::shrink_nodes(
         Scope& result,
         const FlatIGFile& file
 ) {
-    shrinker.visit(result.nodes);
+    // TODO shrinker should only shrink once the file doesn't belong to any import tree
+//    shrinker.visit(result.nodes);
     shrinked_nodes[file.abs_path] = std::move(result.nodes);
 }
 

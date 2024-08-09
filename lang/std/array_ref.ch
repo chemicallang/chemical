@@ -1,3 +1,4 @@
+import "./vector.ch"
 import "./std.ch"
 
 struct ArrayRef<T> {
@@ -10,6 +11,13 @@ struct ArrayRef<T> {
     @constructor
     func make(array : T[]) {
         return compiler::wrap(constructor(array, compiler::size(array)))
+    }
+
+    @implicit
+    @comptime
+    @constructor
+    func make2(vec : vector<int>) {
+        return compiler::wrap(constructor(vec.data(), vec.size()))
     }
 
     @constructor

@@ -55,10 +55,13 @@ bool GenericType::satisfies(ValueType value_type) {
 }
 
 bool GenericType::satisfies(Value *value) {
-    auto prev_itr = set_generic_iteration(generic_iteration);
-    const auto res = referenced->satisfies(value);
-    set_generic_iteration(prev_itr);
-    return res;
+    const auto value_pure_type = value->get_pure_type();
+    if(value_pure_type->kind() == BaseTypeKind::Generic) {
+        const auto gen_type = (GenericType*) value_pure_type.get();
+        return referenced->is_same(gen_type->referenced.get()) && gen_type->generic_iteration == generic_iteration;
+    } else {
+        return false;
+    }
 }
 
 ASTNode *GenericType::linked_node() {

@@ -369,7 +369,7 @@ void prep_build_context_cbi(BuildContextCBI* cbi) {
         job->linkables.emplace_back(path->copy());
     };
     cbi->build_path = [](chem::string* str, BuildContextCBI* self) {
-        return self->instance->build_path(init_chem_string(str));
+        init_chem_string(str)->append(self->instance->build_dir);
     };
     cbi->has_arg = [](BuildContextCBI* self, chem::string* name) -> bool {
         return self->instance->has_arg(name);

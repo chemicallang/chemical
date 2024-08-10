@@ -6,6 +6,7 @@
 #include "LabModule.h"
 #include "LabJob.h"
 #include "integration/ide/model/FlatIGFile.h"
+#include "LabBuildCompilerOptions.h"
 #include <vector>
 #include <unordered_map>
 
@@ -21,6 +22,8 @@ std::vector<LabModule*> flatten_dedupe_sorted(const std::vector<LabModule*>& mod
 class LabBuildContext {
 public:
 
+    // lab build compiler options
+    LabBuildCompilerOptions* options;
     // the build directory that will be used for file generation
     std::string build_dir;
     // all the modules created during the build process
@@ -47,6 +50,7 @@ public:
      * constructor
      */
     explicit LabBuildContext(
+        LabBuildCompilerOptions* options,
         std::string lab_file,
         std::string build_dir = ""
     );

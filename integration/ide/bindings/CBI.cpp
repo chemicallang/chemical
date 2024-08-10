@@ -9,6 +9,7 @@
 #include "utils/PathUtils.h"
 #include "utils/ProcessUtils.h"
 #include "compiler/InvokeUtils.h"
+#include "compiler/Lab/Utils.h"
 
 chem::string* init_chem_string(chem::string* str) {
     str->storage.constant.data = nullptr;
@@ -390,6 +391,13 @@ void prep_build_context_cbi(BuildContextCBI* cbi) {
     cbi->on_finished = [](BuildContextCBI* self, void(*lambda)(void*), void* data) {
         self->instance->on_finished = lambda;
         self->instance->on_finished_data = data;
+    };
+    cbi->link_objects = [](BuildContextCBI* self, StringArrayRef* string_arr, chem::string* output_path) -> int {
+        std::vector<chem::string> linkables;
+        for(auto i = 0; i < string_arr->size; i++) {
+            linkables.emplace_back(string_arr->ptr[i].copy());
+        }
+        return link_objects(self->instance->options->exe_path, linkables, output_path->to_std_string());
     };
 }
 

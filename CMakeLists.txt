@@ -448,6 +448,8 @@ set(COMMON_SOURCES
         ast/utils/GenericUtils.h
         ast/values/TypeLinkedValue.h
         ast/values/TypeLinkedValue.cpp
+        compiler/lab/LabBuildCompilerOptions.h
+        compiler/lab/Utils.h
 )
 
 # Chemical LSP Executable Target

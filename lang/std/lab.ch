@@ -81,6 +81,8 @@ struct BuildContext {
 
     var on_finished : (&self, lambda : (data : void*) => void, data : void*) => void;
 
+    var link_objects : (&self, string_arr : ArrayRef<string>, output_path : string) => int;
+
     func chemical_file_module(&self, name : string, path : string, dependencies : ArrayRef<Module*>) : Module* {
         return chemical_files_module(name, &path, 1, dependencies);
     }

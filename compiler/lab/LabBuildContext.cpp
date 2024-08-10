@@ -4,7 +4,7 @@
 #include "utils/PathUtils.h"
 #include <unordered_map>
 
-LabBuildContext::LabBuildContext(std::string lab_file, std::string user_build_dir) {
+LabBuildContext::LabBuildContext(LabBuildCompilerOptions* options, std::string lab_file, std::string user_build_dir) : options(options) {
     if(user_build_dir.empty()) {
         build_dir = resolve_non_canon_parent_path(lab_file, "build");
     } else {

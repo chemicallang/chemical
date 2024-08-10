@@ -249,7 +249,7 @@ int main(int argc, char *argv[]) {
             return compiler.do_to_c_job(&job);
         }
 
-        LabBuildContext context(args[0]);
+        LabBuildContext context(&compiler_opts, args[0]);
         prepare_options(&compiler_opts);
         compiler_opts.def_mode = mode;
 

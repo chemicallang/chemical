@@ -16,6 +16,11 @@ struct ModuleArrayRef {
     size_t size;
 };
 
+struct StringArrayRef {
+    chem::string* ptr;
+    size_t size;
+};
+
 struct BuildContextCBI {
 
     LabModule*(*files_module)(BuildContextCBI* self, chem::string* name, chem::string** path, unsigned int path_len, ModuleArrayRef* dependencies);
@@ -47,6 +52,8 @@ struct BuildContextCBI {
     int(*launch_executable)(BuildContextCBI* self, chem::string* path, bool same_window);
 
     void(*on_finished)(BuildContextCBI* self, void(*lambda)(void*), void* data);
+
+    int(*link_objects)(BuildContextCBI* self, StringArrayRef* string_arr, chem::string* output_path);
 
     LabBuildContext* instance;
 

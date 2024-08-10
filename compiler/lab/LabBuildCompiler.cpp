@@ -4,6 +4,7 @@
 #include "LabBuildCompiler.h"
 #include "preprocess/ImportGraphMaker.h"
 #include "utils/Benchmark.h"
+#include "Utils.h"
 #ifdef COMPILER_BUILD
 #include "compiler/Codegen.h"
 #endif
@@ -423,16 +424,17 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
 
 }
 
-int LabBuildCompiler::link(std::vector<chem::string>& linkables, const std::string& output_path) {
+int link_objects(const std::string& comp_exe_path, std::vector<chem::string>& linkables, const std::string& output_path) {
     int link_result;
 #ifdef COMPILER_BUILD
     std::vector<std::string> data;
     for(auto& obj : linkables) {
         data.emplace_back(obj.data());
     }
-    link_result = link_objects(data, output_path, options->exe_path, {});
+    link_result = link_objects(data, output_path, comp_exe_path, {});
 #else
-    link_result = tcc_link_objects(options->exe_path.data(), output_path, linkables);
+    chem::string copy(comp_exe_path);
+    link_result = tcc_link_objects(copy.mutable_data(), output_path, linkables);
 #endif
     if(link_result == 1) {
         std::cerr << "Failed to link \n";
@@ -445,6 +447,10 @@ int LabBuildCompiler::link(std::vector<chem::string>& linkables, const std::stri
     }
 
     return link_result;
+}
+
+int LabBuildCompiler::link(std::vector<chem::string>& linkables, const std::string& output_path) {
+    return link_objects(options->exe_path, linkables, output_path);
 }
 
 int LabBuildCompiler::do_executable_job(LabJob* job) {

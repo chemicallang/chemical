@@ -96,6 +96,18 @@ struct BuildContext {
     // link object files (.o files) into a single binary
     var link_objects : (&self, string_arr : ArrayRef<string>, output_path : string) => int;
 
+    // invoke llvm dll tool with given cli args
+    var invoke_dlltool : (&self, string_arr : ArrayRef<string>) => int;
+
+    // invoke ranlib tool with given cli args
+    var invoke_ranlib : (&self, string_arr : ArrayRef<string>) => int;
+
+    // invoke lib tool with given cli args
+    var invoke_lib : (&self, string_arr : ArrayRef<string>) => int;
+
+    // invoke ar with given cli args
+    var invoke_ar : (&self, string_arr : ArrayRef<string>) => int;
+
     func chemical_file_module(&self, name : string, path : string, dependencies : ArrayRef<Module*>) : Module* {
         return chemical_files_module(name, &path, 1, dependencies);
     }

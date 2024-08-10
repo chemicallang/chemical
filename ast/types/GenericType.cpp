@@ -24,12 +24,12 @@ GenericType::GenericType(std::string base) : referenced(new ReferencedType(std::
 
 void GenericType::link(SymbolResolver &linker, std::unique_ptr<BaseType>& current) {
     referenced->link(linker, (std::unique_ptr<BaseType>&) referenced);
+    for(auto& type : types) {
+        type->link(linker, type);
+    }
     const auto generic_struct = referenced->get_generic_struct();
     if(generic_struct) {
         generic_iteration = generic_struct->register_generic_args(linker, types);
-    }
-    for(auto& type : types) {
-        type->link(linker, type);
     }
 }
 

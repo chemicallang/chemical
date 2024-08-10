@@ -55,6 +55,14 @@ struct BuildContextCBI {
 
     int(*link_objects)(BuildContextCBI* self, StringArrayRef* string_arr, chem::string* output_path);
 
+    int(*llvm_dlltool)(BuildContextCBI* self, StringArrayRef* string_arr);
+
+    int(*llvm_ranlib)(BuildContextCBI* self, StringArrayRef* string_arr);
+
+    int(*llvm_lib)(BuildContextCBI* self, StringArrayRef* string_arr);
+
+    int(*llvm_ar)(BuildContextCBI* self, StringArrayRef* string_arr);
+
     LabBuildContext* instance;
 
 };

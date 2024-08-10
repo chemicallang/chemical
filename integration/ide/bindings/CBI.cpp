@@ -11,6 +11,10 @@
 #include "compiler/InvokeUtils.h"
 #include "compiler/Lab/Utils.h"
 
+#ifdef COMPILER_BUILD
+int llvm_ar_main2(const std::vector<std::string> &command_args);
+#endif
+
 chem::string* init_chem_string(chem::string* str) {
     str->storage.constant.data = nullptr;
     str->storage.constant.length = 0;
@@ -398,6 +402,57 @@ void prep_build_context_cbi(BuildContextCBI* cbi) {
             linkables.emplace_back(string_arr->ptr[i].copy());
         }
         return link_objects(self->instance->options->exe_path, linkables, output_path->to_std_string());
+    };
+    cbi->llvm_dlltool = [](BuildContextCBI* self, StringArrayRef* string_arr) -> int {
+#ifdef COMPILER_BUILD
+        std::vector<std::string> arr;
+        arr.emplace_back("dlltool");
+        for(auto i = 0; i < string_arr->size; i++) {
+            arr.emplace_back(string_arr->ptr[i].to_std_string());
+        }
+        return llvm_ar_main2(arr);
+#else
+        return -1;
+#endif
+    };
+
+    cbi->llvm_ranlib = [](BuildContextCBI* self, StringArrayRef* string_arr) -> int {
+#ifdef COMPILER_BUILD
+        std::vector<std::string> arr;
+        arr.emplace_back("ranlib");
+        for(auto i = 0; i < string_arr->size; i++) {
+            arr.emplace_back(string_arr->ptr[i].to_std_string());
+        }
+        return llvm_ar_main2(arr);
+#else
+        return -1;
+#endif
+    };
+
+    cbi->llvm_lib = [](BuildContextCBI* self, StringArrayRef* string_arr) -> int {
+#ifdef COMPILER_BUILD
+        std::vector<std::string> arr;
+        arr.emplace_back("lib");
+        for(auto i = 0; i < string_arr->size; i++) {
+            arr.emplace_back(string_arr->ptr[i].to_std_string());
+        }
+        return llvm_ar_main2(arr);
+#else
+        return -1;
+#endif
+    };
+
+    cbi->llvm_ar = [](BuildContextCBI* self, StringArrayRef* string_arr) -> int {
+#ifdef COMPILER_BUILD
+        std::vector<std::string> arr;
+        arr.emplace_back("ar");
+        for(auto i = 0; i < string_arr->size; i++) {
+            arr.emplace_back(string_arr->ptr[i].to_std_string());
+        }
+        return llvm_ar_main2(arr);
+#else
+        return -1;
+#endif
     };
 }
 

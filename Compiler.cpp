@@ -102,19 +102,24 @@ int main(int argc, char *argv[]) {
     }
 
 #ifdef COMPILER_BUILD
-    // use llvm archiver
-    auto llvm_ar = options.option("ar", "ar");
-    if(llvm_ar.has_value()) {
-        auto subc = options.collect_subcommand(argc, argv, "ar");
-//        subc.insert(subc.begin(), argv[0]);
-        subc.insert(subc.begin(), "ar");
-//        std::cout << "ar  : ";
-//        for(const auto& sub : subc) {
-//            std::cout << sub;
-//        }
-//        std::cout << std::endl;
-        return llvm_ar_main2(subc);
-    }
+    auto llvm_tool = [](int argc, char** argv, CmdOptions& options, const std::string& option) -> int {
+        auto llvm_dll_tool = options.option(option, option);
+        if(llvm_dll_tool.has_value()) {
+            auto subc = options.collect_subcommand(argc, argv, option);
+            subc.insert(subc.begin(), "dlltool");
+            return llvm_ar_main2(subc);
+        } else {
+            return -999;
+        }
+    };
+    const auto dll_tool_ret = llvm_tool(argc, argv, options, "dlltool");
+    if(dll_tool_ret != -999) return dll_tool_ret;
+    const auto ran_lib_ret = llvm_tool(argc, argv, options, "ranlib");
+    if(ran_lib_ret != -999) return ran_lib_ret;
+    const auto lib_ret = llvm_tool(argc, argv, options, "lib");
+    if(lib_ret != -999) return lib_ret;
+    const auto ar_ret = llvm_tool(argc, argv, options, "ar");
+    if(ar_ret != -999) return ar_ret;
 #endif
 
 #ifdef COMPILER_BUILD

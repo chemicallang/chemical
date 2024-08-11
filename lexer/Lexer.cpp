@@ -8,7 +8,7 @@
 #include "ast/types/ReferencedType.h"
 #include "lexer/model/CompilerBinderTCC.h"
 
-Lexer::Lexer(SourceProvider &provider, std::string path, CompilerBinder* binder, LexerCBI* cbi) : provider(provider), path(std::move(path)), cbi(cbi), binder(binder) {
+Lexer::Lexer(SourceProvider &provider, CompilerBinder* binder, LexerCBI* cbi) : provider(provider), cbi(cbi), binder(binder) {
 
 }
 
@@ -53,10 +53,6 @@ void Lexer::lex() {
     lexTopLevelMultipleImportStatements();
     lexTopLevelMultipleStatementsTokens();
     tokens.shrink_to_fit();
-}
-
-void Lexer::switch_path(const std::string& new_path) {
-    path = new_path;
 }
 
 void Lexer::reset() {

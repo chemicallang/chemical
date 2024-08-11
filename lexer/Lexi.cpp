@@ -8,19 +8,18 @@
 #include "lexer/Lexer.h"
 #include "stream/SourceProvider.h"
 #include "utils/Benchmark.h"
+#include "stream/FileInputSource.h"
 
-void benchLex(Lexer* lexer, const std::string& path, BenchmarkResults& results) {
+void benchLex(Lexer *lexer, BenchmarkResults &results) {
     results.benchmark_begin();
     lexer->lex();
     results.benchmark_end();
 }
 
 void benchLexFile(Lexer* lexer, const std::string &path, BenchmarkResults& results) {
-    auto fstream = (std::fstream*) (lexer->provider.stream);
-    fstream->close();
-    fstream->open(path);
-    benchLex(lexer, path, results);
-    fstream->close();
+    FileInputSource input_source(path);
+    lexer->provider.switch_source(&input_source);
+    benchLex(lexer, results);
 }
 
 void benchLexFile(Lexer* lexer, const std::string &path) {
@@ -29,47 +28,33 @@ void benchLexFile(Lexer* lexer, const std::string &path) {
 }
 
 void lexFile(Lexer* lexer, const std::string &path) {
-    auto fstream = (std::fstream*) (lexer->provider.stream);
-    fstream->close();
-    fstream->open(path);
+    FileInputSource input_source(path);
+    lexer->provider.switch_source(&input_source);
     lexer->lex();
-    fstream->close();
 }
 
-Lexer benchLexFile(std::istream &file, const std::string& path) {
-    SourceProvider reader(&file);
-    Lexer lexer(reader, path);
+Lexer benchLexFile(InputSource& source) {
+    SourceProvider reader(&source);
+    Lexer lexer(reader);
     BenchmarkResults results{};
-    benchLex(&lexer, path, results);
+    benchLex(&lexer, results);
     std::cout << "[Lex]" << " Completed " << results.representation() << std::endl;
     return lexer;
 }
 
 Lexer benchLexFile(const std::string &path) {
-    std::ifstream file;
-    file.open(path);
-    if (!file.is_open()) {
-        std::cerr << "Unknown error opening the file:" << path << '\n';
-    }
-    auto lexer = benchLexFile(file, path);
-    file.close();
-    return lexer;
+    FileInputSource input_source(path);
+    return benchLexFile(input_source);
 }
 
-Lexer lexFile(std::istream &file, const std::string& path) {
-    SourceProvider reader(&file);
-    Lexer lexer(reader, path);
+Lexer lexFile(InputSource& input_source) {
+    SourceProvider reader(&input_source);
+    Lexer lexer(reader);
     lexer.lex();
     return lexer;
 }
 
 Lexer lexFile(const std::string &path) {
-    std::ifstream file;
-    file.open(path);
-    if (!file.is_open()) {
-        std::cerr << "Unknown error opening the file" << '\n';
-    }
-    auto lexed = lexFile(file, path);
-    file.close();
-    return lexed;
+    FileInputSource input_source(path);
+    return lexFile(input_source);
 }

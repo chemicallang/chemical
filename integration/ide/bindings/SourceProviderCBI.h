@@ -22,7 +22,6 @@ namespace chem {
  * a instance member field is required, which is added to the end
  */
 struct SourceProviderCBI {
-    unsigned int(*currentPosition)(struct SourceProviderCBI* self);
     char(*readCharacter)(struct SourceProviderCBI* self);
     bool(*eof)(struct SourceProviderCBI* self);
     char(*peek)(struct SourceProviderCBI* self);

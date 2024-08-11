@@ -1,36 +1,81 @@
 #include "SourceProvider.h"
 #include <iostream>
 
-void SourceProvider::restore(StreamPosition &position) {
-    stream->seekg(position.pos, std::ios::beg);
+void SourceProvider::restore(const StreamPosition &position) {
+    const auto curr_pos = stream->tell();
+    if(curr_pos != position.pos) {
+        stream->seek(position.pos, SEEK_SET);
+        bufferFill(position.bufferSize);
+    }
     lineNumber = position.line;
     lineCharacterNumber = position.character;
+    bufferPos = position.bufferPos;
 }
 
-unsigned int SourceProvider::currentPosition() const {
-    return stream->tellg();
+void SourceProvider::bufferFill(size_t size) {
+    buffer.clear();
+    buffer.resize(size);
+    size_t bytesRead = stream->read(buffer.data(), size);
+    buffer.resize(bytesRead);
+    bufferPos = 0;
+}
+
+bool SourceProvider::bufferStretch(uint16_t read_size) {
+    const auto curr_size = buffer.size();
+    buffer.resize(curr_size + read_size);
+    auto bytesRead = stream->read(buffer.data() + curr_size, read_size);
+    if(bytesRead < read_size) {
+        buffer.resize(curr_size + bytesRead);
+    }
+    return bytesRead > 0;
 }
 
 char SourceProvider::readCharacter() {
-    auto c = stream->get();
+    if (bufferPos >= buffer.size()) {
+        bufferFill();
+        if (buffer.empty()) {
+            return EOF;
+        }
+    }
+    char c = buffer[bufferPos++];
     handleCharacterRead(c);
     return c;
 }
 
 bool SourceProvider::eof() const {
-    return stream->eof();
+    if (bufferPos < buffer.size()) {
+        return false; // Still data in the buffer
+    }
+    if(stream->tell() == -1) {
+        return true;
+    }
+    // At this point, the buffer is exhausted. Check if the input source itself has reached EOF.
+    char dummy;
+    // seek back
+    if(stream->read(&dummy, 1) == 0) {
+        return true;
+    } else {
+        stream->seek(-1, SEEK_CUR);
+        return false;
+    }
 }
 
-char SourceProvider::peek() const {
-    return stream->peek();
+char SourceProvider::peek() {
+    if (bufferPos >= buffer.size()) {
+        bufferFill();
+        if (buffer.empty()) {
+            return EOF;
+        }
+    }
+    return buffer[bufferPos];
 }
 
 char SourceProvider::peek(int ahead) {
-    unsigned int pos = stream->tellg();
-    stream->seekg(pos + ahead, std::ios::beg);
-    char c = stream->get();
-    stream->seekg(pos, std::ios::beg);
-    return c;
+    const size_t targetPos = bufferPos + ahead;
+    if (targetPos >= buffer.size()) {
+        bufferStretch();
+    }
+    return buffer[targetPos];
 }
 
 void SourceProvider::readUntil(chem::string* into, char stop) {
@@ -46,13 +91,11 @@ void SourceProvider::readUntil(chem::string* into, char stop) {
 }
 
 bool SourceProvider::increment(char c) {
-    if (stream->get() == c) {
-        handleCharacterRead(c);
+    if (peek() == c) {
+        readCharacter();
         return true;
-    } else {
-        stream->seekg(currentPosition() - 1, std::ios::beg);
-        return false;
     }
+    return false;
 }
 
 std::string SourceProvider::readAllFromHere() {
@@ -63,11 +106,6 @@ std::string SourceProvider::readAllFromHere() {
     return source;
 }
 
-std::string SourceProvider::readAllFromBeg() {
-    stream->seekg(0, std::ios::beg);
-    return readAllFromHere();
-}
-
 void SourceProvider::printAll() {
     while (!eof()) {
         std::cout << readCharacter();
@@ -75,32 +113,27 @@ void SourceProvider::printAll() {
 }
 
 bool SourceProvider::increment(const std::string &text, bool peek) {
-
-    if (stream->peek() != text[0]) {
-        return false;
-    }
-
-    // Save current pos
-    auto prevPosition = getStreamPosition();
-
-    bool result = true;
-    int pos = 0;
-    while (!stream->eof() && pos < text.size()) {
-        char c = readCharacter();
-        if (c != text[pos]) {
-            result = false;
-            break;
-        } else {
-            pos++;
+    if(bufferPos >= buffer.size()) {
+        bufferFill();
+        if(buffer.empty()) {
+            return false;
         }
     }
-
-    // Seek back to original pos
-    if (!result || peek) {
-        restore(prevPosition);
+    unsigned int pos = bufferPos;
+    for (char c : text) {
+        if (pos >= buffer.size()) {
+            if (!bufferStretch()) {
+                return false;
+            }
+        }
+        if (buffer[pos++] != c) {
+            return false;
+        }
     }
-
-    return result;
+    if (!peek) {
+        bufferPos = pos;
+    }
+    return true;
 }
 
 unsigned int SourceProvider::getLineNumber() const {
@@ -111,13 +144,29 @@ unsigned int SourceProvider::getLineCharNumber() const {
     return lineCharacterNumber;
 }
 
-StreamPosition SourceProvider::getStreamPosition() const {
-    return StreamPosition{static_cast<unsigned int>(currentPosition()), lineNumber, lineCharacterNumber};
+StreamPosition SourceProvider::getStreamPosition() {
+    if(bufferPos >= buffer.size()) {
+        bufferFill();
+    }
+    return StreamPosition {
+            stream->tell(), lineNumber, lineCharacterNumber, buffer.size(), bufferPos
+    };
 }
 
 void SourceProvider::reset() {
-    this->lineCharacterNumber = 0;
-    this->lineNumber = 0;
+    stream->seek(0, SEEK_SET);
+    lineCharacterNumber = 0;
+    lineNumber = 0;
+    buffer.clear();
+    bufferPos = 0;
+}
+
+void SourceProvider::switch_source(InputSource* source) {
+    stream = source;
+    lineCharacterNumber = 0;
+    lineNumber = 0;
+    buffer.clear();
+    bufferPos = 0;
 }
 
 void SourceProvider::readEscaping(chem::string* value, char stopAt) {

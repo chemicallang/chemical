@@ -450,6 +450,10 @@ set(COMMON_SOURCES
         ast/values/TypeLinkedValue.cpp
         compiler/lab/LabBuildCompilerOptions.h
         compiler/lab/Utils.h
+        stream/InputSource.h
+        stream/FileInputSource.h
+        stream/StringInputSource.h
+        stream/InputSource.cpp
 )
 
 # Chemical LSP Executable Target

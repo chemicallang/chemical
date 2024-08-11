@@ -6,6 +6,7 @@
 #include "utils/WorkspaceImportGraphImporter.h"
 #include "preprocess/ImportGraphVisitor.h"
 #include "preprocess/ImportPathHandler.h"
+#include "stream/StringInputSource.h"
 #include <sstream>
 #include <filesystem>
 #include <mutex>
@@ -54,30 +55,28 @@ std::shared_ptr<LexResult> WorkspaceManager::get_lexed(const std::string& path) 
     auto result = std::make_shared<LexResult>();
     result->abs_path = path;
     if (overridden_source.has_value()) {
-        std::istringstream iss(overridden_source.value());
-        SourceProvider reader(&iss);
-        Lexer lexer(reader, path);
+        StringInputSource input_source(overridden_source.value());
+        SourceProvider reader(&input_source);
+        Lexer lexer(reader);
         lexer.lex();
         result->tokens = std::move(lexer.tokens);
         result->diags = std::move(lexer.diagnostics);
     } else {
-        std::ifstream file;
-        file.open(path);
-        if (!file.is_open()) {
+        FileInputSource input_source(path);
+        if(input_source.has_error()) {
             result->diags.emplace_back(
-                Range {0,0,0,0},
-                DiagSeverity::Error,
-                path,
-                "couldn't open the file"
+                    Range {0,0,0,0},
+                    DiagSeverity::Error,
+                    path,
+                    "couldn't open the file"
             );
             return result;
         }
-        SourceProvider reader(&file);
-        Lexer lexer(reader, path);
+        SourceProvider reader(&input_source);
+        Lexer lexer(reader);
         lexer.lex();
         result->tokens = std::move(lexer.tokens);
         result->diags = std::move(lexer.diagnostics);
-        file.close();
     }
 
     cache.files[path] = result;
@@ -136,9 +135,8 @@ ImportUnit WorkspaceManager::get_import_unit(const std::string& abs_path, bool p
     // get lex result for the absolute path
     auto result = get_lexed(abs_path);
     // create a function that takes cst tokens in the import graph maker and creates a import graph
-    std::ifstream file;
-    SourceProvider reader(&file);
-    Lexer lexer(reader, abs_path);
+    SourceProvider reader(nullptr);
+    Lexer lexer(reader);
     ImportGraphVisitor visitor;
     ImportPathHandler handler(compiler_exe_path());
     WorkspaceImportGraphImporter importer(
@@ -180,13 +178,11 @@ std::vector<IGFile> WorkspaceImportGraphImporter::process(const std::string &pat
 //    }
     auto overridden_source = manager->get_overridden_source(path);
     if(overridden_source.has_value()){
-        std::istringstream iss(overridden_source.value());
-        lexer->provider.stream = &iss;
+        StringInputSource input_source(overridden_source.value());
+        lexer->provider.switch_source(&input_source);
         lex_source(path, parent->errors);
         return from_tokens(path, parent, lexer->tokens);
     } else {
-        std::ifstream file_stream;
-        lexer->provider.stream = &file_stream;
         return ImportGraphImporter::process(path, parent);
     }
 }

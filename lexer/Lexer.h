@@ -46,11 +46,6 @@ public:
     SourceProvider &provider;
 
     /**
-     * path is the path the current file being lexed
-     */
-    std::string path;
-
-    /**
      * tokens are tokens that have been lexed from source code
      */
     std::vector<std::unique_ptr<CSTToken>> tokens;
@@ -91,7 +86,6 @@ public:
      */
     Lexer(
         SourceProvider &provider,
-        std::string path,
         CompilerBinder* binder = nullptr,
         LexerCBI* cbi = nullptr
     );
@@ -100,12 +94,6 @@ public:
      * lex everything to LexTokens, tokens go into 'tokens' member property
      */
     void lex();
-
-    /**
-     * switch path of the lexer to this path
-     * WILL NOT SWITCH provider's PATH
-     */
-    void switch_path(const std::string& path);
 
     /**
      * reset the lexer, for re-lexing a new file, if it has lexed a file before

@@ -3,13 +3,14 @@
 #pragma once
 
 #include "ast/base/AnnotableNode.h"
+#include "ordered_map.h"
 
 class Namespace : public AnnotableNode {
 public:
 
     std::string name;
     std::vector<std::unique_ptr<ASTNode>> nodes;
-    std::unordered_map<std::string, ASTNode*> extended;
+    tsl::ordered_map<std::string, ASTNode*> extended;
     Namespace* root = nullptr; // the root's namespace extended map contains pointers to all nodes
     ASTNode* parent_node;
 

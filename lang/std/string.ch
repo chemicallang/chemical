@@ -90,12 +90,7 @@ struct string {
 
     func resize(&self, new_capacity : size_t) {
         var data = realloc(storage.heap.data, new_capacity) as char*
-        var i = 0
-        while(i < storage.heap.length) {
-            data[i] = storage.heap.data[i]
-            i++
-        }
-        data[i] = '\0'
+        data[storage.heap.length] = '\0'
         storage.heap.data = data;
         storage.heap.capacity = new_capacity
     }
@@ -211,7 +206,7 @@ struct string {
                 move_data_to_heap(storage.constant.data, length, length * 2);
             } else if(state == '1') {
                 move_data_to_heap(&storage.sso.buffer[0], length, length * 2);
-            } else if(storage.heap.capacity <= length + 1) {
+            } else if(storage.heap.capacity <= length + 2) {
                 resize(storage.heap.capacity * 2);
             }
             storage.heap.data[length] = value;

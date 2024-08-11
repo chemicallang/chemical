@@ -63,4 +63,11 @@ public:
      */
     bool def_assertions_on = false;
 
+#ifdef COMPILER_BUILD
+    /**
+     * no pie flag allows to control PIE, we simply pass the flag to clang when linking, if enabled
+     */
+    bool no_pie = false;
+#endif
+
 };

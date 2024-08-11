@@ -424,14 +424,19 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
 
 }
 
-int link_objects(const std::string& comp_exe_path, std::vector<chem::string>& linkables, const std::string& output_path) {
+int link_objects(
+    const std::string& comp_exe_path,
+    std::vector<chem::string>& linkables,
+    const std::string& output_path,
+    const std::vector<std::string>& flags
+) {
     int link_result;
 #ifdef COMPILER_BUILD
     std::vector<std::string> data;
     for(auto& obj : linkables) {
         data.emplace_back(obj.data());
     }
-    link_result = link_objects(data, output_path, comp_exe_path, {});
+    link_result = link_objects(data, output_path, comp_exe_path, flags);
 #else
     chem::string copy(comp_exe_path);
     link_result = tcc_link_objects(copy.mutable_data(), output_path, linkables);
@@ -450,7 +455,13 @@ int link_objects(const std::string& comp_exe_path, std::vector<chem::string>& li
 }
 
 int LabBuildCompiler::link(std::vector<chem::string>& linkables, const std::string& output_path) {
-    return link_objects(options->exe_path, linkables, output_path);
+    std::vector<std::string> flags;
+#ifdef COMPILER_BUILD
+    if(options->no_pie) {
+        flags.emplace_back("-no-pie");
+    }
+#endif
+    return link_objects(options->exe_path, linkables, output_path, flags);
 }
 
 int LabBuildCompiler::do_executable_job(LabJob* job) {

@@ -71,7 +71,7 @@ if [ "$windows_x64" = true ]; then
   # copy tiny cc dll
   cp lib/libtcc/win-x64/libtcc.dll $windows64dir/libtcc.dll
   # copy the std library
-  cp lang/std $windows64dir/libs/std
+  cp -r lang/std $windows64dir/libs/std
   # unzip the tinycc package
   unzip lib/libtcc/win-x64/package.zip -d $windows64dir/packages/tcc
 fi
@@ -88,7 +88,7 @@ if [ "$linux_x86_64" = true ]; then
   # copy tiny cc dll
   cp lib/libtcc/lin-x64/libtcc.so $linux64dir/libtcc.so
   # copy the std library
-  cp lang/std $linux64dir/libs/std
+  cp -r lang/std $linux64dir/libs/std
   # unzip the tinycc package
   unzip lib/libtcc/lin-x64/package.zip -d $linux64dir/packages/tcc
 fi
@@ -105,7 +105,7 @@ if [ "$windows_x64_tcc" = true ]; then
   # copy tiny cc dll
   cp lib/libtcc/win-x64/libtcc.dll $Win64TccDir/libtcc.dll
   # copy the std library
-  cp lang/std $Win64TccDir/libs/std
+  cp -r lang/std $Win64TccDir/libs/std
   # unzip the tinycc package
   unzip lib/libtcc/win-x64/package.zip -d $Win64TccDir/packages/tcc
 fi
@@ -122,7 +122,7 @@ if [ "$linux_x86_64_tcc" = true ]; then
   # copy tiny cc dll
   cp lib/libtcc/lin-x64/libtcc.so $Lin64TccDir/libtcc.so
   # copy the std library
-  cp lang/std $Lin64TccDir/libs/std
+  cp -r lang/std $Lin64TccDir/libs/std
   # unzip the tinycc package
   unzip lib/libtcc/lin-x64/package.zip -d $Lin64TccDir/packages/tcc
 fi

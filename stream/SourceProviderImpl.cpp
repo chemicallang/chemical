@@ -233,7 +233,8 @@ void SourceProvider::readUnsignedInt(chem::string* str) {
 }
 
 void SourceProvider::readNumber(chem::string* string) {
-    if (peek() != '-' && !std::isdigit(peek())) return;
+    const auto p = peek();
+    if (p != '-' && !std::isdigit(p)) return;
     auto appearedDot = false;
     auto first_char = true;
     const auto keep_reading = [](const char c, bool& appearedDot, bool& first_char)->bool {
@@ -258,52 +259,59 @@ void SourceProvider::readNumber(chem::string* string) {
 }
 
 void SourceProvider::readAlpha(chem::string* str) {
-    while (!eof() && std::isalpha(peek())) {
+    while (std::isalpha(peek())) {
         str->append(readCharacter());
     }
 }
 
 void SourceProvider::readAlphaNum(chem::string* str) {
-    while (!eof() && std::isalnum(peek())) {
+    while (std::isalnum(peek())) {
         str->append(readCharacter());
     }
 }
 
 void SourceProvider::readIdentifier(chem::string* str) {
-    if (std::isalpha(peek()) || peek() == '_') {
-        while (!eof() && (std::isalnum(peek()) || peek() == '_')) {
+    auto p = peek();
+    if (std::isalpha(p) || p == '_') {
+        while (std::isalnum(p) || p == '_') {
             str->append(readCharacter());
+            p = peek();
         }
     }
 }
 
 void SourceProvider::readAnnotationIdentifier(chem::string* str) {
-    if (std::isalpha(peek()) || peek() == '_') {
-        while (!eof() && (std::isalnum(peek()) || peek() == '_' || peek() == ':')) {
+    auto p = peek();
+    if (std::isalpha(p) || p == '_') {
+        while (std::isalnum(p) || p == '_' || p == ':') {
             str->append(readCharacter());
+            p = peek();
         }
     }
 }
 
 unsigned int SourceProvider::readWhitespaces() {
     unsigned int whitespaces = 0;
-    while (!eof() && (peek() == ' ' || peek() == '\t')) {
+    auto p = peek();
+    while (p == ' ' || p == '\t') {
         readCharacter();
         whitespaces++;
+        p = peek();
     }
     return whitespaces;
 }
 
 bool SourceProvider::hasNewLine() {
-    return peek() == '\n' || peek() == '\r';
+    const auto p = peek();
+    return p == '\n' || p == '\r';
 }
 
 bool SourceProvider::readNewLineChars() {
-    auto peak = peek();
-    if (peak == '\n') {
+    auto p = peek();
+    if (p == '\n') {
         readCharacter();
         return true;
-    } else if (peak == '\r') {
+    } else if (p == '\r') {
         // consuming the \r
         readCharacter();
         // consume also the next \n
@@ -315,8 +323,10 @@ bool SourceProvider::readNewLineChars() {
 }
 
 void SourceProvider::readWhitespacesAndNewLines() {
-    while (!eof() && (peek() == ' ' || peek() == '\t' || peek() == '\n' || peek() == '\r')) {
+    auto p = peek();
+    while (p == ' ' || p == '\t' || p == '\n' || p == '\r') {
         readCharacter();
+        p = peek();
     }
 }
 

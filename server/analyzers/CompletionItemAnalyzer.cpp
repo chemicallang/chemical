@@ -5,13 +5,11 @@
 //
 
 #include "CompletionItemAnalyzer.h"
-#include "lexer/model/tokens/CharOperatorToken.h"
 #include <unordered_set>
 #include "cst/base/CompoundCSTToken.h"
 #include "cst/utils/CSTUtils.h"
 #include "integration/ide/model/ImportUnit.h"
 #include "integration/ide/model/LexResult.h"
-#include "lexer/model/tokens/RefToken.h"
 #include "Documentation.h"
 
 #define DEBUG_COMPLETION true

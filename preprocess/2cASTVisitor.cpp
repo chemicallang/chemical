@@ -1700,6 +1700,9 @@ void CValueDeclarationVisitor::visit(EnumDeclaration *enumDecl) {
 }
 
 void CTopLevelDeclarationVisitor::visit(TypealiasStatement *stmt) {
+    if(stmt->has_annotation(AnnotationKind::NotInC)) {
+        return;
+    }
     visitor->new_line_and_indent();
     write("typedef ");
     stmt->actual_type->accept(visitor);

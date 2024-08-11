@@ -800,10 +800,10 @@ int link_objects(
         linkables.emplace_back("/OUT:"+bin_out);
 #elif defined(__APPLE__)
         linkables.emplace_back("-o");
-        linkables.emplace_back("./"+bin_out.value());
+        linkables.emplace_back("./"+bin_out);
 #elif defined(__linux__)
         linkables.emplace_back("-o");
-        linkables.emplace_back("./"+bin_out.value());
+        linkables.emplace_back("./"+bin_out);
 #endif
 
         // link with standard libc (unless user opts out)
@@ -812,10 +812,10 @@ int link_objects(
             linkables.emplace_back("-defaultlib:libcmt");
 #elif defined(__APPLE__)
             // TODO test linking with libc on apple
-            linker.emplace_back("-lc");
+            linkables.emplace_back("-lc");
 #elif defined(__linux__)
             // TODO test linking with libc on linux
-            linker.emplace_back("-lc");
+            linkables.emplace_back("-lc");
 #endif
         }
 

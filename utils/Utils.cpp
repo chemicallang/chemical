@@ -102,6 +102,7 @@ int launch_executable(char* path, bool same_window) {
 }
 #else
 #include <unistd.h>
+#include <sys/wait.h>
 int launch_executable(char* path, bool same_window) {
     if (same_window) {
         // Launch in the same window

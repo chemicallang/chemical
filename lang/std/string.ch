@@ -150,7 +150,7 @@ struct string {
     }
 
     func append_with_len(&self, value : char*, len : size_t) {
-        ensure_mut(size() + len);
+        ensure_mut(size() + len + 1);
         var i : size_t = 0;
         while(i < len) {
             append(value[i]);

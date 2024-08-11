@@ -2,6 +2,7 @@ func printf(format : char*, _ : any...) : int
 
 func sprintf(to : char*, format : char*, _ : any...) : int
 
+@not_in_c
 typealias size_t = ubigint
 
 func malloc(size : size_t) : void*

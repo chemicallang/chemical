@@ -3,7 +3,7 @@
 #
 cmake_minimum_required(VERSION 3.12)
 message("CMake version: ${CMAKE_VERSION}")
-project("chemical" VERSION 1.0.1)
+project("chemical" VERSION 1.0.2)
 
 # use default out/host or out-win/host folder if cmake prefix path is not given
 if (NOT DEFINED CMAKE_PREFIX_PATH)

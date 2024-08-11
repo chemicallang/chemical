@@ -184,6 +184,11 @@ int main(int argc, char *argv[]) {
         if(options.option("assertions").has_value()) {
             opts->def_assertions_on = true;
         }
+#ifdef COMPILER_BUILD
+        if(options.option("no-pie", "no-pie").has_value()) {
+            opts->no_pie = true;
+        }
+#endif
     };
 
 #ifdef COMPILER_BUILD

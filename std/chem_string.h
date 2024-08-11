@@ -80,7 +80,7 @@ namespace chem {
             storage.constant.data = value;
             storage.constant.length = length;
             state = '0';
-            ensure_mut(length + 1);
+            ensure_mut(length + 2);
         }
 
         explicit string(const chem::string& value) {
@@ -89,7 +89,7 @@ namespace chem {
             storage.constant.length = length;
             state = '0';
             if(value.state != '0') {
-                ensure_mut(length + 1);
+                ensure_mut(length + 2);
             }
         }
 
@@ -136,12 +136,7 @@ namespace chem {
 
         void resize(const size_t new_capacity){
             char* data = ((char*) realloc(storage.heap.data, new_capacity));
-            int i = 0;
-            while((i < storage.heap.length)) {
-                data[i] = storage.heap.data[i];
-                i += 1;
-            }
-            data[i] = '\0';
+            data[storage.heap.length] = '\0';
             storage.heap.data = data;
             storage.heap.capacity = new_capacity;
         }
@@ -272,7 +267,7 @@ namespace chem {
                     move_data_to_heap(storage.constant.data, length, (length * 2));
                 }else if(state == '1'){
                     move_data_to_heap(&storage.sso.buffer[0], length, (length * 2));
-                }else if((storage.heap.capacity <= (length + 1))){
+                }else if((storage.heap.capacity <= (length + 2))){
                     resize((storage.heap.capacity * 2));
                 }
                 storage.heap.data[length] = value;

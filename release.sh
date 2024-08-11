@@ -8,7 +8,7 @@
 
 # Assembling Release from already built package
 
-version=v1.0.1
+version=v1.0.2
 
 # Targets to build
 linux_x86_64=true
@@ -100,7 +100,7 @@ if [ "$windows_x64_tcc" = true ]; then
   cp out/build/x64-release/TCCCompiler.exe $Win64TccDir/chemical.exe
   # copy lsp
   cp out/build/x64-release/ChemicalLsp.exe $Win64TccDir/ChemicalLsp.exe
-  # copy resources
+  # copy resources (tcc build doesn't need resources)
   # cp -r ./lib/include $Win64TccDir/resources
   # copy tiny cc dll
   cp lib/libtcc/win-x64/libtcc.dll $Win64TccDir/libtcc.dll
@@ -117,7 +117,7 @@ if [ "$linux_x86_64_tcc" = true ]; then
   cp out/build/x64-release-wsl/TCCCompiler $Lin64TccDir/chemical
   # copy lsp
   cp out/build/x64-release-wsl/ChemicalLsp $Lin64TccDir/ChemicalLsp
-  # copy resources
+  # copy resources (tcc build doesn't need resources)
   # cp -r ./lib/include $Lin64TccDir/resources
   # copy tiny cc dll
   cp lib/libtcc/lin-x64/libtcc.so $Lin64TccDir/libtcc.so

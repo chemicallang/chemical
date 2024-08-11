@@ -181,9 +181,8 @@ ASTImportResultExt ASTProcessor::import_file(const FlatIGFile& file) {
         std::unique_ptr<BenchmarkResults> bm_results;
 
         // lex the file
-        std::fstream stream;
-        SourceProvider provider(&stream);
-        Lexer lexer(provider, abs_path, binder.get(), lexer_cbi.get());
+        SourceProvider provider(nullptr);
+        Lexer lexer(provider, binder.get(), lexer_cbi.get());
         if(options->isCBIEnabled) {
             bind_lexer_cbi(lexer_cbi.get(), provider_cbi.get(), &lexer);
         }

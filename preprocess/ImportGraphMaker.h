@@ -32,18 +32,6 @@ public:
     ImportGraphImporter(ImportPathHandler *handler, Lexer *lexer, ImportGraphVisitor *converter);
 
     /**
-     * will prepare source in the lexer
-     * will open the file, or prepare a stringstream in the Lexer
-     * @return true if prepared
-     */
-    bool prepare_source(const std::string &path, std::vector<Diag> &errors);
-
-    /**
-     * will close the source
-     */
-    void close_source();
-
-    /**
      * will lex the prepared source
      */
     void lex_source(const std::string &path, std::vector<Diag> &errors);

@@ -10,9 +10,12 @@
 #include "integration/common/Diagnostic.h"
 #include <iosfwd>
 #include "std/chem_string.h"
+#include <istream>
+#include <streambuf>
+#include "InputSource.h"
 
 class SourceProvider {
-private:
+public:
 
     /**
      * this counts lines, zero-based
@@ -25,6 +28,45 @@ private:
      * zero-based
      */
     unsigned int lineCharacterNumber = 0;
+
+    /**
+     * buffered input is used
+     */
+    std::vector<char> buffer;
+
+    /**
+     * buffer position
+     */
+    size_t bufferPos = 0;
+
+    /**
+     * buffer size
+     */
+    size_t bufferSize = 1024;
+
+    /**
+     * fills the buffer
+     */
+    void bufferFill(size_t size);
+
+    /**
+     * fills the buffer
+     */
+    inline void bufferFill() {
+        bufferFill(bufferSize);
+    }
+
+    /**
+     * stretch the buffer to fit more, when required, returns true if stretches otherwise false
+     */
+    bool bufferStretch(uint16_t amount);
+
+    /**
+     * stretch the buffer, returns true if stretches otherwise false
+     */
+    bool bufferStretch() {
+        return bufferStretch(100);
+    }
 
     /**
      * handles the character read from the stream
@@ -43,20 +85,16 @@ private:
 public:
 
     /**
-     * the actual stream being read
+     * the input source is used to read and fill the buffer
      */
-    std::istream *stream;
+    InputSource* stream;
 
     /**
      * create a source provider with a stream
      */
-    explicit SourceProvider(std::istream *stream) : stream(stream) {}
+    explicit SourceProvider(InputSource* stream) : stream(stream) {
 
-    /**
-     * gets the current pos of the stream
-     */
-    [[nodiscard]]
-    unsigned int currentPosition() const;
+    }
 
     /**
      * reads a single character and returns it
@@ -75,7 +113,7 @@ public:
      * peaks the character to read
      */
     [[nodiscard]]
-    char peek() const;
+    char peek();
 
     /**
      * peaks the character at current pos + ahead
@@ -121,13 +159,6 @@ public:
     std::string readAllFromHere();
 
     /**
-     * reads all the text from the stream from the beginning in a string and returns it
-     * @return
-     */
-    [[nodiscard]]
-    std::string readAllFromBeg();
-
-    /**
      * This for debugging, when called, everything from the current position to the end will be printed to cout
      */
     void printAll();
@@ -149,12 +180,17 @@ public:
      * @return
      */
     [[nodiscard]]
-    StreamPosition getStreamPosition() const;
+    StreamPosition getStreamPosition();
 
     /**
      * reset the stream
      */
     void reset();
+
+    /**
+     * reset the buffer and switch to the given source
+     */
+    void switch_source(InputSource* source);
 
     /**
      * reads until the given ending appears into a string and returns it
@@ -310,19 +346,10 @@ public:
     void readWhitespacesAndNewLines();
 
     /**
-     * saves the position into given position
-     */
-    void save(StreamPosition &pos) const {
-        pos.pos = currentPosition();
-        pos.line = lineNumber;
-        pos.character = lineCharacterNumber;
-    }
-
-    /**
      * restores the position of this stream from the given position
      * @param position
      */
-    void restore(StreamPosition &position);
+    void restore(const StreamPosition &position);
 
     /**
      * returns the token position at the very current position

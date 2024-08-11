@@ -276,9 +276,6 @@ void prep_lexer_cbi(LexerCBI* cbi, SourceProviderCBI* provider) {
 }
 
 void prep_source_provider_cbi(SourceProviderCBI* cbi) {
-    cbi->currentPosition = [](struct SourceProviderCBI* cbi){
-        return cbi->instance->currentPosition();
-    };
     cbi->readCharacter = [](struct SourceProviderCBI* cbi){
         return cbi->instance->readCharacter();
     };

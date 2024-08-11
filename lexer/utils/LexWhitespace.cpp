@@ -7,7 +7,8 @@
 #include <memory>
 
 bool Lexer::readWhitespace() {
-    if(provider.peek() != ' ' && provider.peek() != '\t') return false;
+    const auto c = provider.peek();
+    if(c != ' ' && c != '\t') return false;
     return provider.readWhitespaces() > 0;
 }
 

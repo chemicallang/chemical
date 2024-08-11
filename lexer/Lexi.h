@@ -10,6 +10,7 @@
 #include <fstream>
 #include "Lexer.h"
 #include "utils/Benchmark.h"
+#include "stream/FileInputSource.h"
 
 /**
  * same as benchLexFile with istream
@@ -39,7 +40,7 @@ void lexFile(Lexer* lexer, const std::string &path);
  * @param file
  * @return tokens
  */
-Lexer benchLexFile(std::istream &file, const std::string &path);
+Lexer benchLexFile(InputSource& source);
 
 /**
  * same as benchLexFile with istream
@@ -52,7 +53,7 @@ Lexer benchLexFile(const std::string &path);
  * will lex the file from given istream
  * @return the tokens
  */
-Lexer lexFile(std::istream &file, const std::string &path);
+Lexer lexFile(InputSource& source);
 
 /**
  * same as lexFile with istream

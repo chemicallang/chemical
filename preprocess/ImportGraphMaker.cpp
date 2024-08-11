@@ -28,29 +28,9 @@ ImportGraphImporter::ImportGraphImporter(ImportPathHandler* handler, Lexer* lexe
 
 };
 
-bool ImportGraphImporter::prepare_source(const std::string& abs_path, std::vector<Diag>& errors) {
-    auto stream = (std::ifstream*) lexer->provider.stream;
-    stream->open(abs_path);
-    if(!stream->is_open()) {
-        errors.emplace_back(
-                Range {0,0,0,0},
-                DiagSeverity::Error,
-                abs_path,
-                "couldn't open the file " + abs_path
-        );
-        return false;
-    }
-    return true;
-}
-
-void ImportGraphImporter::close_source() {
-    ((std::ifstream*) lexer->provider.stream)->close();
-}
-
 void ImportGraphImporter::lex_source(const std::string& path, std::vector<Diag>& errors) {
     // lex
     lexer->tokens.clear();
-    lexer->switch_path(path);
     lexer->lexTopLevelMultipleImportStatements();
     if (lexer->has_errors) {
         move_errors(lexer->diagnostics, errors, path);
@@ -104,11 +84,18 @@ std::vector<IGFile> ImportGraphImporter::from_tokens(
 }
 
 std::vector<IGFile> ImportGraphImporter::process(const std::string &path, IGFile* parent) {
-    if(!prepare_source(path, parent->errors)) {
+    FileInputSource source(path);
+    if(source.has_error()) {
+        parent->errors.emplace_back(
+                Range {0,0,0,0},
+                DiagSeverity::Error,
+                path,
+                "couldn't open the file " + path
+        );
         return {};
     }
+    lexer->provider.switch_source(&source);
     lex_source(path, parent->errors);
-    close_source();
     return from_tokens(
             path,
             parent,
@@ -169,9 +156,8 @@ IGResult determine_import_graph(ImportGraphImporter* importer, std::vector<std::
 }
 
 IGResult determine_import_graph(const std::string& exe_path, std::vector<std::unique_ptr<CSTToken>>& tokens, FlatIGFile &asker) {
-    std::ifstream file;
-    SourceProvider reader(&file);
-    Lexer lexer(reader, asker.abs_path);
+    SourceProvider reader(nullptr);
+    Lexer lexer(reader);
     ImportGraphVisitor visitor;
     ImportPathHandler handler(exe_path);
     ImportGraphImporter importer(
@@ -183,9 +169,8 @@ IGResult determine_import_graph(const std::string& exe_path, std::vector<std::un
 }
 
 IGResult determine_import_graph(const std::string &exe_path, const std::string &abs_path) {
-    std::ifstream file;
-    SourceProvider reader(&file);
-    Lexer lexer(reader, abs_path);
+    SourceProvider reader(nullptr);
+    Lexer lexer(reader);
     ImportGraphVisitor visitor;
     ImportPathHandler handler(exe_path);
     ImportGraphImporter importer(

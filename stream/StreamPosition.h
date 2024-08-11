@@ -9,9 +9,11 @@
 
 struct StreamPosition {
 
-    unsigned int pos;
+    off_t pos;
     unsigned int line;
     unsigned int character;
+    size_t bufferSize;
+    size_t bufferPos;  // Position within the buffer
 
 //    [[nodiscard]]
 //    std::string formatted() const {

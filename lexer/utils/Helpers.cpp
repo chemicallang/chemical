@@ -126,14 +126,14 @@ static bool read_gen_type_token(Lexer& lexer) {
 }
 
 bool Lexer::isGenericEndAhead() {
-    StreamPosition position{};
-    provider.save(position);
+    const auto position = provider.getStreamPosition();
     provider.increment('<');
     auto& lexer = *this;
     do {
         readWhitespace();
         if (!read_type_involving_token(lexer)) {
-            break;
+            provider.restore(position);
+            return false;
         }
         readWhitespace();
     } while (provider.increment(','));

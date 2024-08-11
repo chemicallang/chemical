@@ -11,11 +11,6 @@ typealias String = char*;
 struct SourceProvider {
 
     /**
-     * gets the current pos of the stream
-     */
-    var currentPosition : (&self) => uint;
-
-    /**
      * reads a single character and returns it
      * everytime a character is read, it must check if its the line ending character to track lineNumbers
      */

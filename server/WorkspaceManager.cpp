@@ -24,6 +24,7 @@
 #include "server/analyzers/DocumentLinksAnalyzer.h"
 #include "compiler/SelfInvocation.h"
 #include "utils/PathUtils.h"
+#include "stream/StringInputSource.h"
 
 #define DEBUG_REPLACE false
 
@@ -235,9 +236,8 @@ void replace(
         const std::string &replacement
 ) {
 
-    std::istringstream stream(source);
-
-    auto provider = SourceProvider(&stream);
+    StringInputSource input_source(source);
+    auto provider = SourceProvider(&input_source);
 
     std::string nextSource;
 

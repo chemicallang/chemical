@@ -276,6 +276,7 @@ const std::unordered_map<std::string, const AnnotationHandler> AnnotationHandler
         { "no_init", { collect_annotation_func, AnnotationKind::NoInit }},
         { "extern", { collect_annotation_func, AnnotationKind::Extern }},
         { "implicit", { collect_annotation_func, AnnotationKind::Implicit }},
+        { "not_in_c", { collect_annotation_func, AnnotationKind::NotInC }},
 };
 
 inline void collect_annotations_in(CSTConverter* converter, AnnotableNode* node) {
@@ -637,9 +638,10 @@ void CSTConverter::visitUsing(CompoundCSTToken *usingStmt) {
 
 void CSTConverter::visitTypealias(CompoundCSTToken *alias) {
     if(is_dispose()) return;
-    auto identifier = str_token(alias->tokens[1].get());
     alias->tokens[3]->accept(this);
-    nodes.emplace_back(std::make_unique<TypealiasStatement>(identifier, type(), parent_node));
+    auto stmt = new TypealiasStatement(str_token(alias->tokens[1].get()), type(), parent_node);
+    collect_annotations_in(this, stmt);
+    nodes.emplace_back(stmt);
 }
 
 void CSTConverter::visitTypeToken(LexToken *token) {

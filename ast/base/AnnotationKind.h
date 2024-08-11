@@ -22,6 +22,8 @@ enum class AnnotationKind {
 
     Implicit, // implicit constructor annotation, allows for automatic type conversion
 
+    NotInC, // nodes that should not translated to C
+
     // constructor or de constructor allow functions to be called automatically
     Constructor,
     Destructor,

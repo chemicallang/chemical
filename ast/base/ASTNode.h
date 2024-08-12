@@ -41,6 +41,8 @@ class VariablesContainer;
 
 class GenericTypeParameter;
 
+class BaseDefMember;
+
 /**
  * @brief Base class for all AST nodes.
  */
@@ -230,6 +232,13 @@ public:
      * return if this is a struct member
      */
     virtual StructMember *as_struct_member() {
+        return nullptr;
+    }
+
+    /**
+     * return if this is definition member
+     */
+    virtual BaseDefMember* as_base_def_member() {
         return nullptr;
     }
 

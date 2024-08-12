@@ -4,15 +4,19 @@
 
 #include "ordered_map.h"
 #include "BaseDefMember.h"
+#include "ast/types/InheritedLinkedType.h"
 #include <string>
 #include <memory>
 
 class VariablesContainer {
 public:
 
+    std::vector<std::unique_ptr<InheritedLinkedType>> inherited;
     tsl::ordered_map<std::string, std::unique_ptr<BaseDefMember>> variables;
 
-    int variable_index(const std::string &name);
+    long variable_index(const std::string &name, bool consider_inherited_structs = true);
+
+    long direct_child_index(const std::string &varName);
 
     uint64_t total_byte_size(bool is64Bit);
 
@@ -21,6 +25,15 @@ public:
     BaseDefMember* largest_member();
 
     virtual void declare_and_link(SymbolResolver &linker);
+
+    /**
+     * when child is located up somewhere in inheritance tree, we build the path to it
+     * the last index in the path is of the child, all the indexes before are indexes to
+     * the inherited structs
+     * The path starts from this variables container, so only this container can resolve it
+     * @return true if child is found, false if not
+     */
+    bool build_path_to_child(std::vector<int>& path, const std::string& child_name);
 
     virtual VariablesContainer* copy_container() {
         throw std::runtime_error("copy container called on variables container, should be overridden");

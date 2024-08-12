@@ -21,12 +21,26 @@ bool VariablesContainer::llvm_struct_child_index(
         std::vector<llvm::Value *> &indexes,
         const std::string &child_name
 ) {
-    auto index = variable_index(child_name);
-    if (index == -1) {
-        return false;
-    }
+    auto index = variable_index(child_name, false);
     if (indexes.empty()) {
         indexes.emplace_back(gen.builder->getInt32(0));
+    }
+    if (index == -1) {
+        const auto curr_size = (int) indexes.size();
+        int inherit_ind = 0;
+        // checking the inherited structs for given child
+        for(auto& inherits : inherited) {
+            auto linked_def = inherits->linked_struct_def();
+            if(linked_def) {
+                if(linked_def->add_child_index(gen, indexes, child_name)) {
+                    const auto itr = indexes.begin() + curr_size;
+                    indexes.insert(itr, gen.builder->getInt32(inherit_ind));
+                    return true;
+                }
+            }
+            inherit_ind++;
+        }
+        return false;
     }
     indexes.emplace_back(gen.builder->getInt32(index));
     return true;
@@ -55,7 +69,12 @@ bool VariablesContainer::llvm_union_child_index(
 
 std::vector<llvm::Type *> VariablesContainer::elements_type(Codegen &gen) {
     auto vec = std::vector<llvm::Type *>();
-    vec.reserve(variables.size());
+    vec.reserve(variables.size() + inherited.size());
+    for(const auto &inherits : inherited) {
+        if(inherits->linked_struct_def()) {
+            vec.emplace_back(inherits->llvm_type(gen));
+        }
+    }
     for (const auto &var: variables) {
         vec.emplace_back(var.second->llvm_type(gen));
     }
@@ -64,7 +83,12 @@ std::vector<llvm::Type *> VariablesContainer::elements_type(Codegen &gen) {
 
 std::vector<llvm::Type *> VariablesContainer::elements_type(Codegen &gen, std::vector<std::unique_ptr<ChainValue>>& chain, unsigned index) {
     auto vec = std::vector<llvm::Type *>();
-    vec.reserve(variables.size());
+    vec.reserve(variables.size() + inherited.size());
+    for(const auto &inherits : inherited) {
+        if(inherits->linked_struct_def()) {
+            vec.emplace_back(inherits->llvm_chain_type(gen, chain, index + 1));
+        }
+    }
     for (const auto &var: variables) {
         vec.emplace_back(var.second->llvm_chain_type(gen, chain, index + 1));
     }
@@ -148,13 +172,31 @@ ASTNode *MembersContainer::child(const std::string &varName) {
     }
 }
 
-BaseDefMember *MembersContainer::child_member(const std::string& name) {
+BaseDefMember *MembersContainer::direct_child_member(const std::string& name) {
     auto found = variables.find(name);
     if (found != variables.end()) {
         return found->second.get();
     } else {
         return nullptr;
     }
+}
+
+BaseDefMember *MembersContainer::inherited_member(const std::string& name) {
+    for(auto& inherits : inherited) {
+        const auto struct_def = inherits->linked_struct_def();
+        if(struct_def) {
+            const auto mem = struct_def->child_member(name);
+            if(mem) return mem;
+        }
+    }
+}
+
+BaseDefMember *MembersContainer::child_member(const std::string& name) {
+    const auto direct_mem = direct_child_member(name);
+    if(direct_mem) return direct_mem;
+    const auto inherited_mem = inherited_member(name);
+    if(inherited_mem) return inherited_mem;
+    return nullptr;
 }
 
 FunctionDeclaration *MembersContainer::child_function(const std::string& name) {
@@ -260,15 +302,57 @@ bool MembersContainer::contains_func(const std::string& name) {
     return indexes.find(name) != indexes.end();
 }
 
-int VariablesContainer::variable_index(const std::string &varName) {
-    auto i = 0;
-    for (const auto &var: variables) {
-        if (var.first == varName) {
-            return i;
+long VariablesContainer::variable_index(const std::string &varName, bool consider_inherited_structs) {
+    long parents_size = 0;
+    for(auto& inherits : inherited) {
+        const auto struct_def = inherits->linked->as_struct_def();
+        if(struct_def) {
+            if(consider_inherited_structs && struct_def->name == varName) {
+                // user wants the struct
+                return parents_size;
+            }
+            parents_size += 1;
         }
-        i++;
     }
-    return -1;
+    auto found = variables.find(varName);
+    if(found == variables.end()) {
+        return -1;
+    } else {
+        return ((long)(found - variables.begin())) + parents_size;
+    }
+}
+
+long VariablesContainer::direct_child_index(const std::string &varName) {
+    auto found = variables.find(varName);
+    if(found == variables.end()) {
+        return -1;
+    } else {
+        return ((long)(found - variables.begin()));
+    }
+}
+
+bool VariablesContainer::build_path_to_child(std::vector<int>& path, const std::string& child_name) {
+    const auto child_ind = direct_child_index(child_name);
+    if(child_ind != -1) {
+        path.emplace_back(child_ind);
+        return true;
+    }
+    auto inherit_index = 0;
+    for(auto& inherits : inherited) {
+        const auto linked_struct = inherits->linked_struct_def();
+        if(linked_struct) {
+            const auto curr_size = path.size();
+            path.emplace_back(inherit_index);
+            auto found = linked_struct->build_path_to_child(path, child_name);
+            if(found) {
+                return true;
+            } else if(curr_size != path.size()){
+                path.erase(path.begin() + ((long long) curr_size), path.end());
+            }
+        }
+        inherit_index++;
+    }
+    return false;
 }
 
 void VariablesContainer::declare_and_link(SymbolResolver &linker) {

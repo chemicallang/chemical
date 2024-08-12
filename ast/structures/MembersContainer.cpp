@@ -141,6 +141,12 @@ void MembersContainer::declare_and_link(SymbolResolver &linker) {
     for (const auto &var: variables) {
         var.second->declare_and_link(linker);
     }
+    for(auto& inherits : inherited) {
+        const auto def = inherits->linked->as_members_container();
+        for(auto& func : def->functions()) {
+            func->redeclare_top_level(linker);
+        }
+    }
     for(const auto& func : functions()) {
         func->declare_top_level(linker);
     }

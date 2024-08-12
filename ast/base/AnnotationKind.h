@@ -28,6 +28,9 @@ enum class AnnotationKind {
     Constructor,
     Destructor,
 
+    // the function overrides another present above in a struct or interface
+    Override,
+
     // structs or unions can be declared anonymous
     Anonymous,
 

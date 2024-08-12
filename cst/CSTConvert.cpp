@@ -273,6 +273,7 @@ const std::unordered_map<std::string, const AnnotationHandler> AnnotationHandler
         { "comptime", { collect_annotation_func, AnnotationKind::CompTime } },
         { "constructor", { collect_annotation_func, AnnotationKind::Constructor } },
         { "destructor", { collect_annotation_func, AnnotationKind::Destructor } },
+        { "override", { collect_annotation_func, AnnotationKind::Override } },
         { "no_init", { collect_annotation_func, AnnotationKind::NoInit }},
         { "extern", { collect_annotation_func, AnnotationKind::Extern }},
         { "implicit", { collect_annotation_func, AnnotationKind::Implicit }},

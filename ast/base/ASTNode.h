@@ -39,6 +39,8 @@ class MultiFunctionNode;
 
 class VariablesContainer;
 
+class MembersContainer;
+
 class GenericTypeParameter;
 
 class BaseDefMember;
@@ -76,6 +78,13 @@ public:
      */
     virtual void declare_top_level(SymbolResolver &linker) {
         // does nothing by default
+    }
+
+    /**
+     * called in case some functions need to redeclare themselves
+     */
+    virtual void redeclare_top_level(SymbolResolver &linker) {
+        declare_top_level(linker);
     }
 
     /**
@@ -167,6 +176,13 @@ public:
      * get the extendable members container, if this node has one
      */
     virtual ExtendableBase* as_extendable_members_container() {
+        return nullptr;
+    }
+
+    /**
+     * get a members container
+     */
+    virtual MembersContainer* as_members_container() {
         return nullptr;
     }
 

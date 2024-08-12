@@ -59,7 +59,7 @@ public:
     /**
      * do parameter types match with the given function parameter types
      */
-    bool do_param_types_match(std::vector<std::unique_ptr<FunctionParam>>& param_types);
+    bool do_param_types_match(std::vector<std::unique_ptr<FunctionParam>>& param_types, bool check_self = true);
 
     virtual ExtensionFunction* as_extension_func() {
         return nullptr;

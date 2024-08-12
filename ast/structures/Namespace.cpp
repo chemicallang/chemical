@@ -12,9 +12,7 @@ void Namespace::declare_top_level(SymbolResolver &linker) {
     if(previous) {
         root = previous->as_namespace();
         if(root) {
-            for(auto& node : nodes) {
-                root->extended[node->ns_node_identifier()] = node.get();
-            }
+
         } else {
             linker.error("a node exists by same name, the namespace with name '" + name + "' couldn't be created");
         }
@@ -30,7 +28,11 @@ void Namespace::declare_and_link(SymbolResolver &linker) {
     linker.scope_start();
     if(root) {
         for(auto& node : root->extended) {
-            node.second->declare_top_level(linker);
+            node.second->redeclare_top_level(linker);
+        }
+        for(auto& node : nodes) {
+            node->declare_top_level(linker);
+            root->extended[node->ns_node_identifier()] = node.get();
         }
     } else {
         for(auto& node : nodes) {

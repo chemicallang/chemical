@@ -571,6 +571,10 @@ void FunctionDeclaration::accept(Visitor *visitor) {
     visitor->visit(this);
 }
 
+void FunctionDeclaration::redeclare_top_level(SymbolResolver &linker) {
+    linker.declare_function(name, this);
+}
+
 void FunctionDeclaration::declare_top_level(SymbolResolver &linker) {
     linker.declare_function(name, this);
     if(has_annotation(AnnotationKind::Extern)) {

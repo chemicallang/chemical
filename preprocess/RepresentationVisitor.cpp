@@ -400,14 +400,40 @@ void RepresentationVisitor::visit(Scope *scope) {
     top_level_node = prev;
 }
 
+void RepresentationVisitor::write(AccessSpecifier specifier) {
+    switch(specifier) {
+        case AccessSpecifier::Private:
+            write("private");
+            return;
+        case AccessSpecifier::Public:
+            write("public");
+            return;
+        case AccessSpecifier::Protected:
+            write("protected");
+            return;
+        case AccessSpecifier::Internal:
+            write("internal");
+            return;
+    }
+}
+
 void RepresentationVisitor::visit(StructDefinition *def) {
     write("struct ");
     write(def->name);
-    space();
-    if (def->overrides.has_value()) {
-        write(": ");
-        def->overrides.value()->accept(this);
+    if(!def->inherited.empty()) {
+        write(" : ");
+        unsigned i = 0;
+        const auto size = def->inherited.size();
+        while(i < size) {
+            const auto& thing = def->inherited[i];
+            write(thing->specifier);
+            space();
+            write(def->inherited[i]->type);
+            if(i < size - 1) write(", ");
+            i++;
+        }
     }
+    space();
     write("{");
     indentation_level+=1;
     write_members(this, def);

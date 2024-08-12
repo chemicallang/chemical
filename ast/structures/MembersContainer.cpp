@@ -148,6 +148,24 @@ ASTNode *MembersContainer::child(const std::string &varName) {
     }
 }
 
+BaseDefMember *MembersContainer::child_member(const std::string& name) {
+    auto found = variables.find(name);
+    if (found != variables.end()) {
+        return found->second.get();
+    } else {
+        return nullptr;
+    }
+}
+
+FunctionDeclaration *MembersContainer::child_function(const std::string& name) {
+    auto found_func = indexes.find(name);
+    if (found_func != indexes.end()) {
+        return found_func->second;
+    } else {
+        return nullptr;
+    }
+}
+
 int16_t MembersContainer::register_generic_args(SymbolResolver& resolver, std::vector<std::unique_ptr<BaseType>>& types) {
     return register_generic_usage(resolver, this, generic_params, types);
 }

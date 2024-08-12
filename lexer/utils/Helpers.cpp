@@ -141,3 +141,7 @@ bool Lexer::isGenericEndAhead() {
     provider.restore(position);
     return is_generic;
 }
+
+bool Lexer::lexAccessSpecifier(bool internal, bool protect) {
+    return lexKeywordToken("public") || lexKeywordToken("private") || (internal && lexKeywordToken("internal")) || (protect && lexKeywordToken("protected"));
+}

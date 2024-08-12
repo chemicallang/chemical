@@ -1,6 +1,7 @@
 // Copyright (c) Qinetik 2024.
 
 #include "ast/base/Visitor.h"
+#include "ast/base/AccessSpecifier.h"
 #include <iosfwd>
 #include <string>
 #include <vector>
@@ -86,6 +87,11 @@ public:
      * will translate given nodes
      */
     void translate(std::vector<std::unique_ptr<ASTNode>>& nodes);
+
+    /**
+     * access specifier
+     */
+    void write(AccessSpecifier specifier);
 
     //------------------------------
     //----------Visitors------------

@@ -21,6 +21,10 @@ interface Calculator {
 
 }
 
+func (calc : Calculator*) extension_div() : int {
+    return calc.divideP();
+}
+
 impl Calculator {
     func divide(x : int, y : int) : int {
         return x / y;
@@ -235,6 +239,13 @@ func test_nodes() {
              y : 5
          };
         return p.divideP() == 1;
+    });
+    test("extension functions on interfaces also work", () => {
+         var p = Point {
+             x : 15,
+             y : 5
+         };
+        return p.extension_div() == 3;
     });
     test("supports null value - 1", () => {
         var x = 1;

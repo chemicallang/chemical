@@ -3109,6 +3109,10 @@ void ToCAstVisitor::visit(PointerType *func) {
 }
 
 void ToCAstVisitor::visit(ReferencedType *type) {
+    if(type->linked->as_interface_def()) {
+        write("void");
+        return;
+    }
     if(type->linked->as_enum_decl()){
         write("int");
         return;

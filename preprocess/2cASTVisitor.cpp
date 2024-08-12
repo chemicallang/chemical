@@ -166,6 +166,28 @@ static void struct_name(ToCAstVisitor* visitor, ExtendableMembersContainerNode* 
 }
 
 // nodes inside namespaces for example namespace name is written before their name
+void node_name(ToCAstVisitor* visitor, ASTNode* node) {
+    if(!node) return;
+    std::string name;
+    auto parent = node;
+    while(parent) {
+        if(parent->as_namespace()) {
+            name = parent->as_namespace()->name + name;
+        } else if(parent->as_struct_def()) {
+            name = struct_name_str(visitor, parent->as_struct_def()) + name;
+        } else if(parent->as_union_def()) {
+            name = parent->as_union_def()->name + name;
+        } else if(parent->as_interface_def()) {
+            name = parent->as_interface_def()->name + name;
+        } else {
+            name = "[UNKNOWN_PARENT_NAME]" + name;
+        }
+        parent = parent->parent();
+    }
+    visitor->write(name);
+}
+
+// nodes inside namespaces for example namespace name is written before their name
 void node_parent_name(ToCAstVisitor* visitor, ASTNode* node, bool take_parent = true) {
     if(!node) return;
     std::string name;
@@ -2429,9 +2451,9 @@ void func_container_name(ToCAstVisitor* visitor, ASTNode* parent_node, ASTNode* 
     if(parent_node->as_interface_def()) {
         visitor->write(parent_node->as_interface_def()->name);
     } else if(parent_node->as_struct_def()) {
-        const auto interface = parent_node->as_struct_def()->get_overriding_interface(linked_node->as_function());
-        if(interface) {
-            visitor->write(interface->name);
+        const auto info = parent_node->as_struct_def()->get_overriding_info(linked_node->as_function());
+        if(info.first) {
+            node_name(visitor, info.first);
         } else {
             struct_name(visitor, parent_node->as_struct_def());
         }

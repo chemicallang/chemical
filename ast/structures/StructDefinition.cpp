@@ -315,11 +315,24 @@ std::pair<ASTNode*, FunctionDeclaration*> StructDefinition::get_overriding_info(
     for(auto& inherits : inherited) {
         const auto interface = inherits->linked->as_interface_def();
         if(interface) {
-            return { interface, interface->child_function(function->name) };
+            const auto child_func = interface->child_function(function->name);
+            if(child_func) {
+                return { interface, child_func };
+            } else {
+                continue;
+            }
         }
         const auto struct_def = inherits->linked->as_struct_def();
         if(struct_def) {
-            return { struct_def, struct_def->child_function(function->name) };
+            const auto child_func = struct_def->child_function(function->name);
+            if(child_func) {
+                return {struct_def, child_func};
+            } else {
+                const auto info = struct_def->get_overriding_info(function);
+                if(info.first) {
+                    return info;
+                }
+            }
         }
     }
     return { nullptr, nullptr };

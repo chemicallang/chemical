@@ -1,8 +1,14 @@
 import "../test.ch"
 
 struct Animal {
+
     var a : long
     var b : long
+
+    func sum_animal(&self) : long {
+        return a + b;
+    }
+
 }
 
 func animal_sum(a : Animal*) : long {
@@ -10,12 +16,24 @@ func animal_sum(a : Animal*) : long {
 }
 
 struct WalkingAnimal : Animal {
+
     var speed : long
+
+    func get_speed(&self) : long {
+        return speed;
+    }
+
 }
 
 struct Dog : WalkingAnimal {
+
     var c : long
     var d : long
+
+    func sum_dog(&self) : long {
+        return c + d;
+    }
+
 }
 
 func get_dog_sum(d : Dog*) : long {
@@ -71,6 +89,48 @@ func test_single_inheritance() {
             d : 20
         }
         return b.speed == 90
+    })
+    test("base struct function on derived succeeds", () => {
+        var b = Dog {
+            WalkingAnimal : WalkingAnimal {
+                Animal : Animal {
+                    a : 11,
+                    b : 11
+                },
+                speed : 90
+            },
+            c : 40,
+            d : 20
+        }
+        return b.sum_animal() == 22;
+    })
+    test("middle struct function on derived succeeds", () => {
+        var b = Dog {
+            WalkingAnimal : WalkingAnimal {
+                Animal : Animal {
+                    a : 11,
+                    b : 11
+                },
+                speed : 32
+            },
+            c : 40,
+            d : 20
+        }
+        return b.get_speed() == 32;
+    })
+    test("derived struct functions on derived succeeds", () => {
+        var b = Dog {
+            WalkingAnimal : WalkingAnimal {
+                Animal : Animal {
+                    a : 11,
+                    b : 11
+                },
+                speed : 32
+            },
+            c : 15,
+            d : 12
+        }
+        return b.sum_dog() == 27;
     })
 }
 

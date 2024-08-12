@@ -38,6 +38,17 @@ void SymbolResolver::declare_function(const std::string& name, FunctionDeclarati
     if(found == last.end()) {
         last[name] = declaration;
     } else {
+        if(declaration->has_annotation(AnnotationKind::Override)) {
+            const auto func = found->second->as_function();
+            if (func->returnType->is_same(declaration->returnType.get()) && func->do_param_types_match(declaration->params, false)) {
+                last[name] = declaration;
+                return;
+            } else {
+                dup_sym_error(declaration->name, found->second, declaration);
+                error("function " + declaration->name + " cannot override because it's parameter types and return type don't match", declaration);
+                return;
+            }
+        }
         auto result = handle_name_overridable_function(name, found->second, declaration);
         if(!result.duplicates.empty()) {
             for(auto dup : result.duplicates) {

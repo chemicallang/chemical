@@ -40,11 +40,12 @@ bool BaseFunctionType::satisfy_args(std::vector<std::unique_ptr<Value>>& forArgs
     return true;
 }
 
-bool BaseFunctionType::do_param_types_match(std::vector<std::unique_ptr<FunctionParam>>& param_types) {
+bool BaseFunctionType::do_param_types_match(std::vector<std::unique_ptr<FunctionParam>>& param_types, bool check_self) {
     if(params.size() != param_types.size()) return false;
-    unsigned i = 0;
-    for(auto& param : params) {
-        if(!param_types[i]->type->is_same(param->type.get())) {
+    unsigned i = check_self ? 0 : (has_self_param() ? 1 : 0);
+    const auto siz = params.size();
+    while(i < siz) {
+        if(!param_types[i]->type->is_same(params[i]->type.get())) {
             return false;
         }
         i++;

@@ -33,14 +33,24 @@ struct Point : Calculator {
     var y : int
 
     // add override keyword to indicate its overriding function present above
+    @override
     func sum(x : int, y : int) : int {
         return x + y;
+    }
+
+    func call_divide(x : int, y : int) : int {
+        return divide(x, y);
+    }
+
+    func call_multiply_p(&self) : int {
+        return multiplyP();
     }
 
     func sumP(&self) : int {
         return self.x + self.y;
     }
 
+    @override
     func multiplyP(&self) : int {
         return self.x * self.y;
     }
@@ -192,11 +202,18 @@ func test_nodes() {
         return Calculator.divide(5, 5) == 1;
     })
     test("can call implemented impl functions using struct value", () => {
-         var p = Point {
-             x : 7,
-             y : 6
-         };
+        var p = Point {
+            x : 7,
+            y : 6
+        };
         return p.divide(10, 5) == 2;
+    })
+    test("functions inside struct can call functions inherited directly", () => {
+        var p = Point {
+            x : 7,
+            y : 6
+        };
+        return p.call_divide(10, 5) == 2;
     })
     test("overridden interface struct functions implemented inside struct with self ref", () => {
          var p = Point {
@@ -204,6 +221,13 @@ func test_nodes() {
              y : 5
          };
         return p.multiplyP() == 25;
+    });
+    test("overridden interface struct functions implemented inside struct with self ref", () => {
+        var p = Point {
+            x : 5,
+            y : 5
+        };
+        return p.call_multiply_p() == 25;
     });
     test("overridden interface struct functions implemented using impl keyword with self ref", () => {
          var p = Point {

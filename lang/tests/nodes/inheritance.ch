@@ -19,6 +19,10 @@ struct WalkingAnimal : Animal {
 
     var speed : long
 
+    func indirect_animal_sum(&self) : long {
+        return a + b;
+    }
+
     func get_speed(&self) : long {
         return speed;
     }
@@ -29,6 +33,10 @@ struct Dog : WalkingAnimal {
 
     var c : long
     var d : long
+
+    func indirect_animal_sum_2(&self) : long {
+        return a + b;
+    }
 
     func sum_dog(&self) : long {
         return c + d;
@@ -103,6 +111,20 @@ func test_single_inheritance() {
             d : 20
         }
         return b.sum_animal() == 22;
+    })
+    test("can successfully access base struct members from derived struct", () => {
+        var b = Dog {
+            WalkingAnimal : WalkingAnimal {
+                Animal : Animal {
+                    a : 12,
+                    b : 11
+                },
+                speed : 32
+            },
+            c : 40,
+            d : 20
+        }
+        return b.indirect_animal_sum() == 23 && b.indirect_animal_sum_2() == 23;
     })
     test("middle struct function on derived succeeds", () => {
         var b = Dog {

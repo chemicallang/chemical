@@ -241,6 +241,10 @@ BaseDefMember *StructMember::copy_member() {
     return new StructMember(name, std::unique_ptr<BaseType>(type->copy()), std::move(def_value), parent_node);
 }
 
+void StructMember::declare_top_level(SymbolResolver &linker) {
+    linker.declare(name, this);
+}
+
 void StructMember::declare_and_link(SymbolResolver &linker) {
     linker.declare(name, this);
     type->link(linker, type);

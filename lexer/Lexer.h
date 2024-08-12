@@ -184,6 +184,11 @@ public:
     bool lexFunctionCall(unsigned back_start);
 
     /**
+     * lexes a keyword access specifier public, private, internal & (if protect is true, then protected)
+     */
+    bool lexAccessSpecifier(bool internal = true, bool protect = false);
+
+    /**
      * after an identifier has been consumed
      * we call this method to lex an access chain after it
      * identifier .element1.element2.element3

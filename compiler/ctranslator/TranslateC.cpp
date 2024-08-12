@@ -91,7 +91,7 @@ EnumDeclaration* CTranslator::make_enum(clang::EnumDecl* decl) {
 }
 
 StructDefinition* CTranslator::make_struct(clang::RecordDecl* decl) {
-    auto def = new StructDefinition(decl->getNameAsString(), std::nullopt, parent_node);
+    auto def = new StructDefinition(decl->getNameAsString(), parent_node);
     for(auto str : decl->fields()) {
         auto field_type = str->getType();
         auto field_type_conv = make_type(&field_type);

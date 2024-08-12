@@ -6,6 +6,7 @@
 #include <string>
 #include "cst/base/CompoundCSTToken.h"
 #include "lexer/model/tokens/LexToken.h"
+#include "ast/base/AccessSpecifier.h"
 
 class ImportUnit;
 
@@ -89,6 +90,11 @@ inline CSTToken* interface_name_tok(CompoundCSTToken* interface) {
 inline std::string interface_name(CompoundCSTToken* interface) {
     return str_token(interface_name_tok(interface));
 }
+
+/**
+ * get the access specifier, otherwise returns 99
+ */
+std::optional<AccessSpecifier> specifier_token(CSTToken* token);
 
 /**
  * what is the parameter name in given comp param token

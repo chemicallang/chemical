@@ -1002,13 +1002,27 @@ void CSTConverter::visitStructDef(CompoundCSTToken *structDef) {
     }
     bool named = structDef->tokens[1]->is_identifier();
     unsigned i = named ? 2 : 1; // expected index of the ':'
-    std::optional<std::string> overrides = std::nullopt;
     auto has_override = is_char_op(structDef->tokens[i].get(), ':');
+    auto def = new StructDefinition(str_token(structDef->tokens[named ? 1 : structDef->tokens.size() - 1].get()), parent_node);
     if (has_override) {
-        overrides.emplace(str_token(structDef->tokens[i + 1].get()));
+        i++; // set on access specifier or the inherited struct / interface name
+        while(true) {
+            auto specifier = specifier_token(structDef->tokens[i].get());
+            if(specifier.has_value()) {
+                i++;
+            } else {
+                specifier.emplace(AccessSpecifier::Public);
+            }
+            def->inherited.emplace_back(new InheritedLinkedType(str_token(structDef->tokens[i].get()), nullptr, specifier.value()));
+            i++;
+            if(is_char_op(structDef->tokens[i].get(), ',')) {
+                i++;
+            } else {
+                break;
+            }
+        };
     }
-    i = has_override ? i + 3 : i + 1; // positioned at first node or '}'
-    auto def = new StructDefinition(str_token(structDef->tokens[named ? 1 : structDef->tokens.size() - 1].get()), overrides, parent_node);
+    i += 1;// positioned at first node or '}'
     if(structDef->tokens[2]->type() == LexTokenType::CompGenericParamsList) {
         convert_generic_list(this, structDef->tokens[2]->as_compound(), def->generic_params, def);
     }

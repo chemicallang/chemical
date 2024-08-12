@@ -12,7 +12,7 @@
 #include "MembersContainer.h"
 #include <optional>
 #include <map>
-#include "ast/types/ReferencedType.h"
+#include "ast/types/InheritedLinkedType.h"
 #include "ast/base/ExtendableMembersContainerNode.h"
 #include "ast/types/StructType.h"
 
@@ -20,7 +20,7 @@ class StructDefinition : public ExtendableMembersContainerNode, public StructTyp
 public:
 
     AccessSpecifier specifier = AccessSpecifier::Internal;
-    std::optional<std::unique_ptr<ReferencedType>> overrides;
+    std::vector<std::unique_ptr<InheritedLinkedType>> inherited;
     ASTNode* parent_node;
 
 #ifdef COMPILER_BUILD
@@ -39,7 +39,6 @@ public:
      */
     StructDefinition(
             std::string name,
-            const std::optional<std::string>& overrides,
             ASTNode* parent_node
     );
 
@@ -119,6 +118,21 @@ public:
      * get the function being overridden of this struct, the interface whose function
      */
     FunctionDeclaration* get_overriding(FunctionDeclaration* function);
+
+    /**
+     * get the overriding struct / interface and the function being overridden
+     */
+    std::pair<ASTNode*, FunctionDeclaration*> get_overriding_info(FunctionDeclaration* function);
+
+    /**
+     * get the interface overriding info, this means that the function being overridden is present in an interface
+     */
+    std::pair<InterfaceDefinition*, FunctionDeclaration*> get_interface_overriding_info(FunctionDeclaration* function);
+
+    /**
+     * get overriding interface for the following function, means function being overridden is present in an interface
+     */
+    InterfaceDefinition* get_overriding_interface(FunctionDeclaration* function);
 
 #ifdef COMPILER_BUILD
 

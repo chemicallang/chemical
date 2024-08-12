@@ -8,6 +8,21 @@ bool is_var_init_const(CompoundCSTToken* cst) {
     return str_token(cst->tokens[0].get()) == "const";
 }
 
+std::optional<AccessSpecifier> specifier_token(CSTToken* token) {
+    if(token->type() == LexTokenType::Keyword) {
+        if(token->as_lex_token()->value == "public") {
+            return AccessSpecifier::Public;
+        } else if(token->as_lex_token()->value == "private") {
+            return AccessSpecifier::Private;
+        } else if(token->as_lex_token()->value == "internal") {
+            return AccessSpecifier::Internal;
+        } else if(token->as_lex_token()->value == "protected") {
+            return AccessSpecifier::Protected;
+        }
+    }
+    return std::nullopt;
+}
+
 std::string param_name(CompoundCSTToken* param) {
     return str_token(param->tokens[is_char_op(param->tokens[0].get(), '&') ? 1 : 0].get());
 }

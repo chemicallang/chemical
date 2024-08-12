@@ -49,6 +49,10 @@ public:
 
     ASTNode *child(const std::string &name) override;
 
+    BaseDefMember *child_member(const std::string& name);
+
+    FunctionDeclaration *child_function(const std::string& name);
+
     int child_index(const std::string &var_name) override {
         return VariablesContainer::variable_index(var_name);
     }

@@ -1768,9 +1768,8 @@ void CTopLevelDeclarationVisitor::declare_struct(StructDefinition* def) {
         auto decl = def->create_destructor();
         decl->ensure_destructor(def);
     }
-    InterfaceDefinition* overridden = def->overrides.has_value() ? def->overrides.value()->linked->as_interface_def() : nullptr;
     for(auto& func : def->functions()) {
-        if(!overridden || !overridden->contains_func(func->name)) {
+        if(def->get_overriding_interface(func.get()) == nullptr) {
             declare_contained_func(this, func.get(), struct_name_str(visitor, def) + func->name, false);
         }
     }
@@ -2291,11 +2290,13 @@ void ToCAstVisitor::visit(UnnamedStruct *def) {
     write(';');
 }
 
-static void contained_struct_functions(ToCAstVisitor* visitor, StructDefinition* def, InterfaceDefinition* overridden) {
+static void contained_struct_functions(ToCAstVisitor* visitor, StructDefinition* def) {
     for(auto& func : def->functions()) {
-        if(overridden && overridden->contains_func(func->name)) {
-            contained_func_decl(visitor, func.get(), overridden->name + func->name, true, def);
+        const auto interface = def->get_overriding_interface(func.get());
+        if(interface) {
+            contained_func_decl(visitor, func.get(), interface->name + func->name, true, def);
         } else {
+            // overridding a function in base struct <--- not yet supported
             contained_func_decl(visitor, func.get(), struct_name_str(visitor, def) + func->name, false, def);
         }
     }
@@ -2304,23 +2305,25 @@ static void contained_struct_functions(ToCAstVisitor* visitor, StructDefinition*
 void ToCAstVisitor::visit(StructDefinition *def) {
     auto prev_members_container = current_members_container;
     current_members_container = def;
-    auto overridden = def->overrides.has_value() ? def->overrides.value()->linked->as_interface_def() : nullptr;
-    if(overridden) {
-        for(auto& func : overridden->functions()) {
-            if(!def->contains_func(func->name)) {
-                contained_func_decl(this, func.get(), overridden->name + func->name, false, def);
+    for(auto& inherits : def->inherited) {
+        const auto overridden = inherits->linked->as_interface_def();
+        if(overridden) {
+            for (auto &func: overridden->functions()) {
+                if (!def->contains_func(func->name)) {
+                    contained_func_decl(this, func.get(), overridden->name + func->name, false, def);
+                }
             }
         }
     }
     if(def->generic_params.empty()) {
-        contained_struct_functions(this, def, overridden);
+        contained_struct_functions(this, def);
     } else {
         auto prev = def->active_iteration;
         const auto total_itr = def->total_generic_iterations();
         int16_t itr = 0;
         while (itr < total_itr) {
             def->set_active_iteration(itr);
-            contained_struct_functions(this, def, overridden);
+            contained_struct_functions(this, def);
             itr++;
         }
         def->set_active_iteration(prev);
@@ -2386,19 +2389,12 @@ void func_container_name(ToCAstVisitor* visitor, FunctionDeclaration* func_node)
     if(parent) {
         const auto struct_parent = parent->as_struct_def();
         if(struct_parent) {
-            if(struct_parent->overrides.has_value()) {
-                auto interface = struct_parent->overrides.value()->linked_node()->as_interface_def();
-                if(interface->contains_func(func_node->name)) {
-                    node_parent_name(visitor, struct_parent);
-                    visitor->write(interface->name);
-                    func_name(visitor, func_node);
-                    return;
-                } else {
-                    node_parent_name(visitor, struct_parent);
-                    visitor->write(struct_parent->name);
-                    func_name(visitor, func_node);
-                    return;
-                }
+            const auto interface = struct_parent->get_overriding_interface(func_node);
+            if(interface) {
+                node_parent_name(visitor, struct_parent);
+                visitor->write(interface->name);
+                func_name(visitor, func_node);
+                return;
             } else {
                 node_parent_name(visitor, struct_parent);
                 struct_name(visitor, struct_parent);
@@ -2422,13 +2418,9 @@ void func_container_name(ToCAstVisitor* visitor, ASTNode* parent_node, ASTNode* 
     if(parent_node->as_interface_def()) {
         visitor->write(parent_node->as_interface_def()->name);
     } else if(parent_node->as_struct_def()) {
-        if(parent_node->as_struct_def()->overrides.has_value()) {
-            auto interface = parent_node->as_struct_def()->overrides.value()->linked_node()->as_interface_def();
-            if(interface->contains_func(linked_node->as_function()->name)) {
-                visitor->write(interface->name);
-            } else {
-                struct_name(visitor, parent_node->as_struct_def());
-            }
+        const auto interface = parent_node->as_struct_def()->get_overriding_interface(linked_node->as_function());
+        if(interface) {
+            visitor->write(interface->name);
         } else {
             struct_name(visitor, parent_node->as_struct_def());
         }

@@ -454,6 +454,7 @@ set(COMMON_SOURCES
         stream/FileInputSource.h
         stream/StringInputSource.h
         stream/InputSource.cpp
+        ast/types/InheritedLinkedType.h
 )
 
 # Chemical LSP Executable Target

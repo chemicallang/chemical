@@ -7,5 +7,6 @@
 enum class AccessSpecifier : uint8_t {
     Private = 0,
     Public,
+    Protected,
     Internal
 };

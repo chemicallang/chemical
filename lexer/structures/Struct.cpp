@@ -44,11 +44,16 @@ bool Lexer::lexStructStructureTokens(bool unnamed, bool direct_init) {
         lexGenericParametersList();
         lexWhitespaceToken();
         if(lexOperatorToken(':')) {
-            lexWhitespaceToken();
-            if(!lexVariableToken()) {
-                error("expected a interface name after ':' when declaring a struct");
-                return true;
-            }
+            do {
+                lexWhitespaceToken();
+                lexAccessSpecifier(false, true);
+                lexWhitespaceToken();
+                if(!lexVariableToken()) {
+                    error("missing struct / interface name in inheritance list of the struct");
+                    return true;
+                }
+                lexWhitespaceToken();
+            } while(lexOperatorToken(','));
         }
         lexWhitespaceToken();
         if(!lexOperatorToken('{')) {

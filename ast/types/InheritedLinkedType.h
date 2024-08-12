@@ -1,6 +1,6 @@
 // Copyright (c) Qinetik 2024.
 
-#pragma onceonce
+#pragma once
 
 #include "ReferencedType.h"
 #include "ast/base/AccessSpecifier.h"

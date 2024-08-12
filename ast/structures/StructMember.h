@@ -37,6 +37,8 @@ public:
 
     void accept(Visitor *visitor) override;
 
+    void declare_top_level(SymbolResolver &linker) override;
+
     void declare_and_link(SymbolResolver &linker) override;
 
     ASTNode *child(const std::string &name) override;

@@ -1,4 +1,5 @@
 import "../test.ch"
+import "./inheritance.ch"
 
 func sum_this_please(a : int, b : int) : int {
     return a + b;
@@ -228,4 +229,5 @@ func test_structs() {
         };
         return p.pair.get_pair_sum() == 26
     })
+    test_inheritance();
 }

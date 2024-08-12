@@ -1757,6 +1757,17 @@ void CTopLevelDeclarationVisitor::declare_struct(StructDefinition* def) {
     struct_name(visitor, def);
     write(" {");
     visitor->indentation_level+=1;
+    for(auto& inherits : def->inherited) {
+        const auto struct_def = inherits->linked_struct_def();
+        if(struct_def) {
+            visitor->new_line_and_indent();
+            visitor->write("struct ");
+            struct_name(visitor, struct_def);
+            visitor->space();
+            visitor->write(struct_def->name);
+            visitor->write(';');
+        }
+    }
     for(auto& var : def->variables) {
         visitor->new_line_and_indent();
         var.second->accept(visitor);
@@ -2565,15 +2576,56 @@ void func_name_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<ChainVa
     access_chain(visitor, values, start, end, values.size());
 }
 
+void write_path_to_child(ToCAstVisitor* visitor, std::vector<int>& path, StructDefinition* def) {
+    int i = 0;
+    int last = (((int) path.size()) - 1);
+    while(i < last) {
+        const auto seg = path[i];
+        auto& base = def->inherited[seg];
+        def = base->linked_struct_def();
+        visitor->write(def->name);
+        visitor->write('.');
+        i++;
+    }
+}
+
+void chain_value_accept(ToCAstVisitor* visitor, ChainValue* previous, ChainValue* value) {
+    if(previous) {
+        const auto prev_type = previous->get_pure_type();
+        const auto previous_def = prev_type->linked_struct_def();
+        if(previous_def) {
+            const auto id = value->as_identifier();
+            if (id) {
+                const auto member = id->linked_node()->as_base_def_member();
+                if (member) {
+                    // current member name member->name;
+                    const auto mem = previous_def->direct_child_member(member->name);
+                    if(!mem) {
+                        std::vector<int> path;
+                        path.reserve(5);
+                        auto found = previous_def->build_path_to_child(path, member->name);
+                        if(found) {
+                            write_path_to_child(visitor, path, previous_def);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    value->accept(visitor);
+}
+
 void chain_after_func(ToCAstVisitor* visitor, std::vector<std::unique_ptr<ChainValue>>& values, unsigned start, const unsigned end, const unsigned total_size) {
-    Value* current;
-    Value* next;
+    ChainValue* previous = nullptr;
+    ChainValue* current = nullptr;
+    ChainValue* next = nullptr;
     while(start < end) {
+        previous = current;
         current = values[start].get();
         if(start + 1 < total_size) {
             next = values[start + 1].get();
             if(next->as_func_call() || next->as_index_op()) {
-                current->accept(visitor);
+                chain_value_accept(visitor, previous, current);
             } else {
                 if(current->linked_node()->as_enum_decl() != nullptr) {
                     if(visitor->inline_enum_member_access) {
@@ -2589,12 +2641,12 @@ void chain_after_func(ToCAstVisitor* visitor, std::vector<std::unique_ptr<ChainV
                         }
                     }
                 } else {
-                    current->accept(visitor);
+                    chain_value_accept(visitor, previous, current);
                     write_accessor(visitor, current);
                 }
             }
         } else {
-            current->accept(visitor);
+            chain_value_accept(visitor, previous, current);
             next = nullptr;
         }
         start++;
@@ -2606,7 +2658,7 @@ void access_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<ChainValue
     if(diff == 0) {
         return;
     } else if(diff == 1) {
-        values[start]->accept(visitor);
+        chain_value_accept(visitor, nullptr, values[start].get());
         return;
     }
     unsigned i = start;

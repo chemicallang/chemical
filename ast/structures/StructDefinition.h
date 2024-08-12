@@ -12,7 +12,6 @@
 #include "MembersContainer.h"
 #include <optional>
 #include <map>
-#include "ast/types/InheritedLinkedType.h"
 #include "ast/base/ExtendableMembersContainerNode.h"
 #include "ast/types/StructType.h"
 
@@ -20,7 +19,6 @@ class StructDefinition : public ExtendableMembersContainerNode, public StructTyp
 public:
 
     AccessSpecifier specifier = AccessSpecifier::Internal;
-    std::vector<std::unique_ptr<InheritedLinkedType>> inherited;
     ASTNode* parent_node;
 
 #ifdef COMPILER_BUILD

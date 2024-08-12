@@ -14,6 +14,10 @@ public:
         std::string name
     );
 
+    BaseDefMember *as_base_def_member() override {
+        return this;
+    }
+
     virtual bool requires_destructor() = 0;
 
     virtual BaseDefMember* copy_member() = 0;

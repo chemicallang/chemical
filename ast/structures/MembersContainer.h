@@ -49,6 +49,10 @@ public:
 
     ASTNode *child(const std::string &name) override;
 
+    BaseDefMember *direct_child_member(const std::string& name);
+
+    BaseDefMember *inherited_member(const std::string& name);
+
     BaseDefMember *child_member(const std::string& name);
 
     FunctionDeclaration *child_function(const std::string& name);

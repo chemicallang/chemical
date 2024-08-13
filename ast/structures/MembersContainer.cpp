@@ -10,6 +10,7 @@
 #include "VariablesContainer.h"
 #include "ast/values/StructValue.h"
 #include "ast/utils/GenericUtils.h"
+#include "ast/types/GenericType.h"
 
 #ifdef COMPILER_BUILD
 
@@ -230,7 +231,13 @@ FunctionDeclaration *MembersContainer::child_function(const std::string& name) {
 }
 
 int16_t MembersContainer::register_generic_args(SymbolResolver& resolver, std::vector<std::unique_ptr<BaseType>>& types) {
-    return register_generic_usage(resolver, this, generic_params, types);
+    const auto itr = register_generic_usage(resolver, this, generic_params, types);
+    if(itr.second) {
+        for (auto sub: subscribers) {
+            sub->report_parent_usage(resolver, itr.first);
+        }
+    }
+    return itr.first;
 }
 
 int16_t MembersContainer::register_value(SymbolResolver& resolver, StructValue* value) {
@@ -254,6 +261,9 @@ void MembersContainer::set_active_iteration(int16_t iteration) {
     }
     for (auto &param: generic_params) {
         param->active_iteration = iteration;
+    }
+    for(auto sub : subscribers) {
+        sub->set_parent_iteration(iteration);
     }
 }
 

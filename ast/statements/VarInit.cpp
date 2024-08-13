@@ -186,9 +186,6 @@ void VarInitStatement::declare_and_link(SymbolResolver &linker) {
     linker.declare(identifier, this);
     if (type.has_value()) {
         type.value()->link(linker, type.value());
-        if(!value.has_value() && type.value()->kind() == BaseTypeKind::Generic) {
-            ((GenericType*) value->get())->report_generic_usage();
-        }
     }
     if (value.has_value()) {
         value.value()->link(linker, this);

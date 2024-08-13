@@ -248,9 +248,6 @@ void StructMember::declare_top_level(SymbolResolver &linker) {
 void StructMember::declare_and_link(SymbolResolver &linker) {
     linker.declare(name, this);
     type->link(linker, type);
-    if(type->kind() == BaseTypeKind::Generic) {
-        ((GenericType*) type.get())->report_generic_usage();
-    }
     if (defValue.has_value()) {
         defValue.value()->link(linker, defValue.value());
     }

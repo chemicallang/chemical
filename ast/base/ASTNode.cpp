@@ -99,6 +99,14 @@ void ASTNode::code_gen_generic(Codegen &gen) {
 
 #endif
 
+void ASTNode::subscribe(GenericType* subscriber) {
+#ifdef DEBUG
+    throw std::runtime_error("subscribe called on a base ASTNode");
+#else
+    std::cerr << "ASTNode::subscibe called on node with representation " + representation() << std::endl;
+#endif
+}
+
 std::unique_ptr<BaseType> ASTNode::create_value_type() {
     return nullptr;
 }

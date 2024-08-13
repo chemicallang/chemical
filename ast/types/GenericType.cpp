@@ -27,14 +27,71 @@ void GenericType::link(SymbolResolver &linker, std::unique_ptr<BaseType>& curren
     for(auto& type : types) {
         type->link(linker, type);
     }
+    report_generic_usage(linker);
+}
+
+bool GenericType::subscribe_to_parent_generic() {
+    for(auto& type : types) {
+        if(type->kind() == BaseTypeKind::Referenced) {
+            const auto gen_param = type->linked_node()->as_generic_type_param();
+            if(gen_param) {
+                gen_param->parent_node->subscribe(this);
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+int16_t GenericType::report_generic_args(SymbolResolver &linker, std::vector<std::unique_ptr<BaseType>>& gen_args) {
     const auto generic_struct = referenced->get_generic_struct();
     if(generic_struct) {
-        generic_iteration = generic_struct->register_generic_args(linker, types);
+        return generic_struct->register_generic_args(linker, gen_args);
+    }
+    return -1;
+}
+
+void GenericType::report_generic_usage(SymbolResolver& linker) {
+    if(!subscribe_to_parent_generic()) {
+        generic_iteration = report_generic_args(linker, types);
     }
 }
 
-void GenericType::report_generic_usage() {
-    // we did this when linking
+void GenericType::report_parent_usage(SymbolResolver &linker, int16_t parent_itr) {
+    std::vector<std::unique_ptr<BaseType>> generic_args;
+    for(auto& type : types) {
+        if(type->kind() == BaseTypeKind::Referenced) {
+            const auto gen_param = type->linked_node()->as_generic_type_param();
+            if(gen_param) {
+                generic_args.emplace_back(gen_param->usage.back());
+                continue;
+            }
+        }
+        // completely specialized type
+        generic_args.emplace_back(type.get());
+    }
+    subscribed_map[parent_itr] = report_generic_args(linker, generic_args);
+    // release all generic args as they are all references
+    for(auto& arg : generic_args) {
+        arg.release();
+    }
+}
+
+void GenericType::set_parent_iteration(int16_t parent_itr) {
+    if(parent_itr == -1) {
+        generic_iteration = -1;
+        return;
+    }
+    auto found = subscribed_map.find(parent_itr);
+    if(found != subscribed_map.end()) {
+        generic_iteration = found->second;
+    } else {
+#ifdef DEBUG
+        throw std::runtime_error("couldn't find a registered generic iteration for parent generic iteration");
+#else
+        std::cerr << "Generic type with " + representation() + " cannot set iteration using parent generic iteration " + std::to_string(parent_itr) << std::endl;
+#endif
+    }
 }
 
 BaseType* GenericType::copy() const {

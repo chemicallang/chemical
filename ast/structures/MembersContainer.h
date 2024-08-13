@@ -22,6 +22,10 @@ public:
 
     std::vector<std::unique_ptr<GenericTypeParameter>> generic_params;
     /**
+     * subscribers are reported with usages of this generic type
+     */
+    std::vector<GenericType*> subscribers;
+    /**
      * generic parameters pretend to be different types on different iterations, iterations are number of usages
      * that we determined during symbol resolution, by default zero means no active
      */
@@ -135,6 +139,12 @@ public:
         return this;
     }
 
+    /**
+     * this generic type is registered as a subscriber of this generic node
+     */
+    void subscribe(GenericType *subscriber) override {
+        subscribers.emplace_back(subscriber);
+    }
 
 #ifdef COMPILER_BUILD
 

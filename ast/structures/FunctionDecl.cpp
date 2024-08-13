@@ -18,6 +18,7 @@
 #include "ast/values/FunctionCall.h"
 #include "ast/statements/Return.h"
 #include "ast/utils/GenericUtils.h"
+#include "ast/types/GenericType.h"
 
 #ifdef COMPILER_BUILD
 
@@ -549,10 +550,19 @@ void FunctionDeclaration::set_active_iteration(int16_t iteration) {
     for (auto &param: generic_params) {
         param->active_iteration = iteration;
     }
+    for(auto sub : subscribers) {
+        sub->set_parent_iteration(iteration);
+    }
 }
 
 int16_t FunctionDeclaration::register_call(SymbolResolver& resolver, FunctionCall* call) {
-    return register_generic_usage(resolver, this, generic_params, call->generic_list);
+    const auto itr = register_generic_usage(resolver, this, generic_params, call->generic_list);
+    if(itr.second) {
+        for (auto sub: subscribers) {
+            sub->report_parent_usage(resolver, itr.first);
+        }
+    }
+    return itr.first;
 }
 
 std::unique_ptr<BaseType> FunctionDeclaration::create_value_type() {

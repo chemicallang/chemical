@@ -1780,7 +1780,7 @@ void CTopLevelDeclarationVisitor::declare_struct(StructDefinition* def) {
     write(" {");
     visitor->indentation_level+=1;
     for(auto& inherits : def->inherited) {
-        const auto struct_def = inherits->linked_struct_def();
+        const auto struct_def = inherits->type->linked_struct_def();
         if(struct_def) {
             visitor->new_line_and_indent();
             visitor->write("struct ");
@@ -2339,7 +2339,7 @@ void ToCAstVisitor::visit(StructDefinition *def) {
     auto prev_members_container = current_members_container;
     current_members_container = def;
     for(auto& inherits : def->inherited) {
-        const auto overridden = inherits->linked->as_interface_def();
+        const auto overridden = inherits->type->linked_node()->as_interface_def();
         if(overridden) {
             for (auto &func: overridden->functions()) {
                 if (!def->contains_func(func->name)) {
@@ -2604,7 +2604,7 @@ void write_path_to_child(ToCAstVisitor* visitor, std::vector<int>& path, StructD
     while(i < last) {
         const auto seg = path[i];
         auto& base = def->inherited[seg];
-        def = base->linked_struct_def();
+        def = base->type->linked_struct_def();
         visitor->write(def->name);
         visitor->write('.');
         i++;

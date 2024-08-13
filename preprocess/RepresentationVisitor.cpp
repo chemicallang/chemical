@@ -45,6 +45,7 @@
 #include "ast/types/IntNType.h"
 #include "ast/types/IntType.h"
 #include "ast/types/LongType.h"
+#include "ast/types/ReferencedType.h"
 #include "ast/types/ShortType.h"
 #include "ast/types/StringType.h"
 #include "ast/types/StructType.h"
@@ -428,7 +429,7 @@ void RepresentationVisitor::visit(StructDefinition *def) {
             const auto& thing = def->inherited[i];
             write(thing->specifier);
             space();
-            write(def->inherited[i]->type);
+            write(def->inherited[i]->specifier);
             if(i < size - 1) write(", ");
             i++;
         }

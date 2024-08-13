@@ -4,14 +4,14 @@
 
 #include "ordered_map.h"
 #include "BaseDefMember.h"
-#include "ast/types/InheritedLinkedType.h"
+#include "InheritedType.h"
 #include <string>
 #include <memory>
 
 class VariablesContainer {
 public:
 
-    std::vector<std::unique_ptr<InheritedLinkedType>> inherited;
+    std::vector<std::unique_ptr<InheritedType>> inherited;
     tsl::ordered_map<std::string, std::unique_ptr<BaseDefMember>> variables;
 
     long variable_index(const std::string &name, bool consider_inherited_structs = true);

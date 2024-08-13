@@ -75,6 +75,7 @@
 #include "ast/values/NamespaceIdentifier.h"
 #include "ast/types/ReferencedValueType.h"
 #include "ast/statements/UsingStmt.h"
+#include "ast/types/ReferencedType.h"
 
 Operation get_operation(CSTToken *token) {
     std::string num;
@@ -1014,7 +1015,7 @@ void CSTConverter::visitStructDef(CompoundCSTToken *structDef) {
             } else {
                 specifier.emplace(AccessSpecifier::Public);
             }
-            def->inherited.emplace_back(new InheritedLinkedType(str_token(structDef->tokens[i].get()), nullptr, specifier.value()));
+            def->inherited.emplace_back(new InheritedType(std::make_unique<ReferencedType>(str_token(structDef->tokens[i].get()), nullptr), specifier.value()));
             i++;
             if(is_char_op(structDef->tokens[i].get(), ',')) {
                 i++;

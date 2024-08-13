@@ -11,6 +11,7 @@
 #include "ast/values/StructValue.h"
 #include "ast/utils/GenericUtils.h"
 #include "ast/types/GenericType.h"
+#include "ast/types/ReferencedType.h"
 
 #ifdef COMPILER_BUILD
 
@@ -31,7 +32,7 @@ bool VariablesContainer::llvm_struct_child_index(
         int inherit_ind = 0;
         // checking the inherited structs for given child
         for(auto& inherits : inherited) {
-            auto linked_def = inherits->linked_struct_def();
+            auto linked_def = inherits->type->linked_struct_def();
             if(linked_def) {
                 if(linked_def->add_child_index(gen, indexes, child_name)) {
                     const auto itr = indexes.begin() + curr_size;
@@ -72,8 +73,8 @@ std::vector<llvm::Type *> VariablesContainer::elements_type(Codegen &gen) {
     auto vec = std::vector<llvm::Type *>();
     vec.reserve(variables.size() + inherited.size());
     for(const auto &inherits : inherited) {
-        if(inherits->linked_struct_def()) {
-            vec.emplace_back(inherits->llvm_type(gen));
+        if(inherits->type->linked_struct_def()) {
+            vec.emplace_back(inherits->type->llvm_type(gen));
         }
     }
     for (const auto &var: variables) {
@@ -86,8 +87,8 @@ std::vector<llvm::Type *> VariablesContainer::elements_type(Codegen &gen, std::v
     auto vec = std::vector<llvm::Type *>();
     vec.reserve(variables.size() + inherited.size());
     for(const auto &inherits : inherited) {
-        if(inherits->linked_struct_def()) {
-            vec.emplace_back(inherits->llvm_chain_type(gen, chain, index + 1));
+        if(inherits->type->linked_struct_def()) {
+            vec.emplace_back(inherits->type->llvm_chain_type(gen, chain, index + 1));
         }
     }
     for (const auto &var: variables) {
@@ -142,7 +143,7 @@ void declare_inherited_members(MembersContainer* container, SymbolResolver& link
         func->redeclare_top_level(linker);
     }
     for(auto& inherits : container->inherited) {
-        const auto def = inherits->linked->as_members_container();
+        const auto def = inherits->type->linked_node()->as_members_container();
         if(def) {
             declare_inherited_members(def, linker);
         }
@@ -155,7 +156,7 @@ void MembersContainer::declare_and_link(SymbolResolver &linker) {
         gen_param->declare_and_link(linker);
     }
     for(auto& inherits : inherited) {
-        const auto def = inherits->linked->as_members_container();
+        const auto def = inherits->type->linked_node()->as_members_container();
         if(def) {
             declare_inherited_members(def, linker);
         }
@@ -205,7 +206,7 @@ BaseDefMember *MembersContainer::direct_child_member(const std::string& name) {
 
 BaseDefMember *MembersContainer::inherited_member(const std::string& name) {
     for(auto& inherits : inherited) {
-        const auto struct_def = inherits->linked_struct_def();
+        const auto struct_def = inherits->type->linked_struct_def();
         if(struct_def) {
             const auto mem = struct_def->child_member(name);
             if(mem) return mem;
@@ -336,7 +337,7 @@ bool MembersContainer::contains_func(const std::string& name) {
 long VariablesContainer::variable_index(const std::string &varName, bool consider_inherited_structs) {
     long parents_size = 0;
     for(auto& inherits : inherited) {
-        const auto struct_def = inherits->linked->as_struct_def();
+        const auto struct_def = inherits->type->linked_node()->as_struct_def();
         if(struct_def) {
             if(consider_inherited_structs && struct_def->name == varName) {
                 // user wants the struct
@@ -370,7 +371,7 @@ bool VariablesContainer::build_path_to_child(std::vector<int>& path, const std::
     }
     auto inherit_index = 0;
     for(auto& inherits : inherited) {
-        const auto linked_struct = inherits->linked_struct_def();
+        const auto linked_struct = inherits->type->linked_struct_def();
         if(linked_struct) {
             const auto curr_size = path.size();
             path.emplace_back(inherit_index);
@@ -390,4 +391,25 @@ void VariablesContainer::declare_and_link(SymbolResolver &linker) {
     for (auto& variable : variables) {
         variable.second->declare_and_link(linker);
     }
+}
+
+InheritedType::InheritedType(std::unique_ptr<BaseType> type, AccessSpecifier specifier) : type(std::move(type)), specifier(specifier) {
+
+}
+
+std::string& InheritedType::ref_type_name() {
+    if(type->kind() == BaseTypeKind::Generic) {
+        return ((GenericType*) type.get())->referenced->type;
+    } else if(type->kind() == BaseTypeKind::Referenced) {
+        return ((ReferencedType*) type.get())->type;
+    }
+#ifdef DEBUG
+    throw std::runtime_error("unable to retrieve referenced type name from type " + type->representation());
+#else
+    std::cerr << "unable to retrieve referenced type name from type " + type->representation() << std::endl;
+#endif
+}
+
+InheritedType *InheritedType::copy() const {
+    return new InheritedType(std::unique_ptr<BaseType>(type->copy()), specifier);
 }

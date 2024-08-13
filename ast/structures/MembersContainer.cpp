@@ -150,11 +150,7 @@ void declare_inherited_members(MembersContainer* container, SymbolResolver& link
     }
 }
 
-void MembersContainer::declare_and_link(SymbolResolver &linker) {
-    linker.scope_start();
-    for(auto& gen_param : generic_params) {
-        gen_param->declare_and_link(linker);
-    }
+void MembersContainer::redeclare_inherited_members(SymbolResolver &linker) {
     for(auto& inherits : inherited) {
         inherits->type->link(linker, (std::unique_ptr<BaseType>&) inherits);
         const auto def = inherits->type->linked_node()->as_members_container();
@@ -162,6 +158,22 @@ void MembersContainer::declare_and_link(SymbolResolver &linker) {
             declare_inherited_members(def, linker);
         }
     }
+}
+
+void MembersContainer::redeclare_variables_and_functions(SymbolResolver &linker) {
+    for (const auto &var: variables) {
+        var.second->redeclare_top_level(linker);
+    }
+    for(const auto& func : functions()) {
+        func->redeclare_top_level(linker);
+    }
+}
+
+void MembersContainer::declare_and_link_no_scope(SymbolResolver &linker) {
+    for(auto& gen_param : generic_params) {
+        gen_param->declare_and_link(linker);
+    }
+    redeclare_inherited_members(linker);
     for (const auto &var: variables) {
         var.second->declare_and_link(linker);
     }
@@ -171,6 +183,11 @@ void MembersContainer::declare_and_link(SymbolResolver &linker) {
     for (const auto &func: functions()) {
         func->declare_and_link(linker);
     }
+}
+
+void MembersContainer::declare_and_link(SymbolResolver &linker) {
+    linker.scope_start();
+    declare_and_link_no_scope(linker);
     linker.scope_end();
 }
 

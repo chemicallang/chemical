@@ -374,9 +374,6 @@ void StructDefinition::accept(Visitor *visitor) {
 }
 
 void StructDefinition::declare_top_level(SymbolResolver &linker) {
-    for(auto& inherits : inherited) {
-        inherits->type->link(linker, (std::unique_ptr<BaseType>&) inherits);
-    }
     linker.declare(name, this);
 }
 

@@ -262,6 +262,11 @@ public:
     bool lexLambdaTypeTokens(unsigned int start);
 
     /**
+     * will lex a generic type after identifier
+     */
+    bool lexGenericTypeAfterId(unsigned int start);
+
+    /**
      * lex type tokens
      */
     bool lexTypeTokens();

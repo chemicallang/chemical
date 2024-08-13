@@ -48,10 +48,14 @@ bool Lexer::lexStructStructureTokens(bool unnamed, bool direct_init) {
                 lexWhitespaceToken();
                 lexAccessSpecifier(false, true);
                 lexWhitespaceToken();
-                if(!lexVariableToken()) {
+                unsigned start = tokens.size();
+                auto id = provider.readIdentifier();
+                if(id.empty()) {
                     error("missing struct / interface name in inheritance list of the struct");
                     return true;
                 }
+                tokens.emplace_back(std::make_unique<LexToken>(LexTokenType::Type, backPosition(id.length()), id));
+                lexGenericTypeAfterId(start);
                 lexWhitespaceToken();
             } while(lexOperatorToken(','));
         }

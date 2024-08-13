@@ -27,6 +27,10 @@ public:
     AccessSpecifier specifier = AccessSpecifier::Internal;
     std::string name;
     std::vector<std::unique_ptr<GenericTypeParameter>> generic_params;
+    /**
+     * subscribers are notified of generic usages of this function
+     */
+    std::vector<GenericType*> subscribers;
     std::optional<LoopScope> body;
     ASTNode* parent_node;
     /**
@@ -123,6 +127,13 @@ public:
      * @return iteration that corresponds to this call
      */
     int16_t register_call(SymbolResolver& resolver, FunctionCall* call);
+
+    /**
+     * called by generic types to subscribe to generic usages of this function
+     */
+    void subscribe(GenericType *subscriber) override {
+        subscribers.emplace_back(subscriber);
+    }
 
 #ifdef COMPILER_BUILD
 

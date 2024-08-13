@@ -92,14 +92,14 @@ int16_t register_generic_usage_no_check(std::vector<std::unique_ptr<GenericTypeP
     return (int16_t) ((int16_t) total_generic_iterations(generic_params) - (int16_t) 1);
 }
 
-int16_t register_generic_usage(
+std::pair<int16_t, bool> register_generic_usage(
         SymbolResolver& resolver,
         ASTNode* node,
         std::vector<std::unique_ptr<GenericTypeParameter>>& generic_params,
         std::vector<std::unique_ptr<BaseType>>& generic_list
 ) {
     int16_t i = get_iteration_for(generic_params, generic_list);
-    if(i != -1) return i;
+    if(i != -1) return { i, false};
     resolver.imported_generic[node->root_parent()] = true;
-    return register_generic_usage_no_check(generic_params, generic_list);
+    return { register_generic_usage_no_check(generic_params, generic_list), true };
 }

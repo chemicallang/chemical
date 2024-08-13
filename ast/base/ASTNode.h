@@ -137,6 +137,12 @@ public:
     }
 
     /**
+     * this generic type would subscribe to this node, so all usages of this generic node
+     * will be registered with this subscriber
+     */
+    virtual void subscribe(GenericType* subscriber);
+
+    /**
      * any value held by this node, for example var init statement can hold an initializer
      */
     virtual Value* holding_value() {

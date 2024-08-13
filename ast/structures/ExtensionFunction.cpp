@@ -121,6 +121,11 @@ ExtensionFunction::ExtensionFunction(
 void ExtensionFunction::declare_and_link(SymbolResolver &linker) {
     // if has body declare params
     linker.scope_start();
+    auto prev_func_type = linker.current_func_type;
+    linker.current_func_type = this;
+    for(auto& gen_param : generic_params) {
+        gen_param->declare_and_link(linker);
+    }
     receiver.declare_and_link(linker);
     for (auto &param: params) {
         param->declare_and_link(linker);
@@ -130,6 +135,7 @@ void ExtensionFunction::declare_and_link(SymbolResolver &linker) {
         body->declare_and_link(linker);
     }
     linker.scope_end();
+    linker.current_func_type = prev_func_type;
 }
 
 std::unique_ptr<BaseType> ExtensionFunction::create_value_type() {

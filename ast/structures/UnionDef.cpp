@@ -63,6 +63,10 @@ void UnionDef::declare_and_link(SymbolResolver &linker) {
     MembersContainer::declare_and_link(linker);
 }
 
+void UnnamedUnion::redeclare_top_level(SymbolResolver &linker) {
+    linker.declare(name, this);
+}
+
 void UnnamedUnion::declare_and_link(SymbolResolver &linker) {
     linker.scope_start();
     VariablesContainer::declare_and_link(linker);

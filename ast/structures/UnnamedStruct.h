@@ -48,6 +48,8 @@ public:
         visitor->visit(this);
     }
 
+    void redeclare_top_level(SymbolResolver &linker) override;
+
     void declare_and_link(SymbolResolver &linker) override;
 
     // TODO destructor support for struct

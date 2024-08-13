@@ -47,6 +47,12 @@ public:
         return functions_container;
     }
 
+    void declare_and_link_no_scope(SymbolResolver &linker);
+
+    void redeclare_inherited_members(SymbolResolver &linker);
+
+    void redeclare_variables_and_functions(SymbolResolver &linker);
+
     void declare_and_link(SymbolResolver &linker) override;
 
     FunctionDeclaration *member(const std::string &name);

@@ -3,6 +3,7 @@
 #include "ImplDefinition.h"
 #include "StructMember.h"
 #include "compiler/SymbolResolver.h"
+#include "ast/structures/StructDefinition.h"
 
 #ifdef COMPILER_BUILD
 
@@ -51,15 +52,36 @@ void ImplDefinition::code_gen(Codegen &gen) {
 #endif
 
 void ImplDefinition::declare_and_link(SymbolResolver &linker) {
-    MembersContainer::declare_and_link(linker);
+    linked = (InterfaceDefinition *) (linker.find(interface_name));
+    if(!linked) {
+        linker.error("couldn't find interface by name " + interface_name + " for implementation");
+        return;
+    }
     if(struct_name.has_value()) {
         struct_linked = (StructDefinition*) (linker.find(struct_name.value()));
         if(!struct_linked) {
             linker.error("couldn't find struct by name " + struct_name.value() + " for implementation of interface " + interface_name);
+            return;
         }
     }
-    linked = (InterfaceDefinition *) (linker.find(interface_name));
-    if(!linked) {
-        linker.error("couldn't find interface by name " + interface_name + " for implementation");
+    for(auto& func : functions()) {
+        if(!func->has_annotation(AnnotationKind::Override)) {
+            func->annotations.emplace_back(AnnotationKind::Override);
+        }
     }
+    linker.scope_start();
+    // redeclare functions of interface
+    for(auto& func : linked->functions()) {
+        func->redeclare_top_level(linker);
+    }
+    // redeclare everything inside struct
+    if(struct_name.has_value()) {
+        struct_linked->redeclare_variables_and_functions(linker);
+        // TODO currently, struct also inherits the interface
+        //   which is being implemented for the struct using impl block
+        //   so bringing inherited members into current scope, causes duplicate
+//        struct_linked->redeclare_inherited_members(linker);
+    }
+    MembersContainer::declare_and_link_no_scope(linker);
+    linker.scope_end();
 }

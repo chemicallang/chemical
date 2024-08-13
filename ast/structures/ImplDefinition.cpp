@@ -70,17 +70,16 @@ void ImplDefinition::declare_and_link(SymbolResolver &linker) {
         }
     }
     linker.scope_start();
-    // redeclare functions of interface
-    for(auto& func : linked->functions()) {
-        func->redeclare_top_level(linker);
+    const auto overrides_interface = struct_name.has_value() && struct_linked->does_override(linked);
+    if(!overrides_interface) {
+        for (auto& func: linked->functions()) {
+            func->redeclare_top_level(linker);
+        }
     }
     // redeclare everything inside struct
     if(struct_name.has_value()) {
+        struct_linked->redeclare_inherited_members(linker);
         struct_linked->redeclare_variables_and_functions(linker);
-        // TODO currently, struct also inherits the interface
-        //   which is being implemented for the struct using impl block
-        //   so bringing inherited members into current scope, causes duplicate
-//        struct_linked->redeclare_inherited_members(linker);
     }
     MembersContainer::declare_and_link_no_scope(linker);
     linker.scope_end();

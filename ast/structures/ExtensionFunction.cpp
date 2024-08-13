@@ -88,10 +88,6 @@ void ExtensionFunction::declare_top_level(SymbolResolver &linker) {
         linker.error("type doesn't support extension functions " + type->representation());
         return;
     }
-    if(linked->child(name)) {
-        linker.error("type already has a field / function, Type " + type->representation() + " has member " + name);
-        return;
-    }
     container->extension_functions[name] = this;
 }
 
@@ -119,6 +115,14 @@ ExtensionFunction::ExtensionFunction(
 }
 
 void ExtensionFunction::declare_and_link(SymbolResolver &linker) {
+
+    auto linked = receiver.type->linked_node();
+    const auto field_func = linked->child(name);
+    if(field_func != this) {
+        linker.error("couldn't declare extension function with name '" + name + "' because type '" + receiver.type->representation() + "' already has a field / function \nconflicted :" + field_func->representation());
+        return;
+    }
+
     // if has body declare params
     linker.scope_start();
     auto prev_func_type = linker.current_func_type;

@@ -28,6 +28,26 @@ bool Lexer::lexLambdaTypeTokens(unsigned int start) {
     }
 }
 
+bool Lexer::lexGenericTypeAfterId(unsigned int start) {
+    if(lexOperatorToken('<')) {
+        do {
+            lexWhitespaceToken();
+            if(!lexTypeTokens()) {
+                break;
+            }
+            lexWhitespaceToken();
+        } while(lexOperatorToken(','));
+        lexWhitespaceToken();
+        if(!lexOperatorToken('>')) {
+            error("expected '>' for generic type");
+        }
+        compound_from(start, LexTokenType::CompGenericType);
+        return true;
+    } else {
+        return false;
+    }
+}
+
 bool Lexer::lexTypeTokens() {
 
     if(lexOperatorToken('[')) {
@@ -75,20 +95,7 @@ bool Lexer::lexTypeTokens() {
         }
     }
 
-    if(lexOperatorToken('<')) {
-        do {
-            lexWhitespaceToken();
-            if(!lexTypeTokens()) {
-                break;
-            }
-            lexWhitespaceToken();
-        } while(lexOperatorToken(','));
-        lexWhitespaceToken();
-        if(!lexOperatorToken('>')) {
-            error("expected '>' for generic type");
-        }
-        compound_from(start, LexTokenType::CompGenericType);
-    }
+    lexGenericTypeAfterId(start);
     if(lexOperatorToken('[')) {
         // optional array size
         lexUnsignedIntAsNumberToken();

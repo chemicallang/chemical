@@ -156,6 +156,7 @@ void MembersContainer::declare_and_link(SymbolResolver &linker) {
         gen_param->declare_and_link(linker);
     }
     for(auto& inherits : inherited) {
+        inherits->type->link(linker, (std::unique_ptr<BaseType>&) inherits);
         const auto def = inherits->type->linked_node()->as_members_container();
         if(def) {
             declare_inherited_members(def, linker);

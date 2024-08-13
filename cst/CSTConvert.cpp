@@ -1002,8 +1002,9 @@ void CSTConverter::visitStructDef(CompoundCSTToken *structDef) {
     if(is_dispose()) {
         return;
     }
+    const bool is_generic = structDef->tokens[2]->type() == LexTokenType::CompGenericParamsList;
     bool named = structDef->tokens[1]->is_identifier();
-    unsigned i = named ? 2 : 1; // expected index of the ':'
+    unsigned i = (named ? 2 : 1) + (is_generic ? 1 : 0); // expected index of the ':'
     auto has_override = is_char_op(structDef->tokens[i].get(), ':');
     auto def = new StructDefinition(str_token(structDef->tokens[named ? 1 : structDef->tokens.size() - 1].get()), parent_node);
     if (has_override) {
@@ -1015,7 +1016,8 @@ void CSTConverter::visitStructDef(CompoundCSTToken *structDef) {
             } else {
                 specifier.emplace(AccessSpecifier::Public);
             }
-            def->inherited.emplace_back(new InheritedType(std::make_unique<ReferencedType>(str_token(structDef->tokens[i].get()), nullptr), specifier.value()));
+            structDef->tokens[i]->accept(this);
+            def->inherited.emplace_back(new InheritedType(type(), specifier.value()));
             i++;
             if(is_char_op(structDef->tokens[i].get(), ',')) {
                 i++;
@@ -1025,7 +1027,7 @@ void CSTConverter::visitStructDef(CompoundCSTToken *structDef) {
         };
     }
     i += 1;// positioned at first node or '}'
-    if(structDef->tokens[2]->type() == LexTokenType::CompGenericParamsList) {
+    if(is_generic) {
         convert_generic_list(this, structDef->tokens[2]->as_compound(), def->generic_params, def);
     }
     auto prev_struct_decl = current_members_container;

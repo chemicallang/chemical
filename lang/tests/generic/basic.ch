@@ -16,6 +16,16 @@ struct PairGen <T, U, V> {
     }
 }
 
+struct UnusedGeneric938374<T, U> {
+    var a : T
+    var b : U
+}
+
+struct UnusedGenericInherited234234<T, U> : UnusedGeneric938374<T, U> {
+    var c : T
+    var d : U
+}
+
 func create_pair_gen() : PairGen<int, int, int> {
     return PairGen <int,int,int> { a : 12, b : 13 }
 }

@@ -47,6 +47,10 @@ public:
         return functions_container;
     }
 
+    VariablesContainer* as_variables_container() override {
+        return this;
+    }
+
     void declare_and_link_no_scope(SymbolResolver &linker);
 
     void redeclare_inherited_members(SymbolResolver &linker);

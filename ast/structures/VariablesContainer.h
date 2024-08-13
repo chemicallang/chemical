@@ -35,6 +35,11 @@ public:
      */
     bool build_path_to_child(std::vector<int>& path, const std::string& child_name);
 
+    /**
+     * check if given interface is overridden by this
+     */
+    bool does_override(InterfaceDefinition* interface);
+
     virtual VariablesContainer* copy_container() {
         throw std::runtime_error("copy container called on variables container, should be overridden");
     }

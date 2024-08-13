@@ -12,6 +12,7 @@
 #include "ast/utils/GenericUtils.h"
 #include "ast/types/GenericType.h"
 #include "ast/types/ReferencedType.h"
+#include "ast/structures/InterfaceDefinition.h"
 
 #ifdef COMPILER_BUILD
 
@@ -152,7 +153,6 @@ void declare_inherited_members(MembersContainer* container, SymbolResolver& link
 
 void MembersContainer::redeclare_inherited_members(SymbolResolver &linker) {
     for(auto& inherits : inherited) {
-        inherits->type->link(linker, (std::unique_ptr<BaseType>&) inherits);
         const auto def = inherits->type->linked_node()->as_members_container();
         if(def) {
             declare_inherited_members(def, linker);
@@ -173,7 +173,13 @@ void MembersContainer::declare_and_link_no_scope(SymbolResolver &linker) {
     for(auto& gen_param : generic_params) {
         gen_param->declare_and_link(linker);
     }
-    redeclare_inherited_members(linker);
+    for(auto& inherits : inherited) {
+        inherits->type->link(linker, (std::unique_ptr<BaseType>&) inherits);
+        const auto def = inherits->type->linked_node()->as_members_container();
+        if(def) {
+            declare_inherited_members(def, linker);
+        }
+    }
     for (const auto &var: variables) {
         var.second->declare_and_link(linker);
     }
@@ -379,6 +385,16 @@ long VariablesContainer::direct_child_index(const std::string &varName) {
     } else {
         return ((long)(found - variables.begin()));
     }
+}
+
+bool VariablesContainer::does_override(InterfaceDefinition* interface) {
+    for(auto& inherits : inherited) {
+        const auto container = inherits->type->linked_node()->as_variables_container();
+        if(container == interface || container->does_override(interface)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 bool VariablesContainer::build_path_to_child(std::vector<int>& path, const std::string& child_name) {

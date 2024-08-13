@@ -28,6 +28,10 @@ func mul_int_pair(pair_gen : PairGen<int, int, int>) : int {
     return pair_gen.a * pair_gen.b;
 }
 
+func <T, U, V> (pair : PairGen<T, U, V>*) ext_div() : V {
+    return pair.a / pair.b;
+}
+
 struct ShortPairGen {
     var pair : PairGen<short, short, short>
     @constructor
@@ -88,5 +92,12 @@ func test_basic_generics() {
     test("generic structs can be returned - 2", () => {
         const p = create_pair_gen_long();
         return p.add() == 26;
+    })
+    test("extension functions work on generic nodes", () => {
+        var p = PairGen<short, short, short> {
+            a : 56,
+            b : 7
+        }
+        return p.ext_div<short, short, short>() == 8;
     })
 }

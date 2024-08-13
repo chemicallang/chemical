@@ -19,6 +19,8 @@ interface Calculator {
 
     func divideP(&self) : int;
 
+    func avg(&self) : int;
+
 }
 
 func (calc : Calculator*) extension_div() : int {
@@ -73,6 +75,9 @@ struct Container {
 impl Calculator for Point {
     func divideP(&self) : int {
         return self.x / self.y;
+    }
+    func avg(&self) : int {
+        return sumP() / 2;
     }
 }
 
@@ -246,6 +251,13 @@ func test_nodes() {
              y : 5
          };
         return p.extension_div() == 3;
+    });
+    test("impl block can call functions in the struct", () => {
+         var p = Point {
+             x : 15,
+             y : 5
+         };
+        return p.avg() == 10;
     });
     test("supports null value - 1", () => {
         var x = 1;

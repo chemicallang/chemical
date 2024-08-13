@@ -15,6 +15,7 @@
 #include "ast/structures/EnumDeclaration.h"
 #include "CTranslator.h"
 #include "ast/types/PointerType.h"
+#include "ast/types/ReferencedType.h"
 #include "ast/types/ArrayType.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/statements/Typealias.h"

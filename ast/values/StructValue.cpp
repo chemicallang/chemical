@@ -5,6 +5,7 @@
 #include "compiler/SymbolResolver.h"
 #include "ast/utils/ASTUtils.h"
 #include "ast/types/GenericType.h"
+#include "ast/types/ReferencedType.h"
 
 #ifdef COMPILER_BUILD
 

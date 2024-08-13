@@ -11,6 +11,7 @@
 #include "ast/values/StructValue.h"
 #include "ast/base/BaseType.h"
 #include "ast/types/GenericType.h"
+#include "ast/types/ReferencedType.h"
 #include "ast/structures/MultiFunctionNode.h"
 #include "ast/utils/ASTUtils.h"
 

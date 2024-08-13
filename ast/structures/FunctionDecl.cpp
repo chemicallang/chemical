@@ -13,6 +13,7 @@
 #include "ast/types/PointerType.h"
 #include "ast/statements/VarInit.h"
 #include "ast/values/CastedValue.h"
+#include "ast/types/ReferencedType.h"
 #include "ast/values/RetStructParamValue.h"
 #include "ast/types/VoidType.h"
 #include "ast/values/FunctionCall.h"

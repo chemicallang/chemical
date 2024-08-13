@@ -3,6 +3,7 @@
 #include "rang.hpp"
 #include "LabBuildCompiler.h"
 #include "preprocess/ImportGraphMaker.h"
+#include "ast/types/ReferencedType.h"
 #include "utils/Benchmark.h"
 #include "Utils.h"
 #ifdef COMPILER_BUILD

@@ -55,6 +55,7 @@ bool Lexer::lexStructStructureTokens(bool unnamed, bool direct_init) {
                     return true;
                 }
                 tokens.emplace_back(std::make_unique<LexToken>(LexTokenType::Type, backPosition(id.length()), id));
+                lexWhitespaceToken();
                 lexGenericTypeAfterId(start);
                 lexWhitespaceToken();
             } while(lexOperatorToken(','));

@@ -96,6 +96,7 @@ void StructDefinition::code_gen(Codegen &gen) {
         // because we must check which generic iteration has already been generated
         // and skip generating for functions for that generic iteration
         const auto total = total_generic_iterations();
+        if(total == 0) return; // generic type was never used
         auto prev_active_iteration = active_iteration;
         int16_t struct_itr = 0;
         while(struct_itr < total) {

@@ -2353,6 +2353,7 @@ void ToCAstVisitor::visit(StructDefinition *def) {
     } else {
         auto prev = def->active_iteration;
         const auto total_itr = def->total_generic_iterations();
+        if(total_itr == 0) return; // generic type never used
         int16_t itr = 0;
         while (itr < total_itr) {
             def->set_active_iteration(itr);

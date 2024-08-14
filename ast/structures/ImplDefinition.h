@@ -14,10 +14,8 @@
 class ImplDefinition : public MembersContainer {
 public:
 
-    InterfaceDefinition* linked;
-    StructDefinition* struct_linked;
-    std::optional<std::string> struct_name; ///< The name of the struct.
-    std::string interface_name;
+    std::unique_ptr<BaseType> interface_type;
+    std::unique_ptr<BaseType> struct_type;
     ASTNode* parent_node;
 
     /**
@@ -27,10 +25,10 @@ public:
      * @param fields The members of the struct.
      */
     ImplDefinition(
-            std::string interface_name,
-            std::optional<std::string> struct_name,
+            std::unique_ptr<BaseType> interface_type,
+            std::unique_ptr<BaseType> struct_type,
             ASTNode* parent_node
-    ) : struct_name(std::move(struct_name)), interface_name(std::move(interface_name)), parent_node(parent_node) {}
+    );
 
     void set_parent(ASTNode* new_parent) override {
         parent_node = new_parent;

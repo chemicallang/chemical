@@ -267,6 +267,11 @@ public:
     bool lexGenericTypeAfterId(unsigned int start);
 
     /**
+     * will lex a referenced or generic type
+     */
+    bool lexRefOrGenericType();
+
+    /**
      * lex type tokens
      */
     bool lexTypeTokens();

@@ -2260,7 +2260,7 @@ void ToCAstVisitor::visit(IfStatement *decl) {
 
 void ToCAstVisitor::visit(ImplDefinition *def) {
     for(auto& func : def->functions()) {
-        contained_func_decl(this, func.get(), def->interface_name + func->name, def->struct_name.has_value(), def->struct_linked);
+        contained_func_decl(this, func.get(), def->interface_type->ref_name() + func->name, def->struct_type != nullptr, def->struct_type ? def->struct_type->linked_struct_def() : nullptr);
     }
 }
 

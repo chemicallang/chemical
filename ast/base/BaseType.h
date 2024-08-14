@@ -203,6 +203,11 @@ public:
     std::string representation();
 
     /**
+     * reference name
+     */
+    std::string& ref_name();
+
+    /**
      * check if this type is a pointer
      */
     bool is_pointer() {

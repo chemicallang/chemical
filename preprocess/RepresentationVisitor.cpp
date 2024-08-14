@@ -365,11 +365,11 @@ void write_members(RepresentationVisitor* visitor, MembersContainer* container) 
 
 void RepresentationVisitor::visit(ImplDefinition *def) {
     write("impl ");
-    write(def->interface_name);
+    def->interface_type->accept(this);
     space();
-    if (def->struct_name.has_value()) {
+    if (def->struct_type) {
         write("for ");
-        write(def->struct_name.value());
+        def->struct_type->accept(this);
     }
     write("{");
     indentation_level+=1;

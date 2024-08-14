@@ -327,7 +327,7 @@ PointerType* current_self_pointer(CSTConverter* converter) {
     std::string type;
     auto impl_container = converter->current_members_container->as_impl_def();
     if(impl_container) {
-        type = impl_container->struct_name.value();
+        type = impl_container->struct_type->ref_name();
     } else {
         type = converter->current_members_container->ns_node_identifier();
     }
@@ -1078,14 +1078,15 @@ void CSTConverter::visitImpl(CompoundCSTToken *impl) {
     if(is_dispose()) {
         return;
     }
+    impl->tokens[1]->accept(this);
+    auto interface_type = type();
+    std::unique_ptr<BaseType> struct_type = nullptr;
     bool has_for = is_keyword(impl->tokens[2].get(), "for");
-    std::optional<std::string> struct_name;
     if (has_for) {
-        struct_name.emplace(str_token(impl->tokens[3].get()));
-    } else {
-        struct_name = std::nullopt;
+        impl->tokens[3]->accept(this);
+        struct_type = type();
     }
-    auto def = new ImplDefinition(str_token(impl->tokens[1].get()), struct_name, parent_node);
+    auto def = new ImplDefinition(std::move(interface_type), std::move(struct_type), parent_node);
     unsigned i = has_for ? 5 : 3; // positioned at first node or '}'
     auto prev_container = current_members_container;
     current_members_container = def;

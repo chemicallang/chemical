@@ -10,6 +10,8 @@
 #include "compiler/Codegen.h"
 
 void ImplDefinition::code_gen(Codegen &gen) {
+    const auto linked = interface_type->linked_node();
+    auto& interface_name = interface_type->ref_name();
     auto unimplemented = gen.unimplemented_interfaces.find(interface_name);
     if(unimplemented == gen.unimplemented_interfaces.end()) {
         gen.error("Couldn't find interface with name '" + interface_name + "' for implementation");
@@ -51,18 +53,25 @@ void ImplDefinition::code_gen(Codegen &gen) {
 
 #endif
 
+ImplDefinition::ImplDefinition(
+    std::unique_ptr<BaseType> interface_type,
+    std::unique_ptr<BaseType> struct_type,
+    ASTNode* parent_node
+) : interface_type(std::move(interface_type)), struct_type(std::move(struct_type)), parent_node(parent_node) {
+
+}
+
+
 void ImplDefinition::declare_and_link(SymbolResolver &linker) {
-    linked = (InterfaceDefinition *) (linker.find(interface_name));
+    interface_type->link(linker, interface_type);
+    if(struct_type) {
+        struct_type->link(linker, struct_type);
+    }
+    auto& interface_name = interface_type->ref_name();
+    auto linked = interface_type->linked_node()->as_interface_def();
     if(!linked) {
         linker.error("couldn't find interface by name " + interface_name + " for implementation");
         return;
-    }
-    if(struct_name.has_value()) {
-        struct_linked = (StructDefinition*) (linker.find(struct_name.value()));
-        if(!struct_linked) {
-            linker.error("couldn't find struct by name " + struct_name.value() + " for implementation of interface " + interface_name);
-            return;
-        }
     }
     for(auto& func : functions()) {
         if(!func->has_annotation(AnnotationKind::Override)) {
@@ -70,14 +79,15 @@ void ImplDefinition::declare_and_link(SymbolResolver &linker) {
         }
     }
     linker.scope_start();
-    const auto overrides_interface = struct_name.has_value() && struct_linked->does_override(linked);
+    const auto struct_linked = struct_type ? struct_type->linked_struct_def() : nullptr;
+    const auto overrides_interface = struct_linked && struct_linked->does_override(linked);
     if(!overrides_interface) {
         for (auto& func: linked->functions()) {
             func->redeclare_top_level(linker);
         }
     }
     // redeclare everything inside struct
-    if(struct_name.has_value()) {
+    if(struct_linked) {
         struct_linked->redeclare_inherited_members(linker);
         struct_linked->redeclare_variables_and_functions(linker);
     }

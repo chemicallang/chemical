@@ -2422,6 +2422,14 @@ void func_container_name(ToCAstVisitor* visitor, FunctionDeclaration* func_node)
     const auto parent = func_node->parent();
     if(parent) {
         const auto struct_parent = parent->as_struct_def();
+        const auto impl_parent = parent->as_impl_def();
+        if(impl_parent) {
+            const auto interface_def = impl_parent->interface_type->linked_node()->as_interface_def();
+            node_parent_name(visitor, struct_parent);
+            visitor->write(interface_def->name);
+            func_name(visitor, func_node);
+            return;
+        }
         if(struct_parent) {
             const auto interface = struct_parent->get_overriding_interface(func_node);
             if(interface) {
@@ -2449,7 +2457,10 @@ void func_container_name(ToCAstVisitor* visitor, ASTNode* parent_node, ASTNode* 
         return;
     }
     if(!parent_node) return;
-    if(parent_node->as_interface_def()) {
+    const auto func_parent = linked_node->parent();
+    if(func_parent->as_impl_def()) {
+        visitor->write(func_parent->as_impl_def()->interface_type->linked_node()->as_interface_def()->name);
+    } else if(parent_node->as_interface_def()) {
         visitor->write(parent_node->as_interface_def()->name);
     } else if(parent_node->as_struct_def()) {
         const auto info = parent_node->as_struct_def()->get_overriding_info(linked_node->as_function());

@@ -14,7 +14,7 @@ public:
     ASTNode *child(const std::string &name) override {
         auto found = AnnotableNode::child(name);
         if(found) return found;
-        return ExtendableBase::extended_child(name);
+        return (ASTNode*) ExtendableBase::extended_child(name);
     }
 
     /**

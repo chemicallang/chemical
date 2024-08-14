@@ -81,6 +81,16 @@ impl Calculator for Point {
     }
 }
 
+interface Summer {
+    func summer_sum(&self) : int;
+}
+
+impl Summer for Point {
+    func summer_sum(&self) : int {
+        return x + y;
+    }
+}
+
 const MyInt = 5;
 
 func test_nodes() {
@@ -289,6 +299,13 @@ func test_nodes() {
             y : 20
         }
         return p.double_sum() == 60;
+    })
+    test("functions of interface implemented outside struct", () => {
+        var p = Point {
+            x : 10,
+            y : 20
+        }
+        return p.summer_sum() == 30;
     })
 }
 

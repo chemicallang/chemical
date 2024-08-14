@@ -32,6 +32,7 @@ void ImplDefinition::code_gen(Codegen &gen) {
         if (overridden) {
             auto fn = overridden->as_function();
             if (fn) {
+                function->code_gen_override_declare(gen, fn);
                 function->code_gen_override(gen, fn);
                 unimp_func->second = nullptr;
             }
@@ -99,4 +100,8 @@ void ImplDefinition::declare_and_link(SymbolResolver &linker) {
     }
     MembersContainer::declare_and_link_no_scope(linker);
     linker.scope_end();
+    if(struct_linked) {
+        // adding all methods of this implementation to struct
+        struct_linked->adopt(this);
+    }
 }

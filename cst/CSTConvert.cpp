@@ -1078,16 +1078,22 @@ void CSTConverter::visitImpl(CompoundCSTToken *impl) {
     if(is_dispose()) {
         return;
     }
-    impl->tokens[1]->accept(this);
-    auto interface_type = type();
-    std::unique_ptr<BaseType> struct_type = nullptr;
-    bool has_for = is_keyword(impl->tokens[2].get(), "for");
-    if (has_for) {
-        impl->tokens[3]->accept(this);
-        struct_type = type();
+    unsigned i = 1;
+    auto def = new ImplDefinition(parent_node);
+    if(impl->tokens[i]->type() == LexTokenType::CompGenericParamsList) {
+        convert_generic_list(this, impl->tokens[i]->as_compound(), def->generic_params, def);
+        i++;
     }
-    auto def = new ImplDefinition(std::move(interface_type), std::move(struct_type), parent_node);
-    unsigned i = has_for ? 5 : 3; // positioned at first node or '}'
+    impl->tokens[i]->accept(this);
+    def->interface_type = type();
+    bool has_for = is_keyword(impl->tokens[++i].get(), "for");
+    if (has_for) {
+        impl->tokens[++i]->accept(this);
+        def->struct_type = type();
+    } else {
+        def->struct_type = nullptr;
+    }
+    i = has_for ? 5 : 3; // positioned at first node or '}'
     auto prev_container = current_members_container;
     current_members_container = def;
     auto prev_parent = parent_node;

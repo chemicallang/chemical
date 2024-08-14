@@ -21,6 +21,8 @@ bool Lexer::lexImplTokens() {
     if (lexKeywordToken("impl")) {
         auto start = tokens.size() - 1;
         lexWhitespaceToken();
+        lexGenericParametersList();
+        lexWhitespaceToken();
         if(!lexRefOrGenericType()) return true;
         lexWhitespaceToken();
         if(lexKeywordToken("for")) {

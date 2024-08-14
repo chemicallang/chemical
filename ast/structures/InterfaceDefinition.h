@@ -18,6 +18,10 @@ class InterfaceDefinition : public ExtendableMembersContainerNode {
 public:
 
     ASTNode* parent_node;
+    /**
+     * users are registered so we can declare functions before hand
+     */
+    tsl::ordered_map<StructDefinition*, bool> users;
 
     /**
      * @brief Construct a new InterfaceDeclaration object.
@@ -44,6 +48,10 @@ public:
 
     InterfaceDefinition *as_interface_def() override {
         return this;
+    }
+
+    void register_use(StructDefinition* definition) {
+        users[definition] = true;
     }
 
     void accept(Visitor *visitor) override {

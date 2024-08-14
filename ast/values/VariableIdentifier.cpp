@@ -46,8 +46,11 @@ void VariableIdentifier::link(SymbolResolver &linker, std::unique_ptr<ChainValue
                     linker.error("couldn't link identifier '" + value + "', because function doesn't take a self argument");
                 }
             }
+//        } else if((linked->as_interface_def() || linked->as_namespace() || linked->as_impl_def() || linked->as_struct_def()) && !can_link_with_namespace()) {
+//            linker.error("cannot link identifier with definition '" + value + "', Please use '::' to link with definition");
+//        }
         } else if(linked->as_namespace() && !can_link_with_namespace()){
-            linker.error("cannot link identifier with namespace " + value);
+            linker.error("cannot link identifier with namespace " + value + "', Please use '::' to link with namespace");
         }
     } else {
         linker.error("variable identifier '" + value + "' not found");

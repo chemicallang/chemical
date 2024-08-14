@@ -59,6 +59,12 @@ public:
 
     void declare_and_link(SymbolResolver &linker) override;
 
+    /**
+     * this would register the definition to all interfaces inherited
+     * directly inherited or indirectly, this definition would be registered
+     */
+    void register_interface_uses(StructDefinition* definition);
+
     FunctionDeclaration *member(const std::string &name);
 
     ASTNode *child(const std::string &name) override;

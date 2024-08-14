@@ -197,6 +197,16 @@ void MembersContainer::declare_and_link(SymbolResolver &linker) {
     linker.scope_end();
 }
 
+void MembersContainer::register_interface_uses(StructDefinition* definition) {
+    for(auto& inherits : inherited) {
+        const auto interface = inherits->type->linked_node()->as_interface_def();
+        if(interface) {
+            interface->register_use(definition);
+            interface->register_interface_uses(definition);
+        }
+    }
+}
+
 FunctionDeclaration *MembersContainer::member(const std::string &name) {
     auto func = indexes.find(name);
     if(func != indexes.end()) {

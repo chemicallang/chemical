@@ -1823,19 +1823,15 @@ void CTopLevelDeclarationVisitor::visit(StructDefinition* def) {
 }
 
 void CTopLevelDeclarationVisitor::visit(InterfaceDefinition *def) {
-    if(def->users.empty()) {
-        for (auto& func: def->functions()) {
-            if(!func->has_self_param()) {
-                declare_contained_func(this, func.get(), def->name + func->name, false);
-            }
+    for (auto& func: def->functions()) {
+        if(!func->has_self_param()) {
+            declare_contained_func(this, func.get(), def->name + func->name, false);
         }
     }
     for(auto& use : def->users) {
         for (auto& func: def->functions()) {
             if(func->has_self_param()) {
                 declare_contained_func(this, func.get(), use.first->name + func->name, false);
-            } else {
-                declare_contained_func(this, func.get(), def->name + func->name, false);
             }
         }
     }

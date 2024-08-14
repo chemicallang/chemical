@@ -26,6 +26,8 @@ bool Lexer::lexInterfaceStructureTokens() {
             return true;
         }
         lexWhitespaceToken();
+        lexGenericParametersList();
+        lexWhitespaceToken();
         if (!lexOperatorToken('{')) {
             error("expected a '{' when starting an interface block");
             return true;

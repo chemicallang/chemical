@@ -101,6 +101,9 @@ void ImplDefinition::declare_and_link(SymbolResolver &linker) {
     MembersContainer::declare_and_link_no_scope(linker);
     linker.scope_end();
     if(struct_linked) {
+        // register use of this definition, into the interface
+        linked->register_use(struct_linked);
+        linked->register_interface_uses(struct_linked);
         // adding all methods of this implementation to struct
         struct_linked->adopt(this);
     }

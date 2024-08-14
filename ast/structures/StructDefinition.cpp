@@ -393,6 +393,7 @@ void StructDefinition::declare_and_link(SymbolResolver &linker) {
         }
     }
     MembersContainer::declare_and_link(linker);
+    register_interface_uses(this);
     if(!has_destructor && requires_destructor()) {
         if(contains_func("delete")) {
             linker.error("default destructor is created by name 'delete' , a function by name 'delete' already exists in struct '" + name + "', please create a destructor by hand if you'd like to reserve 'delete' for your own usage");

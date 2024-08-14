@@ -21,17 +21,11 @@ bool Lexer::lexImplTokens() {
     if (lexKeywordToken("impl")) {
         auto start = tokens.size() - 1;
         lexWhitespaceToken();
-        if(!lexVariableToken()) {
-            error("expected interface name after the interface keyword in implementation");
-            return true;
-        }
+        if(!lexRefOrGenericType()) return true;
         lexWhitespaceToken();
         if(lexKeywordToken("for")) {
             lexWhitespaceToken();
-            if(!lexVariableToken()) {
-                error("expected a struct name after the 'for' keyword in implementation");
-                return true;
-            }
+            if(!lexRefOrGenericType()) return true;
             lexWhitespaceToken();
         }
         if (!lexOperatorToken('{')) {

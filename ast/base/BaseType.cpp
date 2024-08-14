@@ -3,6 +3,8 @@
 #include "BaseType.h"
 #include "preprocess/RepresentationVisitor.h"
 #include "ast/structures/StructDefinition.h"
+#include "ast/types/ReferencedType.h"
+#include "ast/types/GenericType.h"
 #include <sstream>
 #include "ASTNode.h"
 
@@ -24,6 +26,22 @@ StructDefinition* BaseType::get_generic_struct() {
         return linked_struct;
     } else {
         return nullptr;
+    }
+}
+
+std::string& BaseType::ref_name() {
+    if(kind() == BaseTypeKind::Referenced) {
+        return ((ReferencedType*) (this))->type;
+    } else if(kind() == BaseTypeKind::Generic) {
+        return ((GenericType*) (this))->referenced->type;
+    } else {
+#ifdef DEBUG
+        throw std::runtime_error("BaseType::ref_name called on unexpected type '" + representation() + "'");
+#else
+        std::cerr << "BaseType::ref_name called on unexpected type '" + representation() << "'" << std::endl;
+        string x;
+        return x;
+#endif
     }
 }
 

@@ -54,6 +54,12 @@ void ImplDefinition::code_gen(Codegen &gen) {
 #endif
 
 ImplDefinition::ImplDefinition(
+        ASTNode* parent_node
+) : parent_node(parent_node) {
+
+}
+
+ImplDefinition::ImplDefinition(
     std::unique_ptr<BaseType> interface_type,
     std::unique_ptr<BaseType> struct_type,
     ASTNode* parent_node

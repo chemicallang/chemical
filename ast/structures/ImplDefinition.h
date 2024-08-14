@@ -19,14 +19,18 @@ public:
     ASTNode* parent_node;
 
     /**
-     * @brief Construct a new ImplDefinition object.
-     *
-     * @param name The name of the struct.
-     * @param fields The members of the struct.
+     * constructor
      */
     ImplDefinition(
             std::unique_ptr<BaseType> interface_type,
             std::unique_ptr<BaseType> struct_type,
+            ASTNode* parent_node
+    );
+
+    /**
+     * constructor
+     */
+    ImplDefinition(
             ASTNode* parent_node
     );
 

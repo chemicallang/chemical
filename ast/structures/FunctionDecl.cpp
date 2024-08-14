@@ -106,8 +106,34 @@ llvm::FunctionType *FunctionDeclaration::llvm_func_type(Codegen &gen) {
     return create_llvm_func_type(gen);
 }
 
+llvm::Value* FunctionDeclaration::llvm_callee() {
+    if(active_iteration == llvm_data.size() && has_annotation(AnnotationKind::Override)) {
+        const auto struct_def = parent_node->as_struct_def();
+        if(struct_def) {
+            const auto overriding = struct_def->get_overriding_info(this);
+            if(overriding.first) {
+                const auto interface = overriding.first->as_interface_def();
+                if(interface) {
+                    auto& use = interface->users[struct_def];
+                    const auto& found = use.find(overriding.second);
+                    if(found != use.end()) {
+                        llvm_data.emplace_back(found->second, found->second->getFunctionType());
+                        return found->second;
+                    }
+                } else {
+                    const auto parent_struct = overriding.first->as_struct_def();
+                    if(parent_struct) {
+                        // TODO: do this;
+                    }
+                }
+            }
+        }
+    }
+    return llvm_data[active_iteration].first;
+}
+
 llvm::Function* FunctionDeclaration::llvm_func() {
-    return (llvm::Function*) llvm_data[active_iteration].first;
+    return (llvm::Function*)  llvm_callee();
 }
 
 void BaseFunctionType::queue_destruct_params(Codegen& gen) {
@@ -192,17 +218,17 @@ void llvm_func_def_attr(llvm::Function* func) {
     func->addFnAttr(llvm::Attribute::NoUnwind);
 }
 
-void set_llvm_data(FunctionDeclaration* decl, llvm::Value* func_callee, llvm::FunctionType* func_type) {
+void FunctionDeclaration::set_llvm_data(llvm::Value* func_callee, llvm::FunctionType* func_type) {
 #ifdef DEBUG
-    if(decl->active_iteration > decl->llvm_data.size()) {
+    if(active_iteration > llvm_data.size()) {
         throw std::runtime_error("decl's generic active iteration is greater than total llvm_data size");
     }
 #endif
-    if(decl->active_iteration == decl->llvm_data.size()) {
-        decl->llvm_data.emplace_back(func_callee, func_type);
+    if(active_iteration == llvm_data.size()) {
+        llvm_data.emplace_back(func_callee, func_type);
     } else {
-        decl->llvm_data[decl->active_iteration].first = func_callee;
-        decl->llvm_data[decl->active_iteration].second = func_type;
+        llvm_data[active_iteration].first = func_callee;
+        llvm_data[active_iteration].second = func_type;
     }
 }
 
@@ -212,7 +238,7 @@ void create_non_generic_fn(Codegen& gen, FunctionDeclaration *decl, const std::s
     decl->traverse([func](Annotation* annotation){
         llvm_func_attr(func, annotation->kind);
     });
-    set_llvm_data(decl, func, func->getFunctionType());
+    decl->set_llvm_data(func, func->getFunctionType());
 }
 
 void create_fn(Codegen& gen, FunctionDeclaration *decl, const std::string& name) {
@@ -237,7 +263,7 @@ inline void create_fn(Codegen& gen, FunctionDeclaration *decl) {
 
 void declare_fn(Codegen& gen, FunctionDeclaration *decl) {
     auto callee = gen.declare_function(decl->name, decl->create_llvm_func_type(gen));
-    set_llvm_data(decl, callee.getCallee(), callee.getFunctionType());
+    decl->set_llvm_data(callee.getCallee(), callee.getFunctionType());
 }
 
 void FunctionDeclaration::code_gen_declare(Codegen &gen) {
@@ -260,8 +286,8 @@ void FunctionDeclaration::code_gen_interface(Codegen &gen, InterfaceDefinition* 
     }
 }
 
-void FunctionDeclaration::code_gen_override(Codegen& gen, FunctionDeclaration* decl) {
-    body_gen(gen, this, decl->llvm_func());
+void FunctionDeclaration::code_gen_override(Codegen& gen, llvm::Function* llvm_func) {
+    body_gen(gen, this, llvm_func);
 }
 
 void FunctionDeclaration::code_gen_declare(Codegen &gen, StructDefinition* def) {
@@ -275,7 +301,7 @@ void FunctionDeclaration::code_gen_declare(Codegen &gen, StructDefinition* def) 
 }
 
 void FunctionDeclaration::code_gen_override_declare(Codegen &gen, FunctionDeclaration* decl) {
-    set_llvm_data(this, decl->llvm_pointer(gen), decl->llvm_func_type(gen));
+    set_llvm_data(decl->llvm_pointer(gen), decl->llvm_func_type(gen));
 }
 
 void FunctionDeclaration::code_gen_body(Codegen &gen, StructDefinition* def) {
@@ -358,11 +384,11 @@ llvm::Type *FunctionDeclaration::llvm_type(Codegen &gen) {
 }
 
 llvm::Value *FunctionDeclaration::llvm_load(Codegen &gen) {
-    return llvm_pointer(gen);
+    return llvm_callee();
 }
 
 llvm::Value *FunctionDeclaration::llvm_pointer(Codegen &gen) {
-    return llvm_data[active_iteration].first;
+    return llvm_callee();
 }
 
 llvm::Value *CapturedVariable::llvm_load(Codegen &gen) {

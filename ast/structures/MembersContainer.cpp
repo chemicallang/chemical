@@ -256,13 +256,68 @@ BaseDefMember *MembersContainer::child_member(const std::string& name) {
     return nullptr;
 }
 
-FunctionDeclaration *MembersContainer::child_function(const std::string& name) {
+FunctionDeclaration *MembersContainer::direct_child_function(const std::string& name) {
     auto found_func = indexes.find(name);
     if (found_func != indexes.end()) {
         return found_func->second;
     } else {
         return nullptr;
     }
+}
+
+// returns the struct/interface & function that is being overridden by given function in the parameter
+std::pair<ASTNode*, FunctionDeclaration*> MembersContainer::get_overriding_info(FunctionDeclaration* function) {
+    if(inherited.empty()) return { nullptr, nullptr };
+    for(auto& inherits : inherited) {
+        const auto interface = inherits->type->linked_node()->as_interface_def();
+        if(interface) {
+            const auto child_func = interface->direct_child_function(function->name);
+            if(child_func) {
+                return { interface, child_func };
+            } else {
+                continue;
+            }
+        }
+        const auto struct_def = inherits->type->linked_node()->as_struct_def();
+        if(struct_def) {
+            const auto child_func = struct_def->direct_child_function(function->name);
+            if(child_func) {
+                return {struct_def, child_func};
+            } else {
+                const auto info = struct_def->get_overriding_info(function);
+                if(info.first) {
+                    return info;
+                }
+            }
+        }
+    }
+    return { nullptr, nullptr };
+}
+
+std::pair<ASTNode*, FunctionDeclaration*> MembersContainer::get_func_with_signature(FunctionDeclaration* function) {
+    auto direct = direct_child_function(function->name);
+    if(direct) return { this, direct };
+    return get_overriding_info(function);
+}
+
+// returns the function that is being overridden by given function in the parameter
+FunctionDeclaration* MembersContainer::get_overriding(FunctionDeclaration* function) {
+    return get_overriding_info(function).second;
+};
+
+std::pair<InterfaceDefinition*, FunctionDeclaration*> MembersContainer::get_interface_overriding_info(FunctionDeclaration* function) {
+    const auto info = get_overriding_info(function);
+    const auto interface = info.first ? info.first->as_interface_def() : nullptr;
+    if(interface) {
+        return { interface, info.second };
+    } else {
+        return { nullptr, nullptr };
+    }
+}
+
+InterfaceDefinition* MembersContainer::get_overriding_interface(FunctionDeclaration* function) {
+    const auto info = get_overriding_info(function);
+    return info.first ? info.first->as_interface_def() : nullptr;
 }
 
 int16_t MembersContainer::register_generic_args(SymbolResolver& resolver, std::vector<std::unique_ptr<BaseType>>& types) {

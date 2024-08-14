@@ -11,15 +11,20 @@
 #include "compiler/llvmimpl.h"
 
 void InterfaceDefinition::code_gen(Codegen &gen) {
-    std::unordered_map<std::string, llvm::Function*> unimplemented;
-    for(auto& function : functions()) {
-        function->code_gen_interface(gen, this);
-        if(!function->body.has_value()) {
-            unimplemented[function->name] = (llvm::Function *) function->llvm_pointer(gen);
+    for (auto& func: functions()) {
+        if(!func->has_self_param() && (has_implementation || !users.empty())) {
+            func->code_gen_interface(gen, this);
         }
     }
-    if(!unimplemented.empty()) {
-        gen.unimplemented_interfaces[name] = unimplemented;
+    for(auto& use : users) {
+        for (const auto& function: functions()) {
+            auto& user = users[use.first];
+            auto found = user.find(function.get());
+            if((found == user.end() || found->second == nullptr) && function->has_self_param()) {
+                function->code_gen_interface(gen, this);
+            }
+            user[function.get()] = (llvm::Function*) function->llvm_pointer(gen);
+        }
     }
 }
 

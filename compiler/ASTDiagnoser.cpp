@@ -27,6 +27,10 @@ void ASTDiagnoser::warn(const std::string &err, ASTNode *node) {
 void ASTDiagnoser::error(const std::string &err, ASTNode *node) {
     has_errors = true;
     std::string errStr = "[ERROR] " + err;
+    if(node) {
+        errStr += '\n';
+        errStr += node->representation();
+    }
 #ifdef DEBUG
     std::cerr << rang::fg::red << errStr << rang::fg::reset << std::endl;
 #endif

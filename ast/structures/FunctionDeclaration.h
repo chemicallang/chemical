@@ -139,6 +139,8 @@ public:
 
     llvm::Function *llvm_func();
 
+    llvm::Value* llvm_callee();
+
     llvm::Type *llvm_type(Codegen &gen) override;
 
     llvm::Value *llvm_load(Codegen &gen) override;
@@ -150,6 +152,11 @@ public:
     llvm::FunctionType *create_llvm_func_type(Codegen &gen);
 
     llvm::FunctionType *llvm_func_type(Codegen &gen) override;
+
+    /**
+     * given llvm data will be set for active iteration
+     */
+    void set_llvm_data(llvm::Value* func_callee, llvm::FunctionType* func_type);
 
     /**
      * called by struct to declare functions, so they can be cal
@@ -203,12 +210,12 @@ public:
     void code_gen_override_declare(Codegen &gen, FunctionDeclaration* decl);
 
     /**
-     * called when a struct overrides a function declared in interface
-     * whereas this function is the function that is overriding the function
-     * that is being passed in as a parameter, the function being passed in the parameter
-     * is present in an interface (so it can be overridden)
+     * use this function's body to override a llvm function
+     * this function will get the entry block from given llvm function
+     * and print it's body onto it, the function signatures should match
+     * otherwise it won't work
      */
-    void code_gen_override(Codegen& gen, FunctionDeclaration* decl);
+    void code_gen_override(Codegen& gen, llvm::Function* llvm_func);
 
 #endif
 

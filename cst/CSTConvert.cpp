@@ -1047,6 +1047,10 @@ void CSTConverter::visitInterface(CompoundCSTToken *interface) {
     }
     auto def = new InterfaceDefinition(str_token(interface->tokens[1].get()), parent_node);
     unsigned i = 3; // positioned at first node or '}'
+    if(interface->tokens[2]->type() == LexTokenType::CompGenericParamsList) {
+        convert_generic_list(this, interface->tokens[2]->as_compound(), def->generic_params, def);
+        i += 1;
+    }
     auto prev_container = current_members_container;
     current_members_container = def;
     auto prev_parent = parent_node;

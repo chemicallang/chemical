@@ -112,26 +112,6 @@ public:
     [[nodiscard]]
     BaseType *copy() const override;
 
-    /**
-     * get the function being overridden of this struct, the interface whose function
-     */
-    FunctionDeclaration* get_overriding(FunctionDeclaration* function);
-
-    /**
-     * get the overriding struct / interface and the function being overridden
-     */
-    std::pair<ASTNode*, FunctionDeclaration*> get_overriding_info(FunctionDeclaration* function);
-
-    /**
-     * get the interface overriding info, this means that the function being overridden is present in an interface
-     */
-    std::pair<InterfaceDefinition*, FunctionDeclaration*> get_interface_overriding_info(FunctionDeclaration* function);
-
-    /**
-     * get overriding interface for the following function, means function being overridden is present in an interface
-     */
-    InterfaceDefinition* get_overriding_interface(FunctionDeclaration* function);
-
 #ifdef COMPILER_BUILD
 
     bool is_anonymous() override {

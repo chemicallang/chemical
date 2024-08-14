@@ -57,13 +57,6 @@ public:
     std::vector<std::unique_ptr<ASTNode>> nodes;
 
     /**
-     * This is a map between interface names and their functions map
-     * the value is a map between function names and their corresponding llvm functions
-     * these functions will be removed when code gen has completed.
-     */
-    std::unordered_map<std::string, std::unordered_map<std::string, llvm::Function *>> unimplemented_interfaces;
-
-    /**
      * casters that take a value and cast them to a different value
      * it should be known that value created by caster is on the heap
      * the caller has the ownership and must manage memory

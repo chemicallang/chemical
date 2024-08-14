@@ -8,47 +8,35 @@
 #ifdef COMPILER_BUILD
 
 #include "compiler/Codegen.h"
+#include "compiler/llvmimpl.h"
 
 void ImplDefinition::code_gen(Codegen &gen) {
-    const auto linked = interface_type->linked_node();
-    auto& interface_name = interface_type->ref_name();
-    auto unimplemented = gen.unimplemented_interfaces.find(interface_name);
-    if(unimplemented == gen.unimplemented_interfaces.end()) {
-        gen.error("Couldn't find interface with name '" + interface_name + "' for implementation");
-        return;
-    }
-//    auto interface = (InterfaceDefinition*) linked;
-    for (auto &function: functions()) {
-        auto unimp_func = unimplemented->second.find(function->name);
-        if(unimp_func == unimplemented->second.end()) {
-            gen.error("Couldn't find function in interface " + interface_name);
-            continue;
-        }
-        if(!unimp_func->second) {
-            gen.error("Function '" + function->name + "' in interface '" + interface_name + "' has already been implemented");
-            continue;
-        }
-        auto overridden = linked->child(function->name);
-        if (overridden) {
-            auto fn = overridden->as_function();
-            if (fn) {
-                function->code_gen_override_declare(gen, fn);
-                function->code_gen_override(gen, fn);
-                unimp_func->second = nullptr;
+    const auto linked = interface_type->linked_node()->as_interface_def();
+    const auto struct_def = struct_type ? struct_type->linked_struct_def() : nullptr;
+    for (auto& function: functions()) {
+        auto overridden = linked->get_func_with_signature(function.get());
+        if (overridden.first) {
+            const auto interface_def = overridden.first->as_interface_def();
+            if(!interface_def) {
+                gen.error("failed to override function in impl, because function not present in an interface above", function.get());
+                continue;
             }
+            if(struct_def) {
+                const auto& use = interface_def->users[struct_def];
+                auto found = use.find(overridden.second);
+                if(found == use.end()) {
+                    gen.error("failed to override function in impl because declaration not found", function.get());
+                    continue;
+                }
+                function->set_llvm_data(found->second, found->second->getFunctionType());
+                function->code_gen_override(gen, found->second);
+            } else {
+                function->code_gen_override_declare(gen, overridden.second);
+                function->code_gen_override(gen, overridden.second->llvm_func());
+            }
+        } else {
+            gen.error("failed to override function in impl because not found", function.get());
         }
-//        if(!interface->has_implemented(function.second->name)) {
-//            auto overridden = linked->child(function.second->name);
-//            if (overridden) {
-//                auto fn = overridden->as_function();
-//                if (fn) {
-//                    fn->code_gen_override(gen, function.second.get());
-//                    interface->set_implemented(function.second->name, true);
-//                }
-//            }
-//        } else {
-//            gen.error("Function '" + function.second->name + "' in interface '" + interface_name + "' has already been implemented");
-//        }
     }
 }
 
@@ -100,11 +88,18 @@ void ImplDefinition::declare_and_link(SymbolResolver &linker) {
     }
     MembersContainer::declare_and_link_no_scope(linker);
     linker.scope_end();
+    linked->register_impl(this);
     if(struct_linked) {
-        // register use of this definition, into the interface
-        linked->register_use(struct_linked);
-        linked->register_interface_uses(struct_linked);
         // adding all methods of this implementation to struct
         struct_linked->adopt(this);
     }
+}
+
+void InterfaceDefinition::register_impl(ImplDefinition* definition) {
+    const auto struct_linked = definition->struct_type ? definition->struct_type->linked_struct_def() : nullptr;
+    if(struct_linked) {
+        register_use(struct_linked);
+        register_interface_uses(struct_linked);
+    }
+    has_implementation = true;
 }

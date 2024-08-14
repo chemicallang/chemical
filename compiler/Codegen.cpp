@@ -119,22 +119,7 @@ void Codegen::compile_nodes() {
 }
 
 void Codegen::compile_end() {
-    for(const auto& interface : unimplemented_interfaces) {
-        bool has_implemented = false;
-        for(const auto& func : interface.second) {
-            if(!func.second) {
-                has_implemented = true;
-            }
-        }
-        for(const auto& func : interface.second) {
-            if(func.second) {
-                func.second->removeFromParent();
-                if(has_implemented) {
-                    info("Method " + func.first + " of Interface " + interface.first + " left unimplemented, has been removed.");
-                }
-            }
-        }
-    }
+    // no implementation yet
 }
 
 void Codegen::createFunctionBlock(llvm::Function *fn) {

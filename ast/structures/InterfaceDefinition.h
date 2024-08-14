@@ -21,8 +21,15 @@ public:
     /**
      * users are registered so we can declare functions before hand
      */
+#ifdef COMPILER_BUILD
+    tsl::ordered_map<StructDefinition*, std::unordered_map<FunctionDeclaration*, llvm::Function*>> users;
+#else
     tsl::ordered_map<StructDefinition*, bool> users;
-
+#endif
+    /**
+     * this is set to true when even a single implementation is detected
+     */
+    bool has_implementation = false;
     /**
      * @brief Construct a new InterfaceDeclaration object.
      *
@@ -51,8 +58,15 @@ public:
     }
 
     void register_use(StructDefinition* definition) {
+#ifdef COMPILER_BUILD
+        users[definition] = {};
+#else
         users[definition] = true;
+#endif
+        has_implementation = true;
     }
+
+    void register_impl(ImplDefinition* definition);
 
     void accept(Visitor *visitor) override {
         visitor->visit(this);

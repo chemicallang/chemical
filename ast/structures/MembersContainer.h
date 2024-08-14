@@ -75,7 +75,7 @@ public:
 
     BaseDefMember *child_member(const std::string& name);
 
-    FunctionDeclaration *child_function(const std::string& name);
+    FunctionDeclaration *direct_child_function(const std::string& name);
 
     int child_index(const std::string &var_name) override {
         return VariablesContainer::variable_index(var_name);
@@ -161,6 +161,33 @@ public:
     void subscribe(GenericType *subscriber) override {
         subscribers.emplace_back(subscriber);
     }
+
+    /**
+     * get the overriding struct / interface and the function being overridden
+     */
+    std::pair<ASTNode*, FunctionDeclaration*> get_overriding_info(FunctionDeclaration* function);
+
+    /**
+     * get a function with signature equal to given func type, present in direct or inherited functions
+     * it also checks for the function name
+     */
+    std::pair<ASTNode*, FunctionDeclaration*> get_func_with_signature(FunctionDeclaration* function);
+
+    /**
+     * get the function being overridden of this struct, the interface whose function
+     */
+    FunctionDeclaration* get_overriding(FunctionDeclaration* function);
+
+    /**
+     * get the interface overriding info, this means that the function being overridden is present in an interface
+     */
+    std::pair<InterfaceDefinition*, FunctionDeclaration*> get_interface_overriding_info(FunctionDeclaration* function);
+
+    /**
+     * get overriding interface for the following function, means function being overridden is present in an interface
+     */
+    InterfaceDefinition* get_overriding_interface(FunctionDeclaration* function);
+
 
 #ifdef COMPILER_BUILD
 

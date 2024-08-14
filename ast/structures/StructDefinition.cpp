@@ -23,15 +23,22 @@
 
 void StructDefinition::struct_func_gen(Codegen& gen, const std::vector<std::unique_ptr<FunctionDeclaration>>& funcs) {
     for(auto& function : funcs) {
-        auto overriding = get_overriding(function.get());
-        if(overriding) {
-            function->code_gen_override_declare(gen, overriding);
+        if(function->has_annotation(AnnotationKind::Override)) {
+//            auto overriding = get_overriding(function.get());
+//            if (overriding) {
+//                function->code_gen_override_declare(gen, overriding);
+//            } else {
+//                gen.error("Failed to override (declare) the function", function.get());
+//            }
             continue;
         }
         function->code_gen_declare(gen, this);
     }
     for (auto &function: funcs) {
-        if(llvm_override(gen, function.get())) {
+        if(function->has_annotation(AnnotationKind::Override)) {
+            if(!llvm_override(gen, function.get())) {
+                gen.error("Failed to override the function", function.get());
+            }
             continue;
         }
         function->code_gen_body(gen, this);
@@ -42,40 +49,20 @@ void StructDefinition::struct_func_gen(Codegen& gen, const std::vector<std::uniq
 // returns true if current function should be skipped because it has been overridden
 // or errored out
 bool StructDefinition::llvm_override(Codegen& gen, FunctionDeclaration* function) {
-    for(auto& inherits : inherited) {
-        const auto interface = inherits->type->linked_node()->as_interface_def();
-        if(interface) {
-            const auto& type_name = inherits->ref_type_name();
-            auto inter_itr = gen.unimplemented_interfaces.find(type_name);
-            if (inter_itr == gen.unimplemented_interfaces.end()) {
-                gen.error("Couldn't find overridden interface with name '" + type_name +
-                          "' for implementation");
-                return false;
-            }
-            auto& ref = inter_itr->second;
-            auto overridden = interface->child(function->name);
-            if (overridden) {
-                auto found = ref.find(function->name);
-                if (found == ref.end()) {
-                    gen.error("Couldn't find function with name " + function->name + " in interface " + type_name + " for implementation");
-                    return true;
-                }
-                if (found->second == nullptr) {
-                    gen.error("Function with name " + function->name + " in interface " + type_name + " has already been implemented");
-                    return true;
-                }
-                auto fn = overridden->as_function();
-                if (fn) {
-                    function->code_gen_override(gen, fn);
-                    found->second = nullptr;
-                    return true;
-                } else {
-                    gen.error("Function being overridden with name " + function->name + " in interface is not a function");
-                }
-            }
+    const auto info = get_overriding_info(function);
+    if(info.first) {
+        const auto interface = info.first->as_interface_def();
+        auto& user = interface->users[this];
+        auto llvm_data = user.find(info.second);
+        if(llvm_data == user.end()) {
+            return false;
         }
+        function->set_llvm_data(llvm_data->second, llvm_data->second->getFunctionType());
+        function->code_gen_override(gen, llvm_data->second);
+        return true;
+    } else {
+        return false;
     }
-    return false;
 }
 
 class AutoReleasedFunctionsContainer {
@@ -314,55 +301,6 @@ BaseType *UnnamedStruct::copy() const {
 
 bool StructMember::requires_destructor() {
     return type->value_type() == ValueType::Struct && type->linked_node()->as_struct_def()->requires_destructor();
-}
-
-// returns the struct/interface & function that is being overridden by given function in the parameter
-std::pair<ASTNode*, FunctionDeclaration*> StructDefinition::get_overriding_info(FunctionDeclaration* function) {
-    if(inherited.empty()) return { nullptr, nullptr };
-    for(auto& inherits : inherited) {
-        const auto interface = inherits->type->linked_node()->as_interface_def();
-        if(interface) {
-            const auto child_func = interface->child_function(function->name);
-            if(child_func) {
-                return { interface, child_func };
-            } else {
-                continue;
-            }
-        }
-        const auto struct_def = inherits->type->linked_node()->as_struct_def();
-        if(struct_def) {
-            const auto child_func = struct_def->child_function(function->name);
-            if(child_func) {
-                return {struct_def, child_func};
-            } else {
-                const auto info = struct_def->get_overriding_info(function);
-                if(info.first) {
-                    return info;
-                }
-            }
-        }
-    }
-    return { nullptr, nullptr };
-}
-
-// returns the function that is being overridden by given function in the parameter
-FunctionDeclaration* StructDefinition::get_overriding(FunctionDeclaration* function) {
-    return get_overriding_info(function).second;
-};
-
-std::pair<InterfaceDefinition*, FunctionDeclaration*> StructDefinition::get_interface_overriding_info(FunctionDeclaration* function) {
-    const auto info = get_overriding_info(function);
-    const auto interface = info.first ? info.first->as_interface_def() : nullptr;
-    if(interface) {
-        return { interface, info.second };
-    } else {
-        return { nullptr, nullptr };
-    }
-}
-
-InterfaceDefinition* StructDefinition::get_overriding_interface(FunctionDeclaration* function) {
-    const auto info = get_overriding_info(function);
-    return info.first ? info.first->as_interface_def() : nullptr;
 }
 
 FunctionDeclaration* StructDefinition::create_destructor() {

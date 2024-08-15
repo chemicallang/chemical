@@ -27,7 +27,7 @@ class Value;
 
 class BaseType;
 
-class BaseFunctionType;
+class FunctionType;
 
 class MembersContainer;
 
@@ -167,7 +167,7 @@ public:
     /**
      * create a nested function
      */
-    llvm::Function *create_nested_function(const std::string &name, llvm::FunctionType *type, BaseFunctionType* func_type, Scope &scope);
+    llvm::Function *create_nested_function(const std::string &name, llvm::FunctionType *type, FunctionType* func_type, Scope &scope);
 
     /**
      * gets or inserts a function, similar to declaration
@@ -378,7 +378,7 @@ public:
     /**
      * the statements being generated are from this function type
      */
-    BaseFunctionType* current_func_type = nullptr;
+    FunctionType* current_func_type = nullptr;
 
     /**
      * When given, return's are shifted to this block

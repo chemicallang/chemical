@@ -2,41 +2,74 @@
 
 #pragma once
 
+#include <vector>
+#include <memory>
+#include <string>
 #include "ast/base/BaseType.h"
-#include "ast/structures/FunctionParam.h"
-#include "ast/structures/BaseFunctionType.h"
 
-using func_params = std::vector<std::unique_ptr<FunctionParam>>;
+#ifdef COMPILER_BUILD
+#include "compiler/llvmfwd.h"
+class Codegen;
+#endif
 
-class FunctionType : public BaseFunctionType, public BaseType {
+class BaseType;
+
+class BaseFunctionParam;
+
+class FunctionParam;
+
+class ExtensionFunction;
+
+class FunctionDeclaration;
+
+class Value;
+
+class ASTNode;
+
+class FunctionType : public BaseType {
 public:
 
+    std::vector<std::unique_ptr<FunctionParam>> params;
+    std::unique_ptr<BaseType> returnType = nullptr;
+    // if the function is variadic, the last type in params is the type given to the variadic parameter
+    bool isVariadic;
     bool isCapturing;
 
+    /**
+     * constructor
+     */
     FunctionType(
-            std::vector<std::unique_ptr<FunctionParam>> params,
-            std::unique_ptr<BaseType> returnType,
-            bool isVariadic,
-            bool isCapturing
+        std::vector<std::unique_ptr<FunctionParam>> params,
+        std::unique_ptr<BaseType> returnType,
+        bool isVariadic,
+        bool isCapturing = false
     );
 
-    virtual bool is_capturing() {
+    [[nodiscard]]
+    bool is_capturing() const {
         return isCapturing;
     }
 
-    ASTNode *parent() override {
+    virtual ASTNode* parent() {
         return nullptr;
     }
 
-    void accept(Visitor *visitor) override {
-        visitor->visit(this);
-    }
+    /**
+     * check if these args satisfy, this is useful, if calling a constructor
+     * user provides the arguments, we check arguments against params, to see if it's compatible
+     * if not, another function is selected that is compatible with arguments provided
+     */
+    bool satisfy_args(std::vector<std::unique_ptr<Value>>& forArgs);
 
-    void link(SymbolResolver &linker, std::unique_ptr<BaseType>& current) override;
+    /**
+     * get function param for argument index
+     */
+    FunctionParam* func_param_for_arg_at(unsigned index);
 
-    bool isInVarArgs(unsigned index);
-
-    uint64_t byte_size(bool is64Bit) override;
+    /**
+     * do parameter types match with the given function parameter types
+     */
+    bool do_param_types_match(std::vector<std::unique_ptr<FunctionParam>>& param_types, bool check_self = true);
 
     [[nodiscard]]
     BaseTypeKind kind() const override {
@@ -46,6 +79,29 @@ public:
     [[nodiscard]]
     ValueType value_type() const override {
         return ValueType::Lambda;
+    }
+
+    bool isInVarArgs(unsigned index);
+
+    uint64_t byte_size(bool is64Bit) override;
+
+    void accept(Visitor *visitor) override {
+        visitor->visit(this);
+    }
+
+    virtual ExtensionFunction* as_extension_func() {
+        return nullptr;
+    }
+
+    virtual FunctionDeclaration *as_function() {
+        return nullptr;
+    }
+
+    /**
+     * optional name for the function, used for errors and debugging mostly
+     */
+    virtual std::string func_opt_name() {
+       return "";
     }
 
     inline bool equal_type(FunctionType *other) const {
@@ -64,15 +120,51 @@ public:
 
     virtual BaseType *copy() const;
 
+    void link(SymbolResolver &linker, std::unique_ptr<BaseType>& current) override;
+
 #ifdef COMPILER_BUILD
 
-    std::vector<llvm::Type *> param_types(Codegen &gen) override;
+    virtual std::vector<llvm::Type *> param_types(Codegen &gen);
+
+    void queue_destruct_params(Codegen &gen);
 
     llvm::Type *llvm_type(Codegen &gen) override;
 
     llvm::FunctionType *llvm_func_type(Codegen &gen) override;
 
 #endif
+
+    /**
+     * assigns func_type field of each function parameter to this
+     */
+    void assign_params();
+
+    /**
+     * get the self parameter of the function if it exists
+     */
+    virtual BaseFunctionParam* get_self_param();
+
+    /**
+     * whether this function requires self parameter
+     */
+    bool has_self_param() {
+        return get_self_param() != nullptr;
+    }
+
+    /**
+     * start index of c or llvm functions for this type
+     */
+    virtual unsigned c_or_llvm_arg_start_index() const;
+
+    /**
+     * check if this function type is equal to other
+     */
+    bool equal(FunctionType *other) const;
+
+    /**
+     * virtual destructor
+     */
+    ~FunctionType() override = default;
 
 };
 

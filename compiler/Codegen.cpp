@@ -140,7 +140,7 @@ llvm::Function *Codegen::create_function(const std::string &name, llvm::Function
     return current_function;
 }
 
-llvm::Function *Codegen::create_nested_function(const std::string &name, llvm::FunctionType *type, BaseFunctionType* func_type, Scope &scope) {
+llvm::Function *Codegen::create_nested_function(const std::string &name, llvm::FunctionType *type, FunctionType* func_type, Scope &scope) {
 
     auto prev_destruct_nodes = std::move(destruct_nodes);
     auto prev_destroy_scope = destroy_current_scope;

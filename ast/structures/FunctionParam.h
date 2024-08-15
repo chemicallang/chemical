@@ -5,7 +5,7 @@
 #include <optional>
 #include "BaseFunctionParam.h"
 
-class BaseFunctionType;
+class FunctionType;
 
 class FunctionParam : public BaseFunctionParam {
 public:
@@ -18,7 +18,7 @@ public:
             std::unique_ptr<BaseType> type,
             unsigned int index,
             std::optional<std::unique_ptr<Value>> defValue,
-            BaseFunctionType* func_type = nullptr
+            FunctionType* func_type = nullptr
       );
 
     ASTNode *parent() override {

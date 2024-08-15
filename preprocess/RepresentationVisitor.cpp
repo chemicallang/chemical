@@ -32,7 +32,6 @@
 #include "ast/structures/WhileLoop.h"
 #include "ast/types/ReferencedType.h"
 #include "ast/types/PointerType.h"
-#include "ast/types/FunctionType.h"
 #include "ast/types/GenericType.h"
 #include "ast/types/AnyType.h"
 #include "ast/types/ArrayType.h"

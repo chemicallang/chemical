@@ -4,7 +4,6 @@
 
 #include "FunctionParam.h"
 #include "ast/base/GlobalInterpretScope.h"
-#include "ast/types/FunctionType.h"
 #include "ast/structures/InterfaceDefinition.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/UnionDef.h"
@@ -136,7 +135,7 @@ llvm::Function* FunctionDeclaration::llvm_func() {
     return (llvm::Function*)  llvm_callee();
 }
 
-void BaseFunctionType::queue_destruct_params(Codegen& gen) {
+void FunctionType::queue_destruct_params(Codegen& gen) {
     for(auto& param : params) {
         const auto k = param->type->kind();
         if(k == BaseTypeKind::Referenced || k == BaseTypeKind::Generic) {
@@ -417,7 +416,7 @@ bool BaseFunctionParam::add_child_index(Codegen &gen, std::vector<llvm::Value *>
 BaseFunctionParam::BaseFunctionParam(
         std::string name,
         std::unique_ptr<BaseType> type,
-        BaseFunctionType* func_type
+        FunctionType* func_type
 ) : name(std::move(name)), type(std::move(type)), func_type(func_type) {
 
 };
@@ -427,7 +426,7 @@ FunctionParam::FunctionParam(
         std::unique_ptr<BaseType> type,
         unsigned int index,
         std::optional<std::unique_ptr<Value>> defValue,
-        BaseFunctionType* func_type
+        FunctionType* func_type
 ) : BaseFunctionParam(
         std::move(name),
         std::move(type),
@@ -512,12 +511,12 @@ void GenericTypeParameter::register_usage(BaseType* type) {
 
 FunctionDeclaration::FunctionDeclaration(
         std::string name,
-        func_params params,
+        std::vector<std::unique_ptr<FunctionParam>> params,
         std::unique_ptr<BaseType> returnType,
         bool isVariadic,
         ASTNode* parent_node,
         std::optional<LoopScope> body
-) : BaseFunctionType(std::move(params), std::move(returnType), isVariadic),
+) : FunctionType(std::move(params), std::move(returnType), isVariadic),
     name(std::move(name)),
     body(std::move(body)), parent_node(parent_node) {
 

@@ -9,6 +9,7 @@
 #include "ast/types/IntNType.h"
 #include "IntNumValue.h"
 #include "ast/types/IntType.h"
+#include "TypeLinkedValue.h"
 
 /**
  * @brief Class representing a number value integer / long
@@ -19,7 +20,7 @@
  * but it must link with the type it must return as, so this value is used, which automatically links
  * and returns as appropriate type automatically
  */
-class NumberValue : public IntNumValue {
+class NumberValue : public IntNumValue, public TypeLinkedValue {
 public:
 
     int64_t value;
@@ -30,21 +31,33 @@ public:
      *
      * @param value The integer value.
      */
-    NumberValue(int64_t value) : value(value) {}
+    explicit NumberValue(int64_t value) : value(value) {}
 
     void accept(Visitor *visitor) override {
         visitor->visit(this);
     }
 
-    void link(SymbolResolver &linker, VarInitStatement *stmnt) override;
+    void link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *type) override;
 
-    void link(SymbolResolver &linker, AssignStatement *stmnt, bool lhs) override;
+    void link(SymbolResolver &linker, ReturnStatement *returnStmt) override {
+        TypeLinkedValue::link(linker, returnStmt);
+    }
 
-    void link(SymbolResolver &linker, ReturnStatement *returnStmt) override;
+    void link(SymbolResolver &linker, StructValue *value, const std::string &name) override {
+        TypeLinkedValue::link(linker, value, name);
+    }
 
-    void link(SymbolResolver &linker, FunctionCall *call, unsigned int index) override;
+    void link(SymbolResolver &linker, FunctionCall *call, unsigned int index) override {
+        TypeLinkedValue::link(linker, call, index);
+    }
 
-    void link(SymbolResolver &linker, StructValue *value, const std::string &name) override;
+    void link(SymbolResolver &linker, VarInitStatement *stmnt) override {
+        TypeLinkedValue::link(linker, stmnt);
+    }
+
+    void link(SymbolResolver &linker, AssignStatement *stmnt, bool lhs) override {
+        TypeLinkedValue::link(linker, stmnt, lhs);
+    }
 
     bool computed() override {
         return true;

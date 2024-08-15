@@ -15,6 +15,7 @@ public:
         visitor->visit(this);
     }
 
+    [[nodiscard]]
     BaseTypeKind kind() const override {
         return BaseTypeKind::Any;
     }
@@ -27,7 +28,8 @@ public:
         return true;
     }
 
-    virtual BaseType* copy() const {
+    [[nodiscard]]
+    AnyType* copy() const override {
         return new AnyType();
     }
 

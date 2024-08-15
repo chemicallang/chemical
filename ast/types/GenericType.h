@@ -112,7 +112,7 @@ public:
     bool satisfies(Value *value) override;
 
     [[nodiscard]]
-    BaseType* copy() const override;
+    GenericType* copy() const override;
 
 #ifdef COMPILER_BUILD
 

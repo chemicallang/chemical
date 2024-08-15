@@ -9,10 +9,11 @@ public:
 
     bool is64Bit;
 
-    ULongType(bool is64Bit) : is64Bit(is64Bit) {
+    explicit ULongType(bool is64Bit) : is64Bit(is64Bit) {
 
     }
 
+    [[nodiscard]]
     unsigned int num_bits() const override {
         return is64Bit ? 64 : 32;
     }
@@ -33,11 +34,13 @@ public:
 
     Value *create(int64_t value) override;
 
+    [[nodiscard]]
     ValueType value_type() const override {
         return ValueType::ULong;
     }
 
-    BaseType *copy() const override {
+    [[nodiscard]]
+    ULongType *copy() const override {
         return new ULongType(is64Bit);
     }
 

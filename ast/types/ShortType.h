@@ -7,6 +7,7 @@
 class ShortType : public IntNType {
 public:
 
+    [[nodiscard]]
     unsigned int num_bits() const override {
         return 16;
     }
@@ -27,11 +28,13 @@ public:
 
     Value *create(int64_t value) override;
 
+    [[nodiscard]]
     ValueType value_type() const override {
         return ValueType::Short;
     }
 
-    BaseType *copy() const override {
+    [[nodiscard]]
+    ShortType *copy() const override {
         return new ShortType();
     }
 

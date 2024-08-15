@@ -11,6 +11,7 @@ public:
         return 1;
     }
 
+    [[nodiscard]]
     unsigned int num_bits() const override {
         return 8;
     }
@@ -25,10 +26,12 @@ public:
 
     Value *create(int64_t value) override;
 
+    [[nodiscard]]
     BaseTypeKind kind() const override {
         return BaseTypeKind::Char;
     }
 
+    [[nodiscard]]
     ValueType value_type() const override {
         return ValueType::Char;
     }
@@ -39,7 +42,8 @@ public:
         return type->kind() == kind();
     }
 
-    virtual BaseType* copy() const {
+    [[nodiscard]]
+    CharType* copy() const override {
         return new CharType();
     }
 

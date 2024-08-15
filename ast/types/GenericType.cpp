@@ -94,7 +94,7 @@ void GenericType::set_parent_iteration(int16_t parent_itr) {
     }
 }
 
-BaseType* GenericType::copy() const {
+GenericType* GenericType::copy() const {
     auto gen = new GenericType(std::unique_ptr<ReferencedType>((ReferencedType*) referenced->copy()));
     gen->generic_iteration = generic_iteration;
     for(auto& type : types) {

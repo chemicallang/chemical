@@ -19,10 +19,12 @@ public:
         return type == ValueType::Float;
     }
 
+    [[nodiscard]]
     BaseTypeKind kind() const override {
         return BaseTypeKind::Float;
     }
 
+    [[nodiscard]]
     ValueType value_type() const override {
         return ValueType::Float;
     }
@@ -37,7 +39,8 @@ public:
         return type->kind() == kind();
     }
 
-    virtual BaseType *copy() const {
+    [[nodiscard]]
+    FloatType *copy() const override {
         return new FloatType();
     }
 

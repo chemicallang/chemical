@@ -7,6 +7,7 @@
 class IntType : public IntNType {
 public:
 
+    [[nodiscard]]
     unsigned int num_bits() const override {
         return 32;
     }
@@ -27,11 +28,13 @@ public:
 
     Value *create(int64_t value) override;
 
+    [[nodiscard]]
     ValueType value_type() const override {
         return ValueType::Int;
     }
 
-    BaseType *copy() const override {
+    [[nodiscard]]
+    IntType *copy() const override {
         return new IntType();
     }
 

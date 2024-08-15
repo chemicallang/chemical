@@ -39,7 +39,8 @@ public:
         return kind() == type->kind() && equals(static_cast<StructType *>(type));
     }
 
-    virtual BaseType *copy() const = 0;
+    [[nodiscard]]
+    BaseType *copy() const override = 0;
 
     bool satisfies(ValueType type) override {
         return type == ValueType::Struct;

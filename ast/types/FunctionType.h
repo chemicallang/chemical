@@ -81,7 +81,7 @@ public:
         return ValueType::Lambda;
     }
 
-    bool isInVarArgs(unsigned index);
+    bool isInVarArgs(unsigned index) const;
 
     uint64_t byte_size(bool is64Bit) override;
 
@@ -118,7 +118,8 @@ public:
         return this;
     }
 
-    virtual BaseType *copy() const;
+    [[nodiscard]]
+    FunctionType* copy() const override;
 
     void link(SymbolResolver &linker, std::unique_ptr<BaseType>& current) override;
 

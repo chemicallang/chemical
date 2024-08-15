@@ -19,10 +19,12 @@ public:
         visitor->visit(this);
     }
 
+    [[nodiscard]]
     BaseTypeKind kind() const override {
         return BaseTypeKind::Bool;
     }
 
+    [[nodiscard]]
     ValueType value_type() const override {
         return ValueType::Bool;
     }
@@ -33,7 +35,7 @@ public:
         return type->kind() == kind();
     }
 
-    virtual BaseType* copy() const {
+    virtual BoolType* copy() const {
         return new BoolType();
     }
 

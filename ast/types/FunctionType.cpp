@@ -81,7 +81,7 @@ FunctionType::FunctionType(
 
 }
 
-bool FunctionType::isInVarArgs(unsigned index) {
+bool FunctionType::isInVarArgs(unsigned index) const {
     return isVariadic && index >= (params.size() - 1);
 }
 
@@ -174,7 +174,7 @@ bool FunctionType::satisfies(ValueType type) {
     return type == ValueType::Lambda;
 }
 
-BaseType *FunctionType::copy() const {
+FunctionType *FunctionType::copy() const {
     std::vector<std::unique_ptr<FunctionParam>> copied;
     for (auto &param: params) {
         copied.emplace_back(param->copy());

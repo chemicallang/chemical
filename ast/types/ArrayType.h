@@ -35,6 +35,7 @@ public:
 
     void link(SymbolResolver &linker, std::unique_ptr<BaseType> &current) override;
 
+    [[nodiscard]]
     std::unique_ptr<BaseType> create_child_type() const override {
         return std::unique_ptr<BaseType>(elem_type->copy());
     }
@@ -43,10 +44,12 @@ public:
         return hybrid_ptr<BaseType> { elem_type.get(), false };
     }
 
+    [[nodiscard]]
     BaseTypeKind kind() const override {
         return BaseTypeKind::Array;
     }
 
+    [[nodiscard]]
     ValueType value_type() const override {
         return ValueType::Array;
     }
@@ -59,7 +62,8 @@ public:
         return kind() == type->kind() && equals(static_cast<ArrayType *>(type));
     }
 
-    virtual BaseType *copy() const {
+    [[nodiscard]]
+    ArrayType* copy() const override {
         return new ArrayType(std::unique_ptr<BaseType>(elem_type->copy()), array_size);
     }
 

@@ -27,10 +27,12 @@ public:
         visitor->visit(this);
     }
 
+    [[nodiscard]]
     BaseTypeKind kind() const override {
         return BaseTypeKind::Literal;
     }
 
+    [[nodiscard]]
     ValueType value_type() const override {
         return underlying->value_type();
     }
@@ -39,7 +41,8 @@ public:
         return type->kind() == BaseTypeKind::Literal && ((LiteralType*) type)->underlying->is_same(underlying.get());
     }
 
-    virtual BaseType* copy() const {
+    [[nodiscard]]
+    LiteralType* copy() const override {
         return new LiteralType(std::unique_ptr<BaseType>(underlying->copy()));
     }
 

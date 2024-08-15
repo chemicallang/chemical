@@ -7,6 +7,7 @@
 class UBigIntType : public IntNType {
 public:
 
+    [[nodiscard]]
     unsigned int num_bits() const override {
         return 64;
     }
@@ -27,11 +28,13 @@ public:
 
     Value *create(int64_t value) override;
 
+    [[nodiscard]]
     ValueType value_type() const override {
         return ValueType::UBigInt;
     }
 
-    BaseType *copy() const override {
+    [[nodiscard]]
+    UBigIntType *copy() const override {
         return new UBigIntType();
     }
 

@@ -52,7 +52,7 @@ public:
         }
     }
 
-    BaseType *holding_value_type() override {
+    BaseType *known_type() override {
         return usage[active_iteration];
     }
 

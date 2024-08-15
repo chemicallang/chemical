@@ -30,7 +30,7 @@ public:
         return this;
     }
 
-    BaseType *holding_value_type() override {
+    BaseType *known_type() override {
         return type.get();
     }
 

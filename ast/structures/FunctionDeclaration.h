@@ -135,6 +135,13 @@ public:
         subscribers.emplace_back(subscriber);
     }
 
+    /**
+     * get known function type, which is this
+     */
+    BaseType* known_type() override {
+        return this;
+    }
+
 #ifdef COMPILER_BUILD
 
     llvm::Function *llvm_func();

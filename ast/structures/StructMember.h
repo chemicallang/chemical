@@ -53,7 +53,7 @@ public:
         return defValue.has_value() ? defValue.value().get() : nullptr;
     }
 
-    BaseType *holding_value_type() override {
+    BaseType *known_type() override {
         return type.get();
     }
 

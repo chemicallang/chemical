@@ -45,6 +45,10 @@ public:
         return hybrid_ptr<BaseType> { this, false };
     }
 
+    BaseType* known_type() override {
+        return this;
+    }
+
     DoubleValue *copy() override {
         return new DoubleValue(value);
     }

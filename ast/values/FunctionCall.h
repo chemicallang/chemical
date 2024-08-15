@@ -48,9 +48,14 @@ public:
     hybrid_ptr<FunctionType> get_function_type();
 
     /**
+     * known type of function call's return
+     */
+    BaseType* known_type() override;
+
+    /**
      * argument type
      */
-    std::unique_ptr<BaseType> create_arg_type(unsigned int index);
+    BaseType* get_arg_type(unsigned int index);
 
     FunctionCall *as_func_call() override;
 
@@ -110,7 +115,14 @@ public:
      * previous iteration is equal to -2, if couldn't set because it's
      * not a generic function
      */
-    int16_t set_curr_itr_on_decl();
+    int16_t set_curr_itr_on_decl(FunctionDeclaration* declaration);
+
+    /**
+     * this get's the declaration
+     */
+    int16_t set_curr_itr_on_decl() {
+        return set_curr_itr_on_decl(safe_linked_func());
+    }
 
 #ifdef COMPILER_BUILD
 

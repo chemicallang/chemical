@@ -37,6 +37,17 @@ hybrid_ptr<BaseType> DereferenceValue::get_base_type() {
     }
 }
 
+BaseType* DereferenceValue::known_type() {
+    auto addr = value->known_type();
+    if(addr->kind() == BaseTypeKind::Pointer) {
+        return ((PointerType*) addr)->type.get();
+    } else {
+        // TODO cannot report error here, the type cannot be created because the linked type is not a pointer
+        std::cerr << "DereferenceValue returning nullptr, because de-referenced type is not a pointer" << std::endl;
+        return nullptr;
+    }
+}
+
 DereferenceValue *DereferenceValue::copy() {
     return new DereferenceValue(
             std::unique_ptr<Value>(value->copy())

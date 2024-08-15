@@ -22,6 +22,8 @@ public:
 
     hybrid_ptr<BaseType> get_base_type() override;
 
+    BaseType* known_type() override;
+
     void accept(Visitor *visitor) override {
         visitor->visit(this);
     }

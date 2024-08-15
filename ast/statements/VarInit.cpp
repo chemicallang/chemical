@@ -165,6 +165,17 @@ hybrid_ptr<BaseType> VarInitStatement::get_value_type() {
     }
 }
 
+BaseType* VarInitStatement::known_type() {
+    if(!type.has_value()) {
+        auto known_type = value.value()->known_type();
+        if(known_type) {
+            return known_type;
+        }
+        type.emplace(value.value()->create_type().release());
+    }
+    return type->get();
+}
+
 void VarInitStatement::accept(Visitor *visitor) {
     visitor->visit(this);
 }

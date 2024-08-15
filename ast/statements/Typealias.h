@@ -47,6 +47,8 @@ public:
 
     hybrid_ptr<BaseType> get_value_type() override;
 
+    BaseType* known_type() override;
+
     void interpret(InterpretScope &scope) override;
 
     void declare_top_level(SymbolResolver &linker) override;

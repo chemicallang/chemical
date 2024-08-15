@@ -93,6 +93,10 @@ hybrid_ptr<BaseType> AccessChain::get_value_type() {
     return values[values.size() - 1]->get_base_type();
 }
 
+BaseType* AccessChain::known_type() {
+    return values[values.size() - 1]->known_type();
+}
+
 std::unique_ptr<BaseType> AccessChain::create_value_type() {
     return create_type();
 }

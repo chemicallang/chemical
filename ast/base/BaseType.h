@@ -67,7 +67,14 @@ public:
      * get a pointer to it's child type
      */
     virtual hybrid_ptr<BaseType> get_child_type() {
-        throw std::runtime_error("byte_size called on base type");
+        throw std::runtime_error("BaseType::get_child_type called on base type");
+    }
+
+    /**
+     * get known child type
+     */
+    virtual BaseType* known_child_type() {
+        return nullptr;
     }
 
     /**

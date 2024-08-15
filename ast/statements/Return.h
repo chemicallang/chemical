@@ -35,6 +35,8 @@ public:
         return parent_node;
     }
 
+    BaseType* known_type() override;
+
     void interpret(InterpretScope &scope) override;
 
     void declare_and_link(SymbolResolver &linker) override;

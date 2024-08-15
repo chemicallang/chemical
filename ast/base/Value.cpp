@@ -222,6 +222,26 @@ bool Value::add_child_index(Codegen& gen, std::vector<llvm::Value*>& indexes, co
 #endif
 }
 
+llvm::Value* Value::llvm_arg_value(Codegen& gen, FunctionCall* call, unsigned int index) {
+    return llvm_value(gen, call->get_arg_type(index));
+}
+
+/**
+ * this method is called by return statement to get the return value for this Value
+ * if this class defines specific behavior for return, it should override this method
+ */
+llvm::Value* Value::llvm_ret_value(Codegen& gen, ReturnStatement* returnStmt) {
+    return llvm_value(gen, returnStmt->known_type());
+}
+
+/**
+ * called by assignment, to assign the current value to left hand side
+ */
+llvm::Value* Value::llvm_assign_value(Codegen& gen, Value* lhs) {
+    // TODO llvm_value expects a type
+    return llvm_value(gen, lhs->known_type());
+}
+
 #endif
 
 uint64_t Value::byte_size(bool is64Bit) {

@@ -87,14 +87,21 @@ public:
     bool is_unsigned() override;
 
     hybrid_ptr<BaseType> get_base_type() override {
-        if(linked_type) {
-            return hybrid_ptr<BaseType> {linked_type->copy(), true};
-        } else {
-            return hybrid_ptr<BaseType> { new IntType(), true };
+        if(!linked_type) {
+            linked_type = std::unique_ptr<IntNType>(new IntType());
         }
+        return hybrid_ptr<BaseType> { linked_type.get(), false };
     }
 
-    [[nodiscard]] std::unique_ptr<BaseType> create_type() override {
+    BaseType* known_type() override {
+        if(!linked_type) {
+            linked_type = std::unique_ptr<IntNType>(new IntType());
+        }
+        return linked_type.get();
+    }
+
+    [[nodiscard]]
+    std::unique_ptr<BaseType> create_type() override {
         if(linked_type) {
             return std::unique_ptr<BaseType>(linked_type->copy());
         } else {

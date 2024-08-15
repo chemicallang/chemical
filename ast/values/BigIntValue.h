@@ -30,6 +30,10 @@ public:
         return hybrid_ptr<BaseType> { this, false };
     }
 
+    BaseType* known_type() override {
+        return this;
+    }
+
     [[nodiscard]] std::unique_ptr<BaseType> create_type() override {
         return std::make_unique<BigIntType>();
     }

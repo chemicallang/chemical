@@ -133,3 +133,7 @@ IndexOperator* IndexOperator::copy() {
     op->parent_val = parent_val;
     return op;
 }
+
+BaseType* IndexOperator::known_type() {
+    return parent_val->known_type()->known_child_type();
+}

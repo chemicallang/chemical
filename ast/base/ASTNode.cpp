@@ -18,7 +18,7 @@ std::string ASTNode::representation() {
 }
 
 uint64_t ASTNode::byte_size(bool is64Bit) {
-    auto holdingType = holding_value_type();
+    auto holdingType = known_type();
     if(holdingType) return holdingType->byte_size(is64Bit);
     auto holdingValue = holding_value();
     if(holdingValue) return holdingValue->byte_size(is64Bit);

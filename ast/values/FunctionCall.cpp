@@ -409,15 +409,14 @@ hybrid_ptr<FunctionType> FunctionCall::get_function_type() {
     }
 }
 
-std::unique_ptr<BaseType> FunctionCall::create_arg_type(unsigned int index) {
-    auto func_type = create_function_type();
+BaseType* FunctionCall::get_arg_type(unsigned int index) {
+    auto func_type = parent_val->known_type()->function_type();
     auto param = func_type->func_param_for_arg_at(index);
-    return std::move(param->type);
+    return param->type.get();
 }
 
-int16_t FunctionCall::set_curr_itr_on_decl() {
+int16_t FunctionCall::set_curr_itr_on_decl(FunctionDeclaration* decl) {
     int16_t prev_itr = -2;
-    const auto decl = safe_linked_func();
     if(decl && !decl->generic_params.empty()) {
         prev_itr = decl->active_iteration;
         decl->set_active_iteration(generic_iteration);
@@ -608,4 +607,8 @@ ValueType FunctionCall::value_type() const {
 
 void FunctionCall::interpret(InterpretScope &scope) {
     evaluated_value(scope);
+}
+
+BaseType* FunctionCall::known_type() {
+    return parent_val->known_type()->function_type()->returnType.get();
 }

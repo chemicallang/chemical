@@ -73,6 +73,10 @@ public:
 
     hybrid_ptr<BaseType> get_base_type() override;
 
+    BaseType* known_type() override {
+        return this;
+    }
+
     void link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) override;
 
     void link(SymbolResolver &linker, FunctionType* func_type);

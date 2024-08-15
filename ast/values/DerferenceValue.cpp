@@ -37,7 +37,7 @@ hybrid_ptr<BaseType> DereferenceValue::get_base_type() {
     }
 }
 
-Value *DereferenceValue::copy() {
+DereferenceValue *DereferenceValue::copy() {
     return new DereferenceValue(
             std::unique_ptr<Value>(value->copy())
     );

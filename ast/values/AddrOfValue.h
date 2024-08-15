@@ -21,7 +21,7 @@ public:
         return is64Bit ? 8 : 4;
     }
 
-    Value *copy() override;
+    AddrOfValue *copy() override;
 
     hybrid_ptr<BaseType> get_base_type() override {
         return hybrid_ptr<BaseType> { new PointerType(value->create_type()) };

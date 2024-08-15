@@ -10,7 +10,7 @@ public:
 
     unsigned char value;
 
-    UCharValue(unsigned char value) : value(value) {
+    explicit UCharValue(unsigned char value) : value(value) {
 
     }
 
@@ -18,7 +18,7 @@ public:
         return hybrid_ptr<BaseType> { this, false };
     }
 
-    uint64_t byte_size(bool is64Bit) {
+    uint64_t byte_size(bool is64Bit) override {
         return 1;
     }
 
@@ -26,7 +26,7 @@ public:
         visitor->visit(this);
     }
 
-    Value *copy() override {
+    UCharValue *copy() override {
         return new UCharValue(value);
     }
 
@@ -42,6 +42,7 @@ public:
         return 8;
     }
 
+    [[nodiscard]]
     int64_t get_num_value() const override {
         return value;
     }

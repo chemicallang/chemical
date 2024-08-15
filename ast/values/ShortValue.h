@@ -8,7 +8,7 @@ public:
 
     short value;
 
-    ShortValue(short value) : value(value) {
+    explicit ShortValue(short value) : value(value) {
 
     }
 
@@ -24,7 +24,7 @@ public:
         visitor->visit(this);
     }
 
-    Value *copy() override {
+    ShortValue *copy() override {
         return new ShortValue(value);
     }
 
@@ -36,6 +36,7 @@ public:
         return 16;
     }
 
+    [[nodiscard]]
     int64_t get_num_value() const override {
         return value;
     }

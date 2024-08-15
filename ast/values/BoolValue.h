@@ -19,11 +19,11 @@ public:
      */
     BoolValue(bool value) : value(value) {}
 
-    Value *copy() override {
+    BoolValue *copy() override {
         return new BoolValue(value);
     }
 
-    uint64_t byte_size(bool is64Bit) {
+    uint64_t byte_size(bool is64Bit) override {
         return 1;
     }
 
@@ -47,10 +47,12 @@ public:
 
 #endif
 
+    [[nodiscard]]
     ValueType value_type() const override {
         return ValueType::Bool;
     }
 
+    [[nodiscard]]
     BaseTypeKind type_kind() const override {
         return BaseTypeKind::Bool;
     }

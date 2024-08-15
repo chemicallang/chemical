@@ -10,7 +10,7 @@ public:
 
     unsigned int value;
 
-    UIntValue(unsigned int value) : value(value) {
+    explicit UIntValue(unsigned int value) : value(value) {
 
     }
 
@@ -18,7 +18,7 @@ public:
         return hybrid_ptr<BaseType> { this, false };
     }
 
-    uint64_t byte_size(bool is64Bit) {
+    uint64_t byte_size(bool is64Bit) override {
         return 4;
     }
 
@@ -26,7 +26,7 @@ public:
         visitor->visit(this);
     }
 
-    Value *copy() override {
+    UIntValue *copy() override {
         return new UIntValue(value);
     }
 
@@ -42,6 +42,7 @@ public:
         return 32;
     }
 
+    [[nodiscard]]
     int64_t get_num_value() const override {
         return value;
     }

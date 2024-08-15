@@ -13,13 +13,13 @@
 class DereferenceValue : public Value {
 public:
 
-    DereferenceValue(std::unique_ptr<Value> value);
+    explicit DereferenceValue(std::unique_ptr<Value> value);
 
     uint64_t byte_size(bool is64Bit) override {
         return value->byte_size(is64Bit);
     }
 
-    Value *copy() override;
+    DereferenceValue *copy() override;
 
     hybrid_ptr<BaseType> get_base_type() override;
 

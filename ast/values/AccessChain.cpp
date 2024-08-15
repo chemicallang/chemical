@@ -109,7 +109,7 @@ bool AccessChain::reference() {
     return true;
 }
 
-Value *AccessChain::copy() {
+AccessChain *AccessChain::copy() {
     auto chain = new AccessChain(parent_node, is_node);
     for(auto& value : values) {
         chain->values.emplace_back((ChainValue*) value->copy());

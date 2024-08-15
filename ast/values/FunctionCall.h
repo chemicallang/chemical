@@ -78,7 +78,7 @@ public:
 
     void evaluate_children(InterpretScope &scope) override;
 
-    Value *copy() override;
+    FunctionCall *copy() override;
 
     void interpret(InterpretScope &scope) override;
 

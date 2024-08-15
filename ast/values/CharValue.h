@@ -20,9 +20,9 @@ public:
      *
      * @param value The character value.
      */
-    CharValue(char value) : value(value) {}
+    explicit CharValue(char value) : value(value) {}
 
-    uint64_t byte_size(bool is64Bit) {
+    uint64_t byte_size(bool is64Bit) override {
         return 1;
     }
 
@@ -38,7 +38,7 @@ public:
         return std::make_unique<CharType>();
     }
 
-    Value *copy() override {
+    CharValue *copy() override {
         return new CharValue(value);
     }
 
@@ -54,10 +54,12 @@ public:
         return value;
     }
 
+    [[nodiscard]]
     ValueType value_type() const override {
         return ValueType::Char;
     }
 
+    [[nodiscard]]
     BaseTypeKind type_kind() const override {
         return BaseTypeKind::Char;
     }

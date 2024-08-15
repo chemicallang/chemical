@@ -26,7 +26,7 @@ public:
      *
      * @param value The string value.
      */
-    StringValue(std::string value) : length(value.size()), value(std::move(value)) {}
+    explicit StringValue(std::string value) : length(value.size()), value(std::move(value)) {}
 
     void link(SymbolResolver &linker, VarInitStatement *stmnt) override;
 
@@ -68,7 +68,7 @@ public:
 
 #endif
 
-    Value *copy() override {
+    StringValue *copy() override {
         return new StringValue(value);
     }
 

@@ -13,7 +13,7 @@
 class NotValue : public Value {
 public:
 
-    NotValue(std::unique_ptr<Value> value) : value(std::move(value)) {}
+    explicit NotValue(std::unique_ptr<Value> value) : value(std::move(value)) {}
 
     void accept(Visitor *visitor) override {
         visitor->visit(this);
@@ -29,10 +29,16 @@ public:
 
 #endif
 
+    NotValue* copy() override {
+        return new NotValue(std::unique_ptr<Value>(value->copy()));
+    }
+
+    [[nodiscard]]
     ValueType value_type() const override {
         return value->value_type();
     }
 
+    [[nodiscard]]
     BaseTypeKind type_kind() const override {
         return value->type_kind();
     }

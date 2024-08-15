@@ -18,6 +18,7 @@ public:
     /**
      * get number value
      */
+    [[nodiscard]]
     virtual int64_t get_num_value() const = 0;
 
     /**

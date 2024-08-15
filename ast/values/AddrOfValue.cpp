@@ -13,7 +13,7 @@ void AddrOfValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr
     value->link(linker, value);
 }
 
-Value *AddrOfValue::copy() {
+AddrOfValue *AddrOfValue::copy() {
     return new AddrOfValue(
             std::unique_ptr<Value>(value->copy())
     );

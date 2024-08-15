@@ -40,6 +40,7 @@ public:
         return false;
     }
 
+    [[nodiscard]]
     inline unsigned int array_size() const {
         if (sizes.empty()) {
             return values.size();
@@ -48,7 +49,7 @@ public:
         }
     }
 
-    virtual ArrayValue* as_array_value() {
+    ArrayValue* as_array_value() override {
         return this;
     }
 
@@ -102,15 +103,17 @@ public:
 
     hybrid_ptr<BaseType> get_base_type() override;
 
+    [[nodiscard]]
     ValueType value_type() const override {
         return ValueType::Array;
     }
 
+    [[nodiscard]]
     BaseTypeKind type_kind() const override {
         return BaseTypeKind::Array;
     }
 
-    Value *copy() override {
+    ArrayValue *copy() override {
         std::vector<std::unique_ptr<Value>> copied_values;
         copied_values.reserve(values.size());
         for (const auto &value: values) {

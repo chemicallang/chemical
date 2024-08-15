@@ -10,7 +10,7 @@ public:
 
     unsigned short value;
 
-    UShortValue(unsigned short value) : value(value) {
+    explicit UShortValue(unsigned short value) : value(value) {
 
     }
 
@@ -18,7 +18,7 @@ public:
         return hybrid_ptr<BaseType> { this, false };
     }
 
-    uint64_t byte_size(bool is64Bit) {
+    uint64_t byte_size(bool is64Bit) override {
         return 2;
     }
 
@@ -26,7 +26,7 @@ public:
         visitor->visit(this);
     }
 
-    Value *copy() override {
+    UShortValue *copy() override {
         return new UShortValue(value);
     }
 
@@ -42,6 +42,7 @@ public:
         return true;
     }
 
+    [[nodiscard]]
     int64_t get_num_value() const override {
         return value;
     }

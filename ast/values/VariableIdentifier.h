@@ -109,7 +109,7 @@ public:
 
     hybrid_ptr<Value> evaluated_chain_value(InterpretScope &scope, Value* parent) override;
 
-    Value *copy() override;
+    VariableIdentifier *copy() override;
 
     /**
      * every identifier's value will be moved to new owner at return

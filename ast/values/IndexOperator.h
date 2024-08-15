@@ -44,6 +44,8 @@ public:
 
     Value *find_in(InterpretScope &scope, Value *parent) override;
 
+    IndexOperator* copy() override;
+
 #ifdef COMPILER_BUILD
 
     llvm::Value *elem_pointer(Codegen &gen, llvm::Type *, llvm::Value *ptr);

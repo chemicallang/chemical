@@ -129,7 +129,7 @@ Value *Expression::evaluate(InterpretScope &scope) {
     }
 }
 
-Value *Expression::copy() {
+Expression *Expression::copy() {
     return new Expression(
         std::unique_ptr<Value>(firstValue->copy()),
         std::unique_ptr<Value>(secondValue->copy()),

@@ -22,6 +22,10 @@ public:
 
     void calculate_size(bool is64Bit);
 
+    SizeOfValue* copy() override {
+        return new SizeOfValue(for_type->copy());
+    }
+
 #ifdef COMPILER_BUILD
 
     llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) override;

@@ -110,7 +110,7 @@ public:
      */
     Value *evaluate(InterpretScope &scope);
 
-    Value *copy() override;
+    Expression *copy() override;
 
     Value *scope_value(InterpretScope &scope) override {
         return evaluate(scope);
@@ -126,6 +126,7 @@ public:
 
     bool compile_time_computable() override;
 
+    [[nodiscard]]
     ValueType value_type() const override {
         return ValueType::Expression;
     }

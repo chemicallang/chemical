@@ -46,33 +46,11 @@ std::unique_ptr<IntNType> linked(BaseType* type) {
     }
 }
 
-void NumberValue::link(SymbolResolver &linker, VarInitStatement *stmnt) {
-    if(stmnt->type.has_value()) {
-        linked_type = linked(stmnt->type->get());
+void NumberValue::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *type) {
+    if(type) {
+        auto pure = type->get_pure_type();
+        if(pure && pure->kind() == BaseTypeKind::IntN) {
+            linked_type = std::unique_ptr<IntNType>(((IntNType*) pure->copy()));
+        }
     }
-}
-
-void NumberValue::link(SymbolResolver &linker, AssignStatement *stmnt, bool lhs) {
-    auto value_type = stmnt->lhs->create_type();
-    linked_type = linked(value_type.get());
-}
-
-void NumberValue::link(SymbolResolver &linker, ReturnStatement *returnStmt) {
-    if(returnStmt->func_type && returnStmt->func_type->returnType) {
-        linked_type = linked(returnStmt->func_type->returnType.get());
-    }
-}
-
-void NumberValue::link(SymbolResolver &linker, FunctionCall *call, unsigned int index) {
-    auto funcType = call->get_function_type();
-    if(funcType) {
-        linked_type = linked(funcType->func_param_for_arg_at(index)->type.get());
-    } else {
-        // this can happen when parent is linked with a constructor
-    }
-}
-
-void NumberValue::link(SymbolResolver &linker, StructValue *structValue, const std::string &name) {
-    auto child = structValue->definition->child(name);
-    linked_type = linked(child->create_value_type().get());
 }

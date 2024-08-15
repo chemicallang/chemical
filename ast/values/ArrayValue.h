@@ -12,7 +12,7 @@
 #include "ast/values/TypeLinkedValue.h"
 #include "ast/types/ArrayType.h"
 
-class ArrayValue : public TypeLinkedValue {
+class ArrayValue : public Value, public TypeLinkedValue {
 public:
 
     std::vector<std::unique_ptr<Value>> values;
@@ -97,6 +97,23 @@ public:
 
     void link(SymbolResolver &linker, std::unique_ptr<Value> &, BaseType *type) override;
 
+    void link(SymbolResolver &linker, AssignStatement *stmnt, bool lhs) override {
+        TypeLinkedValue::link(linker, stmnt, lhs);
+    }
+    void link(SymbolResolver &linker, VarInitStatement *stmnt) override {
+        TypeLinkedValue::link(linker, stmnt);
+    }
+    void link(SymbolResolver &linker, FunctionCall *call, unsigned int index) override {
+        TypeLinkedValue::link(linker, call, index);
+    }
+    void link(SymbolResolver &linker, StructValue *value, const std::string &name) override {
+        TypeLinkedValue::link(linker, value, name);
+    }
+    void link(SymbolResolver &linker, ReturnStatement *returnStmt) override {
+        TypeLinkedValue::link(linker, returnStmt);
+    }
+
+    [[nodiscard]]
     std::unique_ptr<BaseType> element_type() const;
 
     std::unique_ptr<BaseType> create_type() override;

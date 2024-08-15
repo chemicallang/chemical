@@ -360,11 +360,11 @@ llvm::Value *VariableIdentifier::llvm_ret_value(Codegen &gen, ReturnStatement *r
     return linked->llvm_ret_load(gen, returnStmt);
 }
 
-llvm::Value *VariableIdentifier::access_chain_value(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned until, std::vector<std::pair<Value*, llvm::Value*>>& destructibles) {
+llvm::Value *VariableIdentifier::access_chain_value(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned until, std::vector<std::pair<Value*, llvm::Value*>>& destructibles, BaseType* expected_type) {
     if(linked->as_enum_member() != nullptr) {
         return llvm_value(gen, nullptr);
     } else {
-        return ChainValue::access_chain_value(gen, values, until, destructibles);
+        return ChainValue::access_chain_value(gen, values, until, destructibles, expected_type);
     }
 }
 
@@ -554,7 +554,7 @@ llvm::Value *AccessChain::llvm_value(Codegen &gen, BaseType* expected_type) {
     std::vector<std::pair<Value*, llvm::Value*>> destructibles;
     std::unordered_map<uint16_t, int16_t> active;
     set_generic_iterations(active);
-    auto value = values[values.size() - 1]->access_chain_value(gen, values, values.size() - 1, destructibles);
+    auto value = values[values.size() - 1]->access_chain_value(gen, values, values.size() - 1, destructibles, expected_type);
     restore_active_iterations(active);
     Value::destruct(gen, destructibles);
     return value;
@@ -574,7 +574,7 @@ llvm::AllocaInst *AccessChain::llvm_allocate(Codegen &gen, const std::string &id
     std::vector<std::pair<Value*, llvm::Value*>> destructibles;
     std::unordered_map<uint16_t, int16_t> active;
     set_generic_iterations(active);
-    auto value = values[values.size() - 1]->access_chain_allocate(gen, values, values.size() - 1);
+    auto value = values[values.size() - 1]->access_chain_allocate(gen, values, values.size() - 1, expected_type);
     restore_active_iterations(active);
     Value::destruct(gen, destructibles);
     return value;

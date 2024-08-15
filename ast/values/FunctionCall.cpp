@@ -45,7 +45,7 @@ void to_llvm_args(
         int parent_index = (int) until - 2;
         if (parent_index >= 0 && parent_index < chain->size()) {
             if ((*chain)[parent_index]->value_type() == ValueType::Pointer) {
-                args.emplace_back((*chain)[parent_index]->access_chain_value(gen, *chain, parent_index, destructibles));
+                args.emplace_back((*chain)[parent_index]->access_chain_value(gen, *chain, parent_index, destructibles, nullptr));
             } else {
                 args.emplace_back((*chain)[parent_index]->access_chain_pointer(gen, *chain, destructibles, parent_index));
             }
@@ -149,7 +149,7 @@ llvm::Value *FunctionCall::llvm_linked_func_callee(
             callee = linked()->llvm_pointer(gen);
         }
     } else {
-        callee = parent_val->access_chain_value(gen, chain_values, index - 1, destructibles);
+        callee = parent_val->access_chain_value(gen, chain_values, index - 1, destructibles, nullptr);
     }
     return callee;
 }
@@ -208,7 +208,7 @@ llvm::Value *call_capturing_lambda(
     std::vector<llvm::Value *> args;
     llvm::Value* value;
     if(chain && until > 1) {
-        value = (*chain)[until - 1]->access_chain_value(gen, *chain, until - 1, destructibles);
+        value = (*chain)[until - 1]->access_chain_value(gen, *chain, until - 1, destructibles, nullptr);
     } else {
         value = call->parent_val->llvm_value(gen);
     };
@@ -315,7 +315,7 @@ llvm::Value* FunctionCall::llvm_chain_value(
 
 }
 
-llvm::Value* FunctionCall::access_chain_value(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &chain, unsigned until, std::vector<std::pair<Value*, llvm::Value*>>& destructibles) {
+llvm::Value* FunctionCall::access_chain_value(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &chain, unsigned until, std::vector<std::pair<Value*, llvm::Value*>>& destructibles, BaseType* expected_type) {
     std::vector<llvm::Value *> args;
     return llvm_chain_value(gen, args, chain, until, destructibles);
 }
@@ -345,7 +345,7 @@ bool FunctionCall::add_child_index(Codegen &gen, std::vector<llvm::Value *> &ind
     return create_type()->linked_node()->add_child_index(gen, indexes, name);
 }
 
-llvm::AllocaInst *FunctionCall::access_chain_allocate(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &chain_values, unsigned int until) {
+llvm::AllocaInst *FunctionCall::access_chain_allocate(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &chain_values, unsigned int until, BaseType* expected_type) {
     auto func_type = get_function_type();
     if(func_type->returnType->value_type() == ValueType::Struct) {
         // we allocate the returned struct, llvm_chain_value function
@@ -355,7 +355,7 @@ llvm::AllocaInst *FunctionCall::access_chain_allocate(Codegen &gen, std::vector<
         Value::destruct(gen, destructibles);
         return alloc;
     } else {
-        return ChainValue::access_chain_allocate(gen, chain_values, until);
+        return ChainValue::access_chain_allocate(gen, chain_values, until, expected_type);
     }
 }
 

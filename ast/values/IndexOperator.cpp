@@ -42,7 +42,7 @@ llvm::Value *IndexOperator::access_chain_pointer(
 ) {
     auto pure_type = parent_val->get_pure_type();
     if(pure_type->is_pointer()) {
-        auto parent_value = parent_val->access_chain_value(gen, chain_values, until - 1);
+        auto parent_value = parent_val->access_chain_value(gen, chain_values, until - 1, nullptr);
         auto child_type = pure_type->get_child_type();
         return elem_pointer(gen, child_type->llvm_type(gen), parent_value);
     } else {

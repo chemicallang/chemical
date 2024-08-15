@@ -15,7 +15,7 @@
 void VarInitStatement::code_gen(Codegen &gen) {
     if (gen.current_function == nullptr) {
         if(is_const && has_annotation(AnnotationKind::CompTime)) {
-            llvm_ptr = value.value()->llvm_value(gen);
+            llvm_ptr = value.value()->llvm_value(gen, type.has_value() ? type->get() : nullptr);
             return;
         }
         if (value.has_value()) {

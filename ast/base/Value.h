@@ -313,8 +313,9 @@ public:
 
     /**
      * creates and returns the llvm value
-     * type which is optional can be provided to support implicit constructors or other
-     * features that rely on knowing the type of value expected
+     * type which is optional can be provided to support features that depend on knowledge
+     * of type, for example dynamic objects, when it's var x : dyn X = X() <-- x is created and put in a dynamic object
+     * the dynamic object is just a struct with two pointers, to actual object, and to implementation like Rust
      */
     virtual llvm::Value* llvm_value(Codegen& gen, BaseType* type = nullptr);
 

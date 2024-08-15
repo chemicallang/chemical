@@ -6,6 +6,7 @@
 #include "ast/types/ArrayType.h"
 #include "ast/utils/ASTUtils.h"
 #include "compiler/SymbolResolver.h"
+#include "ast/values/FunctionCall.h"
 
 #ifdef COMPILER_BUILD
 
@@ -52,7 +53,7 @@ llvm::Value *ArrayValue::llvm_value(Codegen &gen, BaseType* expected_type) {
 }
 
 llvm::Value *ArrayValue::llvm_arg_value(Codegen &gen, FunctionCall *call, unsigned int index) {
-    return llvm_allocate(gen, "", nullptr);
+    return llvm_allocate(gen, "", call->get_arg_type(index));
 }
 
 void ArrayValue::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {

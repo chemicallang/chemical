@@ -66,7 +66,8 @@ public:
     virtual llvm::AllocaInst* access_chain_allocate(
             Codegen& gen,
             std::vector<std::unique_ptr<ChainValue>>& values,
-            unsigned int until
+            unsigned int until,
+            BaseType* expected_type
     );
 
     /**
@@ -100,7 +101,8 @@ public:
             Codegen &gen,
             std::vector<std::unique_ptr<ChainValue>>& values,
             unsigned int until,
-            std::vector<std::pair<Value*, llvm::Value*>>& destructibles
+            std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
+            BaseType* expected_type
     );
 
     /**
@@ -109,10 +111,11 @@ public:
     llvm::Value* access_chain_value(
             Codegen &gen,
             std::vector<std::unique_ptr<ChainValue>>& values,
-            unsigned int until
+            unsigned int until,
+            BaseType* expected_type
     ) {
         std::vector<std::pair<Value*, llvm::Value*>> destructibles;
-        auto value = access_chain_value(gen, values, until, destructibles);
+        auto value = access_chain_value(gen, values, until, destructibles, expected_type);
         destruct(gen, destructibles);
         return value;
     }

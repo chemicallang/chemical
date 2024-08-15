@@ -7,6 +7,7 @@
 class StringType : public BaseType {
 public:
 
+    [[nodiscard]]
     std::unique_ptr<BaseType> create_child_type() const override;
 
     hybrid_ptr<BaseType> get_child_type() override;
@@ -19,10 +20,12 @@ public:
         return type == ValueType::String;
     }
 
+    [[nodiscard]]
     BaseTypeKind kind() const override {
         return BaseTypeKind::String;
     }
 
+    [[nodiscard]]
     ValueType value_type() const override {
         return ValueType::String;
     }
@@ -33,7 +36,8 @@ public:
         return type->kind() == kind();
     }
 
-    virtual BaseType *copy() const {
+    [[nodiscard]]
+    StringType *copy() const override {
         return new StringType();
     }
 

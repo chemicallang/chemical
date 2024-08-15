@@ -15,12 +15,13 @@ public:
     /**
      * the number of bits, int means int32 which has 32 bits
      */
+    [[nodiscard]]
     virtual unsigned int num_bits() const = 0;
 
     /**
      * helper
      */
-    inline unsigned int number() {
+    inline unsigned int number() const {
         return num_bits();
     }
 
@@ -33,6 +34,7 @@ public:
         return type == value_type();
     }
 
+    [[nodiscard]]
     BaseTypeKind kind() const override {
         return BaseTypeKind::IntN;
     }

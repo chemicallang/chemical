@@ -25,6 +25,7 @@ public:
         visitor->visit(this);
     }
 
+    [[nodiscard]]
     ValueType value_type() const override;
 
     void link(SymbolResolver &linker, std::unique_ptr<BaseType>& current) override;
@@ -33,6 +34,7 @@ public:
 
     bool satisfies(ValueType value_type) override;
 
+    [[nodiscard]]
     BaseTypeKind kind() const override {
         return BaseTypeKind::Referenced;
     }
@@ -45,7 +47,8 @@ public:
 
     bool satisfies(BaseType *type) override;
 
-    virtual BaseType *copy() const {
+    [[nodiscard]]
+    ReferencedType *copy() const override {
         auto t = new ReferencedType(type);
         t->linked = linked;
         return t;

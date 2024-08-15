@@ -15,6 +15,7 @@ public:
         visitor->visit(this);
     }
 
+    [[nodiscard]]
     BaseTypeKind kind() const override {
         return BaseTypeKind::Void;
     }
@@ -27,7 +28,8 @@ public:
         return type->kind() == kind();
     }
 
-    virtual BaseType* copy() const {
+    [[nodiscard]]
+    virtual VoidType* copy() const {
         return new VoidType();
     }
 

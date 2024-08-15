@@ -19,10 +19,12 @@ public:
         return type == ValueType::Double;
     }
 
+    [[nodiscard]]
     BaseTypeKind kind() const override {
         return BaseTypeKind::Double;
     }
 
+    [[nodiscard]]
     ValueType value_type() const override {
         return ValueType::Double;
     }
@@ -37,7 +39,8 @@ public:
         return type->kind() == kind();
     }
 
-    virtual BaseType *copy() const {
+    [[nodiscard]]
+    DoubleType *copy() const override {
         return new DoubleType();
     }
 

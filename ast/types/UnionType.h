@@ -23,6 +23,7 @@ public:
         visitor->visit(this);
     }
 
+    [[nodiscard]]
     BaseTypeKind kind() const override {
         return BaseTypeKind::Union;
     }
@@ -37,7 +38,8 @@ public:
         return kind() == type->kind() && equals(static_cast<UnionType *>(type));
     }
 
-    virtual BaseType *copy() const = 0;
+    [[nodiscard]]
+    BaseType *copy() const override = 0;
 
     bool satisfies(ValueType type) override;
 

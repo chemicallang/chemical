@@ -13,6 +13,7 @@ public:
 
     }
 
+    [[nodiscard]]
     unsigned int num_bits() const override {
         return is64Bit ? 64 : 32;
     }
@@ -33,11 +34,13 @@ public:
 
     Value *create(int64_t value) override;
 
+    [[nodiscard]]
     ValueType value_type() const override {
         return ValueType::Long;
     }
 
-    BaseType *copy() const override {
+    [[nodiscard]]
+    LongType *copy() const override {
         return new LongType(is64Bit);
     }
 

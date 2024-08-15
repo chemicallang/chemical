@@ -11,6 +11,7 @@ public:
         return 8;
     }
 
+    [[nodiscard]]
     unsigned int num_bits() const override {
         return 64;
     }
@@ -27,11 +28,12 @@ public:
 
     bool satisfies(Value *value) override;
 
+    [[nodiscard]]
     ValueType value_type() const override {
         return ValueType::BigInt;
     }
 
-    BaseType *copy() const override {
+    BigIntType *copy() const override {
         return new BigIntType();
     }
 

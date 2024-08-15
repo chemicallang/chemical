@@ -22,6 +22,7 @@ public:
         return type->get_generic_iteration();
     }
 
+    [[nodiscard]]
     std::unique_ptr<BaseType> create_child_type() const override {
         return std::unique_ptr<BaseType>(type->copy());
     }
@@ -42,10 +43,12 @@ public:
         return type->satisfies(value_type);
     }
 
+    [[nodiscard]]
     BaseTypeKind kind() const override {
         return BaseTypeKind::Pointer;
     }
 
+    [[nodiscard]]
     ValueType value_type() const override {
         return ValueType::Pointer;
     }
@@ -60,7 +63,8 @@ public:
         return this;
     }
 
-    virtual BaseType *copy() const {
+    [[nodiscard]]
+    PointerType *copy() const override {
         return new PointerType(std::unique_ptr<BaseType>(type->copy()));
     }
 

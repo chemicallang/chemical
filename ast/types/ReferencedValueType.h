@@ -22,6 +22,7 @@ public:
         visitor->visit(this);
     }
 
+    [[nodiscard]]
     ValueType value_type() const override {
         return value->value_type();
     }
@@ -39,6 +40,7 @@ public:
         return value->get_base_type()->satisfies(value_type);
     }
 
+    [[nodiscard]]
     BaseTypeKind kind() const override {
         return value->get_base_type()->kind();
     }
@@ -49,7 +51,8 @@ public:
 
     bool satisfies(Value *value) override;
 
-    virtual BaseType *copy() const {
+    [[nodiscard]]
+    ReferencedValueType *copy() const override {
         return new ReferencedValueType(std::unique_ptr<Value>(value->copy()));
     }
 

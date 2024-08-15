@@ -7,6 +7,7 @@
 class UShortType : public IntNType {
 public:
 
+    [[nodiscard]]
     unsigned int num_bits() const override {
         return 16;
     }
@@ -27,11 +28,13 @@ public:
 
     Value *create(int64_t value) override;
 
+    [[nodiscard]]
     ValueType value_type() const override {
         return ValueType::UShort;
     }
 
-    BaseType *copy() const override {
+    [[nodiscard]]
+    UShortType *copy() const override {
         return new UShortType();
     }
 

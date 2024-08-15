@@ -7,6 +7,7 @@
 class Int128Type : public IntNType {
 public:
 
+    [[nodiscard]]
     unsigned int num_bits() const override {
         return 128;
     }
@@ -25,11 +26,13 @@ public:
 
     Value *create(int64_t value) override;
 
+    [[nodiscard]]
     ValueType value_type() const override {
         return ValueType::Int128;
     }
 
-    BaseType *copy() const override {
+    [[nodiscard]]
+    Int128Type *copy() const override {
         return new Int128Type();
     }
 

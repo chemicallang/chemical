@@ -13,6 +13,8 @@
 class NotValue : public Value {
 public:
 
+    std::unique_ptr<Value> value;
+
     explicit NotValue(std::unique_ptr<Value> value) : value(std::move(value)) {}
 
     void accept(Visitor *visitor) override {
@@ -47,6 +49,6 @@ public:
 
     hybrid_ptr<BaseType> get_base_type() override;
 
-    std::unique_ptr<Value> value;
+    BaseType* known_type() override;
 
 };

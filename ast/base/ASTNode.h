@@ -150,10 +150,9 @@ public:
     }
 
     /**
-     * any type held by this node, for a value
-     * for example var init can be initialized with a type instead of a value, and this type will be provided
+     * The type for this node, this could be type of value of var init
      */
-    virtual BaseType* holding_value_type() {
+    virtual BaseType* known_type() {
         return nullptr;
     }
 

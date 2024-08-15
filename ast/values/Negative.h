@@ -13,9 +13,13 @@
 class NegativeValue : public Value {
 public:
 
+    std::unique_ptr<Value> value;
+
     explicit NegativeValue(std::unique_ptr<Value> value) : value(std::move(value)) {}
 
     hybrid_ptr<BaseType> get_base_type() override;
+
+    BaseType* known_type() override;
 
     uint64_t byte_size(bool is64Bit) override;
 
@@ -48,7 +52,5 @@ public:
     BaseTypeKind type_kind() const override {
         return value->type_kind();
     }
-
-    std::unique_ptr<Value> value;
 
 };

@@ -18,6 +18,10 @@ public:
         return hybrid_ptr<BaseType> { this, false };
     }
 
+    BaseType* known_type() override {
+        return this;
+    }
+
     uint64_t byte_size(bool is64Bit) override {
         return is64Bit ? 8 : 4;
     }

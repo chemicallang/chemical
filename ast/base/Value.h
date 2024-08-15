@@ -172,6 +172,13 @@ public:
     virtual hybrid_ptr<BaseType> get_base_type();
 
     /**
+     * get the known type from linked node of this chain value
+     */
+    virtual BaseType* known_type() {
+        return nullptr;
+    }
+
+    /**
      * this method should be preferred over get_base_type()->get_child_type()
      * because parent type returned type will die when get_base_type goes out of scope making
      * child_type pointer invalid
@@ -322,24 +329,18 @@ public:
      * this method is called by function call to get the parameter value for this Value
      * if this class defines specific behavior for function call, it should override this method
      */
-    virtual llvm::Value* llvm_arg_value(Codegen& gen, FunctionCall* call, unsigned int index) {
-        return llvm_value(gen);
-    }
+    virtual llvm::Value* llvm_arg_value(Codegen& gen, FunctionCall* call, unsigned int index);
 
     /**
      * this method is called by return statement to get the return value for this Value
      * if this class defines specific behavior for return, it should override this method
      */
-    virtual llvm::Value* llvm_ret_value(Codegen& gen, ReturnStatement* returnStmt) {
-        return llvm_value(gen);
-    }
+    virtual llvm::Value* llvm_ret_value(Codegen& gen, ReturnStatement* returnStmt);
 
     /**
      * called by assignment, to assign the current value to left hand side
      */
-    virtual llvm::Value* llvm_assign_value(Codegen& gen, Value* lhs) {
-        return llvm_value(gen);
-    }
+    virtual llvm::Value* llvm_assign_value(Codegen& gen, Value* lhs);
 
     /**
      * destruct the given destructibles

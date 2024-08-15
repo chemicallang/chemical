@@ -439,7 +439,7 @@ std::pair<long, BaseType*> VariablesContainer::variable_type_index(const std::st
     if(found == variables.end()) {
         return { -1, nullptr };
     } else {
-        return { ((long)(found - variables.begin())) + parents_size, found->second->holding_value_type() };
+        return { ((long)(found - variables.begin())) + parents_size, found->second->known_type() };
     }
 }
 

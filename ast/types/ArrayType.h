@@ -44,6 +44,10 @@ public:
         return hybrid_ptr<BaseType> { elem_type.get(), false };
     }
 
+    BaseType* known_child_type() override {
+        return elem_type.get();
+    }
+
     [[nodiscard]]
     BaseTypeKind kind() const override {
         return BaseTypeKind::Array;

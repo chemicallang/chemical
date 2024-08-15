@@ -20,6 +20,10 @@ public:
         return hybrid_ptr<BaseType> { type.get(), false };
     }
 
+    BaseType* known_type() override {
+        return type.get();
+    }
+
     std::unique_ptr<BaseType> create_type() override {
         return std::unique_ptr<BaseType>(type->copy());
     }

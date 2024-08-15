@@ -46,6 +46,8 @@ public:
         return this;
     }
 
+    BaseType* known_type() override;
+
     Value *child(InterpretScope &scope, const std::string &name) override;
 
     // will find value by this name in the parent

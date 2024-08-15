@@ -31,6 +31,10 @@ public:
         return hybrid_ptr<BaseType> { type.get(), false };
     }
 
+    BaseType* known_child_type() override {
+        return type.get();
+    }
+
     uint64_t byte_size(bool is64Bit) override {
         return is64Bit ? 8 : 4;
     }

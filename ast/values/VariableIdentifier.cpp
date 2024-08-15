@@ -104,6 +104,10 @@ Value *VariableIdentifier::child(InterpretScope &scope, const std::string &name)
     }
 }
 
+BaseType* VariableIdentifier::known_type() {
+    return linked->known_type();
+}
+
 // will find value by this name in the parent
 Value *VariableIdentifier::find_in(InterpretScope &scope, Value *parent) {
     return parent->child(scope, value);

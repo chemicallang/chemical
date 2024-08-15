@@ -52,9 +52,7 @@ public:
         return value.has_value() ? value.value().get() : nullptr;
     }
 
-    BaseType* holding_value_type() override {
-        return type.has_value() ? type.value().get() : nullptr;
-    }
+    BaseType* known_type() override;
 
     bool is_top_level();
 

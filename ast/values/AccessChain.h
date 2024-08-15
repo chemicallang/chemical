@@ -64,6 +64,8 @@ public:
 
     hybrid_ptr<BaseType> get_base_type() override;
 
+    BaseType* known_type() override;
+
     hybrid_ptr<BaseType> get_value_type() override;
 
     uint64_t byte_size(bool is64Bit) override;

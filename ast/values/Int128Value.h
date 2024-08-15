@@ -20,6 +20,10 @@ public:
         return hybrid_ptr<BaseType> { this, false };
     }
 
+    BaseType* known_type() override {
+        return this;
+    }
+
     void accept(Visitor *visitor) override {
         visitor->visit(this);
     }

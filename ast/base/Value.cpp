@@ -29,15 +29,15 @@ llvm::AllocaInst* Value::llvm_allocate_with(Codegen& gen, llvm::Value* value, ll
 }
 
 llvm::AllocaInst *Value::llvm_allocate(Codegen& gen, const std::string& identifier, BaseType* expected_type) {
-    return llvm_allocate_with(gen, llvm_value(gen), llvm_type(gen));
+    return llvm_allocate_with(gen, llvm_value(gen, expected_type), llvm_type(gen));
 }
 
 llvm::GlobalVariable* Value::llvm_global_variable(Codegen& gen, bool is_const, const std::string& name) {
     return new llvm::GlobalVariable(*gen.module, llvm_type(gen), is_const, llvm::GlobalValue::LinkageTypes::PrivateLinkage, (llvm::Constant*) llvm_value(gen), name);
 }
 
-llvm::AllocaInst* ChainValue::access_chain_allocate(Codegen& gen, std::vector<std::unique_ptr<ChainValue>>& values, unsigned int until) {
-    return llvm_allocate_with(gen, values[until]->access_chain_value(gen, values, until), values[until]->llvm_type(gen));
+llvm::AllocaInst* ChainValue::access_chain_allocate(Codegen& gen, std::vector<std::unique_ptr<ChainValue>>& values, unsigned int until, BaseType* expected_type) {
+    return llvm_allocate_with(gen, values[until]->access_chain_value(gen, values, until, expected_type), values[until]->llvm_type(gen));
 }
 
 llvm::Value* Value::get_element_pointer(
@@ -60,7 +60,7 @@ unsigned int Value::store_in_struct(
         BaseType* expected_type
 ) {
     auto elementPtr = Value::get_element_pointer(gen, parent->llvm_type(gen), allocated, idxList, index);
-    gen.builder->CreateStore(llvm_value(gen), elementPtr);
+    gen.builder->CreateStore(llvm_value(gen, expected_type), elementPtr);
     return index + 1;
 }
 
@@ -73,7 +73,7 @@ unsigned int Value::store_in_array(
         BaseType* expected_type
 ) {
     auto elementPtr = Value::get_element_pointer(gen, parent->llvm_type(gen), ptr, idxList, index);
-    gen.builder->CreateStore(llvm_value(gen), elementPtr);
+    gen.builder->CreateStore(llvm_value(gen, expected_type), elementPtr);
     return index + 1;
 }
 
@@ -83,8 +83,8 @@ void Value::destruct(Codegen& gen, std::vector<std::pair<Value*, llvm::Value*>>&
     }
 }
 
-llvm::Value* ChainValue::access_chain_value(Codegen &gen, std::vector<std::unique_ptr<ChainValue>>& values, unsigned int until, std::vector<std::pair<Value*, llvm::Value*>>& destructibles) {
-    if(until == 0) return values[0]->llvm_value(gen);
+llvm::Value* ChainValue::access_chain_value(Codegen &gen, std::vector<std::unique_ptr<ChainValue>>& values, unsigned int until, std::vector<std::pair<Value*, llvm::Value*>>& destructibles, BaseType* expected_type) {
+    if(until == 0) return values[0]->llvm_value(gen, expected_type);
     return gen.builder->CreateLoad(values[until]->llvm_type(gen), access_chain_pointer(gen, values, destructibles, until), "acc");
 }
 
@@ -150,7 +150,7 @@ llvm::Value* ChainValue::access_chain_pointer(
     while(j <= until) {
         const auto func_call = values[j]->as_func_call();
         if(func_call) {
-            pointer = func_call->access_chain_value(gen, values, j, destructibles);
+            pointer = func_call->access_chain_value(gen, values, j, destructibles, nullptr);
             parent = func_call;
             parent_index = j;
             if(j + 1 <= until) {

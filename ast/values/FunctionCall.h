@@ -169,9 +169,9 @@ public:
             llvm::Value* returnedStruct = nullptr
     );
 
-    llvm::Value *access_chain_value(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned until, std::vector<std::pair<Value*, llvm::Value*>>& destructibles) override;
+    llvm::Value *access_chain_value(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned until, std::vector<std::pair<Value*, llvm::Value*>>& destructibles, BaseType* expected_type) override;
 
-    llvm::AllocaInst *access_chain_allocate(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned int until) override;
+    llvm::AllocaInst *access_chain_allocate(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned int until, BaseType* expected_type) override;
 
     bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
 

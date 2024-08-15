@@ -36,6 +36,10 @@ public:
         return new DynamicType(std::unique_ptr<BaseType>(referenced->copy()));
     }
 
+    ASTNode* linked_node() override {
+        return referenced->linked_node();
+    }
+
 #ifdef COMPILER_BUILD
 
     llvm::Type* llvm_type(Codegen& gen) override;

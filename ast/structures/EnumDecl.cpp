@@ -32,3 +32,7 @@ std::unique_ptr<BaseType> EnumDeclaration::create_value_type() {
 hybrid_ptr<BaseType> EnumDeclaration::get_value_type() {
     return hybrid_ptr<BaseType> { new IntType(), true };
 }
+
+BaseType* EnumDeclaration::known_type() {
+    return &type;
+}

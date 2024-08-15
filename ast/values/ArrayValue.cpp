@@ -15,13 +15,9 @@
 
 std::unique_ptr<BaseType> array_child(BaseType* expected_type) {
     if(expected_type) {
-        auto pure_type = expected_type->get_pure_type();
+        auto pure_type = expected_type->pure_type();
         if(pure_type->kind() == BaseTypeKind::Array) {
-            if(pure_type.get_will_free()) {
-                return std::move(((ArrayType*) pure_type.get())->elem_type);
-            } else {
-                return pure_type->create_child_type();
-            }
+            return pure_type->create_child_type();
         }
     }
     return nullptr;

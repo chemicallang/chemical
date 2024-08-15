@@ -78,11 +78,10 @@ public:
     }
 
     /**
-     * pure type means, no referenced type, only pure types
-     * referenced tyeps created by typealiases return the actual types
+     * get pure type from this type, if referenced, it will resolve it
      */
-    virtual hybrid_ptr<BaseType> get_pure_type() {
-        return hybrid_ptr<BaseType> { this, false };
+    virtual BaseType* pure_type() {
+        return this;
     }
 
     /**

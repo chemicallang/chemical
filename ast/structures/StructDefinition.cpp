@@ -377,6 +377,10 @@ hybrid_ptr<BaseType> StructDefinition::get_value_type() {
     return hybrid_ptr<BaseType> { this, false };
 }
 
+BaseType* StructDefinition::known_type() {
+    return this;
+}
+
 hybrid_ptr<BaseType> UnnamedStruct::get_value_type() {
     return hybrid_ptr<BaseType> { this, false };
 }

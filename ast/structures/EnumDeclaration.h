@@ -16,6 +16,8 @@ class EnumDeclaration : public ExtendableAnnotableNode {
 public:
 
     ASTNode* parent_node;
+    // the type is contained inside here
+    IntType type;
 
     /**
      * @brief Construct a new EnumDeclaration object.
@@ -54,6 +56,8 @@ public:
     std::unique_ptr<BaseType> create_value_type() override;
 
     hybrid_ptr<BaseType> get_value_type() override;
+
+    BaseType* known_type() override;
 
 #ifdef COMPILER_BUILD
 

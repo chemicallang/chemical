@@ -78,11 +78,15 @@ public:
 
     hybrid_ptr<BaseType> get_value_type() override;
 
+    int vtable_function_index(FunctionDeclaration* decl);
+
 #ifdef COMPILER_BUILD
 
     void code_gen(Codegen &gen) override;
 
     llvm::Type* llvm_type(Codegen &gen) override;
+
+    llvm::Type* llvm_vtable_type(Codegen& gen);
 
 #endif
 

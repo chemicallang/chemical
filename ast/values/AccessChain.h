@@ -154,6 +154,47 @@ public:
 
 };
 
-Value* get_grandpa_value(std::vector<std::unique_ptr<ChainValue>> &chain_values, unsigned int index);
+ChainValue* get_grandpa_value(std::vector<std::unique_ptr<ChainValue>> &chain_values, unsigned int index);
 
 std::pair<StructDefinition*, int16_t> get_grandpa_generic_struct(std::vector<std::unique_ptr<ChainValue>>& chain_values, unsigned int index);
+
+#ifdef COMPILER_BUILD
+
+/**
+ * get loaded value at given index, if index is not within a nullptr is returned
+ * up until the given index objects are destructed properly
+ * the object at supplied index is not destructed because you must use it
+ * after that destruction should be done manually
+ */
+llvm::Value* llvm_load_chain_until(
+        Codegen& gen,
+        std::vector<std::unique_ptr<ChainValue>>& chain,
+        int until,
+        std::vector<std::pair<Value*, llvm::Value*>>& destructibles
+);
+
+/**
+ * given an access chain and parent value, it get's the next value in chain
+ * the parent value is queued for destruction if required
+ *
+ * the next value is present inside the parent_value, grandpa_value is used to pass
+ * self to function calls if required
+ *
+ * the index of the required value should be supplied
+ * the index - 1 is expected to exist
+ */
+llvm::Value* llvm_next_value(
+        Codegen& gen,
+        std::vector<std::unique_ptr<ChainValue>> chain,
+        unsigned int index,
+        llvm::Value* grandpa_value,
+        llvm::Value* parent_value,
+        std::vector<std::pair<Value*, llvm::Value*>>& destructibles
+);
+
+/**
+ * this creates a GEP (get element ptr instruction), for chain values, the pointer is the parent value
+ */
+llvm::Value* create_gep(Codegen &gen, std::vector<std::unique_ptr<ChainValue>>& values, unsigned index, llvm::Value* pointer, std::vector<llvm::Value*>& idxList);
+
+#endif

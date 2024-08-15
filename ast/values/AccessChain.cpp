@@ -237,7 +237,7 @@ BaseTypeKind AccessChain::type_kind() const {
     return values[values.size() - 1]->type_kind();
 }
 
-Value* get_grandpa_value(std::vector<std::unique_ptr<ChainValue>> &chain_values, unsigned int index) {
+ChainValue* get_grandpa_value(std::vector<std::unique_ptr<ChainValue>> &chain_values, unsigned int index) {
     if(index - 2 < chain_values.size()) {
         return chain_values[index - 2].get();
     } else {

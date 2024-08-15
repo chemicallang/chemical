@@ -12,8 +12,8 @@ ValueType ReferencedType::value_type() const {
     return linked->value_type();
 }
 
-hybrid_ptr<BaseType> ReferencedType::get_pure_type() {
-    return linked->get_value_type();
+BaseType* ReferencedType::pure_type() {
+    return linked->known_type();
 }
 
 bool ReferencedType::satisfies(ValueType value_type) {

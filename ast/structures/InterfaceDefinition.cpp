@@ -41,6 +41,17 @@ llvm::Type* InterfaceDefinition::llvm_type(Codegen &gen) {
     return gen.builder->getVoidTy();
 }
 
+llvm::Type* InterfaceDefinition::llvm_vtable_type(Codegen& gen) {
+    auto total = functions().size();
+    std::vector<llvm::Type*> types(total);
+    int i = 0;
+    for(auto& func : functions()) {
+        types[i] = gen.builder->getPtrTy();
+        i++;
+    }
+    return llvm::StructType::get(*gen.ctx, types);
+}
+
 #endif
 
 InterfaceDefinition::InterfaceDefinition(
@@ -56,6 +67,17 @@ std::unique_ptr<BaseType> InterfaceDefinition::create_value_type() {
 
 hybrid_ptr<BaseType> InterfaceDefinition::get_value_type() {
     return hybrid_ptr<BaseType> { new ReferencedType(name, this) };
+}
+
+int InterfaceDefinition::vtable_function_index(FunctionDeclaration* decl) {
+    int i = 0;
+    for(auto& func : functions()) {
+        if(func.get() == decl) {
+            return i;
+        }
+        i++;
+    }
+    return -1;
 }
 
 void InterfaceDefinition::declare_top_level(SymbolResolver &linker) {

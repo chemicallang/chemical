@@ -38,7 +38,7 @@ Value *NumberValue::scope_value(InterpretScope &scope) {
 }
 
 std::unique_ptr<IntNType> linked(BaseType* type) {
-    auto pure = type->get_pure_type();
+    auto pure = type->pure_type();
     if(pure && pure->kind() == BaseTypeKind::IntN) {
         return std::unique_ptr<IntNType>(((IntNType*) pure->copy()));
     } else {
@@ -48,7 +48,7 @@ std::unique_ptr<IntNType> linked(BaseType* type) {
 
 void NumberValue::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *type) {
     if(type) {
-        auto pure = type->get_pure_type();
+        auto pure = type->pure_type();
         if(pure && pure->kind() == BaseTypeKind::IntN) {
             linked_type = std::unique_ptr<IntNType>(((IntNType*) pure->copy()));
         }

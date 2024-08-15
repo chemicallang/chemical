@@ -169,9 +169,40 @@ public:
             llvm::Value* returnedStruct = nullptr
     );
 
-    llvm::Value *access_chain_value(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned until, std::vector<std::pair<Value*, llvm::Value*>>& destructibles, BaseType* expected_type) override;
+    /**
+     * the first bool means is it dynamic, if true no further attempts at calling the function should be made
+     * the second value is the result of the function call
+     */
+    std::pair<bool, llvm::Value*> llvm_dynamic_dispatch(
+            Codegen& gen,
+            std::vector<std::unique_ptr<ChainValue>> &chain_values,
+            unsigned int index,
+            std::vector<std::pair<Value*, llvm::Value*>>& destructibles
+    );
 
-    llvm::AllocaInst *access_chain_allocate(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned int until, BaseType* expected_type) override;
+    llvm::Value *access_chain_value(
+            Codegen &gen,
+            std::vector<std::unique_ptr<ChainValue>> &values,
+            unsigned until,
+            std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
+            BaseType* expected_type
+    ) override;
+
+    llvm::Value* chain_value_with_callee(
+            Codegen& gen,
+            std::vector<std::unique_ptr<ChainValue>>& chain,
+            unsigned int index,
+            llvm::Value* grandpa_value,
+            llvm::Value* callee_value,
+            std::vector<std::pair<Value*, llvm::Value*>>& destructibles
+    );
+
+    llvm::AllocaInst *access_chain_allocate(
+            Codegen &gen,
+            std::vector<std::unique_ptr<ChainValue>> &values,
+            unsigned int until,
+            BaseType* expected_type
+    ) override;
 
     bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
 

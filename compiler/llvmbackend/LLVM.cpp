@@ -412,18 +412,18 @@ llvm::Value *Expression::llvm_logical_expr(Codegen &gen, BaseType* firstType, Ba
 llvm::Value *Expression::llvm_value(Codegen &gen, BaseType* expected_type) {
     auto firstType = firstValue->create_type();
     auto secondType = secondValue->create_type();
-    auto first_pure = firstType->get_pure_type();
-    auto second_pure = secondType->get_pure_type();
-    replace_number_values(first_pure.get(), second_pure.get());
-    shrink_literal_values(first_pure.get(), second_pure.get());
-    promote_literal_values(first_pure.get(), second_pure.get());
+    auto first_pure = firstType->pure_type();
+    auto second_pure = secondType->pure_type();
+    replace_number_values(first_pure, second_pure);
+    shrink_literal_values(first_pure, second_pure);
+    promote_literal_values(first_pure, second_pure);
     firstType = firstValue->create_type();
-    first_pure = firstType->get_pure_type();
+    first_pure = firstType->pure_type();
     secondType = secondValue->create_type();
-    second_pure = secondType->get_pure_type();
-    auto logical = llvm_logical_expr(gen, first_pure.get(), second_pure.get());
+    second_pure = secondType->pure_type();
+    auto logical = llvm_logical_expr(gen, first_pure, second_pure);
     if(logical) return logical;
-    return gen.operate(operation, firstValue.get(), secondValue.get(), first_pure.get(), second_pure.get());
+    return gen.operate(operation, firstValue.get(), secondValue.get(), first_pure, second_pure);
 }
 
 // a || b
@@ -528,6 +528,56 @@ llvm::Value* RetStructParamValue::llvm_value(Codegen &gen, BaseType* expected_ty
 llvm::Value* SizeOfValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     value = for_type->byte_size(gen.is64Bit);
     return UBigIntValue::llvm_value(gen, expected_type);
+}
+
+llvm::Value* llvm_load_chain_until(
+        Codegen& gen,
+        std::vector<std::unique_ptr<ChainValue>>& chain,
+        int until,
+        std::vector<std::pair<Value*, llvm::Value*>>& destructibles
+) {
+    if(until >= 0 && until < chain.size()) {
+        if ((chain)[until]->value_type() == ValueType::Pointer) {
+            return (chain)[until]->access_chain_value(gen, chain, until, destructibles, nullptr);
+        } else {
+            return (chain)[until]->access_chain_pointer(gen, chain, destructibles, until);
+        }
+    } else {
+        return nullptr;
+    }
+}
+
+llvm::Value* llvm_next_value(
+        Codegen& gen,
+        std::vector<std::unique_ptr<ChainValue>> chain,
+        unsigned int index,
+        llvm::Value* grandpa_value,
+        llvm::Value* parent_value,
+        std::vector<std::pair<Value*, llvm::Value*>>& destructibles
+) {
+    // queue parent for destruction (sounds dark, villainous and evil)
+    const auto parent_index = index - 1;
+    const auto parent = chain[parent_index].get();
+    if(parent->as_func_call()) {
+        destructibles.emplace_back(parent, parent_value);
+    }
+    const auto current = chain[index].get();
+    const auto curr_func_call = current->as_func_call();
+    if(curr_func_call) {
+        return curr_func_call->chain_value_with_callee(gen, chain, index, grandpa_value, parent_value, destructibles);
+    }
+    // taking an index into the parent value like usual
+    llvm::Value* value_ref = parent_value;
+    std::vector<llvm::Value*> idxList;
+    if(!current->add_member_index(gen, parent, idxList)) {
+        gen.error("couldn't add member index for next value in llvm_next_value for " + current->representation());
+    }
+    value_ref = create_gep(gen, chain, parent_index, parent_value, idxList);
+    if(current->is_pointer()) {
+        // load the pointer and return
+        value_ref = gen.builder->CreateLoad(current->llvm_type(gen), value_ref);
+    }
+    return value_ref;
 }
 
 void AccessChain::code_gen(Codegen &gen) {
@@ -661,8 +711,8 @@ void ReturnStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
             return_value = value.value()->llvm_ret_value(gen, this);
             if(func_type) {
                 auto value_type = value.value()->get_pure_type();
-                auto to_type = func_type->returnType->get_pure_type();
-                return_value = gen.implicit_cast(return_value, value_type.get(), to_type.get());
+                auto to_type = func_type->returnType->pure_type();
+                return_value = gen.implicit_cast(return_value, value_type.get(), to_type);
             }
         }
     }
@@ -744,12 +794,12 @@ void DeleteStmt::code_gen(Codegen &gen) {
             return;
         }
         auto arr_type = (ArrayType*) pure_type.get();
-        auto elem_type = arr_type->elem_type->get_pure_type();
+        auto elem_type = arr_type->elem_type->pure_type();
         if(elem_type->kind() != BaseTypeKind::Pointer) {
             gen.error("only array of pointers can be deleted using std::delete");
             return;
         }
-        auto pointee = ((PointerType*) elem_type.get())->type.get();
+        auto pointee = ((PointerType*) elem_type)->type.get();
         gen.destruct(identifier->llvm_pointer(gen), arr_type->array_size, pointee, this, [](Codegen* gen, llvm::Value* structPtr, void* data){
             const auto stmt = (DeleteStmt*) data;
             std::vector<llvm::Value*> args;

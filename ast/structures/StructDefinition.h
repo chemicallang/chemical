@@ -92,6 +92,8 @@ public:
 
     hybrid_ptr<BaseType> get_value_type() override;
 
+    BaseType* known_type() override;
+
     [[nodiscard]]
     ValueType value_type() const override;
 

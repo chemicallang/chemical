@@ -375,11 +375,11 @@ hybrid_ptr<BaseType> Value::get_child_type() {
 hybrid_ptr<BaseType> Value::get_pure_type() {
     // TODO check this method, it should free types properly
     auto base_type = get_base_type();
-    auto pure_type = base_type->get_pure_type();
-    if(pure_type.get() == base_type.get()) {
+    auto pure_type = base_type->pure_type();
+    if(pure_type == base_type.get()) {
         return base_type;
     } else {
-        return pure_type;
+        return hybrid_ptr<BaseType> { pure_type, false };
     }
 }
 

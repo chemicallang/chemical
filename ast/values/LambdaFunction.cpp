@@ -55,7 +55,7 @@ llvm::Value* packed_lambda_val(Codegen& gen, LambdaFunction* lambda) {
     }
 }
 
-llvm::Value *LambdaFunction::llvm_value(Codegen &gen) {
+llvm::Value *LambdaFunction::llvm_value(Codegen &gen, BaseType* expected_type) {
     if(func_ptr) {
         gen.error("llvm_value called multiple times on LambdaFunction");
     }

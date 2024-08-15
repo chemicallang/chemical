@@ -269,6 +269,8 @@ public:
 
     void visitGenericType(CompoundCSTToken *genericType) override;
 
+    void visitSpecializedType(CompoundCSTToken *specType) override;
+
     void visitArrayType(CompoundCSTToken *arrayType) override;
 
     void visitFunctionType(CompoundCSTToken *functionType) override;

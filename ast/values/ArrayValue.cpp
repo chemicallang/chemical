@@ -12,32 +12,47 @@
 #include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
 
+std::unique_ptr<BaseType> array_child(BaseType* expected_type) {
+    if(expected_type) {
+        auto pure_type = expected_type->get_pure_type();
+        if(pure_type->kind() == BaseTypeKind::Array) {
+            if(pure_type.get_will_free()) {
+                return std::move(((ArrayType*) pure_type.get())->elem_type);
+            } else {
+                return pure_type->create_child_type();
+            }
+        }
+    }
+    return nullptr;
+}
+
 llvm::Value *ArrayValue::llvm_pointer(Codegen &gen) {
     return arr;
 }
 
-llvm::AllocaInst* ArrayValue::llvm_allocate(Codegen &gen, const std::string &identifier) {
+llvm::AllocaInst* ArrayValue::llvm_allocate(Codegen& gen, const std::string& identifier, BaseType* expected_type) {
     auto arrType = llvm_type(gen);
     arr = gen.builder->CreateAlloca(arrType, nullptr, identifier);
     // filling array with values
     std::vector<llvm::Value*> idxList;
     idxList.emplace_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), 0));
+    auto child_type = array_child(expected_type);
     for (size_t i = 0; i < values.size(); ++i) {
-         values[i]->store_in_array(gen, this, arr, idxList, i);
+         values[i]->store_in_array(gen, this, arr, idxList, i, child_type.get());
     }
     return arr;
 }
 
-llvm::Value *ArrayValue::llvm_value(Codegen &gen) {
+llvm::Value *ArrayValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     // Why is this here :
     // Well when user declares a multidimensional array, we allocate memory for the whole thing
     // then we call llvm_value on values, if we implement it, this would allocate memory for nested array as well
     // resulting in allocating memory two times for an array
-    throw std::runtime_error("cannot allocate an array without an identifier");
+    throw std::runtime_error("memory for array value wasn't allocated");
 }
 
 llvm::Value *ArrayValue::llvm_arg_value(Codegen &gen, FunctionCall *call, unsigned int index) {
-    return llvm_allocate(gen, "");
+    return llvm_allocate(gen, "", nullptr);
 }
 
 void ArrayValue::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
@@ -50,11 +65,13 @@ unsigned int ArrayValue::store_in_array(
         ArrayValue *parent,
         llvm::AllocaInst* ptr,
         std::vector<llvm::Value *> idxList,
-        unsigned int index
+        unsigned int index,
+        BaseType* expected_type
 ) {
+    auto child_type = array_child(expected_type);
     idxList.emplace_back(gen.builder->getInt32(index));
     for (size_t i = 0; i < values.size(); ++i) {
-        values[i]->store_in_array(gen, parent, ptr, idxList, i);
+        values[i]->store_in_array(gen, parent, ptr, idxList, i, child_type.get());
     }
     return index + values.size();
 }
@@ -64,11 +81,13 @@ unsigned int ArrayValue::store_in_struct(
         StructValue *parent,
         llvm::Value *allocated,
         std::vector<llvm::Value *> idxList,
-        unsigned int index
+        unsigned int index,
+        BaseType* expected_type
 ) {
+    auto child_type = array_child(expected_type);
     idxList.emplace_back(gen.builder->getInt32(index));
     for (size_t i = 0; i < values.size(); ++i) {
-        values[i]->store_in_struct(gen, parent, allocated, idxList, i);
+        values[i]->store_in_struct(gen, parent, allocated, idxList, i, child_type.get());
     }
     return index + 1;
 }

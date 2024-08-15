@@ -93,7 +93,7 @@ public:
 
     llvm::Value *llvm_pointer(Codegen &gen) override;
 
-    llvm::Value *llvm_value(Codegen &gen) override;
+    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) override;
 
     llvm::Value *llvm_ret_value(Codegen &gen, ReturnStatement *returnStmt) override;
 

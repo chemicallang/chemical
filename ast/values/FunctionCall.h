@@ -47,6 +47,11 @@ public:
      */
     hybrid_ptr<FunctionType> get_function_type();
 
+    /**
+     * argument type
+     */
+    std::unique_ptr<BaseType> create_arg_type(unsigned int index);
+
     FunctionCall *as_func_call() override;
 
     ASTNode *linked_node() override;

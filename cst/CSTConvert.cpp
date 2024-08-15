@@ -76,6 +76,7 @@
 #include "ast/types/ReferencedValueType.h"
 #include "ast/statements/UsingStmt.h"
 #include "ast/types/ReferencedType.h"
+#include "ast/types/DynamicType.h"
 
 Operation get_operation(CSTToken *token) {
     std::string num;
@@ -1142,6 +1143,12 @@ void CSTConverter::visitGenericType(CompoundCSTToken *cst) {
         i++;
     }
     types.emplace_back(generic_type);
+}
+
+void CSTConverter::visitSpecializedType(CompoundCSTToken *specType) {
+    // currently only one is supported dyn, which is a dynamic type
+    specType->tokens[1]->accept(this);
+    types.emplace_back(new DynamicType(type()));
 }
 
 void CSTConverter::visitArrayType(CompoundCSTToken *arrayType) {

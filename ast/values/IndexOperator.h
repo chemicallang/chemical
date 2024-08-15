@@ -54,7 +54,7 @@ public:
 
     llvm::Value *access_chain_pointer(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, std::vector<std::pair<Value *, llvm::Value *>> &destructibles, unsigned int until) override;
 
-    llvm::Value *llvm_value(Codegen &gen) override;
+    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) override;
 
     llvm::Type *llvm_type(Codegen &gen) override;
 

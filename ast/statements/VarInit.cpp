@@ -26,11 +26,11 @@ void VarInitStatement::code_gen(Codegen &gen) {
     } else {
         if (value.has_value()) {
             if(is_const && !value.value()->as_struct() && !value.value()->as_array_value()) {
-                llvm_ptr = value.value()->llvm_value(gen);
+                llvm_ptr = value.value()->llvm_value(gen, type.has_value() ? type.value().get() : nullptr);
                 gen.destruct_nodes.emplace_back(this);
                 return;
             }
-            llvm_ptr = value.value()->llvm_allocate(gen, identifier);
+            llvm_ptr = value.value()->llvm_allocate(gen, identifier, type.has_value() ? type.value().get() : nullptr);
         } else {
             llvm_ptr = gen.builder->CreateAlloca(llvm_type(gen), nullptr, identifier);
         }

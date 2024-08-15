@@ -60,9 +60,9 @@ public:
 
     llvm::Type * llvm_type(Codegen &gen) override;
 
-    llvm::Value *llvm_value(Codegen &gen) override;
+    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) override;
 
-    llvm::AllocaInst *llvm_allocate(Codegen &gen, const std::string &identifier) override;
+    llvm::AllocaInst *llvm_allocate(Codegen& gen, const std::string& identifier, BaseType* expected_type) override;
 
     llvm::GlobalVariable * llvm_global_variable(Codegen &gen, bool is_const, const std::string &name) override;
 

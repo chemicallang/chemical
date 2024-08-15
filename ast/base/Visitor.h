@@ -190,6 +190,8 @@ class UShortType;
 
 class VoidType;
 
+class DynamicType;
+
 class ExtensionFunction;
 
 class ExtensionFuncReceiver;
@@ -571,6 +573,10 @@ public:
 
     virtual void visit(LiteralType* func) {
         visitCommonType((BaseType*) func);
+    }
+
+    virtual void visit(DynamicType* type) {
+        visitCommonType((BaseType*) type);
     }
 
     virtual void visit(UBigIntType* func) {

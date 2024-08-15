@@ -42,7 +42,7 @@ public:
     /**
      * would provide llvm value based on num bits provided in getNumBits
      */
-    llvm::Value *llvm_value(Codegen &gen) override;
+    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) override;
 
 #endif
 

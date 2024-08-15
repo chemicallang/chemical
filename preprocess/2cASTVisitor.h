@@ -15,7 +15,7 @@ class CDestructionVisitor;
 class CBeforeStmtVisitor;
 class CAfterStmtVisitor;
 
-class BaseFunctionType;
+class FunctionType;
 class MembersContainer;
 
 class ToCAstVisitor : public Visitor, public ASTDiagnoser {
@@ -109,7 +109,7 @@ public:
     /**
      * the function type for which code is being generated
      */
-    BaseFunctionType* current_func_type = nullptr;
+    FunctionType* current_func_type = nullptr;
 
     /**
      * current members container to which functions belong

@@ -22,7 +22,7 @@ using node_iterator = node_map::iterator;
 using value_map = std::unordered_map<std::string, Value*>;
 using value_iterator = value_map::iterator;
 
-class BaseFunctionType;
+class FunctionType;
 
 class InterpretScope {
 public:

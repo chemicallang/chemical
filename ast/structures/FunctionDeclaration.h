@@ -16,10 +16,10 @@
 #include <optional>
 #include "ast/base/AccessSpecifier.h"
 #include "ast/base/AnnotableNode.h"
-#include "BaseFunctionType.h"
+#include "ast/types/FunctionType.h"
 #include "GenericTypeParameter.h"
 
-class FunctionDeclaration : public AnnotableNode, public BaseFunctionType {
+class FunctionDeclaration : public AnnotableNode, public FunctionType {
 private:
     Value *interpretReturn = nullptr;
 public:
@@ -105,7 +105,7 @@ public:
 
     void ensure_destructor(StructDefinition* def);
 
-    using BaseFunctionType::as_extension_func;
+    using FunctionType::as_extension_func;
 
     /**
      * set's the active iteration for a generic function

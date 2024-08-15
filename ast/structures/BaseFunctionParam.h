@@ -2,22 +2,22 @@
 
 #include "ast/base/ASTNode.h"
 
-class BaseFunctionType;
+class FunctionType;
 
 class BaseFunctionParam : public ASTNode {
 public:
 
     std::string name;
     std::unique_ptr<BaseType> type;
-    BaseFunctionType* func_type;
+    FunctionType* func_type;
 
     /**
      * constructor
      */
     BaseFunctionParam(
-        std::string name,
-        std::unique_ptr<BaseType> type,
-        BaseFunctionType* func_type = nullptr
+            std::string name,
+            std::unique_ptr<BaseType> type,
+            FunctionType* func_type = nullptr
     );
 
     virtual unsigned calculate_c_or_llvm_index() = 0;

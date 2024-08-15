@@ -264,8 +264,6 @@ set(COMMON_SOURCES
         compiler/SelfInvocation.cpp
         ast/values/CastedValue.cpp
         ast/values/CastedValue.h
-        ast/types/FunctionType.h
-        ast/types/FunctionType.cpp
         ast/values/LambdaFunction.h
         ast/values/LambdaFunction.cpp
         lexer/values/LambdaValue.cpp
@@ -381,8 +379,8 @@ set(COMMON_SOURCES
         ast/base/Annotation.cpp
         ast/base/AnnotableNode.h
         ast/base/AnnotationKind.h
-        ast/structures/BaseFunctionType.h
-        ast/structures/BaseFunctionType.cpp
+        ast/types/FunctionType.h
+        ast/types/FunctionType.cpp
         ast/base/AnnotationParent.h
         ast/structures/ExtensionFunction.h
         ast/base/ExtendableBase.h

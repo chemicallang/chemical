@@ -109,7 +109,7 @@ public:
      * This is a pointer to current function type,
      * All nodes being parsed belong to this function type
      */
-    BaseFunctionType *current_func_type = nullptr;
+    FunctionType *current_func_type = nullptr;
 
     /**
      * This is a pointer to current members container

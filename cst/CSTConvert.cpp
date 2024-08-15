@@ -5,7 +5,6 @@
 #include "ast/types/IntNType.h"
 #include "ast/types/VoidType.h"
 #include "ast/types/PointerType.h"
-#include "ast/types/FunctionType.h"
 #include "ast/types/ReferencedType.h"
 #include "ast/statements/Assignment.h"
 #include "ast/types/ArrayType.h"
@@ -370,7 +369,7 @@ FunctionParamsResult function_params(CSTConverter* converter, cst_tokens_ref_typ
     auto prev_param_index = converter->param_index;
     converter->param_index = 0;
     auto isVariadic = false;
-    func_params params;
+    std::vector<std::unique_ptr<FunctionParam>> params;
     unsigned i = start;
     while (i < tokens.size()) {
         if (converter->param_index == 0 && is_char_op(tokens[i]->start_token(), '&')) {

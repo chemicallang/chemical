@@ -6,7 +6,6 @@
 #include "ast/base/ExtendableBase.h"
 #include "ast/types/PointerType.h"
 #include "ast/types/GenericType.h"
-#include "ast/types/FunctionType.h"
 
 #ifdef COMPILER_BUILD
 

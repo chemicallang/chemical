@@ -9,22 +9,22 @@
 #include "ast/base/ASTNode.h"
 #include "ast/base/Value.h"
 
-class BaseFunctionType;
+class FunctionType;
 
 class ReturnStatement : public ASTNode {
 public:
 
     ASTNode* parent_node;
-    BaseFunctionType* func_type = nullptr;
+    FunctionType* func_type = nullptr;
     std::optional<std::unique_ptr<Value>> value;
 
     /**
      * @brief Construct a new ReturnStatement object.
      */
     ReturnStatement(
-        std::optional<std::unique_ptr<Value>> value,
-        BaseFunctionType *declaration,
-        ASTNode* parent_node
+            std::optional<std::unique_ptr<Value>> value,
+            FunctionType *declaration,
+            ASTNode* parent_node
     );
 
     void set_parent(ASTNode* new_parent) override {

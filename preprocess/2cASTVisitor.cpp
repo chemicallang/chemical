@@ -38,7 +38,6 @@
 #include "ast/structures/WhileLoop.h"
 #include "ast/types/ReferencedType.h"
 #include "ast/types/PointerType.h"
-#include "ast/types/FunctionType.h"
 #include "ast/types/GenericType.h"
 #include "ast/types/AnyType.h"
 #include "ast/types/ArrayType.h"
@@ -212,7 +211,7 @@ void node_parent_name(ToCAstVisitor* visitor, ASTNode* node, bool take_parent = 
 void func_type_with_id(ToCAstVisitor* visitor, FunctionType* type, const std::string& id);
 
 void type_with_id(ToCAstVisitor* visitor, BaseType* type, const std::string& id) {
-    if(visitor->inline_fn_types_in_params && type->function_type() != nullptr && !type->function_type()->isCapturing) {
+    if(visitor->inline_fn_types_in_params && type->function_type() != nullptr && !type->function_type()->is_capturing()) {
         func_type_with_id(visitor, type->function_type(), id);
     } else {
         type->accept(visitor);
@@ -243,7 +242,7 @@ void param_type_with_id(ToCAstVisitor* visitor, BaseType* type, const std::strin
     }
 }
 
-void write_struct_return_param(ToCAstVisitor* visitor, BaseFunctionType* decl) {
+void write_struct_return_param(ToCAstVisitor* visitor, FunctionType* decl) {
     decl->returnType->accept(visitor);
     visitor->write("* ");
     visitor->write(struct_passed_param_name);
@@ -264,7 +263,7 @@ void extension_func_param(ToCAstVisitor* visitor, ExtensionFunction* extension) 
     visitor->write(extension->receiver.name);
 }
 
-void func_type_params(ToCAstVisitor* visitor, BaseFunctionType* decl, unsigned i = 0) {
+void func_type_params(ToCAstVisitor* visitor, FunctionType* decl, unsigned i = 0) {
     auto is_struct_return = visitor->pass_structs_to_initialize && decl->returnType->value_type() == ValueType::Struct;
     auto extension = decl->as_extension_func();
     if(is_struct_return) {
@@ -306,7 +305,7 @@ void accept_func_return(ToCAstVisitor* visitor, BaseType* type) {
 // the last take_parent allows to skip appending one direct parent name, useful
 // when the interface name is to be used, so interface appends the name in given name parameter
 // take_parent is true, so this function skips direct parent but grandparents and other names are appended
-void accept_func_return_with_name(ToCAstVisitor* visitor, BaseFunctionType* func_type, const std::string& name, bool take_parent, bool is_static) {
+void accept_func_return_with_name(ToCAstVisitor* visitor, FunctionType* func_type, const std::string& name, bool take_parent, bool is_static) {
     auto func_decl = func_type->as_function();
     if(func_decl && func_decl->has_annotation(AnnotationKind::Extern)) {
         visitor->write("extern ");
@@ -380,7 +379,7 @@ bool is_func_param_ref_struct(ASTNode* node) {
     return get_func_param_ref_struct(node) != nullptr;
 }
 
-void func_call_args(ToCAstVisitor* visitor, FunctionCall* call, BaseFunctionType* func_type) {
+void func_call_args(ToCAstVisitor* visitor, FunctionCall* call, FunctionType* func_type) {
     auto prev_value = visitor->nested_value;
     visitor->nested_value = true;
     unsigned i = 0;
@@ -438,7 +437,7 @@ void value_alloca(ToCAstVisitor* visitor, const std::string& identifier, BaseTyp
 
 void write_accessor(ToCAstVisitor* visitor, Value* current);
 
-bool write_self_arg_bool(ToCAstVisitor* visitor, BaseFunctionType* func_type, std::vector<std::unique_ptr<ChainValue>>& values, unsigned int grandpa_index, FunctionCall* call) {
+bool write_self_arg_bool(ToCAstVisitor* visitor, FunctionType* func_type, std::vector<std::unique_ptr<ChainValue>>& values, unsigned int grandpa_index, FunctionCall* call) {
     if(func_type->has_self_param()) {
         auto grandpa = values[grandpa_index].get();
         if(!grandpa->is_pointer()) {
@@ -458,7 +457,7 @@ bool write_self_arg_bool(ToCAstVisitor* visitor, BaseFunctionType* func_type, st
     }
 }
 
-void write_self_arg(ToCAstVisitor* visitor, BaseFunctionType* func_type, std::vector<std::unique_ptr<ChainValue>>& values, unsigned int grandpa_index, FunctionCall* call) {
+void write_self_arg(ToCAstVisitor* visitor, FunctionType* func_type, std::vector<std::unique_ptr<ChainValue>>& values, unsigned int grandpa_index, FunctionCall* call) {
     if(write_self_arg_bool(visitor, func_type, values, grandpa_index, call)) {
         if (!call->values.empty()) {
             visitor->write(',');
@@ -1145,7 +1144,7 @@ public:
 
     void dispatch_jobs_from(int begin);
 
-    void queue_destruct_decl_params(BaseFunctionType* decl);
+    void queue_destruct_decl_params(FunctionType* decl);
 
     void process_init_value(VarInitStatement *init, Value* value);
 
@@ -1354,7 +1353,7 @@ void CDestructionVisitor::dispatch_jobs_from(int begin) {
     destruct_jobs.erase(itr, destruct_jobs.end());
 }
 
-void CDestructionVisitor::queue_destruct_decl_params(BaseFunctionType* decl) {
+void CDestructionVisitor::queue_destruct_decl_params(FunctionType* decl) {
     for(auto& d_param : decl->params) {
         if(d_param->type->kind() == BaseTypeKind::Referenced || d_param->type->kind() == BaseTypeKind::Generic) {
             auto linked_struct = d_param->type->linked_struct_def();
@@ -1459,7 +1458,7 @@ void CDestructionVisitor::visit(VarInitStatement *init) {
 }
 
 // this will also destruct given function type's params at the end of scope
-void scope(ToCAstVisitor* visitor, Scope& scope, BaseFunctionType* decl) {
+void scope(ToCAstVisitor* visitor, Scope& scope, FunctionType* decl) {
     unsigned begin = visitor->destructor->destruct_jobs.size();
     visitor->destructor->queue_destruct_decl_params(decl);
     visitor->write('{');
@@ -1487,7 +1486,7 @@ std::string typedef_func_type(ToCAstVisitor* visitor, FunctionType* type) {
     return alia;
 }
 
-void func_call(ToCAstVisitor* visitor, FunctionCall* call, BaseFunctionType* func_type) {
+void func_call(ToCAstVisitor* visitor, FunctionCall* call, FunctionType* func_type) {
     visitor->write('(');
     func_call_args(visitor, call, func_type);
     visitor->write(')');

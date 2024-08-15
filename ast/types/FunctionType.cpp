@@ -1,7 +1,9 @@
 // Copyright (c) Qinetik 2024.
 
 #include "FunctionType.h"
+#include "ast/base/BaseType.h"
 #include "ast/base/Value.h"
+#include "ast/structures/FunctionParam.h"
 
 #ifdef COMPILER_BUILD
 
@@ -71,13 +73,13 @@ llvm::Type *FunctionType::llvm_type(Codegen &gen) {
 #endif
 
 FunctionType::FunctionType(
-        func_params params,
-        std::unique_ptr<BaseType> returnType,
-        bool isVariadic,
-        bool isCapturing
-) : BaseFunctionType(std::move(params), std::move(returnType), isVariadic), isCapturing(isCapturing) {
+    std::vector<std::unique_ptr<FunctionParam>> params,
+    std::unique_ptr<BaseType> returnType,
+    bool isVariadic,
+    bool isCapturing
+) : params(std::move(params)), returnType(std::move(returnType)), isVariadic(isVariadic), isCapturing(isCapturing) {
 
-};
+}
 
 bool FunctionType::isInVarArgs(unsigned index) {
     return isVariadic && index >= (params.size() - 1);
@@ -91,15 +93,85 @@ uint64_t FunctionType::byte_size(bool is64Bit) {
     }
 }
 
-bool FunctionType::satisfies(ValueType type) {
-    return type == ValueType::Lambda;
+FunctionParam* FunctionType::func_param_for_arg_at(unsigned index) {
+    if(params.empty()) return nullptr;
+    auto has_self = has_self_param();
+    unsigned offset = has_self ? 1 : 0; // first argument for implicit self
+    if(isVariadic && index >= (params.size() - 1 - offset)) {
+        return params.back().get();
+    }
+    return params[index + offset].get();
 }
 
-void FunctionType::link(SymbolResolver &linker, std::unique_ptr<BaseType>& current) {
-    for (auto &param: params) {
-        param->type->link(linker, param->type);
+bool FunctionType::satisfy_args(std::vector<std::unique_ptr<Value>>& forArgs) {
+    auto has_self = has_self_param();
+    unsigned offset = has_self ? 1 : 0;
+    auto required_args_len = params.size() - offset;
+    if(forArgs.size() != required_args_len) {
+        return false;
     }
-    returnType->link(linker, returnType);
+    unsigned i = offset; // first argument for implicit self
+    while(i < params.size()) {
+        if(!params[i]->type->satisfies(forArgs[i - offset].get())) {
+            return false;
+        }
+        i++;
+    }
+    return true;
+}
+
+bool FunctionType::do_param_types_match(std::vector<std::unique_ptr<FunctionParam>>& param_types, bool check_self) {
+    if(params.size() != param_types.size()) return false;
+    unsigned i = check_self ? 0 : (has_self_param() ? 1 : 0);
+    const auto siz = params.size();
+    while(i < siz) {
+        if(!param_types[i]->type->is_same(params[i]->type.get())) {
+            return false;
+        }
+        i++;
+    }
+    return true;
+}
+
+void FunctionType::assign_params() {
+    for(auto& param : params) {
+        param->func_type = this;
+    }
+}
+
+BaseFunctionParam* FunctionType::get_self_param() {
+    if(!params.empty()) {
+        auto& param = params[0];
+        if(param->name == "this" || param->name == "self") {
+            return param.get();
+        }
+    }
+    return nullptr;
+}
+
+unsigned FunctionType::c_or_llvm_arg_start_index() const {
+    return (returnType->value_type() == ValueType::Struct ? 1 : 0); // + (has_self_param() ? 1 : 0);
+}
+
+bool FunctionType::equal(FunctionType *other) const {
+    if (isVariadic != other->isVariadic) {
+        return false;
+    }
+    if (!returnType->is_same(other->returnType.get())) {
+        return false;
+    }
+    unsigned i = 0;
+    while (i < params.size()) {
+        if (!params[i]->type->is_same(other->params[i]->type.get())) {
+            return false;
+        }
+        i++;
+    }
+    return true;
+}
+
+bool FunctionType::satisfies(ValueType type) {
+    return type == ValueType::Lambda;
 }
 
 BaseType *FunctionType::copy() const {
@@ -108,4 +180,11 @@ BaseType *FunctionType::copy() const {
         copied.emplace_back(param->copy());
     }
     return new FunctionType(std::move(copied), std::unique_ptr<BaseType>(returnType->copy()), isVariadic, isCapturing);
+}
+
+void FunctionType::link(SymbolResolver &linker, std::unique_ptr<BaseType>& current) {
+    for (auto &param: params) {
+        param->type->link(linker, param->type);
+    }
+    returnType->link(linker, returnType);
 }

@@ -271,7 +271,7 @@ void StructValue::declare_default_values(
     }
 }
 
-Value *StructValue::copy() {
+StructValue *StructValue::copy() {
     auto struct_value = new StructValue(
         std::unique_ptr<Value>(ref->copy()),
         std::unordered_map<std::string, std::unique_ptr<Value>>(),

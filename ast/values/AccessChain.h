@@ -50,7 +50,7 @@ public:
 
     void accept(Visitor *visitor) override;
 
-    Value *copy() override;
+    AccessChain *copy() override;
 
     bool primitive() override;
 

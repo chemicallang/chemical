@@ -35,11 +35,12 @@ public:
         return 32;
     }
 
+    [[nodiscard]]
     int64_t get_num_value() const override {
         return value;
     }
 
-    Value *copy() override {
+    IntValue *copy() override {
         return new IntValue(value);
     }
 
@@ -59,10 +60,12 @@ public:
         return value;
     }
 
+    [[nodiscard]]
     ValueType value_type() const override {
         return ValueType::Int;
     }
 
+    [[nodiscard]]
     BaseTypeKind type_kind() const override {
         return BaseTypeKind::IntN;
     }

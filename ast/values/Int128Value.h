@@ -24,11 +24,11 @@ public:
         visitor->visit(this);
     }
 
-    uint64_t byte_size(bool is64Bit) {
+    uint64_t byte_size(bool is64Bit) override {
         return 16;
     }
 
-    Value *copy() override {
+    Int128Value *copy() override {
         return new Int128Value(magnitude, is_negative);
     }
 
@@ -44,6 +44,7 @@ public:
         return false;
     }
 
+    [[nodiscard]]
     int64_t get_num_value() const override {
         if(magnitude < UINT_MAX) {
             if(is_negative) {

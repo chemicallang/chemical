@@ -124,3 +124,12 @@ void IndexOperator::find_link_in_parent(ChainValue *parent, SymbolResolver &reso
 void IndexOperator::relink_parent(ChainValue *parent) {
     parent_val = parent;
 }
+
+IndexOperator* IndexOperator::copy() {
+    auto op = new IndexOperator({});
+    for(auto& value : values) {
+        op->values.emplace_back(value->copy());
+    }
+    op->parent_val = parent_val;
+    return op;
+}

@@ -19,13 +19,13 @@ public:
      *
      * @param value The double value.
      */
-    DoubleValue(double value) : value(value) {}
+    explicit DoubleValue(double value) : value(value) {}
 
     void accept(Visitor *visitor) override {
         visitor->visit(this);
     }
 
-    uint64_t byte_size(bool is64Bit) {
+    uint64_t byte_size(bool is64Bit) override {
         return 8;
     }
 
@@ -45,7 +45,7 @@ public:
         return hybrid_ptr<BaseType> { this, false };
     }
 
-    Value *copy() override {
+    DoubleValue *copy() override {
         return new DoubleValue(value);
     }
 
@@ -53,10 +53,12 @@ public:
         return value;
     }
 
+    [[nodiscard]]
     ValueType value_type() const override {
         return ValueType::Double;
     }
 
+    [[nodiscard]]
     BaseTypeKind type_kind() const override {
         return BaseTypeKind::Double;
     }

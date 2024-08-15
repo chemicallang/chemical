@@ -31,10 +31,12 @@ public:
         return new RetStructParamValue();
     }
 
+    [[nodiscard]]
     BaseTypeKind type_kind() const override {
         return BaseTypeKind::Pointer;
     }
 
+    [[nodiscard]]
     ValueType value_type() const override {
         return ValueType::Pointer;
     }

@@ -18,7 +18,7 @@ public:
         return hybrid_ptr<BaseType> { this, false };
     }
 
-    uint64_t byte_size(bool is64Bit) {
+    uint64_t byte_size(bool is64Bit) override {
         return is64Bit ? 8 : 4;
     }
 
@@ -26,7 +26,7 @@ public:
         visitor->visit(this);
     }
 
-    Value *copy() override {
+    LongValue *copy() override {
         return new LongValue(value, is64Bit);
     }
 
@@ -46,7 +46,7 @@ public:
         return false;
     }
 
-    int64_t get_num_value() const override {
+    [[nodiscard]] int64_t get_num_value() const override {
         return value;
     }
 

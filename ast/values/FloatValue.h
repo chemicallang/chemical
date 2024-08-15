@@ -49,14 +49,16 @@ public:
         return std::make_unique<FloatType>();
     }
 
-    Value *copy() override {
+    FloatValue *copy() override {
         return new FloatValue(value);
     }
 
+    [[nodiscard]]
     ValueType value_type() const override {
         return ValueType::Float;
     }
 
+    [[nodiscard]]
     BaseTypeKind type_kind() const override {
         return BaseTypeKind::Float;
     }

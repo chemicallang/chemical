@@ -10,7 +10,7 @@ public:
 
     long long value;
 
-    BigIntValue(long long value) : value(value) {
+    explicit BigIntValue(long long value) : value(value) {
 
     }
 
@@ -22,7 +22,7 @@ public:
         visitor->visit(this);
     }
 
-    Value *copy() override {
+    BigIntValue *copy() override {
         return new BigIntValue(value);
     }
 
@@ -42,6 +42,7 @@ public:
         return false;
     }
 
+    [[nodiscard]]
     int64_t get_num_value() const override {
         return value;
     }

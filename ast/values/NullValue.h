@@ -21,8 +21,13 @@ public:
         visitor->visit(this);
     }
 
+    [[nodiscard]]
     std::string representation() const {
         return "null";
+    }
+
+    NullValue* copy() override {
+        return new NullValue();
     }
 
 #ifdef COMPILER_BUILD
@@ -31,10 +36,12 @@ public:
 
 #endif
 
+    [[nodiscard]]
     ValueType value_type() const override {
         return ValueType::Pointer;
     }
 
+    [[nodiscard]]
     BaseTypeKind type_kind() const override {
         return BaseTypeKind::Pointer;
     }

@@ -20,7 +20,7 @@ public:
         return hybrid_ptr<BaseType> { this, false };
     }
 
-    uint64_t byte_size(bool is64Bit) {
+    uint64_t byte_size(bool is64Bit) override {
         return 16;
     }
 
@@ -28,7 +28,7 @@ public:
         visitor->visit(this);
     }
 
-    Value *copy() override {
+    UInt128Value *copy() override {
         return new UInt128Value(low, high);
     }
 
@@ -44,6 +44,7 @@ public:
         return true;
     }
 
+    [[nodiscard]]
     int64_t get_num_value() const override {
         if (high > 0) {
             // Overflow: The UInt128 value is too large to fit into a uint64_t

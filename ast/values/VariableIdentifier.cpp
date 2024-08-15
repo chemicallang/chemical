@@ -195,13 +195,13 @@ VarInitStatement *VariableIdentifier::declaration() {
     return linked->as_var_init();
 }
 
-Value* VariableIdentifier::copy() {
+VariableIdentifier* VariableIdentifier::copy() {
     auto id = new VariableIdentifier(value);
     id->linked = linked;
     return id;
 }
 
-Value *NamespaceIdentifier::copy() {
+NamespaceIdentifier *NamespaceIdentifier::copy() {
     auto id = new NamespaceIdentifier(value);
     id->linked = linked;
     return id;

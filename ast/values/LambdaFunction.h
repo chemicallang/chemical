@@ -85,6 +85,7 @@ public:
 
     void link(SymbolResolver &linker, ReturnStatement *returnStmt) override;
 
+    [[nodiscard]]
     ValueType value_type() const override;
 
 };

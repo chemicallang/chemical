@@ -58,11 +58,12 @@ public:
 
     unsigned int get_num_bits() override;
 
+    [[nodiscard]]
     int64_t get_num_value() const override {
         return value;
     }
 
-    Value *copy() override {
+    NumberValue *copy() override {
         auto copy = new NumberValue(value);
         if(linked_type) {
             copy->linked_type = std::unique_ptr<IntNType>((IntNType *) linked_type->copy());
@@ -92,8 +93,10 @@ public:
         return value;
     }
 
+    [[nodiscard]]
     ValueType value_type() const override;
 
+    [[nodiscard]]
     BaseTypeKind type_kind() const override {
         return BaseTypeKind::IntN;
     }

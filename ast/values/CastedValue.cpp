@@ -10,7 +10,7 @@ CastedValue::CastedValue(
 
 }
 
-Value *CastedValue::copy() {
+CastedValue *CastedValue::copy() {
     return new CastedValue(
             std::unique_ptr<Value>(value->copy()),
             std::unique_ptr<BaseType>(type->copy())

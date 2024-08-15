@@ -18,7 +18,7 @@ public:
         return hybrid_ptr<BaseType> { this, false };
     }
 
-    uint64_t byte_size(bool is64Bit) {
+    uint64_t byte_size(bool is64Bit) override {
         return is64Bit ? 8 : 4;
     }
 
@@ -26,11 +26,12 @@ public:
         visitor->visit(this);
     }
 
-    Value *copy() override {
+    ULongValue *copy() override {
         return new ULongValue(value, is64Bit);
     }
 
-    [[nodiscard]] std::unique_ptr<BaseType> create_type() override {
+    [[nodiscard]]
+    std::unique_ptr<BaseType> create_type() override {
         return std::make_unique<ULongType>(is64Bit);
     }
 
@@ -46,11 +47,13 @@ public:
         return true;
     }
 
+    [[nodiscard]]
     int64_t get_num_value() const override {
         return value;
     }
 
-    [[nodiscard]] ValueType value_type() const override {
+    [[nodiscard]]
+    ValueType value_type() const override {
         return ValueType::ULong;
     }
 

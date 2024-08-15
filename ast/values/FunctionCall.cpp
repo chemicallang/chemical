@@ -534,7 +534,7 @@ void FunctionCall::evaluate_children(InterpretScope &scope) {
     evaluate_values(values, scope);
 }
 
-Value *FunctionCall::copy() {
+FunctionCall *FunctionCall::copy() {
     auto call = new FunctionCall({});
     for(auto& value : values) {
         call->values.emplace_back(value->copy());

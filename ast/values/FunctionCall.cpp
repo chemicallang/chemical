@@ -327,9 +327,10 @@ llvm::InvokeInst *FunctionCall::llvm_invoke(Codegen &gen, llvm::BasicBlock* norm
         auto type = decl->create_value_type();
         std::vector<llvm::Value *> args;
         std::vector<std::pair<Value*, llvm::Value*>> destructibles;
-        // TODO handle destructibles here
         to_llvm_args(gen, this, type->function_type(), values, args, nullptr, 0, 0, destructibles);
-        return gen.builder->CreateInvoke(fn, normal, unwind, args);
+        auto invoked = gen.builder->CreateInvoke(fn, normal, unwind, args);
+        Value::destruct(gen, destructibles);
+        return invoked;
     } else {
         gen.error("Unknown function call through invoke ");
         return nullptr;
@@ -350,8 +351,9 @@ llvm::AllocaInst *FunctionCall::access_chain_allocate(Codegen &gen, std::vector<
         // we allocate the returned struct, llvm_chain_value function
         std::vector<llvm::Value *> args;
         std::vector<std::pair<Value*, llvm::Value*>> destructibles;
-        // TODO handle destructibles here
-        return (llvm::AllocaInst*) llvm_chain_value(gen, args, chain_values, until, destructibles);
+        auto alloc = (llvm::AllocaInst*) llvm_chain_value(gen, args, chain_values, until, destructibles);
+        Value::destruct(gen, destructibles);
+        return alloc;
     } else {
         return ChainValue::access_chain_allocate(gen, chain_values, until);
     }

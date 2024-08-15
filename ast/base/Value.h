@@ -124,48 +124,27 @@ public:
     /**
      * get byte size of this value
      */
-    virtual uint64_t byte_size(bool is64Bit) {
-        throw std::runtime_error("byte_size called on base Value");
-    }
+    virtual uint64_t byte_size(bool is64Bit);
 
     /**
      * if this value has a child by this name, it should return a pointer to it
      */
-    virtual Value* child(InterpretScope& scope, const std::string& name) {
-#ifdef DEBUG
-std::cerr << "child called on base value with representation " + representation();
-#endif
-        return nullptr;
-    }
+    virtual Value* child(InterpretScope& scope, const std::string& name);
 
     /**
      * this function returns a function declaration for a member function
      */
-    virtual Value* call_member(InterpretScope& scope, const std::string& name, std::vector<std::unique_ptr<Value>>& values) {
-#ifdef DEBUG
-        std::cerr << "call_member called on base value with name " + name;
-#endif
-        return nullptr;
-    }
+    virtual Value* call_member(InterpretScope& scope, const std::string& name, std::vector<std::unique_ptr<Value>>& values);
 
     /**
      * index operator [] calls this on a value
      */
-    virtual Value* index(InterpretScope& scope, int i) {
-#ifdef DEBUG
-        std::cerr << "index called on base value";
-#endif
-        return nullptr;
-    }
+    virtual Value* index(InterpretScope& scope, int i);
 
     /**
      * set the child value, with given name, performing operation op
      */
-    virtual void set_child_value(const std::string& name, Value* value, Operation op) {
-#ifdef DEBUG
-        std::cerr << "set_child_value called on base value";
-#endif
-    }
+    virtual void set_child_value(const std::string& name, Value* value, Operation op);
 
     /**
      * this function expects this identifier value to find itself in the parent value given to it
@@ -173,19 +152,12 @@ std::cerr << "child called on base value with representation " + representation(
      * @param parent
      * @return
      */
-    virtual Value* find_in(InterpretScope& scope, Value* parent) {
-#ifdef DEBUG
-        std::cerr << "find_in called on base value";
-#endif
-       return nullptr;
-    }
+    virtual Value* find_in(InterpretScope& scope, Value* parent);
 
     /**
      * called on a identifier to set it's value in the given parent
      */
-    virtual void set_value_in(InterpretScope& scope, Value* parent, Value* value, Operation op) {
-        scope.error("set_value_in called on base value");
-    }
+    virtual void set_value_in(InterpretScope& scope, Value* parent, Value* value, Operation op);
 
     /**
      * give representation of the value as it appears in source
@@ -257,10 +229,12 @@ std::cerr << "child called on base value with representation " + representation(
 
     /**
      * allocates this value with this identifier, and also creates a store instruction
-     * @param gen
-     * @param identifier
      */
-    virtual llvm::AllocaInst* llvm_allocate(Codegen& gen, const std::string& identifier);
+    virtual llvm::AllocaInst* llvm_allocate(
+            Codegen& gen,
+            const std::string& identifier,
+            BaseType* expected_type
+    );
 
     /**
      * This creates this value as a global variable, it could be constant
@@ -281,7 +255,8 @@ std::cerr << "child called on base value with representation " + representation(
             StructValue* parent,
             llvm::Value* allocated,
             std::vector<llvm::Value *> idxList,
-            unsigned int index
+            unsigned int index,
+            BaseType* expected_type
     );
 
     /**
@@ -311,7 +286,8 @@ std::cerr << "child called on base value with representation " + representation(
         ArrayValue* parent,
         llvm::AllocaInst* ptr,
         std::vector<llvm::Value *> idxList,
-        unsigned int index
+        unsigned int index,
+        BaseType* expected_type
     );
 
     /**
@@ -319,26 +295,21 @@ std::cerr << "child called on base value with representation " + representation(
      * @param gen
      * @return
      */
-    virtual llvm::Type* llvm_elem_type(Codegen& gen) {
-        throw std::runtime_error("llvm_elem_type called on bare Value of type " + std::to_string((int) value_type()));
-    };
+    virtual llvm::Type* llvm_elem_type(Codegen& gen);
 
     /**
      * returns a llvm pointer to the value, if has any
      * @param gen
      * @return
      */
-    virtual llvm::Value* llvm_pointer(Codegen& gen) {
-        throw std::runtime_error("llvm_pointer called on bare Value of type " + std::to_string((int) value_type()));
-    }
+    virtual llvm::Value* llvm_pointer(Codegen& gen);
 
     /**
      * creates and returns the llvm value
-     * @return
+     * type which is optional can be provided to support implicit constructors or other
+     * features that rely on knowing the type of value expected
      */
-    virtual llvm::Value* llvm_value(Codegen& gen) {
-        throw std::runtime_error("llvm_value called on bare Value with representation : " + representation() + " , type " + std::to_string((int) value_type()));
-    }
+    virtual llvm::Value* llvm_value(Codegen& gen, BaseType* type = nullptr);
 
     /**
      * if statements call this, to evaluate conditional values
@@ -380,22 +351,12 @@ std::cerr << "child called on base value with representation " + representation(
      * WARNING : parent can be null ptr when this is the first element in access chain
      * @return whether it was successful in access index(s)
      */
-    virtual bool add_member_index(Codegen& gen, Value* parent, std::vector<llvm::Value*>& indexes) {
-#ifdef DEBUG
-        std::cerr << "add_member_index called on base value, representation : " << representation();
-#endif
-        throw std::runtime_error("add_member_index called on a value");
-    }
+    virtual bool add_member_index(Codegen& gen, Value* parent, std::vector<llvm::Value*>& indexes);
 
     /**
      * add child index in llvm indexes vector
      */
-    virtual bool add_child_index(Codegen& gen, std::vector<llvm::Value*>& indexes, const std::string& name) {
-#ifdef DEBUG
-        std::cerr << "add_child_index called on base ASTNode, representation : " << representation();
-#endif
-        throw std::runtime_error("add_child_index called on a ASTNode");
-    }
+    virtual bool add_child_index(Codegen& gen, std::vector<llvm::Value*>& indexes, const std::string& name);
 
 #endif
 
@@ -567,45 +528,25 @@ std::cerr << "child called on base value with representation " + representation(
     /**
      * a function to be overridden by char values to return actual values
      */
-    virtual char as_char() {
-#ifdef DEBUG
-        std::cerr << "as_char called on base value, representation : " << representation();
-#endif
-        throw std::runtime_error("as_char called on a value");
-    }
+    virtual char as_char();
 
     /**
      * a function to be overridden by bool values to return actual values
      * @return
      */
-    virtual bool as_bool() {
-#ifdef DEBUG
-        std::cerr << "as_bool called on base value, representation : " << representation();
-#endif
-        throw std::runtime_error("as_bool called on a value");
-    }
+    virtual bool as_bool();
 
     /**
      * a function to be overridden by values that can return string
      * @return
      */
-    virtual std::string as_string() {
-#ifdef DEBUG
-        std::cerr << "as_string called on base value, representation : " << representation();
-#endif
-        throw std::runtime_error("as_string called on a value");
-    }
+    virtual std::string as_string();
 
     /**
      * a function to be overridden by values that can return int
      * @return
      */
-    virtual int as_int() {
-#ifdef DEBUG
-        std::cerr << "as_int called on base value, representation : " << representation();
-#endif
-        throw std::runtime_error("as_int called on a value");
-    }
+    virtual int as_int();
 
     /**
      * will return a unsigned int representation
@@ -616,23 +557,13 @@ std::cerr << "child called on base value with representation " + representation(
      * a function to be overridden by values that can return float
      * @return
      */
-    virtual float as_float() {
-#ifdef DEBUG
-        std::cerr << "as_float called on base value, representation : " << representation();
-#endif
-        throw std::runtime_error("as_float called on a value");
-    }
+    virtual float as_float();
 
     /**
      * a function to be overridden by values that can return double
      * @return
      */
-    virtual double as_double() {
-#ifdef DEBUG
-        std::cerr << "as_double called on base value, representation : " << representation();
-#endif
-        throw std::runtime_error("as_float called on a value");
-    }
+    virtual double as_double();
 
     /**
      * a function to be overridden by number value to return itself

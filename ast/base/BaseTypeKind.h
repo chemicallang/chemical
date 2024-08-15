@@ -28,6 +28,7 @@ enum class BaseTypeKind : uint8_t {
     Referenced,
     String,
     Literal,
+    Dynamic,
     Void,
     Unknown
 

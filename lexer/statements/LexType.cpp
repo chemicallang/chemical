@@ -82,6 +82,23 @@ bool Lexer::lexTypeTokens() {
 
     std::string type = provider.readIdentifier();
     if(type.empty()) return false;
+    // dyn should be a keyword
+    if(type == "dyn") {
+        if(lexWhitespaceToken()) {
+            unsigned prev_start = tokens.size();
+            tokens.emplace_back(std::make_unique<LexToken>(LexTokenType::Type, backPosition(type.length()), type));
+            std::string contained_type = provider.readIdentifier();
+            if(contained_type.empty()) {
+                error("expected a type identifier after dyn keyword");
+                return true;
+            }
+            unsigned start = tokens.size();
+            tokens.emplace_back(std::make_unique<LexToken>(LexTokenType::Type, backPosition(contained_type.length()), contained_type));
+            lexGenericTypeAfterId(start);
+            compound_from(prev_start, LexTokenType::CompSpecializedType);
+            return true;
+        }
+    }
     bool has_multiple = false;
     unsigned start = tokens.size();
     while(true) {

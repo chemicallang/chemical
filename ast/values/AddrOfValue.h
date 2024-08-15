@@ -43,7 +43,7 @@ public:
 
     llvm::Type *llvm_type(Codegen &gen) override;
 
-    llvm::Value *llvm_value(Codegen &gen) override;
+    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) override;
 
     bool add_member_index(Codegen &gen, Value *parent, std::vector<llvm::Value *> &indexes) override;
 

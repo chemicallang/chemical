@@ -149,6 +149,10 @@ public:
         visitCompoundCommon((CompoundCSTToken *) genericType);
     }
 
+    virtual void visitSpecializedType(CompoundCSTToken *specType) {
+        visitCompoundCommon((CompoundCSTToken *) specType);
+    }
+
     virtual void visitPointerType(CompoundCSTToken *pointerType) {
         visitCompoundCommon((CompoundCSTToken *) pointerType);
     }

@@ -14,7 +14,14 @@ public:
     std::vector<std::unique_ptr<InheritedType>> inherited;
     tsl::ordered_map<std::string, std::unique_ptr<BaseDefMember>> variables;
 
-    long variable_index(const std::string &name, bool consider_inherited_structs = true);
+    /**
+     * get the variable type along with index
+     */
+    std::pair<long, BaseType*> variable_type_index(const std::string &name, bool consider_inherited_structs = true);
+
+    long variable_index(const std::string &name, bool consider_inherited_structs = true) {
+        return variable_type_index(name, consider_inherited_structs).first;
+    }
 
     long direct_child_index(const std::string &varName);
 

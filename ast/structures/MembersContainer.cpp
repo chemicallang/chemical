@@ -423,23 +423,23 @@ bool MembersContainer::contains_func(const std::string& name) {
     return indexes.find(name) != indexes.end();
 }
 
-long VariablesContainer::variable_index(const std::string &varName, bool consider_inherited_structs) {
+std::pair<long, BaseType*> VariablesContainer::variable_type_index(const std::string &varName, bool consider_inherited_structs) {
     long parents_size = 0;
     for(auto& inherits : inherited) {
         const auto struct_def = inherits->type->linked_node()->as_struct_def();
         if(struct_def) {
             if(consider_inherited_structs && struct_def->name == varName) {
                 // user wants the struct
-                return parents_size;
+                return { parents_size, inherits->type.get() };
             }
             parents_size += 1;
         }
     }
     auto found = variables.find(varName);
     if(found == variables.end()) {
-        return -1;
+        return { -1, nullptr };
     } else {
-        return ((long)(found - variables.begin())) + parents_size;
+        return { ((long)(found - variables.begin())) + parents_size, found->second->holding_value_type() };
     }
 }
 

@@ -305,7 +305,7 @@ llvm::Value* FunctionCall::llvm_chain_value(
         // creating access chain to the last member as an identifier instead of function call
         auto parent_access = parent_chain(this, chain);
 
-        call_value = gen.builder->CreateCall(linked()->llvm_func_type(gen), parent_access.llvm_value(gen), args);
+        call_value = gen.builder->CreateCall(linked()->llvm_func_type(gen), parent_access.llvm_value(gen, nullptr), args);
 
     } else {
         call_value = call_with_args(this, fn, gen, args, chain, until, destructibles);
@@ -405,6 +405,12 @@ hybrid_ptr<FunctionType> FunctionCall::get_function_type() {
     } else {
         return hybrid_ptr<FunctionType>{nullptr, false };
     }
+}
+
+std::unique_ptr<BaseType> FunctionCall::create_arg_type(unsigned int index) {
+    auto func_type = create_function_type();
+    auto param = func_type->func_param_for_arg_at(index);
+    return std::move(param->type);
 }
 
 int16_t FunctionCall::set_curr_itr_on_decl() {

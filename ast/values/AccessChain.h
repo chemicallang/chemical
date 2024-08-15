@@ -74,11 +74,11 @@ public:
 
     llvm::Type *llvm_type(Codegen &gen) override;
 
-    llvm::Value *llvm_value(Codegen &gen) override;
+    llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) override;
 
     llvm::Value *llvm_pointer(Codegen &gen) override;
 
-    llvm::AllocaInst *llvm_allocate(Codegen &gen, const std::string &identifier) override;
+    llvm::AllocaInst *llvm_allocate(Codegen& gen, const std::string& identifier, BaseType* expected_type) override;
 
     void llvm_destruct(Codegen &gen, llvm::Value *allocaInst) override;
 
@@ -91,7 +91,8 @@ public:
             StructValue *parent,
             llvm::Value *allocated,
             std::vector<llvm::Value *> idxList,
-            unsigned int index
+            unsigned int index,
+            BaseType* expected_type
     ) override;
 
     unsigned int store_in_array(
@@ -99,7 +100,8 @@ public:
             ArrayValue *parent,
             llvm::AllocaInst *ptr,
             std::vector<llvm::Value *> idxList,
-            unsigned int index
+            unsigned int index,
+            BaseType* expected_type
     ) override;
 
 #endif

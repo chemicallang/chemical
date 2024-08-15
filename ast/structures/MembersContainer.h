@@ -77,6 +77,9 @@ public:
 
     FunctionDeclaration *direct_child_function(const std::string& name);
 
+    /**
+     * get child variable index, including the inherited types
+     */
     int child_index(const std::string &var_name) override {
         return VariablesContainer::variable_index(var_name);
     }

@@ -15,17 +15,17 @@
 
 void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen) {
     for (const auto &value: values) {
-        auto index = definition->child_index(value.first);
-        if (index == -1) {
+        auto variable = definition->variable_type_index(value.first);
+        if (variable.first == -1) {
             gen.error("couldn't get struct child " + value.first + " in definition with name " + definition->name);
         } else {
             std::vector<llvm::Value*> idx {gen.builder->getInt32(0)};
-            value.second->store_in_struct(gen, this, inst, idx, index);
+            value.second->store_in_struct(gen, this, inst, idx, variable.first, variable.second);
         }
     }
 }
 
-llvm::AllocaInst *StructValue::llvm_allocate(Codegen &gen, const std::string &identifier) {
+llvm::AllocaInst *StructValue::llvm_allocate(Codegen& gen, const std::string& identifier, BaseType* expected_type) {
     allocaInst = gen.builder->CreateAlloca(llvm_type(gen), nullptr);
     initialize_alloca(allocaInst, gen);
     return allocaInst;
@@ -52,17 +52,19 @@ unsigned int StructValue::store_in_struct(
         StructValue *parent,
         llvm::Value *allocated,
         std::vector<llvm::Value*> idxList,
-        unsigned int index
+        unsigned int index,
+        BaseType* expected_type
 ) {
+    if (index == -1) {
+        gen.error(
+                "can't store struct value " + representation() + " into struct value " + parent->representation() + " with an unknown index" +
+                " where current definition name " + definition->name + " with parent of name " + parent->definition->name);
+        return index + values.size();
+    }
     for (const auto &value: values) {
-        auto currIndex = index + definition->child_index(value.first);
-        if (index == -1) {
-            gen.error(
-                    "couldn't get embedded struct child " + value.first + " in definition of name " + definition->name +
-                    " with parent of name " + parent->definition->name);
-        } else {
-            value.second->store_in_struct(gen, this, allocated, idxList, currIndex);
-        }
+        auto child_index = definition->variable_type_index(value.first);
+        auto currIndex = index + child_index.first;
+        value.second->store_in_struct(gen, this, allocated, idxList, currIndex, child_index.second);
     }
     return index + values.size();
 }
@@ -72,28 +74,29 @@ unsigned int StructValue::store_in_array(
         ArrayValue *parent,
         llvm::AllocaInst *ptr,
         std::vector<llvm::Value *> idxList,
-        unsigned int index
+        unsigned int index,
+        BaseType* expected_type
 ) {
+    if (index == -1) {
+        gen.error(
+                "can't store struct value " + representation() + " array value " + ((Value*) parent)->representation() + " with an unknown index" +
+                " where current definition name " + definition->name);
+        return index + 1;
+    }
     idxList.emplace_back(gen.builder->getInt32(index));
     for (const auto &value: values) {
-        auto currIndex = definition->child_index(value.first);
-        if (index == -1) {
-            gen.error(
-                    "couldn't get embedded struct child " + value.first + " in definition of name " + definition->name +
-                    " with parent of name " + definition->name);
-        } else {
-            value.second->store_in_array(gen, parent, ptr, idxList, currIndex);
-        }
+        auto currIndex = definition->variable_type_index(value.first);
+        value.second->store_in_array(gen, parent, ptr, idxList, currIndex.first, currIndex.second);
     }
     return index + 1;
 }
 
-llvm::Value *StructValue::llvm_value(Codegen &gen) {
+llvm::Value *StructValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     throw std::runtime_error("cannot allocate a struct without an identifier");
 }
 
 llvm::Value *StructValue::llvm_arg_value(Codegen &gen, FunctionCall *call, unsigned int index) {
-    return llvm_allocate(gen, "");
+    return llvm_allocate(gen, "", nullptr);
 }
 
 llvm::Value *StructValue::llvm_ret_value(Codegen &gen, ReturnStatement *returnStmt) {

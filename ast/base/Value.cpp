@@ -28,7 +28,7 @@ llvm::AllocaInst* Value::llvm_allocate_with(Codegen& gen, llvm::Value* value, ll
     return x;
 }
 
-llvm::AllocaInst *Value::llvm_allocate(Codegen &gen, const std::string &identifier) {
+llvm::AllocaInst *Value::llvm_allocate(Codegen& gen, const std::string& identifier, BaseType* expected_type) {
     return llvm_allocate_with(gen, llvm_value(gen), llvm_type(gen));
 }
 
@@ -56,7 +56,8 @@ unsigned int Value::store_in_struct(
         StructValue* parent,
         llvm::Value* allocated,
         std::vector<llvm::Value *> idxList,
-        unsigned int index
+        unsigned int index,
+        BaseType* expected_type
 ) {
     auto elementPtr = Value::get_element_pointer(gen, parent->llvm_type(gen), allocated, idxList, index);
     gen.builder->CreateStore(llvm_value(gen), elementPtr);
@@ -68,7 +69,8 @@ unsigned int Value::store_in_array(
         ArrayValue* parent,
         llvm::AllocaInst* ptr,
         std::vector<llvm::Value *> idxList,
-        unsigned int index
+        unsigned int index,
+        BaseType* expected_type
 ) {
     auto elementPtr = Value::get_element_pointer(gen, parent->llvm_type(gen), ptr, idxList, index);
     gen.builder->CreateStore(llvm_value(gen), elementPtr);
@@ -192,7 +194,123 @@ void Value::llvm_conditional_branch(Codegen& gen, llvm::BasicBlock* then_block, 
     gen.CreateCondBr(llvm_value(gen), then_block, otherwise_block);
 }
 
+llvm::Type* Value::llvm_elem_type(Codegen& gen) {
+    throw std::runtime_error("llvm_elem_type called on bare Value of type " + std::to_string((int) value_type()));
+};
+
+llvm::Value* Value::llvm_pointer(Codegen& gen) {
+    throw std::runtime_error("llvm_pointer called on bare Value of type " + std::to_string((int) value_type()));
+}
+
+llvm::Value* Value::llvm_value(Codegen& gen, BaseType* type) {
+    throw std::runtime_error("Value::llvm_value called on bare Value " + representation() + " , type " + std::to_string((int) value_type()));
+}
+
+bool Value::add_member_index(Codegen& gen, Value* parent, std::vector<llvm::Value*>& indexes) {
+#ifdef DEBUG
+    throw std::runtime_error("Value::add_member_index called on a value");
+#else
+    std::cerr << "add_member_index called on base value " << representation();
 #endif
+}
+
+bool Value::add_child_index(Codegen& gen, std::vector<llvm::Value*>& indexes, const std::string& name) {
+#ifdef DEBUG
+    throw std::runtime_error("Value::add_child_index called on a Value");
+#else
+    std::cerr << "add_child_index called on base Value " << representation();
+#endif
+}
+
+#endif
+
+uint64_t Value::byte_size(bool is64Bit) {
+#ifdef DEBUG
+    throw std::runtime_error("byte_size called on base Value " + representation());
+#else
+    std::cerr << "Value::byte_size called on value " << representation() << std::endl;
+#endif
+}
+
+Value* Value::child(InterpretScope& scope, const std::string& name) {
+#ifdef DEBUG
+    std::cerr << "Value::child called on base value " + representation();
+#endif
+    return nullptr;
+}
+
+Value* Value::call_member(InterpretScope& scope, const std::string& name, std::vector<std::unique_ptr<Value>>& values) {
+#ifdef DEBUG
+    std::cerr << "Value::call_member called on base value " + representation() + " with name " + name;
+#endif
+    return nullptr;
+}
+
+Value* Value::index(InterpretScope& scope, int i) {
+#ifdef DEBUG
+    std::cerr << "Value::index called on base value " + representation();
+#endif
+    return nullptr;
+}
+
+void Value::set_child_value(const std::string& name, Value* value, Operation op) {
+#ifdef DEBUG
+    std::cerr << "Value::set_child_value called on base value " + representation();
+#endif
+}
+
+Value* Value::find_in(InterpretScope& scope, Value* parent) {
+#ifdef DEBUG
+    std::cerr << "Value::find_in called on base value " + representation();
+#endif
+    return nullptr;
+}
+
+void Value::set_value_in(InterpretScope& scope, Value* parent, Value* value, Operation op) {
+    scope.error("Value::set_value_in called on base value " + representation());
+}
+
+char Value::as_char() {
+#ifdef DEBUG
+    throw std::runtime_error("as_char called on a value");
+#endif
+    std::cerr << "as_char called on base value, representation : " << representation();
+}
+
+bool Value::as_bool() {
+#ifdef DEBUG
+    throw std::runtime_error("as_bool called on a value");
+#endif
+    std::cerr << "as_bool called on base value, representation : " << representation();
+}
+
+std::string Value::as_string() {
+#ifdef DEBUG
+    throw std::runtime_error("as_string called on a value");
+#endif
+    std::cerr << "as_string called on base value, representation : " << representation();
+}
+
+int Value::as_int() {
+#ifdef DEBUG
+    throw std::runtime_error("as_int called on a value");
+#endif
+    std::cerr << "as_int called on base value, representation : " << representation();
+}
+
+float Value::as_float() {
+#ifdef DEBUG
+    throw std::runtime_error("as_float called on a value");
+#endif
+    std::cerr << "as_float called on base value, representation : " << representation();
+}
+
+double Value::as_double() {
+#ifdef DEBUG
+    throw std::runtime_error("as_float called on a value");
+#endif
+    std::cerr << "as_double called on base value, representation : " << representation();
+}
 
 hybrid_ptr<BaseType> Value::get_base_type() {
     throw std::runtime_error("get_base_type called on bare Value with type : " + std::to_string((unsigned int) value_type()));

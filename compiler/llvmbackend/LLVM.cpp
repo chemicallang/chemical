@@ -14,6 +14,7 @@
 #include "ast/types/UCharType.h"
 #include "ast/types/DoubleType.h"
 #include "ast/types/FloatType.h"
+#include "ast/types/DynamicType.h"
 #include "ast/types/IntNType.h"
 #include "ast/types/PointerType.h"
 #include "ast/types/ReferencedType.h"
@@ -208,13 +209,21 @@ llvm::Type *VoidType::llvm_type(Codegen &gen) {
     return gen.builder->getVoidTy();
 }
 
+llvm::Type* DynamicType::llvm_type(Codegen& gen) {
+    return llvm::StructType::get(*gen.ctx, { gen.builder->getPtrTy(), gen.builder->getPtrTy() });
+}
+
+llvm::Type* DynamicType::llvm_param_type(Codegen& gen) {
+    return gen.builder->getPtrTy();
+}
+
 // ------------------------------ Values
 
 llvm::Type *BoolValue::llvm_type(Codegen &gen) {
     return gen.builder->getInt1Ty();
 }
 
-llvm::Value *BoolValue::llvm_value(Codegen &gen) {
+llvm::Value *BoolValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     return gen.builder->getInt1(value);
 }
 
@@ -222,7 +231,7 @@ llvm::Type *CharValue::llvm_type(Codegen &gen) {
     return gen.builder->getInt8Ty();
 }
 
-llvm::Value *CharValue::llvm_value(Codegen &gen) {
+llvm::Value *CharValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     return gen.builder->getInt8((int) value);
 }
 
@@ -230,7 +239,7 @@ llvm::Type *DoubleValue::llvm_type(Codegen &gen) {
     return gen.builder->getDoubleTy();
 }
 
-llvm::Value *DoubleValue::llvm_value(Codegen &gen) {
+llvm::Value *DoubleValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     return llvm::ConstantFP::get(llvm_type(gen), value);
 }
 
@@ -238,7 +247,7 @@ llvm::Type * FloatValue::llvm_type(Codegen &gen) {
     return gen.builder->getFloatTy();
 }
 
-llvm::Value * FloatValue::llvm_value(Codegen &gen) {
+llvm::Value * FloatValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     return llvm::ConstantFP::get(llvm_type(gen), llvm::APFloat(value));
 }
 
@@ -246,19 +255,19 @@ llvm::Type *IntNumValue::llvm_type(Codegen &gen) {
     return gen.builder->getIntNTy(get_num_bits());
 }
 
-llvm::Value *IntNumValue::llvm_value(Codegen &gen) {
+llvm::Value *IntNumValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     return gen.builder->getIntN(get_num_bits(), get_num_value());
 }
 
-llvm::Value *NegativeValue::llvm_value(Codegen &gen) {
+llvm::Value *NegativeValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     return gen.builder->CreateNeg(value->llvm_value(gen));
 }
 
-llvm::Value *NotValue::llvm_value(Codegen &gen) {
+llvm::Value *NotValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     return gen.builder->CreateNot(value->llvm_value(gen));
 }
 
-llvm::Value *NullValue::llvm_value(Codegen &gen) {
+llvm::Value *NullValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     auto ptrType = llvm::PointerType::get(llvm::IntegerType::get(*gen.ctx, 32), 0);
     return llvm::ConstantPointerNull::get(ptrType);
 }
@@ -271,7 +280,7 @@ llvm::Type *StringValue::llvm_type(Codegen &gen) {
     }
 }
 
-llvm::Value *StringValue::llvm_value(Codegen &gen) {
+llvm::Value *StringValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     if(is_array) {
         std::vector<llvm::Constant*> arr;
         for(auto c : value) {
@@ -296,14 +305,15 @@ llvm::Value *StringValue::llvm_value(Codegen &gen) {
     }
 }
 
-llvm::AllocaInst *StringValue::llvm_allocate(Codegen &gen, const std::string &identifier) {
+llvm::AllocaInst *StringValue::llvm_allocate(Codegen &gen, const std::string &identifier, BaseType* expected_type) {
     if(is_array) {
+        // when user creates a array of characters, we memcopy the string value to the allocated array
         auto alloc = gen.builder->CreateAlloca(llvm_type(gen), nullptr);
-        auto arr = llvm_value(gen);
+        auto arr = llvm_value(gen, nullptr);
         gen.builder->CreateMemCpy(alloc, llvm::MaybeAlign(), arr, llvm::MaybeAlign(), length);
         return alloc;
     } else {
-        return Value::llvm_allocate(gen, identifier);
+        return Value::llvm_allocate(gen, identifier, expected_type);
     }
 }
 
@@ -332,7 +342,7 @@ llvm::Value *VariableIdentifier::llvm_pointer(Codegen &gen) {
     return linked->llvm_pointer(gen);
 }
 
-llvm::Value *VariableIdentifier::llvm_value(Codegen &gen) {
+llvm::Value *VariableIdentifier::llvm_value(Codegen &gen, BaseType* expected_type) {
     if(linked->value_type() == ValueType::Array) {
         return gen.builder->CreateGEP(llvm_type(gen), llvm_pointer(gen), {gen.builder->getInt32(0), gen.builder->getInt32(0)}, "", gen.inbounds);;
     }
@@ -352,7 +362,7 @@ llvm::Value *VariableIdentifier::llvm_ret_value(Codegen &gen, ReturnStatement *r
 
 llvm::Value *VariableIdentifier::access_chain_value(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned until, std::vector<std::pair<Value*, llvm::Value*>>& destructibles) {
     if(linked->as_enum_member() != nullptr) {
-        return llvm_value(gen);
+        return llvm_value(gen, nullptr);
     } else {
         return ChainValue::access_chain_value(gen, values, until, destructibles);
     }
@@ -372,7 +382,7 @@ llvm::Value *DereferenceValue::llvm_pointer(Codegen& gen) {
     return value->llvm_value(gen);
 }
 
-llvm::Value *DereferenceValue::llvm_value(Codegen &gen) {
+llvm::Value *DereferenceValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     return gen.builder->CreateLoad(llvm_type(gen), value->llvm_value(gen), "deref");
 }
 
@@ -399,7 +409,7 @@ llvm::Value *Expression::llvm_logical_expr(Codegen &gen, BaseType* firstType, Ba
     return nullptr;
 }
 
-llvm::Value *Expression::llvm_value(Codegen &gen) {
+llvm::Value *Expression::llvm_value(Codegen &gen, BaseType* expected_type) {
     auto firstType = firstValue->create_type();
     auto secondType = secondValue->create_type();
     auto first_pure = firstType->get_pure_type();
@@ -447,7 +457,7 @@ llvm::Type *CastedValue::llvm_type(Codegen &gen) {
     return type->llvm_type(gen);
 }
 
-llvm::Value *CastedValue::llvm_value(Codegen &gen) {
+llvm::Value *CastedValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     auto llvm_val = value->llvm_value(gen);
     auto value_type = value->create_type();
     if(value_type->kind() == BaseTypeKind::IntN && type->kind() == BaseTypeKind::IntN) {
@@ -494,7 +504,7 @@ llvm::Type *AddrOfValue::llvm_type(Codegen &gen) {
     return gen.builder->getPtrTy();
 }
 
-llvm::Value *AddrOfValue::llvm_value(Codegen &gen) {
+llvm::Value *AddrOfValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     return value->llvm_pointer(gen);
 }
 
@@ -506,7 +516,7 @@ bool AddrOfValue::add_child_index(Codegen &gen, std::vector<llvm::Value *> &inde
     return value->add_child_index(gen, indexes, name);
 }
 
-llvm::Value* RetStructParamValue::llvm_value(Codegen &gen) {
+llvm::Value* RetStructParamValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     if(gen.current_func_type->returnType->value_type() != ValueType::Struct) {
         gen.error("expected current function to have a struct return type for compiler::return_struct");
         return nullptr;
@@ -515,13 +525,13 @@ llvm::Value* RetStructParamValue::llvm_value(Codegen &gen) {
     return gen.current_function->getArg(0);
 }
 
-llvm::Value* SizeOfValue::llvm_value(Codegen &gen) {
+llvm::Value* SizeOfValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     value = for_type->byte_size(gen.is64Bit);
-    return UBigIntValue::llvm_value(gen);
+    return UBigIntValue::llvm_value(gen, expected_type);
 }
 
 void AccessChain::code_gen(Codegen &gen) {
-    auto value = llvm_value(gen);
+    auto value = llvm_value(gen, nullptr);
     const auto call = values.back()->as_func_call();
     if(call) {
         auto ret_type = call->get_base_type();
@@ -540,7 +550,7 @@ llvm::Type *AccessChain::llvm_type(Codegen &gen) {
     return type;
 }
 
-llvm::Value *AccessChain::llvm_value(Codegen &gen) {
+llvm::Value *AccessChain::llvm_value(Codegen &gen, BaseType* expected_type) {
     std::vector<std::pair<Value*, llvm::Value*>> destructibles;
     std::unordered_map<uint16_t, int16_t> active;
     set_generic_iterations(active);
@@ -560,7 +570,7 @@ llvm::Value *AccessChain::llvm_pointer(Codegen &gen) {
     return value;
 }
 
-llvm::AllocaInst *AccessChain::llvm_allocate(Codegen &gen, const std::string &identifier) {
+llvm::AllocaInst *AccessChain::llvm_allocate(Codegen &gen, const std::string &identifier, BaseType* expected_type) {
     std::vector<std::pair<Value*, llvm::Value*>> destructibles;
     std::unordered_map<uint16_t, int16_t> active;
     set_generic_iterations(active);
@@ -588,7 +598,8 @@ bool access_chain_store_in_parent(
     Value *parent,
     llvm::Value *allocated,
     std::vector<llvm::Value *>& idxList,
-    unsigned int index
+    unsigned int index,
+    BaseType* expected_type
 ) {
     auto func_call = chain->values[chain->values.size() - 1]->as_func_call();
     if(func_call) {
@@ -610,12 +621,13 @@ unsigned int AccessChain::store_in_struct(
         StructValue *parent,
         llvm::Value *allocated,
         std::vector<llvm::Value *> idxList,
-        unsigned int index
+        unsigned int index,
+        BaseType* expected_type
 ) {
-    if(access_chain_store_in_parent(gen, this, (Value*) parent, allocated, idxList, index)) {
+    if(access_chain_store_in_parent(gen, this, (Value*) parent, allocated, idxList, index, expected_type)) {
         return index + 1;
     }
-    return Value::store_in_struct(gen, parent, allocated, idxList, index);
+    return Value::store_in_struct(gen, parent, allocated, idxList, index, expected_type);
 }
 
 unsigned int AccessChain::store_in_array(
@@ -623,12 +635,13 @@ unsigned int AccessChain::store_in_array(
         ArrayValue *parent,
         llvm::AllocaInst *allocated,
         std::vector<llvm::Value *> idxList,
-        unsigned int index
+        unsigned int index,
+        BaseType* expected_type
 ) {
-    if(access_chain_store_in_parent(gen, this, (Value*) parent, allocated, idxList, index)) {
+    if(access_chain_store_in_parent(gen, this, (Value*) parent, allocated, idxList, index, expected_type)) {
         return index + 1;
     }
-    return Value::store_in_array(gen, parent, allocated, idxList, index);
+    return Value::store_in_array(gen, parent, allocated, idxList, index, expected_type);
 };
 
 // --------------------------------------- Statements

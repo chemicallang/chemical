@@ -455,6 +455,8 @@ set(COMMON_SOURCES
         stream/StringInputSource.h
         stream/InputSource.cpp
         ast/structures/InheritedType.h
+        ast/types/DynamicType.h
+        ast/types/DynamicType.cpp
 )
 
 # Chemical LSP Executable Target

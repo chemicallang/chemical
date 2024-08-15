@@ -30,7 +30,7 @@ llvm::Value *IndexOperator::llvm_pointer(Codegen &gen) {
     return elem_pointer(gen, parent_val->linked_node());
 }
 
-llvm::Value *IndexOperator::llvm_value(Codegen &gen) {
+llvm::Value *IndexOperator::llvm_value(Codegen &gen, BaseType* expected_type) {
     return gen.builder->CreateLoad(llvm_type(gen), elem_pointer(gen, parent_val->linked_node()),"idx_op");
 }
 

@@ -55,6 +55,10 @@ hybrid_ptr<BaseType> UnionDef::get_value_type() {
     return hybrid_ptr<BaseType> { this, false };
 }
 
+BaseType* UnionDef::known_type() {
+    return this;
+}
+
 void UnionDef::declare_top_level(SymbolResolver &linker) {
     linker.declare(name, this);
 }

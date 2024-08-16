@@ -26,11 +26,13 @@ public:
 #else
     tsl::ordered_map<StructDefinition*, bool> users;
 #endif
+#ifdef COMPILER_BUILD
     /**
      * this maps structs that implement this interface with their global variable pointers
      * for the vtable generated
      */
     std::unordered_map<StructDefinition*, llvm::Value*> vtable_pointers;
+#endif
     /**
      * this is set to true when even a single implementation is detected
      */

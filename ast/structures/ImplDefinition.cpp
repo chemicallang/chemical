@@ -38,6 +38,9 @@ void ImplDefinition::code_gen(Codegen &gen) {
             gen.error("failed to override function in impl because not found", function.get());
         }
     }
+    if(linked && struct_def) {
+        linked->llvm_global_vtable(gen, struct_def);
+    }
 }
 
 #endif

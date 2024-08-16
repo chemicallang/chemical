@@ -70,6 +70,34 @@ void InterfaceDefinition::llvm_build_vtable(Codegen& gen, StructDefinition* for_
     }
 }
 
+llvm::Constant* InterfaceDefinition::llvm_build_vtable(Codegen& gen, StructDefinition* for_struct) {
+    std::vector<llvm::Constant*> llvm_pointers;
+    llvm_build_inherited_vtable(gen, for_struct, llvm_pointers);
+    llvm_build_vtable(gen, for_struct, llvm_pointers);
+    std::vector<llvm::Type*> struct_types;
+    llvm_build_inherited_vtable_type(gen, struct_types);
+    llvm_vtable_type(gen, struct_types);
+    return llvm::ConstantStruct::get(llvm::StructType::get(*gen.ctx, struct_types), llvm_pointers);
+}
+
+llvm::GlobalVariable* InterfaceDefinition::llvm_global_vtable(Codegen& gen, StructDefinition* for_struct) {
+    auto found = vtable_pointers.find(for_struct);
+    if(found != vtable_pointers.end()) {
+        return found->second;
+    }
+    // building vtable
+    auto constant = llvm_build_vtable(gen, for_struct);
+    auto table = new llvm::GlobalVariable(
+            *gen.module,
+            constant->getType(),
+            true,
+            llvm::GlobalValue::InternalLinkage,
+            constant
+    );
+    vtable_pointers[for_struct] = table;
+    return table;
+}
+
 #endif
 
 InterfaceDefinition::InterfaceDefinition(

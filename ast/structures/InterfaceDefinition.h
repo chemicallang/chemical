@@ -27,6 +27,11 @@ public:
     tsl::ordered_map<StructDefinition*, bool> users;
 #endif
     /**
+     * this maps structs that implement this interface with their global variable pointers
+     * for the vtable generated
+     */
+    std::unordered_map<StructDefinition*, llvm::GlobalVariable*> vtable_pointers;
+    /**
      * this is set to true when even a single implementation is detected
      */
     bool has_implementation = false;
@@ -82,15 +87,41 @@ public:
 
 #ifdef COMPILER_BUILD
 
+    /**
+     * generate code for this interface
+     */
     void code_gen(Codegen &gen) override;
 
+    /**
+     * llvm type for this interface, this is void by default
+     */
     llvm::Type* llvm_type(Codegen &gen) override;
 
+    /**
+     * get the vtable type into the given struct_types vector
+     */
     void llvm_vtable_type(Codegen& gen, std::vector<llvm::Type*>& struct_types);
 
+    /**
+     * get the vtable type for this interface
+     */
     llvm::Type* llvm_vtable_type(Codegen& gen);
 
+    /**
+     * build the vtable, put the cconstant function pointers into given llvm_pointer vector
+     */
     void llvm_build_vtable(Codegen& gen, StructDefinition* for_struct, std::vector<llvm::Constant*>& llvm_pointers);
+
+    /**
+     * a helper function to build the vtable as a constant
+     */
+    llvm::Constant* llvm_build_vtable(Codegen& gen, StructDefinition* for_struct);
+
+    /**
+     * the vtable will be created as a global constant for the given struct
+     * if a vtable already exists for the given struct, we just return it without creating another one
+     */
+    llvm::GlobalVariable* llvm_global_vtable(Codegen& gen, StructDefinition* for_struct);
 
 #endif
 

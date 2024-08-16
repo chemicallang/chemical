@@ -192,9 +192,19 @@ public:
     llvm::StructType* fat_pointer_type();
 
     /**
-     * packs a lambda into a struct with two pointers
+     * packs two pointers into a fat pointer (a struct containing two pointers)
      */
-    llvm::AllocaInst* pack_lambda(llvm::Function* func_ptr, llvm::Value* captured_struct);
+    llvm::AllocaInst* pack_fat_pointer(llvm::Value* first_ptr, llvm::Value* second_ptr);
+
+    /**
+     * it checks whether the given type is a dynamic type and the given value is a struct
+     * if the given value is a struct that implements the given dynamic type, it's packed into
+     * a fat pointer where the first pointer is the llvm_value expected to be the object reference
+     * retrieved via value->llvm_value(), the second pointer is the implementation retrieved by
+     * finding the interface which stores all implementations for the structs
+     * IF it can't pack because it's not a dynamic type, it will return llvm_value
+     */
+    llvm::Value* conditionally_dyn_pack_obj(Value* value, BaseType* type, llvm::Value* llvm_value);
 
     /**
      * creates a function block, along with setting the insert point to this entry block

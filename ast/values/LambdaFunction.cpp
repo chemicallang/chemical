@@ -49,7 +49,7 @@ llvm::Value* packed_lambda_val(Codegen& gen, LambdaFunction* lambda) {
         if(!captured) {
             captured = llvm::ConstantPointerNull::get(llvm::PointerType::get(*gen.ctx, 0));
         }
-        return gen.pack_lambda(lambda->func_ptr, captured);
+        return gen.pack_fat_pointer(lambda->func_ptr, captured);
     } else {
         return lambda->func_ptr;
     }

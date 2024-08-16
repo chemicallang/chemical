@@ -87,6 +87,8 @@ llvm::Value *VarInitStatement::llvm_load(Codegen &gen) {
         if(value.has_value() && value.value()->value_type() == ValueType::String) {
             return llvm_pointer(gen);
         }
+    } else if(known_type()->pure_type()->kind() == BaseTypeKind::Struct) {
+        return llvm_pointer(gen);
     }
     auto v = llvm_pointer(gen);
     return gen.builder->CreateLoad(llvm_type(gen), v, identifier);

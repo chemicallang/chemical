@@ -80,7 +80,7 @@ llvm::Constant* InterfaceDefinition::llvm_build_vtable(Codegen& gen, StructDefin
     return llvm::ConstantStruct::get(llvm::StructType::get(*gen.ctx, struct_types), llvm_pointers);
 }
 
-llvm::GlobalVariable* InterfaceDefinition::llvm_global_vtable(Codegen& gen, StructDefinition* for_struct) {
+llvm::Value* InterfaceDefinition::llvm_global_vtable(Codegen& gen, StructDefinition* for_struct) {
     auto found = vtable_pointers.find(for_struct);
     if(found != vtable_pointers.end()) {
         return found->second;
@@ -94,6 +94,11 @@ llvm::GlobalVariable* InterfaceDefinition::llvm_global_vtable(Codegen& gen, Stru
             llvm::GlobalValue::InternalLinkage,
             constant
     );
+    // an alias to the first pointer in the llvm_vtable
+    // since we are using structs, we don't need to create an alias to the first pointer
+//    std::vector<llvm::Constant*> idx { gen.builder->getInt32(0), gen.builder->getInt32(0) };
+//    const auto get_ele_ptr = llvm::ConstantExpr::getGetElementPtr(constant->getType(), table, idx, gen.inbounds);
+//    const auto alias = llvm::GlobalAlias::create(gen.builder->getPtrTy(), 0, llvm::GlobalValue::LinkageTypes::InternalLinkage, "", get_ele_ptr, gen.module.get());
     vtable_pointers[for_struct] = table;
     return table;
 }

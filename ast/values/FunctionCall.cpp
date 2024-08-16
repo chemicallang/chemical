@@ -159,38 +159,79 @@ llvm::FunctionType *FunctionCall::llvm_linked_func_type(Codegen& gen, std::vecto
     return get_function_type()->llvm_func_type(gen);
 }
 
+llvm::Value* call_with_callee(
+        FunctionCall* call,
+        Codegen &gen,
+        std::vector<llvm::Value*>& args,
+        std::vector<std::unique_ptr<ChainValue>> &chain_values,
+        unsigned int index,
+        llvm::Value* callee
+) {
+    const auto llvm_func_type = call->llvm_linked_func_type(gen, chain_values, index);
+    return gen.builder->CreateCall(llvm_func_type, callee, args);
+}
+
+llvm::Value* struct_return_in_args(
+        Codegen& gen,
+        std::vector<llvm::Value*>& args,
+        FunctionType* func_type,
+        llvm::Value* returnedValue
+) {
+    if(func_type->returnType->value_type() == ValueType::Struct) {
+        if(!returnedValue) {
+            returnedValue = gen.builder->CreateAlloca(func_type->returnType->llvm_type(gen), nullptr);
+        }
+        args.emplace_back(returnedValue);
+    }
+    return returnedValue;
+}
+
 std::pair<bool, llvm::Value*> FunctionCall::llvm_dynamic_dispatch(
         Codegen& gen,
         std::vector<std::unique_ptr<ChainValue>> &chain_values,
         unsigned int index,
         std::vector<std::pair<Value*, llvm::Value*>>& destructibles
-        // TODO take args here
 ) {
     auto grandpa = get_grandpa_value(chain_values, index);
     if(!grandpa) return { false, nullptr };
     const auto known_t = grandpa->known_type();
     if(!known_t) return { false, nullptr };
     const auto pure_type = known_t->pure_type();
-    if(pure_type->kind() == BaseTypeKind::Dynamic) {
-        const auto linked = safe_linked_func();
-        const auto interface = ((DynamicType*) pure_type)->referenced->linked_node()->as_interface_def();
-        // got a pointer to the object it is being called upon, this reference points to a dynamic object (two pointers)
-        auto granny = grandpa->access_chain_pointer(gen, chain_values, destructibles, index - 2);
-        const auto struct_ty = llvm::StructType::get(*gen.ctx,{gen.builder->getPtrTy(), gen.builder->getPtrTy()});
+    if(pure_type->kind() != BaseTypeKind::Dynamic) return { false, nullptr };
+    const auto linked = safe_linked_func();
+    const auto interface = ((DynamicType*) pure_type)->referenced->linked_node()->as_interface_def();
+    // got a pointer to the object it is being called upon, this reference points to a dynamic object (two pointers)
+    auto granny = grandpa->access_chain_pointer(gen, chain_values, destructibles, index - 2);
+    const auto struct_ty = llvm::StructType::get(*gen.ctx,{gen.builder->getPtrTy(), gen.builder->getPtrTy()});
+
+    auto func_type = get_function_type();
+    llvm::Value* self_ptr = nullptr;
+
+    if(func_type->has_self_param()) {
         // the pointer to the struct object present in dynamic object (must be loaded)
         const auto first_ele_ptr = gen.builder->CreateGEP(struct_ty, granny, { gen.builder->getInt32(0), gen.builder->getInt32(0) }, "", gen.inbounds);
-        const auto first_ele = gen.builder->CreateLoad(gen.builder->getPtrTy(), first_ele_ptr);
-        // the pointer to implementation (vtable) we stored for the given interface (must be loaded)
-        const auto second_ele_ptr = gen.builder->CreateGEP(struct_ty, granny, { gen.builder->getInt32(0), gen.builder->getInt32(1) }, "", gen.inbounds);
-        const auto second_ele = gen.builder->CreateLoad(gen.builder->getPtrTy(), second_ele_ptr);
-        // getting the index of the pointer stored in vtable using the interface and function
-        const int func_index = interface->vtable_function_index(linked);
-        // loading the pointer to the function
-        const auto callee = gen.builder->CreateGEP(interface->llvm_vtable_type(gen), second_ele, { gen.builder->getInt32(0), gen.builder->getInt32(func_index) }, "", gen.inbounds);
-        const auto func_pointer = gen.builder->CreateLoad(gen.builder->getPtrTy(), callee);
-        // TODO
-        throw std::runtime_error("DOOO IT, JUST DO IT");
+        self_ptr = gen.builder->CreateLoad(gen.builder->getPtrTy(), first_ele_ptr);
     }
+
+    // the pointer to implementation (vtable) we stored for the given interface (must be loaded)
+    const auto second_ele_ptr = gen.builder->CreateGEP(struct_ty, granny, { gen.builder->getInt32(0), gen.builder->getInt32(1) }, "", gen.inbounds);
+    const auto second_ele = gen.builder->CreateLoad(gen.builder->getPtrTy(), second_ele_ptr);
+    // getting the index of the pointer stored in vtable using the interface and function
+    const int func_index = interface->vtable_function_index(linked);
+    // loading the pointer to the function, with GEP we are doing pointer math to find the correct function
+    llvm::Value* callee = second_ele;
+    if(func_index != 0) { // at zero we can just call second_ele since it's the first func pointer
+        callee = gen.builder->CreateGEP(interface->llvm_vtable_type(gen), second_ele, { gen.builder->getInt32(func_index) }, "", gen.inbounds);;
+    }
+
+    // we must use callee to call the function,
+    std::vector<llvm::Value*> args;
+    llvm::Value* returned_value = struct_return_in_args(gen, args, func_type.get(), nullptr);
+    to_llvm_args(gen, this, func_type.get(), values, args, &chain_values, index, 0, self_ptr, destructibles);
+
+    llvm::Value* call_value = call_with_callee(this, gen, args, chain_values, index, callee);
+    return { true, returned_value ? returned_value : call_value };
+
 }
 
 llvm::Value *FunctionCall::llvm_linked_func_callee(
@@ -236,18 +277,6 @@ llvm::Value* call_with_args(
         const auto llvm_func_type = call->llvm_linked_func_type(gen, chain_values, index);
         return gen.builder->CreateCall(llvm_func_type, callee, args);
 //    }
-}
-
-llvm::Value* call_with_callee(
-        FunctionCall* call,
-        Codegen &gen,
-        std::vector<llvm::Value*>& args,
-        std::vector<std::unique_ptr<ChainValue>> &chain_values,
-        unsigned int index,
-        llvm::Value* callee
-) {
-    const auto llvm_func_type = call->llvm_linked_func_type(gen, chain_values, index);
-    return gen.builder->CreateCall(llvm_func_type, callee, args);
 }
 
 AccessChain parent_chain(FunctionCall* call, std::vector<std::unique_ptr<ChainValue>>& chain, int till) {
@@ -324,21 +353,6 @@ void FunctionCall::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
     }
 }
 
-llvm::Value* struct_return_in_args(
-        Codegen& gen,
-        std::vector<llvm::Value*>& args,
-        FunctionType* func_type,
-        llvm::Value* returnedValue
-) {
-    if(func_type->returnType->value_type() == ValueType::Struct) {
-        if(!returnedValue) {
-            returnedValue = gen.builder->CreateAlloca(func_type->returnType->llvm_type(gen), nullptr);
-        }
-        args.emplace_back(returnedValue);
-    }
-    return returnedValue;
-}
-
 llvm::Value* FunctionCall::llvm_chain_value(
         Codegen &gen,
         std::vector<llvm::Value*>& args,
@@ -377,6 +391,11 @@ llvm::Value* FunctionCall::llvm_chain_value(
         }
     }
 
+    auto dynamic_dispatch = llvm_dynamic_dispatch(gen, chain, until, destructibles);
+    if(dynamic_dispatch.first) {
+        return dynamic_dispatch.second;
+    }
+
     if(returnsStruct) {
         if(!returnedStruct) {
             returnedValue = gen.builder->CreateAlloca(func_type->returnType->llvm_type(gen), nullptr);
@@ -386,14 +405,6 @@ llvm::Value* FunctionCall::llvm_chain_value(
 
     auto fn = decl != nullptr ? decl->llvm_func() : nullptr;
     to_llvm_args(gen, this, func_type.get(), values, args, &chain, until,0, destructibles);
-
-//    auto dynamic_dispatch = llvm_dynamic_dispatch(gen, chain, until, destructibles);
-//    if(dynamic_dispatch.first) {
-//        return dynamic_dispatch.second;
-//    }
-
-//    auto fn = decl != nullptr ? decl->llvm_func() : nullptr;
-
 
     llvm::Value* call_value;
 

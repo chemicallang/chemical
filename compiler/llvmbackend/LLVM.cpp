@@ -705,8 +705,13 @@ void ReturnStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
     llvm::Value* return_value = nullptr;
     if(value.has_value()) {
         if(value.value()->reference() && value.value()->value_type() == ValueType::Struct) {
-            llvm::MaybeAlign noAlign;
-            gen.builder->CreateMemCpy(gen.current_function->getArg(0), noAlign, value.value()->llvm_pointer(gen), noAlign, value.value()->byte_size(gen.is64Bit));
+            // TODO hardcoded the function implicit struct return argument at index 0
+            auto dest = gen.current_function->getArg(0);
+            auto value_ptr = value.value()->llvm_pointer(gen);
+            if(!gen.assign_dyn_obj(value.value().get(), func_type->returnType.get(), dest, value_ptr)) {
+                llvm::MaybeAlign noAlign;
+                gen.builder->CreateMemCpy(dest, noAlign, value_ptr, noAlign, value.value()->byte_size(gen.is64Bit));
+            }
         } else {
             return_value = value.value()->llvm_ret_value(gen, this);
             if(func_type) {
@@ -778,11 +783,15 @@ void ThrowStatement::code_gen(Codegen &gen) {
 }
 
 void AssignStatement::code_gen(Codegen &gen) {
+    llvm::Value* llvm_value;
     if (assOp == Operation::Assignment) {
-        gen.builder->CreateStore(value->llvm_assign_value(gen, lhs.get()), lhs->llvm_pointer(gen));
+        llvm_value = value->llvm_assign_value(gen, lhs.get());
     } else {
-        auto operated = gen.operate(assOp, lhs.get(), value.get());
-        gen.builder->CreateStore(operated, lhs->llvm_pointer(gen));
+        llvm_value = gen.operate(assOp, lhs.get(), value.get());
+    }
+    const auto pointer = lhs->llvm_pointer(gen);
+    if(!gen.assign_dyn_obj(value.get(), lhs->known_type(), pointer, llvm_value)) {
+        gen.builder->CreateStore(llvm_value, pointer);
     }
 }
 

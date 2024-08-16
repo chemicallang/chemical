@@ -75,7 +75,7 @@ void to_llvm_args(
             argValue = gen.builder->CreateFPExt(argValue, llvm::Type::getDoubleTy(*gen.ctx));
         } else {
             const auto func_param = func_type->func_param_for_arg_at(i);
-            argValue = gen.conditionally_dyn_pack_obj(values[i].get(), func_param->type.get(), argValue);
+            argValue = gen.pack_dyn_obj(values[i].get(), func_param->type.get(), argValue);
         }
         args.emplace_back(argValue);
 

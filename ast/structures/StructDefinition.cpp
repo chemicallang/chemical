@@ -303,7 +303,24 @@ BaseType *UnnamedStruct::copy() const {
 }
 
 bool StructMember::requires_destructor() {
-    return type->value_type() == ValueType::Struct && type->linked_node()->as_struct_def()->requires_destructor();
+    if(type->value_type() == ValueType::Struct) {
+        const auto pure_type = type->pure_type();
+        const auto linked = pure_type->linked_node();
+        const auto struct_def = linked->as_struct_def();
+        if(struct_def) {
+            return struct_def->requires_destructor();
+        } else {
+            const auto interface_def = linked->as_interface_def();
+            if(interface_def) {
+                // TODO interface definition destructor, supporting virtual destructor
+                return false;
+            } else {
+                return false;
+            }
+        }
+    } else {
+        return false;
+    }
 }
 
 FunctionDeclaration* StructDefinition::create_destructor() {

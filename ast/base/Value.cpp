@@ -29,7 +29,7 @@ llvm::AllocaInst* Value::llvm_allocate_with(Codegen& gen, llvm::Value* value, ll
 }
 
 llvm::AllocaInst *Value::llvm_allocate(Codegen& gen, const std::string& identifier, BaseType* expected_type) {
-    return llvm_allocate_with(gen, llvm_value(gen, expected_type), llvm_type(gen));
+    return llvm_allocate_with(gen, llvm_value(gen, expected_type), expected_type ? expected_type->llvm_type(gen) : llvm_type(gen));
 }
 
 llvm::GlobalVariable* Value::llvm_global_variable(Codegen& gen, bool is_const, const std::string& name) {
@@ -60,7 +60,10 @@ unsigned int Value::store_in_struct(
         BaseType* expected_type
 ) {
     auto elementPtr = Value::get_element_pointer(gen, parent->llvm_type(gen), allocated, idxList, index);
-    gen.builder->CreateStore(llvm_value(gen, expected_type), elementPtr);
+    const auto value = llvm_value(gen, expected_type);
+    if(!gen.assign_dyn_obj(this, expected_type, elementPtr, value)) {
+        gen.builder->CreateStore(value, elementPtr);
+    }
     return index + 1;
 }
 
@@ -73,7 +76,11 @@ unsigned int Value::store_in_array(
         BaseType* expected_type
 ) {
     auto elementPtr = Value::get_element_pointer(gen, parent->llvm_type(gen), ptr, idxList, index);
-    gen.builder->CreateStore(llvm_value(gen, expected_type), elementPtr);
+    const auto value = llvm_value(gen, expected_type);
+    gen.builder->CreateStore(value, elementPtr);
+    if(!gen.assign_dyn_obj(this, expected_type, elementPtr, value)) {
+        gen.builder->CreateStore(value, elementPtr);
+    }
     return index + 1;
 }
 

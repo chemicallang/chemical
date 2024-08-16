@@ -272,6 +272,16 @@ public:
     bool lexRefOrGenericType();
 
     /**
+     * lex array and pointer types after type id
+     */
+    void lexArrayAndPointerTypesAfterTypeId(unsigned int start);
+
+    /**
+     * lex type id
+     */
+    bool lexTypeId(std::string& type, unsigned int start);
+
+    /**
      * lex type tokens
      */
     bool lexTypeTokens();

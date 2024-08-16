@@ -197,6 +197,12 @@ public:
     llvm::AllocaInst* pack_fat_pointer(llvm::Value* first_ptr, llvm::Value* second_ptr);
 
     /**
+     * gets the implementation using value and type, where value is a struct value or ref struct
+     * and type is a type to an interface, that is implemented by ref struct
+     */
+    llvm::Value* get_dyn_obj_impl(Value*, BaseType* type);
+
+    /**
      * it checks whether the given type is a dynamic type and the given value is a struct
      * if the given value is a struct that implements the given dynamic type, it's packed into
      * a fat pointer where the first pointer is the llvm_value expected to be the object reference
@@ -204,7 +210,24 @@ public:
      * finding the interface which stores all implementations for the structs
      * IF it can't pack because it's not a dynamic type, it will return llvm_value
      */
-    llvm::Value* conditionally_dyn_pack_obj(Value* value, BaseType* type, llvm::Value* llvm_value);
+    llvm::Value* pack_dyn_obj(Value* value, BaseType* type, llvm::Value* llvm_value);
+
+    /**
+     * to change the implementation of dynamic object, this function can be used
+     * fat_pointer already having valid struct object for the implementation
+     * the implementation is calculated based on the given Value* pointer and type
+     * returns true if could get implementation and assign it
+     */
+    bool assign_dyn_obj_impl(Value* value, BaseType* type, llvm::Value* fat_pointer);
+
+    /**
+     * the implementation represented by this dynamic object will be assigned, along
+     * with the given struct object
+     * obj is the pointer to the struct that will be assigned
+     * the implementation is calculated based on value and type
+     * returns true if could get implementation and assign both
+     */
+    bool assign_dyn_obj(Value* value, BaseType* type, llvm::Value* fat_pointer, llvm::Value* obj);
 
     /**
      * creates a function block, along with setting the insert point to this entry block

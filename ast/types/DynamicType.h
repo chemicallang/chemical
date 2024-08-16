@@ -32,6 +32,11 @@ public:
     }
 
     [[nodiscard]]
+    ValueType value_type() const override {
+        return ValueType::Struct;
+    }
+
+    [[nodiscard]]
     DynamicType* copy() const override {
         return new DynamicType(std::unique_ptr<BaseType>(referenced->copy()));
     }

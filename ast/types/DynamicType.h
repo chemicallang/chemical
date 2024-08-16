@@ -40,6 +40,8 @@ public:
         return referenced->linked_node();
     }
 
+    void link(SymbolResolver &linker, std::unique_ptr<BaseType> &current) override;
+
 #ifdef COMPILER_BUILD
 
     llvm::Type* llvm_type(Codegen& gen) override;

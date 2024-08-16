@@ -202,7 +202,7 @@ std::pair<bool, llvm::Value*> FunctionCall::llvm_dynamic_dispatch(
     const auto interface = ((DynamicType*) pure_type)->referenced->linked_node()->as_interface_def();
     // got a pointer to the object it is being called upon, this reference points to a dynamic object (two pointers)
     auto granny = grandpa->access_chain_pointer(gen, chain_values, destructibles, index - 2);
-    const auto struct_ty = llvm::StructType::get(*gen.ctx,{gen.builder->getPtrTy(), gen.builder->getPtrTy()});
+    const auto struct_ty = gen.fat_pointer_type();
 
     auto func_type = get_function_type();
     llvm::Value* self_ptr = nullptr;
@@ -315,11 +315,11 @@ llvm::Value *call_capturing_lambda(
     } else {
         value = call->parent_val->llvm_value(gen);
     };
-    auto dataPtr = gen.builder->CreateStructGEP(gen.packed_lambda_type(), value, 1);
+    auto dataPtr = gen.builder->CreateStructGEP(gen.fat_pointer_type(), value, 1);
     auto data = gen.builder->CreateLoad(gen.builder->getPtrTy(), dataPtr);
     args.emplace_back(data);
     to_llvm_args(gen, call, func_type, call->values, args, chain, until, 0, destructibles);
-    auto structType = gen.packed_lambda_type();
+    auto structType = gen.fat_pointer_type();
     auto lambdaPtr = gen.builder->CreateStructGEP(structType, value, 0);
     auto lambda = gen.builder->CreateLoad(gen.builder->getPtrTy(), lambdaPtr);
     return gen.builder->CreateCall(func_type->llvm_func_type(gen), lambda, args);

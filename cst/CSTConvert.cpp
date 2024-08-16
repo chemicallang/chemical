@@ -307,12 +307,26 @@ bool CSTConverter::is_dispose() {
 }
 
 std::unique_ptr<Value> CSTConverter::value() {
+#ifdef DEBUG
+    if(values.empty()) {
+        throw std::runtime_error("CSTConverter::value called when values vector is empty");
+    }
+#endif
     auto value = std::move(values.back());
     values.pop_back();
     return value;
 }
 
+void CSTConverter::put_type(BaseType* type) {
+    types.emplace_back(type);
+}
+
 std::unique_ptr<BaseType> CSTConverter::type() {
+#ifdef DEBUG
+    if(types.empty()) {
+        throw std::runtime_error("CSTConverter::type called when vector array empty");
+    }
+#endif
     auto type = std::move(types.back());
     types.pop_back();
     return type;
@@ -649,15 +663,15 @@ void CSTConverter::visitTypealias(CompoundCSTToken *alias) {
 void CSTConverter::visitTypeToken(LexToken *token) {
     auto primitive = TypeMakers::PrimitiveMap.find(token->value);
     if (primitive == TypeMakers::PrimitiveMap.end()) {
-        types.emplace_back(std::make_unique<ReferencedType>(token->value));
+        put_type(new ReferencedType(token->value));
     } else {
-        types.emplace_back(std::unique_ptr<BaseType>(primitive->second(is64Bit)));
+        put_type(primitive->second(is64Bit));
     }
 }
 
 void CSTConverter::visitReferencedValueType(CompoundCSTToken *ref_value) {
     ref_value->tokens[0]->accept(this);
-    auto ref = std::make_unique<ReferencedValueType>(value());
+    auto ref = new ReferencedValueType(value());
     auto chain = ref->value->as_access_chain();
     if(chain) {
         auto id = chain->values[0]->as_identifier();
@@ -675,11 +689,11 @@ void CSTConverter::visitReferencedValueType(CompoundCSTToken *ref_value) {
                     return;
                 }
             }
-            types.emplace_back(new LiteralType(std::unique_ptr<BaseType>(child_type)));
+            put_type(new LiteralType(std::unique_ptr<BaseType>(child_type)));
             return;
         }
     }
-    types.emplace_back(std::move(ref));
+    put_type(ref);
 }
 
 void CSTConverter::visitContinue(CompoundCSTToken *continueCst) {
@@ -1128,7 +1142,7 @@ void CSTConverter::visitTryCatch(CompoundCSTToken *tryCatch) {
 
 void CSTConverter::visitPointerType(CompoundCSTToken *cst) {
     visit(cst->tokens, 0);
-    types.emplace_back(std::make_unique<PointerType>(type()));
+    put_type(new PointerType(type()));
 }
 
 void CSTConverter::visitGenericType(CompoundCSTToken *cst) {
@@ -1141,13 +1155,13 @@ void CSTConverter::visitGenericType(CompoundCSTToken *cst) {
         }
         i++;
     }
-    types.emplace_back(generic_type);
+    put_type(generic_type);
 }
 
 void CSTConverter::visitSpecializedType(CompoundCSTToken *specType) {
     // currently only one is supported dyn, which is a dynamic type
     specType->tokens[1]->accept(this);
-    types.emplace_back(new DynamicType(type()));
+    put_type(new DynamicType(type()));
 }
 
 void CSTConverter::visitArrayType(CompoundCSTToken *arrayType) {
@@ -1159,15 +1173,14 @@ void CSTConverter::visitArrayType(CompoundCSTToken *arrayType) {
         val.emplace(value());
     }
     auto arraySize = (val.has_value() && val.value()->value_type() == ValueType::Int) ? val.value()->as_int() : -1;
-    types.emplace_back(std::make_unique<ArrayType>(std::move(elem_type), arraySize));
+    put_type(new ArrayType(std::move(elem_type), arraySize));
 }
 
 void CSTConverter::visitFunctionType(CompoundCSTToken *funcType) {
     bool is_capturing = is_char_op(funcType->tokens[0].get(), '[');
     auto params = function_params(this, funcType->tokens, is_capturing ? 3 : 1);
     visit(funcType->tokens, params.index + 2);
-    types.emplace_back(
-            std::make_unique<FunctionType>(std::move(params.params), type(), params.isVariadic, is_capturing));
+    put_type(new FunctionType(std::move(params.params), type(), params.isVariadic, is_capturing));
 }
 
 

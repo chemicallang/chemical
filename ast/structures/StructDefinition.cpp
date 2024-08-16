@@ -75,9 +75,31 @@ public:
     }
 };
 
+// currently only a soft check is made, we must improve this function
+bool does_require_vtable(StructDefinition* definition) {
+    for(auto& inherits : definition->inherited) {
+        const auto linked = inherits->type->linked_node()->as_interface_def();
+        if(linked) {
+            return true;
+        }
+    }
+}
+
 void StructDefinition::code_gen(Codegen &gen) {
     if(generic_params.empty()) {
         struct_func_gen(gen, functions());
+
+        if(does_require_vtable(this)) {
+            // building vtable
+            auto constant = llvm_build_vtable(gen);
+            vtable_pointer = new llvm::GlobalVariable(
+                    *gen.module,
+                    constant->getType(),
+                    true,
+                    llvm::GlobalValue::InternalLinkage,
+                    constant
+            );
+        }
     } else {
         // WHY IS THIS ALGORITHM SO COMPLICATED ?
         // because we must check which generic iteration has already been generated
@@ -125,6 +147,14 @@ void StructDefinition::acquire_function_iterations(int16_t iteration) {
         auto& func_data = generic_llvm_data[function.get()];
         func_data[iteration] = function->llvm_data;
     }
+}
+
+llvm::Constant* StructDefinition::llvm_build_vtable(Codegen& gen) {
+    std::vector<llvm::Constant*> llvm_pointers;
+    llvm_build_inherited_vtable(gen, this, llvm_pointers);
+    std::vector<llvm::Type*> struct_types;
+    llvm_build_inherited_vtable_type(gen, struct_types);
+    return llvm::ConstantStruct::get(llvm::StructType::get(*gen.ctx, struct_types));
 }
 
 llvm::Type *StructMember::llvm_type(Codegen &gen) {

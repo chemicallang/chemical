@@ -153,6 +153,9 @@ void CSTToken::accept(CSTVisitor *visitor) {
         case LexTokenType::CompFunctionType:
             visitor->visitFunctionType((CompoundCSTToken*) this);
             return;
+        case LexTokenType::CompSpecializedType:
+            visitor->visitSpecializedType((CompoundCSTToken*) this);
+            return;
         case LexTokenType::CompGenericType:
             visitor->visitGenericType((CompoundCSTToken*) this);
             return;

@@ -11,6 +11,7 @@ namespace llvm {
     class BasicBlock;
     class TargetMachine;
     class Value;
+    class Constant;
     class LLVMContext;
     class Module;
     class Type;

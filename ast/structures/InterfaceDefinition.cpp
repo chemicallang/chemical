@@ -41,15 +41,33 @@ llvm::Type* InterfaceDefinition::llvm_type(Codegen &gen) {
     return gen.builder->getVoidTy();
 }
 
-llvm::Type* InterfaceDefinition::llvm_vtable_type(Codegen& gen) {
-    auto total = functions().size();
-    std::vector<llvm::Type*> types(total);
-    int i = 0;
+void InterfaceDefinition::llvm_vtable_type(Codegen& gen, std::vector<llvm::Type*>& struct_types) {
+    struct_types.reserve(struct_types.size() + functions().size());
     for(auto& func : functions()) {
-        types[i] = gen.builder->getPtrTy();
-        i++;
+        struct_types.emplace_back(gen.builder->getPtrTy());
     }
+}
+
+llvm::Type* InterfaceDefinition::llvm_vtable_type(Codegen& gen) {
+    std::vector<llvm::Type*> types;
+    llvm_vtable_type(gen, types);
     return llvm::StructType::get(*gen.ctx, types);
+}
+
+void InterfaceDefinition::llvm_build_vtable(Codegen& gen, StructDefinition* for_struct, std::vector<llvm::Constant*>& llvm_pointers) {
+    auto found = users.find(for_struct);
+    if(found != users.end()) {
+        for(auto& func : functions()) {
+            auto func_res = found->second.find(func.get());
+            if(func_res != found->second.end()) {
+                llvm_pointers.emplace_back(func_res->second);
+            } else {
+                gen.error("couldn't find function impl pointer, name '" + func->name + "' for struct '" + ((ASTNode*) for_struct)->ns_node_identifier() + "' for interface '" + name + "'");
+            }
+        }
+    } else {
+        gen.error("couldn't find struct '" + ((ASTNode*) for_struct)->ns_node_identifier() + "' implementation pointers for interface '" + name + "'");
+    }
 }
 
 #endif

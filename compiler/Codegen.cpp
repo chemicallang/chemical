@@ -261,13 +261,13 @@ llvm::BasicBlock *Codegen::createBB(const std::string &name, llvm::Function *fn)
     return llvm::BasicBlock::Create(*ctx, name, fn);
 }
 
-llvm::StructType* Codegen::packed_lambda_type() {
-    return llvm::StructType::get(builder->getPtrTy(), builder->getPtrTy());
+llvm::StructType* Codegen::fat_pointer_type() {
+    return llvm::StructType::get(*ctx, {builder->getPtrTy(), builder->getPtrTy()} );
 }
 
 llvm::AllocaInst* Codegen::pack_lambda(llvm::Function* func_ptr, llvm::Value* captured_struct) {
     // create a struct with two pointers
-    auto structType = packed_lambda_type();
+    auto structType = fat_pointer_type();
     auto allocated = builder->CreateAlloca(structType);
     // store lambda function pointer in the first variable
     auto first = builder->CreateStructGEP(structType, allocated, 0);

@@ -6,6 +6,7 @@
 #include "ast/values/VariableIdentifier.h"
 #include "ast/types/GenericType.h"
 #include "ast/structures/StructDefinition.h"
+#include "ast/values/ArrayValue.h"
 
 #ifdef COMPILER_BUILD
 
@@ -31,6 +32,9 @@ void VarInitStatement::code_gen(Codegen &gen) {
                 return;
             }
             llvm_ptr = value.value()->llvm_allocate(gen, identifier, type.has_value() ? type.value().get() : nullptr);
+            if(type.has_value() && value.value()->value_type() == ValueType::Struct) {
+                gen.assign_dyn_obj_impl(value.value().get(), type.value().get(), llvm_ptr);
+            }
         } else {
             llvm_ptr = gen.builder->CreateAlloca(llvm_type(gen), nullptr, identifier);
         }
@@ -202,6 +206,15 @@ void VarInitStatement::declare_and_link(SymbolResolver &linker) {
     }
     if (value.has_value()) {
         value.value()->link(linker, this);
+    }
+    if(type.has_value() && value.has_value()) {
+        const auto as_array = value.value()->as_array_value();
+        if(type.value()->kind() == BaseTypeKind::Array && as_array) {
+            const auto arr_type = ((ArrayType*) type.value().get());
+            if(arr_type->array_size == -1) {
+                arr_type->array_size = (int) as_array->array_size();
+            }
+        }
     }
 }
 

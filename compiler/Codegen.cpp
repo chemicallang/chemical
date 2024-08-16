@@ -272,15 +272,16 @@ llvm::AllocaInst* Codegen::pack_fat_pointer(llvm::Value* first_ptr, llvm::Value*
     auto structType = fat_pointer_type();
     auto allocated = builder->CreateAlloca(structType);
     // store lambda function pointer in the first variable
-    auto first = builder->CreateStructGEP(structType, allocated, 0);
+    auto first = builder->CreateGEP(structType, allocated, {builder->getInt32(0), builder->getInt32(0)}, "", inbounds);
     builder->CreateStore(first_ptr, first);
     // store a pointer to a struct that contains captured variables in the second variable
-    auto second = builder->CreateStructGEP(structType, allocated, 1);
+    auto second = builder->CreateGEP(structType, allocated, {builder->getInt32(0), builder->getInt32(1)}, "", inbounds);
     builder->CreateStore(second_ptr, second);
     return allocated;
 }
 
-llvm::Value* Codegen::conditionally_dyn_pack_obj(Value* value, BaseType* type, llvm::Value* llvm_value) {
+llvm::Value* Codegen::get_dyn_obj_impl(Value* value, BaseType* type) {
+    if(!type) return nullptr;
     auto pure_type = type->pure_type();
     if(pure_type->kind() == BaseTypeKind::Dynamic) {
         const auto dyn_type = ((DynamicType*) pure_type);
@@ -291,7 +292,7 @@ llvm::Value* Codegen::conditionally_dyn_pack_obj(Value* value, BaseType* type, l
             if(def) {
                 const auto found = interface->llvm_global_vtable(*this, def);
                 if(found != nullptr) {
-                    return pack_fat_pointer(llvm_value, found);
+                    return found;
                 } else {
                     error("couldn't find the implementation of struct '" + def->name + "' using value '" + value->representation() + "' for interface '" + interface->name + "'");
                 }
@@ -302,7 +303,37 @@ llvm::Value* Codegen::conditionally_dyn_pack_obj(Value* value, BaseType* type, l
             }
         }
     }
+    return nullptr;
+}
+
+llvm::Value* Codegen::pack_dyn_obj(Value* value, BaseType* type, llvm::Value* llvm_value) {
+    auto found = get_dyn_obj_impl(value, type);
+    if(found) {
+        return pack_fat_pointer(llvm_value, found);
+    }
     return llvm_value;
+}
+
+bool Codegen::assign_dyn_obj_impl(Value* value, BaseType* type, llvm::Value* fat_pointer) {
+    auto found = get_dyn_obj_impl(value, type);
+    if(found) {
+        auto second = builder->CreateGEP(fat_pointer_type(), fat_pointer, {builder->getInt32(0), builder->getInt32(1)}, "", inbounds);
+        builder->CreateStore(found, second);
+        return true;
+    }
+    return false;
+}
+
+bool Codegen::assign_dyn_obj(Value* value, BaseType* type, llvm::Value* fat_pointer, llvm::Value* obj) {
+    auto found = get_dyn_obj_impl(value, type);
+    if(found) {
+        auto first = builder->CreateGEP(fat_pointer_type(), fat_pointer, {builder->getInt32(0), builder->getInt32(0)}, "", inbounds);
+        builder->CreateStore(obj, first);
+        auto second = builder->CreateGEP(fat_pointer_type(), fat_pointer, {builder->getInt32(0), builder->getInt32(1)}, "", inbounds);
+        builder->CreateStore(found, second);
+        return true;
+    }
+    return false;
 }
 
 void Codegen::print_to_console() {

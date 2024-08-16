@@ -125,7 +125,7 @@ very innovative things are planned.
   - [x] Generate llvm ir / assembly / bitcode / object files
   - [ ] Directory module automatic compilation
   - [ ] Can import other modules (implemented but untested)
-  - [ ] Run executables after building them
+  - [x] Run executables after building them
   - [x] Can generate shared objects / dll
   - [ ] Can generate static libraries
   - [x] Can compile and link C module
@@ -156,10 +156,9 @@ very innovative things are planned.
 - [x] C Unions (raw)
 - [x] Native Lambda Support
   - [x] Capturing lambda also supported (though requires a little bit of work)
-- [x] Macros support (so powerful, that you can embed another compiler, we're planning to embed a html / css compiler)
-- [x] C like implicit and explicit casting (only some things may be stricter)
+- [x] Macros support (so powerful, that you can embed another compiler)
+- [x] C like implicit and explicit casting
 - [x] Java / Kotlin like Annotations
-  - [x] This will ensure smoother code generation
 - [x] Kotlin's extension functions
 - [x] Raw pointers
 - [x] Full support for constructors (including comptime)
@@ -171,8 +170,11 @@ very innovative things are planned.
 - [x] Const Function Params, cannot change value of parameter
 - [x] Comptime Support
 - [x] Same name function overloading
-- [ ] Generics
-- [ ] Virtual & Interface like C++ & Rust
+- [x] Generics
+  - [ ] Generics in inheritance require polishing
+- [x] C++ like Inheritance (Non-Multi)
+- [x] Rust like Trait and Impl
+  - [ ] Dynamic dispatch requires polishing
 - [ ] On Demand Function Mangling
   - [ ] When a conflict is detected, we mangle the un-important symbol
   - [ ] If user wants to expose both symbols, we generate an error

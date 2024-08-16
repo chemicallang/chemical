@@ -91,7 +91,7 @@ unsigned int ArrayValue::store_in_struct(
 
 llvm::Type *ArrayValue::llvm_elem_type(Codegen &gen) {
     llvm::Type *elementType;
-    if (values.empty()) {
+    if (elemType.has_value()) {
         if(sizes.size() <= 1) {
             // get empty array type from the user
             elementType = elemType.value()->llvm_type(gen);
@@ -155,11 +155,9 @@ void ArrayValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr)
 
 void ArrayValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr, BaseType *type) {
     link(linker, value_ptr);
-    if(!elemType.has_value() && values.empty()) {
-        if(type && type->kind() == BaseTypeKind::Array) {
-            const auto arr_type = (ArrayType*) type;
-            elemType.emplace(arr_type->elem_type->copy());
-        }
+    if(!elemType.has_value() && type && type->kind() == BaseTypeKind::Array) {
+        const auto arr_type = (ArrayType*) type;
+        elemType.emplace(arr_type->elem_type->copy());
     }
 }
 

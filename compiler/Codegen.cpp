@@ -17,6 +17,8 @@
 #include "lld/Common/ErrorHandler.h"
 #include "ast/utils/ExpressionEvaluator.h"
 #include "ast/types/IntNType.h"
+#include "ast/types/DynamicType.h"
+#include "ast/structures/InterfaceDefinition.h"
 #include <cstdlib>
 #include <optional>
 #include <llvm/TargetParser/Host.h>
@@ -265,17 +267,42 @@ llvm::StructType* Codegen::fat_pointer_type() {
     return llvm::StructType::get(*ctx, {builder->getPtrTy(), builder->getPtrTy()} );
 }
 
-llvm::AllocaInst* Codegen::pack_lambda(llvm::Function* func_ptr, llvm::Value* captured_struct) {
+llvm::AllocaInst* Codegen::pack_fat_pointer(llvm::Value* first_ptr, llvm::Value* second_ptr) {
     // create a struct with two pointers
     auto structType = fat_pointer_type();
     auto allocated = builder->CreateAlloca(structType);
     // store lambda function pointer in the first variable
     auto first = builder->CreateStructGEP(structType, allocated, 0);
-    builder->CreateStore(func_ptr, first);
+    builder->CreateStore(first_ptr, first);
     // store a pointer to a struct that contains captured variables in the second variable
     auto second = builder->CreateStructGEP(structType, allocated, 1);
-    builder->CreateStore(captured_struct, second);
+    builder->CreateStore(second_ptr, second);
     return allocated;
+}
+
+llvm::Value* Codegen::conditionally_dyn_pack_obj(Value* value, BaseType* type, llvm::Value* llvm_value) {
+    auto pure_type = type->pure_type();
+    if(pure_type->kind() == BaseTypeKind::Dynamic) {
+        const auto dyn_type = ((DynamicType*) pure_type);
+        const auto interface = dyn_type->linked_node()->as_interface_def();
+        if(interface && value->value_type() == ValueType::Struct) {
+            const auto linked = value->known_type();
+            const auto def = linked->linked_struct_def();
+            if(def) {
+                const auto found = interface->llvm_global_vtable(*this, def);
+                if(found != nullptr) {
+                    return pack_fat_pointer(llvm_value, found);
+                } else {
+                    error("couldn't find the implementation of struct '" + def->name + "' using value '" + value->representation() + "' for interface '" + interface->name + "'");
+                }
+            } else {
+#ifdef DEBUG
+                throw std::runtime_error("linked node not StructDefinition");
+#endif
+            }
+        }
+    }
+    return llvm_value;
 }
 
 void Codegen::print_to_console() {

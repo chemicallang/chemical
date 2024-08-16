@@ -73,6 +73,9 @@ void to_llvm_args(
         // Ensure proper type promotion for float values passed to printf
         if (func_type->isVariadic && func_type->isInVarArgs(i) && argValue->getType()->isFloatTy()) {
             argValue = gen.builder->CreateFPExt(argValue, llvm::Type::getDoubleTy(*gen.ctx));
+        } else {
+            const auto func_param = func_type->func_param_for_arg_at(i);
+            argValue = gen.conditionally_dyn_pack_obj(values[i].get(), func_param->type.get(), argValue);
         }
         args.emplace_back(argValue);
 
@@ -219,10 +222,12 @@ std::pair<bool, llvm::Value*> FunctionCall::llvm_dynamic_dispatch(
     // getting the index of the pointer stored in vtable using the interface and function
     const int func_index = interface->vtable_function_index(linked);
     // loading the pointer to the function, with GEP we are doing pointer math to find the correct function
-    llvm::Value* callee = second_ele;
+    llvm::Value* callee_ptr = second_ele;
     if(func_index != 0) { // at zero we can just call second_ele since it's the first func pointer
-        callee = gen.builder->CreateGEP(interface->llvm_vtable_type(gen), second_ele, { gen.builder->getInt32(func_index) }, "", gen.inbounds);;
+        callee_ptr = gen.builder->CreateGEP(interface->llvm_vtable_type(gen), second_ele, { gen.builder->getInt32(func_index) }, "", gen.inbounds);;
     }
+    // load the actual function pointer
+    llvm::Value* callee = gen.builder->CreateLoad(gen.builder->getPtrTy(), callee_ptr);
 
     // we must use callee to call the function,
     std::vector<llvm::Value*> args;

@@ -30,7 +30,7 @@ public:
      * this maps structs that implement this interface with their global variable pointers
      * for the vtable generated
      */
-    std::unordered_map<StructDefinition*, llvm::GlobalVariable*> vtable_pointers;
+    std::unordered_map<StructDefinition*, llvm::Value*> vtable_pointers;
     /**
      * this is set to true when even a single implementation is detected
      */
@@ -121,7 +121,7 @@ public:
      * the vtable will be created as a global constant for the given struct
      * if a vtable already exists for the given struct, we just return it without creating another one
      */
-    llvm::GlobalVariable* llvm_global_vtable(Codegen& gen, StructDefinition* for_struct);
+    llvm::Value* llvm_global_vtable(Codegen& gen, StructDefinition* for_struct);
 
 #endif
 

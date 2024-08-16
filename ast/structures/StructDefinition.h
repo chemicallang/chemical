@@ -156,11 +156,6 @@ public:
 
     void llvm_destruct(Codegen &gen, llvm::Value *allocaInst) override;
 
-    /**
-     * build llvm vtable
-     */
-    llvm::Constant* llvm_build_vtable(Codegen& gen);
-
 #endif
 
 };

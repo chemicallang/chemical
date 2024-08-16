@@ -27,6 +27,7 @@ public:
      * a llvm struct type, we create a struct type once, and then cache it
      */
     std::unordered_map<int16_t, llvm::StructType*> llvm_struct_types;
+    llvm::GlobalVariable* vtable_pointer = nullptr;
 #endif
 
     /**
@@ -154,6 +155,11 @@ public:
     void code_gen_generic(Codegen &gen) override;
 
     void llvm_destruct(Codegen &gen, llvm::Value *allocaInst) override;
+
+    /**
+     * build llvm vtable
+     */
+    llvm::Constant* llvm_build_vtable(Codegen& gen);
 
 #endif
 

@@ -86,7 +86,11 @@ public:
 
     llvm::Type* llvm_type(Codegen &gen) override;
 
+    void llvm_vtable_type(Codegen& gen, std::vector<llvm::Type*>& struct_types);
+
     llvm::Type* llvm_vtable_type(Codegen& gen);
+
+    void llvm_build_vtable(Codegen& gen, StructDefinition* for_struct, std::vector<llvm::Constant*>& llvm_pointers);
 
 #endif
 

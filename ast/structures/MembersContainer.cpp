@@ -102,6 +102,26 @@ std::pair<llvm::Value*, llvm::FunctionType*>& MembersContainer::llvm_generic_fun
     return generic_llvm_data[decl][struct_itr][func_itr];
 }
 
+void MembersContainer::llvm_build_inherited_vtable_type(Codegen& gen, std::vector<llvm::Type*>& struct_types) {
+    for(auto& inherits : inherited) {
+        const auto linked = inherits->type->linked_node()->as_interface_def();
+        if(linked) {
+            linked->llvm_build_inherited_vtable_type(gen, struct_types);
+            linked->llvm_vtable_type(gen, struct_types);
+        }
+    }
+}
+
+void MembersContainer::llvm_build_inherited_vtable(Codegen& gen, StructDefinition* for_struct, std::vector<llvm::Constant*>& llvm_pointers) {
+    for(auto& inherits : inherited) {
+        const auto linked = inherits->type->linked_node()->as_interface_def();
+        if(linked) {
+            linked->llvm_build_inherited_vtable(gen, for_struct, llvm_pointers);
+            linked->llvm_build_vtable(gen, for_struct, llvm_pointers);
+        }
+    }
+}
+
 #endif
 
 BaseDefMember *VariablesContainer::child_def_member(const std::string &name) {

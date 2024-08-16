@@ -155,6 +155,11 @@ public:
     bool is_dispose();
 
     /**
+     * puts the type on the type vector
+     */
+    inline void put_type(BaseType* type);
+
+    /**
      * pop the last node from nodes vector node
      */
     ASTNode* pop_last_node() {

@@ -213,6 +213,16 @@ public:
         return VariablesContainer::llvm_struct_child_index(gen, indexes, name);
     }
 
+    /**
+     * build the type for llvm vtable, from inherited interfaces
+     */
+    void llvm_build_inherited_vtable_type(Codegen& gen, std::vector<llvm::Type*>& struct_types);
+
+    /**
+     * build llvm vtable, from inherited interfaces
+     */
+    void llvm_build_inherited_vtable(Codegen& gen, StructDefinition* for_struct, std::vector<llvm::Constant*>& llvm_pointers);
+
 #endif
 
 };

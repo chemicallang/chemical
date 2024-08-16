@@ -187,10 +187,9 @@ public:
     llvm::BasicBlock *createBB(const std::string &name, llvm::Function *fn);
 
     /**
-     * packed lambda struct type
-     * @return struct type of a packed lambda
+     * a struct type with two pointers inside
      */
-    llvm::StructType* packed_lambda_type();
+    llvm::StructType* fat_pointer_type();
 
     /**
      * packs a lambda into a struct with two pointers

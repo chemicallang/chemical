@@ -266,6 +266,7 @@ BaseDefMember *MembersContainer::inherited_member(const std::string& name) {
             if(mem) return mem;
         }
     }
+    return nullptr;
 }
 
 BaseDefMember *MembersContainer::child_member(const std::string& name) {

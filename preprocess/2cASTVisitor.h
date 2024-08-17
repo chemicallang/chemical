@@ -231,6 +231,14 @@ public:
     }
 
     /**
+     * when a value is implicitly mutable, for example var x : dyn Phone = SmartPhone {}
+     * here SmartPhone struct is initialized and put inside a fat pointer represented by dyn Phone
+     * implicitly, this can be called, this will account for mutating values
+     * @see lang/docs/notes/MutatingValue.md
+     */
+    void accept_mutating_value(BaseType* type, Value* value);
+
+    /**
      * this should be called before calling translate
      */
     void prepare_translate();
@@ -429,6 +437,8 @@ public:
     void visit(ReferencedType* func) override;
 
     void visit(ReferencedValueType *ref_type) override;
+
+    void visit(DynamicType *type) override;
 
     void visit(ShortType* func) override;
 

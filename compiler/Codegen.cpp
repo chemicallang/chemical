@@ -282,25 +282,22 @@ llvm::AllocaInst* Codegen::pack_fat_pointer(llvm::Value* first_ptr, llvm::Value*
 
 llvm::Value* Codegen::get_dyn_obj_impl(Value* value, BaseType* type) {
     if(!type) return nullptr;
-    auto pure_type = type->pure_type();
-    if(pure_type->kind() == BaseTypeKind::Dynamic) {
-        const auto dyn_type = ((DynamicType*) pure_type);
-        const auto interface = dyn_type->linked_node()->as_interface_def();
-        if(interface && value->value_type() == ValueType::Struct) {
-            const auto linked = value->known_type();
-            const auto def = linked->linked_struct_def();
-            if(def) {
-                const auto found = interface->llvm_global_vtable(*this, def);
-                if(found != nullptr) {
-                    return found;
-                } else {
-                    error("couldn't find the implementation of struct '" + def->name + "' using value '" + value->representation() + "' for interface '" + interface->name + "'");
-                }
+    const auto interface = type->linked_dyn_interface();
+    if(!interface) return nullptr;
+    if(value->value_type() == ValueType::Struct) {
+        const auto linked = value->known_type();
+        const auto def = linked->linked_struct_def();
+        if(def) {
+            const auto found = interface->llvm_global_vtable(*this, def);
+            if(found != nullptr) {
+                return found;
             } else {
-#ifdef DEBUG
-                throw std::runtime_error("linked node not StructDefinition");
-#endif
+                error("couldn't find the implementation of struct '" + def->name + "' using value '" + value->representation() + "' for interface '" + interface->name + "'");
             }
+        } else {
+#ifdef DEBUG
+            throw std::runtime_error("linked node not StructDefinition");
+#endif
         }
     }
     return nullptr;
@@ -312,6 +309,13 @@ llvm::Value* Codegen::pack_dyn_obj(Value* value, BaseType* type, llvm::Value* ll
         return pack_fat_pointer(llvm_value, found);
     }
     return llvm_value;
+}
+
+llvm::Value* Codegen::allocate_dyn_obj_based_on_type(BaseType* type) {
+    if(!type) return nullptr;
+    const auto interface = type->linked_dyn_interface();
+    if(!interface) return nullptr;
+    return builder->CreateAlloca(fat_pointer_type());
 }
 
 bool Codegen::assign_dyn_obj_impl(Value* value, BaseType* type, llvm::Value* fat_pointer) {

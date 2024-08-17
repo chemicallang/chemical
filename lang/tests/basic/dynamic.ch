@@ -63,7 +63,6 @@ func test_dynamic_dispatch() {
         var o = ret_dyn_obj2(p);
         return o.call() == 66;
     })
-    /**
     test("storing struct as dynamic object in var init works - 1", () => {
         var p : dyn Phone = SmartPhone { number1 : 45 }
         return p.call() == 45;
@@ -110,5 +109,4 @@ func test_dynamic_dispatch() {
         var p : dyn Phone[] = { CellPhone { number2 : 88 } }
         return p[0].call() == 88;
     })
-    **/
 }

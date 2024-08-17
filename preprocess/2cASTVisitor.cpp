@@ -443,7 +443,17 @@ bool implicit_mutate_value(ToCAstVisitor* visitor, BaseType* type, Value* value,
 
 bool implicit_mutate_value_default(ToCAstVisitor* visitor, BaseType* type, Value* value) {
     return implicit_mutate_value_for_dyn_obj(visitor, type, value, [](ToCAstVisitor* visitor, Value* value) -> void {
-        value->accept(visitor);
+        const auto as_struct = value->as_struct();
+        if(as_struct) {
+            visitor->write('(');
+            visitor->write("struct");
+            visitor->space();
+            node_name(visitor, as_struct->definition);
+            visitor->write(')');
+            value->accept(visitor);
+        } else {
+            value->accept(visitor);
+        }
     });
 }
 

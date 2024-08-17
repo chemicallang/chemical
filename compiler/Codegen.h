@@ -213,6 +213,12 @@ public:
     llvm::Value* pack_dyn_obj(Value* value, BaseType* type, llvm::Value* llvm_value);
 
     /**
+     * if this type corresponds to a dynamic object, a fat pointer type will be allocated and returned
+     * otherwise nullptr is returned
+     */
+    llvm::Value* allocate_dyn_obj_based_on_type(BaseType* type);
+
+    /**
      * to change the implementation of dynamic object, this function can be used
      * fat_pointer already having valid struct object for the implementation
      * the implementation is calculated based on the given Value* pointer and type

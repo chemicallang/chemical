@@ -3,6 +3,7 @@
 #include "BaseType.h"
 #include "preprocess/RepresentationVisitor.h"
 #include "ast/structures/StructDefinition.h"
+#include "ast/structures/InterfaceDefinition.h"
 #include "ast/types/ReferencedType.h"
 #include "ast/types/GenericType.h"
 #include <sstream>
@@ -27,6 +28,28 @@ StructDefinition* BaseType::get_generic_struct() {
     } else {
         return nullptr;
     }
+}
+
+InterfaceDefinition* BaseType::linked_interface_def() {
+    const auto linked = linked_node();
+    return linked ? linked->as_interface_def() : nullptr;
+}
+
+InterfaceDefinition* BaseType::get_generic_interface() {
+    auto linked_interface = linked_interface_def();
+    if(linked_interface && !linked_interface->generic_params.empty()) {
+        return linked_interface;
+    } else {
+        return nullptr;
+    }
+}
+
+InterfaceDefinition* BaseType::linked_dyn_interface() {
+    auto pure = pure_type();
+    if(pure->kind() == BaseTypeKind::Dynamic) {
+        return pure->linked_node()->as_interface_def();
+    }
+    return nullptr;
 }
 
 std::string& BaseType::ref_name() {

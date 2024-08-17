@@ -31,9 +31,12 @@ void VarInitStatement::code_gen(Codegen &gen) {
                 gen.destruct_nodes.emplace_back(this);
                 return;
             }
-            llvm_ptr = value.value()->llvm_allocate(gen, identifier, type.has_value() ? type.value().get() : nullptr);
             if(type.has_value() && value.value()->value_type() == ValueType::Struct) {
-                gen.assign_dyn_obj_impl(value.value().get(), type.value().get(), llvm_ptr);
+                llvm_ptr = gen.allocate_dyn_obj_based_on_type(type.value().get());
+            }
+            const auto allocated = value.value()->llvm_allocate(gen, identifier, type.has_value() ? type.value().get() : nullptr);
+            if(llvm_ptr == nullptr || !gen.assign_dyn_obj(value->get(), type.has_value() ? type->get() : nullptr, llvm_ptr, allocated)) {
+                llvm_ptr = allocated;
             }
         } else {
             llvm_ptr = gen.builder->CreateAlloca(llvm_type(gen), nullptr, identifier);

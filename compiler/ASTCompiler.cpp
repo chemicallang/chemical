@@ -30,7 +30,7 @@ void ASTCompiler::compile_nodes(
     }
     if(!gen->errors.empty()) {
         gen->print_errors(file.abs_path);
+        gen->errors.clear();
     }
-    gen->reset_errors();
     import_res.nodes = std::move(gen->nodes);
 }

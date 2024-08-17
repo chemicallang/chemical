@@ -425,7 +425,9 @@ bool implicit_mutate_value_for_dyn_obj(ToCAstVisitor* visitor, BaseType* type, V
     visitor->write(')');
     visitor->write('{');
     visitor->space();
-    visitor->write('&');
+    if(!(value->linked_node()->as_func_param() && value->known_type()->kind() == BaseTypeKind::Referenced)) {
+        visitor->write('&');
+    }
     value_visit(visitor, value);
     visitor->write(',');
     visitor->write("(void*) &");
@@ -1945,6 +1947,57 @@ void CTopLevelDeclarationVisitor::visit(StructDefinition* def) {
     }
 }
 
+void create_v_table(ToCAstVisitor* visitor, InterfaceDefinition* interface, StructDefinition* definition) {
+    visitor->new_line_and_indent();
+    visitor->write("const");
+    visitor->write(' ');
+    visitor->write("struct");
+    visitor->space();
+    visitor->write('{');
+    visitor->indentation_level += 1;
+
+    // type pointers
+    for(auto& func : interface->functions()) {
+        auto self_param = func->get_self_param();
+        if(self_param) {
+            visitor->new_line_and_indent();
+            func_type_with_id_no_params(visitor, func.get(), func->name);
+            visitor->write("struct ");
+            node_name(visitor, definition);
+            visitor->write('*');
+            visitor->space();
+            visitor->write(self_param->name);
+            func_type_params(visitor, func.get(), 1, true);
+            visitor->write(')');
+            visitor->write(';');
+        }
+    }
+
+    visitor->indentation_level -=1;
+    visitor->new_line_and_indent();
+    visitor->write('}');
+    visitor->space();
+    vtable_name(visitor, interface, definition);
+    visitor->write(" = ");
+    visitor->write('{');
+    visitor->indentation_level += 1;
+
+    // func pointer values
+    for(auto& func : interface->functions()) {
+        if(func->has_self_param()) {
+            visitor->new_line_and_indent();
+            visitor->write(definition->name);
+            visitor->write(func->name);
+            visitor->write(',');
+        }
+    }
+
+    visitor->indentation_level -=1;
+    visitor->new_line_and_indent();
+    visitor->write('}');
+    visitor->write(';');
+}
+
 void CTopLevelDeclarationVisitor::visit(InterfaceDefinition *def) {
     for(auto& use : def->users) {
         new_line_and_indent();
@@ -1962,6 +2015,12 @@ void CTopLevelDeclarationVisitor::visit(InterfaceDefinition *def) {
             if(func->has_self_param()) {
                 declare_contained_func(this, func.get(), use.first->name + func->name, false, use.first);
             }
+        }
+    }
+    for(auto& user : def->users) {
+        const auto linked_struct = user.first;
+        if(linked_struct) {
+            create_v_table(visitor, def, linked_struct);
         }
     }
 }
@@ -2099,7 +2158,7 @@ void struct_initialize_inside_braces(ToCAstVisitor* visitor, StructValue* val) {
     visitor->write("(struct ");
     visitor->write(val->definition->name);
     visitor->write(")");
-    visitor->accept_mutating_value(val->known_type(), val);
+    val->accept(visitor);
 }
 
 bool ToCAstVisitor::requires_return(Value* val) {
@@ -2116,8 +2175,11 @@ bool ToCAstVisitor::requires_return(Value* val) {
     }
 }
 
-void ToCAstVisitor::return_value(Value* val) {
+void ToCAstVisitor::return_value(Value* val, BaseType* type) {
     if(val->as_struct()) {
+        if(implicit_mutate_value_default(this, type, val)) {
+           return;
+        }
         if(pass_structs_to_initialize) {
             auto size = val->as_struct()->values.size();
             unsigned i = 0;
@@ -2143,16 +2205,18 @@ void ToCAstVisitor::return_value(Value* val) {
         write('*');
         write(struct_passed_param_name);
         write(" = ");
-        const auto id = val->as_identifier();
-        if(id) {
-            const auto func_param = id->linked->as_func_param();
-            if(func_param && func_param->type->is_ref_struct()) {
-                write('*');
+        if(!implicit_mutate_value_default(this, type, val)) {
+            const auto id = val->as_identifier();
+            if(id) {
+                const auto func_param = id->linked->as_func_param();
+                if(func_param && func_param->type->is_ref_struct()) {
+                    write('*');
+                }
             }
+            val->accept(this);
         }
-        val->accept(this);
     } else {
-        val->accept(this);
+        accept_mutating_value(type, val);
     }
 }
 
@@ -2161,10 +2225,11 @@ void ToCAstVisitor::visit(ReturnStatement *returnStatement) {
     if(returnStatement->value.has_value()) {
         val = returnStatement->value.value().get();
     }
+    const auto return_type  =returnStatement->func_type->returnType.get();
     std::string saved_into_temp_var;
     bool handle_return_after = true;
     if(val && !requires_return(val)) {
-        return_value(val);
+        return_value(val, return_type);
         write(';');
         handle_return_after = false;
     } else if(val && !val->primitive() && !destructor->destruct_jobs.empty()) {
@@ -2175,7 +2240,7 @@ void ToCAstVisitor::visit(ReturnStatement *returnStatement) {
         space();
         write(saved_into_temp_var);
         write(" = ");
-        return_value(val);
+        return_value(val, return_type);
         write(';');
         new_line_and_indent();
     }
@@ -2195,7 +2260,7 @@ void ToCAstVisitor::visit(ReturnStatement *returnStatement) {
             if(!saved_into_temp_var.empty()) {
                 write(saved_into_temp_var);
             } else {
-                return_value(val);
+                return_value(val, return_type);
             }
             write(';');
         }
@@ -2401,66 +2466,12 @@ void ToCAstVisitor::visit(IfStatement *decl) {
     }
 }
 
-void create_v_table(ToCAstVisitor* visitor, InterfaceDefinition* interface, StructDefinition* definition) {
-    visitor->new_line_and_indent();
-    visitor->write("const");
-    visitor->write(' ');
-    visitor->write("struct");
-    visitor->space();
-    visitor->write('{');
-    visitor->indentation_level += 1;
-
-    // type pointers
-    for(auto& func : interface->functions()) {
-        auto self_param = func->get_self_param();
-        if(self_param) {
-            visitor->new_line_and_indent();
-            func_type_with_id_no_params(visitor, func.get(), func->name);
-            visitor->write("struct ");
-            node_name(visitor, definition);
-            visitor->write('*');
-            visitor->space();
-            visitor->write(self_param->name);
-            func_type_params(visitor, func.get(), 1, true);
-            visitor->write(')');
-            visitor->write(';');
-        }
-    }
-
-    visitor->indentation_level -=1;
-    visitor->new_line_and_indent();
-    visitor->write('}');
-    visitor->space();
-    vtable_name(visitor, interface, definition);
-    visitor->write(" = ");
-    visitor->write('{');
-    visitor->indentation_level += 1;
-
-    // func pointer values
-    for(auto& func : interface->functions()) {
-        if(func->has_self_param()) {
-            visitor->new_line_and_indent();
-            visitor->write(definition->name);
-            visitor->write(func->name);
-            visitor->write(',');
-        }
-    }
-
-    visitor->indentation_level -=1;
-    visitor->new_line_and_indent();
-    visitor->write('}');
-    visitor->write(';');
-}
-
 void ToCAstVisitor::visit(ImplDefinition *def) {
     const auto& interface_name = def->interface_type->ref_name();
     const auto overrides = def->struct_type != nullptr;
     const auto& struct_or_interface_name = def->struct_type ? def->struct_type->ref_name() : def->interface_type->ref_name();
     const auto linked_interface = def->interface_type->linked_node()->as_interface_def();
     const auto linked_struct = def->struct_type ? def->struct_type->linked_struct_def() : nullptr;
-    if(linked_struct && linked_interface) {
-        create_v_table(this, linked_interface, linked_struct);
-    }
     for(auto& func : def->functions()) {
         if(func->has_self_param()) {
             contained_func_decl(this, func.get(), struct_or_interface_name + func->name, overrides,linked_struct);

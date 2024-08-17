@@ -21,6 +21,7 @@ import "basic/external.ch"
 import "generic/basic.ch"
 import "type/datatype/vectors.ch"
 import "type/datatype/array_refs.ch"
+import "basic/dynamic.ch"
 
 func main() {
     test_var_init();
@@ -46,5 +47,6 @@ func main() {
     test_basic_generics();
     test_vectors();
     test_array_refs();
+    test_dynamic_dispatch();
     print_test_stats();
 }

@@ -71,6 +71,16 @@ func test_dynamic_dispatch() {
         var p : dyn Phone = CellPhone { number2 : 35 }
         return p.call() == 35;
     })
+    test("storing struct ref as dynamic object in var init works - 1", () => {
+        var s = SmartPhone { number1 : 73 };
+        var p : dyn Phone = s
+        return p.call() == 73;
+    })
+    test("storing struct ref as dynamic object in var init works - 2", () => {
+        var c = CellPhone { number2 : 26 };
+        var p : dyn Phone = c
+        return p.call() == 26;
+    })
     test("assignment to dynamic object using struct works - 1", () => {
         var p : dyn Phone = SmartPhone { number1 : 57 }
         p = CellPhone { number2 : 73 }

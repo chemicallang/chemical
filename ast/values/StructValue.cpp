@@ -61,10 +61,19 @@ unsigned int StructValue::store_in_struct(
                 " where current definition name " + definition->name + " with parent of name " + parent->definition->name);
         return index + values.size();
     }
-    for (const auto &value: values) {
-        auto child_index = definition->variable_type_index(value.first);
-        auto currIndex = index + child_index.first;
-        value.second->store_in_struct(gen, this, allocated, idxList, currIndex, child_index.second);
+    const auto interface = expected_type ? expected_type->linked_dyn_interface() : nullptr;
+    if(interface) {
+        auto elementPtr = Value::get_element_pointer(gen, parent->llvm_type(gen), allocated, idxList, index);
+        const auto struct_alloc = llvm_allocate(gen, "", nullptr);
+        if(!gen.assign_dyn_obj(this, expected_type, elementPtr, struct_alloc)) {
+            gen.error("couldn't assign dyn object struct " + representation() + " to expected type " + expected_type->representation() + " in parent " + parent->representation());
+        }
+    } else {
+        for (const auto& value: values) {
+            auto child_index = definition->variable_type_index(value.first);
+            auto currIndex = index + child_index.first;
+            value.second->store_in_struct(gen, this, allocated, idxList, currIndex, child_index.second);
+        }
     }
     return index + values.size();
 }
@@ -83,10 +92,19 @@ unsigned int StructValue::store_in_array(
                 " where current definition name " + definition->name);
         return index + 1;
     }
-    idxList.emplace_back(gen.builder->getInt32(index));
-    for (const auto &value: values) {
-        auto currIndex = definition->variable_type_index(value.first);
-        value.second->store_in_array(gen, parent, ptr, idxList, currIndex.first, currIndex.second);
+    const auto interface = expected_type ? expected_type->linked_dyn_interface() : nullptr;
+    if(interface) {
+        auto elementPtr = Value::get_element_pointer(gen, ((Value*) parent)->llvm_type(gen), ptr, idxList, index);
+        const auto struct_alloc = llvm_allocate(gen, "", nullptr);
+        if(!gen.assign_dyn_obj(this, expected_type, elementPtr, struct_alloc)) {
+            gen.error("couldn't assign dyn object struct " + representation() + " to expected type " + expected_type->representation() + " in parent " + ((Value*) parent)->representation());
+        }
+    } else {
+        idxList.emplace_back(gen.builder->getInt32(index));
+        for (const auto &value: values) {
+            auto currIndex = definition->variable_type_index(value.first);
+            value.second->store_in_array(gen, parent, ptr, idxList, currIndex.first, currIndex.second);
+        }
     }
     return index + 1;
 }

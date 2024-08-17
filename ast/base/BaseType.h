@@ -231,6 +231,21 @@ public:
     StructDefinition* get_generic_struct();
 
     /**
+     * get linked interface definition
+     */
+    InterfaceDefinition* linked_interface_def();
+
+    /**
+     * get linked generic interface definition
+     */
+    InterfaceDefinition* get_generic_interface();
+
+    /**
+     * get linked interface definition if it's dynamic
+     */
+    InterfaceDefinition* linked_dyn_interface();
+
+    /**
      * this type references a struct
      */
     bool is_ref_struct();

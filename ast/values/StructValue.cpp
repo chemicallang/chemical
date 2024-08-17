@@ -95,6 +95,18 @@ llvm::Value *StructValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     throw std::runtime_error("cannot allocate a struct without an identifier");
 }
 
+llvm::Value *StructValue::llvm_assign_value(Codegen &gen, Value *lhs) {
+    const auto known_type = lhs->known_type();
+    if(known_type->kind() == BaseTypeKind::Dynamic && known_type->linked_node()->as_interface_def()) {
+        return llvm_allocate(gen, "", nullptr);
+    } else {
+#ifdef DEBUG
+        throw std::runtime_error("cannot allocate a struct without an identifier");
+#endif
+        return nullptr;
+    }
+}
+
 llvm::Value *StructValue::llvm_arg_value(Codegen &gen, FunctionCall *call, unsigned int index) {
     return llvm_allocate(gen, "", nullptr);
 }
@@ -297,6 +309,10 @@ std::unique_ptr<BaseType> StructValue::create_type() {
         type->linked = definition;
         return type;
     }
+}
+
+BaseType* StructValue::known_type() {
+    return definition;
 }
 
 hybrid_ptr<BaseType> StructValue::get_base_type() {

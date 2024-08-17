@@ -101,6 +101,8 @@ public:
 
     llvm::Value *llvm_arg_value(Codegen &gen, FunctionCall *call, unsigned int index) override;
 
+    llvm::Value *llvm_assign_value(Codegen &gen, Value *lhs) override;
+
     llvm::Value *llvm_ret_value(Codegen &gen, ReturnStatement *returnStmt) override;
 
     llvm::Type *llvm_elem_type(Codegen &gen) override;
@@ -112,6 +114,8 @@ public:
 #endif
 
     std::unique_ptr<BaseType> create_type() override;
+
+    BaseType* known_type() override;
 
     uint64_t byte_size(bool is64Bit) override;
 

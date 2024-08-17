@@ -363,6 +363,15 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
 
         }
 
+#ifdef COMPILER_BUILD
+        if(gen.has_errors) {
+            compile_result = 1;
+        }
+#endif
+        if(compile_result == 1) {
+            break;
+        }
+
         futures.clear();
         processor.end();
 
@@ -383,11 +392,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
         if(!use_tcc) {
             gen.compile_end();
         }
-        // errors in a single module means no linking
-        if (gen.has_errors) {
-            compile_result = 1;
-            break;
-        }
+
         // which files to emit
         if(!mod->llvm_ir_path.empty()) {
             emitter_options.ir_path = mod->llvm_ir_path.data();

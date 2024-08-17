@@ -282,9 +282,9 @@ public:
     bool requires_return(Value* val);
 
     /**
-     * write the return value
+     * write the return value, the type is the type of the function
      */
-    void return_value(Value* val);
+    void return_value(Value* val, BaseType* type);
 
     void visit(ReturnStatement* returnStatement) override;
 

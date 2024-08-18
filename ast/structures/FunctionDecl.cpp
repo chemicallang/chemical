@@ -603,7 +603,7 @@ int16_t FunctionDeclaration::register_call(SymbolResolver& resolver, FunctionCal
 
     // infer args, if user gave less args than expected
     if(call->generic_list.size() != total) {
-        call->infer_generic_args(generic_args);
+        call->infer_generic_args(resolver, generic_args);
     }
 
     // register and report to subscribers

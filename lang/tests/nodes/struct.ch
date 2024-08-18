@@ -88,7 +88,7 @@ struct ImpPair {
 
     @constructor
     @implicit
-    func make(d : int) {
+    func makexv(d : int) {
         data = d
     }
 

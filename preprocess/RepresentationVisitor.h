@@ -39,7 +39,7 @@ public:
     /**
      * constructor
      */
-    RepresentationVisitor(std::ostream& output);
+    explicit RepresentationVisitor(std::ostream& output);
 
     /**
      * used to write a character to the stream
@@ -93,6 +93,12 @@ public:
      */
     void write(AccessSpecifier specifier);
 
+    /**
+     * comma separated
+     */
+    template<typename T>
+    void comma_separated_accept(T& things);
+
     //------------------------------
     //----------Visitors------------
     //------------------------------
@@ -136,6 +142,8 @@ public:
     void visit(Scope* scope) override;
 
     void visit(StructDefinition* structDefinition) override;
+
+    void visit(GenericTypeParameter *type_param) override;
 
     void visit(WhileLoop* whileLoop) override;
 
@@ -262,3 +270,16 @@ public:
     ~RepresentationVisitor();
 
 };
+
+template<typename T>
+void RepresentationVisitor::comma_separated_accept(T& things) {
+    bool has_before = false;
+    for(auto& sub_type : things) {
+        if(has_before) {
+            write(", ");
+        } else {
+            has_before = true;
+        }
+        sub_type->accept(this);
+    }
+}

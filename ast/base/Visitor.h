@@ -164,6 +164,8 @@ class PointerType;
 
 class ReferencedType;
 
+class GenericTypeParameter;
+
 class ReferencedValueType;
 
 class ShortType;
@@ -251,6 +253,10 @@ public:
 
     virtual void visit(UsingStmt* usingStmt) {
         visitCommon((ASTNode*) usingStmt);
+    }
+
+    virtual void visit(GenericTypeParameter* type_param) {
+        visitCommonType((BaseType*) type_param);
     }
 
     virtual void visit(DeleteStmt* delStmt) {

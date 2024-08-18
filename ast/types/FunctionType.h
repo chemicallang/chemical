@@ -62,6 +62,12 @@ public:
     bool satisfy_args(std::vector<std::unique_ptr<Value>>& forArgs);
 
     /**
+     * suppose this function takes a self argument passed implicitly
+     * the index of arguments would start at 1
+     */
+    unsigned explicit_func_arg_offset();
+
+    /**
      * get function param for argument index
      */
     FunctionParam* func_param_for_arg_at(unsigned index);

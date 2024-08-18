@@ -80,7 +80,7 @@ AccessChain::AccessChain(std::vector<std::unique_ptr<ChainValue>> values, ASTNod
 std::unique_ptr<BaseType> AccessChain::create_type() {
     std::unordered_map<uint16_t, int16_t> active;
     set_generic_iterations(active);
-    auto type = values[values.size() - 1]->create_type(values, values.size() - 1);
+    auto type = values[values.size() - 1]->create_type();
     restore_active_iterations(active);
     return type;
 }

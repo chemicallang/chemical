@@ -124,6 +124,13 @@ public:
         return set_curr_itr_on_decl(safe_linked_func());
     }
 
+    /**
+     * if all generic arguments aren't given, for which default types also don't exist
+     * this will be called to get inferred arguments, if parameter has default type, nullptr will be used,
+     * for which arguments couldn't be inferred, nullptr would be used
+     */
+    void infer_generic_args(std::vector<BaseType*>& args);
+
 #ifdef COMPILER_BUILD
 
     llvm::Type *llvm_type(Codegen &gen) override;

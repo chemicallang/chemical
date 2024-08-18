@@ -342,7 +342,14 @@ InterfaceDefinition* MembersContainer::get_overriding_interface(FunctionDeclarat
 }
 
 int16_t MembersContainer::register_generic_args(SymbolResolver& resolver, std::vector<std::unique_ptr<BaseType>>& types) {
-    const auto itr = register_generic_usage(resolver, this, generic_params, types);
+    const auto types_size = types.size();
+    std::vector<BaseType*> generic_args(types_size);
+    unsigned i = 0;
+    for(auto& type : types) {
+        generic_args[i] = type.get();
+        i++;
+    }
+    const auto itr = register_generic_usage(resolver, this, generic_params, generic_args);
     if(itr.second) {
         for (auto sub: subscribers) {
             sub->report_parent_usage(resolver, itr.first);

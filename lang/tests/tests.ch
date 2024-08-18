@@ -19,6 +19,7 @@ import "comptime/basic.ch"
 import "comptime/vector.ch"
 import "basic/external.ch"
 import "generic/basic.ch"
+import "generic/deduction.ch"
 import "type/datatype/vectors.ch"
 import "type/datatype/array_refs.ch"
 import "basic/dynamic.ch"
@@ -45,6 +46,7 @@ func main() {
     test_compiler_vector();
     test_external_functions();
     test_basic_generics();
+    test_generic_type_deduction();
     test_vectors();
     test_array_refs();
     test_dynamic_dispatch();

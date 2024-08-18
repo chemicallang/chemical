@@ -20,11 +20,12 @@
  * but it must link with the type it must return as, so this value is used, which automatically links
  * and returns as appropriate type automatically
  */
-class NumberValue : public IntNumValue, public IntType, public TypeLinkedValue {
+class NumberValue : public IntNumValue, public TypeLinkedValue {
 public:
 
     int64_t value;
     std::unique_ptr<IntNType> linked_type = nullptr;
+    IntType int_type; // <-- int type used when other type ain't available
 
     /**
      * @brief Construct a new IntValue object.
@@ -92,14 +93,14 @@ public:
 
     hybrid_ptr<BaseType> get_base_type() override {
         if(!linked_type) {
-            return hybrid_ptr<BaseType> { this, false };
+            return hybrid_ptr<BaseType> { &int_type, false };
         }
         return hybrid_ptr<BaseType> { linked_type.get(), false };
     }
 
     BaseType* known_type() override {
         if(!linked_type) {
-            return this;
+            return &int_type;
         }
         return linked_type.get();
     }

@@ -420,6 +420,9 @@ void RepresentationVisitor::write(AccessSpecifier specifier) {
 void RepresentationVisitor::visit(StructDefinition *def) {
     write("struct ");
     write(def->name);
+    write('<');
+    comma_separated_accept(def->generic_params);
+    write('>');
     if(!def->inherited.empty()) {
         write(" : ");
         unsigned i = 0;
@@ -779,8 +782,15 @@ void RepresentationVisitor::visit(FunctionType *type) {
     type->returnType->accept(this);
 }
 
-void RepresentationVisitor::visit(GenericType *func) {
-    write("[GenericType_UNIMPLEMENTED]");
+void RepresentationVisitor::visit(GenericType *type) {
+    type->referenced->accept(this);
+    write('<');
+    comma_separated_accept(type->types);
+    write('>');
+}
+
+void RepresentationVisitor::visit(GenericTypeParameter *type_param) {
+    write(type_param->identifier);
 }
 
 void RepresentationVisitor::visit(Int128Type *func) {

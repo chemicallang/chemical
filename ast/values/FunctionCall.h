@@ -35,6 +35,19 @@ public:
 
     void link_values(SymbolResolver &linker);
 
+    /**
+     * this should be called only after generic types are known
+     */
+    void relink_values(SymbolResolver &linker);
+
+    /**
+     * if an arg has implicit constructor, we call that implicit constructor instead of
+     * just passing that value
+     */
+    void link_args_implicit_constructor(SymbolResolver &linker);
+
+    void link_gen_args(SymbolResolver &linker);
+
     void link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr) override;
 
     /**
@@ -129,7 +142,7 @@ public:
      * this will be called to get inferred arguments, if parameter has default type, nullptr will be used,
      * for which arguments couldn't be inferred, nullptr would be used
      */
-    void infer_generic_args(std::vector<BaseType*>& args);
+    void infer_generic_args(ASTDiagnoser& diagnoser, std::vector<BaseType*>& args);
 
 #ifdef COMPILER_BUILD
 

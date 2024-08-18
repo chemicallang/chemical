@@ -321,7 +321,11 @@ StructValue *StructValue::copy() {
 
 std::unique_ptr<BaseType> StructValue::create_type() {
     if(!definition->generic_params.empty()) {
-       return std::make_unique<GenericType>(std::make_unique<ReferencedType>(definition->name, definition), generic_iteration);
+       auto gen_type = std::make_unique<GenericType>(std::make_unique<ReferencedType>(definition->name, definition), generic_iteration);
+       for(auto& type : generic_list) {
+           gen_type->types.emplace_back(type->copy());
+       }
+       return gen_type;
     } else {
         auto type = std::make_unique<ReferencedType>(ref->representation());
         type->linked = definition;
@@ -330,17 +334,17 @@ std::unique_ptr<BaseType> StructValue::create_type() {
 }
 
 BaseType* StructValue::known_type() {
-    return definition;
+    if(!struct_type) {
+        struct_type = create_type();
+    }
+    return struct_type.get();
 }
 
 hybrid_ptr<BaseType> StructValue::get_base_type() {
-    if(!definition->generic_params.empty()) {
-        return hybrid_ptr<BaseType> { new GenericType(std::make_unique<ReferencedType>(definition->name, definition), generic_iteration), true };
-    } else {
-        auto type = new ReferencedType(ref->representation());
-        type->linked = definition;
-        return hybrid_ptr<BaseType> { type };
+    if(!struct_type) {
+        struct_type = create_type();
     }
+    return hybrid_ptr<BaseType>{ struct_type.get(), false };
 }
 
 Value *StructValue::child(InterpretScope &scope, const std::string &name) {

@@ -107,6 +107,13 @@ public:
     virtual void link(SymbolResolver& linker, FunctionCall* call, unsigned int index);
 
     /**
+     * relink value after generic types are known in the function call
+     */
+    virtual void relink_after_generic(SymbolResolver& linker, FunctionCall* call, unsigned int index) {
+        // does nothing
+    }
+
+    /**
      * when a value is required to be linked by a return statement, this function is called
      * overriding this method, allows to access the return statement, function of return
      */

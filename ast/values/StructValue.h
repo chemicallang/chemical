@@ -20,6 +20,8 @@ public:
 #ifdef COMPILER_BUILD
     llvm::AllocaInst* allocaInst;
 #endif
+    // the type that represents this struct value, cached !
+    std::unique_ptr<BaseType> struct_type = nullptr;
 
 //    StructValue(
 //            std::unique_ptr<Value> ref,

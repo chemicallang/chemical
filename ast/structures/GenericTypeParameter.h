@@ -24,6 +24,10 @@ public:
         unsigned param_index
     );
 
+    void accept(Visitor *visitor) override {
+        visitor->visit(this);
+    }
+
     void declare_and_link(SymbolResolver &linker) override;
 
     void register_usage(BaseType* type);
@@ -84,10 +88,6 @@ public:
 
     ASTNode *parent() override {
         return parent_node;
-    }
-
-    void accept(Visitor *visitor) override {
-        // do nothing
     }
 
 };

@@ -521,8 +521,25 @@ void FunctionCall::link_values(SymbolResolver &linker) {
     unsigned i = 0;
     while(i < values.size()) {
         values[i]->link(linker, this, i);
+        i++;
+    }
+}
+
+void FunctionCall::relink_values(SymbolResolver &linker) {
+    auto func_type = get_function_type();
+    unsigned i = 0;
+    while(i < values.size()) {
+        values[i]->relink_after_generic(linker, this, i);
+        i++;
+    }
+}
+
+void FunctionCall::link_args_implicit_constructor(SymbolResolver &linker){
+    auto func_type = get_function_type();
+    unsigned i = 0;
+    while(i < values.size()) {
         const auto param = func_type->func_param_for_arg_at(i);
-        if(param) {
+        if (param) {
             auto implicit_constructor = param->type->implicit_constructor_for(values[i].get());
             if (implicit_constructor) {
                 values[i] = call_with_arg(implicit_constructor, std::move(values[i]), linker);
@@ -532,8 +549,16 @@ void FunctionCall::link_values(SymbolResolver &linker) {
     }
 }
 
+void FunctionCall::link_gen_args(SymbolResolver &linker) {
+    for(auto& type : generic_list) {
+        type->link(linker, type);
+    }
+}
+
 void FunctionCall::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr) {
+    link_gen_args(linker);
     link_values(linker);
+    link_args_implicit_constructor(linker);
 }
 
 std::unique_ptr<FunctionType> FunctionCall::create_function_type() {
@@ -569,7 +594,45 @@ int16_t FunctionCall::set_curr_itr_on_decl(FunctionDeclaration* decl) {
     return prev_itr;
 }
 
-void FunctionCall::infer_generic_args(std::vector<BaseType*>& inferred) {
+void infer_types(
+        ASTDiagnoser& diagnoser,
+        FunctionDeclaration* func,
+        unsigned int generic_list_size,
+        BaseType* param_type,
+        BaseType* arg_type,
+        std::vector<BaseType*>& inferred,
+        Value* debug_value
+) {
+    const auto param_type_kind = param_type->kind();
+    if(param_type_kind == BaseTypeKind::Referenced) {
+        // directly linked generic param like func <T> add(param : T)
+        const auto linked = param_type->linked_node();
+        const auto gen_param = linked->as_generic_type_param();
+        if(gen_param && gen_param->parent_node == func && gen_param->param_index >= generic_list_size && !gen_param->def_type) {
+            // get the function argument for this arg_offset
+            inferred[gen_param->param_index] = arg_type;
+        }
+    } else if(param_type_kind == BaseTypeKind::Generic) {
+        // not directly linked generic param like func <T> add(param : Thing<T>)
+        const auto arg_type_gen = (GenericType*) arg_type;
+        const auto param_type_gen = (GenericType*) param_type;
+        if((arg_type->kind() == BaseTypeKind::Generic) && arg_type->linked_struct_def() == param_type->linked_struct_def()) {
+            const auto child_gen_size = param_type_gen->types.size();
+            if(arg_type_gen->types.size() == child_gen_size) {
+                unsigned i = 0;
+                while(i < child_gen_size) {
+                    infer_types(diagnoser, func, generic_list_size, param_type_gen->types[i].get(), arg_type_gen->types[i].get(), inferred, debug_value);
+                    i++;
+                }
+            } else {
+                diagnoser.error("given types generic arguments don't have equal length, for " + param_type_gen->representation() + ", given " + arg_type_gen->representation() + " in " + debug_value->representation());
+            }
+        }
+    }
+};
+
+
+void FunctionCall::infer_generic_args(ASTDiagnoser& diagnoser, std::vector<BaseType*>& inferred) {
     const auto func = safe_linked_func();
     if(!func) return;
 
@@ -578,22 +641,17 @@ void FunctionCall::infer_generic_args(std::vector<BaseType*>& inferred) {
     auto arg_offset = func->explicit_func_arg_offset();
     const auto values_size = values.size();
     while(arg_offset < values_size) {
-
         const auto param = func->params[arg_offset].get();
-        const auto known_t = param->known_type();
-        if(known_t->kind() == BaseTypeKind::Referenced) {
-            const auto linked = known_t->linked_node();
-            // directly linked generic param like func <T> add(param : T)
-            const auto gen_param = linked->as_generic_type_param();
-            if(gen_param && gen_param->parent_node == func && gen_param->param_index >= generic_list.size() && !gen_param->def_type) {
-                // get the function argument for this arg_offset
-                const auto known_arg_type = values[arg_offset]->known_type();
-                if(known_arg_type) {
-                    inferred[gen_param->param_index] = known_arg_type;
-                }
-            }
+        const auto param_type = param->known_type();
+        const auto arg_type = values[arg_offset]->known_type();
+        if(!arg_type) {
+#ifdef DEBUG
+            std::cout << "couldn't get arg type " << values[arg_offset]->representation() + " in function call " + representation();
+#endif
+            arg_offset++;
+            continue;
         }
-
+        infer_types(diagnoser, func, generic_list.size(), param_type, arg_type, inferred, this);
         arg_offset++;
     }
 }
@@ -647,13 +705,18 @@ void FunctionCall::find_link_in_parent(ChainValue *parent, SymbolResolver &resol
     FunctionDeclaration* func_decl = safe_linked_func();
     int16_t prev_itr;
     relink_multi_func(&resolver);
+    link_gen_args(resolver);
+    link_constructor(resolver);
+    link_values(resolver);
     if(func_decl && !func_decl->generic_params.empty()) {
         prev_itr = func_decl->active_iteration;
         generic_iteration = func_decl->register_call(resolver, this);
         func_decl->set_active_iteration(generic_iteration);
     }
-    link_constructor(resolver);
-    link_values(resolver);
+    relink_values(resolver);
+//    link_constructor(resolver);
+//    link_values(resolver, false);
+    link_args_implicit_constructor(resolver);
     if(func_decl && !func_decl->generic_params.empty()) {
         func_decl->set_active_iteration(prev_itr);
     }

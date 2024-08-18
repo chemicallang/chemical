@@ -51,6 +51,10 @@ public:
         TypeLinkedValue::link(linker, call, index);
     }
 
+    void relink_after_generic(SymbolResolver& linker, FunctionCall* call, unsigned int index) override {
+        TypeLinkedValue::link(linker, call, index);
+    }
+
     void link(SymbolResolver &linker, VarInitStatement *stmnt) override {
         TypeLinkedValue::link(linker, stmnt);
     }

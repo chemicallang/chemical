@@ -29,13 +29,21 @@ public:
             SymbolResolver& linker,
             ChainValue* parent,
             std::vector<std::unique_ptr<ChainValue>>& values,
-            unsigned index
+            unsigned index,
+            BaseType* expected_type
     );
 
     /**
      * find linked node in given parent node, symbol resolver is passed in resolution phase
      */
     virtual void find_link_in_parent(ChainValue* parent, SymbolResolver& resolver) = 0;
+
+    /**
+     * called only when this value is last in the access chain
+     */
+    virtual void find_link_in_parent(ChainValue* parent, SymbolResolver& resolver, BaseType* expected_type) {
+        find_link_in_parent(parent, resolver);
+    }
 
     /**
      * relink with the parent chain value, as it has changed

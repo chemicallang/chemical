@@ -12,6 +12,17 @@ func <T> deduce_thing(thing : DeduceThing<T>) : T {
     return thing.t;
 }
 
+func <T> give_gen_ret(a : int, b : int) : T {
+    return a + b;
+}
+
+func take_gen_ret(sum : int) : int {
+    return sum + 10;
+}
+
+func take_gen_ret_long(sum : long) : long {
+    return sum + 20;
+}
 
 func test_generic_type_deduction() {
     test("generic function call without types work", () => {
@@ -31,5 +42,11 @@ func test_generic_type_deduction() {
             t : 40
         }
         return deduce_thing(s) == 40;
+    })
+    test("generic return type can be deduced when in function call - 1", () => {
+        return take_gen_ret(give_gen_ret(16, 16)) == 42;
+    })
+    test("generic return type can be deduced when in function call - 2", () => {
+        return take_gen_ret_long(give_gen_ret(15, 15)) == 50;
     })
 }

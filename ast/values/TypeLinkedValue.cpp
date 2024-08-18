@@ -10,33 +10,23 @@
 #include "ast/values/IntValue.h"
 
 void TypeLinkedValue::link(SymbolResolver &linker, VarInitStatement *stmnt) {
-    if(stmnt->type.has_value()) {
-        link(linker, stmnt->value.value(), stmnt->type->get());
-    } else {
-        link(linker, stmnt->value.value(), (BaseType*) nullptr);
-    }
+    link(linker, stmnt->value.value(), stmnt->type.has_value() ? stmnt->type->get() : nullptr);
 }
 
 void TypeLinkedValue::link(SymbolResolver &linker, AssignStatement *stmnt, bool lhs) {
-    auto value_type = stmnt->lhs->create_type();
-    link(linker, lhs ? stmnt->lhs : stmnt->value, value_type.get());
+    std::unique_ptr<BaseType> value_type;
+    if(!lhs) {
+        value_type = stmnt->lhs->create_type();
+    }
+    link(linker, lhs ? stmnt->lhs : stmnt->value, lhs ? nullptr : value_type.get());
 }
 
 void TypeLinkedValue::link(SymbolResolver &linker, ReturnStatement *returnStmt) {
-    if(returnStmt->func_type && returnStmt->func_type->returnType) {
-        link(linker, returnStmt->value.value(), returnStmt->func_type->returnType.get());
-    } else {
-        link(linker, returnStmt->value.value(), (BaseType*) nullptr);
-    }
+    link(linker, returnStmt->value.value(), returnStmt->func_type && returnStmt->func_type->returnType ? returnStmt->func_type->returnType.get() : nullptr);
 }
 
 void TypeLinkedValue::link(SymbolResolver &linker, FunctionCall *call, unsigned int index) {
-    auto funcType = call->get_function_type();
-    if(funcType) {
-        link(linker, call->values[index], funcType->func_param_for_arg_at(index)->type.get());
-    } else {
-        link(linker, call->values[index], (BaseType*) nullptr);
-    }
+    link(linker, call->values[index], call->get_arg_type(index));
 }
 
 void TypeLinkedValue::link(SymbolResolver &linker, StructValue *structValue, const std::string &name) {

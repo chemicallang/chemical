@@ -30,9 +30,9 @@ void AccessChain::relink_parent() {
     }
 }
 
-void AccessChain::declare_and_link(SymbolResolver &linker) {
+void AccessChain::link(SymbolResolver &linker, BaseType *expected_type) {
 
-    values[0]->link(linker, nullptr, values, 0);
+    values[0]->link(linker, nullptr, values, 0, expected_type);
     values[0]->set_generic_iteration();
 
     // auto prepend self identifier, if not present and linked with struct member, anon union or anon struct
@@ -66,11 +66,20 @@ void AccessChain::declare_and_link(SymbolResolver &linker) {
 
     if (values.size() > 1) {
         unsigned i = 1;
-        while (i < values.size()) {
-            values[i]->link(linker, values[i - 1].get(), values, i);
+        const auto values_size = values.size();
+        while (i < values_size) {
+            values[i]->link(linker, values[i - 1].get(), values, i, expected_type);
             i++;
         }
     }
+}
+
+void AccessChain::declare_and_link(SymbolResolver& linker) {
+    link(linker, (BaseType*) nullptr);
+}
+
+void AccessChain::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *type) {
+    link(linker, type);
 }
 
 AccessChain::AccessChain(std::vector<std::unique_ptr<ChainValue>> values, ASTNode* parent_node, bool is_node) : values(std::move(values)), parent_node(parent_node), is_node(is_node) {

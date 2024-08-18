@@ -9,6 +9,7 @@
 #include <memory>
 #include "ast/base/ASTNode.h"
 #include "ast/base/ChainValue.h"
+#include "TypeLinkedValue.h"
 
 /**
  * access chain represents a way to access things in programming language for example
@@ -16,7 +17,7 @@
  * x.y.z() where z is a function call, z function is assumed to be present in y and y in z
  * z.y.z[0] similarly z is an index operator here
  */
-class AccessChain : public ASTNode, public ChainValue {
+class AccessChain : public ASTNode, public ChainValue, public TypeLinkedValue {
 public:
 
     std::vector<std::unique_ptr<ChainValue>> values;
@@ -37,7 +38,35 @@ public:
         return parent_node;
     }
 
+    void link(SymbolResolver &linker, BaseType *type);
+
+    void link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *type) override;
+
     void link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) override;
+
+    void link(SymbolResolver &linker, ReturnStatement *returnStmt) override {
+        TypeLinkedValue::link(linker, returnStmt);
+    }
+
+    void link(SymbolResolver &linker, StructValue *value, const std::string &name) override {
+        TypeLinkedValue::link(linker, value, name);
+    }
+
+    void link(SymbolResolver &linker, FunctionCall *call, unsigned int index) override {
+        TypeLinkedValue::link(linker, call, index);
+    }
+
+    void relink_after_generic(SymbolResolver& linker, FunctionCall* call, unsigned int index) override {
+        TypeLinkedValue::link(linker, call, index);
+    }
+
+    void link(SymbolResolver &linker, VarInitStatement *stmnt) override {
+        TypeLinkedValue::link(linker, stmnt);
+    }
+
+    void link(SymbolResolver &linker, AssignStatement *stmnt, bool lhs) override {
+        TypeLinkedValue::link(linker, stmnt, lhs);
+    }
 
     void find_link_in_parent(ChainValue *parent, SymbolResolver &resolver) override;
 

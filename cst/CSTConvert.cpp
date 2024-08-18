@@ -442,7 +442,7 @@ void convert_generic_list(
         } else {
             inc = 2;
         }
-        parameter = new GenericTypeParameter(str_token(compound->tokens[i].get()), std::move(def_type), parent_node);
+        parameter = new GenericTypeParameter(str_token(compound->tokens[i].get()), std::move(def_type), parent_node, generic_list.size());
         generic_list.emplace_back(parameter);
         i += inc; // 4 -> +1 -> '=' , +2 -> 'type' , +3 -> ',' , +4 -> next identifier
     }

@@ -484,9 +484,10 @@ ASTNode *BaseFunctionParam::child(const std::string &name) {
 GenericTypeParameter::GenericTypeParameter(
         std::string identifier,
         std::unique_ptr<BaseType> def_type,
-        ASTNode* parent_node
+        ASTNode* parent_node,
+        unsigned param_index
 ) : identifier(std::move(identifier)),
-def_type(std::move(def_type)), parent_node(parent_node) {
+def_type(std::move(def_type)), parent_node(parent_node), param_index(param_index) {
 
 }
 
@@ -582,12 +583,37 @@ void FunctionDeclaration::set_active_iteration(int16_t iteration) {
 }
 
 int16_t FunctionDeclaration::register_call(SymbolResolver& resolver, FunctionCall* call) {
-    const auto itr = register_generic_usage(resolver, this, generic_params, call->generic_list);
+
+    const auto total = generic_params.size();
+    std::vector<BaseType*> generic_args(total);
+
+    // set all to default type (if default type is not present, it would automatically be nullptr)
+    unsigned i = 0;
+    while(i < total) {
+        generic_args[i] = generic_params[i]->def_type.get();
+        i++;
+    }
+
+    // set given generic args to generic parameters
+    i = 0;
+    for(auto& arg : call->generic_list) {
+        generic_args[i] = arg.get();
+        i++;
+    }
+
+    // infer args, if user gave less args than expected
+    if(call->generic_list.size() != total) {
+        call->infer_generic_args(generic_args);
+    }
+
+    // register and report to subscribers
+    const auto itr = register_generic_usage(resolver, this, generic_params, generic_args);
     if(itr.second) {
         for (auto sub: subscribers) {
             sub->report_parent_usage(resolver, itr.first);
         }
     }
+
     return itr.first;
 }
 

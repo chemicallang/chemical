@@ -44,7 +44,7 @@ std::unique_ptr<Value> call_with_arg(FunctionDeclaration* decl, std::unique_ptr<
     return chain;
 }
 
-int16_t get_iteration_for(std::vector<std::unique_ptr<GenericTypeParameter>>& generic_params, std::vector<std::unique_ptr<BaseType>>& generic_list) {
+int16_t get_iteration_for(std::vector<std::unique_ptr<GenericTypeParameter>>& generic_params, std::vector<BaseType*>& generic_list) {
     if(!generic_params.empty()) {
         int16_t i = 0;
         unsigned j;
@@ -53,7 +53,7 @@ int16_t get_iteration_for(std::vector<std::unique_ptr<GenericTypeParameter>>& ge
             j = 0;
             bool all_params_found = true;
             for(auto& param : generic_params) {
-                const auto generic_arg = j < generic_list.size() ? generic_list[j].get() : nullptr;
+                const auto generic_arg = j < generic_list.size() ? generic_list[j] : nullptr;
                 const auto generic_arg_pure = generic_arg ? generic_arg : param->def_type.get();
                 if(!param->usage[i]->is_same(generic_arg_pure)) {
                     all_params_found = false;
@@ -83,10 +83,10 @@ int16_t total_generic_iterations(std::vector<std::unique_ptr<GenericTypeParamete
     }
 }
 
-int16_t register_generic_usage_no_check(std::vector<std::unique_ptr<GenericTypeParameter>>& generic_params, std::vector<std::unique_ptr<BaseType>>& generic_list) {
+int16_t register_generic_usage_no_check(std::vector<std::unique_ptr<GenericTypeParameter>>& generic_params, std::vector<BaseType*>& generic_list) {
     int16_t i = 0;
     for (auto &param: generic_params) {
-        param->register_usage(i < generic_list.size() ? generic_list[i].get() : nullptr);
+        param->register_usage(i < generic_list.size() ? generic_list[i] : nullptr);
         i++;
     }
     return (int16_t) ((int16_t) total_generic_iterations(generic_params) - (int16_t) 1);
@@ -96,7 +96,7 @@ std::pair<int16_t, bool> register_generic_usage(
         SymbolResolver& resolver,
         ASTNode* node,
         std::vector<std::unique_ptr<GenericTypeParameter>>& generic_params,
-        std::vector<std::unique_ptr<BaseType>>& generic_list
+        std::vector<BaseType*>& generic_list
 ) {
     int16_t i = get_iteration_for(generic_params, generic_list);
     if(i != -1) return { i, false};

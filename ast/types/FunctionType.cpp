@@ -93,10 +93,13 @@ uint64_t FunctionType::byte_size(bool is64Bit) {
     }
 }
 
+unsigned FunctionType::explicit_func_arg_offset() {
+    return has_self_param() ? 1 : 0;
+}
+
 FunctionParam* FunctionType::func_param_for_arg_at(unsigned index) {
     if(params.empty()) return nullptr;
-    auto has_self = has_self_param();
-    unsigned offset = has_self ? 1 : 0; // first argument for implicit self
+    const auto offset = explicit_func_arg_offset(); // first argument for implicit self
     if(isVariadic && index >= (params.size() - 1 - offset)) {
         return params.back().get();
     }

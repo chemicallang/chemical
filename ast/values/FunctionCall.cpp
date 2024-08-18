@@ -569,6 +569,35 @@ int16_t FunctionCall::set_curr_itr_on_decl(FunctionDeclaration* decl) {
     return prev_itr;
 }
 
+void FunctionCall::infer_generic_args(std::vector<BaseType*>& inferred) {
+    const auto func = safe_linked_func();
+    if(!func) return;
+
+    // going over function parameters to see which arguments have been given, if they do have a generic type
+    // going over only explicit function params
+    auto arg_offset = func->explicit_func_arg_offset();
+    const auto values_size = values.size();
+    while(arg_offset < values_size) {
+
+        const auto param = func->params[arg_offset].get();
+        const auto known_t = param->known_type();
+        if(known_t->kind() == BaseTypeKind::Referenced) {
+            const auto linked = known_t->linked_node();
+            // directly linked generic param like func <T> add(param : T)
+            const auto gen_param = linked->as_generic_type_param();
+            if(gen_param && gen_param->parent_node == func && gen_param->param_index >= generic_list.size() && !gen_param->def_type) {
+                // get the function argument for this arg_offset
+                const auto known_arg_type = values[arg_offset]->known_type();
+                if(known_arg_type) {
+                    inferred[gen_param->param_index] = known_arg_type;
+                }
+            }
+        }
+
+        arg_offset++;
+    }
+}
+
 ASTNode *FunctionCall::linked_node() {
     return get_base_type()->linked_node();
 }
@@ -615,9 +644,9 @@ void FunctionCall::relink_parent(ChainValue *parent) {
 
 void FunctionCall::find_link_in_parent(ChainValue *parent, SymbolResolver &resolver) {
     parent_val = parent;
-    relink_multi_func(&resolver);
     FunctionDeclaration* func_decl = safe_linked_func();
     int16_t prev_itr;
+    relink_multi_func(&resolver);
     if(func_decl && !func_decl->generic_params.empty()) {
         prev_itr = func_decl->active_iteration;
         generic_iteration = func_decl->register_call(resolver, this);

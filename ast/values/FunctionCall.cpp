@@ -656,6 +656,12 @@ void FunctionCall::infer_generic_args(ASTDiagnoser& diagnoser, std::vector<BaseT
     }
 }
 
+void FunctionCall::infer_return_type(ASTDiagnoser& diagnoser, std::vector<BaseType*>& inferred, BaseType* expected_type) {
+    const auto func = safe_linked_func();
+    if(!func) return;
+    infer_types(diagnoser, func, generic_list.size(), func->returnType.get(), expected_type, inferred, this);
+}
+
 ASTNode *FunctionCall::linked_node() {
     return get_base_type()->linked_node();
 }
@@ -700,7 +706,7 @@ void FunctionCall::relink_parent(ChainValue *parent) {
     parent_val = parent;
 }
 
-void FunctionCall::find_link_in_parent(ChainValue *parent, SymbolResolver &resolver) {
+void FunctionCall::find_link_in_parent(ChainValue *parent, SymbolResolver &resolver, BaseType *expected_type) {
     parent_val = parent;
     FunctionDeclaration* func_decl = safe_linked_func();
     int16_t prev_itr;
@@ -710,16 +716,18 @@ void FunctionCall::find_link_in_parent(ChainValue *parent, SymbolResolver &resol
     link_values(resolver);
     if(func_decl && !func_decl->generic_params.empty()) {
         prev_itr = func_decl->active_iteration;
-        generic_iteration = func_decl->register_call(resolver, this);
+        generic_iteration = func_decl->register_call(resolver, this, expected_type);
         func_decl->set_active_iteration(generic_iteration);
     }
     relink_values(resolver);
-//    link_constructor(resolver);
-//    link_values(resolver, false);
     link_args_implicit_constructor(resolver);
     if(func_decl && !func_decl->generic_params.empty()) {
         func_decl->set_active_iteration(prev_itr);
     }
+}
+
+void FunctionCall::find_link_in_parent(ChainValue *parent, SymbolResolver &resolver) {
+    find_link_in_parent(parent, resolver, nullptr);
 }
 
 FunctionCall *FunctionCall::as_func_call() {

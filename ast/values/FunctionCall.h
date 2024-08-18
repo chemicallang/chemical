@@ -10,6 +10,7 @@
 #include <memory>
 #include "ast/base/ChainValue.h"
 #include "ast/base/ASTNode.h"
+#include "TypeLinkedValue.h"
 
 class ASTDiagnoser;
 
@@ -80,6 +81,8 @@ public:
 
     void find_link_in_parent(ChainValue *parent, SymbolResolver &resolver) override;
 
+    void find_link_in_parent(ChainValue *parent, SymbolResolver &resolver, BaseType *expected_type) override;
+
     void relink_parent(ChainValue *parent) override;
 
     bool primitive() override;
@@ -142,7 +145,14 @@ public:
      * this will be called to get inferred arguments, if parameter has default type, nullptr will be used,
      * for which arguments couldn't be inferred, nullptr would be used
      */
-    void infer_generic_args(ASTDiagnoser& diagnoser, std::vector<BaseType*>& args);
+    void infer_generic_args(ASTDiagnoser& diagnoser, std::vector<BaseType*>& inferred);
+
+    /**
+     * will infer return type (if it's generic type) for example a generic function with generic return type
+     * func <T> sum(a : int, b : int) : T is called in another function func print(sum : int) like this
+     * print(sum(10, 10)) <-- we know print expects a integer, we can assume sum should return integer
+     */
+    void infer_return_type(ASTDiagnoser& diagnoser, std::vector<BaseType*>& inferred, BaseType* expected_type);
 
 #ifdef COMPILER_BUILD
 

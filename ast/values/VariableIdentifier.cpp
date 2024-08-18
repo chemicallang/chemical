@@ -65,7 +65,8 @@ void VariableIdentifier::link(
     SymbolResolver &linker,
     ChainValue *parent,
     std::vector<std::unique_ptr<ChainValue>> &values,
-    unsigned int index
+    unsigned int index,
+    BaseType* expected_type
 ) {
     if(parent) {
         find_link_in_parent(parent, linker);

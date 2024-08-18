@@ -582,7 +582,7 @@ void FunctionDeclaration::set_active_iteration(int16_t iteration) {
     }
 }
 
-int16_t FunctionDeclaration::register_call(SymbolResolver& resolver, FunctionCall* call) {
+int16_t FunctionDeclaration::register_call(SymbolResolver& resolver, FunctionCall* call, BaseType* expected_type) {
 
     const auto total = generic_params.size();
     std::vector<BaseType*> generic_args(total);
@@ -604,6 +604,9 @@ int16_t FunctionDeclaration::register_call(SymbolResolver& resolver, FunctionCal
     // infer args, if user gave less args than expected
     if(call->generic_list.size() != total) {
         call->infer_generic_args(resolver, generic_args);
+    }
+    if(expected_type) {
+        call->infer_return_type(resolver, generic_args, expected_type);
     }
 
     // register and report to subscribers

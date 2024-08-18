@@ -69,7 +69,13 @@ public:
 
     void link(SymbolResolver &linker, std::unique_ptr<ChainValue>& value_ptr, bool prepend);
 
-    void link(SymbolResolver &linker, ChainValue *parent, std::vector<std::unique_ptr<ChainValue>> &values, unsigned int index) override;
+    void link(
+            SymbolResolver &linker,
+            ChainValue *parent,
+            std::vector<std::unique_ptr<ChainValue>> &values,
+            unsigned int index,
+            BaseType* expected_type
+    ) override;
 
     void relink_parent(ChainValue *parent) override;
 

@@ -423,10 +423,15 @@ void ChainValue::link(
     SymbolResolver& linker,
     ChainValue* parent,
     std::vector<std::unique_ptr<ChainValue>>& values,
-    unsigned index
+    unsigned index,
+    BaseType* expected_type
 ) {
     if(parent) {
-        find_link_in_parent(parent, linker);
+        if(index == values.size() - 1) {
+            find_link_in_parent(parent, linker, expected_type);
+        } else {
+            find_link_in_parent(parent, linker);
+        }
     } else {
         link(linker, (std::unique_ptr<Value>&) values[index]);
     }

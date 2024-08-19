@@ -28,6 +28,10 @@ public:
         ASTNode* parent_node
     );
 
+    ASTNodeKind kind() override {
+        return ASTNodeKind::VariantDecl;
+    }
+
     ASTNode *parent() override {
         return parent_node;
     }

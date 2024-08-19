@@ -21,6 +21,10 @@ public:
 
     }
 
+    ASTNodeKind kind() override {
+        return ASTNodeKind::Scope;
+    }
+
     /**
      * @brief Construct a new Scope object.
      * @param nodes All the ASTNode(s) present in the scope

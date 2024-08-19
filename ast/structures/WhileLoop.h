@@ -32,6 +32,10 @@ public:
      */
     WhileLoop(std::unique_ptr<Value> condition, LoopScope body, ASTNode* parent_node);
 
+    ASTNodeKind kind() override {
+        return ASTNodeKind::WhileLoopStmt;
+    }
+
     void set_parent(ASTNode* new_parent) override {
         parent_node = new_parent;
     }

@@ -16,6 +16,10 @@ public:
         ASTNode* parent_node
     );
 
+    ASTNodeKind kind() override {
+        return ASTNodeKind::UnnamedStruct;
+    }
+
     std::string struct_name() override {
         return "";
     }

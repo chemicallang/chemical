@@ -24,6 +24,10 @@ public:
 
     }
 
+    ASTNodeKind kind() override {
+        return ASTNodeKind::DoWhileLoopStmt;
+    }
+
     ASTNode * parent() override {
         return parent_node;
     }

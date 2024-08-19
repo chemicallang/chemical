@@ -18,6 +18,10 @@ public:
 
     }
 
+    ASTNodeKind kind() override {
+        return ASTNodeKind::CapturedVariable;
+    }
+
     ASTNode *parent() override {
         return nullptr;
     }

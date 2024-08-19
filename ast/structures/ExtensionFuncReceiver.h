@@ -16,6 +16,10 @@ public:
         ASTNode* parent_node
     );
 
+    ASTNodeKind kind() override {
+        return ASTNodeKind::ExtensionFuncReceiver;
+    }
+
     ASTNode * parent() override {
         return parent_node;
     }

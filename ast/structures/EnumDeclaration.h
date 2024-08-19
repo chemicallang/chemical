@@ -31,6 +31,10 @@ public:
             ASTNode* parent_node
     ) : name(std::move(name)), members(std::move(members)), parent_node(parent_node) {}
 
+    ASTNodeKind kind() override {
+        return ASTNodeKind::EnumDecl;
+    }
+
     void set_parent(ASTNode* new_parent) override {
         parent_node = new_parent;
     }

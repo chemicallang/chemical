@@ -20,6 +20,10 @@ public:
         bool is_namespace
     );
 
+    ASTNodeKind kind() override {
+        return ASTNodeKind::UsingStmt;
+    }
+
     void accept(Visitor *visitor) override {
         visitor->visit(this);
     }

@@ -24,6 +24,10 @@ public:
         unsigned param_index
     );
 
+    ASTNodeKind kind() override {
+        return ASTNodeKind::GenericTypeParam;
+    }
+
     void accept(Visitor *visitor) override {
         visitor->visit(this);
     }

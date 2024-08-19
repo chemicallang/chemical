@@ -27,6 +27,10 @@ public:
             ASTNode* parent_node
     );
 
+    ASTNodeKind kind() override {
+        return ASTNodeKind::ImplDecl;
+    }
+
     /**
      * constructor
      */

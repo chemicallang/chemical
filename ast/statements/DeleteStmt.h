@@ -12,6 +12,10 @@ public:
 
     DeleteStmt(std::unique_ptr<Value> value, bool is_array);
 
+    ASTNodeKind kind() override {
+        return ASTNodeKind::DeleteStmt;
+    }
+
     void declare_and_link(SymbolResolver &linker) override;
 
     void accept(Visitor *visitor) override {

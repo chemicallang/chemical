@@ -16,6 +16,10 @@ public:
         ASTNode* parent_node
     );
 
+    ASTNodeKind kind() override {
+        return ASTNodeKind::UnnamedUnion;
+    }
+
     VariablesContainer *variables_container() override {
         return this;
     }

@@ -16,6 +16,10 @@ public:
 
     UnionDef(std::string name, ASTNode* parent_node);
 
+    ASTNodeKind kind() override {
+        return ASTNodeKind::UnionDecl;
+    }
+
     std::string union_name() override {
         return name;
     }

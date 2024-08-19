@@ -15,7 +15,7 @@
 #include "BaseTypeKind.h"
 #include "ValueType.h"
 #include "std/hybrid_ptr.h"
-#include <iostream>
+#include "ASTNodeKind.h"
 
 class SymbolResolver;
 
@@ -135,6 +135,11 @@ public:
     virtual int child_index(const std::string &name) {
         return -1;
     }
+
+    /**
+     * get the ast node kind from this node
+     */
+    virtual ASTNodeKind kind() = 0;
 
     /**
      * this generic type would subscribe to this node, so all usages of this generic node

@@ -19,6 +19,10 @@ public:
      */
     Namespace(std::string name, ASTNode* parent_node);
 
+    ASTNodeKind kind() override {
+        return ASTNodeKind::NamespaceDecl;
+    }
+
     void set_parent(ASTNode* new_parent) override {
         parent_node = new_parent;
     }

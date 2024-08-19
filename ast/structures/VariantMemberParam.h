@@ -21,6 +21,10 @@ public:
         VariantMember* parent_node
     );
 
+    ASTNodeKind kind() override {
+        return ASTNodeKind::VariantMemberParam;
+    }
+
     VariantMemberParam* copy();
 
     void declare_and_link(SymbolResolver &linker) override;

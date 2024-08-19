@@ -9,7 +9,7 @@ public:
 
     std::string identifier;
     std::unique_ptr<BaseType> def_type;
-    std::vector<BaseType*> usage;
+    std::vector<std::unique_ptr<BaseType>> usage;
     int16_t active_iteration = -1; // <-- index of active type in usage vector
     ASTNode* parent_node;
     unsigned param_index = 0; // <-- index in the generic type parameters
@@ -33,7 +33,7 @@ public:
     void register_usage(BaseType* type);
 
     hybrid_ptr<BaseType> get_value_type() override {
-        return hybrid_ptr<BaseType> { usage[active_iteration], false };
+        return hybrid_ptr<BaseType> { usage[active_iteration].get(), false };
     }
 
     std::unique_ptr<BaseType> create_value_type() override {
@@ -59,7 +59,7 @@ public:
     }
 
     BaseType *known_type() override {
-        return usage[active_iteration];
+        return usage[active_iteration].get();
     }
 
     GenericTypeParameter *as_generic_type_param() override {

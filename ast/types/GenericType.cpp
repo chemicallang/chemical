@@ -63,7 +63,7 @@ void GenericType::report_parent_usage(SymbolResolver &linker, int16_t parent_itr
         if(type->kind() == BaseTypeKind::Referenced) {
             const auto gen_param = type->linked_node()->as_generic_type_param();
             if(gen_param) {
-                generic_args.emplace_back(gen_param->usage.back());
+                generic_args.emplace_back(gen_param->usage.back().get());
                 continue;
             }
         }

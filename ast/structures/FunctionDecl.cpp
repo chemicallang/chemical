@@ -500,10 +500,10 @@ void GenericTypeParameter::declare_and_link(SymbolResolver &linker) {
 
 void GenericTypeParameter::register_usage(BaseType* type) {
     if(type) {
-        usage.emplace_back(type);
+        usage.emplace_back(type->copy());
     } else {
         if(def_type) {
-            usage.emplace_back(def_type.get());
+            usage.emplace_back(def_type->copy());
         } else {
             std::cerr << "expected a generic type argument for parameter " << identifier << " in node " << parent_node->ns_node_identifier() << std::endl;
         }

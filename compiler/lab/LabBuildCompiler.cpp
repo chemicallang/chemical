@@ -357,6 +357,9 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
 #endif
 
             if(!already_imported) {
+                if(options->verbose) {
+                    std::cout << rang::fg::magenta << "[Shrinking] " << file.abs_path << rang::fg::reset << std::endl;
+                }
                 processor.shrink_nodes(shrinker, result.scope, file);
                 i++;
             }

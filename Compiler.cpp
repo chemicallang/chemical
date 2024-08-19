@@ -137,7 +137,7 @@ int main(int argc, char *argv[]) {
     }
 #endif
 
-    auto verbose = options.option("verbose", "vv").has_value();
+    auto verbose = options.option("verbose", "v").has_value();
     if(verbose) {
         std::cout << "[Command] ";
         options.print();

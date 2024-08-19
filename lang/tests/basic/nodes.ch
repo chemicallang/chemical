@@ -127,17 +127,32 @@ func test_nodes() {
     test("switch statement", () => {
        var j = 0;
        switch(j) {
-            case 0 -> {
+            case 0 => {
                 return true;
             }
-            case 1 -> {
+            case 1 => {
                 return false;
             }
-            default -> {
+            default => {
                 return false;
             }
        }
     });
+    test("switch doesn't fallthrough by default", () => {
+        var j = 0;
+        switch(j) {
+            case 0 => {
+                j += 1;
+            }
+            case 1 => {
+                j += 1;
+            }
+            default => {
+                j += 1
+            }
+        }
+        return j == 1;
+    })
     test("struct value initialization", () => {
         var p = Point {
             x : 5,

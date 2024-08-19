@@ -41,16 +41,16 @@ struct string {
 
     func size(&self) : size_t {
         switch(state) {
-            case '0' -> {
+            case '0' => {
                 return storage.constant.length;
             }
-            case '1' -> {
+            case '1' => {
                 return storage.sso.length;
             }
-            case '2' -> {
+            case '2' => {
                 return storage.heap.length;
             }
-            default -> {
+            default => {
                 return 0
             }
         }
@@ -114,14 +114,14 @@ struct string {
 
     func set(&self, index : size_t, value : char) {
         switch(state) {
-            case '0' -> {
+            case '0' => {
                 move_const_to_buffer();
                 storage.sso.buffer[index] = value;
             }
-            case '1' -> {
+            case '1' => {
                 storage.sso.buffer[index] = value;
             }
-            case '2' -> {
+            case '2' => {
                 storage.heap.data[index] = value;
             }
         }
@@ -129,16 +129,16 @@ struct string {
 
     func get(&self, index : size_t) : char {
         switch(state) {
-            case '0' -> {
+            case '0' => {
                 return storage.constant.data[index];
             }
-            case '1' -> {
+            case '1' => {
                 return storage.sso.buffer[index];
             }
-            case '2' -> {
+            case '2' => {
                 return storage.heap.data[index]
             }
-            default -> {
+            default => {
                 return '\0'
             }
         }
@@ -217,16 +217,16 @@ struct string {
 
     func capacity(&self) : size_t {
         switch(state) {
-            case '0' -> {
+            case '0' => {
                 return storage.constant.length;
             }
-            case '1' -> {
+            case '1' => {
                 return 16;
             }
-            case '2' -> {
+            case '2' => {
                 return storage.heap.capacity;
             }
-            default -> {
+            default => {
                 return 0;
             }
         }
@@ -234,16 +234,16 @@ struct string {
 
     func data(&self) : char* {
         switch(state) {
-            case '0' -> {
+            case '0' => {
                 return storage.constant.data
             }
-            case '1' -> {
+            case '1' => {
                 return &storage.sso.buffer[0];
             }
-            case '2' -> {
+            case '2' => {
                 return storage.heap.data;
             }
-            default -> {
+            default => {
                 return null;
             }
         }

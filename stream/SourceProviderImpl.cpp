@@ -70,7 +70,7 @@ char SourceProvider::peek() {
     return buffer[bufferPos];
 }
 
-char SourceProvider::peek(int ahead) {
+char SourceProvider::peek(unsigned int ahead) {
     const size_t targetPos = bufferPos + ahead;
     if (targetPos >= buffer.size()) {
         bufferStretch();
@@ -131,9 +131,17 @@ bool SourceProvider::increment(const std::string &text, bool peek) {
         }
     }
     if (!peek) {
-        bufferPos = pos;
+        increment_amount(text.size());
     }
     return true;
+}
+
+void SourceProvider::increment_amount(unsigned amount) {
+    unsigned i = 0;
+    while(i < amount) {
+        readCharacter();
+        i++;
+    };
 }
 
 unsigned int SourceProvider::getLineNumber() const {

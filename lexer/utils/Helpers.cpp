@@ -53,9 +53,10 @@ bool Lexer::lexOperatorToken(const std::string &token, Operation op) {
 }
 
 bool Lexer::lexWSKeywordToken(const std::string &keyword) {
-    if(provider.increment(keyword) && provider.peek() == ' ') {
-        lexWhitespaceToken();
+    if(provider.increment(keyword, true) && provider.peek(keyword.size()) == ' ') {
+        provider.increment_amount(keyword.size());
         tokens.emplace_back(std::make_unique<LexToken>(LexTokenType::Keyword, backPosition(keyword.length()), keyword));
+        lexWhitespaceToken();
         return true;
     } else {
         return false;

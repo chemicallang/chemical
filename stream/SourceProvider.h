@@ -118,7 +118,7 @@ public:
     /**
      * peaks the character at current pos + ahead
      */
-    char peek(int ahead);
+    char peek(unsigned int ahead);
 
     /**
      * reads the stream until this (stop) character occurs
@@ -151,6 +151,11 @@ public:
      * @return true if incremented by character length = 1, otherwise false
      */
     bool increment(char c);
+
+    /**
+     * increment by given amount
+     */
+    void increment_amount(unsigned amount);
 
     /**
      * this will read all the text from current position to end in a string and return it

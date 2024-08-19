@@ -63,6 +63,23 @@ bool Lexer::lexWSKeywordToken(const std::string &keyword) {
     }
 }
 
+bool Lexer::lexWSKeywordToken(const std::string &keyword, char may_end_at) {
+    if(provider.increment(keyword, true)) {
+        const auto peek = provider.peek(keyword.size());
+        if(peek == ' ' || peek == '\t') {
+            provider.increment_amount(keyword.size());
+            tokens.emplace_back(std::make_unique<LexToken>(LexTokenType::Keyword, backPosition(keyword.length()), keyword));
+            lexWhitespaceToken();
+            return true;
+        } else if(peek == may_end_at) {
+            provider.increment_amount(keyword.size());
+            tokens.emplace_back(std::make_unique<LexToken>(LexTokenType::Keyword, backPosition(keyword.length()), keyword));
+            return true;
+        }
+    }
+    return false;
+}
+
 bool Lexer::lexKeywordToken(const std::string& keyword) {
     if(provider.increment(keyword)) {
         tokens.emplace_back(std::make_unique<LexToken>(LexTokenType::Keyword, backPosition(keyword.length()), keyword));

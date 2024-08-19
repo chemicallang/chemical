@@ -3,9 +3,8 @@
 #include "lexer/Lexer.h"
 
 bool Lexer::lexSwitchStatementBlock() {
-    if (lexKeywordToken("switch")) {
+    if (lexWSKeywordToken("switch", '(')) {
         auto start = tokens.size() - 1;
-        lexWhitespaceToken();
         if (lexOperatorToken('(')) {
             if (!lexExpressionTokens()) {
                 error("expected an expression tokens in switch statement");

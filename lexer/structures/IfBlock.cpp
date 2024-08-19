@@ -6,9 +6,7 @@
 
 #include "lexer/Lexer.h"
 
-void Lexer::lexIfExpression() {
-
-    lexWhitespaceToken();
+void Lexer::lexIfExprAndBlock() {
 
     if (!lexOperatorToken('(')) {
         error("expected a starting parenthesis ( when lexing a if block");
@@ -25,12 +23,6 @@ void Lexer::lexIfExpression() {
         return;
     }
 
-}
-
-void Lexer::lexIfExprAndBlock() {
-
-    lexIfExpression();
-
     if (has_errors) {
         return;
     }
@@ -44,7 +36,7 @@ void Lexer::lexIfExprAndBlock() {
 
 bool Lexer::lexIfBlockTokens() {
 
-    if(!lexKeywordToken("if")) {
+    if(!lexWSKeywordToken("if", '(')) {
         return false;
     }
 
@@ -68,7 +60,7 @@ bool Lexer::lexIfBlockTokens() {
             compound_from(start, LexTokenType::CompIf);
             return true;
         } else {
-            if(lexKeywordToken("if")) {
+            if(lexWSKeywordToken("if", '(')) {
                 lexIfExprAndBlock();
                 lexWhitespaceToken();
             } else {

@@ -7,7 +7,7 @@
 #include "lexer/Lexer.h"
 
 bool Lexer::lexContinueStatement() {
-    if(lexKeywordToken("continue")) {
+    if(lexWSKeywordToken("continue", ';')) {
         compound_from(tokens.size(), LexTokenType::CompContinue);
         return true;
     } else {
@@ -16,7 +16,7 @@ bool Lexer::lexContinueStatement() {
 }
 
 bool Lexer::lexBreakStatement() {
-    if(lexKeywordToken("break")) {
+    if(lexWSKeywordToken("break", ';')) {
         compound_from(tokens.size(), LexTokenType::CompBreak);
         return true;
     } else {
@@ -26,14 +26,11 @@ bool Lexer::lexBreakStatement() {
 
 bool Lexer::lexForBlockTokens() {
 
-    if (!lexKeywordToken("for")) {
+    if (!lexWSKeywordToken("for", '(')) {
         return false;
     }
 
     unsigned start = tokens.size() - 1;
-
-    // whitespace
-    lexWhitespaceToken();
 
     // start parenthesis
     if(!lexOperatorToken('(')) {

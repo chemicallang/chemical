@@ -346,10 +346,14 @@ public:
     bool lexKeywordToken(const std::string &keyword);
 
     /**
-     * lexes a whitespaces keyword, at least a single whitespace should be present after the keyword
-     * @return  whether the keyword was found
+     * lexes a keyword token, after which whitespace is present
      */
     bool lexWSKeywordToken(const std::string &keyword);
+
+    /**
+     * lex a whitespaced keyword token, which may end at the given character if not whitespace
+     */
+    bool lexWSKeywordToken(const std::string &keyword, char may_end_at);
 
     /**
      * All top levels statements lexed, These include
@@ -399,11 +403,6 @@ public:
             lexer->lexNestedLevelMultipleStatementsTokens();
         });
     }
-
-    /**
-     * lexes an expression for if statement including parens '(' expr ')'
-     */
-    void lexIfExpression();
 
     /**
      * lexes import identifier list example : { something, something }

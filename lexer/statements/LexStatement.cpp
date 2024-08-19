@@ -67,9 +67,8 @@ bool Lexer::lexStatementTokens() {
 }
 
 bool Lexer::lexThrowStatementTokens() {
-    if(lexKeywordToken("throw")) {
+    if(lexWSKeywordToken("throw")) {
         auto start = tokens.size() - 1;
-        lexWhitespaceToken();
         if(lexValueToken()) {
             error("expected a lambda value");
         } else {
@@ -83,9 +82,8 @@ bool Lexer::lexThrowStatementTokens() {
 }
 
 bool Lexer::lexUsingStatement() {
-    if(lexKeywordToken("using")) {
+    if(lexWSKeywordToken("using")) {
         auto start = tokens.size() - 1;
-        lexWhitespaceToken();
         if(lexKeywordToken("namespace")) {
             lexWhitespaceToken();
         }

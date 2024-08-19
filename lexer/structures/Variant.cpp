@@ -44,9 +44,8 @@ void Lexer::lexVariantBlockTokens() {
 }
 
 bool Lexer::lexVariantStructureTokens() {
-    if(lexKeywordToken("variant")) {
+    if(lexWSKeywordToken("variant")) {
         auto start_token = tokens.size() - 1;
-        lexWhitespaceToken();
         if (!lexIdentifierToken()) {
             error("expected a identifier as struct name");
             return true;

@@ -122,9 +122,6 @@ void prep_lexer_cbi(LexerCBI* cbi, SourceProviderCBI* provider) {
     cbi->lexBraceBlock = [](LexerCBI* cbi, char* forThing){
         return cbi->instance->lexBraceBlock(forThing);
     };
-    cbi->lexIfExpression = [](LexerCBI* cbi){
-        return cbi->instance->lexIfExpression();
-    };
     cbi->lexImportIdentifierList = [](LexerCBI* cbi){
         return cbi->instance->lexImportIdentifierList();
     };

@@ -3,9 +3,8 @@
 #include "lexer/Lexer.h"
 
 bool Lexer::lexTryCatchTokens() {
-    if (lexKeywordToken("try")) {
+    if (lexWSKeywordToken("try")) {
         unsigned int start = tokens.size() - 1;
-        lexWhitespaceToken();
         if(lexAccessChain(false)) {
             lexWhitespaceToken();
             if (lexKeywordToken("catch")) {

@@ -8,16 +8,13 @@
 
 bool Lexer::lexVarInitializationTokens(bool allowDeclarations, bool requiredType) {
 
-    auto lexed_const = lexKeywordToken("const");
+    auto lexed_const = lexWSKeywordToken("const");
 
-    if (!lexed_const && !lexKeywordToken("var")) {
+    if (!lexed_const && !lexWSKeywordToken("var")) {
         return false;
     }
 
     unsigned int start = tokens.size() - 1;
-
-    // whitespace
-    lexWhitespaceToken();
 
     // identifier
     if (!lexIdentifierToken()) {

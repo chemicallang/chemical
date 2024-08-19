@@ -30,6 +30,8 @@ public:
     llvm::GlobalVariable* vtable_pointer = nullptr;
 #endif
 
+    using MembersContainer::requires_destructor;
+
     /**
      * @brief Construct a new StructDeclaration object.
      *
@@ -110,8 +112,6 @@ public:
         return size;
     }
 
-    FunctionDeclaration* create_destructor();
-
     [[nodiscard]]
     BaseType *copy() const override;
 
@@ -146,7 +146,8 @@ public:
 
     /**
      * for the given struct iteration, we acquire all the function iterations and put them
-     * in the llvm_struct types
+     * in the llvm_struct types, this basically set's the given iteration so that when llvm_type is called
+     * or llvm_value, it will consider the struct iteration
      */
     void acquire_function_iterations(int16_t iteration);
 

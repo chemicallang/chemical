@@ -68,6 +68,25 @@ std::string& BaseType::ref_name() {
     }
 }
 
+bool BaseType::requires_destructor() {
+    const auto pure = pure_type();
+    if(!pure) return false;
+    const auto linked = pure->linked_node();
+    if(!linked) return false;
+    const auto struct_def = linked->as_struct_def();
+    if(struct_def) {
+        return struct_def->requires_destructor();
+    } else {
+        const auto interface_def = linked->as_interface_def();
+        if(interface_def) {
+            // TODO interface definition destructor, supporting virtual destructor
+            return false;
+        } else {
+            return false;
+        }
+    }
+}
+
 bool BaseType::is_ref_struct() {
     const auto k = kind();
     if(k == BaseTypeKind::Generic) {

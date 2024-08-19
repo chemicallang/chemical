@@ -464,7 +464,7 @@ public:
     /**
      * lex parameter list
      */
-    void lexParameterList(bool optionalTypes = false, bool defValues = true);
+    void lexParameterList(bool optionalTypes = false, bool defValues = true, bool lexSelfParam = true, bool variadicParam = true);
 
     /**
     * lexes a function signature with parameters
@@ -518,6 +518,22 @@ public:
      * lexes a struct block
      */
     bool lexStructStructureTokens(bool unnamed = false, bool direct_init = false);
+
+    /**
+     * lexes a single member of the struct
+     */
+    bool lexVariantMemberTokens();
+
+    /**
+     * lexes struct block, this means { member(s) }
+     * without the `struct` keyword and name identifier
+     */
+    void lexVariantBlockTokens();
+
+    /**
+     * lexes a struct block
+     */
+    bool lexVariantStructureTokens();
 
         /**
      * lexes a single member of the struct

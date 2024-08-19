@@ -60,6 +60,8 @@ class TypealiasStatement;
 
 class SwitchStatement;
 
+class VariantDefinition;
+
 class TryCatch;
 
 // Values Begin
@@ -309,6 +311,10 @@ public:
 
     virtual void visit(InterfaceDefinition* interfaceDefinition) {
         visitCommon((ASTNode*) interfaceDefinition);
+    }
+
+    virtual void visit(VariantDefinition* variant_def) {
+        visitCommon((ASTNode*) variant_def);
     }
 
     virtual void visit(Scope* scope) {

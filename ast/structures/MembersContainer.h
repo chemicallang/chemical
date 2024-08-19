@@ -141,6 +141,11 @@ public:
     void insert_func(std::unique_ptr<FunctionDeclaration> decl);
 
     /**
+     * create a destructor function and put it into functions
+     */
+    FunctionDeclaration* create_destructor();
+
+    /**
      * insert a function that can have same name for multiple declarations
      * @return true, if could insert the function, false if there's a conflict
      */

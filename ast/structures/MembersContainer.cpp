@@ -12,6 +12,9 @@
 #include "ast/utils/GenericUtils.h"
 #include "ast/types/GenericType.h"
 #include "ast/types/ReferencedType.h"
+#include "ast/types/PointerType.h"
+#include "ast/types/VoidType.h"
+#include "ast/structures/FunctionDeclaration.h"
 #include "ast/structures/InterfaceDefinition.h"
 
 #ifdef COMPILER_BUILD
@@ -140,11 +143,7 @@ BaseDefMember* VariablesContainer::largest_member() {
             member = var.second.get();
         }
     }
-    if(member) {
-        return member;
-    } else {
-        return nullptr;
-    }
+    return member;
 }
 
 uint64_t VariablesContainer::total_byte_size(bool is64Bit) {
@@ -426,6 +425,15 @@ bool MembersContainer::requires_destructor() {
 void MembersContainer::insert_func(std::unique_ptr<FunctionDeclaration> decl) {
     indexes[decl->name] = decl.get();
     functions_container.emplace_back(std::move(decl));
+}
+
+FunctionDeclaration* MembersContainer::create_destructor() {
+    auto decl = new FunctionDeclaration("delete", {}, std::make_unique<VoidType>(), false, this, std::nullopt);
+    decl->params.emplace_back(new FunctionParam("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>(ns_node_identifier(), this)), 0, std::nullopt, decl));
+    decl->body.emplace(LoopScope{nullptr});
+    decl->annotations.emplace_back(AnnotationKind::Destructor);
+    insert_func(std::unique_ptr<FunctionDeclaration>(decl));
+    return decl;
 }
 
 bool MembersContainer::insert_multi_func(std::unique_ptr<FunctionDeclaration> decl) {

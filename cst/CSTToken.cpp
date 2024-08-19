@@ -201,12 +201,18 @@ void CSTToken::accept(CSTVisitor *visitor) {
         case LexTokenType::CompStructValue:
             visitor->visitStructValue((CompoundCSTToken*) this);
             return;
+        case LexTokenType::CompVariant:
+            visitor->visitVariant((CompoundCSTToken*) this);
+            return;
+        case LexTokenType::CompVariantMember:
+            visitor->visitVariantMember((CompoundCSTToken*) this);
+            return;
         case LexTokenType::CompGenericList:
             visitor->visitGenericList((CompoundCSTToken*) this);
             return;
 #ifdef DEBUG
-//        default:
-//            std::cerr << "UNKNOWN TOKEN TYPE " + std::to_string((uint8_t) tok_type) << std::endl;
+        default:
+            throw std::runtime_error("UNKNOWN TOKEN TYPE " + std::to_string((uint8_t) tok_type));
 #endif
     }
 }

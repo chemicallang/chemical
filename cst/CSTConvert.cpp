@@ -76,6 +76,8 @@
 #include "ast/statements/UsingStmt.h"
 #include "ast/types/ReferencedType.h"
 #include "ast/types/DynamicType.h"
+#include "ast/structures/VariantDefinition.h"
+#include "ast/structures/VariantMember.h"
 
 Operation get_operation(CSTToken *token) {
     std::string num;
@@ -969,36 +971,51 @@ unsigned int collect_struct_members(
     auto prev_anns = std::move(conv->annotations);
     while (!is_char_op(tokens[i].get(), '}')) {
         tokens[i]->accept(conv);
-        if (tokens[i]->is_var_init()) {
-            auto node = (VarInitStatement *) conv->pop_last_node();
-            auto thing = new StructMember(
-                    node->identifier,
-                    std::move(node->type.value()),
-                    std::move(node->value),
-                    conv->parent_node
-            );
-            variables[node->identifier] = std::unique_ptr<StructMember>(thing);
-            delete node;
-        } else if(tokens[i]->is_func_decl()){
-            auto node = (FunctionDeclaration *) conv->pop_last_node();
-            if(!container->insert_multi_func(std::unique_ptr<FunctionDeclaration>(node))) {
-                conv->error("conflict inserting function with name " + node->name, tokens[i].get());
+        switch(tokens[i]->type()) {
+            case LexTokenType::CompVarInit:{
+                const auto node = (VarInitStatement *) conv->pop_last_node();
+                const auto thing = new StructMember(
+                        node->identifier,
+                        std::move(node->type.value()),
+                        std::move(node->value),
+                        conv->parent_node
+                );
+                variables[node->identifier] = std::unique_ptr<StructMember>(thing);
+                delete node;
+                break;
             }
-        } else if(tokens[i]->is_struct_def()) {
-            auto node = (StructDefinition*) conv->pop_last_node();
-            auto thing = new UnnamedStruct(node->name, conv->parent_node);
-            variables[node->name] = std::unique_ptr<UnnamedStruct>(thing);
-            thing->variables = std::move(node->variables);
-            delete node;
-        } else if(tokens[i]->is_union_def()) {
-            auto node = (UnionDef*) conv->pop_last_node();
-            auto thing = new UnnamedUnion(node->name, conv->parent_node);
-            variables[node->name] = std::unique_ptr<UnnamedUnion>(thing);
-            thing->variables = std::move(node->variables);
-            delete node;
-        } else {
-            i++;
-            continue;
+            case LexTokenType::CompFunction:{
+                const auto node = (FunctionDeclaration *) conv->pop_last_node();
+                if(!container->insert_multi_func(std::unique_ptr<FunctionDeclaration>(node))) {
+                    conv->error("conflict inserting function with name " + node->name, tokens[i].get());
+                }
+                break;
+            }
+            case LexTokenType::CompStructDef:{
+                const auto node = (StructDefinition*) conv->pop_last_node();
+                const auto thing = new UnnamedStruct(node->name, conv->parent_node);
+                variables[node->name] = std::unique_ptr<UnnamedStruct>(thing);
+                thing->variables = std::move(node->variables);
+                delete node;
+                break;
+            }
+            case LexTokenType::CompUnionDef:{
+                const auto node = (UnionDef*) conv->pop_last_node();
+                const auto thing = new UnnamedUnion(node->name, conv->parent_node);
+                variables[node->name] = std::unique_ptr<UnnamedUnion>(thing);
+                thing->variables = std::move(node->variables);
+                delete node;
+                break;
+            }
+            case LexTokenType::CompVariantMember:{
+                const auto node = (VariantMember*) conv->pop_last_node();
+                variables[node->name] = std::unique_ptr<BaseDefMember>(node);
+                break;
+            }
+            default: {
+                i++;
+                continue;
+            }
         }
 
         if (is_char_op(tokens[i + 1].get(), ';')) {
@@ -1012,6 +1029,25 @@ unsigned int collect_struct_members(
     return i;
 }
 
+void get_inherit_list(CSTConverter* converter, CompoundCSTToken* container, unsigned& i, std::vector<std::unique_ptr<InheritedType>>& inherited) {
+    while(true) {
+        auto specifier = specifier_token(container->tokens[i].get());
+        if(specifier.has_value()) {
+            i++;
+        } else {
+            specifier.emplace(AccessSpecifier::Public);
+        }
+        container->tokens[i]->accept(converter);
+        inherited.emplace_back(new InheritedType(converter->type(), specifier.value()));
+        i++;
+        if(is_char_op(container->tokens[i].get(), ',')) {
+            i++;
+        } else {
+            break;
+        }
+    };
+}
+
 void CSTConverter::visitStructDef(CompoundCSTToken *structDef) {
     if(is_dispose()) {
         return;
@@ -1023,22 +1059,7 @@ void CSTConverter::visitStructDef(CompoundCSTToken *structDef) {
     auto def = new StructDefinition(str_token(structDef->tokens[named ? 1 : structDef->tokens.size() - 1].get()), parent_node);
     if (has_override) {
         i++; // set on access specifier or the inherited struct / interface name
-        while(true) {
-            auto specifier = specifier_token(structDef->tokens[i].get());
-            if(specifier.has_value()) {
-                i++;
-            } else {
-                specifier.emplace(AccessSpecifier::Public);
-            }
-            structDef->tokens[i]->accept(this);
-            def->inherited.emplace_back(new InheritedType(type(), specifier.value()));
-            i++;
-            if(is_char_op(structDef->tokens[i].get(), ',')) {
-                i++;
-            } else {
-                break;
-            }
-        };
+        get_inherit_list(this, structDef, i, def->inherited);
     }
     i += 1;// positioned at first node or '}'
     if(is_generic) {
@@ -1119,6 +1140,35 @@ void CSTConverter::visitImpl(CompoundCSTToken *impl) {
     collect_struct_members(this, impl, def, i);
     parent_node = prev_parent;
     current_members_container = prev_container;
+    nodes.emplace_back(def);
+}
+
+void CSTConverter::visitVariantMember(CompoundCSTToken *variant_member) {
+
+}
+
+void CSTConverter::visitVariant(CompoundCSTToken *variantDef) {
+    const bool is_generic = variantDef->tokens[2]->type() == LexTokenType::CompGenericParamsList;
+    bool named = variantDef->tokens[1]->is_identifier();
+    unsigned i = (named ? 2 : 1) + (is_generic ? 1 : 0); // expected index of the ':'
+    auto has_override = is_char_op(variantDef->tokens[i].get(), ':');
+    auto def = new VariantDefinition(str_token(variantDef->tokens[named ? 1 : variantDef->tokens.size() - 1].get()), parent_node);
+    if (has_override) {
+        i++; // set on access specifier or the inherited struct / interface name
+        get_inherit_list(this, variantDef, i, def->inherited);
+    }
+    i += 1;// positioned at first node or '}'
+    if(is_generic) {
+        convert_generic_list(this, variantDef->tokens[2]->as_compound(), def->generic_params, def);
+    }
+    auto prev_struct_decl = current_members_container;
+    current_members_container = def;
+    auto prev_parent = parent_node;
+    parent_node = def;
+    collect_struct_members(this, variantDef, def, i);
+    parent_node = prev_parent;
+    current_members_container = prev_struct_decl;
+    collect_annotations_in(this, def);
     nodes.emplace_back(def);
 }
 

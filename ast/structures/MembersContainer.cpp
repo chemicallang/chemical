@@ -217,12 +217,12 @@ void MembersContainer::declare_and_link(SymbolResolver &linker) {
     linker.scope_end();
 }
 
-void MembersContainer::register_interface_uses(StructDefinition* definition) {
+void MembersContainer::register_use_to_inherited_interfaces(StructDefinition* definition) {
     for(auto& inherits : inherited) {
         const auto interface = inherits->type->linked_node()->as_interface_def();
         if(interface) {
             interface->register_use(definition);
-            interface->register_interface_uses(definition);
+            interface->register_use_to_inherited_interfaces(definition);
         }
     }
 }

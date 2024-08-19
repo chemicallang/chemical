@@ -79,7 +79,10 @@ void StructDefinition::code_gen(Codegen &gen) {
     if(generic_params.empty()) {
         struct_func_gen(gen, functions());
         for(auto& inherits : inherited) {
-
+            const auto interface = inherits->type->linked_interface_def();
+            if(interface) {
+                interface->llvm_global_vtable(gen, this);
+            }
         }
     } else {
         // WHY IS THIS ALGORITHM SO COMPLICATED ?
@@ -351,7 +354,7 @@ void StructDefinition::declare_and_link(SymbolResolver &linker) {
         }
     }
     MembersContainer::declare_and_link(linker);
-    register_interface_uses(this);
+    register_use_to_inherited_interfaces(this);
     if(!has_destructor && requires_destructor()) {
         if(contains_func("delete")) {
             linker.error("default destructor is created by name 'delete' , a function by name 'delete' already exists in struct '" + name + "', please create a destructor by hand if you'd like to reserve 'delete' for your own usage");

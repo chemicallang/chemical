@@ -63,7 +63,7 @@ public:
      * this would register the definition to all interfaces inherited
      * directly inherited or indirectly, this definition would be registered
      */
-    void register_interface_uses(StructDefinition* definition);
+    void register_use_to_inherited_interfaces(StructDefinition* definition);
 
     FunctionDeclaration *member(const std::string &name);
 

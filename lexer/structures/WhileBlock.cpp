@@ -8,13 +8,11 @@
 
 bool Lexer::lexWhileBlockTokens() {
 
-    if(!lexKeywordToken("while")) {
+    if(!lexWSKeywordToken("while", '(')) {
         return false;
     }
 
     auto start = tokens.size() - 1;
-
-    lexWhitespaceToken();
 
     if(!lexOperatorToken('(')) {
         error("expected a starting parenthesis ( after keyword while for while block");

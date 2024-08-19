@@ -25,11 +25,10 @@ bool Lexer::lexImportIdentifierList() {
 }
 
 bool Lexer::lexImportStatement() {
-    if (!lexKeywordToken("import")) {
+    if (!lexWSKeywordToken("import")) {
         return false;
     }
     unsigned int start = tokens.size() - 1;
-    lexWhitespaceToken();
     if (lexStringToken()) {
         if(lexWhitespaceToken() && lexKeywordToken("as")) {
             if(!lexIdentifierToken()) {

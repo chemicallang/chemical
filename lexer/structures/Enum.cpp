@@ -34,9 +34,8 @@ bool Lexer::lexEnumBlockTokens() {
 }
 
 bool Lexer::lexEnumStructureTokens() {
-    if(lexKeywordToken("enum")) {
+    if(lexWSKeywordToken("enum")) {
         auto start = tokens.size() - 1;
-        lexWhitespaceToken();
         if(!lexIdentifierToken()) {
             error("expected a identifier as enum name");
             return true;

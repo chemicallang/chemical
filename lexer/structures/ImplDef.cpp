@@ -18,9 +18,8 @@ void Lexer::lexImplBlockTokens() {
 }
 
 bool Lexer::lexImplTokens() {
-    if (lexKeywordToken("impl")) {
+    if (lexWSKeywordToken("impl")) {
         auto start = tokens.size() - 1;
-        lexWhitespaceToken();
         lexGenericParametersList();
         lexWhitespaceToken();
         if(!lexRefOrGenericType()) return true;

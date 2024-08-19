@@ -7,7 +7,7 @@
 #include "lexer/Lexer.h"
 
 bool Lexer::lexReturnStatement() {
-    if(lexKeywordToken("return")) {
+    if(lexWSKeywordToken("return", ';')) {
         unsigned int start = tokens.size() - 1;
         lexWhitespaceToken();
         lexExpressionTokens(true);
@@ -106,8 +106,6 @@ bool Lexer::lexGenericParametersList() {
 
 bool Lexer::lexAfterFuncKeyword(bool allow_extensions) {
 
-    lexWhitespaceToken();
-
     if(lexGenericParametersList() && has_errors) {
         return false;
     }
@@ -177,7 +175,7 @@ bool Lexer::lexAfterFuncKeyword(bool allow_extensions) {
 
 bool Lexer::lexFunctionSignatureTokens() {
 
-    if(!lexKeywordToken("func")) {
+    if(!lexWSKeywordToken("func")) {
         return false;
     }
 
@@ -187,7 +185,7 @@ bool Lexer::lexFunctionSignatureTokens() {
 
 bool Lexer::lexFunctionStructureTokens(bool allow_declarations, bool allow_extensions) {
 
-    if(!lexKeywordToken("func")) {
+    if(!lexWSKeywordToken("func")) {
         return false;
     }
 

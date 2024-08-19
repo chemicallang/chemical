@@ -3,9 +3,8 @@
 #include "lexer/Lexer.h"
 
 bool Lexer::lexNamespaceTokens() {
-    if(lexKeywordToken("namespace")) {
+    if(lexWSKeywordToken("namespace")) {
         auto start = tokens.size() - 1;
-        lexWhitespaceToken();
         if(!lexIdentifierToken()) {
             error("expected identifier for namespace name");
             return true;

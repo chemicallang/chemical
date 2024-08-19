@@ -3,9 +3,8 @@
 #include "lexer/Lexer.h"
 
 bool Lexer::lexTypealiasStatement() {
-    if(lexKeywordToken("typealias")) {
+    if(lexWSKeywordToken("typealias")) {
         unsigned start = tokens.size() - 1;
-        lexWhitespaceToken();
         if(lexIdentifierToken()) {
             lexWhitespaceToken();
             if(!lexOperatorToken('=')) {

@@ -51,7 +51,6 @@ struct LexerCBI {
     bool(*lexSingleLineCommentTokens)(struct LexerCBI*);
     bool(*lexMultiLineCommentTokens)(struct LexerCBI*);
     bool(*lexBraceBlock)(struct LexerCBI*,char*);
-    void(*lexIfExpression)(struct LexerCBI*);
     bool(*lexImportIdentifierList)(struct LexerCBI*);
     bool(*lexImportStatement)(struct LexerCBI*);
     bool(*lexReturnStatement)(struct LexerCBI*);

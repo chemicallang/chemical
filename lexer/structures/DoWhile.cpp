@@ -8,7 +8,7 @@
 
 bool Lexer::lexDoWhileBlockTokens() {
 
-    if(!lexKeywordToken("do")) {
+    if(!lexWSKeywordToken("do", '{')) {
         return false;
     }
 

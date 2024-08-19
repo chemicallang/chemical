@@ -18,9 +18,8 @@ void Lexer::lexInterfaceBlockTokens() {
 }
 
 bool Lexer::lexInterfaceStructureTokens() {
-    if (lexKeywordToken("interface")) {
+    if (lexWSKeywordToken("interface")) {
         unsigned start = tokens.size() - 1;
-        lexWhitespaceToken();
         if(!lexIdentifierToken()) {
             error("expected interface name after the interface keyword");
             return true;

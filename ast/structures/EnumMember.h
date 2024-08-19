@@ -20,6 +20,11 @@ public:
 
     }
 
+
+    ASTNodeKind kind() override {
+        return ASTNodeKind::EnumMember;
+    }
+
     void set_parent(ASTNode* new_parent) override {
         parent_node = new_parent;
     }

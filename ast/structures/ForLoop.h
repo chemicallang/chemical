@@ -26,6 +26,10 @@ public:
             ASTNode* parent_node
     );
 
+    ASTNodeKind kind() override {
+        return ASTNodeKind::ForLoopStmt;
+    }
+
     /**
      * @brief Construct a new ForLoop object.
      */

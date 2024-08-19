@@ -21,6 +21,10 @@ public:
             FunctionType* func_type = nullptr
       );
 
+    ASTNodeKind kind() override {
+        return ASTNodeKind::FunctionParam;
+    }
+
     ASTNode *parent() override {
         return (ASTNode*) func_type;
     }

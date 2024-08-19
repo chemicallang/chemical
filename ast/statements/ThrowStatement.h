@@ -17,6 +17,10 @@ public:
      */
     ThrowStatement(std::unique_ptr<Value> value, ASTNode* parent_node);
 
+    ASTNodeKind kind() override {
+        return ASTNodeKind::ThrowStmt;
+    }
+
     void set_parent(ASTNode* new_parent) override {
         parent_node = new_parent;
     }

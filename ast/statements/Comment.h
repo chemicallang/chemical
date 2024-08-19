@@ -17,6 +17,10 @@ public:
 
     Comment(std::string comment, bool multiline, ASTNode* parent) : comment(std::move(comment)), multiline(multiline), parent_node(parent) {}
 
+    ASTNodeKind kind() override {
+        return ASTNodeKind::CommentStmt;
+    }
+
     void set_parent(ASTNode* new_parent) override {
         parent_node = new_parent;
     }

@@ -43,6 +43,10 @@ public:
             ASTNode* parent_node
     );
 
+    ASTNodeKind kind() override {
+        return ASTNodeKind::StructDecl;
+    }
+
     int16_t get_generic_iteration() override {
         return active_iteration;
     }

@@ -26,6 +26,10 @@ public:
 
 #endif
 
+    ASTNodeKind kind() override {
+        return ASTNodeKind::ExtensionFunctionDecl;
+    }
+
     void accept(Visitor *visitor) override {
         visitor->visit(this);
     }

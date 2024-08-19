@@ -20,6 +20,10 @@ public:
             FunctionType* func_type = nullptr
     );
 
+    ASTNodeKind kind() override {
+        return ASTNodeKind::FunctionParam;
+    }
+
     virtual unsigned calculate_c_or_llvm_index() = 0;
 
     std::unique_ptr<BaseType> create_value_type() override;

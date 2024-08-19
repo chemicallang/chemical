@@ -70,6 +70,10 @@ public:
             std::optional<LoopScope> body = std::nullopt
     );
 
+    ASTNodeKind kind() override {
+        return ASTNodeKind::FunctionDecl;
+    }
+
     /**
      * how many actual functions are generated from this generic function
      * non-generic functions return 1

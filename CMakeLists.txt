@@ -459,6 +459,7 @@ set(COMMON_SOURCES
         ast/structures/VariantDefinition.cpp
         ast/structures/VariantMemberParam.h
         lexer/structures/Variant.cpp
+        ast/base/ASTNodeKind.h
 )
 
 # Chemical LSP Executable Target

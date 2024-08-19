@@ -21,6 +21,10 @@ public:
             ASTNode* parent_node
     );
 
+    ASTNodeKind kind() override {
+        return ASTNodeKind::VariantMember;
+    }
+
     uint64_t byte_size(bool is64Bit) override {
         uint64_t total_bytes = 0;
         for(auto& value : values) {

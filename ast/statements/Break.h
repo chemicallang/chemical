@@ -20,6 +20,10 @@ public:
      */
     BreakStatement(LoopASTNode *node, ASTNode* parent_node) : node(node), parent_node(parent_node) {}
 
+    ASTNodeKind kind() override {
+        return ASTNodeKind::BreakStmt;
+    }
+
     void set_parent(ASTNode* new_parent) override {
         parent_node = new_parent;
     }

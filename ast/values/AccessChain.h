@@ -30,6 +30,10 @@ public:
 
     AccessChain(std::vector<std::unique_ptr<ChainValue>> values, ASTNode* parent_node, bool is_node);
 
+    ASTNodeKind kind() override {
+        return ASTNodeKind::AccessChain;
+    }
+
     void set_parent(ASTNode* new_parent) override {
         parent_node = new_parent;
     }

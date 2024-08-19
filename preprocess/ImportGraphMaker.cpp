@@ -205,28 +205,58 @@ IGResult determine_import_graph(const std::string &exe_path, const std::string &
  * TODO
  * 1 - avoid direct cyclic dependencies a depends on b and b depends on a
  * 2 - avoid indirect cyclic dependencies a depends on b and b depends on c and c depends on a
+ *
+ * recursive dedupe, will go over the imports of the given file recursively, On an import
+ * It is checked if has NOT been imported before then put into the 'imports' flat vector
+ *
+ * The 'imported' map is the one used to keep track of imports, once imported, an index of the file (inside imports vec) is put on the map
+ * The 'imports' flat vector is the final imported files
+ * The 'file' is a file that contains imports, inside which are files that also contain imports, It is a tree
+ *
+ * a vector named parent_modify is sent, this is used to keep track of descendant files of a parent file, since descendant files should only
+ * be disposed after parent has dealt with them
+ *
  */
-void recursive_dedupe(IGFile* file, std::unordered_map<std::string, bool>& imported, std::vector<FlatIGFile>& imports) {
-    for(auto& nested : file->files) {
-        recursive_dedupe(&nested, imported, imports);
-    }
+void recursive_dedupe(IGFile* file, std::unordered_map<std::string, size_t>& imported, std::vector<FlatIGFile>& imports) {
     auto found = imported.find(file->flat_file.abs_path);
     if(found == imported.end()) {
-        imported[file->flat_file.abs_path] = true;
+        // the size of the parent, we will only consider any index added to this vector after this size (because it's this file's descendant)
+//        const auto parent_size = parent_modify.size();
+        // import it's nested files first
+        for(auto& nested : file->files) {
+            recursive_dedupe(&nested, imported, imports);
+        }
+        // import it, set its index in the imported vec as it is
+        const auto index = imports.size();
+        imported[file->flat_file.abs_path] = index;
         imports.emplace_back(file->flat_file);
+        // making sure descendants of this file are disposed after this file (in reverse, so we can remove the last)
+//        auto i = parent_modify.size() - 1;
+//        while(i >= parent_size) {
+//            imports[parent_modify[i]].dispose_index = index;
+//            // remove last, as we've just processed it
+//            parent_modify.pop_back();
+//            i--;
+//        }
+        // ask the parent to set this file's dispose index to its own index, so the file is disposed after the parent
+//        parent_modify.emplace_back(index);
+    } else {
+        // we don't need to import the file, or it's nested files if it already has been imported
+        // we just need to make sure it's disposed after the parent has disposed
+//        parent_modify.emplace_back(found->second);
     }
 }
 
 std::vector<FlatIGFile> IGFile::flatten_by_dedupe() {
     std::vector<FlatIGFile> imports;
-    std::unordered_map<std::string, bool> imported;
+    std::unordered_map<std::string, size_t> imported;
     recursive_dedupe(this, imported, imports);
     return imports;
 }
 
 std::vector<FlatIGFile> flatten_by_dedupe(std::vector<IGFile>& files) {
     std::vector<FlatIGFile> imports;
-    std::unordered_map<std::string, bool> imported;
+    std::unordered_map<std::string, size_t> imported;
     for(auto& file : files) {
         recursive_dedupe(&file, imported, imports);
     }

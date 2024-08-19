@@ -59,11 +59,11 @@ static bool verify_app_build_func_type(FunctionDeclaration* found, const std::st
 }
 
 void recursive_dedupe(LabModule* file, std::unordered_map<LabModule*, bool>& imported, std::vector<LabModule*>& flat_map) {
-    for(auto nested : file->dependencies) {
-        recursive_dedupe(nested, imported, flat_map);
-    }
     auto found = imported.find(file);
     if(found == imported.end()) {
+        for(auto nested : file->dependencies) {
+            recursive_dedupe(nested, imported, flat_map);
+        }
         imported[file] = true;
         flat_map.emplace_back(file);
     }

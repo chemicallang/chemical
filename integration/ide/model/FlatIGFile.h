@@ -20,4 +20,10 @@ struct FlatIGFile {
     std::string import_path;
     // as identifier
     std::string as_identifier;
+    /**
+     * this is an index into it's flat vector, which tells the compiler when to dispose this file
+     * this is usually set to the file which last imported this file, so after that file has been processed, this file
+     * is disposed
+     */
+    size_t dispose_index;
 };

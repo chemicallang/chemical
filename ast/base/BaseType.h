@@ -221,6 +221,11 @@ public:
     }
 
     /**
+     * is destructor required
+     */
+    bool requires_destructor();
+
+    /**
      * if this type is linked with a struct definition, it can be retrieved using this function
      */
     StructDefinition* linked_struct_def();

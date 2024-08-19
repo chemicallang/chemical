@@ -59,7 +59,11 @@ public:
     }
 
     BaseType *known_type() override {
-        return usage[active_iteration].get();
+        if(active_iteration == -1) {
+            return nullptr;
+        } else {
+            return usage[active_iteration].get();
+        }
     }
 
     GenericTypeParameter *as_generic_type_param() override {

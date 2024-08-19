@@ -306,33 +306,7 @@ BaseType *UnnamedStruct::copy() const {
 }
 
 bool StructMember::requires_destructor() {
-    if(type->value_type() == ValueType::Struct) {
-        const auto pure_type = type->pure_type();
-        const auto linked = pure_type->linked_node();
-        const auto struct_def = linked->as_struct_def();
-        if(struct_def) {
-            return struct_def->requires_destructor();
-        } else {
-            const auto interface_def = linked->as_interface_def();
-            if(interface_def) {
-                // TODO interface definition destructor, supporting virtual destructor
-                return false;
-            } else {
-                return false;
-            }
-        }
-    } else {
-        return false;
-    }
-}
-
-FunctionDeclaration* StructDefinition::create_destructor() {
-    auto decl = new FunctionDeclaration("delete", {}, std::make_unique<VoidType>(), false, this, std::nullopt);
-    decl->params.emplace_back(new FunctionParam("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>(name, this)), 0, std::nullopt, decl));
-    decl->body.emplace(LoopScope{nullptr});
-    decl->annotations.emplace_back(AnnotationKind::Destructor);
-    insert_func(std::unique_ptr<FunctionDeclaration>(decl));
-    return decl;
+    return type->requires_destructor();
 }
 
 void StructDefinition::accept(Visitor *visitor) {

@@ -18,21 +18,19 @@ bool Lexer::lexReturnStatement() {
     }
 }
 
-void Lexer::lexParameterList(bool optionalTypes, bool defValues) {
+void Lexer::lexParameterList(bool optionalTypes, bool defValues, bool lexSelfParam, bool variadicParam) {
     unsigned index = 0; // param identifier index
     do {
         lexWhitespaceAndNewLines();
-        if(index == 0) {
-            if(lexOperatorToken('&')) {
-                if(lexIdentifierToken()) {
-                    compound_from(tokens.size() - 2, LexTokenType::CompFunctionParam);
-                    lexWhitespaceToken();
-                    index++;
-                    continue;
-                } else {
-                    error("expected a identifier right after '&' in the first function parameter as a 'self' parameter");
-                    break;
-                }
+        if(lexSelfParam && index == 0 && lexOperatorToken('&')) {
+            if(lexIdentifierToken()) {
+                compound_from(tokens.size() - 2, LexTokenType::CompFunctionParam);
+                lexWhitespaceToken();
+                index++;
+                continue;
+            } else {
+                error("expected a identifier right after '&' in the first function parameter as a 'self' parameter");
+                break;
             }
         }
         if(lexIdentifierToken()) {
@@ -41,7 +39,7 @@ void Lexer::lexParameterList(bool optionalTypes, bool defValues) {
             if(lexOperatorToken(':')) {
                 lexWhitespaceToken();
                 if(lexTypeTokens()) {
-                    if(lexOperatorToken("...")) {
+                    if(variadicParam && lexOperatorToken("...")) {
                         compound_from(start, LexTokenType::CompFunctionParam);
                         break;
                     }

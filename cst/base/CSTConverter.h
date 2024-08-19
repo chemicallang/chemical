@@ -264,6 +264,10 @@ public:
 
     void visitAnnotationToken(LexToken *token) override;
 
+    void visitVariant(CompoundCSTToken *variant) override;
+
+    void visitVariantMember(CompoundCSTToken *variant_member) override;
+
     // Types
 
     void visitTypeToken(LexToken *token) override;

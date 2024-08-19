@@ -455,6 +455,10 @@ set(COMMON_SOURCES
         ast/structures/InheritedType.h
         ast/types/DynamicType.h
         ast/types/DynamicType.cpp
+        ast/structures/VariantDefinition.h
+        ast/structures/VariantDefinition.cpp
+        ast/structures/VariantMemberParam.h
+        lexer/structures/Variant.cpp
 )
 
 # Chemical LSP Executable Target

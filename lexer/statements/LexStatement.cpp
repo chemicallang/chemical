@@ -15,6 +15,7 @@ bool Lexer::lexTopLevelStatementTokens() {
            lexEnumStructureTokens() ||
            lexStructStructureTokens() ||
            lexUnionStructureTokens() ||
+           lexVariantStructureTokens() ||
            lexTypealiasStatement() ||
            lexInterfaceStructureTokens() ||
            lexImplTokens() ||

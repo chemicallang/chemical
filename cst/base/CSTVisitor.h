@@ -185,6 +185,14 @@ public:
         visitCompoundCommon((CompoundCSTToken *) impl);
     }
 
+    virtual void visitVariant(CompoundCSTToken *variant) {
+        visitCompoundCommon((CompoundCSTToken *) variant);
+    }
+
+    virtual void visitVariantMember(CompoundCSTToken *variant_member) {
+        visitCompoundCommon((CompoundCSTToken *) variant_member);
+    }
+
     virtual void visitGenericList(CompoundCSTToken* list) {
         visitCompoundCommon((CompoundCSTToken *) list);
     }

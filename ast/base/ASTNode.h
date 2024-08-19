@@ -362,6 +362,13 @@ public:
     }
 
     /**
+     * return if this is a variant member
+     */
+    virtual VariantMember* as_variant_member() {
+        return nullptr;
+    }
+
+    /**
      * return assignment statement if it is one
      */
     virtual AssignStatement* as_assignment() {

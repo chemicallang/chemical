@@ -33,6 +33,10 @@ public:
         throw std::runtime_error("VariantMemberParam::accept called");
     }
 
+    BaseType* known_type() override {
+        return type.get();
+    }
+
     ASTNode* parent() override {
         return (ASTNode*) parent_node;
     }

@@ -32,14 +32,14 @@ bool Lexer::lexSwitchStatementBlock() {
                         lexNestedLevelMultipleStatementsTokens();
                         compound_from(bStart, LexTokenType::CompBody);
                         continue;
-                    } else if (lexOperatorToken("->")) {
+                    } else if (lexOperatorToken("=>")) {
                         lexWhitespaceAndNewLines();
                         if(!lexBraceBlock("switch-case")) {
-                            error("expected a brace block after the '->' in the switch case");
+                            error("expected a brace block after the '=>' in the switch case");
                             break;
                         }
                     } else {
-                        error("expected ':' or '->' after 'case' in switch statement");
+                        error("expected ':' or '=>' after 'case' in switch statement");
                         break;
                     }
                 } else if(lexKeywordToken("default")) {
@@ -48,14 +48,14 @@ bool Lexer::lexSwitchStatementBlock() {
                         auto bStart = tokens.size();
                         lexNestedLevelMultipleStatementsTokens();
                         compound_from(bStart, LexTokenType::CompBody);
-                    } else if (lexOperatorToken("->")) {
+                    } else if (lexOperatorToken("=>")) {
                         lexWhitespaceAndNewLines();
                         if(!lexBraceBlock("switch-default")) {
-                            error("expected a brace block after the '->' in the switch default case");
+                            error("expected a brace block after the '=>' in the switch default case");
                             break;
                         }
                     } else {
-                        error("expected ':' or '->' after 'default' in switch statement");
+                        error("expected ':' or '=>' after 'default' in switch statement");
                         break;
                     }
                 } else {

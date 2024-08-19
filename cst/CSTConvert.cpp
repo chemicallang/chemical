@@ -1144,7 +1144,12 @@ void CSTConverter::visitImpl(CompoundCSTToken *impl) {
 }
 
 void CSTConverter::visitVariantMember(CompoundCSTToken *variant_member) {
-
+    const auto member = new VariantMember(str_token(variant_member->tokens[0].get()), parent_node);
+    auto result = function_params(this, variant_member->tokens, 2);
+    for(auto& value : result.params) {
+        member->values[value->name] = std::make_unique<VariantMemberParam>(value->name, std::move(value->type), value->defValue.has_value() ? std::move(value->defValue.value()) : nullptr, member);
+    }
+    nodes.emplace_back(member);
 }
 
 void CSTConverter::visitVariant(CompoundCSTToken *variantDef) {

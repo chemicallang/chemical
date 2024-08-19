@@ -18,6 +18,8 @@ class Comment;
 
 class ContinueStatement;
 
+class VariantMember;
+
 class ImportStatement;
 
 class ReturnStatement;

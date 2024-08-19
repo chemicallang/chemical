@@ -191,9 +191,19 @@ ASTNode *VariantMember::child(const std::string &name) {
     return nullptr;
 }
 
+ASTNode *VariantMember::child(unsigned int index) {
+    if(index >= values.size()) return nullptr;
+    return (values.begin() + index)->second.get();
+}
+
+BaseType* VariantMember::child_type(unsigned int index) {
+    const auto c = child(index);
+    return c ? c->known_type() : nullptr;
+}
+
 bool VariantMember::requires_destructor() {
     for(auto& value : values) {
-        if(value.second->type->linked_node()->as_base_def_member()->requires_destructor()) {
+        if(value.second->type->requires_destructor()) {
             return true;
         }
     }
@@ -235,5 +245,7 @@ VariantMemberParam* VariantMemberParam::copy() {
 
 void VariantMemberParam::declare_and_link(SymbolResolver &linker) {
     type->link(linker, type);
-    def_value->link(linker, def_value);
+    if(def_value) {
+        def_value->link(linker, def_value);
+    }
 }

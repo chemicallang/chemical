@@ -47,9 +47,17 @@ public:
 
     ASTNode *child(const std::string &name) override;
 
+    ASTNode *child(unsigned int index);
+
+    BaseType* child_type(unsigned int index);
+
     bool requires_destructor() override;
 
     BaseType* known_type() override;
+
+    VariantMember* as_variant_member() override {
+        return this;
+    }
 
 #ifdef COMPILER_BUILD
 

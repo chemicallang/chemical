@@ -717,6 +717,9 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
                 }
             }
 
+            // reset c visitor to use with another file
+            c_visitor.reset();
+
             // translate build.lab file to c
             lab_processor.translate_to_c(c_visitor, result.scope, file);
 

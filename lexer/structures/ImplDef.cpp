@@ -9,7 +9,7 @@
 void Lexer::lexImplBlockTokens() {
     do {
         lexWhitespaceAndNewLines();
-        if(!(lexFunctionStructureTokens() || lexSingleLineCommentTokens() || lexMultiLineCommentTokens())) {
+        if(!(lexFunctionStructureTokens() || lexSingleLineCommentTokens() || lexMultiLineCommentTokens() || lexAnnotationMacro())) {
             break;
         }
         lexWhitespaceToken();

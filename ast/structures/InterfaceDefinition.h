@@ -64,6 +64,11 @@ public:
         return this;
     }
 
+    /**
+     * direct usage of this struct is registered with this interface
+     * the interfaces inherited by this interface aren't registered
+     * which should be registered by calling register_use_to_inherited_interfaces
+     */
     void register_use(StructDefinition* definition) {
 #ifdef COMPILER_BUILD
         users[definition] = {};

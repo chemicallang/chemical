@@ -641,7 +641,6 @@ void FunctionDeclaration::redeclare_top_level(SymbolResolver &linker) {
 }
 
 void FunctionDeclaration::declare_top_level(SymbolResolver &linker) {
-    linker.declare_function(name, this);
     if(has_annotation(AnnotationKind::Extern)) {
         annotations.push_back(AnnotationKind::Api);
         specifier = AccessSpecifier::Public;
@@ -666,6 +665,7 @@ void FunctionDeclaration::declare_top_level(SymbolResolver &linker) {
         param->type->link(linker, param->type);
     }
     linker.scope_end();
+    linker.declare_function(name, this);
 }
 
 void FunctionDeclaration::declare_and_link(SymbolResolver &linker) {

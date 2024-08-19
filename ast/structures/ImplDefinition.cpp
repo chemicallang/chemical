@@ -102,7 +102,7 @@ void InterfaceDefinition::register_impl(ImplDefinition* definition) {
     const auto struct_linked = definition->struct_type ? definition->struct_type->linked_struct_def() : nullptr;
     if(struct_linked) {
         register_use(struct_linked);
-        register_interface_uses(struct_linked);
+        register_use_to_inherited_interfaces(struct_linked);
     }
     has_implementation = true;
 }

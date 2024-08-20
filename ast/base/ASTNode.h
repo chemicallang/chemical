@@ -29,6 +29,8 @@ class EnumMember;
 
 class CapturedVariable;
 
+class VariantCaseVariable;
+
 class ExtendableBase;
 
 class BaseFunctionParam;
@@ -377,6 +379,13 @@ public:
      * return if this is a variant definition
      */
     virtual VariantDefinition* as_variant_def() {
+        return nullptr;
+    }
+
+    /**
+     * return if this is a variant case variable
+     */
+    virtual VariantCaseVariable* as_variant_case_var() {
         return nullptr;
     }
 

@@ -24,6 +24,11 @@ public:
         return this;
     }
 
+    [[nodiscard]]
+    ValueType value_type() const override {
+        return ValueType::Struct;
+    }
+
 #ifdef COMPILER_BUILD
 
     bool initialize_allocated(Codegen &gen, llvm::Value* allocated, llvm::Type* def_type, VariantMember* member);

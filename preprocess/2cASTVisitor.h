@@ -314,6 +314,12 @@ public:
 
     void visit(StructDefinition* structDefinition) override;
 
+    void visit(VariantDefinition* variant_def) override;
+
+    void visit(VariantCase *chain) override;
+
+    void visit(VariantCall *call) override;
+
     void visit(UnnamedUnion *def) override;
 
     void visit(UnnamedStruct *def) override;

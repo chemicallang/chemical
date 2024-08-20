@@ -254,7 +254,7 @@ void VariantMemberParam::declare_and_link(SymbolResolver &linker) {
     }
 }
 
-VariantCase::VariantCase(std::unique_ptr<AccessChain> chain, ASTDiagnoser& diagnoser) : chain(std::move(chain)) {
+VariantCase::VariantCase(std::unique_ptr<AccessChain> _chain, ASTDiagnoser& diagnoser) : chain(std::move(_chain)) {
     const auto func_call = chain->values.back()->as_func_call();
     if(func_call) {
         for(auto& value : func_call->values) {

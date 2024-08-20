@@ -625,6 +625,13 @@ public:
     }
 
     /**
+     * return if this is a variant call
+     */
+    virtual VariantCall* as_variant_call() {
+        return nullptr;
+    }
+
+    /**
      * returns the type of value
      * @return
      */

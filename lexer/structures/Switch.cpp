@@ -21,7 +21,7 @@ bool Lexer::lexSwitchStatementBlock() {
                 lexWhitespaceAndNewLines();
                 if (lexKeywordToken("case")) {
                     lexWhitespaceToken();
-                    if (!lexValueToken()) {
+                    if (!lexSwitchCaseValue()) {
                         error("expected a value after 'case' in switch");
                         break;
                     }

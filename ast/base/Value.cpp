@@ -55,11 +55,12 @@ unsigned int Value::store_in_struct(
         Codegen& gen,
         StructValue* parent,
         llvm::Value* allocated,
+        llvm::Type* allocated_type,
         std::vector<llvm::Value *> idxList,
         unsigned int index,
         BaseType* expected_type
 ) {
-    auto elementPtr = Value::get_element_pointer(gen, parent->llvm_type(gen), allocated, idxList, index);
+    auto elementPtr = Value::get_element_pointer(gen, allocated_type, allocated, idxList, index);
     const auto value = llvm_value(gen, expected_type);
     if(!gen.assign_dyn_obj(this, expected_type, elementPtr, value)) {
         gen.builder->CreateStore(value, elementPtr);

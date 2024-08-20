@@ -14,13 +14,14 @@
 #include "IntValue.h"
 
 void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen) {
+    const auto parent_type = llvm_type(gen);
     for (const auto &value: values) {
         auto variable = definition->variable_type_index(value.first);
         if (variable.first == -1) {
             gen.error("couldn't get struct child " + value.first + " in definition with name " + definition->name);
         } else {
             std::vector<llvm::Value*> idx {gen.builder->getInt32(0)};
-            value.second->store_in_struct(gen, this, inst, idx, variable.first, variable.second);
+            value.second->store_in_struct(gen, this, inst, parent_type, idx, variable.first, variable.second);
         }
     }
 }
@@ -51,6 +52,7 @@ unsigned int StructValue::store_in_struct(
         Codegen &gen,
         StructValue *parent,
         llvm::Value *allocated,
+        llvm::Type* allocated_type,
         std::vector<llvm::Value*> idxList,
         unsigned int index,
         BaseType* expected_type
@@ -63,16 +65,17 @@ unsigned int StructValue::store_in_struct(
     }
     const auto interface = expected_type ? expected_type->linked_dyn_interface() : nullptr;
     if(interface) {
-        auto elementPtr = Value::get_element_pointer(gen, parent->llvm_type(gen), allocated, idxList, index);
+        auto elementPtr = Value::get_element_pointer(gen, allocated_type, allocated, idxList, index);
         const auto struct_alloc = llvm_allocate(gen, "", nullptr);
         if(!gen.assign_dyn_obj(this, expected_type, elementPtr, struct_alloc)) {
             gen.error("couldn't assign dyn object struct " + representation() + " to expected type " + expected_type->representation() + " in parent " + parent->representation());
         }
     } else {
+        const auto parent_type = llvm_type(gen);
         for (const auto& value: values) {
             auto child_index = definition->variable_type_index(value.first);
             auto currIndex = index + child_index.first;
-            value.second->store_in_struct(gen, this, allocated, idxList, currIndex, child_index.second);
+            value.second->store_in_struct(gen, this, allocated, parent_type, idxList, currIndex, child_index.second);
         }
     }
     return index + values.size();

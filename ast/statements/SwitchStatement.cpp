@@ -19,7 +19,22 @@ void SwitchStatement::code_gen(Codegen &gen, bool last_block) {
     // the end block
     llvm::BasicBlock* end = llvm::BasicBlock::Create(*gen.ctx, "end", gen.current_function);
 
-    auto switchInst = gen.builder->CreateSwitch(expression->llvm_value(gen), end, total_scopes);
+    llvm::Value* expr_value = expression->llvm_value(gen);
+    const auto expr_type = expression->known_type();
+    if(expr_type) {
+        const auto linked = expr_type->linked_node();
+        if(linked) {
+            auto variant_def = linked->as_variant_def();
+            if (variant_def) {
+                const auto def_type = variant_def->llvm_type(gen);
+                std::vector<llvm::Value*> idxList { gen.builder->getInt32(0), gen.builder->getInt32(0) };
+                const auto gep = gen.builder->CreateGEP(def_type, expr_value, idxList, "",gen.inbounds);
+                expr_value = gen.builder->CreateLoad(gen.builder->getInt32Ty(), gep, "");
+            }
+        }
+    }
+
+    auto switchInst = gen.builder->CreateSwitch(expr_value, end, total_scopes);
 
     bool all_scopes_return = true;
 
@@ -96,7 +111,7 @@ void SwitchStatement::declare_and_link(SymbolResolver &linker) {
         if(variant_def) {
             const auto chain = scope.first->as_access_chain();
             if (chain) {
-                scope.first = std::unique_ptr<Value>(new VariantCase(std::unique_ptr<AccessChain>((AccessChain*) scope.first.release()),linker));
+                scope.first = std::unique_ptr<Value>(new VariantCase(std::unique_ptr<AccessChain>((AccessChain*) scope.first.release()), linker, this));
             }
         }
         scope.first->link(linker, scope.first);

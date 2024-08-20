@@ -77,6 +77,7 @@ unsigned int ArrayValue::store_in_struct(
         Codegen &gen,
         StructValue *parent,
         llvm::Value *allocated,
+        llvm::Type* allocated_type,
         std::vector<llvm::Value *> idxList,
         unsigned int index,
         BaseType* expected_type
@@ -84,7 +85,7 @@ unsigned int ArrayValue::store_in_struct(
     auto child_type = array_child(expected_type);
     idxList.emplace_back(gen.builder->getInt32(index));
     for (size_t i = 0; i < values.size(); ++i) {
-        values[i]->store_in_struct(gen, parent, allocated, idxList, i, child_type.get());
+        values[i]->store_in_struct(gen, parent, allocated, allocated_type, idxList, i, child_type.get());
     }
     return index + 1;
 }

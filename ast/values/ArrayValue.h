@@ -78,6 +78,7 @@ public:
             Codegen &gen,
             StructValue *parent,
             llvm::Value *allocated,
+            llvm::Type* allocated_type,
             std::vector<llvm::Value *> idxList,
             unsigned int index,
             BaseType* expected_type

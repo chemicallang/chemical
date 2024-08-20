@@ -13,12 +13,12 @@ class VariantMember : public BaseDefMember {
 public:
 
     tsl::ordered_map<std::string, std::unique_ptr<VariantMemberParam>> values;
-    ASTNode* parent_node;
+    VariantDefinition* parent_node;
     ReferencedType ref_type;
 
     VariantMember(
             const std::string& name,
-            ASTNode* parent_node
+            VariantDefinition* parent_node
     );
 
     ASTNodeKind kind() override {
@@ -33,12 +33,8 @@ public:
         return total_bytes;
     }
 
-    void set_parent(ASTNode* new_parent) override {
-        parent_node = new_parent;
-    }
-
     ASTNode *parent() override {
-        return parent_node;
+        return (ASTNode*) parent_node;
     }
 
     BaseDefMember *copy_member() override;

@@ -34,6 +34,7 @@
 #include "ast/structures/Namespace.h"
 #include "ast/values/StringValue.h"
 #include "ast/values/AddrOfValue.h"
+#include "ast/values/VariantCall.h"
 #include "ast/values/DereferenceValue.h"
 #include "ast/values/Expression.h"
 #include "ast/values/CastedValue.h"
@@ -716,6 +717,9 @@ void ReturnStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
                 llvm::MaybeAlign noAlign;
                 gen.builder->CreateMemCpy(dest, noAlign, value_ptr, noAlign, value.value()->byte_size(gen.is64Bit));
             }
+        } else if(value.value()->as_variant_call()) {
+            auto dest = gen.current_function->getArg(0);
+            value.value()->as_variant_call()->initialize_allocated(gen, dest);
         } else {
             return_value = value.value()->llvm_ret_value(gen, this);
             if(func_type) {

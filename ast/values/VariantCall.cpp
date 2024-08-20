@@ -13,20 +13,11 @@
 #include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
 
-llvm::Value* VariantCall::llvm_value(Codegen &gen, BaseType *type) {
-    const auto member = chain->linked_node()->as_variant_member();
-    const auto largest_member = member->parent_node->largest_member();
-    llvm::Type* def_type;
-    if(largest_member == member) {
-        def_type = member->parent_node->llvm_type(gen);
-    } else {
-        def_type = member->parent_node->llvm_type_with_member(gen, member);
-    }
-    const auto allocated = gen.builder->CreateAlloca(def_type);
+bool VariantCall::initialize_allocated(Codegen &gen, llvm::Value* allocated, llvm::Type* def_type, VariantMember* member) {
     const auto member_index = member->parent_node->direct_child_index(member->name);
     if(member_index == -1) {
         gen.error("couldn't find member index for the variant member with name '" + member->name + "'");
-        return nullptr;
+        return false;
     }
     // storing the type index in the enum inside variant
     auto type_ptr = gen.builder->CreateGEP(def_type, allocated, { gen.builder->getInt32(0), gen.builder->getInt32(0) }, "", gen.inbounds);
@@ -40,7 +31,41 @@ llvm::Value* VariantCall::llvm_value(Codegen &gen, BaseType *type) {
         value->store_in_struct(gen, nullptr, data_ptr, struct_type, { gen.builder->getInt32(0) }, i, param->second->type.get());
         i++;
     }
-    return allocated;
+    return true;
+}
+
+llvm::Value* VariantCall::initialize_allocated(Codegen &gen, llvm::Value* allocated) {
+    const auto member = chain->linked_node()->as_variant_member();
+    const auto largest_member = member->parent_node->largest_member();
+    llvm::Type* def_type;
+    if(largest_member == member) {
+        def_type = member->parent_node->llvm_type(gen);
+    } else {
+        def_type = member->parent_node->llvm_type_with_member(gen, member);
+    }
+    if(!allocated) {
+        allocated = gen.builder->CreateAlloca(def_type);
+    }
+    if(initialize_allocated(gen, allocated, def_type, member)) {
+        return allocated;
+    }
+    return nullptr;
+}
+
+llvm::Value* VariantCall::llvm_value(Codegen &gen, BaseType *type) {
+    return initialize_allocated(gen, nullptr);
+}
+
+unsigned int VariantCall::store_in_struct(Codegen &gen, StructValue *parent, llvm::Value *allocated, llvm::Type *allocated_type, std::vector<llvm::Value *> idxList, unsigned int index, BaseType *expected_type) {
+    const auto ptr = Value::get_element_pointer(gen, allocated_type, allocated, idxList, index);
+    initialize_allocated(gen, ptr);
+    return index + 1;
+}
+
+unsigned int VariantCall::store_in_array(Codegen &gen, ArrayValue *parent, llvm::AllocaInst *ptr, std::vector<llvm::Value *> idxList, unsigned int index, BaseType *expected_type) {
+    const auto got = Value::get_element_pointer(gen, ((Value*) parent)->llvm_type(gen), ptr, idxList, index);
+    initialize_allocated(gen, got);
+    return index + 1;
 }
 
 #endif

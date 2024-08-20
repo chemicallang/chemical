@@ -5,6 +5,7 @@
 #include "ast/values/AccessChain.h"
 #include "compiler/SymbolResolver.h"
 #include "ast/values/VariantCase.h"
+#include "ast/structures/VariantDefinition.h"
 
 #ifdef COMPILER_BUILD
 
@@ -81,15 +82,21 @@ SwitchStatement::SwitchStatement(
 
 void SwitchStatement::declare_and_link(SymbolResolver &linker) {
     expression->link(linker, expression);
+    VariantDefinition* variant_def = nullptr;
+    const auto linked = expression->known_type()->linked_node();
+    if(linked) {
+        variant_def = linked->as_variant_def();
+        if (variant_def && (scopes.size() < variant_def->variables.size() && !defScope.has_value())) {
+            linker.error("expected all cases of variant in switch statement when no default case is specified");
+            return;
+        }
+    }
     for(auto& scope : scopes) {
         linker.scope_start();
-        const auto chain = scope.first->as_access_chain();
-        if(chain) {
-            const auto first = chain->values[0].get();
-            first->link(linker, nullptr, chain->values, 0, nullptr);
-            const auto first_linked = first->linked_node();
-            if(first_linked && first_linked->as_variant_def()) {
-                scope.first = std::unique_ptr<Value>(new VariantCase(std::unique_ptr<AccessChain>((AccessChain*) scope.first.release()), linker));
+        if(variant_def) {
+            const auto chain = scope.first->as_access_chain();
+            if (chain) {
+                scope.first = std::unique_ptr<Value>(new VariantCase(std::unique_ptr<AccessChain>((AccessChain*) scope.first.release()),linker));
             }
         }
         scope.first->link(linker, scope.first);

@@ -5,6 +5,10 @@
 #include "ast/types/ReferencedType.h"
 #include "compiler/SymbolResolver.h"
 #include "ast/base/ChainValue.h"
+#include "ast/values/VariantCase.h"
+#include "ast/values/AccessChain.h"
+#include "ast/values/FunctionCall.h"
+#include "ast/values/VariableIdentifier.h"
 
 #ifdef COMPILER_BUILD
 
@@ -248,4 +252,31 @@ void VariantMemberParam::declare_and_link(SymbolResolver &linker) {
     if(def_value) {
         def_value->link(linker, def_value);
     }
+}
+
+VariantCase::VariantCase(std::unique_ptr<AccessChain> chain, ASTDiagnoser& diagnoser) : chain(std::move(chain)) {
+    const auto func_call = chain->values.back()->as_func_call();
+    if(func_call) {
+        for(auto& value : func_call->values) {
+            const auto id = value->as_identifier();
+            if(!id) {
+                diagnoser.error("switch variant case with a function call doesn't contain identifiers '" + chain->chain_representation() + "', in question " + value->representation());
+                return;
+            }
+            identifier_list.emplace_back(id->value, this);
+        }
+        // remove the last function call, as we took it's identifiers
+        chain->values.pop_back();
+    }
+}
+
+void VariantCase::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr) {
+    chain->link(linker, (std::unique_ptr<Value>&) chain);
+    for(auto& variable : identifier_list) {
+        variable.declare_and_link(linker);
+    }
+}
+
+void VariantCaseVariable::declare_and_link(SymbolResolver &linker) {
+    linker.declare(name, this);
 }

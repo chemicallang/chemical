@@ -374,6 +374,13 @@ public:
     }
 
     /**
+     * return if this is a variant definition
+     */
+    virtual VariantDefinition* as_variant_def() {
+        return nullptr;
+    }
+
+    /**
      * return assignment statement if it is one
      */
     virtual AssignStatement* as_assignment() {

@@ -54,6 +54,8 @@ class MacroValueStatement;
 
 class StructMember;
 
+class VariantCase;
+
 class UnnamedUnion;
 
 class UnnamedStruct;
@@ -344,6 +346,10 @@ public:
     }
 
     virtual void visit(AccessChain* chain) {
+        visitCommon((ASTNode*) chain);
+    }
+
+    virtual void visit(VariantCase* chain) {
         visitCommon((ASTNode*) chain);
     }
 

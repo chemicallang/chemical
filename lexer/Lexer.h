@@ -644,6 +644,11 @@ public:
     bool lexValueToken();
 
     /**
+     * lexes a value token for switch
+     */
+    bool lexSwitchCaseValue();
+
+    /**
      * values like integer and string, but appearing in access chain
      */
     bool lexAccessChainValueToken();

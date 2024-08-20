@@ -52,6 +52,10 @@ public:
         return name;
     }
 
+    VariantDefinition* as_variant_def() override {
+        return this;
+    }
+
     void declare_top_level(SymbolResolver &linker) override;
 
     void declare_and_link(SymbolResolver &linker) override;

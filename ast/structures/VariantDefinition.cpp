@@ -9,25 +9,33 @@
 #include "ast/values/AccessChain.h"
 #include "ast/values/FunctionCall.h"
 #include "ast/values/VariableIdentifier.h"
+#include "ast/statements/SwitchStatement.h"
 
 #ifdef COMPILER_BUILD
 
 #include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
 
-llvm::Type* VariantDefinition::llvm_type(Codegen &gen) {
+llvm::StructType* VariantDefinition::llvm_type_with_member(Codegen& gen, BaseDefMember* member, bool anonymous) {
+    std::vector<llvm::Type*> elements;
+    elements.emplace_back(gen.builder->getInt32Ty()); // <--- int enum is stored at top, so we know the type
+    if(member) {
+        std::vector<llvm::Type*> sub_elements { member->llvm_type(gen) };
+        elements.emplace_back(llvm::StructType::get(*gen.ctx, sub_elements));
+    }
+    if(anonymous) {
+        return llvm::StructType::get(*gen.ctx, elements);
+    } else {
+        return llvm::StructType::create(*gen.ctx, elements, name);
+    }
+}
+
+llvm::Type* VariantDefinition::llvm_type(Codegen& gen) {
     auto found = llvm_struct_types.find(active_iteration);
     if(found != llvm_struct_types.end()) {
         return found->second;
     }
-    std::vector<llvm::Type*> elements;
-    elements.emplace_back(gen.builder->getInt32Ty()); // <--- int enum is stored at top, so we know the type
-    const auto large = largest_member();
-    if(large) {
-        std::vector<llvm::Type*> sub_elements { large->llvm_type(gen) };
-        elements.emplace_back(llvm::StructType::get(*gen.ctx, sub_elements));
-    }
-    const auto type = llvm::StructType::create(*gen.ctx, elements, name);
+    const auto type = llvm_type_with_member(gen, largest_member(), false);
     llvm_struct_types[active_iteration] = type;
     return type;
 }
@@ -101,6 +109,36 @@ llvm::FunctionType* VariantMemberParam::llvm_func_type(Codegen &gen) {
     return type->llvm_func_type(gen);
 }
 
+llvm::Value* VariantCase::llvm_value(Codegen &gen, BaseType *type) {
+    const auto linked_member = chain->linked_node()->as_variant_member();
+    auto index = linked_member->parent_node->direct_child_index(linked_member->name);
+    if(index == -1) {
+        gen.error("couldn't find case index of variant member '" + chain->chain_representation() + "'");
+        return nullptr;
+    } else {
+        return gen.builder->getInt32(index);
+    }
+}
+
+llvm::Value* VariantCaseVariable::llvm_pointer(Codegen &gen) {
+    const auto holder_pointer = variant_case->switch_statement->expression->llvm_pointer(gen);
+    const auto linked_def = variant_case->switch_statement->expression->known_type()->linked_node()->as_variant_def();
+    const auto linked_member = variant_case->chain->linked_node()->as_variant_member();
+    const auto largest_member = linked_def->largest_member();
+    llvm::Type* container_type;
+    if(largest_member == linked_member) {
+        container_type = linked_def->llvm_type(gen);
+    } else {
+        container_type = linked_def->llvm_type_with_member(gen, linked_member);
+    }
+    std::vector<llvm::Value*> idxList { gen.builder->getInt32(0), gen.builder->getInt32(1), gen.builder->getInt32((int) member_param->index) };
+    return gen.builder->CreateGEP(container_type, holder_pointer, idxList, "", gen.inbounds);
+}
+
+llvm::Value* VariantCaseVariable::llvm_load(Codegen &gen) {
+    return gen.builder->CreateLoad(member_param->type->llvm_type(gen), llvm_pointer(gen));
+}
+
 #endif
 
 VariantDefinition::VariantDefinition(
@@ -160,7 +198,7 @@ hybrid_ptr<BaseType> VariantDefinition::get_value_type() {
 
 VariantMember::VariantMember(
         const std::string& name,
-        ASTNode* parent_node
+        VariantDefinition* parent_node
 ) : BaseDefMember(name), parent_node(parent_node), ref_type(name, this) {
 
 }
@@ -236,15 +274,16 @@ BaseTypeKind VariantMember::type_kind() const {
 
 VariantMemberParam::VariantMemberParam(
     std::string name,
+    unsigned index,
     std::unique_ptr<BaseType> type,
     std::unique_ptr<Value> def_value,
     VariantMember* parent_node
-) : name(std::move(name)), type(std::move(type)), def_value(std::move(def_value)), parent_node(parent_node) {
+) : name(std::move(name)), index(index), type(std::move(type)), def_value(std::move(def_value)), parent_node(parent_node) {
 
 }
 
 VariantMemberParam* VariantMemberParam::copy() {
-    return new VariantMemberParam(name, std::unique_ptr<BaseType>(type->copy()), std::unique_ptr<Value>(def_value ? def_value->copy() : nullptr), parent_node);
+    return new VariantMemberParam(name, index,std::unique_ptr<BaseType>(type->copy()), std::unique_ptr<Value>(def_value ? def_value->copy() : nullptr), parent_node);
 }
 
 void VariantMemberParam::declare_and_link(SymbolResolver &linker) {
@@ -254,7 +293,7 @@ void VariantMemberParam::declare_and_link(SymbolResolver &linker) {
     }
 }
 
-VariantCase::VariantCase(std::unique_ptr<AccessChain> _chain, ASTDiagnoser& diagnoser) : chain(std::move(_chain)) {
+VariantCase::VariantCase(std::unique_ptr<AccessChain> _chain, ASTDiagnoser& diagnoser, SwitchStatement* statement) : chain(std::move(_chain)), switch_statement(statement) {
     const auto func_call = chain->values.back()->as_func_call();
     if(func_call) {
         for(auto& value : func_call->values) {
@@ -279,5 +318,24 @@ void VariantCase::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr
 }
 
 void VariantCaseVariable::declare_and_link(SymbolResolver &linker) {
+    const auto member = variant_case->chain->linked_node()->as_variant_member();
+    auto node = member->values.find(name);
+    if(node == member->values.end()) {
+        linker.error("variant case member variable not found in switch statement, name '" + name + "' not found");
+        return;
+    }
+    member_param = node->second.get();
     linker.declare(name, this);
+}
+
+VariantCaseVariable::VariantCaseVariable(std::string name, VariantCase* variant_case) : name(std::move(name)), variant_case(variant_case) {
+
+}
+
+void VariantCaseVariable::accept(Visitor *visitor) {
+    throw std::runtime_error("VariantCaseVariable cannot be visited, As is it always contained within a VariantCase which is visited");
+}
+
+ASTNode* VariantCaseVariable::parent() {
+    return (ASTNode*) variant_case->switch_statement;
 }

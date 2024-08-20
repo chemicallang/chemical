@@ -75,6 +75,8 @@ public:
 
 #ifdef COMPILER_BUILD
 
+    llvm::StructType* llvm_type_with_member(Codegen& gen, BaseDefMember* member_type, bool anonymous = true);
+
     llvm::Type* llvm_type(Codegen &gen) override;
 
     llvm::Type *llvm_type(Codegen &gen, int16_t iteration);

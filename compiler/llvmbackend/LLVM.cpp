@@ -52,6 +52,7 @@
 #include "ast/statements/ThrowStatement.h"
 #include "ast/statements/DeleteStmt.h"
 #include "ast/values/FunctionCall.h"
+#include "ast/values/ArrayValue.h"
 #include "ast/types/FunctionType.h"
 
 // -------------------- Types
@@ -647,6 +648,7 @@ bool access_chain_store_in_parent(
     AccessChain* chain,
     Value *parent,
     llvm::Value *allocated,
+    llvm::Type* allocated_type,
     std::vector<llvm::Value *>& idxList,
     unsigned int index,
     BaseType* expected_type
@@ -655,7 +657,7 @@ bool access_chain_store_in_parent(
     if(func_call) {
         auto func_type = func_call->create_function_type();
         if(func_type->returnType->value_type() == ValueType::Struct) {
-            auto elem_pointer = Value::get_element_pointer(gen, parent->llvm_type(gen), allocated, idxList, index);
+            auto elem_pointer = Value::get_element_pointer(gen, allocated_type, allocated, idxList, index);
             std::vector<llvm::Value *> args;
             std::vector<std::pair<Value*, llvm::Value*>> destructibles;
             // TODO handle destructibles here, what to do, do we need to destruct them ?
@@ -670,14 +672,15 @@ unsigned int AccessChain::store_in_struct(
         Codegen &gen,
         StructValue *parent,
         llvm::Value *allocated,
+        llvm::Type *allocated_type,
         std::vector<llvm::Value *> idxList,
         unsigned int index,
         BaseType* expected_type
 ) {
-    if(access_chain_store_in_parent(gen, this, (Value*) parent, allocated, idxList, index, expected_type)) {
+    if(access_chain_store_in_parent(gen, this, (Value*) parent, allocated, allocated_type, idxList, index, expected_type)) {
         return index + 1;
     }
-    return Value::store_in_struct(gen, parent, allocated, idxList, index, expected_type);
+    return Value::store_in_struct(gen, parent, allocated, allocated_type, idxList, index, expected_type);
 }
 
 unsigned int AccessChain::store_in_array(
@@ -688,7 +691,8 @@ unsigned int AccessChain::store_in_array(
         unsigned int index,
         BaseType* expected_type
 ) {
-    if(access_chain_store_in_parent(gen, this, (Value*) parent, allocated, idxList, index, expected_type)) {
+    const auto parent_type = parent->llvm_type(gen);
+    if(access_chain_store_in_parent(gen, this, (Value*) parent, allocated, parent_type, idxList, index, expected_type)) {
         return index + 1;
     }
     return Value::store_in_array(gen, parent, allocated, idxList, index, expected_type);

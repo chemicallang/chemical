@@ -20,4 +20,10 @@ public:
 
     void link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr) override;
 
+#ifdef COMPILER_BUILD
+
+    llvm::Value* llvm_value(Codegen &gen, BaseType *type = nullptr) override;
+    
+#endif
+
 };

@@ -96,7 +96,7 @@ void AccessChain::declare_and_link(SymbolResolver& linker) {
 }
 
 void AccessChain::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *type) {
-    link(linker, type, nullptr);
+    link(linker, type, &value_ptr);
 }
 
 AccessChain::AccessChain(std::vector<std::unique_ptr<ChainValue>> values, ASTNode* parent_node, bool is_node) : values(std::move(values)), parent_node(parent_node), is_node(is_node) {

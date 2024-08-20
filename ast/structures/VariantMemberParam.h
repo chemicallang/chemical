@@ -13,9 +13,11 @@ public:
     std::unique_ptr<BaseType> type;
     std::unique_ptr<Value> def_value;
     VariantMember* parent_node;
+    unsigned index;
 
     VariantMemberParam(
         std::string name,
+        unsigned index,
         std::unique_ptr<BaseType> type,
         std::unique_ptr<Value> def_value,
         VariantMember* parent_node

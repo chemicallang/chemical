@@ -124,6 +124,8 @@ class DereferenceValue;
 
 class FunctionCall;
 
+class VariantCall;
+
 class IndexOperator;
 
 class NegativeValue;
@@ -472,6 +474,10 @@ public:
     }
 
     virtual void visit(FunctionCall* call) {
+        visitCommonValue((Value*) call);
+    }
+
+    virtual void visit(VariantCall* call) {
         visitCommonValue((Value*) call);
     }
 

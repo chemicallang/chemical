@@ -42,7 +42,7 @@ public:
         return parent_node;
     }
 
-    void link(SymbolResolver &linker, BaseType *type);
+    void link(SymbolResolver &linker, BaseType *type, std::unique_ptr<Value>* value_ptr);
 
     void link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *type) override;
 

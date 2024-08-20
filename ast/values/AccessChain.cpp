@@ -7,13 +7,14 @@
 #include "ast/base/BaseType.h"
 #include "ast/utils/ASTUtils.h"
 #include "ast/structures/StructDefinition.h"
+#include "ast/values/VariantCall.h"
 
 uint64_t AccessChain::byte_size(bool is64Bit) {
     return values[values.size() - 1]->byte_size(is64Bit);
 }
 
 void AccessChain::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
-    declare_and_link(linker);
+    link(linker, (BaseType*) nullptr, &value_ptr);
 }
 
 void AccessChain::find_link_in_parent(ChainValue *parent, SymbolResolver &resolver) {
@@ -30,7 +31,7 @@ void AccessChain::relink_parent() {
     }
 }
 
-void AccessChain::link(SymbolResolver &linker, BaseType *expected_type) {
+void AccessChain::link(SymbolResolver &linker, BaseType *expected_type, std::unique_ptr<Value>* value_ptr) {
 
     values[0]->link(linker, nullptr, values, 0, expected_type);
     values[0]->set_generic_iteration();
@@ -64,22 +65,38 @@ void AccessChain::link(SymbolResolver &linker, BaseType *expected_type) {
         }
     }
 
-    if (values.size() > 1) {
-        unsigned i = 1;
-        const auto values_size = values.size();
+    const auto values_size = values.size();
+    if (values_size > 1) {
+
+        // manually linking the second value
+        values[1]->link(linker, values[0].get(), values, 1, expected_type);
+
+        // if second value is linked with a variant member, we replace the access chain, with variant call
+        if(values[1]->as_identifier()) {
+            linked = values[1]->linked_node();
+            if (linked && linked->as_variant_member() && value_ptr) {
+                auto& chain = *value_ptr;
+                chain = std::make_unique<VariantCall>(std::unique_ptr<AccessChain>((AccessChain*) chain.release()));
+                // no need to link further
+                return;
+            }
+        }
+
+        unsigned i = 2;
         while (i < values_size) {
             values[i]->link(linker, values[i - 1].get(), values, i, expected_type);
             i++;
         }
+
     }
 }
 
 void AccessChain::declare_and_link(SymbolResolver& linker) {
-    link(linker, (BaseType*) nullptr);
+    link(linker, (BaseType*) nullptr, nullptr);
 }
 
 void AccessChain::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *type) {
-    link(linker, type);
+    link(linker, type, nullptr);
 }
 
 AccessChain::AccessChain(std::vector<std::unique_ptr<ChainValue>> values, ASTNode* parent_node, bool is_node) : values(std::move(values)), parent_node(parent_node), is_node(is_node) {

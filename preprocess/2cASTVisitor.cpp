@@ -785,8 +785,11 @@ void value_alloca_store(ToCAstVisitor* visitor, const std::string& identifier, B
     }
 }
 
-void var_init(ToCAstVisitor* visitor, VarInitStatement* init) {
+void var_init(ToCAstVisitor* visitor, VarInitStatement* init, bool is_static) {
     visitor->debug_comment("var_init defining the value");
+    if(is_static) {
+        visitor->write("static ");
+    }
     if (!init->type.has_value()) {
         init->type.emplace(init->value.value()->create_type().release());
     }
@@ -1704,8 +1707,7 @@ void CValueDeclarationVisitor::visit(VarInitStatement *init) {
     CommonVisitor::visit(init);
     if(!is_top_level_node) return;
     visitor->new_line_and_indent();
-    write("static ");
-    var_init(visitor, init);
+    var_init(visitor, init, true);
 }
 
 void CValueDeclarationVisitor::visit(LambdaFunction *lamb) {
@@ -2300,7 +2302,7 @@ void ToCAstVisitor::write(const std::string& value) {
 
 void ToCAstVisitor::visit(VarInitStatement *init) {
     if(top_level_node) return;
-    var_init(this, init);
+    var_init(this, init, false);
     init->accept(destructor.get());
 }
 

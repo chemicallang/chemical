@@ -271,7 +271,8 @@ VariantCase::VariantCase(std::unique_ptr<AccessChain> _chain, ASTDiagnoser& diag
 }
 
 void VariantCase::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr) {
-    chain->link(linker, (std::unique_ptr<Value>&) chain);
+    // access chain in variant case allows no replacement of access chain, so nullptr in value_ptr
+    chain->link(linker, (BaseType*) nullptr, nullptr);
     for(auto& variable : identifier_list) {
         variable.declare_and_link(linker);
     }

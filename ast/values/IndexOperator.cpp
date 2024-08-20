@@ -93,9 +93,9 @@ void IndexOperator::link(SymbolResolver &linker, std::unique_ptr<Value>& value_p
 }
 
 ASTNode *IndexOperator::linked_node() {
-    // TODO use get type instead
     auto value_type = parent_val->create_type();
-    return ((ArrayType *) value_type.get())->elem_type->linked_node();
+    const auto child_type = value_type->create_child_type();
+    return child_type->linked_node();
 }
 
 Value *IndexOperator::find_in(InterpretScope &scope, Value *parent) {

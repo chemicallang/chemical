@@ -18,6 +18,10 @@ public:
      */
     VariantCaseVariable(std::string name, VariantCase* variant_case);
 
+    VariantCaseVariable* as_variant_case_var() override {
+        return this;
+    }
+
     void accept(Visitor *visitor) override;
 
     void declare_and_link(SymbolResolver &linker) override;

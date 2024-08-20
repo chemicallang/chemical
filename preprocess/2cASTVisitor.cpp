@@ -26,6 +26,8 @@
 #include "ast/structures/InterfaceDefinition.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/structures/ExtensionFunction.h"
+#include "ast/structures/VariantDefinition.h"
+#include "ast/structures/VariantMember.h"
 #include "ast/structures/TryCatch.h"
 #include "ast/structures/DoWhileLoop.h"
 #include "ast/structures/If.h"
@@ -84,6 +86,8 @@
 #include "ast/values/LongValue.h"
 #include "ast/values/Negative.h"
 #include "ast/values/NotValue.h"
+#include "ast/values/VariantCall.h"
+#include "ast/values/VariantCase.h"
 #include "ast/values/NullValue.h"
 #include "ast/values/NumberValue.h"
 #include "ast/values/ShortValue.h"
@@ -222,6 +226,14 @@ void type_with_id(ToCAstVisitor* visitor, BaseType* type, const std::string& id)
     }
 }
 
+inline ASTNode* get_param_type_ref_node(BaseType* type) {
+    if(type->kind() == BaseTypeKind::Referenced || type->kind() == BaseTypeKind::Generic) {
+        return type->linked_node();
+    } else {
+        return nullptr;
+    }
+}
+
 inline StructDefinition* get_param_type_ref_struct(BaseType* type) {
     if(type->kind() == BaseTypeKind::Referenced || type->kind() == BaseTypeKind::Generic) {
         return type->linked_node()->as_struct_def();
@@ -235,7 +247,8 @@ inline bool is_param_type_ref_struct(BaseType* type) {
 }
 
 void param_type_with_id(ToCAstVisitor* visitor, BaseType* type, const std::string& id) {
-    if(is_param_type_ref_struct(type)) {
+    const auto node = get_param_type_ref_node(type);
+    if(node && (node->as_struct_def() || node->as_variant_def())) {
         PointerType ptr_type(hybrid_ptr<BaseType>{ type, false });
         type_with_id(visitor, &ptr_type, id);
     } else {
@@ -379,6 +392,13 @@ bool should_void_pointer_to_self(BaseType* type, const std::string& id, unsigned
 //    type_with_id(visitor, type, id);
 //}
 
+ASTNode* get_func_param_ref_node(ASTNode* node) {
+    if(!node) return nullptr;
+    auto param = node->as_func_param();
+    if(!param) return nullptr;
+    return get_param_type_ref_node(param->type.get());
+}
+
 StructDefinition* get_func_param_ref_struct(ASTNode* node) {
     if(!node) return nullptr;
     auto param = node->as_func_param();
@@ -471,7 +491,11 @@ void func_call_args(ToCAstVisitor* visitor, FunctionCall* call, FunctionType* fu
     while(i < call->values.size()) {
         param = func_type->func_param_for_arg_at(i);
         auto& val = call->values[i];
-        if(get_param_type_ref_struct(param->type.get()) && !is_func_param_ref_struct(val->linked_node())) {
+        const auto param_ref_node = get_param_type_ref_node(param->type.get());
+        const auto val_ref_node = get_func_param_ref_node(val->linked_node());
+        const auto is_struct_param = (param_ref_node && param_ref_node->as_struct_def() && (!val_ref_node || !val_ref_node->as_struct_def()));
+        const auto is_variant_param = (param_ref_node && param_ref_node->as_variant_def() && (!val_ref_node || !val_ref_node->as_variant_def()));
+        if(is_struct_param || is_variant_param) {
             auto allocated = visitor->local_allocated.find(val.get());
             visitor->write('&');
             if(allocated != visitor->local_allocated.end()) {
@@ -525,9 +549,12 @@ void write_accessor(ToCAstVisitor* visitor, Value* current, Value* next) {
     if(linked && linked->as_namespace()) {
         return;
     }
-    if(linked && linked->as_base_func_param() && is_param_type_ref_struct(linked->as_base_func_param()->type.get())){
-        visitor->write("->");
-        return;
+    if(linked && linked->as_base_func_param()){
+        const auto node = get_param_type_ref_node(linked->as_base_func_param()->type.get());
+        if(node && (node->as_struct_def() || node->as_variant_def())) {
+            visitor->write("->");
+            return;
+        }
     }
     if (current->type_kind() == BaseTypeKind::Pointer) {
         visitor->write("->");
@@ -827,6 +854,8 @@ public:
 
     void visit(AccessChain *chain) override;
 
+    void visit(VariantCall *call) override;
+
     void process_comp_time_call(FunctionDeclaration* decl, FunctionCall* call, const std::string& identifier);
 
     void process_init_value(Value* value, const std::string& identifier);
@@ -863,7 +892,7 @@ class CAfterStmtVisitor : public CommonVisitor, public SubVisitor {
 
 };
 
-void allocate_struct_by_name(ToCAstVisitor* visitor, StructDefinition* def, const std::string& name, Value* initializer = nullptr) {
+void allocate_struct_by_name(ToCAstVisitor* visitor, ExtendableMembersContainerNode* def, const std::string& name, Value* initializer = nullptr) {
     visitor->write("struct ");
     node_parent_name(visitor, def);
     struct_name(visitor, def);
@@ -899,7 +928,7 @@ void allocate_fat_pointer_for_value(ToCAstVisitor* visitor, Value* value, const 
     allocate_fat_pointer_by_name(visitor, name, initializer);
 }
 
-void allocate_struct_for_value(ToCAstVisitor* visitor, StructDefinition* def, Value* value, const std::string& name, Value* initializer) {
+void allocate_struct_for_value(ToCAstVisitor* visitor, ExtendableMembersContainerNode* def, Value* value, const std::string& name, Value* initializer) {
     auto found = visitor->local_allocated.find(value);
     if(found != visitor->local_allocated.end()) {
         // already allocated
@@ -909,7 +938,7 @@ void allocate_struct_for_value(ToCAstVisitor* visitor, StructDefinition* def, Va
     allocate_struct_by_name(visitor, def, name, initializer);
 }
 
-void allocate_struct_for_struct_value(ToCAstVisitor* visitor, StructDefinition* def, StructValue* value, const std::string& name, Value* initializer = nullptr) {
+void allocate_struct_for_struct_value(ToCAstVisitor* visitor, ExtendableMembersContainerNode* def, StructValue* value, const std::string& name, Value* initializer = nullptr) {
     if(def->generic_params.empty()) {
         allocate_struct_for_value(visitor, def, value, name, initializer);
     } else {
@@ -920,7 +949,7 @@ void allocate_struct_for_struct_value(ToCAstVisitor* visitor, StructDefinition* 
     }
 }
 
-void allocate_struct_for_func_call(ToCAstVisitor* visitor, StructDefinition* def, FunctionCall* call, FunctionType* func_type, const std::string& name, Value* initializer = nullptr) {
+void allocate_struct_for_func_call(ToCAstVisitor* visitor, ExtendableMembersContainerNode* def, FunctionCall* call, FunctionType* func_type, const std::string& name, Value* initializer = nullptr) {
     if(func_type->returnType->kind() == BaseTypeKind::Generic) {
         auto prev_itr = def->active_iteration;
         def->set_active_iteration(func_type->returnType->get_generic_iteration());
@@ -963,6 +992,8 @@ void CBeforeStmtVisitor::visit(FunctionCall *call) {
         auto linked = func_type->returnType->linked_node();
         if(linked->as_struct_def()) {
             allocate_struct_for_func_call(visitor, linked->as_struct_def(), call, func_type.get(), visitor->get_local_temp_var_name());
+        } else if(linked->as_variant_def()) {
+            allocate_struct_for_func_call(visitor, linked->as_variant_def(), call, func_type.get(), visitor->get_local_temp_var_name());
         } else if(func_type->returnType->pure_type()->kind() == BaseTypeKind::Dynamic && linked->as_interface_def()) {
             allocate_fat_pointer_for_value(visitor, call, visitor->get_local_temp_var_name(), nullptr);
         }
@@ -1092,6 +1123,40 @@ void CBeforeStmtVisitor::visit(AccessChain *chain) {
 
 }
 
+void CBeforeStmtVisitor::visit(VariantCall *call) {
+
+    const auto member = call->chain->linked_node()->as_variant_member();
+    const auto linked = member->parent_node;
+    const auto index = linked->direct_child_index(member->name);
+
+    visitor->write("struct ");
+    node_parent_name(visitor, linked);
+    struct_name(visitor, linked);
+    visitor->write(' ');
+    const auto local = visitor->get_local_temp_var_name();
+    visitor->write(local);
+    visitor->local_allocated[call] = local;
+    visitor->write(" = ");
+    visitor->write("{ ");
+    visitor->write(std::to_string(index));
+    visitor->write(", ");
+    unsigned i = 0;
+    for(auto& value : member->values) {
+        visitor->write('.');
+        visitor->write(member->name);
+        visitor->write('.');
+        visitor->write(value.second->name);
+        visitor->write(" = ");
+        const auto& val = call->values[i];
+        val->accept(visitor);
+        visitor->write(", ");
+        i++;
+    }
+    visitor->write('}');
+    visitor->write(';');
+    visitor->new_line_and_indent();
+}
+
 void CBeforeStmtVisitor::process_comp_time_call(FunctionDeclaration* decl, FunctionCall* call, const std::string& identifier) {
     auto eval = evaluated_func_val(visitor, decl, call);
     if(eval->as_struct()) {
@@ -1114,6 +1179,8 @@ void CBeforeStmtVisitor::process_init_value(Value* value, const std::string& ide
                 process_comp_time_call(decl, call, identifier);
                 return;
             } else if(linked->as_struct_def()) {
+                allocate_struct_for_func_call(visitor, linked->as_struct_def(), call, func_type.get(), identifier);
+            } else if(linked->as_variant_def()) {
                 allocate_struct_for_func_call(visitor, linked->as_struct_def(), call, func_type.get(), identifier);
             } else if(func_type->returnType->pure_type()->kind() == BaseTypeKind::Dynamic && linked->as_interface_def()) {
                 allocate_fat_pointer_for_value(visitor, call, identifier, nullptr);
@@ -1145,6 +1212,8 @@ public:
 
     void declare_struct(StructDefinition* structDef);
 
+    void declare_variant(VariantDefinition* structDef);
+
     void visit(TypealiasStatement *statement) override;
 
     void visit(FunctionDeclaration *functionDeclaration) override;
@@ -1152,6 +1221,8 @@ public:
     void visit(ExtensionFunction *extensionFunc) override;
 
     void visit(StructDefinition *structDefinition) override;
+
+    void visit(VariantDefinition *variant_def) override;
 
     void visit(Namespace *ns) override;
 
@@ -1899,11 +1970,15 @@ void CTopLevelDeclarationVisitor::declare_struct(StructDefinition* def) {
     // no need to forward declare struct when inlining function types
     if(!visitor->inline_struct_members_fn_types) {
         // forward declaring struct for function types that take a pointer to it
-        visitor->new_line_and_indent();
-        write("struct ");
-        node_parent_name(visitor, def);
-        write(def->name);
-        write(';');
+        // typedefing struct before usage
+        //    visitor->new_line_and_indent();
+        //    write("typedef struct ");
+        //    node_parent_name(visitor, def);
+        //    struct_name(visitor, def);
+        //    write(' ');
+        //    node_parent_name(visitor, def);
+        //    struct_name(visitor, def);
+        //    write(';');
     }
     for(auto& mem : def->variables) {
         mem.second->accept(value_visitor);
@@ -1955,6 +2030,92 @@ void CTopLevelDeclarationVisitor::visit(StructDefinition* def) {
             itr++;
         }
     }
+}
+
+#define variant_type_variant_name "__chx__vt_621827"
+
+void CTopLevelDeclarationVisitor::declare_variant(VariantDefinition* def) {
+    // no need to forward declare struct when inlining function types
+    if(!visitor->inline_struct_members_fn_types) {
+        // forward declaring struct for function types that take a pointer to it
+        // typedefing struct before usage
+        //    visitor->new_line_and_indent();
+        //    write("typedef struct ");
+        //    node_parent_name(visitor, def);
+        //    struct_name(visitor, def);
+        //    write(' ');
+        //    node_parent_name(visitor, def);
+        //    struct_name(visitor, def);
+        //    write(';');
+    }
+    for(auto& mem : def->variables) {
+        mem.second->accept(value_visitor);
+    }
+    visitor->new_line_and_indent();
+    write("struct ");
+    node_parent_name(visitor, def);
+    struct_name(visitor, def);
+    write(" {");
+    visitor->indentation_level+=1;
+    for(auto& inherits : def->inherited) {
+        const auto struct_def = inherits->type->linked_struct_def();
+        if(struct_def) {
+            visitor->new_line_and_indent();
+            visitor->write("struct ");
+            struct_name(visitor, struct_def);
+            visitor->space();
+            visitor->write(struct_def->name);
+            visitor->write(';');
+        }
+    }
+    new_line_and_indent();
+    write("int ");
+    write(variant_type_variant_name);
+    write(';');
+    new_line_and_indent();
+    write("union {");
+    visitor->indentation_level += 1;
+    for(auto& var : def->variables) {
+        visitor->new_line_and_indent();
+        const auto member = var.second->as_variant_member();
+
+        visitor->write("struct ");
+        visitor->write('{');
+        visitor->indentation_level += 1;
+        for(auto& value : member->values) {
+            visitor->new_line_and_indent();
+            value.second->type->accept(visitor);
+            visitor->space();
+            visitor->write(value.second->name);
+            visitor->write(';');
+        }
+        visitor->indentation_level -= 1;
+        visitor->new_line_and_indent();
+        visitor->write("} ");
+        visitor->write(member->name);
+        visitor->write(';');
+
+    }
+    visitor->indentation_level -= 1;
+    new_line_and_indent();
+    write("};");
+    visitor->indentation_level-=1;
+    new_line_and_indent();
+    write("};");
+    if(def->requires_destructor() && def->destructor_func() == nullptr) {
+        // TODO create destructor
+//        auto decl = def->create_destructor();
+//        decl->ensure_destructor(def);
+    }
+    for(auto& func : def->functions()) {
+        if(def->get_overriding_interface(func.get()) == nullptr) {
+            declare_contained_func(this, func.get(), struct_name_str(visitor, def) + func->name, false);
+        }
+    }
+}
+
+void CTopLevelDeclarationVisitor::visit(VariantDefinition *variant_def) {
+    declare_variant(variant_def);
 }
 
 void create_v_table(ToCAstVisitor* visitor, InterfaceDefinition* interface, StructDefinition* definition) {
@@ -2209,9 +2370,9 @@ void ToCAstVisitor::return_value(Value* val, BaseType* type) {
             struct_initialize_inside_braces(this, (StructValue*) val);
         }
     } else if(val->value_type() == ValueType::Struct) {
-        auto refType = val->create_type();
-        auto structType = refType->linked_node()->as_struct_def();
-        auto size = structType->variables.size();
+//        auto refType = val->create_type();
+//        auto structType = refType->linked_node()->as_struct_def();
+//        auto size = structType->variables.size();
         write('*');
         write(struct_passed_param_name);
         write(" = ");
@@ -2594,6 +2755,12 @@ void ToCAstVisitor::visit(StructDefinition *def) {
     current_members_container = prev_members_container;
 }
 
+void ToCAstVisitor::visit(VariantDefinition* def) {
+    for(auto& func : def->functions()) {
+        contained_func_decl(this, func.get(), def->name + func->name, false, def);
+    }
+}
+
 void ToCAstVisitor::visit(UnionDef *def) {
     for(auto& func : def->functions()) {
         contained_func_decl(this, func.get(), def->name + func->name, false, def);
@@ -2612,6 +2779,20 @@ void ToCAstVisitor::visit(WhileLoop *whileLoop) {
     write(") ");
     scope(this, whileLoop->body);
 
+}
+
+void ToCAstVisitor::visit(VariantCase *variant_case) {
+    const auto member = variant_case->chain->linked_node()->as_variant_member();
+    write(std::to_string(member->parent_node->direct_child_index(member->name)));
+}
+
+void ToCAstVisitor::visit(VariantCall *call) {
+    auto found = local_allocated.find(call);
+    if(found == local_allocated.end()) {
+        write("[VariantCallNotAllocated]");
+    } else {
+        write(found->second);
+    }
 }
 
 template<typename current_call>
@@ -2919,6 +3100,16 @@ void chain_value_accept(ToCAstVisitor* visitor, ChainValue* previous, ChainValue
             }
         }
     }
+    const auto linked = value->linked_node();
+    if(linked && linked->as_variant_case_var()) {
+        const auto var = linked->as_variant_case_var();
+        Value* expr = var->variant_case->switch_statement->expression.get();
+        const auto var_mem = var->variant_case->chain->linked_node()->as_variant_member();
+        expr->accept(visitor);
+        write_accessor(visitor, expr, nullptr);
+        visitor->write(var_mem->name);
+        visitor->write('.');
+    }
     value->accept(visitor);
 }
 
@@ -3022,7 +3213,24 @@ void ToCAstVisitor::visit(TypealiasStatement *stmt) {
 
 void ToCAstVisitor::visit(SwitchStatement *statement) {
     write("switch(");
-    statement->expression->accept(this);
+    const auto known_t = statement->expression->known_type();
+    if(known_t) {
+        const auto linked = known_t->linked_node();
+        if(linked) {
+            const auto variant = linked->as_variant_def();
+            if (variant) {
+                statement->expression->accept(this);
+                write_accessor(this, statement->expression.get(), nullptr);
+                write(variant_type_variant_name);
+            } else {
+                statement->expression->accept(this);
+            }
+        } else {
+            statement->expression->accept(this);
+        }
+    } else {
+        statement->expression->accept(this);
+    }
     write(") {");
     unsigned i = 0;
     indentation_level += 1;
@@ -3182,7 +3390,15 @@ void ToCAstVisitor::visit(VariableIdentifier *identifier) {
             write(found->second);
             write("*) this)->");
         }
-
+    }
+    if(identifier->linked_node()->as_variant_case_var()) {
+        const auto var = identifier->linked_node()->as_variant_case_var();
+        Value* expr = var->variant_case->switch_statement->expression.get();
+        const auto var_mem = var->variant_case->chain->linked_node()->as_variant_member();
+        expr->accept(this);
+        write_accessor(this, expr, identifier);
+        write(var_mem->name);
+        write('.');
     }
     write(identifier->value);
 }
@@ -3409,6 +3625,9 @@ void ToCAstVisitor::visit(ReferencedType *type) {
     if(type->linked->as_struct_def()) {
         write("struct ");
         name = struct_name_str(this, type->linked->as_struct_def());
+    } else if(type->linked->as_variant_def()) {
+        write("struct ");
+        name = struct_name_str(this, type->linked->as_variant_def());
     } else if(type->linked->as_union_def()) {
         write("union ");
         name = type->linked->as_union_def()->name;

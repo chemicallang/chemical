@@ -226,28 +226,8 @@ void type_with_id(ToCAstVisitor* visitor, BaseType* type, const std::string& id)
     }
 }
 
-inline ASTNode* get_param_type_ref_node(BaseType* type) {
-    if(type->kind() == BaseTypeKind::Referenced || type->kind() == BaseTypeKind::Generic) {
-        return type->linked_node();
-    } else {
-        return nullptr;
-    }
-}
-
-inline StructDefinition* get_param_type_ref_struct(BaseType* type) {
-    if(type->kind() == BaseTypeKind::Referenced || type->kind() == BaseTypeKind::Generic) {
-        return type->linked_node()->as_struct_def();
-    } else {
-        return nullptr;
-    }
-}
-
-inline bool is_param_type_ref_struct(BaseType* type) {
-    return get_param_type_ref_struct(type) != nullptr;
-}
-
 void param_type_with_id(ToCAstVisitor* visitor, BaseType* type, const std::string& id) {
-    const auto node = get_param_type_ref_node(type);
+    const auto node = type->get_direct_ref_node();
     if(node && (node->as_struct_def() || node->as_variant_def())) {
         PointerType ptr_type(hybrid_ptr<BaseType>{ type, false });
         type_with_id(visitor, &ptr_type, id);
@@ -396,18 +376,14 @@ ASTNode* get_func_param_ref_node(ASTNode* node) {
     if(!node) return nullptr;
     auto param = node->as_func_param();
     if(!param) return nullptr;
-    return get_param_type_ref_node(param->type.get());
+    return param->type->get_direct_ref_node();
 }
 
 StructDefinition* get_func_param_ref_struct(ASTNode* node) {
     if(!node) return nullptr;
     auto param = node->as_func_param();
     if(!param) return nullptr;
-    return get_param_type_ref_struct(param->type.get());
-}
-
-bool is_func_param_ref_struct(ASTNode* node) {
-    return get_func_param_ref_struct(node) != nullptr;
+    return param->type->get_direct_ref_struct();
 }
 
 void vtable_name(ToCAstVisitor* visitor, InterfaceDefinition* interface, StructDefinition* definition) {
@@ -491,7 +467,7 @@ void func_call_args(ToCAstVisitor* visitor, FunctionCall* call, FunctionType* fu
     while(i < call->values.size()) {
         param = func_type->func_param_for_arg_at(i);
         auto& val = call->values[i];
-        const auto param_ref_node = get_param_type_ref_node(param->type.get());
+        const auto param_ref_node = param->type->get_direct_ref_node();
         const auto val_ref_node = get_func_param_ref_node(val->linked_node());
         const auto is_struct_param = (param_ref_node && param_ref_node->as_struct_def() && (!val_ref_node || !val_ref_node->as_struct_def()));
         const auto is_variant_param = (param_ref_node && param_ref_node->as_variant_def() && (!val_ref_node || !val_ref_node->as_variant_def()));
@@ -550,7 +526,7 @@ void write_accessor(ToCAstVisitor* visitor, Value* current, Value* next) {
         return;
     }
     if(linked && linked->as_base_func_param()){
-        const auto node = get_param_type_ref_node(linked->as_base_func_param()->type.get());
+        const auto node = linked->as_base_func_param()->type->get_direct_ref_node();
         if(node && (node->as_struct_def() || node->as_variant_def())) {
             visitor->write("->");
             return;

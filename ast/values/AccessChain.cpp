@@ -77,7 +77,7 @@ void AccessChain::link(SymbolResolver &linker, BaseType *expected_type, std::uni
             if (linked && linked->as_variant_member() && value_ptr) {
                 auto& chain = *value_ptr;
                 chain = std::make_unique<VariantCall>(std::unique_ptr<AccessChain>((AccessChain*) chain.release()));
-                chain->link(linker, chain);
+                ((std::unique_ptr<VariantCall>&) chain)->link(linker, chain, expected_type);
                 return;
             }
         }

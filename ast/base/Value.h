@@ -101,6 +101,12 @@ public:
     virtual void link(SymbolResolver& linker, StructValue* value, const std::string& name);
 
     /**
+     * when a value is present inside an array value, this function is called
+     * can be overridden to retrieve extra information
+     */
+    virtual void link(SymbolResolver& linker, ArrayValue* value, unsigned int index);
+
+    /**
      * values inside a function call, can override this method if they want to access
      * information about call, function at link time
      */
@@ -109,7 +115,7 @@ public:
     /**
      * relink value after generic types are known in the function call
      */
-    virtual void relink_after_generic(SymbolResolver& linker, FunctionCall* call, unsigned int index) {
+    virtual void relink_after_generic(SymbolResolver& linker, std::unique_ptr<Value>& value_ptr, BaseType* expected_type) {
         // does nothing
     }
 

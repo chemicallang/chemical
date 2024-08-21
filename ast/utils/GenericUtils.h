@@ -40,3 +40,23 @@ std::pair<int16_t, bool> register_generic_usage(
     std::vector<std::unique_ptr<GenericTypeParameter>>& generic_params,
     std::vector<BaseType*>& generic_list
 );
+
+/**
+ * infers type of generic parameter type, by given argument type
+ * for example for a function func <T> sum(a : T, b : int) : int
+ * user could do sum(10, 20) <-- in this call, we don't need to explicitly
+ * give int because 10 argument get's arg_type and sends it to this argument
+ * with also the param type which is T (referenced generic type parameter)
+ * this function then registers int with T usage
+ * any errors are reported in given ASTDiagnoser, debug_value is used for
+ * better errors
+ */
+void infer_types_by_args(
+        ASTDiagnoser& diagnoser,
+        ASTNode* params_node,
+        unsigned int generic_list_size,
+        BaseType* param_type,
+        BaseType* arg_type,
+        std::vector<BaseType*>& inferred,
+        Value* debug_value
+);

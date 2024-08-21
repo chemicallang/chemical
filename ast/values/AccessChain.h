@@ -60,12 +60,16 @@ public:
         TypeLinkedValue::link(linker, call, index);
     }
 
-    void relink_after_generic(SymbolResolver& linker, FunctionCall* call, unsigned int index) override {
-        TypeLinkedValue::link(linker, call, index);
+    void relink_after_generic(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *expected_type) override {
+        link(linker, value_ptr, expected_type);
     }
 
     void link(SymbolResolver &linker, VarInitStatement *stmnt) override {
         TypeLinkedValue::link(linker, stmnt);
+    }
+
+    void link(SymbolResolver &linker, ArrayValue *value, unsigned int index) override {
+        TypeLinkedValue::link(linker, value, index);
     }
 
     void link(SymbolResolver &linker, AssignStatement *stmnt, bool lhs) override {

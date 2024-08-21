@@ -6,6 +6,7 @@
 #include "ast/statements/Return.h"
 #include "ast/values/FunctionCall.h"
 #include "ast/values/StructValue.h"
+#include "ast/values/ArrayValue.h"
 #include "ast/types/FunctionType.h"
 #include "ast/values/IntValue.h"
 
@@ -33,4 +34,8 @@ void TypeLinkedValue::link(SymbolResolver &linker, StructValue *structValue, con
     auto child = structValue->definition->child(name);
     auto child_type = child->get_value_type();
     link(linker, structValue->values[name], child_type.get());
+}
+
+void TypeLinkedValue::link(SymbolResolver& linker, ArrayValue* value, unsigned int index) {
+    link(linker, value->values[index], value->elemType.has_value() ? value->elemType->get() : nullptr);
 }

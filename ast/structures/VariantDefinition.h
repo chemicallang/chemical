@@ -73,6 +73,13 @@ public:
 
     hybrid_ptr<BaseType> get_value_type() override;
 
+    /**
+     * a variant call notifies a definition, during symbol resolution that it exists
+     * when this happens, generics are checked, proper types are registered in generic
+     * @return iteration that corresponds to this call
+     */
+    int16_t register_call(SymbolResolver& resolver, VariantCall* call, BaseType* expected_type);
+
 #ifdef COMPILER_BUILD
 
     llvm::StructType* llvm_type_with_member(Codegen& gen, BaseDefMember* member_type, bool anonymous = true);

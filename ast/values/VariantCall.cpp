@@ -7,6 +7,8 @@
 #include "compiler/SymbolResolver.h"
 #include "ast/structures/VariantMember.h"
 #include "ast/structures/VariantDefinition.h"
+#include "ast/utils/GenericUtils.h"
+#include "ast/utils/ASTUtils.h"
 
 #ifdef COMPILER_BUILD
 
@@ -89,7 +91,64 @@ VariantCall::VariantCall(std::unique_ptr<AccessChain> _chain) : chain(std::move(
     }
 }
 
-void VariantCall::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr) {
+VariantMember* VariantCall::get_member() {
+    return chain->linked_node()->as_variant_member();
+}
+
+VariantDefinition* VariantCall::get_definition() {
+    return get_member()->parent_node;
+}
+
+void VariantCall::relink_values(SymbolResolver& linker) {
+    const auto member = get_member();
+    unsigned i = 0;
+    auto itr = member->values.begin();
+    while(i < values.size()) {
+        values[i]->relink_after_generic(linker, values[i], itr->second->type.get());
+        i++;
+        itr++;
+    }
+}
+
+void VariantCall::infer_generic_args(ASTDiagnoser& diagnoser, std::vector<BaseType*>& inferred) {
+    const auto member = get_member();
+    const auto def = member->parent_node;
+    // going over function parameters to see which arguments have been given, if they do have a generic type
+    // going over only explicit function params
+    const auto values_size = values.size();
+    auto arg_offset = 0;
+    auto itr = member->values.begin();
+    while(arg_offset < values_size) {
+        const auto param_type = itr->second->type.get();
+        const auto arg_type = values[arg_offset]->known_type();
+        if(!arg_type) {
+#ifdef DEBUG
+            std::cout << "couldn't get arg type " << values[arg_offset]->representation() + " in function call " + representation();
+#endif
+            arg_offset++;
+            continue;
+        }
+        infer_types_by_args(diagnoser, def, generic_list.size(), param_type, arg_type, inferred, this);
+        arg_offset++;
+        itr++;
+    }
+}
+
+void VariantCall::link_args_implicit_constructor(SymbolResolver &linker) {
+    const auto member = get_member();
+    unsigned i = 0;
+    auto itr = member->values.begin();
+    while(i < values.size()) {
+        auto implicit_constructor = itr->second->type->implicit_constructor_for(values[i].get());
+        if (implicit_constructor) {
+            values[i] = call_with_arg(implicit_constructor, std::move(values[i]), linker);
+        }
+        i++;
+        itr++;
+    }
+}
+
+void VariantCall::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *expected_type) {
     // we've already linked chain, when variant call is created, access chain is checked, so no need to link
     for(auto& type : generic_list) {
         type->link(linker, type);
@@ -97,6 +156,22 @@ void VariantCall::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr
     for(auto& value : values) {
         value->link(linker, value);
     }
+    int16_t prev_itr;
+    const auto def = get_definition();
+    if(!def->generic_params.empty()) {
+        prev_itr = def->active_iteration;
+        generic_iteration = def->register_call(linker, this, expected_type);
+        def->set_active_iteration(generic_iteration);
+    }
+    relink_values(linker);
+    link_args_implicit_constructor(linker);
+    if(!def->generic_params.empty()) {
+        def->set_active_iteration(prev_itr);
+    }
+}
+
+void VariantCall::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr) {
+    link(linker, value_ptr, nullptr);
 }
 
 std::unique_ptr<BaseType> VariantCall::create_type() {

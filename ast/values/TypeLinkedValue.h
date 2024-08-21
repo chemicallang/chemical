@@ -15,6 +15,8 @@ public:
 
     virtual void link(SymbolResolver &linker, StructValue *value, const std::string &name);
 
+    virtual void link(SymbolResolver& linker, ArrayValue* value, unsigned int index);
+
     virtual void link(SymbolResolver &linker, FunctionCall *call, unsigned int index);
 
     virtual void link(SymbolResolver &linker, ReturnStatement *returnStmt);

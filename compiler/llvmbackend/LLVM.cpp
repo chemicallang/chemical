@@ -671,7 +671,7 @@ bool access_chain_store_in_parent(
 
 unsigned int AccessChain::store_in_struct(
         Codegen &gen,
-        StructValue *parent,
+        Value *parent,
         llvm::Value *allocated,
         llvm::Type *allocated_type,
         std::vector<llvm::Value *> idxList,

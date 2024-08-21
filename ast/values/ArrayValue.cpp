@@ -75,7 +75,7 @@ unsigned int ArrayValue::store_in_array(
 
 unsigned int ArrayValue::store_in_struct(
         Codegen &gen,
-        StructValue *parent,
+        Value *parent,
         llvm::Value *allocated,
         llvm::Type* allocated_type,
         std::vector<llvm::Value *> idxList,

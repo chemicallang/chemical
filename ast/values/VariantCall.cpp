@@ -28,7 +28,7 @@ bool VariantCall::initialize_allocated(Codegen &gen, llvm::Value* allocated, llv
     unsigned i = 0;
     for(auto& value : values) {
         const auto param = member->values.begin() + i;
-        value->store_in_struct(gen, nullptr, data_ptr, struct_type, { gen.builder->getInt32(0) }, i, param->second->type.get());
+        value->store_in_struct(gen, this, data_ptr, struct_type, { gen.builder->getInt32(0) }, i, param->second->type.get());
         i++;
     }
     return true;
@@ -56,7 +56,7 @@ llvm::Value* VariantCall::llvm_value(Codegen &gen, BaseType *type) {
     return initialize_allocated(gen, nullptr);
 }
 
-unsigned int VariantCall::store_in_struct(Codegen &gen, StructValue *parent, llvm::Value *allocated, llvm::Type *allocated_type, std::vector<llvm::Value *> idxList, unsigned int index, BaseType *expected_type) {
+unsigned int VariantCall::store_in_struct(Codegen &gen, Value *parent, llvm::Value *allocated, llvm::Type *allocated_type, std::vector<llvm::Value *> idxList, unsigned int index, BaseType *expected_type) {
     const auto ptr = Value::get_element_pointer(gen, allocated_type, allocated, idxList, index);
     initialize_allocated(gen, ptr);
     return index + 1;

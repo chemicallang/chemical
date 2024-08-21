@@ -226,14 +226,19 @@ public:
     bool requires_destructor();
 
     /**
-     * if this is a referenced / generic type, get it's ref'ed node
+     * if this is a directly referenced / generic type, get it's ref'ed node
      */
     ASTNode* get_direct_ref_node();
 
     /**
-     * if this is a referenced / generic type, get it's ref'ed node
+     * if this is a directly referenced / generic type, get it's ref'ed node
      */
     StructDefinition* get_direct_ref_struct();
+
+    /**
+     * if this is a directly referenced / generic variant, get it
+     */
+    VariantDefinition* get_direct_ref_variant();
 
     /**
      * if this type is linked with a struct definition, it can be retrieved using this function

@@ -10,6 +10,9 @@
 #include "ast/values/FunctionCall.h"
 #include "ast/values/VariableIdentifier.h"
 #include "ast/statements/SwitchStatement.h"
+#include "ast/values/VariantCall.h"
+#include "ast/utils/GenericUtils.h"
+#include "ast/types/GenericType.h"
 
 inline void restore(std::pair<BaseType*, int16_t> pair) {
     pair.first->set_generic_iteration(pair.second);
@@ -237,6 +240,52 @@ hybrid_ptr<BaseType> VariantDefinition::get_value_type() {
     return hybrid_ptr<BaseType> { create_value_type().release(), true };
 }
 
+int16_t VariantDefinition::register_call(SymbolResolver& resolver, VariantCall* call, BaseType* expected_type) {
+
+    const auto total = generic_params.size();
+    std::vector<BaseType*> generic_args(total);
+
+    // set all to default type (if default type is not present, it would automatically be nullptr)
+    unsigned i = 0;
+    while(i < total) {
+        generic_args[i] = generic_params[i]->def_type.get();
+        i++;
+    }
+
+    // set given generic args to generic parameters
+    i = 0;
+    for(auto& arg : call->generic_list) {
+        generic_args[i] = arg.get();
+        i++;
+    }
+
+    // infer args, if user gave less args than expected
+    if(call->generic_list.size() != total) {
+        call->infer_generic_args(resolver, generic_args);
+    }
+
+    // inferring type by expected type
+    if(expected_type && expected_type->kind() == BaseTypeKind::Generic) {
+        const auto type = ((GenericType*) expected_type);
+        if(type->linked_node() == this) {
+            i = 0;
+            for(auto& arg : type->types) {
+                generic_args[i] = arg.get();
+                i++;
+            }
+        }
+    }
+
+    // register and report to subscribers
+    const auto itr = register_generic_usage(resolver, this, generic_params, generic_args);
+    if(itr.second) {
+        for (auto sub: subscribers) {
+            sub->report_parent_usage(resolver, itr.first);
+        }
+    }
+
+    return itr.first;
+}
 
 VariantMember::VariantMember(
         const std::string& name,

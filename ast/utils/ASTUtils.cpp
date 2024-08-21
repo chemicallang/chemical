@@ -6,6 +6,7 @@
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/values/FunctionCall.h"
+#include "ast/types/GenericType.h"
 #include "GenericUtils.h"
 #include "compiler/SymbolResolver.h"
 
@@ -55,7 +56,7 @@ int16_t get_iteration_for(std::vector<std::unique_ptr<GenericTypeParameter>>& ge
             for(auto& param : generic_params) {
                 const auto generic_arg = j < generic_list.size() ? generic_list[j] : nullptr;
                 const auto generic_arg_pure = generic_arg ? generic_arg : param->def_type.get();
-                if(!param->usage[i]->is_same(generic_arg_pure)) {
+                if(!generic_arg_pure || !param->usage[i]->is_same(generic_arg_pure)) {
                     all_params_found = false;
                     break;
                 }
@@ -102,4 +103,41 @@ std::pair<int16_t, bool> register_generic_usage(
     if(i != -1) return { i, false};
     resolver.imported_generic[node->root_parent()] = true;
     return { register_generic_usage_no_check(generic_params, generic_list), true };
+}
+
+void infer_types_by_args(
+        ASTDiagnoser& diagnoser,
+        ASTNode* params_node,
+        unsigned int generic_list_size,
+        BaseType* param_type,
+        BaseType* arg_type,
+        std::vector<BaseType*>& inferred,
+        Value* debug_value
+) {
+    const auto param_type_kind = param_type->kind();
+    if(param_type_kind == BaseTypeKind::Referenced) {
+        // directly linked generic param like func <T> add(param : T)
+        const auto linked = param_type->linked_node();
+        const auto gen_param = linked->as_generic_type_param();
+        if(gen_param && gen_param->parent_node == params_node && gen_param->param_index >= generic_list_size && !gen_param->def_type) {
+            // get the function argument for this arg_offset
+            inferred[gen_param->param_index] = arg_type;
+        }
+    } else if(param_type_kind == BaseTypeKind::Generic) {
+        // not directly linked generic param like func <T> add(param : Thing<T>)
+        const auto arg_type_gen = (GenericType*) arg_type;
+        const auto param_type_gen = (GenericType*) param_type;
+        if((arg_type->kind() == BaseTypeKind::Generic) && arg_type->linked_struct_def() == param_type->linked_struct_def()) {
+            const auto child_gen_size = param_type_gen->types.size();
+            if(arg_type_gen->types.size() == child_gen_size) {
+                unsigned i = 0;
+                while(i < child_gen_size) {
+                    infer_types_by_args(diagnoser, params_node, generic_list_size, param_type_gen->types[i].get(), arg_type_gen->types[i].get(), inferred, debug_value);
+                    i++;
+                }
+            } else {
+                diagnoser.error("given types generic arguments don't have equal length, for " + param_type_gen->representation() + ", given " + arg_type_gen->representation() + " in " + debug_value->representation());
+            }
+        }
+    }
 }

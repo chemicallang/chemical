@@ -209,6 +209,7 @@ public:
             std::nullopt
     ) {
         annotations.emplace_back(AnnotationKind::CompTime);
+        params.emplace_back(std::make_unique<FunctionParam>("value", std::make_unique<AnyType>(), 0, std::nullopt, this));
     }
     Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
         if(call->values.empty()) {

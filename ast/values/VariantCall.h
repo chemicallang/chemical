@@ -1,13 +1,21 @@
 // Copyright (c) Qinetik 2024.
 
 #include "ast/base/Value.h"
+#include "TypeLinkedValue.h"
 
-class VariantCall : public Value {
+class VariantCall : public Value, public TypeLinkedValue {
 public:
 
     std::unique_ptr<AccessChain> chain;
     std::vector<std::unique_ptr<Value>> values;
     std::vector<std::unique_ptr<BaseType>> generic_list;
+
+    /**
+     * the generic iteration is determined and stored at resolution phase
+     * it represents the usage of generic parameters in variant definition for
+     * the given generic args
+     */
+    int16_t generic_iteration = 0;
 
     /**
      * this will take the access chain, if has function call at least, own it's values
@@ -18,7 +26,39 @@ public:
         visitor->visit(this);
     }
 
+    void relink_values(SymbolResolver &linker);
+
+    void infer_generic_args(ASTDiagnoser& diagnoser, std::vector<BaseType*>& inferred);
+
+    void link_args_implicit_constructor(SymbolResolver &linker);
+
+    void link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *type) override;
+
     void link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr) override;
+
+    void link(SymbolResolver &linker, ReturnStatement *returnStmt) override {
+        TypeLinkedValue::link(linker, returnStmt);
+    }
+
+    void link(SymbolResolver &linker, StructValue *value, const std::string &name) override {
+        TypeLinkedValue::link(linker, value, name);
+    }
+
+    void link(SymbolResolver &linker, FunctionCall *call, unsigned int index) override {
+        TypeLinkedValue::link(linker, call, index);
+    }
+
+    void link(SymbolResolver &linker, VarInitStatement *stmnt) override {
+        TypeLinkedValue::link(linker, stmnt);
+    }
+
+    void link(SymbolResolver &linker, AssignStatement *stmnt, bool lhs) override {
+        TypeLinkedValue::link(linker, stmnt, lhs);
+    }
+
+    void link(SymbolResolver &linker, ArrayValue *value, unsigned int index) override {
+        TypeLinkedValue::link(linker, value, index);
+    }
 
     std::unique_ptr<BaseType> create_type() override;
 
@@ -34,6 +74,10 @@ public:
     ValueType value_type() const override {
         return ValueType::Struct;
     }
+
+    VariantMember* get_member();
+
+    VariantDefinition* get_definition();
 
 #ifdef COMPILER_BUILD
 

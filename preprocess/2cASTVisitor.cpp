@@ -1108,6 +1108,12 @@ void CBeforeStmtVisitor::visit(VariantCall *call) {
     const auto linked = member->parent_node;
     const auto index = linked->direct_child_index(member->name);
 
+    int16_t prev_itr;
+    if(!linked->generic_params.empty()) {
+        prev_itr = linked->get_active_iteration();
+        linked->set_active_iteration(call->generic_iteration);
+    }
+
     visitor->write("struct ");
     node_parent_name(visitor, linked);
     struct_name(visitor, linked);
@@ -1134,6 +1140,11 @@ void CBeforeStmtVisitor::visit(VariantCall *call) {
     visitor->write('}');
     visitor->write(';');
     visitor->new_line_and_indent();
+
+    if(!linked->generic_params.empty()) {
+        linked->set_active_iteration(prev_itr);
+    }
+
 }
 
 void CBeforeStmtVisitor::process_comp_time_call(FunctionDeclaration* decl, FunctionCall* call, const std::string& identifier) {
@@ -2093,7 +2104,17 @@ void CTopLevelDeclarationVisitor::declare_variant(VariantDefinition* def) {
 }
 
 void CTopLevelDeclarationVisitor::visit(VariantDefinition *variant_def) {
-    declare_variant(variant_def);
+    if(variant_def->generic_params.empty()) {
+        declare_variant(variant_def);
+    } else {
+        const auto total = variant_def->total_generic_iterations();
+        int16_t itr = 0;
+        while(itr < total) {
+            variant_def->set_active_iteration(itr);
+            declare_variant(variant_def);
+            itr++;
+        }
+    }
 }
 
 void create_v_table(ToCAstVisitor* visitor, InterfaceDefinition* interface, StructDefinition* definition) {
@@ -3562,7 +3583,7 @@ void ToCAstVisitor::visit(FunctionType *type) {
 }
 
 void ToCAstVisitor::visit(GenericType *gen_type) {
-    const auto gen_struct = gen_type->referenced->get_generic_struct();
+    const auto gen_struct = gen_type->referenced->linked->as_members_container();
     const auto prev_itr = gen_struct->active_iteration;
     gen_struct->set_active_iteration(gen_type->generic_iteration);
     gen_type->referenced->accept(this);

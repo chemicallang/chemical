@@ -470,6 +470,10 @@ void Value::link(SymbolResolver& linker, StructValue* value, const std::string& 
     link(linker, value->values[name]);
 }
 
+void Value::link(SymbolResolver& linker, ArrayValue* value, unsigned int index) {
+    link(linker, value->values[index]);
+}
+
 void Value::link(SymbolResolver& linker, FunctionCall* call, unsigned int index) {
     link(linker, call->values[index]);
 }

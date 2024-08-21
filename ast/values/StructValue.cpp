@@ -50,7 +50,7 @@ void StructValue::llvm_destruct(Codegen &gen, llvm::Value *givenAlloca) {
 
 unsigned int StructValue::store_in_struct(
         Codegen &gen,
-        StructValue *parent,
+        Value *parent,
         llvm::Value *allocated,
         llvm::Type* allocated_type,
         std::vector<llvm::Value*> idxList,
@@ -59,8 +59,8 @@ unsigned int StructValue::store_in_struct(
 ) {
     if (index == -1) {
         gen.error(
-                "can't store struct value " + representation() + " into struct value " + parent->representation() + " with an unknown index" +
-                " where current definition name " + definition->name + " with parent of name " + parent->definition->name);
+                "can't store struct value '" + representation() + "' into parent struct value '" + parent->representation() + "' with an unknown index" +
+                " where current definition name '" + definition->name + "'");
         return index + values.size();
     }
     const auto interface = expected_type ? expected_type->linked_dyn_interface() : nullptr;

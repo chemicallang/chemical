@@ -266,7 +266,7 @@ public:
      */
     virtual unsigned int store_in_struct(
             Codegen& gen,
-            StructValue* parent,
+            Value* parent,
             llvm::Value* allocated,
             llvm::Type* allocated_type,
             std::vector<llvm::Value *> idxList,

@@ -5,7 +5,7 @@
 #include "IntNumValue.h"
 #include "ast/types/UCharType.h"
 
-class UCharValue : public IntNumValue, public UCharType {
+class UCharValue : public IntNumValue {
 public:
 
     unsigned char value;
@@ -15,11 +15,11 @@ public:
     }
 
     hybrid_ptr<BaseType> get_base_type() override {
-        return hybrid_ptr<BaseType> { this, false };
+        return hybrid_ptr<BaseType> { (BaseType*) &UCharType::instance, false };
     }
 
     BaseType* known_type() override {
-        return this;
+        return (BaseType*) &UCharType::instance;
     }
 
     uint64_t byte_size(bool is64Bit) override {

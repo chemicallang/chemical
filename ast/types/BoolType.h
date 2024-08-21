@@ -7,6 +7,8 @@
 class BoolType : public BaseType {
 public:
 
+    static const BoolType instance;
+
     uint64_t byte_size(bool is64Bit) override {
         return 1;
     }

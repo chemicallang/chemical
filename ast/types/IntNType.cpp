@@ -15,6 +15,19 @@
 #include "ast/values/Int128Value.h"
 #include "ast/values/UInt128Value.h"
 
+const IntType IntType::instance;
+const BigIntType BigIntType::instance;
+const Int128Type Int128Type::instance;
+const ShortType ShortType::instance;
+const UBigIntType UBigIntType::instance;
+const UInt128Type UInt128Type::instance;
+const UIntType UIntType::instance;
+const UShortType UShortType::instance;
+const LongType LongType::instance64Bit(true);
+const LongType LongType::instance32Bit(false);
+const ULongType ULongType::instance64Bit(true);
+const ULongType ULongType::instance32Bit(false);
+
 Value *IntType::create(int64_t value) {
     return new IntValue(value);
 }

@@ -7,6 +7,8 @@
 class UInt128Type : public IntNType {
 public:
 
+    static const UInt128Type instance;
+
     [[nodiscard]]
     unsigned int num_bits() const override {
         return 128;

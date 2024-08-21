@@ -9,7 +9,7 @@
 #include "ast/base/Value.h"
 #include "ast/types/BoolType.h"
 
-class BoolValue : public Value, public BoolType {
+class BoolValue : public Value {
 public:
 
     /**
@@ -17,7 +17,7 @@ public:
      *
      * @param value The character value.
      */
-    BoolValue(bool value) : value(value) {}
+    explicit BoolValue(bool value) : value(value) {}
 
     BoolValue *copy() override {
         return new BoolValue(value);
@@ -28,11 +28,11 @@ public:
     }
 
     hybrid_ptr<BaseType> get_base_type() override {
-        return hybrid_ptr<BaseType> { this, false };
+        return hybrid_ptr<BaseType> { (BaseType*) &BoolType::instance, false };
     }
 
     BaseType* known_type() override {
-        return this;
+        return (BaseType*) &BoolType::instance;
     }
 
     std::unique_ptr<BaseType> create_type() override {

@@ -14,7 +14,7 @@
 /**
  * @brief Class representing a string value.
  */
-class StringValue : public Value, public StringType {
+class StringValue : public Value {
 public:
 
     std::string value;
@@ -31,11 +31,11 @@ public:
     void link(SymbolResolver &linker, VarInitStatement *stmnt) override;
 
     hybrid_ptr<BaseType> get_base_type() override {
-        return hybrid_ptr<BaseType> { this, false };
+        return hybrid_ptr<BaseType> { (BaseType*) &StringType::instance, false };
     }
 
     BaseType* known_type() override {
-        return this;
+        return (BaseType*) &StringType::instance;
     }
 
     void accept(Visitor *visitor) override {

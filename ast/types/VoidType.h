@@ -7,6 +7,8 @@
 class VoidType : public BaseType {
 public:
 
+    static const VoidType instance;
+
     bool satisfies(ValueType type) override {
         return false;
     }

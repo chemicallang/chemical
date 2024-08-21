@@ -7,6 +7,8 @@
 class UCharType : public IntNType {
 public:
 
+    static const UCharType instance;
+
     bool is_unsigned() override {
         return true;
     }

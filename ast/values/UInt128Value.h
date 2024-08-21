@@ -6,7 +6,7 @@
 #include "ast/types/BigIntType.h"
 #include "ast/types/UInt128Type.h"
 
-class UInt128Value : public IntNumValue, public UInt128Type {
+class UInt128Value : public IntNumValue {
 public:
 
     uint64_t low;
@@ -17,7 +17,11 @@ public:
     }
 
     hybrid_ptr<BaseType> get_base_type() override {
-        return hybrid_ptr<BaseType> { this, false };
+        return hybrid_ptr<BaseType> { (BaseType*) &UInt128Type::instance, false };
+    }
+
+    BaseType* known_type() override {
+        return (BaseType*) &UInt128Type::instance;
     }
 
     uint64_t byte_size(bool is64Bit) override {

@@ -7,6 +7,8 @@
 class CharType : public IntNType {
 public:
 
+    static const CharType instance;
+
     uint64_t byte_size(bool is64Bit) override {
         return 1;
     }

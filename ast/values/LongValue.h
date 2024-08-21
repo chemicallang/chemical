@@ -5,25 +5,26 @@
 #include "IntNumValue.h"
 #include "ast/types/LongType.h"
 
-class LongValue : public IntNumValue, public LongType {
+class LongValue : public IntNumValue {
 public:
 
     long value;
+    bool is64Bit;
 
-    LongValue(long value, bool is64Bit) : value(value), LongType(is64Bit) {
+    LongValue(long value, bool is64Bit) : value(value), is64Bit(is64Bit) {
 
     }
 
     hybrid_ptr<BaseType> get_base_type() override {
-        return hybrid_ptr<BaseType> { this, false };
+        return hybrid_ptr<BaseType> { known_type(), false };
     }
 
     BaseType* known_type() override {
-        return this;
+        return (BaseType*) (is64Bit ? &LongType::instance64Bit : &LongType::instance32Bit);
     }
 
-    uint64_t byte_size(bool is64Bit) override {
-        return is64Bit ? 8 : 4;
+    uint64_t byte_size(bool is64Bit_) override {
+        return is64Bit_ ? 8 : 4;
     }
 
     void accept(Visitor *visitor) override {

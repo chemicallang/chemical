@@ -5,7 +5,7 @@
 #include "IntNumValue.h"
 #include "ast/types/UBigIntType.h"
 
-class UBigIntValue : public IntNumValue, public UBigIntType {
+class UBigIntValue : public IntNumValue {
 public:
 
     unsigned long long value;
@@ -15,7 +15,11 @@ public:
     }
 
     hybrid_ptr<BaseType> get_base_type() override {
-        return hybrid_ptr<BaseType> { this, false };
+        return hybrid_ptr<BaseType> { (BaseType*) &UBigIntType::instance, false };
+    }
+
+    BaseType* known_type() override {
+        return (BaseType*) &UBigIntType::instance;
     }
 
     uint64_t byte_size(bool is64Bit) override {

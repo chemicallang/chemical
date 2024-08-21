@@ -3,7 +3,7 @@
 #include "IntNumValue.h"
 #include "ast/types/ShortType.h"
 
-class ShortValue : public IntNumValue, public ShortType {
+class ShortValue : public IntNumValue {
 public:
 
     short value;
@@ -13,11 +13,11 @@ public:
     }
 
     hybrid_ptr<BaseType> get_base_type() override {
-        return hybrid_ptr<BaseType> { this, false };
+        return hybrid_ptr<BaseType> { (BaseType*) &ShortType::instance, false };
     }
 
     BaseType* known_type() override {
-        return this;
+        return (BaseType*) &ShortType::instance;
     }
 
     uint64_t byte_size(bool is64Bit) override {

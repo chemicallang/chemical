@@ -25,7 +25,6 @@ public:
 
     int64_t value;
     std::unique_ptr<IntNType> linked_type = nullptr;
-    IntType int_type; // <-- int type used when other type ain't available
 
     /**
      * @brief Construct a new IntValue object.
@@ -93,14 +92,14 @@ public:
 
     hybrid_ptr<BaseType> get_base_type() override {
         if(!linked_type) {
-            return hybrid_ptr<BaseType> { &int_type, false };
+            return hybrid_ptr<BaseType> { (BaseType*) &IntType::instance, false };
         }
         return hybrid_ptr<BaseType> { linked_type.get(), false };
     }
 
     BaseType* known_type() override {
         if(!linked_type) {
-            return &int_type;
+            return (BaseType*) &IntType::instance;
         }
         return linked_type.get();
     }

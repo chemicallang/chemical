@@ -12,7 +12,7 @@
 /**
  * @brief Class representing a character value.
  */
-class CharValue : public Value, public CharType {
+class CharValue : public Value {
 public:
 
     /**
@@ -31,11 +31,11 @@ public:
     }
 
     hybrid_ptr<BaseType> get_base_type() override {
-        return hybrid_ptr<BaseType> { this, false };
+        return hybrid_ptr<BaseType> { (BaseType*) &CharType::instance, false };
     }
 
     BaseType* known_type() override {
-        return this;
+        return (BaseType*) &CharType::instance;
     }
 
     std::unique_ptr<BaseType> create_type() override {

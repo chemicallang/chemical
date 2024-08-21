@@ -7,6 +7,9 @@
 class LongType : public IntNType {
 public:
 
+    static const LongType instance64Bit;
+    static const LongType instance32Bit;
+
     bool is64Bit;
 
     explicit LongType(bool is64Bit) : is64Bit(is64Bit) {

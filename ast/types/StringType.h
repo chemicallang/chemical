@@ -7,10 +7,14 @@
 class StringType : public BaseType {
 public:
 
+    static const StringType instance;
+
     [[nodiscard]]
     std::unique_ptr<BaseType> create_child_type() const override;
 
     hybrid_ptr<BaseType> get_child_type() override;
+
+    BaseType* known_child_type() override;
 
     void accept(Visitor *visitor) override {
         visitor->visit(this);

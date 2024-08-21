@@ -50,4 +50,6 @@ public:
 
     hybrid_ptr<BaseType> get_base_type() override;
 
+    BaseType* known_type() override;
+
 };

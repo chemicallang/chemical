@@ -6,7 +6,7 @@
 #include "ast/types/BigIntType.h"
 #include "ast/types/Int128Type.h"
 
-class Int128Value : public IntNumValue, public Int128Type {
+class Int128Value : public IntNumValue {
 public:
 
     uint64_t magnitude;
@@ -17,11 +17,11 @@ public:
     }
 
     hybrid_ptr<BaseType> get_base_type() override {
-        return hybrid_ptr<BaseType> { this, false };
+        return hybrid_ptr<BaseType> { (BaseType*) &Int128Type::instance, false };
     }
 
     BaseType* known_type() override {
-        return this;
+        return (BaseType*) &Int128Type::instance;
     }
 
     void accept(Visitor *visitor) override {

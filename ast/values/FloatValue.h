@@ -12,21 +12,21 @@
 /**
  * @brief Class representing a floating-point value.
  */
-class FloatValue : public Value, public FloatType {
+class FloatValue : public Value {
 public:
     /**
      * @brief Construct a new FloatValue object.
      *
      * @param value The floating-point value.
      */
-    FloatValue(float value) : value(value) {}
+    explicit FloatValue(float value) : value(value) {}
 
     hybrid_ptr<BaseType> get_base_type() override {
-        return hybrid_ptr<BaseType> { this, false };
+        return hybrid_ptr<BaseType> { (BaseType*) &FloatType::instance, false };
     }
 
     BaseType* known_type() override {
-        return this;
+        return (BaseType*) &FloatType::instance;
     }
 
     uint64_t byte_size(bool is64Bit) {

@@ -13,17 +13,17 @@
 /**
  * @brief Class representing an integer value.
  */
-class IntValue : public IntNumValue, public IntType {
+class IntValue : public IntNumValue {
 public:
 
-    /**
-     * @brief Construct a new IntValue object.
-     *
-     * @param value The integer value.
-     */
-    IntValue(int value) : value(value) {}
+    int value; ///< The integer value.
 
-    uint64_t byte_size(bool is64Bit) {
+    /**
+     * constructor
+     */
+    explicit IntValue(int value) : value(value) {}
+
+    uint64_t byte_size(bool is64Bit) override {
         return 4;
     }
 
@@ -53,11 +53,11 @@ public:
     }
 
     hybrid_ptr<BaseType> get_base_type() override {
-        return hybrid_ptr<BaseType> { this, false };
+        return hybrid_ptr<BaseType> { (BaseType*) &IntType::instance, false };
     }
 
     BaseType* known_type() override {
-        return this;
+        return (BaseType*) &IntType::instance;
     }
 
     int as_int() override {
@@ -74,5 +74,4 @@ public:
         return BaseTypeKind::IntN;
     }
 
-    int value; ///< The integer value.
 };

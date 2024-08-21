@@ -12,7 +12,7 @@
 /**
  * @brief Class representing a double value.
  */
-class DoubleValue : public Value, public DoubleType {
+class DoubleValue : public Value {
 public:
     /**
      * @brief Construct a new DoubleValue object.
@@ -42,11 +42,11 @@ public:
     }
 
     hybrid_ptr<BaseType> get_base_type() override {
-        return hybrid_ptr<BaseType> { this, false };
+        return hybrid_ptr<BaseType> { (BaseType*) &DoubleType::instance, false };
     }
 
     BaseType* known_type() override {
-        return this;
+        return (BaseType*) &DoubleType::instance;
     }
 
     DoubleValue *copy() override {

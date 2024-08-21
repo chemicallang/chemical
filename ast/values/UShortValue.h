@@ -5,7 +5,7 @@
 #include "IntNumValue.h"
 #include "ast/types/UShortType.h"
 
-class UShortValue : public IntNumValue, public UShortType {
+class UShortValue : public IntNumValue {
 public:
 
     unsigned short value;
@@ -15,11 +15,11 @@ public:
     }
 
     hybrid_ptr<BaseType> get_base_type() override {
-        return hybrid_ptr<BaseType> { this, false };
+        return hybrid_ptr<BaseType> { (BaseType*) &UShortType::instance, false };
     }
 
     BaseType* known_type() override {
-        return this;
+        return (BaseType*) &UShortType::instance;
     }
 
     uint64_t byte_size(bool is64Bit) override {

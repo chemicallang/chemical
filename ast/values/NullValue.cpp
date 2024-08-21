@@ -9,5 +9,9 @@ std::unique_ptr<BaseType> NullValue::create_type() {
 }
 
 hybrid_ptr<BaseType> NullValue::get_base_type() {
-    return hybrid_ptr<BaseType> { new PointerType(std::make_unique<VoidType>()), true };
+    return hybrid_ptr<BaseType> { (BaseType*) &PointerType::void_ptr_instance, false };
+}
+
+BaseType* NullValue::known_type() {
+    return (BaseType*) &PointerType::void_ptr_instance;
 }

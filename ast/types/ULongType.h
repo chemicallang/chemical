@@ -9,6 +9,9 @@ public:
 
     bool is64Bit;
 
+    static const ULongType instance64Bit;
+    static const ULongType instance32Bit;
+
     explicit ULongType(bool is64Bit) : is64Bit(is64Bit) {
 
     }

@@ -13,9 +13,6 @@ func get_value(variant : OptVariant) : int {
         case OptVariant.None => {
             return -1;
         }
-        default => {
-            return -2;
-        }
     }
 }
 

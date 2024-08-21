@@ -19,6 +19,11 @@ void SwitchStatement::code_gen(Codegen &gen, bool last_block) {
     // the end block
     llvm::BasicBlock* end = llvm::BasicBlock::Create(*gen.ctx, "end", gen.current_function);
 
+    // this boolean can be set to true, to set to last case as default
+    // this should be only set when it's guaranteed that default scope is not needed
+    // because all cases are covered
+    bool auto_default_case = false;
+
     llvm::Value* expr_value = expression->llvm_value(gen);
     const auto expr_type = expression->known_type();
     if(expr_type) {
@@ -26,10 +31,14 @@ void SwitchStatement::code_gen(Codegen &gen, bool last_block) {
         if(linked) {
             auto variant_def = linked->as_variant_def();
             if (variant_def) {
+                if (scopes.size() == variant_def->variables.size() && !defScope.has_value()) {
+                    auto_default_case = true;
+                }
                 const auto def_type = variant_def->llvm_type(gen);
                 std::vector<llvm::Value*> idxList { gen.builder->getInt32(0), gen.builder->getInt32(0) };
                 const auto gep = gen.builder->CreateGEP(def_type, expr_value, idxList, "",gen.inbounds);
                 expr_value = gen.builder->CreateLoad(gen.builder->getInt32Ty(), gep, "");
+
             }
         }
     }
@@ -38,8 +47,10 @@ void SwitchStatement::code_gen(Codegen &gen, bool last_block) {
 
     bool all_scopes_return = true;
 
+    llvm::BasicBlock* caseBlock = nullptr;
+
     for(auto& scope : scopes) {
-        auto caseBlock = llvm::BasicBlock::Create(*gen.ctx, "case", gen.current_function);
+        caseBlock = llvm::BasicBlock::Create(*gen.ctx, "case", gen.current_function);
         gen.SetInsertPoint(caseBlock);
         scope.second.code_gen(gen);
         if(!gen.has_current_block_ended) {
@@ -71,7 +82,12 @@ void SwitchStatement::code_gen(Codegen &gen, bool last_block) {
             end->eraseFromParent();
             gen.destroy_current_scope = false;
             if(!defScope.has_value()) {
-                gen.error("A default case must be present when generating switch instruction or it must not be the last statement in the function");
+                if(auto_default_case && caseBlock) {
+                    switchInst->setDefaultDest(caseBlock);
+                } else {
+                    gen.error(
+                            "A default case must be present when generating switch instruction or it must not be the last statement in the function");
+                }
             }
         } else {
             gen.SetInsertPoint(end);

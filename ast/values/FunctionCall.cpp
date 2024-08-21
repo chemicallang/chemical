@@ -64,7 +64,13 @@ void to_llvm_args(
     }
 
     for (size_t i = start; i < values.size(); ++i) {
-        argValue = values[i]->llvm_arg_value(gen, call, i);
+
+        const auto func_param = func_type->func_param_for_arg_at(i);
+        if((func_param->type->get_direct_ref_struct() || func_param->type->get_direct_ref_variant()) && !(values[i]->as_struct() || values[i]->as_array_value() || values[i]->as_variant_call())) {
+            argValue = values[i]->llvm_pointer(gen);
+        } else {
+            argValue = values[i]->llvm_arg_value(gen, call, i);
+        }
 
 //        if(values[i]->value_type() == ValueType::Struct) {
 //            destructibles.emplace_back(values[i].get(), argValue);
@@ -74,7 +80,6 @@ void to_llvm_args(
         if (func_type->isVariadic && func_type->isInVarArgs(i) && argValue->getType()->isFloatTy()) {
             argValue = gen.builder->CreateFPExt(argValue, llvm::Type::getDoubleTy(*gen.ctx));
         } else {
-            const auto func_param = func_type->func_param_for_arg_at(i);
             argValue = gen.pack_dyn_obj(values[i].get(), func_param->type.get(), argValue);
         }
         args.emplace_back(argValue);

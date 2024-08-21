@@ -36,13 +36,7 @@ bool VariantCall::initialize_allocated(Codegen &gen, llvm::Value* allocated, llv
 
 llvm::Value* VariantCall::initialize_allocated(Codegen &gen, llvm::Value* allocated) {
     const auto member = chain->linked_node()->as_variant_member();
-    const auto largest_member = member->parent_node->largest_member();
-    llvm::Type* def_type;
-    if(largest_member == member) {
-        def_type = member->parent_node->llvm_type(gen);
-    } else {
-        def_type = member->parent_node->llvm_type_with_member(gen, member);
-    }
+    auto def_type = llvm_type(gen);
     if(!allocated) {
         allocated = gen.builder->CreateAlloca(def_type);
     }
@@ -54,6 +48,18 @@ llvm::Value* VariantCall::initialize_allocated(Codegen &gen, llvm::Value* alloca
 
 llvm::Value* VariantCall::llvm_value(Codegen &gen, BaseType *type) {
     return initialize_allocated(gen, nullptr);
+}
+
+llvm::Type* VariantCall::llvm_type(Codegen &gen) {
+    const auto member = chain->linked_node()->as_variant_member();
+    const auto largest_member = member->parent_node->largest_member();
+    llvm::Type* def_type;
+    if(largest_member == member) {
+        def_type = member->parent_node->llvm_type(gen);
+    } else {
+        def_type = member->parent_node->llvm_type_with_member(gen, member);
+    }
+    return def_type;
 }
 
 unsigned int VariantCall::store_in_struct(Codegen &gen, Value *parent, llvm::Value *allocated, llvm::Type *allocated_type, std::vector<llvm::Value *> idxList, unsigned int index, BaseType *expected_type) {
@@ -91,4 +97,24 @@ void VariantCall::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr
     for(auto& value : values) {
         value->link(linker, value);
     }
+}
+
+std::unique_ptr<BaseType> VariantCall::create_type() {
+    const auto member = chain->linked_node()->as_variant_member();
+    const auto largest_member = member->parent_node->largest_member();
+    if(largest_member == member) {
+        return member->parent_node->create_value_type();
+    } else {
+        // TODO when it's not the largest member, we must create the type so that
+        //  it reflects that, so user can't assign other members that are smaller than this member
+        return member->parent_node->create_value_type();
+    }
+}
+
+hybrid_ptr<BaseType> VariantCall::get_base_type() {
+    return hybrid_ptr<BaseType> { create_type().release(), true };
+}
+
+BaseType* VariantCall::known_type() {
+    return nullptr;
 }

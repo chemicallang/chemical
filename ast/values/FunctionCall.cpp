@@ -66,7 +66,7 @@ void to_llvm_args(
     for (size_t i = start; i < values.size(); ++i) {
 
         const auto func_param = func_type->func_param_for_arg_at(i);
-        if((func_param->type->get_direct_ref_struct() || func_param->type->get_direct_ref_variant()) && !(values[i]->as_struct() || values[i]->as_array_value() || values[i]->as_variant_call())) {
+        if((func_param->type->get_direct_ref_struct() || func_param->type->get_direct_ref_variant()) && (values[i]->reference() && values[i]->value_type() == ValueType::Struct) && !(values[i]->as_struct() || values[i]->as_array_value() || values[i]->as_variant_call())) {
             argValue = values[i]->llvm_pointer(gen);
         } else {
             argValue = values[i]->llvm_arg_value(gen, call, i);

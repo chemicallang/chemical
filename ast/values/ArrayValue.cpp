@@ -190,7 +190,7 @@ std::unique_ptr<BaseType> ArrayValue::element_type() const {
 }
 
 std::unique_ptr<BaseType> ArrayValue::create_type() {
-    return std::make_unique<ArrayType>(std::move(element_type()), array_size());
+    return std::make_unique<ArrayType>(element_type(), array_size());
 }
 
 hybrid_ptr<BaseType> ArrayValue::get_base_type() {

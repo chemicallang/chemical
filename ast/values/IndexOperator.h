@@ -20,10 +20,6 @@ public:
 
     }
 
-    hybrid_ptr<BaseType> get_base_type() override;
-
-    BaseType* known_type() override;
-
     void accept(Visitor *visitor) override {
         visitor->visit(this);
     }
@@ -48,6 +44,15 @@ public:
 
     IndexOperator* copy() override;
 
+    std::unique_ptr<BaseType> create_type() override;
+
+    hybrid_ptr<BaseType> get_base_type() override;
+
+    BaseType* known_type() override;
+
+    [[nodiscard]]
+    ValueType value_type() const override;
+
 #ifdef COMPILER_BUILD
 
     llvm::Value *elem_pointer(Codegen &gen, llvm::Type *, llvm::Value *ptr);
@@ -71,7 +76,5 @@ public:
     bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
 
 #endif
-
-    std::unique_ptr<BaseType> create_type() override;
 
 };

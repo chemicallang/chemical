@@ -20,6 +20,12 @@ public:
 
     void link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr) override;
 
+    std::unique_ptr<BaseType> create_type() override;
+
+    hybrid_ptr<BaseType> get_base_type() override;
+
+    BaseType* known_type() override;
+
     VariantCall* as_variant_call() override {
         return this;
     }
@@ -36,6 +42,8 @@ public:
     llvm::Value* initialize_allocated(Codegen &gen, llvm::Value* allocated);
 
     llvm::Value* llvm_value(Codegen &gen, BaseType *type = nullptr) override;
+
+    llvm::Type* llvm_type(Codegen &gen) override;
 
     unsigned int store_in_struct(Codegen &gen, Value *parent, llvm::Value *allocated, llvm::Type *allocated_type, std::vector<llvm::Value *> idxList, unsigned int index, BaseType *expected_type) override;
 

@@ -65,7 +65,19 @@ llvm::Type* VariantDefinition::llvm_chain_type(Codegen &gen, std::vector<std::un
 }
 
 void VariantDefinition::code_gen(Codegen &gen) {
-    llvm_type(gen);
+    if(generic_params.empty()) {
+        llvm_type(gen);
+    } else {
+        const auto total = total_generic_iterations();
+        const auto prev_itr = active_iteration;
+        int16_t i = 0;
+        while(i < total) {
+            set_active_iteration(i);
+            llvm_type(gen);
+            i++;
+        }
+        set_active_iteration(prev_itr);
+    }
 }
 
 bool VariantDefinition::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {

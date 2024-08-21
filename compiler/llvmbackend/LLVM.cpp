@@ -123,8 +123,8 @@ llvm::Type *ReferencedType::llvm_chain_type(Codegen &gen, std::vector<std::uniqu
 }
 
 llvm::Type *GenericType::llvm_type(Codegen &gen) {
-    const auto gen_struct = referenced->get_generic_struct();
-    const auto prev_itr = gen_struct->active_iteration;
+    const auto gen_struct = referenced->linked_node()->as_members_container();
+    const auto prev_itr = gen_struct->get_active_iteration();
     gen_struct->set_active_iteration(generic_iteration);
     auto type = referenced->llvm_type(gen);
     gen_struct->set_active_iteration(prev_itr);
@@ -132,8 +132,8 @@ llvm::Type *GenericType::llvm_type(Codegen &gen) {
 }
 
 llvm::Type *GenericType::llvm_param_type(Codegen &gen) {
-    const auto gen_struct = referenced->get_generic_struct();
-    const auto prev_itr = gen_struct->active_iteration;
+    const auto gen_struct = referenced->linked;
+    const auto prev_itr = gen_struct->get_active_iteration();
     gen_struct->set_active_iteration(generic_iteration);
     auto type = referenced->llvm_param_type(gen);
     gen_struct->set_active_iteration(prev_itr);

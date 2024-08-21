@@ -101,10 +101,17 @@ public:
     int16_t register_value(SymbolResolver& resolver, StructValue* structValue);
 
     /**
+     * get the active generic iteration
+     */
+    int16_t get_active_iteration() override {
+        return active_iteration;
+    }
+
+    /**
      * set's the active iteration for a generic function
      * this helps generics types pretend to be certain type
      */
-    void set_active_iteration(int16_t iteration);
+    void set_active_iteration(int16_t iteration) override;
 
     /**
      * set's the generic active iteration safely

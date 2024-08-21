@@ -339,3 +339,15 @@ void VariantCaseVariable::accept(Visitor *visitor) {
 ASTNode* VariantCaseVariable::parent() {
     return (ASTNode*) variant_case->switch_statement;
 }
+
+hybrid_ptr<BaseType> VariantCaseVariable::get_value_type() {
+    return hybrid_ptr<BaseType> { member_param->type.get(), false };
+}
+
+std::unique_ptr<BaseType> VariantCaseVariable::create_value_type() {
+    return std::unique_ptr<BaseType>(member_param->type->copy());
+}
+
+BaseType* VariantCaseVariable::known_type() {
+    return member_param->type.get();
+}

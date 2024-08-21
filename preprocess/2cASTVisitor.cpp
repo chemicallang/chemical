@@ -1160,7 +1160,7 @@ void CBeforeStmtVisitor::process_init_value(Value* value, const std::string& ide
             } else if(linked->as_struct_def()) {
                 allocate_struct_for_func_call(visitor, linked->as_struct_def(), call, func_type.get(), identifier);
             } else if(linked->as_variant_def()) {
-                allocate_struct_for_func_call(visitor, linked->as_struct_def(), call, func_type.get(), identifier);
+                allocate_struct_for_func_call(visitor, linked->as_variant_def(), call, func_type.get(), identifier);
             } else if(func_type->returnType->pure_type()->kind() == BaseTypeKind::Dynamic && linked->as_interface_def()) {
                 allocate_fat_pointer_for_value(visitor, call, identifier, nullptr);
             }

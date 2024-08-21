@@ -32,6 +32,12 @@ public:
 
     ASTNode* parent() override;
 
+    hybrid_ptr<BaseType> get_value_type() override;
+
+    std::unique_ptr<BaseType> create_value_type() override;
+
+    BaseType* known_type() override;
+
 #ifdef COMPILER_BUILD
 
     llvm::Value* llvm_pointer(Codegen &gen) override;

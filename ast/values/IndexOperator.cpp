@@ -137,3 +137,8 @@ IndexOperator* IndexOperator::copy() {
 BaseType* IndexOperator::known_type() {
     return parent_val->known_type()->known_child_type();
 }
+
+[[nodiscard]]
+ValueType IndexOperator::value_type() const {
+    return parent_val->known_type()->known_child_type()->value_type();
+}

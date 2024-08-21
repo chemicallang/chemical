@@ -137,10 +137,10 @@ FunctionDeclaration* BaseType::implicit_constructor_for(Value *value) {
 
 int16_t BaseType::set_generic_iteration(int16_t iteration) {
     if(iteration != -1) {
-        const auto generic_struct = get_generic_struct();
-        if (generic_struct) {
-            const auto prev_itr = generic_struct->active_iteration;
-            generic_struct->set_active_iteration(iteration);
+        const auto members_container = linked_node()->as_members_container();
+        if (members_container) {
+            const auto prev_itr = members_container->active_iteration;
+            members_container->set_active_iteration(iteration);
             return prev_itr;
         }
     }

@@ -77,7 +77,7 @@ void AccessChain::link(SymbolResolver &linker, BaseType *expected_type, std::uni
             if (linked && linked->as_variant_member() && value_ptr) {
                 auto& chain = *value_ptr;
                 chain = std::make_unique<VariantCall>(std::unique_ptr<AccessChain>((AccessChain*) chain.release()));
-                // no need to link further
+                chain->link(linker, chain);
                 return;
             }
         }
@@ -305,7 +305,8 @@ void AccessChain::set_generic_iterations(std::unordered_map<uint16_t, int16_t>& 
 void AccessChain::restore_active_iterations(std::unordered_map<uint16_t, int16_t>& restore) {
     for(auto& pair : restore) {
         const auto& value = values[pair.first];
-        const auto generic_struct = value->create_type()->get_generic_struct();
-        generic_struct->set_active_iteration(pair.second);
+        const auto type = value->create_type();
+        const auto members_container = type->linked_node()->as_members_container();
+        members_container->set_active_iteration(pair.second);
     }
 }

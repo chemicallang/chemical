@@ -11,6 +11,10 @@
 #include "ast/values/VariableIdentifier.h"
 #include "ast/statements/SwitchStatement.h"
 
+inline void restore(std::pair<BaseType*, int16_t> pair) {
+    pair.first->set_generic_iteration(pair.second);
+}
+
 #ifdef COMPILER_BUILD
 
 #include "compiler/Codegen.h"
@@ -121,6 +125,10 @@ llvm::FunctionType* VariantMemberParam::llvm_func_type(Codegen &gen) {
     return type->llvm_func_type(gen);
 }
 
+bool VariantMemberParam::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
+    return type->pure_type()->linked_node()->add_child_index(gen, indexes, name);
+}
+
 llvm::Value* VariantCase::llvm_value(Codegen &gen, BaseType *type) {
     const auto linked_member = chain->linked_node()->as_variant_member();
     auto index = linked_member->parent_node->direct_child_index(linked_member->name);
@@ -148,7 +156,29 @@ llvm::Value* VariantCaseVariable::llvm_pointer(Codegen &gen) {
 }
 
 llvm::Value* VariantCaseVariable::llvm_load(Codegen &gen) {
-    return gen.builder->CreateLoad(member_param->type->llvm_type(gen), llvm_pointer(gen));
+    return gen.builder->CreateLoad(llvm_type(gen), llvm_pointer(gen));
+}
+
+llvm::Type* VariantCaseVariable::llvm_type(Codegen &gen) {
+    if(is_generic_param()) {
+        auto itr = set_iteration();
+        const auto result = member_param->type->llvm_type(gen);
+        restore(itr);
+        return result;
+    } else {
+        return member_param->type->llvm_type(gen);
+    }
+}
+
+bool VariantCaseVariable::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
+    if(is_generic_param()) {
+        auto itr = set_iteration();
+        const auto result = member_param->add_child_index(gen, indexes, name);
+        restore(itr);
+        return result;
+    } else {
+        return member_param->add_child_index(gen, indexes, name);
+    }
 }
 
 #endif
@@ -305,6 +335,21 @@ void VariantMemberParam::declare_and_link(SymbolResolver &linker) {
     }
 }
 
+ASTNode* VariantMemberParam::child(int varIndex) {
+    const auto linked = type->linked_node();
+    return linked->child(varIndex);
+}
+
+int VariantMemberParam::child_index(const std::string &varName) {
+    return type->linked_node()->child_index(varName);
+}
+
+ASTNode* VariantMemberParam::child(const std::string &varName) {
+    const auto pure_type = type->pure_type();
+    const auto linked_node = pure_type->linked_node();
+    return linked_node->child(varName);
+}
+
 VariantCase::VariantCase(std::unique_ptr<AccessChain> _chain, ASTDiagnoser& diagnoser, SwitchStatement* statement) : chain(std::move(_chain)), switch_statement(statement) {
     const auto func_call = chain->values.back()->as_func_call();
     if(func_call) {
@@ -362,4 +407,48 @@ std::unique_ptr<BaseType> VariantCaseVariable::create_value_type() {
 
 BaseType* VariantCaseVariable::known_type() {
     return member_param->type.get();
+}
+
+std::pair<BaseType*, int16_t> VariantCaseVariable::set_iteration() {
+    const auto known_type = variant_case->switch_statement->expression->known_type();
+    const auto prev_itr = known_type->set_generic_iteration(known_type->get_generic_iteration());
+    return { known_type, prev_itr };
+}
+
+bool VariantCaseVariable::is_generic_param() {
+    const auto linked = member_param->type->linked_node();
+    return linked ? linked->as_generic_type_param() != nullptr : false;
+}
+
+ASTNode* VariantCaseVariable::child(const std::string &child_name) {
+    if(is_generic_param()) {
+        auto itr = set_iteration();
+        const auto result = member_param->child(child_name);
+        restore(itr);
+        return result;
+    } else {
+        return member_param->child(child_name);
+    }
+}
+
+int VariantCaseVariable::child_index(const std::string &child_index) {
+    if(is_generic_param()) {
+        auto itr = set_iteration();
+        const auto result = member_param->child_index(child_index);
+        restore(itr);
+        return result;
+    } else {
+        return member_param->child_index(child_index);
+    }
+}
+
+ASTNode* VariantCaseVariable::child(int index) {
+    if(is_generic_param()) {
+        auto itr = set_iteration();
+        const auto result = member_param->child(index);
+        restore(itr);
+        return result;
+    } else {
+        return member_param->child(index);
+    }
 }

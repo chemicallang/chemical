@@ -38,11 +38,25 @@ public:
 
     BaseType* known_type() override;
 
+    ASTNode* child(const std::string &name) override;
+
+    int child_index(const std::string &name) override;
+
+    ASTNode* child(int index) override;
+
+    std::pair<BaseType*, int16_t> set_iteration();
+
+    bool is_generic_param();
+
 #ifdef COMPILER_BUILD
 
     llvm::Value* llvm_pointer(Codegen &gen) override;
 
     llvm::Value* llvm_load(Codegen &gen) override;
+
+    llvm::Type* llvm_type(Codegen &gen) override;
+
+    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
 
 #endif
 

@@ -47,11 +47,19 @@ public:
         return (ASTNode*) parent_node;
     }
 
+    ASTNode* child(int index) override;
+
+    int child_index(const std::string &name) override;
+
+    ASTNode* child(const std::string &name) override;
+
 #ifdef COMPILER_BUILD
 
     llvm::Type* llvm_type(Codegen &gen) override;
 
     llvm::FunctionType* llvm_func_type(Codegen &gen) override;
+
+    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
 
 #endif
 

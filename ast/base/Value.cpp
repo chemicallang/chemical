@@ -12,6 +12,9 @@
 #include "ast/values/UIntValue.h"
 #include "ast/values/AccessChain.h"
 #include "ast/types/ArrayType.h"
+#include "ast/values/VariantCaseVariable.h"
+#include "ast/values/VariantCase.h"
+#include "ast/statements/SwitchStatement.h"
 #include <ranges>
 #include "preprocess/RepresentationVisitor.h"
 #include <sstream>
@@ -406,6 +409,19 @@ bool Value::should_build_chain_type(std::vector<std::unique_ptr<Value>>& chain, 
 }
 
 int16_t ChainValue::set_generic_iteration() {
+//    const auto linked = linked_node();
+//    if(linked) {
+//        const auto case_var = linked->as_variant_case_var();
+//        if (case_var) {
+//            const auto known_t = case_var->variant_case->switch_statement->expression->known_type();
+//            if (known_t) {
+//                const auto prev_itr = known_t->set_generic_iteration(known_t->get_generic_iteration());
+//                if (prev_itr > -2) {
+//                    return prev_itr;
+//                }
+//            }
+//        }
+//    }
     const auto type = create_type();
     if (type) {
         const auto prev_itr = type->set_generic_iteration(type->get_generic_iteration());

@@ -44,9 +44,9 @@ bool GenericType::subscribe_to_parent_generic() {
 }
 
 int16_t GenericType::report_generic_args(SymbolResolver &linker, std::vector<std::unique_ptr<BaseType>>& gen_args) {
-    const auto generic_struct = referenced->get_generic_struct();
-    if(generic_struct) {
-        return generic_struct->register_generic_args(linker, gen_args);
+    const auto members_container = referenced->linked_node()->as_members_container();
+    if(members_container) {
+        return members_container->register_generic_args(linker, gen_args);
     }
     return -1;
 }

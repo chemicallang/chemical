@@ -8,6 +8,8 @@
 class PointerType : public BaseType {
 public:
 
+    static const PointerType void_ptr_instance;
+
     hybrid_ptr<BaseType> type;
 
     explicit PointerType(std::unique_ptr<BaseType> type) : type(type.release(), true) {

@@ -7,6 +7,8 @@
 class IntType : public IntNType {
 public:
 
+    static const IntType instance;
+
     [[nodiscard]]
     unsigned int num_bits() const override {
         return 32;

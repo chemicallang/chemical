@@ -7,6 +7,8 @@
 class DoubleType : public BaseType {
 public:
 
+    static const DoubleType instance;
+
     uint64_t byte_size(bool is64Bit) override {
         return 8;
     }

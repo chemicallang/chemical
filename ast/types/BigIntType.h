@@ -7,6 +7,8 @@
 class BigIntType : public IntNType {
 public:
 
+    static const BigIntType instance;
+
     uint64_t byte_size(bool is64Bit) override {
         return 8;
     }

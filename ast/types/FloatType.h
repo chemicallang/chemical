@@ -7,6 +7,8 @@
 class FloatType : public BaseType {
 public:
 
+    static const FloatType instance;
+
     uint64_t byte_size(bool is64Bit) override {
         return 4;
     }

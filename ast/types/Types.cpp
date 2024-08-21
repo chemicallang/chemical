@@ -2,6 +2,7 @@
 
 #include "ast/base/Value.h"
 #include "ArrayType.h"
+#include "AnyType.h"
 #include "BoolType.h"
 #include "CharType.h"
 #include "UCharType.h"
@@ -12,6 +13,16 @@
 #include "ReferencedValueType.h"
 #include "StringType.h"
 #include "LiteralType.h"
+#include "VoidType.h"
+
+const AnyType AnyType::instance;
+const BoolType BoolType::instance;
+const CharType CharType::instance;
+const DoubleType DoubleType::instance;
+const FloatType FloatType::instance;
+const StringType StringType::instance;
+const UCharType UCharType::instance;
+const VoidType VoidType::instance;
 
 bool ArrayType::satisfies(Value *value) {
     if(value->value_type() != ValueType::Array) return false;

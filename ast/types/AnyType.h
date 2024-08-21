@@ -7,6 +7,8 @@
 class AnyType : public BaseType {
 public:
 
+    static const AnyType instance;
+
     bool satisfies(ValueType type) override {
         return true;
     }

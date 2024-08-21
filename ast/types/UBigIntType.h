@@ -7,6 +7,8 @@
 class UBigIntType : public IntNType {
 public:
 
+    static const UBigIntType instance;
+
     [[nodiscard]]
     unsigned int num_bits() const override {
         return 64;

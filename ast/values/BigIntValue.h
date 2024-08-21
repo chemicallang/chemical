@@ -5,7 +5,7 @@
 #include "IntNumValue.h"
 #include "ast/types/BigIntType.h"
 
-class BigIntValue : public IntNumValue, public BigIntType {
+class BigIntValue : public IntNumValue {
 public:
 
     long long value;
@@ -27,11 +27,11 @@ public:
     }
 
     hybrid_ptr<BaseType> get_base_type() override {
-        return hybrid_ptr<BaseType> { this, false };
+        return hybrid_ptr<BaseType> { (BaseType*) &BigIntType::instance, false };
     }
 
     BaseType* known_type() override {
-        return this;
+        return (BaseType*) &BigIntType::instance;
     }
 
     [[nodiscard]] std::unique_ptr<BaseType> create_type() override {

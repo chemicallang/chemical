@@ -5,7 +5,7 @@
 #include "IntNumValue.h"
 #include "ast/types/UIntType.h"
 
-class UIntValue : public IntNumValue, public UIntType {
+class UIntValue : public IntNumValue {
 public:
 
     unsigned int value;
@@ -15,11 +15,11 @@ public:
     }
 
     hybrid_ptr<BaseType> get_base_type() override {
-        return hybrid_ptr<BaseType> { this, false };
+        return hybrid_ptr<BaseType> { (BaseType*) &UIntType::instance, false };
     }
 
     BaseType* known_type() override {
-        return this;
+        return (BaseType*) &UIntType::instance;
     }
 
     uint64_t byte_size(bool is64Bit) override {

@@ -7,6 +7,8 @@
 class ShortType : public IntNType {
 public:
 
+    static const ShortType instance;
+
     [[nodiscard]]
     unsigned int num_bits() const override {
         return 16;

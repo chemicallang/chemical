@@ -87,6 +87,20 @@ bool BaseType::requires_destructor() {
     }
 }
 
+ASTNode* BaseType::get_direct_ref_node() {
+    const auto k = kind();
+    if(k == BaseTypeKind::Referenced || k == BaseTypeKind::Generic) {
+        return linked_node();
+    } else {
+        return nullptr;
+    }
+}
+
+StructDefinition* BaseType::get_direct_ref_struct() {
+    const auto ref_node = get_direct_ref_node();
+    return ref_node ? ref_node->as_struct_def() : nullptr;
+}
+
 bool BaseType::is_ref_struct() {
     const auto k = kind();
     if(k == BaseTypeKind::Generic) {

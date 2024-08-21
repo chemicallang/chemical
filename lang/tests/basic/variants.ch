@@ -65,4 +65,8 @@ func test_variants() {
         var c = { OptVariant.None }
         return get_value(c[0]) == -1;
     })
+    test("variants can be stored in arrays - 3", () => {
+        var c : OptVariant[] = { OptVariant.None, OptVariant.Some(43) }
+        return get_value(c[0]) == -1 && get_value(c[1]) == 43;
+    })
 }

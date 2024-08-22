@@ -9,6 +9,7 @@
 #include "ast/statements/Typealias.h"
 #include "ast/statements/Continue.h"
 #include "ast/statements/Break.h"
+#include "ast/statements/DestructStmt.h"
 #include "ast/statements/Return.h"
 #include "ast/statements/Assignment.h"
 #include "ast/statements/SwitchStatement.h"
@@ -96,6 +97,7 @@
 #include "ast/values/UBigIntValue.h"
 #include "ast/values/SizeOfValue.h"
 #include "ast/values/UInt128Value.h"
+#include "ast/values/IsValue.h"
 #include "ast/values/UIntValue.h"
 #include "ast/values/ULongValue.h"
 #include "ast/utils/CommonVisitor.h"
@@ -2873,6 +2875,19 @@ void ToCAstVisitor::visit(Namespace *ns) {
     for(auto& node : ns->nodes) {
         node->accept(this);
     }
+}
+
+void ToCAstVisitor::visit(DestructStmt *delStmt) {
+
+}
+
+void ToCAstVisitor::visit(IsValue *isValue) {
+    bool result = false;
+    auto comp_time = isValue->get_comp_time_result();
+    if(comp_time.has_value()) {
+        result = comp_time.value();
+    }
+    write(result ? '1' : '0');
 }
 
 void ToCAstVisitor::visit(WhileLoop *whileLoop) {

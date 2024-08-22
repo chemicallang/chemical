@@ -320,6 +320,10 @@ public:
 
     void visit(VariantCall *call) override;
 
+    void visit(DestructStmt *delStmt) override;
+
+    void visit(IsValue *casted) override;
+
     void visit(UnnamedUnion *def) override;
 
     void visit(UnnamedStruct *def) override;

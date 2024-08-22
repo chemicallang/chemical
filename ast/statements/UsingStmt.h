@@ -5,10 +5,10 @@
 #include "ast/values/AccessChain.h"
 
 /**
- * using statement is just in c++, it allows users to bring symbols in current scope
+ * using statement just like in c++, it allows users to bring symbols in current scope
  * from namespaces
  */
-class UsingStmt : public ASTNode {
+class UsingStmt : public AnnotableNode {
 public:
 
     AccessChain chain;

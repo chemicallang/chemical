@@ -1190,6 +1190,13 @@ void CBeforeStmtVisitor::visit(VarInitStatement *init) {
     CommonVisitor::visit(init);
 }
 
+struct DeclaredNodeData {
+    union {
+        // total iterations that are done
+        int16_t iterations_done;
+    } struct_def;
+};
+
 class CTopLevelDeclarationVisitor : public Visitor, public SubVisitor {
 public:
 
@@ -1203,7 +1210,7 @@ public:
     /**
      * nodes can be declared early if present in generics
      */
-    std::unordered_map<ASTNode*, bool> declared_nodes;
+    std::unordered_map<ASTNode*, DeclaredNodeData> declared_nodes;
 
     // this will not declare it's contained functions
     void declare_struct_def_only(StructDefinition* def, bool check_declared);
@@ -1999,7 +2006,6 @@ void CTopLevelDeclarationVisitor::declare_struct_def_only(StructDefinition* def,
     visitor->indentation_level-=1;
     visitor->new_line_and_indent();
     write("};");
-    declared_nodes[def] = true;
 }
 
 void CTopLevelDeclarationVisitor::declare_struct(StructDefinition* def, bool check_declared) {
@@ -2032,13 +2038,18 @@ void CTopLevelDeclarationVisitor::visit(StructDefinition* def) {
     if(def->generic_params.empty()) {
         declare_struct(def, true);
     } else {
-        const auto total = def->total_generic_iterations();
         int16_t itr = 0;
+        auto found = declared_nodes.find(def);
+        if(found != declared_nodes.end()) {
+            itr = found->second.struct_def.iterations_done;
+        }
+        const auto total = def->total_generic_iterations();
         while(itr < total) {
             def->set_active_iteration(itr);
             declare_struct(def, false);
             itr++;
         }
+        declared_nodes[def].struct_def.iterations_done = total;
     }
 }
 
@@ -2231,7 +2242,7 @@ void CTopLevelDeclarationVisitor::visit(ImplDefinition *def) {
 }
 
 void CTopLevelDeclarationVisitor::reset() {
-    declared_nodes.clear();
+//    declared_nodes.clear();
 }
 
 void CValueDeclarationVisitor::visit(TypealiasStatement *stmt) {

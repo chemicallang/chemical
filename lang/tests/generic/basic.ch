@@ -1,4 +1,5 @@
 import "../test.ch"
+import "./other.ch"
 
 func <T = int, K = int, R = int> gen_sum(a : T, b : K) : R {
     return a + b;
@@ -52,6 +53,14 @@ struct ShortPairGen {
     func add(&self) : short {
         return pair.add();
     }
+}
+
+func get_other_gen_long(val : long) : OtherGen9<long> {
+    return OtherGen9<long> { value : val }
+}
+
+func get_other_gen_long_value(t : OtherGen9<long>) : long {
+    return t.value;
 }
 
 func test_basic_generics() {
@@ -109,5 +118,13 @@ func test_basic_generics() {
             b : 7
         }
         return p.ext_div<short, short, short>() == 8;
+    })
+    test("generics declared and used from other files work - 1", () => {
+        const g = get_other_gen(20);
+        return get_other_gen_value(g) == 20;
+    })
+    test("generics declared and used from other files work - 2", () => {
+        const g = get_other_gen_long(22);
+        return get_other_gen_long_value(g) == 22;
     })
 }

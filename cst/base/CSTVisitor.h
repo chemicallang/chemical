@@ -169,6 +169,10 @@ public:
         visitCompoundCommon((CompoundCSTToken *) castCst);
     }
 
+    virtual void visitIsValue(CompoundCSTToken *castCst) {
+        visitCompoundCommon((CompoundCSTToken *) castCst);
+    }
+
     virtual void visitAddrOf(CompoundCSTToken *castCst) {
         visitCompoundCommon((CompoundCSTToken *) castCst);
     }

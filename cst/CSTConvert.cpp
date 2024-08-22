@@ -1565,6 +1565,11 @@ void CSTConverter::visitCast(CompoundCSTToken *castCst) {
     values.emplace_back(std::make_unique<CastedValue>(value(), type()));
 }
 
+void CSTConverter::visitIsValue(CompoundCSTToken *castCst) {
+    visit(castCst->tokens);
+    values.emplace_back(std::make_unique<CastedValue>(value(), type()));
+}
+
 void CSTConverter::visitAddrOf(CompoundCSTToken *addrOf) {
     addrOf->tokens[1]->accept(this);
     values.emplace_back(std::make_unique<AddrOfValue>(value()));

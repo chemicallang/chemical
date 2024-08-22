@@ -12,6 +12,9 @@
 class CastedValue : public Value {
 public:
 
+    std::unique_ptr<Value> value;
+    std::unique_ptr<BaseType> type;
+
     CastedValue(std::unique_ptr<Value> value, std::unique_ptr<BaseType> type);
 
     CastedValue *copy() override;
@@ -56,6 +59,4 @@ public:
         return type->kind();
     }
 
-    std::unique_ptr<Value> value;
-    std::unique_ptr<BaseType> type;
 };

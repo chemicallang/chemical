@@ -302,6 +302,8 @@ public:
 
     void visitCast(CompoundCSTToken *castCst) override;
 
+    void visitIsValue(CompoundCSTToken *castCst) override;
+
     void visitAddrOf(CompoundCSTToken *castCst) override;
 
     void visitDereference(CompoundCSTToken *notCst) override;

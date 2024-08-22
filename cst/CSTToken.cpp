@@ -174,6 +174,9 @@ void CSTToken::accept(CSTVisitor *visitor) {
         case LexTokenType::CompCastValue:
             visitor->visitCast((CompoundCSTToken*) this);
             return;
+        case LexTokenType::CompIsValue:
+            visitor->visitIsValue((CompoundCSTToken*) this);
+            return;
         case LexTokenType::CompAddrOf:
             visitor->visitAddrOf((CompoundCSTToken*) this);
             return;

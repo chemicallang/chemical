@@ -116,6 +116,8 @@ class AccessChain;
 
 class CastedValue;
 
+class IsValue;
+
 class AddrOfValue;
 
 class RetStructParamValue;
@@ -462,6 +464,10 @@ public:
     }
 
     virtual void visit(CastedValue* casted) {
+        visitCommonValue((Value*) casted);
+    }
+
+    virtual void visit(IsValue* casted) {
         visitCommonValue((Value*) casted);
     }
 

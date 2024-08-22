@@ -65,7 +65,7 @@ public:
         visitCompoundCommon((CompoundCSTToken *) usingStmt);
     }
 
-    virtual void visitDelete(CompoundCSTToken *delStmt) {
+    virtual void visitDestruct(CompoundCSTToken *delStmt) {
         visitCompoundCommon((CompoundCSTToken *) delStmt);
     }
 

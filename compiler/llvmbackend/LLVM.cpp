@@ -51,7 +51,7 @@
 #include "ast/structures/VariablesContainer.h"
 #include "ast/structures/MembersContainer.h"
 #include "ast/statements/ThrowStatement.h"
-#include "ast/statements/DeleteStmt.h"
+#include "ast/statements/DestructStmt.h"
 #include "ast/values/FunctionCall.h"
 #include "ast/values/ArrayValue.h"
 #include "ast/types/FunctionType.h"
@@ -803,7 +803,7 @@ void AssignStatement::code_gen(Codegen &gen) {
     }
 }
 
-void DeleteStmt::code_gen(Codegen &gen) {
+void DestructStmt::code_gen(Codegen &gen) {
     auto pure_type = identifier->get_pure_type();
     if(is_array) {
         if(pure_type->kind() != BaseTypeKind::Array) {
@@ -818,7 +818,7 @@ void DeleteStmt::code_gen(Codegen &gen) {
         }
         auto pointee = ((PointerType*) elem_type)->type.get();
         gen.destruct(identifier->llvm_pointer(gen), arr_type->array_size, pointee, this, [](Codegen* gen, llvm::Value* structPtr, void* data){
-            const auto stmt = (DeleteStmt*) data;
+            const auto stmt = (DestructStmt*) data;
             std::vector<llvm::Value*> args;
             args.emplace_back(structPtr);
             gen->builder->CreateCall(stmt->free_func_linked->llvm_func_type(*gen), stmt->free_func_linked->llvm_pointer(*gen), args);

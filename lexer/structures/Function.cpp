@@ -18,6 +18,34 @@ bool Lexer::lexReturnStatement() {
     }
 }
 
+bool Lexer::lexDestructStatement() {
+    if(lexWSKeywordToken("destruct", '[')) {
+        unsigned start = tokens.size() - 1;
+        if(lexOperatorToken('[')) {
+            lexWhitespaceToken();
+            // optional value
+            lexAccessChainOrValue();
+            lexWhitespaceToken();
+            if(!lexOperatorToken(']')) {
+                error("expected a ']' after the access chain value");
+                return true;
+            }
+            if(!lexWhitespaceToken()) {
+                error("expected whitespace after ']' in destruct statement");
+                return true;
+            }
+        }
+        if(!lexAccessChainOrValue()) {
+            error("expected a pointer value for the destruct statement");
+            return true;
+        }
+        compound_from(start, LexTokenType::CompDestruct);
+        return true;
+    } else {
+        return false;
+    }
+}
+
 void Lexer::lexParameterList(bool optionalTypes, bool defValues, bool lexSelfParam, bool variadicParam) {
     unsigned index = 0; // param identifier index
     do {
@@ -198,10 +226,13 @@ bool Lexer::lexFunctionStructureTokens(bool allow_declarations, bool allow_exten
     // inside the block allow return statements
     auto prevReturn = isLexReturnStatement;
     isLexReturnStatement = true;
+    auto prevDestruct = isLexDestructStatement;
+    isLexDestructStatement = true;
     if(!lexBraceBlock("function") && !allow_declarations) {
         error("expected the function definition after the signature");
     }
     isLexReturnStatement = prevReturn;
+    isLexDestructStatement = prevDestruct;
 
     compound_collectable(start, LexTokenType::CompFunction);
 

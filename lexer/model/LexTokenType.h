@@ -39,7 +39,7 @@ enum class LexTokenType : uint8_t {
     CompContinue,
     CompThrow,
     CompUsing,
-    CompDelete,
+    CompDestruct,
     CompIf,
     CompImport,
     CompIncDec,

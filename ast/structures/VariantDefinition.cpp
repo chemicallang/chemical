@@ -42,7 +42,8 @@ llvm::Type* VariantDefinition::llvm_type(Codegen& gen) {
     if(found != llvm_struct_types.end()) {
         return found->second;
     }
-    const auto type = llvm_type_with_member(gen, largest_member(), false);
+    const auto largest = largest_member();
+    const auto type = llvm_type_with_member(gen, largest, false);
     llvm_struct_types[active_iteration] = type;
     return type;
 }
@@ -77,13 +78,14 @@ void VariantDefinition::code_gen(Codegen &gen) {
     } else {
         const auto total = total_generic_iterations();
         const auto prev_itr = active_iteration;
-        int16_t i = 0;
+        int16_t i = generated_iterations;
         while(i < total) {
             set_active_iteration(i);
             llvm_type(gen);
             i++;
         }
         set_active_iteration(prev_itr);
+        generated_iterations = total;
     }
 }
 
@@ -96,7 +98,7 @@ bool VariantDefinition::add_child_index(Codegen &gen, std::vector<llvm::Value *>
 }
 
 void VariantDefinition::code_gen_generic(Codegen &gen) {
-
+    code_gen(gen);
 }
 
 void VariantDefinition::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {

@@ -9,7 +9,11 @@ std::unique_ptr<BaseType> EnumMember::create_value_type() {
 }
 
 hybrid_ptr<BaseType> EnumMember::get_value_type() {
-    return hybrid_ptr<BaseType> { this, false };
+    return hybrid_ptr<BaseType> { (BaseType*) &IntType::instance, false };
+}
+
+BaseType* EnumMember::known_type() {
+    return (BaseType*) &IntType::instance;
 }
 
 ASTNode *EnumDeclaration::child(const std::string &name) {

@@ -22,6 +22,8 @@ import "generic/basic.ch"
 import "generic/deduction.ch"
 import "type/datatype/vectors.ch"
 import "type/datatype/array_refs.ch"
+import "type/datatype/optional.ch"
+import "type/datatype/result.ch"
 import "basic/dynamic.ch"
 import "basic/variants.ch"
 
@@ -52,5 +54,7 @@ func main() {
     test_array_refs();
     test_dynamic_dispatch();
     test_variants();
+    test_optional_type();
+    test_result_type();
     print_test_stats();
 }

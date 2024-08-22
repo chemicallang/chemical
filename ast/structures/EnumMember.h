@@ -5,7 +5,7 @@
 #include "ast/base/ASTNode.h"
 #include "ast/types/IntType.h"
 
-class EnumMember : public ASTNode, public IntType {
+class EnumMember : public ASTNode {
 public:
 
     std::string name;
@@ -53,5 +53,7 @@ public:
     std::unique_ptr<BaseType> create_value_type() override;
 
     hybrid_ptr<BaseType> get_value_type() override;
+
+    BaseType* known_type() override;
 
 };

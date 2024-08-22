@@ -119,6 +119,14 @@ std::vector<FlatIGFile> ASTProcessor::determine_mod_imports(LabModule* module) {
 }
 
 void ASTProcessor::sym_res(Scope& scope, bool is_c_file, const std::string& abs_path) {
+    // dispose symbols of previous file (if any required) before proceeding
+    if(!resolver->dispose_file_symbols.empty()) {
+        for(auto& sym : resolver->dispose_file_symbols) {
+            resolver->undeclare(sym, true);
+        }
+        resolver->dispose_file_symbols.clear();
+    }
+    // doing stuff
     auto prev_has_errors = resolver->has_errors;
     if (is_c_file) {
         resolver->override_symbols = true;

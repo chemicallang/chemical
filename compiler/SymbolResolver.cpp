@@ -31,6 +31,18 @@ void SymbolResolver::declare(const std::string& name, ASTNode* node) {
     }
 }
 
+void SymbolResolver::undeclare(const std::string& name, bool error_out) {
+    auto& last = current.back();
+    auto found = last.find(name);
+    if(found == last.end()) {
+        if(error_out) {
+            error("symbol to undeclare with name '" + name + "' not found\n");
+        }
+    } else {
+        last.erase(found);
+    }
+}
+
 void SymbolResolver::declare_function(const std::string& name, FunctionDeclaration* declaration) {
     if(name == "_") return;
     auto& last = current.back();

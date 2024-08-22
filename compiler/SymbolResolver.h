@@ -62,6 +62,13 @@ public:
     tsl::ordered_map<ASTNode*, bool> imported_generic;
 
     /**
+     * stores symbols that will be disposed after this file has been completely symbol resolved
+     * for example using namespace std; this will always be disposed unless propagate annotation exists
+     * above it
+     */
+    std::vector<std::string> dispose_file_symbols;
+
+    /**
      * constructor
      */
     explicit SymbolResolver(bool is64Bit);
@@ -75,6 +82,11 @@ public:
      * declares a node with string : name
      */
     void declare(const std::string &name, ASTNode *node);
+
+    /**
+     * symbol will be undeclared if present, otherwise error if error_out
+     */
+    void undeclare(const std::string& name, bool error_out = true);
 
     /**
      * helper method that should be used to declare functions that takes into account

@@ -20,16 +20,25 @@ void UsingStmt::declare_and_link(SymbolResolver &linker) {
         linker.error("couldn't find linked node with '" + chain.chain_representation() + "' in using statement");
         return;
     }
+    const auto no_propagate = !has_annotation(AnnotationKind::Propagate);
     if(is_namespace) {
         auto ns = linked->as_namespace();
         if(ns) {
             for(auto& node : ns->nodes) {
-                node->declare_top_level(linker);
+                auto id = node->ns_node_identifier();
+                linker.declare(id, node.get());
+                if(no_propagate) {
+                    linker.dispose_file_symbols.emplace_back(id);
+                }
             }
         } else {
             linker.error("expected '" + chain.chain_representation() + "' to be a namespace in using statement, however it isn't");
         }
     } else {
-        linked->declare_top_level(linker);
+        auto id = linked->ns_node_identifier();
+        linker.declare(id, linked);
+        if(no_propagate) {
+            linker.dispose_file_symbols.emplace_back(id);
+        }
     }
 }

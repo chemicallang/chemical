@@ -34,6 +34,9 @@ enum class AnnotationKind {
     // structs or unions can be declared anonymous
     Anonymous,
 
+    // this allows us to propagate symbols in 'using namespace' statement
+    Propagate,
+
     IndexInlineStart=Inline,
     IndexInlineEnd=MinSize
 

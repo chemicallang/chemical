@@ -48,6 +48,11 @@ public:
 
     void declare_and_link(SymbolResolver &linker) override;
 
+    /**
+     * should be called once, to do all the work
+     */
+    void link_all(SymbolResolver &linker);
+
 #ifdef COMPILER_BUILD
 
     void code_gen(Codegen &gen) override;

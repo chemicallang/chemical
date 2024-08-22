@@ -28,6 +28,22 @@ struct ContOptVariant {
     var v : OptVariant
 }
 
+variant GenVar<T> {
+    First(a : T, b: T)
+    Second(a : T, b : T, c : T)
+}
+
+func get_sum(v : GenVar<int>) : int {
+    switch(v) {
+        case GenVar.First(a, b) => {
+            return a + b;
+        }
+        case GenVar.Second(a, b, c) => {
+            return a + b + c;
+        }
+    }
+}
+
 func test_variants() {
     test("variants can be passed to functions - 1", () => {
         return get_value(OptVariant.Some(10)) == 10;
@@ -65,5 +81,19 @@ func test_variants() {
     test("variants can be stored in arrays - 3", () => {
         var c : OptVariant[] = { OptVariant.None, OptVariant.Some(43) }
         return get_value(c[0]) == -1 && get_value(c[1]) == 43;
+    })
+    test("variants can be stored in variables", () => {
+        var v = OptVariant.Some(12)
+        return get_value(v) == 12;
+    })
+    test("variants can be stored in variables", () => {
+        var v = OptVariant.None;
+        return get_value(v) == -1
+    })
+    test("generic variants work - 1", () => {
+        return get_sum(GenVar.First(20, 30)) == 50;
+    })
+    test("generic variants work - 2", () => {
+        return get_sum(GenVar.Second(20, 30, 2)) == 52;
     })
 }

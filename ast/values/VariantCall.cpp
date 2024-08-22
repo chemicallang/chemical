@@ -52,6 +52,16 @@ llvm::Value* VariantCall::llvm_value(Codegen &gen, BaseType *type) {
     return initialize_allocated(gen, nullptr);
 }
 
+llvm::AllocaInst* VariantCall::llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) {
+    const auto member = chain->linked_node()->as_variant_member();
+    auto def_type = expected_type ? expected_type->llvm_type(gen) : llvm_type(gen);
+    auto allocated = gen.builder->CreateAlloca(def_type);
+    if(initialize_allocated(gen, allocated, def_type, member)) {
+        return allocated;
+    }
+    return nullptr;
+}
+
 llvm::Type* VariantCall::llvm_type(Codegen &gen) {
     const auto member = chain->linked_node()->as_variant_member();
     const auto largest_member = member->parent_node->largest_member();

@@ -29,6 +29,13 @@ void Scope::declare_and_link(SymbolResolver &linker) {
     }
 }
 
+void Scope::link_all(SymbolResolver &linker) {
+    for (const auto &node: nodes) {
+        node->declare_top_level(linker);
+        node->declare_and_link(linker);
+    }
+}
+
 void Scope::stopInterpretOnce() {
 
 }

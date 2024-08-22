@@ -154,7 +154,7 @@ llvm::Value* VariantCaseVariable::llvm_pointer(Codegen &gen) {
     } else {
         container_type = linked_def->llvm_type_with_member(gen, linked_member);
     }
-    std::vector<llvm::Value*> idxList { gen.builder->getInt32(0), gen.builder->getInt32(1), gen.builder->getInt32((int) member_param->index) };
+    std::vector<llvm::Value*> idxList { gen.builder->getInt32(0), gen.builder->getInt32(1), gen.builder->getInt32(0), gen.builder->getInt32((int) member_param->index) };
     return gen.builder->CreateGEP(container_type, holder_pointer, idxList, "", gen.inbounds);
 }
 

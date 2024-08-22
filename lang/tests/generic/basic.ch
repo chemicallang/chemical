@@ -63,6 +63,31 @@ func get_other_gen_long_value(t : OtherGen9<long>) : long {
     return t.value;
 }
 
+struct OV1Point {
+    var a : int
+    var b : int
+    var c : int
+}
+
+func get_other_var1_point(value : int, some : bool) : OtherVar1<OV1Point> {
+    if(some) {
+        return OtherVar1.Some(OV1Point { a : value, b : value, c : value })
+    } else {
+        return OtherVar1.None;
+    }
+}
+
+func get_other_var1_point_value(other : OtherVar1<OV1Point>) : int {
+    switch(other) {
+        case OtherVar1.Some(value) => {
+            return value.a + value.b + value.c;
+        }
+        case OtherVar1.None => {
+            return -1;
+        }
+    }
+}
+
 func test_basic_generics() {
     test("test that basic generic function with no generic args works", () => {
         return gen_sum(10, 20) == 30;
@@ -119,12 +144,28 @@ func test_basic_generics() {
         }
         return p.ext_div<short, short, short>() == 8;
     })
-    test("generics declared and used from other files work - 1", () => {
+    test("generic structs declared and used from other files work - 1", () => {
         const g = get_other_gen(20);
         return get_other_gen_value(g) == 20;
     })
-    test("generics declared and used from other files work - 2", () => {
+    test("generic structs declared and used from other files work - 2", () => {
         const g = get_other_gen_long(22);
         return get_other_gen_long_value(g) == 22;
+    })
+    test("generic variants declared and used from other files work - 1", () => {
+        const g = get_other_var1(10, true);
+        return get_other_var1_value(g) == 10;
+    })
+    test("generic variants declared and used from other files work - 2", () => {
+        const g = get_other_var1(10, false);
+        return get_other_var1_value(g) == -1;
+    })
+    test("generic variants declared and used from other files work - 3", () => {
+        const g = get_other_var1_point(10, true);
+        return get_other_var1_point_value(g) == 30;
+    })
+    test("generic variants declared and used from other files work - 4", () => {
+        const g = get_other_var1_point(10, false);
+        return get_other_var1_point_value(g) == -1;
     })
 }

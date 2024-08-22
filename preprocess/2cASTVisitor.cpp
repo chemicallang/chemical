@@ -1194,6 +1194,7 @@ struct DeclaredNodeData {
     union {
         // total iterations that are done
         int16_t iterations_done;
+        bool declared_struct;
     } struct_def;
     union {
         // total iterations that are done
@@ -1980,7 +1981,15 @@ void CTopLevelDeclarationVisitor::declare_struct_def_only(StructDefinition* def,
     if(do_check) {
         auto found = declared_nodes.find(def);
         if (found != declared_nodes.end()) {
-            return;
+            if(found->second.struct_def.declared_struct) {
+                return;
+            } else {
+                found->second.struct_def.declared_struct = true;
+            }
+        } else {
+            auto& c = declared_nodes[def];
+            c.struct_def.iterations_done = 0;
+            c.struct_def.declared_struct = true;
         }
     }
     for(auto& mem : def->variables) {

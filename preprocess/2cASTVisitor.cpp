@@ -1200,7 +1200,15 @@ public:
             CValueDeclarationVisitor* value_visitor
     );
 
-    void declare_struct(StructDefinition* structDef);
+    /**
+     * nodes can be declared early if present in generics
+     */
+    std::unordered_map<ASTNode*, bool> declared_nodes;
+
+    // this will not declare it's contained functions
+    void declare_struct_def_only(StructDefinition* def, bool check_declared);
+
+    void declare_struct(StructDefinition* structDef, bool check_declared);
 
     void declare_variant(VariantDefinition* structDef);
 
@@ -1221,6 +1229,8 @@ public:
     void visit(InterfaceDefinition *interfaceDefinition) override;
 
     void visit(ImplDefinition *implDefinition) override;
+
+    void reset();
 
 };
 
@@ -1955,19 +1965,12 @@ void CTopLevelDeclarationVisitor::visit(Namespace *ns) {
     }
 }
 
-void CTopLevelDeclarationVisitor::declare_struct(StructDefinition* def) {
-    // no need to forward declare struct when inlining function types
-    if(!visitor->inline_struct_members_fn_types) {
-        // forward declaring struct for function types that take a pointer to it
-        // typedefing struct before usage
-        //    visitor->new_line_and_indent();
-        //    write("typedef struct ");
-        //    node_parent_name(visitor, def);
-        //    struct_name(visitor, def);
-        //    write(' ');
-        //    node_parent_name(visitor, def);
-        //    struct_name(visitor, def);
-        //    write(';');
+void CTopLevelDeclarationVisitor::declare_struct_def_only(StructDefinition* def, bool do_check) {
+    if(do_check) {
+        auto found = declared_nodes.find(def);
+        if (found != declared_nodes.end()) {
+            return;
+        }
     }
     for(auto& mem : def->variables) {
         mem.second->accept(value_visitor);
@@ -1996,6 +1999,24 @@ void CTopLevelDeclarationVisitor::declare_struct(StructDefinition* def) {
     visitor->indentation_level-=1;
     visitor->new_line_and_indent();
     write("};");
+    declared_nodes[def] = true;
+}
+
+void CTopLevelDeclarationVisitor::declare_struct(StructDefinition* def, bool check_declared) {
+    // no need to forward declare struct when inlining function types
+    if(!visitor->inline_struct_members_fn_types) {
+        // forward declaring struct for function types that take a pointer to it
+        // typedefing struct before usage
+        //    visitor->new_line_and_indent();
+        //    write("typedef struct ");
+        //    node_parent_name(visitor, def);
+        //    struct_name(visitor, def);
+        //    write(' ');
+        //    node_parent_name(visitor, def);
+        //    struct_name(visitor, def);
+        //    write(';');
+    }
+    declare_struct_def_only(def, check_declared);
     if(def->requires_destructor() && def->destructor_func() == nullptr) {
         auto decl = def->create_destructor();
         decl->ensure_destructor(def);
@@ -2009,13 +2030,13 @@ void CTopLevelDeclarationVisitor::declare_struct(StructDefinition* def) {
 
 void CTopLevelDeclarationVisitor::visit(StructDefinition* def) {
     if(def->generic_params.empty()) {
-        declare_struct(def);
+        declare_struct(def, true);
     } else {
         const auto total = def->total_generic_iterations();
         int16_t itr = 0;
         while(itr < total) {
             def->set_active_iteration(itr);
-            declare_struct(def);
+            declare_struct(def, false);
             itr++;
         }
     }
@@ -2111,6 +2132,16 @@ void CTopLevelDeclarationVisitor::visit(VariantDefinition *variant_def) {
         int16_t itr = 0;
         while(itr < total) {
             variant_def->set_active_iteration(itr);
+            // early declare contained structs
+            for(auto& mem : variant_def->variables) {
+                auto& mem_vals = mem.second->as_variant_member()->values;
+                for(auto& val : mem_vals) {
+                    const auto str = val.second->type->pure_type()->get_direct_ref_struct();
+                    if(str) {
+                        declare_struct_def_only(str, true);
+                    }
+                }
+            }
             declare_variant(variant_def);
             itr++;
         }
@@ -2199,6 +2230,10 @@ void CTopLevelDeclarationVisitor::visit(ImplDefinition *def) {
 
 }
 
+void CTopLevelDeclarationVisitor::reset() {
+    declared_nodes.clear();
+}
+
 void CValueDeclarationVisitor::visit(TypealiasStatement *stmt) {
     if(is_top_level_node) return;
     visitor->new_line_and_indent();
@@ -2262,6 +2297,7 @@ void ToCAstVisitor::reset() {
     before_stmt->reset();
     after_stmt->reset();
     destructor->reset();
+    tld->reset();
 }
 
 ToCAstVisitor::~ToCAstVisitor() = default;
@@ -3100,7 +3136,7 @@ void chain_value_accept(ToCAstVisitor* visitor, ChainValue* previous, ChainValue
         }
     }
     const auto linked = value->linked_node();
-    if(linked && linked->as_variant_case_var()) {
+    if(previous != nullptr && linked && linked->as_variant_case_var()) {
         const auto var = linked->as_variant_case_var();
         Value* expr = var->variant_case->switch_statement->expression.get();
         const auto var_mem = var->variant_case->chain->linked_node()->as_variant_member();

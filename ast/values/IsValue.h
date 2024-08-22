@@ -7,28 +7,33 @@
 #pragma once
 
 #include "ast/base/Value.h"
-#include "ast/base/BaseType.h"
+#include "ast/types/BoolType.h"
 
-class CastedValue : public Value {
+class IsValue : public Value {
 public:
 
     std::unique_ptr<Value> value;
     std::unique_ptr<BaseType> type;
 
-    CastedValue(std::unique_ptr<Value> value, std::unique_ptr<BaseType> type);
+    IsValue(std::unique_ptr<Value> value, std::unique_ptr<BaseType> type);
 
-    CastedValue *copy() override;
+    IsValue *copy() override;
+
+    /**
+     * std::nullopt means unknown, true or false means it evaluated
+     */
+    std::optional<bool> get_comp_time_result();
 
     hybrid_ptr<BaseType> get_base_type() override {
-        return hybrid_ptr<BaseType> { type.get(), false };
+        return hybrid_ptr<BaseType> { (BaseType*) &BoolType::instance, false };
     }
 
     BaseType* known_type() override {
-        return type.get();
+        return (BaseType*) &BoolType::instance;
     }
 
     std::unique_ptr<BaseType> create_type() override {
-        return std::unique_ptr<BaseType>(type->copy());
+        return std::unique_ptr<BaseType>(new BoolType());
     }
 
     void accept(Visitor *visitor) override {
@@ -37,26 +42,22 @@ public:
 
     void link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) override;
 
-    ASTNode *linked_node() override;
-
 #ifdef COMPILER_BUILD
 
     llvm::Type *llvm_type(Codegen &gen) override;
 
     llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) override;
 
-    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
-
 #endif
 
     [[nodiscard]]
     ValueType value_type() const override {
-        return type->value_type();
+        return ValueType::Bool;
     }
 
     [[nodiscard]]
     BaseTypeKind type_kind() const override {
-        return type->kind();
+        return BaseTypeKind::Bool;
     }
 
 };

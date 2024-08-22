@@ -25,6 +25,7 @@
 #include "ast/values/BoolValue.h"
 #include "ast/values/CharValue.h"
 #include "ast/values/DoubleValue.h"
+#include "ast/values/IsValue.h"
 #include "ast/values/FloatValue.h"
 #include "ast/values/IntNumValue.h"
 #include "ast/values/Negative.h"
@@ -498,6 +499,19 @@ llvm::Value *CastedValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     return llvm_val;
 }
 
+llvm::Type* IsValue::llvm_type(Codegen &gen) {
+    return gen.builder->getInt1Ty();
+}
+
+llvm::Value* IsValue::llvm_value(Codegen &gen, BaseType* expected_type) {
+    bool result = false;
+    auto comp_time = get_comp_time_result();
+    if(comp_time.has_value()) {
+        result = comp_time.value();
+    }
+    return gen.builder->getInt1(result);
+}
+
 bool CastedValue::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
     return type->linked_node()->add_child_index(gen, indexes, name);
 }
@@ -807,13 +821,13 @@ void DestructStmt::code_gen(Codegen &gen) {
     auto pure_type = identifier->get_pure_type();
     if(is_array) {
         if(pure_type->kind() != BaseTypeKind::Array) {
-            gen.error("std::delete couldn't get array type");
+            gen.error("destruct statement couldn't get array type");
             return;
         }
         auto arr_type = (ArrayType*) pure_type.get();
         auto elem_type = arr_type->elem_type->pure_type();
         if(elem_type->kind() != BaseTypeKind::Pointer) {
-            gen.error("only array of pointers can be deleted using std::delete");
+            gen.error("only array of pointers can be deleted in array statement");
             return;
         }
         auto pointee = ((PointerType*) elem_type)->type.get();

@@ -61,8 +61,10 @@ public:
 
     void accept(Visitor *visitor) override;
 
+    [[nodiscard]]
     BaseTypeKind type_kind() const override;
 
+    [[nodiscard]]
     ValueType value_type() const override;
 
 #ifdef COMPILER_BUILD

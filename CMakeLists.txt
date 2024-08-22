@@ -464,6 +464,7 @@ set(COMMON_SOURCES
         ast/values/VariantCall.h
         ast/values/VariantCall.cpp
         ast/values/VariantCaseVariable.h
+        ast/values/IsValue.cpp
 )
 
 # Chemical LSP Executable Target

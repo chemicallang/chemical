@@ -9,13 +9,19 @@
 bool Lexer::lexRemainingExpression(unsigned start) {
 
     lexWhitespaceToken();
-    if (lexKeywordToken("as")) {
-        lexWhitespaceToken();
+    if (lexWSKeywordToken("as")) {
         if (!lexTypeTokens()) {
             error("expected a type for casting after 'as' in expression");
             return true;
         }
         compound_from(start, LexTokenType::CompCastValue);
+        return true;
+    } else if(lexWSKeywordToken("is")) {
+        if (!lexTypeTokens()) {
+            error("expected a type for IsValue after 'is'");
+            return true;
+        }
+        compound_from(start, LexTokenType::CompIsValue);
         return true;
     }
     if (!lexLanguageOperatorToken()) {

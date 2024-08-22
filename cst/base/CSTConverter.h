@@ -268,6 +268,8 @@ public:
 
     void visitVariantMember(CompoundCSTToken *variant_member) override;
 
+    void visitDestruct(CompoundCSTToken *delStmt) override;
+
     // Types
 
     void visitTypeToken(LexToken *token) override;

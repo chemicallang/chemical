@@ -415,6 +415,11 @@ public:
     bool lexImportStatement();
 
     /**
+     * lexes a single delete statement
+     */
+    bool lexDestructStatement();
+
+    /**
      * lexes return statement
      */
     bool lexReturnStatement();
@@ -892,6 +897,11 @@ protected:
      * when true, continue statements will be lexed
      */
     bool isLexContinueStatement = false;
+
+    /**
+     * when true, destruct statements will be lexed
+     */
+    bool isLexDestructStatement = false;
 
     /**
      * when true, break statements will be lexed

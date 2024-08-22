@@ -32,6 +32,7 @@ bool Lexer::lexNestedLevelStatementTokens() {
            (isLexBreakStatement && lexBreakStatement()) ||
            (isLexContinueStatement && lexContinueStatement()) ||
            (isLexReturnStatement && lexReturnStatement()) ||
+           (isLexDestructStatement && lexDestructStatement()) ||
            lexThrowStatementTokens() ||
            lexUsingStatement() ||
            lexIfBlockTokens() ||
@@ -53,6 +54,7 @@ bool Lexer::lexStatementTokens() {
            (isLexBreakStatement && lexBreakStatement()) ||
            (isLexContinueStatement && lexContinueStatement()) ||
            (isLexReturnStatement && lexReturnStatement()) ||
+           (isLexDestructStatement && lexDestructStatement()) ||
            lexEnumStructureTokens() ||
            lexIfBlockTokens() ||
            lexForBlockTokens() ||

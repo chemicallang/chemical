@@ -1,13 +1,18 @@
 // Copyright (c) Qinetik 2024.
 
-#include "DeleteStmt.h"
+#include "DestructStmt.h"
 #include "compiler/SymbolResolver.h"
 
-DeleteStmt::DeleteStmt(std::unique_ptr<Value> value, bool is_array) : identifier(std::move(value)), is_array(is_array) {
+DestructStmt::DestructStmt(
+        std::unique_ptr<Value> array_value,
+        std::unique_ptr<Value> value,
+        bool is_array,
+        ASTNode* parent_node
+) : array_value(std::move(array_value)), identifier(std::move(value)), is_array(is_array), parent_node(parent_node) {
 
 }
 
-void DeleteStmt::declare_and_link(SymbolResolver &linker) {
+void DestructStmt::declare_and_link(SymbolResolver &linker) {
     identifier->link(linker, (std::unique_ptr<Value>&) identifier);
     auto type = identifier->get_pure_type();
     if(!type->is_pointer()) {

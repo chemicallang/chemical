@@ -208,7 +208,7 @@ class ExtensionFuncReceiver;
 
 class ThrowStatement;
 
-class DeleteStmt;
+class DestructStmt;
 
 class UsingStmt;
 
@@ -267,7 +267,7 @@ public:
         visitCommonType((BaseType*) type_param);
     }
 
-    virtual void visit(DeleteStmt* delStmt) {
+    virtual void visit(DestructStmt* delStmt) {
         visitCommon((ASTNode*) delStmt);
     }
 

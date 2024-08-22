@@ -422,8 +422,8 @@ set(COMMON_SOURCES
         ast/base/ChainPart.h
         ast/statements/UsingStmt.h
         ast/statements/Using.cpp
-        ast/statements/DeleteStmt.h
-        ast/statements/DeleteStmt.cpp
+        ast/statements/DestructStmt.h
+        ast/statements/DestructStmt.cpp
         ast/values/RetStructParamValue.h
         ast/values/RetStructParamValue.cpp
         lexer/utils/AnnotationModifiers.h

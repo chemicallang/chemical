@@ -49,6 +49,7 @@
 #include "ast/structures/DoWhileLoop.h"
 #include "ast/statements/Continue.h"
 #include "ast/statements/SwitchStatement.h"
+#include "ast/statements/DestructStmt.h"
 #include "ast/structures/Namespace.h"
 #include "ast/statements/Break.h"
 #include "ast/statements/Typealias.h"
@@ -641,6 +642,26 @@ void CSTConverter::visitReturn(CompoundCSTToken *cst) {
         return_value.emplace(value());
     }
     nodes.emplace_back(std::make_unique<ReturnStatement>(std::move(return_value), current_func_type, parent_node));
+}
+
+void CSTConverter::visitDestruct(CompoundCSTToken *delStmt) {
+    auto is_array = is_char_op(delStmt->tokens[1].get(), '[');
+    std::unique_ptr<Value> array_value = nullptr;
+    unsigned index;
+    if(is_array) {
+        if(delStmt->tokens[2]->is_value()) {
+            delStmt->tokens[2]->accept(this);
+            array_value = value();
+            index = 4;
+        } else {
+            index = 3;
+        }
+    } else {
+        index = 1;
+    }
+    delStmt->tokens[index]->accept(this);
+    auto val_ptr = value();
+    nodes.emplace_back(new DestructStmt(std::move(array_value), std::move(val_ptr), is_array, parent_node));
 }
 
 void CSTConverter::visitUsing(CompoundCSTToken *usingStmt) {

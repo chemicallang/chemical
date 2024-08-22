@@ -1195,6 +1195,10 @@ struct DeclaredNodeData {
         // total iterations that are done
         int16_t iterations_done;
     } struct_def;
+    union {
+        // total iterations that are done
+        int16_t iterations_done;
+    } variant_def;
 };
 
 class CTopLevelDeclarationVisitor : public Visitor, public SubVisitor {
@@ -2039,6 +2043,9 @@ void CTopLevelDeclarationVisitor::visit(StructDefinition* def) {
         declare_struct(def, true);
     } else {
         int16_t itr = 0;
+        // if previously we generated definition, we must start at the definition not done yet
+        // this can happen if generic was present in other file, and we generated all implementations
+        // however in this file we found another implementation that hasn't been generated before
         auto found = declared_nodes.find(def);
         if(found != declared_nodes.end()) {
             itr = found->second.struct_def.iterations_done;
@@ -2049,7 +2056,6 @@ void CTopLevelDeclarationVisitor::visit(StructDefinition* def) {
             declare_struct(def, false);
             itr++;
         }
-        declared_nodes[def].struct_def.iterations_done = total;
     }
 }
 
@@ -2129,9 +2135,9 @@ void CTopLevelDeclarationVisitor::declare_variant(VariantDefinition* def) {
 //        decl->ensure_destructor(def);
     }
     for(auto& func : def->functions()) {
-        if(def->get_overriding_interface(func.get()) == nullptr) {
+//        if(def->get_overriding_interface(func.get()) == nullptr) {
             declare_contained_func(this, func.get(), struct_name_str(visitor, def) + func->name, false);
-        }
+//        }
     }
 }
 
@@ -2139,8 +2145,15 @@ void CTopLevelDeclarationVisitor::visit(VariantDefinition *variant_def) {
     if(variant_def->generic_params.empty()) {
         declare_variant(variant_def);
     } else {
-        const auto total = variant_def->total_generic_iterations();
         int16_t itr = 0;
+        // if previously we generated definition, we must start at the definition not done yet
+        // this can happen if generic was present in other file and we generated all implementations
+        // however in this file we found another implementation that hasn't been generated before
+        auto found = declared_nodes.find(variant_def);
+        if(found != declared_nodes.end()) {
+            itr = found->second.variant_def.iterations_done;
+        }
+        const auto total = variant_def->total_generic_iterations();
         while(itr < total) {
             variant_def->set_active_iteration(itr);
             // early declare contained structs
@@ -2787,24 +2800,58 @@ void ToCAstVisitor::visit(StructDefinition *def) {
     if(def->generic_params.empty()) {
         contained_struct_functions(this, def);
     } else {
-        auto prev = def->active_iteration;
         const auto total_itr = def->total_generic_iterations();
-        if(total_itr == 0) return; // generic type never used
+        if(total_itr == 0) return; // generic type never used (yet)
         int16_t itr = 0;
+        // if previously we generated function bodies, we must start at the functions not done yet
+        // this can happen if generic was present in other file and we generated all implementations
+        // however in this file we found another implementation that hasn't been generated before
+        auto found = tld->declared_nodes.find(def);
+        if(found != tld->declared_nodes.end()) {
+            itr = found->second.struct_def.iterations_done;
+        }
+        auto prev = def->active_iteration;
         while (itr < total_itr) {
             def->set_active_iteration(itr);
             contained_struct_functions(this, def);
             itr++;
         }
         def->set_active_iteration(prev);
+        tld->declared_nodes[def].struct_def.iterations_done = total_itr;
     }
     current_members_container = prev_members_container;
 }
 
-void ToCAstVisitor::visit(VariantDefinition* def) {
+void generate_contained_functions(ToCAstVisitor* visitor, VariantDefinition* def) {
     for(auto& func : def->functions()) {
-        contained_func_decl(this, func.get(), def->name + func->name, false, def);
+        contained_func_decl(visitor, func.get(), struct_name_str(visitor, def) + func->name, false, def);
     }
+}
+
+void ToCAstVisitor::visit(VariantDefinition* def) {
+    if(def->generic_params.empty()) {
+        generate_contained_functions(this, def);
+    } else {
+        const auto total_itr = def->total_generic_iterations();
+        if(total_itr == 0) return; // generic type never used (yet)
+        int16_t itr = 0;
+        // if previously we generated bodies for this function, we must start at the function not done yet
+        // this can happen if generic was present in other file and we generated all implementations
+        // however in this file we found another implementation that hasn't been generated before
+        auto found = tld->declared_nodes.find(def);
+        if(found != tld->declared_nodes.end()) {
+            itr = found->second.variant_def.iterations_done;
+        }
+        auto prev = def->active_iteration;
+        while (itr < total_itr) {
+            def->set_active_iteration(itr);
+            generate_contained_functions(this, def);
+            itr++;
+        }
+        def->set_active_iteration(prev);
+        tld->declared_nodes[def].variant_def.iterations_done = total_itr;
+    }
+
 }
 
 void ToCAstVisitor::visit(UnionDef *def) {

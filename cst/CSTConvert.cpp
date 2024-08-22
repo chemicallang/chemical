@@ -21,6 +21,7 @@
 #include "ast/values/ULongValue.h"
 #include "ast/values/Negative.h"
 #include "ast/values/NullValue.h"
+#include "ast/values/IsValue.h"
 #include "ast/values/NotValue.h"
 #include "ast/values/AddrOfValue.h"
 #include "ast/values/DereferenceValue.h"
@@ -1567,7 +1568,7 @@ void CSTConverter::visitCast(CompoundCSTToken *castCst) {
 
 void CSTConverter::visitIsValue(CompoundCSTToken *castCst) {
     visit(castCst->tokens);
-    values.emplace_back(std::make_unique<CastedValue>(value(), type()));
+    values.emplace_back(std::make_unique<IsValue>(value(), type()));
 }
 
 void CSTConverter::visitAddrOf(CompoundCSTToken *addrOf) {

@@ -315,6 +315,7 @@ void StructDefinition::accept(Visitor *visitor) {
 
 void StructDefinition::declare_top_level(SymbolResolver &linker) {
     linker.declare(name, this);
+    is_direct_init = has_annotation(AnnotationKind::DirectInit);
 }
 
 void StructDefinition::declare_and_link(SymbolResolver &linker) {

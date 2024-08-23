@@ -10,6 +10,7 @@ public:
     bool time_report = true;
     bool tsan = false;
     bool lto = false;
+    bool debug_ir = false;
     const char* asm_path = nullptr;
     const char* obj_path = nullptr;
     const char* ir_path = nullptr;

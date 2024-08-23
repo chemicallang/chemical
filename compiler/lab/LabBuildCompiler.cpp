@@ -198,6 +198,9 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
         if (options->def_lto_on) {
             emitter_options.lto = true;
         }
+        if(options->debug_ir) {
+            emitter_options.debug_ir = true;
+        }
         if (options->def_assertions_on) {
             emitter_options.assertions_on = true;
         }

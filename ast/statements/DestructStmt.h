@@ -3,8 +3,10 @@
 #include "ast/base/ASTNode.h"
 #include "ast/values/VariableIdentifier.h"
 
+class ExtendableMembersContainerNode;
+
 struct DestructData {
-    ASTNode* parent_node;
+    ExtendableMembersContainerNode* parent_node;
     FunctionDeclaration* destructor_func;
     int array_size; // -1 if not known
 };

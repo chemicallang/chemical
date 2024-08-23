@@ -823,9 +823,11 @@ void AssignStatement::code_gen(Codegen &gen) {
     } else {
         llvm_value = gen.operate(assOp, lhs.get(), value.get());
     }
-    const auto pointer = lhs->llvm_pointer(gen);
-    if(!gen.assign_dyn_obj(value.get(), lhs->known_type(), pointer, llvm_value)) {
-        gen.builder->CreateStore(llvm_value, pointer);
+    if(llvm_value) {
+        const auto pointer = lhs->llvm_pointer(gen);
+        if (!gen.assign_dyn_obj(value.get(), lhs->known_type(), pointer, llvm_value)) {
+            gen.builder->CreateStore(llvm_value, pointer);
+        }
     }
 }
 
@@ -874,6 +876,7 @@ void DestructStmt::code_gen(Codegen &gen) {
             destr_args.emplace_back(identifier_value);
         }
         gen.builder->CreateCall(destructor->llvm_func_type(gen), destructor->llvm_pointer(gen), destr_args);
+        gen.CreateBr(end_block);
 
         // end block
         gen.SetInsertPoint(end_block);

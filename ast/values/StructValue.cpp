@@ -6,6 +6,7 @@
 #include "ast/utils/ASTUtils.h"
 #include "ast/types/GenericType.h"
 #include "ast/types/ReferencedType.h"
+#include "ast/values/DereferenceValue.h"
 
 #ifdef COMPILER_BUILD
 
@@ -120,12 +121,20 @@ llvm::Value *StructValue::llvm_assign_value(Codegen &gen, Value *lhs) {
     const auto known_type = lhs->known_type();
     if(known_type->kind() == BaseTypeKind::Dynamic && known_type->linked_node()->as_interface_def()) {
         return llvm_allocate(gen, "", nullptr);
-    } else {
-#ifdef DEBUG
-        throw std::runtime_error("cannot allocate a struct without an identifier");
-#endif
-        return nullptr;
+    } else if(lhs->as_deref_value()) {
+        if(!definition->destructor_func() && (!definition->has_constructor() || definition->is_direct_init)) {
+            const auto deref = lhs->as_deref_value();
+            if (deref->value->value_type() == ValueType::Pointer) {
+                auto allocated = deref->llvm_pointer(gen);
+                initialize_alloca(allocated, gen);
+                return nullptr;
+            }
+        }
     }
+#ifdef DEBUG
+    throw std::runtime_error("cannot allocate a struct without an identifier");
+#endif
+    return nullptr;
 }
 
 llvm::Value *StructValue::llvm_arg_value(Codegen &gen, FunctionCall *call, unsigned int index) {

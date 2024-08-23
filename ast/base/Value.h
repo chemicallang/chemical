@@ -591,6 +591,13 @@ public:
     }
 
     /**
+     * get dereference value
+     */
+    virtual DereferenceValue* as_deref_value() {
+        return nullptr;
+    }
+
+    /**
      * a function to be overridden by values that can return struct
      */
     virtual StructValue* as_struct() {

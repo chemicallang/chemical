@@ -2901,8 +2901,13 @@ void ToCAstVisitor::visit(DestructStmt *stmt) {
 
     auto self_name = string_accept(stmt->identifier.get());
     IntValue siz_val(data.array_size);
-    destructor->destruct_arr_ptr(self_name, data.array_size != -1 ? &siz_val : stmt->array_value.get(), (StructDefinition*) data.parent_node, 0, data.destructor_func);
 
+    if(stmt->is_array) {
+        destructor->destruct_arr_ptr(self_name, data.array_size != -1 ? &siz_val : stmt->array_value.get(),
+                                     (StructDefinition*) data.parent_node, 0, data.destructor_func);
+    } else {
+        destructor->destruct(self_name, (StructDefinition*) data.parent_node, 0, data.destructor_func, true);
+    }
 }
 
 void ToCAstVisitor::visit(IsValue *isValue) {

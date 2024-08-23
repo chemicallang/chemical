@@ -86,6 +86,11 @@ unsigned int VariantCall::store_in_array(Codegen &gen, ArrayValue *parent, llvm:
     return index + 1;
 }
 
+void VariantCall::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
+    const auto def = get_definition();
+    def->llvm_destruct(gen, allocaInst);
+}
+
 #endif
 
 VariantCall::VariantCall(std::unique_ptr<AccessChain> _chain) : chain(std::move(_chain)) {

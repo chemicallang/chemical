@@ -148,7 +148,7 @@ void VariantDefinition::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
                 if(destructorFunc) {
                     std::vector<llvm::Value*> args;
                     if(destructorFunc->has_self_param()) {
-                        auto gep3 = gen.builder->CreateGEP(mem.second->llvm_type(gen), struct_ptr, { gen.builder->getInt32(i), gen.builder->getInt32(index) }, "", gen.inbounds);
+                        auto gep3 = gen.builder->CreateGEP(mem.second->llvm_type(gen), struct_ptr, { gen.builder->getInt32(0), gen.builder->getInt32(i) }, "", gen.inbounds);
                         args.emplace_back(gep3);
                     }
                     gen.builder->CreateCall(dtr_func_type, dtr_func_callee, args, "");

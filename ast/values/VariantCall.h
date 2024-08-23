@@ -95,6 +95,8 @@ public:
 
     unsigned int store_in_array(Codegen &gen, ArrayValue *parent, llvm::AllocaInst *ptr, std::vector<llvm::Value *> idxList, unsigned int index, BaseType *expected_type) override;
 
+    void llvm_destruct(Codegen &gen, llvm::Value *allocaInst) override;
+
 #endif
 
 };

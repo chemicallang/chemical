@@ -307,6 +307,15 @@ public:
     std::unique_ptr<Value>& eval_comptime(FunctionCall* call, FunctionDeclaration* decl);
 
     /**
+     * determines destructor function for given element type
+     */
+    FunctionDeclaration* determine_destructor_for(
+            BaseType* elem_type,
+            llvm::FunctionType*& func_type,
+            llvm::Value*& func_callee
+    );
+
+    /**
      * destruct given alloca instruction, the array size is llvm value
      * destructs an array, also allows to add extra logic after destruction via lambda
      * the llvm::Value* provided in lambda is of the struct present in the array

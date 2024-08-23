@@ -84,6 +84,11 @@ public:
      */
     int16_t register_call(SymbolResolver& resolver, VariantCall* call, BaseType* expected_type);
 
+    /**
+     * check if it includes any member who has a struct, that requires a destructor
+     */
+    bool requires_destructor();
+
 #ifdef COMPILER_BUILD
 
     llvm::StructType* llvm_type_with_member(Codegen& gen, BaseDefMember* member_type, bool anonymous = true);

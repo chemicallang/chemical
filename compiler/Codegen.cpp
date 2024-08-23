@@ -292,31 +292,30 @@ void Codegen::destruct(
     );
 }
 
-FunctionDeclaration* determine_destructor_for(
-        Codegen& gen,
+FunctionDeclaration* Codegen::determine_destructor_for(
         BaseType* elem_type,
         llvm::FunctionType*& func_type,
         llvm::Value*& func_callee
 ) {
 
-    if(!elem_type->linked_node() || !elem_type->linked_node()->as_struct_def()) {
+    if(!elem_type->linked_node() || !elem_type->linked_node()->as_members_container()) {
         return nullptr;
     }
     //checking if struct has a destructor function
-    auto structDef = elem_type->linked_node()->as_struct_def();
+    auto structDef = elem_type->linked_node()->as_members_container();
     auto destructorFunc = structDef->destructor_func();
     if(!destructorFunc) {
         return nullptr;
     }
 
     // determine the function type and callee
-    if(structDef->is_generic()) {
+    if(!structDef->generic_params.empty()) {
         const auto llvm_data = structDef->llvm_generic_func_data(destructorFunc, structDef->active_iteration, destructorFunc->active_iteration);
         func_type = llvm_data.second;
         func_callee = llvm_data.first;
     } else {
-        func_type = destructorFunc->llvm_func_type(gen);
-        func_callee = destructorFunc->llvm_pointer(gen);
+        func_type = destructorFunc->llvm_func_type(*this);
+        func_callee = destructorFunc->llvm_pointer(*this);
     }
 
     return destructorFunc;
@@ -333,7 +332,7 @@ void Codegen::destruct(
     // determining destructor
     llvm::FunctionType* func_type;
     llvm::Value* func_callee;
-    auto destructorFunc = determine_destructor_for(*this, elem_type, func_type, func_callee);
+    auto destructorFunc = determine_destructor_for(elem_type, func_type, func_callee);
     if(!destructorFunc) return;
     // calling destruct
     destruct(

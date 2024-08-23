@@ -198,6 +198,10 @@ void StructValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr
         auto struct_def = found->as_struct_def();
         if (struct_def) {
             definition = struct_def;
+            if(definition->has_constructor() && !definition->is_direct_init) {
+                linker.error("struct value with a constructor cannot be initialized, name '" + definition->name + "' has a constructor");
+                return;
+            }
             for(auto& arg : generic_list) {
                 arg->link(linker, arg);
             }

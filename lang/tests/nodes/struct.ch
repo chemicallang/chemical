@@ -5,6 +5,7 @@ func sum_this_please(a : int, b : int) : int {
     return a + b;
 }
 
+@direct_init
 struct Pair {
 
     var a : int

@@ -122,6 +122,11 @@ public:
     }
 
     /**
+     * will check if any function with constructor annotation exists
+     */
+    bool has_constructor();
+
+    /**
      * will provide a constructor function if there's one
      */
     FunctionDeclaration* constructor_func(std::vector<std::unique_ptr<Value>>& forArgs);

@@ -19,6 +19,7 @@ class StructDefinition : public ExtendableMembersContainerNode, public StructTyp
 public:
 
     AccessSpecifier specifier = AccessSpecifier::Internal;
+    bool is_direct_init = false;
     ASTNode* parent_node;
 
 #ifdef COMPILER_BUILD

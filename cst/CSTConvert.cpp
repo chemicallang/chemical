@@ -284,6 +284,7 @@ const std::unordered_map<std::string, const AnnotationHandler> AnnotationHandler
         { "implicit", { collect_annotation_func, AnnotationKind::Implicit }},
         { "not_in_c", { collect_annotation_func, AnnotationKind::NotInC }},
         { "propagate", { collect_annotation_func, AnnotationKind::Propagate }},
+        { "direct_init", { collect_annotation_func, AnnotationKind::DirectInit }},
 };
 
 inline void collect_annotations_in(CSTConverter* converter, AnnotableNode* node) {

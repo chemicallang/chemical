@@ -384,6 +384,15 @@ void MembersContainer::set_active_iteration(int16_t iteration) {
     }
 }
 
+bool MembersContainer::has_constructor() {
+    for(const auto & function : functions()) {
+        if(function->has_annotation(AnnotationKind::Constructor)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 FunctionDeclaration* MembersContainer::constructor_func(std::vector<std::unique_ptr<Value>>& forArgs) {
     for (const auto & function : functions()) {
         if(function->has_annotation(AnnotationKind::Constructor) && function->satisfy_args(forArgs)) {

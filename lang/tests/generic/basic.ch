@@ -43,6 +43,7 @@ func <T, U, V> (pair : PairGen<T, U, V>*) ext_div() : V {
     return pair.a / pair.b;
 }
 
+@direct_init
 struct ShortPairGen {
     var pair : PairGen<short, short, short>
     @constructor

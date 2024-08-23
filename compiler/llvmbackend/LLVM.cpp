@@ -363,6 +363,10 @@ bool VariableIdentifier::add_member_index(Codegen &gen, Value *parent, std::vect
     return true;
 }
 
+bool VariableIdentifier::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
+    return linked->add_child_index(gen, indexes, name);
+}
+
 llvm::Value *VariableIdentifier::llvm_ret_value(Codegen &gen, ReturnStatement *returnStmt) {
     return linked->llvm_ret_load(gen, returnStmt);
 }
@@ -458,6 +462,10 @@ void Expression::llvm_conditional_branch(Codegen& gen, llvm::BasicBlock* then_bl
 
 llvm::Type *Expression::llvm_type(Codegen &gen) {
     return create_type()->llvm_type(gen);
+}
+
+bool Expression::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
+    return linked_node()->add_child_index(gen, indexes, name);
 }
 
 llvm::Type *CastedValue::llvm_type(Codegen &gen) {

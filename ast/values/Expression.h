@@ -93,6 +93,8 @@ public:
 
     void llvm_conditional_branch(Codegen& gen, llvm::BasicBlock* then_block, llvm::BasicBlock* otherwise_block);
 
+    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
+
 #endif
 
     std::unique_ptr<BaseType> create_type() override;
@@ -104,6 +106,8 @@ public:
     bool primitive() override;
 
     bool computed() override;
+
+    ASTNode* linked_node() override;
 
     /**
      * evaluates both values and returns the result as unique_tr to Value

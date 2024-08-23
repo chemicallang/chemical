@@ -96,4 +96,11 @@ func test_bodmas() {
     test("Negative braced expression", () => {
         return -(2 + 3) == -5;
     });
+    test("test pointer math in expressions work", () => {
+        var i = 22;
+        const p = &i;
+        const j = p + 1;
+        const k = j - 1;
+        return *k == 22;
+    })
 }

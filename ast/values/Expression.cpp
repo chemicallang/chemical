@@ -58,6 +58,12 @@ std::unique_ptr<BaseType> Expression::create_type() {
     }
     auto first = firstValue->create_type();
     auto second = secondValue->create_type();
+    if((operation == Operation::Addition || operation == Operation::Subtraction) && first->kind() == BaseTypeKind::Pointer) {
+        auto second_value_type = second->value_type();
+        if(second_value_type >= ValueType::IntNStart && second_value_type <= ValueType::IntNEnd) {
+            return std::unique_ptr<BaseType>(first->copy());
+        }
+    }
     if(first->value_type() == ValueType::Pointer && second->value_type() == ValueType::Pointer) {
         return std::make_unique<LongType>(is64Bit);
     }
@@ -78,6 +84,10 @@ hybrid_ptr<BaseType> Expression::get_base_type() {
 
 uint64_t Expression::byte_size(bool is64Bit) {
     return create_type()->byte_size(is64Bit);
+}
+
+ASTNode* Expression::linked_node() {
+    return create_type()->linked_node();
 }
 
 /**

@@ -10,6 +10,7 @@
 #include "ast/values/FunctionCall.h"
 #include "ast/values/VariableIdentifier.h"
 #include "ast/statements/SwitchStatement.h"
+#include "ast/structures/StructDefinition.h"
 #include "ast/values/VariantCall.h"
 #include "ast/utils/GenericUtils.h"
 #include "ast/types/GenericType.h"
@@ -102,6 +103,64 @@ void VariantDefinition::code_gen_generic(Codegen &gen) {
 }
 
 void VariantDefinition::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
+
+    // check if requires destructor, otherwise return
+    if(!requires_destructor()) {
+        return;
+    }
+
+    // get the type int
+    auto gep = gen.builder->CreateGEP(llvm_type(gen), allocaInst, { gen.builder->getInt32(0), gen.builder->getInt32(0) }, "", gen.inbounds);
+    auto type_value = gen.builder->CreateLoad(gen.builder->getInt32Ty(), gep);
+
+    // create an end block, for default case
+    llvm::BasicBlock* end_block = llvm::BasicBlock::Create(*gen.ctx, "", gen.current_function);
+
+    // figure out which members to destruct
+    std::vector<std::pair<int, VariantMember*>> to_destruct;
+    int index = 0;
+    for(auto& mem : variables) {
+        if(mem.second->requires_destructor()) {
+            to_destruct.emplace_back(index, mem.second->as_variant_member());
+        }
+        index++;
+    }
+
+    // get struct pointer
+    auto struct_ptr = gen.builder->CreateGEP(llvm_type(gen), allocaInst, { gen.builder->getInt32(0), gen.builder->getInt32(1) }, "", gen.inbounds);
+
+    // create switch block on type int
+    auto switchInst = gen.builder->CreateSwitch(type_value, end_block, to_destruct.size());
+
+    // create blocks for cases for which destructor exists
+    for(auto& mem : to_destruct) {
+        auto mem_block = llvm::BasicBlock::Create(*gen.ctx, "", gen.current_function);
+
+        // destructing member
+        gen.SetInsertPoint(mem_block);
+        llvm::FunctionType* dtr_func_type = nullptr;
+        llvm::Value* dtr_func_callee = nullptr;
+        int i = 0;
+        for(auto& value : mem.second->values) {
+            auto ref_node = value.second->type->get_direct_ref_node();
+            if(ref_node) { // <-- the node is directly referenced
+                auto destructorFunc = gen.determine_destructor_for(value.second->type.get(), dtr_func_type, dtr_func_callee);
+                if(destructorFunc) {
+                    std::vector<llvm::Value*> args;
+                    if(destructorFunc->has_self_param()) {
+                        auto gep3 = gen.builder->CreateGEP(mem.second->llvm_type(gen), struct_ptr, { gen.builder->getInt32(i), gen.builder->getInt32(index) }, "", gen.inbounds);
+                        args.emplace_back(gep3);
+                    }
+                    gen.builder->CreateCall(dtr_func_type, dtr_func_callee, args, "");
+                }
+            }
+            i++;
+        }
+        gen.CreateBr(end_block);
+        switchInst->addCase(gen.builder->getInt32(mem.first), mem_block);
+    }
+
+    gen.SetInsertPoint(end_block);
 
 }
 
@@ -225,6 +284,16 @@ BaseType* VariantDefinition::known_type() {
 [[nodiscard]]
 ValueType VariantDefinition::value_type() const {
     return ValueType::Struct;
+}
+
+bool VariantDefinition::requires_destructor() {
+    for(auto& var : variables) {
+        auto member = var.second->as_variant_member();
+        if(member->requires_destructor()) {
+            return true;
+        }
+    }
+    return false;
 }
 
 uint64_t VariantDefinition::byte_size(bool is64Bit) {

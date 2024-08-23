@@ -270,9 +270,13 @@ llvm::Value *NotValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     return gen.builder->CreateNot(value->llvm_value(gen));
 }
 
-llvm::Value *NullValue::llvm_value(Codegen &gen, BaseType* expected_type) {
+llvm::Value* NullValue::null_llvm_value(Codegen &gen) {
     auto ptrType = llvm::PointerType::get(llvm::IntegerType::get(*gen.ctx, 32), 0);
     return llvm::ConstantPointerNull::get(ptrType);
+}
+
+llvm::Value *NullValue::llvm_value(Codegen &gen, BaseType* expected_type) {
+    return null_llvm_value(gen);
 }
 
 llvm::Type *StringValue::llvm_type(Codegen &gen) {
@@ -818,36 +822,92 @@ void AssignStatement::code_gen(Codegen &gen) {
 }
 
 void DestructStmt::code_gen(Codegen &gen) {
+
     auto pure_type = identifier->get_pure_type();
-    if(is_array) {
-        if(pure_type->kind() != BaseTypeKind::Array) {
-            gen.error("destruct statement couldn't get array type");
+    bool determined_array = false;
+    if(pure_type->kind() == BaseTypeKind::Array) {
+        determined_array = true;
+    }
+    // pointer to array can't be typed directly like []* <--- doesn't work
+    // unknown if this code should exist
+//    else if(pure_type->kind() == BaseTypeKind::Pointer) {
+//        auto child_t = pure_type->known_child_type();
+//        if(child_t->kind() == BaseTypeKind::Array) {
+//            determined_array = true;
+//        }
+//    }
+    if(!is_array && !determined_array) {
+        if(pure_type->kind() != BaseTypeKind::Pointer) {
+            gen.error("value given to destruct statement must be of pointer type, value '" + identifier->representation() + "'");
             return;
         }
-        auto arr_type = (ArrayType*) pure_type.get();
-        auto elem_type = arr_type->elem_type->pure_type();
-        if(elem_type->kind() != BaseTypeKind::Pointer) {
-            gen.error("only array of pointers can be deleted in array statement");
+        auto def = ((PointerType*) pure_type.get())->type->get_direct_ref_struct();
+        if(!def) {
+            gen.error("value given to destruct statement, doesn't reference a struct directly, value '" + identifier->representation() + "'");
             return;
         }
-        auto pointee = ((PointerType*) elem_type)->type.get();
-        gen.destruct(identifier->llvm_pointer(gen), arr_type->array_size, pointee, [&](llvm::Value* structPtr){
-            std::vector<llvm::Value*> args;
-            args.emplace_back(structPtr);
-            gen.builder->CreateCall(free_func_linked->llvm_func_type(gen), free_func_linked->llvm_pointer(gen), args);
-        });
-    } else {
-        auto def = pure_type->linked_node()->as_struct_def();
         auto destructor = def->destructor_func();
+        if(!destructor) {
+            return;
+        }
+
+        llvm::BasicBlock* destruct_block = llvm::BasicBlock::Create(*gen.ctx, "", gen.current_function);
+        llvm::BasicBlock* end_block = llvm::BasicBlock::Create(*gen.ctx, "", gen.current_function);
+
+        auto identifier_value = identifier->llvm_value(gen);
+
+        // checking null value
+        gen.CheckNullCondBr(identifier_value, end_block, destruct_block);
+
+        // generating code for destructor
+        gen.SetInsertPoint(destruct_block);
         std::vector<llvm::Value *> destr_args;
         if (destructor->has_self_param()) {
-            destr_args.emplace_back(identifier->llvm_value(gen));
+            destr_args.emplace_back(identifier_value);
         }
         gen.builder->CreateCall(destructor->llvm_func_type(gen), destructor->llvm_pointer(gen), destr_args);
-        std::vector<llvm::Value*> args;
-        args.emplace_back(identifier->llvm_pointer(gen));
-        gen.builder->CreateCall(free_func_linked->llvm_func_type(gen), free_func_linked->llvm_pointer(gen), args);
+
+        // end block
+        gen.SetInsertPoint(end_block);
+        return;
     }
+
+    llvm::Value* arr_size_llvm;
+    BaseType* elem_type;
+    if(pure_type->kind() == BaseTypeKind::Array) {
+        auto arr_type = (ArrayType*) pure_type.get();
+        int array_size = arr_type->array_size;
+        elem_type = arr_type->elem_type->pure_type();
+        if (!is_array) {
+            gen.error("expected brackets '[]' after 'destruct' for destructing an array, with value " + identifier->representation());
+            return;
+        } else if (array_size != -1 && array_value) {
+            gen.error("array size given in brackets '[" + array_value->representation() + "]' is redundant as array size is known to be " + std::to_string(array_size) + " with value " + identifier->representation());
+            return;
+        } else if (array_size == -1 && !array_value) {
+            gen.error("array is size is not known, so it must be provided in brackets for destructing value " + identifier->representation());
+            return;
+        }
+        arr_size_llvm = array_size != -1 ? gen.builder->getInt32(array_size) : array_value->llvm_value(gen);
+    } else if(pure_type->kind() == BaseTypeKind::Pointer) {
+        if(!array_value) {
+            gen.error("array size is required when destructing a pointer, for destructing array pointer value" + identifier->representation());
+            return;
+        }
+        auto ptr_type = (PointerType*) pure_type.get();
+        elem_type = ptr_type->type->pure_type();
+        arr_size_llvm = array_value->llvm_value(gen, nullptr);
+    }
+
+    auto id_value = identifier->llvm_value(gen);
+
+    // we could further free the pointer, using
+//        std::vector<llvm::Value*> args;
+//        args.emplace_back(structPtr);
+//        gen.builder->CreateCall(free_func_linked->llvm_func_type(gen), free_func_linked->llvm_pointer(gen), args);
+
+    gen.destruct(id_value, arr_size_llvm, elem_type, true, [&](llvm::Value*){});
+
 }
 
 void ImportStatement::code_gen(Codegen &gen) {

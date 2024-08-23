@@ -313,10 +313,10 @@ public:
      */
     void destruct(
             llvm::Value* allocaInst,
-            const std::function<void(llvm::Value*)>& call_destructor,
             llvm::Value* array_size,
             llvm::Type* elem_type,
-            bool check_for_null
+            bool check_for_null,
+            const std::function<void(llvm::Value*)>& call_destructor
     );
 
     /**
@@ -331,8 +331,8 @@ public:
             bool pass_self,
             llvm::Value* array_size,
             BaseType* elem_type,
-            const std::function<void(llvm::Value*)>& after_destruct,
-            bool check_for_null
+            bool check_for_null,
+            const std::function<void(llvm::Value*)>& after_destruct
     );
 
     /**
@@ -344,8 +344,8 @@ public:
             llvm::Value* allocaInst,
             llvm::Value* array_size,
             BaseType* elem_type,
-            const std::function<void(llvm::Value*)>& after_destruct,
-            bool check_for_null
+            bool check_for_null,
+            const std::function<void(llvm::Value*)>& after_destruct
     );
 
     /**
@@ -377,6 +377,11 @@ public:
      * if this block has ended previously to avoid creating branches and returns
      */
     void SetInsertPoint(llvm::BasicBlock *block);
+
+    /**
+     * if the value is null, go to true block, otherwise false block
+     */
+    void CheckNullCondBr(llvm::Value* value, llvm::BasicBlock* TrueBlock, llvm::BasicBlock* FalseBlock);
 
     /**
      * The safe version of builder.CreateBr

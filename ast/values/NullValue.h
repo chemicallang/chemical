@@ -32,6 +32,8 @@ public:
 
 #ifdef COMPILER_BUILD
 
+    static llvm::Value* null_llvm_value(Codegen &gen);
+
     llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) override;
 
 #endif

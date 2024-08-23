@@ -100,14 +100,13 @@ llvm::Value* ChainValue::access_chain_value(Codegen &gen, std::vector<std::uniqu
 
 llvm::Value* create_gep(Codegen &gen, std::vector<std::unique_ptr<ChainValue>>& values, unsigned index, llvm::Value* pointer, std::vector<llvm::Value*>& idxList) {
     const auto parent = values[index].get();
-    auto type_kind = parent->type_kind();
+    auto type = parent->create_type();
+    auto type_kind = type->kind();
     if(type_kind == BaseTypeKind::Array && parent->linked_node() && parent->linked_node()->as_func_param()) {
-        auto type = parent->create_type();
         auto arr_type = (ArrayType*) type.get();
         return gen.builder->CreateGEP(arr_type->elem_type->llvm_type(gen), pointer, idxList, "", gen.inbounds);
     } else if(type_kind == BaseTypeKind::Pointer) {
-        auto ty = parent->create_type();
-        return gen.builder->CreateGEP(((PointerType*) (ty.get()))->type->llvm_chain_type(gen, values, index), pointer, idxList, "", gen.inbounds);
+        return gen.builder->CreateGEP(((PointerType*) (type.get()))->type->llvm_chain_type(gen, values, index), pointer, idxList, "", gen.inbounds);
     } else {
         return gen.builder->CreateGEP(parent->llvm_chain_type(gen, values, index), pointer, idxList, "", gen.inbounds);
     }

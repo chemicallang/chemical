@@ -1,5 +1,10 @@
 import "../test.ch"
 
+struct PMC22 {
+    var a : int
+    var b : int
+}
+
 func test_pointer_math() {
     test("assignment using a pointer works", () => {
         var i = 2;
@@ -55,5 +60,12 @@ func test_pointer_math() {
         d[1] = 60
         var ptr = &d[0]
         return ptr[1] == 60;
+    })
+    test("can access children after doing pointer math", () => {
+        var p = PMC22 { a : 22, b : 33 }
+        const j = &p
+        const k = j + 1;
+        const d = k - 1;
+        return d.a == 22 && d.b == 33;
     })
 }

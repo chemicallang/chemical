@@ -896,6 +896,11 @@ void DestructStmt::code_gen(Codegen &gen) {
             gen.error("array is size is not known, so it must be provided in brackets for destructing value " + identifier->representation());
             return;
         }
+        auto def = elem_type->get_direct_ref_struct();
+        if(!def) {
+            gen.error("value given to destruct statement, doesn't reference a struct directly, value '" + identifier->representation() + "'");
+            return;
+        }
         arr_size_llvm = array_size != -1 ? gen.builder->getInt32(array_size) : array_value->llvm_value(gen);
     } else if(pure_type->kind() == BaseTypeKind::Pointer) {
         if(!array_value) {
@@ -904,6 +909,12 @@ void DestructStmt::code_gen(Codegen &gen) {
         }
         auto ptr_type = (PointerType*) pure_type.get();
         elem_type = ptr_type->type->pure_type();
+        auto def = ptr_type->type->get_direct_ref_struct();
+        if(!def) {
+            gen.error("value given to destruct statement, doesn't reference a struct directly, value '" + identifier->representation() + "'");
+            return;
+        }
+
         arr_size_llvm = array_value->llvm_value(gen, nullptr);
     }
 

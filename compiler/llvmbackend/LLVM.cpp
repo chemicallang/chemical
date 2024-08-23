@@ -831,11 +831,10 @@ void DestructStmt::code_gen(Codegen &gen) {
             return;
         }
         auto pointee = ((PointerType*) elem_type)->type.get();
-        gen.destruct(identifier->llvm_pointer(gen), arr_type->array_size, pointee, this, [](Codegen* gen, llvm::Value* structPtr, void* data){
-            const auto stmt = (DestructStmt*) data;
+        gen.destruct(identifier->llvm_pointer(gen), arr_type->array_size, pointee, [&](llvm::Value* structPtr){
             std::vector<llvm::Value*> args;
             args.emplace_back(structPtr);
-            gen->builder->CreateCall(stmt->free_func_linked->llvm_func_type(*gen), stmt->free_func_linked->llvm_pointer(*gen), args);
+            gen.builder->CreateCall(free_func_linked->llvm_func_type(gen), free_func_linked->llvm_pointer(gen), args);
         });
     } else {
         auto def = pure_type->linked_node()->as_struct_def();

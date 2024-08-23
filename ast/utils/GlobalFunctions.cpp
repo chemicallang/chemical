@@ -387,6 +387,25 @@ public:
     }
 };
 
+//class InterpretConstruct : public FunctionDeclaration {
+//public:
+//    explicit InterpretConstruct(ASTNode* parent_node) : FunctionDeclaration(
+//            "construct",
+//            std::vector<std::unique_ptr<FunctionParam>> {},
+//            std::make_unique<VoidType>(),
+//            false,
+//            parent_node,
+//            std::nullopt
+//    ) {
+//        annotations.emplace_back(AnnotationKind::CompTime);
+//        params.emplace_back(std::make_unique<FunctionParam>("ptr", std::make_unique<PointerType>(std::make_unique<VoidType>()), 0, std::nullopt, this));
+//        params.emplace_back(std::make_unique<FunctionParam>("value", std::make_unique<AnyType>(), 1, std::nullopt, this));
+//    }
+//    Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+//
+//    }
+//};
+
 Namespace* GlobalInterpretScope::create_compiler_namespace() {
     global_nodes["compiler"] = std::make_unique<Namespace>("compiler", nullptr);
     auto compiler_ns = (Namespace*) global_nodes["compiler"].get();
@@ -399,6 +418,7 @@ Namespace* GlobalInterpretScope::create_compiler_namespace() {
     compiler_ns->nodes.emplace_back(new InterpretIsTcc(compiler_ns));
     compiler_ns->nodes.emplace_back(new InterpretIsClang(compiler_ns));
     compiler_ns->nodes.emplace_back(new InterpretSize(compiler_ns));
+//    compiler_ns->nodes.emplace_back(new InterpretConstruct(compiler_ns));
     compiler_ns->nodes.emplace_back(new InterpretVector::InterpretVectorNode(compiler_ns));
     return compiler_ns;
 }

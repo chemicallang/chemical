@@ -744,7 +744,9 @@ bool save_as_file_type(
     }
 
     // Optimization phase
-    module_pm.run(llvm_module, module_am);
+    if(!(options->is_debug && options->ir_path && options->debug_ir)) {
+        module_pm.run(llvm_module, module_am);
+    }
 
     // Code generation phase
     codegen_pm.run(llvm_module);

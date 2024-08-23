@@ -19,6 +19,10 @@ public:
         return value->byte_size(is64Bit);
     }
 
+    DereferenceValue *as_deref_value() override {
+        return this;
+    }
+
     DereferenceValue *copy() override;
 
     hybrid_ptr<BaseType> get_base_type() override;

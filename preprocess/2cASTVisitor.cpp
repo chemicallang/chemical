@@ -1331,7 +1331,7 @@ public:
 
     void destruct(
             const std::string& self_name,
-            StructDefinition* linked,
+            ExtendableMembersContainerNode* linked,
             int16_t generic_iteration,
             FunctionDeclaration* destructor,
             bool is_pointer
@@ -1347,9 +1347,9 @@ public:
 
     void queue_destruct(const std::string& self_name, ASTNode* initializer, FunctionCall* call);
 
-    void destruct_arr_ptr(const std::string& self_name, Value* array_size, StructDefinition* linked, int16_t generic_iteration, FunctionDeclaration* destructor);
+    void destruct_arr_ptr(const std::string& self_name, Value* array_size, ExtendableMembersContainerNode* linked, int16_t generic_iteration, FunctionDeclaration* destructor);
 
-    void destruct_arr(const std::string& self_name, int array_size, StructDefinition* linked, int16_t generic_iteration, FunctionDeclaration* destructor) {
+    void destruct_arr(const std::string& self_name, int array_size, ExtendableMembersContainerNode* linked, int16_t generic_iteration, FunctionDeclaration* destructor) {
         IntValue siz(array_size);
         destruct_arr_ptr(self_name, &siz, linked, generic_iteration, destructor);
     }
@@ -1471,7 +1471,7 @@ void CAfterStmtVisitor::visit(FunctionCall *call) {
     }
 }
 
-void CDestructionVisitor::destruct(const std::string& self_name, StructDefinition* parent_node, int16_t generic_iteration, FunctionDeclaration* destructor, bool is_pointer) {
+void CDestructionVisitor::destruct(const std::string& self_name, ExtendableMembersContainerNode* parent_node, int16_t generic_iteration, FunctionDeclaration* destructor, bool is_pointer) {
     int16_t prev_itr;
     if(!parent_node->generic_params.empty()) {
         prev_itr = parent_node->active_iteration;
@@ -1523,7 +1523,7 @@ void CDestructionVisitor::queue_destruct(const std::string& self_name, ASTNode* 
     if(linked) queue_destruct(self_name, initializer, return_type->get_generic_iteration(), linked->as_struct_def());
 }
 
-void CDestructionVisitor::destruct_arr_ptr(const std::string &self_name, Value* array_size, StructDefinition* linked, int16_t generic_iteration, FunctionDeclaration* destructorFunc) {
+void CDestructionVisitor::destruct_arr_ptr(const std::string &self_name, Value* array_size, ExtendableMembersContainerNode* linked, int16_t generic_iteration, FunctionDeclaration* destructorFunc) {
     std::string arr_val_itr_name = visitor->get_local_temp_var_name();
     visitor->new_line_and_indent();
     visitor->write("for(int ");
@@ -2903,10 +2903,9 @@ void ToCAstVisitor::visit(DestructStmt *stmt) {
     IntValue siz_val(data.array_size);
 
     if(stmt->is_array) {
-        destructor->destruct_arr_ptr(self_name, data.array_size != -1 ? &siz_val : stmt->array_value.get(),
-                                     (StructDefinition*) data.parent_node, 0, data.destructor_func);
+        destructor->destruct_arr_ptr(self_name, data.array_size != -1 ? &siz_val : stmt->array_value.get(), data.parent_node, 0, data.destructor_func);
     } else {
-        destructor->destruct(self_name, (StructDefinition*) data.parent_node, 0, data.destructor_func, true);
+        destructor->destruct(self_name, data.parent_node, 0, data.destructor_func, true);
     }
 }
 

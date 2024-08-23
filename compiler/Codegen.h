@@ -307,17 +307,60 @@ public:
     std::unique_ptr<Value>& eval_comptime(FunctionCall* call, FunctionDeclaration* decl);
 
     /**
+     * destruct given alloca instruction, the array size is llvm value
      * destructs an array, also allows to add extra logic after destruction via lambda
      * the llvm::Value* provided in lambda is of the struct present in the array
      */
-    void destruct(llvm::Value* allocaInst, unsigned int array_size, BaseType* elem_type, void* data, void(*after_destruct)(Codegen*, llvm::Value*, void* data));
+    void destruct(
+            llvm::Value* allocaInst,
+            const std::function<void(llvm::Value*)>& call_destructor,
+            llvm::Value* array_size,
+            llvm::Type* elem_type,
+            bool check_for_null
+    );
 
     /**
-     * destructs an array
+     * destruct given alloca instruction, the array size is llvm value
+     * destructs an array, also allows to add extra logic after destruction via lambda
+     * the llvm::Value* provided in lambda is of the struct present in the array
      */
-    void destruct(llvm::Value* allocaInst, unsigned int array_size, BaseType* elem_type) {
-        destruct(allocaInst, array_size, elem_type, nullptr, nullptr);
-    }
+    void destruct(
+            llvm::Value* allocaInst,
+            llvm::FunctionType* destructor_func_type,
+            llvm::Value* destructor_func_callee,
+            bool pass_self,
+            llvm::Value* array_size,
+            BaseType* elem_type,
+            const std::function<void(llvm::Value*)>& after_destruct,
+            bool check_for_null
+    );
+
+    /**
+     * destruct given alloca instruction, the array size is llvm value
+     * destructs an array, also allows to add extra logic after destruction via lambda
+     * the llvm::Value* provided in lambda is of the struct present in the array
+     */
+    void destruct(
+            llvm::Value* allocaInst,
+            llvm::Value* array_size,
+            BaseType* elem_type,
+            const std::function<void(llvm::Value*)>& after_destruct,
+            bool check_for_null
+    );
+
+    /**
+     * destructs an array, also allows to add extra logic after destruction via lambda
+     * the llvm::Value* provided in lambda is of the struct present in the array
+     *
+     * no null check is made, the caller must ensure that given allocaInst is valid
+     * Since this method is mainly used for stack based arrays containing structs
+     */
+    void destruct(
+            llvm::Value* allocaInst,
+            unsigned int array_size,
+            BaseType* elem_type,
+            const std::function<void(llvm::Value*)>& after_destruct
+    );
 
     /**
      * when generating code for the body of the loop, it should be wrapped with this function call

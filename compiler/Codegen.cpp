@@ -19,6 +19,7 @@
 #include "ast/types/IntNType.h"
 #include "ast/types/DynamicType.h"
 #include "ast/structures/InterfaceDefinition.h"
+#include "ast/values/NullValue.h"
 #include <cstdlib>
 #include <optional>
 #include <llvm/TargetParser/Host.h>
@@ -216,33 +217,101 @@ std::unique_ptr<Value>& Codegen::eval_comptime(FunctionCall* call, FunctionDecla
     }
 }
 
-void Codegen::destruct(llvm::Value* allocaInst, unsigned int array_size, BaseType* elem_type, void* data, void(*after_destruct)(Codegen*, llvm::Value*, void*)) {
+void Codegen::destruct(
+        llvm::Value* allocaInst,
+        const std::function<void(llvm::Value*)>& call_destructor,
+        llvm::Value* array_size,
+        llvm::Type* elem_type,
+        bool check_for_null
+) {
+
+    auto& gen = *this;
+    // the pointer to the first element in array
+    auto firstEle = allocaInst;
+    // the pointer to last element in array
+    auto lastEle = builder->CreateGEP(elem_type, firstEle, { array_size }, "", inbounds);
+    // the current block in which we are
+    auto current_block = builder->GetInsertBlock();
+    // the body block contains the loop that calls the destructors
+    auto body_block = llvm::BasicBlock::Create(*ctx, "", current_function);
+    // the end block is where all destructors have been called, user's code is written...
+    auto end_block = llvm::BasicBlock::Create(*ctx, "", current_function);
+
+    if(check_for_null) {
+        // check if given pointer is null and send user to end block if it is
+        NullValue nullValue;
+        auto is_null = builder->CreateICmpEQ(allocaInst, nullValue.llvm_value(gen, nullptr));
+        builder->CreateCondBr(is_null, end_block, body_block);
+    } else {
+        // sending directly to body block (no null check)
+        CreateBr(body_block);
+    };
+
+    // generating the code for the body
+    SetInsertPoint(body_block);
+    auto PHI = builder->CreatePHI(builder->getPtrTy(), 2);
+    auto structPtr = builder->CreateGEP(elem_type, PHI, { builder->getInt32(-1) }, "", inbounds);
+    // if coming from the current block, last element pointer is taken (the ptr to last element in array)
+    PHI->addIncoming(lastEle, current_block);
+    // if coming from the body block (next iteration), we take -1 of the previous array (decrementing pointer)
+    PHI->addIncoming(structPtr, body_block);
+
+    // calling the destructor
+    call_destructor(structPtr);
+
+    // we just called destructor on struct pointer, if it's equal to first element, then we are done
+    auto result = builder->CreateICmpEQ(structPtr, firstEle);
+    CreateCondBr(result, end_block, body_block);
+
+    // setting end block as insert point so further user code can go into it
+    SetInsertPoint(end_block);
+}
+
+void Codegen::destruct(
+        llvm::Value* allocaInst,
+        llvm::FunctionType* destructor_func_type,
+        llvm::Value* destructor_func_callee,
+        bool pass_self,
+        llvm::Value* array_size,
+        BaseType* elem_type,
+        const std::function<void(llvm::Value*)>& after_destruct,
+        bool check_for_null
+) {
+    destruct(
+        allocaInst,
+        [&](llvm::Value* struct_pointer) -> void {
+            // calling the destructor
+            std::vector<llvm::Value*> args;
+            if(pass_self) {
+                args.emplace_back(struct_pointer);
+            }
+            builder->CreateCall(destructor_func_type, destructor_func_callee, args, "");
+            after_destruct(struct_pointer);
+        },
+        array_size,
+        elem_type->llvm_type(*this),
+        check_for_null
+    );
+}
+
+FunctionDeclaration* determine_destructor_for(
+        Codegen& gen,
+        BaseType* elem_type,
+        llvm::FunctionType*& func_type,
+        llvm::Value*& func_callee
+) {
+
     if(!elem_type->linked_node() || !elem_type->linked_node()->as_struct_def()) {
-        return;
+        return nullptr;
     }
+    //checking if struct has a destructor function
     auto structDef = elem_type->linked_node()->as_struct_def();
     auto destructorFunc = structDef->destructor_func();
     if(!destructorFunc) {
-        return;
+        return nullptr;
     }
-    auto& gen = *this;
-    auto llvm_type = llvm::ArrayType::get(elem_type->llvm_type(gen), array_size);
-    auto firstEle = builder->CreateGEP(llvm_type, allocaInst, { builder->getInt32(0), builder->getInt32(0) }, "", inbounds);
-    auto lastEle = builder->CreateGEP(elem_type->llvm_type(gen), firstEle, { builder->getInt32(array_size) }, "", inbounds);
-    auto current_block = builder->GetInsertBlock();
-    auto body_block = llvm::BasicBlock::Create(*ctx, "", current_function);
-    CreateBr(body_block);
-    SetInsertPoint(body_block);
-    auto PHI = builder->CreatePHI(builder->getPtrTy(), 2);
-    PHI->addIncoming(lastEle, current_block);
-    auto structPtr = builder->CreateGEP(elem_type->llvm_type(gen), PHI, { builder->getInt32(-1) }, "", inbounds);
-    PHI->addIncoming(structPtr, body_block);
-    std::vector<llvm::Value*> args;
-    if(destructorFunc->has_self_param()) {
-        args.emplace_back(structPtr);
-    }
-    llvm::FunctionType* func_type;
-    llvm::Value* func_callee;
+
+    // determine the function type and callee
     if(structDef->is_generic()) {
         const auto llvm_data = structDef->llvm_generic_func_data(destructorFunc, structDef->active_iteration, destructorFunc->active_iteration);
         func_type = llvm_data.second;
@@ -251,12 +320,44 @@ void Codegen::destruct(llvm::Value* allocaInst, unsigned int array_size, BaseTyp
         func_type = destructorFunc->llvm_func_type(gen);
         func_callee = destructorFunc->llvm_pointer(gen);
     }
-    builder->CreateCall(func_type, func_callee, args, "");
-    if(after_destruct) after_destruct(this, structPtr, data);
-    auto result = builder->CreateICmpEQ(structPtr, firstEle);
-    auto end_block = llvm::BasicBlock::Create(*ctx, "", current_function);
-    CreateCondBr(result, end_block, body_block);
-    SetInsertPoint(end_block);
+
+    return destructorFunc;
+
+}
+
+void Codegen::destruct(
+        llvm::Value* allocaInst,
+        llvm::Value* array_size,
+        BaseType* elem_type,
+        const std::function<void(llvm::Value*)>& after_destruct,
+        bool check_for_null
+) {
+    // determining destructor
+    llvm::FunctionType* func_type;
+    llvm::Value* func_callee;
+    auto destructorFunc = determine_destructor_for(*this, elem_type, func_type, func_callee);
+    if(!destructorFunc) return;
+    // calling destruct
+    destruct(
+            allocaInst,
+            func_type,
+            func_callee,
+            destructorFunc->has_self_param(),
+            array_size,
+            elem_type,
+            after_destruct,
+            check_for_null
+    );
+
+}
+
+void Codegen::destruct(
+        llvm::Value* allocaInst,
+        unsigned int array_size,
+        BaseType* elem_type,
+        const std::function<void(llvm::Value*)>& after_destruct
+) {
+    destruct(allocaInst, builder->getInt32(array_size), elem_type, after_destruct, false);
 }
 
 llvm::BasicBlock *Codegen::createBB(const std::string &name, llvm::Function *fn) {

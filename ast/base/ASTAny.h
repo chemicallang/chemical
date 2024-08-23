@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Visitor.h"
 #include <vector>
 #include <memory>
 
@@ -19,6 +20,11 @@ class ChainValue;
 
 class ASTAny {
 public:
+
+    /**
+     * accept the visitor
+     */
+    virtual void accept(Visitor *visitor) = 0;
 
 #ifdef COMPILER_BUILD
 

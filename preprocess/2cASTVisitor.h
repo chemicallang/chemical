@@ -3,6 +3,7 @@
 #include "ast/base/Visitor.h"
 #include "compiler/ASTDiagnoser.h"
 #include "ast/base/GlobalInterpretScope.h"
+#include "ast/base/ASTAny.h"
 #include <iosfwd>
 #include <string>
 #include <vector>
@@ -212,6 +213,11 @@ public:
     inline void space() {
         write(' ');
     }
+
+    /**
+     * accept any node to this visitor and receive a string instead
+     */
+    std::string string_accept(ASTAny* any);
 
     /**
      * used to write a string to a stream

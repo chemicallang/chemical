@@ -103,6 +103,7 @@
 #include "ast/utils/CommonVisitor.h"
 #include "utils/RepresentationUtils.h"
 #include "ast/utils/ASTUtils.h"
+#include <sstream>
 
 ToCAstVisitor::ToCAstVisitor(std::ostream *output) : output(output), ASTDiagnoser() {
     declarer = std::make_unique<CValueDeclarationVisitor>(this);
@@ -1346,7 +1347,12 @@ public:
 
     void queue_destruct(const std::string& self_name, ASTNode* initializer, FunctionCall* call);
 
-    void destruct_arr(const std::string& self_name, int array_size, StructDefinition* linked, int16_t generic_iteration, FunctionDeclaration* destructor);
+    void destruct_arr_ptr(const std::string& self_name, Value* array_size, StructDefinition* linked, int16_t generic_iteration, FunctionDeclaration* destructor);
+
+    void destruct_arr(const std::string& self_name, int array_size, StructDefinition* linked, int16_t generic_iteration, FunctionDeclaration* destructor) {
+        IntValue siz(array_size);
+        destruct_arr_ptr(self_name, &siz, linked, generic_iteration, destructor);
+    }
 
     void destruct(const DestructionJob& job, Value* current_return);
 
@@ -1517,13 +1523,14 @@ void CDestructionVisitor::queue_destruct(const std::string& self_name, ASTNode* 
     if(linked) queue_destruct(self_name, initializer, return_type->get_generic_iteration(), linked->as_struct_def());
 }
 
-void CDestructionVisitor::destruct_arr(const std::string &self_name, int array_size, StructDefinition* linked, int16_t generic_iteration, FunctionDeclaration* destructorFunc) {
-    std::string arr_val_itr_name = "_chx_arr_itr_idx_";
+void CDestructionVisitor::destruct_arr_ptr(const std::string &self_name, Value* array_size, StructDefinition* linked, int16_t generic_iteration, FunctionDeclaration* destructorFunc) {
+    std::string arr_val_itr_name = visitor->get_local_temp_var_name();
     visitor->new_line_and_indent();
     visitor->write("for(int ");
     visitor->write(arr_val_itr_name);
     visitor->write(" = ");
-    visitor->write(std::to_string(array_size - 1));
+    array_size->accept(visitor);
+    visitor->write(" - 1");
     visitor->write("; ");
     visitor->write(arr_val_itr_name);
     visitor->write(" >= 0;");
@@ -2368,6 +2375,15 @@ void ToCAstVisitor::write(const std::string& value) {
     output->write(value.c_str(), value.size());
 }
 
+std::string ToCAstVisitor::string_accept(ASTAny* any) {
+    std::ostringstream stream;
+    auto curr_out = output;
+    output = &stream;
+    any->accept(this);
+    output = curr_out;
+    return stream.str();
+}
+
 void ToCAstVisitor::visit(VarInitStatement *init) {
     if(top_level_node) return;
     var_init(this, init, false);
@@ -2877,7 +2893,15 @@ void ToCAstVisitor::visit(Namespace *ns) {
     }
 }
 
-void ToCAstVisitor::visit(DestructStmt *delStmt) {
+void ToCAstVisitor::visit(DestructStmt *stmt) {
+
+    bool new_line_before = true;
+
+    auto data = stmt->get_data();
+
+    auto self_name = string_accept(stmt->identifier.get());
+    IntValue siz_val(data.array_size);
+    destructor->destruct_arr_ptr(self_name, data.array_size != -1 ? &siz_val : stmt->array_value.get(), (StructDefinition*) data.parent_node, 0, data.destructor_func);
 
 }
 

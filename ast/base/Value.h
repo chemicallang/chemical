@@ -67,11 +67,6 @@ public:
     Value& operator =(Value &&other) = default;
 
     /**
-     * accept the visitor
-     */
-    virtual void accept(Visitor *visitor) = 0;
-
-    /**
      * this function is called to allow variable identifiers to link with a node on the map
      * that will help it provide information, to allow it to generate code, or interpret
      * The reason it takes a reference to unique_ptr<Value> is because the current value

@@ -85,11 +85,6 @@ public:
     }
 
     /**
-     * accept the visitor
-     */
-    virtual void accept(Visitor *visitor) = 0;
-
-    /**
      * copy the type, along with linked node
      */
     virtual BaseType *copy() const = 0;

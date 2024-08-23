@@ -3,6 +3,12 @@
 #include "ast/base/ASTNode.h"
 #include "ast/values/VariableIdentifier.h"
 
+struct DestructData {
+    ASTNode* parent_node;
+    FunctionDeclaration* destructor_func;
+    int array_size; // -1 if not known
+};
+
 class DestructStmt : public ASTNode {
 public:
 
@@ -36,6 +42,8 @@ public:
         bool is_array,
         ASTNode* parent_node
     );
+
+    DestructData get_data();
 
     ASTNode* parent() override {
         return parent_node;

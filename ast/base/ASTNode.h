@@ -11,7 +11,6 @@
 #include <string>
 #include "ASTAny.h"
 #include "Interpretable.h"
-#include "Visitor.h"
 #include "BaseTypeKind.h"
 #include "ValueType.h"
 #include "std/hybrid_ptr.h"
@@ -411,11 +410,6 @@ public:
      * get the byte size, of this type
      */
     virtual uint64_t byte_size(bool is64Bit);
-
-    /**
-     * accept the visitor
-     */
-    virtual void accept(Visitor *visitor) = 0;
 
     /**
      * get the type from the ASTNode

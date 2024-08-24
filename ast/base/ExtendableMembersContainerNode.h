@@ -36,4 +36,11 @@ public:
         return this;
     }
 
+    /**
+     * returns itself as extendable members container
+     */
+    ExtendableMembersContainerNode *as_extendable_members_container_node() override {
+        return this;
+    }
+
 };

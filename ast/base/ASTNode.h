@@ -32,6 +32,8 @@ class VariantCaseVariable;
 
 class ExtendableBase;
 
+class ExtendableMembersContainerNode;
+
 class BaseFunctionParam;
 
 class AnnotableNode;
@@ -198,6 +200,13 @@ public:
      * get the extendable members container, if this node has one
      */
     virtual ExtendableBase* as_extendable_members_container() {
+        return nullptr;
+    }
+
+    /**
+     * get as extendable members container node
+     */
+    virtual ExtendableMembersContainerNode* as_extendable_members_container_node() {
         return nullptr;
     }
 

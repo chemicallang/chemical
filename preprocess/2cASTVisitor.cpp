@@ -1304,14 +1304,14 @@ struct DestructionJob {
     ASTNode* initializer;
     union {
         struct {
-            StructDefinition* parent_node;
+            ExtendableMembersContainerNode* parent_node;
             int16_t generic_iteration;
             FunctionDeclaration* destructor;
             bool is_pointer;
         } default_job;
         struct {
             int array_size;
-            StructDefinition* linked;
+            ExtendableMembersContainerNode* linked;
             int16_t generic_iteration;
             FunctionDeclaration* destructorFunc;
         } array_job;
@@ -1341,7 +1341,7 @@ public:
             const std::string& self_name,
             ASTNode* initializer,
             int16_t generic_iteration,
-            StructDefinition* linked,
+            ExtendableMembersContainerNode* linked,
             bool is_pointer = false
     );
 
@@ -1499,7 +1499,7 @@ void CDestructionVisitor::destruct(const std::string& self_name, ExtendableMembe
     }
 }
 
-void CDestructionVisitor::queue_destruct(const std::string& self_name, ASTNode* initializer, int16_t generic_iteration, StructDefinition* linked, bool is_pointer) {
+void CDestructionVisitor::queue_destruct(const std::string& self_name, ASTNode* initializer, int16_t generic_iteration, ExtendableMembersContainerNode* linked, bool is_pointer) {
     if(!linked) return;
     auto destructorFunc = linked->destructor_func();
     if(destructorFunc) {
@@ -1520,7 +1520,7 @@ void CDestructionVisitor::queue_destruct(const std::string& self_name, ASTNode* 
 void CDestructionVisitor::queue_destruct(const std::string& self_name, ASTNode* initializer, FunctionCall* call) {
     auto return_type = call->create_type();
     auto linked = return_type->linked_node();
-    if(linked) queue_destruct(self_name, initializer, return_type->get_generic_iteration(), linked->as_struct_def());
+    if(linked) queue_destruct(self_name, initializer, return_type->get_generic_iteration(), linked->as_extendable_members_container_node());
 }
 
 void CDestructionVisitor::destruct_arr_ptr(const std::string &self_name, Value* array_size, ExtendableMembersContainerNode* linked, int16_t generic_iteration, FunctionDeclaration* destructorFunc) {
@@ -1576,12 +1576,14 @@ void CDestructionVisitor::dispatch_jobs_from(int begin) {
 
 void CDestructionVisitor::queue_destruct_decl_params(FunctionType* decl) {
     for(auto& d_param : decl->params) {
-        if(d_param->type->kind() == BaseTypeKind::Referenced || d_param->type->kind() == BaseTypeKind::Generic) {
-            auto linked_struct = d_param->type->linked_struct_def();
-            if(linked_struct) {
-                const auto destructor_func = linked_struct->destructor_func();
-                if(destructor_func) {
-                    queue_destruct(d_param->name, d_param.get(), d_param->type->get_generic_iteration(), linked_struct, true);
+        auto linked = d_param->type->get_direct_ref_node();
+        if(linked) {
+            const auto members_container = linked->as_members_container();
+            if(members_container) {
+                const auto destructor_func = members_container->destructor_func();
+                if (destructor_func) {
+                    queue_destruct(d_param->name, d_param.get(), d_param->type->get_generic_iteration(),
+                                   linked->as_extendable_members_container_node(), true);
                 }
             }
         }
@@ -1592,7 +1594,7 @@ bool CDestructionVisitor::queue_destruct_arr(const std::string& self_name, ASTNo
     if(elem_type->value_type() == ValueType::Struct) {
         auto linked = elem_type->linked_node();
         FunctionDeclaration* destructorFunc;
-        const auto struc_def = linked->as_struct_def();
+        const auto struc_def = linked->as_extendable_members_container_node();
         if(struc_def) {
             destructorFunc = struc_def->destructor_func();
             if (!destructorFunc) {
@@ -1630,6 +1632,12 @@ void CDestructionVisitor::process_init_value(VarInitStatement *init, Value* init
     if(array_val) {
         auto elem_type = array_val->element_type();
         queue_destruct_arr(init->identifier, init, elem_type.get(), array_val->array_size());
+        return;
+    }
+    auto variant_call = init_value->as_variant_call();
+    if(variant_call) {
+        const auto def = variant_call->get_definition();
+        queue_destruct(init->identifier, init, variant_call->generic_iteration, def);
         return;
     }
     auto struct_val = init_value->as_struct();
@@ -3075,6 +3083,8 @@ void func_container_name(ToCAstVisitor* visitor, ASTNode* parent_node, ASTNode* 
     } else if(parent_node->as_interface_def()) {
 //        const auto func_node = linked_node->as_function();
         visitor->write(parent_node->as_interface_def()->name);
+    } else if(parent_node->as_variant_def()) {
+        struct_name(visitor, parent_node->as_variant_def());
     } else if(parent_node->as_struct_def()) {
         const auto info = parent_node->as_struct_def()->get_overriding_info(linked_node->as_function());
         if (info.first) {

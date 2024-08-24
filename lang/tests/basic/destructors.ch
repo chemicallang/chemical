@@ -177,6 +177,11 @@ func relative_path(path : my_string) : my_string {
     return m;
 }
 
+variant OptDestructible {
+    Some(d : Destructible)
+    None()
+}
+
 func test_destructors() {
     test("test that var init struct value destructs", () => {
         var count = 0;
@@ -431,5 +436,27 @@ func test_destructors() {
         lamb();
         lamb2();
         return count == 0 && d.data == 677;
+    })
+    test("var init variant call destructs", () => {
+        var count = 0;
+        var data_usable = false;
+        if(count == 0){
+            const x = OptDestructible.Some(Destructible {
+                data : 892,
+                count : &count,
+                lamb : (count : int*) => {
+                    *count = *count + 1;
+                }
+            })
+            switch(x) {
+                case OptDestructible.Some(d) => {
+                    data_usable = d.data == 892;
+                }
+                case OptDestructible.None => {
+
+                }
+            }
+        }
+        return count == 1 && data_usable;
     })
 }

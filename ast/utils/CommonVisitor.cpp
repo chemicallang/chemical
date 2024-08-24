@@ -57,6 +57,7 @@
 //#include "ast/values/IntValue.h"
 //#include "ast/values/DoubleValue.h"
 #include "ast/values/FunctionCall.h"
+#include "ast/values/VariantCall.h"
 #include "ast/values/LambdaFunction.h"
 #include "ast/values/CastedValue.h"
 #include "ast/values/AccessChain.h"
@@ -99,6 +100,12 @@ void CommonVisitor::visit(Scope *scope) {
 }
 
 void CommonVisitor::visit(FunctionCall *call) {
+    for(auto& val : call->values) {
+        val->accept(this);
+    }
+}
+
+void CommonVisitor::visit(VariantCall *call) {
     for(auto& val : call->values) {
         val->accept(this);
     }

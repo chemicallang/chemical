@@ -19,6 +19,8 @@
 #include "ast/types/FunctionType.h"
 #include "GenericTypeParameter.h"
 
+class ExtendableMembersContainerNode;
+
 class FunctionDeclaration : public AnnotableNode, public FunctionType {
 private:
     Value *interpretReturn = nullptr;
@@ -107,7 +109,7 @@ public:
 
     void ensure_constructor(StructDefinition* def);
 
-    void ensure_destructor(StructDefinition* def);
+    void ensure_destructor(ExtendableMembersContainerNode* def);
 
     using FunctionType::as_extension_func;
 
@@ -162,6 +164,17 @@ public:
 
     llvm::FunctionType *create_llvm_func_type(Codegen &gen);
 
+    /**
+     * this function returns known llvm function type, this means
+     * that function has been created before, so func type is known for current generic
+     * iteration
+     */
+    llvm::FunctionType *known_func_type();
+
+    /**
+     * this will get the func type, no matter what, if it doesn't exist
+     * it will create the function type and store it
+     */
     llvm::FunctionType *llvm_func_type(Codegen &gen) override;
 
     /**
@@ -175,10 +188,20 @@ public:
     void code_gen_declare(Codegen &gen, StructDefinition* def);
 
     /**
+     * declare a function that is present inside variant definition
+     */
+    void code_gen_declare(Codegen &gen, VariantDefinition* def);
+
+    /**
      * called by struct definition to generate body for already declared
      * function
      */
     void code_gen_body(Codegen &gen, StructDefinition* def);
+
+    /**
+     * generate body for the function present inside a variant definition
+     */
+    void code_gen_body(Codegen &gen, VariantDefinition* def);
 
     /**
      * called by union when the function is inside a union
@@ -191,11 +214,21 @@ public:
     void code_gen_interface(Codegen &gen, InterfaceDefinition* def);
 
     /**
+     * setup cleanup block for the destructor, it'll set it as insert point
+     */
+    void setup_cleanup_block(Codegen& gen, llvm::Function* func);
+
+    /**
      * codegen destructor is called by function declaration itself
      * when a destructor's body is to be generated, mustn't be called
      * by outside functions
      */
     void code_gen_destructor(Codegen& gen, StructDefinition* def);
+
+    /**
+     * generates destructor body for the variant definition
+     */
+    void code_gen_destructor(Codegen& gen, VariantDefinition* def);
 
     /**
      * when normal functions occur in file, this function is called

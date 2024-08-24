@@ -222,6 +222,13 @@ public:
      */
     std::pair<llvm::Value*, llvm::FunctionType*>& llvm_generic_func_data(FunctionDeclaration* decl, int16_t struct_itr, int16_t func_itr);
 
+    /**
+     * this uses active iteration of both the current members container and given function declaration
+     * to get the function's data, works for both even if function is generic or this members container is generic
+     * it'll always get the correct func callee and func type
+     */
+    std::pair<llvm::Value*, llvm::FunctionType*> llvm_func_data(FunctionDeclaration* decl);
+
     bool add_child_index(
             Codegen &gen,
             std::vector<llvm::Value *> &indexes,

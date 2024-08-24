@@ -309,14 +309,9 @@ FunctionDeclaration* Codegen::determine_destructor_for(
     }
 
     // determine the function type and callee
-    if(!structDef->generic_params.empty()) {
-        const auto llvm_data = structDef->llvm_generic_func_data(destructorFunc, structDef->active_iteration, destructorFunc->active_iteration);
-        func_type = llvm_data.second;
-        func_callee = llvm_data.first;
-    } else {
-        func_type = destructorFunc->llvm_func_type(*this);
-        func_callee = destructorFunc->llvm_pointer(*this);
-    }
+    auto data = structDef->llvm_func_data(destructorFunc);
+    func_type = data.second;
+    func_callee = data.first;
 
     return destructorFunc;
 

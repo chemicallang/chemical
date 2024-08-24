@@ -554,8 +554,8 @@ llvm::Value* RetStructParamValue::llvm_value(Codegen &gen, BaseType* expected_ty
 }
 
 llvm::Value* SizeOfValue::llvm_value(Codegen &gen, BaseType* expected_type) {
-    value = for_type->byte_size(gen.is64Bit);
-    return UBigIntValue::llvm_value(gen, expected_type);
+    auto type = for_type->llvm_type(gen);
+    return gen.builder->getInt64(gen.module->getDataLayout().getTypeAllocSize(type));
 }
 
 llvm::Value* llvm_load_chain_until(
@@ -741,7 +741,8 @@ void ReturnStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
             auto value_ptr = value.value()->llvm_pointer(gen);
             if(!gen.assign_dyn_obj(value.value().get(), func_type->returnType.get(), dest, value_ptr)) {
                 llvm::MaybeAlign noAlign;
-                gen.builder->CreateMemCpy(dest, noAlign, value_ptr, noAlign, value.value()->byte_size(gen.is64Bit));
+                auto alloc_size = gen.module->getDataLayout().getTypeAllocSize(value.value()->llvm_type(gen));
+                gen.builder->CreateMemCpy(dest, noAlign, value_ptr, noAlign, alloc_size);
             }
         } else if(value.value()->as_variant_call()) {
             auto dest = gen.current_function->getArg(0);

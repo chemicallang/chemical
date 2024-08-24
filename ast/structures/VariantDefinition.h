@@ -101,6 +101,8 @@ public:
 
     llvm::Type* llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned int index) override;
 
+    void code_gen_once(Codegen &gen);
+
     void code_gen(Codegen &gen) override;
 
     void code_gen_generic(Codegen &gen) override;

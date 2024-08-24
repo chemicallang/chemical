@@ -73,16 +73,25 @@ llvm::Type* VariantDefinition::llvm_chain_type(Codegen &gen, std::vector<std::un
     return llvm_type(gen);
 }
 
+void VariantDefinition::code_gen_once(Codegen &gen) {
+    llvm_type(gen);
+    if(requires_destructor()) {
+        const auto destructor = create_destructor();
+        destructor->code_gen_declare(gen, this);
+        destructor->code_gen_body(gen, this);
+    }
+}
+
 void VariantDefinition::code_gen(Codegen &gen) {
     if(generic_params.empty()) {
-        llvm_type(gen);
+        code_gen_once(gen);
     } else {
         const auto total = total_generic_iterations();
         const auto prev_itr = active_iteration;
         int16_t i = generated_iterations;
         while(i < total) {
             set_active_iteration(i);
-            llvm_type(gen);
+            code_gen_once(gen);
             i++;
         }
         set_active_iteration(prev_itr);
@@ -103,65 +112,12 @@ void VariantDefinition::code_gen_generic(Codegen &gen) {
 }
 
 void VariantDefinition::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
-
-    // check if requires destructor, otherwise return
-    if(!requires_destructor()) {
-        return;
+    const auto destr = destructor_func();
+    if(destr) {
+        // making a call to destructor function
+        const auto data = llvm_func_data(destr);
+        gen.builder->CreateCall(data.second, data.first, { allocaInst });
     }
-
-    // get the type int
-    auto gep = gen.builder->CreateGEP(llvm_type(gen), allocaInst, { gen.builder->getInt32(0), gen.builder->getInt32(0) }, "", gen.inbounds);
-    auto type_value = gen.builder->CreateLoad(gen.builder->getInt32Ty(), gep);
-
-    // create an end block, for default case
-    llvm::BasicBlock* end_block = llvm::BasicBlock::Create(*gen.ctx, "", gen.current_function);
-
-    // figure out which members to destruct
-    std::vector<std::pair<int, VariantMember*>> to_destruct;
-    int index = 0;
-    for(auto& mem : variables) {
-        if(mem.second->requires_destructor()) {
-            to_destruct.emplace_back(index, mem.second->as_variant_member());
-        }
-        index++;
-    }
-
-    // get struct pointer
-    auto struct_ptr = gen.builder->CreateGEP(llvm_type(gen), allocaInst, { gen.builder->getInt32(0), gen.builder->getInt32(1) }, "", gen.inbounds);
-
-    // create switch block on type int
-    auto switchInst = gen.builder->CreateSwitch(type_value, end_block, to_destruct.size());
-
-    // create blocks for cases for which destructor exists
-    for(auto& mem : to_destruct) {
-        auto mem_block = llvm::BasicBlock::Create(*gen.ctx, "", gen.current_function);
-
-        // destructing member
-        gen.SetInsertPoint(mem_block);
-        llvm::FunctionType* dtr_func_type = nullptr;
-        llvm::Value* dtr_func_callee = nullptr;
-        int i = 0;
-        for(auto& value : mem.second->values) {
-            auto ref_node = value.second->type->get_direct_ref_node();
-            if(ref_node) { // <-- the node is directly referenced
-                auto destructorFunc = gen.determine_destructor_for(value.second->type.get(), dtr_func_type, dtr_func_callee);
-                if(destructorFunc) {
-                    std::vector<llvm::Value*> args;
-                    if(destructorFunc->has_self_param()) {
-                        auto gep3 = gen.builder->CreateGEP(mem.second->llvm_type(gen), struct_ptr, { gen.builder->getInt32(0), gen.builder->getInt32(i) }, "", gen.inbounds);
-                        args.emplace_back(gep3);
-                    }
-                    gen.builder->CreateCall(dtr_func_type, dtr_func_callee, args, "");
-                }
-            }
-            i++;
-        }
-        gen.CreateBr(end_block);
-        switchInst->addCase(gen.builder->getInt32(mem.first), mem_block);
-    }
-
-    gen.SetInsertPoint(end_block);
-
 }
 
 bool VariantMember::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {

@@ -105,6 +105,19 @@ std::pair<llvm::Value*, llvm::FunctionType*>& MembersContainer::llvm_generic_fun
     return generic_llvm_data[decl][struct_itr][func_itr];
 }
 
+std::pair<llvm::Value*, llvm::FunctionType*> MembersContainer::llvm_func_data(FunctionDeclaration* decl) {
+    std::pair<llvm::Value*, llvm::FunctionType*> data;
+    if(!generic_params.empty()) {
+        const auto llvm_data = llvm_generic_func_data(decl, active_iteration, decl->active_iteration);
+        data.second = llvm_data.second;
+        data.first = llvm_data.first;
+    } else {
+        data.second = decl->known_func_type();
+        data.first = decl->llvm_callee();
+    }
+    return data;
+}
+
 void MembersContainer::llvm_build_inherited_vtable_type(Codegen& gen, std::vector<llvm::Type*>& struct_types) {
     for(auto& inherits : inherited) {
         const auto linked = inherits->type->linked_node()->as_interface_def();

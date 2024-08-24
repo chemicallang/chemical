@@ -3609,15 +3609,15 @@ void ToCAstVisitor::visit(VariableIdentifier *identifier) {
 }
 
 void ToCAstVisitor::visit(SizeOfValue *size_of) {
-    if(use_sizeof) {
+//    if(use_sizeof) {
         write("sizeof");
         write('(');
         size_of->for_type->accept(this);
         write(')');
-    } else {
-        size_of->calculate_size(is64Bit);
-        size_of->UBigIntValue::accept(this);
-    }
+//    } else {
+//        size_of->calculate_size(is64Bit);
+//        size_of->UBigIntValue::accept(this);
+//    }
 }
 
 void ToCAstVisitor::visit(Expression *expr) {
@@ -3809,7 +3809,11 @@ void ToCAstVisitor::visit(UCharType *uchar) {
 }
 
 void ToCAstVisitor::visit(LongType *func) {
-    write("long");
+    if(is64Bit) {
+        write("long long");
+    } else {
+        write("long");
+    }
 }
 
 void ToCAstVisitor::visit(PointerType *func) {

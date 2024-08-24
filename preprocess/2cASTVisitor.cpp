@@ -2660,27 +2660,73 @@ void contained_func_decl(ToCAstVisitor* visitor, FunctionDeclaration* decl, cons
         visitor->write(":{");
         unsigned index = 0;
         visitor->indentation_level++;
-        for(auto& var : def->variables) {
-            if(var.second->value_type() == ValueType::Struct) {
-                auto mem_type = var.second->get_value_type();
-                auto mem_def = mem_type->linked_node()->as_struct_def();
-                auto destructor = mem_def->destructor_func();
-                if(!destructor) {
-                    index++;
-                    continue;
+        const auto struc_def = def->as_struct_def();
+        const auto variant_def = def->as_variant_def();
+        if(struc_def) {
+            for (auto& var: def->variables) {
+                if (var.second->value_type() == ValueType::Struct) {
+                    auto mem_type = var.second->get_value_type();
+                    const auto linked = mem_type->linked_node();
+                    auto mem_def = linked->as_members_container();
+                    auto destructor = mem_def->destructor_func();
+                    if (!destructor) {
+                        index++;
+                        continue;
+                    }
+                    visitor->new_line_and_indent();
+                    func_container_name(visitor, mem_def, destructor);
+                    visitor->write(destructor->name);
+                    visitor->write('(');
+                    if (destructor->has_self_param()) {
+                        visitor->write("&self->");
+                        visitor->write(var.second->name);
+                    }
+                    visitor->write(')');
+                    visitor->write(';');
+                }
+                index++;
+            }
+        } else if(variant_def) {
+            visitor->new_line_and_indent();
+            visitor->write("switch(self->");
+            visitor->write(variant_type_variant_name);
+            visitor->write(") {");
+            visitor->indentation_level += 1;
+            for (auto& var: def->variables) {
+                visitor->new_line_and_indent();
+                visitor->write("case ");
+                visitor->write(std::to_string(index));
+                visitor->write(':');
+                const auto member = var.second->as_variant_member();
+                for(auto& mem_param : member->values) {
+                    auto mem_type = mem_param.second->type.get();
+                    const auto linked = mem_type->linked_node();
+                    auto mem_def = linked->as_members_container();
+                    auto destructor = mem_def->destructor_func();
+                    if (!destructor) {
+                        index++;
+                        continue;
+                    }
+                    visitor->new_line_and_indent();
+                    func_container_name(visitor, mem_def, destructor);
+                    visitor->write(destructor->name);
+                    visitor->write('(');
+                    if (destructor->has_self_param()) {
+                        visitor->write("&self->");
+                        visitor->write(var.second->name);
+                        visitor->write('.');
+                        visitor->write(mem_param.first);
+                    }
+                    visitor->write(')');
+                    visitor->write(';');
                 }
                 visitor->new_line_and_indent();
-                func_container_name(visitor, mem_def, destructor);
-                visitor->write(destructor->name);
-                visitor->write('(');
-                if(destructor->has_self_param()) {
-                    visitor->write("&self->");
-                    visitor->write(var.second->name);
-                }
-                visitor->write(')');
-                visitor->write(';');
+                visitor->write("break;");
+                index++;
             }
-            index++;
+            visitor->indentation_level -= 1;
+            visitor->new_line_and_indent();
+            visitor->write('}');
         }
         visitor->indentation_level--;
         visitor->new_line_and_indent();

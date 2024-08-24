@@ -69,7 +69,7 @@ func build(ctx : BuildContext*) {
     const ext_module = ctx.c_file_module(string("ext_c"), relative_path(string("ext/file.c")), { })
     const module = ctx.chemical_file_module(exe_name, relative_path(string("tests.ch")), { ext_module });
 
-    const do_llvm_ir = !is_minimal && compiler::is_clang_based();
+    const do_llvm_ir = true;
     const do_asm = false;
     const do_c = !is_minimal || !compiler::is_clang_based();
     const do_to_ch = !is_minimal && compiler::is_clang_based();

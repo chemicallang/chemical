@@ -182,6 +182,14 @@ variant OptDestructible {
     None()
 }
 
+func test_variant_param_destructor(d : OptDestructible) {
+
+}
+
+func test_return_variant_param(d : OptDestructible) : OptDestructible {
+    return d;
+}
+
 func test_destructors() {
     test("test that var init struct value destructs", () => {
         var count = 0;
@@ -459,4 +467,43 @@ func test_destructors() {
         }
         return count == 1 && data_usable;
     })
+    test("test variants passed to functions as parameters are automatically destructed - 1", () => {
+        var count = 0;
+        if(count == 0) {
+            test_variant_param_destructor(
+                OptDestructible.Some(
+                    Destructible {
+                        count : &count,
+                        lamb : (count : int*) => {
+                            *count = *count + 1;
+                        }
+                    }
+                )
+           )
+        }
+        return count == 1;
+    })
+    test("test variants passed to functions as parameters are automatically destructed - 2", () => {
+        var count = 0;
+        if(count == 0) {
+            test_variant_param_destructor(OptDestructible.Some(create_destructible(&count, 223)))
+        }
+        return count == 1;
+    })
+    /**
+    test("returning variant parameter doesn't destruct it", () => {
+        var count = 0;
+        const x = test_return_variant_param(OptDestructible.Some(Destructible {
+            data : 777, count : &count, lamb : destruct_inc_count
+        }));
+        switch(x) {
+            case OptDestructible.Some(d) => {
+                return d.data == 777 && count == 0;
+            }
+            case OptDestructible.None => {
+                return false;
+            }
+        }
+    })
+    **/
 }

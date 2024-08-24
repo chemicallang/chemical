@@ -1107,6 +1107,7 @@ void CBeforeStmtVisitor::visit(AccessChain *chain) {
 
 void CBeforeStmtVisitor::visit(VariantCall *call) {
 
+    CommonVisitor::visit(call);
     const auto member = call->chain->linked_node()->as_variant_member();
     const auto linked = member->parent_node;
     const auto index = linked->direct_child_index(member->name);
@@ -1129,6 +1130,8 @@ void CBeforeStmtVisitor::visit(VariantCall *call) {
     visitor->write(std::to_string(index));
     visitor->write(", ");
     unsigned i = 0;
+    auto prev_nested = visitor->nested_value;
+    visitor->nested_value = true;
     for(auto& value : member->values) {
         visitor->write('.');
         visitor->write(member->name);
@@ -1140,6 +1143,7 @@ void CBeforeStmtVisitor::visit(VariantCall *call) {
         visitor->write(", ");
         i++;
     }
+    visitor->nested_value = prev_nested;
     visitor->write('}');
     visitor->write(';');
     visitor->new_line_and_indent();
@@ -2474,7 +2478,7 @@ void ToCAstVisitor::return_value(Value* val, BaseType* type) {
             const auto id = val->as_identifier();
             if(id) {
                 const auto func_param = id->linked->as_func_param();
-                if(func_param && func_param->type->is_ref_struct()) {
+                if(func_param && (func_param->type->get_direct_ref_struct() || func_param->type->get_direct_ref_variant())) {
                     write('*');
                 }
             }
@@ -3133,7 +3137,7 @@ void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<ChainValue>>&
         // functions that return struct
         auto allocated = visitor->local_allocated.find(last);
         if(allocated == visitor->local_allocated.end()) {
-            visitor->write("[NotFoundAllocated]");
+            visitor->write("[NotFoundAllocated in func_call]");
             return;
         }
         visitor->write(allocated->second);

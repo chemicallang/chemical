@@ -148,9 +148,12 @@ void FunctionType::queue_destruct_params(Codegen& gen) {
     for(auto& param : params) {
         const auto k = param->type->kind();
         if(k == BaseTypeKind::Referenced || k == BaseTypeKind::Generic) {
-            const auto def = param->type->linked_struct_def();
-            if(def && def->destructor_func()) {
-                gen.destruct_nodes.emplace_back(param.get());
+            const auto def = param->type->linked_node();
+            if(def) {
+                const auto members_container = def->as_members_container();
+                if(members_container && members_container->destructor_func()) {
+                    gen.destruct_nodes.emplace_back(param.get());
+                }
             }
         }
     }

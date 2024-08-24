@@ -490,20 +490,11 @@ func test_destructors() {
         }
         return count == 1;
     })
-    /**
     test("returning variant parameter doesn't destruct it", () => {
         var count = 0;
         const x = test_return_variant_param(OptDestructible.Some(Destructible {
             data : 777, count : &count, lamb : destruct_inc_count
         }));
-        switch(x) {
-            case OptDestructible.Some(d) => {
-                return d.data == 777 && count == 0;
-            }
-            case OptDestructible.None => {
-                return false;
-            }
-        }
+        return count == 0;
     })
-    **/
 }

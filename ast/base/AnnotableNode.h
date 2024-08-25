@@ -8,8 +8,4 @@
 class AnnotableNode : public ASTNode, public AnnotationParent {
 public:
 
-    AnnotableNode *as_annotable_node() override {
-        return this;
-    }
-
 };

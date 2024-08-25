@@ -169,13 +169,6 @@ public:
     bool contains_func(const std::string& name);
 
     /**
-     * members container
-     */
-    MembersContainer *as_members_container() override {
-        return this;
-    }
-
-    /**
      * this generic type is registered as a subscriber of this generic node
      */
     void subscribe(GenericType *subscriber) override {

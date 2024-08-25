@@ -30,10 +30,6 @@ public:
 
     hybrid_ptr<BaseType> get_value_type() override;
 
-    BaseFunctionParam *as_base_func_param() override {
-        return this;
-    }
-
     BaseType *known_type() override {
         return type.get();
     }

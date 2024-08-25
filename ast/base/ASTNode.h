@@ -204,41 +204,6 @@ public:
     }
 
     /**
-     * get a members container
-     */
-    virtual MembersContainer* as_members_container() {
-        return nullptr;
-    }
-
-    /**
-     * return this as an annotable node
-     */
-    virtual AnnotableNode* as_annotable_node() {
-        return nullptr;
-    }
-
-    /**
-     * return if this is a base function paam
-     */
-    virtual BaseFunctionParam* as_base_func_param() {
-        return nullptr;
-    }
-
-    /**
-     * return if this is definition member
-     */
-    virtual BaseDefMember* as_base_def_member() {
-        return nullptr;
-    }
-
-    /**
-     * return if this is a loop ast node
-     */
-    virtual LoopASTNode *as_loop_ast() {
-        return nullptr;
-    }
-
-    /**
      * return if this is a variables container
      */
     virtual VariablesContainer *as_variables_container() {
@@ -469,9 +434,14 @@ public:
         return kind() == ASTNodeKind::EnumMember;
     }
 
-    inline bool isFunctionDecl() {
-        const auto k = kind();
+private:
+    static inline bool isFunctionDecl(ASTNodeKind k) {
         return k == ASTNodeKind::FunctionDecl || k == ASTNodeKind::ExtensionFunctionDecl;
+    }
+public:
+
+    inline bool isFunctionDecl() {
+        return isFunctionDecl(kind());
     }
 
     inline bool isExtensionFunctionDecl() {
@@ -550,9 +520,79 @@ public:
         return kind() == ASTNodeKind::VariantCaseVariable;
     }
 
+    inline bool isBaseFuncParam() {
+        const auto k = kind();
+        return k == ASTNodeKind::ExtensionFuncReceiver || k == ASTNodeKind::FunctionParam;
+    }
+
+    inline bool isLoopASTNode() {
+        const auto k = kind();
+        return k == ASTNodeKind::WhileLoopStmt || k == ASTNodeKind::DoWhileLoopStmt || k == ASTNodeKind::ForLoopStmt;
+    }
+
+private:
+
+    static inline bool isMembersContainer(ASTNodeKind k) {
+        return k == ASTNodeKind::StructDecl || k == ASTNodeKind::UnionDecl || k == ASTNodeKind::VariantDecl || k == ASTNodeKind::InterfaceDecl || k == ASTNodeKind::ImplDecl;
+    }
+
+    static inline bool isBaseDefMember(ASTNodeKind k) {
+        return k == ASTNodeKind::StructMember || k == ASTNodeKind::UnnamedStruct || k == ASTNodeKind::UnnamedUnion || k == ASTNodeKind::VariantMember;
+    }
+
+public:
+
+    inline bool isMembersContainer() {
+        return isMembersContainer(kind());
+    }
+
+    inline bool isBaseDefMember() {
+        return isBaseDefMember(kind());
+    }
+
+    inline bool isAnnotableNode() {
+        const auto k = kind();
+        return k == ASTNodeKind::UsingStmt || k == ASTNodeKind::VarInitStmt || k == ASTNodeKind::NamespaceDecl || isBaseDefMember(k) || isFunctionDecl(k) || isMembersContainer(k);
+    }
+
     //---------------------------------------------
     // Helper as methods
     //---------------------------------------------
+
+    /**
+      * return this as an annotable node
+      */
+    AnnotableNode* as_annotable_node() {
+        return isAnnotableNode() ? (AnnotableNode*) this : nullptr;
+    }
+
+    /**
+     * return if this is definition member
+     */
+    BaseDefMember* as_base_def_member() {
+        return isBaseDefMember() ? (BaseDefMember*) this : nullptr;
+    }
+
+    /**
+     * get a members container
+     */
+    MembersContainer* as_members_container() {
+        return isMembersContainer() ? (MembersContainer*) this : nullptr;
+    }
+
+    /**
+     * return if this is a loop ast node
+     */
+    LoopASTNode *as_loop_ast() {
+        return isLoopASTNode() ? (LoopASTNode*) this : nullptr;
+    }
+
+    /**
+     * return if this is a base function paam
+     */
+    BaseFunctionParam* as_base_func_param() {
+        return isBaseFuncParam() ? (BaseFunctionParam*) this : nullptr;
+    }
 
     /**
      * return if this is a scope

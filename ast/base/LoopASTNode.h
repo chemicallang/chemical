@@ -32,10 +32,6 @@ public:
 
     }
 
-    LoopASTNode *as_loop_ast() override {
-        return this;
-    }
-
     /**
      * This is called by statements like break
      * to break the current interpretation, that is run by ASTNode's like loops (for, while)

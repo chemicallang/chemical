@@ -26,6 +26,10 @@ public:
         return true;
     }
 
+    bool satisfies(BaseType *type) override {
+        return true;
+    }
+
     bool is_same(BaseType *type) override {
         return true;
     }

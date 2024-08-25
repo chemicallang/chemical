@@ -51,7 +51,7 @@ bool Lexer::lexIfBlockTokens() {
     lexWhitespaceAndNewLines();
 
     // keep lexing else if blocks until last else appears
-    while (lexKeywordToken("else")) {
+    while (lexWSKeywordToken("else", '{')) {
         lexWhitespaceAndNewLines();
         if (provider.peek() == '{') {
             if (!lexBraceBlock("else")) {

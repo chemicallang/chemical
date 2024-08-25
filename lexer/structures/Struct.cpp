@@ -46,7 +46,6 @@ bool Lexer::lexStructStructureTokens(bool unnamed, bool direct_init) {
             do {
                 lexWhitespaceToken();
                 lexAccessSpecifier(false, true);
-                lexWhitespaceToken();
                 if(!lexRefOrGenericType()) {
                     return true;
                 }

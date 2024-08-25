@@ -24,8 +24,7 @@ bool Lexer::lexImplTokens() {
         lexWhitespaceToken();
         if(!lexRefOrGenericType()) return true;
         lexWhitespaceToken();
-        if(lexKeywordToken("for")) {
-            lexWhitespaceToken();
+        if(lexWSKeywordToken("for")) {
             if(!lexRefOrGenericType()) return true;
             lexWhitespaceToken();
         }

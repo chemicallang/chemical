@@ -86,9 +86,7 @@ bool Lexer::lexThrowStatementTokens() {
 bool Lexer::lexUsingStatement() {
     if(lexWSKeywordToken("using")) {
         auto start = tokens.size() - 1;
-        if(lexKeywordToken("namespace")) {
-            lexWhitespaceToken();
-        }
+        lexWSKeywordToken("namespace");
         do {
             if(!lexIdentifierToken()) {
                 error("expected a identifier in using statement");

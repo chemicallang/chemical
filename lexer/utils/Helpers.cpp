@@ -161,5 +161,5 @@ bool Lexer::isGenericEndAhead() {
 }
 
 bool Lexer::lexAccessSpecifier(bool internal, bool protect) {
-    return lexKeywordToken("public") || lexKeywordToken("private") || (internal && lexKeywordToken("internal")) || (protect && lexKeywordToken("protected"));
+    return lexWSKeywordToken("public") || lexWSKeywordToken("private") || (internal && lexWSKeywordToken("internal")) || (protect && lexWSKeywordToken("protected"));
 }

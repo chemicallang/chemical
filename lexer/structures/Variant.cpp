@@ -52,18 +52,17 @@ bool Lexer::lexVariantStructureTokens() {
         }
         lexWhitespaceToken();
         lexGenericParametersList();
-        lexWhitespaceToken();
-        if(lexOperatorToken(':')) {
-            do {
-                lexWhitespaceToken();
-                lexAccessSpecifier(false, true);
-                lexWhitespaceToken();
-                if(!lexRefOrGenericType()) {
-                    return true;
-                }
-                lexWhitespaceToken();
-            } while(lexOperatorToken(','));
-        }
+//        lexWhitespaceToken();
+//        if(lexOperatorToken(':')) {
+//            do {
+//                lexWhitespaceToken();
+//                lexAccessSpecifier(false, true);
+//                if(!lexRefOrGenericType()) {
+//                    return true;
+//                }
+//                lexWhitespaceToken();
+//            } while(lexOperatorToken(','));
+//        }
         lexWhitespaceToken();
         if(!lexOperatorToken('{')) {
             error("expected a '{' for struct block");

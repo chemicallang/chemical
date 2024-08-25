@@ -29,12 +29,12 @@ std::optional<bool> IsValue::get_comp_time_result() {
         bool result;
         const auto param = linked->as_generic_type_param();
         if (param) {
-            result = linked->known_type()->is_same(type.get());
+            result = type->satisfies(linked->known_type());
             return is_negating ? !result : result;
         }
         const auto alias = linked->as_typealias();
         if(alias) {
-            result = linked->known_type()->is_same(type.get());
+            result = type->satisfies(linked->known_type());
             return is_negating ? !result : result;
         }
     }

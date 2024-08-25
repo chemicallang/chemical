@@ -38,7 +38,7 @@ public:
      * this method is called by prepare_compiler_namespace automatically
      * this creates the compiler namespace in the global_nodes map
      */
-    Namespace* create_compiler_namespace();
+    std::unique_ptr<Namespace>& create_compiler_namespace();
 
     /**
      * will prepare compiler namespace in the symbol resolver

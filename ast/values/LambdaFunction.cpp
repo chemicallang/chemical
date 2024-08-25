@@ -119,10 +119,10 @@ BaseType* find_return_type(std::vector<std::unique_ptr<ASTNode>>& nodes) {
 
 void link_params_and_caps(LambdaFunction* fn, SymbolResolver &linker) {
     for(auto& cap : fn->captureList) {
-        cap->declare_and_link(linker);
+        cap->declare_and_link(linker, (std::unique_ptr<ASTNode>&) cap);
     }
     for (auto &param : fn->params) {
-        param->declare_and_link(linker);
+        param->declare_and_link(linker, (std::unique_ptr<ASTNode>&) param);
     }
 }
 

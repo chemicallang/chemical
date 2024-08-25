@@ -52,7 +52,7 @@ WhileLoop::WhileLoop(std::unique_ptr<Value> condition, ASTNode* parent_node) : c
 WhileLoop::WhileLoop(std::unique_ptr<Value> condition, LoopScope body, ASTNode* parent_node)
         : condition(std::move(condition)), LoopASTNode(std::move(body)), parent_node(parent_node) {}
 
-void WhileLoop::declare_and_link(SymbolResolver &linker) {
+void WhileLoop::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     linker.scope_start();
     condition->link(linker, condition);
     body.link_sequentially(linker);

@@ -48,7 +48,7 @@ public:
 
     void accept(Visitor *visitor) override;
 
-    void declare_and_link(SymbolResolver &linker) override;
+    void declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override;
 
     AssignStatement *as_assignment() override {
         return this;

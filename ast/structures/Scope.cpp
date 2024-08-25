@@ -19,27 +19,27 @@ void Scope::accept(Visitor *visitor) {
 }
 
 #ifdef DEBUG
-void Scope::declare_top_level(SymbolResolver &linker) {
+void Scope::declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     throw std::runtime_error("Scope::declare_top_level shouldn't be called, other link methods should be called");
 }
-void Scope::declare_and_link(SymbolResolver &linker) {
+void Scope::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     throw std::runtime_error("Scope::declare_and_link shouldn't be called, other link methods should be called");
 }
 #endif
 
 void Scope::link_sequentially(SymbolResolver &linker) {
-    for (const auto &node: nodes) {
-        node->declare_top_level(linker);
-        node->declare_and_link(linker);
+    for (auto &node: nodes) {
+        node->declare_top_level(linker, node);
+        node->declare_and_link(linker, node);
     }
 }
 
 void Scope::link_asynchronously(SymbolResolver &linker) {
-    for (const auto &node: nodes) {
-        node->declare_top_level(linker);
+    for (auto &node: nodes) {
+        node->declare_top_level(linker, node);
     }
-    for (const auto &node: nodes) {
-        node->declare_and_link(linker);
+    for (auto &node: nodes) {
+        node->declare_and_link(linker, node);
     }
 }
 

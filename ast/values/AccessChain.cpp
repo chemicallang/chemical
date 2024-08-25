@@ -91,7 +91,7 @@ void AccessChain::link(SymbolResolver &linker, BaseType *expected_type, std::uni
     }
 }
 
-void AccessChain::declare_and_link(SymbolResolver& linker) {
+void AccessChain::declare_and_link(SymbolResolver& linker, std::unique_ptr<ASTNode>& node_ptr) {
     link(linker, (BaseType*) nullptr, nullptr);
 }
 

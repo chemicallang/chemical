@@ -217,12 +217,12 @@ ASTNode* VariantDefinition::child(const std::string &child_name) {
     return nullptr;
 }
 
-void VariantDefinition::declare_top_level(SymbolResolver &linker) {
+void VariantDefinition::declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     linker.declare(name, this);
 }
 
-void VariantDefinition::declare_and_link(SymbolResolver &linker) {
-    MembersContainer::declare_and_link(linker);
+void VariantDefinition::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+    MembersContainer::declare_and_link(linker, node_ptr);
 //    register_use_to_inherited_interfaces(this);
     if(requires_destructor()) {
         if(contains_func("delete")) {
@@ -333,13 +333,13 @@ void VariantMember::accept(Visitor *visitor) {
 
 }
 
-void VariantMember::declare_top_level(SymbolResolver &linker) {
+void VariantMember::declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
 
 }
 
-void VariantMember::declare_and_link(SymbolResolver &linker) {
+void VariantMember::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     for(auto& value : values) {
-        value.second->declare_and_link(linker);
+        value.second->declare_and_link(linker, (std::unique_ptr<ASTNode>&) value.second);
     }
 }
 
@@ -404,7 +404,7 @@ VariantMemberParam* VariantMemberParam::copy() {
     return new VariantMemberParam(name, index,std::unique_ptr<BaseType>(type->copy()), std::unique_ptr<Value>(def_value ? def_value->copy() : nullptr), parent_node);
 }
 
-void VariantMemberParam::declare_and_link(SymbolResolver &linker) {
+void VariantMemberParam::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     type->link(linker, type);
     if(def_value) {
         def_value->link(linker, def_value);
@@ -445,12 +445,14 @@ VariantCase::VariantCase(std::unique_ptr<AccessChain> _chain, ASTDiagnoser& diag
 void VariantCase::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr) {
     // access chain in variant case allows no replacement of access chain, so nullptr in value_ptr
     chain->link(linker, (BaseType*) nullptr, nullptr);
+    // TODO variant case doesn't allow replacing it's identifier list
+    std::unique_ptr<ASTNode> dummy;
     for(auto& variable : identifier_list) {
-        variable.declare_and_link(linker);
+        variable.declare_and_link(linker, dummy);
     }
 }
 
-void VariantCaseVariable::declare_and_link(SymbolResolver &linker) {
+void VariantCaseVariable::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     const auto member = variant_case->chain->linked_node()->as_variant_member();
     auto node = member->values.find(name);
     if(node == member->values.end()) {

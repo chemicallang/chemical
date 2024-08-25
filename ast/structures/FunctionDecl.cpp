@@ -569,7 +569,7 @@ hybrid_ptr<BaseType> BaseFunctionParam::get_value_type() {
     return hybrid_ptr<BaseType> { type.get(), false };
 }
 
-void BaseFunctionParam::declare_and_link(SymbolResolver &linker) {
+void BaseFunctionParam::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     if(!name.empty()) {
         linker.declare(name, this);
     }
@@ -590,7 +590,7 @@ def_type(std::move(def_type)), parent_node(parent_node), param_index(param_index
 
 }
 
-void GenericTypeParameter::declare_and_link(SymbolResolver &linker) {
+void GenericTypeParameter::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     linker.declare(identifier, this);
     if(def_type) {
         def_type->link(linker, def_type);
@@ -735,11 +735,11 @@ void FunctionDeclaration::accept(Visitor *visitor) {
     visitor->visit(this);
 }
 
-void FunctionDeclaration::redeclare_top_level(SymbolResolver &linker) {
+void FunctionDeclaration::redeclare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     linker.declare_function(name, this);
 }
 
-void FunctionDeclaration::declare_top_level(SymbolResolver &linker) {
+void FunctionDeclaration::declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     if(has_annotation(AnnotationKind::Extern)) {
         annotations.push_back(AnnotationKind::Api);
         specifier = AccessSpecifier::Public;
@@ -758,7 +758,7 @@ void FunctionDeclaration::declare_top_level(SymbolResolver &linker) {
      */
     linker.scope_start();
     for(auto& gen_param : generic_params) {
-        gen_param->declare_and_link(linker);
+        gen_param->declare_and_link(linker, (std::unique_ptr<ASTNode>&) gen_param);
     }
     for(auto& param : params) {
         param->type->link(linker, param->type);
@@ -767,16 +767,16 @@ void FunctionDeclaration::declare_top_level(SymbolResolver &linker) {
     linker.declare_function(name, this);
 }
 
-void FunctionDeclaration::declare_and_link(SymbolResolver &linker) {
+void FunctionDeclaration::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     // if has body declare params
     linker.scope_start();
     auto prev_func_type = linker.current_func_type;
     linker.current_func_type = this;
     for(auto& gen_param : generic_params) {
-        gen_param->declare_and_link(linker);
+        gen_param->declare_and_link(linker, (std::unique_ptr<ASTNode>&) gen_param);
     }
     for (auto &param: params) {
-        param->declare_and_link(linker);
+        param->declare_and_link(linker, (std::unique_ptr<ASTNode>&) param);
     }
     returnType->link(linker, returnType);
     if (body.has_value()) {
@@ -865,7 +865,7 @@ hybrid_ptr<BaseType> CapturedVariable::get_value_type() {
     }
 }
 
-void CapturedVariable::declare_and_link(SymbolResolver &linker) {
+void CapturedVariable::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     linked = linker.find(name);
     linker.declare(name, this);
 }

@@ -44,9 +44,9 @@ public:
         visitor->visit(this);
     }
 
-    void redeclare_top_level(SymbolResolver &linker) override;
+    void redeclare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override;
 
-    void declare_and_link(SymbolResolver &linker) override;
+    void declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override;
 
     // TODO destructor support unnamed union
     bool requires_destructor() override {

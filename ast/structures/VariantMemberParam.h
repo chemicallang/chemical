@@ -29,7 +29,7 @@ public:
 
     VariantMemberParam* copy();
 
-    void declare_and_link(SymbolResolver &linker) override;
+    void declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override;
 
     uint64_t byte_size(bool is64Bit) override {
         return type->byte_size(is64Bit);

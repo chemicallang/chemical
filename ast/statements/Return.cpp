@@ -22,7 +22,7 @@ void ReturnStatement::interpret(InterpretScope &scope) {
     }
 }
 
-void ReturnStatement::declare_and_link(SymbolResolver &linker) {
+void ReturnStatement::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     if (value.has_value()) {
         value.value()->link(linker, this);
         if(func_type->returnType) {

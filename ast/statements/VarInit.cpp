@@ -7,6 +7,7 @@
 #include "ast/types/GenericType.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/values/ArrayValue.h"
+#include "ast/structures/VariantDefinition.h"
 
 #ifdef COMPILER_BUILD
 
@@ -48,7 +49,13 @@ void VarInitStatement::code_gen(Codegen &gen) {
                 }
             }
         } else {
-            llvm_ptr = gen.builder->CreateAlloca(llvm_type(gen), nullptr, identifier);
+            const auto t = llvm_type(gen);
+            llvm_ptr = gen.builder->CreateAlloca(t, nullptr, identifier);
+            const auto var = type.value()->get_direct_ref_variant();
+            if(var) {
+                auto gep = gen.builder->CreateGEP(t, llvm_ptr, { gen.builder->getInt32(0), gen.builder->getInt32(0) }, "", gen.inbounds);
+                gen.builder->CreateStore(gen.builder->getInt32(var->variables.size()), gep);
+            }
         }
     }
     gen.destruct_nodes.emplace_back(this);
@@ -104,6 +111,8 @@ llvm::Value *VarInitStatement::llvm_load(Codegen &gen) {
             return llvm_pointer(gen);
         }
     } else if(known_type()->pure_type()->kind() == BaseTypeKind::Struct) {
+        return llvm_pointer(gen);
+    } else if(known_type()->get_direct_ref_variant()) {
         return llvm_pointer(gen);
     }
     auto v = llvm_pointer(gen);

@@ -517,8 +517,20 @@ void access_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<ChainValue
     access_chain(visitor, values, start, end, values.size());
 }
 
+#define variant_type_variant_name "__chx__vt_621827"
+
 void value_alloca(ToCAstVisitor* visitor, const std::string& identifier, BaseType* type, std::optional<std::unique_ptr<Value>>& value) {
     type_with_id(visitor, type, identifier);
+    const auto var = type->get_direct_ref_variant();
+    if(var) {
+        visitor->write(" = ");
+        visitor->write("{ .");
+        visitor->write(variant_type_variant_name);
+        visitor->write(" = ");
+        visitor->write(std::to_string(var->variables.size()));
+        visitor->space();
+        visitor->write('}');
+    }
     visitor->write(';');
 }
 
@@ -2088,8 +2100,6 @@ void CTopLevelDeclarationVisitor::visit(StructDefinition* def) {
         }
     }
 }
-
-#define variant_type_variant_name "__chx__vt_621827"
 
 void CTopLevelDeclarationVisitor::declare_variant(VariantDefinition* def) {
     // no need to forward declare struct when inlining function types

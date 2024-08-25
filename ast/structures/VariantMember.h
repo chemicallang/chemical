@@ -55,10 +55,6 @@ public:
 
     BaseType* known_type() override;
 
-    VariantMember* as_variant_member() override {
-        return this;
-    }
-
 #ifdef COMPILER_BUILD
 
     bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;

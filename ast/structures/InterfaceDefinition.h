@@ -64,10 +64,6 @@ public:
         return name;
     }
 
-    InterfaceDefinition *as_interface_def() override {
-        return this;
-    }
-
     /**
      * direct usage of this struct is registered with this interface
      * the interfaces inherited by this interface aren't registered

@@ -37,10 +37,6 @@ public:
 
     }
 
-    EnumMember *as_enum_member() override {
-        return this;
-    }
-
 #ifdef COMPILER_BUILD
 
     llvm::Value *llvm_load(Codegen &gen) override;

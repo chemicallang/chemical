@@ -47,8 +47,6 @@ public:
 
     void accept(Visitor *visitor) override;
 
-    ReturnStatement *as_return() override;
-
 #ifdef COMPILER_BUILD
 
     void code_gen(Codegen &gen, Scope *scope, unsigned int index) override;

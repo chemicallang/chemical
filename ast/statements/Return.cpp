@@ -39,10 +39,6 @@ void ReturnStatement::accept(Visitor *visitor) {
     visitor->visit(this);
 }
 
-ReturnStatement *ReturnStatement::as_return() {
-    return this;
-}
-
 BaseType* ReturnStatement::known_type() {
     return func_type->returnType.get();
 }

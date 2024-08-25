@@ -92,8 +92,6 @@ public:
 
     void declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override;
 
-    StructDefinition *as_struct_def() override;
-
     ASTNode *child(const std::string &name) override;
 
     std::unique_ptr<BaseType> create_value_type() override;

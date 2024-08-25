@@ -190,13 +190,6 @@ public:
     }
 
     /**
-     * return this as a generic type parameter if its one
-     */
-    virtual GenericTypeParameter* as_generic_type_param() {
-        return nullptr;
-    }
-
-    /**
      * get the extendable members container, if this node has one
      */
     virtual ExtendableBase* as_extendable_members_container() {
@@ -225,60 +218,9 @@ public:
     }
 
     /**
-     * return this as a multi function node
-     */
-    virtual MultiFunctionNode* as_multi_func_node() {
-        return nullptr;
-    }
-
-    /**
-     * as enum member
-     */
-    virtual EnumDeclaration* as_enum_decl() {
-        return nullptr;
-    }
-
-    /**
-     * as enum member
-     */
-    virtual EnumMember* as_enum_member() {
-        return nullptr;
-    }
-
-    /**
      * return if this is a base function paam
      */
     virtual BaseFunctionParam* as_base_func_param() {
-        return nullptr;
-    }
-
-    /**
-     * get as extension function
-     */
-    virtual ExtensionFunction* as_extension_func() {
-        return nullptr;
-    }
-
-    /**
-     * return if this is a parameter
-     * @return
-     */
-    virtual FunctionParam *as_func_param() {
-        return nullptr;
-    }
-
-    /**
-     * return if this is a function decl
-     * @return
-     */
-    virtual FunctionDeclaration *as_function() {
-        return nullptr;
-    }
-
-    /**
-     * return if this is a struct member
-     */
-    virtual StructMember *as_struct_member() {
         return nullptr;
     }
 
@@ -290,41 +232,6 @@ public:
     }
 
     /**
-     * return if this is an unnamed union
-     */
-    virtual UnnamedUnion *as_unnamed_union() {
-        return nullptr;
-    }
-
-    /**
-     * return if this is an unnamed struct
-     */
-    virtual UnnamedStruct *as_unnamed_struct() {
-        return nullptr;
-    }
-
-    /**
-     * return if this is a typealias statement
-     */
-    virtual TypealiasStatement *as_typealias() {
-        return nullptr;
-    }
-
-    /**
-     * return if this is a captured variable
-     */
-    virtual CapturedVariable *as_captured_var() {
-        return nullptr;
-    }
-
-    /**
-     * return if this is a return statement
-     */
-    virtual ReturnStatement *as_return() {
-        return nullptr;
-    }
-
-    /**
      * return if this is a loop ast node
      */
     virtual LoopASTNode *as_loop_ast() {
@@ -332,86 +239,9 @@ public:
     }
 
     /**
-     * as interface definition
-     */
-    virtual InterfaceDefinition *as_interface_def() {
-        return nullptr;
-    }
-
-    /**
-     * as namespace
-     */
-    virtual Namespace* as_namespace() {
-        return nullptr;
-    }
-
-    /**
      * return if this is a variables container
      */
     virtual VariablesContainer *as_variables_container() {
-        return nullptr;
-    }
-
-    /**
-     * return if this is a scope
-     */
-    virtual Scope *as_scope() {
-        return nullptr;
-    }
-
-    /**
-     * return if this is a struct definition
-     */
-    virtual StructDefinition *as_struct_def() {
-        return nullptr;
-    }
-
-    /**
-     * return if this is a implementation def
-     */
-    virtual ImplDefinition* as_impl_def() {
-        return nullptr;
-    }
-
-    /**
-     * return if this is a struct definition
-     */
-    virtual UnionDef *as_union_def() {
-        return nullptr;
-    }
-
-    /**
-     * return if this is a var init statement
-     */
-    virtual VarInitStatement *as_var_init() {
-        return nullptr;
-    }
-
-    /**
-     * return if this is a variant member
-     */
-    virtual VariantMember* as_variant_member() {
-        return nullptr;
-    }
-
-    /**
-     * return if this is a variant definition
-     */
-    virtual VariantDefinition* as_variant_def() {
-        return nullptr;
-    }
-
-    /**
-     * return if this is a variant case variable
-     */
-    virtual VariantCaseVariable* as_variant_case_var() {
-        return nullptr;
-    }
-
-    /**
-     * return assignment statement if it is one
-     */
-    virtual AssignStatement* as_assignment() {
         return nullptr;
     }
 
@@ -537,6 +367,7 @@ public:
     /**
      * get the type kind represented by this node
      */
+    [[nodiscard]]
     virtual BaseTypeKind type_kind() const {
         return BaseTypeKind::Unknown;
     }
@@ -544,6 +375,7 @@ public:
     /**
      * get the value type represented by this node
      */
+    [[nodiscard]]
     virtual ValueType value_type() const {
         return ValueType::Unknown;
     }
@@ -552,5 +384,343 @@ public:
      * virtual destructor for the ASTNode
      */
     virtual ~ASTNode();
+
+    //---------------------------------------------
+    // Helper is methods
+    //---------------------------------------------
+
+    inline bool isAssignmentStmt() {
+        return kind() == ASTNodeKind::AssignmentStmt;
+    }
+
+    inline bool isBreakStmt() {
+        return kind() == ASTNodeKind::BreakStmt;
+    }
+
+    inline bool isCommentStmt() {
+        return kind() == ASTNodeKind::CommentStmt;
+    }
+
+    inline bool isContinueStmt() {
+        return kind() == ASTNodeKind::ContinueStmt;
+    }
+
+    inline bool isDeleteStmt() {
+        return kind() == ASTNodeKind::DeleteStmt;
+    }
+
+    inline bool isImportStmt() {
+        return kind() == ASTNodeKind::ImportStmt;
+    }
+
+    inline bool isReturnStmt() {
+        return kind() == ASTNodeKind::ReturnStmt;
+    }
+
+    inline bool isSwitchStmt() {
+        return kind() == ASTNodeKind::SwitchStmt;
+    }
+
+    inline bool isThrowStmt() {
+        return kind() == ASTNodeKind::ThrowStmt;
+    }
+
+    inline bool isTypealiasStmt() {
+        return kind() == ASTNodeKind::TypealiasStmt;
+    }
+
+    inline bool isUsingStmt() {
+        return kind() == ASTNodeKind::UsingStmt;
+    }
+
+    inline bool isVarInitStmt() {
+        return kind() == ASTNodeKind::VarInitStmt;
+    }
+
+    inline bool isWhileLoopStmt() {
+        return kind() == ASTNodeKind::WhileLoopStmt;
+    }
+
+    inline bool isDoWhileLoopStmt() {
+        return kind() == ASTNodeKind::DoWhileLoopStmt;
+    }
+
+    inline bool isForLoopStmt() {
+        return kind() == ASTNodeKind::ForLoopStmt;
+    }
+
+    inline bool isIfStmt() {
+        return kind() == ASTNodeKind::IfStmt;
+    }
+
+    inline bool isTryStmt() {
+        return kind() == ASTNodeKind::TryStmt;
+    }
+
+    inline bool isAccessChain() {
+        return kind() == ASTNodeKind::AccessChain;
+    }
+
+    inline bool isEnumDecl() {
+        return kind() == ASTNodeKind::EnumDecl;
+    }
+
+    inline bool isEnumMember() {
+        return kind() == ASTNodeKind::EnumMember;
+    }
+
+    inline bool isFunctionDecl() {
+        const auto k = kind();
+        return k == ASTNodeKind::FunctionDecl || k == ASTNodeKind::ExtensionFunctionDecl;
+    }
+
+    inline bool isExtensionFunctionDecl() {
+        return kind() == ASTNodeKind::ExtensionFunctionDecl;
+    }
+
+    inline bool isMultiFunctionNode() {
+        return kind() == ASTNodeKind::MultiFunctionNode;
+    }
+
+    inline bool isImplDecl() {
+        return kind() == ASTNodeKind::ImplDecl;
+    }
+
+    inline bool isInterfaceDecl() {
+        return kind() == ASTNodeKind::InterfaceDecl;
+    }
+
+    inline bool isStructDecl() {
+        return kind() == ASTNodeKind::StructDecl;
+    }
+
+    inline bool isStructMember() {
+        return kind() == ASTNodeKind::StructMember;
+    }
+
+    inline bool isNamespaceDecl() {
+        return kind() == ASTNodeKind::NamespaceDecl;
+    }
+
+    inline bool isUnionDecl() {
+        return kind() == ASTNodeKind::UnionDecl;
+    }
+
+    inline bool isVariantDecl() {
+        return kind() == ASTNodeKind::VariantDecl;
+    }
+
+    inline bool isVariantMember() {
+        return kind() == ASTNodeKind::VariantMember;
+    }
+
+    inline bool isUnnamedStruct() {
+        return kind() == ASTNodeKind::UnnamedStruct;
+    }
+
+    inline bool isUnnamedUnion() {
+        return kind() == ASTNodeKind::UnnamedUnion;
+    }
+
+    inline bool isScope() {
+        return kind() == ASTNodeKind::Scope;
+    }
+
+    inline bool isFunctionParam() {
+        return kind() == ASTNodeKind::FunctionParam;
+    }
+
+    inline bool isExtensionFuncReceiver() {
+        return kind() == ASTNodeKind::ExtensionFuncReceiver;
+    }
+
+    inline bool isGenericTypeParam() {
+        return kind() == ASTNodeKind::GenericTypeParam;
+    }
+
+    inline bool isVariantMemberParam() {
+        return kind() == ASTNodeKind::VariantMemberParam;
+    }
+
+    inline bool isCapturedVariable() {
+        return kind() == ASTNodeKind::CapturedVariable;
+    }
+
+    inline bool isVariantCaseVariable() {
+        return kind() == ASTNodeKind::VariantCaseVariable;
+    }
+
+    //---------------------------------------------
+    // Helper as methods
+    //---------------------------------------------
+
+    /**
+     * return if this is a scope
+     */
+    Scope *as_scope() {
+        return isScope() ? (Scope*) this : nullptr;
+    }
+
+    /**
+     * return this as a generic type parameter if its one
+     */
+    GenericTypeParameter* as_generic_type_param() {
+        return isGenericTypeParam() ? (GenericTypeParameter*) this : nullptr;
+    }
+
+    /**
+     * return this as a multi function node
+     */
+    MultiFunctionNode* as_multi_func_node() {
+        return isMultiFunctionNode() ? (MultiFunctionNode*) this : nullptr;
+    }
+
+    /**
+     * as enum member
+     */
+    EnumDeclaration* as_enum_decl() {
+        return isEnumDecl() ? (EnumDeclaration*) this : nullptr;
+    }
+
+    /**
+     * as enum member
+     */
+    EnumMember* as_enum_member() {
+        return isEnumMember() ? (EnumMember*) this : nullptr;
+    }
+
+    /**
+     * get as extension function
+     */
+    ExtensionFunction* as_extension_func() {
+        return isExtensionFunctionDecl() ? (ExtensionFunction*) this : nullptr;
+    }
+
+    /**
+     * return if this is a parameter
+     */
+    FunctionParam *as_func_param() {
+        return isFunctionParam() ? (FunctionParam*) this : nullptr;
+    }
+
+    /**
+     * return if this is a function decl
+     * @return
+     */
+    FunctionDeclaration *as_function() {
+        return isFunctionDecl() ? (FunctionDeclaration*) this : nullptr;
+    }
+
+    /**
+     * return if this is a struct member
+     */
+    StructMember *as_struct_member() {
+        return isStructMember() ? (StructMember*) this : nullptr;
+    }
+
+    /**
+     * return if this is an unnamed union
+     */
+    UnnamedUnion *as_unnamed_union() {
+        return isUnnamedUnion() ? (UnnamedUnion*) this : nullptr;
+    }
+
+    /**
+     * return if this is an unnamed struct
+     */
+    UnnamedStruct *as_unnamed_struct() {
+        return isUnnamedStruct() ? (UnnamedStruct*) this : nullptr;
+    }
+
+    /**
+     * return if this is a typealias statement
+     */
+    TypealiasStatement *as_typealias() {
+        return isTypealiasStmt() ? (TypealiasStatement*) this : nullptr;
+    }
+
+    /**
+     * return if this is a captured variable
+     */
+    CapturedVariable *as_captured_var() {
+        return isCapturedVariable() ? (CapturedVariable*) this : nullptr;
+    }
+
+    /**
+     * return if this is a return statement
+     */
+    ReturnStatement *as_return() {
+        return isReturnStmt() ? (ReturnStatement*) this : nullptr;
+    }
+
+    /**
+     * as interface definition
+     */
+    InterfaceDefinition *as_interface_def() {
+        return isInterfaceDecl() ? (InterfaceDefinition*) this : nullptr;
+    }
+
+    /**
+     * as namespace
+     */
+    Namespace* as_namespace() {
+        return isNamespaceDecl() ? (Namespace*) this : nullptr;
+    }
+
+    /**
+     * return if this is a struct definition
+     */
+    StructDefinition *as_struct_def() {
+        return isStructDecl() ? (StructDefinition*) this : nullptr;
+    }
+
+    /**
+     * return if this is a implementation def
+     */
+    ImplDefinition* as_impl_def() {
+        return isImplDecl() ? (ImplDefinition*) this : nullptr;
+    }
+
+    /**
+     * return if this is a struct definition
+     */
+    UnionDef *as_union_def() {
+        return isUnionDecl() ? (UnionDef*) this : nullptr;
+    }
+
+    /**
+     * return if this is a var init statement
+     */
+    VarInitStatement *as_var_init() {
+        return isVarInitStmt() ? (VarInitStatement*) this : nullptr;
+    }
+
+    /**
+     * return if this is a variant member
+     */
+    VariantMember* as_variant_member() {
+        return isVariantMember() ? (VariantMember*) this : nullptr;
+    }
+
+    /**
+     * return if this is a variant definition
+     */
+    VariantDefinition* as_variant_def() {
+        return isVariantDecl() ? (VariantDefinition*) this : nullptr;
+    }
+
+    /**
+     * return if this is a variant case variable
+     */
+    VariantCaseVariable* as_variant_case_var() {
+        return isVariantCaseVariable() ? (VariantCaseVariable*) this : nullptr;
+    }
+
+    /**
+     * return assignment statement if it is one
+     */
+    AssignStatement* as_assignment() {
+        return isAssignmentStmt() ? (AssignStatement*) this : nullptr;;
+    }
 
 };

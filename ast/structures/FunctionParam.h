@@ -33,10 +33,6 @@ public:
 
     void accept(Visitor *visitor) override;
 
-    FunctionParam *as_func_param() override {
-        return this;
-    }
-
     Value *holding_value() override {
         return defValue.has_value() ? defValue.value().get() : nullptr;
     }

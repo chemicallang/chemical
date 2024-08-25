@@ -63,10 +63,6 @@ public:
 
     hybrid_ptr<BaseType> get_value_type() override;
 
-    UnnamedUnion *as_unnamed_union() override {
-        return this;
-    }
-
     ASTNode *linked_node() override {
         return this;
     }

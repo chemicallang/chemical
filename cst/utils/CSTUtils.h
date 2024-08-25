@@ -4,16 +4,16 @@
 
 #include <memory>
 #include <string>
-#include "cst/base/CompoundCSTToken.h"
-#include "lexer/model/tokens/LexToken.h"
+#include "cst/base/CSTToken.h"
 #include "ast/base/AccessSpecifier.h"
+#include <optional>
 
 class ImportUnit;
 
 class LexResult;
 
 inline std::string str_token(CSTToken *token) {
-    return static_cast<LexToken *>(token)->value;
+    return token->value;
 }
 
 inline std::string escaped_str_token(CSTToken *token) {
@@ -22,7 +22,7 @@ inline std::string escaped_str_token(CSTToken *token) {
 }
 
 inline char char_op(CSTToken *token) {
-    return static_cast<LexToken *>(token)->value[0];
+    return token->value[0];
 }
 
 inline bool is_keyword(CSTToken *token, const std::string &x) {
@@ -41,53 +41,53 @@ inline bool is_str_op(CSTToken *token, const std::string &x) {
     return token->type() == LexTokenType::StringOperator && str_token(token) == x;
 }
 
-inline CSTToken* var_init_name_tok(CompoundCSTToken* cst) {
-    return cst->tokens[1].get();
+inline CSTToken* var_init_name_tok(CSTToken* cst) {
+    return cst->tokens[1];
 }
 
-inline std::string var_init_identifier(CompoundCSTToken* cst) {
+inline std::string var_init_identifier(CSTToken* cst) {
     return str_token(var_init_name_tok(cst));
 }
 
-inline CSTToken* typealias_name_tok(CompoundCSTToken* cst) {
-    return cst->tokens[1].get();
+inline CSTToken* typealias_name_tok(CSTToken* cst) {
+    return cst->tokens[1];
 }
 
-inline std::string typealias_name(CompoundCSTToken* cst) {
+inline std::string typealias_name(CSTToken* cst) {
     return str_token(typealias_name_tok(cst));
 }
 
-inline CSTToken* func_name_tok(CompoundCSTToken* func) {
+inline CSTToken* func_name_tok(CSTToken* func) {
     const auto is_generic = func->tokens[1]->type() == LexTokenType::CompGenericParamsList;
-    const auto is_extension = is_char_op(func->tokens[is_generic ? 2 : 1].get(), '(');
-    return func->tokens[1 + (is_extension ? 3 : 0) + (is_generic ? 1 : 0)].get();
+    const auto is_extension = is_char_op(func->tokens[is_generic ? 2 : 1], '(');
+    return func->tokens[1 + (is_extension ? 3 : 0) + (is_generic ? 1 : 0)];
 }
 
-inline std::string func_name(CompoundCSTToken* func) {
+inline std::string func_name(CSTToken* func) {
     return str_token(func_name_tok(func));
 }
 
-inline CSTToken* enum_name_tok(CompoundCSTToken* _enum) {
-    return _enum->tokens[1].get();
+inline CSTToken* enum_name_tok(CSTToken* _enum) {
+    return _enum->tokens[1];
 }
 
-inline std::string enum_name(CompoundCSTToken* _enum) {
+inline std::string enum_name(CSTToken* _enum) {
     return str_token(enum_name_tok(_enum));
 }
 
-inline CSTToken* struct_name_tok(CompoundCSTToken* _struct) {
-    return _struct->tokens[1].get();
+inline CSTToken* struct_name_tok(CSTToken* _struct) {
+    return _struct->tokens[1];
 }
 
-inline std::string struct_name(CompoundCSTToken* _struct) {
+inline std::string struct_name(CSTToken* _struct) {
     return str_token(struct_name_tok(_struct));
 }
 
-inline CSTToken* interface_name_tok(CompoundCSTToken* interface) {
-    return interface->tokens[1].get();
+inline CSTToken* interface_name_tok(CSTToken* interface) {
+    return interface->tokens[1];
 }
 
-inline std::string interface_name(CompoundCSTToken* interface) {
+inline std::string interface_name(CSTToken* interface) {
     return str_token(interface_name_tok(interface));
 }
 
@@ -99,36 +99,36 @@ std::optional<AccessSpecifier> specifier_token(CSTToken* token);
 /**
  * what is the parameter name in given comp param token
  */
-std::string param_name(CompoundCSTToken* param);
+std::string param_name(CSTToken* param);
 
 /**
  * is given comp var init token a const
  */
-bool is_var_init_const(CompoundCSTToken* cst);
+bool is_var_init_const(CSTToken* cst);
 
 /**
  * visits a range of tokens, from the given vector tokens, starting at start (inclusive) and end (exclusive)
  */
-void visit(CSTVisitor* visitor, std::vector<std::unique_ptr<CSTToken>>& tokens, unsigned int start, unsigned int end);
+void visit(CSTVisitor* visitor, std::vector<CSTToken*>& tokens, unsigned int start, unsigned int end);
 
 /**
  * a helper for visit
  */
-inline void visit(CSTVisitor* visitor, std::vector<std::unique_ptr<CSTToken>>& tokens, unsigned int start) {
+inline void visit(CSTVisitor* visitor, std::vector<CSTToken*>& tokens, unsigned int start) {
     visit(visitor, tokens, start, tokens.size());
 }
 
 /**
  * a helper for visit
  */
-inline void visit(CSTVisitor* visitor, std::vector<std::unique_ptr<CSTToken>>& tokens) {
+inline void visit(CSTVisitor* visitor, std::vector<CSTToken*>& tokens) {
     visit(visitor, tokens, 0, tokens.size());
 }
 
 /**
  * find's the token with given identifier inside the given tokens vector starting at start
  */
-CSTToken* find_identifier(std::vector<std::unique_ptr<CSTToken>>& tokens, const std::string& identifier, unsigned start = 0);
+CSTToken* find_identifier(std::vector<CSTToken*>& tokens, const std::string& identifier, unsigned start = 0);
 
 /**
  * link's the child 'token' which is present in the given parent token
@@ -147,17 +147,17 @@ CSTToken* get_linked(CSTToken* ref);
  * get linked node from var init
  * this linked node is either present in type (if user gave it) or the value
  */
-CSTToken* get_linked_from_var_init(std::vector<std::unique_ptr<CSTToken>>& tokens);
+CSTToken* get_linked_from_var_init(std::vector<CSTToken*>& tokens);
 
 /**
  * get the linked node from given typealias compound tokens
  */
-CSTToken* get_linked_from_typealias(std::vector<std::unique_ptr<CSTToken>>& tokens);
+CSTToken* get_linked_from_typealias(std::vector<CSTToken*>& tokens);
 
 /**
  * get the linked node from given function compound tokens
  */
-CSTToken* get_linked_from_func(std::vector<std::unique_ptr<CSTToken>>& tokens);
+CSTToken* get_linked_from_func(std::vector<CSTToken*>& tokens);
 
 /**
  * get linked node from the given CST node (var init, struct member)
@@ -173,7 +173,7 @@ CSTToken* get_child_type(CSTToken* token);
  * first is the container token, which is the direct parent of the token
  * the second is the index in the tokens vector present in the first compound token
  */
-using token_with_parent = std::pair<CompoundCSTToken*, unsigned int>;
+using token_with_parent = std::pair<CSTToken*, unsigned int>;
 
 /**
  * get the token's parent and index into it's tokens vector at where the token at given position is located
@@ -182,12 +182,12 @@ using token_with_parent = std::pair<CompoundCSTToken*, unsigned int>;
  * @param tokens the vector in which to look for the position
  * @param position the position at which token should exist
  */
-token_with_parent get_token_at_position(CompoundCSTToken* container, std::vector<std::unique_ptr<CSTToken>>& tokens, const Position& position);
+token_with_parent get_token_at_position(CSTToken* container, std::vector<CSTToken*>& tokens, const Position& position);
 
 /**
  * get the token at position or nullptr
  */
-LexToken* get_token_at_position(std::vector<std::unique_ptr<CSTToken>>& tokens, const Position& position);
+CSTToken* get_token_at_position(std::vector<CSTToken*>& tokens, const Position& position);
 
 /**
  * will look for token in a lex result, and if found will return it, can be useful

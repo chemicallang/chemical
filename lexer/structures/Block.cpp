@@ -41,7 +41,7 @@ bool Lexer::lexBraceBlock(const std::string &forThing, void(*nested_lexer)(Lexer
     // whitespace and new lines
     lexWhitespaceAndNewLines();
 
-    unsigned start = tokens.size();
+    unsigned start = tokens_size();
 
     // starting brace
     if (!lexOperatorToken('{')) {

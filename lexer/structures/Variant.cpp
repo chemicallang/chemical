@@ -8,7 +8,7 @@
 
 bool Lexer::lexVariantMemberTokens() {
     if(lexIdentifierToken()) {
-        unsigned start = tokens.size() - 1;
+        unsigned start = tokens_size() - 1;
         if(lexOperatorToken('(')) {
             lexParameterList(false, true, false, false);
             if(!lexOperatorToken(')')) {
@@ -45,7 +45,7 @@ void Lexer::lexVariantBlockTokens() {
 
 bool Lexer::lexVariantStructureTokens() {
     if(lexWSKeywordToken("variant")) {
-        auto start_token = tokens.size() - 1;
+        auto start_token = tokens_size() - 1;
         if (!lexIdentifierToken()) {
             error("expected a identifier as struct name");
             return true;

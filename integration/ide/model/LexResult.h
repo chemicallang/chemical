@@ -16,7 +16,7 @@ struct LexResult {
     /**
      * the actual tokens
      */
-    std::vector<std::unique_ptr<CSTToken>> tokens;
+    std::vector<CSTToken*> tokens;
     /**
      * diagnostics when CSTTokens were lexed / resolved
      */

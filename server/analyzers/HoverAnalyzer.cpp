@@ -23,16 +23,16 @@ struct FuncSignature {
     CSTToken *returnType;
 };
 
-FuncSignature get_signature(CompoundCSTToken *func) {
+FuncSignature get_signature(CSTToken* func) {
     std::vector<FuncParam> params;
     unsigned i = 2;
     CSTToken *token;
     while (i < func->tokens.size()) {
-        token = func->tokens[i].get();
+        token = func->tokens[i];
         if (token->type() == LexTokenType::CompFunctionParam) {
             params.emplace_back(
                     param_name(token->as_compound()),
-                    2 < token->as_compound()->tokens.size() ? token->as_compound()->tokens[2].get() : nullptr
+                    2 < token->as_compound()->tokens.size() ? token->as_compound()->tokens[2] : nullptr
             );
         } else if (is_char_op(token, ')')) {
             break;
@@ -40,8 +40,8 @@ FuncSignature get_signature(CompoundCSTToken *func) {
         i++;
     }
     CSTToken *ret = nullptr;
-    if (is_char_op(func->tokens[i + 1].get(), ':')) {
-        ret = func->tokens[i + 2].get();
+    if (is_char_op(func->tokens[i + 1], ':')) {
+        ret = func->tokens[i + 2];
     }
     return {std::move(params), ret};
 }
@@ -84,7 +84,7 @@ void small_detail_of(std::string& value, CSTToken* linked) {
             value += "interface ";
             break;
         case LexTokenType::CompVarInit:
-            if (is_char_op(linked->as_compound()->tokens[2].get(), ':')) {
+            if (is_char_op(linked->as_compound()->tokens[2], ':')) {
                 linked->as_compound()->tokens[3]->append_representation(value);
             } else {
                 // TODO get type by value
@@ -99,7 +99,7 @@ void small_detail_of(std::string& value, CSTToken* linked) {
     }
 }
 
-void markdown_documentation(std::string& value, LexResult* current, LexResult* defined_in, CompoundCSTToken* parent, CSTToken* linked) {
+void markdown_documentation(std::string& value, LexResult* current, LexResult* defined_in, CSTToken* parent, CSTToken* linked) {
     bool parent_handled = false;
     if (defined_in && defined_in != current) {
         auto relative_path = std::filesystem::relative(
@@ -161,15 +161,15 @@ void markdown_documentation(std::string& value, LexResult* current, LexResult* d
             break;
         case LexTokenType::CompInterface:
             value += "```typescript\n";
-            value += "interface " + interface_name(linked->as_compound());
+            value += "interface " + interface_name(linked);
             value += "\n```";
             break;
         case LexTokenType::CompVarInit:
             value += "```typescript\n";
-            value += "var " + var_init_identifier(linked->as_compound());
-            if (is_char_op(linked->as_compound()->tokens[2].get(), ':')) {
+            value += "var " + var_init_identifier(linked);
+            if (is_char_op(linked->tokens[2], ':')) {
                 value += " : ";
-                linked->as_compound()->tokens[3]->append_representation(value);
+                linked->tokens[3]->append_representation(value);
             } else {
                 // TODO get type by value
             }

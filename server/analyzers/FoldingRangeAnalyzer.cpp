@@ -6,12 +6,12 @@
 
 #include "FoldingRangeAnalyzer.h"
 #include "lexer/model/tokens/CharOperatorToken.h"
-#include "cst/base/CompoundCSTToken.h"
+#include "cst/base/CSTToken.h"
 #include "cst/utils/CSTUtils.h"
 
 #define DEBUG_FOLDING_RANGE false
 
-void FoldingRangeAnalyzer::folding_range(LexToken* start, LexToken* end, bool comment) {
+void FoldingRangeAnalyzer::folding_range(CSTToken* start, CSTToken* end, bool comment) {
     ranges.push_back(FoldingRange{
             static_cast<int>(start->position.line),
             static_cast<int>(end->position.line),
@@ -21,97 +21,97 @@ void FoldingRangeAnalyzer::folding_range(LexToken* start, LexToken* end, bool co
     });
 }
 
-void FoldingRangeAnalyzer::visitStructDef(CompoundCSTToken *structDef) {
+void FoldingRangeAnalyzer::visitStructDef(CSTToken* structDef) {
     auto has_override = is_char_op(structDef->tokens[3].get(), ':');
     auto start = has_override ? 4 : 2;
     folding_range(structDef->tokens[start]->start_token(), structDef->tokens[structDef->tokens.size() - 1]->start_token());
     ::visit(this, structDef->tokens, start + 1, structDef->tokens.size());
 };
 
-void FoldingRangeAnalyzer::visitVarInit(CompoundCSTToken *varInit) {
+void FoldingRangeAnalyzer::visitVarInit(CSTToken* varInit) {
     varInit->tokens[varInit->tokens.size() - 1]->accept(this);
 }
 
-void FoldingRangeAnalyzer::visitReturn(CompoundCSTToken *returnCst) {
+void FoldingRangeAnalyzer::visitReturn(CSTToken* returnCst) {
     ::visit(this, returnCst->tokens);
 }
 
-void FoldingRangeAnalyzer::visitFunctionCall(CompoundCSTToken *call) {
+void FoldingRangeAnalyzer::visitFunctionCall(CSTToken* call) {
     ::visit(this, call->tokens);
 }
 
-void FoldingRangeAnalyzer::visitAssignment(CompoundCSTToken *assignment) {
+void FoldingRangeAnalyzer::visitAssignment(CSTToken* assignment) {
     assignment->tokens[assignment->tokens.size() - 1]->accept(this);
 }
 
 void FoldingRangeAnalyzer::visitAccessChain(AccessChainCST *accessChain) {
-    ::visit(this, ((CompoundCSTToken*) accessChain)->tokens);
+    ::visit(this, ((CSTToken*) accessChain)->tokens);
 }
 
-void FoldingRangeAnalyzer::visitIf(CompoundCSTToken *ifCst) {
+void FoldingRangeAnalyzer::visitIf(CSTToken* ifCst) {
     ::visit(this, ifCst->tokens);
 }
 
-void FoldingRangeAnalyzer::visitForLoop(CompoundCSTToken *forLoop) {
+void FoldingRangeAnalyzer::visitForLoop(CSTToken* forLoop) {
     forLoop->tokens[8]->accept(this);
 };
 
-void FoldingRangeAnalyzer::visitWhile(CompoundCSTToken *whileCst) {
+void FoldingRangeAnalyzer::visitWhile(CSTToken* whileCst) {
     whileCst->tokens[4]->accept(this);
 };
 
-void FoldingRangeAnalyzer::visitDoWhile(CompoundCSTToken *doWhileCst) {
+void FoldingRangeAnalyzer::visitDoWhile(CSTToken* doWhileCst) {
     doWhileCst->tokens[1]->accept(this);
 };
 
-void FoldingRangeAnalyzer::visitFunction(CompoundCSTToken *function) {
+void FoldingRangeAnalyzer::visitFunction(CSTToken* function) {
     function->tokens[function->tokens.size() - 1]->accept(this);
 };
 
-void FoldingRangeAnalyzer::visitEnumDecl(CompoundCSTToken *enumDecl) {
+void FoldingRangeAnalyzer::visitEnumDecl(CSTToken* enumDecl) {
     folding_range(enumDecl->tokens[2]->start_token(), enumDecl->tokens[enumDecl->tokens.size() - 1]->end_token());
 }
 
-void FoldingRangeAnalyzer::visitLambda(CompoundCSTToken *cst) {
+void FoldingRangeAnalyzer::visitLambda(CSTToken* cst) {
     cst->tokens[cst->tokens.size() - 1]->accept(this);
 };
 
-void FoldingRangeAnalyzer::visitSwitch(CompoundCSTToken *switchCst) {
+void FoldingRangeAnalyzer::visitSwitch(CSTToken* switchCst) {
     folding_range(switchCst->tokens[4]->start_token(), switchCst->tokens[switchCst->tokens.size() - 1]->end_token());
 }
 
-void FoldingRangeAnalyzer::visitStructValue(CompoundCSTToken *cst) {
+void FoldingRangeAnalyzer::visitStructValue(CSTToken* cst) {
     folding_range(cst->tokens[1]->start_token(), cst->tokens[cst->tokens.size() - 1]->end_token());
     ::visit(this, cst->tokens, 2, cst->tokens.size());
 }
 
-void FoldingRangeAnalyzer::visitArrayValue(CompoundCSTToken *cst) {
+void FoldingRangeAnalyzer::visitArrayValue(CSTToken* cst) {
     folding_range(cst->tokens[0]->start_token(), cst->tokens[cst->tokens.size() - 1]->end_token());
     ::visit(this, cst->tokens, 1, cst->tokens.size());
 }
 
-void FoldingRangeAnalyzer::visitInterface(CompoundCSTToken *interface) {
+void FoldingRangeAnalyzer::visitInterface(CSTToken* interface) {
     folding_range(interface->tokens[2]->start_token(), interface->tokens[interface->tokens.size() - 1]->end_token());
     ::visit(this, interface->tokens, 3, interface->tokens.size());
 }
 
-void FoldingRangeAnalyzer::visitImpl(CompoundCSTToken *impl) {
+void FoldingRangeAnalyzer::visitImpl(CSTToken* impl) {
     bool no_for = is_char_op(impl->tokens[2].get(), '{');
     auto l_brace = no_for ? 2 : 4;
     folding_range(impl->tokens[l_brace]->start_token(), impl->tokens[impl->tokens.size() - 1]->end_token());
     ::visit(this, impl->tokens, l_brace + 1, impl->tokens.size());
 }
 
-void FoldingRangeAnalyzer::visitMultilineComment(LexToken *token) {
+void FoldingRangeAnalyzer::visitMultilineComment(CSTToken *token) {
     // TODO represent multi line token with at least 3 tokens
 };
 
-void FoldingRangeAnalyzer::visitBody(CompoundCSTToken *bodyCst) {
+void FoldingRangeAnalyzer::visitBody(CSTToken* bodyCst) {
     folding_range(bodyCst->start_token(), bodyCst->end_token());
     ::visit(this, bodyCst->tokens);
 }
 
-void FoldingRangeAnalyzer::analyze(std::vector<std::unique_ptr<CSTToken>> &tokens) {
+void FoldingRangeAnalyzer::analyze(std::vector<CSTToken*> &tokens) {
     ::visit(this, tokens);
 #if defined DEBUG_FOLDING_RANGE && DEBUG_FOLDING_RANGE
         for (const auto &range: ranges) {

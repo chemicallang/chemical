@@ -46,13 +46,13 @@ public:
     /**
      * get the child container that contains the caret within this compound token
      */
-    CompoundCSTToken* child_container(CompoundCSTToken* compound);
+    CSTToken* child_container(CSTToken* compound);
 
     /**
      * finds the direct parent compound token
      * that contains the caret position
      */
-    CompoundCSTToken* direct_parent(std::vector<std::unique_ptr<CSTToken>> &tokens);
+    CSTToken* direct_parent(std::vector<CSTToken*> &tokens);
 
     /**
      * gets index of the token which is right before caret
@@ -60,7 +60,7 @@ public:
      * also assumes that caret is present inside these tokens
      * otherwise -1 if caret is behind all tokens, -2 if ahead of all tokens
      */
-    CSTToken* token_before_caret(std::vector<std::unique_ptr<CSTToken>> &tokens);
+    CSTToken* token_before_caret(std::vector<CSTToken*> &tokens);
 
     /**
      * will return true, if given position is ahead of caret position
@@ -89,31 +89,31 @@ public:
     /**
      * will return true, if given position is ahead of caret position
      */
-    bool is_ahead(LexToken* token) const;
+    bool is_ahead(CSTToken* token) const;
 
     /**
      * is token position equal to caret position
      */
-    bool is_eq_caret(LexToken* token) const;
+    bool is_eq_caret(CSTToken* token) const;
 
     /**
      * is the cursor ahead of the given token
      */
-    inline bool is_caret_ahead(LexToken* token) const {
+    inline bool is_caret_ahead(CSTToken* token) const {
         return !is_ahead(token);
     }
 
     /**
      * is the cursor / caret behind of the given token
      */
-    inline bool is_caret_behind(LexToken* token) const {
+    inline bool is_caret_behind(CSTToken* token) const {
         return is_ahead(token);
     }
 
     /**
      * is caret equal or behind the token's position
      */
-    inline bool is_caret_eq_or_behind(LexToken* token) const {
+    inline bool is_caret_eq_or_behind(CSTToken* token) const {
         return is_ahead(token) || is_eq_caret(token);
     }
 
@@ -135,35 +135,35 @@ public:
     /**
      * finds completion items till the given cursor position, found completion items are put on the items vector
      */
-    void visit(std::vector<std::unique_ptr<CSTToken>> &tokens, unsigned int start, unsigned int end);
+    void visit(std::vector<CSTToken*> &tokens, unsigned int start, unsigned int end);
 
     /**
      * visit's all tokens from given start
      */
-    void visit(std::vector<std::unique_ptr<CSTToken>> &tokens, unsigned int start = 0) {
+    void visit(std::vector<CSTToken*> &tokens, unsigned int start = 0) {
         visit(tokens, start, tokens.size());
     }
 
     /**
      * chain before caret
      */
-    CompoundCSTToken* chain_before_caret(std::vector<std::unique_ptr<CSTToken>> &tokens);
+    CSTToken* chain_before_caret(std::vector<CSTToken*> &tokens);
 
     /**
      * put's the identifiers present inside the tokens to the completion list, from start
      */
-    void put_identifiers(std::vector<std::unique_ptr<CSTToken>>& tokens, unsigned int start = 0);
+    void put_identifiers(std::vector<CSTToken*>& tokens, unsigned int start = 0);
 
     /**
      * would handle given access chain
      * @return true if handled
      */
-    bool handle_chain_before_caret(CompoundCSTToken* token);
+    bool handle_chain_before_caret(CSTToken* token);
 
     /**
      * The function that analyzes tokens
      */
-    CompletionList analyze(std::vector<std::unique_ptr<CSTToken>> &tokens);
+    CompletionList analyze(std::vector<CSTToken*> &tokens);
 
     /**
      * analyze an entire import unit for better support for completions across different files
@@ -172,38 +172,38 @@ public:
 
     // Visitors
 
-    void visitVarInit(CompoundCSTToken *varInit) override;
+    void visitVarInit(CSTToken* varInit) override;
 
-    void visitAssignment(CompoundCSTToken *assignment) override;
+    void visitAssignment(CSTToken* assignment) override;
 
-    void visitFunction(CompoundCSTToken *function) override;
+    void visitFunction(CSTToken* function) override;
 
-    void visitEnumDecl(CompoundCSTToken *enumDecl) override;
+    void visitEnumDecl(CSTToken* enumDecl) override;
 
-    void visitStructDef(CompoundCSTToken *structDef) override;
+    void visitStructDef(CSTToken* structDef) override;
 
-    void visitInterface(CompoundCSTToken *interface) override;
+    void visitInterface(CSTToken* interface) override;
 
-    void visitImpl(CompoundCSTToken *impl) override;
+    void visitImpl(CSTToken* impl) override;
 
-    void visitIf(CompoundCSTToken *ifCst) override;
+    void visitIf(CSTToken* ifCst) override;
 
-    void visitWhile(CompoundCSTToken *whileCst) override;
+    void visitWhile(CSTToken* whileCst) override;
 
-    void visitDoWhile(CompoundCSTToken *doWhileCst) override;
+    void visitDoWhile(CSTToken* doWhileCst) override;
 
-    void visitForLoop(CompoundCSTToken *forLoop) override;
+    void visitForLoop(CSTToken* forLoop) override;
 
-    void visitSwitch(CompoundCSTToken *switchCst) override;
+    void visitSwitch(CSTToken* switchCst) override;
 
-    void visitLambda(CompoundCSTToken *cst) override;
+    void visitLambda(CSTToken* cst) override;
 
-    void visitStructValue(CompoundCSTToken *structValueCst) override;
+    void visitStructValue(CSTToken* structValueCst) override;
 
-    void visitArrayValue(CompoundCSTToken *arrayValue) override;
+    void visitArrayValue(CSTToken* arrayValue) override;
 
-    void visitMultilineComment(LexToken *token) override;
+    void visitMultilineComment(CSTToken *token) override;
 
-    void visitBody(CompoundCSTToken *bodyCst) override;
+    void visitBody(CSTToken* bodyCst) override;
 
 };

@@ -23,24 +23,24 @@ public:
     /**
      * will analyze the given lex result
      */
-    void analyze(std::vector<std::unique_ptr<CSTToken>>& tokens);
+    void analyze(std::vector<CSTToken*>& tokens);
 
     //---------------------------
     //------- Visitors-----------
     //---------------------------
 
-    void visitCompoundCommon(CompoundCSTToken *compound) override;
+    void visitCompoundCommon(CSTToken* compound) override;
 
-    void visitFunction(CompoundCSTToken *function) override;
+    void visitFunction(CSTToken* function) override;
 
-    void visitStructDef(CompoundCSTToken *structDef) override;
+    void visitStructDef(CSTToken* structDef) override;
 
-    void visitInterface(CompoundCSTToken *interface) override;
+    void visitInterface(CSTToken* interface) override;
 
-    void visitTypealias(CompoundCSTToken *alias) override;
+    void visitTypealias(CSTToken* alias) override;
 
-    void visitEnumDecl(CompoundCSTToken *enumDecl) override;
+    void visitEnumDecl(CSTToken* enumDecl) override;
 
-    void visitVarInit(CompoundCSTToken *varInit) override;
+    void visitVarInit(CSTToken* varInit) override;
 
 };

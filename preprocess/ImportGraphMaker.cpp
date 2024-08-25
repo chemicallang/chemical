@@ -7,7 +7,7 @@
 #include "ast/statements/Import.h"
 #include "compiler/ASTDiagnoser.h"
 #include "ImportGraphVisitor.h"
-#include "cst/base/CompoundCSTToken.h"
+#include "cst/base/CSTToken.h"
 #include "cst/utils/CSTUtils.h"
 #include "ImportPathHandler.h"
 #include "utils/PathUtils.h"
@@ -30,7 +30,7 @@ ImportGraphImporter::ImportGraphImporter(ImportPathHandler* handler, Lexer* lexe
 
 void ImportGraphImporter::lex_source(const std::string& path, std::vector<Diag>& errors) {
     // lex
-    lexer->tokens.clear();
+    lexer->unit.reset();
     lexer->lexTopLevelMultipleImportStatements();
     if (lexer->has_errors) {
         move_errors(lexer->diagnostics, errors, path);
@@ -38,13 +38,13 @@ void ImportGraphImporter::lex_source(const std::string& path, std::vector<Diag>&
     }
 }
 
-void ImportGraphVisitor::visitImport(CompoundCSTToken *cst) {
+void ImportGraphVisitor::visitImport(CSTToken *cst) {
     std::string as_identifier;
-    if(2 < cst->tokens.size() && is_keyword(cst->tokens[2].get(), "as")) {
-        as_identifier = str_token(cst->tokens[3].get());
+    if(2 < cst->tokens.size() && is_keyword(cst->tokens[2], "as")) {
+        as_identifier = str_token(cst->tokens[3]);
     }
     imports.emplace_back(
-            FlatIGFile { escaped_str_token(cst->tokens[1].get()), escaped_str_token(cst->tokens[1].get()), std::move(as_identifier) },
+            FlatIGFile { escaped_str_token(cst->tokens[1]), escaped_str_token(cst->tokens[1]), std::move(as_identifier) },
             Range { cst->start_token()->position, cst->end_token()->position }
     );
 }
@@ -59,7 +59,7 @@ IGFile from_import(
 std::vector<IGFile> ImportGraphImporter::from_tokens(
         const std::string &abs_path,
         IGFile* parent,
-        std::vector<std::unique_ptr<CSTToken>>& tokens
+        std::vector<CSTToken*>& tokens
 ) {
     // convert
     converter->imports.clear();
@@ -99,7 +99,7 @@ std::vector<IGFile> ImportGraphImporter::process(const std::string &path, IGFile
     return from_tokens(
             path,
             parent,
-            lexer->tokens
+            lexer->unit.tokens
     );
 }
 
@@ -148,14 +148,14 @@ IGFile from_import(
     return file;
 }
 
-IGResult determine_import_graph(ImportGraphImporter* importer, std::vector<std::unique_ptr<CSTToken>>& tokens, FlatIGFile &asker) {
+IGResult determine_import_graph(ImportGraphImporter* importer, std::vector<CSTToken*>& tokens, FlatIGFile &asker) {
     IGResult result;
     result.root = IGFile { nullptr, asker };
     result.root.files = importer->from_tokens(result.root.flat_file.abs_path, &result.root, tokens);
     return result;
 }
 
-IGResult determine_import_graph(const std::string& exe_path, std::vector<std::unique_ptr<CSTToken>>& tokens, FlatIGFile &asker) {
+IGResult determine_import_graph(const std::string& exe_path, std::vector<CSTToken*>& tokens, FlatIGFile &asker) {
     SourceProvider reader(nullptr);
     Lexer lexer(reader);
     ImportGraphVisitor visitor;

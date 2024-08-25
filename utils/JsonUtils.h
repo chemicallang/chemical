@@ -48,7 +48,7 @@ public:
 
     };
 
-    static void serialize(const std::string& path, const std::vector<std::unique_ptr<CSTToken>>& tokens) {
+    static void serialize(const std::string& path, const std::vector<CSTToken*>& tokens) {
 
         std::ofstream stream("D:/Programming/Chemical/chemical/" + path, std::ios::trunc);
         rapidjson::OStreamWrapper out(stream);
@@ -58,7 +58,7 @@ public:
         d.SetArray();
         auto allocator = d.GetAllocator();
 
-        LexToken* token;
+        CSTToken* token;
         for (const auto &t: tokens) {
             if(t->compound()) {
                 continue;

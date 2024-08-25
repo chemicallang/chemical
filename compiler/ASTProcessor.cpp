@@ -218,7 +218,7 @@ ASTImportResultExt ASTProcessor::import_file(const FlatIGFile& file) {
             err.ansi(std::cerr, abs_path, "Lexer") << std::endl;
         }
         if (options->print_cst) {
-            printTokens(lexer.tokens);
+            printTokens(lexer.unit.tokens);
         }
         if (lexer.has_errors) {
             return { Scope { nullptr },false, is_c_file, std::move(out.str()) };
@@ -232,7 +232,7 @@ ASTImportResultExt ASTProcessor::import_file(const FlatIGFile& file) {
         CSTConverter converter(file.abs_path, options->is64Bit, options->target_triple);
         converter.no_imports = true;
         converter.isCBIEnabled = options->isCBIEnabled;
-        converter.convert(lexer.tokens);
+        converter.convert(lexer.unit.tokens);
         if(options->benchmark) {
             bm_results->benchmark_end();
             print_benchmarks(out, "Cst2Ast", bm_results.get());

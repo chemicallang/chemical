@@ -49,13 +49,13 @@ bool Lexer::lexGenericTypeAfterId(unsigned int start) {
 }
 
 bool Lexer::lexRefOrGenericType() {
-    unsigned start = tokens.size();
+    unsigned start = tokens_size();
     auto id = provider.readIdentifier();
     if(id.empty()) {
         error("missing struct / interface name in inheritance list of the struct");
         return false;
     }
-    tokens.emplace_back(std::make_unique<LexToken>(LexTokenType::Type, backPosition(id.length()), id));
+    emplace(LexTokenType::Type, backPosition(id.length()), id);
     lexWhitespaceToken();
     lexGenericTypeAfterId(start);
     return true;
@@ -79,7 +79,7 @@ bool Lexer::lexTypeId(std::string& type, unsigned int start) {
     bool has_multiple = false;
     while(true) {
         if(provider.peek() == ':' && provider.peek(1) == ':') {
-            tokens.emplace_back(std::make_unique<LexToken>(LexTokenType::Variable, backPosition(type.length()), type));
+            emplace(LexTokenType::Variable, backPosition(type.length()), type);
             lexOperatorToken("::");
             auto new_type = provider.readIdentifier();
             if(new_type.empty()) {
@@ -91,11 +91,11 @@ bool Lexer::lexTypeId(std::string& type, unsigned int start) {
             }
         } else {
             if(has_multiple) {
-                tokens.emplace_back(std::make_unique<LexToken>(LexTokenType::Variable, backPosition(type.length()), type));
+                emplace(LexTokenType::Variable, backPosition(type.length()), type);
                 compound_from(start, LexTokenType::CompAccessChain);
                 compound_from(start, LexTokenType::CompReferencedValueType);
             } else {
-                tokens.emplace_back(std::make_unique<LexToken>(LexTokenType::Type, backPosition(type.length()), type));
+                emplace(LexTokenType::Type, backPosition(type.length()), type);
             }
             break;
         }
@@ -106,7 +106,7 @@ bool Lexer::lexTypeId(std::string& type, unsigned int start) {
 bool Lexer::lexTypeTokens() {
 
     if(lexOperatorToken('[')) {
-        unsigned start = tokens.size() - 1;
+        unsigned start = tokens_size() - 1;
         if(!lexOperatorToken(']')) {
             error("expected ']' after '[' for lambda type");
             return true;
@@ -118,7 +118,7 @@ bool Lexer::lexTypeTokens() {
         return true;
     }
 
-    if(lexLambdaTypeTokens(tokens.size())) {
+    if(lexLambdaTypeTokens(tokens_size())) {
         return true;
     }
 
@@ -126,14 +126,14 @@ bool Lexer::lexTypeTokens() {
     if(type.empty()) return false;
     // dyn should be a keyword
     if(type == "dyn" && lexWhitespaceToken()) {
-        unsigned prev_start = tokens.size();
-        tokens.emplace_back(std::make_unique<LexToken>(LexTokenType::Type, backPosition(type.length()), type));
+        unsigned prev_start = tokens_size();
+        emplace(LexTokenType::Type, backPosition(type.length()), type);
         std::string contained_type = provider.readIdentifier();
         if(contained_type.empty()) {
             error("expected a type identifier after dyn keyword");
             return true;
         }
-        unsigned start = tokens.size();
+        unsigned start = tokens_size();
         if(!lexTypeId(contained_type, start)) {
             return true;
         }
@@ -142,7 +142,7 @@ bool Lexer::lexTypeTokens() {
         lexArrayAndPointerTypesAfterTypeId(prev_start);
         return true;
     }
-    unsigned start = tokens.size();
+    unsigned start = tokens_size();
     if(!lexTypeId(type, start)) {
         return true;
     }

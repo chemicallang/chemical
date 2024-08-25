@@ -8,7 +8,7 @@
 
 bool Lexer::lexContinueStatement() {
     if(lexWSKeywordToken("continue", ';')) {
-        compound_from(tokens.size(), LexTokenType::CompContinue);
+        compound_from(tokens_size(), LexTokenType::CompContinue);
         return true;
     } else {
         return false;
@@ -17,7 +17,7 @@ bool Lexer::lexContinueStatement() {
 
 bool Lexer::lexBreakStatement() {
     if(lexWSKeywordToken("break", ';')) {
-        compound_from(tokens.size(), LexTokenType::CompBreak);
+        compound_from(tokens_size(), LexTokenType::CompBreak);
         return true;
     } else {
         return false;
@@ -30,7 +30,7 @@ bool Lexer::lexForBlockTokens() {
         return false;
     }
 
-    unsigned start = tokens.size() - 1;
+    unsigned start = tokens_size() - 1;
 
     // start parenthesis
     if(!lexOperatorToken('(')) {

@@ -4,40 +4,40 @@
 #include "integration/ide/model/ImportUnit.h"
 #include "integration/ide/model/LexResult.h"
 
-bool is_var_init_const(CompoundCSTToken* cst) {
-    return str_token(cst->tokens[0].get()) == "const";
+bool is_var_init_const(CSTToken* cst) {
+    return str_token(cst->tokens[0]) == "const";
 }
 
 std::optional<AccessSpecifier> specifier_token(CSTToken* token) {
     if(token->type() == LexTokenType::Keyword) {
-        if(token->as_lex_token()->value == "public") {
+        if(token->value == "public") {
             return AccessSpecifier::Public;
-        } else if(token->as_lex_token()->value == "private") {
+        } else if(token->value == "private") {
             return AccessSpecifier::Private;
-        } else if(token->as_lex_token()->value == "internal") {
+        } else if(token->value == "internal") {
             return AccessSpecifier::Internal;
-        } else if(token->as_lex_token()->value == "protected") {
+        } else if(token->value == "protected") {
             return AccessSpecifier::Protected;
         }
     }
     return std::nullopt;
 }
 
-std::string param_name(CompoundCSTToken* param) {
-    return str_token(param->tokens[is_char_op(param->tokens[0].get(), '&') ? 1 : 0].get());
+std::string param_name(CSTToken* param) {
+    return str_token(param->tokens[is_char_op(param->tokens[0], '&') ? 1 : 0]);
 }
 
-void visit(CSTVisitor* visitor, std::vector<std::unique_ptr<CSTToken>>& tokens, unsigned int start, unsigned int end) {
+void visit(CSTVisitor* visitor, std::vector<CSTToken*>& tokens, unsigned int start, unsigned int end) {
     while(start < end) {
         tokens[start]->accept(visitor);
         start++;
     }
 }
 
-CSTToken* find_identifier(std::vector<std::unique_ptr<CSTToken>>& tokens, const std::string& identifier, unsigned start) {
+CSTToken* find_identifier(std::vector<CSTToken*>& tokens, const std::string& identifier, unsigned start) {
     CSTToken* token;
     while(start < tokens.size()) {
-        token = tokens[start].get();
+        token = tokens[start];
         if(token->type() == LexTokenType::Identifier && token->as_lex_token()->value == identifier) {
             return token;
         }
@@ -46,12 +46,12 @@ CSTToken* find_identifier(std::vector<std::unique_ptr<CSTToken>>& tokens, const 
     return nullptr;
 }
 
-CSTToken* find_func_or_var_init(std::vector<std::unique_ptr<CSTToken>>& tokens, const std::string& name, unsigned start) {
+CSTToken* find_func_or_var_init(std::vector<CSTToken*>& tokens, const std::string& name, unsigned start) {
     CSTToken* token;
     while(start < tokens.size()) {
-        token = tokens[start].get();
+        token = tokens[start];
         if(token->is_var_init() || token->is_func_decl()) {
-            if(str_token(token->as_compound()->tokens[1].get()) == name) {
+            if(str_token(token->tokens[1]) == name) {
                 return token;
             }
         }
@@ -76,7 +76,7 @@ CSTToken* get_linked(CSTToken* ref) {
 CSTToken* get_linked_from_value(CSTToken* value) {
     switch(value->type()) {
         case LexTokenType::CompStructValue:
-            return get_linked(value->as_compound()->tokens[0].get());
+            return get_linked(value->tokens[0]);
         default:
             return nullptr;
     }
@@ -93,40 +93,40 @@ CSTToken* get_linked_from_type(CSTToken* token) {
 //                return token; // native types aren't linked
 //            }
         case LexTokenType::CompFunctionType:
-            return get_linked_from_type(token->as_compound()->tokens[token->as_compound()->tokens.size() - 1].get());
+            return get_linked_from_type(token->tokens[token->tokens.size() - 1]);
         case LexTokenType::CompArrayType:
-            return get_linked(token->as_compound()->tokens[0].get());
+            return get_linked(token->tokens[0]);
         default:
             return nullptr;
     }
 }
 
-CSTToken* get_linked_from_var_init(std::vector<std::unique_ptr<CSTToken>>& tokens) {
-    if (is_char_op(tokens[2].get(), ':')) {
-        return get_linked_from_type(tokens[3].get());
-    } else if(is_char_op(tokens[2].get(), '=')) {
-        return get_linked_from_value(tokens[3].get());
+CSTToken* get_linked_from_var_init(std::vector<CSTToken*>& tokens) {
+    if (is_char_op(tokens[2], ':')) {
+        return get_linked_from_type(tokens[3]);
+    } else if(is_char_op(tokens[2], '=')) {
+        return get_linked_from_value(tokens[3]);
     } else {
         return nullptr;
     }
 }
 
-CSTToken* get_linked_from_typealias(std::vector<std::unique_ptr<CSTToken>>& tokens) {
-    return get_linked(tokens[3].get());
+CSTToken* get_linked_from_typealias(std::vector<CSTToken*>& tokens) {
+    return get_linked(tokens[3]);
 }
 
-CSTToken* get_linked_from_func(std::vector<std::unique_ptr<CSTToken>>& tokens) {
+CSTToken* get_linked_from_func(std::vector<CSTToken*>& tokens) {
     unsigned i = 3;
     CSTToken* token;
     while(i < tokens.size()) {
-        token = tokens[i].get();
+        token = tokens[i];
         if(is_char_op(token, ')')) {
             break;
         }
         i++;
     }
-    if(i + 1 < tokens.size() && is_char_op(tokens[i + 1].get(), ':')) {
-        return get_linked(tokens[i + 2].get());
+    if(i + 1 < tokens.size() && is_char_op(tokens[i + 1], ':')) {
+        return get_linked(tokens[i + 2]);
     }
     return nullptr;
 }
@@ -134,11 +134,11 @@ CSTToken* get_linked_from_func(std::vector<std::unique_ptr<CSTToken>>& tokens) {
 CSTToken* get_linked_from_node(CSTToken* token) {
     switch(token->type()) {
         case LexTokenType::CompVarInit:
-            return get_linked_from_var_init(token->as_compound()->tokens);
+            return get_linked_from_var_init(token->tokens);
         case LexTokenType::CompTypealias:
-            return get_linked_from_typealias(token->as_compound()->tokens);
+            return get_linked_from_typealias(token->tokens);
         case LexTokenType::CompFunction:
-            return get_linked_from_func(token->as_compound()->tokens);
+            return get_linked_from_func(token->tokens);
         default:
             return nullptr;
     }
@@ -147,9 +147,9 @@ CSTToken* get_linked_from_node(CSTToken* token) {
 CSTToken* get_child_type(CSTToken* token) {
     switch(token->type()) {
         case LexTokenType::CompFunctionType:
-            return get_linked_from_type(token->as_compound()->tokens[token->as_compound()->tokens.size() - 1].get());
+            return get_linked_from_type(token->tokens[token->tokens.size() - 1]);
         case LexTokenType::CompArrayType:
-            return get_linked(token->as_compound()->tokens[0].get());
+            return get_linked(token->tokens[0]);
         default:
             return nullptr;
     }
@@ -158,12 +158,12 @@ CSTToken* get_child_type(CSTToken* token) {
 CSTToken* link_child(CSTToken* parent, CSTToken* token) {
     switch(parent->type()) {
         case LexTokenType::CompEnumDecl:
-            return find_identifier(parent->as_compound()->tokens, token->as_lex_token()->value, 3);
+            return find_identifier(parent->tokens, token->value, 3);
         case LexTokenType::CompStructDef:
         case LexTokenType::CompInterface:
-             return find_func_or_var_init(parent->as_compound()->tokens, token->as_lex_token()->value, 3);
+             return find_func_or_var_init(parent->tokens, token->value, 3);
         case LexTokenType::CompVarInit: {
-            auto linked = get_linked_from_var_init(parent->as_compound()->tokens);
+            auto linked = get_linked_from_var_init(parent->tokens);
             if (linked) {
                 return link_child(linked, token);
             } else {
@@ -171,7 +171,7 @@ CSTToken* link_child(CSTToken* parent, CSTToken* token) {
             }
         }
         case LexTokenType::CompTypealias: {
-            auto linked = get_linked_from_typealias(parent->as_compound()->tokens);
+            auto linked = get_linked_from_typealias(parent->tokens);
             if(linked) {
                 return link_child(linked, token);
             } else {
@@ -184,23 +184,23 @@ CSTToken* link_child(CSTToken* parent, CSTToken* token) {
 }
 
 // checks that the given position is behind the given token's end
-bool is_behind_end_of(const Position& position, LexToken* token) {
+bool is_behind_end_of(const Position& position, CSTToken* token) {
     return position.line < token->position.line || (position.line == token->position.line && (position.character < (token->position.character + token->value.size())));
 }
 
-token_with_parent get_token_at_position(CompoundCSTToken* container, std::vector<std::unique_ptr<CSTToken>>& tokens, const Position& position) {
+token_with_parent get_token_at_position(CSTToken* container, std::vector<CSTToken*>& tokens, const Position& position) {
     unsigned i = 0;
     CSTToken* token;
     while(i < tokens.size()) {
-        token = tokens[i].get();
-        if(token->compound() && token->as_compound()->tokens.size() == 1) {
-            token = token->as_compound()->tokens[0].get();
+        token = tokens[i];
+        if(token->compound() && token->tokens.size() == 1) {
+            token = token->tokens[0];
         }
         if(token->compound()) {
             if(!position.is_behind(token->start_token()->position) && is_behind_end_of(position, token->end_token())) {
-                return get_token_at_position(token->as_compound(), token->as_compound()->tokens, position);
+                return get_token_at_position(token, token->tokens, position);
             }
-        } else if(!position.is_behind(token->as_lex_token()->position) && position.line == token->as_lex_token()->position.line && (position.character < (token->as_lex_token()->position.character + token->as_lex_token()->value.size()))) {
+        } else if(!position.is_behind(token->position) && position.line == token->position.line && (position.character < (token->as_lex_token()->position.character + token->as_lex_token()->value.size()))) {
             return {container,i};
         }
         i++;
@@ -208,20 +208,20 @@ token_with_parent get_token_at_position(CompoundCSTToken* container, std::vector
     return {nullptr, -1};
 }
 
-LexToken* get_token_at_position(std::vector<std::unique_ptr<CSTToken>>& tokens, const Position& position) {
+CSTToken* get_token_at_position(std::vector<CSTToken*>& tokens, const Position& position) {
     unsigned i = 0;
     CSTToken* token;
     while(i < tokens.size()) {
-        token = tokens[i].get();
-        if(token->compound() && token->as_compound()->tokens.size() == 1) {
-            token = token->as_compound()->tokens[0].get();
+        token = tokens[i];
+        if(token->compound() && token->tokens.size() == 1) {
+            token = token->tokens[0];
         }
         if(token->compound()) {
             if(!position.is_behind(token->start_token()->position) && is_behind_end_of(position, token->end_token())) {
-                return get_token_at_position(token->as_compound()->tokens, position);
+                return get_token_at_position(token->tokens, position);
             }
-        } else if(!position.is_behind(token->as_lex_token()->position) && position.line == token->as_lex_token()->position.line && (position.character < (token->as_lex_token()->position.character + token->as_lex_token()->value.size()))) {
-            return token->as_lex_token();
+        } else if(!position.is_behind(token->position) && position.line == token->position.line && (position.character < (token->position.character + token->value.size()))) {
+            return token;
         }
         i++;
     }
@@ -244,7 +244,7 @@ token_parent_file find_token_parent(ImportUnit* unit, CSTToken* token) {
     for(auto& file : unit->files) {
         result = get_token_at_position(nullptr, file->tokens, token->start_token()->position);
         if(result.second != -1) {
-            found = result.first ? result.first->tokens[result.second].get() : file->tokens[result.second].get();
+            found = result.first ? result.first->tokens[result.second] : file->tokens[result.second];
             if (found->start_token() == token->start_token()) {
                 return { file.get(), result };
             }
@@ -261,7 +261,7 @@ CSTToken* annotation_arg(unsigned index, CSTToken* token) {
     }
     auto c = token->as_compound();
     if(param_index < c->tokens.size()) {
-        return c->tokens[param_index].get();
+        return c->tokens[param_index];
     }
     return nullptr;
 }

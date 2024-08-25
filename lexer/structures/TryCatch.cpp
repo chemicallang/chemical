@@ -4,7 +4,7 @@
 
 bool Lexer::lexTryCatchTokens() {
     if (lexWSKeywordToken("try")) {
-        unsigned int start = tokens.size() - 1;
+        unsigned int start = tokens_size() - 1;
         if(lexAccessChain(false)) {
             lexWhitespaceToken();
             if (lexWSKeywordToken("catch", '(')) {

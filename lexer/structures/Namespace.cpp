@@ -4,7 +4,7 @@
 
 bool Lexer::lexNamespaceTokens() {
     if(lexWSKeywordToken("namespace")) {
-        auto start = tokens.size() - 1;
+        auto start = tokens_size() - 1;
         if(!lexIdentifierToken()) {
             error("expected identifier for namespace name");
             return true;

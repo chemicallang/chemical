@@ -7,211 +7,211 @@
 void CSTToken::accept(CSTVisitor *visitor) {
     switch (tok_type) {
         case LexTokenType::CharOperator:
-            visitor->visitCharOperatorToken((LexToken*) this);
+            visitor->visitCharOperatorToken((CSTToken*) this);
             return;
         case LexTokenType::Operation:
-            visitor->visitOperationToken((LexToken*) this);
+            visitor->visitOperationToken((CSTToken*) this);
             return;
         case LexTokenType::Char:
-            visitor->visitCharToken((LexToken*) this);
+            visitor->visitCharToken((CSTToken*) this);
             return;
         case LexTokenType::Comment:
-            visitor->visitCommentToken((LexToken*) this);
+            visitor->visitCommentToken((CSTToken*) this);
             return;
         case LexTokenType::MultilineComment:
-            visitor->visitMultilineComment((LexToken*) this);
+            visitor->visitMultilineComment((CSTToken*) this);
             return;
         case LexTokenType::String:
-            visitor->visitStringToken((LexToken*) this);
+            visitor->visitStringToken((CSTToken*) this);
             return;
         case LexTokenType::Bool:
-            visitor->visitBoolToken((LexToken*) this);
+            visitor->visitBoolToken((CSTToken*) this);
             return;
         case LexTokenType::Annotation:
-            visitor->visitAnnotationToken((LexToken*) this);
+            visitor->visitAnnotationToken((CSTToken*) this);
             return;
         case LexTokenType::UserToken:
-            visitor->visitUserToken((LexToken*) this);
+            visitor->visitUserToken((CSTToken*) this);
             return;
         case LexTokenType::Keyword:
-            visitor->visitKeywordToken((LexToken*) this);
+            visitor->visitKeywordToken((CSTToken*) this);
             return;
         case LexTokenType::Number:
             visitor->visitNumberToken((NumberToken*) this);
             return;
         case LexTokenType::Type:
-            visitor->visitTypeToken((LexToken*) this);
+            visitor->visitTypeToken((CSTToken*) this);
             return;
         case LexTokenType::Null:
-            visitor->visitNullToken((LexToken*) this);
+            visitor->visitNullToken((CSTToken*) this);
             return;
         case LexTokenType::StringOperator:
-            visitor->visitStringOperatorToken((LexToken*) this);
+            visitor->visitStringOperatorToken((CSTToken*) this);
             return;
         case LexTokenType::Variable:
-            visitor->visitVariableToken((LexToken*) this);
+            visitor->visitVariableToken((CSTToken*) this);
             return;
         case LexTokenType::Identifier:
-            visitor->visitIdentifierToken((LexToken*) this);
+            visitor->visitIdentifierToken((CSTToken*) this);
             return;
         case LexTokenType::RawToken:
-            visitor->visitRawToken((LexToken*) this);
+            visitor->visitRawToken((CSTToken*) this);
             return;
         case LexTokenType::CompAssignment:
-            visitor->visitAssignment((CompoundCSTToken*) this);
+            visitor->visitAssignment((CSTToken*) this);
             return;
         case LexTokenType::CompAccessChainNode:
-            visitor->visitAccessChain((CompoundCSTToken*) this);
+            visitor->visitAccessChain((CSTToken*) this);
             return;
         case LexTokenType::CompAnnotation:
-            visitor->visitAnnotation((CompoundCSTToken*) this);
+            visitor->visitAnnotation((CSTToken*) this);
             return;
         case LexTokenType::CompBreak:
-            visitor->visitBreak((CompoundCSTToken*) this);
+            visitor->visitBreak((CSTToken*) this);
             return;
         case LexTokenType::CompContinue:
-            visitor->visitContinue((CompoundCSTToken*) this);
+            visitor->visitContinue((CSTToken*) this);
             return;
         case LexTokenType::CompThrow:
-            visitor->visitThrow((CompoundCSTToken*) this);
+            visitor->visitThrow((CSTToken*) this);
             return;
         case LexTokenType::CompUsing:
-            visitor->visitUsing((CompoundCSTToken*) this);
+            visitor->visitUsing((CSTToken*) this);
             return;
         case LexTokenType::CompDestruct:
-            visitor->visitDestruct((CompoundCSTToken*) this);
+            visitor->visitDestruct((CSTToken*) this);
             return;
         case LexTokenType::CompIf:
-            visitor->visitIf((CompoundCSTToken*) this);
+            visitor->visitIf((CSTToken*) this);
             return;
         case LexTokenType::CompImport:
-            visitor->visitImport((CompoundCSTToken*) this);
+            visitor->visitImport((CSTToken*) this);
             return;
         case LexTokenType::CompIncDec:
-            visitor->visitIncDec((CompoundCSTToken*) this);
+            visitor->visitIncDec((CSTToken*) this);
             return;
         case LexTokenType::CompReturn:
-            visitor->visitReturn((CompoundCSTToken*) this);
+            visitor->visitReturn((CSTToken*) this);
             return;
         case LexTokenType::CompSwitch:
-            visitor->visitSwitch((CompoundCSTToken*) this);
+            visitor->visitSwitch((CSTToken*) this);
             return;
         case LexTokenType::CompTypealias:
-            visitor->visitTypealias((CompoundCSTToken*) this);
+            visitor->visitTypealias((CSTToken*) this);
             return;
         case LexTokenType::CompVarInit:
-            visitor->visitVarInit((CompoundCSTToken*) this);
+            visitor->visitVarInit((CSTToken*) this);
             return;
         case LexTokenType::CompBody:
-            visitor->visitBody((CompoundCSTToken*) this);
+            visitor->visitBody((CSTToken*) this);
             return;
         case LexTokenType::CompDoWhile:
-            visitor->visitDoWhile((CompoundCSTToken*) this);
+            visitor->visitDoWhile((CSTToken*) this);
             return;
         case LexTokenType::CompEnumDecl:
-            visitor->visitEnumDecl((CompoundCSTToken*) this);
+            visitor->visitEnumDecl((CSTToken*) this);
             return;
         case LexTokenType::CompForLoop:
-            visitor->visitForLoop((CompoundCSTToken*) this);
+            visitor->visitForLoop((CSTToken*) this);
             return;
         case LexTokenType::CompFunctionParam:
-            visitor->visitFunctionParam((CompoundCSTToken*) this);
+            visitor->visitFunctionParam((CSTToken*) this);
             return;
         case LexTokenType::CompFunction:
-            visitor->visitFunction((CompoundCSTToken*) this);
+            visitor->visitFunction((CSTToken*) this);
             return;
         case LexTokenType::CompGenericParamsList:
-            visitor->visitGenericParamsList((CompoundCSTToken*) this);
+            visitor->visitGenericParamsList((CSTToken*) this);
             return;
         case LexTokenType::CompStructDef:
-            visitor->visitStructDef((CompoundCSTToken*) this);
+            visitor->visitStructDef((CSTToken*) this);
             return;
         case LexTokenType::CompUnionDef:
-            visitor->visitUnionDef((CompoundCSTToken*) this);
+            visitor->visitUnionDef((CSTToken*) this);
             return;
         case LexTokenType::CompInterface:
-            visitor->visitInterface((CompoundCSTToken*) this);
+            visitor->visitInterface((CSTToken*) this);
             return;
         case LexTokenType::CompImpl:
-            visitor->visitImpl((CompoundCSTToken*) this);
+            visitor->visitImpl((CSTToken*) this);
             return;
         case LexTokenType::CompNamespace:
-            visitor->visitNamespace((CompoundCSTToken*) this);
+            visitor->visitNamespace((CSTToken*) this);
             return;
         case LexTokenType::CompTryCatch:
-            visitor->visitTryCatch((CompoundCSTToken*) this);
+            visitor->visitTryCatch((CSTToken*) this);
             return;
         case LexTokenType::CompMacro:
-            visitor->visitMacro((CompoundCSTToken*) this);
+            visitor->visitMacro((CSTToken*) this);
             return;
         case LexTokenType::CompWhile:
-            visitor->visitWhile((CompoundCSTToken*) this);
+            visitor->visitWhile((CSTToken*) this);
             return;
         case LexTokenType::CompArrayType:
-            visitor->visitArrayType((CompoundCSTToken*) this);
+            visitor->visitArrayType((CSTToken*) this);
             return;
         case LexTokenType::CompFunctionType:
-            visitor->visitFunctionType((CompoundCSTToken*) this);
+            visitor->visitFunctionType((CSTToken*) this);
             return;
         case LexTokenType::CompSpecializedType:
-            visitor->visitSpecializedType((CompoundCSTToken*) this);
+            visitor->visitSpecializedType((CSTToken*) this);
             return;
         case LexTokenType::CompGenericType:
-            visitor->visitGenericType((CompoundCSTToken*) this);
+            visitor->visitGenericType((CSTToken*) this);
             return;
         case LexTokenType::CompReferencedValueType:
-            visitor->visitReferencedValueType((CompoundCSTToken*) this);
+            visitor->visitReferencedValueType((CSTToken*) this);
             return;
         case LexTokenType::CompPointerType:
-            visitor->visitPointerType((CompoundCSTToken*) this);
+            visitor->visitPointerType((CSTToken*) this);
             return;
         case LexTokenType::CompAccessChain:
-            visitor->visitAccessChain((CompoundCSTToken*) this);
+            visitor->visitAccessChain((CSTToken*) this);
             return;
         case LexTokenType::CompArrayValue:
-            visitor->visitArrayValue((CompoundCSTToken*) this);
+            visitor->visitArrayValue((CSTToken*) this);
             return;
         case LexTokenType::CompCastValue:
-            visitor->visitCast((CompoundCSTToken*) this);
+            visitor->visitCast((CSTToken*) this);
             return;
         case LexTokenType::CompIsValue:
-            visitor->visitIsValue((CompoundCSTToken*) this);
+            visitor->visitIsValue((CSTToken*) this);
             return;
         case LexTokenType::CompAddrOf:
-            visitor->visitAddrOf((CompoundCSTToken*) this);
+            visitor->visitAddrOf((CSTToken*) this);
             return;
         case LexTokenType::CompDeference:
-            visitor->visitDereference((CompoundCSTToken*) this);
+            visitor->visitDereference((CSTToken*) this);
             return;
         case LexTokenType::CompExpression:
-            visitor->visitExpression((CompoundCSTToken*) this);
+            visitor->visitExpression((CSTToken*) this);
             return;
         case LexTokenType::CompFunctionCall:
-            visitor->visitFunctionCall((CompoundCSTToken*) this);
+            visitor->visitFunctionCall((CSTToken*) this);
             return;
         case LexTokenType::CompIndexOp:
-            visitor->visitIndexOp((CompoundCSTToken*) this);
+            visitor->visitIndexOp((CSTToken*) this);
             return;
         case LexTokenType::CompLambda:
-            visitor->visitLambda((CompoundCSTToken*) this);
+            visitor->visitLambda((CSTToken*) this);
             return;
         case LexTokenType::CompNegative:
-            visitor->visitNegative((CompoundCSTToken*) this);
+            visitor->visitNegative((CSTToken*) this);
             return;
         case LexTokenType::CompNot:
-            visitor->visitNot((CompoundCSTToken*) this);
+            visitor->visitNot((CSTToken*) this);
             return;
         case LexTokenType::CompStructValue:
-            visitor->visitStructValue((CompoundCSTToken*) this);
+            visitor->visitStructValue((CSTToken*) this);
             return;
         case LexTokenType::CompVariant:
-            visitor->visitVariant((CompoundCSTToken*) this);
+            visitor->visitVariant((CSTToken*) this);
             return;
         case LexTokenType::CompVariantMember:
-            visitor->visitVariantMember((CompoundCSTToken*) this);
+            visitor->visitVariantMember((CSTToken*) this);
             return;
         case LexTokenType::CompGenericList:
-            visitor->visitGenericList((CompoundCSTToken*) this);
+            visitor->visitGenericList((CSTToken*) this);
             return;
 #ifdef DEBUG
         default:

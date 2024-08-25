@@ -4,7 +4,7 @@
 
 bool Lexer::lexTypealiasStatement() {
     if(lexWSKeywordToken("typealias")) {
-        unsigned start = tokens.size() - 1;
+        unsigned start = tokens_size() - 1;
         if(lexIdentifierToken()) {
             lexWhitespaceToken();
             if(!lexOperatorToken('=')) {

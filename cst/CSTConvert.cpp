@@ -84,9 +84,9 @@
 Operation get_operation(CSTToken *token) {
     std::string num;
     unsigned i = 0;
-    while(i < ((LexToken*) token)->value.size()) {
-        if(std::isdigit(((LexToken*) token)->value[i])) {
-            num.append(1, ((LexToken*) token)->value[i]);
+    while(i < ((CSTToken*) token)->value.size()) {
+        if(std::isdigit(((CSTToken*) token)->value[i])) {
+            num.append(1, ((CSTToken*) token)->value[i]);
         }
         i++;
     }
@@ -104,7 +104,7 @@ std::vector<std::unique_ptr<ASTNode>> take_body_nodes(CSTConverter *conv, CSTTok
     return nodes;
 }
 
-std::vector<std::unique_ptr<ASTNode>> take_comp_body_nodes(CSTConverter *conv, CompoundCSTToken *token, ASTNode* parent_node) {
+std::vector<std::unique_ptr<ASTNode>> take_comp_body_nodes(CSTConverter *conv, CSTToken* token, ASTNode* parent_node) {
     auto prev_nodes = std::move(conv->nodes);
     auto prev_parent = conv->parent_node;
     conv->parent_node = parent_node;
@@ -120,7 +120,7 @@ Scope take_body(CSTConverter *conv, CSTToken *token, ASTNode* parent_node) {
     return {take_body_nodes(conv, token, parent_node), parent_node };
 }
 
-Scope take_body_compound(CSTConverter *conv, CompoundCSTToken *token, ASTNode* parent_node) {
+Scope take_body_compound(CSTConverter *conv, CSTToken* token, ASTNode* parent_node) {
     return {take_comp_body_nodes(conv, token, parent_node), parent_node };
 }
 
@@ -130,7 +130,7 @@ CSTConverter::CSTConverter(std::string path, bool is64Bit, std::string target) :
 }
 
 const std::unordered_map<std::string, MacroHandlerFn> MacroHandlers = {
-        { "eval", [](CSTConverter* converter, CompoundCSTToken* container){
+        { "eval", [](CSTConverter* converter, CSTToken*  container){
             if(container->tokens[2]->is_value()) {
                 container->tokens[2]->accept(converter);
                 auto take_value = converter->value();
@@ -148,16 +148,16 @@ const std::unordered_map<std::string, MacroHandlerFn> MacroHandlers = {
                 converter->error("expected a value for eval", container);
             }
         }},
-        { "target", [](CSTConverter* converter, CompoundCSTToken* container) {
+        { "target", [](CSTConverter* converter, CSTToken*  container) {
             converter->values.emplace_back(new StringValue(converter->target));
         }},
-        { "file:path", [](CSTConverter* converter, CompoundCSTToken* container) {
+        { "file:path", [](CSTConverter* converter, CSTToken*  container) {
             converter->values.emplace_back(new StringValue(converter->path));
         }},
-        {"target:is64bit", [](CSTConverter* converter, CompoundCSTToken* container) {
+        {"target:is64bit", [](CSTConverter* converter, CSTToken*  container) {
             converter->values.emplace_back(new BoolValue(converter->is64Bit));
         }},
-        {"sizeof", [](CSTConverter* converter, CompoundCSTToken* container) {
+        {"sizeof", [](CSTConverter* converter, CSTToken*  container) {
             if(container->tokens[2]->is_type()) {
                 container->tokens[2]->accept(converter);
                 auto value = new SizeOfValue(converter->type().release());
@@ -166,14 +166,14 @@ const std::unordered_map<std::string, MacroHandlerFn> MacroHandlers = {
                 converter->error("expected a type in sizeof", container);
             }
         }},
-        {"tr:debug:chemical", [](CSTConverter* converter, CompoundCSTToken* container) {
+        {"tr:debug:chemical", [](CSTConverter* converter, CSTToken*  container) {
             auto body = take_body_compound(converter, container, converter->parent_node);
             std::ostringstream ostring;
             RepresentationVisitor visitor(ostring);
             visitor.translate(body.nodes);
             converter->values.emplace_back(new StringValue(ostring.str()));
         }},
-        {"tr:debug:chemical:value", [](CSTConverter* converter, CompoundCSTToken* container) {
+        {"tr:debug:chemical:value", [](CSTConverter* converter, CSTToken*  container) {
             if(container->is_value()) {
                 container->accept(converter);
                 auto value = converter->value();
@@ -185,14 +185,14 @@ const std::unordered_map<std::string, MacroHandlerFn> MacroHandlers = {
                 converter->error("expected a value in tr:debug:chemical:value", container);
             }
         }},
-        {"tr:debug:c", [](CSTConverter* converter, CompoundCSTToken* container) {
+        {"tr:debug:c", [](CSTConverter* converter, CSTToken*  container) {
             auto body = take_body_compound(converter, container, converter->parent_node);
             std::ostringstream ostring;
             ToCAstVisitor visitor(&ostring);
             visitor.translate(body.nodes);
             converter->values.emplace_back(new StringValue(ostring.str()));
         }},
-        {"tr:debug:c:value",[](CSTConverter* converter, CompoundCSTToken* container) {
+        {"tr:debug:c:value",[](CSTConverter* converter, CSTToken*  container) {
             if(container->is_value()) {
                 container->accept(converter);
                 auto value = converter->value();
@@ -217,9 +217,8 @@ void ignore_annotation_func(CSTConverter* converter, CSTToken* container, Annota
 void collect_annotation_func(CSTConverter* converter, CSTToken* container, AnnotationKind kind) {
     converter->annotations.emplace_back(kind);
     if(!container->compound()) return;
-    auto compound = container->as_compound();
     auto previous = std::move(converter->values);
-    visit(converter, compound->tokens, 2);
+    visit(converter, container->tokens, 2);
     auto collected = std::move(converter->values);
     converter->values = std::move(previous);
     converter->annotations.back().values = std::move(collected);
@@ -291,7 +290,7 @@ inline void collect_annotations_in(CSTConverter* converter, AnnotableNode* node)
     node->annotations = std::move(converter->annotations);
 }
 
-void CSTConverter::visit(std::vector<std::unique_ptr<CSTToken>> &tokens, unsigned int start, unsigned int end) {
+void CSTConverter::visit(std::vector<CSTToken*> &tokens, unsigned int start, unsigned int end) {
     while (start < end) {
         tokens[start]->accept(this);
         start++;
@@ -354,8 +353,8 @@ PointerType* current_self_pointer(CSTConverter* converter) {
     return new PointerType(std::make_unique<ReferencedType>(type, converter->current_members_container));
 }
 
-void CSTConverter::visitFunctionParam(CompoundCSTToken *param) {
-    auto identifier = str_token(param->tokens[0].get());
+void CSTConverter::visitFunctionParam(CSTToken* param) {
+    auto identifier = str_token(param->tokens[0]);
     visit(param->tokens, 2);
     BaseType *baseType = nullptr;
     if (optional_param_types) {
@@ -393,16 +392,16 @@ FunctionParamsResult function_params(CSTConverter* converter, cst_tokens_ref_typ
     unsigned i = start;
     while (i < tokens.size()) {
         if (converter->param_index == 0 && is_char_op(tokens[i]->start_token(), '&')) {
-            auto &paramTokens = ((CompoundCSTToken *) tokens[i].get())->tokens;
-            auto strId = str_token(paramTokens[1].get());
+            auto &paramTokens = ((CSTToken* ) tokens[i])->tokens;
+            auto strId = str_token(paramTokens[1]);
             if (strId != "this" && strId != "self") {
-                converter->error("expected self parameter to be named 'self' or 'this'", tokens[i].get());
+                converter->error("expected self parameter to be named 'self' or 'this'", tokens[i]);
             }
             params.emplace_back(new FunctionParam(strId, std::unique_ptr<PointerType>(current_self_pointer(converter)), 0, std::nullopt));
             converter->param_index = 1;
         }
 //        else if(optional_param_types && tokens[i]->type() == LexTokenType::Variable) {
-//            auto strId = str_token(tokens[1].get());
+//            auto strId = str_token(tokens[1]);
 //            params.emplace_back(new FunctionParam(strId, std::make_unique<VoidType>(), 0, std::nullopt));
 //        }
         else if (tokens[i]->compound()) {
@@ -411,15 +410,15 @@ FunctionParamsResult function_params(CSTConverter* converter, cst_tokens_ref_typ
             auto param = (FunctionParam *) converter->nodes.back().release();
             params.emplace_back(param);
             converter->nodes.pop_back();
-            auto& param_tokens = tokens[i]->as_compound()->tokens;
-            auto last_token = param_tokens[param_tokens.size() - 1].get();
+            auto& param_tokens = tokens[i]->tokens;
+            auto last_token = param_tokens[param_tokens.size() - 1];
             if (is_str_op(last_token, "...")) {
                 isVariadic = true;
                 i++;
                 break;
             }
 
-        } else if (is_char_op(tokens[i].get(), ',')) {
+        } else if (is_char_op(tokens[i], ',')) {
             // do nothing
         } else {
             break;
@@ -432,7 +431,7 @@ FunctionParamsResult function_params(CSTConverter* converter, cst_tokens_ref_typ
 
 void convert_generic_list(
     CSTConverter *converter,
-    CompoundCSTToken* compound,
+    CSTToken*  compound,
     std::vector<std::unique_ptr<GenericTypeParameter>>& generic_list,
     ASTNode* parent_node
 ) {
@@ -441,20 +440,20 @@ void convert_generic_list(
     GenericTypeParameter* parameter;
     while(i < compound->tokens.size() && compound->tokens[i]->is_identifier()) {
         std::unique_ptr<BaseType> def_type = nullptr;
-        if(is_char_op(compound->tokens[i + 1].get(), '=')) {
+        if(is_char_op(compound->tokens[i + 1], '=')) {
             compound->tokens[i + 2]->accept(converter);
             def_type = converter->type();
             inc = 4;
         } else {
             inc = 2;
         }
-        parameter = new GenericTypeParameter(str_token(compound->tokens[i].get()), std::move(def_type), parent_node, generic_list.size());
+        parameter = new GenericTypeParameter(str_token(compound->tokens[i]), std::move(def_type), parent_node, generic_list.size());
         generic_list.emplace_back(parameter);
         i += inc; // 4 -> +1 -> '=' , +2 -> 'type' , +3 -> ',' , +4 -> next identifier
     }
 }
 
-void CSTConverter::visitFunction(CompoundCSTToken *function) {
+void CSTConverter::visitFunction(CSTToken* function) {
 
     if(is_dispose()) {
         return;
@@ -464,7 +463,7 @@ void CSTConverter::visitFunction(CompoundCSTToken *function) {
 
     const auto extension_start = is_generic ? 2 : 1;
 
-    const auto is_extension = is_char_op(function->tokens[extension_start].get(), '(');
+    const auto is_extension = is_char_op(function->tokens[extension_start], '(');
 
     const auto params_start = 3 + (is_extension ? 3 : 0) + (is_generic ? 1 : 0);
 
@@ -474,7 +473,7 @@ void CSTConverter::visitFunction(CompoundCSTToken *function) {
 
     std::optional<std::unique_ptr<BaseType>> returnType = std::nullopt;
 
-    if (i + 1 < function->tokens.size() && is_char_op(function->tokens[i + 1].get(), ':')) {
+    if (i + 1 < function->tokens.size() && is_char_op(function->tokens[i + 1], ':')) {
         function->tokens[i + 2]->accept(this);
         returnType.emplace(type());
         i += 3; // position at body
@@ -510,7 +509,7 @@ void CSTConverter::visitFunction(CompoundCSTToken *function) {
     }
 
     if(is_generic) {
-        convert_generic_list(this, function->tokens[1]->as_compound(), funcDecl->generic_params, funcDecl);
+        convert_generic_list(this, function->tokens[1], funcDecl->generic_params, funcDecl);
     }
 
     if (i < function->tokens.size()) {
@@ -529,24 +528,24 @@ void CSTConverter::visitFunction(CompoundCSTToken *function) {
 
     auto prev_decl = current_func_type;
     current_func_type = funcDecl;
-    funcDecl->body->nodes = take_body_nodes(this, function->tokens[i].get(), funcDecl);
+    funcDecl->body->nodes = take_body_nodes(this, function->tokens[i], funcDecl);
     current_func_type = prev_decl;
 
 
 }
 
-void CSTConverter::visitEnumDecl(CompoundCSTToken *decl) {
+void CSTConverter::visitEnumDecl(CSTToken* decl) {
     if(is_dispose()) {
         return;
     }
-    auto enum_decl = new EnumDeclaration(str_token(decl->tokens[1].get()), std::unordered_map<std::string, std::unique_ptr<EnumMember>> {}, parent_node);
+    auto enum_decl = new EnumDeclaration(str_token(decl->tokens[1]), std::unordered_map<std::string, std::unique_ptr<EnumMember>> {}, parent_node);
     auto i = 3; // first enum member or '}'
     unsigned position = 0;
-    while(!is_char_op(decl->tokens[i].get(), '}')) {
+    while(!is_char_op(decl->tokens[i], '}')) {
         if(decl->tokens[i]->is_identifier()) {
-            auto name = str_token(decl->tokens[i].get());
+            auto name = str_token(decl->tokens[i]);
             enum_decl->members[name] = std::make_unique<EnumMember>(name, position++, enum_decl);
-            if (is_char_op(decl->tokens[i + 1].get(), ',')) {
+            if (is_char_op(decl->tokens[i + 1], ',')) {
                 i++;
             }
         }
@@ -582,15 +581,15 @@ Value* convertNumber(NumberToken* token, ValueType value_type, bool is64Bit) {
     }
 }
 
-void CSTConverter::visitVarInit(CompoundCSTToken *varInit) {
+void CSTConverter::visitVarInit(CSTToken* varInit) {
     if(is_dispose()) return;
     std::optional<std::unique_ptr<BaseType>> optType = std::nullopt;
-    if(is_char_op(varInit->tokens[2].get(), ':')) {
+    if(is_char_op(varInit->tokens[2], ':')) {
         varInit->tokens[3]->accept(this);
         optType.emplace(type());
     }
     std::optional<std::unique_ptr<Value>> optVal = std::nullopt;
-    auto token = varInit->tokens[varInit->tokens.size() - 1].get();
+    auto token = varInit->tokens[varInit->tokens.size() - 1];
     if(token->is_value()) {
         if(optType.has_value() && optType.value()->kind() == BaseTypeKind::IntN && token->type() == LexTokenType::Number) {
             // This statement leads to a warning "memory leak", we set the pointer to optVal which is a unique_ptr
@@ -618,7 +617,7 @@ void CSTConverter::visitVarInit(CompoundCSTToken *varInit) {
     nodes.emplace_back(init);
 }
 
-void CSTConverter::visitAssignment(CompoundCSTToken *assignment) {
+void CSTConverter::visitAssignment(CSTToken* assignment) {
     visit(assignment->tokens, 0);
     auto val = value();
     auto chain = value().release();
@@ -626,18 +625,18 @@ void CSTConverter::visitAssignment(CompoundCSTToken *assignment) {
             std::unique_ptr<Value>(chain),
             std::move(val),
             (assignment->tokens[1]->type() == LexTokenType::Operation)
-            ? get_operation(assignment->tokens[1].get()) : Operation::Assignment,
+            ? get_operation(assignment->tokens[1]) : Operation::Assignment,
             parent_node
     ));
 }
 
-void CSTConverter::visitImport(CompoundCSTToken *cst) {
+void CSTConverter::visitImport(CSTToken* cst) {
     if(no_imports) return;
     std::vector<std::string> ids;
-    nodes.emplace_back(std::make_unique<ImportStatement>(escaped_str_token(cst->tokens[1].get()), ids, parent_node));
+    nodes.emplace_back(std::make_unique<ImportStatement>(escaped_str_token(cst->tokens[1]), ids, parent_node));
 }
 
-void CSTConverter::visitReturn(CompoundCSTToken *cst) {
+void CSTConverter::visitReturn(CSTToken* cst) {
     std::optional<std::unique_ptr<Value>> return_value = std::nullopt;
     if(1 < cst->tokens.size() && cst->tokens[1]->is_value()) {
         cst->tokens[1]->accept(this);
@@ -646,8 +645,8 @@ void CSTConverter::visitReturn(CompoundCSTToken *cst) {
     nodes.emplace_back(std::make_unique<ReturnStatement>(std::move(return_value), current_func_type, parent_node));
 }
 
-void CSTConverter::visitDestruct(CompoundCSTToken *delStmt) {
-    auto is_array = is_char_op(delStmt->tokens[1].get(), '[');
+void CSTConverter::visitDestruct(CSTToken* delStmt) {
+    auto is_array = is_char_op(delStmt->tokens[1], '[');
     std::unique_ptr<Value> array_value = nullptr;
     unsigned index;
     if(is_array) {
@@ -666,29 +665,29 @@ void CSTConverter::visitDestruct(CompoundCSTToken *delStmt) {
     nodes.emplace_back(new DestructStmt(std::move(array_value), std::move(val_ptr), is_array, parent_node));
 }
 
-void CSTConverter::visitUsing(CompoundCSTToken *usingStmt) {
+void CSTConverter::visitUsing(CSTToken* usingStmt) {
     std::vector<std::unique_ptr<ChainValue>> curr_values;
     unsigned i = 1;
     while(i < usingStmt->tokens.size()) {
         if(usingStmt->tokens[i]->is_identifier()) {
-            curr_values.emplace_back(new NamespaceIdentifier(str_token(usingStmt->tokens[i].get())));
+            curr_values.emplace_back(new NamespaceIdentifier(str_token(usingStmt->tokens[i])));
         }
         i++;
     }
-    const auto stmt = new UsingStmt(std::move(curr_values), parent_node, is_keyword(usingStmt->tokens[1].get(), "namespace"));
+    const auto stmt = new UsingStmt(std::move(curr_values), parent_node, is_keyword(usingStmt->tokens[1], "namespace"));
     collect_annotations_in(this, stmt);
     nodes.emplace_back(stmt);
 }
 
-void CSTConverter::visitTypealias(CompoundCSTToken *alias) {
+void CSTConverter::visitTypealias(CSTToken* alias) {
     if(is_dispose()) return;
     alias->tokens[3]->accept(this);
-    auto stmt = new TypealiasStatement(str_token(alias->tokens[1].get()), type(), parent_node);
+    auto stmt = new TypealiasStatement(str_token(alias->tokens[1]), type(), parent_node);
     collect_annotations_in(this, stmt);
     nodes.emplace_back(stmt);
 }
 
-void CSTConverter::visitTypeToken(LexToken *token) {
+void CSTConverter::visitTypeToken(CSTToken* token) {
     auto primitive = TypeMakers::PrimitiveMap.find(token->value);
     if (primitive == TypeMakers::PrimitiveMap.end()) {
         put_type(new ReferencedType(token->value));
@@ -697,7 +696,7 @@ void CSTConverter::visitTypeToken(LexToken *token) {
     }
 }
 
-void CSTConverter::visitReferencedValueType(CompoundCSTToken *ref_value) {
+void CSTConverter::visitReferencedValueType(CSTToken* ref_value) {
     ref_value->tokens[0]->accept(this);
     auto ref = new ReferencedValueType(value());
     auto chain = ref->value->as_access_chain();
@@ -724,38 +723,38 @@ void CSTConverter::visitReferencedValueType(CompoundCSTToken *ref_value) {
     put_type(ref);
 }
 
-void CSTConverter::visitContinue(CompoundCSTToken *continueCst) {
+void CSTConverter::visitContinue(CSTToken* continueCst) {
     nodes.emplace_back(std::make_unique<ContinueStatement>(current_loop_node, parent_node));
 }
 
-void CSTConverter::visitBreak(CompoundCSTToken *breakCST) {
+void CSTConverter::visitBreak(CSTToken* breakCST) {
     nodes.emplace_back(std::make_unique<BreakStatement>(current_loop_node, parent_node));
 }
 
-void CSTConverter::visitIncDec(CompoundCSTToken *incDec) {
+void CSTConverter::visitIncDec(CSTToken* incDec) {
     incDec->tokens[0]->accept(this);
-    auto acOp = (get_operation(incDec->tokens[1].get()) == Operation::PostfixIncrement ? Operation::Addition
+    auto acOp = (get_operation(incDec->tokens[1]) == Operation::PostfixIncrement ? Operation::Addition
                                                                                                 : Operation::Subtraction);
     nodes.emplace_back(std::make_unique<AssignStatement>(value(), std::make_unique<IntValue>(1), acOp, parent_node));
 }
 
-void CSTConverter::visitLambda(CompoundCSTToken *cst) {
+void CSTConverter::visitLambda(CSTToken* cst) {
 
     std::vector<std::unique_ptr<CapturedVariable>> captureList;
 
-    auto no_capture_list = is_char_op(cst->tokens[0].get(), '(');
+    auto no_capture_list = is_char_op(cst->tokens[0], '(');
 
     unsigned i = 1;
     unsigned capInd = 0;
     if (!no_capture_list) {
-        while (!is_char_op(cst->tokens[i].get(), ']')) {
+        while (!is_char_op(cst->tokens[i], ']')) {
             bool capture_by_ref = false;
-            if(is_char_op(cst->tokens[i].get(), '&')) {
+            if(is_char_op(cst->tokens[i], '&')) {
                 capture_by_ref = true;
                 i++;
             }
             if (cst->tokens[i]->type() == LexTokenType::Variable) {
-                captureList.emplace_back(new CapturedVariable(((LexToken *) (cst->tokens[i].get()))->value, capInd++, capture_by_ref));
+                captureList.emplace_back(new CapturedVariable(((CSTToken* ) (cst->tokens[i]))->value, capInd++, capture_by_ref));
             }
             i++;
         }
@@ -773,7 +772,7 @@ void CSTConverter::visitLambda(CompoundCSTToken *cst) {
     if (cst->tokens[bodyIndex]->type() == LexTokenType::CompBody) {
         auto prev_decl = current_func_type;
         current_func_type = lambda;
-        lambda->scope.nodes = take_body_nodes(this, cst->tokens[bodyIndex].get(), &lambda->scope);
+        lambda->scope.nodes = take_body_nodes(this, cst->tokens[bodyIndex], &lambda->scope);
         current_func_type = prev_decl;
     } else {
         visit(cst->tokens, bodyIndex);
@@ -790,12 +789,12 @@ void CSTConverter::visitLambda(CompoundCSTToken *cst) {
     values.emplace_back(lambda);
 }
 
-void CSTConverter::visitBody(CompoundCSTToken *bodyCst) {
+void CSTConverter::visitBody(CSTToken* bodyCst) {
     visit(bodyCst->tokens, 0);
 }
 
-void CSTConverter::visitMacro(CompoundCSTToken* macroCst) {
-    auto name = str_token(macroCst->tokens[0].get());
+void CSTConverter::visitMacro(CSTToken*  macroCst) {
+    auto name = str_token(macroCst->tokens[0]);
     auto annon_name = name.substr(1);
     auto macro = MacroHandlers.find(annon_name);
     if (macro != MacroHandlers.end()) {
@@ -805,8 +804,8 @@ void CSTConverter::visitMacro(CompoundCSTToken* macroCst) {
     }
 }
 
-void CSTConverter::visitAnnotation(CompoundCSTToken *annotation) {
-    auto name = str_token(annotation->tokens[0].get());
+void CSTConverter::visitAnnotation(CSTToken* annotation) {
+    auto name = str_token(annotation->tokens[0]);
     auto annon_name = name.substr(1);
     auto macro = AnnotationHandlers.find(annon_name);
     if (macro != AnnotationHandlers.end()) {
@@ -816,7 +815,7 @@ void CSTConverter::visitAnnotation(CompoundCSTToken *annotation) {
     }
 }
 
-void CSTConverter::visitAnnotationToken(LexToken *token) {
+void CSTConverter::visitAnnotationToken(CSTToken* token) {
     auto annon_name = token->value.substr(1);
     auto macro = AnnotationHandlers.find(annon_name);
     if (macro != AnnotationHandlers.end()) {
@@ -826,7 +825,7 @@ void CSTConverter::visitAnnotationToken(LexToken *token) {
     }
 }
 
-void CSTConverter::visitIf(CompoundCSTToken *ifCst) {
+void CSTConverter::visitIf(CSTToken* ifCst) {
 
     // if condition
     ifCst->tokens[2]->accept(this);
@@ -842,10 +841,10 @@ void CSTConverter::visitIf(CompoundCSTToken *ifCst) {
 
     // first if body
     if_statement->ifBody.parent_node = if_statement;
-    if_statement->ifBody.nodes = take_body_nodes(this, ifCst->tokens[4].get(), &if_statement->ifBody);
+    if_statement->ifBody.nodes = take_body_nodes(this, ifCst->tokens[4], &if_statement->ifBody);
 
     auto i = 5; // position after body
-    while ((i + 1) < ifCst->tokens.size() && is_keyword(ifCst->tokens[i + 1].get(), "if")) {
+    while ((i + 1) < ifCst->tokens.size() && is_keyword(ifCst->tokens[i + 1], "if")) {
 
         i += 3;
         ifCst->tokens[i]->accept(this);
@@ -855,7 +854,7 @@ void CSTConverter::visitIf(CompoundCSTToken *ifCst) {
         // else if body
         if_statement->elseIfs.emplace_back( std::move(elseIfCond), Scope {if_statement });
         auto& elseif_pair = if_statement->elseIfs.back();
-        elseif_pair.second.nodes = take_body_nodes(this, ifCst->tokens[i].get(), &elseif_pair.second);
+        elseif_pair.second.nodes = take_body_nodes(this, ifCst->tokens[i], &elseif_pair.second);
 
         // position after the body
         i++;
@@ -863,16 +862,16 @@ void CSTConverter::visitIf(CompoundCSTToken *ifCst) {
     }
 
     // last else
-    if (i < ifCst->tokens.size() && str_token(ifCst->tokens[i].get()) == "else") {
+    if (i < ifCst->tokens.size() && str_token(ifCst->tokens[i]) == "else") {
         if_statement->elseBody.emplace(if_statement);
-        if_statement->elseBody->nodes = take_body_nodes(this, ifCst->tokens[i + 1].get(), &if_statement->elseBody.value());
+        if_statement->elseBody->nodes = take_body_nodes(this, ifCst->tokens[i + 1], &if_statement->elseBody.value());
     }
 
     nodes.emplace_back(if_statement);
 
 }
 
-void CSTConverter::visitSwitch(CompoundCSTToken *switchCst) {
+void CSTConverter::visitSwitch(CSTToken* switchCst) {
     switchCst->tokens[2]->accept(this);
     auto expr = value();
     auto i = 5; // positioned at first 'case' or 'default'
@@ -884,23 +883,23 @@ void CSTConverter::visitSwitch(CompoundCSTToken *switchCst) {
     );
     auto has_default = false;
     while (true) {
-        if (is_keyword(switchCst->tokens[i].get(), "case")) {
+        if (is_keyword(switchCst->tokens[i], "case")) {
             i++;
             switchCst->tokens[i]->accept(this);
             auto caseVal = value();
             i += 2; // body
             switch_statement->scopes.emplace_back(std::move(caseVal), Scope { switch_statement });
             auto& switch_case = switch_statement->scopes.back();
-            switch_case.second.nodes = take_body_nodes(this, switchCst->tokens[i].get(), &switch_case.second);
+            switch_case.second.nodes = take_body_nodes(this, switchCst->tokens[i], &switch_case.second);
             i++;
-        } else if (is_keyword(switchCst->tokens[i].get(), "default")) {
+        } else if (is_keyword(switchCst->tokens[i], "default")) {
             i += 2; // body
             switch_statement->defScope.emplace(Scope { switch_statement });
             auto& defScope = switch_statement->defScope.value();
-            defScope.nodes = take_body_nodes(this, switchCst->tokens[i].get(), &defScope);
+            defScope.nodes = take_body_nodes(this, switchCst->tokens[i], &defScope);
             i++;
             if (has_default) {
-                error("multiple defaults in switch statement detected", switchCst->tokens[i - 3].get());
+                error("multiple defaults in switch statement detected", switchCst->tokens[i - 3]);
             }
             has_default = true;
         } else {
@@ -910,18 +909,18 @@ void CSTConverter::visitSwitch(CompoundCSTToken *switchCst) {
     nodes.emplace_back(switch_statement);
 }
 
-void CSTConverter::visitThrow(CompoundCSTToken *throwStmt) {
+void CSTConverter::visitThrow(CSTToken* throwStmt) {
     throwStmt->tokens[1]->accept(this);
     nodes.emplace_back(new ThrowStatement(value(), parent_node));
 }
 
-void CSTConverter::visitNamespace(CompoundCSTToken *ns) {
-    auto pNamespace = new Namespace(str_token(ns->tokens[1].get()), parent_node);
+void CSTConverter::visitNamespace(CSTToken* ns) {
+    auto pNamespace = new Namespace(str_token(ns->tokens[1]), parent_node);
     pNamespace->nodes = take_comp_body_nodes(this, ns, pNamespace);
     nodes.emplace_back(pNamespace);
 }
 
-void CSTConverter::visitForLoop(CompoundCSTToken *forLoop) {
+void CSTConverter::visitForLoop(CSTToken* forLoop) {
 
     forLoop->tokens[2]->accept(this);
     auto varInit = nodes.back().release()->as_var_init();
@@ -938,14 +937,14 @@ void CSTConverter::visitForLoop(CompoundCSTToken *forLoop) {
 
     auto prevLoop = current_loop_node;
     current_loop_node = loop;
-    loop->body.nodes = take_body_nodes(this, forLoop->tokens[8].get(), loop);
+    loop->body.nodes = take_body_nodes(this, forLoop->tokens[8], loop);
     current_loop_node = prevLoop;
 
     nodes.emplace_back(std::unique_ptr<ForLoop>(loop));
 
 }
 
-void CSTConverter::visitWhile(CompoundCSTToken *whileCst) {
+void CSTConverter::visitWhile(CSTToken* whileCst) {
     // visiting the condition expression
     whileCst->tokens[2]->accept(this);
     // get it
@@ -958,14 +957,14 @@ void CSTConverter::visitWhile(CompoundCSTToken *whileCst) {
     // visit the body
     auto prevLoop = current_loop_node;
     current_loop_node = loop;
-    loop->body.nodes = take_body_nodes(this, whileCst->tokens[4].get(), loop);
+    loop->body.nodes = take_body_nodes(this, whileCst->tokens[4], loop);
     current_loop_node = prevLoop;
     // restore nodes
     nodes = std::move(previous);
     nodes.emplace_back(std::unique_ptr<ASTNode>(loop));
 }
 
-void CSTConverter::visitDoWhile(CompoundCSTToken *doWhileCst) {
+void CSTConverter::visitDoWhile(CSTToken* doWhileCst) {
     // visit the 2nd last token which is the expression for condition
     auto cond_index = doWhileCst->tokens.size() - 2;
     doWhileCst->tokens[cond_index]->accept(this);
@@ -979,7 +978,7 @@ void CSTConverter::visitDoWhile(CompoundCSTToken *doWhileCst) {
     // visit the body
     auto prevLoop = current_loop_node;
     current_loop_node = loop;
-    loop->body.nodes = take_body_nodes(this, doWhileCst->tokens[1].get(), loop);
+    loop->body.nodes = take_body_nodes(this, doWhileCst->tokens[1], loop);
     current_loop_node = prevLoop;
     // restore nodes
     nodes = std::move(previous);
@@ -988,14 +987,14 @@ void CSTConverter::visitDoWhile(CompoundCSTToken *doWhileCst) {
 
 unsigned int collect_struct_members(
         CSTConverter *conv,
-        CompoundCSTToken* comp_token,
+        CSTToken*  comp_token,
         MembersContainer *container,
         unsigned i
 ) {
     auto& tokens = comp_token->tokens;
     auto& variables = container->variables;
     auto prev_anns = std::move(conv->annotations);
-    while (!is_char_op(tokens[i].get(), '}')) {
+    while (!is_char_op(tokens[i], '}')) {
         tokens[i]->accept(conv);
         switch(tokens[i]->type()) {
             case LexTokenType::CompVarInit:{
@@ -1013,7 +1012,7 @@ unsigned int collect_struct_members(
             case LexTokenType::CompFunction:{
                 const auto node = (FunctionDeclaration *) conv->pop_last_node();
                 if(!container->insert_multi_func(std::unique_ptr<FunctionDeclaration>(node))) {
-                    conv->error("conflict inserting function with name " + node->name, tokens[i].get());
+                    conv->error("conflict inserting function with name " + node->name, tokens[i]);
                 }
                 break;
             }
@@ -1044,7 +1043,7 @@ unsigned int collect_struct_members(
             }
         }
 
-        if (is_char_op(tokens[i + 1].get(), ';')) {
+        if (is_char_op(tokens[i + 1], ';')) {
             i++;
         }
 
@@ -1055,9 +1054,9 @@ unsigned int collect_struct_members(
     return i;
 }
 
-void get_inherit_list(CSTConverter* converter, CompoundCSTToken* container, unsigned& i, std::vector<std::unique_ptr<InheritedType>>& inherited) {
+void get_inherit_list(CSTConverter* converter, CSTToken*  container, unsigned& i, std::vector<std::unique_ptr<InheritedType>>& inherited) {
     while(true) {
-        auto specifier = specifier_token(container->tokens[i].get());
+        auto specifier = specifier_token(container->tokens[i]);
         if(specifier.has_value()) {
             i++;
         } else {
@@ -1066,7 +1065,7 @@ void get_inherit_list(CSTConverter* converter, CompoundCSTToken* container, unsi
         container->tokens[i]->accept(converter);
         inherited.emplace_back(new InheritedType(converter->type(), specifier.value()));
         i++;
-        if(is_char_op(container->tokens[i].get(), ',')) {
+        if(is_char_op(container->tokens[i], ',')) {
             i++;
         } else {
             break;
@@ -1074,22 +1073,22 @@ void get_inherit_list(CSTConverter* converter, CompoundCSTToken* container, unsi
     };
 }
 
-void CSTConverter::visitStructDef(CompoundCSTToken *structDef) {
+void CSTConverter::visitStructDef(CSTToken* structDef) {
     if(is_dispose()) {
         return;
     }
     const bool is_generic = structDef->tokens[2]->type() == LexTokenType::CompGenericParamsList;
     bool named = structDef->tokens[1]->is_identifier();
     unsigned i = (named ? 2 : 1) + (is_generic ? 1 : 0); // expected index of the ':'
-    auto has_override = is_char_op(structDef->tokens[i].get(), ':');
-    auto def = new StructDefinition(str_token(structDef->tokens[named ? 1 : structDef->tokens.size() - 1].get()), parent_node);
+    auto has_override = is_char_op(structDef->tokens[i], ':');
+    auto def = new StructDefinition(str_token(structDef->tokens[named ? 1 : structDef->tokens.size() - 1]), parent_node);
     if (has_override) {
         i++; // set on access specifier or the inherited struct / interface name
         get_inherit_list(this, structDef, i, def->inherited);
     }
     i += 1;// positioned at first node or '}'
     if(is_generic) {
-        convert_generic_list(this, structDef->tokens[2]->as_compound(), def->generic_params, def);
+        convert_generic_list(this, structDef->tokens[2], def->generic_params, def);
     }
     auto prev_struct_decl = current_members_container;
     current_members_container = def;
@@ -1102,14 +1101,14 @@ void CSTConverter::visitStructDef(CompoundCSTToken *structDef) {
     nodes.emplace_back(def);
 }
 
-void CSTConverter::visitInterface(CompoundCSTToken *interface) {
+void CSTConverter::visitInterface(CSTToken* interface) {
     if(is_dispose()) {
         return;
     }
-    auto def = new InterfaceDefinition(str_token(interface->tokens[1].get()), parent_node);
+    auto def = new InterfaceDefinition(str_token(interface->tokens[1]), parent_node);
     unsigned i = 3; // positioned at first node or '}'
     if(interface->tokens[2]->type() == LexTokenType::CompGenericParamsList) {
-        convert_generic_list(this, interface->tokens[2]->as_compound(), def->generic_params, def);
+        convert_generic_list(this, interface->tokens[2], def->generic_params, def);
         i += 1;
     }
     auto prev_container = current_members_container;
@@ -1122,13 +1121,13 @@ void CSTConverter::visitInterface(CompoundCSTToken *interface) {
     nodes.emplace_back(def);
 }
 
-void CSTConverter::visitUnionDef(CompoundCSTToken *unionDef) {
+void CSTConverter::visitUnionDef(CSTToken* unionDef) {
     if(is_dispose()) {
         return;
     }
     bool named = unionDef->tokens[1]->is_identifier();
     unsigned i = named ? 3 : 2; // positioned at first node or '}'
-    auto def = new UnionDef(str_token(unionDef->tokens[named ? 1 : unionDef->tokens.size() - 1].get()), parent_node);
+    auto def = new UnionDef(str_token(unionDef->tokens[named ? 1 : unionDef->tokens.size() - 1]), parent_node);
     auto prev_container = current_members_container;
     current_members_container = def;
     auto prev_parent = parent_node;
@@ -1139,19 +1138,19 @@ void CSTConverter::visitUnionDef(CompoundCSTToken *unionDef) {
     nodes.emplace_back(def);
 }
 
-void CSTConverter::visitImpl(CompoundCSTToken *impl) {
+void CSTConverter::visitImpl(CSTToken* impl) {
     if(is_dispose()) {
         return;
     }
     unsigned i = 1;
     auto def = new ImplDefinition(parent_node);
     if(impl->tokens[i]->type() == LexTokenType::CompGenericParamsList) {
-        convert_generic_list(this, impl->tokens[i]->as_compound(), def->generic_params, def);
+        convert_generic_list(this, impl->tokens[i], def->generic_params, def);
         i++;
     }
     impl->tokens[i]->accept(this);
     def->interface_type = type();
-    bool has_for = is_keyword(impl->tokens[++i].get(), "for");
+    bool has_for = is_keyword(impl->tokens[++i], "for");
     if (has_for) {
         impl->tokens[++i]->accept(this);
         def->struct_type = type();
@@ -1169,8 +1168,8 @@ void CSTConverter::visitImpl(CompoundCSTToken *impl) {
     nodes.emplace_back(def);
 }
 
-void CSTConverter::visitVariantMember(CompoundCSTToken *variant_member) {
-    const auto member = new VariantMember(str_token(variant_member->tokens[0].get()), (VariantDefinition*) parent_node);
+void CSTConverter::visitVariantMember(CSTToken* variant_member) {
+    const auto member = new VariantMember(str_token(variant_member->tokens[0]), (VariantDefinition*) parent_node);
     auto result = function_params(this, variant_member->tokens, 2);
     for(auto& value : result.params) {
         member->values[value->name] = std::make_unique<VariantMemberParam>(value->name, value->index, std::move(value->type), value->defValue.has_value() ? std::move(value->defValue.value()) : nullptr, member);
@@ -1178,19 +1177,19 @@ void CSTConverter::visitVariantMember(CompoundCSTToken *variant_member) {
     nodes.emplace_back(member);
 }
 
-void CSTConverter::visitVariant(CompoundCSTToken *variantDef) {
+void CSTConverter::visitVariant(CSTToken* variantDef) {
     const bool is_generic = variantDef->tokens[2]->type() == LexTokenType::CompGenericParamsList;
     bool named = variantDef->tokens[1]->is_identifier();
     unsigned i = (named ? 2 : 1) + (is_generic ? 1 : 0); // expected index of the ':'
-    auto has_override = is_char_op(variantDef->tokens[i].get(), ':');
-    auto def = new VariantDefinition(str_token(variantDef->tokens[named ? 1 : variantDef->tokens.size() - 1].get()), parent_node);
+    auto has_override = is_char_op(variantDef->tokens[i], ':');
+    auto def = new VariantDefinition(str_token(variantDef->tokens[named ? 1 : variantDef->tokens.size() - 1]), parent_node);
     if (has_override) {
         i++; // set on access specifier or the inherited struct / interface name
         get_inherit_list(this, variantDef, i, def->inherited);
     }
     i += 1;// positioned at first node or '}'
     if(is_generic) {
-        convert_generic_list(this, variantDef->tokens[2]->as_compound(), def->generic_params, def);
+        convert_generic_list(this, variantDef->tokens[2], def->generic_params, def);
     }
     auto prev_struct_decl = current_members_container;
     current_members_container = def;
@@ -1203,8 +1202,8 @@ void CSTConverter::visitVariant(CompoundCSTToken *variantDef) {
     nodes.emplace_back(def);
 }
 
-void CSTConverter::visitTryCatch(CompoundCSTToken *tryCatch) {
-    auto chain = (CompoundCSTToken*) tryCatch->tokens[1].get();
+void CSTConverter::visitTryCatch(CSTToken* tryCatch) {
+    auto chain = (CSTToken* ) tryCatch->tokens[1];
     if (chain->tokens.size() != 1 || chain->tokens[0]->type() != LexTokenType::CompFunctionCall) {
         error("expected a function call after try keyword", chain);
         return;
@@ -1213,21 +1212,21 @@ void CSTConverter::visitTryCatch(CompoundCSTToken *tryCatch) {
     auto call = value().release()->as_access_chain();
     auto try_catch = new TryCatch(std::unique_ptr<FunctionCall>((FunctionCall *) call->values[0].release()), std::nullopt,
                                   std::nullopt, parent_node);
-    auto last = tryCatch->tokens[tryCatch->tokens.size() - 1].get();
-    if (is_keyword(tryCatch->tokens[2].get(), "catch") && last->type() == LexTokenType::CompBody) {
+    auto last = tryCatch->tokens[tryCatch->tokens.size() - 1];
+    if (is_keyword(tryCatch->tokens[2], "catch") && last->type() == LexTokenType::CompBody) {
         try_catch->catchScope.emplace(take_body(this, last, try_catch));
     }
     // TODO catch variable not supported yet
     nodes.emplace_back(try_catch);
 }
 
-void CSTConverter::visitPointerType(CompoundCSTToken *cst) {
+void CSTConverter::visitPointerType(CSTToken* cst) {
     visit(cst->tokens, 0);
     put_type(new PointerType(type()));
 }
 
-void CSTConverter::visitGenericType(CompoundCSTToken *cst) {
-    auto generic_type = new GenericType(str_token(cst->tokens[0].get()));
+void CSTConverter::visitGenericType(CSTToken* cst) {
+    auto generic_type = new GenericType(str_token(cst->tokens[0]));
     unsigned i = 1;
     while(i < cst->tokens.size()) {
         if(cst->tokens[i]->is_type()) {
@@ -1239,13 +1238,13 @@ void CSTConverter::visitGenericType(CompoundCSTToken *cst) {
     put_type(generic_type);
 }
 
-void CSTConverter::visitSpecializedType(CompoundCSTToken *specType) {
+void CSTConverter::visitSpecializedType(CSTToken* specType) {
     // currently only one is supported dyn, which is a dynamic type
     specType->tokens[1]->accept(this);
     put_type(new DynamicType(type()));
 }
 
-void CSTConverter::visitArrayType(CompoundCSTToken *arrayType) {
+void CSTConverter::visitArrayType(CSTToken* arrayType) {
     arrayType->tokens[0]->accept(this);
     std::unique_ptr<BaseType> elem_type = type();
     std::optional<std::unique_ptr<Value>> val = std::nullopt;
@@ -1257,22 +1256,22 @@ void CSTConverter::visitArrayType(CompoundCSTToken *arrayType) {
     put_type(new ArrayType(std::move(elem_type), arraySize));
 }
 
-void CSTConverter::visitFunctionType(CompoundCSTToken *funcType) {
-    bool is_capturing = is_char_op(funcType->tokens[0].get(), '[');
+void CSTConverter::visitFunctionType(CSTToken* funcType) {
+    bool is_capturing = is_char_op(funcType->tokens[0], '[');
     auto params = function_params(this, funcType->tokens, is_capturing ? 3 : 1);
     visit(funcType->tokens, params.index + 2);
     put_type(new FunctionType(std::move(params.params), type(), params.isVariadic, is_capturing));
 }
 
 
-void CSTConverter::visitStringToken(LexToken *token) {
+void CSTConverter::visitStringToken(CSTToken* token) {
     auto escaped = escape_all(token->value, 1, token->value.size() - 1, [this, token](const std::string& value, unsigned int index) {
         error("invalid escape sequence found, character '" + std::string(1, value[index]) + "'", token);
     });
     values.emplace_back(std::make_unique<StringValue>(escaped));
 }
 
-void CSTConverter::visitCharToken(LexToken *token) {
+void CSTConverter::visitCharToken(CSTToken* token) {
     char value;
     if(token->value[1] == '\\') {
         auto result = escape_single(token->value, 2);
@@ -1311,32 +1310,32 @@ void CSTConverter::visitNumberToken(NumberToken *token) {
     }
 }
 
-void CSTConverter::visitStructValue(CompoundCSTToken *cst) {
+void CSTConverter::visitStructValue(CSTToken* cst) {
     cst->tokens[0]->accept(this);
     const auto has_generic_list = cst->tokens[1]->type() == LexTokenType::CompGenericList;
     auto struct_value = new StructValue(value(), {}, {}, nullptr);
     if(has_generic_list) {
-        to_generic_arg_list(struct_value->generic_list, cst->tokens[1]->as_compound());
+        to_generic_arg_list(struct_value->generic_list, cst->tokens[1]);
     }
     auto i = has_generic_list ? 3 : 2; // first identifier or '}'
-    while (!is_char_op(cst->tokens[i].get(), '}')) {
-        auto id = str_token(cst->tokens[i].get());
+    while (!is_char_op(cst->tokens[i], '}')) {
+        auto id = str_token(cst->tokens[i]);
         i += 2;
         cst->tokens[i]->accept(this);
         struct_value->values[id] = value();
         i++;
-        if (is_char_op(cst->tokens[i].get(), ',')) {
+        if (is_char_op(cst->tokens[i], ',')) {
             i++;
         }
     }
     values.emplace_back(struct_value);
 }
 
-void CSTConverter::visitArrayValue(CompoundCSTToken *arrayValue) {
+void CSTConverter::visitArrayValue(CSTToken* arrayValue) {
     unsigned i = 1;
     std::vector<std::unique_ptr<Value>> arrValues;
-    while (char_op(arrayValue->tokens[i].get()) != '}') {
-        if (char_op(arrayValue->tokens[i].get()) != ',') {
+    while (char_op(arrayValue->tokens[i]) != '}') {
+        if (char_op(arrayValue->tokens[i]) != ',') {
             arrayValue->tokens[i]->accept(this);
             // consume the value
             arrValues.emplace_back(value());
@@ -1352,9 +1351,9 @@ void CSTConverter::visitArrayValue(CompoundCSTToken *arrayValue) {
             arrType.emplace(type());
         }
         i++;
-        if (i < arrayValue->tokens.size() && char_op(arrayValue->tokens[i++].get()) == '(') {
-            while (i < arrayValue->tokens.size() && char_op(arrayValue->tokens[i].get()) != ')') {
-                if (char_op(arrayValue->tokens[i].get()) != ',') {
+        if (i < arrayValue->tokens.size() && char_op(arrayValue->tokens[i++]) == '(') {
+            while (i < arrayValue->tokens.size() && char_op(arrayValue->tokens[i]) != ')') {
+                if (char_op(arrayValue->tokens[i]) != ',') {
                     arrayValue->tokens[i]->accept(this);
                     // consume the value
                     sizes.emplace_back(value()->as_int());
@@ -1374,12 +1373,12 @@ std::vector<std::unique_ptr<Value>> take_values(CSTConverter *converter, const s
     return new_values;
 }
 
-void CSTConverter::to_generic_arg_list(std::vector<std::unique_ptr<BaseType>>& generic_list, CompoundCSTToken* container) {
+void CSTConverter::to_generic_arg_list(std::vector<std::unique_ptr<BaseType>>& generic_list, CSTToken*  container) {
     auto& generic_tokens = container->tokens;
     unsigned i = 0;
     CSTToken* token;
     while(i < generic_tokens.size()) {
-        token = generic_tokens[i].get();
+        token = generic_tokens[i];
         if(token->is_type()) {
             token->accept(this);
             generic_list.emplace_back(type());
@@ -1388,10 +1387,10 @@ void CSTConverter::to_generic_arg_list(std::vector<std::unique_ptr<BaseType>>& g
     }
 }
 
-void CSTConverter::visitFunctionCall(CompoundCSTToken *call) {
+void CSTConverter::visitFunctionCall(CSTToken* call) {
     std::vector<std::unique_ptr<BaseType>> generic_list;
     if(call->tokens[0]->type() == LexTokenType::CompGenericList) {
-        to_generic_arg_list(generic_list, call->tokens[0]->as_compound());
+        to_generic_arg_list(generic_list, call->tokens[0]);
     }
     auto prev_values = std::move(values);
     visit(call->tokens, 1);
@@ -1401,20 +1400,20 @@ void CSTConverter::visitFunctionCall(CompoundCSTToken *call) {
     values.emplace_back(func_call);
 }
 
-void CSTConverter::visitIndexOp(CompoundCSTToken *op) {
+void CSTConverter::visitIndexOp(CSTToken* op) {
     auto indexes = take_values(this, [&op, this]() {
         visit(op->tokens, 1);
     });
     values.emplace_back(std::make_unique<IndexOperator>(std::move(indexes)));
 }
 
-void CSTConverter::visitAccessChain(CompoundCSTToken *chain) {
+void CSTConverter::visitAccessChain(CSTToken* chain) {
     auto prev_values = std::move(values);
     unsigned int i = 0;
     unsigned int size = chain->tokens.size();
     CSTToken* token;
     while(i < size) {
-        token = chain->tokens[i].get();
+        token = chain->tokens[i];
         if(is_str_op(token, "::")) {
             auto prev = value();
             auto as_id = prev->as_identifier();
@@ -1486,8 +1485,8 @@ void visitNestedExpr(CSTConverter *converter, CSTToken *expr, ValueAndOperatorSt
                 output.putValue(converter->value().release());
             }
         } else {
-            auto nested = ((CompoundCSTToken *) expr);
-            auto is_braced = is_char_op(nested->tokens[0].get(), '(');
+            auto nested = ((CSTToken* ) expr);
+            auto is_braced = is_char_op(nested->tokens[0], '(');
             auto first_val_index = is_braced ? 1 : 0;
             auto op_index = is_braced ? 3 : 1;
             auto second_val_index = op_index + 1;
@@ -1496,14 +1495,14 @@ void visitNestedExpr(CSTConverter *converter, CSTToken *expr, ValueAndOperatorSt
                 op_stack.putCharacter('(');
             }
             // visiting the first value
-            visitNestedExpr(converter, nested->tokens[first_val_index].get(), op_stack, output);
+            visitNestedExpr(converter, nested->tokens[first_val_index], op_stack, output);
             if (is_braced) { // a right parenthesis ')':
                 sy_onRParen(op_stack, output);
             }
             if(nested->tokens.size() <= op_index) { // no operator present, just expression like '(' 'nested_expr' ')'
                 return;
             }
-            auto o1 = get_operation(nested->tokens[op_index].get());
+            auto o1 = get_operation(nested->tokens[op_index]);
 //            while (
 //                   there is an operator o2 at the top of the operator stack which is not a left parenthesis,
 //                   and (o2 has greater precedence than o1 or (o1 and o2 have the same precedence and o1 is left-associative))
@@ -1518,12 +1517,12 @@ void visitNestedExpr(CSTConverter *converter, CSTToken *expr, ValueAndOperatorSt
             // push o1 onto the operator stack
             op_stack.putOperator(o1);
             // visiting the second value
-            if (is_char_op(nested->tokens[second_val_index].get(), '(')) {
+            if (is_char_op(nested->tokens[second_val_index], '(')) {
                 op_stack.putCharacter('(');
-                visitNestedExpr(converter, nested->tokens[second_val_index + 1].get(), op_stack, output);
+                visitNestedExpr(converter, nested->tokens[second_val_index + 1], op_stack, output);
                 sy_onRParen(op_stack, output);
             } else {
-                visitNestedExpr(converter, nested->tokens[second_val_index].get(), op_stack, output);
+                visitNestedExpr(converter, nested->tokens[second_val_index], op_stack, output);
             }
         }
     } else {
@@ -1531,9 +1530,9 @@ void visitNestedExpr(CSTConverter *converter, CSTToken *expr, ValueAndOperatorSt
     }
 }
 
-void CSTConverter::visitExpression(CompoundCSTToken *expr) {
-    auto is_braced = is_char_op(expr->tokens[0].get(), '(');
-    if(is_braced && is_char_op(expr->tokens[2].get(), ')') && expr->tokens.size() <= 3) {
+void CSTConverter::visitExpression(CSTToken* expr) {
+    auto is_braced = is_char_op(expr->tokens[0], '(');
+    if(is_braced && is_char_op(expr->tokens[2], ')') && expr->tokens.size() <= 3) {
         // handles braced expression (1 + 1) that's it
         expr->tokens[1]->accept(this);
         return;
@@ -1547,7 +1546,7 @@ void CSTConverter::visitExpression(CompoundCSTToken *expr) {
         auto second = value();
         auto first = value();
         values.emplace_back(std::make_unique<Expression>(std::move(first), std::move(second),
-                                                         (get_operation(expr->tokens[op_index].get())), is64Bit));
+                                                         (get_operation(expr->tokens[op_index])), is64Bit));
     } else {
         ValueAndOperatorStack op_stack, output;
         visitNestedExpr(this, expr, op_stack, output);
@@ -1562,44 +1561,44 @@ void CSTConverter::visitExpression(CompoundCSTToken *expr) {
     }
 }
 
-void CSTConverter::visitCast(CompoundCSTToken *castCst) {
+void CSTConverter::visitCast(CSTToken* castCst) {
     visit(castCst->tokens);
     values.emplace_back(std::make_unique<CastedValue>(value(), type()));
 }
 
-void CSTConverter::visitIsValue(CompoundCSTToken *castCst) {
+void CSTConverter::visitIsValue(CSTToken* castCst) {
     visit(castCst->tokens);
     values.emplace_back(std::make_unique<IsValue>(value(), type()));
 }
 
-void CSTConverter::visitAddrOf(CompoundCSTToken *addrOf) {
+void CSTConverter::visitAddrOf(CSTToken* addrOf) {
     addrOf->tokens[1]->accept(this);
     values.emplace_back(std::make_unique<AddrOfValue>(value()));
 }
 
-void CSTConverter::visitDereference(CompoundCSTToken *deref) {
+void CSTConverter::visitDereference(CSTToken* deref) {
     deref->tokens[1]->accept(this);
     values.emplace_back(std::make_unique<DereferenceValue>(value()));
 }
 
-void CSTConverter::visitVariableToken(LexToken *token) {
+void CSTConverter::visitVariableToken(CSTToken* token) {
     values.emplace_back(std::make_unique<VariableIdentifier>(token->value));
 }
 
-void CSTConverter::visitBoolToken(LexToken *token) {
+void CSTConverter::visitBoolToken(CSTToken* token) {
     values.emplace_back(std::make_unique<BoolValue>(token->value[0] == 't'));
 }
 
-void CSTConverter::visitNullToken(LexToken *token) {
+void CSTConverter::visitNullToken(CSTToken* token) {
     values.emplace_back(std::make_unique<NullValue>());
 }
 
-void CSTConverter::visitNegative(CompoundCSTToken *neg) {
+void CSTConverter::visitNegative(CSTToken* neg) {
     visit(neg->tokens);
     values.emplace_back(std::make_unique<NegativeValue>(value()));
 }
 
-void CSTConverter::visitNot(CompoundCSTToken *notCst) {
+void CSTConverter::visitNot(CSTToken* notCst) {
     visit(notCst->tokens);
     values.emplace_back(std::make_unique<NotValue>(value()));
 }

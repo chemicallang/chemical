@@ -103,7 +103,6 @@ endif()
 set(COMMON_SOURCES
         lexer/Lexer.cpp
         lexer/Lexer.h
-        lexer/model/tokens/LexToken.h
         stream/SourceProvider.h
         lexer/Lexi.h
         lexer/statements/LexAssignment.cpp
@@ -269,7 +268,6 @@ set(COMMON_SOURCES
         lexer/values/LambdaValue.cpp
         cst/base/CSTToken.h
         utils/fwd/vector.h
-        cst/base/CompoundCSTToken.h
         cst/CSTConvert.cpp
         cst/base/CSTConverter.h
         cst/base/CSTVisitor.h
@@ -465,6 +463,7 @@ set(COMMON_SOURCES
         ast/values/VariantCall.cpp
         ast/values/VariantCaseVariable.h
         ast/values/IsValue.cpp
+        cst/base/CSTUnit.h
 )
 
 # Chemical LSP Executable Target

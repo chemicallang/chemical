@@ -46,7 +46,7 @@ bool Lexer::lexAssignmentTokens() {
         return false;
     }
 
-    auto start = tokens.size() - 1;
+    auto start = tokens_size() - 1;
 
     // increment or decrement
     if (lexOperatorToken("++", Operation::PostfixIncrement) || lexOperatorToken("--", Operation::PostfixDecrement)) {
@@ -66,7 +66,10 @@ bool Lexer::lexAssignmentTokens() {
         if (assOp) {
             error("expected an equal for assignment after the assignment operator");
         }
-        tokens[start].get()->tok_type = LexTokenType::CompAccessChainNode;
+        auto& chain = *unit.tokens[start];
+        if(chain.tok_type == LexTokenType::CompAccessChain) {
+            chain.tok_type = LexTokenType::CompAccessChainNode;
+        }
         return true;
     }
 

@@ -9,13 +9,12 @@
 #include <utility>
 #include <vector>
 #include "stream/SourceProvider.h"
-#include "lexer/model/tokens/LexToken.h"
+#include "cst/base/CSTUnit.h"
 #include "lexer/model/tokens/NumberToken.h"
 #include "ast/utils/Operation.h"
 #include "integration/common/Diagnostic.h"
 #include "ast/base/BaseType.h"
 #include "ast/structures/StructDefinition.h"
-#include "cst/base/CompoundCSTToken.h"
 #include <memory>
 #include <optional>
 #include "utils/fwd/functional.h"
@@ -46,9 +45,9 @@ public:
     SourceProvider &provider;
 
     /**
-     * tokens are tokens that have been lexed from source code
+     * a unit contains everything that's allocated
      */
-    std::vector<std::unique_ptr<CSTToken>> tokens;
+    CSTUnit unit;
 
     /**
      * the binder that will be used to compile binding code
@@ -99,6 +98,13 @@ public:
      * reset the lexer, for re-lexing a new file, if it has lexed a file before
      */
     void reset();
+
+    /**
+     * get current tokens size
+     */
+    inline size_t tokens_size() {
+        return unit.tokens.size();
+    }
 
     /**
      * lexes a number as a string
@@ -738,37 +744,46 @@ public:
     // -------------------------------- Exposed till here
 
     /**
+     * emplaces the token at the end
+     */
+    template<typename... Args>
+    inline constexpr void emplace(Args&&... args) {
+        unit.emplace(std::forward<Args>(args)...);
+    }
+
+    /**
      * takes elements (by removing) from tokens vector, starting from start position, till end
      */
-    std::vector<std::unique_ptr<CSTToken>> take_from(unsigned int start, unsigned int end) {
+    void take_from(std::vector<CSTToken*>& slice, unsigned int start, unsigned int end) {
         unsigned size = end - start;
-        std::vector<std::unique_ptr<CSTToken>> slice;
         slice.reserve(size);
         unsigned i = start;
         while(i < end) {
-            slice.push_back(std::move(tokens[i]));
+            slice.push_back(unit.tokens[i]);
             i++;
         }
-        auto begin = tokens.begin() + start;
-        tokens.erase(begin, begin + size);
-        return slice;
+        auto begin = unit.tokens.begin() + start;
+        unit.tokens.erase(begin, begin + size);
     }
 
     /**
      * put tokens in a compound token of specified type, starting from start
      */
     void compound_from(unsigned int start, LexTokenType type) {
-        tokens.emplace_back(std::make_unique<CompoundCSTToken>(take_from(start, tokens.size()), type));
+        std::vector<CSTToken*> slice;
+        take_from(slice, start, tokens_size());
+        unit.emplace_compound(type);
+        unit.tokens.back()->tokens = std::move(slice);
     }
 
     /**
      * a helper function to collect
      */
+    [[deprecated]]
     void compound_collectable(unsigned int start, LexTokenType type) {
-        unsigned int size = tokens.size();
-        tokens.emplace_back(std::make_unique<CompoundCSTToken>(take_from(start, size), type));
+        compound_from(start, type);
         if(isCBICollecting) {
-            collect_cbi_node(start, tokens.size());
+            collect_cbi_node(start, tokens_size());
             if(!isCBIKeepCollecting) {
                 isCBICollecting = false;
                 isCBICollectingGlobal = false;
@@ -803,7 +818,7 @@ public:
      * This just calls the diagnostic method above giving it the position
      */
     inline void diagnostic(unsigned int position, const std::string &message, DiagSeverity severity) {
-        auto token = tokens[position]->start_token();
+        auto token = unit.tokens[position]->start_token();
         auto &pos = token->position;
         diagnostic({pos.line, pos.character + token->length()}, message, severity);
     }
@@ -815,8 +830,8 @@ public:
      */
     inline void diagnostic(const std::string &message, DiagSeverity severity) {
         std::string rep;
-        tokens[tokens.size() - 1]->end_token()->append_representation(rep);
-        diagnostic(tokens.size() - 1, message + " got \"" + rep + "\"",
+        unit.tokens[tokens_size() - 1]->end_token()->append_representation(rep);
+        diagnostic(tokens_size() - 1, message + " got \"" + rep + "\"",
                    severity);
     }
 

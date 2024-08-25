@@ -10,7 +10,7 @@
 bool Lexer::lexUnsignedIntAsNumberToken() {
     auto number = provider.readUnsignedInt();
     if (!number.empty()) {
-        tokens.emplace_back(std::make_unique<LexToken>(LexTokenType::Number, backPosition(number.length()), number));
+        emplace(LexTokenType::Number, backPosition(number.length()), number);
         return true;
     } else {
         return false;
@@ -27,7 +27,7 @@ bool Lexer::lexNumberToken() {
             case 'L':
                 number += provider.readCharacter();
         }
-        tokens.emplace_back(std::make_unique<LexToken>(LexTokenType::Number, backPosition(number.length()), number));
+        emplace(LexTokenType::Number, backPosition(number.length()), number);
         return true;
     } else {
         return false;

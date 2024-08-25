@@ -2,7 +2,7 @@
 
 #include <iostream>
 #include "cst/base/CSTDiagnoser.h"
-#include "lexer/model/tokens/LexToken.h"
+#include "cst/base/CSTToken.h"
 
 void CSTDiagnoser::error(const std::string &message, CSTToken *start, CSTToken *end, DiagSeverity severity) {
 #ifdef DEBUG

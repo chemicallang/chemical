@@ -29,12 +29,12 @@ public:
     /**
      * The function that analyzes
      */
-    void analyze(std::vector<std::unique_ptr<CSTToken>>& tokens);
+    void analyze(std::vector<CSTToken*>& tokens);
 
     /**
      * will add a folding range from start to end token
      */
-    void folding_range(LexToken* start, LexToken* end, bool comment = false);
+    void folding_range(CSTToken* start, CSTToken* end, bool comment = false);
 
     /**
      * will add a folding range for this CSTToken
@@ -45,45 +45,45 @@ public:
 
     // Visitor functions
 
-    void visitVarInit(CompoundCSTToken *varInit) override;
+    void visitVarInit(CSTToken* varInit) override;
 
-    void visitReturn(CompoundCSTToken *returnCst) override;
+    void visitReturn(CSTToken* returnCst) override;
 
-    void visitFunctionCall(CompoundCSTToken *call) override;
+    void visitFunctionCall(CSTToken* call) override;
 
-    void visitAssignment(CompoundCSTToken *assignment) override;
+    void visitAssignment(CSTToken* assignment) override;
 
     void visitAccessChain(AccessChainCST *accessChain) override;
 
-    void visitSwitch(CompoundCSTToken *switchCst) override;
+    void visitSwitch(CSTToken* switchCst) override;
 
-    void visitEnumDecl(CompoundCSTToken *enumDecl) override;
+    void visitEnumDecl(CSTToken* enumDecl) override;
 
-    void visitInterface(CompoundCSTToken *interface) override;
+    void visitInterface(CSTToken* interface) override;
 
-    void visitStructDef(CompoundCSTToken *structDef) override;
+    void visitStructDef(CSTToken* structDef) override;
 
-    void visitImpl(CompoundCSTToken *impl) override;
+    void visitImpl(CSTToken* impl) override;
 
-    void visitIf(CompoundCSTToken *ifCst) override;
+    void visitIf(CSTToken* ifCst) override;
 
-    void visitForLoop(CompoundCSTToken *forLoop) override;
+    void visitForLoop(CSTToken* forLoop) override;
 
-    void visitWhile(CompoundCSTToken *whileCst) override;
+    void visitWhile(CSTToken* whileCst) override;
 
-    void visitDoWhile(CompoundCSTToken *doWhileCst) override;
+    void visitDoWhile(CSTToken* doWhileCst) override;
 
-    void visitFunction(CompoundCSTToken *function) override;
+    void visitFunction(CSTToken* function) override;
 
-    void visitLambda(CompoundCSTToken *cst) override;
+    void visitLambda(CSTToken* cst) override;
 
-    void visitMultilineComment(LexToken *token) override;
+    void visitMultilineComment(CSTToken *token) override;
 
-    void visitBody(CompoundCSTToken *bodyCst) override;
+    void visitBody(CSTToken* bodyCst) override;
 
-    void visitStructValue(CompoundCSTToken *structValueCst) override;
+    void visitStructValue(CSTToken* structValueCst) override;
 
-    void visitArrayValue(CompoundCSTToken *arrayValue) override;
+    void visitArrayValue(CSTToken* arrayValue) override;
 
 
 };

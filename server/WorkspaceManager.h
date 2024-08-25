@@ -197,7 +197,7 @@ public:
     /**
      * get the tokens only for the given file path
      */
-    std::vector<std::unique_ptr<CSTToken>>& get_lexed_tokens(const std::string& path) {
+    std::vector<CSTToken*>& get_lexed_tokens(const std::string& path) {
         return get_lexed(path)->tokens;
     }
 

@@ -1,6 +1,6 @@
 // Copyright (c) Qinetik 2024.
 
-#include "lexer/model/tokens/LexToken.h"
+#include "cst/base/CSTToken.h"
 #include "CSTSymbolResolver.h"
 #include "cst/utils/CSTUtils.h"
 #include "integration/ide/model/ImportUnit.h"
@@ -8,7 +8,7 @@
 #include "compiler/PrimitiveTypeMap.h"
 #include <iostream>
 
-void CSTSymbolResolver::declare(LexToken *token, CSTToken *node) {
+void CSTSymbolResolver::declare(CSTToken *token, CSTToken *node) {
     auto &last = current.back();
     auto found = last.find(token->value);
     if (found == last.end()) {
@@ -18,73 +18,73 @@ void CSTSymbolResolver::declare(LexToken *token, CSTToken *node) {
     }
 }
 
-void CSTSymbolResolver::visitCompoundCommon(CompoundCSTToken *compound) {
+void CSTSymbolResolver::visitCompoundCommon(CSTToken* compound) {
     ::visit(this, compound->tokens);
 }
 
-void CSTSymbolResolver::visitBody(CompoundCSTToken *cst) {
+void CSTSymbolResolver::visitBody(CSTToken* cst) {
     scope_start();
     ::visit(this, cst->tokens);
     scope_end();
 }
 
-void CSTSymbolResolver::visitVarInit(CompoundCSTToken *cst) {
-    declare(cst->tokens[1].get(), cst);
+void CSTSymbolResolver::visitVarInit(CSTToken* cst) {
+    declare(cst->tokens[1], cst);
     ::visit(this, cst->tokens, 2);
 }
 
-void CSTSymbolResolver::visitTypealias(CompoundCSTToken *cst) {
-    declare(cst->tokens[1].get(), cst);
+void CSTSymbolResolver::visitTypealias(CSTToken* cst) {
+    declare(cst->tokens[1], cst);
     ::visit(this, cst->tokens, 2);
 }
 
-void CSTSymbolResolver::visitFunction(CompoundCSTToken *cst) {
-    declare(cst->tokens[1].get(), cst);
+void CSTSymbolResolver::visitFunction(CSTToken* cst) {
+    declare(cst->tokens[1], cst);
     scope_start();
     ::visit(this, cst->tokens, 2);
     scope_end();
 }
 
-void CSTSymbolResolver::visitEnumDecl(CompoundCSTToken *cst) {
-    declare(cst->tokens[1].get(), cst);
+void CSTSymbolResolver::visitEnumDecl(CSTToken* cst) {
+    declare(cst->tokens[1], cst);
     ::visit(this, cst->tokens, 2);
 }
 
-void CSTSymbolResolver::visitInterface(CompoundCSTToken *cst) {
-    declare(cst->tokens[1].get(), cst);
+void CSTSymbolResolver::visitInterface(CSTToken* cst) {
+    declare(cst->tokens[1], cst);
     scope_start();
     ::visit(this, cst->tokens, 2);
     scope_end();
 }
 
-void CSTSymbolResolver::visitStructDef(CompoundCSTToken *cst) {
-    declare(cst->tokens[1].get(), cst);
+void CSTSymbolResolver::visitStructDef(CSTToken* cst) {
+    declare(cst->tokens[1], cst);
     scope_start();
     ::visit(this, cst->tokens, 2);
     scope_end();
 }
 
-void CSTSymbolResolver::visitImpl(CompoundCSTToken *impl) {
-    bool has_for = is_keyword(impl->tokens[2].get(), "for");
+void CSTSymbolResolver::visitImpl(CSTToken* impl) {
+    bool has_for = is_keyword(impl->tokens[2], "for");
     scope_start();
     ::visit(this, impl->tokens, has_for ? 4 : 2);
     scope_end();
 }
 
-void CSTSymbolResolver::visitAccessChain(CompoundCSTToken *chain) {
+void CSTSymbolResolver::visitAccessChain(CSTToken* chain) {
     chain->tokens[0]->accept(this);
     if(chain->tokens.size() == 1) return;
     unsigned i = 1;
     // TODO
     throw std::runtime_error("TODO");
-    CSTToken* parent;// = ((LexToken*) chain->tokens[0].get())->linked;
+    CSTToken* parent;// = ((CSTToken*) chain->tokens[0].get())->linked;
     if(!parent) {
-        error("unresolved symbol not found '" + chain->tokens[0]->representation(), chain->tokens[0].get());
+        error("unresolved symbol not found '" + chain->tokens[0]->representation(), chain->tokens[0]);
         return;
     }
     CSTToken* token;
     while(i < chain->tokens.size()) {
-        token = chain->tokens[i].get();
+        token = chain->tokens[i];
         if(token->type() == LexTokenType::Variable) {
             parent = link_child(parent, token);
             // TODO ref token died due to performance fire
@@ -108,12 +108,12 @@ void CSTSymbolResolver::visitAccessChain(CompoundCSTToken *chain) {
     }
 }
 
-void CSTSymbolResolver::link(LexToken* ref, CSTToken* token) {
+void CSTSymbolResolver::link(CSTToken* ref, CSTToken* token) {
 //    ref->linked = token;
     throw std::runtime_error("TODO");
 }
 
-void CSTSymbolResolver::visitVariableToken(LexToken *token) {
+void CSTSymbolResolver::visitVariableToken(CSTToken *token) {
     auto found = find(token->value);
     if(found) {
         throw std::runtime_error("TODO");
@@ -123,15 +123,15 @@ void CSTSymbolResolver::visitVariableToken(LexToken *token) {
     }
 }
 
-void CSTSymbolResolver::visitFunctionCall(CompoundCSTToken *cst) {
+void CSTSymbolResolver::visitFunctionCall(CSTToken* cst) {
 
 }
 
-void CSTSymbolResolver::visitIndexOp(CompoundCSTToken *cst) {
+void CSTSymbolResolver::visitIndexOp(CSTToken* cst) {
 
 }
 
-void CSTSymbolResolver::visitTypeToken(LexToken *token) {
+void CSTSymbolResolver::visitTypeToken(CSTToken *token) {
     auto found = find(token->value);
     if(found) {
         throw std::runtime_error("TODO");

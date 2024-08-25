@@ -5,8 +5,9 @@
 
 IsValue::IsValue(
         std::unique_ptr<Value> value,
-        std::unique_ptr<BaseType> type
-) : value(std::move(value)), type(std::move(type)) {
+        std::unique_ptr<BaseType> type,
+        bool is_negating
+) : value(std::move(value)), type(std::move(type)), is_negating(is_negating) {
 
 }
 
@@ -25,13 +26,16 @@ void IsValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
 std::optional<bool> IsValue::get_comp_time_result() {
     const auto linked = value->linked_node();
     if(linked) {
+        bool result;
         const auto param = linked->as_generic_type_param();
         if (param) {
-            return linked->known_type()->is_same(type.get());
+            result = linked->known_type()->is_same(type.get());
+            return is_negating ? !result : result;
         }
         const auto alias = linked->as_typealias();
         if(alias) {
-            return linked->known_type()->is_same(type.get());
+            result = linked->known_type()->is_same(type.get());
+            return is_negating ? !result : result;
         }
     }
     return std::nullopt;

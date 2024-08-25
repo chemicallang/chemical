@@ -21,6 +21,10 @@ func test_is_value() {
         typealias T = int;
         return T is int;
     })
+    test("int types are not not same", () => {
+        typealias T = int;
+        return !(T !is int);
+    })
     test("uint types are same", () => {
         typealias T = uint;
         return T is uint;

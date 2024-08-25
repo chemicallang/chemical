@@ -14,8 +14,9 @@ public:
 
     std::unique_ptr<Value> value;
     std::unique_ptr<BaseType> type;
+    bool is_negating;
 
-    IsValue(std::unique_ptr<Value> value, std::unique_ptr<BaseType> type);
+    IsValue(std::unique_ptr<Value> value, std::unique_ptr<BaseType> type, bool is_negating = false);
 
     IsValue *copy() override;
 

@@ -11,6 +11,7 @@
 #include "lexer/model/CompilerBinder.h"
 #include "compiler/lab/LabModule.h"
 #include "compiler/lab/LabBuildContext.h"
+#include "utils/Benchmark.h"
 
 class Lexer;
 
@@ -130,6 +131,11 @@ public:
      * function that performs symbol resolution
      */
     void sym_res(Scope& scope, bool is_c_file, const std::string& abs_path);
+
+    /**
+     * print given benchmark results
+     */
+    void print_benchmarks(std::ostream& stream, const std::string& TAG, BenchmarkResults* results);
 
     /**
      * translates given import result to c using visitor

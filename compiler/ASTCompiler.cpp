@@ -26,7 +26,7 @@ void ASTCompiler::compile_nodes(
     gen->compile_nodes();
     if(options->benchmark) {
         bm_results->benchmark_end();
-        std::cout << "[Compile] " << file.abs_path << " Completed " << bm_results->representation() << std::endl;
+        print_benchmarks(std::cout, "Compile", bm_results.get());
     }
     if(!gen->errors.empty()) {
         gen->print_errors(file.abs_path);

@@ -148,7 +148,7 @@ void ASTProcessor::sym_res(Scope& scope, bool is_c_file, const std::string& abs_
     }
     if(options->benchmark) {
         bm_results->benchmark_end();
-        std::cout << "[SymRes] " << abs_path << " Completed " << bm_results->representation() << std::endl;
+        print_benchmarks(std::cout, "SymRes", bm_results.get());
     }
     if(!resolver->errors.empty()) {
         resolver->print_errors(abs_path);
@@ -157,6 +157,19 @@ void ASTProcessor::sym_res(Scope& scope, bool is_c_file, const std::string& abs_
         resolver->override_symbols = false;
         resolver->errors = std::move(previous);
         resolver->has_errors = prev_has_errors;
+    }
+}
+
+void ASTProcessor::print_benchmarks(std::ostream& stream, const std::string& TAG, BenchmarkResults* bm_results) {
+    const auto mil = bm_results->millis();
+    bool reset = false;
+    if(mil > 1) {
+        stream << (mil > 3 ? rang::fg::red : rang::fg::yellow);
+        reset = true;
+    }
+    stream << '[' << TAG << ']' << " Completed " << bm_results->representation() << std::endl;
+    if(reset) {
+        stream << rang::fg::reset;
     }
 }
 
@@ -198,7 +211,7 @@ ASTImportResultExt ASTProcessor::import_file(const FlatIGFile& file) {
         if(options->benchmark) {
             bm_results = std::make_unique<BenchmarkResults>();
             benchLexFile(&lexer, abs_path, *bm_results);
-            out << "[Lex]" << " Completed " << bm_results->representation() << '\n';
+            print_benchmarks(out, "Lex", bm_results.get());
         } else {
             lexFile(&lexer, abs_path);
         }
@@ -223,7 +236,7 @@ ASTImportResultExt ASTProcessor::import_file(const FlatIGFile& file) {
         converter.convert(lexer.tokens);
         if(options->benchmark) {
             bm_results->benchmark_end();
-            out << "[Cst2Ast]" << " Completed " << ' ' << bm_results->representation() << '\n';
+            print_benchmarks(out, "Cst2Ast", bm_results.get());
         }
         for (const auto &err: converter.diagnostics) {
             err.ansi(std::cerr, abs_path, "Converter") << std::endl;

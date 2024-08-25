@@ -40,7 +40,7 @@ public:
     }
 
     bool is_same(BaseType *type) override {
-        return type->kind() == kind() && ((IntNType*) type)->num_bits() == num_bits();
+        return type->kind() == kind() && ((IntNType*) type)->num_bits() == num_bits() && ((IntNType*) type)->is_unsigned() == is_unsigned();
     }
 
 #ifdef COMPILER_BUILD

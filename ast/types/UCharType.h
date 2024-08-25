@@ -42,10 +42,6 @@ public:
 
     bool satisfies(Value *value) override;
 
-    bool is_same(BaseType *type) override {
-        return type->kind() == kind();
-    }
-
     Value *create(int64_t value) override;
 
     [[nodiscard]]

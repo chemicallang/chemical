@@ -9,6 +9,7 @@
 bool Lexer::lexRemainingExpression(unsigned start) {
 
     lexWhitespaceToken();
+    bool compounded = false;
     if (lexWSKeywordToken("as")) {
         if (!lexTypeTokens()) {
             error("expected a type for casting after 'as' in expression");
@@ -22,10 +23,11 @@ bool Lexer::lexRemainingExpression(unsigned start) {
             return true;
         }
         compound_from(start, LexTokenType::CompIsValue);
-        return true;
+        lexWhitespaceToken();
+        compounded = true;
     }
     if (!lexLanguageOperatorToken()) {
-        return false;
+        return compounded;
     }
     lexWhitespaceToken();
     if (!lexExpressionTokens(false, false)) {

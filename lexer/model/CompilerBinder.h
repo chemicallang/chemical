@@ -50,7 +50,7 @@ public:
      * @param name is the name of container
      * @param err_no_found should it error out, if container isn't found
      */
-    virtual void collect(const std::string& name, std::vector<std::unique_ptr<CSTToken>>& tokens, bool err_no_found) = 0;
+    virtual void collect(const std::string& name, std::vector<CSTToken*>& tokens, bool err_no_found) = 0;
 
     /**
      * following cbi will be compiled

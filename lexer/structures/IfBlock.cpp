@@ -40,7 +40,7 @@ bool Lexer::lexIfBlockTokens() {
         return false;
     }
 
-    auto start = tokens.size() - 1;
+    auto start = tokens_size() - 1;
 
     lexIfExprAndBlock();
     if (has_errors) {

@@ -8,7 +8,7 @@
 
 bool Lexer::lexOperatorToken(char op) {
     if(provider.increment(op)) {
-        tokens.emplace_back(std::make_unique<LexToken>(LexTokenType::CharOperator, backPosition(1), std::string(1, op)));
+        emplace(LexTokenType::CharOperator, backPosition(1), std::string(1, op));
         return true;
     } else {
         return false;
@@ -17,7 +17,7 @@ bool Lexer::lexOperatorToken(char op) {
 
 bool Lexer::lexOperatorToken(const std::string& op) {
     if(provider.increment(op)) {
-        tokens.emplace_back(std::make_unique<LexToken>(LexTokenType::StringOperator, backPosition(op.length()), op));
+        emplace(LexTokenType::StringOperator, backPosition(op.length()), op);
         return true;
     } else {
         return false;
@@ -28,7 +28,7 @@ void Lexer::storeOperationToken(char token, Operation op) {
     std::string value;
     value.append(std::to_string((int) op));
     value.append(1, token);
-    tokens.emplace_back(std::make_unique<LexToken>(LexTokenType::Operation, backPosition(1), std::move(value)));
+    emplace(LexTokenType::Operation, backPosition(1), std::move(value));
 }
 
 bool Lexer::lexOperationToken(char token, Operation op) {
@@ -45,7 +45,7 @@ bool Lexer::lexOperatorToken(const std::string &token, Operation op) {
         std::string value;
         value.append(std::to_string((int) op));
         value.append(token);
-        tokens.emplace_back(std::make_unique<LexToken>(LexTokenType::Operation, backPosition(token.length()), value));
+        emplace(LexTokenType::Operation, backPosition(token.length()), value);
         return true;
     } else {
         return false;
@@ -55,7 +55,7 @@ bool Lexer::lexOperatorToken(const std::string &token, Operation op) {
 bool Lexer::lexWSKeywordToken(const std::string &keyword) {
     if(provider.increment(keyword, true) && provider.peek(keyword.size()) == ' ') {
         provider.increment_amount(keyword.size());
-        tokens.emplace_back(std::make_unique<LexToken>(LexTokenType::Keyword, backPosition(keyword.length()), keyword));
+        emplace(LexTokenType::Keyword, backPosition(keyword.length()), keyword);
         lexWhitespaceToken();
         return true;
     } else {
@@ -68,12 +68,12 @@ bool Lexer::lexWSKeywordToken(const std::string &keyword, char may_end_at) {
         const auto peek = provider.peek(keyword.size());
         if(peek == ' ' || peek == '\t') {
             provider.increment_amount(keyword.size());
-            tokens.emplace_back(std::make_unique<LexToken>(LexTokenType::Keyword, backPosition(keyword.length()), keyword));
+            emplace(LexTokenType::Keyword, backPosition(keyword.length()), keyword);
             lexWhitespaceToken();
             return true;
         } else if(peek == may_end_at) {
             provider.increment_amount(keyword.size());
-            tokens.emplace_back(std::make_unique<LexToken>(LexTokenType::Keyword, backPosition(keyword.length()), keyword));
+            emplace(LexTokenType::Keyword, backPosition(keyword.length()), keyword);
             return true;
         }
     }
@@ -82,7 +82,7 @@ bool Lexer::lexWSKeywordToken(const std::string &keyword, char may_end_at) {
 
 bool Lexer::lexKeywordToken(const std::string& keyword) {
     if(provider.increment(keyword)) {
-        tokens.emplace_back(std::make_unique<LexToken>(LexTokenType::Keyword, backPosition(keyword.length()), keyword));
+        emplace(LexTokenType::Keyword, backPosition(keyword.length()), keyword);
         return true;
     } else {
         return false;

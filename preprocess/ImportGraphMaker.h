@@ -42,7 +42,7 @@ public:
     std::vector<IGFile> from_tokens(
             const std::string &path,
             IGFile *parent,
-            std::vector<std::unique_ptr<CSTToken>> &tokens
+            std::vector<CSTToken*> &tokens
     );
 
     /**
@@ -118,7 +118,7 @@ struct IGResult {
  */
 IGResult determine_import_graph(
     ImportGraphImporter* importer,
-    std::vector<std::unique_ptr<CSTToken>> &tokens,
+    std::vector<CSTToken*> &tokens,
     FlatIGFile &file
 );
 
@@ -127,7 +127,7 @@ IGResult determine_import_graph(
  */
 IGResult determine_import_graph(
     const std::string &exe_path,
-    std::vector<std::unique_ptr<CSTToken>> &tokens,
+    std::vector<CSTToken*> &tokens,
     FlatIGFile &file
 );
 

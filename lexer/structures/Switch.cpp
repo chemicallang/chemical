@@ -4,7 +4,7 @@
 
 bool Lexer::lexSwitchStatementBlock() {
     if (lexWSKeywordToken("switch", '(')) {
-        auto start = tokens.size() - 1;
+        auto start = tokens_size() - 1;
         if (lexOperatorToken('(')) {
             if (!lexExpressionTokens()) {
                 error("expected an expression tokens in switch statement");
@@ -26,7 +26,7 @@ bool Lexer::lexSwitchStatementBlock() {
                     }
                     lexWhitespaceToken();
                     if (lexOperatorToken(':')) {
-                        auto bStart = tokens.size();
+                        auto bStart = tokens_size();
                         lexNestedLevelMultipleStatementsTokens();
                         compound_from(bStart, LexTokenType::CompBody);
                         continue;
@@ -42,7 +42,7 @@ bool Lexer::lexSwitchStatementBlock() {
                     }
                 } else if(lexWSKeywordToken("default", ':')) {
                     if (lexOperatorToken(':')) {
-                        auto bStart = tokens.size();
+                        auto bStart = tokens_size();
                         lexNestedLevelMultipleStatementsTokens();
                         compound_from(bStart, LexTokenType::CompBody);
                     } else if (lexOperatorToken("=>")) {

@@ -13,6 +13,6 @@
 
 void printToken(CSTToken *token);
 
-void printTokens(const std::vector<std::unique_ptr<CSTToken>> &lexed);
+void printTokens(const std::vector<CSTToken*> &lexed);
 
-void printTokens(const std::vector<std::unique_ptr<CSTToken>> &lexed, const std::unordered_map<unsigned int, unsigned int> &linked);
+void printTokens(const std::vector<CSTToken*> &lexed, const std::unordered_map<unsigned int, unsigned int> &linked);

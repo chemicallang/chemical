@@ -8,8 +8,8 @@
 #include "ast/types/ReferencedType.h"
 #include "lexer/model/CompilerBinderTCC.h"
 
-Lexer::Lexer(SourceProvider &provider, CompilerBinder* binder, LexerCBI* cbi) : provider(provider), cbi(cbi), binder(binder) {
-
+Lexer::Lexer(SourceProvider &provider, CompilerBinder* binder, LexerCBI* cbi) : provider(provider), cbi(cbi), binder(binder), unit() {
+    unit.init();
 }
 
 void Lexer::lexTopLevelMultipleImportStatements() {
@@ -52,11 +52,10 @@ void Lexer::lexTopLevelMultipleStatementsTokens(bool break_at_no_stmt) {
 void Lexer::lex() {
     lexTopLevelMultipleImportStatements();
     lexTopLevelMultipleStatementsTokens();
-    tokens.shrink_to_fit();
 }
 
 void Lexer::reset() {
-    tokens.clear();
+    unit.reset();
     provider.reset();
 }
 

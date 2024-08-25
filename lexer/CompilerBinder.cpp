@@ -2,15 +2,15 @@
 
 #include <sstream>
 #include <utility>
-#include "lexer/model/tokens/LexToken.h"
+#include "cst/base/CSTToken.h"
 #include "lexer/model/CompilerBinder.h"
 #include "lexer/model/CompilerBinderTCC.h"
 #include "utils/PathUtils.h"
 #include "lexer/model/CompilerBinderCommon.h"
 #include "ast/base/ASTNode.h"
 
-LexToken dummy_token_at_start() {
-    return LexToken { LexTokenType::Identifier, Position(0,0),""};
+CSTToken dummy_token_at_start() {
+    return CSTToken { LexTokenType::Identifier, Position(0,0),""};
 }
 
 void error(CSTDiagnoser* diagnoser, const std::string& msg) {
@@ -31,7 +31,7 @@ CompilerBinderTCC::CompilerBinderTCC(CSTDiagnoser* diagnoser, std::string exe_pa
     translator.comptime_scope.prepare_compiler_namespace(resolver);
 }
 
-std::vector<std::unique_ptr<ASTNode>> CompilerBinderCommon::parse(std::vector<std::unique_ptr<CSTToken>>& tokens) {
+std::vector<std::unique_ptr<ASTNode>> CompilerBinderCommon::parse(std::vector<CSTToken*>& tokens) {
 
     if(tokens.empty()) {
         return {};
@@ -60,7 +60,7 @@ std::vector<std::unique_ptr<ASTNode>> CompilerBinderCommon::parse(std::vector<st
     }
     if(resolver.has_errors) {
         for(auto& err : resolver.errors) {
-            diagnoser->error("[SymRes] " + err.message, tokens[0].get(), tokens[tokens.size() - 1].get());
+            diagnoser->error("[SymRes] " + err.message, tokens[0], tokens[tokens.size() - 1]);
         }
     }
 
@@ -77,7 +77,7 @@ void to_cbi(CompilerBinderCommon* binder, const std::string& cbi_name, std::vect
     }
 }
 
-void CompilerBinderCommon::collect(const std::string& name, std::vector<std::unique_ptr<CSTToken>> &tokens, bool err_no_found) {
+void CompilerBinderCommon::collect(const std::string& name, std::vector<CSTToken*> &tokens, bool err_no_found) {
     auto nodes = parse(tokens);
     auto found = collected.find(name);
     if(found == collected.end()) {

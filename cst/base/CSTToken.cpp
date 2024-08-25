@@ -1,52 +1,50 @@
 // Copyright (c) Qinetik 2024.
 
-#include "CompoundCSTToken.h"
-#include "lexer/model/tokens/LexToken.h"
+#include "CSTToken.h"
 
-LexToken *CSTToken::start_token() {
+CSTToken *CSTToken::start_token() {
     if(compound()) {
-        if (as_compound()->tokens[0]->compound()) {
-            return as_compound()->tokens[0]->start_token();
+        if (tokens[0]->compound()) {
+            return tokens[0]->start_token();
         } else {
-            return (LexToken *) (as_compound()->tokens[0].get());
+            return tokens[0];
         }
     } else {
-        return as_lex_token();
+        return this;
     }
 }
 
-LexToken *CSTToken::end_token() {
+CSTToken *CSTToken::end_token() {
     if(compound()) {
-        auto last = as_compound()->tokens.size() - 1;
-        if (as_compound()->tokens[last]->compound()) {
-            return as_compound()->tokens[last]->end_token();
+        auto last = tokens.size() - 1;
+        if (tokens[last]->compound()) {
+            return tokens[last]->end_token();
         } else {
-            return (LexToken *) (as_compound()->tokens[last].get());
+            return tokens[last];
         }
     } else {
-        return as_lex_token();
+        return this;
     }
 }
 
 void CSTToken::append_representation(std::string &rep) const {
     if(compound()) {
-        for (const auto &tok: as_compound()->tokens) {
+        for (const auto &tok: tokens) {
             tok->append_representation(rep);
         }
     } else {
-        rep.append(as_lex_token()->value);
+        rep.append(value);
     }
 }
 
 std::string CSTToken::type_string() const {
     if (compound()) {
-        auto token = as_compound();
-        std::string ret(toTypeString(token->type()));
+        std::string ret(toTypeString(type()));
         ret.append(1, '[');
         unsigned i = 0;
-        unsigned size = token->tokens.size();
+        unsigned size = tokens.size();
         while (i < size) {
-            ret.append(token->tokens[i]->type_string());
+            ret.append(tokens[i]->type_string());
             if (i < size - 1) ret.append(1, ',');
             i++;
         }
@@ -59,9 +57,9 @@ std::string CSTToken::type_string() const {
 
 Position CSTToken::start() const {
     if (compound()) {
-        return as_compound()->tokens[0]->as_lex_token()->position;
+        return tokens[0]->position;
     } else {
-        return as_lex_token()->position;
+        return position;
     }
 }
 

@@ -18,14 +18,7 @@ public:
      * declares a node with string, the string value is taken from the token
      * if there's an error it will be on this token too
      */
-    void declare(LexToken* token, CSTToken *node);
-
-    /**
-     * same as declare above, but will treat CSTToken token as a LexToken
-     */
-    inline void declare(CSTToken* token, CSTToken* node) {
-        declare((LexToken*) token, node);
-    }
+    void declare(CSTToken* token, CSTToken *node);
 
     /**
      * resolve an import unit
@@ -37,39 +30,39 @@ public:
      * it's a virtual method so it can be overridden so references can be collected for a token
      * we're interested in to provide usage statistics
      */
-    virtual void link(LexToken* ref, CSTToken* token);
+    virtual void link(CSTToken* ref, CSTToken* token);
 
     //-------------------------
     //------------ Visitors
     //-------------------------
 
 
-    void visitCompoundCommon(CompoundCSTToken *compound) override;
+    void visitCompoundCommon(CSTToken* compound) override;
 
-    void visitBody(CompoundCSTToken *bodyCst) override;
+    void visitBody(CSTToken* bodyCst) override;
 
-    void visitVarInit(CompoundCSTToken *varInit) override;
+    void visitVarInit(CSTToken* varInit) override;
 
-    void visitTypealias(CompoundCSTToken *alias) override;
+    void visitTypealias(CSTToken* alias) override;
 
-    void visitFunction(CompoundCSTToken *function) override;
+    void visitFunction(CSTToken* function) override;
 
-    void visitEnumDecl(CompoundCSTToken *enumDecl) override;
+    void visitEnumDecl(CSTToken* enumDecl) override;
 
-    void visitInterface(CompoundCSTToken *interface) override;
+    void visitInterface(CSTToken* interface) override;
 
-    void visitStructDef(CompoundCSTToken *structDef) override;
+    void visitStructDef(CSTToken* structDef) override;
 
-    void visitImpl(CompoundCSTToken *impl) override;
+    void visitImpl(CSTToken* impl) override;
 
-    void visitAccessChain(CompoundCSTToken *accessChain) override;
+    void visitAccessChain(CSTToken* accessChain) override;
 
-    void visitVariableToken(LexToken *token) override;
+    void visitVariableToken(CSTToken *token) override;
 
-    void visitFunctionCall(CompoundCSTToken *call) override;
+    void visitFunctionCall(CSTToken* call) override;
 
-    void visitIndexOp(CompoundCSTToken *op) override;
+    void visitIndexOp(CSTToken* op) override;
 
-    void visitTypeToken(LexToken *token) override;
+    void visitTypeToken(CSTToken* token) override;
 
 };

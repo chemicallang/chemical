@@ -8,7 +8,7 @@
 
 bool Lexer::lexReturnStatement() {
     if(lexWSKeywordToken("return", ';')) {
-        unsigned int start = tokens.size() - 1;
+        unsigned int start = tokens_size() - 1;
         lexWhitespaceToken();
         lexExpressionTokens(true);
         compound_from(start, LexTokenType::CompReturn);
@@ -20,7 +20,7 @@ bool Lexer::lexReturnStatement() {
 
 bool Lexer::lexDestructStatement() {
     if(lexWSKeywordToken("destruct", '[')) {
-        unsigned start = tokens.size() - 1;
+        unsigned start = tokens_size() - 1;
         if(lexOperatorToken('[')) {
             lexWhitespaceToken();
             // optional value
@@ -52,7 +52,7 @@ void Lexer::lexParameterList(bool optionalTypes, bool defValues, bool lexSelfPar
         lexWhitespaceAndNewLines();
         if(lexSelfParam && index == 0 && lexOperatorToken('&')) {
             if(lexIdentifierToken()) {
-                compound_from(tokens.size() - 2, LexTokenType::CompFunctionParam);
+                compound_from(tokens_size() - 2, LexTokenType::CompFunctionParam);
                 lexWhitespaceToken();
                 index++;
                 continue;
@@ -62,7 +62,7 @@ void Lexer::lexParameterList(bool optionalTypes, bool defValues, bool lexSelfPar
             }
         }
         if(lexIdentifierToken()) {
-            unsigned int start = tokens.size() - 1;
+            unsigned int start = tokens_size() - 1;
             lexWhitespaceToken();
             if(lexOperatorToken(':')) {
                 lexWhitespaceToken();
@@ -102,7 +102,7 @@ void Lexer::lexParameterList(bool optionalTypes, bool defValues, bool lexSelfPar
 
 bool Lexer::lexGenericParametersList() {
     if(lexOperatorToken('<')) {
-        unsigned start = tokens.size() - 1;
+        unsigned start = tokens_size() - 1;
         while(true) {
             lexWhitespaceToken();
             if(!lexIdentifierToken()) {
@@ -142,7 +142,7 @@ bool Lexer::lexAfterFuncKeyword(bool allow_extensions) {
 
     if(allow_extensions && lexOperatorToken('(')) {
         lexWhitespaceToken();
-        unsigned start = tokens.size();
+        unsigned start = tokens_size();
         if(!lexIdentifierToken()) {
             error("expected identifier for receiver in extension function after '('");
             return false;
@@ -217,7 +217,7 @@ bool Lexer::lexFunctionStructureTokens(bool allow_declarations, bool allow_exten
         return false;
     }
 
-    unsigned start = tokens.size() - 1;
+    unsigned start = tokens_size() - 1;
 
     if(!lexAfterFuncKeyword(allow_extensions)) {
         return true;

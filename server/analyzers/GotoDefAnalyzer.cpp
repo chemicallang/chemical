@@ -19,7 +19,7 @@ std::vector<Location> GotoDefAnalyzer::analyze(ImportUnit* unit) {
         return {};
     }
     auto& tokens_vec = token_parent.first ? token_parent.first->tokens : file->tokens;
-    auto token = tokens_vec[token_parent.second].get();
+    auto token = tokens_vec[token_parent.second];
     if(token && token->is_ref()) {
         // TODO when ref token was removed, as_ref was removed, with it the linked variable
         // TODO figure out another way to get to linked, or store it

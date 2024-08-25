@@ -12,7 +12,7 @@ bool Lexer::lexDoWhileBlockTokens() {
         return false;
     }
 
-    unsigned start = tokens.size() - 1;
+    unsigned start = tokens_size() - 1;
 
     // { statement(s) } with continue & break support
     isLexContinueStatement = true;

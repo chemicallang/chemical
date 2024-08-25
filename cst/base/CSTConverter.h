@@ -16,7 +16,7 @@
 
 class LoopASTNode;
 
-using cst_tokens_ref_type = std::vector<std::unique_ptr<CSTToken>> &;
+using cst_tokens_ref_type = std::vector<CSTToken*>&;
 
 class FunctionParam;
 
@@ -30,7 +30,7 @@ class MembersContainer;
 /**
  * a function that can handle macro
  */
-typedef void(*MacroHandlerFn)(CSTConverter*, CompoundCSTToken* container);
+typedef void(*MacroHandlerFn)(CSTConverter*, CSTToken* container);
 
 /**
  * a function that can handle annotation
@@ -173,19 +173,19 @@ public:
      * @param start start is the inclusive index at which to begin visiting
      * @param end end is exclusive index at which to end visiting
      */
-    void visit(std::vector<std::unique_ptr<CSTToken>> &tokens, unsigned int start, unsigned int end);
+    void visit(std::vector<CSTToken*> &tokens, unsigned int start, unsigned int end);
 
     /**
      * A helper function to visit the tokens starting at start
      */
-    void visit(std::vector<std::unique_ptr<CSTToken>> &tokens, unsigned int start = 0) {
+    void visit(std::vector<CSTToken*> &tokens, unsigned int start = 0) {
         visit(tokens, start, tokens.size());
     }
 
     /**
      * converts the tokens, or visits all the tokens
      */
-    void convert(std::vector<std::unique_ptr<CSTToken>> &tokens) {
+    void convert(std::vector<CSTToken*> &tokens) {
         visit(tokens, 0, tokens.size());
     }
 
@@ -202,127 +202,127 @@ public:
     /**
      * take a compound cst token of type generic arg list and convert its tokens to generic arg list
      */
-    void to_generic_arg_list(std::vector<std::unique_ptr<BaseType>>& generic_list, CompoundCSTToken* container);
+    void to_generic_arg_list(std::vector<std::unique_ptr<BaseType>>& generic_list, CSTToken* container);
 
     // nodes
 
-    void visitContinue(CompoundCSTToken *continueCst) override;
+    void visitContinue(CSTToken* continueCst) override;
 
-    void visitBreak(CompoundCSTToken *breakCST) override;
+    void visitBreak(CSTToken* breakCST) override;
 
-    void visitFunctionParam(CompoundCSTToken *param) override;
+    void visitFunctionParam(CSTToken* param) override;
 
-    void visitFunction(CompoundCSTToken *function) override;
+    void visitFunction(CSTToken* function) override;
 
-    void visitVarInit(CompoundCSTToken *varInit) override;
+    void visitVarInit(CSTToken* varInit) override;
 
-    void visitSwitch(CompoundCSTToken *switchCst) override;
+    void visitSwitch(CSTToken* switchCst) override;
 
-    void visitLambda(CompoundCSTToken *cst) override;
+    void visitLambda(CSTToken* cst) override;
 
-    void visitAssignment(CompoundCSTToken *assignment) override;
+    void visitAssignment(CSTToken* assignment) override;
 
-    void visitImport(CompoundCSTToken *importCst) override;
+    void visitImport(CSTToken* importCst) override;
 
-    void visitThrow(CompoundCSTToken *throwStmt) override;
+    void visitThrow(CSTToken* throwStmt) override;
 
-    void visitUsing(CompoundCSTToken *usingStmt) override;
+    void visitUsing(CSTToken* usingStmt) override;
 
-    void visitReturn(CompoundCSTToken *returnCst) override;
+    void visitReturn(CSTToken* returnCst) override;
 
-    void visitTypealias(CompoundCSTToken *alias) override;
+    void visitTypealias(CSTToken* alias) override;
 
-    void visitBody(CompoundCSTToken *bodyCst) override;
+    void visitBody(CSTToken* bodyCst) override;
 
-    void visitIncDec(CompoundCSTToken *incDec) override;
+    void visitIncDec(CSTToken* incDec) override;
 
-    void visitIf(CompoundCSTToken *ifCst) override;
+    void visitIf(CSTToken* ifCst) override;
 
-    void visitForLoop(CompoundCSTToken *forLoop) override;
+    void visitForLoop(CSTToken* forLoop) override;
 
-    void visitWhile(CompoundCSTToken *whileCst) override;
+    void visitWhile(CSTToken* whileCst) override;
 
-    void visitDoWhile(CompoundCSTToken *doWhileCst) override;
+    void visitDoWhile(CSTToken* doWhileCst) override;
 
-    void visitStructDef(CompoundCSTToken *structDef) override;
+    void visitStructDef(CSTToken* structDef) override;
 
-    void visitInterface(CompoundCSTToken *interface) override;
+    void visitInterface(CSTToken* interface) override;
 
-    void visitImpl(CompoundCSTToken *impl) override;
+    void visitImpl(CSTToken* impl) override;
 
-    void visitUnionDef(CompoundCSTToken *unionDef) override;
+    void visitUnionDef(CSTToken* unionDef) override;
 
-    void visitNamespace(CompoundCSTToken *ns) override;
+    void visitNamespace(CSTToken* ns) override;
 
-    void visitTryCatch(CompoundCSTToken *tryCatch) override;
+    void visitTryCatch(CSTToken* tryCatch) override;
 
-    void visitEnumDecl(CompoundCSTToken *enumDecl) override;
+    void visitEnumDecl(CSTToken* enumDecl) override;
 
-    void visitMacro(CompoundCSTToken* macroCst) override;
+    void visitMacro(CSTToken* macroCst) override;
 
-    void visitAnnotation(CompoundCSTToken *annotation) override;
+    void visitAnnotation(CSTToken* annotation) override;
 
-    void visitAnnotationToken(LexToken *token) override;
+    void visitAnnotationToken(CSTToken* token) override;
 
-    void visitVariant(CompoundCSTToken *variant) override;
+    void visitVariant(CSTToken* variant) override;
 
-    void visitVariantMember(CompoundCSTToken *variant_member) override;
+    void visitVariantMember(CSTToken* variant_member) override;
 
-    void visitDestruct(CompoundCSTToken *delStmt) override;
+    void visitDestruct(CSTToken* delStmt) override;
 
     // Types
 
-    void visitTypeToken(LexToken *token) override;
+    void visitTypeToken(CSTToken* token) override;
 
-    void visitReferencedValueType(CompoundCSTToken *ref_value) override;
+    void visitReferencedValueType(CSTToken* ref_value) override;
 
-    void visitPointerType(CompoundCSTToken *pointerType) override;
+    void visitPointerType(CSTToken* pointerType) override;
 
-    void visitGenericType(CompoundCSTToken *genericType) override;
+    void visitGenericType(CSTToken* genericType) override;
 
-    void visitSpecializedType(CompoundCSTToken *specType) override;
+    void visitSpecializedType(CSTToken* specType) override;
 
-    void visitArrayType(CompoundCSTToken *arrayType) override;
+    void visitArrayType(CSTToken* arrayType) override;
 
-    void visitFunctionType(CompoundCSTToken *functionType) override;
+    void visitFunctionType(CSTToken* functionType) override;
 
     // Values
 
-    void visitNullToken(LexToken *token) override;
+    void visitNullToken(CSTToken* token) override;
 
-    void visitStringToken(LexToken *token) override;
+    void visitStringToken(CSTToken* token) override;
 
-    void visitCharToken(LexToken *token) override;
+    void visitCharToken(CSTToken* token) override;
 
     void visitNumberToken(NumberToken *token) override;
 
-    void visitStructValue(CompoundCSTToken *structValueCst) override;
+    void visitStructValue(CSTToken* structValueCst) override;
 
-    void visitArrayValue(CompoundCSTToken *arrayValue) override;
+    void visitArrayValue(CSTToken* arrayValue) override;
 
-    void visitCast(CompoundCSTToken *castCst) override;
+    void visitCast(CSTToken* castCst) override;
 
-    void visitIsValue(CompoundCSTToken *castCst) override;
+    void visitIsValue(CSTToken* castCst) override;
 
-    void visitAddrOf(CompoundCSTToken *castCst) override;
+    void visitAddrOf(CSTToken* castCst) override;
 
-    void visitDereference(CompoundCSTToken *notCst) override;
+    void visitDereference(CSTToken* notCst) override;
 
-    void visitFunctionCall(CompoundCSTToken *call) override;
+    void visitFunctionCall(CSTToken* call) override;
 
-    void visitIndexOp(CompoundCSTToken *op) override;
+    void visitIndexOp(CSTToken* op) override;
 
-    void visitVariableToken(LexToken *token) override;
+    void visitVariableToken(CSTToken* token) override;
 
-    void visitBoolToken(LexToken *token) override;
+    void visitBoolToken(CSTToken* token) override;
 
-    void visitAccessChain(CompoundCSTToken *accessChain) override;
+    void visitAccessChain(CSTToken* accessChain) override;
 
-    void visitExpression(CompoundCSTToken *expressionCst) override;
+    void visitExpression(CSTToken* expressionCst) override;
 
-    void visitNegative(CompoundCSTToken *negativeCst) override;
+    void visitNegative(CSTToken* negativeCst) override;
 
-    void visitNot(CompoundCSTToken *notCst) override;
+    void visitNot(CSTToken* notCst) override;
 
     ~CSTConverter();
 

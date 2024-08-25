@@ -29,7 +29,7 @@ void Lexer::lexUnionBlockTokens() {
 
 bool Lexer::lexUnionStructureTokens(bool unnamed, bool direct_init) {
     if(lexWSKeywordToken("union")) {
-        auto start_token = tokens.size() - 1;
+        auto start_token = tokens_size() - 1;
         bool has_identifier = false;
         if(!unnamed) {
             has_identifier = lexIdentifierToken();

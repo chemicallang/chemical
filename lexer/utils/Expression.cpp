@@ -56,7 +56,7 @@ void lexLambdaAfterComma(Lexer *lexer, unsigned int start) {
 }
 
 bool Lexer::lexLambdaOrExprAfterLParen() {
-    unsigned int start = tokens.size() - 1;
+    unsigned int start = tokens_size() - 1;
 
     lexWhitespaceToken();
 
@@ -112,7 +112,7 @@ bool Lexer::lexLambdaOrExprAfterLParen() {
         return true;
     } else {
         lexAccessChainAfterId();
-        if(!tokens[start + 1]->is_struct_value()) {
+        if(!unit.tokens[start + 1]->is_struct_value()) {
             compound_from(start + 1, LexTokenType::CompAccessChain);
         }
         lexRemainingExpression(start);
@@ -150,7 +150,7 @@ bool Lexer::lexParenExpression() {
 bool Lexer::lexExpressionTokens(bool lexStruct, bool lambda) {
 
     if (lexOperatorToken('-')) {
-        auto start = tokens.size() - 1;
+        auto start = tokens_size() - 1;
         if (!(lexParenExpression() || lexAccessChainOrValue(false))) {
             error("expected an expression after '-' negative");
         }
@@ -160,7 +160,7 @@ bool Lexer::lexExpressionTokens(bool lexStruct, bool lambda) {
     }
 
     if (lexOperatorToken('!')) {
-        auto start = tokens.size() - 1;
+        auto start = tokens_size() - 1;
         if (!(lexParenExpression() || lexAccessChainOrValue(false))) {
             error("expected an expression after '!' not");
         }
@@ -170,7 +170,7 @@ bool Lexer::lexExpressionTokens(bool lexStruct, bool lambda) {
     }
 
     if (lexOperatorToken('(')) {
-        unsigned start = tokens.size() - 1;
+        unsigned start = tokens_size() - 1;
         if (lambda && lexLambdaOrExprAfterLParen()) {
             return true;
         }
@@ -183,14 +183,14 @@ bool Lexer::lexExpressionTokens(bool lexStruct, bool lambda) {
 
     if (!lexAccessChainOrValue(lexStruct)) {
         return false;
-    } else if(lexStruct && tokens[tokens.size() - 1]->is_struct_value()) {
+    } else if(lexStruct && unit.tokens[tokens_size() - 1]->is_struct_value()) {
         return true;
     }
 
     lexWhitespaceToken();
 
     if (provider.peek() == '<' && isGenericEndAhead()) {
-        auto start = tokens.size() - 1;
+        auto start = tokens_size() - 1;
         lexFunctionCallWithGenericArgsList();
         if(lexOperatorToken('.') && !lexAccessChainRecursive(false)) {
             error("expected a identifier after the dot . in the access chain");
@@ -200,7 +200,7 @@ bool Lexer::lexExpressionTokens(bool lexStruct, bool lambda) {
         return true;
     }
 
-    lexRemainingExpression(tokens.size() - 1);
+    lexRemainingExpression(tokens_size() - 1);
 
     return true;
 

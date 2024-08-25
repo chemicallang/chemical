@@ -14,7 +14,7 @@ bool Lexer::lexVarInitializationTokens(bool allowDeclarations, bool requiredType
         return false;
     }
 
-    unsigned int start = tokens.size() - 1;
+    unsigned int start = tokens_size() - 1;
 
     // identifier
     if (!lexIdentifierToken()) {

@@ -23,8 +23,8 @@ bool Lexer::lexAnnotationMacro() {
 
     // if it's annotation
     if (isAnnotation) {
-        unsigned start = tokens.size();
-        tokens.emplace_back(std::make_unique<LexToken>(LexTokenType::Annotation, backPosition(macro.size()), macro_full));
+        unsigned start = tokens_size();
+        emplace(LexTokenType::Annotation, backPosition(macro.size()), macro_full);
         if(lexOperatorToken('(')) {
             do {
                 lexWhitespaceToken();
@@ -41,14 +41,14 @@ bool Lexer::lexAnnotationMacro() {
         }
         auto found = AnnotationModifiers.find(macro);
         if (found != AnnotationModifiers.end()) {
-            found->second(this, tokens[start].get());
+            found->second(this, unit.tokens[start]);
         }
         return true;
     }
 
-    auto start = tokens.size();
+    auto start = tokens_size();
 
-    tokens.emplace_back(std::make_unique<LexToken>(LexTokenType::Identifier, backPosition(macro.size()), macro_full));
+    emplace(LexTokenType::Identifier, backPosition(macro.size()), macro_full);
 
     lexWhitespaceToken();
     if (lexOperatorToken('{')) {
@@ -66,7 +66,7 @@ bool Lexer::lexAnnotationMacro() {
             } else {
                 auto current = position();
                 auto content = provider.readUntil('}');
-                tokens.emplace_back(std::make_unique<LexToken>(LexTokenType::RawToken, current, std::move(content)));
+                emplace(LexTokenType::RawToken, current, std::move(content));
             }
         }
 

@@ -8,7 +8,7 @@
 
 bool Lexer::storeVariable(const std::string& identifier) {
     if (!identifier.empty()) {
-        tokens.emplace_back(std::make_unique<LexToken>(LexTokenType::Variable, backPosition(identifier.length()), identifier));
+        emplace(LexTokenType::Variable, backPosition(identifier.length()), identifier);
         return true;
     } else {
         return false;
@@ -17,7 +17,7 @@ bool Lexer::storeVariable(const std::string& identifier) {
 
 bool Lexer::storeIdentifier(const std::string &identifier) {
     if (!identifier.empty()) {
-        tokens.emplace_back(std::make_unique<LexToken>(LexTokenType::Identifier, backPosition(identifier.length()), identifier));
+        emplace(LexTokenType::Identifier, backPosition(identifier.length()), identifier);
         return true;
     } else {
         return false;
@@ -39,11 +39,11 @@ bool Lexer::lexAccessChain(bool lexStruct) {
         storeVariable(id);
     }
 
-    auto start = tokens.size() - 1;
+    auto start = tokens_size() - 1;
 
     lexAccessChainAfterId(lexStruct);
 
-    if(start < tokens.size() && !tokens[start]->is_struct_value()) {
+    if(start < tokens_size() && !unit.tokens[start]->is_struct_value()) {
         compound_from(start, LexTokenType::CompAccessChain);
     }
 
@@ -53,12 +53,12 @@ bool Lexer::lexAccessChain(bool lexStruct) {
 
 bool Lexer::lexAccessChainOrAddrOf(bool lexStruct) {
     if(lexOperatorToken('&')) {
-        auto start = tokens.size() - 1;
+        auto start = tokens_size() - 1;
         lexAccessChain(false);
         compound_from(start, LexTokenType::CompAddrOf);
         return true;
     } else if(lexOperatorToken('*')) {
-        auto start = tokens.size() - 1;
+        auto start = tokens_size() - 1;
         lexAccessChain(false);
         compound_from(start, LexTokenType::CompDeference);
         return true;
@@ -75,7 +75,7 @@ bool Lexer::lexAccessChainRecursive(bool lexStruct, unsigned chain_length) {
 
 bool Lexer::lexFunctionCall(unsigned back_start) {
     if(lexOperatorToken('(')) {
-        unsigned start = tokens.size() - back_start;
+        unsigned start = tokens_size() - back_start;
         do {
             lexWhitespaceAndNewLines();
             if (!(lexExpressionTokens(true) || lexArrayInit())) {
@@ -107,7 +107,7 @@ void Lexer::lexGenericArgsList() {
 
 bool Lexer::lexGenericArgsListCompound() {
     if(lexOperatorToken('<')) {
-        unsigned start = tokens.size() - 1;
+        unsigned start = tokens_size() - 1;
         lexGenericArgsList();
         if (!lexOperatorToken('>')) {
             error("expected a '>' for generic list in function call");
@@ -135,7 +135,7 @@ bool Lexer::lexAccessChainAfterId(bool lexStruct, unsigned chain_length) {
         lexWhitespaceToken();
         if(provider.peek() == '{') {
             if(chain_length > 1) {
-                compound_from(tokens.size() - chain_length, LexTokenType::CompAccessChain);
+                compound_from(tokens_size() - chain_length, LexTokenType::CompAccessChain);
             }
             return lexStructValueTokens(1);
         }
@@ -149,7 +149,7 @@ bool Lexer::lexAccessChainAfterId(bool lexStruct, unsigned chain_length) {
             lexFunctionCall(2);
         } else if(lexStruct && provider.peek() == '{') {
             if(chain_length > 1) {
-                compound_from(tokens.size() - chain_length, LexTokenType::CompAccessChain);
+                compound_from(tokens_size() - chain_length, LexTokenType::CompAccessChain);
             }
             return lexStructValueTokens(2);
         } else {
@@ -159,7 +159,7 @@ bool Lexer::lexAccessChainAfterId(bool lexStruct, unsigned chain_length) {
 
     while(provider.peek() == '(' || provider.peek() == '[') {
         while(lexOperatorToken('[')) {
-            unsigned start = tokens.size() - 1;
+            unsigned start = tokens_size() - 1;
             do {
                 lexWhitespaceToken();
                 if (!lexExpressionTokens()) {

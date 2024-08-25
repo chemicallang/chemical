@@ -37,7 +37,7 @@ public:
     /***
      * parses tokens into nodes
      */
-    std::vector<std::unique_ptr<ASTNode>> parse(std::vector<std::unique_ptr<CSTToken>>& tokens);
+    std::vector<std::unique_ptr<ASTNode>> parse(std::vector<CSTToken*>& tokens);
 
     /**
      * constructor
@@ -57,7 +57,7 @@ public:
     /**
      * will collect node globally into global map
      */
-    void collect(const std::string& name, std::vector<std::unique_ptr<CSTToken>> &tokens, bool err_no_found) override;
+    void collect(const std::string& name, std::vector<CSTToken*> &tokens, bool err_no_found) override;
 
 
 };

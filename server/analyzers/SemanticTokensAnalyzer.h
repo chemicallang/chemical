@@ -38,19 +38,19 @@ public:
     /**
      * The function that analyzes
      */
-    void analyze(std::vector<std::unique_ptr<CSTToken>> &tokens);
+    void analyze(std::vector<CSTToken*> &tokens);
 
     /**
      * this just puts the given lex token as a semantic token in the tokens vector
      * also sets prev token line number to this token
      */
-    void put(LexToken* token, unsigned int tokenType, unsigned int tokenModifiers = 0);
+    void put(CSTToken* token, unsigned int tokenType, unsigned int tokenModifiers = 0);
 
     /**
      * same as put, but will treat CSTToken as a non compound token
      */
     inline void put(CSTToken* token, unsigned int tokenType, unsigned int tokenModifiers = 0) {
-        put((LexToken*) token, tokenType, tokenModifiers);
+        put((CSTToken*) token, tokenType, tokenModifiers);
     }
 
     /**
@@ -60,70 +60,70 @@ public:
 
     // Visitors
 
-    void visit(std::vector<std::unique_ptr<CSTToken>> &tokens, unsigned start, unsigned end);
+    void visit(std::vector<CSTToken*> &tokens, unsigned start, unsigned end);
 
-    void visit(std::vector<std::unique_ptr<CSTToken>> &tokens, unsigned start = 0);
+    void visit(std::vector<CSTToken*> &tokens, unsigned start = 0);
 
     void visitCommon(CSTToken *token) override;
 
-    void visitLexTokenCommon(LexToken *token) override;
+    void visitLexTokenCommon(CSTToken *token) override;
 
-    void visitCompoundCommon(CompoundCSTToken *compound) override;
+    void visitCompoundCommon(CSTToken* compound) override;
 
     // Compound Visitors
 
-    void visitVarInit(CompoundCSTToken *varInit) override;
+    void visitVarInit(CSTToken* varInit) override;
 
-    void visitFunction(CompoundCSTToken *function) override;
+    void visitFunction(CSTToken* function) override;
 
-    void visitIf(CompoundCSTToken *ifCst) override;
+    void visitIf(CSTToken* ifCst) override;
 
-    void visitWhile(CompoundCSTToken *whileCst) override;
+    void visitWhile(CSTToken* whileCst) override;
 
-    void visitDoWhile(CompoundCSTToken *doWhileCst) override;
+    void visitDoWhile(CSTToken* doWhileCst) override;
 
-    void visitForLoop(CompoundCSTToken *forLoop) override;
+    void visitForLoop(CSTToken* forLoop) override;
 
-    void visitSwitch(CompoundCSTToken *switchCst) override;
+    void visitSwitch(CSTToken* switchCst) override;
 
-    void visitInterface(CompoundCSTToken *interface) override;
+    void visitInterface(CSTToken* interface) override;
 
-    void visitStructDef(CompoundCSTToken *structDef) override;
+    void visitStructDef(CSTToken* structDef) override;
 
-    void visitImpl(CompoundCSTToken *impl) override;
+    void visitImpl(CSTToken* impl) override;
 
-    void visitEnumDecl(CompoundCSTToken *enumDecl) override;
+    void visitEnumDecl(CSTToken* enumDecl) override;
 
-    void visitBody(CompoundCSTToken *bodyCst) override;
+    void visitBody(CSTToken* bodyCst) override;
 
     // Token visitors
 
-    void visitAnnotationToken(LexToken *token) override;
+    void visitAnnotationToken(CSTToken *token) override;
 
-    void visitBoolToken(LexToken *token) override;
+    void visitBoolToken(CSTToken *token) override;
 
-    void visitNullToken(LexToken *token) override;
+    void visitNullToken(CSTToken *token) override;
 
-    void visitVariableToken(LexToken *token) override;
+    void visitVariableToken(CSTToken *token) override;
 
     void visitAccessChain(AccessChainCST *accessChain) override;
 
-    void visitCharOperatorToken(LexToken *token) override;
+    void visitCharOperatorToken(CSTToken *token) override;
 
-    void visitStringOperatorToken(LexToken *token) override;
+    void visitStringOperatorToken(CSTToken *token) override;
 
-    void visitCharToken(LexToken *token) override;
+    void visitCharToken(CSTToken *token) override;
 
-    void visitCommentToken(LexToken *token) override;
+    void visitCommentToken(CSTToken *token) override;
 
-    void visitMultilineComment(LexToken *token) override;
+    void visitMultilineComment(CSTToken *token) override;
 
-    void visitMacroToken(LexToken *token) override;
+    void visitMacroToken(CSTToken *token) override;
 
     void visitNumberToken(NumberToken *token) override;
 
-    void visitOperationToken(LexToken *token) override;
+    void visitOperationToken(CSTToken *token) override;
 
-    void visitStringToken(LexToken *token) override;
+    void visitStringToken(CSTToken *token) override;
 
 };

@@ -12,7 +12,7 @@ bool Lexer::lexWhileBlockTokens() {
         return false;
     }
 
-    auto start = tokens.size() - 1;
+    auto start = tokens_size() - 1;
 
     if(!lexOperatorToken('(')) {
         error("expected a starting parenthesis ( after keyword while for while block");

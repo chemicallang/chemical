@@ -6,8 +6,6 @@
 
 class LexResult;
 
-class CompoundCSTToken;
-
 class CSTToken;
 
 /**
@@ -17,7 +15,7 @@ class CSTToken;
  * @param parent the parent compound token of the symbol
  * @param linked the actual symbol / token for which documentation is to be added
  */
-void markdown_documentation(std::string& value, LexResult* current, LexResult* defined_in, CompoundCSTToken* parent, CSTToken* linked);
+void markdown_documentation(std::string& value, LexResult* current, LexResult* defined_in, CSTToken* parent, CSTToken* linked);
 
 /**
  * get a small detail of the given token, for user's representation

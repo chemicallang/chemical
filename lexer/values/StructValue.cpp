@@ -5,7 +5,7 @@
 bool Lexer::lexStructValueTokens(unsigned back_start) {
     if(lexOperatorToken('{')) {
 
-        unsigned start = tokens.size() - 1 - back_start;
+        unsigned start = tokens_size() - 1 - back_start;
 
         // lex struct member value tokens
         do {

@@ -12,7 +12,7 @@ bool Lexer::lexSingleLineCommentTokens() {
         while(!provider.eof() && !hasNewLine()) {
             comment.append(1, provider.readCharacter());
         }
-        tokens.emplace_back(std::make_unique<LexToken>(LexTokenType::Comment, backPosition(comment.length()), comment));
+        emplace(LexTokenType::Comment, backPosition(comment.length()), comment);
         return true;
     } else return false;
 }
@@ -24,7 +24,7 @@ bool Lexer::lexMultiLineCommentTokens() {
             comment.append(1, provider.readCharacter());
         }
         comment.append("*/");
-        tokens.emplace_back(std::make_unique<LexToken>(LexTokenType::MultilineComment, backPosition(comment.length()), comment));
+        emplace(LexTokenType::MultilineComment, backPosition(comment.length()), comment);
         return true;
     } else {
         return false;

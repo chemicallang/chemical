@@ -3,17 +3,15 @@
 #pragma once
 
 #include "lexer/model/LexTokenType.h"
+#include "integration/common/Position.h"
 #include <string>
-
-class LexToken;
+#include <vector>
 
 class Position;
 
 class ASTNode;
 
 class CSTVisitor;
-
-class CompoundCSTToken;
 
 class CSTToken {
 public:
@@ -23,11 +21,33 @@ public:
      */
     LexTokenType tok_type;
 
+    union {
+        /**
+         * this struct is used for non compound tokens
+         */
+        struct {
+            Position position;
+            std::string value;
+        };
+        /**
+         * this struct is used for compound tokens
+         */
+        std::vector<CSTToken*> tokens;
+    };
+
     /**
-     * default constructor
+     * constructor for lex token (non compound)
      */
-    explicit CSTToken(LexTokenType tok_type) : tok_type(tok_type) {
-        // do nothing
+    CSTToken(LexTokenType type, const Position& pos, std::string val) : tok_type(type) {
+        new(&position) Position(pos);
+        new(&value) std::string(std::move(val));
+    }
+
+    /**
+     * constructor for compound tokens
+     */
+    explicit CSTToken(LexTokenType type) : tok_type(type) {
+        new(&tokens) std::vector<CSTToken*>();
     }
 
     /**
@@ -36,14 +56,27 @@ public:
     CSTToken(const CSTToken& other) = delete;
 
     /**
+     * deleted move constructor
+     */
+    CSTToken(CSTToken&& other) {
+        tok_type = other.tok_type;
+        if(other.compound()) {
+            new(&tokens) std::vector<CSTToken*>(std::move(other.tokens));
+        } else {
+            position = other.position;
+            new(&value) std::string(std::move(other.value));
+        }
+    }
+
+    /**
      * get a pointer to the start lex token
      */
-    LexToken *start_token();
+    CSTToken *start_token();
 
     /**
      * get a pointer to the end lex token
      */
-    LexToken *end_token();
+    CSTToken *end_token();
 
     /**
      * every token must append its representation to this string
@@ -66,6 +99,30 @@ public:
     void accept(CSTVisitor *visitor);
 
     /**
+     * line number of lex token
+     */
+    [[nodiscard]]
+    inline unsigned int lineNumber() const {
+        return position.line;
+    }
+
+    /**
+     * line character number of lex token
+     */
+    [[nodiscard]]
+    inline unsigned int lineCharNumber() const {
+        return position.character;
+    }
+
+    /**
+     * string length of the lex token
+     */
+    [[nodiscard]]
+    inline unsigned int length() const {
+        return value.size();
+    }
+
+    /**
      * get lex token type of this token
      */
     [[nodiscard]]
@@ -85,16 +142,18 @@ public:
      * get the token as a compound token
      */
     [[nodiscard]]
-    inline CompoundCSTToken* as_compound() const {
-        return (CompoundCSTToken*) this;
+    [[deprecated]]
+    inline CSTToken* as_compound() {
+        return this;
     }
 
     /**
      * get the token as a lex token
      */
     [[nodiscard]]
-    inline LexToken* as_lex_token() const {
-        return (LexToken*) this;
+    [[deprecated]]
+    inline CSTToken* as_lex_token() {
+        return this;
     }
 
     /**
@@ -234,6 +293,12 @@ public:
     /**
      * default destructor
      */
-    virtual ~CSTToken() = default;
+    ~CSTToken() {
+        if(compound()) {
+            tokens.~vector();
+        } else {
+            value.~basic_string();
+        }
+    }
 
 };

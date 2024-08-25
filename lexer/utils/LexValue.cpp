@@ -11,7 +11,7 @@ bool Lexer::lexCharToken() {
         auto back = backPosition(1);
         std::string value = "'";
         provider.readEscaping(value, '\'');
-        tokens.emplace_back(std::make_unique<LexToken>(LexTokenType::Char, back, std::move(value)));
+        emplace(LexTokenType::Char, back, std::move(value));
         return true;
     } else {
         return false;
@@ -23,7 +23,7 @@ bool Lexer::lexStringToken() {
         auto back = backPosition(1);
         std::string value = "\"";
         provider.readEscaping(value, '"');
-        tokens.emplace_back(std::make_unique<LexToken>(LexTokenType::String, back, std::move(value)));
+        emplace(LexTokenType::String, back, std::move(value));
         return true;
     } else {
         return false;
@@ -32,10 +32,10 @@ bool Lexer::lexStringToken() {
 
 bool Lexer::lexBoolToken() {
     if (provider.increment("true")) {
-        tokens.emplace_back(std::make_unique<LexToken>(LexTokenType::Bool, backPosition(4), "true"));
+        emplace(LexTokenType::Bool, backPosition(4), "true");
         return true;
     } else if (provider.increment("false")) {
-        tokens.emplace_back(std::make_unique<LexToken>(LexTokenType::Bool, backPosition(5), "false"));
+        emplace(LexTokenType::Bool, backPosition(5), "false");
         return true;
     }
     return false;
@@ -43,7 +43,7 @@ bool Lexer::lexBoolToken() {
 
 bool Lexer::lexNull() {
     if (provider.increment("null")) {
-        tokens.emplace_back(std::make_unique<LexToken>(LexTokenType::Null, backPosition(4), "null"));
+        emplace(LexTokenType::Null, backPosition(4), "null");
         return true;
     } else {
         return false;
@@ -66,7 +66,7 @@ bool Lexer::lexSwitchCaseValue() {
 
 bool Lexer::lexArrayInit() {
     if (lexOperatorToken('{')) {
-        auto start = tokens.size() - 1;
+        auto start = tokens_size() - 1;
         do {
             lexWhitespaceAndNewLines();
             if (!(lexExpressionTokens(true) || lexArrayInit())) {

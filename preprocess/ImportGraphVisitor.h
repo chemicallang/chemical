@@ -25,6 +25,6 @@ public:
      */
     std::vector<ImportCollected> imports;
 
-    void visitImport(CompoundCSTToken *importCst) override;
+    void visitImport(CSTToken *importCst) override;
 
 };

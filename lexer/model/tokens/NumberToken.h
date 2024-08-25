@@ -6,10 +6,10 @@
 
 #pragma once
 
-#include "LexToken.h"
+#include "cst/base/CSTToken.h"
 #include "utils/StrUtils.h"
 
-class NumberToken : public LexToken {
+class NumberToken : public CSTToken {
 private:
 
     // check is always suppose to be lowercase
@@ -19,7 +19,7 @@ private:
 
 public:
 
-    using LexToken::LexToken;
+    using CSTToken::CSTToken;
 
     bool has_dot() {
         return value.find('.') != std::string::npos;

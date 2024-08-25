@@ -30,7 +30,7 @@ void Lexer::lexStructBlockTokens() {
 
 bool Lexer::lexStructStructureTokens(bool unnamed, bool direct_init) {
     if(lexWSKeywordToken("struct")) {
-        auto start_token = tokens.size() - 1;
+        auto start_token = tokens_size() - 1;
         bool has_identifier = false;
         if(!unnamed) {
             has_identifier = lexIdentifierToken();

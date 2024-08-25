@@ -41,7 +41,7 @@ void Lexer::lexLambdaAfterParamsList(unsigned int start) {
 bool Lexer::lexLambdaValue() {
     if (lexOperatorToken('[')) {
 
-        auto start = tokens.size() - 1;
+        auto start = tokens_size() - 1;
 
         do {
             lexWhitespaceAndNewLines();

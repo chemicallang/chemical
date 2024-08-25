@@ -24,6 +24,10 @@ std::string BenchmarkResults::representation() {
 
 }
 
+uint64_t BenchmarkResults::millis() {
+    return ((end_time - start_time) / 1000000);
+}
+
 void BenchmarkResults::benchmark_begin() {
     start_time = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
 }

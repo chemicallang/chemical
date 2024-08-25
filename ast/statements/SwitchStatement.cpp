@@ -131,12 +131,12 @@ void SwitchStatement::declare_and_link(SymbolResolver &linker) {
             }
         }
         scope.first->link(linker, scope.first);
-        scope.second.declare_and_link(linker);
+        scope.second.link_sequentially(linker);
         linker.scope_end();
     }
     if(defScope.has_value()) {
         linker.scope_start();
-        defScope.value().declare_and_link(linker);
+        defScope.value().link_sequentially(linker);
         linker.scope_end();
     }
 }

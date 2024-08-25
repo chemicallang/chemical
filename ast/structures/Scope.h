@@ -41,17 +41,33 @@ public:
 
     void accept(Visitor *visitor) override;
 
+#ifdef DEBUG
     /**
-     * a scope's declare_top_level will be called to link all the nodes
+     * throws an error in debug mode, shouldn't be called
      */
     void declare_top_level(SymbolResolver &linker) override;
-
+    /**
+     * throws an error in debug mode, shouldn't be called
+     */
     void declare_and_link(SymbolResolver &linker) override;
+#endif
+    /**
+     * when nodes are to be declared and used sequentially, so node can be referenced
+     * after it is declared, this method should be called
+     * for example, this code, i should be declared first then incremented
+     * var i = 0;
+     * i++; <--- i is declared above (if it's below it shouldn't be referencable)
+     */
+    void link_sequentially(SymbolResolver &linker);
 
     /**
-     * should be called once, to do all the work
+     * when nodes are to be declared and used asynchronously, so node can be referenced
+     * before it is declared, this method should be called
+     * for example, this code, function can be referenced before it's declared
+     * func sum_twice() = sum() * 2;
+     * func sum(); <--- sum is declared below (or after) sum_twice however still referencable
      */
-    void link_all(SymbolResolver &linker);
+    void link_asynchronously(SymbolResolver &linker);
 
 #ifdef COMPILER_BUILD
 

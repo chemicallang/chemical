@@ -30,7 +30,7 @@ bool Lexer::lexImportStatement() {
     }
     unsigned int start = tokens.size() - 1;
     if (lexStringToken()) {
-        if(lexWhitespaceToken() && lexKeywordToken("as")) {
+        if(lexWhitespaceToken() && lexWSKeywordToken("as")) {
             if(!lexIdentifierToken()) {
                 error("expected identifier after 'as' in import statement");
             }
@@ -40,8 +40,7 @@ bool Lexer::lexImportStatement() {
     } else {
         if (lexIdentifierToken() || lexImportIdentifierList()) {
             lexWhitespaceToken();
-            if (lexKeywordToken("from")) {
-                lexWhitespaceToken();
+            if (lexWSKeywordToken("from")) {
                 if (!lexStringToken()) {
                     error("expected path after 'from' in import statement");
                     return false;

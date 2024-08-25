@@ -7,8 +7,7 @@ bool Lexer::lexTryCatchTokens() {
         unsigned int start = tokens.size() - 1;
         if(lexAccessChain(false)) {
             lexWhitespaceToken();
-            if (lexKeywordToken("catch")) {
-                lexWhitespaceToken();
+            if (lexWSKeywordToken("catch", '(')) {
                 if(lexOperatorToken('(')) {
                     lexWhitespaceToken();
                     if(!lexVariableToken()) {

@@ -19,8 +19,7 @@ bool Lexer::lexSwitchStatementBlock() {
         if (lexOperatorToken('{')) {
             while(true) {
                 lexWhitespaceAndNewLines();
-                if (lexKeywordToken("case")) {
-                    lexWhitespaceToken();
+                if (lexWSKeywordToken("case")) {
                     if (!lexSwitchCaseValue()) {
                         error("expected a value after 'case' in switch");
                         break;
@@ -41,8 +40,7 @@ bool Lexer::lexSwitchStatementBlock() {
                         error("expected ':' or '=>' after 'case' in switch statement");
                         break;
                     }
-                } else if(lexKeywordToken("default")) {
-                    lexWhitespaceToken();
+                } else if(lexWSKeywordToken("default", ':')) {
                     if (lexOperatorToken(':')) {
                         auto bStart = tokens.size();
                         lexNestedLevelMultipleStatementsTokens();

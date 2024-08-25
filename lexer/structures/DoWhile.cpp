@@ -25,12 +25,10 @@ bool Lexer::lexDoWhileBlockTokens() {
 
     lexWhitespaceToken();
 
-    if(!lexKeywordToken("while")) {
+    if(!lexWSKeywordToken("while", '(')) {
         error("expected 'while' with condition in a do while loop");
         return true;
     }
-
-    lexWhitespaceToken();
 
     if(!lexOperatorToken('(')) {
         error("expected a starting parenthesis ( after keyword while for while block");

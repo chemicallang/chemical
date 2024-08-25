@@ -37,7 +37,7 @@ void TryCatch::accept(Visitor *visitor) {
     visitor->visit(this);
 }
 
-void TryCatch::declare_and_link(SymbolResolver &linker) {
+void TryCatch::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     tryCall->link(linker, (std::unique_ptr<Value>&) tryCall);
     if(catchScope.has_value()) {
         catchScope->link_sequentially(linker);

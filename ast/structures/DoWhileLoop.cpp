@@ -48,7 +48,7 @@ void DoWhileLoop::accept(Visitor *visitor) {
     visitor->visit(this);
 }
 
-void DoWhileLoop::declare_and_link(SymbolResolver &linker) {
+void DoWhileLoop::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     linker.scope_start();
     body.link_sequentially(linker);
     condition->link(linker, condition);

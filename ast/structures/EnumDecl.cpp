@@ -25,7 +25,7 @@ ASTNode *EnumDeclaration::child(const std::string &name) {
     }
 }
 
-void EnumDeclaration::declare_top_level(SymbolResolver &linker) {
+void EnumDeclaration::declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     linker.declare(name, this);
 }
 

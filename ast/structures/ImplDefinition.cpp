@@ -60,7 +60,7 @@ ImplDefinition::ImplDefinition(
 }
 
 
-void ImplDefinition::declare_and_link(SymbolResolver &linker) {
+void ImplDefinition::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     interface_type->link(linker, interface_type);
     if(struct_type) {
         struct_type->link(linker, struct_type);
@@ -81,7 +81,7 @@ void ImplDefinition::declare_and_link(SymbolResolver &linker) {
     const auto overrides_interface = struct_linked && struct_linked->does_override(linked);
     if(!overrides_interface) {
         for (auto& func: linked->functions()) {
-            func->redeclare_top_level(linker);
+            func->redeclare_top_level(linker, (std::unique_ptr<ASTNode>&) func);
         }
     }
     // redeclare everything inside struct

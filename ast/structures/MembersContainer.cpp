@@ -170,10 +170,10 @@ uint64_t VariablesContainer::total_byte_size(bool is64Bit) {
 
 void declare_inherited_members(MembersContainer* container, SymbolResolver& linker) {
     for(auto& var : container->variables) {
-        var.second->redeclare_top_level(linker);
+        var.second->redeclare_top_level(linker, (std::unique_ptr<ASTNode>&) var.second);
     }
     for(auto& func : container->functions()) {
-        func->redeclare_top_level(linker);
+        func->redeclare_top_level(linker, (std::unique_ptr<ASTNode>&) func);
     }
     for(auto& inherits : container->inherited) {
         const auto def = inherits->type->linked_node()->as_members_container();
@@ -193,17 +193,17 @@ void MembersContainer::redeclare_inherited_members(SymbolResolver &linker) {
 }
 
 void MembersContainer::redeclare_variables_and_functions(SymbolResolver &linker) {
-    for (const auto &var: variables) {
-        var.second->redeclare_top_level(linker);
+    for (auto &var: variables) {
+        var.second->redeclare_top_level(linker, (std::unique_ptr<ASTNode>&) var.second);
     }
-    for(const auto& func : functions()) {
-        func->redeclare_top_level(linker);
+    for(auto& func : functions()) {
+        func->redeclare_top_level(linker, (std::unique_ptr<ASTNode>&) func);
     }
 }
 
 void MembersContainer::declare_and_link_no_scope(SymbolResolver &linker) {
     for(auto& gen_param : generic_params) {
-        gen_param->declare_and_link(linker);
+        gen_param->declare_and_link(linker, (std::unique_ptr<ASTNode>&) gen_param);
     }
     for(auto& inherits : inherited) {
         inherits->type->link(linker, (std::unique_ptr<BaseType>&) inherits);
@@ -212,18 +212,18 @@ void MembersContainer::declare_and_link_no_scope(SymbolResolver &linker) {
             declare_inherited_members(def, linker);
         }
     }
-    for (const auto &var: variables) {
-        var.second->declare_and_link(linker);
+    for (auto &var: variables) {
+        var.second->declare_and_link(linker, (std::unique_ptr<ASTNode>&) var.second);
     }
-    for(const auto& func : functions()) {
-        func->declare_top_level(linker);
+    for(auto& func : functions()) {
+        func->declare_top_level(linker, (std::unique_ptr<ASTNode>&) func);
     }
-    for (const auto &func: functions()) {
-        func->declare_and_link(linker);
+    for (auto &func: functions()) {
+        func->declare_and_link(linker, (std::unique_ptr<ASTNode>&) func);
     }
 }
 
-void MembersContainer::declare_and_link(SymbolResolver &linker) {
+void MembersContainer::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     linker.scope_start();
     declare_and_link_no_scope(linker);
     linker.scope_end();
@@ -544,9 +544,9 @@ bool VariablesContainer::build_path_to_child(std::vector<int>& path, const std::
     return false;
 }
 
-void VariablesContainer::declare_and_link(SymbolResolver &linker) {
+void VariablesContainer::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     for (auto& variable : variables) {
-        variable.second->declare_and_link(linker);
+        variable.second->declare_and_link(linker, (std::unique_ptr<ASTNode>&) variable.second);
     }
 }
 

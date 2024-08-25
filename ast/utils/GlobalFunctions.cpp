@@ -406,7 +406,7 @@ public:
 //    }
 //};
 
-Namespace* GlobalInterpretScope::create_compiler_namespace() {
+std::unique_ptr<Namespace>& GlobalInterpretScope::create_compiler_namespace() {
     global_nodes["compiler"] = std::make_unique<Namespace>("compiler", nullptr);
     auto compiler_ns = (Namespace*) global_nodes["compiler"].get();
     compiler_ns->annotations.emplace_back(AnnotationKind::CompTime);
@@ -420,16 +420,16 @@ Namespace* GlobalInterpretScope::create_compiler_namespace() {
     compiler_ns->nodes.emplace_back(new InterpretSize(compiler_ns));
 //    compiler_ns->nodes.emplace_back(new InterpretConstruct(compiler_ns));
     compiler_ns->nodes.emplace_back(new InterpretVector::InterpretVectorNode(compiler_ns));
-    return compiler_ns;
+    return (std::unique_ptr<Namespace>&) global_nodes["compiler"];
 }
 
 void GlobalInterpretScope::prepare_compiler_namespace(SymbolResolver& resolver) {
-    auto compiler_ns = create_compiler_namespace();
-    compiler_ns->declare_top_level(resolver);
-    compiler_ns->declare_and_link(resolver);
+    auto& compiler_ns = create_compiler_namespace();
+    compiler_ns->declare_top_level(resolver, (std::unique_ptr<ASTNode>&) compiler_ns);
+    compiler_ns->declare_and_link(resolver, (std::unique_ptr<ASTNode>&) compiler_ns);
 }
 
 void GlobalInterpretScope::rebind_compiler_namespace(SymbolResolver &resolver) {
-    auto compiler_ns = (Namespace*) global_nodes["compiler"].get();
-    compiler_ns->declare_top_level(resolver);
+    auto& compiler_ns = global_nodes["compiler"];
+    compiler_ns->declare_top_level(resolver, compiler_ns);
 }

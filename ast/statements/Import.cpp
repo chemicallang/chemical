@@ -17,7 +17,7 @@ ImportStatement::ImportStatement(
     this->filePath.shrink_to_fit();
 }
 
-void ImportStatement::declare_top_level(SymbolResolver &linker) {
+void ImportStatement::declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
 
 }
 

@@ -15,7 +15,7 @@ void AssignStatement::accept(Visitor *visitor) {
     visitor->visit(this);
 }
 
-void AssignStatement::declare_and_link(SymbolResolver &linker) {
+void AssignStatement::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     lhs->link(linker, this, true);
     value->link(linker, this, false);
 }

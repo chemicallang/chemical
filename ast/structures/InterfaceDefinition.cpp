@@ -131,6 +131,6 @@ int InterfaceDefinition::vtable_function_index(FunctionDeclaration* decl) {
     return -1;
 }
 
-void InterfaceDefinition::declare_top_level(SymbolResolver &linker) {
+void InterfaceDefinition::declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     linker.declare(name, this);
 }

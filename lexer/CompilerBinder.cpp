@@ -53,10 +53,10 @@ std::vector<std::unique_ptr<ASTNode>> CompilerBinderCommon::parse(std::vector<st
 
     // symbol resolution
     for(auto& node : nodes) {
-        node->declare_top_level(resolver);
+        node->declare_top_level(resolver, node);
     }
     for(auto& node : nodes) {
-        node->declare_and_link(resolver);
+        node->declare_and_link(resolver, node);
     }
     if(resolver.has_errors) {
         for(auto& err : resolver.errors) {

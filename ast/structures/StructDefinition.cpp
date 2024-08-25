@@ -236,11 +236,11 @@ BaseDefMember *StructMember::copy_member() {
     return new StructMember(name, std::unique_ptr<BaseType>(type->copy()), std::move(def_value), parent_node);
 }
 
-void StructMember::declare_top_level(SymbolResolver &linker) {
+void StructMember::declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     linker.declare(name, this);
 }
 
-void StructMember::declare_and_link(SymbolResolver &linker) {
+void StructMember::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     linker.declare(name, this);
     type->link(linker, type);
     if (defValue.has_value()) {
@@ -248,13 +248,13 @@ void StructMember::declare_and_link(SymbolResolver &linker) {
     }
 }
 
-void UnnamedStruct::redeclare_top_level(SymbolResolver &linker) {
+void UnnamedStruct::redeclare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     linker.declare(name, this);
 }
 
-void UnnamedStruct::declare_and_link(SymbolResolver &linker) {
+void UnnamedStruct::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     linker.scope_start();
-    VariablesContainer::declare_and_link(linker);
+    VariablesContainer::declare_and_link(linker, node_ptr);
     linker.scope_end();
     linker.declare(name, this);
 }
@@ -313,12 +313,12 @@ void StructDefinition::accept(Visitor *visitor) {
     visitor->visit(this);
 }
 
-void StructDefinition::declare_top_level(SymbolResolver &linker) {
+void StructDefinition::declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     linker.declare(name, this);
     is_direct_init = has_annotation(AnnotationKind::DirectInit);
 }
 
-void StructDefinition::declare_and_link(SymbolResolver &linker) {
+void StructDefinition::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     bool has_destructor = false;
     for(auto& func : functions()) {
         if(func->has_annotation(AnnotationKind::Constructor)) {
@@ -328,7 +328,7 @@ void StructDefinition::declare_and_link(SymbolResolver &linker) {
             has_destructor = true;
         }
     }
-    MembersContainer::declare_and_link(linker);
+    MembersContainer::declare_and_link(linker, node_ptr);
     register_use_to_inherited_interfaces(this);
     if(!has_destructor && requires_destructor()) {
         if(contains_func("delete")) {

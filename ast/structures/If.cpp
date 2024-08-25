@@ -131,7 +131,7 @@ void IfStatement::accept(Visitor *visitor) {
     visitor->visit(this);
 }
 
-void IfStatement::declare_and_link(SymbolResolver &linker) {
+void IfStatement::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     linker.scope_start();
     condition->link(linker, condition);
     ifBody.link_sequentially(linker);

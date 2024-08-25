@@ -53,7 +53,7 @@ public:
 
 #endif
 
-    void declare_top_level(SymbolResolver &linker) override;
+    void declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override;
 
     void interpret(InterpretScope &scope);
 

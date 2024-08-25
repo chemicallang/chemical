@@ -211,7 +211,7 @@ ASTNode *VarInitStatement::child(const std::string &name) {
     return nullptr;
 }
 
-void VarInitStatement::declare_and_link(SymbolResolver &linker) {
+void VarInitStatement::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     linker.declare(identifier, this);
     if (type.has_value()) {
         type.value()->link(linker, type.value());

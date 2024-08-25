@@ -59,21 +59,21 @@ BaseType* UnionDef::known_type() {
     return this;
 }
 
-void UnionDef::declare_top_level(SymbolResolver &linker) {
+void UnionDef::declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     linker.declare(name, this);
 }
 
-void UnionDef::declare_and_link(SymbolResolver &linker) {
-    MembersContainer::declare_and_link(linker);
+void UnionDef::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+    MembersContainer::declare_and_link(linker, node_ptr);
 }
 
-void UnnamedUnion::redeclare_top_level(SymbolResolver &linker) {
+void UnnamedUnion::redeclare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     linker.declare(name, this);
 }
 
-void UnnamedUnion::declare_and_link(SymbolResolver &linker) {
+void UnnamedUnion::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     linker.scope_start();
-    VariablesContainer::declare_and_link(linker);
+    VariablesContainer::declare_and_link(linker, node_ptr);
     linker.scope_end();
     linker.declare(name, this);
 }

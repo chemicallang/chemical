@@ -30,7 +30,7 @@ unsigned int ExtensionFuncReceiver::calculate_c_or_llvm_index() {
     return 0;
 }
 
-void ExtensionFuncReceiver::declare_and_link(SymbolResolver &linker) {
+void ExtensionFuncReceiver::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     linker.declare(name, this);
 }
 
@@ -51,7 +51,7 @@ static std::string get_referenced(BaseType* type) {
     }
 }
 
-void ExtensionFunction::declare_top_level(SymbolResolver &linker) {
+void ExtensionFunction::declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
 
     /**
      * when a user has a call to function which is declared below current function, that function
@@ -67,7 +67,7 @@ void ExtensionFunction::declare_top_level(SymbolResolver &linker) {
      */
     linker.scope_start();
     for(auto& gen_param : generic_params) {
-        gen_param->declare_and_link(linker);
+        gen_param->declare_and_link(linker, (std::unique_ptr<ASTNode>&) gen_param);
     }
     receiver.type->link(linker, receiver.type);
     for(auto& param : params) {
@@ -113,7 +113,7 @@ ExtensionFunction::ExtensionFunction(
 
 }
 
-void ExtensionFunction::declare_and_link(SymbolResolver &linker) {
+void ExtensionFunction::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
 
     auto linked = receiver.type->linked_node();
     const auto field_func = linked->child(name);
@@ -127,11 +127,11 @@ void ExtensionFunction::declare_and_link(SymbolResolver &linker) {
     auto prev_func_type = linker.current_func_type;
     linker.current_func_type = this;
     for(auto& gen_param : generic_params) {
-        gen_param->declare_and_link(linker);
+        gen_param->declare_and_link(linker, (std::unique_ptr<ASTNode>&) gen_param);
     }
-    receiver.declare_and_link(linker);
+    receiver.declare_and_link(linker, (std::unique_ptr<ASTNode>&) receiver);
     for (auto &param: params) {
-        param->declare_and_link(linker);
+        param->declare_and_link(linker, (std::unique_ptr<ASTNode>&) param);
     }
     returnType->link(linker, returnType);
     if (body.has_value()) {

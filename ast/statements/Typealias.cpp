@@ -15,11 +15,11 @@ void TypealiasStatement::interpret(InterpretScope &scope) {
 
 }
 
-void TypealiasStatement::declare_top_level(SymbolResolver &linker) {
+void TypealiasStatement::declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     linker.declare(identifier, this);
 }
 
-void TypealiasStatement::declare_and_link(SymbolResolver &linker) {
+void TypealiasStatement::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     actual_type->link(linker, actual_type);
 }
 

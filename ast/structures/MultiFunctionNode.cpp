@@ -17,11 +17,14 @@ FunctionDeclaration* MultiFunctionNode::func_for_call(std::vector<std::unique_pt
     return nullptr;
 }
 
-void MultiFunctionNode::declare_and_link(SymbolResolver &linker) {
+void MultiFunctionNode::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+
+    // TODO Multi Function Node doesn't allow replacing functions when linking
+    std::unique_ptr<ASTNode> dummy;
 
     // link all the functions
     for(auto func : functions) {
-        func->declare_and_link(linker);
+        func->declare_and_link(linker, dummy);
     }
 
 }

@@ -111,7 +111,7 @@ SwitchStatement::SwitchStatement(
 
 }
 
-void SwitchStatement::declare_and_link(SymbolResolver &linker) {
+void SwitchStatement::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     expression->link(linker, expression);
     VariantDefinition* variant_def = nullptr;
     const auto linked = expression->known_type()->linked_node();

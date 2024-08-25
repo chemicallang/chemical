@@ -13,8 +13,8 @@ UsingStmt::UsingStmt(
 
 }
 
-void UsingStmt::declare_and_link(SymbolResolver &linker) {
-    chain.declare_and_link(linker);
+void UsingStmt::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+    chain.declare_and_link(linker, (std::unique_ptr<ASTNode>&) chain);
     auto linked = chain.linked_node();
     if(!linked) {
         linker.error("couldn't find linked node with '" + chain.chain_representation() + "' in using statement");

@@ -88,7 +88,7 @@ public:
         visitor->visit(this);
     }
 
-    void declare_top_level(SymbolResolver &linker) override;
+    void declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override;
 
     std::unique_ptr<BaseType> create_value_type() override;
 

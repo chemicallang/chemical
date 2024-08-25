@@ -85,5 +85,26 @@ func test_is_value() {
         typealias T = ubigint;
         return !(T is ushort || T is int || T is uint || T is bigint || T is char || T is uchar || T is short || T is long);
     })
+    test("long is either an int or a big int but not both", () => {
+        typealias T = long;
+        return (T is int || T is bigint) && !(T is int && T is bigint)
+    })
+    test("ulong is either an uint or a ubigint but not both", () => {
+        typealias T = ulong;
+        return (T is uint || T is ubigint) && !(T is uint && T is ubigint)
+    })
+    test("same pointer types do match", () => {
+        typealias T = void*
+        typealias K = char*
+        return T is void* && K is char*
+    })
+    test("different pointer types don't match", () => {
+        typealias T = void*
+        return (T !is int* && T !is long* && T !is char*)
+    })
+    test("not a single type is void", () => {
+        typealias T = void
+        return !(T is ushort || T is ulong || T is int || T is uint || T is bigint || T is char || T is uchar || T is short || T is long || T is void*)
+    })
 
 }

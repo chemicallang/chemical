@@ -190,6 +190,42 @@ func test_return_variant_param(d : OptDestructible) : OptDestructible {
     return d;
 }
 
+func test_variant_destruction_at_early_return(count : int*, early_return : bool) {
+    var d = OptDestructible.Some(Destructible {
+        count : count,
+        lamb : (count : int*) => {
+            *count = *count + 1;
+        }
+     })
+    if(early_return) {
+        return;
+    }
+    var z = OptDestructible.Some(Destructible {
+        count : count,
+        lamb : (count : int*) => {
+            *count = *count + 1;
+        }
+     })
+}
+
+func test_variant_conditional_destruction(count : int*, condition : bool) {
+    var d = OptDestructible.Some(Destructible {
+        count : count,
+        lamb : (count : int*) => {
+            *count = *count + 1;
+        }
+     })
+    if(condition) {
+        var z = OptDestructible.Some(Destructible {
+            count : count,
+            lamb : (count : int*) => {
+                *count = *count + 1;
+            }
+         })
+        return;
+    }
+}
+
 func test_destructors() {
     test("test that var init struct value destructs", () => {
         var count = 0;
@@ -497,13 +533,24 @@ func test_destructors() {
         }));
         return count == 0;
     })
-    /**
-    test("variant created, not stored, in access chain, is destructed", () => {
-        var count = 0;
-        if(count == 0) {
-            OptDestructible.Some(create_destructible(&count, 676))
-        }
-        return count == 1;
+    test("variant destruction at early return : true", () => {
+         var count = 0;
+         test_variant_destruction_at_early_return(&count, true);
+         return count == 1;
     })
-    **/
+    test("variant destruction at early return : false", () => {
+         var count = 0;
+         test_variant_destruction_at_early_return(&count, false);
+         return count == 2;
+    })
+    test("variant conditional destruction : true", () => {
+         var count = 0;
+         test_variant_conditional_destruction(&count, true);
+         return count == 2;
+    })
+    test("variant conditional destruction : false", () => {
+         var count = 0;
+         test_variant_conditional_destruction(&count, false);
+         return count == 1;
+    })
 }

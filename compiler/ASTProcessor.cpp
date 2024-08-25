@@ -138,8 +138,7 @@ void ASTProcessor::sym_res(Scope& scope, bool is_c_file, const std::string& abs_
         bm_results->benchmark_begin();
     }
     resolver->imported_generic.clear();
-    scope.declare_top_level(*resolver);
-    scope.declare_and_link(*resolver);
+    scope.link_asynchronously(*resolver);
     for(auto& node : scope.nodes) {
         auto found = resolver->imported_generic.find(node.get());
         if(found != resolver->imported_generic.end()) {

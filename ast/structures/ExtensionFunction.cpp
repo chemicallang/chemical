@@ -135,7 +135,7 @@ void ExtensionFunction::declare_and_link(SymbolResolver &linker) {
     }
     returnType->link(linker, returnType);
     if (body.has_value()) {
-        body->declare_and_link(linker);
+        body->link_sequentially(linker);
     }
     linker.scope_end();
     linker.current_func_type = prev_func_type;

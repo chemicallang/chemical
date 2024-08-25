@@ -497,4 +497,13 @@ func test_destructors() {
         }));
         return count == 0;
     })
+    /**
+    test("variant created, not stored, in access chain, is destructed", () => {
+        var count = 0;
+        if(count == 0) {
+            OptDestructible.Some(create_destructible(&count, 676))
+        }
+        return count == 1;
+    })
+    **/
 }

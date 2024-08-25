@@ -46,8 +46,7 @@ int main(int argc, char *argv[]) {
         for(const auto& func : interpretScope.global_fns) {
             linker.declare(func.first, func.second.get());
         }
-        scope.declare_top_level(linker);
-        scope.declare_and_link(linker);
+        scope.link_asynchronously(linker);
         if(!linker.errors.empty()){
             for(const auto& err : linker.errors) {
                 std::cerr << "[Linker] " << err.message << std::endl;

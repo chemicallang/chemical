@@ -107,10 +107,13 @@ BaseType* find_return_type(std::vector<std::unique_ptr<ASTNode>>& nodes) {
             } else {
                 return new VoidType();
             }
-        } else if(node->as_loop_ast() != nullptr) {
-            auto found = find_return_type(node->as_loop_ast()->body.nodes);
-            if(found != nullptr) {
-                return found;
+        } else {
+            const auto loop_ast = node->as_loop_ast();
+            if(loop_ast) {
+                auto found = find_return_type(node->as_loop_ast()->body.nodes);
+                if (found != nullptr) {
+                    return found;
+                }
             }
         }
     }

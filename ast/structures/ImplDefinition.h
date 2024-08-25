@@ -50,10 +50,6 @@ public:
         visitor->visit(this);
     }
 
-    ImplDefinition *as_impl_def() override {
-        return this;
-    }
-
 #ifdef COMPILER_BUILD
 
     void code_gen(Codegen &gen) override;

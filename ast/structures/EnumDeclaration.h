@@ -53,10 +53,6 @@ public:
         return name;
     }
 
-    EnumDeclaration *as_enum_decl() override {
-        return this;
-    }
-
     std::unique_ptr<BaseType> create_value_type() override;
 
     hybrid_ptr<BaseType> get_value_type() override;

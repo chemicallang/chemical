@@ -37,10 +37,6 @@ public:
         return parent_node;
     }
 
-    TypealiasStatement* as_typealias() override {
-        return this;
-    }
-
     std::string ns_node_identifier() override {
         return identifier;
     }

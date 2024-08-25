@@ -63,10 +63,6 @@ public:
 
     void declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override;
 
-    UnionDef *as_union_def() override {
-        return this;
-    }
-
     ASTNode *linked_node() override {
         return this;
     }

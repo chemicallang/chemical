@@ -339,10 +339,6 @@ void StructDefinition::declare_and_link(SymbolResolver &linker, std::unique_ptr<
     }
 }
 
-StructDefinition *StructDefinition::as_struct_def() {
-    return this;
-}
-
 ASTNode *StructDefinition::child(const std::string &name) {
     auto node = ExtendableMembersContainerNode::child(name);
     if (node) {

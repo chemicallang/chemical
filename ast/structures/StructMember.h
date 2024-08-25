@@ -49,10 +49,6 @@ public:
 
     bool requires_destructor() override;
 
-    StructMember *as_struct_member() override {
-        return this;
-    }
-
     Value *holding_value() override {
         return defValue.has_value() ? defValue.value().get() : nullptr;
     }

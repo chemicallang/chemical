@@ -30,10 +30,6 @@ public:
         // no visit
     }
 
-    CapturedVariable *as_captured_var() override {
-        return this;
-    }
-
     void declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override;
 
     ASTNode *child(const std::string &name) override {

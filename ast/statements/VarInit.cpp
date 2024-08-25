@@ -207,10 +207,6 @@ void VarInitStatement::accept(Visitor *visitor) {
     visitor->visit(this);
 }
 
-VarInitStatement *VarInitStatement::as_var_init() {
-    return this;
-}
-
 ASTNode *VarInitStatement::child(const std::string &name) {
     if (type.has_value()) {
         return type.value()->linked_node()->child(name);

@@ -17,9 +17,9 @@ bool Lexer::lexRemainingExpression(unsigned start) {
         }
         compound_from(start, LexTokenType::CompCastValue);
         return true;
-    } else if(lexWSKeywordToken("is")) {
+    } else if(lexWSKeywordToken("is") || lexWSKeywordToken("!is")) {
         if (!lexTypeTokens()) {
-            error("expected a type for IsValue after 'is'");
+            error("expected a type for IsValue after 'is' or '!is'");
             return true;
         }
         compound_from(start, LexTokenType::CompIsValue);

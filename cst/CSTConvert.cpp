@@ -883,16 +883,7 @@ void CSTConverter::visitSwitch(CSTToken* switchCst) {
     );
     auto has_default = false;
     while (true) {
-        if (is_keyword(switchCst->tokens[i], "case")) {
-            i++;
-            switchCst->tokens[i]->accept(this);
-            auto caseVal = value();
-            i += 2; // body
-            switch_statement->scopes.emplace_back(std::move(caseVal), Scope { switch_statement });
-            auto& switch_case = switch_statement->scopes.back();
-            switch_case.second.nodes = take_body_nodes(this, switchCst->tokens[i], &switch_case.second);
-            i++;
-        } else if (is_keyword(switchCst->tokens[i], "default")) {
+        if (is_keyword(switchCst->tokens[i], "default")) {
             i += 2; // body
             switch_statement->defScope.emplace(Scope { switch_statement });
             auto& defScope = switch_statement->defScope.value();
@@ -903,7 +894,18 @@ void CSTConverter::visitSwitch(CSTToken* switchCst) {
             }
             has_default = true;
         } else {
-            break;
+            if(is_keyword(switchCst->tokens[i], "case")) {
+                i++;
+            } else if(!switchCst->tokens[i]->is_value()) {
+                break;
+            }
+            switchCst->tokens[i]->accept(this);
+            auto caseVal = value();
+            i += 2; // body
+            switch_statement->scopes.emplace_back(std::move(caseVal), Scope { switch_statement });
+            auto& switch_case = switch_statement->scopes.back();
+            switch_case.second.nodes = take_body_nodes(this, switchCst->tokens[i], &switch_case.second);
+            i++;
         }
     }
     nodes.emplace_back(switch_statement);

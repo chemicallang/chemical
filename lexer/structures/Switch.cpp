@@ -19,9 +19,28 @@ bool Lexer::lexSwitchStatementBlock() {
         if (lexOperatorToken('{')) {
             while(true) {
                 lexWhitespaceAndNewLines();
-                if (lexWSKeywordToken("case")) {
-                    if (!lexSwitchCaseValue()) {
-                        error("expected a value after 'case' in switch");
+                if(lexWSKeywordToken("default", ':')) {
+                    if (lexOperatorToken(':')) {
+                        auto bStart = tokens_size();
+                        lexNestedLevelMultipleStatementsTokens();
+                        compound_from(bStart, LexTokenType::CompBody);
+                    } else if (lexOperatorToken("=>")) {
+                        lexWhitespaceAndNewLines();
+                        if(!lexBraceBlock("switch-default")) {
+                            error("expected a brace block after the '=>' in the switch default case");
+                            break;
+                        }
+                    } else {
+                        error("expected ':' or '=>' after 'default' in switch statement");
+                        break;
+                    }
+                } else {
+                    if(lexWSKeywordToken("case")) {
+                        if (!lexSwitchCaseValue()) {
+                            error("expected a value after 'case' in switch");
+                            break;
+                        }
+                    } else if (!lexSwitchCaseValue()) {
                         break;
                     }
                     lexWhitespaceToken();
@@ -40,23 +59,6 @@ bool Lexer::lexSwitchStatementBlock() {
                         error("expected ':' or '=>' after 'case' in switch statement");
                         break;
                     }
-                } else if(lexWSKeywordToken("default", ':')) {
-                    if (lexOperatorToken(':')) {
-                        auto bStart = tokens_size();
-                        lexNestedLevelMultipleStatementsTokens();
-                        compound_from(bStart, LexTokenType::CompBody);
-                    } else if (lexOperatorToken("=>")) {
-                        lexWhitespaceAndNewLines();
-                        if(!lexBraceBlock("switch-default")) {
-                            error("expected a brace block after the '=>' in the switch default case");
-                            break;
-                        }
-                    } else {
-                        error("expected ':' or '=>' after 'default' in switch statement");
-                        break;
-                    }
-                } else {
-                    break;
                 }
             }
             if(!lexOperatorToken('}')) {

@@ -138,6 +138,20 @@ func test_nodes() {
             }
        }
     });
+    test("switch statement case keyword is optional", () => {
+        var j = 0;
+        switch(j) {
+            0 => {
+                return true;
+            }
+            1 => {
+                return false;
+            }
+            default => {
+                return false;
+            }
+        }
+    })
     test("switch doesn't fallthrough by default", () => {
         var j = 0;
         switch(j) {

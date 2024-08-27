@@ -67,6 +67,12 @@ public:
         code_gen(gen, false);
     }
 
+    llvm::Type* llvm_type(Codegen &gen) override;
+
+    llvm::AllocaInst* llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) override;
+
+    llvm::Value* llvm_assign_value(Codegen &gen, Value *lhs) override;
+
     void code_gen(Codegen &gen, Scope* scope, unsigned int index) override;
 
 #endif

@@ -863,6 +863,9 @@ void CSTConverter::visitIf(CSTToken* ifCst) {
             is_value
     );
 
+    auto prev_parent = parent_node;
+    parent_node = if_statement;
+
     // first if body
     if_statement->ifBody.parent_node = if_statement;
     unsigned i = 4;
@@ -891,6 +894,8 @@ void CSTConverter::visitIf(CSTToken* ifCst) {
         i++;
         if_statement->elseBody->nodes = take_body_or_single_stmt(this, ifCst, i, if_statement);
     }
+
+    parent_node = prev_parent;
 
     if(is_value) {
         values.emplace_back(if_statement);

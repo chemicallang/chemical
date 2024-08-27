@@ -40,6 +40,7 @@
 #include "ast/values/Expression.h"
 #include "ast/values/CastedValue.h"
 #include "ast/values/AccessChain.h"
+#include "ast/values/ValueNode.h"
 #include "ast/values/VariableIdentifier.h"
 #include "ast/statements/Continue.h"
 #include "ast/statements/Return.h"
@@ -775,6 +776,14 @@ void ReturnStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
 
 void TypealiasStatement::code_gen(Codegen &gen) {
 
+}
+
+void ValueNode::code_gen(Codegen& gen) {
+    if(gen.current_assignable) {
+        gen.builder->CreateStore(value->llvm_value(gen, nullptr), gen.current_assignable);
+    } else {
+        gen.error("couldn't assign value node to current assignable");
+    }
 }
 
 llvm::Type *TypealiasStatement::llvm_type(Codegen &gen) {

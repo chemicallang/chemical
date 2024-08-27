@@ -17,6 +17,10 @@ public:
 
     explicit NotValue(std::unique_ptr<Value> value) : value(std::move(value)) {}
 
+    ValueKind val_kind() override {
+        return ValueKind::NotValue;
+    }
+
     void accept(Visitor *visitor) override {
         visitor->visit(this);
     }

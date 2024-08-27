@@ -414,6 +414,8 @@ public:
 
     void visit(NotValue* notValue) override;
 
+    void visit(ValueNode *node) override;
+
     void visit(NullValue* nullValue) override;
 
     void visit(TernaryValue* ternary) override;

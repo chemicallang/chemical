@@ -43,6 +43,10 @@ public:
             InterpretScope &scope
     );
 
+    ValueKind val_kind() override {
+        return ValueKind::StructValue;
+    }
+
     void accept(Visitor *visitor) override {
         visitor->visit(this);
     }

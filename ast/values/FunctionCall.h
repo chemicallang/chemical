@@ -28,6 +28,10 @@ public:
 
     FunctionCall(FunctionCall &&other) = delete;
 
+    ValueKind val_kind() override {
+        return ValueKind::FunctionCall;
+    }
+
     uint64_t byte_size(bool is64Bit) override;
 
     void accept(Visitor *visitor) override {

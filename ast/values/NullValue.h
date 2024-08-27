@@ -17,6 +17,10 @@ public:
         return is64Bit ? 8 : 4;
     }
 
+    ValueKind val_kind() override {
+        return ValueKind::NullValue;
+    }
+
     void accept(Visitor *visitor) override {
         visitor->visit(this);
     }

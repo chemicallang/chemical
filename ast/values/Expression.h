@@ -33,6 +33,10 @@ public:
             bool is64Bit
     );
 
+    ValueKind val_kind() override {
+        return ValueKind::Expression;
+    }
+
     void accept(Visitor *visitor) override {
         visitor->visit(this);
     }

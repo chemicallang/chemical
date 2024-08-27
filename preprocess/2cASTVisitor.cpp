@@ -73,6 +73,7 @@
 #include "ast/values/CastedValue.h"
 #include "ast/values/AccessChain.h"
 #include "ast/values/StructValue.h"
+#include "ast/values/ValueNode.h"
 #include "ast/values/AddrOfValue.h"
 #include "ast/values/ArrayValue.h"
 #include "ast/values/BigIntValue.h"
@@ -763,6 +764,13 @@ void value_init_default(ToCAstVisitor* visitor, const std::string& identifier, B
 
 void value_alloca_store(ToCAstVisitor* visitor, const std::string& identifier, BaseType* type, std::optional<std::unique_ptr<Value>>& value) {
     if(value.has_value()) {
+        auto value_kind = value.value()->val_kind();
+        if(value_kind == ValueKind::IfValue || value_kind == ValueKind::SwitchValue) {
+            value_alloca(visitor, identifier, type, value);
+            visitor->new_line_and_indent();
+            value.value()->accept(visitor);
+            return;
+        }
         if(type->value_type() == ValueType::Struct && value.value()->as_access_chain()) {
             // struct instantiation is done in 2 instructions -> declaration and assignment
 //            value_alloca(visitor, identifier, type, value);
@@ -3697,6 +3705,22 @@ void ToCAstVisitor::visit(NotValue *notValue) {
 
 void ToCAstVisitor::visit(NullValue *nullValue) {
     write("NULL");
+}
+
+void ToCAstVisitor::visit(ValueNode *node) {
+    const auto grandparent = node->parent_node->parent();
+    const auto init = grandparent->as_var_init();
+    if(init) {
+        write(init->identifier);
+        write(" = ");
+        auto prev = nested_value;
+        nested_value = true;
+        node->value->accept(this);
+        nested_value = prev;
+        write(';');
+    } else {
+        write("[Unknown Grandpa Node for ValueNode]");
+    }
 }
 
 void ToCAstVisitor::visit(TernaryValue *ternary) {

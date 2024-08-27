@@ -12,6 +12,10 @@ public:
 
     }
 
+    ValueKind val_kind() override {
+        return ValueKind::Short;
+    }
+
     hybrid_ptr<BaseType> get_base_type() override {
         return hybrid_ptr<BaseType> { (BaseType*) &ShortType::instance, false };
     }

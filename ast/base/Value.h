@@ -24,7 +24,7 @@ class Codegen;
 
 #include "Visitor.h"
 #include "BaseTypeKind.h"
-#include <iostream>
+#include "ValueKind.h"
 
 class FunctionDeclaration;
 
@@ -67,9 +67,14 @@ public:
     Value& operator =(Value &&other) = default;
 
     /**
+     * get the value kind
+     */
+    virtual ValueKind val_kind() = 0;
+
+    /**
      * extracts a value from a node
      */
-    static Value* extract_from_value_node(ASTNode* node);
+    static Value* get_first_value_from_value_node(ASTNode* node);
 
     /**
      * this function is called to allow variable identifiers to link with a node on the map
@@ -432,12 +437,7 @@ public:
      * This method can only be called on primitive values as they are the only ones that support copy operation
      * @return
      */
-    virtual Value* copy() {
-#ifdef DEBUG
-        std::cerr << "copy called on base Value, representation : " << representation();
-#endif
-        return nullptr;
-    }
+    virtual Value* copy();
 
     /**
      * scope value is the value that would be put on the interpret scope value map

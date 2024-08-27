@@ -16,6 +16,10 @@ public:
 
     }
 
+    ValueKind val_kind() override {
+        return ValueKind::Int128;
+    }
+
     hybrid_ptr<BaseType> get_base_type() override {
         return hybrid_ptr<BaseType> { (BaseType*) &Int128Type::instance, false };
     }

@@ -23,6 +23,10 @@ public:
      */
     explicit IntValue(int value) : value(value) {}
 
+    ValueKind val_kind() override {
+        return ValueKind::Int;
+    }
+
     uint64_t byte_size(bool is64Bit) override {
         return 4;
     }

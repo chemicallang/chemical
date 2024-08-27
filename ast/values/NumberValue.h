@@ -84,6 +84,10 @@ public:
         return value;
     }
 
+    ValueKind val_kind() override {
+        return ValueKind::NumberValue;
+    }
+
     NumberValue *copy() override {
         auto copy = new NumberValue(value);
         if(linked_type) {

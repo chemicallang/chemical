@@ -18,7 +18,7 @@
  * extract the value to use it
  *
  */
-class ValueNode : public ASTNode, public Value {
+class ValueNode : public ASTNode {
 public:
 
     /**
@@ -39,7 +39,7 @@ public:
     }
 
     void accept(Visitor *visitor) override {
-        value->accept(visitor);
+        visitor->visit(this);
     }
 
     ASTNodeKind kind() override {

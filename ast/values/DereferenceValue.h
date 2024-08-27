@@ -15,6 +15,10 @@ public:
 
     explicit DereferenceValue(std::unique_ptr<Value> value);
 
+    ValueKind val_kind() override {
+        return ValueKind::DereferenceValue;
+    }
+
     uint64_t byte_size(bool is64Bit) override {
         return value->byte_size(is64Bit);
     }

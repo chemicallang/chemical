@@ -23,6 +23,10 @@ public:
         bool is_value
     );
 
+    ValueKind val_kind() override {
+        return ValueKind::SwitchValue;
+    }
+
     ASTNodeKind kind() override {
         return ASTNodeKind::SwitchStmt;
     }
@@ -37,7 +41,15 @@ public:
 
     void accept(Visitor *visitor) override;
 
-    void declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override;
+    void declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>* node_ptr, std::unique_ptr<Value>* value_ptr);
+
+    void declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override {
+        declare_and_link(linker, &node_ptr, nullptr);
+    }
+
+    void link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr) override {
+        declare_and_link(linker, nullptr, &value_ptr);
+    }
 
     Value* get_value_node();
 

@@ -325,8 +325,25 @@ func test_nodes() {
         }
         return p.summer_sum() == 30;
     })
-    test("single statement if statement works", () => {
+    test("single statement if statement works - 1", () => {
         if(true) return true else return false
+    })
+    test("single statement if statement works - 2", () => {
+        if(true) return true; else return false;
+    })
+    test("switch statement can have single statement instead of block - 1", () => {
+        var i = 0;
+        switch(i) {
+            0 => return true
+            default => return false
+        }
+    })
+    test("switch statement can have single statement instead of block - 2", () => {
+        var i = 0;
+        switch(i) {
+            0 => return true;
+            default => return false;
+        }
     })
 }
 

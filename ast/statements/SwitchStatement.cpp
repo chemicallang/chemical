@@ -12,6 +12,28 @@
 #include "compiler/llvmimpl.h"
 #include "compiler/Codegen.h"
 
+llvm::Type* SwitchStatement::llvm_type(Codegen &gen) {
+    const auto node = get_value_node();
+    return node->llvm_type(gen);
+}
+
+llvm::AllocaInst* SwitchStatement::llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) {
+    auto allocated = gen.builder->CreateAlloca(expected_type ? expected_type->llvm_type(gen) : llvm_type(gen));
+    auto prev_assignable = gen.current_assignable;
+    gen.current_assignable = allocated;
+    code_gen(gen);
+    gen.current_assignable = prev_assignable;
+    return allocated;
+}
+
+llvm::Value* SwitchStatement::llvm_assign_value(Codegen &gen, Value *lhs) {
+    auto prev_assignable = gen.current_assignable;
+    gen.current_assignable = lhs->llvm_pointer(gen);
+    code_gen(gen);
+    gen.current_assignable = prev_assignable;
+    return nullptr;
+}
+
 void SwitchStatement::code_gen(Codegen &gen, bool last_block) {
 
     auto total_scopes = defScope.has_value() ? (scopes.size() + 1) : scopes.size();

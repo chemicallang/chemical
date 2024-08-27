@@ -476,6 +476,14 @@ public:
     FunctionType* current_func_type = nullptr;
 
     /**
+     * when user say's var x = if(condition) value else other_value
+     * the if statement here set's x to this variable as "assignable)
+     * so when if statement or switch or any value that would like to assign
+     * it's implicitly returned value assigns it to this current_assignable
+     */
+    llvm::Value* current_assignable = nullptr;
+
+    /**
      * When given, return's are shifted to this block
      * So when a return statement is detected a branch instruction is made to this block
      * The return must be void for this to work

@@ -345,6 +345,32 @@ func test_nodes() {
             default => return false;
         }
     })
+    test("if statement can be used as a value - 1", () => {
+        var val = true;
+        var i = if(val) 5 else 6
+        return i == 5;
+    })
+    test("if statement can be used as a value - 1", () => {
+        var val = false;
+        var i = if(val) 5 else 6
+        return i == 6;
+    })
+    test("switch statement can be used as a value - 1", () => {
+        var val = 45;
+        var i = switch(val) {
+             45 => 5
+             default => 6
+        }
+        return i == 5;
+    })
+    test("switch statement can be used as a value - 2", () => {
+        var val = 50;
+        var i = switch(val) {
+             45 => 5
+             default => 6
+        }
+        return i == 6;
+    })
 }
 
 func declared_below() : int {

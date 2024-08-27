@@ -30,6 +30,7 @@ enum class ASTNodeKind : uint8_t {
     ForLoopStmt,
     IfStmt,
     TryStmt,
+    ValueNode,
     AccessChain,
 
     EnumDecl,

@@ -34,6 +34,7 @@ enum class LexTokenType : uint8_t {
     // compound statements
     CompAssignment,
     CompAccessChainNode,
+    CompValueNode,
     CompAnnotation,
     CompBreak,
     CompContinue,
@@ -41,7 +42,6 @@ enum class LexTokenType : uint8_t {
     CompUsing,
     CompDestruct,
     CompIf,
-    CompIfValue,
     CompImport,
     CompIncDec,
     CompReturn,
@@ -77,6 +77,8 @@ enum class LexTokenType : uint8_t {
     // compound values
     CompAccessChain,
     CompArrayValue,
+    CompIfValue,
+    CompSwitchValue,
     CompCastValue,
     CompIsValue,
     CompAddrOf,

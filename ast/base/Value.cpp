@@ -365,6 +365,16 @@ unsigned Value::as_uint() {
     return ((UIntValue*) this)->value;
 }
 
+Value* Value::extract_from_value_node(ASTNode* node) {
+    const auto k = node->kind();
+    if(k == ASTNodeKind::AccessChain) {
+        return node->as_access_chain();
+    } else if(k == ASTNodeKind::ValueNode) {
+        return node->holding_value();
+    }
+    return nullptr;
+}
+
 std::string Value::representation() {
     std::ostringstream ostring;
     RepresentationVisitor visitor(ostring);

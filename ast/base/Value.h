@@ -67,6 +67,11 @@ public:
     Value& operator =(Value &&other) = default;
 
     /**
+     * extracts a value from a node
+     */
+    static Value* extract_from_value_node(ASTNode* node);
+
+    /**
      * this function is called to allow variable identifiers to link with a node on the map
      * that will help it provide information, to allow it to generate code, or interpret
      * The reason it takes a reference to unique_ptr<Value> is because the current value

@@ -61,6 +61,7 @@ void CSTToken::accept(CSTVisitor *visitor) {
             visitor->visitAssignment((CSTToken*) this);
             return;
         case LexTokenType::CompAccessChainNode:
+        case LexTokenType::CompAccessChain:
             visitor->visitAccessChain((CSTToken*) this);
             return;
         case LexTokenType::CompAnnotation:
@@ -81,7 +82,11 @@ void CSTToken::accept(CSTVisitor *visitor) {
         case LexTokenType::CompDestruct:
             visitor->visitDestruct((CSTToken*) this);
             return;
+        case LexTokenType::CompValueNode:
+            visitor->visitValueNode((CSTToken*) this);
+            return;
         case LexTokenType::CompIf:
+        case LexTokenType::CompIfValue:
             visitor->visitIf((CSTToken*) this);
             return;
         case LexTokenType::CompImport:
@@ -94,6 +99,7 @@ void CSTToken::accept(CSTVisitor *visitor) {
             visitor->visitReturn((CSTToken*) this);
             return;
         case LexTokenType::CompSwitch:
+        case LexTokenType::CompSwitchValue:
             visitor->visitSwitch((CSTToken*) this);
             return;
         case LexTokenType::CompTypealias:
@@ -164,9 +170,6 @@ void CSTToken::accept(CSTVisitor *visitor) {
             return;
         case LexTokenType::CompPointerType:
             visitor->visitPointerType((CSTToken*) this);
-            return;
-        case LexTokenType::CompAccessChain:
-            visitor->visitAccessChain((CSTToken*) this);
             return;
         case LexTokenType::CompArrayValue:
             visitor->visitArrayValue((CSTToken*) this);

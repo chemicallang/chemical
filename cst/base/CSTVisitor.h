@@ -65,6 +65,10 @@ public:
         visitCompoundCommon(delStmt);
     }
 
+    virtual void visitValueNode(CSTToken *ifCst) {
+        visitCompoundCommon(ifCst);
+    }
+
     virtual void visitIf(CSTToken *ifCst) {
         visitCompoundCommon(ifCst);
     }

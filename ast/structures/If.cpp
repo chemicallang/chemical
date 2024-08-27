@@ -1,6 +1,7 @@
 // Copyright (c) Qinetik 2024.
 
 #include "If.h"
+#include "ast/base/BaseType.h"
 #include "compiler/SymbolResolver.h"
 
 #ifdef COMPILER_BUILD
@@ -123,9 +124,10 @@ IfStatement::IfStatement(
         Scope ifBody,
         std::vector<std::pair<std::unique_ptr<Value>, Scope>> elseIfs,
         std::optional<Scope> elseBody,
-        ASTNode* parent_node
+        ASTNode* parent_node,
+        bool is_value
 ) : condition(std::move(condition)), ifBody(std::move(ifBody)),
-    elseIfs(std::move(elseIfs)), elseBody(std::move(elseBody)), parent_node(parent_node) {}
+    elseIfs(std::move(elseIfs)), elseBody(std::move(elseBody)), parent_node(parent_node), is_value(is_value) {}
 
 void IfStatement::accept(Visitor *visitor) {
     visitor->visit(this);
@@ -147,6 +149,26 @@ void IfStatement::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNo
         elseBody->link_sequentially(linker);
         linker.scope_end();
     }
+}
+
+Value* IfStatement::get_value_node() {
+    return Value::extract_from_value_node(ifBody.nodes.back().get());
+}
+
+std::unique_ptr<BaseType> IfStatement::create_type() {
+    if(!is_value) return nullptr;
+    auto last_val = get_value_node();
+    return last_val ? last_val->create_type() : nullptr;
+}
+
+std::unique_ptr<BaseType> IfStatement::create_value_type() {
+    return create_type();
+}
+
+BaseType *IfStatement::known_type() {
+    if(!is_value) return nullptr;
+    auto last_val = get_value_node();
+    return last_val ? last_val->known_type() : nullptr;
 }
 
 void IfStatement::interpret(InterpretScope &scope) {

@@ -272,6 +272,8 @@ public:
 
     // Types
 
+    void visitValueNode(CSTToken *ifCst) override;
+
     void visitTypeToken(CSTToken* token) override;
 
     void visitReferencedValueType(CSTToken* ref_value) override;

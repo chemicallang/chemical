@@ -409,7 +409,7 @@ public:
     /**
      * lexes a brace block or a value
      */
-    bool lexBraceBlockOrSingleStmt(const std::string &forThing);
+    bool lexBraceBlockOrSingleStmt(const std::string &forThing, bool is_value);
 
     /**
      * lexes import identifier list example : { something, something }
@@ -450,7 +450,7 @@ public:
      * lexes a single if expr and the body without else if or else
      * meaning '(' expr ')' '{' body '}'
      */
-    void lexIfExprAndBlock();
+    void lexIfExprAndBlock(bool is_value);
 
     /**
      * lex if block
@@ -677,6 +677,11 @@ public:
     bool lexAccessChainOrValue(bool lexStruct = false);
 
     /**
+     * a value is lexed but as a node
+     */
+    bool lexValueNode();
+
+    /**
      * lexes a identifier list like id1,id2
      */
     void lexTypeList();
@@ -730,7 +735,7 @@ public:
     /**
      * lexes switch block
      */
-    bool lexSwitchStatementBlock();
+    bool lexSwitchStatementBlock(bool is_value = false);
 
     /**
      * lexes try catch block statements

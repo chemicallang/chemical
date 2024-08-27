@@ -14,6 +14,7 @@
 #include "ast/values/BoolValue.h"
 #include "ast/values/DoubleValue.h"
 #include "ast/values/AccessChain.h"
+#include "ast/values/ValueNode.h"
 #include "ast/values/FunctionCall.h"
 #include "ast/values/IndexOperator.h"
 #include "ast/values/IntValue.h"
@@ -825,7 +826,14 @@ void CSTConverter::visitAnnotationToken(CSTToken* token) {
     }
 }
 
+void CSTConverter::visitValueNode(CSTToken *cst) {
+    cst->tokens[0]->accept(this);
+    nodes.emplace_back(new ValueNode(value(), parent_node));
+}
+
 void CSTConverter::visitIf(CSTToken* ifCst) {
+
+    auto is_value  = ifCst->type() == LexTokenType::CompIfValue;
 
     // if condition
     ifCst->tokens[2]->accept(this);
@@ -836,7 +844,8 @@ void CSTConverter::visitIf(CSTToken* ifCst) {
             Scope {nullptr},
             std::vector<std::pair<std::unique_ptr<Value>, Scope>>{},
             std::nullopt,
-            parent_node
+            parent_node,
+            is_value
     );
 
     // first if body
@@ -867,11 +876,16 @@ void CSTConverter::visitIf(CSTToken* ifCst) {
         if_statement->elseBody->nodes = take_body_nodes(this, ifCst->tokens[i + 1], &if_statement->elseBody.value());
     }
 
-    nodes.emplace_back(if_statement);
+    if(is_value) {
+        values.emplace_back(if_statement);
+    } else {
+        nodes.emplace_back(if_statement);
+    }
 
 }
 
 void CSTConverter::visitSwitch(CSTToken* switchCst) {
+    bool is_value = switchCst->type() == LexTokenType::CompSwitchValue;
     switchCst->tokens[2]->accept(this);
     auto expr = value();
     auto i = 5; // positioned at first 'case' or 'default'
@@ -879,7 +893,8 @@ void CSTConverter::visitSwitch(CSTToken* switchCst) {
                 std::move(expr),
                 std::vector<std::pair<std::unique_ptr<Value>, Scope>> {},
                 std::nullopt,
-                parent_node
+                parent_node,
+                is_value
     );
     auto has_default = false;
     while (true) {
@@ -908,7 +923,11 @@ void CSTConverter::visitSwitch(CSTToken* switchCst) {
             i++;
         }
     }
-    nodes.emplace_back(switch_statement);
+    if(is_value) {
+        values.emplace_back(switch_statement);
+    } else {
+        nodes.emplace_back(switch_statement);
+    }
 }
 
 void CSTConverter::visitThrow(CSTToken* throwStmt) {

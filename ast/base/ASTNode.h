@@ -556,7 +556,7 @@ public:
     }
 
     //---------------------------------------------
-    // Helper as methods
+    // Helper as (safe) methods
     //---------------------------------------------
 
     /**
@@ -761,6 +761,14 @@ public:
      */
     AssignStatement* as_assignment() {
         return isAssignmentStmt() ? (AssignStatement*) this : nullptr;;
+    }
+
+    //---------------------------------------------
+    // Helper as (unsafe) methods
+    //---------------------------------------------
+
+    inline AccessChain* as_access_chain() {
+        return (AccessChain*) this;
     }
 
 };

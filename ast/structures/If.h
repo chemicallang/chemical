@@ -11,7 +11,7 @@
 #include "ast/base/Value.h"
 #include <optional>
 
-class IfStatement : public ASTNode {
+class IfStatement : public ASTNode, public Value {
 public:
 
     std::unique_ptr<Value> condition;
@@ -19,6 +19,7 @@ public:
     std::vector<std::pair<std::unique_ptr<Value>, Scope>> elseIfs;
     std::optional<Scope> elseBody;
     ASTNode* parent_node;
+    bool is_value;
 
     /**
      * @brief Construct a new IfStatement object.
@@ -32,7 +33,8 @@ public:
             Scope ifBody,
             std::vector<std::pair<std::unique_ptr<Value>, Scope>> elseIfs,
             std::optional<Scope> elseBody,
-            ASTNode* parent_node
+            ASTNode* parent_node,
+            bool is_value
     );
 
     ASTNodeKind kind() override {
@@ -50,6 +52,14 @@ public:
     void accept(Visitor *visitor) override;
 
     void declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override;
+
+    Value* get_value_node();
+
+    std::unique_ptr<BaseType> create_type() override;
+
+    std::unique_ptr<BaseType> create_value_type() override;
+
+    BaseType *known_type() override;
 
 #ifdef COMPILER_BUILD
 

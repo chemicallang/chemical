@@ -141,7 +141,7 @@ void prep_lexer_cbi(LexerCBI* cbi, SourceProviderCBI* provider) {
         return cbi->instance->lexContinueStatement();
     };
     cbi->lexIfExprAndBlock = [](LexerCBI* cbi){
-        return cbi->instance->lexIfExprAndBlock();
+        return cbi->instance->lexIfExprAndBlock(false);
     };
     cbi->lexIfBlockTokens = [](LexerCBI* cbi){
         return cbi->instance->lexIfBlockTokens();

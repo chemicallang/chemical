@@ -106,9 +106,30 @@ SwitchStatement::SwitchStatement(
         std::unique_ptr<Value> expression,
         std::vector<std::pair<std::unique_ptr<Value>, Scope>> scopes,
         std::optional<Scope> defScope,
-        ASTNode* parent_node
-) : expression(std::move(expression)), scopes(std::move(scopes)), defScope(std::move(defScope)), parent_node(parent_node) {
+        ASTNode* parent_node,
+        bool is_value
+) : expression(std::move(expression)), scopes(std::move(scopes)), defScope(std::move(defScope)), parent_node(parent_node), is_value(is_value) {
 
+}
+
+Value* SwitchStatement::get_value_node() {
+    return Value::extract_from_value_node(scopes.front().second.nodes.back().get());
+}
+
+std::unique_ptr<BaseType> SwitchStatement::create_type() {
+    if(!is_value || scopes.empty()) return nullptr;
+    auto last_val = get_value_node();
+    return last_val ? last_val->create_type() : nullptr;
+}
+
+std::unique_ptr<BaseType> SwitchStatement::create_value_type() {
+    return create_type();
+}
+
+BaseType *SwitchStatement::known_type() {
+    if(!is_value || scopes.empty()) return nullptr;
+    auto last_val = get_value_node();
+    return last_val ? last_val->known_type() : nullptr;
 }
 
 void SwitchStatement::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {

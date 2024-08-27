@@ -2,22 +2,25 @@
 
 
 #include "ast/base/ASTNode.h"
+#include "ast/base/Value.h"
 #include "ast/structures/Scope.h"
 #include <optional>
 
-class SwitchStatement : public ASTNode {
+class SwitchStatement : public ASTNode, public Value {
 public:
 
     std::unique_ptr<Value> expression;
     std::vector<std::pair<std::unique_ptr<Value>, Scope>> scopes;
     std::optional<Scope> defScope;
     ASTNode* parent_node;
+    bool is_value;
 
     SwitchStatement(
         std::unique_ptr<Value> expression,
         std::vector<std::pair<std::unique_ptr<Value>, Scope>> scopes,
         std::optional<Scope> defScope,
-        ASTNode* parent_node
+        ASTNode* parent_node,
+        bool is_value
     );
 
     ASTNodeKind kind() override {
@@ -35,6 +38,14 @@ public:
     void accept(Visitor *visitor) override;
 
     void declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override;
+
+    Value* get_value_node();
+
+    std::unique_ptr<BaseType> create_type() override;
+
+    std::unique_ptr<BaseType> create_value_type() override;
+
+    BaseType *known_type() override;
 
 #ifdef COMPILER_BUILD
 

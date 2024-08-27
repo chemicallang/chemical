@@ -102,5 +102,15 @@ bool Lexer::lexArrayInit() {
 }
 
 bool Lexer::lexAccessChainOrValue(bool lexStruct) {
-    return lexAccessChainValueToken() || lexAccessChainOrAddrOf(lexStruct) || lexAnnotationMacro();
+    return lexIfBlockTokens(true) || lexSwitchStatementBlock(true) || lexAccessChainValueToken() || lexAccessChainOrAddrOf(lexStruct) || lexAnnotationMacro();
+}
+
+bool Lexer::lexValueNode() {
+    if(lexAccessChainOrValue(true)) {
+        auto start = tokens_size() - 1;
+        compound_from(start, LexTokenType::CompValueNode);
+        return true;
+    } else {
+        return false;
+    }
 }

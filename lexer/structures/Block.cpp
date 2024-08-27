@@ -95,21 +95,21 @@ bool Lexer::lexBraceBlock(const std::string &forThing) {
     return true;
 }
 
-bool Lexer::lexBraceBlockOrSingleStmt(const std::string &forThing) {
+bool Lexer::lexBraceBlockOrSingleStmt(const std::string &forThing, bool is_value) {
 
     // whitespace and new lines
     lexWhitespaceAndNewLines();
 
     // starting brace
     if (!lexOperatorToken('{')) {
-        const auto res = lexNestedLevelStatementTokens();
-        if(res) {
+        if(lexNestedLevelStatementTokens() || (is_value && lexValueNode())) {
             lexWhitespaceAndNewLines();
             if (lexOperatorToken(';')) {
                 lexWhitespaceAndNewLines();
             }
-        }
-        return res;
+            return true;
+        };
+        return false;
     }
 
     unsigned start = tokens_size() - 1;

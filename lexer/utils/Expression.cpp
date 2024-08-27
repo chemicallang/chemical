@@ -16,7 +16,8 @@ bool Lexer::lexRemainingExpression(unsigned start) {
             return true;
         }
         compound_from(start, LexTokenType::CompCastValue);
-        return true;
+        lexWhitespaceToken();
+        compounded = true;
     } else if(lexWSKeywordToken("is") || lexWSKeywordToken("!is")) {
         if (!lexTypeTokens()) {
             error("expected a type for IsValue after 'is' or '!is'");

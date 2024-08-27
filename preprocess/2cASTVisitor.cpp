@@ -3707,20 +3707,37 @@ void ToCAstVisitor::visit(NullValue *nullValue) {
     write("NULL");
 }
 
-void ToCAstVisitor::visit(ValueNode *node) {
-    const auto grandparent = node->parent_node->parent();
-    const auto init = grandparent->as_var_init();
-    if(init) {
-        write(init->identifier);
-        write(" = ");
-        auto prev = nested_value;
-        nested_value = true;
-        node->value->accept(this);
-        nested_value = prev;
-        write(';');
-    } else {
-        write("[Unknown Grandpa Node for ValueNode]");
+void write_assignable(ToCAstVisitor* visitor, ASTNode* node) {
+    const auto k = node->kind();
+    switch(k) {
+        case ASTNodeKind::VarInitStmt:
+            visitor->write(node->as_var_init()->identifier);
+            return;
+        case ASTNodeKind::AssignmentStmt:
+            node->as_assignment()->lhs->accept(visitor);
+            return;
+        default:
+            const auto p = node->parent();
+            if(p) {
+                write_assignable(visitor, p);
+            } else {
+                visitor->write("[UnknownAssignable]");
+            }
+            return;
     }
+}
+
+void ToCAstVisitor::visit(ValueNode *node) {
+    auto val_kind = node->value->val_kind();
+    if(val_kind != ValueKind::SwitchValue && val_kind != ValueKind::IfValue) {
+        write_assignable(this, node->parent_node);
+        write(" = ");
+    }
+    auto prev = nested_value;
+    nested_value = true;
+    node->value->accept(this);
+    nested_value = prev;
+    write(';');
 }
 
 void ToCAstVisitor::visit(TernaryValue *ternary) {

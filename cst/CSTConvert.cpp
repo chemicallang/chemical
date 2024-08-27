@@ -106,12 +106,17 @@ std::vector<std::unique_ptr<ASTNode>> take_body_nodes(CSTConverter *conv, CSTTok
 }
 
 std::vector<std::unique_ptr<ASTNode>> take_body_or_single_stmt(CSTConverter *conv, CSTToken *container, unsigned &i, ASTNode* parent_node) {
-    if(container->tokens[i]->type() == LexTokenType::CompBody) {
+    const auto type = container->tokens[i]->type();
+    if(type == LexTokenType::CompBody) {
         return take_body_nodes(conv, container->tokens[i], parent_node);
     } else {
         container->tokens[i]->accept(conv);
         std::vector<std::unique_ptr<ASTNode>> nodes(1);
-        nodes[0] = std::unique_ptr<ASTNode>(conv->pop_last_node());
+        if(CSTToken::is_value(type)) {
+            nodes[0] = std::make_unique<ValueNode>(std::unique_ptr<Value>(conv->pop_last_value()), parent_node);
+        } else {
+            nodes[0] = std::unique_ptr<ASTNode>(conv->pop_last_node());
+        }
         if(i + 1 < container->tokens.size() && is_char_op(container->tokens[i + 1], ';')) {
             i++;
         }
@@ -339,6 +344,18 @@ std::unique_ptr<Value> CSTConverter::value() {
 
 void CSTConverter::put_type(BaseType* type) {
     types.emplace_back(type);
+}
+
+ASTNode* CSTConverter::pop_last_node() {
+    auto last = nodes.back().release();
+    nodes.pop_back();
+    return last;
+}
+
+Value* CSTConverter::pop_last_value() {
+    auto last = values.back().release();
+    values.pop_back();
+    return last;
 }
 
 std::unique_ptr<BaseType> CSTConverter::type() {

@@ -102,7 +102,7 @@ bool Lexer::lexBraceBlockOrSingleStmt(const std::string &forThing, bool is_value
 
     // starting brace
     if (!lexOperatorToken('{')) {
-        if(lexNestedLevelStatementTokens() || (is_value && lexValueNode())) {
+        if(lexNestedLevelStatementTokens(is_value) || (is_value && lexValueNode())) {
             lexWhitespaceAndNewLines();
             if (lexOperatorToken(';')) {
                 lexWhitespaceAndNewLines();

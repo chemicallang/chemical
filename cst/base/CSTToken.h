@@ -245,11 +245,27 @@ public:
     }
 
     /**
+     * check if it's compound value
+     */
+    inline static bool is_comp_value(LexTokenType type) {
+        return type >= LexTokenType::IndexCompValueStart && type <= LexTokenType::IndexCompValueEnd;
+    }
+
+    /**
      * check if its a compound value
      */
     [[nodiscard]]
     bool is_comp_value() const {
-        return type() >= LexTokenType::IndexCompValueStart && type() <= LexTokenType::IndexCompValueEnd;
+        return is_comp_value(type());
+    }
+
+    /**
+     * check if its a primitive value
+     */
+    [[nodiscard]]
+    inline static bool is_primitive_value(LexTokenType t) {
+        return t == LexTokenType::Char || t == LexTokenType::String || t == LexTokenType::Bool ||
+               t == LexTokenType::Number || t == LexTokenType::Null;
     }
 
     /**
@@ -257,9 +273,15 @@ public:
      */
     [[nodiscard]]
     bool is_primitive_value() const {
-        auto t = type();
-        return t == LexTokenType::Char || t == LexTokenType::String || t == LexTokenType::Bool ||
-               t == LexTokenType::Number || t == LexTokenType::Null;
+        return is_primitive_value(type());
+    }
+
+    /**
+     * check is a reference or variable
+     */
+    [[nodiscard]]
+    inline static bool is_primitive_var(LexTokenType type) {
+        return type == LexTokenType::Variable || is_primitive_value(type);
     }
 
     /**
@@ -267,7 +289,15 @@ public:
      */
     [[nodiscard]]
     bool is_primitive_var() const {
-        return type() == LexTokenType::Variable || is_primitive_value();
+        return is_primitive_var(type());
+    }
+
+    /**
+     * check if its a value
+     */
+    [[nodiscard]]
+    inline static bool is_value(LexTokenType type) {
+        return is_comp_value(type) || is_primitive_var(type) || type == LexTokenType::CompMacro;
     }
 
     /**
@@ -275,7 +305,7 @@ public:
      */
     [[nodiscard]]
     bool is_value() const {
-        return is_comp_value() || is_primitive_var() || type() == LexTokenType::CompMacro;
+        return is_value(type());
     }
 
     /**

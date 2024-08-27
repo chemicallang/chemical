@@ -162,11 +162,12 @@ public:
     /**
      * pop the last node from nodes vector node
      */
-    ASTNode* pop_last_node() {
-        auto last = nodes.back().release();
-        nodes.pop_back();
-        return last;
-    }
+    inline ASTNode* pop_last_node();
+
+    /**
+     * pop the last value from values vector
+     */
+    inline Value* pop_last_value();
 
     /**
      * visit the tokens, from start to end

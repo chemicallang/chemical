@@ -303,7 +303,7 @@ public:
      * lexes a single nested level statement, nested level means not top level (must not be in file scope)
      * These exclude functions, enum, structs, interfaces, implementations in nested scopes
      */
-    bool lexNestedLevelStatementTokens();
+    bool lexNestedLevelStatementTokens(bool is_value = false);
 
     /**
      * lexes a single statement (of any type)

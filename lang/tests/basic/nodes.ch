@@ -325,6 +325,9 @@ func test_nodes() {
         }
         return p.summer_sum() == 30;
     })
+    test("single statement if statement works", () => {
+        if(true) return true else return false
+    })
 }
 
 func declared_below() : int {

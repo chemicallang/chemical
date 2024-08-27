@@ -41,6 +41,7 @@ enum class LexTokenType : uint8_t {
     CompUsing,
     CompDestruct,
     CompIf,
+    CompIfValue,
     CompImport,
     CompIncDec,
     CompReturn,

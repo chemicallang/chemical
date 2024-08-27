@@ -404,11 +404,12 @@ public:
     /**
      * lexes a brace block, { statement(s) }
      */
-    bool lexBraceBlock(const std::string &forThing = "") {
-        return lexBraceBlock(forThing, [](Lexer* lexer){
-            lexer->lexNestedLevelMultipleStatementsTokens();
-        });
-    }
+    bool lexBraceBlock(const std::string &forThing = "");
+
+    /**
+     * lexes a brace block or a value
+     */
+    bool lexBraceBlockOrSingleStmt(const std::string &forThing);
 
     /**
      * lexes import identifier list example : { something, something }
@@ -454,7 +455,7 @@ public:
     /**
      * lex if block
      */
-    bool lexIfBlockTokens();
+    bool lexIfBlockTokens(bool is_value = false);
 
     /**
      * lex do while block

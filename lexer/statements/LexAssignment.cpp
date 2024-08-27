@@ -69,8 +69,10 @@ bool Lexer::lexAssignmentTokens() {
         auto& chain = *unit.tokens[start];
         if(chain.tok_type == LexTokenType::CompAccessChain) {
             chain.tok_type = LexTokenType::CompAccessChainNode;
+            return true;
+        } else {
+            return false;
         }
-        return true;
     }
 
     // whitespace

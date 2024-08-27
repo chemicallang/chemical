@@ -25,8 +25,7 @@ bool Lexer::lexSwitchStatementBlock() {
                         lexNestedLevelMultipleStatementsTokens();
                         compound_from(bStart, LexTokenType::CompBody);
                     } else if (lexOperatorToken("=>")) {
-                        lexWhitespaceAndNewLines();
-                        if(!lexBraceBlock("switch-default")) {
+                        if(!lexBraceBlockOrSingleStmt("switch-default")) {
                             error("expected a brace block after the '=>' in the switch default case");
                             break;
                         }
@@ -50,8 +49,7 @@ bool Lexer::lexSwitchStatementBlock() {
                         compound_from(bStart, LexTokenType::CompBody);
                         continue;
                     } else if (lexOperatorToken("=>")) {
-                        lexWhitespaceAndNewLines();
-                        if(!lexBraceBlock("switch-case")) {
+                        if(!lexBraceBlockOrSingleStmt("switch-case")) {
                             error("expected a brace block after the '=>' in the switch case");
                             break;
                         }

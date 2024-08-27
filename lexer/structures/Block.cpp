@@ -103,9 +103,11 @@ bool Lexer::lexBraceBlockOrSingleStmt(const std::string &forThing) {
     // starting brace
     if (!lexOperatorToken('{')) {
         const auto res = lexNestedLevelStatementTokens();
-        lexWhitespaceAndNewLines();
-        if(lexOperatorToken(';')) {
+        if(res) {
             lexWhitespaceAndNewLines();
+            if (lexOperatorToken(';')) {
+                lexWhitespaceAndNewLines();
+            }
         }
         return res;
     }

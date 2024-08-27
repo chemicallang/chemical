@@ -65,3 +65,61 @@ bool Lexer::lexBraceBlock(const std::string &forThing, void(*nested_lexer)(Lexer
     return true;
 
 }
+
+bool Lexer::lexBraceBlock(const std::string &forThing) {
+
+    // whitespace and new lines
+    lexWhitespaceAndNewLines();
+
+    unsigned start = tokens_size();
+
+    // starting brace
+    if (!lexOperatorToken('{')) {
+        return false;
+    }
+
+    // multiple statements
+    auto prevImportState = isLexImportStatement;
+    isLexImportStatement = false;
+    lexNestedLevelMultipleStatementsTokens();
+    isLexImportStatement = prevImportState;
+
+    // ending brace
+    if (!lexOperatorToken('}')) {
+        error("expected a closing brace '}' for [" + forThing + "]");
+        return true;
+    }
+
+    compound_from(start, LexTokenType::CompBody);
+
+    return true;
+}
+
+bool Lexer::lexBraceBlockOrSingleStmt(const std::string &forThing) {
+
+    // whitespace and new lines
+    lexWhitespaceAndNewLines();
+
+    // starting brace
+    if (!lexOperatorToken('{')) {
+        return lexNestedLevelStatementTokens();
+    }
+
+    unsigned start = tokens_size() - 1;
+
+    // multiple statements
+    auto prevImportState = isLexImportStatement;
+    isLexImportStatement = false;
+    lexNestedLevelMultipleStatementsTokens();
+    isLexImportStatement = prevImportState;
+
+    // ending brace
+    if (!lexOperatorToken('}')) {
+        error("expected a closing brace '}' for [" + forThing + "]");
+        return true;
+    }
+
+    compound_from(start, LexTokenType::CompBody);
+
+    return true;
+}

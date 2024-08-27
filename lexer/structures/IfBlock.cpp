@@ -27,14 +27,14 @@ void Lexer::lexIfExprAndBlock() {
         return;
     }
 
-    if (!lexBraceBlock("if")) {
+    if (!lexBraceBlockOrSingleStmt("if")) {
         error("expected a brace block when lexing a brace block");
         return;
     }
 
 }
 
-bool Lexer::lexIfBlockTokens() {
+bool Lexer::lexIfBlockTokens(bool is_value) {
 
     if(!lexWSKeywordToken("if", '(')) {
         return false;
@@ -53,23 +53,20 @@ bool Lexer::lexIfBlockTokens() {
     // keep lexing else if blocks until last else appears
     while (lexWSKeywordToken("else", '{')) {
         lexWhitespaceAndNewLines();
-        if (provider.peek() == '{') {
-            if (!lexBraceBlock("else")) {
-                error("expected a brace block after the else while lexing an if statement");
-            }
-            compound_from(start, LexTokenType::CompIf);
-            return true;
+        if(lexWSKeywordToken("if", '(')) {
+            lexIfExprAndBlock();
+            lexWhitespaceToken();
         } else {
-            if(lexWSKeywordToken("if", '(')) {
-                lexIfExprAndBlock();
-                lexWhitespaceToken();
-            } else {
-                error("expected an if statement / brace block after the 'else' but none found");
+            if (!lexBraceBlockOrSingleStmt("else")) {
+                error("expected a brace block after the else while lexing an if statement");
+                return true;
             }
+            compound_from(start, is_value ? LexTokenType::CompIfValue :  LexTokenType::CompIf);
+            return true;
         }
     }
 
-    compound_from(start, LexTokenType::CompIf);
+    compound_from(start, is_value ? LexTokenType::CompIfValue :  LexTokenType::CompIf);
 
     return true;
 

@@ -18,6 +18,10 @@ public:
 
     IsValue(std::unique_ptr<Value> value, std::unique_ptr<BaseType> type, bool is_negating = false);
 
+    ValueKind val_kind() override {
+        return ValueKind::IsValue;
+    }
+
     IsValue *copy() override;
 
     /**

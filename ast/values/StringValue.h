@@ -28,6 +28,10 @@ public:
      */
     explicit StringValue(std::string value) : length(value.size()), value(std::move(value)) {}
 
+    ValueKind val_kind() override {
+        return ValueKind::String;
+    }
+
     void link(SymbolResolver &linker, VarInitStatement *stmnt) override;
 
     hybrid_ptr<BaseType> get_base_type() override {

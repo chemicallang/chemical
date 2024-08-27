@@ -7,6 +7,7 @@
 #include "InterpretScope.h"
 #include "GlobalInterpretScope.h"
 #include "Value.h"
+#include <iostream>
 #include "ast/structures/Scope.h"
 
 #define ANSI_COLOR_RED     "\x1b[91m"

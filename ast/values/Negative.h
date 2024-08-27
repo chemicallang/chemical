@@ -17,6 +17,10 @@ public:
 
     explicit NegativeValue(std::unique_ptr<Value> value) : value(std::move(value)) {}
 
+    ValueKind val_kind() override {
+        return ValueKind::NegativeValue;
+    }
+
     hybrid_ptr<BaseType> get_base_type() override;
 
     BaseType* known_type() override;

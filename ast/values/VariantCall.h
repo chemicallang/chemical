@@ -22,6 +22,10 @@ public:
      */
     explicit VariantCall(std::unique_ptr<AccessChain> chain);
 
+    ValueKind val_kind() override {
+        return ValueKind::VariantCall;
+    }
+
     void accept(Visitor *visitor) override {
         visitor->visit(this);
     }

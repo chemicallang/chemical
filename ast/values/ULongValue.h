@@ -15,6 +15,10 @@ public:
 
     }
 
+    ValueKind val_kind() override {
+        return ValueKind::ULong;
+    }
+
     hybrid_ptr<BaseType> get_base_type() override {
         return hybrid_ptr<BaseType> { known_type(), false };
     }

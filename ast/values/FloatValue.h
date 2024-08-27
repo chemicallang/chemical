@@ -21,6 +21,10 @@ public:
      */
     explicit FloatValue(float value) : value(value) {}
 
+    ValueKind val_kind() override {
+        return ValueKind::Float;
+    }
+
     hybrid_ptr<BaseType> get_base_type() override {
         return hybrid_ptr<BaseType> { (BaseType*) &FloatType::instance, false };
     }

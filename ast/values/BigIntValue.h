@@ -14,6 +14,10 @@ public:
 
     }
 
+    ValueKind val_kind() override {
+        return ValueKind::BigInt;
+    }
+
     uint64_t byte_size(bool is64Bit) override {
         return 8;
     }

@@ -19,6 +19,10 @@ public:
      */
     explicit BoolValue(bool value) : value(value) {}
 
+    ValueKind val_kind() override {
+        return ValueKind::Bool;
+    }
+
     BoolValue *copy() override {
         return new BoolValue(value);
     }

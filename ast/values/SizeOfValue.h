@@ -14,6 +14,10 @@ public:
 
     explicit SizeOfValue(BaseType *for_type);
 
+    ValueKind val_kind() override {
+        return ValueKind::SizeOfValue;
+    }
+
     void accept(Visitor *visitor) override {
         visitor->visit(this);
     }

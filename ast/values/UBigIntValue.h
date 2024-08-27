@@ -14,6 +14,10 @@ public:
 
     }
 
+    ValueKind val_kind() override {
+        return ValueKind::UBigInt;
+    }
+
     hybrid_ptr<BaseType> get_base_type() override {
         return hybrid_ptr<BaseType> { (BaseType*) &UBigIntType::instance, false };
     }

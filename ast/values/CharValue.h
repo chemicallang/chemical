@@ -22,6 +22,10 @@ public:
      */
     explicit CharValue(char value) : value(value) {}
 
+    ValueKind val_kind() override {
+        return ValueKind::Char;
+    }
+
     uint64_t byte_size(bool is64Bit) override {
         return 1;
     }

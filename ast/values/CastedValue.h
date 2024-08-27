@@ -17,6 +17,10 @@ public:
 
     CastedValue(std::unique_ptr<Value> value, std::unique_ptr<BaseType> type);
 
+    ValueKind val_kind() override {
+        return ValueKind::CastedValue;
+    }
+
     CastedValue *copy() override;
 
     hybrid_ptr<BaseType> get_base_type() override {

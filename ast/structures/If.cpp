@@ -133,7 +133,7 @@ void IfStatement::accept(Visitor *visitor) {
     visitor->visit(this);
 }
 
-void IfStatement::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+void IfStatement::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>* node_ptr, std::unique_ptr<Value>* value_ptr) {
     linker.scope_start();
     condition->link(linker, condition);
     ifBody.link_sequentially(linker);
@@ -152,7 +152,7 @@ void IfStatement::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNo
 }
 
 Value* IfStatement::get_value_node() {
-    return Value::extract_from_value_node(ifBody.nodes.back().get());
+    return Value::get_first_value_from_value_node(this);
 }
 
 std::unique_ptr<BaseType> IfStatement::create_type() {

@@ -56,6 +56,8 @@ class StructMember;
 
 class VariantCase;
 
+class ValueNode;
+
 class UnnamedUnion;
 
 class UnnamedStruct;
@@ -485,6 +487,10 @@ public:
 
     virtual void visit(VariantCall* call) {
         visitCommonValue((Value*) call);
+    }
+
+    virtual void visit(ValueNode* node) {
+        visitCommonValue((Value*) node);
     }
 
     virtual void visit(IndexOperator* op) {

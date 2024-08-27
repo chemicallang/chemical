@@ -15,6 +15,7 @@
 #include "ast/values/VariantCaseVariable.h"
 #include "ast/values/VariantCase.h"
 #include "ast/statements/SwitchStatement.h"
+#include "ast/structures/If.h"
 #include <ranges>
 #include "preprocess/RepresentationVisitor.h"
 #include <sstream>
@@ -361,18 +362,31 @@ hybrid_ptr<Value> Value::evaluated_chain_value(InterpretScope& scope, Value* par
     throw std::runtime_error("evaluated chain value called on base value");
 }
 
+Value* Value::copy() {
+#ifdef DEBUG
+    std::cerr << "copy called on base Value, representation : " << representation();
+#endif
+    return nullptr;
+}
+
 unsigned Value::as_uint() {
     return ((UIntValue*) this)->value;
 }
 
-Value* Value::extract_from_value_node(ASTNode* node) {
+Value* Value::get_first_value_from_value_node(ASTNode* node) {
     const auto k = node->kind();
-    if(k == ASTNodeKind::AccessChain) {
-        return node->as_access_chain();
-    } else if(k == ASTNodeKind::ValueNode) {
-        return node->holding_value();
+    switch(k) {
+        case ASTNodeKind::AccessChain:
+            return node->as_access_chain();
+        case ASTNodeKind::ValueNode:
+            return node->holding_value();
+        case ASTNodeKind::IfStmt:
+            return get_first_value_from_value_node(((IfStatement*) node)->ifBody.nodes.back().get());
+        case ASTNodeKind::SwitchStmt:
+            return get_first_value_from_value_node(((SwitchStatement*) node)->scopes.front().second.nodes.back().get());
+        default:
+            return nullptr;
     }
-    return nullptr;
 }
 
 std::string Value::representation() {

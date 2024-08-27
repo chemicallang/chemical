@@ -21,6 +21,10 @@ public:
      */
     explicit DoubleValue(double value) : value(value) {}
 
+    ValueKind val_kind() override {
+        return ValueKind::Double;
+    }
+
     void accept(Visitor *visitor) override {
         visitor->visit(this);
     }

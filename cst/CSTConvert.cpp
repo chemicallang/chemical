@@ -105,6 +105,20 @@ std::vector<std::unique_ptr<ASTNode>> take_body_nodes(CSTConverter *conv, CSTTok
     return nodes;
 }
 
+std::vector<std::unique_ptr<ASTNode>> take_body_or_single_stmt(CSTConverter *conv, CSTToken *container, unsigned &i, ASTNode* parent_node) {
+    if(container->tokens[i]->type() == LexTokenType::CompBody) {
+        return take_body_nodes(conv, container->tokens[i], parent_node);
+    } else {
+        container->tokens[i]->accept(conv);
+        std::vector<std::unique_ptr<ASTNode>> nodes(1);
+        nodes[0] = std::unique_ptr<ASTNode>(conv->pop_last_node());
+        if(i + 1 < container->tokens.size() && is_char_op(container->tokens[i + 1], ';')) {
+            i++;
+        }
+        return nodes;
+    }
+}
+
 std::vector<std::unique_ptr<ASTNode>> take_comp_body_nodes(CSTConverter *conv, CSTToken* token, ASTNode* parent_node) {
     auto prev_nodes = std::move(conv->nodes);
     auto prev_parent = conv->parent_node;
@@ -584,37 +598,38 @@ Value* convertNumber(NumberToken* token, ValueType value_type, bool is64Bit) {
 
 void CSTConverter::visitVarInit(CSTToken* varInit) {
     if(is_dispose()) return;
-    std::optional<std::unique_ptr<BaseType>> optType = std::nullopt;
+    auto init = new VarInitStatement(
+            is_var_init_const(varInit),
+            var_init_identifier(varInit),
+            std::nullopt,
+            std::nullopt,
+            parent_node
+    );
+    auto prev_parent = parent_node;
+    parent_node = init;
     if(is_char_op(varInit->tokens[2], ':')) {
         varInit->tokens[3]->accept(this);
-        optType.emplace(type());
+        init->type.emplace(type());
     }
-    std::optional<std::unique_ptr<Value>> optVal = std::nullopt;
     auto token = varInit->tokens[varInit->tokens.size() - 1];
     if(token->is_value()) {
-        if(optType.has_value() && optType.value()->kind() == BaseTypeKind::IntN && token->type() == LexTokenType::Number) {
+        if(init->type.has_value() && init->type.value()->kind() == BaseTypeKind::IntN && token->type() == LexTokenType::Number) {
             // This statement leads to a warning "memory leak", we set the pointer to optVal which is a unique_ptr
-            auto conv = convertNumber((NumberToken*) token, optType.value()->value_type(), is64Bit);
+            auto conv = convertNumber((NumberToken*) token, init->type.value()->value_type(), is64Bit);
             if(conv) {
-                optVal.emplace(conv);
+                init->value.emplace(conv);
             } else {
                 error("invalid number for the expected type", token);
             }
         } else {
             token->accept(this);
-            optVal.emplace(value());
+            init->value.emplace(value());
         }
     }
-    auto init = new VarInitStatement(
-        is_var_init_const(varInit),
-        var_init_identifier(varInit),
-        std::move(optType),
-        std::move(optVal),
-        parent_node
-    );
 
     collect_annotations_in(this, init);
 
+    parent_node = prev_parent;
     nodes.emplace_back(init);
 }
 
@@ -850,9 +865,9 @@ void CSTConverter::visitIf(CSTToken* ifCst) {
 
     // first if body
     if_statement->ifBody.parent_node = if_statement;
-    if_statement->ifBody.nodes = take_body_nodes(this, ifCst->tokens[4], &if_statement->ifBody);
-
-    auto i = 5; // position after body
+    unsigned i = 4;
+    if_statement->ifBody.nodes = take_body_or_single_stmt(this, ifCst, i, if_statement);
+    i++; // position after body
     while ((i + 1) < ifCst->tokens.size() && is_keyword(ifCst->tokens[i + 1], "if")) {
 
         i += 3;
@@ -863,7 +878,7 @@ void CSTConverter::visitIf(CSTToken* ifCst) {
         // else if body
         if_statement->elseIfs.emplace_back( std::move(elseIfCond), Scope {if_statement });
         auto& elseif_pair = if_statement->elseIfs.back();
-        elseif_pair.second.nodes = take_body_nodes(this, ifCst->tokens[i], &elseif_pair.second);
+        elseif_pair.second.nodes = take_body_or_single_stmt(this, ifCst, i, if_statement);
 
         // position after the body
         i++;
@@ -873,7 +888,8 @@ void CSTConverter::visitIf(CSTToken* ifCst) {
     // last else
     if (i < ifCst->tokens.size() && str_token(ifCst->tokens[i]) == "else") {
         if_statement->elseBody.emplace(if_statement);
-        if_statement->elseBody->nodes = take_body_nodes(this, ifCst->tokens[i + 1], &if_statement->elseBody.value());
+        i++;
+        if_statement->elseBody->nodes = take_body_or_single_stmt(this, ifCst, i, if_statement);
     }
 
     if(is_value) {
@@ -886,23 +902,25 @@ void CSTConverter::visitIf(CSTToken* ifCst) {
 
 void CSTConverter::visitSwitch(CSTToken* switchCst) {
     bool is_value = switchCst->type() == LexTokenType::CompSwitchValue;
-    switchCst->tokens[2]->accept(this);
-    auto expr = value();
-    auto i = 5; // positioned at first 'case' or 'default'
     auto switch_statement = new SwitchStatement(
-                std::move(expr),
-                std::vector<std::pair<std::unique_ptr<Value>, Scope>> {},
-                std::nullopt,
-                parent_node,
-                is_value
+            nullptr,
+            std::vector<std::pair<std::unique_ptr<Value>, Scope>> {},
+            std::nullopt,
+            parent_node,
+            is_value
     );
+    auto prev_parent = parent_node;
+    parent_node = switch_statement;
+    switchCst->tokens[2]->accept(this);
+    switch_statement->expression = value();
+    unsigned i = 5; // positioned at first 'case' or 'default'
     auto has_default = false;
     while (true) {
         if (is_keyword(switchCst->tokens[i], "default")) {
             i += 2; // body
             switch_statement->defScope.emplace(Scope { switch_statement });
             auto& defScope = switch_statement->defScope.value();
-            defScope.nodes = take_body_nodes(this, switchCst->tokens[i], &defScope);
+            defScope.nodes = take_body_or_single_stmt(this, switchCst, i, switch_statement);
             i++;
             if (has_default) {
                 error("multiple defaults in switch statement detected", switchCst->tokens[i - 3]);
@@ -919,10 +937,11 @@ void CSTConverter::visitSwitch(CSTToken* switchCst) {
             i += 2; // body
             switch_statement->scopes.emplace_back(std::move(caseVal), Scope { switch_statement });
             auto& switch_case = switch_statement->scopes.back();
-            switch_case.second.nodes = take_body_nodes(this, switchCst->tokens[i], &switch_case.second);
+            switch_case.second.nodes = take_body_or_single_stmt(this, switchCst, i, switch_statement);
             i++;
         }
     }
+    parent_node = prev_parent;
     if(is_value) {
         values.emplace_back(switch_statement);
     } else {

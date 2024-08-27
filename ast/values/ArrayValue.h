@@ -32,6 +32,10 @@ public:
         values.shrink_to_fit();
     }
 
+    ValueKind val_kind() override {
+        return ValueKind::ArrayValue;
+    }
+
     void accept(Visitor *visitor) override {
         visitor->visit(this);
     }

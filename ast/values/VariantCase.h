@@ -19,6 +19,10 @@ public:
      */
     VariantCase(std::unique_ptr<AccessChain> chain, ASTDiagnoser& resolver, SwitchStatement* statement);
 
+    ValueKind val_kind() override {
+        return ValueKind::VariantCase;
+    }
+
     void link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr) override;
 
     void accept(Visitor *visitor) override {

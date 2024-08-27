@@ -247,6 +247,9 @@ public:
     void accept(Visitor *visitor) override {
         throw std::runtime_error("compiler::wrap value cannot be visited");
     }
+    ValueKind val_kind() override {
+        return ValueKind::WrapValue;
+    }
     Value *copy() override {
         return new WrapValue(std::unique_ptr<Value>(underlying->copy()));
     }

@@ -20,6 +20,10 @@ public:
 
     }
 
+    ValueKind val_kind() override {
+        return ValueKind::IndexOperator;
+    }
+
     void accept(Visitor *visitor) override {
         visitor->visit(this);
     }

@@ -113,7 +113,7 @@ SwitchStatement::SwitchStatement(
 }
 
 Value* SwitchStatement::get_value_node() {
-    return Value::extract_from_value_node(scopes.front().second.nodes.back().get());
+    return Value::get_first_value_from_value_node(this);
 }
 
 std::unique_ptr<BaseType> SwitchStatement::create_type() {
@@ -132,7 +132,7 @@ BaseType *SwitchStatement::known_type() {
     return last_val ? last_val->known_type() : nullptr;
 }
 
-void SwitchStatement::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+void SwitchStatement::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>* node_ptr, std::unique_ptr<Value>* value_ptr) {
     expression->link(linker, expression);
     VariantDefinition* variant_def = nullptr;
     const auto linked = expression->known_type()->linked_node();

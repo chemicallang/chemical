@@ -42,6 +42,10 @@ public:
             Scope scope
     );
 
+    ValueKind val_kind() override {
+        return ValueKind::LambdaFunc;
+    }
+
     ASTNode *parent() override {
         return nullptr;
     }

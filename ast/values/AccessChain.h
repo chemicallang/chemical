@@ -34,6 +34,10 @@ public:
         return ASTNodeKind::AccessChain;
     }
 
+    ValueKind val_kind() override {
+        return ValueKind::AccessChain;
+    }
+
     void set_parent(ASTNode* new_parent) override {
         parent_node = new_parent;
     }

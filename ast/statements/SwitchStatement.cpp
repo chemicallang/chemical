@@ -26,6 +26,11 @@ llvm::AllocaInst* SwitchStatement::llvm_allocate(Codegen &gen, const std::string
     return allocated;
 }
 
+llvm::Value* SwitchStatement::llvm_value(Codegen &gen, BaseType *type) {
+    code_gen(gen);
+    return nullptr;
+}
+
 llvm::Value* SwitchStatement::llvm_assign_value(Codegen &gen, Value *lhs) {
     auto prev_assignable = gen.current_assignable;
     gen.current_assignable = lhs->llvm_pointer(gen);

@@ -23,7 +23,7 @@ bool Lexer::lexTopLevelStatementTokens() {
            lexNamespaceTokens();
 }
 
-bool Lexer::lexNestedLevelStatementTokens(bool is_value) {
+bool Lexer::lexNestedLevelStatementTokens(bool is_value, bool lex_value_node) {
     return lexSingleLineCommentTokens() ||
            lexMultiLineCommentTokens() ||
            lexVarInitializationTokens() ||
@@ -35,10 +35,10 @@ bool Lexer::lexNestedLevelStatementTokens(bool is_value) {
            (isLexDestructStatement && lexDestructStatement()) ||
            lexThrowStatementTokens() ||
            lexUsingStatement() ||
-           lexIfBlockTokens(is_value) ||
+           lexIfBlockTokens(is_value, lex_value_node) ||
            lexTryCatchTokens() ||
            lexTypealiasStatement() ||
-           lexSwitchStatementBlock(is_value) ||
+           lexSwitchStatementBlock(is_value, lex_value_node) ||
            lexForBlockTokens() ||
            lexDoWhileBlockTokens() ||
            lexWhileBlockTokens() ||
@@ -56,7 +56,7 @@ bool Lexer::lexStatementTokens() {
            (isLexReturnStatement && lexReturnStatement()) ||
            (isLexDestructStatement && lexDestructStatement()) ||
            lexEnumStructureTokens() ||
-           lexIfBlockTokens() ||
+           lexIfBlockTokens(false, false) ||
            lexForBlockTokens() ||
            lexStructStructureTokens() ||
            lexUnionStructureTokens() ||

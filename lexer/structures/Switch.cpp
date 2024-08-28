@@ -2,7 +2,7 @@
 
 #include "lexer/Lexer.h"
 
-bool Lexer::lexSwitchStatementBlock(bool is_value) {
+bool Lexer::lexSwitchStatementBlock(bool is_value, bool lex_value_node) {
     if (lexWSKeywordToken("switch", '(')) {
         auto start = tokens_size() - 1;
         if (lexOperatorToken('(')) {
@@ -25,7 +25,7 @@ bool Lexer::lexSwitchStatementBlock(bool is_value) {
                         lexNestedLevelMultipleStatementsTokens();
                         compound_from(bStart, LexTokenType::CompBody);
                     } else if (lexOperatorToken("=>")) {
-                        if(!lexBraceBlockOrSingleStmt("switch-default", is_value)) {
+                        if(!lexBraceBlockOrSingleStmt("switch-default", is_value, lex_value_node)) {
                             error("expected a brace block after the '=>' in the switch default case");
                             break;
                         }
@@ -49,7 +49,7 @@ bool Lexer::lexSwitchStatementBlock(bool is_value) {
                         compound_from(bStart, LexTokenType::CompBody);
                         continue;
                     } else if (lexOperatorToken("=>")) {
-                        if(!lexBraceBlockOrSingleStmt("switch-case", is_value)) {
+                        if(!lexBraceBlockOrSingleStmt("switch-case", is_value, lex_value_node)) {
                             error("expected a brace block after the '=>' in the switch case");
                             break;
                         }

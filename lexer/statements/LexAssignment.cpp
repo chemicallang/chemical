@@ -2,6 +2,16 @@
 
 #include "lexer/Lexer.h"
 
+bool Lexer::lexDivisionOperatorToken() {
+    if(provider.peek() == '/' && provider.peek(1) != '/') {
+        provider.increment_amount(1);
+        storeOperationToken('/', Operation::Division);
+        return true;
+    } else {
+        return false;
+    }
+}
+
 bool Lexer::lexLanguageOperatorToken() {
     return lexOperatorToken("&&", Operation::LogicalAND) || // logical
            lexOperatorToken("||", Operation::LogicalOR) ||
@@ -9,7 +19,7 @@ bool Lexer::lexLanguageOperatorToken() {
            lexOperationToken('+', Operation::Addition) ||
            lexOperationToken('-', Operation::Subtraction) ||
            lexOperationToken('*', Operation::Multiplication) ||
-           lexOperationToken('/', Operation::Division) ||
+           lexDivisionOperatorToken() ||
            lexOperationToken('%', Operation::Modulus) ||
            lexOperationToken('&', Operation::BitwiseAND) ||
            lexOperationToken('|', Operation::BitwiseOR) ||

@@ -386,6 +386,21 @@ func test_nodes() {
         var j = if(i > 0) if(i < 2) 10 else 20 else 30
         return j == 30
     })
+    test("nested if in if braced value statements - 1", () => {
+        var i = 2;
+        var j = if(i > 0) { if(i < 2) 10 else 20 } else 30
+        return j == 20
+    })
+    test("nested if in if braced value statements - 2", () => {
+        var i = 1;
+        var j = if(i > 0) { if(i < 2) 10 else 20 } else 30
+        return j == 10
+    })
+    test("nested if in if braced value statements - 3", () => {
+        var i = 0;
+        var j = if(i > 0) { if(i < 2) 10 else 20 } else 30
+        return j == 30
+    })
     test("nested switch in if value statements - 1", () => {
         var i = 2;
         var j = if(i > 0) switch(i) {
@@ -419,6 +434,48 @@ func test_nodes() {
             1 => 10
             2 => 20
             default => 40
+        } else 0
+        return j == 40
+    })
+    test("nested switch in braced if value statements - 1", () => {
+        var i = 2;
+        var j = if(i > 0) switch(i) {
+            1 => 10
+            2 => 20
+            default => 40
+        } else 0
+        return j == 20
+    })
+    test("nested switch in braced if value statements - 2", () => {
+        var i = 0;
+        var j = if(i > 0) {
+            switch(i) {
+                1 => 10
+                2 => 20
+                default => 40
+            }
+        } else 50
+        return j == 50
+    })
+    test("nested switch in braced if value statements - 3", () => {
+        var i = 1;
+        var j = if(i > 0) {
+            switch(i) {
+                1 => 10
+                2 => 20
+                default => 40
+            }
+        } else 0
+        return j == 10
+    })
+    test("nested switch in braced if value statements - 4", () => {
+        var i = 5;
+        var j = if(i > 0) {
+            switch(i) {
+                1 => 10
+                2 => 20
+                default => 40
+            }
         } else 0
         return j == 40
     })

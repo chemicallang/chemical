@@ -85,6 +85,8 @@ public:
 
     llvm::Value* llvm_assign_value(Codegen &gen, Value *lhs) override;
 
+    llvm::Value* llvm_value(Codegen &gen, BaseType *type = nullptr) override;
+
     void code_gen(Codegen &gen, Scope* scope, unsigned int index) override;
 
 #endif

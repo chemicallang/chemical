@@ -1,14 +1,14 @@
 <div align="center" style="display:grid;place-items:center;">
 <p>
-    <a href="https://chemical.qinetik.org/" target="_blank"><img height="220" src="https://raw.githubusercontent.com/Qinetik/chemical/main/lang/assets/Logo.svg?sanitize=true" alt="Chemical logo"></a>
+    <a href="https://chemical.qinetik.org/" target="_blank"><img height="220" src="https://raw.githubusercontent.com/chemicallang/chemical/main/lang/assets/Logo.svg?sanitize=true" alt="Chemical logo"></a>
 </p>
 <h1>The Chemical Programming Language</h1>
 
 [Website](https://chemical.qinetik.org)
-| [Docs](https://github.com/Qinetik/chemical/blob/main/lang/docs/README.md)
-| [Changelog](https://github.com/Qinetik/chemical/blob/main/lang/docs/CHANGELOG.md)
+| [Docs](https://github.com/chemicallang/chemical/blob/main/lang/docs/README.md)
+| [Changelog](https://github.com/chemicallang/chemical/blob/main/lang/docs/CHANGELOG.md)
 | [Speed](https://chemical.qinetik.org/speed)
-| [Contributing & compiler design](https://github.com/Qinetik/chemical/blob/main/lang/docs/CONTRIBUTING.md)
+| [Contributing & compiler design](https://github.com/chemicallang/chemical/blob/main/lang/docs/CONTRIBUTING.md)
 
 </div>
 
@@ -247,7 +247,7 @@ You don't even need to give credits. But if you do, we'd really appreciate it.
 [SponsorBadge]: https://img.shields.io/github/sponsors/wakaztahir?style=flat&logo=github&logoColor=white
 [XBadge]: https://img.shields.io/badge/follow-%40qinetikorg-1DA1F2?logo=x&style=flat&logoColor=white
 
-[WorkflowUrl]: https://github.com/Qinetik/chemical/commits/main
+[WorkflowUrl]: https://github.com/chemicallang/chemical/commits/main
 [DiscordUrl]: https://discord.gg/uYU4SV9avu
 [PatreonUrl]: https://patreon.com/wakaztahir
 [SponsorUrl]: https://github.com/sponsors/wakaztahir

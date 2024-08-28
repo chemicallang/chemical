@@ -479,6 +479,18 @@ func test_nodes() {
         } else 0
         return j == 40
     })
+    test("nested switch in braced if value statement with additional statement", () => {
+        var i = 5;
+        var j = if(i > 0) {
+            i = 2;
+            switch(i) {
+                1 => 10
+                2 => 20
+                default => 40
+            }
+        } else 0
+        return j == 20
+    })
 }
 
 func declared_below() : int {

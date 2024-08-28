@@ -98,6 +98,22 @@ bool SourceProvider::increment(char c) {
     return false;
 }
 
+bool SourceProvider::increment_spaced(char c) {
+    if(peek() == c && (peek(1) == ' ' || peek(1) == '\t')) {
+        readCharacter();
+        return true;
+    }
+    return false;
+}
+
+bool SourceProvider::increment_spaced(const std::string& text) {
+    if(increment(text, true) && (peek(text.size()) == ' ' || peek(text.size()) == '\t')) {
+        increment_amount(text.size());
+        return true;
+    }
+    return false;
+}
+
 std::string SourceProvider::readAllFromHere() {
     std::string source;
     while (!eof()) {

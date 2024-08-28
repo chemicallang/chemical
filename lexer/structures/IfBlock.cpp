@@ -6,7 +6,7 @@
 
 #include "lexer/Lexer.h"
 
-void Lexer::lexIfExprAndBlock(bool is_value) {
+void Lexer::lexIfExprAndBlock(bool is_value, bool lex_value_node) {
 
     if (!lexOperatorToken('(')) {
         error("expected a starting parenthesis ( when lexing a if block");
@@ -27,14 +27,14 @@ void Lexer::lexIfExprAndBlock(bool is_value) {
         return;
     }
 
-    if (!lexBraceBlockOrSingleStmt("if", is_value)) {
+    if (!lexBraceBlockOrSingleStmt("if", is_value, lex_value_node)) {
         error("expected a brace block when lexing a brace block");
         return;
     }
 
 }
 
-bool Lexer::lexIfBlockTokens(bool is_value) {
+bool Lexer::lexIfBlockTokens(bool is_value, bool lex_value_node) {
 
     if(!lexWSKeywordToken("if", '(')) {
         return false;
@@ -42,7 +42,7 @@ bool Lexer::lexIfBlockTokens(bool is_value) {
 
     auto start = tokens_size() - 1;
 
-    lexIfExprAndBlock(is_value);
+    lexIfExprAndBlock(is_value, lex_value_node);
     if (has_errors) {
         return true;
     }
@@ -54,10 +54,10 @@ bool Lexer::lexIfBlockTokens(bool is_value) {
     while (lexWSKeywordToken("else", '{')) {
         lexWhitespaceAndNewLines();
         if(lexWSKeywordToken("if", '(')) {
-            lexIfExprAndBlock(is_value);
+            lexIfExprAndBlock(is_value, lex_value_node);
             lexWhitespaceToken();
         } else {
-            if (!lexBraceBlockOrSingleStmt("else", is_value)) {
+            if (!lexBraceBlockOrSingleStmt("else", is_value, lex_value_node)) {
                 error("expected a brace block after the else while lexing an if statement");
                 return true;
             }

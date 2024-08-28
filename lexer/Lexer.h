@@ -240,6 +240,13 @@ public:
     bool lexAssignmentTokens();
 
     /**
+     * exclusive method for division operator
+     * since it checks that after a single slash (/) the next is also not slash (/)
+     * which would make it a comment
+     */
+    bool lexDivisionOperatorToken();
+
+    /**
      * This lexes a operation token in between two values
      * for example x (token) y -> x + y or x - y
      * @return whether the language operator token has been lexed
@@ -303,7 +310,7 @@ public:
      * lexes a single nested level statement, nested level means not top level (must not be in file scope)
      * These exclude functions, enum, structs, interfaces, implementations in nested scopes
      */
-    bool lexNestedLevelStatementTokens(bool is_value = false);
+    bool lexNestedLevelStatementTokens(bool is_value = false, bool lex_value_node = false);
 
     /**
      * lexes a single statement (of any type)
@@ -378,7 +385,7 @@ public:
      * lexes a multiple nested level statement, nested level means not top level (must not be in file scope)
      * These exclude functions, enum, structs, interfaces, implementations in nested scopes
      */
-    void lexNestedLevelMultipleStatementsTokens();
+    void lexNestedLevelMultipleStatementsTokens(bool is_value = false, bool lex_value_node = false);
 
     /**
      * this lexes the tokens inside the body of a structure
@@ -409,7 +416,7 @@ public:
     /**
      * lexes a brace block or a value
      */
-    bool lexBraceBlockOrSingleStmt(const std::string &forThing, bool is_value);
+    bool lexBraceBlockOrSingleStmt(const std::string &forThing, bool is_value, bool lex_value_node);
 
     /**
      * lexes import identifier list example : { something, something }
@@ -450,12 +457,12 @@ public:
      * lexes a single if expr and the body without else if or else
      * meaning '(' expr ')' '{' body '}'
      */
-    void lexIfExprAndBlock(bool is_value);
+    void lexIfExprAndBlock(bool is_value, bool lex_value_node);
 
     /**
      * lex if block
      */
-    bool lexIfBlockTokens(bool is_value = false);
+    bool lexIfBlockTokens(bool is_value, bool lex_value_node);
 
     /**
      * lex do while block
@@ -735,7 +742,7 @@ public:
     /**
      * lexes switch block
      */
-    bool lexSwitchStatementBlock(bool is_value = false);
+    bool lexSwitchStatementBlock(bool is_value = false, bool lex_value_node = false);
 
     /**
      * lexes try catch block statements

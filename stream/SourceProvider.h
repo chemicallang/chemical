@@ -153,6 +153,18 @@ public:
     bool increment(char c);
 
     /**
+     * will also expect a whitespace after the character
+     * whitespace is not consumed
+     */
+    bool increment_spaced(char c);
+
+    /**
+     * will also expect a whitespace after the text
+     * whitespace is not consumed
+     */
+    bool increment_spaced(const std::string& text);
+
+    /**
      * increment by given amount
      */
     void increment_amount(unsigned amount);

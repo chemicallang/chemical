@@ -371,6 +371,21 @@ func test_nodes() {
         }
         return i == 6;
     })
+    test("nested if in if value statements - 1", () => {
+        var i = 2;
+        var j = if(i > 0) if(i < 2) 10 else 20 else 30
+        return j == 20
+    })
+    test("nested if in if value statements - 2", () => {
+        var i = 1;
+        var j = if(i > 0) if(i < 2) 10 else 20 else 30
+        return j == 10
+    })
+    test("nested if in if value statements - 3", () => {
+        var i = 0;
+        var j = if(i > 0) if(i < 2) 10 else 20 else 30
+        return j == 30
+    })
 }
 
 func declared_below() : int {

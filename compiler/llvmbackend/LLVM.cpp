@@ -780,7 +780,10 @@ void TypealiasStatement::code_gen(Codegen &gen) {
 
 void ValueNode::code_gen(Codegen& gen) {
     if(gen.current_assignable) {
-        gen.builder->CreateStore(value->llvm_value(gen, nullptr), gen.current_assignable);
+        auto llvm_val = value->llvm_value(gen, nullptr);
+        if(llvm_val) {
+            gen.builder->CreateStore(llvm_val, gen.current_assignable);
+        }
     } else {
         gen.error("couldn't assign value node to current assignable");
     }

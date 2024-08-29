@@ -29,6 +29,10 @@ public:
         visitCompoundCommon(assignment);
     }
 
+    virtual void visitLoopBlock(CSTToken *block) {
+        visitCompoundCommon(block);
+    }
+
     virtual void visitContinue(CSTToken *continueCst) {
         visitCompoundCommon(continueCst);
     }

@@ -60,6 +60,7 @@
 #include "ast/values/LambdaFunction.h"
 #include "ast/structures/StructMember.h"
 #include "ast/structures/StructDefinition.h"
+#include "ast/structures/LoopBlock.h"
 #include "cst/base/CSTConverter.h"
 #include "ast/values/CastedValue.h"
 #include "cst/utils/ValueAndOperatorStack.h"
@@ -1467,6 +1468,21 @@ void CSTConverter::visitIndexOp(CSTToken* op) {
         visit(op->tokens, 1);
     });
     values.emplace_back(std::make_unique<IndexOperator>(std::move(indexes)));
+}
+
+void CSTConverter::visitLoopBlock(CSTToken *block) {
+
+    auto is_value = block->type() == LexTokenType::CompLoopValue;
+
+    auto loop_block = new LoopBlock(LoopScope {nullptr}, parent_node);
+    loop_block->body.nodes = take_body_nodes(this, block->tokens[1], parent_node);
+
+    if(is_value) {
+        values.emplace_back(loop_block);
+    } else {
+        nodes.emplace_back(loop_block);
+    }
+
 }
 
 void CSTConverter::visitAccessChain(CSTToken* chain) {

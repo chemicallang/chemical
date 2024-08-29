@@ -44,6 +44,8 @@ class InterfaceDefinition;
 
 class Scope;
 
+class LoopBlock;
+
 class StructDefinition;
 
 class WhileLoop;
@@ -328,6 +330,10 @@ public:
     }
 
     virtual void visit(Scope* scope) {
+        visitCommon((ASTNode*) scope);
+    }
+
+    virtual void visit(LoopBlock* scope) {
         visitCommon((ASTNode*) scope);
     }
 

@@ -467,6 +467,7 @@ set(COMMON_SOURCES
         ast/values/ValueNode.h
         ast/values/ValueNode.cpp
         ast/base/ValueKind.h
+        ast/structures/LoopBlock.h
 )
 
 # Chemical LSP Executable Target

@@ -3,6 +3,9 @@
 #include "Scope.h"
 #include <iostream>
 #include "ast/base/GlobalInterpretScope.h"
+#include "ast/structures/LoopBlock.h"
+#include "ast/base/BaseType.h"
+#include "ast/statements/Break.h"
 
 void Scope::interpret(InterpretScope &scope) {
     for (const auto &node: nodes) {
@@ -45,4 +48,47 @@ void Scope::link_asynchronously(SymbolResolver &linker) {
 
 void Scope::stopInterpretOnce() {
 
+}
+
+void LoopBlock::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode> &node_ptr) {
+    body.link_sequentially(linker);
+}
+
+Value* get_first_broken(LoopASTNode* loop_node) {
+    for(auto& node : loop_node->body.nodes) {
+        const auto k = node->kind();
+        if(k == ASTNodeKind::BreakStmt) {
+            return node->as_break_stmt_unsafe()->value.get();
+        } else if(ASTNode::isLoopASTNode(k)) {
+            auto down = get_first_broken(node->as_loop_node_unsafe());
+            if(down) {
+                return down;
+            }
+        }
+    }
+    return nullptr;
+}
+
+Value* LoopBlock::get_first_broken() {
+    return ::get_first_broken(this);
+}
+
+std::unique_ptr<BaseType> LoopBlock::create_value_type() {
+    return get_first_broken()->create_type();
+}
+
+std::unique_ptr<BaseType> LoopBlock::create_type() {
+    return get_first_broken()->create_type();
+}
+
+hybrid_ptr<BaseType> LoopBlock::get_base_type() {
+    return get_first_broken()->get_base_type();
+}
+
+hybrid_ptr<BaseType> LoopBlock::get_value_type() {
+    return get_first_broken()->get_base_type();
+}
+
+BaseType* LoopBlock::known_type() {
+    return get_first_broken()->known_type();
 }

@@ -37,6 +37,7 @@ enum class ValueKind : uint8_t {
     Pointer,
     IfValue,
     SwitchValue,
+    LoopValue,
     NumberValue,
     IsValue,
     DereferenceValue,

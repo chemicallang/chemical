@@ -94,3 +94,27 @@ bool Lexer::lexForBlockTokens() {
     return true;
 
 }
+
+bool Lexer::lexLoopBlockTokens(bool is_value) {
+
+    if (!lexWSKeywordToken("loop", '{')) {
+        return false;
+    }
+
+    unsigned start = tokens_size() - 1;
+
+    // { statement(s) } with continue & break support
+    isLexContinueStatement = true;
+    isLexBreakStatement = true;
+    if(!lexBraceBlock("forloop")) {
+        error("expected a brace block in a for block");
+        return true;
+    }
+    isLexContinueStatement = false;
+    isLexBreakStatement = false;
+
+    compound_from(start, is_value ? LexTokenType::CompLoopValue : LexTokenType::CompLoopBlock);
+
+    return true;
+
+}

@@ -25,6 +25,7 @@ enum class ASTNodeKind : uint8_t {
     TypealiasStmt,
     UsingStmt,
     VarInitStmt,
+    LoopBlock,
     WhileLoopStmt,
     DoWhileLoopStmt,
     ForLoopStmt,

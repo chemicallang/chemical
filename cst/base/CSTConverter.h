@@ -257,6 +257,8 @@ public:
 
     void visitTryCatch(CSTToken* tryCatch) override;
 
+    void visitLoopBlock(CSTToken *block) override;
+
     void visitEnumDecl(CSTToken* enumDecl) override;
 
     void visitMacro(CSTToken* macroCst) override;

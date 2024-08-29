@@ -39,6 +39,7 @@ bool Lexer::lexNestedLevelStatementTokens(bool is_value, bool lex_value_node) {
            lexTryCatchTokens() ||
            lexTypealiasStatement() ||
            lexSwitchStatementBlock(is_value, lex_value_node) ||
+           lexLoopBlockTokens(is_value) ||
            lexForBlockTokens() ||
            lexDoWhileBlockTokens() ||
            lexWhileBlockTokens() ||
@@ -57,6 +58,7 @@ bool Lexer::lexStatementTokens() {
            (isLexDestructStatement && lexDestructStatement()) ||
            lexEnumStructureTokens() ||
            lexIfBlockTokens(false, false) ||
+           lexLoopBlockTokens(false) ||
            lexForBlockTokens() ||
            lexStructStructureTokens() ||
            lexUnionStructureTokens() ||

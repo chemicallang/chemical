@@ -525,9 +525,12 @@ public:
         return k == ASTNodeKind::ExtensionFuncReceiver || k == ASTNodeKind::FunctionParam;
     }
 
+    static inline bool isLoopASTNode(ASTNodeKind k) {
+        return k == ASTNodeKind::WhileLoopStmt || k == ASTNodeKind::DoWhileLoopStmt || k == ASTNodeKind::ForLoopStmt || k == ASTNodeKind::LoopBlock;
+    }
+
     inline bool isLoopASTNode() {
-        const auto k = kind();
-        return k == ASTNodeKind::WhileLoopStmt || k == ASTNodeKind::DoWhileLoopStmt || k == ASTNodeKind::ForLoopStmt;
+        return isLoopASTNode(kind());
     }
 
 private:
@@ -769,6 +772,14 @@ public:
 
     inline AccessChain* as_access_chain() {
         return (AccessChain*) this;
+    }
+
+    inline LoopASTNode* as_loop_node_unsafe() {
+        return (LoopASTNode*) this;
+    }
+
+    inline BreakStatement* as_break_stmt_unsafe() {
+        return (BreakStatement*) this;
     }
 
 };

@@ -14,11 +14,17 @@ private:
 public:
 
     ASTNode* parent_node;
+    /**
+     * sometimes a break statement can break with a value, in cases where break is within
+     * a loop block, that is itself a value, so this value is assigned to the variable owning the loop
+     * block and then the loop is broken
+     */
+    std::unique_ptr<Value> value;
 
     /**
      * @brief Construct a new Break statement object.
      */
-    BreakStatement(LoopASTNode *node, ASTNode* parent_node) : node(node), parent_node(parent_node) {}
+    BreakStatement(LoopASTNode *node, ASTNode* parent_node);
 
     ASTNodeKind kind() override {
         return ASTNodeKind::BreakStmt;

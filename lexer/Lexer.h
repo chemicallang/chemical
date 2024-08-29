@@ -480,6 +480,11 @@ public:
     bool lexForBlockTokens();
 
     /**
+     * lex loop block tokens
+     */
+    bool lexLoopBlockTokens(bool is_value);
+
+    /**
      * lex parameter list
      */
     void lexParameterList(bool optionalTypes = false, bool defValues = true, bool lexSelfParam = true, bool variadicParam = true);

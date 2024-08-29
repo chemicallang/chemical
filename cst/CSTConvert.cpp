@@ -762,7 +762,12 @@ void CSTConverter::visitContinue(CSTToken* continueCst) {
 }
 
 void CSTConverter::visitBreak(CSTToken* breakCST) {
-    nodes.emplace_back(std::make_unique<BreakStatement>(current_loop_node, parent_node));
+    auto stmt = new BreakStatement(current_loop_node, parent_node);
+    if(1 < breakCST->tokens.size() && breakCST->tokens[1]->is_value()) {
+        breakCST->tokens[1]->accept(this);
+        stmt->value = value();
+    }
+    nodes.emplace_back(stmt);
 }
 
 void CSTConverter::visitIncDec(CSTToken* incDec) {

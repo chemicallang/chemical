@@ -932,11 +932,6 @@ protected:
     bool isLexContinueStatement = false;
 
     /**
-     * when true, destruct statements will be lexed
-     */
-    bool isLexDestructStatement = false;
-
-    /**
      * when true, break statements will be lexed
      */
     bool isLexBreakStatement = false;

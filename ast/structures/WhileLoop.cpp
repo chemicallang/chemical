@@ -23,9 +23,7 @@ void WhileLoop::code_gen(Codegen &gen) {
 
     // loop then
     gen.SetInsertPoint(loopThen);
-    gen.loop_body_wrap(loopCond, exitBlock);
-    body.code_gen(gen);
-    gen.loop_body_wrap(loopCond, exitBlock);
+    gen.loop_body_gen(body, loopCond, exitBlock);
     gen.CreateBr(loopCond);
 
     // loop exit

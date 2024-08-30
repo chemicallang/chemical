@@ -226,13 +226,10 @@ bool Lexer::lexFunctionStructureTokens(bool allow_declarations, bool allow_exten
     // inside the block allow return statements
     auto prevReturn = isLexReturnStatement;
     isLexReturnStatement = true;
-    auto prevDestruct = isLexDestructStatement;
-    isLexDestructStatement = true;
     if(!lexBraceBlock("function") && !allow_declarations) {
         error("expected the function definition after the signature");
     }
     isLexReturnStatement = prevReturn;
-    isLexDestructStatement = prevDestruct;
 
     compound_collectable(start, LexTokenType::CompFunction);
 

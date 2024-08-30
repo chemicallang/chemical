@@ -28,9 +28,7 @@ void ForLoop::code_gen(Codegen &gen) {
 
     // then block
     gen.SetInsertPoint(thenBlock);
-    gen.loop_body_wrap(condBlock, endBlock);
-    body.code_gen(gen);
-    gen.loop_body_wrap(condBlock, endBlock);
+    gen.loop_body_gen(body, condBlock, endBlock);
     incrementerExpr->code_gen(gen);
     gen.CreateBr(condBlock);
 

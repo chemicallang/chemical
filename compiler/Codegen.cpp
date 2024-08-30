@@ -476,10 +476,14 @@ void Codegen::CreateCondBr(llvm::Value *Cond, llvm::BasicBlock *True, llvm::Basi
     }
 }
 
-void Codegen::loop_body_wrap(llvm::BasicBlock *condBlock, llvm::BasicBlock *endBlock) {
-    // set current loop exit, so it can be broken
-    current_loop_continue = condBlock;
+void Codegen::loop_body_gen(Scope& body, llvm::BasicBlock *currentBlock, llvm::BasicBlock *endBlock) {
+    auto prev_loop_continue = current_loop_continue;
+    auto prev_loop_exit = current_loop_exit;
+    current_loop_continue = currentBlock;
     current_loop_exit = endBlock;
+    body.code_gen(*this);
+    current_loop_continue = prev_loop_continue;
+    current_loop_exit = prev_loop_exit;
 }
 
 llvm::Value *Codegen::implicit_cast(llvm::Value* value, BaseType* from_type, BaseType* to_type) {

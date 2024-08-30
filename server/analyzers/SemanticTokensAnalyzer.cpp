@@ -8,8 +8,6 @@
 #include <unordered_set>
 #include "cst/base/CSTToken.h"
 #include "cst/utils/CSTUtils.h"
-#include "lexer/model/tokens/RefToken.h"
-#include "cst/values/AccessChainCST.h"
 
 #define DEBUG false
 
@@ -82,7 +80,7 @@ void SemanticTokensAnalyzer::visitEnumDecl(CSTToken* enumDecl) {
     unsigned i = 2;
     CSTToken* token;
     while(i < enumDecl->tokens.size()) {
-        token = enumDecl->tokens[i].get();
+        token = enumDecl->tokens[i];
         if(token->is_identifier()) {
             put(token, SemanticTokenType::ls_enumMember);
         } else {
@@ -124,17 +122,17 @@ void SemanticTokensAnalyzer::visitSwitch(CSTToken* switchCst) {
 
 void SemanticTokensAnalyzer::visitInterface(CSTToken* cst) {
     cst->tokens[0]->accept(this);
-    put(cst->tokens[1].get(), SemanticTokenType::ls_interface);
+    put(cst->tokens[1], SemanticTokenType::ls_interface);
     visit(cst->tokens, 2);
 }
 
 void SemanticTokensAnalyzer::visitImpl(CSTToken* cst) {
-    bool has_for = is_keyword(cst->tokens[2].get(), "for");
+    bool has_for = is_keyword(cst->tokens[2], "for");
     cst->tokens[0]->accept(this);
-    put(cst->tokens[1].get(), SemanticTokenType::ls_interface);
+    put(cst->tokens[1], SemanticTokenType::ls_interface);
     cst->tokens[2]->accept(this);
     if(has_for) {
-        put(cst->tokens[3].get(), SemanticTokenType::ls_struct);
+        put(cst->tokens[3], SemanticTokenType::ls_struct);
         visit(cst->tokens, 4);
     } else {
         visit(cst->tokens, 3);
@@ -143,7 +141,7 @@ void SemanticTokensAnalyzer::visitImpl(CSTToken* cst) {
 
 void SemanticTokensAnalyzer::visitStructDef(CSTToken* cst) {
     cst->tokens[0]->accept(this);
-    put(cst->tokens[1].get(), SemanticTokenType::ls_struct);
+    put(cst->tokens[1], SemanticTokenType::ls_struct);
     visit(cst->tokens, 2);
 };
 
@@ -222,22 +220,21 @@ void SemanticTokensAnalyzer::put_as_type(CSTToken* token, LexTokenType type) {
 }
 
 void SemanticTokensAnalyzer::visitVariableToken(CSTToken *token) {
-    auto t = ((RefToken*) token);
-    if(t->linked) {
-        put_as_type(token, t->linked->type());
+    if(token->linked) {
+        put_as_type(token, token->linked->type());
     } else {
         put(token, SemanticTokenType::ls_variable);
     }
 }
 
-void SemanticTokensAnalyzer::visitAccessChain(AccessChainCST *chain) {
+void SemanticTokensAnalyzer::visitAccessChain(CSTToken *chain) {
     chain->tokens[0]->accept(this);
     if(chain->tokens.size() == 1) return;
     unsigned i = 1;
     CSTToken* parent = chain->tokens[0]->as_ref()->linked;
     CSTToken* token;
     while(i < chain->tokens.size()) {
-        token = chain->tokens[i].get();
+        token = chain->tokens[i];
         if(token->type() == LexTokenType::Variable) {
             if(parent && parent->type() == LexTokenType::CompEnumDecl) {
                 put(token, SemanticTokenType::ls_enumMember);

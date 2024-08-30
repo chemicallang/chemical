@@ -2,7 +2,7 @@
 
 #include "WorkspaceManager.h"
 #include "preprocess/ImportGraphMaker.h"
-#include "preprocess/CSTSymbolResolver.h"
+#include "server/helpers/CSTSymbolResolver.h"
 #include "utils/WorkspaceImportGraphImporter.h"
 #include "preprocess/ImportGraphVisitor.h"
 #include "preprocess/ImportPathHandler.h"
@@ -59,7 +59,7 @@ std::shared_ptr<LexResult> WorkspaceManager::get_lexed(const std::string& path) 
         SourceProvider reader(&input_source);
         Lexer lexer(reader);
         lexer.lex();
-        result->tokens = std::move(lexer.tokens);
+        result->unit = std::move(lexer.unit);
         result->diags = std::move(lexer.diagnostics);
     } else {
         FileInputSource input_source(path);
@@ -75,7 +75,7 @@ std::shared_ptr<LexResult> WorkspaceManager::get_lexed(const std::string& path) 
         SourceProvider reader(&input_source);
         Lexer lexer(reader);
         lexer.lex();
-        result->tokens = std::move(lexer.tokens);
+        result->unit = std::move(lexer.unit);
         result->diags = std::move(lexer.diagnostics);
     }
 
@@ -146,7 +146,7 @@ ImportUnit WorkspaceManager::get_import_unit(const std::string& abs_path, bool p
             this
     );
     FlatIGFile flat_file { abs_path };
-    auto ig = determine_import_graph(&importer, result->tokens, flat_file);
+    auto ig = determine_import_graph(&importer, result->unit.tokens, flat_file);
     // flatten the import graph and get lex result for each file
     auto flattened = ig.root.flatten_by_dedupe();
     // create and return import unit
@@ -181,7 +181,7 @@ std::vector<IGFile> WorkspaceImportGraphImporter::process(const std::string &pat
         StringInputSource input_source(overridden_source.value());
         lexer->provider.switch_source(&input_source);
         lex_source(path, parent->errors);
-        return from_tokens(path, parent, lexer->tokens);
+        return from_tokens(path, parent, lexer->unit.tokens);
     } else {
         return ImportGraphImporter::process(path, parent);
     }

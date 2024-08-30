@@ -192,22 +192,20 @@ void markdown_documentation(std::string& value, LexResult* current, LexResult* d
 
 std::string HoverAnalyzer::markdown_hover(ImportUnit *unit) {
     auto file = unit->files[unit->files.size() - 1];
-    auto token = get_token_at_position(file->tokens, position);
+    auto token = get_token_at_position(file->unit.tokens, position);
     if (token) {
-        // TODO ref token went away, there was a funeral
-        // a lot of tokens died under the great performance fire
-//        if (token->is_ref()) {
-//            auto linked = token->as_ref()->linked;
-//            if (linked) {
-//                auto parent = find_token_parent(unit, linked);
-//                markdown_documentation(value, file.get(), parent.first, parent.second.first, linked);
-//            } else {
-//                value += "couldn't find the linked token !";
-//            }
-//        }
-//        else {
-//            value += "that don't look like a ref bro!";
-//        }
+        if (token->is_ref()) {
+            auto linked = token->as_ref()->linked;
+            if (linked) {
+                auto parent = find_token_parent(unit, linked);
+                markdown_documentation(value, file.get(), parent.first, parent.second.first, linked);
+            } else {
+                value += "couldn't find the linked token !";
+            }
+        }
+        else {
+            value += "that don't look like a ref bro!";
+        }
     } else {
         value += "couldn't find the token at position";
     }

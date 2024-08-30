@@ -5,7 +5,6 @@
 //
 
 #include "FoldingRangeAnalyzer.h"
-#include "lexer/model/tokens/CharOperatorToken.h"
 #include "cst/base/CSTToken.h"
 #include "cst/utils/CSTUtils.h"
 
@@ -22,7 +21,7 @@ void FoldingRangeAnalyzer::folding_range(CSTToken* start, CSTToken* end, bool co
 }
 
 void FoldingRangeAnalyzer::visitStructDef(CSTToken* structDef) {
-    auto has_override = is_char_op(structDef->tokens[3].get(), ':');
+    auto has_override = is_char_op(structDef->tokens[3], ':');
     auto start = has_override ? 4 : 2;
     folding_range(structDef->tokens[start]->start_token(), structDef->tokens[structDef->tokens.size() - 1]->start_token());
     ::visit(this, structDef->tokens, start + 1, structDef->tokens.size());
@@ -44,7 +43,7 @@ void FoldingRangeAnalyzer::visitAssignment(CSTToken* assignment) {
     assignment->tokens[assignment->tokens.size() - 1]->accept(this);
 }
 
-void FoldingRangeAnalyzer::visitAccessChain(AccessChainCST *accessChain) {
+void FoldingRangeAnalyzer::visitAccessChain(CSTToken *accessChain) {
     ::visit(this, ((CSTToken*) accessChain)->tokens);
 }
 
@@ -96,7 +95,7 @@ void FoldingRangeAnalyzer::visitInterface(CSTToken* interface) {
 }
 
 void FoldingRangeAnalyzer::visitImpl(CSTToken* impl) {
-    bool no_for = is_char_op(impl->tokens[2].get(), '{');
+    bool no_for = is_char_op(impl->tokens[2], '{');
     auto l_brace = no_for ? 2 : 4;
     folding_range(impl->tokens[l_brace]->start_token(), impl->tokens[impl->tokens.size() - 1]->end_token());
     ::visit(this, impl->tokens, l_brace + 1, impl->tokens.size());

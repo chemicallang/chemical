@@ -47,13 +47,6 @@ public:
     void put(CSTToken* token, unsigned int tokenType, unsigned int tokenModifiers = 0);
 
     /**
-     * same as put, but will treat CSTToken as a non compound token
-     */
-    inline void put(CSTToken* token, unsigned int tokenType, unsigned int tokenModifiers = 0) {
-        put((CSTToken*) token, tokenType, tokenModifiers);
-    }
-
-    /**
      * given token will be put as the given type
      */
     void put_as_type(CSTToken* token, LexTokenType type);
@@ -106,7 +99,7 @@ public:
 
     void visitVariableToken(CSTToken *token) override;
 
-    void visitAccessChain(AccessChainCST *accessChain) override;
+    void visitAccessChain(CSTToken *accessChain) override;
 
     void visitCharOperatorToken(CSTToken *token) override;
 

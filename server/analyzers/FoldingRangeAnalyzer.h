@@ -53,7 +53,7 @@ public:
 
     void visitAssignment(CSTToken* assignment) override;
 
-    void visitAccessChain(AccessChainCST *accessChain) override;
+    void visitAccessChain(CSTToken *accessChain) override;
 
     void visitSwitch(CSTToken* switchCst) override;
 

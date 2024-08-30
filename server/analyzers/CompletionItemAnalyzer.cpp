@@ -36,8 +36,8 @@ bool CompletionItemAnalyzer::is_caret_inside(CSTToken *token) {
 
 CSTToken* CompletionItemAnalyzer::child_container(CSTToken* compound) {
     for (auto &token: compound->tokens) {
-        if (token->compound() && is_caret_inside(token.get())) {
-            return (CSTToken* ) token.get();
+        if (token->compound() && is_caret_inside(token)) {
+            return token;
         }
     }
     return nullptr;
@@ -47,8 +47,8 @@ CSTToken* CompletionItemAnalyzer::direct_parent(std::vector<CSTToken*> &tokens) 
     CSTToken* child;
     CSTToken* nested;
     for (auto &token: tokens) {
-        if (token->compound() && is_caret_inside(token.get())) {
-            child = (CSTToken* ) token.get();
+        if (token->compound() && is_caret_inside(token)) {
+            child = (CSTToken* ) token;
             while (true) {
                 nested = child_container(child);
                 if (nested == nullptr) {
@@ -64,7 +64,7 @@ CSTToken* CompletionItemAnalyzer::direct_parent(std::vector<CSTToken*> &tokens) 
 
 CSTToken* last_direct_parent(CSTToken* token) {
     if(token->compound()) {
-        auto last = token->as_compound()->tokens[token->as_compound()->tokens.size() - 1].get();
+        auto last = token->tokens[token->tokens.size() - 1];
         if(last->compound()) {
             return last_direct_parent(last);
         } else {
@@ -79,7 +79,7 @@ CSTToken* CompletionItemAnalyzer::token_before_caret(std::vector<CSTToken*> &tok
     int i = 0;
     while (i < tokens.size()) {
         if (is_caret_eq_or_behind(tokens[i]->start_token())) {
-            return last_direct_parent(tokens[i - 1].get());
+            return last_direct_parent(tokens[i - 1]);
         }
         i++;
     }
@@ -90,7 +90,7 @@ void
 CompletionItemAnalyzer::visit(std::vector<CSTToken*> &tokens, unsigned int start, unsigned int end) {
     CSTToken *token;
     while (start < end) {
-        token = tokens[start].get();
+        token = tokens[start];
         if (is_ahead(token->start_token()->position)) {
             break;
         } else {
@@ -107,34 +107,34 @@ void CompletionItemAnalyzer::visitBody(CSTToken* bodyCst) {
 }
 
 void CompletionItemAnalyzer::visitVarInit(CSTToken* varInit) {
-    put(str_token(varInit->tokens[1].get()), lsCompletionItemKind::Variable);
-    if (3 < varInit->tokens.size() && is_caret_inside(varInit->tokens[3].get())) {
+    put(str_token(varInit->tokens[1]), lsCompletionItemKind::Variable);
+    if (3 < varInit->tokens.size() && is_caret_inside(varInit->tokens[3])) {
         varInit->tokens[3]->accept(this);
     }
 }
 
 void CompletionItemAnalyzer::visitAssignment(CSTToken* cst) {
-    if (is_caret_inside(cst->tokens[2].get())) {
+    if (is_caret_inside(cst->tokens[2])) {
         cst->tokens[2]->accept(this);
     }
 }
 
 void CompletionItemAnalyzer::visitFunction(CSTToken* function) {
-    put(str_token(function->tokens[1].get()), lsCompletionItemKind::Function);
+    put(str_token(function->tokens[1]), lsCompletionItemKind::Function);
     function->tokens[function->tokens.size() - 1]->accept(this);
-};
+}
 
 void CompletionItemAnalyzer::visitEnumDecl(CSTToken* cst) {
     if (is_caret_ahead(cst->tokens[cst->tokens.size() - 1]->end_token())) {
-        put(str_token(cst->tokens[1].get()), lsCompletionItemKind::Enum);
+        put(str_token(cst->tokens[1]), lsCompletionItemKind::Enum);
     }
 }
 
 void CompletionItemAnalyzer::visitStructDef(CSTToken* cst) {
-    auto has_override = is_char_op(cst->tokens[3].get(), ':');
+    auto has_override = is_char_op(cst->tokens[3], ':');
     auto l_brace = has_override ? 4 : 2;
     if (is_caret_ahead(cst->tokens[l_brace]->end_token())) {
-        put(str_token(cst->tokens[1].get()), lsCompletionItemKind::Struct);
+        put(str_token(cst->tokens[1]), lsCompletionItemKind::Struct);
         if (is_caret_behind(cst->tokens[cst->tokens.size() - 1]->end_token())) {
             visit(cst->tokens, l_brace + 1);
         }
@@ -143,7 +143,7 @@ void CompletionItemAnalyzer::visitStructDef(CSTToken* cst) {
 
 void CompletionItemAnalyzer::visitInterface(CSTToken* cst) {
     if (is_caret_ahead(cst->tokens[2]->start_token())) {
-        put(str_token(cst->tokens[1].get()), lsCompletionItemKind::Interface);
+        put(str_token(cst->tokens[1]), lsCompletionItemKind::Interface);
         if (is_caret_behind(cst->tokens[cst->tokens.size() - 1]->end_token())) {
             visit(cst->tokens, 3);
         }
@@ -159,22 +159,22 @@ void CompletionItemAnalyzer::visitImpl(CSTToken* cst) {
 
 void CompletionItemAnalyzer::visitIf(CSTToken* ifCst) {
     visit(ifCst->tokens);
-};
+}
 
 void CompletionItemAnalyzer::visitWhile(CSTToken* whileCst) {
     visit(whileCst->tokens);
-};
+}
 
 void CompletionItemAnalyzer::visitDoWhile(CSTToken* doWhileCst) {
     visit(doWhileCst->tokens);
-};
+}
 
 void CompletionItemAnalyzer::visitForLoop(CSTToken* forLoop) {
-    if (is_caret_inside(forLoop->tokens[8].get())) {
+    if (is_caret_inside(forLoop->tokens[8])) {
         forLoop->tokens[2]->accept(this);
         forLoop->tokens[8]->accept(this);
     }
-};
+}
 
 void CompletionItemAnalyzer::visitLambda(CSTToken* cst) {
     cst->tokens[cst->tokens.size() - 1]->accept(this);
@@ -195,7 +195,7 @@ void CompletionItemAnalyzer::visitArrayValue(CSTToken* arrayValue) {
 
 void CompletionItemAnalyzer::visitSwitch(CSTToken* switchCst) {
 
-};
+}
 
 void CompletionItemAnalyzer::visitMultilineComment(CSTToken *token) {
 
@@ -248,9 +248,9 @@ CSTToken* CompletionItemAnalyzer::chain_before_caret(std::vector<CSTToken*> &tok
 void CompletionItemAnalyzer::put_identifiers(std::vector<CSTToken*>& tokens, unsigned int start) {
     CSTToken* token;
     while(start < tokens.size()) {
-        token = tokens[start].get();
+        token = tokens[start];
         if(token->type() == LexTokenType::Identifier) {
-            put(token->as_lex_token()->value, lsCompletionItemKind::EnumMember);
+            put(token->value, lsCompletionItemKind::EnumMember);
         }
         start++;
     }
@@ -265,11 +265,11 @@ void put_with_doc(CompletionItemAnalyzer* analyzer, const std::string& label, ls
 }
 
 void put_function_with_doc(CompletionItemAnalyzer* analyzer, CSTToken* token, CSTToken* parent) {
-    put_with_doc(analyzer, str_token(((CSTToken*) token)->tokens[1].get()), lsCompletionItemKind::Function, token, parent);
+    put_with_doc(analyzer, str_token(((CSTToken*) token)->tokens[1]), lsCompletionItemKind::Function, token, parent);
 }
 
 void put_var_init_with_doc(CompletionItemAnalyzer* analyzer, CSTToken* token, CSTToken* parent) {
-    put_with_doc(analyzer, str_token(((CSTToken*) token)->tokens[1].get()), lsCompletionItemKind::Variable, token, parent);
+    put_with_doc(analyzer, str_token(((CSTToken*) token)->tokens[1]), lsCompletionItemKind::Variable, token, parent);
 }
 
 void collect_struct_functions(
@@ -279,10 +279,10 @@ void collect_struct_functions(
 ) {
     CSTToken* token;
     while(i < parent->tokens.size()) {
-        token = parent->tokens[i].get();
+        token = parent->tokens[i];
         if(token->is_func_decl()) {
             // TODO collect function if it doesn't have a self | this member
-            put_function_with_doc(analyzer, token->as_compound(), parent);
+            put_function_with_doc(analyzer, token, parent);
         }
         i++;
     }
@@ -295,11 +295,11 @@ void collect_struct_members(
 ) {
     CSTToken* token;
     while(i < parent->tokens.size()) {
-        token = parent->tokens[i].get();
+        token = parent->tokens[i];
         if(token->is_func_decl()) {
-            put_function_with_doc(analyzer, token->as_compound(), parent);
+            put_function_with_doc(analyzer, token, parent);
         } else if(token->is_var_init()) {
-            put_var_init_with_doc(analyzer, token->as_compound(), parent);
+            put_var_init_with_doc(analyzer, token, parent);
         }
         i++;
     }
@@ -308,18 +308,18 @@ void collect_struct_members(
 bool put_children(CompletionItemAnalyzer* analyzer, CSTToken* parent, bool put_values = false) {
     switch(parent->type()) {
         case LexTokenType::CompEnumDecl:
-            analyzer->put_identifiers(parent->as_compound()->tokens, 2);
+            analyzer->put_identifiers(parent->tokens, 2);
             return true;
         case LexTokenType::CompStructDef:
         case LexTokenType::CompInterface:
             (put_values ? (collect_struct_members) : (collect_struct_functions))(
                     analyzer,
-                    parent->as_compound(),
-                    (is_char_op(parent->as_compound()->tokens[2].get(), ':')) ? 5 : 3
+                    parent,
+                    (is_char_op(parent->tokens[2], ':')) ? 5 : 3
             );
             return true;
         case LexTokenType::CompVarInit: {
-            auto linked = get_linked_from_var_init(parent->as_compound()->tokens);
+            auto linked = get_linked_from_var_init(parent->tokens);
             if(linked) {
                 return put_children(analyzer, linked, true);
             } else {
@@ -327,7 +327,7 @@ bool put_children(CompletionItemAnalyzer* analyzer, CSTToken* parent, bool put_v
             }
         }
         case LexTokenType::CompTypealias: {
-            auto linked = get_linked_from_typealias(parent->as_compound()->tokens);
+            auto linked = get_linked_from_typealias(parent->tokens);
             if(linked) {
                 return put_children(analyzer, linked, put_values);
             } else {
@@ -340,22 +340,22 @@ bool put_children(CompletionItemAnalyzer* analyzer, CSTToken* parent, bool put_v
 }
 
 bool put_children_of_ref(CompletionItemAnalyzer* analyzer, CSTToken* chain) {
-    auto parent = chain->tokens[chain->tokens.size() - 2].get();
+    auto parent = chain->tokens[chain->tokens.size() - 2];
     switch(parent->type()) {
         case LexTokenType::Variable:
         case LexTokenType::Type:{
-            if(!parent->as_ref()->linked) return false;
-            return put_children(analyzer, parent->as_ref()->linked);
+            if(!parent->linked) return false;
+            return put_children(analyzer, parent->linked);
         }
         case LexTokenType::CompIndexOp:{
-            auto grandpa = chain->tokens[chain->tokens.size() - 3].get();
-            auto linked = get_linked_from_node(grandpa->as_ref()->linked);
+            auto grandpa = chain->tokens[chain->tokens.size() - 3];
+            auto linked = get_linked_from_node(grandpa->linked);
             if(!linked) return false;
             return put_children(analyzer, linked, true);
         }
         case LexTokenType::CompFunctionCall:{
-            auto grandpa = chain->tokens[chain->tokens.size() - 3].get();
-            auto linked = get_linked_from_node(grandpa->as_ref()->linked);
+            auto grandpa = chain->tokens[chain->tokens.size() - 3];
+            auto linked = get_linked_from_node(grandpa->linked);
             if(!linked) return false;
             return put_children(analyzer, linked, true);
         }
@@ -365,7 +365,7 @@ bool put_children_of_ref(CompletionItemAnalyzer* analyzer, CSTToken* chain) {
 }
 
 bool CompletionItemAnalyzer::handle_chain_before_caret(CSTToken* chain) {
-    if(!chain->tokens.empty() && is_char_op(chain->tokens[chain->tokens.size() - 1].get(), '.')) {
+    if(!chain->tokens.empty() && is_char_op(chain->tokens[chain->tokens.size() - 1], '.')) {
         return put_children_of_ref(this, chain);
     }
     return false;
@@ -373,11 +373,11 @@ bool CompletionItemAnalyzer::handle_chain_before_caret(CSTToken* chain) {
 
 CompletionList CompletionItemAnalyzer::analyze(ImportUnit* unit) {
 
-    if(unit->files.size() == 1) return analyze(unit->files[0]->tokens);
+    if(unit->files.size() == 1) return analyze(unit->files[0]->unit.tokens);
     if(unit->files.empty()) return list;
 
     // check is caret position before a chain
-    auto chain = chain_before_caret(unit->files[unit->files.size() - 1]->tokens);
+    auto chain = chain_before_caret(unit->files[unit->files.size() - 1]->unit.tokens);
     if(chain) {
         if(handle_chain_before_caret(chain)) {
             return list;
@@ -394,9 +394,9 @@ CompletionList CompletionItemAnalyzer::analyze(ImportUnit* unit) {
         if(i == size - 1) { // last file
             caret_position = prev_caret_position;
         } else {
-            if(!file->tokens.empty()) { // not last file
+            if(!file->unit.tokens.empty()) { // not last file
                 // set caret position at the end of file, so all tokens are analyzed
-                auto& pos = file->tokens[file->tokens.size() - 1]->end_token()->position;
+                auto& pos = file->unit.tokens[file->unit.tokens.size() - 1]->end_token()->position;
                 caret_position = {pos.line + 2, 0};
             } else {
                 i++;
@@ -404,7 +404,7 @@ CompletionList CompletionItemAnalyzer::analyze(ImportUnit* unit) {
             }
         }
         current_file = file.get();
-        visit(file->tokens);
+        visit(file->unit.tokens);
         i++;
     }
     return list;

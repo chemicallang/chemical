@@ -3,7 +3,7 @@
 #pragma once
 
 #include "cst/base/CSTVisitor.h"
-#include "BaseSymbolResolver.h"
+#include "preprocess/BaseSymbolResolver.h"
 #include "cst/base/CSTDiagnoser.h"
 #include <vector>
 #include <unordered_map>

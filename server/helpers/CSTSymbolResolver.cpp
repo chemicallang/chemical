@@ -1,7 +1,7 @@
 // Copyright (c) Qinetik 2024.
 
 #include "cst/base/CSTToken.h"
-#include "CSTSymbolResolver.h"
+#include "server/helpers/CSTSymbolResolver.h"
 #include "cst/utils/CSTUtils.h"
 #include "integration/ide/model/ImportUnit.h"
 #include "integration/ide/model/LexResult.h"
@@ -151,7 +151,7 @@ void CSTSymbolResolver::resolve(ImportUnit* unit) {
         // clear the diagnostics before last file
         // so that only last file's diagnostics are considered
         if(i == size - 1) diagnostics.clear();
-        ::visit(this, unit->files[i]->tokens);
+        ::visit(this, unit->files[i]->unit.tokens);
         i++;
     }
 }

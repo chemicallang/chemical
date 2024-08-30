@@ -43,6 +43,7 @@
 #include "server/WorkspaceManager.h"
 #include "utils/FileUtils.h"
 #include "utils/CmdUtils.h"
+#include <boost/asio.hpp>
 
 using namespace boost::asio::ip;
 using namespace std;
@@ -76,6 +77,33 @@ public:
 };
 
 std::string _address = "127.0.0.1";
+
+bool isPortOccupied(unsigned short port) {
+    using boost::asio::ip::tcp;
+
+    boost::asio::io_service io_service;
+    tcp::acceptor acceptor(io_service);
+
+    boost::asio::ip::tcp::endpoint endpoint(boost::asio::ip::tcp::v4(), port);
+    boost::system::error_code error;
+
+    // Attempt to bind the acceptor to the port
+    acceptor.open(endpoint.protocol(), error);
+    if (error) {
+        std::cerr << "Error opening socket: " << error.message() << std::endl;
+        return true; // Port might be occupied
+    }
+
+    acceptor.bind(endpoint, error);
+    if (error) {
+        std::cerr << "Error binding socket: " << error.message() << std::endl;
+        return true; // Port is likely occupied
+    }
+
+    // If we successfully bind, we can close the acceptor and return false
+    acceptor.close();
+    return false;
+}
 
 bool ShouldIgnoreFileForIndexing(const std::string &path) {
     return StartsWith(path, "git:");
@@ -598,9 +626,15 @@ int main(int argc, char *argv[]) {
     }
     std::string user_agent = std::string(BOOST_BEAST_VERSION_STRING) + " websocket-server-async";
     std::string port = "5007";
-    auto port_opt = options.option("port");
-    if(port_opt.has_value()) {
-        port = port_opt.value();
+    {
+        auto port_opt = options.option("port");
+        if(port_opt.has_value()) {
+            port = port_opt.value();
+        }
+    }
+    if(isPortOccupied((unsigned int) std::atoi(port.data()))) {
+        std::cerr << "Port " << port << "is occupied" << std::endl;
+        return 1;
     }
     Server server(user_agent, port, enable_watch_parent_process, argv[0]);
     auto resources_path = options.option_e("resources", "res");
@@ -612,6 +646,7 @@ int main(int argc, char *argv[]) {
     if (ret) {
         return 0;
     }
+
     return -1;
 }
 

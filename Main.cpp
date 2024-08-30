@@ -632,10 +632,10 @@ int main(int argc, char *argv[]) {
             port = port_opt.value();
         }
     }
-    if(isPortOccupied((unsigned int) std::atoi(port.data()))) {
-        std::cerr << "Port " << port << "is occupied" << std::endl;
-        return 1;
-    }
+//    if(isPortOccupied((unsigned int) std::atoi(port.data()))) {
+//        std::cerr << "Port " << port << "is occupied" << std::endl;
+//        return 1;
+//    }
     Server server(user_agent, port, enable_watch_parent_process, argv[0]);
     auto resources_path = options.option_e("resources", "res");
     if(!resources_path.empty()) {

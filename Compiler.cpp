@@ -8,6 +8,7 @@
 #include <llvm/TargetParser/Host.h>
 #endif
 #include "lexer/Lexi.h"
+#include "utils/Environment.h"
 #include "utils/Utils.h"
 #include "compiler/InvokeUtils.h"
 #include "ast/base/GlobalInterpretScope.h"
@@ -56,6 +57,7 @@ void print_help() {
                  "use input extension .c and output .ch, when translating C code to Chemical\n"
                  "use input extension .ch and output .c, when translating Chemical to C code\n\n"
                  "Invoke Clang : \nchemical.exe cc <clang parameters>\n\n"
+                 "configure           -[empty]      configures the compiler for this OS\n"
                  "--mode              -m            debug or release mode : debug, debug_quick, release_small, release_fast\n"
                  "--output            -o            specify a output file, output determined by it's extension\n"
                  "--out-ll  <path>    -[empty]      specify a path to output a .ll file containing llvm ir\n"
@@ -81,6 +83,66 @@ void print_help() {
 
 }
 
+void config_job_success_msg(int job, const std::string& msg) {
+    std::cout << rang::fg::green << '[' << job << ']' << ' ' << msg << rang::fg::reset << std::endl;
+}
+
+void config_job_error_msg(int job, const std::string& msg) {
+    std::cout << rang::fg::red << '[' << job << ']' << ' ' << msg << rang::fg::reset << std::endl;
+}
+
+void config_job_info_msg(int job, const std::string& msg) {
+    std::cout << rang::fg::gray << '[' << job << ']' << ' ' << msg << rang::fg::reset << std::endl;
+}
+
+int configure_exe(CmdOptions& options, int argc, char* argv[]) {
+
+    // checking if has sudo or admin privileges
+    int job = 1;
+    bool stay = false;
+
+#ifdef _WIN32
+    if(isAdmin()) {
+        config_job_success_msg(job++, "Successfully gained administrator privileges.");
+        stay = true;
+    } else {
+        config_job_info_msg(job++, "Relaunching as administrator");
+        if(relaunchAsAdmin()) {
+            return 0;
+        } else {
+            config_job_error_msg(job++, "Couldn't relaunched as administrator");
+            return 1;
+        }
+    }
+#else
+    if(isSudo()) {
+        config_job_success_msg(job++, "Successfully gained administrator privileges.");
+    } else {
+        if(requestSudo()) {
+            config_job_success_msg(job++, "Successfully gained sudo");
+        } else {
+            config_job_error_msg(job++, "Failure to gain sudo");
+            return 1;
+        }
+    }
+#endif
+
+    auto parent_path = resolve_parent_path(argv[0]);
+    if(set_environment_variable("CHEMICAL_HOME", parent_path, true)) {
+        config_job_success_msg(job++, "Set 'CHEMICAL_HOME' environment variable to '" + parent_path + "'");
+    } else {
+        config_job_error_msg(job++, "Couldn't set 'CHEMICAL_HOME' environment variable to '" + parent_path + "'");
+        return 1;
+    }
+
+    std::cout << rang::fg::green << "\nSuccessfully configured Chemical Compiler for your OS" << rang::fg::reset << std::endl;
+
+    if(stay) {
+        std::cin.get();
+    }
+    return 0;
+}
+
 int main(int argc, char *argv[]) {
 
 #ifdef COMPILER_BUILD
@@ -97,8 +159,7 @@ int main(int argc, char *argv[]) {
     // check if configure is called
     auto config_option = options.option("configure");
     if(config_option.has_value()) {
-        std::cout << "Successfully configured Chemical Compiler for your OS" << std::endl;
-        return 0;
+        return configure_exe(options, argc, argv);
     }
 
 #ifdef COMPILER_BUILD

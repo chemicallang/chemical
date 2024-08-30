@@ -558,6 +558,7 @@ public:
             _log.log(lsp::Log::Level::INFO, "td_shutdown");
             manager.clearAllStoredContents();
             td_shutdown::response rsp;
+            server.stop();
             return rsp;
         });
         _sp.registerHandler([&](Notify_Exit::notify &notify) {

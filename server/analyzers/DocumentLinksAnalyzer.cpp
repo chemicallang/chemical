@@ -3,7 +3,6 @@
 #include "DocumentLinksAnalyzer.h"
 #include "cst/utils/CSTUtils.h"
 #include "integration/ide/model/LexResult.h"
-#include "lexer/model/tokens/RefToken.h"
 #include "LibLsp/lsp/lsDocumentUri.h"
 #include "LibLsp/lsp/AbsolutePath.h"
 #include "preprocess/ImportPathHandler.h"
@@ -13,12 +12,12 @@ std::string rel_to_lib_system(const std::string& header_path, const std::string&
 std::vector<lsDocumentLink> DocumentLinksAnalyzer::analyze(LexResult* result, const std::string& compiler_exe_path, const std::string& lsp_exe_path) {
     std::vector<lsDocumentLink> links;
     ImportPathHandler path_handler(compiler_exe_path);
-    for(auto& token : result->tokens) {
+    for(auto& token : result->unit.tokens) {
         if(token->type() == LexTokenType::CompImport) {
-            auto& value = token->as_compound()->tokens[1];
+            auto& value = token->tokens[1];
             auto& pos = value->start_token()->position;
             if(value->type() == LexTokenType::String) {
-                auto unquoted_str = escaped_str_token(value.get());
+                auto unquoted_str = escaped_str_token(value);
                 std::string resolved;
                 if(!unquoted_str.empty() && unquoted_str[0] == '@') {
                     if(unquoted_str.starts_with("@system")) {

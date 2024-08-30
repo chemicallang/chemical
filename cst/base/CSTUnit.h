@@ -132,6 +132,11 @@ public:
     CSTUnit(CSTUnit&& other) = default;
 
     /**
+     * default assignment operator
+     */
+    CSTUnit& operator=(CSTUnit&& other) = default;
+
+    /**
      * default destructor
      */
     ~CSTUnit() = default;

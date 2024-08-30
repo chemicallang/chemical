@@ -35,6 +35,10 @@ public:
         std::vector<CSTToken*> tokens;
     };
 
+#ifdef LSP_BUILD
+    CSTToken* linked;
+#endif
+
     /**
      * constructor for lex token (non compound)
      */
@@ -153,6 +157,15 @@ public:
     [[nodiscard]]
     [[deprecated]]
     inline CSTToken* as_lex_token() {
+        return this;
+    }
+
+    /**
+     * get the token as a lex token
+     */
+    [[nodiscard]]
+    [[deprecated]]
+    inline CSTToken* as_ref() {
         return this;
     }
 

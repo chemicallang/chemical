@@ -337,15 +337,9 @@ set(COMMON_SOURCES
         preprocess/ImportGraphVisitor.h
         preprocess/ImportPathHandler.h
         preprocess/ImportPathHandler.cpp
-        preprocess/CSTSymbolResolver.h
-        preprocess/CSTSymbolResolver.cpp
         preprocess/BaseSymbolResolver.h
-        server/analyzers/GotoDefAnalyzer.h
         integration/common/Location.h
         integration/common/Range.h
-        server/analyzers/GotoDefAnalyzer.cpp
-        server/analyzers/HoverAnalyzer.h
-        server/analyzers/HoverAnalyzer.cpp
         compiler/PrimitiveTypeMap.h
         compiler/PrimitiveTypemap.cpp
         server/analyzers/Documentation.h
@@ -488,6 +482,12 @@ add_executable(ChemicalLsp Main.cpp ${COMMON_SOURCES}
         server/analyzers/DocumentSymbolsAnalyzer.cpp
         server/utils/lspfwd.h
         server/Importer.cpp
+        server/helpers/CSTSymbolResolver.h
+        server/helpers/CSTSymbolResolver.cpp
+        server/analyzers/GotoDefAnalyzer.h
+        server/analyzers/GotoDefAnalyzer.cpp
+        server/analyzers/HoverAnalyzer.h
+        server/analyzers/HoverAnalyzer.cpp
         server/analyzers/DocumentLinksAnalyzer.h
         server/analyzers/DocumentLinksAnalyzer.cpp
         server/utils/WorkspaceImportGraphImporter.h

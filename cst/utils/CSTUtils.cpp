@@ -60,18 +60,17 @@ CSTToken* find_func_or_var_init(std::vector<CSTToken*>& tokens, const std::strin
     return nullptr;
 }
 
+#ifdef LSP_BUILD
 CSTToken* get_linked(CSTToken* ref) {
     switch(ref->type()) {
         case LexTokenType::Variable:
         case LexTokenType::Type:
-            // TODO ref token died
-            throw "TODO";
-//            return ((RefToken*) ref)->linked;
-            return nullptr;
+            return ref->linked;
         default:
             return nullptr;
     }
 }
+
 
 CSTToken* get_linked_from_value(CSTToken* value) {
     switch(value->type()) {
@@ -86,12 +85,11 @@ CSTToken* get_linked_from_type(CSTToken* token) {
     switch(token->type()) {
         case LexTokenType::Type:
         case LexTokenType::Variable:
-            throw "VARIABLE BRO";
-//            if(token->as_ref()->linked) {
-//                return token->as_ref()->linked;
-//            } else {
-//                return token; // native types aren't linked
-//            }
+            if(token->as_ref()->linked) {
+                return token->as_ref()->linked;
+            } else {
+                return token; // native types aren't linked
+            }
         case LexTokenType::CompFunctionType:
             return get_linked_from_type(token->tokens[token->tokens.size() - 1]);
         case LexTokenType::CompArrayType:
@@ -100,7 +98,6 @@ CSTToken* get_linked_from_type(CSTToken* token) {
             return nullptr;
     }
 }
-
 CSTToken* get_linked_from_var_init(std::vector<CSTToken*>& tokens) {
     if (is_char_op(tokens[2], ':')) {
         return get_linked_from_type(tokens[3]);
@@ -110,11 +107,9 @@ CSTToken* get_linked_from_var_init(std::vector<CSTToken*>& tokens) {
         return nullptr;
     }
 }
-
 CSTToken* get_linked_from_typealias(std::vector<CSTToken*>& tokens) {
     return get_linked(tokens[3]);
 }
-
 CSTToken* get_linked_from_func(std::vector<CSTToken*>& tokens) {
     unsigned i = 3;
     CSTToken* token;
@@ -183,6 +178,8 @@ CSTToken* link_child(CSTToken* parent, CSTToken* token) {
     }
 }
 
+#endif
+
 // checks that the given position is behind the given token's end
 bool is_behind_end_of(const Position& position, CSTToken* token) {
     return position.line < token->position.line || (position.line == token->position.line && (position.character < (token->position.character + token->value.size())));
@@ -230,7 +227,7 @@ CSTToken* get_token_at_position(std::vector<CSTToken*>& tokens, const Position& 
 
 LexResult* find_containing_file(ImportUnit* unit, CSTToken* token) {
     for(auto& file : unit->files) {
-        auto result = get_token_at_position(file->tokens, token->start_token()->position);
+        auto result = get_token_at_position(file->unit.tokens, token->start_token()->position);
         if(result && result->start_token() == token->start_token()) {
             return file.get();
         }
@@ -242,9 +239,9 @@ token_parent_file find_token_parent(ImportUnit* unit, CSTToken* token) {
     token_with_parent result;
     CSTToken* found;
     for(auto& file : unit->files) {
-        result = get_token_at_position(nullptr, file->tokens, token->start_token()->position);
+        result = get_token_at_position(nullptr, file->unit.tokens, token->start_token()->position);
         if(result.second != -1) {
-            found = result.first ? result.first->tokens[result.second] : file->tokens[result.second];
+            found = result.first ? result.first->tokens[result.second] : file->unit.tokens[result.second];
             if (found->start_token() == token->start_token()) {
                 return { file.get(), result };
             }

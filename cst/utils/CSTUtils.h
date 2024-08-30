@@ -130,6 +130,8 @@ inline void visit(CSTVisitor* visitor, std::vector<CSTToken*>& tokens) {
  */
 CSTToken* find_identifier(std::vector<CSTToken*>& tokens, const std::string& identifier, unsigned start = 0);
 
+#ifdef LSP_BUILD
+
 /**
  * link's the child 'token' which is present in the given parent token
  * here the parent maybe a compound enum decl token, and token may be an identifier token present inside the enum
@@ -163,6 +165,8 @@ CSTToken* get_linked_from_func(std::vector<CSTToken*>& tokens);
  * get linked node from the given CST node (var init, struct member)
  */
 CSTToken* get_linked_from_node(CSTToken* token);
+
+#endif
 
 /**
  * get's the child type, for example if it's an array

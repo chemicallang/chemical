@@ -9,14 +9,13 @@
 #include <string>
 #include "rapidjson/writer.h"
 #include <vector>
-#include "lexer/model/tokens/LexToken.h"
 #include "LibLsp/lsp/textDocument/SemanticTokens.h"
 #include "rapidjson/filewritestream.h"
 #include <iostream>
 #include <rapidjson/ostreamwrapper.h>
 #include <fstream>
 #include <rapidjson/prettywriter.h>
-#include "lexer/model/tokens/LexToken.h"
+#include "cst/base/CSTToken.h"
 #include "rapidjson/document.h"
 
 class JsonUtils {

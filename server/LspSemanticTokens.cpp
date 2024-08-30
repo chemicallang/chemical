@@ -75,7 +75,7 @@ std::vector<SemanticToken> WorkspaceManager::get_semantic_tokens(const lsDocumen
 #endif
 
     SemanticTokensAnalyzer analyzer;
-    analyzer.analyze(file->tokens);
+    analyzer.analyze(file->unit.tokens);
     return std::move(analyzer.tokens);
 
 }

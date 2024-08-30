@@ -10,7 +10,6 @@
 #include <memory>
 #include <mutex>
 #include <unordered_map>
-#include "lexer/model/tokens/LexToken.h"
 #include "lexer/Lexi.h"
 #include "utils/lspfwd.h"
 #include "integration/ide/model/LexResult.h"
@@ -198,7 +197,7 @@ public:
      * get the tokens only for the given file path
      */
     std::vector<CSTToken*>& get_lexed_tokens(const std::string& path) {
-        return get_lexed(path)->tokens;
+        return get_lexed(path)->unit.tokens;
     }
 
     /**

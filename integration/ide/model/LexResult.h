@@ -5,6 +5,7 @@
 #include "cst/base/CSTToken.h"
 #include "integration/common/Diagnostic.h"
 #include "FlatIGFile.h"
+#include "cst/base/CSTUnit.h"
 #include <memory>
 
 struct LexResult {
@@ -14,9 +15,9 @@ struct LexResult {
      */
     std::string abs_path;
     /**
-     * the actual tokens
+     * the unit that owns the tokens
      */
-    std::vector<CSTToken*> tokens;
+    CSTUnit unit;
     /**
      * diagnostics when CSTTokens were lexed / resolved
      */

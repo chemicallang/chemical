@@ -782,4 +782,12 @@ public:
         return (BreakStatement*) this;
     }
 
+    inline IfStatement* as_if_stmt_unsafe() {
+        return (IfStatement*) this;
+    }
+
+    inline SwitchStatement* as_switch_stmt_unsafe() {
+        return (SwitchStatement*) this;
+    }
+
 };

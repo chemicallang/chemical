@@ -17,6 +17,7 @@ class LoopBlock : public LoopASTNode, public Value {
 public:
 
     ASTNode* parent_node;
+    Value* first_broken = nullptr;
 
     /**
      * constructor
@@ -43,6 +44,8 @@ public:
 
     void declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode> &node_ptr) override;
 
+    void link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr) override;
+
     Value* get_first_broken();
 
     std::unique_ptr<BaseType> create_value_type() override;
@@ -56,6 +59,8 @@ public:
     BaseType* known_type() override;
 
 #ifdef COMPILER_BUILD
+
+    llvm::Type* llvm_type(Codegen &gen) override;
 
     llvm::Value* llvm_value(Codegen &gen, BaseType *type = nullptr) override;
 

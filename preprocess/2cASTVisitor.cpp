@@ -40,6 +40,7 @@
 #include "ast/structures/MembersContainer.h"
 #include "ast/structures/Scope.h"
 #include "ast/structures/WhileLoop.h"
+#include "ast/structures/LoopBlock.h"
 #include "ast/types/ReferencedType.h"
 #include "ast/types/PointerType.h"
 #include "ast/types/GenericType.h"
@@ -2999,7 +3000,11 @@ void ToCAstVisitor::visit(WhileLoop *whileLoop) {
     whileLoop->condition->accept(this);
     write(") ");
     scope(this, whileLoop->body);
+}
 
+void ToCAstVisitor::visit(LoopBlock *loop) {
+    write("while(1)");
+    scope(this, loop->body);
 }
 
 void ToCAstVisitor::visit(VariantCase *variant_case) {

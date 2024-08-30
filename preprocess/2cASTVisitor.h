@@ -338,6 +338,8 @@ public:
 
     void visit(WhileLoop* whileLoop) override;
 
+    void visit(LoopBlock *scope) override;
+
     void visit(AccessChain* chain) override;
 
     void visit(MacroValueStatement* statement) override;

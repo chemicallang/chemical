@@ -506,6 +506,16 @@ func test_nodes() {
         }
         return i == 24;
     })
+    test("loop block works", () => {
+        var i = 0;
+        loop {
+            if(i == 5) {
+                break;
+            }
+            i++;
+        }
+        return i == 5;
+    })
 }
 
 func declared_below() : int {

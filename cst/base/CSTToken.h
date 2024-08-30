@@ -36,7 +36,7 @@ public:
     };
 
 #ifdef LSP_BUILD
-    CSTToken* linked;
+    CSTToken* linked = nullptr;
 #endif
 
     /**

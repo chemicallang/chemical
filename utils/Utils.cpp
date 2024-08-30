@@ -135,7 +135,8 @@ bool set_environment_variable(const std::string& name, const std::string& value,
                       "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment" :
                       "Environment";
     HKEY key;
-    LONG result = RegOpenKeyEx(HKEY_LOCAL_MACHINE, key_path, 0, KEY_SET_VALUE, &key);
+    HKEY hive = for_system ? HKEY_LOCAL_MACHINE : HKEY_CURRENT_USER;
+    LONG result = RegOpenKeyEx(hive, key_path, 0, KEY_SET_VALUE, &key);
     if (result != ERROR_SUCCESS) {
         // Handle error or request admin privileges here
         std::cerr << "Failed to open registry key. Error code: " << result << std::endl;

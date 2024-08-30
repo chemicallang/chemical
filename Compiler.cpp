@@ -128,7 +128,7 @@ int configure_exe(CmdOptions& options, int argc, char* argv[]) {
 #endif
 
     auto parent_path = resolve_parent_path(argv[0]);
-    if(set_environment_variable("CHEMICAL_HOME", parent_path, true)) {
+    if(set_environment_variable("CHEMICAL_HOME", parent_path, false)) {
         config_job_success_msg(job++, "Set 'CHEMICAL_HOME' environment variable to '" + parent_path + "'");
     } else {
         config_job_error_msg(job++, "Couldn't set 'CHEMICAL_HOME' environment variable to '" + parent_path + "'");

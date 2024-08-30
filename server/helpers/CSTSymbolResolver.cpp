@@ -75,9 +75,7 @@ void CSTSymbolResolver::visitAccessChain(CSTToken* chain) {
     chain->tokens[0]->accept(this);
     if(chain->tokens.size() == 1) return;
     unsigned i = 1;
-    // TODO
-    throw std::runtime_error("TODO");
-    CSTToken* parent;// = ((CSTToken*) chain->tokens[0].get())->linked;
+    CSTToken* parent = chain->tokens[0]->linked;
     if(!parent) {
         error("unresolved symbol not found '" + chain->tokens[0]->representation(), chain->tokens[0]);
         return;
@@ -87,9 +85,7 @@ void CSTSymbolResolver::visitAccessChain(CSTToken* chain) {
         token = chain->tokens[i];
         if(token->type() == LexTokenType::Variable) {
             parent = link_child(parent, token);
-            // TODO ref token died due to performance fire
-            // token->as_ref()->linked = parent;
-            throw std::runtime_error("TODO");
+             token->as_ref()->linked = parent;
         } else if(token->type() == LexTokenType::CompIndexOp) {
             parent = get_linked_from_node(parent);
         } else if(token->type() == LexTokenType::CompFunctionCall) {
@@ -109,15 +105,13 @@ void CSTSymbolResolver::visitAccessChain(CSTToken* chain) {
 }
 
 void CSTSymbolResolver::link(CSTToken* ref, CSTToken* token) {
-//    ref->linked = token;
-    throw std::runtime_error("TODO");
+    ref->linked = token;
 }
 
 void CSTSymbolResolver::visitVariableToken(CSTToken *token) {
     auto found = find(token->value);
     if(found) {
-        throw std::runtime_error("TODO");
-//        link(token->as_ref(), found);
+        link(token->as_ref(), found);
     } else {
         error("unresolved symbol found '" + token->value + "'", token);
     }
@@ -134,8 +128,7 @@ void CSTSymbolResolver::visitIndexOp(CSTToken* cst) {
 void CSTSymbolResolver::visitTypeToken(CSTToken *token) {
     auto found = find(token->value);
     if(found) {
-        throw std::runtime_error("TODO");
-//        link(token->as_ref(), found);
+        link(token->as_ref(), found);
     } else {
         auto prim = TypeMakers::PrimitiveMap.find(token->value);
         if(prim == TypeMakers::PrimitiveMap.end()) {

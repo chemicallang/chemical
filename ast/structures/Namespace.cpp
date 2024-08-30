@@ -14,7 +14,7 @@ void Namespace::declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNod
         if(root) {
 
         } else {
-            linker.error("a node exists by same name, the namespace with name '" + name + "' couldn't be created");
+            linker.error("a node exists by same name, the namespace with name '" + name + "' couldn't be created", this);
         }
     } else {
         linker.declare(name, this);

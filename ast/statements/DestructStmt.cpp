@@ -19,12 +19,12 @@ void DestructStmt::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTN
     identifier->link(linker, (std::unique_ptr<Value>&) identifier);
     auto type = identifier->get_pure_type();
     if(!type->is_pointer()) {
-        linker.error("std::delete cannot be called on a value that isn't a pointer");
+        linker.error("std::delete cannot be called on a value that isn't a pointer", this);
         return;
     }
     auto found = linker.find("free");
     if(!found || !found->as_function()) {
-        linker.error("'free' function should be declared before using std::delete so calls can be made to it");
+        linker.error("'free' function should be declared before using std::delete so calls can be made to it", this);
         return;
     }
     free_func_linked = found->as_function();

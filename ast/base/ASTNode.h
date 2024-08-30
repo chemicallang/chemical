@@ -51,7 +51,7 @@ class BaseDefMember;
 /**
  * @brief Base class for all AST nodes.
  */
-class ASTNode : public Interpretable, public ASTAny {
+class ASTNode : public ASTAny {
 public:
 
     /**
@@ -73,6 +73,13 @@ public:
      * move assignment constructor
      */
     ASTNode& operator =(ASTNode &&other) noexcept = default;
+
+    /**
+     * any kind of 'node' is returned
+     */
+    ASTAnyKind any_kind() override {
+        return ASTAnyKind::Node;
+    }
 
     /**
      * declare something on the scope map

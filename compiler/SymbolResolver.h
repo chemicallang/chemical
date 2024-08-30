@@ -18,8 +18,35 @@ class FunctionDeclaration;
  * SemanticLinker however provides a way for the tokens to be linked
  * This doesn't link up modules like Linker does which is used for exporting executables
  */
-class SymbolResolver : public BaseSymbolResolver<ASTNode>, public ASTDiagnoser {
+class SymbolResolver : public ASTDiagnoser {
 public:
+
+    /**
+     * when traversing nodes, a node can declare itself on the map
+     * this is vector of scopes, the last scope is current scope
+     */
+    std::vector<std::unordered_map<std::string, ASTNode*>> current = {{}};
+
+    /**
+     * when a scope beings, this should be called
+     * it would put a unordered_map on current vector
+     */
+    void scope_start() {
+        current.emplace_back();
+    }
+
+    /**
+     * when a scope ends, this should be called
+     * it would pop a scope map from the current vector
+     */
+    void scope_end() {
+        current.pop_back();
+    }
+
+    /**
+     * find a symbol on current symbol map
+     */
+    ASTNode *find(const std::string &name);
 
     /**
      * is the codegen for arch 64bit

@@ -4,6 +4,8 @@
 #include <iostream>
 #include "ast/base/GlobalInterpretScope.h"
 #include "ast/structures/LoopBlock.h"
+#include "ast/structures/If.h"
+#include "ast/statements/SwitchStatement.h"
 #include "ast/base/BaseType.h"
 #include "ast/statements/Break.h"
 
@@ -54,23 +56,52 @@ void LoopBlock::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode
     body.link_sequentially(linker);
 }
 
-Value* get_first_broken(LoopASTNode* loop_node) {
-    for(auto& node : loop_node->body.nodes) {
+void LoopBlock::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr) {
+    body.link_sequentially(linker);
+}
+
+Value* get_first_broken(Scope* body) {
+    Value* value = nullptr;
+    for(auto& node : body->nodes) {
         const auto k = node->kind();
         if(k == ASTNodeKind::BreakStmt) {
             return node->as_break_stmt_unsafe()->value.get();
+        } else if(k == ASTNodeKind::IfStmt) {
+            auto ifStmt = node->as_if_stmt_unsafe();
+            value = get_first_broken(&ifStmt->ifBody);
+            if(value) return value;
+            for(auto& elif : ifStmt->elseIfs) {
+                value = get_first_broken(&elif.second);
+                if(value) return value;
+            }
+            if(ifStmt->elseBody.has_value()) {
+                value = get_first_broken(&ifStmt->elseBody.value());
+                if(value) return value;
+            }
         } else if(ASTNode::isLoopASTNode(k)) {
-            auto down = get_first_broken(node->as_loop_node_unsafe());
-            if(down) {
-                return down;
+            const auto loopNode = node->as_loop_node_unsafe();
+            value = get_first_broken(&loopNode->body);
+            if(value) return value;
+        } else if(k == ASTNodeKind::SwitchStmt) {
+            const auto switchStmt = node->as_switch_stmt_unsafe();
+            for(auto& scope : switchStmt->scopes) {
+                value = get_first_broken(&scope.second);
+                if(value) return value;
+            }
+            if(switchStmt->defScope.has_value()) {
+                value = get_first_broken(&switchStmt->defScope.value());
+                if(value) return value;
             }
         }
     }
-    return nullptr;
+    return value;
 }
 
 Value* LoopBlock::get_first_broken() {
-    return ::get_first_broken(this);
+    if(!first_broken) {
+        first_broken = ::get_first_broken(&body);
+    }
+    return first_broken;
 }
 
 std::unique_ptr<BaseType> LoopBlock::create_value_type() {

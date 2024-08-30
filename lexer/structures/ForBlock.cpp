@@ -17,9 +17,10 @@ bool Lexer::lexContinueStatement() {
 
 bool Lexer::lexBreakStatement() {
     if(lexWSKeywordToken("break", ';')) {
+        auto start = tokens_size() - 1;
         // optionally lex value ahead
         lexAccessChainOrValue();
-        compound_from(tokens_size(), LexTokenType::CompBreak);
+        compound_from(start, LexTokenType::CompBreak);
         return true;
     } else {
         return false;

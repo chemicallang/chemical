@@ -795,6 +795,13 @@ llvm::Type *TypealiasStatement::llvm_type(Codegen &gen) {
 }
 
 void BreakStatement::code_gen(Codegen &gen) {
+    if(value) {
+        if(gen.current_assignable) {
+            gen.builder->CreateStore(value->llvm_value(gen, nullptr), gen.current_assignable);
+        } else {
+            gen.error("couldn't assign value in break statement");
+        }
+    }
     gen.CreateBr(gen.current_loop_exit);
 }
 
@@ -946,19 +953,30 @@ void DestructStmt::code_gen(Codegen &gen) {
 
 }
 
+llvm::Type* LoopBlock::llvm_type(Codegen &gen) {
+    return get_first_broken()->llvm_type(gen);
+}
+
 llvm::Value* LoopBlock::llvm_value(Codegen &gen, BaseType *type) {
-    // TODO implement
+    code_gen(gen);
     return nullptr;
 }
 
 llvm::Value* LoopBlock::llvm_assign_value(Codegen &gen, Value *lhs) {
-// TODO implement
+    auto prev_assignable = gen.current_assignable;
+    gen.current_assignable = lhs->llvm_pointer(gen);
+    code_gen(gen);
+    gen.current_assignable = prev_assignable;
     return nullptr;
 }
 
 llvm::AllocaInst* LoopBlock::llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) {
-// TODO implement
-    return nullptr;
+    auto allocated = gen.builder->CreateAlloca(expected_type ? expected_type->llvm_type(gen) : llvm_type(gen));
+    auto prev_assignable = gen.current_assignable;
+    gen.current_assignable = allocated;
+    code_gen(gen);
+    gen.current_assignable = prev_assignable;
+    return allocated;
 }
 
 void LoopBlock::code_gen(Codegen &gen) {

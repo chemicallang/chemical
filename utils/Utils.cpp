@@ -6,6 +6,7 @@
 
 #include "Utils.h"
 #include "integration/common/Diagnostic.h"
+#include "Environment.h"
 
 #include <iostream>
 #include <filesystem>
@@ -126,4 +127,93 @@ int launch_executable(char* path, bool same_window) {
         }
     }
 }
+#endif
+
+bool set_environment_variable(const std::string& name, const std::string& value, bool for_system) {
+#ifdef _WIN32
+    LPCSTR key_path = for_system ?
+                      "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment" :
+                      "Environment";
+    HKEY key;
+    LONG result = RegOpenKeyEx(HKEY_LOCAL_MACHINE, key_path, 0, KEY_SET_VALUE, &key);
+    if (result != ERROR_SUCCESS) {
+        // Handle error or request admin privileges here
+        std::cerr << "Failed to open registry key. Error code: " << result << std::endl;
+        return false;
+    }
+    result = RegSetValueEx(key, name.c_str(), 0, REG_SZ, (BYTE*)value.c_str(), value.size() + 1);
+    if (result != ERROR_SUCCESS) {
+        std::cerr << "Failed to set registry value. Error code: " << result << std::endl;
+        return false;
+    }
+    RegCloseKey(key);
+    return true;
+#else
+    const std::string file_path = for_system ? "/etc/environment" : std::getenv("HOME") + std::string("/.bashrc");
+    std::ofstream file(file_path, std::ios_base::app);
+    if (file.is_open()) {
+        file << "export " << name << "=" << value << std::endl;
+        file.close();
+        return true;
+    } else {
+        return false;
+    }
+#endif
+}
+
+#ifdef _WIN32
+
+bool isAdmin() {
+    BOOL isElevated = FALSE;
+    HANDLE token = nullptr;
+    if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &token)) {
+        TOKEN_ELEVATION elevation;
+        DWORD size;
+        if (GetTokenInformation(token, TokenElevation, &elevation, sizeof(elevation), &size)) {
+            isElevated = elevation.TokenIsElevated;
+        }
+    }
+    if (token) {
+        CloseHandle(token);
+    }
+    return isElevated;
+}
+
+bool relaunchAsAdmin() {
+    char szPath[MAX_PATH];
+    if (GetModuleFileName(NULL, szPath, MAX_PATH)) {
+        SHELLEXECUTEINFO sei = { sizeof(sei) };
+        sei.lpVerb = "runas";
+        sei.lpFile = szPath;
+        sei.hwnd = NULL;
+        sei.lpParameters = GetCommandLine();
+        sei.nShow = SW_NORMAL;
+        if (!ShellExecuteEx(&sei)) {
+            std::cerr << "Failed to elevate privileges. Error code: " << GetLastError() << std::endl;
+            return false;
+        }
+        exit(0); // Exit current process if relaunching
+        return true;
+    } else {
+        return false;
+    }
+}
+
+#else
+
+bool isSudo() {
+     // Check if the user is root
+    return (geteuid() == 0);
+}
+
+bool requestSudo() {
+    // Try executing a harmless command with sudo to check if sudo access is available
+//    int result = system("sudo -n true 2>/dev/null");
+//    if (result == 0) {
+//        return true; // User has sudo privileges without password prompt
+//    }
+//    std::cerr << "Sudo is required to perform this operation. Attempting to request sudo access..." << std::endl;
+    return system("sudo -v") == 0;
+}
+
 #endif

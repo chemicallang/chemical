@@ -766,7 +766,7 @@ void value_init_default(ToCAstVisitor* visitor, const std::string& identifier, B
 void value_alloca_store(ToCAstVisitor* visitor, const std::string& identifier, BaseType* type, std::optional<std::unique_ptr<Value>>& value) {
     if(value.has_value()) {
         auto value_kind = value.value()->val_kind();
-        if(value_kind == ValueKind::IfValue || value_kind == ValueKind::SwitchValue) {
+        if(value_kind == ValueKind::IfValue || value_kind == ValueKind::SwitchValue || value_kind == ValueKind::LoopValue) {
             value_alloca(visitor, identifier, type, value);
             visitor->new_line_and_indent();
             value.value()->accept(visitor);
@@ -2426,7 +2426,40 @@ void ToCAstVisitor::visit(AssignStatement *assign) {
     write(';');
 }
 
-void ToCAstVisitor::visit(BreakStatement *breakStatement) {
+void write_assignable(ToCAstVisitor* visitor, ASTNode* node) {
+    const auto k = node->kind();
+    switch(k) {
+        case ASTNodeKind::VarInitStmt:
+            visitor->write(node->as_var_init()->identifier);
+            return;
+        case ASTNodeKind::AssignmentStmt:
+            node->as_assignment()->lhs->accept(visitor);
+            return;
+        default:
+            const auto p = node->parent();
+            if(p) {
+                write_assignable(visitor, p);
+            } else {
+                visitor->write("[UnknownAssignable]");
+            }
+            return;
+    }
+}
+
+void ToCAstVisitor::visit(BreakStatement *node) {
+    if(node->value) {
+        auto val_kind = node->value->val_kind();
+        if(val_kind != ValueKind::SwitchValue && val_kind != ValueKind::IfValue && val_kind != ValueKind::LoopValue) {
+            write_assignable(this, node->parent_node);
+            write(" = ");
+        }
+        auto prev = nested_value;
+        nested_value = true;
+        node->value->accept(this);
+        nested_value = prev;
+        write(';');
+        new_line_and_indent();
+    }
     write("break;");
 }
 
@@ -3712,29 +3745,9 @@ void ToCAstVisitor::visit(NullValue *nullValue) {
     write("NULL");
 }
 
-void write_assignable(ToCAstVisitor* visitor, ASTNode* node) {
-    const auto k = node->kind();
-    switch(k) {
-        case ASTNodeKind::VarInitStmt:
-            visitor->write(node->as_var_init()->identifier);
-            return;
-        case ASTNodeKind::AssignmentStmt:
-            node->as_assignment()->lhs->accept(visitor);
-            return;
-        default:
-            const auto p = node->parent();
-            if(p) {
-                write_assignable(visitor, p);
-            } else {
-                visitor->write("[UnknownAssignable]");
-            }
-            return;
-    }
-}
-
 void ToCAstVisitor::visit(ValueNode *node) {
     auto val_kind = node->value->val_kind();
-    if(val_kind != ValueKind::SwitchValue && val_kind != ValueKind::IfValue) {
+    if(val_kind != ValueKind::SwitchValue && val_kind != ValueKind::IfValue && val_kind != ValueKind::LoopValue) {
         write_assignable(this, node->parent_node);
         write(" = ");
     }

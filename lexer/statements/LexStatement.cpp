@@ -29,10 +29,10 @@ bool Lexer::lexNestedLevelStatementTokens(bool is_value, bool lex_value_node) {
            lexVarInitializationTokens() ||
            lexAnnotationMacro() ||
            (isLexImportStatement && lexImportStatement()) ||
-           (isLexBreakStatement && lexBreakStatement()) ||
-           (isLexContinueStatement && lexContinueStatement()) ||
+           (lexBreakStatement()) ||
+           (lexContinueStatement()) ||
            (isLexReturnStatement && lexReturnStatement()) ||
-           (isLexDestructStatement && lexDestructStatement()) ||
+           (lexDestructStatement()) ||
            lexThrowStatementTokens() ||
            lexUsingStatement() ||
            lexIfBlockTokens(is_value, lex_value_node) ||
@@ -52,10 +52,10 @@ bool Lexer::lexStatementTokens() {
            lexVarInitializationTokens() ||
            lexAnnotationMacro() ||
            (isLexImportStatement && lexImportStatement()) ||
-           (isLexBreakStatement && lexBreakStatement()) ||
-           (isLexContinueStatement && lexContinueStatement()) ||
+           (lexBreakStatement()) ||
+           (lexContinueStatement()) ||
            (isLexReturnStatement && lexReturnStatement()) ||
-           (isLexDestructStatement && lexDestructStatement()) ||
+           (lexDestructStatement()) ||
            lexEnumStructureTokens() ||
            lexIfBlockTokens(false, false) ||
            lexLoopBlockTokens(false) ||

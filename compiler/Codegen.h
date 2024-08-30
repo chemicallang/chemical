@@ -372,11 +372,9 @@ public:
     );
 
     /**
-     * when generating code for the body of the loop, it should be wrapped with this function call
-     * before and after the body generation
      * this ensures that break and continue instructions work properly by pointing to the given blocks
      */
-    void loop_body_wrap(llvm::BasicBlock *condBlock, llvm::BasicBlock *endBlock);
+    void loop_body_gen(Scope& body, llvm::BasicBlock *currentBlock, llvm::BasicBlock *endBlock);
 
     /**
      * This sets the insert point to this block

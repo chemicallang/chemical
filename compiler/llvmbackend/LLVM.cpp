@@ -53,6 +53,7 @@
 #include "ast/structures/VariablesContainer.h"
 #include "ast/structures/MembersContainer.h"
 #include "ast/statements/ThrowStatement.h"
+#include "ast/structures/LoopBlock.h"
 #include "ast/statements/DestructStmt.h"
 #include "ast/values/FunctionCall.h"
 #include "ast/values/ArrayValue.h"
@@ -943,6 +944,31 @@ void DestructStmt::code_gen(Codegen &gen) {
 
     gen.destruct(id_value, arr_size_llvm, elem_type, true, [&](llvm::Value*){});
 
+}
+
+llvm::Value* LoopBlock::llvm_value(Codegen &gen, BaseType *type) {
+    // TODO implement
+    return nullptr;
+}
+
+llvm::Value* LoopBlock::llvm_assign_value(Codegen &gen, Value *lhs) {
+// TODO implement
+    return nullptr;
+}
+
+llvm::AllocaInst* LoopBlock::llvm_allocate(Codegen &gen, const std::string &identifier, BaseType *expected_type) {
+// TODO implement
+    return nullptr;
+}
+
+void LoopBlock::code_gen(Codegen &gen) {
+    llvm::BasicBlock* current = llvm::BasicBlock::Create(*gen.ctx, "", gen.current_function);
+    llvm::BasicBlock* end_block = llvm::BasicBlock::Create(*gen.ctx, "", gen.current_function);
+    gen.CreateBr(current);
+    gen.SetInsertPoint(current);
+    gen.loop_body_gen(body, current, end_block);
+    gen.CreateBr(current);
+    gen.SetInsertPoint(end_block);
 }
 
 void ImportStatement::code_gen(Codegen &gen) {

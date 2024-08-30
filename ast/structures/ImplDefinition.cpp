@@ -68,7 +68,7 @@ void ImplDefinition::declare_and_link(SymbolResolver &linker, std::unique_ptr<AS
     auto& interface_name = interface_type->ref_name();
     auto linked = interface_type->linked_node()->as_interface_def();
     if(!linked) {
-        linker.error("couldn't find interface by name " + interface_name + " for implementation");
+        linker.error("couldn't find interface by name " + interface_name + " for implementation", this);
         return;
     }
     for(auto& func : functions()) {

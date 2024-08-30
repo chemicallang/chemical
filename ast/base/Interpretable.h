@@ -15,12 +15,4 @@
 class Interpretable {
 public:
 
-    /**
-     * Interpret the current node in the given interpret scope
-     * @param scope
-     */
-    virtual void interpret(InterpretScope &scope) {
-        throw "interpret called on base class";
-    }
-
 };

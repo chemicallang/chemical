@@ -3,8 +3,10 @@
 #pragma once
 
 #include "Visitor.h"
+#include "ASTAnyKind.h"
 #include <vector>
 #include <memory>
+#include <string>
 
 class Value;
 
@@ -16,15 +18,27 @@ class Codegen;
 
 #endif
 
+class InterpretScope;
+
 class ChainValue;
 
 class ASTAny {
 public:
 
     /**
+     * get the ast any kind for this ast any type
+     */
+    virtual ASTAnyKind any_kind() = 0;
+
+    /**
      * accept the visitor
      */
     virtual void accept(Visitor *visitor) = 0;
+
+    /**
+     * Interpret the current node in the given interpret scope
+     */
+    virtual void interpret(InterpretScope &scope);
 
 #ifdef COMPILER_BUILD
 
@@ -43,5 +57,25 @@ public:
 
 #endif
 
+    /**
+     * get the string representation for this node
+     */
+    std::string representation();
+
+    // ---------------------------------------------
+    // unsafe As methods
+    // ---------------------------------------------
+
+    Value* as_value_unsafe() {
+        return (Value*) this;
+    }
+
+    ASTNode* as_node_unsafe() {
+        return (ASTNode*) this;
+    }
+
+    BaseType* as_type_unsafe() {
+        return (BaseType*) this;
+    }
 
 };

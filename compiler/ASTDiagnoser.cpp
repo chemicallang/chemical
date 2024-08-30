@@ -7,7 +7,7 @@
 #include <filesystem>
 #include "rang.hpp"
 
-void ASTDiagnoser::info(const std::string &err, ASTNode *node) {
+void ASTDiagnoser::info(const std::string &err, CSTToken *node) {
     std::string errStr = "[INFO] " + err;
 #ifdef DEBUG
 //    std::cerr << errStr << std::endl;
@@ -15,7 +15,7 @@ void ASTDiagnoser::info(const std::string &err, ASTNode *node) {
     errors.emplace_back(errStr, DiagSeverity::Information);
 }
 
-void ASTDiagnoser::warn(const std::string &err, ASTNode *node) {
+void ASTDiagnoser::warn(const std::string &err, CSTToken *node) {
     has_errors = true;
     std::string errStr = "[WARN] " + err;
 #ifdef DEBUG
@@ -24,20 +24,16 @@ void ASTDiagnoser::warn(const std::string &err, ASTNode *node) {
     errors.emplace_back(errStr, DiagSeverity::Warning);
 }
 
-void ASTDiagnoser::error(const std::string &err, ASTNode *node) {
+void ASTDiagnoser::error(const std::string &err, CSTToken *node) {
     has_errors = true;
     std::string errStr = "[ERROR] " + err;
-    if(node) {
-        errStr += '\n';
-        errStr += node->representation();
-    }
 #ifdef DEBUG
     std::cerr << rang::fg::red << errStr << rang::fg::reset << std::endl;
 #endif
     errors.emplace_back(errStr, DiagSeverity::Error);
 }
 
-void ASTDiagnoser::early_error(const std::string &err, ASTNode *node) {
+void ASTDiagnoser::early_error(const std::string &err, CSTToken *node) {
     has_errors = true;
     std::string errStr = "[ERROR] " + err;
     std::cerr << rang::fg::red << errStr << rang::fg::reset << std::endl;

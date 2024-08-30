@@ -6,7 +6,9 @@
 #include <vector>
 #include "ASTDiag.h"
 
+class ASTAny;
 class ASTNode;
+class CSTToken;
 
 /**
  * a class that provides helpful methods and fields that allow to separate stuff from codegen
@@ -41,25 +43,65 @@ public:
     /**
      * report an info, which is useful for user to know
      */
-    void info(const std::string &err, ASTNode *node = nullptr);
+    void info(const std::string &err, CSTToken *node);
+
+    [[deprecated]]
+    void info(const std::string &err) {
+        info(err, (CSTToken*) nullptr);
+    }
+
+    [[deprecated]]
+    void info(const std::string &err, ASTNode* node) {
+        info(err, (CSTToken*) nullptr);
+    }
 
     /**
      * report an error when generating a node
      * @param err
      * @param node the node in which error occurred
      */
-    void error(const std::string &err, ASTNode *node = nullptr);
+    void error(const std::string &err, CSTToken *node);
+
+    [[deprecated]]
+    void error(const std::string &err) {
+        error(err, (CSTToken*) nullptr);
+    }
+
+    [[deprecated]]
+    void error(const std::string &err, ASTNode* node) {
+        error(err, (CSTToken*) nullptr);
+    }
+
+    /**
+     * report a warning
+     */
+    void warn(const std::string &err, CSTToken *node);
+
+    [[deprecated]]
+    void warn(const std::string &err) {
+        warn(err, (CSTToken*) nullptr);
+    }
+
+    [[deprecated]]
+    void warn(const std::string &err, ASTNode *node) {
+        warn(err, (CSTToken*) nullptr);
+    }
 
     /**
      * an early error reports itself early, this is useful if known
      * the program can crash due to bad pointer being returned due to error
      */
-    void early_error(const std::string &err, ASTNode *node = nullptr);
+    void early_error(const std::string &err, CSTToken *node);
 
-    /**
-     * report a warning
-     */
-    void warn(const std::string &err, ASTNode *node = nullptr);
+    [[deprecated]]
+    void early_error(const std::string &err) {
+        early_error(err, (CSTToken*) nullptr);
+    }
+
+    [[deprecated]]
+    void early_error(const std::string &err, ASTNode *node) {
+        early_error(err, (CSTToken*) nullptr);
+    }
 
     /**
      * just prints the errors to std out

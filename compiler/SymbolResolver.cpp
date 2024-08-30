@@ -17,6 +17,20 @@ void SymbolResolver::dup_sym_error(const std::string& name, ASTNode* previous, A
     error(err);
 }
 
+ASTNode *SymbolResolver::find(const std::string &name) {
+    int i = current.size() - 1;
+    std::unordered_map<std::string, ASTNode*> *last;
+    while (i >= 0) {
+        last = &current[i];
+        auto found = last->find(name);
+        if (found != last->end()) {
+            return found->second;
+        }
+        i--;
+    }
+    return nullptr;
+}
+
 void SymbolResolver::declare(const std::string& name, ASTNode* node) {
     if(name == "_") {
         // symbols with name '_' aren't declared

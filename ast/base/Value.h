@@ -43,7 +43,7 @@ class ASTDiagnoser;
 /**
  * @brief Base class for all values in the AST.
  */
-class Value : public Interpretable, public ASTAny {
+class Value : public ASTAny {
 public:
 
     /**
@@ -65,6 +65,13 @@ public:
      * move assignment operator
      */
     Value& operator =(Value &&other) = default;
+
+    /**
+     * any kind of 'value' is returned
+     */
+    ASTAnyKind any_kind() override {
+        return ASTAnyKind::Value;
+    }
 
     /**
      * get the value kind

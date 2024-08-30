@@ -463,6 +463,7 @@ set(COMMON_SOURCES
         ast/base/ValueKind.h
         ast/structures/LoopBlock.h
         utils/Environment.h
+        ast/base/ASTAnyKind.h
 )
 
 # Chemical LSP Executable Target

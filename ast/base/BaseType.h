@@ -50,6 +50,13 @@ public:
     BaseType& operator =(BaseType &&other) = default;
 
     /**
+     * any kind of 'type' is returned
+     */
+    ASTAnyKind any_kind() override {
+        return ASTAnyKind::Type;
+    }
+
+    /**
      * get the byte size, of this type
      */
     virtual uint64_t byte_size(bool is64Bit) {

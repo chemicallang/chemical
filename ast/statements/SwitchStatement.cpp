@@ -167,7 +167,7 @@ void SwitchStatement::declare_and_link(SymbolResolver &linker, std::unique_ptr<A
     if(linked) {
         variant_def = linked->as_variant_def();
         if (variant_def && (scopes.size() < variant_def->variables.size() && !defScope.has_value())) {
-            linker.error("expected all cases of variant in switch statement when no default case is specified", this);
+            linker.error("expected all cases of variant in switch statement when no default case is specified", (ASTNode*) this);
             return;
         }
     }

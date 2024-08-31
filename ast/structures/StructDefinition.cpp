@@ -37,7 +37,7 @@ void StructDefinition::struct_func_gen(Codegen& gen, const std::vector<std::uniq
     for (auto &function: funcs) {
         if(function->has_annotation(AnnotationKind::Override)) {
             if(!llvm_override(gen, function.get())) {
-                gen.error("Failed to override the function", function.get());
+                gen.error("Failed to override the function", (AnnotableNode*) function.get());
             }
             continue;
         }

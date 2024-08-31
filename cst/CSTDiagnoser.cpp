@@ -4,9 +4,9 @@
 #include "cst/base/CSTDiagnoser.h"
 #include "cst/base/CSTToken.h"
 
-void CSTDiagnoser::error(const std::string &message, CSTToken *start, CSTToken *end, DiagSeverity severity) {
+void CSTDiagnoser::diagnostic(const std::string &message, CSTToken *start, CSTToken *end, DiagSeverity severity) {
 #ifdef DEBUG
-    std::cerr << "Debug reporting error " + message << std::endl;
+    std::cerr << "[Debug_Error] " << message << std::endl;
 #endif
     if (severity == DiagSeverity::Error) {
         has_errors = true;
@@ -22,6 +22,13 @@ void CSTDiagnoser::error(const std::string &message, CSTToken *start, CSTToken *
     );
 }
 
-void CSTDiagnoser::error(const std::string &message, CSTToken *inside, DiagSeverity severity) {
-    error(message, inside->start_token(), inside->end_token(), severity);
+void CSTDiagnoser::diagnostic(const std::string &message, DiagSeverity severity) {
+    CSTToken dummy(LexTokenType::Bool, Position(0, 0), "");
+    diagnostic(message, &dummy, severity);
+}
+
+void CSTDiagnoser::print_diagnostics(const std::string& path, const std::string& tag) {
+    for (const auto &err: diagnostics) {
+        err.ansi(std::cerr, path, tag) << std::endl;
+    }
 }

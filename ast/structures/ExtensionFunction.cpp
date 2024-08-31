@@ -85,7 +85,7 @@ void ExtensionFunction::declare_top_level(SymbolResolver &linker, std::unique_pt
     }
     auto container = linked->as_extendable_members_container();
     if(!container) {
-        linker.error("type doesn't support extension functions " + type->representation(), (AnnotableNode*) this);
+        linker.error("type doesn't support extension functions " + type->representation(), receiver.type.get());
         return;
     }
     container->extension_functions[name] = this;
@@ -121,7 +121,7 @@ void ExtensionFunction::declare_and_link(SymbolResolver &linker, std::unique_ptr
     auto linked = receiver.type->linked_node();
     const auto field_func = linked->child(name);
     if(field_func != this) {
-        linker.error("couldn't declare extension function with name '" + name + "' because type '" + receiver.type->representation() + "' already has a field / function \nconflicted :" + field_func->representation(), (AnnotableNode*) this);
+        linker.error("couldn't declare extension function with name '" + name + "' because type '" + receiver.type->representation() + "' already has a field / function with same name \n", receiver.type.get());
         return;
     }
 

@@ -93,7 +93,7 @@ public:
      * it's a container of AST diagnostics
      * this is here because c file's errors are ignored because they contain unresolvable symbols
      */
-    std::vector<ASTDiag> previous;
+    std::vector<Diag> previous;
 
     /**
      * constructor

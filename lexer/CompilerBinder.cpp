@@ -59,9 +59,7 @@ std::vector<std::unique_ptr<ASTNode>> CompilerBinderCommon::parse(std::vector<CS
         node->declare_and_link(resolver, node);
     }
     if(resolver.has_errors) {
-        for(auto& err : resolver.errors) {
-            diagnoser->error("[SymRes] " + err.message, tokens[0], tokens[tokens.size() - 1]);
-        }
+        resolver.print_diagnostics("unknown_path", "Binder");
     }
 
     return nodes;

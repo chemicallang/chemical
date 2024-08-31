@@ -28,9 +28,9 @@ void ASTCompiler::compile_nodes(
         bm_results->benchmark_end();
         print_benchmarks(std::cout, "Compile", bm_results.get());
     }
-    if(!gen->errors.empty()) {
-        gen->print_errors(file.abs_path);
-        gen->errors.clear();
+    if(!gen->diagnostics.empty()) {
+        gen->print_diagnostics(file.abs_path, "Compile");
+        gen->diagnostics.clear();
     }
     import_res.nodes = std::move(gen->nodes);
 }

@@ -74,7 +74,7 @@ void SymbolResolver::declare(const std::string& name, ASTNode* node) {
     }
 }
 
-bool SymbolResolver::undeclare(const std::string& name) {
+bool SymbolResolver::undeclare(const std::string_view& name) {
     int i = current.size() - 1;
     while (i >= 0) {
         auto& last = current[i];

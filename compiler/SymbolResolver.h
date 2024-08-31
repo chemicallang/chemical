@@ -44,8 +44,11 @@ struct SymResScope {
 
     /**
      * a scope is a map of symbols, this is that map
+     * The key here is string_view, so it assumes that it's always valid
+     * that's because strings are stored inside AST, which is not disposed
+     * until symbol resolution is completed
      */
-    std::unordered_map<std::string, ASTNode*> symbols;
+    std::unordered_map<std::string_view, ASTNode*> symbols;
 
 };
 
@@ -144,7 +147,7 @@ public:
      * for example using namespace some; this will always be disposed unless propagate annotation exists
      * above it
      */
-    std::vector<std::string> dispose_file_symbols;
+    std::vector<std::string_view> dispose_file_symbols;
 
     /**
      * constructor
@@ -171,7 +174,7 @@ public:
     /**
      * symbol will be undeclared if present, otherwise error if error_out
      */
-    bool undeclare(const std::string& name);
+    bool undeclare(const std::string_view& name);
 
     /**
      * symbol will be undeclared in other files (not current file)

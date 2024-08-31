@@ -62,7 +62,7 @@ public:
 
 #ifdef COMPILER_BUILD
 
-    std::string ns_node_identifier() override {
+    const std::string& ns_node_identifier() override {
         return identifier;
     }
 

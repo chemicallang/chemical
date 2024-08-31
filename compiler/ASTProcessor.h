@@ -133,6 +133,11 @@ public:
     void sym_res(Scope& scope, bool is_c_file, const std::string& abs_path);
 
     /**
+     * disposes file symbols
+     */
+    void dispose_file_symbols(const std::string& abs_path);
+
+    /**
      * print given benchmark results
      */
     void print_benchmarks(std::ostream& stream, const std::string& TAG, BenchmarkResults* results);

@@ -205,8 +205,9 @@ bool VariantCaseVariable::add_child_index(Codegen &gen, std::vector<llvm::Value 
 
 VariantDefinition::VariantDefinition(
     std::string name,
-    ASTNode* parent_node
-) : ExtendableMembersContainerNode(std::move(name)), parent_node(parent_node), ref_type(name, this) {
+    ASTNode* parent_node,
+    CSTToken* token
+) : ExtendableMembersContainerNode(std::move(name)), parent_node(parent_node), ref_type(name, this, nullptr), token(token) {
 }
 
 ASTNode* VariantDefinition::child(const std::string &child_name) {
@@ -260,7 +261,7 @@ uint64_t VariantDefinition::byte_size(bool is64Bit) {
 }
 
 std::unique_ptr<BaseType> VariantDefinition::create_value_type() {
-    return std::make_unique<ReferencedType>(name, this);
+    return std::make_unique<ReferencedType>(name, this, nullptr);
 }
 
 hybrid_ptr<BaseType> VariantDefinition::get_value_type() {
@@ -316,13 +317,14 @@ int16_t VariantDefinition::register_call(SymbolResolver& resolver, VariantCall* 
 
 VariantMember::VariantMember(
         const std::string& name,
-        VariantDefinition* parent_node
-) : BaseDefMember(name), parent_node(parent_node), ref_type(name, this) {
+        VariantDefinition* parent_node,
+        CSTToken* token
+) : BaseDefMember(name), parent_node(parent_node), ref_type(name, this, nullptr), token(token) {
 
 }
 
 BaseDefMember *VariantMember::copy_member() {
-    const auto member = new VariantMember(name, parent_node);
+    const auto member = new VariantMember(name, parent_node, token);
     for(auto& value : values) {
         member->values[value.first] = std::unique_ptr<VariantMemberParam>(value.second->copy());
     }
@@ -375,7 +377,7 @@ BaseType* VariantMember::known_type() {
 }
 
 std::unique_ptr<BaseType> VariantMember::create_value_type() {
-    return std::make_unique<ReferencedType>(name, this);
+    return std::make_unique<ReferencedType>(name, this, nullptr);
 }
 
 hybrid_ptr<BaseType> VariantMember::get_value_type() {
@@ -395,13 +397,14 @@ VariantMemberParam::VariantMemberParam(
     unsigned index,
     std::unique_ptr<BaseType> type,
     std::unique_ptr<Value> def_value,
-    VariantMember* parent_node
-) : name(std::move(name)), index(index), type(std::move(type)), def_value(std::move(def_value)), parent_node(parent_node) {
+    VariantMember* parent_node,
+    CSTToken* token
+) : name(std::move(name)), index(index), type(std::move(type)), def_value(std::move(def_value)), parent_node(parent_node), token(token) {
 
 }
 
 VariantMemberParam* VariantMemberParam::copy() {
-    return new VariantMemberParam(name, index,std::unique_ptr<BaseType>(type->copy()), std::unique_ptr<Value>(def_value ? def_value->copy() : nullptr), parent_node);
+    return new VariantMemberParam(name, index,std::unique_ptr<BaseType>(type->copy()), std::unique_ptr<Value>(def_value ? def_value->copy() : nullptr), parent_node, token);
 }
 
 void VariantMemberParam::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
@@ -426,7 +429,7 @@ ASTNode* VariantMemberParam::child(const std::string &varName) {
     return linked_node->child(varName);
 }
 
-VariantCase::VariantCase(std::unique_ptr<AccessChain> _chain, ASTDiagnoser& diagnoser, SwitchStatement* statement) : chain(std::move(_chain)), switch_statement(statement) {
+VariantCase::VariantCase(std::unique_ptr<AccessChain> _chain, ASTDiagnoser& diagnoser, SwitchStatement* statement, CSTToken* token) : chain(std::move(_chain)), switch_statement(statement), token(token) {
     const auto func_call = chain->values.back()->as_func_call();
     if(func_call) {
         for(auto& value : func_call->values) {
@@ -435,7 +438,7 @@ VariantCase::VariantCase(std::unique_ptr<AccessChain> _chain, ASTDiagnoser& diag
                 diagnoser.error("switch variant case with a function call doesn't contain identifiers '" + chain->chain_representation() + "', in question " + value->representation());
                 return;
             }
-            identifier_list.emplace_back(id->value, this);
+            identifier_list.emplace_back(id->value, this, token);
         }
         // remove the last function call, as we took it's identifiers
         chain->values.pop_back();
@@ -463,7 +466,11 @@ void VariantCaseVariable::declare_and_link(SymbolResolver &linker, std::unique_p
     linker.declare(name, this);
 }
 
-VariantCaseVariable::VariantCaseVariable(std::string name, VariantCase* variant_case) : name(std::move(name)), variant_case(variant_case) {
+VariantCaseVariable::VariantCaseVariable(
+        std::string name,
+        VariantCase* variant_case,
+        CSTToken* token
+) : name(std::move(name)), variant_case(variant_case), token(token) {
 
 }
 

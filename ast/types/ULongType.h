@@ -12,7 +12,7 @@ public:
     static const ULongType instance64Bit;
     static const ULongType instance32Bit;
 
-    explicit ULongType(bool is64Bit) : is64Bit(is64Bit) {
+    ULongType(bool is64Bit, CSTToken* token) : is64Bit(is64Bit), IntNType(token) {
 
     }
 
@@ -44,7 +44,7 @@ public:
 
     [[nodiscard]]
     ULongType *copy() const override {
-        return new ULongType(is64Bit);
+        return new ULongType(is64Bit, token);
     }
 
 };

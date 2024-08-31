@@ -10,27 +10,28 @@ public:
 
     std::string name;
     unsigned int index;
-    ASTNode* parent_node;
+    EnumDeclaration* parent_node;
+    CSTToken* token;
 
     EnumMember(
         const std::string& name,
         unsigned int index,
-        ASTNode* parent_node
-    ) : name(name), index(index), parent_node(parent_node) {
+        EnumDeclaration* parent_node,
+        CSTToken* token
+    ) : name(name), index(index), parent_node(parent_node), token(token) {
 
     }
 
+    CSTToken *cst_token() override {
+        return token;
+    }
 
     ASTNodeKind kind() override {
         return ASTNodeKind::EnumMember;
     }
 
-    void set_parent(ASTNode* new_parent) override {
-        parent_node = new_parent;
-    }
-
     ASTNode *parent() override {
-        return parent_node;
+        return (ASTNode*) parent_node;
     }
 
     void accept(Visitor *visitor) override {

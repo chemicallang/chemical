@@ -33,11 +33,11 @@ void evaluate_values(std::vector<std::unique_ptr<Value>>& values, InterpretScope
 }
 
 std::unique_ptr<Value> call_with_arg(FunctionDeclaration* decl, std::unique_ptr<Value> arg, SymbolResolver& resolver) {
-    auto chain = std::make_unique<AccessChain>(nullptr, false);
-    auto id = std::make_unique<VariableIdentifier>(decl->name);
+    auto chain = std::make_unique<AccessChain>(nullptr, false, nullptr);
+    auto id = std::make_unique<VariableIdentifier>(decl->name, nullptr);
     id->linked = decl;
     chain->values.emplace_back(std::move(id));
-    auto imp_call = std::make_unique<FunctionCall>(std::vector<std::unique_ptr<Value>> {});
+    auto imp_call = std::make_unique<FunctionCall>(std::vector<std::unique_ptr<Value>> {}, nullptr);
     imp_call->parent_val = chain->values[0].get();
     imp_call->values.emplace_back(std::move(arg));
     imp_call->values[0]->link(resolver, imp_call.get(), 0);

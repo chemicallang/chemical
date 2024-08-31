@@ -34,7 +34,7 @@ ValueType NumberValue::value_type() const {
 }
 
 Value *NumberValue::scope_value(InterpretScope &scope) {
-    return new IntValue((int) value);
+    return new IntValue((int) value, token);
 }
 
 std::unique_ptr<IntNType> linked(BaseType* type) {

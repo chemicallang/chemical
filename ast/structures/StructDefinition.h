@@ -21,6 +21,7 @@ public:
     AccessSpecifier specifier = AccessSpecifier::Internal;
     bool is_direct_init = false;
     ASTNode* parent_node;
+    CSTToken* token;
 
 #ifdef COMPILER_BUILD
     /**
@@ -41,7 +42,8 @@ public:
      */
     StructDefinition(
             std::string name,
-            ASTNode* parent_node
+            ASTNode* parent_node,
+            CSTToken* token
     );
 
     ASTNodeKind kind() override {
@@ -60,6 +62,10 @@ public:
 
     void set_parent(ASTNode* new_parent) override {
         parent_node = new_parent;
+    }
+
+    CSTToken *cst_token() override {
+        return token;
     }
 
     ASTNode *parent() override {

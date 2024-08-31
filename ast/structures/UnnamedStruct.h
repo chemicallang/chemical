@@ -10,14 +10,20 @@ class UnnamedStruct : public BaseDefMember, public VariablesContainer, public St
 public:
 
     ASTNode* parent_node;
+    CSTToken* token;
 
     UnnamedStruct(
         std::string name,
-        ASTNode* parent_node
+        ASTNode* parent_node,
+        CSTToken* token
     );
 
     ASTNodeKind kind() override {
         return ASTNodeKind::UnnamedStruct;
+    }
+
+    CSTToken *cst_token() override {
+        return token;
     }
 
     std::string struct_name() override {

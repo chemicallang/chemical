@@ -9,6 +9,7 @@ public:
     std::unique_ptr<AccessChain> chain;
     std::vector<std::unique_ptr<Value>> values;
     std::vector<std::unique_ptr<BaseType>> generic_list;
+    CSTToken* token;
 
     /**
      * the generic iteration is determined and stored at resolution phase
@@ -20,7 +21,11 @@ public:
     /**
      * this will take the access chain, if has function call at least, own it's values
      */
-    explicit VariantCall(std::unique_ptr<AccessChain> chain);
+    explicit VariantCall(std::unique_ptr<AccessChain> chain, CSTToken* token);
+
+    CSTToken* cst_token() override {
+        return token;
+    }
 
     ValueKind val_kind() override {
         return ValueKind::VariantCall;

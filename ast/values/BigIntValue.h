@@ -9,9 +9,14 @@ class BigIntValue : public IntNumValue {
 public:
 
     long long value;
+    CSTToken* token;
 
-    explicit BigIntValue(long long value) : value(value) {
+    explicit BigIntValue(long long value, CSTToken* token) : value(value), token(token) {
 
+    }
+
+    CSTToken *cst_token() override {
+        return token;
     }
 
     ValueKind val_kind() override {
@@ -27,7 +32,7 @@ public:
     }
 
     BigIntValue *copy() override {
-        return new BigIntValue(value);
+        return new BigIntValue(value, token);
     }
 
     hybrid_ptr<BaseType> get_base_type() override {
@@ -39,7 +44,7 @@ public:
     }
 
     [[nodiscard]] std::unique_ptr<BaseType> create_type() override {
-        return std::make_unique<BigIntType>();
+        return std::make_unique<BigIntType>(nullptr);
     }
 
     unsigned int get_num_bits() override {

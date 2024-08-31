@@ -13,12 +13,17 @@ public:
 
     std::vector<std::unique_ptr<ASTNode>> nodes;
     ASTNode* parent_node;
+    CSTToken* token;
 
     /**
      * empty constructor
      */
-    Scope(ASTNode* parent_node) : parent_node(parent_node) {
+    Scope(ASTNode* parent_node, CSTToken* token) : parent_node(parent_node), token(token) {
 
+    }
+
+    CSTToken *cst_token() override {
+        return token;
     }
 
     ASTNodeKind kind() override {
@@ -29,7 +34,7 @@ public:
      * @brief Construct a new Scope object.
      * @param nodes All the ASTNode(s) present in the scope
      */
-    Scope(std::vector<std::unique_ptr<ASTNode>> nodes, ASTNode* parent_node);
+    Scope(std::vector<std::unique_ptr<ASTNode>> nodes, ASTNode* parent_node, CSTToken* token);
 
     void set_parent(ASTNode* new_parent) override {
         parent_node = new_parent;

@@ -234,7 +234,7 @@ void type_with_id(ToCAstVisitor* visitor, BaseType* type, const std::string& id)
 void param_type_with_id(ToCAstVisitor* visitor, BaseType* type, const std::string& id) {
     const auto node = type->get_direct_ref_node();
     if(node && (node->as_struct_def() || node->as_variant_def())) {
-        PointerType ptr_type(hybrid_ptr<BaseType>{ type, false });
+        PointerType ptr_type(hybrid_ptr<BaseType>{ type, false }, nullptr);
         type_with_id(visitor, &ptr_type, id);
     } else {
         type_with_id(visitor, type, id);
@@ -1375,7 +1375,7 @@ public:
     void destruct_arr_ptr(const std::string& self_name, Value* array_size, ExtendableMembersContainerNode* linked, int16_t generic_iteration, FunctionDeclaration* destructor);
 
     void destruct_arr(const std::string& self_name, int array_size, ExtendableMembersContainerNode* linked, int16_t generic_iteration, FunctionDeclaration* destructor) {
-        IntValue siz(array_size);
+        IntValue siz(array_size, nullptr);
         destruct_arr_ptr(self_name, &siz, linked, generic_iteration, destructor);
     }
 
@@ -1778,7 +1778,7 @@ void CValueDeclarationVisitor::visit(LambdaFunction *lamb) {
             aliases[var.get()] = capture_struct_name;
             visitor->new_line_and_indent();
             if(var->capture_by_ref) {
-                PointerType pointer(var->linked->create_value_type());
+                PointerType pointer(var->linked->create_value_type(), nullptr);
                 pointer.accept(visitor);
             } else {
                 var->linked->create_value_type()->accept(visitor);
@@ -3010,7 +3010,7 @@ void ToCAstVisitor::visit(DestructStmt *stmt) {
     auto data = stmt->get_data();
 
     auto self_name = string_accept(stmt->identifier.get());
-    IntValue siz_val(data.array_size);
+    IntValue siz_val(data.array_size, nullptr);
 
     if(stmt->is_array) {
         destructor->destruct_arr_ptr(self_name, data.array_size != -1 ? &siz_val : stmt->array_value.get(), data.parent_node, 0, data.destructor_func);

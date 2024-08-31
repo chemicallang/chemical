@@ -7,7 +7,6 @@
 #pragma once
 
 #include "ASTAny.h"
-#include "Interpretable.h"
 #include "ValueType.h"
 #include "ast/utils/Operation.h"
 #include <vector>
@@ -397,9 +396,7 @@ public:
      * @param value
      * @param op
      */
-    virtual void set_identifier_value(InterpretScope& scope, Value* rawValue, Operation op) {
-        scope.error("set_identifier_value called on base value");
-    }
+    virtual void set_identifier_value(InterpretScope& scope, Value* rawValue, Operation op);
 
     /**
      * check if this value is an int n

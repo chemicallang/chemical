@@ -4,7 +4,7 @@
 #include "CharType.h"
 
 std::unique_ptr<BaseType> StringType::create_child_type() const {
-    return std::unique_ptr<BaseType>(new CharType());
+    return std::unique_ptr<BaseType>(new CharType(nullptr));
 }
 
 hybrid_ptr<BaseType> StringType::get_child_type() {

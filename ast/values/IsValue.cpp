@@ -6,15 +6,18 @@
 IsValue::IsValue(
         std::unique_ptr<Value> value,
         std::unique_ptr<BaseType> type,
-        bool is_negating
-) : value(std::move(value)), type(std::move(type)), is_negating(is_negating) {
+        bool is_negating,
+        CSTToken* token
+) : value(std::move(value)), type(std::move(type)), is_negating(is_negating), token(token) {
 
 }
 
 IsValue *IsValue::copy() {
     return new IsValue(
             std::unique_ptr<Value>(value->copy()),
-            std::unique_ptr<BaseType>(type->copy())
+            std::unique_ptr<BaseType>(type->copy()),
+                is_negating,
+                token
     );
 }
 

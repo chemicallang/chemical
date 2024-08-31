@@ -6,6 +6,7 @@ class ExtensionFuncReceiver : public BaseFunctionParam {
 public:
 
     ASTNode* parent_node;
+    CSTToken* token;
 
     /**
      * constructor
@@ -13,8 +14,13 @@ public:
     ExtensionFuncReceiver(
         std::string name,
         std::unique_ptr<BaseType> type,
-        ASTNode* parent_node
+        ASTNode* parent_node,
+        CSTToken* token
     );
+
+    CSTToken *cst_token() override {
+        return token;
+    }
 
     ASTNodeKind kind() override {
         return ASTNodeKind::ExtensionFuncReceiver;

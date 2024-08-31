@@ -4,10 +4,12 @@
 
 #include "ast/base/BaseType.h"
 
-class FloatType : public BaseType {
+class FloatType : public TokenizedBaseType {
 public:
 
     static const FloatType instance;
+
+    using TokenizedBaseType::TokenizedBaseType;
 
     uint64_t byte_size(bool is64Bit) override {
         return 4;
@@ -43,7 +45,7 @@ public:
 
     [[nodiscard]]
     FloatType *copy() const override {
-        return new FloatType();
+        return new FloatType(token);
     }
 
 #ifdef COMPILER_BUILD

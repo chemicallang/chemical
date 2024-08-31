@@ -26,12 +26,17 @@ public:
      */
     std::unique_ptr<Value> value;
     ASTNode* parent_node;
+    CSTToken* token;
 
     /**
      * constructor
      */
-    ValueNode(std::unique_ptr<Value> value, ASTNode* parent_node) : value(std::move(value)), parent_node(parent_node) {
+    ValueNode(std::unique_ptr<Value> value, ASTNode* parent_node, CSTToken* token) : value(std::move(value)), parent_node(parent_node), token(token) {
 
+    }
+
+    CSTToken *cst_token() override {
+        return token;
     }
 
     Value *holding_value() override {

@@ -14,14 +14,20 @@ public:
     std::unique_ptr<Value> def_value;
     VariantMember* parent_node;
     unsigned index;
+    CSTToken* token;
 
     VariantMemberParam(
         std::string name,
         unsigned index,
         std::unique_ptr<BaseType> type,
         std::unique_ptr<Value> def_value,
-        VariantMember* parent_node
+        VariantMember* parent_node,
+        CSTToken* token
     );
+
+    CSTToken *cst_token() override {
+        return token;
+    }
 
     ASTNodeKind kind() override {
         return ASTNodeKind::VariantMemberParam;

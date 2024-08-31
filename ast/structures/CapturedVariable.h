@@ -12,10 +12,15 @@ public:
     unsigned int index;
     LambdaFunction *lambda;
     ASTNode *linked;
+    CSTToken* token;
 
 
-    CapturedVariable(std::string name, unsigned int index, bool capture_by_ref) : name(std::move(name)), index(index), capture_by_ref(capture_by_ref) {
+    CapturedVariable(std::string name, unsigned int index, bool capture_by_ref, CSTToken* token) : name(std::move(name)), index(index), capture_by_ref(capture_by_ref), token(token) {
 
+    }
+
+    CSTToken *cst_token() override {
+        return token;
     }
 
     ASTNodeKind kind() override {

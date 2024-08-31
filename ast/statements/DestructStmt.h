@@ -34,6 +34,10 @@ public:
      * parent node
      */
     ASTNode* parent_node;
+    /**
+     * the cst token
+     */
+    CSTToken* token;
 
     /**
      * constructor
@@ -42,8 +46,13 @@ public:
         std::unique_ptr<Value> array_value,
         std::unique_ptr<Value> value,
         bool is_array,
-        ASTNode* parent_node
+        ASTNode* parent_node,
+        CSTToken* token
     );
+
+    CSTToken* cst_token() override {
+        return token;
+    }
 
     DestructData get_data();
 

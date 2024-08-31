@@ -4,10 +4,12 @@
 
 #include "ast/base/BaseType.h"
 
-class VoidType : public BaseType {
+class VoidType : public TokenizedBaseType {
 public:
 
     static const VoidType instance;
+
+    using TokenizedBaseType::TokenizedBaseType;
 
     bool satisfies(ValueType type) override {
         return false;
@@ -32,7 +34,7 @@ public:
 
     [[nodiscard]]
     virtual VoidType* copy() const {
-        return new VoidType();
+        return new VoidType(token);
     }
 
 #ifdef COMPILER_BUILD

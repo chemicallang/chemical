@@ -14,9 +14,13 @@ class AddrOfValue : public Value {
 public:
 
     std::unique_ptr<Value> value;
+    CSTToken* token;
 
-    explicit AddrOfValue(std::unique_ptr<Value> value);
+    explicit AddrOfValue(std::unique_ptr<Value> value, CSTToken* token);
 
+    CSTToken* cst_token() override{
+        return token;
+    }
 
     ValueKind val_kind() override {
         return ValueKind::AddrOfValue;
@@ -29,11 +33,11 @@ public:
     AddrOfValue *copy() override;
 
     hybrid_ptr<BaseType> get_base_type() override {
-        return hybrid_ptr<BaseType> { new PointerType(value->create_type()) };
+        return hybrid_ptr<BaseType> { new PointerType(value->create_type(), nullptr) };
     }
 
     std::unique_ptr<BaseType> create_type() override {
-        return std::make_unique<PointerType>(value->create_type());
+        return std::make_unique<PointerType>(value->create_type(), nullptr);
     }
 
     void accept(Visitor *visitor) override {

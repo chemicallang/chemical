@@ -18,6 +18,7 @@ class InterfaceDefinition : public ExtendableMembersContainerNode {
 public:
 
     ASTNode* parent_node;
+    CSTToken* token;
     /**
      * users are registered so we can declare functions before hand
      */
@@ -45,8 +46,13 @@ public:
      */
     InterfaceDefinition(
             std::string name,
-            ASTNode* parent_node
+            ASTNode* parent_node,
+            CSTToken* token
     );
+
+    CSTToken *cst_token() override {
+        return token;
+    }
 
     ASTNodeKind kind() override {
         return ASTNodeKind::InterfaceDecl;

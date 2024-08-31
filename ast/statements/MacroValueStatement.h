@@ -17,6 +17,7 @@ public:
     std::unique_ptr<Value> value;
     std::string name;
     ASTNode* parent_node;
+    CSTToken* token;
 
     /**
      * @brief Construct a new ReturnStatement object.
@@ -24,9 +25,14 @@ public:
     MacroValueStatement(
         std::string name,
         std::unique_ptr<Value> value,
-        ASTNode* parent_node
-    ) : value(std::move(value)), name(std::move(name)), parent_node(parent_node) {
+        ASTNode* parent_node,
+        CSTToken* token
+    ) : value(std::move(value)), name(std::move(name)), parent_node(parent_node), token(token) {
 
+    }
+
+    CSTToken *cst_token() override {
+        return token;
     }
 
     void set_parent(ASTNode* new_parent) override {

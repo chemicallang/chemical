@@ -27,6 +27,8 @@ public:
      */
     explicit MultiFunctionNode(std::string name);
 
+    CSTToken *cst_token() override;
+
     ASTNodeKind kind() override {
         return ASTNodeKind::MultiFunctionNode;
     }

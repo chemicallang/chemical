@@ -9,6 +9,8 @@ public:
 
     static const BigIntType instance;
 
+    using IntNType::IntNType;
+
     uint64_t byte_size(bool is64Bit) override {
         return 8;
     }
@@ -36,7 +38,7 @@ public:
     }
 
     BigIntType *copy() const override {
-        return new BigIntType();
+        return new BigIntType(token);
     }
 
 };

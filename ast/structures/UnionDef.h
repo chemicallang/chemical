@@ -9,12 +9,17 @@ class UnionDef : public ExtendableMembersContainerNode, public UnionType {
 public:
 
     ASTNode* parent_node;
+    CSTToken* token;
 
 #ifdef COMPILER_BUILD
     llvm::StructType* llvm_struct_type = nullptr;
 #endif
 
-    UnionDef(std::string name, ASTNode* parent_node);
+    UnionDef(std::string name, ASTNode* parent_node, CSTToken* token);
+
+    CSTToken* cst_token() override {
+        return token;
+    }
 
     ASTNodeKind kind() override {
         return ASTNodeKind::UnionDecl;

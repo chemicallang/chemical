@@ -17,12 +17,12 @@ public:
 
     LoopScope body;
 
-    /**
-     * Initialize an empty loop ast node
-     */
-    explicit LoopASTNode() : body(this) {
-
-    }
+//    /**
+//     * Initialize an empty loop ast node
+//     */
+//    explicit LoopASTNode(CSTToken* token) : body(this, token) {
+//
+//    }
 
     /**
      * initialize with the given body

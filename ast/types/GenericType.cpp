@@ -18,8 +18,12 @@ GenericType::GenericType(std::unique_ptr<ReferencedType> referenced, int16_t gen
 
 }
 
-GenericType::GenericType(std::string base) : referenced(new ReferencedType(std::move(base))) {
+GenericType::GenericType(std::string base, CSTToken* token) : referenced(new ReferencedType(std::move(base), token)) {
 
+}
+
+CSTToken* GenericType::cst_token() {
+    return referenced->cst_token();
 }
 
 void GenericType::link(SymbolResolver &linker, std::unique_ptr<BaseType>& current) {

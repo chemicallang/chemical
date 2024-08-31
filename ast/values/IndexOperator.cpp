@@ -4,6 +4,7 @@
 #include "ast/base/ASTNode.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/types/ArrayType.h"
+#include "ast/base/InterpretScope.h"
 
 #ifdef COMPILER_BUILD
 
@@ -126,7 +127,7 @@ void IndexOperator::relink_parent(ChainValue *parent) {
 }
 
 IndexOperator* IndexOperator::copy() {
-    auto op = new IndexOperator({});
+    auto op = new IndexOperator({}, token);
     for(auto& value : values) {
         op->values.emplace_back(value->copy());
     }

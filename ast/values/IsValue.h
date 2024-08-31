@@ -15,8 +15,18 @@ public:
     std::unique_ptr<Value> value;
     std::unique_ptr<BaseType> type;
     bool is_negating;
+    CSTToken* token;
 
-    IsValue(std::unique_ptr<Value> value, std::unique_ptr<BaseType> type, bool is_negating = false);
+    IsValue(
+            std::unique_ptr<Value> value,
+            std::unique_ptr<BaseType> type,
+            bool is_negating,
+            CSTToken* token
+    );
+
+    CSTToken* cst_token() override {
+        return token;
+    }
 
     ValueKind val_kind() override {
         return ValueKind::IsValue;
@@ -38,7 +48,7 @@ public:
     }
 
     std::unique_ptr<BaseType> create_type() override {
-        return std::unique_ptr<BaseType>(new BoolType());
+        return std::unique_ptr<BaseType>(new BoolType(nullptr));
     }
 
     void accept(Visitor *visitor) override {

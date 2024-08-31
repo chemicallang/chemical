@@ -10,11 +10,17 @@ class UnnamedUnion : public BaseDefMember, public VariablesContainer, public Uni
 public:
 
     ASTNode* parent_node;
+    CSTToken* token;
 
     UnnamedUnion(
         std::string name,
-        ASTNode* parent_node
+        ASTNode* parent_node,
+        CSTToken* token
     );
+
+    CSTToken* cst_token() override {
+        return token;
+    }
 
     ASTNodeKind kind() override {
         return ASTNodeKind::UnnamedUnion;

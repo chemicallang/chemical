@@ -14,12 +14,20 @@
  */
 class DoubleValue : public Value {
 public:
+
+    double value; ///< The double value.
+    CSTToken* token;
+
     /**
      * @brief Construct a new DoubleValue object.
      *
      * @param value The double value.
      */
-    explicit DoubleValue(double value) : value(value) {}
+    explicit DoubleValue(double value, CSTToken* token) : value(value), token(token) {}
+
+    CSTToken *cst_token() override {
+        return token;
+    }
 
     ValueKind val_kind() override {
         return ValueKind::Double;
@@ -42,7 +50,7 @@ public:
 #endif
 
     std::unique_ptr<BaseType> create_type() override {
-        return std::make_unique<DoubleType>();
+        return std::make_unique<DoubleType>(nullptr);
     }
 
     hybrid_ptr<BaseType> get_base_type() override {
@@ -54,7 +62,7 @@ public:
     }
 
     DoubleValue *copy() override {
-        return new DoubleValue(value);
+        return new DoubleValue(value, token);
     }
 
     double as_double() override {
@@ -71,5 +79,4 @@ public:
         return BaseTypeKind::Double;
     }
 
-    double value; ///< The double value.
 };

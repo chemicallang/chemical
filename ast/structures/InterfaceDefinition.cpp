@@ -107,17 +107,18 @@ llvm::Value* InterfaceDefinition::llvm_global_vtable(Codegen& gen, StructDefinit
 
 InterfaceDefinition::InterfaceDefinition(
         std::string name,
-        ASTNode* parent_node
-) : ExtendableMembersContainerNode(std::move(name)), parent_node(parent_node) {
+        ASTNode* parent_node,
+        CSTToken* token
+) : ExtendableMembersContainerNode(std::move(name)), parent_node(parent_node), token(token) {
 
 }
 
 std::unique_ptr<BaseType> InterfaceDefinition::create_value_type() {
-    return std::make_unique<ReferencedType>(name, this);
+    return std::make_unique<ReferencedType>(name, this, nullptr);
 }
 
 hybrid_ptr<BaseType> InterfaceDefinition::get_value_type() {
-    return hybrid_ptr<BaseType> { new ReferencedType(name, this) };
+    return hybrid_ptr<BaseType> { new ReferencedType(name, this, nullptr) };
 }
 
 int InterfaceDefinition::vtable_function_index(FunctionDeclaration* decl) {

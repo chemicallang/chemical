@@ -13,12 +13,18 @@ public:
 
     AccessChain chain;
     bool is_namespace = false;
+    CSTToken* token;
 
     UsingStmt(
         std::vector<std::unique_ptr<ChainValue>> values,
         ASTNode* parent_node,
-        bool is_namespace
+        bool is_namespace,
+        CSTToken* token
     );
+
+    CSTToken *cst_token() override {
+        return token;
+    }
 
     ASTNodeKind kind() override {
         return ASTNodeKind::UsingStmt;

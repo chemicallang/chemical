@@ -134,8 +134,9 @@ SwitchStatement::SwitchStatement(
         std::vector<std::pair<std::unique_ptr<Value>, Scope>> scopes,
         std::optional<Scope> defScope,
         ASTNode* parent_node,
-        bool is_value
-) : expression(std::move(expression)), scopes(std::move(scopes)), defScope(std::move(defScope)), parent_node(parent_node), is_value(is_value) {
+        bool is_value,
+        CSTToken* token
+) : expression(std::move(expression)), scopes(std::move(scopes)), defScope(std::move(defScope)), parent_node(parent_node), is_value(is_value), token(token) {
 
 }
 
@@ -175,7 +176,7 @@ void SwitchStatement::declare_and_link(SymbolResolver &linker, std::unique_ptr<A
         if(variant_def) {
             const auto chain = scope.first->as_access_chain();
             if (chain) {
-                scope.first = std::unique_ptr<Value>(new VariantCase(std::unique_ptr<AccessChain>((AccessChain*) scope.first.release()), linker, this));
+                scope.first = std::unique_ptr<Value>(new VariantCase(std::unique_ptr<AccessChain>((AccessChain*) scope.first.release()), linker, this, nullptr));
             }
         }
         scope.first->link(linker, scope.first);

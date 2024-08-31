@@ -45,7 +45,7 @@ void AccessChain::link(SymbolResolver &linker, BaseType *expected_type, std::uni
         }
         auto self_param = linker.current_func_type->get_self_param();
         if (self_param) {
-            auto self_id = new VariableIdentifier(self_param->name);
+            auto self_id = new VariableIdentifier(self_param->name, nullptr);
             self_id->linked = self_param;
             values.insert(values.begin(), std::unique_ptr<ChainValue>(self_id));
         } else {
@@ -53,7 +53,7 @@ void AccessChain::link(SymbolResolver &linker, BaseType *expected_type, std::uni
             if(decl && decl->has_annotation(AnnotationKind::Constructor) && !decl->has_annotation(AnnotationKind::CompTime)) {
                 auto found = linker.find("this");
                 if(found) {
-                    auto self_id = new VariableIdentifier("this");
+                    auto self_id = new VariableIdentifier("this", nullptr);
                     self_id->linked = found;
                     values.insert(values.begin(), std::unique_ptr<ChainValue>(self_id));
                 } else {
@@ -76,7 +76,7 @@ void AccessChain::link(SymbolResolver &linker, BaseType *expected_type, std::uni
             linked = values[1]->linked_node();
             if (linked && linked->as_variant_member() && value_ptr) {
                 auto& chain = *value_ptr;
-                chain = std::make_unique<VariantCall>(std::unique_ptr<AccessChain>((AccessChain*) chain.release()));
+                chain = std::make_unique<VariantCall>(std::unique_ptr<AccessChain>((AccessChain*) chain.release()), token);
                 ((std::unique_ptr<VariantCall>&) chain)->link(linker, chain, expected_type);
                 return;
             }
@@ -99,7 +99,7 @@ void AccessChain::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr
     link(linker, type, &value_ptr);
 }
 
-AccessChain::AccessChain(std::vector<std::unique_ptr<ChainValue>> values, ASTNode* parent_node, bool is_node) : values(std::move(values)), parent_node(parent_node), is_node(is_node) {
+AccessChain::AccessChain(std::vector<std::unique_ptr<ChainValue>> values, ASTNode* parent_node, bool is_node, CSTToken* token) : values(std::move(values)), parent_node(parent_node), is_node(is_node), token(token) {
 
 }
 
@@ -140,7 +140,7 @@ bool AccessChain::reference() {
 }
 
 AccessChain *AccessChain::copy() {
-    auto chain = new AccessChain(parent_node, is_node);
+    auto chain = new AccessChain(parent_node, is_node, token);
     for(auto& value : values) {
         chain->values.emplace_back((ChainValue*) value->copy());
     }

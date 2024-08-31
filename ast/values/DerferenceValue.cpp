@@ -3,8 +3,9 @@
 #include "DereferenceValue.h"
 
 DereferenceValue::DereferenceValue(
-        std::unique_ptr<Value> value
-) : value(std::move(value)) {
+        std::unique_ptr<Value> value,
+        CSTToken* token
+) : value(std::move(value)), token(token) {
 
 }
 
@@ -50,6 +51,7 @@ BaseType* DereferenceValue::known_type() {
 
 DereferenceValue *DereferenceValue::copy() {
     return new DereferenceValue(
-            std::unique_ptr<Value>(value->copy())
+            std::unique_ptr<Value>(value->copy()),
+            token
     );
 }

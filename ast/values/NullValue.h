@@ -13,6 +13,16 @@
 class NullValue : public Value {
 public:
 
+    CSTToken* token;
+
+    explicit NullValue(CSTToken* token) : token(token) {
+
+    }
+
+    CSTToken* cst_token() override {
+        return token;
+    }
+
     uint64_t byte_size(bool is64Bit) override {
         return is64Bit ? 8 : 4;
     }
@@ -31,7 +41,7 @@ public:
     }
 
     NullValue* copy() override {
-        return new NullValue();
+        return new NullValue(token);
     }
 
 #ifdef COMPILER_BUILD

@@ -9,6 +9,8 @@ public:
 
     static const UCharType instance;
 
+    using IntNType::IntNType;
+
     bool is_unsigned() override {
         return true;
     }
@@ -46,7 +48,7 @@ public:
 
     [[nodiscard]]
     UCharType* copy() const override {
-        return new UCharType();
+        return new UCharType(token);
     }
 
 #ifdef COMPILER_BUILD

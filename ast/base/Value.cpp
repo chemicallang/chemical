@@ -431,6 +431,10 @@ bool Value::should_build_chain_type(std::vector<std::unique_ptr<Value>>& chain, 
     return false;
 }
 
+void Value::set_identifier_value(InterpretScope& scope, Value* rawValue, Operation op) {
+    scope.error("set_identifier_value called on base value");
+}
+
 int16_t ChainValue::set_generic_iteration() {
 //    const auto linked = linked_node();
 //    if(linked) {

@@ -17,6 +17,7 @@ public:
     ASTNode* parent_node;
     FunctionType* func_type = nullptr;
     std::optional<std::unique_ptr<Value>> value;
+    CSTToken* token;
 
     /**
      * @brief Construct a new ReturnStatement object.
@@ -24,8 +25,13 @@ public:
     ReturnStatement(
             std::optional<std::unique_ptr<Value>> value,
             FunctionType *declaration,
-            ASTNode* parent_node
+            ASTNode* parent_node,
+            CSTToken* token
     );
+
+    CSTToken *cst_token() override {
+        return token;
+    }
 
     ASTNodeKind kind() override {
         return ASTNodeKind::ReturnStmt;

@@ -12,14 +12,20 @@ public:
 
     unsigned int index;
     std::optional<std::unique_ptr<Value>> defValue;
+    CSTToken* token;
 
     FunctionParam(
             std::string name,
             std::unique_ptr<BaseType> type,
             unsigned int index,
             std::optional<std::unique_ptr<Value>> defValue,
-            FunctionType* func_type = nullptr
-      );
+            FunctionType* func_type,
+            CSTToken* token
+    );
+
+    CSTToken *cst_token() override {
+        return token;
+    }
 
     ASTNodeKind kind() override {
         return ASTNodeKind::FunctionParam;

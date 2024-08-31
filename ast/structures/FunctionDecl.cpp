@@ -525,14 +525,16 @@ FunctionParam::FunctionParam(
         std::unique_ptr<BaseType> type,
         unsigned int index,
         std::optional<std::unique_ptr<Value>> defValue,
-        FunctionType* func_type
+        FunctionType* func_type,
+        CSTToken* token
 ) : BaseFunctionParam(
         std::move(name),
         std::move(type),
         func_type
     ),
     index(index),
-    defValue(std::move(defValue))
+    defValue(std::move(defValue)),
+    token(token)
 {
     name.shrink_to_fit();
 }
@@ -558,7 +560,7 @@ FunctionParam *FunctionParam::copy() const {
     if (defValue.has_value()) {
         copied.emplace(defValue.value()->copy());
     }
-    return new FunctionParam(name, std::unique_ptr<BaseType>(type->copy()), index, std::move(copied), func_type);
+    return new FunctionParam(name, std::unique_ptr<BaseType>(type->copy()), index, std::move(copied), func_type, token);
 }
 
 std::unique_ptr<BaseType> BaseFunctionParam::create_value_type() {
@@ -584,9 +586,10 @@ GenericTypeParameter::GenericTypeParameter(
         std::string identifier,
         std::unique_ptr<BaseType> def_type,
         ASTNode* parent_node,
-        unsigned param_index
+        unsigned param_index,
+        CSTToken* token
 ) : identifier(std::move(identifier)),
-def_type(std::move(def_type)), parent_node(parent_node), param_index(param_index) {
+def_type(std::move(def_type)), parent_node(parent_node), param_index(param_index), token(token) {
 
 }
 
@@ -615,10 +618,11 @@ FunctionDeclaration::FunctionDeclaration(
         std::unique_ptr<BaseType> returnType,
         bool isVariadic,
         ASTNode* parent_node,
+        CSTToken* token,
         std::optional<LoopScope> body
-) : FunctionType(std::move(params), std::move(returnType), isVariadic),
+) : FunctionType(std::move(params), std::move(returnType), isVariadic, false, token),
     name(std::move(name)),
-    body(std::move(body)), parent_node(parent_node) {
+    body(std::move(body)), parent_node(parent_node), token(token) {
 
     params.shrink_to_fit();
     if(this->name == "main") {
@@ -647,18 +651,18 @@ int16_t FunctionDeclaration::total_generic_iterations() {
 }
 
 void FunctionDeclaration::ensure_constructor(StructDefinition* def) {
-    returnType = std::make_unique<ReferencedType>(def->name, def);
+    returnType = std::make_unique<ReferencedType>(def->name, def, nullptr);
 }
 
 void FunctionDeclaration::ensure_destructor(ExtendableMembersContainerNode* def) {
     if(!has_self_param() || params.size() > 1 || params.empty()) {
         params.clear();
-        params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>(def->name, def)), 0, std::nullopt, this));
+        params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>(def->name, def, nullptr), nullptr), 0, std::nullopt, this, nullptr));
     }
-    returnType = std::make_unique<VoidType>();
+    returnType = std::make_unique<VoidType>(nullptr);
     if(!body.has_value()) {
-        body.emplace(std::vector<std::unique_ptr<ASTNode>> {}, this);
-        body.value().nodes.emplace_back(new ReturnStatement(std::nullopt, this, &body.value()));
+        body.emplace(std::vector<std::unique_ptr<ASTNode>> {}, this, nullptr);
+        body.value().nodes.emplace_back(new ReturnStatement(std::nullopt, this, &body.value(), nullptr));
     }
 }
 
@@ -724,7 +728,7 @@ std::unique_ptr<BaseType> FunctionDeclaration::create_value_type() {
     for(const auto& param : params) {
         copied.emplace_back(param->copy());
     }
-    return std::make_unique<FunctionType>(std::move(copied), std::unique_ptr<BaseType>(returnType->copy()), isVariadic, false);
+    return std::make_unique<FunctionType>(std::move(copied), std::unique_ptr<BaseType>(returnType->copy()), isVariadic, false, nullptr);
 }
 
 hybrid_ptr<BaseType> FunctionDeclaration::get_value_type() {
@@ -781,7 +785,7 @@ void FunctionDeclaration::declare_and_link(SymbolResolver &linker, std::unique_p
     returnType->link(linker, returnType);
     if (body.has_value()) {
         if(has_annotation(AnnotationKind::Constructor) && !has_annotation(AnnotationKind::CompTime)) {
-            auto init = new VarInitStatement(true, "this", std::nullopt, std::make_unique<CastedValue>(std::make_unique<RetStructParamValue>(), std::make_unique<PointerType>(std::make_unique<ReferencedType>(parent_node->ns_node_identifier(), parent_node))), &body.value());
+            auto init = new VarInitStatement(true, "this", std::nullopt, std::make_unique<CastedValue>(std::make_unique<RetStructParamValue>(nullptr), std::make_unique<PointerType>(std::make_unique<ReferencedType>(parent_node->ns_node_identifier(), parent_node, nullptr), nullptr), nullptr), &body.value(), nullptr);
             body.value().nodes.insert(body.value().nodes.begin(), std::unique_ptr<VarInitStatement>(init));
         }
         body->link_sequentially(linker);
@@ -851,7 +855,7 @@ Value *FunctionDeclaration::call(
 
 std::unique_ptr<BaseType> CapturedVariable::create_value_type() {
     if(capture_by_ref) {
-        return std::make_unique<PointerType>(linked->create_value_type());
+        return std::make_unique<PointerType>(linked->create_value_type(), nullptr);
     } else {
         return linked->create_value_type();
     }
@@ -859,7 +863,7 @@ std::unique_ptr<BaseType> CapturedVariable::create_value_type() {
 
 hybrid_ptr<BaseType> CapturedVariable::get_value_type() {
     if(capture_by_ref) {
-        return hybrid_ptr<BaseType> { new PointerType(linked->create_value_type()), true };
+        return hybrid_ptr<BaseType> { new PointerType(linked->create_value_type(), nullptr), true };
     } else {
         return linked->get_value_type();
     }

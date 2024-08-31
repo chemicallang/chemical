@@ -14,8 +14,13 @@ class NegativeValue : public Value {
 public:
 
     std::unique_ptr<Value> value;
+    CSTToken* token;
 
-    explicit NegativeValue(std::unique_ptr<Value> value) : value(std::move(value)) {}
+    explicit NegativeValue(std::unique_ptr<Value> value, CSTToken* token) : value(std::move(value)), token(token) {}
+
+    CSTToken* cst_token() override {
+        return token;
+    }
 
     ValueKind val_kind() override {
         return ValueKind::NegativeValue;
@@ -36,7 +41,7 @@ public:
     bool primitive() override;
 
     Value* copy() override {
-        return new NegativeValue(std::unique_ptr<Value>(value->copy()));
+        return new NegativeValue(std::unique_ptr<Value>(value->copy()), token);
     }
 
 #ifdef COMPILER_BUILD

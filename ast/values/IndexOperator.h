@@ -15,9 +15,14 @@ public:
 
     ChainValue *parent_val;
     std::vector<std::unique_ptr<Value>> values;
+    CSTToken* token;
 
-    explicit IndexOperator(std::vector<std::unique_ptr<Value>> indexes) : values(std::move(indexes)) {
+    IndexOperator(std::vector<std::unique_ptr<Value>> indexes, CSTToken* token) : values(std::move(indexes)), token(token) {
 
+    }
+
+    CSTToken* cst_token() override {
+        return token;
     }
 
     ValueKind val_kind() override {

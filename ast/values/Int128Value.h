@@ -11,9 +11,14 @@ public:
 
     uint64_t magnitude;
     bool is_negative;
+    CSTToken* token;
 
-    Int128Value(uint64_t magnitude, bool is_negative) : magnitude(magnitude), is_negative(is_negative) {
+    Int128Value(uint64_t magnitude, bool is_negative, CSTToken* token) : magnitude(magnitude), is_negative(is_negative), token(token) {
 
+    }
+
+    CSTToken* cst_token() override {
+        return token;
     }
 
     ValueKind val_kind() override {
@@ -37,11 +42,11 @@ public:
     }
 
     Int128Value *copy() override {
-        return new Int128Value(magnitude, is_negative);
+        return new Int128Value(magnitude, is_negative, token);
     }
 
     [[nodiscard]] std::unique_ptr<BaseType> create_type() override {
-        return std::make_unique<Int128Type>();
+        return std::make_unique<Int128Type>(token);
     }
 
     unsigned int get_num_bits() override {

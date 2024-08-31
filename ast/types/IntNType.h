@@ -4,8 +4,10 @@
 
 #include "ast/base/BaseType.h"
 
-class IntNType : public BaseType {
+class IntNType : public TokenizedBaseType {
 public:
+
+    using TokenizedBaseType::TokenizedBaseType;
 
     /**
      * is this int n type unsigned

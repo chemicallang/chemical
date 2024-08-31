@@ -4,10 +4,12 @@
 
 #include "ast/base/BaseType.h"
 
-class AnyType : public BaseType {
+class AnyType : public TokenizedBaseType {
 public:
 
     static const AnyType instance;
+
+    using TokenizedBaseType::TokenizedBaseType;
 
     bool satisfies(ValueType type) override {
         return true;
@@ -36,7 +38,7 @@ public:
 
     [[nodiscard]]
     AnyType* copy() const override {
-        return new AnyType();
+        return new AnyType(token);
     }
 
 #ifdef COMPILER_BUILD

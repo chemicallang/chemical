@@ -9,6 +9,8 @@ public:
 
     static const UBigIntType instance;
 
+    using IntNType::IntNType;
+
     [[nodiscard]]
     unsigned int num_bits() const override {
         return 64;
@@ -37,7 +39,7 @@ public:
 
     [[nodiscard]]
     UBigIntType *copy() const override {
-        return new UBigIntType();
+        return new UBigIntType(token);
     }
 
 };

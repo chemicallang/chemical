@@ -45,13 +45,13 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
         if(!pointee) {
             return nullptr;
         }
-        return new PointerType(std::unique_ptr<BaseType>(pointee));
+        return new PointerType(std::unique_ptr<BaseType>(pointee), nullptr);
     }
     if(canon_ptr != ptr) { // reference
         if(canon_ptr->isStructureType()) {
             return make_type(&canonical);
         }
-        return new ReferencedType(type->getAsString());
+        return new ReferencedType(type->getAsString(), nullptr);
     }
     if(ptr->isBuiltinType()) {
         auto builtIn = static_cast<clang::BuiltinType*>(const_cast<clang::Type*>(ptr));
@@ -63,7 +63,7 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
     } else if(ptr->isStructureType()){
         auto str_type = ptr->getAsStructureType();
         auto decl = str_type->getAsRecordDecl();
-        return new ReferencedType(decl->getNameAsString());
+        return new ReferencedType(decl->getNameAsString(), nullptr);
     }
 //    else if(ptr->isArrayType()) { // couldn't make use of it
 //        auto point = ptr->getAsArrayTypeUnsafe();
@@ -81,25 +81,25 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
 }
 
 EnumDeclaration* CTranslator::make_enum(clang::EnumDecl* decl) {
-    auto enum_decl = new EnumDeclaration(decl->getNameAsString(), {}, parent_node);
+    auto enum_decl = new EnumDeclaration(decl->getNameAsString(), {}, parent_node, nullptr);
     std::unordered_map<std::string, std::unique_ptr<EnumMember>> members;
     unsigned index = 0;
     for(auto mem : decl->enumerators()) {
-        enum_decl->members[mem->getNameAsString()] = std::make_unique<EnumMember>(mem->getNameAsString(), index, enum_decl);
+        enum_decl->members[mem->getNameAsString()] = std::make_unique<EnumMember>(mem->getNameAsString(), index, enum_decl, nullptr);
         index++;
     }
     return enum_decl;
 }
 
 StructDefinition* CTranslator::make_struct(clang::RecordDecl* decl) {
-    auto def = new StructDefinition(decl->getNameAsString(), parent_node);
+    auto def = new StructDefinition(decl->getNameAsString(), parent_node, nullptr);
     for(auto str : decl->fields()) {
         auto field_type = str->getType();
         auto field_type_conv = make_type(&field_type);
         if(!field_type_conv) {
             return nullptr;
         }
-        def->variables[str->getNameAsString()] = std::make_unique<StructMember>(str->getNameAsString(), std::unique_ptr<BaseType>(field_type_conv), std::nullopt, def);
+        def->variables[str->getNameAsString()] = std::make_unique<StructMember>(str->getNameAsString(), std::unique_ptr<BaseType>(field_type_conv), std::nullopt, def, nullptr);
     }
     return def;
 }
@@ -108,7 +108,7 @@ TypealiasStatement* CTranslator::make_typealias(clang::TypedefDecl* decl) {
     auto decl_type = decl->getUnderlyingType();
     auto type = make_type(&decl_type);
     if(type == nullptr) return nullptr;
-    return new TypealiasStatement(decl->getNameAsString(), std::unique_ptr<BaseType>(type), parent_node);
+    return new TypealiasStatement(decl->getNameAsString(), std::unique_ptr<BaseType>(type), parent_node, nullptr);
 }
 
 Expression* CTranslator::make_expr(clang::Expr* expr) {
@@ -124,7 +124,7 @@ VarInitStatement* CTranslator::make_var_init(clang::VarDecl* decl) {
     if(initial_value) {
         initial.emplace(initial_value);
     }
-    return new VarInitStatement(false, decl->getNameAsString(), std::unique_ptr<BaseType>(made_type), std::move(initial), parent_node);
+    return new VarInitStatement(false, decl->getNameAsString(), std::unique_ptr<BaseType>(made_type), std::move(initial), parent_node, nullptr);
 }
 
 FunctionDeclaration* CTranslator::make_func(clang::FunctionDecl* func_decl) {
@@ -148,7 +148,9 @@ FunctionDeclaration* CTranslator::make_func(clang::FunctionDecl* func_decl) {
                 param_name,
                 std::unique_ptr<BaseType>(chem_type),
                 index,
-                std::nullopt
+                std::nullopt,
+                nullptr,
+                nullptr
         ));
         index++;
     }
@@ -167,6 +169,7 @@ FunctionDeclaration* CTranslator::make_func(clang::FunctionDecl* func_decl) {
             std::unique_ptr<BaseType>(chem_type),
             func_decl->isVariadic(),
             parent_node,
+            nullptr,
             std::nullopt
     );
     decl->assign_params();

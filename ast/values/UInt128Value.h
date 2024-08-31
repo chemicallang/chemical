@@ -11,9 +11,14 @@ public:
 
     uint64_t low;
     uint64_t high;
+    CSTToken* token;
 
-    UInt128Value(uint64_t low, uint64_t high) : low(low), high(high) {
+    UInt128Value(uint64_t low, uint64_t high, CSTToken* token) : low(low), high(high), token(token) {
 
+    }
+
+    CSTToken* cst_token() override {
+        return token;
     }
 
     ValueKind val_kind() override {
@@ -37,11 +42,11 @@ public:
     }
 
     UInt128Value *copy() override {
-        return new UInt128Value(low, high);
+        return new UInt128Value(low, high, token);
     }
 
     [[nodiscard]] std::unique_ptr<BaseType> create_type() override {
-        return std::make_unique<UInt128Type>();
+        return std::make_unique<UInt128Type>(nullptr);
     }
 
     unsigned int get_num_bits() override {

@@ -18,6 +18,7 @@ public:
     std::vector<std::unique_ptr<Value>> values;
     std::optional<std::unique_ptr<BaseType>> elemType;
     std::vector<unsigned int> sizes;
+    CSTToken* token;
 
 #ifdef COMPILER_BUILD
     // TODO this arr value should be stored in code gen since its related to that
@@ -27,9 +28,14 @@ public:
     ArrayValue(
             std::vector<std::unique_ptr<Value>> values,
             std::optional<std::unique_ptr<BaseType>> type,
-            std::vector<unsigned int> sizes
-    ) : values(std::move(values)), elemType(std::move(type)), sizes(std::move(sizes)) {
+            std::vector<unsigned int> sizes,
+            CSTToken* token
+    ) : values(std::move(values)), elemType(std::move(type)), sizes(std::move(sizes)), token(token) {
         values.shrink_to_fit();
+    }
+
+    CSTToken* cst_token() override {
+        return token;
     }
 
     ValueKind val_kind() override {
@@ -146,7 +152,7 @@ public:
         if (elemType.has_value()) {
             copied_elem_type.emplace(elemType.value()->copy());
         }
-        return new ArrayValue(std::move(copied_values), std::move(copied_elem_type), sizes);
+        return new ArrayValue(std::move(copied_values), std::move(copied_elem_type), sizes, token);
     }
 
 };

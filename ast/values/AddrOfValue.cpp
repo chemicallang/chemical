@@ -4,8 +4,9 @@
 
 
 AddrOfValue::AddrOfValue(
-        std::unique_ptr<Value> value
-) : value(std::move(value)) {
+        std::unique_ptr<Value> value,
+        CSTToken* token
+) : value(std::move(value)), token(token) {
 
 }
 
@@ -15,6 +16,7 @@ void AddrOfValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr
 
 AddrOfValue *AddrOfValue::copy() {
     return new AddrOfValue(
-            std::unique_ptr<Value>(value->copy())
+            std::unique_ptr<Value>(value->copy()),
+            token
     );
 }

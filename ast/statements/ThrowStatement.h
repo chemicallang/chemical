@@ -11,11 +11,16 @@ public:
 
     std::unique_ptr<Value> value;
     ASTNode* parent_node;
+    CSTToken* token;
 
     /**
      * constructor
      */
-    ThrowStatement(std::unique_ptr<Value> value, ASTNode* parent_node);
+    ThrowStatement(std::unique_ptr<Value> value, ASTNode* parent_node, CSTToken* token);
+
+    CSTToken *cst_token() override {
+        return token;
+    }
 
     ASTNodeKind kind() override {
         return ASTNodeKind::ThrowStmt;

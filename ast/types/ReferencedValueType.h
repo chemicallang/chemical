@@ -5,12 +5,12 @@
 #include "ast/base/BaseType.h"
 #include "ast/base/Value.h"
 
-class ReferencedValueType: public BaseType {
+class ReferencedValueType: public TokenizedBaseType {
 public:
 
     std::unique_ptr<Value> value;
 
-    explicit ReferencedValueType(std::unique_ptr<Value> value) : value(std::move(value)) {
+    ReferencedValueType(std::unique_ptr<Value> value, CSTToken* token) : value(std::move(value)), TokenizedBaseType(token) {
 
     }
 
@@ -53,7 +53,7 @@ public:
 
     [[nodiscard]]
     ReferencedValueType *copy() const override {
-        return new ReferencedValueType(std::unique_ptr<Value>(value->copy()));
+        return new ReferencedValueType(std::unique_ptr<Value>(value->copy()), token);
     }
 
 #ifdef COMPILER_BUILD

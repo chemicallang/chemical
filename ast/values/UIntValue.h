@@ -9,9 +9,14 @@ class UIntValue : public IntNumValue {
 public:
 
     unsigned int value;
+    CSTToken* token;
 
-    explicit UIntValue(unsigned int value) : value(value) {
+    explicit UIntValue(unsigned int value, CSTToken* token) : value(value), token(token) {
 
+    }
+
+    CSTToken *cst_token() override {
+        return token;
     }
 
     ValueKind val_kind() override {
@@ -35,11 +40,11 @@ public:
     }
 
     UIntValue *copy() override {
-        return new UIntValue(value);
+        return new UIntValue(value, token);
     }
 
     [[nodiscard]] std::unique_ptr<BaseType> create_type() override {
-        return std::make_unique<UIntType>();
+        return std::make_unique<UIntType>(nullptr);
     }
 
     bool is_unsigned() override {

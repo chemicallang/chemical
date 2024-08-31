@@ -308,7 +308,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
             c_visitor.prepare_translate();
         }
 
-        ASTImportResultExt result { Scope { nullptr }, false, false, "" };
+        ASTImportResultExt result { Scope { nullptr, nullptr }, false, false, "" };
 
         // sequentially compile each file
         i = 0;
@@ -711,7 +711,7 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
                         break;
                     }
                     // put every imported file in it's own namespace so build methods don't clash
-                    auto ns = new Namespace(file.as_identifier, nullptr);
+                    auto ns = new Namespace(file.as_identifier, nullptr, nullptr);
                     for (auto &node: result.scope.nodes) {
                         node->set_parent(ns);
                     }

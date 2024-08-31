@@ -76,8 +76,9 @@ FunctionType::FunctionType(
     std::vector<std::unique_ptr<FunctionParam>> params,
     std::unique_ptr<BaseType> returnType,
     bool isVariadic,
-    bool isCapturing
-) : params(std::move(params)), returnType(std::move(returnType)), isVariadic(isVariadic), isCapturing(isCapturing) {
+    bool isCapturing,
+    CSTToken* token
+) : params(std::move(params)), returnType(std::move(returnType)), isVariadic(isVariadic), isCapturing(isCapturing), TokenizedBaseType(token) {
 
 }
 
@@ -182,7 +183,7 @@ FunctionType *FunctionType::copy() const {
     for (auto &param: params) {
         copied.emplace_back(param->copy());
     }
-    return new FunctionType(std::move(copied), std::unique_ptr<BaseType>(returnType->copy()), isVariadic, isCapturing);
+    return new FunctionType(std::move(copied), std::unique_ptr<BaseType>(returnType->copy()), isVariadic, isCapturing, token);
 }
 
 void FunctionType::link(SymbolResolver &linker, std::unique_ptr<BaseType>& current) {

@@ -15,16 +15,18 @@ class ForLoop : public LoopASTNode {
 public:
 
     ASTNode* parent_node;
+    CSTToken* token;
 
     /**
      * @brief Construct a new ForLoop object with an empty body
      */
-    ForLoop(
-            std::unique_ptr<VarInitStatement> initializer,
-            std::unique_ptr<Value> conditionExpr,
-            std::unique_ptr<ASTNode> incrementerExpr,
-            ASTNode* parent_node
-    );
+//    ForLoop(
+//            std::unique_ptr<VarInitStatement> initializer,
+//            std::unique_ptr<Value> conditionExpr,
+//            std::unique_ptr<ASTNode> incrementerExpr,
+//            ASTNode* parent_node,
+//            CSTToken* token
+//    );
 
     ASTNodeKind kind() override {
         return ASTNodeKind::ForLoopStmt;
@@ -38,8 +40,13 @@ public:
             std::unique_ptr<Value> conditionExpr,
             std::unique_ptr<ASTNode> incrementerExpr,
             LoopScope body,
-            ASTNode* parent_node
+            ASTNode* parent_node,
+            CSTToken* token
     );
+
+    CSTToken* cst_token() override {
+        return token;
+    }
 
     void set_parent(ASTNode* new_parent) override {
         parent_node = new_parent;

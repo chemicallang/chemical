@@ -23,6 +23,7 @@ public:
     std::optional<std::unique_ptr<BaseType>> type;
     std::optional<std::unique_ptr<Value>> value; ///< The value being assigned to the identifier.
     ASTNode* parent_node;
+    CSTToken* token;
 
     /**
      * @brief Construct a new InitStatement object.
@@ -35,8 +36,13 @@ public:
             std::string identifier,
             std::optional<std::unique_ptr<BaseType>> type,
             std::optional<std::unique_ptr<Value>> value,
-            ASTNode* parent_node
+            ASTNode* parent_node,
+            CSTToken* token
     );
+
+    CSTToken *cst_token() override {
+        return token;
+    }
 
     ASTNodeKind kind() override {
         return ASTNodeKind::VarInitStmt;

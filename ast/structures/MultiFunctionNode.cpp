@@ -8,6 +8,10 @@ MultiFunctionNode::MultiFunctionNode(std::string name) : name(std::move(name)) {
 
 }
 
+CSTToken *MultiFunctionNode::cst_token() {
+    return functions[0]->cst_token();
+}
+
 FunctionDeclaration* MultiFunctionNode::func_for_call(std::vector<std::unique_ptr<Value>>& args) {
     for(auto func : functions) {
         if(func->satisfy_args(args)) {

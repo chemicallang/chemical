@@ -290,7 +290,7 @@ llvm::Value* call_with_args(
 }
 
 AccessChain parent_chain(FunctionCall* call, std::vector<std::unique_ptr<ChainValue>>& chain, int till) {
-    AccessChain member_access(std::vector<std::unique_ptr<ChainValue>> {}, nullptr, false);
+    AccessChain member_access(std::vector<std::unique_ptr<ChainValue>> {}, nullptr, false, nullptr);
     unsigned i = 0;
     while(i < till) {
         if(chain[i].get() == call) {
@@ -512,8 +512,9 @@ llvm::AllocaInst *FunctionCall::access_chain_allocate(Codegen &gen, std::vector<
 #endif
 
 FunctionCall::FunctionCall(
-        std::vector<std::unique_ptr<Value>> values
-) : values(std::move(values)) {
+        std::vector<std::unique_ptr<Value>> values,
+        CSTToken* token
+) : values(std::move(values)), token(token) {
 
 }
 
@@ -746,7 +747,7 @@ void FunctionCall::evaluate_children(InterpretScope &scope) {
 }
 
 FunctionCall *FunctionCall::copy() {
-    auto call = new FunctionCall({});
+    auto call = new FunctionCall({}, token);
     for(auto& value : values) {
         call->values.emplace_back(value->copy());
     }
@@ -763,7 +764,7 @@ std::unique_ptr<BaseType> FunctionCall::create_type() {
     if(func_decl && func_decl->generic_params.empty() && func_decl->has_annotation(AnnotationKind::Constructor)) {
         const auto struct_def = func_decl->parent_node->as_struct_def();
         if(struct_def->is_generic()) {
-            return std::make_unique<GenericType>(std::make_unique<ReferencedType>(struct_def->name, struct_def), generic_iteration);
+            return std::make_unique<GenericType>(std::make_unique<ReferencedType>(struct_def->name, struct_def, nullptr), generic_iteration);
         }
     }
     auto prev_itr = set_curr_itr_on_decl();
@@ -791,7 +792,7 @@ hybrid_ptr<BaseType> FunctionCall::get_base_type() {
     if(func_decl && func_decl->generic_params.empty() && func_decl->has_annotation(AnnotationKind::Constructor)) {
         const auto struct_def = func_decl->parent_node->as_struct_def();
         if(struct_def->is_generic()) {
-            return hybrid_ptr<BaseType> { new GenericType(std::make_unique<ReferencedType>(struct_def->name, struct_def), generic_iteration), true };
+            return hybrid_ptr<BaseType> { new GenericType(std::make_unique<ReferencedType>(struct_def->name, struct_def, nullptr), generic_iteration), true };
         }
     }
     auto prev_itr = set_curr_itr_on_decl();

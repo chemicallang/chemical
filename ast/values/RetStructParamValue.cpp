@@ -9,5 +9,5 @@ hybrid_ptr<BaseType> RetStructParamValue::get_base_type() {
 }
 
 std::unique_ptr<BaseType> RetStructParamValue::create_type() {
-    return std::make_unique<PointerType>(std::make_unique<VoidType>());
+    return std::make_unique<PointerType>(std::make_unique<VoidType>(nullptr), nullptr);
 }

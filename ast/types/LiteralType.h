@@ -4,12 +4,12 @@
 
 #include "ast/base/BaseType.h"
 
-class LiteralType : public BaseType {
+class LiteralType : public TokenizedBaseType {
 public:
 
     std::unique_ptr<BaseType> underlying;
 
-    explicit LiteralType(std::unique_ptr<BaseType> underlying) : underlying(std::move(underlying)) {
+    explicit LiteralType(std::unique_ptr<BaseType> underlying, CSTToken* token) : underlying(std::move(underlying)), TokenizedBaseType(token) {
         // do nothing
     }
 
@@ -43,7 +43,7 @@ public:
 
     [[nodiscard]]
     LiteralType* copy() const override {
-        return new LiteralType(std::unique_ptr<BaseType>(underlying->copy()));
+        return new LiteralType(std::unique_ptr<BaseType>(underlying->copy()), token);
     }
 
 #ifdef COMPILER_BUILD

@@ -4,10 +4,12 @@
 
 #include "ast/base/BaseType.h"
 
-class BoolType : public BaseType {
+class BoolType : public TokenizedBaseType {
 public:
 
     static const BoolType instance;
+
+    using TokenizedBaseType::TokenizedBaseType;
 
     uint64_t byte_size(bool is64Bit) override {
         return 1;
@@ -38,7 +40,7 @@ public:
     }
 
     virtual BoolType* copy() const {
-        return new BoolType();
+        return new BoolType(token);
     }
 
 #ifdef COMPILER_BUILD

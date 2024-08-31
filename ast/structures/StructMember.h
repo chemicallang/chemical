@@ -12,12 +12,14 @@ public:
     std::unique_ptr<BaseType> type;
     std::optional<std::unique_ptr<Value>> defValue;
     ASTNode* parent_node;
+    CSTToken* token;
 
     StructMember(
             std::string name,
             std::unique_ptr<BaseType> type,
             std::optional<std::unique_ptr<Value>> defValue,
-            ASTNode* parent_node
+            ASTNode* parent_node,
+            CSTToken* token
     );
 
     ASTNodeKind kind() override {
@@ -26,6 +28,10 @@ public:
 
     void set_parent(ASTNode* new_parent) override {
         parent_node = new_parent;
+    }
+
+    CSTToken *cst_token() override {
+        return token;
     }
 
     ASTNode *parent() override {

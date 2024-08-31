@@ -17,11 +17,16 @@ class IntValue : public IntNumValue {
 public:
 
     int value; ///< The integer value.
+    CSTToken* token;
 
     /**
      * constructor
      */
-    explicit IntValue(int value) : value(value) {}
+    explicit IntValue(int value, CSTToken* token) : value(value), token(token) {}
+
+    CSTToken *cst_token() override {
+        return token;
+    }
 
     ValueKind val_kind() override {
         return ValueKind::Int;
@@ -45,7 +50,7 @@ public:
     }
 
     IntValue *copy() override {
-        return new IntValue(value);
+        return new IntValue(value, token);
     }
 
     bool is_unsigned() override {
@@ -53,7 +58,7 @@ public:
     }
 
     [[nodiscard]] std::unique_ptr<BaseType> create_type() override {
-        return std::make_unique<IntType>();
+        return std::make_unique<IntType>(nullptr);
     }
 
     hybrid_ptr<BaseType> get_base_type() override {

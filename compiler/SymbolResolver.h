@@ -13,26 +13,72 @@ class FunctionType;
 
 class FunctionDeclaration;
 
+enum class SymResScopeKind : uint8_t {
+    /**
+     * a default scope, symbols can be declared and retrieved
+     * the retrieval takes into account symbols declared in scopes above
+     */
+    Default,
+    /**
+     * a global namespace is much like default scope, however
+     * only a single global scope exists, It's never created by the user
+     */
+    Global,
+    /**
+     * a file scope is just like a default scope, however with minor
+     * differences, a file scope helps also to distinguish between files
+     */
+    File
+};
+
 /**
- * ASTLinker provides a way for the nodes to be linked
- * SemanticLinker however provides a way for the tokens to be linked
- * This doesn't link up modules like Linker does which is used for exporting executables
+ * a struct representing a scope, every '{' and '}' opens and closes a scope respectively
+ *
+ */
+struct SymResScope {
+
+    /**
+     * the kind of scope this is
+     */
+    SymResScopeKind kind;
+
+    /**
+     * a scope is a map of symbols, this is that map
+     */
+    std::unordered_map<std::string, ASTNode*> symbols;
+
+};
+
+/**
+ * SymbolResolver is responsible for linking symbols, every symbol can declare itself
+ * on a map and another node can lookup this symbol, generate an error if not found
  */
 class SymbolResolver : public ASTDiagnoser {
-public:
+private:
 
     /**
      * when traversing nodes, a node can declare itself on the map
      * this is vector of scopes, the last scope is current scope
+     * The first scope is the top level scope
      */
-    std::vector<std::unordered_map<std::string, ASTNode*>> current = {{}};
+    std::vector<SymResScope> current = {{ SymResScopeKind::Global }};
+
+public:
 
     /**
-     * when a scope beings, this should be called
-     * it would put a unordered_map on current vector
+     * a file scope begins, a file scope should not be popped, this is because
+     * symbols are expected to exist in other files
+     */
+    void file_scope_start() {
+        current.emplace_back(SymResScopeKind::File);
+    }
+
+    /**
+     * when a scope begins, this should be called
+     * it would put a scope on current vector
      */
     void scope_start() {
-        current.emplace_back();
+        current.emplace_back(SymResScopeKind::Default);
     }
 
     /**
@@ -44,9 +90,14 @@ public:
     }
 
     /**
+     * find a symbol only in current file
+     */
+    ASTNode *find_in_current_file(const std::string& name);
+
+    /**
      * find a symbol on current symbol map
      */
-    ASTNode *find(const std::string &name);
+    ASTNode *find(const std::string& name);
 
     /**
      * is the codegen for arch 64bit
@@ -90,7 +141,7 @@ public:
 
     /**
      * stores symbols that will be disposed after this file has been completely symbol resolved
-     * for example using namespace std; this will always be disposed unless propagate annotation exists
+     * for example using namespace some; this will always be disposed unless propagate annotation exists
      * above it
      */
     std::vector<std::string> dispose_file_symbols;
@@ -99,6 +150,13 @@ public:
      * constructor
      */
     explicit SymbolResolver(bool is64Bit);
+
+    /**
+     * if the current where the symbols are being declared is a file scope
+     */
+    bool is_current_file_scope() {
+        return current.back().kind == SymResScopeKind::File;
+    }
 
     /**
      * duplicate symbol error
@@ -113,7 +171,19 @@ public:
     /**
      * symbol will be undeclared if present, otherwise error if error_out
      */
-    void undeclare(const std::string& name, bool error_out = true);
+    bool undeclare(const std::string& name);
+
+    /**
+     * symbol will be undeclared in other files (not current file)
+     * only a single symbol is undeclared
+     */
+    bool undeclare_in_other_files(const std::string& name);
+
+    /**
+     * symbol will be checked for duplicates in other files (not current file)
+     * if a single symbol exists in other files, an dup sym error is created
+     */
+    bool dup_check_in_other_files(const std::string& name, ASTNode* new_node);
 
     /**
      * helper method that should be used to declare functions that takes into account

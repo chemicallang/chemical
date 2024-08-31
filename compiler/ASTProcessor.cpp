@@ -122,7 +122,9 @@ void ASTProcessor::sym_res(Scope& scope, bool is_c_file, const std::string& abs_
     // dispose symbols of previous file (if any required) before proceeding
     if(!resolver->dispose_file_symbols.empty()) {
         for(auto& sym : resolver->dispose_file_symbols) {
-            resolver->undeclare(sym, true);
+            if(!resolver->undeclare(sym)) {
+                std::cerr << rang::fg::yellow << "[SymRes] unable to un-declare file symbol " << sym << " in file " << abs_path  << rang::fg::reset << std::endl;
+            }
         }
         resolver->dispose_file_symbols.clear();
     }
@@ -138,6 +140,7 @@ void ASTProcessor::sym_res(Scope& scope, bool is_c_file, const std::string& abs_
         bm_results->benchmark_begin();
     }
     resolver->imported_generic.clear();
+    resolver->file_scope_start();
     scope.link_asynchronously(*resolver);
     for(auto& node : scope.nodes) {
         auto found = resolver->imported_generic.find(node.get());

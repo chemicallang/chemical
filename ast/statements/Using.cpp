@@ -20,7 +20,7 @@ void UsingStmt::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode
         linker.error("couldn't find linked node with '" + chain.chain_representation() + "' in using statement", this);
         return;
     }
-    const auto no_propagate = !has_annotation(AnnotationKind::Propagate);
+    const auto no_propagate = linker.is_current_file_scope() && !has_annotation(AnnotationKind::Propagate);
     if(is_namespace) {
         auto ns = linked->as_namespace();
         if(ns) {

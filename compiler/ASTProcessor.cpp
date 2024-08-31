@@ -135,7 +135,7 @@ void ASTProcessor::sym_res(Scope& scope, bool is_c_file, const std::string& abs_
     auto prev_has_errors = resolver->has_errors;
     if (is_c_file) {
         resolver->override_symbols = true;
-        previous = std::move(resolver->errors);
+        previous = std::move(resolver->diagnostics);
     }
     std::unique_ptr<BenchmarkResults> bm_results;
     if(options->benchmark) {
@@ -155,12 +155,12 @@ void ASTProcessor::sym_res(Scope& scope, bool is_c_file, const std::string& abs_
         bm_results->benchmark_end();
         print_benchmarks(std::cout, "SymRes", bm_results.get());
     }
-    if(!resolver->errors.empty()) {
-        resolver->print_errors(abs_path);
+    if(!resolver->diagnostics.empty()) {
+        resolver->print_diagnostics(abs_path, "SymRes");
     }
     if (is_c_file) {
         resolver->override_symbols = false;
-        resolver->errors = std::move(previous);
+        resolver->diagnostics = std::move(previous);
         resolver->has_errors = prev_has_errors;
     } else {
         // dispose symbols that must be disposed at the end of file (brought by using namespaces)
@@ -282,8 +282,8 @@ void ASTProcessor::translate_to_c(
         bm_results->benchmark_end();
         std::cout << "[2cTranslation] " << file.abs_path << " Completed " << bm_results->representation() << std::endl;
     }
-    if(!visitor.errors.empty()) {
-        visitor.print_errors(file.abs_path);
+    if(!visitor.diagnostics.empty()) {
+        visitor.print_diagnostics(file.abs_path, "2cTranslation");
         std::cout << std::endl;
     }
     visitor.reset_errors();

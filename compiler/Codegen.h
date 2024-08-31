@@ -420,13 +420,6 @@ public:
     void CreateCondBr(llvm::Value *Cond, llvm::BasicBlock *True, llvm::BasicBlock *FalseMDNode);
 
     /**
-     * tag
-     */
-    std::string TAG() override {
-        return "Codegen";
-    }
-
-    /**
     * this operates on two values, left and right
     * this is used by expressions to operate on two values
     */

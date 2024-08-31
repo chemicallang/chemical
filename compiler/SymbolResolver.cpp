@@ -144,7 +144,7 @@ void SymbolResolver::declare_function(const std::string& name, FunctionDeclarati
                 return;
             } else {
                 dup_sym_error(declaration->name, found->second, declaration);
-                error("function " + declaration->name + " cannot override because it's parameter types and return type don't match", declaration);
+                error("function " + declaration->name + " cannot override because it's parameter types and return type don't match", (AnnotableNode*) declaration);
                 return;
             }
         }

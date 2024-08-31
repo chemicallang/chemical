@@ -18,14 +18,14 @@ void ImplDefinition::code_gen(Codegen &gen) {
         if (overridden.first) {
             const auto interface_def = overridden.first->as_interface_def();
             if(!interface_def) {
-                gen.error("failed to override function in impl, because function not present in an interface above", function.get());
+                gen.error("failed to override function in impl, because function not present in an interface above", (AnnotableNode*) function.get());
                 continue;
             }
             if(struct_def) {
                 const auto& use = interface_def->users[struct_def];
                 auto found = use.find(overridden.second);
                 if(found == use.end()) {
-                    gen.error("failed to override function in impl because declaration not found", function.get());
+                    gen.error("failed to override function in impl because declaration not found", (AnnotableNode*) function.get());
                     continue;
                 }
                 function->set_llvm_data(found->second, found->second->getFunctionType());
@@ -35,7 +35,7 @@ void ImplDefinition::code_gen(Codegen &gen) {
                 function->code_gen_override(gen, overridden.second->llvm_func());
             }
         } else {
-            gen.error("failed to override function in impl because not found", function.get());
+            gen.error("failed to override function in impl because not found", (AnnotableNode*) function.get());
         }
     }
     if(linked && struct_def) {
@@ -69,7 +69,7 @@ void ImplDefinition::declare_and_link(SymbolResolver &linker, std::unique_ptr<AS
     auto& interface_name = interface_type->ref_name();
     auto linked = interface_type->linked_node()->as_interface_def();
     if(!linked) {
-        linker.error("couldn't find interface by name " + interface_name + " for implementation", this);
+        linker.error("couldn't find interface by name " + interface_name + " for implementation", interface_type.get());
         return;
     }
     for(auto& func : functions()) {

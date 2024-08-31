@@ -194,11 +194,4 @@ public:
      */
     void declare_function(const std::string& name, FunctionDeclaration* declaration);
 
-    /**
-     * tag
-     */
-    std::string TAG() override {
-        return "SymRes";
-    }
-
 };

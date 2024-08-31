@@ -18,7 +18,7 @@ void UsingStmt::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode
     chain.declare_and_link(linker, (std::unique_ptr<ASTNode>&) chain);
     auto linked = chain.linked_node();
     if(!linked) {
-        linker.error("couldn't find linked node with '" + chain.chain_representation() + "' in using statement", this);
+        linker.error("couldn't find linked node", this);
         return;
     }
     const auto no_propagate = linker.is_current_file_scope() && !has_annotation(AnnotationKind::Propagate);
@@ -33,7 +33,7 @@ void UsingStmt::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode
                 }
             }
         } else {
-            linker.error("expected '" + chain.chain_representation() + "' to be a namespace in using statement, however it isn't", this);
+            linker.error("expected value to be a namespace, however it isn't", this);
         }
     } else {
         auto& id = linked->ns_node_identifier();

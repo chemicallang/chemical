@@ -52,7 +52,7 @@ public:
         return !generic_params.empty();
     }
 
-    std::string ns_node_identifier() override {
+    const std::string& ns_node_identifier() override {
         return name;
     }
 

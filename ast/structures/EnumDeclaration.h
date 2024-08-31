@@ -49,7 +49,7 @@ public:
 
     void declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override;
 
-    std::string ns_node_identifier() override {
+    const std::string& ns_node_identifier() override {
         return name;
     }
 

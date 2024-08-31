@@ -94,7 +94,7 @@ public:
         return parent_node;
     }
 
-    std::string ns_node_identifier() override {
+    const std::string& ns_node_identifier() override {
         return name;
     }
 

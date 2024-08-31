@@ -118,16 +118,19 @@ std::vector<FlatIGFile> ASTProcessor::determine_mod_imports(LabModule* module) {
     }
 }
 
-void ASTProcessor::sym_res(Scope& scope, bool is_c_file, const std::string& abs_path) {
+void ASTProcessor::dispose_file_symbols(const std::string& abs_path) {
     // dispose symbols of previous file (if any required) before proceeding
     if(!resolver->dispose_file_symbols.empty()) {
-        for(auto& sym : resolver->dispose_file_symbols) {
+        for(const auto& sym : resolver->dispose_file_symbols) {
             if(!resolver->undeclare(sym)) {
                 std::cerr << rang::fg::yellow << "[SymRes] unable to un-declare file symbol " << sym << " in file " << abs_path  << rang::fg::reset << std::endl;
             }
         }
         resolver->dispose_file_symbols.clear();
     }
+}
+
+void ASTProcessor::sym_res(Scope& scope, bool is_c_file, const std::string& abs_path) {
     // doing stuff
     auto prev_has_errors = resolver->has_errors;
     if (is_c_file) {
@@ -159,6 +162,9 @@ void ASTProcessor::sym_res(Scope& scope, bool is_c_file, const std::string& abs_
         resolver->override_symbols = false;
         resolver->errors = std::move(previous);
         resolver->has_errors = prev_has_errors;
+    } else {
+        // dispose symbols that must be disposed at the end of file (brought by using namespaces)
+        dispose_file_symbols(abs_path);
     }
 }
 

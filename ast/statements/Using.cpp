@@ -25,7 +25,7 @@ void UsingStmt::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode
         auto ns = linked->as_namespace();
         if(ns) {
             for(auto& node : ns->nodes) {
-                auto id = node->ns_node_identifier();
+                auto& id = node->ns_node_identifier();
                 linker.declare(id, node.get());
                 if(no_propagate) {
                     linker.dispose_file_symbols.emplace_back(id);
@@ -35,7 +35,7 @@ void UsingStmt::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode
             linker.error("expected '" + chain.chain_representation() + "' to be a namespace in using statement, however it isn't", this);
         }
     } else {
-        auto id = linked->ns_node_identifier();
+        auto& id = linked->ns_node_identifier();
         linker.declare(id, linked);
         if(no_propagate) {
             linker.dispose_file_symbols.emplace_back(id);

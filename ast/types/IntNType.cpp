@@ -15,66 +15,66 @@
 #include "ast/values/Int128Value.h"
 #include "ast/values/UInt128Value.h"
 
-const IntType IntType::instance;
-const BigIntType BigIntType::instance;
-const Int128Type Int128Type::instance;
-const ShortType ShortType::instance;
-const UBigIntType UBigIntType::instance;
-const UInt128Type UInt128Type::instance;
-const UIntType UIntType::instance;
-const UShortType UShortType::instance;
-const LongType LongType::instance64Bit(true);
-const LongType LongType::instance32Bit(false);
-const ULongType ULongType::instance64Bit(true);
-const ULongType ULongType::instance32Bit(false);
+const IntType IntType::instance(nullptr);
+const BigIntType BigIntType::instance(nullptr);
+const Int128Type Int128Type::instance(nullptr);
+const ShortType ShortType::instance(nullptr);
+const UBigIntType UBigIntType::instance(nullptr);
+const UInt128Type UInt128Type::instance(nullptr);
+const UIntType UIntType::instance(nullptr);
+const UShortType UShortType::instance(nullptr);
+const LongType LongType::instance64Bit(true, nullptr);
+const LongType LongType::instance32Bit(false, nullptr);
+const ULongType ULongType::instance64Bit(true, nullptr);
+const ULongType ULongType::instance32Bit(false, nullptr);
 
 Value *IntType::create(int64_t value) {
-    return new IntValue(value);
+    return new IntValue(value, nullptr);
 }
 
 Value *CharType::create(int64_t value) {
-    return new CharValue(value);
+    return new CharValue(value, nullptr);
 }
 
 Value *UCharType::create(int64_t value) {
-    return new UCharValue(value);
+    return new UCharValue(value, nullptr);
 }
 
 Value *UIntType::create(int64_t value) {
-    return new UIntValue(value);
+    return new UIntValue(value, nullptr);
 }
 
 Value *ShortType::create(int64_t value) {
-    return new ShortValue(value);
+    return new ShortValue(value, nullptr);
 }
 
 Value *UShortType::create(int64_t value) {
-    return new UShortValue(value);
+    return new UShortValue(value, nullptr);
 }
 
 Value *LongType::create(int64_t value) {
-    return new LongValue(value, num_bits() == 64);
+    return new LongValue(value, num_bits() == 64, nullptr);
 }
 
 Value *ULongType::create(int64_t value) {
-    return new ULongValue(value, num_bits() == 64);
+    return new ULongValue(value, num_bits() == 64, nullptr);
 }
 
 Value *BigIntType::create(int64_t value) {
-    return new BigIntValue(value);
+    return new BigIntValue(value, nullptr);
 }
 
 Value *UBigIntType::create(int64_t value) {
-    return new UBigIntValue(value);
+    return new UBigIntValue(value, nullptr);
 }
 
 Value *Int128Type::create(int64_t value) {
     bool is_neg = value < 0;
-    return new Int128Value(is_neg ? -value : value, is_neg);
+    return new Int128Value(is_neg ? -value : value, is_neg, nullptr);
 }
 
 Value *UInt128Type::create(int64_t value) {
-    return new UInt128Value(static_cast<uint64_t>(value), (value < 0) ? UINT64_MAX : 0);
+    return new UInt128Value(static_cast<uint64_t>(value), (value < 0) ? UINT64_MAX : 0, nullptr);
 }
 
 bool BigIntType::satisfies(Value *value) {

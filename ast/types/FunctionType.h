@@ -26,7 +26,7 @@ class Value;
 
 class ASTNode;
 
-class FunctionType : public BaseType {
+class FunctionType : public TokenizedBaseType {
 public:
 
     std::vector<std::unique_ptr<FunctionParam>> params;
@@ -42,7 +42,8 @@ public:
         std::vector<std::unique_ptr<FunctionParam>> params,
         std::unique_ptr<BaseType> returnType,
         bool isVariadic,
-        bool isCapturing = false
+        bool isCapturing,
+        CSTToken* token
     );
 
     [[nodiscard]]

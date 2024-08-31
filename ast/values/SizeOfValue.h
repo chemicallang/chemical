@@ -12,7 +12,7 @@ public:
 
     std::unique_ptr<BaseType> for_type;
 
-    explicit SizeOfValue(BaseType *for_type);
+    explicit SizeOfValue(BaseType *for_type, CSTToken* token);
 
     ValueKind val_kind() override {
         return ValueKind::SizeOfValue;
@@ -27,7 +27,7 @@ public:
     void calculate_size(bool is64Bit);
 
     SizeOfValue* copy() override {
-        return new SizeOfValue(for_type->copy());
+        return new SizeOfValue(for_type->copy(), token);
     }
 
 #ifdef COMPILER_BUILD

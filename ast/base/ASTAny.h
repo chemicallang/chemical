@@ -22,6 +22,8 @@ class InterpretScope;
 
 class ChainValue;
 
+class CSTToken;
+
 class ASTAny {
 public:
 
@@ -34,6 +36,11 @@ public:
      * accept the visitor
      */
     virtual void accept(Visitor *visitor) = 0;
+
+    /**
+     * the cst token for this ast any
+     */
+    virtual CSTToken* cst_token() = 0;
 
     /**
      * Interpret the current node in the given interpret scope

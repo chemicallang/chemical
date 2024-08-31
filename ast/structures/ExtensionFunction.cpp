@@ -21,8 +21,9 @@ std::vector<llvm::Type *> ExtensionFunction::param_types(Codegen &gen) {
 ExtensionFuncReceiver::ExtensionFuncReceiver(
     std::string name,
     std::unique_ptr<BaseType> type,
-    ASTNode* parent_node
-) : BaseFunctionParam(std::move(name), std::move(type)), parent_node(parent_node) {
+    ASTNode* parent_node,
+    CSTToken* token
+) : BaseFunctionParam(std::move(name), std::move(type)), parent_node(parent_node), token(token) {
 
 }
 
@@ -101,6 +102,7 @@ ExtensionFunction::ExtensionFunction(
         std::unique_ptr<BaseType> returnType,
         bool isVariadic,
         ASTNode* parent_node,
+        CSTToken* token,
         std::optional<LoopScope> body
 ) : FunctionDeclaration(
     std::move(name),
@@ -108,6 +110,7 @@ ExtensionFunction::ExtensionFunction(
     std::move(returnType),
     std::move(isVariadic),
     parent_node,
+    token,
     std::move(body)
 ), receiver(std::move(receiver)) {
 
@@ -144,7 +147,7 @@ void ExtensionFunction::declare_and_link(SymbolResolver &linker, std::unique_ptr
 std::unique_ptr<BaseType> ExtensionFunction::create_value_type() {
     auto value_type = FunctionDeclaration::create_value_type();
     auto functionType = (FunctionType*) value_type.get();
-    functionType->params.insert(functionType->params.begin(), std::make_unique<FunctionParam>("self", std::unique_ptr<BaseType>(receiver.type->copy()), 0, std::nullopt, this));
+    functionType->params.insert(functionType->params.begin(), std::make_unique<FunctionParam>("self", std::unique_ptr<BaseType>(receiver.type->copy()), 0, std::nullopt, this, nullptr));
     return value_type;
 }
 

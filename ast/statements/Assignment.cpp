@@ -6,8 +6,9 @@ AssignStatement::AssignStatement(
         std::unique_ptr<Value> lhs,
         std::unique_ptr<Value> value,
         Operation assOp,
-        ASTNode* parent_node
-) : lhs(std::move(lhs)), value(std::move(value)), assOp(assOp), parent_node(parent_node) {
+        ASTNode* parent_node,
+        CSTToken* token
+) : lhs(std::move(lhs)), value(std::move(value)), assOp(assOp), parent_node(parent_node), token(token) {
 
 }
 

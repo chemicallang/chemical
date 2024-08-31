@@ -13,6 +13,16 @@
 class RetStructParamValue : public Value {
 public:
 
+    CSTToken* token;
+
+    explicit RetStructParamValue(CSTToken* token) : token(token) {
+
+    }
+
+    CSTToken* cst_token() override {
+        return token;
+    }
+
     void accept(Visitor *visitor) override {
         visitor->visit(this);
     }
@@ -32,7 +42,7 @@ public:
     std::unique_ptr<BaseType> create_type() override;
 
     Value *copy() override {
-        return new RetStructParamValue();
+        return new RetStructParamValue(token);
     }
 
     [[nodiscard]]

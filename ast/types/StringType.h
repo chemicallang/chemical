@@ -4,10 +4,12 @@
 
 #include "ast/base/BaseType.h"
 
-class StringType : public BaseType {
+class StringType : public TokenizedBaseType {
 public:
 
     static const StringType instance;
+
+    using TokenizedBaseType::TokenizedBaseType;
 
     [[nodiscard]]
     std::unique_ptr<BaseType> create_child_type() const override;
@@ -42,7 +44,7 @@ public:
 
     [[nodiscard]]
     StringType *copy() const override {
-        return new StringType();
+        return new StringType(token);
     }
 
 #ifdef COMPILER_BUILD

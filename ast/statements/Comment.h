@@ -14,11 +14,16 @@ public:
     ASTNode* parent_node;
     std::string comment;
     bool multiline;
+    CSTToken* token;
 
-    Comment(std::string comment, bool multiline, ASTNode* parent) : comment(std::move(comment)), multiline(multiline), parent_node(parent) {}
+    Comment(std::string comment, bool multiline, ASTNode* parent, CSTToken* token) : comment(std::move(comment)), multiline(multiline), parent_node(parent), token(token) {}
 
     ASTNodeKind kind() override {
         return ASTNodeKind::CommentStmt;
+    }
+
+    CSTToken *cst_token() override {
+        return token;
     }
 
     void set_parent(ASTNode* new_parent) override {

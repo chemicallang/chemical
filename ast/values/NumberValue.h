@@ -25,13 +25,18 @@ public:
 
     int64_t value;
     std::unique_ptr<IntNType> linked_type = nullptr;
+    CSTToken* token;
 
     /**
      * @brief Construct a new IntValue object.
      *
      * @param value The integer value.
      */
-    explicit NumberValue(int64_t value) : value(value) {}
+    explicit NumberValue(int64_t value, CSTToken* token) : value(value), token(token) {}
+
+    CSTToken* cst_token() override {
+        return token;
+    }
 
     void accept(Visitor *visitor) override {
         visitor->visit(this);
@@ -89,7 +94,7 @@ public:
     }
 
     NumberValue *copy() override {
-        auto copy = new NumberValue(value);
+        auto copy = new NumberValue(value, token);
         if(linked_type) {
             copy->linked_type = std::unique_ptr<IntNType>((IntNType *) linked_type->copy());
         }
@@ -117,7 +122,7 @@ public:
         if(linked_type) {
             return std::unique_ptr<BaseType>(linked_type->copy());
         } else {
-            return std::unique_ptr<BaseType>(new IntType());
+            return std::unique_ptr<BaseType>(new IntType(nullptr));
         }
     }
 

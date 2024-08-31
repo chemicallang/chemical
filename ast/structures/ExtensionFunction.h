@@ -17,6 +17,7 @@ public:
             std::unique_ptr<BaseType> returnType,
             bool isVariadic,
             ASTNode* parent_node,
+            CSTToken* token,
             std::optional<LoopScope> body = std::nullopt
     );
 

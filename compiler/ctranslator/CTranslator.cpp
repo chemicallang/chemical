@@ -1211,10 +1211,10 @@ void CTranslator::init_type_makers() {
         return nullptr;
     };
     type_makers[ZigClangBuiltinTypeVoid] = [](clang::BuiltinType*) -> BaseType* {
-        return new VoidType();
+        return new VoidType(nullptr);
     };
     type_makers[ZigClangBuiltinTypeBool] = [](clang::BuiltinType*) -> BaseType* {
-        return new BoolType();
+        return new BoolType(nullptr);
     };
     type_makers[ZigClangBuiltinTypeChar_U] = [](clang::BuiltinType*) -> BaseType* {
         return nullptr;
@@ -1235,22 +1235,22 @@ void CTranslator::init_type_makers() {
         return nullptr;
     };
     type_makers[ZigClangBuiltinTypeUShort] = [](clang::BuiltinType*) -> BaseType* {
-        return new UShortType();
+        return new UShortType(nullptr);
     };
     type_makers[ZigClangBuiltinTypeUInt] = [](clang::BuiltinType*) -> BaseType* {
-        return new UIntType();
+        return new UIntType(nullptr);
     };
     type_makers[ZigClangBuiltinTypeULong] = [](clang::BuiltinType*) -> BaseType* {
-        return new ULongType(sizeof(long) == 8);
+        return new ULongType(sizeof(long) == 8, nullptr);
     };
     type_makers[ZigClangBuiltinTypeULongLong] = [](clang::BuiltinType*) -> BaseType* {
-        return new UBigIntType();
+        return new UBigIntType(nullptr);
     };
     type_makers[ZigClangBuiltinTypeUInt128] = [](clang::BuiltinType*) -> BaseType* {
-        return new UInt128Type();
+        return new UInt128Type(nullptr);
     };
     type_makers[ZigClangBuiltinTypeChar_S] = [](clang::BuiltinType*) -> BaseType* {
-        return new CharType();
+        return new CharType(nullptr);
     };
     type_makers[ZigClangBuiltinTypeSChar] = [](clang::BuiltinType*) -> BaseType* {
         return nullptr;
@@ -1259,19 +1259,19 @@ void CTranslator::init_type_makers() {
         return nullptr;
     };
     type_makers[ZigClangBuiltinTypeShort] = [](clang::BuiltinType*) -> BaseType* {
-        return new ShortType();
+        return new ShortType(nullptr);
     };
     type_makers[ZigClangBuiltinTypeInt] = [](clang::BuiltinType*) -> BaseType* {
-        return new IntType();
+        return new IntType(nullptr);
     };
     type_makers[ZigClangBuiltinTypeLong] = [](clang::BuiltinType*) -> BaseType* {
-        return new LongType(sizeof(long) == 8);
+        return new LongType(sizeof(long) == 8, nullptr);
     };
     type_makers[ZigClangBuiltinTypeLongLong] = [](clang::BuiltinType*) -> BaseType* {
-        return new BigIntType();
+        return new BigIntType(nullptr);
     };
     type_makers[ZigClangBuiltinTypeInt128] = [](clang::BuiltinType*) -> BaseType* {
-        return new Int128Type();
+        return new Int128Type(nullptr);
     };
     type_makers[ZigClangBuiltinTypeShortAccum] = [](clang::BuiltinType*) -> BaseType* {
         return nullptr;
@@ -1349,10 +1349,10 @@ void CTranslator::init_type_makers() {
         return nullptr;
     };
     type_makers[ZigClangBuiltinTypeFloat] = [](clang::BuiltinType*) -> BaseType* {
-        return new FloatType();
+        return new FloatType(nullptr);
     };
     type_makers[ZigClangBuiltinTypeDouble] = [](clang::BuiltinType*) -> BaseType* {
-        return new DoubleType();
+        return new DoubleType(nullptr);
     };
     type_makers[ZigClangBuiltinTypeLongDouble] = [](clang::BuiltinType*) -> BaseType* {
         return nullptr;

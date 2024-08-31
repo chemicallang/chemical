@@ -18,6 +18,7 @@ public:
     ASTNode* parent_node;
     // the type is contained inside here
     IntType type;
+    CSTToken* token;
 
     /**
      * @brief Construct a new EnumDeclaration object.
@@ -28,8 +29,13 @@ public:
     EnumDeclaration(
             std::string name,
             std::unordered_map<std::string, std::unique_ptr<EnumMember>> members,
-            ASTNode* parent_node
-    ) : name(std::move(name)), members(std::move(members)), parent_node(parent_node) {}
+            ASTNode* parent_node,
+            CSTToken* token
+    ) : name(std::move(name)), members(std::move(members)), parent_node(parent_node), token(token), type(nullptr) {}
+
+    CSTToken *cst_token() override {
+        return token;
+    }
 
     ASTNodeKind kind() override {
         return ASTNodeKind::EnumDecl;

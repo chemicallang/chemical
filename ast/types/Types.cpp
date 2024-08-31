@@ -15,14 +15,14 @@
 #include "LiteralType.h"
 #include "VoidType.h"
 
-const AnyType AnyType::instance;
-const BoolType BoolType::instance;
-const CharType CharType::instance;
-const DoubleType DoubleType::instance;
-const FloatType FloatType::instance;
-const StringType StringType::instance;
-const UCharType UCharType::instance;
-const VoidType VoidType::instance;
+const AnyType AnyType::instance(nullptr);
+const BoolType BoolType::instance(nullptr);
+const CharType CharType::instance(nullptr);
+const DoubleType DoubleType::instance(nullptr);
+const FloatType FloatType::instance(nullptr);
+const StringType StringType::instance(nullptr);
+const UCharType UCharType::instance(nullptr);
+const VoidType VoidType::instance(nullptr);
 
 bool ArrayType::satisfies(Value *value) {
     if(value->value_type() != ValueType::Array) return false;

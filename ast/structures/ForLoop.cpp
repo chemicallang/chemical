@@ -42,17 +42,18 @@ void ForLoop::code_gen(Codegen &gen) {
 /**
  * @brief Construct a new ForLoop object with an empty body
  */
-ForLoop::ForLoop(
-        std::unique_ptr<VarInitStatement> initializer,
-        std::unique_ptr<Value> conditionExpr,
-        std::unique_ptr<ASTNode> incrementerExpr,
-        ASTNode* parent_node
-) : initializer(std::move(initializer)),
-    conditionExpr(std::move(conditionExpr)),
-    incrementerExpr(std::move(incrementerExpr)),
-    parent_node(parent_node){
-
-}
+//ForLoop::ForLoop(
+//        std::unique_ptr<VarInitStatement> initializer,
+//        std::unique_ptr<Value> conditionExpr,
+//        std::unique_ptr<ASTNode> incrementerExpr,
+//        ASTNode* parent_node,
+//        CSTToken* token
+//) : initializer(std::move(initializer)),
+//    conditionExpr(std::move(conditionExpr)),
+//    incrementerExpr(std::move(incrementerExpr)),
+//    parent_node(parent_node), token(token) {
+//
+//}
 
 /**
  * @brief Construct a new ForLoop object.
@@ -62,11 +63,12 @@ ForLoop::ForLoop(
         std::unique_ptr<Value> conditionExpr,
         std::unique_ptr<ASTNode> incrementerExpr,
         LoopScope body,
-        ASTNode* parent_node
+        ASTNode* parent_node,
+        CSTToken* token
 ) : initializer(std::move(initializer)),
     conditionExpr(std::move(conditionExpr)),
     incrementerExpr(std::move(incrementerExpr)),
-    LoopASTNode(std::move(body)), parent_node(parent_node) {
+    LoopASTNode(std::move(body)), parent_node(parent_node), token(token) {
 
 }
 

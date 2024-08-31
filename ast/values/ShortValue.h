@@ -7,9 +7,14 @@ class ShortValue : public IntNumValue {
 public:
 
     short value;
+    CSTToken* token;
 
-    explicit ShortValue(short value) : value(value) {
+    explicit ShortValue(short value, CSTToken* token) : value(value), token(token) {
 
+    }
+
+    CSTToken *cst_token() override {
+        return token;
     }
 
     ValueKind val_kind() override {
@@ -33,11 +38,11 @@ public:
     }
 
     ShortValue *copy() override {
-        return new ShortValue(value);
+        return new ShortValue(value, token);
     }
 
     [[nodiscard]] std::unique_ptr<BaseType> create_type() override {
-        return std::make_unique<ShortType>();
+        return std::make_unique<ShortType>(nullptr);
     }
 
     unsigned int get_num_bits() override {

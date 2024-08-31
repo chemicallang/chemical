@@ -9,9 +9,14 @@ class UCharValue : public IntNumValue {
 public:
 
     unsigned char value;
+    CSTToken* token;
 
-    explicit UCharValue(unsigned char value) : value(value) {
+    explicit UCharValue(unsigned char value, CSTToken* token) : value(value), token(token) {
 
+    }
+
+    CSTToken* cst_token() override {
+        return token;
     }
 
     ValueKind val_kind() override {
@@ -35,11 +40,11 @@ public:
     }
 
     UCharValue *copy() override {
-        return new UCharValue(value);
+        return new UCharValue(value, token);
     }
 
     [[nodiscard]] std::unique_ptr<BaseType> create_type() override {
-        return std::make_unique<UCharType>();
+        return std::make_unique<UCharType>(nullptr);
     }
 
     bool is_unsigned() override {

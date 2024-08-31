@@ -9,6 +9,8 @@ public:
 
     static const Int128Type instance;
 
+    using IntNType::IntNType;
+
     [[nodiscard]]
     unsigned int num_bits() const override {
         return 128;
@@ -35,7 +37,7 @@ public:
 
     [[nodiscard]]
     Int128Type *copy() const override {
-        return new Int128Type();
+        return new Int128Type(token);
     }
 
 };

@@ -12,7 +12,7 @@ public:
 
     bool is64Bit;
 
-    explicit LongType(bool is64Bit) : is64Bit(is64Bit) {
+    explicit LongType(bool is64Bit, CSTToken* token) : is64Bit(is64Bit), IntNType(token) {
 
     }
 
@@ -44,7 +44,7 @@ public:
 
     [[nodiscard]]
     LongType *copy() const override {
-        return new LongType(is64Bit);
+        return new LongType(is64Bit, token);
     }
 
 

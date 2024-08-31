@@ -62,259 +62,259 @@ namespace ExpressionEvaluators {
     const std::unordered_map<int, EvaluatorFn> ExpressionEvaluatorsMap = {
 
             {computeIntToInt(Operation::Addition),                 [](Value *v1, Value *v2) -> Value * {
-                return new IntValue(v1->as_int() + v2->as_int());
+                return new IntValue(v1->as_int() + v2->as_int(), nullptr);
             }},
 
             //    (int - int) -> int
             {computeIntToInt(Operation::Subtraction),              [](Value *v1, Value *v2) -> Value * {
-                return new IntValue(v1->as_int() - v2->as_int());
+                return new IntValue(v1->as_int() - v2->as_int(), nullptr);
             }},
 
             //    (int * int) -> int
             {computeIntToInt(Operation::Multiplication),           [](Value *v1, Value *v2) -> Value * {
-                return new IntValue(v1->as_int() * v2->as_int());
+                return new IntValue(v1->as_int() * v2->as_int(), nullptr);
             }},
 
             //    (int / int) -> int
             {computeIntToInt(Operation::Division),                 [](Value *v1, Value *v2) -> Value * {
-                return new IntValue(v1->as_int() / v2->as_int());
+                return new IntValue(v1->as_int() / v2->as_int(), nullptr);
             }},
 
             //    (int % int) -> int
             {computeIntToInt(Operation::Modulus),                  [](Value *v1, Value *v2) -> Value * {
-                return new IntValue(v1->as_int() % v2->as_int());
+                return new IntValue(v1->as_int() % v2->as_int(), nullptr);
             }},
 
             //    (int == int) -> bool
             {computeIntToInt(Operation::IsEqual),                  [](Value *v1, Value *v2) -> Value * {
-                return new BoolValue(v1->as_int() == v2->as_int());
+                return new BoolValue(v1->as_int() == v2->as_int(), nullptr);
             }},
 
             //    (int != int) -> bool
             {computeIntToInt(Operation::IsNotEqual),               [](Value *v1, Value *v2) -> Value * {
-                return new BoolValue(v1->as_int() != v2->as_int());
+                return new BoolValue(v1->as_int() != v2->as_int(), nullptr);
             }},
 
             //    (int < int) -> bool
             {computeIntToInt(Operation::LessThan),                 [](Value *v1, Value *v2) -> Value * {
-                return new BoolValue(v1->as_int() < v2->as_int());
+                return new BoolValue(v1->as_int() < v2->as_int(), nullptr);
             }},
 
             //    (int <= int) -> bool
             {computeIntToInt(Operation::LessThanOrEqual),          [](Value *v1, Value *v2) -> Value * {
-                return new BoolValue(v1->as_int() <= v2->as_int());
+                return new BoolValue(v1->as_int() <= v2->as_int(), nullptr);
             }},
 
             //    (int > int) -> bool
             {computeIntToInt(Operation::GreaterThan),              [](Value *v1, Value *v2) -> Value * {
-                return new BoolValue(v1->as_int() > v2->as_int());
+                return new BoolValue(v1->as_int() > v2->as_int(), nullptr);
             }},
 
             //    (int >= int) -> bool
             {computeIntToInt(Operation::GreaterThanOrEqual),       [](Value *v1,
                                                                       Value *v2) -> Value * {
-                return new BoolValue(v1->as_int() >= v2->as_int());
+                return new BoolValue(v1->as_int() >= v2->as_int(), nullptr);
             }},
 
             //    (int << int) -> int
             {computeIntToInt(Operation::LeftShift),                [](Value *v1, Value *v2) -> Value * {
-                return new IntValue(v1->as_int() << v2->as_int());
+                return new IntValue(v1->as_int() << v2->as_int(), nullptr);
             }},
 
             //    (int >> int) -> int
             {computeIntToInt(Operation::RightShift),               [](Value *v1, Value *v2) -> Value * {
-                return new IntValue(v1->as_int() >> v2->as_int());
+                return new IntValue(v1->as_int() >> v2->as_int(), nullptr);
             }},
 
             //    (int ++) -> int
             {computeIntToInt(Operation::PostfixIncrement),         [](Value *v1, Value *v2) -> Value * {
-                return new IntValue(v1->as_int() + 1);
+                return new IntValue(v1->as_int() + 1, nullptr);
             }},
 
             //    (int --) -> int
             {computeIntToInt(Operation::PostfixDecrement),         [](Value *v1, Value *v2) -> Value * {
-                return new IntValue(v1->as_int() - 1);
+                return new IntValue(v1->as_int() - 1, nullptr);
             }},
 
             //    (int & int) -> int
             {computeIntToInt(Operation::BitwiseAND),               [](Value *v1, Value *v2) -> Value * {
-                return new IntValue(v1->as_int() & v2->as_int());
+                return new IntValue(v1->as_int() & v2->as_int(), nullptr);
             }},
 
             //    (int | int) -> int
             {computeIntToInt(Operation::BitwiseOR),                [](Value *v1, Value *v2) -> Value * {
-                return new IntValue(v1->as_int() | v2->as_int());
+                return new IntValue(v1->as_int() | v2->as_int(), nullptr);
             }},
 
             //    (int ^ int) -> int
             {computeIntToInt(Operation::BitwiseXOR),               [](Value *v1, Value *v2) -> Value * {
-                return new IntValue(v1->as_int() ^ v2->as_int());
+                return new IntValue(v1->as_int() ^ v2->as_int(), nullptr);
             }},
 
             // ---------------------------bool to bool ----------------------------
 
             //    (bool + bool) -> bool
             {computeBoolToBool(Operation::Addition),               [](Value *v1, Value *v2) -> Value * {
-                return new BoolValue(v1->as_bool() + v2->as_bool());
+                return new BoolValue(v1->as_bool() + v2->as_bool(), nullptr);
             }},
 
             //    (bool - bool) -> bool
             {computeBoolToBool(Operation::Subtraction),            [](Value *v1, Value *v2) -> Value * {
-                return new BoolValue(v1->as_bool() - v2->as_bool());
+                return new BoolValue(v1->as_bool() - v2->as_bool(), nullptr);
             }},
 
             //    (bool * bool) -> bool
             {computeBoolToBool(Operation::Multiplication),         [](Value *v1, Value *v2) -> Value * {
-                return new BoolValue(v1->as_bool() * v2->as_bool());
+                return new BoolValue(v1->as_bool() * v2->as_bool(), nullptr);
             }},
 
             //    (bool / bool) -> int
             {computeBoolToBool(Operation::Division),               [](Value *v1, Value *v2) -> Value * {
-                return new IntValue(v1->as_bool() / v2->as_bool());
+                return new IntValue(v1->as_bool() / v2->as_bool(), nullptr);
             }},
 
             //    (bool % bool) -> int
             {computeBoolToBool(Operation::Modulus),                [](Value *v1, Value *v2) -> Value * {
-                return new IntValue(v1->as_bool() % v2->as_bool());
+                return new IntValue(v1->as_bool() % v2->as_bool(), nullptr);
             }},
 
             //    (bool == bool) -> bool
             {computeBoolToBool(Operation::IsEqual),                [](Value *v1, Value *v2) -> Value * {
-                return new BoolValue(v1->as_bool() == v2->as_bool());
+                return new BoolValue(v1->as_bool() == v2->as_bool(), nullptr);
             }},
 
             //    (bool != bool) -> bool
             {computeBoolToBool(Operation::IsNotEqual),             [](Value *v1, Value *v2) -> Value * {
-                return new BoolValue(v1->as_bool() != v2->as_bool());
+                return new BoolValue(v1->as_bool() != v2->as_bool(), nullptr);
             }},
 
             //    (bool < bool) -> bool
             {computeBoolToBool(Operation::LessThan),               [](Value *v1, Value *v2) -> Value * {
-                return new BoolValue(v1->as_bool() < v2->as_bool());
+                return new BoolValue(v1->as_bool() < v2->as_bool(), nullptr);
             }},
 
             //    (bool <= bool) -> bool
             {computeBoolToBool(Operation::LessThanOrEqual),        [](Value *v1, Value *v2) -> Value * {
-                return new BoolValue(v1->as_bool() <= v2->as_bool());
+                return new BoolValue(v1->as_bool() <= v2->as_bool(), nullptr);
             }},
 
             //    (bool > bool) -> bool
             {computeBoolToBool(Operation::GreaterThan),            [](Value *v1, Value *v2) -> Value * {
-                return new BoolValue(v1->as_bool() > v2->as_bool());
+                return new BoolValue(v1->as_bool() > v2->as_bool(), nullptr);
             }},
 
             //    (bool >= bool) -> bool
             {computeBoolToBool(Operation::GreaterThanOrEqual),     [](Value *v1,
                                                                       Value *v2) -> Value * {
-                return new BoolValue(v1->as_bool() >= v2->as_bool());
+                return new BoolValue(v1->as_bool() >= v2->as_bool(), nullptr);
             }},
 
             //    (bool << bool) -> bool
             {computeBoolToBool(Operation::LeftShift),              [](Value *v1, Value *v2) -> Value * {
-                return new BoolValue(v1->as_bool() << v2->as_bool());
+                return new BoolValue(v1->as_bool() << v2->as_bool(), nullptr);
             }},
 
             //    (bool >> bool) -> bool
             {computeBoolToBool(Operation::RightShift),             [](Value *v1, Value *v2) -> Value * {
-                return new BoolValue(v1->as_bool() >> v2->as_bool());
+                return new BoolValue(v1->as_bool() >> v2->as_bool(), nullptr);
             }},
 
             //    (bool & bool) -> bool
             {computeBoolToBool(Operation::BitwiseAND),             [](Value *v1, Value *v2) -> Value * {
-                return new BoolValue(v1->as_bool() & v2->as_bool());
+                return new BoolValue(v1->as_bool() & v2->as_bool(), nullptr);
             }},
 
             //    (bool | bool) -> bool
             {computeBoolToBool(Operation::BitwiseOR),              [](Value *v1, Value *v2) -> Value * {
-                return new BoolValue(v1->as_bool() | v2->as_bool());
+                return new BoolValue(v1->as_bool() | v2->as_bool(), nullptr);
             }},
 
             //    (bool ^ bool) -> bool
             {computeBoolToBool(Operation::BitwiseXOR),             [](Value *v1, Value *v2) -> Value * {
-                return new BoolValue(v1->as_bool() ^ v2->as_bool());
+                return new BoolValue(v1->as_bool() ^ v2->as_bool(), nullptr);
             }},
 
             // ---------------------------char to char ----------------------------
 
             //    (char + char) -> int
             {computeCharToChar(Operation::Addition),               [](Value *v1, Value *v2) -> Value * {
-                return new IntValue(v1->as_char() + v2->as_char());
+                return new IntValue(v1->as_char() + v2->as_char(), nullptr);
             }},
 
             //    (char - char) -> int
             {computeCharToChar(Operation::Subtraction),            [](Value *v1, Value *v2) -> Value * {
-                return new IntValue(v1->as_char() - v2->as_char());
+                return new IntValue(v1->as_char() - v2->as_char(), nullptr);
             }},
 
             //    (char * char) -> int
             {computeCharToChar(Operation::Multiplication),         [](Value *v1, Value *v2) -> Value * {
-                return new IntValue(v1->as_char() * v2->as_char());
+                return new IntValue(v1->as_char() * v2->as_char(), nullptr);
             }},
 
             //    (char / char) -> int
             {computeCharToChar(Operation::Division),               [](Value *v1, Value *v2) -> Value * {
-                return new IntValue(v1->as_char() / v2->as_char());
+                return new IntValue(v1->as_char() / v2->as_char(), nullptr);
             }},
 
             //    (char % char) -> int
             {computeCharToChar(Operation::Modulus),                [](Value *v1, Value *v2) -> Value * {
-                return new IntValue(v1->as_char() % v2->as_char());
+                return new IntValue(v1->as_char() % v2->as_char(), nullptr);
             }},
 
             //    (char == char) -> bool
             {computeCharToChar(Operation::IsEqual),                [](Value *v1, Value *v2) -> Value * {
-                return new BoolValue(v1->as_char() == v2->as_char());
+                return new BoolValue(v1->as_char() == v2->as_char(), nullptr);
             }},
 
             //    (char != char) -> bool
             {computeCharToChar(Operation::IsNotEqual),             [](Value *v1, Value *v2) -> Value * {
-                return new BoolValue(v1->as_char() != v2->as_char());
+                return new BoolValue(v1->as_char() != v2->as_char(), nullptr);
             }},
 
             //    (char < char) -> bool
             {computeCharToChar(Operation::LessThan),               [](Value *v1, Value *v2) -> Value * {
-                return new BoolValue(v1->as_char() < v2->as_char());
+                return new BoolValue(v1->as_char() < v2->as_char(), nullptr);
             }},
 
             //    (char <= char) -> bool
             {computeCharToChar(Operation::LessThanOrEqual),        [](Value *v1, Value *v2) -> Value * {
-                return new BoolValue(v1->as_char() <= v2->as_char());
+                return new BoolValue(v1->as_char() <= v2->as_char(), nullptr);
             }},
 
             //    (char > char) -> bool
             {computeCharToChar(Operation::GreaterThan),            [](Value *v1, Value *v2) -> Value * {
-                return new BoolValue(v1->as_char() > v2->as_char());
+                return new BoolValue(v1->as_char() > v2->as_char(), nullptr);
             }},
 
             //    (char >= char) -> bool
             {computeCharToChar(Operation::GreaterThanOrEqual),     [](Value *v1,
                                                                       Value *v2) -> Value * {
-                return new BoolValue(v1->as_char() >= v2->as_char());
+                return new BoolValue(v1->as_char() >= v2->as_char(), nullptr);
             }},
 
             //    (char << char) -> int
             {computeCharToChar(Operation::LeftShift),              [](Value *v1, Value *v2) -> Value * {
-                return new IntValue(v1->as_char() << v2->as_char());
+                return new IntValue(v1->as_char() << v2->as_char(), nullptr);
             }},
 
             //    (char >> char) -> int
             {computeCharToChar(Operation::RightShift),             [](Value *v1, Value *v2) -> Value * {
-                return new IntValue(v1->as_char() >> v2->as_char());
+                return new IntValue(v1->as_char() >> v2->as_char(), nullptr);
             }},
 
             //    (char & char) -> int
             {computeCharToChar(Operation::BitwiseAND),             [](Value *v1, Value *v2) -> Value * {
-                return new IntValue(v1->as_char() & v2->as_char());
+                return new IntValue(v1->as_char() & v2->as_char(), nullptr);
             }},
 
             //    (char | char) -> int
             {computeCharToChar(Operation::BitwiseOR),              [](Value *v1, Value *v2) -> Value * {
-                return new IntValue(v1->as_char() | v2->as_char());
+                return new IntValue(v1->as_char() | v2->as_char(), nullptr);
             }},
 
             //    (char ^ char) -> int
             {computeCharToChar(Operation::BitwiseXOR),             [](Value *v1, Value *v2) -> Value * {
-                return new IntValue(v1->as_char() ^ v2->as_char());
+                return new IntValue(v1->as_char() ^ v2->as_char(), nullptr);
             }},
 
             // ---------------------------float to float ----------------------------
@@ -322,22 +322,22 @@ namespace ExpressionEvaluators {
 
             //    (float + float) -> float
             {computeFloatToFloat(Operation::Addition),             [](Value *v1, Value *v2) -> Value * {
-                return new FloatValue(v1->as_float() + v2->as_float());
+                return new FloatValue(v1->as_float() + v2->as_float(), nullptr);
             }},
 
             //    (float - float) -> int
             {computeFloatToFloat(Operation::Subtraction),          [](Value *v1, Value *v2) -> Value * {
-                return new FloatValue(v1->as_float() - v2->as_float());
+                return new FloatValue(v1->as_float() - v2->as_float(), nullptr);
             }},
 
             //    (float * float) -> int
             {computeFloatToFloat(Operation::Multiplication),       [](Value *v1, Value *v2) -> Value * {
-                return new FloatValue(v1->as_float() * v2->as_float());
+                return new FloatValue(v1->as_float() * v2->as_float(), nullptr);
             }},
 
             //    (float / float) -> int
             {computeFloatToFloat(Operation::Division),             [](Value *v1, Value *v2) -> Value * {
-                return new FloatValue(v1->as_float() / v2->as_float());
+                return new FloatValue(v1->as_float() / v2->as_float(), nullptr);
             }},
 
             //    (float % float) -> int
@@ -347,33 +347,33 @@ namespace ExpressionEvaluators {
 
             //    (float == float) -> bool
             {computeFloatToFloat(Operation::IsEqual),              [](Value *v1, Value *v2) -> Value * {
-                return new BoolValue(v1->as_float() == v2->as_float());
+                return new BoolValue(v1->as_float() == v2->as_float(), nullptr);
             }},
 
             //    (float != float) -> bool
             {computeFloatToFloat(Operation::IsNotEqual),           [](Value *v1, Value *v2) -> Value * {
-                return new BoolValue(v1->as_float() != v2->as_float());
+                return new BoolValue(v1->as_float() != v2->as_float(), nullptr);
             }},
 
             //    (float < float) -> bool
             {computeFloatToFloat(Operation::LessThan),             [](Value *v1, Value *v2) -> Value * {
-                return new BoolValue(v1->as_float() < v2->as_float());
+                return new BoolValue(v1->as_float() < v2->as_float(), nullptr);
             }},
 
             //    (float <= float) -> bool
             {computeFloatToFloat(Operation::LessThanOrEqual),      [](Value *v1, Value *v2) -> Value * {
-                return new BoolValue(v1->as_float() <= v2->as_float());
+                return new BoolValue(v1->as_float() <= v2->as_float(), nullptr);
             }},
 
             //    (float > float) -> bool
             {computeFloatToFloat(Operation::GreaterThan),          [](Value *v1, Value *v2) -> Value * {
-                return new BoolValue(v1->as_float() > v2->as_float());
+                return new BoolValue(v1->as_float() > v2->as_float(), nullptr);
             }},
 
             //    (float >= float) -> bool
             {computeFloatToFloat(Operation::GreaterThanOrEqual),   [](Value *v1,
                                                                       Value *v2) -> Value * {
-                return new BoolValue(v1->as_float() >= v2->as_float());
+                return new BoolValue(v1->as_float() >= v2->as_float(), nullptr);
             }},
 
 //    //    (float << float) -> int
@@ -406,22 +406,22 @@ namespace ExpressionEvaluators {
 
             //    (double + double) -> int
             {computeDoubleToDouble(Operation::Addition),           [](Value *v1, Value *v2) -> Value * {
-                return new DoubleValue(v1->as_double() + v2->as_double());
+                return new DoubleValue(v1->as_double() + v2->as_double(), nullptr);
             }},
 
             //    (double - double) -> int
             {computeDoubleToDouble(Operation::Subtraction),        [](Value *v1, Value *v2) -> Value * {
-                return new DoubleValue(v1->as_double() - v2->as_double());
+                return new DoubleValue(v1->as_double() - v2->as_double(), nullptr);
             }},
 
             //    (double * double) -> int
             {computeDoubleToDouble(Operation::Multiplication),     [](Value *v1, Value *v2) -> Value * {
-                return new DoubleValue(v1->as_double() * v2->as_double());
+                return new DoubleValue(v1->as_double() * v2->as_double(), nullptr);
             }},
 
             //    (double / double) -> int
             {computeDoubleToDouble(Operation::Division),           [](Value *v1, Value *v2) -> Value * {
-                return new DoubleValue(v1->as_double() / v2->as_double());
+                return new DoubleValue(v1->as_double() / v2->as_double(), nullptr);
             }},
 
             //    (double % double) -> int
@@ -431,33 +431,33 @@ namespace ExpressionEvaluators {
 
             //    (double == double) -> bool
             {computeDoubleToDouble(Operation::IsEqual),            [](Value *v1, Value *v2) -> Value * {
-                return new BoolValue(v1->as_double() == v2->as_double());
+                return new BoolValue(v1->as_double() == v2->as_double(), nullptr);
             }},
 
             //    (double != double) -> bool
             {computeDoubleToDouble(Operation::IsNotEqual),         [](Value *v1, Value *v2) -> Value * {
-                return new BoolValue(v1->as_double() != v2->as_double());
+                return new BoolValue(v1->as_double() != v2->as_double(), nullptr);
             }},
 
             //    (double < double) -> bool
             {computeDoubleToDouble(Operation::LessThan),           [](Value *v1, Value *v2) -> Value * {
-                return new BoolValue(v1->as_double() < v2->as_double());
+                return new BoolValue(v1->as_double() < v2->as_double(), nullptr);
             }},
 
             //    (double <= double) -> bool
             {computeDoubleToDouble(Operation::LessThanOrEqual),    [](Value *v1, Value *v2) -> Value * {
-                return new BoolValue(v1->as_double() <= v2->as_double());
+                return new BoolValue(v1->as_double() <= v2->as_double(), nullptr);
             }},
 
             //    (double > double) -> bool
             {computeDoubleToDouble(Operation::GreaterThan),        [](Value *v1, Value *v2) -> Value * {
-                return new BoolValue(v1->as_double() > v2->as_double());
+                return new BoolValue(v1->as_double() > v2->as_double(), nullptr);
             }},
 
             //    (double >= double) -> bool
             {computeDoubleToDouble(Operation::GreaterThanOrEqual), [](Value *v1,
                                                                       Value *v2) -> Value * {
-                return new BoolValue(v1->as_double() >= v2->as_double());
+                return new BoolValue(v1->as_double() >= v2->as_double(), nullptr);
             }},
 
 //    //    (double << double) -> int
@@ -489,7 +489,7 @@ namespace ExpressionEvaluators {
 
             //    (string + string) -> int
             {computeStrToStr(Operation::Addition),                 [](Value *v1, Value *v2) -> Value * {
-                return new StringValue(v1->as_string() + v2->as_string());
+                return new StringValue(v1->as_string() + v2->as_string(), nullptr);
             }},
 
             //    (string - string) -> int
@@ -514,33 +514,33 @@ namespace ExpressionEvaluators {
 
             //    (string == string) -> bool
             {computeStrToStr(Operation::IsEqual),                  [](Value *v1, Value *v2) -> Value * {
-                return new BoolValue(v1->as_string() == v2->as_string());
+                return new BoolValue(v1->as_string() == v2->as_string(), nullptr);
             }},
 
             //    (string != string) -> bool
             {computeStrToStr(Operation::IsNotEqual),               [](Value *v1, Value *v2) -> Value * {
-                return new BoolValue(v1->as_string() != v2->as_string());
+                return new BoolValue(v1->as_string() != v2->as_string(), nullptr);
             }},
 
             //    (string < string) -> bool
             {computeStrToStr(Operation::LessThan),                 [](Value *v1, Value *v2) -> Value * {
-                return new BoolValue(v1->as_string() < v2->as_string());
+                return new BoolValue(v1->as_string() < v2->as_string(), nullptr);
             }},
 
             //    (string <= string) -> bool
             {computeStrToStr(Operation::LessThanOrEqual),          [](Value *v1, Value *v2) -> Value * {
-                return new BoolValue(v1->as_string() <= v2->as_string());
+                return new BoolValue(v1->as_string() <= v2->as_string(), nullptr);
             }},
 
             //    (string > string) -> bool
             {computeStrToStr(Operation::GreaterThan),              [](Value *v1, Value *v2) -> Value * {
-                return new BoolValue(v1->as_string() > v2->as_string());
+                return new BoolValue(v1->as_string() > v2->as_string(), nullptr);
             }},
 
             //    (string >= string) -> bool
             {computeStrToStr(Operation::GreaterThanOrEqual),       [](Value *v1,
                                                                       Value *v2) -> Value * {
-                return new BoolValue(v1->as_string() >= v2->as_string());
+                return new BoolValue(v1->as_string() >= v2->as_string(), nullptr);
             }},
 
             //    (string << string) -> int
@@ -575,22 +575,22 @@ namespace ExpressionEvaluators {
 
             //    (int + float) -> float
             {computeIntToFloat(Operation::Addition),               [](Value *v1, Value *v2) -> Value * {
-                return new FloatValue(v1->as_int() + v2->as_float());
+                return new FloatValue(v1->as_int() + v2->as_float(), nullptr);
             }},
 
             //    (int - float) -> float
             {computeIntToFloat(Operation::Subtraction),            [](Value *v1, Value *v2) -> Value * {
-                return new FloatValue(v1->as_int() - v2->as_float());
+                return new FloatValue(v1->as_int() - v2->as_float(), nullptr);
             }},
 
             //    (int * float) -> float
             {computeIntToFloat(Operation::Multiplication),         [](Value *v1, Value *v2) -> Value * {
-                return new FloatValue(v1->as_int() * v2->as_float());
+                return new FloatValue(v1->as_int() * v2->as_float(), nullptr);
             }},
 
             //    (int / float) -> float
             {computeIntToFloat(Operation::Division),               [](Value *v1, Value *v2) -> Value * {
-                return new FloatValue(v1->as_int() / v2->as_float());
+                return new FloatValue(v1->as_int() / v2->as_float(), nullptr);
             }},
 
             //    (int % float) -> int
@@ -600,33 +600,33 @@ namespace ExpressionEvaluators {
 
             //    (int == float) -> bool
             {computeIntToFloat(Operation::IsEqual),                [](Value *v1, Value *v2) -> Value * {
-                return new BoolValue(v1->as_int() == v2->as_float());
+                return new BoolValue(v1->as_int() == v2->as_float(), nullptr);
             }},
 
             //    (int != float) -> bool
             {computeIntToFloat(Operation::IsNotEqual),             [](Value *v1, Value *v2) -> Value * {
-                return new BoolValue(v1->as_int() != v2->as_float());
+                return new BoolValue(v1->as_int() != v2->as_float(), nullptr);
             }},
 
             //    (int < float) -> bool
             {computeIntToFloat(Operation::LessThan),               [](Value *v1, Value *v2) -> Value * {
-                return new BoolValue(v1->as_int() < v2->as_float());
+                return new BoolValue(v1->as_int() < v2->as_float(), nullptr);
             }},
 
             //    (int <= float) -> bool
             {computeIntToFloat(Operation::LessThanOrEqual),        [](Value *v1, Value *v2) -> Value * {
-                return new BoolValue(v1->as_int() <= v2->as_float());
+                return new BoolValue(v1->as_int() <= v2->as_float(), nullptr);
             }},
 
             //    (int > float) -> bool
             {computeIntToFloat(Operation::GreaterThan),            [](Value *v1, Value *v2) -> Value * {
-                return new BoolValue(v1->as_int() > v2->as_float());
+                return new BoolValue(v1->as_int() > v2->as_float(), nullptr);
             }},
 
             //    (int >= float) -> bool
             {computeIntToFloat(Operation::GreaterThanOrEqual),     [](Value *v1,
                                                                       Value *v2) -> Value * {
-                return new BoolValue(v1->as_int() >= v2->as_float());
+                return new BoolValue(v1->as_int() >= v2->as_float(), nullptr);
             }},
 
             //    (int << float) -> int

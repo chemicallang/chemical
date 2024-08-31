@@ -10,9 +10,14 @@ public:
 
     long value;
     bool is64Bit;
+    CSTToken* token;
 
-    LongValue(long value, bool is64Bit) : value(value), is64Bit(is64Bit) {
+    LongValue(long value, bool is64Bit, CSTToken* token) : value(value), is64Bit(is64Bit), token(token) {
 
+    }
+
+    CSTToken *cst_token() override {
+        return token;
     }
 
     ValueKind val_kind() override {
@@ -36,11 +41,11 @@ public:
     }
 
     LongValue *copy() override {
-        return new LongValue(value, is64Bit);
+        return new LongValue(value, is64Bit, token);
     }
 
     [[nodiscard]] std::unique_ptr<BaseType> create_type() override {
-        return std::make_unique<LongType>(is64Bit);
+        return std::make_unique<LongType>(is64Bit, nullptr);
     }
 
     unsigned int get_num_bits() override {

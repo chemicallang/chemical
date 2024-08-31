@@ -18,12 +18,17 @@ public:
 
     ASTNode* parent_node;
     Value* first_broken = nullptr;
+    CSTToken* token;
 
     /**
      * constructor
      */
-    LoopBlock(LoopScope scope, ASTNode* parent_node) : LoopASTNode(std::move(scope)), parent_node(parent_node) {
+    LoopBlock(LoopScope scope, ASTNode* parent_node, CSTToken* token) : LoopASTNode(std::move(scope)), parent_node(parent_node), token(token) {
 
+    }
+
+    CSTToken *cst_token() override {
+        return token;
     }
 
     void accept(Visitor *visitor) override {

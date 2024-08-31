@@ -22,76 +22,76 @@
 
 namespace TypeMakers {
 
-    BaseType *make_any_type(bool is64Bit) {
-        return new AnyType();
+    BaseType *make_any_type(bool is64Bit, CSTToken* token) {
+        return new AnyType(token);
     }
 
-    BaseType *make_bool_type(bool is64Bit) {
-        return new BoolType();
+    BaseType *make_bool_type(bool is64Bit, CSTToken* token) {
+        return new BoolType(token);
     }
 
-    BaseType *make_char_type(bool is64Bit) {
-        return new CharType();
+    BaseType *make_char_type(bool is64Bit, CSTToken* token) {
+        return new CharType(token);
     }
 
-    BaseType *make_uchar_type(bool is64Bit) {
-        return new UCharType();
+    BaseType *make_uchar_type(bool is64Bit, CSTToken* token) {
+        return new UCharType(token);
     }
 
-    BaseType *make_double_type(bool is64Bit) {
-        return new DoubleType();
+    BaseType *make_double_type(bool is64Bit, CSTToken* token) {
+        return new DoubleType(token);
     }
 
-    BaseType *make_float_type(bool is64Bit) {
-        return new FloatType();
+    BaseType *make_float_type(bool is64Bit, CSTToken* token) {
+        return new FloatType(token);
     }
 
-    BaseType *make_int_type(bool is64Bit) {
-        return new IntType();
+    BaseType *make_int_type(bool is64Bit, CSTToken* token) {
+        return new IntType(token);
     }
 
-    BaseType *make_uint_type(bool is64Bit) {
-        return new UIntType();
+    BaseType *make_uint_type(bool is64Bit, CSTToken* token) {
+        return new UIntType(token);
     }
 
-    BaseType *make_short_type(bool is64Bit) {
-        return new ShortType();
+    BaseType *make_short_type(bool is64Bit, CSTToken* token) {
+        return new ShortType(token);
     }
 
-    BaseType *make_ushort_type(bool is64Bit) {
-        return new UShortType();
+    BaseType *make_ushort_type(bool is64Bit, CSTToken* token) {
+        return new UShortType(token);
     }
 
-    BaseType *make_long_type(bool is64Bit) {
-        return new LongType(is64Bit);
+    BaseType *make_long_type(bool is64Bit, CSTToken* token) {
+        return new LongType(is64Bit, token);
     }
 
-    BaseType *make_ulong_type(bool is64Bit) {
-        return new ULongType(is64Bit);
+    BaseType *make_ulong_type(bool is64Bit, CSTToken* token) {
+        return new ULongType(is64Bit, token);
     }
 
-    BaseType *make_bigint_type(bool is64Bit) {
-        return new BigIntType();
+    BaseType *make_bigint_type(bool is64Bit, CSTToken* token) {
+        return new BigIntType(token);
     }
 
-    BaseType *make_ubigint_type(bool is64Bit) {
-        return new UBigIntType();
+    BaseType *make_ubigint_type(bool is64Bit, CSTToken* token) {
+        return new UBigIntType(token);
     }
 
-    BaseType *make___int128_type(bool is64Bit) {
-        return new Int128Type();
+    BaseType *make___int128_type(bool is64Bit, CSTToken* token) {
+        return new Int128Type(token);
     }
 
-    BaseType *make___uint128_type(bool is64Bit) {
-        return new UInt128Type();
+    BaseType *make___uint128_type(bool is64Bit, CSTToken* token) {
+        return new UInt128Type(token);
     }
 
-    BaseType *make_string_type(bool is64Bit) {
-        return new StringType();
+    BaseType *make_string_type(bool is64Bit, CSTToken* token) {
+        return new StringType(token);
     }
 
-    BaseType *make_void_type(bool is64Bit) {
-        return new VoidType();
+    BaseType *make_void_type(bool is64Bit, CSTToken* token) {
+        return new VoidType(token);
     }
 
 }

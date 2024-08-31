@@ -173,9 +173,9 @@ std::unique_ptr<BaseType> ArrayValue::element_type() const {
             unsigned int i = sizes.size() - 1;
             while(i > 0) {
                 if(i == sizes.size() - 1) {
-                    elementType = new ArrayType(std::unique_ptr<BaseType>(elemType.value()->copy()), sizes[i]);
+                    elementType = new ArrayType(std::unique_ptr<BaseType>(elemType.value()->copy()), sizes[i], token);
                 } else {
-                    elementType = new ArrayType(std::unique_ptr<BaseType>(elementType), sizes[i]);
+                    elementType = new ArrayType(std::unique_ptr<BaseType>(elementType), sizes[i], token);
                 }
                 i--;
             }
@@ -191,9 +191,9 @@ std::unique_ptr<BaseType> ArrayValue::element_type() const {
 }
 
 std::unique_ptr<BaseType> ArrayValue::create_type() {
-    return std::make_unique<ArrayType>(element_type(), array_size());
+    return std::make_unique<ArrayType>(element_type(), array_size(), nullptr);
 }
 
 hybrid_ptr<BaseType> ArrayValue::get_base_type() {
-    return hybrid_ptr<BaseType> { new ArrayType(std::move(element_type()), array_size()) };
+    return hybrid_ptr<BaseType> { new ArrayType(std::move(element_type()), array_size(), nullptr) };
 }

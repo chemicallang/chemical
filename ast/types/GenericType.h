@@ -19,15 +19,13 @@ public:
      * the parent generic iteration which is the key of this map corresponds
      * to a set of generic args that we registered for this type and got a generic iteration.
      * the received generic iteration is the value of this map.
-     *
-     *
      */
     std::unordered_map<int16_t, int16_t> subscribed_map;
 
     /**
      * constructor
      */
-    explicit GenericType(std::unique_ptr<ReferencedType> referenced);
+    GenericType(std::unique_ptr<ReferencedType> referenced);
 
     /**
      * constructor
@@ -42,7 +40,12 @@ public:
     /**
      * constructor
      */
-    explicit GenericType(std::string base);
+    GenericType(std::string base, CSTToken* token);
+
+    /**
+     * cst token
+     */
+    CSTToken* cst_token() override;
 
     /**
      * accept the visitor

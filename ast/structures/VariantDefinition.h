@@ -10,6 +10,7 @@ public:
 
     AccessSpecifier specifier = AccessSpecifier::Internal;
     ASTNode* parent_node;
+    CSTToken* token;
     ReferencedType ref_type;
     /**
      * the iterations for which we have generated codee
@@ -29,8 +30,13 @@ public:
      */
     VariantDefinition(
         std::string name,
-        ASTNode* parent_node
+        ASTNode* parent_node,
+        CSTToken* token
     );
+
+    CSTToken* cst_token() override {
+        return token;
+    }
 
     ASTNodeKind kind() override {
         return ASTNodeKind::VariantDecl;

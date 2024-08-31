@@ -8,8 +8,9 @@ TryCatch::TryCatch(
         std::unique_ptr<FunctionCall> tryCall,
         catch_var_type catchVar,
         std::optional<Scope> catchScope,
-        ASTNode* parent_node
-) : tryCall(std::move(tryCall)), catchVar(std::move(catchVar)), catchScope(std::move(catchScope)), parent_node(parent_node){
+        ASTNode* parent_node,
+        CSTToken* token
+) : tryCall(std::move(tryCall)), catchVar(std::move(catchVar)), catchScope(std::move(catchScope)), parent_node(parent_node), token(token) {
 
 }
 

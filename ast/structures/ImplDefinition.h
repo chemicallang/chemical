@@ -17,6 +17,7 @@ public:
     std::unique_ptr<BaseType> interface_type;
     std::unique_ptr<BaseType> struct_type;
     ASTNode* parent_node;
+    CSTToken* token;
 
     /**
      * constructor
@@ -24,8 +25,13 @@ public:
     ImplDefinition(
             std::unique_ptr<BaseType> interface_type,
             std::unique_ptr<BaseType> struct_type,
-            ASTNode* parent_node
+            ASTNode* parent_node,
+            CSTToken* token
     );
+
+    CSTToken *cst_token() override {
+        return token;
+    }
 
     ASTNodeKind kind() override {
         return ASTNodeKind::ImplDecl;

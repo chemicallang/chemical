@@ -450,9 +450,9 @@ void MembersContainer::insert_func(std::unique_ptr<FunctionDeclaration> decl) {
 }
 
 FunctionDeclaration* MembersContainer::create_destructor() {
-    auto decl = new FunctionDeclaration("delete", {}, std::make_unique<VoidType>(), false, this, std::nullopt);
-    decl->params.emplace_back(new FunctionParam("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>(ns_node_identifier(), this)), 0, std::nullopt, decl));
-    decl->body.emplace(LoopScope{nullptr});
+    auto decl = new FunctionDeclaration("delete", {}, std::make_unique<VoidType>(nullptr), false, this, nullptr, std::nullopt);
+    decl->params.emplace_back(new FunctionParam("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>(ns_node_identifier(), this, nullptr), nullptr), 0, std::nullopt, decl, nullptr));
+    decl->body.emplace(LoopScope{nullptr, nullptr});
     decl->annotations.emplace_back(AnnotationKind::Destructor);
     insert_func(std::unique_ptr<FunctionDeclaration>(decl));
     return decl;

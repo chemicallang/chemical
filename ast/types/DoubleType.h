@@ -4,10 +4,12 @@
 
 #include "ast/base/BaseType.h"
 
-class DoubleType : public BaseType {
+class DoubleType : public TokenizedBaseType {
 public:
 
     static const DoubleType instance;
+
+    using TokenizedBaseType::TokenizedBaseType;
 
     uint64_t byte_size(bool is64Bit) override {
         return 8;
@@ -43,7 +45,7 @@ public:
 
     [[nodiscard]]
     DoubleType *copy() const override {
-        return new DoubleType();
+        return new DoubleType(token);
     }
 
 #ifdef COMPILER_BUILD

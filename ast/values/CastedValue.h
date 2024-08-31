@@ -14,8 +14,13 @@ public:
 
     std::unique_ptr<Value> value;
     std::unique_ptr<BaseType> type;
+    CSTToken* token;
 
-    CastedValue(std::unique_ptr<Value> value, std::unique_ptr<BaseType> type);
+    CastedValue(std::unique_ptr<Value> value, std::unique_ptr<BaseType> type, CSTToken* token);
+
+    CSTToken* cst_token() override {
+        return token;
+    }
 
     ValueKind val_kind() override {
         return ValueKind::CastedValue;

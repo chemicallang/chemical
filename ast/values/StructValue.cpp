@@ -176,15 +176,17 @@ StructValue::StructValue(
         std::unique_ptr<Value> ref,
         std::unordered_map<std::string, std::unique_ptr<Value>> values,
         std::vector<std::unique_ptr<BaseType>> generic_list,
-        StructDefinition *definition
-) : ref(std::move(ref)), values(std::move(values)), definition(definition), generic_list(std::move(generic_list)) {}
+        StructDefinition *definition,
+        CSTToken* token
+) : ref(std::move(ref)), values(std::move(values)), definition(definition), generic_list(std::move(generic_list)), token(token) {}
 
 StructValue::StructValue(
         std::unique_ptr<Value> ref,
         std::unordered_map<std::string, std::unique_ptr<Value>> values,
         StructDefinition *definition,
-        InterpretScope &scope
-) : ref(std::move(ref)), values(std::move(values)), definition(definition) {
+        InterpretScope &scope,
+        CSTToken* token
+) : ref(std::move(ref)), values(std::move(values)), definition(definition), token(token) {
     declare_default_values(this->values, scope);
 }
 
@@ -289,7 +291,8 @@ Value *StructValue::scope_value(InterpretScope &scope) {
             std::unique_ptr<Value>(ref->copy()),
             std::unordered_map<std::string, std::unique_ptr<Value>>(),
             std::vector<std::unique_ptr<BaseType>>(),
-            definition
+            definition,
+            token
     );
     declare_default_values(struct_value->values, scope);
     struct_value->values.reserve(values.size());
@@ -322,7 +325,8 @@ StructValue *StructValue::copy() {
         std::unique_ptr<Value>(ref->copy()),
         std::unordered_map<std::string, std::unique_ptr<Value>>(),
         std::vector<std::unique_ptr<BaseType>>(),
-        definition
+        definition,
+        token
     );
     struct_value->values.reserve(values.size());
     for (const auto &value: values) {
@@ -337,13 +341,13 @@ StructValue *StructValue::copy() {
 
 std::unique_ptr<BaseType> StructValue::create_type() {
     if(!definition->generic_params.empty()) {
-       auto gen_type = std::make_unique<GenericType>(std::make_unique<ReferencedType>(definition->name, definition), generic_iteration);
+       auto gen_type = std::make_unique<GenericType>(std::make_unique<ReferencedType>(definition->name, definition, nullptr), generic_iteration);
        for(auto& type : generic_list) {
            gen_type->types.emplace_back(type->copy());
        }
        return gen_type;
     } else {
-        auto type = std::make_unique<ReferencedType>(ref->representation());
+        auto type = std::make_unique<ReferencedType>(ref->representation(), nullptr);
         type->linked = definition;
         return type;
     }

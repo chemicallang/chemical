@@ -21,6 +21,7 @@ public:
     std::vector<std::string> identifiers;
     std::string filePath; ///< The file path to import.
     ASTNode* parent_node;
+    CSTToken* token;
 
     /**
      * @brief Construct a new ImportStatement object.
@@ -30,8 +31,13 @@ public:
     ImportStatement(
         std::string filePath,
         std::vector<std::string> identifiers,
-        ASTNode* parent_node
+        ASTNode* parent_node,
+        CSTToken* token
     );
+
+    CSTToken* cst_token() override {
+        return token;
+    }
 
     ASTNodeKind kind() override {
         return ASTNodeKind::ImportStmt;

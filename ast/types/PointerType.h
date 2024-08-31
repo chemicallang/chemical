@@ -5,18 +5,18 @@
 #include "ast/base/BaseType.h"
 #include <memory>
 
-class PointerType : public BaseType {
+class PointerType : public TokenizedBaseType {
 public:
 
     static const PointerType void_ptr_instance;
 
     hybrid_ptr<BaseType> type;
 
-    explicit PointerType(std::unique_ptr<BaseType> type) : type(type.release(), true) {
+    PointerType(std::unique_ptr<BaseType> type, CSTToken* token) : type(type.release(), true), TokenizedBaseType(token) {
 
     }
 
-    explicit PointerType(hybrid_ptr<BaseType> type) : type(std::move(type)) {
+    PointerType(hybrid_ptr<BaseType> type, CSTToken* token) : type(std::move(type)), TokenizedBaseType(token) {
 
     }
 
@@ -71,7 +71,7 @@ public:
 
     [[nodiscard]]
     PointerType *copy() const override {
-        return new PointerType(std::unique_ptr<BaseType>(type->copy()));
+        return new PointerType(std::unique_ptr<BaseType>(type->copy()), token);
     }
 
     void link(SymbolResolver &linker, std::unique_ptr<BaseType>& current) override;

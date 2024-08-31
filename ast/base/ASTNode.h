@@ -10,7 +10,6 @@
 #include <memory>
 #include <string>
 #include "ASTAny.h"
-#include "Interpretable.h"
 #include "BaseTypeKind.h"
 #include "ValueType.h"
 #include "std/hybrid_ptr.h"

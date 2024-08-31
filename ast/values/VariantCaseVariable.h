@@ -12,11 +12,16 @@ public:
     std::string name;
     VariantCase* variant_case;
     VariantMemberParam* member_param;
+    CSTToken* token;
 
     /**
      * variant case
      */
-    VariantCaseVariable(std::string name, VariantCase* variant_case);
+    VariantCaseVariable(std::string name, VariantCase* variant_case, CSTToken* token);
+
+    CSTToken* cst_token() override {
+        return token;
+    }
 
     void accept(Visitor *visitor) override;
 

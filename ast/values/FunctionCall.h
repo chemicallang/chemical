@@ -21,12 +21,18 @@ public:
     std::vector<std::unique_ptr<BaseType>> generic_list;
     std::vector<std::unique_ptr<Value>> values;
     int16_t generic_iteration = 0;
+    CSTToken* token;
 
-    explicit FunctionCall(
-            std::vector<std::unique_ptr<Value>> values
+    FunctionCall(
+            std::vector<std::unique_ptr<Value>> values,
+            CSTToken* token
     );
 
     FunctionCall(FunctionCall &&other) = delete;
+
+    CSTToken* cst_token() override {
+        return token;
+    }
 
     ValueKind val_kind() override {
         return ValueKind::FunctionCall;

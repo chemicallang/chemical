@@ -10,8 +10,9 @@ DestructStmt::DestructStmt(
         std::unique_ptr<Value> array_value,
         std::unique_ptr<Value> value,
         bool is_array,
-        ASTNode* parent_node
-) : array_value(std::move(array_value)), identifier(std::move(value)), is_array(is_array), parent_node(parent_node) {
+        ASTNode* parent_node,
+        CSTToken* token
+) : array_value(std::move(array_value)), identifier(std::move(value)), is_array(is_array), parent_node(parent_node), token(token) {
 
 }
 

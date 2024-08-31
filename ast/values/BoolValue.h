@@ -12,19 +12,28 @@
 class BoolValue : public Value {
 public:
 
+    bool value;
+    CSTToken* token;
+
     /**
      * @brief Construct a new CharValue object.
      *
      * @param value The character value.
      */
-    explicit BoolValue(bool value) : value(value) {}
+    explicit BoolValue(bool value, CSTToken* token) : value(value), token(token) {
+
+    }
 
     ValueKind val_kind() override {
         return ValueKind::Bool;
     }
 
+    CSTToken *cst_token() override {
+        return token;
+    }
+
     BoolValue *copy() override {
-        return new BoolValue(value);
+        return new BoolValue(value, token);
     }
 
     uint64_t byte_size(bool is64Bit) override {
@@ -40,7 +49,7 @@ public:
     }
 
     std::unique_ptr<BaseType> create_type() override {
-        return std::make_unique<BoolType>();
+        return std::make_unique<BoolType>(nullptr);
     }
 
     void accept(Visitor *visitor) override {
@@ -68,8 +77,5 @@ public:
     bool as_bool() override {
         return value;
     }
-
-
-    bool value;
 
 };

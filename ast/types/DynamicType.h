@@ -4,7 +4,7 @@
 
 #include "ReferencedType.h"
 
-class DynamicType : public BaseType {
+class DynamicType : public TokenizedBaseType {
 public:
 
     std::unique_ptr<BaseType> referenced;
@@ -12,7 +12,7 @@ public:
     /**
      * constructor
      */
-    explicit DynamicType(std::unique_ptr<BaseType> referenced);
+    DynamicType(std::unique_ptr<BaseType> referenced, CSTToken* token);
 
     void accept(Visitor* visitor) override {
         visitor->visit(this);
@@ -38,7 +38,7 @@ public:
 
     [[nodiscard]]
     DynamicType* copy() const override {
-        return new DynamicType(std::unique_ptr<BaseType>(referenced->copy()));
+        return new DynamicType(std::unique_ptr<BaseType>(referenced->copy()), token);
     }
 
     ASTNode* linked_node() override {

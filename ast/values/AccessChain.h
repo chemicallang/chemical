@@ -10,6 +10,7 @@
 #include "ast/base/ASTNode.h"
 #include "ast/base/ChainValue.h"
 #include "TypeLinkedValue.h"
+#include <unordered_map>
 
 /**
  * access chain represents a way to access things in programming language for example
@@ -23,12 +24,17 @@ public:
     std::vector<std::unique_ptr<ChainValue>> values;
     ASTNode* parent_node;
     bool is_node;
+    CSTToken* token;
 
-    AccessChain(ASTNode* parent_node, bool is_node) : parent_node(parent_node), is_node(is_node) {
+    AccessChain(ASTNode* parent_node, bool is_node, CSTToken* token) : parent_node(parent_node), is_node(is_node), token(token) {
 
     }
 
-    AccessChain(std::vector<std::unique_ptr<ChainValue>> values, ASTNode* parent_node, bool is_node);
+    AccessChain(std::vector<std::unique_ptr<ChainValue>> values, ASTNode* parent_node, bool is_node, CSTToken* token);
+
+    CSTToken* cst_token() override {
+        return token;
+    }
 
     ASTNodeKind kind() override {
         return ASTNodeKind::AccessChain;

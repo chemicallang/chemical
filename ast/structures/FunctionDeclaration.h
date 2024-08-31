@@ -50,6 +50,10 @@ public:
      * have been generated, so next time we should start at this index to generate bodies
      */
     int16_t bodies_gen_index = 0;
+    /**
+     * the cst token
+     */
+    CSTToken* token;
 
 #ifdef COMPILER_BUILD
     std::vector<std::pair<llvm::Value*, llvm::FunctionType*>> llvm_data;
@@ -69,8 +73,13 @@ public:
             std::unique_ptr<BaseType> returnType,
             bool isVariadic,
             ASTNode* parent_node,
+            CSTToken* token,
             std::optional<LoopScope> body = std::nullopt
     );
+
+    CSTToken *cst_token() override {
+        return token;
+    }
 
     ASTNodeKind kind() override {
         return ASTNodeKind::FunctionDecl;

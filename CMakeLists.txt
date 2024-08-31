@@ -183,7 +183,6 @@ set(COMMON_SOURCES
         ast/structures/ImplDefinition.h
         lexer/structures/ImplDef.cpp
         ast/statements/Comment.h
-        ast/base/Interpretable.h
         lexer/statements/AnnotationMacro.cpp
         ast/base/BaseType.h
         compiler/Operation.cpp

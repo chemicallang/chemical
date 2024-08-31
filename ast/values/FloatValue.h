@@ -14,12 +14,20 @@
  */
 class FloatValue : public Value {
 public:
+
+    float value; ///< The floating-point value.
+    CSTToken* token;
+
     /**
      * @brief Construct a new FloatValue object.
      *
      * @param value The floating-point value.
      */
-    explicit FloatValue(float value) : value(value) {}
+    explicit FloatValue(float value, CSTToken* token) : value(value), token(token) {}
+
+    CSTToken *cst_token() override {
+        return token;
+    }
 
     ValueKind val_kind() override {
         return ValueKind::Float;
@@ -54,11 +62,11 @@ public:
     }
 
     std::unique_ptr<BaseType> create_type() override {
-        return std::make_unique<FloatType>();
+        return std::make_unique<FloatType>(nullptr);
     }
 
     FloatValue *copy() override {
-        return new FloatValue(value);
+        return new FloatValue(value, token);
     }
 
     [[nodiscard]]
@@ -71,5 +79,4 @@ public:
         return BaseTypeKind::Float;
     }
 
-    float value; ///< The floating-point value.
 };

@@ -28,13 +28,20 @@ public:
      */
     std::string value;
     ASTNode *linked = nullptr;
+    CSTToken* token;
 
     /**
      * @brief Construct a new VariableIdentifier object.
      *
      * @param value The string value.
      */
-    VariableIdentifier(std::string value) : value(std::move(value)) {}
+    VariableIdentifier(std::string value, CSTToken* token) : value(std::move(value)), token(token) {
+
+    }
+
+    CSTToken* cst_token() override {
+        return token;
+    }
 
     ValueKind val_kind() override {
         return ValueKind::Identifier;

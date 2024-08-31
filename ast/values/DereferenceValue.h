@@ -13,7 +13,14 @@
 class DereferenceValue : public Value {
 public:
 
-    explicit DereferenceValue(std::unique_ptr<Value> value);
+    std::unique_ptr<Value> value;
+    CSTToken* token;
+
+    explicit DereferenceValue(std::unique_ptr<Value> value, CSTToken* token);
+
+    CSTToken* cst_token() override {
+        return token;
+    }
 
     ValueKind val_kind() override {
         return ValueKind::DereferenceValue;
@@ -51,5 +58,4 @@ public:
 
     void link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) override;
 
-    std::unique_ptr<Value> value;
 };

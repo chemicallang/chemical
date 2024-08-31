@@ -6,16 +6,24 @@
 
 #include "ast/base/BaseType.h"
 
-class ReferencedType : public BaseType {
+class ReferencedType : public TokenizedBaseType {
 public:
 
     std::string type;
-
     ASTNode *linked;
 
-    ReferencedType(std::string type) : type(std::move(type)) {}
+    ReferencedType(std::string type, CSTToken* token) : type(std::move(type)), TokenizedBaseType(token) {
 
-    ReferencedType(std::string type, ASTNode* linked) : type(std::move(type)), linked(linked) {}
+    }
+
+    [[deprecated]]
+    ReferencedType(std::string type, CSTToken* token, ASTNode* linked) : type(std::move(type)), TokenizedBaseType(token), linked(linked) {
+
+    }
+
+    ReferencedType(std::string type, ASTNode* linked, CSTToken* token) : type(std::move(type)), TokenizedBaseType(token), linked(linked) {
+
+    }
 
     uint64_t byte_size(bool is64Bit) override;
 
@@ -49,7 +57,7 @@ public:
 
     [[nodiscard]]
     ReferencedType *copy() const override {
-        auto t = new ReferencedType(type);
+        auto t = new ReferencedType(type, token);
         t->linked = linked;
         return t;
     }

@@ -20,6 +20,7 @@ public:
     InterfaceDefinition* definition;
     Operation assOp;
     ASTNode* parent_node;
+    CSTToken* token;
 
     /**
      * @brief Construct a new AssignStatement object.
@@ -31,7 +32,8 @@ public:
             std::unique_ptr<Value> lhs,
             std::unique_ptr<Value> value,
             Operation assOp,
-            ASTNode* parent_node
+            ASTNode* parent_node,
+            CSTToken* token
     );
 
     ASTNodeKind kind() override {
@@ -44,6 +46,10 @@ public:
 
     ASTNode *parent() override {
         return parent_node;
+    }
+
+    CSTToken *cst_token() override {
+        return token;
     }
 
     void accept(Visitor *visitor) override;

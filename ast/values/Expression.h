@@ -18,6 +18,7 @@ public:
     std::unique_ptr<Value> secondValue; ///< The second value in the expression.
     Operation operation; ///< The operation between the two values.
     bool is64Bit; // is 64bit operating system
+    CSTToken* token;
 
     /**
      * @brief Construct a new Expression object.
@@ -30,8 +31,13 @@ public:
             std::unique_ptr<Value> firstValue,
             std::unique_ptr<Value> secondValue,
             Operation operation,
-            bool is64Bit
+            bool is64Bit,
+            CSTToken* token
     );
+
+    CSTToken* cst_token() override {
+        return token;
+    }
 
     ValueKind val_kind() override {
         return ValueKind::Expression;

@@ -93,8 +93,9 @@ LambdaFunction::LambdaFunction(
         std::vector<std::unique_ptr<CapturedVariable>> captureList,
         std::vector<std::unique_ptr<FunctionParam>> params,
         bool isVariadic,
-        Scope scope
-) : captureList(std::move(captureList)), FunctionType(std::move(params), nullptr, isVariadic, !captureList.empty()), scope(std::move(scope)) {
+        Scope scope,
+        CSTToken* token
+) : captureList(std::move(captureList)), FunctionType(std::move(params), nullptr, isVariadic, !captureList.empty(), token), scope(std::move(scope)) {
 
 }
 
@@ -105,7 +106,7 @@ BaseType* find_return_type(std::vector<std::unique_ptr<ASTNode>>& nodes) {
             if(returnStmt->value.has_value()) {
                 return returnStmt->value.value()->create_type().release();
             } else {
-                return new VoidType();
+                return new VoidType(nullptr);
             }
         } else {
             const auto loop_ast = node->as_loop_ast();
@@ -117,7 +118,7 @@ BaseType* find_return_type(std::vector<std::unique_ptr<ASTNode>>& nodes) {
             }
         }
     }
-    return new VoidType();
+    return new VoidType(nullptr);
 }
 
 void link_params_and_caps(LambdaFunction* fn, SymbolResolver &linker) {
@@ -208,7 +209,7 @@ void LambdaFunction::link(SymbolResolver &linker, StructValue *value, const std:
     if(!params.empty()) {
         auto& param = params[0];
         if((param->name == "self" || param->name == "this") && param->type->kind() == BaseTypeKind::Void) {
-            param->type = std::make_unique<PointerType>(value->definition->get_value_type());
+            param->type = std::make_unique<PointerType>(value->definition->get_value_type(), param->type->cst_token());
         }
     }
     link_full(this, linker);

@@ -20,13 +20,20 @@ public:
     std::string value;
     unsigned int length;
     bool is_array = false;
+    CSTToken* token;
 
     /**
      * @brief Construct a new StringValue object.
      *
      * @param value The string value.
      */
-    explicit StringValue(std::string value) : length(value.size()), value(std::move(value)) {}
+    explicit StringValue(std::string value, CSTToken* token) : length(value.size()), value(std::move(value)), token(token) {
+
+    }
+
+    CSTToken *cst_token() override {
+        return token;
+    }
 
     ValueKind val_kind() override {
         return ValueKind::String;
@@ -57,7 +64,7 @@ public:
                          " of length " + std::to_string(value.size());
         }
 #endif
-        return new CharValue(value[i]);
+        return new CharValue(value[i], token);
     }
 
     std::string as_string() override {
@@ -77,7 +84,7 @@ public:
 #endif
 
     StringValue *copy() override {
-        return new StringValue(value);
+        return new StringValue(value, token);
     }
 
     std::unique_ptr<BaseType> create_type() override;

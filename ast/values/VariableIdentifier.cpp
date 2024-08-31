@@ -14,12 +14,12 @@ uint64_t VariableIdentifier::byte_size(bool is64Bit) {
 void VariableIdentifier::prepend_self(SymbolResolver &linker, std::unique_ptr<ChainValue>& value_ptr, const std::string& name, ASTNode* linked) {
     // struct members / functions, don't need to be accessed like self.a or this.a
     // because we'll append self and this automatically
-    auto self_id = new VariableIdentifier(name);
+    auto self_id = new VariableIdentifier(name, token);
     self_id->linked = linked;
     std::vector<std::unique_ptr<ChainValue>> values;
     values.emplace_back(self_id);
     values.emplace_back(value_ptr.release());
-    value_ptr = std::make_unique<AccessChain>(std::move(values), nullptr, false);
+    value_ptr = std::make_unique<AccessChain>(std::move(values), nullptr, false, token);
 }
 
 void VariableIdentifier::link(SymbolResolver &linker, std::unique_ptr<ChainValue>& value_ptr, bool prepend) {
@@ -201,13 +201,13 @@ VarInitStatement *VariableIdentifier::declaration() {
 }
 
 VariableIdentifier* VariableIdentifier::copy() {
-    auto id = new VariableIdentifier(value);
+    auto id = new VariableIdentifier(value, token);
     id->linked = linked;
     return id;
 }
 
 NamespaceIdentifier *NamespaceIdentifier::copy() {
-    auto id = new NamespaceIdentifier(value);
+    auto id = new NamespaceIdentifier(value, token);
     id->linked = linked;
     return id;
 }

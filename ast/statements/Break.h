@@ -20,11 +20,16 @@ public:
      * block and then the loop is broken
      */
     std::unique_ptr<Value> value;
+    CSTToken* token;
 
     /**
      * @brief Construct a new Break statement object.
      */
-    BreakStatement(LoopASTNode *node, ASTNode* parent_node);
+    BreakStatement(LoopASTNode *node, ASTNode* parent_node, CSTToken* token);
+
+    CSTToken *cst_token() override {
+        return token;
+    }
 
     ASTNodeKind kind() override {
         return ASTNodeKind::BreakStmt;

@@ -9,9 +9,14 @@ class UBigIntValue : public IntNumValue {
 public:
 
     unsigned long long value;
+    CSTToken* token;
 
-    explicit UBigIntValue(unsigned long long value) : value(value) {
+    explicit UBigIntValue(unsigned long long value, CSTToken* token) : value(value), token(token) {
 
+    }
+
+    CSTToken *cst_token() override {
+        return token;
     }
 
     ValueKind val_kind() override {
@@ -35,11 +40,11 @@ public:
     }
 
     UBigIntValue *copy() override {
-        return new UBigIntValue(value);
+        return new UBigIntValue(value, token);
     }
 
     [[nodiscard]] std::unique_ptr<BaseType> create_type() override {
-        return std::make_unique<UBigIntType>();
+        return std::make_unique<UBigIntType>(token);
     }
 
     unsigned int get_num_bits() override {

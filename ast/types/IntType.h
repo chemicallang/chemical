@@ -9,6 +9,8 @@ public:
 
     static const IntType instance;
 
+    using IntNType::IntNType;
+
     [[nodiscard]]
     unsigned int num_bits() const override {
         return 32;
@@ -37,7 +39,7 @@ public:
 
     [[nodiscard]]
     IntType *copy() const override {
-        return new IntType();
+        return new IntType(token);
     }
 
 };

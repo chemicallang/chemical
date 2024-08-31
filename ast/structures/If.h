@@ -20,6 +20,7 @@ public:
     std::optional<Scope> elseBody;
     ASTNode* parent_node;
     bool is_value;
+    CSTToken* token;
 
     /**
      * @brief Construct a new IfStatement object.
@@ -34,8 +35,13 @@ public:
             std::vector<std::pair<std::unique_ptr<Value>, Scope>> elseIfs,
             std::optional<Scope> elseBody,
             ASTNode* parent_node,
-            bool is_value
+            bool is_value,
+            CSTToken* token
     );
+
+    CSTToken *cst_token() override {
+        return token;
+    }
 
     ValueKind val_kind() override {
         return ValueKind::IfValue;

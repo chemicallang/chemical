@@ -17,6 +17,7 @@ public:
     StructDefinition *definition = nullptr;
     std::unordered_map<std::string, std::unique_ptr<Value>> values;
     int16_t generic_iteration = 0;
+    CSTToken* token;
 #ifdef COMPILER_BUILD
     llvm::AllocaInst* allocaInst;
 #endif
@@ -33,15 +34,21 @@ public:
             std::unique_ptr<Value> ref,
             std::unordered_map<std::string, std::unique_ptr<Value>> values,
             std::vector<std::unique_ptr<BaseType>> generic_list,
-            StructDefinition *definition = nullptr
+            StructDefinition *definition,
+            CSTToken* token
     );
 
     StructValue(
             std::unique_ptr<Value> ref,
             std::unordered_map<std::string, std::unique_ptr<Value>> values,
             StructDefinition *definition,
-            InterpretScope &scope
+            InterpretScope &scope,
+            CSTToken* token
     );
+
+    CSTToken* cst_token() override {
+        return token;
+    }
 
     ValueKind val_kind() override {
         return ValueKind::StructValue;

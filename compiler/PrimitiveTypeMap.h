@@ -7,49 +7,51 @@
 
 class BaseType;
 
+class CSTToken;
+
 /**
  * primitive type provide is a function when given a type in string format
  * like 'int' it will create a AST BaseType
  */
-typedef BaseType *(*PrimitiveTypeProvider)(bool is64Bit);
+typedef BaseType *(*PrimitiveTypeProvider)(bool is64Bit, CSTToken* token);
 
 namespace TypeMakers {
 
-    BaseType *make_any_type(bool is64Bit);
+    BaseType *make_any_type(bool is64Bit, CSTToken* token);
 
-    BaseType *make_bool_type(bool is64Bit);
+    BaseType *make_bool_type(bool is64Bit, CSTToken* token);
 
-    BaseType *make_char_type(bool is64Bit);
+    BaseType *make_char_type(bool is64Bit, CSTToken* token);
 
-    BaseType *make_uchar_type(bool is64Bit);
+    BaseType *make_uchar_type(bool is64Bit, CSTToken* token);
 
-    BaseType *make_double_type(bool is64Bit);
+    BaseType *make_double_type(bool is64Bit, CSTToken* token);
 
-    BaseType *make_float_type(bool is64Bit);
+    BaseType *make_float_type(bool is64Bit, CSTToken* token);
 
-    BaseType *make_int_type(bool is64Bit);
+    BaseType *make_int_type(bool is64Bit, CSTToken* token);
 
-    BaseType *make_uint_type(bool is64Bit);
+    BaseType *make_uint_type(bool is64Bit, CSTToken* token);
 
-    BaseType *make_short_type(bool is64Bit);
+    BaseType *make_short_type(bool is64Bit, CSTToken* token);
 
-    BaseType *make_ushort_type(bool is64Bit);
+    BaseType *make_ushort_type(bool is64Bit, CSTToken* token);
 
-    BaseType *make_long_type(bool is64Bit);
+    BaseType *make_long_type(bool is64Bit, CSTToken* token);
 
-    BaseType *make_ulong_type(bool is64Bit);
+    BaseType *make_ulong_type(bool is64Bit, CSTToken* token);
 
-    BaseType *make_bigint_type(bool is64Bit);
+    BaseType *make_bigint_type(bool is64Bit, CSTToken* token);
 
-    BaseType *make_ubigint_type(bool is64Bit);
+    BaseType *make_ubigint_type(bool is64Bit, CSTToken* token);
 
-    BaseType *make___int128_type(bool is64Bit);
+    BaseType *make___int128_type(bool is64Bit, CSTToken* token);
 
-    BaseType *make___uint128_type(bool is64Bit);
+    BaseType *make___uint128_type(bool is64Bit, CSTToken* token);
 
-    BaseType *make_string_type(bool is64Bit);
+    BaseType *make_string_type(bool is64Bit, CSTToken* token);
 
-    BaseType *make_void_type(bool is64Bit);
+    BaseType *make_void_type(bool is64Bit, CSTToken* token);
 
     const std::unordered_map<std::string, PrimitiveTypeProvider> PrimitiveMap = {
             {"any",       TypeMakers::make_any_type},

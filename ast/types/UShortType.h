@@ -9,6 +9,8 @@ public:
 
     static const UShortType instance;
 
+    using IntNType::IntNType;
+
     [[nodiscard]]
     unsigned int num_bits() const override {
         return 16;
@@ -37,7 +39,7 @@ public:
 
     [[nodiscard]]
     UShortType *copy() const override {
-        return new UShortType();
+        return new UShortType(token);
     }
 
 };

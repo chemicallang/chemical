@@ -54,7 +54,7 @@ void Expression::promote_literal_values(BaseType* firstType, BaseType* secondTyp
 
 std::unique_ptr<BaseType> Expression::create_type() {
     if(operation >= Operation::IndexComparisonStart && operation <= Operation::IndexComparisonEnd) {
-        return std::make_unique<BoolType>();
+        return std::make_unique<BoolType>(nullptr);
     }
     auto first = firstValue->create_type();
     auto second = secondValue->create_type();
@@ -65,7 +65,7 @@ std::unique_ptr<BaseType> Expression::create_type() {
         }
     }
     if(first->value_type() == ValueType::Pointer && second->value_type() == ValueType::Pointer) {
-        return std::make_unique<LongType>(is64Bit);
+        return std::make_unique<LongType>(is64Bit, nullptr);
     }
     if(first->can_promote(secondValue.get())) {
         return std::unique_ptr<Value>(first->promote(secondValue.get()))->create_type();
@@ -101,8 +101,9 @@ Expression::Expression(
         std::unique_ptr<Value> firstValue,
         std::unique_ptr<Value> secondValue,
         Operation operation,
-        bool is64Bit
-) : firstValue(std::move(firstValue)), secondValue(std::move(secondValue)), operation(operation), is64Bit(is64Bit) {
+        bool is64Bit,
+        CSTToken* token
+) : firstValue(std::move(firstValue)), secondValue(std::move(secondValue)), operation(operation), is64Bit(is64Bit), token(token) {
 
 }
 
@@ -144,7 +145,8 @@ Expression *Expression::copy() {
         std::unique_ptr<Value>(firstValue->copy()),
         std::unique_ptr<Value>(secondValue->copy()),
         operation,
-        is64Bit
+        is64Bit,
+        token
     );
 }
 

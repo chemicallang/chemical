@@ -5,15 +5,17 @@
 
 CastedValue::CastedValue(
         std::unique_ptr<Value> value,
-        std::unique_ptr<BaseType> type
-) : value(std::move(value)), type(std::move(type)) {
+        std::unique_ptr<BaseType> type,
+        CSTToken* token
+) : value(std::move(value)), type(std::move(type)), token(token) {
 
 }
 
 CastedValue *CastedValue::copy() {
     return new CastedValue(
-            std::unique_ptr<Value>(value->copy()),
-            std::unique_ptr<BaseType>(type->copy())
+        std::unique_ptr<Value>(value->copy()),
+        std::unique_ptr<BaseType>(type->copy()),
+        token
     );
 }
 

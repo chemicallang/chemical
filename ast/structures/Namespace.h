@@ -13,11 +13,16 @@ public:
     tsl::ordered_map<std::string, ASTNode*> extended;
     Namespace* root = nullptr; // the root's namespace extended map contains pointers to all nodes
     ASTNode* parent_node;
+    CSTToken* token;
 
     /**
      * constructor
      */
-    Namespace(std::string name, ASTNode* parent_node);
+    Namespace(std::string name, ASTNode* parent_node, CSTToken* token);
+
+    CSTToken *cst_token() override {
+        return token;
+    }
 
     ASTNodeKind kind() override {
         return ASTNodeKind::NamespaceDecl;

@@ -2,6 +2,7 @@
 
 #include "DoWhileLoop.h"
 #include "compiler/SymbolResolver.h"
+#include "ast/base/InterpretScope.h"
 
 #ifdef COMPILER_BUILD
 

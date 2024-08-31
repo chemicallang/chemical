@@ -3,6 +3,7 @@
 #include "If.h"
 #include "ast/base/BaseType.h"
 #include "compiler/SymbolResolver.h"
+#include "ast/base/InterpretScope.h"
 
 #ifdef COMPILER_BUILD
 
@@ -152,9 +153,10 @@ IfStatement::IfStatement(
         std::vector<std::pair<std::unique_ptr<Value>, Scope>> elseIfs,
         std::optional<Scope> elseBody,
         ASTNode* parent_node,
-        bool is_value
+        bool is_value,
+        CSTToken* token
 ) : condition(std::move(condition)), ifBody(std::move(ifBody)),
-    elseIfs(std::move(elseIfs)), elseBody(std::move(elseBody)), parent_node(parent_node), is_value(is_value) {}
+    elseIfs(std::move(elseIfs)), elseBody(std::move(elseBody)), parent_node(parent_node), is_value(is_value), token(token) {}
 
 void IfStatement::accept(Visitor *visitor) {
     visitor->visit(this);

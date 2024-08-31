@@ -7,7 +7,7 @@
 #include "ast/statements/VarInit.h"
 
 std::unique_ptr<BaseType> StringValue::create_type() {
-    return std::make_unique<StringType>();
+    return std::make_unique<StringType>(nullptr);
 }
 
 void StringValue::link(SymbolResolver &linker, VarInitStatement *stmnt) {

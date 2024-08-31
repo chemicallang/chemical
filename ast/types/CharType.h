@@ -9,6 +9,8 @@ public:
 
     static const CharType instance;
 
+    using IntNType::IntNType;
+
     uint64_t byte_size(bool is64Bit) override {
         return 1;
     }
@@ -46,7 +48,7 @@ public:
 
     [[nodiscard]]
     CharType* copy() const override {
-        return new CharType();
+        return new CharType(token);
     }
 
 #ifdef COMPILER_BUILD

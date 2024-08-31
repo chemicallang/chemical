@@ -5,7 +5,7 @@
 #include "ast/types/IntType.h"
 
 std::unique_ptr<BaseType> EnumMember::create_value_type() {
-    return std::make_unique<IntType>();
+    return std::make_unique<IntType>(nullptr);
 }
 
 hybrid_ptr<BaseType> EnumMember::get_value_type() {
@@ -30,7 +30,7 @@ void EnumDeclaration::declare_top_level(SymbolResolver &linker, std::unique_ptr<
 }
 
 std::unique_ptr<BaseType> EnumDeclaration::create_value_type() {
-    return std::make_unique<IntType>();
+    return std::make_unique<IntType>(nullptr);
 }
 
 hybrid_ptr<BaseType> EnumDeclaration::get_value_type() {

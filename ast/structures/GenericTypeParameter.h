@@ -13,6 +13,7 @@ public:
     int16_t active_iteration = -1; // <-- index of active type in usage vector
     ASTNode* parent_node;
     unsigned param_index = 0; // <-- index in the generic type parameters
+    CSTToken* token;
 
     /**
      * constructor
@@ -21,8 +22,13 @@ public:
         std::string identifier,
         std::unique_ptr<BaseType> def_type,
         ASTNode* parent_node,
-        unsigned param_index
+        unsigned param_index,
+        CSTToken* token
     );
+
+    CSTToken* cst_token() override {
+        return token;
+    }
 
     ASTNodeKind kind() override {
         return ASTNodeKind::GenericTypeParam;

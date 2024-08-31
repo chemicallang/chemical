@@ -164,8 +164,11 @@ VarInitStatement::VarInitStatement(
         std::string identifier,
         std::optional<std::unique_ptr<BaseType>> type,
         std::optional<std::unique_ptr<Value>> value,
-        ASTNode* parent_node
-) : is_const(is_const), identifier(std::move(identifier)), type(std::move(type)), value(std::move(value)), parent_node(parent_node) {}
+        ASTNode* parent_node,
+        CSTToken* token
+) : is_const(is_const), identifier(std::move(identifier)), type(std::move(type)), value(std::move(value)), parent_node(parent_node), token(token) {
+
+}
 
 bool VarInitStatement::is_top_level() {
     return parent_node == nullptr || parent_node->as_namespace();

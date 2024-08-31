@@ -211,8 +211,9 @@ StructMember::StructMember(
         std::string name,
         std::unique_ptr<BaseType> type,
         std::optional<std::unique_ptr<Value>> defValue,
-        ASTNode* parent_node
-) : BaseDefMember(std::move(name)), type(std::move(type)), defValue(std::move(defValue)), parent_node(parent_node) {
+        ASTNode* parent_node,
+        CSTToken* token
+) : BaseDefMember(std::move(name)), type(std::move(type)), defValue(std::move(defValue)), parent_node(parent_node), token(token) {
 
 }
 
@@ -233,7 +234,7 @@ BaseDefMember *StructMember::copy_member() {
     if(defValue.has_value()) {
         def_value.emplace(defValue.value()->copy());
     }
-    return new StructMember(name, std::unique_ptr<BaseType>(type->copy()), std::move(def_value), parent_node);
+    return new StructMember(name, std::unique_ptr<BaseType>(type->copy()), std::move(def_value), parent_node, token);
 }
 
 void StructMember::declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
@@ -260,7 +261,7 @@ void UnnamedStruct::declare_and_link(SymbolResolver &linker, std::unique_ptr<AST
 }
 
 BaseDefMember *UnnamedStruct::copy_member() {
-    auto unnamed = new UnnamedStruct(name, parent_node);
+    auto unnamed = new UnnamedStruct(name, parent_node, token);
     for(auto& variable : variables) {
         unnamed->variables[variable.first] = std::unique_ptr<BaseDefMember>(variable.second->copy_member());
     }
@@ -287,22 +288,24 @@ BaseTypeKind StructMember::type_kind() const {
 
 UnnamedStruct::UnnamedStruct(
         std::string name,
-        ASTNode* parent_node
-) : BaseDefMember(std::move(name)), parent_node(parent_node) {
+        ASTNode* parent_node,
+        CSTToken* token
+) : BaseDefMember(std::move(name)), parent_node(parent_node), token(token) {
 
 }
 
 StructDefinition::StructDefinition(
         std::string name,
-        ASTNode* parent_node
-) : ExtendableMembersContainerNode(std::move(name)), parent_node(parent_node) {}
+        ASTNode* parent_node,
+        CSTToken* token
+) : ExtendableMembersContainerNode(std::move(name)), parent_node(parent_node), token(token) {}
 
 BaseType *StructDefinition::copy() const {
-    return new ReferencedType(name, (ASTNode *) this);
+    return new ReferencedType(name, (ASTNode *) this, token);
 }
 
 BaseType *UnnamedStruct::copy() const {
-    return new ReferencedType(name, (ASTNode *) this);
+    return new ReferencedType(name, (ASTNode *) this, token);
 }
 
 bool StructMember::requires_destructor() {
@@ -353,7 +356,7 @@ ASTNode *StructDefinition::child(const std::string &name) {
 }
 
 VariablesContainer *StructDefinition::copy_container() {
-    auto def = new StructDefinition(name, parent_node);
+    auto def = new StructDefinition(name, parent_node, token);
     for(auto& inherits : inherited) {
         def->inherited.emplace_back(inherits->copy());
     }
@@ -364,7 +367,7 @@ VariablesContainer *StructDefinition::copy_container() {
 }
 
 std::unique_ptr<BaseType> StructDefinition::create_value_type() {
-    return std::make_unique<ReferencedType>(name, this);
+    return std::make_unique<ReferencedType>(name, this, nullptr);
 }
 
 hybrid_ptr<BaseType> StructDefinition::get_value_type() {

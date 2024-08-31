@@ -19,7 +19,7 @@ void UnionDef::code_gen(Codegen &gen) {
 
 #endif
 
-UnnamedUnion::UnnamedUnion(std::string name, ASTNode* parent_node) : BaseDefMember(std::move(name)), parent_node(parent_node) {
+UnnamedUnion::UnnamedUnion(std::string name, ASTNode* parent_node, CSTToken* token) : BaseDefMember(std::move(name)), parent_node(parent_node), token(token) {
 
 }
 
@@ -27,16 +27,16 @@ hybrid_ptr<BaseType> UnnamedUnion::get_value_type() {
     return hybrid_ptr<BaseType> { this, false };
 }
 
-UnionDef::UnionDef(std::string name, ASTNode* parent_node) : ExtendableMembersContainerNode(std::move(name)), parent_node(parent_node) {
+UnionDef::UnionDef(std::string name, ASTNode* parent_node, CSTToken* token) : ExtendableMembersContainerNode(std::move(name)), parent_node(parent_node), token(token) {
 
 }
 
 BaseType *UnionDef::copy() const {
-    return new ReferencedType(name, (ASTNode*) this);
+    return new ReferencedType(name, nullptr, (ASTNode*) this);
 }
 
 VariablesContainer *UnionDef::copy_container() {
-    auto container = new UnionDef(name, parent_node);
+    auto container = new UnionDef(name, parent_node, token);
     for(auto& variable : variables) {
         container->variables[variable.first] = std::unique_ptr<BaseDefMember>(variable.second->copy_member());
     }
@@ -44,7 +44,7 @@ VariablesContainer *UnionDef::copy_container() {
 }
 
 BaseType *UnnamedUnion::copy() const {
-    return new ReferencedType(name, (ASTNode*) this);
+    return new ReferencedType(name, nullptr, (ASTNode*) this);
 }
 
 std::unique_ptr<BaseType> UnionDef::create_value_type() {
@@ -79,7 +79,7 @@ void UnnamedUnion::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTN
 }
 
 BaseDefMember *UnnamedUnion::copy_member() {
-    auto unnamed = new UnnamedUnion(name, parent_node);
+    auto unnamed = new UnnamedUnion(name, parent_node, token);
     for(auto& variable : variables) {
         unnamed->variables[variable.first] = std::unique_ptr<BaseDefMember>(variable.second->copy_member());
     }

@@ -14,8 +14,13 @@ class NotValue : public Value {
 public:
 
     std::unique_ptr<Value> value;
+    CSTToken* token;
 
-    explicit NotValue(std::unique_ptr<Value> value) : value(std::move(value)) {}
+    explicit NotValue(std::unique_ptr<Value> value, CSTToken* token) : value(std::move(value)), token(token) {}
+
+    CSTToken* cst_token() override {
+        return token;
+    }
 
     ValueKind val_kind() override {
         return ValueKind::NotValue;
@@ -36,7 +41,7 @@ public:
 #endif
 
     NotValue* copy() override {
-        return new NotValue(std::unique_ptr<Value>(value->copy()));
+        return new NotValue(std::unique_ptr<Value>(value->copy()), token);
     }
 
     [[nodiscard]]

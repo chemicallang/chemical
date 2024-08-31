@@ -7,8 +7,9 @@
 ReturnStatement::ReturnStatement(
         std::optional<std::unique_ptr<Value>> value,
         FunctionType *declaration,
-        ASTNode* parent_node
-) : value(std::move(value)), func_type(declaration), parent_node(parent_node) {
+        ASTNode* parent_node,
+        CSTToken* token
+) : value(std::move(value)), func_type(declaration), parent_node(parent_node), token(token) {
 
 }
 

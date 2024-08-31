@@ -9,7 +9,7 @@ bool DoubleType::can_promote(Value *value) {
 
 Value *DoubleType::promote(Value *value) {
     if(value->primitive() && value->value_type() == ValueType::Int) {
-        return new DoubleValue((double) value->as_int());
+        return new DoubleValue((double) value->as_int(), value->cst_token());
     } else {
         return nullptr;
     }

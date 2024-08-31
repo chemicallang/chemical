@@ -39,8 +39,13 @@ public:
             std::vector<std::unique_ptr<CapturedVariable>> captureList,
             std::vector<std::unique_ptr<FunctionParam>> params,
             bool isVariadic,
-            Scope scope
+            Scope scope,
+            CSTToken* token
     );
+
+    CSTToken* cst_token() override {
+        return token;
+    }
 
     ValueKind val_kind() override {
         return ValueKind::LambdaFunc;

@@ -15,12 +15,21 @@
 class CharValue : public Value {
 public:
 
+    char value; ///< The character value.
+    CSTToken* token;
+
     /**
      * @brief Construct a new CharValue object.
      *
      * @param value The character value.
      */
-    explicit CharValue(char value) : value(value) {}
+    CharValue(char value, CSTToken* token) : value(value), token(token) {
+
+    }
+
+    CSTToken* cst_token() override {
+        return token;
+    }
 
     ValueKind val_kind() override {
         return ValueKind::Char;
@@ -43,11 +52,11 @@ public:
     }
 
     std::unique_ptr<BaseType> create_type() override {
-        return std::make_unique<CharType>();
+        return std::make_unique<CharType>(nullptr);
     }
 
     CharValue *copy() override {
-        return new CharValue(value);
+        return new CharValue(value, token);
     }
 
 #ifdef COMPILER_BUILD
@@ -72,5 +81,4 @@ public:
         return BaseTypeKind::Char;
     }
 
-    char value; ///< The character value.
 };

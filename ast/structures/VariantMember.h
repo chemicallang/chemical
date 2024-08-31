@@ -15,11 +15,17 @@ public:
     tsl::ordered_map<std::string, std::unique_ptr<VariantMemberParam>> values;
     VariantDefinition* parent_node;
     ReferencedType ref_type;
+    CSTToken* token;
 
     VariantMember(
             const std::string& name,
-            VariantDefinition* parent_node
+            VariantDefinition* parent_node,
+            CSTToken* token
     );
+
+    CSTToken *cst_token() override {
+        return token;
+    }
 
     ASTNodeKind kind() override {
         return ASTNodeKind::VariantMember;

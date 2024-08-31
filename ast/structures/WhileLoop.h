@@ -17,12 +17,13 @@ public:
     std::unique_ptr<Value> condition;
     bool stoppedInterpretation = false;
     ASTNode* parent_node;
+    CSTToken* token;
 
     /**
      * initializes the loop with only a condition and empty body
      * @param condition
      */
-    WhileLoop(std::unique_ptr<Value> condition, ASTNode* parent_node);
+//    WhileLoop(std::unique_ptr<Value> condition, ASTNode* parent_node, CSTToken* token);
 
     /**
      * @brief Construct a new WhileLoop object.
@@ -30,7 +31,11 @@ public:
      * @param condition The loop condition.
      * @param body The body of the while loop.
      */
-    WhileLoop(std::unique_ptr<Value> condition, LoopScope body, ASTNode* parent_node);
+    WhileLoop(std::unique_ptr<Value> condition, LoopScope body, ASTNode* parent_node, CSTToken* token);
+
+    CSTToken *cst_token() override {
+        return token;
+    }
 
     ASTNodeKind kind() override {
         return ASTNodeKind::WhileLoopStmt;

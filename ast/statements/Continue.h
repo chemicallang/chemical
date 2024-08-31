@@ -15,11 +15,16 @@ private:
 public:
 
     ASTNode* parent_node;
+    CSTToken* token;
 
     /**
      * @brief Construct a new ContinueStatement object.
      */
-    ContinueStatement(LoopASTNode *node, ASTNode* parent_node);
+    ContinueStatement(LoopASTNode *node, ASTNode* parent_node, CSTToken* token);
+
+    CSTToken *cst_token() override {
+        return token;
+    }
 
     ASTNodeKind kind() override {
         return ASTNodeKind::ContinueStmt;

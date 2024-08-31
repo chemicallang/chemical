@@ -184,7 +184,7 @@ void ASTProcessor::print_benchmarks(std::ostream& stream, const std::string& TAG
 ASTImportResultExt ASTProcessor::import_file(const FlatIGFile& file) {
 
     auto& abs_path = file.abs_path;
-    Scope scope(nullptr);
+    Scope scope(nullptr, nullptr);
     auto is_c_file = abs_path.ends_with(".h") || abs_path.ends_with(".c");
 
     std::ostringstream out;
@@ -230,7 +230,7 @@ ASTImportResultExt ASTProcessor::import_file(const FlatIGFile& file) {
             printTokens(lexer.unit.tokens);
         }
         if (lexer.has_errors) {
-            return { Scope { nullptr },false, is_c_file, std::move(out.str()) };
+            return { Scope { nullptr, nullptr },false, is_c_file, std::move(out.str()) };
         }
 
         // convert the tokens

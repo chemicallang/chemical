@@ -2,6 +2,7 @@
 
 #include "WhileLoop.h"
 #include "compiler/SymbolResolver.h"
+#include "ast/base/InterpretScope.h"
 
 #ifdef COMPILER_BUILD
 
@@ -37,9 +38,9 @@ void WhileLoop::code_gen(Codegen &gen) {
  * initializes the loop with only a condition and empty body
  * @param condition
  */
-WhileLoop::WhileLoop(std::unique_ptr<Value> condition, ASTNode* parent_node) : condition(std::move(condition)), parent_node(parent_node) {
-
-}
+//WhileLoop::WhileLoop(std::unique_ptr<Value> condition, ASTNode* parent_node, CSTToken* token) : condition(std::move(condition)), parent_node(parent_node), token(token) {
+//
+//}
 
 /**
  * @brief Construct a new WhileLoop object.
@@ -47,8 +48,8 @@ WhileLoop::WhileLoop(std::unique_ptr<Value> condition, ASTNode* parent_node) : c
  * @param condition The loop condition.
  * @param body The body of the while loop.
  */
-WhileLoop::WhileLoop(std::unique_ptr<Value> condition, LoopScope body, ASTNode* parent_node)
-        : condition(std::move(condition)), LoopASTNode(std::move(body)), parent_node(parent_node) {}
+WhileLoop::WhileLoop(std::unique_ptr<Value> condition, LoopScope body, ASTNode* parent_node, CSTToken* token)
+        : condition(std::move(condition)), LoopASTNode(std::move(body)), parent_node(parent_node), token(token) {}
 
 void WhileLoop::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     linker.scope_start();

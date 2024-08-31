@@ -15,6 +15,7 @@ public:
     // after equal
     std::unique_ptr<BaseType> actual_type;
     ASTNode* parent_node;
+    CSTToken* token;
 
     /**
      * @brief Construct a new TypealiasStatement object.
@@ -22,8 +23,13 @@ public:
     TypealiasStatement(
             std::string identifier,
             std::unique_ptr<BaseType> actual_type,
-            ASTNode* parent_node
+            ASTNode* parent_node,
+            CSTToken* token
     );
+
+    CSTToken *cst_token() override {
+        return token;
+    }
 
     ASTNodeKind kind() override {
         return ASTNodeKind::TypealiasStmt;

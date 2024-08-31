@@ -5,17 +5,18 @@
 #include "ast/base/BaseType.h"
 #include <memory>
 
-class ArrayType : public BaseType {
+class ArrayType : public TokenizedBaseType {
 public:
 
     std::unique_ptr<BaseType> elem_type;
-
     int array_size;
+    CSTToken* token;
 
     ArrayType(
         std::unique_ptr<BaseType> elem_type,
-        int array_size
-    ) : elem_type(std::move(elem_type)), array_size(array_size) {
+        int array_size,
+        CSTToken* token
+    ) : elem_type(std::move(elem_type)), array_size(array_size), TokenizedBaseType(token) {
 
     }
 
@@ -68,7 +69,7 @@ public:
 
     [[nodiscard]]
     ArrayType* copy() const override {
-        return new ArrayType(std::unique_ptr<BaseType>(elem_type->copy()), array_size);
+        return new ArrayType(std::unique_ptr<BaseType>(elem_type->copy()), array_size, token);
     }
 
     bool satisfies(ValueType type) override {

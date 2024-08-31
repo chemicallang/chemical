@@ -16,12 +16,17 @@ private:
 public:
     std::unique_ptr<Value> condition;
     ASTNode* parent_node;
+    CSTToken* token;
 
     /**
      * Initialize an empty do while loop
      */
-    explicit DoWhileLoop(ASTNode* parent) : parent_node(parent) {
+//    explicit DoWhileLoop(ASTNode* parent, CSTToken* token) : parent_node(parent), token(token), LoopASTNode(nullptr) {
+//
+//    }
 
+    CSTToken *cst_token() override {
+        return token;
     }
 
     ASTNodeKind kind() override {

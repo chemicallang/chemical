@@ -92,15 +92,15 @@ unsigned int ArrayValue::store_in_struct(
 
 llvm::Type *ArrayValue::llvm_elem_type(Codegen &gen) {
     llvm::Type *elementType;
-    if (elemType.has_value()) {
+    if (elemType) {
         if(sizes.size() <= 1) {
             // get empty array type from the user
-            elementType = elemType.value()->llvm_type(gen);
+            elementType = elemType->llvm_type(gen);
         } else {
             unsigned int i = sizes.size() - 1;
             while(i > 0) {
                 if(i == sizes.size() - 1) {
-                    elementType = llvm::ArrayType::get(elemType.value()->llvm_type(gen), sizes[i]);
+                    elementType = llvm::ArrayType::get(elemType->llvm_type(gen), sizes[i]);
                 } else {
                     elementType = llvm::ArrayType::get(elementType, sizes[i]);
                 }
@@ -125,15 +125,15 @@ bool ArrayValue::add_child_index(Codegen &gen, std::vector<llvm::Value *> &index
 
 ASTNode *ArrayValue::linked_node() {
     if(values.empty()) {
-        return elemType.value()->linked_node();
+        return elemType->linked_node();
     } else {
         return values[0]->linked_node();
     }
 }
 
 void ArrayValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr, BaseType *expected_type) {
-    if(elemType.has_value()) {
-        elemType.value()->link(linker, elemType.value());
+    if(elemType) {
+        elemType->link(linker, elemType);
         const auto elem_type = element_type();
         const auto def = elem_type->linked_struct_def();
         if(def) {
@@ -150,7 +150,7 @@ void ArrayValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr,
         }
     } else if(expected_type && expected_type->kind() == BaseTypeKind::Array) {
         const auto arr_type = (ArrayType*) expected_type;
-        elemType.emplace(arr_type->elem_type->copy());
+        elemType.reset(arr_type->elem_type->copy());
     }
     unsigned i = 0;
     for(auto& value : values) {
@@ -165,15 +165,15 @@ void ArrayValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr)
 
 std::unique_ptr<BaseType> ArrayValue::element_type() const {
     BaseType *elementType;
-    if (elemType.has_value()) {
+    if (elemType) {
         if(sizes.size() <= 1) {
             // get empty array type from the user
-            elementType = elemType.value()->copy();
+            elementType = elemType->copy();
         } else {
             unsigned int i = sizes.size() - 1;
             while(i > 0) {
                 if(i == sizes.size() - 1) {
-                    elementType = new ArrayType(std::unique_ptr<BaseType>(elemType.value()->copy()), sizes[i], token);
+                    elementType = new ArrayType(std::unique_ptr<BaseType>(elemType->copy()), sizes[i], token);
                 } else {
                     elementType = new ArrayType(std::unique_ptr<BaseType>(elementType), sizes[i], token);
                 }

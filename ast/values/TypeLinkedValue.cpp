@@ -37,5 +37,5 @@ void TypeLinkedValue::link(SymbolResolver &linker, StructValue *structValue, con
 }
 
 void TypeLinkedValue::link(SymbolResolver& linker, ArrayValue* value, unsigned int index) {
-    link(linker, value->values[index], value->elemType.has_value() ? value->elemType->get() : nullptr);
+    link(linker, value->values[index], value->elemType ? value->elemType.get() : nullptr);
 }

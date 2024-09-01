@@ -393,12 +393,12 @@ void CSTConverter::visitFunctionParam(CSTToken* param) {
     visit(param->tokens, 2);
     BaseType *baseType = nullptr;
     if (optional_param_types) {
-        std::optional<std::unique_ptr<BaseType>> t = std::nullopt;
+        std::unique_ptr<BaseType> t = nullptr;
         if(2 < param->tokens.size() && param->tokens[2]->is_type()) {
-            t.emplace(type());
+            t = type();
         }
-        if (t.has_value()) {
-            baseType = t.value().release();
+        if (t) {
+            baseType = t.release();
         }
     } else {
         baseType = type().release();
@@ -506,18 +506,18 @@ void CSTConverter::visitFunction(CSTToken* function) {
 
     auto i = params.index;
 
-    std::optional<std::unique_ptr<BaseType>> returnType = std::nullopt;
+    std::unique_ptr<BaseType> returnType = nullptr;
 
     if (i + 1 < function->tokens.size() && is_char_op(function->tokens[i + 1], ':')) {
         function->tokens[i + 2]->accept(this);
-        returnType.emplace(type());
+        returnType = type();
         i += 3; // position at body
     } else {
         i++;
     }
 
-    if (!returnType.has_value()) {
-        returnType.emplace(std::make_unique<VoidType>(nullptr));
+    if (!returnType) {
+        returnType = std::make_unique<VoidType>(nullptr);
     }
 
     FunctionDeclaration* funcDecl;
@@ -531,7 +531,7 @@ void CSTConverter::visitFunction(CSTToken* function) {
                 func_name(function),
                 ExtensionFuncReceiver(std::move(param->name), std::move(param->type), nullptr, receiver_tok),
                 std::move(params.params),
-                std::move(returnType.value()), params.isVariadic,
+                std::move(returnType), params.isVariadic,
                 parent_node,
                 function,
                 std::nullopt
@@ -540,7 +540,7 @@ void CSTConverter::visitFunction(CSTToken* function) {
         delete param;
     } else {
         funcDecl = new FunctionDeclaration(func_name(function), std::move(params.params),
-                                                std::move(returnType.value()), params.isVariadic,
+                                                std::move(returnType), params.isVariadic,
                                                 parent_node,
                                                 function,
                                                 std::nullopt);
@@ -1330,12 +1330,12 @@ void CSTConverter::visitSpecializedType(CSTToken* specType) {
 void CSTConverter::visitArrayType(CSTToken* arrayType) {
     arrayType->tokens[0]->accept(this);
     std::unique_ptr<BaseType> elem_type = type();
-    std::optional<std::unique_ptr<Value>> val = std::nullopt;
+    std::unique_ptr<Value> val = nullptr;
     if(arrayType->tokens[2]->is_value()) {
         arrayType->tokens[2]->accept(this);
-        val.emplace(value());
+        val = value();
     }
-    auto arraySize = (val.has_value() && val.value()->value_type() == ValueType::Int) ? val.value()->as_int() : -1;
+    auto arraySize = (val && val->value_type() == ValueType::Int) ? val->as_int() : -1;
     put_type(new ArrayType(std::move(elem_type), arraySize, arrayType));
 }
 
@@ -1426,12 +1426,12 @@ void CSTConverter::visitArrayValue(CSTToken* arrayValue) {
         i++;
     }
     i++;
-    std::optional<std::unique_ptr<BaseType>> arrType = std::nullopt;
+    std::unique_ptr<BaseType> arrType = nullptr;
     std::vector<unsigned int> sizes;
     if (i < arrayValue->tokens.size()) {
         if(arrayValue->tokens[i]->is_type()) {
             arrayValue->tokens[i]->accept(this);
-            arrType.emplace(type());
+            arrType = type();
         }
         i++;
         if (i < arrayValue->tokens.size() && char_op(arrayValue->tokens[i++]) == '(') {

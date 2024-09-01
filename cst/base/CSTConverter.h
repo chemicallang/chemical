@@ -55,11 +55,6 @@ public:
     unsigned int param_index = 0;
 
     /**
-     * when true, do not create nodes for imports
-     */
-    bool no_imports = false;
-
-    /**
      * enable or disable CBI
      */
     bool isCBIEnabled = true;

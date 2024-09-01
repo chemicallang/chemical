@@ -13,6 +13,8 @@ class FunctionType;
 
 class FunctionDeclaration;
 
+class Scope;
+
 enum class SymResScopeKind : uint8_t {
     /**
      * a default scope, symbols can be declared and retrieved
@@ -193,5 +195,16 @@ public:
      * multiple methods with same names
      */
     void declare_function(const std::string& name, FunctionDeclaration* declaration);
+
+    /**
+     * symbol resolves a file
+     */
+    void resolve_file(Scope& scope, const std::string& abs_path);
+
+    /**
+     * should be called after symbol resolving a single file
+     * the passed absolute path is used to provide diagnostics only
+     */
+    void dispose_file_symbols_now(const std::string& abs_path);
 
 };

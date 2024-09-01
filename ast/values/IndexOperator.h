@@ -37,11 +37,11 @@ public:
         return this;
     }
 
-    void link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) override;
+    bool link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) override;
 
     ASTNode *linked_node() override;
 
-    void find_link_in_parent(ChainValue *parent, SymbolResolver &resolver) override;
+    bool find_link_in_parent(ChainValue *parent, SymbolResolver &resolver) override;
 
     void relink_parent(ChainValue *parent) override;
 

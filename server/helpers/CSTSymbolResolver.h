@@ -9,7 +9,7 @@
 #include <unordered_map>
 #include <string>
 
-class ImportUnit;
+class LexImportUnit;
 
 class CSTSymbolResolver : public BaseSymbolResolver<CSTToken>, public CSTVisitor, public CSTDiagnoser {
 public:
@@ -23,7 +23,7 @@ public:
     /**
      * resolve an import unit
      */
-    void resolve(ImportUnit* unit);
+    void resolve(LexImportUnit* unit);
 
     /**
      * this just sets the linked field of ref token to the other given token

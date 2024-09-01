@@ -87,10 +87,11 @@ hybrid_ptr<BaseType> IndexOperator::get_base_type() {
     return parent_val->get_child_type();
 }
 
-void IndexOperator::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
+bool IndexOperator::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
     for(auto& value : values) {
         value->link(linker, value);
     }
+    return true;
 }
 
 ASTNode *IndexOperator::linked_node() {
@@ -115,11 +116,12 @@ Value *IndexOperator::find_in(InterpretScope &scope, Value *parent) {
     return nullptr;
 }
 
-void IndexOperator::find_link_in_parent(ChainValue *parent, SymbolResolver &resolver) {
+bool IndexOperator::find_link_in_parent(ChainValue *parent, SymbolResolver &resolver) {
     parent_val = parent;
     for(auto& value : values) {
         value->link(resolver, value);
     }
+    return true;
 }
 
 void IndexOperator::relink_parent(ChainValue *parent) {

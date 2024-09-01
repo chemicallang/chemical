@@ -8,8 +8,8 @@ uint64_t NegativeValue::byte_size(bool is64Bit) {
     return value->byte_size(is64Bit);
 }
 
-void NegativeValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
-    value->link(linker, value);
+bool NegativeValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
+    return value->link(linker, value);
 }
 
 std::unique_ptr<BaseType> NegativeValue::create_type() {

@@ -56,8 +56,9 @@ void LoopBlock::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode
     body.link_sequentially(linker);
 }
 
-void LoopBlock::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr) {
+bool LoopBlock::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr) {
     body.link_sequentially(linker);
+    return true;
 }
 
 Value* get_first_broken(Scope* body) {

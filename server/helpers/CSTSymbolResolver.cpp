@@ -3,7 +3,7 @@
 #include "cst/base/CSTToken.h"
 #include "server/helpers/CSTSymbolResolver.h"
 #include "cst/utils/CSTUtils.h"
-#include "integration/ide/model/ImportUnit.h"
+#include "integration/ide/model/LexImportUnit.h"
 #include "integration/ide/model/LexResult.h"
 #include "compiler/PrimitiveTypeMap.h"
 #include <iostream>
@@ -137,7 +137,7 @@ void CSTSymbolResolver::visitTypeToken(CSTToken *token) {
     }
 }
 
-void CSTSymbolResolver::resolve(ImportUnit* unit) {
+void CSTSymbolResolver::resolve(LexImportUnit* unit) {
     unsigned i = 0;
     auto size = unit->files.size();
     while(i < size) {

@@ -86,17 +86,17 @@ public:
         return this;
     }
 
-    void link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) override;
+    bool link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) override;
 
-    void link(SymbolResolver &linker, FunctionType* func_type);
+    bool link(SymbolResolver &linker, FunctionType* func_type);
 
-    void link(SymbolResolver &linker, VarInitStatement *stmnt) override;
+    bool link(SymbolResolver &linker, VarInitStatement *stmnt) override;
 
-    void link(SymbolResolver &linker, StructValue *value, const std::string &name) override;
+    bool link(SymbolResolver &linker, StructValue *value, const std::string &name) override;
 
-    void link(SymbolResolver &linker, FunctionCall *call, unsigned int index) override;
+    bool link(SymbolResolver &linker, FunctionCall *call, unsigned int index) override;
 
-    void link(SymbolResolver &linker, ReturnStatement *returnStmt) override;
+    bool link(SymbolResolver &linker, ReturnStatement *returnStmt) override;
 
     [[nodiscard]]
     ValueType value_type() const override;

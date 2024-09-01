@@ -39,7 +39,7 @@ public:
         return ValueKind::String;
     }
 
-    void link(SymbolResolver &linker, VarInitStatement *stmnt) override;
+    bool link(SymbolResolver &linker, VarInitStatement *stmnt) override;
 
     hybrid_ptr<BaseType> get_base_type() override {
         return hybrid_ptr<BaseType> { (BaseType*) &StringType::instance, false };

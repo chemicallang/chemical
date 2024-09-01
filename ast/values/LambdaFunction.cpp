@@ -137,7 +137,7 @@ void link_full(LambdaFunction* fn, SymbolResolver &linker) {
     linker.scope_end();
 }
 
-void LambdaFunction::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
+bool LambdaFunction::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
 
 #ifdef DEBUG
     linker.info("lambda function type not found, deducing function type by visiting lambda body (expensive operation) performed", (Value*) this);
@@ -149,6 +149,8 @@ void LambdaFunction::link(SymbolResolver &linker, std::unique_ptr<Value>& value_
     // finding return type
     auto found_return_type = find_return_type(scope.nodes);
     returnType = std::unique_ptr<BaseType>(found_return_type);
+
+    return true;
 
 }
 
@@ -182,7 +184,7 @@ void copy_func_params_types(const std::vector<std::unique_ptr<FunctionParam>>& f
     }
 }
 
-void LambdaFunction::link(SymbolResolver &linker, FunctionType* func_type) {
+bool LambdaFunction::link(SymbolResolver &linker, FunctionType* func_type) {
     link_given_params(linker, params);
     copy_func_params_types(func_type->params, params, linker, this);
     if(!returnType) {
@@ -191,19 +193,21 @@ void LambdaFunction::link(SymbolResolver &linker, FunctionType* func_type) {
         linker.error("Lambda function type expected return type to be " + func_type->returnType->representation() + " but got lambda with return type " + returnType->representation(), (Value*) this);
     }
     isCapturing = func_type->isCapturing;
+    return true;
 }
 
-void LambdaFunction::link(SymbolResolver &linker, VarInitStatement *stmnt) {
+bool LambdaFunction::link(SymbolResolver &linker, VarInitStatement *stmnt) {
     if(stmnt->type) {
         auto retrieved = stmnt->create_value_type();
         link(linker, (FunctionType*) retrieved.get());
         link_full(this, linker);
+        return true;
     } else {
-        Value::link(linker, stmnt);
+        return Value::link(linker, stmnt);
     }
 }
 
-void LambdaFunction::link(SymbolResolver &linker, StructValue *value, const std::string &name) {
+bool LambdaFunction::link(SymbolResolver &linker, StructValue *value, const std::string &name) {
     auto got_type = value->definition->child(name)->create_value_type();
     link(linker, (FunctionType*) got_type.get());
     if(!params.empty()) {
@@ -213,9 +217,10 @@ void LambdaFunction::link(SymbolResolver &linker, StructValue *value, const std:
         }
     }
     link_full(this, linker);
+    return true;
 }
 
-void LambdaFunction::link(SymbolResolver &linker, FunctionCall *call, unsigned int index) {
+bool LambdaFunction::link(SymbolResolver &linker, FunctionCall *call, unsigned int index) {
 
     // if the linked is a function decl, it will be its type
     // if it's a variable with a lambda type, it will be its type
@@ -223,7 +228,7 @@ void LambdaFunction::link(SymbolResolver &linker, FunctionCall *call, unsigned i
 
     // this is not a function, this error has been probably caught by function call
     if(linkedType->function_type() == nullptr) {
-        return;
+        return false;
     }
 
     // get the type of parameter for the function
@@ -231,7 +236,7 @@ void LambdaFunction::link(SymbolResolver &linker, FunctionCall *call, unsigned i
 
     if(paramType->function_type() == nullptr) {
         linker.error("cannot pass a lambda, because the function expects a different type : " + paramType->representation() + " for parameter at " + std::to_string(index), (Value*) this);
-        return;
+        return false;
     }
 
     link(linker, paramType->function_type());
@@ -240,24 +245,27 @@ void LambdaFunction::link(SymbolResolver &linker, FunctionCall *call, unsigned i
 
     link_full(this, linker);
 
+    return true;
+
 }
 
-void LambdaFunction::link(SymbolResolver &linker, ReturnStatement *returnStmt) {
+bool LambdaFunction::link(SymbolResolver &linker, ReturnStatement *returnStmt) {
 
     if(returnStmt->func_type != nullptr) {
         auto retType = returnStmt->func_type->returnType->copy();
         if(retType->function_type() == nullptr) {
             linker.error("cannot return lambda, return type of a function is not a function", (Value*) this);
-            return;
+            return false;
         }
         link(linker, retType->function_type());
         delete retType;
     } else {
-        Value::link(linker, returnStmt);
-        return;
+        return Value::link(linker, returnStmt);
     }
 
     link_full(this, linker);
+
+    return true;
 
 }
 

@@ -216,6 +216,7 @@ void WorkspaceManager::onChangedContents(
 
     // invalidate the cached file for this key
     cache.files.erase(path);
+    cache.files_ast.erase(path);
 
 }
 

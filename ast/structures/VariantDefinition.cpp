@@ -446,7 +446,7 @@ VariantCase::VariantCase(std::unique_ptr<AccessChain> _chain, ASTDiagnoser& diag
     }
 }
 
-void VariantCase::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr) {
+bool VariantCase::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr) {
     // access chain in variant case allows no replacement of access chain, so nullptr in value_ptr
     chain->link(linker, (BaseType*) nullptr, nullptr);
     // TODO variant case doesn't allow replacing it's identifier list
@@ -454,6 +454,7 @@ void VariantCase::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr
     for(auto& variable : identifier_list) {
         variable.declare_and_link(linker, dummy);
     }
+    return true;
 }
 
 void VariantCaseVariable::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {

@@ -4,13 +4,13 @@
 // Created by Waqas Tahir on 10/03/2024.
 //
 
-#include "utils/JsonUtils.h"
 #include "utils/FileUtils.h"
 #include "LibLsp/lsp/AbsolutePath.h"
 #include "LibLsp/lsp/textDocument/publishDiagnostics.h"
 #include "server/analyzers/SemanticTokensAnalyzer.h"
 #include "WorkspaceManager.h"
 #include "LibLsp/JsonRpc/RemoteEndPoint.h"
+#include "compiler/SymbolResolver.h"
 #include <future>
 
 #define DEBUG_TOKENS false
@@ -18,12 +18,16 @@
 
 td_semanticTokens_full::response WorkspaceManager::get_semantic_tokens_full(const lsDocumentUri& uri) {
     auto toks = get_semantic_tokens(uri);
+    // when user requests semantic tokens, we also trigger publish diagnostics for the file
+    publish_diagnostics_complete_async(uri.GetAbsolutePath().path);
+    // sending tokens
     td_semanticTokens_full::response rsp;
     SemanticTokens tokens;
     tokens.data = SemanticTokens::encodeTokens(toks);
     rsp.result = std::move(tokens);
     return std::move(rsp);
 }
+
 void WorkspaceManager::publish_diagnostics(const std::string& path, bool async, const std::vector<std::vector<Diag>*>& diags) {
     Notify_TextDocumentPublishDiagnostics::notify notify;
     for(auto diag : diags) {
@@ -51,11 +55,70 @@ void WorkspaceManager::publish_diagnostics(const std::string& path, bool async, 
     }
 }
 
+void WorkspaceManager::publish_diagnostics_complete(const std::string& path) {
+
+    std::vector<std::vector<Diag>*> diag_ptrs;
+    bool async = false;
+
+    // get the lex import unit
+    auto import_unit = get_import_unit(path);
+    auto& last_lex_result = import_unit.files[import_unit.files.size() - 1];
+
+    // put lex diagnostics in the diag pointers
+    diag_ptrs.emplace_back(&last_lex_result->diags);
+
+    // since lexing process generated errors, no need to parse
+    if(has_errors(import_unit)) {
+        publish_diagnostics(path, async, diag_ptrs);
+        return;
+    }
+
+    // get the ast import unit
+    auto ast_import_unit = get_ast_import_unit(import_unit);
+    auto& last_ast_result = ast_import_unit.files[ast_import_unit.files.size() - 1];
+
+    // put ast conversion diagnostics
+    diag_ptrs.emplace_back(&last_ast_result->diags);
+
+    // since parsing process generated errors, no need to symbol resolve
+    if(has_errors(import_unit)) {
+        publish_diagnostics(path, async, diag_ptrs);
+        return;
+    }
+
+    // let's do symbol resolution
+    SymbolResolver resolver(is64Bit);
+
+    // doing all but last file
+    unsigned i = 0;
+    const auto last = ast_import_unit.files.size() - 1;
+    while(i < last) {
+        auto& file = ast_import_unit.files[i];
+        resolver.resolve_file(file->unit.scope, file->abs_path);
+        resolver.diagnostics.clear();
+        i++;
+    }
+
+    // doing last file
+    auto& last_file = ast_import_unit.files[last];
+    resolver.resolve_file(last_file->unit.scope, last_file->abs_path);
+    diag_ptrs.emplace_back(&resolver.diagnostics);
+
+    // publish all the diagnostics
+    publish_diagnostics(path, async, diag_ptrs);
+
+}
+
+void WorkspaceManager::publish_diagnostics_complete_async(std::string path) {
+//    std::future<void> futureObj = std::async(std::launch::async, [&] {
+        publish_diagnostics_complete(path);
+//    });
+}
+
 std::vector<SemanticToken> WorkspaceManager::get_semantic_tokens(const lsDocumentUri& uri) {
 
     auto path = canonical(uri.GetAbsolutePath().path);
-    auto unit = get_import_unit(path, true);
-    auto file = unit.files[unit.files.size() - 1];
+    auto file = get_lexed(path);
 
 #if defined PRINT_TOKENS && PRINT_TOKENS
     printTokens(lexed, linker.resolved);

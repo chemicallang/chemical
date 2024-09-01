@@ -46,7 +46,7 @@ std::unique_ptr<IntNType> linked(BaseType* type) {
     }
 }
 
-void NumberValue::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *type) {
+bool NumberValue::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *type) {
     if(type) {
         const auto linked = type->linked_node();
         if(linked) {
@@ -55,7 +55,7 @@ void NumberValue::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr
                 if(param->def_type) {
                     linked_type = std::unique_ptr<IntNType>(((IntNType*) param->def_type->copy()));
                 }
-                return;
+                return true;
             }
         }
         auto pure = type->pure_type();
@@ -63,4 +63,5 @@ void NumberValue::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr
             linked_type = std::unique_ptr<IntNType>(((IntNType*) pure->copy()));
         }
     }
+    return true;
 }

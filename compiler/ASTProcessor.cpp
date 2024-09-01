@@ -118,18 +118,6 @@ std::vector<FlatIGFile> ASTProcessor::determine_mod_imports(LabModule* module) {
     }
 }
 
-void ASTProcessor::dispose_file_symbols(const std::string& abs_path) {
-    // dispose symbols of previous file (if any required) before proceeding
-    if(!resolver->dispose_file_symbols.empty()) {
-        for(const auto& sym : resolver->dispose_file_symbols) {
-            if(!resolver->undeclare(sym)) {
-                std::cerr << rang::fg::yellow << "[SymRes] unable to un-declare file symbol " << sym << " in file " << abs_path  << rang::fg::reset << std::endl;
-            }
-        }
-        resolver->dispose_file_symbols.clear();
-    }
-}
-
 void ASTProcessor::sym_res(Scope& scope, bool is_c_file, const std::string& abs_path) {
     // doing stuff
     auto prev_has_errors = resolver->has_errors;
@@ -142,15 +130,7 @@ void ASTProcessor::sym_res(Scope& scope, bool is_c_file, const std::string& abs_
         bm_results = std::make_unique<BenchmarkResults>();
         bm_results->benchmark_begin();
     }
-    resolver->imported_generic.clear();
-    resolver->file_scope_start();
-    scope.link_asynchronously(*resolver);
-    for(auto& node : scope.nodes) {
-        auto found = resolver->imported_generic.find(node.get());
-        if(found != resolver->imported_generic.end()) {
-            resolver->imported_generic.erase(found);
-        }
-    }
+    resolver->resolve_file(scope, abs_path);
     if(options->benchmark) {
         bm_results->benchmark_end();
         print_benchmarks(std::cout, "SymRes", bm_results.get());
@@ -162,9 +142,6 @@ void ASTProcessor::sym_res(Scope& scope, bool is_c_file, const std::string& abs_
         resolver->override_symbols = false;
         resolver->diagnostics = std::move(previous);
         resolver->has_errors = prev_has_errors;
-    } else {
-        // dispose symbols that must be disposed at the end of file (brought by using namespaces)
-        dispose_file_symbols(abs_path);
     }
 }
 

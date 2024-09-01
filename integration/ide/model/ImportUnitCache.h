@@ -36,4 +36,10 @@ struct ImportUnitCache {
      */
     std::unordered_map<std::string, std::shared_ptr<LexResult>> files;
 
+    /**
+     * a cache between absolute file paths and their ast results
+     * similar to how lex results are cached in ImportUnitCache
+     */
+    std::unordered_map<std::string, std::shared_ptr<ASTResult>> files_ast;
+
 };

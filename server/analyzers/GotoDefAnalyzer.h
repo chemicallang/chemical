@@ -5,7 +5,7 @@
 #include <vector>
 #include "integration/common/Location.h"
 
-class ImportUnit;
+class LexImportUnit;
 
 class GotoDefAnalyzer {
 public:
@@ -25,6 +25,6 @@ public:
      * token where user asked to goto def
      * It will provide locations, where that symbol has definition
      */
-    std::vector<Location> analyze(ImportUnit* unit);
+    std::vector<Location> analyze(LexImportUnit* unit);
 
 };

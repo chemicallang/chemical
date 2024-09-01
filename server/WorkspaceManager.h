@@ -13,7 +13,9 @@
 #include "lexer/Lexi.h"
 #include "utils/lspfwd.h"
 #include "integration/ide/model/LexResult.h"
-#include "integration/ide/model/ImportUnit.h"
+#include "integration/ide/model/ASTResult.h"
+#include "integration/ide/model/LexImportUnit.h"
+#include "integration/ide/model/ASTImportUnit.h"
 #include "integration/ide/model/ImportUnitCache.h"
 
 class RemoteEndPoint;
@@ -60,10 +62,23 @@ private:
     std::unordered_map<std::string, std::mutex> lex_file_mutexes;
 
     /**
+     * map between absolute path of a file and their mutexes
+     * when you require a file is lexed, a mutex is held for each path
+     * so multiple different paths can be lexed at a single time but multiple same paths cannot.
+     */
+    std::unordered_map<std::string, std::mutex> parse_file_mutexes;
+
+    /**
      * a mutex for the unordered_map access, this is because every call with a path must be processed sequentially
      * otherwise parallel calls might render lex_file_mutexes useless
      */
     std::mutex lex_file_mutexes_map_mutex;
+
+    /**
+     * a mutex for the unordered_map access, this is because every call with a path must be processed sequentially
+     * otherwise parallel calls might render lex_file_mutexes useless
+     */
+    std::mutex parse_file_mutexes_map_mutex;
 
     /**
      * import unit cache, contains different import units
@@ -87,6 +102,11 @@ public:
      * path to resources folder, if empty, will be calculated relative to current executable
      */
     std::string overridden_resources_path;
+
+    /**
+     * currently is64Bit is determined at compile time
+     */
+    bool is64Bit = sizeof(void*) == 8;
 
     /**
      * constructor
@@ -157,20 +177,62 @@ public:
     void publish_diagnostics(const std::string& path, bool async, const std::vector<std::vector<Diag>*>& diags);
 
     /**
+     * this will publish complete diagnostics for the given file, non asynchronously
+     */
+    void publish_diagnostics_complete(const std::string& path);
+
+    /**
+     * this will publish complete diagnostics for the given file, asynchronously
+     */
+    void publish_diagnostics_complete_async(std::string path);
+
+    /**
+     * check if lex import unit has errors
+     */
+    static bool has_errors(const LexImportUnit& unit);
+
+    /**
+     * check if this ast import unit has errors
+     */
+    static bool has_errors(const ASTImportUnit& unit);
+
+    /**
      * get the import unit for the given absolute path
      */
-    ImportUnit get_import_unit(const std::string& abs_path, bool publish_diagnostics = false);
+    LexImportUnit get_import_unit(const std::string& abs_path);
+
+    /**
+     * get the ast import unit for the given lex import unit
+     */
+    ASTImportUnit get_ast_import_unit(const LexImportUnit& unit);
+
+    /**
+     * get the import unit for the given absolute path
+     */
+    ASTImportUnit get_ast_import_unit(const std::string& abs_path) {
+        auto unit = get_import_unit(abs_path);
+        return get_ast_import_unit(unit);
+    }
 
     /**
      * get a locked mutex for this path only
      */
-    std::mutex& lock_path_mutex(const std::string& path);
+    std::mutex& lex_lock_path_mutex(const std::string& path);
+
+    /**
+     * get a locked mutex for this path only
+     */
+    std::mutex& parse_lock_path_mutex(const std::string& path);
 
     /**
      * get the lexed file, only if it exists in cache
-     * NOTE: this uses a mutex for each distinct path
      */
     std::shared_ptr<LexResult> get_cached(const std::string& path);
+
+    /**
+     * get the ast result, only if it exists in cache
+     */
+    std::shared_ptr<ASTResult> get_cached_ast(const std::string& path);
 
     /**
      * get tokens for the given file
@@ -184,6 +246,13 @@ public:
      * because that path contains whether it's a system header
      */
     std::shared_ptr<LexResult> get_lexed(const std::string& path);
+
+    /**
+     * gets the lex result, then converts to ASTResult
+     *
+     * this will also cache the ASTResult and provide it back
+     */
+    std::shared_ptr<ASTResult> get_ast(const std::string& path);
 
     /**
      * just like the get_lexed above, but this supports C headers and files because

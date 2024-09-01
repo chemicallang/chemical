@@ -1,7 +1,7 @@
 // Copyright (c) Qinetik 2024.
 
 #include "CSTUtils.h"
-#include "integration/ide/model/ImportUnit.h"
+#include "integration/ide/model/LexImportUnit.h"
 #include "integration/ide/model/LexResult.h"
 
 bool is_var_init_const(CSTToken* cst) {
@@ -225,7 +225,7 @@ CSTToken* get_token_at_position(std::vector<CSTToken*>& tokens, const Position& 
     return nullptr;
 }
 
-LexResult* find_containing_file(ImportUnit* unit, CSTToken* token) {
+LexResult* find_containing_file(LexImportUnit* unit, CSTToken* token) {
     for(auto& file : unit->files) {
         auto result = get_token_at_position(file->unit.tokens, token->start_token()->position);
         if(result && result->start_token() == token->start_token()) {
@@ -235,7 +235,7 @@ LexResult* find_containing_file(ImportUnit* unit, CSTToken* token) {
     return nullptr;
 }
 
-token_parent_file find_token_parent(ImportUnit* unit, CSTToken* token) {
+token_parent_file find_token_parent(LexImportUnit* unit, CSTToken* token) {
     token_with_parent result;
     CSTToken* found;
     for(auto& file : unit->files) {

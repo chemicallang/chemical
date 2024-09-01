@@ -5,6 +5,7 @@
 #include "SymbolResolver.h"
 #include "ast/structures/MultiFunctionNode.h"
 #include "ast/structures/FunctionDeclaration.h"
+#include "rang.hpp"
 
 SymbolResolver::SymbolResolver(bool is64Bit) : ASTDiagnoser(), is64Bit(is64Bit) {
 
@@ -131,7 +132,6 @@ bool SymbolResolver::dup_check_in_other_files(const std::string& name, ASTNode* 
 }
 
 void SymbolResolver::declare_function(const std::string& name, FunctionDeclaration* declaration) {
-    if(name == "_") return;
     auto& last = current.back();
     auto found = last.symbols.find(name);
     if(found == last.symbols.end()) {
@@ -158,5 +158,30 @@ void SymbolResolver::declare_function(const std::string& name, FunctionDeclarati
             // override the previous symbol
             last.symbols[name] = result.new_multi_func_node;
         }
+    }
+}
+
+void SymbolResolver::resolve_file(Scope& scope, const std::string& abs_path) {
+    imported_generic.clear();
+    file_scope_start();
+    scope.link_asynchronously(*this);
+    for(auto& node : scope.nodes) {
+        auto found = imported_generic.find(node.get());
+        if(found != imported_generic.end()) {
+            imported_generic.erase(found);
+        }
+    }
+    dispose_file_symbols_now(abs_path);
+}
+
+void SymbolResolver::dispose_file_symbols_now(const std::string& abs_path) {
+    // dispose symbols of previous file (if any required) before proceeding
+    if(!dispose_file_symbols.empty()) {
+        for(const auto& sym : dispose_file_symbols) {
+            if(!undeclare(sym)) {
+                std::cerr << rang::fg::yellow << "[SymRes] unable to un-declare file symbol " << sym << " in file " << abs_path  << rang::fg::reset << std::endl;
+            }
+        }
+        dispose_file_symbols.clear();
     }
 }

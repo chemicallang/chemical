@@ -13,11 +13,11 @@ uint64_t AccessChain::byte_size(bool is64Bit) {
     return values[values.size() - 1]->byte_size(is64Bit);
 }
 
-void AccessChain::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
-    link(linker, (BaseType*) nullptr, &value_ptr);
+bool AccessChain::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
+    return link(linker, (BaseType*) nullptr, &value_ptr);
 }
 
-void AccessChain::find_link_in_parent(ChainValue *parent, SymbolResolver &resolver) {
+bool AccessChain::find_link_in_parent(ChainValue *parent, SymbolResolver &resolver) {
     throw std::runtime_error("AccessChain doesn't support find_link_in_parent, because it can't be embedded in itself");
 }
 
@@ -31,9 +31,11 @@ void AccessChain::relink_parent() {
     }
 }
 
-void AccessChain::link(SymbolResolver &linker, BaseType *expected_type, std::unique_ptr<Value>* value_ptr) {
+bool AccessChain::link(SymbolResolver &linker, BaseType *expected_type, std::unique_ptr<Value>* value_ptr) {
 
-    values[0]->link(linker, nullptr, values, 0, expected_type);
+    if(!values[0]->link(linker, nullptr, values, 0, expected_type)) {
+        return false;
+    }
     values[0]->set_generic_iteration();
 
     // auto prepend self identifier, if not present and linked with struct member, anon union or anon struct
@@ -41,7 +43,7 @@ void AccessChain::link(SymbolResolver &linker, BaseType *expected_type, std::uni
     if(linked && (linked->as_struct_member() || linked->as_unnamed_union() || linked->as_unnamed_struct())) {
         if (!linker.current_func_type) {
             linker.error("couldn't link identifier with struct member / function, with name '" + values[0]->representation() + '\'', values[0].get());
-            return;
+            return false;
         }
         auto self_param = linker.current_func_type->get_self_param();
         if (self_param) {
@@ -58,9 +60,11 @@ void AccessChain::link(SymbolResolver &linker, BaseType *expected_type, std::uni
                     values.insert(values.begin(), std::unique_ptr<ChainValue>(self_id));
                 } else {
                     linker.error("couldn't find this in constructor for linking identifier '" + values[0]->representation() + "'", values[0].get());
+                    return false;
                 }
             } else {
                 linker.error("couldn't link identifier '" + values[0]->representation() + "', because function doesn't take a self argument", values[0].get());
+                return false;
             }
         }
     }
@@ -69,7 +73,9 @@ void AccessChain::link(SymbolResolver &linker, BaseType *expected_type, std::uni
     if (values_size > 1) {
 
         // manually linking the second value
-        values[1]->link(linker, values[0].get(), values, 1, expected_type);
+        if(!values[1]->link(linker, values[0].get(), values, 1, expected_type)) {
+            return false;
+        }
 
         // if second value is linked with a variant member, we replace the access chain, with variant call
         if(values[1]->as_identifier()) {
@@ -78,25 +84,29 @@ void AccessChain::link(SymbolResolver &linker, BaseType *expected_type, std::uni
                 auto& chain = *value_ptr;
                 chain = std::make_unique<VariantCall>(std::unique_ptr<AccessChain>((AccessChain*) chain.release()), token);
                 ((std::unique_ptr<VariantCall>&) chain)->link(linker, chain, expected_type);
-                return;
+                return true;
             }
         }
 
         unsigned i = 2;
         while (i < values_size) {
-            values[i]->link(linker, values[i - 1].get(), values, i, expected_type);
+            if(!values[i]->link(linker, values[i - 1].get(), values, i, expected_type)) {
+                return false;
+            }
             i++;
         }
 
     }
+
+    return true;
 }
 
 void AccessChain::declare_and_link(SymbolResolver& linker, std::unique_ptr<ASTNode>& node_ptr) {
     link(linker, (BaseType*) nullptr, nullptr);
 }
 
-void AccessChain::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *type) {
-    link(linker, type, &value_ptr);
+bool AccessChain::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *type) {
+    return link(linker, type, &value_ptr);
 }
 
 AccessChain::AccessChain(std::vector<std::unique_ptr<ChainValue>> values, ASTNode* parent_node, bool is_node, CSTToken* token) : values(std::move(values)), parent_node(parent_node), is_node(is_node), token(token) {

@@ -15,6 +15,7 @@ void SizeOfValue::calculate_size(bool is64Bit) {
     value = for_type->byte_size(is64Bit);
 }
 
-void SizeOfValue::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr) {
+bool SizeOfValue::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr) {
     for_type->link(linker, for_type);
+    return true;
 }

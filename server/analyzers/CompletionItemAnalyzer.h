@@ -14,7 +14,7 @@ class Position;
 
 using caret_pos_type = Position;
 
-class ImportUnit;
+class LexImportUnit;
 
 class LexResult;
 
@@ -168,7 +168,7 @@ public:
     /**
      * analyze an entire import unit for better support for completions across different files
      */
-    CompletionList analyze(ImportUnit* unit);
+    CompletionList analyze(LexImportUnit* unit);
 
     // Visitors
 

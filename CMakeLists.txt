@@ -330,7 +330,7 @@ set(COMMON_SOURCES
         compiler/ASTDiagnoser.cpp
         cst/utils/CSTUtils.cpp
         integration/ide/model/LexResult.h
-        integration/ide/model/ImportUnit.h
+        integration/ide/model/LexImportUnit.h
         integration/ide/model/FlatIGFile.h
         integration/ide/model/ImportUnitCache.h
         preprocess/ImportGraphVisitor.h
@@ -464,6 +464,8 @@ set(COMMON_SOURCES
         utils/Environment.h
         ast/base/ASTAnyKind.h
         ast/base/ASTUnit.h
+        integration/ide/model/ASTImportUnit.h
+        integration/ide/model/ASTResult.h
 )
 
 # Chemical LSP Executable Target

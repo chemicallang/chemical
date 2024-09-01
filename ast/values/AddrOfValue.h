@@ -68,6 +68,6 @@ public:
         return BaseTypeKind::Pointer;
     }
 
-    void link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) override;
+    bool link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) override;
 
 };

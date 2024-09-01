@@ -111,7 +111,7 @@ public:
 
     hybrid_ptr<BaseType> get_base_type() override;
 
-    void link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) override;
+    bool link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) override;
 
     bool primitive() override;
 

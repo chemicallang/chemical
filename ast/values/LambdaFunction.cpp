@@ -194,7 +194,7 @@ void LambdaFunction::link(SymbolResolver &linker, FunctionType* func_type) {
 }
 
 void LambdaFunction::link(SymbolResolver &linker, VarInitStatement *stmnt) {
-    if(stmnt->type.has_value()) {
+    if(stmnt->type) {
         auto retrieved = stmnt->create_value_type();
         link(linker, (FunctionType*) retrieved.get());
         link_full(this, linker);

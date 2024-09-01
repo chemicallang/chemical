@@ -10,14 +10,14 @@ class StructMember : public BaseDefMember {
 public:
 
     std::unique_ptr<BaseType> type;
-    std::optional<std::unique_ptr<Value>> defValue;
+    std::unique_ptr<Value> defValue;
     ASTNode* parent_node;
     CSTToken* token;
 
     StructMember(
             std::string name,
             std::unique_ptr<BaseType> type,
-            std::optional<std::unique_ptr<Value>> defValue,
+            std::unique_ptr<Value> defValue,
             ASTNode* parent_node,
             CSTToken* token
     );
@@ -39,7 +39,7 @@ public:
     }
 
     Value *default_value() override {
-        if(defValue.has_value()) return defValue->get();
+        if(defValue) return defValue.get();
         return nullptr;
     }
 
@@ -56,7 +56,7 @@ public:
     bool requires_destructor() override;
 
     Value *holding_value() override {
-        return defValue.has_value() ? defValue.value().get() : nullptr;
+        return defValue ? defValue.get() : nullptr;
     }
 
     BaseType *known_type() override {

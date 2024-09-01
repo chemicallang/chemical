@@ -99,7 +99,7 @@ StructDefinition* CTranslator::make_struct(clang::RecordDecl* decl) {
         if(!field_type_conv) {
             return nullptr;
         }
-        def->variables[str->getNameAsString()] = std::make_unique<StructMember>(str->getNameAsString(), std::unique_ptr<BaseType>(field_type_conv), std::nullopt, def, nullptr);
+        def->variables[str->getNameAsString()] = std::make_unique<StructMember>(str->getNameAsString(), std::unique_ptr<BaseType>(field_type_conv), nullptr, def, nullptr);
     }
     return def;
 }
@@ -119,10 +119,10 @@ Expression* CTranslator::make_expr(clang::Expr* expr) {
 VarInitStatement* CTranslator::make_var_init(clang::VarDecl* decl) {
     auto type = decl->getType();
     auto made_type = make_type(&type);
-    std::optional<std::unique_ptr<Value>> initial = std::nullopt;
+    std::unique_ptr<Value> initial = nullptr;
     auto initial_value = (Value*) make_expr(decl->getInit());
     if(initial_value) {
-        initial.emplace(initial_value);
+        initial.reset(initial_value);
     }
     return new VarInitStatement(false, decl->getNameAsString(), std::unique_ptr<BaseType>(made_type), std::move(initial), parent_node, nullptr);
 }

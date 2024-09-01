@@ -112,11 +112,11 @@ void CommonVisitor::visit(VariantCall *call) {
 }
 
 void CommonVisitor::visit(VarInitStatement *init) {
-    if(init->type.has_value()) {
-        init->type.value()->accept(this);
+    if(init->type) {
+        init->type->accept(this);
     }
-    if(init->value.has_value()) {
-        init->value.value()->accept(this);
+    if(init->value) {
+        init->value->accept(this);
     }
 }
 
@@ -158,8 +158,8 @@ void CommonVisitor::visit(StructDefinition *def) {
 
 void CommonVisitor::visit(StructMember *member) {
     member->type->accept(this);
-    if(member->defValue.has_value()) {
-        member->defValue.value()->accept(this);
+    if(member->defValue) {
+        member->defValue->accept(this);
     }
 }
 

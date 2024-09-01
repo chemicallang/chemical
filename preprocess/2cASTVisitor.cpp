@@ -521,7 +521,7 @@ void access_chain(ToCAstVisitor* visitor, std::vector<std::unique_ptr<ChainValue
 
 #define variant_type_variant_name "__chx__vt_621827"
 
-void value_alloca(ToCAstVisitor* visitor, const std::string& identifier, BaseType* type, std::optional<std::unique_ptr<Value>>& value) {
+void value_alloca(ToCAstVisitor* visitor, const std::string& identifier, BaseType* type, std::unique_ptr<Value>& value) {
     type_with_id(visitor, type, identifier);
     const auto var = type->get_direct_ref_variant();
     if(var) {
@@ -763,22 +763,22 @@ void value_init_default(ToCAstVisitor* visitor, const std::string& identifier, B
 //    }
 //}
 
-void value_alloca_store(ToCAstVisitor* visitor, const std::string& identifier, BaseType* type, std::optional<std::unique_ptr<Value>>& value) {
-    if(value.has_value()) {
-        auto value_kind = value.value()->val_kind();
+void value_alloca_store(ToCAstVisitor* visitor, const std::string& identifier, BaseType* type, std::unique_ptr<Value>& value) {
+    if(value) {
+        auto value_kind = value->val_kind();
         if(value_kind == ValueKind::IfValue || value_kind == ValueKind::SwitchValue || value_kind == ValueKind::LoopValue) {
             value_alloca(visitor, identifier, type, value);
             visitor->new_line_and_indent();
-            value.value()->accept(visitor);
+            value->accept(visitor);
             return;
         }
-        if(type->value_type() == ValueType::Struct && value.value()->as_access_chain()) {
+        if(type->value_type() == ValueType::Struct && value->as_access_chain()) {
             // struct instantiation is done in 2 instructions -> declaration and assignment
 //            value_alloca(visitor, identifier, type, value);
 //            visitor->new_line_and_indent();
-            value_assign_default(visitor, identifier, type, value->get());
+            value_assign_default(visitor, identifier, type, value.get());
         } else {
-            value_init_default(visitor, identifier, type, value->get());
+            value_init_default(visitor, identifier, type, value.get());
         }
     } else {
         value_alloca(visitor, identifier, type, value);
@@ -790,10 +790,10 @@ void var_init(ToCAstVisitor* visitor, VarInitStatement* init, bool is_static) {
     if(is_static) {
         visitor->write("static ");
     }
-    if (!init->type.has_value()) {
-        init->type.emplace(init->value.value()->create_type().release());
+    if (!init->type) {
+        init->type.reset(init->value->create_type().release());
     }
-    value_alloca_store(visitor, init->identifier, init->type.value().get(), init->value);
+    value_alloca_store(visitor, init->identifier, init->type.get(), init->value);
 }
 
 class SubVisitor {
@@ -1208,12 +1208,12 @@ void CBeforeStmtVisitor::process_init_value(Value* value, const std::string& ide
 }
 
 void CBeforeStmtVisitor::visit(VarInitStatement *init) {
-    if (!init->type.has_value()) {
-        init->type.emplace(init->value.value()->create_type().release());
+    if (!init->type) {
+        init->type.reset(init->value->create_type().release());
     }
     visitor->debug_comment("visiting var init in before");
-    if(init->value.has_value()) {
-        process_init_value(init->value.value().get(), init->identifier);
+    if(init->value) {
+        process_init_value(init->value.get(), init->identifier);
     }
     CommonVisitor::visit(init);
 }
@@ -1677,8 +1677,8 @@ void CDestructionVisitor::visit(VarInitStatement *init) {
         // do not destruct pointers
         return;
     }
-    if(init->value.has_value()) {
-        auto init_value = init->value->get();
+    if(init->value) {
+        auto init_value = init->value.get();
         auto chain = init_value->as_access_chain();
         if(chain && chain->values.back()->as_func_call()) {
             const auto func_call = chain->values.back()->as_func_call();
@@ -1695,13 +1695,13 @@ void CDestructionVisitor::visit(VarInitStatement *init) {
         process_init_value(init, init_value);
         return;
     } else {
-        if(init->type.value()->value_type() == ValueType::Struct) {
-            auto linked = init->type.value()->linked_node();
+        if(init->type->value_type() == ValueType::Struct) {
+            auto linked = init->type->linked_node();
             if (linked)
-                queue_destruct(init->identifier, init, init->type.value()->get_generic_iteration(),
+                queue_destruct(init->identifier, init, init->type->get_generic_iteration(),
                                linked->as_struct_def());
-        } else if(init->type.value()->kind() == BaseTypeKind::Array) {
-            auto type = (ArrayType*) init->type.value().get();
+        } else if(init->type->kind() == BaseTypeKind::Array) {
+            auto type = (ArrayType*) init->type.get();
             if(type->array_size != -1) {
                 queue_destruct_arr(init->identifier, init, type->elem_type.get(), type->array_size);
             } else {
@@ -1750,10 +1750,10 @@ void func_call(ToCAstVisitor* visitor, FunctionCall* call, FunctionType* func_ty
 }
 
 void CValueDeclarationVisitor::visit(VarInitStatement *init) {
-    if(!init->type.has_value()) {
+    if(!init->type) {
         // because it can contain function type, so we must emplace it
         // this function type creates a typedef, which is accessible by function type's pointer from aliases map
-        init->type.emplace(init->value.value()->create_type());
+        init->type = init->value->create_type();
     }
     CommonVisitor::visit(init);
     if(!is_top_level_node) return;

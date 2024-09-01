@@ -460,7 +460,7 @@ int16_t ChainValue::set_generic_iteration() {
 }
 
 void Value::link(SymbolResolver& linker, VarInitStatement* stmnt) {
-    link(linker, stmnt->value.value());
+    link(linker, stmnt->value);
 }
 
 void ChainValue::link(

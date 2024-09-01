@@ -13,6 +13,7 @@
 #include "compiler/lab/LabBuildContext.h"
 #include "utils/Benchmark.h"
 #include "ast/base/ASTUnit.h"
+#include "cst/base/CSTUnit.h"
 
 class Lexer;
 
@@ -30,6 +31,7 @@ class ToCAstVisitor;
 struct ASTImportResult {
 
     ASTUnit unit;
+    CSTUnit cst_unit;
     bool continue_processing;
     bool is_c_file;
 

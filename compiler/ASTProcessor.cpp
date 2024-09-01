@@ -203,7 +203,7 @@ ASTImportResultExt ASTProcessor::import_file(const FlatIGFile& file) {
         throw std::runtime_error("cannot translate c file as clang api is not available");
 #endif
 
-        return { std::move(unit), true, true, std::move(out.str()) };
+        return { std::move(unit), CSTUnit(), true, true, std::move(out.str()) };
 
     } else {
 
@@ -236,7 +236,7 @@ ASTImportResultExt ASTProcessor::import_file(const FlatIGFile& file) {
             printTokens(lexer.unit.tokens);
         }
         if (lexer.has_errors) {
-            return { std::move(unit), false, is_c_file, std::move(out.str()) };
+            return { std::move(unit), std::move(lexer.unit), false, is_c_file, std::move(out.str()) };
         }
 
         // convert the tokens
@@ -255,12 +255,12 @@ ASTImportResultExt ASTProcessor::import_file(const FlatIGFile& file) {
         for (const auto &err: converter.diagnostics) {
             err.ansi(std::cerr, abs_path, "Converter") << std::endl;
         }
-        unit.scope.nodes = std::move(converter.nodes);
+        unit = converter.take_unit();
         if (options->print_representation) {
             out << "[Representation]\n" << unit.scope.representation() << '\n';
         }
 
-        return { std::move(unit), true, true, std::move(out.str()) };
+        return { std::move(unit), std::move(lexer.unit), true, true, std::move(out.str()) };
 
     }
 

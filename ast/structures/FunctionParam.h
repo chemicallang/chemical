@@ -11,14 +11,14 @@ class FunctionParam : public BaseFunctionParam {
 public:
 
     unsigned int index;
-    std::optional<std::unique_ptr<Value>> defValue;
+    std::unique_ptr<Value> defValue;
     CSTToken* token;
 
     FunctionParam(
             std::string name,
             std::unique_ptr<BaseType> type,
             unsigned int index,
-            std::optional<std::unique_ptr<Value>> defValue,
+            std::unique_ptr<Value> defValue,
             FunctionType* func_type,
             CSTToken* token
     );
@@ -40,7 +40,7 @@ public:
     void accept(Visitor *visitor) override;
 
     Value *holding_value() override {
-        return defValue.has_value() ? defValue.value().get() : nullptr;
+        return defValue ? defValue.get() : nullptr;
     }
 
     BaseType *known_type() override {

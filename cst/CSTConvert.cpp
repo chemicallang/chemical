@@ -403,10 +403,10 @@ void CSTConverter::visitFunctionParam(CSTToken* param) {
     } else {
         baseType = type().release();
     }
-    std::optional<std::unique_ptr<Value>> def_value = std::nullopt;
+    std::unique_ptr<Value> def_value = nullptr;
     if(param->tokens.back()->is_value()) {
         param->tokens.back()->accept(this);
-        def_value.emplace(value());
+        def_value = value();
     }
     nodes.emplace_back(std::make_unique<FunctionParam>(identifier, std::unique_ptr<BaseType>(baseType), param_index,
                                             std::move(def_value), nullptr, param));
@@ -432,7 +432,7 @@ FunctionParamsResult function_params(CSTConverter* converter, cst_tokens_ref_typ
             if (strId != "this" && strId != "self") {
                 converter->error("expected self parameter to be named 'self' or 'this'", tokens[i]);
             }
-            params.emplace_back(new FunctionParam(strId, std::unique_ptr<PointerType>(current_self_pointer(converter, paramTokens[1])), 0, std::nullopt, nullptr, tokens[i]));
+            params.emplace_back(new FunctionParam(strId, std::unique_ptr<PointerType>(current_self_pointer(converter, paramTokens[1])), 0, nullptr, nullptr, tokens[i]));
             converter->param_index = 1;
         }
 //        else if(optional_param_types && tokens[i]->type() == LexTokenType::Variable) {
@@ -1255,7 +1255,7 @@ void CSTConverter::visitVariantMember(CSTToken* variant_member) {
     const auto member = new VariantMember(str_token(variant_member->tokens[0]), (VariantDefinition*) parent_node, variant_member);
     auto result = function_params(this, variant_member->tokens, 2);
     for(auto& value : result.params) {
-        member->values[value->name] = std::make_unique<VariantMemberParam>(value->name, value->index, std::move(value->type), value->defValue.has_value() ? std::move(value->defValue.value()) : nullptr, member, value->token);
+        member->values[value->name] = std::make_unique<VariantMemberParam>(value->name, value->index, std::move(value->type), value->defValue ? std::move(value->defValue) : nullptr, member, value->token);
     }
     nodes.emplace_back(member);
 }

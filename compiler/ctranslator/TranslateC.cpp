@@ -148,7 +148,7 @@ FunctionDeclaration* CTranslator::make_func(clang::FunctionDecl* func_decl) {
                 param_name,
                 std::unique_ptr<BaseType>(chem_type),
                 index,
-                std::nullopt,
+                nullptr,
                 nullptr,
                 nullptr
         ));

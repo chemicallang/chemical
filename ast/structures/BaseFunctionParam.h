@@ -60,6 +60,8 @@ public:
 
     void declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override;
 
+    void redeclare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode> &node_ptr) override;
+
     ValueType value_type() const override;
 
     BaseTypeKind type_kind() const override;

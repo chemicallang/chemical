@@ -28,6 +28,9 @@ CSTToken* GenericType::cst_token() {
 
 void GenericType::link(SymbolResolver &linker, std::unique_ptr<BaseType>& current) {
     referenced->link(linker, (std::unique_ptr<BaseType>&) referenced);
+    if(!referenced->linked) {
+        return;
+    }
     for(auto& type : types) {
         type->link(linker, type);
     }

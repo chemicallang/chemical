@@ -2543,8 +2543,8 @@ void ToCAstVisitor::return_value(Value* val, BaseType* type) {
 
 void ToCAstVisitor::visit(ReturnStatement *returnStatement) {
     Value* val = nullptr;
-    if(returnStatement->value.has_value()) {
-        val = returnStatement->value.value().get();
+    if(returnStatement->value) {
+        val = returnStatement->value.get();
     }
     const auto return_type  =returnStatement->func_type->returnType.get();
     std::string saved_into_temp_var;
@@ -2568,14 +2568,14 @@ void ToCAstVisitor::visit(ReturnStatement *returnStatement) {
     int i = ((int) destructor->destruct_jobs.size()) - 1;
     auto new_line_prev = destructor->new_line_before;
     destructor->new_line_before = false;
-    auto current_return = returnStatement->value.has_value() ? returnStatement->value.value().get() : nullptr;
+    auto current_return = returnStatement->value ? returnStatement->value.get() : nullptr;
     while(i >= 0) {
         destructor->destruct(destructor->destruct_jobs[i], current_return);
         i--;
     }
     destructor->new_line_before = new_line_prev;
     destructor->destroy_current_scope = false;
-    if(returnStatement->value.has_value()) {
+    if(returnStatement->value) {
         if(handle_return_after) {
             write("return ");
             if(!saved_into_temp_var.empty()) {

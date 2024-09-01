@@ -121,8 +121,8 @@ void CommonVisitor::visit(VarInitStatement *init) {
 }
 
 void CommonVisitor::visit(ReturnStatement *stmt) {
-    if(stmt->value.has_value()) {
-        stmt->value.value()->accept(this);
+    if(stmt->value) {
+        stmt->value->accept(this);
     }
 }
 

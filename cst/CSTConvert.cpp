@@ -679,10 +679,10 @@ void CSTConverter::visitImport(CSTToken* cst) {
 }
 
 void CSTConverter::visitReturn(CSTToken* cst) {
-    std::optional<std::unique_ptr<Value>> return_value = std::nullopt;
+    std::unique_ptr<Value> return_value = nullptr;
     if(1 < cst->tokens.size() && cst->tokens[1]->is_value()) {
         cst->tokens[1]->accept(this);
-        return_value.emplace(value());
+        return_value = value();
     }
     nodes.emplace_back(std::make_unique<ReturnStatement>(std::move(return_value), current_func_type, parent_node, cst));
 }

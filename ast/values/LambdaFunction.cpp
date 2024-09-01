@@ -103,8 +103,8 @@ BaseType* find_return_type(std::vector<std::unique_ptr<ASTNode>>& nodes) {
     for(auto& node : nodes) {
         if(node->as_return() != nullptr) {
             auto returnStmt = node->as_return();
-            if(returnStmt->value.has_value()) {
-                return returnStmt->value.value()->create_type().release();
+            if(returnStmt->value) {
+                return returnStmt->value->create_type().release();
             } else {
                 return new VoidType(nullptr);
             }

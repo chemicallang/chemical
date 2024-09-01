@@ -107,9 +107,10 @@ Expression::Expression(
 
 }
 
-void Expression::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
-    firstValue->link(linker, firstValue);
-    secondValue->link(linker, secondValue);
+bool Expression::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
+    auto f = firstValue->link(linker, firstValue);
+    auto s = secondValue->link(linker, secondValue);
+    return f && s;
 }
 
 bool Expression::primitive() {

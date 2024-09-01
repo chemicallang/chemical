@@ -459,11 +459,11 @@ int16_t ChainValue::set_generic_iteration() {
     return -2;
 }
 
-void Value::link(SymbolResolver& linker, VarInitStatement* stmnt) {
-    link(linker, stmnt->value);
+bool Value::link(SymbolResolver& linker, VarInitStatement* stmnt) {
+    return link(linker, stmnt->value);
 }
 
-void ChainValue::link(
+bool ChainValue::link(
     SymbolResolver& linker,
     ChainValue* parent,
     std::vector<std::unique_ptr<ChainValue>>& values,
@@ -472,12 +472,12 @@ void ChainValue::link(
 ) {
     if(parent) {
         if(index == values.size() - 1) {
-            find_link_in_parent(parent, linker, expected_type);
+            return find_link_in_parent(parent, linker, expected_type);
         } else {
-            find_link_in_parent(parent, linker);
+            return find_link_in_parent(parent, linker);
         }
     } else {
-        link(linker, (std::unique_ptr<Value>&) values[index]);
+        return link(linker, (std::unique_ptr<Value>&) values[index]);
     }
 }
 
@@ -485,28 +485,28 @@ void ChainValue::relink_parent(ChainValue* parent) {
     throw std::runtime_error("relink_parent called on base chain value");
 }
 
-void Value::link(SymbolResolver& linker, AssignStatement* stmnt, bool lhs) {
+bool Value::link(SymbolResolver& linker, AssignStatement* stmnt, bool lhs) {
     if(lhs) {
-        link(linker, stmnt->lhs);
+        return link(linker, stmnt->lhs);
     } else {
-        link(linker, stmnt->value);
+        return link(linker, stmnt->value);
     }
 }
 
-void Value::link(SymbolResolver& linker, StructValue* value, const std::string& name) {
-    link(linker, value->values[name]);
+bool Value::link(SymbolResolver& linker, StructValue* value, const std::string& name) {
+    return link(linker, value->values[name]);
 }
 
-void Value::link(SymbolResolver& linker, ArrayValue* value, unsigned int index) {
-    link(linker, value->values[index]);
+bool Value::link(SymbolResolver& linker, ArrayValue* value, unsigned int index) {
+    return link(linker, value->values[index]);
 }
 
-void Value::link(SymbolResolver& linker, FunctionCall* call, unsigned int index) {
-    link(linker, call->values[index]);
+bool Value::link(SymbolResolver& linker, FunctionCall* call, unsigned int index) {
+    return link(linker, call->values[index]);
 }
 
-void Value::link(SymbolResolver& linker, ReturnStatement* returnStmt) {
-    link(linker, returnStmt->value);
+bool Value::link(SymbolResolver& linker, ReturnStatement* returnStmt) {
+    return link(linker, returnStmt->value);
 }
 
 Value::~Value() = default;

@@ -2,7 +2,7 @@
 
 #include "HoverAnalyzer.h"
 #include "cst/utils/CSTUtils.h"
-#include "integration/ide/model/ImportUnit.h"
+#include "integration/ide/model/LexImportUnit.h"
 #include "integration/ide/model/LexResult.h"
 #include <filesystem>
 #include "Documentation.h"
@@ -190,7 +190,7 @@ void markdown_documentation(std::string& value, LexResult* current, LexResult* d
     }
 }
 
-std::string HoverAnalyzer::markdown_hover(ImportUnit *unit) {
+std::string HoverAnalyzer::markdown_hover(LexImportUnit *unit) {
     auto file = unit->files[unit->files.size() - 1];
     auto token = get_token_at_position(file->unit.tokens, position);
     if (token) {

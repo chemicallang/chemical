@@ -59,7 +59,7 @@ public:
 
     void link_gen_args(SymbolResolver &linker);
 
-    void link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr) override;
+    bool link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr) override;
 
     /**
      * provides the base function type to which call is being made
@@ -89,9 +89,9 @@ public:
 
     void link_constructor(SymbolResolver &resolver);
 
-    void find_link_in_parent(ChainValue *parent, SymbolResolver &resolver) override;
+    bool find_link_in_parent(ChainValue *parent, SymbolResolver &resolver) override;
 
-    void find_link_in_parent(ChainValue *parent, SymbolResolver &resolver, BaseType *expected_type) override;
+    bool find_link_in_parent(ChainValue *parent, SymbolResolver &resolver, BaseType *expected_type) override;
 
     void relink_parent(ChainValue *parent) override;
 

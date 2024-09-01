@@ -202,7 +202,7 @@ bool StructValue::primitive() {
     return false;
 }
 
-void StructValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
+bool StructValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
     ref->link(linker, ref);
     auto found = ref->linked_node();
     if(found) {
@@ -211,7 +211,7 @@ void StructValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr
             definition = struct_def;
             if(definition->has_constructor() && !definition->is_direct_init) {
                 linker.error("struct value with a constructor cannot be initialized, name '" + definition->name + "' has a constructor", this);
-                return;
+                return false;
             }
             for(auto& arg : generic_list) {
                 arg->link(linker, arg);
@@ -241,10 +241,13 @@ void StructValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr
             }
         } else {
             linker.error("given struct name is not a struct definition : " + ref->representation(), this);
+            return false;
         }
     } else {
         linker.error("couldn't find struct definition for struct name " + ref->representation(), this);
+        return false;
     };
+    return true;
 }
 
 ASTNode *StructValue::linked_node() {

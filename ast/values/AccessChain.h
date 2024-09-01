@@ -52,41 +52,41 @@ public:
         return parent_node;
     }
 
-    void link(SymbolResolver &linker, BaseType *type, std::unique_ptr<Value>* value_ptr);
+    bool link(SymbolResolver &linker, BaseType *type, std::unique_ptr<Value>* value_ptr);
 
-    void link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *type) override;
+    bool link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *type) override;
 
-    void link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) override;
+    bool link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) override;
 
-    void link(SymbolResolver &linker, ReturnStatement *returnStmt) override {
-        TypeLinkedValue::link(linker, returnStmt);
+    bool link(SymbolResolver &linker, ReturnStatement *returnStmt) override {
+        return TypeLinkedValue::link(linker, returnStmt);
     }
 
-    void link(SymbolResolver &linker, StructValue *value, const std::string &name) override {
-        TypeLinkedValue::link(linker, value, name);
+    bool link(SymbolResolver &linker, StructValue *value, const std::string &name) override {
+        return TypeLinkedValue::link(linker, value, name);
     }
 
-    void link(SymbolResolver &linker, FunctionCall *call, unsigned int index) override {
-        TypeLinkedValue::link(linker, call, index);
+    bool link(SymbolResolver &linker, FunctionCall *call, unsigned int index) override {
+        return TypeLinkedValue::link(linker, call, index);
     }
 
     void relink_after_generic(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *expected_type) override {
         link(linker, value_ptr, expected_type);
     }
 
-    void link(SymbolResolver &linker, VarInitStatement *stmnt) override {
-        TypeLinkedValue::link(linker, stmnt);
+    bool link(SymbolResolver &linker, VarInitStatement *stmnt) override {
+        return TypeLinkedValue::link(linker, stmnt);
     }
 
-    void link(SymbolResolver &linker, ArrayValue *value, unsigned int index) override {
-        TypeLinkedValue::link(linker, value, index);
+    bool link(SymbolResolver &linker, ArrayValue *value, unsigned int index) override {
+        return TypeLinkedValue::link(linker, value, index);
     }
 
-    void link(SymbolResolver &linker, AssignStatement *stmnt, bool lhs) override {
-        TypeLinkedValue::link(linker, stmnt, lhs);
+    bool link(SymbolResolver &linker, AssignStatement *stmnt, bool lhs) override {
+        return TypeLinkedValue::link(linker, stmnt, lhs);
     }
 
-    void find_link_in_parent(ChainValue *parent, SymbolResolver &resolver) override;
+    bool find_link_in_parent(ChainValue *parent, SymbolResolver &resolver) override;
 
     /**
      * will call relink_parent on values starting from second value

@@ -67,4 +67,16 @@ public:
      */
     std::ostream& ansi(std::ostream& os, const std::string& path, const std::string &tag = "Diagnostic") const;
 
+    /**
+     * check if a vector of diagnostics has a error diagnostic in them
+     */
+    static bool has_errors(std::vector<Diag>& diags) {
+        for(auto& diag : diags) {
+            if(diag.severity == DiagSeverity::Error) {
+                return true;
+            }
+        }
+        return false;
+    }
+
 };

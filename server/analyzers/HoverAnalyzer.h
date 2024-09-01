@@ -4,7 +4,7 @@
 
 #include "integration/common/Position.h"
 
-class ImportUnit;
+class LexImportUnit;
 
 class HoverAnalyzer {
 public:
@@ -29,6 +29,6 @@ public:
      * it will analyze the position at hover occurred and return a markdown representation for the hover
      * panel in the IDE
      */
-    std::string markdown_hover(ImportUnit* unit);
+    std::string markdown_hover(LexImportUnit* unit);
 
 };

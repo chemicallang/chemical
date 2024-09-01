@@ -10,7 +10,7 @@ std::unique_ptr<BaseType> StringValue::create_type() {
     return std::make_unique<StringType>(nullptr);
 }
 
-void StringValue::link(SymbolResolver &linker, VarInitStatement *stmnt) {
+bool StringValue::link(SymbolResolver &linker, VarInitStatement *stmnt) {
     if(stmnt->type && stmnt->type->kind() == BaseTypeKind::Array) {
         is_array = true;
         auto arrayType = (ArrayType*) (stmnt->type.get());
@@ -20,4 +20,5 @@ void StringValue::link(SymbolResolver &linker, VarInitStatement *stmnt) {
             length = value.size() + 1; // adding 1 for the last /0
         }
     }
+    return true;
 }

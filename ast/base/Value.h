@@ -89,39 +89,39 @@ public:
      * can basically replace itself in the pointer, some compile time values like sizeof
      * replace themselves at resolution phase
      */
-    virtual void link(SymbolResolver& linker, std::unique_ptr<Value>& value_ptr) {
-        // does nothing by default
+    virtual bool link(SymbolResolver& linker, std::unique_ptr<Value>& value_ptr) {
+        return true;
     }
 
     /**
      * when value is contained within VarInitStatement, this function is called
      * which provides access to the statement for more information
      */
-    virtual void link(SymbolResolver& linker, VarInitStatement* stmnt);
+    virtual bool link(SymbolResolver& linker, VarInitStatement* stmnt);
 
     /**
      * when value is contained within assign statement, this function is called
      * which provides access to the  statement for more information
      */
-    virtual void link(SymbolResolver& linker, AssignStatement* stmnt, bool lhs);
+    virtual bool link(SymbolResolver& linker, AssignStatement* stmnt, bool lhs);
 
     /**
      * when a value is present inside a struct value, this function is called
      * can be overridden to retrieve extra information
      */
-    virtual void link(SymbolResolver& linker, StructValue* value, const std::string& name);
+    virtual bool link(SymbolResolver& linker, StructValue* value, const std::string& name);
 
     /**
      * when a value is present inside an array value, this function is called
      * can be overridden to retrieve extra information
      */
-    virtual void link(SymbolResolver& linker, ArrayValue* value, unsigned int index);
+    virtual bool link(SymbolResolver& linker, ArrayValue* value, unsigned int index);
 
     /**
      * values inside a function call, can override this method if they want to access
      * information about call, function at link time
      */
-    virtual void link(SymbolResolver& linker, FunctionCall* call, unsigned int index);
+    virtual bool link(SymbolResolver& linker, FunctionCall* call, unsigned int index);
 
     /**
      * relink value after generic types are known in the function call
@@ -134,7 +134,7 @@ public:
      * when a value is required to be linked by a return statement, this function is called
      * overriding this method, allows to access the return statement, function of return
      */
-    virtual void link(SymbolResolver& linker, ReturnStatement* returnStmt);
+    virtual bool link(SymbolResolver& linker, ReturnStatement* returnStmt);
 
     /**
      * it must return the node that will be used to find the next node in the access chain

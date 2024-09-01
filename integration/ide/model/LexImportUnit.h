@@ -14,12 +14,9 @@ struct LexResult;
  *
  * a single file is included once even for multiple imports, which allows
  * us to represent them in a flat data structure like vector
- *
  */
-struct ImportUnit {
+struct LexImportUnit {
 
    std::vector<std::shared_ptr<LexResult>> files;
-
-   std::vector<Diag> errors;
 
 };

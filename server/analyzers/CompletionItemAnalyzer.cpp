@@ -8,7 +8,7 @@
 #include <unordered_set>
 #include "cst/base/CSTToken.h"
 #include "cst/utils/CSTUtils.h"
-#include "integration/ide/model/ImportUnit.h"
+#include "integration/ide/model/LexImportUnit.h"
 #include "integration/ide/model/LexResult.h"
 #include "Documentation.h"
 
@@ -371,7 +371,7 @@ bool CompletionItemAnalyzer::handle_chain_before_caret(CSTToken* chain) {
     return false;
 }
 
-CompletionList CompletionItemAnalyzer::analyze(ImportUnit* unit) {
+CompletionList CompletionItemAnalyzer::analyze(LexImportUnit* unit) {
 
     if(unit->files.size() == 1) return analyze(unit->files[0]->unit.tokens);
     if(unit->files.empty()) return list;

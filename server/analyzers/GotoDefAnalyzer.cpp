@@ -2,7 +2,7 @@
 
 #include "GotoDefAnalyzer.h"
 #include "cst/utils/CSTUtils.h"
-#include "integration/ide/model/ImportUnit.h"
+#include "integration/ide/model/LexImportUnit.h"
 #include "integration/ide/model/LexResult.h"
 #include <iostream>
 #include "utils/PathUtils.h"
@@ -11,7 +11,7 @@ GotoDefAnalyzer::GotoDefAnalyzer(Position position) : position(position) {
     // do nothing
 }
 
-std::vector<Location> GotoDefAnalyzer::analyze(ImportUnit* unit) {
+std::vector<Location> GotoDefAnalyzer::analyze(LexImportUnit* unit) {
     auto file = unit->files[unit->files.size() - 1];
     auto token_parent = get_token_at_position(nullptr, file->unit.tokens, position);
     if(token_parent.second == -1) {

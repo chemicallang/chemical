@@ -7,13 +7,14 @@
 #include "preprocess/ImportGraphVisitor.h"
 #include "preprocess/ImportPathHandler.h"
 #include "stream/StringInputSource.h"
+#include "cst/base/CSTConverter.h"
 #include <sstream>
 #include <filesystem>
 #include <mutex>
 
 std::string resolve_rel_child_path_str(const std::string& root_path, const std::string& file_path);
 
-std::mutex& WorkspaceManager::lock_path_mutex(const std::string& path) {
+std::mutex& WorkspaceManager::lex_lock_path_mutex(const std::string& path) {
     // multiple calls with different paths to this function are allowed
     // multiple calls with same paths will be processed sequentially
     lex_file_mutexes_map_mutex.lock();
@@ -26,6 +27,19 @@ std::mutex& WorkspaceManager::lock_path_mutex(const std::string& path) {
     return mutex;
 }
 
+std::mutex& WorkspaceManager::parse_lock_path_mutex(const std::string& path) {
+    // multiple calls with different paths to this function are allowed
+    // multiple calls with same paths will be processed sequentially
+    parse_file_mutexes_map_mutex.lock();
+    auto lexing = parse_file_mutexes.find(path);
+    // makes a mutex for current path and hold it
+    if(lexing == parse_file_mutexes.end()) parse_file_mutexes[path];
+    auto& mutex = parse_file_mutexes[path];
+    mutex.lock();
+    parse_file_mutexes_map_mutex.unlock();
+    return mutex;
+}
+
 std::shared_ptr<LexResult> WorkspaceManager::get_cached(const std::string& path) {
     auto found = cache.files.find(path);
     if(found != cache.files.end()) {
@@ -35,13 +49,40 @@ std::shared_ptr<LexResult> WorkspaceManager::get_cached(const std::string& path)
     }
 }
 
+std::shared_ptr<ASTResult> WorkspaceManager::get_cached_ast(const std::string& path) {
+    auto found = cache.files_ast.find(path);
+    if(found != cache.files_ast.end()) {
+        return found->second;
+    } else {
+        return nullptr;
+    }
+}
+
+bool WorkspaceManager::has_errors(const LexImportUnit& unit) {
+    for(auto& file : unit.files) {
+        if(Diag::has_errors(file->diags)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool WorkspaceManager::has_errors(const ASTImportUnit& unit) {
+    for(auto& file : unit.files) {
+        if(Diag::has_errors(file->diags)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 std::shared_ptr<LexResult> WorkspaceManager::get_lexed(const std::string& path) {
     if(path.empty()) {
         std::cout << "[LSP] Empty path provided to get_lexed function " << std::endl;
         return nullptr;
     }
 //    std::cout << "[LSP] Locking path mutex " << path << std::endl;
-    auto& mutex = lock_path_mutex(path);
+    auto& mutex = lex_lock_path_mutex(path);
     std::lock_guard guard(mutex, std::adopt_lock_t());
 //    std::cout << "[LSP] Proceeding for path " << path << std::endl;
     auto found = get_cached(path);
@@ -84,6 +125,34 @@ std::shared_ptr<LexResult> WorkspaceManager::get_lexed(const std::string& path) 
     return result;
 }
 
+std::shared_ptr<ASTResult> WorkspaceManager::get_ast(const std::string& path) {
+    if(path.empty()) {
+        std::cout << "[LSP] Empty path provided to get_lexed function " << std::endl;
+        return nullptr;
+    }
+//    std::cout << "[LSP] Locking path mutex " << path << std::endl;
+    auto& mutex = parse_lock_path_mutex(path);
+    std::lock_guard guard(mutex, std::adopt_lock_t());
+//    std::cout << "[LSP] AST Proceeding for path " << path << std::endl;
+    auto found = get_cached_ast(path);
+    if(found) {
+//        std::cout << "[LSP] AST Cache hit for " << path << std::endl;
+        return found;
+    } else {
+        std::cout << "[LSP] AST Cache miss for " << path << std::endl;
+    }
+
+    auto cst = get_lexed(path);
+    // TODO maybe we should avoid converting if LexResult has errors, to prevent exceptions
+    CSTConverter converter(path, is64Bit, "ide");
+    converter.convert(cst->unit.tokens);
+    auto result = std::make_shared<ASTResult>(path, converter.take_unit(), std::move(converter.diagnostics));
+
+    cache.files_ast[path] = result;
+//    std::cout << "[LSP] Unlocking path mutex " << path << std::endl;
+    return result;
+}
+
 std::string rel_to_lib_system(const std::string &header_path, const std::string& lsp_exe_path) {
     auto system_headers = resolve_rel_parent_path_str(lsp_exe_path, "lib/system");
     if(system_headers.empty()) {
@@ -104,7 +173,7 @@ std::shared_ptr<LexResult> WorkspaceManager::get_lexed(const FlatIGFile& flat_fi
             }
 //            std::cout << "[LSP] locking path mutex " << flat_file.abs_path << std::endl;
             // locking path mutex so multiple calls with same paths are considered once for translation
-            auto& mutex = lock_path_mutex(flat_file.abs_path);
+            auto& mutex = lex_lock_path_mutex(flat_file.abs_path);
 //            std::cout << "[LSP] checking if exists " << flat_file.abs_path << std::endl;
             if(std::filesystem::exists(expected_path)) {
 //                std::cerr << "[LSP] System header cache hit " << expected_path << std::endl;
@@ -131,7 +200,7 @@ std::shared_ptr<LexResult> WorkspaceManager::get_lexed(const FlatIGFile& flat_fi
     };
 }
 
-ImportUnit WorkspaceManager::get_import_unit(const std::string& abs_path, bool publish_diags) {
+LexImportUnit WorkspaceManager::get_import_unit(const std::string& abs_path) {
     // get lex result for the absolute path
     auto result = get_lexed(abs_path);
     // create a function that takes cst tokens in the import graph maker and creates a import graph
@@ -150,16 +219,25 @@ ImportUnit WorkspaceManager::get_import_unit(const std::string& abs_path, bool p
     // flatten the import graph and get lex result for each file
     auto flattened = ig.root.flatten_by_dedupe();
     // create and return import unit
-    ImportUnit unit;
+    LexImportUnit unit;
     for(const auto& flat : flattened) {
         unit.files.emplace_back(get_lexed(flat));
     }
+
+    // TODO we will not use cst symbol resolver (we aren't reporting the diagnostics from it)
+    // We are performing resolution because tokens must be linked to provide completion items
     CSTSymbolResolver resolver;
     resolver.resolve(&unit);
-    if(publish_diags) {
-        publish_diagnostics(abs_path, true, { &ig.root.errors, &result->diags, &resolver.diagnostics });
-    }
+
     return unit;
+}
+
+ASTImportUnit WorkspaceManager::get_ast_import_unit(const LexImportUnit& unit) {
+    std::vector<std::shared_ptr<ASTResult>> files;
+    for(auto& file : unit.files) {
+        files.emplace_back(get_ast(file->abs_path));
+    }
+    return { std::move(files) };
 }
 
 WorkspaceImportGraphImporter::WorkspaceImportGraphImporter(

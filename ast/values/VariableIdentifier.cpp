@@ -22,17 +22,18 @@ void VariableIdentifier::prepend_self(SymbolResolver &linker, std::unique_ptr<Ch
     value_ptr = std::make_unique<AccessChain>(std::move(values), nullptr, false, token);
 }
 
-void VariableIdentifier::link(SymbolResolver &linker, std::unique_ptr<ChainValue>& value_ptr, bool prepend) {
+bool VariableIdentifier::link(SymbolResolver &linker, std::unique_ptr<ChainValue>& value_ptr, bool prepend) {
     linked = linker.find(value);
     if(linked) {
         if(prepend && (linked->as_struct_member() || linked->as_unnamed_union() || linked->as_unnamed_struct())) {
             if(!linker.current_func_type) {
                 linker.error("couldn't link identifier with struct member / function, with name '" + value + '\'', this);
-                return;
+                return false;
             }
             auto self_param = linker.current_func_type->get_self_param();
             if(self_param) {
                 prepend_self(linker, value_ptr, self_param->name, self_param);
+                return true;
             } else {
                 auto decl = linker.current_func_type->as_function();
                 if(decl && decl->has_annotation(AnnotationKind::Constructor) && !decl->has_annotation(AnnotationKind::CompTime)) {
@@ -51,17 +52,20 @@ void VariableIdentifier::link(SymbolResolver &linker, std::unique_ptr<ChainValue
 //        }
         } else if(linked->as_namespace() && !can_link_with_namespace()){
             linker.error("cannot link identifier with namespace " + value + "', Please use '::' to link with namespace", this);
+        } else {
+            return true;
         }
     } else {
         linker.error("variable identifier '" + value + "' not found", this);
     }
+    return false;
 }
 
-void VariableIdentifier::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
-    link(linker, (std::unique_ptr<ChainValue> &) (value_ptr), true);
+bool VariableIdentifier::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
+    return link(linker, (std::unique_ptr<ChainValue> &) (value_ptr), true);
 }
 
-void VariableIdentifier::link(
+bool VariableIdentifier::link(
     SymbolResolver &linker,
     ChainValue *parent,
     std::vector<std::unique_ptr<ChainValue>> &values,
@@ -69,9 +73,9 @@ void VariableIdentifier::link(
     BaseType* expected_type
 ) {
     if(parent) {
-        find_link_in_parent(parent, linker);
+        return find_link_in_parent(parent, linker);
     } else {
-        link(linker, values[index], false);
+        return link(linker, values[index], false);
     }
 }
 
@@ -79,21 +83,23 @@ ASTNode* VariableIdentifier::linked_node() {
     return linked;
 }
 
-void VariableIdentifier::find_link_in_parent(ChainValue *parent, ASTDiagnoser *diagnoser) {
+bool VariableIdentifier::find_link_in_parent(ChainValue *parent, ASTDiagnoser *diagnoser) {
     auto linked_node = parent->linked_node();
     if(linked_node) {
         linked = linked_node->child(value);
+        return true;
     } else if (diagnoser){
         diagnoser->error("couldn't link child '" + value + "' because parent '" + parent->representation() + "' couldn't be resolved.", this);
     }
+    return false;
 }
 
 void VariableIdentifier::relink_parent(ChainValue *parent) {
     find_link_in_parent(parent, nullptr);
 }
 
-void VariableIdentifier::find_link_in_parent(ChainValue *parent, SymbolResolver &resolver) {
-    find_link_in_parent(parent, &resolver);
+bool VariableIdentifier::find_link_in_parent(ChainValue *parent, SymbolResolver &resolver) {
+    return find_link_in_parent(parent, &resolver);
 }
 
 Value *VariableIdentifier::child(InterpretScope &scope, const std::string &name) {
@@ -115,11 +121,19 @@ Value *VariableIdentifier::find_in(InterpretScope &scope, Value *parent) {
 }
 
 std::unique_ptr<BaseType> VariableIdentifier::create_type() {
-    return linked->create_value_type();
+    if(linked) {
+        return linked->create_value_type();
+    } else {
+        return nullptr;
+    }
 }
 
 hybrid_ptr<BaseType> VariableIdentifier::get_base_type() {
-    return linked->get_value_type();
+    if(linked) {
+        return linked->get_value_type();
+    } else {
+        return hybrid_ptr<BaseType> { nullptr, false };
+    }
 }
 
 bool VariableIdentifier::reference() {

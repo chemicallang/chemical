@@ -560,10 +560,11 @@ void FunctionCall::link_gen_args(SymbolResolver &linker) {
     }
 }
 
-void FunctionCall::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr) {
+bool FunctionCall::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr) {
     link_gen_args(linker);
     link_values(linker);
     link_args_implicit_constructor(linker);
+    return true;
 }
 
 std::unique_ptr<FunctionType> FunctionCall::create_function_type() {
@@ -674,7 +675,7 @@ void FunctionCall::relink_parent(ChainValue *parent) {
     parent_val = parent;
 }
 
-void FunctionCall::find_link_in_parent(ChainValue *parent, SymbolResolver &resolver, BaseType *expected_type) {
+bool FunctionCall::find_link_in_parent(ChainValue *parent, SymbolResolver &resolver, BaseType *expected_type) {
     parent_val = parent;
     FunctionDeclaration* func_decl = safe_linked_func();
     int16_t prev_itr;
@@ -692,10 +693,11 @@ void FunctionCall::find_link_in_parent(ChainValue *parent, SymbolResolver &resol
     if(func_decl && !func_decl->generic_params.empty()) {
         func_decl->set_active_iteration(prev_itr);
     }
+    return true;
 }
 
-void FunctionCall::find_link_in_parent(ChainValue *parent, SymbolResolver &resolver) {
-    find_link_in_parent(parent, resolver, nullptr);
+bool FunctionCall::find_link_in_parent(ChainValue *parent, SymbolResolver &resolver) {
+    return find_link_in_parent(parent, resolver, nullptr);
 }
 
 FunctionCall *FunctionCall::as_func_call() {

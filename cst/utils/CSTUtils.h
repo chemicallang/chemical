@@ -8,7 +8,7 @@
 #include "ast/base/AccessSpecifier.h"
 #include <optional>
 
-class ImportUnit;
+class LexImportUnit;
 
 class LexResult;
 
@@ -197,7 +197,7 @@ CSTToken* get_token_at_position(std::vector<CSTToken*>& tokens, const Position& 
  * will look for token in a lex result, and if found will return it, can be useful
  * to find which file a token belongs to, since lex result provides absolute path to it
  */
-LexResult* find_containing_file(ImportUnit* unit, CSTToken* token);
+LexResult* find_containing_file(LexImportUnit* unit, CSTToken* token);
 
 /**
  * it will provide token with parent and also a pointer to file
@@ -208,7 +208,7 @@ using token_parent_file = std::pair<LexResult*, token_with_parent>;
 /**
  * given a token, it'll find the file it belongs to and it's parent and index in it's parent
  */
-token_parent_file find_token_parent(ImportUnit* unit, CSTToken* token);
+token_parent_file find_token_parent(LexImportUnit* unit, CSTToken* token);
 
 /**
  * get the annotation token at index in annotation compound token

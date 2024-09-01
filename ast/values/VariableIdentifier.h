@@ -76,11 +76,11 @@ public:
 
     void prepend_self(SymbolResolver &linker, std::unique_ptr<ChainValue>& value_ptr, const std::string& name, ASTNode* linked);
 
-    void link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) override;
+    bool link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) override;
 
-    void link(SymbolResolver &linker, std::unique_ptr<ChainValue>& value_ptr, bool prepend);
+    bool link(SymbolResolver &linker, std::unique_ptr<ChainValue>& value_ptr, bool prepend);
 
-    void link(
+    bool link(
             SymbolResolver &linker,
             ChainValue *parent,
             std::vector<std::unique_ptr<ChainValue>> &values,
@@ -92,9 +92,9 @@ public:
 
     ASTNode *linked_node() override;
 
-    void find_link_in_parent(ChainValue *parent, ASTDiagnoser *diagnoser);
+    bool find_link_in_parent(ChainValue *parent, ASTDiagnoser *diagnoser);
 
-    void find_link_in_parent(ChainValue *parent, SymbolResolver &resolver) override;
+    bool find_link_in_parent(ChainValue *parent, SymbolResolver &resolver) override;
 
     bool primitive() override {
         return false;

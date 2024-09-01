@@ -131,7 +131,7 @@ ASTNode *ArrayValue::linked_node() {
     }
 }
 
-void ArrayValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr, BaseType *expected_type) {
+bool ArrayValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr, BaseType *expected_type) {
     if(elemType) {
         elemType->link(linker, elemType);
         const auto elem_type = element_type();
@@ -146,7 +146,7 @@ void ArrayValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr,
                 }
                 i++;
             }
-            return;
+            return true;
         }
     } else if(expected_type && expected_type->kind() == BaseTypeKind::Array) {
         const auto arr_type = (ArrayType*) expected_type;
@@ -157,10 +157,11 @@ void ArrayValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr,
         value->link(linker, this, i);
         i++;
     }
+    return true;
 }
 
-void ArrayValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
-    link(linker, value_ptr, nullptr);
+bool ArrayValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
+    return link(linker, value_ptr, nullptr);
 }
 
 std::unique_ptr<BaseType> ArrayValue::element_type() const {

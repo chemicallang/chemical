@@ -49,7 +49,7 @@ public:
 
     void declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode> &node_ptr) override;
 
-    void link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr) override;
+    bool link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr) override;
 
     Value* get_first_broken();
 

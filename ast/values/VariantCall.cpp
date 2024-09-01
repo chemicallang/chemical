@@ -163,7 +163,7 @@ void VariantCall::link_args_implicit_constructor(SymbolResolver &linker) {
     }
 }
 
-void VariantCall::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *expected_type) {
+bool VariantCall::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *expected_type) {
     // we've already linked chain, when variant call is created, access chain is checked, so no need to link
     for(auto& type : generic_list) {
         type->link(linker, type);
@@ -183,10 +183,11 @@ void VariantCall::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr
     if(!def->generic_params.empty()) {
         def->set_active_iteration(prev_itr);
     }
+    return true;
 }
 
-void VariantCall::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr) {
-    link(linker, value_ptr, nullptr);
+bool VariantCall::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr) {
+    return link(linker, value_ptr, nullptr);
 }
 
 std::unique_ptr<BaseType> VariantCall::create_type() {

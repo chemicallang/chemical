@@ -44,7 +44,7 @@ public:
         visitor->visit(this);
     }
 
-    void link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) override;
+    bool link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) override;
 
     ASTNode *linked_node() override;
 

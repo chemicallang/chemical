@@ -210,7 +210,7 @@ BaseDefMember::BaseDefMember(std::string name) : name(std::move(name)) {
 StructMember::StructMember(
         std::string name,
         std::unique_ptr<BaseType> type,
-        std::optional<std::unique_ptr<Value>> defValue,
+        std::unique_ptr<Value> defValue,
         ASTNode* parent_node,
         CSTToken* token
 ) : BaseDefMember(std::move(name)), type(std::move(type)), defValue(std::move(defValue)), parent_node(parent_node), token(token) {
@@ -230,9 +230,9 @@ hybrid_ptr<BaseType> StructMember::get_value_type() {
 }
 
 BaseDefMember *StructMember::copy_member() {
-    std::optional<std::unique_ptr<Value>> def_value = std::nullopt;
-    if(defValue.has_value()) {
-        def_value.emplace(defValue.value()->copy());
+    std::unique_ptr<Value> def_value = nullptr;
+    if(defValue) {
+        def_value.reset(defValue->copy());
     }
     return new StructMember(name, std::unique_ptr<BaseType>(type->copy()), std::move(def_value), parent_node, token);
 }
@@ -244,8 +244,8 @@ void StructMember::declare_top_level(SymbolResolver &linker, std::unique_ptr<AST
 void StructMember::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     linker.declare(name, this);
     type->link(linker, type);
-    if (defValue.has_value()) {
-        defValue.value()->link(linker, defValue.value());
+    if (defValue) {
+        defValue->link(linker, defValue);
     }
 }
 

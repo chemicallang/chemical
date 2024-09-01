@@ -785,7 +785,7 @@ void FunctionDeclaration::declare_and_link(SymbolResolver &linker, std::unique_p
     returnType->link(linker, returnType);
     if (body.has_value()) {
         if(has_annotation(AnnotationKind::Constructor) && !has_annotation(AnnotationKind::CompTime)) {
-            auto init = new VarInitStatement(true, "this", std::nullopt, std::make_unique<CastedValue>(std::make_unique<RetStructParamValue>(nullptr), std::make_unique<PointerType>(std::make_unique<ReferencedType>(parent_node->ns_node_identifier(), parent_node, nullptr), nullptr), nullptr), &body.value(), nullptr);
+            auto init = new VarInitStatement(true, "this", nullptr, std::make_unique<CastedValue>(std::make_unique<RetStructParamValue>(nullptr), std::make_unique<PointerType>(std::make_unique<ReferencedType>(parent_node->ns_node_identifier(), parent_node, nullptr), nullptr), nullptr), &body.value(), nullptr);
             body.value().nodes.insert(body.value().nodes.begin(), std::unique_ptr<VarInitStatement>(init));
         }
         body->link_sequentially(linker);

@@ -11,9 +11,9 @@ std::unique_ptr<BaseType> StringValue::create_type() {
 }
 
 void StringValue::link(SymbolResolver &linker, VarInitStatement *stmnt) {
-    if(stmnt->type.has_value() && stmnt->type.value()->kind() == BaseTypeKind::Array) {
+    if(stmnt->type && stmnt->type->kind() == BaseTypeKind::Array) {
         is_array = true;
-        auto arrayType = (ArrayType*) (stmnt->type.value().get());
+        auto arrayType = (ArrayType*) (stmnt->type.get());
         if(arrayType->array_size > (int) value.size()) {
             length = arrayType->array_size;
         } else if(arrayType->array_size == -1) {

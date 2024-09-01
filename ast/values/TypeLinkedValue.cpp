@@ -11,7 +11,7 @@
 #include "ast/values/IntValue.h"
 
 void TypeLinkedValue::link(SymbolResolver &linker, VarInitStatement *stmnt) {
-    link(linker, stmnt->value.value(), stmnt->type.has_value() ? stmnt->type->get() : nullptr);
+    link(linker, stmnt->value, stmnt->type ? stmnt->type.get() : nullptr);
 }
 
 void TypeLinkedValue::link(SymbolResolver &linker, AssignStatement *stmnt, bool lhs) {

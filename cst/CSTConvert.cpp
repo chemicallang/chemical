@@ -625,8 +625,8 @@ void CSTConverter::visitVarInit(CSTToken* varInit) {
     auto init = new VarInitStatement(
             is_var_init_const(varInit),
             var_init_identifier(varInit),
-            std::nullopt,
-            std::nullopt,
+            nullptr,
+            nullptr,
             parent_node,
             varInit
     );
@@ -634,21 +634,21 @@ void CSTConverter::visitVarInit(CSTToken* varInit) {
     parent_node = init;
     if(is_char_op(varInit->tokens[2], ':')) {
         varInit->tokens[3]->accept(this);
-        init->type.emplace(type());
+        init->type = type();
     }
     auto token = varInit->tokens[varInit->tokens.size() - 1];
     if(token->is_value()) {
-        if(init->type.has_value() && init->type.value()->kind() == BaseTypeKind::IntN && token->type() == LexTokenType::Number) {
+        if(init->type && init->type->kind() == BaseTypeKind::IntN && token->type() == LexTokenType::Number) {
             // This statement leads to a warning "memory leak", we set the pointer to optVal which is a unique_ptr
-            auto conv = convertNumber((NumberToken*) token, init->type.value()->value_type(), is64Bit);
+            auto conv = convertNumber((NumberToken*) token, init->type->value_type(), is64Bit);
             if(conv) {
-                init->value.emplace(conv);
+                init->value.reset(conv);
             } else {
                 error("invalid number for the expected type", token);
             }
         } else {
             token->accept(this);
-            init->value.emplace(value());
+            init->value = value();
         }
     }
 
@@ -1083,7 +1083,7 @@ unsigned int collect_struct_members(
                 const auto node = (VarInitStatement *) conv->pop_last_node();
                 const auto thing = new StructMember(
                         node->identifier,
-                        std::move(node->type.value()),
+                        std::move(node->type),
                         std::move(node->value),
                         conv->parent_node,
                         token

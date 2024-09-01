@@ -20,8 +20,8 @@ public:
     bool is_const;
     InterpretScope *decl_scope = nullptr;
     std::string identifier; ///< The identifier being initialized.
-    std::optional<std::unique_ptr<BaseType>> type;
-    std::optional<std::unique_ptr<Value>> value; ///< The value being assigned to the identifier.
+    std::unique_ptr<BaseType> type;
+    std::unique_ptr<Value> value; ///< The value being assigned to the identifier.
     ASTNode* parent_node;
     CSTToken* token;
 
@@ -34,8 +34,8 @@ public:
     VarInitStatement(
             bool is_const,
             std::string identifier,
-            std::optional<std::unique_ptr<BaseType>> type,
-            std::optional<std::unique_ptr<Value>> value,
+            std::unique_ptr<BaseType> type,
+            std::unique_ptr<Value> value,
             ASTNode* parent_node,
             CSTToken* token
     );
@@ -59,7 +59,7 @@ public:
     void accept(Visitor *visitor) override;
 
     Value* holding_value() override {
-        return value.has_value() ? value.value().get() : nullptr;
+        return value ? value.get() : nullptr;
     }
 
     BaseType* known_type() override;

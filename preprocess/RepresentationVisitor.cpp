@@ -208,13 +208,13 @@ void RepresentationVisitor::visit(VarInitStatement *init) {
         write("var ");
     }
     write(init->identifier);
-    if (init->type.has_value()) {
+    if (init->type) {
         write(" : ");
-        init->type.value()->accept(this);
+        init->type->accept(this);
     }
-    if (init->value.has_value()) {
+    if (init->value) {
         write(" = ");
-        init->value.value()->accept(this);
+        init->value->accept(this);
     }
 }
 
@@ -472,9 +472,9 @@ void RepresentationVisitor::visit(StructMember *member) {
     write(member->name);
     write(" : ");
     member->type->accept(this);
-    if (member->defValue.has_value()) {
+    if (member->defValue) {
         write(" = ");
-        member->defValue.value()->accept(this);
+        member->defValue->accept(this);
     }
     write(';');
 }

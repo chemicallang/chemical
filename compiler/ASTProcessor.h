@@ -12,6 +12,7 @@
 #include "compiler/lab/LabModule.h"
 #include "compiler/lab/LabBuildContext.h"
 #include "utils/Benchmark.h"
+#include "ast/base/ASTUnit.h"
 
 class Lexer;
 
@@ -28,7 +29,7 @@ class ToCAstVisitor;
  */
 struct ASTImportResult {
 
-    Scope scope;
+    ASTUnit unit;
     bool continue_processing;
     bool is_c_file;
 
@@ -65,7 +66,7 @@ public:
      * This Allows caching files in a module that have been processed to be imported by other modules that depend on it
      *
      */
-    std::unordered_map<std::string, std::vector<std::unique_ptr<ASTNode>>> shrinked_nodes;
+    std::unordered_map<std::string, ASTUnit> shrinked_unit;
 
     /**
      * compiler binder that will be used through out processing
@@ -157,7 +158,7 @@ public:
      */
     void shrink_nodes(
         ShrinkingVisitor& visitor,
-        Scope& import_res,
+        ASTUnit unit,
         const FlatIGFile& file
     );
 

@@ -10,6 +10,7 @@
 #include "utils/fwd/functional.h"
 #include "ast/base/GlobalInterpretScope.h"
 #include "ast/base/Annotation.h"
+#include "ast/base/ASTUnit.h"
 
 #include <memory>
 #include <vector>
@@ -76,9 +77,14 @@ public:
     bool keep_disposing = false;
 
     /**
-     * nodes found when visiting tokens
+     * top level nodes
      */
     std::vector<std::unique_ptr<ASTNode>> nodes;
+
+    /**
+     * the nested nodes, nodes of nested scopes are put on this vector without any organization
+     */
+    std::vector<std::unique_ptr<ASTNode>> nested_nodes;
 
     /**
      * types found when visiting tokens
@@ -168,6 +174,11 @@ public:
      * pop the last value from values vector
      */
     inline Value* pop_last_value();
+
+    /**
+     * Take the ast unit
+     */
+    ASTUnit take_unit();
 
     /**
      * visit the tokens, from start to end

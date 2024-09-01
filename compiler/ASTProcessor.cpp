@@ -184,24 +184,30 @@ void ASTProcessor::print_benchmarks(std::ostream& stream, const std::string& TAG
 ASTImportResultExt ASTProcessor::import_file(const FlatIGFile& file) {
 
     auto& abs_path = file.abs_path;
-    Scope scope(nullptr, nullptr);
+
     auto is_c_file = abs_path.ends_with(".h") || abs_path.ends_with(".c");
 
     std::ostringstream out;
 
     if (is_c_file) {
 
+        ASTUnit unit;
+
         if (options->verbose) {
             out << "[IGGraph] Translating C " << abs_path << '\n';
         }
 
 #if defined(COMPILER_BUILD) && defined(CLANG_LIBS)
-        scope.nodes = TranslateC(options->exe_path.c_str(), abs_path.c_str(), options->resources_path.c_str());
+        unit.scope.nodes = TranslateC(options->exe_path.c_str(), abs_path.c_str(), options->resources_path.c_str());
 #else
         throw std::runtime_error("cannot translate c file as clang api is not available");
 #endif
 
+        return { std::move(unit), true, true, std::move(out.str()) };
+
     } else {
+
+        ASTUnit unit;
 
         if (options->verbose) {
             out << "[IGGraph] Begin Compilation " << abs_path << '\n';
@@ -230,7 +236,7 @@ ASTImportResultExt ASTProcessor::import_file(const FlatIGFile& file) {
             printTokens(lexer.unit.tokens);
         }
         if (lexer.has_errors) {
-            return { Scope { nullptr, nullptr },false, is_c_file, std::move(out.str()) };
+            return { std::move(unit), false, is_c_file, std::move(out.str()) };
         }
 
         // convert the tokens
@@ -249,14 +255,14 @@ ASTImportResultExt ASTProcessor::import_file(const FlatIGFile& file) {
         for (const auto &err: converter.diagnostics) {
             err.ansi(std::cerr, abs_path, "Converter") << std::endl;
         }
-        scope.nodes = std::move(converter.nodes);
+        unit.scope.nodes = std::move(converter.nodes);
         if (options->print_representation) {
-            out << "[Representation]\n" << scope.representation() << '\n';
+            out << "[Representation]\n" << unit.scope.representation() << '\n';
         }
 
-    }
+        return { std::move(unit), true, true, std::move(out.str()) };
 
-    return { std::move(scope), true, is_c_file, std::move(out.str()) };
+    }
 
 }
 
@@ -291,11 +297,11 @@ void ASTProcessor::translate_to_c(
 
 void ASTProcessor::shrink_nodes(
         ShrinkingVisitor& shrinker,
-        Scope& result,
+        ASTUnit unit,
         const FlatIGFile& file
 ) {
-    shrinker.visit(result.nodes);
-    shrinked_nodes[file.abs_path] = std::move(result.nodes);
+    shrinker.visit(unit.scope.nodes);
+    shrinked_unit[file.abs_path] = std::move(unit);
 }
 
 void ASTProcessor::end() {

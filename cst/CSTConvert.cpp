@@ -361,6 +361,15 @@ Value* CSTConverter::pop_last_value() {
     return last;
 }
 
+ASTUnit CSTConverter::take_unit() {
+    ASTUnit unit;
+    unit.scope.nodes = std::move(nodes);
+    unit.types = std::move(types);
+    unit.values = std::move(values);
+    unit.nested_nodes = std::move(nested_nodes);
+    return unit;
+}
+
 std::unique_ptr<BaseType> CSTConverter::type() {
 #ifdef DEBUG
     if(types.empty()) {

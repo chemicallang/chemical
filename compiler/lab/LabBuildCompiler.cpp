@@ -288,11 +288,12 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
 
         // send all files for concurrent processing (lex and parse)
         std::vector<std::future<ASTImportResultExt>> futures;
+        futures.reserve(flat_imports.size());
         i = 0;
         for(const auto& file : flat_imports) {
-            auto already_imported = processor.shrinked_nodes.find(file.abs_path);
-            if(already_imported == processor.shrinked_nodes.end()) {
-                futures.push_back(pool.push(concurrent_processor, i, file, &processor));
+            auto already_imported = processor.shrinked_unit.find(file.abs_path);
+            if(already_imported == processor.shrinked_unit.end()) {
+                futures.emplace_back(pool.push(concurrent_processor, i, file, &processor));
                 i++;
             }
         }
@@ -308,17 +309,16 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
             c_visitor.prepare_translate();
         }
 
-        ASTImportResultExt result { Scope { nullptr, nullptr }, false, false, "" };
+        ASTImportResultExt result { ASTUnit(), false, false, "" };
 
         // sequentially compile each file
         i = 0;
         for(const auto& file : flat_imports) {
 
-            auto imported = processor.shrinked_nodes.find(file.abs_path);
-            bool already_imported = imported != processor.shrinked_nodes.end();
+            auto imported = processor.shrinked_unit.find(file.abs_path);
+            bool already_imported = imported != processor.shrinked_unit.end();
             // already imported
             if(already_imported) {
-                result.scope.nodes = std::move(imported->second);
                 result.continue_processing = true;
                 result.is_c_file = false;
             } else {
@@ -330,6 +330,8 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                 }
             }
 
+            ASTUnit& unit = already_imported ? imported->second : result.unit;
+
             // print the benchmark or verbose output received from processing
             if((options->benchmark || options->verbose) && !result.cli_out.empty()) {
                 std::cout << rang::style::bold << rang::fg::magenta << "[Processing] " << file.abs_path << rang::fg::reset << rang::style::reset << '\n';
@@ -338,7 +340,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
 
             // symbol resolution
             if(!already_imported) {
-                processor.sym_res(result.scope, result.is_c_file, file.abs_path);
+                processor.sym_res(unit.scope, result.is_c_file, file.abs_path);
                 if (resolver.has_errors) {
                     compile_result = 1;
                     break;
@@ -350,12 +352,12 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                 // reset the c visitor to use with another file
                 c_visitor.reset();
                 // translating to c
-                processor.translate_to_c(c_visitor, result.scope, file);
+                processor.translate_to_c(c_visitor, unit.scope, file);
             }
 #ifdef COMPILER_BUILD
             else {
                 // compiling the nodes
-                processor.compile_nodes(&gen, result.scope, file);
+                processor.compile_nodes(&gen, unit.scope, file);
             }
 #endif
 
@@ -363,9 +365,10 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                 if(options->verbose) {
                     std::cout << rang::fg::magenta << "[Shrinking] " << file.abs_path << rang::fg::reset << std::endl;
                 }
-                processor.shrink_nodes(shrinker, result.scope, file);
-                i++;
+                processor.shrink_nodes(shrinker, std::move(result.unit), file);
             }
+
+            i++;
 
         }
 
@@ -559,7 +562,7 @@ int LabBuildCompiler::do_to_c_job(LabJob* job) {
             visitor.reset();
 
             // perform symbol resolution
-            processor.sym_res(result.scope, result.is_c_file, file.abs_path);
+            processor.sym_res(result.unit.scope, result.is_c_file, file.abs_path);
             if (resolver.has_errors) {
                 compile_result = 1;
                 break;
@@ -567,10 +570,10 @@ int LabBuildCompiler::do_to_c_job(LabJob* job) {
             resolver.reset_errors();
 
             // translating
-            processor.translate_to_c(visitor, result.scope, file);
+            processor.translate_to_c(visitor, result.unit.scope, file);
 
             // shrinking the nodes
-            processor.shrink_nodes(shrinker, result.scope, file);
+            processor.shrink_nodes(shrinker, std::move(result.unit), file);
 
             i++;
         }
@@ -672,7 +675,7 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
             }
 
             // symbol resolution
-            lab_processor.sym_res(result.scope, result.is_c_file, file.abs_path);
+            lab_processor.sym_res(result.unit.scope, result.is_c_file, file.abs_path);
             if (lab_resolver.has_errors) {
                 compile_result = false;
                 break;
@@ -712,11 +715,11 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
                     }
                     // put every imported file in it's own namespace so build methods don't clash
                     auto ns = new Namespace(file.as_identifier, nullptr, nullptr);
-                    for (auto &node: result.scope.nodes) {
+                    for (auto &node: result.unit.scope.nodes) {
                         node->set_parent(ns);
                     }
-                    ns->nodes = std::move(result.scope.nodes);
-                    result.scope.nodes.emplace_back(ns);
+                    ns->nodes = std::move(result.unit.scope.nodes);
+                    result.unit.scope.nodes.emplace_back(ns);
                 }
             }
 
@@ -724,10 +727,10 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
             c_visitor.reset();
 
             // translate build.lab file to c
-            lab_processor.translate_to_c(c_visitor, result.scope, file);
+            lab_processor.translate_to_c(c_visitor, result.unit.scope, file);
 
             // shrinking the nodes
-            lab_processor.shrink_nodes(shrinker, result.scope, file);
+            lab_processor.shrink_nodes(shrinker, std::move(result.unit), file);
 
             i++;
         }

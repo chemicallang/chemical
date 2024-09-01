@@ -1,6 +1,7 @@
 // Copyright (c) Qinetik 2024.
 
 #include "ASTNode.h"
+#include "ASTUnit.h"
 #include "BaseType.h"
 #include "Value.h"
 #include "preprocess/RepresentationVisitor.h"
@@ -128,3 +129,7 @@ hybrid_ptr<BaseType> ASTNode::get_value_type() {
 }
 
 ASTNode::~ASTNode() = default;
+
+ASTUnit::ASTUnit() : scope(nullptr, nullptr) {}
+
+ASTUnit::~ASTUnit() = default;

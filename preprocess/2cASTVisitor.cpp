@@ -2376,11 +2376,15 @@ void ToCAstVisitor::reset() {
 ToCAstVisitor::~ToCAstVisitor() = default;
 
 void ToCAstVisitor::visitCommon(ASTNode *node) {
+#ifdef DEBUG
     throw std::runtime_error("visitor common node called in 2c ASTVisitor");
+#endif
 }
 
 void ToCAstVisitor::visitCommonValue(Value *value) {
+#ifdef DEBUG
     throw std::runtime_error("visitor common value called in 2c ASTVisitor");
+#endif
 }
 
 void ToCAstVisitor::write(char value) {

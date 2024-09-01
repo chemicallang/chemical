@@ -222,7 +222,6 @@ ASTImportResultExt ASTProcessor::import_file(const FlatIGFile& file) {
         }
 
         CSTConverter converter(file.abs_path, options->is64Bit, options->target_triple);
-        converter.no_imports = true;
         converter.isCBIEnabled = options->isCBIEnabled;
         converter.convert(lexer.unit.tokens);
         if(options->benchmark) {

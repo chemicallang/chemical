@@ -13,7 +13,11 @@ ValueType ReferencedType::value_type() const {
 }
 
 BaseType* ReferencedType::pure_type() {
-    return linked->known_type();
+    if(linked) {
+        return linked->known_type();
+    } else {
+        return nullptr;
+    }
 }
 
 bool ReferencedType::satisfies(ValueType value_type) {

@@ -578,6 +578,12 @@ void BaseFunctionParam::declare_and_link(SymbolResolver &linker, std::unique_ptr
     type->link(linker, type);
 }
 
+void BaseFunctionParam::redeclare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode> &node_ptr) {
+    if(!name.empty()) {
+        linker.declare(name, this);
+    }
+}
+
 ASTNode *BaseFunctionParam::child(const std::string &name) {
     return type->linked_node()->child(name);
 }
@@ -780,7 +786,10 @@ void FunctionDeclaration::declare_and_link(SymbolResolver &linker, std::unique_p
         gen_param->declare_and_link(linker, (std::unique_ptr<ASTNode>&) gen_param);
     }
     for (auto &param: params) {
-        param->declare_and_link(linker, (std::unique_ptr<ASTNode>&) param);
+        linker.declare(param->name, param.get());
+        if(param->defValue) {
+            param->defValue->link(linker, param->defValue);
+        }
     }
     returnType->link(linker, returnType);
     if (body.has_value()) {

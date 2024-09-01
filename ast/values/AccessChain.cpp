@@ -78,11 +78,12 @@ bool AccessChain::link(SymbolResolver &linker, BaseType *expected_type, std::uni
         }
 
         // if second value is linked with a variant member, we replace the access chain, with variant call
-        if(values[1]->as_identifier()) {
+        if(value_ptr && values[1]->as_identifier()) {
             linked = values[1]->linked_node();
-            if (linked && linked->as_variant_member() && value_ptr) {
+            if (linked && linked->as_variant_member()) {
                 auto& chain = *value_ptr;
-                chain = std::make_unique<VariantCall>(std::unique_ptr<AccessChain>((AccessChain*) chain.release()), token);
+                const auto ac_chain = (AccessChain*) chain.release();
+                chain = std::make_unique<VariantCall>(std::unique_ptr<AccessChain>(ac_chain), token);
                 ((std::unique_ptr<VariantCall>&) chain)->link(linker, chain, expected_type);
                 return true;
             }

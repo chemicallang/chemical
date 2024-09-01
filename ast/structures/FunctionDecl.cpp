@@ -56,13 +56,13 @@ llvm::Type *BaseFunctionParam::llvm_elem_type(Codegen &gen) {
             if (ptr_type) {
                 return ptr_type->type->llvm_type(gen);
             } else {
-                gen.error("type is not a pointer type for parameter " + name);
+                gen.error("type is not a pointer type for parameter " + name, this);
             }
         } else {
-            gen.error("type is not an array / pointer for parameter " + name);
+            gen.error("type is not an array / pointer for parameter " + name, this);
         }
     } else {
-        gen.error("parameter type is invalid " + name);
+        gen.error("parameter type is invalid " + name, this);
     }
     return nullptr;
 }
@@ -70,14 +70,14 @@ llvm::Type *BaseFunctionParam::llvm_elem_type(Codegen &gen) {
 llvm::Value *BaseFunctionParam::llvm_pointer(Codegen &gen) {
     auto index = calculate_c_or_llvm_index();
     if(index > gen.current_function->arg_size()) {
-        gen.error("couldn't get argument with name " + name + " since function has " + std::to_string(gen.current_function->arg_size()) + " arguments");
+        gen.error("couldn't get argument with name " + name + " since function has " + std::to_string(gen.current_function->arg_size()) + " arguments", this);
         return nullptr;
     }
     auto arg = gen.current_function->getArg(index);
     if (arg) {
         return arg;
     } else {
-        gen.error("couldn't get argument with name " + name);
+        gen.error("couldn't get argument with name " + name, this);
         return nullptr;
     }
 }
@@ -86,7 +86,7 @@ llvm::Value *BaseFunctionParam::llvm_load(Codegen &gen) {
     if (gen.current_function != nullptr) {
         return llvm_pointer(gen);
     } else {
-        gen.error("cannot provide pointer to a function parameter when not generating code for a function");
+        gen.error("cannot provide pointer to a function parameter when not generating code for a function", this);
     }
     return nullptr;
 }

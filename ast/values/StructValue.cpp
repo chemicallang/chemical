@@ -19,7 +19,7 @@ void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen) {
     for (const auto &value: values) {
         auto variable = definition->variable_type_index(value.first);
         if (variable.first == -1) {
-            gen.error("couldn't get struct child " + value.first + " in definition with name " + definition->name);
+            gen.error("couldn't get struct child " + value.first + " in definition with name " + definition->name, this);
         } else {
             std::vector<llvm::Value*> idx {gen.builder->getInt32(0)};
             value.second->store_in_struct(gen, this, inst, parent_type, idx, variable.first, variable.second);
@@ -61,7 +61,7 @@ unsigned int StructValue::store_in_struct(
     if (index == -1) {
         gen.error(
                 "can't store struct value '" + representation() + "' into parent struct value '" + parent->representation() + "' with an unknown index" +
-                " where current definition name '" + definition->name + "'");
+                " where current definition name '" + definition->name + "'", this);
         return index + values.size();
     }
     const auto interface = expected_type ? expected_type->linked_dyn_interface() : nullptr;
@@ -69,7 +69,7 @@ unsigned int StructValue::store_in_struct(
         auto elementPtr = Value::get_element_pointer(gen, allocated_type, allocated, idxList, index);
         const auto struct_alloc = llvm_allocate(gen, "", nullptr);
         if(!gen.assign_dyn_obj(this, expected_type, elementPtr, struct_alloc)) {
-            gen.error("couldn't assign dyn object struct " + representation() + " to expected type " + expected_type->representation() + " in parent " + parent->representation());
+            gen.error("couldn't assign dyn object struct " + representation() + " to expected type " + expected_type->representation() + " in parent " + parent->representation(), this);
         }
     } else {
         const auto parent_type = llvm_type(gen);
@@ -93,7 +93,7 @@ unsigned int StructValue::store_in_array(
     if (index == -1) {
         gen.error(
                 "can't store struct value " + representation() + " array value " + ((Value*) parent)->representation() + " with an unknown index" +
-                " where current definition name " + definition->name);
+                " where current definition name " + definition->name, this);
         return index + 1;
     }
     const auto interface = expected_type ? expected_type->linked_dyn_interface() : nullptr;
@@ -101,7 +101,7 @@ unsigned int StructValue::store_in_array(
         auto elementPtr = Value::get_element_pointer(gen, ((Value*) parent)->llvm_type(gen), ptr, idxList, index);
         const auto struct_alloc = llvm_allocate(gen, "", nullptr);
         if(!gen.assign_dyn_obj(this, expected_type, elementPtr, struct_alloc)) {
-            gen.error("couldn't assign dyn object struct " + representation() + " to expected type " + expected_type->representation() + " in parent " + ((Value*) parent)->representation());
+            gen.error("couldn't assign dyn object struct " + representation() + " to expected type " + expected_type->representation() + " in parent " + ((Value*) parent)->representation(), this);
         }
     } else {
         idxList.emplace_back(gen.builder->getInt32(index));
@@ -210,7 +210,7 @@ void StructValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr
         if (struct_def) {
             definition = struct_def;
             if(definition->has_constructor() && !definition->is_direct_init) {
-                linker.error("struct value with a constructor cannot be initialized, name '" + definition->name + "' has a constructor");
+                linker.error("struct value with a constructor cannot be initialized, name '" + definition->name + "' has a constructor", this);
                 return;
             }
             for(auto& arg : generic_list) {
@@ -240,10 +240,10 @@ void StructValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr
                 definition->set_active_iteration(prev_itr);
             }
         } else {
-            linker.error("given struct name is not a struct definition : " + ref->representation());
+            linker.error("given struct name is not a struct definition : " + ref->representation(), this);
         }
     } else {
-        linker.error("couldn't find struct definition for struct name " + ref->representation());
+        linker.error("couldn't find struct definition for struct name " + ref->representation(), this);
     };
 }
 

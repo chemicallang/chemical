@@ -57,7 +57,7 @@ llvm::Value* packed_lambda_val(Codegen& gen, LambdaFunction* lambda) {
 
 llvm::Value *LambdaFunction::llvm_value(Codegen &gen, BaseType* expected_type) {
     if(func_ptr) {
-        gen.error("llvm_value called multiple times on LambdaFunction");
+        gen.error("llvm_value called multiple times on LambdaFunction", (Value*) this);
     }
     func_ptr = gen.create_nested_function("lambda", FunctionType::llvm_func_type(gen), this, scope);
     if(!captureList.empty()) {
@@ -160,9 +160,9 @@ void link_given_params(SymbolResolver& resolver, const std::vector<std::unique_p
     }
 }
 
-void copy_func_params_types(const std::vector<std::unique_ptr<FunctionParam>>& from_params, std::vector<std::unique_ptr<FunctionParam>>& to_params, SymbolResolver& resolver) {
+void copy_func_params_types(const std::vector<std::unique_ptr<FunctionParam>>& from_params, std::vector<std::unique_ptr<FunctionParam>>& to_params, SymbolResolver& resolver, Value* debug_value) {
     if(to_params.size() > from_params.size()) {
-        resolver.error("Lambda function type expects " + std::to_string(from_params.size()) + " however given " + std::to_string(to_params.size()));
+        resolver.error("Lambda function type expects " + std::to_string(from_params.size()) + " however given " + std::to_string(to_params.size()), debug_value);
         return;
     }
     auto total = from_params.size();
@@ -176,7 +176,7 @@ void copy_func_params_types(const std::vector<std::unique_ptr<FunctionParam>>& f
         if(!to_param->type) {
             to_param->type = std::unique_ptr<BaseType>(from_param->type->copy());
         } else if(!to_param->type->is_same(from_param->type.get())) {
-            resolver.error("Lambda function param at index " + std::to_string(start) + " with type " + from_param->type->representation() + ", redeclared with type " + to_param->type->representation());
+            resolver.error("Lambda function param at index " + std::to_string(start) + " with type " + from_param->type->representation() + ", redeclared with type " + to_param->type->representation(), debug_value);
         }
         start++;
     }
@@ -184,11 +184,11 @@ void copy_func_params_types(const std::vector<std::unique_ptr<FunctionParam>>& f
 
 void LambdaFunction::link(SymbolResolver &linker, FunctionType* func_type) {
     link_given_params(linker, params);
-    copy_func_params_types(func_type->params, params, linker);
+    copy_func_params_types(func_type->params, params, linker, this);
     if(!returnType) {
         returnType = std::unique_ptr<BaseType>(func_type->returnType->copy());
     } else if(!returnType->is_same(func_type->returnType.get())) {
-        linker.error("Lambda function type expected return type to be " + func_type->returnType->representation() + " but got lambda with return type " + returnType->representation());
+        linker.error("Lambda function type expected return type to be " + func_type->returnType->representation() + " but got lambda with return type " + returnType->representation(), (Value*) this);
     }
     isCapturing = func_type->isCapturing;
 }
@@ -230,7 +230,7 @@ void LambdaFunction::link(SymbolResolver &linker, FunctionCall *call, unsigned i
     auto paramType = linkedType->function_type()->func_param_for_arg_at(index)->create_value_type()->copy();
 
     if(paramType->function_type() == nullptr) {
-        linker.error("cannot pass a lambda, because the function expects a different type : " + paramType->representation() + " for parameter at " + std::to_string(index));
+        linker.error("cannot pass a lambda, because the function expects a different type : " + paramType->representation() + " for parameter at " + std::to_string(index), (Value*) this);
         return;
     }
 
@@ -247,7 +247,7 @@ void LambdaFunction::link(SymbolResolver &linker, ReturnStatement *returnStmt) {
     if(returnStmt->func_type != nullptr) {
         auto retType = returnStmt->func_type->returnType->copy();
         if(retType->function_type() == nullptr) {
-            linker.error("cannot return lambda, return type of a function is not a function");
+            linker.error("cannot return lambda, return type of a function is not a function", (Value*) this);
             return;
         }
         link(linker, retType->function_type());

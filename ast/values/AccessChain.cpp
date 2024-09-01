@@ -40,7 +40,7 @@ void AccessChain::link(SymbolResolver &linker, BaseType *expected_type, std::uni
     auto linked = values[0]->linked_node();
     if(linked && (linked->as_struct_member() || linked->as_unnamed_union() || linked->as_unnamed_struct())) {
         if (!linker.current_func_type) {
-            linker.error("couldn't link identifier with struct member / function, with name '" + values[0]->representation() + '\'');
+            linker.error("couldn't link identifier with struct member / function, with name '" + values[0]->representation() + '\'', values[0].get());
             return;
         }
         auto self_param = linker.current_func_type->get_self_param();
@@ -57,10 +57,10 @@ void AccessChain::link(SymbolResolver &linker, BaseType *expected_type, std::uni
                     self_id->linked = found;
                     values.insert(values.begin(), std::unique_ptr<ChainValue>(self_id));
                 } else {
-                    linker.error("couldn't find this in constructor for linking identifier '" + values[0]->representation() + "'");
+                    linker.error("couldn't find this in constructor for linking identifier '" + values[0]->representation() + "'", values[0].get());
                 }
             } else {
-                linker.error("couldn't link identifier '" + values[0]->representation() + "', because function doesn't take a self argument");
+                linker.error("couldn't link identifier '" + values[0]->representation() + "', because function doesn't take a self argument", values[0].get());
             }
         }
     }

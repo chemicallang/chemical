@@ -72,6 +72,7 @@
 #include <llvm/Transforms/Utils/CanonicalizeAliases.h>
 #include <llvm/Transforms/Utils/NameAnonGlobals.h>
 #include <llvm-c/Core.h>
+#include "rang.hpp"
 
 Codegen::Codegen(
         std::vector<std::unique_ptr<ASTNode>> nodes,
@@ -385,7 +386,7 @@ llvm::Value* Codegen::get_dyn_obj_impl(Value* value, BaseType* type) {
             if(found != nullptr) {
                 return found;
             } else {
-                error("couldn't find the implementation of struct '" + def->name + "' using value '" + value->representation() + "' for interface '" + interface->name + "'");
+                error("couldn't find the implementation of struct '" + def->name + "' using value '" + value->representation() + "' for interface '" + interface->name + "'", value);
             }
         } else {
 #ifdef DEBUG
@@ -526,7 +527,7 @@ TargetMachine * Codegen::setup_for_target(const std::string &TargetTriple) {
     // This generally occurs if we've forgotten to initialise the
     // TargetRegistry or we have a bogus target triple.
     if (!Target) {
-        error(Error);
+        std::cerr << rang::fg::red << "error with target lookup: " << Error << rang::fg::reset << std::endl;
         return nullptr;
     }
 
@@ -800,7 +801,9 @@ void configure_emitter_opts(OutputMode mode, CodegenEmitterOptions* options) {
 bool Codegen::save_with_options(CodegenEmitterOptions* options) {
     char* error_message = nullptr;
     bool result = save_as_file_type(this, options, &error_message);
-    if(error_message) error(error_message);
+    if(error_message) {
+        std::cerr << rang::fg::red << "error: " << error_message << ", when emitting files" << rang::fg::reset << std::endl;
+    }
     return result;
 }
 

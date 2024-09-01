@@ -334,8 +334,9 @@ void StructDefinition::declare_and_link(SymbolResolver &linker, std::unique_ptr<
     MembersContainer::declare_and_link(linker, node_ptr);
     register_use_to_inherited_interfaces(this);
     if(!has_destructor && requires_destructor()) {
-        if(contains_func("delete")) {
-            linker.error("default destructor is created by name 'delete' , a function by name 'delete' already exists in struct '" + name + "', please create a destructor by hand if you'd like to reserve 'delete' for your own usage");
+        auto delFunc = direct_child_function("delete");
+        if(delFunc) {
+            linker.error("default destructor is created by name 'delete' , a function by name 'delete' already exists in struct '" + name + "', please create a destructor by hand if you'd like to reserve 'delete' for your own usage", (AnnotableNode*) delFunc);
             return;
         }
         create_destructor();

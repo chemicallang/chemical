@@ -596,7 +596,7 @@ Value* evaluate_comptime_func(
     Value* eval;
     auto value = std::unique_ptr<Value>(func_decl->call(&visitor->comptime_scope, call, nullptr, false));
     if(!value) {
-        visitor->error("comptime function call didn't return anything");
+        visitor->error("comptime function call didn't return anything", call);
         return nullptr;
     }
     auto eval_call = value->create_evaluated_value(visitor->comptime_scope);
@@ -3294,7 +3294,7 @@ void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<ChainValue>>&
         if(func_type->has_self_param()) {
             if(grandpa) {
                 if (chain_contains_func_call(values, start, end - 2)) {
-                    visitor->error("Function call inside a access chain with lambda that requires self is not allowed");
+                    visitor->error("Function call inside a access chain with lambda that requires self is not allowed", values[start].get());
                     return;
                 }
                 if (end - 3 >= 0 && values[end - 3]->value_type() != ValueType::Pointer) {
@@ -3306,7 +3306,7 @@ void func_call(ToCAstVisitor* visitor, std::vector<std::unique_ptr<ChainValue>>&
                 if(self_arg) {
                     visitor->write(self_arg->name);
                 } else {
-                    visitor->error("couldn't pass self arg where current function has none.");
+                    visitor->error("couldn't pass self arg where current function has none.", values[start].get());
                 }
             }
             if (!last->values.empty()) {

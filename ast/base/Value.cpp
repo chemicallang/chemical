@@ -192,7 +192,7 @@ llvm::Value* ChainValue::access_chain_pointer(
         } else {
             if (!values[i]->add_member_index(gen, values[i - 1].get(), idxList)) {
                 gen.error("couldn't add member index for fragment '" + values[i]->representation() +
-                          "' in access chain '" + representation() + "'");
+                          "' in access chain '" + representation() + "'", values[i].get());
             }
         }
         i++;

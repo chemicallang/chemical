@@ -26,21 +26,6 @@ public:
 
     void error(const std::string &err, ASTAny* node);
 
-    [[deprecated]]
-    void info(const std::string &msg) {
-        diagnostic(msg, DiagSeverity::Information);
-    }
-
-    [[deprecated]]
-    void warn(const std::string &msg) {
-        diagnostic(msg, DiagSeverity::Warning);
-    }
-
-    [[deprecated]]
-    void error(const std::string &msg) {
-        diagnostic(msg, DiagSeverity::Error);
-    }
-
     /**
      * just prints the errors to std out
      */

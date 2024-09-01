@@ -17,9 +17,10 @@
 #define PRINT_TOKENS false
 
 td_semanticTokens_full::response WorkspaceManager::get_semantic_tokens_full(const lsDocumentUri& uri) {
-    auto toks = get_semantic_tokens(uri);
+    auto abs_path = canonical(uri.GetAbsolutePath().path);
+    auto toks = get_semantic_tokens(abs_path);
     // when user requests semantic tokens, we also trigger publish diagnostics for the file
-    publish_diagnostics_complete_async(uri.GetAbsolutePath().path);
+    publish_diagnostics_complete_async(abs_path);
     // sending tokens
     td_semanticTokens_full::response rsp;
     SemanticTokens tokens;
@@ -115,10 +116,9 @@ void WorkspaceManager::publish_diagnostics_complete_async(std::string path) {
 //    });
 }
 
-std::vector<SemanticToken> WorkspaceManager::get_semantic_tokens(const lsDocumentUri& uri) {
+std::vector<SemanticToken> WorkspaceManager::get_semantic_tokens(const std::string& abs_path) {
 
-    auto path = canonical(uri.GetAbsolutePath().path);
-    auto file = get_lexed(path);
+    auto file = get_lexed(abs_path);
 
 #if defined PRINT_TOKENS && PRINT_TOKENS
     printTokens(lexed, linker.resolved);

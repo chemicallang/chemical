@@ -144,7 +144,7 @@ public:
     /**
      * get semantic tokens for the given document uri
      */
-    std::vector<SemanticToken> get_semantic_tokens(const lsDocumentUri& uri);
+    std::vector<SemanticToken> get_semantic_tokens(const std::string& abs_path);
 
     /**
      * get semantic tokens full response for the given document uri

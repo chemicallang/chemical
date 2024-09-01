@@ -87,7 +87,11 @@ bool VariableIdentifier::find_link_in_parent(ChainValue *parent, ASTDiagnoser *d
     auto linked_node = parent->linked_node();
     if(linked_node) {
         linked = linked_node->child(value);
-        return true;
+        if(linked) {
+            return true;
+        } else if(diagnoser) {
+            diagnoser->error("couldn't link child '" + value + "'", this);
+        }
     } else if (diagnoser){
         diagnoser->error("couldn't link child '" + value + "' because parent '" + parent->representation() + "' couldn't be resolved.", this);
     }

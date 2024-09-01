@@ -16,13 +16,22 @@
 #include "ast/structures/EnumDeclaration.h"
 #include "ast/structures/StructMember.h"
 #include "ast/structures/ImplDefinition.h"
+#include "ast/structures/VariantDefinition.h"
 #include "ast/structures/FunctionParam.h"
+#include "ast/structures/LoopBlock.h"
+#include "ast/statements/DestructStmt.h"
+#include "ast/values/ValueNode.h"
+#include "ast/values/VariantCase.h"
+#include "ast/values/IsValue.h"
 #include "ast/structures/InterfaceDefinition.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/structures/TryCatch.h"
 #include "ast/structures/DoWhileLoop.h"
+#include "ast/types/DynamicType.h"
+#include "ast/structures/ExtensionFunction.h"
 #include "ast/structures/If.h"
 #include "ast/structures/StructDefinition.h"
+#include "ast/values/SizeOfValue.h"
 #include "ast/structures/Namespace.h"
 #include "ast/structures/ForLoop.h"
 #include "ast/structures/LoopScope.h"
@@ -41,6 +50,7 @@
 #include "ast/types/DoubleType.h"
 #include "ast/types/FloatType.h"
 #include "ast/types/Int128Type.h"
+#include "ast/values/UCharValue.h"
 #include "ast/types/IntNType.h"
 #include "ast/types/IntType.h"
 #include "ast/types/LongType.h"
@@ -58,6 +68,7 @@
 #include "ast/values/VariableIdentifier.h"
 #include "ast/values/IntValue.h"
 #include "ast/values/DoubleValue.h"
+#include "ast/values/VariantCall.h"
 #include "ast/values/FunctionCall.h"
 #include "ast/values/LambdaFunction.h"
 #include "ast/values/CastedValue.h"
@@ -178,11 +189,21 @@ void RepresentationVisitor::translate(std::vector<std::unique_ptr<ASTNode>>& nod
 RepresentationVisitor::~RepresentationVisitor() = default;
 
 void RepresentationVisitor::visitCommon(ASTNode *node) {
-    throw std::runtime_error("visitor common node called in 2c ASTVisitor");
+#ifdef DEBUG
+    throw std::runtime_error("RepresentationVisitor::visitCommon called");
+#endif
 }
 
 void RepresentationVisitor::visitCommonValue(Value *value) {
-    throw std::runtime_error("visitor common value called in 2c ASTVisitor");
+#ifdef DEBUG
+    throw std::runtime_error("RepresentationVisitor::visitCommonValue called");
+#endif
+}
+
+void RepresentationVisitor::visitCommonType(BaseType *value) {
+#ifdef DEBUG
+    throw std::runtime_error("RepresentationVisitor::visitCommonType called");
+#endif
 }
 
 void RepresentationVisitor::write(char value) {
@@ -848,4 +869,150 @@ void RepresentationVisitor::visit(UShortType *func) {
 
 void RepresentationVisitor::visit(VoidType *func) {
     write("void");
+}
+
+void RepresentationVisitor::visit(LoopBlock *block) {
+    write("loop");
+    scope(this, block->body);
+}
+
+void RepresentationVisitor::visit(ValueNode *node) {
+    node->value->accept(this);
+}
+
+void RepresentationVisitor::visit(VariantCall *call) {
+    call->chain->accept(this);
+    write('(');
+    bool is_first = true;
+    for(auto& value : call->values) {
+        if(!is_first) {
+            write(", ");
+        }
+        value->accept(this);
+        is_first = false;
+    }
+    write(')');
+}
+
+void RepresentationVisitor::visit(IsValue *isVal) {
+    isVal->value->accept(this);
+    write(" is ");
+    isVal->type->accept(this);
+}
+
+void RepresentationVisitor::visit(DestructStmt *delStmt) {
+    write("destruct");
+    if(delStmt->is_array) {
+        write('[');
+        if(delStmt->array_value) {
+            delStmt->array_value->accept(this);
+        }
+        write(']');
+        write(' ');
+        delStmt->identifier->accept(this);
+    }
+}
+
+void RepresentationVisitor::visit(VariantCase *chain) {
+    chain->chain->accept(this);
+    write('(');
+    bool is_first = true;
+    for(auto& var : chain->identifier_list) {
+        if(!is_first) {
+            write(", ");
+        }
+        var.accept(this);
+        is_first = false;
+    }
+    write(')');
+}
+
+void RepresentationVisitor::visit(VariantDefinition *variant_def) {
+    write("variant ");
+    write(variant_def->name);
+    write('{');
+    indentation_level+=1;
+    for(auto& var : variant_def->variables) {
+        new_line_and_indent();
+        var.second->accept(this);
+    }
+    indentation_level-=1;
+    new_line_and_indent();
+    write('}');
+}
+
+void RepresentationVisitor::visit(DynamicType *type) {
+    write("dyn ");
+    type->referenced->accept(this);
+}
+
+void RepresentationVisitor::visit(SizeOfValue *size_of) {
+    write("#sizeof {");
+    size_of->for_type->accept(this);
+    write('}');
+}
+
+void RepresentationVisitor::visit(ReferencedStructType *structType) {
+
+}
+
+void RepresentationVisitor::visit(RetStructParamValue *paramVal) {
+
+}
+
+void RepresentationVisitor::visit(UsingStmt *usingStmt) {
+    write("using ");
+}
+
+void RepresentationVisitor::visit(ReferencedValueType *ref_type) {
+
+}
+
+void RepresentationVisitor::visit(UCharType *uchar) {
+    write("uchar");
+}
+
+void RepresentationVisitor::visit(LiteralType *func) {
+    write("literal::");
+    write("TODO");
+}
+
+void RepresentationVisitor::visit(UnnamedStruct *def) {
+
+}
+
+void RepresentationVisitor::visit(UnnamedUnion *def) {
+
+}
+
+void RepresentationVisitor::visit(UnionDef *def) {
+
+}
+
+void RepresentationVisitor::visit(ExtensionFunction *extensionFunc) {
+    write("func ");
+    extensionFunc->receiver.accept(this);
+    write(' ');
+    write("TODO");
+}
+
+void RepresentationVisitor::visit(ExtensionFuncReceiver *receiver) {
+    write('(');
+    write(receiver->name);
+    write(" : ");
+    receiver->type->accept(this);
+    write(')');
+}
+
+void RepresentationVisitor::visit(ThrowStatement *throwStmt) {
+    write("throw ");
+    write("TODO");
+}
+
+void RepresentationVisitor::visit(UCharValue *charVal) {
+    write(charVal->value);
+}
+
+void RepresentationVisitor::visit(UnionType *unionType) {
+
 }

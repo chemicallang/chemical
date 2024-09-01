@@ -267,6 +267,54 @@ public:
 
     void visit(VoidType* func) override;
 
+    void visit(LoopBlock *scope) override;
+
+    void visit(ValueNode *node) override;
+
+    void visit(VariantCall *call) override;
+
+    void visit(IsValue *casted) override;
+
+    void visit(DestructStmt *delStmt) override;
+
+    void visit(VariantCase *chain) override;
+
+    void visit(VariantDefinition *variant_def) override;
+
+    void visit(DynamicType *type) override;
+
+    void visit(SizeOfValue *size_of) override;
+
+    void visit(ReferencedStructType *structType) override;
+
+    void visit(RetStructParamValue *paramVal) override;
+
+    void visit(UsingStmt *usingStmt) override;
+
+    void visit(ReferencedValueType *ref_type) override;
+
+    void visit(UCharType *uchar) override;
+
+    void visit(LiteralType *func) override;
+
+    void visit(UnnamedStruct *def) override;
+
+    void visit(UnnamedUnion *def) override;
+
+    void visit(UnionDef *def) override;
+
+    void visit(ExtensionFunction *extensionFunc) override;
+
+    void visit(ExtensionFuncReceiver *receiver) override;
+
+    void visit(ThrowStatement *throwStmt) override;
+
+    void visit(UCharValue *charVal) override;
+
+    void visit(UnionType *unionType) override;
+
+    void visitCommonType(BaseType *value) override;
+
     ~RepresentationVisitor();
 
 };

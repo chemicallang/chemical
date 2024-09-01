@@ -16,7 +16,7 @@ class ArrayValue : public Value, public TypeLinkedValue {
 public:
 
     std::vector<std::unique_ptr<Value>> values;
-    std::optional<std::unique_ptr<BaseType>> elemType;
+    std::unique_ptr<BaseType> elemType;
     std::vector<unsigned int> sizes;
     CSTToken* token;
 
@@ -27,7 +27,7 @@ public:
 
     ArrayValue(
             std::vector<std::unique_ptr<Value>> values,
-            std::optional<std::unique_ptr<BaseType>> type,
+            std::unique_ptr<BaseType> type,
             std::vector<unsigned int> sizes,
             CSTToken* token
     ) : values(std::move(values)), elemType(std::move(type)), sizes(std::move(sizes)), token(token) {
@@ -148,9 +148,9 @@ public:
             copied_values.emplace_back(value->copy());
         }
         std::vector<unsigned int> copied_sizes(sizes.size());
-        std::optional<std::unique_ptr<BaseType>> copied_elem_type = std::nullopt;
-        if (elemType.has_value()) {
-            copied_elem_type.emplace(elemType.value()->copy());
+        std::unique_ptr<BaseType> copied_elem_type = nullptr;
+        if (elemType) {
+            copied_elem_type.reset(elemType->copy());
         }
         return new ArrayValue(std::move(copied_values), std::move(copied_elem_type), sizes, token);
     }

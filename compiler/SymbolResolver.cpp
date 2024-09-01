@@ -14,7 +14,7 @@ void SymbolResolver::dup_sym_error(const std::string& name, ASTNode* previous, A
     std::string err("duplicate symbol being declared " + name + " symbol already exists\n");
     err.append("previous : " + previous->representation() + "\n");
     err.append("new : " + new_node->representation() + "\n");
-    error(err);
+    error(err, new_node);
 }
 
 ASTNode *SymbolResolver::find_in_current_file(const std::string& name) {

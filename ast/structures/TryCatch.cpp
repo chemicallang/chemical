@@ -27,7 +27,7 @@ void TryCatch::code_gen(Codegen &gen) {
     if(catchScope.has_value()) {
         catchScope.value().code_gen(gen);
     } else {
-        gen.error("no catch body given in try catch, which is not supported yet");
+        gen.error("no catch body given in try catch, which is not supported yet", this);
     }
     gen.SetInsertPoint(normal);
 }

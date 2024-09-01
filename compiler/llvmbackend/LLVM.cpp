@@ -96,7 +96,7 @@ llvm::Type *FloatType::llvm_type(Codegen &gen) {
 llvm::Type *IntNType::llvm_type(Codegen &gen) {
     auto ty = gen.builder->getIntNTy(num_bits());
     if(!ty) {
-        gen.error("Couldn't get intN type for int:" + std::to_string(num_bits()));
+        gen.error("Couldn't get intN type for int:" + std::to_string(num_bits()), this);
     }
     return ty;
 }
@@ -178,7 +178,7 @@ llvm::Type *UnionType::llvm_type(Codegen &gen) {
     auto container = variables_container();
     auto largest = container->largest_member();
     if(!largest) {
-        gen.error("Couldn't determine the largest member of the union with name " + union_name());
+        gen.error("Couldn't determine the largest member of the union with name " + union_name(), this);
         return nullptr;
     }
     auto stored = llvm_union_get_stored_type();
@@ -328,7 +328,7 @@ llvm::AllocaInst *StringValue::llvm_allocate(Codegen &gen, const std::string &id
 
 llvm::GlobalVariable * StringValue::llvm_global_variable(Codegen &gen, bool is_const, const std::string &name) {
     if(!is_const) {
-        gen.error("Global string variables aren't supported at the moment");
+        gen.error("Global string variables aren't supported at the moment", this);
     }
     // TODO global constant string must have type pointer to array
     // because it returns an array pointer, and we must take [0] from it to reach first pointer
@@ -386,7 +386,7 @@ llvm::Type *DereferenceValue::llvm_type(Codegen &gen) {
     if(addr->kind() == BaseTypeKind::Pointer) {
         return ((PointerType*) (addr.get()))->type->llvm_type(gen);
     } else {
-        gen.error("Derefencing a value that is not a pointer " + value->representation());
+        gen.error("De-referencing a value that is not a pointer " + value->representation(), this);
         return nullptr;
     }
 }
@@ -548,7 +548,7 @@ bool AddrOfValue::add_child_index(Codegen &gen, std::vector<llvm::Value *> &inde
 
 llvm::Value* RetStructParamValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     if(gen.current_func_type->returnType->value_type() != ValueType::Struct) {
-        gen.error("expected current function to have a struct return type for compiler::return_struct");
+        gen.error("expected current function to have a struct return type for compiler::return_struct", this);
         return nullptr;
     }
     // TODO implicitly returning struct parameter index is hardcoded
@@ -600,7 +600,7 @@ llvm::Value* llvm_next_value(
     llvm::Value* value_ref = parent_value;
     std::vector<llvm::Value*> idxList;
     if(!current->add_member_index(gen, parent, idxList)) {
-        gen.error("couldn't add member index for next value in llvm_next_value for " + current->representation());
+        gen.error("couldn't add member index for next value in llvm_next_value for " + current->representation(), current);
     }
     value_ref = create_gep(gen, chain, parent_index, parent_value, idxList);
     if(current->is_pointer()) {
@@ -786,7 +786,7 @@ void ValueNode::code_gen(Codegen& gen) {
             gen.builder->CreateStore(llvm_val, gen.current_assignable);
         }
     } else {
-        gen.error("couldn't assign value node to current assignable");
+        gen.error("couldn't assign value node to current assignable", this);
     }
 }
 
@@ -799,7 +799,7 @@ void BreakStatement::code_gen(Codegen &gen) {
         if(gen.current_assignable) {
             gen.builder->CreateStore(value->llvm_value(gen, nullptr), gen.current_assignable);
         } else {
-            gen.error("couldn't assign value in break statement");
+            gen.error("couldn't assign value in break statement", this);
         }
     }
     gen.CreateBr(gen.current_loop_exit);
@@ -869,12 +869,12 @@ void DestructStmt::code_gen(Codegen &gen) {
 //    }
     if(!is_array && !determined_array) {
         if(pure_type->kind() != BaseTypeKind::Pointer) {
-            gen.error("value given to destruct statement must be of pointer type, value '" + identifier->representation() + "'");
+            gen.error("value given to destruct statement must be of pointer type, value '" + identifier->representation() + "'", this);
             return;
         }
         auto def = ((PointerType*) pure_type.get())->type->get_direct_ref_struct();
         if(!def) {
-            gen.error("value given to destruct statement, doesn't reference a struct directly, value '" + identifier->representation() + "'");
+            gen.error("value given to destruct statement, doesn't reference a struct directly, value '" + identifier->representation() + "'", this);
             return;
         }
         auto destructor = def->destructor_func();
@@ -911,31 +911,31 @@ void DestructStmt::code_gen(Codegen &gen) {
         int array_size = arr_type->array_size;
         elem_type = arr_type->elem_type->pure_type();
         if (!is_array) {
-            gen.error("expected brackets '[]' after 'destruct' for destructing an array, with value " + identifier->representation());
+            gen.error("expected brackets '[]' after 'destruct' for destructing an array, with value " + identifier->representation(), this);
             return;
         } else if (array_size != -1 && array_value) {
-            gen.error("array size given in brackets '[" + array_value->representation() + "]' is redundant as array size is known to be " + std::to_string(array_size) + " with value " + identifier->representation());
+            gen.error("array size given in brackets '[" + array_value->representation() + "]' is redundant as array size is known to be " + std::to_string(array_size) + " with value " + identifier->representation(), this);
             return;
         } else if (array_size == -1 && !array_value) {
-            gen.error("array is size is not known, so it must be provided in brackets for destructing value " + identifier->representation());
+            gen.error("array is size is not known, so it must be provided in brackets for destructing value " + identifier->representation(), this);
             return;
         }
         auto def = elem_type->get_direct_ref_struct();
         if(!def) {
-            gen.error("value given to destruct statement, doesn't reference a struct directly, value '" + identifier->representation() + "'");
+            gen.error("value given to destruct statement, doesn't reference a struct directly, value '" + identifier->representation() + "'", this);
             return;
         }
         arr_size_llvm = array_size != -1 ? gen.builder->getInt32(array_size) : array_value->llvm_value(gen);
     } else if(pure_type->kind() == BaseTypeKind::Pointer) {
         if(!array_value) {
-            gen.error("array size is required when destructing a pointer, for destructing array pointer value" + identifier->representation());
+            gen.error("array size is required when destructing a pointer, for destructing array pointer value" + identifier->representation(), this);
             return;
         }
         auto ptr_type = (PointerType*) pure_type.get();
         elem_type = ptr_type->type->pure_type();
         auto def = ptr_type->type->get_direct_ref_struct();
         if(!def) {
-            gen.error("value given to destruct statement, doesn't reference a struct directly, value '" + identifier->representation() + "'");
+            gen.error("value given to destruct statement, doesn't reference a struct directly, value '" + identifier->representation() + "'", this);
             return;
         }
 

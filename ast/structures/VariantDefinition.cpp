@@ -153,7 +153,7 @@ llvm::Value* VariantCase::llvm_value(Codegen &gen, BaseType *type) {
     const auto linked_member = chain->linked_node()->as_variant_member();
     auto index = linked_member->parent_node->direct_child_index(linked_member->name);
     if(index == -1) {
-        gen.error("couldn't find case index of variant member '" + chain->chain_representation() + "'");
+        gen.error("couldn't find case index of variant member '" + chain->chain_representation() + "'", this);
         return nullptr;
     } else {
         return gen.builder->getInt32(index);
@@ -226,8 +226,9 @@ void VariantDefinition::declare_and_link(SymbolResolver &linker, std::unique_ptr
     MembersContainer::declare_and_link(linker, node_ptr);
 //    register_use_to_inherited_interfaces(this);
     if(requires_destructor()) {
-        if(contains_func("delete")) {
-            linker.error("default destructor is created by name 'delete' , a function by name 'delete' already exists in struct '" + name + "', please create a destructor by hand if you'd like to reserve 'delete' for your own usage");
+        auto delFunc = direct_child_function("delete");
+        if(delFunc) {
+            linker.error("default destructor is created by name 'delete' , a function by name 'delete' already exists in struct '" + name + "', please create a destructor by hand if you'd like to reserve 'delete' for your own usage", (AnnotableNode*) delFunc);
             return;
         }
         create_destructor();
@@ -435,7 +436,7 @@ VariantCase::VariantCase(std::unique_ptr<AccessChain> _chain, ASTDiagnoser& diag
         for(auto& value : func_call->values) {
             const auto id = value->as_identifier();
             if(!id) {
-                diagnoser.error("switch variant case with a function call doesn't contain identifiers '" + chain->chain_representation() + "', in question " + value->representation());
+                diagnoser.error("switch variant case with a function call doesn't contain identifiers '" + chain->chain_representation() + "', in question " + value->representation(), value.get());
                 return;
             }
             identifier_list.emplace_back(id->value, this, token);
@@ -459,7 +460,7 @@ void VariantCaseVariable::declare_and_link(SymbolResolver &linker, std::unique_p
     const auto member = variant_case->chain->linked_node()->as_variant_member();
     auto node = member->values.find(name);
     if(node == member->values.end()) {
-        linker.error("variant case member variable not found in switch statement, name '" + name + "' not found");
+        linker.error("variant case member variable not found in switch statement, name '" + name + "' not found", this);
         return;
     }
     member_param = node->second.get();

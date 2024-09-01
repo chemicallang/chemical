@@ -42,7 +42,7 @@ void to_llvm_args(
     if(chain && self_param) {
         // a pointer to parent
         if (chain_contains_func_call(*chain, 0, chain->size() - 3)) {
-            gen.error("cannot pass self when access chain has a function call");
+            gen.error("cannot pass self when access chain has a function call", call);
             return;
         }
         int parent_index = (int) until - 2;
@@ -57,7 +57,7 @@ void to_llvm_args(
             if(passing_self_arg && passing_self_arg->type->is_same(self_param->type.get())) {
                 args.emplace_back(passing_self_arg->llvm_load(gen));
             } else {
-                gen.error("function without a self argument cannot call methods that require self arg");
+                gen.error("function without a self argument cannot call methods that require self arg", call);
                 return;
             }
         }
@@ -281,7 +281,7 @@ llvm::Value* call_with_args(
 //    } else {
         auto callee = call->llvm_linked_func_callee(gen, chain_values, index, destructibles);
         if(callee == nullptr) {
-            gen.error("Couldn't get callee value for the function call to " + call->representation());
+            gen.error("Couldn't get callee value for the function call to " + call->representation(), call);
             return nullptr;
         }
         const auto llvm_func_type = call->llvm_linked_func_type(gen, chain_values, index);
@@ -482,7 +482,7 @@ llvm::InvokeInst *FunctionCall::llvm_invoke(Codegen &gen, llvm::BasicBlock* norm
         Value::destruct(gen, destructibles);
         return invoked;
     } else {
-        gen.error("Unknown function call through invoke ");
+        gen.error("Unknown function call through invoke ", this);
         return nullptr;
     }
 }
@@ -644,7 +644,7 @@ void FunctionCall::relink_multi_func(ASTDiagnoser* diagnoser) {
                 if(func) {
                     parent->linked = func;
                 } else {
-                    diagnoser->error("couldn't find function with name " + parent->value + " that satisfies given arguments");
+                    diagnoser->error("couldn't find function that satisfies given arguments", this);
                 }
             }
         }

@@ -32,7 +32,7 @@ bool ReferencedType::satisfies(BaseType *type) {
 void ReferencedType::link(SymbolResolver &linker, std::unique_ptr<BaseType>& current) {
     linked = linker.find(type);
     if(!linked) {
-        linker.error("unresolved symbol, couldn't find referenced type " + type);
+        linker.error("unresolved symbol, couldn't find referenced type " + type, this);
     }
 }
 

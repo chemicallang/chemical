@@ -113,7 +113,7 @@ void SwitchStatement::code_gen(Codegen &gen, bool last_block) {
                     switchInst->setDefaultDest(caseBlock);
                 } else {
                     gen.error(
-                            "A default case must be present when generating switch instruction or it must not be the last statement in the function");
+                            "A default case must be present when generating switch instruction or it must not be the last statement in the function", (ASTNode*) this);
                 }
             }
         } else {

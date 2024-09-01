@@ -27,7 +27,7 @@ void VariableIdentifier::link(SymbolResolver &linker, std::unique_ptr<ChainValue
     if(linked) {
         if(prepend && (linked->as_struct_member() || linked->as_unnamed_union() || linked->as_unnamed_struct())) {
             if(!linker.current_func_type) {
-                linker.error("couldn't link identifier with struct member / function, with name '" + value + '\'');
+                linker.error("couldn't link identifier with struct member / function, with name '" + value + '\'', this);
                 return;
             }
             auto self_param = linker.current_func_type->get_self_param();
@@ -40,20 +40,20 @@ void VariableIdentifier::link(SymbolResolver &linker, std::unique_ptr<ChainValue
                     if(found) {
                         prepend_self(linker, value_ptr, "this", found);
                     } else {
-                        linker.error("couldn't find this in constructor for linking identifier '" + value + "'");
+                        linker.error("couldn't find this in constructor for linking identifier '" + value + "'", this);
                     }
                 } else {
-                    linker.error("couldn't link identifier '" + value + "', because function doesn't take a self argument");
+                    linker.error("couldn't link identifier '" + value + "', because function doesn't take a self argument", this);
                 }
             }
 //        } else if((linked->as_interface_def() || linked->as_namespace() || linked->as_impl_def() || linked->as_struct_def()) && !can_link_with_namespace()) {
 //            linker.error("cannot link identifier with definition '" + value + "', Please use '::' to link with definition");
 //        }
         } else if(linked->as_namespace() && !can_link_with_namespace()){
-            linker.error("cannot link identifier with namespace " + value + "', Please use '::' to link with namespace");
+            linker.error("cannot link identifier with namespace " + value + "', Please use '::' to link with namespace", this);
         }
     } else {
-        linker.error("variable identifier '" + value + "' not found");
+        linker.error("variable identifier '" + value + "' not found", this);
     }
 }
 
@@ -84,7 +84,7 @@ void VariableIdentifier::find_link_in_parent(ChainValue *parent, ASTDiagnoser *d
     if(linked_node) {
         linked = linked_node->child(value);
     } else if (diagnoser){
-        diagnoser->error("couldn't link child '" + value + "' because parent '" + parent->representation() + "' couldn't be resolved.");
+        diagnoser->error("couldn't link child '" + value + "' because parent '" + parent->representation() + "' couldn't be resolved.", this);
     }
 }
 

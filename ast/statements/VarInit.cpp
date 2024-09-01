@@ -130,7 +130,7 @@ bool VarInitStatement::add_child_index(Codegen &gen, std::vector<llvm::Value *> 
 
 inline void VarInitStatement::check_has_type(Codegen &gen) {
     if (!type && !value) {
-        gen.error("neither variable type no variable value were given");
+        gen.error("neither variable type nor variable value were given", this);
         return;
     }
 }

@@ -309,7 +309,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
             c_visitor.prepare_translate();
         }
 
-        ASTImportResultExt result { ASTUnit(), false, false, "" };
+        ASTImportResultExt result { ASTUnit(), CSTUnit(), false, false, "" };
 
         // sequentially compile each file
         i = 0;

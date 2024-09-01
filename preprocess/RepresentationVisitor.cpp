@@ -246,9 +246,9 @@ void RepresentationVisitor::visit(ImportStatement *importStatement) {
 }
 
 void RepresentationVisitor::visit(ReturnStatement *returnStatement) {
-    if(returnStatement->value.has_value()) {
+    if(returnStatement->value) {
         write("return ");
-        returnStatement->value.value()->accept(this);
+        returnStatement->value->accept(this);
         write(';');
     } else {
         write("return;");

@@ -736,23 +736,23 @@ void ContinueStatement::code_gen(Codegen &gen) {
 void ReturnStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
     // before destruction, get the return value
     llvm::Value* return_value = nullptr;
-    if(value.has_value()) {
-        if(value.value()->reference() && value.value()->value_type() == ValueType::Struct) {
+    if(value) {
+        if(value->reference() && value->value_type() == ValueType::Struct) {
             // TODO hardcoded the function implicit struct return argument at index 0
             auto dest = gen.current_function->getArg(0);
-            auto value_ptr = value.value()->llvm_pointer(gen);
-            if(!gen.assign_dyn_obj(value.value().get(), func_type->returnType.get(), dest, value_ptr)) {
+            auto value_ptr = value->llvm_pointer(gen);
+            if(!gen.assign_dyn_obj(value.get(), func_type->returnType.get(), dest, value_ptr)) {
                 llvm::MaybeAlign noAlign;
-                auto alloc_size = gen.module->getDataLayout().getTypeAllocSize(value.value()->llvm_type(gen));
+                auto alloc_size = gen.module->getDataLayout().getTypeAllocSize(value->llvm_type(gen));
                 gen.builder->CreateMemCpy(dest, noAlign, value_ptr, noAlign, alloc_size);
             }
-        } else if(value.value()->as_variant_call()) {
+        } else if(value->as_variant_call()) {
             auto dest = gen.current_function->getArg(0);
-            value.value()->as_variant_call()->initialize_allocated(gen, dest);
+            value->as_variant_call()->initialize_allocated(gen, dest);
         } else {
-            return_value = value.value()->llvm_ret_value(gen, this);
+            return_value = value->llvm_ret_value(gen, this);
             if(func_type) {
-                auto value_type = value.value()->get_pure_type();
+                auto value_type = value->get_pure_type();
                 auto to_type = func_type->returnType->pure_type();
                 return_value = gen.implicit_cast(return_value, value_type.get(), to_type);
             }
@@ -762,13 +762,13 @@ void ReturnStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
     if(!gen.has_current_block_ended) {
         int i = gen.destruct_nodes.size() - 1;
         while(i >= 0) {
-            gen.destruct_nodes[i]->code_gen_destruct(gen, value.has_value() ? value->get() : nullptr);
+            gen.destruct_nodes[i]->code_gen_destruct(gen, value ? value.get() : nullptr);
             i--;
         }
         gen.destroy_current_scope = false;
     }
     // return the return value calculated above
-    if (value.has_value()) {
+    if (value) {
         gen.CreateRet(return_value);
     } else {
         gen.DefaultRet();

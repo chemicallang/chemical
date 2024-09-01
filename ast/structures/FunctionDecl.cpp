@@ -662,7 +662,7 @@ void FunctionDeclaration::ensure_destructor(ExtendableMembersContainerNode* def)
     returnType = std::make_unique<VoidType>(nullptr);
     if(!body.has_value()) {
         body.emplace(std::vector<std::unique_ptr<ASTNode>> {}, this, nullptr);
-        body.value().nodes.emplace_back(new ReturnStatement(std::nullopt, this, &body.value(), nullptr));
+        body.value().nodes.emplace_back(new ReturnStatement(nullptr, this, &body.value(), nullptr));
     }
 }
 

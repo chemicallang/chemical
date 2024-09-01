@@ -23,7 +23,7 @@ void TypeLinkedValue::link(SymbolResolver &linker, AssignStatement *stmnt, bool 
 }
 
 void TypeLinkedValue::link(SymbolResolver &linker, ReturnStatement *returnStmt) {
-    link(linker, returnStmt->value.value(), returnStmt->func_type && returnStmt->func_type->returnType ? returnStmt->func_type->returnType.get() : nullptr);
+    link(linker, returnStmt->value, returnStmt->func_type && returnStmt->func_type->returnType ? returnStmt->func_type->returnType.get() : nullptr);
 }
 
 void TypeLinkedValue::link(SymbolResolver &linker, FunctionCall *call, unsigned int index) {

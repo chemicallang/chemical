@@ -77,7 +77,7 @@ namespace InterpretVector {
             nullptr,
             std::nullopt
         ) {
-            params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>("vector", nullptr, node), nullptr), 0, std::nullopt, this, nullptr));
+            params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>("vector", nullptr, node), nullptr), 0, nullptr, this, nullptr));
         }
         Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
             return new IntValue(static_cast<InterpretVectorVal*>(parent_val)->values.size(), nullptr);
@@ -95,8 +95,8 @@ namespace InterpretVector {
                 nullptr,
                 std::nullopt
         ) {
-            params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>("vector", nullptr, node), nullptr), 0, std::nullopt, this, nullptr));
-            params.emplace_back(std::make_unique<FunctionParam>("index", std::make_unique<AnyType>(nullptr), 0, std::nullopt, this, nullptr));
+            params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>("vector", nullptr, node), nullptr), 0, nullptr, this, nullptr));
+            params.emplace_back(std::make_unique<FunctionParam>("index", std::make_unique<AnyType>(nullptr), 0, nullptr, this, nullptr));
         }
         Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
             return static_cast<InterpretVectorVal*>(parent_val)->values[call->values[0]->evaluated_value(*call_scope)->as_int()]->scope_value(*call_scope);
@@ -113,8 +113,8 @@ namespace InterpretVector {
                 nullptr,
                 std::nullopt
         ) {
-            params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>("vector", nullptr, node), nullptr), 0, std::nullopt, this, nullptr));
-            params.emplace_back(std::make_unique<FunctionParam>("value", std::make_unique<ReferencedType>("T", nullptr, node->generic_params[0].get()), 1, std::nullopt, this, nullptr));
+            params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>("vector", nullptr, node), nullptr), 0, nullptr, this, nullptr));
+            params.emplace_back(std::make_unique<FunctionParam>("value", std::make_unique<ReferencedType>("T", nullptr, node->generic_params[0].get()), 1, nullptr, this, nullptr));
         }
         Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
             static_cast<InterpretVectorVal*>(parent_val)->values.emplace_back(call->values[0]->scope_value(*call_scope));
@@ -132,8 +132,8 @@ namespace InterpretVector {
                 nullptr,
                 std::nullopt
         ) {
-            params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>("vector", nullptr, node), nullptr), 0, std::nullopt, this, nullptr));
-            params.emplace_back(std::make_unique<FunctionParam>("index", std::make_unique<AnyType>(nullptr), 0, std::nullopt, this, nullptr));
+            params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>("vector", nullptr, node), nullptr), 0, nullptr, this, nullptr));
+            params.emplace_back(std::make_unique<FunctionParam>("index", std::make_unique<AnyType>(nullptr), 0, nullptr, this, nullptr));
         }
         Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
             auto& ref = static_cast<InterpretVectorVal*>(parent_val)->values;
@@ -217,7 +217,7 @@ public:
             std::nullopt
     ) {
         annotations.emplace_back(AnnotationKind::CompTime);
-        params.emplace_back(std::make_unique<FunctionParam>("value", std::make_unique<AnyType>(nullptr), 0, std::nullopt, this, nullptr));
+        params.emplace_back(std::make_unique<FunctionParam>("value", std::make_unique<AnyType>(nullptr), 0, nullptr, this, nullptr));
     }
     Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
         if(call->values.empty()) {
@@ -288,7 +288,7 @@ public:
         // when we can successfully avoid giving type for generic parameters in functions, we should do this
 //        generic_params.emplace_back(new GenericTypeParameter("T", nullptr, this));
 //        returnType = std::make_unique<ReferencedType>("T", generic_params[0].get());
-        params.emplace_back(std::make_unique<FunctionParam>("value", std::make_unique<AnyType>(nullptr), 0, std::nullopt, this, nullptr));
+        params.emplace_back(std::make_unique<FunctionParam>("value", std::make_unique<AnyType>(nullptr), 0, nullptr, this, nullptr));
     }
     Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
         auto underlying = call->values[0]->copy();
@@ -313,7 +313,7 @@ public:
         // when we can successfully avoid giving type for generic parameters in functions, we should do this
 //        generic_params.emplace_back(new GenericTypeParameter("T", nullptr, this));
 //        returnType = std::make_unique<ReferencedType>("T", generic_params[0].get());
-        params.emplace_back(std::make_unique<FunctionParam>("value", std::make_unique<AnyType>(nullptr), 0, std::nullopt, this, nullptr));
+        params.emplace_back(std::make_unique<FunctionParam>("value", std::make_unique<AnyType>(nullptr), 0, nullptr, this, nullptr));
     }
     Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
         return call->values[0]->evaluated_value(*call_scope)->copy();

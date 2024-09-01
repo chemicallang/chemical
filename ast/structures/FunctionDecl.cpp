@@ -524,7 +524,7 @@ FunctionParam::FunctionParam(
         std::string name,
         std::unique_ptr<BaseType> type,
         unsigned int index,
-        std::optional<std::unique_ptr<Value>> defValue,
+        std::unique_ptr<Value> defValue,
         FunctionType* func_type,
         CSTToken* token
 ) : BaseFunctionParam(
@@ -556,9 +556,9 @@ BaseTypeKind BaseFunctionParam::type_kind() const {
 }
 
 FunctionParam *FunctionParam::copy() const {
-    std::optional<std::unique_ptr<Value>> copied = std::nullopt;
-    if (defValue.has_value()) {
-        copied.emplace(defValue.value()->copy());
+    std::unique_ptr<Value> copied = nullptr;
+    if (defValue) {
+        copied.reset(defValue->copy());
     }
     return new FunctionParam(name, std::unique_ptr<BaseType>(type->copy()), index, std::move(copied), func_type, token);
 }
@@ -657,7 +657,7 @@ void FunctionDeclaration::ensure_constructor(StructDefinition* def) {
 void FunctionDeclaration::ensure_destructor(ExtendableMembersContainerNode* def) {
     if(!has_self_param() || params.size() > 1 || params.empty()) {
         params.clear();
-        params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>(def->name, def, nullptr), nullptr), 0, std::nullopt, this, nullptr));
+        params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>(def->name, def, nullptr), nullptr), 0, nullptr, this, nullptr));
     }
     returnType = std::make_unique<VoidType>(nullptr);
     if(!body.has_value()) {

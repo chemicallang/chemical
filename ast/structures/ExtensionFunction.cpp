@@ -147,7 +147,7 @@ void ExtensionFunction::declare_and_link(SymbolResolver &linker, std::unique_ptr
 std::unique_ptr<BaseType> ExtensionFunction::create_value_type() {
     auto value_type = FunctionDeclaration::create_value_type();
     auto functionType = (FunctionType*) value_type.get();
-    functionType->params.insert(functionType->params.begin(), std::make_unique<FunctionParam>("self", std::unique_ptr<BaseType>(receiver.type->copy()), 0, std::nullopt, this, nullptr));
+    functionType->params.insert(functionType->params.begin(), std::make_unique<FunctionParam>("self", std::unique_ptr<BaseType>(receiver.type->copy()), 0, nullptr, this, nullptr));
     return value_type;
 }
 

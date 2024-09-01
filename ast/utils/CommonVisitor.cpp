@@ -142,8 +142,8 @@ void CommonVisitor::visit(FunctionDeclaration *decl) {
 
 void CommonVisitor::visit(FunctionParam *param) {
     param->type->accept(this);
-    if(param->defValue.has_value()) {
-        param->defValue.value()->accept(this);
+    if(param->defValue) {
+        param->defValue->accept(this);
     }
 }
 

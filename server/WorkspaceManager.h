@@ -61,12 +61,12 @@ private:
      */
     std::unordered_map<std::string, std::mutex> lex_file_mutexes;
 
-    /**
-     * map between absolute path of a file and their mutexes
-     * when you require a file is lexed, a mutex is held for each path
-     * so multiple different paths can be lexed at a single time but multiple same paths cannot.
-     */
-    std::unordered_map<std::string, std::mutex> parse_file_mutexes;
+//    /**
+//     * map between absolute path of a file and their mutexes
+//     * when you require a file is lexed, a mutex is held for each path
+//     * so multiple different paths can be lexed at a single time but multiple same paths cannot.
+//     */
+//    std::unordered_map<std::string, std::mutex> parse_file_mutexes;
 
     /**
      * a mutex for the unordered_map access, this is because every call with a path must be processed sequentially
@@ -74,11 +74,11 @@ private:
      */
     std::mutex lex_file_mutexes_map_mutex;
 
-    /**
-     * a mutex for the unordered_map access, this is because every call with a path must be processed sequentially
-     * otherwise parallel calls might render lex_file_mutexes useless
-     */
-    std::mutex parse_file_mutexes_map_mutex;
+//    /**
+//     * a mutex for the unordered_map access, this is because every call with a path must be processed sequentially
+//     * otherwise parallel calls might render lex_file_mutexes useless
+//     */
+//    std::mutex parse_file_mutexes_map_mutex;
 
     /**
      * import unit cache, contains different import units
@@ -246,6 +246,12 @@ public:
      * because that path contains whether it's a system header
      */
     std::shared_ptr<LexResult> get_lexed(const std::string& path);
+
+    /**
+     * same as get_lexed, however this doesn't lock a mutex or protect against multiple calls
+     * from different threads
+     */
+    std::shared_ptr<LexResult> get_lexed_no_lock(const std::string& path);
 
     /**
      * gets the lex result, then converts to ASTResult

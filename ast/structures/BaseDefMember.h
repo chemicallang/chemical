@@ -22,6 +22,12 @@ public:
         return nullptr;
     }
 
+#ifdef COMPILER_BUILD
+
+    llvm::Value* llvm_pointer(Codegen &gen) override;
+
+#endif
+
 };
 
 typedef tsl::ordered_map<std::string, std::unique_ptr<BaseDefMember>> VariablesMembersType;

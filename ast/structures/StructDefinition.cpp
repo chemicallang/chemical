@@ -133,11 +133,27 @@ void StructDefinition::acquire_function_iterations(int16_t iteration) {
     }
 }
 
-llvm::Type *StructMember::llvm_type(Codegen &gen) {
+llvm::Type* StructMember::llvm_type(Codegen &gen) {
     return type->llvm_type(gen);
 }
 
-llvm::Type *StructMember::llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned int index) {
+llvm::Value* BaseDefMember::llvm_pointer(Codegen &gen) {
+    if(isAnyStructMember()) {
+        const auto curr_func = gen.current_func_type->as_function();
+        if(curr_func && curr_func->has_annotation(AnnotationKind::Constructor)) {
+            // TODO hard coded the index for the constructor self param
+            auto self_ptr = gen.current_function->getArg(0);
+            auto parent_struct = parent();
+            std::vector<llvm::Value*> idxList { gen.builder->getInt32(0) };
+            parent_struct->add_child_index(gen, idxList, name);
+            return gen.builder->CreateGEP(parent()->llvm_type(gen), self_ptr, idxList, "", gen.inbounds);
+        }
+    }
+    gen.error("called pointer on struct member, using an unknown self pointer", this);
+    return nullptr;
+}
+
+llvm::Type* StructMember::llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned int index) {
     return type->llvm_chain_type(gen, values, index);
 }
 

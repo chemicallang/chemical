@@ -28,6 +28,7 @@ public:
      */
     std::string value;
     ASTNode *linked = nullptr;
+    ChainValue* parent_val = nullptr;
     CSTToken* token;
 
     /**

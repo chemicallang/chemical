@@ -25,7 +25,7 @@ void VariableIdentifier::prepend_self(SymbolResolver &linker, std::unique_ptr<Ch
 bool VariableIdentifier::link(SymbolResolver &linker, std::unique_ptr<ChainValue>& value_ptr, bool prepend) {
     linked = linker.find(value);
     if(linked) {
-        if(prepend && (linked->as_struct_member() || linked->as_unnamed_union() || linked->as_unnamed_struct())) {
+        if(prepend && linked->isAnyStructMember()) {
             if(!linker.current_func_type) {
                 linker.error("couldn't link identifier with struct member / function, with name '" + value + '\'', this);
                 return false;
@@ -37,12 +37,12 @@ bool VariableIdentifier::link(SymbolResolver &linker, std::unique_ptr<ChainValue
             } else {
                 auto decl = linker.current_func_type->as_function();
                 if(decl && decl->has_annotation(AnnotationKind::Constructor) && !decl->has_annotation(AnnotationKind::CompTime)) {
-                    auto found = linker.find("this");
-                    if(found) {
-                        prepend_self(linker, value_ptr, "this", found);
-                    } else {
-                        linker.error("couldn't find this in constructor for linking identifier '" + value + "'", this);
-                    }
+//                    auto found = linker.find("this");
+//                    if(found) {
+//                        prepend_self(linker, value_ptr, "this", found);
+//                    } else {
+//                        linker.error("couldn't find this in constructor for linking identifier '" + value + "'", this);
+//                    }
                 } else {
                     linker.error("couldn't link identifier '" + value + "', because function doesn't take a self argument", this);
                 }
@@ -84,6 +84,7 @@ ASTNode* VariableIdentifier::linked_node() {
 }
 
 bool VariableIdentifier::find_link_in_parent(ChainValue *parent, ASTDiagnoser *diagnoser) {
+    parent_val = parent;
     auto linked_node = parent->linked_node();
     if(linked_node) {
         linked = linked_node->child(value);

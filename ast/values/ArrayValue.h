@@ -104,6 +104,8 @@ public:
 
     ASTNode *linked_node() override;
 
+    void call_implicit_constructors();
+
     bool link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) override;
 
     bool link(SymbolResolver &linker, std::unique_ptr<Value> &, BaseType *type) override;

@@ -105,6 +105,11 @@ private:
      */
     std::atomic<bool> publish_diagnostics_cancel_flag{false};
 
+    /**
+     * this flag can be used to cancel requests doing hard work
+     */
+    std::atomic<bool> cancel_request{false};
+
 public:
 
     /**
@@ -214,19 +219,19 @@ public:
     /**
      * get the import unit for the given absolute path
      */
-    LexImportUnit get_import_unit(const std::string& abs_path);
+    LexImportUnit get_import_unit(const std::string& abs_path, std::atomic<bool>& cancel_flag);
 
     /**
      * get the ast import unit for the given lex import unit
      */
-    ASTImportUnit get_ast_import_unit(const LexImportUnit& unit);
+    ASTImportUnit get_ast_import_unit(const LexImportUnit& unit, std::atomic<bool>& cancel_flag);
 
     /**
      * get the import unit for the given absolute path
      */
-    ASTImportUnit get_ast_import_unit(const std::string& abs_path) {
-        auto unit = get_import_unit(abs_path);
-        return get_ast_import_unit(unit);
+    ASTImportUnit get_ast_import_unit(const std::string& abs_path, std::atomic<bool>& cancel_flag) {
+        auto unit = get_import_unit(abs_path, cancel_flag);
+        return get_ast_import_unit(unit, cancel_flag);
     }
 
     /**

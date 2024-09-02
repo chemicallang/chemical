@@ -82,6 +82,8 @@ public:
 
     bool is_generic();
 
+    void call_implicit_constructors();
+
 #ifdef COMPILER_BUILD
 
     void initialize_alloca(llvm::Value *inst, Codegen& gen);

@@ -862,6 +862,8 @@ public:
 
     void visit(ArrayValue *arrayVal) override;
 
+    void visit(StructValue *structValue) override;
+
     void visit(AccessChain *chain) override;
 
     void visit(VariantCall *call) override;
@@ -1018,6 +1020,11 @@ void CBeforeStmtVisitor::visit(FunctionCall *call) {
 void CBeforeStmtVisitor::visit(ArrayValue *arrayVal) {
     arrayVal->call_implicit_constructors();
     CommonVisitor::visit(arrayVal);
+}
+
+void CBeforeStmtVisitor::visit(StructValue *structValue) {
+    structValue->call_implicit_constructors();
+    CommonVisitor::visit(structValue);
 }
 
 void chain_after_func(ToCAstVisitor* visitor, std::vector<std::unique_ptr<ChainValue>>& values, unsigned start, const unsigned end, const unsigned total_size);

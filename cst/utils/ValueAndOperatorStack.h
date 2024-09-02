@@ -123,7 +123,7 @@ public:
         return c;
     }
 
-    std::unique_ptr<Expression> toExpression(bool is64Bit, CSTToken* token) {
+    Expression* toExpressionRaw(bool is64Bit, CSTToken* token) {
         ValueAndOperatorStack stack;
         int i = 0;
         while(i < container.size()) {
@@ -145,7 +145,11 @@ public:
             }
             i++;
         }
-        return std::unique_ptr<Expression>((Expression *) stack.peakValue());
+        return (Expression *) stack.peakValue();
+    }
+
+    inline std::unique_ptr<Expression> toExpression(bool is64Bit, CSTToken* token) {
+        return std::unique_ptr<Expression>(toExpressionRaw(is64Bit, token));
     }
 
 };

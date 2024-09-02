@@ -158,7 +158,19 @@ public:
     /**
      * puts the type on the type vector
      */
-    inline void put_type(BaseType* type);
+    inline void put_type(BaseType* type, CSTToken* token);
+
+    /**
+     * puts the value in the value, with additional functions like linking the token
+     */
+    inline static void put_value(std::vector<std::unique_ptr<Value>>& vals_vec, Value* value, CSTToken* token);
+
+    /**
+     * puts the value in the value vector
+     */
+    inline void put_value(Value* value, CSTToken* token) {
+        put_value(values, value, token);
+    }
 
     /**
      * pop the last node from nodes vector node

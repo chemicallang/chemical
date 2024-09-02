@@ -13,6 +13,8 @@ class ASTNode;
 
 class CSTVisitor;
 
+class ASTAny;
+
 class CSTToken {
 public:
 
@@ -37,6 +39,7 @@ public:
 
 #ifdef LSP_BUILD
     CSTToken* linked = nullptr;
+    ASTAny* any = nullptr;
 #endif
 
     /**

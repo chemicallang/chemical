@@ -675,7 +675,7 @@ void FunctionCall::relink_parent(ChainValue *parent) {
     parent_val = parent;
 }
 
-bool FunctionCall::find_link_in_parent(ChainValue *parent, SymbolResolver &resolver, BaseType *expected_type) {
+bool FunctionCall::find_link_in_parent(ChainValue* parent, SymbolResolver& resolver, BaseType* expected_type, bool link_implicit_constructor) {
     parent_val = parent;
     FunctionDeclaration* func_decl = safe_linked_func();
     int16_t prev_itr;
@@ -689,15 +689,13 @@ bool FunctionCall::find_link_in_parent(ChainValue *parent, SymbolResolver &resol
         func_decl->set_active_iteration(generic_iteration);
     }
     relink_values(resolver);
-    link_args_implicit_constructor(resolver);
+    if(link_implicit_constructor) {
+        link_args_implicit_constructor(resolver);
+    }
     if(func_decl && !func_decl->generic_params.empty()) {
         func_decl->set_active_iteration(prev_itr);
     }
     return true;
-}
-
-bool FunctionCall::find_link_in_parent(ChainValue *parent, SymbolResolver &resolver) {
-    return find_link_in_parent(parent, resolver, nullptr);
 }
 
 FunctionCall *FunctionCall::as_func_call() {

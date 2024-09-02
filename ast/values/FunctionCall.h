@@ -89,9 +89,15 @@ public:
 
     void link_constructor(SymbolResolver &resolver);
 
-    bool find_link_in_parent(ChainValue *parent, SymbolResolver &resolver) override;
+    bool find_link_in_parent(ChainValue *parent, SymbolResolver &resolver, BaseType *expected_type, bool link_implicit_constructor);
 
-    bool find_link_in_parent(ChainValue *parent, SymbolResolver &resolver, BaseType *expected_type) override;
+    bool find_link_in_parent(ChainValue *parent, SymbolResolver &resolver, BaseType *expected_type) override {
+        return find_link_in_parent(parent, resolver, expected_type, true);
+    }
+
+    bool find_link_in_parent(ChainValue *parent, SymbolResolver &resolver) override {
+        return find_link_in_parent(parent, resolver, nullptr, true);
+    }
 
     void relink_parent(ChainValue *parent) override;
 

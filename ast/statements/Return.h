@@ -53,6 +53,8 @@ public:
 
     void accept(Visitor *visitor) override;
 
+    void call_implicit_constructor(ASTDiagnoser& diagnoser);
+
 #ifdef COMPILER_BUILD
 
     void code_gen(Codegen &gen, Scope *scope, unsigned int index) override;

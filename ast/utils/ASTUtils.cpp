@@ -45,6 +45,33 @@ std::unique_ptr<Value> call_with_arg(FunctionDeclaration* decl, std::unique_ptr<
     return chain;
 }
 
+std::unique_ptr<Value> call_with_arg(FunctionDeclaration* decl, std::unique_ptr<Value> arg) {
+    auto chain = std::make_unique<AccessChain>(nullptr, false, nullptr);
+    auto id = std::make_unique<VariableIdentifier>(decl->name, nullptr);
+    id->linked = decl;
+    chain->values.emplace_back(std::move(id));
+    auto imp_call = std::make_unique<FunctionCall>(std::vector<std::unique_ptr<Value>> {}, nullptr);
+    imp_call->parent_val = chain->values[0].get();
+    imp_call->values.emplace_back(std::move(arg));
+    chain->values.emplace_back(std::move(imp_call));
+    return chain;
+}
+
+void link_with_implicit_constructor(FunctionDeclaration* decl, SymbolResolver& resolver, Value* value) {
+    VariableIdentifier id(decl->name, nullptr);
+    id.linked = decl;
+    FunctionCall imp_call(std::vector<std::unique_ptr<Value>>{}, nullptr);
+    imp_call.parent_val = &id;
+    imp_call.values.emplace_back(value);
+    imp_call.find_link_in_parent(&id, resolver, nullptr, false);
+    const auto replaced = imp_call.values[0].release();
+#ifdef DEBUG
+    if(replaced != value) {
+        throw std::runtime_error("implicit constructor value has been replaced, when it shouldn't have been");
+    }
+#endif
+}
+
 int16_t get_iteration_for(std::vector<std::unique_ptr<GenericTypeParameter>>& generic_params, std::vector<BaseType*>& generic_list) {
     if(!generic_params.empty()) {
         int16_t i = 0;

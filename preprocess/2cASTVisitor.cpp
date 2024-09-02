@@ -870,6 +870,8 @@ public:
 
     void visit(VarInitStatement *init) override;
 
+    void visit(ReturnStatement *stmt) override;
+
     void visit(Scope *scope) override {
         // do nothing
     }
@@ -1221,6 +1223,13 @@ void CBeforeStmtVisitor::visit(VarInitStatement *init) {
         process_init_value(init->value.get(), init->identifier);
     }
     CommonVisitor::visit(init);
+}
+
+void CBeforeStmtVisitor::visit(ReturnStatement* returnStmt) {
+    if(returnStmt->value) {
+        returnStmt->call_implicit_constructor(*visitor);
+    }
+    CommonVisitor::visit(returnStmt);
 }
 
 struct DeclaredNodeData {

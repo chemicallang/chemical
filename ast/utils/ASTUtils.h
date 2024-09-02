@@ -14,3 +14,10 @@ void evaluate_values(std::vector<std::unique_ptr<Value>>& values, InterpretScope
  * call the given function declaration with given argument
  */
 std::unique_ptr<Value> call_with_arg(FunctionDeclaration* decl, std::unique_ptr<Value> arg, SymbolResolver& resolver);
+
+std::unique_ptr<Value> call_with_arg(FunctionDeclaration* decl, std::unique_ptr<Value> arg);
+
+/**
+ * when the given value for the given expected type, has a constructor
+ */
+void link_with_implicit_constructor(FunctionDeclaration* decl, SymbolResolver& resolver, Value* value);

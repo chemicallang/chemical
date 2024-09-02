@@ -111,7 +111,20 @@ void WorkspaceManager::publish_diagnostics_complete(const std::string& path) {
 }
 
 void WorkspaceManager::publish_diagnostics_complete_async(std::string path) {
-//    std::future<void> futureObj = std::async(std::launch::async, [&] {
+
+    std::lock_guard<std::mutex> lock(publish_diagnostics_mutex);
+
+    // Signal the current task to cancel if it's running
+    if (publish_diagnostics_task.valid()) {
+        publish_diagnostics_cancel_flag.store(true);
+        publish_diagnostics_task.wait();  // Ensure the previous task has completed before launching a new one
+    }
+
+    // Reset the cancel flag for the new task
+    publish_diagnostics_cancel_flag.store(false);
+
+    // DEBUGGING so launching it synchronously so exceptions are reported nicely
+//    publish_diagnostics_task = std::async(std::launch::async, [&] {
         publish_diagnostics_complete(path);
 //    });
 }

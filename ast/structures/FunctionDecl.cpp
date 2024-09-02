@@ -27,6 +27,12 @@
 #include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
 #include "ast/values/LambdaFunction.h"
+#include <llvm/IR/Mangler.h>
+#include <clang/AST/ASTContext.h>
+#include <clang/AST/Decl.h>
+#include <clang/AST/Mangle.h>
+#include <clang/Frontend/CompilerInstance.h>
+#include <clang/Lex/PreprocessorOptions.h>
 
 llvm::Type *BaseFunctionParam::llvm_type(Codegen &gen) {
     return type->llvm_type(gen);
@@ -243,8 +249,81 @@ void FunctionDeclaration::set_llvm_data(llvm::Value* func_callee, llvm::Function
     }
 }
 
+std::string mangle_it(Codegen& gen, const std::string& name) {
+
+    gen.setup_for_target();
+
+    clang::CompilerInstance compiler;
+    compiler.createDiagnostics();
+
+    auto TO = std::make_shared<clang::TargetOptions>();
+    TO->Triple = gen.target_triple;
+    compiler.setTarget(clang::TargetInfo::CreateTargetInfo(compiler.getDiagnostics(), TO));
+
+    // Create the necessary file manager and source manager
+    compiler.createFileManager();
+    compiler.createSourceManager(compiler.getFileManager());
+
+    // Initialize the preprocessor
+    compiler.createPreprocessor(clang::TU_Complete);
+
+    // Set language options (these are essential)
+    clang::LangOptions &langOpts = compiler.getLangOpts();
+    langOpts.CPlusPlus = true;  // Enable C++ mode
+    langOpts.RTTI = true;       // Enable RTTI if needed
+    langOpts.CXXExceptions = true; // Enable C++ exceptions
+
+    // Create AST context
+    compiler.createASTContext();
+
+    clang::ASTContext &context = compiler.getASTContext();
+
+    // Create a function declaration (int myFunction())
+    clang::QualType returnType = context.IntTy;
+    clang::FunctionProtoType::ExtProtoInfo protoInfo;
+    auto funcType = context.getFunctionType(returnType, {}, protoInfo);
+    clang::DeclarationName declName = context.DeclarationNames.getIdentifier(&context.Idents.get(name));
+
+    auto unit = context.getTranslationUnitDecl();
+
+    clang::FunctionDecl *funcDecl = clang::FunctionDecl::Create(
+            context, unit, clang::SourceLocation(),
+            clang::SourceLocation(),
+            declName,
+            funcType, nullptr, clang::SC_Extern
+    );
+
+    clang::MangleContext *mangler;
+    auto manglerKind = clang::MangleContext::ManglerKind::MK_Itanium;
+    switch(manglerKind) {
+        case clang::MangleContext::MK_Itanium:
+            mangler = clang::ItaniumMangleContext::create(context, compiler.getDiagnostics());
+            break;
+        case clang::MangleContext::MK_Microsoft:
+            mangler = clang::MicrosoftMangleContext::create(context, compiler.getDiagnostics());
+            break;
+    }
+    std::string mangledName;
+
+    llvm::raw_string_ostream ostream(mangledName);
+    if (mangler->shouldMangleDeclName(funcDecl)) {
+        mangler->mangleName(funcDecl, ostream);
+    } else {
+        ostream << funcDecl->getName();
+    }
+
+    ostream.flush();
+    delete mangler;
+
+    return mangledName;
+
+
+}
+
 void create_non_generic_fn(Codegen& gen, FunctionDeclaration *decl, const std::string& name) {
-    auto func = gen.create_function(name, decl->create_llvm_func_type(gen), decl->specifier);
+    auto func_type = decl->create_llvm_func_type(gen);
+    std::string func_name = decl->has_annotation(AnnotationKind::Cpp) ? mangle_it(gen, name) : name;
+    auto func = gen.create_function(func_name, func_type, decl->specifier);
     llvm_func_def_attr(func);
     decl->traverse([func](Annotation* annotation){
         llvm_func_attr(func, annotation->kind);

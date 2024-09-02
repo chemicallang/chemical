@@ -352,10 +352,17 @@ void CSTConverter::put_type(BaseType* type, CSTToken* token) {
 #endif
 }
 
-void CSTConverter::put_value(std::vector<std::unique_ptr<Value>>& vals_vec, Value* value, CSTToken* token) {
-    vals_vec.emplace_back(value);
+void CSTConverter::put_value(Value* value, CSTToken* token) {
+    values.emplace_back(value);
 #ifdef LSP_BUILD
     token->any = value;
+#endif
+}
+
+void CSTConverter::put_node(ASTNode* node, CSTToken* token) {
+    nodes.emplace_back(node);
+#ifdef LSP_BUILD
+    token->any = node;
 #endif
 }
 
@@ -427,8 +434,8 @@ void CSTConverter::visitFunctionParam(CSTToken* param) {
         param->tokens.back()->accept(this);
         def_value = value();
     }
-    nodes.emplace_back(std::make_unique<FunctionParam>(identifier, std::unique_ptr<BaseType>(baseType), param_index,
-                                            std::move(def_value), nullptr, param));
+    put_node(new FunctionParam(identifier, std::unique_ptr<BaseType>(baseType), param_index,
+                                            std::move(def_value), nullptr, param), param);
 }
 
 struct FunctionParamsResult {
@@ -577,7 +584,7 @@ void CSTConverter::visitFunction(CSTToken* function) {
 
     funcDecl->assign_params();
 
-    nodes.emplace_back(std::unique_ptr<FunctionDeclaration>(funcDecl));
+    put_node(funcDecl, function);
 
     if (i >= function->tokens.size()) {
         return;
@@ -609,7 +616,7 @@ void CSTConverter::visitEnumDecl(CSTToken* decl) {
         }
         i++;
     }
-    nodes.emplace_back(enum_decl);
+    put_node(enum_decl, decl);
 }
 
 Value* convertNumber(NumberToken* token, ValueType value_type, bool is64Bit) {
@@ -674,26 +681,26 @@ void CSTConverter::visitVarInit(CSTToken* varInit) {
     collect_annotations_in(this, init);
 
     parent_node = prev_parent;
-    nodes.emplace_back(init);
+    put_node(init, varInit);
 }
 
 void CSTConverter::visitAssignment(CSTToken* assignment) {
     visit(assignment->tokens, 0);
     auto val = value();
     auto chain = value().release();
-    nodes.emplace_back(std::make_unique<AssignStatement>(
+    put_node( new AssignStatement(
             std::unique_ptr<Value>(chain),
             std::move(val),
             (assignment->tokens[1]->type() == LexTokenType::Operation)
             ? get_operation(assignment->tokens[1]) : Operation::Assignment,
             parent_node,
             assignment
-    ));
+    ), assignment);
 }
 
 void CSTConverter::visitImport(CSTToken* cst) {
     std::vector<std::string> ids;
-    nodes.emplace_back(std::make_unique<ImportStatement>(escaped_str_token(cst->tokens[1]), ids, parent_node, cst));
+    put_node(new ImportStatement(escaped_str_token(cst->tokens[1]), ids, parent_node, cst), cst);
 }
 
 void CSTConverter::visitReturn(CSTToken* cst) {
@@ -702,7 +709,7 @@ void CSTConverter::visitReturn(CSTToken* cst) {
         cst->tokens[1]->accept(this);
         return_value = value();
     }
-    nodes.emplace_back(std::make_unique<ReturnStatement>(std::move(return_value), current_func_type, parent_node, cst));
+    put_node(new ReturnStatement(std::move(return_value), current_func_type, parent_node, cst), cst);
 }
 
 void CSTConverter::visitDestruct(CSTToken* delStmt) {
@@ -722,7 +729,7 @@ void CSTConverter::visitDestruct(CSTToken* delStmt) {
     }
     delStmt->tokens[index]->accept(this);
     auto val_ptr = value();
-    nodes.emplace_back(new DestructStmt(std::move(array_value), std::move(val_ptr), is_array, parent_node, delStmt));
+    put_node(new DestructStmt(std::move(array_value), std::move(val_ptr), is_array, parent_node, delStmt), delStmt);
 }
 
 void CSTConverter::visitUsing(CSTToken* usingStmt) {
@@ -737,7 +744,7 @@ void CSTConverter::visitUsing(CSTToken* usingStmt) {
     }
     const auto stmt = new UsingStmt(std::move(curr_values), parent_node, is_keyword(usingStmt->tokens[1], "namespace"), usingStmt);
     collect_annotations_in(this, stmt);
-    nodes.emplace_back(stmt);
+    put_node(stmt, usingStmt);
 }
 
 void CSTConverter::visitTypealias(CSTToken* alias) {
@@ -745,7 +752,7 @@ void CSTConverter::visitTypealias(CSTToken* alias) {
     alias->tokens[3]->accept(this);
     auto stmt = new TypealiasStatement(str_token(alias->tokens[1]), type(), parent_node, alias);
     collect_annotations_in(this, stmt);
-    nodes.emplace_back(stmt);
+    put_node(stmt, alias);
 }
 
 void CSTConverter::visitTypeToken(CSTToken* token) {
@@ -785,7 +792,7 @@ void CSTConverter::visitReferencedValueType(CSTToken* ref_value) {
 }
 
 void CSTConverter::visitContinue(CSTToken* continueCst) {
-    nodes.emplace_back(std::make_unique<ContinueStatement>(current_loop_node, parent_node, continueCst));
+    put_node(new ContinueStatement(current_loop_node, parent_node, continueCst), continueCst);
 }
 
 void CSTConverter::visitBreak(CSTToken* breakCST) {
@@ -794,13 +801,13 @@ void CSTConverter::visitBreak(CSTToken* breakCST) {
         breakCST->tokens[1]->accept(this);
         stmt->value = value();
     }
-    nodes.emplace_back(stmt);
+    put_node(stmt, breakCST);
 }
 
 void CSTConverter::visitIncDec(CSTToken* incDec) {
     incDec->tokens[0]->accept(this);
     auto acOp = (get_operation(incDec->tokens[1]) == Operation::PostfixIncrement ? Operation::Addition : Operation::Subtraction);
-    nodes.emplace_back(std::make_unique<AssignStatement>(value(), std::make_unique<IntValue>(1, incDec), acOp, parent_node, incDec));
+    put_node(new AssignStatement(value(), std::make_unique<IntValue>(1, incDec), acOp, parent_node, incDec), incDec);
 }
 
 void CSTConverter::visitLambda(CSTToken* cst) {
@@ -893,7 +900,7 @@ void CSTConverter::visitAnnotationToken(CSTToken* token) {
 
 void CSTConverter::visitValueNode(CSTToken *cst) {
     cst->tokens[0]->accept(this);
-    nodes.emplace_back(new ValueNode(value(), parent_node, cst));
+    put_node(new ValueNode(value(), parent_node, cst), cst);
 }
 
 void CSTConverter::visitIf(CSTToken* ifCst) {
@@ -951,7 +958,7 @@ void CSTConverter::visitIf(CSTToken* ifCst) {
     if(is_value) {
         put_value(if_statement, ifCst);
     } else {
-        nodes.emplace_back(if_statement);
+        put_node(if_statement, ifCst);
     }
 
 }
@@ -1002,19 +1009,19 @@ void CSTConverter::visitSwitch(CSTToken* switchCst) {
     if(is_value) {
         put_value(switch_statement, switchCst);
     } else {
-        nodes.emplace_back(switch_statement);
+        put_node(switch_statement, switchCst);
     }
 }
 
 void CSTConverter::visitThrow(CSTToken* throwStmt) {
     throwStmt->tokens[1]->accept(this);
-    nodes.emplace_back(new ThrowStatement(value(), parent_node, throwStmt));
+    put_node(new ThrowStatement(value(), parent_node, throwStmt), throwStmt);
 }
 
 void CSTConverter::visitNamespace(CSTToken* ns) {
     auto pNamespace = new Namespace(str_token(ns->tokens[1]), parent_node, ns);
     pNamespace->nodes = take_comp_body_nodes(this, ns, pNamespace);
-    nodes.emplace_back(pNamespace);
+    put_node(pNamespace, ns);
 }
 
 void CSTConverter::visitForLoop(CSTToken* forLoop) {
@@ -1039,7 +1046,7 @@ void CSTConverter::visitForLoop(CSTToken* forLoop) {
     loop->body.token = body;
     current_loop_node = prevLoop;
 
-    nodes.emplace_back(std::unique_ptr<ForLoop>(loop));
+    put_node(loop, forLoop);
 
 }
 
@@ -1060,7 +1067,7 @@ void CSTConverter::visitWhile(CSTToken* whileCst) {
     current_loop_node = prevLoop;
     // restore nodes
     nodes = std::move(previous);
-    nodes.emplace_back(std::unique_ptr<ASTNode>(loop));
+    put_node(loop, whileCst);
 }
 
 void CSTConverter::visitDoWhile(CSTToken* doWhileCst) {
@@ -1081,7 +1088,7 @@ void CSTConverter::visitDoWhile(CSTToken* doWhileCst) {
     current_loop_node = prevLoop;
     // restore nodes
     nodes = std::move(previous);
-    nodes.emplace_back(std::unique_ptr<ASTNode>(loop));
+    put_node(loop, doWhileCst);
 }
 
 unsigned int collect_struct_members(
@@ -1199,7 +1206,7 @@ void CSTConverter::visitStructDef(CSTToken* structDef) {
     parent_node = prev_parent;
     current_members_container = prev_struct_decl;
     collect_annotations_in(this, def);
-    nodes.emplace_back(def);
+    put_node(def, structDef);
 }
 
 void CSTConverter::visitInterface(CSTToken* interface) {
@@ -1219,7 +1226,7 @@ void CSTConverter::visitInterface(CSTToken* interface) {
     collect_struct_members(this, interface, def, i);
     parent_node = prev_parent;
     current_members_container = prev_container;
-    nodes.emplace_back(def);
+    put_node(def, interface);
 }
 
 void CSTConverter::visitUnionDef(CSTToken* unionDef) {
@@ -1236,7 +1243,7 @@ void CSTConverter::visitUnionDef(CSTToken* unionDef) {
     collect_struct_members(this, unionDef, def, i);
     parent_node = prev_parent;
     current_members_container = prev_container;
-    nodes.emplace_back(def);
+    put_node(def, unionDef);
 }
 
 void CSTConverter::visitImpl(CSTToken* impl) {
@@ -1266,7 +1273,7 @@ void CSTConverter::visitImpl(CSTToken* impl) {
     collect_struct_members(this, impl, def, i);
     parent_node = prev_parent;
     current_members_container = prev_container;
-    nodes.emplace_back(def);
+    put_node(def, impl);
 }
 
 void CSTConverter::visitVariantMember(CSTToken* variant_member) {
@@ -1275,7 +1282,7 @@ void CSTConverter::visitVariantMember(CSTToken* variant_member) {
     for(auto& value : result.params) {
         member->values[value->name] = std::make_unique<VariantMemberParam>(value->name, value->index, std::move(value->type), value->defValue ? std::move(value->defValue) : nullptr, member, value->token);
     }
-    nodes.emplace_back(member);
+    put_node(member, variant_member);
 }
 
 void CSTConverter::visitVariant(CSTToken* variantDef) {
@@ -1300,7 +1307,7 @@ void CSTConverter::visitVariant(CSTToken* variantDef) {
     parent_node = prev_parent;
     current_members_container = prev_struct_decl;
     collect_annotations_in(this, def);
-    nodes.emplace_back(def);
+    put_node(def, variantDef);
 }
 
 void CSTConverter::visitTryCatch(CSTToken* tryCatch) {
@@ -1318,7 +1325,7 @@ void CSTConverter::visitTryCatch(CSTToken* tryCatch) {
         try_catch->catchScope.emplace(take_body(this, last, try_catch));
     }
     // TODO catch variable not supported yet
-    nodes.emplace_back(try_catch);
+    put_node(try_catch, tryCatch);
 }
 
 void CSTConverter::visitPointerType(CSTToken* cst) {
@@ -1518,7 +1525,7 @@ void CSTConverter::visitLoopBlock(CSTToken *block) {
     if(is_value) {
         put_value(loop_block, block);
     } else {
-        nodes.emplace_back(loop_block);
+        put_node(loop_block, block);
     }
 
 }
@@ -1549,7 +1556,7 @@ void CSTConverter::visitAccessChain(CSTToken* chain) {
     }
     values = std::move(prev_values);
     if (is_node) {
-        nodes.emplace_back(ret_chain);
+        put_node(ret_chain, chain);
     } else {
         if(ret_chain->values.size() == 1) {
             put_value(ret_chain->values[0].release(), chain);

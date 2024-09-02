@@ -99,6 +99,8 @@ void WorkspaceManager::publish_diagnostics_complete(const std::string& path) {
 
     // let's do symbol resolution
     SymbolResolver resolver(is64Bit);
+    // do not preprocess it will replace stuff inside AST
+    resolver.preprocess = false;
 
     // doing all but last file
     unsigned i = 0;

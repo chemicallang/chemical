@@ -27,6 +27,10 @@ void ReturnStatement::declare_and_link(SymbolResolver &linker, std::unique_ptr<A
     if (value) {
         value->link(linker, this);
         if(func_type->returnType) {
+            const auto func = func_type->as_function();
+            if(func && func->has_annotation(AnnotationKind::Constructor)) {
+                return;
+            }
             const auto implicit = func_type->returnType->implicit_constructor_for(value.get());
             if (implicit && implicit != func_type && implicit->parent_node != func_type->parent()) {
                 value = call_with_arg(implicit, std::move(value), linker);

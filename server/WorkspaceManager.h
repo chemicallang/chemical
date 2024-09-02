@@ -12,6 +12,7 @@
 #include <unordered_map>
 #include "lexer/Lexi.h"
 #include "utils/lspfwd.h"
+#include <future>
 #include "integration/ide/model/LexResult.h"
 #include "integration/ide/model/ASTResult.h"
 #include "integration/ide/model/LexImportUnit.h"
@@ -89,6 +90,20 @@ private:
      * the argv is the path to the lsp executable
      */
     std::string lsp_exe_path;
+
+    /**
+     * publish_diagnostics is triggered when the client asks for semantic tokens
+     * we use this mutex to launch instances of publish diagnostics without causing race conditions
+     */
+    std::mutex publish_diagnostics_mutex;
+    /**
+     * the task used by publish diagnostics
+     */
+    std::future<void> publish_diagnostics_task;
+    /**
+     * this flag can be used to cancel the current running diagnostics task
+     */
+    std::atomic<bool> publish_diagnostics_cancel_flag{false};
 
 public:
 

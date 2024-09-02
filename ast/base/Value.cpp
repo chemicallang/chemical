@@ -101,16 +101,19 @@ llvm::Value* ChainValue::access_chain_value(Codegen &gen, std::vector<std::uniqu
 
 llvm::Value* create_gep(Codegen &gen, std::vector<std::unique_ptr<ChainValue>>& values, unsigned index, llvm::Value* pointer, std::vector<llvm::Value*>& idxList) {
     const auto parent = values[index].get();
+    const auto linked = parent->linked_node();
     auto type = parent->create_type();
-    auto type_kind = type->kind();
-    if(type_kind == BaseTypeKind::Array && parent->linked_node() && parent->linked_node()->as_func_param()) {
-        auto arr_type = (ArrayType*) type.get();
-        return gen.builder->CreateGEP(arr_type->elem_type->llvm_type(gen), pointer, idxList, "", gen.inbounds);
-    } else if(type_kind == BaseTypeKind::Pointer) {
-        return gen.builder->CreateGEP(((PointerType*) (type.get()))->type->llvm_chain_type(gen, values, index), pointer, idxList, "", gen.inbounds);
-    } else {
-        return gen.builder->CreateGEP(parent->llvm_chain_type(gen, values, index), pointer, idxList, "", gen.inbounds);
+    if(type) {
+        auto type_kind = type->kind();
+        if (type_kind == BaseTypeKind::Array && linked && linked->as_func_param()) {
+            auto arr_type = (ArrayType*) type.get();
+            return gen.builder->CreateGEP(arr_type->elem_type->llvm_type(gen), pointer, idxList, "", gen.inbounds);
+        } else if (type_kind == BaseTypeKind::Pointer) {
+            return gen.builder->CreateGEP(((PointerType*) (type.get()))->type->llvm_chain_type(gen, values, index),
+                                          pointer, idxList, "", gen.inbounds);
+        }
     }
+    return gen.builder->CreateGEP(parent->llvm_chain_type(gen, values, index), pointer, idxList, "", gen.inbounds);
 }
 
 // stored pointer into a variable, that must be loaded, before using
@@ -377,7 +380,7 @@ Value* Value::get_first_value_from_value_node(ASTNode* node) {
     const auto k = node->kind();
     switch(k) {
         case ASTNodeKind::AccessChain:
-            return node->as_access_chain();
+            return node->as_access_chain_unsafe();
         case ASTNodeKind::ValueNode:
             return node->holding_value();
         case ASTNodeKind::IfStmt:

@@ -244,7 +244,12 @@ void param_type_with_id(ToCAstVisitor* visitor, BaseType* type, const std::strin
 void write_struct_return_param(ToCAstVisitor* visitor, FunctionType* decl) {
     decl->returnType->accept(visitor);
     visitor->write("* ");
-    visitor->write(struct_passed_param_name);
+    const auto func = decl->as_function();
+    if(func && func->has_annotation(AnnotationKind::Constructor)) {
+        visitor->write("this");
+    } else {
+        visitor->write(struct_passed_param_name);
+    }
 }
 
 // don't know what to call '(' struct 'name' ')'
@@ -3343,6 +3348,7 @@ void write_path_to_child(ToCAstVisitor* visitor, std::vector<int>& path, StructD
 }
 
 void chain_value_accept(ToCAstVisitor* visitor, ChainValue* previous, ChainValue* value) {
+    const auto linked = value->linked_node();
     if(previous) {
         const auto prev_type = previous->get_pure_type();
         const auto previous_def = prev_type->linked_struct_def();
@@ -3365,7 +3371,6 @@ void chain_value_accept(ToCAstVisitor* visitor, ChainValue* previous, ChainValue
             }
         }
     }
-    const auto linked = value->linked_node();
     if(previous != nullptr && linked && linked->as_variant_case_var()) {
         const auto var = linked->as_variant_case_var();
         Value* expr = var->variant_case->switch_statement->expression.get();
@@ -3646,8 +3651,16 @@ void ToCAstVisitor::visit(StructValue *val) {
 }
 
 void ToCAstVisitor::visit(VariableIdentifier *identifier) {
-    if(identifier->linked_node()->as_captured_var() != nullptr) {
-        auto found = declarer->aliases.find(identifier->linked_node()->as_captured_var());
+    const auto linked = identifier->linked_node();
+    if(linked->isAnyStructMember()) {
+        if(identifier->parent_val == nullptr) {
+            const auto func = current_func_type->as_function();
+            if (func && func->has_annotation(AnnotationKind::Constructor)) {
+                write("this->");
+            }
+        }
+    } else if(linked->isCapturedVariable()) {
+        auto found = declarer->aliases.find(linked->as_captured_var_unsafe());
         if(found == declarer->aliases.end()) {
             write("this->");
         } else {
@@ -3655,9 +3668,8 @@ void ToCAstVisitor::visit(VariableIdentifier *identifier) {
             write(found->second);
             write("*) this)->");
         }
-    }
-    if(identifier->linked_node()->as_variant_case_var()) {
-        const auto var = identifier->linked_node()->as_variant_case_var();
+    } else if(linked->isVariantCaseVariable()) {
+        const auto var = linked->as_variant_case_var_unsafe();
         Value* expr = var->variant_case->switch_statement->expression.get();
         const auto var_mem = var->variant_case->chain->linked_node()->as_variant_member();
         expr->accept(this);

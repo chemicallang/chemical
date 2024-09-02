@@ -545,14 +545,22 @@ private:
         return k == ASTNodeKind::StructDecl || k == ASTNodeKind::UnionDecl || k == ASTNodeKind::VariantDecl || k == ASTNodeKind::InterfaceDecl || k == ASTNodeKind::ImplDecl;
     }
 
+    static inline bool isAnyStructMember(ASTNodeKind k) {
+        return k == ASTNodeKind::StructMember || k == ASTNodeKind::UnnamedStruct || k == ASTNodeKind::UnnamedUnion;
+    }
+
     static inline bool isBaseDefMember(ASTNodeKind k) {
-        return k == ASTNodeKind::StructMember || k == ASTNodeKind::UnnamedStruct || k == ASTNodeKind::UnnamedUnion || k == ASTNodeKind::VariantMember;
+        return isAnyStructMember(k) || k == ASTNodeKind::VariantMember;
     }
 
 public:
 
     inline bool isMembersContainer() {
         return isMembersContainer(kind());
+    }
+
+    inline bool isAnyStructMember() {
+        return isAnyStructMember(kind());
     }
 
     inline bool isBaseDefMember() {
@@ -769,31 +777,250 @@ public:
      * return assignment statement if it is one
      */
     AssignStatement* as_assignment() {
-        return isAssignmentStmt() ? (AssignStatement*) this : nullptr;;
+        return isAssignmentStmt() ? (AssignStatement*) this : nullptr;
     }
 
     //---------------------------------------------
     // Helper as (unsafe) methods
     //---------------------------------------------
 
-    inline AccessChain* as_access_chain() {
+    /**
+     * return as access chain unsafe
+     */
+    inline AccessChain* as_access_chain_unsafe() {
         return (AccessChain*) this;
     }
 
+    /**
+     * as loop node unsafe
+     */
     inline LoopASTNode* as_loop_node_unsafe() {
         return (LoopASTNode*) this;
     }
 
+    /**
+     * as break stmt unsafe
+     */
     inline BreakStatement* as_break_stmt_unsafe() {
         return (BreakStatement*) this;
     }
 
+    /**
+     * get as if statement unsafely
+     */
     inline IfStatement* as_if_stmt_unsafe() {
         return (IfStatement*) this;
     }
 
+    /**
+     * get as switch stmt unsafely
+     */
     inline SwitchStatement* as_switch_stmt_unsafe() {
         return (SwitchStatement*) this;
+    }
+
+    /**
+      * return this as an annotable node
+      */
+    inline AnnotableNode* as_annotable_node_unsafe() {
+        return (AnnotableNode*) this;
+    }
+
+    /**
+     * return if this is definition member
+     */
+    inline BaseDefMember* as_base_def_member_unsafe() {
+        return (BaseDefMember*) this;
+    }
+
+    /**
+     * get a members container
+     */
+    inline MembersContainer* as_members_container_unsafe() {
+        return (MembersContainer*) this;
+    }
+
+    /**
+     * return if this is a loop ast node
+     */
+    inline LoopASTNode *as_loop_ast_unsafe() {
+        return (LoopASTNode*) this;
+    }
+
+    /**
+     * return if this is a base function paam
+     */
+    inline BaseFunctionParam* as_base_func_param_unsafe() {
+        return (BaseFunctionParam*) this;
+    }
+
+    /**
+     * return if this is a scope
+     */
+    inline Scope *as_scope_unsafe() {
+        return (Scope*) this;
+    }
+
+    /**
+     * return this as a generic type parameter if its one
+     */
+    inline GenericTypeParameter* as_generic_type_param_unsafe() {
+        return (GenericTypeParameter*) this;
+    }
+
+    /**
+     * return this as a multi function node
+     */
+    inline MultiFunctionNode* as_multi_func_node_unsafe() {
+        return (MultiFunctionNode*) this;
+    }
+
+    /**
+     * as enum member
+     */
+    inline EnumDeclaration* as_enum_decl_unsafe() {
+        return (EnumDeclaration*) this;
+    }
+
+    /**
+     * as enum member
+     */
+    inline EnumMember* as_enum_member_unsafe() {
+        return (EnumMember*) this;
+    }
+
+    /**
+     * get as extension function
+     */
+    inline ExtensionFunction* as_extension_func_unsafe() {
+        return (ExtensionFunction*) this;
+    }
+
+    /**
+     * return if this is a parameter
+     */
+    inline FunctionParam *as_func_param_unsafe() {
+        return (FunctionParam*) this;
+    }
+
+    /**
+     * return if this is a function decl
+     * @return
+     */
+    inline FunctionDeclaration *as_function_unsafe() {
+        return (FunctionDeclaration*) this;
+    }
+
+    /**
+     * return if this is a struct member
+     */
+    inline StructMember *as_struct_member_unsafe() {
+        return (StructMember*) this;
+    }
+
+    /**
+     * return if this is an unnamed union
+     */
+    inline UnnamedUnion *as_unnamed_union_unsafe() {
+        return (UnnamedUnion*) this;
+    }
+
+    /**
+     * return if this is an unnamed struct
+     */
+    inline UnnamedStruct *as_unnamed_struct_unsafe() {
+        return (UnnamedStruct*) this;
+    }
+
+    /**
+     * return if this is a typealias statement
+     */
+    inline TypealiasStatement *as_typealias_unsafe() {
+        return (TypealiasStatement*) this;
+    }
+
+    /**
+     * return if this is a captured variable
+     */
+    inline CapturedVariable *as_captured_var_unsafe() {
+        return (CapturedVariable*) this;
+    }
+
+    /**
+     * return if this is a return statement
+     */
+    inline ReturnStatement *as_return_unsafe() {
+        return (ReturnStatement*) this;
+    }
+
+    /**
+     * as interface definition
+     */
+    inline InterfaceDefinition *as_interface_def_unsafe() {
+        return (InterfaceDefinition*) this;
+    }
+
+    /**
+     * as namespace
+     */
+    inline Namespace* as_namespace_unsafe() {
+        return (Namespace*) this;
+    }
+
+    /**
+     * return if this is a struct definition
+     */
+    inline StructDefinition *as_struct_def_unsafe() {
+        return (StructDefinition*) this;
+    }
+
+    /**
+     * return if this is a implementation def
+     */
+    inline ImplDefinition* as_impl_def_unsafe() {
+        return (ImplDefinition*) this;
+    }
+
+    /**
+     * return if this is a struct definition
+     */
+    inline UnionDef *as_union_def_unsafe() {
+        return (UnionDef*) this;
+    }
+
+    /**
+     * return if this is a var init statement
+     */
+    inline VarInitStatement *as_var_init_unsafe() {
+        return (VarInitStatement*) this;
+    }
+
+    /**
+     * return if this is a variant member
+     */
+    inline VariantMember* as_variant_member_unsafe() {
+        return (VariantMember*) this;
+    }
+
+    /**
+     * return if this is a variant definition
+     */
+    inline VariantDefinition* as_variant_def_unsafe() {
+        return (VariantDefinition*) this;
+    }
+
+    /**
+     * return if this is a variant case variable
+     */
+    inline VariantCaseVariable* as_variant_case_var_unsafe() {
+        return (VariantCaseVariable*) this;
+    }
+
+    /**
+     * return assignment statement if it is one
+     */
+    inline AssignStatement* as_assignment_unsafe() {
+        return (AssignStatement*) this;
     }
 
 };

@@ -547,7 +547,11 @@ void FunctionCall::link_args_implicit_constructor(SymbolResolver &linker){
         if (param) {
             auto implicit_constructor = param->type->implicit_constructor_for(values[i].get());
             if (implicit_constructor) {
-                values[i] = call_with_arg(implicit_constructor, std::move(values[i]), linker);
+                if(linker.preprocess) {
+                    values[i] = call_with_arg(implicit_constructor, std::move(values[i]), linker);
+                } else {
+                    link_with_implicit_constructor(implicit_constructor, linker, values[i].get());
+                }
             }
         }
         i++;

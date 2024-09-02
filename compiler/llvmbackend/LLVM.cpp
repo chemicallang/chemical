@@ -737,7 +737,6 @@ void ReturnStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
     // before destruction, get the return value
     llvm::Value* return_value = nullptr;
     if(value) {
-        call_implicit_constructor(gen);
         if(value->reference() && value->value_type() == ValueType::Struct) {
             // TODO hardcoded the function implicit struct return argument at index 0
             auto dest = gen.current_function->getArg(0);

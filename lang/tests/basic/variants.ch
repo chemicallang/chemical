@@ -5,6 +5,31 @@ variant OptVariant {
     None()
 }
 
+struct CheckImpParam22 {
+    var a : int
+    @implicit
+    @constructor
+    func make(x : int) {
+        a = x;
+    }
+}
+
+variant ImpVar22 {
+    Some(a : CheckImpParam22)
+    None()
+}
+
+func get_value_iv22(variant : ImpVar22) : int {
+    switch(variant) {
+        case ImpVar22.Some(a) => {
+            return a.a;
+        }
+        case ImpVar22.None => {
+            return -1;
+        }
+    }
+}
+
 func get_value(variant : OptVariant) : int {
     switch(variant) {
         case OptVariant.Some(a) => {
@@ -107,5 +132,9 @@ func test_variants() {
     })
     test("generic variants work - 2", () => {
         return get_sum(GenVar.Second(20, 30, 2)) == 52;
+    })
+    test("test implicit args in variant calls", () => {
+        var v = ImpVar22.Some(99)
+        return get_value_iv22(v) == 99;
     })
 }

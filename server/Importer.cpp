@@ -27,18 +27,18 @@ std::mutex& WorkspaceManager::lex_lock_path_mutex(const std::string& path) {
     return mutex;
 }
 
-std::mutex& WorkspaceManager::parse_lock_path_mutex(const std::string& path) {
-    // multiple calls with different paths to this function are allowed
-    // multiple calls with same paths will be processed sequentially
-    parse_file_mutexes_map_mutex.lock();
-    auto lexing = parse_file_mutexes.find(path);
-    // makes a mutex for current path and hold it
-    if(lexing == parse_file_mutexes.end()) parse_file_mutexes[path];
-    auto& mutex = parse_file_mutexes[path];
-    mutex.lock();
-    parse_file_mutexes_map_mutex.unlock();
-    return mutex;
-}
+//std::mutex& WorkspaceManager::parse_lock_path_mutex(const std::string& path) {
+//    // multiple calls with different paths to this function are allowed
+//    // multiple calls with same paths will be processed sequentially
+//    parse_file_mutexes_map_mutex.lock();
+//    auto lexing = parse_file_mutexes.find(path);
+//    // makes a mutex for current path and hold it
+//    if(lexing == parse_file_mutexes.end()) parse_file_mutexes[path];
+//    auto& mutex = parse_file_mutexes[path];
+//    mutex.lock();
+//    parse_file_mutexes_map_mutex.unlock();
+//    return mutex;
+//}
 
 std::shared_ptr<LexResult> WorkspaceManager::get_cached(const std::string& path) {
     auto found = cache.files.find(path);
@@ -76,14 +76,7 @@ bool WorkspaceManager::has_errors(const ASTImportUnit& unit) {
     return false;
 }
 
-std::shared_ptr<LexResult> WorkspaceManager::get_lexed(const std::string& path) {
-    if(path.empty()) {
-        std::cout << "[LSP] Empty path provided to get_lexed function " << std::endl;
-        return nullptr;
-    }
-//    std::cout << "[LSP] Locking path mutex " << path << std::endl;
-    auto& mutex = lex_lock_path_mutex(path);
-    std::lock_guard guard(mutex, std::adopt_lock_t());
+std::shared_ptr<LexResult> WorkspaceManager::get_lexed_no_lock(const std::string& path) {
 //    std::cout << "[LSP] Proceeding for path " << path << std::endl;
     auto found = get_cached(path);
     if(found) {
@@ -125,13 +118,25 @@ std::shared_ptr<LexResult> WorkspaceManager::get_lexed(const std::string& path) 
     return result;
 }
 
+std::shared_ptr<LexResult> WorkspaceManager::get_lexed(const std::string& path) {
+    if(path.empty()) {
+        std::cout << "[LSP] Empty path provided to get_lexed function " << std::endl;
+        return nullptr;
+    }
+//    std::cout << "[LSP] Locking path mutex " << path << std::endl;
+    auto& mutex = lex_lock_path_mutex(path);
+    std::lock_guard guard(mutex, std::adopt_lock_t());
+    auto result = get_lexed_no_lock(path);
+    return result;
+}
+
 std::shared_ptr<ASTResult> WorkspaceManager::get_ast(const std::string& path) {
     if(path.empty()) {
         std::cout << "[LSP] Empty path provided to get_lexed function " << std::endl;
         return nullptr;
     }
 //    std::cout << "[LSP] Locking path mutex " << path << std::endl;
-    auto& mutex = parse_lock_path_mutex(path);
+    auto& mutex = lex_lock_path_mutex(path);
     std::lock_guard guard(mutex, std::adopt_lock_t());
 //    std::cout << "[LSP] AST Proceeding for path " << path << std::endl;
     auto found = get_cached_ast(path);
@@ -142,7 +147,7 @@ std::shared_ptr<ASTResult> WorkspaceManager::get_ast(const std::string& path) {
         std::cout << "[LSP] AST Cache miss for " << path << std::endl;
     }
 
-    auto cst = get_lexed(path);
+    auto cst = get_lexed_no_lock(path);
     // TODO maybe we should avoid converting if LexResult has errors, to prevent exceptions
     CSTConverter converter(path, is64Bit, "ide");
     converter.convert(cst->unit.tokens);

@@ -28,7 +28,6 @@ llvm::Value *ArrayValue::llvm_pointer(Codegen &gen) {
 }
 
 llvm::AllocaInst* ArrayValue::llvm_allocate(Codegen& gen, const std::string& identifier, BaseType* expected_type) {
-    call_implicit_constructors();
     auto arrType = llvm_type(gen);
     arr = gen.builder->CreateAlloca(arrType, nullptr, identifier);
     // filling array with values
@@ -132,23 +131,6 @@ ASTNode *ArrayValue::linked_node() {
     }
 }
 
-void ArrayValue::call_implicit_constructors() {
-    if(elemType) {
-        const auto elem_type = element_type();
-        const auto def = elem_type->linked_struct_def();
-        if(def) {
-            unsigned i = 0;
-            while (i < values.size()) {
-                const auto implicit = def->implicit_constructor_func(values[i].get());
-                if(implicit) {
-                    values[i] = call_with_arg(implicit, std::move(values[i]));
-                }
-                i++;
-            }
-        }
-    }
-}
-
 bool ArrayValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr, BaseType *expected_type) {
     if(elemType) {
         elemType->link(linker, elemType);
@@ -160,7 +142,11 @@ bool ArrayValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr,
                 values[i]->link(linker, values[i]);
                 const auto implicit = def->implicit_constructor_func(values[i].get());
                 if(implicit) {
-                    link_with_implicit_constructor(implicit, linker, values[i].get());
+                    if(linker.preprocess) {
+                        values[i] = call_with_arg(implicit, std::move(values[i]), linker);
+                    } else {
+                        link_with_implicit_constructor(implicit, linker, values[i].get());
+                    }
                 }
                 i++;
             }

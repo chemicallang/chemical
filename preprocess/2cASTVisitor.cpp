@@ -860,10 +860,6 @@ public:
 
     void visit(FunctionCall *call) override;
 
-    void visit(ArrayValue *arrayVal) override;
-
-    void visit(StructValue *structValue) override;
-
     void visit(AccessChain *chain) override;
 
     void visit(VariantCall *call) override;
@@ -873,8 +869,6 @@ public:
     void process_init_value(Value* value, const std::string& identifier);
 
     void visit(VarInitStatement *init) override;
-
-    void visit(ReturnStatement *stmt) override;
 
     void visit(Scope *scope) override {
         // do nothing
@@ -1015,16 +1009,6 @@ void CBeforeStmtVisitor::visit(FunctionCall *call) {
     if(decl && !decl->generic_params.empty()) {
         decl->set_active_iteration(prev_iteration);
     }
-}
-
-void CBeforeStmtVisitor::visit(ArrayValue *arrayVal) {
-    arrayVal->call_implicit_constructors();
-    CommonVisitor::visit(arrayVal);
-}
-
-void CBeforeStmtVisitor::visit(StructValue *structValue) {
-    structValue->call_implicit_constructors();
-    CommonVisitor::visit(structValue);
 }
 
 void chain_after_func(ToCAstVisitor* visitor, std::vector<std::unique_ptr<ChainValue>>& values, unsigned start, const unsigned end, const unsigned total_size);
@@ -1237,13 +1221,6 @@ void CBeforeStmtVisitor::visit(VarInitStatement *init) {
         process_init_value(init->value.get(), init->identifier);
     }
     CommonVisitor::visit(init);
-}
-
-void CBeforeStmtVisitor::visit(ReturnStatement* returnStmt) {
-    if(returnStmt->value) {
-        returnStmt->call_implicit_constructor(*visitor);
-    }
-    CommonVisitor::visit(returnStmt);
 }
 
 struct DeclaredNodeData {

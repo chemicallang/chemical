@@ -15,7 +15,6 @@
 #include "IntValue.h"
 
 void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen) {
-    call_implicit_constructors();
     const auto parent_type = llvm_type(gen);
     for (const auto &value: values) {
         auto variable = definition->variable_type_index(value.first);
@@ -203,40 +202,6 @@ bool StructValue::primitive() {
     return false;
 }
 
-void StructValue::call_implicit_constructors() {
-    auto found = ref->linked_node();
-    if(found) {
-        auto struct_def = found->as_struct_def();
-        if (struct_def) {
-            definition = struct_def;
-            if(definition->has_constructor() && !definition->is_direct_init) {
-                return;
-            }
-            int16_t prev_itr;
-            // setting active generic iteration
-            if(!definition->generic_params.empty()) {
-                prev_itr = definition->active_iteration;
-                definition->set_active_iteration(generic_iteration);
-            }
-            // linking values
-            for (auto &val: values) {
-                auto member = definition->variables.find(val.first);
-                if(definition->variables.end() != member) {
-                    const auto mem_type = member->second->get_value_type();
-                    auto implicit = mem_type->implicit_constructor_for(val.second.get());
-                    if(implicit) {
-                        val.second = call_with_arg(implicit, std::move(val.second));
-                    }
-                }
-            }
-            // setting iteration back
-            if(!definition->generic_params.empty()) {
-                definition->set_active_iteration(prev_itr);
-            }
-        }
-    }
-}
-
 bool StructValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
     ref->link(linker, ref);
     auto found = ref->linked_node();
@@ -266,7 +231,11 @@ bool StructValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr
                     const auto mem_type = member->second->get_value_type();
                     auto implicit = mem_type->implicit_constructor_for(val.second.get());
                     if(implicit) {
-                        link_with_implicit_constructor(implicit, linker, val.second.get());
+                        if(linker.preprocess) {
+                            val.second = call_with_arg(implicit, std::move(val.second), linker);
+                        } else {
+                            link_with_implicit_constructor(implicit, linker, val.second.get());
+                        }
                     }
                 }
             }

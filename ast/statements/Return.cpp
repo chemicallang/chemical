@@ -2,6 +2,7 @@
 
 #include "Return.h"
 #include "ast/structures/FunctionDeclaration.h"
+#include "compiler/SymbolResolver.h"
 #include "ast/utils/ASTUtils.h"
 
 ReturnStatement::ReturnStatement(
@@ -23,20 +24,6 @@ void ReturnStatement::interpret(InterpretScope &scope) {
     }
 }
 
-void ReturnStatement::call_implicit_constructor(ASTDiagnoser& diagnoser) {
-    if(func_type->returnType) {
-        const auto func = func_type->as_function();
-        if(func && func->has_annotation(AnnotationKind::Constructor)) {
-            return;
-        }
-        const auto implicit = func_type->returnType->implicit_constructor_for(value.get());
-        if (implicit && implicit != func_type && implicit->parent_node != func_type->parent()) {
-            value = call_with_arg(implicit, std::move(value));
-            return;
-        }
-    }
-}
-
 void ReturnStatement::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     if (value) {
         value->link(linker, this);
@@ -47,7 +34,11 @@ void ReturnStatement::declare_and_link(SymbolResolver &linker, std::unique_ptr<A
             }
             const auto implicit = func_type->returnType->implicit_constructor_for(value.get());
             if (implicit && implicit != func_type && implicit->parent_node != func_type->parent()) {
-                link_with_implicit_constructor(implicit, linker, value.get());
+                if(linker.preprocess) {
+                    value = call_with_arg(implicit, std::move(value), linker);
+                } else {
+                    link_with_implicit_constructor(implicit, linker, value.get());
+                }
                 return;
             }
         }

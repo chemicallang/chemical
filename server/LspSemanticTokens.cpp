@@ -65,6 +65,11 @@ void WorkspaceManager::publish_diagnostics_complete(const std::string& path) {
     auto import_unit = get_import_unit(path);
     auto& last_lex_result = import_unit.files[import_unit.files.size() - 1];
 
+    // check publish diagnostics hasn't been cancelled
+    if(publish_diagnostics_cancel_flag.load()) {
+        return;
+    }
+
     // put lex diagnostics in the diag pointers
     diag_ptrs.emplace_back(&last_lex_result->diags);
 
@@ -77,6 +82,11 @@ void WorkspaceManager::publish_diagnostics_complete(const std::string& path) {
     // get the ast import unit
     auto ast_import_unit = get_ast_import_unit(import_unit);
     auto& last_ast_result = ast_import_unit.files[ast_import_unit.files.size() - 1];
+
+    // check publish diagnostics hasn't been cancelled
+    if(publish_diagnostics_cancel_flag.load()) {
+        return;
+    }
 
     // put ast conversion diagnostics
     diag_ptrs.emplace_back(&last_ast_result->diags);
@@ -94,10 +104,19 @@ void WorkspaceManager::publish_diagnostics_complete(const std::string& path) {
     unsigned i = 0;
     const auto last = ast_import_unit.files.size() - 1;
     while(i < last) {
+        // check publish diagnostics hasn't been cancelled
+        if(publish_diagnostics_cancel_flag.load()) {
+            return;
+        }
         auto& file = ast_import_unit.files[i];
         resolver.resolve_file(file->unit.scope, file->abs_path);
         resolver.diagnostics.clear();
         i++;
+    }
+
+    // check publish diagnostics hasn't been cancelled
+    if(publish_diagnostics_cancel_flag.load()) {
+        return;
     }
 
     // doing last file
@@ -109,6 +128,8 @@ void WorkspaceManager::publish_diagnostics_complete(const std::string& path) {
     publish_diagnostics(path, async, diag_ptrs);
 
 }
+
+static constexpr bool DEBUGGING_PUBLISH_DIAGNOSTICS = false;
 
 void WorkspaceManager::publish_diagnostics_complete_async(std::string path) {
 
@@ -123,10 +144,15 @@ void WorkspaceManager::publish_diagnostics_complete_async(std::string path) {
     // Reset the cancel flag for the new task
     publish_diagnostics_cancel_flag.store(false);
 
-    // DEBUGGING so launching it synchronously so exceptions are reported nicely
-//    publish_diagnostics_task = std::async(std::launch::async, [&] {
+    if(DEBUGGING_PUBLISH_DIAGNOSTICS) {
+        // DEBUGGING so launching it synchronously so exceptions are reported nicely
         publish_diagnostics_complete(path);
-//    });
+    } else {
+        publish_diagnostics_task = std::async(std::launch::async, [path, this] {
+            publish_diagnostics_complete(path);
+        });
+    }
+
 }
 
 std::vector<SemanticToken> WorkspaceManager::get_semantic_tokens(const std::string& abs_path) {

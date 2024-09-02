@@ -205,9 +205,17 @@ std::shared_ptr<LexResult> WorkspaceManager::get_lexed(const FlatIGFile& flat_fi
     };
 }
 
-LexImportUnit WorkspaceManager::get_import_unit(const std::string& abs_path) {
+LexImportUnit WorkspaceManager::get_import_unit(const std::string& abs_path, std::atomic<bool>& cancel_flag) {
+    // create and return import unit
+    LexImportUnit unit;
+    if(cancel_flag.load()) {
+        return unit;
+    }
     // get lex result for the absolute path
     auto result = get_lexed(abs_path);
+    if(cancel_flag.load()) {
+        return unit;
+    }
     // create a function that takes cst tokens in the import graph maker and creates a import graph
     SourceProvider reader(nullptr);
     Lexer lexer(reader);
@@ -221,14 +229,21 @@ LexImportUnit WorkspaceManager::get_import_unit(const std::string& abs_path) {
     );
     FlatIGFile flat_file { abs_path };
     auto ig = determine_import_graph(&importer, result->unit.tokens, flat_file);
+    if(cancel_flag.load()) {
+        return unit;
+    }
     // flatten the import graph and get lex result for each file
     auto flattened = ig.root.flatten_by_dedupe();
-    // create and return import unit
-    LexImportUnit unit;
     for(const auto& flat : flattened) {
+        if(cancel_flag.load()) {
+            return unit;
+        }
         unit.files.emplace_back(get_lexed(flat));
     }
 
+    if(cancel_flag.load()) {
+        return unit;
+    }
     // TODO we will not use cst symbol resolver (we aren't reporting the diagnostics from it)
     // We are performing resolution because tokens must be linked to provide completion items
     CSTSymbolResolver resolver;
@@ -237,9 +252,10 @@ LexImportUnit WorkspaceManager::get_import_unit(const std::string& abs_path) {
     return unit;
 }
 
-ASTImportUnit WorkspaceManager::get_ast_import_unit(const LexImportUnit& unit) {
+ASTImportUnit WorkspaceManager::get_ast_import_unit(const LexImportUnit& unit, std::atomic<bool>& cancel_flag) {
     std::vector<std::shared_ptr<ASTResult>> files;
     for(auto& file : unit.files) {
+        if(cancel_flag.load()) break;
         files.emplace_back(get_ast(file->abs_path));
     }
     return { std::move(files) };

@@ -88,7 +88,7 @@ td_completion::response WorkspaceManager::get_completion(
         unsigned int character
 ) {
     auto can_path = canonical(uri.GetAbsolutePath().path);
-    auto unit = get_import_unit(can_path);
+    auto unit = get_import_unit(can_path, cancel_request);
     CompletionItemAnalyzer analyzer({ line, character });
     td_completion::response rsp;
     rsp.result = analyzer.analyze(&unit);
@@ -104,7 +104,7 @@ td_links::response WorkspaceManager::get_links(const lsDocumentUri& uri) {
 }
 
 td_definition::response WorkspaceManager::get_definition(const lsDocumentUri &uri, const lsPosition &position) {
-    auto unit = get_import_unit(canonical(uri.GetAbsolutePath().path));
+    auto unit = get_import_unit(canonical(uri.GetAbsolutePath().path), cancel_request);
     GotoDefAnalyzer analyzer({position.line, position.character});
     td_definition::response rsp;
     rsp.result.first.emplace();
@@ -131,7 +131,7 @@ td_symbol::response WorkspaceManager::get_symbols(const lsDocumentUri& uri) {
 }
 
 td_hover::response WorkspaceManager::get_hover(const lsDocumentUri& uri, const lsPosition& position) {
-    auto unit = get_import_unit(canonical(uri.GetAbsolutePath().path));
+    auto unit = get_import_unit(canonical(uri.GetAbsolutePath().path), cancel_request);
     td_hover::response rsp;
     HoverAnalyzer analyzer({position.line, position.character});
     auto value = analyzer.markdown_hover(&unit);

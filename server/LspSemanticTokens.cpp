@@ -62,13 +62,13 @@ void WorkspaceManager::publish_diagnostics_complete(const std::string& path) {
     bool async = false;
 
     // get the lex import unit
-    auto import_unit = get_import_unit(path);
-    auto& last_lex_result = import_unit.files[import_unit.files.size() - 1];
-
+    auto import_unit = get_import_unit(path, publish_diagnostics_cancel_flag);
     // check publish diagnostics hasn't been cancelled
     if(publish_diagnostics_cancel_flag.load()) {
         return;
     }
+
+    auto& last_lex_result = import_unit.files[import_unit.files.size() - 1];
 
     // put lex diagnostics in the diag pointers
     diag_ptrs.emplace_back(&last_lex_result->diags);
@@ -80,13 +80,13 @@ void WorkspaceManager::publish_diagnostics_complete(const std::string& path) {
     }
 
     // get the ast import unit
-    auto ast_import_unit = get_ast_import_unit(import_unit);
-    auto& last_ast_result = ast_import_unit.files[ast_import_unit.files.size() - 1];
-
+    auto ast_import_unit = get_ast_import_unit(import_unit, publish_diagnostics_cancel_flag);
     // check publish diagnostics hasn't been cancelled
     if(publish_diagnostics_cancel_flag.load()) {
         return;
     }
+
+    auto& last_ast_result = ast_import_unit.files[ast_import_unit.files.size() - 1];
 
     // put ast conversion diagnostics
     diag_ptrs.emplace_back(&last_ast_result->diags);

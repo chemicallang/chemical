@@ -81,7 +81,7 @@ Codegen::Codegen(
         bool is_64_bit,
         const std::string& module_name
 ) : ASTDiagnoser(), comptime_scope(), nodes(std::move(nodes)),
-    target_triple(std::move(target_triple)), is64Bit(is_64_bit) {
+    target_triple(std::move(target_triple)), is64Bit(is_64_bit), clang(target_triple, ManglerKind::Itanium) {
     // create llvm context
     ctx = std::make_unique<llvm::LLVMContext>();
     // creating a new ir builder

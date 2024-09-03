@@ -18,6 +18,7 @@
 #include <unordered_map>
 #include "CodegenEmitterOptions.h"
 #include "ast/base/GlobalInterpretScope.h"
+#include "ClangCodegen.h"
 
 class Codegen;
 
@@ -50,6 +51,12 @@ public:
      * of code
      */
     GlobalInterpretScope comptime_scope;
+
+    /**
+     * the clang codegen class, that allows to control clang code generation without importing
+     * everything everywhere
+     */
+    ClangCodegen clang;
 
     /**
      * nodes that are being traversed to generate the machine code

@@ -418,7 +418,7 @@ std::string ClangCodegen::mangled_name(FunctionDeclaration* decl) {
     clang::ASTContext &context = impl->compiler.getASTContext();
     auto unit = context.getTranslationUnitDecl();
 
-    clang::QualType returnType = context.IntTy;
+    clang::QualType returnType = decl->returnType->clang_type(context);
     clang::FunctionProtoType::ExtProtoInfo protoInfo;
 
     std::vector<clang::QualType> args;
@@ -462,7 +462,7 @@ clang::QualType BaseType::clang_type(clang::ASTContext &gen) {
 }
 
 clang::QualType IntNType::clang_type(clang::ASTContext &context) {
-    return context.getBitIntType(is_unsigned(), num_bits());
+    return context.getIntTypeForBitwidth(num_bits(), !is_unsigned());
 }
 
 // ------------------------------ C Translation -----------------------------

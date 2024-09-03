@@ -53,12 +53,11 @@ ASTProcessor::ASTProcessor(
 }
 
 void put_import_graph(IGResult& result, const std::string& exe_path, const std::vector<const char*>& paths) {
-    IGResult local;
     if(paths.size() == 1) {
         result = determine_import_graph(exe_path, paths[0]);
     } else {
         for (auto path : paths) {
-            local = determine_import_graph(exe_path, path);
+            auto local = determine_import_graph(exe_path, path);
             result.root.files.emplace_back(local.root);
         }
     }

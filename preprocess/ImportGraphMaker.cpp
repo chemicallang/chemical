@@ -251,6 +251,11 @@ std::vector<FlatIGFile> IGFile::flatten_by_dedupe() {
     std::vector<FlatIGFile> imports;
     std::unordered_map<std::string, size_t> imported;
     recursive_dedupe(this, imported, imports);
+    // if this file's absolute path is empty, we remove it from the imports, which is added by the recursive_dedupe
+    // this is done because IGFile can represent multiple files being imported under an anonymous file with no absolute path
+    if(flat_file.abs_path.empty()) {
+        imports.pop_back();
+    }
     return imports;
 }
 

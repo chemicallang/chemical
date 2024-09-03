@@ -22,7 +22,7 @@
 #include "preprocess/RepresentationVisitor.h"
 #include "utils/PathUtils.h"
 #include <functional>
-#include "preprocess/2cASTVisitor.h"
+#include "preprocess/2c/2cASTVisitor.h"
 #include "compiler/ASTProcessor.h"
 #include "integration/libtcc/LibTccInteg.h"
 #include "utils/Version.h"

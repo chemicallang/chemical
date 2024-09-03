@@ -342,8 +342,8 @@ set(COMMON_SOURCES
         compiler/PrimitiveTypeMap.h
         compiler/PrimitiveTypemap.cpp
         server/analyzers/Documentation.h
-        preprocess/2cASTVisitor.h
-        preprocess/2cASTVisitor.cpp
+        preprocess/2c/2cASTVisitor.h
+        preprocess/2c/2cASTVisitor.cpp
         ast/utils/CommonVisitor.cpp
         ast/utils/CommonVisitor.h
         preprocess/RepresentationVisitor.cpp
@@ -466,6 +466,10 @@ set(COMMON_SOURCES
         ast/base/ASTUnit.h
         integration/ide/model/ASTImportUnit.h
         integration/ide/model/ASTResult.h
+        preprocess/2c/CBeforeStmtVisitor.h
+        preprocess/2c/CAfterStmtVisitor.h
+        preprocess/2c/CTopLevelDeclVisitor.h
+        preprocess/2c/CValueDeclVisitor.h
 )
 
 # Chemical LSP Executable Target
@@ -518,6 +522,7 @@ set(COMPILER_SOURCES
         compiler/llvm-ar.cpp
         utils/ProcessUtils.h
         compiler/ClangCodegen.h
+        preprocess/2c/SubVisitor.h
 )
 
 # add Compiler executable

@@ -5,7 +5,7 @@
 #include "CompilerBinder.h"
 #include "libtcc.h"
 #include "cst/base/CSTConverter.h"
-#include "preprocess/2cASTVisitor.h"
+#include "preprocess/2c/2cASTVisitor.h"
 #include "compiler/SymbolResolver.h"
 #include "CompilerBinderCommon.h"
 #include <mutex>

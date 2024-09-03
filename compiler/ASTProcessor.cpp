@@ -316,12 +316,12 @@ void ASTProcessor::declare_in_c(
         const FlatIGFile& file
 ) {
     // translating the nodes
-    std::vector<ASTNode*> imported_generics;
-    imported_generics.reserve(resolver->imported_generic.size());
-    for(auto& node : resolver->imported_generic) {
-        imported_generics.emplace_back(node.first);
-    }
-    visitor.translate(imported_generics);
+//    std::vector<ASTNode*> imported_generics;
+//    imported_generics.reserve(resolver->imported_generic.size());
+//    for(auto& node : resolver->imported_generic) {
+//        imported_generics.emplace_back(node.first);
+//    }
+//    visitor.translate(imported_generics);
     visitor.declare(import_res.nodes);
     if(!visitor.diagnostics.empty()) {
         visitor.print_diagnostics(file.abs_path, "2cTranslation");

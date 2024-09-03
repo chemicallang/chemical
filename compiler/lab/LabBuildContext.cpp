@@ -14,10 +14,10 @@ LabBuildContext::LabBuildContext(LabBuildCompilerOptions* options, std::string l
 
 void LabBuildContext::add_dependencies(std::vector<LabModule*>& into, LabModule **dependencies, unsigned int dep_len) {
     if(!dependencies || dep_len == 0) return;
-    auto ptr = *dependencies;
+    auto ptr = dependencies;
     unsigned i = 0;
     while (i < dep_len) {
-        into.emplace_back(ptr);
+        into.emplace_back(*ptr);
         ptr++;
         i++;
     }
@@ -25,10 +25,10 @@ void LabBuildContext::add_dependencies(std::vector<LabModule*>& into, LabModule 
 
 void LabBuildContext::add_paths(std::vector<chem::string>& into, chem::string** paths, unsigned int path_len) {
     if(!paths || path_len == 0) return;
-    auto ptr = *paths;
+    auto ptr = paths;
     unsigned i = 0;
     while (i < path_len) {
-        into.emplace_back(ptr->copy());
+        into.emplace_back((*ptr)->copy());
         ptr++;
         i++;
     }

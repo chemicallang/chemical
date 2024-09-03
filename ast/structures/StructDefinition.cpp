@@ -126,6 +126,14 @@ void StructDefinition::code_gen_generic(Codegen &gen) {
     code_gen(gen);
 }
 
+void StructDefinition::code_gen_external_declare(Codegen &gen) {
+    // clear the stored llvm types, so they must be declared again by StructType
+    llvm_struct_types.clear();
+    for(auto& function : functions()) {
+        function->code_gen_external_declare(gen);
+    }
+}
+
 void StructDefinition::acquire_function_iterations(int16_t iteration) {
     for(auto& function : functions()) {
         auto& func_data = generic_llvm_data[function.get()];

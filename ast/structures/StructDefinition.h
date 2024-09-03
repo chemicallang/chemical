@@ -164,6 +164,8 @@ public:
 
     void code_gen_generic(Codegen &gen) override;
 
+    void code_gen_external_declare(Codegen &gen) override;
+
     void llvm_destruct(Codegen &gen, llvm::Value *allocaInst) override;
 
 #endif

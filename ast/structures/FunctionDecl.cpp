@@ -303,6 +303,10 @@ void FunctionDeclaration::code_gen_override(Codegen& gen, llvm::Function* llvm_f
     body_gen(gen, this, llvm_func);
 }
 
+void FunctionDeclaration::code_gen_external_declare(Codegen &gen) {
+    // TODO externally declare the function
+}
+
 void FunctionDeclaration::code_gen_declare(Codegen &gen, StructDefinition* def) {
     if(has_annotation(AnnotationKind::CompTime)) {
         return;

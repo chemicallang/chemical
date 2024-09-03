@@ -270,6 +270,11 @@ public:
      */
     void code_gen_override(Codegen& gen, llvm::Function* llvm_func);
 
+    /**
+     * called to externally declare the function, taking into account it's parent node
+     */
+    void code_gen_external_declare(Codegen &gen) override;
+
 #endif
 
     void declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override;

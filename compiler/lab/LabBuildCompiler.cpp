@@ -323,7 +323,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                 result.is_c_file = false;
             } else {
                 // get the processed result
-                result = std::move(futures[i].get());
+                result = std::move(futures[i++].get());
                 if(!result.continue_processing) {
                     compile_result = 1;
                     break;
@@ -367,9 +367,6 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                 }
                 processor.shrink_nodes(shrinker, std::move(result.unit), file);
             }
-
-            i++;
-
         }
 
 #ifdef COMPILER_BUILD

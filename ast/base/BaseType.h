@@ -288,6 +288,11 @@ public:
 #ifdef COMPILER_BUILD
 
     /**
+     * return clang type for the current type
+     */
+    virtual clang::QualType clang_type(clang::ASTContext &context);
+
+    /**
      * return a func type, if this type can represent one
      */
     virtual llvm::FunctionType* llvm_func_type(Codegen &gen) {

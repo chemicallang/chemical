@@ -15,6 +15,7 @@ class Value;
 class Codegen;
 
 #include "compiler/llvmfwd.h"
+#include "compiler/clangfwd.h"
 
 #endif
 

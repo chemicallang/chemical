@@ -507,16 +507,17 @@ set(COMPILER_SOURCES
         compiler/clang_cc1as_main.cpp
         compiler/llvmfwd.h
         compiler/llvmimpl.h
-        compiler/ctranslator/TranslateC.cpp
+        compiler/backend/CLANG.cpp
         compiler/ctranslator/CTranslator.h
         compiler/ctranslator/CTranslator.cpp
         compiler/chem_clang.h
         compiler/chem_clang.cpp
-        compiler/llvmbackend/LLVM.cpp
+        compiler/backend/LLVM.cpp
         compiler/ASTCompiler.cpp
         compiler/ASTCompiler.h
         compiler/llvm-ar.cpp
         utils/ProcessUtils.h
+        compiler/ClangCodegen.h
 )
 
 # add Compiler executable

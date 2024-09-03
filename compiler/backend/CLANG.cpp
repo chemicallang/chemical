@@ -13,13 +13,16 @@
 #include "ast/structures/FunctionParam.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/structures/EnumDeclaration.h"
-#include "CTranslator.h"
+#include "compiler/ctranslator/CTranslator.h"
 #include "ast/types/PointerType.h"
 #include "ast/types/ReferencedType.h"
 #include "ast/types/ArrayType.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/statements/Typealias.h"
 #include "ast/statements/VarInit.h"
+#include "compiler/ClangCodegen.h"
+#include <clang/AST/Decl.h>
+#include <clang/AST/Mangle.h>
 
 struct ErrorMsg {
     const char *filename_ptr; // can be null
@@ -321,6 +324,122 @@ clang::ASTUnit *ClangLoadFromCommandLine(
 
     return ast_unit;
 }
+
+//----------------------------- Clang Codegen -------------------------------
+//--------------------------------------------------------------------------
+//--------------------------------------------------------------------------
+
+class ClangCodegenImpl {
+public:
+
+    clang::CompilerInstance compiler;
+
+    std::unique_ptr<clang::MangleContext> mangler;
+
+};
+
+ClangCodegen::ClangCodegen(std::string target_triple, ManglerKind manglerKind) : impl(new ClangCodegenImpl()) {
+
+    auto& compiler = impl->compiler;
+    compiler.createDiagnostics();
+
+    auto TO = std::make_shared<clang::TargetOptions>();
+    TO->Triple = std::move(target_triple);
+    compiler.setTarget(clang::TargetInfo::CreateTargetInfo(compiler.getDiagnostics(), TO));
+
+    // Create the necessary file manager and source manager
+    compiler.createFileManager();
+    compiler.createSourceManager(compiler.getFileManager());
+
+    // Initialize the preprocessor
+    compiler.createPreprocessor(clang::TU_Complete);
+
+    // Set language options (these are essential)
+    clang::LangOptions &langOpts = compiler.getLangOpts();
+    langOpts.CPlusPlus = true;  // Enable C++ mode
+    langOpts.RTTI = true;       // Enable RTTI if needed
+    langOpts.CXXExceptions = true; // Enable C++ exceptions
+
+    // Create AST context
+    compiler.createASTContext();
+
+    // create mangler kind
+    switch_mangler_kind(manglerKind);
+
+}
+
+void ClangCodegen::switch_to_cpp() {
+    auto& compiler = impl->compiler;
+    // Set language options (these are essential)
+    auto& langOpts = compiler.getLangOpts();
+    langOpts.CPlusPlus = true;  // Enable C++ mode
+    langOpts.RTTI = true;       // Enable RTTI if needed
+    langOpts.CXXExceptions = true; // Enable C++ exceptions
+}
+
+void ClangCodegen::switch_to_c() {
+    auto& compiler = impl->compiler;
+    // Set language options (these are essential)
+    auto& langOpts = compiler.getLangOpts();
+    langOpts.CPlusPlus = false;  // Enable C++ mode
+    langOpts.RTTI = false;       // Enable RTTI if needed
+    langOpts.CXXExceptions = false; // Enable C++ exceptions
+}
+
+void ClangCodegen::switch_mangler_kind(ManglerKind kind) {
+    auto& compiler = impl->compiler;
+    auto& context = compiler.getASTContext();
+    switch(kind) {
+        case ManglerKind::Itanium:
+            impl->mangler.reset(clang::ItaniumMangleContext::create(context, compiler.getDiagnostics()));
+            break;
+        case ManglerKind::Microsoft:
+            impl->mangler.reset(clang::MicrosoftMangleContext::create(context, compiler.getDiagnostics()));
+            break;
+    }
+}
+
+std::string ClangCodegen::mangled_name(clang::FunctionDecl* funcDecl) {
+    auto& mangler = *impl->mangler;
+    std::string mangledName;
+    llvm::raw_string_ostream ostream(mangledName);
+    if (mangler.shouldMangleDeclName(funcDecl)) {
+        mangler.mangleName(funcDecl, ostream);
+    } else {
+        ostream << funcDecl->getName();
+    }
+    ostream.flush();
+    return mangledName;
+}
+
+std::string ClangCodegen::mangled_name(FunctionDeclaration* decl) {
+
+    clang::ASTContext &context = impl->compiler.getASTContext();
+    auto unit = context.getTranslationUnitDecl();
+
+    // TODO convert the given function declaration to clang decl first
+
+    clang::QualType returnType = context.IntTy;
+    clang::FunctionProtoType::ExtProtoInfo protoInfo;
+    auto funcType = context.getFunctionType(returnType, {}, protoInfo);
+    clang::DeclarationName declName = context.DeclarationNames.getIdentifier(&context.Idents.get(decl->name));
+
+    clang::FunctionDecl *funcDecl = clang::FunctionDecl::Create(
+            context, unit, clang::SourceLocation(),
+            clang::SourceLocation(),
+            declName,
+            funcType, nullptr, clang::SC_Extern
+    );
+
+    return mangled_name(funcDecl);
+
+}
+
+ClangCodegen::~ClangCodegen() = default;
+
+//------------------------------ C Translation -----------------------------
+//--------------------------------------------------------------------------
+//--------------------------------------------------------------------------
 
 // Function to convert std::vector<std::string> to char**
 void convertToCharPointers(const std::vector<std::string> &args, char ***begin, char ***end) {

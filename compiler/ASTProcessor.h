@@ -109,11 +109,6 @@ public:
     /**
      * this allows to convert more than one path and get flat imports
      */
-    std::vector<FlatIGFile> flat_imports_mul(const std::vector<const char*>& c_paths);
-
-    /**
-     * this allows to convert more than one path and get flat imports
-     */
     std::vector<FlatIGFile> flat_imports_mul(const std::vector<std::string>& paths);
 
     /**

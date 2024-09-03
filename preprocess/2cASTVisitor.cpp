@@ -3875,7 +3875,7 @@ void ToCAstVisitor::visit(PointerType *func) {
 
 void ToCAstVisitor::visit(ReferencedType *type) {
     auto& linked = *type->linked;
-    const auto kind = type->linked->kind();
+    const auto kind = linked.kind();
     switch(kind) {
         case ASTNodeKind::InterfaceDecl:
             write("void");

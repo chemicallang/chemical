@@ -345,6 +345,9 @@ void prep_build_context_cbi(BuildContextCBI* cbi) {
     cbi->chemical_files_module = [](BuildContextCBI* self, chem::string* name, chem::string** path, unsigned int path_len, ModuleArrayRef* dependencies) -> LabModule* {
         return self->instance->chemical_files_module(name, path, path_len, dependencies->ptr, dependencies->size);
     };
+    cbi->chemical_dir_module = [](BuildContextCBI* self, chem::string* name, chem::string* path, ModuleArrayRef* dependencies) -> LabModule* {
+        return self->instance->chemical_dir_module(name, path, dependencies->ptr, dependencies->size);
+    };
     cbi->c_file_module = [](BuildContextCBI* self, chem::string* name, chem::string* path, ModuleArrayRef* dependencies) -> LabModule* {
         return self->instance->c_file_module(name, path, dependencies->ptr, dependencies->size);
     };

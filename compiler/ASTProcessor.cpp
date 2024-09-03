@@ -15,6 +15,7 @@
 #include "compiler/lab/LabBuildCompiler.h"
 #include "std/chem_string.h"
 #include "rang.hpp"
+#include <filesystem>
 
 #ifdef COMPILER_BUILD
 
@@ -63,7 +64,7 @@ void put_import_graph(IGResult& result, const std::string& exe_path, const std::
     }
 }
 
-std::vector<FlatIGFile> ASTProcessor::flat_imports_mul(const std::vector<const char*>& paths) {
+std::vector<FlatIGFile> ASTProcessor::flat_imports_mul(const std::vector<const char*>& c_paths) {
 
     IGResult result;
 
@@ -71,11 +72,11 @@ std::vector<FlatIGFile> ASTProcessor::flat_imports_mul(const std::vector<const c
     if (options->benchmark) {
         BenchmarkResults bm{};
         bm.benchmark_begin();
-        put_import_graph(result, options->exe_path, paths);
+        put_import_graph(result, options->exe_path, c_paths);
         bm.benchmark_end();
         std::cout << "[IGGraph] " << bm.representation() << std::endl;
     } else {
-        put_import_graph(result, options->exe_path, paths);
+        put_import_graph(result, options->exe_path, c_paths);
     }
 
     // print errors in ig
@@ -98,6 +99,28 @@ std::vector<FlatIGFile> ASTProcessor::flat_imports_mul(const std::vector<const c
     return flat_imports;
 }
 
+std::vector<FlatIGFile> ASTProcessor::flat_imports_mul(const std::vector<std::string>& paths) {
+    const auto paths_size = paths.size();
+    std::vector<const char*> cPaths(paths_size);
+    unsigned i = 0;
+    while(i < paths_size) {
+        cPaths[i] =paths[i].c_str();
+        i++;
+    }
+    return flat_imports_mul(cPaths);
+}
+
+void getFilesInDirectory(std::vector<std::string>& filePaths, const std::string& dirPath) {
+    for (const auto& entry : std::filesystem::directory_iterator(dirPath)) {
+        if (entry.is_regular_file()) {
+            filePaths.emplace_back(entry.path().string());
+        } else if(entry.is_directory()) {
+            getFilesInDirectory(filePaths, entry.path().string());
+        }
+    }
+}
+
+
 std::vector<FlatIGFile> ASTProcessor::determine_mod_imports(LabModule* module) {
     switch(module->type) {
         case LabModuleType::Files:
@@ -114,7 +137,14 @@ std::vector<FlatIGFile> ASTProcessor::determine_mod_imports(LabModule* module) {
         case LabModuleType::CFile:
             return {};
         case LabModuleType::Directory:
-            throw std::runtime_error("NOT YET IMPLEMENTED DIRECTORY THING");
+            const auto& dir_path = module->paths[0];
+            if (!std::filesystem::exists(dir_path.data()) || !std::filesystem::is_directory(dir_path.data())) {
+                std::cerr << "Directory does not exist: " << dir_path << std::endl;
+                return {};
+            }
+            std::vector<std::string> filePaths;
+            getFilesInDirectory(filePaths, dir_path.data());
+            return flat_imports_mul(filePaths);
     }
 }
 

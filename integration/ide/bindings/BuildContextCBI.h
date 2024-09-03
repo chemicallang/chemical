@@ -27,6 +27,8 @@ struct BuildContextCBI {
 
     LabModule*(*chemical_files_module)(BuildContextCBI* self, chem::string* name, chem::string** path, unsigned int path_len, ModuleArrayRef* dependencies);
 
+    LabModule*(*chemical_dir_module)(BuildContextCBI* self, chem::string* name, chem::string* path, ModuleArrayRef* dependencies);
+
     LabModule*(*c_file_module)(BuildContextCBI* self, chem::string* name, chem::string* path, ModuleArrayRef* dependencies);
 
     LabModule*(*object_module)(BuildContextCBI* self, chem::string* name, chem::string* path);

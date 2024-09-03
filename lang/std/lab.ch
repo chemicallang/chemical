@@ -53,6 +53,9 @@ struct BuildContext {
     // when paths only contain chemical files
     var chemical_files_module : (&self, name : string, paths : string**, paths_len : uint, dependencies : ArrayRef<Module*>) => Module*;
 
+    // directory module
+    var chemical_dir_module : (&self, name : string, path : string, dependencies : ArrayRef<Module*>) => Module*
+
     // a single .c file
     var c_file_module : (&self, name : string, path : string, dependencies : ArrayRef<Module*>) => Module*
 

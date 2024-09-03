@@ -67,6 +67,7 @@ func build(ctx : BuildContext*) {
     }
     const exe_name = string("chemical-tests");
     const ext_module = ctx.c_file_module(string("ext_c"), relative_path(string("ext/file.c")), { })
+    // const std_module = ctx.chemical_dir_module(string("std"), relative_path(string("../std")), { })
     const module = ctx.chemical_file_module(exe_name, relative_path(string("tests.ch")), { ext_module });
 
     const do_llvm_ir = false;

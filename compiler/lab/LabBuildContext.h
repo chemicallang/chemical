@@ -102,6 +102,18 @@ public:
     }
 
     /**
+     * add the given module as a directory module
+     */
+    LabModule* chemical_dir_module(
+        chem::string* name,
+        chem::string* path,
+        LabModule** dependencies,
+        unsigned int dep_len
+    ) {
+        return add_with_type(LabModuleType::Directory, name->copy(), &path, 1, dependencies, dep_len);
+    }
+
+    /**
      * add the given module as a c translation unit
      */
     LabModule* c_file_module(

@@ -90,7 +90,8 @@ std::vector<FlatIGFile> ASTProcessor::flat_imports_mul(const std::vector<std::st
 
     // print the ig
     if (options->print_ig) {
-        std::cout << representation(files) << std::endl;
+        representation(std::cout, files);
+        std::cout << std::endl;
     }
 
     auto flat_imports = flatten_by_dedupe(files);

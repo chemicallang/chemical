@@ -87,6 +87,11 @@ struct IGFile {
     std::string representation();
 
     /**
+     * get the representation into given stream
+     */
+    void representation(std::ostream &into);
+
+    /**
      * flattens the file by deduplication
      * meaning only a single entry is considered for multiple files with same absolute path
      * returns de duplicated vector that contains entries from nested files and a entry for self at the last index
@@ -144,7 +149,12 @@ IGResult determine_import_graph(const std::string &exe_path, const std::string &
 /**
  * construct's a list representation from the given IGFile
  */
-void representation(const IGFile &file, std::string &into, unsigned int level = 0);
+void representation(const IGFile &file, std::ostream &into, unsigned int level = 0);
+
+/**
+ * print the representation of the files into given stream
+ */
+void representation(std::ostream &into, const std::vector<IGFile>& files);
 
 /**
  * get the representation of the files

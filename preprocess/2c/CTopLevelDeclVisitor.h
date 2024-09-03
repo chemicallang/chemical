@@ -33,7 +33,7 @@ public:
     bool redefining = false;
 
     CTopLevelDeclarationVisitor(
-            ToCAstVisitor* visitor,
+            ToCAstVisitor& visitor,
             CValueDeclarationVisitor* value_visitor
     );
 

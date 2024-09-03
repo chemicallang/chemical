@@ -11,6 +11,7 @@
 #include <vector>
 #include <memory>
 #include <unordered_map>
+#include "CTopLevelDeclVisitor.h"
 
 class CTopLevelDeclarationVisitor;
 class CValueDeclarationVisitor;
@@ -78,16 +79,16 @@ public:
     std::unordered_map<FunctionCall*, std::unique_ptr<Value>> evaluated_func_calls;
 
     /**
-     * top level declarations will be declared by this visitor
-     * for example functions and structs, declared so can be used if declared below their usage
-     */
-    std::unique_ptr<CTopLevelDeclarationVisitor> tld;
-
-    /**
      * this visitor takes out values like lambda from within functions
      * to file level scope
      */
     std::unique_ptr<CValueDeclarationVisitor> declarer;
+
+    /**
+     * top level declarations will be declared by this visitor
+     * for example functions and structs, declared so can be used if declared below their usage
+     */
+    CTopLevelDeclarationVisitor tld;
 
     /**
      * before writing a statement, it's values can be visited with this visitor
@@ -495,7 +496,7 @@ void ToCAstVisitor::translate(NodesVec& nodes) {
 
     // declare the top level things with this visitor
     for(auto& node : nodes) {
-        node->accept((Visitor*) tld.get());
+        node->accept((Visitor*) &tld);
     }
 
     // take out values like lambda from within functions
@@ -510,11 +511,9 @@ void ToCAstVisitor::translate(NodesVec& nodes) {
 
 }
 
-#include "CTopLevelDeclVisitor.h"
-
 template <typename NodesVec>
 void ToCAstVisitor::declare(NodesVec& nodes) {
-    auto& vis = *tld;
+    auto& vis = tld;
     auto prev = vis.redefining;
     vis.redefining = true;
     // declare the top level things with this visitor
@@ -522,4 +521,29 @@ void ToCAstVisitor::declare(NodesVec& nodes) {
         node->accept(&vis);
     }
     vis.redefining = prev;
+}
+
+inline void SubVisitor::space() const {
+    visitor.space();
+}
+
+/**
+ * write fn using visitor
+ */
+inline void SubVisitor::write(char value) const {
+    visitor.write(value);
+}
+
+/**
+ * write fn using visitor
+ */
+inline void SubVisitor::write(const std::string& value) const {
+    visitor.write(value);
+}
+
+/**
+ * new line and indent to current indentation level
+ */
+inline void SubVisitor::new_line_and_indent() {
+    visitor.new_line_and_indent();
 }

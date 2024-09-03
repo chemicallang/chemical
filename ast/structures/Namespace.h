@@ -58,6 +58,8 @@ public:
 
     void code_gen(Codegen &gen, Scope *scope, unsigned int index) override;
 
+    void code_gen_external_declare(Codegen &gen) override;
+
     void code_gen_destruct(Codegen &gen, Value *returnValue) override;
 
 #endif

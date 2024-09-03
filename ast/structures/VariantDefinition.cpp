@@ -111,6 +111,14 @@ void VariantDefinition::code_gen_generic(Codegen &gen) {
     code_gen(gen);
 }
 
+void VariantDefinition::code_gen_external_declare(Codegen &gen) {
+    // clear the stored llvm types so they are generated again for this module
+    llvm_struct_types.clear();
+    for(auto& function : functions()) {
+        function->code_gen_external_declare(gen);
+    }
+}
+
 void VariantDefinition::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
     const auto destr = destructor_func();
     if(destr) {

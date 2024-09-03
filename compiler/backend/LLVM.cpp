@@ -1036,6 +1036,15 @@ void Namespace::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
     }
 }
 
+void Namespace::code_gen_external_declare(Codegen &gen) {
+    if(has_annotation(AnnotationKind::CompTime)) {
+        return;
+    }
+    for(auto& node : nodes) {
+        node->code_gen_external_declare(gen);
+    }
+}
+
 void Namespace::code_gen_destruct(Codegen &gen, Value *returnValue) {
     throw std::runtime_error("code_gen_destruct on namespace called");
 }

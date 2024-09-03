@@ -109,6 +109,8 @@ public:
 
     void code_gen_generic(Codegen &gen) override;
 
+    void code_gen_external_declare(Codegen &gen) override;
+
     void llvm_destruct(Codegen &gen, llvm::Value *allocaInst) override;
 
     bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;

@@ -11,6 +11,7 @@
 #include "cst/utils/CSTUtils.h"
 #include "ImportPathHandler.h"
 #include "utils/PathUtils.h"
+#include <sstream>
 
 typedef ImportGraphImporter Importer;
 
@@ -270,37 +271,46 @@ std::vector<FlatIGFile> flatten_by_dedupe(std::vector<IGFile>& files) {
     return imports;
 }
 
-void representation(const IGFile& file, std::string& into, unsigned int level) {
+void representation(const IGFile& file, std::ostream& into, unsigned int level) {
     unsigned i = 0;
     while(i < level) {
-        into.append("--");
+        into << "--";
         if(level > 1 && i < level - 1) {
-            into.append(1, ' ');
+            into << ' ';
         }
         i++;
     }
     if(level != 0) {
-        into.append(1, ' ');
+        into << ' ';
     }
-    into.append(file.flat_file.abs_path);
-    into.append(1, '\n');
+    into << file.flat_file.abs_path << '\n';
     for(auto& n : file.files) {
         representation(n, into, level + 1);
     }
 }
 
 std::string IGFile::representation() {
-    std::string rep;
+    std::stringstream rep;
     ::representation(*this, rep, 0);
-    return rep;
+    return rep.str();
+}
+
+void IGFile::representation(std::ostream &into) {
+    ::representation(*this, into, 0);
+}
+
+void representation(std::ostream &into, const std::vector<IGFile>& files) {
+    for(auto& file : files) {
+        ::representation(file, into, 0);
+    }
 }
 
 std::string representation(const std::vector<IGFile>& files) {
-    std::string rep;
+    std::stringstream rep;
     for(auto& file : files) {
         ::representation(file, rep, 0);
     }
-    return rep;
+    return rep.str();
 }
 
 void print_errors(const IGFile& file) {

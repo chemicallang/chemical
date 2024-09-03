@@ -113,7 +113,12 @@ std::vector<FlatIGFile> ASTProcessor::flat_imports_mul(const std::vector<std::st
 void getFilesInDirectory(std::vector<std::string>& filePaths, const std::string& dirPath) {
     for (const auto& entry : std::filesystem::directory_iterator(dirPath)) {
         if (entry.is_regular_file()) {
-            filePaths.emplace_back(entry.path().string());
+            filePaths.emplace_back(canonical_path(entry.path().string()));
+            if(filePaths.back().empty()) {
+                // will not happen most of the time, since OS is providing us the paths
+                std::cerr << "error: couldn't determine canonical path for the file '" << entry.path().string() << '\'' << std::endl;
+                filePaths.pop_back();
+            }
         } else if(entry.is_directory()) {
             getFilesInDirectory(filePaths, entry.path().string());
         }
@@ -125,11 +130,19 @@ std::vector<FlatIGFile> ASTProcessor::determine_mod_imports(LabModule* module) {
     switch(module->type) {
         case LabModuleType::Files:
             if(module->paths.size() == 1) {
-                return flat_imports(module->paths[0].data());
+                auto cano = canonical_path(module->paths[0].data());
+                if(cano.empty()) {
+                    std::cerr << "error: couldn't determine canonical path for the module '" << module->paths[0].data() << '\'' << std::endl;
+                } else {
+                    return flat_imports(cano);
+                };
             } else {
-                std::vector<const char*> paths;
+                std::vector<std::string> paths;
                 for(auto& str : module->paths) {
-                    paths.emplace_back(str.data());
+                    paths.emplace_back(canonical_path(str.data()));
+                    if(paths.back().empty()) {
+                        std::cerr << "error: couldn't determine canonical path for file '" << str.data() << "' in module '" << module->name << '\'' << std::endl;
+                    }
                 }
                 return flat_imports_mul(paths);
             }
@@ -139,7 +152,7 @@ std::vector<FlatIGFile> ASTProcessor::determine_mod_imports(LabModule* module) {
         case LabModuleType::Directory:
             const auto& dir_path = module->paths[0];
             if (!std::filesystem::exists(dir_path.data()) || !std::filesystem::is_directory(dir_path.data())) {
-                std::cerr << "Directory does not exist: " << dir_path << std::endl;
+                std::cerr << "error: directory doesn't exist '" << dir_path << "' for module '" << module->name.data() << '\'' << std::endl;
                 return {};
             }
             std::vector<std::string> filePaths;

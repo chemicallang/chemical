@@ -5,10 +5,10 @@
 #include "cst/base/CSTToken.h"
 
 void CSTDiagnoser::diagnostic(const std::string &message, CSTToken *start, CSTToken *end, DiagSeverity severity) {
-#ifdef DEBUG
-    std::cerr << "[Debug_Error] " << message << std::endl;
-#endif
     if (severity == DiagSeverity::Error) {
+#ifdef DEBUG
+        std::cerr << "[Debug_Error] " << message << std::endl;
+#endif
         has_errors = true;
     }
     diagnostics.emplace_back(

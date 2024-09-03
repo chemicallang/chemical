@@ -350,13 +350,31 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
             if(use_tcc) {
                 // reset the c visitor to use with another file
                 c_visitor.reset();
-                // translating to c
-                processor.translate_to_c(c_visitor, unit.scope, file);
+                if(already_imported) {
+                    auto declared_in = unit.declared_in.find(mod);
+                    if(declared_in == unit.declared_in.end()) {
+                        // this is probably a different module, so we'll declare the file (if not declared)
+                        processor.declare_in_c(c_visitor, unit.scope, file);
+                        unit.declared_in[mod] = true;
+                    }
+                } else {
+                    // translating to c
+                    processor.translate_to_c(c_visitor, unit.scope, file);
+                }
             }
 #ifdef COMPILER_BUILD
             else {
-                // compiling the nodes
-                processor.compile_nodes(&gen, unit.scope, file);
+                if(already_imported) {
+                    auto declared_in = unit.declared_in.find(mod);
+                    if(declared_in == unit.declared_in.end()) {
+                        // this is probably a different module, so we'll declare the file (if not declared)
+                        processor.declare_nodes(gen, unit.scope, file);
+                        unit.declared_in[mod] = true;
+                    }
+                } else {
+                    // compiling the nodes
+                    processor.compile_nodes(gen, unit.scope, file);
+                }
             }
 #endif
 

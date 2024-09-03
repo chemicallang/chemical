@@ -69,6 +69,14 @@ std::string resources_path_rel_to_exe(const std::string& exe_path) {
     return res;
 }
 
+std::string canonical_path(const std::string& path) {
+    try {
+        return std::filesystem::canonical(((std::filesystem::path) path)).string();
+    } catch (std::filesystem::filesystem_error& e) {
+        return "";
+    }
+};
+
 std::string absolute_path(const std::string& relative) {
     return std::filesystem::absolute(relative).string();
 }

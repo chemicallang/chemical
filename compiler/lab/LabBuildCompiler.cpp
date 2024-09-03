@@ -334,6 +334,9 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
 
             // print the benchmark or verbose output received from processing
             if((options->benchmark || options->verbose) && !result.cli_out.empty()) {
+                if(file.abs_path.empty()) {
+                    int i = 0;
+                }
                 std::cout << rang::style::bold << rang::fg::magenta << "[Processing] " << file.abs_path << rang::fg::reset << rang::style::reset << '\n';
                 std::cout << result.cli_out << std::flush;
             }

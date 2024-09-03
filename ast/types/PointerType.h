@@ -84,6 +84,8 @@ public:
 
     llvm::Type *llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned int index) override;
 
+    clang::QualType clang_type(clang::ASTContext &context) override;
+
 #endif
 
 };

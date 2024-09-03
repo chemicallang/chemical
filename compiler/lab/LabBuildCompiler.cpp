@@ -15,7 +15,7 @@
 #include "compiler/ASTProcessor.h"
 #include "ast/structures/Namespace.h"
 #include "preprocess/ShrinkingVisitor.h"
-#include "preprocess/2cASTVisitor.h"
+#include "preprocess/2c/2cASTVisitor.h"
 #include "compiler/lab/LabBuildContext.h"
 #include "integration/ide/bindings/BuildContextCBI.h"
 #include "integration/libtcc/LibTccInteg.h"
@@ -402,6 +402,9 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
             auto obj_path = mod->object_path.to_std_string();
             compile_result = compile_c_string(options->exe_path.data(), output_ptr.str().data(), obj_path, false, options->benchmark, is_debug(options->def_mode));
             if(compile_result == 1) {
+                const auto out_path = resolve_sibling(obj_path, mod->name.to_std_string() + ".debug.c");
+                writeToFile(out_path, output_ptr.str());
+                std::cerr << rang::fg::red << "[LabBuild] couldn't build module '" << mod->name.data() << "' due to error in translation, translated C written at " << out_path << rang::fg::reset << std::endl;
                 break;
             }
             exe->linkables.emplace_back(obj_path);
@@ -761,7 +764,7 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
     if(state == nullptr) {
         const auto out_path = resolve_rel_child_path_str(context.build_dir, "build.lab.c");
         writeToFile(out_path, str);
-        std::cerr << rang::fg::red << "[LabBuild] Couldn't build lab file due to error in translation, translated C written at " << out_path << rang::fg::reset << std::endl;
+        std::cerr << rang::fg::red << "[LabBuild] couldn't build lab file due to error in translation, translated C written at " << out_path << rang::fg::reset << std::endl;
         return 1;
     }
 

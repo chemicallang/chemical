@@ -73,7 +73,7 @@
 #include "ast/structures/ExtensionFunction.h"
 #include "ast/statements/ThrowStatement.h"
 #include "preprocess/RepresentationVisitor.h"
-#include "preprocess/2cASTVisitor.h"
+#include "preprocess/2c/2cASTVisitor.h"
 #include "ast/values/SizeOfValue.h"
 #include "ast/values/NamespaceIdentifier.h"
 #include "ast/types/ReferencedValueType.h"

@@ -1,5 +1,7 @@
 // Copyright (c) Qinetik 2024.
 
+#pragma once
+
 #include "ast/base/Visitor.h"
 #include "compiler/ASTDiagnoser.h"
 #include "ast/base/GlobalInterpretScope.h"
@@ -508,10 +510,16 @@ void ToCAstVisitor::translate(NodesVec& nodes) {
 
 }
 
+#include "CTopLevelDeclVisitor.h"
+
 template <typename NodesVec>
 void ToCAstVisitor::declare(NodesVec& nodes) {
+    auto& vis = *tld;
+    auto prev = vis.redefining;
+    vis.redefining = true;
     // declare the top level things with this visitor
     for(auto& node : nodes) {
-        node->accept((Visitor*) tld.get());
+        node->accept(&vis);
     }
+    vis.redefining = prev;
 }

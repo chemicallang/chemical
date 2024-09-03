@@ -103,9 +103,12 @@
 #include "ast/values/UIntValue.h"
 #include "ast/values/ULongValue.h"
 #include "ast/utils/CommonVisitor.h"
-#include "utils/RepresentationUtils.h"
+#include "preprocess/utils/RepresentationUtils.h"
 #include "ast/utils/ASTUtils.h"
 #include <sstream>
+#include "CValueDeclVisitor.h"
+#include "CBeforeStmtVisitor.h"
+#include "CAfterStmtVisitor.h"
 
 ToCAstVisitor::ToCAstVisitor(std::ostream *output) : output(output), ASTDiagnoser() {
     declarer = std::make_unique<CValueDeclarationVisitor>(this);
@@ -768,105 +771,6 @@ void var_init(ToCAstVisitor* visitor, VarInitStatement* init, bool is_static) {
     value_alloca_store(visitor, init->identifier, init->type.get(), init->value);
 }
 
-class SubVisitor {
-public:
-
-    /**
-     * c visitor
-     */
-    ToCAstVisitor* visitor;
-
-    /**
-     * constructor
-     */
-    SubVisitor(ToCAstVisitor* visitor) : visitor(visitor) {
-
-    };
-
-    /**
-     * space fn using visitor
-     */
-    inline void space() const {
-        visitor->space();
-    }
-
-    /**
-     * write fn using visitor
-     */
-    inline void write(char value) const {
-        visitor->write(value);
-    }
-
-    /**
-     * write fn using visitor
-     */
-    inline void write(const std::string& value) const {
-        visitor->write(value);
-    }
-
-    /**
-     * new line and indent to current indentation level
-     */
-    inline void new_line_and_indent() {
-        visitor->new_line_and_indent();
-    }
-
-    /**
-     * reset the visitor, to translate another set of nodes
-     */
-    virtual void reset() {
-        // does nothing
-    }
-
-};
-
-class CBeforeStmtVisitor : public CommonVisitor, public SubVisitor {
-public:
-
-    using SubVisitor::SubVisitor;
-
-    void visit(FunctionCall *call) override;
-
-    void visit(AccessChain *chain) override;
-
-    void visit(VariantCall *call) override;
-
-    void process_comp_time_call(FunctionDeclaration* decl, FunctionCall* call, const std::string& identifier);
-
-    void process_init_value(Value* value, const std::string& identifier);
-
-    void visit(VarInitStatement *init) override;
-
-    void visit(Scope *scope) override {
-        // do nothing
-    }
-
-    void visit(LambdaFunction *func) override {
-        // do nothing
-    }
-
-};
-
-class CAfterStmtVisitor : public CommonVisitor, public SubVisitor {
-
-    using SubVisitor::SubVisitor;
-
-    void visit(AccessChain *chain) override;
-
-    void visit(FunctionCall *call) override;
-
-    void destruct_chain(AccessChain *chain, bool destruct_last);
-
-    void visit(LambdaFunction *func) override {
-        // do nothing
-    }
-
-    void visit(Scope *scope) override {
-        // do nothing
-    }
-
-};
-
 void allocate_struct_by_name(ToCAstVisitor* visitor, ExtendableMembersContainerNode* def, const std::string& name, Value* initializer = nullptr) {
     visitor->write("struct ");
     node_parent_name(visitor, def);
@@ -1190,105 +1094,12 @@ void CBeforeStmtVisitor::visit(VarInitStatement *init) {
     CommonVisitor::visit(init);
 }
 
-struct DeclaredNodeData {
-    union {
-        // total iterations that are done
-        int16_t iterations_done;
-        bool declared_struct;
-    } struct_def;
-    union {
-        // total iterations that are done
-        int16_t iterations_done;
-    } variant_def;
-};
-
-class CTopLevelDeclarationVisitor : public Visitor, public SubVisitor {
-public:
-
-    CValueDeclarationVisitor* value_visitor;
-
-    CTopLevelDeclarationVisitor(
-            ToCAstVisitor* visitor,
-            CValueDeclarationVisitor* value_visitor
-    );
-
-    /**
-     * nodes can be declared early if present in generics
-     */
-    std::unordered_map<ASTNode*, DeclaredNodeData> declared_nodes;
-
-    // this will not declare it's contained functions
-    void declare_struct_def_only(StructDefinition* def, bool check_declared);
-
-    void declare_struct(StructDefinition* structDef, bool check_declared);
-
-    void declare_variant(VariantDefinition* structDef);
-
-    void visit(TypealiasStatement *statement) override;
-
-    void visit(FunctionDeclaration *functionDeclaration) override;
-
-    void visit(ExtensionFunction *extensionFunc) override;
-
-    void visit(StructDefinition *structDefinition) override;
-
-    void visit(VariantDefinition *variant_def) override;
-
-    void visit(Namespace *ns) override;
-
-    void visit(UnionDef *def) override;
-
-    void visit(InterfaceDefinition *interfaceDefinition) override;
-
-    void visit(ImplDefinition *implDefinition) override;
-
-    void reset();
-
-};
-
 CTopLevelDeclarationVisitor::CTopLevelDeclarationVisitor(
     ToCAstVisitor *visitor,
     CValueDeclarationVisitor *value_visitor
 ) : SubVisitor(visitor), value_visitor(value_visitor) {
 
 }
-
-class CValueDeclarationVisitor : public CommonVisitor, public SubVisitor {
-public:
-
-    using SubVisitor::SubVisitor;
-
-    std::unordered_map<void*, std::string> aliases;
-
-    unsigned lambda_num = 0;
-
-    unsigned func_type_num = 0;
-
-    unsigned alias_num = 0;
-
-    unsigned enum_num = 0;
-
-    void visit(VarInitStatement *init) override;
-
-    void visit(LambdaFunction *func) override;
-
-    void visit(FunctionDeclaration *functionDeclaration) override;
-
-    void visit(ExtensionFunction *extensionFunc) override;
-
-    void visit(EnumDeclaration *enumDeclaration) override;
-
-    void visit(TypealiasStatement *statement) override;
-
-    void visit(FunctionType *func) override;
-
-    void visit(StructMember *member) override;
-
-    void reset() override {
-        aliases.clear();
-    }
-
-};
 
 enum class DestructionJobType {
     Default,
@@ -2063,15 +1874,17 @@ void CTopLevelDeclarationVisitor::declare_struct(StructDefinition* def, bool che
 
 void CTopLevelDeclarationVisitor::visit(StructDefinition* def) {
     if(def->generic_params.empty()) {
-        declare_struct(def, true);
+        declare_struct(def, !redefining);
     } else {
         int16_t itr = 0;
         // if previously we generated definition, we must start at the definition not done yet
         // this can happen if generic was present in other file, and we generated all implementations
         // however in this file we found another implementation that hasn't been generated before
-        auto found = declared_nodes.find(def);
-        if(found != declared_nodes.end()) {
-            itr = found->second.struct_def.iterations_done;
+        if(!redefining) {
+            auto found = declared_nodes.find(def);
+            if (found != declared_nodes.end()) {
+                itr = found->second.struct_def.iterations_done;
+            }
         }
         const auto total = def->total_generic_iterations();
         while(itr < total) {

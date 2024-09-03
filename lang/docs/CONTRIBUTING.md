@@ -34,7 +34,7 @@ files contain functions for lexing different nodes / values / types.
     - May change by removing compound tokens classes with a single struct, to allocate at-least 1000 tokens on stack.
 
 - [preprocess](../../preprocess) These are preprocessors on `CST` or `AST`
-  - [2cASTVisitor](../../preprocess/2cASTVisitor.h) The class that converts Chemical `AST` to `C`
+  - [2cASTVisitor](../../preprocess/2c/2cASTVisitor.h) The class that converts Chemical `AST` to `C`
   - [CSTSymbolResolver](../../server/helpers/CSTSymbolResolver.h) The class traverses the `CST` to link referenced variables and types
   - [ImportGraphMaker](../../preprocess/ImportGraphMaker.h) The class visits the `CST` to quickly create an import graph (which files depend on which) so we compile the independent files first
   - [ImportPathHandler](../../preprocess/ImportPathHandler.h) If user imports C headers, this class resolves the path to those system headers

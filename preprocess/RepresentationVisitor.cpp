@@ -100,6 +100,7 @@
 #include "ast/utils/CommonVisitor.h"
 #include "utils/RepresentationUtils.h"
 #include "ast/statements/Comment.h"
+#include "preprocess/2c/2cASTVisitor.h"
 
 RepresentationVisitor::RepresentationVisitor(std::ostream &output) : output(output) {
 //    declarer = std::make_unique<CValueDeclarationVisitor>(this);
@@ -123,44 +124,6 @@ void write_encoded(RepresentationVisitor* visitor, const std::string& value) {
         visitor->write(escape_encode(c));
     }
 }
-
-class SubVisitor {
-public:
-
-    /**
-     * c visitor
-     */
-    RepresentationVisitor* visitor;
-
-    /**
-     * constructor
-     */
-    SubVisitor(RepresentationVisitor* visitor) : visitor(visitor) {
-
-    };
-
-    /**
-     * space fn using visitor
-     */
-    inline void space() const {
-        visitor->space();
-    }
-
-    /**
-     * write fn using visitor
-     */
-    inline void write(char value) const {
-        visitor->write(value);
-    }
-
-    /**
-     * write fn using visitor
-     */
-    inline void write(const std::string& value) const {
-        visitor->write(value);
-    }
-
-};
 
 void RepresentationVisitor::prepare_translate() {
 

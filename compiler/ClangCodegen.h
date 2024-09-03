@@ -14,6 +14,12 @@ enum class ManglerKind {
 
 class FunctionDeclaration;
 
+#ifdef _WIN32
+static constexpr ManglerKind DefManglerKind = ManglerKind::Microsoft;
+#else
+static constexpr ManglerKind DefManglerKind = ManglerKind::Itanium;
+#endif
+
 /**
  * allows to abstract away details of clang code generation
  * which is used to generate code for C and C++, mangle function names
@@ -29,7 +35,7 @@ public:
     /**
      * the constructor
      */
-    ClangCodegen(std::string target_triple, ManglerKind manglerKind);
+    ClangCodegen(std::string target_triple, ManglerKind manglerKind = DefManglerKind);
 
     /**
      * switch mangler kind to given

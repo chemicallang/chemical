@@ -20,6 +20,11 @@
 #include "ast/structures/StructDefinition.h"
 #include "ast/statements/Typealias.h"
 #include "ast/statements/VarInit.h"
+#include "ast/types/DoubleType.h"
+#include "ast/types/FloatType.h"
+#include "ast/types/VoidType.h"
+#include "ast/types/BoolType.h"
+#include "ast/types/PointerType.h"
 #include "compiler/ClangCodegen.h"
 #include <clang/AST/Decl.h>
 #include <clang/AST/Mangle.h>
@@ -463,6 +468,26 @@ clang::QualType BaseType::clang_type(clang::ASTContext &gen) {
 
 clang::QualType IntNType::clang_type(clang::ASTContext &context) {
     return context.getIntTypeForBitwidth(num_bits(), !is_unsigned());
+}
+
+clang::QualType BoolType::clang_type(clang::ASTContext &context) {
+    return context.BoolTy;
+}
+
+clang::QualType DoubleType::clang_type(clang::ASTContext &context) {
+    return context.DoubleTy;
+}
+
+clang::QualType FloatType::clang_type(clang::ASTContext &context) {
+    return context.FloatTy;
+}
+
+clang::QualType VoidType::clang_type(clang::ASTContext &context) {
+    return context.VoidTy;
+}
+
+clang::QualType PointerType::clang_type(clang::ASTContext &context) {
+    return context.getPointerType(type->clang_type(context));
 }
 
 // ------------------------------ C Translation -----------------------------

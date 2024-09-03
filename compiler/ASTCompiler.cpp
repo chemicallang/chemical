@@ -7,11 +7,10 @@
 #include "compiler/SymbolResolver.h"
 
 void ASTCompiler::compile_nodes(
-        Codegen* gen_ptr,
+        Codegen& gen,
         Scope& import_res,
         const FlatIGFile &file
 ) {
-    auto& gen = *gen_ptr;
     auto& nodes_vec = import_res.nodes;
     std::unique_ptr<BenchmarkResults> bm_results;
     if(options->benchmark) {
@@ -33,4 +32,12 @@ void ASTCompiler::compile_nodes(
         gen.print_diagnostics(file.abs_path, "Compile");
         gen.diagnostics.clear();
     }
+}
+
+void ASTCompiler::declare_nodes(
+        Codegen& gen,
+        Scope& import_res,
+        const FlatIGFile &file
+) {
+
 }

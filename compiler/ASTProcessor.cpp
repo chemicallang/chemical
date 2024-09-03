@@ -301,13 +301,21 @@ void ASTProcessor::translate_to_c(
     visitor.translate(import_res.nodes);
     if(options->benchmark) {
         bm_results->benchmark_end();
-        std::cout << "[2cTranslation] " << file.abs_path << " Completed " << bm_results->representation() << std::endl;
+        std::cout << "[2cTranslation] " << " Completed " << bm_results->representation() << std::endl;
     }
     if(!visitor.diagnostics.empty()) {
         visitor.print_diagnostics(file.abs_path, "2cTranslation");
         std::cout << std::endl;
     }
     visitor.reset_errors();
+}
+
+void ASTProcessor::declare_in_c(
+        ToCAstVisitor& visitor,
+        Scope& import_res,
+        const FlatIGFile& file
+) {
+
 }
 
 void ASTProcessor::shrink_nodes(

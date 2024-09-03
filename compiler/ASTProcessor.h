@@ -39,6 +39,12 @@ struct ASTImportResult {
 
 struct ASTImportResultExt : ASTImportResult {
 
+    /**
+     * this field provides cli_out, this is here
+     * because a file is imported concurrently, since multiple
+     * files are compiled, we use this field to put everything we want to print
+     * for that file into this variable and then print it
+     */
     std::string cli_out;
 
 };
@@ -145,6 +151,17 @@ public:
      * doesn't perform symbol resolution
      */
     void translate_to_c(
+        ToCAstVisitor& visitor,
+        Scope& import_res,
+        const FlatIGFile& file
+    );
+
+    /**
+     * declare the nodes in C, this is called
+     * when the file has been translated in another module
+     * and is being imported in this module for the first time
+     */
+    void declare_in_c(
         ToCAstVisitor& visitor,
         Scope& import_res,
         const FlatIGFile& file

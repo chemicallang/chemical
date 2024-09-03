@@ -187,6 +187,23 @@ public:
     std::string representation();
 
     /**
+     * runtime name will be written to the given stream
+     * runtime name is constructed by prepending parent's names
+     * into the final name
+     */
+    void runtime_name(std::ostream& stream);
+
+    /**
+     * runtime name of this node without any parent names appended to it
+     */
+    virtual void runtime_name_no_parent(std::ostream& stream);
+
+    /**
+     * get runtime_name as a string
+     */
+    std::string runtime_name();
+
+    /**
      * when this node is inside a namespace, what identifier can be used
      * to access this node, for example a function inside a namespace, returns it's name
      * so namespace::function_name can be used to access it

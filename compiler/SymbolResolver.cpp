@@ -12,9 +12,16 @@ SymbolResolver::SymbolResolver(bool is64Bit) : ASTDiagnoser(), is64Bit(is64Bit) 
 }
 
 void SymbolResolver::dup_sym_error(const std::string& name, ASTNode* previous, ASTNode* new_node) {
-    std::string err("duplicate symbol being declared " + name + " symbol already exists\n");
-    err.append("previous : " + previous->representation() + "\n");
-    err.append("new : " + new_node->representation() + "\n");
+    std::string err("duplicate symbol being declared " + name + " symbol already exists");
+//    err.append("\nprevious : " + previous->representation() + "\n");
+//    err.append("new : " + new_node->representation() + "\n");
+    error(err, new_node);
+}
+
+void SymbolResolver::dup_runtime_sym_error(const std::string& name, ASTNode* previous, ASTNode* new_node) {
+    std::string err("duplicate runtime symbol being declared " + name + " symbol already exists");
+//    err.append("\nprevious : " + previous->representation() + "\n");
+//    err.append("new : " + new_node->representation() + "\n");
     error(err, new_node);
 }
 
@@ -73,6 +80,15 @@ void SymbolResolver::declare(const std::string& name, ASTNode* node) {
             dup_sym_error(name, found->second, node);
         }
     }
+}
+
+void SymbolResolver::declare_runtime(const std::string& name, ASTNode* node) {
+    auto found = runtime_symbols.find(name);
+    if(found == runtime_symbols.end()) {
+        runtime_symbols[name] = node;
+    } else {
+        dup_runtime_sym_error(name, found->second, node);
+    };
 }
 
 bool SymbolResolver::undeclare(const std::string_view& name) {

@@ -18,6 +18,22 @@ std::string ASTNode::representation() {
     return ostring.str();
 }
 
+void ASTNode::runtime_name(std::ostream& stream) {
+    const auto p = parent();
+    if(p) p->runtime_name(stream);
+    runtime_name_no_parent(stream);
+}
+
+void ASTNode::runtime_name_no_parent(std::ostream& stream) {
+    stream << ns_node_identifier();
+}
+
+std::string ASTNode::runtime_name() {
+    std::stringstream stream;
+    runtime_name(stream);
+    return stream.str();
+}
+
 uint64_t ASTNode::byte_size(bool is64Bit) {
     auto holdingType = known_type();
     if(holdingType) return holdingType->byte_size(is64Bit);

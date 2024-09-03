@@ -68,6 +68,12 @@ private:
      */
     std::vector<SymResScope> current = {{ SymResScopeKind::Global }};
 
+    /**
+     * runtime symbols that are checked for conflicts with other nodes
+     * across modules, only at top level nodes
+     */
+    std::unordered_map<std::string, ASTNode*> runtime_symbols;
+
 public:
 
     /**
@@ -177,9 +183,19 @@ public:
     void dup_sym_error(const std::string& name, ASTNode* previous, ASTNode* new_node);
 
     /**
+     * duplicate runtime symbol error
+     */
+    void dup_runtime_sym_error(const std::string& name, ASTNode* previous, ASTNode* new_node);
+
+    /**
      * declares a node with string : name
      */
     void declare(const std::string &name, ASTNode *node);
+
+    /**
+     * declare a runtime symbol
+     */
+    void declare_runtime(const std::string& name, ASTNode* node);
 
     /**
      * symbol will be undeclared if present, otherwise error if error_out

@@ -168,7 +168,7 @@ IGResult determine_import_graph(const std::string& exe_path, std::vector<CSTToke
     return determine_import_graph(&importer, tokens, asker);
 }
 
-IGResult determine_import_graph(const std::string &exe_path, const std::string &abs_path) {
+IGFile determine_ig_file(const std::string &exe_path, const std::string &abs_path) {
     SourceProvider reader(nullptr);
     Lexer lexer(reader);
     ImportGraphVisitor visitor;
@@ -178,9 +178,11 @@ IGResult determine_import_graph(const std::string &exe_path, const std::string &
             &lexer,
             &visitor
     );
-    return IGResult{
-            from_import(&importer, nullptr, abs_path, nullptr)
-    };
+    return from_import(&importer, nullptr, abs_path, nullptr);
+}
+
+IGResult determine_import_graph(const std::string &exe_path, const std::string &abs_path) {
+    return IGResult { determine_ig_file(exe_path, abs_path) };
 }
 
 //bool IGFile::depth_first(const std::function<bool(IGFile*)>& fn) {
@@ -268,7 +270,7 @@ std::vector<FlatIGFile> flatten_by_dedupe(std::vector<IGFile>& files) {
     return imports;
 }
 
-void representation(IGFile& file, std::string& into, unsigned int level) {
+void representation(const IGFile& file, std::string& into, unsigned int level) {
     unsigned i = 0;
     while(i < level) {
         into.append("--");
@@ -293,13 +295,27 @@ std::string IGFile::representation() {
     return rep;
 }
 
-void print_errors(IGFile* file) {
-    for(auto& sub_file : file->files) {
-        print_errors(&sub_file);
+std::string representation(const std::vector<IGFile>& files) {
+    std::string rep;
+    for(auto& file : files) {
+        ::representation(file, rep, 0);
     }
-    if(!file->errors.empty()) {
-        for (auto& err : file->errors) {
-            err.ansi(std::cout, file->flat_file.abs_path, "IGGraph") << std::endl;
+    return rep;
+}
+
+void print_errors(const IGFile& file) {
+    for(auto& sub_file : file.files) {
+        print_errors(sub_file);
+    }
+    if(!file.errors.empty()) {
+        for (auto& err : file.errors) {
+            err.ansi(std::cout, file.flat_file.abs_path, "IGGraph") << std::endl;
         }
+    }
+}
+
+void print_errors(const std::vector<IGFile>& files) {
+    for(auto& sub_file : files) {
+        print_errors(sub_file);
     }
 }

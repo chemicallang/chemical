@@ -132,6 +132,11 @@ IGResult determine_import_graph(
 );
 
 /**
+ * this determines the IG file, the root if file for the given absolute_path
+ */
+IGFile determine_ig_file(const std::string &exe_path, const std::string &abs_path);
+
+/**
  * determines import graph, which is data structure
  */
 IGResult determine_import_graph(const std::string &exe_path, const std::string &abs_path);
@@ -139,9 +144,19 @@ IGResult determine_import_graph(const std::string &exe_path, const std::string &
 /**
  * construct's a list representation from the given IGFile
  */
-void representation(IGFile &file, std::string &into, unsigned int level = 0);
+void representation(const IGFile &file, std::string &into, unsigned int level = 0);
+
+/**
+ * get the representation of the files
+ */
+std::string representation(const std::vector<IGFile>& files);
 
 /**
  * prints errors in the given file
  */
-void print_errors(IGFile *file);
+void print_errors(const IGFile& file);
+
+/**
+ * prints the errors in the given ig files
+ */
+void print_errors(const std::vector<IGFile>& files);

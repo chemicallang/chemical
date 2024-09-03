@@ -21,6 +21,11 @@ public:
     }
 
     /**
+     * runtime name without the parent name prepended to it
+     */
+    void runtime_name_no_parent(std::ostream &stream) override;
+
+    /**
      * get the member container child or otherwise extendable member container child
      */
     ASTNode *child(const std::string &child_name) override {

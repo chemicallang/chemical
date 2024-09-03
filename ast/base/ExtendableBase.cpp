@@ -1,6 +1,6 @@
 // Copyright (c) Qinetik 2024.
 
-#include "ExtendableBase.h"
+#include "ExtendableMembersContainerNode.h"
 #include "ast/structures/MembersContainer.h"
 
 FunctionDeclaration *ExtendableBase::extended_child(const std::string &name) {
@@ -17,5 +17,15 @@ void ExtendableBase::adopt(MembersContainer* definition) {
     }
     for(auto& func : definition->functions()) {
         extension_functions[func->name] = func.get();
+    }
+}
+
+void ExtendableMembersContainerNode::runtime_name_no_parent(std::ostream &stream) {
+    if(generic_params.empty()) {
+        stream << name;
+    } else {
+        stream << name;
+        stream << "__cgs__";
+        stream << active_iteration;
     }
 }

@@ -162,60 +162,27 @@ void assign_statement(ToCAstVisitor* visitor, AssignStatement* assign) {
 #define fn_call_struct_var_name "chx_fn_cl_struct"
 
 static std::string struct_name_str(ToCAstVisitor* visitor, ExtendableMembersContainerNode* def) {
-    if(def->generic_params.empty()) {
-        return def->name;
-    } else {
-        return def->name + "__cgs__" + std::to_string(def->active_iteration);
-    }
+    std::stringstream name;
+    def->runtime_name_no_parent(name);
+    return name.str();
 }
 
 // without the parent node name
 static void struct_name(ToCAstVisitor* visitor, ExtendableMembersContainerNode* def) {
-    visitor->write(struct_name_str(visitor, def));
+    def->runtime_name_no_parent(*visitor->output);
 }
 
-// nodes inside namespaces for example namespace name is written before their name
 void node_name(ToCAstVisitor* visitor, ASTNode* node) {
     if(!node) return;
-    std::string name;
-    auto parent = node;
-    while(parent) {
-        if(parent->as_namespace()) {
-            name = parent->as_namespace()->name + name;
-        } else if(parent->as_struct_def()) {
-            name = struct_name_str(visitor, parent->as_struct_def()) + name;
-        } else if(parent->as_union_def()) {
-            name = parent->as_union_def()->name + name;
-        } else if(parent->as_interface_def()) {
-            name = parent->as_interface_def()->name + name;
-        } else {
-            name = "[UNKNOWN_PARENT_NAME]" + name;
-        }
-        parent = parent->parent();
-    }
-    visitor->write(name);
+    node->runtime_name(*visitor->output);
 }
 
 // nodes inside namespaces for example namespace name is written before their name
 void node_parent_name(ToCAstVisitor* visitor, ASTNode* node, bool take_parent = true) {
-    if(!node) return;
-    std::string name;
-    auto parent = take_parent ? node->parent() : node;
-    while(parent) {
-        if(parent->as_namespace()) {
-            name = parent->as_namespace()->name + name;
-        } else if(parent->as_struct_def()) {
-            name = struct_name_str(visitor, parent->as_struct_def()) + name;
-        } else if(parent->as_union_def()) {
-            name = parent->as_union_def()->name + name;
-        } else if(parent->as_interface_def()) {
-            name = parent->as_interface_def()->name + name;
-        } else {
-            name = "[UNKNOWN_PARENT_NAME]" + name;
-        }
-        parent = parent->parent();
+    auto current = take_parent ? (node ? node->parent() : nullptr) : node;
+    if(current) {
+        current->runtime_name(*visitor->output);
     }
-    visitor->write(name);
 }
 
 void func_type_with_id(ToCAstVisitor* visitor, FunctionType* type, const std::string& id);
@@ -3907,39 +3874,40 @@ void ToCAstVisitor::visit(PointerType *func) {
 }
 
 void ToCAstVisitor::visit(ReferencedType *type) {
-    if(type->linked->as_interface_def()) {
-        write("void");
-        return;
-    }
-    if(type->linked->as_enum_decl()){
-        write("int");
-        return;
-    }
-    std::string name = type->type;
-    if(type->linked->as_struct_def()) {
-        write("struct ");
-        name = struct_name_str(this, type->linked->as_struct_def());
-    } else if(type->linked->as_variant_def()) {
-        write("struct ");
-        name = struct_name_str(this, type->linked->as_variant_def());
-    } else if(type->linked->as_union_def()) {
-        write("union ");
-        name = type->linked->as_union_def()->name;
-    }
-    if(type->linked->as_generic_type_param()) {
-        const auto gen = type->linked->as_generic_type_param();
-        gen->get_value_type()->accept(this);
-        return;
-    }
-    if(type->linked->as_typealias() != nullptr) {
-        auto alias = declarer->aliases.find(type->linked->as_typealias());
-        if(alias != declarer->aliases.end()) {
-            write(alias->second);
+    auto& linked = *type->linked;
+    const auto kind = type->linked->kind();
+    switch(kind) {
+        case ASTNodeKind::InterfaceDecl:
+            write("void");
             return;
-        }
+        case ASTNodeKind::EnumDecl:
+            write("int");
+            return;
+        case ASTNodeKind::StructDecl:
+        case ASTNodeKind::VariantDecl:
+            write("struct ");
+            linked.runtime_name(*output);
+            return;
+        case ASTNodeKind::UnionDecl:
+            write("union ");
+            linked.runtime_name(*output);
+            return;
+        case ASTNodeKind::GenericTypeParam:
+            linked.get_value_type()->accept(this);
+            return;
+        case ASTNodeKind::TypealiasStmt: {
+            auto alias = declarer->aliases.find(&linked);
+            if (alias != declarer->aliases.end()) {
+                write(alias->second);
+                return;
+            }
+            break;
+        };
+        default:
+            break;
     }
-    node_parent_name(this, type->linked);
-    write(name);
+    node_parent_name(this, &linked);
+    write(type->type);
 }
 
 void ToCAstVisitor::visit(ReferencedValueType *ref_type) {

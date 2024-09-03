@@ -49,6 +49,8 @@ public:
 
     llvm::Type *llvm_type(Codegen &gen) override;
 
+    clang::QualType clang_type(clang::ASTContext &context) override;
+
 #endif
 
 };

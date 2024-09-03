@@ -12,4 +12,5 @@ namespace clang {
     class EnumDecl;
     class VarDecl;
     class Expr;
+    class ASTContext;
 }

@@ -23,6 +23,7 @@
 #include "compiler/ClangCodegen.h"
 #include <clang/AST/Decl.h>
 #include <clang/AST/Mangle.h>
+#include "compiler/Codegen.h"
 
 struct ErrorMsg {
     const char *filename_ptr; // can be null
@@ -417,11 +418,15 @@ std::string ClangCodegen::mangled_name(FunctionDeclaration* decl) {
     clang::ASTContext &context = impl->compiler.getASTContext();
     auto unit = context.getTranslationUnitDecl();
 
-    // TODO convert the given function declaration to clang decl first
-
     clang::QualType returnType = context.IntTy;
     clang::FunctionProtoType::ExtProtoInfo protoInfo;
-    auto funcType = context.getFunctionType(returnType, {}, protoInfo);
+
+    std::vector<clang::QualType> args;
+    for(auto& arg : decl->params) {
+        args.emplace_back(arg->type->clang_type(context));
+    }
+
+    auto funcType = context.getFunctionType(returnType, args, protoInfo);
     clang::DeclarationName declName = context.DeclarationNames.getIdentifier(&context.Idents.get(decl->name));
 
     clang::FunctionDecl *funcDecl = clang::FunctionDecl::Create(
@@ -431,13 +436,36 @@ std::string ClangCodegen::mangled_name(FunctionDeclaration* decl) {
             funcType, nullptr, clang::SC_Extern
     );
 
+    // setting parameters
+    llvm::SmallVector<clang::ParmVarDecl*> params;
+    for(auto& param : decl->params) {
+        clang::IdentifierInfo &paramId = context.Idents.get(param->name);
+        clang::ParmVarDecl *clangParam = clang::ParmVarDecl::Create(
+                context, unit, clang::SourceLocation(), clang::SourceLocation(),
+                &paramId, param->type->clang_type(context), nullptr, clang::SC_None, nullptr);
+        params.emplace_back(clangParam);
+    }
+    funcDecl->setParams(params);
+
     return mangled_name(funcDecl);
 
 }
 
 ClangCodegen::~ClangCodegen() = default;
 
-//------------------------------ C Translation -----------------------------
+//------------------------------ Clang Support -----------------------------
+//--------------------------------------------------------------------------
+//--------------------------------------------------------------------------
+
+clang::QualType BaseType::clang_type(clang::ASTContext &gen) {
+    throw std::runtime_error("BaseType::clang_type called");
+}
+
+clang::QualType IntNType::clang_type(clang::ASTContext &context) {
+    return context.getBitIntType(is_unsigned(), num_bits());
+}
+
+// ------------------------------ C Translation -----------------------------
 //--------------------------------------------------------------------------
 //--------------------------------------------------------------------------
 

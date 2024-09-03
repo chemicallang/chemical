@@ -279,6 +279,16 @@ public:
     }
 
     /**
+     * this is called on nodes that are being imported into another module
+     * for the first time, so this basically declares nodes (functions) like
+     * you would declare functions present in external modules (libraries)
+     * that are linked by the linker in C or C++
+     */
+    virtual void code_gen_external_declare(Codegen &gen) {
+        // node can declare it self
+    }
+
+    /**
      * code_gen function that generates llvm Value
      */
     virtual void code_gen(Codegen &gen);

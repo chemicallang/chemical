@@ -262,6 +262,12 @@ public:
     template <typename NodesVec>
     void translate(NodesVec& nodes);
 
+    /**
+     * will only declare these nodes
+     */
+    template <typename NodesVec>
+    void declare(NodesVec& nodes);
+
     //------------------------------
     //----------Visitors------------
     //------------------------------
@@ -500,4 +506,12 @@ void ToCAstVisitor::translate(NodesVec& nodes) {
         node->accept(this);
     }
 
+}
+
+template <typename NodesVec>
+void ToCAstVisitor::declare(NodesVec& nodes) {
+    // declare the top level things with this visitor
+    for(auto& node : nodes) {
+        node->accept((Visitor*) tld.get());
+    }
 }

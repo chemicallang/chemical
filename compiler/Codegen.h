@@ -125,6 +125,12 @@ public:
     void compile_nodes(NodesVec& nodes);
 
     /**
+     * this will only declare these nodes
+     */
+    template<typename NodesVec>
+    void declare_nodes(NodesVec& nodes);
+
+    /**
      * when a function ends, this method is called to basically end the block
      * this is because the functions that return void may need a return statement
      * to end current BasicBlock
@@ -491,6 +497,13 @@ void Codegen::compile_nodes(NodesVec& nodes_vec) {
     }
     for (const auto &node: nodes_vec) {
         node->code_gen(*this);
+    }
+}
+
+template<typename NodesVec>
+void Codegen::declare_nodes(NodesVec& nodes_vec) {
+    for(const auto& node : nodes_vec) {
+        node->code_gen_external_declare(*this);
     }
 }
 

@@ -174,7 +174,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
 
 #ifdef COMPILER_BUILD
     ASTCompiler processor(options, &resolver);
-    Codegen gen({}, options->target_triple, options->exe_path, options->is64Bit, "");
+    Codegen gen(options->target_triple, options->exe_path, options->is64Bit, "");
     CodegenEmitterOptions emitter_options;
 #else
     ASTProcessor processor(options, &resolver);
@@ -301,7 +301,6 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
 #ifdef COMPILER_BUILD
         // prepare for code generation of this module
         gen.module_init(mod->name.to_std_string());
-        gen.compile_begin();
 #endif
 
         if(use_tcc) {
@@ -395,9 +394,6 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
         }
 
 #ifdef COMPILER_BUILD
-        if(!use_tcc) {
-            gen.compile_end();
-        }
 
         // which files to emit
         if(!mod->llvm_ir_path.empty()) {

@@ -75,12 +75,11 @@
 #include "rang.hpp"
 
 Codegen::Codegen(
-        std::vector<std::unique_ptr<ASTNode>> nodes,
         std::string target_triple,
         std::string curr_exe_path,
         bool is_64_bit,
         const std::string& module_name
-) : ASTDiagnoser(), comptime_scope(), nodes(std::move(nodes)),
+) : ASTDiagnoser(), comptime_scope(),
     target_triple(std::move(target_triple)), is64Bit(is_64_bit), clang(target_triple) {
     // create llvm context
     ctx = std::make_unique<llvm::LLVMContext>();
@@ -106,24 +105,6 @@ bool Codegen::is_arch_64bit(const std::string& target_triple) {
 
 void Codegen::module_init(const std::string& module_name) {
     module = std::make_unique<llvm::Module>(module_name, *ctx);
-}
-
-void Codegen::compile() {
-    compile_begin();
-    compile_nodes();
-    compile_end();
-}
-
-void Codegen::compile_begin() {
-    // no implementation yet
-}
-
-void Codegen::compile_nodes() {
-    compile_nodes(nodes);
-}
-
-void Codegen::compile_end() {
-    // no implementation yet
 }
 
 void Codegen::createFunctionBlock(llvm::Function *fn) {

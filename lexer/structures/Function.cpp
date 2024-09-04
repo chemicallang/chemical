@@ -211,13 +211,11 @@ bool Lexer::lexFunctionSignatureTokens() {
 
 }
 
-bool Lexer::lexFunctionStructureTokens(bool allow_declarations, bool allow_extensions) {
+bool Lexer::lexFunctionStructureTokens(unsigned start, bool allow_declarations, bool allow_extensions) {
 
     if(!lexWSKeywordToken("func")) {
         return false;
     }
-
-    unsigned start = tokens_size() - 1;
 
     if(!lexAfterFuncKeyword(allow_extensions)) {
         return true;

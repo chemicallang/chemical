@@ -6,6 +6,21 @@
 
 #include "lexer/Lexer.h"
 
+bool Lexer::lexTopLevelAccessSpecifiedDecls() {
+    if(lexAccessSpecifier(false)) {
+        auto start = tokens_size() - 1;
+        return lexFunctionStructureTokens(start, true, true)
+                || lexEnumStructureTokens(start)
+                || lexStructStructureTokens(start, false, false)
+                || lexUnionStructureTokens(start, false, false)
+                || lexVariantStructureTokens(start)
+                || lexInterfaceStructureTokens(start)
+                || lexNamespaceTokens(start);
+    } else {
+        return false;
+    }
+}
+
 bool Lexer::lexTopLevelStatementTokens() {
     return lexSingleLineCommentTokens() ||
            lexMultiLineCommentTokens() ||
@@ -20,7 +35,8 @@ bool Lexer::lexTopLevelStatementTokens() {
            lexInterfaceStructureTokens() ||
            lexImplTokens() ||
            lexFunctionStructureTokens(true, true) ||
-           lexNamespaceTokens();
+           lexNamespaceTokens() ||
+           lexTopLevelAccessSpecifiedDecls();
 }
 
 bool Lexer::lexNestedLevelStatementTokens(bool is_value, bool lex_value_node) {

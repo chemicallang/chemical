@@ -28,9 +28,8 @@ void Lexer::lexStructBlockTokens() {
     lexWhitespaceToken();
 }
 
-bool Lexer::lexStructStructureTokens(bool unnamed, bool direct_init) {
+bool Lexer::lexStructStructureTokens(unsigned start_token, bool unnamed, bool direct_init) {
     if(lexWSKeywordToken("struct")) {
-        auto start_token = tokens_size() - 1;
         bool has_identifier = false;
         if(!unnamed) {
             has_identifier = lexIdentifierToken();

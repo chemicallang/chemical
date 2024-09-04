@@ -1157,7 +1157,8 @@ void CSTConverter::visitDoWhile(CSTToken* doWhileCst) {
 unsigned int collect_struct_members(
         CSTConverter *conv,
         CSTToken*  comp_token,
-        MembersContainer *container,
+        VariablesContainer *container,
+        MembersContainer* mem_container,
         unsigned i
 ) {
     auto& tokens = comp_token->tokens;
@@ -1174,25 +1175,19 @@ unsigned int collect_struct_members(
             }
             case LexTokenType::CompFunction:{
                 const auto node = (FunctionDeclaration *) conv->pop_last_node();
-                if(!container->insert_multi_func(std::unique_ptr<FunctionDeclaration>(node))) {
+                if(!mem_container->insert_multi_func(std::unique_ptr<FunctionDeclaration>(node))) {
                     conv->error("conflict inserting function with name " + node->name, token);
                 }
                 break;
             }
             case LexTokenType::CompStructDef:{
-                const auto node = (StructDefinition*) conv->pop_last_node();
-                const auto thing = new UnnamedStruct(node->name, conv->parent_node, token);
-                variables[node->name] = std::unique_ptr<UnnamedStruct>(thing);
-                thing->variables = std::move(node->variables);
-                delete node;
+                const auto node = (UnnamedStruct*) conv->pop_last_node();
+                variables[node->name] = std::unique_ptr<UnnamedStruct>(node);
                 break;
             }
             case LexTokenType::CompUnionDef:{
-                const auto node = (UnionDef*) conv->pop_last_node();
-                const auto thing = new UnnamedUnion(node->name, conv->parent_node, token);
-                variables[node->name] = std::unique_ptr<UnnamedUnion>(thing);
-                thing->variables = std::move(node->variables);
-                delete node;
+                const auto node = (UnnamedUnion*) conv->pop_last_node();
+                variables[node->name] = std::unique_ptr<UnnamedUnion>(node);
                 break;
             }
             case LexTokenType::CompVariantMember:{
@@ -1257,20 +1252,25 @@ void CSTConverter::visitStructDef(CSTToken* structDef) {
         i += 1; // expected index of the ':'
     }
     auto has_override = is_char_op(structDef->tokens[i], ':');
-    auto def = new StructDefinition(str_token(named ? name_token : structDef->tokens[structDef->tokens.size() - 1]), parent_node, structDef);
-    if (has_override) {
-        i++; // set on access specifier or the inherited struct / interface name
-        get_inherit_list(this, structDef, i, def->inherited);
+    AnnotableNode* def;
+    if(named) {
+        def = new StructDefinition(name_token->value, parent_node, structDef);
+        if (has_override) {
+            i++; // set on access specifier or the inherited struct / interface name
+            get_inherit_list(this, structDef, i, ((StructDefinition*) def)->inherited);
+        }
+    } else {
+        def = new UnnamedStruct(structDef->tokens[structDef->tokens.size() - 1]->value, parent_node, structDef);
     }
     i += 1;// positioned at first node or '}'
     if(is_generic) {
-        convert_generic_list(this, gen_token, def->generic_params, def);
+        convert_generic_list(this, gen_token, ((StructDefinition*) def)->generic_params, def);
     }
     auto prev_struct_decl = current_members_container;
-    current_members_container = def;
+    current_members_container = (StructDefinition*) def;
     auto prev_parent = parent_node;
     parent_node = def;
-    collect_struct_members(this, structDef, def, i);
+    collect_struct_members(this, structDef, def->as_variables_container(), def->as_members_container(), i);
     parent_node = prev_parent;
     current_members_container = prev_struct_decl;
     collect_annotations_in(this, def);
@@ -1300,7 +1300,7 @@ void CSTConverter::visitInterface(CSTToken* interface) {
     current_members_container = def;
     auto prev_parent = parent_node;
     parent_node = def;
-    collect_struct_members(this, interface, def, i);
+    collect_struct_members(this, interface, def, def, i);
     parent_node = prev_parent;
     current_members_container = prev_container;
     put_node(def, interface);
@@ -1323,17 +1323,26 @@ void CSTConverter::visitUnionDef(CSTToken* unionDef) {
     } else {
         i += 1; // positioned at first node or '}'
     }
-    auto def = new UnionDef(
-            str_token(named ? name_token : unionDef->tokens[unionDef->tokens.size() - 1]),
+    AnnotableNode* def;
+    if(named) {
+        def = new UnionDef(
+            name_token->value,
             parent_node,
             unionDef,
             specifier.has_value() ? specifier.value() : AccessSpecifier::Internal
-    );
+        );
+    } else {
+        def = new UnnamedUnion(
+                str_token(unionDef->tokens[unionDef->tokens.size() - 1]),
+                parent_node,
+                unionDef
+        );
+    }
     auto prev_container = current_members_container;
-    current_members_container = def;
+    current_members_container = (MembersContainer*) def;
     auto prev_parent = parent_node;
     parent_node = def;
-    collect_struct_members(this, unionDef, def, i);
+    collect_struct_members(this, unionDef, def->as_variables_container(), def->as_members_container(), i);
     parent_node = prev_parent;
     current_members_container = prev_container;
     put_node(def, unionDef);
@@ -1363,7 +1372,7 @@ void CSTConverter::visitImpl(CSTToken* impl) {
     current_members_container = def;
     auto prev_parent = parent_node;
     parent_node = def;
-    collect_struct_members(this, impl, def, i);
+    collect_struct_members(this, impl, def, def, i);
     parent_node = prev_parent;
     current_members_container = prev_container;
     put_node(def, impl);
@@ -1416,7 +1425,7 @@ void CSTConverter::visitVariant(CSTToken* variantDef) {
     current_members_container = def;
     auto prev_parent = parent_node;
     parent_node = def;
-    collect_struct_members(this, variantDef, def, i);
+    collect_struct_members(this, variantDef, def, def, i);
     parent_node = prev_parent;
     current_members_container = prev_struct_decl;
     collect_annotations_in(this, def);

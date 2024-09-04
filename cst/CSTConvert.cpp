@@ -1220,18 +1220,31 @@ void CSTConverter::visitStructDef(CSTToken* structDef) {
     if(is_dispose()) {
         return;
     }
-    const bool is_generic = structDef->tokens[2]->type() == LexTokenType::CompGenericParamsList;
-    bool named = structDef->tokens[1]->is_identifier();
-    unsigned i = (named ? 2 : 1) + (is_generic ? 1 : 0); // expected index of the ':'
+    // private struct Point<T, K> {
+    unsigned i = 1;
+    auto spec = specifier_token(structDef->tokens[0]);
+    if(spec.has_value()) {
+        i += 1;
+    }
+    auto& name_token = structDef->tokens[i];
+    bool named = name_token->is_identifier();
+    if(named) {
+        i += 1;
+    }
+    auto& gen_token = structDef->tokens[i];
+    const bool is_generic = gen_token->type() == LexTokenType::CompGenericParamsList;
+    if(is_generic) {
+        i += 1; // expected index of the ':'
+    }
     auto has_override = is_char_op(structDef->tokens[i], ':');
-    auto def = new StructDefinition(str_token(structDef->tokens[named ? 1 : structDef->tokens.size() - 1]), parent_node, structDef);
+    auto def = new StructDefinition(str_token(named ? name_token : structDef->tokens[structDef->tokens.size() - 1]), parent_node, structDef);
     if (has_override) {
         i++; // set on access specifier or the inherited struct / interface name
         get_inherit_list(this, structDef, i, def->inherited);
     }
     i += 1;// positioned at first node or '}'
     if(is_generic) {
-        convert_generic_list(this, structDef->tokens[2], def->generic_params, def);
+        convert_generic_list(this, gen_token, def->generic_params, def);
     }
     auto prev_struct_decl = current_members_container;
     current_members_container = def;

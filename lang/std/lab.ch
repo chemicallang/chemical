@@ -122,11 +122,11 @@ struct BuildContext {
     }
 
     func translate_mod_to_c(&self, module : Module*, output_dir : string) : LabJob* {
-        return translate_to_c("ToCJob", { module }, output_dir);
+        return translate_to_c(string("ToCJob"), { module }, output_dir);
     }
 
     func translate_file_to_c(&self, chem_path : string, output_path : string) : LabJob* {
-        var mod = file_module("TempChem", chem_path, {});
+        var mod = file_module(string("TempChem"), chem_path, {});
         return translate_mod_to_c(mod, output_path);
     }
 

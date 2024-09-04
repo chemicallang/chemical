@@ -144,6 +144,13 @@ public:
     );
 
     /**
+     * will set the build directory for the given job
+     */
+    void set_build_dir(
+        LabJob* job
+    );
+
+    /**
      * translate a chemical file to c
      */
     LabJob* translate_to_c(

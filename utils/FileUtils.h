@@ -8,7 +8,7 @@
 
 #include <string>
 
-void writeToFile(const std::string &path, const std::string &text);
+void writeToFile(const std::string &path, const std::string_view& text);
 
 /**
  * it will write ascii characters like this character<asciicode>

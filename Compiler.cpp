@@ -317,7 +317,7 @@ int main(int argc, char *argv[]) {
             LabModule module(LabModuleType::Files, chem::string("[BuildLabFile]"), chem::string((const char*) nullptr), chem::string((const char*) nullptr), chem::string((const char*) nullptr), chem::string((const char*) nullptr), { }, { });
             module.paths.emplace_back(args[0]);
             job.dependencies.emplace_back(&module);
-            return compiler.do_to_c_job(&job);
+            return compiler.process_modules(&job);
         }
 
         LabBuildContext context(&compiler_opts, args[0]);

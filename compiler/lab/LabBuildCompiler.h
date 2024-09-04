@@ -61,11 +61,6 @@ public:
     int do_library_job(LabJob* job);
 
     /**
-     * does job to translate to C
-     */
-    int do_to_c_job(LabJob* job);
-
-    /**
      * does job to translate c to chemical
      */
     int do_to_chemical_job(LabJob* job);

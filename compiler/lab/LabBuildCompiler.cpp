@@ -118,13 +118,11 @@ int LabBuildCompiler::do_job(LabJob* job) {
             return_int = do_library_job(job);
             break;
         case LabJobType::ToCTranslation:
-            return_int = do_to_c_job(job);
+        case LabJobType::ProcessingOnly:
+            return_int = process_modules(job);
             break;
         case LabJobType::ToChemicalTranslation:
             return_int = do_to_chemical_job(job);
-            break;
-        case LabJobType::ProcessingOnly:
-            return_int = process_modules(job);
             break;
     }
     if(job->status == LabJobStatus::Launched) {
@@ -140,13 +138,25 @@ int LabBuildCompiler::do_job(LabJob* job) {
 int LabBuildCompiler::process_modules(LabJob* exe) {
 
     // the flag that forces usage of tcc
-    const bool use_tcc = options->use_tcc;
+    const bool use_tcc = options->use_tcc || exe->type == LabJobType::ToCTranslation;
 
     std::cout << rang::bg::blue << rang::fg::black << "[BuildLab]" << " Building ";
-    if(exe->type == LabJobType::Executable) {
-        std::cout << "executable";
-    } else {
-        std::cout << "library";
+    switch(exe->type) {
+        case LabJobType::Executable:
+            std::cout << "executable";
+            break;
+        case LabJobType::Library:
+            std::cout << "library";
+            break;
+        case LabJobType::ToCTranslation:
+            std::cout << "c (translation)";
+            break;
+        case LabJobType::ToChemicalTranslation:
+            std::cout << "chemical (translation)";
+            break;
+        case LabJobType::ProcessingOnly:
+            std::cout << "objects";
+            break;
     }
     if(!exe->name.empty()) {
         std::cout << ' ' << '\'' << exe->name.data() << '\'';
@@ -217,17 +227,18 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
     std::vector<FlatIGFile> flat_imports;
     int i;
     int compile_result = 0;
+    bool do_compile = exe->type != LabJobType::ToCTranslation;
 
     // compile dependent modules for this executable
     for(auto mod : dependencies) {
 
         auto found = generated.find(mod);
-        if(found != generated.end()) {
+        if(found != generated.end() && exe->type != LabJobType::ToCTranslation) {
             exe->linkables.emplace_back(found->second);
             continue;
         }
 
-        if(exe->type == LabJobType::Executable || exe->type == LabJobType::Library){
+        if(exe->type == LabJobType::Executable || exe->type == LabJobType::Library) {
             auto obj_path = resolve_rel_child_path_str(exe_build_dir, mod->name.to_std_string() +
                                                                       (is_use_obj_format ? ".o" : ".bc"));
             if (is_use_obj_format || mod->type == LabModuleType::CFile) {
@@ -241,41 +252,54 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
             }
         }
 
-        if(mod->type == LabModuleType::CFile) {
-            std::cout << rang::bg::gray << rang::fg::black << "[BuildLab]" << " Compiling c ";
-            if(!mod->name.empty()) {
-                std::cout << '\'' << mod->name.data() << "' ";
-            }
-            std::cout << "at path '" << (is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data()) << '\'' << rang::bg::reset << rang::fg::reset << std::endl;
-        }
-
-        switch(mod->type) {
-            case LabModuleType::CFile: {
+        if(do_compile) {
+            switch (mod->type) {
+                case LabModuleType::CFile: {
+                    std::cout << rang::bg::gray << rang::fg::black << "[BuildLab]" << " Compiling c ";
+                    if (!mod->name.empty()) {
+                        std::cout << '\'' << mod->name.data() << "' ";
+                    }
+                    std::cout << "at path '" << (is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data())
+                              << '\'' << rang::bg::reset << rang::fg::reset << std::endl;
 #ifdef COMPILER_BUILD
-                compile_result = compile_c_file_to_object(mod->paths[0].data(), mod->object_path.data(), options->exe_path, {});
-                if (compile_result == 1) {
-                    break;
-                }
-                exe->linkables.emplace_back(mod->object_path.copy());
-                generated[mod] = mod->object_path.to_std_string();
-                continue;
+                    compile_result = compile_c_file_to_object(mod->paths[0].data(), mod->object_path.data(), options->exe_path, {});
+                    if (compile_result == 1) {
+                        break;
+                    }
+                    exe->linkables.emplace_back(mod->object_path.copy());
+                    generated[mod] = mod->object_path.to_std_string();
+                    continue;
 #else
-                compile_result = compile_c_file(options->exe_path.data(), mod->paths[0].data(), mod->object_path.to_std_string(), false, false, false);
-                if(compile_result == 1) {
-                    break;
-                }
-                exe->linkables.emplace_back(mod->object_path.copy());
-                generated[mod] = mod->object_path.to_std_string();
-                continue;
+                    compile_result = compile_c_file(options->exe_path.data(), mod->paths[0].data(),
+                                                    mod->object_path.to_std_string(), false, false, false);
+                    if (compile_result == 1) {
+                        break;
+                    }
+                    exe->linkables.emplace_back(mod->object_path.copy());
+                    generated[mod] = mod->object_path.to_std_string();
+                    continue;
 #endif
+                }
+                case LabModuleType::ObjFile:
+                    exe->linkables.emplace_back(mod->paths[0].copy());
+                    continue;
+                default:
+                    break;
             }
-            case LabModuleType::ObjFile:
-                exe->linkables.emplace_back(mod->paths[0].copy());
+            if (compile_result == 1) {
+                break;
+            }
+        } else {
+            if(mod->type == LabModuleType::ObjFile) {
+                // TODO maybe generate an error
                 continue;
+            } else if(mod->type == LabModuleType::CFile) {
+                continue;
+            }
         }
 
         const auto mod_data_path = is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data();
-        if(mod_data_path) {
+        if(mod_data_path && do_compile) {
             std::cout << rang::bg::gray << rang::fg::black << "[BuildLab]" << " Building module ";
             if (!mod->name.empty()) {
                 std::cout << '\'' << mod->name.data() << "' ";
@@ -298,15 +322,16 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
             }
         }
 
-#ifdef COMPILER_BUILD
-        // prepare for code generation of this module
-        gen.module_init(mod->name.to_std_string());
-#endif
-
         if(use_tcc) {
             // preparing translation
             c_visitor.prepare_translate();
         }
+#ifdef COMPILER_BUILD
+        else {
+            // prepare for code generation of this module
+            gen.module_init(mod->name.to_std_string());
+        }
+#endif
 
         ASTImportResultExt result { ASTUnit(), CSTUnit(), false, false, "" };
 
@@ -387,7 +412,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
         }
 
 #ifdef COMPILER_BUILD
-        if(gen.has_errors) {
+        if(!use_tcc && gen.has_errors) {
             compile_result = 1;
         }
 #endif
@@ -399,50 +424,74 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
         processor.end();
 
         if(use_tcc) {
-            auto obj_path = mod->object_path.to_std_string();
-            compile_result = compile_c_string(options->exe_path.data(), output_ptr.str().data(), obj_path, false, options->benchmark, is_debug(options->def_mode));
-            if(compile_result == 1) {
-                const auto out_path = resolve_sibling(obj_path, mod->name.to_std_string() + ".debug.c");
-                writeToFile(out_path, output_ptr.str());
-                std::cerr << rang::fg::red << "[LabBuild] couldn't build module '" << mod->name.data() << "' due to error in translation, translated C written at " << out_path << rang::fg::reset << std::endl;
-                break;
+
+            // getting the c program
+            const auto& program = output_ptr.str();
+
+            // compiling the c program, if required
+            if(do_compile) {
+                auto obj_path = mod->object_path.to_std_string();
+                compile_result = compile_c_string(options->exe_path.data(), program.c_str(), obj_path, false, options->benchmark, is_debug(options->def_mode));
+                if (compile_result == 1) {
+                    const auto out_path = resolve_sibling(obj_path, mod->name.to_std_string() + ".debug.c");
+                    writeToFile(out_path, program);
+                    std::cerr << rang::fg::red << "[LabBuild] couldn't build module '" << mod->name.data() << "' due to error in translation, translated C written at " << out_path << rang::fg::reset << std::endl;
+                    break;
+                }
+                exe->linkables.emplace_back(obj_path);
+                generated[mod] = obj_path;
             }
-            exe->linkables.emplace_back(obj_path);
-            generated[mod] = obj_path;
+
+            // writing the translated c file (if user required)
+            if(exe->type == LabJobType::ToCTranslation || !mod->out_c_path.empty()) {
+                auto out_path = mod->out_c_path.to_std_string();
+                if(out_path.empty()) {
+                    if(exe->type == LabJobType::ToCTranslation) {
+                        out_path = resolve_rel_child_path_str(exe->abs_path.data(), mod->name.to_std_string() + ".2c.c");
+                    } else {
+                        out_path = resolve_sibling(exe->abs_path.data(), mod->name.to_std_string() + ".2c.c");
+                    }
+                }
+                writeToFile(out_path, program);
+            }
+
             // clear the current c string
             output_ptr.clear();
             output_ptr.str("");
-        }
 
+        }
 #ifdef COMPILER_BUILD
+        else {
 
-        // which files to emit
-        if(!mod->llvm_ir_path.empty()) {
-            emitter_options.ir_path = mod->llvm_ir_path.data();
-            if(options->debug_ir) {
-                gen.save_to_ll_file_for_debugging(mod->llvm_ir_path.data());
+            // which files to emit
+            if(!mod->llvm_ir_path.empty()) {
+                emitter_options.ir_path = mod->llvm_ir_path.data();
+                if(options->debug_ir) {
+                    gen.save_to_ll_file_for_debugging(mod->llvm_ir_path.data());
+                }
             }
-        }
-        if(!mod->asm_path.empty()) {
-            emitter_options.asm_path = mod->asm_path.data();
-        }
-        if(!mod->bitcode_path.empty()) {
-            emitter_options.bitcode_path = mod->bitcode_path.data();
-        }
-        if(!mod->object_path.empty()) {
-            emitter_options.obj_path = mod->object_path.data();
-        }
+            if(!mod->asm_path.empty()) {
+                emitter_options.asm_path = mod->asm_path.data();
+            }
+            if(!mod->bitcode_path.empty()) {
+                emitter_options.bitcode_path = mod->bitcode_path.data();
+            }
+            if(!mod->object_path.empty()) {
+                emitter_options.obj_path = mod->object_path.data();
+            }
 
-        // creating a object or bitcode file
-        const bool save_result = gen.save_with_options(&emitter_options);
-        if(save_result) {
-            const auto gen_path = is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data();
-            if(gen_path) {
-                exe->linkables.emplace_back(gen_path);
-                generated[mod] = gen_path;
+            // creating a object or bitcode file
+            const bool save_result = gen.save_with_options(&emitter_options);
+            if(save_result) {
+                const auto gen_path = is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data();
+                if(gen_path) {
+                    exe->linkables.emplace_back(gen_path);
+                    generated[mod] = gen_path;
+                }
+            } else {
+                std::cerr << "[BuildLab] failed to emit file " << (is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data()) << " " << std::endl;
             }
-        } else {
-            std::cerr << "[BuildLab] failed to emit file " << (is_use_obj_format ? mod->object_path.data() : mod->bitcode_path.data()) << " " << std::endl;
+
         }
 #endif
 
@@ -509,94 +558,6 @@ int LabBuildCompiler::do_library_job(LabJob* job) {
     }
     // link will automatically detect the extension at the end
     return link(job->linkables, job->abs_path.to_std_string());
-}
-
-int LabBuildCompiler::do_to_c_job(LabJob* job) {
-
-    std::ofstream stream;
-    stream.open(job->abs_path.data());
-    if (!stream.is_open()) {
-        std::cerr << rang::fg::red << "[2C] Failed to open path : " << job->abs_path.data() << rang::fg::reset << std::endl;
-        return false;
-    }
-
-    // creating symbol resolver
-    SymbolResolver resolver(true);
-
-    // shrinking visitor used to shrink
-    ShrinkingVisitor shrinker;
-
-    // the processor that does everything
-    ASTProcessor processor(
-            options,
-            &resolver
-    );
-
-    int compile_result = 0;
-
-    // beginning
-    ToCAstVisitor visitor(&stream);
-    // TODO prepare c visitor from options
-
-    // allow user the compiler (namespace) functions in @comptime
-    visitor.comptime_scope.prepare_compiler_namespace(resolver);
-
-    // preparing translation
-    visitor.prepare_translate();
-
-    // get flattened modules
-    auto flattened_modules = flatten_dedupe_sorted(job->dependencies);
-
-    std::vector<std::future<ASTImportResultExt>> futures;
-
-    for(auto mod : flattened_modules) {
-
-        // get flat imports
-        auto flat_imports = processor.determine_mod_imports(mod);
-
-        // parallel parsing
-        futures.clear();
-        int i = 0;
-        for(const auto& file : flat_imports) {
-            futures.push_back(pool.push(concurrent_processor, i, file, &processor));
-            i++;
-        }
-
-        i = 0;
-        for(const auto& file : flat_imports) {
-
-            // importing
-            auto result = futures[i].get();
-            if(!result.continue_processing) {
-                compile_result = 1;
-                break;
-            }
-
-            // reset the visitor so it can be used for another file
-            visitor.reset();
-
-            // perform symbol resolution
-            processor.sym_res(result.unit.scope, result.is_c_file, file.abs_path);
-            if (resolver.has_errors) {
-                compile_result = 1;
-                break;
-            }
-            resolver.reset_errors();
-
-            // translating
-            processor.translate_to_c(visitor, result.unit.scope, file);
-
-            // shrinking the nodes
-            processor.shrink_nodes(shrinker, std::move(result.unit), file);
-
-            i++;
-        }
-    }
-
-    stream.close();
-    processor.end();
-
-    return compile_result;
 }
 
 int LabBuildCompiler::do_to_chemical_job(LabJob* job) {

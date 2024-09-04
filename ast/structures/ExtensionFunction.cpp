@@ -103,7 +103,8 @@ ExtensionFunction::ExtensionFunction(
         bool isVariadic,
         ASTNode* parent_node,
         CSTToken* token,
-        std::optional<LoopScope> body
+        std::optional<LoopScope> body,
+        std::optional<AccessSpecifier> specifier
 ) : FunctionDeclaration(
     std::move(name),
     std::move(params),
@@ -111,7 +112,8 @@ ExtensionFunction::ExtensionFunction(
     std::move(isVariadic),
     parent_node,
     token,
-    std::move(body)
+    std::move(body),
+    specifier
 ), receiver(std::move(receiver)) {
 
 }

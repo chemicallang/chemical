@@ -631,16 +631,20 @@ FunctionDeclaration::FunctionDeclaration(
         bool isVariadic,
         ASTNode* parent_node,
         CSTToken* token,
-        std::optional<LoopScope> body
+        std::optional<LoopScope> body,
+        std::optional<AccessSpecifier> user_specifier
 ) : FunctionType(std::move(params), std::move(returnType), isVariadic, false, token),
     name(std::move(name)),
     body(std::move(body)), parent_node(parent_node), token(token) {
-
-    params.shrink_to_fit();
-    if(this->name == "main") {
-        specifier = AccessSpecifier::Public;
+    if(user_specifier.has_value()) {
+        specifier = user_specifier.value();
     } else {
-        specifier = AccessSpecifier::Private;
+        // TODO do this somewhere else
+        if (this->name == "main") {
+            specifier = AccessSpecifier::Public;
+        } else {
+            specifier = AccessSpecifier::Private;
+        }
     }
 }
 

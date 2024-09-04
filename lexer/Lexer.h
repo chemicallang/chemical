@@ -300,6 +300,11 @@ public:
     bool lexTypeTokens();
 
     /**
+     * top level access specified declarations
+     */
+    bool lexTopLevelAccessSpecifiedDecls();
+
+    /**
      * lexes a single top level statement, top level means in file scope, These include
      * functions, structs, interfaces, implementations, enum, annotations
      * comments, variable initialization with value, constants
@@ -508,7 +513,14 @@ public:
      * lexes a function block with parameters
      * @param allow_declaration allows a declaration, without body of the function that is
      */
-    bool lexFunctionStructureTokens(bool allow_declaration = false, bool allow_extensions = false);
+    bool lexFunctionStructureTokens(unsigned start, bool allow_declaration = false, bool allow_extensions = false);
+
+    /**
+     * a helper function
+     */
+    bool lexFunctionStructureTokens(bool allow_declaration = false, bool allow_extensions = false) {
+        return lexFunctionStructureTokens(tokens_size(), allow_declaration, allow_extensions);
+    }
 
     /**
      * lexes interface block, this means { member(s) }
@@ -519,12 +531,26 @@ public:
     /**
      * lexes a interface structure
      */
-    bool lexInterfaceStructureTokens();
+    bool lexInterfaceStructureTokens(unsigned start);
+
+    /**
+     * a helper function
+     */
+    bool lexInterfaceStructureTokens() {
+        return lexInterfaceStructureTokens(tokens_size());
+    }
 
     /**
      * lex namespace tokens
      */
-    bool lexNamespaceTokens();
+    bool lexNamespaceTokens(unsigned start);
+
+    /**
+     * a helper function
+     */
+    bool lexNamespaceTokens() {
+        return lexNamespaceTokens(tokens_size());
+    }
 
     /**
      * lexes a single member of the struct
@@ -540,7 +566,14 @@ public:
     /**
      * lexes a struct block
      */
-    bool lexStructStructureTokens(bool unnamed = false, bool direct_init = false);
+    bool lexStructStructureTokens(unsigned start, bool unnamed = false, bool direct_init = false);
+
+    /**
+     * a helper function
+     */
+    bool lexStructStructureTokens(bool unnamed = false, bool direct_init = false) {
+        return lexStructStructureTokens(tokens_size(), unnamed, direct_init);
+    }
 
     /**
      * lexes a single member of the struct
@@ -556,7 +589,14 @@ public:
     /**
      * lexes a struct block
      */
-    bool lexVariantStructureTokens();
+    bool lexVariantStructureTokens(unsigned start);
+
+    /**
+     * a helper function
+     */
+    bool lexVariantStructureTokens() {
+        return lexVariantStructureTokens(tokens_size());
+    }
 
         /**
      * lexes a single member of the struct
@@ -572,7 +612,14 @@ public:
     /**
      * lexes a struct block
      */
-    bool lexUnionStructureTokens(bool unnamed = false, bool direct_init = false);
+    bool lexUnionStructureTokens(unsigned start, bool unnamed = false, bool direct_init = false);
+
+    /**
+     * a helper function
+     */
+    bool lexUnionStructureTokens(bool unnamed = false, bool direct_init = false) {
+        return lexUnionStructureTokens(tokens_size(), unnamed, direct_init);
+    }
 
     /**
      * this will try to collect current struct as a lexer
@@ -599,7 +646,14 @@ public:
     /**
      * lexes a enum block
      */
-    bool lexEnumStructureTokens();
+    bool lexEnumStructureTokens(unsigned start);
+
+    /**
+     * helper function
+     */
+    bool lexEnumStructureTokens() {
+        return lexEnumStructureTokens(tokens_size());
+    }
 
     /**
      * reads whitespace at current position

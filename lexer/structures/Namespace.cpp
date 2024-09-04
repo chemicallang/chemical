@@ -2,9 +2,8 @@
 
 #include "lexer/Lexer.h"
 
-bool Lexer::lexNamespaceTokens() {
+bool Lexer::lexNamespaceTokens(unsigned start) {
     if(lexWSKeywordToken("namespace")) {
-        auto start = tokens_size() - 1;
         if(!lexIdentifierToken()) {
             error("expected identifier for namespace name");
             return true;

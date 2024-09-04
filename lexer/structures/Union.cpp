@@ -27,9 +27,8 @@ void Lexer::lexUnionBlockTokens() {
     lexWhitespaceToken();
 }
 
-bool Lexer::lexUnionStructureTokens(bool unnamed, bool direct_init) {
+bool Lexer::lexUnionStructureTokens(unsigned start_token, bool unnamed, bool direct_init) {
     if(lexWSKeywordToken("union")) {
-        auto start_token = tokens_size() - 1;
         bool has_identifier = false;
         if(!unnamed) {
             has_identifier = lexIdentifierToken();

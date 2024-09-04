@@ -110,6 +110,7 @@ void CSTToken::accept(CSTVisitor *visitor) {
             visitor->visitTypealias((CSTToken*) this);
             return;
         case LexTokenType::CompVarInit:
+        case LexTokenType::CompStructMember:
             visitor->visitVarInit((CSTToken*) this);
             return;
         case LexTokenType::CompBody:

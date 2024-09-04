@@ -7,19 +7,32 @@
 #include "lexer/Lexer.h"
 
 bool Lexer::lexStructMemberTokens() {
-    return lexVarInitializationTokens(true, true) ||
-            lexFunctionStructureTokens() ||
-            lexSingleLineCommentTokens() ||
-            lexMultiLineCommentTokens() ||
-            lexUnionStructureTokens(true, true) ||
-            lexStructStructureTokens(true, true) ||
-            lexAnnotationMacro();
+    if(lexVarInitializationTokens(true, true)) {
+        auto& last = unit.tokens.back();
+#ifdef DEBUG
+        if(last->tok_type != LexTokenType::CompVarInit) {
+            throw std::runtime_error("unknown compound token, expected var init");
+        }
+#endif
+        last->tok_type = LexTokenType::CompStructMember;
+        return true;
+    } else {
+        return false;
+    }
 }
 
 void Lexer::lexStructBlockTokens() {
     do {
         lexWhitespaceAndNewLines();
-        if(!lexStructMemberTokens()) {
+        if(!(
+            lexStructMemberTokens() ||
+            lexFunctionStructureTokens() ||
+            lexSingleLineCommentTokens() ||
+            lexMultiLineCommentTokens() ||
+            lexUnionStructureTokens(true, true) ||
+            lexStructStructureTokens(true, true) ||
+            lexAnnotationMacro()
+        )) {
             break;
         }
         lexWhitespaceToken();

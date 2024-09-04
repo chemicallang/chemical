@@ -605,11 +605,6 @@ public:
         return lexVariantStructureTokens(tokens_size());
     }
 
-        /**
-     * lexes a single member of the struct
-     */
-    bool lexUnionMemberTokens();
-
     /**
      * lexes struct block, this means { member(s) }
      * without the `struct` keyword and name identifier

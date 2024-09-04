@@ -685,6 +685,7 @@ Value* convertNumber(NumberToken* token, ValueType value_type, bool is64Bit) {
 void CSTConverter::visitVarInit(CSTToken* varInit) {
     if(is_dispose()) return;
     // private var i : int = 0
+    auto is_struct_member = varInit->type() == LexTokenType::CompStructMember;
     unsigned i = 0;
     auto specifier = specifier_token(varInit->tokens[0]);
     if(specifier.has_value()) {
@@ -692,36 +693,50 @@ void CSTConverter::visitVarInit(CSTToken* varInit) {
     }
     bool is_const = varInit->tokens[i]->value == "const";
     i += 1;
-    auto init = new VarInitStatement(
-            is_const,
-            varInit->tokens[i]->value,
-            nullptr,
-            nullptr,
-            parent_node,
-            varInit,
-            specifier.has_value() ? specifier.value() : AccessSpecifier::Internal
-    );
+    AnnotableNode* init;
+    if(is_struct_member) {
+        init = new StructMember(
+                varInit->tokens[i]->value,
+                nullptr,
+                nullptr,
+                parent_node,
+                varInit,
+                is_const
+        );
+    } else {
+        init = new VarInitStatement(
+                is_const,
+                varInit->tokens[i]->value,
+                nullptr,
+                nullptr,
+                parent_node,
+                varInit,
+                specifier.has_value() ? specifier.value() : AccessSpecifier::Internal
+        );
+    }
+    auto& type_ref = is_struct_member ? ((StructMember*) init)->type : ((VarInitStatement*) init)->type;
+    auto& value_ref = is_struct_member ? ((StructMember*) init)->defValue : ((VarInitStatement*) init)->value;
     auto prev_parent = parent_node;
     parent_node = init;
     i++;
     if(is_char_op(varInit->tokens[i], ':')) {
         varInit->tokens[++i]->accept(this);
-        init->type = type();
+        type_ref = type();
         i++;
     }
     if(i < varInit->tokens.size() && is_char_op(varInit->tokens[i], '=')) {
         auto token = varInit->tokens[++i];
-        if(init->type && init->type->kind() == BaseTypeKind::IntN && token->type() == LexTokenType::Number) {
+        if(type_ref && type_ref->kind() == BaseTypeKind::IntN && token->type() == LexTokenType::Number) {
             // This statement leads to a warning "memory leak", we set the pointer to optVal which is a unique_ptr
-            auto conv = convertNumber((NumberToken*) token, init->type->value_type(), is64Bit);
+            auto conv = convertNumber((NumberToken*) token, type_ref->value_type(), is64Bit);
             if(conv) {
-                init->value.reset(conv);
+                value_ref.reset(conv);
             } else {
                 error("invalid number for the expected type", token);
             }
         } else {
             token->accept(this);
-            init->value = value();
+            value_ref = value();
         }
     }
 
@@ -1152,18 +1167,9 @@ unsigned int collect_struct_members(
         auto& token = tokens[i];
         token->accept(conv);
         switch(token->type()) {
-            case LexTokenType::CompVarInit:{
-                const auto node = (VarInitStatement *) conv->pop_last_node();
-                const auto thing = new StructMember(
-                        node->identifier,
-                        std::move(node->type),
-                        std::move(node->value),
-                        conv->parent_node,
-                        token,
-                        node->is_const
-                );
-                variables[node->identifier] = std::unique_ptr<StructMember>(thing);
-                delete node;
+            case LexTokenType::CompStructMember:{
+                const auto node = (StructMember *) conv->pop_last_node();
+                variables[node->name] = std::unique_ptr<StructMember>(node);
                 break;
             }
             case LexTokenType::CompFunction:{

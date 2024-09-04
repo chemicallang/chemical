@@ -10,12 +10,18 @@ public:
 
     ASTNode* parent_node;
     CSTToken* token;
+    AccessSpecifier specifier;
 
 #ifdef COMPILER_BUILD
     llvm::StructType* llvm_struct_type = nullptr;
 #endif
 
-    UnionDef(std::string name, ASTNode* parent_node, CSTToken* token);
+    UnionDef(
+        std::string name,
+        ASTNode* parent_node,
+        CSTToken* token,
+        AccessSpecifier specifier = AccessSpecifier::Internal
+    );
 
     CSTToken* cst_token() override {
         return token;

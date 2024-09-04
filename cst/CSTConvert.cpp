@@ -1159,7 +1159,8 @@ unsigned int collect_struct_members(
                         std::move(node->type),
                         std::move(node->value),
                         conv->parent_node,
-                        token
+                        token,
+                        node->is_const
                 );
                 variables[node->identifier] = std::unique_ptr<StructMember>(thing);
                 delete node;

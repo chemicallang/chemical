@@ -1053,7 +1053,8 @@ void CSTConverter::visitThrow(CSTToken* throwStmt) {
 }
 
 void CSTConverter::visitNamespace(CSTToken* ns) {
-    auto pNamespace = new Namespace(str_token(ns->tokens[1]), parent_node, ns);
+    auto spec = specifier_token(ns->tokens[0]);
+    auto pNamespace = new Namespace(str_token(ns->tokens[spec.has_value() ? 2 : 1]), parent_node, ns, spec.has_value() ? spec.value() : AccessSpecifier::Internal);
     pNamespace->nodes = take_comp_body_nodes(this, ns, pNamespace);
     put_node(pNamespace, ns);
 }

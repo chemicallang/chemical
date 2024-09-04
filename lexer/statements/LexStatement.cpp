@@ -14,6 +14,7 @@ bool Lexer::lexTopLevelAccessSpecifiedDecls() {
                 || lexStructStructureTokens(start, false, false)
                 || lexUnionStructureTokens(start, false, false)
                 || lexVariantStructureTokens(start)
+                || lexVarInitializationTokens(start, true, false)
                 || lexInterfaceStructureTokens(start)
                 || lexNamespaceTokens(start);
         if(!found) {

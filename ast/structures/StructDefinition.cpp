@@ -321,8 +321,9 @@ UnnamedStruct::UnnamedStruct(
 StructDefinition::StructDefinition(
         std::string name,
         ASTNode* parent_node,
-        CSTToken* token
-) : ExtendableMembersContainerNode(std::move(name)), parent_node(parent_node), token(token) {}
+        CSTToken* token,
+        AccessSpecifier specifier
+) : ExtendableMembersContainerNode(std::move(name)), parent_node(parent_node), token(token), specifier(specifier) {}
 
 BaseType *StructDefinition::copy() const {
     return new ReferencedType(name, (ASTNode *) this, token);

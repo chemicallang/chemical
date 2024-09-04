@@ -18,7 +18,7 @@
 class StructDefinition : public ExtendableMembersContainerNode, public StructType {
 public:
 
-    AccessSpecifier specifier = AccessSpecifier::Internal;
+    AccessSpecifier specifier;
     bool is_direct_init = false;
     ASTNode* parent_node;
     CSTToken* token;
@@ -43,7 +43,8 @@ public:
     StructDefinition(
             std::string name,
             ASTNode* parent_node,
-            CSTToken* token
+            CSTToken* token,
+            AccessSpecifier specifier = AccessSpecifier::Internal
     );
 
     ASTNodeKind kind() override {

@@ -9,13 +9,17 @@
 bool Lexer::lexTopLevelAccessSpecifiedDecls() {
     if(lexAccessSpecifier(false)) {
         auto start = tokens_size() - 1;
-        return lexFunctionStructureTokens(start, true, true)
+        const auto found = lexFunctionStructureTokens(start, true, true)
                 || lexEnumStructureTokens(start)
                 || lexStructStructureTokens(start, false, false)
                 || lexUnionStructureTokens(start, false, false)
                 || lexVariantStructureTokens(start)
                 || lexInterfaceStructureTokens(start)
                 || lexNamespaceTokens(start);
+        if(!found) {
+           error("expected a top level declaration after access specifier");
+        }
+        return true;
     } else {
         return false;
     }

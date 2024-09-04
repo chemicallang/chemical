@@ -682,9 +682,17 @@ Value* convertNumber(NumberToken* token, ValueType value_type, bool is64Bit) {
 
 void CSTConverter::visitVarInit(CSTToken* varInit) {
     if(is_dispose()) return;
+    // private var i : int = 0
+    unsigned i = 0;
+    auto specifier = specifier_token(varInit->tokens[0]);
+    if(specifier.has_value()) {
+        i += 1;
+    }
+    bool is_const = varInit->tokens[i]->value == "const";
+    i += 1;
     auto init = new VarInitStatement(
-            is_var_init_const(varInit),
-            var_init_identifier(varInit),
+            is_const,
+            varInit->tokens[i]->value,
             nullptr,
             nullptr,
             parent_node,
@@ -692,12 +700,14 @@ void CSTConverter::visitVarInit(CSTToken* varInit) {
     );
     auto prev_parent = parent_node;
     parent_node = init;
-    if(is_char_op(varInit->tokens[2], ':')) {
-        varInit->tokens[3]->accept(this);
+    i++;
+    if(is_char_op(varInit->tokens[i], ':')) {
+        varInit->tokens[++i]->accept(this);
         init->type = type();
+        i++;
     }
-    auto token = varInit->tokens[varInit->tokens.size() - 1];
-    if(token->is_value()) {
+    if(i < varInit->tokens.size() && is_char_op(varInit->tokens[i], '=')) {
+        auto token = varInit->tokens[++i];
         if(init->type && init->type->kind() == BaseTypeKind::IntN && token->type() == LexTokenType::Number) {
             // This statement leads to a warning "memory leak", we set the pointer to optVal which is a unique_ptr
             auto conv = convertNumber((NumberToken*) token, init->type->value_type(), is64Bit);

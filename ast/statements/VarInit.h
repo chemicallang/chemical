@@ -12,6 +12,7 @@
 #include "lexer/model/tokens/NumberToken.h"
 #include <optional>
 #include "ast/base/BaseType.h"
+#include "ast/base/AccessSpecifier.h"
 #include "ast/base/GlobalInterpretScope.h"
 
 class VarInitStatement : public AnnotableNode {
@@ -24,6 +25,7 @@ public:
     std::unique_ptr<Value> value; ///< The value being assigned to the identifier.
     ASTNode* parent_node;
     CSTToken* token;
+    AccessSpecifier specifier;
 
     /**
      * @brief Construct a new InitStatement object.
@@ -37,7 +39,8 @@ public:
             std::unique_ptr<BaseType> type,
             std::unique_ptr<Value> value,
             ASTNode* parent_node,
-            CSTToken* token
+            CSTToken* token,
+            AccessSpecifier specifier = AccessSpecifier::Internal
     );
 
     CSTToken *cst_token() override {

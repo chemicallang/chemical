@@ -698,7 +698,8 @@ void CSTConverter::visitVarInit(CSTToken* varInit) {
             nullptr,
             nullptr,
             parent_node,
-            varInit
+            varInit,
+            specifier.has_value() ? specifier.value() : AccessSpecifier::Internal
     );
     auto prev_parent = parent_node;
     parent_node = init;

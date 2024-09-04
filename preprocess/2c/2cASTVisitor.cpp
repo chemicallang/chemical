@@ -3601,8 +3601,8 @@ void ToCAstVisitor::visit(LambdaFunction *func) {
     }
 }
 
-void ToCAstVisitor::visit(AnyType *func) {
-
+void ToCAstVisitor::visit(AnyType *any_type) {
+    write("void*");
 }
 
 void ToCAstVisitor::visit(LiteralType *literal) {

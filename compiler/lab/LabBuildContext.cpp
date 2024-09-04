@@ -111,13 +111,15 @@ LabJob* LabBuildContext::translate_to_chemical(
 }
 
 LabJob* LabBuildContext::translate_to_c(
-        LabModule* redundant,
+        chem::string* name,
+        LabModule** dependencies,
+        unsigned int dep_len,
         chem::string* out_path
 ) {
-    auto job = new LabJob(LabJobType::ToCTranslation, chem::string("ToCJob"));
+    auto job = new LabJob(LabJobType::ToCTranslation, name->copy());
     executables.emplace_back(job);
     job->abs_path.append(out_path);
-    job->dependencies.emplace_back(redundant);
+    LabBuildContext::add_dependencies(job->dependencies, dependencies, dep_len);
     return job;
 }
 

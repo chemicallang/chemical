@@ -1270,7 +1270,7 @@ void CSTConverter::visitStructDef(CSTToken* structDef) {
     current_members_container = (StructDefinition*) def;
     auto prev_parent = parent_node;
     parent_node = def;
-    collect_struct_members(this, structDef, def->as_variables_container(), def->as_members_container(), i);
+    collect_struct_members(this, structDef, def->as_variables_container(), (MembersContainer*) def, i);
     parent_node = prev_parent;
     current_members_container = prev_struct_decl;
     collect_annotations_in(this, def);
@@ -1342,7 +1342,7 @@ void CSTConverter::visitUnionDef(CSTToken* unionDef) {
     current_members_container = (MembersContainer*) def;
     auto prev_parent = parent_node;
     parent_node = def;
-    collect_struct_members(this, unionDef, def->as_variables_container(), def->as_members_container(), i);
+    collect_struct_members(this, unionDef, def->as_variables_container(), (MembersContainer*) def, i);
     parent_node = prev_parent;
     current_members_container = prev_container;
     put_node(def, unionDef);

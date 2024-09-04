@@ -17,6 +17,7 @@
 class InterfaceDefinition : public ExtendableMembersContainerNode {
 public:
 
+    AccessSpecifier specifier;
     ASTNode* parent_node;
     CSTToken* token;
     /**
@@ -47,7 +48,8 @@ public:
     InterfaceDefinition(
             std::string name,
             ASTNode* parent_node,
-            CSTToken* token
+            CSTToken* token,
+            AccessSpecifier specifier = AccessSpecifier::Internal
     );
 
     CSTToken *cst_token() override {

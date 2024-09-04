@@ -108,8 +108,9 @@ llvm::Value* InterfaceDefinition::llvm_global_vtable(Codegen& gen, StructDefinit
 InterfaceDefinition::InterfaceDefinition(
         std::string name,
         ASTNode* parent_node,
-        CSTToken* token
-) : ExtendableMembersContainerNode(std::move(name)), parent_node(parent_node), token(token) {
+        CSTToken* token,
+        AccessSpecifier specifier
+) : ExtendableMembersContainerNode(std::move(name)), parent_node(parent_node), token(token), specifier(specifier) {
 
 }
 

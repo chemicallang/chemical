@@ -14,6 +14,8 @@ struct LabModule {
     LabModuleType type;
     // name of the module
     chem::string name;
+    // the translated c file (if any) will be written to this path
+    chem::string out_c_path;
     // bitcode file path for this module
     chem::string bitcode_path;
     // object file path for this module

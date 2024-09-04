@@ -7,7 +7,7 @@
 #include "FileUtils.h"
 #include <fstream>
 
-void writeToFile(const std::string &path, const std::string &text) {
+void writeToFile(const std::string &path, const std::string_view& text) {
     std::ofstream stream(path,std::ios::trunc);
     stream << text;
     stream.close();

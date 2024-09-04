@@ -72,9 +72,11 @@ func build(ctx : BuildContext*) {
 
     const do_llvm_ir = false;
     const do_asm = false;
-    const do_c = !is_minimal && !compiler::is_clang_based();
     const do_to_ch = !is_minimal && compiler::is_clang_based();
-    const do_dyn_lib = !is_minimal;
+
+    const do_c = !is_minimal && !compiler::is_clang_based();
+    var do_dyn_lib = !is_minimal;
+    const do_one_job = true;
 
     if(do_llvm_ir) {
         gen_ir(ctx, &exe_name, module);
@@ -87,26 +89,29 @@ func build(ctx : BuildContext*) {
         printf("The asm path is %s\n", module.asm_path.data());
     }
 
-    if(do_dyn_lib) {
-        ctx.build_dynamic_lib(exe_name, { module });
-    }
-
-    const exe_job = ctx.build_exe(exe_name, { module });
-
-    if(do_c) {
-        // const input_file = relative_path(string("tests.ch"))
-        ctx.translate_mod_to_c(module, exe_dir_file(ctx, &exe_name, &module.name, ".c"));
-    }
-
     if(do_to_ch) {
         const output_file = exe_dir_file(ctx, &exe_name, &ext_module.name, ".ch")
         const input_file = relative_path(string("ext/file.c"))
         ctx.translate_to_chemical(input_file, output_file);
     }
 
+    if(do_c) {
+        ctx.translate_mod_to_c(module, exe_dir_path(ctx, &exe_name));
+        if(do_one_job) {
+            return;
+        }
+    }
+
+    if(do_dyn_lib) {
+        ctx.build_dynamic_lib(exe_name, { module });
+        if(do_one_job) {
+            return;
+        }
+    }
+
+    const exe_job = ctx.build_exe(exe_name, { module })
     jc.ctx = ctx;
     jc.job = exe_job;
-
     ctx.on_finished((data : void*) => {
         const jx = data as JobAndContext*
         if(jx.job.status == LabJobStatus.Success) {

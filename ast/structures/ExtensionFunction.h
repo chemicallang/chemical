@@ -18,7 +18,8 @@ public:
             bool isVariadic,
             ASTNode* parent_node,
             CSTToken* token,
-            std::optional<LoopScope> body = std::nullopt
+            std::optional<LoopScope> body = std::nullopt,
+            std::optional<AccessSpecifier> = std::nullopt
     );
 
 #ifdef COMPILER_BUILD

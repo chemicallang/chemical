@@ -517,21 +517,32 @@ void convert_generic_list(
 
 void CSTConverter::visitFunction(CSTToken* function) {
 
+    // private func <T, K> (ext : Extension*) name(param1 : int) : long
+
     if(is_dispose()) {
         return;
     }
 
-    const auto is_generic = function->tokens[1]->type() == LexTokenType::CompGenericParamsList;
+    auto specifier = specifier_token(function->tokens[0]);
 
-    const auto extension_start = is_generic ? 2 : 1;
+    unsigned i = 1; // set at name, extension or generic params list
 
-    const auto is_extension = is_char_op(function->tokens[extension_start], '(');
+    const auto is_generic = function->tokens[i]->type() == LexTokenType::CompGenericParamsList;
 
-    const auto params_start = 3 + (is_extension ? 3 : 0) + (is_generic ? 1 : 0);
+    if(is_generic) {
+        i += 1;
+    }
 
-    auto params = function_params(this, function->tokens, params_start);
+    const auto extension_start = i;
+    const auto is_extension = is_char_op(function->tokens[i], '(');
 
-    auto i = params.index;
+    if(is_extension) {
+        i += 3;
+    }
+
+    auto params = function_params(this, function->tokens, i + 2);
+
+    i = params.index;
 
     std::unique_ptr<BaseType> returnType = nullptr;
 
@@ -561,16 +572,21 @@ void CSTConverter::visitFunction(CSTToken* function) {
                 std::move(returnType), params.isVariadic,
                 parent_node,
                 function,
-                std::nullopt
+                std::nullopt,
+                specifier
         );
         ((ExtensionFunction*) funcDecl)->receiver.parent_node = funcDecl;
         delete param;
     } else {
-        funcDecl = new FunctionDeclaration(func_name(function), std::move(params.params),
-                                                std::move(returnType), params.isVariadic,
-                                                parent_node,
-                                                function,
-                                                std::nullopt);
+        funcDecl = new FunctionDeclaration(
+                func_name(function),
+                std::move(params.params),
+                std::move(returnType), params.isVariadic,
+                parent_node,
+                function,
+                std::nullopt,
+                specifier
+        );
     }
 
     if(is_generic) {

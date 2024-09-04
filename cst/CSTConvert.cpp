@@ -523,9 +523,13 @@ void CSTConverter::visitFunction(CSTToken* function) {
         return;
     }
 
-    auto specifier = specifier_token(function->tokens[0]);
+    unsigned i = 1;
 
-    unsigned i = 1; // set at name, extension or generic params list
+    auto specifier = specifier_token(function->tokens[0]);
+    if(specifier.has_value()) {
+        // set at name, extension or generic params list
+        i += 1;
+    }
 
     const auto is_generic = function->tokens[i]->type() == LexTokenType::CompGenericParamsList;
 
@@ -619,8 +623,21 @@ void CSTConverter::visitEnumDecl(CSTToken* decl) {
     if(is_dispose()) {
         return;
     }
-    auto enum_decl = new EnumDeclaration(str_token(decl->tokens[1]), std::unordered_map<std::string, std::unique_ptr<EnumMember>> {}, parent_node, decl);
-    auto i = 3; // first enum member or '}'
+    unsigned i = 1;
+
+    const auto spec = specifier_token(decl->tokens[0]);
+    if(spec.has_value()) {
+        i += 1;
+    }
+
+    auto enum_decl = new EnumDeclaration(
+            str_token(decl->tokens[i]),
+            std::unordered_map<std::string, std::unique_ptr<EnumMember>> {},
+            parent_node,
+            decl,
+            spec.has_value() ? spec.value() : AccessSpecifier::Public
+    );
+    i += 2;
     unsigned position = 0;
     while(!is_char_op(decl->tokens[i], '}')) {
         auto& tok = decl->tokens[i];

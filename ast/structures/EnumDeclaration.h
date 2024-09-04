@@ -11,6 +11,7 @@
 #include "ast/base/Value.h"
 #include "EnumMember.h"
 #include "ast/base/ExtendableAnnotableNode.h"
+#include "ast/base/AccessSpecifier.h"
 
 class EnumDeclaration : public ExtendableAnnotableNode {
 public:
@@ -19,6 +20,7 @@ public:
     // the type is contained inside here
     IntType type;
     CSTToken* token;
+    AccessSpecifier specifier;
 
     /**
      * @brief Construct a new EnumDeclaration object.
@@ -30,8 +32,11 @@ public:
             std::string name,
             std::unordered_map<std::string, std::unique_ptr<EnumMember>> members,
             ASTNode* parent_node,
-            CSTToken* token
-    ) : name(std::move(name)), members(std::move(members)), parent_node(parent_node), token(token), type(nullptr) {}
+            CSTToken* token,
+            AccessSpecifier specifier = AccessSpecifier::Internal
+    ) : name(std::move(name)), members(std::move(members)), parent_node(parent_node), token(token), type(nullptr), specifier(specifier) {
+
+    }
 
     CSTToken *cst_token() override {
         return token;

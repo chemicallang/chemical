@@ -6,15 +6,13 @@
 
 #include "lexer/Lexer.h"
 
-bool Lexer::lexVarInitializationTokens(bool allowDeclarations, bool requiredType) {
+bool Lexer::lexVarInitializationTokens(unsigned start, bool allowDeclarations, bool requiredType) {
 
     auto lexed_const = lexWSKeywordToken("const");
 
     if (!lexed_const && !lexWSKeywordToken("var")) {
         return false;
     }
-
-    unsigned int start = tokens_size() - 1;
 
     // identifier
     if (!lexIdentifierToken()) {

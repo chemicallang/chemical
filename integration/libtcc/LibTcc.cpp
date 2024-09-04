@@ -5,11 +5,12 @@
 #include <vector>
 #include "utils/Benchmark.h"
 #include "utils/PathUtils.h"
+#include "rang.hpp"
 #include <fstream>
 #include <sstream>
 
 void handle_tcc_error(void *opaque, const char *msg){
-    std::cout << "[Tcc] " << msg << " in " << ((char*) opaque) << std::endl;
+    std::cout << rang::fg::red << msg << " in " << ((char*) opaque) << rang::fg::reset << std::endl;
 }
 
 TCCState* setup_tcc_state(char* exe_path, const std::string& outputFileName, bool jit, bool debug) {

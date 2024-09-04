@@ -147,7 +147,9 @@ public:
      * translate a chemical file to c
      */
     LabJob* translate_to_c(
-            LabModule* redundant,
+            chem::string* name,
+            LabModule** dependencies,
+            unsigned int dep_len,
             chem::string* out_path
     );
 

@@ -66,7 +66,7 @@ struct BuildContext {
     var translate_to_chemical : (&self, c_path : string, output_path : string) => LabJob*;
 
     // translate a chemical module to c file
-    var translate_mod_to_c : (&self, module : Module*, output_path : string) => LabJob*
+    var translate_to_c : (&self, name : string, dependencies : ArrayRef<Module*>, output_path : string) => LabJob*
 
     // build executable using module dependencies
     var build_exe : (&self, name : string, dependencies : ArrayRef<Module*>) => LabJob*;
@@ -119,7 +119,11 @@ struct BuildContext {
         return files_module(name, &path, 1, dependencies);
     }
 
-    func translate_to_c(&self, chem_path : string, output_path : string) : LabJob* {
+    func translate_mod_to_c(&self, module : Module*, output_path : string) : LabJob* {
+        return translate_to_c("ToCJob", { module }, output_path);
+    }
+
+    func translate_file_to_c(&self, chem_path : string, output_path : string) : LabJob* {
         var mod = file_module("TempChem", chem_path, {});
         return translate_mod_to_c(mod, output_path);
     }

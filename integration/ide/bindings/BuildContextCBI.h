@@ -35,7 +35,7 @@ struct BuildContextCBI {
 
     LabJob*(*translate_to_chemical)(BuildContextCBI* self, chem::string* c_path, chem::string* output_path);
 
-    LabJob*(*translate_mod_to_c)(BuildContextCBI* self, LabModule* chem_path, chem::string* output_path);
+    LabJob*(*translate_to_c)(BuildContextCBI* self, chem::string* name, ModuleArrayRef* dependencies, chem::string* output_path);
 
     LabJob*(*build_exe)(BuildContextCBI* self, chem::string* name, ModuleArrayRef* dependencies);
 

@@ -1290,9 +1290,25 @@ void CSTConverter::visitUnionDef(CSTToken* unionDef) {
     if(is_dispose()) {
         return;
     }
-    bool named = unionDef->tokens[1]->is_identifier();
-    unsigned i = named ? 3 : 2; // positioned at first node or '}'
-    auto def = new UnionDef(str_token(unionDef->tokens[named ? 1 : unionDef->tokens.size() - 1]), parent_node, unionDef);
+    // private union Point <T, K> {
+    unsigned i = 1;
+    auto specifier = specifier_token(unionDef->tokens[0]);
+    if(specifier.has_value()) {
+        i += 1;
+    }
+    const auto& name_token = unionDef->tokens[i];
+    bool named = name_token->is_identifier();
+    if(named) {
+        i += 2; // positioned at first node or '}'
+    } else {
+        i += 1; // positioned at first node or '}'
+    }
+    auto def = new UnionDef(
+            str_token(named ? name_token : unionDef->tokens[unionDef->tokens.size() - 1]),
+            parent_node,
+            unionDef,
+            specifier.has_value() ? specifier.value() : AccessSpecifier::Internal
+    );
     auto prev_container = current_members_container;
     current_members_container = def;
     auto prev_parent = parent_node;

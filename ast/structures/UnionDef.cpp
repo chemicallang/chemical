@@ -27,7 +27,12 @@ hybrid_ptr<BaseType> UnnamedUnion::get_value_type() {
     return hybrid_ptr<BaseType> { this, false };
 }
 
-UnionDef::UnionDef(std::string name, ASTNode* parent_node, CSTToken* token) : ExtendableMembersContainerNode(std::move(name)), parent_node(parent_node), token(token) {
+UnionDef::UnionDef(
+    std::string name,
+    ASTNode* parent_node,
+    CSTToken* token,
+    AccessSpecifier specifier
+) : ExtendableMembersContainerNode(std::move(name)), parent_node(parent_node), token(token), specifier(specifier) {
 
 }
 

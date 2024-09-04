@@ -3,7 +3,12 @@
 #include "Namespace.h"
 #include "compiler/SymbolResolver.h"
 
-Namespace::Namespace(std::string name, ASTNode* parent_node, CSTToken* token) : name(std::move(name)), parent_node(parent_node), token(token) {
+Namespace::Namespace(
+    std::string name,
+    ASTNode* parent_node,
+    CSTToken* token,
+    AccessSpecifier specifier
+) : name(std::move(name)), parent_node(parent_node), token(token), specifier(specifier) {
 
 }
 

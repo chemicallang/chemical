@@ -4,6 +4,7 @@
 
 #include "ast/base/AnnotableNode.h"
 #include "ordered_map.h"
+#include "ast/base/AccessSpecifier.h"
 
 class Namespace : public AnnotableNode {
 public:
@@ -14,11 +15,17 @@ public:
     Namespace* root = nullptr; // the root's namespace extended map contains pointers to all nodes
     ASTNode* parent_node;
     CSTToken* token;
+    AccessSpecifier specifier;
 
     /**
      * constructor
      */
-    Namespace(std::string name, ASTNode* parent_node, CSTToken* token);
+    Namespace(
+        std::string name,
+        ASTNode* parent_node,
+        CSTToken* token,
+        AccessSpecifier specifier = AccessSpecifier::Internal
+    );
 
     CSTToken *cst_token() override {
         return token;

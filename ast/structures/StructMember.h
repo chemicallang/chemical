@@ -9,6 +9,7 @@
 class StructMember : public BaseDefMember {
 public:
 
+    bool is_const;
     std::unique_ptr<BaseType> type;
     std::unique_ptr<Value> defValue;
     ASTNode* parent_node;
@@ -19,7 +20,8 @@ public:
             std::unique_ptr<BaseType> type,
             std::unique_ptr<Value> defValue,
             ASTNode* parent_node,
-            CSTToken* token
+            CSTToken* token,
+            bool is_const
     );
 
     ASTNodeKind kind() override {

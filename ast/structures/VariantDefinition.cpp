@@ -214,8 +214,9 @@ bool VariantCaseVariable::add_child_index(Codegen &gen, std::vector<llvm::Value 
 VariantDefinition::VariantDefinition(
     std::string name,
     ASTNode* parent_node,
-    CSTToken* token
-) : ExtendableMembersContainerNode(std::move(name)), parent_node(parent_node), ref_type(name, this, nullptr), token(token) {
+    CSTToken* token,
+    AccessSpecifier specifier
+) : ExtendableMembersContainerNode(std::move(name)), parent_node(parent_node), ref_type(name, this, nullptr), token(token), specifier(specifier) {
 }
 
 ASTNode* VariantDefinition::child(const std::string &child_name) {

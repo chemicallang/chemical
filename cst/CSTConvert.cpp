@@ -1359,18 +1359,38 @@ void CSTConverter::visitVariantMember(CSTToken* variant_member) {
 }
 
 void CSTConverter::visitVariant(CSTToken* variantDef) {
-    const bool is_generic = variantDef->tokens[2]->type() == LexTokenType::CompGenericParamsList;
-    bool named = variantDef->tokens[1]->is_identifier();
-    unsigned i = (named ? 2 : 1) + (is_generic ? 1 : 0); // expected index of the ':'
+    unsigned i = 1;
+    // private variant Optional <T, K> : Other {
+    // don't even know if inheritance in variants is something valid
+    // so just leaving the code here, if some day I decide to do it
+    auto specifier = specifier_token(variantDef->tokens[0]);
+    if(specifier.has_value()) {
+        i += 1;
+    }
+    const auto& name_token = variantDef->tokens[i];
+    bool named = name_token->is_identifier();
+    if(named) {
+        i += 1;
+    }
+    const auto& gen_token = variantDef->tokens[i];
+    const bool is_generic = gen_token->type() == LexTokenType::CompGenericParamsList;
+    if(is_generic) {
+        i += 1; // expected index of the ':'
+    }
     auto has_override = is_char_op(variantDef->tokens[i], ':');
-    auto def = new VariantDefinition(str_token(variantDef->tokens[named ? 1 : variantDef->tokens.size() - 1]), parent_node, variantDef);
+    auto def = new VariantDefinition(
+            str_token(named ? name_token : variantDef->tokens[variantDef->tokens.size() - 1]),
+            parent_node,
+            variantDef,
+            specifier.has_value() ? specifier.value() : AccessSpecifier::Internal
+    );
     if (has_override) {
         i++; // set on access specifier or the inherited struct / interface name
         get_inherit_list(this, variantDef, i, def->inherited);
     }
     i += 1;// positioned at first node or '}'
     if(is_generic) {
-        convert_generic_list(this, variantDef->tokens[2], def->generic_params, def);
+        convert_generic_list(this, gen_token, def->generic_params, def);
     }
     auto prev_struct_decl = current_members_container;
     current_members_container = def;

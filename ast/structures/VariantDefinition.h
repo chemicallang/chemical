@@ -8,7 +8,7 @@
 class VariantDefinition : public ExtendableMembersContainerNode {
 public:
 
-    AccessSpecifier specifier = AccessSpecifier::Internal;
+    AccessSpecifier specifier;
     ASTNode* parent_node;
     CSTToken* token;
     ReferencedType ref_type;
@@ -31,7 +31,8 @@ public:
     VariantDefinition(
         std::string name,
         ASTNode* parent_node,
-        CSTToken* token
+        CSTToken* token,
+        AccessSpecifier specifier = AccessSpecifier::Internal
     );
 
     CSTToken* cst_token() override {

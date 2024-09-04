@@ -6,19 +6,17 @@
 
 #include "lexer/Lexer.h"
 
-bool Lexer::lexUnionMemberTokens() {
-    return lexVarInitializationTokens(true, true) ||
+void Lexer::lexUnionBlockTokens() {
+    do {
+        lexWhitespaceAndNewLines();
+        if(!(
+            lexStructMemberTokens() ||
             lexFunctionStructureTokens() ||
             lexSingleLineCommentTokens() ||
             lexMultiLineCommentTokens() ||
             lexStructStructureTokens(true, true) ||
-            lexAnnotationMacro();
-}
-
-void Lexer::lexUnionBlockTokens() {
-    do {
-        lexWhitespaceAndNewLines();
-        if(!lexUnionMemberTokens()) {
+            lexAnnotationMacro()
+        )) {
             break;
         }
         lexWhitespaceToken();

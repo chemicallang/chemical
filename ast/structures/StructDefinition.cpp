@@ -237,7 +237,7 @@ StructMember::StructMember(
         std::unique_ptr<Value> defValue,
         ASTNode* parent_node,
         CSTToken* token,
-        bool is_const = false
+        bool is_const
 ) : BaseDefMember(std::move(name)), type(std::move(type)), defValue(std::move(defValue)), parent_node(parent_node), token(token), is_const(is_const) {
 
 }

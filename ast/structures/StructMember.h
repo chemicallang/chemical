@@ -21,7 +21,7 @@ public:
             std::unique_ptr<Value> defValue,
             ASTNode* parent_node,
             CSTToken* token,
-            bool is_const
+            bool is_const = false
     );
 
     ASTNodeKind kind() override {

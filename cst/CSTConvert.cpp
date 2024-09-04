@@ -544,6 +544,8 @@ void CSTConverter::visitFunction(CSTToken* function) {
         i += 3;
     }
 
+    auto& name_token = function->tokens[i];
+
     auto params = function_params(this, function->tokens, i + 2);
 
     i = params.index;
@@ -570,7 +572,7 @@ void CSTConverter::visitFunction(CSTToken* function) {
         auto param = (FunctionParam*) nodes.back().release();
         nodes.pop_back();
         funcDecl = new ExtensionFunction(
-                func_name(function),
+                name_token->value,
                 ExtensionFuncReceiver(std::move(param->name), std::move(param->type), nullptr, receiver_tok),
                 std::move(params.params),
                 std::move(returnType), params.isVariadic,

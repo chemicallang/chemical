@@ -1261,10 +1261,19 @@ void CSTConverter::visitInterface(CSTToken* interface) {
     if(is_dispose()) {
         return;
     }
-    auto def = new InterfaceDefinition(str_token(interface->tokens[1]), parent_node, interface);
-    unsigned i = 3; // positioned at first node or '}'
-    if(interface->tokens[2]->type() == LexTokenType::CompGenericParamsList) {
-        convert_generic_list(this, interface->tokens[2], def->generic_params, def);
+    // private interface Point <T, K> {
+    unsigned i = 1;
+    auto specifier = specifier_token(interface->tokens[0]);
+    if(specifier.has_value()) {
+        i += 1;
+    }
+    auto def = new InterfaceDefinition(str_token(interface->tokens[i]), parent_node, interface, specifier.has_value() ? specifier.value() : AccessSpecifier::Internal);
+    i += 1;
+    const auto& gen_token = interface->tokens[i];
+    if(gen_token->type() == LexTokenType::CompGenericParamsList) {
+        convert_generic_list(this, gen_token, def->generic_params, def);
+        i += 2; // positioned at first node or '}'
+    } else {
         i += 1;
     }
     auto prev_container = current_members_container;

@@ -110,6 +110,11 @@ LabJob* LabBuildContext::translate_to_chemical(
     return job;
 }
 
+void LabBuildContext::set_build_dir(LabJob* job) {
+    auto build_dir_path = resolve_rel_child_path_str(build_dir, job->name.to_std_string() + ".dir");
+    job->build_dir.append(build_dir_path.data(), build_dir_path.size());
+}
+
 LabJob* LabBuildContext::translate_to_c(
         chem::string* name,
         LabModule** dependencies,
@@ -118,6 +123,7 @@ LabJob* LabBuildContext::translate_to_c(
 ) {
     auto job = new LabJob(LabJobType::ToCTranslation, name->copy());
     executables.emplace_back(job);
+    set_build_dir(job);
     job->abs_path.append(out_path);
     LabBuildContext::add_dependencies(job->dependencies, dependencies, dep_len);
     return job;
@@ -130,9 +136,8 @@ LabJob* LabBuildContext::build_exe(
 ) {
     auto exe = new LabJob(LabJobType::Executable, name->copy());
     executables.emplace_back(exe);
-    auto build_dir_path = resolve_rel_child_path_str(build_dir, name->to_std_string() + ".dir");
-    exe->build_dir.append(build_dir_path.data(), build_dir_path.size());
-    auto exe_path = resolve_rel_child_path_str(build_dir_path, name->to_std_string());
+    set_build_dir(exe);
+    auto exe_path = resolve_rel_child_path_str(exe->build_dir.data(), name->to_std_string());
 #ifdef _WINDOWS
     exe_path += ".exe";
 #endif
@@ -148,9 +153,8 @@ LabJob* LabBuildContext::build_dynamic_lib(
 ) {
     auto exe = new LabJob(LabJobType::Library, name->copy());
     executables.emplace_back(exe);
-    auto build_dir_path = resolve_rel_child_path_str(build_dir, name->to_std_string() + ".dir");
-    exe->build_dir.append(build_dir_path.data(), build_dir_path.size());
-    auto output_path = resolve_rel_child_path_str(build_dir_path, name->to_std_string());
+    set_build_dir(exe);
+    auto output_path = resolve_rel_child_path_str(exe->build_dir.data(), name->to_std_string());
 #ifdef _WIN32
         output_path += ".dll";
 #elif __linux__

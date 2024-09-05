@@ -14,7 +14,7 @@
 #include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
 
-void VarInitStatement::code_gen_global_var(Codegen &gen) {
+void VarInitStatement::code_gen_global_var(Codegen &gen, bool initialize) {
     llvm::Constant* initializer;
     llvm::GlobalValue::LinkageTypes linkage;
     switch(specifier) {
@@ -29,7 +29,7 @@ void VarInitStatement::code_gen_global_var(Codegen &gen) {
             linkage = llvm::GlobalValue::LinkageTypes::ExternalLinkage;
             break;
     }
-    if(value) {
+    if(value && initialize) {
         const auto string_val = value->as_string_value();
         if(string_val) {
             const auto global = gen.builder->CreateGlobalString(string_val->value, runtime_name_fast(), 0, gen.module.get());
@@ -51,7 +51,7 @@ void VarInitStatement::code_gen(Codegen &gen) {
             llvm_ptr = value->llvm_value(gen, type ? type.get() : nullptr);
             return;
         }
-        code_gen_global_var(gen);
+        code_gen_global_var(gen, true);
     } else {
         if (value) {
             if(is_const && !value->as_struct() && !value->as_array_value()) {
@@ -126,7 +126,7 @@ void VarInitStatement::code_gen_destruct(Codegen &gen, Value* returnValue) {
 }
 
 void VarInitStatement::code_gen_external_declare(Codegen &gen) {
-    code_gen_global_var(gen);
+    code_gen_global_var(gen, false);
 }
 
 llvm::Value *VarInitStatement::llvm_load(Codegen &gen) {
@@ -251,8 +251,16 @@ ASTNode *VarInitStatement::child(const std::string &name) {
     return nullptr;
 }
 
+void VarInitStatement::declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode> &node_ptr) {
+    if(is_top_level()) {
+        linker.declare_node(identifier, this, specifier, true);
+    }
+}
+
 void VarInitStatement::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
-    linker.declare(identifier, this);
+    if(!is_top_level()) {
+        linker.declare(identifier, this);
+    }
     if (type) {
         type->link(linker, type);
     }

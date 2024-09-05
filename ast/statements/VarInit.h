@@ -101,7 +101,7 @@ public:
 
     bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
 
-    void code_gen_global_var(Codegen &gen);
+    void code_gen_global_var(Codegen &gen, bool initialize);
 
     void code_gen(Codegen &gen) override;
 
@@ -116,6 +116,8 @@ public:
 #endif
 
     ASTNode *child(const std::string &name) override;
+
+    void declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode> &node_ptr) override;
 
     void declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override;
 

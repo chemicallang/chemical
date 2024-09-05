@@ -1700,6 +1700,10 @@ void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaratio
     tld->write(';');
 }
 
+void CTopLevelDeclarationVisitor::visit(VarInitStatement *init) {
+
+}
+
 void CTopLevelDeclarationVisitor::visit(FunctionDeclaration *decl) {
     // TODO we will fix capturing lambda types when introducing generics and unions
 //    if(decl->returnType->function_type() && decl->returnType->function_type()->isCapturing) {

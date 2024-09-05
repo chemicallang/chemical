@@ -135,8 +135,6 @@ public:
 
     hybrid_ptr<BaseType> get_base_type() override;
 
-    StructValue *as_struct() override;
-
     [[nodiscard]]
     ValueType value_type() const override {
         return ValueType::Struct;

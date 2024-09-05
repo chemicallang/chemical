@@ -1,6 +1,6 @@
 // Copyright (c) Qinetik 2024.
 
-#include "NamespaceIdentifier.h"
+#include "VariableIdentifier.h"
 
 #include <memory>
 #include "compiler/SymbolResolver.h"
@@ -50,7 +50,7 @@ bool VariableIdentifier::link(SymbolResolver &linker, std::unique_ptr<ChainValue
 //        } else if((linked->as_interface_def() || linked->as_namespace() || linked->as_impl_def() || linked->as_struct_def()) && !can_link_with_namespace()) {
 //            linker.error("cannot link identifier with definition '" + value + "', Please use '::' to link with definition");
 //        }
-        } else if(linked->as_namespace() && !can_link_with_namespace()){
+        } else if(linked->as_namespace() && !is_ns){
             linker.error("cannot link identifier with namespace " + value + "', Please use '::' to link with namespace", this);
         } else {
             return true;
@@ -221,12 +221,6 @@ VarInitStatement *VariableIdentifier::declaration() {
 
 VariableIdentifier* VariableIdentifier::copy() {
     auto id = new VariableIdentifier(value, token);
-    id->linked = linked;
-    return id;
-}
-
-NamespaceIdentifier *NamespaceIdentifier::copy() {
-    auto id = new NamespaceIdentifier(value, token);
     id->linked = linked;
     return id;
 }

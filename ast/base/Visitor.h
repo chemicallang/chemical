@@ -114,6 +114,8 @@ class StructValue;
 
 class VariableIdentifier;
 
+class NamespaceIdentifier;
+
 class Expression;
 
 class AccessChain;

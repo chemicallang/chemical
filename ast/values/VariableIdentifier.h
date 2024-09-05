@@ -30,13 +30,12 @@ public:
     ASTNode *linked = nullptr;
     ChainValue* parent_val = nullptr;
     CSTToken* token;
+    bool is_ns;
 
     /**
-     * @brief Construct a new VariableIdentifier object.
-     *
-     * @param value The string value.
+     * constructor
      */
-    VariableIdentifier(std::string value, CSTToken* token) : value(std::move(value)), token(token) {
+    VariableIdentifier(std::string value, CSTToken* token, bool is_ns = false) : value(std::move(value)), token(token), is_ns(is_ns) {
 
     }
 
@@ -66,10 +65,6 @@ public:
     Value *find_in(InterpretScope &scope, Value *parent) override;
 
     bool reference() override;
-
-    virtual bool can_link_with_namespace() {
-        return false;
-    };
 
     void set_value_in(InterpretScope &scope, Value *parent, Value *next_value, Operation op) override;
 
@@ -144,8 +139,10 @@ public:
 
     hybrid_ptr<BaseType> get_base_type() override;
 
+    [[nodiscard]]
     BaseTypeKind type_kind() const override;
 
+    [[nodiscard]]
     ValueType value_type() const override;
 
 };

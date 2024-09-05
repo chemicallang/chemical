@@ -234,7 +234,9 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
     bool do_compile = exe->type != LabJobType::ToCTranslation;
 
     // compile dependent modules for this executable
+    int mod_index = -1;
     for(auto mod : dependencies) {
+        mod_index++;
 
         auto found = generated.find(mod);
         if(found != generated.end() && exe->type != LabJobType::ToCTranslation) {
@@ -334,6 +336,9 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
 
         ASTImportResultExt result { ASTUnit(), CSTUnit(), false, false, "" };
 
+        // start a module scope in symbol resolver, that we can dispose later
+        resolver.module_scope_start();
+
         // sequentially compile each file
         i = 0;
         for(const auto& file : flat_imports) {
@@ -408,6 +413,12 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                 }
                 processor.shrink_nodes(shrinker, std::move(result.unit), file);
             }
+        }
+
+        // no need to dispose symbols for last module in production
+        if(mod_index < dependencies.size() - 1) {
+            // dispose module symbols in symbol resolver
+            resolver.dispose_module_symbols_now(mod->name.data());
         }
 
 #ifdef COMPILER_BUILD

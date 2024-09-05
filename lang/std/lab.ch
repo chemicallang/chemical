@@ -1,7 +1,7 @@
 import "./string.ch"
 import "./array_ref.ch"
 
-enum ModuleType {
+public enum ModuleType {
     File,
     CFile,
     ObjFile,
@@ -9,7 +9,7 @@ enum ModuleType {
 }
 
 @no_init
-struct Module {
+public struct Module {
     var type : ModuleType
     var name : string
     // a path can be given, to output the translated C file (if any)
@@ -24,14 +24,14 @@ struct Module {
     var asm_path : string;
 }
 
-enum LabJobType {
+public enum LabJobType {
     Executable,
     Library,
     ToCTranslation,
     ToChemicalTranslation
 }
 
-enum LabJobStatus {
+public enum LabJobStatus {
     Pending,
     Launched,
     Success,
@@ -39,7 +39,7 @@ enum LabJobStatus {
 }
 
 @no_init
-struct LabJob {
+public struct LabJob {
     var type : LabJobType
     var name : string
     var abs_path : string
@@ -47,7 +47,7 @@ struct LabJob {
     var status : LabJobStatus
 }
 
-struct BuildContext {
+public struct BuildContext {
 
     // support's paths with .o, .c and .ch extensions
     var files_module : (&self, name : string, paths : string**, paths_len : uint, dependencies : ArrayRef<Module*>) => Module*;

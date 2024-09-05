@@ -1,6 +1,6 @@
 import "./std.ch"
 
-struct string {
+public struct string {
 
     union {
         struct {

@@ -1272,7 +1272,7 @@ void CSTConverter::visitStructDef(CSTToken* structDef) {
     auto has_override = is_char_op(structDef->tokens[i], ':');
     AnnotableNode* def;
     if(named) {
-        def = new StructDefinition(name_token->value, parent_node, structDef);
+        def = new StructDefinition(name_token->value, parent_node, structDef, def_specifier(spec));
         if (has_override) {
             i++; // set on access specifier or the inherited struct / interface name
             get_inherit_list(this, structDef, i, ((StructDefinition*) def)->inherited);

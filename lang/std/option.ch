@@ -1,4 +1,4 @@
-variant Option<T> {
+public variant Option<T> {
     Some(value : T)
     None()
 }

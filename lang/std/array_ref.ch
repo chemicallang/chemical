@@ -1,7 +1,7 @@
 import "./vector.ch"
 import "./std.ch"
 
-struct ArrayRef<T> {
+public struct ArrayRef<T> {
 
     var data : T*
     var size : size_t

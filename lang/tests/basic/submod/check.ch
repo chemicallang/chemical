@@ -7,4 +7,8 @@ public struct extern_imported_point {
     var a : int
     var b : int
 
+    func check_sum(&self) : int {
+        return a + b;
+    }
+
 }

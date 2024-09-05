@@ -65,9 +65,10 @@ BaseType* UnionDef::known_type() {
 }
 
 void UnionDef::declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
-    linker.declare(name, this);
     if(is_exported_fast()) {
-        linker.declare_runtime(name, this);
+        linker.declare_exported_runtime(name, runtime_name(), this);
+    } else {
+        linker.declare(name, this);
     }
 }
 

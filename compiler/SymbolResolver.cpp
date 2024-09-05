@@ -82,6 +82,17 @@ void SymbolResolver::declare(const std::string& name, ASTNode* node) {
     }
 }
 
+void SymbolResolver::declare_exported(const std::string &name, ASTNode *node) {
+    declare(name, node);
+    dispose_module_symbols.emplace_back(name);
+}
+
+void SymbolResolver::declare_exported_runtime(const std::string& name, const std::string& runtime_name, ASTNode* node) {
+    declare(name, node);
+    dispose_module_symbols.emplace_back(name);
+    declare_runtime(runtime_name, node);
+}
+
 void SymbolResolver::declare_runtime(const std::string& name, ASTNode* node) {
     auto found = runtime_symbols.find(name);
     if(found == runtime_symbols.end()) {
@@ -200,6 +211,17 @@ void SymbolResolver::declare_function(const std::string& name, FunctionDeclarati
             last.symbols[name] = result.new_multi_func_node;
         }
     }
+}
+
+void SymbolResolver::declare_exported_function(const std::string& name, FunctionDeclaration* decl) {
+    declare_function(name, decl);
+    dispose_module_symbols.emplace_back(name);
+}
+
+void SymbolResolver::declare_exported_runtime_func(const std::string& name, const std::string& runtime_name, FunctionDeclaration* decl) {
+    declare_function(name, decl);
+    dispose_module_symbols.emplace_back(name);
+    declare_runtime(runtime_name, decl);
 }
 
 void SymbolResolver::resolve_file(Scope& scope, const std::string& abs_path) {

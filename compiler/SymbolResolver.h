@@ -203,6 +203,11 @@ public:
     bool undeclare(const std::string_view& name);
 
     /**
+     * symbol will be undecalred if present, only in the current scope
+     */
+    bool undeclare_in_current_file(const std::string_view& name);
+
+    /**
      * symbol will be undeclared in other files (not current file)
      * only a single symbol is undeclared
      */

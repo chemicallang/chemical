@@ -14,4 +14,8 @@ func test_imported_modules() {
         var p = extern_imported_point { a : 10, b : 22 }
         return p.check_sum() == 32;
     })
+    test("global variables imported from other modules work", () => {
+        extern_globe_var_incr();
+        return extern_globe_var == 769
+    })
 }

@@ -26,6 +26,7 @@ import "type/datatype/optional.ch"
 import "type/datatype/result.ch"
 import "basic/dynamic.ch"
 import "basic/variants.ch"
+import "basic/modules.ch"
 import "comptime/is_value.ch"
 
 func main() {
@@ -58,5 +59,6 @@ func main() {
     test_optional_type();
     test_result_type();
     test_is_value();
+    test_imported_modules();
     print_test_stats();
 }

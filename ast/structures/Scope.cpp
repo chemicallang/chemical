@@ -34,12 +34,9 @@ void Scope::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& n
 #endif
 
 void Scope::link_sequentially(SymbolResolver &linker) {
-    unsigned i = 0;
-    while(i < nodes.size() && !linker.has_errors) {
-        auto& node = nodes[i];
+    for(auto& node : nodes) {
         node->declare_top_level(linker, node);
         node->declare_and_link(linker, node);
-        i++;
     }
 }
 

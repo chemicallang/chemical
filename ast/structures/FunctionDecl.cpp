@@ -304,7 +304,8 @@ void FunctionDeclaration::code_gen_override(Codegen& gen, llvm::Function* llvm_f
 }
 
 void FunctionDeclaration::code_gen_external_declare(Codegen &gen) {
-    // TODO externally declare the function
+    llvm_data.clear();
+    declare_fn(gen, this);
 }
 
 void FunctionDeclaration::code_gen_declare(Codegen &gen, StructDefinition* def) {

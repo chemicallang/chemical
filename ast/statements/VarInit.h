@@ -26,12 +26,15 @@ public:
     ASTNode* parent_node;
     CSTToken* token;
     AccessSpecifier specifier;
+    /**
+     * has moved is used to indicate that an object at this location has moved
+     * destructor is not called on moved objects, once moved, any attempt to access
+     * this variable causes an error
+     */
+    bool has_moved = false;
 
     /**
-     * @brief Construct a new InitStatement object.
-     *
-     * @param identifier The identifier being initialized.
-     * @param value The value being assigned to the identifier.
+     * constructor
      */
     VarInitStatement(
             bool is_const,

@@ -271,12 +271,16 @@ void create_fn(Codegen& gen, FunctionDeclaration *decl, const std::string& name)
 }
 
 inline void create_fn(Codegen& gen, FunctionDeclaration *decl) {
-    create_fn(gen, decl, decl->name);
+    create_fn(gen, decl, decl->parent_node ? decl->runtime_name() : decl->name);
+}
+
+void declare_fn(Codegen& gen, FunctionDeclaration *decl, const std::string& name) {
+    auto callee = gen.declare_function(name, decl->create_llvm_func_type(gen));
+    decl->set_llvm_data(callee.getCallee(), callee.getFunctionType());
 }
 
 void declare_fn(Codegen& gen, FunctionDeclaration *decl) {
-    auto callee = gen.declare_function(decl->name, decl->create_llvm_func_type(gen));
-    decl->set_llvm_data(callee.getCallee(), callee.getFunctionType());
+    declare_fn(gen, decl, decl->parent_node ? decl->runtime_name() : decl->name);
 }
 
 void FunctionDeclaration::code_gen_declare(Codegen &gen) {
@@ -292,7 +296,7 @@ void FunctionDeclaration::code_gen_declare(Codegen &gen) {
 }
 
 void FunctionDeclaration::code_gen_interface(Codegen &gen, InterfaceDefinition* def) {
-    create_fn(gen, this, def->name + "." + name);
+    create_fn(gen, this);
     gen.current_function = nullptr;
     if(body.has_value()) {
         code_gen(gen);
@@ -315,7 +319,7 @@ void FunctionDeclaration::code_gen_declare(Codegen &gen, StructDefinition* def) 
     if(has_annotation(AnnotationKind::Destructor)) {
         ensure_destructor(def);
     }
-    create_fn(gen, this, def->name + "." + name);
+    create_fn(gen, this);
 }
 
 void FunctionDeclaration::code_gen_declare(Codegen &gen, VariantDefinition* def) {
@@ -325,7 +329,7 @@ void FunctionDeclaration::code_gen_declare(Codegen &gen, VariantDefinition* def)
     if(has_annotation(AnnotationKind::Destructor)) {
         ensure_destructor(def);
     }
-    create_fn(gen, this, def->name + "." + name);
+    create_fn(gen, this);
 }
 
 void FunctionDeclaration::code_gen_override_declare(Codegen &gen, FunctionDeclaration* decl) {
@@ -369,7 +373,7 @@ void FunctionDeclaration::code_gen_union(Codegen &gen, UnionDef* def) {
     if(has_annotation(AnnotationKind::CompTime)) {
         return;
     }
-    create_fn(gen, this, def->name + "." + name);
+    create_fn(gen, this);
     gen.current_function = nullptr;
     code_gen(gen);
 }

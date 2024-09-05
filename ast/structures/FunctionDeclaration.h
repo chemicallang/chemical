@@ -60,12 +60,7 @@ public:
 #endif
 
     /**
-     * @brief Construct a new FunctionDeclaration object.
-     *
-     * @param name The name of the function.
-     * @param returnType The return type of the function.
-     * @param parameters The parameters of the function.
-     * @param body The body of the function.
+     * constructor
      */
     FunctionDeclaration(
             std::string name,

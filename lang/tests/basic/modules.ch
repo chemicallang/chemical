@@ -10,4 +10,8 @@ func test_imported_modules() {
         const sum = p.a + p.b;
         return sum == 42;
     })
+    test("functions of basic structs imported from other modules work", () => {
+        var p = extern_imported_point { a : 10, b : 22 }
+        return p.check_sum() == 32;
+    })
 }

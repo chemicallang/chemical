@@ -756,9 +756,10 @@ void FunctionDeclaration::declare_top_level(SymbolResolver &linker, std::unique_
         param->type->link(linker, param->type);
     }
     linker.scope_end();
-    linker.declare_function(name, this);
     if(is_exported_fast()) {
-        linker.declare_runtime(runtime_name(), this);
+        linker.declare_exported_runtime_func(name, runtime_name(), this);
+    } else {
+        linker.declare_function(name, this);
     }
 }
 

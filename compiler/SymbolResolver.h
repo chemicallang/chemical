@@ -200,9 +200,19 @@ public:
     void declare(const std::string &name, ASTNode *node);
 
     /**
+     * declare a exported symbol
+     */
+    void declare_exported(const std::string &name, ASTNode *node);
+
+    /**
      * declare a runtime symbol
      */
     void declare_runtime(const std::string& name, ASTNode* node);
+
+    /**
+     * declare an exported runtime symbol
+     */
+    void declare_exported_runtime(const std::string& name, const std::string& runtime_name, ASTNode* node);
 
     /**
      * symbol will be undeclared if present, otherwise error if error_out
@@ -231,6 +241,16 @@ public:
      * multiple methods with same names
      */
     void declare_function(const std::string& name, FunctionDeclaration* declaration);
+
+    /**
+     * an exported function is declared using this method
+     */
+    void declare_exported_function(const std::string& name, FunctionDeclaration* declaration);
+
+    /**
+     * declare exported runtime function
+     */
+    void declare_exported_runtime_func(const std::string& name, const std::string& runtime_name, FunctionDeclaration* decl);
 
     /**
      * symbol resolves a file

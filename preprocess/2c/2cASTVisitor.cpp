@@ -494,7 +494,7 @@ void access_chain(ToCAstVisitor& visitor, std::vector<std::unique_ptr<ChainValue
 
 #define variant_type_variant_name "__chx__vt_621827"
 
-void value_alloca(ToCAstVisitor& visitor, const std::string& identifier, BaseType* type, std::unique_ptr<Value>& value) {
+void value_alloca(ToCAstVisitor& visitor, const std::string& identifier, BaseType* type, Value* value) {
     type_with_id(visitor, type, identifier);
     const auto var = type->get_direct_ref_variant();
     if(var) {
@@ -736,7 +736,7 @@ void value_init_default(ToCAstVisitor& visitor, const std::string& identifier, B
 //    }
 //}
 
-void value_alloca_store(ToCAstVisitor& visitor, const std::string& identifier, BaseType* type, std::unique_ptr<Value>& value) {
+void value_alloca_store(ToCAstVisitor& visitor, const std::string& identifier, BaseType* type, Value* value) {
     if(value) {
         auto value_kind = value->val_kind();
         if(value_kind == ValueKind::IfValue || value_kind == ValueKind::SwitchValue || value_kind == ValueKind::LoopValue) {
@@ -749,16 +749,16 @@ void value_alloca_store(ToCAstVisitor& visitor, const std::string& identifier, B
             // struct instantiation is done in 2 instructions -> declaration and assignment
 //            value_alloca(visitor, identifier, type, value);
 //            visitor->new_line_and_indent();
-            value_assign_default(visitor, identifier, type, value.get());
+            value_assign_default(visitor, identifier, type, value);
         } else {
-            value_init_default(visitor, identifier, type, value.get());
+            value_init_default(visitor, identifier, type, value);
         }
     } else {
         value_alloca(visitor, identifier, type, value);
     }
 }
 
-void var_init(ToCAstVisitor& visitor, VarInitStatement* init, bool is_static) {
+void var_init(ToCAstVisitor& visitor, VarInitStatement* init, bool is_static, bool initialize = true) {
     visitor.debug_comment("var_init defining the value");
     if(is_static) {
         visitor.write("static ");
@@ -766,7 +766,7 @@ void var_init(ToCAstVisitor& visitor, VarInitStatement* init, bool is_static) {
     if (!init->type) {
         init->type.reset(init->value->create_type().release());
     }
-    value_alloca_store(visitor, init->identifier, init->type.get(), init->value);
+    value_alloca_store(visitor, init->identifier, init->type.get(), initialize ? init->value.get() : nullptr);
 }
 
 void allocate_struct_by_name(ToCAstVisitor& visitor, ExtendableMembersContainerNode* def, const std::string& name, Value* initializer = nullptr) {
@@ -1537,9 +1537,6 @@ void CValueDeclarationVisitor::visit(VarInitStatement *init) {
         init->type = init->value->create_type();
     }
     CommonVisitor::visit(init);
-    if(!is_top_level_node) return;
-    visitor.new_line_and_indent();
-    var_init(visitor, init, true);
 }
 
 void CValueDeclarationVisitor::visit(LambdaFunction *lamb) {
@@ -1701,7 +1698,9 @@ void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaratio
 }
 
 void CTopLevelDeclarationVisitor::visit(VarInitStatement *init) {
-
+    if(!init->is_top_level()) return;
+    visitor.new_line_and_indent();
+    var_init(visitor, init, init->is_exported(), !redefining);
 }
 
 void CTopLevelDeclarationVisitor::visit(FunctionDeclaration *decl) {
@@ -2203,7 +2202,7 @@ std::string ToCAstVisitor::string_accept(ASTAny* any) {
 }
 
 void ToCAstVisitor::visit(VarInitStatement *init) {
-    if(top_level_node) return;
+    if(init->is_top_level()) return;
     var_init(*this, init, false);
     init->accept(destructor.get());
 }

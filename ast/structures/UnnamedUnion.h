@@ -11,11 +11,13 @@ public:
 
     ASTNode* parent_node;
     CSTToken* token;
+    AccessSpecifier specifier;
 
     UnnamedUnion(
         std::string name,
         ASTNode* parent_node,
-        CSTToken* token
+        CSTToken* token,
+        AccessSpecifier specifier = AccessSpecifier::Internal
     );
 
     CSTToken* cst_token() override {

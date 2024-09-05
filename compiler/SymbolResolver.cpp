@@ -22,7 +22,7 @@ void SymbolResolver::dup_runtime_sym_error(const std::string& name, ASTNode* pre
     std::string err("duplicate runtime symbol being declared " + name + " symbol already exists");
 //    err.append("\nprevious : " + previous->representation() + "\n");
 //    err.append("new : " + new_node->representation() + "\n");
-    error(err, new_node);
+    warn(err, new_node); // < --- this is a warning at the moment
 }
 
 ASTNode *SymbolResolver::find_in_current_file(const std::string& name) {
@@ -111,7 +111,7 @@ bool SymbolResolver::undeclare_in_current_file(const std::string_view& name) {
         return last_scope.symbols.erase(name) > 0;
     } else {
 #ifdef DEBUG
-        throw std::runtime_error("undeclare in current file, while current file is not a ");
+        throw std::runtime_error("undeclare in current file, while current file is not a file");
 #else
         return false;
 #endif

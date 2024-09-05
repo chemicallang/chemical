@@ -19,7 +19,7 @@ void UnionDef::code_gen(Codegen &gen) {
 
 #endif
 
-UnnamedUnion::UnnamedUnion(std::string name, ASTNode* parent_node, CSTToken* token) : BaseDefMember(std::move(name)), parent_node(parent_node), token(token) {
+UnnamedUnion::UnnamedUnion(std::string name, ASTNode* parent_node, CSTToken* token, AccessSpecifier specifier) : BaseDefMember(std::move(name)), parent_node(parent_node), token(token), specifier(specifier) {
 
 }
 
@@ -66,6 +66,9 @@ BaseType* UnionDef::known_type() {
 
 void UnionDef::declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     linker.declare(name, this);
+    if(is_exported_fast()) {
+        linker.declare_runtime(name, this);
+    }
 }
 
 void UnionDef::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {

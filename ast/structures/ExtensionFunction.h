@@ -19,7 +19,7 @@ public:
             ASTNode* parent_node,
             CSTToken* token,
             std::optional<LoopScope> body = std::nullopt,
-            std::optional<AccessSpecifier> = std::nullopt
+            AccessSpecifier specifier = AccessSpecifier::Internal
     );
 
 #ifdef COMPILER_BUILD

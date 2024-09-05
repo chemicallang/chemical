@@ -632,35 +632,11 @@ FunctionDeclaration::FunctionDeclaration(
         ASTNode* parent_node,
         CSTToken* token,
         std::optional<LoopScope> body,
-        std::optional<AccessSpecifier> user_specifier
+        AccessSpecifier specifier
 ) : FunctionType(std::move(params), std::move(returnType), isVariadic, false, token),
     name(std::move(name)),
-    body(std::move(body)), parent_node(parent_node), token(token) {
-    if(user_specifier.has_value()) {
-        specifier = user_specifier.value();
-    } else {
-        // TODO do this somewhere else
-        if (this->name == "main") {
-            specifier = AccessSpecifier::Public;
-        } else {
-            specifier = AccessSpecifier::Private;
-        }
-    }
+    body(std::move(body)), parent_node(parent_node), token(token), specifier(specifier) {
 }
-
-bool FunctionDeclaration::is_exported() {
-    if(has_annotation(AnnotationKind::Api)) {
-        return true;
-    }
-    if(parent_node) {
-        auto parent = parent_node->as_annotable_node();
-        if (parent && parent->has_annotation(AnnotationKind::Api)) {
-            return true;
-        }
-    }
-    return false;
-}
-
 
 int16_t FunctionDeclaration::total_generic_iterations() {
     return ::total_generic_iterations(generic_params);
@@ -760,10 +736,6 @@ void FunctionDeclaration::redeclare_top_level(SymbolResolver &linker, std::uniqu
 }
 
 void FunctionDeclaration::declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
-    if(has_annotation(AnnotationKind::Extern)) {
-        annotations.push_back(AnnotationKind::Api);
-        specifier = AccessSpecifier::Public;
-    }
     /**
      * when a user has a call to function which is declared below current function, that function
      * has a parameter of type ref struct, the struct has implicit constructor for the value we are passing
@@ -785,6 +757,9 @@ void FunctionDeclaration::declare_top_level(SymbolResolver &linker, std::unique_
     }
     linker.scope_end();
     linker.declare_function(name, this);
+    if(is_exported_fast()) {
+        linker.declare_runtime(runtime_name(), this);
+    }
 }
 
 void FunctionDeclaration::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {

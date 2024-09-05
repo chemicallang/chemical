@@ -4,6 +4,13 @@
 #include "ASTUnit.h"
 #include "BaseType.h"
 #include "Value.h"
+#include "ast/structures/VariantDefinition.h"
+#include "ast/structures/StructDefinition.h"
+#include "ast/structures/Namespace.h"
+#include "ast/structures/UnionDef.h"
+#include "ast/structures/EnumDeclaration.h"
+#include "ast/structures/FunctionDeclaration.h"
+#include "ast/structures/InterfaceDefinition.h"
 #include "preprocess/RepresentationVisitor.h"
 #include <sstream>
 
@@ -52,6 +59,61 @@ ASTNode* ASTNode::root_parent() {
             return current;
         }
     };
+}
+
+AccessSpecifier ASTNode::specifier() {
+    const auto k = kind();
+    switch(k) {
+        case ASTNodeKind::StructDecl:
+            return as_struct_def_unsafe()->specifier;
+        case ASTNodeKind::VariantDecl:
+            return as_variant_def_unsafe()->specifier;
+        case ASTNodeKind::NamespaceDecl:
+            return as_namespace_unsafe()->specifier;
+        case ASTNodeKind::UnionDecl:
+            return as_union_def_unsafe()->specifier;
+        case ASTNodeKind::EnumDecl:
+            return as_enum_decl_unsafe()->specifier;
+        case ASTNodeKind::FunctionDecl:
+            return as_function_unsafe()->specifier;
+        case ASTNodeKind::InterfaceDecl:
+            return as_interface_def_unsafe()->specifier;
+        default:
+            return AccessSpecifier::Private;
+    }
+}
+
+bool ASTNode::set_specifier(AccessSpecifier spec) {
+    const auto k = kind();
+    switch(k) {
+        case ASTNodeKind::StructDecl:
+            as_struct_def_unsafe()->specifier = spec;
+            return true;
+        case ASTNodeKind::VariantDecl:
+            as_variant_def_unsafe()->specifier = spec;
+            return true;
+        case ASTNodeKind::NamespaceDecl:
+            as_namespace_unsafe()->specifier = spec;
+            return true;
+        case ASTNodeKind::UnionDecl:
+            as_union_def_unsafe()->specifier = spec;
+            return true;
+        case ASTNodeKind::EnumDecl:
+            as_enum_decl_unsafe()->specifier = spec;
+            return true;
+        case ASTNodeKind::FunctionDecl:
+            as_function_unsafe()->specifier = spec;
+            return true;
+        case ASTNodeKind::InterfaceDecl:
+            as_interface_def_unsafe()->specifier = spec;
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool ASTNode::is_exported() {
+    return specifier() == AccessSpecifier::Public;
 }
 
 void ASTNode::set_parent(ASTNode* parent) {

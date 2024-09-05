@@ -229,6 +229,9 @@ ASTNode* VariantDefinition::child(const std::string &child_name) {
 
 void VariantDefinition::declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     linker.declare(name, this);
+    if(is_exported_fast()) {
+        linker.declare_runtime(runtime_name(), this);
+    }
 }
 
 void VariantDefinition::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {

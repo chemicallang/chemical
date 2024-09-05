@@ -59,6 +59,10 @@ public:
         return !generic_params.empty();
     }
 
+    bool is_exported_fast() {
+        return specifier == AccessSpecifier::Public;
+    }
+
     const std::string& ns_node_identifier() override {
         return name;
     }

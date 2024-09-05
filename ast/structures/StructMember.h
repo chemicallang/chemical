@@ -14,6 +14,7 @@ public:
     std::unique_ptr<Value> defValue;
     ASTNode* parent_node;
     CSTToken* token;
+    AccessSpecifier specifier;
 
     StructMember(
             std::string name,
@@ -21,7 +22,8 @@ public:
             std::unique_ptr<Value> defValue,
             ASTNode* parent_node,
             CSTToken* token,
-            bool is_const = false
+            bool is_const = false,
+            AccessSpecifier specifier = AccessSpecifier::Public
     );
 
     ASTNodeKind kind() override {

@@ -105,6 +105,31 @@ bool SymbolResolver::undeclare(const std::string_view& name) {
     return false;
 }
 
+bool SymbolResolver::undeclare_in_current_file(const std::string_view& name) {
+    auto& last_scope = current.back();
+    if(last_scope.kind == SymResScopeKind::File) {
+        return last_scope.symbols.erase(name) > 0;
+    } else {
+#ifdef DEBUG
+        throw std::runtime_error("undeclare in current file, while current file is not a ");
+#else
+        return false;
+#endif
+    }
+//    int i = current.size() - 1;
+//    while (i >= 0) {
+//        auto& last = current[i];
+//        if(last.symbols.erase(name) > 0) {
+//            return true;
+//        }
+//        if(last.kind == SymResScopeKind::File) {
+//            return false;
+//        }
+//        i--;
+//    }
+//    return false;
+}
+
 bool SymbolResolver::undeclare_in_other_files(const std::string& name) {
     int i = current.size() - 1;
     bool started_undeclaring = false;
@@ -194,7 +219,7 @@ void SymbolResolver::dispose_file_symbols_now(const std::string& abs_path) {
     // dispose symbols of previous file (if any required) before proceeding
     if(!dispose_file_symbols.empty()) {
         for(const auto& sym : dispose_file_symbols) {
-            if(!undeclare(sym)) {
+            if(!undeclare_in_current_file(sym)) {
                 std::cerr << rang::fg::yellow << "[SymRes] unable to un-declare file symbol " << sym << " in file " << abs_path  << rang::fg::reset << std::endl;
             }
         }

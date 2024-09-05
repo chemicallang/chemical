@@ -49,6 +49,8 @@ public:
 
     void declare_variant(VariantDefinition* structDef);
 
+    void visit(VarInitStatement *init) override;
+
     void visit(TypealiasStatement *statement) override;
 
     void visit(FunctionDeclaration *functionDeclaration) override;

@@ -12,3 +12,9 @@ public struct extern_imported_point {
     }
 
 }
+
+public var extern_globe_var = 768
+
+public func extern_globe_var_incr() {
+    extern_globe_var++
+}

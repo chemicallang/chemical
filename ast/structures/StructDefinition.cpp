@@ -237,8 +237,9 @@ StructMember::StructMember(
         std::unique_ptr<Value> defValue,
         ASTNode* parent_node,
         CSTToken* token,
-        bool is_const
-) : BaseDefMember(std::move(name)), type(std::move(type)), defValue(std::move(defValue)), parent_node(parent_node), token(token), is_const(is_const) {
+        bool is_const,
+        AccessSpecifier specifier
+) : BaseDefMember(std::move(name)), type(std::move(type)), defValue(std::move(defValue)), parent_node(parent_node), token(token), is_const(is_const), specifier(specifier) {
 
 }
 
@@ -314,8 +315,9 @@ BaseTypeKind StructMember::type_kind() const {
 UnnamedStruct::UnnamedStruct(
         std::string name,
         ASTNode* parent_node,
-        CSTToken* token
-) : BaseDefMember(std::move(name)), parent_node(parent_node), token(token) {
+        CSTToken* token,
+        AccessSpecifier specifier
+) : BaseDefMember(std::move(name)), parent_node(parent_node), token(token), specifier(specifier) {
 
 }
 
@@ -344,6 +346,9 @@ void StructDefinition::accept(Visitor *visitor) {
 
 void StructDefinition::declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     linker.declare(name, this);
+    if(is_exported_fast()) {
+        linker.declare(runtime_name(), this);
+    }
     is_direct_init = has_annotation(AnnotationKind::DirectInit);
 }
 

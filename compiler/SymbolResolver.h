@@ -166,6 +166,13 @@ public:
     std::vector<std::string_view> dispose_file_symbols;
 
     /**
+     * stores symbols that will be disposed after this module has been completely symbol resolved
+     * for example symbols that are internal in module are stored on this vector for disposing
+     * at the end of module, struct without a public keyword (internal by default)
+     */
+    std::vector<std::string_view> dispose_module_symbols;
+
+    /**
      * constructor
      */
     explicit SymbolResolver(bool is64Bit);

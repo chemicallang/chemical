@@ -68,6 +68,7 @@
 #include "utils/StringHelpers.h"
 #include "utils/CSTUtils.h"
 #include <functional>
+#include <memory>
 #include <sstream>
 #include "compiler/PrimitiveTypeMap.h"
 #include "ast/structures/ExtensionFunction.h"
@@ -296,7 +297,6 @@ const std::unordered_map<std::string, const AnnotationHandler> AnnotationHandler
         { "inline:hint", { collect_annotation_func, AnnotationKind::InlineHint } },
         { "size:opt", { collect_annotation_func, AnnotationKind::OptSize } },
         { "size:min", { collect_annotation_func, AnnotationKind::MinSize } },
-        { "api", { collect_annotation_func, AnnotationKind::Api } },
         { "comptime", { collect_annotation_func, AnnotationKind::CompTime } },
         { "constructor", { collect_annotation_func, AnnotationKind::Constructor } },
         { "destructor", { collect_annotation_func, AnnotationKind::Destructor } },
@@ -333,6 +333,14 @@ bool CSTConverter::is_dispose() {
         }
         return false;
     }
+}
+
+AccessSpecifier CSTConverter::def_specifier(std::optional<AccessSpecifier> opt) {
+    if(opt.has_value()) return opt.value();
+    if(parent_node) {
+        return parent_node->specifier();
+    }
+    return AccessSpecifier::Internal;
 }
 
 std::unique_ptr<Value> CSTConverter::value() {
@@ -579,20 +587,26 @@ void CSTConverter::visitFunction(CSTToken* function) {
                 parent_node,
                 function,
                 std::nullopt,
-                specifier
+                def_specifier(specifier)
         );
         ((ExtensionFunction*) funcDecl)->receiver.parent_node = funcDecl;
         delete param;
     } else {
         funcDecl = new FunctionDeclaration(
-                func_name(function),
+                name_token->value,
                 std::move(params.params),
                 std::move(returnType), params.isVariadic,
                 parent_node,
                 function,
                 std::nullopt,
-                specifier
+                def_specifier(specifier)
         );
+        if(!parent_node && !specifier.has_value() && name_token->value == "main") {
+            funcDecl->specifier = AccessSpecifier::Public;
+            if(funcDecl->returnType->kind() != BaseTypeKind::IntN) {
+                funcDecl->returnType = std::make_unique<IntType>(funcDecl->returnType->cst_token());
+            }
+        }
     }
 
     if(is_generic) {
@@ -637,7 +651,7 @@ void CSTConverter::visitEnumDecl(CSTToken* decl) {
             std::unordered_map<std::string, std::unique_ptr<EnumMember>> {},
             parent_node,
             decl,
-            spec.has_value() ? spec.value() : AccessSpecifier::Public
+            def_specifier(spec)
     );
     i += 2;
     unsigned position = 0;
@@ -701,7 +715,8 @@ void CSTConverter::visitVarInit(CSTToken* varInit) {
                 nullptr,
                 parent_node,
                 varInit,
-                is_const
+                is_const,
+                specifier.has_value() ? specifier.value() : AccessSpecifier::Public
         );
     } else {
         init = new VarInitStatement(
@@ -711,7 +726,7 @@ void CSTConverter::visitVarInit(CSTToken* varInit) {
                 nullptr,
                 parent_node,
                 varInit,
-                specifier.has_value() ? specifier.value() : AccessSpecifier::Internal
+                def_specifier(specifier)
         );
     }
     auto& type_ref = is_struct_member ? ((StructMember*) init)->type : ((VarInitStatement*) init)->type;
@@ -1082,7 +1097,7 @@ void CSTConverter::visitThrow(CSTToken* throwStmt) {
 
 void CSTConverter::visitNamespace(CSTToken* ns) {
     auto spec = specifier_token(ns->tokens[0]);
-    auto pNamespace = new Namespace(str_token(ns->tokens[spec.has_value() ? 2 : 1]), parent_node, ns, spec.has_value() ? spec.value() : AccessSpecifier::Internal);
+    auto pNamespace = new Namespace(str_token(ns->tokens[spec.has_value() ? 2 : 1]), parent_node, ns, def_specifier(spec));
     pNamespace->nodes = take_comp_body_nodes(this, ns, pNamespace);
     put_node(pNamespace, ns);
 }
@@ -1260,7 +1275,7 @@ void CSTConverter::visitStructDef(CSTToken* structDef) {
             get_inherit_list(this, structDef, i, ((StructDefinition*) def)->inherited);
         }
     } else {
-        def = new UnnamedStruct(structDef->tokens[structDef->tokens.size() - 1]->value, parent_node, structDef);
+        def = new UnnamedStruct(structDef->tokens[structDef->tokens.size() - 1]->value, parent_node, structDef, spec.has_value() ? spec.value() : AccessSpecifier::Public);
     }
     i += 1;// positioned at first node or '}'
     if(is_generic) {
@@ -1287,7 +1302,7 @@ void CSTConverter::visitInterface(CSTToken* interface) {
     if(specifier.has_value()) {
         i += 1;
     }
-    auto def = new InterfaceDefinition(str_token(interface->tokens[i]), parent_node, interface, specifier.has_value() ? specifier.value() : AccessSpecifier::Internal);
+    auto def = new InterfaceDefinition(str_token(interface->tokens[i]), parent_node, interface, def_specifier(specifier));
     i += 1;
     const auto& gen_token = interface->tokens[i];
     if(gen_token->type() == LexTokenType::CompGenericParamsList) {
@@ -1329,13 +1344,14 @@ void CSTConverter::visitUnionDef(CSTToken* unionDef) {
             name_token->value,
             parent_node,
             unionDef,
-            specifier.has_value() ? specifier.value() : AccessSpecifier::Internal
+            def_specifier(specifier)
         );
     } else {
         def = new UnnamedUnion(
                 str_token(unionDef->tokens[unionDef->tokens.size() - 1]),
                 parent_node,
-                unionDef
+                unionDef,
+                specifier.has_value() ? specifier.value() : AccessSpecifier::Public
         );
     }
     auto prev_container = current_members_container;
@@ -1411,7 +1427,7 @@ void CSTConverter::visitVariant(CSTToken* variantDef) {
             str_token(named ? name_token : variantDef->tokens[variantDef->tokens.size() - 1]),
             parent_node,
             variantDef,
-            specifier.has_value() ? specifier.value() : AccessSpecifier::Internal
+            def_specifier(specifier)
     );
     if (has_override) {
         i++; // set on access specifier or the inherited struct / interface name

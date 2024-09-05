@@ -39,6 +39,10 @@ std::vector<std::unique_ptr<ASTNode>> TranslateC(
 );
 #endif
 
+#ifdef DEBUG
+#define DEBUG_FUTURES false
+#endif
+
 static bool verify_lib_build_func_type(FunctionDeclaration* found, const std::string& abs_path) {
     if(found->returnType->kind() == BaseTypeKind::Pointer) {
         auto child_type = found->returnType->get_child_type();
@@ -572,6 +576,41 @@ int LabBuildCompiler::do_to_chemical_job(LabJob* job) {
 #endif
 }
 
+#if defined(DEBUG_FUTURES) && DEBUG_FUTURES
+inline std::vector<ASTImportResultExt> trigger_futures(ctpl::thread_pool& pool, const std::vector<FlatIGFile>& flat_imports, ASTProcessor* processor) {
+#else
+inline std::vector<std::future<ASTImportResultExt>> trigger_futures(ctpl::thread_pool& pool, const std::vector<FlatIGFile>& flat_imports, ASTProcessor* processor) {
+#endif
+#if defined(DEBUG_FUTURES) && DEBUG_FUTURES
+    std::vector<ASTImportResultExt> lab_futures;
+#else
+    std::vector<std::future<ASTImportResultExt>> lab_futures;
+#endif
+    int i = 0;
+    for (const auto &file: flat_imports) {
+#if defined(DEBUG_FUTURES) && DEBUG_FUTURES
+        lab_futures.push_back(concurrent_processor(i, i, file, processor));
+#else
+        lab_futures.push_back(pool.push(concurrent_processor, i, file, processor));
+#endif
+
+        i++;
+    }
+    return lab_futures;
+}
+
+#if defined(DEBUG_FUTURES) && DEBUG_FUTURES
+inline ASTImportResultExt future_get(std::vector<ASTImportResultExt>& futures, int i) {
+#else
+inline ASTImportResultExt future_get(std::vector<std::future<ASTImportResultExt>>& futures, int i) {
+#endif
+#if defined(DEBUG_FUTURES) && DEBUG_FUTURES
+    return std::move(futures[i]);
+#else
+    return futures[i].get();
+#endif
+}
+
 int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string& path) {
 
     // shrinking visitor will shrink everything
@@ -617,18 +656,14 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
     };
 
     {
-        std::vector<std::future<ASTImportResultExt>> lab_futures;
-        int i = 0;
-        for (const auto &file: flat_imports) {
-            lab_futures.push_back(pool.push(concurrent_processor, i, file, &lab_processor));
-            i++;
-        }
+
+        auto lab_futures = trigger_futures(pool, flat_imports, &lab_processor);
 
         // processing each build.lab file and creating C output
-        i = 0;
+        int i = 0;
         for (const auto &file: flat_imports) {
 
-            auto result = lab_futures[i].get();
+            auto result = future_get(lab_futures, i);
             if (!result.continue_processing) {
                 compile_result = false;
                 break;
@@ -661,7 +696,7 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
                     break;
                 }
                 // expose the last file's build method, so it's callable
-                found->annotations.emplace_back(AnnotationKind::Api);
+                found->specifier = AccessSpecifier::Public;
             } else if (file.abs_path.ends_with(".lab")) {
                 if (file.as_identifier.empty()) {
                     std::cerr

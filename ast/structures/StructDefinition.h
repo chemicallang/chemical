@@ -89,6 +89,10 @@ public:
         return this;
     }
 
+    bool is_exported_fast() {
+        return specifier == AccessSpecifier::Public;
+    }
+
     bool is_generic() {
         return !generic_params.empty();
     }

@@ -14,8 +14,7 @@ enum class AnnotationKind {
     OptSize,
     MinSize,
 
-    Api, // functions that are exposed to other modules
-    Extern, // it means declaration is available in other module, @api is implied, also makes the declaration public by default
+    Extern, // it means declaration is available in other module
     CompTime, // functions that are compile time
     Cpp, // mangle the function name using C++ name mangling scheme
 

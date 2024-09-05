@@ -11,11 +11,13 @@ public:
 
     ASTNode* parent_node;
     CSTToken* token;
+    AccessSpecifier specifier;
 
     UnnamedStruct(
         std::string name,
         ASTNode* parent_node,
-        CSTToken* token
+        CSTToken* token,
+        AccessSpecifier specifier = AccessSpecifier::Internal
     );
 
     ASTNodeKind kind() override {

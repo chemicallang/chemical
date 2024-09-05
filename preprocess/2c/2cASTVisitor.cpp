@@ -1634,11 +1634,7 @@ void declare_func_with_return(ToCAstVisitor& visitor, FunctionDeclaration* decl,
         func_that_returns_func_proto(visitor, decl, name, decl->returnType->function_type());
     } else {
         const auto ret_kind = decl->returnType->kind();
-        if ((ret_kind == BaseTypeKind::Void || ret_kind == BaseTypeKind::IntN) && name == "main") {
-            visitor.write("int main");
-        } else {
-            accept_func_return_with_name(visitor, decl, name, false, decl->body.has_value() && !decl->is_exported());
-        }
+        accept_func_return_with_name(visitor, decl, name, false, decl->body.has_value() && !decl->is_exported_fast());
         visitor.write('(');
         func_type_params(visitor, decl);
         visitor.write(')');
@@ -1695,7 +1691,7 @@ void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaratio
         func_ret_func_proto_after_l_paren(tld->visitor, decl, name, decl->returnType->function_type(), i);
     } else {
         auto is_parent_interface = decl->parent_node->as_interface_def() != nullptr;
-        accept_func_return_with_name(tld->visitor, decl, name, true, (is_parent_interface || decl->body.has_value()) && !decl->is_exported());
+        accept_func_return_with_name(tld->visitor, decl, name, true, (is_parent_interface || decl->body.has_value()) && !decl->is_exported_fast());
         tld->write('(');
         write_self_param_now();
         func_type_params(tld->visitor, decl, i);
@@ -2478,7 +2474,7 @@ void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, cons
         write_self_param_now();
         func_ret_func_proto_after_l_paren(visitor, decl, name, decl->returnType->function_type(), i);
     } else {
-        accept_func_return_with_name(visitor, decl, name, true, decl->body.has_value() && !decl->is_exported());
+        accept_func_return_with_name(visitor, decl, name, true, decl->body.has_value() && !decl->is_exported_fast());
         visitor.write('(');
         write_self_param_now();
         func_type_params(visitor, decl, i);

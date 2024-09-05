@@ -104,7 +104,7 @@ ExtensionFunction::ExtensionFunction(
         ASTNode* parent_node,
         CSTToken* token,
         std::optional<LoopScope> body,
-        std::optional<AccessSpecifier> specifier
+        AccessSpecifier specifier
 ) : FunctionDeclaration(
     std::move(name),
     std::move(params),

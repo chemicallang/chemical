@@ -156,6 +156,12 @@ public:
     bool is_dispose();
 
     /**
+     * this returns the default specifier to use for the node, if user given specifier is missing
+     * it checks the parent node for the specifier and also the grand parent
+     */
+    AccessSpecifier def_specifier(std::optional<AccessSpecifier> opt);
+
+    /**
      * puts the type on the type vector
      */
     inline void put_type(BaseType* type, CSTToken* token);

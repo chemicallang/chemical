@@ -75,7 +75,7 @@ public:
             ASTNode* parent_node,
             CSTToken* token,
             std::optional<LoopScope> body = std::nullopt,
-            std::optional<AccessSpecifier> = std::nullopt
+            AccessSpecifier = AccessSpecifier::Internal
     );
 
     CSTToken *cst_token() override {
@@ -100,6 +100,10 @@ public:
         return !generic_params.empty();
     }
 
+    bool is_exported_fast() {
+        return specifier == AccessSpecifier::Public;
+    }
+
     ASTNode *parent() override {
         return parent_node;
     }
@@ -111,9 +115,6 @@ public:
     std::string func_opt_name() override {
         return name;
     }
-
-    // whether the function is exported to other modules (@api)
-    bool is_exported();
 
     void accept(Visitor *visitor) override;
 

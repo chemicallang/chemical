@@ -14,6 +14,8 @@
 #include "ValueType.h"
 #include "std/hybrid_ptr.h"
 #include "ASTNodeKind.h"
+#include "AccessSpecifier.h"
+#include <optional>
 
 class SymbolResolver;
 
@@ -114,6 +116,21 @@ public:
      * This get's the root parent of the current node
      */
     ASTNode* root_parent();
+
+    /**
+     * get access specifier for this node
+     */
+    AccessSpecifier specifier();
+
+    /**
+     * will set the specifier to given, returns true if set
+     */
+    bool set_specifier(AccessSpecifier spec);
+
+    /**
+     * is this node's being exported outside this module
+     */
+    bool is_exported();
 
     /**
      * this function provides a pointer to the parent ASTNode

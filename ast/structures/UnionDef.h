@@ -35,6 +35,10 @@ public:
         return name;
     }
 
+    bool is_exported_fast() {
+        return specifier == AccessSpecifier::Public;
+    }
+
     VariablesContainer *as_variables_container() override {
         return this;
     }

@@ -1,6 +1,6 @@
 import "./std.ch"
 
-struct vector<T> {
+public struct vector<T> {
 
     var data_ptr : T*
     var data_size : size_t

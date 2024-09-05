@@ -5,6 +5,12 @@
 #include "ast/statements/Assignment.h"
 #include "ast/values/ArrayValue.h"
 #include "ast/values/StructValue.h"
+#include "ast/values/StringValue.h"
+#include "ast/values/IntValue.h"
+#include "ast/values/BoolValue.h"
+#include "ast/values/NumberValue.h"
+#include "ast/values/FloatValue.h"
+#include "ast/values/DoubleValue.h"
 #include "ast/values/FunctionCall.h"
 #include "ast/statements/Return.h"
 #include "ast/structures/StructDefinition.h"
@@ -34,10 +40,6 @@ llvm::AllocaInst* Value::llvm_allocate_with(Codegen& gen, llvm::Value* value, ll
 
 llvm::AllocaInst *Value::llvm_allocate(Codegen& gen, const std::string& identifier, BaseType* expected_type) {
     return llvm_allocate_with(gen, llvm_value(gen, expected_type), expected_type ? expected_type->llvm_type(gen) : llvm_type(gen));
-}
-
-llvm::GlobalVariable* Value::llvm_global_variable(Codegen& gen, bool is_const, const std::string& name) {
-    return new llvm::GlobalVariable(*gen.module, llvm_type(gen), is_const, llvm::GlobalValue::LinkageTypes::PrivateLinkage, (llvm::Constant*) llvm_value(gen), name);
 }
 
 llvm::AllocaInst* ChainValue::access_chain_allocate(Codegen& gen, std::vector<std::unique_ptr<ChainValue>>& values, unsigned int until, BaseType* expected_type) {
@@ -303,48 +305,6 @@ void Value::set_value_in(InterpretScope& scope, Value* parent, Value* value, Ope
     scope.error("Value::set_value_in called on base value " + representation());
 }
 
-char Value::as_char() {
-#ifdef DEBUG
-    throw std::runtime_error("as_char called on a value");
-#endif
-    std::cerr << "as_char called on base value, representation : " << representation();
-}
-
-bool Value::as_bool() {
-#ifdef DEBUG
-    throw std::runtime_error("as_bool called on a value");
-#endif
-    std::cerr << "as_bool called on base value, representation : " << representation();
-}
-
-std::string Value::as_string() {
-#ifdef DEBUG
-    throw std::runtime_error("as_string called on a value");
-#endif
-    std::cerr << "as_string called on base value, representation : " << representation();
-}
-
-int Value::as_int() {
-#ifdef DEBUG
-    throw std::runtime_error("as_int called on a value");
-#endif
-    std::cerr << "as_int called on base value, representation : " << representation();
-}
-
-float Value::as_float() {
-#ifdef DEBUG
-    throw std::runtime_error("as_float called on a value");
-#endif
-    std::cerr << "as_float called on base value, representation : " << representation();
-}
-
-double Value::as_double() {
-#ifdef DEBUG
-    throw std::runtime_error("as_float called on a value");
-#endif
-    std::cerr << "as_double called on base value, representation : " << representation();
-}
-
 hybrid_ptr<BaseType> Value::get_base_type() {
     throw std::runtime_error("get_base_type called on bare Value with type : " + std::to_string((unsigned int) value_type()));
 }
@@ -374,6 +334,47 @@ Value* Value::copy() {
 
 unsigned Value::as_uint() {
     return ((UIntValue*) this)->value;
+}
+
+char Value::as_char() {
+    return ((CharValue*) this)->value;
+}
+
+bool Value::as_bool() {
+    return ((BoolValue*) this)->value;
+}
+
+std::string Value::as_string() {
+    return ((StringValue*) this)->value;
+}
+
+int Value::as_int() {
+    switch(val_kind()) {
+        case ValueKind::Int:
+            return ((IntValue*) this)->value;
+        case ValueKind::NumberValue:
+            return (int) ((NumberValue*) this)->value;
+        default:
+#ifdef DEBUG
+            throw std::runtime_error("unknown value for as_int");
+#endif
+    }
+}
+
+float Value::as_float() {
+    return ((FloatValue*) this)->value;
+}
+
+double Value::as_double() {
+    return ((DoubleValue*) this)->value;
+}
+
+StringValue* Value::as_string_value() {
+    if(val_kind() == ValueKind::String) {
+        return (StringValue*) this;
+    } else {
+        return nullptr;
+    }
 }
 
 Value* Value::get_first_value_from_value_node(ASTNode* node) {

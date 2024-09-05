@@ -268,11 +268,6 @@ public:
     );
 
     /**
-     * This creates this value as a global variable, it could be constant
-     */
-    virtual llvm::GlobalVariable* llvm_global_variable(Codegen& gen, bool is_const, const std::string& name);
-
-    /**
      * store this value in the allocated struct value
      *
      * it takes an index to store value at, it returns an index to store next value at
@@ -548,25 +543,23 @@ public:
     /**
      * a function to be overridden by char values to return actual values
      */
-    virtual char as_char();
+    char as_char();
 
     /**
      * a function to be overridden by bool values to return actual values
-     * @return
      */
-    virtual bool as_bool();
+    bool as_bool();
 
     /**
-     * a function to be overridden by values that can return string
-     * @return
+     * will get the string from the value
+     * this usually works on string values
      */
-    virtual std::string as_string();
+    std::string as_string();
 
     /**
      * a function to be overridden by values that can return int
-     * @return
      */
-    virtual int as_int();
+    int as_int();
 
     /**
      * will return a unsigned int representation
@@ -575,15 +568,18 @@ public:
 
     /**
      * a function to be overridden by values that can return float
-     * @return
      */
-    virtual float as_float();
+    float as_float();
 
     /**
      * a function to be overridden by values that can return double
-     * @return
      */
-    virtual double as_double();
+    double as_double();
+
+    /**
+     * as string value
+     */
+    StringValue* as_string_value();
 
     /**
      * a function to be overridden by number value to return itself

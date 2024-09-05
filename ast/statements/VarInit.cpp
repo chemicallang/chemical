@@ -14,21 +14,48 @@
 #include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
 
+void VarInitStatement::code_gen_global_var(Codegen &gen) {
+    llvm::Constant* initializer;
+    llvm::GlobalValue::LinkageTypes linkage;
+    switch(specifier) {
+        case AccessSpecifier::Private:
+        case AccessSpecifier::Protected:
+            linkage = llvm::GlobalValue::LinkageTypes::PrivateLinkage;
+            break;
+        case AccessSpecifier::Internal:
+            linkage = llvm::GlobalValue::LinkageTypes::InternalLinkage;
+            break;
+        case AccessSpecifier::Public:
+            linkage = llvm::GlobalValue::LinkageTypes::ExternalLinkage;
+            break;
+    }
+    if(value) {
+        const auto string_val = value->as_string_value();
+        if(string_val) {
+            const auto global = gen.builder->CreateGlobalString(string_val->value, runtime_name_fast(), 0, gen.module.get());
+            global->setLinkage(linkage);
+            global->setConstant(is_const);
+            llvm_ptr = global;
+            return;
+        }
+        initializer = (llvm::Constant*) value->llvm_value(gen, type_ptr_fast());
+    } else {
+        initializer = nullptr;
+    }
+    llvm_ptr = new llvm::GlobalVariable(*gen.module, llvm_type(gen), is_const, linkage, initializer, runtime_name_fast());
+}
+
 void VarInitStatement::code_gen(Codegen &gen) {
     if (gen.current_function == nullptr) {
         if(is_const && has_annotation(AnnotationKind::CompTime)) {
             llvm_ptr = value->llvm_value(gen, type ? type.get() : nullptr);
             return;
         }
-        if (value) {
-            llvm_ptr = value->llvm_global_variable(gen, is_const, identifier);
-        } else {
-            llvm_ptr = new llvm::GlobalVariable(*gen.module, llvm_type(gen), is_const, llvm::GlobalValue::LinkageTypes::PrivateLinkage, nullptr, identifier);
-        }
+        code_gen_global_var(gen);
     } else {
         if (value) {
             if(is_const && !value->as_struct() && !value->as_array_value()) {
-                llvm_ptr = value->llvm_value(gen, type ? type.get() : nullptr);
+                llvm_ptr = value->llvm_value(gen, type_ptr_fast());
                 gen.destruct_nodes.emplace_back(this);
                 return;
             }
@@ -37,15 +64,15 @@ void VarInitStatement::code_gen(Codegen &gen) {
                     llvm_ptr = gen.allocate_dyn_obj_based_on_type(type.get());
                 }
                 // allocate the struct
-                const auto allocated = value->llvm_allocate(gen, identifier,type ? type.get() : nullptr);
+                const auto allocated = value->llvm_allocate(gen, identifier,type_ptr_fast());
                 if (llvm_ptr == nullptr ||
-                    !gen.assign_dyn_obj(value.get(), type ? type.get() : nullptr, llvm_ptr, allocated)) {
+                    !gen.assign_dyn_obj(value.get(), type_ptr_fast(), llvm_ptr, allocated)) {
                     llvm_ptr = allocated;
                 }
             } else {
-                llvm_ptr = value->llvm_allocate(gen, identifier,type ? type.get() : nullptr);
+                llvm_ptr = value->llvm_allocate(gen, identifier,type_ptr_fast());
                 if(type && value->value_type() == ValueType::Struct) {
-                    gen.assign_dyn_obj_impl(value.get(), type ? type.get() : nullptr, llvm_ptr);
+                    gen.assign_dyn_obj_impl(value.get(), type_ptr_fast(), llvm_ptr);
                 }
             }
         } else {
@@ -96,6 +123,10 @@ void VarInitStatement::code_gen_destruct(Codegen &gen, Value* returnValue) {
                 break;
         }
     }
+}
+
+void VarInitStatement::code_gen_external_declare(Codegen &gen) {
+    code_gen_global_var(gen);
 }
 
 llvm::Value *VarInitStatement::llvm_load(Codegen &gen) {

@@ -32,6 +32,9 @@ public:
      * this variable causes an error
      */
     bool has_moved = false;
+#ifdef COMPILER_BUILD
+    llvm::Value *llvm_ptr;
+#endif
 
     /**
      * constructor
@@ -72,6 +75,10 @@ public:
 
     bool is_top_level();
 
+    BaseType* type_ptr_fast() {
+        return type ? type.get() : nullptr;
+    }
+
 #ifdef COMPILER_BUILD
 
     const std::string& ns_node_identifier() override {
@@ -94,9 +101,17 @@ public:
 
     bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
 
+    void code_gen_global_var(Codegen &gen);
+
     void code_gen(Codegen &gen) override;
 
     void code_gen_destruct(Codegen &gen, Value* returnValue) override;
+
+    void code_gen_external_declare(Codegen &gen) override;
+
+    inline std::string runtime_name_fast() {
+        return parent_node ? runtime_name() : identifier;
+    }
 
 #endif
 
@@ -115,12 +130,10 @@ public:
      */
     void declare(Value *new_value);
 
+    [[nodiscard]]
     ValueType value_type() const override;
 
+    [[nodiscard]]
     BaseTypeKind type_kind() const override;
-
-#ifdef COMPILER_BUILD
-    llvm::Value *llvm_ptr;
-#endif
 
 };

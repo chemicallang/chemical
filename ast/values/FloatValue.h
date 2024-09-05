@@ -57,10 +57,6 @@ public:
 
 #endif
 
-    float as_float() override {
-        return value;
-    }
-
     std::unique_ptr<BaseType> create_type() override {
         return std::make_unique<FloatType>(nullptr);
     }

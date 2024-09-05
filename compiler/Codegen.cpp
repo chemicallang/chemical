@@ -162,6 +162,7 @@ Codegen::create_function_proto(const std::string &name, llvm::FunctionType *type
     llvm::Function::LinkageTypes linkage;
     switch (specifier) {
         case AccessSpecifier::Private:
+        case AccessSpecifier::Protected:
             linkage = llvm::Function::PrivateLinkage;
             break;
         case AccessSpecifier::Public:

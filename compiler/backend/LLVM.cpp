@@ -326,15 +326,6 @@ llvm::AllocaInst *StringValue::llvm_allocate(Codegen &gen, const std::string &id
     }
 }
 
-llvm::GlobalVariable * StringValue::llvm_global_variable(Codegen &gen, bool is_const, const std::string &name) {
-    if(!is_const) {
-        gen.error("Global string variables aren't supported at the moment", this);
-    }
-    // TODO global constant string must have type pointer to array
-    // because it returns an array pointer, and we must take [0] from it to reach first pointer
-    return gen.builder->CreateGlobalString(value, name, 0, gen.module.get());
-}
-
 llvm::Type *VariableIdentifier::llvm_type(Codegen &gen) {
     return linked->llvm_type(gen);
 }

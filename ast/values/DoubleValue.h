@@ -65,10 +65,6 @@ public:
         return new DoubleValue(value, token);
     }
 
-    double as_double() override {
-        return value;
-    }
-
     [[nodiscard]]
     ValueType value_type() const override {
         return ValueType::Double;

@@ -352,10 +352,6 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
             } else {
                 // get the processed result
                 result = std::move(futures[i++].get());
-                if(!result.continue_processing) {
-                    compile_result = 1;
-                    break;
-                }
             }
 
             ASTUnit& unit = already_imported ? imported->second : result.unit;
@@ -363,7 +359,15 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
             // print the benchmark or verbose output received from processing
             if((options->benchmark || options->verbose) && !result.cli_out.empty()) {
                 std::cout << rang::style::bold << rang::fg::magenta << "[Processing] " << file.abs_path << rang::fg::reset << rang::style::reset << '\n';
-                std::cout << result.cli_out << std::flush;
+                if(!already_imported) {
+                    std::cout << result.cli_out << std::flush;
+                }
+            }
+
+            // do not continue processing
+            if(!result.continue_processing) {
+                compile_result = 1;
+                break;
             }
 
             // symbol resolution

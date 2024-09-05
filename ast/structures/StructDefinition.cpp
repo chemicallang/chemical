@@ -345,11 +345,7 @@ void StructDefinition::accept(Visitor *visitor) {
 }
 
 void StructDefinition::declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
-    if(is_exported_fast()) {
-        linker.declare_exported_runtime(name, runtime_name(), this);
-    } else {
-        linker.declare(name, this);
-    }
+    linker.declare_node(name, this, specifier, true);
     is_direct_init = has_annotation(AnnotationKind::DirectInit);
 }
 

@@ -22,7 +22,7 @@ void Namespace::declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNod
             linker.error("a node exists by same name, the namespace with name '" + name + "' couldn't be created", this);
         }
     } else {
-        linker.declare(name, this);
+        linker.declare_node(name, this, specifier, false);
         for(auto& node : nodes) {
             extended[node->ns_node_identifier()] = node.get();
         }

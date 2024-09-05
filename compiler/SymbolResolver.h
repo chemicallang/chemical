@@ -4,6 +4,7 @@
 
 #include "preprocess/BaseSymbolResolver.h"
 #include "ASTDiagnoser.h"
+#include "ast/base/AccessSpecifier.h"
 #include <memory>
 #include <ordered_map.h>
 
@@ -242,6 +243,13 @@ public:
     void declare_file_disposable(const std::string &name, ASTNode *node);
 
     /**
+     * this is the ultimate declare function for a node (except top level functions)
+     * it will declare the node according to the given specifier, private symbols disposed at the end of file
+     * internal symbols disposed at the end of module, has_runtime dictates whether it's runtime_name will be declared
+     */
+    void declare_node(const std::string& name, ASTNode* node, AccessSpecifier specifier, bool has_runtime);
+
+    /**
      * declare a exported symbol
      */
     void declare_exported(const std::string &name, ASTNode *node) {
@@ -287,9 +295,21 @@ public:
 
     /**
      * helper method that should be used to declare functions that takes into account
-     * multiple methods with same names
+     * multiple methods with same names, it will declare function with access specifier
+     * internal, which means function is visible to files in current module
      */
     void declare_function(const std::string& name, FunctionDeclaration* declaration);
+
+    /**
+     * helper method that should be used to declare functions that are private
+     */
+    void declare_private_function(const std::string& name, FunctionDeclaration* declaration);
+
+    /**
+     * this is the ultimate function that is used to declare functions, it will take into account
+     * it's access specifier, it will also overload the function (in current scope, if feasible)
+     */
+    void declare_function(const std::string& name, FunctionDeclaration* decl, AccessSpecifier specifier);
 
     /**
      * an exported function is declared using this method

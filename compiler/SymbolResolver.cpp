@@ -228,7 +228,10 @@ void SymbolResolver::declare(const std::string &name, ASTNode *node) {
 
 void SymbolResolver::declare_file_disposable(const std::string &name, ASTNode *node) {
     declare_quietly(name, node);
-    dispose_file_symbols.emplace_back(current.back().get(), name);
+    auto& scope = *current.back();
+    if(scope.kind == SymResScopeKind::File) {
+        dispose_file_symbols.emplace_back(&scope, name);
+    }
 }
 
 void SymbolResolver::declare_function(const std::string& name, FunctionDeclaration* declaration) {
@@ -236,6 +239,48 @@ void SymbolResolver::declare_function(const std::string& name, FunctionDeclarati
     auto& scope = *current.back();
     if(new_sym && scope.kind == SymResScopeKind::File) { // only top level scope symbols are disposed at module's end
         dispose_module_symbols.emplace_back(&scope, name);
+    }
+}
+
+void SymbolResolver::declare_private_function(const std::string& name, FunctionDeclaration* declaration) {
+    const auto new_sym = declare_function_quietly(name, declaration);
+    auto& scope = *current.back();
+    if(new_sym && scope.kind == SymResScopeKind::File) {
+        dispose_file_symbols.emplace_back(&scope, name);
+    }
+}
+
+void SymbolResolver::declare_node(const std::string& name, ASTNode* node, AccessSpecifier specifier, bool has_runtime) {
+    switch(specifier) {
+        case AccessSpecifier::Private:
+        case AccessSpecifier::Protected:
+            declare_file_disposable(name, node);
+            return;
+        case AccessSpecifier::Public:
+            declare_exported(name, node);
+            if(has_runtime) {
+                declare_runtime(node->runtime_name(), node);
+            }
+            return;
+        case AccessSpecifier::Internal:
+            declare(name, node);
+            return;
+    }
+}
+
+void SymbolResolver::declare_function(const std::string& name, FunctionDeclaration* decl, AccessSpecifier specifier) {
+    switch(specifier) {
+        case AccessSpecifier::Private:
+        case AccessSpecifier::Protected:
+            declare_private_function(name, decl);
+            return;
+        case AccessSpecifier::Public:
+            declare_exported_function(name, decl);
+            declare_runtime(decl->runtime_name(), decl);
+            return;
+        case AccessSpecifier::Internal:
+            declare_function(name, decl);
+            return;
     }
 }
 

@@ -16,6 +16,7 @@ bool Lexer::lexTopLevelAccessSpecifiedDecls() {
                 || lexVariantStructureTokens(start)
                 || lexVarInitializationTokens(start, true, false)
                 || lexInterfaceStructureTokens(start)
+                || lexTypealiasStatement(start)
                 || lexNamespaceTokens(start);
         if(!found) {
            error("expected a top level declaration after access specifier");

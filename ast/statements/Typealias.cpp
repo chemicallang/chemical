@@ -7,8 +7,9 @@ TypealiasStatement::TypealiasStatement(
         std::string identifier,
         std::unique_ptr<BaseType> actual_type,
         ASTNode* parent_node,
-        CSTToken* token
-) : identifier(std::move(identifier)), actual_type(std::move(actual_type)), parent_node(parent_node), token(token) {
+        CSTToken* token,
+        AccessSpecifier specifier
+) : identifier(std::move(identifier)), actual_type(std::move(actual_type)), parent_node(parent_node), token(token), specifier(specifier) {
 
 }
 
@@ -17,7 +18,7 @@ void TypealiasStatement::interpret(InterpretScope &scope) {
 }
 
 void TypealiasStatement::declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
-    linker.declare(identifier, this);
+    linker.declare_node(identifier, this, specifier, false);
 }
 
 void TypealiasStatement::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {

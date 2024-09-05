@@ -8,6 +8,7 @@
 #include "ast/statements/SwitchStatement.h"
 #include "ast/base/BaseType.h"
 #include "ast/statements/Break.h"
+#include "compiler/SymbolResolver.h"
 
 void Scope::interpret(InterpretScope &scope) {
     for (const auto &node: nodes) {
@@ -33,9 +34,12 @@ void Scope::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& n
 #endif
 
 void Scope::link_sequentially(SymbolResolver &linker) {
-    for (auto &node: nodes) {
+    unsigned i = 0;
+    while(i < nodes.size() && !linker.has_errors) {
+        auto& node = nodes[i];
         node->declare_top_level(linker, node);
         node->declare_and_link(linker, node);
+        i++;
     }
 }
 

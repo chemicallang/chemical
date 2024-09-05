@@ -69,10 +69,6 @@ public:
         return (BaseType*) &IntType::instance;
     }
 
-    int as_int() override {
-        return value;
-    }
-
     [[nodiscard]]
     ValueType value_type() const override {
         return ValueType::Int;

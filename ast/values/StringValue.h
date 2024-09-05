@@ -67,10 +67,6 @@ public:
         return new CharValue(value[i], token);
     }
 
-    std::string as_string() override {
-        return value;
-    }
-
 #ifdef COMPILER_BUILD
 
     llvm::Type * llvm_type(Codegen &gen) override;
@@ -78,8 +74,6 @@ public:
     llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) override;
 
     llvm::AllocaInst *llvm_allocate(Codegen& gen, const std::string& identifier, BaseType* expected_type) override;
-
-    llvm::GlobalVariable * llvm_global_variable(Codegen &gen, bool is_const, const std::string &name) override;
 
 #endif
 

@@ -67,10 +67,6 @@ public:
 
 #endif
 
-    char as_char() override {
-        return value;
-    }
-
     [[nodiscard]]
     ValueType value_type() const override {
         return ValueType::Char;

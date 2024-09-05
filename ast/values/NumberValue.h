@@ -126,10 +126,6 @@ public:
         }
     }
 
-    int as_int() override {
-        return value;
-    }
-
     [[nodiscard]]
     ValueType value_type() const override;
 

@@ -74,8 +74,4 @@ public:
         return BaseTypeKind::Bool;
     }
 
-    bool as_bool() override {
-        return value;
-    }
-
 };

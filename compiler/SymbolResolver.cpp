@@ -24,7 +24,7 @@ void SymbolResolver::dup_runtime_sym_error(const std::string& name, ASTNode* pre
     std::string err("duplicate runtime symbol being declared " + name + " symbol already exists");
 //    err.append("\nprevious : " + previous->representation() + "\n");
 //    err.append("new : " + new_node->representation() + "\n");
-    warn(err, new_node); // < --- this is a warning at the moment
+    error(err, new_node); // < --- this is a warning at the moment
 }
 
 ASTNode *SymbolResolver::find_in_current_file(const std::string& name) {

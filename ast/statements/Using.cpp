@@ -27,9 +27,10 @@ void UsingStmt::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode
         if(ns) {
             for(auto& node : ns->nodes) {
                 auto& id = node->ns_node_identifier();
-                linker.declare(id, node.get());
                 if(no_propagate) {
-                    linker.dispose_file_symbols.emplace_back(id);
+                    linker.declare_file_disposable(id, node.get());
+                } else {
+                    linker.declare(id, node.get());
                 }
             }
         } else {
@@ -37,9 +38,10 @@ void UsingStmt::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode
         }
     } else {
         auto& id = linked->ns_node_identifier();
-        linker.declare(id, linked);
         if(no_propagate) {
-            linker.dispose_file_symbols.emplace_back(id);
+            linker.declare_file_disposable(id, linked);
+        } else {
+            linker.declare(id, linked);
         }
     }
 }

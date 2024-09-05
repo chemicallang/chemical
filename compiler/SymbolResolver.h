@@ -17,20 +17,26 @@ class Scope;
 
 enum class SymResScopeKind : uint8_t {
     /**
-     * a default scope, symbols can be declared and retrieved
-     * the retrieval takes into account symbols declared in scopes above
-     */
-    Default,
-    /**
      * a global namespace is much like default scope, however
      * only a single global scope exists, It's never created by the user
      */
     Global,
     /**
+     * a module is a collection of files, that export into an object files,
+     * symbols in a module that have been exported aren't supposed to collide
+     * with symbols in other modules
+     */
+    Module,
+    /**
      * a file scope is just like a default scope, however with minor
      * differences, a file scope helps also to distinguish between files
      */
-    File
+    File,
+    /**
+     * a default scope, symbols can be declared and retrieved
+     * the retrieval takes into account symbols declared in scopes above
+     */
+    Default,
 };
 
 /**
@@ -66,13 +72,33 @@ private:
      * this is vector of scopes, the last scope is current scope
      * The first scope is the top level scope
      */
-    std::vector<SymResScope> current = {{ SymResScopeKind::Global }};
+    std::vector<std::unique_ptr<SymResScope>> current;
 
     /**
      * runtime symbols that are checked for conflicts with other nodes
      * across modules, only at top level nodes
      */
     std::unordered_map<std::string, ASTNode*> runtime_symbols;
+
+    /**
+     * declares a node with string : name
+     * DO NOT USE THIS FUNCTION TO DECLARE SYMBOLS
+     */
+    void declare_quietly(const std::string &name, ASTNode *node);
+
+    /**
+     * will try to override this function, notice the '&' in the previous pointer
+     * if successfully overridden, it will modify the previous location inside the symbol table
+     * to be this declaration and return true
+     */
+    bool override_function(const std::string& name, ASTNode*& previous, FunctionDeclaration* declaration);
+
+    /**
+     * helper method that should be used to declare functions that takes into account
+     * multiple methods with same names
+     * @return true if a new symbol was declared
+     */
+    bool declare_function_quietly(const std::string& name, FunctionDeclaration* declaration);
 
 public:
 
@@ -81,7 +107,18 @@ public:
      * symbols are expected to exist in other files
      */
     void file_scope_start() {
-        current.emplace_back(SymResScopeKind::File);
+        current.emplace_back(new SymResScope(SymResScopeKind::File));
+    }
+
+    /**
+     * a module scope begins, a module scope doesn't contain no symbols
+     * we'll improve the design so that module scopes don't introduce any overhead
+     * of performance and memory
+     * a module is just there to indicate that a module exists, it helps us delete symbols
+     * only in a specific module
+     */
+    void module_scope_start() {
+        current.emplace_back(new SymResScope(SymResScopeKind::Module));
     }
 
     /**
@@ -89,7 +126,7 @@ public:
      * it would put a scope on current vector
      */
     void scope_start() {
-        current.emplace_back(SymResScopeKind::Default);
+        current.emplace_back(new SymResScope(SymResScopeKind::Default));
     }
 
     /**
@@ -163,14 +200,14 @@ public:
      * for example using namespace some; this will always be disposed unless propagate annotation exists
      * above it
      */
-    std::vector<std::string_view> dispose_file_symbols;
+    std::vector<std::pair<SymResScope*, std::string_view>> dispose_file_symbols;
 
     /**
      * stores symbols that will be disposed after this module has been completely symbol resolved
      * for example symbols that are internal in module are stored on this vector for disposing
      * at the end of module, struct without a public keyword (internal by default)
      */
-    std::vector<std::string_view> dispose_module_symbols;
+    std::vector<std::pair<SymResScope*, std::string_view>> dispose_module_symbols;
 
     /**
      * constructor
@@ -181,7 +218,7 @@ public:
      * if the current where the symbols are being declared is a file scope
      */
     bool is_current_file_scope() {
-        return current.back().kind == SymResScopeKind::File;
+        return current.back()->kind == SymResScopeKind::File;
     }
 
     /**
@@ -195,14 +232,21 @@ public:
     void dup_runtime_sym_error(const std::string& name, ASTNode* previous, ASTNode* new_node);
 
     /**
-     * declares a node with string : name
+     * declare a symbol that will disposed at the end of this module
      */
     void declare(const std::string &name, ASTNode *node);
 
     /**
+     * declare a symbol that will be disposed at the end of this file instead of module
+     */
+    void declare_file_disposable(const std::string &name, ASTNode *node);
+
+    /**
      * declare a exported symbol
      */
-    void declare_exported(const std::string &name, ASTNode *node);
+    void declare_exported(const std::string &name, ASTNode *node) {
+        declare_quietly(name, node);
+    }
 
     /**
      * declare a runtime symbol
@@ -225,16 +269,21 @@ public:
     bool undeclare_in_current_file(const std::string_view& name);
 
     /**
+     * undeclare in current module
+     */
+    bool undeclare_in_current_module(const std::string_view& name);
+
+    /**
      * symbol will be undeclared in other files (not current file)
      * only a single symbol is undeclared
      */
-    bool undeclare_in_other_files(const std::string& name);
+    bool undeclare_in_scopes_above(const std::string_view& name, int until);
 
     /**
      * symbol will be checked for duplicates in other files (not current file)
      * if a single symbol exists in other files, an dup sym error is created
      */
-    bool dup_check_in_other_files(const std::string& name, ASTNode* new_node);
+    bool dup_check_in_scopes_above(const std::string& name, ASTNode* new_node, int until);
 
     /**
      * helper method that should be used to declare functions that takes into account
@@ -245,12 +294,17 @@ public:
     /**
      * an exported function is declared using this method
      */
-    void declare_exported_function(const std::string& name, FunctionDeclaration* declaration);
+    void declare_exported_function(const std::string& name, FunctionDeclaration* declaration) {
+        declare_function_quietly(name, declaration);
+    }
 
     /**
      * declare exported runtime function
      */
-    void declare_exported_runtime_func(const std::string& name, const std::string& runtime_name, FunctionDeclaration* decl);
+    void declare_exported_runtime_func(const std::string& name, const std::string& runtime_name, FunctionDeclaration* decl) {
+        declare_function_quietly(name, decl);
+        declare_runtime(runtime_name, (ASTNode*) decl);
+    }
 
     /**
      * symbol resolves a file
@@ -262,5 +316,11 @@ public:
      * the passed absolute path is used to provide diagnostics only
      */
     void dispose_file_symbols_now(const std::string& abs_path);
+
+    /**
+     * should be called after symbol resolving a single module
+     * the passed module name is used to provide diagnostics only
+     */
+    void dispose_module_symbols_now(const std::string& module_name);
 
 };

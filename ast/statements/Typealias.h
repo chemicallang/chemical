@@ -10,6 +10,7 @@
 class TypealiasStatement : public ExtendableAnnotableNode {
 public:
 
+    AccessSpecifier specifier;
     // before equal
     std::string identifier;
     // after equal
@@ -24,7 +25,8 @@ public:
             std::string identifier,
             std::unique_ptr<BaseType> actual_type,
             ASTNode* parent_node,
-            CSTToken* token
+            CSTToken* token,
+            AccessSpecifier specifier = AccessSpecifier::Internal
     );
 
     CSTToken *cst_token() override {
@@ -37,6 +39,10 @@ public:
 
     void set_parent(ASTNode* new_parent) override {
         parent_node = new_parent;
+    }
+
+    bool is_exported_fast() {
+        return specifier == AccessSpecifier::Public;
     }
 
     ASTNode *parent() override {

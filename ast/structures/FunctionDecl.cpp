@@ -756,11 +756,7 @@ void FunctionDeclaration::declare_top_level(SymbolResolver &linker, std::unique_
         param->type->link(linker, param->type);
     }
     linker.scope_end();
-    if(is_exported_fast()) {
-        linker.declare_exported_runtime_func(name, runtime_name(), this);
-    } else {
-        linker.declare_function(name, this);
-    }
+    linker.declare_function(name, this, specifier);
 }
 
 void FunctionDeclaration::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {

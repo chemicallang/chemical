@@ -458,7 +458,14 @@ public:
     /**
      * lexes a single typealias statement
      */
-    bool lexTypealiasStatement();
+    bool lexTypealiasStatement(unsigned start);
+
+    /**
+     * a helper function
+     */
+    bool lexTypealiasStatement() {
+        return lexTypealiasStatement(tokens_size());
+    }
 
     /**
      * lexes continue statement

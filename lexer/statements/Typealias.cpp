@@ -2,9 +2,8 @@
 
 #include "lexer/Lexer.h"
 
-bool Lexer::lexTypealiasStatement() {
+bool Lexer::lexTypealiasStatement(unsigned start) {
     if(lexWSKeywordToken("typealias")) {
-        unsigned start = tokens_size() - 1;
         if(lexIdentifierToken()) {
             lexWhitespaceToken();
             if(!lexOperatorToken('=')) {

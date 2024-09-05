@@ -826,8 +826,11 @@ void CSTConverter::visitUsing(CSTToken* usingStmt) {
 
 void CSTConverter::visitTypealias(CSTToken* alias) {
     if(is_dispose()) return;
-    alias->tokens[3]->accept(this);
-    auto stmt = new TypealiasStatement(str_token(alias->tokens[1]), type(), parent_node, alias);
+    auto spec = specifier_token(alias->tokens[0]);
+    unsigned i = spec.has_value() ? 2 : 1;
+    const auto& name_token = alias->tokens[i];
+    alias->tokens[i + 2]->accept(this);
+    auto stmt = new TypealiasStatement(name_token->value, type(), parent_node, alias, spec.has_value() ? spec.value() : AccessSpecifier::Internal);
     collect_annotations_in(this, stmt);
     put_node(stmt, alias);
 }

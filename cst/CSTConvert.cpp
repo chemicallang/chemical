@@ -76,7 +76,6 @@
 #include "preprocess/RepresentationVisitor.h"
 #include "preprocess/2c/2cASTVisitor.h"
 #include "ast/values/SizeOfValue.h"
-#include "ast/values/NamespaceIdentifier.h"
 #include "ast/types/ReferencedValueType.h"
 #include "ast/statements/UsingStmt.h"
 #include "ast/types/ReferencedType.h"
@@ -815,7 +814,7 @@ void CSTConverter::visitUsing(CSTToken* usingStmt) {
     while(i < usingStmt->tokens.size()) {
         auto& tok = usingStmt->tokens[i];
         if(tok->is_identifier()) {
-            curr_values.emplace_back(new NamespaceIdentifier(str_token(usingStmt->tokens[i]), tok));
+            curr_values.emplace_back(new VariableIdentifier(str_token(usingStmt->tokens[i]), tok, true));
         }
         i++;
     }
@@ -1681,7 +1680,7 @@ void CSTConverter::visitAccessChain(CSTToken* chain) {
             auto prev = pop_last_value();
             auto as_id = prev->as_identifier();
             if(as_id) {
-                put_value(new NamespaceIdentifier(as_id->value, token), token);
+                put_value(new VariableIdentifier(as_id->value, token, true), token);
             } else {
                 put_value(prev, token);
             }

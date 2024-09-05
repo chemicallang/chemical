@@ -386,7 +386,3 @@ Value *StructValue::child(InterpretScope &scope, const std::string &name) {
     }
     return value->second.get();
 }
-
-StructValue *StructValue::as_struct() {
-    return this;
-}

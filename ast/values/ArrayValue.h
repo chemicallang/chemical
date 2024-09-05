@@ -59,10 +59,6 @@ public:
         }
     }
 
-    ArrayValue* as_array_value() override {
-        return this;
-    }
-
 #ifdef COMPILER_BUILD
 
     llvm::Value *llvm_pointer(Codegen &gen) override;

@@ -598,22 +598,22 @@ public:
     /**
      * get dereference value
      */
-    virtual DereferenceValue* as_deref_value() {
-        return nullptr;
+    DereferenceValue* as_deref_value() {
+        return val_kind() == ValueKind::DereferenceValue ? (DereferenceValue*) this : nullptr;
     }
 
     /**
      * a function to be overridden by values that can return struct
      */
-    virtual StructValue* as_struct() {
-        return nullptr;
+    StructValue* as_struct() {
+        return val_kind() == ValueKind::StructValue ? (StructValue*) this : nullptr;
     }
 
     /**
      * a function to be overridden by values that can return array value
      */
-    virtual ArrayValue* as_array_value() {
-        return nullptr;
+    ArrayValue* as_array_value() {
+        return val_kind() == ValueKind::ArrayValue ? (ArrayValue*) this : nullptr;
     }
 
     /**

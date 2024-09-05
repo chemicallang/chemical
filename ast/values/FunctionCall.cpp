@@ -702,10 +702,6 @@ bool FunctionCall::find_link_in_parent(ChainValue* parent, SymbolResolver& resol
     return true;
 }
 
-FunctionCall *FunctionCall::as_func_call() {
-    return this;
-}
-
 bool FunctionCall::primitive() {
     return false;
 }

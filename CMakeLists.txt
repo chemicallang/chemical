@@ -402,7 +402,6 @@ set(COMMON_SOURCES
         ast/structures/VariablesContainer.h
         ast/structures/BaseDefMember.h
         ast/structures/UnnamedUnion.h
-        ast/values/NamespaceIdentifier.h
         ast/types/ReferencedValueType.h
         ast/types/LiteralType.h
         ast/types/Types.cpp

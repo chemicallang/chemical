@@ -284,10 +284,6 @@ void accept_func_return(ToCAstVisitor& visitor, BaseType* type) {
 // when the interface name is to be used, so interface appends the name in given name parameter
 // take_parent is true, so this function skips direct parent but grandparents and other names are appended
 void accept_func_return_with_name(ToCAstVisitor& visitor, FunctionType* func_type, const std::string& name, bool take_parent, bool is_static) {
-    auto func_decl = func_type->as_function();
-    if(func_decl && func_decl->has_annotation(AnnotationKind::Extern)) {
-        visitor.write("extern ");
-    }
     if(is_static) {
         visitor.write("static ");
     }
@@ -295,15 +291,26 @@ void accept_func_return_with_name(ToCAstVisitor& visitor, FunctionType* func_typ
     visitor.space();
     node_parent_name(visitor, take_parent ? func_type->parent() : func_type->as_function());
     visitor.write(name);
-    if(func_decl) {
-        if(func_decl->multi_func_index != 0) {
-            visitor.write("__cmf_");
-            visitor.write(std::to_string(func_decl->multi_func_index));
-        }
-        if(func_decl->active_iteration != 0) {
-            visitor.write("__cgf_");
-            visitor.write(std::to_string(func_decl->active_iteration));
-        }
+}
+
+void accept_func_return_with_name(ToCAstVisitor& visitor, FunctionDeclaration* func_decl, const std::string& name, bool take_parent, bool is_static) {
+    if(func_decl->has_annotation(AnnotationKind::Extern)) {
+        visitor.write("extern ");
+    }
+    if(is_static) {
+        visitor.write("static ");
+    }
+    accept_func_return(visitor, func_decl->returnType.get());
+    visitor.space();
+    node_parent_name(visitor, take_parent ? func_decl->parent() : func_decl->as_function());
+    visitor.write(name);
+    if(func_decl->multi_func_index != 0) {
+        visitor.write("__cmf_");
+        visitor.write(std::to_string(func_decl->multi_func_index));
+    }
+    if(func_decl->active_iteration != 0) {
+        visitor.write("__cgf_");
+        visitor.write(std::to_string(func_decl->active_iteration));
     }
 }
 

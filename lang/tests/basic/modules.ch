@@ -88,4 +88,13 @@ func test_imported_modules() {
         }
         return extern_gen_struct_user(used) == 88
     })
+    /**
+    test("used generic struct function from other modules work", () => {
+        const used = extern_used_gen_struct<int> {
+            a : 10,
+            b : 10
+        }
+        return used.used_sum() == 23
+    })
+    **/
 }

@@ -82,8 +82,14 @@ public struct extern_unused_gen_struct2<T> {
 }
 
 public struct extern_used_gen_struct<T> {
+
     var a : T
     var b : T
+
+    func used_sum(&self) : T {
+        return a + b + 3;
+    }
+
 }
 
 public func extern_gen_struct_user(str : extern_used_gen_struct<int>) : int {

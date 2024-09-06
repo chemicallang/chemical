@@ -237,6 +237,11 @@ public:
     void code_gen_destructor(Codegen& gen, VariantDefinition* def);
 
     /**
+     * generate code for normal functions
+     */
+    void code_gen_normal(Codegen &gen);
+
+    /**
      * when normal functions occur in file, this function is called
      */
     void code_gen(Codegen &gen) override;

@@ -24,12 +24,13 @@
 void StructDefinition::struct_func_gen(Codegen& gen, const std::vector<std::unique_ptr<FunctionDeclaration>>& funcs) {
     for(auto& function : funcs) {
         if(function->has_annotation(AnnotationKind::Override)) {
-//            auto overriding = get_overriding(function.get());
-//            if (overriding) {
-//                function->code_gen_override_declare(gen, overriding);
-//            } else {
-//                gen.error("Failed to override (declare) the function", function.get());
-//            }
+
+            // Do not declare the function because it overrides another function
+            // when a function is being overridden which is already present in an interface
+            // interface generates all declarations with entry blocks for it's users
+
+            // BUT interface hasn't been tested to do this across modules
+
             continue;
         }
         function->code_gen_declare(gen, this);
@@ -63,6 +64,17 @@ bool StructDefinition::llvm_override(Codegen& gen, FunctionDeclaration* function
     } else {
         return false;
     }
+}
+
+void StructDefinition::code_gen_function(Codegen& gen, FunctionDeclaration* decl) {
+    if(decl->has_annotation(AnnotationKind::Override)) {
+        if(!llvm_override(gen, decl)) {
+            gen.error("Failed to override the function", (AnnotableNode*) decl);
+        }
+        return;
+    }
+    decl->code_gen_declare(gen, this);
+    decl->code_gen_body(gen, this);
 }
 
 void StructDefinition::code_gen(Codegen &gen) {

@@ -11,6 +11,10 @@
 #include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
 
+void UnionDef::code_gen_function(Codegen &gen, FunctionDeclaration* decl) {
+    decl->code_gen_union(gen, this);
+}
+
 void UnionDef::code_gen(Codegen &gen) {
     for (auto &function: functions()) {
         function->code_gen_union(gen, this);

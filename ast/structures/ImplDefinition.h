@@ -58,6 +58,17 @@ public:
 
 #ifdef COMPILER_BUILD
 
+    /**
+     * responsible for generating code for a single function in a union decl
+     * read the documentation in struct decl
+     */
+    void code_gen_function(Codegen& gen, FunctionDeclaration* decl, InterfaceDefinition* linked_interface, StructDefinition* struct_def);
+
+    /**
+     * this is a helper function
+     */
+    void code_gen_function(Codegen& gen, FunctionDeclaration* decl);
+
     void code_gen(Codegen &gen) override;
 
 #endif

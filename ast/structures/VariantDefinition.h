@@ -108,6 +108,12 @@ public:
 
     llvm::Type* llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned int index) override;
 
+    /**
+     * responsible for generating code for a single function in a union decl
+     * read the documentation in struct decl
+     */
+    void code_gen_function(Codegen &gen, FunctionDeclaration* decl);
+
     void code_gen_once(Codegen &gen);
 
     void code_gen(Codegen &gen) override;

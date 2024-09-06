@@ -103,6 +103,17 @@ public:
 #ifdef COMPILER_BUILD
 
     /**
+     * this declaration will be generated for all the users of this interface
+     */
+    void code_gen_for_users(Codegen& gen, FunctionDeclaration* decl);
+
+    /**
+     * responsible for generating code for a single function in a union decl
+     * read the documentation in struct decl
+     */
+    void code_gen_function(Codegen& gen, FunctionDeclaration* decl);
+
+    /**
      * generate code for this interface
      */
     void code_gen(Codegen &gen) override;

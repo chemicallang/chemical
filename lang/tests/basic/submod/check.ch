@@ -60,8 +60,14 @@ public func get_extern_imported_opt_value(x : extern_imported_opt)  : int {
 }
 
 public struct extern_unused_gen_struct<T> {
+
     var a : T
     var b : T
+
+    func unused_sum(&self) : T {
+        return a + b;
+    }
+
 }
 
 public struct extern_unused_gen_struct2<T> {

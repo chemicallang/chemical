@@ -59,7 +59,7 @@ public:
     /**
      * default move constructor
      */
-    ASTUnit(ASTUnit&& other);
+    ASTUnit(ASTUnit&& other) noexcept ;
 
     /**
      * move assignment operator

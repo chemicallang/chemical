@@ -210,7 +210,7 @@ ASTNode::~ASTNode() = default;
 
 ASTUnit::ASTUnit() : scope(nullptr, nullptr) {}
 
-ASTUnit::ASTUnit(ASTUnit&& other) = default;
+ASTUnit::ASTUnit(ASTUnit&& other) noexcept = default;
 
 ASTUnit& ASTUnit::operator =(ASTUnit&& other) noexcept = default;
 

@@ -27,4 +27,10 @@ func test_imported_modules() {
     test("enums imported from other modules work - 3", () => {
         return extern_enum_get_mango() != extern_enum_fruits.banana
     })
+    test("variants imported from other modules work - 1", () => {
+        return get_extern_imported_opt_value(get_extern_imported_opt_none()) == -1
+    })
+    test("variants imported from other modules work - 2", () => {
+        return get_extern_imported_opt_value(get_extern_imported_opt_some()) == 50
+    })
 }

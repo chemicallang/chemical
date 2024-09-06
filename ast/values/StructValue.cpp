@@ -347,6 +347,7 @@ StructValue *StructValue::copy() {
 }
 
 std::unique_ptr<BaseType> StructValue::create_type() {
+    if(!definition) return nullptr;
     if(!definition->generic_params.empty()) {
        auto gen_type = std::make_unique<GenericType>(std::make_unique<ReferencedType>(definition->name, definition, nullptr), generic_iteration);
        for(auto& type : generic_list) {

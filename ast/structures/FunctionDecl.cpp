@@ -314,9 +314,25 @@ inline void create_fn(Codegen& gen, FunctionDeclaration *decl) {
     create_fn(gen, decl, decl->parent_node ? decl->runtime_name() : decl->name);
 }
 
-void declare_fn(Codegen& gen, FunctionDeclaration *decl, const std::string& name) {
+void declare_non_gen_fn(Codegen& gen, FunctionDeclaration *decl, const std::string& name) {
     auto callee = gen.declare_function(name, decl->create_llvm_func_type(gen));
     decl->set_llvm_data(callee.getCallee(), callee.getFunctionType());
+}
+
+void declare_fn(Codegen& gen, FunctionDeclaration *decl, const std::string& name) {
+    if(decl->generic_params.empty()) {
+        declare_non_gen_fn(gen, decl, name);
+    } else {
+        const auto total_use = decl->total_generic_iterations();
+        auto i = (int16_t) decl->llvm_data.size();
+        while(i < total_use) {
+            decl->set_active_iteration(i);
+            declare_non_gen_fn(gen, decl, name);
+            i++;
+        }
+        // we set active iteration to -1, so all generics would fail without setting active_iteration
+        decl->set_active_iteration(-1);
+    }
 }
 
 void declare_fn(Codegen& gen, FunctionDeclaration *decl) {

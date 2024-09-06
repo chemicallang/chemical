@@ -32,3 +32,29 @@ public var extern_globe_var = 768
 public func extern_globe_var_incr() {
     extern_globe_var++
 }
+
+public variant extern_imported_opt {
+
+    None()
+    Some(value : int)
+
+}
+
+public func get_extern_imported_opt_none() : extern_imported_opt {
+    return extern_imported_opt.None
+}
+
+public func get_extern_imported_opt_some() : extern_imported_opt {
+    return extern_imported_opt.Some(50)
+}
+
+public func get_extern_imported_opt_value(x : extern_imported_opt)  : int {
+    switch(x) {
+        extern_imported_opt.None() => {
+            return -1
+        }
+        extern_imported_opt.Some(value) => {
+            return value;
+        }
+    }
+}

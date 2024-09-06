@@ -15,23 +15,31 @@ void InterfaceDefinition::code_gen_for_users(Codegen& gen, FunctionDeclaration* 
         auto& user = users[use.first];
         auto found = user.find(func);
         if((found == user.end() || found->second == nullptr) && func->has_self_param()) {
-            func->code_gen_interface(gen, this);
+            func->code_gen_declare(gen, this);
+            func->code_gen_body(gen, this);
         }
         user[func] = (llvm::Function*) func->llvm_pointer(gen);
     }
 }
 
-void InterfaceDefinition::code_gen_function(Codegen& gen, FunctionDeclaration* func) {
-    if(!func->has_self_param() && (has_implementation || !users.empty())) {
-        func->code_gen_interface(gen, this);
+void InterfaceDefinition::code_gen_function_declare(Codegen& gen, FunctionDeclaration* decl) {
+    if(!decl->has_self_param() && (has_implementation || !users.empty())) {
+        decl->code_gen_declare(gen, this);
+        decl->code_gen_body(gen, this);
+        return;
     }
-    code_gen_for_users(gen, func);
+    code_gen_for_users(gen, decl);
+}
+
+void InterfaceDefinition::code_gen_function_body(Codegen& gen, FunctionDeclaration* decl) {
+
 }
 
 void InterfaceDefinition::code_gen(Codegen &gen) {
     for (auto& func: functions()) {
         if(!func->has_self_param() && (has_implementation || !users.empty())) {
-            func->code_gen_interface(gen, this);
+            func->code_gen_declare(gen, this);
+            func->code_gen_body(gen, this);
         }
     }
     for (const auto& function: functions()) {

@@ -67,7 +67,7 @@ public:
     /**
      * this is a helper function
      */
-    void code_gen_function(Codegen& gen, FunctionDeclaration* decl);
+    void code_gen_function_body(Codegen& gen, FunctionDeclaration* decl);
 
     void code_gen(Codegen &gen) override;
 

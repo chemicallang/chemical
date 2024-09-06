@@ -189,7 +189,7 @@ public:
     void set_llvm_data(llvm::Value* func_callee, llvm::FunctionType* func_type);
 
     /**
-     * called by struct to declare functions, so they can be cal
+     * declare a function that is present inside struct definition
      */
     void code_gen_declare(Codegen &gen, StructDefinition* def);
 
@@ -197,6 +197,16 @@ public:
      * declare a function that is present inside variant definition
      */
     void code_gen_declare(Codegen &gen, VariantDefinition* def);
+
+    /**
+     * declare a function that is present inside a interface definition
+     */
+    void code_gen_declare(Codegen &gen, InterfaceDefinition* def);
+
+    /**
+     * called by union to declare this function
+     */
+    void code_gen_declare(Codegen &gen, UnionDef* def);
 
     /**
      * called by struct definition to generate body for already declared
@@ -212,12 +222,12 @@ public:
     /**
      * called by union when the function is inside a union
      */
-    void code_gen_union(Codegen &gen, UnionDef* def);
+    void code_gen_body(Codegen &gen, UnionDef* def);
 
     /**
      * called by interface when the function is inside a interface
      */
-    void code_gen_interface(Codegen &gen, InterfaceDefinition* def);
+    void code_gen_body(Codegen &gen, InterfaceDefinition* def);
 
     /**
      * setup cleanup block for the destructor, it'll set it as insert point
@@ -237,12 +247,23 @@ public:
     void code_gen_destructor(Codegen& gen, VariantDefinition* def);
 
     /**
-     * generate code for normal functions
+     * generate body of the function for normal functions
      */
-    void code_gen_normal(Codegen &gen);
+    void code_gen_body(Codegen &gen);
 
     /**
-     * when normal functions occur in file, this function is called
+     * this function declares normal functions
+     */
+    void code_gen_declare_normal(Codegen& gen);
+
+    /**
+     * this function is used to declare the function before generating code for its body
+     */
+    void code_gen_declare(Codegen &gen) override;
+
+    /**
+     * this function generates the body of the function
+     * for any function (present inside struct / variant, or a normal function)
      */
     void code_gen(Codegen &gen) override;
 
@@ -250,11 +271,6 @@ public:
      * generic code gen
      */
     void code_gen_generic(Codegen &gen) override;
-
-    /**
-     * this function is used to declare the function before generating code for its body
-     */
-    void code_gen_declare(Codegen &gen) override;
 
     /**
      * (this) is the function that is overriding

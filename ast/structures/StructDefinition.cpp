@@ -66,14 +66,20 @@ bool StructDefinition::llvm_override(Codegen& gen, FunctionDeclaration* function
     }
 }
 
-void StructDefinition::code_gen_function(Codegen& gen, FunctionDeclaration* decl) {
+void StructDefinition::code_gen_function_declare(Codegen& gen, FunctionDeclaration* decl) {
+    if(decl->has_annotation(AnnotationKind::Override)) {
+        return;
+    }
+    decl->code_gen_declare(gen, this);
+}
+
+void StructDefinition::code_gen_function_body(Codegen& gen, FunctionDeclaration* decl) {
     if(decl->has_annotation(AnnotationKind::Override)) {
         if(!llvm_override(gen, decl)) {
             gen.error("Failed to override the function", (AnnotableNode*) decl);
         }
         return;
     }
-    decl->code_gen_declare(gen, this);
     decl->code_gen_body(gen, this);
 }
 

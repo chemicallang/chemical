@@ -36,7 +36,7 @@ void ImplDefinition::code_gen_function(Codegen& gen, FunctionDeclaration* decl, 
     }
 }
 
-void ImplDefinition::code_gen_function(Codegen& gen, FunctionDeclaration* decl) {
+void ImplDefinition::code_gen_function_body(Codegen& gen, FunctionDeclaration* decl) {
     const auto linked = interface_type->linked_node()->as_interface_def();
     const auto struct_def = struct_type ? struct_type->linked_struct_def() : nullptr;
     code_gen_function(gen, decl, linked, struct_def);

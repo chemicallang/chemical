@@ -109,9 +109,15 @@ public:
 
     /**
      * responsible for generating code for a single function in a union decl
-     * read the documentation in struct decl
+     * read the documentation in this decl
      */
-    void code_gen_function(Codegen& gen, FunctionDeclaration* decl);
+    void code_gen_function_declare(Codegen& gen, FunctionDeclaration* decl);
+
+    /**
+     * responsible for generating code for a single function in a union decl
+     * read the documentation in this decl
+     */
+    void code_gen_function_body(Codegen& gen, FunctionDeclaration* decl);
 
     /**
      * generate code for this interface

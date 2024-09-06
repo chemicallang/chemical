@@ -15,7 +15,7 @@ public:
 
     virtual VariablesContainer* variables_container() = 0;
 
-    virtual std::string struct_name() = 0;
+    virtual std::string get_runtime_name() = 0;
 
     virtual int16_t get_generic_iteration() = 0;
 
@@ -48,10 +48,6 @@ public:
 
 #ifdef COMPILER_BUILD
 
-    virtual bool is_anonymous() {
-        return true;
-    }
-
     virtual llvm::StructType* llvm_stored_type() {
         return nullptr;
     }
@@ -60,7 +56,7 @@ public:
         // does not store by default
     }
 
-    llvm::Type *with_elements_type(Codegen &gen, const std::vector<llvm::Type *>& elements, bool anonymous);
+    llvm::Type *with_elements_type(Codegen &gen, const std::vector<llvm::Type *>& elements, const std::string& runtime_name);
 
     llvm::Type *llvm_type(Codegen &gen) override;
 

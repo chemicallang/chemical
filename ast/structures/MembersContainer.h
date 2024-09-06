@@ -30,6 +30,12 @@ public:
      * that we determined during symbol resolution, by default zero means no active
      */
     int16_t active_iteration = 0;
+    /**
+     * the iterations for which code has been generated
+     * this is an index, so it means you must generate the code beginning at this iteration
+     * because before that, all iterations have their code generated
+     */
+    int16_t iterations_done = 0;
 
 #ifdef COMPILER_BUILD
     /**

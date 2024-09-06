@@ -65,16 +65,6 @@ bool StructDefinition::llvm_override(Codegen& gen, FunctionDeclaration* function
     }
 }
 
-class AutoReleasedFunctionsContainer {
-public:
-    std::vector<std::unique_ptr<FunctionDeclaration>> functions;
-    ~AutoReleasedFunctionsContainer() {
-        for(auto& func : functions) {
-            func.release();
-        }
-    }
-};
-
 void StructDefinition::code_gen(Codegen &gen) {
     if(generic_params.empty()) {
         struct_func_gen(gen, functions());
@@ -85,39 +75,18 @@ void StructDefinition::code_gen(Codegen &gen) {
             }
         }
     } else {
-        // WHY IS THIS ALGORITHM SO COMPLICATED ?
-        // because we must check which generic iteration has already been generated
-        // and skip generating for functions for that generic iteration
         const auto total = total_generic_iterations();
         if(total == 0) return; // generic type was never used
         auto prev_active_iteration = active_iteration;
-        int16_t struct_itr = 0;
+        int16_t struct_itr = iterations_done;
         while(struct_itr < total) {
-            AutoReleasedFunctionsContainer container;
-            for (auto &function: functions()) {
-                auto &func_data = generic_llvm_data[function.get()]; // <--- automatic insertion
-                if (struct_itr == func_data.size()) {
-                    container.functions.emplace_back(function.get());
-                    func_data.emplace_back();
-                } else if (struct_itr < func_data.size()) {
-                    auto &func_iters = func_data[struct_itr];
-                    if (func_iters.empty() || func_iters.size() < function->total_generic_iterations()) {
-                        container.functions.emplace_back(function.get());
-                    }
-                } else {
-#ifdef DEBUG
-                    throw std::runtime_error("expected struct iteration to be smaller than initialized iterations");
-#endif
-                }
-            }
             // generating code and copying iterations
-            if(!container.functions.empty()) {
-                set_active_iteration(struct_itr);
-                struct_func_gen(gen, container.functions);
-                acquire_function_iterations(struct_itr);
-            }
+            set_active_iteration(struct_itr);
+            struct_func_gen(gen, functions());
+            acquire_function_iterations(struct_itr);
             struct_itr++;
         }
+        iterations_done = struct_itr;
         set_active_iteration(prev_active_iteration);
     }
 }
@@ -151,7 +120,11 @@ void StructDefinition::code_gen_external_declare(Codegen &gen) {
 void StructDefinition::acquire_function_iterations(int16_t iteration) {
     for(auto& function : functions()) {
         auto& func_data = generic_llvm_data[function.get()];
-        func_data[iteration] = function->llvm_data;
+        if(iteration == func_data.size()) {
+            func_data.emplace_back(function->llvm_data);
+        } else {
+            func_data[iteration] = function->llvm_data;
+        }
     }
 }
 

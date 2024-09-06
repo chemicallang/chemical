@@ -18,4 +18,13 @@ func test_imported_modules() {
         extern_globe_var_incr();
         return extern_globe_var == 769
     })
+    test("enums imported from other modules work - 1", () => {
+        return extern_enum_get_banana() == extern_enum_fruits.banana
+    })
+    test("enums imported from other modules work - 2", () => {
+        return extern_enum_get_mango() == extern_enum_fruits.mango
+    })
+    test("enums imported from other modules work - 3", () => {
+        return extern_enum_get_mango() != extern_enum_fruits.banana
+    })
 }

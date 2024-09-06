@@ -5,6 +5,7 @@
 #include "FunctionParam.h"
 #include "ast/base/GlobalInterpretScope.h"
 #include "ast/structures/InterfaceDefinition.h"
+#include "ast/structures/ImplDefinition.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/UnionDef.h"
 #include "compiler/SymbolResolver.h"
@@ -178,7 +179,7 @@ void body_gen(Codegen &gen, FunctionDeclaration* decl, llvm::Function* funcCalle
     body_gen(gen, funcCallee, decl->body, decl);
 }
 
-void FunctionDeclaration::code_gen(Codegen &gen) {
+void FunctionDeclaration::code_gen_normal(Codegen &gen) {
     if(has_annotation(AnnotationKind::CompTime)) {
         return;
     }
@@ -196,8 +197,47 @@ void FunctionDeclaration::code_gen(Codegen &gen) {
     }
 }
 
+void FunctionDeclaration::code_gen(Codegen &gen) {
+    if(parent_node) {
+        auto k = parent_node->kind();
+        switch(k) {
+            case ASTNodeKind::StructDecl:{
+                const auto parent_decl = parent_node->as_struct_def_unsafe();
+                parent_decl->code_gen_function(gen, this);
+                return;
+            }
+            case ASTNodeKind::VariantDecl: {
+                const auto parent_decl = parent_node->as_variant_def_unsafe();
+                parent_decl->code_gen_function(gen, this);
+                return;
+            }
+            case ASTNodeKind::UnionDecl: {
+                const auto parent_decl = parent_node->as_union_def_unsafe();
+                parent_decl->code_gen_function(gen, this);
+                return;
+            }
+            case ASTNodeKind::InterfaceDecl: {
+                const auto parent_decl = parent_node->as_interface_def_unsafe();
+                parent_decl->code_gen_function(gen, this);
+                return;
+            }
+            case ASTNodeKind::ImplDecl: {
+                const auto parent_decl = parent_node->as_impl_def_unsafe();
+                parent_decl->code_gen_function(gen, this);
+                return;
+            }
+            case ASTNodeKind::NamespaceDecl:
+            default:
+                code_gen_normal(gen);
+                return;
+        }
+    } else {
+        code_gen_normal(gen);
+    }
+}
+
 void FunctionDeclaration::code_gen_generic(Codegen &gen) {
-    code_gen(gen);
+    code_gen_normal(gen);
 }
 
 void llvm_func_attr(llvm::Function* func, AnnotationKind kind) {
@@ -299,7 +339,7 @@ void FunctionDeclaration::code_gen_interface(Codegen &gen, InterfaceDefinition* 
     create_fn(gen, this);
     gen.current_function = nullptr;
     if(body.has_value()) {
-        code_gen(gen);
+        code_gen_normal(gen);
     }
 }
 
@@ -345,7 +385,7 @@ void FunctionDeclaration::code_gen_body(Codegen &gen, StructDefinition* def) {
         return;
     }
     gen.current_function = nullptr;
-    code_gen(gen);
+    code_gen_normal(gen);
 }
 
 void FunctionDeclaration::code_gen_body(Codegen &gen, VariantDefinition* def) {
@@ -357,7 +397,7 @@ void FunctionDeclaration::code_gen_body(Codegen &gen, VariantDefinition* def) {
         return;
     }
     gen.current_function = nullptr;
-    code_gen(gen);
+    code_gen_normal(gen);
 }
 
 //void FunctionDeclaration::code_gen_struct(Codegen &gen, StructDefinition* def) {
@@ -366,7 +406,7 @@ void FunctionDeclaration::code_gen_body(Codegen &gen, VariantDefinition* def) {
 //    }
 //    create_fn(gen, this, def->name + "." + name);
 //    gen.current_function = nullptr;
-//    code_gen(gen);
+//    code_gen_normal(gen);
 //}
 
 void FunctionDeclaration::code_gen_union(Codegen &gen, UnionDef* def) {
@@ -375,7 +415,7 @@ void FunctionDeclaration::code_gen_union(Codegen &gen, UnionDef* def) {
     }
     create_fn(gen, this);
     gen.current_function = nullptr;
-    code_gen(gen);
+    code_gen_normal(gen);
 }
 
 //void FunctionDeclaration::code_gen_constructor(Codegen& gen, StructDefinition* def) {
@@ -387,7 +427,7 @@ void FunctionDeclaration::setup_cleanup_block(Codegen &gen, llvm::Function* func
         llvm::BasicBlock* cleanup_block = llvm::BasicBlock::Create(*gen.ctx, "", func);
         gen.redirect_return = cleanup_block;
         gen.current_function = nullptr;
-        code_gen(gen);
+        code_gen_normal(gen);
         gen.CreateBr(cleanup_block); // ensure branch to cleanup block
         gen.SetInsertPoint(cleanup_block);
     } else {

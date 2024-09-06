@@ -10,21 +10,32 @@
 #include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
 
+void InterfaceDefinition::code_gen_for_users(Codegen& gen, FunctionDeclaration* func) {
+    for(auto& use : users) {
+        auto& user = users[use.first];
+        auto found = user.find(func);
+        if((found == user.end() || found->second == nullptr) && func->has_self_param()) {
+            func->code_gen_interface(gen, this);
+        }
+        user[func] = (llvm::Function*) func->llvm_pointer(gen);
+    }
+}
+
+void InterfaceDefinition::code_gen_function(Codegen& gen, FunctionDeclaration* func) {
+    if(!func->has_self_param() && (has_implementation || !users.empty())) {
+        func->code_gen_interface(gen, this);
+    }
+    code_gen_for_users(gen, func);
+}
+
 void InterfaceDefinition::code_gen(Codegen &gen) {
     for (auto& func: functions()) {
         if(!func->has_self_param() && (has_implementation || !users.empty())) {
             func->code_gen_interface(gen, this);
         }
     }
-    for(auto& use : users) {
-        for (const auto& function: functions()) {
-            auto& user = users[use.first];
-            auto found = user.find(function.get());
-            if((found == user.end() || found->second == nullptr) && function->has_self_param()) {
-                function->code_gen_interface(gen, this);
-            }
-            user[function.get()] = (llvm::Function*) function->llvm_pointer(gen);
-        }
+    for (const auto& function: functions()) {
+        code_gen_for_users(gen, function.get());
     }
 }
 

@@ -73,6 +73,11 @@ llvm::Type* VariantDefinition::llvm_chain_type(Codegen &gen, std::vector<std::un
     return llvm_type(gen);
 }
 
+void VariantDefinition::code_gen_function(Codegen &gen, FunctionDeclaration* decl) {
+        decl->code_gen_declare(gen, this);
+        decl->code_gen_body(gen, this);
+}
+
 void VariantDefinition::code_gen_once(Codegen &gen) {
     llvm_type(gen);
     if(requires_destructor()) {

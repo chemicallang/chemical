@@ -883,23 +883,16 @@ void CBeforeStmtVisitor::visit(FunctionCall *call) {
 void chain_after_func(ToCAstVisitor& visitor, std::vector<std::unique_ptr<ChainValue>>& values, unsigned start, const unsigned end, const unsigned total_size);
 
 void func_name(ToCAstVisitor& visitor, Value* ref, FunctionDeclaration* func_decl) {
-    ref->accept(&visitor); // function name
-    if(func_decl->multi_func_index != 0) {
-        visitor.write("__cmf_");
-        visitor.write(std::to_string(func_decl->multi_func_index));
-    }
+//    ref->accept(&visitor); // function name
+//    if(func_decl->multi_func_index != 0) {
+//        visitor.write("__cmf_");
+//        visitor.write(std::to_string(func_decl->multi_func_index));
+//    }
+    func_decl->runtime_name_no_parent_fast(*visitor.output);
 }
 
 void func_name(ToCAstVisitor& visitor, FunctionDeclaration* func_decl) {
-    visitor.write(func_decl->name);
-    if(func_decl->multi_func_index != 0) {
-        visitor.write("__cmf_");
-        visitor.write(std::to_string(func_decl->multi_func_index));
-    }
-    if(func_decl->active_iteration != 0) {
-        visitor.write("__cgf_");
-        visitor.write(std::to_string(func_decl->active_iteration));
-    }
+    func_decl->runtime_name_no_parent_fast(*visitor.output);
 }
 
 void func_call_that_returns_struct(ToCAstVisitor& visitor, CBeforeStmtVisitor* actual_visitor, std::vector<std::unique_ptr<ChainValue>>& values, unsigned start, unsigned end) {

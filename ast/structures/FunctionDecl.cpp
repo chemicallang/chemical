@@ -22,6 +22,7 @@
 #include "ast/types/GenericType.h"
 #include "ast/structures/VariantDefinition.h"
 #include "ast/structures/VariantMember.h"
+#include <sstream>
 
 #ifdef COMPILER_BUILD
 
@@ -748,6 +749,24 @@ FunctionDeclaration::FunctionDeclaration(
 ) : FunctionType(std::move(params), std::move(returnType), isVariadic, false, token),
     name(std::move(name)),
     body(std::move(body)), parent_node(parent_node), token(token), specifier(specifier) {
+}
+
+std::string FunctionDeclaration::runtime_name_no_parent_fast_str() {
+    std::stringstream stream;
+    runtime_name_no_parent_fast(stream);
+    return stream.str();
+}
+
+void FunctionDeclaration::runtime_name_no_parent_fast(std::ostream& stream) {
+    stream << name;
+    if(multi_func_index != 0) {
+        stream << "__cmf_";
+        stream << std::to_string(multi_func_index);
+    }
+    if(active_iteration != 0) {
+        stream << "__cgf_";
+        stream << std::to_string(active_iteration);
+    }
 }
 
 int16_t FunctionDeclaration::total_generic_iterations() {

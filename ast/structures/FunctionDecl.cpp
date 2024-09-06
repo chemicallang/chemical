@@ -240,6 +240,7 @@ void FunctionDeclaration::code_gen(Codegen &gen) {
 }
 
 void FunctionDeclaration::code_gen_generic(Codegen &gen) {
+    code_gen_declare(gen);
     code_gen_body(gen);
 }
 

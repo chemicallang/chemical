@@ -90,6 +90,8 @@ public:
 
     void code_gen(Codegen &gen) override;
 
+    void code_gen_external_declare(Codegen &gen) override;
+
     llvm::Type *llvm_type(Codegen &gen) override {
         return UnionType::llvm_type(gen);
     }

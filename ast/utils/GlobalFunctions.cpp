@@ -143,6 +143,7 @@ namespace InterpretVector {
     };
 
     InterpretVectorNode::InterpretVectorNode(ASTNode* parent_node) : StructDefinition("vector", parent_node, nullptr) {
+        annotations.emplace_back(AnnotationKind::CompTime);
         generic_params.emplace_back(new GenericTypeParameter("T", nullptr, this, 0, nullptr));
         insert_func(std::make_unique<InterpretVectorConstructor>(this));
         insert_func(std::make_unique<InterpretVectorSize>(this));

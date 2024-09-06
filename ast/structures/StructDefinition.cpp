@@ -84,6 +84,9 @@ void StructDefinition::code_gen_function_body(Codegen& gen, FunctionDeclaration*
 }
 
 void StructDefinition::code_gen(Codegen &gen) {
+    if(has_annotation(AnnotationKind::CompTime)) {
+        return;
+    }
     if(generic_params.empty()) {
         struct_func_gen(gen, functions());
         for(auto& inherits : inherited) {

@@ -116,7 +116,7 @@ std::pair<int16_t, bool> register_generic_usage(
 ) {
     int16_t i = get_iteration_for(generic_params, generic_list);
     if(i != -1) return { i, false};
-    resolver.imported_generic[node->root_parent()] = true;
+    resolver.imported_generic[node] = true;
     return { register_generic_usage_no_check(generic_params, generic_list), true };
 }
 

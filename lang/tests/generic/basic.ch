@@ -89,6 +89,11 @@ func get_other_var1_point_value(other : OtherVar1<OV1Point>) : int {
     }
 }
 
+struct check_gen_multi_typed<T> {
+    var a : T
+    var b : T
+}
+
 func test_basic_generics() {
     test("test that basic generic function with no generic args works", () => {
         return gen_sum(10, 20) == 30;
@@ -168,5 +173,21 @@ func test_basic_generics() {
     test("generic variants declared and used from other files work - 4", () => {
         const g = get_other_var1_point(10, false);
         return get_other_var1_point_value(g) == -1;
+    })
+    test("unused generic struct works with multiple types - 1", () => {
+        var p = check_gen_multi_typed<short> {
+            a : 13,
+            b : 13
+        }
+        const sum = p.a + p.b
+        return sum == 26
+    })
+    test("unused generic struct works with multiple types - 2", () => {
+        var p = check_gen_multi_typed<long> {
+            a : 452,
+            b : 20
+        }
+        const sum = p.a + p.b
+        return sum == 472
     })
 }

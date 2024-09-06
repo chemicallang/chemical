@@ -244,9 +244,11 @@ void VarInitStatement::accept(Visitor *visitor) {
 
 ASTNode *VarInitStatement::child(const std::string &name) {
     if (type) {
-        return type->linked_node()->child(name);
+        const auto linked = type->linked_node();
+        return linked ? linked->child(name) : nullptr;
     } else if (value) {
-        return value->linked_node()->child(name);
+        const auto linked = value->linked_node();
+        return linked ? linked->child(name) : nullptr;
     }
     return nullptr;
 }

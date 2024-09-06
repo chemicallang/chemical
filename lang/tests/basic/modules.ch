@@ -36,4 +36,12 @@ func test_imported_modules() {
     test("variants imported from other modules work - 3", () => {
         return get_extern_imported_opt_value(extern_imported_opt.Some(102)) == 102
     })
+    test("unused generic struct from other modules work - 1", () => {
+        var p = extern_unused_gen_struct<int> {
+            a : 10,
+            b : 10
+        }
+        const sum = p.a + p.b
+        return sum == 20
+    })
 }

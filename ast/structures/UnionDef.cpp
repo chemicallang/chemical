@@ -17,6 +17,10 @@ void UnionDef::code_gen(Codegen &gen) {
     }
 }
 
+void UnionDef::code_gen_external_declare(Codegen &gen) {
+    llvm_struct_type = nullptr;
+}
+
 #endif
 
 UnnamedUnion::UnnamedUnion(std::string name, ASTNode* parent_node, CSTToken* token, AccessSpecifier specifier) : BaseDefMember(std::move(name)), parent_node(parent_node), token(token), specifier(specifier) {

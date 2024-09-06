@@ -12,10 +12,6 @@ public:
     ASTNode* parent_node;
     CSTToken* token;
     ReferencedType ref_type;
-    /**
-     * the iterations for which we have generated codee
-     */
-    int16_t generated_iterations = 0;
 
 #ifdef COMPILER_BUILD
     /**

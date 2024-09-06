@@ -88,14 +88,14 @@ void VariantDefinition::code_gen(Codegen &gen) {
     } else {
         const auto total = total_generic_iterations();
         const auto prev_itr = active_iteration;
-        int16_t i = generated_iterations;
+        int16_t i = iterations_done;
         while(i < total) {
             set_active_iteration(i);
             code_gen_once(gen);
             i++;
         }
         set_active_iteration(prev_itr);
-        generated_iterations = total;
+        iterations_done = total;
     }
 }
 

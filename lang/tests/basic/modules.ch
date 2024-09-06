@@ -60,4 +60,11 @@ func test_imported_modules() {
         const sum = p.a + p.b
         return sum == 474
     })
+    test("used generic struct from other modules work", () => {
+        const used = extern_used_gen_struct<int> {
+            a : 32,
+            b : 56
+        }
+        return extern_gen_struct_user(used) == 88
+    })
 }

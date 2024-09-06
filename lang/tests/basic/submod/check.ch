@@ -68,3 +68,12 @@ public struct extern_unused_gen_struct2<T> {
     var a : T
     var b : T
 }
+
+public struct extern_used_gen_struct<T> {
+    var a : T
+    var b : T
+}
+
+public func extern_gen_struct_user(str : extern_used_gen_struct<int>) : int {
+    return str.a + str.b;
+}

@@ -33,4 +33,7 @@ func test_imported_modules() {
     test("variants imported from other modules work - 2", () => {
         return get_extern_imported_opt_value(get_extern_imported_opt_some()) == 50
     })
+    test("variants imported from other modules work - 3", () => {
+        return get_extern_imported_opt_value(extern_imported_opt.Some(102)) == 102
+    })
 }

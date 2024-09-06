@@ -9,6 +9,7 @@
 #include "stream/SourceProvider.h"
 #include "utils/Benchmark.h"
 #include "stream/FileInputSource.h"
+#include <iostream>
 
 void benchLex(Lexer *lexer, BenchmarkResults &results) {
     results.benchmark_begin();

@@ -4,6 +4,7 @@
 #include "LabBuildCompiler.h"
 #include "preprocess/ImportGraphMaker.h"
 #include "ast/types/ReferencedType.h"
+#include "ast/structures/FunctionDeclaration.h"
 #include "utils/Benchmark.h"
 #include "Utils.h"
 #ifdef COMPILER_BUILD

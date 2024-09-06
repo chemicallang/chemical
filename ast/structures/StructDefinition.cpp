@@ -129,8 +129,22 @@ void StructDefinition::code_gen_generic(Codegen &gen) {
 void StructDefinition::code_gen_external_declare(Codegen &gen) {
     // clear the stored llvm types, so they must be declared again by StructType
     llvm_struct_types.clear();
-    for(auto& function : functions()) {
-        function->code_gen_external_declare(gen);
+    if(generic_params.empty()) {
+        for (auto& function: functions()) {
+            function->code_gen_external_declare(gen);
+        }
+    } else {
+        int16_t i = 0;
+        const auto prev_active_iteration = active_iteration;
+        const auto total = total_generic_iterations();
+        while(i < total) {
+            set_active_iteration(i);
+            for (auto& function: functions()) {
+                function->code_gen_external_declare(gen);
+            }
+            i++;
+        }
+        set_active_iteration_safely(prev_active_iteration);
     }
 }
 

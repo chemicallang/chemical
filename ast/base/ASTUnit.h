@@ -59,12 +59,12 @@ public:
     /**
      * default move constructor
      */
-    ASTUnit(ASTUnit&& other) = default;
+    ASTUnit(ASTUnit&& other);
 
     /**
      * move assignment operator
      */
-    ASTUnit& operator =(ASTUnit&& other) = default;
+    ASTUnit& operator =(ASTUnit&& other) noexcept ;
 
     /**
      * the destructor

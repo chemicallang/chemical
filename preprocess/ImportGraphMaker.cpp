@@ -12,6 +12,7 @@
 #include "ImportPathHandler.h"
 #include "utils/PathUtils.h"
 #include <sstream>
+#include <iostream>
 
 typedef ImportGraphImporter Importer;
 

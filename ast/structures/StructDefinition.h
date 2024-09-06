@@ -165,6 +165,12 @@ public:
     void acquire_function_iterations(int16_t iteration);
 
     /**
+     * this function is responsible for declaring this single function
+     * that is present inside this struct, also read the docs of body
+     */
+    void code_gen_function_declare(Codegen& gen, FunctionDeclaration* decl);
+
+    /**
      * this function is responsible for generating code for a single function
      * this function is not supposed to be called, because struct decl tends to
      * generate declarations for all it's functions and then bodies, so that
@@ -173,7 +179,7 @@ public:
      * uses outside the current file, the function is queued for generation for that type
      * and then function declaration calls this function (if this struct is parent)
      */
-    void code_gen_function(Codegen& gen, FunctionDeclaration* decl);
+    void code_gen_function_body(Codegen& gen, FunctionDeclaration* decl);
 
     void code_gen(Codegen &gen) override;
 

@@ -179,7 +179,7 @@ void body_gen(Codegen &gen, FunctionDeclaration* decl, llvm::Function* funcCalle
     body_gen(gen, funcCallee, decl->body, decl);
 }
 
-void FunctionDeclaration::code_gen_normal(Codegen &gen) {
+void FunctionDeclaration::code_gen_body(Codegen &gen) {
     if(has_annotation(AnnotationKind::CompTime)) {
         return;
     }
@@ -198,46 +198,49 @@ void FunctionDeclaration::code_gen_normal(Codegen &gen) {
 }
 
 void FunctionDeclaration::code_gen(Codegen &gen) {
+    if(has_annotation(AnnotationKind::CompTime)) {
+        return;
+    }
     if(parent_node) {
         auto k = parent_node->kind();
         switch(k) {
             case ASTNodeKind::StructDecl:{
                 const auto parent_decl = parent_node->as_struct_def_unsafe();
-                parent_decl->code_gen_function(gen, this);
+                parent_decl->code_gen_function_body(gen, this);
                 return;
             }
             case ASTNodeKind::VariantDecl: {
                 const auto parent_decl = parent_node->as_variant_def_unsafe();
-                parent_decl->code_gen_function(gen, this);
+                parent_decl->code_gen_function_body(gen, this);
                 return;
             }
             case ASTNodeKind::UnionDecl: {
                 const auto parent_decl = parent_node->as_union_def_unsafe();
-                parent_decl->code_gen_function(gen, this);
+                parent_decl->code_gen_function_body(gen, this);
                 return;
             }
             case ASTNodeKind::InterfaceDecl: {
                 const auto parent_decl = parent_node->as_interface_def_unsafe();
-                parent_decl->code_gen_function(gen, this);
+                parent_decl->code_gen_function_body(gen, this);
                 return;
             }
             case ASTNodeKind::ImplDecl: {
                 const auto parent_decl = parent_node->as_impl_def_unsafe();
-                parent_decl->code_gen_function(gen, this);
+                parent_decl->code_gen_function_body(gen, this);
                 return;
             }
             case ASTNodeKind::NamespaceDecl:
             default:
-                code_gen_normal(gen);
+                code_gen_body(gen);
                 return;
         }
     } else {
-        code_gen_normal(gen);
+        code_gen_body(gen);
     }
 }
 
 void FunctionDeclaration::code_gen_generic(Codegen &gen) {
-    code_gen_normal(gen);
+    code_gen_body(gen);
 }
 
 void llvm_func_attr(llvm::Function* func, AnnotationKind kind) {
@@ -339,7 +342,7 @@ void declare_fn(Codegen& gen, FunctionDeclaration *decl) {
     declare_fn(gen, decl, decl->parent_node ? decl->runtime_name() : decl->name);
 }
 
-void FunctionDeclaration::code_gen_declare(Codegen &gen) {
+void FunctionDeclaration::code_gen_declare_normal(Codegen& gen) {
     if(has_annotation(AnnotationKind::CompTime)) {
         return;
     }
@@ -351,11 +354,45 @@ void FunctionDeclaration::code_gen_declare(Codegen &gen) {
     gen.current_function = nullptr;
 }
 
-void FunctionDeclaration::code_gen_interface(Codegen &gen, InterfaceDefinition* def) {
-    create_fn(gen, this);
-    gen.current_function = nullptr;
-    if(body.has_value()) {
-        code_gen_normal(gen);
+void FunctionDeclaration::code_gen_declare(Codegen &gen) {
+    if(has_annotation(AnnotationKind::CompTime)) {
+        return;
+    }
+    if(parent_node) {
+        auto k = parent_node->kind();
+        switch(k) {
+            case ASTNodeKind::StructDecl:{
+                const auto parent_decl = parent_node->as_struct_def_unsafe();
+                parent_decl->code_gen_function_declare(gen, this);
+                return;
+            }
+            case ASTNodeKind::VariantDecl: {
+                const auto parent_decl = parent_node->as_variant_def_unsafe();
+                parent_decl->code_gen_function_declare(gen, this);
+                return;
+            }
+            case ASTNodeKind::UnionDecl: {
+                const auto parent_decl = parent_node->as_union_def_unsafe();
+                parent_decl->code_gen_function_declare(gen, this);
+                return;
+            }
+            case ASTNodeKind::InterfaceDecl: {
+                const auto parent_decl = parent_node->as_interface_def_unsafe();
+                parent_decl->code_gen_function_declare(gen, this);
+                return;
+            }
+            case ASTNodeKind::ImplDecl: {
+                // Implementation doesn't declare any function because it always generates body for functions that
+                // have been already declared
+                return;
+            }
+            case ASTNodeKind::NamespaceDecl:
+            default:
+                code_gen_declare_normal(gen);
+                return;
+        }
+    } else {
+        code_gen_declare_normal(gen);
     }
 }
 
@@ -365,6 +402,8 @@ void FunctionDeclaration::code_gen_override(Codegen& gen, llvm::Function* llvm_f
 
 void FunctionDeclaration::code_gen_external_declare(Codegen &gen) {
     llvm_data.clear();
+    // TODO generic functions that have already generated should be declared
+    // however generic functions that haven't been generated should be generated
     declare_fn(gen, this);
 }
 
@@ -392,6 +431,20 @@ void FunctionDeclaration::code_gen_override_declare(Codegen &gen, FunctionDeclar
     set_llvm_data(decl->llvm_pointer(gen), decl->llvm_func_type(gen));
 }
 
+void FunctionDeclaration::code_gen_declare(Codegen &gen, InterfaceDefinition* def) {
+    create_fn(gen, this);
+}
+
+void FunctionDeclaration::code_gen_declare(Codegen &gen, UnionDef* def) {
+    if(has_annotation(AnnotationKind::CompTime)) {
+        return;
+    }
+    if(has_annotation(AnnotationKind::Destructor)) {
+        ensure_destructor(def);
+    }
+    create_fn(gen, this);
+}
+
 void FunctionDeclaration::code_gen_body(Codegen &gen, StructDefinition* def) {
     if(has_annotation(AnnotationKind::CompTime)) {
         return;
@@ -401,7 +454,14 @@ void FunctionDeclaration::code_gen_body(Codegen &gen, StructDefinition* def) {
         return;
     }
     gen.current_function = nullptr;
-    code_gen_normal(gen);
+    code_gen_body(gen);
+}
+
+void FunctionDeclaration::code_gen_body(Codegen &gen, InterfaceDefinition* def) {
+    gen.current_function = nullptr;
+    if(body.has_value()) {
+        code_gen_body(gen);
+    }
 }
 
 void FunctionDeclaration::code_gen_body(Codegen &gen, VariantDefinition* def) {
@@ -413,37 +473,23 @@ void FunctionDeclaration::code_gen_body(Codegen &gen, VariantDefinition* def) {
         return;
     }
     gen.current_function = nullptr;
-    code_gen_normal(gen);
+    code_gen_body(gen);
 }
 
-//void FunctionDeclaration::code_gen_struct(Codegen &gen, StructDefinition* def) {
-//    if(has_annotation(AnnotationKind::CompTime)) {
-//        return;
-//    }
-//    create_fn(gen, this, def->name + "." + name);
-//    gen.current_function = nullptr;
-//    code_gen_normal(gen);
-//}
-
-void FunctionDeclaration::code_gen_union(Codegen &gen, UnionDef* def) {
+void FunctionDeclaration::code_gen_body(Codegen &gen, UnionDef* def) {
     if(has_annotation(AnnotationKind::CompTime)) {
         return;
     }
-    create_fn(gen, this);
     gen.current_function = nullptr;
-    code_gen_normal(gen);
+    code_gen_body(gen);
 }
-
-//void FunctionDeclaration::code_gen_constructor(Codegen& gen, StructDefinition* def) {
-//    code_gen_struct(gen, def);
-//}
 
 void FunctionDeclaration::setup_cleanup_block(Codegen &gen, llvm::Function* func) {
     if(body.has_value() && !body->nodes.empty()) {
         llvm::BasicBlock* cleanup_block = llvm::BasicBlock::Create(*gen.ctx, "", func);
         gen.redirect_return = cleanup_block;
         gen.current_function = nullptr;
-        code_gen_normal(gen);
+        code_gen_body(gen);
         gen.CreateBr(cleanup_block); // ensure branch to cleanup block
         gen.SetInsertPoint(cleanup_block);
     } else {

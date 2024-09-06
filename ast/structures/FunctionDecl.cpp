@@ -297,24 +297,20 @@ void create_non_generic_fn(Codegen& gen, FunctionDeclaration *decl, const std::s
     decl->set_llvm_data(func, func->getFunctionType());
 }
 
-void create_fn(Codegen& gen, FunctionDeclaration *decl, const std::string& name) {
+void create_fn(Codegen& gen, FunctionDeclaration *decl) {
     if(decl->generic_params.empty()) {
-        create_non_generic_fn(gen, decl, name);
+        create_non_generic_fn(gen, decl, decl->runtime_name_fast());
     } else {
         const auto total_use = decl->total_generic_iterations();
         auto i = (int16_t) decl->llvm_data.size();
         while(i < total_use) {
             decl->set_active_iteration(i);
-            create_non_generic_fn(gen, decl, name);
+            create_non_generic_fn(gen, decl, decl->runtime_name_fast());
             i++;
         }
         // we set active iteration to -1, so all generics would fail without setting active_iteration
         decl->set_active_iteration(-1);
     }
-}
-
-inline void create_fn(Codegen& gen, FunctionDeclaration *decl) {
-    create_fn(gen, decl, decl->parent_node ? decl->runtime_name() : decl->name);
 }
 
 void declare_non_gen_fn(Codegen& gen, FunctionDeclaration *decl, const std::string& name) {
@@ -322,24 +318,20 @@ void declare_non_gen_fn(Codegen& gen, FunctionDeclaration *decl, const std::stri
     decl->set_llvm_data(callee.getCallee(), callee.getFunctionType());
 }
 
-void declare_fn(Codegen& gen, FunctionDeclaration *decl, const std::string& name) {
+void declare_fn(Codegen& gen, FunctionDeclaration *decl) {
     if(decl->generic_params.empty()) {
-        declare_non_gen_fn(gen, decl, name);
+        declare_non_gen_fn(gen, decl, decl->runtime_name_fast());
     } else {
         const auto total_use = decl->total_generic_iterations();
         auto i = (int16_t) decl->llvm_data.size();
         while(i < total_use) {
             decl->set_active_iteration(i);
-            declare_non_gen_fn(gen, decl, name);
+            declare_non_gen_fn(gen, decl, decl->runtime_name_fast());
             i++;
         }
         // we set active iteration to -1, so all generics would fail without setting active_iteration
         decl->set_active_iteration(-1);
     }
-}
-
-void declare_fn(Codegen& gen, FunctionDeclaration *decl) {
-    declare_fn(gen, decl, decl->parent_node ? decl->runtime_name() : decl->name);
 }
 
 void FunctionDeclaration::code_gen_declare_normal(Codegen& gen) {
@@ -402,9 +394,21 @@ void FunctionDeclaration::code_gen_override(Codegen& gen, llvm::Function* llvm_f
 
 void FunctionDeclaration::code_gen_external_declare(Codegen &gen) {
     llvm_data.clear();
-    // TODO generic functions that have already generated should be declared
-    // however generic functions that haven't been generated should be generated
-    declare_fn(gen, this);
+    if(!is_generic()) {
+        declare_non_gen_fn(gen, this, runtime_name_fast());
+    } else {
+        // declare functions for which bodies have been generated
+        int16_t i = 0;
+        while (i < bodies_gen_index) {
+            set_active_iteration(i);
+            declare_non_gen_fn(gen, this, runtime_name_fast());
+            i++;
+        }
+        // create functions and generate bodies for only those functions that
+        // do not have it, since create_fn and body_gen both use llvm_data.size() to start
+        code_gen_declare(gen);
+        code_gen_body(gen);
+    }
 }
 
 void FunctionDeclaration::code_gen_declare(Codegen &gen, StructDefinition* def) {

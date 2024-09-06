@@ -99,6 +99,10 @@ public:
         return specifier == AccessSpecifier::Public;
     }
 
+    inline std::string runtime_name_fast() {
+        return parent_node ? runtime_name() : name;
+    }
+
     ASTNode *parent() override {
         return parent_node;
     }

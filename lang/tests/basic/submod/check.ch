@@ -71,8 +71,14 @@ public struct extern_unused_gen_struct<T> {
 }
 
 public struct extern_unused_gen_struct2<T> {
+
     var a : T
     var b : T
+
+    func unused_sum(&self) : T {
+        return a + b + 4;
+    }
+
 }
 
 public struct extern_used_gen_struct<T> {

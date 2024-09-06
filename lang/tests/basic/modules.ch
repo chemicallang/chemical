@@ -67,6 +67,20 @@ func test_imported_modules() {
         const sum = p.a + p.b
         return sum == 474
     })
+    test("unused generic struct function from other modules works with multiple types - 1", () => {
+        var p = extern_unused_gen_struct2<short> {
+            a : 12,
+            b : 12
+        }
+        return p.unused_sum() == 28
+    })
+    test("unused generic struct function from other modules works with multiple types - 2", () => {
+        var p = extern_unused_gen_struct2<long> {
+            a : 32,
+            b : 32
+        }
+        return p.unused_sum() == 68
+    })
     test("used generic struct from other modules work", () => {
         const used = extern_used_gen_struct<int> {
             a : 32,

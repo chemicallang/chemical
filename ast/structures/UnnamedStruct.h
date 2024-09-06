@@ -28,7 +28,7 @@ public:
         return token;
     }
 
-    std::string struct_name() override {
+    std::string get_runtime_name() override {
         return "";
     }
 
@@ -83,6 +83,7 @@ public:
         return this;
     }
 
+    [[nodiscard]]
     BaseType *copy() const override;
 
 #ifdef COMPILER_BUILD
@@ -105,10 +106,12 @@ public:
 
 #endif
 
+    [[nodiscard]]
     ValueType value_type() const override {
         return ValueType::Struct;
     }
 
+    [[nodiscard]]
     BaseTypeKind type_kind() const override {
         return BaseTypeKind::Struct;
     }

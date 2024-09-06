@@ -51,6 +51,13 @@ public:
         return ASTNodeKind::StructDecl;
     }
 
+    std::string get_runtime_name() override {
+        if(has_annotation(AnnotationKind::Anonymous)) {
+            return "";
+        }
+        return parent_node ? runtime_name() : name;
+    }
+
     int16_t get_generic_iteration() override {
         return active_iteration;
     }
@@ -78,10 +85,6 @@ public:
     }
 
     const std::string& ns_node_identifier() override {
-        return name;
-    }
-
-    std::string struct_name() override {
         return name;
     }
 
@@ -130,10 +133,6 @@ public:
     BaseType *copy() const override;
 
 #ifdef COMPILER_BUILD
-
-    bool is_anonymous() override {
-        return has_annotation(AnnotationKind::Anonymous);
-    }
 
     llvm::StructType* llvm_stored_type() override;
 

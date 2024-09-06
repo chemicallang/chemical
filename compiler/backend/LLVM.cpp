@@ -147,13 +147,13 @@ llvm::Type *StringType::llvm_type(Codegen &gen) {
     return gen.builder->getInt8PtrTy();
 }
 
-llvm::Type *StructType::with_elements_type(Codegen &gen, const std::vector<llvm::Type *>& elements, bool anonymous) {
-    if(anonymous) {
+llvm::Type *StructType::with_elements_type(Codegen &gen, const std::vector<llvm::Type *>& elements, const std::string& runtime_name) {
+    if(runtime_name.empty()) {
         return llvm::StructType::get(*gen.ctx, elements);
     }
     auto stored = llvm_stored_type();
     if(!stored) {
-        auto new_stored = llvm::StructType::create(*gen.ctx, elements, struct_name());
+        auto new_stored = llvm::StructType::create(*gen.ctx, elements, runtime_name);
         llvm_store_type(new_stored);
         return new_stored;
     }
@@ -162,7 +162,7 @@ llvm::Type *StructType::with_elements_type(Codegen &gen, const std::vector<llvm:
 
 llvm::Type *StructType::llvm_type(Codegen &gen) {
     auto container = variables_container();
-    return with_elements_type(gen, container->elements_type(gen), is_anonymous());
+    return with_elements_type(gen, container->elements_type(gen), get_runtime_name());
 }
 
 llvm::Type *StructType::llvm_param_type(Codegen &gen) {
@@ -171,7 +171,7 @@ llvm::Type *StructType::llvm_param_type(Codegen &gen) {
 
 llvm::Type *StructType::llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned int index) {
     auto container = variables_container();
-    return with_elements_type(gen, container->elements_type(gen, values, index), true);
+    return with_elements_type(gen, container->elements_type(gen, values, index), "");
 }
 
 llvm::Type *UnionType::llvm_type(Codegen &gen) {

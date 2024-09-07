@@ -123,8 +123,8 @@ very innovative things are planned.
   - [x] Work with both TCC and Clang based
   - [x] Translate Files to C (currently only TCC based)
   - [x] Generate llvm ir / assembly / bitcode / object files
-  - [ ] Directory module automatic compilation
-  - [ ] Can import other modules (implemented but untested)
+  - [x] Directory module automatic compilation
+  - [x] Can import other modules
   - [x] Run executables after building them
   - [x] Can generate shared objects / dll
   - [ ] Can generate static libraries
@@ -166,18 +166,18 @@ very innovative things are planned.
 - [x] Type Aliases (like typedef)
 - [x] Pass struct to functions (passes a pointer as param)
 - [x] Return structs from functions (passes a pointer, memcpy like C++)
-- [x] Explicit copying, there's no implicit copying, you must call .copy()
+- [ ] Explicit copying, there's no implicit copying, you must call .copy()
 - [x] Const Function Params, cannot change value of parameter
 - [x] Comptime Support
 - [x] Same name function overloading
+- [x] Variants
 - [x] Generics
   - [ ] Generics in inheritance require polishing
 - [x] C++ like Inheritance (Non-Multi)
 - [x] Rust like Trait and Impl
   - [ ] Dynamic dispatch requires polishing
-- [ ] On Demand Function Mangling
-  - [ ] When a conflict is detected, we mangle the un-important symbol
-  - [ ] If user wants to expose both symbols, we generate an error
+- [x] Top Level Symbol Conflict Detection 
+- [ ] Name mangling
 
 As you can see, our language features promote insane code generation, Type Safety with Power,
 Guaranteed Performance with ease of use, A heaven for Library Developers. But there's one thing that isn't being reflected

@@ -9,6 +9,7 @@
 #include "stream/StringInputSource.h"
 #include "cst/base/CSTConverter.h"
 #include <sstream>
+#include <iostream>
 #include <filesystem>
 #include <mutex>
 

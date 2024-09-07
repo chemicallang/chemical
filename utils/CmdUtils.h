@@ -8,6 +8,7 @@
 #include <optional>
 #include <iostream>
 #include <cstring>
+#include "ordered_map.h"
 
 #define ANSI_COLOR_RED     "\x1b[91m"
 #define ANSI_COLOR_RESET   "\x1b[0m"

@@ -16,6 +16,9 @@ struct AtReplaceResult {
     std::string error; // empty if no error
 };
 
+class ImportPathHandler;
+
+using ImportPathResolverFn = AtReplaceResult(*)(ImportPathHandler& handler, const std::string& filePath, unsigned int slash);
 
 class ImportPathHandler {
 public:
@@ -33,10 +36,22 @@ public:
     std::vector<std::string> system_headers_paths = {};
 
     /**
+     * Path resolvers are those functions that can resolve a small path to it's full absolute path
+     * for example @system/std.io, where system is a path resolver, that takes the full path @system/std.io
+     * including the index at where '/' occurred and returns the result of replacement
+     */
+    std::unordered_map<std::string, ImportPathResolverFn> path_resolvers;
+
+    /**
      * path aliases are used to basically alias a path using '@'
      * when user will import using an '@' we will
      */
     std::unordered_map<std::string, std::string> path_aliases;
+
+    /**
+     * the path to std library, we cache it once found
+     */
+    std::string std_lib_path;
 
     /**
      * constructor

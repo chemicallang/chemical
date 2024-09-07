@@ -132,17 +132,20 @@ IGFile from_import(
             }
         }
         if(!flat_file.abs_path.empty()) {
-            auto resolved = resolve_rel_parent_path_str(base_path, flat_file.abs_path);
-            if (resolved.empty()) {
-                parent->errors.emplace_back(
-                        importSt->range,
-                        DiagSeverity::Error,
-                        file.flat_file.abs_path,
-                        "couldn't find the file to import " + file.flat_file.abs_path + " relative to base path " +
-                                resolve_parent_path(base_path)
-                );
+            if(flat_file.import_path[0] == '@') {
+                file.flat_file.abs_path = absolute_path(flat_file.abs_path);
             } else {
-                file.flat_file.abs_path = resolved;
+                auto resolved = resolve_rel_parent_path_str(base_path, flat_file.abs_path);
+                if (resolved.empty()) {
+                    parent->errors.emplace_back(
+                            importSt->range,
+                            DiagSeverity::Error,
+                            file.flat_file.abs_path,
+                            "couldn't find the file to import " + file.flat_file.abs_path + " relative to base path " + resolve_parent_path(base_path)
+                    );
+                } else {
+                    file.flat_file.abs_path = resolved;
+                }
             }
         }
     }
@@ -170,17 +173,25 @@ IGResult determine_import_graph(const std::string& exe_path, std::vector<CSTToke
     return determine_import_graph(&importer, tokens, asker);
 }
 
-IGFile determine_ig_file(const std::string &exe_path, const std::string &abs_path) {
+IGFile determine_ig_file(ImportPathHandler &handler, const std::string &abs_path) {
     SourceProvider reader(nullptr);
     Lexer lexer(reader);
     ImportGraphVisitor visitor;
-    ImportPathHandler handler(exe_path);
     ImportGraphImporter importer(
             &handler,
             &lexer,
             &visitor
     );
     return from_import(&importer, nullptr, abs_path, nullptr);
+}
+
+IGFile determine_ig_file(const std::string &exe_path, const std::string &abs_path) {
+    ImportPathHandler handler(exe_path);
+    return determine_ig_file(handler, abs_path);
+}
+
+IGResult determine_import_graph(ImportPathHandler &path_handler, const std::string &abs_path) {
+    return IGResult { determine_ig_file(path_handler, abs_path) };
 }
 
 IGResult determine_import_graph(const std::string &exe_path, const std::string &abs_path) {

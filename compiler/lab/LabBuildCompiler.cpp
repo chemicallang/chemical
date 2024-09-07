@@ -195,6 +195,8 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
     ASTProcessor processor(options, &resolver);
 #endif
 
+    processor.path_handler.path_aliases = std::move(exe->path_aliases);
+
     if(use_tcc) {
         // clear build.lab c output
         output_ptr.clear();
@@ -507,6 +509,8 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
 #endif
 
     }
+
+    exe->path_aliases = std::move(processor.path_handler.path_aliases);
 
     return compile_result;
 

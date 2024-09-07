@@ -61,6 +61,11 @@ public:
     ASTProcessorOptions* options;
 
     /**
+     * import path handler, handles paths, '@' symbols in paths, determining their absolute paths
+     */
+    ImportPathHandler path_handler;
+
+    /**
      * When a file is processed, we shrink it's nodes (remove function bodies) using the
      * ShrinkingVisitor and then keep them on this map, with absolute path to files as keys
      *

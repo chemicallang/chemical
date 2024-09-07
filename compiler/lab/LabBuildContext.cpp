@@ -34,6 +34,29 @@ void LabBuildContext::add_paths(std::vector<chem::string>& into, chem::string** 
     }
 }
 
+void LabBuildContext::declare_alias(std::unordered_map<std::string, std::string>& aliases, std::string alias, std::string path) {
+    const auto path_last = path.size() - 1;
+    if(path[path_last] == '/') {
+        path = path.substr(0, path_last);
+    }
+    aliases[std::move(alias)] = std::move(path);
+}
+
+void LabBuildContext::put_path_aliases(LabJob* job, LabModule* module) {
+    if(module->type == LabModuleType::Directory) {
+        declare_alias(job->path_aliases, module->name.to_std_string(), module->paths[0].to_std_string());
+    }
+    for(auto dep : module->dependencies) {
+        put_path_aliases(job, dep);
+    }
+}
+
+void LabBuildContext::init_path_aliases(LabJob* job) {
+    for(auto dep : job->dependencies) {
+        put_path_aliases(job, dep);
+    }
+}
+
 LabModule *LabBuildContext::add_with_type(
     LabModuleType type,
     chem::string name,
@@ -107,6 +130,7 @@ LabJob* LabBuildContext::translate_to_chemical(
     reduntant_mod->paths.emplace_back(c_path->copy());
     modules.emplace_back(reduntant_mod);
     job->dependencies.emplace_back(reduntant_mod);
+    init_path_aliases(job);
     return job;
 }
 
@@ -126,6 +150,7 @@ LabJob* LabBuildContext::translate_to_c(
     set_build_dir(job);
     job->abs_path.append(out_path);
     LabBuildContext::add_dependencies(job->dependencies, dependencies, dep_len);
+    init_path_aliases(job);
     return job;
 }
 
@@ -143,6 +168,7 @@ LabJob* LabBuildContext::build_exe(
 #endif
     exe->abs_path.append(exe_path);
     LabBuildContext::add_dependencies(exe->dependencies, dependencies, dep_len);
+    init_path_aliases(exe);
     return exe;
 }
 
@@ -164,6 +190,7 @@ LabJob* LabBuildContext::build_dynamic_lib(
 #endif
     exe->abs_path.append(output_path);
     LabBuildContext::add_dependencies(exe->dependencies, dependencies, dep_len);
+    init_path_aliases(exe);
     return exe;
 }
 

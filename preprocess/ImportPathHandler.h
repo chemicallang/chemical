@@ -1,6 +1,9 @@
 // Copyright (c) Qinetik 2024.
 
+#pragma once
+
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 std::string resolve_rel_parent_path_str(const std::string &root_path, const std::string &file_path);
@@ -28,6 +31,12 @@ public:
      * then once we found them we cache them here, for faster invocation next time
      */
     std::vector<std::string> system_headers_paths = {};
+
+    /**
+     * path aliases are used to basically alias a path using '@'
+     * when user will import using an '@' we will
+     */
+    std::unordered_map<std::string, std::string> path_aliases;
 
     /**
      * constructor

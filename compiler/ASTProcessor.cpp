@@ -43,7 +43,7 @@ std::string ASTProcessorOptions::get_resources_path() {
 ASTProcessor::ASTProcessor(
         ASTProcessorOptions* options,
         SymbolResolver* resolver
-) : options(options), resolver(resolver) {
+) : options(options), resolver(resolver), path_handler(options->exe_path) {
     if(options->isCBIEnabled) {
         binder = std::make_unique<CompilerBinderTCC>(nullptr, options->exe_path);
         lexer_cbi = std::make_unique<LexerCBI>();
@@ -52,19 +52,19 @@ ASTProcessor::ASTProcessor(
     }
 }
 
-void put_import_graph(std::vector<IGFile>& files, const std::string& exe_path, const std::vector<std::string>& paths) {
+void put_import_graph(ImportPathHandler& handler, std::vector<IGFile>& files, const std::vector<std::string>& paths) {
     for (const auto& path : paths) {
-        auto local = determine_import_graph(exe_path, path);
+        auto local = determine_import_graph(handler, path);
         files.emplace_back(local.root);
     }
 }
 
-void put_import_graph(IGResult& result, const std::string& exe_path, const std::vector<std::string>& paths) {
+void put_import_graph(ImportPathHandler& handler, IGResult& result, const std::vector<std::string>& paths) {
     if(paths.size() == 1) {
-        result = determine_import_graph(exe_path, paths[0]);
+        result = determine_import_graph(handler, paths[0]);
     } else {
         for (const auto& path : paths) {
-            auto local = determine_import_graph(exe_path, path);
+            auto local = determine_import_graph(handler, path);
             result.root.files.emplace_back(local.root);
         }
     }
@@ -78,11 +78,11 @@ std::vector<FlatIGFile> ASTProcessor::flat_imports_mul(const std::vector<std::st
     if (options->benchmark) {
         BenchmarkResults bm{};
         bm.benchmark_begin();
-        put_import_graph(files, options->exe_path, c_paths);
+        put_import_graph(path_handler, files, c_paths);
         bm.benchmark_end();
         std::cout << "[IGGraph] " << bm.representation() << std::endl;
     } else {
-        put_import_graph(files, options->exe_path, c_paths);
+        put_import_graph(path_handler, files, c_paths);
     }
 
     // print errors in ig

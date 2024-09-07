@@ -66,6 +66,23 @@ public:
     static void add_paths(std::vector<chem::string>& into, chem::string** paths, unsigned int path_len);
 
     /**
+     * declare alias for a path
+     */
+    static void declare_alias(std::unordered_map<std::string, std::string>& aliases, std::string alias, std::string path);
+
+    /**
+     * module with it's dependent modules will be declared with it's name
+     * to the absolute path alias, if the module is a directory module
+     */
+    static void put_path_aliases(LabJob* job, LabModule* module);
+
+    /**
+     * all the modules of this job will be declared with path aliases
+     * including the indirect dependent modules
+     */
+    static void init_path_aliases(LabJob* job);
+
+    /**
      * adds the given module with type
      */
     LabModule* add_with_type(

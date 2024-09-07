@@ -36,6 +36,11 @@ AtReplaceResult ImportPathHandler::replace_at_in_path(const std::string& filePat
         // Absolute path to the header
         return {(std::filesystem::path(dir) / headerPath).string(), ""};
     } else {
-        return {filePath, "unknown '@' directive " + atDirective + " in import statement"};
+        auto found = path_aliases.find(atDirective);
+        if(found != path_aliases.end()) {
+            return { found->second + filePath.substr(slash), "" };
+        } else {
+            return {filePath, "unknown '@' directive " + atDirective + " in import statement"};
+        }
     }
 }

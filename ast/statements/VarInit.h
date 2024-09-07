@@ -110,7 +110,7 @@ public:
     void code_gen_external_declare(Codegen &gen) override;
 
     inline std::string runtime_name_fast() {
-        return parent_node ? runtime_name() : identifier;
+        return parent_node ? runtime_name_str() : identifier;
     }
 
 #endif

@@ -1,6 +1,7 @@
 // Copyright (c) Qinetik 2024.
 
 #include "InterfaceDefinition.h"
+#include "StructDefinition.h"
 #include "StructMember.h"
 #include "compiler/SymbolResolver.h"
 #include "ast/types/ReferencedType.h"
@@ -13,6 +14,7 @@
 void InterfaceDefinition::code_gen_for_users(Codegen& gen, FunctionDeclaration* func) {
     for(auto& use : users) {
         auto& user = users[use.first];
+        active_user = use.first;
         auto found = user.find(func);
         if((found == user.end() || found->second == nullptr) && func->has_self_param()) {
             func->code_gen_declare(gen, this);
@@ -20,6 +22,7 @@ void InterfaceDefinition::code_gen_for_users(Codegen& gen, FunctionDeclaration* 
         }
         user[func] = (llvm::Function*) func->llvm_pointer(gen);
     }
+    active_user = nullptr;
 }
 
 void InterfaceDefinition::code_gen_function_declare(Codegen& gen, FunctionDeclaration* decl) {
@@ -131,6 +134,17 @@ InterfaceDefinition::InterfaceDefinition(
         AccessSpecifier specifier
 ) : ExtendableMembersContainerNode(std::move(name)), parent_node(parent_node), token(token), specifier(specifier) {
 
+}
+
+void InterfaceDefinition::runtime_name(std::ostream &stream) {
+    if(active_user) {
+        active_user->runtime_name(stream);
+    } else {
+        if(parent_node) {
+            parent_node->runtime_name(stream);
+        }
+        stream << name;
+    }
 }
 
 std::unique_ptr<BaseType> InterfaceDefinition::create_value_type() {

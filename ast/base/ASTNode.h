@@ -208,7 +208,7 @@ public:
      * runtime name is constructed by prepending parent's names
      * into the final name
      */
-    void runtime_name(std::ostream& stream);
+    virtual void runtime_name(std::ostream& stream);
 
     /**
      * runtime name of this node without any parent names appended to it
@@ -218,7 +218,7 @@ public:
     /**
      * get runtime_name as a string
      */
-    std::string runtime_name();
+    std::string runtime_name_str();
 
     /**
      * when this node is inside a namespace, what identifier can be used

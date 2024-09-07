@@ -28,7 +28,7 @@ public:
     /**
      * get runtime name without parent
      */
-    void runtime_name_no_parent(std::ostream &stream) final;
+    void runtime_name_no_parent(std::ostream &stream) override;
 
     /**
      * get runtime name without parent as string

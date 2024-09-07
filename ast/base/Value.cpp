@@ -358,6 +358,8 @@ int Value::as_int() {
 #ifdef DEBUG
             throw std::runtime_error("unknown value for as_int");
 #endif
+            std::cerr << "unknown value for as_int" << std::endl;
+            return -1;
     }
 }
 

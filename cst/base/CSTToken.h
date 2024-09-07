@@ -27,10 +27,8 @@ public:
         /**
          * this struct is used for non compound tokens
          */
-        struct {
-            Position position;
-            std::string value;
-        };
+        Position position;
+        std::string value;
         /**
          * this struct is used for compound tokens
          */

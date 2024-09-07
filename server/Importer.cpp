@@ -239,7 +239,10 @@ LexImportUnit WorkspaceManager::get_import_unit(const std::string& abs_path, std
         if(cancel_flag.load()) {
             return unit;
         }
-        unit.files.emplace_back(get_lexed(flat));
+        auto imported = get_lexed(flat);
+        if(imported) {
+            unit.files.emplace_back(imported);
+        }
     }
 
     if(cancel_flag.load()) {

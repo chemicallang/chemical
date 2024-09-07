@@ -95,3 +95,7 @@ public struct extern_used_gen_struct<T> {
 public func extern_gen_struct_user(str : extern_used_gen_struct<int>) : int {
     return str.a + str.b;
 }
+
+public func <T> extern_unused_gen_func(a : T, b : T) : T {
+    return (a * b) + 10;
+}

@@ -34,7 +34,7 @@ llvm::StructType* VariantDefinition::llvm_type_with_member(Codegen& gen, BaseDef
     if(anonymous) {
         return llvm::StructType::get(*gen.ctx, elements);
     } else {
-        return llvm::StructType::create(*gen.ctx, elements, runtime_name_fast());
+        return llvm::StructType::create(*gen.ctx, elements, runtime_name_str());
     }
 }
 

@@ -259,7 +259,7 @@ void SymbolResolver::declare_node(const std::string& name, ASTNode* node, Access
         case AccessSpecifier::Public:
             declare_exported(name, node);
             if(has_runtime) {
-                declare_runtime(node->runtime_name(), node);
+                declare_runtime(node->runtime_name_str(), node);
             }
             return;
         case AccessSpecifier::Internal:
@@ -276,7 +276,7 @@ void SymbolResolver::declare_function(const std::string& name, FunctionDeclarati
             return;
         case AccessSpecifier::Public:
             declare_exported_function(name, decl);
-            declare_runtime(decl->runtime_name(), decl);
+            declare_runtime(decl->runtime_name_str(), decl);
             return;
         case AccessSpecifier::Internal:
             declare_function(name, decl);

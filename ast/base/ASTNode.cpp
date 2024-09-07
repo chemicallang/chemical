@@ -28,14 +28,14 @@ std::string ASTNode::representation() {
 void ASTNode::runtime_name(std::ostream& stream) {
     const auto p = parent();
     if(p) p->runtime_name(stream);
-    runtime_name_no_parent(stream);
+    stream << ns_node_identifier();
 }
 
 void ASTNode::runtime_name_no_parent(std::ostream& stream) {
     stream << ns_node_identifier();
 }
 
-std::string ASTNode::runtime_name() {
+std::string ASTNode::runtime_name_str() {
     std::stringstream stream;
     runtime_name(stream);
     return stream.str();

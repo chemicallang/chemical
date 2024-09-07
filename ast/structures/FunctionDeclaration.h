@@ -100,7 +100,7 @@ public:
     }
 
     std::string runtime_name_fast() {
-        return parent_node ? runtime_name() : runtime_name_no_parent_fast_str();
+        return parent_node ? runtime_name_str() : runtime_name_no_parent_fast_str();
     }
 
     void runtime_name_no_parent_fast(std::ostream &stream);
@@ -108,8 +108,10 @@ public:
     std::string runtime_name_no_parent_fast_str();
 
     void runtime_name_no_parent(std::ostream &stream) override {
-        runtime_name_no_parent_fast(stream);
+        return runtime_name_no_parent_fast(stream);
     }
+
+    void runtime_name(std::ostream &stream) override;
 
     ASTNode *parent() override {
         return parent_node;

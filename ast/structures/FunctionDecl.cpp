@@ -757,6 +757,13 @@ std::string FunctionDeclaration::runtime_name_no_parent_fast_str() {
     return stream.str();
 }
 
+void FunctionDeclaration::runtime_name(std::ostream &stream) {
+    if(parent_node) {
+        parent_node->runtime_name(stream);
+    }
+    runtime_name_no_parent_fast(stream);
+}
+
 void FunctionDeclaration::runtime_name_no_parent_fast(std::ostream& stream) {
     stream << name;
     if(multi_func_index != 0) {

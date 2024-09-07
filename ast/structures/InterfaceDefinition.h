@@ -39,11 +39,15 @@ public:
      * this is set to true when even a single implementation is detected
      */
     bool has_implementation = false;
+
     /**
-     * @brief Construct a new InterfaceDeclaration object.
-     *
-     * @param name The name of the interface.
-     * @param methods The methods declared in the interface.
+     * the active user, can be retrieved by functions to see for which
+     * struct is code being generated for by interface
+     */
+    StructDefinition* active_user = nullptr;
+
+    /**
+     * constructor
      */
     InterfaceDefinition(
             std::string name,
@@ -71,6 +75,8 @@ public:
     const std::string& ns_node_identifier() override {
         return name;
     }
+
+    void runtime_name(std::ostream &stream) override;
 
     /**
      * direct usage of this struct is registered with this interface

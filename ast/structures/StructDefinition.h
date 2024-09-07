@@ -55,7 +55,7 @@ public:
         if(has_annotation(AnnotationKind::Anonymous)) {
             return "";
         }
-        return parent_node ? runtime_name() : name;
+        return runtime_name_str();
     }
 
     int16_t get_generic_iteration() override {

@@ -128,7 +128,7 @@ llvm::Value *ASTNode::llvm_pointer(Codegen &gen) {
 #ifdef DEBUG
     throw std::runtime_error("llvm_pointer called on bare ASTNode, with representation" + representation());
 #else
-    gen.early_error("ASTNode::llvm_pointer called, on node : " + representation());
+    std::cerr << ("ASTNode::llvm_pointer called, on node : " + representation());
     return nullptr;
 #endif
 };
@@ -137,7 +137,7 @@ llvm::Type *ASTNode::llvm_elem_type(Codegen &gen) {
 #ifdef DEBUG
     throw std::runtime_error("llvm_elem_type called on bare ASTNode, with representation" + representation());
 #else
-    gen.early_error("ASTNode::llvm_elem_type called, on node : " + representation());
+    std::cerr << ("ASTNode::llvm_elem_type called, on node : " + representation());
     return nullptr;
 #endif
 };
@@ -146,7 +146,7 @@ void ASTNode::code_gen(Codegen &gen) {
 #ifdef DEBUG
     throw std::runtime_error("ASTNode code_gen called on bare ASTNode, with representation : " + representation());
 #else
-    gen.early_error("ASTNode::code_gen called, on node : " + representation());
+    std::cerr << ("ASTNode::code_gen called, on node : " + representation());
 #endif
 }
 
@@ -154,7 +154,7 @@ bool ASTNode::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes,
 #ifdef DEBUG
     throw std::runtime_error("add_child_index called on a ASTNode");
 #else
-    gen.early_error("ASTNode::add_child_index called, on node : " + representation());
+    std::cerr << ("ASTNode::add_child_index called, on node : " + representation());
     return false;
 #endif
 }
@@ -163,7 +163,7 @@ llvm::Value *ASTNode::llvm_load(Codegen &gen) {
 #ifdef DEBUG
     throw std::runtime_error("llvm_load called on a ASTNode");
 #else
-    gen.early_error("ASTNode::llvm_load called, on node : " + representation());
+    std::cerr << ("ASTNode::llvm_load called, on node : " + representation());
     return nullptr;
 #endif
 }
@@ -172,7 +172,7 @@ void ASTNode::code_gen_generic(Codegen &gen) {
 #ifdef DEBUG
     throw std::runtime_error("llvm_load called on a ASTNode");
 #else
-    gen.early_error("ASTNode::llvm_load called, on node : " + representation());
+    std::cerr << ("ASTNode::llvm_load called, on node : " + representation());
 #endif
 }
 

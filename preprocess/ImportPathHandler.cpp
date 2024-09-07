@@ -19,7 +19,7 @@ AtReplaceResult system_path_resolver(ImportPathHandler& handler, const std::stri
 AtReplaceResult std_path_resolver(ImportPathHandler& handler, const std::string& importPath, unsigned int slash) {
     auto filePath = importPath.substr(slash + 1);
     std::string stdLib;
-    if(handler.std_lib_path.empty()) {
+    if(!handler.std_lib_path.empty()) {
         stdLib = handler.std_lib_path;
     } else {
 #ifdef DEBUG

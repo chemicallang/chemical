@@ -144,6 +144,8 @@ void StructDefinition::code_gen_external_declare(Codegen &gen) {
             i++;
         }
         set_active_iteration_safely(prev_active_iteration);
+        // calling code_gen, this will generate any missing generic iterations
+        code_gen(gen);
     }
 }
 

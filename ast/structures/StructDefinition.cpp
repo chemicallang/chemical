@@ -124,14 +124,23 @@ void StructDefinition::code_gen_external_declare(Codegen &gen) {
             function->code_gen_external_declare(gen);
         }
     } else {
+        if(functions().empty()) return;
+        // get the total number of iterations that already exist for each function
+        const auto total_existing_itr = generic_llvm_data[functions().front().get()].size();
+        // clear the existing iteration's llvm_data since that's out of module
+        for(auto& func : functions()) {
+            generic_llvm_data[func.get()].clear();
+        }
         int16_t i = 0;
         const auto prev_active_iteration = active_iteration;
-        const auto total = total_generic_iterations();
-        while(i < total) {
+        while(i < total_existing_itr) {
             set_active_iteration(i);
+            // declare all the functions at iteration
             for (auto& function: functions()) {
                 function->code_gen_external_declare(gen);
             }
+            // acquire functions llvm data at iteration
+            acquire_function_iterations(i);
             i++;
         }
         set_active_iteration_safely(prev_active_iteration);

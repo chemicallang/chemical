@@ -62,7 +62,7 @@ std::string& BaseType::ref_name() {
         throw std::runtime_error("BaseType::ref_name called on unexpected type '" + representation() + "'");
 #else
         std::cerr << "BaseType::ref_name called on unexpected type '" + representation() << "'" << std::endl;
-        string x;
+        std::string x;
         return x;
 #endif
     }

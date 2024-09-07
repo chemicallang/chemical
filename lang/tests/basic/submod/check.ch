@@ -99,3 +99,11 @@ public func extern_gen_struct_user(str : extern_used_gen_struct<int>) : int {
 public func <T> extern_unused_gen_func(a : T, b : T) : T {
     return (a * b) + 10;
 }
+
+public func <T> extern_used_gen_func(a : T, b : T) : T {
+    return (a * b) + 5;
+}
+
+func use_gen_func() : int {
+    return extern_used_gen_func<int>(10, 10);
+}

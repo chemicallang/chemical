@@ -101,4 +101,7 @@ func test_imported_modules() {
     test("used generic functions imported from other modules work", () => {
         return extern_used_gen_func<int>(5, 5) == 30;
     })
+    test("used generic functions can be used with new type imported from other modules", () => {
+        return extern_used_gen_func2<long>(10, 10) == 103
+    })
 }

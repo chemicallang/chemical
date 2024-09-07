@@ -2420,7 +2420,7 @@ void func_decl_with_name(ToCAstVisitor& visitor, FunctionDeclaration* decl, cons
 
 void func_decl_with_name(ToCAstVisitor& visitor, FunctionDeclaration* decl) {
     if(!decl->generic_params.empty()) {
-        int16_t itr = 0;
+        int16_t itr = decl->bodies_gen_index;
         int16_t total = decl->total_generic_iterations();
         while(itr < total) {
             decl->set_active_iteration(itr);
@@ -2429,6 +2429,7 @@ void func_decl_with_name(ToCAstVisitor& visitor, FunctionDeclaration* decl) {
         }
         // set to -1, so whoever tries to access generic parameters types, they receive an error if active iteration is not set again
         decl->set_active_iteration(-1);
+        decl->bodies_gen_index = total;
     } else {
         func_decl_with_name(visitor, decl, decl->name);
     }

@@ -104,6 +104,10 @@ public func <T> extern_used_gen_func(a : T, b : T) : T {
     return (a * b) + 5;
 }
 
+public func <T> extern_used_gen_func2(a : T, b : T) : T {
+    return (a * b) + 3;
+}
+
 func use_gen_func() : int {
-    return extern_used_gen_func<int>(10, 10);
+    return extern_used_gen_func<int>(extern_used_gen_func2<int>(2, 2), 10);
 }

@@ -538,7 +538,8 @@ void CSTConverter::visitFunction(CSTToken* function) {
         i += 1;
     }
 
-    const auto is_generic = function->tokens[i]->type() == LexTokenType::CompGenericParamsList;
+    const auto& gen_token = function->tokens[i];
+    const auto is_generic = gen_token->type() == LexTokenType::CompGenericParamsList;
 
     if(is_generic) {
         i += 1;
@@ -609,7 +610,7 @@ void CSTConverter::visitFunction(CSTToken* function) {
     }
 
     if(is_generic) {
-        convert_generic_list(this, function->tokens[1], funcDecl->generic_params, funcDecl);
+        convert_generic_list(this, gen_token, funcDecl->generic_params, funcDecl);
     }
 
     if (i < function->tokens.size()) {

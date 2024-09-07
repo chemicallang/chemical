@@ -98,4 +98,7 @@ func test_imported_modules() {
     test("unused generic functions imported from other modules work", () => {
         return extern_unused_gen_func<int>(5, 5) == 35;
     })
+    test("used generic functions imported from other modules work", () => {
+        return extern_used_gen_func<int>(5, 5) == 30;
+    })
 }

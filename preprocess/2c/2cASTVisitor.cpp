@@ -281,17 +281,16 @@ void accept_func_return(ToCAstVisitor& visitor, BaseType* type) {
 // the last take_parent allows to skip appending one direct parent name, useful
 // when the interface name is to be used, so interface appends the name in given name parameter
 // take_parent is true, so this function skips direct parent but grandparents and other names are appended
-void accept_func_return_with_name(ToCAstVisitor& visitor, FunctionType* func_type, const std::string& name, bool take_parent, bool is_static) {
+void accept_func_return_with_name(ToCAstVisitor& visitor, FunctionType* func_type, const std::string& name, bool is_static) {
     if(is_static) {
         visitor.write("static ");
     }
     accept_func_return(visitor, func_type->returnType.get());
     visitor.space();
-    node_parent_name(visitor, take_parent ? func_type->parent() : func_type->as_function());
     visitor.write(name);
 }
 
-void accept_func_return_with_name(ToCAstVisitor& visitor, FunctionDeclaration* func_decl, const std::string& name, bool take_parent, bool is_static) {
+void accept_func_return_with_name(ToCAstVisitor& visitor, FunctionDeclaration* func_decl, bool is_static) {
     if(func_decl->has_annotation(AnnotationKind::Extern)) {
         visitor.write("extern ");
     }
@@ -300,16 +299,7 @@ void accept_func_return_with_name(ToCAstVisitor& visitor, FunctionDeclaration* f
     }
     accept_func_return(visitor, func_decl->returnType.get());
     visitor.space();
-    node_parent_name(visitor, take_parent ? func_decl->parent() : func_decl->as_function());
-    visitor.write(name);
-    if(func_decl->multi_func_index != 0) {
-        visitor.write("__cmf_");
-        visitor.write(std::to_string(func_decl->multi_func_index));
-    }
-    if(func_decl->active_iteration != 0) {
-        visitor.write("__cgf_");
-        visitor.write(std::to_string(func_decl->active_iteration));
-    }
+    func_decl->runtime_name(*visitor.output);
 }
 
 void func_type_with_id_no_params(ToCAstVisitor& visitor, FunctionType* type, const std::string& id) {
@@ -1568,7 +1558,7 @@ void CValueDeclarationVisitor::visit(LambdaFunction *lamb) {
         visitor.write("};");
     }
     visitor.new_line_and_indent();
-    accept_func_return_with_name(visitor, lamb, lamb_name, false, true);
+    accept_func_return_with_name(visitor, lamb, lamb_name, true);
     aliases[lamb] = lamb_name;
     write('(');
 
@@ -1602,9 +1592,9 @@ void declare_params(CValueDeclarationVisitor* value_visitor, std::vector<std::un
     }
 }
 
-void func_ret_func_proto_after_l_paren(ToCAstVisitor& visitor, FunctionDeclaration* decl, const std::string& name, FunctionType* retFunc, unsigned declFuncParamStart = 0, unsigned retFuncParamStart = 0) {
+void func_ret_func_proto_after_l_paren(ToCAstVisitor& visitor, FunctionDeclaration* decl, FunctionType* retFunc, unsigned declFuncParamStart = 0, unsigned retFuncParamStart = 0) {
     visitor.write('*');
-    visitor.write(name);
+    decl->runtime_name(*visitor.output);
     visitor.write('(');
     func_type_params(visitor, decl, declFuncParamStart);
     visitor.write("))(");
@@ -1618,7 +1608,7 @@ void func_that_returns_func_proto(ToCAstVisitor& visitor, FunctionDeclaration* d
     }
     accept_func_return(visitor, retFunc->returnType.get());
     visitor.write("(");
-    func_ret_func_proto_after_l_paren(visitor, decl, name, retFunc);
+    func_ret_func_proto_after_l_paren(visitor, decl, retFunc);
 }
 
 void declare_func_with_return(ToCAstVisitor& visitor, FunctionDeclaration* decl, const std::string& name) {
@@ -1629,7 +1619,7 @@ void declare_func_with_return(ToCAstVisitor& visitor, FunctionDeclaration* decl,
         func_that_returns_func_proto(visitor, decl, name, decl->returnType->function_type());
     } else {
         const auto ret_kind = decl->returnType->kind();
-        accept_func_return_with_name(visitor, decl, name, false, decl->body.has_value() && !decl->is_exported_fast());
+        accept_func_return_with_name(visitor, decl, decl->body.has_value() && !decl->is_exported_fast());
         visitor.write('(');
         func_type_params(visitor, decl);
         visitor.write(')');
@@ -1683,10 +1673,10 @@ void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaratio
         accept_func_return(tld->visitor, decl->returnType->function_type()->returnType.get());
         tld->write('(');
         write_self_param_now();
-        func_ret_func_proto_after_l_paren(tld->visitor, decl, name, decl->returnType->function_type(), i);
+        func_ret_func_proto_after_l_paren(tld->visitor, decl, decl->returnType->function_type(), i);
     } else {
         auto is_parent_interface = decl->parent_node->as_interface_def() != nullptr;
-        accept_func_return_with_name(tld->visitor, decl, name, true, (is_parent_interface || decl->body.has_value()) && !decl->is_exported_fast());
+        accept_func_return_with_name(tld->visitor, decl, (is_parent_interface || decl->body.has_value()) && !decl->is_exported_fast());
         tld->write('(');
         write_self_param_now();
         func_type_params(tld->visitor, decl, i);
@@ -2065,12 +2055,14 @@ void CTopLevelDeclarationVisitor::visit(InterfaceDefinition *def) {
         }
     }
     for(auto& use : def->users) {
+        def->active_user = use.first;
         for (auto& func: def->functions()) {
             if(func->has_self_param()) {
                 declare_contained_func(this, func.get(), use.first->name + func->name, false, use.first);
             }
         }
     }
+    def->active_user = nullptr;
     for(auto& user : def->users) {
         const auto linked_struct = user.first;
         if(linked_struct) {
@@ -2442,7 +2434,7 @@ void func_decl_with_name(ToCAstVisitor& visitor, FunctionDeclaration* decl) {
     }
 }
 
-void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, const std::string& name, bool overrides, ExtendableMembersContainerNode* def) {
+void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool overrides, ExtendableMembersContainerNode* def) {
     if(!decl->body.has_value() || decl->has_annotation(AnnotationKind::CompTime)) {
         return;
     }
@@ -2473,9 +2465,9 @@ void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, cons
         accept_func_return(visitor, decl->returnType->function_type()->returnType.get());
         visitor.write('(');
         write_self_param_now();
-        func_ret_func_proto_after_l_paren(visitor, decl, name, decl->returnType->function_type(), i);
+        func_ret_func_proto_after_l_paren(visitor, decl, decl->returnType->function_type(), i);
     } else {
-        accept_func_return_with_name(visitor, decl, name, true, decl->body.has_value() && !decl->is_exported_fast());
+        accept_func_return_with_name(visitor, decl, decl->body.has_value() && !decl->is_exported_fast());
         visitor.write('(');
         write_self_param_now();
         func_type_params(visitor, decl, i);
@@ -2618,17 +2610,11 @@ void ToCAstVisitor::visit(IfStatement *decl) {
 }
 
 void ToCAstVisitor::visit(ImplDefinition *def) {
-    const auto& interface_name = def->interface_type->ref_name();
     const auto overrides = def->struct_type != nullptr;
-    const auto& struct_or_interface_name = def->struct_type ? def->struct_type->ref_name() : def->interface_type->ref_name();
     const auto linked_interface = def->interface_type->linked_node()->as_interface_def();
     const auto linked_struct = def->struct_type ? def->struct_type->linked_struct_def() : nullptr;
     for(auto& func : def->functions()) {
-        if(func->has_self_param()) {
-            contained_func_decl(*this, func.get(), struct_or_interface_name + func->name, overrides,linked_struct);
-        } else {
-            contained_func_decl(*this, func.get(), interface_name + func->name, overrides,linked_struct);
-        }
+        contained_func_decl(*this, func.get(), overrides,linked_struct);
     }
 }
 
@@ -2694,13 +2680,7 @@ void ToCAstVisitor::visit(UnnamedStruct *def) {
 static void contained_struct_functions(ToCAstVisitor& visitor, StructDefinition* def) {
     for(auto& func : def->functions()) {
         const auto interface = def->get_overriding_interface(func.get());
-        const auto& parent_name = func->has_self_param() ? struct_name_str(visitor, def) : (interface ? interface->name : struct_name_str(visitor, def));
-        if(interface) {
-            contained_func_decl(visitor, func.get(), parent_name + func->name, true, def);
-        } else {
-            // overridding a function in base struct <--- not yet supported
-            contained_func_decl(visitor, func.get(), parent_name + func->name, false, def);
-        }
+        contained_func_decl(visitor, func.get(), interface != nullptr, def);
     }
 }
 
@@ -2712,8 +2692,7 @@ void ToCAstVisitor::visit(StructDefinition *def) {
         if(overridden) {
             for (auto &func: overridden->functions()) {
                 if (!def->contains_func(func->name)) {
-                    const auto& parent_name = func->has_self_param() ? def->name : overridden->name;
-                    contained_func_decl(*this, func.get(), parent_name + func->name, false, def);
+                    contained_func_decl(*this, func.get(), false, def);
                 }
             }
         }
@@ -2745,7 +2724,7 @@ void ToCAstVisitor::visit(StructDefinition *def) {
 
 void generate_contained_functions(ToCAstVisitor& visitor, VariantDefinition* def) {
     for(auto& func : def->functions()) {
-        contained_func_decl(visitor, func.get(), struct_name_str(visitor, def) + func->name, false, def);
+        contained_func_decl(visitor, func.get(), false, def);
     }
 }
 
@@ -2777,7 +2756,7 @@ void ToCAstVisitor::visit(VariantDefinition* def) {
 
 void ToCAstVisitor::visit(UnionDef *def) {
     for(auto& func : def->functions()) {
-        contained_func_decl(*this, func.get(), def->name + func->name, false, def);
+        contained_func_decl(*this, func.get(), false, def);
     }
 }
 

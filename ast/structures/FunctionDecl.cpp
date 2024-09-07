@@ -764,14 +764,14 @@ void FunctionDeclaration::runtime_name(std::ostream &stream) {
             case ASTNodeKind::InterfaceDecl: {
                 const auto interface = parent_node->as_interface_def_unsafe();
                 ExtendableMembersContainerNode* container = (interface->active_user && has_self_param()) ? (ExtendableMembersContainerNode*) interface->active_user : interface;
-                container->runtime_name_no_parent(stream);
+                container->runtime_name(stream);
                 break;
             }
             case ASTNodeKind::StructDecl:{
                 const auto def = parent_node->as_struct_def_unsafe();
                 const auto interface = def->get_overriding_interface(this);
                 ExtendableMembersContainerNode* container = has_self_param() ? def : (interface ? (ExtendableMembersContainerNode*) interface : def);
-                container->runtime_name_no_parent(stream);
+                container->runtime_name(stream);
                 break;
             }
             case ASTNodeKind::ImplDecl: {

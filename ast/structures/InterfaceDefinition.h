@@ -76,6 +76,8 @@ public:
         return name;
     }
 
+    void runtime_name_no_parent(std::ostream &stream) override;
+
     void runtime_name(std::ostream &stream) override;
 
     /**

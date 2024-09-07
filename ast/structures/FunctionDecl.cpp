@@ -759,7 +759,36 @@ std::string FunctionDeclaration::runtime_name_no_parent_fast_str() {
 
 void FunctionDeclaration::runtime_name(std::ostream &stream) {
     if(parent_node) {
-        parent_node->runtime_name(stream);
+        const auto k = parent_node->kind();
+        switch(k) {
+            case ASTNodeKind::InterfaceDecl: {
+                const auto interface = parent_node->as_interface_def_unsafe();
+                ExtendableMembersContainerNode* container = (interface->active_user && has_self_param()) ? (ExtendableMembersContainerNode*) interface->active_user : interface;
+                container->runtime_name_no_parent(stream);
+                break;
+            }
+            case ASTNodeKind::StructDecl:{
+                const auto def = parent_node->as_struct_def_unsafe();
+                const auto interface = def->get_overriding_interface(this);
+                ExtendableMembersContainerNode* container = has_self_param() ? def : (interface ? (ExtendableMembersContainerNode*) interface : def);
+                container->runtime_name_no_parent(stream);
+                break;
+            }
+            case ASTNodeKind::ImplDecl: {
+                const auto def = parent_node->as_impl_def_unsafe();
+                if(has_self_param() && def->struct_type) {
+                    const auto struct_def = def->struct_type->linked_struct_def();
+                    struct_def->runtime_name(stream);
+                } else {
+                    const auto& interface = def->interface_type->linked_interface_def();
+                    interface->runtime_name(stream);
+                }
+                break;
+            }
+            default:
+                parent_node->runtime_name(stream);
+                break;
+        }
     }
     runtime_name_no_parent_fast(stream);
 }

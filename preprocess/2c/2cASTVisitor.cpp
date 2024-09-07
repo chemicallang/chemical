@@ -162,10 +162,8 @@ void assign_statement(ToCAstVisitor& visitor, AssignStatement* assign) {
 #define struct_passed_param_name "__chx_struct_ret_param_xx"
 #define fn_call_struct_var_name "chx_fn_cl_struct"
 
-static std::string struct_name_str(ToCAstVisitor& visitor, ExtendableMembersContainerNode* def) {
-    std::stringstream name;
-    def->runtime_name_no_parent(name);
-    return name.str();
+static inline std::string struct_name_str(ToCAstVisitor& visitor, ExtendableMembersContainerNode* def) {
+    return def->runtime_name_no_parent_str();
 }
 
 // without the parent node name

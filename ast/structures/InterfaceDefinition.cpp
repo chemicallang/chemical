@@ -136,25 +136,6 @@ InterfaceDefinition::InterfaceDefinition(
 
 }
 
-void InterfaceDefinition::runtime_name_no_parent(std::ostream &stream) {
-    if(active_user) {
-        active_user->runtime_name_no_parent(stream);
-    } else {
-        ExtendableMembersContainerNode::runtime_name_no_parent(stream);
-    }
-}
-
-void InterfaceDefinition::runtime_name(std::ostream &stream) {
-    if(active_user) {
-        active_user->runtime_name(stream);
-    } else {
-        if(parent_node) {
-            parent_node->runtime_name(stream);
-        }
-        ExtendableMembersContainerNode::runtime_name_no_parent(stream);
-    }
-}
-
 std::unique_ptr<BaseType> InterfaceDefinition::create_value_type() {
     return std::make_unique<ReferencedType>(name, this, nullptr);
 }

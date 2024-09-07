@@ -95,6 +95,13 @@ func test_imported_modules() {
         }
         return used.used_sum() == 23
     })
+    test("used generic struct function from other modules work with a new type", () => {
+        const used = extern_used_gen_struct<long> {
+            a : 12,
+            b : 12
+        }
+        return used.used_sum() == 27
+    })
     test("unused generic functions imported from other modules work", () => {
         return extern_unused_gen_func<int>(5, 5) == 35;
     })

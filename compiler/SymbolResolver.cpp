@@ -7,7 +7,7 @@
 #include "ast/structures/FunctionDeclaration.h"
 #include "rang.hpp"
 
-SymbolResolver::SymbolResolver(bool is64Bit) : ASTDiagnoser(), is64Bit(is64Bit) {
+SymbolResolver::SymbolResolver(GlobalInterpretScope& global, bool is64Bit) : comptime_scope(global), ASTDiagnoser(), is64Bit(is64Bit) {
     current.emplace_back(new SymResScope(SymResScopeKind::Global));
     dispose_file_symbols.reserve(100);
     dispose_module_symbols.reserve(100);

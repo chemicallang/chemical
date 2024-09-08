@@ -50,7 +50,7 @@ public:
      * global interpret scope, is the scope used for compile time evaluation
      * of code
      */
-    GlobalInterpretScope comptime_scope;
+    GlobalInterpretScope& comptime_scope;
 
     /**
      * the clang codegen class, that allows to control clang code generation without importing
@@ -93,6 +93,7 @@ public:
      * @param path
      */
     explicit Codegen(
+            GlobalInterpretScope& comptime_scope,
             std::string target_triple,
             std::string curr_exe_path,
             bool is_64_bit, // can be determined using static method is_arch_64bit on Codegen
@@ -403,6 +404,19 @@ public:
     * this operates on two values, left and right
     * this is used by expressions to operate on two values
     */
+    llvm::Value *operate(
+            Operation op,
+            Value *lhs,
+            Value *rhs,
+            BaseType* lhsType,
+            BaseType* rhsType,
+            llvm::Value* llvm_lhs,
+            llvm::Value* llvm_rhs
+    );
+
+    /**
+     * this operates on two values, left and right
+     */
     llvm::Value *operate(Operation op, Value *lhs, Value *rhs, BaseType* lhsType, BaseType* rhsType);
 
     /**

@@ -8,9 +8,7 @@ bool Lexer::lexNamespaceTokens(unsigned start) {
             error("expected identifier for namespace name");
             return true;
         }
-        auto result = lexBraceBlock("namespace", [](Lexer* lexer){
-            lexer->lexTopLevelMultipleStatementsTokens(true);
-        });
+        auto result = lexTopLevelBraceBlock("namespace");
         if(result) {
             compound_from(start, LexTokenType::CompNamespace);
         }

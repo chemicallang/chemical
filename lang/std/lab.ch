@@ -4,6 +4,7 @@ import "./array_ref.ch"
 public enum ModuleType {
     File,
     CFile,
+    CPPFile,
     ObjFile,
     Directory
 }
@@ -60,6 +61,9 @@ public struct BuildContext {
 
     // a single .c file
     var c_file_module : (&self, name : string, path : string, dependencies : ArrayRef<Module*>) => Module*
+
+    // a single .cpp file
+    var cpp_file_module : (&self, name : string, path : string, dependencies : ArrayRef<Module*>) => Module*
 
     // a single .o file
     var object_module : (&self, name : string, path : string) => Module*

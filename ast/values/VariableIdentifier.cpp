@@ -107,6 +107,20 @@ bool VariableIdentifier::find_link_in_parent(ChainValue *parent, SymbolResolver 
     return find_link_in_parent(parent, &resolver);
 }
 
+bool VariableIdentifier::compile_time_computable() {
+    if(!linked) return false;
+    switch(linked->kind()) {
+        case ASTNodeKind::FunctionDecl:
+        case ASTNodeKind::StructDecl:
+        case ASTNodeKind::NamespaceDecl:
+        case ASTNodeKind::UnionDecl:
+        case ASTNodeKind::VariantDecl:
+            return true;
+        default:
+            return false;
+    }
+}
+
 Value *VariableIdentifier::child(InterpretScope &scope, const std::string &name) {
     const auto eval = evaluated_value(scope);
     if(eval.get()) {

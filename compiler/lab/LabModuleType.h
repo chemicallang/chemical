@@ -19,16 +19,22 @@ enum class LabModuleType : int {
     CFile = 1,
 
     /**
+     * a c++ file module corresponds to a single translation unit, a single c++
+     * file is present in this module
+     */
+    CPPFile = 2,
+
+    /**
      * an obj file module corresponds to a single object file, a single object
      * file is linked with final executable
      */
-    ObjFile = 2,
+    ObjFile = 3,
 
     /**
      * a directory with no build.lab file, is considered a directory module
      * files inside are sorted so that independent files that don't depend on other files
      * are compiled first
      */
-    Directory = 3
+    Directory = 4
 
 };

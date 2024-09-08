@@ -16,6 +16,8 @@ class FunctionDeclaration;
 
 class Scope;
 
+class GlobalInterpretScope;
+
 enum class SymResScopeKind : uint8_t {
     /**
      * a global namespace is much like default scope, however
@@ -102,6 +104,13 @@ private:
     bool declare_function_quietly(const std::string& name, FunctionDeclaration* declaration);
 
 public:
+
+    /**
+     * a reference to global interpret scope is required
+     * which helps to resolve conditions inside compile time if statements
+     * to link code
+     */
+    GlobalInterpretScope& comptime_scope;
 
     /**
      * a file scope begins, a file scope should not be popped, this is because
@@ -213,7 +222,7 @@ public:
     /**
      * constructor
      */
-    explicit SymbolResolver(bool is64Bit);
+    SymbolResolver(GlobalInterpretScope& global, bool is64Bit);
 
     /**
      * if the current where the symbols are being declared is a file scope

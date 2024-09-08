@@ -6,7 +6,7 @@
 
 #include "lexer/Lexer.h"
 
-void Lexer::lexIfExprAndBlock(bool is_value, bool lex_value_node) {
+void Lexer::lexIfExprAndBlock(bool is_value, bool lex_value_node, bool top_level) {
 
     if (!lexOperatorToken('(')) {
         error("expected a starting parenthesis ( when lexing a if block");
@@ -27,14 +27,21 @@ void Lexer::lexIfExprAndBlock(bool is_value, bool lex_value_node) {
         return;
     }
 
-    if (!lexBraceBlockOrSingleStmt("if", is_value, lex_value_node)) {
-        error("expected a brace block when lexing a brace block");
-        return;
+    if(top_level) {
+        if (!lexTopLevelBraceBlock("else")) {
+            error("expected a brace block after the else while lexing an if statement");
+            return;
+        }
+    } else {
+        if (!lexBraceBlockOrSingleStmt("if", is_value, lex_value_node)) {
+            error("expected a brace block when lexing a brace block");
+            return;
+        }
     }
 
 }
 
-bool Lexer::lexIfBlockTokens(bool is_value, bool lex_value_node) {
+bool Lexer::lexIfBlockTokens(bool is_value, bool lex_value_node, bool top_level) {
 
     if(!lexWSKeywordToken("if", '(')) {
         return false;
@@ -42,7 +49,7 @@ bool Lexer::lexIfBlockTokens(bool is_value, bool lex_value_node) {
 
     auto start = tokens_size() - 1;
 
-    lexIfExprAndBlock(is_value, lex_value_node);
+    lexIfExprAndBlock(is_value, lex_value_node, top_level);
     if (has_errors) {
         return true;
     }
@@ -54,12 +61,19 @@ bool Lexer::lexIfBlockTokens(bool is_value, bool lex_value_node) {
     while (lexWSKeywordToken("else", '{')) {
         lexWhitespaceAndNewLines();
         if(lexWSKeywordToken("if", '(')) {
-            lexIfExprAndBlock(is_value, lex_value_node);
+            lexIfExprAndBlock(is_value, lex_value_node, top_level);
             lexWhitespaceToken();
         } else {
-            if (!lexBraceBlockOrSingleStmt("else", is_value, lex_value_node)) {
-                error("expected a brace block after the else while lexing an if statement");
-                return true;
+            if(top_level) {
+                if (!lexTopLevelBraceBlock("else")) {
+                    error("expected a brace block after the else while lexing an if statement");
+                    return true;
+                }
+            } else {
+                if (!lexBraceBlockOrSingleStmt("else", is_value, lex_value_node)) {
+                    error("expected a brace block after the else while lexing an if statement");
+                    return true;
+                }
             }
             compound_from(start, is_value ? LexTokenType::CompIfValue :  LexTokenType::CompIf);
             return true;

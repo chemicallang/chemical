@@ -23,11 +23,11 @@ void handle_error(void *opaque, const char *msg){
     error(binder->diagnoser, msg);
 }
 
-CompilerBinderCommon::CompilerBinderCommon(CSTDiagnoser* diagnoser) : converter("", false, "binder"), diagnoser(diagnoser), resolver(false) {
+CompilerBinderCommon::CompilerBinderCommon(CSTDiagnoser* diagnoser) : converter("", false, "binder"), diagnoser(diagnoser), resolver(global, false) {
 
 }
 
-CompilerBinderTCC::CompilerBinderTCC(CSTDiagnoser* diagnoser, std::string exe_path) : CompilerBinderCommon(diagnoser), translator(nullptr), exe_path(std::move(exe_path)) {
+CompilerBinderTCC::CompilerBinderTCC(CSTDiagnoser* diagnoser, std::string exe_path) : CompilerBinderCommon(diagnoser), translator(global, nullptr), exe_path(std::move(exe_path)) {
     translator.comptime_scope.prepare_compiler_namespace(resolver);
 }
 

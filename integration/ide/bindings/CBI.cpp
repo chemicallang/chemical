@@ -149,10 +149,10 @@ void prep_lexer_cbi(LexerCBI* cbi, SourceProviderCBI* provider) {
         return cbi->instance->lexContinueStatement();
     };
     cbi->lexIfExprAndBlock = [](LexerCBI* cbi){
-        return cbi->instance->lexIfExprAndBlock(false, false);
+        return cbi->instance->lexIfExprAndBlock(false, false, false);
     };
     cbi->lexIfBlockTokens = [](LexerCBI* cbi){
-        return cbi->instance->lexIfBlockTokens(false, false);
+        return cbi->instance->lexIfBlockTokens(false, false, false);
     };
     cbi->lexDoWhileBlockTokens = [](LexerCBI* cbi){
         return cbi->instance->lexDoWhileBlockTokens();
@@ -364,6 +364,11 @@ void prep_build_context_cbi(BuildContextCBI* cbi) {
         dispose_string _x{name};
         dispose_string _y{path};
         return self->instance->c_file_module(name, path, dependencies->ptr, dependencies->size);
+    };
+    cbi->cpp_file_module = [](BuildContextCBI* self, chem::string* name, chem::string* path, ModuleArrayRef* dependencies) -> LabModule* {
+        dispose_string _x{name};
+        dispose_string _y{path};
+        return self->instance->cpp_file_module(name, path, dependencies->ptr, dependencies->size);
     };
     cbi->object_module = [](BuildContextCBI* self, chem::string* name, chem::string* path) -> LabModule* {
         dispose_string _x{name};

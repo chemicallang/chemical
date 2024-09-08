@@ -38,6 +38,8 @@ public:
 
     void visit(StructMember *member) override;
 
+    void visit(IfStatement *ifStatement) override;
+
     void reset() override {
         aliases.clear();
     }

@@ -155,6 +155,18 @@ public:
     }
 
     /**
+     * add the given module as a c translation unit
+     */
+    LabModule* cpp_file_module(
+            chem::string* name,
+            chem::string* path,
+            LabModule** dependencies,
+            unsigned int dep_len
+    ) {
+        return add_with_type(LabModuleType::CPPFile, name->copy(), &path, 1, dependencies, dep_len);
+    }
+
+    /**
      * add the given module as an obj file, that'll be linked with final executable
      */
     LabModule* obj_file_module(

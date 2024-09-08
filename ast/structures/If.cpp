@@ -43,6 +43,14 @@ void IfStatement::code_gen(Codegen &gen) {
 
 void IfStatement::code_gen(Codegen &gen, bool is_last_block) {
 
+    if(is_computable) {
+        auto scope = get_evaluated_scope((InterpretScope&) gen.comptime_scope, &gen);
+        if(scope) {
+            scope->code_gen(gen);
+        }
+        return;
+    }
+
     // compare
     llvm::BasicBlock *elseBlock = nullptr;
 
@@ -162,14 +170,84 @@ void IfStatement::accept(Visitor *visitor) {
     visitor->visit(this);
 }
 
-void IfStatement::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>* node_ptr, std::unique_ptr<Value>* value_ptr) {
-    linker.scope_start();
+Scope* IfStatement::get_evaluated_scope(InterpretScope& scope, ASTDiagnoser* gen) {
+    auto err = "couldn't get constant value for top level if statement's condition";
+    auto constant = condition->evaluated_value(scope);
+    if(!constant || constant->val_kind() != ValueKind::Bool) {
+        gen->error(err, (ASTNode*) this);
+        return nullptr;
+    }
+    if(constant->as_bool()) {
+        return &ifBody;
+    } else {
+        for(auto& elseIf : elseIfs) {
+            constant = elseIf.first->evaluated_value(scope);
+            if(!constant || constant->val_kind() != ValueKind::Bool) {
+                gen->error(err, (ASTNode*) this);
+                return nullptr;
+            }
+            if(constant->as_bool()) {
+                return &elseIf.second;
+            }
+        }
+        if(elseBody.has_value()) {
+            return &elseBody.value();
+        }
+    };
+    return nullptr;
+}
+
+bool IfStatement::compile_time_computable() {
+    if(!condition->compile_time_computable()) {
+        return false;
+    }
+    for(auto& elseIf : elseIfs) {
+        if(!elseIf.first->compile_time_computable()) {
+            return false;
+        }
+    }
+    return true;
+}
+
+void IfStatement::link_conditions(SymbolResolver &linker) {
     condition->link(linker, condition);
+    for(auto& cond : elseIfs) {
+        cond.first->link(linker, cond.first);
+    }
+}
+
+void IfStatement::declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode> &node_ptr) {
+    if(is_top_level()) {
+        is_computable = true;
+        link_conditions(linker);
+        auto eval = get_evaluated_scope((InterpretScope&) linker.comptime_scope, &linker);
+        if(eval) {
+            std::unique_ptr<ASTNode> dummy;
+            eval->declare_top_level(linker, dummy);
+        }
+    }
+}
+
+void IfStatement::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>* node_ptr, std::unique_ptr<Value>* value_ptr) {
+    if(!is_computable) {
+        link_conditions(linker);
+    }
+    if(is_computable || compile_time_computable()) {
+        is_computable = true;
+        auto eval = get_evaluated_scope((InterpretScope&) linker.comptime_scope, &linker);
+        if(eval) {
+            std::unique_ptr<ASTNode> dummy;
+            eval->declare_and_link(linker, dummy);
+        }
+        return;
+    }
+    linker.scope_start();
+//    condition->link(linker, condition);
     ifBody.link_sequentially(linker);
     linker.scope_end();
     for(auto& elseIf : elseIfs) {
         linker.scope_start();
-        elseIf.first->link(linker, elseIf.first);
+//        elseIf.first->link(linker, elseIf.first);
         elseIf.second.link_sequentially(linker);
         linker.scope_end();
     }

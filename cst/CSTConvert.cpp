@@ -212,7 +212,8 @@ const std::unordered_map<std::string, MacroHandlerFn> MacroHandlers = {
         {"tr:debug:c", [](CSTConverter* converter, CSTToken* container) {
             auto body = take_body_compound(converter, container, converter->parent_node);
             std::ostringstream ostring;
-            ToCAstVisitor visitor(&ostring);
+            GlobalInterpretScope scope;
+            ToCAstVisitor visitor(scope, &ostring);
             visitor.translate(body.nodes);
             converter->put_value(new StringValue(ostring.str(), container), container);
         }},
@@ -221,7 +222,8 @@ const std::unordered_map<std::string, MacroHandlerFn> MacroHandlers = {
                 container->accept(converter);
                 auto value = converter->value();
                 std::ostringstream ostring;
-                ToCAstVisitor visitor(&ostring);
+                GlobalInterpretScope scope;
+                ToCAstVisitor visitor(scope, &ostring);
                 value->accept(&visitor);
                 converter->put_value(new StringValue(ostring.str(), container), container);
             } else {

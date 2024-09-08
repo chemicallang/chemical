@@ -96,6 +96,8 @@ public:
         return false;
     }
 
+    bool compile_time_computable() override;
+
 #ifdef COMPILER_BUILD
 
     bool add_member_index(Codegen &gen, Value *parent, std::vector<llvm::Value *> &indexes) override;

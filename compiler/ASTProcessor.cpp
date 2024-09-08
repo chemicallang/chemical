@@ -45,6 +45,8 @@ ASTProcessor::ASTProcessor(
         SymbolResolver* resolver
 ) : options(options), resolver(resolver), path_handler(options->exe_path) {
     if(options->isCBIEnabled) {
+        // TODO compiler binder has a global interpret scope, however we are using a different compile time scope inside
+        // code generation
         binder = std::make_unique<CompilerBinderTCC>(nullptr, options->exe_path);
         lexer_cbi = std::make_unique<LexerCBI>();
         provider_cbi = std::make_unique<SourceProviderCBI>();
@@ -144,6 +146,7 @@ std::vector<FlatIGFile> ASTProcessor::determine_mod_imports(LabModule* module) {
             }
         case LabModuleType::ObjFile:
         case LabModuleType::CFile:
+        case LabModuleType::CPPFile:
             return {};
         case LabModuleType::Directory:
             const auto& dir_path = module->paths[0];

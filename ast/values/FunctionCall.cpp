@@ -706,6 +706,11 @@ bool FunctionCall::primitive() {
     return false;
 }
 
+bool FunctionCall::compile_time_computable() {
+    auto func = safe_linked_func();
+    return func && func->has_annotation(AnnotationKind::CompTime);
+}
+
 Value *FunctionCall::find_in(InterpretScope &scope, Value *parent) {
     auto id = parent->as_identifier();
     if(id != nullptr) {

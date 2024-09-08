@@ -5,9 +5,16 @@
 #include "CompilerBinder.h"
 #include "cst/base/CSTConverter.h"
 #include "compiler/SymbolResolver.h"
+#include "ast/base/GlobalInterpretScope.h"
 
 class CompilerBinderCommon : public CompilerBinder {
 public:
+
+    /**
+     * a global interpret scope is used, when symbol resolving
+     * or generating code
+     */
+    GlobalInterpretScope global;
 
     /**
      * diagnoser that will take errors

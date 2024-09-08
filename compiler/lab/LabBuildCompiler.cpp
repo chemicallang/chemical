@@ -177,19 +177,21 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
         }
     }
 
+    GlobalInterpretScope global;
+
     // a new symbol resolver for every executable
-    SymbolResolver resolver(options->is64Bit);
+    SymbolResolver resolver(global, options->is64Bit);
 
     // shrinking visitor will shrink everything
     ShrinkingVisitor shrinker;
 
     // beginning
     std::stringstream output_ptr;
-    ToCAstVisitor c_visitor(&output_ptr);
+    ToCAstVisitor c_visitor(global, &output_ptr);
 
 #ifdef COMPILER_BUILD
     ASTCompiler processor(options, &resolver);
-    Codegen gen(options->target_triple, options->exe_path, options->is64Bit, "");
+    Codegen gen(global, options->target_triple, options->exe_path, options->is64Bit, "");
     CodegenEmitterOptions emitter_options;
 #else
     ASTProcessor processor(options, &resolver);
@@ -197,18 +199,16 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
 
     processor.path_handler.path_aliases = std::move(exe->path_aliases);
 
+    // allow user the compiler (namespace) functions in @comptime
+    global.prepare_compiler_namespace(resolver);
+
     if(use_tcc) {
         // clear build.lab c output
         output_ptr.clear();
         output_ptr.str("");
-        // allow user the compiler (namespace) functions in @comptime
-        c_visitor.comptime_scope.prepare_compiler_namespace(resolver);
     }
 #ifdef COMPILER_BUILD
     else {
-        // creating codegen, processor  for this executable
-        // prepare compiler functions in codegen scope
-        gen.comptime_scope.prepare_compiler_namespace(resolver);
         // emitter options allow to configure type of build (debug or release)
         // configuring the emitter options
         configure_emitter_opts(options->def_mode, &emitter_options);
@@ -263,8 +263,14 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
 
         if(do_compile) {
             switch (mod->type) {
-                case LabModuleType::CFile: {
-                    std::cout << rang::bg::gray << rang::fg::black << "[BuildLab]" << " Compiling c ";
+                case LabModuleType::CFile:
+                case LabModuleType::CPPFile: {
+                    std::cout << rang::bg::gray << rang::fg::black << "[BuildLab]";
+                    if(mod->type == LabModuleType::CFile) {
+                        std::cout << " Compiling c ";
+                    } else {
+                        std::cout << " Compiling c++ ";
+                    }
                     if (!mod->name.empty()) {
                         std::cout << '\'' << mod->name.data() << "' ";
                     }
@@ -279,6 +285,10 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                     generated[mod] = mod->object_path.to_std_string();
                     continue;
 #else
+                    if(mod->type == LabModuleType::CPPFile) {
+                        std::cerr << rang::fg::yellow << "[Tcc] skipping compilation of C++ file" << rang::fg::reset << std::endl;
+                        continue;
+                    }
                     compile_result = compile_c_file(options->exe_path.data(), mod->paths[0].data(),
                                                     mod->object_path.to_std_string(), false, false, false);
                     if (compile_result == 1) {
@@ -647,8 +657,11 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
     // shrinking visitor will shrink everything
     ShrinkingVisitor shrinker;
 
+    // a global interpret scope required to evaluate compile time things
+    GlobalInterpretScope global;
+
     // creating symbol resolver for build.lab files only
-    SymbolResolver lab_resolver(options->is64Bit);
+    SymbolResolver lab_resolver(global, options->is64Bit);
 
     // the processor that does everything for build.lab files only
     ASTCompiler lab_processor(
@@ -662,10 +675,10 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
 
     // beginning
     std::stringstream output_ptr;
-    ToCAstVisitor c_visitor(&output_ptr);
+    ToCAstVisitor c_visitor(global, &output_ptr);
 
     // allow user the compiler (namespace) functions in @comptime
-    c_visitor.comptime_scope.prepare_compiler_namespace(lab_resolver);
+    global.prepare_compiler_namespace(lab_resolver);
 
     // preparing translation
     c_visitor.prepare_translate();

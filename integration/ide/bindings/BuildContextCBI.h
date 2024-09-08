@@ -31,6 +31,8 @@ struct BuildContextCBI {
 
     LabModule*(*c_file_module)(BuildContextCBI* self, chem::string* name, chem::string* path, ModuleArrayRef* dependencies);
 
+    LabModule*(*cpp_file_module)(BuildContextCBI* self, chem::string* name, chem::string* path, ModuleArrayRef* dependencies);
+
     LabModule*(*object_module)(BuildContextCBI* self, chem::string* name, chem::string* path);
 
     LabJob*(*translate_to_chemical)(BuildContextCBI* self, chem::string* c_path, chem::string* output_path);

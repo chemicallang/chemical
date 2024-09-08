@@ -28,7 +28,7 @@ public:
     /**
      * compile time interpret scope
      */
-    GlobalInterpretScope comptime_scope;
+    GlobalInterpretScope& comptime_scope;
 
     /**
      * this option is here to support struct initialization in tinyCC compiler
@@ -178,7 +178,7 @@ public:
      * constructor
      * @param path the current file path being processed
      */
-    ToCAstVisitor(std::ostream* output);
+    ToCAstVisitor(GlobalInterpretScope& global, std::ostream* output);
 
     /**
      * used to write a character to the stream

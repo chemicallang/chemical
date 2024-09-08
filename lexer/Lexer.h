@@ -419,6 +419,15 @@ public:
     bool lexBraceBlock(const std::string &forThing, void(*nested_lexer)(Lexer*));
 
     /**
+     * lexes top level brace block
+     */
+    bool lexTopLevelBraceBlock(const std::string& forThing) {
+        return lexBraceBlock(forThing, [](Lexer* lexer){
+            lexer->lexTopLevelMultipleStatementsTokens(true);
+        });
+    }
+
+    /**
      * lexes a brace block, { statement(s) }
      */
     bool lexBraceBlock(const std::string &forThing = "");
@@ -474,12 +483,12 @@ public:
      * lexes a single if expr and the body without else if or else
      * meaning '(' expr ')' '{' body '}'
      */
-    void lexIfExprAndBlock(bool is_value, bool lex_value_node);
+    void lexIfExprAndBlock(bool is_value, bool lex_value_node, bool top_level);
 
     /**
      * lex if block
      */
-    bool lexIfBlockTokens(bool is_value, bool lex_value_node);
+    bool lexIfBlockTokens(bool is_value, bool lex_value_node, bool top_level);
 
     /**
      * lex do while block

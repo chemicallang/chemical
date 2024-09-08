@@ -75,11 +75,12 @@
 #include "rang.hpp"
 
 Codegen::Codegen(
+        GlobalInterpretScope& comptime_scope,
         std::string target_triple,
         std::string curr_exe_path,
         bool is_64_bit,
         const std::string& module_name
-) : ASTDiagnoser(), comptime_scope(),
+) : ASTDiagnoser(), comptime_scope(comptime_scope),
     target_triple(std::move(target_triple)), is64Bit(is_64_bit), clang(target_triple) {
     // create llvm context
     ctx = std::make_unique<llvm::LLVMContext>();

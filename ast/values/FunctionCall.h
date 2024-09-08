@@ -105,6 +105,8 @@ public:
 
     bool primitive() override;
 
+    bool compile_time_computable() override;
+
     Value *find_in(InterpretScope &scope, Value *parent) override;
 
     Value *scope_value(InterpretScope &scope) override;

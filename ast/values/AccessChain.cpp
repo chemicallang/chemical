@@ -154,6 +154,15 @@ bool AccessChain::reference() {
     return true;
 }
 
+bool AccessChain::compile_time_computable() {
+    for(auto& value : values) {
+        if(!value->compile_time_computable()) {
+            return false;
+        }
+    }
+    return true;
+}
+
 AccessChain *AccessChain::copy() {
     auto chain = new AccessChain(parent_node, is_node, token);
     for(auto& value : values) {

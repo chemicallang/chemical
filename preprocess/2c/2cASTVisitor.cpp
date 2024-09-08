@@ -110,7 +110,7 @@
 #include "CBeforeStmtVisitor.h"
 #include "CAfterStmtVisitor.h"
 
-ToCAstVisitor::ToCAstVisitor(std::ostream *output) : output(output), declarer(new CValueDeclarationVisitor(*this)), tld(*this, declarer.get()), ASTDiagnoser() {
+ToCAstVisitor::ToCAstVisitor(GlobalInterpretScope& scope, std::ostream *output) : comptime_scope(scope), output(output), declarer(new CValueDeclarationVisitor(*this)), tld(*this, declarer.get()), ASTDiagnoser() {
     before_stmt = std::make_unique<CBeforeStmtVisitor>(*this);
     after_stmt = std::make_unique<CAfterStmtVisitor>(*this);
     destructor = std::make_unique<CDestructionVisitor>(*this);
@@ -517,7 +517,7 @@ void write_accessor(ToCAstVisitor& visitor, Value* current, Value* next) {
             return;
         }
     }
-    if (current->type_kind() == BaseTypeKind::Pointer) {
+    if (current->value_type() == ValueType::Pointer) {
         visitor.write("->");
     } else {
         visitor.write('.');
@@ -2105,6 +2105,13 @@ void CValueDeclarationVisitor::visit(StructMember *member) {
     }
 }
 
+void CValueDeclarationVisitor::visit(IfStatement *stmt) {
+    if(stmt->is_computable) {
+        return;
+    }
+    CommonVisitor::visit(stmt);
+}
+
 void declare_fat_pointer(ToCAstVisitor& visitor) {
     visitor.fat_pointer_type = "__chemical_fat_pointer__";
     visitor.write("typedef struct {");
@@ -2588,6 +2595,15 @@ void ToCAstVisitor::visit(ExtensionFunction *decl) {
 }
 
 void ToCAstVisitor::visit(IfStatement *decl) {
+    // generating code for compile time if statements
+    if(decl->is_computable) {
+        auto scope = decl->get_evaluated_scope(comptime_scope, this);
+        if(scope) {
+            scope->accept(this);
+        }
+        return;
+    }
+    // generating code for normal if statements
     write("if(");
     nested_value = true;
     decl->condition->accept(this);

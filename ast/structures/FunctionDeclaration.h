@@ -185,6 +185,11 @@ public:
     llvm::FunctionType *create_llvm_func_type(Codegen &gen);
 
     /**
+     * this function will take into account @cpp annotation
+     */
+    std::string runtime_name_fast(Codegen& gen);
+
+    /**
      * this function returns known llvm function type, this means
      * that function has been created before, so func type is known for current generic
      * iteration

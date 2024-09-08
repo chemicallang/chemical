@@ -288,10 +288,17 @@ void FunctionDeclaration::set_llvm_data(llvm::Value* func_callee, llvm::Function
     }
 }
 
+std::string FunctionDeclaration::runtime_name_fast(Codegen& gen) {
+    if(has_annotation(AnnotationKind::Cpp)) {
+        // TODO what about generic functions ?
+        return gen.clang.mangled_name(this);
+    }
+    return runtime_name_fast();
+}
+
 void create_non_generic_fn(Codegen& gen, FunctionDeclaration *decl, const std::string& name) {
     auto func_type = decl->create_llvm_func_type(gen);
-    std::string func_name = decl->has_annotation(AnnotationKind::Cpp) ? gen.clang.mangled_name(decl) : name;
-    auto func = gen.create_function(func_name, func_type, decl->specifier);
+    auto func = gen.create_function(name, func_type, decl->specifier);
     llvm_func_def_attr(func);
     decl->traverse([func](Annotation* annotation){
         llvm_func_attr(func, annotation->kind);
@@ -301,13 +308,13 @@ void create_non_generic_fn(Codegen& gen, FunctionDeclaration *decl, const std::s
 
 void create_fn(Codegen& gen, FunctionDeclaration *decl) {
     if(decl->generic_params.empty()) {
-        create_non_generic_fn(gen, decl, decl->runtime_name_fast());
+        create_non_generic_fn(gen, decl, decl->runtime_name_fast(gen));
     } else {
         const auto total_use = decl->total_generic_iterations();
         auto i = (int16_t) decl->llvm_data.size();
         while(i < total_use) {
             decl->set_active_iteration(i);
-            create_non_generic_fn(gen, decl, decl->runtime_name_fast());
+            create_non_generic_fn(gen, decl, decl->runtime_name_fast(gen));
             i++;
         }
         // we set active iteration to -1, so all generics would fail without setting active_iteration
@@ -322,13 +329,13 @@ void declare_non_gen_fn(Codegen& gen, FunctionDeclaration *decl, const std::stri
 
 void declare_fn(Codegen& gen, FunctionDeclaration *decl) {
     if(decl->generic_params.empty()) {
-        declare_non_gen_fn(gen, decl, decl->runtime_name_fast());
+        declare_non_gen_fn(gen, decl, decl->runtime_name_fast(gen));
     } else {
         const auto total_use = decl->total_generic_iterations();
         auto i = (int16_t) decl->llvm_data.size();
         while(i < total_use) {
             decl->set_active_iteration(i);
-            declare_non_gen_fn(gen, decl, decl->runtime_name_fast());
+            declare_non_gen_fn(gen, decl, decl->runtime_name_fast(gen));
             i++;
         }
         // we set active iteration to -1, so all generics would fail without setting active_iteration

@@ -103,6 +103,8 @@ public:
 
     bool reference() override;
 
+    bool compile_time_computable() override;
+
     void interpret(InterpretScope &scope) override;
 
     std::unique_ptr<BaseType> create_type() override;

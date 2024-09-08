@@ -19,7 +19,7 @@ int link_objects(
 
 /**
  * it'll compile the given file to generate a single .o file using clang
- * it uses -c to generate object file from .c file
+ * it uses -c to generate object file from .c or a .cpp file
  */
 int compile_c_file_to_object(
         const char* c_file,

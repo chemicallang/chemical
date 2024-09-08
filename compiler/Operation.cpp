@@ -17,10 +17,11 @@ llvm::Value *Codegen::operate(Operation op, Value *lhs, Value *rhs) {
     return operate(op, lhs, rhs, firstType->pure_type(), secondType->pure_type());
 }
 
-llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseType* firstType, BaseType* secondType){
-    auto lhs = first->llvm_value(*this);
-    auto rhs = second->llvm_value(*this);
+llvm::Value *Codegen::operate(Operation op, Value *lhs, Value *rhs, BaseType* lhsType, BaseType* rhsType) {
+    return operate(op, lhs, rhs, lhsType, rhsType, lhs->llvm_value(*this), rhs->llvm_value(*this));
+}
 
+llvm::Value *Codegen::operate(Operation op, Value *first, Value *second, BaseType* firstType, BaseType* secondType, llvm::Value* lhs, llvm::Value* rhs){
     // subtraction or addition to the pointer, pointer math
     if((op == Operation::Addition || op == Operation::Subtraction) && firstType->kind() == BaseTypeKind::Pointer) {
         auto second_value_type = second->value_type();

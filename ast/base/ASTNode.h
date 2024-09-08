@@ -8,7 +8,7 @@
 
 #include <vector>
 #include <memory>
-#include <string>
+#include "std/common.h"
 #include "ASTAny.h"
 #include "BaseTypeKind.h"
 #include "ValueType.h"
@@ -226,7 +226,7 @@ public:
      * so namespace::function_name can be used to access it
      */
     virtual const std::string& ns_node_identifier() {
-        return "";
+        return EmptyString;
     }
 
     /**

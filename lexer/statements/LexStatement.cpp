@@ -40,6 +40,7 @@ bool Lexer::lexTopLevelStatementTokens() {
            lexTypealiasStatement() ||
            lexInterfaceStructureTokens() ||
            lexImplTokens() ||
+           lexIfBlockTokens(false, false, true) ||
            lexFunctionStructureTokens(true, true) ||
            lexNamespaceTokens() ||
            lexTopLevelAccessSpecifiedDecls();
@@ -57,7 +58,7 @@ bool Lexer::lexNestedLevelStatementTokens(bool is_value, bool lex_value_node) {
            (lexDestructStatement()) ||
            lexThrowStatementTokens() ||
            lexUsingStatement() ||
-           lexIfBlockTokens(is_value, lex_value_node) ||
+           lexIfBlockTokens(is_value, lex_value_node, false) ||
            lexTryCatchTokens() ||
            lexTypealiasStatement() ||
            lexSwitchStatementBlock(is_value, lex_value_node) ||
@@ -79,7 +80,7 @@ bool Lexer::lexStatementTokens() {
            (isLexReturnStatement && lexReturnStatement()) ||
            (lexDestructStatement()) ||
            lexEnumStructureTokens() ||
-           lexIfBlockTokens(false, false) ||
+           lexIfBlockTokens(false, false, false) ||
            lexLoopBlockTokens(false) ||
            lexForBlockTokens() ||
            lexStructStructureTokens() ||

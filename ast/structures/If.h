@@ -21,6 +21,7 @@ public:
     ASTNode* parent_node;
     bool is_value;
     CSTToken* token;
+    bool is_computable = false;
 
     /**
      * @brief Construct a new IfStatement object.
@@ -61,6 +62,16 @@ public:
 
     void accept(Visitor *visitor) override;
 
+    bool compile_time_computable() override;
+
+    void link_conditions(SymbolResolver &linker);
+
+    bool is_top_level() {
+        return !parent_node || parent_node->kind() == ASTNodeKind::NamespaceDecl;
+    }
+
+    void declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode> &node_ptr) override;
+
     void declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>* node_ptr, std::unique_ptr<Value>* value_ptr);
 
     void declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override {
@@ -71,6 +82,8 @@ public:
         declare_and_link(linker, nullptr, &value_ptr);
         return true;
     }
+
+    Scope* get_evaluated_scope(InterpretScope& scope, ASTDiagnoser* gen);
 
     Value* get_value_node();
 

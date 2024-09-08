@@ -102,7 +102,7 @@ bool Lexer::lexArrayInit() {
 }
 
 bool Lexer::lexAccessChainOrValue(bool lexStruct) {
-    return lexIfBlockTokens(true, true) || lexSwitchStatementBlock(true, true) || lexLoopBlockTokens(true) || lexAccessChainValueToken() || lexAccessChainOrAddrOf(lexStruct) || lexAnnotationMacro();
+    return lexIfBlockTokens(true, true, false) || lexSwitchStatementBlock(true, true) || lexLoopBlockTokens(true) || lexAccessChainValueToken() || lexAccessChainOrAddrOf(lexStruct) || lexAnnotationMacro();
 }
 
 bool Lexer::lexValueNode() {

@@ -434,20 +434,22 @@ llvm::Value *Expression::llvm_value(Codegen &gen, BaseType* expected_type) {
 // if a is true, goto then block
 // if a is false, goto second block, if b is true, goto then block otherwise goto end/else block
 // a && b
+// ((a && b) && b)
+// ((a || b) && b)
+// ((a && b) || b)
+// ((a || b) || b)
 // if a is true, goto second block, if b is true, goto then block otherwise goto end/else block
 // if a is false, goto end/else block
 void Expression::llvm_conditional_branch(Codegen& gen, llvm::BasicBlock* then_block, llvm::BasicBlock* otherwise_block) {
     if((operation == Operation::LogicalAND || operation == Operation::LogicalOR)) {
-        auto first = firstValue->llvm_value(gen);
         llvm::BasicBlock* second_block = llvm::BasicBlock::Create(*gen.ctx, "", gen.current_function);
         if(operation == Operation::LogicalAND) {
-            gen.CreateCondBr(first, second_block, otherwise_block);
+            firstValue->llvm_conditional_branch(gen, second_block, otherwise_block);
         } else {
-            gen.CreateCondBr(first, then_block, second_block);
+            firstValue->llvm_conditional_branch(gen, then_block, second_block);
         }
         gen.SetInsertPoint(second_block);
-        auto second = secondValue->llvm_value(gen);
-        gen.CreateCondBr(second, then_block, otherwise_block);
+        secondValue->llvm_conditional_branch(gen, then_block, otherwise_block);
     } else {
         return Value::llvm_conditional_branch(gen, then_block, otherwise_block);
     }

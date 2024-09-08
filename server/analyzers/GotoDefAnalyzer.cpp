@@ -29,8 +29,8 @@ std::vector<Location> GotoDefAnalyzer::analyze(LexImportUnit* unit) {
                 return {
                     Location{
                         Range {
-                            where->start_token()->position,
-                            {end->position.line, static_cast<unsigned int>(end->position.character + where->end_token()->value.size())}
+                            where->start_token()->position(),
+                            {end->position().line, static_cast<unsigned int>(end->position().character + where->end_token()->value().size())}
                         },
                         container->abs_path
                     }

@@ -66,7 +66,7 @@ public:
      * will return true, if given position is ahead of caret position
      * @deprecated
      */
-    inline bool is_ahead(Position& position) const {
+    inline bool is_ahead(const Position& position) const {
         return position.is_ahead(caret_position);
     }
 
@@ -74,7 +74,7 @@ public:
      * will return true, if given position is behind caret position
      * @deprecated
      */
-    inline bool is_behind(Position& position) const {
+    inline bool is_behind(const Position& position) const {
         return position.is_behind(caret_position);
     }
 
@@ -82,7 +82,7 @@ public:
      * is equal to caret position
      * @deprecated
      */
-    inline bool is_eq_caret(Position& position) const {
+    inline bool is_eq_caret(const Position& position) const {
         return position.is_equal(caret_position);
     }
 

@@ -23,15 +23,15 @@ void CompletionItemAnalyzer::put_with_md_doc(const std::string& label, lsComplet
 }
 
 bool CompletionItemAnalyzer::is_eq_caret(CSTToken* token) const {
-    return is_eq_caret(token->position);
+    return is_eq_caret(token->position());
 }
 
 bool CompletionItemAnalyzer::is_ahead(CSTToken *token) const {
-    return is_ahead(token->position);
+    return is_ahead(token->position());
 }
 
 bool CompletionItemAnalyzer::is_caret_inside(CSTToken *token) {
-    return is_behind(token->start_token()->position) && !is_behind(token->end_token()->position);
+    return is_behind(token->start_token()->position()) && !is_behind(token->end_token()->position());
 }
 
 CSTToken* CompletionItemAnalyzer::child_container(CSTToken* compound) {
@@ -91,7 +91,7 @@ CompletionItemAnalyzer::visit(std::vector<CSTToken*> &tokens, unsigned int start
     CSTToken *token;
     while (start < end) {
         token = tokens[start];
-        if (is_ahead(token->start_token()->position)) {
+        if (is_ahead(token->start_token()->position())) {
             break;
         } else {
             token->accept(this);
@@ -250,7 +250,7 @@ void CompletionItemAnalyzer::put_identifiers(std::vector<CSTToken*>& tokens, uns
     while(start < tokens.size()) {
         token = tokens[start];
         if(token->type() == LexTokenType::Identifier) {
-            put(token->value, lsCompletionItemKind::EnumMember);
+            put(token->value(), lsCompletionItemKind::EnumMember);
         }
         start++;
     }
@@ -396,7 +396,7 @@ CompletionList CompletionItemAnalyzer::analyze(LexImportUnit* unit) {
         } else {
             if(!file->unit.tokens.empty()) { // not last file
                 // set caret position at the end of file, so all tokens are analyzed
-                auto& pos = file->unit.tokens[file->unit.tokens.size() - 1]->end_token()->position;
+                auto& pos = file->unit.tokens[file->unit.tokens.size() - 1]->end_token()->position();
                 caret_position = {pos.line + 2, 0};
             } else {
                 i++;

@@ -10,11 +10,11 @@
 
 void CSTSymbolResolver::declare(CSTToken *token, CSTToken *node) {
     auto &last = current.back();
-    auto found = last.find(token->value);
+    auto found = last.find(token->value());
     if (found == last.end()) {
-        last[token->value] = node;
+        last[token->value()] = node;
     } else {
-        error("duplicate symbol being declared " + token->value + " symbol already exists", token);
+        error("duplicate symbol being declared " + token->value() + " symbol already exists", token);
     }
 }
 
@@ -109,11 +109,11 @@ void CSTSymbolResolver::link(CSTToken* ref, CSTToken* token) {
 }
 
 void CSTSymbolResolver::visitVariableToken(CSTToken *token) {
-    auto found = find(token->value);
+    auto found = find(token->value());
     if(found) {
         link(token->as_ref(), found);
     } else {
-        error("unresolved symbol found '" + token->value + "'", token);
+        error("unresolved symbol found '" + token->value() + "'", token);
     }
 }
 
@@ -126,13 +126,13 @@ void CSTSymbolResolver::visitIndexOp(CSTToken* cst) {
 }
 
 void CSTSymbolResolver::visitTypeToken(CSTToken *token) {
-    auto found = find(token->value);
+    auto found = find(token->value());
     if(found) {
         link(token->as_ref(), found);
     } else {
-        auto prim = TypeMakers::PrimitiveMap.find(token->value);
+        auto prim = TypeMakers::PrimitiveMap.find(token->value());
         if(prim == TypeMakers::PrimitiveMap.end()) {
-            error("unresolved symbol found '" + token->value + "'", token);
+            error("unresolved symbol found '" + token->value() + "'", token);
         }
     }
 }

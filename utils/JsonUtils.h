@@ -64,7 +64,7 @@ public:
             }
             token = t->start_token();
             rapidjson::Value tokenObj(rapidjson::kObjectType);
-            rapidjson::Value posValue(token->position.representation().c_str(), static_cast<rapidjson::SizeType>(token->position.representation().length()), allocator);
+            rapidjson::Value posValue(token->position().representation().c_str(), static_cast<rapidjson::SizeType>(token->position().representation().length()), allocator);
             tokenObj.AddMember("position", posValue, allocator);
             tokenObj.AddMember("length", token->length(), allocator);
             rapidjson::Value typeValue(token->type_string().c_str(), static_cast<rapidjson::SizeType>(token->type_string().length()), allocator);

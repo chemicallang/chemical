@@ -12,10 +12,10 @@
 
 void FoldingRangeAnalyzer::folding_range(CSTToken* start, CSTToken* end, bool comment) {
     ranges.push_back(FoldingRange{
-            static_cast<int>(start->position.line),
-            static_cast<int>(end->position.line),
-            static_cast<int>(start->position.character),
-            static_cast<int>(end->position.character),
+            static_cast<int>(start->position().line),
+            static_cast<int>(end->position().line),
+            static_cast<int>(start->position().character),
+            static_cast<int>(end->position().character),
             (comment ? "comment" : "region")
     });
 }

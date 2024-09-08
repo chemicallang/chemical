@@ -19,10 +19,10 @@ void UnionValue::initialize_alloca(llvm::Value *inst, Codegen& gen) {
     const auto parent_type = llvm_type(gen);
     auto variable = definition->variable_type_index(value.first);
     if (variable.first == -1) {
-        gen.error("couldn't get struct child " + value.first + " in definition with name " + definition->name, this);
+        gen.error("couldn't get union child " + value.first + " in definition with name " + definition->name, this);
     } else {
         std::vector<llvm::Value*> idx {gen.builder->getInt32(0)};
-        value.second->store_in_struct(gen, this, inst, parent_type, idx, variable.first, variable.second);
+        value.second->store_in_struct(gen, this, inst, parent_type, idx, 0, variable.second);
     }
 }
 

@@ -463,9 +463,20 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
             if(exe->type == LabJobType::ToCTranslation || !mod->out_c_path.empty()) {
                 auto out_path = mod->out_c_path.to_std_string();
                 if(out_path.empty()) {
-                    out_path = resolve_rel_child_path_str(exe->build_dir.data(), mod->name.to_std_string() + ".2c.c");
+                    if(!exe->build_dir.empty()) {
+                        out_path = resolve_rel_child_path_str(exe->build_dir.data(),mod->name.to_std_string() + ".2c.c");
+                    } else if(!exe->abs_path.empty()) {
+                        out_path = exe->abs_path.to_std_string();
+                    }
                 }
-                writeToFile(out_path, program);
+                if(!out_path.empty()) {
+                    writeToFile(out_path, program);
+                }
+#ifdef DEBUG
+                else {
+                    throw std::runtime_error("couldn't figure out the output c path");
+                }
+#endif
             }
 
             // clear the current c string

@@ -78,8 +78,9 @@ public:
      * declare alias for a path for user into given job
      * this method is used by the cbi, if the path has any aliases we replace those
      * by getting them from the job
+     * returns true if declared
      */
-    void declare_user_alias(LabJob* job, std::string alias, std::string path);
+    bool declare_user_alias(LabJob* job, std::string alias, std::string path);
 
     /**
      * module with it's dependent modules will be declared with it's name

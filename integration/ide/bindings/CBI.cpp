@@ -395,7 +395,7 @@ void prep_build_context_cbi(BuildContextCBI* cbi) {
     cbi->declare_alias = [](BuildContextCBI* self, LabJob* job, chem::string* alias, chem::string* path) {
         dispose_string _x{alias};
         dispose_string _y{path};
-        self->instance->declare_user_alias(job, alias->to_std_string(), path->to_std_string());
+        return self->instance->declare_user_alias(job, alias->to_std_string(), path->to_std_string());
     };
     cbi->build_path = [](chem::string* str, BuildContextCBI* self) {
         init_chem_string(str)->append(self->instance->build_dir);

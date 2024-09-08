@@ -33,7 +33,7 @@ void CSTToken::append_representation(std::string &rep) const {
             tok->append_representation(rep);
         }
     } else {
-        rep.append(value);
+        rep.append(value());
     }
 }
 
@@ -57,9 +57,9 @@ std::string CSTToken::type_string() const {
 
 Position CSTToken::start() const {
     if (compound()) {
-        return tokens[0]->position;
+        return tokens[0]->position();
     } else {
-        return position;
+        return position();
     }
 }
 

@@ -10,13 +10,13 @@ bool is_var_init_const(CSTToken* cst) {
 
 std::optional<AccessSpecifier> specifier_token(CSTToken* token) {
     if(token->type() == LexTokenType::Keyword) {
-        if(token->value == "public") {
+        if(token->value() == "public") {
             return AccessSpecifier::Public;
-        } else if(token->value == "private") {
+        } else if(token->value() == "private") {
             return AccessSpecifier::Private;
-        } else if(token->value == "internal") {
+        } else if(token->value() == "internal") {
             return AccessSpecifier::Internal;
-        } else if(token->value == "protected") {
+        } else if(token->value() == "protected") {
             return AccessSpecifier::Protected;
         }
     }
@@ -38,7 +38,7 @@ CSTToken* find_identifier(std::vector<CSTToken*>& tokens, const std::string& ide
     CSTToken* token;
     while(start < tokens.size()) {
         token = tokens[start];
-        if(token->type() == LexTokenType::Identifier && token->as_lex_token()->value == identifier) {
+        if(token->type() == LexTokenType::Identifier && token->as_lex_token()->value() == identifier) {
             return token;
         }
         start++;
@@ -182,7 +182,7 @@ CSTToken* link_child(CSTToken* parent, CSTToken* token) {
 
 // checks that the given position is behind the given token's end
 bool is_behind_end_of(const Position& position, CSTToken* token) {
-    return position.line < token->position.line || (position.line == token->position.line && (position.character < (token->position.character + token->value.size())));
+    return position.line < token->position().line || (position.line == token->position().line && (position.character < (token->position().character + token->value().size())));
 }
 
 token_with_parent get_token_at_position(CSTToken* container, std::vector<CSTToken*>& tokens, const Position& position) {
@@ -194,10 +194,10 @@ token_with_parent get_token_at_position(CSTToken* container, std::vector<CSTToke
             token = token->tokens[0];
         }
         if(token->compound()) {
-            if(!position.is_behind(token->start_token()->position) && is_behind_end_of(position, token->end_token())) {
+            if(!position.is_behind(token->start_token()->position()) && is_behind_end_of(position, token->end_token())) {
                 return get_token_at_position(token, token->tokens, position);
             }
-        } else if(!position.is_behind(token->position) && position.line == token->position.line && (position.character < (token->as_lex_token()->position.character + token->as_lex_token()->value.size()))) {
+        } else if(!position.is_behind(token->position()) && position.line == token->position().line && (position.character < (token->as_lex_token()->position().character + token->as_lex_token()->value().size()))) {
             return {container,i};
         }
         i++;
@@ -214,10 +214,10 @@ CSTToken* get_token_at_position(std::vector<CSTToken*>& tokens, const Position& 
             token = token->tokens[0];
         }
         if(token->compound()) {
-            if(!position.is_behind(token->start_token()->position) && is_behind_end_of(position, token->end_token())) {
+            if(!position.is_behind(token->start_token()->position()) && is_behind_end_of(position, token->end_token())) {
                 return get_token_at_position(token->tokens, position);
             }
-        } else if(!position.is_behind(token->position) && position.line == token->position.line && (position.character < (token->position.character + token->value.size()))) {
+        } else if(!position.is_behind(token->position()) && position.line == token->position().line && (position.character < (token->position().character + token->value().size()))) {
             return token;
         }
         i++;
@@ -227,7 +227,7 @@ CSTToken* get_token_at_position(std::vector<CSTToken*>& tokens, const Position& 
 
 LexResult* find_containing_file(LexImportUnit* unit, CSTToken* token) {
     for(auto& file : unit->files) {
-        auto result = get_token_at_position(file->unit.tokens, token->start_token()->position);
+        auto result = get_token_at_position(file->unit.tokens, token->start_token()->position());
         if(result && result->start_token() == token->start_token()) {
             return file.get();
         }
@@ -239,7 +239,7 @@ token_parent_file find_token_parent(LexImportUnit* unit, CSTToken* token) {
     token_with_parent result;
     CSTToken* found;
     for(auto& file : unit->files) {
-        result = get_token_at_position(nullptr, file->unit.tokens, token->start_token()->position);
+        result = get_token_at_position(nullptr, file->unit.tokens, token->start_token()->position());
         if(result.second != -1) {
             found = result.first ? result.first->tokens[result.second] : file->unit.tokens[result.second];
             if (found->start_token() == token->start_token()) {

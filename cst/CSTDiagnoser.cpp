@@ -13,8 +13,8 @@ void CSTDiagnoser::diagnostic(const std::string &message, CSTToken *start, CSTTo
     }
     diagnostics.emplace_back(
             Range{
-                    start->start_token()->position,
-                    end->end_token()->position
+                    start->start_token()->position(),
+                    end->end_token()->position()
             },
             severity,
             std::nullopt,

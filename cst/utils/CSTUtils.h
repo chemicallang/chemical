@@ -13,7 +13,7 @@ class LexImportUnit;
 class LexResult;
 
 inline std::string str_token(CSTToken *token) {
-    return token->value;
+    return token->value();
 }
 
 inline std::string escaped_str_token(CSTToken *token) {
@@ -22,7 +22,7 @@ inline std::string escaped_str_token(CSTToken *token) {
 }
 
 inline char char_op(CSTToken *token) {
-    return token->value[0];
+    return token->value()[0];
 }
 
 inline bool is_keyword(CSTToken *token, const std::string &x) {

@@ -31,6 +31,7 @@ enum class ValueKind : uint8_t {
     Expression,
     ArrayValue,
     StructValue,
+    UnionValue,
 //    Union,
 //    Vector,
     LambdaFunc,

@@ -1,6 +1,7 @@
 // Copyright (c) Qinetik 2024.
 
 #include "StructValue.h"
+#include "UnionValue.h"
 #include "ast/structures/StructMember.h"
 #include "compiler/SymbolResolver.h"
 #include "ast/utils/ASTUtils.h"
@@ -206,8 +207,9 @@ bool StructValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr
     ref->link(linker, ref);
     auto found = ref->linked_node();
     if(found) {
-        auto struct_def = found->as_struct_def();
-        if (struct_def) {
+        const auto k = found->kind();
+        if(k == ASTNodeKind::StructDecl) {
+            auto struct_def = found->as_struct_def_unsafe();
             definition = struct_def;
             if(definition->has_constructor() && !definition->is_direct_init) {
                 linker.error("struct value with a constructor cannot be initialized, name '" + definition->name + "' has a constructor", this);
@@ -243,6 +245,20 @@ bool StructValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr
             if(!definition->generic_params.empty()) {
                 definition->set_active_iteration(prev_itr);
             }
+        } else if(k == ASTNodeKind::UnionDecl) {
+            if(values.size() > 1) {
+                linker.error("initializing multiple values inside a union is not allowed", this);
+                return false;
+            }
+            if(values.empty()) {
+                linker.error("a single member inside a union value should be initialized", this);
+                return false;
+            }
+            auto& begin = *values.begin();
+            auto value = std::pair<std::string, std::unique_ptr<Value>> { begin.first, std::move(begin.second) };
+            auto unionValue = new UnionValue(std::move(ref), std::move(value), std::move(generic_list), found->as_union_def_unsafe(), token);
+            value_ptr.reset(unionValue);
+            return unionValue->link(linker, value_ptr);
         } else {
             linker.error("given struct name is not a struct definition : " + ref->representation(), this);
             return false;

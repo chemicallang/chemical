@@ -10,6 +10,7 @@ public:
 
     ASTNode* parent_node;
     CSTToken* token;
+    bool is_direct_init = false;
     AccessSpecifier specifier;
 
 #ifdef COMPILER_BUILD
@@ -37,6 +38,22 @@ public:
 
     bool is_exported_fast() {
         return specifier == AccessSpecifier::Public;
+    }
+
+    inline bool is_generic() {
+        return !generic_params.empty();
+    }
+
+    uint64_t byte_size(bool is64Bit) {
+        return UnionType::byte_size(is64Bit);
+    }
+
+    uint64_t byte_size(bool is64Bit, int16_t iteration) {
+        auto prev = active_iteration;
+        set_active_iteration(iteration);
+        auto size = UnionType::byte_size(is64Bit);
+        set_active_iteration(prev);
+        return size;
     }
 
     VariablesContainer *as_variables_container() override {
@@ -106,6 +123,14 @@ public:
 
     llvm::Type *llvm_type(Codegen &gen) override {
         return UnionType::llvm_type(gen);
+    }
+
+    llvm::Type *llvm_type(Codegen &gen, int16_t iteration) {
+        auto prev = active_iteration;
+        set_active_iteration(iteration);
+        auto type = llvm_type(gen);
+        set_active_iteration(prev);
+        return type;
     }
 
     llvm::Type *llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned int index) override {

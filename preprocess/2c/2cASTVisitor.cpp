@@ -74,6 +74,7 @@
 #include "ast/values/CastedValue.h"
 #include "ast/values/AccessChain.h"
 #include "ast/values/StructValue.h"
+#include "ast/values/UnionValue.h"
 #include "ast/values/ValueNode.h"
 #include "ast/values/AddrOfValue.h"
 #include "ast/values/ArrayValue.h"
@@ -3401,6 +3402,29 @@ void ToCAstVisitor::visit(StructValue *val) {
         accept_mutating_value(member ? member->known_type() : nullptr, value.second.get());
         write(", ");
     }
+    nested_value = prev;
+    write('}');
+}
+
+void ToCAstVisitor::visit(UnionValue *val) {
+    write('{');
+    auto prev = nested_value;
+    nested_value = true;
+    auto& value = val->value;
+//        if(value.second->as_access_chain()) {
+//            auto chain = value.second->as_access_chain();
+//            auto call = chain->values.back()->as_func_call();
+//            if(call && call->create_type()->value_type() == ValueType::Struct) {
+//                continue;
+//            }
+//        }
+    // we are only getting direct / inherited members, not inherited structs here
+    const auto member = val->definition->child_member(value.first);
+    write('.');
+    write(value.first);
+    write(" = ");
+    accept_mutating_value(member ? member->known_type() : nullptr, value.second.get());
+    write(", ");
     nested_value = prev;
     write('}');
 }

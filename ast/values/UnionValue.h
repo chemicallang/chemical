@@ -137,7 +137,7 @@ public:
 
     [[nodiscard]]
     ValueType value_type() const override {
-        return ValueType::Struct;
+        return ValueType::Union;
     }
 
 };

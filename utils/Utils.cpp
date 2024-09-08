@@ -291,8 +291,17 @@ bool add_to_PATH(const std::string& new_path, bool for_system) {
 #endif
 }
 
-bool is_chemical_in_PATH() {
-    return !cmd_read_out_stderr_to_null(chemical_exe_PATH_name() + " -pr-loc").empty();
+std::string get_chemical_version_in_PATH() {
+    auto output = cmd_read_out_stderr_to_null(chemical_exe_PATH_name() + " -v");
+    if(output.empty()) {
+        return "";
+    } else {
+        if(output.starts_with("Chemical v")) {
+            return output.substr(10);
+        } else {
+            return "";
+        }
+    }
 }
 
 #ifdef _WIN32

@@ -40,4 +40,12 @@ func test_unions() {
         tu.Second.length = 456;
         return tu.Second.data == 123 && tu.Second.length == 456;
     })
+    test("union can be initialized just like structs", () => {
+        var u = IntDoubleUnion { a : 20 }
+        return u.a == 20;
+    })
+    test("union can be initialized just like structs", () => {
+        var u = IntDoubleUnion { b : 3.4 }
+        return u.b == 3.4;
+    })
 }

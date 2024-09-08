@@ -44,11 +44,11 @@ void LabBuildContext::declare_alias(std::unordered_map<std::string, std::string>
     aliases[std::move(alias)] = std::move(path);
 }
 
-void LabBuildContext::declare_user_alias(LabJob* job, std::string alias, std::string path) {
+bool LabBuildContext::declare_user_alias(LabJob* job, std::string alias, std::string path) {
     auto found = job->path_aliases.find(alias);
     if(found != job->path_aliases.end()) {
         std::cerr << "[LabBuild] error declaring alias '" << alias << "' for path '" << path << "', an alias with same already exists in job '" << job->name << "'" << std::endl;
-        return;
+        return false;
     }
     while(path[0] == '@') {
         auto result = handler->replace_at_in_path(path, job->path_aliases);
@@ -56,10 +56,11 @@ void LabBuildContext::declare_user_alias(LabJob* job, std::string alias, std::st
             path = std::move(result.replaced);
         } else {
             std::cerr << "[LabBuild] error declaring alias '" << alias << "' for path '" << path << "', " << result.error << " in job '" << job->name << "'" << std::endl;
-            return;
+            return false;
         }
     }
     declare_alias(job->path_aliases, std::move(alias), std::move(path));
+    return true;
 }
 
 void LabBuildContext::put_path_aliases(LabJob* job, LabModule* module) {

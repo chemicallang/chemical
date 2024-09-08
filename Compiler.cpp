@@ -110,7 +110,7 @@ int configure_exe(CmdOptions& options, int argc, char* argv[]) {
         if(relaunchAsAdmin()) {
             return 0;
         } else {
-            config_job_error_msg(job++, "Couldn't relaunched as administrator");
+            config_job_error_msg(job++, "Couldn't relaunch as administrator");
             return 1;
         }
     }
@@ -132,7 +132,19 @@ int configure_exe(CmdOptions& options, int argc, char* argv[]) {
         config_job_success_msg(job++, "Set 'CHEMICAL_HOME' environment variable to '" + parent_path + "'");
     } else {
         config_job_error_msg(job++, "Couldn't set 'CHEMICAL_HOME' environment variable to '" + parent_path + "'");
-        return 1;
+//        return 1;
+    }
+
+    if(!is_chemical_in_PATH()) {
+        if (add_to_PATH(parent_path, false)) {
+            config_job_success_msg(job++, "Added chemical to PATH environment variable");
+        } else {
+            config_job_error_msg(job++, "Couldn't add chemical to PATH environment variable" + parent_path + "'");
+//            return 1;
+        }
+    } else {
+        config_job_error_msg(job++, "Chemical is already present in PATH environment variable, please remove it");
+//        return 1;
     }
 
     std::cout << rang::fg::green << "\nSuccessfully configured Chemical Compiler for your OS" << rang::fg::reset << std::endl;
@@ -160,6 +172,11 @@ int main(int argc, char *argv[]) {
     auto config_option = options.option("configure");
     if(config_option.has_value()) {
         return configure_exe(options, argc, argv);
+    }
+
+    if(options.option("print-location", "pr-loc")) {
+        std::cout << argv[0] << std::endl;
+        return 0;
     }
 
 #ifdef COMPILER_BUILD

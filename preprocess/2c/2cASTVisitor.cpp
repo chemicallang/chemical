@@ -418,7 +418,7 @@ bool implicit_mutate_value_default(ToCAstVisitor& visitor, BaseType* type, Value
             visitor.write('(');
             visitor.write("struct");
             visitor.space();
-            node_name(visitor, as_struct->definition);
+            node_name(visitor, as_struct->linked_node());
             visitor.write(')');
             value->accept(&visitor);
         } else {
@@ -609,7 +609,7 @@ void visit_evaluated_func_val(
             auto struc = eval->as_struct();
             visitor.write(assign_id);
             visitor.write(" = ");
-            write_struct_def_value_call(visitor, struc->definition);
+            write_struct_def_value_call(visitor, struc->linked_struct());
             write_semi = true;
         } else if(eval->as_access_chain()) {
             auto& chain = eval->as_access_chain()->values;
@@ -710,15 +710,15 @@ void value_assign_default(ToCAstVisitor& visitor, const std::string& identifier,
 void value_init_default(ToCAstVisitor& visitor, const std::string& identifier, BaseType* type, Value* value) {
     const auto struct_value = value->as_struct();
     int16_t prev_itr = 0;
-    const auto is_generic = struct_value && !struct_value->definition->generic_params.empty();
+    const auto is_generic = struct_value && struct_value->is_generic();
     if(struct_value && is_generic) {
-        prev_itr = struct_value->definition->active_iteration;
-        struct_value->definition->set_active_iteration(struct_value->generic_iteration);
+        prev_itr = struct_value->get_active_iteration();
+        struct_value->set_active_iteration(struct_value->generic_iteration);
     }
     type->accept(&visitor);
     visitor.space();
     value_assign_default(visitor, identifier, type, value);
-    if(struct_value && is_generic) struct_value->definition->set_active_iteration(prev_itr);
+    if(struct_value && is_generic) struct_value->set_active_iteration(prev_itr);
 }
 
 //void value_store_default(ToCAstVisitor& visitor, const std::string& identifier, BaseType* type, std::optional<std::unique_ptr<Value>>& value) {
@@ -846,7 +846,7 @@ void CBeforeStmtVisitor::visit(FunctionCall *call) {
             auto eval = evaluated_func_val(visitor, decl, call);
             auto identifier = visitor.get_local_temp_var_name();
             if(eval->as_struct()) {
-                allocate_struct_by_name(visitor, eval->as_struct()->definition, identifier);
+                allocate_struct_by_name(visitor, eval->as_struct()->linked_extendable(), identifier);
                 visitor.local_allocated[eval] = identifier;
             }
             process_init_value(eval, identifier);
@@ -858,7 +858,7 @@ void CBeforeStmtVisitor::visit(FunctionCall *call) {
     for(auto& value : call->values) {
         const auto struct_val = value->as_struct();
         if(struct_val) {
-            allocate_struct_for_struct_value(visitor, struct_val->definition, struct_val, visitor.get_local_temp_var_name(), struct_val);
+            allocate_struct_for_struct_value(visitor, struct_val->linked_extendable(), struct_val, visitor.get_local_temp_var_name(), struct_val);
         }
     }
     if(func_type->returnType->value_type() == ValueType::Struct) {
@@ -1041,7 +1041,7 @@ void CBeforeStmtVisitor::visit(VariantCall *call) {
 void CBeforeStmtVisitor::process_comp_time_call(FunctionDeclaration* decl, FunctionCall* call, const std::string& identifier) {
     auto eval = evaluated_func_val(visitor, decl, call);
     if(eval->as_struct()) {
-        allocate_struct_by_name(visitor, eval->as_struct()->definition, identifier);
+        allocate_struct_by_name(visitor, eval->as_struct()->linked_extendable(), identifier);
         visitor.local_allocated[eval] = identifier;
     }
     process_init_value(eval, identifier);
@@ -1437,8 +1437,7 @@ void CDestructionVisitor::process_init_value(VarInitStatement *init, Value* init
     }
     auto struct_val = init_value->as_struct();
     if(struct_val) {
-        auto linked = struct_val->definition;
-        if(linked) queue_destruct(init->identifier, init, struct_val->generic_iteration, linked);
+        queue_destruct(init->identifier, init, struct_val->generic_iteration, struct_val->linked_struct());
     }
 }
 
@@ -2254,7 +2253,7 @@ void ToCAstVisitor::visit(ImportStatement *importStatement) {
 
 void struct_initialize_inside_braces(ToCAstVisitor& visitor, StructValue* val) {
     visitor.write("(struct ");
-    visitor.write(val->definition->name);
+    visitor.write(val->linked_name());
     visitor.write(")");
     val->accept(&visitor);
 }
@@ -3395,7 +3394,7 @@ void ToCAstVisitor::visit(StructValue *val) {
 //            }
 //        }
         // we are only getting direct / inherited members, not inherited structs here
-        const auto member = val->definition->child_member(value.first);
+        const auto member = val->child_member(value.first);
         write('.');
         write(value.first);
         write(" = ");
@@ -3419,7 +3418,7 @@ void ToCAstVisitor::visit(UnionValue *val) {
 //            }
 //        }
     // we are only getting direct / inherited members, not inherited structs here
-    const auto member = val->definition->child_member(value.first);
+    const auto member = val->child_member(value.first);
     write('.');
     write(value.first);
     write(" = ");

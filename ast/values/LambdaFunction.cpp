@@ -208,12 +208,12 @@ bool LambdaFunction::link(SymbolResolver &linker, VarInitStatement *stmnt) {
 }
 
 bool LambdaFunction::link(SymbolResolver &linker, StructValue *value, const std::string &name) {
-    auto got_type = value->definition->child(name)->create_value_type();
+    auto got_type = value->child(name)->create_value_type();
     link(linker, (FunctionType*) got_type.get());
     if(!params.empty()) {
         auto& param = params[0];
         if((param->name == "self" || param->name == "this") && param->type->kind() == BaseTypeKind::Void) {
-            param->type = std::make_unique<PointerType>(value->definition->get_value_type(), param->type->cst_token());
+            param->type = std::make_unique<PointerType>(value->create_type(), param->type->cst_token());
         }
     }
     link_full(this, linker);

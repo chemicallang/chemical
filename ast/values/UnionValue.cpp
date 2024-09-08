@@ -197,6 +197,10 @@ bool UnionValue::primitive() {
     return false;
 }
 
+BaseDefMember* UnionValue::child_member(const std::string& name) {
+    return definition->child_member(name);
+}
+
 bool UnionValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
     ref->link(linker, ref);
     auto found = ref->linked_node();

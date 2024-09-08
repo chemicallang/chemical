@@ -57,7 +57,7 @@ inline std::string chemical_exe_PATH_name() {
 #endif
 }
 
-bool is_chemical_in_PATH();
+std::string get_chemical_version_in_PATH();
 
 #ifdef _WIN32
 

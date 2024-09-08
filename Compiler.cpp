@@ -95,6 +95,46 @@ void config_job_info_msg(int job, const std::string& msg) {
     std::cout << rang::fg::gray << '[' << job << ']' << ' ' << msg << rang::fg::reset << std::endl;
 }
 
+struct Version {
+    int major; int minor; int patch;
+    /**
+     * 1 when this version is greater
+     * 0 when this version is smaller
+     * -1 when both are equal
+     */
+    [[nodiscard]]
+    int compare(const Version& other) const {
+        if(major == other.major) {
+            if(minor == other.minor) {
+                if(patch == other.patch) {
+                    return -1;
+                } else {
+                    return patch > other.patch;
+                }
+            } else {
+                return minor > other.minor;
+            }
+        } else {
+            return major > other.major;
+        }
+    }
+    std::string formatted() {
+        return std::to_string(major) + '.' + std::to_string(minor) + '.' + std::to_string(patch);
+    }
+};
+
+Version parse_version(const std::string& version) {
+    Version result = { -1, -1, -1 };  // Default for invalid input
+    std::istringstream stream(version);
+    char dot;
+    if (!(stream >> result.major)) return result;
+    if (!(stream >> dot) || dot != '.') return result;
+    if (!(stream >> result.minor)) return result;
+    if (!(stream >> dot) || dot != '.') return result;
+    if (!(stream >> result.patch)) return result;
+    return result;
+}
+
 int configure_exe(CmdOptions& options, int argc, char* argv[]) {
 
     // checking if has sudo or admin privileges
@@ -135,7 +175,8 @@ int configure_exe(CmdOptions& options, int argc, char* argv[]) {
 //        return 1;
     }
 
-    if(!is_chemical_in_PATH()) {
+    auto existing_version = get_chemical_version_in_PATH();
+    if(existing_version.empty()) {
         if (add_to_PATH(parent_path, false)) {
             config_job_success_msg(job++, "Added chemical to PATH environment variable");
         } else {
@@ -143,7 +184,16 @@ int configure_exe(CmdOptions& options, int argc, char* argv[]) {
 //            return 1;
         }
     } else {
-        config_job_error_msg(job++, "Chemical is already present in PATH environment variable, please remove it");
+        auto current = Version { PROJECT_VERSION_MAJOR, PROJECT_VERSION_MINOR, PROJECT_VERSION_PATCH };
+        auto existing = parse_version(existing_version);
+        auto compare = current.compare(existing);
+        if(compare == -1) {
+            config_job_info_msg(job++, "Chemical already exists on PATH with same version v" + existing.formatted());
+        } else if(compare == 0) {
+            config_job_info_msg(job++, "Chemical version v" + existing.formatted() + " newer than current v "+ current.formatted() + " already exists in PATH");
+        } else {
+            config_job_error_msg(job++, "Chemical version v" + existing.formatted() + " older than current v" + current.formatted() + " is present in PATH environment variable, please remove it");
+        }
 //        return 1;
     }
 
@@ -174,8 +224,8 @@ int main(int argc, char *argv[]) {
         return configure_exe(options, argc, argv);
     }
 
-    if(options.option("print-location", "pr-loc")) {
-        std::cout << argv[0] << std::endl;
+    if(options.option("version", "v").has_value()) {
+        std::cout << "Chemical v" << PROJECT_VERSION_MAJOR << "." << PROJECT_VERSION_MINOR << "." << PROJECT_VERSION_PATCH << std::endl;
         return 0;
     }
 

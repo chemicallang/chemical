@@ -10,6 +10,8 @@
 #include <vector>
 #include <unordered_map>
 
+class ImportPathHandler;
+
 std::vector<LabModule*> flatten_dedupe_sorted(const std::vector<LabModule*>& modules);
 
 /**
@@ -36,6 +38,8 @@ public:
     void(*on_finished)(void*) = nullptr;
     // the data pointer that'll be passed to on_finished at end
     void* on_finished_data = nullptr;
+    // if import paths are to be used with aliases in them, we need a path handler
+    ImportPathHandler* handler;
 
 private:
 
@@ -69,6 +73,13 @@ public:
      * declare alias for a path
      */
     static void declare_alias(std::unordered_map<std::string, std::string>& aliases, std::string alias, std::string path);
+
+    /**
+     * declare alias for a path for user into given job
+     * this method is used by the cbi, if the path has any aliases we replace those
+     * by getting them from the job
+     */
+    void declare_user_alias(LabJob* job, std::string alias, std::string path);
 
     /**
      * module with it's dependent modules will be declared with it's name

@@ -79,6 +79,9 @@ public struct BuildContext {
     // add a linkable object (.o file)
     var add_object : (&self, job : LabJob*, path : string) => void;
 
+    // declare an alias for a path that can be used in imports like import '@alias/sub_path.ch'
+    var declare_alias : (&self, job : LabJob*, alias : string, path : string) => void;
+
     // get build
     var build_path : (&self) => string;
 

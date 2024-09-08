@@ -43,6 +43,8 @@ struct BuildContextCBI {
 
     void(*add_object)(BuildContextCBI* self, LabJob* job, chem::string* path);
 
+    void(*declare_alias)(BuildContextCBI* self, LabJob* job, chem::string* alias, chem::string* path);
+
     void(*build_path)(chem::string* str, BuildContextCBI* self);
 
     bool(*has_arg)(BuildContextCBI* self, chem::string* name);

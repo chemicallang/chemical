@@ -1,7 +1,9 @@
 // Copyright (c) Qinetik 2024.
 
 #include "LabBuildContext.h"
+#include "preprocess/ImportPathHandler.h"
 #include "utils/PathUtils.h"
+#include <iostream>
 #include <unordered_map>
 
 LabBuildContext::LabBuildContext(LabBuildCompilerOptions* options, std::string lab_file, std::string user_build_dir) : options(options) {
@@ -40,6 +42,19 @@ void LabBuildContext::declare_alias(std::unordered_map<std::string, std::string>
         path = path.substr(0, path_last);
     }
     aliases[std::move(alias)] = std::move(path);
+}
+
+void LabBuildContext::declare_user_alias(LabJob* job, std::string alias, std::string path) {
+    while(path[0] == '@') {
+        auto result = handler->replace_at_in_path(path, job->path_aliases);
+        if(result.error.empty()) {
+            path = std::move(result.replaced);
+        } else {
+            std::cerr << "[LabBuild] error declaring alias '" << alias << "' for path '" << path << "', " << result.error << std::endl;
+            return;
+        }
+    }
+    declare_alias(job->path_aliases, std::move(alias), std::move(path));
 }
 
 void LabBuildContext::put_path_aliases(LabJob* job, LabModule* module) {

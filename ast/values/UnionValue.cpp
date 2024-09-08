@@ -1,7 +1,7 @@
 // Copyright (c) Qinetik 2024.
 
-#include "StructValue.h"
 #include "UnionValue.h"
+#include "ast/structures/UnionDef.h"
 #include "ast/structures/StructMember.h"
 #include "compiler/SymbolResolver.h"
 #include "ast/utils/ASTUtils.h"
@@ -15,30 +15,28 @@
 #include "compiler/llvmimpl.h"
 #include "IntValue.h"
 
-void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen) {
+void UnionValue::initialize_alloca(llvm::Value *inst, Codegen& gen) {
     const auto parent_type = llvm_type(gen);
-    for (const auto &value: values) {
-        auto variable = definition->variable_type_index(value.first);
-        if (variable.first == -1) {
-            gen.error("couldn't get struct child " + value.first + " in definition with name " + definition->name, this);
-        } else {
-            std::vector<llvm::Value*> idx {gen.builder->getInt32(0)};
-            value.second->store_in_struct(gen, this, inst, parent_type, idx, variable.first, variable.second);
-        }
+    auto variable = definition->variable_type_index(value.first);
+    if (variable.first == -1) {
+        gen.error("couldn't get struct child " + value.first + " in definition with name " + definition->name, this);
+    } else {
+        std::vector<llvm::Value*> idx {gen.builder->getInt32(0)};
+        value.second->store_in_struct(gen, this, inst, parent_type, idx, variable.first, variable.second);
     }
 }
 
-llvm::AllocaInst *StructValue::llvm_allocate(Codegen& gen, const std::string& identifier, BaseType* expected_type) {
+llvm::AllocaInst *UnionValue::llvm_allocate(Codegen& gen, const std::string& identifier, BaseType* expected_type) {
     allocaInst = gen.builder->CreateAlloca(llvm_type(gen), nullptr);
     initialize_alloca(allocaInst, gen);
     return allocaInst;
 }
 
-llvm::Value *StructValue::llvm_pointer(Codegen &gen) {
+llvm::Value *UnionValue::llvm_pointer(Codegen &gen) {
     return allocaInst;
 }
 
-void StructValue::llvm_destruct(Codegen &gen, llvm::Value *givenAlloca) {
+void UnionValue::llvm_destruct(Codegen &gen, llvm::Value *givenAlloca) {
     int16_t prev_itr;
     if(is_generic()) {
         prev_itr = definition->active_iteration;
@@ -50,7 +48,7 @@ void StructValue::llvm_destruct(Codegen &gen, llvm::Value *givenAlloca) {
     }
 }
 
-unsigned int StructValue::store_in_struct(
+unsigned int UnionValue::store_in_struct(
         Codegen &gen,
         Value *parent,
         llvm::Value *allocated,
@@ -63,7 +61,7 @@ unsigned int StructValue::store_in_struct(
         gen.error(
                 "can't store struct value '" + representation() + "' into parent struct value '" + parent->representation() + "' with an unknown index" +
                 " where current definition name '" + definition->name + "'", this);
-        return index + values.size();
+        return index + 1;
     }
     const auto interface = expected_type ? expected_type->linked_dyn_interface() : nullptr;
     if(interface) {
@@ -74,16 +72,14 @@ unsigned int StructValue::store_in_struct(
         }
     } else {
         const auto parent_type = llvm_type(gen);
-        for (const auto& value: values) {
-            auto child_index = definition->variable_type_index(value.first);
-            auto currIndex = index + child_index.first;
-            value.second->store_in_struct(gen, this, allocated, parent_type, idxList, currIndex, child_index.second);
-        }
+        auto child_index = definition->variable_type_index(value.first);
+        auto currIndex = index + child_index.first;
+        value.second->store_in_struct(gen, this, allocated, parent_type, idxList, currIndex, child_index.second);
     }
-    return index + values.size();
+    return index + 1;
 }
 
-unsigned int StructValue::store_in_array(
+unsigned int UnionValue::store_in_array(
         Codegen &gen,
         ArrayValue *parent,
         llvm::AllocaInst *ptr,
@@ -106,19 +102,17 @@ unsigned int StructValue::store_in_array(
         }
     } else {
         idxList.emplace_back(gen.builder->getInt32(index));
-        for (const auto &value: values) {
-            auto currIndex = definition->variable_type_index(value.first);
-            value.second->store_in_array(gen, parent, ptr, idxList, currIndex.first, currIndex.second);
-        }
+        auto currIndex = definition->variable_type_index(value.first);
+        value.second->store_in_array(gen, parent, ptr, idxList, currIndex.first, currIndex.second);
     }
     return index + 1;
 }
 
-llvm::Value *StructValue::llvm_value(Codegen &gen, BaseType* expected_type) {
+llvm::Value *UnionValue::llvm_value(Codegen &gen, BaseType* expected_type) {
     throw std::runtime_error("cannot allocate a struct without an identifier");
 }
 
-llvm::Value *StructValue::llvm_assign_value(Codegen &gen, Value *lhs) {
+llvm::Value *UnionValue::llvm_assign_value(Codegen &gen, Value *lhs) {
     const auto known_type = lhs->known_type();
     if(known_type->kind() == BaseTypeKind::Dynamic && known_type->linked_node()->as_interface_def()) {
         return llvm_allocate(gen, "", nullptr);
@@ -138,22 +132,22 @@ llvm::Value *StructValue::llvm_assign_value(Codegen &gen, Value *lhs) {
     return nullptr;
 }
 
-llvm::Value *StructValue::llvm_arg_value(Codegen &gen, FunctionCall *call, unsigned int index) {
+llvm::Value *UnionValue::llvm_arg_value(Codegen &gen, FunctionCall *call, unsigned int index) {
     return llvm_allocate(gen, "", nullptr);
 }
 
-llvm::Value *StructValue::llvm_ret_value(Codegen &gen, ReturnStatement *returnStmt) {
+llvm::Value *UnionValue::llvm_ret_value(Codegen &gen, ReturnStatement *returnStmt) {
     // TODO make sure this argument corresponds to the struct
     auto structPassed = gen.current_function->getArg(0);
     initialize_alloca(structPassed, gen);
     return nullptr;
 }
 
-llvm::Type *StructValue::llvm_elem_type(Codegen &gen) {
+llvm::Type *UnionValue::llvm_elem_type(Codegen &gen) {
     throw std::runtime_error("llvm_elem_type: called on a struct");
 }
 
-llvm::Type *StructValue::llvm_type(Codegen &gen) {
+llvm::Type *UnionValue::llvm_type(Codegen &gen) {
     if(definition->generic_params.empty()) {
         return definition->llvm_type(gen);
     } else {
@@ -161,37 +155,37 @@ llvm::Type *StructValue::llvm_type(Codegen &gen) {
     }
 }
 
-bool StructValue::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
+bool UnionValue::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
     return definition->add_child_index(gen, indexes, name);
 }
 
 #endif
 
-//StructValue::StructValue(
+//UnionValue::UnionValue(
 //        std::unique_ptr<Value> ref,
-//        std::unordered_map<std::string, std::unique_ptr<Value>> values,
-//        StructDefinition *definition
+//        std::pair<std::string, std::unique_ptr<Value>> value,
+//        UnionDef *definition
 //) : ref(std::move(ref)), values(std::move(values)), definition(definition) {}
 
-StructValue::StructValue(
+UnionValue::UnionValue(
         std::unique_ptr<Value> ref,
-        std::unordered_map<std::string, std::unique_ptr<Value>> values,
+        std::pair<std::string, std::unique_ptr<Value>> value,
         std::vector<std::unique_ptr<BaseType>> generic_list,
-        StructDefinition *definition,
+        UnionDef *definition,
         CSTToken* token
-) : ref(std::move(ref)), values(std::move(values)), definition(definition), generic_list(std::move(generic_list)), token(token) {}
+) : ref(std::move(ref)), value(std::move(value)), definition(definition), generic_list(std::move(generic_list)), token(token) {}
 
-StructValue::StructValue(
+UnionValue::UnionValue(
         std::unique_ptr<Value> ref,
-        std::unordered_map<std::string, std::unique_ptr<Value>> values,
-        StructDefinition *definition,
+        std::pair<std::string, std::unique_ptr<Value>> value,
+        UnionDef *definition,
         InterpretScope &scope,
         CSTToken* token
-) : ref(std::move(ref)), values(std::move(values)), definition(definition), token(token) {
-    declare_default_values(this->values, scope);
+) : ref(std::move(ref)), value(std::move(value)), definition(definition), token(token) {
+
 }
 
-uint64_t StructValue::byte_size(bool is64Bit) {
+uint64_t UnionValue::byte_size(bool is64Bit) {
     if(definition->generic_params.empty()) {
         return definition->byte_size(is64Bit);
     } else {
@@ -199,17 +193,16 @@ uint64_t StructValue::byte_size(bool is64Bit) {
     }
 }
 
-bool StructValue::primitive() {
+bool UnionValue::primitive() {
     return false;
 }
 
-bool StructValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
+bool UnionValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
     ref->link(linker, ref);
     auto found = ref->linked_node();
     if(found) {
-        const auto k = found->kind();
-        if(k == ASTNodeKind::StructDecl) {
-            auto struct_def = found->as_struct_def_unsafe();
+        auto struct_def = found->as_union_def();
+        if (struct_def) {
             definition = struct_def;
             if(definition->has_constructor() && !definition->is_direct_init) {
                 linker.error("struct value with a constructor cannot be initialized, name '" + definition->name + "' has a constructor", this);
@@ -222,22 +215,20 @@ bool StructValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr
             // setting active generic iteration
             if(!definition->generic_params.empty()) {
                 prev_itr = definition->active_iteration;
-                generic_iteration = definition->register_value(linker, this);
+                generic_iteration = definition->register_generic_args(linker, generic_list);
                 definition->set_active_iteration(generic_iteration);
             }
             // linking values
-            for (auto &val: values) {
-                val.second->link(linker, this, val.first);
-                auto member = definition->variables.find(val.first);
-                if(definition->variables.end() != member) {
-                    const auto mem_type = member->second->get_value_type();
-                    auto implicit = mem_type->implicit_constructor_for(val.second.get());
-                    if(implicit) {
-                        if(linker.preprocess) {
-                            val.second = call_with_arg(implicit, std::move(val.second), linker);
-                        } else {
-                            link_with_implicit_constructor(implicit, linker, val.second.get());
-                        }
+            value.second->link(linker, value.second);
+            auto member = definition->variables.find(value.first);
+            if(definition->variables.end() != member) {
+                const auto mem_type = member->second->get_value_type();
+                auto implicit = mem_type->implicit_constructor_for(value.second.get());
+                if(implicit) {
+                    if(linker.preprocess) {
+                        value.second = call_with_arg(implicit, std::move(value.second), linker);
+                    } else {
+                        link_with_implicit_constructor(implicit, linker, value.second.get());
                     }
                 }
             }
@@ -245,20 +236,6 @@ bool StructValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr
             if(!definition->generic_params.empty()) {
                 definition->set_active_iteration(prev_itr);
             }
-        } else if(k == ASTNodeKind::UnionDecl) {
-            if(values.size() > 1) {
-                linker.error("initializing multiple values inside a union is not allowed", this);
-                return false;
-            }
-            if(values.empty()) {
-                linker.error("a single member inside a union value should be initialized", this);
-                return false;
-            }
-            auto& begin = *values.begin();
-            auto value = std::pair<std::string, std::unique_ptr<Value>> { begin.first, std::move(begin.second) };
-            auto unionValue = new UnionValue(std::move(ref), std::move(value), std::move(generic_list), found->as_union_def_unsafe(), token);
-            value_ptr.reset(unionValue);
-            return unionValue->link(linker, value_ptr);
         } else {
             linker.error("given struct name is not a struct definition : " + ref->representation(), this);
             return false;
@@ -270,15 +247,15 @@ bool StructValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr
     return true;
 }
 
-ASTNode *StructValue::linked_node() {
+ASTNode *UnionValue::linked_node() {
     return definition;
 }
 
-bool StructValue::is_generic() {
+bool UnionValue::is_generic() {
     return definition->is_generic();
 }
 
-Value *StructValue::call_member(
+Value *UnionValue::call_member(
         InterpretScope &scope,
         const std::string &name,
         std::vector<std::unique_ptr<Value>> &params
@@ -300,28 +277,19 @@ Value *StructValue::call_member(
     return value;
 }
 
-void StructValue::set_child_value(const std::string &name, Value *value, Operation op) {
-    auto ptr = values.find(name);
-    if (ptr == values.end()) {
-        std::cerr << "couldn't find child by name " + name + " in struct";
-        return;
-    }
-    ptr->second = std::unique_ptr<Value>(value);
+void UnionValue::set_child_value(const std::string &name, Value *init, Operation op) {
+    value.second = std::unique_ptr<Value>(init);
 }
 
-Value *StructValue::scope_value(InterpretScope &scope) {
-    auto struct_value = new StructValue(
+Value *UnionValue::scope_value(InterpretScope &scope) {
+    auto struct_value = new UnionValue(
             std::unique_ptr<Value>(ref->copy()),
-            std::unordered_map<std::string, std::unique_ptr<Value>>(),
+            std::pair<std::string, std::unique_ptr<Value>>(),
             std::vector<std::unique_ptr<BaseType>>(),
             definition,
             token
     );
-    declare_default_values(struct_value->values, scope);
-    struct_value->values.reserve(values.size());
-    for (const auto &value: values) {
-        struct_value->values[value.first] = std::unique_ptr<Value>(value.second->initializer_value(scope));
-    }
+    struct_value->value.second = std::unique_ptr<Value>(value.second->initializer_value(scope));
     struct_value->generic_list.reserve(generic_list.size());
     for(const auto& arg : generic_list) {
         struct_value->generic_list.emplace_back(arg->copy());
@@ -329,7 +297,7 @@ Value *StructValue::scope_value(InterpretScope &scope) {
     return struct_value;
 }
 
-void StructValue::declare_default_values(
+void UnionValue::declare_default_values(
         std::unordered_map<std::string,
         std::unique_ptr<Value>> &into,
         InterpretScope &scope
@@ -343,18 +311,15 @@ void StructValue::declare_default_values(
     }
 }
 
-StructValue *StructValue::copy() {
-    auto struct_value = new StructValue(
+UnionValue *UnionValue::copy() {
+    auto struct_value = new UnionValue(
         std::unique_ptr<Value>(ref->copy()),
-        std::unordered_map<std::string, std::unique_ptr<Value>>(),
+        std::pair<std::string, std::unique_ptr<Value>>(),
         std::vector<std::unique_ptr<BaseType>>(),
         definition,
         token
     );
-    struct_value->values.reserve(values.size());
-    for (const auto &value: values) {
-        struct_value->values[value.first] = std::unique_ptr<Value>(value.second->copy());
-    }
+    struct_value->value.second = std::unique_ptr<Value>(value.second->copy());
     struct_value->generic_list.reserve(generic_list.size());
     for(const auto& arg : generic_list) {
         struct_value->generic_list.emplace_back(arg->copy());
@@ -362,7 +327,7 @@ StructValue *StructValue::copy() {
     return struct_value;
 }
 
-std::unique_ptr<BaseType> StructValue::create_type() {
+std::unique_ptr<BaseType> UnionValue::create_type() {
     if(!definition) return nullptr;
     if(!definition->generic_params.empty()) {
        auto gen_type = std::make_unique<GenericType>(std::make_unique<ReferencedType>(definition->name, definition, nullptr), generic_iteration);
@@ -377,29 +342,20 @@ std::unique_ptr<BaseType> StructValue::create_type() {
     }
 }
 
-BaseType* StructValue::known_type() {
+BaseType* UnionValue::known_type() {
     if(!struct_type) {
         struct_type = create_type();
     }
     return struct_type.get();
 }
 
-hybrid_ptr<BaseType> StructValue::get_base_type() {
+hybrid_ptr<BaseType> UnionValue::get_base_type() {
     if(!struct_type) {
         struct_type = create_type();
     }
     return hybrid_ptr<BaseType>{ struct_type.get(), false };
 }
 
-Value *StructValue::child(InterpretScope &scope, const std::string &name) {
-    auto value = values.find(name);
-    if (value == values.end()) {
-        auto func = definition->member(name);
-        if(func) {
-            return this;
-        } else {
-            return nullptr;
-        }
-    }
-    return value->second.get();
+Value *UnionValue::child(InterpretScope &scope, const std::string &name) {
+    return value.second.get();
 }

@@ -469,6 +469,8 @@ set(COMMON_SOURCES
         preprocess/2c/CAfterStmtVisitor.h
         preprocess/2c/CTopLevelDeclVisitor.h
         preprocess/2c/CValueDeclVisitor.h
+        ast/values/UnionValue.h
+        ast/values/UnionValue.cpp
 )
 
 # Chemical LSP Executable Target

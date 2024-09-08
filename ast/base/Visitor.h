@@ -112,6 +112,8 @@ class ArrayValue;
 
 class StructValue;
 
+class UnionValue;
+
 class VariableIdentifier;
 
 class NamespaceIdentifier;
@@ -463,6 +465,10 @@ public:
 
     virtual void visit(StructValue* structValue) {
         visitCommonValue((Value*) structValue);
+    }
+
+    virtual void visit(UnionValue* unionValue) {
+        visitCommonValue((Value*) unionValue);
     }
 
     virtual void visit(VariableIdentifier* identifier) {

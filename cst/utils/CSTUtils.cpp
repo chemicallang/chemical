@@ -153,10 +153,10 @@ CSTToken* get_child_type(CSTToken* token) {
 CSTToken* link_child(CSTToken* parent, CSTToken* token) {
     switch(parent->type()) {
         case LexTokenType::CompEnumDecl:
-            return find_identifier(parent->tokens, token->value, 3);
+            return find_identifier(parent->tokens, token->value(), 3);
         case LexTokenType::CompStructDef:
         case LexTokenType::CompInterface:
-             return find_func_or_var_init(parent->tokens, token->value, 3);
+             return find_func_or_var_init(parent->tokens, token->value(), 3);
         case LexTokenType::CompVarInit: {
             auto linked = get_linked_from_var_init(parent->tokens);
             if (linked) {

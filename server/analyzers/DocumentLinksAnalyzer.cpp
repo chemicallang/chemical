@@ -15,7 +15,7 @@ std::vector<lsDocumentLink> DocumentLinksAnalyzer::analyze(LexResult* result, co
     for(auto& token : result->unit.tokens) {
         if(token->type() == LexTokenType::CompImport) {
             auto& value = token->tokens[1];
-            auto& pos = value->start_token()->position;
+            auto& pos = value->start_token()->position();
             if(value->type() == LexTokenType::String) {
                 auto unquoted_str = escaped_str_token(value);
                 std::string resolved;

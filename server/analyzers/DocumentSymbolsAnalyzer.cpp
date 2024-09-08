@@ -17,7 +17,7 @@ void DocumentSymbolsAnalyzer::put(const std::string &name, lsSymbolKind kind, ls
 }
 
 lsRange range(CSTToken *token) {
-    auto &start = token->start_token()->position;
+    auto &start = token->start_token()->position();
     auto end = token->end_token();
     return lsRange{
             lsPosition{
@@ -25,8 +25,8 @@ lsRange range(CSTToken *token) {
                     static_cast<int>(start.character)
             },
             lsPosition{
-                    static_cast<int>(end->position.line),
-                    static_cast<int>(end->position.character + end->value.size())
+                    static_cast<int>(end->position().line),
+                    static_cast<int>(end->position().character + end->value().size())
             }
     };
 }

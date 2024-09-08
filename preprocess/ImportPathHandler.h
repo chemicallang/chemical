@@ -66,7 +66,17 @@ public:
     /**
      * replace '@' in path
      */
-    AtReplaceResult replace_at_in_path(const std::string &filePath);
+    AtReplaceResult replace_at_in_path(
+        const std::string &filePath,
+        const std::unordered_map<std::string, std::string>& aliases
+    );
+
+    /**
+     * a helper method
+     */
+    inline AtReplaceResult replace_at_in_path(const std::string &filePath) {
+        return replace_at_in_path(filePath, path_aliases);
+    }
 
 
 };

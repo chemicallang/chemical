@@ -59,7 +59,7 @@ std::string ImportPathHandler::headers_dir(const std::string &header) {
 
 }
 
-AtReplaceResult ImportPathHandler::replace_at_in_path(const std::string& filePath) {
+AtReplaceResult ImportPathHandler::replace_at_in_path(const std::string &filePath, const std::unordered_map<std::string, std::string>& aliases) {
     if(filePath[0] != '@') return {filePath, ""};
     auto slash = filePath.find('/');
     if(slash == -1) {
@@ -70,8 +70,8 @@ AtReplaceResult ImportPathHandler::replace_at_in_path(const std::string& filePat
     if(found != path_resolvers.end()) {
         return found->second(*this, filePath, slash);
     }
-    auto next = path_aliases.find(atDirective);
-    if(next != path_aliases.end()) {
+    auto next = aliases.find(atDirective);
+    if(next != aliases.end()) {
         return { next->second + filePath.substr(slash), "" };
     }
     return {filePath, "unknown '@' directive " + atDirective + " in import statement"};

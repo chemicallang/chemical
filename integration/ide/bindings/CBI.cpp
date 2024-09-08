@@ -15,6 +15,14 @@
 int llvm_ar_main2(const std::vector<std::string> &command_args);
 #endif
 
+class dispose_string {
+public:
+    chem::string* ptr;
+    ~dispose_string() {
+        ptr->~string();
+    }
+};
+
 chem::string* init_chem_string(chem::string* str) {
     str->storage.constant.data = nullptr;
     str->storage.constant.length = 0;
@@ -340,48 +348,72 @@ void prep_source_provider_cbi(SourceProviderCBI* cbi) {
 
 void prep_build_context_cbi(BuildContextCBI* cbi) {
     cbi->files_module = [](BuildContextCBI* self, chem::string* name, chem::string** path, unsigned int path_len, ModuleArrayRef* dependencies) -> LabModule* {
+        dispose_string _x{name};
         return self->instance->files_module(name, path, path_len, dependencies->ptr, dependencies->size);
     };
     cbi->chemical_files_module = [](BuildContextCBI* self, chem::string* name, chem::string** path, unsigned int path_len, ModuleArrayRef* dependencies) -> LabModule* {
+        dispose_string _x{name};
         return self->instance->chemical_files_module(name, path, path_len, dependencies->ptr, dependencies->size);
     };
     cbi->chemical_dir_module = [](BuildContextCBI* self, chem::string* name, chem::string* path, ModuleArrayRef* dependencies) -> LabModule* {
+        dispose_string _x{name};
+        dispose_string _y{path};
         return self->instance->chemical_dir_module(name, path, dependencies->ptr, dependencies->size);
     };
     cbi->c_file_module = [](BuildContextCBI* self, chem::string* name, chem::string* path, ModuleArrayRef* dependencies) -> LabModule* {
+        dispose_string _x{name};
+        dispose_string _y{path};
         return self->instance->c_file_module(name, path, dependencies->ptr, dependencies->size);
     };
     cbi->object_module = [](BuildContextCBI* self, chem::string* name, chem::string* path) -> LabModule* {
+        dispose_string _x{name};
+        dispose_string _y{path};
         return self->instance->obj_file_module(name, path);
     };
     cbi->translate_to_chemical = [](BuildContextCBI* self, chem::string* c_path, chem::string* output_path) -> LabJob* {
+        dispose_string _x{c_path};
+        dispose_string _y{output_path};
         return self->instance->translate_to_chemical(c_path, output_path);
     };
     cbi->translate_to_c = [](BuildContextCBI* self, chem::string* name, ModuleArrayRef* dependencies, chem::string* output_dir) -> LabJob* {
+        dispose_string _x{name};
+        dispose_string _y{output_dir};
         return self->instance->translate_to_c(name, dependencies->ptr, dependencies->size, output_dir);
     };
     cbi->build_exe = [](BuildContextCBI* self, chem::string* name, ModuleArrayRef* dependencies) -> LabJob* {
+        dispose_string _x{name};
         return self->instance->build_exe(name, dependencies->ptr, dependencies->size);
     };
     cbi->build_dynamic_lib = [](BuildContextCBI* self, chem::string* name, ModuleArrayRef* dependencies) -> LabJob* {
+        dispose_string _x{name};
         return self->instance->build_dynamic_lib(name, dependencies->ptr, dependencies->size);
     };
     cbi->add_object = [](BuildContextCBI* self, LabJob* job, chem::string* path) {
+        dispose_string _x{path};
         job->linkables.emplace_back(path->copy());
+    };
+    cbi->declare_alias = [](BuildContextCBI* self, LabJob* job, chem::string* alias, chem::string* path) {
+        dispose_string _x{alias};
+        dispose_string _y{path};
+        self->instance->declare_user_alias(job, alias->to_std_string(), path->to_std_string());
     };
     cbi->build_path = [](chem::string* str, BuildContextCBI* self) {
         init_chem_string(str)->append(self->instance->build_dir);
     };
     cbi->has_arg = [](BuildContextCBI* self, chem::string* name) -> bool {
+        dispose_string _x{name};
         return self->instance->has_arg(name);
     };
     cbi->get_arg = [](chem::string* str, BuildContextCBI* self, chem::string* name) {
+        dispose_string _x{name};
         return self->instance->get_arg(init_chem_string(str), name);
     };
     cbi->remove_arg = [](BuildContextCBI* self, chem::string* name) {
+        dispose_string _x{name};
         return self->instance->remove_arg(name);
     };
     cbi->launch_executable = [](BuildContextCBI* self, chem::string* path, bool same_window) {
+        dispose_string _x{path};
         auto copied = path->to_std_string();
         copied = absolute_path(copied);
         if(same_window) {
@@ -394,6 +426,7 @@ void prep_build_context_cbi(BuildContextCBI* cbi) {
         self->instance->on_finished_data = data;
     };
     cbi->link_objects = [](BuildContextCBI* self, StringArrayRef* string_arr, chem::string* output_path) -> int {
+        dispose_string _x{output_path};
         std::vector<chem::string> linkables;
         for(auto i = 0; i < string_arr->size; i++) {
             linkables.emplace_back(string_arr->ptr[i].copy());

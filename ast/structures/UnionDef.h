@@ -44,7 +44,7 @@ public:
         return !generic_params.empty();
     }
 
-    uint64_t byte_size(bool is64Bit) {
+    uint64_t byte_size(bool is64Bit) override {
         return UnionType::byte_size(is64Bit);
     }
 

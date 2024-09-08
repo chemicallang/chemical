@@ -403,8 +403,6 @@ public:
 
     void visit(StructValue* structValue) override;
 
-    void visit(UnionValue* unionValue) override;
-
     void visit(VariableIdentifier* identifier) override;
 
     void visit(SizeOfValue *size_of) override;

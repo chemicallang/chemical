@@ -121,14 +121,6 @@ public:
         return total_byte_size(is64Bit);
     }
 
-    uint64_t byte_size(bool is64Bit, int16_t iteration) {
-        auto prev = active_iteration;
-        set_active_iteration(iteration);
-        auto size = total_byte_size(is64Bit);
-        set_active_iteration(prev);
-        return size;
-    }
-
     [[nodiscard]]
     BaseType *copy() const override;
 
@@ -139,8 +131,6 @@ public:
     void llvm_store_type(llvm::StructType* type) override;
 
     llvm::Type *llvm_type(Codegen &gen) override;
-
-    llvm::Type *llvm_type(Codegen &gen, int16_t iteration);
 
     llvm::Type *llvm_param_type(Codegen &gen) override;
 

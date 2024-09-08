@@ -1,8 +1,8 @@
 // Copyright (c) Qinetik 2024.
 
 #include "StructValue.h"
-#include "UnionValue.h"
 #include "ast/structures/StructMember.h"
+#include "ast/structures/UnionDef.h"
 #include "compiler/SymbolResolver.h"
 #include "ast/utils/ASTUtils.h"
 #include "ast/types/GenericType.h"
@@ -23,7 +23,7 @@ void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen) {
             gen.error("couldn't get struct child " + value.first + " in definition with name " + definition->name, this);
         } else {
             std::vector<llvm::Value*> idx {gen.builder->getInt32(0)};
-            value.second->store_in_struct(gen, this, inst, parent_type, idx, variable.first, variable.second);
+            value.second->store_in_struct(gen, this, inst, parent_type, idx, is_union() ? 0 : variable.first, variable.second);
         }
     }
 }
@@ -123,7 +123,7 @@ llvm::Value *StructValue::llvm_assign_value(Codegen &gen, Value *lhs) {
     if(known_type->kind() == BaseTypeKind::Dynamic && known_type->linked_node()->as_interface_def()) {
         return llvm_allocate(gen, "", nullptr);
     } else if(lhs->as_deref_value()) {
-        if(!definition->destructor_func() && (!definition->has_constructor() || definition->is_direct_init)) {
+        if(!definition->destructor_func() && allows_direct_init()) {
             const auto deref = lhs->as_deref_value();
             if (deref->value->value_type() == ValueType::Pointer) {
                 auto allocated = deref->llvm_pointer(gen);
@@ -177,14 +177,14 @@ StructValue::StructValue(
         std::unique_ptr<Value> ref,
         std::unordered_map<std::string, std::unique_ptr<Value>> values,
         std::vector<std::unique_ptr<BaseType>> generic_list,
-        StructDefinition *definition,
+        ExtendableMembersContainerNode *definition,
         CSTToken* token
 ) : ref(std::move(ref)), values(std::move(values)), definition(definition), generic_list(std::move(generic_list)), token(token) {}
 
 StructValue::StructValue(
         std::unique_ptr<Value> ref,
         std::unordered_map<std::string, std::unique_ptr<Value>> values,
-        StructDefinition *definition,
+        ExtendableMembersContainerNode *definition,
         InterpretScope &scope,
         CSTToken* token
 ) : ref(std::move(ref)), values(std::move(values)), definition(definition), token(token) {
@@ -203,65 +203,75 @@ bool StructValue::primitive() {
     return false;
 }
 
+bool StructValue::allows_direct_init() {
+    switch(linked_kind) {
+        case ASTNodeKind::StructDecl:
+            return !definition->as_struct_def_unsafe()->has_constructor() || definition->as_struct_def_unsafe()->is_direct_init;
+        case ASTNodeKind::UnionDecl:
+            return !definition->as_union_def_unsafe()->has_constructor();
+        case ASTNodeKind::UnnamedStruct:
+        case ASTNodeKind::UnnamedUnion:
+            return true;
+        default:
+            return false;
+    }
+}
+
 bool StructValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
     ref->link(linker, ref);
     auto found = ref->linked_node();
     if(found) {
         const auto k = found->kind();
-        if(k == ASTNodeKind::StructDecl) {
-            auto struct_def = found->as_struct_def_unsafe();
-            definition = struct_def;
-            if(definition->has_constructor() && !definition->is_direct_init) {
-                linker.error("struct value with a constructor cannot be initialized, name '" + definition->name + "' has a constructor", this);
+        switch (k) {
+            case ASTNodeKind::UnionDecl:
+            case ASTNodeKind::UnnamedUnion:
+                if(values.size() > 1) {
+                    linker.error("initializing multiple values inside a union is not allowed", this);
+                    return false;
+                }
+                break;
+            case ASTNodeKind::UnnamedStruct:
+            case ASTNodeKind::StructDecl:
+                break;
+            default:
+                linker.error("given struct name is not a struct definition : " + ref->representation(), this);
                 return false;
-            }
-            for(auto& arg : generic_list) {
-                arg->link(linker, arg);
-            }
-            int16_t prev_itr;
-            // setting active generic iteration
-            if(!definition->generic_params.empty()) {
-                prev_itr = definition->active_iteration;
-                generic_iteration = definition->register_value(linker, this);
-                definition->set_active_iteration(generic_iteration);
-            }
-            // linking values
-            for (auto &val: values) {
-                val.second->link(linker, this, val.first);
-                auto member = definition->variables.find(val.first);
-                if(definition->variables.end() != member) {
-                    const auto mem_type = member->second->get_value_type();
-                    auto implicit = mem_type->implicit_constructor_for(val.second.get());
-                    if(implicit) {
-                        if(linker.preprocess) {
-                            val.second = call_with_arg(implicit, std::move(val.second), linker);
-                        } else {
-                            link_with_implicit_constructor(implicit, linker, val.second.get());
-                        }
+        }
+        linked_kind = k;
+        definition = (ExtendableMembersContainerNode*) found;
+        if(!allows_direct_init()) {
+            linker.error("struct value with a constructor cannot be initialized, name '" + definition->name + "' has a constructor", this);
+            return false;
+        }
+        for(auto& arg : generic_list) {
+            arg->link(linker, arg);
+        }
+        int16_t prev_itr;
+        // setting active generic iteration
+        if(!definition->generic_params.empty()) {
+            prev_itr = definition->active_iteration;
+            generic_iteration = definition->register_value(linker, this);
+            definition->set_active_iteration(generic_iteration);
+        }
+        // linking values
+        for (auto &val: values) {
+            val.second->link(linker, this, val.first);
+            auto member = definition->variables.find(val.first);
+            if(definition->variables.end() != member) {
+                const auto mem_type = member->second->get_value_type();
+                auto implicit = mem_type->implicit_constructor_for(val.second.get());
+                if(implicit) {
+                    if(linker.preprocess) {
+                        val.second = call_with_arg(implicit, std::move(val.second), linker);
+                    } else {
+                        link_with_implicit_constructor(implicit, linker, val.second.get());
                     }
                 }
             }
-            // setting iteration back
-            if(!definition->generic_params.empty()) {
-                definition->set_active_iteration(prev_itr);
-            }
-        } else if(k == ASTNodeKind::UnionDecl) {
-            if(values.size() > 1) {
-                linker.error("initializing multiple values inside a union is not allowed", this);
-                return false;
-            }
-            if(values.empty()) {
-                linker.error("a single member inside a union value should be initialized", this);
-                return false;
-            }
-            auto& begin = *values.begin();
-            auto value = std::pair<std::string, std::unique_ptr<Value>> { begin.first, std::move(begin.second) };
-            auto unionValue = new UnionValue(std::move(ref), std::move(value), std::move(generic_list), found->as_union_def_unsafe(), token);
-            value_ptr.reset(unionValue);
-            return unionValue->link(linker, value_ptr);
-        } else {
-            linker.error("given struct name is not a struct definition : " + ref->representation(), this);
-            return false;
+        }
+        // setting iteration back
+        if(!definition->generic_params.empty()) {
+            definition->set_active_iteration(prev_itr);
         }
     } else {
         linker.error("couldn't find struct definition for struct name " + ref->representation(), this);
@@ -275,7 +285,7 @@ ASTNode *StructValue::linked_node() {
 }
 
 bool StructValue::is_generic() {
-    return definition->is_generic();
+    return linked_struct()->is_generic();
 }
 
 Value *StructValue::call_member(

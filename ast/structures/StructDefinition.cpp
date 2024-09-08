@@ -228,14 +228,6 @@ llvm::Type *StructDefinition::llvm_type(Codegen &gen) {
     return StructType::llvm_type(gen);
 }
 
-llvm::Type *StructDefinition::llvm_type(Codegen &gen, int16_t iteration) {
-    auto prev = active_iteration;
-    set_active_iteration(iteration);
-    auto type = llvm_type(gen);
-    set_active_iteration(prev);
-    return type;
-}
-
 llvm::Type *StructDefinition::llvm_param_type(Codegen &gen) {
     return StructType::llvm_param_type(gen);
 }

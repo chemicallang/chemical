@@ -10,11 +10,12 @@
 #include "ast/statements/VarInit.h"
 
 class UnionValue : public Value {
+private:
+    UnionDef *definition = nullptr;
 public:
 
     std::unique_ptr<Value> ref;
     std::vector<std::unique_ptr<BaseType>> generic_list;
-    UnionDef *definition = nullptr;
     std::pair<std::string, std::unique_ptr<Value>> value;
     int16_t generic_iteration = 0;
     CSTToken* token;
@@ -61,6 +62,8 @@ public:
     bool primitive() override;
 
     bool link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) override;
+
+    BaseDefMember* child_member(const std::string& name);
 
     Value *call_member(
             InterpretScope &scope,

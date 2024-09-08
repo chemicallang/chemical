@@ -10,11 +10,12 @@
 #include "ast/statements/VarInit.h"
 
 class StructValue : public Value {
+private:
+    StructDefinition *definition = nullptr;
 public:
 
     std::unique_ptr<Value> ref;
     std::vector<std::unique_ptr<BaseType>> generic_list;
-    StructDefinition *definition = nullptr;
     std::unordered_map<std::string, std::unique_ptr<Value>> values;
     int16_t generic_iteration = 0;
     CSTToken* token;
@@ -76,11 +77,39 @@ public:
 
     StructValue *copy() override;
 
+    ASTNode* child(const std::string& name) {
+        return definition->child(name);
+    }
+
     Value *child(InterpretScope &scope, const std::string &name) override;
 
     ASTNode *linked_node() override;
 
     bool is_generic();
+
+    int16_t get_active_iteration() {
+        return definition->active_iteration;
+    }
+
+    void set_active_iteration(int16_t itr) {
+        definition->active_iteration = itr;
+    }
+
+    BaseDefMember* child_member(const std::string& name){
+        return definition->child_member(name);
+    }
+
+    ExtendableMembersContainerNode* linked_extendable() {
+        return definition;
+    }
+
+    StructDefinition* linked_struct() {
+        return definition;
+    }
+
+    const std::string& linked_name() {
+        return definition->name;
+    }
 
 #ifdef COMPILER_BUILD
 

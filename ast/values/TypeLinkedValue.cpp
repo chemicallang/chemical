@@ -46,7 +46,7 @@ bool TypeLinkedValue::link(SymbolResolver &linker, FunctionCall *call, unsigned 
 }
 
 bool TypeLinkedValue::link(SymbolResolver &linker, StructValue *structValue, const std::string &name) {
-    auto child = structValue->definition->child(name);
+    auto child = structValue->child(name);
     auto child_type = child->get_value_type();
     return link(linker, structValue->values[name], child_type.get());
 }

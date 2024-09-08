@@ -898,7 +898,7 @@ public:
      */
     inline void diagnostic(unsigned int position, const std::string &message, DiagSeverity severity) {
         auto token = unit.tokens[position]->start_token();
-        auto &pos = token->position;
+        auto &pos = token->position();
         diagnostic({pos.line, pos.character + token->length()}, message, severity);
     }
 

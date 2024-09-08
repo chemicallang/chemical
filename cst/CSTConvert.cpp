@@ -86,9 +86,10 @@
 Operation get_operation(CSTToken *token) {
     std::string num;
     unsigned i = 0;
-    while(i < ((CSTToken*) token)->value.size()) {
-        if(std::isdigit(((CSTToken*) token)->value[i])) {
-            num.append(1, ((CSTToken*) token)->value[i]);
+    const auto& value = token->value();
+    while(i < value.size()) {
+        if(std::isdigit(value[i])) {
+            num.append(1, value[i]);
         }
         i++;
     }
@@ -580,7 +581,7 @@ void CSTConverter::visitFunction(CSTToken* function) {
         auto param = (FunctionParam*) nodes.back().release();
         nodes.pop_back();
         funcDecl = new ExtensionFunction(
-                name_token->value,
+                name_token->value(),
                 ExtensionFuncReceiver(std::move(param->name), std::move(param->type), nullptr, receiver_tok),
                 std::move(params.params),
                 std::move(returnType), params.isVariadic,
@@ -593,7 +594,7 @@ void CSTConverter::visitFunction(CSTToken* function) {
         delete param;
     } else {
         funcDecl = new FunctionDeclaration(
-                name_token->value,
+                name_token->value(),
                 std::move(params.params),
                 std::move(returnType), params.isVariadic,
                 parent_node,
@@ -601,7 +602,7 @@ void CSTConverter::visitFunction(CSTToken* function) {
                 std::nullopt,
                 def_specifier(specifier)
         );
-        if(!parent_node && !specifier.has_value() && name_token->value == "main") {
+        if(!parent_node && !specifier.has_value() && name_token->value() == "main") {
             funcDecl->specifier = AccessSpecifier::Public;
             if(funcDecl->returnType->kind() != BaseTypeKind::IntN) {
                 funcDecl->returnType = std::make_unique<IntType>(funcDecl->returnType->cst_token());
@@ -672,25 +673,25 @@ void CSTConverter::visitEnumDecl(CSTToken* decl) {
 Value* convertNumber(NumberToken* token, ValueType value_type, bool is64Bit) {
     switch(value_type) {
         case ValueType::Int:
-            return new IntValue(std::stoi(token->value), token);
+            return new IntValue(std::stoi(token->value()), token);
         case ValueType::UInt:
-            return new UIntValue(std::stoi(token->value), token);
+            return new UIntValue(std::stoi(token->value()), token);
         case ValueType::Short:
-            return new ShortValue(std::stoi(token->value), token);
+            return new ShortValue(std::stoi(token->value()), token);
         case ValueType::UShort:
-            return new UShortValue(std::stoi(token->value), token);
+            return new UShortValue(std::stoi(token->value()), token);
         case ValueType::Long:
-            return new LongValue(std::stol(token->value), is64Bit, token);
+            return new LongValue(std::stol(token->value()), is64Bit, token);
         case ValueType::ULong:
-            return new ULongValue(std::stoul(token->value), is64Bit, token);
+            return new ULongValue(std::stoul(token->value()), is64Bit, token);
         case ValueType::BigInt:
-            return new BigIntValue(std::stoll(token->value), token);
+            return new BigIntValue(std::stoll(token->value()), token);
         case ValueType::UBigInt:
-            return new UBigIntValue(std::stoull(token->value), token);
+            return new UBigIntValue(std::stoull(token->value()), token);
         case ValueType::Float:
-            return new FloatValue(std::stof(token->value), token);
+            return new FloatValue(std::stof(token->value()), token);
         case ValueType::Double:
-            return new DoubleValue(std::stod(token->value), token);
+            return new DoubleValue(std::stod(token->value()), token);
         default:
             return nullptr;
     }
@@ -705,12 +706,12 @@ void CSTConverter::visitVarInit(CSTToken* varInit) {
     if(specifier.has_value()) {
         i += 1;
     }
-    bool is_const = varInit->tokens[i]->value == "const";
+    bool is_const = varInit->tokens[i]->value() == "const";
     i += 1;
     AnnotableNode* init;
     if(is_struct_member) {
         init = new StructMember(
-                varInit->tokens[i]->value,
+                varInit->tokens[i]->value(),
                 nullptr,
                 nullptr,
                 parent_node,
@@ -721,7 +722,7 @@ void CSTConverter::visitVarInit(CSTToken* varInit) {
     } else {
         init = new VarInitStatement(
                 is_const,
-                varInit->tokens[i]->value,
+                varInit->tokens[i]->value(),
                 nullptr,
                 nullptr,
                 parent_node,
@@ -830,15 +831,15 @@ void CSTConverter::visitTypealias(CSTToken* alias) {
     unsigned i = spec.has_value() ? 2 : 1;
     const auto& name_token = alias->tokens[i];
     alias->tokens[i + 2]->accept(this);
-    auto stmt = new TypealiasStatement(name_token->value, type(), parent_node, alias, spec.has_value() ? spec.value() : AccessSpecifier::Internal);
+    auto stmt = new TypealiasStatement(name_token->value(), type(), parent_node, alias, spec.has_value() ? spec.value() : AccessSpecifier::Internal);
     collect_annotations_in(this, stmt);
     put_node(stmt, alias);
 }
 
 void CSTConverter::visitTypeToken(CSTToken* token) {
-    auto primitive = TypeMakers::PrimitiveMap.find(token->value);
+    auto primitive = TypeMakers::PrimitiveMap.find(token->value());
     if (primitive == TypeMakers::PrimitiveMap.end()) {
-        put_type(new ReferencedType(token->value, token), token);
+        put_type(new ReferencedType(token->value(), token), token);
     } else {
         put_type(primitive->second(is64Bit, token), token);
     }
@@ -906,7 +907,7 @@ void CSTConverter::visitLambda(CSTToken* cst) {
                 i++;
             }
             if (cst->tokens[i]->type() == LexTokenType::Variable) {
-                captureList.emplace_back(new CapturedVariable(((CSTToken* ) (cst->tokens[i]))->value, capInd++, capture_by_ref, cst->tokens[i]));
+                captureList.emplace_back(new CapturedVariable(((CSTToken* ) (cst->tokens[i]))->value(), capInd++, capture_by_ref, cst->tokens[i]));
             }
             i++;
         }
@@ -969,7 +970,7 @@ void CSTConverter::visitAnnotation(CSTToken* annotation) {
 }
 
 void CSTConverter::visitAnnotationToken(CSTToken* token) {
-    auto annon_name = token->value.substr(1);
+    auto annon_name = token->value().substr(1);
     auto macro = AnnotationHandlers.find(annon_name);
     if (macro != AnnotationHandlers.end()) {
         macro->second.func(this, token, macro->second.kind);
@@ -1272,13 +1273,13 @@ void CSTConverter::visitStructDef(CSTToken* structDef) {
     auto has_override = is_char_op(structDef->tokens[i], ':');
     AnnotableNode* def;
     if(named) {
-        def = new StructDefinition(name_token->value, parent_node, structDef, def_specifier(spec));
+        def = new StructDefinition(name_token->value(), parent_node, structDef, def_specifier(spec));
         if (has_override) {
             i++; // set on access specifier or the inherited struct / interface name
             get_inherit_list(this, structDef, i, ((StructDefinition*) def)->inherited);
         }
     } else {
-        def = new UnnamedStruct(structDef->tokens[structDef->tokens.size() - 1]->value, parent_node, structDef, spec.has_value() ? spec.value() : AccessSpecifier::Public);
+        def = new UnnamedStruct(structDef->tokens[structDef->tokens.size() - 1]->value(), parent_node, structDef, spec.has_value() ? spec.value() : AccessSpecifier::Public);
     }
     i += 1;// positioned at first node or '}'
     if(is_generic) {
@@ -1344,7 +1345,7 @@ void CSTConverter::visitUnionDef(CSTToken* unionDef) {
     AnnotableNode* def;
     if(named) {
         def = new UnionDef(
-            name_token->value,
+            name_token->value(),
             parent_node,
             unionDef,
             def_specifier(specifier)
@@ -1514,7 +1515,7 @@ void CSTConverter::visitFunctionType(CSTToken* funcType) {
 
 
 void CSTConverter::visitStringToken(CSTToken* token) {
-    auto escaped = escape_all(token->value, 1, token->value.size() - 1, [this, token](const std::string& value, unsigned int index) {
+    auto escaped = escape_all(token->value(), 1, token->value().size() - 1, [this, token](const std::string& value, unsigned int index) {
         error("invalid escape sequence found, character '" + std::string(1, value[index]) + "'", token);
     });
     put_value(new StringValue(escaped, token), token);
@@ -1522,14 +1523,14 @@ void CSTConverter::visitStringToken(CSTToken* token) {
 
 void CSTConverter::visitCharToken(CSTToken* token) {
     char value;
-    if(token->value[1] == '\\') {
-        auto result = escape_single(token->value, 2);
+    if(token->value()[1] == '\\') {
+        auto result = escape_single(token->value(), 2);
         value = result.first;
         if(!result.second) {
             error("unknown / invalid escape sequence present", token);
         }
     } else {
-        value = token->value[1];
+        value = token->value()[1];
     }
     put_value(new CharValue(value, token), token);
 }
@@ -1538,20 +1539,20 @@ void CSTConverter::visitNumberToken(NumberToken *token) {
     try {
         if (token->has_dot()) {
             if (token->is_float()) {
-                std::string substring = token->value.substr(0, token->value.size() - 1);
+                std::string substring = token->value().substr(0, token->value().size() - 1);
                 put_value(new FloatValue(std::stof(substring), token), token);
             } else {
-                put_value(new DoubleValue(std::stod(token->value), token), token);
+                put_value(new DoubleValue(std::stod(token->value()), token), token);
             }
         } else {
             if(token->is_long()) {
                 if(token->is_unsigned()) {
-                    put_value(new ULongValue(std::stoul(token->value), is64Bit, token), token);
+                    put_value(new ULongValue(std::stoul(token->value()), is64Bit, token), token);
                 } else {
-                    put_value(new LongValue(std::stol(token->value), is64Bit, token), token);
+                    put_value(new LongValue(std::stol(token->value()), is64Bit, token), token);
                 }
             } else {
-                put_value(new NumberValue(std::stoll(token->value), token), token);
+                put_value(new NumberValue(std::stoll(token->value()), token), token);
             }
         }
     } catch (...) {
@@ -1831,7 +1832,7 @@ void CSTConverter::visitCast(CSTToken* castCst) {
 
 void CSTConverter::visitIsValue(CSTToken* isCst) {
     visit(isCst->tokens);
-    put_value( new IsValue(value(), type(), isCst->tokens[1]->value[0] == '!', isCst), isCst);
+    put_value( new IsValue(value(), type(), isCst->tokens[1]->value()[0] == '!', isCst), isCst);
 }
 
 void CSTConverter::visitAddrOf(CSTToken* addrOf) {
@@ -1845,11 +1846,11 @@ void CSTConverter::visitDereference(CSTToken* deref) {
 }
 
 void CSTConverter::visitVariableToken(CSTToken* token) {
-    put_value(new VariableIdentifier(token->value, token), token);
+    put_value(new VariableIdentifier(token->value(), token), token);
 }
 
 void CSTConverter::visitBoolToken(CSTToken* token) {
-    put_value(new BoolValue(token->value[0] == 't', token), token);
+    put_value(new BoolValue(token->value()[0] == 't', token), token);
 }
 
 void CSTConverter::visitNullToken(CSTToken* token) {

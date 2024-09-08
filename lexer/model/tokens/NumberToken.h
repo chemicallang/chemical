@@ -22,12 +22,12 @@ public:
     using CSTToken::CSTToken;
 
     bool has_dot() {
-        return value.find('.') != std::string::npos;
+        return value().find('.') != std::string::npos;
     }
 
     inline char safe_back_at(unsigned int pos) {
-        if(value.size() >= pos) {
-            return value[value.size() - pos];
+        if(value().size() >= pos) {
+            return value()[value().size() - pos];
         } else {
             return '\0';
         }
@@ -38,7 +38,7 @@ public:
     }
 
     inline char last() {
-        return value[value.size() - 1];
+        return value()[value().size() - 1];
     }
 
     bool is_float() {

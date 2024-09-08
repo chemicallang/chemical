@@ -47,7 +47,7 @@ void ImportGraphVisitor::visitImport(CSTToken *cst) {
     }
     imports.emplace_back(
             FlatIGFile { escaped_str_token(cst->tokens[1]), escaped_str_token(cst->tokens[1]), std::move(as_identifier) },
-            Range { cst->start_token()->position, cst->end_token()->position }
+            Range { cst->start_token()->position(), cst->end_token()->position() }
     );
 }
 

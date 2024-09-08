@@ -27,8 +27,10 @@ public:
         /**
          * this struct is used for non compound tokens
          */
-        Position position;
-        std::string value;
+        struct {
+            Position position;
+            std::string value;
+        } flat;
         /**
          * this struct is used for compound tokens
          */
@@ -44,8 +46,8 @@ public:
      * constructor for lex token (non compound)
      */
     CSTToken(LexTokenType type, const Position& pos, std::string val) : tok_type(type) {
-        new(&position) Position(pos);
-        new(&value) std::string(std::move(val));
+        new(&flat.position) Position(pos);
+        new(&flat.value) std::string(std::move(val));
     }
 
     /**
@@ -68,8 +70,8 @@ public:
         if(other.compound()) {
             new(&tokens) std::vector<CSTToken*>(std::move(other.tokens));
         } else {
-            position = other.position;
-            new(&value) std::string(std::move(other.value));
+            flat.position = other.flat.position;
+            new(&flat.value) std::string(std::move(other.flat.value));
         }
     }
 
@@ -104,11 +106,25 @@ public:
     void accept(CSTVisitor *visitor);
 
     /**
+     * get the position of this token
+     */
+    inline const Position& position() const {
+        return flat.position;
+    }
+
+    /**
+     * get the value of this token
+     */
+    inline const std::string& value() const {
+        return flat.value;
+    }
+
+    /**
      * line number of lex token
      */
     [[nodiscard]]
     inline unsigned int lineNumber() const {
-        return position.line;
+        return flat.position.line;
     }
 
     /**
@@ -116,7 +132,7 @@ public:
      */
     [[nodiscard]]
     inline unsigned int lineCharNumber() const {
-        return position.character;
+        return flat.position.character;
     }
 
     /**
@@ -124,7 +140,7 @@ public:
      */
     [[nodiscard]]
     inline unsigned int length() const {
-        return value.size();
+        return flat.value.size();
     }
 
     /**
@@ -341,7 +357,7 @@ public:
         if(compound()) {
             tokens.~vector();
         } else {
-            value.~basic_string();
+            flat.value.~basic_string();
         }
     }
 

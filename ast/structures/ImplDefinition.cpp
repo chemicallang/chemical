@@ -70,6 +70,12 @@ ImplDefinition::ImplDefinition(
 
 }
 
+uint64_t ImplDefinition::byte_size(bool is64Bit) {
+#ifdef DEBUG
+    throw std::runtime_error("ImplDefinition::byte_size byte_size on impl definition");
+#endif
+    return 0;
+}
 
 void ImplDefinition::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     interface_type->link(linker, interface_type);

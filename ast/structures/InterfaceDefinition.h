@@ -104,6 +104,8 @@ public:
 
     int vtable_function_index(FunctionDeclaration* decl);
 
+    uint64_t byte_size(bool is64Bit) override;
+
 #ifdef COMPILER_BUILD
 
     /**

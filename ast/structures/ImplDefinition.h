@@ -56,6 +56,8 @@ public:
         visitor->visit(this);
     }
 
+    uint64_t byte_size(bool is64Bit) override;
+
 #ifdef COMPILER_BUILD
 
     /**

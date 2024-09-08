@@ -11,7 +11,7 @@
 
 class StructValue : public Value {
 private:
-    StructDefinition *definition = nullptr;
+    ExtendableMembersContainerNode *definition = nullptr;
 public:
 
     std::unique_ptr<Value> ref;
@@ -19,6 +19,7 @@ public:
     std::unordered_map<std::string, std::unique_ptr<Value>> values;
     int16_t generic_iteration = 0;
     CSTToken* token;
+    ASTNodeKind linked_kind;
 #ifdef COMPILER_BUILD
     llvm::AllocaInst* allocaInst;
 #endif
@@ -35,14 +36,14 @@ public:
             std::unique_ptr<Value> ref,
             std::unordered_map<std::string, std::unique_ptr<Value>> values,
             std::vector<std::unique_ptr<BaseType>> generic_list,
-            StructDefinition *definition,
+            ExtendableMembersContainerNode *definition,
             CSTToken* token
     );
 
     StructValue(
             std::unique_ptr<Value> ref,
             std::unordered_map<std::string, std::unique_ptr<Value>> values,
-            StructDefinition *definition,
+            ExtendableMembersContainerNode *definition,
             InterpretScope &scope,
             CSTToken* token
     );
@@ -104,11 +105,17 @@ public:
     }
 
     StructDefinition* linked_struct() {
-        return definition;
+        return (StructDefinition*) definition;
     }
 
     const std::string& linked_name() {
         return definition->name;
+    }
+
+    bool allows_direct_init();
+
+    bool is_union() {
+        return linked_kind == ASTNodeKind::UnionDecl || linked_kind == ASTNodeKind::UnnamedUnion;
     }
 
 #ifdef COMPILER_BUILD

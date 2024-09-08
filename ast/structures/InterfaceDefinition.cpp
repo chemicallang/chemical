@@ -155,6 +155,13 @@ int InterfaceDefinition::vtable_function_index(FunctionDeclaration* decl) {
     return -1;
 }
 
+uint64_t InterfaceDefinition::byte_size(bool is64Bit) {
+#ifdef DEBUG
+throw std::runtime_error("InterfaceDefinition::byte_size interface byte_size called");
+#endif
+    return 0;
+}
+
 void InterfaceDefinition::declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     linker.declare_node(name, this, specifier, false);
 }

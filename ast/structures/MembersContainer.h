@@ -149,6 +149,22 @@ public:
     bool requires_destructor();
 
     /**
+     * get the byte size
+     */
+    virtual uint64_t byte_size(bool is64Bit) = 0;
+
+    /**
+     * get the bytesize at the folloing iteration
+     */
+    uint64_t byte_size(bool is64Bit, int16_t iteration) {
+        auto prev = active_iteration;
+        set_active_iteration(iteration);
+        auto size = byte_size(is64Bit);
+        set_active_iteration(prev);
+        return size;
+    }
+
+    /**
      * will provide a destructor function if there's one
      */
     FunctionDeclaration* destructor_func();
@@ -228,12 +244,33 @@ public:
      */
     std::pair<llvm::Value*, llvm::FunctionType*> llvm_func_data(FunctionDeclaration* decl);
 
+    /**
+     * add child index
+     */
     bool add_child_index(
             Codegen &gen,
             std::vector<llvm::Value *> &indexes,
             const std::string &name
     ) override {
         return VariablesContainer::llvm_struct_child_index(gen, indexes, name);
+    }
+
+    /**
+     * llvm_type below doesn't work without this declaration
+     */
+    llvm::Type* llvm_type(Codegen &gen) override {
+        return ASTAny::llvm_type(gen);
+    }
+
+    /**
+     * llvm type for the given generic iteration
+     */
+    llvm::Type *llvm_type(Codegen &gen, int16_t iteration) {
+        auto prev = active_iteration;
+        set_active_iteration(iteration);
+        auto type = llvm_type(gen);
+        set_active_iteration(prev);
+        return type;
     }
 
     /**

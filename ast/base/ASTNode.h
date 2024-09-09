@@ -135,13 +135,13 @@ public:
     /**
      * check if the object related to this node has been moved
      */
-    bool has_moved(ASTNodeKind kind);
+    bool has_moved(ASTNodeKind kind, Value* ref);
 
     /**
      * call this when the value associated with this node
      * has been moved, for example passing a struct obj in parameters
      */
-    void set_moved(ASTNodeKind kind);
+    void set_moved(ASTNodeKind kind, Value* ref);
 
     /**
      * this function provides a pointer to the parent ASTNode

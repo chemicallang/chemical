@@ -7,8 +7,6 @@
 #include "ast/types/UnionType.h"
 
 class UnnamedUnion : public BaseDefMember, public VariablesContainer, public UnionType {
-private:
-    bool has_moved = false;
 public:
 
     ASTNode* parent_node;
@@ -28,14 +26,6 @@ public:
 
     ASTNodeKind kind() override {
         return ASTNodeKind::UnnamedUnion;
-    }
-
-    void moved() {
-        has_moved = true;
-    }
-
-    bool get_has_moved() {
-        return has_moved;
     }
 
     VariablesContainer *variables_container() override {

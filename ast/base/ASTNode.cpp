@@ -7,6 +7,7 @@
 #include "ast/structures/VariantDefinition.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/Namespace.h"
+#include "ast/values/AccessChain.h"
 #include "ast/structures/UnionDef.h"
 #include "ast/structures/EnumDeclaration.h"
 #include "ast/structures/FunctionDeclaration.h"
@@ -120,35 +121,39 @@ bool ASTNode::is_exported() {
     return specifier() == AccessSpecifier::Public;
 }
 
-bool ASTNode::has_moved(ASTNodeKind k) {
+bool ASTNode::has_moved(ASTNodeKind k, Value* ref) {
     switch(k) {
         case ASTNodeKind::StructMember:
-            return as_struct_member_unsafe()->get_has_moved();
+        case ASTNodeKind::UnnamedStruct:
+        case ASTNodeKind::UnnamedUnion: {
+            // TODO this
+//            const auto chain = ref->as_access_chain();
+//            if(chain->values.size() > 1) {
+//                auto second_last = chain->values[chain->values.size() - 2].get();
+//                const auto linked = second_last->linked_node();
+//                auto linked_kind = linked->kind();
+//                if(linked_kind == ASTNodeKind::VarInitStmt) {
+//                    linked->as_var_init_unsafe()->get_has_moved();
+//                }
+//            }
+            return false;
+        }
         case ASTNodeKind::VarInitStmt:
             return as_var_init_unsafe()->get_has_moved();
-        case ASTNodeKind::UnnamedStruct:
-            return as_unnamed_struct_unsafe()->get_has_moved();
-        case ASTNodeKind::UnnamedUnion:
-            return as_unnamed_union_unsafe()->get_has_moved();
         default:
             return false;
     }
 }
 
-void ASTNode::set_moved(ASTNodeKind k) {
+void ASTNode::set_moved(ASTNodeKind k, Value* ref) {
     switch(k) {
         case ASTNodeKind::StructMember:
-            as_struct_member_unsafe()->moved();
+        case ASTNodeKind::UnnamedStruct:
+        case ASTNodeKind::UnnamedUnion:
+            // TODO
             return;
         case ASTNodeKind::VarInitStmt:
             as_var_init_unsafe()->moved();
-            return;
-        case ASTNodeKind::UnnamedStruct:
-            as_unnamed_struct_unsafe()->moved();
-            return;
-        case ASTNodeKind::UnnamedUnion:
-            as_unnamed_union_unsafe()->moved();
-            return;
         default:
             return;
     }

@@ -72,22 +72,19 @@ std::string& BaseType::ref_name() {
 }
 
 bool BaseType::requires_destructor() {
-    // TODO gonna fix it now !
-    const auto pure = pure_type();
-    if(!pure) return false;
-    const auto linked = pure->linked_node();
-    if(!linked) return false;
-    const auto struct_def = linked->as_struct_def();
-    if(struct_def) {
-        return struct_def->requires_destructor();
-    } else {
-        const auto interface_def = linked->as_interface_def();
-        if(interface_def) {
-            // TODO interface definition destructor, supporting virtual destructor
+    const auto direct_node = get_direct_ref_node();
+    if(!direct_node) return false;
+    switch(direct_node->kind()) {
+        case ASTNodeKind::StructDecl:
+            return direct_node->as_struct_def_unsafe()->requires_destructor();
+        case ASTNodeKind::VariantDecl:
+            return direct_node->as_variant_def_unsafe()->requires_destructor();
+        case ASTNodeKind::UnionDecl:
+            return direct_node->as_union_def_unsafe()->requires_destructor();
+        case ASTNodeKind::TypealiasStmt:
+            return direct_node->as_typealias_unsafe()->actual_type->requires_destructor();
+        default:
             return false;
-        } else {
-            return false;
-        }
     }
 }
 

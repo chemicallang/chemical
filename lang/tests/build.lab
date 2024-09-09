@@ -70,10 +70,8 @@ func build(ctx : BuildContext*) {
     const ext_cpp_module = ctx.cpp_file_module(string("ext_cpp"), relative_path(string("ext/file2.cpp")), { })
     // const std_module = ctx.chemical_dir_module(string("std"), relative_path(string("../std")), { })
     const submod = ctx.chemical_dir_module(string("submod"), relative_path(string("basic/submod")), { })
+    // currently the last dependency becomes null if we don't take it out like this
     var dependencies = { ext_module, ext_cpp_module, submod }
-    printf("check 0 : %s\n", dependencies[0].name);
-    printf("check 1 : %s\n", dependencies[1].name);
-    printf("check 2 : %s\n", dependencies[2].name);
     const module = ctx.chemical_file_module(exe_name, relative_path(string("tests.ch")), dependencies);
 
     const do_llvm_ir = false;

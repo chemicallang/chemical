@@ -377,10 +377,18 @@ func test_destructors() {
         }
         return count == 1;
     })
-    test("test structs passed to functions as parameters are automatically destructed - 2", () => {
+    test("test structs passed to functions as arguments are automatically destructed - 2", () => {
         var count = 0;
         if(count == 0) {
             test_struct_param_destructor(create_destructible(&count, 223))
+        }
+        return count == 1;
+    })
+    test("referenced structs are moved into functions as arguments are not destructed twice", () => {
+        var count = 0;
+        if(count == 0) {
+            var d = create_destructible(&count, 223);
+            test_struct_param_destructor(d)
         }
         return count == 1;
     })

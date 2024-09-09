@@ -17,6 +17,9 @@ public:
     llvm::StructType* llvm_struct_type = nullptr;
 #endif
 
+    using MembersContainer::requires_destructor;
+    using MembersContainer::requires_move_fn;
+
     UnionDef(
         std::string name,
         ASTNode* parent_node,

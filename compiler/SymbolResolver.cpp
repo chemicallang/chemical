@@ -3,6 +3,7 @@
 
 #include "ast/base/ASTNode.h"
 #include "SymbolResolver.h"
+#include "ast/values/AccessChain.h"
 #include "ast/structures/MultiFunctionNode.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "rang.hpp"
@@ -320,5 +321,55 @@ void SymbolResolver::dispose_module_symbols_now(const std::string& module_name) 
         if(sym.first->symbols.erase(sym.second) <= 0) {
             std::cerr << rang::fg::yellow << "[SymRes] unable to un-declare module symbol " << sym.second << " in module " << module_name << rang::fg::reset << std::endl;
         }
+    }
+}
+
+// given x.y and moved x.y.z match
+// given x.y and moved x.a don't match
+// given x.y.z and moved x match
+// given x and moved x.y.z match
+// given x and moved z.x don't
+// given x.y.z and moved x.y.a don't
+// when finding x.y, when has moved x.y.z, x.y then x.y is returned or x if present, the smallest chain
+// that matches is returned
+AccessChain* SymbolResolver::find_partially_matching_moved_chain(AccessChain* chain_ptr) {
+    auto& chain = *chain_ptr;
+    auto first_value = chain.values[0].get();
+    AccessChain* smallest = nullptr;
+    for(auto& moved_chain_ptr : current_func_type->moved_chains) {
+        auto& moved_chain = *moved_chain_ptr;
+        const auto moved_size = moved_chain.values.size();
+        // since finding the smallest moved chain that matches with the given chain
+        if(smallest && smallest->values.size() < moved_size) {
+            continue;
+        }
+        if(first_value->is_equal(moved_chain.values[0].get())) {
+            const auto given_size = chain.values.size();
+            auto matching = true;
+            const auto less_size = std::min(moved_size, given_size);
+            unsigned i = 1; // zero has already been checked
+            while(i < less_size) {
+                if(!moved_chain.values[i]->is_equal(chain.values[i].get())) {
+                    matching = false;
+                    break;
+                }
+                i++;
+            }
+            if(matching) {
+                smallest = moved_chain_ptr;
+            }
+        }
+    }
+    return smallest;
+}
+
+bool SymbolResolver::mark_moved(AccessChain* chain) {
+    auto moved = find_partially_matching_moved_chain(chain);
+    if(moved) {
+        error("cannot be moved, because member or parent that has already been moved exists '" + moved->chain_representation() +  "'", (ASTNode*) chain);
+        return false;
+    } else {
+        current_func_type->moved_chains.emplace_back(chain);
+        return true;
     }
 }

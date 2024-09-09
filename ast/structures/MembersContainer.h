@@ -128,9 +128,21 @@ public:
     }
 
     /**
+     * get first function with annotation
+     */
+    FunctionDeclaration* get_first_fn_annotated(AnnotationKind);
+
+    /**
+     * get last function with annotation
+     */
+    FunctionDeclaration* get_last_fn_annotated(AnnotationKind);
+
+    /**
      * will check if any function with constructor annotation exists
      */
-    bool has_constructor();
+    bool has_constructor() {
+        return get_first_fn_annotated(AnnotationKind::Constructor) != nullptr;
+    }
 
     /**
      * will provide a constructor function if there's one
@@ -144,9 +156,16 @@ public:
     FunctionDeclaration* implicit_constructor_func(Value* type);
 
     /**
-     * checks if this struct type requires destructor
+     * checks if this struct type requires a destructor
+     * or has one
      */
     bool requires_destructor();
+
+    /**
+     * checks if this struct type requires a move function
+     * or has one
+     */
+    bool requires_move_fn();
 
     /**
      * get the byte size
@@ -167,7 +186,16 @@ public:
     /**
      * will provide a destructor function if there's one
      */
-    FunctionDeclaration* destructor_func();
+    FunctionDeclaration* destructor_func() {
+        return get_last_fn_annotated(AnnotationKind::Destructor);
+    }
+
+    /**
+     * will provide the move function if there's one
+     */
+    FunctionDeclaration* move_func() {
+        return get_last_fn_annotated(AnnotationKind::Move);
+    }
 
     /**
      * insert the given function into this members container

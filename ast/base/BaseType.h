@@ -240,6 +240,11 @@ public:
     bool requires_destructor();
 
     /**
+     * is a function required
+     */
+    bool requires_move_fn();
+
+    /**
      * if this is a directly referenced / generic type, get it's ref'ed node
      */
     ASTNode* get_direct_ref_node();
@@ -283,6 +288,13 @@ public:
      * this type references a struct
      */
     bool is_ref_struct();
+
+    /**
+     * here movable means that the struct has a destructor or a move function or both
+     * which means, it just can't be mem copied, after copied, move functions should be called
+     * moves should be tracked and all that
+     */
+    bool is_movable_ref_struct();
 
     /**
      * searches a implicit constructor for given value, using the linked struct with this type

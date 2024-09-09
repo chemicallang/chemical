@@ -65,6 +65,14 @@ public:
      */
     int16_t set_generic_iteration();
 
+    /**
+     * will check contents, are they of the same kind
+     * this method means are both chain values functionally equal
+     * they don't mean to check if they have same names, but if both were exchanged
+     * they won't have an effect on code generation
+     */
+    bool is_equal(ChainValue* other);
+
 #ifdef COMPILER_BUILD
 
     /**

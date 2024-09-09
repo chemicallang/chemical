@@ -397,13 +397,22 @@ void MembersContainer::set_active_iteration(int16_t iteration) {
     }
 }
 
-bool MembersContainer::has_constructor() {
+FunctionDeclaration* MembersContainer::get_first_fn_annotated(AnnotationKind annot) {
     for(const auto & function : functions()) {
-        if(function->has_annotation(AnnotationKind::Constructor)) {
-            return true;
+        if(function->has_annotation(annot)) {
+            return function.get();
         }
     }
-    return false;
+    return nullptr;
+}
+
+FunctionDeclaration* MembersContainer::get_last_fn_annotated(AnnotationKind annot) {
+    for (const auto & function : std::ranges::reverse_view(functions())) {
+        if(function->has_annotation(annot)) {
+            return function.get();
+        }
+    }
+    return nullptr;
 }
 
 FunctionDeclaration* MembersContainer::constructor_func(std::vector<std::unique_ptr<Value>>& forArgs) {
@@ -424,20 +433,22 @@ FunctionDeclaration* MembersContainer::implicit_constructor_func(Value* value) {
     return nullptr;
 }
 
-FunctionDeclaration* MembersContainer::destructor_func() {
-    for (const auto & function : std::ranges::reverse_view(functions())) {
-        if(function->has_annotation(AnnotationKind::Destructor)) {
-            return function.get();
-        }
-    }
-    return nullptr;
-}
-
 bool MembersContainer::requires_destructor() {
     auto destructor = destructor_func();
     if(destructor) return true;
     for(const auto& var : variables) {
         if(var.second->requires_destructor()) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool MembersContainer::requires_move_fn() {
+    auto move_fn = move_func();
+    if(move_fn) return true;
+    for(const auto& var : variables) {
+        if(var.second->requires_move_fn()) {
             return true;
         }
     }

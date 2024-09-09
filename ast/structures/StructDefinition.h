@@ -33,6 +33,7 @@ public:
 #endif
 
     using MembersContainer::requires_destructor;
+    using MembersContainer::requires_move_fn;
 
     /**
      * @brief Construct a new StructDeclaration object.

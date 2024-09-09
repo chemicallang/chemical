@@ -25,6 +25,9 @@ enum class AnnotationKind {
     // constructor or de constructor allow functions to be called automatically
     DirectInit,
     Constructor,
+    // a move function is triggered on the object that has been moved (it's not like C++ move constructor which is called on the newly object being constructed)
+    // it means to say, function that defines what happens when the object is moved and NOT how to construct an object from another object without copying everything
+    Move,
     Destructor,
 
     // the function overrides another present above in a struct or interface

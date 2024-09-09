@@ -355,6 +355,10 @@ bool StructMember::requires_move_fn() {
     return type->requires_move_fn();
 }
 
+bool StructMember::requires_copy_fn() {
+    return type->requires_copy_fn();
+}
+
 void StructDefinition::accept(Visitor *visitor) {
     visitor->visit(this);
 }
@@ -367,6 +371,7 @@ void StructDefinition::declare_top_level(SymbolResolver &linker, std::unique_ptr
 void StructDefinition::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     bool has_destructor = false;
     bool has_move_fn = false;
+    bool has_copy_fn = false;
     for(auto& func : functions()) {
         if(func->has_annotation(AnnotationKind::Constructor)) {
             func->ensure_constructor(this);
@@ -379,9 +384,16 @@ void StructDefinition::declare_and_link(SymbolResolver &linker, std::unique_ptr<
             func->ensure_move_fn(this);
             has_move_fn = true;
         }
+        if(func->has_annotation(AnnotationKind::Copy)) {
+            func->ensure_copy_fn(this);
+            has_copy_fn = true;
+        }
     }
     MembersContainer::declare_and_link(linker, node_ptr);
     register_use_to_inherited_interfaces(this);
+    if(!has_copy_fn && requires_copy_fn()) {
+        create_def_copy_fn(linker);
+    }
     if(!has_move_fn && requires_move_fn()) {
         create_def_move_fn(linker);
     }

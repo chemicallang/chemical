@@ -61,6 +61,8 @@ public:
 
     bool requires_move_fn() override;
 
+    bool requires_copy_fn() override;
+
     BaseType* known_type() override;
 
 #ifdef COMPILER_BUILD

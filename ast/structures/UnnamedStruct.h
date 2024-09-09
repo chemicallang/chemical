@@ -64,9 +64,9 @@ public:
 
     void declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override;
 
-    bool requires_destructor() override {
+    bool requires_copy_fn() override {
         for(const auto& var : variables) {
-            if(var.second->requires_destructor()) {
+            if(var.second->requires_copy_fn()) {
                 return true;
             }
         }
@@ -76,6 +76,15 @@ public:
     bool requires_move_fn() override {
         for(const auto& var : variables) {
             if(var.second->requires_move_fn()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool requires_destructor() override {
+        for(const auto& var : variables) {
+            if(var.second->requires_destructor()) {
                 return true;
             }
         }

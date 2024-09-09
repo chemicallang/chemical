@@ -168,6 +168,11 @@ public:
     bool requires_move_fn();
 
     /**
+     * checks if this struct type requires a copy function
+     */
+    bool requires_copy_fn();
+
+    /**
      * get the byte size
      */
     virtual uint64_t byte_size(bool is64Bit) = 0;
@@ -198,6 +203,13 @@ public:
     }
 
     /**
+     * will provide the move function if there's one
+     */
+    FunctionDeclaration* copy_func() {
+        return get_last_fn_annotated(AnnotationKind::Copy);
+    }
+
+    /**
      * insert the given function into this members container
      */
     void insert_func(std::unique_ptr<FunctionDeclaration> decl);
@@ -208,9 +220,14 @@ public:
     FunctionDeclaration* create_destructor();
 
     /**
-     * creates the move function and put it into functions
+     * create the move function and put it into functions
      */
     FunctionDeclaration* create_move_fn();
+
+    /**
+     * create the copy function and put it into functions
+     */
+    FunctionDeclaration* create_copy_fn();
 
     /**
      * create default destructor, report errors in given diagnoser, this is a helper function
@@ -218,9 +235,14 @@ public:
     FunctionDeclaration* create_def_destructor(ASTDiagnoser& diagnoser);
 
     /**
-     *create default move function, report errors in given diagnoser, this is a helper function
+     * create default move function, report errors in given diagnoser, this is a helper function
      */
     FunctionDeclaration* create_def_move_fn(ASTDiagnoser& diagnoser);
+
+    /**
+     * create default copy function, report errors in given diagnoser, this is a helper function
+     */
+    FunctionDeclaration* create_def_copy_fn(ASTDiagnoser& diagnoser);
 
     /**
      * insert a function that can have same name for multiple declarations

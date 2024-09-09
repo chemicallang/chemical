@@ -105,6 +105,23 @@ bool BaseType::requires_move_fn() {
     }
 }
 
+bool BaseType::requires_copy_fn() {
+    const auto direct_node = get_direct_ref_node();
+    if(!direct_node) return false;
+    switch(direct_node->kind()) {
+        case ASTNodeKind::StructDecl:
+            return direct_node->as_struct_def_unsafe()->requires_copy_fn();
+        case ASTNodeKind::VariantDecl:
+            return direct_node->as_variant_def_unsafe()->requires_copy_fn();
+        case ASTNodeKind::UnionDecl:
+            return direct_node->as_union_def_unsafe()->requires_copy_fn();
+        case ASTNodeKind::TypealiasStmt:
+            return direct_node->as_typealias_unsafe()->actual_type->requires_copy_fn();
+        default:
+            return false;
+    }
+}
+
 std::unique_ptr<Value> BaseType::promote_unique(Value* value) {
     return std::unique_ptr<Value>(promote(value));
 }

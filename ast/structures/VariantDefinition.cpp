@@ -404,6 +404,15 @@ bool VariantMember::requires_move_fn() {
     return false;
 }
 
+bool VariantMember::requires_copy_fn() {
+    for(auto& value : values) {
+        if(value.second->type->requires_copy_fn()) {
+            return true;
+        }
+    }
+    return false;
+}
+
 BaseType* VariantMember::known_type() {
     return &ref_type;
 }

@@ -34,6 +34,7 @@ public:
 
     using MembersContainer::requires_destructor;
     using MembersContainer::requires_move_fn;
+    using MembersContainer::requires_copy_fn;
 
     /**
      * @brief Construct a new StructDeclaration object.

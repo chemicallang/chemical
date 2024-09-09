@@ -453,12 +453,16 @@ void FunctionDeclaration::code_gen_body(Codegen &gen, StructDefinition* def) {
     if(has_annotation(AnnotationKind::CompTime)) {
         return;
     }
-    if(has_annotation(AnnotationKind::Destructor)) {
-        code_gen_destructor(gen, def);
+    if(has_annotation(AnnotationKind::Copy)) {
+        code_gen_copy_fn(gen, def);
         return;
     }
     if(has_annotation(AnnotationKind::Move)) {
         code_gen_move_fn(gen, def);
+        return;
+    }
+    if(has_annotation(AnnotationKind::Destructor)) {
+        code_gen_destructor(gen, def);
         return;
     }
     gen.current_function = nullptr;
@@ -505,7 +509,24 @@ void FunctionDeclaration::setup_cleanup_block(Codegen &gen, llvm::Function* func
     }
 }
 
-void code_gen_calling_member_functions(FunctionDeclaration& decl, Codegen& gen, StructDefinition* def, FunctionDeclaration*(*choose_func)(MembersContainer*)) {
+void create_call_member_func(Codegen& gen, FunctionDeclaration* decl, StructDefinition* def, llvm::Function* func, unsigned index) {
+    auto arg = func->getArg(0);
+    std::vector<llvm::Value *> idxList{gen.builder->getInt32(0)};
+    std::vector<llvm::Value*> args;
+    auto element_ptr = Value::get_element_pointer(gen, def->llvm_type(gen), arg, idxList, index);
+    if(decl->has_self_param()) {
+        args.emplace_back(element_ptr);
+    }
+    gen.builder->CreateCall(decl->llvm_func_type(gen), decl->llvm_pointer(gen), args);
+}
+
+void code_gen_calling_member_functions(
+        FunctionDeclaration& decl,
+        Codegen& gen,
+        StructDefinition* def,
+        FunctionDeclaration*(*choose_func)(MembersContainer*),
+        void(*member_func_call)(Codegen& gen, FunctionDeclaration* decl, StructDefinition* def, llvm::Function* func, unsigned index)
+) {
     auto func = decl.llvm_func();
     gen.current_function = func;
     decl.setup_cleanup_block(gen, func);
@@ -519,14 +540,7 @@ void code_gen_calling_member_functions(FunctionDeclaration& decl, Codegen& gen, 
                 index++;
                 continue;
             }
-            auto arg = func->getArg(0);
-            std::vector<llvm::Value *> idxList{gen.builder->getInt32(0)};
-            std::vector<llvm::Value*> args;
-            auto element_ptr = Value::get_element_pointer(gen, def->llvm_type(gen), arg, idxList, index);
-            if(destructor->has_self_param()) {
-                args.emplace_back(element_ptr);
-            }
-            gen.builder->CreateCall(destructor->llvm_func_type(gen), destructor->llvm_pointer(gen), args);
+            member_func_call(gen, destructor, def, func, index);
         }
         index++;
     }
@@ -534,16 +548,33 @@ void code_gen_calling_member_functions(FunctionDeclaration& decl, Codegen& gen, 
     gen.redirect_return = nullptr;
 }
 
+void FunctionDeclaration::code_gen_copy_fn(Codegen& gen, StructDefinition* def) {
+    code_gen_calling_member_functions(*this, gen, def, [](MembersContainer* mem_def)->FunctionDeclaration* {
+        return mem_def->copy_func();
+    }, [](Codegen& gen, FunctionDeclaration* decl, StructDefinition* def, llvm::Function* func, unsigned index) {
+        auto selfArg = func->getArg(0);
+        auto otherArg = func->getArg(1);
+        std::vector<llvm::Value*> args;
+        std::vector<llvm::Value *> idxList{gen.builder->getInt32(0)};
+        auto element_ptr = Value::get_element_pointer(gen, def->llvm_type(gen), selfArg, idxList, index);
+        args.emplace_back(element_ptr);
+        idxList.pop_back();
+        auto other_element_ptr = Value::get_element_pointer(gen, def->llvm_type(gen), otherArg, idxList, index);
+        args.emplace_back(other_element_ptr);
+        gen.builder->CreateCall(decl->llvm_func_type(gen), decl->llvm_pointer(gen), args);
+    });
+}
+
 void FunctionDeclaration::code_gen_move_fn(Codegen& gen, StructDefinition* def) {
     code_gen_calling_member_functions(*this, gen, def, [](MembersContainer* mem_def)->FunctionDeclaration* {
         return mem_def->move_func();
-    });
+    }, create_call_member_func);
 }
 
 void FunctionDeclaration::code_gen_destructor(Codegen& gen, StructDefinition* def) {
     code_gen_calling_member_functions(*this, gen, def, [](MembersContainer* mem_def)->FunctionDeclaration* {
         return mem_def->destructor_func();
-    });
+    }, create_call_member_func);
 }
 
 void FunctionDeclaration::code_gen_destructor(Codegen& gen, VariantDefinition* def) {
@@ -844,6 +875,19 @@ void FunctionDeclaration::ensure_move_fn(ExtendableMembersContainerNode* def) {
     if(!has_self_param() || params.size() > 1 || params.empty()) {
         params.clear();
         params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>(def->name, def, nullptr), nullptr), 0, nullptr, this, nullptr));
+    }
+    returnType = std::make_unique<VoidType>(nullptr);
+    if(!body.has_value()) {
+        body.emplace(std::vector<std::unique_ptr<ASTNode>> {}, this, nullptr);
+        body.value().nodes.emplace_back(new ReturnStatement(nullptr, this, &body.value(), nullptr));
+    }
+}
+
+void FunctionDeclaration::ensure_copy_fn(ExtendableMembersContainerNode* def) {
+    if(!has_self_param() || params.size() > 2 || params.empty()) {
+        params.clear();
+        params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>(def->name, def, nullptr), nullptr), 0, nullptr, this, nullptr));
+        params.emplace_back(std::make_unique<FunctionParam>("other", std::make_unique<PointerType>(std::make_unique<ReferencedType>(def->name, def, nullptr), nullptr), 1, nullptr, this, nullptr));
     }
     returnType = std::make_unique<VoidType>(nullptr);
     if(!body.has_value()) {

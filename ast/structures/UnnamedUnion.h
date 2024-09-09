@@ -56,13 +56,18 @@ public:
 
     void declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override;
 
-    // TODO destructor support unnamed union
-    bool requires_destructor() override {
+    // TODO copy function support unnamed union
+    bool requires_copy_fn() override {
         return false;
     }
 
     // TODO move function support unnamed union
     bool requires_move_fn() override {
+        return false;
+    }
+
+    // TODO destructor support unnamed union
+    bool requires_destructor() override {
         return false;
     }
 

@@ -455,6 +455,17 @@ bool MembersContainer::requires_move_fn() {
     return false;
 }
 
+bool MembersContainer::requires_copy_fn() {
+    auto copy_fn = copy_func();
+    if(copy_fn) return true;
+    for(const auto& var : variables) {
+        if(var.second->requires_copy_fn()) {
+            return true;
+        }
+    }
+    return false;
+}
+
 void MembersContainer::insert_func(std::unique_ptr<FunctionDeclaration> decl) {
     indexes[decl->name] = decl.get();
     functions_container.emplace_back(std::move(decl));
@@ -478,6 +489,16 @@ FunctionDeclaration* MembersContainer::create_move_fn() {
     return decl;
 }
 
+FunctionDeclaration* MembersContainer::create_copy_fn() {
+    auto decl = new FunctionDeclaration("copy", {}, std::make_unique<VoidType>(nullptr), false, this, nullptr, std::nullopt);
+    decl->params.emplace_back(new FunctionParam("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>(ns_node_identifier(), this, nullptr), nullptr), 0, nullptr, decl, nullptr));
+    decl->params.emplace_back(new FunctionParam("other", std::make_unique<PointerType>(std::make_unique<ReferencedType>(ns_node_identifier(), this, nullptr), nullptr), 1, nullptr, decl, nullptr));
+    decl->body.emplace(LoopScope{nullptr, nullptr});
+    decl->annotations.emplace_back(AnnotationKind::Copy);
+    insert_func(std::unique_ptr<FunctionDeclaration>(decl));
+    return decl;
+}
+
 FunctionDeclaration* MembersContainer::create_def_destructor(ASTDiagnoser& diagnoser) {
     auto delFunc = direct_child_function("delete");
     if(delFunc) {
@@ -494,6 +515,15 @@ FunctionDeclaration* MembersContainer::create_def_move_fn(ASTDiagnoser& diagnose
         return nullptr;
     }
     return create_move_fn();
+}
+
+FunctionDeclaration* MembersContainer::create_def_copy_fn(ASTDiagnoser& diagnoser) {
+    auto copyFn = direct_child_function("copy");
+    if(copyFn) {
+        diagnoser.error("default copy function is created by name 'copy', a function by name 'copy' already exists, please create a manual function to avoid this", (AnnotableNode*) copyFn);
+        return nullptr;
+    }
+    return create_copy_fn();
 }
 
 bool MembersContainer::insert_multi_func(std::unique_ptr<FunctionDeclaration> decl) {

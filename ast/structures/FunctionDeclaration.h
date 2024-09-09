@@ -133,6 +133,8 @@ public:
 
     void ensure_move_fn(ExtendableMembersContainerNode* def);
 
+    void ensure_copy_fn(ExtendableMembersContainerNode* def);
+
     using FunctionType::as_extension_func;
 
     /**
@@ -263,8 +265,15 @@ public:
     void code_gen_destructor(Codegen& gen, StructDefinition* def);
 
     /**
+     * body for the copy function is generated using this function
+     * the copy function is a special function that will call copy functions
+     * of the struct members that require it
+     */
+    void code_gen_copy_fn(Codegen& gen, StructDefinition* def);
+
+    /**
      * body for the move function is generated using this function
-     * the move functino is a special function that will call move functions
+     * the move function is a special function that will call move functions
      * of the struct members that require it
      */
     void code_gen_move_fn(Codegen& gen, StructDefinition* def);

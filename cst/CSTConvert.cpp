@@ -310,6 +310,7 @@ const std::unordered_map<std::string, const AnnotationHandler> AnnotationHandler
         { "direct_init", { collect_annotation_func, AnnotationKind::DirectInit }},
         { "cpp", { collect_annotation_func, AnnotationKind::Cpp }},
         { "move", { collect_annotation_func, AnnotationKind::Move }},
+        { "copy", { collect_annotation_func, AnnotationKind::Copy }},
 };
 
 inline void collect_annotations_in(CSTConverter* converter, AnnotableNode* node) {

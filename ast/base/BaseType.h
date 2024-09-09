@@ -240,9 +240,14 @@ public:
     bool requires_destructor();
 
     /**
-     * is a function required
+     * is a move function required
      */
     bool requires_move_fn();
+
+    /**
+     * is a copy function required
+     */
+    bool requires_copy_fn();
 
     /**
      * if this is a directly referenced / generic type, get it's ref'ed node

@@ -109,35 +109,24 @@ std::unique_ptr<Value> BaseType::promote_unique(Value* value) {
     return std::unique_ptr<Value>(promote(value));
 }
 
-ASTNode* BaseType::get_direct_ref_node() {
-    const auto k = kind();
-    if(k == BaseTypeKind::Referenced || k == BaseTypeKind::Generic) {
-        return linked_node();
+ASTNode* BaseType::get_direct_ref_node(BaseTypeKind k) {
+    if(k == BaseTypeKind::Referenced) {
+        return ((ReferencedType*) this)->linked;
+    } else if(k == BaseTypeKind::Generic) {
+        return ((GenericType*) this)->referenced->linked;
     } else {
         return nullptr;
     }
 }
 
-StructDefinition* BaseType::get_direct_ref_struct() {
-    const auto ref_node = get_direct_ref_node();
+StructDefinition* BaseType::get_direct_ref_struct(BaseTypeKind k) {
+    const auto ref_node = get_direct_ref_node(k);
     return ref_node ? ref_node->as_struct_def() : nullptr;
 }
 
-VariantDefinition* BaseType::get_direct_ref_variant() {
-    const auto ref_node = get_direct_ref_node();
+VariantDefinition* BaseType::get_direct_ref_variant(BaseTypeKind k) {
+    const auto ref_node = get_direct_ref_node(k);
     return ref_node ? ref_node->as_variant_def() : nullptr;
-}
-
-bool BaseType::is_ref_struct() {
-    const auto k = kind();
-    if(k == BaseTypeKind::Generic) {
-        return true;
-    } else if(k == BaseTypeKind::Referenced) {
-        const auto linked = linked_node();
-        return linked && linked->as_struct_def() != nullptr;
-    } else {
-        return false;
-    }
 }
 
 bool BaseType::is_movable_ref_struct() {

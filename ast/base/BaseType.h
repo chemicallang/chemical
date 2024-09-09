@@ -97,6 +97,13 @@ public:
     virtual BaseType *copy() const = 0;
 
     /**
+     * copies unique
+     */
+    std::unique_ptr<BaseType> copy_unique() {
+        return std::unique_ptr<BaseType>(copy());
+    }
+
+    /**
      * a type, or a referenced type, can link itself with its definition
      */
     virtual void link(SymbolResolver &linker, std::unique_ptr<BaseType>& current) {
@@ -158,6 +165,11 @@ public:
     virtual Value* promote(Value* value) {
         return nullptr;
     }
+
+    /**
+     * a helper function
+     */
+    std::unique_ptr<Value> promote_unique(Value* value);
 
     /**
      * check if given base type is of same type

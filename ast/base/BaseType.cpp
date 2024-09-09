@@ -87,6 +87,10 @@ bool BaseType::requires_destructor() {
     }
 }
 
+std::unique_ptr<Value> BaseType::promote_unique(Value* value) {
+    return std::unique_ptr<Value>(promote(value));
+}
+
 ASTNode* BaseType::get_direct_ref_node() {
     const auto k = kind();
     if(k == BaseTypeKind::Referenced || k == BaseTypeKind::Generic) {

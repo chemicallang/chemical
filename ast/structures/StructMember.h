@@ -7,6 +7,8 @@
 #include "BaseDefMember.h"
 
 class StructMember : public BaseDefMember {
+private:
+    bool has_moved = false;
 public:
 
     bool is_const;
@@ -32,6 +34,14 @@ public:
 
     void set_parent(ASTNode* new_parent) override {
         parent_node = new_parent;
+    }
+
+    void moved() {
+        has_moved = true;
+    }
+
+    bool get_has_moved() {
+        return has_moved;
     }
 
     CSTToken *cst_token() override {

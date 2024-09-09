@@ -89,6 +89,7 @@ void VarInitStatement::code_gen(Codegen &gen) {
 }
 
 void VarInitStatement::code_gen_destruct(Codegen &gen, Value* returnValue) {
+    if(has_moved) return;
     if(returnValue) {
         auto id = returnValue->as_identifier();
         if(id && id->linked == this) {

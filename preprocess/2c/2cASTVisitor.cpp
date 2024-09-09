@@ -1441,8 +1441,8 @@ void CDestructionVisitor::process_init_value(VarInitStatement *init, Value* init
 }
 
 void CDestructionVisitor::visit(VarInitStatement *init) {
-    if(init->value_type() == ValueType::Pointer) {
-        // do not destruct pointers
+    if(init->get_has_moved() || init->value_type() == ValueType::Pointer) {
+        // do not destruct pointers or moved objects
         return;
     }
     if(init->value) {

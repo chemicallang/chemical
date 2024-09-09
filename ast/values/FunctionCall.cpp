@@ -527,6 +527,11 @@ void FunctionCall::link_values(SymbolResolver &linker) {
     unsigned i = 0;
     while(i < values.size()) {
         values[i]->link(linker, this, i);
+        if(values[i]->known_type()->is_ref_struct()) {
+            const auto linked = values[i]->linked_node();
+            const auto linked_kind = linked->kind();
+            linked->set_moved(linked_kind);
+        }
         i++;
     }
 }

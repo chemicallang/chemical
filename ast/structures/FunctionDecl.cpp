@@ -424,18 +424,12 @@ void FunctionDeclaration::code_gen_declare(Codegen &gen, StructDefinition* def) 
     if(has_annotation(AnnotationKind::CompTime)) {
         return;
     }
-    if(has_annotation(AnnotationKind::Destructor)) {
-        ensure_destructor(def);
-    }
     create_fn(gen, this);
 }
 
 void FunctionDeclaration::code_gen_declare(Codegen &gen, VariantDefinition* def) {
     if(has_annotation(AnnotationKind::CompTime)) {
         return;
-    }
-    if(has_annotation(AnnotationKind::Destructor)) {
-        ensure_destructor(def);
     }
     create_fn(gen, this);
 }
@@ -451,9 +445,6 @@ void FunctionDeclaration::code_gen_declare(Codegen &gen, InterfaceDefinition* de
 void FunctionDeclaration::code_gen_declare(Codegen &gen, UnionDef* def) {
     if(has_annotation(AnnotationKind::CompTime)) {
         return;
-    }
-    if(has_annotation(AnnotationKind::Destructor)) {
-        ensure_destructor(def);
     }
     create_fn(gen, this);
 }
@@ -512,6 +503,7 @@ void FunctionDeclaration::setup_cleanup_block(Codegen &gen, llvm::Function* func
 
 void FunctionDeclaration::code_gen_destructor(Codegen& gen, StructDefinition* def) {
     auto func = llvm_func();
+    gen.current_function = func;
     setup_cleanup_block(gen, func);
     unsigned index = 0;
     for(auto& var : def->variables) {
@@ -821,6 +813,18 @@ void FunctionDeclaration::ensure_constructor(StructDefinition* def) {
 }
 
 void FunctionDeclaration::ensure_destructor(ExtendableMembersContainerNode* def) {
+    if(!has_self_param() || params.size() > 1 || params.empty()) {
+        params.clear();
+        params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>(def->name, def, nullptr), nullptr), 0, nullptr, this, nullptr));
+    }
+    returnType = std::make_unique<VoidType>(nullptr);
+    if(!body.has_value()) {
+        body.emplace(std::vector<std::unique_ptr<ASTNode>> {}, this, nullptr);
+        body.value().nodes.emplace_back(new ReturnStatement(nullptr, this, &body.value(), nullptr));
+    }
+}
+
+void FunctionDeclaration::ensure_move_fn(ExtendableMembersContainerNode* def) {
     if(!has_self_param() || params.size() > 1 || params.empty()) {
         params.clear();
         params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>(def->name, def, nullptr), nullptr), 0, nullptr, this, nullptr));

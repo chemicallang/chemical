@@ -366,23 +366,27 @@ void StructDefinition::declare_top_level(SymbolResolver &linker, std::unique_ptr
 
 void StructDefinition::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     bool has_destructor = false;
+    bool has_move_fn = false;
     for(auto& func : functions()) {
         if(func->has_annotation(AnnotationKind::Constructor)) {
             func->ensure_constructor(this);
         }
         if(func->has_annotation(AnnotationKind::Destructor)) {
+            func->ensure_destructor(this);
             has_destructor = true;
+        }
+        if(func->has_annotation(AnnotationKind::Move)) {
+            func->ensure_move_fn(this);
+            has_move_fn = true;
         }
     }
     MembersContainer::declare_and_link(linker, node_ptr);
     register_use_to_inherited_interfaces(this);
+    if(!has_move_fn && requires_move_fn()) {
+        create_def_move_fn(linker);
+    }
     if(!has_destructor && requires_destructor()) {
-        auto delFunc = direct_child_function("delete");
-        if(delFunc) {
-            linker.error("default destructor is created by name 'delete' , a function by name 'delete' already exists in struct '" + name + "', please create a destructor by hand if you'd like to reserve 'delete' for your own usage", (AnnotableNode*) delFunc);
-            return;
-        }
-        create_destructor();
+        create_def_destructor(linker);
     }
 }
 

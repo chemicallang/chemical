@@ -9,6 +9,7 @@ public:
     std::unique_ptr<AccessChain> chain;
     std::vector<std::unique_ptr<Value>> values;
     std::vector<std::unique_ptr<BaseType>> generic_list;
+    std::unique_ptr<BaseType> cached_type = nullptr;
     CSTToken* token;
 
     /**
@@ -68,6 +69,8 @@ public:
     bool link(SymbolResolver &linker, ArrayValue *value, unsigned int index) override {
         return TypeLinkedValue::link(linker, value, index);
     }
+
+    void set_created_type();
 
     std::unique_ptr<BaseType> create_type() override;
 

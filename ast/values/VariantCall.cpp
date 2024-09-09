@@ -194,22 +194,35 @@ bool VariantCall::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr
     return link(linker, value_ptr, nullptr);
 }
 
-std::unique_ptr<BaseType> VariantCall::create_type() {
+void VariantCall::set_created_type() {
     const auto member = chain->linked_node()->as_variant_member();
     const auto largest_member = member->parent_node->largest_member();
     if(largest_member == member) {
-        return member->parent_node->create_value_type();
+        cached_type = member->parent_node->create_value_type();
     } else {
         // TODO when it's not the largest member, we must create the type so that
         //  it reflects that, so user can't assign other members that are smaller than this member
-        return member->parent_node->create_value_type();
+        cached_type = member->parent_node->create_value_type();
     }
 }
 
+std::unique_ptr<BaseType> VariantCall::create_type() {
+    if(!cached_type) {
+        set_created_type();
+    }
+    return cached_type->copy_unique();
+}
+
 hybrid_ptr<BaseType> VariantCall::get_base_type() {
-    return hybrid_ptr<BaseType> { create_type().release(), true };
+    if(!cached_type) {
+        set_created_type();
+    }
+    return hybrid_ptr<BaseType> { cached_type.get(), false };
 }
 
 BaseType* VariantCall::known_type() {
-    return nullptr;
+    if(!cached_type) {
+        set_created_type();
+    }
+    return cached_type.get();
 }

@@ -196,9 +196,22 @@ std::unique_ptr<BaseType> ArrayValue::element_type() const {
 }
 
 std::unique_ptr<BaseType> ArrayValue::create_type() {
-    return std::make_unique<ArrayType>(element_type(), array_size(), nullptr);
+    if(!cached_type) {
+        cached_type = std::make_unique<ArrayType>(element_type(), array_size(), nullptr);
+    }
+    return cached_type->copy_unique();
 }
 
 hybrid_ptr<BaseType> ArrayValue::get_base_type() {
-    return hybrid_ptr<BaseType> { new ArrayType(std::move(element_type()), array_size(), nullptr) };
+    if(!cached_type) {
+        cached_type = std::make_unique<ArrayType>(element_type(), array_size(), nullptr);
+    }
+    return hybrid_ptr<BaseType> { cached_type.get(), false };
+}
+
+BaseType* ArrayValue::known_type() {
+    if(!cached_type) {
+        cached_type = std::make_unique<ArrayType>(element_type(), array_size(), nullptr);
+    }
+    return cached_type.get();
 }

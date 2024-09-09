@@ -52,34 +52,57 @@ void Expression::promote_literal_values(BaseType* firstType, BaseType* secondTyp
     }
 }
 
-std::unique_ptr<BaseType> Expression::create_type() {
+void Expression::set_created_type() {
     if(operation >= Operation::IndexComparisonStart && operation <= Operation::IndexComparisonEnd) {
-        return std::make_unique<BoolType>(nullptr);
+        created_type = std::make_unique<BoolType>(nullptr);
+        return;
     }
     auto first = firstValue->create_type();
     auto second = secondValue->create_type();
     if((operation == Operation::Addition || operation == Operation::Subtraction) && first->kind() == BaseTypeKind::Pointer) {
         auto second_value_type = second->value_type();
         if(second_value_type >= ValueType::IntNStart && second_value_type <= ValueType::IntNEnd) {
-            return std::unique_ptr<BaseType>(first->copy());
+            created_type = first->copy_unique();
+            return;
         }
     }
     if(first->value_type() == ValueType::Pointer && second->value_type() == ValueType::Pointer) {
-        return std::make_unique<LongType>(is64Bit, nullptr);
+        created_type = std::make_unique<LongType>(is64Bit, nullptr);
+        return;
     }
     if(first->can_promote(secondValue.get())) {
-        return std::unique_ptr<Value>(first->promote(secondValue.get()))->create_type();
+        created_type = first->promote_unique(secondValue.get())->create_type();
+        return;
     } else {
         if(second->can_promote(firstValue.get())) {
-            return std::unique_ptr<Value>(second->promote(firstValue.get()))->create_type();
+            created_type = second->promote_unique(firstValue.get())->create_type();
+            return;
         } else {
-            return first;
+            created_type = std::move(first);
+            return;
         }
     }
 }
 
+std::unique_ptr<BaseType> Expression::create_type() {
+    if(!created_type) {
+        set_created_type();
+    }
+    return created_type->copy_unique();
+}
+
+BaseType* Expression::known_type() {
+    if(!created_type) {
+        set_created_type();
+    }
+    return created_type.get();
+}
+
 hybrid_ptr<BaseType> Expression::get_base_type() {
-    return hybrid_ptr<BaseType> { create_type().release(), true };
+    if(!created_type) {
+        set_created_type();
+    }
+    return hybrid_ptr<BaseType> { created_type.get(), false };
 }
 
 uint64_t Expression::byte_size(bool is64Bit) {

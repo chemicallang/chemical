@@ -19,6 +19,7 @@ public:
     std::unique_ptr<BaseType> elemType;
     std::vector<unsigned int> sizes;
     CSTToken* token;
+    std::unique_ptr<BaseType> cached_type = nullptr;
 
 #ifdef COMPILER_BUILD
     // TODO this arr value should be stored in code gen since its related to that
@@ -126,6 +127,8 @@ public:
     std::unique_ptr<BaseType> create_type() override;
 
     hybrid_ptr<BaseType> get_base_type() override;
+
+    BaseType* known_type() override;
 
     [[nodiscard]]
     ValueType value_type() const override {

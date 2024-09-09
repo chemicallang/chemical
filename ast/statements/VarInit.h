@@ -16,6 +16,13 @@
 #include "ast/base/GlobalInterpretScope.h"
 
 class VarInitStatement : public AnnotableNode {
+private:
+    /**
+     * has moved is used to indicate that an object at this location has moved
+     * destructor is not called on moved objects, once moved, any attempt to access
+     * this variable causes an error
+     */
+    bool has_moved = false;
 public:
 
     bool is_const;
@@ -26,12 +33,6 @@ public:
     ASTNode* parent_node;
     CSTToken* token;
     AccessSpecifier specifier;
-    /**
-     * has moved is used to indicate that an object at this location has moved
-     * destructor is not called on moved objects, once moved, any attempt to access
-     * this variable causes an error
-     */
-    bool has_moved = false;
 #ifdef COMPILER_BUILD
     llvm::Value *llvm_ptr;
 #endif
@@ -48,6 +49,20 @@ public:
             CSTToken* token,
             AccessSpecifier specifier = AccessSpecifier::Internal
     );
+
+    /**
+     * check this variable has been moved
+     */
+    bool get_has_moved() {
+        return has_moved;
+    }
+
+    /**
+     * call it when this variable has been moved
+     */
+    void moved() {
+        has_moved = true;
+    }
 
     CSTToken *cst_token() override {
         return token;

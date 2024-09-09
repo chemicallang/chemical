@@ -15,6 +15,7 @@ public:
 
     std::unique_ptr<Value> value;
     CSTToken* token;
+    PointerType _ptr_type;
 
     explicit AddrOfValue(std::unique_ptr<Value> value, CSTToken* token);
 
@@ -38,6 +39,10 @@ public:
 
     std::unique_ptr<BaseType> create_type() override {
         return std::make_unique<PointerType>(value->create_type(), nullptr);
+    }
+
+    BaseType* known_type() override {
+        return &_ptr_type;
     }
 
     void accept(Visitor *visitor) override {

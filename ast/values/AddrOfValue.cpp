@@ -6,12 +6,16 @@
 AddrOfValue::AddrOfValue(
         std::unique_ptr<Value> value,
         CSTToken* token
-) : value(std::move(value)), token(token) {
+) : value(std::move(value)), token(token), _ptr_type(hybrid_ptr<BaseType>{ nullptr, false}, token) {
 
 }
 
 bool AddrOfValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
-    return value->link(linker, value);
+    auto res = value->link(linker, value);
+    if(res) {
+        _ptr_type.type = hybrid_ptr<BaseType> { value->known_type(), false };
+    }
+    return res;
 }
 
 AddrOfValue *AddrOfValue::copy() {

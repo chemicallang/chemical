@@ -19,6 +19,7 @@ public:
     Operation operation; ///< The operation between the two values.
     bool is64Bit; // is 64bit operating system
     CSTToken* token;
+    std::unique_ptr<BaseType> created_type = nullptr;
 
     /**
      * @brief Construct a new Expression object.
@@ -107,9 +108,13 @@ public:
 
 #endif
 
+    void set_created_type();
+
     std::unique_ptr<BaseType> create_type() override;
 
     hybrid_ptr<BaseType> get_base_type() override;
+
+    BaseType* known_type() override;
 
     bool link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) override;
 

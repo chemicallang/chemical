@@ -247,17 +247,38 @@ public:
     /**
      * if this is a directly referenced / generic type, get it's ref'ed node
      */
-    ASTNode* get_direct_ref_node();
+    ASTNode* get_direct_ref_node(BaseTypeKind kind);
+
+    /**
+     * a helper function
+     */
+    inline ASTNode* get_direct_ref_node() {
+        return get_direct_ref_node(kind());
+    }
 
     /**
      * if this is a directly referenced / generic type, get it's ref'ed node
      */
-    StructDefinition* get_direct_ref_struct();
+    StructDefinition* get_direct_ref_struct(BaseTypeKind k);
+
+    /**
+     * a helper function
+     */
+    StructDefinition* get_direct_ref_struct() {
+        return get_direct_ref_struct(kind());
+    }
 
     /**
      * if this is a directly referenced / generic variant, get it
      */
-    VariantDefinition* get_direct_ref_variant();
+    VariantDefinition* get_direct_ref_variant(BaseTypeKind k);
+
+    /**
+     * a helper function
+     */
+    VariantDefinition* get_direct_ref_variant() {
+        return get_direct_ref_variant(kind());
+    }
 
     /**
      * if this type is linked with a struct definition, it can be retrieved using this function
@@ -287,7 +308,9 @@ public:
     /**
      * this type references a struct
      */
-    bool is_ref_struct();
+    bool is_ref_struct() {
+        return get_direct_ref_struct() != nullptr;
+    }
 
     /**
      * here movable means that the struct has a destructor or a move function or both

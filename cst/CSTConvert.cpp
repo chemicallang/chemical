@@ -1564,7 +1564,7 @@ void CSTConverter::visitNumberToken(NumberToken *token) {
 void CSTConverter::visitStructValue(CSTToken* cst) {
     cst->tokens[0]->accept(this);
     const auto has_generic_list = cst->tokens[1]->type() == LexTokenType::CompGenericList;
-    auto struct_value = new StructValue(value(), {}, {}, nullptr, cst);
+    auto struct_value = new StructValue(value(), {}, {}, nullptr, cst, parent_node);
     if(has_generic_list) {
         to_generic_arg_list(struct_value->generic_list, cst->tokens[1]);
     }
@@ -1573,7 +1573,12 @@ void CSTConverter::visitStructValue(CSTToken* cst) {
         auto id = str_token(cst->tokens[i]);
         i += 2;
         cst->tokens[i]->accept(this);
-        struct_value->values[id] = value();
+        auto& member_ptr = struct_value->values[id]; // <--- automatic construction
+        member_ptr = std::make_unique<StructMemberInitializer>(
+            id,
+            value(),
+            struct_value
+        );
         i++;
         if (is_char_op(cst->tokens[i], ',')) {
             i++;

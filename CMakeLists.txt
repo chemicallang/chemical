@@ -470,6 +470,7 @@ set(COMMON_SOURCES
         preprocess/2c/CTopLevelDeclVisitor.h
         preprocess/2c/CValueDeclVisitor.h
         std/common.h
+        ast/values/StructMemberInitializer.h
 )
 
 # Chemical LSP Executable Target

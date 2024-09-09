@@ -439,6 +439,13 @@ public:
     virtual Value* copy();
 
     /**
+     * a helper function
+     */
+    std::unique_ptr<Value> copy_unique() {
+        return std::unique_ptr<Value>(copy());
+    }
+
+    /**
      * scope value is the value that would be put on the interpret scope value map
      * if user writes var x = 5, we can just place a copy of 5 on the interpret scope
      *

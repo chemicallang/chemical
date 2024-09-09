@@ -7,6 +7,7 @@
 #include <memory>
 #include "ast/base/Value.h"
 #include "ast/structures/StructDefinition.h"
+#include "StructMemberInitializer.h"
 #include "ast/statements/VarInit.h"
 
 class StructValue : public Value {
@@ -16,9 +17,10 @@ public:
 
     std::unique_ptr<Value> ref;
     std::vector<std::unique_ptr<BaseType>> generic_list;
-    std::unordered_map<std::string, std::unique_ptr<Value>> values;
+    std::unordered_map<std::string, std::unique_ptr<StructMemberInitializer>> values;
     int16_t generic_iteration = 0;
     CSTToken* token;
+    ASTNode* parent_node;
     ASTNodeKind linked_kind;
 #ifdef COMPILER_BUILD
     llvm::AllocaInst* allocaInst;
@@ -34,18 +36,20 @@ public:
 
     StructValue(
             std::unique_ptr<Value> ref,
-            std::unordered_map<std::string, std::unique_ptr<Value>> values,
+            std::unordered_map<std::string, std::unique_ptr<StructMemberInitializer>> values,
             std::vector<std::unique_ptr<BaseType>> generic_list,
             ExtendableMembersContainerNode *definition,
-            CSTToken* token
+            CSTToken* token,
+            ASTNode* parent
     );
 
     StructValue(
             std::unique_ptr<Value> ref,
-            std::unordered_map<std::string, std::unique_ptr<Value>> values,
+            std::unordered_map<std::string, std::unique_ptr<StructMemberInitializer>> values,
             ExtendableMembersContainerNode *definition,
             InterpretScope &scope,
-            CSTToken* token
+            CSTToken* token,
+            ASTNode* parent
     );
 
     CSTToken* cst_token() override {
@@ -74,7 +78,7 @@ public:
 
     Value *scope_value(InterpretScope &scope) override;
 
-    void declare_default_values(std::unordered_map<std::string, std::unique_ptr<Value>> &into, InterpretScope &scope);
+    void declare_default_values(std::unordered_map<std::string, std::unique_ptr<StructMemberInitializer>> &into, InterpretScope &scope);
 
     StructValue *copy() override;
 

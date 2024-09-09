@@ -42,6 +42,7 @@ namespace InterpretVector {
             {},
             {},
             (StructDefinition*) node,
+            nullptr,
             nullptr
         ) {
 

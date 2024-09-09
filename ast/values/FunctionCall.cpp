@@ -530,7 +530,7 @@ void FunctionCall::link_values(SymbolResolver &linker) {
         if(values[i]->known_type()->is_ref_struct()) {
             const auto linked = values[i]->linked_node();
             const auto linked_kind = linked->kind();
-            linked->set_moved(linked_kind);
+            linked->set_moved(linked_kind, values[i].get());
         }
         i++;
     }

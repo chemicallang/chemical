@@ -7,8 +7,6 @@
 #include "ast/types/StructType.h"
 
 class UnnamedStruct : public BaseDefMember, public VariablesContainer, public StructType {
-private:
-    bool has_moved = false;
 public:
 
     ASTNode* parent_node;
@@ -24,14 +22,6 @@ public:
 
     ASTNodeKind kind() override {
         return ASTNodeKind::UnnamedStruct;
-    }
-
-    void moved() {
-        has_moved = true;
-    }
-
-    bool get_has_moved() {
-        return has_moved;
     }
 
     CSTToken *cst_token() override {

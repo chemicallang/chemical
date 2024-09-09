@@ -2,8 +2,12 @@ public func printf(format : char*, _ : any...) : int
 
 public func sprintf(to : char*, format : char*, _ : any...) : int
 
-@not_in_c
-public typealias size_t = ubigint
+if(compiler::is_clang_based()) {
+    public typealias size_t = ubigint
+} else {
+    @comptime
+    public typealias size_t = ubigint
+}
 
 public func malloc(size : size_t) : void*
 

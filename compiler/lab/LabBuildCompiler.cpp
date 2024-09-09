@@ -286,7 +286,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                     continue;
 #else
                     if(mod->type == LabModuleType::CPPFile) {
-                        std::cerr << rang::fg::yellow << "[Tcc] skipping compilation of C++ file" << rang::fg::reset << std::endl;
+                        std::cerr << rang::fg::yellow << "[Tcc] skipping compilation of C++ file '" << mod->paths[0] << '\'' << rang::fg::reset << std::endl;
                         continue;
                     }
                     compile_result = compile_c_file(options->exe_path.data(), mod->paths[0].data(),

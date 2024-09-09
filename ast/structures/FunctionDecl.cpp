@@ -457,6 +457,10 @@ void FunctionDeclaration::code_gen_body(Codegen &gen, StructDefinition* def) {
         code_gen_destructor(gen, def);
         return;
     }
+    if(has_annotation(AnnotationKind::Move)) {
+        code_gen_move_fn(gen, def);
+        return;
+    }
     gen.current_function = nullptr;
     code_gen_body(gen);
 }
@@ -501,16 +505,16 @@ void FunctionDeclaration::setup_cleanup_block(Codegen &gen, llvm::Function* func
     }
 }
 
-void FunctionDeclaration::code_gen_destructor(Codegen& gen, StructDefinition* def) {
-    auto func = llvm_func();
+void code_gen_calling_member_functions(FunctionDeclaration& decl, Codegen& gen, StructDefinition* def, FunctionDeclaration*(*choose_func)(MembersContainer*)) {
+    auto func = decl.llvm_func();
     gen.current_function = func;
-    setup_cleanup_block(gen, func);
+    decl.setup_cleanup_block(gen, func);
     unsigned index = 0;
     for(auto& var : def->variables) {
         if(var.second->value_type() == ValueType::Struct) {
             auto mem_type = var.second->get_value_type();
             auto mem_def = mem_type->linked_node()->as_members_container();
-            auto destructor = mem_def->destructor_func();
+            auto destructor = choose_func(mem_def);
             if(!destructor) {
                 index++;
                 continue;
@@ -528,6 +532,18 @@ void FunctionDeclaration::code_gen_destructor(Codegen& gen, StructDefinition* de
     }
     gen.CreateRet(nullptr);
     gen.redirect_return = nullptr;
+}
+
+void FunctionDeclaration::code_gen_move_fn(Codegen& gen, StructDefinition* def) {
+    code_gen_calling_member_functions(*this, gen, def, [](MembersContainer* mem_def)->FunctionDeclaration* {
+        return mem_def->move_func();
+    });
+}
+
+void FunctionDeclaration::code_gen_destructor(Codegen& gen, StructDefinition* def) {
+    code_gen_calling_member_functions(*this, gen, def, [](MembersContainer* mem_def)->FunctionDeclaration* {
+        return mem_def->destructor_func();
+    });
 }
 
 void FunctionDeclaration::code_gen_destructor(Codegen& gen, VariantDefinition* def) {

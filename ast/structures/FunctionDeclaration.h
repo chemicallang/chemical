@@ -263,6 +263,13 @@ public:
     void code_gen_destructor(Codegen& gen, StructDefinition* def);
 
     /**
+     * body for the move function is generated using this function
+     * the move functino is a special function that will call move functions
+     * of the struct members that require it
+     */
+    void code_gen_move_fn(Codegen& gen, StructDefinition* def);
+
+    /**
      * generates destructor body for the variant definition
      */
     void code_gen_destructor(Codegen& gen, VariantDefinition* def);

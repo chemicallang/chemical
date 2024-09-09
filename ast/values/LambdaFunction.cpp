@@ -143,12 +143,17 @@ bool LambdaFunction::link(SymbolResolver &linker, std::unique_ptr<Value>& value_
     linker.info("lambda function type not found, deducing function type by visiting lambda body (expensive operation) performed", (Value*) this);
 #endif
 
+    auto prev_func_type = linker.current_func_type;
+    linker.current_func_type = this;
+
     // linking params and their types before copying their types
     link_full(this, linker);
 
     // finding return type
     auto found_return_type = find_return_type(scope.nodes);
     returnType = std::unique_ptr<BaseType>(found_return_type);
+
+    linker.current_func_type = prev_func_type;
 
     return true;
 
@@ -197,18 +202,26 @@ bool LambdaFunction::link(SymbolResolver &linker, FunctionType* func_type) {
 }
 
 bool LambdaFunction::link(SymbolResolver &linker, VarInitStatement *stmnt) {
-    if(stmnt->type) {
-        auto retrieved = stmnt->create_value_type();
-        link(linker, (FunctionType*) retrieved.get());
-        link_full(this, linker);
-        return true;
-    } else {
-        return Value::link(linker, stmnt);
-    }
+
+    if(!stmnt->type) return Value::link(linker, stmnt);
+
+    auto prev_func_type = linker.current_func_type;
+    linker.current_func_type = this;
+
+    auto retrieved = stmnt->create_value_type();
+    link(linker, (FunctionType*) retrieved.get());
+    link_full(this, linker);
+
+    linker.current_func_type = prev_func_type;
+    return true;
+
 }
 
 bool LambdaFunction::link(SymbolResolver &linker, StructValue *value, const std::string &name) {
     auto got_type = value->child(name)->create_value_type();
+    auto prev_func_type = linker.current_func_type;
+
+    linker.current_func_type = this;
     link(linker, (FunctionType*) got_type.get());
     if(!params.empty()) {
         auto& param = params[0];
@@ -217,6 +230,8 @@ bool LambdaFunction::link(SymbolResolver &linker, StructValue *value, const std:
         }
     }
     link_full(this, linker);
+
+    linker.current_func_type = prev_func_type;
     return true;
 }
 
@@ -232,18 +247,19 @@ bool LambdaFunction::link(SymbolResolver &linker, FunctionCall *call, unsigned i
     }
 
     // get the type of parameter for the function
-    auto paramType = linkedType->function_type()->func_param_for_arg_at(index)->create_value_type()->copy();
-
+    auto paramType = linkedType->function_type()->func_param_for_arg_at(index)->create_value_type()->copy_unique();
     if(paramType->function_type() == nullptr) {
         linker.error("cannot pass a lambda, because the function expects a different type : " + paramType->representation() + " for parameter at " + std::to_string(index), (Value*) this);
         return false;
     }
 
+    auto prev_func_type = linker.current_func_type;
+    linker.current_func_type = this;
+
     link(linker, paramType->function_type());
-
-    delete paramType;
-
     link_full(this, linker);
+
+    linker.current_func_type = prev_func_type;
 
     return true;
 
@@ -251,19 +267,23 @@ bool LambdaFunction::link(SymbolResolver &linker, FunctionCall *call, unsigned i
 
 bool LambdaFunction::link(SymbolResolver &linker, ReturnStatement *returnStmt) {
 
-    if(returnStmt->func_type != nullptr) {
-        auto retType = returnStmt->func_type->returnType->copy();
-        if(retType->function_type() == nullptr) {
-            linker.error("cannot return lambda, return type of a function is not a function", (Value*) this);
-            return false;
-        }
-        link(linker, retType->function_type());
-        delete retType;
-    } else {
+    if(returnStmt->func_type == nullptr) {
         return Value::link(linker, returnStmt);
     }
 
+    auto retType = returnStmt->func_type->returnType->copy_unique();
+    if(retType->function_type() == nullptr) {
+        linker.error("cannot return lambda, return type of a function is not a function", (Value*) this);
+        return false;
+    }
+
+    auto prev_func_type = linker.current_func_type;
+    linker.current_func_type = this;
+
+    link(linker, retType->function_type());
     link_full(this, linker);
+
+    linker.current_func_type = prev_func_type;
 
     return true;
 

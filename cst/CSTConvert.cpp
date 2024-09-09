@@ -306,7 +306,6 @@ const std::unordered_map<std::string, const AnnotationHandler> AnnotationHandler
         { "no_init", { collect_annotation_func, AnnotationKind::NoInit }},
         { "extern", { collect_annotation_func, AnnotationKind::Extern }},
         { "implicit", { collect_annotation_func, AnnotationKind::Implicit }},
-        { "not_in_c", { collect_annotation_func, AnnotationKind::NotInC }},
         { "propagate", { collect_annotation_func, AnnotationKind::Propagate }},
         { "direct_init", { collect_annotation_func, AnnotationKind::DirectInit }},
         { "cpp", { collect_annotation_func, AnnotationKind::Cpp }},

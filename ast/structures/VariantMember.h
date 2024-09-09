@@ -59,6 +59,8 @@ public:
 
     bool requires_destructor() override;
 
+    bool requires_move_fn() override;
+
     BaseType* known_type() override;
 
 #ifdef COMPILER_BUILD

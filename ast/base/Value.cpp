@@ -17,6 +17,8 @@
 #include "ast/types/PointerType.h"
 #include "ast/values/UIntValue.h"
 #include "ast/values/AccessChain.h"
+#include "ast/values/VariableIdentifier.h"
+#include "ast/values/IndexOperator.h"
 #include "ast/types/ArrayType.h"
 #include "ast/values/VariantCaseVariable.h"
 #include "ast/values/VariantCase.h"
@@ -463,6 +465,61 @@ int16_t ChainValue::set_generic_iteration() {
         }
     }
     return -2;
+}
+
+bool ChainValue::is_equal(ChainValue* other) {
+    auto kind = val_kind();
+    auto other_kind = other->val_kind();
+    if(kind == other_kind) {
+        switch(kind) {
+            case ValueKind::AccessChain: {
+                auto this_chain = as_access_chain();
+                auto other_chain = other->as_access_chain();
+                const auto siz = this_chain->values.size();
+                if(siz != other_chain->values.size()) {
+                    return false;
+                }
+                unsigned i = 0;
+                while(i < siz) {
+                    if(!this_chain->values[i]->is_equal(other_chain->values[i].get())) {
+                        return false;
+                    }
+                    i++;
+                }
+                return true;
+            }
+            case ValueKind::Identifier:
+                return as_identifier()->linked == other->as_identifier()->linked;
+            case ValueKind::IndexOperator: {
+                const auto this_index_op = as_index_op();
+                const auto other_index_op = other->as_index_op();
+                const auto siz = this_index_op->values.size();
+                if(siz != other_index_op->values.size()) {
+                    return false;
+                }
+                unsigned i = 0;
+                while(i < siz) {
+                    if(this_index_op->values[i]->is_int_n() && other_index_op->values[i]->is_int_n()) {
+                        auto this_value = ((IntNumValue*) this_index_op->values[i].get())->get_num_value();
+                        auto other_value = ((IntNumValue*) other_index_op->values[i].get())->get_num_value();
+                        if(this_value != other_value) {
+                            return false;
+                        }
+                    } else {
+                        return false;
+                    }
+                    i++;
+                }
+                return true;
+            }
+            case ValueKind::FunctionCall:{
+                return false;
+            }
+            default:
+                return false;
+        }
+    }
+    return false;
 }
 
 bool Value::link(SymbolResolver& linker, VarInitStatement* stmnt) {

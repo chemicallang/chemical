@@ -64,8 +64,21 @@ public:
 
     void declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override;
 
-    // TODO destructor support for struct
     bool requires_destructor() override {
+        for(const auto& var : variables) {
+            if(var.second->requires_destructor()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool requires_move_fn() override {
+        for(const auto& var : variables) {
+            if(var.second->requires_move_fn()) {
+                return true;
+            }
+        }
         return false;
     }
 

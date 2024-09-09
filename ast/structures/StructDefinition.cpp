@@ -351,6 +351,10 @@ bool StructMember::requires_destructor() {
     return type->requires_destructor();
 }
 
+bool StructMember::requires_move_fn() {
+    return type->requires_move_fn();
+}
+
 void StructDefinition::accept(Visitor *visitor) {
     visitor->visit(this);
 }

@@ -3,7 +3,10 @@
 #include "BaseType.h"
 #include "preprocess/RepresentationVisitor.h"
 #include "ast/structures/StructDefinition.h"
+#include "ast/structures/VariantDefinition.h"
 #include "ast/structures/InterfaceDefinition.h"
+#include "ast/statements/Typealias.h"
+#include "ast/structures/UnionDef.h"
 #include "ast/types/ReferencedType.h"
 #include "ast/types/GenericType.h"
 #include <sstream>
@@ -69,6 +72,7 @@ std::string& BaseType::ref_name() {
 }
 
 bool BaseType::requires_destructor() {
+    // TODO gonna fix it now !
     const auto pure = pure_type();
     if(!pure) return false;
     const auto linked = pure->linked_node();
@@ -84,6 +88,23 @@ bool BaseType::requires_destructor() {
         } else {
             return false;
         }
+    }
+}
+
+bool BaseType::requires_move_fn() {
+    const auto direct_node = get_direct_ref_node();
+    if(!direct_node) return false;
+    switch(direct_node->kind()) {
+        case ASTNodeKind::StructDecl:
+            return direct_node->as_struct_def_unsafe()->requires_move_fn();
+        case ASTNodeKind::VariantDecl:
+            return direct_node->as_variant_def_unsafe()->requires_move_fn();
+        case ASTNodeKind::UnionDecl:
+            return direct_node->as_union_def_unsafe()->requires_move_fn();
+        case ASTNodeKind::TypealiasStmt:
+            return direct_node->as_typealias_unsafe()->actual_type->requires_move_fn();
+        default:
+            return false;
     }
 }
 
@@ -117,6 +138,15 @@ bool BaseType::is_ref_struct() {
     } else if(k == BaseTypeKind::Referenced) {
         const auto linked = linked_node();
         return linked && linked->as_struct_def() != nullptr;
+    } else {
+        return false;
+    }
+}
+
+bool BaseType::is_movable_ref_struct() {
+    const auto direct_ref_struct = get_direct_ref_struct();
+    if(direct_ref_struct) {
+        return direct_ref_struct->requires_destructor() || direct_ref_struct->requires_move_fn();
     } else {
         return false;
     }

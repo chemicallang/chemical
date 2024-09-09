@@ -59,6 +59,8 @@ public:
 
     bool requires_destructor() override;
 
+    bool requires_move_fn() override;
+
     Value *holding_value() override {
         return defValue ? defValue.get() : nullptr;
     }

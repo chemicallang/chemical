@@ -34,6 +34,12 @@ public:
     // if the function is variadic, the last type in params is the type given to the variadic parameter
     bool isVariadic;
     bool isCapturing;
+    /**
+     * moved chains are stored in current function type, which are filled when a function is linked
+     * moved chains belong to this function (inside the function's body), these chains tell which objects have
+     * been moved inside them
+     */
+    std::vector<AccessChain*> moved_chains;
 
     /**
      * constructor

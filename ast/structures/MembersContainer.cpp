@@ -469,6 +469,33 @@ FunctionDeclaration* MembersContainer::create_destructor() {
     return decl;
 }
 
+FunctionDeclaration* MembersContainer::create_move_fn() {
+    auto decl = new FunctionDeclaration("move", {}, std::make_unique<VoidType>(nullptr), false, this, nullptr, std::nullopt);
+    decl->params.emplace_back(new FunctionParam("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>(ns_node_identifier(), this, nullptr), nullptr), 0, nullptr, decl, nullptr));
+    decl->body.emplace(LoopScope{nullptr, nullptr});
+    decl->annotations.emplace_back(AnnotationKind::Move);
+    insert_func(std::unique_ptr<FunctionDeclaration>(decl));
+    return decl;
+}
+
+FunctionDeclaration* MembersContainer::create_def_destructor(ASTDiagnoser& diagnoser) {
+    auto delFunc = direct_child_function("delete");
+    if(delFunc) {
+        diagnoser.error("default destructor is created by name 'delete' , a function by name 'delete' already exists, please create a manual function to avoid this", (AnnotableNode*) delFunc);
+        return nullptr;
+    }
+    return create_destructor();
+}
+
+FunctionDeclaration* MembersContainer::create_def_move_fn(ASTDiagnoser& diagnoser) {
+    auto moveFn = direct_child_function("move");
+    if(moveFn) {
+        diagnoser.error("default move function is created by name 'move', a function by name 'move' already exists, please create a manual function to avoid this", (AnnotableNode*) moveFn);
+        return nullptr;
+    }
+    return create_move_fn();
+}
+
 bool MembersContainer::insert_multi_func(std::unique_ptr<FunctionDeclaration> decl) {
     auto found = indexes.find(decl->name);
     if(found == indexes.end()) {

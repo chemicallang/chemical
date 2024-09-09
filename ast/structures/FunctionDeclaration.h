@@ -131,6 +131,8 @@ public:
 
     void ensure_destructor(ExtendableMembersContainerNode* def);
 
+    void ensure_move_fn(ExtendableMembersContainerNode* def);
+
     using FunctionType::as_extension_func;
 
     /**

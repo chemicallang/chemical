@@ -208,6 +208,21 @@ public:
     FunctionDeclaration* create_destructor();
 
     /**
+     * creates the move function and put it into functions
+     */
+    FunctionDeclaration* create_move_fn();
+
+    /**
+     * create default destructor, report errors in given diagnoser, this is a helper function
+     */
+    FunctionDeclaration* create_def_destructor(ASTDiagnoser& diagnoser);
+
+    /**
+     *create default move function, report errors in given diagnoser, this is a helper function
+     */
+    FunctionDeclaration* create_def_move_fn(ASTDiagnoser& diagnoser);
+
+    /**
      * insert a function that can have same name for multiple declarations
      * @return true, if could insert the function, false if there's a conflict
      */

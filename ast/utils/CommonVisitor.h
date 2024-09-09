@@ -49,6 +49,8 @@ public:
 
     void visit(StructValue *structValue) override;
 
+    void visit(StructMemberInitializer *init) override;
+
     void visit(ArrayValue *arrayVal) override;
 
     void visit(ArrayType *func) override;

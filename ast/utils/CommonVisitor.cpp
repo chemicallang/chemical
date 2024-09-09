@@ -217,6 +217,10 @@ void CommonVisitor::visit(StructValue *val) {
     }
 }
 
+void CommonVisitor::visit(StructMemberInitializer *init) {
+    init->value->accept(this);
+}
+
 void CommonVisitor::visit(ArrayValue *arr) {
     for(auto& value : arr->values) {
         value->accept(this);

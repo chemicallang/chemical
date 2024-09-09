@@ -184,6 +184,8 @@ class GenericTypeParameter;
 
 class ReferencedValueType;
 
+class StructMemberInitializer;
+
 class ShortType;
 
 class UCharType;
@@ -373,6 +375,10 @@ public:
 
     virtual void visit(StructMember* member) {
         visitCommon((ASTNode*) member);
+    }
+
+    virtual void visit(StructMemberInitializer* init) {
+        visitCommon((ASTNode*) init);
     }
 
     virtual void visit(TypealiasStatement* statement) {

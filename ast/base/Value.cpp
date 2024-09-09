@@ -500,7 +500,7 @@ bool Value::link(SymbolResolver& linker, AssignStatement* stmnt, bool lhs) {
 }
 
 bool Value::link(SymbolResolver& linker, StructValue* value, const std::string& name) {
-    return link(linker, value->values[name]);
+    return link(linker, value->values[name]->value);
 }
 
 bool Value::link(SymbolResolver& linker, ArrayValue* value, unsigned int index) {

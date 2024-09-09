@@ -1,12 +1,15 @@
 // Copyright (c) Qinetik 2024.
 
 #include "StructValue.h"
+
+#include <memory>
 #include "ast/structures/StructMember.h"
 #include "ast/structures/UnionDef.h"
 #include "compiler/SymbolResolver.h"
 #include "ast/utils/ASTUtils.h"
 #include "ast/types/GenericType.h"
 #include "ast/types/ReferencedType.h"
+#include "StructMemberInitializer.h"
 #include "ast/values/DereferenceValue.h"
 
 #ifdef COMPILER_BUILD
@@ -18,12 +21,13 @@
 void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen) {
     const auto parent_type = llvm_type(gen);
     for (const auto &value: values) {
+        auto& value_ptr = value.second->value;
         auto variable = definition->variable_type_index(value.first);
         if (variable.first == -1) {
             gen.error("couldn't get struct child " + value.first + " in definition with name " + definition->name, this);
         } else {
             std::vector<llvm::Value*> idx {gen.builder->getInt32(0)};
-            value.second->store_in_struct(gen, this, inst, parent_type, idx, is_union() ? 0 : variable.first, variable.second);
+            value_ptr->store_in_struct(gen, this, inst, parent_type, idx, is_union() ? 0 : variable.first, variable.second);
         }
     }
 }
@@ -75,9 +79,10 @@ unsigned int StructValue::store_in_struct(
     } else {
         const auto parent_type = llvm_type(gen);
         for (const auto& value: values) {
+            auto& value_ptr = value.second->value;
             auto child_index = definition->variable_type_index(value.first);
             auto currIndex = index + child_index.first;
-            value.second->store_in_struct(gen, this, allocated, parent_type, idxList, currIndex, child_index.second);
+            value_ptr->store_in_struct(gen, this, allocated, parent_type, idxList, currIndex, child_index.second);
         }
     }
     return index + values.size();
@@ -107,8 +112,9 @@ unsigned int StructValue::store_in_array(
     } else {
         idxList.emplace_back(gen.builder->getInt32(index));
         for (const auto &value: values) {
+            auto& value_ptr = value.second->value;
             auto currIndex = definition->variable_type_index(value.first);
-            value.second->store_in_array(gen, parent, ptr, idxList, currIndex.first, currIndex.second);
+            value_ptr->store_in_array(gen, parent, ptr, idxList, currIndex.first, currIndex.second);
         }
     }
     return index + 1;
@@ -175,19 +181,21 @@ bool StructValue::add_child_index(Codegen &gen, std::vector<llvm::Value *> &inde
 
 StructValue::StructValue(
         std::unique_ptr<Value> ref,
-        std::unordered_map<std::string, std::unique_ptr<Value>> values,
+        std::unordered_map<std::string, std::unique_ptr<StructMemberInitializer>> values,
         std::vector<std::unique_ptr<BaseType>> generic_list,
         ExtendableMembersContainerNode *definition,
-        CSTToken* token
-) : ref(std::move(ref)), values(std::move(values)), definition(definition), generic_list(std::move(generic_list)), token(token) {}
+        CSTToken* token,
+        ASTNode* parent_node
+) : ref(std::move(ref)), values(std::move(values)), definition(definition), generic_list(std::move(generic_list)), token(token), parent_node(parent_node) {}
 
 StructValue::StructValue(
         std::unique_ptr<Value> ref,
-        std::unordered_map<std::string, std::unique_ptr<Value>> values,
+        std::unordered_map<std::string, std::unique_ptr<StructMemberInitializer>> values,
         ExtendableMembersContainerNode *definition,
         InterpretScope &scope,
-        CSTToken* token
-) : ref(std::move(ref)), values(std::move(values)), definition(definition), token(token) {
+        CSTToken* token,
+        ASTNode* parent_node
+) : ref(std::move(ref)), values(std::move(values)), definition(definition), token(token), parent_node(parent_node) {
     declare_default_values(this->values, scope);
 }
 
@@ -255,16 +263,17 @@ bool StructValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr
         }
         // linking values
         for (auto &val: values) {
-            val.second->link(linker, this, val.first);
+            auto& val_ptr = val.second->value;
+            val_ptr->link(linker, this, val.first);
             auto member = definition->variables.find(val.first);
             if(definition->variables.end() != member) {
                 const auto mem_type = member->second->get_value_type();
-                auto implicit = mem_type->implicit_constructor_for(val.second.get());
+                auto implicit = mem_type->implicit_constructor_for(val_ptr.get());
                 if(implicit) {
                     if(linker.preprocess) {
-                        val.second = call_with_arg(implicit, std::move(val.second), linker);
+                        val_ptr = call_with_arg(implicit, std::move(val_ptr), linker);
                     } else {
-                        link_with_implicit_constructor(implicit, linker, val.second.get());
+                        link_with_implicit_constructor(implicit, linker, val_ptr.get());
                     }
                 }
             }
@@ -316,21 +325,28 @@ void StructValue::set_child_value(const std::string &name, Value *value, Operati
         std::cerr << "couldn't find child by name " + name + " in struct";
         return;
     }
-    ptr->second = std::unique_ptr<Value>(value);
+    ptr->second->value = std::unique_ptr<Value>(value);
 }
 
 Value *StructValue::scope_value(InterpretScope &scope) {
     auto struct_value = new StructValue(
             std::unique_ptr<Value>(ref->copy()),
-            std::unordered_map<std::string, std::unique_ptr<Value>>(),
+            std::unordered_map<std::string, std::unique_ptr<StructMemberInitializer>>(),
             std::vector<std::unique_ptr<BaseType>>(),
             definition,
-            token
+            token,
+            parent_node
     );
     declare_default_values(struct_value->values, scope);
     struct_value->values.reserve(values.size());
     for (const auto &value: values) {
-        struct_value->values[value.first] = std::unique_ptr<Value>(value.second->initializer_value(scope));
+        struct_value->values[value.first] = std::make_unique<StructMemberInitializer>(
+                value.first,
+                std::unique_ptr<Value>(value.second->value->initializer_value(scope)),
+                struct_value,
+                value.second->member
+
+        );
     }
     struct_value->generic_list.reserve(generic_list.size());
     for(const auto& arg : generic_list) {
@@ -341,14 +357,14 @@ Value *StructValue::scope_value(InterpretScope &scope) {
 
 void StructValue::declare_default_values(
         std::unordered_map<std::string,
-        std::unique_ptr<Value>> &into,
+        std::unique_ptr<StructMemberInitializer>> &into,
         InterpretScope &scope
 ) {
     Value* defValue;
     for (const auto &field: definition->variables) {
         defValue = field.second->default_value();
         if (into.find(field.second->name) == into.end() && defValue) {
-            into[field.second->name] = std::unique_ptr<Value>(defValue->initializer_value(scope));
+            into[field.second->name]->value = std::unique_ptr<Value>(defValue->initializer_value(scope));
         }
     }
 }
@@ -356,14 +372,15 @@ void StructValue::declare_default_values(
 StructValue *StructValue::copy() {
     auto struct_value = new StructValue(
         std::unique_ptr<Value>(ref->copy()),
-        std::unordered_map<std::string, std::unique_ptr<Value>>(),
+        std::unordered_map<std::string, std::unique_ptr<StructMemberInitializer>>(),
         std::vector<std::unique_ptr<BaseType>>(),
         definition,
-        token
+        token,
+        parent_node
     );
     struct_value->values.reserve(values.size());
     for (const auto &value: values) {
-        struct_value->values[value.first] = std::unique_ptr<Value>(value.second->copy());
+        struct_value->values[value.first] = value.second->copy_unique();
     }
     struct_value->generic_list.reserve(generic_list.size());
     for(const auto& arg : generic_list) {
@@ -411,5 +428,26 @@ Value *StructValue::child(InterpretScope &scope, const std::string &name) {
             return nullptr;
         }
     }
-    return value->second.get();
+    return value->second->value.get();
+}
+
+StructMemberInitializer::StructMemberInitializer(
+        std::string name,
+        std::unique_ptr<Value> value,
+        StructValue* struct_value,
+        ASTNode* member
+) : name(std::move(name)), value(std::move(value)), struct_value(struct_value), member(member) {
+
+}
+
+StructMemberInitializer* StructMemberInitializer::copy() {
+    return new StructMemberInitializer(name, value->copy_unique(), struct_value, member);
+}
+
+CSTToken *StructMemberInitializer::cst_token() {
+    return value->cst_token();
+}
+
+ASTNode* StructMemberInitializer::parent() {
+    return struct_value->parent_node;
 }

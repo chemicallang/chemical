@@ -319,6 +319,8 @@ public:
 
     void visit(ImplDefinition* implDefinition) override;
 
+    void visit(StructMemberInitializer *init) override;
+
     void visit(UnionDef *def) override;
 
     void visit(InterfaceDefinition* interfaceDefinition) override;

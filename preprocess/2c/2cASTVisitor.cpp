@@ -2288,7 +2288,7 @@ void ToCAstVisitor::return_value(Value* val, BaseType* type) {
                 write("->");
                 write(mem.first);
                 write(" = ");
-                mem.second->accept(this);
+                mem.second->value->accept(this);
                 if(i != size - 1){
                     write(';');
                     new_line_and_indent();
@@ -2629,6 +2629,10 @@ void ToCAstVisitor::visit(ImplDefinition *def) {
     for(auto& func : def->functions()) {
         contained_func_decl(*this, func.get(), overrides,linked_struct);
     }
+}
+
+void ToCAstVisitor::visit(StructMemberInitializer *init) {
+    init->value->accept(this);
 }
 
 void ToCAstVisitor::visit(InterfaceDefinition *def) {
@@ -3410,7 +3414,7 @@ void ToCAstVisitor::visit(StructValue *val) {
         write('.');
         write(value.first);
         write(" = ");
-        accept_mutating_value(member ? member->known_type() : nullptr, value.second.get());
+        accept_mutating_value(member ? member->known_type() : nullptr, value.second->value.get());
         write(", ");
     }
     nested_value = prev;

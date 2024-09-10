@@ -194,8 +194,6 @@ class StringType;
 
 class StructType;
 
-class ReferencedStructType;
-
 class UBigIntType;
 
 class UInt128Type;
@@ -613,10 +611,6 @@ public:
 
     virtual void visit(StructType* func) {
         visitCommonType((BaseType*) func);
-    }
-
-    virtual void visit(ReferencedStructType* structType) {
-        visit((StructType*) structType);
     }
 
     virtual void visit(UnionType* unionType) {

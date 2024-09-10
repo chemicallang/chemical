@@ -285,8 +285,6 @@ public:
 
     void visit(SizeOfValue *size_of) override;
 
-    void visit(ReferencedStructType *structType) override;
-
     void visit(RetStructParamValue *paramVal) override;
 
     void visit(UsingStmt *usingStmt) override;

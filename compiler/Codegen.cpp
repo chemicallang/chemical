@@ -114,10 +114,7 @@ void Codegen::createFunctionBlock(llvm::Function *fn) {
 }
 
 void Codegen::end_function_block() {
-    if (!has_current_block_ended) {
-        builder->CreateRetVoid();
-        has_current_block_ended = true;
-    }
+    DefaultRet();
 }
 
 llvm::Function *Codegen::create_function(const std::string &name, llvm::FunctionType *type, AccessSpecifier specifier) {

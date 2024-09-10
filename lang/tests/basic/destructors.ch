@@ -156,7 +156,7 @@ struct my_string {
 
     @comptime
     @constructor
-    func make(value : literal::string) {
+    func make(value : literal<string>) {
         return compiler::wrap(constructor(value, compiler::size(value)))
     }
 

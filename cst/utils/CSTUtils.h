@@ -12,12 +12,12 @@ class LexImportUnit;
 
 class LexResult;
 
-inline std::string str_token(CSTToken *token) {
+inline const std::string& str_token(CSTToken *token) {
     return token->value();
 }
 
 inline std::string escaped_str_token(CSTToken *token) {
-    auto str = str_token(token);
+    auto& str = str_token(token);
     return str.substr(1, str.size() - 2);
 }
 
@@ -99,7 +99,7 @@ std::optional<AccessSpecifier> specifier_token(CSTToken* token);
 /**
  * what is the parameter name in given comp param token
  */
-std::string param_name(CSTToken* param);
+const std::string& param_name(CSTToken* param);
 
 /**
  * is given comp var init token a const

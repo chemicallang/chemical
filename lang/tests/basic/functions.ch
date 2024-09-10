@@ -43,7 +43,7 @@ func expr_test_func_call() : bool {
     return true;
 }
 
-func can_take_literal_type(my_int : literal::int) : int {
+func can_take_literal_type(my_int : literal<int>) : int {
     return my_int + 3;
 }
 

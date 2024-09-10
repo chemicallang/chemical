@@ -851,27 +851,6 @@ void CSTConverter::visitTypeToken(CSTToken* token) {
 void CSTConverter::visitReferencedValueType(CSTToken* ref_value) {
     ref_value->tokens[0]->accept(this);
     auto ref = new ReferencedValueType(value(), ref_value);
-    auto chain = ref->value->as_access_chain();
-    if(chain) {
-        auto id = chain->values[0]->as_identifier();
-        if(id->value == "literal" && 1 < chain->values.size()) {
-            id = chain->values[1]->as_identifier();
-            BaseType* child_type;
-            if(id->value == "string") {
-                child_type = new StringType(ref_value);
-            } else {
-                auto found = TypeMakers::PrimitiveMap.find(id->value);
-                if (found != TypeMakers::PrimitiveMap.end()) {
-                    child_type = found->second(is64Bit, ref_value);
-                } else {
-                    error("couldn't find literal type by name " + id->value, ref_value);
-                    return;
-                }
-            }
-            put_type(new LiteralType(std::unique_ptr<BaseType>(child_type), ref_value), ref_value);
-            return;
-        }
-    }
     put_type(ref, ref_value);
 }
 
@@ -1479,7 +1458,25 @@ void CSTConverter::visitPointerType(CSTToken* cst) {
 }
 
 void CSTConverter::visitGenericType(CSTToken* cst) {
-    auto generic_type = new GenericType(str_token(cst->tokens[0]), cst);
+    const auto& base = str_token(cst->tokens[0]);
+    if(base == "literal" && cst->tokens.size() == 4) {
+        const auto id = cst->tokens[2];
+        BaseType* child_type;
+        if(id->value() == "string") {
+            child_type = new StringType(id);
+        } else {
+            auto found = TypeMakers::PrimitiveMap.find(id->value());
+            if (found != TypeMakers::PrimitiveMap.end()) {
+                child_type = found->second(is64Bit, id);
+            } else {
+                error("couldn't find literal type by name " + id->value(), id);
+                return;
+            }
+        }
+        put_type(new LiteralType(std::unique_ptr<BaseType>(child_type), cst), cst);
+        return;
+    }
+    auto generic_type = new GenericType(base, cst);
     unsigned i = 1;
     while(i < cst->tokens.size()) {
         if(cst->tokens[i]->is_type()) {

@@ -23,7 +23,7 @@ std::optional<AccessSpecifier> specifier_token(CSTToken* token) {
     return std::nullopt;
 }
 
-std::string param_name(CSTToken* param) {
+const std::string& param_name(CSTToken* param) {
     return str_token(param->tokens[is_char_op(param->tokens[0], '&') ? 1 : 0]);
 }
 

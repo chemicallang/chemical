@@ -301,9 +301,11 @@ public:
 
     void visitTypeToken(CSTToken* token) override;
 
-    void visitReferencedValueType(CSTToken* ref_value) override;
+    void visitLinkedValueType(CSTToken* ref_value) override;
 
     void visitPointerType(CSTToken* pointerType) override;
+
+    void visitReferenceType(CSTToken* pointerType) override;
 
     void visitGenericType(CSTToken* genericType) override;
 

@@ -145,7 +145,7 @@ public:
         visitCompoundCommon(functionType);
     }
 
-    virtual void visitReferencedValueType(CSTToken *ref_value) {
+    virtual void visitLinkedValueType(CSTToken *ref_value) {
         visitCompoundCommon(ref_value);
     }
 
@@ -159,6 +159,10 @@ public:
 
     virtual void visitPointerType(CSTToken *pointerType) {
         visitCompoundCommon(pointerType);
+    }
+
+    virtual void visitReferenceType(CSTToken *refType) {
+        visitCompoundCommon(refType);
     }
 
     virtual void visitAccessChain(CSTToken *accessChain) {

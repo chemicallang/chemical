@@ -15,6 +15,7 @@
 #include "ast/structures/EnumDeclaration.h"
 #include "compiler/ctranslator/CTranslator.h"
 #include "ast/types/PointerType.h"
+#include "ast/types/ReferenceType.h"
 #include "ast/types/LinkedType.h"
 #include "ast/types/ArrayType.h"
 #include "ast/structures/StructDefinition.h"
@@ -487,6 +488,10 @@ clang::QualType VoidType::clang_type(clang::ASTContext &context) {
 }
 
 clang::QualType PointerType::clang_type(clang::ASTContext &context) {
+    return context.getPointerType(type->clang_type(context));
+}
+
+clang::QualType ReferenceType::clang_type(clang::ASTContext &context) {
     return context.getPointerType(type->clang_type(context));
 }
 

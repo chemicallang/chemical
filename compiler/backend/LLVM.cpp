@@ -17,6 +17,7 @@
 #include "ast/types/DynamicType.h"
 #include "ast/types/IntNType.h"
 #include "ast/types/PointerType.h"
+#include "ast/types/ReferenceType.h"
 #include "ast/types/LinkedType.h"
 #include "ast/types/UnionType.h"
 #include "ast/types/StringType.h"
@@ -106,6 +107,18 @@ llvm::Type *PointerType::llvm_type(Codegen &gen) {
 }
 
 llvm::Type *PointerType::llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned int index) {
+    if(index == values.size() - 1) {
+        return gen.builder->getPtrTy();
+    } else {
+        return type->llvm_chain_type(gen, values, index);
+    }
+}
+
+llvm::Type *ReferenceType::llvm_type(Codegen &gen) {
+    return gen.builder->getPtrTy();
+}
+
+llvm::Type *ReferenceType::llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned int index) {
     if(index == values.size() - 1) {
         return gen.builder->getPtrTy();
     } else {

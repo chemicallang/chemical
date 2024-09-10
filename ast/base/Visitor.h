@@ -182,7 +182,7 @@ class LinkedType;
 
 class GenericTypeParameter;
 
-class ReferencedValueType;
+class LinkedValueType;
 
 class StructMemberInitializer;
 
@@ -599,7 +599,7 @@ public:
         visitCommonType((BaseType*) func);
     }
 
-    virtual void visit(ReferencedValueType* ref_type) {
+    virtual void visit(LinkedValueType* ref_type) {
         visitCommonType((BaseType*) ref_type);
     }
 

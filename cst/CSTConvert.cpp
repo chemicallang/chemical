@@ -76,7 +76,7 @@
 #include "preprocess/RepresentationVisitor.h"
 #include "preprocess/2c/2cASTVisitor.h"
 #include "ast/values/SizeOfValue.h"
-#include "ast/types/ReferencedValueType.h"
+#include "ast/types/LinkedValueType.h"
 #include "ast/statements/UsingStmt.h"
 #include "ast/types/LinkedType.h"
 #include "ast/types/DynamicType.h"
@@ -850,7 +850,7 @@ void CSTConverter::visitTypeToken(CSTToken* token) {
 
 void CSTConverter::visitReferencedValueType(CSTToken* ref_value) {
     ref_value->tokens[0]->accept(this);
-    auto ref = new ReferencedValueType(value(), ref_value);
+    auto ref = new LinkedValueType(value(), ref_value);
     put_type(ref, ref_value);
 }
 

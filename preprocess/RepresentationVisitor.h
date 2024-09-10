@@ -291,7 +291,7 @@ public:
 
     void visit(UsingStmt *usingStmt) override;
 
-    void visit(ReferencedValueType *ref_type) override;
+    void visit(LinkedValueType *ref_type) override;
 
     void visit(UCharType *uchar) override;
 

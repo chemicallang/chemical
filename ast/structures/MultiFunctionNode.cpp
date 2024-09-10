@@ -33,7 +33,7 @@ void MultiFunctionNode::declare_and_link(SymbolResolver &linker, std::unique_ptr
 
 }
 
-OverridableFuncHandlingResult handle_name_overridable_function(
+OverridableFuncHandlingResult handle_name_overload_function(
         const std::string& name,
         ASTNode* previous_node,
         FunctionDeclaration* declaration
@@ -53,6 +53,9 @@ OverridableFuncHandlingResult handle_name_overridable_function(
         declaration->multi_func_index = multi->functions.size();
         multi->functions.emplace_back(declaration);
     } else if(previous) {
+        if(previous->parent_node != declaration->parent_node) {
+            return result;
+        }
         if(!previous->do_param_types_match(declaration->params)) {
             multi = new MultiFunctionNode(name);
             multi->functions.emplace_back(previous);

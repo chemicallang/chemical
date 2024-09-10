@@ -531,7 +531,7 @@ bool MembersContainer::insert_multi_func(std::unique_ptr<FunctionDeclaration> de
     if(found == indexes.end()) {
         insert_func(std::move(decl));
     } else {
-        auto result = handle_name_overridable_function(decl->name, found->second, decl.get());
+        auto result = handle_name_overload_function(decl->name, found->second, decl.get());
         if(!result.duplicates.empty()) {
             return false;
         } else if(result.new_multi_func_node) {

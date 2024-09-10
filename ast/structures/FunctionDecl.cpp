@@ -528,6 +528,16 @@ void code_gen_member_calls(
         void(*member_func_call)(Codegen& gen, FunctionDeclaration* decl, StructDefinition* def, llvm::Function* func, unsigned index)
 ) {
     unsigned index = 0;
+    for(auto& inherited : def->inherited) {
+        const auto base_def = inherited->type->get_direct_ref_struct();
+        if(base_def) {
+            auto chosen_func = choose_func(base_def);
+            if(chosen_func) {
+                member_func_call(gen, chosen_func, def, func, index);
+            }
+        }
+        index++;
+    }
     for(auto& var : def->variables) {
         if(var.second->value_type() == ValueType::Struct) {
             auto mem_type = var.second->get_value_type();

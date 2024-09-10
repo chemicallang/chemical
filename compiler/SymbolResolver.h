@@ -96,7 +96,7 @@ private:
      * if successfully overridden, it will modify the previous location inside the symbol table
      * to be this declaration and return true
      */
-    bool override_function(const std::string& name, ASTNode*& previous, FunctionDeclaration* declaration);
+    bool overload_function(const std::string& name, ASTNode*& previous, FunctionDeclaration* declaration);
 
     /**
      * helper method that should be used to declare functions that takes into account

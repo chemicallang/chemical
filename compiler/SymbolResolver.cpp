@@ -181,7 +181,7 @@ bool SymbolResolver::dup_check_in_scopes_above(const std::string& name, ASTNode*
     return false;
 }
 
-bool SymbolResolver::override_function(const std::string& name, ASTNode*& previous, FunctionDeclaration* declaration) {
+bool SymbolResolver::overload_function(const std::string& name, ASTNode*& previous, FunctionDeclaration* declaration) {
     if(declaration->has_annotation(AnnotationKind::Override)) {
         const auto func = previous->as_function();
         if (func->returnType->is_same(declaration->returnType.get()) && func->do_param_types_match(declaration->params, false)) {
@@ -193,7 +193,7 @@ bool SymbolResolver::override_function(const std::string& name, ASTNode*& previo
             return false;
         }
     }
-    auto result = handle_name_overridable_function(name, previous, declaration);
+    auto result = handle_name_overload_function(name, previous, declaration);
     if(!result.duplicates.empty()) {
         for(auto dup : result.duplicates) {
             dup_sym_error(name, dup, declaration);
@@ -214,7 +214,7 @@ bool SymbolResolver::declare_function_quietly(const std::string& name, FunctionD
         last.symbols[name] = declaration;
         return true;
     } else {
-        override_function(name, found->second, declaration);
+        overload_function(name, found->second, declaration);
         return false;
     }
 }

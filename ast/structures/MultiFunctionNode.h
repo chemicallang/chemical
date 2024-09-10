@@ -47,7 +47,7 @@ public:
 
 };
 
-OverridableFuncHandlingResult handle_name_overridable_function(
+OverridableFuncHandlingResult handle_name_overload_function(
         const std::string& name,
         ASTNode* previous_node,
         FunctionDeclaration* declaration

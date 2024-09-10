@@ -5,6 +5,7 @@
 #include "ast/types/IntNType.h"
 #include "ast/types/VoidType.h"
 #include "ast/types/PointerType.h"
+#include "ast/types/ReferenceType.h"
 #include "ast/types/LinkedType.h"
 #include "ast/statements/Assignment.h"
 #include "ast/types/ArrayType.h"
@@ -848,7 +849,7 @@ void CSTConverter::visitTypeToken(CSTToken* token) {
     }
 }
 
-void CSTConverter::visitReferencedValueType(CSTToken* ref_value) {
+void CSTConverter::visitLinkedValueType(CSTToken* ref_value) {
     ref_value->tokens[0]->accept(this);
     auto ref = new LinkedValueType(value(), ref_value);
     put_type(ref, ref_value);
@@ -1455,6 +1456,11 @@ void CSTConverter::visitTryCatch(CSTToken* tryCatch) {
 void CSTConverter::visitPointerType(CSTToken* cst) {
     visit(cst->tokens, 0);
     put_type(new PointerType(type(), cst), cst);
+}
+
+void CSTConverter::visitReferenceType(CSTToken* cst) {
+    visit(cst->tokens, 0);
+    put_type(new ReferenceType(type(), cst), cst);
 }
 
 void CSTConverter::visitGenericType(CSTToken* cst) {

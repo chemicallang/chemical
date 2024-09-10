@@ -170,11 +170,14 @@ void CSTToken::accept(CSTVisitor *visitor) {
         case LexTokenType::CompGenericType:
             visitor->visitGenericType((CSTToken*) this);
             return;
-        case LexTokenType::CompReferencedValueType:
-            visitor->visitReferencedValueType((CSTToken*) this);
+        case LexTokenType::CompLinkedValueType:
+            visitor->visitLinkedValueType((CSTToken*) this);
             return;
         case LexTokenType::CompPointerType:
             visitor->visitPointerType((CSTToken*) this);
+            return;
+        case LexTokenType::CompReferenceType:
+            visitor->visitReferenceType((CSTToken*) this);
             return;
         case LexTokenType::CompArrayValue:
             visitor->visitArrayValue((CSTToken*) this);

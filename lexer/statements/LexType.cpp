@@ -73,6 +73,9 @@ void Lexer::lexArrayAndPointerTypesAfterTypeId(unsigned int start) {
     while(lexOperatorToken('*')) {
         compound_from(start, LexTokenType::CompPointerType);
     }
+    if(lexOperatorToken('&')) {
+        compound_from(start, LexTokenType::CompReferenceType);
+    }
 }
 
 bool Lexer::lexTypeId(std::string& type, unsigned int start) {
@@ -93,7 +96,7 @@ bool Lexer::lexTypeId(std::string& type, unsigned int start) {
             if(has_multiple) {
                 emplace(LexTokenType::Variable, backPosition(type.length()), type);
                 compound_from(start, LexTokenType::CompAccessChain);
-                compound_from(start, LexTokenType::CompReferencedValueType);
+                compound_from(start, LexTokenType::CompLinkedValueType);
             } else {
                 emplace(LexTokenType::Type, backPosition(type.length()), type);
             }

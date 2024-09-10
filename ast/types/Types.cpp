@@ -63,10 +63,6 @@ bool LinkedType::satisfies(Value *value) {
     return value->get_base_type()->is_same(this);
 }
 
-bool LinkedValueType::satisfies(Value *current_value) {
-    return current_value->get_base_type()->is_same(this);
-}
-
 bool StringType::satisfies(Value *value) {
     return value->value_type() == ValueType::String;
 }

@@ -327,7 +327,23 @@ bool FunctionType::move_value(Value* value, ASTDiagnoser& diagnoser) {
             const auto linked = value->linked_node();
             const auto linked_kind = linked->kind();
             if (linked_kind == ASTNodeKind::VarInitStmt) {
-                linked->as_var_init_unsafe()->moved();
+                const auto init = linked->as_var_init_unsafe();
+#ifdef DEBUG
+                if(init->get_has_moved()) {
+                    diagnoser.error("found var init that skipped move check, identifier '" + init->identifier + "' has already been moved", id);
+                    return false;
+                }
+#endif
+                init->moved();
+            } else if(linked_kind == ASTNodeKind::FunctionParam) {
+                const auto param = linked->as_func_param_unsafe();
+#ifdef DEBUG
+                if(param->get_has_moved()) {
+                    diagnoser.error("found function param that skipped move check, identifier '" + param->name + "' has already been moved", id);
+                    return false;
+                }
+#endif
+                param->moved();
             }
             mark_moved_no_check(id);
             return true;

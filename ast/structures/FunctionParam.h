@@ -13,6 +13,7 @@ public:
     unsigned int index;
     std::unique_ptr<Value> defValue;
     CSTToken* token;
+    bool has_moved = false;
 
     FunctionParam(
             std::string name,
@@ -33,6 +34,15 @@ public:
 
     ASTNode *parent() override {
         return (ASTNode*) func_type;
+    }
+
+    void moved() {
+        has_moved = true;
+    }
+
+    [[nodiscard]]
+    bool get_has_moved() const {
+        return has_moved;
     }
 
     unsigned int calculate_c_or_llvm_index() override;

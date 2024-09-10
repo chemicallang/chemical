@@ -915,10 +915,6 @@ void RepresentationVisitor::visit(SizeOfValue *size_of) {
     write('}');
 }
 
-void RepresentationVisitor::visit(ReferencedStructType *structType) {
-
-}
-
 void RepresentationVisitor::visit(RetStructParamValue *paramVal) {
 
 }

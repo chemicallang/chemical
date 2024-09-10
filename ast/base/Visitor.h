@@ -178,6 +178,8 @@ class LongType;
 
 class PointerType;
 
+class ReferenceType;
+
 class LinkedType;
 
 class GenericTypeParameter;
@@ -590,6 +592,10 @@ public:
     }
 
     virtual void visit(PointerType* func) {
+        visitCommonType((BaseType*) func);
+    }
+
+    virtual void visit(ReferenceType* func) {
         visitCommonType((BaseType*) func);
     }
 

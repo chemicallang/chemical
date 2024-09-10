@@ -56,7 +56,7 @@ bool FloatType::satisfies(Value *value) {
 }
 
 bool PointerType::satisfies(Value *value) {
-    return value->value_type() == ValueType::Pointer || value->is_pointer() && value->get_child_type()->satisfies(ValueType::Char);
+    return value->value_type() == ValueType::Pointer || value->is_pointer() && type->satisfies(value->known_type());
 }
 
 bool LinkedType::satisfies(Value *value) {

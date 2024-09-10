@@ -75,10 +75,10 @@ public struct BuildContext {
     var translate_to_c : (&self, name : string, dependencies : ArrayRef<Module*>, output_dir : string) => LabJob*
 
     // build executable using module dependencies
-    var build_exe : (&self, name : string, dependencies : ArrayRef<Module*>) => LabJob*;
+    var build_exe : (&self, name : string*, dependencies : ArrayRef<Module*>) => LabJob*;
 
     // build a dynamic library using executable dependencies
-    var build_dynamic_lib : (&self, name : string, dependencies : ArrayRef<Module*>) => LabJob*;
+    var build_dynamic_lib : (&self, name : string*, dependencies : ArrayRef<Module*>) => LabJob*;
 
     // add a linkable object (.o file)
     var add_object : (&self, job : LabJob*, path : string) => void;
@@ -92,13 +92,13 @@ public struct BuildContext {
 
     // check if argument given to chemical compiler
     // you can give argument using -arg-myarg, pass myarg to this function to check
-    var has_arg : (&self, name : string) => bool
+    var has_arg : (&self, name : string*) => bool
 
     // get the argument given to chemical compiler
-    var get_arg : (&self, name : string) => string
+    var get_arg : (&self, name : string*) => string
 
     // remove the argument given to chemical compiler
-    var remove_arg : (&self, name : string) => void
+    var remove_arg : (&self, name : string*) => void
 
     // launch an executable at the path
     var launch_executable : (&self, path : string, same_window : bool) => int;
@@ -122,11 +122,13 @@ public struct BuildContext {
     var invoke_ar : (&self, string_arr : ArrayRef<string>) => int;
 
     func chemical_file_module(&self, name : string, path : string, dependencies : ArrayRef<Module*>) : Module* {
-        return chemical_files_module(name, &path, 1, dependencies);
+        const path_ptr = &path;
+        return chemical_files_module(name, &path_ptr, 1, dependencies);
     }
 
     func file_module(&self, name : string, path : string, dependencies : ArrayRef<Module*>) : Module* {
-        return files_module(name, &path, 1, dependencies);
+        const path_ptr = &path;
+        return files_module(name, &path_ptr, 1, dependencies);
     }
 
     func translate_mod_to_c(&self, module : Module*, output_dir : string) : LabJob* {

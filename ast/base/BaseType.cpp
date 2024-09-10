@@ -8,6 +8,7 @@
 #include "ast/statements/Typealias.h"
 #include "ast/structures/UnionDef.h"
 #include "ast/types/LinkedType.h"
+#include "ast/types/ReferenceType.h"
 #include "ast/types/GenericType.h"
 #include <sstream>
 #include "ASTNode.h"
@@ -126,6 +127,10 @@ std::unique_ptr<Value> BaseType::promote_unique(Value* value) {
     return std::unique_ptr<Value>(promote(value));
 }
 
+bool BaseType::is_reference(BaseTypeKind k) {
+    return k == BaseTypeKind::Reference;
+}
+
 ASTNode* BaseType::get_direct_linked_node(BaseTypeKind kind) {
     if(kind == BaseTypeKind::Linked) {
         return ((LinkedType*) this)->linked;
@@ -136,9 +141,27 @@ ASTNode* BaseType::get_direct_linked_node(BaseTypeKind kind) {
     }
 }
 
+ASTNode* BaseType::get_ref_or_linked_node(BaseTypeKind kind) {
+    switch(kind) {
+        case BaseTypeKind::Linked:
+            return ((LinkedType*) this)->linked;
+        case BaseTypeKind::Generic:
+            return ((GenericType*) this)->referenced->linked;
+        case BaseTypeKind::Reference:
+            return ((ReferenceType*) this)->type->get_direct_linked_node();
+        default:
+            return nullptr;
+    }
+}
+
 StructDefinition* BaseType::get_direct_linked_struct(BaseTypeKind k) {
     const auto ref_node = get_direct_linked_node(k);
     return ref_node ? ref_node->as_struct_def() : nullptr;
+}
+
+StructDefinition* BaseType::get_ref_or_linked_struct(BaseTypeKind k) {
+    const auto node = get_ref_or_linked_node(k);
+    return node ? node->as_struct_def() : nullptr;
 }
 
 VariantDefinition* BaseType::get_direct_linked_variant(BaseTypeKind k) {

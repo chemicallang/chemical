@@ -235,6 +235,18 @@ public:
     }
 
     /**
+     * check if this represents a reference
+     */
+    bool is_reference(BaseTypeKind k);
+
+    /**
+     * helper function
+     */
+    inline bool is_reference() {
+        return is_reference(kind());
+    }
+
+    /**
      * is destructor required
      */
     bool requires_destructor();
@@ -255,6 +267,11 @@ public:
     ASTNode* get_direct_linked_node(BaseTypeKind kind);
 
     /**
+     * get direct or referenced linked node, type should be Struct or Struct&
+     */
+    ASTNode* get_ref_or_linked_node(BaseTypeKind kind);
+
+    /**
      * a helper function
      */
     inline ASTNode* get_direct_linked_node() {
@@ -265,6 +282,11 @@ public:
      * if this is a directly referenced / generic type, get it's ref'ed node
      */
     StructDefinition* get_direct_linked_struct(BaseTypeKind k);
+
+    /**
+     * get direct or referenced struct, this means either the type should be Struct or Struct&
+     */
+    StructDefinition* get_ref_or_linked_struct(BaseTypeKind k);
 
     /**
      * a helper function

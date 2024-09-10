@@ -168,6 +168,14 @@ public:
     bool requires_move_fn();
 
     /**
+     * this means struct must be moved by calling move constructor and
+     * the default mem copy doesn't suffice
+     */
+    inline bool requires_moving() {
+        return requires_destructor() || requires_move_fn();
+    }
+
+    /**
      * checks if this struct type requires a copy function
      */
     bool requires_copy_fn();

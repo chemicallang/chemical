@@ -386,11 +386,9 @@ void prep_build_context_cbi(BuildContextCBI* cbi) {
         return self->instance->translate_to_c(name, dependencies->ptr, dependencies->size, output_dir);
     };
     cbi->build_exe = [](BuildContextCBI* self, chem::string* name, ModuleArrayRef* dependencies) -> LabJob* {
-        dispose_string _x{name};
         return self->instance->build_exe(name, dependencies->ptr, dependencies->size);
     };
     cbi->build_dynamic_lib = [](BuildContextCBI* self, chem::string* name, ModuleArrayRef* dependencies) -> LabJob* {
-        dispose_string _x{name};
         return self->instance->build_dynamic_lib(name, dependencies->ptr, dependencies->size);
     };
     cbi->add_object = [](BuildContextCBI* self, LabJob* job, chem::string* path) {
@@ -406,15 +404,12 @@ void prep_build_context_cbi(BuildContextCBI* cbi) {
         init_chem_string(str)->append(self->instance->build_dir);
     };
     cbi->has_arg = [](BuildContextCBI* self, chem::string* name) -> bool {
-        dispose_string _x{name};
         return self->instance->has_arg(name);
     };
     cbi->get_arg = [](chem::string* str, BuildContextCBI* self, chem::string* name) {
-        dispose_string _x{name};
         return self->instance->get_arg(init_chem_string(str), name);
     };
     cbi->remove_arg = [](BuildContextCBI* self, chem::string* name) {
-        dispose_string _x{name};
         return self->instance->remove_arg(name);
     };
     cbi->launch_executable = [](BuildContextCBI* self, chem::string* path, bool same_window) {

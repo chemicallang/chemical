@@ -557,10 +557,39 @@ void FunctionCall::link_values(SymbolResolver &linker) {
     auto func_type = get_function_type();
     unsigned i = 0;
     while(i < values.size()) {
-        values[i]->link(linker, this, i);
-//        if(values[i]->known_type()->is_movable_ref_struct()) {
-//            current_func.move_value(values[i].get(), linker);
-//        }
+        auto& value = *values[i];
+        value.link(linker, this, i);
+        const auto expected_type = func_type->func_param_for_arg_at(i)->type.get();
+        const auto expected_type_kind = expected_type->kind();
+        if(expected_type_kind == BaseTypeKind::Reference) {
+            i++;
+            continue;
+        }
+        const auto expected_def = expected_type->get_ref_or_linked_struct(expected_type_kind);
+        const auto type = value.known_type();
+        const auto linked_def = type->get_direct_linked_struct();
+        if(linked_def && linked_def->requires_moving()) {
+            if(!expected_def) {
+                if(expected_type_kind != BaseTypeKind::Any) {
+                    linker.error("cannot move a struct to a non struct type", &value);
+                }
+                i++;
+                continue;
+            }
+            if (expected_def == linked_def) {
+                current_func.move_value(&value, linker);
+            } else {
+                const auto implicit = expected_def->implicit_constructor_for(&value);
+                if(implicit) {
+                    auto& param_type = *implicit->params[0]->type;
+                    if(!param_type.is_reference()) { // not a reference type (requires moving)
+                        current_func.move_value(&value, linker);
+                    }
+                } else {
+                    linker.error("unknown value being moved, where the struct types don't match", &value);
+                }
+            }
+        }
         i++;
     }
 }

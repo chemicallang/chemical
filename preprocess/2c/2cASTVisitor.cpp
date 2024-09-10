@@ -3712,7 +3712,11 @@ void ToCAstVisitor::visit(LinkedType *type) {
             break;
     }
     node_parent_name(*this, &linked);
-    write(type->type);
+    if(type->type.empty()) {
+        type->linked->runtime_name_no_parent(*output);
+    } else {
+        write(type->type);
+    }
 }
 
 void ToCAstVisitor::visit(LinkedValueType *ref_type) {

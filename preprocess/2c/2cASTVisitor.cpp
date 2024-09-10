@@ -41,7 +41,7 @@
 #include "ast/structures/Scope.h"
 #include "ast/structures/WhileLoop.h"
 #include "ast/structures/LoopBlock.h"
-#include "ast/types/ReferencedType.h"
+#include "ast/types/LinkedType.h"
 #include "ast/types/PointerType.h"
 #include "ast/types/GenericType.h"
 #include "ast/types/AnyType.h"
@@ -198,7 +198,7 @@ void type_with_id(ToCAstVisitor& visitor, BaseType* type, const std::string& id)
 }
 
 void param_type_with_id(ToCAstVisitor& visitor, BaseType* type, const std::string& id) {
-    const auto node = type->get_direct_ref_node();
+    const auto node = type->get_direct_linked_node();
     if(node && (node->as_struct_def() || node->as_variant_def())) {
         PointerType ptr_type(hybrid_ptr<BaseType>{ type, false }, nullptr);
         type_with_id(visitor, &ptr_type, id);
@@ -328,7 +328,7 @@ void func_type_with_id(ToCAstVisitor& visitor, FunctionType* type, const std::st
 }
 
 bool should_void_pointer_to_self(BaseType* type, const std::string& id, unsigned index, bool overrides) {
-    if(index == 0 && type->kind() == BaseTypeKind::Pointer && ((PointerType*) type)->type->kind() == BaseTypeKind::Referenced && (id == "self" || id == "this")) {
+    if(index == 0 && type->kind() == BaseTypeKind::Pointer && ((PointerType*) type)->type->kind() == BaseTypeKind::Linked && (id == "self" || id == "this")) {
         if(((PointerType*) type)->type->linked_node()->as_interface_def() || (((PointerType*) type)->type->linked_node()->as_struct_def() && overrides)) {
             return true;
         }
@@ -349,14 +349,14 @@ ASTNode* get_func_param_ref_node(ASTNode* node) {
     if(!node) return nullptr;
     auto param = node->as_func_param();
     if(!param) return nullptr;
-    return param->type->get_direct_ref_node();
+    return param->type->get_direct_linked_node();
 }
 
 StructDefinition* get_func_param_ref_struct(ASTNode* node) {
     if(!node) return nullptr;
     auto param = node->as_func_param();
     if(!param) return nullptr;
-    return param->type->get_direct_ref_struct();
+    return param->type->get_direct_linked_struct();
 }
 
 void vtable_name(ToCAstVisitor& visitor, InterfaceDefinition* interface, StructDefinition* definition) {
@@ -394,7 +394,7 @@ bool implicit_mutate_value_for_dyn_obj(ToCAstVisitor& visitor, BaseType* type, V
     visitor.write(')');
     visitor.write('{');
     visitor.space();
-    if(!(value->linked_node()->as_func_param() && value->known_type()->kind() == BaseTypeKind::Referenced)) {
+    if(!(value->linked_node()->as_func_param() && value->known_type()->kind() == BaseTypeKind::Linked)) {
         visitor.write('&');
     }
     value_visit(visitor, value);
@@ -440,7 +440,7 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
     while(i < call->values.size()) {
         param = func_type->func_param_for_arg_at(i);
         auto& val = call->values[i];
-        const auto param_ref_node = param->type->get_direct_ref_node();
+        const auto param_ref_node = param->type->get_direct_linked_node();
         const auto val_ref_node = get_func_param_ref_node(val->linked_node());
         const auto is_struct_param = (param_ref_node && param_ref_node->as_struct_def() && (!val_ref_node || !val_ref_node->as_struct_def()));
         const auto is_variant_param = (param_ref_node && param_ref_node->as_variant_def() && (!val_ref_node || !val_ref_node->as_variant_def()));
@@ -491,7 +491,7 @@ void access_chain(ToCAstVisitor& visitor, std::vector<std::unique_ptr<ChainValue
 
 void value_alloca(ToCAstVisitor& visitor, const std::string& identifier, BaseType* type, Value* value) {
     type_with_id(visitor, type, identifier);
-    const auto var = type->get_direct_ref_variant();
+    const auto var = type->get_direct_linked_variant();
     if(var) {
         visitor.write(" = ");
         visitor.write("{ .");
@@ -511,7 +511,7 @@ void write_accessor(ToCAstVisitor& visitor, Value* current, Value* next) {
         return;
     }
     if(linked && linked->as_base_func_param()){
-        const auto node = linked->as_base_func_param()->type->get_direct_ref_node();
+        const auto node = linked->as_base_func_param()->type->get_direct_linked_node();
         if(node && (node->as_struct_def() || node->as_variant_def())) {
             visitor.write("->");
             return;
@@ -1370,7 +1370,7 @@ void CDestructionVisitor::dispatch_jobs_from(int begin) {
 
 void CDestructionVisitor::queue_destruct_decl_params(FunctionType* decl) {
     for(auto& d_param : decl->params) {
-        auto linked = d_param->type->get_direct_ref_node();
+        auto linked = d_param->type->get_direct_linked_node();
         if(linked) {
             const auto members_container = linked->as_members_container();
             if(members_container) {
@@ -1975,7 +1975,7 @@ void CTopLevelDeclarationVisitor::visit(VariantDefinition *variant_def) {
             for(auto& mem : variant_def->variables) {
                 auto& mem_vals = mem.second->as_variant_member()->values;
                 for(auto& val : mem_vals) {
-                    const auto str = val.second->type->pure_type()->get_direct_ref_struct();
+                    const auto str = val.second->type->pure_type()->get_direct_linked_struct();
                     if(str) {
                         declare_struct_def_only(str, true);
                     }
@@ -2309,7 +2309,8 @@ void ToCAstVisitor::return_value(Value* val, BaseType* type) {
             const auto id = val->as_identifier();
             if(id) {
                 const auto func_param = id->linked->as_func_param();
-                if(func_param && (func_param->type->get_direct_ref_struct() || func_param->type->get_direct_ref_variant())) {
+                if(func_param && (func_param->type->get_direct_linked_struct() ||
+                        func_param->type->get_direct_linked_variant())) {
                     write('*');
                 }
             }
@@ -3677,7 +3678,7 @@ void ToCAstVisitor::visit(PointerType *func) {
     write('*');
 }
 
-void ToCAstVisitor::visit(ReferencedType *type) {
+void ToCAstVisitor::visit(LinkedType *type) {
     auto& linked = *type->linked;
     const auto kind = linked.kind();
     switch(kind) {

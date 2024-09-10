@@ -14,7 +14,7 @@
 #include "ast/base/LoopASTNode.h"
 #include "ast/values/StructValue.h"
 #include "ast/types/PointerType.h"
-#include "ast/types/ReferencedType.h"
+#include "ast/types/LinkedType.h"
 
 #ifdef COMPILER_BUILD
 

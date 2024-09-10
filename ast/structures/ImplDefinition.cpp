@@ -82,7 +82,7 @@ void ImplDefinition::declare_and_link(SymbolResolver &linker, std::unique_ptr<AS
     if(struct_type) {
         struct_type->link(linker, struct_type);
     }
-    auto& interface_name = interface_type->ref_name();
+    auto& interface_name = interface_type->linked_name();
     auto linked = interface_type->linked_node()->as_interface_def();
     if(!linked) {
         linker.error("couldn't find interface by name " + interface_name + " for implementation", interface_type.get());

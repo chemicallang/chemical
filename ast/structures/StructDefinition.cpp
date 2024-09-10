@@ -3,7 +3,7 @@
 #include "StructMember.h"
 #include "StructDefinition.h"
 #include "FunctionDeclaration.h"
-#include "ast/types/ReferencedType.h"
+#include "ast/types/LinkedType.h"
 #include "ast/types/StructType.h"
 #include "compiler/SymbolResolver.h"
 #include "InterfaceDefinition.h"
@@ -19,7 +19,7 @@
 #include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
 #include "ast/values/IntValue.h"
-#include "ast/types/ReferencedType.h"
+#include "ast/types/LinkedType.h"
 
 void StructDefinition::struct_func_gen(Codegen& gen, const std::vector<std::unique_ptr<FunctionDeclaration>>& funcs) {
     for(auto& function : funcs) {
@@ -340,11 +340,11 @@ StructDefinition::StructDefinition(
 ) : ExtendableMembersContainerNode(std::move(name)), parent_node(parent_node), token(token), specifier(specifier) {}
 
 BaseType *StructDefinition::copy() const {
-    return new ReferencedType(name, (ASTNode *) this, token);
+    return new LinkedType(name, (ASTNode *) this, token);
 }
 
 BaseType *UnnamedStruct::copy() const {
-    return new ReferencedType(name, (ASTNode *) this, token);
+    return new LinkedType(name, (ASTNode *) this, token);
 }
 
 bool StructMember::requires_destructor() {
@@ -427,7 +427,7 @@ VariablesContainer *StructDefinition::copy_container() {
 }
 
 std::unique_ptr<BaseType> StructDefinition::create_value_type() {
-    return std::make_unique<ReferencedType>(name, this, nullptr);
+    return std::make_unique<LinkedType>(name, this, nullptr);
 }
 
 hybrid_ptr<BaseType> StructDefinition::get_value_type() {

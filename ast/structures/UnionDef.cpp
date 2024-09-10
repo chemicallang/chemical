@@ -4,7 +4,7 @@
 #include "UnionDef.h"
 #include "FunctionDeclaration.h"
 #include "compiler/SymbolResolver.h"
-#include "ast/types/ReferencedType.h"
+#include "ast/types/LinkedType.h"
 
 #ifdef COMPILER_BUILD
 
@@ -50,7 +50,7 @@ UnionDef::UnionDef(
 }
 
 BaseType *UnionDef::copy() const {
-    return new ReferencedType(name, nullptr, (ASTNode*) this);
+    return new LinkedType(name, nullptr, (ASTNode*) this);
 }
 
 VariablesContainer *UnionDef::copy_container() {
@@ -62,7 +62,7 @@ VariablesContainer *UnionDef::copy_container() {
 }
 
 BaseType *UnnamedUnion::copy() const {
-    return new ReferencedType(name, nullptr, (ASTNode*) this);
+    return new LinkedType(name, nullptr, (ASTNode*) this);
 }
 
 std::unique_ptr<BaseType> UnionDef::create_value_type() {

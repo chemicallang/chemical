@@ -15,7 +15,7 @@
 #include "ast/structures/EnumDeclaration.h"
 #include "compiler/ctranslator/CTranslator.h"
 #include "ast/types/PointerType.h"
-#include "ast/types/ReferencedType.h"
+#include "ast/types/LinkedType.h"
 #include "ast/types/ArrayType.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/statements/Typealias.h"
@@ -60,7 +60,7 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
         if(canon_ptr->isStructureType()) {
             return make_type(&canonical);
         }
-        return new ReferencedType(type->getAsString(), nullptr);
+        return new LinkedType(type->getAsString(), nullptr);
     }
     if(ptr->isBuiltinType()) {
         auto builtIn = static_cast<clang::BuiltinType*>(const_cast<clang::Type*>(ptr));
@@ -72,7 +72,7 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
     } else if(ptr->isStructureType()){
         auto str_type = ptr->getAsStructureType();
         auto decl = str_type->getAsRecordDecl();
-        return new ReferencedType(decl->getNameAsString(), nullptr);
+        return new LinkedType(decl->getNameAsString(), nullptr);
     }
 //    else if(ptr->isArrayType()) { // couldn't make use of it
 //        auto point = ptr->getAsArrayTypeUnsafe();

@@ -6,22 +6,22 @@
 
 #include "ast/base/BaseType.h"
 
-class ReferencedType : public TokenizedBaseType {
+class LinkedType : public TokenizedBaseType {
 public:
 
     std::string type;
     ASTNode *linked;
 
-    ReferencedType(std::string type, CSTToken* token) : type(std::move(type)), TokenizedBaseType(token) {
+    LinkedType(std::string type, CSTToken* token) : type(std::move(type)), TokenizedBaseType(token) {
 
     }
 
     [[deprecated]]
-    ReferencedType(std::string type, CSTToken* token, ASTNode* linked) : type(std::move(type)), TokenizedBaseType(token), linked(linked) {
+    LinkedType(std::string type, CSTToken* token, ASTNode* linked) : type(std::move(type)), TokenizedBaseType(token), linked(linked) {
 
     }
 
-    ReferencedType(std::string type, ASTNode* linked, CSTToken* token) : type(std::move(type)), TokenizedBaseType(token), linked(linked) {
+    LinkedType(std::string type, ASTNode* linked, CSTToken* token) : type(std::move(type)), TokenizedBaseType(token), linked(linked) {
 
     }
 
@@ -44,20 +44,20 @@ public:
 
     [[nodiscard]]
     BaseTypeKind kind() const override {
-        return BaseTypeKind::Referenced;
+        return BaseTypeKind::Linked;
     }
 
     bool satisfies(Value *value) override;
 
     bool is_same(BaseType *other) override {
-        return other->kind() == kind() && static_cast<ReferencedType *>(other)->linked == linked;
+        return other->kind() == kind() && static_cast<LinkedType *>(other)->linked == linked;
     }
 
     bool satisfies(BaseType *type) override;
 
     [[nodiscard]]
-    ReferencedType *copy() const override {
-        auto t = new ReferencedType(type, token);
+    LinkedType *copy() const override {
+        auto t = new LinkedType(type, token);
         t->linked = linked;
         return t;
     }

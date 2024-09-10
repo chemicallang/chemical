@@ -3,7 +3,7 @@
 #pragma once
 
 #include "ast/base/ExtendableMembersContainerNode.h"
-#include "ast/types/ReferencedType.h"
+#include "ast/types/LinkedType.h"
 
 class VariantDefinition : public ExtendableMembersContainerNode {
 public:
@@ -11,7 +11,7 @@ public:
     AccessSpecifier specifier;
     ASTNode* parent_node;
     CSTToken* token;
-    ReferencedType ref_type;
+    LinkedType ref_type;
 
 #ifdef COMPILER_BUILD
     /**

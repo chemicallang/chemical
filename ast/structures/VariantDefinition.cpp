@@ -2,7 +2,7 @@
 
 #include "VariantDefinition.h"
 #include "VariantMember.h"
-#include "ast/types/ReferencedType.h"
+#include "ast/types/LinkedType.h"
 #include "compiler/SymbolResolver.h"
 #include "ast/base/ChainValue.h"
 #include "ast/values/VariantCase.h"
@@ -284,7 +284,7 @@ uint64_t VariantDefinition::byte_size(bool is64Bit) {
 }
 
 std::unique_ptr<BaseType> VariantDefinition::create_value_type() {
-    return std::make_unique<ReferencedType>(name, this, nullptr);
+    return std::make_unique<LinkedType>(name, this, nullptr);
 }
 
 hybrid_ptr<BaseType> VariantDefinition::get_value_type() {
@@ -418,7 +418,7 @@ BaseType* VariantMember::known_type() {
 }
 
 std::unique_ptr<BaseType> VariantMember::create_value_type() {
-    return std::make_unique<ReferencedType>(name, this, nullptr);
+    return std::make_unique<LinkedType>(name, this, nullptr);
 }
 
 hybrid_ptr<BaseType> VariantMember::get_value_type() {

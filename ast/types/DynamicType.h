@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "ReferencedType.h"
+#include "LinkedType.h"
 
 class DynamicType : public TokenizedBaseType {
 public:

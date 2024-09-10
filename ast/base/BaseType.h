@@ -225,7 +225,7 @@ public:
     /**
      * reference name
      */
-    std::string& ref_name();
+    std::string& linked_name();
 
     /**
      * check if this type is a pointer
@@ -252,37 +252,37 @@ public:
     /**
      * if this is a directly referenced / generic type, get it's ref'ed node
      */
-    ASTNode* get_direct_ref_node(BaseTypeKind kind);
+    ASTNode* get_direct_linked_node(BaseTypeKind kind);
 
     /**
      * a helper function
      */
-    inline ASTNode* get_direct_ref_node() {
-        return get_direct_ref_node(kind());
+    inline ASTNode* get_direct_linked_node() {
+        return get_direct_linked_node(kind());
     }
 
     /**
      * if this is a directly referenced / generic type, get it's ref'ed node
      */
-    StructDefinition* get_direct_ref_struct(BaseTypeKind k);
+    StructDefinition* get_direct_linked_struct(BaseTypeKind k);
 
     /**
      * a helper function
      */
-    StructDefinition* get_direct_ref_struct() {
-        return get_direct_ref_struct(kind());
+    inline StructDefinition* get_direct_linked_struct() {
+        return get_direct_linked_struct(kind());
     }
 
     /**
      * if this is a directly referenced / generic variant, get it
      */
-    VariantDefinition* get_direct_ref_variant(BaseTypeKind k);
+    VariantDefinition* get_direct_linked_variant(BaseTypeKind k);
 
     /**
      * a helper function
      */
-    VariantDefinition* get_direct_ref_variant() {
-        return get_direct_ref_variant(kind());
+    inline VariantDefinition* get_direct_linked_variant() {
+        return get_direct_linked_variant(kind());
     }
 
     /**
@@ -316,20 +316,20 @@ public:
      * which means, it just can't be mem copied, after copied, move functions should be called
      * moves should be tracked and all that
      */
-    StructDefinition* get_direct_ref_movable_struct();
+    StructDefinition* get_direct_linked_movable_struct();
 
     /**
      * this type references a struct
      */
-    inline bool is_ref_struct() {
-        return get_direct_ref_struct() != nullptr;
+    inline bool is_linked_struct() {
+        return get_direct_linked_struct() != nullptr;
     }
 
     /**
      * a helper function
      */
-    inline bool is_movable_ref_struct() {
-        return get_direct_ref_movable_struct() != nullptr;
+    inline bool is_movable_linked_struct() {
+        return get_direct_linked_movable_struct() != nullptr;
     }
 
     /**

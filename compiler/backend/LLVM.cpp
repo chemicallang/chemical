@@ -17,7 +17,7 @@
 #include "ast/types/DynamicType.h"
 #include "ast/types/IntNType.h"
 #include "ast/types/PointerType.h"
-#include "ast/types/ReferencedType.h"
+#include "ast/types/LinkedType.h"
 #include "ast/types/UnionType.h"
 #include "ast/types/StringType.h"
 #include "ast/types/StructType.h"
@@ -113,15 +113,15 @@ llvm::Type *PointerType::llvm_chain_type(Codegen &gen, std::vector<std::unique_p
     }
 }
 
-llvm::Type *ReferencedType::llvm_type(Codegen &gen) {
+llvm::Type *LinkedType::llvm_type(Codegen &gen) {
     return linked->llvm_type(gen);
 }
 
-llvm::Type *ReferencedType::llvm_param_type(Codegen &gen) {
+llvm::Type *LinkedType::llvm_param_type(Codegen &gen) {
     return linked->llvm_param_type(gen);
 }
 
-llvm::Type *ReferencedType::llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned int index) {
+llvm::Type *LinkedType::llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned int index) {
     return linked->llvm_chain_type(gen, values, index);
 }
 
@@ -865,7 +865,7 @@ void DestructStmt::code_gen(Codegen &gen) {
             gen.error("value given to destruct statement must be of pointer type, value '" + identifier->representation() + "'", this);
             return;
         }
-        auto def = ((PointerType*) pure_type.get())->type->get_direct_ref_struct();
+        auto def = ((PointerType*) pure_type.get())->type->get_direct_linked_struct();
         if(!def) {
             gen.error("value given to destruct statement, doesn't reference a struct directly, value '" + identifier->representation() + "'", this);
             return;
@@ -913,7 +913,7 @@ void DestructStmt::code_gen(Codegen &gen) {
             gen.error("array is size is not known, so it must be provided in brackets for destructing value " + identifier->representation(), this);
             return;
         }
-        auto def = elem_type->get_direct_ref_struct();
+        auto def = elem_type->get_direct_linked_struct();
         if(!def) {
             gen.error("value given to destruct statement, doesn't reference a struct directly, value '" + identifier->representation() + "'", this);
             return;
@@ -926,7 +926,7 @@ void DestructStmt::code_gen(Codegen &gen) {
         }
         auto ptr_type = (PointerType*) pure_type.get();
         elem_type = ptr_type->type->pure_type();
-        auto def = ptr_type->type->get_direct_ref_struct();
+        auto def = ptr_type->type->get_direct_linked_struct();
         if(!def) {
             gen.error("value given to destruct statement, doesn't reference a struct directly, value '" + identifier->representation() + "'", this);
             return;

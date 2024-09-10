@@ -3,22 +3,22 @@
 
 #include "GenericType.h"
 #include "compiler/SymbolResolver.h"
-#include "ReferencedType.h"
+#include "LinkedType.h"
 #include "ast/structures/StructDefinition.h"
 
-GenericType::GenericType(std::unique_ptr<ReferencedType> referenced) : referenced(std::move(referenced)) {
+GenericType::GenericType(std::unique_ptr<LinkedType> referenced) : referenced(std::move(referenced)) {
 
 }
 
-GenericType::GenericType(std::unique_ptr<ReferencedType> referenced, std::vector<std::unique_ptr<BaseType>> types) : referenced(std::move(referenced)), types(std::move(types)) {
+GenericType::GenericType(std::unique_ptr<LinkedType> referenced, std::vector<std::unique_ptr<BaseType>> types) : referenced(std::move(referenced)), types(std::move(types)) {
 
 }
 
-GenericType::GenericType(std::unique_ptr<ReferencedType> referenced, int16_t generic_itr) : referenced(std::move(referenced)), generic_iteration(generic_itr) {
+GenericType::GenericType(std::unique_ptr<LinkedType> referenced, int16_t generic_itr) : referenced(std::move(referenced)), generic_iteration(generic_itr) {
 
 }
 
-GenericType::GenericType(std::string base, CSTToken* token) : referenced(new ReferencedType(std::move(base), token)) {
+GenericType::GenericType(std::string base, CSTToken* token) : referenced(new LinkedType(std::move(base), token)) {
 
 }
 
@@ -39,7 +39,7 @@ void GenericType::link(SymbolResolver &linker, std::unique_ptr<BaseType>& curren
 
 bool GenericType::subscribe_to_parent_generic() {
     for(auto& type : types) {
-        if(type->kind() == BaseTypeKind::Referenced) {
+        if(type->kind() == BaseTypeKind::Linked) {
             const auto gen_param = type->linked_node()->as_generic_type_param();
             if(gen_param) {
                 gen_param->parent_node->subscribe(this);
@@ -67,7 +67,7 @@ void GenericType::report_generic_usage(SymbolResolver& linker) {
 void GenericType::report_parent_usage(SymbolResolver &linker, int16_t parent_itr) {
     std::vector<std::unique_ptr<BaseType>> generic_args;
     for(auto& type : types) {
-        if(type->kind() == BaseTypeKind::Referenced) {
+        if(type->kind() == BaseTypeKind::Linked) {
             const auto gen_param = type->linked_node()->as_generic_type_param();
             if(gen_param) {
                 generic_args.emplace_back(gen_param->usage.back().get());
@@ -102,7 +102,7 @@ void GenericType::set_parent_iteration(int16_t parent_itr) {
 }
 
 GenericType* GenericType::copy() const {
-    auto gen = new GenericType(std::unique_ptr<ReferencedType>((ReferencedType*) referenced->copy()));
+    auto gen = new GenericType(std::unique_ptr<LinkedType>((LinkedType*) referenced->copy()));
     gen->generic_iteration = generic_iteration;
     for(auto& type : types) {
         gen->types.emplace_back(type->copy());

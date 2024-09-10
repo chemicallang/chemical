@@ -39,7 +39,7 @@
 #include "ast/structures/MembersContainer.h"
 #include "ast/structures/Scope.h"
 #include "ast/structures/WhileLoop.h"
-#include "ast/types/ReferencedType.h"
+#include "ast/types/LinkedType.h"
 #include "ast/types/PointerType.h"
 #include "ast/types/GenericType.h"
 #include "ast/types/AnyType.h"
@@ -54,7 +54,7 @@
 #include "ast/types/IntNType.h"
 #include "ast/types/IntType.h"
 #include "ast/types/LongType.h"
-#include "ast/types/ReferencedType.h"
+#include "ast/types/LinkedType.h"
 #include "ast/types/ShortType.h"
 #include "ast/types/StringType.h"
 #include "ast/types/StructType.h"
@@ -794,7 +794,7 @@ void RepresentationVisitor::visit(PointerType *func) {
     write('*');
 }
 
-void RepresentationVisitor::visit(ReferencedType *type) {
+void RepresentationVisitor::visit(LinkedType *type) {
     write(type->type);
 }
 

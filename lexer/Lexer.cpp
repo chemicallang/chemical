@@ -5,7 +5,7 @@
 //
 
 #include "Lexer.h"
-#include "ast/types/ReferencedType.h"
+#include "ast/types/LinkedType.h"
 #include "lexer/model/CompilerBinderTCC.h"
 
 Lexer::Lexer(SourceProvider &provider, CompilerBinder* binder, LexerCBI* cbi) : provider(provider), cbi(cbi), binder(binder), unit() {

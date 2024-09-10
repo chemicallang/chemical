@@ -467,7 +467,7 @@ public:
 
     void visit(LinkedType* func) override;
 
-    void visit(ReferencedValueType *ref_type) override;
+    void visit(LinkedValueType *ref_type) override;
 
     void visit(DynamicType *type) override;
 

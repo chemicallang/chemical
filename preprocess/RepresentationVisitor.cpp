@@ -927,7 +927,7 @@ void RepresentationVisitor::visit(UsingStmt *usingStmt) {
     write("using ");
 }
 
-void RepresentationVisitor::visit(ReferencedValueType *ref_type) {
+void RepresentationVisitor::visit(LinkedValueType *ref_type) {
 
 }
 

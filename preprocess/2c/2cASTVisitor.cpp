@@ -3715,7 +3715,7 @@ void ToCAstVisitor::visit(LinkedType *type) {
     write(type->type);
 }
 
-void ToCAstVisitor::visit(ReferencedValueType *ref_type) {
+void ToCAstVisitor::visit(LinkedValueType *ref_type) {
     write("[ref_value_type]");
 }
 

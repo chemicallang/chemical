@@ -10,7 +10,7 @@
 #include "FloatType.h"
 #include "PointerType.h"
 #include "LinkedType.h"
-#include "ReferencedValueType.h"
+#include "LinkedValueType.h"
 #include "StringType.h"
 #include "LiteralType.h"
 #include "VoidType.h"
@@ -63,7 +63,7 @@ bool LinkedType::satisfies(Value *value) {
     return value->get_base_type()->is_same(this);
 }
 
-bool ReferencedValueType::satisfies(Value *current_value) {
+bool LinkedValueType::satisfies(Value *current_value) {
     return current_value->get_base_type()->is_same(this);
 }
 

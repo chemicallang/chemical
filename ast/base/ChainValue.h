@@ -71,7 +71,14 @@ public:
      * they don't mean to check if they have same names, but if both were exchanged
      * they won't have an effect on code generation
      */
-    bool is_equal(ChainValue* other);
+    bool is_equal(ChainValue* other, ValueKind this_kind, ValueKind other_kind);
+
+    /**
+     * a helper function
+     */
+    bool is_equal(ChainValue* other) {
+        return is_equal(other, val_kind(), other->val_kind());
+    }
 
 #ifdef COMPILER_BUILD
 

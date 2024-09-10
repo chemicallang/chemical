@@ -467,9 +467,7 @@ int16_t ChainValue::set_generic_iteration() {
     return -2;
 }
 
-bool ChainValue::is_equal(ChainValue* other) {
-    auto kind = val_kind();
-    auto other_kind = other->val_kind();
+bool ChainValue::is_equal(ChainValue* other, ValueKind kind, ValueKind other_kind) {
     if(kind == other_kind) {
         switch(kind) {
             case ValueKind::AccessChain: {

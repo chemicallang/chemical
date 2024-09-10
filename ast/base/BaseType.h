@@ -311,18 +311,26 @@ public:
     InterfaceDefinition* linked_dyn_interface();
 
     /**
-     * this type references a struct
-     */
-    bool is_ref_struct() {
-        return get_direct_ref_struct() != nullptr;
-    }
-
-    /**
+     * a movable directly referenced struct is returned otherwise nullptr
      * here movable means that the struct has a destructor or a move function or both
      * which means, it just can't be mem copied, after copied, move functions should be called
      * moves should be tracked and all that
      */
-    bool is_movable_ref_struct();
+    StructDefinition* get_direct_ref_movable_struct();
+
+    /**
+     * this type references a struct
+     */
+    inline bool is_ref_struct() {
+        return get_direct_ref_struct() != nullptr;
+    }
+
+    /**
+     * a helper function
+     */
+    inline bool is_movable_ref_struct() {
+        return get_direct_ref_movable_struct() != nullptr;
+    }
 
     /**
      * searches a implicit constructor for given value, using the linked struct with this type

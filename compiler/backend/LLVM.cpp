@@ -682,8 +682,8 @@ bool access_chain_store_in_parent(
             auto elem_pointer = Value::get_element_pointer(gen, allocated_type, allocated, idxList, index);
             std::vector<llvm::Value *> args;
             std::vector<std::pair<Value*, llvm::Value*>> destructibles;
-            // TODO handle destructibles here, what to do, do we need to destruct them ?
             func_call->llvm_chain_value(gen, args, chain->values, chain->values.size() - 1, destructibles,elem_pointer);
+            Value::destruct(gen, destructibles);
             return true;
         }
     }

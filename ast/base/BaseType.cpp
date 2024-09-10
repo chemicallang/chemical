@@ -146,12 +146,12 @@ VariantDefinition* BaseType::get_direct_ref_variant(BaseTypeKind k) {
     return ref_node ? ref_node->as_variant_def() : nullptr;
 }
 
-bool BaseType::is_movable_ref_struct() {
+StructDefinition* BaseType::get_direct_ref_movable_struct() {
     const auto direct_ref_struct = get_direct_ref_struct();
-    if(direct_ref_struct) {
-        return direct_ref_struct->requires_destructor() || direct_ref_struct->requires_move_fn();
+    if(direct_ref_struct && (direct_ref_struct->requires_destructor() || direct_ref_struct->requires_move_fn())) {
+        return direct_ref_struct;
     } else {
-        return false;
+        return nullptr;
     }
 }
 

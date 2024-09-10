@@ -28,7 +28,7 @@ struct Pair66 {
 
     @comptime
     @constructor
-    func pair1(d : literal::int) {
+    func pair1(d : literal<int>) {
         return Pair66 {
             a : d / 2
             b : d / 2
@@ -84,7 +84,7 @@ func call_struct_func() : int {
 }
 
 @comptime
-func determine_str_len(str : literal::string) {
+func determine_str_len(str : literal<string>) {
     return compiler::size(str);
 }
 

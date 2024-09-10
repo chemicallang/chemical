@@ -465,6 +465,8 @@ public:
 
     void visit(PointerType* func) override;
 
+    void visit(ReferenceType* func) override;
+
     void visit(LinkedType* func) override;
 
     void visit(LinkedValueType *ref_type) override;

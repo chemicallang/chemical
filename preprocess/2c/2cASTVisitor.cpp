@@ -43,6 +43,7 @@
 #include "ast/structures/LoopBlock.h"
 #include "ast/types/LinkedType.h"
 #include "ast/types/PointerType.h"
+#include "ast/types/ReferenceType.h"
 #include "ast/types/GenericType.h"
 #include "ast/types/AnyType.h"
 #include "ast/types/ArrayType.h"
@@ -345,6 +346,14 @@ bool should_void_pointer_to_self(BaseType* type, const std::string& id, unsigned
 //    type_with_id(visitor, type, id);
 //}
 
+BaseType* get_func_param_type(ASTNode* node) {
+    if(node) {
+        const auto param = node->as_func_param();
+        return param ? param->type.get() : nullptr;
+    }
+    return nullptr;
+}
+
 ASTNode* get_func_param_ref_node(ASTNode* node) {
     if(!node) return nullptr;
     auto param = node->as_func_param();
@@ -440,11 +449,12 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
     while(i < call->values.size()) {
         param = func_type->func_param_for_arg_at(i);
         auto& val = call->values[i];
-        const auto param_ref_node = param->type->get_direct_linked_node();
+        const auto param_type_kind = param->type->kind();
+        const auto param_ref_node = param->type->get_direct_linked_node(param_type_kind);
         const auto val_ref_node = get_func_param_ref_node(val->linked_node());
         const auto is_struct_param = (param_ref_node && param_ref_node->as_struct_def() && (!val_ref_node || !val_ref_node->as_struct_def()));
         const auto is_variant_param = (param_ref_node && param_ref_node->as_variant_def() && (!val_ref_node || !val_ref_node->as_variant_def()));
-        if(is_struct_param || is_variant_param) {
+        if(param->type->is_reference(param_type_kind) || is_struct_param || is_variant_param) {
             auto allocated = visitor.local_allocated.find(val.get());
             visitor.write('&');
             if(allocated != visitor.local_allocated.end()) {
@@ -3490,9 +3500,17 @@ void ToCAstVisitor::visit(CastedValue *casted) {
     write(')');
 }
 
-void ToCAstVisitor::visit(AddrOfValue *casted) {
+void ToCAstVisitor::visit(AddrOfValue *value) {
+    const auto linked = value->value->linked_node();
+    if(linked) {
+        const auto param = linked->as_func_param();
+        if(param && param->type->get_direct_linked_struct()) {
+            value->value->accept(this);
+            return;
+        }
+    }
     write('&');
-    casted->value->accept(this);
+    value->value->accept(this);
 }
 
 void ToCAstVisitor::visit(RetStructParamValue *paramVal) {
@@ -3674,6 +3692,11 @@ void ToCAstVisitor::visit(LongType *func) {
 }
 
 void ToCAstVisitor::visit(PointerType *func) {
+    func->type->accept(this);
+    write('*');
+}
+
+void ToCAstVisitor::visit(ReferenceType* func) {
     func->type->accept(this);
     write('*');
 }

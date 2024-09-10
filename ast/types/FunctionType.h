@@ -6,6 +6,7 @@
 #include <memory>
 #include <string>
 #include "ast/base/BaseType.h"
+#include "ast/base/ValueKind.h"
 
 #ifdef COMPILER_BUILD
 #include "compiler/llvmfwd.h"
@@ -26,6 +27,8 @@ class Value;
 
 class ASTNode;
 
+class ASTDiagnoser;
+
 class FunctionType : public TokenizedBaseType {
 public:
 
@@ -34,6 +37,14 @@ public:
     // if the function is variadic, the last type in params is the type given to the variadic parameter
     bool isVariadic;
     bool isCapturing;
+    /**
+     * moved identifiers are stored in this vector, this is similar to moved_chains, single variable
+     * identifiers are not stored in access chains, so to simplify storage and so to not having to deal with
+     * multiple types in the vector, this vector has been created for singular identifiers, why is this simple
+     * since when finding a moved chain, we find the smallest chain possible, the singular identifiers are
+     * smallest, so if we find a single identifier which are easier to search we can return fast
+     */
+    std::vector<VariableIdentifier*> moved_identifiers;
     /**
      * moved chains are stored in current function type, which are filled when a function is linked
      * moved chains belong to this function (inside the function's body), these chains tell which objects have
@@ -135,6 +146,52 @@ public:
     FunctionType* copy() const override;
 
     void link(SymbolResolver &linker, std::unique_ptr<BaseType>& current) override;
+
+    /**
+     * this function just performs a pointer check to find if this chain has been moved
+     * this is very performant to check if this chain has been moved, but this exact chain must
+     * have been marked moved, otherwise it will return false
+     */
+    bool is_one_of_moved_chains(AccessChain* chain);
+
+    bool is_one_of_moved_id(VariableIdentifier* id);
+
+    VariableIdentifier* find_moved_id(VariableIdentifier* id);
+
+    /**
+     * an access is found that partially matches the given access chain
+     * his checks partially matching moved chains
+     * for given 'm' if only 'm.x' has been moved, we return it
+     * for given 'm.x' if only 'm' has been moved, we return it
+     * for given 'm.x' if only 'm.y' has been moved, we don't return it
+     */
+    AccessChain* find_partially_matching_moved_chain(AccessChain& chain, ValueKind first_value_kind);
+
+    /**
+     * check if the given identifier has been moved
+     */
+    ChainValue* find_moved_chain_value(VariableIdentifier* id);
+
+    /**
+     * the ultimate function that should be used to check for moved chain values
+     */
+    ChainValue* find_moved_chain_value(AccessChain* chain_ptr);
+
+    /**
+     * marks given chain moved without checking
+     */
+    void mark_moved_no_check(AccessChain* chain);
+
+    /**
+     * marks given identifier moved without checking
+     */
+    void mark_moved_no_check(VariableIdentifier* id);
+
+    /**
+     * checks if the value is movable and moves it (marks it move and all that)
+     * @return true if moved otherwise false
+     */
+    bool move_value(Value* value, ASTDiagnoser& diagnoser);
 
 #ifdef COMPILER_BUILD
 

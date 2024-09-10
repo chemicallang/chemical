@@ -26,6 +26,12 @@ public:
 
     void error(const std::string &err, ASTAny* node);
 
+    void info(const std::string &err, ASTAny* node, ASTAny* other);
+
+    void warn(const std::string &err, ASTAny *node, ASTAny* other);
+
+    void error(const std::string &err, ASTAny* node, ASTAny* other);
+
     /**
      * just prints the errors to std out
      */

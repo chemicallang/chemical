@@ -14,3 +14,15 @@ void ASTDiagnoser::warn(const std::string &err, ASTAny *node) {
 void ASTDiagnoser::error(const std::string &err, ASTAny* node) {
     diagnostic(err, node->cst_token(), DiagSeverity::Error);
 }
+
+void ASTDiagnoser::info(const std::string &err, ASTAny* node, ASTAny* other) {
+    diagnostic(err, node->cst_token(), DiagSeverity::Information);
+}
+
+void ASTDiagnoser::warn(const std::string &err, ASTAny *node, ASTAny* other) {
+    diagnostic(err, node->cst_token(), DiagSeverity::Warning);
+}
+
+void ASTDiagnoser::error(const std::string &err, ASTAny* node, ASTAny* other) {
+    diagnostic(err, node->cst_token(), DiagSeverity::Warning);
+}

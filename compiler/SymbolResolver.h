@@ -20,6 +20,10 @@ class Scope;
 
 class GlobalInterpretScope;
 
+class ChainValue;
+
+class VariableIdentifier;
+
 enum class SymResScopeKind : uint8_t {
     /**
      * a global namespace is much like default scope, however
@@ -353,15 +357,5 @@ public:
      * the passed module name is used to provide diagnostics only
      */
     void dispose_module_symbols_now(const std::string& module_name);
-
-    /**
-     * an access is found that partially matches the given access chain
-     */
-    AccessChain* find_partially_matching_moved_chain(AccessChain* chain);
-
-    /**
-     * an access chain inside the current function, is said to be moved
-     */
-    bool mark_moved(AccessChain* chain);
 
 };

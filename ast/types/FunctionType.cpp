@@ -3,7 +3,10 @@
 #include "FunctionType.h"
 #include "ast/base/BaseType.h"
 #include "ast/base/Value.h"
+#include "ast/values/AccessChain.h"
+#include "ast/values/VariableIdentifier.h"
 #include "ast/structures/FunctionParam.h"
+#include "compiler/ASTDiagnoser.h"
 
 #ifdef COMPILER_BUILD
 
@@ -191,4 +194,144 @@ void FunctionType::link(SymbolResolver &linker, std::unique_ptr<BaseType>& curre
         param->type->link(linker, param->type);
     }
     returnType->link(linker, returnType);
+}
+
+bool FunctionType::is_one_of_moved_chains(AccessChain* chain) {
+    for(auto& moved : moved_chains) {
+        if(moved == chain) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool FunctionType::is_one_of_moved_id(VariableIdentifier* id) {
+    for(auto& moved : moved_identifiers) {
+        if(moved == id) {
+            return true;
+        }
+    }
+    return false;
+}
+
+VariableIdentifier* FunctionType::find_moved_id(VariableIdentifier* id) {
+    for(auto& moved : moved_identifiers) {
+        if(moved->linked == id->linked) {
+            return moved;
+        }
+    }
+    return nullptr;
+}
+
+// given x.y and moved x.y.z match
+// given x.y and moved x.a don't match
+// given x.y.z and moved x match
+// given x and moved x.y.z match
+// given x and moved z.x don't
+// given x.y.z and moved x.y.a don't
+// when finding x.y, when has moved x.y.z, x.y then x.y is returned or x if present, the smallest chain
+// that matches is returned
+AccessChain* FunctionType::find_partially_matching_moved_chain(AccessChain& chain, ValueKind first_value_kind) {
+    auto first_value = chain.values[0].get();
+    AccessChain* smallest = nullptr;
+    for(auto& moved_chain_ptr : moved_chains) {
+        auto& moved_chain = *moved_chain_ptr;
+        const auto moved_size = moved_chain.values.size();
+        // since finding the smallest moved chain that matches with the given chain
+        if(smallest && smallest->values.size() < moved_size) {
+            continue;
+        }
+        auto& moved_chain_first = moved_chain.values[0];
+        if(first_value->is_equal(moved_chain_first.get(), first_value_kind, moved_chain_first->val_kind())) {
+            const auto given_size = chain.values.size();
+            auto matching = true;
+            const auto less_size = std::min(moved_size, given_size);
+            unsigned i = 1; // zero has already been checked
+            while(i < less_size) {
+                if(!moved_chain.values[i]->is_equal(chain.values[i].get())) {
+                    matching = false;
+                    break;
+                }
+                i++;
+            }
+            if(matching) {
+                smallest = moved_chain_ptr;
+            }
+        }
+    }
+    return smallest;
+}
+
+ChainValue* FunctionType::find_moved_chain_value(VariableIdentifier* id) {
+    auto found = find_moved_id(id);
+    if(found) return found;
+    AccessChain* smallest = nullptr;
+    for(auto& chain : moved_chains) {
+        auto& moved_chain = *chain;
+        if(smallest && smallest->values.size() < moved_chain.values.size()) {
+            continue;
+        }
+        auto& other_first = *moved_chain.values[0];
+        if(id->is_equal(&other_first, ValueKind::Identifier, other_first.val_kind())) {
+            smallest = chain;
+        }
+    }
+    return smallest;
+}
+
+ChainValue* FunctionType::find_moved_chain_value(AccessChain* chain_ptr) {
+    auto& chain = *chain_ptr;
+    auto& first_value = *chain.values[0];
+    auto first_value_kind = first_value.val_kind();
+    if(first_value_kind == ValueKind::Identifier) {
+        if(chain.values.size() == 1) {
+            return find_moved_chain_value(first_value.as_identifier());
+        } else {
+            auto found = find_moved_id(first_value.as_identifier());
+            if(found) return found;
+        }
+    }
+    return find_partially_matching_moved_chain(chain, first_value_kind);
+}
+
+void FunctionType::mark_moved_no_check(AccessChain* chain) {
+    if(chain->values.size() == 1 && chain->values[0]->val_kind() == ValueKind::Identifier) {
+        moved_identifiers.emplace_back(chain->values[0]->as_identifier());
+    } else {
+        moved_chains.emplace_back(chain);
+    }
+}
+
+void FunctionType::mark_moved_no_check(VariableIdentifier* id) {
+    moved_identifiers.emplace_back(id);
+}
+
+bool FunctionType::move_value(Value* value, ASTDiagnoser& diagnoser) {
+    const auto chain = value->as_access_chain();
+    if(chain) {
+        const auto moved = find_moved_chain_value(chain);
+        if(moved) {
+            diagnoser.error("cannot move chain '" + chain->chain_representation() + "' as another one of it's chain '" + moved->representation() + "' has been moved" , (ASTNode*) chain);
+            return false;
+        }
+        mark_moved_no_check(chain);
+        return true;
+    } else {
+        const auto id = value->as_identifier();
+        if(id) {
+            const auto moved = find_moved_chain_value(id);
+            if(moved) {
+                diagnoser.error("cannot move id '" + id->representation() + "' as chain '" + moved->representation() + "' has been moved" , id);
+                return false;
+            }
+            const auto linked = value->linked_node();
+            const auto linked_kind = linked->kind();
+            if (linked_kind == ASTNodeKind::VarInitStmt) {
+                linked->as_var_init_unsafe()->moved();
+            }
+            mark_moved_no_check(id);
+            return true;
+        }
+    }
+    return false;
 }

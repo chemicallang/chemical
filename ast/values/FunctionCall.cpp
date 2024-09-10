@@ -435,7 +435,9 @@ llvm::Value* FunctionCall::llvm_chain_value(
 
 llvm::Value* FunctionCall::access_chain_value(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &chain, unsigned until, std::vector<std::pair<Value*, llvm::Value*>>& destructibles, BaseType* expected_type) {
     std::vector<llvm::Value *> args;
-    return llvm_chain_value(gen, args, chain, until, destructibles);
+    auto value = llvm_chain_value(gen, args, chain, until, destructibles);
+    call_move_fns_on_moved(gen, args);
+    return value;
 }
 
 llvm::Value* FunctionCall::chain_value_with_callee(
@@ -495,6 +497,22 @@ bool FunctionCall::add_child_index(Codegen &gen, std::vector<llvm::Value *> &ind
     return create_type()->linked_node()->add_child_index(gen, indexes, name);
 }
 
+void FunctionCall::call_move_fns_on_moved(Codegen &gen, std::vector<llvm::Value*>& args) {
+    auto func_type = gen.current_func_type;
+    unsigned i = 0;
+    for(auto& value : values) {
+        const auto chain = value->as_access_chain();
+        if(chain && func_type->is_one_of_moved_chains(chain)) {
+            auto known_t = chain->known_type();
+            auto movable = known_t->get_direct_ref_movable_struct();
+            const auto move_func = movable->move_func();
+            const auto func = move_func->llvm_func();
+            gen.builder->CreateCall(func, { args[i] });
+        }
+        i++;
+    }
+}
+
 llvm::AllocaInst *FunctionCall::access_chain_allocate(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &chain_values, unsigned int until, BaseType* expected_type) {
     auto func_type = get_function_type();
     if(func_type->returnType->value_type() == ValueType::Struct) {
@@ -502,6 +520,9 @@ llvm::AllocaInst *FunctionCall::access_chain_allocate(Codegen &gen, std::vector<
         std::vector<llvm::Value *> args;
         std::vector<std::pair<Value*, llvm::Value*>> destructibles;
         auto alloc = (llvm::AllocaInst*) llvm_chain_value(gen, args, chain_values, until, destructibles);
+        // call move functions on moved objects that were present in function call
+        call_move_fns_on_moved(gen, args);
+        // call destructors on destructible objects that were present in function call
         Value::destruct(gen, destructibles);
         return alloc;
     } else {
@@ -523,15 +544,14 @@ uint64_t FunctionCall::byte_size(bool is64Bit) {
 }
 
 void FunctionCall::link_values(SymbolResolver &linker) {
+    auto& current_func = *linker.current_func_type;
     auto func_type = get_function_type();
     unsigned i = 0;
     while(i < values.size()) {
         values[i]->link(linker, this, i);
-        if(values[i]->known_type()->is_movable_ref_struct()) {
-            const auto linked = values[i]->linked_node();
-            const auto linked_kind = linked->kind();
-            linked->set_moved(linked_kind, values[i].get());
-        }
+//        if(values[i]->known_type()->is_movable_ref_struct()) {
+//            current_func.move_value(values[i].get(), linker);
+//        }
         i++;
     }
 }

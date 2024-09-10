@@ -9,7 +9,7 @@
 #include "DoubleType.h"
 #include "FloatType.h"
 #include "PointerType.h"
-#include "ReferencedType.h"
+#include "LinkedType.h"
 #include "ReferencedValueType.h"
 #include "StringType.h"
 #include "LiteralType.h"
@@ -59,7 +59,7 @@ bool PointerType::satisfies(Value *value) {
     return value->value_type() == ValueType::Pointer || value->is_pointer() && value->get_child_type()->satisfies(ValueType::Char);
 }
 
-bool ReferencedType::satisfies(Value *value) {
+bool LinkedType::satisfies(Value *value) {
     return value->get_base_type()->is_same(this);
 }
 

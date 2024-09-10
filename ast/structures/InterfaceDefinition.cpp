@@ -4,7 +4,7 @@
 #include "StructDefinition.h"
 #include "StructMember.h"
 #include "compiler/SymbolResolver.h"
-#include "ast/types/ReferencedType.h"
+#include "ast/types/LinkedType.h"
 
 #ifdef COMPILER_BUILD
 
@@ -137,11 +137,11 @@ InterfaceDefinition::InterfaceDefinition(
 }
 
 std::unique_ptr<BaseType> InterfaceDefinition::create_value_type() {
-    return std::make_unique<ReferencedType>(name, this, nullptr);
+    return std::make_unique<LinkedType>(name, this, nullptr);
 }
 
 hybrid_ptr<BaseType> InterfaceDefinition::get_value_type() {
-    return hybrid_ptr<BaseType> { new ReferencedType(name, this, nullptr) };
+    return hybrid_ptr<BaseType> { new LinkedType(name, this, nullptr) };
 }
 
 int InterfaceDefinition::vtable_function_index(FunctionDeclaration* decl) {

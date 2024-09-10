@@ -204,7 +204,7 @@ set(COMMON_SOURCES
         integration/common/Diagnostic.h
         lexer/values/StructValue.cpp
         ast/values/StructValue.h
-        ast/types/ReferencedType.h
+        ast/types/LinkedType.h
         stream/SourceProviderImpl.cpp
         ast/structures/FunctionDecl.cpp
         ast/utils/GlobalFunctions.cpp
@@ -243,7 +243,7 @@ set(COMMON_SOURCES
         ast/values/VariableIdentifier.cpp
         ast/values/IndexOperator.cpp
         ast/values/AccessChain.cpp
-        ast/types/ReferencedType.cpp
+        ast/types/LinkedType.cpp
         ast/types/GenericType.cpp
         ast/values/Expression.cpp
         lexer/statements/Typealias.cpp

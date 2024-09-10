@@ -8,7 +8,7 @@
 #include "compiler/SymbolResolver.h"
 #include "ast/utils/ASTUtils.h"
 #include "ast/types/GenericType.h"
-#include "ast/types/ReferencedType.h"
+#include "ast/types/LinkedType.h"
 #include "StructMemberInitializer.h"
 #include "ast/values/DereferenceValue.h"
 
@@ -392,13 +392,13 @@ StructValue *StructValue::copy() {
 std::unique_ptr<BaseType> StructValue::create_type() {
     if(!definition) return nullptr;
     if(!definition->generic_params.empty()) {
-       auto gen_type = std::make_unique<GenericType>(std::make_unique<ReferencedType>(definition->name, definition, nullptr), generic_iteration);
+       auto gen_type = std::make_unique<GenericType>(std::make_unique<LinkedType>(definition->name, definition, nullptr), generic_iteration);
        for(auto& type : generic_list) {
            gen_type->types.emplace_back(type->copy());
        }
        return gen_type;
     } else {
-        auto type = std::make_unique<ReferencedType>(ref->representation(), nullptr);
+        auto type = std::make_unique<LinkedType>(ref->representation(), nullptr);
         type->linked = definition;
         return type;
     }

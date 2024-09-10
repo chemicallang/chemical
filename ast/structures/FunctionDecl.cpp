@@ -13,7 +13,7 @@
 #include "ast/types/PointerType.h"
 #include "ast/statements/VarInit.h"
 #include "ast/values/CastedValue.h"
-#include "ast/types/ReferencedType.h"
+#include "ast/types/LinkedType.h"
 #include "ast/values/RetStructParamValue.h"
 #include "ast/types/VoidType.h"
 #include "ast/values/FunctionCall.h"
@@ -150,7 +150,7 @@ void FunctionType::queue_destruct_params(Codegen& gen) {
     for(auto& param : params) {
         if(param->has_moved) continue;
         const auto k = param->type->kind();
-        if(k == BaseTypeKind::Referenced || k == BaseTypeKind::Generic) {
+        if(k == BaseTypeKind::Linked || k == BaseTypeKind::Generic) {
             const auto def = param->type->linked_node();
             if(def) {
                 const auto members_container = def->as_members_container();
@@ -530,7 +530,7 @@ void code_gen_member_calls(
 ) {
     unsigned index = 0;
     for(auto& inherited : def->inherited) {
-        const auto base_def = inherited->type->get_direct_ref_struct();
+        const auto base_def = inherited->type->get_direct_linked_struct();
         if(base_def) {
             auto chosen_func = choose_func(base_def);
             if(chosen_func) {
@@ -640,7 +640,7 @@ void FunctionDeclaration::code_gen_destructor(Codegen& gen, VariantDefinition* d
         llvm::Value* dtr_func_callee = nullptr;
         int i = 0;
         for(auto& value : mem.second->values) {
-            auto ref_node = value.second->type->get_direct_ref_node();
+            auto ref_node = value.second->type->get_direct_linked_node();
             if(ref_node) { // <-- the node is directly referenced
                 auto destructorFunc = gen.determine_destructor_for(value.second->type.get(), dtr_func_type, dtr_func_callee);
                 if(destructorFunc) {
@@ -881,13 +881,13 @@ int16_t FunctionDeclaration::total_generic_iterations() {
 }
 
 void FunctionDeclaration::ensure_constructor(StructDefinition* def) {
-    returnType = std::make_unique<ReferencedType>(def->name, def, nullptr);
+    returnType = std::make_unique<LinkedType>(def->name, def, nullptr);
 }
 
 void FunctionDeclaration::ensure_destructor(ExtendableMembersContainerNode* def) {
     if(!has_self_param() || params.size() > 1 || params.empty()) {
         params.clear();
-        params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>(def->name, def, nullptr), nullptr), 0, nullptr, this, nullptr));
+        params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<LinkedType>(def->name, def, nullptr), nullptr), 0, nullptr, this, nullptr));
     }
     returnType = std::make_unique<VoidType>(nullptr);
 }
@@ -895,7 +895,7 @@ void FunctionDeclaration::ensure_destructor(ExtendableMembersContainerNode* def)
 void FunctionDeclaration::ensure_move_fn(ExtendableMembersContainerNode* def) {
     if(!has_self_param() || params.size() > 1 || params.empty()) {
         params.clear();
-        params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>(def->name, def, nullptr), nullptr), 0, nullptr, this, nullptr));
+        params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<LinkedType>(def->name, def, nullptr), nullptr), 0, nullptr, this, nullptr));
     }
     returnType = std::make_unique<VoidType>(nullptr);
 }
@@ -903,8 +903,8 @@ void FunctionDeclaration::ensure_move_fn(ExtendableMembersContainerNode* def) {
 void FunctionDeclaration::ensure_copy_fn(ExtendableMembersContainerNode* def) {
     if(!has_self_param() || params.size() != 2 || params.empty()) {
         params.clear();
-        params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>(def->name, def, nullptr), nullptr), 0, nullptr, this, nullptr));
-        params.emplace_back(std::make_unique<FunctionParam>("other", std::make_unique<PointerType>(std::make_unique<ReferencedType>(def->name, def, nullptr), nullptr), 1, nullptr, this, nullptr));
+        params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<LinkedType>(def->name, def, nullptr), nullptr), 0, nullptr, this, nullptr));
+        params.emplace_back(std::make_unique<FunctionParam>("other", std::make_unique<PointerType>(std::make_unique<LinkedType>(def->name, def, nullptr), nullptr), 1, nullptr, this, nullptr));
     }
     returnType = std::make_unique<VoidType>(nullptr);
 }

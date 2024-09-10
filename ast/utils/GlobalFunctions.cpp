@@ -20,7 +20,7 @@
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/FunctionParam.h"
 #include "ast/types/PointerType.h"
-#include "ast/types/ReferencedType.h"
+#include "ast/types/LinkedType.h"
 #include "ast/types/GenericType.h"
 #include "ast/types/UBigIntType.h"
 #include "ast/types/AnyType.h"
@@ -78,7 +78,7 @@ namespace InterpretVector {
             nullptr,
             std::nullopt
         ) {
-            params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>("vector", nullptr, node), nullptr), 0, nullptr, this, nullptr));
+            params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<LinkedType>("vector", nullptr, node), nullptr), 0, nullptr, this, nullptr));
         }
         Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
             return new IntValue(static_cast<InterpretVectorVal*>(parent_val)->values.size(), nullptr);
@@ -90,13 +90,13 @@ namespace InterpretVector {
         explicit InterpretVectorGet(InterpretVectorNode* node) : FunctionDeclaration(
                 "get",
                 std::vector<std::unique_ptr<FunctionParam>> {},
-                std::make_unique<ReferencedType>("T", nullptr, node->generic_params[0].get()),
+                std::make_unique<LinkedType>("T", nullptr, node->generic_params[0].get()),
                 false,
                 node,
                 nullptr,
                 std::nullopt
         ) {
-            params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>("vector", nullptr, node), nullptr), 0, nullptr, this, nullptr));
+            params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<LinkedType>("vector", nullptr, node), nullptr), 0, nullptr, this, nullptr));
             params.emplace_back(std::make_unique<FunctionParam>("index", std::make_unique<AnyType>(nullptr), 0, nullptr, this, nullptr));
         }
         Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
@@ -114,8 +114,8 @@ namespace InterpretVector {
                 nullptr,
                 std::nullopt
         ) {
-            params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>("vector", nullptr, node), nullptr), 0, nullptr, this, nullptr));
-            params.emplace_back(std::make_unique<FunctionParam>("value", std::make_unique<ReferencedType>("T", nullptr, node->generic_params[0].get()), 1, nullptr, this, nullptr));
+            params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<LinkedType>("vector", nullptr, node), nullptr), 0, nullptr, this, nullptr));
+            params.emplace_back(std::make_unique<FunctionParam>("value", std::make_unique<LinkedType>("T", nullptr, node->generic_params[0].get()), 1, nullptr, this, nullptr));
         }
         Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
             static_cast<InterpretVectorVal*>(parent_val)->values.emplace_back(call->values[0]->scope_value(*call_scope));
@@ -133,7 +133,7 @@ namespace InterpretVector {
                 nullptr,
                 std::nullopt
         ) {
-            params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>("vector", nullptr, node), nullptr), 0, nullptr, this, nullptr));
+            params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<LinkedType>("vector", nullptr, node), nullptr), 0, nullptr, this, nullptr));
             params.emplace_back(std::make_unique<FunctionParam>("index", std::make_unique<AnyType>(nullptr), 0, nullptr, this, nullptr));
         }
         Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {

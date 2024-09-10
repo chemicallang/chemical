@@ -78,7 +78,7 @@ void VarInitStatement::code_gen(Codegen &gen) {
         } else {
             const auto t = llvm_type(gen);
             llvm_ptr = gen.builder->CreateAlloca(t, nullptr, identifier);
-            const auto var = type->get_direct_ref_variant();
+            const auto var = type->get_direct_linked_variant();
             if(var) {
                 auto gep = gen.builder->CreateGEP(t, llvm_ptr, { gen.builder->getInt32(0), gen.builder->getInt32(0) }, "", gen.inbounds);
                 gen.builder->CreateStore(gen.builder->getInt32(var->variables.size()), gep);
@@ -101,7 +101,7 @@ void VarInitStatement::code_gen_destruct(Codegen &gen, Value* returnValue) {
     } else {
         auto kind = type->kind();
         switch (kind) {
-            case BaseTypeKind::Referenced:
+            case BaseTypeKind::Linked:
                 type->linked_node()->llvm_destruct(gen, llvm_ptr);
                 break;
             case BaseTypeKind::Generic: {
@@ -114,7 +114,7 @@ void VarInitStatement::code_gen_destruct(Codegen &gen, Value* returnValue) {
             }
             case BaseTypeKind::Array: {
                 const auto arr_type = (ArrayType *) type.get();
-                if (arr_type->elem_type->kind() == BaseTypeKind::Referenced ||
+                if (arr_type->elem_type->kind() == BaseTypeKind::Linked ||
                 arr_type->elem_type->kind() == BaseTypeKind::Generic) {
                     gen.destruct(llvm_ptr, arr_type->array_size, arr_type->elem_type.get(), [](llvm::Value*){});
                 }
@@ -144,7 +144,7 @@ llvm::Value *VarInitStatement::llvm_load(Codegen &gen) {
         }
     } else if(known_type()->pure_type()->kind() == BaseTypeKind::Struct) {
         return llvm_pointer(gen);
-    } else if(known_type()->get_direct_ref_variant()) {
+    } else if(known_type()->get_direct_linked_variant()) {
         return llvm_pointer(gen);
     }
     auto v = llvm_pointer(gen);

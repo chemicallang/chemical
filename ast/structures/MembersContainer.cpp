@@ -11,7 +11,7 @@
 #include "ast/values/StructValue.h"
 #include "ast/utils/GenericUtils.h"
 #include "ast/types/GenericType.h"
-#include "ast/types/ReferencedType.h"
+#include "ast/types/LinkedType.h"
 #include "ast/types/PointerType.h"
 #include "ast/types/VoidType.h"
 #include "ast/structures/FunctionDeclaration.h"
@@ -473,7 +473,7 @@ void MembersContainer::insert_func(std::unique_ptr<FunctionDeclaration> decl) {
 
 FunctionDeclaration* MembersContainer::create_destructor() {
     auto decl = new FunctionDeclaration("delete", {}, std::make_unique<VoidType>(nullptr), false, this, nullptr, std::nullopt);
-    decl->params.emplace_back(new FunctionParam("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>(ns_node_identifier(), this, nullptr), nullptr), 0, nullptr, decl, nullptr));
+    decl->params.emplace_back(new FunctionParam("self", std::make_unique<PointerType>(std::make_unique<LinkedType>(ns_node_identifier(), this, nullptr), nullptr), 0, nullptr, decl, nullptr));
     decl->body.emplace(LoopScope{nullptr, nullptr});
     decl->annotations.emplace_back(AnnotationKind::Destructor);
     insert_func(std::unique_ptr<FunctionDeclaration>(decl));
@@ -482,7 +482,7 @@ FunctionDeclaration* MembersContainer::create_destructor() {
 
 FunctionDeclaration* MembersContainer::create_move_fn() {
     auto decl = new FunctionDeclaration("move", {}, std::make_unique<VoidType>(nullptr), false, this, nullptr, std::nullopt);
-    decl->params.emplace_back(new FunctionParam("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>(ns_node_identifier(), this, nullptr), nullptr), 0, nullptr, decl, nullptr));
+    decl->params.emplace_back(new FunctionParam("self", std::make_unique<PointerType>(std::make_unique<LinkedType>(ns_node_identifier(), this, nullptr), nullptr), 0, nullptr, decl, nullptr));
     decl->body.emplace(LoopScope{nullptr, nullptr});
     decl->annotations.emplace_back(AnnotationKind::Move);
     insert_func(std::unique_ptr<FunctionDeclaration>(decl));
@@ -491,8 +491,8 @@ FunctionDeclaration* MembersContainer::create_move_fn() {
 
 FunctionDeclaration* MembersContainer::create_copy_fn() {
     auto decl = new FunctionDeclaration("copy", {}, std::make_unique<VoidType>(nullptr), false, this, nullptr, std::nullopt);
-    decl->params.emplace_back(new FunctionParam("self", std::make_unique<PointerType>(std::make_unique<ReferencedType>(ns_node_identifier(), this, nullptr), nullptr), 0, nullptr, decl, nullptr));
-    decl->params.emplace_back(new FunctionParam("other", std::make_unique<PointerType>(std::make_unique<ReferencedType>(ns_node_identifier(), this, nullptr), nullptr), 1, nullptr, decl, nullptr));
+    decl->params.emplace_back(new FunctionParam("self", std::make_unique<PointerType>(std::make_unique<LinkedType>(ns_node_identifier(), this, nullptr), nullptr), 0, nullptr, decl, nullptr));
+    decl->params.emplace_back(new FunctionParam("other", std::make_unique<PointerType>(std::make_unique<LinkedType>(ns_node_identifier(), this, nullptr), nullptr), 1, nullptr, decl, nullptr));
     decl->body.emplace(LoopScope{nullptr, nullptr});
     decl->annotations.emplace_back(AnnotationKind::Copy);
     insert_func(std::unique_ptr<FunctionDeclaration>(decl));
@@ -625,8 +625,8 @@ InheritedType::InheritedType(std::unique_ptr<BaseType> type, AccessSpecifier spe
 std::string& InheritedType::ref_type_name() {
     if(type->kind() == BaseTypeKind::Generic) {
         return ((GenericType*) type.get())->referenced->type;
-    } else if(type->kind() == BaseTypeKind::Referenced) {
-        return ((ReferencedType*) type.get())->type;
+    } else if(type->kind() == BaseTypeKind::Linked) {
+        return ((LinkedType*) type.get())->type;
     }
 #ifdef DEBUG
     throw std::runtime_error("unable to retrieve referenced type name from type " + type->representation());

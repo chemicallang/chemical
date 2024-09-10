@@ -5,7 +5,7 @@
 #include "ast/types/IntNType.h"
 #include "ast/types/VoidType.h"
 #include "ast/types/PointerType.h"
-#include "ast/types/ReferencedType.h"
+#include "ast/types/LinkedType.h"
 #include "ast/statements/Assignment.h"
 #include "ast/types/ArrayType.h"
 #include "ast/values/StringValue.h"
@@ -78,7 +78,7 @@
 #include "ast/values/SizeOfValue.h"
 #include "ast/types/ReferencedValueType.h"
 #include "ast/statements/UsingStmt.h"
-#include "ast/types/ReferencedType.h"
+#include "ast/types/LinkedType.h"
 #include "ast/types/DynamicType.h"
 #include "ast/structures/VariantDefinition.h"
 #include "ast/structures/VariantMember.h"
@@ -419,11 +419,11 @@ PointerType* current_self_pointer(CSTConverter* converter, CSTToken* token) {
     std::string type;
     auto impl_container = converter->current_members_container->as_impl_def();
     if(impl_container) {
-        type = impl_container->struct_type->ref_name();
+        type = impl_container->struct_type->linked_name();
     } else {
         type = converter->current_members_container->ns_node_identifier();
     }
-    return new PointerType(std::make_unique<ReferencedType>(type, token, converter->current_members_container), token);
+    return new PointerType(std::make_unique<LinkedType>(type, token, converter->current_members_container), token);
 }
 
 void CSTConverter::visitFunctionParam(CSTToken* param) {
@@ -842,7 +842,7 @@ void CSTConverter::visitTypealias(CSTToken* alias) {
 void CSTConverter::visitTypeToken(CSTToken* token) {
     auto primitive = TypeMakers::PrimitiveMap.find(token->value());
     if (primitive == TypeMakers::PrimitiveMap.end()) {
-        put_type(new ReferencedType(token->value(), token), token);
+        put_type(new LinkedType(token->value(), token), token);
     } else {
         put_type(primitive->second(is64Bit, token), token);
     }

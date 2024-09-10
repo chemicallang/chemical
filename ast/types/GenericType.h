@@ -9,7 +9,7 @@
 class GenericType : public BaseType {
 public:
 
-    std::unique_ptr<ReferencedType> referenced;
+    std::unique_ptr<LinkedType> referenced;
     std::vector<std::unique_ptr<BaseType>> types;
     int16_t generic_iteration = -1;
     /**
@@ -25,17 +25,17 @@ public:
     /**
      * constructor
      */
-    GenericType(std::unique_ptr<ReferencedType> referenced);
+    GenericType(std::unique_ptr<LinkedType> referenced);
 
     /**
      * constructor
      */
-    GenericType(std::unique_ptr<ReferencedType> referenced, std::vector<std::unique_ptr<BaseType>> types);
+    GenericType(std::unique_ptr<LinkedType> referenced, std::vector<std::unique_ptr<BaseType>> types);
 
     /**
      * constructor
      */
-    GenericType(std::unique_ptr<ReferencedType> referenced, int16_t generic_itr);
+    GenericType(std::unique_ptr<LinkedType> referenced, int16_t generic_itr);
 
     /**
      * constructor

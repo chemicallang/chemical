@@ -7,7 +7,7 @@
 #include "ast/structures/InterfaceDefinition.h"
 #include "ast/statements/Typealias.h"
 #include "ast/structures/UnionDef.h"
-#include "ast/types/ReferencedType.h"
+#include "ast/types/LinkedType.h"
 #include "ast/types/GenericType.h"
 #include <sstream>
 #include "ASTNode.h"
@@ -55,14 +55,14 @@ InterfaceDefinition* BaseType::linked_dyn_interface() {
     return nullptr;
 }
 
-std::string& BaseType::ref_name() {
-    if(kind() == BaseTypeKind::Referenced) {
-        return ((ReferencedType*) (this))->type;
+std::string& BaseType::linked_name() {
+    if(kind() == BaseTypeKind::Linked) {
+        return ((LinkedType*) (this))->type;
     } else if(kind() == BaseTypeKind::Generic) {
         return ((GenericType*) (this))->referenced->type;
     } else {
 #ifdef DEBUG
-        throw std::runtime_error("BaseType::ref_name called on unexpected type '" + representation() + "'");
+        throw std::runtime_error("BaseType::linked_name called on unexpected type '" + representation() + "'");
 #else
         std::cerr << "BaseType::ref_name called on unexpected type '" + representation() << "'" << std::endl;
         std::string x;
@@ -72,7 +72,7 @@ std::string& BaseType::ref_name() {
 }
 
 bool BaseType::requires_destructor() {
-    const auto direct_node = get_direct_ref_node();
+    const auto direct_node = get_direct_linked_node();
     if(!direct_node) return false;
     switch(direct_node->kind()) {
         case ASTNodeKind::StructDecl:
@@ -89,7 +89,7 @@ bool BaseType::requires_destructor() {
 }
 
 bool BaseType::requires_move_fn() {
-    const auto direct_node = get_direct_ref_node();
+    const auto direct_node = get_direct_linked_node();
     if(!direct_node) return false;
     switch(direct_node->kind()) {
         case ASTNodeKind::StructDecl:
@@ -106,7 +106,7 @@ bool BaseType::requires_move_fn() {
 }
 
 bool BaseType::requires_copy_fn() {
-    const auto direct_node = get_direct_ref_node();
+    const auto direct_node = get_direct_linked_node();
     if(!direct_node) return false;
     switch(direct_node->kind()) {
         case ASTNodeKind::StructDecl:
@@ -126,28 +126,28 @@ std::unique_ptr<Value> BaseType::promote_unique(Value* value) {
     return std::unique_ptr<Value>(promote(value));
 }
 
-ASTNode* BaseType::get_direct_ref_node(BaseTypeKind k) {
-    if(k == BaseTypeKind::Referenced) {
-        return ((ReferencedType*) this)->linked;
-    } else if(k == BaseTypeKind::Generic) {
+ASTNode* BaseType::get_direct_linked_node(BaseTypeKind kind) {
+    if(kind == BaseTypeKind::Linked) {
+        return ((LinkedType*) this)->linked;
+    } else if(kind == BaseTypeKind::Generic) {
         return ((GenericType*) this)->referenced->linked;
     } else {
         return nullptr;
     }
 }
 
-StructDefinition* BaseType::get_direct_ref_struct(BaseTypeKind k) {
-    const auto ref_node = get_direct_ref_node(k);
+StructDefinition* BaseType::get_direct_linked_struct(BaseTypeKind k) {
+    const auto ref_node = get_direct_linked_node(k);
     return ref_node ? ref_node->as_struct_def() : nullptr;
 }
 
-VariantDefinition* BaseType::get_direct_ref_variant(BaseTypeKind k) {
-    const auto ref_node = get_direct_ref_node(k);
+VariantDefinition* BaseType::get_direct_linked_variant(BaseTypeKind k) {
+    const auto ref_node = get_direct_linked_node(k);
     return ref_node ? ref_node->as_variant_def() : nullptr;
 }
 
-StructDefinition* BaseType::get_direct_ref_movable_struct() {
-    const auto direct_ref_struct = get_direct_ref_struct();
+StructDefinition* BaseType::get_direct_linked_movable_struct() {
+    const auto direct_ref_struct = get_direct_linked_struct();
     if(direct_ref_struct && (direct_ref_struct->requires_destructor() || direct_ref_struct->requires_move_fn())) {
         return direct_ref_struct;
     } else {

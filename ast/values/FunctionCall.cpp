@@ -11,7 +11,7 @@
 #include "ast/values/StructValue.h"
 #include "ast/base/BaseType.h"
 #include "ast/types/GenericType.h"
-#include "ast/types/ReferencedType.h"
+#include "ast/types/LinkedType.h"
 #include "ast/structures/MultiFunctionNode.h"
 #include "ast/utils/GenericUtils.h"
 #include "ast/types/DynamicType.h"
@@ -66,7 +66,7 @@ void to_llvm_args(
     for (size_t i = start; i < values.size(); ++i) {
 
         const auto func_param = func_type->func_param_for_arg_at(i);
-        if((func_param->type->get_direct_ref_struct() || func_param->type->get_direct_ref_variant()) && (values[i]->reference() && values[i]->value_type() == ValueType::Struct) && !(values[i]->as_struct() || values[i]->as_array_value() || values[i]->as_variant_call())) {
+        if((func_param->type->get_direct_linked_struct() || func_param->type->get_direct_linked_variant()) && (values[i]->reference() && values[i]->value_type() == ValueType::Struct) && !(values[i]->as_struct() || values[i]->as_array_value() || values[i]->as_variant_call())) {
             argValue = values[i]->llvm_pointer(gen);
         } else {
             argValue = values[i]->llvm_arg_value(gen, call, i);
@@ -504,7 +504,7 @@ void FunctionCall::call_move_fns_on_moved(Codegen &gen, std::vector<llvm::Value*
         const auto chain = value->as_access_chain();
         if(chain && func_type->is_one_of_moved_chains(chain)) {
             auto known_t = chain->known_type();
-            auto movable = known_t->get_direct_ref_movable_struct();
+            auto movable = known_t->get_direct_linked_movable_struct();
             const auto move_func = movable->move_func();
             const auto func = move_func->llvm_func();
             gen.builder->CreateCall(func, { args[i] });
@@ -803,7 +803,7 @@ std::unique_ptr<BaseType> FunctionCall::create_type() {
     if(func_decl && func_decl->generic_params.empty() && func_decl->has_annotation(AnnotationKind::Constructor)) {
         const auto struct_def = func_decl->parent_node->as_struct_def();
         if(struct_def->is_generic()) {
-            return std::make_unique<GenericType>(std::make_unique<ReferencedType>(struct_def->name, struct_def, nullptr), generic_iteration);
+            return std::make_unique<GenericType>(std::make_unique<LinkedType>(struct_def->name, struct_def, nullptr), generic_iteration);
         }
     }
     auto prev_itr = set_curr_itr_on_decl();
@@ -831,7 +831,7 @@ hybrid_ptr<BaseType> FunctionCall::get_base_type() {
     if(func_decl && func_decl->generic_params.empty() && func_decl->has_annotation(AnnotationKind::Constructor)) {
         const auto struct_def = func_decl->parent_node->as_struct_def();
         if(struct_def->is_generic()) {
-            return hybrid_ptr<BaseType> { new GenericType(std::make_unique<ReferencedType>(struct_def->name, struct_def, nullptr), generic_iteration), true };
+            return hybrid_ptr<BaseType> {new GenericType(std::make_unique<LinkedType>(struct_def->name, struct_def, nullptr), generic_iteration), true };
         }
     }
     auto prev_itr = set_curr_itr_on_decl();

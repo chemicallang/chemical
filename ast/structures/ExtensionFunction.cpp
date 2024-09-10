@@ -2,7 +2,7 @@
 
 #include "ExtensionFunction.h"
 #include "compiler/SymbolResolver.h"
-#include "ast/types/ReferencedType.h"
+#include "ast/types/LinkedType.h"
 #include "ast/base/ExtendableBase.h"
 #include "ast/types/PointerType.h"
 #include "ast/types/GenericType.h"
@@ -41,8 +41,8 @@ ASTNode *ExtensionFuncReceiver::child(const std::string &name) {
 
 static std::string get_referenced(BaseType* type) {
     const auto kind = type->kind();
-    if(kind == BaseTypeKind::Referenced) {
-        return ((ReferencedType*) type)->type;
+    if(kind == BaseTypeKind::Linked) {
+        return ((LinkedType*) type)->type;
     } else if(kind == BaseTypeKind::Generic) {
         return ((GenericType*) type)->referenced->type;
     } else if(kind == BaseTypeKind::Pointer) {

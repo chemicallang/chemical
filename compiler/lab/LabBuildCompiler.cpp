@@ -3,7 +3,7 @@
 #include "rang.hpp"
 #include "LabBuildCompiler.h"
 #include "preprocess/ImportGraphMaker.h"
-#include "ast/types/ReferencedType.h"
+#include "ast/types/LinkedType.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "utils/Benchmark.h"
 #include "Utils.h"
@@ -47,7 +47,7 @@ std::vector<std::unique_ptr<ASTNode>> TranslateC(
 static bool verify_lib_build_func_type(FunctionDeclaration* found, const std::string& abs_path) {
     if(found->returnType->kind() == BaseTypeKind::Pointer) {
         auto child_type = found->returnType->get_child_type();
-        if(child_type->kind() == BaseTypeKind::Referenced && ((ReferencedType*) child_type.get())->type == "Module") {
+        if(child_type->kind() == BaseTypeKind::Linked && ((LinkedType*) child_type.get())->type == "Module") {
             return true;
         }
     }

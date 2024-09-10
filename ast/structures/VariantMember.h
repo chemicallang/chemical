@@ -6,7 +6,7 @@
 #include "ast/base/Value.h"
 #include "BaseDefMember.h"
 #include "ast/types/StructType.h"
-#include "ast/types/ReferencedType.h"
+#include "ast/types/LinkedType.h"
 #include "VariantMemberParam.h"
 
 class VariantMember : public BaseDefMember {
@@ -14,7 +14,7 @@ public:
 
     tsl::ordered_map<std::string, std::unique_ptr<VariantMemberParam>> values;
     VariantDefinition* parent_node;
-    ReferencedType ref_type;
+    LinkedType ref_type;
     CSTToken* token;
 
     VariantMember(

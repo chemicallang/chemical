@@ -130,7 +130,7 @@ void infer_types_by_args(
         Value* debug_value
 ) {
     const auto param_type_kind = param_type->kind();
-    if(param_type_kind == BaseTypeKind::Referenced) {
+    if(param_type_kind == BaseTypeKind::Linked) {
         // directly linked generic param like func <T> add(param : T)
         const auto linked = param_type->linked_node();
         const auto gen_param = linked->as_generic_type_param();

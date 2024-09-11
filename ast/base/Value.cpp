@@ -134,33 +134,32 @@ std::pair<unsigned int, llvm::Value*> ChainValue::access_chain_parent_pointer(
     }
 #endif
 
+    // evaluate the last function in the access chain
+    int j = (int) until;
+    while(j >= 0) {
+        const auto func_call = values[j]->as_func_call();
+        if(func_call) {
+            auto func_ret = func_call->access_chain_value(gen, values, j, destructibles, nullptr);
+            if(j + 1 <= until) {
+                destructibles.emplace_back(func_call, func_ret);
+            }
+            return { j, func_ret };
+        }
+        j--;
+    }
+
     unsigned parent_index = 0;
     Value* parent = values[0].get();
     llvm::Value* pointer = parent->llvm_pointer(gen);
 
-    // evaluate function calls inside the access chain, moving the parent pointer
     unsigned i = 1;
-    unsigned j = 1;
-    while(j <= until) {
-        const auto func_call = values[j]->as_func_call();
-        if(func_call) {
-            pointer = func_call->access_chain_value(gen, values, j, destructibles, nullptr);
-            parent = func_call;
-            parent_index = j;
-            if(j + 1 <= until) {
-                destructibles.emplace_back(parent, pointer);
-            }
-            i = j + 1;
-        }
-        j++;
-    }
 
     if(parent->is_stored_pointer() && i <= until) {
         pointer = gen.builder->CreateLoad(parent->llvm_type(gen), pointer);
     }
 
     while (i <= until) {
-        if(i + 1 <= until && values[i]->is_pointer()) {
+        if(i + 1 <= until && values[i]->is_stored_pointer()) {
             llvm::Value* gep;
             if(idxList.empty()) {
                 gep = pointer;
@@ -173,8 +172,7 @@ std::pair<unsigned int, llvm::Value*> ChainValue::access_chain_parent_pointer(
             idxList.clear();
         } else {
             if (!values[i]->add_member_index(gen, values[i - 1].get(), idxList)) {
-                std::string err = "couldn't add member index for fragment '" + values[i]->representation() +
-                "' in access chain ";
+                std::string err = "couldn't add member index for fragment '" + values[i]->representation() + "' in access chain ";
                 bool is_first = true;
                 for(auto& val : values) {
                     if(!is_first) {

@@ -133,6 +133,12 @@ public:
     bool is_exported();
 
     /**
+     * is this node storing a pointer, stored pointer must be loaded
+     * before use
+     */
+    bool is_stored_pointer();
+
+    /**
      * check if the object related to this node has been moved
      */
     bool has_moved(ASTNodeKind kind, Value* ref);

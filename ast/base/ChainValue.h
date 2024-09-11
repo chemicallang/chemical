@@ -94,6 +94,22 @@ public:
     );
 
     /**
+     * so the parent pointer is returned, along with it's index
+     * this is called by other access chain methods, to get the parent and then
+     * load the child, this offers advantage like having access to parent value
+     * like x.y.z <-- you get access to 'y' and then you load 'z' using GEP
+     * now suppose functions that demand parent value, x.y.z() here z is a lambda
+     * stored inside y, where y is supposed to be passed to lambda z (implicit self)
+     */
+    std::pair<unsigned int, llvm::Value*> access_chain_parent_pointer(
+            Codegen &gen,
+            std::vector<std::unique_ptr<ChainValue>>& values,
+            std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
+            unsigned int until,
+            std::vector<llvm::Value*>& idxList
+    );
+
+    /**
      * when a identifier is last in the access chain, for example x.y.z here z is the last identifier
      * this function will be called on it, the values given are the values of access chain
      * by default this just calls default_chain_pointer

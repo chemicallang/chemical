@@ -133,35 +133,26 @@ bool is_stored_pointer(Value* value) {
     return false;
 }
 
-llvm::Value* ChainValue::access_chain_pointer(
+std::pair<unsigned int, llvm::Value*> ChainValue::access_chain_parent_pointer(
         Codegen &gen,
         std::vector<std::unique_ptr<ChainValue>>& values,
         std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
-        unsigned int until
+        unsigned int until,
+        std::vector<llvm::Value*>& idxList
 ) {
 
     if(until == 0) {
-        return values[0]->llvm_pointer(gen);
-    }
-
-    const auto last = values[until].get();
-    const auto last_func_call = last->as_func_call();
-    if(last_func_call) {
-        const auto func_decl = last_func_call->safe_linked_func();
-        if(func_decl && func_decl->has_annotation(AnnotationKind::CompTime)) {
-            auto& ret_value = gen.eval_comptime(last_func_call, func_decl);
-            if(ret_value) {
-                return ret_value->llvm_pointer(gen);
-            } else {
-                return nullptr;
-            }
-        }
+#ifdef DEBUG
+        throw std::runtime_error("index can't be zero, passed to this method");
+#endif
+        return { 0, nullptr };
     }
 
     unsigned parent_index = 0;
     Value* parent = values[0].get();
     llvm::Value* pointer = parent->llvm_pointer(gen);
 
+    // evaluate function calls inside the access chain, moving the parent pointer
     unsigned i = 1;
     unsigned j = 1;
     while(j <= until) {
@@ -182,8 +173,6 @@ llvm::Value* ChainValue::access_chain_pointer(
         pointer = gen.builder->CreateLoad(parent->llvm_type(gen), pointer);
     }
 
-    std::vector<llvm::Value*> idxList;
-
     while (i <= until) {
         if(i + 1 <= until && values[i]->is_pointer()) {
             llvm::Value* gep;
@@ -198,13 +187,53 @@ llvm::Value* ChainValue::access_chain_pointer(
             idxList.clear();
         } else {
             if (!values[i]->add_member_index(gen, values[i - 1].get(), idxList)) {
-                gen.error("couldn't add member index for fragment '" + values[i]->representation() +
-                          "' in access chain '" + representation() + "'", values[i].get());
+                std::string err = "couldn't add member index for fragment '" + values[i]->representation() +
+                "' in access chain ";
+                bool is_first = true;
+                for(auto& val : values) {
+                    if(!is_first) {
+                        err += ',';
+                    }
+                    err += '\'';
+                    err += val->representation();
+                    err += '\'';
+                    is_first = false;
+                }
+                gen.error(err, values[i].get());
             }
         }
         i++;
     }
-    return create_gep(gen, values, parent_index, pointer, idxList);
+    return { parent_index, pointer };
+}
+
+llvm::Value* ChainValue::access_chain_pointer(
+        Codegen &gen,
+        std::vector<std::unique_ptr<ChainValue>>& values,
+        std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
+        unsigned int until
+) {
+    // a single value, we just return pointer to it
+    if(until == 0) {
+        return values[0]->llvm_pointer(gen);
+    }
+    // evaluate last comptime function call
+    const auto last = values[until].get();
+    const auto last_func_call = last->as_func_call();
+    if(last_func_call) {
+        const auto func_decl = last_func_call->safe_linked_func();
+        if(func_decl && func_decl->has_annotation(AnnotationKind::CompTime)) {
+            auto& ret_value = gen.eval_comptime(last_func_call, func_decl);
+            if(ret_value) {
+                return ret_value->llvm_pointer(gen);
+            } else {
+                return nullptr;
+            }
+        }
+    }
+    std::vector<llvm::Value*> idxList;
+    auto parent_pointer = access_chain_parent_pointer(gen, values, destructibles, until, idxList);
+    return create_gep(gen, values, parent_pointer.first, parent_pointer.second, idxList);
 }
 
 void Value::llvm_conditional_branch(Codegen& gen, llvm::BasicBlock* then_block, llvm::BasicBlock* otherwise_block) {

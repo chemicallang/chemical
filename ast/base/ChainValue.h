@@ -100,13 +100,31 @@ public:
      * like x.y.z <-- you get access to 'y' and then you load 'z' using GEP
      * now suppose functions that demand parent value, x.y.z() here z is a lambda
      * stored inside y, where y is supposed to be passed to lambda z (implicit self)
+     * Please note that until index is the final value, not the parent index that you
+     * want to retrieve
      */
-    std::pair<unsigned int, llvm::Value*> access_chain_parent_pointer(
+    static std::pair<unsigned int, llvm::Value*> access_chain_parent_pointer(
             Codegen &gen,
             std::vector<std::unique_ptr<ChainValue>>& values,
             std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
             unsigned int until,
             std::vector<llvm::Value*>& idxList
+    );
+
+    /**
+     * get a pointer to access chain, if you previously used access_chain_parent_pointer
+     * this helps to get the pointer to the value that is supposed to be loaded, without loading
+     * the parent again, because parent had been loaded before using access_chain_parent_pointer
+     *
+     * this only returns a pointer to the final value, which can be loaded very easily using a single
+     * GEP instruction without any other fuss, the type for GEP can be retrieved from the value present
+     * at 'until' index you provided to access_chain_parent_pointer
+     */
+    static llvm::Value* pointer_from_parent_to_next(
+            Codegen &gen,
+            std::vector<std::unique_ptr<ChainValue>>& values,
+            std::vector<llvm::Value*>& idxList,
+            std::pair<unsigned int, llvm::Value*>& parent_pointer
     );
 
     /**

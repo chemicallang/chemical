@@ -70,6 +70,11 @@ struct ProvideStructLamb {
     var lamb : (a : int, b : int) => PointSome
 }
 
+struct CapSelf {
+    var i : int
+    var lamb : [](&self) => int
+}
+
 struct ProvideSelfRefStructLamb {
     var mul : int
     var lamb : (&self, a : int, b : int) => PointSome
@@ -242,6 +247,15 @@ func test_lambda() {
         }
         var p = provide.lamb(10, 20);
         return p.a == 20 && p.b == 40;
+    })
+    test("capturing lambda can take a self reference", () => {
+        var c = CapSelf {
+            i : 14,
+            lamb : [](self) => {
+                return self.i;
+            }
+        }
+        return c.lamb() == 14;
     })
 }
 

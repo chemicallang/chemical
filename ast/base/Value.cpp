@@ -120,12 +120,6 @@ llvm::Value* create_gep(Codegen &gen, std::vector<std::unique_ptr<ChainValue>>& 
     return gen.builder->CreateGEP(parent->llvm_chain_type(gen, values, index), pointer, idxList, "", gen.inbounds);
 }
 
-// stored pointer into a variable, that must be loaded, before using
-bool Value::is_stored_pointer() {
-    auto linked = linked_node();
-    return linked != nullptr && linked->is_stored_pointer();
-}
-
 std::pair<unsigned int, llvm::Value*> ChainValue::access_chain_parent_pointer(
         Codegen &gen,
         std::vector<std::unique_ptr<ChainValue>>& values,
@@ -298,6 +292,12 @@ uint64_t Value::byte_size(bool is64Bit) {
 #else
     std::cerr << "Value::byte_size called on value " << representation() << std::endl;
 #endif
+}
+
+// stored pointer into a variable, that must be loaded, before using
+bool Value::is_stored_pointer() {
+    auto linked = linked_node();
+    return linked != nullptr && linked->is_stored_pointer();
 }
 
 Value* Value::child(InterpretScope& scope, const std::string& name) {

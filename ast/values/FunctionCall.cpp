@@ -22,7 +22,7 @@
 #include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
 
-void to_llvm_args(
+void put_self_param(
         Codegen& gen,
         FunctionCall* call,
         FunctionType* func_type,
@@ -34,9 +34,6 @@ void to_llvm_args(
         llvm::Value* self_arg_val,
         std::vector<std::pair<Value*, llvm::Value*>>& destructibles
 ) {
-
-    llvm::Value* argValue;
-
     // check function doesn't require a 'self' argument
     auto self_param = func_type->get_self_param();
     if(chain && self_param) {
@@ -62,6 +59,20 @@ void to_llvm_args(
             }
         }
     }
+}
+
+void to_llvm_args(
+        Codegen& gen,
+        FunctionCall* call,
+        FunctionType* func_type,
+        std::vector<std::unique_ptr<Value>>& values,
+        std::vector<llvm::Value *>& args,
+        std::vector<std::unique_ptr<ChainValue>>* chain,
+        unsigned int until,
+        unsigned int start
+) {
+
+    llvm::Value* argValue;
 
     for (size_t i = start; i < values.size(); ++i) {
 
@@ -108,6 +119,22 @@ void to_llvm_args(
 //            }
 //        }
     }
+}
+
+void to_llvm_args(
+        Codegen& gen,
+        FunctionCall* call,
+        FunctionType* func_type,
+        std::vector<std::unique_ptr<Value>>& values,
+        std::vector<llvm::Value *>& args,
+        std::vector<std::unique_ptr<ChainValue>>* chain,
+        unsigned int until,
+        unsigned int start,
+        llvm::Value* self_arg_val,
+        std::vector<std::pair<Value*, llvm::Value*>>& destructibles
+) {
+    put_self_param(gen, call, func_type, values, args, chain, until, start, self_arg_val, destructibles);
+    to_llvm_args(gen, call, func_type, values, args, chain, until, start);
 }
 
 llvm::Type *FunctionCall::llvm_type(Codegen &gen) {
@@ -293,17 +320,18 @@ llvm::Value *call_capturing_lambda(
         unsigned int until,
         std::vector<std::pair<Value*, llvm::Value*>>& destructibles
 ) {
-    std::vector<llvm::Value *> args;
     llvm::Value* value;
-    if(chain && until > 1) {
+    if(until > 1) {
         value = (*chain)[until - 1]->access_chain_value(gen, *chain, until - 1, destructibles, nullptr);
     } else {
         value = call->parent_val->llvm_value(gen);
     };
     auto dataPtr = gen.builder->CreateStructGEP(gen.fat_pointer_type(), value, 1);
     auto data = gen.builder->CreateLoad(gen.builder->getPtrTy(), dataPtr);
+    std::vector<llvm::Value *> args;
+    put_self_param(gen, call, func_type, call->values, args, chain, until, 0, nullptr, destructibles);
     args.emplace_back(data);
-    to_llvm_args(gen, call, func_type, call->values, args, chain, until, 0, nullptr, destructibles);
+    to_llvm_args(gen, call, func_type, call->values, args, chain, until, 0);
     auto structType = gen.fat_pointer_type();
     auto lambdaPtr = gen.builder->CreateStructGEP(structType, value, 0);
     auto lambda = gen.builder->CreateLoad(gen.builder->getPtrTy(), lambdaPtr);

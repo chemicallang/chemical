@@ -441,10 +441,9 @@ void ToCAstVisitor::accept_mutating_value(BaseType* type, Value* value) {
     }
 }
 
-void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* func_type) {
+void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* func_type, unsigned i = 0) {
     auto prev_value = visitor.nested_value;
     visitor.nested_value = true;
-    unsigned i = 0;
     FunctionParam* param;
     while(i < call->values.size()) {
         param = func_type->func_param_for_arg_at(i);
@@ -1570,16 +1569,22 @@ void CValueDeclarationVisitor::visit(LambdaFunction *lamb) {
     accept_func_return_with_name(visitor, lamb, lamb_name, true);
     aliases[lamb] = lamb_name;
     write('(');
-
+    unsigned i = 0;
     // writing the captured struct as a parameter
     if(lamb->isCapturing) {
+        auto self_param = lamb->get_self_param();
+        if(self_param) {
+            self_param->accept(&visitor);
+            visitor.write(", ");
+            i++;
+        }
         visitor.write("void*");
         visitor.write(" this");
-        if(!lamb->params.empty()) {
+        if(lamb->params.size() > (self_param ? 1 : 0)) {
             visitor.write(',');
         }
     }
-    func_type_params(visitor, lamb);
+    func_type_params(visitor, lamb, i);
     write(')');
     auto prev_destroy_scope = visitor.destructor->destroy_current_scope;
     visitor.destructor->destroy_current_scope = true;
@@ -2412,8 +2417,8 @@ void ToCAstVisitor::visit(ForLoop *forLoop) {
     scope(*this, forLoop->body);
 }
 
-void ToCAstVisitor::visit(FunctionParam *functionParam) {
-    write("[FunctionParam_UNIMPLEMENTED]");
+void ToCAstVisitor::visit(FunctionParam *param) {
+    param_type_with_id(*this, param->type.get(), param->name);
 }
 
 void func_decl_with_name(ToCAstVisitor& visitor, FunctionDeclaration* decl, const std::string& name) {
@@ -2845,8 +2850,8 @@ void ToCAstVisitor::visit(VariantCall *call) {
     }
 }
 
-template<typename current_call>
-void capture_call(ToCAstVisitor& visitor, FunctionType* type, current_call call, FunctionCall* func_call) {
+template<typename current_call, typename self_arg_fn>
+void capture_call(ToCAstVisitor& visitor, FunctionType* type, FunctionCall* func_call, current_call call, self_arg_fn self_arg) {
     visitor.write('(');
     visitor.write('(');
     visitor.write('(');
@@ -2856,6 +2861,10 @@ void capture_call(ToCAstVisitor& visitor, FunctionType* type, current_call call,
     visitor.write("->first");
     visitor.write(')');
     visitor.write('(');
+    if(type->has_self_param()) {
+        self_arg();
+        visitor.write(", ");
+    }
     call();
     visitor.write("->second");
     if(!func_call->values.empty()) {
@@ -2868,7 +2877,11 @@ void capture_call(ToCAstVisitor& visitor, FunctionType* type, current_call call,
 
 void func_call(ToCAstVisitor& visitor, FunctionType* type, std::unique_ptr<Value>& current, std::unique_ptr<Value>& next, unsigned int& i) {
     if(type->isCapturing && current->as_func_call() == nullptr) {
-        capture_call(visitor, type, [&current, &visitor](){ current->accept(&visitor); }, next->as_func_call());
+        capture_call(visitor, type, next->as_func_call(), [&current, &visitor](){
+            current->accept(&visitor);
+        }, [&current, &visitor] {
+            visitor.write("NO_SELF_REF_FOR_CAP_LAMB");
+        });
         i++;
     } else {
         current->accept(&visitor);
@@ -2990,11 +3003,20 @@ void func_call(ToCAstVisitor& visitor, std::vector<std::unique_ptr<ChainValue>>&
         visitor.write(allocated->second);
     } else if(func_type->isCapturing) {
         // function calls to capturing lambdas
-        capture_call(visitor, func_type, [&](){
+        capture_call(visitor, func_type, last, [&](){
+            auto prev = visitor.nested_value;
             visitor.nested_value = true;
             access_chain(visitor, values, start, end - 1);
-            visitor.nested_value = false;
-        }, last);
+            visitor.nested_value = prev;
+        }, [&]() {
+            auto prev = visitor.nested_value;
+            visitor.nested_value = true;
+            if(!values[end - 2]->is_stored_pointer()) {
+                visitor.write('&');
+            }
+            access_chain(visitor, values, start, end - 2);
+            visitor.nested_value = prev;
+        });
     } else if(grandpa && !grandpa->linked_node()->as_namespace()) {
         auto grandpaType = grandpa->create_type();
         auto pure_grandpa = grandpaType->pure_type();

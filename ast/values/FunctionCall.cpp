@@ -22,6 +22,27 @@
 #include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
 
+AccessChain parent_chain(FunctionCall* call, std::vector<std::unique_ptr<ChainValue>>& chain, int till) {
+    AccessChain member_access(std::vector<std::unique_ptr<ChainValue>> {}, nullptr, false, nullptr);
+    unsigned i = 0;
+    while(i < till) {
+        if(chain[i].get() == call) {
+            break;
+        }
+        member_access.values.emplace_back((ChainValue*)chain[i]->copy());
+        i++;
+    }
+    return member_access;
+}
+
+AccessChain parent_chain(FunctionCall* call, std::vector<std::unique_ptr<ChainValue>>& chain) {
+    return parent_chain(call, chain, chain.size() - 1);
+}
+
+AccessChain grandparent_chain(FunctionCall* call, std::vector<std::unique_ptr<ChainValue>>& chain) {
+    return parent_chain(call, chain, chain.size() - 2);
+}
+
 void put_self_param(
         Codegen& gen,
         FunctionCall* call,
@@ -289,27 +310,6 @@ llvm::Value* call_with_args(
 //    }
 }
 
-AccessChain parent_chain(FunctionCall* call, std::vector<std::unique_ptr<ChainValue>>& chain, int till) {
-    AccessChain member_access(std::vector<std::unique_ptr<ChainValue>> {}, nullptr, false, nullptr);
-    unsigned i = 0;
-    while(i < till) {
-        if(chain[i].get() == call) {
-            break;
-        }
-        member_access.values.emplace_back((ChainValue*)chain[i]->copy());
-        i++;
-    }
-    return member_access;
-}
-
-AccessChain parent_chain(FunctionCall* call, std::vector<std::unique_ptr<ChainValue>>& chain) {
-    return parent_chain(call, chain, chain.size() - 1);
-}
-
-AccessChain grandparent_chain(FunctionCall* call, std::vector<std::unique_ptr<ChainValue>>& chain) {
-    return parent_chain(call, chain, chain.size() - 2);
-}
-
 llvm::Value *call_capturing_lambda(
         Codegen &gen,
         FunctionCall* call,
@@ -426,10 +426,14 @@ llvm::Value* FunctionCall::llvm_chain_value(
 
     if(linked() && linked()->as_struct_member() != nullptr) { // means I'm calling a pointer inside a struct
 
+        llvm::Value* grandparent = nullptr;
+
         // creating access chain to the last member as an identifier instead of function call
         auto parent_access = parent_chain(this, chain);
 
-        call_value = gen.builder->CreateCall(linked()->llvm_func_type(gen), parent_access.llvm_value(gen, nullptr), args);
+        auto callee = parent_access.llvm_value(gen, nullptr, &grandparent);
+
+        call_value = gen.builder->CreateCall(linked()->llvm_func_type(gen), callee, args);
 
     } else {
         call_value = call_with_args(this, fn, gen, args, chain, until, destructibles);

@@ -19,6 +19,7 @@
 #include "IntValue.h"
 
 void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen) {
+    auto& current_func_type = *gen.current_func_type;
     const auto parent_type = llvm_type(gen);
     for (const auto &value: values) {
         auto& value_ptr = value.second->value;
@@ -26,8 +27,32 @@ void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen) {
         if (variable.first == -1) {
             gen.error("couldn't get struct child " + value.first + " in definition with name " + definition->name, this);
         } else {
-            std::vector<llvm::Value*> idx {gen.builder->getInt32(0)};
-            value_ptr->store_in_struct(gen, this, inst, parent_type, idx, is_union() ? 0 : variable.first, variable.second);
+            // try to move struct, if move arg val will be calculated
+            llvm::Value* argVal = nullptr;
+            auto chain = value_ptr->as_access_chain();
+            if(chain && current_func_type.is_one_of_moved_chains(chain)) {
+                argVal = value_ptr->llvm_value(gen, variable.second);
+            } else {
+                const auto id = value_ptr->as_identifier();
+                if(id && current_func_type.is_one_of_moved_id(id)) {
+                    argVal = value_ptr->llvm_value(gen, variable.second);
+                }
+            }
+            if(argVal == nullptr) {
+                // couldn't move struct
+                std::vector<llvm::Value*> idx{gen.builder->getInt32(0)};
+                value_ptr->store_in_struct(gen, this, inst, parent_type, idx, is_union() ? 0 : variable.first,
+                                           variable.second);
+            } else {
+                // since it will be moved, we will std memcpy it into current pointer
+                std::vector<llvm::Value*> idx{gen.builder->getInt32(0)};
+                auto elementPtr = Value::get_element_pointer(gen, parent_type, inst, idx, is_union() ? 0 : variable.first);
+                llvm::MaybeAlign m;
+                const auto alloc_size = gen.module->getDataLayout().getTypeAllocSize(variable.second->llvm_type(gen));
+                gen.builder->CreateMemCpy(elementPtr, m, argVal, m, alloc_size);
+                // now we can move the previous arg, since we copied it's contents
+                current_func_type.call_move_fn(gen, value_ptr.get(), argVal);
+            }
         }
     }
 }
@@ -228,6 +253,7 @@ bool StructValue::allows_direct_init() {
 bool StructValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
     ref->link(linker, ref);
     auto found = ref->linked_node();
+    auto& current_func_type = *linker.current_func_type;
     if(found) {
         const auto k = found->kind();
         switch (k) {
@@ -269,6 +295,7 @@ bool StructValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr
             if(definition->variables.end() != member) {
                 const auto mem_type = member->second->get_value_type();
                 auto implicit = mem_type->implicit_constructor_for(val_ptr.get());
+                current_func_type.move_value(val.second->value.get(), mem_type.get(), linker);
                 if(implicit) {
                     if(linker.preprocess) {
                         val_ptr = call_with_arg(implicit, std::move(val_ptr), linker);

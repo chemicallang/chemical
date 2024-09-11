@@ -100,7 +100,15 @@ void Value::destruct(Codegen& gen, std::vector<std::pair<Value*, llvm::Value*>>&
 
 llvm::Value* ChainValue::access_chain_value(Codegen &gen, std::vector<std::unique_ptr<ChainValue>>& values, unsigned int until, std::vector<std::pair<Value*, llvm::Value*>>& destructibles, BaseType* expected_type) {
     if(until == 0) return values[0]->llvm_value(gen, expected_type);
-    return gen.builder->CreateLoad(values[until]->llvm_type(gen), access_chain_pointer(gen, values, destructibles, until), "acc");
+    auto pointer = access_chain_pointer(gen, values, destructibles, until);
+    auto last_linked = values[until]->linked_node();
+    if(last_linked) {
+        auto last_kind = last_linked->kind();
+        if(last_kind == ASTNodeKind::StructMember && values[until]->value_type() == ValueType::Struct) {
+            return pointer;
+        }
+    }
+    return gen.builder->CreateLoad(values[until]->llvm_type(gen), pointer, "acc");
 }
 
 llvm::Value* create_gep(Codegen &gen, std::vector<std::unique_ptr<ChainValue>>& values, unsigned index, llvm::Value* pointer, std::vector<llvm::Value*>& idxList) {

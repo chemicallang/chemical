@@ -209,6 +209,8 @@ public:
 
     llvm::FunctionType *llvm_func_type(Codegen &gen) override;
 
+    void call_move_fn(Codegen &gen, Value* value, llvm::Value* llvm_value);
+
 #endif
 
     /**

@@ -74,6 +74,14 @@ llvm::Type *FunctionType::llvm_type(Codegen &gen) {
     return gen.builder->getPtrTy();
 };
 
+void FunctionType::call_move_fn(Codegen &gen, Value* value, llvm::Value* llvm_value) {
+    auto known_t = value->known_type();
+    auto movable = known_t->get_direct_linked_movable_struct();
+    const auto move_func = movable->move_func();
+    const auto func = move_func->llvm_func();
+    gen.builder->CreateCall(func, { llvm_value });
+}
+
 #endif
 
 FunctionType::FunctionType(

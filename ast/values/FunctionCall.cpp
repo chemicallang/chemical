@@ -196,8 +196,7 @@ llvm::Value* call_with_callee(
         unsigned int index,
         llvm::Value* callee
 ) {
-    const auto llvm_func_type = call->llvm_linked_func_type(gen, chain_values, index);
-    return gen.builder->CreateCall(llvm_func_type, callee, args);
+    return gen.builder->CreateCall(call->llvm_linked_func_type(gen, chain_values, index), callee, args);
 }
 
 llvm::Value* struct_return_in_args(
@@ -268,46 +267,21 @@ std::pair<bool, llvm::Value*> FunctionCall::llvm_dynamic_dispatch(
 llvm::Value *FunctionCall::llvm_linked_func_callee(
         Codegen& gen,
         std::vector<std::unique_ptr<ChainValue>> &chain_values,
-        unsigned int index,
-        std::vector<std::pair<Value*, llvm::Value*>>& destructibles
+        unsigned int index
 ) {
     const auto generic_data = llvm_generic_func_data(chain_values, index);
     if(generic_data) {
         return generic_data->first;
     }
-    llvm::Value* callee = nullptr;
     if(linked() != nullptr) {
         if(linked()->as_function() == nullptr) {
-            callee = linked()->llvm_load(gen);
+            return linked()->llvm_load(gen);
         } else {
-            callee = linked()->llvm_pointer(gen);
+            return linked()->llvm_pointer(gen);
         }
     } else {
-        callee = parent_val->access_chain_value(gen, chain_values, index - 1, destructibles, nullptr);
+        return nullptr;
     }
-    return callee;
-}
-
-llvm::Value* call_with_args(
-        FunctionCall* call,
-        llvm::Function* fn,
-        Codegen &gen,
-        std::vector<llvm::Value*>& args,
-        std::vector<std::unique_ptr<ChainValue>> &chain_values,
-        unsigned int index,
-        std::vector<std::pair<Value*, llvm::Value*>>& destructibles
-) {
-//    if(fn != nullptr) {
-//        return gen.builder->CreateCall(fn, args);
-//    } else {
-        auto callee = call->llvm_linked_func_callee(gen, chain_values, index, destructibles);
-        if(callee == nullptr) {
-            gen.error("Couldn't get callee value for the function call to " + call->representation(), call);
-            return nullptr;
-        }
-        const auto llvm_func_type = call->llvm_linked_func_type(gen, chain_values, index);
-        return gen.builder->CreateCall(llvm_func_type, callee, args);
-//    }
 }
 
 llvm::Value *call_capturing_lambda(
@@ -375,7 +349,9 @@ llvm::Value* FunctionCall::llvm_chain_value(
         std::vector<std::unique_ptr<ChainValue>>& chain,
         unsigned int until,
         std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
-        llvm::Value* returnedStruct
+        llvm::Value* returnedStruct,
+        llvm::Value* callee_value,
+        llvm::Value* grandparent
 ) {
 
     auto func_type = get_function_type();
@@ -420,23 +396,40 @@ llvm::Value* FunctionCall::llvm_chain_value(
     }
 
     auto fn = decl != nullptr ? decl->llvm_func() : nullptr;
-    to_llvm_args(gen, this, func_type.get(), values, args, &chain, until,0, nullptr, destructibles);
+    to_llvm_args(gen, this, func_type.get(), values, args, &chain, until,0, grandparent, destructibles);
 
     llvm::Value* call_value;
 
     if(linked() && linked()->as_struct_member() != nullptr) { // means I'm calling a pointer inside a struct
 
-        llvm::Value* grandparent = nullptr;
+        if(!callee_value) {
+            // creating access chain to the last member as an identifier instead of function call
+            auto parent_access = parent_chain(this, chain);
+            callee_value = parent_access.llvm_value(gen, nullptr, &grandparent);
+        }
 
-        // creating access chain to the last member as an identifier instead of function call
-        auto parent_access = parent_chain(this, chain);
-
-        auto callee = parent_access.llvm_value(gen, nullptr, &grandparent);
-
-        call_value = gen.builder->CreateCall(linked()->llvm_func_type(gen), callee, args);
+        call_value = gen.builder->CreateCall(linked()->llvm_func_type(gen), callee_value, args);
 
     } else {
-        call_value = call_with_args(this, fn, gen, args, chain, until, destructibles);
+
+        if(callee_value == nullptr) {
+            callee_value = llvm_linked_func_callee(gen, chain, until);
+            if(callee_value == nullptr) {
+                auto parent_access = parent_chain(this, chain);
+                if(until > 1) {
+                    callee_value = parent_access.llvm_value(gen, nullptr, &grandparent);
+                } else {
+                    callee_value = parent_access.llvm_value(gen, nullptr);
+                }
+                if(callee_value == nullptr) {
+                    gen.error("Couldn't get callee value for the function call to " + representation(), this);
+                    return nullptr;
+                }
+            }
+        }
+
+        call_value = gen.builder->CreateCall(llvm_linked_func_type(gen, chain, until), callee_value, args);
+
     }
 
     return returnedValue ? returnedValue : call_value;
@@ -458,28 +451,10 @@ llvm::Value* FunctionCall::chain_value_with_callee(
         llvm::Value* callee_value,
         std::vector<std::pair<Value*, llvm::Value*>>& destructibles
 ) {
-
-    auto func_type = get_function_type();
-    std::vector<llvm::Value*> args;
-
-    llvm::Value* call_value;
-    auto returnedValue = struct_return_in_args(gen, args, func_type.get(), nullptr);
-    to_llvm_args(gen, this, func_type.get(), values, args, &chain, index, 0, grandpa_value, destructibles);
-
-    if(linked() && linked()->as_struct_member()) {
-
-        // creating access chain to the last member as an identifier instead of function call
-        auto parent_access = parent_chain(this, chain);
-
-        call_value = gen.builder->CreateCall(linked()->llvm_func_type(gen), parent_access.llvm_value(gen, nullptr), args);
-
-    } else {
-
-        call_value = call_with_callee(this, gen, args, chain, index, callee_value);
-
-    }
-
-    return returnedValue ? returnedValue : call_value;
+    std::vector<llvm::Value *> args;
+    auto value = llvm_chain_value(gen, args, chain, index, destructibles, nullptr, callee_value, grandpa_value);
+    call_move_fns_on_moved(gen, args);
+    return value;
 }
 
 llvm::InvokeInst *FunctionCall::llvm_invoke(Codegen &gen, llvm::BasicBlock* normal, llvm::BasicBlock* unwind) {

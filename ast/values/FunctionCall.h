@@ -200,8 +200,7 @@ public:
     llvm::Value *llvm_linked_func_callee(
             Codegen& gen,
             std::vector<std::unique_ptr<ChainValue>> &chain_values,
-            unsigned int index,
-            std::vector<std::pair<Value*, llvm::Value*>>& destructibles
+            unsigned int index
     );
 
     void llvm_destruct(Codegen &gen, llvm::Value *allocaInst) override;
@@ -216,7 +215,9 @@ public:
             std::vector<std::unique_ptr<ChainValue>>& chain,
             unsigned int until,
             std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
-            llvm::Value* returnedStruct = nullptr
+            llvm::Value* returnedStruct = nullptr,
+            llvm::Value* callee_value = nullptr,
+            llvm::Value* grandparent = nullptr
     );
 
     /**

@@ -124,13 +124,23 @@ llvm::Value* create_gep(Codegen &gen, std::vector<std::unique_ptr<ChainValue>>& 
 bool is_stored_pointer(Value* value) {
     auto linked = value->linked_node();
     if(!linked) return false;
-    if(linked->as_struct_member()) {
-        return linked->as_struct_member()->type->is_pointer();
-    } else if(linked->as_var_init() && !linked->as_var_init()->is_const) {
-        auto kind = linked->as_var_init()->type_kind();
-        return kind == BaseTypeKind::Pointer || kind == BaseTypeKind::String;
+    switch(linked->kind()) {
+        case ASTNodeKind::StructMember:
+            return linked->as_struct_member_unsafe()->type->is_pointer();
+        case ASTNodeKind::VarInitStmt: {
+            const auto init = linked->as_var_init_unsafe();
+            if(init->is_const) {
+                return false;
+            }
+            if (init->type) {
+                return init->type->is_pointer();
+            } else {
+                return init->value->is_pointer();
+            }
+        }
+        default:
+            return false;
     }
-    return false;
 }
 
 std::pair<unsigned int, llvm::Value*> ChainValue::access_chain_parent_pointer(

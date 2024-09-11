@@ -128,12 +128,11 @@ std::pair<unsigned int, llvm::Value*> ChainValue::access_chain_parent_pointer(
         std::vector<llvm::Value*>& idxList
 ) {
 
-    if(until == 0) {
 #ifdef DEBUG
-        throw std::runtime_error("index can't be zero, passed to this method");
-#endif
-        return { 0, nullptr };
+    if(until == 0) {
+        throw std::runtime_error("index can't be zero, because it takes a parent pointer, parent exists at location zero");
     }
+#endif
 
     unsigned parent_index = 0;
     Value* parent = values[0].get();
@@ -240,6 +239,11 @@ llvm::Value* ChainValue::access_chain_value(
         BaseType* expected_type,
         llvm::Value*& parent_pointer_ref
 ) {
+#ifdef DEBUG
+    if(until == 0) {
+        throw std::runtime_error("index can't be zero, because it takes a parent pointer, parent exists at location zero");
+    }
+#endif
     std::vector<llvm::Value*> idxList;
     auto parent_pointer = ChainValue::access_chain_parent_pointer(gen, values, destructibles, until, idxList);
     parent_pointer_ref = parent_pointer.second;

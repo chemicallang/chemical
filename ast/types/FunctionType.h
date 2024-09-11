@@ -193,6 +193,12 @@ public:
      */
     bool move_value(Value* value, ASTDiagnoser& diagnoser);
 
+    /**
+     * the following value will be moved, by checking the expected type
+     * this then takes into account, moves into implicit constructors
+     */
+    bool move_value(Value* value, BaseType* expected_type, ASTDiagnoser& diagnoser);
+
 #ifdef COMPILER_BUILD
 
     virtual std::vector<llvm::Type *> param_types(Codegen &gen);

@@ -121,6 +121,26 @@ bool ASTNode::is_exported() {
     return specifier() == AccessSpecifier::Public;
 }
 
+bool ASTNode::is_stored_pointer() {
+    switch(kind()) {
+        case ASTNodeKind::StructMember:
+            return as_struct_member_unsafe()->type->is_pointer();
+        case ASTNodeKind::VarInitStmt: {
+            const auto init = as_var_init_unsafe();
+            if(init->is_const) {
+                return false;
+            }
+            if (init->type) {
+                return init->type->is_pointer();
+            } else {
+                return init->value->is_pointer();
+            }
+        }
+        default:
+            return false;
+    }
+}
+
 bool ASTNode::has_moved(ASTNodeKind k, Value* ref) {
     switch(k) {
         case ASTNodeKind::StructMember:

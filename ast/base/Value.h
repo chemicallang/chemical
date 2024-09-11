@@ -235,6 +235,11 @@ public:
         return k == BaseTypeKind::Pointer || k == BaseTypeKind::String;
     }
 
+    /**
+     * check if this value is a stored pointer
+     */
+    bool is_stored_pointer();
+
 #ifdef COMPILER_BUILD
 
     /**

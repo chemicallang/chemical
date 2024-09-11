@@ -257,6 +257,16 @@ func test_lambda() {
         }
         return c.lamb() == 14;
     })
+    test("capturing lambda taking self reference can access captured variables", () => {
+        var d = 100
+        var c = CapSelf {
+            i : 14,
+            lamb : [d](self) => {
+                return self.i + d;
+            }
+        }
+        return c.lamb() == 114;
+    })
 }
 
 func fn_rets_1() : int {

@@ -684,7 +684,7 @@ llvm::Value *CapturedVariable::llvm_load(Codegen &gen) {
 }
 
 llvm::Value *CapturedVariable::llvm_pointer(Codegen &gen) {
-    auto captured = gen.current_function->getArg(0);
+    auto captured = gen.current_function->getArg(lambda->data_struct_index());
     return gen.builder->CreateStructGEP(lambda->capture_struct_type(gen), captured, index);
 }
 

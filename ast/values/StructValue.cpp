@@ -27,18 +27,8 @@ void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen) {
         if (variable.first == -1) {
             gen.error("couldn't get struct child " + value.first + " in definition with name " + definition->name, this);
         } else {
-            // try to move struct, if move arg val will be calculated
-            llvm::Value* argVal = nullptr;
-            auto chain = value_ptr->as_access_chain();
-            if(chain && current_func_type.is_one_of_moved_chains(chain)) {
-                argVal = value_ptr->llvm_value(gen, variable.second);
-            } else {
-                const auto id = value_ptr->as_identifier();
-                if(id && current_func_type.is_one_of_moved_id(id)) {
-                    argVal = value_ptr->llvm_value(gen, variable.second);
-                }
-            }
-            if(argVal == nullptr) {
+            auto movable_value = current_func_type.movable_value(gen, value_ptr.get());
+            if(movable_value == nullptr) {
                 // couldn't move struct
                 std::vector<llvm::Value*> idx{gen.builder->getInt32(0)};
                 value_ptr->store_in_struct(gen, this, inst, parent_type, idx, is_union() ? 0 : variable.first,
@@ -47,11 +37,7 @@ void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen) {
                 // since it will be moved, we will std memcpy it into current pointer
                 std::vector<llvm::Value*> idx{gen.builder->getInt32(0)};
                 auto elementPtr = Value::get_element_pointer(gen, parent_type, inst, idx, is_union() ? 0 : variable.first);
-                llvm::MaybeAlign m;
-                const auto alloc_size = gen.module->getDataLayout().getTypeAllocSize(variable.second->llvm_type(gen));
-                gen.builder->CreateMemCpy(elementPtr, m, argVal, m, alloc_size);
-                // now we can move the previous arg, since we copied it's contents
-                current_func_type.call_move_fn(gen, value_ptr.get(), argVal);
+                current_func_type.move_by_memcpy(gen, variable.second, value_ptr.get(), elementPtr, movable_value);
             }
         }
     }

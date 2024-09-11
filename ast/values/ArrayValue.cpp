@@ -34,8 +34,21 @@ llvm::AllocaInst* ArrayValue::llvm_allocate(Codegen& gen, const std::string& ide
     std::vector<llvm::Value*> idxList;
     idxList.emplace_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), 0));
     auto child_type = array_child(expected_type);
+    auto known_child_t = known_child_type();
+    auto& current_func_type = *gen.current_func_type;
+    auto parent_type = llvm_type(gen);
     for (size_t i = 0; i < values.size(); ++i) {
-         values[i]->store_in_array(gen, this, arr, idxList, i, child_type.get());
+        auto& value = *values[i];
+        auto movable_value = current_func_type.movable_value(gen, &value);
+        if(movable_value == nullptr) {
+            // couldn't move the struct
+            value.store_in_array(gen, this, arr, idxList, i, child_type.get());
+        } else {
+            // moving the struct
+            std::vector<llvm::Value*> idx{gen.builder->getInt32(0)};
+            auto elementPtr = Value::get_element_pointer(gen, parent_type, arr, idx, i);
+            current_func_type.move_by_memcpy(gen, known_child_t, &value, elementPtr, movable_value);
+        }
     }
     return arr;
 }
@@ -156,9 +169,20 @@ bool ArrayValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr,
         const auto arr_type = (ArrayType*) expected_type;
         elemType.reset(arr_type->elem_type->copy());
     }
+    auto& current_func_type = *linker.current_func_type;
+    BaseType* known_elem_type = nullptr;
+    if(elemType) {
+        known_elem_type = elemType.get();
+    }
     unsigned i = 0;
     for(auto& value : values) {
         value->link(linker, this, i);
+        if(i == 0 && !known_elem_type) {
+            known_elem_type = value->known_type();
+        }
+        if(known_elem_type) {
+            current_func_type.move_value(value.get(), known_elem_type, linker, elemType != nullptr);
+        }
         i++;
     }
     return true;
@@ -214,4 +238,8 @@ BaseType* ArrayValue::known_type() {
         cached_type = std::make_unique<ArrayType>(element_type(), array_size(), nullptr);
     }
     return cached_type.get();
+}
+
+BaseType* ArrayValue::known_child_type() {
+    return ((ArrayType*) known_type())->elem_type.get();
 }

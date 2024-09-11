@@ -82,6 +82,34 @@ void FunctionType::call_move_fn(Codegen &gen, Value* value, llvm::Value* llvm_va
     gen.builder->CreateCall(func, { llvm_value });
 }
 
+llvm::Value* FunctionType::movable_value(Codegen& gen, Value* value_ptr) {
+    auto& value = *value_ptr;
+    const auto chain = value.as_access_chain();
+    if(chain) {
+        if(is_one_of_moved_chains(chain)) {
+            return value.llvm_value(gen);
+        } else {
+            return nullptr;
+        }
+    } else {
+        auto id = value.as_identifier();
+        if(id && is_one_of_moved_id(id)) {
+            return value.llvm_value(gen);
+        } else {
+            return nullptr;
+        }
+    }
+}
+
+void FunctionType::move_by_memcpy(Codegen& gen, BaseType* type, Value* value_ptr, llvm::Value* elem_ptr, llvm::Value* movable_value) {
+    auto& value = *value_ptr;
+    llvm::MaybeAlign m;
+    const auto alloc_size = gen.module->getDataLayout().getTypeAllocSize(type->llvm_type(gen));
+    gen.builder->CreateMemCpy(elem_ptr, m, movable_value, m, alloc_size);
+    // now we can move the previous arg, since we copied it's contents
+    call_move_fn(gen, &value, movable_value);
+}
+
 #endif
 
 FunctionType::FunctionType(
@@ -361,16 +389,21 @@ bool FunctionType::move_value(Value* value, ASTDiagnoser& diagnoser) {
     return false;
 }
 
-bool FunctionType::move_value(Value* value_ptr, BaseType* expected_type, ASTDiagnoser& diagnoser) {
+bool FunctionType::move_value(
+        Value* value_ptr,
+        BaseType* expected_type,
+        ASTDiagnoser& diagnoser,
+        bool check_implicit_constructors
+) {
     auto& value = *value_ptr;
     const auto expected_type_kind = expected_type->kind();
     if(expected_type_kind == BaseTypeKind::Reference) {
         return false;
     }
-    const auto expected_def = expected_type->get_ref_or_linked_struct(expected_type_kind);
     const auto type = value.known_type();
     const auto linked_def = type->get_direct_linked_struct();
     if(linked_def && linked_def->requires_moving()) {
+        const auto expected_def = expected_type->get_ref_or_linked_struct(expected_type_kind);
         if(!expected_def) {
             if(expected_type_kind != BaseTypeKind::Any) {
                 diagnoser.error("cannot move a struct to a non struct type", &value);
@@ -381,7 +414,7 @@ bool FunctionType::move_value(Value* value_ptr, BaseType* expected_type, ASTDiag
             return move_value(&value, diagnoser);
         } else {
             const auto implicit = expected_def->implicit_constructor_for(&value);
-            if(implicit) {
+            if(implicit && check_implicit_constructors) {
                 auto& param_type = *implicit->params[0]->type;
                 if(!param_type.is_reference()) { // not a reference type (requires moving)
                     return move_value(&value, diagnoser);

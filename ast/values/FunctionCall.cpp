@@ -320,16 +320,20 @@ llvm::Value *call_capturing_lambda(
         unsigned int until,
         std::vector<std::pair<Value*, llvm::Value*>>& destructibles
 ) {
+    llvm::Value* grandpa = nullptr;
     llvm::Value* value;
     if(until > 1) {
-        value = (*chain)[until - 1]->access_chain_value(gen, *chain, until - 1, destructibles, nullptr);
+        auto& chain_ref = *chain;
+        const auto parent_index = until - 1;
+        auto& parent = chain_ref[parent_index];
+        value = parent->access_chain_value(gen, chain_ref, parent_index, destructibles, nullptr, grandpa);
     } else {
         value = call->parent_val->llvm_value(gen);
     };
     auto dataPtr = gen.builder->CreateStructGEP(gen.fat_pointer_type(), value, 1);
     auto data = gen.builder->CreateLoad(gen.builder->getPtrTy(), dataPtr);
     std::vector<llvm::Value *> args;
-    put_self_param(gen, call, func_type, call->values, args, chain, until, 0, nullptr, destructibles);
+    put_self_param(gen, call, func_type, call->values, args, chain, until, 0, grandpa, destructibles);
     args.emplace_back(data);
     to_llvm_args(gen, call, func_type, call->values, args, chain, until, 0);
     auto structType = gen.fat_pointer_type();

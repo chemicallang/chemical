@@ -573,10 +573,11 @@ llvm::Value* llvm_load_chain_until(
         std::vector<std::pair<Value*, llvm::Value*>>& destructibles
 ) {
     if(until >= 0 && until < chain.size()) {
-        if ((chain)[until]->value_type() == ValueType::Pointer) {
-            return (chain)[until]->access_chain_value(gen, chain, until, destructibles, nullptr);
+        auto& value = *chain[until];
+        if (value.value_type() == ValueType::Pointer) {
+            return value.access_chain_value(gen, chain, until, destructibles, nullptr);
         } else {
-            return (chain)[until]->access_chain_pointer(gen, chain, destructibles, until);
+            return value.access_chain_pointer(gen, chain, destructibles, until);
         }
     } else {
         return nullptr;

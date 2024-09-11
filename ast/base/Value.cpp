@@ -244,6 +244,10 @@ llvm::Value* ChainValue::access_chain_value(
         throw std::runtime_error("index can't be zero, because it takes a parent pointer, parent exists at location zero");
     }
 #endif
+    const auto func_call = values[until]->as_func_call();
+    if(func_call) {
+        return func_call->access_chain_value(gen, values, until, destructibles, expected_type);
+    }
     std::vector<llvm::Value*> idxList;
     auto parent_pointer = ChainValue::access_chain_parent_pointer(gen, values, destructibles, until, idxList);
     parent_pointer_ref = parent_pointer.second;

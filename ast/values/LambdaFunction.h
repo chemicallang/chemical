@@ -59,6 +59,10 @@ public:
         visitor->visit(this);
     }
 
+    int data_struct_index() {
+        return has_self_param() ? 1 : 0;
+    }
+
 #ifdef COMPILER_BUILD
 
     llvm::Type *capture_struct_type(Codegen &gen);

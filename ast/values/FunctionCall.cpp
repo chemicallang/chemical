@@ -323,16 +323,17 @@ llvm::Value *call_capturing_lambda(
     llvm::Value* grandpa = nullptr;
     llvm::Value* value;
     if(until > 1) {
-        auto& chain_ref = *chain;
-        const auto parent_index = until - 1;
-        auto& parent = chain_ref[parent_index];
-        value = parent->access_chain_value(gen, chain_ref, parent_index, destructibles, nullptr, grandpa);
+        auto parent_access = parent_chain(call, *chain);
+        value = parent_access.llvm_value(gen, nullptr, &grandpa);
     } else {
         value = call->parent_val->llvm_value(gen);
     };
     auto dataPtr = gen.builder->CreateStructGEP(gen.fat_pointer_type(), value, 1);
     auto data = gen.builder->CreateLoad(gen.builder->getPtrTy(), dataPtr);
     std::vector<llvm::Value *> args;
+    // TODO self param is being put first, the problem is that user probably expects that arguments are loaded first
+    //   functions that take a implicit self param, this is ok, because their first argument will be self and should be loaded
+    //   however functions that don't take a self reference, should load arguments first and then the func callee
     put_self_param(gen, call, func_type, call->values, args, chain, until, 0, grandpa, destructibles);
     args.emplace_back(data);
     to_llvm_args(gen, call, func_type, call->values, args, chain, until, 0);

@@ -110,31 +110,6 @@ void to_llvm_args(
     }
 }
 
-void to_llvm_args(
-        Codegen& gen,
-        FunctionCall* call,
-        FunctionType* func_type,
-        std::vector<std::unique_ptr<Value>>& values,
-        std::vector<llvm::Value *>& args,
-        std::vector<std::unique_ptr<ChainValue>>* chain,
-        unsigned int until,
-        unsigned int start,
-        std::vector<std::pair<Value*, llvm::Value*>>& destructibles
-) {
-    to_llvm_args(
-        gen,
-        call,
-        func_type,
-        values,
-        args,
-        chain,
-        until,
-        start,
-        nullptr,
-        destructibles
-    );
-}
-
 llvm::Type *FunctionCall::llvm_type(Codegen &gen) {
     auto decl = safe_linked_func();
     int16_t prev_itr = set_curr_itr_on_decl();
@@ -328,7 +303,7 @@ llvm::Value *call_capturing_lambda(
     auto dataPtr = gen.builder->CreateStructGEP(gen.fat_pointer_type(), value, 1);
     auto data = gen.builder->CreateLoad(gen.builder->getPtrTy(), dataPtr);
     args.emplace_back(data);
-    to_llvm_args(gen, call, func_type, call->values, args, chain, until, 0, destructibles);
+    to_llvm_args(gen, call, func_type, call->values, args, chain, until, 0, nullptr, destructibles);
     auto structType = gen.fat_pointer_type();
     auto lambdaPtr = gen.builder->CreateStructGEP(structType, value, 0);
     auto lambda = gen.builder->CreateLoad(gen.builder->getPtrTy(), lambdaPtr);
@@ -414,7 +389,7 @@ llvm::Value* FunctionCall::llvm_chain_value(
     }
 
     auto fn = decl != nullptr ? decl->llvm_func() : nullptr;
-    to_llvm_args(gen, this, func_type.get(), values, args, &chain, until,0, destructibles);
+    to_llvm_args(gen, this, func_type.get(), values, args, &chain, until,0, nullptr, destructibles);
 
     llvm::Value* call_value;
 
@@ -479,7 +454,7 @@ llvm::InvokeInst *FunctionCall::llvm_invoke(Codegen &gen, llvm::BasicBlock* norm
         auto type = decl->create_value_type();
         std::vector<llvm::Value *> args;
         std::vector<std::pair<Value*, llvm::Value*>> destructibles;
-        to_llvm_args(gen, this, type->function_type(), values, args, nullptr, 0, 0, destructibles);
+        to_llvm_args(gen, this, type->function_type(), values, args, nullptr, 0, 0, nullptr, destructibles);
         auto invoked = gen.builder->CreateInvoke(fn, normal, unwind, args);
         Value::destruct(gen, destructibles);
         return invoked;

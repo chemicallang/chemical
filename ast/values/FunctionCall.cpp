@@ -26,11 +26,9 @@ void put_self_param(
         Codegen& gen,
         FunctionCall* call,
         FunctionType* func_type,
-        std::vector<std::unique_ptr<Value>>& values,
         std::vector<llvm::Value *>& args,
         std::vector<std::unique_ptr<ChainValue>>* chain,
         unsigned int until,
-        unsigned int start,
         llvm::Value* self_arg_val,
         std::vector<std::pair<Value*, llvm::Value*>>& destructibles
 ) {
@@ -133,7 +131,7 @@ void to_llvm_args(
         llvm::Value* self_arg_val,
         std::vector<std::pair<Value*, llvm::Value*>>& destructibles
 ) {
-    put_self_param(gen, call, func_type, values, args, chain, until, start, self_arg_val, destructibles);
+    put_self_param(gen, call, func_type, args, chain, until, self_arg_val, destructibles);
     to_llvm_args(gen, call, func_type, values, args, chain, until, start);
 }
 
@@ -334,7 +332,7 @@ llvm::Value *call_capturing_lambda(
     // TODO self param is being put first, the problem is that user probably expects that arguments are loaded first
     //   functions that take a implicit self param, this is ok, because their first argument will be self and should be loaded
     //   however functions that don't take a self reference, should load arguments first and then the func callee
-    put_self_param(gen, call, func_type, call->values, args, chain, until, 0, grandpa, destructibles);
+    put_self_param(gen, call, func_type, args, chain, until, grandpa, destructibles);
     args.emplace_back(data);
     to_llvm_args(gen, call, func_type, call->values, args, chain, until, 0);
     auto structType = gen.fat_pointer_type();

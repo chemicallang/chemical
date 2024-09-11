@@ -527,20 +527,7 @@ void FunctionCall::call_move_fns_on_moved(Codegen &gen, std::vector<llvm::Value*
     for(auto& value : values) {
         const auto chain = value->as_access_chain();
         if(chain && func_type->is_one_of_moved_chains(chain)) {
-            auto known_t = chain->known_type();
-            auto movable = known_t->get_direct_linked_movable_struct();
-            const auto move_func = movable->move_func();
-            const auto func = move_func->llvm_func();
-            gen.builder->CreateCall(func, { args[i] });
-        } else {
-            const auto id = value->as_identifier();
-            if(id && func_type->is_one_of_moved_id(id)) {
-                const auto linked = id->linked;
-                const auto linked_kind = linked->kind();
-                if(linked_kind != ASTNodeKind::VarInitStmt) {
-
-                }
-            }
+            func_type->call_move_fn(gen, chain, args[i]);
         }
         i++;
     }

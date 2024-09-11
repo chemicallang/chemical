@@ -35,6 +35,16 @@ AccessChain parent_chain(FunctionCall* call, std::vector<std::unique_ptr<ChainVa
     return member_access;
 }
 
+AccessChain chain_range(FunctionCall* call, std::vector<std::unique_ptr<ChainValue>>& chain, int till) {
+    AccessChain member_access(std::vector<std::unique_ptr<ChainValue>> {}, nullptr, false, nullptr);
+    unsigned i = 0;
+    while(i <= till) {
+        member_access.values.emplace_back((ChainValue*) chain[i]->copy());
+        i++;
+    }
+    return member_access;
+}
+
 AccessChain parent_chain(FunctionCall* call, std::vector<std::unique_ptr<ChainValue>>& chain) {
     return parent_chain(call, chain, chain.size() - 1);
 }
@@ -63,10 +73,11 @@ void put_self_param(
         }
         int parent_index = (int) until - 2;
         if (parent_index >= 0 && parent_index < chain->size()) {
-            // TODO do not load chain until
+#ifdef DEBUG
             if(!self_arg_val) {
-                self_arg_val = llvm_load_chain_until(gen, *chain, parent_index, destructibles);
+                throw std::runtime_error("no self_arg_val passed to function call, however it takes a self arg");
             }
+#endif
             args.emplace_back(self_arg_val);
         } else if(gen.current_func_type) {
             auto passing_self_arg = gen.current_func_type->get_self_param();
@@ -410,7 +421,8 @@ llvm::Value* FunctionCall::llvm_chain_value(
             callee_value = llvm_linked_func_callee(gen, chain, until);
             if(callee_value == nullptr) {
                 auto parent_access = parent_chain(this, chain);
-                if(until > 1) {
+                int parent_index = (int) until - 2;
+                if (parent_index >= 0 && parent_index < chain.size()) {
                     callee_value = parent_access.llvm_value(gen, nullptr, &grandparent);
                 } else {
                     callee_value = parent_access.llvm_value(gen, nullptr);
@@ -418,6 +430,11 @@ llvm::Value* FunctionCall::llvm_chain_value(
                 if(callee_value == nullptr) {
                     gen.error("Couldn't get callee value for the function call to " + representation(), this);
                     return nullptr;
+                }
+            } else if(func_type->has_self_param()) {
+                int parent_index = (int) until - 2;
+                if (parent_index >= 0 && parent_index < chain.size()) {
+                    grandparent = llvm_load_chain_until(gen, chain, parent_index, destructibles);
                 }
             }
         }

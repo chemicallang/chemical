@@ -90,6 +90,27 @@ struct SnoPair {
 
 }
 
+var total_func_ret_calls = 0;
+
+struct FuncRetTestStr {
+
+    func give_calls() : int {
+        total_func_ret_calls += 1;
+        return total_func_ret_calls;
+    }
+
+    func self_ref_give_calls(&self) : int {
+        total_func_ret_calls += 1;
+        return total_func_ret_calls;
+    }
+
+}
+
+func check_multiple_calls() : FuncRetTestStr {
+    total_func_ret_calls += 1;
+    return FuncRetTestStr {}
+}
+
 func test_name_overriding_in_struct() {
     test("correct function is called when same names overriding in struct - 1", () => {
         var p = SnoPair { a : 10, b : 10 }
@@ -167,6 +188,14 @@ func test_functions() {
     })
     test("function can take literal type", () => {
         return can_take_literal_type(2) == 5
+    })
+    test("functions on returned structs do not result in multiple calls", () => {
+        total_func_ret_calls = 0;
+        return check_multiple_calls().give_calls() == 2;
+    })
+    test("functions on returned structs do not result in multiple calls", () => {
+        total_func_ret_calls = 0;
+        return check_multiple_calls().self_ref_give_calls() == 2;
     })
     test_name_overriding();
     test_name_overriding_in_struct();

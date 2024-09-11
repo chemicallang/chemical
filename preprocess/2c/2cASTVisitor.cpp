@@ -3066,7 +3066,19 @@ void func_call(ToCAstVisitor& visitor, std::vector<std::unique_ptr<ChainValue>>&
             // direct functions on interfaces and structs
             func_container_name(visitor, grandpa->linked_node(), parent->linked_node());
             func_name(visitor, parent, func_decl);
-            func_call(visitor, last->as_func_call(), func_type);
+            visitor.write('(');
+            if(func_decl->has_self_param() && grandpa->as_func_call()) {
+                auto found = visitor.local_allocated.find(grandpa);
+                if(found != visitor.local_allocated.end()) {
+                    visitor.write('&');
+                    visitor.write(found->second);
+                    if(!last->values.empty()) {
+                        visitor.write(", ");
+                    }
+                }
+            }
+            func_call_args(visitor, last, func_type);
+            visitor.write(')');
         } else if(grandpaType->linked_struct_def()) {
             if(parent->linked_node()->as_struct_member()) {
                 goto normal_functions;

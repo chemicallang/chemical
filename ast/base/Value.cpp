@@ -232,6 +232,21 @@ llvm::Value* ChainValue::access_chain_pointer(
     return create_gep(gen, values, parent_pointer.first, parent_pointer.second, idxList);
 }
 
+llvm::Value* ChainValue::access_chain_value(
+        Codegen &gen,
+        std::vector<std::unique_ptr<ChainValue>>& values,
+        unsigned int until,
+        std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
+        BaseType* expected_type,
+        llvm::Value*& parent_pointer_ref
+) {
+    std::vector<llvm::Value*> idxList;
+    auto parent_pointer = ChainValue::access_chain_parent_pointer(gen, values, destructibles, until, idxList);
+    parent_pointer_ref = parent_pointer.second;
+    auto value_ptr = ChainValue::pointer_from_parent_to_next(gen, values, idxList, parent_pointer);
+    return gen.builder->CreateLoad(llvm_type(gen), value_ptr);
+}
+
 void Value::llvm_conditional_branch(Codegen& gen, llvm::BasicBlock* then_block, llvm::BasicBlock* otherwise_block) {
     gen.CreateCondBr(llvm_value(gen), then_block, otherwise_block);
 }

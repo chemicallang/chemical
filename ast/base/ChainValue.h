@@ -163,6 +163,20 @@ public:
     );
 
     /**
+     * this is a helper method, it does the same thing as access_chain_value
+     * BUT after loading the parent pointer, it set's it to the given parent_pointer reference
+     * this is in case you need also access to the parent pointer
+     */
+    llvm::Value* access_chain_value(
+            Codegen &gen,
+            std::vector<std::unique_ptr<ChainValue>>& values,
+            unsigned int until,
+            std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
+            BaseType* expected_type,
+            llvm::Value*& parent_pointer
+    );
+
+    /**
      * helper function to call the actual access_chain_value
      */
     llvm::Value* access_chain_value(

@@ -395,24 +395,18 @@ llvm::Value* FunctionCall::llvm_chain_value(
         args.emplace_back(returnedValue);
     }
 
-    auto fn = decl != nullptr ? decl->llvm_func() : nullptr;
-    to_llvm_args(gen, this, func_type.get(), values, args, &chain, until,0, grandparent, destructibles);
+#ifdef DEBUG
+    if(!callee_value && grandparent) {
+        throw std::runtime_error("grandparent passed but no callee value");
+    }
+#endif
 
-    llvm::Value* call_value;
-
-    if(linked() && linked()->as_struct_member() != nullptr) { // means I'm calling a pointer inside a struct
-
-        if(!callee_value) {
+    if(!callee_value) {
+        if(linked() && linked()->as_struct_member() != nullptr) {
             // creating access chain to the last member as an identifier instead of function call
             auto parent_access = parent_chain(this, chain);
             callee_value = parent_access.llvm_value(gen, nullptr, &grandparent);
-        }
-
-        call_value = gen.builder->CreateCall(linked()->llvm_func_type(gen), callee_value, args);
-
-    } else {
-
-        if(callee_value == nullptr) {
+        } else {
             callee_value = llvm_linked_func_callee(gen, chain, until);
             if(callee_value == nullptr) {
                 auto parent_access = parent_chain(this, chain);
@@ -427,10 +421,12 @@ llvm::Value* FunctionCall::llvm_chain_value(
                 }
             }
         }
-
-        call_value = gen.builder->CreateCall(llvm_linked_func_type(gen, chain, until), callee_value, args);
-
     }
+
+    auto fn = decl != nullptr ? decl->llvm_func() : nullptr;
+    to_llvm_args(gen, this, func_type.get(), values, args, &chain, until,0, grandparent, destructibles);
+
+    auto call_value = gen.builder->CreateCall(llvm_linked_func_type(gen, chain, until), callee_value, args);
 
     return returnedValue ? returnedValue : call_value;
 

@@ -354,6 +354,25 @@ void FunctionCall::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
     }
 }
 
+/**
+ * check if chain is loadable, before loading it
+ */
+int is_chain_loadable(std::vector<std::unique_ptr<ChainValue>>& chain) {
+    auto& value = chain[0];
+    const auto linked = value->linked_node();
+    switch(linked->kind()) {
+        case ASTNodeKind::StructDecl:
+        case ASTNodeKind::VariantDecl:
+        case ASTNodeKind::UnionDecl:
+        case ASTNodeKind::InterfaceDecl:
+        case ASTNodeKind::ImplDecl:
+        case ASTNodeKind::NamespaceDecl:
+            return false;
+        default:
+            return true;
+    }
+}
+
 llvm::Value* FunctionCall::llvm_chain_value(
         Codegen &gen,
         std::vector<llvm::Value*>& args,
@@ -431,11 +450,18 @@ llvm::Value* FunctionCall::llvm_chain_value(
                     gen.error("Couldn't get callee value for the function call to " + representation(), this);
                     return nullptr;
                 }
-            } else if(func_type->has_self_param()) {
-                int parent_index = (int) until - 2;
-                if (parent_index >= 0 && parent_index < chain.size()) {
-                    grandparent = llvm_load_chain_until(gen, chain, parent_index, destructibles);
+            } else {
+                if(is_chain_loadable(chain)) {
+                    int parent_index = (int) until - 2;
+                    if (parent_index >= 0 && parent_index < chain.size()) {
+                        grandparent = llvm_load_chain_until(gen, chain, parent_index, destructibles);
+                    }
                 }
+#ifdef DEBUG
+                else if(func_type->has_self_param()) {
+                    throw std::runtime_error("chain is not loadable however function requires a self argument");
+                }
+#endif
             }
         }
     }

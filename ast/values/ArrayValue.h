@@ -130,6 +130,8 @@ public:
 
     BaseType* known_type() override;
 
+    BaseType* known_child_type();
+
     [[nodiscard]]
     ValueType value_type() const override {
         return ValueType::Array;

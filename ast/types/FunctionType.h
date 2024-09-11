@@ -197,7 +197,12 @@ public:
      * the following value will be moved, by checking the expected type
      * this then takes into account, moves into implicit constructors
      */
-    bool move_value(Value* value, BaseType* expected_type, ASTDiagnoser& diagnoser);
+    bool move_value(
+            Value* value,
+            BaseType* expected_type,
+            ASTDiagnoser& diagnoser,
+            bool check_implicit_constructors = true
+    );
 
 #ifdef COMPILER_BUILD
 
@@ -210,6 +215,23 @@ public:
     llvm::FunctionType *llvm_func_type(Codegen &gen) override;
 
     void call_move_fn(Codegen &gen, Value* value, llvm::Value* llvm_value);
+
+    /**
+     * get a movable llvm value, if this value can be moved
+     */
+    llvm::Value* movable_value(Codegen& gen, Value* value);
+
+    /**
+     * move the value
+     * @param type is the type of value, expected
+     * @param value is the actual value (not llvm though)
+     * @param ptr is where value will be moved to
+     * @param movable_value is the movable value that is retrieved by calling movable_value method
+     * how this works is, the movable value is mem copied into the given pointer, but movable_value is the
+     * memory location of the previous struct, so we call move function on it, to tell the struct that struct has been
+     * freed
+     */
+    void move_by_memcpy(Codegen& gen, BaseType* type, Value* value, llvm::Value* ptr, llvm::Value* movable_value);
 
 #endif
 

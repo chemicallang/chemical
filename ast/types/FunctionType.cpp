@@ -86,19 +86,16 @@ llvm::Value* FunctionType::movable_value(Codegen& gen, Value* value_ptr) {
     auto& value = *value_ptr;
     const auto chain = value.as_access_chain();
     if(chain) {
-        if(is_one_of_moved_chains(chain)) {
+        if(chain->is_moved) {
             return value.llvm_value(gen);
-        } else {
-            return nullptr;
         }
     } else {
         auto id = value.as_identifier();
-        if(id && is_one_of_moved_id(id)) {
+        if(id && id->is_moved) {
             return value.llvm_value(gen);
-        } else {
-            return nullptr;
         }
     }
+    return nullptr;
 }
 
 void FunctionType::move_by_memcpy(Codegen& gen, BaseType* type, Value* value_ptr, llvm::Value* elem_ptr, llvm::Value* movable_value) {
@@ -231,24 +228,6 @@ void FunctionType::link(SymbolResolver &linker, std::unique_ptr<BaseType>& curre
         param->type->link(linker, param->type);
     }
     returnType->link(linker, returnType);
-}
-
-bool FunctionType::is_one_of_moved_chains(AccessChain* chain) {
-    for(auto& moved : moved_chains) {
-        if(moved == chain) {
-            return true;
-        }
-    }
-    return false;
-}
-
-bool FunctionType::is_one_of_moved_id(VariableIdentifier* id) {
-    for(auto& moved : moved_identifiers) {
-        if(moved == id) {
-            return true;
-        }
-    }
-    return false;
 }
 
 // first chain is contained in other chain
@@ -402,10 +381,12 @@ void FunctionType::mark_moved_no_check(AccessChain* chain) {
     } else {
         moved_chains.emplace_back(chain);
     }
+    chain->is_moved = true;
 }
 
 void FunctionType::mark_moved_no_check(VariableIdentifier* id) {
     moved_identifiers.emplace_back(id);
+    id->is_moved = true;
 }
 
 bool FunctionType::mark_moved_value(Value* value, ASTDiagnoser& diagnoser) {
@@ -460,6 +441,10 @@ bool FunctionType::is_value_movable(Value* value_ptr, BaseType* type) {
     if(expected_type_kind == BaseTypeKind::Reference) {
         return false;
     }
+    auto chain = value.as_access_chain();
+    if(chain && chain->values.back()->as_func_call()) {
+        return false;
+    }
     const auto linked_def = type->get_direct_linked_struct();
     if(linked_def && linked_def->requires_moving()) {
         return true;
@@ -474,6 +459,10 @@ bool FunctionType::mark_moved_value(
         bool check_implicit_constructors
 ) {
     auto& value = *value_ptr;
+    auto chain = value.as_access_chain();
+    if(chain && chain->values.back()->as_func_call()) {
+        return false;
+    }
     const auto expected_type_kind = expected_type->kind();
     if(expected_type_kind == BaseTypeKind::Reference) {
         return false;

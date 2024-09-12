@@ -526,7 +526,7 @@ void FunctionCall::call_move_fns_on_moved(Codegen &gen, std::vector<llvm::Value*
     unsigned i = 0;
     for(auto& value : values) {
         const auto chain = value->as_access_chain();
-        if(chain && func_type->is_one_of_moved_chains(chain)) {
+        if(chain && chain->is_moved) {
             func_type->call_move_fn(gen, chain, args[i]);
         }
         i++;

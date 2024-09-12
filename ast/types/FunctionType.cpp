@@ -251,6 +251,39 @@ bool FunctionType::is_one_of_moved_id(VariableIdentifier* id) {
     return false;
 }
 
+// first chain is contained in other chain
+// other chain's value size is bigger or equal to first chain
+bool first_chain_is_contained_in(AccessChain& first, AccessChain& other_ptr) {
+    unsigned j = 0;
+    for(auto& value_ptr : first.values) {
+        auto& value = *value_ptr;
+        auto& other = *other_ptr.values[j];
+        if(!value.is_equal(&other)) {
+            return false;
+        }
+        j++;
+    }
+    return true;
+}
+
+bool FunctionType::un_move_chain(AccessChain* chain_ptr) {
+    if(moved_chains.empty()) return false;
+    auto& chain = *chain_ptr;
+    if(chain.values.size() == 1) {
+        auto id = chain.values[0]->as_identifier();
+        if(id) { un_move_exact_id(id); }
+    }
+    for(auto it = moved_chains.begin(); it != moved_chains.end(); ++it) {
+        auto& moved = **it;
+        if(moved.values.size() >= chain.values.size() && first_chain_is_contained_in(chain, moved)) {
+            // Erase the element at the iterator position
+            it = moved_chains.erase(it);
+            return true;
+        }
+    }
+    return false;
+}
+
 VariableIdentifier* FunctionType::find_moved_id(VariableIdentifier* id) {
     for(auto& moved : moved_identifiers) {
         if(moved->linked == id->linked) {
@@ -258,6 +291,38 @@ VariableIdentifier* FunctionType::find_moved_id(VariableIdentifier* id) {
         }
     }
     return nullptr;
+}
+
+bool FunctionType::un_move_exact_id(VariableIdentifier* id) {
+    if(moved_identifiers.empty()) return false;
+    unsigned i = 0;
+    for(auto& moved : moved_identifiers) {
+        if(moved->linked == id->linked) {
+            moved_identifiers.erase(moved_identifiers.begin() + i);
+            return true;
+        }
+        i++;
+    }
+    return false;
+}
+
+bool FunctionType::un_move_chain_with_first_id(VariableIdentifier* id) {
+    unsigned i = 0;
+    for(auto& moved : moved_chains) {
+        auto& chain = *moved;
+        auto& first_value = *chain.values[0];
+        auto moved_id = first_value.as_identifier();
+        if(moved_id && moved_id->linked == id->linked) {
+            moved_chains.erase(moved_chains.begin() + i);
+            return true;
+        }
+        i++;
+    }
+    return false;
+}
+
+bool FunctionType::un_move_id(VariableIdentifier* id) {
+    return un_move_exact_id(id) || un_move_chain_with_first_id(id);
 }
 
 // given x.y and moved x.y.z match
@@ -389,6 +454,19 @@ bool FunctionType::mark_moved_value(Value* value, ASTDiagnoser& diagnoser) {
     return false;
 }
 
+bool FunctionType::is_value_movable(Value* value_ptr, BaseType* type) {
+    auto& value = *value_ptr;
+    const auto expected_type_kind = type->kind();
+    if(expected_type_kind == BaseTypeKind::Reference) {
+        return false;
+    }
+    const auto linked_def = type->get_direct_linked_struct();
+    if(linked_def && linked_def->requires_moving()) {
+        return true;
+    }
+    return false;
+}
+
 bool FunctionType::mark_moved_value(
         Value* value_ptr,
         BaseType* expected_type,
@@ -423,6 +501,23 @@ bool FunctionType::mark_moved_value(
                 diagnoser.error("unknown value being moved, where the struct types don't match", &value);
                 return false;
             }
+        }
+    }
+    return false;
+}
+
+bool FunctionType::mark_un_moved_value(Value* value_ptr, BaseType* value_type) {
+    if(!is_value_movable(value_ptr, value_type)) {
+        return false;
+    }
+    auto& value = *value_ptr;
+    auto chain = value.as_access_chain();
+    if(chain) {
+        return un_move_chain(chain);
+    } else {
+        auto id = value.as_identifier();
+        if(id) {
+            return un_move_id(id);
         }
     }
     return false;

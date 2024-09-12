@@ -64,6 +64,13 @@ public:
         has_moved = true;
     }
 
+    /**
+     * call it when this variable should be unmoved
+     */
+    void unmove() {
+        has_moved = false;
+    }
+
     CSTToken *cst_token() override {
         return token;
     }

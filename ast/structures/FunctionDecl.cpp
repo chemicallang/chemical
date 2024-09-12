@@ -148,7 +148,7 @@ llvm::Function* FunctionDeclaration::llvm_func() {
 
 void FunctionType::queue_destruct_params(Codegen& gen) {
     for(auto& param : params) {
-        if(param->has_moved) continue;
+        if(param->get_has_moved()) continue;
         const auto k = param->type->kind();
         if(k == BaseTypeKind::Linked || k == BaseTypeKind::Generic) {
             const auto def = param->type->linked_node();

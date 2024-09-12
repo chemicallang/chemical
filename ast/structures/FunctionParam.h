@@ -8,12 +8,13 @@
 class FunctionType;
 
 class FunctionParam : public BaseFunctionParam {
+private:
+    bool has_moved = false;
 public:
 
     unsigned int index;
     std::unique_ptr<Value> defValue;
     CSTToken* token;
-    bool has_moved = false;
 
     FunctionParam(
             std::string name,
@@ -38,6 +39,10 @@ public:
 
     void moved() {
         has_moved = true;
+    }
+
+    void unmove() {
+        has_moved = false;
     }
 
     [[nodiscard]]

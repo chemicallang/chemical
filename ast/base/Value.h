@@ -240,6 +240,11 @@ public:
      */
     bool is_stored_pointer();
 
+    /**
+     * check if this value is a reference and moved
+     */
+    bool is_ref_moved();
+
 #ifdef COMPILER_BUILD
 
     /**

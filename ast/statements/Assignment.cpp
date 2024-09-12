@@ -23,7 +23,7 @@ void AssignStatement::declare_and_link(SymbolResolver &linker, std::unique_ptr<A
     value->link(linker, this, false);
     auto& func_type = *linker.current_func_type;
     func_type.mark_moved_value(value.get(), lhs->known_type(), linker, true);
-    func_type.mark_un_moved_value(lhs.get(), lhs->known_type());
+    func_type.mark_un_moved_lhs_value(lhs.get(), lhs->known_type());
 }
 
 void AssignStatement::interpret(InterpretScope &scope) {

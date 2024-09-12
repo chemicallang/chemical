@@ -141,43 +141,29 @@ bool ASTNode::is_stored_pointer() {
     }
 }
 
-bool ASTNode::has_moved(ASTNodeKind k, Value* ref) {
-    switch(k) {
-        case ASTNodeKind::StructMember:
-        case ASTNodeKind::UnnamedStruct:
-        case ASTNodeKind::UnnamedUnion: {
-            // TODO this
-//            const auto chain = ref->as_access_chain();
-//            if(chain->values.size() > 1) {
-//                auto second_last = chain->values[chain->values.size() - 2].get();
-//                const auto linked = second_last->linked_node();
-//                auto linked_kind = linked->kind();
-//                if(linked_kind == ASTNodeKind::VarInitStmt) {
-//                    linked->as_var_init_unsafe()->get_has_moved();
-//                }
-//            }
-            return false;
-        }
-        case ASTNodeKind::VarInitStmt:
-            return as_var_init_unsafe()->get_has_moved();
-        default:
-            return false;
-    }
-}
-
-void ASTNode::set_moved(ASTNodeKind k, Value* ref) {
-    switch(k) {
-        case ASTNodeKind::StructMember:
-        case ASTNodeKind::UnnamedStruct:
-        case ASTNodeKind::UnnamedUnion:
-            // TODO
-            return;
-        case ASTNodeKind::VarInitStmt:
-            as_var_init_unsafe()->moved();
-        default:
-            return;
-    }
-}
+//bool ASTNode::has_moved(ASTNodeKind k, Value* ref) {
+//    switch(k) {
+//        case ASTNodeKind::FunctionParam:
+//            return as_func_param_unsafe()->get_has_moved();
+//        case ASTNodeKind::VarInitStmt:
+//            return as_var_init_unsafe()->get_has_moved();
+//        default:
+//            return false;
+//    }
+//}
+//
+//void ASTNode::set_moved(ASTNodeKind k, Value* ref) {
+//    switch(k) {
+//        case ASTNodeKind::VarInitStmt:
+//            as_var_init_unsafe()->moved();
+//            return;
+//        case ASTNodeKind::FunctionParam:
+//            as_func_param_unsafe()->moved();
+//            return;
+//        default:
+//            return;
+//    }
+//}
 
 void ASTNode::set_parent(ASTNode* parent) {
 #ifdef DEBUG

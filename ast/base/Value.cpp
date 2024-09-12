@@ -329,6 +329,19 @@ bool Value::is_stored_pointer() {
     return linked != nullptr && linked->is_stored_pointer();
 }
 
+bool Value::is_ref_moved() {
+    auto chain = as_access_chain();
+    if(chain) {
+        return chain->is_moved;
+    } else {
+        auto id = as_identifier();
+        if(id) {
+            return id->is_moved;
+        }
+    }
+    return false;
+}
+
 Value* Value::child(InterpretScope& scope, const std::string& name) {
 #ifdef DEBUG
     std::cerr << "Value::child called on base value " + representation();

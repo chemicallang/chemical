@@ -343,7 +343,7 @@ void FunctionType::mark_moved_no_check(VariableIdentifier* id) {
     moved_identifiers.emplace_back(id);
 }
 
-bool FunctionType::move_value(Value* value, ASTDiagnoser& diagnoser) {
+bool FunctionType::mark_moved_value(Value* value, ASTDiagnoser& diagnoser) {
     const auto chain = value->as_access_chain();
     if(chain) {
         const auto moved = find_moved_chain_value(chain);
@@ -389,7 +389,7 @@ bool FunctionType::move_value(Value* value, ASTDiagnoser& diagnoser) {
     return false;
 }
 
-bool FunctionType::move_value(
+bool FunctionType::mark_moved_value(
         Value* value_ptr,
         BaseType* expected_type,
         ASTDiagnoser& diagnoser,
@@ -411,13 +411,13 @@ bool FunctionType::move_value(
             return false;
         }
         if (expected_def == linked_def) {
-            return move_value(&value, diagnoser);
+            return mark_moved_value(&value, diagnoser);
         } else {
             const auto implicit = expected_def->implicit_constructor_for(&value);
             if(implicit && check_implicit_constructors) {
                 auto& param_type = *implicit->params[0]->type;
                 if(!param_type.is_reference()) { // not a reference type (requires moving)
-                    return move_value(&value, diagnoser);
+                    return mark_moved_value(&value, diagnoser);
                 }
             } else {
                 diagnoser.error("unknown value being moved, where the struct types don't match", &value);

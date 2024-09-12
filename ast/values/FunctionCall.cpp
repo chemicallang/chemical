@@ -571,7 +571,7 @@ void FunctionCall::link_values(SymbolResolver &linker) {
         auto& value = *values[i];
         value.link(linker, this, i);
         const auto expected_type = func_type->func_param_for_arg_at(i)->type.get();
-        current_func.move_value(&value, expected_type, linker);
+        current_func.mark_moved_value(&value, expected_type, linker);
         i++;
     }
 }

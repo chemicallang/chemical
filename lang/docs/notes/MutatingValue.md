@@ -17,3 +17,4 @@ When a value is to be mutated based on type, where does the implicit mutation oc
 4 - Function Call Argument `sum(Value)`
 5 - Struct Member `var y = Container { member : Value }`
 6 - Array Value `var z : Type[] = { Value }`
+7 - Variant Call `Optional.Some(value)`

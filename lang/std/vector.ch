@@ -92,7 +92,7 @@ public struct vector<T> {
         data_size = 0;
     }
 
-    @destructor
+    @delete
     func delete(&self) {
         // TODO use delete[] data_ptr; instead of free(data_ptr) so destructors are called
         free(data_ptr);

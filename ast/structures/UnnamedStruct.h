@@ -73,9 +73,9 @@ public:
         return false;
     }
 
-    bool requires_move_fn() override {
+    bool requires_clear_fn() override {
         for(const auto& var : variables) {
-            if(var.second->requires_move_fn()) {
+            if(var.second->requires_clear_fn()) {
                 return true;
             }
         }

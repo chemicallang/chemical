@@ -240,17 +240,17 @@ void VariantDefinition::declare_top_level(SymbolResolver &linker, std::unique_pt
 }
 
 void VariantDefinition::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
-    bool has_move_fn = false;
+    bool has_clear_fn = false;
     for(auto& func : functions()) {
-        if(func->has_annotation(AnnotationKind::Move)) {
-            func->ensure_move_fn(this);
-            has_move_fn = true;
+        if(func->has_annotation(AnnotationKind::Clear)) {
+            func->ensure_clear_fn(this);
+            has_clear_fn = true;
         }
     }
     MembersContainer::declare_and_link(linker, node_ptr);
 //    register_use_to_inherited_interfaces(this);
-    if(!has_move_fn && requires_move_fn()) {
-        create_def_move_fn(linker);
+    if(!has_clear_fn && requires_clear_fn()) {
+        create_def_clear_fn(linker);
     }
     if(requires_destructor()) {
         create_def_destructor(linker);
@@ -395,9 +395,9 @@ bool VariantMember::requires_destructor() {
     return false;
 }
 
-bool VariantMember::requires_move_fn() {
+bool VariantMember::requires_clear_fn() {
     for(auto& value : values) {
-        if(value.second->type->requires_move_fn()) {
+        if(value.second->type->requires_clear_fn()) {
             return true;
         }
     }

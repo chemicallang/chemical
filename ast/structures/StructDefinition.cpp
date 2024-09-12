@@ -351,8 +351,8 @@ bool StructMember::requires_destructor() {
     return type->requires_destructor();
 }
 
-bool StructMember::requires_move_fn() {
-    return type->requires_move_fn();
+bool StructMember::requires_clear_fn() {
+    return type->requires_clear_fn();
 }
 
 bool StructMember::requires_copy_fn() {
@@ -370,19 +370,19 @@ void StructDefinition::declare_top_level(SymbolResolver &linker, std::unique_ptr
 
 void StructDefinition::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     bool has_destructor = false;
-    bool has_move_fn = false;
+    bool has_clear_fn = false;
     bool has_copy_fn = false;
     for(auto& func : functions()) {
         if(func->has_annotation(AnnotationKind::Constructor)) {
             func->ensure_constructor(this);
         }
-        if(func->has_annotation(AnnotationKind::Destructor)) {
+        if(func->has_annotation(AnnotationKind::Delete)) {
             func->ensure_destructor(this);
             has_destructor = true;
         }
-        if(func->has_annotation(AnnotationKind::Move)) {
-            func->ensure_move_fn(this);
-            has_move_fn = true;
+        if(func->has_annotation(AnnotationKind::Clear)) {
+            func->ensure_clear_fn(this);
+            has_clear_fn = true;
         }
         if(func->has_annotation(AnnotationKind::Copy)) {
             func->ensure_copy_fn(this);
@@ -394,8 +394,8 @@ void StructDefinition::declare_and_link(SymbolResolver &linker, std::unique_ptr<
     if(!has_copy_fn && requires_copy_fn()) {
         create_def_copy_fn(linker);
     }
-    if(!has_move_fn && requires_move_fn()) {
-        create_def_move_fn(linker);
+    if(!has_clear_fn && requires_clear_fn()) {
+        create_def_clear_fn(linker);
     }
     if(!has_destructor && requires_destructor()) {
         create_def_destructor(linker);

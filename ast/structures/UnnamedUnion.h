@@ -62,7 +62,7 @@ public:
     }
 
     // TODO move function support unnamed union
-    bool requires_move_fn() override {
+    bool requires_clear_fn() override {
         return false;
     }
 

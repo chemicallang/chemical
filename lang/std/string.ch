@@ -249,7 +249,7 @@ public struct string {
         }
     }
 
-    @destructor
+    @delete
     func delete(&self) {
         if(state == '2') {
             free(storage.heap.data);

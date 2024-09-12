@@ -74,10 +74,10 @@ llvm::Type *FunctionType::llvm_type(Codegen &gen) {
     return gen.builder->getPtrTy();
 };
 
-void FunctionType::call_move_fn(Codegen &gen, Value* value, llvm::Value* llvm_value) {
+void FunctionType::call_clear_fn(Codegen &gen, Value* value, llvm::Value* llvm_value) {
     auto known_t = value->known_type();
     auto movable = known_t->get_direct_linked_movable_struct();
-    const auto move_func = movable->move_func();
+    const auto move_func = movable->clear_func();
     const auto func = move_func->llvm_func();
     gen.builder->CreateCall(func, { llvm_value });
 }
@@ -104,7 +104,7 @@ void FunctionType::move_by_memcpy(Codegen& gen, BaseType* type, Value* value_ptr
     const auto alloc_size = gen.module->getDataLayout().getTypeAllocSize(type->llvm_type(gen));
     gen.builder->CreateMemCpy(elem_ptr, m, movable_value, m, alloc_size);
     // now we can move the previous arg, since we copied it's contents
-    call_move_fn(gen, &value, movable_value);
+    call_clear_fn(gen, &value, movable_value);
 }
 
 #endif

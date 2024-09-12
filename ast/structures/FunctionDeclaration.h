@@ -279,6 +279,11 @@ public:
     void code_gen_clear_fn(Codegen& gen, StructDefinition* def);
 
     /**
+     * generates clear_fn body for the variant definition
+     */
+    void code_gen_clear_fn(Codegen& gen, VariantDefinition* def);
+
+    /**
      * generates destructor body for the variant definition
      */
     void code_gen_destructor(Codegen& gen, VariantDefinition* def);

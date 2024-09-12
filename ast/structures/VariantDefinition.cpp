@@ -83,6 +83,11 @@ void VariantDefinition::code_gen_function_body(Codegen &gen, FunctionDeclaration
 
 void VariantDefinition::code_gen_once(Codegen &gen) {
     llvm_type(gen);
+    if(requires_clear_fn()) {
+        const auto clear_fn = create_clear_fn();
+        clear_fn->code_gen_declare(gen, this);
+        clear_fn->code_gen_body(gen, this);
+    }
     if(requires_destructor()) {
         const auto destructor = create_destructor();
         destructor->code_gen_declare(gen, this);
@@ -192,7 +197,11 @@ llvm::Value* VariantCaseVariable::llvm_pointer(Codegen &gen) {
 }
 
 llvm::Value* VariantCaseVariable::llvm_load(Codegen &gen) {
-    return gen.builder->CreateLoad(llvm_type(gen), llvm_pointer(gen));
+    if(member_param->type->value_type() == ValueType::Struct) {
+        return llvm_pointer(gen);
+    } else {
+        return gen.builder->CreateLoad(llvm_type(gen), llvm_pointer(gen));
+    }
 }
 
 llvm::Type* VariantCaseVariable::llvm_type(Codegen &gen) {
@@ -240,21 +249,14 @@ void VariantDefinition::declare_top_level(SymbolResolver &linker, std::unique_pt
 }
 
 void VariantDefinition::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
-    bool has_clear_fn = false;
-    for(auto& func : functions()) {
-        if(func->has_annotation(AnnotationKind::Clear)) {
-            func->ensure_clear_fn(this);
-            has_clear_fn = true;
-        }
-    }
     MembersContainer::declare_and_link(linker, node_ptr);
 //    register_use_to_inherited_interfaces(this);
-    if(!has_clear_fn && requires_clear_fn()) {
-        create_def_clear_fn(linker);
-    }
-    if(requires_destructor()) {
-        create_def_destructor(linker);
-    }
+//    if(requires_clear_fn()) {
+//        create_def_clear_fn(linker);
+//    }
+//    if(requires_destructor()) {
+//        create_def_destructor(linker);
+//    }
 }
 
 BaseType* VariantDefinition::known_type() {

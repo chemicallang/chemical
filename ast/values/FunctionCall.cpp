@@ -526,8 +526,19 @@ void FunctionCall::call_clear_fns_on_moved(Codegen &gen, std::vector<llvm::Value
     unsigned i = 0;
     for(auto& value : values) {
         const auto chain = value->as_access_chain();
-        if(chain && chain->is_moved) {
-            func_type->call_clear_fn(gen, chain, args[i]);
+        if(chain) {
+            if(chain->is_moved) {
+                func_type->call_clear_fn(gen, chain, args[i]);
+            }
+        } else {
+            const auto id = value->as_identifier();
+            if(id && id->is_moved) {
+                const auto linked = id->linked;
+                const auto kind = linked->kind();
+                if(kind != ASTNodeKind::VarInitStmt) {
+                    func_type->call_clear_fn(gen, id, args[i]);
+                }
+            }
         }
         i++;
     }

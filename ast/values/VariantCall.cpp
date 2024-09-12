@@ -28,9 +28,20 @@ bool VariantCall::initialize_allocated(Codegen &gen, llvm::Value* allocated, llv
     auto data_ptr = gen.builder->CreateGEP(def_type, allocated, { gen.builder->getInt32(0), gen.builder->getInt32(1) }, "", gen.inbounds);
     const auto struct_type = member->llvm_type(gen);
     unsigned i = 0;
-    for(auto& value : values) {
+    auto& current_func_type = *gen.current_func_type;
+    for(auto& value_ptr : values) {
+        auto& value = *value_ptr;
         const auto param = member->values.begin() + i;
-        value->store_in_struct(gen, this, data_ptr, struct_type, { gen.builder->getInt32(0) }, i, param->second->type.get());
+        auto movable_value = current_func_type.movable_value(gen, value_ptr.get());
+        if(movable_value == nullptr) {
+            value.store_in_struct(gen, this, data_ptr, struct_type, {gen.builder->getInt32(0)}, i,
+                                   param->second->type.get());
+        } else {
+            // since it will be moved, we will std memcpy it into current pointer
+            std::vector<llvm::Value*> idx{gen.builder->getInt32(0)};
+            auto elementPtr = Value::get_element_pointer(gen, struct_type, data_ptr, idx, i);
+            current_func_type.move_by_memcpy(gen, param->second->type.get(), value_ptr.get(), elementPtr, movable_value);
+        }
         i++;
     }
     return true;
@@ -168,12 +179,19 @@ void VariantCall::link_args_implicit_constructor(SymbolResolver &linker) {
 }
 
 bool VariantCall::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *expected_type) {
+    const auto member = chain->linked_node()->as_variant_member();
+    auto& current_func = *linker.current_func_type;
     // we've already linked chain, when variant call is created, access chain is checked, so no need to link
     for(auto& type : generic_list) {
         type->link(linker, type);
     }
-    for(auto& value : values) {
-        value->link(linker, value);
+    unsigned i = 0;
+    for(auto& mem_value_ptr : values) {
+        auto& value = *mem_value_ptr;
+        value.link(linker, mem_value_ptr);
+        const auto param = member->values.begin() + i;
+        current_func.mark_moved_value(&value, param->second->type.get(), linker, true);
+        i++;
     }
     int16_t prev_itr;
     const auto def = get_definition();

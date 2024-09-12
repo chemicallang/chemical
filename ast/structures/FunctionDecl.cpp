@@ -481,6 +481,10 @@ void FunctionDeclaration::code_gen_body(Codegen &gen, VariantDefinition* def) {
     if(has_annotation(AnnotationKind::CompTime)) {
         return;
     }
+    if(has_annotation(AnnotationKind::Clear)) {
+        code_gen_clear_fn(gen, def);
+        return;
+    }
     if(has_annotation(AnnotationKind::Delete)) {
         code_gen_destructor(gen, def);
         return;
@@ -596,17 +600,14 @@ void FunctionDeclaration::code_gen_clear_fn(Codegen& gen, StructDefinition* def)
     }, create_call_member_func);
 }
 
-void FunctionDeclaration::code_gen_destructor(Codegen& gen, StructDefinition* def) {
-    code_gen_calling_member_functions(*this, gen, def, [](MembersContainer* mem_def)->FunctionDeclaration* {
-        return mem_def->destructor_func();
-    }, create_call_member_func);
-}
-
-void FunctionDeclaration::code_gen_destructor(Codegen& gen, VariantDefinition* def) {
-    auto func = llvm_func();
-    setup_cleanup_block(gen, func);
-    // every destructor has self at zero
-    auto allocaInst = func->getArg(0);
+// process members of variant definition, calling functions for each member, in a switch statement
+void process_members_calling_fns(
+        Codegen& gen,
+        VariantDefinition* def,
+        llvm::Value* allocaInst,
+        bool(*should_process)(BaseDefMember* member),
+        void(*process)(Codegen &gen, VariantMember* member, llvm::Value* struct_ptr)
+) {
     // get the type int
     auto gep = gen.builder->CreateGEP(def->llvm_type(gen), allocaInst, { gen.builder->getInt32(0), gen.builder->getInt32(0) }, "", gen.inbounds);
     auto type_value = gen.builder->CreateLoad(gen.builder->getInt32Ty(), gep);
@@ -618,7 +619,7 @@ void FunctionDeclaration::code_gen_destructor(Codegen& gen, VariantDefinition* d
     std::vector<std::pair<int, VariantMember*>> to_destruct;
     int index = 0;
     for(auto& mem : def->variables) {
-        if(mem.second->requires_destructor()) {
+        if(should_process(mem.second.get())) {
             to_destruct.emplace_back(index, mem.second->as_variant_member());
         }
         index++;
@@ -633,20 +634,33 @@ void FunctionDeclaration::code_gen_destructor(Codegen& gen, VariantDefinition* d
     // create blocks for cases for which destructor exists
     for(auto& mem : to_destruct) {
         auto mem_block = llvm::BasicBlock::Create(*gen.ctx, "", gen.current_function);
-
-        // destructing member
         gen.SetInsertPoint(mem_block);
+        process(gen, mem.second, struct_ptr);
+        gen.CreateBr(end_block);
+        switchInst->addCase(gen.builder->getInt32(mem.first), mem_block);
+    }
+
+    gen.SetInsertPoint(end_block);
+}
+
+void FunctionDeclaration::code_gen_clear_fn(Codegen& gen, VariantDefinition* def) {
+    auto func = llvm_func();
+    setup_cleanup_block(gen, func);
+    auto allocaInst = func->getArg(0);
+    process_members_calling_fns(gen, def, allocaInst, [](BaseDefMember* mem) -> bool {
+        return mem->requires_clear_fn();
+    }, [](Codegen& gen, VariantMember* mem, llvm::Value* struct_ptr) {
         llvm::FunctionType* dtr_func_type = nullptr;
         llvm::Value* dtr_func_callee = nullptr;
         int i = 0;
-        for(auto& value : mem.second->values) {
+        for(auto& value : mem->values) {
             auto ref_node = value.second->type->get_direct_linked_node();
             if(ref_node) { // <-- the node is directly referenced
-                auto destructorFunc = gen.determine_destructor_for(value.second->type.get(), dtr_func_type, dtr_func_callee);
-                if(destructorFunc) {
+                auto clearFn = gen.determine_clear_fn_for(value.second->type.get(), dtr_func_type, dtr_func_callee);
+                if(clearFn) {
                     std::vector<llvm::Value*> args;
-                    if(destructorFunc->has_self_param()) {
-                        auto gep3 = gen.builder->CreateGEP(mem.second->llvm_type(gen), struct_ptr, { gen.builder->getInt32(0), gen.builder->getInt32(i) }, "", gen.inbounds);
+                    if(clearFn->has_self_param()) {
+                        auto gep3 = gen.builder->CreateGEP(mem->llvm_type(gen), struct_ptr, { gen.builder->getInt32(0), gen.builder->getInt32(i) }, "", gen.inbounds);
                         args.emplace_back(gep3);
                     }
                     gen.builder->CreateCall(dtr_func_type, dtr_func_callee, args, "");
@@ -654,11 +668,44 @@ void FunctionDeclaration::code_gen_destructor(Codegen& gen, VariantDefinition* d
             }
             i++;
         }
-        gen.CreateBr(end_block);
-        switchInst->addCase(gen.builder->getInt32(mem.first), mem_block);
-    }
+    });
+    gen.CreateRet(nullptr);
+    gen.redirect_return = nullptr;
+}
 
-    gen.SetInsertPoint(end_block);
+void FunctionDeclaration::code_gen_destructor(Codegen& gen, StructDefinition* def) {
+    code_gen_calling_member_functions(*this, gen, def, [](MembersContainer* mem_def)->FunctionDeclaration* {
+        return mem_def->destructor_func();
+    }, create_call_member_func);
+}
+
+void FunctionDeclaration::code_gen_destructor(Codegen& gen, VariantDefinition* def) {
+    auto func = llvm_func();
+    setup_cleanup_block(gen, func);
+    // every destructor has self at zero
+    auto allocaInst = func->getArg(0);
+    process_members_calling_fns(gen, def, allocaInst, [](BaseDefMember* mem) -> bool {
+        return mem->requires_destructor();
+    }, [](Codegen& gen, VariantMember* mem, llvm::Value* struct_ptr) {
+        llvm::FunctionType* dtr_func_type = nullptr;
+        llvm::Value* dtr_func_callee = nullptr;
+        int i = 0;
+        for(auto& value : mem->values) {
+            auto ref_node = value.second->type->get_direct_linked_node();
+            if(ref_node) { // <-- the node is directly referenced
+                auto destructorFunc = gen.determine_destructor_for(value.second->type.get(), dtr_func_type, dtr_func_callee);
+                if(destructorFunc) {
+                    std::vector<llvm::Value*> args;
+                    if(destructorFunc->has_self_param()) {
+                        auto gep3 = gen.builder->CreateGEP(mem->llvm_type(gen), struct_ptr, { gen.builder->getInt32(0), gen.builder->getInt32(i) }, "", gen.inbounds);
+                        args.emplace_back(gep3);
+                    }
+                    gen.builder->CreateCall(dtr_func_type, dtr_func_callee, args, "");
+                }
+            }
+            i++;
+        }
+    });
     gen.CreateRet(nullptr);
     gen.redirect_return = nullptr;
 }

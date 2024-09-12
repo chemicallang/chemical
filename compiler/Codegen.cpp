@@ -273,10 +273,11 @@ void Codegen::destruct(
     );
 }
 
-FunctionDeclaration* Codegen::determine_destructor_for(
+FunctionDeclaration* determine_func_data(
         BaseType* elem_type,
         llvm::FunctionType*& func_type,
-        llvm::Value*& func_callee
+        llvm::Value*& func_callee,
+        FunctionDeclaration*(*choose_func)(MembersContainer* container)
 ) {
 
     if(!elem_type->linked_node() || !elem_type->linked_node()->as_members_container()) {
@@ -284,18 +285,38 @@ FunctionDeclaration* Codegen::determine_destructor_for(
     }
     //checking if struct has a destructor function
     auto structDef = elem_type->linked_node()->as_members_container();
-    auto destructorFunc = structDef->destructor_func();
-    if(!destructorFunc) {
+    auto chosenFunc = choose_func(structDef);
+    if(!chosenFunc) {
         return nullptr;
     }
 
     // determine the function type and callee
-    auto data = structDef->llvm_func_data(destructorFunc);
+    auto data = structDef->llvm_func_data(chosenFunc);
     func_type = data.second;
     func_callee = data.first;
 
-    return destructorFunc;
+    return chosenFunc;
 
+}
+
+FunctionDeclaration* Codegen::determine_clear_fn_for(
+        BaseType* elem_type,
+        llvm::FunctionType*& func_type,
+        llvm::Value*& func_callee
+) {
+    return determine_func_data(elem_type, func_type, func_callee, [](MembersContainer* def) -> FunctionDeclaration* {
+        return def->clear_func();
+    });
+}
+
+FunctionDeclaration* Codegen::determine_destructor_for(
+        BaseType* elem_type,
+        llvm::FunctionType*& func_type,
+        llvm::Value*& func_callee
+) {
+    return determine_func_data(elem_type, func_type, func_callee, [](MembersContainer* def) -> FunctionDeclaration* {
+        return def->destructor_func();
+    });
 }
 
 void Codegen::destruct(

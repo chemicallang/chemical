@@ -869,8 +869,8 @@ void AssignStatement::code_gen(Codegen &gen) {
                 // this is set by symbol resolver, to indicate that this value should be destructed before assigning new moved value
                 llvm::FunctionType* llvm_func_type;
                 llvm::Value* llvm_func_callee;
-                auto clear_fn = gen.determine_clear_fn_for(lhs_type, llvm_func_type, llvm_func_callee);
-                if(clear_fn) {
+                auto destr_fn = gen.determine_destructor_for(lhs_type, llvm_func_type, llvm_func_callee);
+                if(destr_fn) {
                     gen.builder->CreateCall(llvm_func_type, llvm_func_callee, { pointer });
                 }
             }

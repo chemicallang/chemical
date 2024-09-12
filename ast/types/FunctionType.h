@@ -148,18 +148,6 @@ public:
     void link(SymbolResolver &linker, std::unique_ptr<BaseType>& current) override;
 
     /**
-     * this function just performs a pointer check to find if this chain has been moved
-     * this is very performant to check if this chain has been moved, but this exact chain must
-     * have been marked moved, otherwise it will return false
-     */
-    bool is_one_of_moved_chains(AccessChain* chain);
-
-    /**
-     * same as move chain, but for single identifiers, since they are tracked different
-     */
-    bool is_one_of_moved_id(VariableIdentifier* id);
-
-    /**
      * un_move a chain, if found to be moved
      * return true if found and removed, otherwise false
      */

@@ -31,6 +31,7 @@ public:
     ChainValue* parent_val = nullptr;
     CSTToken* token;
     bool is_ns;
+    bool is_moved = false;
 
     /**
      * constructor

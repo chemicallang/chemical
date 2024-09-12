@@ -165,14 +165,14 @@ public:
      * checks if this struct type requires a move function
      * or has one
      */
-    bool requires_move_fn();
+    bool requires_clear_fn();
 
     /**
      * this means struct must be moved by calling move constructor and
      * the default mem copy doesn't suffice
      */
     inline bool requires_moving() {
-        return requires_destructor() || requires_move_fn();
+        return requires_destructor() || requires_clear_fn();
     }
 
     /**
@@ -200,14 +200,14 @@ public:
      * will provide a destructor function if there's one
      */
     FunctionDeclaration* destructor_func() {
-        return get_last_fn_annotated(AnnotationKind::Destructor);
+        return get_last_fn_annotated(AnnotationKind::Delete);
     }
 
     /**
      * will provide the move function if there's one
      */
-    FunctionDeclaration* move_func() {
-        return get_last_fn_annotated(AnnotationKind::Move);
+    FunctionDeclaration* clear_func() {
+        return get_last_fn_annotated(AnnotationKind::Clear);
     }
 
     /**
@@ -230,7 +230,7 @@ public:
     /**
      * create the move function and put it into functions
      */
-    FunctionDeclaration* create_move_fn();
+    FunctionDeclaration* create_clear_fn();
 
     /**
      * create the copy function and put it into functions
@@ -245,7 +245,7 @@ public:
     /**
      * create default move function, report errors in given diagnoser, this is a helper function
      */
-    FunctionDeclaration* create_def_move_fn(ASTDiagnoser& diagnoser);
+    FunctionDeclaration* create_def_clear_fn(ASTDiagnoser& diagnoser);
 
     /**
      * create default copy function, report errors in given diagnoser, this is a helper function

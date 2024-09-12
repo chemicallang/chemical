@@ -254,7 +254,7 @@ public:
     /**
      * is a move function required
      */
-    bool requires_move_fn();
+    bool requires_clear_fn();
 
     /**
      * is a copy function required

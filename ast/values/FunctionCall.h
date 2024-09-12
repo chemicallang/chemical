@@ -248,7 +248,7 @@ public:
             std::vector<std::pair<Value*, llvm::Value*>>& destructibles
     );
 
-    void call_move_fns_on_moved(
+    void call_clear_fns_on_moved(
         Codegen &gen,
         std::vector<llvm::Value*>& args
     );

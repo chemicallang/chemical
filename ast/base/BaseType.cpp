@@ -89,18 +89,18 @@ bool BaseType::requires_destructor() {
     }
 }
 
-bool BaseType::requires_move_fn() {
+bool BaseType::requires_clear_fn() {
     const auto direct_node = get_direct_linked_node();
     if(!direct_node) return false;
     switch(direct_node->kind()) {
         case ASTNodeKind::StructDecl:
-            return direct_node->as_struct_def_unsafe()->requires_move_fn();
+            return direct_node->as_struct_def_unsafe()->requires_clear_fn();
         case ASTNodeKind::VariantDecl:
-            return direct_node->as_variant_def_unsafe()->requires_move_fn();
+            return direct_node->as_variant_def_unsafe()->requires_clear_fn();
         case ASTNodeKind::UnionDecl:
-            return direct_node->as_union_def_unsafe()->requires_move_fn();
+            return direct_node->as_union_def_unsafe()->requires_clear_fn();
         case ASTNodeKind::TypealiasStmt:
-            return direct_node->as_typealias_unsafe()->actual_type->requires_move_fn();
+            return direct_node->as_typealias_unsafe()->actual_type->requires_clear_fn();
         default:
             return false;
     }
@@ -171,7 +171,7 @@ VariantDefinition* BaseType::get_direct_linked_variant(BaseTypeKind k) {
 
 StructDefinition* BaseType::get_direct_linked_movable_struct() {
     const auto direct_ref_struct = get_direct_linked_struct();
-    if(direct_ref_struct && (direct_ref_struct->requires_destructor() || direct_ref_struct->requires_move_fn())) {
+    if(direct_ref_struct && (direct_ref_struct->requires_destructor() || direct_ref_struct->requires_clear_fn())) {
         return direct_ref_struct;
     } else {
         return nullptr;

@@ -458,11 +458,11 @@ void FunctionDeclaration::code_gen_body(Codegen &gen, StructDefinition* def) {
         code_gen_copy_fn(gen, def);
         return;
     }
-    if(has_annotation(AnnotationKind::Move)) {
-        code_gen_move_fn(gen, def);
+    if(has_annotation(AnnotationKind::Clear)) {
+        code_gen_clear_fn(gen, def);
         return;
     }
-    if(has_annotation(AnnotationKind::Destructor)) {
+    if(has_annotation(AnnotationKind::Delete)) {
         code_gen_destructor(gen, def);
         return;
     }
@@ -481,7 +481,7 @@ void FunctionDeclaration::code_gen_body(Codegen &gen, VariantDefinition* def) {
     if(has_annotation(AnnotationKind::CompTime)) {
         return;
     }
-    if(has_annotation(AnnotationKind::Destructor)) {
+    if(has_annotation(AnnotationKind::Delete)) {
         code_gen_destructor(gen, def);
         return;
     }
@@ -590,9 +590,9 @@ void FunctionDeclaration::code_gen_copy_fn(Codegen& gen, StructDefinition* def) 
     code_gen_body(gen);
 }
 
-void FunctionDeclaration::code_gen_move_fn(Codegen& gen, StructDefinition* def) {
+void FunctionDeclaration::code_gen_clear_fn(Codegen& gen, StructDefinition* def) {
     code_gen_calling_member_functions(*this, gen, def, [](MembersContainer* mem_def)->FunctionDeclaration* {
-        return mem_def->move_func();
+        return mem_def->clear_func();
     }, create_call_member_func);
 }
 
@@ -892,7 +892,7 @@ void FunctionDeclaration::ensure_destructor(ExtendableMembersContainerNode* def)
     returnType = std::make_unique<VoidType>(nullptr);
 }
 
-void FunctionDeclaration::ensure_move_fn(ExtendableMembersContainerNode* def) {
+void FunctionDeclaration::ensure_clear_fn(ExtendableMembersContainerNode* def) {
     if(!has_self_param() || params.size() > 1 || params.empty()) {
         params.clear();
         params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<LinkedType>(def->name, def, nullptr), nullptr), 0, nullptr, this, nullptr));

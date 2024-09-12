@@ -2505,7 +2505,7 @@ void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool
 //        visitor->write(self_pointer_name);
 //        visitor->write(';');
 //    }
-    auto is_destructor = decl->has_annotation(AnnotationKind::Destructor);
+    auto is_destructor = decl->has_annotation(AnnotationKind::Delete);
     std::string cleanup_block_name;
     if(is_destructor) {
         cleanup_block_name = "__chx__dstctr_clnup_blk__";

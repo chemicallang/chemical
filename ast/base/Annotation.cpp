@@ -78,7 +78,7 @@ std::string to_string(AnnotationKind kind) {
             return "size:opt";
         case AnnotationKind::MinSize:
             return "size:min";
-        case AnnotationKind::Destructor:
+        case AnnotationKind::Delete:
             return "destructor";
         default:
             return "[UNKNOWN]";

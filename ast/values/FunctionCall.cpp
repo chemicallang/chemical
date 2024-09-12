@@ -478,7 +478,7 @@ llvm::Value* FunctionCall::llvm_chain_value(
 llvm::Value* FunctionCall::access_chain_value(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &chain, unsigned until, std::vector<std::pair<Value*, llvm::Value*>>& destructibles, BaseType* expected_type) {
     std::vector<llvm::Value *> args;
     auto value = llvm_chain_value(gen, args, chain, until, destructibles);
-    call_move_fns_on_moved(gen, args);
+    call_clear_fns_on_moved(gen, args);
     return value;
 }
 
@@ -492,7 +492,7 @@ llvm::Value* FunctionCall::chain_value_with_callee(
 ) {
     std::vector<llvm::Value *> args;
     auto value = llvm_chain_value(gen, args, chain, index, destructibles, nullptr, callee_value, grandpa_value);
-    call_move_fns_on_moved(gen, args);
+    call_clear_fns_on_moved(gen, args);
     return value;
 }
 
@@ -521,13 +521,13 @@ bool FunctionCall::add_child_index(Codegen &gen, std::vector<llvm::Value *> &ind
     return create_type()->linked_node()->add_child_index(gen, indexes, name);
 }
 
-void FunctionCall::call_move_fns_on_moved(Codegen &gen, std::vector<llvm::Value*>& args) {
+void FunctionCall::call_clear_fns_on_moved(Codegen &gen, std::vector<llvm::Value*>& args) {
     auto func_type = gen.current_func_type;
     unsigned i = 0;
     for(auto& value : values) {
         const auto chain = value->as_access_chain();
         if(chain && chain->is_moved) {
-            func_type->call_move_fn(gen, chain, args[i]);
+            func_type->call_clear_fn(gen, chain, args[i]);
         }
         i++;
     }
@@ -541,7 +541,7 @@ llvm::AllocaInst *FunctionCall::access_chain_allocate(Codegen &gen, std::vector<
         std::vector<std::pair<Value*, llvm::Value*>> destructibles;
         auto alloc = (llvm::AllocaInst*) llvm_chain_value(gen, args, chain_values, until, destructibles);
         // call move functions on moved objects that were present in function call
-        call_move_fns_on_moved(gen, args);
+        call_clear_fns_on_moved(gen, args);
         // call destructors on destructible objects that were present in function call
         Value::destruct(gen, destructibles);
         return alloc;

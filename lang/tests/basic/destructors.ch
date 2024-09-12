@@ -8,7 +8,7 @@ struct Destructible {
 
     var lamb : (count : int*) => void;
 
-    @destructor
+    @delete
     func delete(&self) {
         self.lamb(self.count);
     }
@@ -23,7 +23,7 @@ struct GenDestruct<T> {
 
     var lamb : (count : int*) => void;
 
-    @destructor
+    @delete
     func delete(&self) {
         self.lamb(self.count);
     }
@@ -165,7 +165,7 @@ struct my_string {
 
     }
 
-    @destructor
+    @delete
     func delete(&self) {
         my_string_destr_count = my_string_destr_count + 1;
     }

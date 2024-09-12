@@ -862,7 +862,19 @@ void AssignStatement::code_gen(Codegen &gen) {
         auto movable = func_type.movable_value(gen, value.get());
         if(movable) {
             const auto pointer = lhs->llvm_pointer(gen);
-            func_type.move_by_memcpy(gen, lhs->known_type(), value.get(), pointer, movable);
+            const auto is_ref_moved = lhs->is_ref_moved();
+            const auto lhs_type = lhs->known_type();
+            if(is_ref_moved) {
+                // we must destruct the previous value before we memcpy this value into the pointer, because lhs ref is moved
+                // this is set by symbol resolver, to indicate that this value should be destructed before assigning new moved value
+                llvm::FunctionType* llvm_func_type;
+                llvm::Value* llvm_func_callee;
+                auto clear_fn = gen.determine_clear_fn_for(lhs_type, llvm_func_type, llvm_func_callee);
+                if(clear_fn) {
+                    gen.builder->CreateCall(llvm_func_type, llvm_func_callee, { pointer });
+                }
+            }
+            func_type.move_by_memcpy(gen, lhs_type, value.get(), pointer, movable);
             return;
         }
     }

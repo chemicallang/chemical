@@ -236,7 +236,7 @@ public:
      * it will try to un move the given access chain or identifier value pointer
      * by checking if it's moved
      */
-    bool mark_un_moved_value(Value* value_ptr, BaseType* value_type);
+    bool mark_un_moved_lhs_value(Value* value_ptr, BaseType* value_type);
 
 #ifdef COMPILER_BUILD
 

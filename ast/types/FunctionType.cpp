@@ -103,8 +103,9 @@ void FunctionType::move_by_memcpy(Codegen& gen, BaseType* type, Value* value_ptr
     llvm::MaybeAlign m;
     const auto alloc_size = gen.module->getDataLayout().getTypeAllocSize(type->llvm_type(gen));
     gen.builder->CreateMemCpy(elem_ptr, m, movable_value, m, alloc_size);
+    auto id = value.as_identifier();
     // now we can move the previous arg, since we copied it's contents
-    call_clear_fn(gen, &value, movable_value);
+    call_clear_fn(gen, value_ptr, movable_value);
 }
 
 #endif
@@ -250,7 +251,9 @@ bool FunctionType::un_move_chain(AccessChain* chain_ptr) {
     auto& chain = *chain_ptr;
     if(chain.values.size() == 1) {
         auto id = chain.values[0]->as_identifier();
-        if(id) { un_move_exact_id(id); }
+        if(id && un_move_exact_id(id)) {
+            return true;
+        }
     }
     for(auto it = moved_chains.begin(); it != moved_chains.end(); ++it) {
         auto& moved = **it;
@@ -495,18 +498,47 @@ bool FunctionType::mark_moved_value(
     return false;
 }
 
-bool FunctionType::mark_un_moved_value(Value* value_ptr, BaseType* value_type) {
+bool FunctionType::mark_un_moved_lhs_value(Value* value_ptr, BaseType* value_type) {
     if(!is_value_movable(value_ptr, value_type)) {
         return false;
     }
     auto& value = *value_ptr;
     auto chain = value.as_access_chain();
     if(chain) {
-        return un_move_chain(chain);
+        // we indicate if previous value should be destructed by setting lhs of assignment's is_moved to true of false
+        if(un_move_chain(chain)) {
+            chain->is_moved = false;
+            return true;
+        } else {
+            // why is true being stored, because value is lhs in assignment
+            // we set this to true, to indicate to code generation to destruct previous value before assignment
+            // since we couldn't unmove the previous value, which means it was never moved, which means it's valid and should be destructed
+            chain->is_moved = true;
+        }
     } else {
         auto id = value.as_identifier();
         if(id) {
-            return un_move_id(id);
+            if(un_move_id(id)) {
+                id->is_moved = false;
+                return true;
+            } else {
+                // why is true being stored, because value is lhs in assignment
+                // we set this to true, to indicate to code generation to destruct previous value before assignment
+                // since we couldn't unmove the previous value, which means it was never moved, which means it's valid and should be destructed
+                id->is_moved = true;
+            }
+            // since we've moved a new value into the lhs value
+            // if it's connected to a var init statement, we marked it move to prevent final destructor from being called on it
+            // now we re mark it not moved, so destructor is called
+            const auto linked = id->linked;
+            const auto linked_kind = linked->kind();
+            if(linked_kind == ASTNodeKind::VarInitStmt) {
+                const auto init = linked->as_var_init_unsafe();
+                init->unmove();
+            } else if(linked_kind == ASTNodeKind::FunctionParam) {
+                const auto param = linked->as_func_param_unsafe();
+                param->unmove();
+            }
         }
     }
     return false;

@@ -535,7 +535,7 @@ void FunctionCall::call_clear_fns_on_moved(Codegen &gen, std::vector<llvm::Value
             if(id && id->is_moved) {
                 const auto linked = id->linked;
                 const auto kind = linked->kind();
-                if(kind != ASTNodeKind::VarInitStmt) {
+                if(kind != ASTNodeKind::VarInitStmt && kind != ASTNodeKind::FunctionParam) {
                     func_type->call_clear_fn(gen, id, args[i]);
                 }
             }

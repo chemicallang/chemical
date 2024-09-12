@@ -857,6 +857,15 @@ void ThrowStatement::code_gen(Codegen &gen) {
 
 void AssignStatement::code_gen(Codegen &gen) {
     llvm::Value* llvm_value;
+    if(assOp == Operation::Assignment) {
+        auto& func_type = *gen.current_func_type;
+        auto movable = func_type.movable_value(gen, value.get());
+        if(movable) {
+            const auto pointer = lhs->llvm_pointer(gen);
+            func_type.move_by_memcpy(gen, lhs->known_type(), value.get(), pointer, movable);
+            return;
+        }
+    }
     if (assOp == Operation::Assignment) {
         llvm_value = value->llvm_assign_value(gen, lhs.get());
     } else {

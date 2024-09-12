@@ -154,8 +154,41 @@ public:
      */
     bool is_one_of_moved_chains(AccessChain* chain);
 
+    /**
+     * same as move chain, but for single identifiers, since they are tracked different
+     */
     bool is_one_of_moved_id(VariableIdentifier* id);
 
+    /**
+     * un_move a chain, if found to be moved
+     * return true if found and removed, otherwise false
+     */
+    bool un_move_chain(AccessChain* chain);
+
+    /**
+     * un_move a moved id, which matches functionally (linked with same node)
+     * return true if found and removed, otherwise false
+     * this only removes, exact identifiers, doesn't check access chains
+     */
+    bool un_move_exact_id(VariableIdentifier* id);
+
+    /**
+     * un_move a moved chain, which matches functionally
+     * the first value of the chain will be matching with the given identifier functionally
+     * linked with same node
+     */
+    bool un_move_chain_with_first_id(VariableIdentifier* id);
+
+    /**
+     * the function that you should call, if you want to unmove an identifier
+     * this will check for functional equality, meaning the identifier's linkage is checked
+     * access chains with first identifier functionally equal to given identifier is also removed
+     */
+    bool un_move_id(VariableIdentifier* id);
+
+    /**
+     * will find a identifier who has linked node same as the given identifier
+     */
     VariableIdentifier* find_moved_id(VariableIdentifier* id);
 
     /**
@@ -168,7 +201,9 @@ public:
     AccessChain* find_partially_matching_moved_chain(AccessChain& chain, ValueKind first_value_kind);
 
     /**
-     * check if the given identifier has been moved
+     * find's a chain value (identifier or access chain) that matches the identifier functionally
+     * in the case of access chain, the first element is expected to be an identifier, that is linked
+     * with same node as the given identifier
      */
     ChainValue* find_moved_chain_value(VariableIdentifier* id);
 
@@ -194,6 +229,11 @@ public:
     bool mark_moved_value(Value* value, ASTDiagnoser& diagnoser);
 
     /**
+     * check if the given value is movable
+     */
+    bool is_value_movable(Value* value_ptr, BaseType* type);
+
+    /**
      * the following value will be moved, by checking the expected type
      * this then takes into account, moves into implicit constructors
      */
@@ -203,6 +243,12 @@ public:
             ASTDiagnoser& diagnoser,
             bool check_implicit_constructors = true
     );
+
+    /**
+     * it will try to un move the given access chain or identifier value pointer
+     * by checking if it's moved
+     */
+    bool mark_un_moved_value(Value* value_ptr, BaseType* value_type);
 
 #ifdef COMPILER_BUILD
 

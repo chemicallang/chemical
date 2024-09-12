@@ -281,7 +281,7 @@ bool StructValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr
             if(definition->variables.end() != member) {
                 const auto mem_type = member->second->get_value_type();
                 auto implicit = mem_type->implicit_constructor_for(val_ptr.get());
-                current_func_type.move_value(val.second->value.get(), mem_type.get(), linker);
+                current_func_type.mark_moved_value(val.second->value.get(), mem_type.get(), linker);
                 if(implicit) {
                     if(linker.preprocess) {
                         val_ptr = call_with_arg(implicit, std::move(val_ptr), linker);

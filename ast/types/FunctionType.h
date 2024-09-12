@@ -191,14 +191,14 @@ public:
      * checks if the value is movable and moves it (marks it move and all that)
      * @return true if moved otherwise false
      */
-    bool move_value(Value* value, ASTDiagnoser& diagnoser);
+    bool mark_moved_value(Value* value, ASTDiagnoser& diagnoser);
 
     /**
      * the following value will be moved, by checking the expected type
      * this then takes into account, moves into implicit constructors
      */
-    bool move_value(
-            Value* value,
+    bool mark_moved_value(
+            Value* value_ptr,
             BaseType* expected_type,
             ASTDiagnoser& diagnoser,
             bool check_implicit_constructors = true

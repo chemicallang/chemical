@@ -70,9 +70,16 @@ void VarInitStatement::code_gen(Codegen &gen) {
                     llvm_ptr = allocated;
                 }
             } else {
-                llvm_ptr = value->llvm_allocate(gen, identifier,type_ptr_fast());
-                if(type && value->value_type() == ValueType::Struct) {
-                    gen.assign_dyn_obj_impl(value.get(), type_ptr_fast(), llvm_ptr);
+                auto& func_type = *gen.current_func_type;
+                auto movable = func_type.movable_value(gen, value.get());
+                if(movable) {
+                    llvm_ptr = gen.builder->CreateAlloca(llvm_type(gen), nullptr, identifier);
+                    func_type.move_by_memcpy(gen, known_type(), value.get(), llvm_ptr, movable);
+                } else {
+                    llvm_ptr = value->llvm_allocate(gen, identifier,type_ptr_fast());
+                    if(type && value->value_type() == ValueType::Struct) {
+                        gen.assign_dyn_obj_impl(value.get(), type_ptr_fast(), llvm_ptr);
+                    }
                 }
             }
         } else {
@@ -269,6 +276,7 @@ void VarInitStatement::declare_and_link(SymbolResolver &linker, std::unique_ptr<
     }
     if (value) {
         value->link(linker, this);
+        linker.current_func_type->mark_moved_value(value.get(), known_type(), linker, type != nullptr);
     }
     if(type && value) {
         const auto as_array = value->as_array_value();

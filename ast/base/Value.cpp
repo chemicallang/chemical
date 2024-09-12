@@ -103,8 +103,8 @@ llvm::Value* ChainValue::access_chain_value(Codegen &gen, std::vector<std::uniqu
     auto pointer = access_chain_pointer(gen, values, destructibles, until);
     auto last_linked = values[until]->linked_node();
     if(last_linked) {
-        auto last_kind = last_linked->kind();
-        if(last_kind == ASTNodeKind::StructMember && values[until]->value_type() == ValueType::Struct) {
+//        auto last_kind = last_linked->kind();
+        if(values[until]->value_type() == ValueType::Struct) {
             return pointer;
         }
     }

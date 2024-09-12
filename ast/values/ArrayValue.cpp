@@ -176,12 +176,11 @@ bool ArrayValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr,
     }
     unsigned i = 0;
     for(auto& value : values) {
-        value->link(linker, this, i);
-        if(i == 0 && !known_elem_type) {
+        if(value->link(linker, this, i) && i == 0 && !known_elem_type) {
             known_elem_type = value->known_type();
         }
         if(known_elem_type) {
-            current_func_type.move_value(value.get(), known_elem_type, linker, elemType != nullptr);
+            current_func_type.mark_moved_value(value.get(), known_elem_type, linker, elemType != nullptr);
         }
         i++;
     }

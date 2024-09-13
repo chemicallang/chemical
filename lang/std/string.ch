@@ -249,6 +249,13 @@ public struct string {
         }
     }
 
+    @clear
+    func clear(&self) {
+        storage.constant.data = null;
+        storage.constant.length = 0;
+        state = '0'
+    }
+
     @delete
     func delete(&self) {
         if(state == '2') {

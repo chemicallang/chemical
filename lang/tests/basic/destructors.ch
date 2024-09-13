@@ -8,6 +8,11 @@ struct Destructible {
 
     var lamb : (count : int*) => void;
 
+    @clear
+    func clear(&self) {
+
+    }
+
     @delete
     func delete(&self) {
         self.lamb(self.count);

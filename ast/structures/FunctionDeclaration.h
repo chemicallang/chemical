@@ -279,6 +279,13 @@ public:
     void code_gen_clear_fn(Codegen& gen, StructDefinition* def);
 
     /**
+     * body for the copy function is generated using this function
+     * the copy function is a special function that will call copy functions
+     * of the struct members that require it
+     */
+    void code_gen_copy_fn(Codegen& gen, VariantDefinition* def);
+
+    /**
      * generates clear_fn body for the variant definition
      */
     void code_gen_clear_fn(Codegen& gen, VariantDefinition* def);

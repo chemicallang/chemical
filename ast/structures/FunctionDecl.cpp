@@ -482,6 +482,10 @@ void FunctionDeclaration::code_gen_body(Codegen &gen, VariantDefinition* def) {
     if(has_annotation(AnnotationKind::CompTime)) {
         return;
     }
+    if(has_annotation(AnnotationKind::Copy)) {
+        code_gen_copy_fn(gen, def);
+        return;
+    }
     if(has_annotation(AnnotationKind::Clear)) {
         code_gen_clear_fn(gen, def);
         return;
@@ -599,14 +603,22 @@ void FunctionDeclaration::code_gen_clear_fn(Codegen& gen, StructDefinition* def)
     }, create_call_member_func);
 }
 
+llvm::Value* variant_struct_pointer(
+        Codegen &gen,
+        llvm::Value* variant_ptr,
+        VariantDefinition* def
+) {
+    return gen.builder->CreateGEP(def->llvm_type(gen), variant_ptr, { gen.builder->getInt32(0), gen.builder->getInt32(1) }, "", gen.inbounds);
+}
+
 // process members of variant definition, calling functions for each member, in a switch statement
 void process_members_calling_fns(
         Codegen& gen,
         VariantDefinition* def,
         llvm::Value* allocaInst,
         llvm::Function* func,
-        bool(*should_process)(BaseDefMember* member),
-        void(*process)(Codegen &gen, VariantMember* member, llvm::Value* struct_ptr)
+        bool(*should_process)(VariantMember* member),
+        void(*process)(Codegen &gen, VariantMember* member, llvm::Value* struct_ptr, llvm::Function* func)
 ) {
     // get the type int
     auto gep = gen.builder->CreateGEP(def->llvm_type(gen), allocaInst, { gen.builder->getInt32(0), gen.builder->getInt32(0) }, "", gen.inbounds);
@@ -615,27 +627,28 @@ void process_members_calling_fns(
     // create an end block, for default case
     llvm::BasicBlock* end_block = llvm::BasicBlock::Create(*gen.ctx, "", func);
 
-    // figure out which members to destruct
-    std::vector<std::pair<int, VariantMember*>> to_destruct;
+    // figure out which members to process
+    std::vector<std::pair<int, VariantMember*>> to_process;
     int index = 0;
     for(auto& mem : def->variables) {
-        if(should_process(mem.second.get())) {
-            to_destruct.emplace_back(index, mem.second->as_variant_member());
+        const auto variant_mem = mem.second->as_variant_member();
+        if(should_process(variant_mem)) {
+            to_process.emplace_back(index, variant_mem);
         }
         index++;
     }
 
     // get struct pointer
-    auto struct_ptr = gen.builder->CreateGEP(def->llvm_type(gen), allocaInst, { gen.builder->getInt32(0), gen.builder->getInt32(1) }, "", gen.inbounds);
+    auto struct_ptr = variant_struct_pointer(gen, allocaInst, def);
 
     // create switch block on type int
-    auto switchInst = gen.builder->CreateSwitch(type_value, end_block, to_destruct.size());
+    auto switchInst = gen.builder->CreateSwitch(type_value, end_block, to_process.size());
 
-    // create blocks for cases for which destructor exists
-    for(auto& mem : to_destruct) {
+    // create blocks for cases for which process exists
+    for(auto& mem : to_process) {
         auto mem_block = llvm::BasicBlock::Create(*gen.ctx, "", func);
         gen.SetInsertPoint(mem_block);
-        process(gen, mem.second, struct_ptr);
+        process(gen, mem.second, struct_ptr, func);
         gen.CreateBr(end_block);
         switchInst->addCase(gen.builder->getInt32(mem.first), mem_block);
     }
@@ -643,13 +656,55 @@ void process_members_calling_fns(
     gen.SetInsertPoint(end_block);
 }
 
+void FunctionDeclaration::code_gen_copy_fn(Codegen& gen, VariantDefinition* def) {
+    auto func = llvm_func();
+    gen.SetInsertPoint(&func->getEntryBlock());
+    auto allocaInst = func->getArg(0);
+    process_members_calling_fns(gen, def, allocaInst, func, [](VariantMember* mem)-> bool {
+        for(auto& param : mem->values) {
+            auto linked = param.second->type->linked_node();
+            if(linked) {
+                auto container = linked->as_members_container();
+                if(container && container->copy_func() != nullptr) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }, [](Codegen& gen, VariantMember* mem, llvm::Value* struct_ptr, llvm::Function* func) {
+        auto otherArg = func->getArg(1);
+        auto other_struct_pointer = variant_struct_pointer(gen, otherArg, mem->parent_node);
+        auto index = -1;
+        for(auto& param : mem->values) {
+            index++;
+            auto linked = param.second->type->linked_node();
+            if(linked) {
+                auto container = linked->as_members_container();
+                if(container) {
+                    auto def = mem->parent_node;
+                    auto decl = container->copy_func();
+                    std::vector<llvm::Value*> args;
+                    std::vector<llvm::Value *> idxList{gen.builder->getInt32(0)};
+                    auto element_ptr = Value::get_element_pointer(gen, def->llvm_type(gen), struct_ptr, idxList, index);
+                    args.emplace_back(element_ptr);
+                    idxList.pop_back();
+                    auto other_element_ptr = Value::get_element_pointer(gen, def->llvm_type(gen), other_struct_pointer, idxList, index);
+                    args.emplace_back(other_element_ptr);
+                    gen.builder->CreateCall(decl->llvm_func_type(gen), decl->llvm_pointer(gen), args);
+                }
+            }
+        }
+    });
+    code_gen_body(gen);
+}
+
 void FunctionDeclaration::code_gen_clear_fn(Codegen& gen, VariantDefinition* def) {
     auto func = llvm_func();
     setup_cleanup_block(gen, func);
     auto allocaInst = func->getArg(0);
-    process_members_calling_fns(gen, def, allocaInst, func, [](BaseDefMember* mem) -> bool {
+    process_members_calling_fns(gen, def, allocaInst, func, [](VariantMember* mem) -> bool {
         return mem->requires_clear_fn();
-    }, [](Codegen& gen, VariantMember* mem, llvm::Value* struct_ptr) {
+    }, [](Codegen& gen, VariantMember* mem, llvm::Value* struct_ptr, llvm::Function* func) {
         llvm::FunctionType* dtr_func_type = nullptr;
         llvm::Value* dtr_func_callee = nullptr;
         int i = 0;
@@ -684,9 +739,9 @@ void FunctionDeclaration::code_gen_destructor(Codegen& gen, VariantDefinition* d
     setup_cleanup_block(gen, func);
     // every destructor has self at zero
     auto allocaInst = func->getArg(0);
-    process_members_calling_fns(gen, def, allocaInst, func, [](BaseDefMember* mem) -> bool {
+    process_members_calling_fns(gen, def, allocaInst, func, [](VariantMember* mem) -> bool {
         return mem->requires_destructor();
-    }, [](Codegen& gen, VariantMember* mem, llvm::Value* struct_ptr) {
+    }, [](Codegen& gen, VariantMember* mem, llvm::Value* struct_ptr, llvm::Function* func) {
         llvm::FunctionType* dtr_func_type = nullptr;
         llvm::Value* dtr_func_callee = nullptr;
         int i = 0;

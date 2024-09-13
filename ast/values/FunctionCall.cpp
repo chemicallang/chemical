@@ -467,7 +467,8 @@ llvm::Value* FunctionCall::llvm_chain_value(
     }
 
     if(decl && decl->has_annotation(AnnotationKind::Copy)) {
-        auto def = decl->params.front()->type->linked_struct_def();
+        auto node = decl->params.front()->type->linked_node();
+        auto def = node ? node->as_members_container() : nullptr;
         if(!def) {
             gen.error("couldn't figure out struct for which copy function is for", this);
             return nullptr;

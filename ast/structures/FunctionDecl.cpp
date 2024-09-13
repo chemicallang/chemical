@@ -711,7 +711,7 @@ void FunctionDeclaration::code_gen_destructor(Codegen& gen, VariantDefinition* d
 }
 
 std::vector<llvm::Type *> FunctionDeclaration::param_types(Codegen &gen) {
-    return llvm_func_param_types(gen, params, returnType.get(), false, isVariadic);
+    return llvm_func_param_types(gen, params, returnType.get(), false, isVariadic, this);
 }
 
 llvm::Type *FunctionDeclaration::llvm_type(Codegen &gen) {
@@ -953,7 +953,7 @@ void FunctionDeclaration::ensure_copy_fn(ExtendableMembersContainerNode* def) {
         params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<LinkedType>(def->name, def, nullptr), nullptr), 0, nullptr, this, nullptr));
         params.emplace_back(std::make_unique<FunctionParam>("other", std::make_unique<PointerType>(std::make_unique<LinkedType>(def->name, def, nullptr), nullptr), 1, nullptr, this, nullptr));
     }
-    returnType = std::make_unique<VoidType>(nullptr);
+    returnType = std::make_unique<LinkedType>(def->name, def, nullptr);
 }
 
 void FunctionDeclaration::set_active_iteration(int16_t iteration) {

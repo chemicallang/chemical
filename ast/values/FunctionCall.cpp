@@ -466,6 +466,22 @@ llvm::Value* FunctionCall::llvm_chain_value(
         }
     }
 
+    if(decl && decl->has_annotation(AnnotationKind::Copy)) {
+        auto def = decl->params.front()->type->linked_struct_def();
+        if(!def) {
+            gen.error("couldn't figure out struct for which copy function is for", this);
+            return nullptr;
+        }
+        if(!grandparent) {
+            gen.error("couldn't figure out struct on which copy function is being called", this);
+            return nullptr;
+        }
+        auto data = def->llvm_func_data(decl);
+        args.emplace_back(grandparent);
+        gen.builder->CreateCall(data.second, data.first, args);
+        return returnedValue;
+    }
+
     auto fn = decl != nullptr ? decl->llvm_func() : nullptr;
     to_llvm_args(gen, this, func_type.get(), values, args, &chain, until,0, grandparent, destructibles);
 

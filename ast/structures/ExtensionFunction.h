@@ -61,7 +61,7 @@ public:
     /**
      * first param self is not part of params, so index shifts to 1
      */
-    unsigned int c_or_llvm_arg_start_index() const override {
+    unsigned int c_or_llvm_arg_start_index() override {
         return FunctionDeclaration::c_or_llvm_arg_start_index() + 1;
     }
 

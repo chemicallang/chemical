@@ -165,11 +165,12 @@ void FunctionType::queue_destruct_params(Codegen& gen) {
 void body_gen(Codegen &gen, llvm::Function* funcCallee, std::optional<LoopScope>& body, FunctionDeclaration* func_type) {
     if(body.has_value()) {
         auto prev_func_type = gen.current_func_type;
+        auto prev_func = gen.current_function;
         gen.current_func_type = func_type;
         gen.current_function = funcCallee;
         const auto destruct_begin = gen.destruct_nodes.size();
         func_type->queue_destruct_params(gen);
-        gen.SetInsertPoint(&gen.current_function->getEntryBlock());
+        gen.SetInsertPoint(&funcCallee->getEntryBlock());
         body->code_gen(gen, destruct_begin);
         gen.end_function_block();
         gen.current_function = nullptr;
@@ -566,7 +567,6 @@ void code_gen_calling_member_functions(
         void(*member_func_call)(Codegen& gen, FunctionDeclaration* decl, StructDefinition* def, llvm::Function* func, unsigned index)
 ) {
     auto func = decl.llvm_func();
-    gen.current_function = func;
     decl.setup_cleanup_block(gen, func);
     code_gen_member_calls(gen, def, func, choose_func, member_func_call);
     gen.CreateRet(nullptr);
@@ -575,8 +575,7 @@ void code_gen_calling_member_functions(
 
 void FunctionDeclaration::code_gen_copy_fn(Codegen& gen, StructDefinition* def) {
     auto func = llvm_func();
-    gen.current_function = func;
-    gen.SetInsertPoint(&gen.current_function->getEntryBlock());
+    gen.SetInsertPoint(&func->getEntryBlock());
     code_gen_member_calls(gen, def, func, [](MembersContainer* mem_def)->FunctionDeclaration* {
         return mem_def->copy_func();
     }, [](Codegen& gen, FunctionDeclaration* decl, StructDefinition* def, llvm::Function* func, unsigned index) {

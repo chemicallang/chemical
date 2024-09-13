@@ -91,10 +91,10 @@ bool VariableIdentifier::find_link_in_parent(ChainValue *parent, ASTDiagnoser *d
         if(linked) {
             return true;
         } else if(diagnoser) {
-            diagnoser->error("couldn't link child '" + value + "'", this);
+            diagnoser->error("couldn't find child '" + value + "' in parent '" + parent->representation() + "'", this);
         }
     } else if (diagnoser){
-        diagnoser->error("couldn't link child '" + value + "' because parent '" + parent->representation() + "' couldn't be resolved.", this);
+        diagnoser->error("couldn't find child '" + value + "' because parent '" + parent->representation() + "' couldn't be resolved.", this);
     }
     return false;
 }

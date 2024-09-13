@@ -229,11 +229,7 @@ VariantDefinition::VariantDefinition(
 }
 
 ASTNode* VariantDefinition::child(const std::string &child_name) {
-    auto found = variables.find(child_name);
-    if(found != variables.end()) {
-        return found->second.get();
-    }
-    return nullptr;
+    return ExtendableMembersContainerNode::child(child_name);
 }
 
 void VariantDefinition::declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {

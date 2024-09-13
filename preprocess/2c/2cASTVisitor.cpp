@@ -750,10 +750,8 @@ void value_alloca_store(ToCAstVisitor& visitor, const std::string& identifier, B
             value->accept(&visitor);
             return;
         }
-        if(type->value_type() == ValueType::Struct && value->as_access_chain()) {
-            // struct instantiation is done in 2 instructions -> declaration and assignment
-//            value_alloca(visitor, identifier, type, value);
-//            visitor->new_line_and_indent();
+        auto value_chain = value->as_access_chain();
+        if(type->value_type() == ValueType::Struct && value_chain && value_chain->values.back()->as_func_call()) {
             value_assign_default(visitor, identifier, type, value);
         } else {
             value_init_default(visitor, identifier, type, value);

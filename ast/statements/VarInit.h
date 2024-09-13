@@ -23,6 +23,12 @@ private:
      * this variable causes an error
      */
     bool has_moved = false;
+    /**
+     * has moved is used to track that var init statement has a assignment to it
+     * if it has, during symbol resolution the assignment statement notifies this
+     * var init statement
+     */
+    bool has_assignment = false;
 public:
 
     bool is_const;
@@ -69,6 +75,20 @@ public:
      */
     void unmove() {
         has_moved = false;
+    }
+
+    /**
+     * get has assignment
+     */
+    bool get_has_assignment() {
+        return has_assignment;
+    }
+
+    /**
+     * assignment can be set to true
+     */
+    void set_has_assignment() {
+        has_assignment = true;
     }
 
     CSTToken *cst_token() override {

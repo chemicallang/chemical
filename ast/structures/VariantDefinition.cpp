@@ -83,15 +83,11 @@ void VariantDefinition::code_gen_function_body(Codegen &gen, FunctionDeclaration
 
 void VariantDefinition::code_gen_once(Codegen &gen) {
     llvm_type(gen);
-    if(requires_clear_fn()) {
-        const auto clear_fn = create_clear_fn();
-        clear_fn->code_gen_declare(gen, this);
-        clear_fn->code_gen_body(gen, this);
+    for(auto& func : functions()) {
+        func->code_gen_declare(gen, this);
     }
-    if(requires_destructor()) {
-        const auto destructor = create_destructor();
-        destructor->code_gen_declare(gen, this);
-        destructor->code_gen_body(gen, this);
+    for(auto& func : functions()) {
+        func->code_gen_body(gen, this);
     }
 }
 
@@ -247,12 +243,12 @@ void VariantDefinition::declare_top_level(SymbolResolver &linker, std::unique_pt
 void VariantDefinition::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     MembersContainer::declare_and_link(linker, node_ptr);
 //    register_use_to_inherited_interfaces(this);
-//    if(requires_clear_fn()) {
-//        create_def_clear_fn(linker);
-//    }
-//    if(requires_destructor()) {
-//        create_def_destructor(linker);
-//    }
+    if(requires_clear_fn()) {
+        create_def_clear_fn(linker);
+    }
+    if(requires_destructor()) {
+        create_def_destructor(linker);
+    }
 }
 
 BaseType* VariantDefinition::known_type() {

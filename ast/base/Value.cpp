@@ -383,6 +383,16 @@ hybrid_ptr<BaseType> Value::get_base_type() {
     throw std::runtime_error("get_base_type called on bare Value with type : " + std::to_string((unsigned int) value_type()));
 }
 
+StructDefinition* Value::get_param_linked_struct() {
+    const auto linked = linked_node();
+    if(!linked) return nullptr;
+    const auto linked_kind = linked->kind();
+    if(linked_kind == ASTNodeKind::FunctionParam) {
+        return linked->as_func_param_unsafe()->type->get_direct_linked_struct();
+    }
+    return nullptr;
+}
+
 std::unique_ptr<BaseType> Value::create_type() {
     return nullptr;
 }

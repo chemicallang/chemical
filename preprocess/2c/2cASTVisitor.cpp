@@ -404,9 +404,7 @@ bool implicit_mutate_value_for_dyn_obj(ToCAstVisitor& visitor, BaseType* type, V
     visitor.write(')');
     visitor.write('{');
     visitor.space();
-    if(!(value->linked_node()->as_func_param() && value->known_type()->kind() == BaseTypeKind::Linked)) {
-        visitor.write('&');
-    }
+    visitor.write('&');
     value_visit(visitor, value);
     visitor.write(',');
     visitor.write("(void*) &");
@@ -452,16 +450,14 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
         const auto param_type_kind = param->type->kind();
         const auto param_ref_node = param->type->get_direct_linked_node(param_type_kind);
         const auto val_ref_node = get_func_param_ref_node(val->linked_node());
-        const auto is_struct_param = (param_ref_node && param_ref_node->as_struct_def() && (!val_ref_node || !val_ref_node->as_struct_def()));
-        const auto is_variant_param = (param_ref_node && param_ref_node->as_variant_def() && (!val_ref_node || !val_ref_node->as_variant_def()));
+        const auto is_struct_param = (param_ref_node && param_ref_node->as_struct_def());
+        const auto is_variant_param = (param_ref_node && param_ref_node->as_variant_def());
         if(param->type->is_reference(param_type_kind) || is_struct_param || is_variant_param) {
             auto allocated = visitor.local_allocated.find(val.get());
             visitor.write('&');
             if(allocated != visitor.local_allocated.end()) {
                 visitor.write(allocated->second);
             } else {
-                visitor.debug_comment("this struct (returned or literal) wasn't allocated by before stmt visitor", false);
-                // TODO this struct isn't allocated, if it has a destructor it won't be called, fix this
                 val->accept(&visitor);
             }
             if (i != call->values.size() - 1) {
@@ -520,13 +516,13 @@ void write_accessor(ToCAstVisitor& visitor, Value* current, Value* next) {
     if(linked && linked->as_namespace()) {
         return;
     }
-    if(linked && linked->as_base_func_param()){
-        const auto node = linked->as_base_func_param()->type->get_direct_linked_node();
-        if(node && (node->as_struct_def() || node->as_variant_def())) {
-            visitor.write("->");
-            return;
-        }
-    }
+//    if(linked && linked->as_base_func_param()){
+//        const auto node = linked->as_base_func_param()->type->get_direct_linked_node();
+//        if(node && (node->as_struct_def() || node->as_variant_def())) {
+//            visitor.write("->");
+//            return;
+//        }
+//    }
     if (current->value_type() == ValueType::Pointer) {
         visitor.write("->");
     } else {
@@ -2320,14 +2316,6 @@ void ToCAstVisitor::return_value(Value* val, BaseType* type) {
         write(struct_passed_param_name);
         write(" = ");
         if(!implicit_mutate_value_default(*this, type, val)) {
-            const auto id = val->as_identifier();
-            if(id) {
-                const auto func_param = id->linked->as_func_param();
-                if(func_param && (func_param->type->get_direct_linked_struct() ||
-                        func_param->type->get_direct_linked_variant())) {
-                    write('*');
-                }
-            }
             val->accept(this);
         }
     } else {
@@ -3641,6 +3629,16 @@ void ToCAstVisitor::visit(VariableIdentifier *identifier) {
         write_accessor(*this, expr, identifier);
         write(var_mem->name);
         write('.');
+    } else if(linked_kind == ASTNodeKind::FunctionParam) {
+        auto& type = *linked->as_func_param_unsafe()->type;
+        auto d_linked = type.get_direct_linked_node();
+        if(d_linked && (d_linked->as_struct_def() || d_linked->as_variant_def())) {
+            write('(');
+            write('*');
+            write(identifier->value);
+            write(')');
+            return;
+        }
     }
     write(identifier->value);
 }
@@ -3684,14 +3682,14 @@ void ToCAstVisitor::visit(CastedValue *casted) {
 }
 
 void ToCAstVisitor::visit(AddrOfValue *value) {
-    const auto linked = value->value->linked_node();
-    if(linked) {
-        const auto param = linked->as_func_param();
-        if(param && param->type->get_direct_linked_struct()) {
-            value->value->accept(this);
-            return;
-        }
-    }
+//    const auto linked = value->value->linked_node();
+//    if(linked) {
+//        const auto param = linked->as_func_param();
+//        if(param && param->type->get_direct_linked_struct()) {
+//            value->value->accept(this);
+//            return;
+//        }
+//    }
     write('&');
     value->value->accept(this);
 }

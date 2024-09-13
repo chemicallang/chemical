@@ -191,6 +191,12 @@ public:
     std::string representation();
 
     /**
+     * will get linked struct, if this is linked with a func param
+     * and the param's type is linked type with struct
+     */
+    StructDefinition* get_param_linked_struct();
+
+    /**
      * this returns a hybrid pointer to base type
      */
     virtual hybrid_ptr<BaseType> get_base_type();

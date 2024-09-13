@@ -197,11 +197,7 @@ llvm::Value* VariantCaseVariable::llvm_pointer(Codegen &gen) {
 }
 
 llvm::Value* VariantCaseVariable::llvm_load(Codegen &gen) {
-    if(member_param->type->value_type() == ValueType::Struct) {
-        return llvm_pointer(gen);
-    } else {
-        return gen.builder->CreateLoad(llvm_type(gen), llvm_pointer(gen));
-    }
+    return Value::load_value(gen, known_type(), llvm_type(gen), llvm_pointer(gen));
 }
 
 llvm::Type* VariantCaseVariable::llvm_type(Codegen &gen) {

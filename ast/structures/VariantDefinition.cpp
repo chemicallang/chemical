@@ -237,12 +237,27 @@ void VariantDefinition::declare_top_level(SymbolResolver &linker, std::unique_pt
 }
 
 void VariantDefinition::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+    bool has_destructor = false;
+    bool has_clear_fn = false;
+    for(auto& func : functions()) {
+        if(func->has_annotation(AnnotationKind::Delete)) {
+            func->ensure_destructor(this);
+            has_destructor = true;
+        }
+        if(func->has_annotation(AnnotationKind::Clear)) {
+            func->ensure_clear_fn(this);
+            has_clear_fn = true;
+        }
+        if(func->has_annotation(AnnotationKind::Copy)) {
+            func->ensure_copy_fn(this);
+        }
+    }
     MembersContainer::declare_and_link(linker, node_ptr);
 //    register_use_to_inherited_interfaces(this);
-    if(requires_clear_fn()) {
+    if(!has_clear_fn && requires_clear_fn()) {
         create_def_clear_fn(linker);
     }
-    if(requires_destructor()) {
+    if(!has_destructor && requires_destructor()) {
         create_def_destructor(linker);
     }
 }

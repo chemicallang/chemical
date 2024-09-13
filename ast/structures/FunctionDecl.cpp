@@ -510,7 +510,7 @@ void FunctionDeclaration::setup_cleanup_block(Codegen &gen, llvm::Function* func
         gen.CreateBr(cleanup_block); // ensure branch to cleanup block
         gen.SetInsertPoint(cleanup_block);
     } else {
-        gen.SetInsertPoint(&gen.current_function->getEntryBlock());
+        gen.SetInsertPoint(&func->getEntryBlock());
     }
 }
 
@@ -605,6 +605,7 @@ void process_members_calling_fns(
         Codegen& gen,
         VariantDefinition* def,
         llvm::Value* allocaInst,
+        llvm::Function* func,
         bool(*should_process)(BaseDefMember* member),
         void(*process)(Codegen &gen, VariantMember* member, llvm::Value* struct_ptr)
 ) {
@@ -613,7 +614,7 @@ void process_members_calling_fns(
     auto type_value = gen.builder->CreateLoad(gen.builder->getInt32Ty(), gep);
 
     // create an end block, for default case
-    llvm::BasicBlock* end_block = llvm::BasicBlock::Create(*gen.ctx, "", gen.current_function);
+    llvm::BasicBlock* end_block = llvm::BasicBlock::Create(*gen.ctx, "", func);
 
     // figure out which members to destruct
     std::vector<std::pair<int, VariantMember*>> to_destruct;
@@ -633,7 +634,7 @@ void process_members_calling_fns(
 
     // create blocks for cases for which destructor exists
     for(auto& mem : to_destruct) {
-        auto mem_block = llvm::BasicBlock::Create(*gen.ctx, "", gen.current_function);
+        auto mem_block = llvm::BasicBlock::Create(*gen.ctx, "", func);
         gen.SetInsertPoint(mem_block);
         process(gen, mem.second, struct_ptr);
         gen.CreateBr(end_block);
@@ -647,7 +648,7 @@ void FunctionDeclaration::code_gen_clear_fn(Codegen& gen, VariantDefinition* def
     auto func = llvm_func();
     setup_cleanup_block(gen, func);
     auto allocaInst = func->getArg(0);
-    process_members_calling_fns(gen, def, allocaInst, [](BaseDefMember* mem) -> bool {
+    process_members_calling_fns(gen, def, allocaInst, func, [](BaseDefMember* mem) -> bool {
         return mem->requires_clear_fn();
     }, [](Codegen& gen, VariantMember* mem, llvm::Value* struct_ptr) {
         llvm::FunctionType* dtr_func_type = nullptr;
@@ -684,7 +685,7 @@ void FunctionDeclaration::code_gen_destructor(Codegen& gen, VariantDefinition* d
     setup_cleanup_block(gen, func);
     // every destructor has self at zero
     auto allocaInst = func->getArg(0);
-    process_members_calling_fns(gen, def, allocaInst, [](BaseDefMember* mem) -> bool {
+    process_members_calling_fns(gen, def, allocaInst, func, [](BaseDefMember* mem) -> bool {
         return mem->requires_destructor();
     }, [](Codegen& gen, VariantMember* mem, llvm::Value* struct_ptr) {
         llvm::FunctionType* dtr_func_type = nullptr;

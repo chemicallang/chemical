@@ -3616,14 +3616,15 @@ void ToCAstVisitor::visit(StructValue *val) {
 
 void ToCAstVisitor::visit(VariableIdentifier *identifier) {
     const auto linked = identifier->linked_node();
-    if(linked->isAnyStructMember()) {
+    const auto linked_kind = linked->kind();
+    if(ASTNode::isAnyStructMember(linked_kind)) {
         if(identifier->parent_val == nullptr) {
             const auto func = current_func_type->as_function();
             if (func && func->has_annotation(AnnotationKind::Constructor)) {
                 write("this->");
             }
         }
-    } else if(linked->isCapturedVariable()) {
+    } else if(linked_kind == ASTNodeKind::CapturedVariable) {
         auto found = declarer->aliases.find(linked->as_captured_var_unsafe());
         if(found == declarer->aliases.end()) {
             write("this->");
@@ -3632,7 +3633,7 @@ void ToCAstVisitor::visit(VariableIdentifier *identifier) {
             write(found->second);
             write("*) this)->");
         }
-    } else if(linked->isVariantCaseVariable()) {
+    } else if(linked_kind == ASTNodeKind::VariantCaseVariable) {
         const auto var = linked->as_variant_case_var_unsafe();
         Value* expr = var->variant_case->switch_statement->expression.get();
         const auto var_mem = var->variant_case->chain->linked_node()->as_variant_member();

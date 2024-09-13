@@ -589,8 +589,6 @@ public:
         return isLoopASTNode(kind());
     }
 
-private:
-
     static inline bool isMembersContainer(ASTNodeKind k) {
         return k == ASTNodeKind::StructDecl || k == ASTNodeKind::UnionDecl || k == ASTNodeKind::VariantDecl || k == ASTNodeKind::InterfaceDecl || k == ASTNodeKind::ImplDecl;
     }
@@ -602,8 +600,6 @@ private:
     static inline bool isBaseDefMember(ASTNodeKind k) {
         return isAnyStructMember(k) || k == ASTNodeKind::VariantMember;
     }
-
-public:
 
     inline bool isMembersContainer() {
         return isMembersContainer(kind());

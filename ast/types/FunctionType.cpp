@@ -28,13 +28,6 @@ void llvm_func_param_type(
         BaseType* type
 ) {
     paramTypes.emplace_back(type->llvm_param_type(gen));
-//    if(type->function_type() != nullptr) {
-//        auto func_type = type->function_type();
-//        // when a capturing lambda is a parameter, it is treated as two pointer parameters one for the lambda and another for it's data
-//        if(func_type->isCapturing) {
-//            paramTypes.emplace_back(gen.builder->getPtrTy());
-//        }
-//    }
 }
 
 void llvm_func_param_types_into(
@@ -43,12 +36,15 @@ void llvm_func_param_types_into(
         std::vector<std::unique_ptr<FunctionParam>>& params,
         BaseType* returnType,
         bool isCapturing,
-        bool isVariadic
+        bool isVariadic,
+        FunctionDeclaration* decl
 ) {
     // functions that return struct take a pointer to struct and actually return void
     // so allocation takes place outside function
     if(returnType->value_type() == ValueType::Struct) {
-        paramTypes.emplace_back(gen.builder->getPtrTy());
+        if(!decl || !decl->has_annotation(AnnotationKind::Copy)) {
+            paramTypes.emplace_back(gen.builder->getPtrTy());
+        }
     }
     // capturing lambdas gets a struct passed to them which contain captured data
     if(isCapturing) {
@@ -63,11 +59,11 @@ void llvm_func_param_types_into(
 }
 
 std::vector<llvm::Type *> FunctionType::param_types(Codegen &gen) {
-    return llvm_func_param_types(gen, params, returnType.get(), isCapturing, isVariadic);
+    return llvm_func_param_types(gen, params, returnType.get(), isCapturing, isVariadic, as_function());
 }
 
 llvm::FunctionType *FunctionType::llvm_func_type(Codegen &gen) {
-    return llvm::FunctionType::get(llvm_func_return(gen, returnType.get()), llvm_func_param_types(gen, params, returnType.get(), isCapturing, isVariadic), isVariadic);
+    return llvm::FunctionType::get(llvm_func_return(gen, returnType.get()), param_types(gen), isVariadic);
 }
 
 llvm::Type *FunctionType::llvm_type(Codegen &gen) {
@@ -191,8 +187,18 @@ BaseFunctionParam* FunctionType::get_self_param() {
     return nullptr;
 }
 
-unsigned FunctionType::c_or_llvm_arg_start_index() const {
-    return (returnType->value_type() == ValueType::Struct ? 1 : 0); // + (has_self_param() ? 1 : 0);
+unsigned FunctionType::c_or_llvm_arg_start_index() {
+    const auto is_struct_return = returnType->value_type() == ValueType::Struct;
+    if(is_struct_return) {
+        auto func = as_function();
+        if(func && func->has_annotation(AnnotationKind::Copy)) {
+            return 0;
+        } else {
+            return 1;
+        }
+    } else {
+        return 0;
+    }
 }
 
 bool FunctionType::equal(FunctionType *other) const {

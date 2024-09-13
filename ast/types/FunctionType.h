@@ -10,6 +10,8 @@
 
 #ifdef COMPILER_BUILD
 #include "compiler/llvmfwd.h"
+#include "ast/base/AnnotationKind.h"
+
 class Codegen;
 #endif
 
@@ -289,7 +291,7 @@ public:
     /**
      * start index of c or llvm functions for this type
      */
-    virtual unsigned c_or_llvm_arg_start_index() const;
+    virtual unsigned c_or_llvm_arg_start_index();
 
     /**
      * check if this function type is equal to other
@@ -328,7 +330,8 @@ void llvm_func_param_types_into(
         std::vector<std::unique_ptr<FunctionParam>>& params,
         BaseType* returnType,
         bool isCapturing,
-        bool isVariadic
+        bool isVariadic,
+        FunctionDeclaration* decl
 );
 
 /**
@@ -340,10 +343,11 @@ inline std::vector<llvm::Type*> llvm_func_param_types(
         std::vector<std::unique_ptr<FunctionParam>>& params,
         BaseType* returnType,
         bool isCapturing,
-        bool isVariadic
+        bool isVariadic,
+        FunctionDeclaration* decl
 ) {
     std::vector<llvm::Type*> paramTypes;
-    llvm_func_param_types_into(gen, paramTypes, params, returnType, isCapturing, isVariadic);
+    llvm_func_param_types_into(gen, paramTypes, params, returnType, isCapturing, isVariadic, decl);
     return paramTypes;
 }
 

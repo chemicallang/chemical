@@ -2454,6 +2454,128 @@ void func_decl_with_name(ToCAstVisitor& visitor, FunctionDeclaration* decl) {
     }
 }
 
+void call_variant_param_func(
+    ToCAstVisitor& visitor,
+    VariantMember* member,
+    VariantMemberParam* mem_param,
+    FunctionDeclaration*(*choose_func)(MembersContainer*)
+) {
+    auto mem_type = mem_param->type.get();
+    const auto linked = mem_type->linked_node();
+    auto mem_def = linked->as_members_container();
+    auto func = choose_func(mem_def);
+    if (!func) {
+        return;
+    }
+    visitor.new_line_and_indent();
+    func_container_name(visitor, mem_def, func);
+    visitor.write(func->name);
+    visitor.write('(');
+    if (func->has_self_param()) {
+        visitor.write("&self->");
+        visitor.write(member->name);
+        visitor.write('.');
+        visitor.write(mem_param->name);
+    }
+    visitor.write(')');
+    visitor.write(';');
+}
+
+void variant_member_cleanup_delete(ToCAstVisitor& visitor, VariantMember* member) {
+    for(auto& mem_param : member->values) {
+        call_variant_param_func(visitor, member, mem_param.second.get(), [](MembersContainer* container)-> FunctionDeclaration* {
+            return container->destructor_func();
+        });
+    }
+}
+
+void variant_member_cleanup_clear(ToCAstVisitor& visitor, VariantMember* member) {
+    for(auto& mem_param : member->values) {
+        call_variant_param_func(visitor, member, mem_param.second.get(), [](MembersContainer* container)-> FunctionDeclaration* {
+            return container->clear_func();
+        });
+    }
+}
+
+void variant_cleanup_block_body(
+    ToCAstVisitor& visitor,
+    ExtendableMembersContainerNode* def,
+    void(*process_member)(ToCAstVisitor& visitor, VariantMember* member)
+) {
+    visitor.new_line_and_indent();
+    visitor.write("switch(self->");
+    visitor.write(variant_type_variant_name);
+    visitor.write(") {");
+    visitor.indentation_level += 1;
+    unsigned index = 0;
+    for (auto& var: def->variables) {
+        visitor.new_line_and_indent();
+        visitor.write("case ");
+        visitor.write(std::to_string(index));
+        visitor.write(':');
+        const auto member = var.second->as_variant_member();
+        process_member(visitor, member);
+        visitor.new_line_and_indent();
+        visitor.write("break;");
+        index++;
+    }
+    visitor.indentation_level -= 1;
+    visitor.new_line_and_indent();
+    visitor.write('}');
+}
+
+void call_struct_member_fn(
+    ToCAstVisitor& visitor,
+    BaseDefMember* member,
+    FunctionDeclaration*(*choose_func)(MembersContainer* container)
+) {
+    auto mem_type = member->get_value_type();
+    const auto linked = mem_type->linked_node();
+    auto mem_def = linked->as_members_container();
+    auto func = choose_func(mem_def);
+    if (!func) {
+        return;
+    }
+    visitor.new_line_and_indent();
+    func_container_name(visitor, mem_def, func);
+    visitor.write(func->name);
+    visitor.write('(');
+    if (func->has_self_param()) {
+        visitor.write("&self->");
+        visitor.write(member->name);
+    }
+    visitor.write(')');
+    visitor.write(';');
+}
+
+void struct_member_cleanup_delete(ToCAstVisitor& visitor, BaseDefMember* member) {
+    if (member->value_type() == ValueType::Struct) {
+        call_struct_member_fn(visitor, member, [](MembersContainer* def) -> FunctionDeclaration* {
+            return def->destructor_func();
+        });
+    }
+}
+
+void struct_member_cleanup_clear(ToCAstVisitor& visitor, BaseDefMember* member) {
+    if (member->value_type() == ValueType::Struct) {
+        call_struct_member_fn(visitor, member, [](MembersContainer* def) -> FunctionDeclaration* {
+            return def->clear_func();
+        });
+    }
+}
+
+void struct_cleanup_block_body(
+    ToCAstVisitor& visitor,
+    ExtendableMembersContainerNode* def,
+    void(*process_member)(ToCAstVisitor& visitor, BaseDefMember* member)
+) {
+    unsigned index = 0;
+    for (auto& var: def->variables) {
+        process_member(visitor, var.second.get());
+        index++;
+    }
+}
+
 void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool overrides, ExtendableMembersContainerNode* def) {
     if(!decl->body.has_value() || decl->has_annotation(AnnotationKind::CompTime)) {
         return;
@@ -2506,87 +2628,35 @@ void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool
 //        visitor->write(';');
 //    }
     auto is_destructor = decl->has_annotation(AnnotationKind::Delete);
+    auto is_clear_fn = decl->has_annotation(AnnotationKind::Clear);
+    bool has_cleanup_block = is_destructor || is_clear_fn;
     std::string cleanup_block_name;
-    if(is_destructor) {
+    if(has_cleanup_block) {
         cleanup_block_name = "__chx__dstctr_clnup_blk__";
         visitor.return_redirect_block = cleanup_block_name;
     }
     unsigned begin = visitor.destructor->destruct_jobs.size();
     visitor.destructor->queue_destruct_decl_params(decl);
     visitor.visit_scope(&decl->body.value(), (int) begin);
-    if(is_destructor) {
+    if(has_cleanup_block) {
         visitor.new_line_and_indent();
         visitor.write(cleanup_block_name);
         visitor.write(":{");
-        unsigned index = 0;
         visitor.indentation_level++;
         const auto struc_def = def->as_struct_def();
         const auto variant_def = def->as_variant_def();
-        if(struc_def) {
-            for (auto& var: def->variables) {
-                if (var.second->value_type() == ValueType::Struct) {
-                    auto mem_type = var.second->get_value_type();
-                    const auto linked = mem_type->linked_node();
-                    auto mem_def = linked->as_members_container();
-                    auto destructor = mem_def->destructor_func();
-                    if (!destructor) {
-                        index++;
-                        continue;
-                    }
-                    visitor.new_line_and_indent();
-                    func_container_name(visitor, mem_def, destructor);
-                    visitor.write(destructor->name);
-                    visitor.write('(');
-                    if (destructor->has_self_param()) {
-                        visitor.write("&self->");
-                        visitor.write(var.second->name);
-                    }
-                    visitor.write(')');
-                    visitor.write(';');
-                }
-                index++;
+        if(is_destructor) {
+            if (struc_def) {
+                struct_cleanup_block_body(visitor, def, struct_member_cleanup_delete);
+            } else if (variant_def) {
+                variant_cleanup_block_body(visitor, def, variant_member_cleanup_delete);
             }
-        } else if(variant_def) {
-            visitor.new_line_and_indent();
-            visitor.write("switch(self->");
-            visitor.write(variant_type_variant_name);
-            visitor.write(") {");
-            visitor.indentation_level += 1;
-            for (auto& var: def->variables) {
-                visitor.new_line_and_indent();
-                visitor.write("case ");
-                visitor.write(std::to_string(index));
-                visitor.write(':');
-                const auto member = var.second->as_variant_member();
-                for(auto& mem_param : member->values) {
-                    auto mem_type = mem_param.second->type.get();
-                    const auto linked = mem_type->linked_node();
-                    auto mem_def = linked->as_members_container();
-                    auto destructor = mem_def->destructor_func();
-                    if (!destructor) {
-                        index++;
-                        continue;
-                    }
-                    visitor.new_line_and_indent();
-                    func_container_name(visitor, mem_def, destructor);
-                    visitor.write(destructor->name);
-                    visitor.write('(');
-                    if (destructor->has_self_param()) {
-                        visitor.write("&self->");
-                        visitor.write(var.second->name);
-                        visitor.write('.');
-                        visitor.write(mem_param.first);
-                    }
-                    visitor.write(')');
-                    visitor.write(';');
-                }
-                visitor.new_line_and_indent();
-                visitor.write("break;");
-                index++;
+        } else if(is_clear_fn) {
+            if (struc_def) {
+                struct_cleanup_block_body(visitor, def, struct_member_cleanup_clear);
+            } else if (variant_def) {
+                variant_cleanup_block_body(visitor, def, variant_member_cleanup_clear);
             }
-            visitor.indentation_level -= 1;
-            visitor.new_line_and_indent();
-            visitor.write('}');
         }
         visitor.indentation_level--;
         visitor.new_line_and_indent();

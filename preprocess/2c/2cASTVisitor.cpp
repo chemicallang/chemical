@@ -2501,9 +2501,38 @@ void call_variant_member_clear_fn(ToCAstVisitor& visitor, VariantMember* member)
 }
 
 void call_variant_member_copy_fn(ToCAstVisitor& visitor, VariantMember* member) {
-    call_variant_member_fn(visitor, member, [](MembersContainer* container)-> FunctionDeclaration* {
-        return container->copy_func();
-    });
+    for(auto& mem_param_pair : member->values) {
+        auto mem_param = mem_param_pair.second.get();
+        auto mem_type = mem_param->type.get();
+        const auto linked = mem_type->linked_node();
+        auto mem_def = linked->as_members_container();
+        auto func = mem_def->copy_func();
+        if (!func) {
+            return;
+        }
+        visitor.new_line_and_indent();
+        func_container_name(visitor, mem_def, func);
+        visitor.write(func->name);
+        visitor.write('(');
+
+        // writing the self arg
+        visitor.write("&self->");
+        visitor.write(member->name);
+        visitor.write('.');
+        visitor.write(mem_param->name);
+        visitor.write(", ");
+
+        // writing the other arg
+        visitor.write('&');
+        visitor.write(visitor.current_func_type->params[1]->name);
+        visitor.write("->");
+        visitor.write(member->name);
+        visitor.write('.');
+        visitor.write(mem_param->name);
+
+        visitor.write(')');
+        visitor.write(';');
+    }
 }
 
 void process_variant_members_using(
@@ -2578,9 +2607,28 @@ void call_struct_members_copy_fn(
     BaseDefMember* member
 ) {
     if (member->value_type() == ValueType::Struct) {
-        call_struct_member_fn(visitor, member, [](MembersContainer* def) -> FunctionDeclaration* {
-            return def->copy_func();
-        });
+        auto mem_type = member->get_value_type();
+        const auto linked = mem_type->linked_node();
+        auto mem_def = linked->as_members_container();
+        auto func = mem_def->copy_func();
+        if (!func) {
+            return;
+        }
+        visitor.new_line_and_indent();
+        func_container_name(visitor, mem_def, func);
+        visitor.write(func->name);
+        visitor.write('(');
+        // writing the self arg
+        visitor.write("&self->");
+        visitor.write(member->name);
+        visitor.write(", ");
+        // writing the other arg
+        visitor.write('&');
+        visitor.write(visitor.current_func_type->params[1]->name);
+        visitor.write("->");
+        visitor.write(member->name);
+        visitor.write(')');
+        visitor.write(';');
     }
 }
 

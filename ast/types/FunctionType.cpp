@@ -403,7 +403,7 @@ bool FunctionType::mark_moved_value(Value* value, ASTDiagnoser& diagnoser) {
     if(chain) {
         const auto moved = find_moved_chain_value(chain);
         if(moved) {
-            diagnoser.error("cannot move chain '" + chain->chain_representation() + "' as another one of it's chain '" + moved->representation() + "' has been moved" , (ASTNode*) chain);
+            diagnoser.error("cannot move chain '" + chain->chain_representation() + "' as another one of it's chain '" + moved->representation() + "' has been moved" , (ASTNode*) chain, (ASTNode*) moved);
             return false;
         }
         mark_moved_no_check(chain);
@@ -413,7 +413,7 @@ bool FunctionType::mark_moved_value(Value* value, ASTDiagnoser& diagnoser) {
         if(id) {
             const auto moved = find_moved_chain_value(id);
             if(moved) {
-                diagnoser.error("cannot move id '" + id->representation() + "' as chain '" + moved->representation() + "' has been moved" , id);
+                diagnoser.error("cannot move id '" + id->representation() + "' as chain '" + moved->representation() + "' has been moved" , id, moved);
                 return false;
             }
             const auto linked = value->linked_node();

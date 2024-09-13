@@ -26,10 +26,22 @@ public:
 
     void error(const std::string &err, ASTAny* node);
 
+    /**
+     * this will report two diagnostics, one at the location of first node and other
+     * at the location of other node
+     */
     void info(const std::string &err, ASTAny* node, ASTAny* other);
 
+    /**
+     * this will report two diagnostics, one at the location of first node and other
+     * at the location of other node
+     */
     void warn(const std::string &err, ASTAny *node, ASTAny* other);
 
+    /**
+     * this will report two diagnostics, one at the location of first node and other
+     * at the location of other node
+     */
     void error(const std::string &err, ASTAny* node, ASTAny* other);
 
     /**

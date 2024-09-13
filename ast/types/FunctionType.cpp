@@ -478,27 +478,47 @@ bool FunctionType::mark_moved_value(
     }
     const auto type = value.known_type();
     const auto linked_def = type->get_direct_linked_struct();
-    if(linked_def && linked_def->requires_moving()) {
-        const auto expected_def = expected_type->get_ref_or_linked_struct(expected_type_kind);
-        if(!expected_def) {
-            if(expected_type_kind != BaseTypeKind::Any) {
-                diagnoser.error("cannot move a struct to a non struct type", &value);
+    if(!linked_def) {
+        return false;
+    }
+    const bool req_destr = linked_def->requires_destructor();
+    const bool req_clear_fn = linked_def->requires_clear_fn();
+    if(!req_destr && !req_clear_fn) {
+        return false;
+    }
+    const auto expected_def = expected_type->get_ref_or_linked_struct(expected_type_kind);
+    if(!expected_def) {
+        if(expected_type_kind != BaseTypeKind::Any) {
+            diagnoser.error("cannot move a struct to a non struct type", &value);
+        }
+        return false;
+    }
+    bool final = false;
+    if (expected_def == linked_def) {
+        final = mark_moved_value(&value, diagnoser);
+    } else {
+        const auto implicit = expected_def->implicit_constructor_for(&value);
+        if(implicit && check_implicit_constructors) {
+            auto& param_type = *implicit->params[0]->type;
+            if(!param_type.is_reference()) { // not a reference type (requires moving)
+                final = mark_moved_value(&value, diagnoser);
             }
+        } else {
+            diagnoser.error("unknown value being moved, where the struct types don't match", &value);
             return false;
         }
-        if (expected_def == linked_def) {
-            return mark_moved_value(&value, diagnoser);
-        } else {
-            const auto implicit = expected_def->implicit_constructor_for(&value);
-            if(implicit && check_implicit_constructors) {
-                auto& param_type = *implicit->params[0]->type;
-                if(!param_type.is_reference()) { // not a reference type (requires moving)
-                    return mark_moved_value(&value, diagnoser);
-                }
-            } else {
-                diagnoser.error("unknown value being moved, where the struct types don't match", &value);
+    }
+    if(final) {
+        if(req_destr) {
+            if(!req_clear_fn) {
+                diagnoser.error("struct requires a delete function but has no clear function", &value);
                 return false;
             }
+        } else {
+            if(req_clear_fn) {
+                diagnoser.error("struct requires a clear function but has no delete function", &value);
+            }
+            return false;
         }
     }
     return false;

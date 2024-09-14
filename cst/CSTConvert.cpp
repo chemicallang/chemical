@@ -1459,7 +1459,7 @@ void CSTConverter::visitPointerType(CSTToken* cst) {
 }
 
 void CSTConverter::visitReferenceType(CSTToken* cst) {
-    visit(cst->tokens, 0);
+    visit(cst->tokens, 1);
     put_type(new ReferenceType(type(), cst), cst);
 }
 

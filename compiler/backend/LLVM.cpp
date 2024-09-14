@@ -855,13 +855,39 @@ void ThrowStatement::code_gen(Codegen &gen) {
     throw std::runtime_error("[UNIMPLEMENTED]");
 }
 
+bool Codegen::requires_memcpy_ref_struct(BaseType* known_type, Value* value) {
+    // is referencing another struct, that is non movable and must be mem copied into the pointer
+    const auto chain = value->as_access_chain();
+    const auto id = value->as_identifier();
+    if(id || (chain && chain->values.back()->as_func_call() == nullptr)) {
+        auto linked = known_type->get_direct_linked_node();
+        if (linked) {
+            auto k = linked->kind();
+            return k == ASTNodeKind::StructDecl || k == ASTNodeKind::VariantDecl || k == ASTNodeKind::UnionDecl ||
+                       k == ASTNodeKind::UnnamedStruct || k == ASTNodeKind::UnnamedUnion;
+        }
+    }
+    return false;
+}
+
+llvm::Value* Codegen::memcpy_ref_struct(BaseType* known_type, Value* value, llvm::Value* llvm_ptr, llvm::Type* type) {
+    if(requires_memcpy_ref_struct(known_type, value)) {
+        if(!llvm_ptr) {
+            llvm_ptr = builder->CreateAlloca(type, nullptr);
+        }
+        memcpy_struct(type, value, llvm_ptr, value->llvm_value(*this, nullptr));
+        return llvm_ptr;
+    }
+    return nullptr;
+}
+
 void AssignStatement::code_gen(Codegen &gen) {
+    const auto pointer = lhs->llvm_pointer(gen);
     llvm::Value* llvm_value;
     if(assOp == Operation::Assignment) {
         auto& func_type = *gen.current_func_type;
         auto movable = func_type.movable_value(gen, value.get());
         if(movable) {
-            const auto pointer = lhs->llvm_pointer(gen);
             const auto is_ref_moved = lhs->is_ref_moved();
             const auto lhs_type = lhs->known_type();
             if(!is_ref_moved) {
@@ -876,6 +902,10 @@ void AssignStatement::code_gen(Codegen &gen) {
             }
             func_type.move_by_memcpy(gen, lhs_type, value.get(), pointer, movable);
             return;
+        } else {
+            if(gen.memcpy_ref_struct(lhs->known_type(), value.get(), pointer, lhs->llvm_type(gen)) != nullptr) {
+                return;
+            }
         }
     }
     if (assOp == Operation::Assignment) {
@@ -884,7 +914,6 @@ void AssignStatement::code_gen(Codegen &gen) {
         llvm_value = gen.operate(assOp, lhs.get(), value.get());
     }
     if(llvm_value) {
-        const auto pointer = lhs->llvm_pointer(gen);
         if (!gen.assign_dyn_obj(value.get(), lhs->known_type(), pointer, llvm_value)) {
             gen.builder->CreateStore(llvm_value, pointer);
         }

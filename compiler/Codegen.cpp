@@ -413,26 +413,40 @@ llvm::Value* Codegen::allocate_dyn_obj_based_on_type(BaseType* type) {
     return builder->CreateAlloca(fat_pointer_type());
 }
 
+void Codegen::assign_dyn_obj_impl(llvm::Value* fat_pointer, llvm::Value* impl) {
+    auto second = builder->CreateGEP(fat_pointer_type(), fat_pointer, {builder->getInt32(0), builder->getInt32(1)}, "", inbounds);
+    builder->CreateStore(impl, second);
+}
+
 bool Codegen::assign_dyn_obj_impl(Value* value, BaseType* type, llvm::Value* fat_pointer) {
     auto found = get_dyn_obj_impl(value, type);
     if(found) {
-        auto second = builder->CreateGEP(fat_pointer_type(), fat_pointer, {builder->getInt32(0), builder->getInt32(1)}, "", inbounds);
-        builder->CreateStore(found, second);
+        assign_dyn_obj_impl(fat_pointer, found);
         return true;
     }
     return false;
 }
 
+void Codegen::assign_dyn_obj(llvm::Value* fat_pointer, llvm::Value* obj, llvm::Value* impl) {
+    auto first = builder->CreateGEP(fat_pointer_type(), fat_pointer, {builder->getInt32(0), builder->getInt32(0)}, "", inbounds);
+    builder->CreateStore(obj, first);
+    auto second = builder->CreateGEP(fat_pointer_type(), fat_pointer, {builder->getInt32(0), builder->getInt32(1)}, "", inbounds);
+    builder->CreateStore(impl, second);
+}
+
 bool Codegen::assign_dyn_obj(Value* value, BaseType* type, llvm::Value* fat_pointer, llvm::Value* obj) {
     auto found = get_dyn_obj_impl(value, type);
     if(found) {
-        auto first = builder->CreateGEP(fat_pointer_type(), fat_pointer, {builder->getInt32(0), builder->getInt32(0)}, "", inbounds);
-        builder->CreateStore(obj, first);
-        auto second = builder->CreateGEP(fat_pointer_type(), fat_pointer, {builder->getInt32(0), builder->getInt32(1)}, "", inbounds);
-        builder->CreateStore(found, second);
+        assign_dyn_obj(fat_pointer, obj, found);
         return true;
     }
     return false;
+}
+
+void Codegen::memcpy_struct(llvm::Type* type, Value* value_ptr, llvm::Value* pointer, llvm::Value* value) {
+    llvm::MaybeAlign m;
+    const auto alloc_size = module->getDataLayout().getTypeAllocSize(type);
+    builder->CreateMemCpy(pointer, m, value, m, alloc_size);
 }
 
 void Codegen::print_to_console() {

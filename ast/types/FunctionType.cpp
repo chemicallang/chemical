@@ -96,9 +96,7 @@ llvm::Value* FunctionType::movable_value(Codegen& gen, Value* value_ptr) {
 
 void FunctionType::move_by_memcpy(Codegen& gen, BaseType* type, Value* value_ptr, llvm::Value* elem_ptr, llvm::Value* movable_value) {
     auto& value = *value_ptr;
-    llvm::MaybeAlign m;
-    const auto alloc_size = gen.module->getDataLayout().getTypeAllocSize(type->llvm_type(gen));
-    gen.builder->CreateMemCpy(elem_ptr, m, movable_value, m, alloc_size);
+    gen.memcpy_struct(type->llvm_type(gen), value_ptr, elem_ptr, movable_value);
     auto id = value.as_identifier();
     if(id) {
         auto k = id->linked->kind();

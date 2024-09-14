@@ -203,6 +203,11 @@ public:
      * to change the implementation of dynamic object, this function can be used
      * fat_pointer already having valid struct object for the implementation
      * the implementation is calculated based on the given Value* pointer and type
+     */
+    void assign_dyn_obj_impl(llvm::Value* fat_pointer, llvm::Value* impl);
+
+    /**
+     * it finds the implementation for the given value and type automatically
      * returns true if could get implementation and assign it
      */
     bool assign_dyn_obj_impl(Value* value, BaseType* type, llvm::Value* fat_pointer);
@@ -212,9 +217,31 @@ public:
      * with the given struct object
      * obj is the pointer to the struct that will be assigned
      * the implementation is calculated based on value and type
-     * returns true if could get implementation and assign both
+     */
+    void assign_dyn_obj(llvm::Value* fat_pointer, llvm::Value* obj, llvm::Value* impl);
+
+    /**
+     * if you don't know the implementation, you can use this method, it get's the implementation
+     * and when found assigns it, along with the obj, returns true if succeeds otherwise false
      */
     bool assign_dyn_obj(Value* value, BaseType* type, llvm::Value* fat_pointer, llvm::Value* obj);
+
+    /**
+     * mem copy a struct into the given pointer
+     */
+    void memcpy_struct(llvm::Type* type, Value* value_ptr, llvm::Value* pointer, llvm::Value* value);
+
+    /**
+     * tells whether, the given value should be mem copied into the pointer, because
+     * it's an access chain referencing a non move requiring struct
+     */
+    bool requires_memcpy_ref_struct(BaseType* known_type, Value* value);
+
+    /**
+     * tries to mem copy referenced struct (if there's one) and returns memory pointer if succeeds
+     * otherwise nullptr, memory for struct is allocated as required, unless passed
+     */
+    llvm::Value* memcpy_ref_struct(BaseType* known_type, Value* value, llvm::Value* memory_pointer, llvm::Type* type);
 
     /**
      * creates a function block, along with setting the insert point to this entry block

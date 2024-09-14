@@ -42,7 +42,52 @@ func get_moved_clear_i(c : ClearObj) : int {
     return c.i;
 }
 
+struct NonMovableObj {
+    var a : int
+    var b : int
+}
+
+struct NonMCon {
+    var n : NonMovableObj
+}
+
+func test_non_movable_obj(n : NonMovableObj) : bool {
+    return n.a == 110 && n.b == 220
+}
+
 func test_moves() {
+
+    // TESTING WHETHER NON MOVABLE OBJ ARE VALID WHEN MOVED AROUND
+
+    test("non movable objects can be passed to functions", () => {
+        var n = NonMovableObj { a : 110, b : 220 }
+        return test_non_movable_obj(n);
+    })
+
+    test("non movable object can be assigned to another variable", () => {
+        var a = NonMovableObj { a : 560, b : 343 }
+        var b = a;
+        return b.a == 560 && b.b == 343 && a.a == 560 && a.b == 343
+    })
+
+    test("non movable object can be re assigned to another variable", () => {
+        var a = NonMovableObj { a : 560, b : 343 }
+        var b = NonMovableObj { a : 33, b : 66 };
+        b = a
+        return b.a == 560 && b.b == 343 && a.a == 560 && a.b == 343
+    })
+
+    test("non movable object can be stored in struct by ref", () => {
+        var a = NonMovableObj { a : 560, b : 343 }
+        var n = NonMCon { n : a }
+        return n.n.a == 560 && n.n.b == 343 && a.a == 560 && a.b == 343
+    })
+
+    test("non movable object can be stored in array by ref", () => {
+        var a = NonMovableObj { a : 556, b : 766 }
+        var n = { a }
+        return n[0].a == 556 && n[0].b == 766 && a.a == 556 && a.b == 766;
+    })
 
     // TESTING WHETHER NEW OWNERS OF MOVED OBJECTS ARE VALID
 

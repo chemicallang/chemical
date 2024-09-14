@@ -65,11 +65,28 @@ void VarInitStatement::code_gen(Codegen &gen) {
                 llvm_ptr = gen.builder->CreateAlloca(llvm_type(gen), nullptr, identifier);
                 func_type.move_by_memcpy(gen, known_type(), value.get(), llvm_ptr, movable);
             } else {
-                llvm_ptr = value->llvm_allocate(gen, identifier,type_ptr_fast());
+
+                llvm::Value* dyn_obj_impl = nullptr;
+
                 if(type && value->value_type() == ValueType::Struct && value->as_struct() == nullptr) {
-                    // struct value automatically assigns it's dynamic object implementation based on expected type
-                    gen.assign_dyn_obj_impl(value.get(), type_ptr_fast(), llvm_ptr);
+                    // get it's dynamic object implementation based on expected type
+                    dyn_obj_impl = gen.get_dyn_obj_impl(value.get(), type_ptr_fast());
                 }
+
+                if(!dyn_obj_impl) {
+                    auto llvmType = llvm_type(gen);
+                    // is referencing another struct, that is non movable and must be mem copied into the pointer
+                    llvm_ptr = gen.memcpy_ref_struct(known_type(), value.get(), nullptr, llvmType);
+                    if (llvm_ptr) {
+                        return;
+                    }
+                }
+
+                llvm_ptr = value->llvm_allocate(gen, identifier,type_ptr_fast());
+                if(dyn_obj_impl) {
+                    gen.assign_dyn_obj_impl(llvm_ptr, dyn_obj_impl);
+                }
+
             }
         } else {
             const auto t = llvm_type(gen);

@@ -2549,11 +2549,11 @@ void process_variant_members_using(
 }
 
 void call_struct_member_fn(
-    ToCAstVisitor& visitor,
-    BaseDefMember* member,
-    FunctionDeclaration*(*choose_func)(MembersContainer* container)
+        ToCAstVisitor& visitor,
+        BaseType* mem_type,
+        const std::string& member_name,
+        FunctionDeclaration*(*choose_func)(MembersContainer* container)
 ) {
-    auto mem_type = member->get_value_type();
     const auto linked = mem_type->linked_node();
     auto mem_def = linked->as_members_container();
     auto func = choose_func(mem_def);
@@ -2566,34 +2566,34 @@ void call_struct_member_fn(
     visitor.write('(');
     if (func->has_self_param()) {
         visitor.write("&self->");
-        visitor.write(member->name);
+        visitor.write(member_name);
     }
     visitor.write(')');
     visitor.write(';');
 }
 
-void call_struct_member_delete_fn(ToCAstVisitor& visitor, BaseDefMember* member) {
-    if (member->value_type() == ValueType::Struct) {
-        call_struct_member_fn(visitor, member, [](MembersContainer* def) -> FunctionDeclaration* {
+void call_struct_member_delete_fn(ToCAstVisitor& visitor, BaseType* mem_type, const std::string& mem_name) {
+    if (mem_type->value_type() == ValueType::Struct) {
+        call_struct_member_fn(visitor, mem_type, mem_name, [](MembersContainer* def) -> FunctionDeclaration* {
             return def->destructor_func();
         });
     }
 }
 
-void call_struct_member_clear_fn(ToCAstVisitor& visitor, BaseDefMember* member) {
-    if (member->value_type() == ValueType::Struct) {
-        call_struct_member_fn(visitor, member, [](MembersContainer* def) -> FunctionDeclaration* {
+void call_struct_member_clear_fn(ToCAstVisitor& visitor, BaseType* mem_type, const std::string& mem_name) {
+    if (mem_type->value_type() == ValueType::Struct) {
+        call_struct_member_fn(visitor, mem_type, mem_name, [](MembersContainer* def) -> FunctionDeclaration* {
             return def->clear_func();
         });
     }
 }
 
 void call_struct_members_copy_fn(
-    ToCAstVisitor& visitor,
-    BaseDefMember* member
+        ToCAstVisitor& visitor,
+        BaseType* mem_type,
+        const std::string& member_name
 ) {
-    if (member->value_type() == ValueType::Struct) {
-        auto mem_type = member->get_value_type();
+    if (mem_type->value_type() == ValueType::Struct) {
         const auto linked = mem_type->linked_node();
         auto mem_def = linked->as_members_container();
         auto func = mem_def->copy_func();
@@ -2606,13 +2606,13 @@ void call_struct_members_copy_fn(
         visitor.write('(');
         // writing the self arg
         visitor.write("&self->");
-        visitor.write(member->name);
+        visitor.write(member_name);
         visitor.write(", ");
         // writing the other arg
         visitor.write('&');
         visitor.write(visitor.current_func_type->params[1]->name);
         visitor.write("->");
-        visitor.write(member->name);
+        visitor.write(member_name);
         visitor.write(')');
         visitor.write(';');
     }
@@ -2621,16 +2621,17 @@ void call_struct_members_copy_fn(
 void process_struct_members_using(
     ToCAstVisitor& visitor,
     ExtendableMembersContainerNode* def,
-    void(*process_member)(ToCAstVisitor& visitor, BaseDefMember* member)
+    void(*process_member)(ToCAstVisitor& visitor, BaseType* member_type, const std::string& member_name)
 ) {
-//    for(auto& inherits : def->inherited) {
-//        auto linked = inherits->type->linked_struct_def();
-//        if(linked) {
-//            process_member(visitor, linked);
-//        }
-//    }
+    for(auto& inherits : def->inherited) {
+        auto linked = inherits->type->linked_struct_def();
+        if(linked) {
+            process_member(visitor, inherits->type.get(), linked->name);
+        }
+    }
     for (auto& var: def->variables) {
-        process_member(visitor, var.second.get());
+        auto value_type = var.second->get_value_type();
+        process_member(visitor, value_type.get(), var.second->name);
     }
 }
 

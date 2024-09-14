@@ -139,6 +139,11 @@ public:
     bool is_stored_pointer();
 
     /**
+     * check if the given type is movable
+     */
+    bool requires_moving(ASTNodeKind k);
+
+    /**
      * this function provides a pointer to the parent ASTNode
      * a var init inside for loop, gets a pointer to the for loop
      */

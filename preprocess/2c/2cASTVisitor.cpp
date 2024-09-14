@@ -149,17 +149,6 @@ void write_type_post_id(ToCAstVisitor& visitor, BaseType* type) {
     }
 }
 
-void assign_statement(ToCAstVisitor& visitor, AssignStatement* assign) {
-    assign->lhs->accept(&visitor);
-    visitor.write(' ');
-    if(assign->assOp != Operation::Assignment) {
-        visitor.write(to_string(assign->assOp));
-    }
-    visitor.write('=');
-    visitor.write(' ');
-    visitor.accept_mutating_value(assign->lhs->known_type(), assign->value.get());
-}
-
 #define struct_passed_param_name "__chx_struct_ret_param_xx"
 #define fn_call_struct_var_name "chx_fn_cl_struct"
 
@@ -1163,6 +1152,29 @@ public:
     }
 
 };
+
+void assign_statement(ToCAstVisitor& visitor, AssignStatement* assign) {
+    auto type = assign->lhs->known_type();
+    if(type->requires_moving(type->kind()) && !assign->lhs->is_ref_moved()) {
+        auto container = type->linked_node()->as_members_container();
+        auto destr = container->destructor_func();
+        func_container_name(visitor, destr);
+        visitor.write('(');
+        visitor.write('&');
+        assign->lhs->accept(&visitor);
+        visitor.write(')');
+        visitor.write(';');
+        visitor.new_line_and_indent();
+    }
+    assign->lhs->accept(&visitor);
+    visitor.write(' ');
+    if(assign->assOp != Operation::Assignment) {
+        visitor.write(to_string(assign->assOp));
+    }
+    visitor.write('=');
+    visitor.write(' ');
+    visitor.accept_mutating_value(type, assign->value.get());
+}
 
 void CAfterStmtVisitor::destruct_chain(AccessChain *chain, bool destruct_last) {
     int index = ((int) chain->values.size()) - (destruct_last ? 1 : 2);

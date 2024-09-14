@@ -178,6 +178,11 @@ StructDefinition* BaseType::get_direct_linked_movable_struct() {
     }
 }
 
+bool BaseType::requires_moving(BaseTypeKind k) {
+    auto node = get_direct_linked_node(k);
+    return node != nullptr && node->requires_moving(node->kind());
+}
+
 FunctionDeclaration* BaseType::implicit_constructor_for(Value *value) {
     const auto linked_def = linked_struct_def();
     if(linked_def) {

@@ -355,6 +355,11 @@ public:
     }
 
     /**
+     * check if linked is a movable type
+     */
+    bool requires_moving(BaseTypeKind k);
+
+    /**
      * searches a implicit constructor for given value, using the linked struct with this type
      * otherwise nullptr
      */

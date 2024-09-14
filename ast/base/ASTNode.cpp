@@ -141,6 +141,17 @@ bool ASTNode::is_stored_pointer() {
     }
 }
 
+bool ASTNode::requires_moving(ASTNodeKind k) {
+    switch(k) {
+        case ASTNodeKind::StructDecl:
+            return as_struct_def_unsafe()->requires_destructor() || as_struct_def_unsafe()->requires_clear_fn();
+        case ASTNodeKind::VariantDecl:
+            return as_variant_def_unsafe()->requires_destructor() || as_variant_def_unsafe()->requires_destructor();
+        default:
+            return false;
+    }
+}
+
 //bool ASTNode::has_moved(ASTNodeKind k, Value* ref) {
 //    switch(k) {
 //        case ASTNodeKind::FunctionParam:

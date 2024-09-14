@@ -100,6 +100,12 @@ void FunctionType::move_by_memcpy(Codegen& gen, BaseType* type, Value* value_ptr
     const auto alloc_size = gen.module->getDataLayout().getTypeAllocSize(type->llvm_type(gen));
     gen.builder->CreateMemCpy(elem_ptr, m, movable_value, m, alloc_size);
     auto id = value.as_identifier();
+    if(id) {
+        auto k = id->linked->kind();
+        if(k == ASTNodeKind::VarInitStmt || k == ASTNodeKind::FunctionParam) {
+            return;
+        }
+    }
     // now we can move the previous arg, since we copied it's contents
     call_clear_fn(gen, value_ptr, movable_value);
 }

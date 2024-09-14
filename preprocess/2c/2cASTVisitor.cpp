@@ -2569,6 +2569,8 @@ void call_variant_member_copy_fn(ToCAstVisitor& visitor, VariantMember* member) 
         if (!func) {
             return;
         }
+
+        // copy func call
         visitor.new_line_and_indent();
         func_container_name(visitor, mem_def, func);
         visitor.write(func->name);
@@ -2619,6 +2621,20 @@ void process_variant_members_using(
     visitor.indentation_level -= 1;
     visitor.new_line_and_indent();
     visitor.write('}');
+}
+
+void write_type_assignment_in_variant_copy(ToCAstVisitor& visitor, FunctionDeclaration* func) {
+    // setting type to the other param
+    // self->__chx__vt_621827 = other->__chx__vt_621827
+    visitor.new_line_and_indent();
+    visitor.write(func->params[0]->name);
+    visitor.write("->");
+    visitor.write(variant_type_variant_name);
+    visitor.write(" = ");
+    visitor.write(func->params[1]->name);
+    visitor.write("->");
+    visitor.write(variant_type_variant_name);
+    visitor.write(';');
 }
 
 void call_struct_member_fn(
@@ -2776,6 +2792,7 @@ void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool
         if(struc_def) {
             process_struct_members_using(visitor, struc_def, call_struct_members_copy_fn);
         } else if(variant_def) {
+            write_type_assignment_in_variant_copy(visitor, decl);
             process_variant_members_using(visitor, variant_def, call_variant_member_copy_fn);
         }
     }

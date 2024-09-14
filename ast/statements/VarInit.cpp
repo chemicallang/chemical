@@ -67,6 +67,7 @@ void VarInitStatement::code_gen(Codegen &gen) {
             } else {
                 llvm_ptr = value->llvm_allocate(gen, identifier,type_ptr_fast());
                 if(type && value->value_type() == ValueType::Struct && value->as_struct() == nullptr) {
+                    // struct value automatically assigns it's dynamic object implementation based on expected type
                     gen.assign_dyn_obj_impl(value.get(), type_ptr_fast(), llvm_ptr);
                 }
             }

@@ -23,7 +23,7 @@ public:
     ASTNode* parent_node;
     ASTNodeKind linked_kind;
 #ifdef COMPILER_BUILD
-    llvm::AllocaInst* allocaInst;
+    llvm::AllocaInst* allocaInst = nullptr;
 #endif
     // the type that represents this struct value, cached !
     std::unique_ptr<BaseType> struct_type = nullptr;

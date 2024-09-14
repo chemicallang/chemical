@@ -59,27 +59,15 @@ void VarInitStatement::code_gen(Codegen &gen) {
                 gen.destruct_nodes.emplace_back(this);
                 return;
             }
-            if(value->as_struct()) {
-                if (type && value->value_type() == ValueType::Struct) {
-                    llvm_ptr = gen.allocate_dyn_obj_based_on_type(type.get());
-                }
-                // allocate the struct
-                const auto allocated = value->llvm_allocate(gen, identifier,nullptr);
-                if (llvm_ptr == nullptr ||
-                    !gen.assign_dyn_obj(value.get(), type_ptr_fast(), llvm_ptr, allocated)) {
-                    llvm_ptr = allocated;
-                }
+            auto& func_type = *gen.current_func_type;
+            auto movable = func_type.movable_value(gen, value.get());
+            if(movable) {
+                llvm_ptr = gen.builder->CreateAlloca(llvm_type(gen), nullptr, identifier);
+                func_type.move_by_memcpy(gen, known_type(), value.get(), llvm_ptr, movable);
             } else {
-                auto& func_type = *gen.current_func_type;
-                auto movable = func_type.movable_value(gen, value.get());
-                if(movable) {
-                    llvm_ptr = gen.builder->CreateAlloca(llvm_type(gen), nullptr, identifier);
-                    func_type.move_by_memcpy(gen, known_type(), value.get(), llvm_ptr, movable);
-                } else {
-                    llvm_ptr = value->llvm_allocate(gen, identifier,type_ptr_fast());
-                    if(type && value->value_type() == ValueType::Struct) {
-                        gen.assign_dyn_obj_impl(value.get(), type_ptr_fast(), llvm_ptr);
-                    }
+                llvm_ptr = value->llvm_allocate(gen, identifier,type_ptr_fast());
+                if(type && value->value_type() == ValueType::Struct && value->as_struct() == nullptr) {
+                    gen.assign_dyn_obj_impl(value.get(), type_ptr_fast(), llvm_ptr);
                 }
             }
         } else {

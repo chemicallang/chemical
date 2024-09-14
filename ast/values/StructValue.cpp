@@ -26,11 +26,13 @@ void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen, BaseType* e
     // so we allocate a struct, and assign dynamic object to the fat pointer, we also initialize the dynamic object
     const auto interface = expected_type ? expected_type->linked_dyn_interface() : nullptr;
     if(interface) {
-        auto fat_pointer = inst;
-        inst = gen.builder->CreateAlloca(llvm_type(gen), nullptr);
-        if(!gen.assign_dyn_obj(this, expected_type, fat_pointer, inst)) {
+        if(!allocaInst) {
+            allocaInst = gen.builder->CreateAlloca(llvm_type(gen), nullptr);
+        }
+        if(!gen.assign_dyn_obj(this, expected_type, inst, allocaInst)) {
             gen.error("couldn't assign dyn object struct " + representation() + " to expected type " + expected_type->representation(), this);
         }
+        inst = allocaInst;
     }
 
     auto& current_func_type = *gen.current_func_type;
@@ -57,9 +59,15 @@ void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen, BaseType* e
 }
 
 llvm::AllocaInst *StructValue::llvm_allocate(Codegen& gen, const std::string& identifier, BaseType* expected_type) {
+    auto dyn_obj = (llvm::AllocaInst*) gen.allocate_dyn_obj_based_on_type(expected_type);
     allocaInst = gen.builder->CreateAlloca(llvm_type(gen), nullptr);
-    initialize_alloca(allocaInst, gen, expected_type);
-    return allocaInst;
+    if(dyn_obj) {
+        initialize_alloca(dyn_obj, gen, expected_type);
+        return dyn_obj;
+    } else {
+        initialize_alloca(allocaInst, gen, expected_type);
+        return allocaInst;
+    }
 }
 
 llvm::Value *StructValue::llvm_pointer(Codegen &gen) {

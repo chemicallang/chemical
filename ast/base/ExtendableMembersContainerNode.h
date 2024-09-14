@@ -8,6 +8,8 @@
 class ExtendableMembersContainerNode : public MembersContainer, public ExtendableBase {
 public:
 
+    using MembersContainer::requires_moving;
+
     /**
      * the name of the node
      */

@@ -461,7 +461,7 @@ bool FunctionType::is_value_movable(Value* value_ptr, BaseType* type) {
         return false;
     }
     const auto linked_def = type->get_direct_linked_struct();
-    if(linked_def && linked_def->requires_moving()) {
+    if(linked_def && linked_def->MembersContainer::requires_moving()) {
         return true;
     }
     return false;

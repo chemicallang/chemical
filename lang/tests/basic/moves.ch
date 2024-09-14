@@ -34,6 +34,10 @@ func moved_param_not_cleared(c : ClearObj) {
     // clear won't be called on 'c' as well, because it can't be used
 }
 
+func take_clear_obj(c : ClearObj) {
+
+}
+
 func get_moved_clear_i(c : ClearObj) : int {
     return c.i;
 }
@@ -111,13 +115,19 @@ func test_moves() {
     })
     clear_called = 0;
     delete_called = 0;
-    /**
     test("movable member of struct, delete function is called on previous value on assignment", () => {
         var con = ClearObjCon { c : ClearObj { i : 655 } }
         con.c = ClearObj { i : 543 }
         return clear_called == 0 && delete_called == 1;
     })
-    **/
+    clear_called = 0;
+    delete_called = 0;
+    test("movable member of struct, delete function is not called on previous moved value on assignment", () => {
+        var con = ClearObjCon { c : ClearObj { i : 655 } }
+        take_clear_obj(con.c);
+        con.c = ClearObj { i : 543 }
+        return clear_called == 1 && delete_called == 1; // called once, inside the take_clear_obj, but not due to assignment
+    })
     clear_called = 0;
     delete_called = 0;
     test("movable member of struct, clear function is called on previous value on previous member", () => {

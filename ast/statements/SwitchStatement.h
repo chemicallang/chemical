@@ -47,15 +47,14 @@ public:
 
     void accept(Visitor *visitor) override;
 
-    void declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>* node_ptr, std::unique_ptr<Value>* value_ptr);
+    bool declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>* node_ptr, std::unique_ptr<Value>* value_ptr);
 
     void declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override {
         declare_and_link(linker, &node_ptr, nullptr);
     }
 
     bool link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr) override {
-        declare_and_link(linker, nullptr, &value_ptr);
-        return true;
+        return declare_and_link(linker, nullptr, &value_ptr);
     }
 
     Value* get_value_node();

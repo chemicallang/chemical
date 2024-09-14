@@ -1239,22 +1239,26 @@ void call_clear_func_on(ToCAstVisitor& visitor, Value* value) {
     visitor.write(';');
 }
 
+void clear_identifier(ToCAstVisitor& visitor, VariableIdentifier* id) {
+    if(!id->is_moved) return;
+    const auto linked = id->linked;
+    const auto kind = linked->kind();
+    if(kind != ASTNodeKind::VarInitStmt && kind != ASTNodeKind::FunctionParam) {
+        call_clear_func_on(visitor, id);
+    }
+}
+
 // will call clear function on given value
 void clear_value(ToCAstVisitor& visitor, Value* value) {
     const auto chain = value->as_access_chain();
     if(chain) {
         if(chain->is_moved) {
             call_clear_func_on(visitor, chain);
-            clear_access_chain(visitor, chain);
         }
     } else {
         const auto id = value->as_identifier();
-        if(id && id->is_moved) {
-            const auto linked = id->linked;
-            const auto kind = linked->kind();
-            if(kind != ASTNodeKind::VarInitStmt && kind != ASTNodeKind::FunctionParam) {
-                call_clear_func_on(visitor, id);
-            }
+        if(id) {
+            clear_identifier(visitor, id);
         }
     }
 }
@@ -1272,13 +1276,24 @@ void clear_access_chain(ToCAstVisitor& visitor, AccessChain* chain) {
         const auto func_call = value->as_func_call();
         if(func_call) {
             clear_func_call(visitor, func_call);
+        } else {
+            const auto nested = value->as_access_chain();
+            if(nested) {
+                clear_access_chain(visitor, nested);
+            }
         }
     }
 }
 
+void CAfterStmtVisitor::visit(VariableIdentifier *identifier) {
+    clear_identifier(visitor, identifier);
+}
+
 void CAfterStmtVisitor::visit(AccessChain *chain) {
     CommonVisitor::visit(chain);
-    clear_access_chain(visitor, chain);
+    if(chain->is_moved) {
+        call_clear_func_on(visitor, chain);
+    }
     destruct_chain(chain, chain->is_node);
 }
 
@@ -1296,6 +1311,8 @@ void CAfterStmtVisitor::visit(FunctionCall *call) {
     for(auto& val : call->values) {
         const auto chain = val->as_access_chain();
         if(chain) {
+            // clear the nested chain value
+            clear_access_chain(visitor, chain);
             // if we ever pass struct as a reference, where struct is created at call time
             // we can set destruct_last to true, to destruct the struct after this call
             destruct_chain(chain, false);
@@ -1316,6 +1333,9 @@ void CAfterStmtVisitor::visit(FunctionCall *call) {
 //                    val->accept(this);
 //                }
 //            } else {
+                // don't need to destruct, value is accepting this visitor
+                // if it's access chain, it will always trigger function calls present in access chain, which will again trigger this
+                // if it's identifier, we have a method for identifier on this visitor
                 val->accept(this);
 //            }
         }

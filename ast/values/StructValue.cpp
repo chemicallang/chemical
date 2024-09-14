@@ -145,7 +145,7 @@ llvm::Value *StructValue::llvm_assign_value(Codegen &gen, Value *lhs) {
         }
     } else {
         auto ptr = lhs->llvm_pointer(gen);
-        if(lhs->is_ref_moved()) {
+        if(!lhs->is_ref_moved()) {
             llvm::FunctionType* func_type;
             llvm::Value* func_callee;
             auto destr = gen.determine_destructor_for(definition->known_type(), func_type, func_callee);

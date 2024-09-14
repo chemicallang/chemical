@@ -864,7 +864,7 @@ void AssignStatement::code_gen(Codegen &gen) {
             const auto pointer = lhs->llvm_pointer(gen);
             const auto is_ref_moved = lhs->is_ref_moved();
             const auto lhs_type = lhs->known_type();
-            if(is_ref_moved) {
+            if(!is_ref_moved) {
                 // we must destruct the previous value before we memcpy this value into the pointer, because lhs ref is moved
                 // this is set by symbol resolver, to indicate that this value should be destructed before assigning new moved value
                 llvm::FunctionType* llvm_func_type;

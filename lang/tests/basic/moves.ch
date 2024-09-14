@@ -44,7 +44,7 @@ func get_moved_clear_i(c : ClearObj) : int {
 
 func test_moves() {
 
-    // TESTING WHETHER NEW OWNER OF MOVED OBJECTS ARE VALID
+    // TESTING WHETHER NEW OWNERS OF MOVED OBJECTS ARE VALID
 
     test("moved into var init is valid", () => {
         var obj = ClearObj { i : 343 }
@@ -96,6 +96,9 @@ func test_moves() {
             }
         }
     })
+
+    // TESTING CLEAR FUNCTION CALLS ON MOVES
+
     clear_called = 0;
     delete_called = 0;
     test("object moved from var init, clear function is not called", () => {

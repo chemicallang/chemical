@@ -537,27 +537,25 @@ bool FunctionType::mark_un_moved_lhs_value(Value* value_ptr, BaseType* value_typ
     auto& value = *value_ptr;
     auto chain = value.as_access_chain();
     if(chain) {
-        // we indicate if previous value should be destructed by setting lhs of assignment's is_moved to true of false
+        // we indicate if previous value should be destructed by setting lhs of assignment's is_moved to true or false
         if(un_move_chain(chain)) {
-            chain->is_moved = false;
+            // setting true, to indicate that value was moved before, and this should not be destructed
+            chain->is_moved = true;
             return true;
         } else {
-            // why is true being stored, because value is lhs in assignment
-            // we set this to true, to indicate to code generation to destruct previous value before assignment
-            // since we couldn't unmove the previous value, which means it was never moved, which means it's valid and should be destructed
-            chain->is_moved = true;
+            // setting false, to indicate that value is not moved, and this should be destructed
+            chain->is_moved = false;
         }
     } else {
         auto id = value.as_identifier();
         if(id) {
             if(un_move_id(id)) {
-                id->is_moved = false;
+                // setting true, to indicate that value was moved before, and this should not be destructed
+                id->is_moved = true;
                 return true;
             } else {
-                // why is true being stored, because value is lhs in assignment
-                // we set this to true, to indicate to code generation to destruct previous value before assignment
-                // since we couldn't unmove the previous value, which means it was never moved, which means it's valid and should be destructed
-                id->is_moved = true;
+                // setting false, to indicate that value is not moved, and this should be destructed
+                id->is_moved = false;
             }
             // since we've moved a new value into the lhs value
             // if it's connected to a var init statement, we marked it move to prevent final destructor from being called on it

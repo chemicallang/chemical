@@ -406,7 +406,7 @@ llvm::Value* FunctionCall::llvm_chain_value(
             if(!returnedStruct) {
                 returnedValue = gen.builder->CreateAlloca(func_type->returnType->llvm_type(gen), nullptr);
             }
-            as_struct->initialize_alloca((llvm::AllocaInst*) returnedValue, gen);
+            as_struct->initialize_alloca((llvm::AllocaInst*) returnedValue, gen, nullptr);
             return returnedValue;
         } else {
             return val->llvm_value(gen);

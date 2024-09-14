@@ -130,7 +130,7 @@ func test_moves() {
     })
     clear_called = 0;
     delete_called = 0;
-    test("movable member of struct, clear function is called on previous value on previous member", () => {
+    test("clear function is called on previous value when moving into other struct", () => {
         if(true) {
             var con = ClearObjCon { c : ClearObj { i : 453 } }
             var con2 = ClearObjCon { c : con.c }
@@ -139,4 +139,20 @@ func test_moves() {
     })
     clear_called = 0;
     delete_called = 0;
+    test("clear function is called on previous value when moving into array", () => {
+        if(true) {
+            var con = ClearObjCon { c : ClearObj { i : 453 } }
+            var con2 = { con.c }
+        }
+        return clear_called == 1 && delete_called == 2;
+    })
+    clear_called = 0;
+    delete_called = 0;
+    test("clear function is called on previous value when moving into var init", () => {
+        if(true) {
+            var con = ClearObjCon { c : ClearObj { i : 453 } }
+            var con2 = con.c
+        }
+        return clear_called == 1 && delete_called == 2;
+    })
 }

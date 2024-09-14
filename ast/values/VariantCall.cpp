@@ -91,8 +91,16 @@ unsigned int VariantCall::store_in_struct(Codegen &gen, Value *parent, llvm::Val
     return index + 1;
 }
 
-unsigned int VariantCall::store_in_array(Codegen &gen, ArrayValue *parent, llvm::AllocaInst *ptr, std::vector<llvm::Value *> idxList, unsigned int index, BaseType *expected_type) {
-    const auto got = Value::get_element_pointer(gen, ((Value*) parent)->llvm_type(gen), ptr, idxList, index);
+unsigned int VariantCall::store_in_array(
+        Codegen &gen,
+        Value *parent,
+        llvm::Value *allocated,
+        llvm::Type *allocated_type,
+        std::vector<llvm::Value *> idxList,
+        unsigned int index,
+        BaseType *expected_type
+) {
+    const auto got = Value::get_element_pointer(gen, allocated_type, allocated, idxList, index);
     initialize_allocated(gen, got);
     return index + 1;
 }

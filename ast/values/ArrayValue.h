@@ -64,6 +64,8 @@ public:
 
     llvm::Value *llvm_pointer(Codegen &gen) override;
 
+    void initialize_allocated(Codegen& gen, llvm::Value*, BaseType* expected_type);
+
     llvm::AllocaInst *llvm_allocate(Codegen& gen, const std::string& identifier, BaseType* expected_type) override;
 
     llvm::Value *llvm_value(Codegen &gen, BaseType* expected_type) override;
@@ -74,11 +76,12 @@ public:
 
     unsigned int store_in_array(
             Codegen &gen,
-            ArrayValue *parent,
-            llvm::AllocaInst* ptr,
+            Value *parent,
+            llvm::Value *allocated,
+            llvm::Type *allocated_type,
             std::vector<llvm::Value *> idxList,
             unsigned int index,
-            BaseType* expected_type
+            BaseType *expected_type
     ) override;
 
     unsigned int store_in_struct(

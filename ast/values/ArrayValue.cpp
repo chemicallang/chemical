@@ -27,9 +27,7 @@ llvm::Value *ArrayValue::llvm_pointer(Codegen &gen) {
     return arr;
 }
 
-llvm::AllocaInst* ArrayValue::llvm_allocate(Codegen& gen, const std::string& identifier, BaseType* expected_type) {
-    auto arrType = llvm_type(gen);
-    arr = gen.builder->CreateAlloca(arrType, nullptr, identifier);
+void ArrayValue::initialize_allocated(Codegen& gen, llvm::Value* allocated, BaseType* expected_type) {
     // filling array with values
     std::vector<llvm::Value*> idxList;
     idxList.emplace_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), 0));
@@ -42,14 +40,20 @@ llvm::AllocaInst* ArrayValue::llvm_allocate(Codegen& gen, const std::string& ide
         auto movable_value = current_func_type.movable_value(gen, &value);
         if(movable_value == nullptr) {
             // couldn't move the struct
-            value.store_in_array(gen, this, arr, idxList, i, child_type.get());
+            value.store_in_array(gen, this, allocated, parent_type, idxList, i, child_type.get());
         } else {
             // moving the struct
             std::vector<llvm::Value*> idx{gen.builder->getInt32(0)};
-            auto elementPtr = Value::get_element_pointer(gen, parent_type, arr, idx, i);
+            auto elementPtr = Value::get_element_pointer(gen, parent_type, allocated, idx, i);
             current_func_type.move_by_memcpy(gen, known_child_t, &value, elementPtr, movable_value);
         }
     }
+}
+
+llvm::AllocaInst* ArrayValue::llvm_allocate(Codegen& gen, const std::string& identifier, BaseType* expected_type) {
+    auto arrType = llvm_type(gen);
+    arr = gen.builder->CreateAlloca(arrType, nullptr, identifier);
+    initialize_allocated(gen, arr, expected_type);
     return arr;
 }
 
@@ -72,8 +76,9 @@ void ArrayValue::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
 
 unsigned int ArrayValue::store_in_array(
         Codegen &gen,
-        ArrayValue *parent,
-        llvm::AllocaInst* ptr,
+        Value *parent,
+        llvm::Value* allocated,
+        llvm::Type* allocated_type,
         std::vector<llvm::Value *> idxList,
         unsigned int index,
         BaseType* expected_type
@@ -81,7 +86,7 @@ unsigned int ArrayValue::store_in_array(
     auto child_type = array_child(expected_type);
     idxList.emplace_back(gen.builder->getInt32(index));
     for (size_t i = 0; i < values.size(); ++i) {
-        values[i]->store_in_array(gen, parent, ptr, idxList, i, child_type.get());
+        values[i]->store_in_array(gen, parent, allocated, allocated_type, idxList, i, child_type.get());
     }
     return index + values.size();
 }

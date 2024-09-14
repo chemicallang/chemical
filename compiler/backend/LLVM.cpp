@@ -732,17 +732,17 @@ unsigned int AccessChain::store_in_struct(
 
 unsigned int AccessChain::store_in_array(
         Codegen &gen,
-        ArrayValue *parent,
-        llvm::AllocaInst *allocated,
+        Value *parent,
+        llvm::Value *allocated,
+        llvm::Type *allocated_type,
         std::vector<llvm::Value *> idxList,
         unsigned int index,
-        BaseType* expected_type
+        BaseType *expected_type
 ) {
-    const auto parent_type = parent->llvm_type(gen);
-    if(access_chain_store_in_parent(gen, this, (Value*) parent, allocated, parent_type, idxList, index, expected_type)) {
+    if(access_chain_store_in_parent(gen, this, parent, allocated, allocated_type, idxList, index, expected_type)) {
         return index + 1;
     }
-    return Value::store_in_array(gen, parent, allocated, idxList, index, expected_type);
+    return Value::store_in_array(gen, parent, allocated, allocated_type, idxList, index, expected_type);
 };
 
 // --------------------------------------- Statements

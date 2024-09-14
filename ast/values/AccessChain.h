@@ -152,11 +152,12 @@ public:
 
     unsigned int store_in_array(
             Codegen &gen,
-            ArrayValue *parent,
-            llvm::AllocaInst *ptr,
+            Value *parent,
+            llvm::Value *allocated,
+            llvm::Type *allocated_type,
             std::vector<llvm::Value *> idxList,
             unsigned int index,
-            BaseType* expected_type
+            BaseType *expected_type
     ) override;
 
 #endif

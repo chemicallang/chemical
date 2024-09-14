@@ -103,9 +103,25 @@ public:
 
     llvm::Type* llvm_type(Codegen &gen) override;
 
-    unsigned int store_in_struct(Codegen &gen, Value *parent, llvm::Value *allocated, llvm::Type *allocated_type, std::vector<llvm::Value *> idxList, unsigned int index, BaseType *expected_type) override;
+    unsigned int store_in_struct(
+            Codegen &gen,
+            Value *parent,
+            llvm::Value *allocated,
+            llvm::Type *allocated_type,
+            std::vector<llvm::Value *> idxList,
+            unsigned int index,
+            BaseType *expected_type
+    ) override;
 
-    unsigned int store_in_array(Codegen &gen, ArrayValue *parent, llvm::AllocaInst *ptr, std::vector<llvm::Value *> idxList, unsigned int index, BaseType *expected_type) override;
+    unsigned int store_in_array(
+            Codegen &gen,
+            Value *parent,
+            llvm::Value *allocated,
+            llvm::Type *allocated_type,
+            std::vector<llvm::Value *> idxList,
+            unsigned int index,
+            BaseType *expected_type
+    ) override;
 
     void llvm_destruct(Codegen &gen, llvm::Value *allocaInst) override;
 

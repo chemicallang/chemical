@@ -96,11 +96,12 @@ unsigned int StructValue::store_in_struct(
 
 unsigned int StructValue::store_in_array(
         Codegen &gen,
-        ArrayValue *parent,
-        llvm::AllocaInst *ptr,
+        Value *parent,
+        llvm::Value *allocated,
+        llvm::Type *allocated_type,
         std::vector<llvm::Value *> idxList,
         unsigned int index,
-        BaseType* expected_type
+        BaseType *expected_type
 ) {
     if (index == -1) {
         gen.error(
@@ -110,13 +111,13 @@ unsigned int StructValue::store_in_array(
     }
     const auto interface = expected_type ? expected_type->linked_dyn_interface() : nullptr;
     if(interface) {
-        auto elementPtr = Value::get_element_pointer(gen, ((Value*) parent)->llvm_type(gen), ptr, idxList, index);
+        auto elementPtr = Value::get_element_pointer(gen, allocated_type, allocated, idxList, index);
         const auto struct_alloc = llvm_allocate(gen, "", nullptr);
         if(!gen.assign_dyn_obj(this, expected_type, elementPtr, struct_alloc)) {
             gen.error("couldn't assign dyn object struct " + representation() + " to expected type " + expected_type->representation() + " in parent " + ((Value*) parent)->representation(), this);
         }
     } else {
-        auto elementPtr = Value::get_element_pointer(gen, ((Value*) parent)->llvm_type(gen), ptr, idxList, index);
+        auto elementPtr = Value::get_element_pointer(gen, allocated_type, allocated, idxList, index);
         initialize_alloca(elementPtr, gen);
     }
     return index + 1;

@@ -315,6 +315,25 @@ public:
     );
 
     /**
+     * store this value in the allocated array
+     * this method is same as above store_in_struct
+     *
+     * only this method stores this value in an array
+     * by default it gets the value, stores it in array at the given index, return index + 1
+     *
+     * this method could be overridden by array values to provide different behavior for nested arrays
+     */
+    virtual unsigned int store_in_array(
+            Codegen& gen,
+            Value* parent,
+            llvm::Value* allocated,
+            llvm::Type* allocated_type,
+            std::vector<llvm::Value *> idxList,
+            unsigned int index,
+            BaseType* expected_type
+    );
+
+    /**
      * It get's the element pointer in the allocated parent value
      * the parent can be of type struct or array, so yeah, It allows us to
      * get an index for element of an array or struct, so we can load it, or store in it
@@ -325,24 +344,6 @@ public:
             llvm::Value* ptr,
             std::vector<llvm::Value *>& idxList,
             unsigned int index
-    );
-
-    /**
-     * store this value in the allocated array
-     * this method is same as above store_in_struct
-     *
-     * only this method stores this value in an array
-     * by default it gets the value, stores it in array at the given index, return index + 1
-     *
-     * this method could be overridden by array values to provide different behavior for nested arrays
-     */
-    virtual unsigned int store_in_array(
-        Codegen& gen,
-        ArrayValue* parent,
-        llvm::AllocaInst* ptr,
-        std::vector<llvm::Value *> idxList,
-        unsigned int index,
-        BaseType* expected_type
     );
 
     /**

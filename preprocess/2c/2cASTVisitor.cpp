@@ -1224,8 +1224,61 @@ void CAfterStmtVisitor::destruct_chain(AccessChain *chain, bool destruct_last) {
     }
 }
 
+void clear_access_chain(ToCAstVisitor& visitor, AccessChain* chain);
+
+void call_clear_func_on(ToCAstVisitor& visitor, Value* value) {
+    auto known_t = value->known_type();
+    auto movable = known_t->get_direct_linked_movable_struct();
+    const auto clear_func = movable->clear_func();
+    visitor.new_line_and_indent();
+    func_container_name(visitor, clear_func);
+    visitor.write('(');
+    visitor.write('&');
+    value->accept(&visitor);
+    visitor.write(')');
+    visitor.write(';');
+}
+
+// will call clear function on given value
+void clear_value(ToCAstVisitor& visitor, Value* value) {
+    const auto chain = value->as_access_chain();
+    if(chain) {
+        if(chain->is_moved) {
+            call_clear_func_on(visitor, chain);
+            clear_access_chain(visitor, chain);
+        }
+    } else {
+        const auto id = value->as_identifier();
+        if(id && id->is_moved) {
+            const auto linked = id->linked;
+            const auto kind = linked->kind();
+            if(kind != ASTNodeKind::VarInitStmt && kind != ASTNodeKind::FunctionParam) {
+                call_clear_func_on(visitor, id);
+            }
+        }
+    }
+}
+
+// will cal clear functions on moved arguments in function call
+void clear_func_call(ToCAstVisitor& visitor, FunctionCall* call) {
+    for(auto& value : call->values) {
+        clear_value(visitor, value.get());
+    }
+}
+
+// will call clear functions as required on the access chain
+void clear_access_chain(ToCAstVisitor& visitor, AccessChain* chain) {
+    for(auto& value : chain->values) {
+        const auto func_call = value->as_func_call();
+        if(func_call) {
+            clear_func_call(visitor, func_call);
+        }
+    }
+}
+
 void CAfterStmtVisitor::visit(AccessChain *chain) {
     CommonVisitor::visit(chain);
+    clear_access_chain(visitor, chain);
     destruct_chain(chain, chain->is_node);
 }
 

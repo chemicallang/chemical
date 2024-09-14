@@ -18,9 +18,22 @@
 #include "compiler/llvmimpl.h"
 #include "IntValue.h"
 
-void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen) {
-    auto& current_func_type = *gen.current_func_type;
+void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen, BaseType* expected_type) {
+
     const auto parent_type = llvm_type(gen);
+
+    // when the expected type is dyn, which means fat pointer has been allocated before, however struct can't be stored inside it
+    // so we allocate a struct, and assign dynamic object to the fat pointer, we also initialize the dynamic object
+    const auto interface = expected_type ? expected_type->linked_dyn_interface() : nullptr;
+    if(interface) {
+        auto fat_pointer = inst;
+        inst = gen.builder->CreateAlloca(llvm_type(gen), nullptr);
+        if(!gen.assign_dyn_obj(this, expected_type, fat_pointer, inst)) {
+            gen.error("couldn't assign dyn object struct " + representation() + " to expected type " + expected_type->representation(), this);
+        }
+    }
+
+    auto& current_func_type = *gen.current_func_type;
     for (const auto &value: values) {
         auto& value_ptr = value.second->value;
         auto variable = definition->variable_type_index(value.first);
@@ -45,7 +58,7 @@ void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen) {
 
 llvm::AllocaInst *StructValue::llvm_allocate(Codegen& gen, const std::string& identifier, BaseType* expected_type) {
     allocaInst = gen.builder->CreateAlloca(llvm_type(gen), nullptr);
-    initialize_alloca(allocaInst, gen);
+    initialize_alloca(allocaInst, gen, expected_type);
     return allocaInst;
 }
 
@@ -80,17 +93,8 @@ unsigned int StructValue::store_in_struct(
                 " where current definition name '" + definition->name + "'", this);
         return index + values.size();
     }
-    const auto interface = expected_type ? expected_type->linked_dyn_interface() : nullptr;
-    if(interface) {
-        auto elementPtr = Value::get_element_pointer(gen, allocated_type, allocated, idxList, index);
-        const auto struct_alloc = llvm_allocate(gen, "", nullptr);
-        if(!gen.assign_dyn_obj(this, expected_type, elementPtr, struct_alloc)) {
-            gen.error("couldn't assign dyn object struct " + representation() + " to expected type " + expected_type->representation() + " in parent " + parent->representation(), this);
-        }
-    } else {
-        auto elementPtr = Value::get_element_pointer(gen, allocated_type, allocated, idxList, index);
-        initialize_alloca(elementPtr, gen);
-    }
+    auto elementPtr = Value::get_element_pointer(gen, allocated_type, allocated, idxList, index);
+    initialize_alloca(elementPtr, gen, expected_type);
     return index + values.size();
 }
 
@@ -109,17 +113,8 @@ unsigned int StructValue::store_in_array(
                 " where current definition name " + definition->name, this);
         return index + 1;
     }
-    const auto interface = expected_type ? expected_type->linked_dyn_interface() : nullptr;
-    if(interface) {
-        auto elementPtr = Value::get_element_pointer(gen, allocated_type, allocated, idxList, index);
-        const auto struct_alloc = llvm_allocate(gen, "", nullptr);
-        if(!gen.assign_dyn_obj(this, expected_type, elementPtr, struct_alloc)) {
-            gen.error("couldn't assign dyn object struct " + representation() + " to expected type " + expected_type->representation() + " in parent " + ((Value*) parent)->representation(), this);
-        }
-    } else {
-        auto elementPtr = Value::get_element_pointer(gen, allocated_type, allocated, idxList, index);
-        initialize_alloca(elementPtr, gen);
-    }
+    auto elementPtr = Value::get_element_pointer(gen, allocated_type, allocated, idxList, index);
+    initialize_alloca(elementPtr, gen, expected_type);
     return index + 1;
 }
 
@@ -136,7 +131,7 @@ llvm::Value *StructValue::llvm_assign_value(Codegen &gen, Value *lhs) {
             const auto deref = lhs->as_deref_value();
             if (deref->value->value_type() == ValueType::Pointer) {
                 auto allocated = deref->llvm_pointer(gen);
-                initialize_alloca(allocated, gen);
+                initialize_alloca(allocated, gen, nullptr);
                 return nullptr;
             }
         }
@@ -154,7 +149,7 @@ llvm::Value *StructValue::llvm_arg_value(Codegen &gen, FunctionCall *call, unsig
 llvm::Value *StructValue::llvm_ret_value(Codegen &gen, ReturnStatement *returnStmt) {
     // TODO make sure this argument corresponds to the struct
     auto structPassed = gen.current_function->getArg(0);
-    initialize_alloca(structPassed, gen);
+    initialize_alloca(structPassed, gen, nullptr);
     return nullptr;
 }
 

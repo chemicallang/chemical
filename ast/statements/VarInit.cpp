@@ -64,7 +64,7 @@ void VarInitStatement::code_gen(Codegen &gen) {
                     llvm_ptr = gen.allocate_dyn_obj_based_on_type(type.get());
                 }
                 // allocate the struct
-                const auto allocated = value->llvm_allocate(gen, identifier,type_ptr_fast());
+                const auto allocated = value->llvm_allocate(gen, identifier,nullptr);
                 if (llvm_ptr == nullptr ||
                     !gen.assign_dyn_obj(value.get(), type_ptr_fast(), llvm_ptr, allocated)) {
                     llvm_ptr = allocated;

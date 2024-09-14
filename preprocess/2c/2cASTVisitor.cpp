@@ -1447,6 +1447,7 @@ void CDestructionVisitor::dispatch_jobs_from(int begin) {
 
 void CDestructionVisitor::queue_destruct_decl_params(FunctionType* decl) {
     for(auto& d_param : decl->params) {
+        if(d_param->get_has_moved()) continue;
         auto linked = d_param->type->get_direct_linked_node();
         if(linked) {
             const auto members_container = linked->as_members_container();

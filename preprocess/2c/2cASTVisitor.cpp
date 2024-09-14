@@ -1496,8 +1496,30 @@ bool CDestructionVisitor::queue_destruct_arr(const std::string& self_name, ASTNo
 
 void CDestructionVisitor::process_init_value(VarInitStatement *init, Value* init_value) {
     auto chain = init_value->as_access_chain();
-    if(chain && chain->values.back()->as_func_call()) {
-        queue_destruct(init->identifier, init, chain->values.back()->as_func_call());
+    if(chain) {
+        if(chain->values.back()->as_func_call()) {
+            queue_destruct(init->identifier, init, chain->values.back()->as_func_call());
+            return;
+        } else {
+            if(chain->is_moved) {
+                auto linked = init->type->linked_node();
+                if(!linked) {
+                    visitor.error("couldn't destruct var init", init);
+                    return;
+                }
+                queue_destruct(init->identifier, init, init->type->get_generic_iteration(), linked->as_extendable_members_container_node());
+            }
+            return;
+        }
+    }
+    auto id = init_value->as_identifier();
+    if(id && id->is_moved) {
+        auto linked = init->type->linked_node();
+        if(!linked) {
+            visitor.error("couldn't destruct var init", init);
+            return;
+        }
+        queue_destruct(init->identifier, init, init->type->get_generic_iteration(), linked->as_extendable_members_container_node());
         return;
     }
     auto array_val = init_value->as_array_value();

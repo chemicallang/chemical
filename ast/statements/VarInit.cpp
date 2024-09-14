@@ -93,6 +93,10 @@ void VarInitStatement::code_gen_destruct(Codegen &gen, Value* returnValue) {
         }
     }
     if(value) {
+        if(value->is_ref_moved()) {
+            known_type()->linked_node()->llvm_destruct(gen, llvm_ptr);
+            return;
+        }
         value->llvm_destruct(gen, llvm_ptr);
     } else {
         auto kind = type->kind();

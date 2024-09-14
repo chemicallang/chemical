@@ -302,7 +302,42 @@ ASTNode *StructValue::linked_node() {
 }
 
 bool StructValue::is_generic() {
-    return linked_struct()->is_generic();
+    switch(linked_kind) {
+        case ASTNodeKind::UnionDecl:
+            return linked_union()->is_generic();
+        case ASTNodeKind::StructDecl:
+        default:
+            return linked_struct()->is_generic();
+    }
+}
+
+void StructValue::runtime_name(std::ostream& output) {
+    switch(linked_kind) {
+        case ASTNodeKind::UnionDecl: {
+            const auto uni = linked_union();
+            if (uni->is_generic()) {
+                auto prev = uni->active_iteration;
+                uni->set_active_iteration(generic_iteration);
+                uni->runtime_name(output);
+                uni->set_active_iteration(prev);
+            } else {
+                uni->runtime_name(output);
+            }
+            return;
+        }
+        default:
+        case ASTNodeKind::StructDecl:{
+            const auto decl = linked_struct();
+            if (decl->is_generic()) {
+                auto prev = decl->active_iteration;
+                decl->set_active_iteration(generic_iteration);
+                decl->runtime_name(output);
+                decl->set_active_iteration(prev);
+            } else {
+                decl->runtime_name(output);
+            }
+        }
+    }
 }
 
 Value *StructValue::call_member(

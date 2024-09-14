@@ -420,17 +420,7 @@ bool implicit_mutate_value(ToCAstVisitor& visitor, BaseType* type, Value* value,
 
 bool implicit_mutate_value_default(ToCAstVisitor& visitor, BaseType* type, Value* value) {
     return implicit_mutate_value_for_dyn_obj(visitor, type, value, [](ToCAstVisitor& visitor, Value* value) -> void {
-        const auto as_struct = value->as_struct();
-        if(as_struct) {
-            visitor.write('(');
-            visitor.write("struct");
-            visitor.space();
-            node_name(visitor, as_struct->linked_node());
-            visitor.write(')');
-            value->accept(&visitor);
-        } else {
-            value->accept(&visitor);
-        }
+        value->accept(&visitor);
     });
 }
 
@@ -3693,6 +3683,22 @@ void ToCAstVisitor::visit(ArrayValue *arr) {
 }
 
 void ToCAstVisitor::visit(StructValue *val) {
+    auto linked = val->linked_node();
+    auto linked_kind = linked->kind();
+    write('(');
+    int16_t prev_itr;
+    bool is_generic = val->is_generic();
+    if(is_generic) {
+        prev_itr = val->get_active_iteration();
+        val->set_active_iteration(val->generic_iteration);
+    }
+    if(linked_kind == ASTNodeKind::UnionDecl) {
+        write("union ");
+    } else {
+        write("struct ");
+    }
+    val->runtime_name(*output);
+    write(')');
     write('{');
     auto prev = nested_value;
     nested_value = true;
@@ -3714,6 +3720,9 @@ void ToCAstVisitor::visit(StructValue *val) {
     }
     nested_value = prev;
     write('}');
+    if(is_generic) {
+        val->set_active_iteration(prev_itr);
+    }
 }
 
 void ToCAstVisitor::visit(VariableIdentifier *identifier) {

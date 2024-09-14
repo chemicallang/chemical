@@ -109,4 +109,24 @@ func test_moves() {
         moved_param_not_cleared(ClearObj { i : 543 });
         return clear_called == 0 && delete_called == 1;
     })
+    clear_called = 0;
+    delete_called = 0;
+    /**
+    test("movable member of struct, delete function is called on previous value on assignment", () => {
+        var con = ClearObjCon { c : ClearObj { i : 655 } }
+        con.c = ClearObj { i : 543 }
+        return clear_called == 0 && delete_called == 1;
+    })
+    **/
+    clear_called = 0;
+    delete_called = 0;
+    test("movable member of struct, clear function is called on previous value on previous member", () => {
+        if(true) {
+            var con = ClearObjCon { c : ClearObj { i : 453 } }
+            var con2 = ClearObjCon { c : con.c }
+        }
+        return clear_called == 1 && delete_called == 2;
+    })
+    clear_called = 0;
+    delete_called = 0;
 }

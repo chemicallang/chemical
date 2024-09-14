@@ -9,6 +9,7 @@
 #include "ast/values/ArrayValue.h"
 #include "ast/types/FunctionType.h"
 #include "ast/values/IntValue.h"
+#include "compiler/SymbolResolver.h"
 
 bool TypeLinkedValue::link(SymbolResolver &linker, VarInitStatement *stmnt) {
     return link(linker, stmnt->value, stmnt->type ? stmnt->type.get() : nullptr);
@@ -47,6 +48,10 @@ bool TypeLinkedValue::link(SymbolResolver &linker, FunctionCall *call, unsigned 
 
 bool TypeLinkedValue::link(SymbolResolver &linker, StructValue *structValue, const std::string &name) {
     auto child = structValue->child(name);
+    if(!child) {
+        linker.error("couldn't find child " + name + " in struct declaration", structValue);
+        return false;
+    }
     auto child_type = child->get_value_type();
     return link(linker, structValue->values[name]->value, child_type.get());
 }

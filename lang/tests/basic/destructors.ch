@@ -422,7 +422,7 @@ func test_destructors() {
         var count = 0;
         if(count == 0) {
             var d = GenDestructOwner {
-                d : GenDestruct<int> { data : 454, count : &count, lamb : destruct_inc_count  }
+                d : GenDestruct<long> { data : 454, count : &count, lamb : destruct_inc_count  }
             }
         }
         return count == 1;

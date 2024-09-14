@@ -88,13 +88,8 @@ unsigned int StructValue::store_in_struct(
             gen.error("couldn't assign dyn object struct " + representation() + " to expected type " + expected_type->representation() + " in parent " + parent->representation(), this);
         }
     } else {
-        const auto parent_type = llvm_type(gen);
-        for (const auto& value: values) {
-            auto& value_ptr = value.second->value;
-            auto child_index = definition->variable_type_index(value.first);
-            auto currIndex = index + child_index.first;
-            value_ptr->store_in_struct(gen, this, allocated, parent_type, idxList, currIndex, child_index.second);
-        }
+        auto elementPtr = Value::get_element_pointer(gen, allocated_type, allocated, idxList, index);
+        initialize_alloca(elementPtr, gen);
     }
     return index + values.size();
 }

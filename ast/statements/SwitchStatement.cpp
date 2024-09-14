@@ -160,15 +160,15 @@ BaseType *SwitchStatement::known_type() {
     return last_val ? last_val->known_type() : nullptr;
 }
 
-void SwitchStatement::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>* node_ptr, std::unique_ptr<Value>* value_ptr) {
+bool SwitchStatement::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>* node_ptr, std::unique_ptr<Value>* value_ptr) {
     expression->link(linker, expression);
     VariantDefinition* variant_def = nullptr;
     const auto linked = expression->known_type()->linked_node();
     if(linked) {
         variant_def = linked->as_variant_def();
-        if (variant_def && (scopes.size() < variant_def->variables.size() && !defScope.has_value())) {
+        if (!node_ptr && variant_def && (scopes.size() < variant_def->variables.size() && !defScope.has_value())) {
             linker.error("expected all cases of variant in switch statement when no default case is specified", (ASTNode*) this);
-            return;
+            return false;
         }
     }
     for(auto& scope : scopes) {
@@ -188,6 +188,7 @@ void SwitchStatement::declare_and_link(SymbolResolver &linker, std::unique_ptr<A
         defScope.value().link_sequentially(linker);
         linker.scope_end();
     }
+    return true;
 }
 
 void SwitchStatement::accept(Visitor *visitor) {

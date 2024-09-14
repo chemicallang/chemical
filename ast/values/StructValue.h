@@ -92,6 +92,8 @@ public:
 
     bool is_generic();
 
+    void runtime_name(std::ostream& output);
+
     int16_t get_active_iteration() {
         return definition->active_iteration;
     }
@@ -110,6 +112,10 @@ public:
 
     StructDefinition* linked_struct() {
         return (StructDefinition*) definition;
+    }
+
+    UnionDef* linked_union() {
+        return (UnionDef*) definition;
     }
 
     const std::string& linked_name() {

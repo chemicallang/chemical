@@ -83,11 +83,8 @@ unsigned int ArrayValue::store_in_array(
         unsigned int index,
         BaseType* expected_type
 ) {
-    auto child_type = array_child(expected_type);
-    idxList.emplace_back(gen.builder->getInt32(index));
-    for (size_t i = 0; i < values.size(); ++i) {
-        values[i]->store_in_array(gen, parent, allocated, allocated_type, idxList, i, child_type.get());
-    }
+    auto elem_pointer = Value::get_element_pointer(gen, allocated_type, allocated, idxList, index);
+    initialize_allocated(gen, elem_pointer, expected_type);
     return index + values.size();
 }
 
@@ -100,12 +97,9 @@ unsigned int ArrayValue::store_in_struct(
         unsigned int index,
         BaseType* expected_type
 ) {
-    auto child_type = array_child(expected_type);
-    idxList.emplace_back(gen.builder->getInt32(index));
-    for (size_t i = 0; i < values.size(); ++i) {
-        values[i]->store_in_struct(gen, parent, allocated, allocated_type, idxList, i, child_type.get());
-    }
-    return index + 1;
+    auto elem_pointer = Value::get_element_pointer(gen, allocated_type, allocated, idxList, index);
+    initialize_allocated(gen, elem_pointer, expected_type);
+    return index + values.size();
 }
 
 llvm::Type *ArrayValue::llvm_elem_type(Codegen &gen) {

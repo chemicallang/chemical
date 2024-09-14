@@ -28,6 +28,7 @@ import "basic/dynamic.ch"
 import "basic/variants.ch"
 import "basic/modules1.ch"
 import "basic/modules.ch"
+import "basic/moves.ch"
 import "comptime/is_value.ch"
 
 func main() {
@@ -62,5 +63,6 @@ func main() {
     test_is_value();
     test_imported_modules();
     test_modules_import();
+    test_moves();
     print_test_stats();
 }

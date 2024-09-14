@@ -1313,6 +1313,9 @@ void CAfterStmtVisitor::visit(FunctionCall *call) {
     for(auto& val : call->values) {
         const auto chain = val->as_access_chain();
         if(chain) {
+            if(chain->is_moved) {
+                call_clear_func_on(visitor, chain);
+            }
             // clear the nested chain value
             clear_access_chain(visitor, chain);
             // if we ever pass struct as a reference, where struct is created at call time

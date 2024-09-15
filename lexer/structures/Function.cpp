@@ -27,7 +27,7 @@ bool Lexer::lexConstructorInitBlock() {
         }
         while(true) {
             lexWhitespaceAndNewLines();
-            if(lexAccessChain(false)) {
+            if(lexAccessChain(false, true)) {
                 lexOperatorToken(';');
             } else {
                 break;
@@ -37,7 +37,7 @@ bool Lexer::lexConstructorInitBlock() {
             error("expected a '}' for ending the init block");
             return true;
         }
-        compound_from(start, LexTokenType::CompBody);
+        compound_from(start + 1, LexTokenType::CompBody);
         compound_from(start, LexTokenType::CompInitBlock);
         return true;
     } else {

@@ -195,8 +195,14 @@ void InitBlock::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode
             auto base_def = linked->as_base_def_member_unsafe();
             initializers[base_def->name] = { false, call->values.front().get() };
             continue;
-        } else if(linked_kind == ASTNodeKind::StructDecl) {
-            auto called_struc = linked->as_struct_def_unsafe();
+        } else if(linked_kind == ASTNodeKind::FunctionDecl) {
+            auto linked_func = linked->as_function();
+            auto func_parent = linked_func->parent_node;
+            auto called_struc = func_parent ? func_parent->as_struct_def() : nullptr;
+            if(!called_struc) {
+                linker.error("couldn't get struct of constructor in init block", (ASTNode*) chain);
+                continue;
+            }
             bool found = false;
             for(auto& inherit : mems_container->inherited) {
                 auto struc = inherit->type->get_direct_linked_struct();
@@ -210,6 +216,8 @@ void InitBlock::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode
             }
             initializers[called_struc->name] = { true, chain };
             continue;
+        } else {
+            linker.error("call to unknown node in init block", (ASTNode*) chain);
         }
     }
 }

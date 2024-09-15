@@ -932,7 +932,7 @@ void CSTConverter::visitBody(CSTToken* bodyCst) {
 }
 
 void CSTConverter::visitInitBlock(CSTToken *initBlock) {
-    auto& block_token = initBlock->tokens[0];
+    auto& block_token = initBlock->tokens[1];
     auto init_block = new InitBlock(Scope(nullptr, block_token), parent_node, initBlock);
     init_block->scope.parent_node = init_block;
     init_block->scope.nodes = take_body_nodes(this, block_token, init_block);

@@ -213,7 +213,7 @@ public:
      * @param assChain is the access chain in an assignment
      * @param lexStruct also lex a struct if found -> StructName { v1, v2 }
      */
-    bool lexAccessChain(bool lexStruct = false);
+    bool lexAccessChain(bool lexStruct = false, bool lex_as_node = false);
 
     /**
      * it lexes a access chain, but allows a '&' operator before it to get the address of value

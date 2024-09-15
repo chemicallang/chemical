@@ -14,6 +14,7 @@
 #include "ast/statements/VarInit.h"
 #include "ast/values/CastedValue.h"
 #include "ast/types/LinkedType.h"
+#include "ast/structures/InitBlock.h"
 #include "ast/values/RetStructParamValue.h"
 #include "ast/types/VoidType.h"
 #include "ast/values/FunctionCall.h"
@@ -162,6 +163,42 @@ void FunctionType::queue_destruct_params(Codegen& gen) {
     }
 }
 
+void initialize_def_struct_values(Codegen &gen, StructDefinition* struct_def, FunctionDeclaration* decl) {
+    std::unordered_map<std::string, InitBlockInitializerValue>* initializers = nullptr;
+    if(decl->body.has_value() && !decl->body->nodes.empty()) {
+        auto block = decl->body->nodes.front()->as_init_block();
+        if(block) {
+            initializers = &block->initializers;
+        }
+    }
+    auto self_arg = gen.current_function->getArg(0);
+    auto parent_type = struct_def->llvm_type(gen);
+    for(auto& var : struct_def->variables) {
+        const auto defValue = var.second->default_value();
+        if(!defValue) continue;
+        auto has_not_been_initialized = !initializers || initializers->find(var.first) == initializers->end();
+        if(has_not_been_initialized) {
+            // couldn't move struct
+            auto variable = struct_def->variable_type_index(var.first, false);
+            std::vector<llvm::Value*> idx { gen.builder->getInt32(0) };
+            defValue->store_in_struct(gen, nullptr, self_arg, parent_type, idx, variable.first, variable.second);
+        }
+    }
+}
+
+void initialize_constructor_def_values(Codegen &gen, FunctionDeclaration* decl) {
+    auto parent = decl->parent_node;
+    if(parent) {
+        if(!decl->has_annotation(AnnotationKind::Constructor)) {
+            return;
+        }
+        const auto struct_def = parent->as_struct_def();
+        if(struct_def) {
+            initialize_def_struct_values(gen, struct_def, decl);
+        }
+    }
+}
+
 void body_gen(Codegen &gen, llvm::Function* funcCallee, std::optional<LoopScope>& body, FunctionDeclaration* func_type) {
     if(body.has_value()) {
         auto prev_func_type = gen.current_func_type;
@@ -171,6 +208,7 @@ void body_gen(Codegen &gen, llvm::Function* funcCallee, std::optional<LoopScope>
         const auto destruct_begin = gen.destruct_nodes.size();
         func_type->queue_destruct_params(gen);
         gen.SetInsertPoint(&funcCallee->getEntryBlock());
+        initialize_constructor_def_values(gen, func_type);
         body->code_gen(gen, destruct_begin);
         gen.end_function_block();
         gen.current_function = nullptr;

@@ -353,6 +353,8 @@ public:
 
     void visit(AccessChain* chain) override;
 
+    void visit(InitBlock *initBlock) override;
+
     void visit(MacroValueStatement* statement) override;
 
     void visit(StructMember* member) override;

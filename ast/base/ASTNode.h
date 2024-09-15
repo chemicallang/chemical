@@ -628,6 +628,13 @@ public:
     //---------------------------------------------
 
     /**
+     * get this node as access chain safely
+     */
+    AccessChain* as_access_chain() {
+        return isAccessChain() ? (AccessChain*) this : nullptr;
+    }
+
+    /**
       * return this as an annotable node
       */
     AnnotableNode* as_annotable_node() {

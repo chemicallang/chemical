@@ -50,6 +50,7 @@
 #include "ast/statements/Assignment.h"
 #include "ast/statements/Import.h"
 #include "ast/structures/EnumDeclaration.h"
+#include "ast/structures/InitBlock.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/VariablesContainer.h"
 #include "ast/structures/MembersContainer.h"
@@ -849,6 +850,11 @@ void Scope::code_gen(Codegen &gen, unsigned destruct_begin) {
 
 void Scope::code_gen(Codegen &gen) {
     code_gen(gen, gen.destruct_nodes.size());
+}
+
+
+void InitBlock::code_gen(Codegen &gen) {
+    // TODO init block code
 }
 
 void ThrowStatement::code_gen(Codegen &gen) {

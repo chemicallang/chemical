@@ -255,7 +255,7 @@ bool StructValue::diagnose_missing_members_for_init(ASTDiagnoser& diagnoser) {
             return true;
         }
     }
-    if(values.size() != definition->init_values_req_size()) {
+    if(values.size() < definition->init_values_req_size()) {
         std::vector<std::string> missing;
         for(auto& mem : definition->inherited) {
             auto& type = *mem->type;

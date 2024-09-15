@@ -422,15 +422,20 @@ void ToCAstVisitor::accept_mutating_value(BaseType* type, Value* value) {
 void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* func_type, unsigned i = 0) {
     auto prev_value = visitor.nested_value;
     visitor.nested_value = true;
-    FunctionParam* param;
+    bool has_value_before = false;
     while(i < call->values.size()) {
-        param = func_type->func_param_for_arg_at(i);
+        auto param = func_type->func_param_for_arg_at(i);
         auto& val = call->values[i];
         const auto param_type_kind = param->type->kind();
         const auto param_ref_node = param->type->get_direct_linked_node(param_type_kind);
         const auto val_ref_node = get_func_param_ref_node(val->linked_node());
         const auto is_struct_param = (param_ref_node && param_ref_node->as_struct_def());
         const auto is_variant_param = (param_ref_node && param_ref_node->as_variant_def());
+        if (has_value_before) {
+            visitor.write(", ");
+        } else {
+            has_value_before = true;
+        }
         if(param->type->is_reference(param_type_kind) || is_struct_param || is_variant_param) {
             auto allocated = visitor.local_allocated.find(val.get());
             visitor.write('&');
@@ -438,9 +443,6 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
                 visitor.write(allocated->second);
             } else {
                 val->accept(&visitor);
-            }
-            if (i != call->values.size() - 1) {
-                visitor.write(", ");
             }
             i++;
             continue;
@@ -452,8 +454,27 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
             visitor.write(')');
         }
         visitor.accept_mutating_value(param->type.get(), val.get());
-        if (i != call->values.size() - 1) {
-            visitor.write(", ");
+        i++;
+    }
+    i += func_type->explicit_func_arg_offset();
+    const auto func_param_size = func_type->params.size();
+    while(i < func_param_size) {
+        auto param = func_type->func_param_for_arg_at(i);
+        if (param) {
+            if(param->defValue) {
+                if (has_value_before) {
+                    visitor.write(", ");
+                } else {
+                    has_value_before = true;
+                }
+                param->defValue->accept(&visitor);
+            } else if(!func_type->isInVarArgs(i)) {
+                visitor.error("function param '" + param->name + "' doesn't have a default value, however no argument exists for it", call);
+            }
+        } else {
+#ifdef DEBUG
+            throw std::runtime_error("couldn't get param");
+#endif
         }
         i++;
     }

@@ -625,6 +625,9 @@ uint64_t FunctionCall::byte_size(bool is64Bit) {
 void FunctionCall::link_values(SymbolResolver &linker) {
     auto& current_func = *linker.current_func_type;
     auto func_type = get_function_type();
+    if(func_type.get() == nullptr) {
+        return;
+    }
     unsigned i = 0;
     while(i < values.size()) {
         auto& value = *values[i];
@@ -645,6 +648,7 @@ void FunctionCall::relink_values(SymbolResolver &linker) {
 
 void FunctionCall::link_args_implicit_constructor(SymbolResolver &linker){
     auto func_type = get_function_type();
+    if(!func_type) return;
     unsigned i = 0;
     while(i < values.size()) {
         const auto param = func_type->func_param_for_arg_at(i);
@@ -695,8 +699,12 @@ hybrid_ptr<FunctionType> FunctionCall::get_function_type() {
 
 BaseType* FunctionCall::get_arg_type(unsigned int index) {
     auto func_type = parent_val->known_type()->function_type();
-    auto param = func_type->func_param_for_arg_at(index);
-    return param->type.get();
+    if(func_type) {
+        auto param = func_type->func_param_for_arg_at(index);
+        return param->type.get();
+    } else {
+        return nullptr;
+    }
 }
 
 int16_t FunctionCall::set_curr_itr_on_decl(FunctionDeclaration* decl) {

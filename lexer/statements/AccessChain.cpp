@@ -24,7 +24,7 @@ bool Lexer::storeIdentifier(const std::string &identifier) {
     }
 }
 
-bool Lexer::lexAccessChain(bool lexStruct) {
+bool Lexer::lexAccessChain(bool lexStruct, bool lex_as_node) {
 
     auto id = lexIdentifier();
     if(id.empty()) {
@@ -44,7 +44,7 @@ bool Lexer::lexAccessChain(bool lexStruct) {
     lexAccessChainAfterId(lexStruct);
 
     if(start < tokens_size() && !unit.tokens[start]->is_struct_value()) {
-        compound_from(start, LexTokenType::CompAccessChain);
+        compound_from(start, lex_as_node ? LexTokenType::CompAccessChainNode : LexTokenType::CompAccessChain);
     }
 
     return true;

@@ -51,6 +51,7 @@
 #include "ast/statements/Import.h"
 #include "ast/structures/EnumDeclaration.h"
 #include "ast/structures/InitBlock.h"
+#include "ast/values/StructValue.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/VariablesContainer.h"
 #include "ast/structures/MembersContainer.h"
@@ -854,7 +855,44 @@ void Scope::code_gen(Codegen &gen) {
 
 
 void InitBlock::code_gen(Codegen &gen) {
-    // TODO init block code
+    auto self_arg = gen.current_function->getArg(0);
+    auto parent_type = container->llvm_type(gen);
+    auto is_union = container->kind() == ASTNodeKind::UnionDecl;
+    for(auto& init : initializers) {
+        auto value = init.second.value;
+        auto variable = container->variable_type_index(init.first, init.second.is_inherited_type);
+        std::vector<llvm::Value*> idx { gen.builder->getInt32(0) };
+        if(init.second.is_inherited_type) {
+            auto chain = value->as_access_chain();
+            auto val = chain->values.back().get();
+            auto call = val->as_func_call();
+            auto called_struct = call->parent_val->linked_node();
+            if(call->values.size() == 1) {
+                auto struc_val = call->values[0]->as_struct();
+                if(struc_val && struc_val->linked_node() == called_struct) {
+                    // initializing directly using a struct
+                    auto elementPtr = Value::get_element_pointer(gen, parent_type, self_arg, idx, is_union ? 0 : variable.first);
+                    struc_val->initialize_alloca(elementPtr, gen, nullptr);
+                    continue;
+                }
+            }
+            std::vector<llvm::Value*> args;
+            std::vector<std::pair<Value*, llvm::Value*>> destructibles;
+            auto elementPtr = Value::get_element_pointer(gen, parent_type, self_arg, idx, is_union ? 0 : variable.first);
+            call->llvm_chain_value(
+                gen, args, chain->values, chain->values.size(), destructibles, elementPtr, nullptr, nullptr
+            );
+            Value::destruct(gen, destructibles);
+        } else {
+            if(gen.requires_memcpy_ref_struct(variable.second, value)) {
+                auto elementPtr = Value::get_element_pointer(gen, parent_type, self_arg, idx, is_union ? 0 : variable.first);
+                gen.memcpy_struct(value->llvm_type(gen), value, elementPtr, value->llvm_value(gen, nullptr));
+            } else {
+                // couldn't move struct
+                value->store_in_struct(gen, nullptr, self_arg, parent_type, idx, is_union ? 0 : variable.first, variable.second);
+            }
+        }
+    }
 }
 
 void ThrowStatement::code_gen(Codegen &gen) {

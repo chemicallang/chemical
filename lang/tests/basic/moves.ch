@@ -47,6 +47,11 @@ struct NonMovableObj {
     var b : int
 }
 
+variant NonMovableOpt {
+    Some(n : NonMovableObj)
+    None()
+}
+
 struct NonMCon {
     var n : NonMovableObj
 }
@@ -87,6 +92,19 @@ func test_moves() {
         var a = NonMovableObj { a : 556, b : 766 }
         var n = { a }
         return n[0].a == 556 && n[0].b == 766 && a.a == 556 && a.b == 766;
+    })
+
+    test("non movable objects can be stored in variants by ref", () => {
+        var a = NonMovableObj { a : 323, b : 124 }
+        var n = NonMovableOpt.Some(a)
+        switch(n) {
+            NonMovableOpt.Some(n) => {
+                return n.a == 323 && n.b == 124
+            }
+            NonMovableOpt.None() => {
+                return false;
+            }
+        }
     })
 
     // TESTING WHETHER NEW OWNERS OF MOVED OBJECTS ARE VALID

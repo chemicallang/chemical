@@ -32,15 +32,22 @@ bool VariantCall::initialize_allocated(Codegen &gen, llvm::Value* allocated, llv
     for(auto& value_ptr : values) {
         auto& value = *value_ptr;
         const auto param = member->values.begin() + i;
+        auto& param_type = *param->second->type;
         auto movable_value = current_func_type.movable_value(gen, value_ptr.get());
         if(movable_value == nullptr) {
-            value.store_in_struct(gen, this, data_ptr, struct_type, {gen.builder->getInt32(0)}, i,
-                                   param->second->type.get());
+            if(gen.requires_memcpy_ref_struct(&param_type, value_ptr.get())) {
+                std::vector<llvm::Value*> idxList { gen.builder->getInt32(0) };
+                auto elementPtr = Value::get_element_pointer(gen, struct_type, data_ptr, idxList, i);
+                gen.memcpy_struct(value_ptr->llvm_type(gen), value_ptr.get(), elementPtr, value_ptr->llvm_value(gen, nullptr));
+            } else {
+                value.store_in_struct(gen, this, data_ptr, struct_type, {gen.builder->getInt32(0)}, i,
+                                      &param_type);
+            }
         } else {
             // since it will be moved, we will std memcpy it into current pointer
             std::vector<llvm::Value*> idx{gen.builder->getInt32(0)};
             auto elementPtr = Value::get_element_pointer(gen, struct_type, data_ptr, idx, i);
-            current_func_type.move_by_memcpy(gen, param->second->type.get(), value_ptr.get(), elementPtr, movable_value);
+            current_func_type.move_by_memcpy(gen, &param_type, value_ptr.get(), elementPtr, movable_value);
         }
         i++;
     }

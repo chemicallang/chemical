@@ -197,6 +197,11 @@ public:
     }
 
     /**
+     * required size for initializing this struct using values
+     */
+    unsigned int init_values_req_size();
+
+    /**
      * will provide a destructor function if there's one
      */
     FunctionDeclaration* destructor_func() {

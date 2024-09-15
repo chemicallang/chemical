@@ -108,7 +108,8 @@ func test_destruction_at_early_return(count : int*, early_return : bool) {
        count : count,
        lamb : (count : int*) => {
            *count = *count + 1;
-       }
+       },
+       data : 9990
     }
     if(early_return) {
         return;
@@ -117,7 +118,8 @@ func test_destruction_at_early_return(count : int*, early_return : bool) {
        count : count,
        lamb : (count : int*) => {
            *count = *count + 1;
-       }
+       },
+       data : 9990
     }
 }
 
@@ -126,14 +128,16 @@ func test_conditional_destruction(count : int*, condition : bool) {
        count : count,
        lamb : (count : int*) => {
            *count = *count + 1;
-       }
+       },
+       data : 9990
     }
     if(condition) {
         var z = Destructible {
            count : count,
            lamb : (count : int*) => {
                *count = *count + 1;
-           }
+           },
+           data : 9990
         }
         return;
     }
@@ -200,7 +204,8 @@ func test_variant_destruction_at_early_return(count : int*, early_return : bool)
         count : count,
         lamb : (count : int*) => {
             *count = *count + 1;
-        }
+        },
+        data : 9990
      })
     if(early_return) {
         return;
@@ -209,7 +214,8 @@ func test_variant_destruction_at_early_return(count : int*, early_return : bool)
         count : count,
         lamb : (count : int*) => {
             *count = *count + 1;
-        }
+        },
+        data : 9990
      })
 }
 
@@ -218,14 +224,16 @@ func test_variant_conditional_destruction(count : int*, condition : bool) {
         count : count,
         lamb : (count : int*) => {
             *count = *count + 1;
-        }
+        },
+        data : 9990
      })
     if(condition) {
         var z = OptDestructible.Some(Destructible {
             count : count,
             lamb : (count : int*) => {
                 *count = *count + 1;
-            }
+            },
+            data : 9990
          })
         return;
     }
@@ -376,7 +384,8 @@ func test_destructors() {
                     count : &count,
                     lamb : (count : int*) => {
                         *count = *count + 1;
-                    }
+                    },
+                    data : 9990
                 }
            )
         }
@@ -525,7 +534,8 @@ func test_destructors() {
                         count : &count,
                         lamb : (count : int*) => {
                             *count = *count + 1;
-                        }
+                        },
+                        data : 9990
                     }
                 )
            )

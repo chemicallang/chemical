@@ -141,11 +141,11 @@ func test_functions() {
         return mem.lamb().x == 100;
     })
     test("test struct member access in chain, member function return", () => {
-        var mem = MemLamb {}
+        var mem = MemLamb { lamb : null }
         return mem.mem_func_test().x == 200;
     })
     test("test struct member access in chain, extension function return", () => {
-        var mem = MemLamb {}
+        var mem = MemLamb { lamb : null }
         return mem.ext_func_test().x == 300;
     })
     test("supports function calls that return structs inside struct values", () => {

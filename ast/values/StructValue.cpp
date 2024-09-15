@@ -246,6 +246,47 @@ bool StructValue::allows_direct_init() {
     }
 }
 
+bool StructValue::diagnose_missing_members_for_init(ASTDiagnoser& diagnoser) {
+    if(linked_kind == ASTNodeKind::UnionDecl) {
+        if(values.size() != 1) {
+            diagnoser.error("union '" + definition->name + "' must be initialized with a single member value", this);
+            return false;
+        } else {
+            return true;
+        }
+    }
+    if(values.size() != definition->init_values_req_size()) {
+        std::vector<std::string> missing;
+        for(auto& mem : definition->inherited) {
+            auto& type = *mem->type;
+            if(type.get_direct_linked_struct()) {
+                auto& ref_type_name = mem->ref_type_name();
+                auto val = values.find(ref_type_name);
+                if (val == values.end()) {
+                    missing.emplace_back(ref_type_name);
+                }
+            }
+        }
+        for(auto& mem : definition->variables) {
+            if(mem.second->default_value() == nullptr) {
+                auto val = values.find(mem.second->name);
+                if (val == values.end()) {
+                    missing.emplace_back(mem.second->name);
+                }
+            }
+        }
+        if(!missing.empty()) {
+            for (auto& miss: missing) {
+                diagnoser.error(
+                        "couldn't find value for member '" + miss + "' for initializing struct '" + definition->name +
+                        "'", this);
+            }
+            return true;
+        }
+    }
+    return false;
+}
+
 bool StructValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
     ref->link(linker, ref);
     auto found = ref->linked_node();
@@ -269,6 +310,7 @@ bool StructValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr
         }
         linked_kind = k;
         definition = (ExtendableMembersContainerNode*) found;
+        diagnose_missing_members_for_init(linker);
         if(!allows_direct_init()) {
             linker.error("struct value with a constructor cannot be initialized, name '" + definition->name + "' has a constructor", this);
             return false;

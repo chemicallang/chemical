@@ -59,6 +59,20 @@ void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen, BaseType* e
             }
         }
     }
+    for(auto& value : definition->variables) {
+        auto found = values.find(value.first);
+        if(found == values.end()) {
+            auto defValue = value.second->default_value();
+            if (defValue) {
+                auto variable = definition->variable_type_index(value.first);
+                std::vector<llvm::Value*> idx{gen.builder->getInt32(0)};
+                defValue->store_in_struct(gen, this, inst, parent_type, idx, is_union() ? 0 : variable.first, variable.second);
+            } else if(linked_kind != ASTNodeKind::UnionDecl) {
+                gen.error("expected a default value for '" + value.first + "'", this);
+            }
+        }
+    }
+
 }
 
 llvm::AllocaInst *StructValue::llvm_allocate(Codegen& gen, const std::string& identifier, BaseType* expected_type) {

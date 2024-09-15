@@ -88,8 +88,15 @@ impl Summer for Point {
 }
 
 struct DefaultInitStruct {
+
     var a : int = 43
     var b : int = 98
+
+    @constructor
+    func make() {
+
+    }
+
 }
 
 const MyInt = 5;
@@ -533,6 +540,10 @@ func test_nodes() {
     })
     test("struct is initialized with default values", () => {
         var d = DefaultInitStruct {}
+        return d.a == 43 && d.b == 98
+    })
+    test("struct is initialized with default values when using constructor", () => {
+        var d = DefaultInitStruct();
         return d.a == 43 && d.b == 98
     })
 }

@@ -458,6 +458,11 @@ public:
     bool lexReturnStatement();
 
     /**
+     * lexes a constructor init block, this is only present in functions
+     */
+    bool lexConstructorInitBlock();
+
+    /**
      * lexes break statement
      */
     bool lexBreakStatement();
@@ -1005,6 +1010,11 @@ protected:
      * when true, break statements will be lexed
      */
     bool isLexBreakStatement = false;
+
+    /**
+     * when true, init block in lexed
+     */
+    bool isLexInitBlock = false;
 
     /**
      * when true, import statements will be lexed

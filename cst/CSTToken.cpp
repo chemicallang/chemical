@@ -64,6 +64,9 @@ void CSTToken::accept(CSTVisitor *visitor) {
         case LexTokenType::CompLoopValue:
             visitor->visitLoopBlock(this);
             return;
+        case LexTokenType::CompInitBlock:
+            visitor->visitInitBlock((CSTToken*) this);
+            return;
         case LexTokenType::CompAccessChainNode:
         case LexTokenType::CompAccessChain:
             visitor->visitAccessChain((CSTToken*) this);

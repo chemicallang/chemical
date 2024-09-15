@@ -472,6 +472,7 @@ set(COMMON_SOURCES
         std/common.h
         ast/values/StructMemberInitializer.h
         ast/types/ReferenceType.h
+        ast/structures/InitBlock.h
 )
 
 # Chemical LSP Executable Target

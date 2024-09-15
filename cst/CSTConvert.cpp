@@ -73,6 +73,7 @@
 #include <sstream>
 #include "compiler/PrimitiveTypeMap.h"
 #include "ast/structures/ExtensionFunction.h"
+#include "ast/structures/InitBlock.h"
 #include "ast/statements/ThrowStatement.h"
 #include "preprocess/RepresentationVisitor.h"
 #include "preprocess/2c/2cASTVisitor.h"
@@ -928,6 +929,14 @@ void CSTConverter::visitLambda(CSTToken* cst) {
 
 void CSTConverter::visitBody(CSTToken* bodyCst) {
     visit(bodyCst->tokens, 0);
+}
+
+void CSTConverter::visitInitBlock(CSTToken *initBlock) {
+    auto& block_token = initBlock->tokens[0];
+    auto init_block = new InitBlock(Scope(nullptr, block_token), parent_node, initBlock);
+    init_block->scope.parent_node = init_block;
+    init_block->scope.nodes = take_body_nodes(this, block_token, init_block);
+    nodes.emplace_back(init_block);
 }
 
 void CSTConverter::visitMacro(CSTToken*  macroCst) {

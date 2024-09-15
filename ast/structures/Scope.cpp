@@ -4,6 +4,7 @@
 #include <iostream>
 #include "ast/base/GlobalInterpretScope.h"
 #include "ast/structures/LoopBlock.h"
+#include "ast/structures/InitBlock.h"
 #include "ast/structures/If.h"
 #include "ast/statements/SwitchStatement.h"
 #include "ast/base/BaseType.h"
@@ -127,4 +128,12 @@ hybrid_ptr<BaseType> LoopBlock::get_value_type() {
 
 BaseType* LoopBlock::known_type() {
     return get_first_broken()->known_type();
+}
+
+InitBlock::InitBlock(Scope scope, ASTNode* parent_node, CSTToken* token) : scope(std::move(scope)), parent_node(parent_node), token(token) {
+
+}
+
+void InitBlock::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode> &node_ptr) {
+    scope.link_sequentially(linker);
 }

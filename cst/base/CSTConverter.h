@@ -263,6 +263,8 @@ public:
 
     void visitForLoop(CSTToken* forLoop) override;
 
+    void visitInitBlock(CSTToken *initBlock) override;
+
     void visitWhile(CSTToken* whileCst) override;
 
     void visitDoWhile(CSTToken* doWhileCst) override;

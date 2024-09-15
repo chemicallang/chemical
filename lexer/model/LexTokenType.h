@@ -37,6 +37,7 @@ enum class LexTokenType : uint8_t {
     CompAnnotation,
     CompBreak,
     CompContinue,
+    CompInitBlock,
     CompThrow,
     CompUsing,
     CompDestruct,

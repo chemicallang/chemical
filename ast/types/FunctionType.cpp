@@ -538,7 +538,7 @@ bool FunctionType::mark_moved_value(
 }
 
 bool FunctionType::mark_un_moved_lhs_value(Value* value_ptr, BaseType* value_type) {
-    if(!is_value_movable(value_ptr, value_type)) {
+    if(!value_type || !is_value_movable(value_ptr, value_type)) {
         return false;
     }
     auto& value = *value_ptr;

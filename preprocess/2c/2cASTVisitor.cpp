@@ -3738,7 +3738,13 @@ void ToCAstVisitor::visit(StructValue *val) {
     write('{');
     auto prev = nested_value;
     nested_value = true;
+    bool has_value_before = false;
     for(auto& value : val->values) {
+        if(has_value_before) {
+            write(", ");
+        } else {
+            has_value_before = true;
+        }
 //        if(value.second->as_access_chain()) {
 //            auto chain = value.second->as_access_chain();
 //            auto call = chain->values.back()->as_func_call();
@@ -3752,7 +3758,26 @@ void ToCAstVisitor::visit(StructValue *val) {
         write(value.first);
         write(" = ");
         accept_mutating_value(member ? member->known_type() : nullptr, value.second->value.get());
-        write(", ");
+    }
+    for(auto& var : val->linked_extendable()->variables) {
+        auto found = val->values.find(var.first);
+        if(found == val->values.end()) {
+            auto defValue = var.second->default_value();
+            const auto member = val->child_member(var.first);
+            if(has_value_before) {
+                write(", ");
+            } else {
+                has_value_before = true;
+            }
+            if(defValue) {
+                write('.');
+                write(var.first);
+                write(" = ");
+                accept_mutating_value(member ? member->known_type() : nullptr, defValue);
+            } else if(val->linked_kind != ASTNodeKind::UnionDecl) {
+                error("no default value present for '" + var.first + "' in struct value", val);
+            }
+        }
     }
     nested_value = prev;
     write('}');

@@ -87,6 +87,11 @@ impl Summer for Point {
     }
 }
 
+struct DefaultInitStruct {
+    var a : int = 43
+    var b : int = 98
+}
+
 const MyInt = 5;
 
 func test_nodes() {
@@ -525,6 +530,10 @@ func test_nodes() {
             i++;
         }
         return j == i && i == 5;
+    })
+    test("struct is initialized with default values", () => {
+        var d = DefaultInitStruct {}
+        return d.a == 43 && d.b == 98
     })
 }
 

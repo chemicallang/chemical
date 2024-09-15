@@ -118,11 +118,13 @@ std::unique_ptr<BaseType> AccessChain::create_type() {
     std::unordered_map<uint16_t, int16_t> active;
     set_generic_iterations(active);
     auto type = values[values.size() - 1]->create_type();
-    const auto pure = type->pure_type();
-    if(pure && type.get() != pure) {
-        type.reset(pure->copy());
+    if(type) {
+        const auto pure = type->pure_type();
+        if (pure && type.get() != pure) {
+            type.reset(pure->copy());
+        }
+        restore_active_iterations(active);
     }
-    restore_active_iterations(active);
     return type;
 }
 

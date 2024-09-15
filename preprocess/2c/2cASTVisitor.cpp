@@ -2608,7 +2608,51 @@ void call_variant_member_clear_fn(ToCAstVisitor& visitor, VariantMember* member)
     });
 }
 
-void call_variant_member_copy_fn(ToCAstVisitor& visitor, VariantMember* member) {
+void variant_member_copy_fn_gen(
+    ToCAstVisitor& visitor,
+    VariantMember* member,
+    FunctionDeclaration* func,
+    MembersContainer* mem_def,
+    VariantMemberParam* mem_param
+) {
+    // copy func call
+    visitor.new_line_and_indent();
+    func_container_name(visitor, mem_def, func);
+    visitor.write(func->name);
+    visitor.write('(');
+
+    // writing the self arg
+    visitor.write("&self->");
+    visitor.write(member->name);
+    visitor.write('.');
+    visitor.write(mem_param->name);
+    visitor.write(", ");
+
+    // writing the other arg
+    visitor.write('&');
+    visitor.write(visitor.current_func_type->params[1]->name);
+    visitor.write("->");
+    visitor.write(member->name);
+    visitor.write('.');
+    visitor.write(mem_param->name);
+
+    visitor.write(')');
+    visitor.write(';');
+}
+
+typedef void(VariantMemberProcessFn)(
+        ToCAstVisitor& visitor,
+        VariantMember* member,
+        FunctionDeclaration* func,
+        MembersContainer* mem_def,
+        VariantMemberParam* mem_param
+);
+
+void process_variant_member_using(
+    ToCAstVisitor& visitor,
+    VariantMember* member,
+    VariantMemberProcessFn* variant_member_process_fn
+) {
     for(auto& mem_param_pair : member->values) {
         auto mem_param = mem_param_pair.second.get();
         auto mem_type = mem_param->type.get();
@@ -2618,31 +2662,15 @@ void call_variant_member_copy_fn(ToCAstVisitor& visitor, VariantMember* member) 
         if (!func) {
             return;
         }
-
-        // copy func call
-        visitor.new_line_and_indent();
-        func_container_name(visitor, mem_def, func);
-        visitor.write(func->name);
-        visitor.write('(');
-
-        // writing the self arg
-        visitor.write("&self->");
-        visitor.write(member->name);
-        visitor.write('.');
-        visitor.write(mem_param->name);
-        visitor.write(", ");
-
-        // writing the other arg
-        visitor.write('&');
-        visitor.write(visitor.current_func_type->params[1]->name);
-        visitor.write("->");
-        visitor.write(member->name);
-        visitor.write('.');
-        visitor.write(mem_param->name);
-
-        visitor.write(')');
-        visitor.write(';');
+        variant_member_process_fn(visitor, member, func, mem_def, mem_param);
     }
+}
+
+void call_variant_member_copy_fn(
+    ToCAstVisitor& visitor,
+    VariantMember* member
+) {
+    process_variant_member_using(visitor, member, variant_member_copy_fn_gen);
 }
 
 void process_variant_members_using(
@@ -2824,10 +2852,10 @@ void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool
 //        visitor->write(self_pointer_name);
 //        visitor->write(';');
 //    }
-    auto is_destructor = decl->has_annotation(AnnotationKind::Delete);
-    auto is_clear_fn = decl->has_annotation(AnnotationKind::Clear);
-    auto is_copy_fn = decl->has_annotation(AnnotationKind::Copy);
-    bool has_cleanup_block = is_destructor || is_clear_fn;
+    const auto is_destructor = decl->has_annotation(AnnotationKind::Delete);
+    const auto is_clear_fn = decl->has_annotation(AnnotationKind::Clear);
+    const auto is_copy_fn = decl->has_annotation(AnnotationKind::Copy);
+    const bool has_cleanup_block = is_destructor;
     std::string cleanup_block_name;
     if(has_cleanup_block) {
         cleanup_block_name = "__chx__dstctr_clnup_blk__";
@@ -2844,6 +2872,12 @@ void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool
             write_type_assignment_in_variant_copy(visitor, decl);
             process_variant_members_using(visitor, variant_def, call_variant_member_copy_fn);
         }
+    } else if(is_clear_fn) {
+        if(struc_def) {
+            process_struct_members_using(visitor, def, call_struct_member_clear_fn);
+        } else if(variant_def) {
+            process_variant_members_using(visitor, variant_def, call_variant_member_clear_fn);
+        }
     }
     visitor.visit_scope(&decl->body.value(), (int) begin);
     if(has_cleanup_block) {
@@ -2856,12 +2890,6 @@ void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool
                 process_struct_members_using(visitor, def, call_struct_member_delete_fn);
             } else if (variant_def) {
                 process_variant_members_using(visitor, def, call_variant_member_delete_fn);
-            }
-        } else if(is_clear_fn) {
-            if (struc_def) {
-                process_struct_members_using(visitor, def, call_struct_member_clear_fn);
-            } else if (variant_def) {
-                process_variant_members_using(visitor, def, call_variant_member_clear_fn);
             }
         }
         visitor.indentation_level--;

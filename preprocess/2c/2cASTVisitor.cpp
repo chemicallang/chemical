@@ -110,6 +110,7 @@
 #include "CValueDeclVisitor.h"
 #include "CBeforeStmtVisitor.h"
 #include "CAfterStmtVisitor.h"
+#include "ast/structures/InitBlock.h"
 
 ToCAstVisitor::ToCAstVisitor(GlobalInterpretScope& scope, std::ostream *output) : comptime_scope(scope), output(output), declarer(new CValueDeclarationVisitor(*this)), tld(*this, declarer.get()), ASTDiagnoser() {
     before_stmt = std::make_unique<CBeforeStmtVisitor>(*this);
@@ -2801,6 +2802,36 @@ void process_struct_members_using(
     }
 }
 
+void initialize_def_struct_values_constructor(ToCAstVisitor& visitor, FunctionDeclaration* decl) {
+    auto parent = decl->parent_node;
+    if(!parent) return;
+    if(!decl->has_annotation(AnnotationKind::Constructor)) {
+        return;
+    }
+    const auto struct_def = parent->as_struct_def();
+    if(!struct_def) return;
+    std::unordered_map<std::string, InitBlockInitializerValue>* initializers = nullptr;
+    if(decl->body.has_value() && !decl->body->nodes.empty()) {
+        auto block = decl->body->nodes.front()->as_init_block();
+        if(block) {
+            initializers = &block->initializers;
+        }
+    }
+    for(auto& var : struct_def->variables) {
+        const auto defValue = var.second->default_value();
+        if(!defValue) continue;
+        auto has_not_been_initialized = !initializers || initializers->find(var.first) == initializers->end();
+        if(has_not_been_initialized) {
+            visitor.new_line_and_indent();
+            visitor.write("this->");
+            visitor.write(var.first);
+            visitor.write(" = ");
+            defValue->accept(&visitor);
+            visitor.write(';');
+        }
+    }
+}
+
 void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool overrides, ExtendableMembersContainerNode* def) {
     if(!decl->body.has_value() || decl->has_annotation(AnnotationKind::CompTime)) {
         return;
@@ -2879,6 +2910,7 @@ void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool
             process_variant_members_using(visitor, variant_def, call_variant_member_clear_fn);
         }
     }
+    initialize_def_struct_values_constructor(visitor, decl);
     visitor.visit_scope(&decl->body.value(), (int) begin);
     if(has_cleanup_block) {
         visitor.new_line_and_indent();
@@ -3575,6 +3607,42 @@ void access_chain(ToCAstVisitor& visitor, std::vector<std::unique_ptr<ChainValue
 
 void ToCAstVisitor::visit(AccessChain *chain) {
     access_chain(*this, chain->values, 0, chain->values.size());
+}
+
+void ToCAstVisitor::visit(InitBlock *initBlock) {
+    auto& container = initBlock->container;
+    auto& initializers = initBlock->initializers;
+    auto is_union = container->kind() == ASTNodeKind::UnionDecl;
+    for(auto& init : initializers) {
+        auto value = init.second.value;
+        auto variable = container->variable_type_index(init.first, init.second.is_inherited_type);
+        if(init.second.is_inherited_type) {
+            auto chain = value->as_access_chain();
+            auto val = chain->values.back().get();
+            auto call = val->as_func_call();
+            auto called_struct = call->parent_val->linked_node();
+            if(call->values.size() == 1) {
+                auto struc_val = call->values[0]->as_struct();
+                if(struc_val && struc_val->linked_node() == called_struct) {
+                    // initializing directly using a struct
+                    write("this->");
+                    write(init.first);
+                    write(" = ");
+                    struc_val->accept(this);
+                    write(';');
+                    continue;
+                }
+            }
+            local_allocated[call] = "this->" + init.first;
+            chain->accept(before_stmt.get());
+        } else {
+            write("this->");
+            write(init.first);
+            write(" = ");
+            init.second.value->accept(this);
+            write(';');
+        }
+    }
 }
 
 void ToCAstVisitor::visit(MacroValueStatement *statement) {

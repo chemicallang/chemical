@@ -415,6 +415,10 @@ public:
     // Helper is methods
     //---------------------------------------------
 
+    inline bool isInitBlock() {
+        return kind() == ASTNodeKind::InitBlock;
+    }
+
     inline bool isAssignmentStmt() {
         return kind() == ASTNodeKind::AssignmentStmt;
     }
@@ -632,6 +636,10 @@ public:
      */
     AccessChain* as_access_chain() {
         return isAccessChain() ? (AccessChain*) this : nullptr;
+    }
+
+    InitBlock* as_init_block() {
+        return isInitBlock() ? (InitBlock*) this : nullptr;
     }
 
     /**
@@ -1023,6 +1031,13 @@ public:
      */
     inline Namespace* as_namespace_unsafe() {
         return (Namespace*) this;
+    }
+
+    /**
+     * as init block
+     */
+    inline InitBlock* as_init_block_unsafe() {
+        return (InitBlock*) this;
     }
 
     /**

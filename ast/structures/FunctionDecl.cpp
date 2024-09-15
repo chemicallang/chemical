@@ -598,9 +598,12 @@ void FunctionDeclaration::code_gen_copy_fn(Codegen& gen, StructDefinition* def) 
 }
 
 void FunctionDeclaration::code_gen_clear_fn(Codegen& gen, StructDefinition* def) {
-    code_gen_calling_member_functions(*this, gen, def, [](MembersContainer* mem_def)->FunctionDeclaration* {
+    auto func = llvm_func();
+    gen.SetInsertPoint(&func->getEntryBlock());
+    code_gen_member_calls(gen, def, func, [](MembersContainer* mem_def)->FunctionDeclaration* {
         return mem_def->clear_func();
     }, create_call_member_func);
+    code_gen_body(gen);
 }
 
 llvm::Value* variant_struct_pointer(
@@ -668,16 +671,7 @@ void FunctionDeclaration::code_gen_copy_fn(Codegen& gen, VariantDefinition* def)
     gen.builder->CreateStore(loaded, this_type);
     // processing members to call copy functions on members
     process_members_calling_fns(gen, def, allocaInst, func, [](VariantMember* mem)-> bool {
-        for(auto& param : mem->values) {
-            auto linked = param.second->type->linked_node();
-            if(linked) {
-                auto container = linked->as_members_container();
-                if(container && container->copy_func() != nullptr) {
-                    return true;
-                }
-            }
-        }
-        return false;
+        return mem->requires_copy_fn();
     }, [](Codegen& gen, VariantMember* mem, llvm::Value* struct_ptr, llvm::Function* func) {
         auto otherArg = func->getArg(1);
         auto other_struct_pointer = variant_struct_pointer(gen, otherArg, mem->parent_node);
@@ -710,9 +704,10 @@ void FunctionDeclaration::code_gen_copy_fn(Codegen& gen, VariantDefinition* def)
 
 void FunctionDeclaration::code_gen_clear_fn(Codegen& gen, VariantDefinition* def) {
     auto func = llvm_func();
-    setup_cleanup_block(gen, func);
+    gen.SetInsertPoint(&func->getEntryBlock());
     auto allocaInst = func->getArg(0);
-    process_members_calling_fns(gen, def, allocaInst, func, [](VariantMember* mem) -> bool {
+    // processing members to call copy functions on members
+    process_members_calling_fns(gen, def, allocaInst, func, [](VariantMember* mem)-> bool {
         return mem->requires_clear_fn();
     }, [](Codegen& gen, VariantMember* mem, llvm::Value* struct_ptr, llvm::Function* func) {
         llvm::FunctionType* dtr_func_type = nullptr;
@@ -734,8 +729,10 @@ void FunctionDeclaration::code_gen_clear_fn(Codegen& gen, VariantDefinition* def
             i++;
         }
     });
-    gen.CreateRet(nullptr);
-    gen.redirect_return = nullptr;
+    gen.builder->CreateRetVoid();
+    if(body.has_value() && !body->nodes.empty()) {
+        code_gen_body(gen);
+    }
 }
 
 void FunctionDeclaration::code_gen_destructor(Codegen& gen, StructDefinition* def) {

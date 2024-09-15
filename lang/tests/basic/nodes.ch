@@ -97,6 +97,14 @@ struct DefaultInitStruct {
 
     }
 
+    @constructor
+    func make2(check : bool) {
+        init {
+            a(20)
+            b(30)
+        }
+    }
+
 }
 
 const MyInt = 5;
@@ -545,6 +553,10 @@ func test_nodes() {
     test("struct is initialized with default values when using constructor", () => {
         var d = DefaultInitStruct();
         return d.a == 43 && d.b == 98
+    })
+    test("struct is initialized with values inside init block when using constructor", () => {
+        var d = DefaultInitStruct(true);
+        return d.a == 20 && d.b == 30
     })
 }
 

@@ -5,12 +5,22 @@
 #include "ast/base/ASTNode.h"
 #include "ast/structures/Scope.h"
 
+struct InitBlockInitializerValue {
+    bool is_inherited_type;
+    Value* value;
+};
+
 class InitBlock : public ASTNode {
 public:
 
     Scope scope;
     ASTNode* parent_node;
     CSTToken* token;
+    std::unordered_map<std::string, InitBlockInitializerValue> initializers;
+    // the struct container for which init block is for
+    MembersContainer* container;
+    // the function in which init block appears
+    FunctionDeclaration* func_decl;
 
     InitBlock(Scope scope, ASTNode* parent_node, CSTToken* token);
 
@@ -31,5 +41,11 @@ public:
     }
 
     void declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode> &node_ptr) override;
+
+#ifdef COMPILER_BUILD
+
+    void code_gen(Codegen &gen) override;
+
+#endif
 
 };

@@ -5,6 +5,12 @@
 #include "ast/base/GlobalInterpretScope.h"
 #include "ast/structures/LoopBlock.h"
 #include "ast/structures/InitBlock.h"
+#include "ast/structures/MembersContainer.h"
+#include "ast/structures/FunctionDeclaration.h"
+#include "ast/structures/StructDefinition.h"
+#include "ast/values/AccessChain.h"
+#include "ast/structures/BaseDefMember.h"
+#include "ast/values/FunctionCall.h"
 #include "ast/structures/If.h"
 #include "ast/statements/SwitchStatement.h"
 #include "ast/base/BaseType.h"
@@ -135,5 +141,75 @@ InitBlock::InitBlock(Scope scope, ASTNode* parent_node, CSTToken* token) : scope
 }
 
 void InitBlock::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode> &node_ptr) {
+    auto func = parent_node->as_function();
+    if(!func) {
+        linker.error("expected init block to be in a function", (ASTNode*) this);
+        return;
+    }
+    if(!func->has_annotation(AnnotationKind::Constructor)) {
+        linker.error("init block must appear in a function that's marked constructor", (ASTNode*) this);
+        return;
+    }
+    func_decl = func;
+    auto parent = func->parent_node;
+    if(!parent) {
+        linker.error("init block's function must be inside a struct", (ASTNode*) this);
+        return;
+    }
+    auto mems_container = parent->as_members_container();
+    if(!mems_container) {
+        linker.error("init block's function must be inside a struct", (ASTNode*) this);
+        return;
+    }
+    container = mems_container;
+    // linking members of scope
     scope.link_sequentially(linker);
+    // now taking out initializers
+    for(auto& node : scope.nodes) {
+        auto chain = node->as_access_chain();
+        if(!chain) {
+            linker.error("expected members of init block to be initializer call", (ASTNode*) chain);
+            continue;
+        }
+        auto call = chain->values.back()->as_func_call();
+        if(!call) {
+            linker.error("expected members of init block to be initializer call", (ASTNode*) chain);
+            continue;
+        }
+        auto call_parent = call->parent_val;
+        if(!call_parent) {
+            linker.error("couldn't get parent value of initializer call", (ASTNode*) chain);
+            continue;
+        }
+        auto linked = call_parent->linked_node();
+        if(!linked) {
+            linker.error("unknown initializer call", (ASTNode*) chain);
+            continue;
+        }
+        auto linked_kind = linked->kind();
+        if(linked_kind == ASTNodeKind::StructMember || linked_kind == ASTNodeKind::UnnamedUnion || linked_kind == ASTNodeKind::UnnamedStruct) {
+            if(call->values.size() != 1) {
+                linker.error("expected a single value to initialize a struct member", (ASTNode*) chain);
+                continue;
+            }
+            auto base_def = linked->as_base_def_member_unsafe();
+            initializers[base_def->name] = { false, call->values.front().get() };
+            continue;
+        } else if(linked_kind == ASTNodeKind::StructDecl) {
+            auto called_struc = linked->as_struct_def_unsafe();
+            bool found = false;
+            for(auto& inherit : mems_container->inherited) {
+                auto struc = inherit->type->get_direct_linked_struct();
+                if(struc && called_struc == struc) {
+                    found = true;
+                }
+            }
+            if(!found) {
+                linker.error("current struct doesn't inherit struct with name '" + called_struc->name + "'", (ASTNode*) chain);
+                continue;
+            }
+            initializers[called_struc->name] = { true, chain };
+            continue;
+        }
+    }
 }

@@ -89,6 +89,10 @@ public:
         visitCompoundCommon(doWhileCst);
     }
 
+    virtual void visitInitBlock(CSTToken *initBlock) {
+        visitCompoundCommon(initBlock);
+    }
+
     virtual void visitEnumDecl(CSTToken *enumDecl) {
         visitCompoundCommon(enumDecl);
     }

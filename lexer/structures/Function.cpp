@@ -18,6 +18,33 @@ bool Lexer::lexReturnStatement() {
     }
 }
 
+bool Lexer::lexConstructorInitBlock() {
+    if(lexWSKeywordToken("init", '{')) {
+        unsigned start = tokens_size() - 1;
+        if(!lexOperatorToken('{')) {
+            error("expected a '{' after init for init block");
+            return true;
+        }
+        while(true) {
+            lexWhitespaceAndNewLines();
+            if(lexAccessChain(false)) {
+                lexOperatorToken(';');
+            } else {
+                break;
+            }
+        }
+        if(!lexOperatorToken('}')) {
+            error("expected a '}' for ending the init block");
+            return true;
+        }
+        compound_from(start, LexTokenType::CompBody);
+        compound_from(start, LexTokenType::CompInitBlock);
+        return true;
+    } else {
+        return false;
+    }
+}
+
 bool Lexer::lexDestructStatement() {
     if(lexWSKeywordToken("destruct", '[')) {
         unsigned start = tokens_size() - 1;
@@ -224,9 +251,11 @@ bool Lexer::lexFunctionStructureTokens(unsigned start, bool allow_declarations, 
     // inside the block allow return statements
     auto prevReturn = isLexReturnStatement;
     isLexReturnStatement = true;
+    isLexInitBlock = true;
     if(!lexBraceBlock("function") && !allow_declarations) {
         error("expected the function definition after the signature");
     }
+    isLexInitBlock = false;
     isLexReturnStatement = prevReturn;
 
     compound_collectable(start, LexTokenType::CompFunction);

@@ -50,6 +50,8 @@ class StructDefinition;
 
 class WhileLoop;
 
+class InitBlock;
+
 class AccessChain;
 
 class MacroValueStatement;
@@ -291,6 +293,10 @@ public:
 
     virtual void visit(EnumDeclaration* enumDeclaration) {
         visitCommon((ASTNode*) enumDeclaration);
+    }
+
+    virtual void visit(InitBlock* initBlock) {
+        visitCommon((ASTNode*) initBlock);
     }
 
     virtual void visit(ForLoop* forLoop) {

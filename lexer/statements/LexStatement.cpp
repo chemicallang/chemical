@@ -52,6 +52,7 @@ bool Lexer::lexNestedLevelStatementTokens(bool is_value, bool lex_value_node) {
            lexVarInitializationTokens() ||
            lexAnnotationMacro() ||
            (isLexImportStatement && lexImportStatement()) ||
+           (isLexInitBlock && lexConstructorInitBlock()) ||
            (lexBreakStatement()) ||
            (lexContinueStatement()) ||
            (isLexReturnStatement && lexReturnStatement()) ||

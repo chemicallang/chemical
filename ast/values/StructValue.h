@@ -68,6 +68,8 @@ public:
 
     bool link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) override;
 
+    bool diagnose_missing_members_for_init(ASTDiagnoser& diagnoser);
+
     Value *call_member(
             InterpretScope &scope,
             const std::string &name,

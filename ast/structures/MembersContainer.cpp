@@ -201,6 +201,22 @@ void MembersContainer::redeclare_variables_and_functions(SymbolResolver &linker)
     }
 }
 
+unsigned int MembersContainer::init_values_req_size() {
+    unsigned int i = 0;
+    for(auto& inherit : inherited) {
+        auto direct = inherit->type->get_direct_linked_struct();
+        if(direct) {
+            i++;
+        }
+    }
+    for(auto& var : variables) {
+        if(var.second->default_value() == nullptr) {
+            i++;
+        }
+    }
+    return i;
+}
+
 void MembersContainer::declare_and_link_no_scope(SymbolResolver &linker) {
     for(auto& gen_param : generic_params) {
         gen_param->declare_and_link(linker, (std::unique_ptr<ASTNode>&) gen_param);

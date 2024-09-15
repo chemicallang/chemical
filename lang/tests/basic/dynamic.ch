@@ -7,13 +7,13 @@ interface Phone {
 }
 
 struct SmartPhone {
-    var number1 : int
-    var number2 : int
+    var number1 : int = 0
+    var number2 : int = 0
 }
 
 struct CellPhone {
-    var number1 : int
-    var number2 : int
+    var number1 : int = 0
+    var number2 : int = 0
 }
 
 struct PhoneContainer {

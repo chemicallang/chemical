@@ -59,6 +59,10 @@ func sno_func(a : int, b : int) : int {
     return a + b;
 }
 
+func def_func_arg_works(a : int, b : int = 66) : int {
+    return b;
+}
+
 func test_name_overriding() {
     test("correct function is called when same names overriding - 1", () => {
         return sno_func() == 10
@@ -196,6 +200,9 @@ func test_functions() {
     test("functions on returned structs do not result in multiple calls", () => {
         total_func_ret_calls = 0;
         return check_multiple_calls().self_ref_give_calls() == 2;
+    })
+    test("default function arguments work", () => {
+        return def_func_arg_works(22) == 66;
     })
     test_name_overriding();
     test_name_overriding_in_struct();

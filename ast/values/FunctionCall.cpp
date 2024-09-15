@@ -91,6 +91,33 @@ void put_self_param(
     }
 }
 
+llvm::Value* arg_value(
+        Codegen& gen,
+        FunctionCall* call,
+        FunctionType* func_type,
+        FunctionParam* func_param,
+        Value* value,
+        int i
+) {
+    llvm::Value* argValue = nullptr;
+    if((func_param->type->get_direct_linked_struct() || func_param->type->get_direct_linked_variant()) && (value->reference() && value->value_type() == ValueType::Struct) && !(value->as_struct() || value->as_array_value() || value->as_variant_call())) {
+        argValue = value->llvm_pointer(gen);
+    } else {
+        if(i != -1) {
+            argValue = value->llvm_arg_value(gen, call, i);
+        } else {
+            argValue = value->llvm_value(gen,func_param->type.get());
+        }
+    }
+    // Ensure proper type promotion for float values passed to printf
+    if (func_type->isVariadic && func_type->isInVarArgs(i) && argValue->getType()->isFloatTy()) {
+        argValue = gen.builder->CreateFPExt(argValue, llvm::Type::getDoubleTy(*gen.ctx));
+    } else {
+        argValue = gen.pack_dyn_obj(value, func_param->type.get(), argValue);
+    }
+    return argValue;
+}
+
 void to_llvm_args(
         Codegen& gen,
         FunctionCall* call,
@@ -102,28 +129,13 @@ void to_llvm_args(
         unsigned int start
 ) {
 
-    llvm::Value* argValue;
+    unsigned i = start;
 
-    for (size_t i = start; i < values.size(); ++i) {
+    for (i = start; i < values.size(); ++i) {
 
         const auto func_param = func_type->func_param_for_arg_at(i);
-        if((func_param->type->get_direct_linked_struct() || func_param->type->get_direct_linked_variant()) && (values[i]->reference() && values[i]->value_type() == ValueType::Struct) && !(values[i]->as_struct() || values[i]->as_array_value() || values[i]->as_variant_call())) {
-            argValue = values[i]->llvm_pointer(gen);
-        } else {
-            argValue = values[i]->llvm_arg_value(gen, call, i);
-        }
 
-//        if(values[i]->value_type() == ValueType::Struct) {
-//            destructibles.emplace_back(values[i].get(), argValue);
-//        }
-
-        // Ensure proper type promotion for float values passed to printf
-        if (func_type->isVariadic && func_type->isInVarArgs(i) && argValue->getType()->isFloatTy()) {
-            argValue = gen.builder->CreateFPExt(argValue, llvm::Type::getDoubleTy(*gen.ctx));
-        } else {
-            argValue = gen.pack_dyn_obj(values[i].get(), func_param->type.get(), argValue);
-        }
-        args.emplace_back(argValue);
+        args.emplace_back(arg_value(gen, call, func_type, func_param, values[i].get(), (int) i));
 
         // expanding passed lambda values, to multiple (passing function pointer & also passing their struct so 1 arg results in 2 args)
 //        if(values[i]->value_type() == ValueType::Lambda) {
@@ -149,6 +161,25 @@ void to_llvm_args(
 //            }
 //        }
     }
+
+    i += func_type->explicit_func_arg_offset();
+    const auto func_param_size = func_type->params.size();
+    while(i < func_param_size) {
+        auto param = func_type->func_param_for_arg_at(i);
+        if(param) {
+            if(param->defValue) {
+                args.emplace_back(arg_value(gen, call, func_type, param, param->defValue.get(), -1));
+            } else if(!func_type->isInVarArgs(i)) {
+                gen.error("function param '" + param->name + "' doesn't have a default value, however no argument exists for it", call);
+            }
+        } else {
+#ifdef DEBUG
+            throw std::runtime_error("couldn't get function param");
+#endif
+        }
+        i++;
+    }
+
 }
 
 void to_llvm_args(

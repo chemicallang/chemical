@@ -109,6 +109,8 @@ public:
 
     bool isInVarArgs(unsigned index) const;
 
+    unsigned int expectedArgsSize();
+
     uint64_t byte_size(bool is64Bit) override;
 
     void accept(Visitor *visitor) override {

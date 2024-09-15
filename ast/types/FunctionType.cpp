@@ -136,6 +136,15 @@ unsigned FunctionType::explicit_func_arg_offset() {
     return has_self_param() ? 1 : 0;
 }
 
+unsigned int FunctionType::expectedArgsSize() {
+    const auto s = params.size();
+    if(has_self_param()) {
+        return s - 1;
+    } else {
+        return s;
+    }
+}
+
 FunctionParam* FunctionType::func_param_for_arg_at(unsigned index) {
     if(params.empty()) return nullptr;
     const auto offset = explicit_func_arg_offset(); // first argument for implicit self

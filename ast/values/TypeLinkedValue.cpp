@@ -34,15 +34,15 @@ bool TypeLinkedValue::link(SymbolResolver &linker, FunctionCall *call, unsigned 
     return link(linker, call->values[index], call->get_arg_type(index));
 }
 
-bool TypeLinkedValue::link(SymbolResolver &linker, StructValue *structValue, const std::string &name) {
-    auto child = structValue->child(name);
-    if(!child) {
-        linker.error("couldn't find child " + name + " in struct declaration", structValue);
-        return false;
-    }
-    auto child_type = child->get_value_type();
-    return link(linker, structValue->values[name]->value, child_type.get());
-}
+//bool TypeLinkedValue::link(SymbolResolver &linker, StructValue *structValue, const std::string &name) {
+//    auto child = structValue->child(name);
+//    if(!child) {
+//        linker.error("couldn't find child " + name + " in struct declaration", structValue);
+//        return false;
+//    }
+//    auto child_type = child->get_value_type();
+//    return link(linker, structValue->values[name]->value, child_type.get());
+//}
 
 bool TypeLinkedValue::link(SymbolResolver& linker, ArrayValue* value, unsigned int index) {
     return link(linker, value->values[index], value->elemType ? value->elemType.get() : nullptr);

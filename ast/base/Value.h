@@ -94,12 +94,6 @@ public:
     }
 
     /**
-     * when a value is present inside a struct value, this function is called
-     * can be overridden to retrieve extra information
-     */
-    virtual bool link(SymbolResolver& linker, StructValue* value, const std::string& name);
-
-    /**
      * when a value is present inside an array value, this function is called
      * can be overridden to retrieve extra information
      */

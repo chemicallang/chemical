@@ -342,7 +342,13 @@ bool StructValue::link(SymbolResolver& linker, std::unique_ptr<Value>& value_ptr
         // linking values
         for (auto &val: values) {
             auto& val_ptr = val.second->value;
-            val_ptr->link(linker, this, val.first);
+            auto child_node = definition->direct_child_member(val.first);
+            if(!child_node) {
+                linker.error("couldn't find child " + val.first + " in struct declaration", this);
+                continue;
+            }
+            auto child_type = child_node->get_value_type();
+            val_ptr->link(linker, val_ptr, child_type.get());
             auto member = definition->variables.find(val.first);
             if(definition->variables.end() != member) {
                 const auto mem_type = member->second->get_value_type();

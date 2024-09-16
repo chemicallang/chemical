@@ -66,7 +66,7 @@ public:
 
     bool primitive() override;
 
-    bool link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) override;
+    bool link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *expected_type = nullptr) override;
 
     bool diagnose_missing_members_for_init(ASTDiagnoser& diagnoser);
 

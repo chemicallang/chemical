@@ -53,7 +53,7 @@ public:
         declare_and_link(linker, &node_ptr, nullptr);
     }
 
-    bool link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr) override {
+    bool link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *expected_type = nullptr) override {
         return declare_and_link(linker, nullptr, &value_ptr);
     }
 

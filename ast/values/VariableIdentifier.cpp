@@ -61,7 +61,7 @@ bool VariableIdentifier::link(SymbolResolver &linker, std::unique_ptr<ChainValue
     return false;
 }
 
-bool VariableIdentifier::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
+bool VariableIdentifier::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr, BaseType *expected_type) {
     return link(linker, (std::unique_ptr<ChainValue> &) (value_ptr), true);
 }
 

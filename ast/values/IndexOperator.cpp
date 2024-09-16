@@ -87,7 +87,7 @@ hybrid_ptr<BaseType> IndexOperator::get_base_type() {
     return parent_val->get_child_type();
 }
 
-bool IndexOperator::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
+bool IndexOperator::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr, BaseType *expected_type) {
     for(auto& value : values) {
         value->link(linker, value);
     }

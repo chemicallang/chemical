@@ -62,8 +62,6 @@ public:
 
     bool link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *type) override;
 
-    bool link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) override;
-
     bool link(SymbolResolver &linker, ReturnStatement *returnStmt) override {
         return TypeLinkedValue::link(linker, returnStmt);
     }
@@ -78,10 +76,6 @@ public:
 
     void relink_after_generic(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *expected_type) override {
         link(linker, value_ptr, expected_type);
-    }
-
-    bool link(SymbolResolver &linker, VarInitStatement *stmnt) override {
-        return TypeLinkedValue::link(linker, stmnt);
     }
 
     bool link(SymbolResolver &linker, ArrayValue *value, unsigned int index) override {

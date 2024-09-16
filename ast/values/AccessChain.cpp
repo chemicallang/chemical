@@ -13,10 +13,6 @@ uint64_t AccessChain::byte_size(bool is64Bit) {
     return values[values.size() - 1]->byte_size(is64Bit);
 }
 
-bool AccessChain::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
-    return link(linker, (BaseType*) nullptr, &value_ptr);
-}
-
 bool AccessChain::find_link_in_parent(ChainValue *parent, SymbolResolver &resolver) {
     throw std::runtime_error("AccessChain doesn't support find_link_in_parent, because it can't be embedded in itself");
 }

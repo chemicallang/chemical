@@ -223,10 +223,6 @@ bool VariantCall::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr
     return true;
 }
 
-bool VariantCall::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr) {
-    return link(linker, value_ptr, nullptr);
-}
-
 void VariantCall::set_created_type() {
     const auto member = chain->linked_node()->as_variant_member();
     const auto largest_member = member->parent_node->largest_member();

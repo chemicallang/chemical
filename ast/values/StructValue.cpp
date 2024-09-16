@@ -301,7 +301,7 @@ bool StructValue::diagnose_missing_members_for_init(ASTDiagnoser& diagnoser) {
     return false;
 }
 
-bool StructValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
+bool StructValue::link(SymbolResolver& linker, std::unique_ptr<Value>& value_ptr, BaseType* expected_type) {
     ref->link(linker, ref);
     auto found = ref->linked_node();
     auto& current_func_type = *linker.current_func_type;

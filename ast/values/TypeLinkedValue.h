@@ -9,8 +9,6 @@ public:
 
     virtual bool link(SymbolResolver& linker, std::unique_ptr<Value>& value_ptr, BaseType* type) = 0;
 
-    bool link(SymbolResolver &linker, VarInitStatement *stmnt);
-
     bool link(SymbolResolver &linker, AssignStatement *stmnt, bool lhs);
 
     bool link(SymbolResolver &linker, StructValue *value, const std::string &name);

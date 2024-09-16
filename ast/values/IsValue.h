@@ -55,7 +55,7 @@ public:
         visitor->visit(this);
     }
 
-    bool link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) override;
+    bool link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *expected_type = nullptr) override;
 
 #ifdef COMPILER_BUILD
 

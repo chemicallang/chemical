@@ -73,7 +73,7 @@ public:
 
     void prepend_self(SymbolResolver &linker, std::unique_ptr<ChainValue>& value_ptr, const std::string& name, ASTNode* linked);
 
-    bool link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) override;
+    bool link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *expected_type = nullptr) override;
 
     bool link(SymbolResolver &linker, std::unique_ptr<ChainValue>& value_ptr, bool prepend);
 

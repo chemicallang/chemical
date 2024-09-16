@@ -89,15 +89,9 @@ public:
      * can basically replace itself in the pointer, some compile time values like sizeof
      * replace themselves at resolution phase
      */
-    virtual bool link(SymbolResolver& linker, std::unique_ptr<Value>& value_ptr) {
+    virtual bool link(SymbolResolver& linker, std::unique_ptr<Value>& value_ptr, BaseType* expected_type = nullptr) {
         return true;
     }
-
-    /**
-     * when value is contained within VarInitStatement, this function is called
-     * which provides access to the statement for more information
-     */
-    virtual bool link(SymbolResolver& linker, VarInitStatement* stmnt);
 
     /**
      * when value is contained within assign statement, this function is called

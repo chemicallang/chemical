@@ -9,7 +9,7 @@ DereferenceValue::DereferenceValue(
 
 }
 
-bool DereferenceValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
+bool DereferenceValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr, BaseType *expected_type) {
     return value->link(linker, value);
 }
 

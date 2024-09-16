@@ -262,7 +262,7 @@ public:
      * tells whether, the given value should be mem copied into the pointer, because
      * it's an access chain referencing a non move requiring struct
      */
-    bool requires_memcpy_ref_struct(BaseType* known_type, Value* value);
+    static bool requires_memcpy_ref_struct(BaseType* known_type, Value* value);
 
     /**
      * tries to mem copy referenced struct (if there's one) and returns memory pointer if succeeds

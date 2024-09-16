@@ -225,6 +225,12 @@ public:
      */
     bool is_ref_moved();
 
+    /**
+     * a value that references a struct that is mem copied into arguments
+     * however the value is not moved, because it's not movable
+     */
+    bool requires_memcpy_ref_struct(BaseType* known_type);
+
 #ifdef COMPILER_BUILD
 
     /**

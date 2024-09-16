@@ -18,7 +18,7 @@ public:
     CSTToken* token;
     std::unordered_map<std::string, InitBlockInitializerValue> initializers;
     // the struct container for which init block is for
-    MembersContainer* container;
+    ExtendableMembersContainerNode* container;
     // the function in which init block appears
     FunctionDeclaration* func_decl;
 
@@ -41,6 +41,8 @@ public:
     }
 
     void declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode> &node_ptr) override;
+
+    bool diagnose_missing_members_for_init(ASTDiagnoser& diagnoser);
 
 #ifdef COMPILER_BUILD
 

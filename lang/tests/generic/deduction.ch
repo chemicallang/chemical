@@ -31,13 +31,13 @@ func test_generic_type_deduction() {
     test("generic function call with types work", () => {
         return deduce_gen_sum<long>(10, 10) == 20;
     })
-    test("nested generic type parameters can be deduced in function call", () => {
+    test("nested generic type parameters can be deduced in function call - 1", () => {
         const s = DeduceThing<int> {
             t : 20
         }
         return deduce_thing(s) == 20;
     })
-    test("nested generic type parameters can be deduced in function call", () => {
+    test("nested generic type parameters can be deduced in function call - 2", () => {
         const s = DeduceThing<long> {
             t : 40
         }

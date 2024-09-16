@@ -234,7 +234,7 @@ public:
     /**
      * mem copy a struct into the given pointer
      */
-    void memcpy_struct(llvm::Type* type, Value* value_ptr, llvm::Value* pointer, llvm::Value* value);
+    void memcpy_struct(llvm::Type* type, llvm::Value* pointer, llvm::Value* value);
 
     /**
      * move the value

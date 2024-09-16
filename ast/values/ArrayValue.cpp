@@ -40,7 +40,7 @@ void ArrayValue::initialize_allocated(Codegen& gen, llvm::Value* allocated, Base
             if(gen.requires_memcpy_ref_struct(known_child_t, &value)) {
                 std::vector<llvm::Value*> idx{gen.builder->getInt32(0)};
                 auto elementPtr = Value::get_element_pointer(gen, parent_type, allocated, idx, i);
-                gen.memcpy_struct(value.llvm_type(gen), &value, elementPtr, value.llvm_value(gen, nullptr));
+                gen.memcpy_struct(value.llvm_type(gen), elementPtr, value.llvm_value(gen, nullptr));
             } else {
                 // couldn't move the struct
                 value.store_in_array(gen, this, allocated, parent_type, idxList, i, child_type.get());

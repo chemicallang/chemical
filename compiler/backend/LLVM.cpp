@@ -886,7 +886,7 @@ void InitBlock::code_gen(Codegen &gen) {
         } else {
             if(gen.requires_memcpy_ref_struct(variable.second, value)) {
                 auto elementPtr = Value::get_element_pointer(gen, parent_type, self_arg, idx, is_union ? 0 : variable.first);
-                gen.memcpy_struct(value->llvm_type(gen), value, elementPtr, value->llvm_value(gen, nullptr));
+                gen.memcpy_struct(value->llvm_type(gen), elementPtr, value->llvm_value(gen, nullptr));
             } else {
                 // couldn't move struct
                 value->store_in_struct(gen, nullptr, self_arg, parent_type, idx, is_union ? 0 : variable.first, variable.second);
@@ -907,8 +907,12 @@ bool Codegen::requires_memcpy_ref_struct(BaseType* known_type, Value* value) {
         auto linked = known_type->get_direct_linked_node();
         if (linked) {
             auto k = linked->kind();
-            return k == ASTNodeKind::StructDecl || k == ASTNodeKind::VariantDecl || k == ASTNodeKind::UnionDecl ||
-                       k == ASTNodeKind::UnnamedStruct || k == ASTNodeKind::UnnamedUnion;
+            if(k == ASTNodeKind::UnnamedStruct || k == ASTNodeKind::UnnamedUnion) {
+                return true;
+            } else if(k == ASTNodeKind::StructDecl || k == ASTNodeKind::VariantDecl || k == ASTNodeKind::UnionDecl) {
+                const auto container = linked->as_members_container();
+                return container->pre_move_func() == nullptr && container->destructor_func() == nullptr && container->clear_func() == nullptr;
+            }
         }
     }
     return false;
@@ -919,7 +923,7 @@ llvm::Value* Codegen::memcpy_ref_struct(BaseType* known_type, Value* value, llvm
         if(!llvm_ptr) {
             llvm_ptr = builder->CreateAlloca(type, nullptr);
         }
-        memcpy_struct(type, value, llvm_ptr, value->llvm_value(*this, nullptr));
+        memcpy_struct(type, llvm_ptr, value->llvm_value(*this, nullptr));
         return llvm_ptr;
     }
     return nullptr;

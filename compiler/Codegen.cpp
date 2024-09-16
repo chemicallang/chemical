@@ -457,7 +457,7 @@ void Codegen::call_clear_fn(Value* value, llvm::Value* llvm_value) {
     ::call_clear_fn(gen, move_func, llvm_value);
 }
 
-void Codegen::memcpy_struct(llvm::Type* type, Value* value_ptr, llvm::Value* pointer, llvm::Value* value) {
+void Codegen::memcpy_struct(llvm::Type* type, llvm::Value* pointer, llvm::Value* value) {
     llvm::MaybeAlign m;
     const auto alloc_size = module->getDataLayout().getTypeAllocSize(type);
     builder->CreateMemCpy(pointer, m, value, m, alloc_size);
@@ -472,7 +472,7 @@ void Codegen::move_by_memcpy(BaseType* type, Value* value_ptr, llvm::Value* elem
     if(pre_move_func) {
         gen.builder->CreateCall(pre_move_func->llvm_func(), { elem_ptr, movable_value });
     } else {
-        gen.memcpy_struct(type->llvm_type(gen), value_ptr, elem_ptr, movable_value);
+        gen.memcpy_struct(type->llvm_type(gen), elem_ptr, movable_value);
         auto id = value.as_identifier();
         if (id) {
             auto k = id->linked->kind();

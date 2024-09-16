@@ -329,6 +329,27 @@ bool Value::is_stored_pointer() {
     return linked != nullptr && linked->is_stored_pointer();
 }
 
+bool Value::is_ref() {
+    auto chain = as_access_chain();
+    if(chain) {
+        return true;
+    } else {
+        auto id = as_identifier();
+        if(id) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool Value::is_func_call() {
+    auto chain = as_access_chain();
+    if(chain && chain->values.back()->as_func_call() != nullptr) {
+        return true;
+    }
+    return false;
+}
+
 bool Value::is_ref_moved() {
     auto chain = as_access_chain();
     if(chain) {

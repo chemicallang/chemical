@@ -113,9 +113,17 @@ llvm::Value* arg_value(
         // Ensure proper type promotion for float values passed to printf
         argValue = gen.builder->CreateFPExt(argValue, llvm::Type::getDoubleTy(*gen.ctx));
     } else {
-        // move moved value using memcpy
-        if(value->is_ref_moved()) {
-            argValue = gen.move_by_allocate(func_param->type.get(), value, argValue);
+        if(value->is_ref()) {
+            if (value->is_ref_moved()) {
+                // move moved value using memcpy
+                argValue = gen.move_by_allocate(func_param->type.get(), value, argValue);
+            } else if(gen.requires_memcpy_ref_struct(func_param->type.get(), value)) {
+                // non movable struct being passed directly, we should memcpy it
+                auto type = value->llvm_type(gen);
+                auto copy = gen.builder->CreateAlloca(type);
+                gen.memcpy_struct(type, copy, argValue);
+                argValue = copy;
+            }
         }
         // pack it into a fat pointer, if the function expects a dynamic type
         argValue = gen.pack_dyn_obj(value, func_param->type.get(), argValue);

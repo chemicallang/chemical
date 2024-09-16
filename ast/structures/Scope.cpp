@@ -140,6 +140,50 @@ InitBlock::InitBlock(Scope scope, ASTNode* parent_node, CSTToken* token) : scope
 
 }
 
+bool InitBlock::diagnose_missing_members_for_init(ASTDiagnoser& diagnoser) {
+    const auto definition = container;
+    const auto linked_kind = definition->kind();
+    auto& values = initializers;
+    if(linked_kind == ASTNodeKind::UnionDecl) {
+        if(values.size() != 1) {
+            diagnoser.error("union '" + definition->name + "' must be initialized with a single member value", this);
+            return false;
+        } else {
+            return true;
+        }
+    }
+    if(values.size() < definition->init_values_req_size()) {
+        std::vector<std::string> missing;
+        for(auto& mem : definition->inherited) {
+            auto& type = *mem->type;
+            if(type.get_direct_linked_struct()) {
+                auto& ref_type_name = mem->ref_type_name();
+                auto val = values.find(ref_type_name);
+                if (val == values.end()) {
+                    missing.emplace_back(ref_type_name);
+                }
+            }
+        }
+        for(auto& mem : definition->variables) {
+            if(mem.second->default_value() == nullptr) {
+                auto val = values.find(mem.second->name);
+                if (val == values.end()) {
+                    missing.emplace_back(mem.second->name);
+                }
+            }
+        }
+        if(!missing.empty()) {
+            for (auto& miss: missing) {
+                diagnoser.error(
+                        "couldn't find value for member '" + miss + "' for initializing struct '" + definition->name +
+                        "'", this);
+            }
+            return true;
+        }
+    }
+    return false;
+}
+
 void InitBlock::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode> &node_ptr) {
     auto func = parent_node->as_function();
     if(!func) {
@@ -156,7 +200,7 @@ void InitBlock::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode
         linker.error("init block's function must be inside a struct", (ASTNode*) this);
         return;
     }
-    auto mems_container = parent->as_members_container();
+    auto mems_container = parent->as_extendable_members_container_node();
     if(!mems_container) {
         linker.error("init block's function must be inside a struct", (ASTNode*) this);
         return;
@@ -231,4 +275,5 @@ void InitBlock::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode
             linker.error("call to unknown node in init block", (ASTNode*) chain);
         }
     }
+    diagnose_missing_members_for_init(linker);
 }

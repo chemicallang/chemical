@@ -75,7 +75,9 @@ public:
 
     ASTNode *child(const std::string &name) override;
 
-    BaseDefMember *direct_child_member(const std::string& name);
+    BaseDefMember *direct_variable(const std::string& name);
+
+    ASTNode *direct_child_member(const std::string& name);
 
     BaseDefMember *inherited_member(const std::string& name);
 

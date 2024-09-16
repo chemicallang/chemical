@@ -159,6 +159,13 @@ bool LambdaFunction::link(SymbolResolver &linker, std::unique_ptr<Value>& value_
 
     } else {
 
+        if(!params.empty()) {
+            auto& param = params[0];
+            if((param->name == "self" || param->name == "this") && (!param->type || param->type->kind() == BaseTypeKind::Void)) {
+                param->type = func_type->params[0]->type->copy_unique();
+            }
+        }
+
         link(linker, func_type);
         link_full(this, linker);
 
@@ -209,24 +216,6 @@ bool LambdaFunction::link(SymbolResolver &linker, FunctionType* func_type) {
         linker.error("Lambda function type expected return type to be " + func_type->returnType->representation() + " but got lambda with return type " + returnType->representation(), (Value*) this);
     }
     isCapturing = func_type->isCapturing;
-    return true;
-}
-
-bool LambdaFunction::link(SymbolResolver &linker, StructValue *value, const std::string &name) {
-    auto got_type = value->child(name)->create_value_type();
-    auto prev_func_type = linker.current_func_type;
-
-    linker.current_func_type = this;
-    link(linker, (FunctionType*) got_type.get());
-    if(!params.empty()) {
-        auto& param = params[0];
-        if((param->name == "self" || param->name == "this") && param->type->kind() == BaseTypeKind::Void) {
-            param->type = std::make_unique<PointerType>(value->create_type(), param->type->cst_token());
-        }
-    }
-    link_full(this, linker);
-
-    linker.current_func_type = prev_func_type;
     return true;
 }
 

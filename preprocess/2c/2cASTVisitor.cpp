@@ -3510,7 +3510,7 @@ void chain_value_accept(ToCAstVisitor& visitor, ChainValue* previous, ChainValue
                 const auto member = id->linked_node()->as_base_def_member();
                 if (member) {
                     // current member name member->name;
-                    const auto mem = previous_def->direct_child_member(member->name);
+                    const auto mem = previous_def->direct_variable(member->name);
                     if(!mem) {
                         std::vector<int> path;
                         path.reserve(5);

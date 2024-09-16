@@ -277,13 +277,25 @@ ASTNode *MembersContainer::child(const std::string &varName) {
     }
 }
 
-BaseDefMember *MembersContainer::direct_child_member(const std::string& name) {
+BaseDefMember *MembersContainer::direct_variable(const std::string& name) {
     auto found = variables.find(name);
     if (found != variables.end()) {
         return found->second.get();
     } else {
         return nullptr;
     }
+}
+
+ASTNode *MembersContainer::direct_child_member(const std::string& name) {
+    auto direct_var = direct_variable(name);
+    if(direct_var) return direct_var;
+    for(auto& inherits : inherited) {
+        const auto struct_def = inherits->type->linked_struct_def();
+        if(struct_def && struct_def->name == name) {
+            return struct_def;
+        }
+    }
+    return nullptr;
 }
 
 BaseDefMember *MembersContainer::inherited_member(const std::string& name) {
@@ -298,7 +310,7 @@ BaseDefMember *MembersContainer::inherited_member(const std::string& name) {
 }
 
 BaseDefMember *MembersContainer::child_member(const std::string& name) {
-    const auto direct_mem = direct_child_member(name);
+    const auto direct_mem = direct_variable(name);
     if(direct_mem) return direct_mem;
     const auto inherited_mem = inherited_member(name);
     if(inherited_mem) return inherited_mem;

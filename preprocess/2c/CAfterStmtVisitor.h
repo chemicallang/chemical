@@ -10,8 +10,6 @@ class CAfterStmtVisitor : public CommonVisitor, public SubVisitor {
 
     using SubVisitor::SubVisitor;
 
-    void visit(VariableIdentifier *identifier) override;
-
     void visit(FunctionCall *call) override;
 
     void visit(AccessChain *chain) override;

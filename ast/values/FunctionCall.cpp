@@ -627,9 +627,10 @@ void FunctionCall::link_values(SymbolResolver &linker) {
     auto func_type = get_function_type();
     unsigned i = 0;
     while(i < values.size()) {
-        auto& value = *values[i];
-        value.link(linker, this, i);
+        auto& value_ptr = values[i];
+        auto& value = *value_ptr;
         const auto expected_type = func_type->func_param_for_arg_at(i)->type.get();
+        value.link(linker, value_ptr, expected_type);
         current_func.mark_moved_value(&value, expected_type, linker);
         i++;
     }

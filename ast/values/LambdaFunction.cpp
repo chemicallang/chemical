@@ -219,36 +219,6 @@ bool LambdaFunction::link(SymbolResolver &linker, FunctionType* func_type) {
     return true;
 }
 
-bool LambdaFunction::link(SymbolResolver &linker, FunctionCall *call, unsigned int index) {
-
-    // if the linked is a function decl, it will be its type
-    // if it's a variable with a lambda type, it will be its type
-    auto linkedType = call->linked()->create_value_type();
-
-    // this is not a function, this error has been probably caught by function call
-    if(linkedType->function_type() == nullptr) {
-        return false;
-    }
-
-    // get the type of parameter for the function
-    auto paramType = linkedType->function_type()->func_param_for_arg_at(index)->create_value_type()->copy_unique();
-    if(paramType->function_type() == nullptr) {
-        linker.error("cannot pass a lambda, because the function expects a different type : " + paramType->representation() + " for parameter at " + std::to_string(index), (Value*) this);
-        return false;
-    }
-
-    auto prev_func_type = linker.current_func_type;
-    linker.current_func_type = this;
-
-    link(linker, paramType->function_type());
-    link_full(this, linker);
-
-    linker.current_func_type = prev_func_type;
-
-    return true;
-
-}
-
 bool LambdaFunction::link(SymbolResolver &linker, ReturnStatement *returnStmt) {
 
     if(returnStmt->func_type == nullptr) {

@@ -48,10 +48,6 @@ public:
         return TypeLinkedValue::link(linker, returnStmt);
     }
 
-    bool link(SymbolResolver &linker, FunctionCall *call, unsigned int index) override {
-        return TypeLinkedValue::link(linker, call, index);
-    }
-
     void set_created_type();
 
     std::unique_ptr<BaseType> create_type() override;

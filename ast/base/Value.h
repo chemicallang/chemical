@@ -94,12 +94,6 @@ public:
     }
 
     /**
-     * values inside a function call, can override this method if they want to access
-     * information about call, function at link time
-     */
-    virtual bool link(SymbolResolver& linker, FunctionCall* call, unsigned int index);
-
-    /**
      * relink value after generic types are known in the function call
      */
     virtual void relink_after_generic(SymbolResolver& linker, std::unique_ptr<Value>& value_ptr, BaseType* expected_type) {

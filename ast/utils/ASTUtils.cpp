@@ -40,7 +40,8 @@ std::unique_ptr<Value> call_with_arg(FunctionDeclaration* decl, std::unique_ptr<
     auto imp_call = std::make_unique<FunctionCall>(std::vector<std::unique_ptr<Value>> {}, nullptr);
     imp_call->parent_val = chain->values[0].get();
     imp_call->values.emplace_back(std::move(arg));
-    imp_call->values[0]->link(resolver, imp_call.get(), 0);
+    auto& value_ptr = imp_call->values[0];
+    value_ptr->link(resolver, value_ptr, imp_call->get_arg_type(0));
     chain->values.emplace_back(std::move(imp_call));
     return chain;
 }

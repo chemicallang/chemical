@@ -106,10 +106,6 @@ public:
 
     bool link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *expected_type = nullptr) override;
 
-    bool link(SymbolResolver &linker, FunctionCall *call, unsigned int index) override {
-        return TypeLinkedValue::link(linker, call, index);
-    }
-
     bool link(SymbolResolver &linker, ReturnStatement *returnStmt) override {
         return TypeLinkedValue::link(linker, returnStmt);
     }

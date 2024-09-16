@@ -48,10 +48,6 @@ public:
         return TypeLinkedValue::link(linker, returnStmt);
     }
 
-    bool link(SymbolResolver &linker, FunctionCall *call, unsigned int index) override {
-        return TypeLinkedValue::link(linker, call, index);
-    }
-
     void relink_after_generic(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *expected_type) override {
         link(linker, value_ptr, expected_type);
     }

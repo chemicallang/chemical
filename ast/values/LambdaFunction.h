@@ -94,8 +94,6 @@ public:
 
     bool link(SymbolResolver &linker, FunctionType* func_type);
 
-    bool link(SymbolResolver &linker, FunctionCall *call, unsigned int index) override;
-
     bool link(SymbolResolver &linker, ReturnStatement *returnStmt) override;
 
     [[nodiscard]]

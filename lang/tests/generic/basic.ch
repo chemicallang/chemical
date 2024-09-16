@@ -48,8 +48,12 @@ struct ShortPairGen {
     var pair : PairGen<short, short, short>
     @constructor
     func make() {
-        pair.a = 33;
-        pair.b = 10;
+        init {
+            pair(PairGen<short, short, short> {
+                a : 33,
+                b : 10
+            })
+        }
     }
     func add(&self) : short {
         return pair.add();

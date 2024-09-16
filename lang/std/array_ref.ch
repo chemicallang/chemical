@@ -22,8 +22,10 @@ public struct ArrayRef<T> {
 
     @constructor
     func constructor(array_ptr : T*, array_size : size_t) {
-        data = array_ptr;
-        size = array_size;
+        init {
+            data(array_ptr)
+            size(array_size)
+        }
     }
 
 }

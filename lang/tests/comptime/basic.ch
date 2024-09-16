@@ -37,14 +37,18 @@ struct Pair66 {
 
     @constructor
     func first() {
-        a = 15
-        b = 15
+        init {
+            a(15)
+            b(15)
+        }
     }
 
     @constructor
     func second() {
-        a = 20
-        b = 20
+        init {
+            a(20)
+            b(20)
+        }
     }
 
     func sum(&self) : int {

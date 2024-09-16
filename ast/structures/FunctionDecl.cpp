@@ -1157,6 +1157,18 @@ void FunctionDeclaration::declare_top_level(SymbolResolver &linker, std::unique_
     linker.declare_function(name, this, specifier);
 }
 
+bool FunctionDeclaration::ensure_has_init_block() {
+    if(!body.has_value() || body->nodes.empty()) return false;
+    auto& first = body->nodes.front();
+    return first->as_init_block() != nullptr;
+}
+
+void FunctionDeclaration::ensure_has_init_block(ASTDiagnoser& diagnoser) {
+    if(!ensure_has_init_block()) {
+        diagnoser.error("init block must be the first member of the constructor", (ASTNode*) this);
+    }
+}
+
 void FunctionDeclaration::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     // if has body declare params
     linker.scope_start();

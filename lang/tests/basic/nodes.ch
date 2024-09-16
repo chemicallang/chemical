@@ -87,6 +87,7 @@ impl Summer for Point {
     }
 }
 
+@direct_init
 struct DefaultInitStruct {
 
     var a : int = 43

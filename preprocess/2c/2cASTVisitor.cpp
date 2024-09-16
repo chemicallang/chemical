@@ -328,6 +328,18 @@ bool should_void_pointer_to_self(BaseType* type, const std::string& id, unsigned
     return false;
 }
 
+void allocate_struct_by_name_no_init(ToCAstVisitor& visitor, ASTNode* def, const std::string& name) {
+    auto k = def->kind();
+    if(k == ASTNodeKind::UnionDecl || k == ASTNodeKind::UnnamedUnion) {
+        visitor.write("union ");
+    } else {
+        visitor.write("struct ");
+    }
+    def->runtime_name(*visitor.output);
+    visitor.write(' ');
+    visitor.write(name);
+}
+
 //void param_type_with_id(ToCAstVisitor& visitor, BaseType* type, const std::string& id, unsigned index, bool overrides) {
 //    if(should_void_pointer_to_self(type, id, index, overrides)) {
 //        visitor->write("void* ");
@@ -424,6 +436,7 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
     auto prev_value = visitor.nested_value;
     visitor.nested_value = true;
     bool has_value_before = false;
+    std::string temp_struct_name;
     while(i < call->values.size()) {
         auto param = func_type->func_param_for_arg_at(i);
         auto& val = call->values[i];
@@ -437,6 +450,18 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
         } else {
             has_value_before = true;
         }
+        bool is_memcpy_ref_str = val->requires_memcpy_ref_struct(param->type.get());
+        if(is_memcpy_ref_str) {
+            const auto linked = param_ref_node;
+            visitor.write("({ ");
+            temp_struct_name = visitor.get_local_temp_var_name();
+            auto t = val->create_type();
+            t->accept(&visitor);
+            visitor.write(' ');
+            visitor.write(temp_struct_name);
+            visitor.write(" = ");
+            visitor.write('*');
+        }
         if(param->type->is_reference(param_type_kind) || is_struct_param || is_variant_param) {
             auto allocated = visitor.local_allocated.find(val.get());
             visitor.write('&');
@@ -445,16 +470,24 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
             } else {
                 val->accept(&visitor);
             }
-            i++;
-            continue;
         } else if(!val->reference() && val->value_type() == ValueType::Array) {
             visitor.write('(');
             auto base_type = val->get_base_type();
             base_type->accept(&visitor);
             visitor.write("[]");
             visitor.write(')');
+            visitor.accept_mutating_value(param->type.get(), val.get());
+        } else {
+            visitor.accept_mutating_value(param->type.get(), val.get());
         }
-        visitor.accept_mutating_value(param->type.get(), val.get());
+        if(is_memcpy_ref_str) {
+            visitor.write(';');
+            visitor.write(' ');
+            visitor.write('&');
+            visitor.write(temp_struct_name);
+            visitor.write(';');
+            visitor.write(" })");
+        }
         i++;
     }
     const auto func_param_size = func_type->expectedArgsSize();
@@ -768,12 +801,8 @@ void var_init(ToCAstVisitor& visitor, VarInitStatement* init, bool is_static, bo
     value_alloca_store(visitor, init->identifier, init->type.get(), initialize ? init->value.get() : nullptr);
 }
 
-void allocate_struct_by_name(ToCAstVisitor& visitor, ExtendableMembersContainerNode* def, const std::string& name, Value* initializer = nullptr) {
-    visitor.write("struct ");
-    node_parent_name(visitor, def);
-    struct_name(visitor, def);
-    visitor.write(' ');
-    visitor.write(name);
+void allocate_struct_by_name(ToCAstVisitor& visitor, ASTNode* def, const std::string& name, Value* initializer = nullptr) {
+    allocate_struct_by_name_no_init(visitor, def, name);
     if(initializer) {
         visitor.write(" = ");
         initializer->accept(&visitor);
@@ -836,22 +865,20 @@ void allocate_struct_for_func_call(ToCAstVisitor& visitor, ExtendableMembersCont
     }
 }
 
+std::string allocate_temp_struct(ToCAstVisitor& visitor, ASTNode* def_node, Value* ref_value, Value* initializer) {
+    auto struct_name = visitor.get_local_temp_var_name();
+    allocate_struct_by_name(visitor, def_node, struct_name);
+    visitor.local_allocated[ref_value] = struct_name;
+    return struct_name;
+}
+
 void moved_value_call(ToCAstVisitor& visitor, Value* value) {
     auto known_t = value->known_type();
     auto movable = known_t->get_direct_linked_movable_struct();
     const auto move_func = movable->pre_move_func();
     const auto clear_func = movable->clear_func();
     // allocating temporary struct
-    auto struct_name = visitor.get_local_temp_var_name();
-    allocate_struct_by_name(visitor, movable, struct_name);
-    if(clear_func) {
-        visitor.new_line_and_indent();
-        visitor.write(struct_name);
-        visitor.write(" = ");
-//        visitor.write('*');
-        value->accept(&visitor);
-        visitor.write(';');
-    }
+    auto struct_name = allocate_temp_struct(visitor, movable, value, clear_func ? value : nullptr);
     visitor.new_line_and_indent();
     func_container_name(visitor, clear_func ? clear_func : move_func);
     visitor.write('(');
@@ -864,7 +891,6 @@ void moved_value_call(ToCAstVisitor& visitor, Value* value) {
     value->accept(&visitor);
     visitor.write(')');
     visitor.write(';');
-    visitor.local_allocated[value] = struct_name;
 }
 
 void move_identifier(ToCAstVisitor& visitor, VariableIdentifier* id) {
@@ -1047,7 +1073,9 @@ void func_call_that_returns_struct(ToCAstVisitor& visitor, CBeforeStmtVisitor* a
 }
 
 void CBeforeStmtVisitor::visit(VariableIdentifier *identifier) {
-    move_identifier(visitor, identifier);
+    if(identifier->is_moved) {
+        move_identifier(visitor, identifier);
+    }
 }
 
 void CBeforeStmtVisitor::visit(AccessChain *chain) {

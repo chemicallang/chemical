@@ -162,8 +162,6 @@ void InitBlock::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode
         return;
     }
     container = mems_container;
-    // linking members of scope
-    scope.link_sequentially(linker);
     // now taking out initializers
     for(auto& node : scope.nodes) {
         auto chain = node->as_access_chain();
@@ -171,16 +169,23 @@ void InitBlock::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode
             linker.error("expected members of init block to be initializer call", (ASTNode*) chain);
             continue;
         }
-        auto call = chain->values.back()->as_func_call();
+        auto& call_ptr = chain->values.back();
+        auto call = call_ptr->as_func_call();
         if(!call) {
             linker.error("expected members of init block to be initializer call", (ASTNode*) chain);
             continue;
         }
-        auto call_parent = call->parent_val;
-        if(!call_parent) {
-            linker.error("couldn't get parent value of initializer call", (ASTNode*) chain);
+        const auto chain_size = chain->values.size();
+        if(chain_size < 2) {
+            linker.error("expected members of init block to be initializer call", (ASTNode*) chain);
             continue;
         }
+        // linking chain till chain_size - 1, last function call is not included
+        // last function call is not linked because it may not be valid and calling struct member
+        if(!chain->link(linker, nullptr, nullptr, 1)) {
+            continue;
+        }
+        auto call_parent = chain->values[chain_size - 2].get(); // second last value
         auto linked = call_parent->linked_node();
         if(!linked) {
             linker.error("unknown initializer call", (ASTNode*) chain);
@@ -193,9 +198,15 @@ void InitBlock::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode
                 continue;
             }
             auto base_def = linked->as_base_def_member_unsafe();
-            initializers[base_def->name] = { false, call->values.front().get() };
+            auto& value = call->values.front();
+            value->link(linker, value); // TODO send expected type by getting from base_def
+            initializers[base_def->name] = { false, value.get() };
             continue;
         } else if(linked_kind == ASTNodeKind::FunctionDecl) {
+            // linking the last function call, since function call is valid
+            if(!call_ptr->link(linker, call_parent, chain->values, chain_size - 1, nullptr)) {
+                continue;
+            }
             auto linked_func = linked->as_function();
             auto func_parent = linked_func->parent_node;
             auto called_struc = func_parent ? func_parent->as_struct_def() : nullptr;

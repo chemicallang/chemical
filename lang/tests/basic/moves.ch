@@ -60,6 +60,11 @@ func test_non_movable_obj(n : NonMovableObj) : bool {
     return n.a == 110 && n.b == 220
 }
 
+func change_non_movable_obj(n : NonMovableObj) {
+    n.a = 89
+    n.b = 83
+}
+
 func test_moves() {
 
     // TESTING WHETHER NON MOVABLE OBJ ARE VALID WHEN MOVED AROUND
@@ -105,6 +110,12 @@ func test_moves() {
                 return false;
             }
         }
+    })
+
+    test("non movable objects aren't modified when passed to functions directly", () => {
+        var n = NonMovableObj { a : 323, b : 124 }
+        change_non_movable_obj(n);
+        return n.a == 323 && n.b == 124;
     })
 
     // TESTING WHETHER NEW OWNERS OF MOVED OBJECTS ARE VALID

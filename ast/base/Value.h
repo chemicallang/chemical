@@ -211,6 +211,16 @@ public:
     bool is_stored_pointer();
 
     /**
+     * check if this value is a reference
+     */
+    bool is_ref();
+
+    /**
+     * is this value a function call
+     */
+    bool is_func_call();
+
+    /**
      * check if this value is a reference and moved
      */
     bool is_ref_moved();

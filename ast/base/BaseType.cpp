@@ -232,6 +232,15 @@ StructDefinition* BaseType::get_direct_linked_movable_struct() {
     }
 }
 
+StructDefinition* BaseType::get_direct_non_movable_struct() {
+    const auto direct_ref_struct = get_direct_linked_struct();
+    if(direct_ref_struct && direct_ref_struct->pre_move_func() == nullptr && direct_ref_struct->destructor_func() == nullptr) {
+        return direct_ref_struct;
+    } else {
+        return nullptr;
+    }
+}
+
 bool BaseType::requires_moving(BaseTypeKind k) {
     auto node = get_direct_linked_node(k);
     return node != nullptr && node->requires_moving(node->kind());

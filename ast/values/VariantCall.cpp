@@ -36,7 +36,7 @@ bool VariantCall::initialize_allocated(Codegen &gen, llvm::Value* allocated, llv
             if(gen.requires_memcpy_ref_struct(&param_type, value_ptr.get())) {
                 std::vector<llvm::Value*> idxList { gen.builder->getInt32(0) };
                 auto elementPtr = Value::get_element_pointer(gen, struct_type, data_ptr, idxList, i);
-                gen.memcpy_struct(value_ptr->llvm_type(gen), value_ptr.get(), elementPtr, value_ptr->llvm_value(gen, nullptr));
+                gen.memcpy_struct(value_ptr->llvm_type(gen), elementPtr, value_ptr->llvm_value(gen, nullptr));
             } else {
                 value.store_in_struct(gen, this, data_ptr, struct_type, {gen.builder->getInt32(0)}, i,
                                       &param_type);

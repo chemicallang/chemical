@@ -373,6 +373,11 @@ public:
     StructDefinition* get_direct_linked_movable_struct();
 
     /**
+     * get linked struct that is non movable (meaning has no destructor or move fn or implicit copy)
+     */
+    StructDefinition* get_direct_non_movable_struct();
+
+    /**
      * this type references a struct
      */
     inline bool is_linked_struct() {

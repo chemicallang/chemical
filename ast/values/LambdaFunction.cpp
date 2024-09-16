@@ -139,16 +139,16 @@ void link_full(LambdaFunction* fn, SymbolResolver &linker) {
 
 bool LambdaFunction::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr, BaseType *expected_type) {
 
-#ifdef DEBUG
-    linker.info("lambda function type not found, deducing function type by visiting lambda body (expensive operation) performed", (Value*) this);
-#endif
-
     auto prev_func_type = linker.current_func_type;
     linker.current_func_type = this;
 
     auto func_type = expected_type ? expected_type->function_type() : nullptr;
 
     if(!func_type) {
+
+#ifdef DEBUG
+        linker.info("deducing lambda function type by visiting body", (Value*) this);
+#endif
 
         // linking params and their types before copying their types
         link_full(this, linker);

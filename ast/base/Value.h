@@ -94,12 +94,6 @@ public:
     }
 
     /**
-     * when value is contained within assign statement, this function is called
-     * which provides access to the  statement for more information
-     */
-    virtual bool link(SymbolResolver& linker, AssignStatement* stmnt, bool lhs);
-
-    /**
      * when a value is present inside a struct value, this function is called
      * can be overridden to retrieve extra information
      */

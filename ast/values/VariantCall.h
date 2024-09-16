@@ -56,10 +56,6 @@ public:
         return TypeLinkedValue::link(linker, call, index);
     }
 
-    bool link(SymbolResolver &linker, AssignStatement *stmnt, bool lhs) override {
-        return TypeLinkedValue::link(linker, stmnt, lhs);
-    }
-
     bool link(SymbolResolver &linker, ArrayValue *value, unsigned int index) override {
         return TypeLinkedValue::link(linker, value, index);
     }

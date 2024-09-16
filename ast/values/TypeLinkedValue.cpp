@@ -11,14 +11,6 @@
 #include "ast/values/IntValue.h"
 #include "compiler/SymbolResolver.h"
 
-bool TypeLinkedValue::link(SymbolResolver &linker, AssignStatement *stmnt, bool lhs) {
-    std::unique_ptr<BaseType> value_type;
-    if(!lhs) {
-        value_type = stmnt->lhs->create_type();
-    }
-    return link(linker, lhs ? stmnt->lhs : stmnt->value, lhs ? nullptr : value_type.get());
-}
-
 BaseType* implicit_constructor_type(BaseType* return_type, Value* value) {
     auto k = return_type->kind();
     if(k == BaseTypeKind::Linked || k == BaseTypeKind::Generic) {

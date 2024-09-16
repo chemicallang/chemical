@@ -435,7 +435,6 @@ set(COMMON_SOURCES
         cst/CSTToken.cpp
         ast/utils/GenericUtils.h
         ast/values/TypeLinkedValue.h
-        ast/values/TypeLinkedValue.cpp
         compiler/lab/LabBuildCompilerOptions.h
         compiler/lab/Utils.h
         stream/InputSource.h

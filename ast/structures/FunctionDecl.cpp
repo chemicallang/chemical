@@ -497,6 +497,10 @@ void FunctionDeclaration::code_gen_body(Codegen &gen, StructDefinition* def) {
         code_gen_copy_fn(gen, def);
         return;
     }
+    if(has_annotation(AnnotationKind::Move)) {
+        code_gen_move_fn(gen, def);
+        return;
+    }
     if(has_annotation(AnnotationKind::Clear)) {
         code_gen_clear_fn(gen, def);
         return;
@@ -526,6 +530,10 @@ void FunctionDeclaration::code_gen_body(Codegen &gen, VariantDefinition* def) {
     }
     if(has_annotation(AnnotationKind::Clear)) {
         code_gen_clear_fn(gen, def);
+        return;
+    }
+    if(has_annotation(AnnotationKind::Move)) {
+        code_gen_move_fn(gen, def);
         return;
     }
     if(has_annotation(AnnotationKind::Delete)) {
@@ -635,6 +643,26 @@ void FunctionDeclaration::code_gen_copy_fn(Codegen& gen, StructDefinition* def) 
     code_gen_body(gen);
 }
 
+void FunctionDeclaration::code_gen_move_fn(Codegen& gen, StructDefinition* def) {
+    auto func = llvm_func();
+    gen.SetInsertPoint(&func->getEntryBlock());
+    code_gen_member_calls(gen, def, func, [](MembersContainer* mem_def)->FunctionDeclaration* {
+        return mem_def->pre_move_func();
+    }, [](Codegen& gen, FunctionDeclaration* decl, StructDefinition* def, llvm::Function* func, unsigned index) {
+        auto selfArg = func->getArg(0);
+        auto otherArg = func->getArg(1);
+        std::vector<llvm::Value*> args;
+        std::vector<llvm::Value *> idxList{gen.builder->getInt32(0)};
+        auto element_ptr = Value::get_element_pointer(gen, def->llvm_type(gen), selfArg, idxList, index);
+        args.emplace_back(element_ptr);
+        idxList.pop_back();
+        auto other_element_ptr = Value::get_element_pointer(gen, def->llvm_type(gen), otherArg, idxList, index);
+        args.emplace_back(other_element_ptr);
+        gen.builder->CreateCall(decl->llvm_func_type(gen), decl->llvm_pointer(gen), args);
+    });
+    code_gen_body(gen);
+}
+
 void FunctionDeclaration::code_gen_clear_fn(Codegen& gen, StructDefinition* def) {
     auto func = llvm_func();
     gen.SetInsertPoint(&func->getEntryBlock());
@@ -722,6 +750,49 @@ void FunctionDeclaration::code_gen_copy_fn(Codegen& gen, VariantDefinition* def)
                 if(container) {
                     auto def = mem->parent_node;
                     auto decl = container->copy_func();
+                    std::vector<llvm::Value*> args;
+                    std::vector<llvm::Value *> idxList{gen.builder->getInt32(0)};
+                    auto element_ptr = Value::get_element_pointer(gen, def->llvm_type(gen), struct_ptr, idxList, index);
+                    args.emplace_back(element_ptr);
+                    idxList.pop_back();
+                    auto other_element_ptr = Value::get_element_pointer(gen, def->llvm_type(gen), other_struct_pointer, idxList, index);
+                    args.emplace_back(other_element_ptr);
+                    gen.builder->CreateCall(decl->llvm_func_type(gen), decl->llvm_pointer(gen), args);
+                }
+            }
+        }
+    });
+    gen.builder->CreateRetVoid();
+    if(body.has_value() && !body->nodes.empty()) {
+        code_gen_body(gen);
+    }
+}
+
+void FunctionDeclaration::code_gen_move_fn(Codegen& gen, VariantDefinition* def) {
+    auto func = llvm_func();
+    gen.SetInsertPoint(&func->getEntryBlock());
+    auto allocaInst = func->getArg(0);
+    auto otherInst = func->getArg(1);
+    // storing the type integer
+    auto other_type = gen.builder->CreateGEP(def->llvm_type(gen), otherInst, { gen.builder->getInt32(0), gen.builder->getInt32(0) }, "", gen.inbounds);
+    auto this_type = gen.builder->CreateGEP(def->llvm_type(gen), allocaInst, { gen.builder->getInt32(0), gen.builder->getInt32(0) }, "", gen.inbounds);
+    auto loaded = gen.builder->CreateLoad(gen.builder->getInt32Ty(), other_type);
+    gen.builder->CreateStore(loaded, this_type);
+    // processing members to call copy functions on members
+    process_members_calling_fns(gen, def, allocaInst, func, [](VariantMember* mem)-> bool {
+        return mem->requires_move_fn();
+    }, [](Codegen& gen, VariantMember* mem, llvm::Value* struct_ptr, llvm::Function* func) {
+        auto otherArg = func->getArg(1);
+        auto other_struct_pointer = variant_struct_pointer(gen, otherArg, mem->parent_node);
+        auto index = -1;
+        for(auto& param : mem->values) {
+            index++;
+            auto linked = param.second->type->linked_node();
+            if(linked) {
+                auto container = linked->as_members_container();
+                if(container) {
+                    auto def = mem->parent_node;
+                    auto decl = container->pre_move_func();
                     std::vector<llvm::Value*> args;
                     std::vector<llvm::Value *> idxList{gen.builder->getInt32(0)};
                     auto element_ptr = Value::get_element_pointer(gen, def->llvm_type(gen), struct_ptr, idxList, index);
@@ -1048,6 +1119,15 @@ void FunctionDeclaration::ensure_clear_fn(ExtendableMembersContainerNode* def) {
 }
 
 void FunctionDeclaration::ensure_copy_fn(ExtendableMembersContainerNode* def) {
+    if(!has_self_param() || params.size() != 2 || params.empty()) {
+        params.clear();
+        params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<LinkedType>(def->name, def, nullptr), nullptr), 0, nullptr, this, nullptr));
+        params.emplace_back(std::make_unique<FunctionParam>("other", std::make_unique<PointerType>(std::make_unique<LinkedType>(def->name, def, nullptr), nullptr), 1, nullptr, this, nullptr));
+    }
+    returnType = std::make_unique<LinkedType>(def->name, def, nullptr);
+}
+
+void FunctionDeclaration::ensure_move_fn(ExtendableMembersContainerNode* def) {
     if(!has_self_param() || params.size() != 2 || params.empty()) {
         params.clear();
         params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<LinkedType>(def->name, def, nullptr), nullptr), 0, nullptr, this, nullptr));

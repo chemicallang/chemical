@@ -23,6 +23,8 @@ class FunctionType;
 
 class Value;
 
+class MembersContainer;
+
 /**
  * BaseType is a base class for all the types there are
  */
@@ -247,12 +249,42 @@ public:
     }
 
     /**
+     * get members container
+     */
+    MembersContainer* get_members_container();
+
+    /**
+     * does this type has a destructor
+     */
+    FunctionDeclaration* get_destructor();
+
+    /**
+     * does this type has a pre move function
+     */
+    FunctionDeclaration* get_pre_move_fn();
+
+    /**
+     * does this type has a clear function
+     */
+    FunctionDeclaration* get_clear_fn();
+
+    /**
+     * does thi type has a copy function
+     */
+    FunctionDeclaration* get_copy_fn();
+
+    /**
      * is destructor required
      */
     bool requires_destructor();
 
     /**
-     * is a move function required
+     * is move required
+     */
+    bool requires_move_fn();
+
+    /**
+     * is a clear function required
      */
     bool requires_clear_fn();
 

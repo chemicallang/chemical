@@ -461,37 +461,71 @@ FunctionDeclaration* MembersContainer::implicit_constructor_func(Value* value) {
     return nullptr;
 }
 
-bool MembersContainer::requires_destructor() {
-    auto destructor = destructor_func();
-    if(destructor) return true;
-    for(const auto& var : variables) {
-        if(var.second->requires_destructor()) {
+bool members_type_require(MembersContainer& container, bool(*requirement)(BaseType*)) {
+    for(const auto& inh : container.inherited) {
+        if(requirement(inh->type.get())) {
+            return true;
+        }
+    }
+    for(const auto& var : container.variables) {
+        auto type = var.second->get_value_type();
+        if(requirement(type.get())) {
             return true;
         }
     }
     return false;
+}
+
+bool MembersContainer::any_member_has_destructor() {
+    return members_type_require(*this, [](BaseType* type)-> bool {
+        return type->get_destructor() != nullptr;
+    });
+}
+
+bool MembersContainer::any_member_has_clear_func() {
+    return members_type_require(*this, [](BaseType* type)-> bool {
+        return type->get_clear_fn() != nullptr;
+    });
+}
+
+bool MembersContainer::any_member_has_pre_move_func() {
+    return members_type_require(*this, [](BaseType* type)-> bool {
+        return type->get_pre_move_fn() != nullptr;
+    });
+}
+
+bool MembersContainer::any_member_has_copy_func() {
+    return members_type_require(*this, [](BaseType* type)-> bool {
+        return type->get_copy_fn() != nullptr;
+    });
+}
+
+bool MembersContainer::requires_destructor() {
+    return destructor_func() != nullptr || any_member_has_destructor();
 }
 
 bool MembersContainer::requires_clear_fn() {
-    auto clear_fn = clear_func();
-    if(clear_fn) return true;
-    for(const auto& var : variables) {
-        if(var.second->requires_clear_fn()) {
-            return true;
-        }
-    }
-    return false;
+    return clear_func() != nullptr || any_member_has_clear_func();
+}
+
+bool MembersContainer::requires_move_fn() {
+    return pre_move_func() != nullptr || any_member_has_pre_move_func();
 }
 
 bool MembersContainer::requires_copy_fn() {
+    return copy_func() != nullptr || any_member_has_copy_func();
+}
+
+FunctionDeclaration* MembersContainer::pre_move_func() {
+    auto post_move = clear_func();
+    if(post_move) return nullptr;
+    auto move_fn = move_func();
+    if(move_fn) return move_fn;
     auto copy_fn = copy_func();
-    if(copy_fn) return true;
-    for(const auto& var : variables) {
-        if(var.second->requires_copy_fn()) {
-            return true;
-        }
+    if(copy_fn && copy_fn->has_annotation(AnnotationKind::Implicit)) {
+        return copy_fn;
     }
-    return false;
+    return nullptr;
 }
 
 void MembersContainer::insert_func(std::unique_ptr<FunctionDeclaration> decl) {
@@ -527,6 +561,16 @@ FunctionDeclaration* MembersContainer::create_copy_fn() {
     return decl;
 }
 
+FunctionDeclaration* MembersContainer::create_move_fn() {
+    auto decl = new FunctionDeclaration("move", {}, std::make_unique<VoidType>(nullptr), false, this, nullptr, std::nullopt);
+    decl->params.emplace_back(new FunctionParam("self", std::make_unique<PointerType>(std::make_unique<LinkedType>(ns_node_identifier(), this, nullptr), nullptr), 0, nullptr, decl, nullptr));
+    decl->params.emplace_back(new FunctionParam("other", std::make_unique<PointerType>(std::make_unique<LinkedType>(ns_node_identifier(), this, nullptr), nullptr), 1, nullptr, decl, nullptr));
+    decl->body.emplace(LoopScope{nullptr, nullptr});
+    decl->annotations.emplace_back(AnnotationKind::Copy);
+    insert_func(std::unique_ptr<FunctionDeclaration>(decl));
+    return decl;
+}
+
 FunctionDeclaration* MembersContainer::create_def_destructor(ASTDiagnoser& diagnoser) {
     auto delFunc = direct_child_function("delete");
     if(delFunc) {
@@ -546,6 +590,15 @@ FunctionDeclaration* MembersContainer::create_def_clear_fn(ASTDiagnoser& diagnos
 }
 
 FunctionDeclaration* MembersContainer::create_def_copy_fn(ASTDiagnoser& diagnoser) {
+    auto copyFn = direct_child_function("copy");
+    if(copyFn) {
+        diagnoser.error("default copy function is created by name 'copy', a function by name 'copy' already exists, please create a manual function to avoid this", (AnnotableNode*) copyFn);
+        return nullptr;
+    }
+    return create_copy_fn();
+}
+
+FunctionDeclaration* MembersContainer::create_def_move_fn(ASTDiagnoser& diagnoser) {
     auto copyFn = direct_child_function("copy");
     if(copyFn) {
         diagnoser.error("default copy function is created by name 'copy', a function by name 'copy' already exists, please create a manual function to avoid this", (AnnotableNode*) copyFn);

@@ -29,6 +29,7 @@ enum class AnnotationKind {
     // it means to say, function that defines what happens when the object is moved and NOT how to construct an object from another object without copying everything
     Copy,
     Clear,
+    Move,
     Delete,
 
     // the function overrides another present above in a struct or interface

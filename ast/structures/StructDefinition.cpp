@@ -355,6 +355,10 @@ bool StructMember::requires_clear_fn() {
     return type->requires_clear_fn();
 }
 
+bool StructMember::requires_move_fn() {
+    return type->requires_move_fn();
+}
+
 bool StructMember::requires_copy_fn() {
     return type->requires_copy_fn();
 }
@@ -372,6 +376,7 @@ void StructDefinition::declare_and_link(SymbolResolver &linker, std::unique_ptr<
     bool has_destructor = false;
     bool has_clear_fn = false;
     bool has_copy_fn = false;
+    bool has_move_fn = false;
     for(auto& func : functions()) {
         if(func->has_annotation(AnnotationKind::Constructor)) {
             func->ensure_constructor(this);
@@ -384,6 +389,10 @@ void StructDefinition::declare_and_link(SymbolResolver &linker, std::unique_ptr<
             func->ensure_clear_fn(this);
             has_clear_fn = true;
         }
+        if(func->has_annotation(AnnotationKind::Move)) {
+            func->ensure_move_fn(this);
+            has_move_fn = true;
+        }
         if(func->has_annotation(AnnotationKind::Copy)) {
             func->ensure_copy_fn(this);
             has_copy_fn = true;
@@ -391,13 +400,16 @@ void StructDefinition::declare_and_link(SymbolResolver &linker, std::unique_ptr<
     }
     MembersContainer::declare_and_link(linker, node_ptr);
     register_use_to_inherited_interfaces(this);
-    if(!has_copy_fn && requires_copy_fn()) {
+    if(!has_copy_fn && any_member_has_copy_func()) {
         create_def_copy_fn(linker);
     }
-    if(!has_clear_fn && requires_clear_fn()) {
+    if(!has_clear_fn && any_member_has_clear_func()) {
         create_def_clear_fn(linker);
     }
-    if(!has_destructor && requires_destructor()) {
+    if(!has_move_fn && any_member_has_pre_move_func()) {
+        create_def_move_fn(linker);
+    }
+    if(!has_destructor && any_member_has_destructor()) {
         create_def_destructor(linker);
     }
 //    if(init_values_req_size() != 0) {

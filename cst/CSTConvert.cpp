@@ -303,6 +303,7 @@ const std::unordered_map<std::string, const AnnotationHandler> AnnotationHandler
         { "size:min", { collect_annotation_func, AnnotationKind::MinSize } },
         { "comptime", { collect_annotation_func, AnnotationKind::CompTime } },
         { "constructor", { collect_annotation_func, AnnotationKind::Constructor } },
+        { "make", { collect_annotation_func, AnnotationKind::Constructor } },
         { "delete", { collect_annotation_func, AnnotationKind::Delete } },
         { "override", { collect_annotation_func, AnnotationKind::Override } },
         { "no_init", { collect_annotation_func, AnnotationKind::NoInit }},
@@ -313,6 +314,7 @@ const std::unordered_map<std::string, const AnnotationHandler> AnnotationHandler
         { "cpp", { collect_annotation_func, AnnotationKind::Cpp }},
         { "clear", { collect_annotation_func, AnnotationKind::Clear }},
         { "copy", { collect_annotation_func, AnnotationKind::Copy }},
+        { "move", { collect_annotation_func, AnnotationKind::Move }},
 };
 
 inline void collect_annotations_in(CSTConverter* converter, AnnotableNode* node) {

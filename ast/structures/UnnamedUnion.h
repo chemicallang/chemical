@@ -66,6 +66,11 @@ public:
         return false;
     }
 
+    // TODO move function support unnamed union
+    bool requires_move_fn() override {
+        return false;
+    }
+
     // TODO destructor support unnamed union
     bool requires_destructor() override {
         return false;

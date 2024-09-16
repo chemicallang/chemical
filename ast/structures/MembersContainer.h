@@ -158,10 +158,44 @@ public:
     FunctionDeclaration* implicit_constructor_func(Value* type);
 
     /**
+     * if there's a post move function (clear function), null is returned
+     * move function is returned, if there's no move function
+     * we return a implicit copy function unless there's none
+     */
+    FunctionDeclaration* pre_move_func();
+
+    /**
+     * checks if this struct type requires a destructor
+     * or has one
+     */
+    bool any_member_has_destructor();
+
+    /**
+     * check if move fn is required
+     */
+    bool any_member_has_pre_move_func();
+
+    /**
+     * checks if this struct type requires a move function
+     * or has one
+     */
+    bool any_member_has_clear_func();
+
+    /**
+     * checks if this struct type requires a copy function
+     */
+    bool any_member_has_copy_func();
+
+    /**
      * checks if this struct type requires a destructor
      * or has one
      */
     bool requires_destructor();
+
+    /**
+     * check if move fn is required
+     */
+    bool requires_move_fn();
 
     /**
      * checks if this struct type requires a move function
@@ -170,17 +204,17 @@ public:
     bool requires_clear_fn();
 
     /**
+     * checks if this struct type requires a copy function
+     */
+    bool requires_copy_fn();
+
+    /**
      * this means struct must be moved by calling move constructor and
      * the default mem copy doesn't suffice
      */
     inline bool requires_moving() {
         return requires_destructor() || requires_clear_fn();
     }
-
-    /**
-     * checks if this struct type requires a copy function
-     */
-    bool requires_copy_fn();
 
     /**
      * get the byte size
@@ -220,6 +254,13 @@ public:
     /**
      * will provide the move function if there's one
      */
+    FunctionDeclaration* move_func() {
+        return get_last_fn_annotated(AnnotationKind::Move);
+    }
+
+    /**
+     * will provide the move function if there's one
+     */
     FunctionDeclaration* copy_func() {
         return get_last_fn_annotated(AnnotationKind::Copy);
     }
@@ -245,6 +286,11 @@ public:
     FunctionDeclaration* create_copy_fn();
 
     /**
+     * create the copy function and put it into functions
+     */
+    FunctionDeclaration* create_move_fn();
+
+    /**
      * create default destructor, report errors in given diagnoser, this is a helper function
      */
     FunctionDeclaration* create_def_destructor(ASTDiagnoser& diagnoser);
@@ -258,6 +304,11 @@ public:
      * create default copy function, report errors in given diagnoser, this is a helper function
      */
     FunctionDeclaration* create_def_copy_fn(ASTDiagnoser& diagnoser);
+
+    /**
+     * create default move function, report errors in given diagnoser, this is a helper function
+     */
+    FunctionDeclaration* create_def_move_fn(ASTDiagnoser& diagnoser);
 
     /**
      * insert a function that can have same name for multiple declarations

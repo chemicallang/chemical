@@ -18,6 +18,8 @@ public:
 
     virtual bool requires_clear_fn() = 0;
 
+    virtual bool requires_move_fn() = 0;
+
     virtual bool requires_copy_fn() = 0;
 
     virtual BaseDefMember* copy_member() = 0;

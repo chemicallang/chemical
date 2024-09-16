@@ -227,9 +227,36 @@ public:
     bool assign_dyn_obj(Value* value, BaseType* type, llvm::Value* fat_pointer, llvm::Value* obj);
 
     /**
+     * a helper method to call clear function
+     */
+    void call_clear_fn(Value* value, llvm::Value* llvm_value);
+
+    /**
      * mem copy a struct into the given pointer
      */
     void memcpy_struct(llvm::Type* type, Value* value_ptr, llvm::Value* pointer, llvm::Value* value);
+
+    /**
+     * move the value
+     * @param type is the type of value, expected
+     * @param value is the actual value (not llvm though)
+     * @param ptr is where value will be moved to
+     * @param movable_value is the movable value that is retrieved by calling movable_value method
+     * how this works is, the movable value is mem copied into the given pointer, but movable_value is the
+     * memory location of the previous struct, so we call clear function on it, to tell the struct that struct has been
+     * freed
+     */
+    void move_by_memcpy(BaseType* type, Value* value, llvm::Value* ptr, llvm::Value* movable_value);
+
+    /**
+     * this function is used where allocation is necessary, for example
+     * in function arguments when value is moved, there's no place to store the moved value
+     * if we don't store a copy of the moved value, the function may make changes to the value
+     * and they'll reflect in the original pointer, which we don't want
+     * This function takes into account owner of the value, and returns the value that you
+     * should pass or use, which may or may not be newly allocated struct
+     */
+    llvm::Value* move_by_allocate(BaseType* type, Value* value, llvm::Value* movable_value);
 
     /**
      * tells whether, the given value should be mem copied into the pointer, because

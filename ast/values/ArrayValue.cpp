@@ -33,12 +33,10 @@ void ArrayValue::initialize_allocated(Codegen& gen, llvm::Value* allocated, Base
     idxList.emplace_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), 0));
     auto child_type = array_child(expected_type);
     auto known_child_t = known_child_type();
-    auto& current_func_type = *gen.current_func_type;
     auto parent_type = llvm_type(gen);
     for (size_t i = 0; i < values.size(); ++i) {
         auto& value = *values[i];
-        auto movable_value = current_func_type.movable_value(gen, &value);
-        if(movable_value == nullptr) {
+        if(!value.is_ref_moved()) {
             if(gen.requires_memcpy_ref_struct(known_child_t, &value)) {
                 std::vector<llvm::Value*> idx{gen.builder->getInt32(0)};
                 auto elementPtr = Value::get_element_pointer(gen, parent_type, allocated, idx, i);
@@ -51,7 +49,7 @@ void ArrayValue::initialize_allocated(Codegen& gen, llvm::Value* allocated, Base
             // moving the struct
             std::vector<llvm::Value*> idx{gen.builder->getInt32(0)};
             auto elementPtr = Value::get_element_pointer(gen, parent_type, allocated, idx, i);
-            current_func_type.move_by_memcpy(gen, known_child_t, &value, elementPtr, movable_value);
+            gen.move_by_memcpy(known_child_t, &value, elementPtr, value.llvm_value(gen, nullptr));
         }
     }
 }

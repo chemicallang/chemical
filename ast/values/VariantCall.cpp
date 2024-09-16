@@ -28,13 +28,11 @@ bool VariantCall::initialize_allocated(Codegen &gen, llvm::Value* allocated, llv
     auto data_ptr = gen.builder->CreateGEP(def_type, allocated, { gen.builder->getInt32(0), gen.builder->getInt32(1) }, "", gen.inbounds);
     const auto struct_type = member->llvm_type(gen);
     unsigned i = 0;
-    auto& current_func_type = *gen.current_func_type;
     for(auto& value_ptr : values) {
         auto& value = *value_ptr;
         const auto param = member->values.begin() + i;
         auto& param_type = *param->second->type;
-        auto movable_value = current_func_type.movable_value(gen, value_ptr.get());
-        if(movable_value == nullptr) {
+        if(!value_ptr->is_ref_moved()) {
             if(gen.requires_memcpy_ref_struct(&param_type, value_ptr.get())) {
                 std::vector<llvm::Value*> idxList { gen.builder->getInt32(0) };
                 auto elementPtr = Value::get_element_pointer(gen, struct_type, data_ptr, idxList, i);
@@ -47,7 +45,7 @@ bool VariantCall::initialize_allocated(Codegen &gen, llvm::Value* allocated, llv
             // since it will be moved, we will std memcpy it into current pointer
             std::vector<llvm::Value*> idx{gen.builder->getInt32(0)};
             auto elementPtr = Value::get_element_pointer(gen, struct_type, data_ptr, idx, i);
-            current_func_type.move_by_memcpy(gen, &param_type, value_ptr.get(), elementPtr, movable_value);
+            gen.move_by_memcpy(&param_type, value_ptr.get(), elementPtr, value_ptr->llvm_value(gen));
         }
         i++;
     }

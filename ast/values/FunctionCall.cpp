@@ -109,10 +109,15 @@ llvm::Value* arg_value(
             argValue = value->llvm_value(gen,func_param->type.get());
         }
     }
-    // Ensure proper type promotion for float values passed to printf
     if (func_type->isVariadic && func_type->isInVarArgs(i) && argValue->getType()->isFloatTy()) {
+        // Ensure proper type promotion for float values passed to printf
         argValue = gen.builder->CreateFPExt(argValue, llvm::Type::getDoubleTy(*gen.ctx));
     } else {
+        // move moved value using memcpy
+        if(value->is_ref_moved()) {
+            argValue = gen.move_by_allocate(func_param->type.get(), value, argValue);
+        }
+        // pack it into a fat pointer, if the function expects a dynamic type
         argValue = gen.pack_dyn_obj(value, func_param->type.get(), argValue);
     }
     return argValue;
@@ -526,7 +531,6 @@ llvm::Value* FunctionCall::llvm_chain_value(
 llvm::Value* FunctionCall::access_chain_value(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &chain, unsigned until, std::vector<std::pair<Value*, llvm::Value*>>& destructibles, BaseType* expected_type) {
     std::vector<llvm::Value *> args;
     auto value = llvm_chain_value(gen, args, chain, until, destructibles);
-    call_clear_fns_on_moved(gen, args);
     return value;
 }
 
@@ -540,7 +544,6 @@ llvm::Value* FunctionCall::chain_value_with_callee(
 ) {
     std::vector<llvm::Value *> args;
     auto value = llvm_chain_value(gen, args, chain, index, destructibles, nullptr, callee_value, grandpa_value);
-    call_clear_fns_on_moved(gen, args);
     return value;
 }
 
@@ -569,28 +572,28 @@ bool FunctionCall::add_child_index(Codegen &gen, std::vector<llvm::Value *> &ind
     return create_type()->linked_node()->add_child_index(gen, indexes, name);
 }
 
-void FunctionCall::call_clear_fns_on_moved(Codegen &gen, std::vector<llvm::Value*>& args) {
-    auto func_type = gen.current_func_type;
-    unsigned i = 0;
-    for(auto& value : values) {
-        const auto chain = value->as_access_chain();
-        if(chain) {
-            if(chain->is_moved) {
-                func_type->call_clear_fn(gen, chain, args[i]);
-            }
-        } else {
-            const auto id = value->as_identifier();
-            if(id && id->is_moved) {
-                const auto linked = id->linked;
-                const auto kind = linked->kind();
-                if(kind != ASTNodeKind::VarInitStmt && kind != ASTNodeKind::FunctionParam) {
-                    func_type->call_clear_fn(gen, id, args[i]);
-                }
-            }
-        }
-        i++;
-    }
-}
+//void FunctionCall::call_clear_fns_on_moved(Codegen &gen, std::vector<llvm::Value*>& args) {
+//    auto func_type = gen.current_func_type;
+//    unsigned i = 0;
+//    for(auto& value : values) {
+//        const auto chain = value->as_access_chain();
+//        if(chain) {
+//            if(chain->is_moved) {
+//                func_type->call_clear_fn(gen, chain, args[i]);
+//            }
+//        } else {
+//            const auto id = value->as_identifier();
+//            if(id && id->is_moved) {
+//                const auto linked = id->linked;
+//                const auto kind = linked->kind();
+//                if(kind != ASTNodeKind::VarInitStmt && kind != ASTNodeKind::FunctionParam) {
+//                    func_type->call_clear_fn(gen, id, args[i]);
+//                }
+//            }
+//        }
+//        i++;
+//    }
+//}
 
 llvm::AllocaInst *FunctionCall::access_chain_allocate(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &chain_values, unsigned int until, BaseType* expected_type) {
     auto func_type = get_function_type();
@@ -599,8 +602,6 @@ llvm::AllocaInst *FunctionCall::access_chain_allocate(Codegen &gen, std::vector<
         std::vector<llvm::Value *> args;
         std::vector<std::pair<Value*, llvm::Value*>> destructibles;
         auto alloc = (llvm::AllocaInst*) llvm_chain_value(gen, args, chain_values, until, destructibles);
-        // call move functions on moved objects that were present in function call
-        call_clear_fns_on_moved(gen, args);
         // call destructors on destructible objects that were present in function call
         Value::destruct(gen, destructibles);
         return alloc;

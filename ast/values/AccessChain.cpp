@@ -31,7 +31,7 @@ void AccessChain::relink_parent() {
     }
 }
 
-bool AccessChain::link(SymbolResolver &linker, BaseType *expected_type, std::unique_ptr<Value>* value_ptr) {
+bool AccessChain::link(SymbolResolver &linker, BaseType *expected_type, std::unique_ptr<Value>* value_ptr, unsigned int end_offset) {
 
     if(!values[0]->link(linker, nullptr, values, 0, expected_type)) {
         return false;
@@ -69,7 +69,7 @@ bool AccessChain::link(SymbolResolver &linker, BaseType *expected_type, std::uni
         }
     }
 
-    const auto values_size = values.size();
+    const auto values_size = values.size() - end_offset;
     if (values_size > 1) {
 
         // manually linking the second value

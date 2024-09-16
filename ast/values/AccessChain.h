@@ -53,7 +53,12 @@ public:
         return parent_node;
     }
 
-    bool link(SymbolResolver &linker, BaseType *type, std::unique_ptr<Value>* value_ptr);
+    /**
+     * simply links the access chain, the end_offset is used to control linking last values of the chain
+     * if end_offset is 1, the last value won't be linked, if it's 2, two last values won't be linked
+     * end_offset may not be taken into account, if chain has a single value or two must link values
+     */
+    bool link(SymbolResolver &linker, BaseType *type, std::unique_ptr<Value>* value_ptr, unsigned int end_offset = 0);
 
     bool link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *type) override;
 

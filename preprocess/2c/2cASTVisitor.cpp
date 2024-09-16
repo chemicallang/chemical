@@ -2609,6 +2609,12 @@ void call_variant_member_clear_fn(ToCAstVisitor& visitor, VariantMember* member)
     });
 }
 
+void call_variant_member_move_fn(ToCAstVisitor& visitor, VariantMember* member) {
+    call_variant_member_fn(visitor, member, [](MembersContainer* container)-> FunctionDeclaration* {
+        return container->pre_move_func();
+    });
+}
+
 void variant_member_copy_fn_gen(
     ToCAstVisitor& visitor,
     VariantMember* member,
@@ -2755,6 +2761,14 @@ void call_struct_member_clear_fn(ToCAstVisitor& visitor, BaseType* mem_type, con
     }
 }
 
+void call_struct_member_move_fn(ToCAstVisitor& visitor, BaseType* mem_type, const std::string& mem_name) {
+    if (mem_type->value_type() == ValueType::Struct) {
+        call_struct_member_fn(visitor, mem_type, mem_name, [](MembersContainer* def) -> FunctionDeclaration* {
+            return def->pre_move_func();
+        });
+    }
+}
+
 void call_struct_members_copy_fn(
         ToCAstVisitor& visitor,
         BaseType* mem_type,
@@ -2886,6 +2900,7 @@ void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool
     const auto is_destructor = decl->has_annotation(AnnotationKind::Delete);
     const auto is_clear_fn = decl->has_annotation(AnnotationKind::Clear);
     const auto is_copy_fn = decl->has_annotation(AnnotationKind::Copy);
+    const auto is_move_fn = decl->has_annotation(AnnotationKind::Move);
     const bool has_cleanup_block = is_destructor;
     std::string cleanup_block_name;
     if(has_cleanup_block) {
@@ -2908,6 +2923,13 @@ void contained_func_decl(ToCAstVisitor& visitor, FunctionDeclaration* decl, bool
             process_struct_members_using(visitor, def, call_struct_member_clear_fn);
         } else if(variant_def) {
             process_variant_members_using(visitor, variant_def, call_variant_member_clear_fn);
+        }
+    } else if(is_move_fn) {
+        if(struc_def) {
+            process_struct_members_using(visitor, def, call_struct_member_move_fn);
+        } else if(variant_def) {
+            write_type_assignment_in_variant_copy(visitor, decl);
+            process_variant_members_using(visitor, variant_def, call_variant_member_move_fn);
         }
     }
     initialize_def_struct_values_constructor(visitor, decl);

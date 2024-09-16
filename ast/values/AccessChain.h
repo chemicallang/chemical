@@ -9,7 +9,6 @@
 #include <memory>
 #include "ast/base/ASTNode.h"
 #include "ast/base/ChainValue.h"
-#include "TypeLinkedValue.h"
 #include <unordered_map>
 
 /**
@@ -18,7 +17,7 @@
  * x.y.z() where z is a function call, z function is assumed to be present in y and y in z
  * z.y.z[0] similarly z is an index operator here
  */
-class AccessChain : public ASTNode, public ChainValue, public TypeLinkedValue {
+class AccessChain : public ASTNode, public ChainValue {
 public:
 
     std::vector<std::unique_ptr<ChainValue>> values;
@@ -61,10 +60,6 @@ public:
     bool link(SymbolResolver &linker, BaseType *type, std::unique_ptr<Value>* value_ptr, unsigned int end_offset = 0);
 
     bool link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *type) override;
-
-    bool link(SymbolResolver &linker, ReturnStatement *returnStmt) override {
-        return TypeLinkedValue::link(linker, returnStmt);
-    }
 
     void relink_after_generic(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *expected_type) override {
         link(linker, value_ptr, expected_type);

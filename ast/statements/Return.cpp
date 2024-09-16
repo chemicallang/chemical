@@ -26,7 +26,7 @@ void ReturnStatement::interpret(InterpretScope &scope) {
 
 void ReturnStatement::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
     if (value) {
-        value->link(linker, this);
+        value->link(linker, value, func_type && func_type->returnType ? func_type->returnType.get() : nullptr);
         if(func_type->returnType) {
             const auto func = func_type->as_function();
             if(func && func->has_annotation(AnnotationKind::Constructor)) {

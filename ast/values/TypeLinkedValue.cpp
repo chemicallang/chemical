@@ -11,21 +11,3 @@
 #include "ast/values/IntValue.h"
 #include "compiler/SymbolResolver.h"
 
-BaseType* implicit_constructor_type(BaseType* return_type, Value* value) {
-    auto k = return_type->kind();
-    if(k == BaseTypeKind::Linked || k == BaseTypeKind::Generic) {
-        const auto linked = return_type->linked_node();
-        const auto struc = linked->as_struct_def();
-        if(struc) {
-            const auto constr = struc->implicit_constructor_for(value);
-            if(constr) {
-                return constr->func_param_for_arg_at(0)->type.get();
-            }
-        }
-    }
-    return return_type;
-}
-
-bool TypeLinkedValue::link(SymbolResolver &linker, ReturnStatement *returnStmt) {
-    return link(linker, returnStmt->value, returnStmt->func_type && returnStmt->func_type->returnType ? returnStmt->func_type->returnType.get() : nullptr);
-}

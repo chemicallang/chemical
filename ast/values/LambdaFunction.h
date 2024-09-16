@@ -94,8 +94,6 @@ public:
 
     bool link(SymbolResolver &linker, FunctionType* func_type);
 
-    bool link(SymbolResolver &linker, ReturnStatement *returnStmt) override;
-
     [[nodiscard]]
     ValueType value_type() const override;
 

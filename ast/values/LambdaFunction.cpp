@@ -219,30 +219,6 @@ bool LambdaFunction::link(SymbolResolver &linker, FunctionType* func_type) {
     return true;
 }
 
-bool LambdaFunction::link(SymbolResolver &linker, ReturnStatement *returnStmt) {
-
-    if(returnStmt->func_type == nullptr) {
-        return Value::link(linker, returnStmt);
-    }
-
-    auto retType = returnStmt->func_type->returnType->copy_unique();
-    if(retType->function_type() == nullptr) {
-        linker.error("cannot return lambda, return type of a function is not a function", (Value*) this);
-        return false;
-    }
-
-    auto prev_func_type = linker.current_func_type;
-    linker.current_func_type = this;
-
-    link(linker, retType->function_type());
-    link_full(this, linker);
-
-    linker.current_func_type = prev_func_type;
-
-    return true;
-
-}
-
 ValueType LambdaFunction::value_type() const {
     return ValueType::Lambda;
 }

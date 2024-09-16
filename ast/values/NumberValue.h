@@ -9,7 +9,7 @@
 #include "ast/types/IntNType.h"
 #include "IntNumValue.h"
 #include "ast/types/IntType.h"
-#include "TypeLinkedValue.h"
+#include "ast/base/Value.h"
 
 /**
  * @brief Class representing a number value integer / long
@@ -20,7 +20,7 @@
  * but it must link with the type it must return as, so this value is used, which automatically links
  * and returns as appropriate type automatically
  */
-class NumberValue : public IntNumValue, public TypeLinkedValue {
+class NumberValue : public IntNumValue {
 public:
 
     int64_t value;
@@ -43,10 +43,6 @@ public:
     }
 
     bool link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *type) override;
-
-    bool link(SymbolResolver &linker, ReturnStatement *returnStmt) override {
-        return TypeLinkedValue::link(linker, returnStmt);
-    }
 
     void relink_after_generic(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *expected_type) override {
         link(linker, value_ptr, expected_type);

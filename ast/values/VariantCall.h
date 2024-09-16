@@ -1,9 +1,8 @@
 // Copyright (c) Qinetik 2024.
 
 #include "ast/base/Value.h"
-#include "TypeLinkedValue.h"
 
-class VariantCall : public Value, public TypeLinkedValue {
+class VariantCall : public Value {
 public:
 
     std::unique_ptr<AccessChain> chain;
@@ -43,10 +42,6 @@ public:
     void link_args_implicit_constructor(SymbolResolver &linker);
 
     bool link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *type) override;
-
-    bool link(SymbolResolver &linker, ReturnStatement *returnStmt) override {
-        return TypeLinkedValue::link(linker, returnStmt);
-    }
 
     void set_created_type();
 

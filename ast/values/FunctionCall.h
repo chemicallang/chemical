@@ -10,7 +10,6 @@
 #include <memory>
 #include "ast/base/ChainValue.h"
 #include "ast/base/ASTNode.h"
-#include "TypeLinkedValue.h"
 
 class ASTDiagnoser;
 

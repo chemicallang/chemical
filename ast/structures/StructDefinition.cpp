@@ -400,6 +400,13 @@ void StructDefinition::declare_and_link(SymbolResolver &linker, std::unique_ptr<
     if(!has_destructor && requires_destructor()) {
         create_def_destructor(linker);
     }
+//    if(init_values_req_size() != 0) {
+//        for (auto& func: functions()) {
+//            if (func->has_annotation(AnnotationKind::Constructor) && !func->has_annotation(AnnotationKind::CompTime)) {
+//                func->ensure_has_init_block(linker);
+//            }
+//        }
+//    }
 }
 
 ASTNode *StructDefinition::child(const std::string &name) {

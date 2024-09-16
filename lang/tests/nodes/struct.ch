@@ -13,9 +13,10 @@ struct Pair {
 
     @constructor
     func pair(c : int) {
-        var r = c / 2;
-        a = r;
-        b = r;
+        init {
+            a(c / 2);
+            b(c / 2);
+        }
     }
 
     func get_pair_sum(&self) : int {
@@ -90,7 +91,9 @@ struct ImpPair {
     @constructor
     @implicit
     func makexv(d : int) {
-        data = d
+        init {
+            data(d)
+        }
     }
 
 }

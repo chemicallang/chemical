@@ -10,7 +10,9 @@ struct CheckImpParam22 {
     @implicit
     @constructor
     func make(x : int) {
-        a = x;
+        init {
+            a(x)
+        }
     }
 }
 

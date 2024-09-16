@@ -205,7 +205,7 @@ unsigned int MembersContainer::init_values_req_size() {
     unsigned int i = 0;
     for(auto& inherit : inherited) {
         auto direct = inherit->type->get_direct_linked_struct();
-        if(direct) {
+        if(direct && !direct->variables.empty()) {
             i++;
         }
     }

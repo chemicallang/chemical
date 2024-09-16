@@ -350,6 +350,17 @@ public:
 
     void declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override;
 
+    /**
+     * ensure that function body has an init block (required in constructors)
+     * @return true if has init block, otherwise false
+     */
+    bool ensure_has_init_block();
+
+    /**
+     * a helper function that would put an error
+     */
+    void ensure_has_init_block(ASTDiagnoser& diagnoser);
+
     virtual Value *call(
         InterpretScope *call_scope,
         FunctionCall* call,

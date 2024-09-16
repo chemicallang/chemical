@@ -59,11 +59,9 @@ void VarInitStatement::code_gen(Codegen &gen) {
                 gen.destruct_nodes.emplace_back(this);
                 return;
             }
-            auto& func_type = *gen.current_func_type;
-            auto movable = func_type.movable_value(gen, value.get());
-            if(movable) {
+            if(value->is_ref_moved()) {
                 llvm_ptr = gen.builder->CreateAlloca(llvm_type(gen), nullptr, identifier);
-                func_type.move_by_memcpy(gen, known_type(), value.get(), llvm_ptr, movable);
+                gen.move_by_memcpy(known_type(), value.get(), llvm_ptr, value->llvm_value(gen));
             } else {
 
                 llvm::Value* dyn_obj_impl = nullptr;

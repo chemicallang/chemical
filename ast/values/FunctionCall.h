@@ -247,11 +247,6 @@ public:
             std::vector<std::pair<Value*, llvm::Value*>>& destructibles
     );
 
-    void call_clear_fns_on_moved(
-        Codegen &gen,
-        std::vector<llvm::Value*>& args
-    );
-
     llvm::AllocaInst *access_chain_allocate(
             Codegen &gen,
             std::vector<std::unique_ptr<ChainValue>> &values,

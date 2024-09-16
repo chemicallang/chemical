@@ -42,9 +42,8 @@ void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen, BaseType* e
         if (variable.first == -1) {
             gen.error("couldn't get struct child " + value.first + " in definition with name " + definition->name, this);
         } else {
-            auto movable_value = current_func_type.movable_value(gen, value_ptr.get());
             std::vector<llvm::Value*> idx{gen.builder->getInt32(0)};
-            if(movable_value == nullptr) {
+            if(!value_ptr->is_ref_moved()) {
                 if(gen.requires_memcpy_ref_struct(variable.second, value_ptr.get())) {
                     auto elementPtr = Value::get_element_pointer(gen, parent_type, inst, idx, is_union() ? 0 : variable.first);
                     gen.memcpy_struct(value_ptr->llvm_type(gen), value_ptr.get(), elementPtr, value_ptr->llvm_value(gen, nullptr));
@@ -55,7 +54,7 @@ void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen, BaseType* e
             } else {
                 // since it will be moved, we will std memcpy it into current pointer
                 auto elementPtr = Value::get_element_pointer(gen, parent_type, inst, idx, is_union() ? 0 : variable.first);
-                current_func_type.move_by_memcpy(gen, variable.second, value_ptr.get(), elementPtr, movable_value);
+                gen.move_by_memcpy(variable.second, value_ptr.get(), elementPtr, value_ptr->llvm_value(gen));
             }
         }
     }

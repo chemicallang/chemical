@@ -930,8 +930,7 @@ void AssignStatement::code_gen(Codegen &gen) {
     llvm::Value* llvm_value;
     if(assOp == Operation::Assignment) {
         auto& func_type = *gen.current_func_type;
-        auto movable = func_type.movable_value(gen, value.get());
-        if(movable) {
+        if(value->is_ref_moved()) {
             const auto is_ref_moved = lhs->is_ref_moved();
             const auto lhs_type = lhs->known_type();
             if(!is_ref_moved) {
@@ -944,7 +943,7 @@ void AssignStatement::code_gen(Codegen &gen) {
                     gen.builder->CreateCall(llvm_func_type, llvm_func_callee, { pointer });
                 }
             }
-            func_type.move_by_memcpy(gen, lhs_type, value.get(), pointer, movable);
+            gen.move_by_memcpy(lhs_type, value.get(), pointer, value->llvm_value(gen));
             return;
         } else {
             if(gen.memcpy_ref_struct(lhs->known_type(), value.get(), pointer, lhs->llvm_type(gen)) != nullptr) {

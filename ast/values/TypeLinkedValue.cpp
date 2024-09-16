@@ -29,7 +29,3 @@ BaseType* implicit_constructor_type(BaseType* return_type, Value* value) {
 bool TypeLinkedValue::link(SymbolResolver &linker, ReturnStatement *returnStmt) {
     return link(linker, returnStmt->value, returnStmt->func_type && returnStmt->func_type->returnType ? returnStmt->func_type->returnType.get() : nullptr);
 }
-
-bool TypeLinkedValue::link(SymbolResolver &linker, FunctionCall *call, unsigned int index) {
-    return link(linker, call->values[index], call->get_arg_type(index));
-}

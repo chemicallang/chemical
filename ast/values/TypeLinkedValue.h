@@ -9,8 +9,6 @@ public:
 
     virtual bool link(SymbolResolver& linker, std::unique_ptr<Value>& value_ptr, BaseType* type) = 0;
 
-    bool link(SymbolResolver &linker, FunctionCall *call, unsigned int index);
-
     bool link(SymbolResolver &linker, ReturnStatement *returnStmt);
 
 };

@@ -21,8 +21,9 @@ void AssignStatement::accept(Visitor *visitor) {
 }
 
 void AssignStatement::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
-    lhs->link(linker, this, true);
-    value->link(linker, this, false);
+    lhs->link(linker, lhs, nullptr);
+    std::unique_ptr<BaseType> value_type = lhs->create_type();
+    value->link(linker, value, value_type.get());
     auto id = lhs->as_identifier();
     if(id) {
         auto linked = id->linked_node();

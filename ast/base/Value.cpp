@@ -625,14 +625,6 @@ void ChainValue::relink_parent(ChainValue* parent) {
     throw std::runtime_error("relink_parent called on base chain value");
 }
 
-bool Value::link(SymbolResolver& linker, AssignStatement* stmnt, bool lhs) {
-    if(lhs) {
-        return link(linker, stmnt->lhs);
-    } else {
-        return link(linker, stmnt->value);
-    }
-}
-
 bool Value::link(SymbolResolver& linker, StructValue* value, const std::string& name) {
     return link(linker, value->values[name]->value);
 }

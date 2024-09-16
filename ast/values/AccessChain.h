@@ -82,10 +82,6 @@ public:
         return TypeLinkedValue::link(linker, value, index);
     }
 
-    bool link(SymbolResolver &linker, AssignStatement *stmnt, bool lhs) override {
-        return TypeLinkedValue::link(linker, stmnt, lhs);
-    }
-
     bool find_link_in_parent(ChainValue *parent, SymbolResolver &resolver) override;
 
     /**

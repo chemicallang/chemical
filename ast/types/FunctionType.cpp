@@ -70,12 +70,16 @@ llvm::Type *FunctionType::llvm_type(Codegen &gen) {
     return gen.builder->getPtrTy();
 };
 
+void call_clear_fn(Codegen &gen, FunctionDeclaration* decl, llvm::Value* llvm_value) {
+    const auto func = decl->llvm_func();
+    gen.builder->CreateCall(func, { llvm_value });
+}
+
 void FunctionType::call_clear_fn(Codegen &gen, Value* value, llvm::Value* llvm_value) {
     auto known_t = value->known_type();
     auto movable = known_t->get_direct_linked_movable_struct();
     const auto move_func = movable->clear_func();
-    const auto func = move_func->llvm_func();
-    gen.builder->CreateCall(func, { llvm_value });
+    ::call_clear_fn(gen, move_func, llvm_value);
 }
 
 llvm::Value* FunctionType::movable_value(Codegen& gen, Value* value_ptr) {
@@ -96,16 +100,23 @@ llvm::Value* FunctionType::movable_value(Codegen& gen, Value* value_ptr) {
 
 void FunctionType::move_by_memcpy(Codegen& gen, BaseType* type, Value* value_ptr, llvm::Value* elem_ptr, llvm::Value* movable_value) {
     auto& value = *value_ptr;
-    gen.memcpy_struct(type->llvm_type(gen), value_ptr, elem_ptr, movable_value);
-    auto id = value.as_identifier();
-    if(id) {
-        auto k = id->linked->kind();
-        if(k == ASTNodeKind::VarInitStmt || k == ASTNodeKind::FunctionParam) {
-            return;
+    auto known_t = value.known_type();
+    auto movable = known_t->get_direct_linked_movable_struct();
+    auto pre_move_func = movable->pre_move_func();
+    if(pre_move_func) {
+        gen.builder->CreateCall(pre_move_func->llvm_func(), { elem_ptr, movable_value });
+    } else {
+        gen.memcpy_struct(type->llvm_type(gen), value_ptr, elem_ptr, movable_value);
+        auto id = value.as_identifier();
+        if (id) {
+            auto k = id->linked->kind();
+            if (k == ASTNodeKind::VarInitStmt || k == ASTNodeKind::FunctionParam) {
+                return;
+            }
         }
+        // now we can move the previous arg, since we copied it's contents
+        call_clear_fn(gen, value_ptr, movable_value);
     }
-    // now we can move the previous arg, since we copied it's contents
-    call_clear_fn(gen, value_ptr, movable_value);
 }
 
 #endif

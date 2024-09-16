@@ -252,7 +252,7 @@ public:
 
     llvm::FunctionType *llvm_func_type(Codegen &gen) override;
 
-    void call_clear_fn(Codegen &gen, Value* value, llvm::Value* llvm_value);
+    static void call_clear_fn(Codegen &gen, Value* value, llvm::Value* llvm_value);
 
     /**
      * get a movable llvm value, if this value can be moved

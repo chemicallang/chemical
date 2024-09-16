@@ -72,6 +72,43 @@ std::string& BaseType::linked_name() {
     }
 }
 
+MembersContainer* BaseType::get_members_container() {
+    const auto direct_node = get_direct_linked_node();
+    if(!direct_node) return nullptr;
+    switch(direct_node->kind()) {
+        case ASTNodeKind::StructDecl:
+            return direct_node->as_struct_def_unsafe();
+        case ASTNodeKind::VariantDecl:
+            return direct_node->as_variant_def_unsafe();
+        case ASTNodeKind::UnionDecl:
+            return direct_node->as_union_def_unsafe();
+        case ASTNodeKind::TypealiasStmt:
+            return direct_node->as_typealias_unsafe()->actual_type->get_members_container();
+        default:
+            return nullptr;
+    }
+}
+
+FunctionDeclaration* BaseType::get_destructor() {
+    auto container = get_members_container();
+    return container ? container->destructor_func() : nullptr;
+}
+
+FunctionDeclaration* BaseType::get_pre_move_fn() {
+    auto container = get_members_container();
+    return container ? container->pre_move_func() : nullptr;
+}
+
+FunctionDeclaration* BaseType::get_clear_fn() {
+    auto container = get_members_container();
+    return container ? container->clear_func() : nullptr;
+}
+
+FunctionDeclaration* BaseType::get_copy_fn() {
+    auto container = get_members_container();
+    return container ? container->copy_func() : nullptr;
+}
+
 bool BaseType::requires_destructor() {
     const auto direct_node = get_direct_linked_node();
     if(!direct_node) return false;
@@ -84,6 +121,23 @@ bool BaseType::requires_destructor() {
             return direct_node->as_union_def_unsafe()->requires_destructor();
         case ASTNodeKind::TypealiasStmt:
             return direct_node->as_typealias_unsafe()->actual_type->requires_destructor();
+        default:
+            return false;
+    }
+}
+
+bool BaseType::requires_move_fn() {
+    const auto direct_node = get_direct_linked_node();
+    if(!direct_node) return false;
+    switch(direct_node->kind()) {
+        case ASTNodeKind::StructDecl:
+            return direct_node->as_struct_def_unsafe()->requires_move_fn();
+        case ASTNodeKind::VariantDecl:
+            return direct_node->as_variant_def_unsafe()->requires_move_fn();
+        case ASTNodeKind::UnionDecl:
+            return direct_node->as_union_def_unsafe()->requires_move_fn();
+        case ASTNodeKind::TypealiasStmt:
+            return direct_node->as_typealias_unsafe()->actual_type->requires_move_fn();
         default:
             return false;
     }

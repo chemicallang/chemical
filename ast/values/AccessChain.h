@@ -74,10 +74,6 @@ public:
         link(linker, value_ptr, expected_type);
     }
 
-    bool link(SymbolResolver &linker, ArrayValue *value, unsigned int index) override {
-        return TypeLinkedValue::link(linker, value, index);
-    }
-
     bool find_link_in_parent(ChainValue *parent, SymbolResolver &resolver) override;
 
     /**

@@ -94,12 +94,6 @@ public:
     }
 
     /**
-     * when a value is present inside an array value, this function is called
-     * can be overridden to retrieve extra information
-     */
-    virtual bool link(SymbolResolver& linker, ArrayValue* value, unsigned int index);
-
-    /**
      * values inside a function call, can override this method if they want to access
      * information about call, function at link time
      */

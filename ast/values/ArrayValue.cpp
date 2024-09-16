@@ -157,7 +157,7 @@ bool ArrayValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr,
         if(def) {
             unsigned i = 0;
             while (i < values.size()) {
-                values[i]->link(linker, values[i]);
+                values[i]->link(linker, values[i], elemType.get());
                 const auto implicit = def->implicit_constructor_func(values[i].get());
                 if(implicit) {
                     if(linker.preprocess) {
@@ -181,7 +181,7 @@ bool ArrayValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr,
     }
     unsigned i = 0;
     for(auto& value : values) {
-        if(value->link(linker, this, i) && i == 0 && !known_elem_type) {
+        if(value->link(linker, value, nullptr) && i == 0 && !known_elem_type) {
             known_elem_type = value->known_type();
         }
         if(known_elem_type) {

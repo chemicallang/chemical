@@ -625,10 +625,6 @@ void ChainValue::relink_parent(ChainValue* parent) {
     throw std::runtime_error("relink_parent called on base chain value");
 }
 
-bool Value::link(SymbolResolver& linker, ArrayValue* value, unsigned int index) {
-    return link(linker, value->values[index]);
-}
-
 bool Value::link(SymbolResolver& linker, FunctionCall* call, unsigned int index) {
     return link(linker, call->values[index]);
 }

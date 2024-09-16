@@ -56,10 +56,6 @@ public:
         link(linker, value_ptr, expected_type);
     }
 
-    bool link(SymbolResolver &linker, ArrayValue *value, unsigned int index) override {
-        return TypeLinkedValue::link(linker, value, index);
-    }
-
     bool computed() override {
         return true;
     }

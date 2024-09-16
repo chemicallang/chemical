@@ -100,6 +100,11 @@ unsigned FunctionType::explicit_func_arg_offset() {
 
 unsigned int FunctionType::expectedArgsSize() {
     const auto s = params.size();
+    if(s == 0) return 0;
+    const auto func = as_function();
+    if(func && (func->has_annotation(AnnotationKind::Copy) || func->has_annotation(AnnotationKind::Move))) {
+        return s - 2; // copy and move have two implicit parameters
+    }
     if(has_self_param()) {
         return s - 1;
     } else {

@@ -21,6 +21,8 @@ public:
 
     void process_init_value(Value* value, const std::string& identifier);
 
+    void visit(VariableIdentifier *identifier) override;
+
     void visit(VarInitStatement *init) override;
 
     void visit(Scope *scope) override {

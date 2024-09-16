@@ -457,8 +457,7 @@ void func_call_args(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* fu
         visitor.accept_mutating_value(param->type.get(), val.get());
         i++;
     }
-    i += func_type->explicit_func_arg_offset();
-    const auto func_param_size = func_type->params.size();
+    const auto func_param_size = func_type->expectedArgsSize();
     while(i < func_param_size) {
         auto param = func_type->func_param_for_arg_at(i);
         if (param) {
@@ -837,6 +836,83 @@ void allocate_struct_for_func_call(ToCAstVisitor& visitor, ExtendableMembersCont
     }
 }
 
+void moved_value_call(ToCAstVisitor& visitor, Value* value) {
+    auto known_t = value->known_type();
+    auto movable = known_t->get_direct_linked_movable_struct();
+    const auto move_func = movable->pre_move_func();
+    const auto clear_func = movable->clear_func();
+    // allocating temporary struct
+    auto struct_name = visitor.get_local_temp_var_name();
+    allocate_struct_by_name(visitor, movable, struct_name);
+    if(clear_func) {
+        visitor.new_line_and_indent();
+        visitor.write(struct_name);
+        visitor.write(" = ");
+//        visitor.write('*');
+        value->accept(&visitor);
+        visitor.write(';');
+    }
+    visitor.new_line_and_indent();
+    func_container_name(visitor, clear_func ? clear_func : move_func);
+    visitor.write('(');
+    if(move_func) {
+        visitor.write('&');
+        visitor.write(struct_name);
+        visitor.write(", ");
+    }
+    visitor.write('&');
+    value->accept(&visitor);
+    visitor.write(')');
+    visitor.write(';');
+    visitor.local_allocated[value] = struct_name;
+}
+
+void move_identifier(ToCAstVisitor& visitor, VariableIdentifier* id) {
+    if(!id->is_moved) return;
+    const auto linked = id->linked;
+    const auto kind = linked->kind();
+    if(kind != ASTNodeKind::VarInitStmt && kind != ASTNodeKind::FunctionParam) {
+        moved_value_call(visitor, id);
+    }
+}
+
+// will call clear function on given value
+void move_value(ToCAstVisitor& visitor, Value* value) {
+    const auto chain = value->as_access_chain();
+    if(chain) {
+        if(chain->is_moved) {
+            moved_value_call(visitor, chain);
+        }
+    } else {
+        const auto id = value->as_identifier();
+        if(id) {
+            move_identifier(visitor, id);
+        }
+    }
+}
+
+// will cal clear functions on moved arguments in function call
+void move_func_call(ToCAstVisitor& visitor, FunctionCall* call) {
+    for(auto& value : call->values) {
+        move_value(visitor, value.get());
+    }
+}
+
+// will call clear functions as required on the access chain
+void move_access_chain(ToCAstVisitor& visitor, AccessChain* chain) {
+    for(auto& value : chain->values) {
+        const auto func_call = value->as_func_call();
+        if(func_call) {
+            move_func_call(visitor, func_call);
+        } else {
+            const auto nested = value->as_access_chain();
+            if(nested) {
+                move_access_chain(visitor, nested);
+            }
+        }
+    }
+}
+
 void CBeforeStmtVisitor::visit(FunctionCall *call) {
     auto func_type = call->create_function_type();
     auto decl = call->safe_linked_func();
@@ -904,7 +980,7 @@ void func_call_that_returns_struct(ToCAstVisitor& visitor, CBeforeStmtVisitor* a
     }
     auto grandpa = ((int) end) - 3 >= 0 ? values[end - 3].get() : nullptr;
     auto parent_type = parent->create_type();
-    auto func_type = parent_type->function_type();
+    auto func_type = func_decl ? func_decl : parent_type->function_type();
     bool is_lambda = (parent->linked_node() != nullptr && parent->linked_node()->as_struct_member() != nullptr);
     if (visitor.pass_structs_to_initialize && func_type->returnType->value_type() == ValueType::Struct) {
         visitor.debug_comment("function call being taken out that returns struct");
@@ -970,9 +1046,17 @@ void func_call_that_returns_struct(ToCAstVisitor& visitor, CBeforeStmtVisitor* a
     }
 }
 
+void CBeforeStmtVisitor::visit(VariableIdentifier *identifier) {
+    move_identifier(visitor, identifier);
+}
+
 void CBeforeStmtVisitor::visit(AccessChain *chain) {
 
     CommonVisitor::visit(chain);
+
+    if(chain->is_moved) {
+        moved_value_call(visitor, chain);
+    }
 
     const auto start = 0;
     const auto end = chain->values.size();
@@ -1248,76 +1332,8 @@ void CAfterStmtVisitor::destruct_chain(AccessChain *chain, bool destruct_last) {
     }
 }
 
-void clear_access_chain(ToCAstVisitor& visitor, AccessChain* chain);
-
-void call_clear_func_on(ToCAstVisitor& visitor, Value* value) {
-    auto known_t = value->known_type();
-    auto movable = known_t->get_direct_linked_movable_struct();
-    const auto clear_func = movable->clear_func();
-    visitor.new_line_and_indent();
-    func_container_name(visitor, clear_func);
-    visitor.write('(');
-    visitor.write('&');
-    value->accept(&visitor);
-    visitor.write(')');
-    visitor.write(';');
-}
-
-void clear_identifier(ToCAstVisitor& visitor, VariableIdentifier* id) {
-    if(!id->is_moved) return;
-    const auto linked = id->linked;
-    const auto kind = linked->kind();
-    if(kind != ASTNodeKind::VarInitStmt && kind != ASTNodeKind::FunctionParam) {
-        call_clear_func_on(visitor, id);
-    }
-}
-
-// will call clear function on given value
-void clear_value(ToCAstVisitor& visitor, Value* value) {
-    const auto chain = value->as_access_chain();
-    if(chain) {
-        if(chain->is_moved) {
-            call_clear_func_on(visitor, chain);
-        }
-    } else {
-        const auto id = value->as_identifier();
-        if(id) {
-            clear_identifier(visitor, id);
-        }
-    }
-}
-
-// will cal clear functions on moved arguments in function call
-void clear_func_call(ToCAstVisitor& visitor, FunctionCall* call) {
-    for(auto& value : call->values) {
-        clear_value(visitor, value.get());
-    }
-}
-
-// will call clear functions as required on the access chain
-void clear_access_chain(ToCAstVisitor& visitor, AccessChain* chain) {
-    for(auto& value : chain->values) {
-        const auto func_call = value->as_func_call();
-        if(func_call) {
-            clear_func_call(visitor, func_call);
-        } else {
-            const auto nested = value->as_access_chain();
-            if(nested) {
-                clear_access_chain(visitor, nested);
-            }
-        }
-    }
-}
-
-void CAfterStmtVisitor::visit(VariableIdentifier *identifier) {
-    clear_identifier(visitor, identifier);
-}
-
 void CAfterStmtVisitor::visit(AccessChain *chain) {
     CommonVisitor::visit(chain);
-    if(chain->is_moved) {
-        call_clear_func_on(visitor, chain);
-    }
     destruct_chain(chain, chain->is_node);
 }
 
@@ -1335,11 +1351,6 @@ void CAfterStmtVisitor::visit(FunctionCall *call) {
     for(auto& val : call->values) {
         const auto chain = val->as_access_chain();
         if(chain) {
-            if(chain->is_moved) {
-                call_clear_func_on(visitor, chain);
-            }
-            // clear the nested chain value
-            clear_access_chain(visitor, chain);
             // if we ever pass struct as a reference, where struct is created at call time
             // we can set destruct_last to true, to destruct the struct after this call
             destruct_chain(chain, false);
@@ -3628,6 +3639,13 @@ void access_chain(ToCAstVisitor& visitor, std::vector<std::unique_ptr<ChainValue
 }
 
 void ToCAstVisitor::visit(AccessChain *chain) {
+    if(chain->is_moved) {
+        auto found = local_allocated.find(chain);
+        if(found != local_allocated.end()) {
+            write(found->second);
+            return;
+        }
+    }
     access_chain(*this, chain->values, 0, chain->values.size());
 }
 
@@ -3905,6 +3923,13 @@ void ToCAstVisitor::visit(StructValue *val) {
 }
 
 void ToCAstVisitor::visit(VariableIdentifier *identifier) {
+    if(identifier->is_moved) {
+        auto found = local_allocated.find(identifier);
+        if(found != local_allocated.end()) {
+            write(found->second);
+            return;
+        }
+    }
     const auto linked = identifier->linked_node();
     const auto linked_kind = linked->kind();
     if(ASTNode::isAnyStructMember(linked_kind)) {

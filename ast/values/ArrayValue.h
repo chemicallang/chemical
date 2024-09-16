@@ -104,16 +104,12 @@ public:
 
     ASTNode *linked_node() override;
 
-    bool link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) override;
-
-    bool link(SymbolResolver &linker, std::unique_ptr<Value> &, BaseType *type) override;
+    bool link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *expected_type = nullptr) override;
 
     bool link(SymbolResolver &linker, AssignStatement *stmnt, bool lhs) override {
         return TypeLinkedValue::link(linker, stmnt, lhs);
     }
-    bool link(SymbolResolver &linker, VarInitStatement *stmnt) override {
-        return TypeLinkedValue::link(linker, stmnt);
-    }
+
     bool link(SymbolResolver &linker, FunctionCall *call, unsigned int index) override {
         return TypeLinkedValue::link(linker, call, index);
     }

@@ -284,7 +284,7 @@ void VarInitStatement::declare_and_link(SymbolResolver &linker, std::unique_ptr<
     if (type) {
         type->link(linker, type);
     }
-    if (value && value->link(linker, this)) {
+    if (value && value->link(linker, value, type_ptr_fast())) {
         linker.current_func_type->mark_moved_value(value.get(), known_type(), linker, type != nullptr);
     }
     if(type && value) {

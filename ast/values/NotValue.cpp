@@ -3,7 +3,7 @@
 #include "ast/base/BaseType.h"
 #include "NotValue.h"
 
-bool NotValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
+bool NotValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr, BaseType *expected_type) {
     return value->link(linker, value);
 }
 

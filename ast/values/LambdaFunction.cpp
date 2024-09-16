@@ -137,7 +137,7 @@ void link_full(LambdaFunction* fn, SymbolResolver &linker) {
     linker.scope_end();
 }
 
-bool LambdaFunction::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
+bool LambdaFunction::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr, BaseType *expected_type) {
 
 #ifdef DEBUG
     linker.info("lambda function type not found, deducing function type by visiting lambda body (expensive operation) performed", (Value*) this);
@@ -146,12 +146,23 @@ bool LambdaFunction::link(SymbolResolver &linker, std::unique_ptr<Value>& value_
     auto prev_func_type = linker.current_func_type;
     linker.current_func_type = this;
 
-    // linking params and their types before copying their types
-    link_full(this, linker);
+    auto func_type = expected_type ? expected_type->function_type() : nullptr;
 
-    // finding return type
-    auto found_return_type = find_return_type(scope.nodes);
-    returnType = std::unique_ptr<BaseType>(found_return_type);
+    if(!func_type) {
+
+        // linking params and their types before copying their types
+        link_full(this, linker);
+
+        // finding return type
+        auto found_return_type = find_return_type(scope.nodes);
+        returnType = std::unique_ptr<BaseType>(found_return_type);
+
+    } else {
+
+        link(linker, func_type);
+        link_full(this, linker);
+
+    }
 
     linker.current_func_type = prev_func_type;
 
@@ -199,22 +210,6 @@ bool LambdaFunction::link(SymbolResolver &linker, FunctionType* func_type) {
     }
     isCapturing = func_type->isCapturing;
     return true;
-}
-
-bool LambdaFunction::link(SymbolResolver &linker, VarInitStatement *stmnt) {
-
-    if(!stmnt->type) return Value::link(linker, stmnt);
-
-    auto prev_func_type = linker.current_func_type;
-    linker.current_func_type = this;
-
-    auto retrieved = stmnt->create_value_type();
-    link(linker, (FunctionType*) retrieved.get());
-    link_full(this, linker);
-
-    linker.current_func_type = prev_func_type;
-    return true;
-
 }
 
 bool LambdaFunction::link(SymbolResolver &linker, StructValue *value, const std::string &name) {

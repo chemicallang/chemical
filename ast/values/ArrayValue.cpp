@@ -192,10 +192,6 @@ bool ArrayValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr,
     return true;
 }
 
-bool ArrayValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
-    return link(linker, value_ptr, nullptr);
-}
-
 std::unique_ptr<BaseType> ArrayValue::element_type() const {
     BaseType *elementType;
     if (elemType) {

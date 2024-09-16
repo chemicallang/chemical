@@ -19,7 +19,7 @@ CastedValue *CastedValue::copy() {
     );
 }
 
-bool CastedValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
+bool CastedValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr, BaseType* expected_type) {
     value->link(linker, value);
     type->link(linker, type);
     return true;

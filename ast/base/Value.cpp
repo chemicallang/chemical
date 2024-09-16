@@ -603,10 +603,6 @@ bool ChainValue::is_equal(ChainValue* other, ValueKind kind, ValueKind other_kin
     return false;
 }
 
-bool Value::link(SymbolResolver& linker, VarInitStatement* stmnt) {
-    return link(linker, stmnt->value);
-}
-
 bool ChainValue::link(
     SymbolResolver& linker,
     ChainValue* parent,

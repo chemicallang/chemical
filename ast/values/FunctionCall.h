@@ -59,7 +59,7 @@ public:
 
     void link_gen_args(SymbolResolver &linker);
 
-    bool link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr) override;
+    bool link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *expected_type = nullptr) override;
 
     /**
      * provides the base function type to which call is being made

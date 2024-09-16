@@ -668,7 +668,7 @@ void FunctionCall::link_gen_args(SymbolResolver &linker) {
     }
 }
 
-bool FunctionCall::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr) {
+bool FunctionCall::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType* expected_type) {
     link_gen_args(linker);
     link_values(linker);
     link_args_implicit_constructor(linker);

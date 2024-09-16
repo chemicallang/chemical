@@ -44,8 +44,6 @@ public:
 
     bool link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *type) override;
 
-    bool link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr) override;
-
     bool link(SymbolResolver &linker, ReturnStatement *returnStmt) override {
         return TypeLinkedValue::link(linker, returnStmt);
     }
@@ -56,10 +54,6 @@ public:
 
     bool link(SymbolResolver &linker, FunctionCall *call, unsigned int index) override {
         return TypeLinkedValue::link(linker, call, index);
-    }
-
-    bool link(SymbolResolver &linker, VarInitStatement *stmnt) override {
-        return TypeLinkedValue::link(linker, stmnt);
     }
 
     bool link(SymbolResolver &linker, AssignStatement *stmnt, bool lhs) override {

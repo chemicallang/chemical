@@ -130,7 +130,7 @@ Expression::Expression(
 
 }
 
-bool Expression::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr) {
+bool Expression::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr, BaseType *expected_type) {
     auto f = firstValue->link(linker, firstValue);
     auto s = secondValue->link(linker, secondValue);
     return f && s;

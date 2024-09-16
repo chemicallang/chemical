@@ -60,10 +60,6 @@ public:
         link(linker, value_ptr, expected_type);
     }
 
-    bool link(SymbolResolver &linker, VarInitStatement *stmnt) override {
-        return TypeLinkedValue::link(linker, stmnt);
-    }
-
     bool link(SymbolResolver &linker, ArrayValue *value, unsigned int index) override {
         return TypeLinkedValue::link(linker, value, index);
     }

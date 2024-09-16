@@ -11,10 +11,6 @@
 #include "ast/values/IntValue.h"
 #include "compiler/SymbolResolver.h"
 
-bool TypeLinkedValue::link(SymbolResolver &linker, VarInitStatement *stmnt) {
-    return link(linker, stmnt->value, stmnt->type ? stmnt->type.get() : nullptr);
-}
-
 bool TypeLinkedValue::link(SymbolResolver &linker, AssignStatement *stmnt, bool lhs) {
     std::unique_ptr<BaseType> value_type;
     if(!lhs) {

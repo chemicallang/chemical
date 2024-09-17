@@ -150,7 +150,7 @@ Scope take_body_compound(CSTConverter *conv, CSTToken* token, ASTNode* parent_no
 }
 
 // TODO support _128bigint, bigfloat
-CSTConverter::CSTConverter(std::string path, bool is64Bit, std::string target) : path(std::move(path)), is64Bit(is64Bit), target(std::move(target)), global_scope() {
+CSTConverter::CSTConverter(std::string path, bool is64Bit, std::string target) : path(std::move(path)), is64Bit(is64Bit), target(std::move(target)), global_scope(nullptr, nullptr) {
 
 }
 
@@ -159,8 +159,7 @@ const std::unordered_map<std::string, MacroHandlerFn> MacroHandlers = {
             if(container->tokens[2]->is_value()) {
                 container->tokens[2]->accept(converter);
                 auto take_value = converter->value();
-                InterpretScope child_scope{&converter->global_scope, &converter->global_scope};
-                auto evaluated_value = take_value->evaluated_value(child_scope);
+                auto evaluated_value = take_value->evaluated_value(converter->global_scope);
                 if(evaluated_value.get() == nullptr) {
                     converter->error("couldn't evaluate value", container);
                     return;
@@ -214,8 +213,7 @@ const std::unordered_map<std::string, MacroHandlerFn> MacroHandlers = {
         {"tr:debug:c", [](CSTConverter* converter, CSTToken* container) {
             auto body = take_body_compound(converter, container, converter->parent_node);
             std::ostringstream ostring;
-            GlobalInterpretScope scope;
-            ToCAstVisitor visitor(scope, &ostring);
+            ToCAstVisitor visitor(converter->global_scope, &ostring);
             visitor.translate(body.nodes);
             converter->put_value(new StringValue(ostring.str(), container), container);
         }},
@@ -224,8 +222,7 @@ const std::unordered_map<std::string, MacroHandlerFn> MacroHandlers = {
                 container->accept(converter);
                 auto value = converter->value();
                 std::ostringstream ostring;
-                GlobalInterpretScope scope;
-                ToCAstVisitor visitor(scope, &ostring);
+                ToCAstVisitor visitor(converter->global_scope, &ostring);
                 value->accept(&visitor);
                 converter->put_value(new StringValue(ostring.str(), container), container);
             } else {

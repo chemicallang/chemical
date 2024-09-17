@@ -37,4 +37,9 @@ struct LabJob {
      * when user will import using an '@' we will replace it with the actual path
      */
     std::unordered_map<std::string, std::string> path_aliases;
+    /**
+     * definitions are user defined build variables, that user can use at compile
+     * time to trigger different code paths and generate different code
+     */
+    std::unordered_map<std::string, bool> definitions;
 };

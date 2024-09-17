@@ -1,6 +1,8 @@
 // Copyright (c) Qinetik 2024.
 
 #include "ast/base/GlobalInterpretScope.h"
+#include "compiler/lab/LabBuildCompiler.h"
+#include "compiler/lab/LabBuildContext.h"
 #include "ast/structures/FunctionParam.h"
 #include "sstream"
 #include <utility>
@@ -409,6 +411,30 @@ public:
     }
 };
 
+class InterpretDefined : public FunctionDeclaration {
+public:
+    explicit InterpretDefined(ASTNode* parent_node) : FunctionDeclaration(
+            "defined",
+            std::vector<std::unique_ptr<FunctionParam>> {},
+            std::make_unique<BoolType>(nullptr),
+            false,
+            parent_node,
+            nullptr,
+            std::nullopt
+    ) {
+        annotations.emplace_back(AnnotationKind::CompTime);
+        params.emplace_back(std::make_unique<FunctionParam>("value", std::make_unique<StringType>(nullptr), 0, nullptr, this, nullptr));
+    }
+    Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+        if(call->values.empty()) return new BoolValue(false, nullptr);
+        auto val = call->values[0]->evaluated_value(*call_scope);
+        if(val->val_kind() != ValueKind::String) return new BoolValue(false, nullptr);
+        auto& definitions = call_scope->global->build_compiler->current_job->definitions;
+        auto found = definitions.find(val->as_string());
+        return new BoolValue(found != definitions.end(), nullptr);
+    }
+};
+
 //class InterpretConstruct : public FunctionDeclaration {
 //public:
 //    explicit InterpretConstruct(ASTNode* parent_node) : FunctionDeclaration(
@@ -428,9 +454,9 @@ public:
 //    }
 //};
 
-std::unique_ptr<Namespace>& GlobalInterpretScope::create_compiler_namespace() {
-    global_nodes["compiler"] = std::make_unique<Namespace>("compiler", nullptr, nullptr);
-    auto compiler_ns = (Namespace*) global_nodes["compiler"].get();
+Namespace* GlobalInterpretScope::create_compiler_namespace() {
+    auto compiler_ns = new Namespace("compiler", nullptr, nullptr);
+    global_nodes["compiler"] = std::unique_ptr<Namespace>(compiler_ns);
     compiler_ns->annotations.emplace_back(AnnotationKind::CompTime);
     compiler_ns->nodes.emplace_back(new InterpretPrint(compiler_ns));
     compiler_ns->nodes.emplace_back(new InterpretWrap(compiler_ns));
@@ -442,13 +468,22 @@ std::unique_ptr<Namespace>& GlobalInterpretScope::create_compiler_namespace() {
     compiler_ns->nodes.emplace_back(new InterpretSize(compiler_ns));
 //    compiler_ns->nodes.emplace_back(new InterpretConstruct(compiler_ns));
     compiler_ns->nodes.emplace_back(new InterpretVector::InterpretVectorNode(compiler_ns));
-    return (std::unique_ptr<Namespace>&) global_nodes["compiler"];
+    return compiler_ns;
+}
+
+void prepare_top_level_nodes(GlobalInterpretScope& scope, SymbolResolver& resolver) {
+    auto interpret_defined = new InterpretDefined(nullptr);
+    std::unique_ptr<ASTNode> dummy;
+    interpret_defined->declare_top_level(resolver, dummy);
+    scope.global_nodes["defined"] = std::unique_ptr<InterpretDefined>(interpret_defined);
 }
 
 void GlobalInterpretScope::prepare_compiler_namespace(SymbolResolver& resolver) {
-    auto& compiler_ns = create_compiler_namespace();
-    compiler_ns->declare_top_level(resolver, (std::unique_ptr<ASTNode>&) compiler_ns);
-    compiler_ns->declare_and_link(resolver, (std::unique_ptr<ASTNode>&) compiler_ns);
+    auto compiler_ns = create_compiler_namespace();
+    std::unique_ptr<ASTNode> dummy;
+    compiler_ns->declare_top_level(resolver, dummy);
+    compiler_ns->declare_and_link(resolver, dummy);
+    prepare_top_level_nodes(*this, resolver);
 }
 
 void GlobalInterpretScope::rebind_compiler_namespace(SymbolResolver &resolver) {

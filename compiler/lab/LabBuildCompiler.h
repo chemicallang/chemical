@@ -36,6 +36,16 @@ public:
     std::unordered_map<LabModule*, std::string> generated;
 
     /**
+     * the build context that is being used to build
+     */
+    LabBuildContext* build_context;
+
+    /**
+     * a pointer to current job
+     */
+    LabJob* current_job;
+
+    /**
      * constructor
      */
     explicit LabBuildCompiler(LabBuildCompilerOptions* options);

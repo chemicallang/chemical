@@ -10,6 +10,7 @@
 #include "ast/types/ArrayType.h"
 #include "ast/types/GenericType.h"
 #include "ast/types/BoolType.h"
+#include "LLVMBackendContext.h"
 #include "ast/types/CharType.h"
 #include "ast/types/UCharType.h"
 #include "ast/types/DoubleType.h"

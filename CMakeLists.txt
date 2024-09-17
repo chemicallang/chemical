@@ -472,6 +472,9 @@ set(COMMON_SOURCES
         ast/values/StructMemberInitializer.h
         ast/types/ReferenceType.h
         ast/structures/InitBlock.h
+        compiler/lab/BackendContext.h
+        preprocess/2c/2cBackendContext.h
+        compiler/backend/LLVMBackendContext.h
 )
 
 # Chemical LSP Executable Target

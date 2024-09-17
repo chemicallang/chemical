@@ -55,6 +55,10 @@ struct BuildContextCBI {
 
     void(*remove_arg)(BuildContextCBI* self, chem::string* name);
 
+    bool(*define)(BuildContextCBI* self, LabJob* job, chem::string* name);
+
+    bool(*undefine)(BuildContextCBI* self, LabJob* job, chem::string* name);
+
     int(*launch_executable)(BuildContextCBI* self, chem::string* path, bool same_window);
 
     void(*on_finished)(BuildContextCBI* self, void(*lambda)(void*), void* data);

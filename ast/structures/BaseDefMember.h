@@ -32,6 +32,8 @@ public:
 
     llvm::Value* llvm_pointer(Codegen &gen) override;
 
+    llvm::Value* llvm_load(Codegen &gen) override;
+
 #endif
 
 };

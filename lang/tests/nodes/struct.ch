@@ -15,7 +15,7 @@ struct Pair {
     func pair(c : int) {
         init {
             a(c / 2);
-            b(c / 2);
+            b(a);
         }
     }
 

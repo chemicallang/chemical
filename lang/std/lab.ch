@@ -100,6 +100,13 @@ public struct BuildContext {
     // remove the argument given to chemical compiler
     var remove_arg : (&self, name : string*) => void
 
+    // define a definition, that you can access using defined compiler function
+    // returns true, if defined
+    var define : (&self, job : LabJob*, name : string*) => bool
+
+    // un-define a definition
+    var undefine : (&self, job : LabJob*, name : string*) => bool;
+
     // launch an executable at the path
     var launch_executable : (&self, path : string, same_window : bool) => int;
 

@@ -10,6 +10,7 @@
 #include "ast/statements/Continue.h"
 #include "ast/statements/Break.h"
 #include "ast/statements/DestructStmt.h"
+#include "2cBackendContext.h"
 #include "ast/statements/Return.h"
 #include "ast/statements/Assignment.h"
 #include "ast/statements/SwitchStatement.h"

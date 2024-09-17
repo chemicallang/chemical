@@ -11,6 +11,10 @@
 #include <vector>
 #include <memory>
 
+class BackendContext;
+
+class LabBuildCompiler;
+
 class Namespace;
 
 class SymbolResolver;
@@ -19,9 +23,36 @@ class GlobalInterpretScope : public InterpretScope {
 public:
 
     /**
+     * global functions that are evaluated during interpretation
+     */
+    std::unordered_map<std::string, std::unique_ptr<ASTNode>> global_nodes;
+
+    /**
+     * global values that are used by global fns
+     */
+    std::unordered_map<std::string, std::unique_ptr<Value>> global_vals;
+
+    /**
+     * This contains errors that occur during interpretation
+     */
+    std::vector<std::string> errors;
+
+    /**
+     * a pointer to build compiler is stored, so compile time
+     * function calls can talk to the compiler (get definitions)
+     */
+    LabBuildCompiler* build_compiler;
+
+    /**
+     * a pointer to backend context is stored, so compile time
+     * function calls can generate code based on the backend
+     */
+    BackendContext* backend_context;
+
+    /**
      * The constructor
      */
-    GlobalInterpretScope();
+    explicit GlobalInterpretScope(BackendContext* backendContext, LabBuildCompiler* buildCompiler);
 
     /**
      * deleted copy constructor
@@ -38,7 +69,7 @@ public:
      * this method is called by prepare_compiler_namespace automatically
      * this creates the compiler namespace in the global_nodes map
      */
-    std::unique_ptr<Namespace>& create_compiler_namespace();
+    Namespace* create_compiler_namespace();
 
     /**
      * will prepare compiler namespace in the symbol resolver
@@ -74,20 +105,5 @@ public:
      * @param err
      */
     void add_error(const std::string &err);
-
-    /**
-     * global functions that are evaluated during interpretation
-     */
-    std::unordered_map<std::string, std::unique_ptr<ASTNode>> global_nodes;
-
-    /**
-     * global values that are used by global fns
-     */
-    std::unordered_map<std::string, std::unique_ptr<Value>> global_vals;
-
-    /**
-     * This contains errors that occur during interpretation
-     */
-    std::vector<std::string> errors;
 
 };

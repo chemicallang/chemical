@@ -31,6 +31,8 @@
 #include <utility>
 #include <functional>
 #include "utils/FileUtils.h"
+#include "compiler/backend/LLVMBackendContext.h"
+#include "preprocess/2c/2cBackendContext.h"
 
 #ifdef COMPILER_BUILD
 std::vector<std::unique_ptr<ASTNode>> TranslateC(
@@ -177,7 +179,8 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
         }
     }
 
-    GlobalInterpretScope global;
+    // an interpretation scope for interpreting compile time function calls
+    GlobalInterpretScope global(nullptr, this);
 
     // a new symbol resolver for every executable
     SymbolResolver resolver(global, options->is64Bit);
@@ -188,15 +191,21 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
     // beginning
     std::stringstream output_ptr;
     ToCAstVisitor c_visitor(global, &output_ptr);
+    ToCBackendContext c_context(&c_visitor);
 
 #ifdef COMPILER_BUILD
     ASTCompiler processor(options, &resolver);
     Codegen gen(global, options->target_triple, options->exe_path, options->is64Bit, "");
+    LLVMBackendContext g_context(&gen);
     CodegenEmitterOptions emitter_options;
+    // set the context so compile time calls are sent to it
+    global.backend_context = use_tcc ? (BackendContext*) &c_context : (BackendContext*) &g_context;
 #else
     ASTProcessor processor(options, &resolver);
+    global.backend_context = (BackendContext*) &c_context;
 #endif
 
+    // import executable path aliases
     processor.path_handler.path_aliases = std::move(exe->path_aliases);
 
     // allow user the compiler (namespace) functions in @comptime
@@ -654,11 +663,14 @@ inline ASTImportResultExt future_get(std::vector<std::future<ASTImportResultExt>
 
 int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string& path) {
 
+    // set the build context
+    build_context = &context;
+
     // shrinking visitor will shrink everything
     ShrinkingVisitor shrinker;
 
     // a global interpret scope required to evaluate compile time things
-    GlobalInterpretScope global;
+    GlobalInterpretScope global(nullptr, this);
 
     // creating symbol resolver for build.lab files only
     SymbolResolver lab_resolver(global, options->is64Bit);
@@ -676,6 +688,10 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
     // beginning
     std::stringstream output_ptr;
     ToCAstVisitor c_visitor(global, &output_ptr);
+    ToCBackendContext c_context(&c_visitor);
+
+    // set the backend context
+    global.backend_context = &c_context;
 
     // allow user the compiler (namespace) functions in @comptime
     global.prepare_compiler_namespace(lab_resolver);

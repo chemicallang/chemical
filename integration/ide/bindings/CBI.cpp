@@ -412,6 +412,28 @@ void prep_build_context_cbi(BuildContextCBI* cbi) {
     cbi->remove_arg = [](BuildContextCBI* self, chem::string* name) {
         return self->instance->remove_arg(name);
     };
+    cbi->define = [](BuildContextCBI* self, LabJob* job, chem::string* name) -> bool {
+        auto def_name = name->to_std_string();
+        auto& definitions = job->definitions;
+        auto got = definitions.find(def_name);
+        if(got == definitions.end()) {
+            definitions[def_name] = true;
+            return true;
+        } else {
+            return false;
+        }
+    };
+    cbi->undefine = [](BuildContextCBI* self, LabJob* job, chem::string* name) -> bool {
+        auto def_name = name->to_std_string();
+        auto& definitions = job->definitions;
+        auto got = definitions.find(def_name);
+        if(got != definitions.end()) {
+            definitions.erase(got);
+            return true;
+        } else {
+            return false;
+        }
+    };
     cbi->launch_executable = [](BuildContextCBI* self, chem::string* path, bool same_window) {
         dispose_string _x{path};
         auto copied = path->to_std_string();

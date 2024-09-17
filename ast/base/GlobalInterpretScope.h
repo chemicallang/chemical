@@ -66,25 +66,9 @@ public:
     GlobalInterpretScope(GlobalInterpretScope&& global) = default;
 
     /**
-     * this method is called by prepare_compiler_namespace automatically
-     * this creates the compiler namespace in the global_nodes map
+     * this will prepare std and compiler namespace and put it in this symbol resolver
      */
-    Namespace* create_compiler_namespace();
-
-    /**
-     * will prepare compiler namespace in the symbol resolver
-     * YOU DO NOT NEED TO CALL create_compiler_namespace before this
-     * when you call this compiler namespace will declare itself in this symbol resolver
-     * if you'd like to change symbol resolver after this call rebind_compiler_namespace
-     */
-    void prepare_compiler_namespace(SymbolResolver& resolver);
-
-    /**
-     * this method can be called after calling prepare_compiler_namespace / create_compiler_namespace
-     * it's used to bind a new symbol resolver
-     * once on a new symbol resolver to bind with a new symbol resolver
-     */
-    void rebind_compiler_namespace(SymbolResolver& resolver);
+    void prepare_top_level_namespaces(SymbolResolver& resolver);
 
     /**
      * cleans the scope

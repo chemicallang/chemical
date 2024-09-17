@@ -209,7 +209,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
     processor.path_handler.path_aliases = std::move(exe->path_aliases);
 
     // allow user the compiler (namespace) functions in @comptime
-    global.prepare_compiler_namespace(resolver);
+    global.prepare_top_level_namespaces(resolver);
 
     if(use_tcc) {
         // clear build.lab c output
@@ -694,7 +694,7 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
     global.backend_context = &c_context;
 
     // allow user the compiler (namespace) functions in @comptime
-    global.prepare_compiler_namespace(lab_resolver);
+    global.prepare_top_level_namespaces(lab_resolver);
 
     // preparing translation
     c_visitor.prepare_translate();

@@ -30,7 +30,7 @@ CompilerBinderCommon::CompilerBinderCommon(
 }
 
 CompilerBinderTCC::CompilerBinderTCC(CSTDiagnoser* diagnoser, std::string exe_path) : CompilerBinderCommon(diagnoser), translator(global, nullptr), exe_path(std::move(exe_path)) {
-    translator.comptime_scope.prepare_compiler_namespace(resolver);
+    translator.comptime_scope.prepare_top_level_namespaces(resolver);
 }
 
 std::vector<std::unique_ptr<ASTNode>> CompilerBinderCommon::parse(std::vector<CSTToken*>& tokens) {

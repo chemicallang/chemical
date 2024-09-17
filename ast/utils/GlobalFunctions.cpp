@@ -20,6 +20,7 @@
 #include "compiler/SymbolResolver.h"
 #include "ast/structures/Namespace.h"
 #include "ast/structures/StructDefinition.h"
+#include "compiler/lab/BackendContext.h"
 #include "ast/structures/FunctionParam.h"
 #include "ast/types/PointerType.h"
 #include "ast/types/LinkedType.h"
@@ -435,6 +436,31 @@ public:
     }
 };
 
+class InterpretMemCopy : public FunctionDeclaration {
+public:
+    explicit InterpretMemCopy(ASTNode* parent_node) : FunctionDeclaration(
+            "copy",
+            std::vector<std::unique_ptr<FunctionParam>> {},
+            std::make_unique<BoolType>(nullptr),
+            false,
+            parent_node,
+            nullptr,
+            std::nullopt
+    ) {
+        annotations.emplace_back(AnnotationKind::CompTime);
+        params.emplace_back(std::make_unique<FunctionParam>("dest_value", std::make_unique<StringType>(nullptr), 0, nullptr, this, nullptr));
+        params.emplace_back(std::make_unique<FunctionParam>("source_value", std::make_unique<StringType>(nullptr), 0, nullptr, this, nullptr));
+    }
+    Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+        auto& backend = *call_scope->global->backend_context;
+        if(call->values.size() != 2) {
+            call_scope->error("std::mem::copy called with arguments of length not equal to two");
+            return nullptr;
+        }
+        backend.mem_copy(call->values[0].get(), call->values[1].get());
+    }
+};
+
 //class InterpretConstruct : public FunctionDeclaration {
 //public:
 //    explicit InterpretConstruct(ASTNode* parent_node) : FunctionDeclaration(
@@ -454,9 +480,9 @@ public:
 //    }
 //};
 
-Namespace* GlobalInterpretScope::create_compiler_namespace() {
+Namespace* create_compiler_namespace(GlobalInterpretScope& scope) {
     auto compiler_ns = new Namespace("compiler", nullptr, nullptr);
-    global_nodes["compiler"] = std::unique_ptr<Namespace>(compiler_ns);
+    scope.global_nodes["compiler"] = std::unique_ptr<Namespace>(compiler_ns);
     compiler_ns->annotations.emplace_back(AnnotationKind::CompTime);
     compiler_ns->nodes.emplace_back(new InterpretPrint(compiler_ns));
     compiler_ns->nodes.emplace_back(new InterpretWrap(compiler_ns));
@@ -471,6 +497,21 @@ Namespace* GlobalInterpretScope::create_compiler_namespace() {
     return compiler_ns;
 }
 
+Namespace* create_mem_namespace(GlobalInterpretScope& scope){
+    auto mem_ns = new Namespace("mem", nullptr, nullptr);
+    mem_ns->annotations.emplace_back(AnnotationKind::CompTime);
+    mem_ns->nodes.emplace_back(new InterpretMemCopy(mem_ns));
+    return mem_ns;
+}
+
+Namespace* create_std_namespace(GlobalInterpretScope& scope) {
+    auto std_ns = new Namespace("std", nullptr, nullptr);
+    scope.global_nodes["std"] = std::unique_ptr<Namespace>(std_ns);
+    std_ns->annotations.emplace_back(AnnotationKind::CompTime);
+    std_ns->nodes.emplace_back(create_mem_namespace(scope));
+    return std_ns;
+}
+
 void prepare_top_level_nodes(GlobalInterpretScope& scope, SymbolResolver& resolver) {
     auto interpret_defined = new InterpretDefined(nullptr);
     std::unique_ptr<ASTNode> dummy;
@@ -478,15 +519,19 @@ void prepare_top_level_nodes(GlobalInterpretScope& scope, SymbolResolver& resolv
     scope.global_nodes["defined"] = std::unique_ptr<InterpretDefined>(interpret_defined);
 }
 
-void GlobalInterpretScope::prepare_compiler_namespace(SymbolResolver& resolver) {
-    auto compiler_ns = create_compiler_namespace();
+void link_namespace(SymbolResolver& resolver, Namespace* ns) {
     std::unique_ptr<ASTNode> dummy;
-    compiler_ns->declare_top_level(resolver, dummy);
-    compiler_ns->declare_and_link(resolver, dummy);
+    ns->declare_top_level(resolver, dummy);
+    ns->declare_and_link(resolver, dummy);
+}
+
+void GlobalInterpretScope::prepare_top_level_namespaces(SymbolResolver& resolver) {
+    link_namespace(resolver, create_compiler_namespace(*this));
+    link_namespace(resolver, create_std_namespace(*this));
     prepare_top_level_nodes(*this, resolver);
 }
 
-void GlobalInterpretScope::rebind_compiler_namespace(SymbolResolver &resolver) {
-    auto& compiler_ns = global_nodes["compiler"];
-    compiler_ns->declare_top_level(resolver, compiler_ns);
-}
+//void GlobalInterpretScope::rebind_compiler_namespace(SymbolResolver &resolver) {
+//    auto& compiler_ns = global_nodes["compiler"];
+//    compiler_ns->declare_top_level(resolver, compiler_ns);
+//}

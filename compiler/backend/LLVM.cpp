@@ -1163,3 +1163,10 @@ void Namespace::code_gen_external_declare(Codegen &gen) {
 void Namespace::code_gen_destruct(Codegen &gen, Value *returnValue) {
     throw std::runtime_error("code_gen_destruct on namespace called");
 }
+
+void LLVMBackendContext::mem_copy(Value* lhs, Value* rhs) {
+    auto& gen = *gen_ptr;
+    auto pointer = lhs->llvm_pointer(gen);
+    auto val = rhs->llvm_value(gen, nullptr);
+    gen.memcpy_struct(rhs->llvm_type(gen), pointer, val);
+}

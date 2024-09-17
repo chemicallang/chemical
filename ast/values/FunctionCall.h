@@ -254,6 +254,15 @@ public:
             BaseType* expected_type
     ) override;
 
+    llvm::Value* access_chain_assign_value(
+            Codegen &gen,
+            std::vector<std::unique_ptr<ChainValue>> &values,
+            unsigned int until,
+            std::vector<std::pair<Value*, llvm::Value*>> &destructibles,
+            Value *lhs,
+            BaseType *expected_type
+    ) override;
+
     bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override;
 
 #endif

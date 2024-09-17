@@ -25,12 +25,13 @@ struct MoveObj {
     var i : int
 
     @move
-    func move() {
+    func move(&self, other : MoveObj*) {
+        i = other.i
         move_called++;
     }
 
     @delete
-    func delete() {
+    func delete(&self) {
         delete_called++;
     }
 
@@ -282,14 +283,16 @@ func test_moves() {
     move_called = 0;
     delete_called = 0;
     test("move function is called, when moving struct member that would leave other one empty", () => {
+        var result : int = 7373
         if(true) {
             var a = MoveObjCon { m : MoveObj { i : 32 } }
             var b = MoveObjCon { m : MoveObj { i : 33 } }
             a.m = b.m
+            result = a.m.i
         }
         // first a.m is destructed, b.m is moved into a.m (using move constructor, self = a.m, other = b.m)
         // then a is destructed, and b is destructed, that's three destructors called, a single move
-        return move_called == 1 && delete_called == 3;
+        return move_called == 1 && delete_called == 3 && result == 33;
     })
 
 }

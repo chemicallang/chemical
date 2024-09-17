@@ -865,10 +865,9 @@ void allocate_struct_for_func_call(ToCAstVisitor& visitor, ExtendableMembersCont
     }
 }
 
-std::string allocate_temp_struct(ToCAstVisitor& visitor, ASTNode* def_node, Value* ref_value, Value* initializer) {
+std::string allocate_temp_struct(ToCAstVisitor& visitor, ASTNode* def_node, Value* initializer) {
     auto struct_name = visitor.get_local_temp_var_name();
     allocate_struct_by_name(visitor, def_node, struct_name);
-    visitor.local_allocated[ref_value] = struct_name;
     return struct_name;
 }
 
@@ -878,7 +877,7 @@ void moved_value_call(ToCAstVisitor& visitor, Value* value) {
     const auto move_func = movable->pre_move_func();
     const auto clear_func = movable->clear_func();
     // allocating temporary struct
-    auto struct_name = allocate_temp_struct(visitor, movable, value, clear_func ? value : nullptr);
+    auto struct_name = allocate_temp_struct(visitor, movable, clear_func ? value : nullptr);
     visitor.new_line_and_indent();
     func_container_name(visitor, clear_func ? clear_func : move_func);
     visitor.write('(');
@@ -891,6 +890,7 @@ void moved_value_call(ToCAstVisitor& visitor, Value* value) {
     value->accept(&visitor);
     visitor.write(')');
     visitor.write(';');
+    visitor.local_allocated[value] = struct_name;
 }
 
 void move_identifier(ToCAstVisitor& visitor, VariableIdentifier* id) {

@@ -42,7 +42,7 @@ void llvm_func_param_types_into(
     // functions that return struct take a pointer to struct and actually return void
     // so allocation takes place outside function
     if(returnType->value_type() == ValueType::Struct) {
-        if(!decl || !decl->has_annotation(AnnotationKind::Copy)) {
+        if(!decl || (!decl->has_annotation(AnnotationKind::Copy) && !decl->has_annotation(AnnotationKind::Move))) {
             paramTypes.emplace_back(gen.builder->getPtrTy());
         }
     }
@@ -171,7 +171,7 @@ unsigned FunctionType::c_or_llvm_arg_start_index() {
     const auto is_struct_return = returnType->value_type() == ValueType::Struct;
     if(is_struct_return) {
         auto func = as_function();
-        if(func && func->has_annotation(AnnotationKind::Copy)) {
+        if(func && (func->has_annotation(AnnotationKind::Copy) || func->has_annotation(AnnotationKind::Move))) {
             return 0;
         } else {
             return 1;

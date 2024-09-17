@@ -461,9 +461,10 @@ bool FunctionType::mark_moved_value(
     if(!linked_def) {
         return false;
     }
-    const bool req_destr = linked_def->requires_destructor();
-    const bool req_clear_fn = linked_def->requires_clear_fn();
-    if(!req_destr && !req_clear_fn) {
+    const bool has_destr = linked_def->destructor_func();
+    const bool has_clear_fn = linked_def->clear_func();
+    const bool has_move_fn = linked_def->pre_move_func();
+    if(!has_destr && !has_clear_fn && !has_move_fn) {
         return false;
     }
     const auto expected_def = expected_type->get_ref_or_linked_struct(expected_type_kind);
@@ -489,14 +490,14 @@ bool FunctionType::mark_moved_value(
         }
     }
     if(final) {
-        if(req_destr) {
-            if(!req_clear_fn) {
-                diagnoser.error("struct requires a delete function but has no clear function", &value);
+        if(has_destr) {
+            if(!has_clear_fn && !has_move_fn) {
+                diagnoser.error("struct has a delete function but has no clear / move / implicit copy function", &value);
                 return false;
             }
         } else {
-            if(req_clear_fn) {
-                diagnoser.error("struct requires a clear function but has no delete function", &value);
+            if(has_clear_fn || has_move_fn) {
+                diagnoser.error("struct has a clear / delete function but has no delete function", &value);
             }
             return false;
         }

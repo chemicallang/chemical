@@ -16,5 +16,6 @@
 class BackendContext {
 public:
 
+    virtual void mem_copy(Value* lhs, Value* rhs) = 0;
 
 };

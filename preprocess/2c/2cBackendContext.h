@@ -15,4 +15,6 @@ public:
 
     }
 
+    void mem_copy(Value *lhs, Value *rhs) override;
+
 };

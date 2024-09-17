@@ -9,10 +9,12 @@ class Codegen;
 class LLVMBackendContext : public BackendContext {
 public:
 
-    Codegen* gen;
+    Codegen* gen_ptr;
 
-    LLVMBackendContext(Codegen* gen) : gen(gen){
+    LLVMBackendContext(Codegen* gen) : gen_ptr(gen){
 
     }
+
+    void mem_copy(Value* lhs, Value* rhs) override;
 
 };

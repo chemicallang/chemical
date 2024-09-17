@@ -176,6 +176,11 @@ public:
     bool any_member_has_pre_move_func();
 
     /**
+     * check if move fn is required
+     */
+    bool any_member_has_move_func();
+
+    /**
      * checks if this struct type requires a move function
      * or has one
      */

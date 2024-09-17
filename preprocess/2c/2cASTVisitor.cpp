@@ -228,7 +228,7 @@ void func_type_params(ToCAstVisitor& visitor, FunctionType* decl, unsigned i = 0
     auto is_struct_return = visitor.pass_structs_to_initialize && decl->returnType->value_type() == ValueType::Struct;
     auto func = decl->as_function();
     auto extension = decl->as_extension_func();
-    if(is_struct_return && !(func && func->has_annotation(AnnotationKind::Copy))) {
+    if(is_struct_return && !(func && (func->has_annotation(AnnotationKind::Copy) || func->has_annotation(AnnotationKind::Move)))) {
         if(has_params_before) {
             visitor.write(", ");
         }

@@ -845,6 +845,8 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
     // generating outputs (executables)
     for(auto& exe : context.executables) {
 
+        current_job = exe.get();
+
         job_result = do_job(exe.get());
         if(job_result == 1) {
             std::cerr << rang::fg::red << "[BuildLab]" << " error performing job '" << exe->name.data() << "', returned status code 1" << rang::fg::reset << std::endl;

@@ -106,14 +106,18 @@ func build(ctx : BuildContext*) {
         }
     }
 
+    const def = string("CHECK_DEF")
+
     if(do_dyn_lib) {
-        ctx.build_dynamic_lib(&exe_name, { module });
+        const job = ctx.build_dynamic_lib(&exe_name, { module });
+        ctx.define(job, &def);
         if(do_one_job) {
             return;
         }
     }
 
     const exe_job = ctx.build_exe(&exe_name, { module })
+    ctx.define(exe_job, &def);
     jc.ctx = ctx;
     jc.job = exe_job;
     ctx.on_finished((data : void*) => {

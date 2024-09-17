@@ -205,4 +205,10 @@ func test_comptime() {
         const d = ret_struct_implicit_b();
         return d.a == 20 && d.b == 20;
     })
+    test("compile time defined works - 1", () => {
+        return defined("CHECK_DEF");
+    })
+    test("compile time defined works - 2", () => {
+        return !defined("CHECK_DEF2");
+    })
 }

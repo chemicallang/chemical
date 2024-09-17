@@ -36,6 +36,10 @@ struct MoveObj {
 
 }
 
+struct MoveObjCon {
+    var m : MoveObj
+}
+
 variant OptClear {
     Some(c : ClearObj)
     None()
@@ -274,4 +278,18 @@ func test_moves() {
         // b doesn't need to be move called into a, since b will never be accessed again, a becomes the only owner
         return move_called == 0 && delete_called == 2;
     })
+
+    move_called = 0;
+    delete_called = 0;
+    test("move function is called, when moving struct member that would leave other one empty", () => {
+        if(true) {
+            var a = MoveObjCon { m : MoveObj { i : 32 } }
+            var b = MoveObjCon { m : MoveObj { i : 33 } }
+            a.m = b.m
+        }
+        // first a.m is destructed, b.m is moved into a.m (using move constructor, self = a.m, other = b.m)
+        // then a is destructed, and b is destructed, that's three destructors called, a single move
+        return move_called == 1 && delete_called == 3;
+    })
+
 }

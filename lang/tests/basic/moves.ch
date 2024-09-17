@@ -2,6 +2,7 @@ import "../test.ch"
 
 var clear_called = 0;
 var move_called = 0;
+var copy_called = 0;
 var delete_called = 0;
 
 struct ClearObj {
@@ -35,6 +36,33 @@ struct MoveObj {
         delete_called++;
     }
 
+}
+
+struct ImpCopyObj {
+
+    var i : int
+
+    @implicit
+    @copy
+    func copy(&self, other : ImpCopyObj*) {
+        i = other.i
+        copy_called++;
+    }
+
+    @delete
+    func delete(&self) {
+        delete_called++;
+    }
+
+}
+
+struct ImpCopyObjCon {
+    var i : ImpCopyObj
+}
+
+variant OptCopy {
+    Some(i : ImpCopyObj)
+    None()
 }
 
 variant OptMove {
@@ -78,6 +106,10 @@ func get_moved_clear_i(c : ClearObj) : int {
 }
 
 func get_moved_move_i(m : MoveObj) : int {
+    return m.i;
+}
+
+func get_moved_copy_i(m : ImpCopyObj) : int {
     return m.i;
 }
 
@@ -258,6 +290,59 @@ func test_moves() {
                 return m.i == 645
             }
             OptMove.None() => {
+                return false;
+            }
+        }
+    })
+
+    // TESTING WHETHER NEW OWNERS OF MOVED (copied) OBJECTS ARE VALID
+
+    test("moved into var init is valid - (copied)", () => {
+        var obj = ImpCopyObj { i : 343 }
+        var d = obj
+        return d.i == 343
+    })
+    test("moved into assignment is valid - (copied)", () => {
+        var obj = ImpCopyObj { i : 556 }
+        var d = ImpCopyObj { i : 23 }
+        d = obj
+        return d.i == 556
+    })
+    test("moved into struct member is valid - (copied)", () => {
+        var obj = ImpCopyObj { i : 322 }
+        var con = ImpCopyObjCon { i : obj }
+        return con.i.i == 322;
+    })
+    test("moved into struct member using assignment is valid - (copied)", () => {
+        var obj = ImpCopyObj { i : 775 }
+        var con = ImpCopyObjCon { i : ImpCopyObj { i : 544 } }
+        con.i = obj;
+        return con.i.i == 775;
+    })
+    test("moved into array value is valid - (copied)", () => {
+        var obj = ImpCopyObj { i : 323 }
+        var con = { obj }
+        return con[0].i == 323;
+    })
+    test("moved into array value using assignment is valid - (copied)", () => {
+        var obj = ImpCopyObj { i : 656 }
+        var con = { ImpCopyObj { i : 776 } }
+        con[0] = obj
+        return con[0].i == 656;
+    })
+    test("moved into function param is valid - (copied)", () => {
+        var obj = ImpCopyObj { i : 987 }
+        const i = get_moved_copy_i(obj);
+        return i == 987;
+    })
+    test("moved into variant call is valid - (copied)", () => {
+        var obj = ImpCopyObj { i : 645 }
+        var opt : OptCopy = OptCopy.Some(obj);
+        switch(opt) {
+            OptCopy.Some(i) => {
+                return i.i == 645
+            }
+            OptCopy.None() => {
                 return false;
             }
         }

@@ -99,6 +99,11 @@ FunctionDeclaration* BaseType::get_pre_move_fn() {
     return container ? container->pre_move_func() : nullptr;
 }
 
+FunctionDeclaration* BaseType::get_move_fn() {
+    auto container = get_members_container();
+    return container ? container->move_func() : nullptr;
+}
+
 FunctionDeclaration* BaseType::get_clear_fn() {
     auto container = get_members_container();
     return container ? container->clear_func() : nullptr;

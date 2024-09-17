@@ -264,6 +264,11 @@ public:
     FunctionDeclaration* get_pre_move_fn();
 
     /**
+     * does this type has a move function
+     */
+    FunctionDeclaration* get_move_fn();
+
+    /**
      * does this type has a clear function
      */
     FunctionDeclaration* get_clear_fn();

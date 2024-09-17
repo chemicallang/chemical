@@ -494,6 +494,12 @@ bool MembersContainer::any_member_has_pre_move_func() {
     });
 }
 
+bool MembersContainer::any_member_has_move_func() {
+    return members_type_require(*this, [](BaseType* type)-> bool {
+        return type->get_move_fn() != nullptr;
+    });
+}
+
 bool MembersContainer::any_member_has_copy_func() {
     return members_type_require(*this, [](BaseType* type)-> bool {
         return type->get_copy_fn() != nullptr;
@@ -599,12 +605,12 @@ FunctionDeclaration* MembersContainer::create_def_copy_fn(ASTDiagnoser& diagnose
 }
 
 FunctionDeclaration* MembersContainer::create_def_move_fn(ASTDiagnoser& diagnoser) {
-    auto copyFn = direct_child_function("copy");
+    auto copyFn = direct_child_function("move");
     if(copyFn) {
-        diagnoser.error("default copy function is created by name 'copy', a function by name 'copy' already exists, please create a manual function to avoid this", (AnnotableNode*) copyFn);
+        diagnoser.error("default move function is created by name 'move', a function by name 'move' already exists, please create a manual function to avoid this", (AnnotableNode*) copyFn);
         return nullptr;
     }
-    return create_copy_fn();
+    return create_move_fn();
 }
 
 bool MembersContainer::insert_multi_func(std::unique_ptr<FunctionDeclaration> decl) {

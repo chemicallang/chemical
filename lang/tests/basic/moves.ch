@@ -261,4 +261,17 @@ func test_moves() {
         }
         return move_called == 0 && delete_called == 1;
     })
+
+    move_called = 0;
+    delete_called = 0;
+    test("move function is not called, when moving using assignment", () => {
+        if(true) {
+            var a = MoveObj { i : 32 }
+            var b = MoveObj { i : 33 }
+            a = b
+        }
+        // how this works, b is mem copied into a, after a has been destroyed and a is destroyed at the end of scope again
+        // b doesn't need to be move called into a, since b will never be accessed again, a becomes the only owner
+        return move_called == 0 && delete_called == 2;
+    })
 }

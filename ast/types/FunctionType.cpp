@@ -501,6 +501,7 @@ bool FunctionType::mark_moved_value(
             }
             return false;
         }
+        return true;
     }
     return false;
 }

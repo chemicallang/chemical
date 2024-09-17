@@ -67,6 +67,10 @@ struct CopyObj {
 
 }
 
+struct CopyObjCon {
+    var c : CopyObj
+}
+
 func give_copy_obj_i(c : CopyObj) : int {
     return c.i;
 }
@@ -537,10 +541,25 @@ func test_moves() {
         var d = c.copy();
         return d.i == 45;
     })
-    test("explicit copy function calls work", () => {
-        var c = CopyObj { i : 45 }
-        return give_copy_obj_i(c.copy()) == 45;
+    test("explicit copy function calls work in function arguments", () => {
+        var c = CopyObj { i : 43 }
+        return give_copy_obj_i(c.copy()) == 43;
     })
-
+    test("explicit copy function calls work in struct value", () => {
+        var c = CopyObj { i : 46 }
+        var d = CopyObjCon { c : c.copy() }
+        return d.c.i == 46;
+    })
+    test("explicit copy function calls work in array value", () => {
+        var c = CopyObj { i : 46 }
+        var d = { c.copy() }
+        return d[0].i == 46;
+    })
+    test("explicit copy function calls work in assignment", () => {
+        var c = CopyObj { i : 46 }
+        var d = CopyObj { i : 44 }
+        c = d.copy()
+        return c.i == 44;
+    })
 
 }

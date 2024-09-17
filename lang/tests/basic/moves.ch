@@ -537,6 +537,10 @@ func test_moves() {
         var d = c.copy();
         return d.i == 45;
     })
+    test("explicit copy function calls work", () => {
+        var c = CopyObj { i : 45 }
+        return give_copy_obj_i(c.copy()) == 45;
+    })
 
 
 }

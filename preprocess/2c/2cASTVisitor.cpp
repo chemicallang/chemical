@@ -97,7 +97,6 @@
 #include "ast/values/NumberValue.h"
 #include "ast/values/ShortValue.h"
 #include "ast/values/StringValue.h"
-#include "ast/values/TernaryValue.h"
 #include "ast/values/UBigIntValue.h"
 #include "ast/values/SizeOfValue.h"
 #include "ast/values/UInt128Value.h"

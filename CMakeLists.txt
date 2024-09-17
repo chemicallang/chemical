@@ -193,7 +193,6 @@ set(COMMON_SOURCES
         ast/types/FloatType.h
         ast/types/StringType.h
         ast/types/DoubleType.h
-        ast/values/TernaryValue.h
         ast/types/BoolType.h
         ast/types/CharType.h
         ast/types/ArrayType.h

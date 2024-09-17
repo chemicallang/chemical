@@ -37,6 +37,11 @@ struct MoveObj {
 
 }
 
+variant OptMove {
+    Some(m : MoveObj)
+    None()
+}
+
 struct MoveObjCon {
     var m : MoveObj
 }
@@ -70,6 +75,10 @@ func take_move_obj(m : MoveObj) {
 
 func get_moved_clear_i(c : ClearObj) : int {
     return c.i;
+}
+
+func get_moved_move_i(m : MoveObj) : int {
+    return m.i;
 }
 
 struct NonMovableObj {
@@ -148,47 +157,47 @@ func test_moves() {
         return n.a == 323 && n.b == 124;
     })
 
-    // TESTING WHETHER NEW OWNERS OF MOVED OBJECTS ARE VALID
+    // TESTING WHETHER NEW OWNERS OF MOVED (cleared) OBJECTS ARE VALID
 
-    test("moved into var init is valid", () => {
+    test("moved into var init is valid - (cleared)", () => {
         var obj = ClearObj { i : 343 }
         var d = obj
         return d.i == 343
     })
-    test("moved into assignment is valid", () => {
+    test("moved into assignment is valid - (cleared)", () => {
         var obj = ClearObj { i : 556 }
         var d = ClearObj { i : 23 }
         d = obj
         return d.i == 556
     })
-    test("moved into struct member is valid", () => {
+    test("moved into struct member is valid - (cleared)", () => {
         var obj = ClearObj { i : 322 }
         var con = ClearObjCon { c : obj }
         return con.c.i == 322;
     })
-    test("moved into struct member using assignment is valid", () => {
+    test("moved into struct member using assignment is valid - (cleared)", () => {
         var obj = ClearObj { i : 775 }
         var con = ClearObjCon { c : ClearObj { i : 544 } }
         con.c = obj;
         return con.c.i == 775;
     })
-    test("moved into array value is valid", () => {
+    test("moved into array value is valid - (cleared)", () => {
         var obj = ClearObj { i : 323 }
         var con = { obj }
         return con[0].i == 323;
     })
-    test("moved into array value using assignment is valid", () => {
+    test("moved into array value using assignment is valid - (cleared)", () => {
         var obj = ClearObj { i : 656 }
         var con = { ClearObj { i : 776 } }
         con[0] = obj
         return con[0].i == 656;
     })
-    test("moved into function param is valid", () => {
+    test("moved into function param is valid - (cleared)", () => {
         var obj = ClearObj { i : 987 }
         const i = get_moved_clear_i(obj);
         return i == 987;
     })
-    test("moved into variant call is valid", () => {
+    test("moved into variant call is valid - (cleared)", () => {
         var obj = ClearObj { i : 645 }
         var opt : OptClear = OptClear.Some(obj);
         switch(opt) {
@@ -196,6 +205,59 @@ func test_moves() {
                 return c.i == 645
             }
             OptClear.None() => {
+                return false;
+            }
+        }
+    })
+
+    // TESTING WHETHER NEW OWNERS OF MOVED (movable) OBJECTS ARE VALID
+
+    test("moved into var init is valid - (movable)", () => {
+        var obj = MoveObj { i : 343 }
+        var d = obj
+        return d.i == 343
+    })
+    test("moved into assignment is valid - (movable)", () => {
+        var obj = MoveObj { i : 556 }
+        var d = MoveObj { i : 23 }
+        d = obj
+        return d.i == 556
+    })
+    test("moved into struct member is valid - (movable)", () => {
+        var obj = MoveObj { i : 322 }
+        var con = MoveObjCon { m : obj }
+        return con.m.i == 322;
+    })
+    test("moved into struct member using assignment is valid - (movable)", () => {
+        var obj = MoveObj { i : 775 }
+        var con = MoveObjCon { m : MoveObj { i : 544 } }
+        con.m = obj;
+        return con.m.i == 775;
+    })
+    test("moved into array value is valid - (movable)", () => {
+        var obj = MoveObj { i : 323 }
+        var con = { obj }
+        return con[0].i == 323;
+    })
+    test("moved into array value using assignment is valid - (movable)", () => {
+        var obj = MoveObj { i : 656 }
+        var con = { MoveObj { i : 776 } }
+        con[0] = obj
+        return con[0].i == 656;
+    })
+    test("moved into function param is valid - (movable)", () => {
+        var obj = MoveObj { i : 987 }
+        const i = get_moved_move_i(obj);
+        return i == 987;
+    })
+    test("moved into variant call is valid - (movable)", () => {
+        var obj = MoveObj { i : 645 }
+        var opt : OptMove = OptMove.Some(obj);
+        switch(opt) {
+            OptMove.Some(m) => {
+                return m.i == 645
+            }
+            OptMove.None() => {
                 return false;
             }
         }
@@ -314,13 +376,13 @@ func test_moves() {
 
     move_called = 0;
     delete_called = 0;
-    test("function param object moved, clear function is not called", () => {
+    test("function param object moved, move function is not called", () => {
         moved_param_not_moved(MoveObj { i : 543 });
         return move_called == 0 && delete_called == 1;
     })
     move_called = 0;
     delete_called = 0;
-    test("function param object moved, clear function is not called", () => {
+    test("function param object moved, move function is not called", () => {
         var m = MoveObj { i : 543 };
         moved_param_not_moved(m);
         return move_called == 0 && delete_called == 1;

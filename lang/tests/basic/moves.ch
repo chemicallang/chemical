@@ -56,6 +56,21 @@ struct ImpCopyObj {
 
 }
 
+struct CopyObj {
+
+    var i : int
+
+    @copy
+    func copy(&self, other : CopyObj*) {
+        i = other.i
+    }
+
+}
+
+func give_copy_obj_i(c : CopyObj) : int {
+    return c.i;
+}
+
 struct ImpCopyObjCon {
     var i : ImpCopyObj
 }
@@ -514,5 +529,14 @@ func test_moves() {
         }
         return move_called == 1 && delete_called == 2;
     })
+
+    // TESTING EXPLICIT COPY FUNCTION CALLS FROM HERE
+
+    test("explicit copy function calls work", () => {
+        var c = CopyObj { i : 45 }
+        var d = c.copy();
+        return d.i == 45;
+    })
+
 
 }

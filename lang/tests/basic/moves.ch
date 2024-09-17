@@ -1,6 +1,7 @@
 import "../test.ch"
 
 var clear_called = 0;
+var move_called = 0;
 var delete_called = 0;
 
 struct ClearObj {
@@ -10,6 +11,22 @@ struct ClearObj {
     @clear
     func clear() {
         clear_called++;
+    }
+
+    @delete
+    func delete() {
+        delete_called++;
+    }
+
+}
+
+struct MoveObj {
+
+    var i : int
+
+    @move
+    func move() {
+        move_called++;
     }
 
     @delete
@@ -231,5 +248,17 @@ func test_moves() {
             var con2 = con.c
         }
         return clear_called == 1 && delete_called == 2;
+    })
+
+    // TESTING MOVE FUNCTIONS FROM HERE
+
+    move_called = 0;
+    delete_called = 0;
+    test("move function is not called, when moving from var init", () => {
+        if(true) {
+            var a = MoveObj { i : 32 }
+            var b = a
+        }
+        return move_called == 0 && delete_called == 1;
     })
 }

@@ -470,6 +470,14 @@ void Codegen::move_by_memcpy(BaseType* type, Value* value_ptr, llvm::Value* elem
     auto movable = known_t->get_direct_linked_movable_struct();
     auto pre_move_func = movable->pre_move_func();
     if(pre_move_func) {
+        auto id = value.as_identifier();
+        if (id) {
+            auto k = id->linked->kind();
+            if (k == ASTNodeKind::VarInitStmt || k == ASTNodeKind::FunctionParam) {
+                gen.memcpy_struct(type->llvm_type(gen), elem_ptr, movable_value);
+                return;
+            }
+        }
         gen.builder->CreateCall(pre_move_func->llvm_func(), { elem_ptr, movable_value });
     } else {
         gen.memcpy_struct(type->llvm_type(gen), elem_ptr, movable_value);

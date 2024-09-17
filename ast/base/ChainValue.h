@@ -163,6 +163,23 @@ public:
     );
 
     /**
+     * called by access chain on the last ref value in the chain
+     * by default it just creates a load instruction on the access_chain_pointer by retrieving it from below
+     *
+     * this takes a vector destructibles which allows you to append objects to the destructibles, that will be destructed
+     */
+    virtual llvm::Value* access_chain_assign_value(
+            Codegen &gen,
+            std::vector<std::unique_ptr<ChainValue>>& values,
+            unsigned int until,
+            std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
+            Value* lhs,
+            BaseType* expected_type
+    ) {
+        return access_chain_value(gen, values, until, destructibles, expected_type);
+    }
+
+    /**
      * this is a helper method, it does the same thing as access_chain_value
      * BUT after loading the parent pointer, it set's it to the given parent_pointer reference
      * this is in case you need also access to the parent pointer

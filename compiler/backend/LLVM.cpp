@@ -661,6 +661,19 @@ llvm::Value *AccessChain::llvm_value(Codegen &gen, BaseType* expected_type) {
     return llvm_value(gen, expected_type, nullptr);
 }
 
+llvm::Value *AccessChain::llvm_assign_value(Codegen &gen, Value *lhs) {
+    std::vector<std::pair<Value*, llvm::Value*>> destructibles;
+    std::unordered_map<uint16_t, int16_t> active;
+    set_generic_iterations(active);
+    const auto last_ind = values.size() - 1;
+    auto& last = values[last_ind];
+    llvm::Value* value;
+    value = last->access_chain_assign_value(gen, values, last_ind, destructibles, lhs, nullptr);
+    restore_active_iterations(active);
+    Value::destruct(gen, destructibles);
+    return value;
+}
+
 llvm::Value *AccessChain::llvm_pointer(Codegen &gen) {
     std::vector<std::pair<Value*, llvm::Value*>> destructibles;
     std::unordered_map<uint16_t, int16_t> active;

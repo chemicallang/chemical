@@ -580,29 +580,6 @@ bool FunctionCall::add_child_index(Codegen &gen, std::vector<llvm::Value *> &ind
     return create_type()->linked_node()->add_child_index(gen, indexes, name);
 }
 
-//void FunctionCall::call_clear_fns_on_moved(Codegen &gen, std::vector<llvm::Value*>& args) {
-//    auto func_type = gen.current_func_type;
-//    unsigned i = 0;
-//    for(auto& value : values) {
-//        const auto chain = value->as_access_chain();
-//        if(chain) {
-//            if(chain->is_moved) {
-//                func_type->call_clear_fn(gen, chain, args[i]);
-//            }
-//        } else {
-//            const auto id = value->as_identifier();
-//            if(id && id->is_moved) {
-//                const auto linked = id->linked;
-//                const auto kind = linked->kind();
-//                if(kind != ASTNodeKind::VarInitStmt && kind != ASTNodeKind::FunctionParam) {
-//                    func_type->call_clear_fn(gen, id, args[i]);
-//                }
-//            }
-//        }
-//        i++;
-//    }
-//}
-
 llvm::AllocaInst *FunctionCall::access_chain_allocate(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &chain_values, unsigned int until, BaseType* expected_type) {
     auto func_type = get_function_type();
     if(func_type->returnType->value_type() == ValueType::Struct) {
@@ -615,6 +592,27 @@ llvm::AllocaInst *FunctionCall::access_chain_allocate(Codegen &gen, std::vector<
         return alloc;
     } else {
         return ChainValue::access_chain_allocate(gen, chain_values, until, expected_type);
+    }
+}
+
+llvm::Value* FunctionCall::access_chain_assign_value(
+        Codegen &gen,
+        std::vector<std::unique_ptr<ChainValue>> &chain,
+        unsigned int until,
+        std::vector<std::pair<Value*, llvm::Value*>> &destructibles,
+        Value *lhs,
+        BaseType *expected_type
+) {
+    auto func = safe_linked_func();
+    if(func && func->returnType->value_type() == ValueType::Struct) {
+        // we allocate the returned struct, llvm_chain_value function
+        std::vector<llvm::Value *> args;
+        // TODO very dirty way of doing this, the function returns struct and that's why the pointer is being used to assign to it
+        //    returns nullptr because AssignStatement will assign the value for you, if you send it back, (THIS IS VERY BAD)
+        llvm_chain_value(gen, args, chain, until, destructibles, lhs->llvm_pointer(gen));
+        return nullptr;
+    } else {
+        return access_chain_value(gen, chain, until, destructibles, expected_type);
     }
 }
 

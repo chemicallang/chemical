@@ -176,8 +176,15 @@ llvm::Value* BaseDefMember::llvm_pointer(Codegen &gen) {
             return gen.builder->CreateGEP(parent()->llvm_type(gen), self_ptr, idxList, "", gen.inbounds);
         }
     }
-    gen.error("called pointer on struct member, using an unknown self pointer", this);
+#ifdef DEBUG
+    throw std::runtime_error("called pointer on struct member, using an unknown self pointer");
+#endif
     return nullptr;
+}
+
+llvm::Value* BaseDefMember::llvm_load(Codegen &gen) {
+    auto pointer = llvm_pointer(gen);
+    return Value::load_value(gen, known_type(), llvm_type(gen), pointer);
 }
 
 llvm::Type* StructMember::llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned int index) {

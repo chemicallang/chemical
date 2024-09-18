@@ -2080,6 +2080,7 @@ void CTopLevelDeclarationVisitor::visit(StructDefinition* def) {
             declare_struct(def, false);
             itr++;
         }
+        def->set_active_iteration(-1);
     }
 }
 

@@ -17,6 +17,9 @@ DestructStmt::DestructStmt(
 }
 
 void DestructStmt::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+    if(array_value) {
+        array_value->link(linker, array_value);
+    }
     identifier->link(linker, (std::unique_ptr<Value>&) identifier);
     auto type = identifier->get_pure_type();
     if(!type->is_pointer()) {

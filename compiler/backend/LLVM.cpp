@@ -988,7 +988,8 @@ void DestructStmt::code_gen(Codegen &gen) {
             gen.error("value given to destruct statement must be of pointer type, value '" + identifier->representation() + "'", this);
             return;
         }
-        auto def = ((PointerType*) pure_type.get())->type->get_direct_linked_struct();
+        const auto struct_type = ((PointerType*) pure_type.get())->type->pure_type();
+        auto def = struct_type->get_direct_linked_struct();
         if(!def) {
             gen.error("value given to destruct statement, doesn't reference a struct directly, value '" + identifier->representation() + "'", this);
             return;
@@ -1049,7 +1050,7 @@ void DestructStmt::code_gen(Codegen &gen) {
         }
         auto ptr_type = (PointerType*) pure_type.get();
         elem_type = ptr_type->type->pure_type();
-        auto def = ptr_type->type->get_direct_linked_struct();
+        auto def = ptr_type->type->pure_type()->get_direct_linked_struct();
         if(!def) {
             gen.error("value given to destruct statement, doesn't reference a struct directly, value '" + identifier->representation() + "'", this);
             return;

@@ -3220,7 +3220,10 @@ void ToCAstVisitor::visit(DestructStmt *stmt) {
 
     auto data = stmt->get_data();
 
+    auto prev_nested = nested_value;
+    nested_value = true;
     auto self_name = string_accept(stmt->identifier.get());
+    nested_value = prev_nested;
     IntValue siz_val(data.array_size, nullptr);
 
     if(stmt->is_array) {

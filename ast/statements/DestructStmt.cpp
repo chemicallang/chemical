@@ -38,7 +38,9 @@ DestructData DestructStmt::get_data() {
 
     DestructData data {nullptr, nullptr,  -1 };
 
-    auto pure_type = identifier->get_pure_type();
+    auto created_type = identifier->create_type();
+    auto pure_type = created_type->pure_type();
+//    auto pure_type = identifier->get_pure_type();
     bool determined_array = false;
     if(pure_type->kind() == BaseTypeKind::Array) {
         determined_array = true;
@@ -48,7 +50,7 @@ DestructData DestructStmt::get_data() {
         if(pure_type->kind() != BaseTypeKind::Pointer) {
             return data;
         }
-        auto def = ((PointerType*) pure_type.get())->type->pure_type()->get_direct_linked_struct();
+        auto def = ((PointerType*) pure_type)->type->pure_type()->get_direct_linked_struct();
         if(!def) {
             return data;
         }
@@ -61,7 +63,7 @@ DestructData DestructStmt::get_data() {
     }
     BaseType* elem_type;
     if(pure_type->kind() == BaseTypeKind::Array) {
-        auto arr_type = (ArrayType*) pure_type.get();
+        auto arr_type = (ArrayType*) pure_type;
         int array_size = arr_type->array_size;
         elem_type = arr_type->elem_type->pure_type();
         auto def = elem_type->get_direct_linked_struct();
@@ -75,7 +77,7 @@ DestructData DestructStmt::get_data() {
         if(!array_value) {
             return data;
         }
-        auto ptr_type = (PointerType*) pure_type.get();
+        auto ptr_type = (PointerType*) pure_type;
         elem_type = ptr_type->type->pure_type();
         auto def = ptr_type->type->pure_type()->get_direct_linked_struct();
         if(!def) {

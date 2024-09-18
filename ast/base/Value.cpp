@@ -547,6 +547,10 @@ hybrid_ptr<BaseType> Value::get_pure_type() {
     }
 }
 
+BaseType* Value::pure_type_ptr() {
+    return known_type()->pure_type();
+}
+
 bool Value::should_build_chain_type(std::vector<std::unique_ptr<Value>>& chain, unsigned index) {
     ASTNode* linked;
     VariablesContainer* union_container = nullptr;

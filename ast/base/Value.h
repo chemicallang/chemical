@@ -173,6 +173,11 @@ public:
     }
 
     /**
+     * get the pure type from known type directly
+     */
+    BaseType* pure_type_ptr();
+
+    /**
      * this method should be preferred over get_base_type()->get_child_type()
      * because parent type returned type will die when get_base_type goes out of scope making
      * child_type pointer invalid

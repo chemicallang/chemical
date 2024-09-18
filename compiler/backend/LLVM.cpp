@@ -919,6 +919,7 @@ bool Codegen::requires_memcpy_ref_struct(BaseType* known_type, Value* value) {
 }
 
 llvm::Value* Codegen::memcpy_ref_struct(BaseType* known_type, Value* value, llvm::Value* llvm_ptr, llvm::Type* type) {
+//    const auto pure = known_type->pure_type();
     if(requires_memcpy_ref_struct(known_type, value)) {
         if(!llvm_ptr) {
             llvm_ptr = builder->CreateAlloca(type, nullptr);
@@ -947,12 +948,12 @@ void AssignStatement::code_gen(Codegen &gen) {
                     gen.builder->CreateCall(llvm_func_type, llvm_func_callee, { pointer });
                 }
             }
-            gen.move_by_memcpy(lhs_type, value.get(), pointer, value->llvm_value(gen));
-            return;
-        } else {
-            if(gen.memcpy_ref_struct(lhs->known_type(), value.get(), pointer, lhs->llvm_type(gen)) != nullptr) {
+            if(gen.move_by_memcpy(lhs_type, value.get(), pointer, value->llvm_value(gen))) {
                 return;
             }
+        }
+        if(gen.memcpy_ref_struct(lhs->known_type(), value.get(), pointer, lhs->llvm_type(gen)) != nullptr) {
+            return;
         }
     }
     if (assOp == Operation::Assignment) {

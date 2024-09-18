@@ -106,6 +106,10 @@ bool AccessChain::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr
     return link(linker, type, &value_ptr);
 }
 
+AccessChain::AccessChain(ASTNode* parent_node, bool is_node, CSTToken* token) : parent_node(parent_node), is_node(is_node), token(token) {
+
+}
+
 AccessChain::AccessChain(std::vector<std::unique_ptr<ChainValue>> values, ASTNode* parent_node, bool is_node, CSTToken* token) : values(std::move(values)), parent_node(parent_node), is_node(is_node), token(token) {
 
 }

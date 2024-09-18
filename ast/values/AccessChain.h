@@ -26,9 +26,7 @@ public:
     bool is_moved = false;
     CSTToken* token;
 
-    AccessChain(ASTNode* parent_node, bool is_node, CSTToken* token) : parent_node(parent_node), is_node(is_node), token(token) {
-
-    }
+    AccessChain(ASTNode* parent_node, bool is_node, CSTToken* token);
 
     AccessChain(std::vector<std::unique_ptr<ChainValue>> values, ASTNode* parent_node, bool is_node, CSTToken* token);
 

@@ -872,16 +872,34 @@ std::string allocate_temp_struct(ToCAstVisitor& visitor, ASTNode* def_node, Valu
 }
 
 void moved_value_call(ToCAstVisitor& visitor, Value* value) {
-    auto known_t = value->known_type();
-    auto movable = known_t->get_direct_linked_movable_struct();
+    auto known_t = value->pure_type_ptr();
+    auto linked_node = known_t->get_direct_linked_node();
+    if(!linked_node) {
+        // probably an int, in generic where generic type is moved, but being used with int, so can't be moved
+        return;
+    }
+    const auto linked_node_kind = linked_node->kind();
+    if(!linked_node->isStoredStructType(linked_node_kind)) {
+        // we can pass directly, as the node is not a stored struct type, what could it be except typealias
+        return;
+    }
+    if(!ASTNode::isStoredStructType(linked_node_kind)) {
+        // non struct types are just non movable
+        return;
+    }
+    auto movable = linked_node->as_members_container();
+    if(!movable) {
+        // if there's no call to move / clear func call, we don't need to allocate a temporary struct, C would perform memcpy automatically
+        return;
+    }
     const auto move_func = movable->pre_move_func();
     const auto clear_func = movable->clear_func();
     // allocating temporary struct
-    auto struct_name = allocate_temp_struct(visitor, movable, clear_func ? value : nullptr);
+    auto struct_name = allocate_temp_struct(visitor, linked_node, clear_func ? value : nullptr);
     visitor.new_line_and_indent();
     func_container_name(visitor, clear_func ? clear_func : move_func);
     visitor.write('(');
-    if(move_func) {
+    if (move_func) {
         visitor.write('&');
         visitor.write(struct_name);
         visitor.write(", ");

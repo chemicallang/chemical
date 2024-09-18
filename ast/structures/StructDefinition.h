@@ -148,7 +148,11 @@ public:
     /**
      * generate code for all functions in this struct
      */
-    void struct_func_gen(Codegen& gen, const std::vector<std::unique_ptr<FunctionDeclaration>>& funcs);
+    void struct_func_gen(
+        Codegen& gen,
+        const std::vector<std::unique_ptr<FunctionDeclaration>>& funcs,
+        bool declare
+    );
 
     /**
      * for the given struct iteration, we acquire all the function iterations and put them
@@ -174,7 +178,15 @@ public:
      */
     void code_gen_function_body(Codegen& gen, FunctionDeclaration* decl);
 
-    void code_gen(Codegen &gen) override;
+    void code_gen(Codegen &gen, bool declare);
+
+    void code_gen_declare(Codegen &gen) override {
+        code_gen(gen, true);
+    }
+
+    void code_gen(Codegen &gen) override {
+        code_gen(gen, false);
+    }
 
     void code_gen_generic(Codegen &gen) override;
 

@@ -31,11 +31,15 @@ public:
      */
     int16_t active_iteration = 0;
     /**
-     * the iterations for which code has been generated
-     * this is an index, so it means you must generate the code beginning at this iteration
-     * because before that, all iterations have their code generated
+     * the iterations for which functions have been declared
+     * this is an index, so next starts at this index
      */
-    int16_t iterations_done = 0;
+    int16_t iterations_declared = 0;
+    /**
+     * iterations for which function bodies have been generated
+     * this is an index, so next starts at this index
+     */
+    int16_t iterations_body_done = 0;
 
 #ifdef COMPILER_BUILD
     /**

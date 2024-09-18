@@ -176,6 +176,8 @@ public:
 
 #ifdef COMPILER_BUILD
 
+    std::pair<llvm::Value*, llvm::FunctionType*>& get_llvm_data();
+
     llvm::Function *llvm_func();
 
     llvm::Value* llvm_callee();

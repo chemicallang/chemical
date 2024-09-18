@@ -970,7 +970,9 @@ void AssignStatement::code_gen(Codegen &gen) {
 
 void DestructStmt::code_gen(Codegen &gen) {
 
-    auto pure_type = identifier->get_pure_type();
+    auto created_type = identifier->create_type();
+    auto pure_type = created_type->pure_type();
+//    auto pure_type = identifier->get_pure_type();
     bool determined_array = false;
     if(pure_type->kind() == BaseTypeKind::Array) {
         determined_array = true;
@@ -988,7 +990,7 @@ void DestructStmt::code_gen(Codegen &gen) {
             gen.error("value given to destruct statement must be of pointer type, value '" + identifier->representation() + "'", this);
             return;
         }
-        const auto struct_type = ((PointerType*) pure_type.get())->type->pure_type();
+        const auto struct_type = ((PointerType*) pure_type)->type->pure_type();
         auto def = struct_type->get_direct_linked_struct();
         if(!def) {
             return;
@@ -1023,7 +1025,7 @@ void DestructStmt::code_gen(Codegen &gen) {
     llvm::Value* arr_size_llvm;
     BaseType* elem_type;
     if(pure_type->kind() == BaseTypeKind::Array) {
-        auto arr_type = (ArrayType*) pure_type.get();
+        auto arr_type = (ArrayType*) pure_type;
         int array_size = arr_type->array_size;
         elem_type = arr_type->elem_type->pure_type();
         if (!is_array) {
@@ -1047,7 +1049,7 @@ void DestructStmt::code_gen(Codegen &gen) {
             gen.error("array size is required when destructing a pointer, for destructing array pointer value" + identifier->representation(), this);
             return;
         }
-        auto ptr_type = (PointerType*) pure_type.get();
+        auto ptr_type = (PointerType*) pure_type;
         elem_type = ptr_type->type->pure_type();
         auto def = ptr_type->type->pure_type()->get_direct_linked_struct();
         if(!def) {

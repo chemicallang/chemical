@@ -11,6 +11,7 @@ public:
     static const PointerType void_ptr_instance;
 
     hybrid_ptr<BaseType> type;
+    std::vector<std::unique_ptr<BaseType>> pures{};
 
     PointerType(std::unique_ptr<BaseType> type, CSTToken* token) : type(type.release(), true), TokenizedBaseType(token) {
 
@@ -36,6 +37,8 @@ public:
     BaseType* known_child_type() override {
         return type.get();
     }
+
+    BaseType* pure_type() override;
 
     uint64_t byte_size(bool is64Bit) override {
         return is64Bit ? 8 : 4;

@@ -894,6 +894,10 @@ void moved_value_call(ToCAstVisitor& visitor, Value* value) {
     }
     const auto move_func = movable->pre_move_func();
     const auto clear_func = movable->clear_func();
+    if(!move_func && !clear_func) {
+        // since pre move and clear both do not exist, direct reference to struct value will create automatically a std memcpy in C
+        return;
+    }
     // allocating temporary struct
     auto struct_name = allocate_temp_struct(visitor, linked_node, clear_func ? value : nullptr);
     visitor.new_line_and_indent();
@@ -2032,6 +2036,7 @@ void CTopLevelDeclarationVisitor::declare_struct(StructDefinition* def, bool che
         //    write(';');
     }
     declare_struct_def_only(def, check_declared);
+    // TODO remove this if
     if(def->requires_destructor() && def->destructor_func() == nullptr) {
         auto decl = def->create_destructor();
         decl->ensure_destructor(def);
@@ -2039,6 +2044,16 @@ void CTopLevelDeclarationVisitor::declare_struct(StructDefinition* def, bool che
     for(auto& func : def->functions()) {
         if(def->get_overriding_interface(func.get()) == nullptr) {
             declare_contained_func(this, func.get(), struct_name_str(visitor, def) + func->name, false);
+        }
+    }
+}
+
+void early_declare_gen_arg_structs(CTopLevelDeclarationVisitor& visitor, std::vector<std::unique_ptr<GenericTypeParameter>>& gen_params) {
+    for(auto& param : gen_params) {
+        auto t = param->known_type();
+        const auto str = t->get_direct_linked_struct();
+        if(str) {
+            visitor.declare_struct_def_only(str, true);
         }
     }
 }
@@ -2060,6 +2075,8 @@ void CTopLevelDeclarationVisitor::visit(StructDefinition* def) {
         const auto total = def->total_generic_iterations();
         while(itr < total) {
             def->set_active_iteration(itr);
+            // early declare structs that are generic arguments
+            early_declare_gen_arg_structs(*this, def->generic_params);
             declare_struct(def, false);
             itr++;
         }
@@ -2161,16 +2178,8 @@ void CTopLevelDeclarationVisitor::visit(VariantDefinition *variant_def) {
         const auto total = variant_def->total_generic_iterations();
         while(itr < total) {
             variant_def->set_active_iteration(itr);
-            // early declare contained structs
-            for(auto& mem : variant_def->variables) {
-                auto& mem_vals = mem.second->as_variant_member()->values;
-                for(auto& val : mem_vals) {
-                    const auto str = val.second->type->pure_type()->get_direct_linked_struct();
-                    if(str) {
-                        declare_struct_def_only(str, true);
-                    }
-                }
-            }
+            // early declare structs that are generic arguments
+            early_declare_gen_arg_structs(*this, variant_def->generic_params);
             declare_variant(variant_def);
             itr++;
         }

@@ -194,4 +194,15 @@ func test_basic_generics() {
         const sum = p.a + p.b
         return sum == 472
     })
+    test("struct type can be stored in generic struct", () => {
+        var g = check_gen_multi_typed<OV1Point> {
+            a : OV1Point {
+                a : 10, b : 20, c : 30
+            },
+            b : OV1Point {
+                a : 40, b : 50, c : 60
+            }
+        }
+        return g.a.a == 10 && g.a.b == 20 && g.a.c == 30 && g.b.a == 40 && g.b.b == 50 && g.b.c == 60;
+    })
 }

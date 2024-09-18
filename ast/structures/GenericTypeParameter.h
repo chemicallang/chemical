@@ -76,6 +76,18 @@ public:
         }
     }
 
+    ASTNode *child(const std::string &name) override {
+        return usage[active_iteration]->linked_node()->child(name);
+    }
+
+    int child_index(const std::string &name) override {
+        return usage[active_iteration]->linked_node()->child_index(name);
+    }
+
+    ASTNode* child(int index) override {
+        return usage[active_iteration]->linked_node()->child(index);
+    }
+
 #ifdef COMPILER_BUILD
 
     llvm::Type *llvm_param_type(Codegen &gen) override {
@@ -92,6 +104,10 @@ public:
 
     llvm::Type *llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned int index) override {
         return usage[active_iteration]->llvm_chain_type(gen, values, index);
+    }
+
+    bool add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) override {
+        return usage[active_iteration]->linked_node()->add_child_index(gen, indexes, name);
     }
 
 #endif

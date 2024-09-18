@@ -117,7 +117,7 @@ llvm::FunctionType *FunctionDeclaration::llvm_func_type(Codegen &gen) {
     return create_llvm_func_type(gen);
 }
 
-llvm::Value* FunctionDeclaration::llvm_callee() {
+std::pair<llvm::Value*, llvm::FunctionType*>& FunctionDeclaration::get_llvm_data() {
     if(active_iteration == llvm_data.size() && has_annotation(AnnotationKind::Override)) {
         const auto struct_def = parent_node->as_struct_def();
         if(struct_def) {
@@ -129,7 +129,7 @@ llvm::Value* FunctionDeclaration::llvm_callee() {
                     const auto& found = use.find(overriding.second);
                     if(found != use.end()) {
                         llvm_data.emplace_back(found->second, found->second->getFunctionType());
-                        return found->second;
+                        return llvm_data.back();
                     }
                 } else {
                     const auto parent_struct = overriding.first->as_struct_def();
@@ -140,7 +140,20 @@ llvm::Value* FunctionDeclaration::llvm_callee() {
             }
         }
     }
-    return llvm_data[active_iteration].first;
+    if(parent_node) {
+        auto k = parent_node->kind();
+        if(k == ASTNodeKind::StructDecl || k == ASTNodeKind::VariantDecl || k == ASTNodeKind::UnionDecl) {
+            auto container = parent_node->as_members_container_unsafe();
+            if(!container->generic_params.empty()) { // container is generic
+                return container->generic_llvm_data[this][container->active_iteration][active_iteration];
+            }
+        }
+    }
+    return llvm_data[active_iteration];
+}
+
+llvm::Value* FunctionDeclaration::llvm_callee() {
+    return get_llvm_data().first;
 }
 
 llvm::Function* FunctionDeclaration::llvm_func() {

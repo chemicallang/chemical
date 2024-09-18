@@ -81,30 +81,34 @@ void VariantDefinition::code_gen_function_body(Codegen &gen, FunctionDeclaration
     decl->code_gen_body(gen, this);
 }
 
-void VariantDefinition::code_gen_once(Codegen &gen) {
-    llvm_type(gen);
-    for(auto& func : functions()) {
-        func->code_gen_declare(gen, this);
-    }
-    for(auto& func : functions()) {
-        func->code_gen_body(gen, this);
+void VariantDefinition::code_gen_once(Codegen &gen, bool declare) {
+    if(declare) {
+        llvm_type(gen);
+        for (auto& func: functions()) {
+            func->code_gen_declare(gen, this);
+        }
+    } else {
+        for (auto& func: functions()) {
+            func->code_gen_body(gen, this);
+        }
     }
 }
 
-void VariantDefinition::code_gen(Codegen &gen) {
+void VariantDefinition::code_gen(Codegen &gen, bool declare) {
     if(generic_params.empty()) {
-        code_gen_once(gen);
+        code_gen_once(gen, declare);
     } else {
         const auto total = total_generic_iterations();
         const auto prev_itr = active_iteration;
-        int16_t i = iterations_done;
+        auto& itr_ptr = declare ? iterations_declared : iterations_body_done;
+        auto i = itr_ptr;
         while(i < total) {
             set_active_iteration(i);
-            code_gen_once(gen);
+            code_gen_once(gen, declare);
             i++;
         }
         set_active_iteration(prev_itr);
-        iterations_done = total;
+        itr_ptr = total;
     }
 }
 

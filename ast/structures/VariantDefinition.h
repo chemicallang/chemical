@@ -116,9 +116,17 @@ public:
      */
     void code_gen_function_body(Codegen &gen, FunctionDeclaration* decl);
 
-    void code_gen_once(Codegen &gen);
+    void code_gen_once(Codegen &gen, bool declare);
 
-    void code_gen(Codegen &gen) override;
+    void code_gen(Codegen &gen, bool declare);
+
+    void code_gen_declare(Codegen &gen) override {
+        code_gen(gen, true);
+    }
+
+    void code_gen(Codegen &gen) override {
+        code_gen(gen, false);
+    }
 
     void code_gen_generic(Codegen &gen) override;
 

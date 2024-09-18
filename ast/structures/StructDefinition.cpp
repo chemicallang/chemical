@@ -21,28 +21,35 @@
 #include "ast/values/IntValue.h"
 #include "ast/types/LinkedType.h"
 
-void StructDefinition::struct_func_gen(Codegen& gen, const std::vector<std::unique_ptr<FunctionDeclaration>>& funcs) {
-    for(auto& function : funcs) {
-        if(function->has_annotation(AnnotationKind::Override)) {
+void StructDefinition::struct_func_gen(
+    Codegen& gen,
+    const std::vector<std::unique_ptr<FunctionDeclaration>>& funcs,
+    bool declare
+) {
+    if(declare) {
+        for (auto& function: funcs) {
+            if (function->has_annotation(AnnotationKind::Override)) {
 
-            // Do not declare the function because it overrides another function
-            // when a function is being overridden which is already present in an interface
-            // interface generates all declarations with entry blocks for it's users
+                // Do not declare the function because it overrides another function
+                // when a function is being overridden which is already present in an interface
+                // interface generates all declarations with entry blocks for it's users
 
-            // BUT interface hasn't been tested to do this across modules
+                // BUT interface hasn't been tested to do this across modules
 
-            continue;
-        }
-        function->code_gen_declare(gen, this);
-    }
-    for (auto &function: funcs) {
-        if(function->has_annotation(AnnotationKind::Override)) {
-            if(!llvm_override(gen, function.get())) {
-                gen.error("Failed to override the function", (AnnotableNode*) function.get());
+                continue;
             }
-            continue;
+            function->code_gen_declare(gen, this);
         }
-        function->code_gen_body(gen, this);
+    } else {
+        for (auto& function: funcs) {
+            if (function->has_annotation(AnnotationKind::Override)) {
+                if (!llvm_override(gen, function.get())) {
+                    gen.error("Failed to override the function", (AnnotableNode*) function.get());
+                }
+                continue;
+            }
+            function->code_gen_body(gen, this);
+        }
     }
 }
 
@@ -83,31 +90,36 @@ void StructDefinition::code_gen_function_body(Codegen& gen, FunctionDeclaration*
     decl->code_gen_body(gen, this);
 }
 
-void StructDefinition::code_gen(Codegen &gen) {
+void StructDefinition::code_gen(Codegen &gen, bool declare) {
     if(has_annotation(AnnotationKind::CompTime)) {
         return;
     }
     if(generic_params.empty()) {
-        struct_func_gen(gen, functions());
-        for(auto& inherits : inherited) {
-            const auto interface = inherits->type->linked_interface_def();
-            if(interface) {
-                interface->llvm_global_vtable(gen, this);
+        struct_func_gen(gen, functions(), declare);
+        if(!declare) {
+            for (auto& inherits: inherited) {
+                const auto interface = inherits->type->linked_interface_def();
+                if (interface) {
+                    interface->llvm_global_vtable(gen, this);
+                }
             }
         }
     } else {
         const auto total = total_generic_iterations();
         if(total == 0) return; // generic type was never used
         auto prev_active_iteration = active_iteration;
-        int16_t struct_itr = iterations_done;
+        auto& itr_ptr = declare ? iterations_declared : iterations_body_done;
+        auto struct_itr = itr_ptr;
         while(struct_itr < total) {
             // generating code and copying iterations
             set_active_iteration(struct_itr);
-            struct_func_gen(gen, functions());
-            acquire_function_iterations(struct_itr);
+            struct_func_gen(gen, functions(), declare);
+            if(declare) {
+                acquire_function_iterations(struct_itr);
+            }
             struct_itr++;
         }
-        iterations_done = struct_itr;
+        itr_ptr = struct_itr;
         set_active_iteration(prev_active_iteration);
     }
 }
@@ -145,6 +157,7 @@ void StructDefinition::code_gen_external_declare(Codegen &gen) {
         }
         set_active_iteration_safely(prev_active_iteration);
         // calling code_gen, this will generate any missing generic iterations
+        code_gen_declare(gen);
         code_gen(gen);
     }
 }

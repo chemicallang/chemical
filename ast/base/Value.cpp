@@ -14,6 +14,8 @@
 #include "ast/values/FunctionCall.h"
 #include "ast/statements/Return.h"
 #include "ast/structures/StructDefinition.h"
+#include "ast/structures/UnionDef.h"
+#include "ast/structures/UnnamedUnion.h"
 #include "ast/types/PointerType.h"
 #include "ast/values/UIntValue.h"
 #include "ast/values/AccessChain.h"
@@ -111,6 +113,59 @@ llvm::Value* ChainValue::access_chain_value(Codegen &gen, std::vector<std::uniqu
     return Value::load_value(gen, values[until].get(), access_chain_pointer(gen, values, destructibles, until));
 }
 
+/**
+ * should llvm_chain_type be used to get the llvm_type
+ * llvm_chain_type checks each member in the access chain
+ * for example, in a.b.c, 'b' could be a unnamed union, or anonymous union declaration
+ * now 'c' is accessing member of a union, to be able to access 'c' we emit a get element ptr instruction
+ * which must have correct parent type b, now if llvm_type were to be called on 'b' it would consider it's largest
+ * member, because that's what unions do, their storage type is the largest member
+ * now that largest member may or may not contain 'c' which is the next member, and we are giving llvm
+ * the largest member type, so this method checks if the chain contains a union or unnamed union, and
+ * one of largest member is not being accessed in the union, then we call llvm_chain_type
+ */
+bool should_use_chain_type(std::vector<std::unique_ptr<ChainValue>>& values, unsigned index) {
+    unsigned i = index;
+    // why -1, last not checked, because last maybe a union but there's no member access into it
+    const auto total = values.size() - 1;
+    while(i < total - 1) {
+        auto& value = values[i];
+        auto base_type = value->get_base_type();
+        auto node = base_type->get_direct_linked_node();
+        if(node) {
+            auto node_kind = node->kind();
+            if(node_kind == ASTNodeKind::UnionDecl) {
+                auto union_def = node->as_union_def_unsafe();
+                auto& next = values[i + 1];
+                auto next_node = next->linked_node();
+                auto largest = union_def->largest_member();
+                if(next_node != largest) {
+                    return true;
+                }
+            } else if(node_kind == ASTNodeKind::UnnamedUnion) {
+                auto unnamed_def = node->as_unnamed_union_unsafe();
+                auto& next = values[i + 1];
+                auto next_node = next->linked_node();
+                auto largest = unnamed_def->largest_member();
+                if(next_node != largest) {
+                    return true;
+                }
+            }
+        }
+        i++;
+    }
+    return false;
+}
+
+// this method could be put into access chain's llvm_type, when the need arises
+llvm::Type* access_chain_llvm_type(Codegen& gen, BaseType* type, std::vector<std::unique_ptr<ChainValue>>& values, unsigned index) {
+    if(should_use_chain_type(values, index)) {
+        return type->llvm_chain_type(gen, values, index);
+    } else {
+        return type->llvm_type(gen);
+    };
+}
+
 llvm::Value* create_gep(Codegen &gen, std::vector<std::unique_ptr<ChainValue>>& values, unsigned index, llvm::Value* pointer, std::vector<llvm::Value*>& idxList) {
     const auto parent = values[index].get();
     const auto linked = parent->linked_node();
@@ -119,9 +174,9 @@ llvm::Value* create_gep(Codegen &gen, std::vector<std::unique_ptr<ChainValue>>& 
         auto type_kind = type->kind();
         if (type_kind == BaseTypeKind::Array && linked && linked->as_func_param()) {
             auto arr_type = (ArrayType*) type.get();
-            return gen.builder->CreateGEP(arr_type->elem_type->llvm_type(gen), pointer, idxList, "", gen.inbounds);
+            return gen.builder->CreateGEP(access_chain_llvm_type(gen, arr_type->elem_type.get(), values, index), pointer, idxList, "", gen.inbounds);
         } else if (type_kind == BaseTypeKind::Pointer) {
-            return gen.builder->CreateGEP(((PointerType*) (type.get()))->type->llvm_chain_type(gen, values, index),
+            return gen.builder->CreateGEP(access_chain_llvm_type(gen, ((PointerType*) (type.get()))->type.get(), values, index),
                                           pointer, idxList, "", gen.inbounds);
         }
     }

@@ -3220,6 +3220,10 @@ void ToCAstVisitor::visit(DestructStmt *stmt) {
 
     auto data = stmt->get_data();
 
+    if(data.destructor_func == nullptr) {
+        return;
+    }
+
     auto prev_nested = nested_value;
     nested_value = true;
     auto self_name = string_accept(stmt->identifier.get());

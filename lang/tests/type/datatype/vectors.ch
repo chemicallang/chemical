@@ -1,5 +1,10 @@
 import "../../../std/vector.ch"
 
+struct VecConcreteChild {
+    var a : int
+    var b : int
+}
+
 func test_vectors() {
     test("vector of ints work", () => {
         var v = vector<int>();
@@ -58,4 +63,16 @@ func test_vectors() {
         v.set(4, 10);
         return v.get(0) == 50 && v.get(1) == 40 && v.get(2) == 30 && v.get(3) == 20 && v.get(4) == 10;
     })
+    /**
+    test("struct types can be stored in vector", () => {
+        var v = vector<VecConcreteChild>();
+        v.push(VecConcreteChild { a : 40, b : 50 })
+        v.push(VecConcreteChild { a : 10, b : 3 })
+        v.push(VecConcreteChild { a : 67, b : 232 })
+        const first = v.get_ptr(0)
+        const second = v.get_ptr(1)
+        const third = v.get_ptr(2)
+        return first.a == 40 && first.b == 50 && second.a == 10 && second.b == 3 && third.a == 67 && third.b == 232
+    })
+    **/
 }

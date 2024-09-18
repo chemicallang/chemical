@@ -610,6 +610,10 @@ public:
         return isAnyStructMember(k) || k == ASTNodeKind::VariantMember;
     }
 
+    static inline bool isStoredStructType(ASTNodeKind k) {
+        return k == ASTNodeKind::StructDecl || k == ASTNodeKind::UnionDecl || k == ASTNodeKind::VariantDecl || k == ASTNodeKind::VariantMember || k == ASTNodeKind::InterfaceDecl || k == ASTNodeKind::UnnamedStruct || k == ASTNodeKind::UnnamedUnion;
+    }
+
     inline bool isMembersContainer() {
         return isMembersContainer(kind());
     }
@@ -661,6 +665,13 @@ public:
      */
     MembersContainer* as_members_container() {
         return isMembersContainer() ? (MembersContainer*) this : nullptr;
+    }
+
+    /**
+     * get a members container
+     */
+    MembersContainer* as_members_container(ASTNodeKind k) {
+        return isMembersContainer(k) ? (MembersContainer*) this : nullptr;
     }
 
     /**

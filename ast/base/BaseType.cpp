@@ -191,12 +191,15 @@ bool BaseType::is_reference(BaseTypeKind k) {
 }
 
 ASTNode* BaseType::get_direct_linked_node(BaseTypeKind kind) {
-    if(kind == BaseTypeKind::Linked) {
-        return ((LinkedType*) this)->linked;
-    } else if(kind == BaseTypeKind::Generic) {
-        return ((GenericType*) this)->referenced->linked;
-    } else {
-        return nullptr;
+    switch(kind) {
+        case BaseTypeKind::Linked:
+            return ((LinkedType*) this)->linked;
+        case BaseTypeKind::Generic:
+            ((GenericType*) this)->referenced->linked;
+        case BaseTypeKind::Struct:
+           return linked_node();
+        default:
+            return nullptr;
     }
 }
 
@@ -230,7 +233,7 @@ VariantDefinition* BaseType::get_direct_linked_variant(BaseTypeKind k) {
 
 StructDefinition* BaseType::get_direct_linked_movable_struct() {
     const auto direct_ref_struct = get_direct_linked_struct();
-    if(direct_ref_struct && (direct_ref_struct->requires_destructor() || direct_ref_struct->requires_clear_fn())) {
+    if(direct_ref_struct && (direct_ref_struct->destructor_func() || direct_ref_struct->pre_move_func())) {
         return direct_ref_struct;
     } else {
         return nullptr;

@@ -457,28 +457,39 @@ bool FunctionType::mark_moved_value(
         return false;
     }
     const auto type = value.known_type();
-    const auto linked_def = type->get_direct_linked_struct();
+    const auto linked_node = type->get_direct_linked_node();
+    if(!linked_node) {
+        return false;
+    }
+    const auto linked_node_kind = linked_node->kind();
+    // TODO this doesn't account for typealiases
+    if(linked_node_kind == ASTNodeKind::GenericTypeParam) {
+        // all generic types are moved (later we'll allow them to be moved twice (use after move)
+        // then we'll indicate in their type to check for multiple moves, to provide diagnostics to function arguments
+        return mark_moved_value(&value, diagnoser);
+    }
+    const auto linked_def = linked_node->as_members_container(linked_node_kind);
     if(!linked_def) {
         return false;
     }
     const bool has_destr = linked_def->destructor_func();
     const bool has_clear_fn = linked_def->clear_func();
     const bool has_move_fn = linked_def->pre_move_func();
-    if(!has_destr && !has_clear_fn && !has_move_fn) {
+    if (!has_destr && !has_clear_fn && !has_move_fn) {
         return false;
     }
-    const auto expected_def = expected_type->get_ref_or_linked_struct(expected_type_kind);
-    if(!expected_def) {
+    const auto expected_node = expected_type->get_ref_or_linked_node(expected_type_kind);
+    if(!expected_node) {
         if(expected_type_kind != BaseTypeKind::Any) {
             diagnoser.error("cannot move a struct to a non struct type", &value);
         }
         return false;
     }
     bool final = false;
-    if (expected_def == linked_def) {
+    if (expected_node == (ASTNode*) linked_def) {
         final = mark_moved_value(&value, diagnoser);
     } else {
-        const auto implicit = expected_def->implicit_constructor_for(&value);
+        const auto implicit = expected_type->implicit_constructor_for(&value);
         if(implicit && check_implicit_constructors) {
             auto& param_type = *implicit->params[0]->type;
             if(!param_type.is_reference()) { // not a reference type (requires moving)

@@ -24,7 +24,7 @@ bool LinkedType::satisfies(ValueType value_type) {
     if(linked->as_typealias() != nullptr) {
         return ((TypealiasStatement*) linked)->actual_type->satisfies(value_type);
     } else {
-        return linked->create_value_type()->satisfies(value_type);
+        return linked->value_type() == value_type;
     };
 }
 

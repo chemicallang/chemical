@@ -59,10 +59,18 @@ void VarInitStatement::code_gen(Codegen &gen) {
                 gen.destruct_nodes.emplace_back(this);
                 return;
             }
+            bool moved = false;
             if(value->is_ref_moved()) {
-                llvm_ptr = gen.builder->CreateAlloca(llvm_type(gen), nullptr, identifier);
-                gen.move_by_memcpy(known_type(), value.get(), llvm_ptr, value->llvm_value(gen));
-            } else {
+                auto known_t = value->pure_type_ptr();
+                auto node = known_t->get_direct_linked_node();
+                if(node && node->isStoredStructType(node->kind())) {
+                    llvm_ptr = gen.builder->CreateAlloca(llvm_type(gen), nullptr, identifier);
+                    gen.move_by_memcpy(node, value.get(), llvm_ptr, value->llvm_value(gen));
+                    moved = true;
+                }
+            }
+
+            if(!moved) {
 
                 llvm::Value* dyn_obj_impl = nullptr;
 
@@ -86,6 +94,7 @@ void VarInitStatement::code_gen(Codegen &gen) {
                 }
 
             }
+
         } else {
             const auto t = llvm_type(gen);
             llvm_ptr = gen.builder->CreateAlloca(t, nullptr, identifier);

@@ -991,7 +991,6 @@ void DestructStmt::code_gen(Codegen &gen) {
         const auto struct_type = ((PointerType*) pure_type.get())->type->pure_type();
         auto def = struct_type->get_direct_linked_struct();
         if(!def) {
-            gen.error("value given to destruct statement, doesn't reference a struct directly, value '" + identifier->representation() + "'", this);
             return;
         }
         auto destructor = def->destructor_func();
@@ -1052,7 +1051,6 @@ void DestructStmt::code_gen(Codegen &gen) {
         elem_type = ptr_type->type->pure_type();
         auto def = ptr_type->type->pure_type()->get_direct_linked_struct();
         if(!def) {
-            gen.error("value given to destruct statement, doesn't reference a struct directly, value '" + identifier->representation() + "'", this);
             return;
         }
 

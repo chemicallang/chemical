@@ -47,6 +47,10 @@ public struct vector<T> {
         return data_ptr[index];
     }
 
+    func get_ptr(&self, index : size_t) : T* {
+        return &data_ptr[index];
+    }
+
     func set(&self, index : size_t, value : T) {
         data_ptr[index] = value;
     }
@@ -66,18 +70,13 @@ public struct vector<T> {
     func remove(&self, index : size_t) {
         const s = data_size;
         const last = s - 1;
+        destruct get_ptr(index)
         if(index == last) {
             data_size = last;
         } else {
-            // TODO store the value at index at last
-            // this would ensure that when destructor is called, the value at current index
-            // would be present inside the same memory block owned by pointer, so delete would call destructor on it
-            // const temp = std::memcpy(data_ptr[i])
             for (var i = index; i < last; i++) {
-                // TODO use std::memcpy instead of assignment so structs are copied properly
                 data_ptr[i] = data_ptr[i + 1];
             }
-            // data_ptr[s] = temp; // <--- size is not considered when destruction occurs, capacity is considered
             data_size = last;
         }
     }
@@ -85,16 +84,19 @@ public struct vector<T> {
     func remove_last(&self) {
         const s = data_size;
         const last = s - 1;
+        const ptr = get_ptr(last);
+        destruct ptr;
         data_size = last;
     }
 
     func clear(&self) {
+        destruct[data_size] data_ptr;
         data_size = 0;
     }
 
     @delete
     func delete(&self) {
-        // TODO use delete[] data_ptr; instead of free(data_ptr) so destructors are called
+        destruct[data_size] data_ptr;
         free(data_ptr);
         data_ptr = null;
         data_size = 0;

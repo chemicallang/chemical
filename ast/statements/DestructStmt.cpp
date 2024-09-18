@@ -48,7 +48,7 @@ DestructData DestructStmt::get_data() {
         if(pure_type->kind() != BaseTypeKind::Pointer) {
             return data;
         }
-        auto def = ((PointerType*) pure_type.get())->type->get_direct_linked_struct();
+        auto def = ((PointerType*) pure_type.get())->type->pure_type()->get_direct_linked_struct();
         if(!def) {
             return data;
         }
@@ -77,7 +77,7 @@ DestructData DestructStmt::get_data() {
         }
         auto ptr_type = (PointerType*) pure_type.get();
         elem_type = ptr_type->type->pure_type();
-        auto def = ptr_type->type->get_direct_linked_struct();
+        auto def = ptr_type->type->pure_type()->get_direct_linked_struct();
         if(!def) {
             return data;
         }

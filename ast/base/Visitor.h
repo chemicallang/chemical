@@ -22,6 +22,8 @@ class VariantMember;
 
 class ImportStatement;
 
+class UnsafeBlock;
+
 class ReturnStatement;
 
 class DoWhileLoop;
@@ -353,6 +355,10 @@ public:
 
     virtual void visit(UnionDef* def) {
         visitCommon((ASTNode*) def);
+    }
+
+    virtual void visit(UnsafeBlock* block) {
+        visitCommon((ASTNode*) block);
     }
 
     virtual void visit(UnnamedStruct* def) {

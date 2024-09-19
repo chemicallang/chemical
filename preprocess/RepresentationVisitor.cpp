@@ -33,6 +33,7 @@
 #include "ast/structures/StructDefinition.h"
 #include "ast/values/SizeOfValue.h"
 #include "ast/structures/Namespace.h"
+#include "ast/structures/UnsafeBlock.h"
 #include "ast/structures/ForLoop.h"
 #include "ast/structures/LoopScope.h"
 #include "ast/structures/CapturedVariable.h"
@@ -433,6 +434,10 @@ void RepresentationVisitor::visit(WhileLoop *whileLoop) {
     whileLoop->condition->accept(this);
     write(") ");
     scope(this, whileLoop->body);
+}
+
+void RepresentationVisitor::visit(UnsafeBlock *block) {
+    block->scope.accept(this);
 }
 
 void RepresentationVisitor::visit(AccessChain *chain) {

@@ -45,6 +45,17 @@ bool Lexer::lexConstructorInitBlock() {
     }
 }
 
+bool Lexer::lexUnsafeBlock() {
+    if(lexWSKeywordToken("unsafe", '{')) {
+        unsigned start = tokens_size() - 1;
+        lexBraceBlock("unsafe_block");
+        compound_from(start, LexTokenType::CompUnsafeBlock);
+        return true;
+    } else {
+        return false;
+    }
+}
+
 bool Lexer::lexDestructStatement() {
     if(lexWSKeywordToken("destruct", '[')) {
         unsigned start = tokens_size() - 1;

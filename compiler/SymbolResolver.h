@@ -182,6 +182,11 @@ public:
     bool preprocess = true;
 
     /**
+     * is everything linking inside a safe context
+     */
+    bool safe_context = true;
+
+    /**
      * current function type, for which code is being linked
      */
     FunctionType* current_func_type = nullptr;

@@ -289,6 +289,8 @@ public:
 
     void visit(ContinueStatement* continueStatement) override;
 
+    void visit(UnsafeBlock *block) override;
+
     void visit(ImportStatement* importStatement) override;
 
     /**

@@ -79,11 +79,6 @@ public:
     std::vector<std::unique_ptr<Value>> values;
 
     /**
-     * diagnostics, containing errors and warning
-     */
-    std::vector<Diag> diagnostics;
-
-    /**
      * collected annotations that will be applied to next struct / function
      */
     std::vector<Annotation> annotations;

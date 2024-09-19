@@ -77,11 +77,6 @@ public:
     std::vector<std::unique_ptr<ASTNode>> nodes;
 
     /**
-     * the nested nodes, nodes of nested scopes are put on this vector without any organization
-     */
-    std::vector<std::unique_ptr<ASTNode>> nested_nodes;
-
-    /**
      * types found when visiting tokens
      */
     std::vector<std::unique_ptr<BaseType>> types;

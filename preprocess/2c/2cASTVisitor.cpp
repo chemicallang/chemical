@@ -2051,9 +2051,17 @@ void CTopLevelDeclarationVisitor::declare_struct(StructDefinition* def, bool che
 void early_declare_gen_arg_structs(CTopLevelDeclarationVisitor& visitor, std::vector<std::unique_ptr<GenericTypeParameter>>& gen_params) {
     for(auto& param : gen_params) {
         auto t = param->known_type();
-        const auto str = t->get_direct_linked_struct();
-        if(str) {
-            visitor.declare_struct_def_only(str, true);
+        const auto node = t->get_direct_linked_node();
+        if(node) {
+            const auto node_kind = node->kind();
+            if (node_kind == ASTNodeKind::StructDecl) {
+                visitor.declare_struct(node->as_struct_def_unsafe(), true);
+            } else if (node_kind == ASTNodeKind::VariantDecl) {
+                // TODO check declared
+                visitor.declare_variant(node->as_variant_def_unsafe());
+            } else if (node_kind == ASTNodeKind::UnionDecl) {
+                // TODO this
+            }
         }
     }
 }

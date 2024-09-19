@@ -695,15 +695,26 @@ llvm::AllocaInst *AccessChain::llvm_allocate(Codegen &gen, const std::string &id
 }
 
 void AccessChain::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
+    std::unordered_map<uint16_t, int16_t> active;
+    set_generic_iterations(active);
     values[values.size() - 1]->llvm_destruct(gen, allocaInst);
+    restore_active_iterations(active);
 }
 
 llvm::FunctionType *AccessChain::llvm_func_type(Codegen &gen) {
-    return values[values.size() - 1]->llvm_func_type(gen);
+    std::unordered_map<uint16_t, int16_t> active;
+    set_generic_iterations(active);
+    auto result =  values[values.size() - 1]->llvm_func_type(gen);
+    restore_active_iterations(active);
+    return result;
 }
 
 bool AccessChain::add_child_index(Codegen &gen, std::vector<llvm::Value *> &indexes, const std::string &name) {
-    return values[values.size() - 1]->add_child_index(gen, indexes, name);
+    std::unordered_map<uint16_t, int16_t> active;
+    set_generic_iterations(active);
+    auto result = values[values.size() - 1]->add_child_index(gen, indexes, name);
+    restore_active_iterations(active);
+    return result;
 }
 
 bool access_chain_store_in_parent(

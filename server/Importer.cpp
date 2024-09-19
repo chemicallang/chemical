@@ -150,7 +150,8 @@ std::shared_ptr<ASTResult> WorkspaceManager::get_ast(const std::string& path) {
 
     auto cst = get_lexed_no_lock(path);
     // TODO maybe we should avoid converting if LexResult has errors, to prevent exceptions
-    CSTConverter converter(path, is64Bit, "ide");
+    GlobalInterpretScope global_scope(nullptr, nullptr);
+    CSTConverter converter(path, is64Bit, "ide", global_scope);
     converter.convert(cst->unit.tokens);
     auto result = std::make_shared<ASTResult>(path, converter.take_unit(), std::move(converter.diagnostics));
 

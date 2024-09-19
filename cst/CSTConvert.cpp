@@ -151,7 +151,12 @@ Scope take_body_compound(CSTConverter *conv, CSTToken* token, ASTNode* parent_no
 }
 
 // TODO support _128bigint, bigfloat
-CSTConverter::CSTConverter(std::string path, bool is64Bit, std::string target) : path(std::move(path)), is64Bit(is64Bit), target(std::move(target)), global_scope(nullptr, nullptr) {
+CSTConverter::CSTConverter(
+        std::string path,
+        bool is64Bit,
+        std::string target,
+        GlobalInterpretScope& scope
+) : path(std::move(path)), is64Bit(is64Bit), target(std::move(target)), global_scope(scope) {
 
 }
 

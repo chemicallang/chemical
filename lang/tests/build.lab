@@ -74,7 +74,7 @@ func build(ctx : BuildContext*) {
     var dependencies = { ext_module, ext_cpp_module, submod }
     const module = ctx.chemical_file_module(exe_name, relative_path(string("tests.ch")), dependencies);
 
-    const do_llvm_ir = false;
+    const do_llvm_ir = true;
     const do_asm = false;
     const do_to_ch = !is_minimal && compiler::is_clang_based();
 

@@ -105,6 +105,30 @@ std::pair<llvm::Value*, llvm::FunctionType*>& MembersContainer::llvm_generic_fun
     return generic_llvm_data[decl][struct_itr][func_itr];
 }
 
+void MembersContainer::acquire_function_iterations(int16_t iteration) {
+    for(auto& function : functions()) {
+        auto& func_data = generic_llvm_data[function.get()];
+        if(iteration == func_data.size()) {
+            func_data.emplace_back(function->llvm_data);
+        } else {
+            func_data[iteration] = function->llvm_data;
+        }
+    }
+}
+
+void MembersContainer::early_declare_structural_generic_args(Codegen& gen) {
+    for(auto& type_param : generic_params) {
+        const auto type = type_param->known_type();
+        const auto direct_linked = type->get_direct_linked_node();
+        if (direct_linked) {
+            auto container = direct_linked->as_members_container();
+            if (container) {
+                container->code_gen_declare(gen);
+            }
+        }
+    }
+}
+
 std::pair<llvm::Value*, llvm::FunctionType*> MembersContainer::llvm_func_data(FunctionDeclaration* decl) {
     std::pair<llvm::Value*, llvm::FunctionType*> data;
     if(!generic_params.empty()) {

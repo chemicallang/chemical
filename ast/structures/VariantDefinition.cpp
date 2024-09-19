@@ -95,15 +95,21 @@ void VariantDefinition::code_gen_once(Codegen &gen, bool declare) {
 }
 
 void VariantDefinition::code_gen(Codegen &gen, bool declare) {
+    auto& itr_ptr = declare ? iterations_declared : iterations_body_done;
     if(generic_params.empty()) {
-        code_gen_once(gen, declare);
+        if(itr_ptr == 0) {
+            code_gen_once(gen, declare);
+            itr_ptr++;
+        }
     } else {
         const auto total = total_generic_iterations();
         const auto prev_itr = active_iteration;
-        auto& itr_ptr = declare ? iterations_declared : iterations_body_done;
         auto i = itr_ptr;
         while(i < total) {
             set_active_iteration(i);
+            if(declare) {
+                early_declare_structural_generic_args(gen);
+            }
             code_gen_once(gen, declare);
             i++;
         }

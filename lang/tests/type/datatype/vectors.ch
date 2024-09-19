@@ -5,6 +5,21 @@ struct VecConcreteChild {
     var b : int
 }
 
+var vec_destruct_called = 0;
+
+struct VecDestructibleChild {
+    var i : int
+    @implicit
+    @copy
+    func copy(&self, other : VecDestructibleChild*) {
+        i = other.i
+    }
+    @delete
+    func delete(&self) {
+        vec_destruct_called++
+    }
+}
+
 func test_vectors() {
     test("vector of ints work", () => {
         var v = vector<int>();
@@ -72,5 +87,37 @@ func test_vectors() {
         const second = v.get_ptr(1)
         const third = v.get_ptr(2)
         return first.a == 40 && first.b == 50 && second.a == 10 && second.b == 3 && third.a == 67 && third.b == 232
+    })
+    vec_destruct_called = 0;
+    test("vector destructs it's destructible struct - 1", () => {
+        var v = vector<VecDestructibleChild>();
+        v.push(VecDestructibleChild { i : 99 })
+        v.push(VecDestructibleChild { i : 29 })
+        v.push(VecDestructibleChild { i : 49 })
+        v.remove(0)
+        const first = v.get_ptr(0)
+        const second = v.get_ptr(1)
+        return v.size() == 2 && vec_destruct_called == 1 && first.i == 29 && second.i == 49;
+    })
+    vec_destruct_called = 0;
+    test("vector destructs it's destructible struct - 2", () => {
+        var v = vector<VecDestructibleChild>();
+        v.push(VecDestructibleChild { i : 99 })
+        v.push(VecDestructibleChild { i : 29 })
+        v.push(VecDestructibleChild { i : 49 })
+        v.remove_last();
+        const first = v.get_ptr(0)
+        const second = v.get_ptr(1)
+        return v.size() == 2 && vec_destruct_called == 1 && first.i == 99 && second.i == 29;
+    })
+    vec_destruct_called = 0;
+    test("vector destructs it's destructible struct - 3", () => {
+        if(true) {
+            var v = vector<VecDestructibleChild>();
+            v.push(VecDestructibleChild { i : 99 })
+            v.push(VecDestructibleChild { i : 29 })
+            v.push(VecDestructibleChild { i : 49 })
+        }
+        return vec_destruct_called == 3;
     })
 }

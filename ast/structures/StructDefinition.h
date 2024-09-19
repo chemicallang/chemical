@@ -155,13 +155,6 @@ public:
     );
 
     /**
-     * for the given struct iteration, we acquire all the function iterations and put them
-     * in the llvm_struct types, this basically set's the given iteration so that when llvm_type is called
-     * or llvm_value, it will consider the struct iteration
-     */
-    void acquire_function_iterations(int16_t iteration);
-
-    /**
      * this function is responsible for declaring this single function
      * that is present inside this struct, also read the docs of body
      */

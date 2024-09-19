@@ -478,7 +478,9 @@ bool FunctionType::mark_moved_value(
     if (!has_destr && !has_clear_fn && !has_move_fn) {
         return false;
     }
-    const auto expected_node = expected_type->get_ref_or_linked_node(expected_type_kind);
+    const auto pure_expected = expected_type->pure_type();
+    const auto pure_expected_kind = pure_expected->kind();
+    const auto expected_node = pure_expected->get_ref_or_linked_node(pure_expected_kind);
     if(!expected_node) {
         if(expected_type_kind != BaseTypeKind::Any) {
             diagnoser.error("cannot move a struct to a non struct type", &value);
@@ -489,7 +491,7 @@ bool FunctionType::mark_moved_value(
     if (expected_node == (ASTNode*) linked_def) {
         final = mark_moved_value(&value, diagnoser);
     } else {
-        const auto implicit = expected_type->implicit_constructor_for(&value);
+        const auto implicit = pure_expected->implicit_constructor_for(&value);
         if(implicit && check_implicit_constructors) {
             auto& param_type = *implicit->params[0]->type;
             if(!param_type.is_reference()) { // not a reference type (requires moving)

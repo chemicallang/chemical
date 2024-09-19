@@ -367,6 +367,20 @@ public:
 #ifdef COMPILER_BUILD
 
     /**
+     * for the given struct iteration, we acquire all the function iterations and put them
+     * in the llvm_struct types, this basically set's the given iteration so that when llvm_type is called
+     * or llvm_value, it will consider the struct iteration
+     */
+    void acquire_function_iterations(int16_t iteration);
+
+    /**
+     * will call code_gen_declare on generic arguments that are structs
+     * This ensures that struct's function being called inside generic structs
+     * are already declared before we call them
+     */
+    void early_declare_structural_generic_args(Codegen& gen);
+
+    /**
      * inside a generic struct
      * by giving struct's generic iteration, you can get llvm's function data for the given iteration of the function
      * inside a generic struct

@@ -94,25 +94,31 @@ void StructDefinition::code_gen(Codegen &gen, bool declare) {
     if(has_annotation(AnnotationKind::CompTime)) {
         return;
     }
+    auto& itr_ptr = declare ? iterations_declared : iterations_body_done;
     if(generic_params.empty()) {
-        struct_func_gen(gen, functions(), declare);
-        if(!declare) {
-            for (auto& inherits: inherited) {
-                const auto interface = inherits->type->linked_interface_def();
-                if (interface) {
-                    interface->llvm_global_vtable(gen, this);
+        if(itr_ptr == 0) {
+            struct_func_gen(gen, functions(), declare);
+            if (!declare) {
+                for (auto& inherits: inherited) {
+                    const auto interface = inherits->type->linked_interface_def();
+                    if (interface) {
+                        interface->llvm_global_vtable(gen, this);
+                    }
                 }
             }
+            itr_ptr++;
         }
     } else {
         const auto total = total_generic_iterations();
         if(total == 0) return; // generic type was never used
         auto prev_active_iteration = active_iteration;
-        auto& itr_ptr = declare ? iterations_declared : iterations_body_done;
         auto struct_itr = itr_ptr;
         while(struct_itr < total) {
             // generating code and copying iterations
             set_active_iteration(struct_itr);
+            if(declare) {
+                early_declare_structural_generic_args(gen);
+            }
             struct_func_gen(gen, functions(), declare);
             if(declare) {
                 acquire_function_iterations(struct_itr);
@@ -125,6 +131,7 @@ void StructDefinition::code_gen(Codegen &gen, bool declare) {
 }
 
 void StructDefinition::code_gen_generic(Codegen &gen) {
+    code_gen_declare(gen);
     code_gen(gen);
 }
 
@@ -159,17 +166,6 @@ void StructDefinition::code_gen_external_declare(Codegen &gen) {
         // calling code_gen, this will generate any missing generic iterations
         code_gen_declare(gen);
         code_gen(gen);
-    }
-}
-
-void StructDefinition::acquire_function_iterations(int16_t iteration) {
-    for(auto& function : functions()) {
-        auto& func_data = generic_llvm_data[function.get()];
-        if(iteration == func_data.size()) {
-            func_data.emplace_back(function->llvm_data);
-        } else {
-            func_data[iteration] = function->llvm_data;
-        }
     }
 }
 

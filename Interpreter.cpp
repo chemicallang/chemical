@@ -23,7 +23,8 @@ int main(int argc, char *argv[]) {
     for(const auto& err : lexer.errors) {
         std::cerr << err.representation(argv[1], "Lexer") << std::endl;
     }
-    CSTConverter converter(true, "interpreter");
+    GlobalInterpretScope global_scope(nullptr, nullptr)
+    CSTConverter converter(true, "interpreter", global_scope);
     converter.convert(lexer.tokens);
     for(const auto& err : converter.diagnostics) {
         std::cerr << err.representation(argv[1], "Parser") << std::endl;

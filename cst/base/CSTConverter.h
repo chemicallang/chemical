@@ -122,7 +122,7 @@ public:
     /**
      * global interpret scope
      */
-    GlobalInterpretScope global_scope;
+    GlobalInterpretScope& global_scope;
 
     /**
      * the target is provided to the source code
@@ -143,7 +143,12 @@ public:
     /**
      * constructor
      */
-    CSTConverter(std::string path, bool is64Bit, std::string target);
+    CSTConverter(
+            std::string path,
+            bool is64Bit,
+            std::string target,
+            GlobalInterpretScope& scope
+    );
 
     /**
      * the function that should be used to ask if node should be disposed

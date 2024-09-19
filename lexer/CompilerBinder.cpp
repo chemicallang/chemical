@@ -25,7 +25,7 @@ void handle_error(void *opaque, const char *msg){
 
 CompilerBinderCommon::CompilerBinderCommon(
     CSTDiagnoser* diagnoser
-) : converter("", false, "binder"), diagnoser(diagnoser), resolver(global, false), global(nullptr, nullptr) {
+) : converter("", false, "binder", global), diagnoser(diagnoser), resolver(global, false), global(nullptr, nullptr) {
 
 }
 

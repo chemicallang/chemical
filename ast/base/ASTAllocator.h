@@ -56,7 +56,6 @@ public:
     ASTAllocator() : stack_offset(0), heap_offset(StackSize) {
         ptr_storage.reserve(10);
         reserve_ptr_storage();
-        heap_memory.emplace_back();
     }
 
     template<typename T>
@@ -165,12 +164,9 @@ protected:
      * provides a pointer for the given obj size, increments heap_current
      */
     char* object_heap_pointer(std::size_t obj_size) {
-        auto& offset = heap_offset;
-        const auto offset_loaded = offset;
-        const auto new_offset = offset_loaded + obj_size;
-        const auto heap_ptr = (new_offset < StackSize) ? heap_memory.back() : reserve_heap_storage();
-        const auto ptr = heap_ptr + offset_loaded;
-        offset = new_offset;
+        const auto heap_ptr = ((heap_offset + obj_size) < StackSize) ? heap_memory.back() : reserve_heap_storage();
+        const auto ptr = heap_ptr + heap_offset;
+        heap_offset = heap_offset + obj_size;
         return ptr;
     }
 

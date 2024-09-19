@@ -463,6 +463,11 @@ public:
     bool lexConstructorInitBlock();
 
     /**
+     * lexes an unsafe block
+     */
+    bool lexUnsafeBlock();
+
+    /**
      * lexes break statement
      */
     bool lexBreakStatement();

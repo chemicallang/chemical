@@ -119,6 +119,9 @@ void CSTToken::accept(CSTVisitor *visitor) {
         case LexTokenType::CompBody:
             visitor->visitBody((CSTToken*) this);
             return;
+        case LexTokenType::CompUnsafeBlock:
+            visitor->visitUnsafeBlock((CSTToken*) this);
+            return;
         case LexTokenType::CompDoWhile:
             visitor->visitDoWhile((CSTToken*) this);
             return;

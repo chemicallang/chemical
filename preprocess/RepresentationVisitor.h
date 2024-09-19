@@ -145,6 +145,8 @@ public:
 
     void visit(GenericTypeParameter *type_param) override;
 
+    void visit(UnsafeBlock *block) override;
+
     void visit(WhileLoop* whileLoop) override;
 
     void visit(AccessChain* chain) override;

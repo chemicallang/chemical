@@ -84,6 +84,7 @@
 #include "ast/types/DynamicType.h"
 #include "ast/structures/VariantDefinition.h"
 #include "ast/structures/VariantMember.h"
+#include "ast/structures/UnsafeBlock.h"
 
 Operation get_operation(CSTToken *token) {
     std::string num;
@@ -936,6 +937,13 @@ void CSTConverter::visitInitBlock(CSTToken *initBlock) {
     init_block->scope.parent_node = init_block;
     init_block->scope.nodes = take_body_nodes(this, block_token, init_block);
     nodes.emplace_back(init_block);
+}
+
+void CSTConverter::visitUnsafeBlock(CSTToken *block) {
+    auto& block_token = block->tokens[1];
+    auto unsafe_block = new UnsafeBlock(Scope(nullptr, block_token));
+    unsafe_block->scope.nodes = take_body_nodes(this, block_token, unsafe_block);
+    nodes.emplace_back(unsafe_block);
 }
 
 void CSTConverter::visitMacro(CSTToken*  macroCst) {

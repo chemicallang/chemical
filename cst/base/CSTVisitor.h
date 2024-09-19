@@ -85,6 +85,10 @@ public:
         visitCompoundCommon(bodyCst);
     }
 
+    virtual void visitUnsafeBlock(CSTToken *unsafeBlock) {
+        visitCompoundCommon(unsafeBlock);
+    }
+
     virtual void visitDoWhile(CSTToken *doWhileCst) {
         visitCompoundCommon(doWhileCst);
     }

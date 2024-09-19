@@ -29,6 +29,7 @@
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/structures/ExtensionFunction.h"
 #include "ast/structures/VariantDefinition.h"
+#include "ast/structures/UnsafeBlock.h"
 #include "ast/structures/VariantMember.h"
 #include "ast/structures/TryCatch.h"
 #include "ast/structures/DoWhileLoop.h"
@@ -2456,6 +2457,10 @@ void ToCAstVisitor::visit(Comment *comment) {
 
 void ToCAstVisitor::visit(ContinueStatement *continueStatement) {
     write("continue;");
+}
+
+void ToCAstVisitor::visit(UnsafeBlock *block) {
+    block->scope.accept(this);
 }
 
 void ToCAstVisitor::visit(ImportStatement *importStatement) {

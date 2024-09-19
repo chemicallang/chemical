@@ -265,6 +265,8 @@ public:
 
     void visitInitBlock(CSTToken *initBlock) override;
 
+    void visitUnsafeBlock(CSTToken *unsafeBlock) override;
+
     void visitWhile(CSTToken* whileCst) override;
 
     void visitDoWhile(CSTToken* doWhileCst) override;

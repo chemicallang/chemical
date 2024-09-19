@@ -436,15 +436,7 @@ void CSTConverter::visitFunctionParam(CSTToken* param) {
     auto identifier = str_token(param->tokens[0]);
     visit(param->tokens, 2);
     BaseType *baseType = nullptr;
-    if (optional_param_types) {
-        std::unique_ptr<BaseType> t = nullptr;
-        if(2 < param->tokens.size() && param->tokens[2]->is_type()) {
-            t = type();
-        }
-        if (t) {
-            baseType = t.release();
-        }
-    } else {
+    if(2 < param->tokens.size() && param->tokens[2]->is_type()) {
         baseType = type().release();
     }
     std::unique_ptr<Value> def_value = nullptr;
@@ -902,10 +894,7 @@ void CSTConverter::visitLambda(CSTToken* cst) {
         i += 2;
     }
 
-    auto prev = optional_param_types;
-    optional_param_types = true;
     auto result = function_params(this, cst->tokens, i);
-    optional_param_types = prev;
 
     auto lambda = new LambdaFunction(std::move(captureList), std::move(result.params), result.isVariadic, Scope {parent_node, nullptr}, cst);
 

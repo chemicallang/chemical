@@ -39,14 +39,6 @@ typedef void(*MacroHandlerFn)(CSTConverter*, CSTToken* container);
 typedef void(*AnnotationHandlerFn)(CSTConverter*, CSTToken* container, AnnotationKind kind);
 
 class CSTConverter : public CSTVisitor, public CSTDiagnoser {
-private:
-
-    /**
-     * are function param types optional, used to check when converting function parameters
-     * since lambda parameter types are optional
-     */
-    bool optional_param_types = false;
-
 public:
 
     /**

@@ -44,7 +44,7 @@ llvm::Type* VariantDefinition::llvm_type(Codegen& gen) {
         return found->second;
     }
     const auto largest = largest_member();
-    const auto type = llvm_type_with_member(gen, largest, false);
+    const auto type = llvm_type_with_member(gen, largest, has_annotation(AnnotationKind::Anonymous));
     llvm_struct_types[active_iteration] = type;
     return type;
 }

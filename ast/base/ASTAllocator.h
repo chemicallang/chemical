@@ -1,6 +1,7 @@
 // Copyright (c) Qinetik 2024.
 
 #include "ASTAny.h"
+#include <mutex>
 
 #pragma once
 
@@ -9,22 +10,18 @@
  * to allocate different AST classes, it allocates a pre-allocated size on
  * stack for faster allocation
  * It always manages memory for you, meaning when it dies, all the memory it allocated dies !
- * It's also very HEAVY, it's supposed to handle large amount of classes, so it allocates 1 mb on the stack
+ * It's also very HEAVY, it's supposed to handle large amount of classes, so it allocates 100 kb on the stack
+ * The StackSize SHOULD ALWAYS be larger than every object that you'll allocate using this allocator
  */
-template<std::size_t StackSize = 1000000>
+template<std::size_t StackSize = 100000>
 class ASTAllocator {
 public:
 
     /**
-     * everything allocated on stack is stored on this vector of vectors
-     * every pointer is just destructed, NOT freed
+     * pointers to objects user wanted are stored on this vector
+     * so we can destruct them, when this allocator dies
      */
-    std::vector<std::vector<ASTAny*>> stack_allocated;
-    /**
-     * everything allocated on heap is stored on this vector of vectors
-     * every pointer is destructed and also freed !
-     */
-    std::vector<std::vector<ASTAny*>> heap_allocated;
+    std::vector<std::vector<ASTAny*>> ptr_storage;
 
     /**
      * the stack memory used to store objects on stack instead of heap
@@ -36,15 +33,30 @@ public:
      */
     std::size_t stack_current;
 
+    /**
+     * heap memory is a vector of bytes (multiple), with the vector we batch heap allocations
+     * after initialize StackSize allocated on stack ends, we allocate another StackSize memory
+     * but on heap, and we keep using it for objects until that ends, we allocate another StackSize
+     * memory, this way we batch heap calls
+     */
+    std::vector<char*> heap_memory;
+    /**
+     * current heap offset
+     */
+    std::size_t heap_offset;
+
+    /**
+     * the mutex used to ensure memory safety when using multiple threads
+     */
+    std::mutex allocator_mutex;
 
     /**
      * constructor
      */
-    ASTAllocator() : stack_current(0) {
-        stack_allocated.reserve(10);
-        heap_allocated.reserve(10);
-        reserve_another(stack_allocated);
-        reserve_another(heap_allocated);
+    ASTAllocator() : stack_current(0), heap_offset(StackSize) {
+        ptr_storage.reserve(10);
+        reserve_ptr_storage();
+        heap_memory.emplace_back();
     }
 
     template<typename T>
@@ -53,52 +65,125 @@ public:
         return static_cast<T*>(allocate_size(sizeof(T)));
     }
 
+    /**
+     * when called, will free everything, and make this allocator available
+     * for more allocations, basically reusing previously allocated memory
+     */
+    void clear() {
+        std::lock_guard<std::mutex> lock(allocator_mutex);
+        destroy_memory();
+        clear_ptr_storage();
+        stack_current = 0;
+        heap_memory.clear();
+        heap_offset = 0;
+    }
+
+    /**
+     * destructor
+     */
     ~ASTAllocator() {
-        for (auto& vec: stack_allocated) {
-            for (auto& ptr: vec) {
-                ptr->~ASTAny();
-            }
-        }
-        for (auto& vec: heap_allocated) {
-            for (auto& ptr: vec) {
-                delete ptr;
-            }
-        }
+        destroy_memory();
     }
 
 protected:
 
     static constexpr unsigned int PTR_VEC_SIZE = 1000;
 
-    std::vector<ASTAny*>& reserve_another(std::vector<std::vector<ASTAny*>>& storage) {
-        storage.emplace_back();
-        auto& last = storage.back();
+    /**
+     * create another vector reserving PTR_VEC_SIZE (1000) pointers
+     */
+    std::vector<ASTAny*>& reserve_ptr_storage() {
+        ptr_storage.emplace_back();
+        auto& last = ptr_storage.back();
         last.reserve(PTR_VEC_SIZE);
         return last;
     }
 
-    std::vector<ASTAny*>& ptr_storage(std::vector<std::vector<ASTAny*>>& storage) {
-        auto& last = storage.back();
+    /**
+     * if there's size available in the last storage return it
+     * otherwise reserve another and return that
+     */
+    std::vector<ASTAny*>& get_ptr_storage() {
+        auto& last = ptr_storage.back();
         if (last.size() < PTR_VEC_SIZE) {
             return last;
         } else {
-            return reserve_another(storage);
+            return reserve_ptr_storage();
         }
     }
 
-    inline void store_ptr(std::vector<std::vector<ASTAny*>>& storage, ASTAny* ptr) {
-        ptr_storage(storage).emplace_back(ptr);
+    /**
+     * clear this pointer storage, only a single
+     */
+    void clear_ptr_storage() {
+        if(ptr_storage.empty()) {
+            reserve_ptr_storage(ptr_storage);
+        } else {
+            while (ptr_storage.size() != 1) {
+                ptr_storage.pop_back();
+            }
+            ptr_storage.back().clear();
+        }
     }
 
-    void* allocate_size(std::size_t obj_size) {
+    /**
+     * does what it says
+     */
+    void destroy_memory() {
+        for (auto& vec: ptr_storage) {
+            for (auto& ptr: vec) {
+                ptr->~ASTAny();
+            }
+        }
+        for(auto& heap_ptr : heap_memory) {
+            ::operator delete(heap_ptr);
+        }
+    }
+
+    /**
+     * will store the given pointer to destruct later
+     */
+    inline void store_ptr(ASTAny* ptr) {
+        get_ptr_storage().emplace_back(ptr);
+    }
+
+    /**
+     * reserve a large heap storage of size (StackSize)
+     * and reset current heap pointer and offset
+     */
+    char* reserve_heap_storage() {
+        // reserving a heap pointer with stack size
+        const auto heap_pointer = static_cast<char*>(::operator new(StackSize));
+        heap_memory.emplace_back(heap_pointer);
+        // resetting heap storage
+        heap_offset = 0;
+        // return
+        return heap_pointer;
+    }
+
+    /**
+     * provides a pointer for the given obj size, increments heap_current
+     */
+    char* object_heap_pointer(std::size_t obj_size) {
+        auto& offset = heap_offset;
+        const auto offset_loaded = offset;
+        const auto new_offset = offset_loaded + obj_size;
+        const auto heap_ptr = (new_offset < StackSize) ? heap_memory.back() : reserve_heap_storage();
+        const auto ptr = heap_ptr + offset_loaded;
+        offset = new_offset;
+        return ptr;
+    }
+
+    char* allocate_size(std::size_t obj_size) {
+        std::lock_guard<std::mutex> lock(allocator_mutex);
         if (stack_current + obj_size < StackSize) {
             const auto ptr = stackMemory[stack_current];
             stack_current += obj_size;
-            store_ptr(stack_allocated, ptr);
+            store_ptr((ASTAny*) ptr);
             return ptr;
         } else {
-            const auto ptr = static_cast<void*>(::operator new(obj_size));
-            store_ptr(heap_allocated, ptr);
+            const auto ptr = object_heap_pointer(obj_size);
+            store_ptr((ASTAny*) ptr);
             return ptr;
         }
     }

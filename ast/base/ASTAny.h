@@ -86,4 +86,6 @@ public:
         return (BaseType*) this;
     }
 
+    virtual ~ASTAny();
+
 };

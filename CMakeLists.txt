@@ -476,6 +476,7 @@ set(COMMON_SOURCES
         compiler/backend/LLVMBackendContext.h
         ast/structures/UnsafeBlock.h
         ast/structures/UnsafeBlock.cpp
+        ast/base/ASTAllocator.h
 )
 
 # Chemical LSP Executable Target

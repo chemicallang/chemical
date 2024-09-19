@@ -30,3 +30,5 @@ std::string ASTAny::representation() {
             return as_node_unsafe()->representation();
     }
 }
+
+ASTAny::~ASTAny() = default;

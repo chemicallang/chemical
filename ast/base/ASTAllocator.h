@@ -31,7 +31,7 @@ public:
      * how much of the stack memory has been consumed
      * by default initialized to zero
      */
-    std::size_t stack_current;
+    std::size_t stack_offset;
 
     /**
      * heap memory is a vector of bytes (multiple), with the vector we batch heap allocations
@@ -53,7 +53,7 @@ public:
     /**
      * constructor
      */
-    ASTAllocator() : stack_current(0), heap_offset(StackSize) {
+    ASTAllocator() : stack_offset(0), heap_offset(StackSize) {
         ptr_storage.reserve(10);
         reserve_ptr_storage();
         heap_memory.emplace_back();
@@ -73,7 +73,7 @@ public:
         std::lock_guard<std::mutex> lock(allocator_mutex);
         destroy_memory();
         clear_ptr_storage();
-        stack_current = 0;
+        stack_offset = 0;
         heap_memory.clear();
         heap_offset = 0;
     }
@@ -176,9 +176,9 @@ protected:
 
     char* allocate_size(std::size_t obj_size) {
         std::lock_guard<std::mutex> lock(allocator_mutex);
-        if (stack_current + obj_size < StackSize) {
-            const auto ptr = stackMemory[stack_current];
-            stack_current += obj_size;
+        if (stack_offset + obj_size < StackSize) {
+            const auto ptr = stackMemory[stack_offset];
+            stack_offset += obj_size;
             store_ptr((ASTAny*) ptr);
             return ptr;
         } else {

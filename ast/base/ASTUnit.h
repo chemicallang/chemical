@@ -36,11 +36,6 @@ public:
     std::vector<std::unique_ptr<Value>> values;
 
     /**
-     * nested nodes allocated during parsing, they don't have any organization to them
-     */
-    std::vector<std::unique_ptr<ASTNode>> nested_nodes;
-
-    /**
      * modules in which this ast unit has been declared in,
      * this is necessary because a file is supposed to be declared in a module once
      */

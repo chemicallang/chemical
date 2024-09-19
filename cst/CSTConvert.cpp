@@ -397,7 +397,6 @@ ASTUnit CSTConverter::take_unit() {
     unit.scope.nodes = std::move(nodes);
     unit.types = std::move(types);
     unit.values = std::move(values);
-    unit.nested_nodes = std::move(nested_nodes);
     return unit;
 }
 

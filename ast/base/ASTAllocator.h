@@ -61,7 +61,7 @@ public:
     template<typename T>
     inline T* allocate() {
         static_assert(std::is_base_of<ASTAny, T>::value, "T must derived from ASTAny");
-        return static_cast<T*>(allocate_size(sizeof(T)));
+        return (T*) (void*) allocate_size(sizeof(T));
     }
 
     /**
@@ -173,13 +173,13 @@ protected:
     char* allocate_size(std::size_t obj_size) {
         std::lock_guard<std::mutex> lock(allocator_mutex);
         if (stack_offset + obj_size < StackSize) {
-            const auto ptr = stackMemory[stack_offset];
+            const auto ptr = &stackMemory[stack_offset];
             stack_offset += obj_size;
-            store_ptr((ASTAny*) ptr);
+            store_ptr((ASTAny*) (void*) ptr);
             return ptr;
         } else {
             const auto ptr = object_heap_pointer(obj_size);
-            store_ptr((ASTAny*) ptr);
+            store_ptr((ASTAny*) (void*) ptr);
             return ptr;
         }
     }

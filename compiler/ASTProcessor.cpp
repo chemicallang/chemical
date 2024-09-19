@@ -42,12 +42,15 @@ std::string ASTProcessorOptions::get_resources_path() {
 
 ASTProcessor::ASTProcessor(
         ASTProcessorOptions* options,
-        SymbolResolver* resolver
-) : options(options), resolver(resolver), path_handler(options->exe_path) {
+        SymbolResolver* resolver,
+        ASTAllocator<>& job_allocator,
+        ASTAllocator<>& mod_allocator
+) : options(options), resolver(resolver), path_handler(options->exe_path),
+    job_allocator(job_allocator), mod_allocator(mod_allocator) {
     if(options->isCBIEnabled) {
         // TODO compiler binder has a global interpret scope, however we are using a different compile time scope inside
         // code generation
-        binder = std::make_unique<CompilerBinderTCC>(nullptr, options->exe_path);
+        binder = std::make_unique<CompilerBinderTCC>(nullptr, options->exe_path, job_allocator, mod_allocator);
         lexer_cbi = std::make_unique<LexerCBI>();
         provider_cbi = std::make_unique<SourceProviderCBI>();
         prep_lexer_cbi(lexer_cbi.get(), provider_cbi.get());
@@ -263,7 +266,14 @@ ASTImportResultExt ASTProcessor::import_file(const FlatIGFile& file) {
             bm_results->benchmark_begin();
         }
 
-        CSTConverter converter(file.abs_path, options->is64Bit, options->target_triple, resolver->comptime_scope);
+        CSTConverter converter(
+                file.abs_path,
+                options->is64Bit,
+                options->target_triple,
+                resolver->comptime_scope,
+                job_allocator,
+                &mod_allocator
+        );
         converter.isCBIEnabled = options->isCBIEnabled;
         converter.convert(lexer.unit.tokens);
         if(options->benchmark) {
@@ -340,8 +350,4 @@ void ASTProcessor::shrink_nodes(
 ) {
     shrinker.visit(unit.scope.nodes);
     shrinked_unit[file.abs_path] = std::move(unit);
-}
-
-void ASTProcessor::end() {
-
 }

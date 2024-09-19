@@ -49,7 +49,11 @@ public:
     /**
      * constructor
      */
-    explicit CompilerBinderCommon(CSTDiagnoser* diagnoser);
+    explicit CompilerBinderCommon(
+        CSTDiagnoser* diagnoser,
+        ASTAllocator<>& job_allocator,
+        ASTAllocator<>& mod_allocator
+    );
 
     /**
      * will create a cbi, cause error if it already exists

@@ -14,6 +14,7 @@
 #include "utils/Benchmark.h"
 #include "ast/base/ASTUnit.h"
 #include "cst/base/CSTUnit.h"
+#include "ast/base/ASTAllocator.h"
 
 class Lexer;
 
@@ -110,11 +111,23 @@ public:
     std::vector<Diag> previous;
 
     /**
+     * Job (executable or dll) level allocator
+     */
+    ASTAllocator<>& job_allocator;
+
+    /**
+     * Module level allocator
+     */
+    ASTAllocator<>& mod_allocator;
+
+    /**
      * constructor
      */
     ASTProcessor(
             ASTProcessorOptions* options,
-            SymbolResolver* resolver
+            SymbolResolver* resolver,
+            ASTAllocator<>& job_allocator,
+            ASTAllocator<>& mod_allocator
     );
 
     /**
@@ -180,11 +193,6 @@ public:
         ASTUnit unit,
         const FlatIGFile& file
     );
-
-    /**
-     * called when all files are done
-     */
-    void end();
 
 };
 

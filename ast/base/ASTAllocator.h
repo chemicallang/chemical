@@ -117,7 +117,7 @@ protected:
      */
     void clear_ptr_storage() {
         if(ptr_storage.empty()) {
-            reserve_ptr_storage(ptr_storage);
+            reserve_ptr_storage();
         } else {
             while (ptr_storage.size() != 1) {
                 ptr_storage.pop_back();

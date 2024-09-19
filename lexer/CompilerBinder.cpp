@@ -24,12 +24,19 @@ void handle_error(void *opaque, const char *msg){
 }
 
 CompilerBinderCommon::CompilerBinderCommon(
-    CSTDiagnoser* diagnoser
-) : converter("", false, "binder", global), diagnoser(diagnoser), resolver(global, false), global(nullptr, nullptr) {
+    CSTDiagnoser* diagnoser,
+    ASTAllocator<>& job_allocator,
+    ASTAllocator<>& mod_allocator
+) : converter("", false, "binder", global, job_allocator, &mod_allocator), diagnoser(diagnoser), resolver(global, false), global(nullptr, nullptr) {
 
 }
 
-CompilerBinderTCC::CompilerBinderTCC(CSTDiagnoser* diagnoser, std::string exe_path) : CompilerBinderCommon(diagnoser), translator(global, nullptr), exe_path(std::move(exe_path)) {
+CompilerBinderTCC::CompilerBinderTCC(
+    CSTDiagnoser* diagnoser,
+    std::string exe_path,
+    ASTAllocator<>& job_allocator,
+    ASTAllocator<>& mod_allocator
+) : CompilerBinderCommon(diagnoser, job_allocator, mod_allocator), translator(global, nullptr), exe_path(std::move(exe_path)) {
     translator.comptime_scope.prepare_top_level_namespaces(resolver);
 }
 

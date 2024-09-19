@@ -179,6 +179,10 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
         }
     }
 
+    // an allocator that is retained till the job is completed
+    ASTAllocator job_allocator;
+    ASTAllocator mod_allocator;
+
     // an interpretation scope for interpreting compile time function calls
     GlobalInterpretScope global(nullptr, this);
 
@@ -194,14 +198,14 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
     ToCBackendContext c_context(&c_visitor);
 
 #ifdef COMPILER_BUILD
-    ASTCompiler processor(options, &resolver);
+    ASTCompiler processor(options, &resolver, job_allocator, mod_allocator);
     Codegen gen(global, options->target_triple, options->exe_path, options->is64Bit, "");
     LLVMBackendContext g_context(&gen);
     CodegenEmitterOptions emitter_options;
     // set the context so compile time calls are sent to it
     global.backend_context = use_tcc ? (BackendContext*) &c_context : (BackendContext*) &g_context;
 #else
-    ASTProcessor processor(options, &resolver);
+    ASTProcessor processor(options, &resolver, job_allocator, mod_allocator);
     global.backend_context = (BackendContext*) &c_context;
 #endif
 
@@ -441,7 +445,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
             }
         }
 
-        // no need to dispose symbols for last module in production
+        // no need to dispose symbols for last module
         if(mod_index < dependencies.size() - 1) {
             // dispose module symbols in symbol resolver
             resolver.dispose_module_symbols_now(mod->name.data());
@@ -456,8 +460,9 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
             break;
         }
 
+        // disposing data
         futures.clear();
-        processor.end();
+        mod_allocator.clear();
 
         if(use_tcc) {
 
@@ -666,6 +671,9 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
     // set the build context
     build_context = &context;
 
+    // the allocator is used in lab
+    ASTAllocator<> lab_allocator;
+
     // shrinking visitor will shrink everything
     ShrinkingVisitor shrinker;
 
@@ -678,7 +686,9 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
     // the processor that does everything for build.lab files only
     ASTCompiler lab_processor(
         options,
-        &lab_resolver
+        &lab_resolver,
+        lab_allocator,
+        lab_allocator // lab allocator is being used as a module level allocator
     );
 
     // get flat imports
@@ -796,8 +806,6 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
             i++;
         }
     }
-
-    lab_processor.end();
 
     // return if error occurred during processing of build.lab(s)
     if(compile_result == 1) {

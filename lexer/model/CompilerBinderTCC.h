@@ -34,7 +34,12 @@ public:
     /**
      * constructor
      */
-    explicit CompilerBinderTCC(CSTDiagnoser* diagnoser, std::string exe_path);
+    explicit CompilerBinderTCC(
+        CSTDiagnoser* diagnoser,
+        std::string exe_path,
+        ASTAllocator<>& job_allocator,
+        ASTAllocator<>& mod_allocator
+    );
 
     /**
      * will compile the following cbi

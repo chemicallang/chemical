@@ -272,7 +272,7 @@ ASTImportResultExt ASTProcessor::import_file(const FlatIGFile& file) {
                 options->target_triple,
                 resolver->comptime_scope,
                 job_allocator,
-                &mod_allocator
+                mod_allocator
         );
         converter.isCBIEnabled = options->isCBIEnabled;
         converter.convert(lexer.unit.tokens);

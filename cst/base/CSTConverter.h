@@ -72,6 +72,11 @@ public:
     ASTAllocator<>& global_allocator;
 
     /**
+     * the module allocator is used for module level things, non public functions
+     */
+    ASTAllocator<>& mod_allocator;
+
+    /**
      * local allocator is the allocator for a statement, type or value present inside a non generic,
      * non comptime or internal functions, these are not retained after module has generated code
      * we dispose these allocations after generating code for module
@@ -151,7 +156,7 @@ public:
         std::string target,
         GlobalInterpretScope& scope,
         ASTAllocator<>& global_allocator,
-        ASTAllocator<>* local_allocator
+        ASTAllocator<>& local_allocator
     );
 
     /**

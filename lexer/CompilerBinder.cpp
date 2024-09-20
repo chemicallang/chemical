@@ -27,7 +27,7 @@ CompilerBinderCommon::CompilerBinderCommon(
     CSTDiagnoser* diagnoser,
     ASTAllocator<>& job_allocator,
     ASTAllocator<>& mod_allocator
-) : converter("", false, "binder", global, job_allocator, &mod_allocator), diagnoser(diagnoser), resolver(global, false), global(nullptr, nullptr) {
+) : converter("", false, "binder", global, job_allocator, mod_allocator), diagnoser(diagnoser), resolver(global, false), global(nullptr, nullptr) {
 
 }
 

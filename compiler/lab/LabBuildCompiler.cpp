@@ -668,8 +668,11 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
     // set the build context
     build_context = &context;
 
+    const auto lab_stack_size = 100000; // 100kb for the whole lab operations
+    char lab_stack_memory[lab_stack_size];
+
     // the allocator is used in lab
-    ASTAllocator<> lab_allocator;
+    ASTAllocator lab_allocator(lab_stack_memory, lab_stack_size, lab_stack_size);
 
     // shrinking visitor will shrink everything
     ShrinkingVisitor shrinker;
@@ -848,8 +851,12 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
     int job_result = compile_result;
 
     // allocating ast allocators
-    ASTAllocator _job_allocator;
-    ASTAllocator _mod_allocator;
+    const auto job_stack_size = 100000; // 100 kb will be allocated on the stack
+    const auto mod_stack_size = 100000; // 100 kb will be allocated on the stack
+    char job_stack_memory[job_stack_size];
+    char mod_stack_memory[mod_stack_size];
+    ASTAllocator _job_allocator(job_stack_memory, job_stack_size, job_stack_size);
+    ASTAllocator _mod_allocator(mod_stack_memory, mod_stack_size, mod_stack_size);
 
     // the allocators that will be used for all jobs
     job_allocator = &_job_allocator;

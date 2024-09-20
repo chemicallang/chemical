@@ -113,12 +113,12 @@ public:
     /**
      * Job (executable or dll) level allocator
      */
-    ASTAllocator<>& job_allocator;
+    ASTAllocator& job_allocator;
 
     /**
      * Module level allocator
      */
-    ASTAllocator<>& mod_allocator;
+    ASTAllocator& mod_allocator;
 
     /**
      * constructor
@@ -126,8 +126,8 @@ public:
     ASTProcessor(
             ASTProcessorOptions* options,
             SymbolResolver* resolver,
-            ASTAllocator<>& job_allocator,
-            ASTAllocator<>& mod_allocator
+            ASTAllocator& job_allocator,
+            ASTAllocator& mod_allocator
     );
 
     /**

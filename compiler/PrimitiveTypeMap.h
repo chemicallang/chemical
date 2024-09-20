@@ -4,7 +4,8 @@
 
 #include <string>
 #include <unordered_map>
-#include "ast/base/ASTAllocator.h"
+
+class ASTAllocator;
 
 class BaseType;
 
@@ -14,45 +15,45 @@ class CSTToken;
  * primitive type provide is a function when given a type in string format
  * like 'int' it will create a AST BaseType
  */
-typedef BaseType *(*PrimitiveTypeProvider)(ASTAllocator<>& allocator, bool is64Bit, CSTToken* token);
+typedef BaseType *(*PrimitiveTypeProvider)(ASTAllocator& allocator, bool is64Bit, CSTToken* token);
 
 namespace TypeMakers {
 
-    BaseType *make_any_type(ASTAllocator<>& allocator, bool is64Bit, CSTToken* token);
+    BaseType *make_any_type(ASTAllocator& allocator, bool is64Bit, CSTToken* token);
 
-    BaseType *make_bool_type(ASTAllocator<>& allocator, bool is64Bit, CSTToken* token);
+    BaseType *make_bool_type(ASTAllocator& allocator, bool is64Bit, CSTToken* token);
 
-    BaseType *make_char_type(ASTAllocator<>& allocator, bool is64Bit, CSTToken* token);
+    BaseType *make_char_type(ASTAllocator& allocator, bool is64Bit, CSTToken* token);
 
-    BaseType *make_uchar_type(ASTAllocator<>& allocator, bool is64Bit, CSTToken* token);
+    BaseType *make_uchar_type(ASTAllocator& allocator, bool is64Bit, CSTToken* token);
 
-    BaseType *make_double_type(ASTAllocator<>& allocator, bool is64Bit, CSTToken* token);
+    BaseType *make_double_type(ASTAllocator& allocator, bool is64Bit, CSTToken* token);
 
-    BaseType *make_float_type(ASTAllocator<>& allocator, bool is64Bit, CSTToken* token);
+    BaseType *make_float_type(ASTAllocator& allocator, bool is64Bit, CSTToken* token);
 
-    BaseType *make_int_type(ASTAllocator<>& allocator, bool is64Bit, CSTToken* token);
+    BaseType *make_int_type(ASTAllocator& allocator, bool is64Bit, CSTToken* token);
 
-    BaseType *make_uint_type(ASTAllocator<>& allocator, bool is64Bit, CSTToken* token);
+    BaseType *make_uint_type(ASTAllocator& allocator, bool is64Bit, CSTToken* token);
 
-    BaseType *make_short_type(ASTAllocator<>& allocator, bool is64Bit, CSTToken* token);
+    BaseType *make_short_type(ASTAllocator& allocator, bool is64Bit, CSTToken* token);
 
-    BaseType *make_ushort_type(ASTAllocator<>& allocator, bool is64Bit, CSTToken* token);
+    BaseType *make_ushort_type(ASTAllocator& allocator, bool is64Bit, CSTToken* token);
 
-    BaseType *make_long_type(ASTAllocator<>& allocator, bool is64Bit, CSTToken* token);
+    BaseType *make_long_type(ASTAllocator& allocator, bool is64Bit, CSTToken* token);
 
-    BaseType *make_ulong_type(ASTAllocator<>& allocator, bool is64Bit, CSTToken* token);
+    BaseType *make_ulong_type(ASTAllocator& allocator, bool is64Bit, CSTToken* token);
 
-    BaseType *make_bigint_type(ASTAllocator<>& allocator, bool is64Bit, CSTToken* token);
+    BaseType *make_bigint_type(ASTAllocator& allocator, bool is64Bit, CSTToken* token);
 
-    BaseType *make_ubigint_type(ASTAllocator<>& allocator, bool is64Bit, CSTToken* token);
+    BaseType *make_ubigint_type(ASTAllocator& allocator, bool is64Bit, CSTToken* token);
 
-    BaseType *make___int128_type(ASTAllocator<>& allocator, bool is64Bit, CSTToken* token);
+    BaseType *make___int128_type(ASTAllocator& allocator, bool is64Bit, CSTToken* token);
 
-    BaseType *make___uint128_type(ASTAllocator<>& allocator, bool is64Bit, CSTToken* token);
+    BaseType *make___uint128_type(ASTAllocator& allocator, bool is64Bit, CSTToken* token);
 
-    BaseType *make_string_type(ASTAllocator<>& allocator, bool is64Bit, CSTToken* token);
+    BaseType *make_string_type(ASTAllocator& allocator, bool is64Bit, CSTToken* token);
 
-    BaseType *make_void_type(ASTAllocator<>& allocator, bool is64Bit, CSTToken* token);
+    BaseType *make_void_type(ASTAllocator& allocator, bool is64Bit, CSTToken* token);
 
     const std::unordered_map<std::string, PrimitiveTypeProvider> PrimitiveMap = {
             {"any",       TypeMakers::make_any_type},

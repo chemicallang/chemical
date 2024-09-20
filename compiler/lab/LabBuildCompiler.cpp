@@ -179,10 +179,6 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
         }
     }
 
-    // an allocator that is retained till the job is completed
-    ASTAllocator job_allocator;
-    ASTAllocator mod_allocator;
-
     // an interpretation scope for interpreting compile time function calls
     GlobalInterpretScope global(nullptr, this);
 
@@ -198,14 +194,14 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
     ToCBackendContext c_context(&c_visitor);
 
 #ifdef COMPILER_BUILD
-    ASTCompiler processor(options, &resolver, job_allocator, mod_allocator);
+    ASTCompiler processor(options, &resolver, *job_allocator, *mod_allocator);
     Codegen gen(global, options->target_triple, options->exe_path, options->is64Bit, "");
     LLVMBackendContext g_context(&gen);
     CodegenEmitterOptions emitter_options;
     // set the context so compile time calls are sent to it
     global.backend_context = use_tcc ? (BackendContext*) &c_context : (BackendContext*) &g_context;
 #else
-    ASTProcessor processor(options, &resolver, job_allocator, mod_allocator);
+    ASTProcessor processor(options, &resolver, *job_allocator, *mod_allocator);
     global.backend_context = (BackendContext*) &c_context;
 #endif
 
@@ -443,6 +439,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                 }
                 processor.shrink_nodes(shrinker, std::move(result.unit), file);
             }
+
         }
 
         // no need to dispose symbols for last module
@@ -462,7 +459,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
 
         // disposing data
         futures.clear();
-        mod_allocator.clear();
+        mod_allocator->clear();
 
         if(use_tcc) {
 
@@ -850,6 +847,14 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
 
     int job_result = compile_result;
 
+    // allocating ast allocators
+    ASTAllocator _job_allocator;
+    ASTAllocator _mod_allocator;
+
+    // the allocators that will be used for all jobs
+    job_allocator = &_job_allocator;
+    mod_allocator = &_mod_allocator;
+
     // generating outputs (executables)
     for(auto& exe : context.executables) {
 
@@ -859,6 +864,10 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
         if(job_result == 1) {
             std::cerr << rang::fg::red << "[BuildLab]" << " error performing job '" << exe->name.data() << "', returned status code 1" << rang::fg::reset << std::endl;
         }
+
+        // clearing all allocations done in all the allocators
+        _job_allocator.clear();
+        _mod_allocator.clear();
 
     }
 

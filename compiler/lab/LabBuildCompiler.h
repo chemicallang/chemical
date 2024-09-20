@@ -6,6 +6,7 @@
 #include "LabBuildCompilerOptions.h"
 #include "LabJob.h"
 #include "ctpl.h"
+#include "ast/base/ASTAllocator.h"
 
 class LabBuildContext;
 
@@ -44,6 +45,15 @@ public:
      * a pointer to current job
      */
     LabJob* current_job;
+
+    /**
+     * job level allocator
+     */
+    ASTAllocator<>* job_allocator;
+    /**
+     * module level allocator
+     */
+    ASTAllocator<>* mod_allocator;
 
     /**
      * constructor

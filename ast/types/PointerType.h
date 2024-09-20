@@ -10,14 +10,10 @@ public:
 
     static const PointerType void_ptr_instance;
 
-    hybrid_ptr<BaseType> type;
+    BaseType* type;
     std::vector<std::unique_ptr<BaseType>> pures{};
 
-    PointerType(std::unique_ptr<BaseType> type, CSTToken* token) : type(type.release(), true), TokenizedBaseType(token) {
-
-    }
-
-    PointerType(hybrid_ptr<BaseType> type, CSTToken* token) : type(std::move(type)), TokenizedBaseType(token) {
+    PointerType(BaseType* type, CSTToken* token) : type(type), TokenizedBaseType(token) {
 
     }
 

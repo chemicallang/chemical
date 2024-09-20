@@ -14,13 +14,13 @@
 class MembersContainer : public AnnotableNode, public VariablesContainer {
 private:
 
-    std::vector<std::unique_ptr<FunctionDeclaration>> functions_container;
+    std::vector<FunctionDeclaration*> functions_container;
     std::unordered_map<std::string, FunctionDeclaration*> indexes;
     std::vector<std::unique_ptr<MultiFunctionNode>> multi_nodes;
 
 public:
 
-    std::vector<std::unique_ptr<GenericTypeParameter>> generic_params;
+    std::vector<GenericTypeParameter*> generic_params;
     /**
      * subscribers are reported with usages of this generic type
      */
@@ -53,7 +53,7 @@ public:
     std::unordered_map<FunctionDeclaration*, std::vector<std::vector<std::pair<llvm::Value*, llvm::FunctionType*>>>> generic_llvm_data;
 #endif
 
-    const std::vector<std::unique_ptr<FunctionDeclaration>>& functions() {
+    const std::vector<FunctionDeclaration*>& functions() {
         return functions_container;
     }
 
@@ -323,7 +323,7 @@ public:
      * insert a function that can have same name for multiple declarations
      * @return true, if could insert the function, false if there's a conflict
      */
-    bool insert_multi_func(std::unique_ptr<FunctionDeclaration> decl);
+    bool insert_multi_func(FunctionDeclaration* decl);
 
     /**
      * is there a function with this name

@@ -14,7 +14,7 @@ public:
     // before equal
     std::string identifier;
     // after equal
-    std::unique_ptr<BaseType> actual_type;
+    BaseType* actual_type;
     ASTNode* parent_node;
     CSTToken* token;
 
@@ -23,7 +23,7 @@ public:
      */
     TypealiasStatement(
             std::string identifier,
-            std::unique_ptr<BaseType> actual_type,
+            BaseType* actual_type,
             ASTNode* parent_node,
             CSTToken* token,
             AccessSpecifier specifier = AccessSpecifier::Internal

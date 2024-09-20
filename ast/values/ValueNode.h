@@ -24,14 +24,14 @@ public:
     /**
      * actual value
      */
-    std::unique_ptr<Value> value;
+    Value* value;
     ASTNode* parent_node;
     CSTToken* token;
 
     /**
      * constructor
      */
-    ValueNode(std::unique_ptr<Value> value, ASTNode* parent_node, CSTToken* token) : value(std::move(value)), parent_node(parent_node), token(token) {
+    ValueNode(Value* value, ASTNode* parent_node, CSTToken* token) : value(value), parent_node(parent_node), token(token) {
 
     }
 
@@ -40,7 +40,7 @@ public:
     }
 
     Value *holding_value() override {
-        return value.get();
+        return value;
     }
 
     void accept(Visitor *visitor) override {

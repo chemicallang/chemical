@@ -7,9 +7,9 @@
 class LiteralType : public TokenizedBaseType {
 public:
 
-    std::unique_ptr<BaseType> underlying;
+    BaseType* underlying;
 
-    explicit LiteralType(std::unique_ptr<BaseType> underlying, CSTToken* token) : underlying(std::move(underlying)), TokenizedBaseType(token) {
+    explicit LiteralType(BaseType* underlying, CSTToken* token) : underlying(underlying), TokenizedBaseType(token) {
         // do nothing
     }
 

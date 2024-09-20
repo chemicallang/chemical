@@ -30,7 +30,7 @@ public:
      */
     EnumDeclaration(
             std::string name,
-            std::unordered_map<std::string, std::unique_ptr<EnumMember>> members,
+            std::unordered_map<std::string, EnumMember*> members,
             ASTNode* parent_node,
             CSTToken* token,
             AccessSpecifier specifier = AccessSpecifier::Internal
@@ -83,6 +83,6 @@ public:
     ASTNode *child(const std::string &name) override;
 
     std::string name; ///< The name of the enum.
-    std::unordered_map<std::string, std::unique_ptr<EnumMember>> members; ///< The values of the enum.
+    std::unordered_map<std::string, EnumMember*> members; ///< The values of the enum.
 
 };

@@ -10,8 +10,8 @@ class VariantMemberParam : public ASTNode {
 public:
 
     std::string name;
-    std::unique_ptr<BaseType> type;
-    std::unique_ptr<Value> def_value;
+    BaseType* type;
+    Value* def_value;
     VariantMember* parent_node;
     unsigned index;
     CSTToken* token;
@@ -19,8 +19,8 @@ public:
     VariantMemberParam(
         std::string name,
         unsigned index,
-        std::unique_ptr<BaseType> type,
-        std::unique_ptr<Value> def_value,
+        BaseType* type,
+        Value* def_value,
         VariantMember* parent_node,
         CSTToken* token
     );

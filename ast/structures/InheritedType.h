@@ -8,10 +8,10 @@ class InheritedType {
 public:
 
     AccessSpecifier specifier;
-    std::unique_ptr<BaseType> type;
+    BaseType* type;
 
     explicit InheritedType(
-            std::unique_ptr<BaseType> type,
+            BaseType* type,
             AccessSpecifier specifier = AccessSpecifier::Public
     );
 

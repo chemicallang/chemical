@@ -86,7 +86,7 @@ public:
     /**
      * will translate given nodes
      */
-    void translate(std::vector<std::unique_ptr<ASTNode>>& nodes);
+    void translate(std::vector<ASTNode*>& nodes);
 
     /**
      * access specifier

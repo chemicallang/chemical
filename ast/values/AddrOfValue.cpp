@@ -4,9 +4,9 @@
 
 
 AddrOfValue::AddrOfValue(
-        std::unique_ptr<Value> value,
+        Value* value,
         CSTToken* token
-) : value(std::move(value)), token(token), _ptr_type(hybrid_ptr<BaseType>{ nullptr, false}, token) {
+) : value(value), token(token), _ptr_type(hybrid_ptr<BaseType>{ nullptr, false}, token) {
 
 }
 

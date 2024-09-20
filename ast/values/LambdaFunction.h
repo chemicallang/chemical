@@ -20,7 +20,7 @@ class CapturedVariable;
 class LambdaFunction : public Value, public FunctionType {
 public:
 
-    std::vector<std::unique_ptr<CapturedVariable>> captureList;
+    std::vector<CapturedVariable*> captureList;
     Scope scope;
 
 #ifdef COMPILER_BUILD
@@ -36,8 +36,8 @@ public:
      * @param value The integer value.
      */
     LambdaFunction(
-            std::vector<std::unique_ptr<CapturedVariable>> captureList,
-            std::vector<std::unique_ptr<FunctionParam>> params,
+            std::vector<CapturedVariable*> captureList,
+            std::vector<FunctionParam*> params,
             bool isVariadic,
             Scope scope,
             CSTToken* token

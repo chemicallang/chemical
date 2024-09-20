@@ -36,9 +36,9 @@ public:
      * @brief Construct a new ForLoop object.
      */
     ForLoop(
-            std::unique_ptr<VarInitStatement> initializer,
-            std::unique_ptr<Value> conditionExpr,
-            std::unique_ptr<ASTNode> incrementerExpr,
+            VarInitStatement* initializer,
+            Value* conditionExpr,
+            ASTNode* incrementerExpr,
             LoopScope body,
             ASTNode* parent_node,
             CSTToken* token

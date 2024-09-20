@@ -9,14 +9,14 @@ class Value;
 class ThrowStatement : public ASTNode {
 public:
 
-    std::unique_ptr<Value> value;
+    Value* value;
     ASTNode* parent_node;
     CSTToken* token;
 
     /**
      * constructor
      */
-    ThrowStatement(std::unique_ptr<Value> value, ASTNode* parent_node, CSTToken* token);
+    ThrowStatement(Value* value, ASTNode* parent_node, CSTToken* token);
 
     CSTToken *cst_token() override {
         return token;

@@ -14,8 +14,8 @@
 class ImplDefinition : public MembersContainer {
 public:
 
-    std::unique_ptr<BaseType> interface_type;
-    std::unique_ptr<BaseType> struct_type;
+    BaseType* interface_type;
+    BaseType* struct_type;
     ASTNode* parent_node;
     CSTToken* token;
 
@@ -23,8 +23,8 @@ public:
      * constructor
      */
     ImplDefinition(
-            std::unique_ptr<BaseType> interface_type,
-            std::unique_ptr<BaseType> struct_type,
+            BaseType* interface_type,
+            BaseType* struct_type,
             ASTNode* parent_node,
             CSTToken* token
     );

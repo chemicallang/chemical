@@ -5,11 +5,11 @@
 
 TypealiasStatement::TypealiasStatement(
         std::string identifier,
-        std::unique_ptr<BaseType> actual_type,
+        BaseType* actual_type,
         ASTNode* parent_node,
         CSTToken* token,
         AccessSpecifier specifier
-) : identifier(std::move(identifier)), actual_type(std::move(actual_type)), parent_node(parent_node), token(token), specifier(specifier) {
+) : identifier(std::move(identifier)), actual_type(actual_type), parent_node(parent_node), token(token), specifier(specifier) {
 
 }
 

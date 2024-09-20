@@ -260,13 +260,13 @@ BaseDefMember::BaseDefMember(std::string name) : name(std::move(name)) {
 
 StructMember::StructMember(
         std::string name,
-        std::unique_ptr<BaseType> type,
-        std::unique_ptr<Value> defValue,
+        BaseType* type,
+        Value* defValue,
         ASTNode* parent_node,
         CSTToken* token,
         bool is_const,
         AccessSpecifier specifier
-) : BaseDefMember(std::move(name)), type(std::move(type)), defValue(std::move(defValue)), parent_node(parent_node), token(token), is_const(is_const), specifier(specifier) {
+) : BaseDefMember(std::move(name)), type(type), defValue(defValue), parent_node(parent_node), token(token), is_const(is_const), specifier(specifier) {
 
 }
 

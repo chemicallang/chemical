@@ -10,7 +10,7 @@
 class SizeOfValue : public UBigIntValue {
 public:
 
-    std::unique_ptr<BaseType> for_type;
+    BaseType* for_type;
 
     explicit SizeOfValue(BaseType *for_type, CSTToken* token);
 

@@ -13,11 +13,11 @@
 class AddrOfValue : public Value {
 public:
 
-    std::unique_ptr<Value> value;
+    Value* value;
     CSTToken* token;
     PointerType _ptr_type;
 
-    explicit AddrOfValue(std::unique_ptr<Value> value, CSTToken* token);
+    explicit AddrOfValue(Value* value, CSTToken* token);
 
     CSTToken* cst_token() override{
         return token;

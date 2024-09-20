@@ -20,7 +20,7 @@
 class AccessChain : public ASTNode, public ChainValue {
 public:
 
-    std::vector<std::unique_ptr<ChainValue>> values;
+    std::vector<ChainValue*> values;
     ASTNode* parent_node;
     bool is_node;
     bool is_moved = false;
@@ -28,7 +28,7 @@ public:
 
     AccessChain(ASTNode* parent_node, bool is_node, CSTToken* token);
 
-    AccessChain(std::vector<std::unique_ptr<ChainValue>> values, ASTNode* parent_node, bool is_node, CSTToken* token);
+    AccessChain(std::vector<ChainValue*> values, ASTNode* parent_node, bool is_node, CSTToken* token);
 
     CSTToken* cst_token() override {
         return token;

@@ -121,12 +121,12 @@ ASTNode* Expression::linked_node() {
   * @param operation The operation between the two values.
   */
 Expression::Expression(
-        std::unique_ptr<Value> firstValue,
-        std::unique_ptr<Value> secondValue,
+        Value* firstValue,
+        Value* secondValue,
         Operation operation,
         bool is64Bit,
         CSTToken* token
-) : firstValue(std::move(firstValue)), secondValue(std::move(secondValue)), operation(operation), is64Bit(is64Bit), token(token) {
+) : firstValue(firstValue), secondValue(secondValue), operation(operation), is64Bit(is64Bit), token(token) {
 
 }
 

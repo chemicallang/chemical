@@ -4,10 +4,10 @@
 
 
 CastedValue::CastedValue(
-        std::unique_ptr<Value> value,
-        std::unique_ptr<BaseType> type,
+        Value* value,
+        BaseType* type,
         CSTToken* token
-) : value(std::move(value)), type(std::move(type)), token(token) {
+) : value(value), type(type), token(token) {
 
 }
 

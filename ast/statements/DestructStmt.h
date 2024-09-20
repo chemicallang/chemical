@@ -21,11 +21,11 @@ public:
     /**
      * the actual identifier / access chain value destruct[array_value] ptr; <--- ptr is the one
      */
-    std::unique_ptr<Value> identifier;
+    Value* identifier;
     /**
      * array value is the one in brackets like destruct[array_value] ptr;
      */
-    std::unique_ptr<Value> array_value;
+    Value* array_value;
     /**
      * free function is linked
      */
@@ -43,8 +43,8 @@ public:
      * constructor
      */
     DestructStmt(
-        std::unique_ptr<Value> array_value,
-        std::unique_ptr<Value> value,
+        Value* array_value,
+        Value* value,
         bool is_array,
         ASTNode* parent_node,
         CSTToken* token

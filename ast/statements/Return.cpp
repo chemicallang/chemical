@@ -6,11 +6,11 @@
 #include "ast/utils/ASTUtils.h"
 
 ReturnStatement::ReturnStatement(
-        std::unique_ptr<Value> value,
+        Value* value,
         FunctionType *declaration,
         ASTNode* parent_node,
         CSTToken* token
-) : value(std::move(value)), func_type(declaration), parent_node(parent_node), token(token) {
+) : value(value), func_type(declaration), parent_node(parent_node), token(token) {
 
 }
 

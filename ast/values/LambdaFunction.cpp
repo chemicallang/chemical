@@ -90,8 +90,8 @@ hybrid_ptr<BaseType> LambdaFunction::get_base_type() {
 }
 
 LambdaFunction::LambdaFunction(
-        std::vector<std::unique_ptr<CapturedVariable>> captureList,
-        std::vector<std::unique_ptr<FunctionParam>> params,
+        std::vector<CapturedVariable*> captureList,
+        std::vector<FunctionParam*> params,
         bool isVariadic,
         Scope scope,
         CSTToken* token

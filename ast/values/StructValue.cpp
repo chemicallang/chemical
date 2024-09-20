@@ -216,22 +216,22 @@ bool StructValue::add_child_index(Codegen &gen, std::vector<llvm::Value *> &inde
 //) : ref(std::move(ref)), values(std::move(values)), definition(definition) {}
 
 StructValue::StructValue(
-        std::unique_ptr<Value> ref,
-        std::unordered_map<std::string, std::unique_ptr<StructMemberInitializer>> values,
+        Value* ref,
+        std::unordered_map<std::string, StructMemberInitializer*> values,
         std::vector<std::unique_ptr<BaseType>> generic_list,
         ExtendableMembersContainerNode *definition,
         CSTToken* token,
         ASTNode* parent_node
-) : ref(std::move(ref)), values(std::move(values)), definition(definition), generic_list(std::move(generic_list)), token(token), parent_node(parent_node) {}
+) : ref(ref), values(std::move(values)), definition(definition), generic_list(std::move(generic_list)), token(token), parent_node(parent_node) {}
 
 StructValue::StructValue(
-        std::unique_ptr<Value> ref,
-        std::unordered_map<std::string, std::unique_ptr<StructMemberInitializer>> values,
+        Value* ref,
+        std::unordered_map<std::string, StructMemberInitializer*> values,
         ExtendableMembersContainerNode *definition,
         InterpretScope &scope,
         CSTToken* token,
         ASTNode* parent_node
-) : ref(std::move(ref)), values(std::move(values)), definition(definition), token(token), parent_node(parent_node) {
+) : ref(ref), values(std::move(values)), definition(definition), token(token), parent_node(parent_node) {
     declare_default_values(this->values, scope);
 }
 
@@ -477,8 +477,7 @@ Value *StructValue::scope_value(InterpretScope &scope) {
 }
 
 void StructValue::declare_default_values(
-        std::unordered_map<std::string,
-        std::unique_ptr<StructMemberInitializer>> &into,
+        std::unordered_map<std::string, StructMemberInitializer*> &into,
         InterpretScope &scope
 ) {
     Value* defValue;
@@ -554,10 +553,10 @@ Value *StructValue::child(InterpretScope &scope, const std::string &name) {
 
 StructMemberInitializer::StructMemberInitializer(
         std::string name,
-        std::unique_ptr<Value> value,
+        Value* value,
         StructValue* struct_value,
         ASTNode* member
-) : name(std::move(name)), value(std::move(value)), struct_value(struct_value), member(member) {
+) : name(std::move(name)), value(value), struct_value(struct_value), member(member) {
 
 }
 

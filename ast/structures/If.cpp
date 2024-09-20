@@ -156,14 +156,14 @@ void IfStatement::code_gen(Codegen &gen, Scope* scope, unsigned int index) {
 #endif
 
 IfStatement::IfStatement(
-        std::unique_ptr<Value> condition,
+        Value* condition,
         Scope ifBody,
-        std::vector<std::pair<std::unique_ptr<Value>, Scope>> elseIfs,
+        std::vector<std::pair<Value*, Scope>> elseIfs,
         std::optional<Scope> elseBody,
         ASTNode* parent_node,
         bool is_value,
         CSTToken* token
-) : condition(std::move(condition)), ifBody(std::move(ifBody)),
+) : condition(condition), ifBody(std::move(ifBody)),
     elseIfs(std::move(elseIfs)), elseBody(std::move(elseBody)), parent_node(parent_node), is_value(is_value), token(token) {}
 
 void IfStatement::accept(Visitor *visitor) {

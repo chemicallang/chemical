@@ -16,14 +16,14 @@ public:
 
     ASTNode* parent_node;
     FunctionType* func_type = nullptr;
-    std::unique_ptr<Value> value;
+    Value* value;
     CSTToken* token;
 
     /**
      * @brief Construct a new ReturnStatement object.
      */
     ReturnStatement(
-            std::unique_ptr<Value> value,
+            Value* value,
             FunctionType *declaration,
             ASTNode* parent_node,
             CSTToken* token

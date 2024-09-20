@@ -13,10 +13,10 @@
 class NegativeValue : public Value {
 public:
 
-    std::unique_ptr<Value> value;
+    Value* value;
     CSTToken* token;
 
-    explicit NegativeValue(std::unique_ptr<Value> value, CSTToken* token) : value(std::move(value)), token(token) {}
+    explicit NegativeValue(Value* value, CSTToken* token) : value(value), token(token) {}
 
     CSTToken* cst_token() override {
         return token;

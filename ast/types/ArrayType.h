@@ -8,15 +8,15 @@
 class ArrayType : public TokenizedBaseType {
 public:
 
-    std::unique_ptr<BaseType> elem_type;
+    BaseType* elem_type;
     int array_size;
     CSTToken* token;
 
     ArrayType(
-        std::unique_ptr<BaseType> elem_type,
+        BaseType* elem_type,
         int array_size,
         CSTToken* token
-    ) : elem_type(std::move(elem_type)), array_size(array_size), TokenizedBaseType(token) {
+    ) : elem_type(elem_type), array_size(array_size), TokenizedBaseType(token) {
 
     }
 

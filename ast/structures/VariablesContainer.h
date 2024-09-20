@@ -12,7 +12,7 @@ class VariablesContainer {
 public:
 
     std::vector<std::unique_ptr<InheritedType>> inherited;
-    tsl::ordered_map<std::string, std::unique_ptr<BaseDefMember>> variables;
+    tsl::ordered_map<std::string, BaseDefMember*> variables;
 
     /**
      * get the variable type along with index

@@ -14,9 +14,9 @@
 class IfStatement : public ASTNode, public Value {
 public:
 
-    std::unique_ptr<Value> condition;
+    Value* condition;
     Scope ifBody;
-    std::vector<std::pair<std::unique_ptr<Value>, Scope>> elseIfs;
+    std::vector<std::pair<Value*, Scope>> elseIfs;
     std::optional<Scope> elseBody;
     ASTNode* parent_node;
     bool is_value;
@@ -31,9 +31,9 @@ public:
      * @param elseBody The body of the else statement (can be nullptr if there's no else part).
      */
     IfStatement(
-            std::unique_ptr<Value> condition,
+            Value* condition,
             Scope ifBody,
-            std::vector<std::pair<std::unique_ptr<Value>, Scope>> elseIfs,
+            std::vector<std::pair<Value*, Scope>> elseIfs,
             std::optional<Scope> elseBody,
             ASTNode* parent_node,
             bool is_value,

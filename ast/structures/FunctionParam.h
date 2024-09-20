@@ -24,14 +24,14 @@ private:
 public:
 
     unsigned int index;
-    std::unique_ptr<Value> defValue;
+    Value* defValue;
     CSTToken* token;
 
     FunctionParam(
             std::string name,
-            std::unique_ptr<BaseType> type,
+            BaseType* type,
             unsigned int index,
-            std::unique_ptr<Value> defValue,
+            Value* defValue,
             FunctionType* func_type,
             CSTToken* token
     );

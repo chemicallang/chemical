@@ -4,11 +4,11 @@
 #include "ast/base/ASTNode.h"
 
 IsValue::IsValue(
-        std::unique_ptr<Value> value,
-        std::unique_ptr<BaseType> type,
+        Value* value,
+        BaseType* type,
         bool is_negating,
         CSTToken* token
-) : value(std::move(value)), type(std::move(type)), is_negating(is_negating), token(token) {
+) : value(value), type(type), is_negating(is_negating), token(token) {
 
 }
 

@@ -11,7 +11,7 @@
 class Scope : public ASTNode {
 public:
 
-    std::vector<std::unique_ptr<ASTNode>> nodes;
+    std::vector<ASTNode*> nodes;
     ASTNode* parent_node;
     CSTToken* token;
 
@@ -25,7 +25,7 @@ public:
     /**
      * constructor
      */
-    Scope(std::vector<std::unique_ptr<ASTNode>> nodes, ASTNode* parent_node, CSTToken* token);
+    Scope(std::vector<ASTNode*> nodes, ASTNode* parent_node, CSTToken* token);
 
     /**
      * deleted copy constructor

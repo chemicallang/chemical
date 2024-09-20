@@ -10,16 +10,16 @@ class StructMember : public BaseDefMember {
 public:
 
     bool is_const;
-    std::unique_ptr<BaseType> type;
-    std::unique_ptr<Value> defValue;
+    BaseType* type;
+    Value* defValue;
     ASTNode* parent_node;
     CSTToken* token;
     AccessSpecifier specifier;
 
     StructMember(
             std::string name,
-            std::unique_ptr<BaseType> type,
-            std::unique_ptr<Value> defValue,
+            BaseType* type,
+            Value* defValue,
             ASTNode* parent_node,
             CSTToken* token,
             bool is_const = false,

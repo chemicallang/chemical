@@ -19,7 +19,7 @@ public:
      * a loop block, that is itself a value, so this value is assigned to the variable owning the loop
      * block and then the loop is broken
      */
-    std::unique_ptr<Value> value;
+    Value* value;
     CSTToken* token;
 
     /**

@@ -59,15 +59,15 @@ void ForLoop::code_gen(Codegen &gen) {
  * @brief Construct a new ForLoop object.
  */
 ForLoop::ForLoop(
-        std::unique_ptr<VarInitStatement> initializer,
-        std::unique_ptr<Value> conditionExpr,
-        std::unique_ptr<ASTNode> incrementerExpr,
+        VarInitStatement* initializer,
+        Value* conditionExpr,
+        ASTNode* incrementerExpr,
         LoopScope body,
         ASTNode* parent_node,
         CSTToken* token
-) : initializer(std::move(initializer)),
-    conditionExpr(std::move(conditionExpr)),
-    incrementerExpr(std::move(incrementerExpr)),
+) : initializer(initializer),
+    conditionExpr(conditionExpr),
+    incrementerExpr(incrementerExpr),
     LoopASTNode(std::move(body)), parent_node(parent_node), token(token) {
 
 }

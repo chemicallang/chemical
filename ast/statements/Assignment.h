@@ -15,8 +15,8 @@
 class AssignStatement : public ASTNode {
 public:
 
-    std::unique_ptr<Value> lhs;
-    std::unique_ptr<Value> value;
+    Value* lhs;
+    Value* value;
     InterfaceDefinition* definition;
     Operation assOp;
     ASTNode* parent_node;
@@ -29,8 +29,8 @@ public:
      * @param value The value being assigned to the identifier.
      */
     AssignStatement(
-            std::unique_ptr<Value> lhs,
-            std::unique_ptr<Value> value,
+            Value* lhs,
+            Value* value,
             Operation assOp,
             ASTNode* parent_node,
             CSTToken* token

@@ -15,13 +15,13 @@ public:
 
     AnnotationKind kind;
     std::vector<Annotation> extends;
-    std::vector<std::unique_ptr<Value>> values;
+    std::vector<Value*> values;
 
     /**
      * constructor
      */
     Annotation(
-            AnnotationKind kind
+        AnnotationKind kind
     );
 
     /**

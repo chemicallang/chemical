@@ -129,7 +129,7 @@ void RepresentationVisitor::prepare_translate() {
 
 }
 
-void RepresentationVisitor::translate(std::vector<std::unique_ptr<ASTNode>>& nodes) {
+void RepresentationVisitor::translate(std::vector<ASTNode*>& nodes) {
 
     // declare the top level things with this visitor
 //    for(auto& node : nodes) {

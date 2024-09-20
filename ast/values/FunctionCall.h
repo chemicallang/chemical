@@ -17,13 +17,13 @@ class FunctionCall : public ChainValue {
 public:
 
     ChainValue* parent_val;
-    std::vector<std::unique_ptr<BaseType>> generic_list;
-    std::vector<std::unique_ptr<Value>> values;
+    std::vector<BaseType*> generic_list;
+    std::vector<Value*> values;
     int16_t generic_iteration = 0;
     CSTToken* token;
 
     FunctionCall(
-            std::vector<std::unique_ptr<Value>> values,
+            std::vector<Value*> values,
             CSTToken* token
     );
 

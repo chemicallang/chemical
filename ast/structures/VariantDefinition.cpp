@@ -468,11 +468,11 @@ BaseTypeKind VariantMember::type_kind() const {
 VariantMemberParam::VariantMemberParam(
     std::string name,
     unsigned index,
-    std::unique_ptr<BaseType> type,
-    std::unique_ptr<Value> def_value,
+    BaseType* type,
+    Value* def_value,
     VariantMember* parent_node,
     CSTToken* token
-) : name(std::move(name)), index(index), type(std::move(type)), def_value(std::move(def_value)), parent_node(parent_node), token(token) {
+) : name(std::move(name)), index(index), type(type), def_value(def_value), parent_node(parent_node), token(token) {
 
 }
 

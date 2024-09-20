@@ -13,10 +13,10 @@
 class DereferenceValue : public Value {
 public:
 
-    std::unique_ptr<Value> value;
+    Value* value;
     CSTToken* token;
 
-    explicit DereferenceValue(std::unique_ptr<Value> value, CSTToken* token);
+    explicit DereferenceValue(Value* value, CSTToken* token);
 
     CSTToken* cst_token() override {
         return token;

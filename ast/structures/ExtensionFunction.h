@@ -13,8 +13,8 @@ public:
     ExtensionFunction(
             std::string name,
             ExtensionFuncReceiver receiver,
-            std::vector<std::unique_ptr<FunctionParam>> params,
-            std::unique_ptr<BaseType> returnType,
+            std::vector<FunctionParam*> params,
+            BaseType* returnType,
             bool isVariadic,
             ASTNode* parent_node,
             CSTToken* token,

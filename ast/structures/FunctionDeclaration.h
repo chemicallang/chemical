@@ -28,7 +28,7 @@ public:
 
     AccessSpecifier specifier = AccessSpecifier::Internal;
     std::string name;
-    std::vector<std::unique_ptr<GenericTypeParameter>> generic_params;
+    std::vector<GenericTypeParameter*> generic_params;
     /**
      * subscribers are notified of generic usages of this function
      */
@@ -64,8 +64,8 @@ public:
      */
     FunctionDeclaration(
             std::string name,
-            std::vector<std::unique_ptr<FunctionParam>> params,
-            std::unique_ptr<BaseType> returnType,
+            std::vector<FunctionParam*> params,
+            BaseType* returnType,
             bool isVariadic,
             ASTNode* parent_node,
             CSTToken* token,

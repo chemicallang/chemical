@@ -8,7 +8,7 @@ class BaseFunctionParam : public ASTNode {
 public:
 
     std::string name;
-    std::unique_ptr<BaseType> type;
+    BaseType* type;
     FunctionType* func_type;
 
     /**
@@ -16,7 +16,7 @@ public:
      */
     BaseFunctionParam(
             std::string name,
-            std::unique_ptr<BaseType> type,
+            BaseType* type,
             FunctionType* func_type = nullptr
     );
 

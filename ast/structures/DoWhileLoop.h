@@ -14,7 +14,7 @@ class DoWhileLoop : public LoopASTNode {
 private:
     bool stoppedInterpretation = false;
 public:
-    std::unique_ptr<Value> condition;
+    Value* condition;
     ASTNode* parent_node;
     CSTToken* token;
 
@@ -43,7 +43,7 @@ public:
      * @param condition The loop condition.
      * @param body The body of the while loop.
      */
-    DoWhileLoop(std::unique_ptr<Value> condition, LoopScope body);
+    DoWhileLoop(Value* condition, LoopScope body);
 
     void accept(Visitor *visitor) override;
 

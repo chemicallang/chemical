@@ -26,16 +26,6 @@ public:
     Scope scope;
 
     /**
-     * types allocated during parsing, they don't have any organization to them
-     */
-    std::vector<std::unique_ptr<BaseType>> types;
-
-    /**
-     * values allocated during parsing, they don't have any organization to them
-     */
-    std::vector<std::unique_ptr<Value>> values;
-
-    /**
      * modules in which this ast unit has been declared in,
      * this is necessary because a file is supposed to be declared in a module once
      */

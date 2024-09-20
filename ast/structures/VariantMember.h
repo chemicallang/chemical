@@ -12,7 +12,7 @@
 class VariantMember : public BaseDefMember {
 public:
 
-    tsl::ordered_map<std::string, std::unique_ptr<VariantMemberParam>> values;
+    tsl::ordered_map<std::string, VariantMemberParam*> values;
     VariantDefinition* parent_node;
     LinkedType ref_type;
     CSTToken* token;

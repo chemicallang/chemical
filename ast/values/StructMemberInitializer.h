@@ -19,7 +19,7 @@ public:
     /**
      * the value used to initialize
      */
-    std::unique_ptr<Value> value;
+    Value* value;
 
     /**
      * the member we're linked with
@@ -36,7 +36,7 @@ public:
      */
     StructMemberInitializer(
         std::string name,
-        std::unique_ptr<Value> value,
+        Value* value,
         StructValue* struct_value,
         ASTNode* member = nullptr
     );

@@ -23,7 +23,7 @@ void Scope::interpret(InterpretScope &scope) {
     }
 }
 
-Scope::Scope(std::vector<std::unique_ptr<ASTNode>> nodes, ASTNode* parent_node, CSTToken* token) : nodes(std::move(nodes)), parent_node(parent_node), token(token) {
+Scope::Scope(std::vector<ASTNode*> nodes, ASTNode* parent_node, CSTToken* token) : nodes(std::move(nodes)), parent_node(parent_node), token(token) {
 
 }
 

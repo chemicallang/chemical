@@ -218,12 +218,12 @@ llvm::FunctionType *VarInitStatement::llvm_func_type(Codegen &gen) {
 VarInitStatement::VarInitStatement(
         bool is_const,
         std::string identifier,
-        std::unique_ptr<BaseType> type,
-        std::unique_ptr<Value> value,
+        BaseType* type,
+        Value* value,
         ASTNode* parent_node,
         CSTToken* token,
         AccessSpecifier specifier
-) : is_const(is_const), identifier(std::move(identifier)), type(std::move(type)), value(std::move(value)), parent_node(parent_node), token(token), specifier(specifier) {
+) : is_const(is_const), identifier(std::move(identifier)), type(type), value(value), parent_node(parent_node), token(token), specifier(specifier) {
 
 }
 

@@ -34,8 +34,8 @@ public:
     bool is_const;
     InterpretScope *decl_scope = nullptr;
     std::string identifier; ///< The identifier being initialized.
-    std::unique_ptr<BaseType> type;
-    std::unique_ptr<Value> value; ///< The value being assigned to the identifier.
+    BaseType* type;
+    Value* value; ///< The value being assigned to the identifier.
     ASTNode* parent_node;
     CSTToken* token;
     AccessSpecifier specifier;
@@ -49,8 +49,8 @@ public:
     VarInitStatement(
             bool is_const,
             std::string identifier,
-            std::unique_ptr<BaseType> type,
-            std::unique_ptr<Value> value,
+            BaseType* type,
+            Value* value,
             ASTNode* parent_node,
             CSTToken* token,
             AccessSpecifier specifier = AccessSpecifier::Internal

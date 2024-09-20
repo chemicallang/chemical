@@ -8,9 +8,9 @@
 class LinkedValueType : public LinkedType {
 public:
 
-    std::unique_ptr<Value> value;
+    Value* value;
 
-    LinkedValueType(std::unique_ptr<Value> value, CSTToken* token) : value(std::move(value)), LinkedType("", token) {
+    LinkedValueType(Value* value, CSTToken* token) : value(value), LinkedType("", token) {
 
     }
 

@@ -3,9 +3,9 @@
 #include "DereferenceValue.h"
 
 DereferenceValue::DereferenceValue(
-        std::unique_ptr<Value> value,
+        Value* value,
         CSTToken* token
-) : value(std::move(value)), token(token) {
+) : value(value), token(token) {
 
 }
 

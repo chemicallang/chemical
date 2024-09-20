@@ -15,9 +15,9 @@ private:
     ExtendableMembersContainerNode *definition = nullptr;
 public:
 
-    std::unique_ptr<Value> ref;
-    std::vector<std::unique_ptr<BaseType>> generic_list;
-    std::unordered_map<std::string, std::unique_ptr<StructMemberInitializer>> values;
+    Value* ref;
+    std::vector<BaseType*> generic_list;
+    std::unordered_map<std::string, StructMemberInitializer*> values;
     int16_t generic_iteration = 0;
     CSTToken* token;
     ASTNode* parent_node;
@@ -35,8 +35,8 @@ public:
 //    );
 
     StructValue(
-            std::unique_ptr<Value> ref,
-            std::unordered_map<std::string, std::unique_ptr<StructMemberInitializer>> values,
+            Value* ref,
+            std::unordered_map<std::string, StructMemberInitializer*> values,
             std::vector<std::unique_ptr<BaseType>> generic_list,
             ExtendableMembersContainerNode *definition,
             CSTToken* token,
@@ -44,8 +44,8 @@ public:
     );
 
     StructValue(
-            std::unique_ptr<Value> ref,
-            std::unordered_map<std::string, std::unique_ptr<StructMemberInitializer>> values,
+            Value* ref,
+            std::unordered_map<std::string, StructMemberInitializer*> values,
             ExtendableMembersContainerNode *definition,
             InterpretScope &scope,
             CSTToken* token,

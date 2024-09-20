@@ -20,7 +20,7 @@ std::vector<llvm::Type *> ExtensionFunction::param_types(Codegen &gen) {
 
 ExtensionFuncReceiver::ExtensionFuncReceiver(
     std::string name,
-    std::unique_ptr<BaseType> type,
+    BaseType* type,
     ASTNode* parent_node,
     CSTToken* token
 ) : BaseFunctionParam(std::move(name), std::move(type)), parent_node(parent_node), token(token) {
@@ -98,8 +98,8 @@ void ExtensionFuncReceiver::accept(Visitor *visitor) {
 ExtensionFunction::ExtensionFunction(
         std::string name,
         ExtensionFuncReceiver receiver,
-        std::vector<std::unique_ptr<FunctionParam>> params,
-        std::unique_ptr<BaseType> returnType,
+        std::vector<FunctionParam*> params,
+        BaseType* returnType,
         bool isVariadic,
         ASTNode* parent_node,
         CSTToken* token,
@@ -108,8 +108,8 @@ ExtensionFunction::ExtensionFunction(
 ) : FunctionDeclaration(
     std::move(name),
     std::move(params),
-    std::move(returnType),
-    std::move(isVariadic),
+    returnType,
+    isVariadic,
     parent_node,
     token,
     std::move(body),

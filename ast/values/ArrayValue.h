@@ -15,8 +15,8 @@
 class ArrayValue : public Value {
 public:
 
-    std::vector<std::unique_ptr<Value>> values;
-    std::unique_ptr<BaseType> elemType;
+    std::vector<Value*> values;
+    BaseType* elemType;
     std::vector<unsigned int> sizes;
     CSTToken* token;
     std::unique_ptr<BaseType> cached_type = nullptr;
@@ -27,11 +27,11 @@ public:
 #endif
 
     ArrayValue(
-            std::vector<std::unique_ptr<Value>> values,
-            std::unique_ptr<BaseType> type,
+            std::vector<Value*> values,
+            BaseType* type,
             std::vector<unsigned int> sizes,
             CSTToken* token
-    ) : values(std::move(values)), elemType(std::move(type)), sizes(std::move(sizes)), token(token) {
+    ) : values(std::move(values)), elemType(type), sizes(std::move(sizes)), token(token) {
         values.shrink_to_fit();
     }
 

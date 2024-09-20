@@ -8,9 +8,9 @@
 class ReferenceType : public TokenizedBaseType {
 public:
 
-    std::unique_ptr<BaseType> type;
+    BaseType* type;
 
-    ReferenceType(std::unique_ptr<BaseType> type, CSTToken* token) : type(std::move(type)), TokenizedBaseType(token) {
+    ReferenceType(BaseType* type, CSTToken* token) : type(type), TokenizedBaseType(token) {
 
     }
 

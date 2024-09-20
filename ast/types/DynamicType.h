@@ -7,12 +7,12 @@
 class DynamicType : public TokenizedBaseType {
 public:
 
-    std::unique_ptr<BaseType> referenced;
+    BaseType* referenced;
 
     /**
      * constructor
      */
-    DynamicType(std::unique_ptr<BaseType> referenced, CSTToken* token);
+    DynamicType(BaseType* referenced, CSTToken* token);
 
     void accept(Visitor* visitor) override {
         visitor->visit(this);

@@ -13,7 +13,7 @@ public:
      */
     ExtensionFuncReceiver(
         std::string name,
-        std::unique_ptr<BaseType> type,
+        BaseType* type,
         ASTNode* parent_node,
         CSTToken* token
     );

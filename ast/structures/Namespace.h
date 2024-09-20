@@ -10,7 +10,7 @@ class Namespace : public AnnotableNode {
 public:
 
     std::string name;
-    std::vector<std::unique_ptr<ASTNode>> nodes;
+    std::vector<ASTNode*> nodes;
     tsl::ordered_map<std::string, ASTNode*> extended;
     Namespace* root = nullptr; // the root's namespace extended map contains pointers to all nodes
     ASTNode* parent_node;

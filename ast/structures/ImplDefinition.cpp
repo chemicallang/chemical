@@ -62,11 +62,11 @@ ImplDefinition::ImplDefinition(
 }
 
 ImplDefinition::ImplDefinition(
-    std::unique_ptr<BaseType> interface_type,
-    std::unique_ptr<BaseType> struct_type,
+    BaseType* interface_type,
+    BaseType* struct_type,
     ASTNode* parent_node,
     CSTToken* token
-) : interface_type(std::move(interface_type)), struct_type(std::move(struct_type)), parent_node(parent_node), token(token) {
+) : interface_type(interface_type), struct_type(struct_type), parent_node(parent_node), token(token) {
 
 }
 

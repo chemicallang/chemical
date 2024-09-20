@@ -558,9 +558,9 @@ FunctionDeclaration* MembersContainer::pre_move_func() {
     return nullptr;
 }
 
-void MembersContainer::insert_func(std::unique_ptr<FunctionDeclaration> decl) {
-    indexes[decl->name] = decl.get();
-    functions_container.emplace_back(std::move(decl));
+void MembersContainer::insert_func(FunctionDeclaration* decl) {
+    indexes[decl->name] = decl;
+    functions_container.emplace_back(decl);
 }
 
 FunctionDeclaration* MembersContainer::create_destructor() {
@@ -637,7 +637,7 @@ FunctionDeclaration* MembersContainer::create_def_move_fn(ASTDiagnoser& diagnose
     return create_move_fn();
 }
 
-bool MembersContainer::insert_multi_func(std::unique_ptr<FunctionDeclaration> decl) {
+bool MembersContainer::insert_multi_func(FunctionDeclaration* decl) {
     auto found = indexes.find(decl->name);
     if(found == indexes.end()) {
         insert_func(std::move(decl));
@@ -729,7 +729,7 @@ void VariablesContainer::declare_and_link(SymbolResolver &linker, std::unique_pt
     }
 }
 
-InheritedType::InheritedType(std::unique_ptr<BaseType> type, AccessSpecifier specifier) : type(std::move(type)), specifier(specifier) {
+InheritedType::InheritedType(BaseType* type, AccessSpecifier specifier) : type(type), specifier(specifier) {
 
 }
 

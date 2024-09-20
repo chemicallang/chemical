@@ -81,17 +81,17 @@ public:
     /**
      * top level nodes
      */
-    std::vector<std::unique_ptr<ASTNode>> nodes;
+    std::vector<ASTNode*> nodes;
 
     /**
      * types found when visiting tokens
      */
-    std::vector<std::unique_ptr<BaseType>> types;
+    std::vector<BaseType*> types;
 
     /**
      * values found when visiting tokens
      */
-    std::vector<std::unique_ptr<Value>> values;
+    std::vector<Value*> values;
 
     /**
      * collected annotations that will be applied to next struct / function
@@ -219,17 +219,48 @@ public:
     /**
      * consumes the latest (last in the vector) value from the values vector
      */
-    std::unique_ptr<Value> value();
+    Value* value();
 
     /**
      * consumes the latest (last in the vector) type from the types vector
      */
-    std::unique_ptr<BaseType> type();
+    BaseType* type();
 
     /**
      * take a compound cst token of type generic arg list and convert its tokens to generic arg list
      */
-    void to_generic_arg_list(std::vector<std::unique_ptr<BaseType>>& generic_list, CSTToken* container);
+    void to_generic_arg_list(std::vector<BaseType*>& generic_list, CSTToken* container);
+
+    /**
+     * allocate the type locally in the module
+     */
+    template<typename T>
+    inline T* local() {
+        return local_allocator->allocate<T>();
+    }
+
+    /**
+     * allocate the type globally (for the whole executable / dll)
+     */
+    template<typename T>
+    inline T* global() {
+        return global_allocator.allocate<T>();
+    }
+
+    /**
+     * get the allocator for allocating given type
+     * the access specifier is used to determine where it should be allocated
+     */
+    ASTAllocator<>& allocator(AccessSpecifier spec) {
+        switch(spec) {
+            case AccessSpecifier::Private:
+            case AccessSpecifier::Protected:
+            case AccessSpecifier::Internal:
+                return *local_allocator;
+            case AccessSpecifier::Public:
+                return global_allocator;
+        }
+    }
 
     // nodes
 

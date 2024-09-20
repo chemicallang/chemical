@@ -14,10 +14,10 @@ class IndexOperator : public ChainValue {
 public:
 
     ChainValue *parent_val;
-    std::vector<std::unique_ptr<Value>> values;
+    std::vector<Value*> values;
     CSTToken* token;
 
-    IndexOperator(std::vector<std::unique_ptr<Value>> indexes, CSTToken* token) : values(std::move(indexes)), token(token) {
+    IndexOperator(std::vector<Value*> indexes, CSTToken* token) : values(std::move(indexes)), token(token) {
 
     }
 

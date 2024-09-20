@@ -14,7 +14,7 @@
 class WhileLoop : public LoopASTNode {
 public:
 
-    std::unique_ptr<Value> condition;
+    Value* condition;
     bool stoppedInterpretation = false;
     ASTNode* parent_node;
     CSTToken* token;
@@ -31,7 +31,7 @@ public:
      * @param condition The loop condition.
      * @param body The body of the while loop.
      */
-    WhileLoop(std::unique_ptr<Value> condition, LoopScope body, ASTNode* parent_node, CSTToken* token);
+    WhileLoop(Value* condition, LoopScope body, ASTNode* parent_node, CSTToken* token);
 
     CSTToken *cst_token() override {
         return token;

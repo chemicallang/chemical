@@ -73,12 +73,12 @@ llvm::Type *FunctionType::llvm_type(Codegen &gen) {
 #endif
 
 FunctionType::FunctionType(
-    std::vector<std::unique_ptr<FunctionParam>> params,
-    std::unique_ptr<BaseType> returnType,
+    std::vector<FunctionParam*> params,
+    BaseType* returnType,
     bool isVariadic,
     bool isCapturing,
     CSTToken* token
-) : params(std::move(params)), returnType(std::move(returnType)), isVariadic(isVariadic), isCapturing(isCapturing), TokenizedBaseType(token) {
+) : params(std::move(params)), returnType(returnType), isVariadic(isVariadic), isCapturing(isCapturing), TokenizedBaseType(token) {
 
 }
 

@@ -12,11 +12,11 @@
 class CastedValue : public Value {
 public:
 
-    std::unique_ptr<Value> value;
-    std::unique_ptr<BaseType> type;
+    Value* value;
+    BaseType* type;
     CSTToken* token;
 
-    CastedValue(std::unique_ptr<Value> value, std::unique_ptr<BaseType> type, CSTToken* token);
+    CastedValue(Value* value, BaseType* type, CSTToken* token);
 
     CSTToken* cst_token() override {
         return token;

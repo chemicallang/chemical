@@ -34,8 +34,8 @@ class ASTDiagnoser;
 class FunctionType : public TokenizedBaseType {
 public:
 
-    std::vector<std::unique_ptr<FunctionParam>> params;
-    std::unique_ptr<BaseType> returnType = nullptr;
+    std::vector<FunctionParam*> params;
+    BaseType* returnType = nullptr;
     // if the function is variadic, the last type in params is the type given to the variadic parameter
     bool isVariadic;
     bool isCapturing;
@@ -58,8 +58,8 @@ public:
      * constructor
      */
     FunctionType(
-        std::vector<std::unique_ptr<FunctionParam>> params,
-        std::unique_ptr<BaseType> returnType,
+        std::vector<FunctionParam*> params,
+        BaseType* returnType,
         bool isVariadic,
         bool isCapturing,
         CSTToken* token

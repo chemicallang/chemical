@@ -935,26 +935,26 @@ bool BaseFunctionParam::add_child_index(Codegen &gen, std::vector<llvm::Value *>
 
 BaseFunctionParam::BaseFunctionParam(
         std::string name,
-        std::unique_ptr<BaseType> type,
+        BaseType* type,
         FunctionType* func_type
-) : name(std::move(name)), type(std::move(type)), func_type(func_type) {
+) : name(std::move(name)), type(type), func_type(func_type) {
 
 };
 
 FunctionParam::FunctionParam(
         std::string name,
-        std::unique_ptr<BaseType> type,
+        BaseType* type,
         unsigned int index,
-        std::unique_ptr<Value> defValue,
+        Value* defValue,
         FunctionType* func_type,
         CSTToken* token
 ) : BaseFunctionParam(
         std::move(name),
-        std::move(type),
+        type,
         func_type
     ),
     index(index),
-    defValue(std::move(defValue)),
+    defValue(defValue),
     token(token)
 {
     name.shrink_to_fit();
@@ -1011,12 +1011,12 @@ ASTNode *BaseFunctionParam::child(const std::string &name) {
 
 GenericTypeParameter::GenericTypeParameter(
         std::string identifier,
-        std::unique_ptr<BaseType> def_type,
+        BaseType* def_type,
         ASTNode* parent_node,
         unsigned param_index,
         CSTToken* token
 ) : identifier(std::move(identifier)),
-def_type(std::move(def_type)), parent_node(parent_node), param_index(param_index), token(token) {
+def_type(def_type), parent_node(parent_node), param_index(param_index), token(token) {
 
 }
 
@@ -1041,14 +1041,14 @@ void GenericTypeParameter::register_usage(BaseType* type) {
 
 FunctionDeclaration::FunctionDeclaration(
         std::string name,
-        std::vector<std::unique_ptr<FunctionParam>> params,
-        std::unique_ptr<BaseType> returnType,
+        std::vector<FunctionParam*> params,
+        BaseType* returnType,
         bool isVariadic,
         ASTNode* parent_node,
         CSTToken* token,
         std::optional<LoopScope> body,
         AccessSpecifier specifier
-) : FunctionType(std::move(params), std::move(returnType), isVariadic, false, token),
+) : FunctionType(std::move(params), returnType, isVariadic, false, token),
     name(std::move(name)),
     body(std::move(body)), parent_node(parent_node), token(token), specifier(specifier) {
 }

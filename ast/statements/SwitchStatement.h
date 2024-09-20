@@ -9,16 +9,16 @@
 class SwitchStatement : public ASTNode, public Value {
 public:
 
-    std::unique_ptr<Value> expression;
-    std::vector<std::pair<std::unique_ptr<Value>, Scope>> scopes;
+    Value* expression;
+    std::vector<std::pair<Value*, Scope>> scopes;
     std::optional<Scope> defScope;
     ASTNode* parent_node;
     bool is_value;
     CSTToken* token;
 
     SwitchStatement(
-        std::unique_ptr<Value> expression,
-        std::vector<std::pair<std::unique_ptr<Value>, Scope>> scopes,
+        Value* expression,
+        std::vector<std::pair<Value*, Scope>> scopes,
         std::optional<Scope> defScope,
         ASTNode* parent_node,
         bool is_value,

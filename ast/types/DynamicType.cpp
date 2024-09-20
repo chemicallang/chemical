@@ -2,7 +2,7 @@
 
 #include "DynamicType.h"
 
-DynamicType::DynamicType(std::unique_ptr<BaseType> referenced, CSTToken* token) : referenced(std::move(referenced)), TokenizedBaseType(token) {
+DynamicType::DynamicType(BaseType* referenced, CSTToken* token) : referenced(referenced), TokenizedBaseType(token) {
 
 }
 

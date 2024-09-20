@@ -110,6 +110,14 @@ std::vector<ASTNode*> take_body_nodes(CSTConverter *conv, CSTToken *token, ASTNo
     return nodes;
 }
 
+std::vector<ASTNode*> take_body_nodes(CSTConverter *conv, ASTAllocator<>& allocator, CSTToken *token, ASTNode* parent_node) {
+    auto local = conv->local_allocator;
+    conv->local_allocator = &allocator;
+    auto nodes = take_body_nodes(conv, token, parent_node);
+    conv->local_allocator = local;
+    return nodes;
+}
+
 std::vector<ASTNode*> take_body_or_single_stmt(CSTConverter *conv, CSTToken *container, unsigned &i, ASTNode* parent_node) {
     auto& token = container->tokens[i];
     const auto type = token->type();
@@ -442,7 +450,7 @@ void CSTConverter::visitFunctionParam(CSTToken* param) {
         param->tokens.back()->accept(this);
         def_value = value();
     }
-    put_node(new (global<FunctionParam>()) FunctionParam(identifier, baseType, param_index, def_value, nullptr, param), param);
+    put_node(new (local<FunctionParam>()) FunctionParam(identifier, baseType, param_index, def_value, nullptr, param), param);
 }
 
 struct FunctionParamsResult {
@@ -558,6 +566,9 @@ void CSTConverter::visitFunction(CSTToken* function) {
 
     auto& alloc = allocator(specifier);
 
+    auto prev_local = local_allocator;
+    local_allocator = &alloc;
+
     auto params = function_params(this, alloc, function->tokens, i + 2);
 
     i = params.index;
@@ -583,7 +594,7 @@ void CSTConverter::visitFunction(CSTToken* function) {
         receiver_tok->accept(this);
         auto param = (FunctionParam*) nodes.back();
         nodes.pop_back();
-        funcDecl = new (global<ExtensionFunction>()) ExtensionFunction(
+        funcDecl = new (alloc.allocate<ExtensionFunction>()) ExtensionFunction(
                 name_token->value(),
                 ExtensionFuncReceiver(std::move(param->name), param->type, nullptr, receiver_tok),
                 std::move(params.params),
@@ -594,9 +605,8 @@ void CSTConverter::visitFunction(CSTToken* function) {
                 specifier
         );
         ((ExtensionFunction*) funcDecl)->receiver.parent_node = funcDecl;
-        delete param;
     } else {
-        funcDecl = new (global<FunctionDeclaration>()) FunctionDeclaration(
+        funcDecl = new (alloc.allocate<FunctionDeclaration>()) FunctionDeclaration(
                 name_token->value(),
                 std::move(params.params),
                 returnType, params.isVariadic,
@@ -608,7 +618,7 @@ void CSTConverter::visitFunction(CSTToken* function) {
         if(!parent_node && !spec.has_value() && name_token->value() == "main") {
             funcDecl->specifier = AccessSpecifier::Public;
             if(funcDecl->returnType->kind() != BaseTypeKind::IntN) {
-                funcDecl->returnType = new (global<IntType>()) IntType(funcDecl->returnType->cst_token());
+                funcDecl->returnType = new (alloc.allocate<IntType>()) IntType(funcDecl->returnType->cst_token());
             }
         }
     }
@@ -627,14 +637,14 @@ void CSTConverter::visitFunction(CSTToken* function) {
 
     put_node(funcDecl, function);
 
-    if (i >= function->tokens.size()) {
-        return;
+    if (i < function->tokens.size()) {
+        auto prev_decl = current_func_type;
+        current_func_type = funcDecl;
+        funcDecl->body->nodes = take_body_nodes(this, function->tokens[i], funcDecl);
+        current_func_type = prev_decl;
     }
 
-    auto prev_decl = current_func_type;
-    current_func_type = funcDecl;
-    funcDecl->body->nodes = take_body_nodes(this, function->tokens[i], funcDecl);
-    current_func_type = prev_decl;
+    local_allocator = prev_local;
 
 
 }
@@ -717,6 +727,8 @@ void CSTConverter::visitVarInit(CSTToken* varInit) {
     i += 1;
     auto specifier = is_struct_member ? (spec.has_value() ? spec.value() : AccessSpecifier::Public) : def_specifier(spec);
     auto& alloc = is_struct_member ? global_allocator : (parent_node ? allocator(specifier) : (*local_allocator));
+    auto prev_alloc = local_allocator;
+    local_allocator = &alloc;
     AnnotableNode* init;
     if(is_struct_member) {
         init = new (alloc.allocate<StructMember>()) StructMember(
@@ -767,8 +779,11 @@ void CSTConverter::visitVarInit(CSTToken* varInit) {
 
     collect_annotations_in(this, init);
 
-    parent_node = prev_parent;
     put_node(init, varInit);
+
+    parent_node = prev_parent;
+    local_allocator = prev_alloc;
+
 }
 
 void CSTConverter::visitAssignment(CSTToken* assignment) {
@@ -839,12 +854,16 @@ void CSTConverter::visitTypealias(CSTToken* alias) {
     auto spec = specifier_token(alias->tokens[0]);
     unsigned i = spec.has_value() ? 2 : 1;
     const auto& name_token = alias->tokens[i];
-    alias->tokens[i + 2]->accept(this);
+    auto& type_token = alias->tokens[i + 2];
     auto specifier = spec.has_value() ? spec.value() : AccessSpecifier::Internal;
     auto& alloc = parent_node ? *local_allocator : allocator(specifier);
+    auto prev_alloc = local_allocator;
+    local_allocator = &alloc;
+    type_token->accept(this);
     auto stmt = new (alloc.allocate<TypealiasStatement>()) TypealiasStatement(name_token->value(), type(), parent_node, alias, specifier);
     collect_annotations_in(this, stmt);
     put_node(stmt, alias);
+    local_allocator = prev_alloc;
 }
 
 void CSTConverter::visitTypeToken(CSTToken* token) {
@@ -991,6 +1010,8 @@ void CSTConverter::visitIf(CSTToken* ifCst) {
     auto is_value  = ifCst->type() == LexTokenType::CompIfValue;
 
     auto& alloc = parent_node ? *local_allocator : global_allocator;
+    auto prev_alloc = local_allocator;
+    local_allocator = &alloc;
 
     // if condition
     ifCst->tokens[2]->accept(this);
@@ -1045,6 +1066,8 @@ void CSTConverter::visitIf(CSTToken* ifCst) {
     } else {
         put_node(if_statement, ifCst);
     }
+
+    local_allocator = prev_alloc;
 
 }
 
@@ -1277,6 +1300,8 @@ void CSTConverter::visitStructDef(CSTToken* structDef) {
     auto has_override = is_char_op(structDef->tokens[i], ':');
     auto specifier = named ? def_specifier(spec) : (spec.has_value() ? spec.value() : AccessSpecifier::Public);
     auto& alloc = named ? allocator(specifier) : *local_allocator;
+    auto prev_alloc = local_allocator;
+    local_allocator = &alloc;
     AnnotableNode* def;
     if(named) {
         def = new (alloc.allocate<StructDefinition>()) StructDefinition(name_token->value(), parent_node, structDef, specifier);
@@ -1296,10 +1321,11 @@ void CSTConverter::visitStructDef(CSTToken* structDef) {
     auto prev_parent = parent_node;
     parent_node = def;
     collect_struct_members(this, structDef, def->as_variables_container(), (MembersContainer*) def, i);
-    parent_node = prev_parent;
-    current_members_container = prev_struct_decl;
     collect_annotations_in(this, def);
     put_node(def, structDef);
+    parent_node = prev_parent;
+    current_members_container = prev_struct_decl;
+    local_allocator = prev_alloc;
 }
 
 void CSTConverter::visitInterface(CSTToken* interface) {
@@ -1314,6 +1340,8 @@ void CSTConverter::visitInterface(CSTToken* interface) {
     }
     auto specifier = def_specifier(spec);
     auto& alloc = allocator(specifier);
+    auto prev_alloc = local_allocator;
+    local_allocator = &alloc;
     auto def = new (alloc.allocate<InterfaceDefinition>()) InterfaceDefinition(str_token(interface->tokens[i]), parent_node, interface, specifier);
     i += 1;
     const auto& gen_token = interface->tokens[i];
@@ -1328,9 +1356,10 @@ void CSTConverter::visitInterface(CSTToken* interface) {
     auto prev_parent = parent_node;
     parent_node = def;
     collect_struct_members(this, interface, def, def, i);
+    put_node(def, interface);
     parent_node = prev_parent;
     current_members_container = prev_container;
-    put_node(def, interface);
+    local_allocator = prev_alloc;
 }
 
 void CSTConverter::visitUnionDef(CSTToken* unionDef) {
@@ -1352,6 +1381,8 @@ void CSTConverter::visitUnionDef(CSTToken* unionDef) {
     }
     auto specifier = named ? def_specifier(spec) : (spec.has_value() ? spec.value() : AccessSpecifier::Public);
     auto& alloc = allocator(specifier);
+    auto prev_alloc = local_allocator;
+    local_allocator = &alloc;
     AnnotableNode* def;
     if(named) {
         def = new (alloc.allocate<UnionDef>()) UnionDef(
@@ -1373,9 +1404,10 @@ void CSTConverter::visitUnionDef(CSTToken* unionDef) {
     auto prev_parent = parent_node;
     parent_node = def;
     collect_struct_members(this, unionDef, def->as_variables_container(), (MembersContainer*) def, i);
-    parent_node = prev_parent;
-    current_members_container = prev_container;
     put_node(def, unionDef);
+    current_members_container = prev_container;
+    parent_node = prev_parent;
+    local_allocator = prev_alloc;
 }
 
 void CSTConverter::visitImpl(CSTToken* impl) {
@@ -1383,9 +1415,12 @@ void CSTConverter::visitImpl(CSTToken* impl) {
         return;
     }
     unsigned i = 1;
-    auto def = new (global<ImplDefinition>()) ImplDefinition(parent_node);
+    auto& alloc = global_allocator;
+    auto def = new (alloc.allocate<ImplDefinition>()) ImplDefinition(parent_node);
+    auto prev_alloc = local_allocator;
+    local_allocator = &alloc;
     if(impl->tokens[i]->type() == LexTokenType::CompGenericParamsList) {
-        convert_generic_list(this, global_allocator, impl->tokens[i], def->generic_params, def);
+        convert_generic_list(this, alloc, impl->tokens[i], def->generic_params, def);
         i++;
     }
     impl->tokens[i]->accept(this);
@@ -1406,6 +1441,7 @@ void CSTConverter::visitImpl(CSTToken* impl) {
     parent_node = prev_parent;
     current_members_container = prev_container;
     put_node(def, impl);
+    local_allocator = prev_alloc;
 }
 
 void CSTConverter::visitVariantMember(CSTToken* variant_member) {
@@ -1428,6 +1464,8 @@ void CSTConverter::visitVariant(CSTToken* variantDef) {
     }
     auto specifier = def_specifier(spec);
     auto& alloc = allocator(specifier);
+    auto prev_alloc = local_allocator;
+    local_allocator = &alloc;
     const auto& name_token = variantDef->tokens[i];
     bool named = name_token->is_identifier();
     if(named) {
@@ -1458,10 +1496,11 @@ void CSTConverter::visitVariant(CSTToken* variantDef) {
     auto prev_parent = parent_node;
     parent_node = def;
     collect_struct_members(this, variantDef, def, def, i);
-    parent_node = prev_parent;
-    current_members_container = prev_struct_decl;
     collect_annotations_in(this, def);
     put_node(def, variantDef);
+    parent_node = prev_parent;
+    current_members_container = prev_struct_decl;
+    local_allocator = prev_alloc;
 }
 
 void CSTConverter::visitTryCatch(CSTToken* tryCatch) {

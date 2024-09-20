@@ -165,9 +165,9 @@ CSTConverter::CSTConverter(
         std::string target,
         GlobalInterpretScope& scope,
         ASTAllocator<>& global_allocator,
-        ASTAllocator<>* local_allocator
+        ASTAllocator<>& mod_allocator
 ) : path(std::move(path)), is64Bit(is64Bit), target(std::move(target)), global_scope(scope),
-    global_allocator(global_allocator), local_allocator(local_allocator) {
+    global_allocator(global_allocator), mod_allocator(mod_allocator), local_allocator(&mod_allocator) {
 
 }
 

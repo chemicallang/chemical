@@ -11,10 +11,11 @@
 #include "ast/base/GlobalInterpretScope.h"
 #include "ast/base/Annotation.h"
 #include "ast/base/ASTUnit.h"
-#include "ast/base/ASTAllocator.h"
 
 #include <memory>
 #include <vector>
+
+class ASTAllocator;
 
 class LoopASTNode;
 
@@ -69,19 +70,19 @@ public:
      * anything allocated using global allocator is not supposed to be destructed until the code
      * for complete job (executable / dll) has been generated
      */
-    ASTAllocator<>& global_allocator;
+    ASTAllocator& global_allocator;
 
     /**
      * the module allocator is used for module level things, non public functions
      */
-    ASTAllocator<>& mod_allocator;
+    ASTAllocator& mod_allocator;
 
     /**
      * local allocator is the allocator for a statement, type or value present inside a non generic,
      * non comptime or internal functions, these are not retained after module has generated code
      * we dispose these allocations after generating code for module
      */
-    ASTAllocator<>* local_allocator;
+    ASTAllocator* local_allocator;
 
     /**
      * top level nodes
@@ -155,8 +156,8 @@ public:
         bool is64Bit,
         std::string target,
         GlobalInterpretScope& scope,
-        ASTAllocator<>& global_allocator,
-        ASTAllocator<>& local_allocator
+        ASTAllocator& global_allocator,
+        ASTAllocator& local_allocator
     );
 
     /**
@@ -256,7 +257,7 @@ public:
      * get the allocator for allocating given type
      * the access specifier is used to determine where it should be allocated
      */
-    ASTAllocator<>& allocator(AccessSpecifier spec) {
+    ASTAllocator& allocator(AccessSpecifier spec) {
         switch(spec) {
             case AccessSpecifier::Private:
             case AccessSpecifier::Protected:

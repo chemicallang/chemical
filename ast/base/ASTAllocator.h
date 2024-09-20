@@ -10,10 +10,7 @@
  * to allocate different AST classes, it allocates a pre-allocated size on
  * stack for faster allocation
  * It always manages memory for you, meaning when it dies, all the memory it allocated dies !
- * It's also very HEAVY, it's supposed to handle large amount of classes, so it allocates 100 kb on the stack
- * The StackSize SHOULD ALWAYS be larger than every object that you'll allocate using this allocator
  */
-template<std::size_t StackSize = 100000>
 class ASTAllocator {
 public:
 
@@ -25,8 +22,13 @@ public:
 
     /**
      * the stack memory used to store objects on stack instead of heap
+     * given by the user
      */
-    char stackMemory[StackSize];
+    char* const stack_memory;
+    /**
+     * the stack size is given by the user
+     */
+    const std::size_t stack_memory_size;
     /**
      * how much of the stack memory has been consumed
      * by default initialized to zero
@@ -41,6 +43,10 @@ public:
      */
     std::vector<char*> heap_memory;
     /**
+     * heap batch size is the memory allocated on the heap when stack memory ends
+     */
+    const std::size_t heap_batch_size;
+    /**
      * current heap offset
      */
     std::size_t heap_offset;
@@ -53,7 +59,7 @@ public:
     /**
      * constructor
      */
-    ASTAllocator() : stack_offset(0), heap_offset(StackSize) {
+    ASTAllocator(char* stackMemory, std::size_t stackSize, std::size_t heapBatchSize) : stack_memory(stackMemory), stack_memory_size(stackSize), stack_offset(0), heap_offset(heapBatchSize), heap_batch_size(heapBatchSize) {
         ptr_storage.reserve(10);
         reserve_ptr_storage();
     }
@@ -74,7 +80,7 @@ public:
         clear_ptr_storage();
         stack_offset = 0;
         heap_memory.clear();
-        heap_offset = 0;
+        heap_offset = heap_batch_size; // force heap allocation
     }
 
     /**
@@ -152,7 +158,7 @@ protected:
      */
     char* reserve_heap_storage() {
         // reserving a heap pointer with stack size
-        const auto heap_pointer = static_cast<char*>(::operator new(StackSize));
+        const auto heap_pointer = static_cast<char*>(::operator new(heap_batch_size));
         heap_memory.emplace_back(heap_pointer);
         // resetting heap storage
         heap_offset = 0;
@@ -164,7 +170,7 @@ protected:
      * provides a pointer for the given obj size, increments heap_current
      */
     char* object_heap_pointer(std::size_t obj_size) {
-        const auto heap_ptr = ((heap_offset + obj_size) < StackSize) ? heap_memory.back() : reserve_heap_storage();
+        const auto heap_ptr = ((heap_offset + obj_size) < heap_batch_size) ? heap_memory.back() : reserve_heap_storage();
         const auto ptr = heap_ptr + heap_offset;
         heap_offset = heap_offset + obj_size;
         return ptr;
@@ -172,8 +178,8 @@ protected:
 
     char* allocate_size(std::size_t obj_size) {
         std::lock_guard<std::mutex> lock(allocator_mutex);
-        if (stack_offset + obj_size < StackSize) {
-            const auto ptr = &stackMemory[stack_offset];
+        if (stack_offset + obj_size < stack_memory_size) {
+            const auto ptr = stack_memory + stack_offset;
             stack_offset += obj_size;
             store_ptr((ASTAny*) (void*) ptr);
             return ptr;

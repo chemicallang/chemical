@@ -180,7 +180,7 @@ void VariantCall::link_args_implicit_constructor(SymbolResolver &linker) {
     unsigned i = 0;
     auto itr = member->values.begin();
     while(i < values.size()) {
-        auto implicit_constructor = itr->second->type->implicit_constructor_for(values[i]);
+        auto implicit_constructor = itr->second->type->implicit_constructor_for(linker.allocator, values[i]);
         if (implicit_constructor) {
             if(linker.preprocess) {
                 values[i] = call_with_arg(implicit_constructor, std::move(values[i]), linker);
@@ -205,7 +205,7 @@ bool VariantCall::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expe
         auto& value = *mem_value_ptr;
         value.link(linker, mem_value_ptr);
         const auto param = member->values.begin() + i;
-        current_func.mark_moved_value(&value, param->second->type, linker, true);
+        current_func.mark_moved_value(linker.allocator, &value, param->second->type, linker, true);
         i++;
     }
     int16_t prev_itr;

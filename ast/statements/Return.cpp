@@ -32,7 +32,7 @@ void ReturnStatement::declare_and_link(SymbolResolver &linker, ASTNode*& node_pt
             if(func && func->has_annotation(AnnotationKind::Constructor)) {
                 return;
             }
-            const auto implicit = func_type->returnType->implicit_constructor_for(value);
+            const auto implicit = func_type->returnType->implicit_constructor_for(linker.allocator, value);
             if (implicit && implicit != func_type && implicit->parent_node != func_type->parent()) {
                 if(linker.preprocess) {
                     value = call_with_arg(implicit, value, linker);

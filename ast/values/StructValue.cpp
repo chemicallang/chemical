@@ -353,8 +353,8 @@ bool StructValue::link(SymbolResolver& linker, Value*& value_ptr, BaseType* expe
             auto member = definition->variables.find(val.first);
             if(definition->variables.end() != member) {
                 const auto mem_type = member->second->get_value_type(linker.allocator);
-                auto implicit = mem_type->implicit_constructor_for(val_ptr);
-                current_func_type.mark_moved_value(val.second->value, mem_type, linker);
+                auto implicit = mem_type->implicit_constructor_for(linker.allocator, val_ptr);
+                current_func_type.mark_moved_value(linker.allocator, val.second->value, mem_type, linker);
                 if(implicit) {
                     if(linker.preprocess) {
                         val_ptr = call_with_arg(implicit, val_ptr, linker);

@@ -24,7 +24,7 @@ public:
         return BaseTypeKind::Any;
     }
 
-    bool satisfies(Value *value) override {
+    bool satisfies(ASTAllocator& allocator, Value* value) override {
         return true;
     }
 

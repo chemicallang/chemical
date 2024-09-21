@@ -21,7 +21,7 @@ void DestructStmt::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) 
         array_value->link(linker, array_value);
     }
     identifier->link(linker, identifier);
-    auto type = identifier->get_pure_type();
+    auto type = identifier->get_pure_type(linker.allocator);
     if(!type->is_pointer()) {
         linker.error("destruct cannot be called on a value that isn't a pointer", this);
         return;

@@ -798,9 +798,9 @@ void ReturnStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
         } else {
             return_value = value->llvm_ret_value(gen, this);
             if(func_type) {
-                auto value_type = value->get_pure_type();
+                auto value_type = value->get_pure_type(gen.allocator);
                 auto to_type = func_type->returnType->pure_type();
-                return_value = gen.implicit_cast(return_value, value_type.get(), to_type);
+                return_value = gen.implicit_cast(return_value, value_type, to_type);
             }
         }
     }

@@ -33,7 +33,7 @@ public:
         return ASTNodeKind::MultiFunctionNode;
     }
 
-    FunctionDeclaration* func_for_call(std::vector<Value*>& args);
+    FunctionDeclaration* func_for_call(ASTAllocator& allocator, std::vector<Value*>& args);
 
     void accept(Visitor *visitor) override {
         // don't do anything

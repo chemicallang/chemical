@@ -37,7 +37,7 @@ void AssignStatement::declare_and_link(SymbolResolver &linker, ASTNode*& node_pt
         }
     }
     auto& func_type = *linker.current_func_type;
-    func_type.mark_moved_value(value, lhs->known_type(), linker, true);
+    func_type.mark_moved_value(linker.allocator, value, lhs->known_type(), linker, true);
     func_type.mark_un_moved_lhs_value(lhs, lhs->known_type());
 }
 

@@ -24,49 +24,49 @@ const StringType StringType::instance(nullptr);
 const UCharType UCharType::instance(nullptr);
 const VoidType VoidType::instance(nullptr);
 
-bool ArrayType::satisfies(Value *value) {
+bool ArrayType::satisfies(ASTAllocator& allocator, Value* value) {
     if(value->value_type() != ValueType::Array) return false;
-    const auto pure_type = value->get_pure_type();
+    const auto pure_type = value->get_pure_type(allocator);
     if(pure_type->kind() != BaseTypeKind::Array) return false;
-    const auto arr_type = (ArrayType*) pure_type.get();
+    const auto arr_type = (ArrayType*) pure_type;
     if(array_size != -1 && arr_type->array_size != -1 && array_size != arr_type->array_size) return false;
     // can't get array element type, because array is empty probably and has no type declaration to lean on
     if(!arr_type->elem_type) return true;
     return elem_type->satisfies(arr_type->elem_type);
 }
 
-bool BoolType::satisfies(Value *value) {
+bool BoolType::satisfies(ASTAllocator& allocator, Value* value) {
     return value->value_type() == ValueType::Bool;
 }
 
-bool CharType::satisfies(Value *value) {
+bool CharType::satisfies(ASTAllocator& allocator, Value* value) {
     return value->value_type() == ValueType::Char;
 }
 
-bool UCharType::satisfies(Value *value) {
+bool UCharType::satisfies(ASTAllocator& allocator, Value* value) {
     return value->value_type() == ValueType::UChar;
 }
 
-bool DoubleType::satisfies(Value *value) {
+bool DoubleType::satisfies(ASTAllocator& allocator, Value* value) {
     return value->value_type() == ValueType::Double;
 }
 
-bool FloatType::satisfies(Value *value) {
+bool FloatType::satisfies(ASTAllocator& allocator, Value* value) {
     return value->value_type() == ValueType::Float;
 }
 
-bool PointerType::satisfies(Value *value) {
+bool PointerType::satisfies(ASTAllocator& allocator, Value* value) {
     return value->value_type() == ValueType::Pointer || value->is_pointer() && type->satisfies(value->known_type());
 }
 
-bool LinkedType::satisfies(Value *value) {
+bool LinkedType::satisfies(ASTAllocator& allocator, Value* value) {
     return value->known_type()->is_same(this);
 }
 
-bool StringType::satisfies(Value *value) {
+bool StringType::satisfies(ASTAllocator& allocator, Value* value) {
     return value->value_type() == ValueType::String;
 }
 
-bool LiteralType::satisfies(Value *value) {
-    return !value->reference() && underlying->satisfies(value);
+bool LiteralType::satisfies(ASTAllocator& allocator, Value* value) {
+    return !value->reference() && underlying->satisfies(allocator, value);
 }

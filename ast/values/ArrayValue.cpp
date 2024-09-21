@@ -27,12 +27,16 @@ llvm::Value *ArrayValue::llvm_pointer(Codegen &gen) {
     return arr;
 }
 
+BaseType* array_child_type(ArrayValue& value, ASTAllocator& allocator) {
+    return ((ArrayType*) value.create_type(allocator))->elem_type;
+}
+
 void ArrayValue::initialize_allocated(Codegen& gen, llvm::Value* allocated, BaseType* expected_type) {
     // filling array with values
     std::vector<llvm::Value*> idxList;
     idxList.emplace_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), 0));
     auto child_type = array_child(expected_type);
-    auto known_child_t = known_child_type();
+    auto known_child_t = array_child_type(*this, gen.allocator);
     auto parent_type = llvm_type(gen);
     bool moved = false;
     for (size_t i = 0; i < values.size(); ++i) {
@@ -159,7 +163,7 @@ bool ArrayValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expec
             unsigned i = 0;
             while (i < values.size()) {
                 values[i]->link(linker, values[i], elemType);
-                const auto implicit = def->implicit_constructor_func(values[i]);
+                const auto implicit = def->implicit_constructor_func(linker.allocator, values[i]);
                 if(implicit) {
                     if(linker.preprocess) {
                         values[i] = call_with_arg(implicit, values[i], linker);
@@ -187,7 +191,7 @@ bool ArrayValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expec
             known_elem_type = value->known_type();
         }
         if(known_elem_type) {
-            current_func_type.mark_moved_value(value, known_elem_type, linker, elemType != nullptr);
+            current_func_type.mark_moved_value(linker.allocator, value, known_elem_type, linker, elemType != nullptr);
         }
         i++;
     }
@@ -235,8 +239,4 @@ BaseType* ArrayValue::create_type(ASTAllocator& allocator) {
 
 BaseType* ArrayValue::known_type() {
     return created_type;
-}
-
-BaseType* ArrayValue::known_child_type() {
-    return ((ArrayType*) known_type())->elem_type;
 }

@@ -33,7 +33,7 @@ public:
         return ValueType::Double;
     }
 
-    bool satisfies(Value *value) override;
+    bool satisfies(ASTAllocator& allocator, Value* value) override;
 
     bool can_promote(Value *value) override;
 

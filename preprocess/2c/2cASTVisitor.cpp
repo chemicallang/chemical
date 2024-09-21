@@ -3609,7 +3609,7 @@ void write_path_to_child(ToCAstVisitor& visitor, std::vector<int>& path, StructD
 void chain_value_accept(ToCAstVisitor& visitor, ChainValue* previous, ChainValue* value) {
     const auto linked = value->linked_node();
     if(previous) {
-        const auto prev_type = previous->get_pure_type();
+        const auto prev_type = previous->get_pure_type(visitor.allocator);
         const auto previous_def = prev_type->linked_struct_def();
         if(previous_def) {
             const auto id = value->as_identifier();

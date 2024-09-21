@@ -190,7 +190,7 @@ public:
     /**
      * get pure type from the base type
      */
-    hybrid_ptr<BaseType> get_pure_type();
+    BaseType* get_pure_type(ASTAllocator& allocator);
 
     /**
      * create a base type that represents the type of this value

@@ -468,18 +468,18 @@ FunctionDeclaration* MembersContainer::get_last_fn_annotated(AnnotationKind anno
     return nullptr;
 }
 
-FunctionDeclaration* MembersContainer::constructor_func(std::vector<Value*>& forArgs) {
+FunctionDeclaration* MembersContainer::constructor_func(ASTAllocator& allocator, std::vector<Value*>& forArgs) {
     for (const auto & function : functions()) {
-        if(function->has_annotation(AnnotationKind::Constructor) && function->satisfy_args(forArgs)) {
+        if(function->has_annotation(AnnotationKind::Constructor) && function->satisfy_args(allocator, forArgs)) {
             return function;
         }
     }
     return nullptr;
 }
 
-FunctionDeclaration* MembersContainer::implicit_constructor_func(Value* value) {
+FunctionDeclaration* MembersContainer::implicit_constructor_func(ASTAllocator& allocator, Value* value) {
     for (const auto & function : functions()) {
-        if(function->has_annotation(AnnotationKind::Implicit) && function->params.size() == 1 && function->params[0]->type->satisfies(value)) {
+        if(function->has_annotation(AnnotationKind::Implicit) && function->params.size() == 1 && function->params[0]->type->satisfies(allocator, value)) {
             return function;
         }
     }

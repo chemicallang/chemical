@@ -41,7 +41,7 @@ llvm::Value *IndexOperator::access_chain_pointer(
         std::vector<std::pair<Value *, llvm::Value *>> &destructibles,
         unsigned int until
 ) {
-    auto pure_type = parent_val->get_pure_type();
+    auto pure_type = parent_val->get_pure_type(gen.allocator);
     if(pure_type->is_pointer()) {
         auto parent_value = parent_val->access_chain_value(gen, chain_values, until - 1, nullptr);
         auto child_type = pure_type->create_child_type(gen.allocator);

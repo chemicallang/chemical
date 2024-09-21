@@ -12,9 +12,9 @@ CSTToken *MultiFunctionNode::cst_token() {
     return functions[0]->cst_token();
 }
 
-FunctionDeclaration* MultiFunctionNode::func_for_call(std::vector<Value*>& args) {
+FunctionDeclaration* MultiFunctionNode::func_for_call(ASTAllocator& allocator, std::vector<Value*>& args) {
     for(auto func : functions) {
-        if(func->satisfy_args(args)) {
+        if(func->satisfy_args(allocator, args)) {
             return func;
         }
     }

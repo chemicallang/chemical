@@ -121,7 +121,7 @@ FunctionParam* FunctionType::func_param_for_arg_at(unsigned index) {
     return params[index + offset];
 }
 
-bool FunctionType::satisfy_args(std::vector<Value*>& forArgs) {
+bool FunctionType::satisfy_args(ASTAllocator& allocator, std::vector<Value*>& forArgs) {
     auto has_self = has_self_param();
     unsigned offset = has_self ? 1 : 0;
     auto required_args_len = params.size() - offset;
@@ -130,7 +130,7 @@ bool FunctionType::satisfy_args(std::vector<Value*>& forArgs) {
     }
     unsigned i = offset; // first argument for implicit self
     while(i < params.size()) {
-        if(!params[i]->type->satisfies(forArgs[i - offset])) {
+        if(!params[i]->type->satisfies(allocator, forArgs[i - offset])) {
             return false;
         }
         i++;
@@ -442,6 +442,7 @@ bool FunctionType::is_value_movable(Value* value_ptr, BaseType* type) {
 }
 
 bool FunctionType::mark_moved_value(
+        ASTAllocator& allocator,
         Value* value_ptr,
         BaseType* expected_type,
         ASTDiagnoser& diagnoser,
@@ -491,7 +492,7 @@ bool FunctionType::mark_moved_value(
     if (expected_node == (ASTNode*) linked_def) {
         final = mark_moved_value(&value, diagnoser);
     } else {
-        const auto implicit = pure_expected->implicit_constructor_for(&value);
+        const auto implicit = pure_expected->implicit_constructor_for(allocator, &value);
         if(implicit && check_implicit_constructors) {
             auto& param_type = *implicit->params[0]->type;
             if(!param_type.is_reference()) { // not a reference type (requires moving)

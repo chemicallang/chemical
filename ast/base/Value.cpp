@@ -579,14 +579,13 @@ Value* Value::scope_value(InterpretScope& scope) {
     return copy(scope.allocator);
 }
 
-hybrid_ptr<BaseType> Value::get_pure_type() {
-    // TODO check this method, it should free types properly
-    auto base_type = known_type();
+BaseType* Value::get_pure_type(ASTAllocator& allocator) {
+    auto base_type = create_type(allocator);
     auto pure_type = base_type->pure_type();
     if(pure_type == base_type) {;
-        return hybrid_ptr<BaseType> { base_type, false };
+        return base_type;
     } else {
-        return hybrid_ptr<BaseType> { pure_type, false };
+        return pure_type;
     }
 }
 
@@ -712,13 +711,13 @@ void ChainValue::relink_parent(ChainValue* parent) {
     throw std::runtime_error("relink_parent called on base chain value");
 }
 
-BaseType* implicit_constructor_type(BaseType* return_type, Value* value) {
+BaseType* implicit_constructor_type(ASTAllocator& allocator, BaseType* return_type, Value* value) {
     auto k = return_type->kind();
     if(k == BaseTypeKind::Linked || k == BaseTypeKind::Generic) {
         const auto linked = return_type->linked_node();
         const auto struc = linked->as_struct_def();
         if(struc) {
-            const auto constr = struc->implicit_constructor_for(value);
+            const auto constr = struc->implicit_constructor_for(allocator, value);
             if(constr) {
                 return constr->func_param_for_arg_at(0)->type;
             }

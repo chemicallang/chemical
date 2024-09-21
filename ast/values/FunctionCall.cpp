@@ -631,7 +631,7 @@ void FunctionCall::link_values(SymbolResolver &linker) {
         auto& value = *value_ptr;
         const auto expected_type = func_type->func_param_for_arg_at(i)->type;
         value.link(linker, value_ptr, expected_type);
-        current_func.mark_moved_value(&value, expected_type, linker);
+        current_func.mark_moved_value(linker.allocator, &value, expected_type, linker);
         i++;
     }
 }
@@ -650,7 +650,7 @@ void FunctionCall::link_args_implicit_constructor(SymbolResolver &linker){
     while(i < values.size()) {
         const auto param = func_type->func_param_for_arg_at(i);
         if (param) {
-            auto implicit_constructor = param->type->implicit_constructor_for(values[i]);
+            auto implicit_constructor = param->type->implicit_constructor_for(linker.allocator, values[i]);
             if (implicit_constructor) {
                 if(linker.preprocess) {
                     values[i] = call_with_arg(implicit_constructor, std::move(values[i]), linker);
@@ -757,13 +757,13 @@ ASTNode *FunctionCall::linked_node() {
     return known_type()->linked_node();
 }
 
-void FunctionCall::relink_multi_func(ASTDiagnoser* diagnoser) {
+void FunctionCall::relink_multi_func(ASTAllocator& allocator, ASTDiagnoser* diagnoser) {
     auto parent = parent_val->as_identifier();
     if(parent) {
         if(parent->linked) {
             auto multi = parent->linked->as_multi_func_node();
             if(multi) {
-                auto func = multi->func_for_call(values);
+                auto func = multi->func_for_call(allocator, values);
                 if(func) {
                     parent->linked = func;
                 } else {
@@ -780,7 +780,7 @@ void FunctionCall::link_constructor(SymbolResolver &resolver) {
     auto parent_id = parent_val->as_identifier();
     if(parent_id && parent_id->linked && parent_id->linked->as_struct_def()) {
         StructDefinition* parent_struct = parent_id->linked->as_struct_def();
-        auto constructorFunc = parent_struct->constructor_func(values);
+        auto constructorFunc = parent_struct->constructor_func(resolver.allocator, values);
         if(constructorFunc) {
             parent_id->linked = constructorFunc;
             // calling a constructor of a generic struct where constructor is not generic
@@ -801,7 +801,7 @@ bool FunctionCall::find_link_in_parent(ChainValue* parent, SymbolResolver& resol
     parent_val = parent;
     FunctionDeclaration* func_decl = safe_linked_func();
     int16_t prev_itr;
-    relink_multi_func(&resolver);
+    relink_multi_func(resolver.allocator, &resolver);
     link_gen_args(resolver);
     link_constructor(resolver);
     link_values(resolver);

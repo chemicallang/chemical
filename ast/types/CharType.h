@@ -40,7 +40,7 @@ public:
         return ValueType::Char;
     }
 
-    bool satisfies(Value *value) override;
+    bool satisfies(ASTAllocator& allocator, Value* value) override;
 
     bool is_same(BaseType *type) override {
         return type->kind() == kind();

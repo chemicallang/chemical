@@ -61,14 +61,14 @@ public:
     bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) override;
 
     /**
-     * provides the function type to which call is being made
+     * get the function type
      */
-    FunctionType* known_function_type();
+    FunctionType* function_type(ASTAllocator& allocator);
 
     /**
-     * provides the base function type to which call is being made
+     * get known func type
      */
-    hybrid_ptr<FunctionType> get_function_type();
+    FunctionType* known_func_type();
 
     /**
      * known type of function call's return
@@ -185,6 +185,7 @@ public:
     );
 
     std::pair<llvm::Value*, llvm::FunctionType*>* llvm_generic_func_data(
+            ASTAllocator& allocator,
             std::vector<ChainValue*> &chain_values,
             unsigned int index
     );

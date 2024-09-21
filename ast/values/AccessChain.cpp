@@ -274,14 +274,14 @@ ChainValue* get_grandpa_value(std::vector<ChainValue*> &chain_values, unsigned i
     }
 }
 
-std::pair<StructDefinition*, int16_t> get_grandpa_generic_struct(std::vector<ChainValue*>& chain_values, unsigned int index) {
+std::pair<StructDefinition*, int16_t> get_grandpa_generic_struct(ASTAllocator& allocator, std::vector<ChainValue*>& chain_values, unsigned int index) {
     if(index - 2 < chain_values.size()) {
         const auto linked = chain_values[index - 1]->linked_node();
         const auto func_decl = linked ? linked->as_function() : nullptr;
         if (func_decl && func_decl->as_extension_func() == nullptr) {
             const auto gran = get_grandpa_value(chain_values, index);
             // grandpa value can refer to a namespace, which is unable to create_type
-            const auto gran_type = gran->known_type();
+            const auto gran_type = gran->create_type(allocator);
             if (gran_type) {
                 const auto generic_struct = gran_type->get_generic_struct();
                 if (generic_struct) {

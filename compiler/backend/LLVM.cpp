@@ -730,7 +730,7 @@ bool access_chain_store_in_parent(
 ) {
     auto func_call = chain->values[chain->values.size() - 1]->as_func_call();
     if(func_call) {
-        auto func_type = func_call->known_function_type();
+        auto func_type = func_call->function_type(gen.allocator);
         if(func_type->returnType->value_type() == ValueType::Struct) {
             auto elem_pointer = Value::get_element_pointer(gen, allocated_type, allocated, idxList, index);
             std::vector<llvm::Value *> args;

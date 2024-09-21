@@ -29,11 +29,12 @@ bool LinkedType::satisfies(ValueType value_type) {
 }
 
 bool LinkedType::satisfies(BaseType *type) {
-    const auto value_type = linked->get_value_type();
-    return value_type->satisfies(type);
+    return linked->known_type()->satisfies(type);
+//    const auto value_type = linked->get_value_type();
+//    return value_type->satisfies(type);
 }
 
-void LinkedType::link(SymbolResolver &linker, std::unique_ptr<BaseType>& current) {
+void LinkedType::link(SymbolResolver &linker, BaseType*& current) {
     linked = linker.find(type);
     if(!linked) {
         linker.error("unresolved symbol, couldn't find referenced type " + type, this);

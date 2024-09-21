@@ -9,8 +9,8 @@
 class GenericType : public BaseType {
 public:
 
-    std::unique_ptr<LinkedType> referenced;
-    std::vector<std::unique_ptr<BaseType>> types;
+    LinkedType* referenced;
+    std::vector<BaseType*> types;
     int16_t generic_iteration = -1;
     /**
      * when this generic type subscribes to a parent generic node, we receive
@@ -25,17 +25,17 @@ public:
     /**
      * constructor
      */
-    GenericType(std::unique_ptr<LinkedType> referenced);
+    GenericType(LinkedType* referenced);
 
     /**
      * constructor
      */
-    GenericType(std::unique_ptr<LinkedType> referenced, std::vector<std::unique_ptr<BaseType>> types);
+    GenericType(LinkedType* referenced, std::vector<BaseType*> types);
 
     /**
      * constructor
      */
-    GenericType(std::unique_ptr<LinkedType> referenced, int16_t generic_itr);
+    GenericType(LinkedType* referenced, int16_t generic_itr);
 
     /**
      * constructor
@@ -71,7 +71,7 @@ public:
     /**
      * the given generic arguments are registered
      */
-    int16_t report_generic_args(SymbolResolver &linker, std::vector<std::unique_ptr<BaseType>>& gen_args);
+    int16_t report_generic_args(SymbolResolver &linker, std::vector<BaseType*>& gen_args);
 
     /**
      * this is invoked by the parent generic, we subscribed to, in this function
@@ -90,7 +90,7 @@ public:
     /**
      * link func
      */
-    void link(SymbolResolver &linker, std::unique_ptr<BaseType>& current) override;
+    void link(SymbolResolver &linker, BaseType*& current) override;
 
     int16_t get_generic_iteration() override {
         return generic_iteration;
@@ -115,7 +115,7 @@ public:
     bool satisfies(Value *value) override;
 
     [[nodiscard]]
-    GenericType* copy() const override;
+    GenericType* copy(ASTAllocator& allocator) const override;
 
 #ifdef COMPILER_BUILD
 

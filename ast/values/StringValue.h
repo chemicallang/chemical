@@ -39,11 +39,11 @@ public:
         return ValueKind::String;
     }
 
-    bool link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *expected_type = nullptr) override;
+    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) override;
 
-    hybrid_ptr<BaseType> get_base_type() override {
-        return hybrid_ptr<BaseType> { (BaseType*) &StringType::instance, false };
-    }
+//    hybrid_ptr<BaseType> get_base_type() override {
+//        return hybrid_ptr<BaseType> { (BaseType*) &StringType::instance, false };
+//    }
 
     BaseType* known_type() override {
         return (BaseType*) &StringType::instance;
@@ -77,11 +77,11 @@ public:
 
 #endif
 
-    StringValue *copy() override {
-        return new StringValue(value, token);
+    StringValue *copy(ASTAllocator& allocator) override {
+        return new (allocator.allocate<StringValue>()) StringValue(value, token);
     }
 
-    std::unique_ptr<BaseType> create_type() override;
+    BaseType* create_type(ASTAllocator& allocator) override;
 
     [[nodiscard]]
     ValueType value_type() const override {

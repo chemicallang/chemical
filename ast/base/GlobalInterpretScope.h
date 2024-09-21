@@ -8,6 +8,7 @@
 
 #include "InterpretScope.h"
 #include "utils/fwd/functional.h"
+#include "ASTAllocator.h"
 #include <vector>
 #include <memory>
 
@@ -21,16 +22,6 @@ class SymbolResolver;
 
 class GlobalInterpretScope : public InterpretScope {
 public:
-
-    /**
-     * global functions that are evaluated during interpretation
-     */
-    std::unordered_map<std::string, std::unique_ptr<ASTNode>> global_nodes;
-
-    /**
-     * global values that are used by global fns
-     */
-    std::unordered_map<std::string, std::unique_ptr<Value>> global_vals;
 
     /**
      * This contains errors that occur during interpretation
@@ -50,9 +41,18 @@ public:
     BackendContext* backend_context;
 
     /**
+     * all the allocations are done using this ast allocator
+     */
+    ASTAllocator& allocator;
+
+    /**
      * The constructor
      */
-    explicit GlobalInterpretScope(BackendContext* backendContext, LabBuildCompiler* buildCompiler);
+    explicit GlobalInterpretScope(
+        BackendContext* backendContext,
+        LabBuildCompiler* buildCompiler,
+        ASTAllocator& allocator
+    );
 
     /**
      * deleted copy constructor

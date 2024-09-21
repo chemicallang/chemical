@@ -44,8 +44,8 @@ public:
     }
 
     [[nodiscard]]
-    FloatType *copy() const override {
-        return new FloatType(token);
+    FloatType *copy(ASTAllocator& allocator) const override {
+        return new (allocator.allocate<FloatType>()) FloatType(token);
     }
 
 #ifdef COMPILER_BUILD

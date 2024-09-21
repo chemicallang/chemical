@@ -258,12 +258,8 @@ void ASTNode::set_active_iteration(int16_t iteration) {
 #endif
 }
 
-std::unique_ptr<BaseType> ASTNode::create_value_type() {
+BaseType* ASTNode::create_value_type(ASTAllocator& allocator) {
     return nullptr;
-}
-
-hybrid_ptr<BaseType> ASTNode::get_value_type() {
-    return hybrid_ptr<BaseType> { nullptr, false };
 }
 
 ASTNode::~ASTNode() = default;

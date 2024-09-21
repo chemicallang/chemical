@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ast/base/ASTNode.h"
+#include "ast/types/PointerType.h"
 
 class CapturedVariable : public ASTNode {
 public:
@@ -13,11 +14,15 @@ public:
     LambdaFunction *lambda;
     ASTNode *linked;
     CSTToken* token;
+    PointerType ptrType;
 
 
-    CapturedVariable(std::string name, unsigned int index, bool capture_by_ref, CSTToken* token) : name(std::move(name)), index(index), capture_by_ref(capture_by_ref), token(token) {
-
-    }
+    CapturedVariable(
+        std::string name,
+        unsigned int index,
+        bool capture_by_ref,
+        CSTToken* token
+    );
 
     CSTToken *cst_token() override {
         return token;
@@ -35,7 +40,7 @@ public:
         // no visit
     }
 
-    void declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override;
+    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) override;
 
     ASTNode *child(const std::string &name) override {
         return linked->child(name);
@@ -71,12 +76,14 @@ public:
 
 #endif
 
-    std::unique_ptr<BaseType> create_value_type() override;
+    BaseType* create_value_type(ASTAllocator &allocator) override;
 
-    hybrid_ptr<BaseType> get_value_type() override;
+    BaseType* known_type() override;
 
+    [[nodiscard]]
     ValueType value_type() const override;
 
+    [[nodiscard]]
     BaseTypeKind type_kind() const override;
 
 };

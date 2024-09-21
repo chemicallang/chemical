@@ -22,12 +22,12 @@ public:
         visitor->visit(this);
     }
 
-    bool link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *expected_type = nullptr) override;
+    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) override;
 
     void calculate_size(bool is64Bit);
 
-    SizeOfValue* copy() override {
-        return new SizeOfValue(for_type->copy(), token);
+    SizeOfValue* copy(ASTAllocator& allocator) override {
+        return new (allocator.allocate<SizeOfValue>()) SizeOfValue(for_type->copy(allocator), token);
     }
 
 #ifdef COMPILER_BUILD

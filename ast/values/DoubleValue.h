@@ -49,20 +49,24 @@ public:
 
 #endif
 
-    std::unique_ptr<BaseType> create_type() override {
-        return std::make_unique<DoubleType>(nullptr);
+//    std::unique_ptr<BaseType> create_type() override {
+//        return std::make_unique<DoubleType>(nullptr);
+//    }
+
+    BaseType* create_type(ASTAllocator &allocator) override {
+        return new (allocator.allocate<DoubleType>()) DoubleType(nullptr);
     }
 
-    hybrid_ptr<BaseType> get_base_type() override {
-        return hybrid_ptr<BaseType> { (BaseType*) &DoubleType::instance, false };
-    }
+//    hybrid_ptr<BaseType> get_base_type() override {
+//        return hybrid_ptr<BaseType> { (BaseType*) &DoubleType::instance, false };
+//    }
 
     BaseType* known_type() override {
         return (BaseType*) &DoubleType::instance;
     }
 
-    DoubleValue *copy() override {
-        return new DoubleValue(value, token);
+    DoubleValue *copy(ASTAllocator& allocator) override {
+        return new (allocator.allocate<DoubleValue>()) DoubleValue(value, token);
     }
 
     [[nodiscard]]

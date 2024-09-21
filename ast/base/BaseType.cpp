@@ -195,7 +195,7 @@ ASTNode* BaseType::get_direct_linked_node(BaseTypeKind kind) {
         case BaseTypeKind::Linked:
             return ((LinkedType*) this)->linked;
         case BaseTypeKind::Generic:
-            ((GenericType*) this)->referenced->linked;
+            return ((GenericType*) this)->referenced->linked;
         case BaseTypeKind::Struct:
         case BaseTypeKind::Union:
             return linked_node();

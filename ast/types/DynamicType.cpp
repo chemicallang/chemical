@@ -6,6 +6,6 @@ DynamicType::DynamicType(BaseType* referenced, CSTToken* token) : referenced(ref
 
 }
 
-void DynamicType::link(SymbolResolver &linker, std::unique_ptr<BaseType> &current) {
+void DynamicType::link(SymbolResolver &linker, BaseType*& current) {
     referenced->link(linker, referenced);
 }

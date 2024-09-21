@@ -8,7 +8,7 @@
 class VariantCase : public Value {
 public:
 
-    std::unique_ptr<AccessChain> chain;
+    AccessChain* chain;
     std::vector<VariantCaseVariable> identifier_list;
     SwitchStatement* switch_statement;
     CSTToken* token;
@@ -18,7 +18,7 @@ public:
      * and take identifiers properly
      * this also takes a diagnoser reference, so it can report errors
      */
-    VariantCase(std::unique_ptr<AccessChain> chain, ASTDiagnoser& resolver, SwitchStatement* statement, CSTToken* token);
+    VariantCase(AccessChain* chain, ASTDiagnoser& resolver, SwitchStatement* statement, CSTToken* token);
 
     CSTToken* cst_token() override {
         return token;
@@ -28,7 +28,7 @@ public:
         return ValueKind::VariantCase;
     }
 
-    bool link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *expected_type = nullptr) override;
+    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) override;
 
     void accept(Visitor *visitor) override {
         visitor->visit(this);

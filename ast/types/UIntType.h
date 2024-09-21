@@ -36,8 +36,8 @@ public:
     }
 
     [[nodiscard]]
-    UIntType *copy() const override {
-        return new UIntType(token);
+    UIntType *copy(ASTAllocator& allocator) const override {
+        return new (allocator.allocate<UIntType>()) UIntType(token);
     }
 
 };

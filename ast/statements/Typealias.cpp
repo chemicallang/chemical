@@ -17,24 +17,24 @@ void TypealiasStatement::interpret(InterpretScope &scope) {
 
 }
 
-void TypealiasStatement::declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+void TypealiasStatement::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
     linker.declare_node(identifier, this, specifier, false);
 }
 
-void TypealiasStatement::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+void TypealiasStatement::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     actual_type->link(linker, actual_type);
 }
 
-std::unique_ptr<BaseType> TypealiasStatement::create_value_type() {
-    return std::unique_ptr<BaseType>(actual_type->copy());
+BaseType* TypealiasStatement::create_value_type(ASTAllocator& allocator) {
+    return actual_type->copy(allocator);
 }
 
-hybrid_ptr<BaseType> TypealiasStatement::get_value_type() {
-    return hybrid_ptr<BaseType> { actual_type.get(), false };
-}
+//hybrid_ptr<BaseType> TypealiasStatement::get_value_type() {
+//    return hybrid_ptr<BaseType> { actual_type, false };
+//}
 
 BaseType* TypealiasStatement::known_type() {
-    return actual_type.get();
+    return actual_type;
 }
 
 uint64_t TypealiasStatement::byte_size(bool is64Bit) {

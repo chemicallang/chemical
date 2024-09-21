@@ -31,7 +31,7 @@ public:
 
     BaseDefMember* largest_member();
 
-    virtual void declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr);
+    virtual void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr);
 
     /**
      * when child is located up somewhere in inheritance tree, we build the path to it
@@ -47,7 +47,7 @@ public:
      */
     bool does_override(InterfaceDefinition* interface);
 
-    virtual VariablesContainer* copy_container() {
+    virtual VariablesContainer* copy_container(ASTAllocator& allocator) {
         throw std::runtime_error("copy container called on variables container, should be overridden");
     }
 
@@ -55,7 +55,7 @@ public:
 
     std::vector<llvm::Type *> elements_type(Codegen &gen);
 
-    std::vector<llvm::Type *> elements_type(Codegen &gen, std::vector<std::unique_ptr<ChainValue>>& chain, unsigned index);
+    std::vector<llvm::Type *> elements_type(Codegen &gen, std::vector<ChainValue*>& chain, unsigned index);
 
     bool llvm_struct_child_index(
             Codegen &gen,

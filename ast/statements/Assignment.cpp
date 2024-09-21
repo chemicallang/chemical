@@ -20,10 +20,10 @@ void AssignStatement::accept(Visitor *visitor) {
     visitor->visit(this);
 }
 
-void AssignStatement::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+void AssignStatement::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     lhs->link(linker, lhs, nullptr);
-    std::unique_ptr<BaseType> value_type = lhs->create_type();
-    value->link(linker, value, value_type.get());
+    BaseType* value_type = lhs->create_type(linker.allocator);
+    value->link(linker, value, value_type);
     auto id = lhs->as_identifier();
     if(id) {
         auto linked = id->linked_node();
@@ -37,10 +37,10 @@ void AssignStatement::declare_and_link(SymbolResolver &linker, std::unique_ptr<A
         }
     }
     auto& func_type = *linker.current_func_type;
-    func_type.mark_moved_value(value.get(), lhs->known_type(), linker, true);
-    func_type.mark_un_moved_lhs_value(lhs.get(), lhs->known_type());
+    func_type.mark_moved_value(value, lhs->known_type(), linker, true);
+    func_type.mark_un_moved_lhs_value(lhs, lhs->known_type());
 }
 
 void AssignStatement::interpret(InterpretScope &scope) {
-    lhs->set_identifier_value(scope, value.get(), assOp);
+    lhs->set_identifier_value(scope, value, assOp);
 }

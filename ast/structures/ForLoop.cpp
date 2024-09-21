@@ -76,9 +76,9 @@ void ForLoop::accept(Visitor *visitor) {
     visitor->visit(this);
 }
 
-void ForLoop::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+void ForLoop::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     linker.scope_start();
-    initializer->declare_and_link(linker, (std::unique_ptr<ASTNode>&) initializer);
+    initializer->declare_and_link(linker, (ASTNode*&) initializer);
     conditionExpr->link(linker, conditionExpr);
     incrementerExpr->declare_and_link(linker, incrementerExpr);
     body.link_sequentially(linker);

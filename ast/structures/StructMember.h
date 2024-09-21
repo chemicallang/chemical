@@ -43,17 +43,17 @@ public:
     }
 
     Value *default_value() override {
-        if(defValue) return defValue.get();
+        if(defValue) return defValue;
         return nullptr;
     }
 
-    BaseDefMember *copy_member() override;
+    BaseDefMember *copy_member(ASTAllocator& allocator) override;
 
     void accept(Visitor *visitor) override;
 
-    void declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override;
+    void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) override;
 
-    void declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override;
+    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) override;
 
     ASTNode *child(const std::string &name) override;
 
@@ -66,11 +66,11 @@ public:
     bool requires_copy_fn() override;
 
     Value *holding_value() override {
-        return defValue ? defValue.get() : nullptr;
+        return defValue ? defValue : nullptr;
     }
 
     BaseType *known_type() override {
-        return type.get();
+        return type;
     }
 
 #ifdef COMPILER_BUILD
@@ -79,18 +79,18 @@ public:
 
     llvm::Type* llvm_type(Codegen &gen) override;
 
-    llvm::Type* llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned int index) override;
+    llvm::Type* llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) override;
 
     llvm::FunctionType* llvm_func_type(Codegen &gen) override;
 
 #endif
 
-    std::unique_ptr<BaseType> create_value_type() override;
+    BaseType* create_value_type(ASTAllocator& allocator) override;
 
-    hybrid_ptr<BaseType> get_value_type() override;
-
+    [[nodiscard]]
     ValueType value_type() const override;
 
+    [[nodiscard]]
     BaseTypeKind type_kind() const override;
 
 };

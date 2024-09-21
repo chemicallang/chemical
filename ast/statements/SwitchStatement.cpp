@@ -144,14 +144,14 @@ Value* SwitchStatement::get_value_node() {
     return Value::get_first_value_from_value_node(this);
 }
 
-std::unique_ptr<BaseType> SwitchStatement::create_type() {
+BaseType* SwitchStatement::create_type(ASTAllocator& allocator) {
     if(!is_value || scopes.empty()) return nullptr;
     auto last_val = get_value_node();
-    return last_val ? last_val->create_type() : nullptr;
+    return last_val ? last_val->create_type(allocator) : nullptr;
 }
 
-std::unique_ptr<BaseType> SwitchStatement::create_value_type() {
-    return create_type();
+BaseType* SwitchStatement::create_value_type(ASTAllocator& allocator) {
+    return create_type(allocator);
 }
 
 BaseType *SwitchStatement::known_type() {
@@ -160,9 +160,10 @@ BaseType *SwitchStatement::known_type() {
     return last_val ? last_val->known_type() : nullptr;
 }
 
-bool SwitchStatement::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>* node_ptr, std::unique_ptr<Value>* value_ptr) {
+bool SwitchStatement::declare_and_link(SymbolResolver &linker, ASTNode** node_ptr, Value** value_ptr) {
     expression->link(linker, expression);
     VariantDefinition* variant_def = nullptr;
+    auto& allocator = linker.allocator;
     const auto linked = expression->known_type()->linked_node();
     if(linked) {
         variant_def = linked->as_variant_def();
@@ -176,8 +177,7 @@ bool SwitchStatement::declare_and_link(SymbolResolver &linker, std::unique_ptr<A
         if(variant_def) {
             const auto chain = scope.first->as_access_chain();
             if (chain) {
-                // TODO these values should be allocated using allocator
-                scope.first = new VariantCase(new AccessChain((AccessChain*) scope.first), linker, this, nullptr);
+                scope.first = new (allocator.allocate<VariantCase>()) VariantCase(chain, linker, this, nullptr);
             }
         }
         scope.first->link(linker, scope.first);

@@ -39,7 +39,7 @@ public:
     }
 
     [[nodiscard]]
-    BaseType *copy() const override = 0;
+    BaseType *copy(ASTAllocator& allocator) const override = 0;
 
     bool satisfies(ValueType type) override;
 
@@ -59,7 +59,7 @@ public:
 
     llvm::Type *llvm_type(Codegen &gen) override;
 
-    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned int index) override;
+    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) override;
 
 #endif
 

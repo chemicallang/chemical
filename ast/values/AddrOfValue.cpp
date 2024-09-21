@@ -6,21 +6,21 @@
 AddrOfValue::AddrOfValue(
         Value* value,
         CSTToken* token
-) : value(value), token(token), _ptr_type(hybrid_ptr<BaseType>{ nullptr, false}, token) {
+) : value(value), token(token), _ptr_type(nullptr, token) {
 
 }
 
-bool AddrOfValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr, BaseType *expected_type) {
+bool AddrOfValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
     auto res = value->link(linker, value);
     if(res) {
-        _ptr_type.type = hybrid_ptr<BaseType> { value->known_type(), false };
+        _ptr_type.type = value->known_type();
     }
     return res;
 }
 
-AddrOfValue *AddrOfValue::copy() {
-    return new AddrOfValue(
-            std::unique_ptr<Value>(value->copy()),
+AddrOfValue *AddrOfValue::copy(ASTAllocator& allocator) {
+    return new (allocator.allocate<AddrOfValue>()) AddrOfValue(
+            value->copy(allocator),
             token
     );
 }

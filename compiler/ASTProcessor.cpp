@@ -19,7 +19,8 @@
 
 #ifdef COMPILER_BUILD
 
-std::vector<std::unique_ptr<ASTNode>> TranslateC(
+std::vector<ASTNode*> TranslateC(
+        ASTAllocator& allocator,
         const char *exe_path,
         const char *abs_path,
         const char *resources_path
@@ -220,7 +221,7 @@ ASTImportResultExt ASTProcessor::import_file(const FlatIGFile& file) {
         }
 
 #if defined(COMPILER_BUILD) && defined(CLANG_LIBS)
-        unit.scope.nodes = TranslateC(options->exe_path.c_str(), abs_path.c_str(), options->resources_path.c_str());
+        unit.scope.nodes = TranslateC(mod_allocator, options->exe_path.c_str(), abs_path.c_str(), options->resources_path.c_str());
 #else
         throw std::runtime_error("cannot translate c file as clang api is not available");
 #endif

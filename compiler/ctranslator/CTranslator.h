@@ -19,7 +19,7 @@ class CTranslator;
  *
  * this expects a builtin type of the same kind, which is being used to index it on vector type_makers
  */
-typedef BaseType*(*CTypeMakerFn)(clang::BuiltinType*);
+typedef BaseType*(*CTypeMakerFn)(ASTAllocator&, clang::BuiltinType*);
 
 /**
  * Node maker fn
@@ -42,6 +42,11 @@ class CTranslator {
 public:
 
     /**
+     * the reference to allocator
+     */
+    ASTAllocator& allocator;
+
+    /**
      * errors that occurred during translation
      */
     std::vector<CTranslatorError> errors;
@@ -62,13 +67,13 @@ public:
     /**
      * this is the result after translation
      */
-    std::vector<std::unique_ptr<ASTNode>> nodes;
+    std::vector<ASTNode*> nodes;
 
     /**
      * these are nodes that should be added before adding a node
      * these nodes were created by translation
      */
-    std::vector<std::unique_ptr<ASTNode>> before_nodes;
+    std::vector<ASTNode*> before_nodes;
 
     /**
      * nodes being added belong to this parent node
@@ -78,7 +83,7 @@ public:
     /**
      * constructor
      */
-    CTranslator();
+    CTranslator(ASTAllocator& allocator);
 
     /**
      * initializes type makers

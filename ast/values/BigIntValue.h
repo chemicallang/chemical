@@ -31,20 +31,21 @@ public:
         visitor->visit(this);
     }
 
-    BigIntValue *copy() override {
-        return new BigIntValue(value, token);
+    BigIntValue *copy(ASTAllocator& allocator) override {
+        return new (allocator.allocate<BigIntValue>()) BigIntValue(value, token);
     }
 
-    hybrid_ptr<BaseType> get_base_type() override {
-        return hybrid_ptr<BaseType> { (BaseType*) &BigIntType::instance, false };
-    }
+//    hybrid_ptr<BaseType> get_base_type() override {
+//        return hybrid_ptr<BaseType> { (BaseType*) &BigIntType::instance, false };
+//    }
 
     BaseType* known_type() override {
         return (BaseType*) &BigIntType::instance;
     }
 
-    [[nodiscard]] std::unique_ptr<BaseType> create_type() override {
-        return std::make_unique<BigIntType>(nullptr);
+    [[nodiscard]]
+    BaseType* create_type(ASTAllocator &allocator) override {
+        return new (allocator.allocate<BigIntType>()) BigIntType(nullptr);
     }
 
     unsigned int get_num_bits() override {

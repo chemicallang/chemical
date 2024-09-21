@@ -36,8 +36,8 @@ public:
     }
 
     [[nodiscard]]
-    Int128Type *copy() const override {
-        return new Int128Type(token);
+    Int128Type *copy(ASTAllocator& allocator) const override {
+        return new (allocator.allocate<Int128Type>()) Int128Type(token);
     }
 
 };

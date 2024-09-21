@@ -38,8 +38,8 @@ public:
     }
 
     [[nodiscard]]
-    UBigIntType *copy() const override {
-        return new UBigIntType(token);
+    UBigIntType *copy(ASTAllocator& allocator) const override {
+        return new (allocator.allocate<UBigIntType>()) UBigIntType(token);
     }
 
 };

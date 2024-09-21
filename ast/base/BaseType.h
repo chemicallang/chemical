@@ -8,6 +8,7 @@
 #include <memory>
 #include "Visitor.h"
 #include "ASTAny.h"
+#include "ASTAllocator.h"
 #include "std/hybrid_ptr.h"
 #include <iostream>
 
@@ -68,16 +69,16 @@ public:
     /**
      * this creates the child type
      */
-    virtual std::unique_ptr<BaseType> create_child_type() const {
+    virtual BaseType* create_child_type(ASTAllocator& allocator) const {
         return nullptr;
     }
 
-    /**
-     * get a pointer to it's child type
-     */
-    virtual hybrid_ptr<BaseType> get_child_type() {
-        throw std::runtime_error("BaseType::get_child_type called on base type");
-    }
+//    /**
+//     * get a pointer to it's child type
+//     */
+//    virtual hybrid_ptr<BaseType> get_child_type() {
+//        throw std::runtime_error("BaseType::get_child_type called on base type");
+//    }
 
     /**
      * get known child type
@@ -96,19 +97,12 @@ public:
     /**
      * copy the type, along with linked node
      */
-    virtual BaseType *copy() const = 0;
-
-    /**
-     * copies unique
-     */
-    std::unique_ptr<BaseType> copy_unique() {
-        return std::unique_ptr<BaseType>(copy());
-    }
+    virtual BaseType *copy(ASTAllocator& allocator) const = 0;
 
     /**
      * a type, or a referenced type, can link itself with its definition
      */
-    virtual void link(SymbolResolver &linker, std::unique_ptr<BaseType>& current) {
+    virtual void link(SymbolResolver &linker, BaseType*& current) {
         // does nothing by default
     }
 

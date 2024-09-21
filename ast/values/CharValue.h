@@ -43,20 +43,16 @@ public:
         visitor->visit(this);
     }
 
-    hybrid_ptr<BaseType> get_base_type() override {
-        return hybrid_ptr<BaseType> { (BaseType*) &CharType::instance, false };
-    }
-
     BaseType* known_type() override {
         return (BaseType*) &CharType::instance;
     }
 
-    std::unique_ptr<BaseType> create_type() override {
-        return std::make_unique<CharType>(nullptr);
+    BaseType* create_type(ASTAllocator& allocator) override {
+        return new (allocator.allocate<CharType>()) CharType(nullptr);
     }
 
-    CharValue *copy() override {
-        return new CharValue(value, token);
+    CharValue *copy(ASTAllocator& allocator) override {
+        return new (allocator.allocate<CharValue>()) CharValue(value, token);
     }
 
 #ifdef COMPILER_BUILD

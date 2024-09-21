@@ -5,10 +5,10 @@
 class VariantCall : public Value {
 public:
 
-    std::unique_ptr<AccessChain> chain;
-    std::vector<std::unique_ptr<Value>> values;
-    std::vector<std::unique_ptr<BaseType>> generic_list;
-    std::unique_ptr<BaseType> cached_type = nullptr;
+    AccessChain* chain;
+    std::vector<Value*> values;
+    std::vector<BaseType*> generic_list;
+    BaseType* cached_type = nullptr;
     CSTToken* token;
 
     /**
@@ -21,7 +21,7 @@ public:
     /**
      * this will take the access chain, if has function call at least, own it's values
      */
-    explicit VariantCall(std::unique_ptr<AccessChain> chain, CSTToken* token);
+    explicit VariantCall(AccessChain* chain, CSTToken* token);
 
     CSTToken* cst_token() override {
         return token;
@@ -41,13 +41,11 @@ public:
 
     void link_args_implicit_constructor(SymbolResolver &linker);
 
-    bool link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *type) override;
+    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *type) override;
 
-    void set_created_type();
+    void set_created_type(ASTAllocator& allocator);
 
-    std::unique_ptr<BaseType> create_type() override;
-
-    hybrid_ptr<BaseType> get_base_type() override;
+    BaseType* create_type(ASTAllocator &allocator) override;
 
     BaseType* known_type() override;
 

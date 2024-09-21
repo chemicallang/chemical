@@ -110,7 +110,7 @@ public:
     void accept(Visitor *visitor) override;
 
     Value* holding_value() override {
-        return value ? value.get() : nullptr;
+        return value;
     }
 
     BaseType* known_type() override;
@@ -118,7 +118,7 @@ public:
     bool is_top_level();
 
     BaseType* type_ptr_fast() {
-        return type ? type.get() : nullptr;
+        return type;
     }
 
 #ifdef COMPILER_BUILD
@@ -135,7 +135,7 @@ public:
 
     llvm::Type *llvm_type(Codegen &gen) override;
 
-    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned int index) override;
+    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) override;
 
     llvm::Value *llvm_load(Codegen &gen) override;
 
@@ -159,15 +159,15 @@ public:
 
     ASTNode *child(const std::string &name) override;
 
-    void declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode> &node_ptr) override;
+    void declare_top_level(SymbolResolver &linker, ASTNode* &node_ptr) override;
 
-    void declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override;
+    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) override;
 
     void interpret(InterpretScope &scope) override;
 
-    std::unique_ptr<BaseType> create_value_type() override;
+    BaseType* create_value_type(ASTAllocator& allocator) override;
 
-    hybrid_ptr<BaseType> get_value_type() override;
+//    hybrid_ptr<BaseType> get_value_type() override;
 
     /**
      * called by assignment to assign a new value in the scope that this variable was declared

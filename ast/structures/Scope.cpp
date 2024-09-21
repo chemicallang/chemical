@@ -31,13 +31,13 @@ void Scope::accept(Visitor *visitor) {
     visitor->visit(this);
 }
 
-void Scope::declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+void Scope::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
     for (auto &node: nodes) {
         node->declare_top_level(linker, node);
     }
 }
 
-void Scope::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+void Scope::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     for (auto &node: nodes) {
         node->declare_and_link(linker, node);
     }
@@ -63,11 +63,11 @@ void Scope::stopInterpretOnce() {
 
 }
 
-void LoopBlock::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode> &node_ptr) {
+void LoopBlock::declare_and_link(SymbolResolver &linker, ASTNode* &node_ptr) {
     body.link_sequentially(linker);
 }
 
-bool LoopBlock::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *expected_type) {
+bool LoopBlock::link(SymbolResolver &linker, Value* &value_ptr, BaseType *expected_type) {
     body.link_sequentially(linker);
     return true;
 }
@@ -77,7 +77,7 @@ Value* get_first_broken(Scope* body) {
     for(auto& node : body->nodes) {
         const auto k = node->kind();
         if(k == ASTNodeKind::BreakStmt) {
-            return node->as_break_stmt_unsafe()->value.get();
+            return node->as_break_stmt_unsafe()->value;
         } else if(k == ASTNodeKind::IfStmt) {
             auto ifStmt = node->as_if_stmt_unsafe();
             value = get_first_broken(&ifStmt->ifBody);
@@ -116,20 +116,12 @@ Value* LoopBlock::get_first_broken() {
     return first_broken;
 }
 
-std::unique_ptr<BaseType> LoopBlock::create_value_type() {
-    return get_first_broken()->create_type();
+BaseType* LoopBlock::create_value_type(ASTAllocator& allocator) {
+    return get_first_broken()->create_type(allocator);
 }
 
-std::unique_ptr<BaseType> LoopBlock::create_type() {
-    return get_first_broken()->create_type();
-}
-
-hybrid_ptr<BaseType> LoopBlock::get_base_type() {
-    return get_first_broken()->get_base_type();
-}
-
-hybrid_ptr<BaseType> LoopBlock::get_value_type() {
-    return get_first_broken()->get_base_type();
+BaseType* LoopBlock::create_type(ASTAllocator& allocator) {
+    return get_first_broken()->create_type(allocator);
 }
 
 BaseType* LoopBlock::known_type() {
@@ -184,7 +176,7 @@ bool InitBlock::diagnose_missing_members_for_init(ASTDiagnoser& diagnoser) {
     return false;
 }
 
-void InitBlock::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode> &node_ptr) {
+void InitBlock::declare_and_link(SymbolResolver &linker, ASTNode* &node_ptr) {
     auto func = parent_node->as_function();
     if(!func) {
         linker.error("expected init block to be in a function", (ASTNode*) this);
@@ -229,7 +221,7 @@ void InitBlock::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode
         if(!chain->link(linker, nullptr, nullptr, 1)) {
             continue;
         }
-        auto call_parent = chain->values[chain_size - 2].get(); // second last value
+        auto call_parent = chain->values[chain_size - 2]; // second last value
         auto linked = call_parent->linked_node();
         if(!linked) {
             linker.error("unknown initializer call", (ASTNode*) chain);
@@ -244,7 +236,7 @@ void InitBlock::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode
             auto base_def = linked->as_base_def_member_unsafe();
             auto& value = call->values.front();
             value->link(linker, value); // TODO send expected type by getting from base_def
-            initializers[base_def->name] = { false, value.get() };
+            initializers[base_def->name] = { false, value };
             continue;
         } else if(linked_kind == ASTNodeKind::FunctionDecl) {
             // linking the last function call, since function call is valid

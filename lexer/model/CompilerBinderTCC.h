@@ -37,8 +37,8 @@ public:
     explicit CompilerBinderTCC(
         CSTDiagnoser* diagnoser,
         std::string exe_path,
-        ASTAllocator<>& job_allocator,
-        ASTAllocator<>& mod_allocator
+        ASTAllocator& job_allocator,
+        ASTAllocator& mod_allocator
     );
 
     /**

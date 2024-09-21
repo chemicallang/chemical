@@ -22,7 +22,7 @@ public:
 
     virtual bool requires_copy_fn() = 0;
 
-    virtual BaseDefMember* copy_member() = 0;
+    virtual BaseDefMember* copy_member(ASTAllocator& allocator) = 0;
 
     virtual Value* default_value() {
         return nullptr;

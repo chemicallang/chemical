@@ -12,7 +12,7 @@ Namespace::Namespace(
 
 }
 
-void Namespace::declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+void Namespace::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
     auto previous = linker.find(name);
     if(previous) {
         root = previous->as_namespace();
@@ -24,20 +24,20 @@ void Namespace::declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNod
     } else {
         linker.declare_node(name, this, specifier, false);
         for(auto& node : nodes) {
-            extended[node->ns_node_identifier()] = node.get();
+            extended[node->ns_node_identifier()] = node;
         }
     }
 }
 
-void Namespace::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+void Namespace::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     linker.scope_start();
     if(root) {
         for(auto& node : root->extended) {
-            node.second->redeclare_top_level(linker, (std::unique_ptr<ASTNode>&) node.second);
+            node.second->redeclare_top_level(linker, (ASTNode*&) node.second);
         }
         for(auto& node : nodes) {
             node->declare_top_level(linker, node);
-            root->extended[node->ns_node_identifier()] = node.get();
+            root->extended[node->ns_node_identifier()] = node;
         }
     } else {
         for(auto& node : nodes) {

@@ -59,7 +59,7 @@ public:
      * chain type provides llvm based on access chain, for example
      * unions don't consider the largest member type, instead the one that has been accessed
      */
-    virtual llvm::Type *llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<ChainValue>>& values, unsigned index) {
+    virtual llvm::Type *llvm_chain_type(Codegen &gen, std::vector<ChainValue*>& values, unsigned index) {
         return llvm_type(gen);
     }
 

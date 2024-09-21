@@ -49,11 +49,7 @@ public:
         visitor->visit(this);
     }
 
-    StructMemberInitializer* copy();
-
-    std::unique_ptr<StructMemberInitializer> copy_unique() {
-        return std::unique_ptr<StructMemberInitializer>(copy());
-    }
+    StructMemberInitializer* copy(ASTAllocator& allocator);
 
     CSTToken *cst_token() override;
 

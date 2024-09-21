@@ -14,6 +14,7 @@
 #include <map>
 #include "ast/base/ExtendableMembersContainerNode.h"
 #include "ast/types/StructType.h"
+#include "ast/types/LinkedType.h"
 
 class StructDefinition : public ExtendableMembersContainerNode, public StructType {
 public:
@@ -22,6 +23,7 @@ public:
     bool is_direct_init = false;
     ASTNode* parent_node;
     CSTToken* token;
+    LinkedType linked_type;
 
 #ifdef COMPILER_BUILD
     /**
@@ -65,7 +67,7 @@ public:
         return active_iteration;
     }
 
-    VariablesContainer *copy_container() override;
+    VariablesContainer *copy_container(ASTAllocator& allocator) override;
 
     ASTNode *linked_node() override {
         return this;
@@ -105,15 +107,13 @@ public:
 
     void accept(Visitor *visitor) override;
 
-    void declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override;
+    void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) override;
 
-    void declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override;
+    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) override;
 
     ASTNode *child(const std::string &name) override;
 
-    std::unique_ptr<BaseType> create_value_type() override;
-
-    hybrid_ptr<BaseType> get_value_type() override;
+    BaseType* create_value_type(ASTAllocator& allocator) override;
 
     BaseType* known_type() override;
 
@@ -125,7 +125,7 @@ public:
     }
 
     [[nodiscard]]
-    BaseType *copy() const override;
+    BaseType* copy(ASTAllocator &allocator) const override;
 
 #ifdef COMPILER_BUILD
 
@@ -137,7 +137,7 @@ public:
 
     llvm::Type *llvm_param_type(Codegen &gen) override;
 
-    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned int index) override;
+    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) override;
 
     /**
      * will try to override the given function if there's an interface and it exists
@@ -150,7 +150,7 @@ public:
      */
     void struct_func_gen(
         Codegen& gen,
-        const std::vector<std::unique_ptr<FunctionDeclaration>>& funcs,
+        const std::vector<FunctionDeclaration*>& funcs,
         bool declare
     );
 

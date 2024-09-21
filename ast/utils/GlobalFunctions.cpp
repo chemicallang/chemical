@@ -29,17 +29,96 @@
 #include "ast/types/AnyType.h"
 #include "preprocess/RepresentationVisitor.h"
 #include "utils/Version.h"
+#include "ast/types/UIntType.h"
 
 namespace InterpretVector {
 
+    class InterpretVectorNode;
+
+    class InterpretVectorConstructor : public FunctionDeclaration {
+    public:
+
+        explicit InterpretVectorConstructor(InterpretVectorNode* node);
+
+        Value* call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs);
+
+    };
+
+    class InterpretVectorSize : public FunctionDeclaration {
+    public:
+
+        FunctionParam selfParam;
+        IntType retType;
+
+        explicit InterpretVectorSize(InterpretVectorNode* node);
+
+        Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override;
+
+    };
+
+    class InterpretVectorGet : public FunctionDeclaration {
+    public:
+
+        FunctionParam selfParam;
+        UIntType indexType;
+        FunctionParam indexParam;
+        LinkedType returnLinkedType;
+
+        explicit InterpretVectorGet(InterpretVectorNode* node);
+
+        Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override;
+
+    };
+
+    class InterpretVectorPush : public FunctionDeclaration {
+    public:
+
+        FunctionParam selfParam;
+        LinkedType valueType;
+        FunctionParam valueParam;
+        VoidType returnVoidType;
+
+        explicit InterpretVectorPush(InterpretVectorNode* node);
+
+        Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override;
+
+    };
+
+    class InterpretVectorRemove : public FunctionDeclaration {
+    public:
+
+        FunctionParam selfParam;
+        VoidType returnVoidType;
+        UIntType indexType;
+        FunctionParam indexParam;
+
+        explicit InterpretVectorRemove(InterpretVectorNode* node);
+
+        Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override;
+
+    };
+
     class InterpretVectorNode : public StructDefinition {
     public:
+
+        GenericTypeParameter typeParam;
+
+        LinkedType selfType;
+        PointerType selfPointer;
+
+        InterpretVectorConstructor constructorFn;
+        InterpretVectorSize sizeFn;
+        InterpretVectorGet getFn;
+        InterpretVectorPush pushFn;
+        InterpretVectorRemove removeFn;
+
         explicit InterpretVectorNode(ASTNode* parent_node);
+
     };
 
     class InterpretVectorVal : public StructValue {
     public:
-        std::vector<std::unique_ptr<Value>> values;
+        std::vector<Value*> values;
         explicit InterpretVectorVal(InterpretVectorNode* node) : StructValue(
             nullptr,
             {},
@@ -52,125 +131,133 @@ namespace InterpretVector {
         }
     };
 
-    class InterpretVectorConstructor : public FunctionDeclaration {
-    public:
-        explicit InterpretVectorConstructor(InterpretVectorNode* node) : FunctionDeclaration(
-                "constructor",
-                std::vector<std::unique_ptr<FunctionParam>> {},
-                node->create_value_type(),
-                false,
-                node,
-                nullptr,
-                std::nullopt
-        ) {
-            annotations.emplace_back(AnnotationKind::Constructor);
-        }
-        Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
-            return new InterpretVectorVal((InterpretVectorNode*) parent_node);
-        }
-    };
-
-    class InterpretVectorSize : public FunctionDeclaration {
-    public:
-        explicit InterpretVectorSize(InterpretVectorNode* node) : FunctionDeclaration(
-            "size",
-            std::vector<std::unique_ptr<FunctionParam>> {},
-            std::make_unique<IntType>(nullptr),
+    InterpretVectorConstructor::InterpretVectorConstructor(InterpretVectorNode* node) : FunctionDeclaration(
+            "constructor",
+            std::vector<FunctionParam*> {},
+            &node->selfType,
             false,
             node,
             nullptr,
             std::nullopt
-        ) {
-            params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<LinkedType>("vector", nullptr, node), nullptr), 0, nullptr, this, nullptr));
-        }
-        Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
-            return new IntValue(static_cast<InterpretVectorVal*>(parent_val)->values.size(), nullptr);
-        }
-    };
+    ) {
+        annotations.emplace_back(AnnotationKind::Constructor);
+    }
 
-    class InterpretVectorGet : public FunctionDeclaration {
-    public:
-        explicit InterpretVectorGet(InterpretVectorNode* node) : FunctionDeclaration(
-                "get",
-                std::vector<std::unique_ptr<FunctionParam>> {},
-                std::make_unique<LinkedType>("T", nullptr, node->generic_params[0].get()),
-                false,
-                node,
-                nullptr,
-                std::nullopt
-        ) {
-            params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<LinkedType>("vector", nullptr, node), nullptr), 0, nullptr, this, nullptr));
-            params.emplace_back(std::make_unique<FunctionParam>("index", std::make_unique<AnyType>(nullptr), 0, nullptr, this, nullptr));
-        }
-        Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
-            return static_cast<InterpretVectorVal*>(parent_val)->values[call->values[0]->evaluated_value(*call_scope)->as_int()]->scope_value(*call_scope);
-        }
-    };
-    class InterpretVectorPush : public FunctionDeclaration {
-    public:
-        explicit InterpretVectorPush(InterpretVectorNode* node) : FunctionDeclaration(
-                "push",
-                std::vector<std::unique_ptr<FunctionParam>> {},
-                std::make_unique<VoidType>(nullptr),
-                false,
-                node,
-                nullptr,
-                std::nullopt
-        ) {
-            params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<LinkedType>("vector", nullptr, node), nullptr), 0, nullptr, this, nullptr));
-            params.emplace_back(std::make_unique<FunctionParam>("value", std::make_unique<LinkedType>("T", nullptr, node->generic_params[0].get()), 1, nullptr, this, nullptr));
-        }
-        Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
-            static_cast<InterpretVectorVal*>(parent_val)->values.emplace_back(call->values[0]->scope_value(*call_scope));
-            return nullptr;
-        }
-    };
-    class InterpretVectorRemove : public FunctionDeclaration {
-    public:
-        explicit InterpretVectorRemove(InterpretVectorNode* node) : FunctionDeclaration(
-                "remove",
-                std::vector<std::unique_ptr<FunctionParam>> {},
-                std::make_unique<VoidType>(nullptr),
-                false,
-                node,
-                nullptr,
-                std::nullopt
-        ) {
-            params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<LinkedType>("vector", nullptr, node), nullptr), 0, nullptr, this, nullptr));
-            params.emplace_back(std::make_unique<FunctionParam>("index", std::make_unique<AnyType>(nullptr), 0, nullptr, this, nullptr));
-        }
-        Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
-            auto& ref = static_cast<InterpretVectorVal*>(parent_val)->values;
-            ref.erase(ref.begin() + call->values[0]->evaluated_value(*call_scope)->as_int());
-            return nullptr;
-        }
-    };
+    Value *InterpretVectorConstructor::call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) {
+        return new InterpretVectorVal((InterpretVectorNode*) parent_node);
+    }
 
-    InterpretVectorNode::InterpretVectorNode(ASTNode* parent_node) : StructDefinition("vector", parent_node, nullptr) {
+    InterpretVectorSize::InterpretVectorSize(InterpretVectorNode* node) : FunctionDeclaration(
+        "size",
+        std::vector<FunctionParam*> {},
+        &retType,
+        false,
+        node,
+        nullptr,
+        std::nullopt
+    ), retType(nullptr), selfParam("self", &node->selfPointer, 0, nullptr, this, nullptr) {
+        params.emplace_back(&selfParam);
+    }
+
+    Value *InterpretVectorSize::call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) {
+        return new IntValue(static_cast<InterpretVectorVal*>(parent_val)->values.size(), nullptr);
+    }
+
+
+    InterpretVectorGet::InterpretVectorGet(InterpretVectorNode* node) : FunctionDeclaration(
+            "get",
+            std::vector<FunctionParam*> {},
+            &returnLinkedType,
+            false,
+            node,
+            nullptr,
+            std::nullopt
+    ), returnLinkedType("T", &node->typeParam, nullptr),
+        selfParam("self", &node->selfPointer, 0, nullptr, this, nullptr), indexType(nullptr), indexParam("index", &indexType, 1, nullptr, this, nullptr)
+    {
+        params.emplace_back(&selfParam);
+        params.emplace_back(&indexParam);
+    }
+
+    Value *InterpretVectorGet::call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) {
+        return static_cast<InterpretVectorVal*>(parent_val)->values[call->values[0]->evaluated_value(*call_scope)->as_int()]->scope_value(*call_scope);
+    }
+
+    InterpretVectorPush::InterpretVectorPush(InterpretVectorNode* node) : FunctionDeclaration(
+            "push",
+            std::vector<FunctionParam*> {},
+            &returnVoidType,
+            false,
+            node,
+            nullptr,
+            std::nullopt
+    ), selfParam("self", &node->selfPointer, 0, nullptr, this, nullptr), returnVoidType(nullptr),
+        valueType("T", &node->typeParam, nullptr), valueParam("value", &valueType, 1, nullptr, this, nullptr)
+    {
+        params.emplace_back(&selfParam);
+        params.emplace_back(&valueParam);
+    }
+
+    Value *InterpretVectorPush::call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) {
+        static_cast<InterpretVectorVal*>(parent_val)->values.emplace_back(call->values[0]->scope_value(*call_scope));
+        return nullptr;
+    }
+
+    InterpretVectorRemove::InterpretVectorRemove(InterpretVectorNode* node) : FunctionDeclaration(
+            "remove",
+            std::vector<FunctionParam*> {},
+            &returnVoidType,
+            false,
+            node,
+            nullptr,
+            std::nullopt
+    ), selfParam("self", &node->selfPointer, 0, nullptr, this, nullptr), returnVoidType(nullptr),
+        indexType(nullptr), indexParam("index", &indexType, 1, nullptr, this, nullptr)
+    {
+        params.emplace_back(&selfParam);
+        params.emplace_back(&indexParam);
+    }
+    Value *InterpretVectorRemove::call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) {
+        auto& ref = static_cast<InterpretVectorVal*>(parent_val)->values;
+        ref.erase(ref.begin() + call->values[0]->evaluated_value(*call_scope)->as_int());
+        return nullptr;
+    }
+
+    InterpretVectorNode::InterpretVectorNode(
+        ASTNode* parent_node
+    ): StructDefinition("vector", parent_node, nullptr),
+        constructorFn(this), sizeFn(this), getFn(this), pushFn(this), removeFn(this),
+        typeParam("T", nullptr, this, 0, nullptr),
+        selfType("vector", this, nullptr), selfPointer(&selfType, nullptr)
+    {
         annotations.emplace_back(AnnotationKind::CompTime);
-        generic_params.emplace_back(new GenericTypeParameter("T", nullptr, this, 0, nullptr));
-        insert_func(std::make_unique<InterpretVectorConstructor>(this));
-        insert_func(std::make_unique<InterpretVectorSize>(this));
-        insert_func(std::make_unique<InterpretVectorGet>(this));
-        insert_func(std::make_unique<InterpretVectorPush>(this));
-        insert_func(std::make_unique<InterpretVectorRemove>(this));
+        generic_params.emplace_back(&typeParam);
+        insert_func(&constructorFn);
+        insert_func(&sizeFn);
+        insert_func(&getFn);
+        insert_func(&pushFn);
+        insert_func(&removeFn);
     }
 
 }
 
 class InterpretPrint : public FunctionDeclaration {
 public:
+
     std::ostringstream ostring;
     RepresentationVisitor visitor;
+    VoidType returnType;
+
+
     explicit InterpretPrint(ASTNode* parent_node) : FunctionDeclaration(
             "print",
-            std::vector<std::unique_ptr<FunctionParam>> {},
-            std::make_unique<VoidType>(nullptr),
+            std::vector<FunctionParam*> {},
+            &returnType,
             true,
             parent_node,
             nullptr,
             std::nullopt
-    ), visitor(ostring) {
+    ), visitor(ostring),  returnType(nullptr) {
         visitor.interpret_representation = true;
     }
     Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
@@ -178,7 +265,7 @@ public:
         ostring.clear();
         for (auto const &value: call->values) {
             auto paramValue = value->evaluated_value(*call_scope);
-            if(paramValue.get() == nullptr) {
+            if(paramValue == nullptr) {
                 ostring.write("null", 4);
             } else {
                 paramValue->accept(&visitor);
@@ -189,14 +276,14 @@ public:
     }
 };
 
-hybrid_ptr<Value> resolve_ref(Value* val, InterpretScope *call_scope) {
-    hybrid_ptr<Value> value{nullptr, false};
+Value* resolve_ref(Value* val, InterpretScope *call_scope) {
+    Value* value = nullptr;
     if(val->reference()) {
         auto linked = val->linked_node();
         if(linked && !linked->as_func_param()) {
             auto holding = linked->holding_value();
             if(holding) {
-                value = hybrid_ptr<Value>{holding, false};
+                value = holding;
             }
         } else {
             value = val->evaluated_value(*call_scope);
@@ -205,31 +292,36 @@ hybrid_ptr<Value> resolve_ref(Value* val, InterpretScope *call_scope) {
         value = val->evaluated_value(*call_scope);
     }
     if(value && value->reference()) {
-        return resolve_ref(value.get(), call_scope);
+        return resolve_ref(value, call_scope);
     }
     return value;
 }
 
 class InterpretSize : public FunctionDeclaration {
 public:
+
+    UBigIntType returnType;
+    AnyType anyType;
+    FunctionParam valueParam;
+
     explicit InterpretSize(ASTNode* parent_node) : FunctionDeclaration(
             "size",
-            std::vector<std::unique_ptr<FunctionParam>> {},
-            std::make_unique<UBigIntType>(nullptr),
+            std::vector<FunctionParam*> {},
+            &returnType,
             false,
             parent_node,
             nullptr,
             std::nullopt
-    ) {
+    ), returnType(nullptr), anyType(nullptr), valueParam("value", &anyType, 0, nullptr, this, nullptr) {
         annotations.emplace_back(AnnotationKind::CompTime);
-        params.emplace_back(std::make_unique<FunctionParam>("value", std::make_unique<AnyType>(nullptr), 0, nullptr, this, nullptr));
+        params.emplace_back(&valueParam);
     }
     Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
         if(call->values.empty()) {
             call_scope->error("compiler::size called without arguments");
             return nullptr;
         }
-        const auto val = call->values[0].get();
+        const auto val = call->values[0];
         const auto val_type = val->value_type();
         if(val_type != ValueType::String && val_type != ValueType::Array) {
             call_scope->error("compiler::size called with invalid arguments");
@@ -253,8 +345,8 @@ public:
 
 class WrapValue : public Value {
 public:
-    std::unique_ptr<Value> underlying;
-    explicit WrapValue(std::unique_ptr<Value> underlying) : underlying(std::move(underlying)) {
+    Value* underlying;
+    explicit WrapValue(Value* underlying) : underlying(underlying) {
 
     }
     CSTToken *cst_token() override {
@@ -266,77 +358,86 @@ public:
     ValueKind val_kind() override {
         return ValueKind::WrapValue;
     }
-    Value *copy() override {
-        return new WrapValue(std::unique_ptr<Value>(underlying->copy()));
+    Value *copy(ASTAllocator& allocator) override {
+        return new (allocator.allocate<WrapValue>()) WrapValue(underlying->copy(allocator));
     }
-    hybrid_ptr<Value> evaluated_value(InterpretScope &scope) override {
-        return hybrid_ptr<Value> { underlying.get(), false };
-    }
-    std::unique_ptr<Value> create_evaluated_value(InterpretScope &scope) override {
-        return std::move(underlying);
+    Value* evaluated_value(InterpretScope &scope) override {
+        return underlying;
     }
 };
 
 class InterpretWrap : public FunctionDeclaration {
 public:
+
+    AnyType anyType;
+    FunctionParam valueParam;
+
     explicit InterpretWrap(ASTNode* parent_node) : FunctionDeclaration(
             "wrap",
-            std::vector<std::unique_ptr<FunctionParam>> {},
-            std::make_unique<AnyType>(nullptr),
+            std::vector<FunctionParam*> {},
+            &anyType,
             true,
             parent_node,
             nullptr,
             std::nullopt
-    ) {
+    ), anyType(nullptr), valueParam("value", &anyType, 0, nullptr, this, nullptr) {
         annotations.emplace_back(AnnotationKind::CompTime);
         // having a generic type parameter T requires that user gives type during function call to wrap
         // when we can successfully avoid giving type for generic parameters in functions, we should do this
 //        generic_params.emplace_back(new GenericTypeParameter("T", nullptr, this));
 //        returnType = std::make_unique<ReferencedType>("T", generic_params[0].get());
-        params.emplace_back(std::make_unique<FunctionParam>("value", std::make_unique<AnyType>(nullptr), 0, nullptr, this, nullptr));
+        params.emplace_back(&valueParam);
     }
     Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
-        auto underlying = call->values[0]->copy();
+        auto underlying = call->values[0]->copy(call_scope->allocator);
         underlying->evaluate_children(*call_scope);
-        return new WrapValue(std::unique_ptr<Value>(underlying));
+        return new (call_scope->allocate<WrapValue>()) WrapValue(underlying);
     }
 };
 
 class InterpretUnwrap : public FunctionDeclaration {
 public:
+
+    AnyType anyType;
+    FunctionParam valueParam;
+
     explicit InterpretUnwrap(ASTNode* parent_node) : FunctionDeclaration(
             "unwrap",
-            std::vector<std::unique_ptr<FunctionParam>> {},
-            std::make_unique<AnyType>(nullptr),
+            std::vector<FunctionParam*> {},
+            &anyType,
             true,
             parent_node,
             nullptr,
             std::nullopt
-    ) {
+    ), anyType(nullptr), valueParam("value", &anyType, 0, nullptr, this, nullptr) {
         annotations.emplace_back(AnnotationKind::CompTime);
         // having a generic type parameter T requires that user gives type during function call to wrap
         // when we can successfully avoid giving type for generic parameters in functions, we should do this
 //        generic_params.emplace_back(new GenericTypeParameter("T", nullptr, this));
 //        returnType = std::make_unique<ReferencedType>("T", generic_params[0].get());
-        params.emplace_back(std::make_unique<FunctionParam>("value", std::make_unique<AnyType>(nullptr), 0, nullptr, this, nullptr));
+        params.emplace_back(&valueParam);
     }
     Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
-        return call->values[0]->evaluated_value(*call_scope)->copy();
+        return call->values[0]->evaluated_value(*call_scope)->copy(call_scope->global->allocator);
     }
 };
 
 class InterpretRetStructPtr : public FunctionDeclaration {
 public:
+
+    // TODO we shouldn't return pointer to void type
+    VoidType voidType;
+    PointerType ptrType;
+
     explicit InterpretRetStructPtr(ASTNode* parent_node) : FunctionDeclaration(
             "return_struct",
-            std::vector<std::unique_ptr<FunctionParam>> {},
-            // TODO fix return type
-            std::make_unique<PointerType>(std::make_unique<VoidType>(nullptr), nullptr),
+            std::vector<FunctionParam*> {},
+            &ptrType,
             true,
             parent_node,
             nullptr,
             std::nullopt
-    ) {
+    ), voidType(nullptr), ptrType(&voidType, nullptr) {
         annotations.emplace_back(AnnotationKind::CompTime);
     }
     Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
@@ -346,15 +447,18 @@ public:
 
 class InterpretCompilerVersion : public FunctionDeclaration {
 public:
+
+    StringType stringType;
+
     explicit InterpretCompilerVersion(ASTNode* parent_node) : FunctionDeclaration(
             "version",
-            std::vector<std::unique_ptr<FunctionParam>> {},
-            std::make_unique<StringType>(nullptr),
+            std::vector<FunctionParam*> {},
+            &stringType,
             false,
             parent_node,
             nullptr,
             std::nullopt
-    ) {
+    ), stringType(nullptr) {
         annotations.emplace_back(AnnotationKind::CompTime);
     }
     Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
@@ -370,15 +474,18 @@ public:
 
 class InterpretIsTcc : public FunctionDeclaration {
 public:
+
+    BoolType boolType;
+
     explicit InterpretIsTcc(ASTNode* parent_node) : FunctionDeclaration(
             "is_tcc_based",
-            std::vector<std::unique_ptr<FunctionParam>> {},
-            std::make_unique<BoolType>(nullptr),
+            std::vector<FunctionParam*> {},
+            &boolType,
             false,
             parent_node,
             nullptr,
             std::nullopt
-    ) {
+    ), boolType(nullptr) {
         annotations.emplace_back(AnnotationKind::CompTime);
     }
     Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
@@ -392,15 +499,18 @@ public:
 
 class InterpretIsClang : public FunctionDeclaration {
 public:
+
+    BoolType boolType;
+
     explicit InterpretIsClang(ASTNode* parent_node) : FunctionDeclaration(
             "is_clang_based",
-            std::vector<std::unique_ptr<FunctionParam>> {},
-            std::make_unique<BoolType>(nullptr),
+            std::vector<FunctionParam*> {},
+            &boolType,
             false,
             parent_node,
             nullptr,
             std::nullopt
-    ) {
+    ), boolType(nullptr) {
         annotations.emplace_back(AnnotationKind::CompTime);
     }
     Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
@@ -414,17 +524,22 @@ public:
 
 class InterpretDefined : public FunctionDeclaration {
 public:
-    explicit InterpretDefined(ASTNode* parent_node) : FunctionDeclaration(
+
+    BoolType boolType;
+    StringType stringType;
+    FunctionParam valueParam;
+
+    explicit InterpretDefined() : FunctionDeclaration(
             "defined",
-            std::vector<std::unique_ptr<FunctionParam>> {},
-            std::make_unique<BoolType>(nullptr),
+            std::vector<FunctionParam*> {},
+            &boolType,
             false,
-            parent_node,
+            nullptr,
             nullptr,
             std::nullopt
-    ) {
+    ), boolType(nullptr), stringType(nullptr), valueParam("value", &stringType, 0, nullptr, this, nullptr) {
         annotations.emplace_back(AnnotationKind::CompTime);
-        params.emplace_back(std::make_unique<FunctionParam>("value", std::make_unique<StringType>(nullptr), 0, nullptr, this, nullptr));
+        params.emplace_back(&valueParam);
     }
     Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
         if(call->values.empty()) return new BoolValue(false, nullptr);
@@ -438,18 +553,25 @@ public:
 
 class InterpretMemCopy : public FunctionDeclaration {
 public:
+
+    BoolType boolType;
+    StringType stringType;
+    FunctionParam destValueParam;
+    FunctionParam sourceValueParam;
+
     explicit InterpretMemCopy(ASTNode* parent_node) : FunctionDeclaration(
             "copy",
-            std::vector<std::unique_ptr<FunctionParam>> {},
-            std::make_unique<BoolType>(nullptr),
+            std::vector<FunctionParam*> {},
+            &boolType,
             false,
             parent_node,
             nullptr,
             std::nullopt
-    ) {
+    ), boolType(nullptr), stringType(nullptr), destValueParam("dest_value", &stringType, 0, nullptr, this, nullptr),
+      sourceValueParam("source_value", &stringType, 1, nullptr, this, nullptr){
         annotations.emplace_back(AnnotationKind::CompTime);
-        params.emplace_back(std::make_unique<FunctionParam>("dest_value", std::make_unique<StringType>(nullptr), 0, nullptr, this, nullptr));
-        params.emplace_back(std::make_unique<FunctionParam>("source_value", std::make_unique<StringType>(nullptr), 0, nullptr, this, nullptr));
+        params.emplace_back(&destValueParam);
+        params.emplace_back(&sourceValueParam);
     }
     Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
         auto& backend = *call_scope->global->backend_context;
@@ -457,7 +579,7 @@ public:
             call_scope->error("std::mem::copy called with arguments of length not equal to two");
             return nullptr;
         }
-        backend.mem_copy(call->values[0].get(), call->values[1].get());
+        backend.mem_copy(call->values[0], call->values[1]);
     }
 };
 
@@ -465,7 +587,7 @@ public:
 //public:
 //    explicit InterpretConstruct(ASTNode* parent_node) : FunctionDeclaration(
 //            "construct",
-//            std::vector<std::unique_ptr<FunctionParam>> {},
+//            std::vector<FunctionParam*> {},
 //            std::make_unique<VoidType>(),
 //            false,
 //            parent_node,
@@ -480,55 +602,78 @@ public:
 //    }
 //};
 
-Namespace* create_compiler_namespace(GlobalInterpretScope& scope) {
-    auto compiler_ns = new Namespace("compiler", nullptr, nullptr);
-    scope.global_nodes["compiler"] = std::unique_ptr<Namespace>(compiler_ns);
-    compiler_ns->annotations.emplace_back(AnnotationKind::CompTime);
-    compiler_ns->nodes.emplace_back(new InterpretPrint(compiler_ns));
-    compiler_ns->nodes.emplace_back(new InterpretWrap(compiler_ns));
-    compiler_ns->nodes.emplace_back(new InterpretUnwrap(compiler_ns));
-    compiler_ns->nodes.emplace_back(new InterpretRetStructPtr(compiler_ns));
-    compiler_ns->nodes.emplace_back(new InterpretCompilerVersion(compiler_ns));
-    compiler_ns->nodes.emplace_back(new InterpretIsTcc(compiler_ns));
-    compiler_ns->nodes.emplace_back(new InterpretIsClang(compiler_ns));
-    compiler_ns->nodes.emplace_back(new InterpretSize(compiler_ns));
-//    compiler_ns->nodes.emplace_back(new InterpretConstruct(compiler_ns));
-    compiler_ns->nodes.emplace_back(new InterpretVector::InterpretVectorNode(compiler_ns));
-    return compiler_ns;
-}
+class CompilerNamespace : public Namespace {
+public:
 
-Namespace* create_mem_namespace(GlobalInterpretScope& scope){
-    auto mem_ns = new Namespace("mem", nullptr, nullptr);
-    mem_ns->annotations.emplace_back(AnnotationKind::CompTime);
-    mem_ns->nodes.emplace_back(new InterpretMemCopy(mem_ns));
-    return mem_ns;
-}
+    InterpretPrint printFn;
+    InterpretWrap wrapFn;
+    InterpretUnwrap unwrapFn;
+    InterpretRetStructPtr retStructPtr;
+    InterpretCompilerVersion verFn;
+    InterpretIsTcc isTccFn;
+    InterpretIsClang isClangFn;
+    InterpretSize sizeFn;
+    InterpretVector::InterpretVectorNode vectorNode;
 
-Namespace* create_std_namespace(GlobalInterpretScope& scope) {
-    auto std_ns = new Namespace("std", nullptr, nullptr);
-    scope.global_nodes["std"] = std::unique_ptr<Namespace>(std_ns);
-    std_ns->annotations.emplace_back(AnnotationKind::CompTime);
-    std_ns->nodes.emplace_back(create_mem_namespace(scope));
-    return std_ns;
-}
+    CompilerNamespace(
 
-void prepare_top_level_nodes(GlobalInterpretScope& scope, SymbolResolver& resolver) {
-    auto interpret_defined = new InterpretDefined(nullptr);
-    std::unique_ptr<ASTNode> dummy;
-    interpret_defined->declare_top_level(resolver, dummy);
-    scope.global_nodes["defined"] = std::unique_ptr<InterpretDefined>(interpret_defined);
-}
+    ) : Namespace("compiler", nullptr, nullptr),
+        printFn(this), wrapFn(this), unwrapFn(this), retStructPtr(this), verFn(this),
+        isTccFn(this), isClangFn(this), sizeFn(this), vectorNode(this)
+    {
 
-void link_namespace(SymbolResolver& resolver, Namespace* ns) {
-    std::unique_ptr<ASTNode> dummy;
-    ns->declare_top_level(resolver, dummy);
-    ns->declare_and_link(resolver, dummy);
-}
+        annotations.emplace_back(AnnotationKind::CompTime);
+        nodes = {
+            &printFn, &wrapFn, &unwrapFn, &retStructPtr, &verFn, &isTccFn, &isClangFn, &sizeFn, &vectorNode
+        };
+
+    }
+
+};
+
+class MemNamespace : public Namespace {
+public:
+
+    InterpretMemCopy memCopyFn;
+
+    explicit MemNamespace(
+        ASTNode* parent_node
+    ) : Namespace("mem", parent_node, nullptr), memCopyFn(this) {
+        annotations.emplace_back(AnnotationKind::CompTime);
+        nodes = { &memCopyFn };
+    }
+
+};
+
+class StdNamespace : public Namespace {
+public:
+
+    MemNamespace memNamespace;
+
+    StdNamespace(
+
+    ) : Namespace("std", nullptr, nullptr),
+        memNamespace(this)
+    {
+        annotations.emplace_back(AnnotationKind::CompTime);
+        nodes = { &memNamespace };
+    }
+
+};
+
+struct GlobalContainer {
+    CompilerNamespace compiler_namespace;
+    StdNamespace std_namespace;
+    InterpretDefined defined;
+};
+
+GlobalContainer global_fns;
 
 void GlobalInterpretScope::prepare_top_level_namespaces(SymbolResolver& resolver) {
-    link_namespace(resolver, create_compiler_namespace(*this));
-    link_namespace(resolver, create_std_namespace(*this));
-    prepare_top_level_nodes(*this, resolver);
+    ASTNode* dummy = nullptr;
+    global_fns.compiler_namespace.declare_top_level(resolver, dummy);
+    global_fns.std_namespace.declare_top_level(resolver, dummy);
+    global_fns.defined.declare_top_level(resolver, dummy);
 }
 
 //void GlobalInterpretScope::rebind_compiler_namespace(SymbolResolver &resolver) {

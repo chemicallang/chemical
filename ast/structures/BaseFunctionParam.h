@@ -26,12 +26,10 @@ public:
 
     virtual unsigned calculate_c_or_llvm_index() = 0;
 
-    std::unique_ptr<BaseType> create_value_type() override;
-
-    hybrid_ptr<BaseType> get_value_type() override;
+    BaseType* create_value_type(ASTAllocator &allocator) override;
 
     BaseType *known_type() override {
-        return type.get();
+        return type;
     }
 
 #ifdef COMPILER_BUILD
@@ -40,7 +38,7 @@ public:
 
     llvm::Type *llvm_type(Codegen &gen) override;
 
-    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned int index) override;
+    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) override;
 
     llvm::FunctionType *llvm_func_type(Codegen &gen) override;
 
@@ -58,12 +56,14 @@ public:
 
     ASTNode *child(const std::string &name) override;
 
-    void declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override;
+    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) override;
 
-    void redeclare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode> &node_ptr) override;
+    void redeclare_top_level(SymbolResolver &linker, ASTNode* &node_ptr) override;
 
+    [[nodiscard]]
     ValueType value_type() const override;
 
+    [[nodiscard]]
     BaseTypeKind type_kind() const override;
 
 };

@@ -8,6 +8,7 @@
 
 #include <string>
 #include <unordered_map>
+#include "ast/base/ASTAllocator.h"
 
 class Value;
 
@@ -27,18 +28,50 @@ class FunctionType;
 class InterpretScope {
 public:
 
+    /**
+      * This contains a map between identifiers and its values, of the current scope
+      */
+    std::unordered_map<std::string, Value *> values;
+
+    /**
+     * a pointer to the parent scope, If this is a global scope, it will be a nullptr
+     */
+    InterpretScope* parent;
+
+    /**
+     * a pointer to global scope, If this is a global scope, it will be a pointer to itself
+     */
+    GlobalInterpretScope* global;
+
+    /**
+     * this is a very lightweight allocator, that allocates every value on heap
+     * that's it
+     */
+    ASTAllocator allocator;
+
+    /**
+     * constructor
+     */
     explicit InterpretScope(InterpretScope* parent, GlobalInterpretScope* global);
 
     /**
      * use default move constructor
      */
-    InterpretScope(InterpretScope&& scope) = default;
+    InterpretScope(InterpretScope&& scope) noexcept = default;
 
     /**
      * deleted copy constructor
      * @param copy
      */
     InterpretScope(const InterpretScope& copy) = delete;
+
+    /**
+     * a helper function
+     */
+    template<typename T>
+    inline T* allocate() {
+        return allocator.allocate<T>();
+    }
 
     /**
      * declares a value with this name in current scope
@@ -58,7 +91,7 @@ public:
     /**
      * @return iterator for found value, the map that it was found in
      */
-    std::pair<value_iterator, value_map&> find_value_iterator(const std::string& name);
+    std::pair<value_iterator, InterpretScope&> find_value_iterator(const std::string& name);
 
     /**
      * print all values
@@ -82,20 +115,5 @@ public:
      * must be deleted in the destructor
      */
     virtual ~InterpretScope();
-
-    /**
-      * This contains a map between identifiers and its values, of the current scope
-      */
-    std::unordered_map<std::string, Value *> values;
-
-    /**
-     * a pointer to the parent scope, If this is a global scope, it will be a nullptr
-     */
-    InterpretScope* parent;
-
-    /**
-     * a pointer to global scope, If this is a global scope, it will be a pointer to itself
-     */
-    GlobalInterpretScope* global;
 
 };

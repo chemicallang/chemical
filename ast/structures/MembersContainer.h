@@ -67,7 +67,7 @@ public:
 
     void redeclare_variables_and_functions(SymbolResolver &linker);
 
-    void declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override;
+    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) override;
 
     /**
      * this would register the definition to all interfaces inherited
@@ -105,7 +105,7 @@ public:
     /**
      * register the generic args, so code is generated for these types, a generic iteration is returned
      */
-    int16_t register_generic_args(SymbolResolver& resolver, std::vector<std::unique_ptr<BaseType>>& types);
+    int16_t register_generic_args(SymbolResolver& resolver, std::vector<BaseType*>& types);
 
     /**
      * register value for the struct
@@ -153,7 +153,7 @@ public:
     /**
      * will provide a constructor function if there's one
      */
-    FunctionDeclaration* constructor_func(std::vector<std::unique_ptr<Value>>& forArgs);
+    FunctionDeclaration* constructor_func(std::vector<Value*>& forArgs);
 
     /**
      * will provide a implicit constructor function if there's one for the given value
@@ -277,47 +277,47 @@ public:
     /**
      * insert the given function into this members container
      */
-    void insert_func(std::unique_ptr<FunctionDeclaration> decl);
+    void insert_func(FunctionDeclaration* decl);
 
     /**
      * create a destructor function and put it into functions
      */
-    FunctionDeclaration* create_destructor();
+    FunctionDeclaration* create_destructor(ASTAllocator& allocator);
 
     /**
      * create the move function and put it into functions
      */
-    FunctionDeclaration* create_clear_fn();
+    FunctionDeclaration* create_clear_fn(ASTAllocator& allocator);
 
     /**
      * create the copy function and put it into functions
      */
-    FunctionDeclaration* create_copy_fn();
+    FunctionDeclaration* create_copy_fn(ASTAllocator& allocator);
 
     /**
      * create the copy function and put it into functions
      */
-    FunctionDeclaration* create_move_fn();
+    FunctionDeclaration* create_move_fn(ASTAllocator& allocator);
 
     /**
      * create default destructor, report errors in given diagnoser, this is a helper function
      */
-    FunctionDeclaration* create_def_destructor(ASTDiagnoser& diagnoser);
+    FunctionDeclaration* create_def_destructor(ASTAllocator& allocator, ASTDiagnoser& diagnoser);
 
     /**
      * create default move function, report errors in given diagnoser, this is a helper function
      */
-    FunctionDeclaration* create_def_clear_fn(ASTDiagnoser& diagnoser);
+    FunctionDeclaration* create_def_clear_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser);
 
     /**
      * create default copy function, report errors in given diagnoser, this is a helper function
      */
-    FunctionDeclaration* create_def_copy_fn(ASTDiagnoser& diagnoser);
+    FunctionDeclaration* create_def_copy_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser);
 
     /**
      * create default move function, report errors in given diagnoser, this is a helper function
      */
-    FunctionDeclaration* create_def_move_fn(ASTDiagnoser& diagnoser);
+    FunctionDeclaration* create_def_move_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser);
 
     /**
      * insert a function that can have same name for multiple declarations

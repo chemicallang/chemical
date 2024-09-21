@@ -6,15 +6,15 @@
 #include "LinkedType.h"
 #include "ast/structures/StructDefinition.h"
 
-GenericType::GenericType(std::unique_ptr<LinkedType> referenced) : referenced(std::move(referenced)) {
+GenericType::GenericType(LinkedType* referenced) : referenced(referenced) {
 
 }
 
-GenericType::GenericType(std::unique_ptr<LinkedType> referenced, std::vector<std::unique_ptr<BaseType>> types) : referenced(std::move(referenced)), types(std::move(types)) {
+GenericType::GenericType(LinkedType* referenced, std::vector<BaseType*> types) : referenced(referenced), types(std::move(types)) {
 
 }
 
-GenericType::GenericType(std::unique_ptr<LinkedType> referenced, int16_t generic_itr) : referenced(std::move(referenced)), generic_iteration(generic_itr) {
+GenericType::GenericType(LinkedType* referenced, int16_t generic_itr) : referenced(referenced), generic_iteration(generic_itr) {
 
 }
 
@@ -26,8 +26,8 @@ CSTToken* GenericType::cst_token() {
     return referenced->cst_token();
 }
 
-void GenericType::link(SymbolResolver &linker, std::unique_ptr<BaseType>& current) {
-    referenced->link(linker, (std::unique_ptr<BaseType>&) referenced);
+void GenericType::link(SymbolResolver &linker, BaseType*& current) {
+    referenced->link(linker, (BaseType*&) referenced);
     if(!referenced->linked) {
         return;
     }
@@ -50,7 +50,7 @@ bool GenericType::subscribe_to_parent_generic() {
     return false;
 }
 
-int16_t GenericType::report_generic_args(SymbolResolver &linker, std::vector<std::unique_ptr<BaseType>>& gen_args) {
+int16_t GenericType::report_generic_args(SymbolResolver &linker, std::vector<BaseType*>& gen_args) {
     const auto members_container = referenced->linked_node()->as_members_container();
     if(members_container) {
         return members_container->register_generic_args(linker, gen_args);
@@ -65,23 +65,19 @@ void GenericType::report_generic_usage(SymbolResolver& linker) {
 }
 
 void GenericType::report_parent_usage(SymbolResolver &linker, int16_t parent_itr) {
-    std::vector<std::unique_ptr<BaseType>> generic_args;
+    std::vector<BaseType*> generic_args;
     for(auto& type : types) {
         if(type->kind() == BaseTypeKind::Linked) {
             const auto gen_param = type->linked_node()->as_generic_type_param();
             if(gen_param) {
-                generic_args.emplace_back(gen_param->usage.back().get());
+                generic_args.emplace_back(gen_param->usage.back());
                 continue;
             }
         }
         // completely specialized type
-        generic_args.emplace_back(type.get());
+        generic_args.emplace_back(type);
     }
     subscribed_map[parent_itr] = report_generic_args(linker, generic_args);
-    // release all generic args as they are all references
-    for(auto& arg : generic_args) {
-        arg.release();
-    }
 }
 
 void GenericType::set_parent_iteration(int16_t parent_itr) {
@@ -101,11 +97,11 @@ void GenericType::set_parent_iteration(int16_t parent_itr) {
     }
 }
 
-GenericType* GenericType::copy() const {
-    auto gen = new GenericType(std::unique_ptr<LinkedType>((LinkedType*) referenced->copy()));
+GenericType* GenericType::copy(ASTAllocator& allocator) const {
+    auto gen = new (allocator.allocate<GenericType>()) GenericType((LinkedType*) referenced->copy(allocator));
     gen->generic_iteration = generic_iteration;
     for(auto& type : types) {
-        gen->types.emplace_back(type->copy());
+        gen->types.emplace_back(type->copy(allocator));
     }
     return gen;
 }
@@ -122,7 +118,7 @@ bool GenericType::satisfies(Value *value) {
     const auto value_pure_type = value->get_pure_type();
     if(value_pure_type->kind() == BaseTypeKind::Generic) {
         const auto gen_type = (GenericType*) value_pure_type.get();
-        return referenced->is_same(gen_type->referenced.get()) && gen_type->generic_iteration == generic_iteration;
+        return referenced->is_same(gen_type->referenced) && gen_type->generic_iteration == generic_iteration;
     } else {
         return false;
     }

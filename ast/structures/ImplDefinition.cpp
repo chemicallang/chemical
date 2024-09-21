@@ -46,7 +46,7 @@ void ImplDefinition::code_gen(Codegen &gen) {
     const auto linked = interface_type->linked_node()->as_interface_def();
     const auto struct_def = struct_type ? struct_type->linked_struct_def() : nullptr;
     for (auto& function: functions()) {
-        code_gen_function(gen, function.get(), linked, struct_def);
+        code_gen_function(gen, function, linked, struct_def);
     }
     if(linked && struct_def) {
         linked->llvm_global_vtable(gen, struct_def);
@@ -77,7 +77,7 @@ uint64_t ImplDefinition::byte_size(bool is64Bit) {
     return 0;
 }
 
-void ImplDefinition::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+void ImplDefinition::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     interface_type->link(linker, interface_type);
     if(struct_type) {
         struct_type->link(linker, struct_type);
@@ -85,7 +85,7 @@ void ImplDefinition::declare_and_link(SymbolResolver &linker, std::unique_ptr<AS
     auto& interface_name = interface_type->linked_name();
     auto linked = interface_type->linked_node()->as_interface_def();
     if(!linked) {
-        linker.error("couldn't find interface by name " + interface_name + " for implementation", interface_type.get());
+        linker.error("couldn't find interface by name " + interface_name + " for implementation", interface_type);
         return;
     }
     for(auto& func : functions()) {
@@ -98,7 +98,7 @@ void ImplDefinition::declare_and_link(SymbolResolver &linker, std::unique_ptr<AS
     const auto overrides_interface = struct_linked && struct_linked->does_override(linked);
     if(!overrides_interface) {
         for (auto& func: linked->functions()) {
-            func->redeclare_top_level(linker, (std::unique_ptr<ASTNode>&) func);
+            func->redeclare_top_level(linker, (ASTNode*&) func);
         }
     }
     // redeclare everything inside struct

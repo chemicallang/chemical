@@ -31,14 +31,14 @@ public:
         return is64Bit ? 8 : 4;
     }
 
-    AddrOfValue *copy() override;
+    AddrOfValue *copy(ASTAllocator& allocator) override;
 
-    hybrid_ptr<BaseType> get_base_type() override {
-        return hybrid_ptr<BaseType> { new PointerType(value->create_type(), nullptr) };
-    }
+//    hybrid_ptr<BaseType> get_base_type() override {
+//        return hybrid_ptr<BaseType> { new PointerType(value->create_type(), nullptr) };
+//    }
 
-    std::unique_ptr<BaseType> create_type() override {
-        return std::make_unique<PointerType>(value->create_type(), nullptr);
+    BaseType* create_type(ASTAllocator& allocator) override {
+        return new (allocator.allocate<PointerType>()) PointerType(value->create_type(allocator), nullptr);
     }
 
     BaseType* known_type() override {
@@ -73,6 +73,6 @@ public:
         return BaseTypeKind::Pointer;
     }
 
-    bool link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *expected_type = nullptr) override;
+    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) override;
 
 };

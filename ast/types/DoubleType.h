@@ -44,8 +44,8 @@ public:
     }
 
     [[nodiscard]]
-    DoubleType *copy() const override {
-        return new DoubleType(token);
+    DoubleType *copy(ASTAllocator& allocator) const override {
+        return new (allocator.allocate<DoubleType>()) DoubleType(token);
     }
 
 #ifdef COMPILER_BUILD

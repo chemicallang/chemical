@@ -43,13 +43,13 @@ public:
         return (ASTNode*) parent_node;
     }
 
-    BaseDefMember *copy_member() override;
+    BaseDefMember *copy_member(ASTAllocator& allocator) override;
 
     void accept(Visitor *visitor) override;
 
-    void declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override;
+    void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) override;
 
-    void declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override;
+    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) override;
 
     ASTNode *child(const std::string &name) override;
 
@@ -75,9 +75,9 @@ public:
 
 #endif
 
-    std::unique_ptr<BaseType> create_value_type() override;
+    BaseType* create_value_type(ASTAllocator& allocator) override;
 
-    hybrid_ptr<BaseType> get_value_type() override;
+//    hybrid_ptr<BaseType> get_value_type() override;
 
     [[nodiscard]]
     ValueType value_type() const override;

@@ -46,7 +46,7 @@ llvm::AllocaInst *Value::llvm_allocate(Codegen& gen, const std::string& identifi
     return llvm_allocate_with(gen, llvm_value(gen, expected_type), expected_type ? expected_type->llvm_type(gen) : llvm_type(gen));
 }
 
-llvm::AllocaInst* ChainValue::access_chain_allocate(Codegen& gen, std::vector<std::unique_ptr<ChainValue>>& values, unsigned int until, BaseType* expected_type) {
+llvm::AllocaInst* ChainValue::access_chain_allocate(Codegen& gen, std::vector<ChainValue*>& values, unsigned int until, BaseType* expected_type) {
     return llvm_allocate_with(gen, values[until]->access_chain_value(gen, values, until, expected_type), values[until]->llvm_type(gen));
 }
 
@@ -108,9 +108,9 @@ llvm::Value* Value::load_value(Codegen& gen, BaseType* known_t, llvm::Type* type
     return gen.builder->CreateLoad(type, ptr);
 }
 
-llvm::Value* ChainValue::access_chain_value(Codegen &gen, std::vector<std::unique_ptr<ChainValue>>& values, unsigned int until, std::vector<std::pair<Value*, llvm::Value*>>& destructibles, BaseType* expected_type) {
+llvm::Value* ChainValue::access_chain_value(Codegen &gen, std::vector<ChainValue*>& values, unsigned int until, std::vector<std::pair<Value*, llvm::Value*>>& destructibles, BaseType* expected_type) {
     if(until == 0) return values[0]->llvm_value(gen, expected_type);
-    return Value::load_value(gen, values[until].get(), access_chain_pointer(gen, values, destructibles, until));
+    return Value::load_value(gen, values[until], access_chain_pointer(gen, values, destructibles, until));
 }
 
 /**
@@ -124,13 +124,13 @@ llvm::Value* ChainValue::access_chain_value(Codegen &gen, std::vector<std::uniqu
  * the largest member type, so this method checks if the chain contains a union or unnamed union, and
  * one of largest member is not being accessed in the union, then we call llvm_chain_type
  */
-bool should_use_chain_type(std::vector<std::unique_ptr<ChainValue>>& values, unsigned index) {
+bool should_use_chain_type(ASTAllocator& allocator, std::vector<ChainValue*>& values, unsigned index) {
     unsigned i = index;
     // why -1, last not checked, because last maybe a union but there's no member access into it
     const auto total = values.size() - 1;
     while(i < total - 1) {
         auto& value = values[i];
-        auto base_type = value->get_base_type();
+        auto base_type = value->create_type(allocator);
         auto node = base_type->get_direct_linked_node();
         if(node) {
             auto node_kind = node->kind();
@@ -158,25 +158,25 @@ bool should_use_chain_type(std::vector<std::unique_ptr<ChainValue>>& values, uns
 }
 
 // this method could be put into access chain's llvm_type, when the need arises
-llvm::Type* access_chain_llvm_type(Codegen& gen, BaseType* type, std::vector<std::unique_ptr<ChainValue>>& values, unsigned index) {
-    if(should_use_chain_type(values, index)) {
+llvm::Type* access_chain_llvm_type(Codegen& gen, BaseType* type, std::vector<ChainValue*>& values, unsigned index) {
+    if(should_use_chain_type(gen.allocator, values, index)) {
         return type->llvm_chain_type(gen, values, index);
     } else {
         return type->llvm_type(gen);
     };
 }
 
-llvm::Value* create_gep(Codegen &gen, std::vector<std::unique_ptr<ChainValue>>& values, unsigned index, llvm::Value* pointer, std::vector<llvm::Value*>& idxList) {
-    const auto parent = values[index].get();
+llvm::Value* create_gep(Codegen &gen, std::vector<ChainValue*>& values, unsigned index, llvm::Value* pointer, std::vector<llvm::Value*>& idxList) {
+    const auto parent = values[index];
     const auto linked = parent->linked_node();
-    auto type = parent->create_type();
+    auto type = parent->create_type(gen.allocator);
     if(type) {
         auto type_kind = type->kind();
         if (type_kind == BaseTypeKind::Array && linked && linked->as_func_param()) {
-            auto arr_type = (ArrayType*) type.get();
-            return gen.builder->CreateGEP(access_chain_llvm_type(gen, arr_type->elem_type.get(), values, index), pointer, idxList, "", gen.inbounds);
+            auto arr_type = (ArrayType*) type;
+            return gen.builder->CreateGEP(access_chain_llvm_type(gen, arr_type->elem_type, values, index), pointer, idxList, "", gen.inbounds);
         } else if (type_kind == BaseTypeKind::Pointer) {
-            return gen.builder->CreateGEP(access_chain_llvm_type(gen, ((PointerType*) (type.get()))->type.get(), values, index),
+            return gen.builder->CreateGEP(access_chain_llvm_type(gen, ((PointerType*) (type))->type, values, index),
                                           pointer, idxList, "", gen.inbounds);
         }
     }
@@ -185,7 +185,7 @@ llvm::Value* create_gep(Codegen &gen, std::vector<std::unique_ptr<ChainValue>>& 
 
 std::pair<unsigned int, llvm::Value*> ChainValue::access_chain_parent_pointer(
         Codegen &gen,
-        std::vector<std::unique_ptr<ChainValue>>& values,
+        std::vector<ChainValue*>& values,
         std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
         unsigned int until,
         std::vector<llvm::Value*>& idxList
@@ -212,7 +212,7 @@ std::pair<unsigned int, llvm::Value*> ChainValue::access_chain_parent_pointer(
     }
 
     unsigned parent_index = 0;
-    Value* parent = values[0].get();
+    Value* parent = values[0];
     llvm::Value* pointer = parent->llvm_pointer(gen);
 
     unsigned i = 1;
@@ -230,11 +230,11 @@ std::pair<unsigned int, llvm::Value*> ChainValue::access_chain_parent_pointer(
                 gep = create_gep(gen, values, parent_index, pointer, idxList);
             }
             pointer = gen.builder->CreateLoad(values[i]->llvm_type(gen), gep);
-            parent = values[i].get();
+            parent = values[i];
             parent_index = i;
             idxList.clear();
         } else {
-            if (!values[i]->add_member_index(gen, values[i - 1].get(), idxList)) {
+            if (!values[i]->add_member_index(gen, values[i - 1], idxList)) {
                 std::string err = "couldn't add member index for fragment '" + values[i]->representation() + "' in access chain ";
                 bool is_first = true;
                 for(auto& val : values) {
@@ -246,7 +246,7 @@ std::pair<unsigned int, llvm::Value*> ChainValue::access_chain_parent_pointer(
                     err += '\'';
                     is_first = false;
                 }
-                gen.error(err, values[i].get());
+                gen.error(err, values[i]);
             }
         }
         i++;
@@ -256,7 +256,7 @@ std::pair<unsigned int, llvm::Value*> ChainValue::access_chain_parent_pointer(
 
 llvm::Value* ChainValue::pointer_from_parent_to_next(
         Codegen &gen,
-        std::vector<std::unique_ptr<ChainValue>>& values,
+        std::vector<ChainValue*>& values,
         std::vector<llvm::Value*>& idxList,
         std::pair<unsigned int, llvm::Value*>& parent_pointer
 ) {
@@ -265,7 +265,7 @@ llvm::Value* ChainValue::pointer_from_parent_to_next(
 
 llvm::Value* ChainValue::access_chain_pointer(
         Codegen &gen,
-        std::vector<std::unique_ptr<ChainValue>>& values,
+        std::vector<ChainValue*>& values,
         std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
         unsigned int until
 ) {
@@ -274,7 +274,7 @@ llvm::Value* ChainValue::access_chain_pointer(
         return values[0]->llvm_pointer(gen);
     }
     // evaluate last comptime function call
-    const auto last = values[until].get();
+    const auto last = values[until];
     const auto last_func_call = last->as_func_call();
     if(last_func_call) {
         const auto func_decl = last_func_call->safe_linked_func();
@@ -294,7 +294,7 @@ llvm::Value* ChainValue::access_chain_pointer(
 
 llvm::Value* ChainValue::access_chain_value(
         Codegen &gen,
-        std::vector<std::unique_ptr<ChainValue>>& values,
+        std::vector<ChainValue*>& values,
         unsigned int until,
         std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
         BaseType* expected_type,
@@ -444,7 +444,7 @@ Value* Value::child(InterpretScope& scope, const std::string& name) {
     return nullptr;
 }
 
-Value* Value::call_member(InterpretScope& scope, const std::string& name, std::vector<std::unique_ptr<Value>>& values) {
+Value* Value::call_member(InterpretScope& scope, const std::string& name, std::vector<Value*>& values) {
 #ifdef DEBUG
     std::cerr << "Value::call_member called on base value " + representation() + " with name " + name;
 #endif
@@ -475,10 +475,6 @@ void Value::set_value_in(InterpretScope& scope, Value* parent, Value* value, Ope
     scope.error("Value::set_value_in called on base value " + representation());
 }
 
-hybrid_ptr<BaseType> Value::get_base_type() {
-    throw std::runtime_error("get_base_type called on bare Value with type : " + std::to_string((unsigned int) value_type()));
-}
-
 StructDefinition* Value::get_param_linked_struct() {
     const auto linked = linked_node();
     if(!linked) return nullptr;
@@ -489,23 +485,15 @@ StructDefinition* Value::get_param_linked_struct() {
     return nullptr;
 }
 
-std::unique_ptr<BaseType> Value::create_type() {
+BaseType* Value::create_type(ASTAllocator& allocator) {
     return nullptr;
 }
 
-std::unique_ptr<BaseType> ChainValue::create_type(std::vector<std::unique_ptr<ChainValue>>& chain, unsigned int index) {
-    return create_type();
-}
-
-std::unique_ptr<Value> Value::create_evaluated_value(InterpretScope& scope) {
-    return nullptr;
-}
-
-hybrid_ptr<Value> Value::evaluated_chain_value(InterpretScope& scope, Value* parent) {
+Value* Value::evaluated_chain_value(InterpretScope& scope, Value* parent) {
     throw std::runtime_error("evaluated chain value called on base value");
 }
 
-Value* Value::copy() {
+Value* Value::copy(ASTAllocator& allocator) {
 #ifdef DEBUG
     std::cerr << "copy called on base Value, representation : " << representation();
 #endif
@@ -567,9 +555,9 @@ Value* Value::get_first_value_from_value_node(ASTNode* node) {
         case ASTNodeKind::ValueNode:
             return node->holding_value();
         case ASTNodeKind::IfStmt:
-            return get_first_value_from_value_node(((IfStatement*) node)->ifBody.nodes.back().get());
+            return get_first_value_from_value_node(((IfStatement*) node)->ifBody.nodes.back());
         case ASTNodeKind::SwitchStmt:
-            return get_first_value_from_value_node(((SwitchStatement*) node)->scopes.front().second.nodes.back().get());
+            return get_first_value_from_value_node(((SwitchStatement*) node)->scopes.front().second.nodes.back());
         default:
             return nullptr;
     }
@@ -583,20 +571,20 @@ std::string Value::representation() {
 }
 
 hybrid_ptr<BaseType> Value::get_child_type() {
-    auto base_type = get_base_type();
-    if(base_type.get_will_free()) {
-        return hybrid_ptr<BaseType> { base_type->create_child_type().release() };
-    } else {
-        return base_type->get_child_type();
-    }
+    auto base_type = known_type();
+    return hybrid_ptr<BaseType> { base_type->known_child_type(), false };
+}
+
+Value* Value::scope_value(InterpretScope& scope) {
+    return copy(scope.allocator);
 }
 
 hybrid_ptr<BaseType> Value::get_pure_type() {
     // TODO check this method, it should free types properly
-    auto base_type = get_base_type();
+    auto base_type = known_type();
     auto pure_type = base_type->pure_type();
-    if(pure_type == base_type.get()) {
-        return base_type;
+    if(pure_type == base_type) {;
+        return hybrid_ptr<BaseType> { base_type, false };
     } else {
         return hybrid_ptr<BaseType> { pure_type, false };
     }
@@ -606,7 +594,7 @@ BaseType* Value::pure_type_ptr() {
     return known_type()->pure_type();
 }
 
-bool Value::should_build_chain_type(std::vector<std::unique_ptr<Value>>& chain, unsigned index) {
+bool Value::should_build_chain_type(std::vector<Value*>& chain, unsigned index) {
     ASTNode* linked;
     VariablesContainer* union_container = nullptr;
     while(index < chain.size()) {
@@ -625,7 +613,7 @@ void Value::set_identifier_value(InterpretScope& scope, Value* rawValue, Operati
     scope.error("set_identifier_value called on base value");
 }
 
-int16_t ChainValue::set_generic_iteration() {
+int16_t ChainValue::set_generic_iteration(ASTAllocator& allocator) {
 //    const auto linked = linked_node();
 //    if(linked) {
 //        const auto case_var = linked->as_variant_case_var();
@@ -639,7 +627,7 @@ int16_t ChainValue::set_generic_iteration() {
 //            }
 //        }
 //    }
-    const auto type = create_type();
+    const auto type = create_type(allocator);
     if (type) {
         const auto prev_itr = type->set_generic_iteration(type->get_generic_iteration());
         if(prev_itr > -2) {
@@ -661,7 +649,7 @@ bool ChainValue::is_equal(ChainValue* other, ValueKind kind, ValueKind other_kin
                 }
                 unsigned i = 0;
                 while(i < siz) {
-                    if(!this_chain->values[i]->is_equal(other_chain->values[i].get())) {
+                    if(!this_chain->values[i]->is_equal(other_chain->values[i])) {
                         return false;
                     }
                     i++;
@@ -680,8 +668,8 @@ bool ChainValue::is_equal(ChainValue* other, ValueKind kind, ValueKind other_kin
                 unsigned i = 0;
                 while(i < siz) {
                     if(this_index_op->values[i]->is_int_n() && other_index_op->values[i]->is_int_n()) {
-                        auto this_value = ((IntNumValue*) this_index_op->values[i].get())->get_num_value();
-                        auto other_value = ((IntNumValue*) other_index_op->values[i].get())->get_num_value();
+                        auto this_value = ((IntNumValue*) this_index_op->values[i])->get_num_value();
+                        auto other_value = ((IntNumValue*) other_index_op->values[i])->get_num_value();
                         if(this_value != other_value) {
                             return false;
                         }
@@ -705,7 +693,7 @@ bool ChainValue::is_equal(ChainValue* other, ValueKind kind, ValueKind other_kin
 bool ChainValue::link(
     SymbolResolver& linker,
     ChainValue* parent,
-    std::vector<std::unique_ptr<ChainValue>>& values,
+    std::vector<ChainValue*>& values,
     unsigned index,
     BaseType* expected_type
 ) {
@@ -716,7 +704,7 @@ bool ChainValue::link(
             return find_link_in_parent(parent, linker);
         }
     } else {
-        return link(linker, (std::unique_ptr<Value>&) values[index]);
+        return link(linker, (Value*&) values[index]);
     }
 }
 
@@ -732,7 +720,7 @@ BaseType* implicit_constructor_type(BaseType* return_type, Value* value) {
         if(struc) {
             const auto constr = struc->implicit_constructor_for(value);
             if(constr) {
-                return constr->func_param_for_arg_at(0)->type.get();
+                return constr->func_param_for_arg_at(0)->type;
             }
         }
     }

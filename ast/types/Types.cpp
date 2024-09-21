@@ -32,7 +32,7 @@ bool ArrayType::satisfies(Value *value) {
     if(array_size != -1 && arr_type->array_size != -1 && array_size != arr_type->array_size) return false;
     // can't get array element type, because array is empty probably and has no type declaration to lean on
     if(!arr_type->elem_type) return true;
-    return elem_type->satisfies(arr_type->elem_type.get());
+    return elem_type->satisfies(arr_type->elem_type);
 }
 
 bool BoolType::satisfies(Value *value) {
@@ -60,7 +60,7 @@ bool PointerType::satisfies(Value *value) {
 }
 
 bool LinkedType::satisfies(Value *value) {
-    return value->get_base_type()->is_same(this);
+    return value->known_type()->is_same(this);
 }
 
 bool StringType::satisfies(Value *value) {

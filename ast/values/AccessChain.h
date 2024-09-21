@@ -55,11 +55,11 @@ public:
      * if end_offset is 1, the last value won't be linked, if it's 2, two last values won't be linked
      * end_offset may not be taken into account, if chain has a single value or two must link values
      */
-    bool link(SymbolResolver &linker, BaseType *type, std::unique_ptr<Value>* value_ptr, unsigned int end_offset = 0);
+    bool link(SymbolResolver &linker, BaseType *type, Value** value_ptr, unsigned int end_offset = 0);
 
-    bool link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *type) override;
+    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *type) override;
 
-    void relink_after_generic(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *expected_type) override {
+    void relink_after_generic(SymbolResolver &linker, Value* &value_ptr, BaseType *expected_type) override {
         link(linker, value_ptr, expected_type);
     }
 
@@ -70,11 +70,11 @@ public:
      */
     void relink_parent();
 
-    void declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override;
+    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) override;
 
     void accept(Visitor *visitor) override;
 
-    AccessChain *copy() override;
+    AccessChain *copy(ASTAllocator& allocator) override;
 
     bool primitive() override;
 
@@ -84,15 +84,15 @@ public:
 
     void interpret(InterpretScope &scope) override;
 
-    std::unique_ptr<BaseType> create_type() override;
+    BaseType* create_type(ASTAllocator& allocator) override;
 
-    std::unique_ptr<BaseType> create_value_type() override;
+    BaseType* create_value_type(ASTAllocator& allocator) override;
 
-    hybrid_ptr<BaseType> get_base_type() override;
+//    hybrid_ptr<BaseType> get_base_type() override;
 
     BaseType* known_type() override;
 
-    hybrid_ptr<BaseType> get_value_type() override;
+//    hybrid_ptr<BaseType> get_value_type() override;
 
     uint64_t byte_size(bool is64Bit) override;
 
@@ -148,7 +148,7 @@ public:
 
     Value *parent(InterpretScope &scope);
 
-    inline hybrid_ptr<Value> parent_value(InterpretScope &scope);
+    inline Value* parent_value(InterpretScope &scope);
 
     void set_identifier_value(InterpretScope &scope, Value *rawValue, Operation op) override;
 
@@ -156,16 +156,14 @@ public:
 
     Value *scope_value(InterpretScope &scope) override;
 
-    hybrid_ptr<Value> evaluated_value(InterpretScope &scope);
-
-    std::unique_ptr<Value> create_evaluated_value(InterpretScope &scope) override;
+    Value* evaluated_value(InterpretScope &scope);
 
     /**
      * for every chain value that is connected to a generic struct value, we get the iteration
      * from the struct value and set it to corresponding struct definition
      * @param active_iterations a map is given so that previous iterations can be saved to this map
      */
-    void set_generic_iterations(std::unordered_map<uint16_t, int16_t>& active_iterations);
+    void set_generic_iterations(ASTAllocator& allocator, std::unordered_map<uint16_t, int16_t>& active_iterations);
 
     /**
      * set the active iterations from a saved map
@@ -186,9 +184,9 @@ public:
 
 };
 
-ChainValue* get_grandpa_value(std::vector<std::unique_ptr<ChainValue>> &chain_values, unsigned int index);
+ChainValue* get_grandpa_value(std::vector<ChainValue*> &chain_values, unsigned int index);
 
-std::pair<StructDefinition*, int16_t> get_grandpa_generic_struct(std::vector<std::unique_ptr<ChainValue>>& chain_values, unsigned int index);
+std::pair<StructDefinition*, int16_t> get_grandpa_generic_struct(std::vector<ChainValue*>& chain_values, unsigned int index);
 
 #ifdef COMPILER_BUILD
 
@@ -200,7 +198,7 @@ std::pair<StructDefinition*, int16_t> get_grandpa_generic_struct(std::vector<std
  */
 llvm::Value* llvm_load_chain_until(
         Codegen& gen,
-        std::vector<std::unique_ptr<ChainValue>>& chain,
+        std::vector<ChainValue*>& chain,
         int until,
         std::vector<std::pair<Value*, llvm::Value*>>& destructibles
 );
@@ -217,7 +215,7 @@ llvm::Value* llvm_load_chain_until(
  */
 llvm::Value* llvm_next_value(
         Codegen& gen,
-        std::vector<std::unique_ptr<ChainValue>> chain,
+        std::vector<ChainValue*> chain,
         unsigned int index,
         llvm::Value* grandpa_value,
         llvm::Value* parent_value,
@@ -227,6 +225,6 @@ llvm::Value* llvm_next_value(
 /**
  * this creates a GEP (get element ptr instruction), for chain values, the pointer is the parent value
  */
-llvm::Value* create_gep(Codegen &gen, std::vector<std::unique_ptr<ChainValue>>& values, unsigned index, llvm::Value* pointer, std::vector<llvm::Value*>& idxList);
+llvm::Value* create_gep(Codegen &gen, std::vector<ChainValue*>& values, unsigned index, llvm::Value* pointer, std::vector<llvm::Value*>& idxList);
 
 #endif

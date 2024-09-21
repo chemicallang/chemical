@@ -33,8 +33,8 @@ public:
     }
 
     [[nodiscard]]
-    virtual VoidType* copy() const {
-        return new VoidType(token);
+    virtual VoidType* copy(ASTAllocator& allocator) const {
+        return new (allocator.allocate<VoidType>()) VoidType(token);
     }
 
 #ifdef COMPILER_BUILD

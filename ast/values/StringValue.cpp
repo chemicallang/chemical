@@ -6,11 +6,11 @@
 #include "ast/types/ArrayType.h"
 #include "ast/statements/VarInit.h"
 
-std::unique_ptr<BaseType> StringValue::create_type() {
-    return std::make_unique<StringType>(nullptr);
+BaseType* StringValue::create_type(ASTAllocator& allocator) {
+    return new (allocator.allocate<StringType>()) StringType(nullptr);
 }
 
-bool StringValue::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *type) {
+bool StringValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *type) {
     if(type && type->kind() == BaseTypeKind::Array) {
         is_array = true;
         auto arrayType = (ArrayType*) (type);

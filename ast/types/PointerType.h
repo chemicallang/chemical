@@ -22,16 +22,16 @@ public:
     }
 
     [[nodiscard]]
-    std::unique_ptr<BaseType> create_child_type() const override {
-        return std::unique_ptr<BaseType>(type->copy());
+    BaseType* create_child_type(ASTAllocator& allocator) const override {
+        return type->copy(allocator);
     }
 
-    hybrid_ptr<BaseType> get_child_type() override {
-        return hybrid_ptr<BaseType> { type.get(), false };
-    }
+//    hybrid_ptr<BaseType> get_child_type() override {
+//        return hybrid_ptr<BaseType> { type.get(), false };
+//    }
 
     BaseType* known_child_type() override {
-        return type.get();
+        return type;
     }
 
     BaseType* pure_type() override;
@@ -61,7 +61,7 @@ public:
     bool satisfies(Value *value) override;
 
     bool is_same(BaseType *other) override {
-        return other->kind() == kind() && static_cast<PointerType *>(other)->type->is_same(type.get());
+        return other->kind() == kind() && static_cast<PointerType *>(other)->type->is_same(type);
     }
 
     PointerType *pointer_type() override {
@@ -69,11 +69,11 @@ public:
     }
 
     [[nodiscard]]
-    PointerType *copy() const override {
-        return new PointerType(std::unique_ptr<BaseType>(type->copy()), token);
+    PointerType *copy(ASTAllocator& allocator) const override {
+        return new(allocator.allocate<PointerType>()) PointerType(type->copy(allocator), token);
     }
 
-    void link(SymbolResolver &linker, std::unique_ptr<BaseType>& current) override;
+    void link(SymbolResolver &linker, BaseType*& current) override;
 
     ASTNode *linked_node() override;
 
@@ -81,7 +81,7 @@ public:
 
     llvm::Type *llvm_type(Codegen &gen) override;
 
-    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned int index) override;
+    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) override;
 
     clang::QualType clang_type(clang::ASTContext &context) override;
 

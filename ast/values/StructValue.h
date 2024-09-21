@@ -26,7 +26,7 @@ public:
     llvm::AllocaInst* allocaInst = nullptr;
 #endif
     // the type that represents this struct value, cached !
-    std::unique_ptr<BaseType> struct_type = nullptr;
+    BaseType* struct_type = nullptr;
 
 //    StructValue(
 //            std::unique_ptr<Value> ref,
@@ -37,7 +37,7 @@ public:
     StructValue(
             Value* ref,
             std::unordered_map<std::string, StructMemberInitializer*> values,
-            std::vector<std::unique_ptr<BaseType>> generic_list,
+            std::vector<BaseType*> generic_list,
             ExtendableMembersContainerNode *definition,
             CSTToken* token,
             ASTNode* parent
@@ -66,23 +66,23 @@ public:
 
     bool primitive() override;
 
-    bool link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *expected_type = nullptr) override;
+    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) override;
 
     bool diagnose_missing_members_for_init(ASTDiagnoser& diagnoser);
 
     Value *call_member(
             InterpretScope &scope,
             const std::string &name,
-            std::vector<std::unique_ptr<Value>> &params
+            std::vector<Value*> &params
     ) override;
 
     void set_child_value(const std::string &name, Value *value, Operation op) override;
 
     Value *scope_value(InterpretScope &scope) override;
 
-    void declare_default_values(std::unordered_map<std::string, std::unique_ptr<StructMemberInitializer>> &into, InterpretScope &scope);
+    void declare_default_values(std::unordered_map<std::string, StructMemberInitializer*> &into, InterpretScope &scope);
 
-    StructValue *copy() override;
+    StructValue *copy(ASTAllocator& allocator) override;
 
     ASTNode* child(const std::string& name) {
         return definition->child(name);
@@ -176,13 +176,13 @@ public:
 
 #endif
 
-    std::unique_ptr<BaseType> create_type() override;
+    BaseType* create_type(ASTAllocator& allocator) override;
 
     BaseType* known_type() override;
 
     uint64_t byte_size(bool is64Bit) override;
 
-    hybrid_ptr<BaseType> get_base_type() override;
+//    hybrid_ptr<BaseType> get_base_type() override;
 
     [[nodiscard]]
     ValueType value_type() const override {

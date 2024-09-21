@@ -8,7 +8,12 @@
 #include "ast/structures/FunctionDeclaration.h"
 #include "rang.hpp"
 
-SymbolResolver::SymbolResolver(GlobalInterpretScope& global, bool is64Bit) : comptime_scope(global), ASTDiagnoser(), is64Bit(is64Bit) {
+SymbolResolver::SymbolResolver(
+    GlobalInterpretScope& global,
+    bool is64Bit,
+    ASTAllocator& allocator,
+    ASTAllocator& global_allocator
+) : comptime_scope(global), ASTDiagnoser(), is64Bit(is64Bit), allocator(allocator), global_allocator(global_allocator) {
     current.emplace_back(new SymResScope(SymResScopeKind::Global));
     dispose_file_symbols.reserve(100);
     dispose_module_symbols.reserve(100);
@@ -184,7 +189,7 @@ bool SymbolResolver::dup_check_in_scopes_above(const std::string& name, ASTNode*
 bool SymbolResolver::overload_function(const std::string& name, ASTNode*& previous, FunctionDeclaration* declaration) {
     if(declaration->has_annotation(AnnotationKind::Override)) {
         const auto func = previous->as_function();
-        if (func->returnType->is_same(declaration->returnType.get()) && func->do_param_types_match(declaration->params, false)) {
+        if (func->returnType->is_same(declaration->returnType) && func->do_param_types_match(declaration->params, false)) {
             previous = declaration;
             return true;
         } else {
@@ -290,7 +295,7 @@ void SymbolResolver::resolve_file(Scope& scope, const std::string& abs_path) {
     file_scope_start();
     scope.link_asynchronously(*this);
     for(auto& node : scope.nodes) {
-        auto found = imported_generic.find(node.get());
+        auto found = imported_generic.find(node);
         if(found != imported_generic.end()) {
             imported_generic.erase(found);
         }

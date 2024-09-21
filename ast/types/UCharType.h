@@ -47,8 +47,8 @@ public:
     Value *create(int64_t value) override;
 
     [[nodiscard]]
-    UCharType* copy() const override {
-        return new UCharType(token);
+    UCharType* copy(ASTAllocator& allocator) const override {
+        return new (allocator.allocate<UCharType>()) UCharType(token);
     }
 
 #ifdef COMPILER_BUILD

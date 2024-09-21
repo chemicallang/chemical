@@ -46,7 +46,7 @@ void InterfaceDefinition::code_gen(Codegen &gen) {
         }
     }
     for (const auto& function: functions()) {
-        code_gen_for_users(gen, function.get());
+        code_gen_for_users(gen, function);
     }
 }
 
@@ -80,11 +80,11 @@ void InterfaceDefinition::llvm_build_vtable(Codegen& gen, StructDefinition* for_
     auto found = users.find(for_struct);
     if(found != users.end()) {
         for(auto& func : functions()) {
-            auto func_res = found->second.find(func.get());
+            auto func_res = found->second.find(func);
             if(func_res != found->second.end()) {
                 llvm_pointers.emplace_back(func_res->second);
             } else {
-                gen.error("couldn't find function impl pointer, name '" + func->name + "' for struct '" + ((ASTNode*) for_struct)->ns_node_identifier() + "' for interface '" + name + "'", (AnnotableNode*) func.get());
+                gen.error("couldn't find function impl pointer, name '" + func->name + "' for struct '" + ((ASTNode*) for_struct)->ns_node_identifier() + "' for interface '" + name + "'", (AnnotableNode*) func);
             }
         }
     } else {
@@ -136,18 +136,14 @@ InterfaceDefinition::InterfaceDefinition(
 
 }
 
-std::unique_ptr<BaseType> InterfaceDefinition::create_value_type() {
-    return std::make_unique<LinkedType>(name, this, nullptr);
-}
-
-hybrid_ptr<BaseType> InterfaceDefinition::get_value_type() {
-    return hybrid_ptr<BaseType> { new LinkedType(name, this, nullptr) };
+BaseType* InterfaceDefinition::create_value_type(ASTAllocator& allocator) {
+    return new (allocator.allocate<LinkedType>()) LinkedType(name, this, nullptr);
 }
 
 int InterfaceDefinition::vtable_function_index(FunctionDeclaration* decl) {
     int i = 0;
     for(auto& func : functions()) {
-        if(func.get() == decl) {
+        if(func == decl) {
             return i;
         }
         i++;
@@ -162,6 +158,6 @@ throw std::runtime_error("InterfaceDefinition::byte_size interface byte_size cal
     return 0;
 }
 
-void InterfaceDefinition::declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+void InterfaceDefinition::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
     linker.declare_node(name, this, specifier, false);
 }

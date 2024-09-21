@@ -59,7 +59,7 @@ bool VariablesContainer::llvm_union_child_index(
 ) {
     auto largest = largest_member();
     if(largest) {
-        auto value_type = largest->get_value_type();
+        auto value_type = largest->create_value_type(gen.allocator);
         // this should only be added if we are not inlining struct types inside union
         if(value_type->value_type() == ValueType::Struct) {
             if(indexes.empty()) {
@@ -87,7 +87,7 @@ std::vector<llvm::Type *> VariablesContainer::elements_type(Codegen &gen) {
     return vec;
 }
 
-std::vector<llvm::Type *> VariablesContainer::elements_type(Codegen &gen, std::vector<std::unique_ptr<ChainValue>>& chain, unsigned index) {
+std::vector<llvm::Type *> VariablesContainer::elements_type(Codegen &gen, std::vector<ChainValue*>& chain, unsigned index) {
     auto vec = std::vector<llvm::Type *>();
     vec.reserve(variables.size() + inherited.size());
     for(const auto &inherits : inherited) {
@@ -107,7 +107,7 @@ std::pair<llvm::Value*, llvm::FunctionType*>& MembersContainer::llvm_generic_fun
 
 void MembersContainer::acquire_function_iterations(int16_t iteration) {
     for(auto& function : functions()) {
-        auto& func_data = generic_llvm_data[function.get()];
+        auto& func_data = generic_llvm_data[function];
         if(iteration == func_data.size()) {
             func_data.emplace_back(function->llvm_data);
         } else {
@@ -167,7 +167,7 @@ void MembersContainer::llvm_build_inherited_vtable(Codegen& gen, StructDefinitio
 BaseDefMember *VariablesContainer::child_def_member(const std::string &name) {
     auto found = variables.find(name);
     if (found != variables.end()) {
-        return found->second.get();
+        return found->second;
     } else {
         return nullptr;
     }
@@ -177,7 +177,7 @@ BaseDefMember* VariablesContainer::largest_member() {
     BaseDefMember* member = nullptr;
     for(auto& var : variables) {
         if(member == nullptr || var.second->byte_size(true) > member->byte_size(true)) {
-            member = var.second.get();
+            member = var.second;
         }
     }
     return member;
@@ -186,18 +186,19 @@ BaseDefMember* VariablesContainer::largest_member() {
 uint64_t VariablesContainer::total_byte_size(bool is64Bit) {
     uint64_t size = 0;
     for (const auto &item: variables) {
-        auto mem_type = item.second->get_value_type();
-        size += mem_type->byte_size(is64Bit);
+        size += item.second->byte_size(is64Bit);
+//        auto mem_type = item.second->create_value_type();
+//        size += mem_type->byte_size(is64Bit);
     }
     return size;
 }
 
 void declare_inherited_members(MembersContainer* container, SymbolResolver& linker) {
     for(auto& var : container->variables) {
-        var.second->redeclare_top_level(linker, (std::unique_ptr<ASTNode>&) var.second);
+        var.second->redeclare_top_level(linker, (ASTNode*&) var.second);
     }
     for(auto& func : container->functions()) {
-        func->redeclare_top_level(linker, (std::unique_ptr<ASTNode>&) func);
+        func->redeclare_top_level(linker, (ASTNode*&) func);
     }
     for(auto& inherits : container->inherited) {
         const auto def = inherits->type->linked_node()->as_members_container();
@@ -218,10 +219,10 @@ void MembersContainer::redeclare_inherited_members(SymbolResolver &linker) {
 
 void MembersContainer::redeclare_variables_and_functions(SymbolResolver &linker) {
     for (auto &var: variables) {
-        var.second->redeclare_top_level(linker, (std::unique_ptr<ASTNode>&) var.second);
+        var.second->redeclare_top_level(linker, (ASTNode*&) var.second);
     }
     for(auto& func : functions()) {
-        func->redeclare_top_level(linker, (std::unique_ptr<ASTNode>&) func);
+        func->redeclare_top_level(linker, (ASTNode*&) func);
     }
 }
 
@@ -243,27 +244,27 @@ unsigned int MembersContainer::init_values_req_size() {
 
 void MembersContainer::declare_and_link_no_scope(SymbolResolver &linker) {
     for(auto& gen_param : generic_params) {
-        gen_param->declare_and_link(linker, (std::unique_ptr<ASTNode>&) gen_param);
+        gen_param->declare_and_link(linker, (ASTNode*&) gen_param);
     }
     for(auto& inherits : inherited) {
-        inherits->type->link(linker, (std::unique_ptr<BaseType>&) inherits);
+        inherits->type->link(linker, (BaseType*&) inherits);
         const auto def = inherits->type->linked_node()->as_members_container();
         if(def) {
             declare_inherited_members(def, linker);
         }
     }
     for (auto &var: variables) {
-        var.second->declare_and_link(linker, (std::unique_ptr<ASTNode>&) var.second);
+        var.second->declare_and_link(linker, (ASTNode*&) var.second);
     }
     for(auto& func : functions()) {
-        func->declare_top_level(linker, (std::unique_ptr<ASTNode>&) func);
+        func->declare_top_level(linker, (ASTNode*&) func);
     }
     for (auto &func: functions()) {
-        func->declare_and_link(linker, (std::unique_ptr<ASTNode>&) func);
+        func->declare_and_link(linker, (ASTNode*&) func);
     }
 }
 
-void MembersContainer::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+void MembersContainer::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     linker.scope_start();
     declare_and_link_no_scope(linker);
     linker.scope_end();
@@ -290,7 +291,7 @@ FunctionDeclaration *MembersContainer::member(const std::string &name) {
 ASTNode *MembersContainer::child(const std::string &varName) {
     auto found = variables.find(varName);
     if (found != variables.end()) {
-        return found->second.get();
+        return found->second;
     } else {
         auto found_func = indexes.find(varName);
         if (found_func != indexes.end()) {
@@ -304,7 +305,7 @@ ASTNode *MembersContainer::child(const std::string &varName) {
 BaseDefMember *MembersContainer::direct_variable(const std::string& name) {
     auto found = variables.find(name);
     if (found != variables.end()) {
-        return found->second.get();
+        return found->second;
     } else {
         return nullptr;
     }
@@ -405,12 +406,12 @@ InterfaceDefinition* MembersContainer::get_overriding_interface(FunctionDeclarat
     return info.first ? info.first->as_interface_def() : nullptr;
 }
 
-int16_t MembersContainer::register_generic_args(SymbolResolver& resolver, std::vector<std::unique_ptr<BaseType>>& types) {
+int16_t MembersContainer::register_generic_args(SymbolResolver& resolver, std::vector<BaseType*>& types) {
     const auto types_size = types.size();
     std::vector<BaseType*> generic_args(types_size);
     unsigned i = 0;
     for(auto& type : types) {
-        generic_args[i] = type.get();
+        generic_args[i] = type;
         i++;
     }
     const auto itr = register_generic_usage(resolver, this, generic_params, generic_args);
@@ -452,7 +453,7 @@ void MembersContainer::set_active_iteration(int16_t iteration) {
 FunctionDeclaration* MembersContainer::get_first_fn_annotated(AnnotationKind annot) {
     for(const auto & function : functions()) {
         if(function->has_annotation(annot)) {
-            return function.get();
+            return function;
         }
     }
     return nullptr;
@@ -461,16 +462,16 @@ FunctionDeclaration* MembersContainer::get_first_fn_annotated(AnnotationKind ann
 FunctionDeclaration* MembersContainer::get_last_fn_annotated(AnnotationKind annot) {
     for (const auto & function : std::ranges::reverse_view(functions())) {
         if(function->has_annotation(annot)) {
-            return function.get();
+            return function;
         }
     }
     return nullptr;
 }
 
-FunctionDeclaration* MembersContainer::constructor_func(std::vector<std::unique_ptr<Value>>& forArgs) {
+FunctionDeclaration* MembersContainer::constructor_func(std::vector<Value*>& forArgs) {
     for (const auto & function : functions()) {
         if(function->has_annotation(AnnotationKind::Constructor) && function->satisfy_args(forArgs)) {
-            return function.get();
+            return function;
         }
     }
     return nullptr;
@@ -479,7 +480,7 @@ FunctionDeclaration* MembersContainer::constructor_func(std::vector<std::unique_
 FunctionDeclaration* MembersContainer::implicit_constructor_func(Value* value) {
     for (const auto & function : functions()) {
         if(function->has_annotation(AnnotationKind::Implicit) && function->params.size() == 1 && function->params[0]->type->satisfies(value)) {
-            return function.get();
+            return function;
         }
     }
     return nullptr;
@@ -487,13 +488,13 @@ FunctionDeclaration* MembersContainer::implicit_constructor_func(Value* value) {
 
 bool members_type_require(MembersContainer& container, bool(*requirement)(BaseType*)) {
     for(const auto& inh : container.inherited) {
-        if(requirement(inh->type.get())) {
+        if(requirement(inh->type)) {
             return true;
         }
     }
     for(const auto& var : container.variables) {
-        auto type = var.second->get_value_type();
-        if(requirement(type.get())) {
+        auto type = var.second->known_type();
+        if(requirement(type)) {
             return true;
         }
     }
@@ -563,78 +564,78 @@ void MembersContainer::insert_func(FunctionDeclaration* decl) {
     functions_container.emplace_back(decl);
 }
 
-FunctionDeclaration* MembersContainer::create_destructor() {
-    auto decl = new FunctionDeclaration("delete", {}, std::make_unique<VoidType>(nullptr), false, this, nullptr, std::nullopt);
-    decl->params.emplace_back(new FunctionParam("self", std::make_unique<PointerType>(std::make_unique<LinkedType>(ns_node_identifier(), this, nullptr), nullptr), 0, nullptr, decl, nullptr));
+FunctionDeclaration* MembersContainer::create_destructor(ASTAllocator& allocator) {
+    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration("delete", {}, new (allocator.allocate<VoidType>()) VoidType(nullptr), false, this, nullptr, std::nullopt);
+    decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(ns_node_identifier(), this, nullptr), nullptr), 0, nullptr, decl, nullptr));
     decl->body.emplace(LoopScope{nullptr, nullptr});
     decl->annotations.emplace_back(AnnotationKind::Delete);
-    insert_func(std::unique_ptr<FunctionDeclaration>(decl));
+    insert_func(decl);
     return decl;
 }
 
-FunctionDeclaration* MembersContainer::create_clear_fn() {
-    auto decl = new FunctionDeclaration("clear", {}, std::make_unique<VoidType>(nullptr), false, this, nullptr, std::nullopt);
-    decl->params.emplace_back(new FunctionParam("self", std::make_unique<PointerType>(std::make_unique<LinkedType>(ns_node_identifier(), this, nullptr), nullptr), 0, nullptr, decl, nullptr));
+FunctionDeclaration* MembersContainer::create_clear_fn(ASTAllocator& allocator) {
+    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration("clear", {}, new VoidType(nullptr), false, this, nullptr, std::nullopt);
+    decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(ns_node_identifier(), this, nullptr), nullptr), 0, nullptr, decl, nullptr));
     decl->body.emplace(LoopScope{nullptr, nullptr});
     decl->annotations.emplace_back(AnnotationKind::Clear);
-    insert_func(std::unique_ptr<FunctionDeclaration>(decl));
+    insert_func(decl);
     return decl;
 }
 
-FunctionDeclaration* MembersContainer::create_copy_fn() {
-    auto decl = new FunctionDeclaration("copy", {}, std::make_unique<VoidType>(nullptr), false, this, nullptr, std::nullopt);
-    decl->params.emplace_back(new FunctionParam("self", std::make_unique<PointerType>(std::make_unique<LinkedType>(ns_node_identifier(), this, nullptr), nullptr), 0, nullptr, decl, nullptr));
-    decl->params.emplace_back(new FunctionParam("other", std::make_unique<PointerType>(std::make_unique<LinkedType>(ns_node_identifier(), this, nullptr), nullptr), 1, nullptr, decl, nullptr));
+FunctionDeclaration* MembersContainer::create_copy_fn(ASTAllocator& allocator) {
+    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration("copy", {}, new VoidType(nullptr), false, this, nullptr, std::nullopt);
+    decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(ns_node_identifier(), this, nullptr), nullptr), 0, nullptr, decl, nullptr));
+    decl->params.emplace_back(new FunctionParam("other", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(ns_node_identifier(), this, nullptr), nullptr), 1, nullptr, decl, nullptr));
     decl->body.emplace(LoopScope{nullptr, nullptr});
     decl->annotations.emplace_back(AnnotationKind::Copy);
-    insert_func(std::unique_ptr<FunctionDeclaration>(decl));
+    insert_func(decl);
     return decl;
 }
 
-FunctionDeclaration* MembersContainer::create_move_fn() {
-    auto decl = new FunctionDeclaration("move", {}, std::make_unique<VoidType>(nullptr), false, this, nullptr, std::nullopt);
-    decl->params.emplace_back(new FunctionParam("self", std::make_unique<PointerType>(std::make_unique<LinkedType>(ns_node_identifier(), this, nullptr), nullptr), 0, nullptr, decl, nullptr));
-    decl->params.emplace_back(new FunctionParam("other", std::make_unique<PointerType>(std::make_unique<LinkedType>(ns_node_identifier(), this, nullptr), nullptr), 1, nullptr, decl, nullptr));
+FunctionDeclaration* MembersContainer::create_move_fn(ASTAllocator& allocator) {
+    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration("move", {}, new VoidType(nullptr), false, this, nullptr, std::nullopt);
+    decl->params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(ns_node_identifier(), this, nullptr), nullptr), 0, nullptr, decl, nullptr));
+    decl->params.emplace_back(new FunctionParam("other", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(ns_node_identifier(), this, nullptr), nullptr), 1, nullptr, decl, nullptr));
     decl->body.emplace(LoopScope{nullptr, nullptr});
     decl->annotations.emplace_back(AnnotationKind::Copy);
-    insert_func(std::unique_ptr<FunctionDeclaration>(decl));
+    insert_func(decl);
     return decl;
 }
 
-FunctionDeclaration* MembersContainer::create_def_destructor(ASTDiagnoser& diagnoser) {
+FunctionDeclaration* MembersContainer::create_def_destructor(ASTAllocator& allocator, ASTDiagnoser& diagnoser) {
     auto delFunc = direct_child_function("delete");
     if(delFunc) {
         diagnoser.error("default destructor is created by name 'delete' , a function by name 'delete' already exists, please create a manual function to avoid this", (AnnotableNode*) delFunc);
         return nullptr;
     }
-    return create_destructor();
+    return create_destructor(allocator);
 }
 
-FunctionDeclaration* MembersContainer::create_def_clear_fn(ASTDiagnoser& diagnoser) {
+FunctionDeclaration* MembersContainer::create_def_clear_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser) {
     auto moveFn = direct_child_function("clear");
     if(moveFn) {
         diagnoser.error("default move function is created by name 'move', a function by name 'move' already exists, please create a manual function to avoid this", (AnnotableNode*) moveFn);
         return nullptr;
     }
-    return create_clear_fn();
+    return create_clear_fn(allocator);
 }
 
-FunctionDeclaration* MembersContainer::create_def_copy_fn(ASTDiagnoser& diagnoser) {
+FunctionDeclaration* MembersContainer::create_def_copy_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser) {
     auto copyFn = direct_child_function("copy");
     if(copyFn) {
         diagnoser.error("default copy function is created by name 'copy', a function by name 'copy' already exists, please create a manual function to avoid this", (AnnotableNode*) copyFn);
         return nullptr;
     }
-    return create_copy_fn();
+    return create_copy_fn(allocator);
 }
 
-FunctionDeclaration* MembersContainer::create_def_move_fn(ASTDiagnoser& diagnoser) {
+FunctionDeclaration* MembersContainer::create_def_move_fn(ASTAllocator& allocator, ASTDiagnoser& diagnoser) {
     auto copyFn = direct_child_function("move");
     if(copyFn) {
         diagnoser.error("default move function is created by name 'move', a function by name 'move' already exists, please create a manual function to avoid this", (AnnotableNode*) copyFn);
         return nullptr;
     }
-    return create_move_fn();
+    return create_move_fn(allocator);
 }
 
 bool MembersContainer::insert_multi_func(FunctionDeclaration* decl) {
@@ -642,7 +643,7 @@ bool MembersContainer::insert_multi_func(FunctionDeclaration* decl) {
     if(found == indexes.end()) {
         insert_func(std::move(decl));
     } else {
-        auto result = handle_name_overload_function(decl->name, found->second, decl.get());
+        auto result = handle_name_overload_function(decl->name, found->second, decl);
         if(!result.duplicates.empty()) {
             return false;
         } else if(result.new_multi_func_node) {
@@ -667,7 +668,7 @@ std::pair<long, BaseType*> VariablesContainer::variable_type_index(const std::st
         if(struct_def) {
             if(consider_inherited_structs && struct_def->name == varName) {
                 // user wants the struct
-                return { parents_size, inherits->type.get() };
+                return { parents_size, inherits->type };
             }
             parents_size += 1;
         }
@@ -723,9 +724,9 @@ bool VariablesContainer::build_path_to_child(std::vector<int>& path, const std::
     return false;
 }
 
-void VariablesContainer::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+void VariablesContainer::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     for (auto& variable : variables) {
-        variable.second->declare_and_link(linker, (std::unique_ptr<ASTNode>&) variable.second);
+        variable.second->declare_and_link(linker, (ASTNode*&) variable.second);
     }
 }
 
@@ -735,9 +736,9 @@ InheritedType::InheritedType(BaseType* type, AccessSpecifier specifier) : type(t
 
 std::string& InheritedType::ref_type_name() {
     if(type->kind() == BaseTypeKind::Generic) {
-        return ((GenericType*) type.get())->referenced->type;
+        return ((GenericType*) type)->referenced->type;
     } else if(type->kind() == BaseTypeKind::Linked) {
-        return ((LinkedType*) type.get())->type;
+        return ((LinkedType*) type)->type;
     }
 #ifdef DEBUG
     throw std::runtime_error("unable to retrieve referenced type name from type " + type->representation());
@@ -746,6 +747,6 @@ std::string& InheritedType::ref_type_name() {
 #endif
 }
 
-InheritedType *InheritedType::copy() const {
-    return new InheritedType(std::unique_ptr<BaseType>(type->copy()), specifier);
+std::unique_ptr<InheritedType> InheritedType::copy(ASTAllocator& allocator) const {
+    return std::make_unique<InheritedType>(type->copy(allocator), specifier);
 }

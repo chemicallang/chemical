@@ -37,8 +37,8 @@ public:
         return ValueType::BigInt;
     }
 
-    BigIntType *copy() const override {
-        return new BigIntType(token);
+    BigIntType *copy(ASTAllocator& allocator) const override {
+        return new (allocator.allocate<BigIntType>()) BigIntType(token);
     }
 
 };

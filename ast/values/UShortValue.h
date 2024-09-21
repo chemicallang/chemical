@@ -23,9 +23,9 @@ public:
         return ValueKind::UShort;
     }
 
-    hybrid_ptr<BaseType> get_base_type() override {
-        return hybrid_ptr<BaseType> { (BaseType*) &UShortType::instance, false };
-    }
+//    hybrid_ptr<BaseType> get_base_type() override {
+//        return hybrid_ptr<BaseType> { (BaseType*) &UShortType::instance, false };
+//    }
 
     BaseType* known_type() override {
         return (BaseType*) &UShortType::instance;
@@ -39,12 +39,13 @@ public:
         visitor->visit(this);
     }
 
-    UShortValue *copy() override {
-        return new UShortValue(value, token);
+    UShortValue *copy(ASTAllocator& allocator) override {
+        return new (allocator.allocate<UShortValue>()) UShortValue(value, token);
     }
 
-    [[nodiscard]] std::unique_ptr<BaseType> create_type() override {
-        return std::make_unique<UShortType>(nullptr);
+    [[nodiscard]]
+    BaseType* create_type(ASTAllocator &allocator) override {
+        return new (allocator.allocate<UShortType>()) UShortType(nullptr);
     }
 
     unsigned int get_num_bits() override {

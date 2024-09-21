@@ -33,9 +33,9 @@ public:
         return ValueKind::Float;
     }
 
-    hybrid_ptr<BaseType> get_base_type() override {
-        return hybrid_ptr<BaseType> { (BaseType*) &FloatType::instance, false };
-    }
+//    hybrid_ptr<BaseType> get_base_type() override {
+//        return hybrid_ptr<BaseType> { (BaseType*) &FloatType::instance, false };
+//    }
 
     BaseType* known_type() override {
         return (BaseType*) &FloatType::instance;
@@ -57,12 +57,12 @@ public:
 
 #endif
 
-    std::unique_ptr<BaseType> create_type() override {
-        return std::make_unique<FloatType>(nullptr);
+    BaseType* create_type(ASTAllocator &allocator) override {
+        return new (allocator.allocate<FloatType>()) FloatType(nullptr);
     }
 
-    FloatValue *copy() override {
-        return new FloatValue(value, token);
+    FloatValue *copy(ASTAllocator& allocator) override {
+        return new (allocator.allocate<FloatValue>()) FloatValue(value, token);
     }
 
     [[nodiscard]]

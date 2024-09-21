@@ -7,6 +7,7 @@
 #pragma once
 
 #include "ASTAny.h"
+#include "ASTAllocator.h"
 #include "ValueType.h"
 #include "ast/utils/Operation.h"
 #include <vector>
@@ -89,14 +90,14 @@ public:
      * can basically replace itself in the pointer, some compile time values like sizeof
      * replace themselves at resolution phase
      */
-    virtual bool link(SymbolResolver& linker, std::unique_ptr<Value>& value_ptr, BaseType* expected_type = nullptr) {
+    virtual bool link(SymbolResolver& linker, Value*& value_ptr, BaseType* expected_type = nullptr) {
         return true;
     }
 
     /**
      * relink value after generic types are known in the function call
      */
-    virtual void relink_after_generic(SymbolResolver& linker, std::unique_ptr<Value>& value_ptr, BaseType* expected_type) {
+    virtual void relink_after_generic(SymbolResolver& linker, Value*& value_ptr, BaseType* expected_type) {
         // does nothing
     }
 
@@ -122,7 +123,7 @@ public:
     /**
      * this function returns a function declaration for a member function
      */
-    virtual Value* call_member(InterpretScope& scope, const std::string& name, std::vector<std::unique_ptr<Value>>& values);
+    virtual Value* call_member(InterpretScope& scope, const std::string& name, std::vector<Value*>& values);
 
     /**
      * index operator [] calls this on a value
@@ -161,11 +162,6 @@ public:
     StructDefinition* get_param_linked_struct();
 
     /**
-     * this returns a hybrid pointer to base type
-     */
-    virtual hybrid_ptr<BaseType> get_base_type();
-
-    /**
      * get the known type from linked node of this chain value
      */
     virtual BaseType* known_type() {
@@ -189,7 +185,7 @@ public:
      * meaning if you try to access a child of a union, this method would return true
      * because unions mean different types
      */
-    static bool should_build_chain_type(std::vector<std::unique_ptr<Value>>& chain, unsigned index);
+    static bool should_build_chain_type(std::vector<Value*>& chain, unsigned index);
 
     /**
      * get pure type from the base type
@@ -199,7 +195,7 @@ public:
     /**
      * create a base type that represents the type of this value
      */
-    virtual std::unique_ptr<BaseType> create_type();
+    virtual BaseType* create_type(ASTAllocator& allocator);
 
     /**
      * is this value has a pointer type (includes strings)
@@ -450,14 +446,7 @@ public:
      * This method can only be called on primitive values as they are the only ones that support copy operation
      * @return
      */
-    virtual Value* copy();
-
-    /**
-     * a helper function
-     */
-    std::unique_ptr<Value> copy_unique() {
-        return std::unique_ptr<Value>(copy());
-    }
+    virtual Value* copy(ASTAllocator& allocator);
 
     /**
      * scope value is the value that would be put on the interpret scope value map
@@ -468,37 +457,7 @@ public:
      *
      * this method will always create a copy of the value, which means the caller must handle the returned value
      */
-    virtual Value* scope_value(InterpretScope& scope) {
-       return copy();
-    }
-
-    /**
-     * this is the initializer value, which is called by the var init statement
-     */
-    virtual Value* initializer_value(InterpretScope& scope) {
-        return scope_value(scope);
-    }
-
-    /**
-     * this is the assignment value, which is called by the assignment statement (without var)
-     */
-    virtual Value* assignment_value(InterpretScope& scope) {
-        return scope_value(scope);
-    }
-
-    /**
-     * this is the parameter value that is sent to function calls
-     */
-    virtual Value* param_value(InterpretScope& scope) {
-        return scope_value(scope);
-    }
-
-    /**
-     * called by return statement to get the return_value of this value
-     */
-    virtual Value* return_value(InterpretScope& scope) {
-        return scope_value(scope);
-    }
+    virtual Value* scope_value(InterpretScope& scope);
 
     /**
      * does this value compute the value, in other words (is it an expression -> e.g a + b)
@@ -521,18 +480,9 @@ public:
      * for ex : identifier represents a variable that contains a value, its not a value itself, but yields a value
      * so it can find its value and return pointer to the Value object that actually holds the value
      */
-    virtual hybrid_ptr<Value> evaluated_value(InterpretScope& scope) {
-        return hybrid_ptr<Value> { this, false };
+    virtual Value* evaluated_value(InterpretScope& scope) {
+        return this;
     }
-
-    /**
-     * This method should be used carefully, as it returns nullptr by default
-     *
-     * when value is evaluated, we just get a non releasable pointer, but this function
-     * gets the released value, from the interpret scope provided
-     *
-     */
-    virtual std::unique_ptr<Value> create_evaluated_value(InterpretScope& scope);
 
     /**
      * evaluate the children of this value, if this is called on a function call
@@ -545,7 +495,7 @@ public:
     /**
      * called by access chain, to evaluate this value, in the parent
      */
-    virtual hybrid_ptr<Value> evaluated_chain_value(InterpretScope& scope, Value* parent);
+    virtual Value* evaluated_chain_value(InterpretScope& scope, Value* parent);
 
     /**
      * just a helper method, to evaluate a value as a boolean

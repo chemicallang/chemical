@@ -38,12 +38,12 @@ public:
     }
 
     bool is_same(BaseType *type) override {
-        return type->kind() == BaseTypeKind::Literal && ((LiteralType*) type)->underlying->is_same(underlying.get());
+        return type->kind() == BaseTypeKind::Literal && ((LiteralType*) type)->underlying->is_same(underlying);
     }
 
     [[nodiscard]]
-    LiteralType* copy() const override {
-        return new LiteralType(std::unique_ptr<BaseType>(underlying->copy()), token);
+    LiteralType* copy(ASTAllocator& allocator) const override {
+        return new (allocator.allocate<LiteralType>()) LiteralType(underlying->copy(allocator), token);
     }
 
 #ifdef COMPILER_BUILD

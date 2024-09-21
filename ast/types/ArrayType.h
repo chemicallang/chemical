@@ -34,19 +34,19 @@ public:
 
     bool satisfies(Value *value) override;
 
-    void link(SymbolResolver &linker, std::unique_ptr<BaseType> &current) override;
+    void link(SymbolResolver &linker, BaseType*& current) override;
 
     [[nodiscard]]
-    std::unique_ptr<BaseType> create_child_type() const override {
-        return std::unique_ptr<BaseType>(elem_type->copy());
+    BaseType* create_child_type(ASTAllocator& allocator) const override {
+        return elem_type->copy(allocator);
     }
 
-    hybrid_ptr<BaseType> get_child_type() override {
-        return hybrid_ptr<BaseType> { elem_type.get(), false };
-    }
+//    hybrid_ptr<BaseType> get_child_type() override {
+//        return hybrid_ptr<BaseType> { elem_type.get(), false };
+//    }
 
     BaseType* known_child_type() override {
-        return elem_type.get();
+        return elem_type;
     }
 
     [[nodiscard]]
@@ -60,7 +60,7 @@ public:
     }
 
     bool equals(ArrayType *type) const {
-        return type->array_size == array_size && elem_type->is_same(type->elem_type.get());
+        return type->array_size == array_size && elem_type->is_same(type->elem_type);
     }
 
     bool is_same(BaseType *type) override {
@@ -68,8 +68,8 @@ public:
     }
 
     [[nodiscard]]
-    ArrayType* copy() const override {
-        return new ArrayType(std::unique_ptr<BaseType>(elem_type->copy()), array_size, token);
+    ArrayType* copy(ASTAllocator& allocator) const override {
+        return new (allocator.allocate<ArrayType>()) ArrayType(elem_type->copy(allocator), array_size, token);
     }
 
     bool satisfies(ValueType type) override {

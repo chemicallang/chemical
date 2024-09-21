@@ -6,7 +6,7 @@
 #include "UsingStmt.h"
 
 UsingStmt::UsingStmt(
-    std::vector<std::unique_ptr<ChainValue>> values,
+    std::vector<ChainValue*> values,
     ASTNode* parent_node,
     bool is_namespace,
     CSTToken* token
@@ -14,8 +14,8 @@ UsingStmt::UsingStmt(
 
 }
 
-void UsingStmt::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
-    chain.declare_and_link(linker, (std::unique_ptr<ASTNode>&) chain);
+void UsingStmt::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
+    chain.declare_and_link(linker, (ASTNode*&) chain);
     auto linked = chain.linked_node();
     if(!linked) {
         linker.error("couldn't find linked node", this);
@@ -28,9 +28,9 @@ void UsingStmt::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode
             for(auto& node : ns->nodes) {
                 auto& id = node->ns_node_identifier();
                 if(no_propagate) {
-                    linker.declare_file_disposable(id, node.get());
+                    linker.declare_file_disposable(id, node);
                 } else {
-                    linker.declare(id, node.get());
+                    linker.declare(id, node);
                 }
             }
         } else {

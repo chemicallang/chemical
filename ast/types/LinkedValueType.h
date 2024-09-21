@@ -14,7 +14,14 @@ public:
 
     }
 
-    void link(SymbolResolver& linker, std::unique_ptr<BaseType>& current) override {
+    LinkedType* copy(ASTAllocator &allocator) const override {
+        return new (allocator.allocate<LinkedValueType>()) LinkedValueType(
+            value->copy(allocator),
+            token
+        );
+    }
+
+    void link(SymbolResolver& linker, BaseType*& current) override {
         value->link(linker, value);
         linked = value->linked_node();
     }

@@ -11,8 +11,8 @@
 
 std::vector<llvm::Type *> ExtensionFunction::param_types(Codegen &gen) {
     std::vector<llvm::Type*> paramTypes;
-    llvm_func_param_type(gen, paramTypes, receiver.type.get());
-    llvm_func_param_types_into(gen, paramTypes, params, returnType.get(), false, isVariadic, this);
+    llvm_func_param_type(gen, paramTypes, receiver.type);
+    llvm_func_param_types_into(gen, paramTypes, params, returnType, false, isVariadic, this);
     return paramTypes;
 }
 
@@ -23,7 +23,7 @@ ExtensionFuncReceiver::ExtensionFuncReceiver(
     BaseType* type,
     ASTNode* parent_node,
     CSTToken* token
-) : BaseFunctionParam(std::move(name), std::move(type)), parent_node(parent_node), token(token) {
+) : BaseFunctionParam(std::move(name), type), parent_node(parent_node), token(token) {
 
 }
 
@@ -31,7 +31,7 @@ unsigned int ExtensionFuncReceiver::calculate_c_or_llvm_index() {
     return 0;
 }
 
-void ExtensionFuncReceiver::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+void ExtensionFuncReceiver::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     linker.declare(name, this);
 }
 
@@ -46,13 +46,13 @@ static std::string get_referenced(BaseType* type) {
     } else if(kind == BaseTypeKind::Generic) {
         return ((GenericType*) type)->referenced->type;
     } else if(kind == BaseTypeKind::Pointer) {
-        return get_referenced(((PointerType*) type)->type.get());
+        return get_referenced(((PointerType*) type)->type);
     } else {
         return "";
     }
 }
 
-void ExtensionFunction::declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+void ExtensionFunction::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
 
     /**
      * when a user has a call to function which is declared below current function, that function
@@ -68,7 +68,7 @@ void ExtensionFunction::declare_top_level(SymbolResolver &linker, std::unique_pt
      */
     linker.scope_start();
     for(auto& gen_param : generic_params) {
-        gen_param->declare_and_link(linker, (std::unique_ptr<ASTNode>&) gen_param);
+        gen_param->declare_and_link(linker, (ASTNode*&) gen_param);
     }
     receiver.type->link(linker, receiver.type);
     for(auto& param : params) {
@@ -85,7 +85,7 @@ void ExtensionFunction::declare_top_level(SymbolResolver &linker, std::unique_pt
     }
     auto container = linked->as_extendable_members_container();
     if(!container) {
-        linker.error("type doesn't support extension functions " + type->representation(), receiver.type.get());
+        linker.error("type doesn't support extension functions " + type->representation(), receiver.type);
         return;
     }
     container->extension_functions[name] = this;
@@ -118,12 +118,12 @@ ExtensionFunction::ExtensionFunction(
 
 }
 
-void ExtensionFunction::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+void ExtensionFunction::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
 
     auto linked = receiver.type->linked_node();
     const auto field_func = linked->child(name);
     if(field_func != this) {
-        linker.error("couldn't declare extension function with name '" + name + "' because type '" + receiver.type->representation() + "' already has a field / function with same name \n", receiver.type.get());
+        linker.error("couldn't declare extension function with name '" + name + "' because type '" + receiver.type->representation() + "' already has a field / function with same name \n", receiver.type);
         return;
     }
 
@@ -132,11 +132,11 @@ void ExtensionFunction::declare_and_link(SymbolResolver &linker, std::unique_ptr
     auto prev_func_type = linker.current_func_type;
     linker.current_func_type = this;
     for(auto& gen_param : generic_params) {
-        gen_param->declare_and_link(linker, (std::unique_ptr<ASTNode>&) gen_param);
+        gen_param->declare_and_link(linker, (ASTNode*&) gen_param);
     }
-    receiver.declare_and_link(linker, (std::unique_ptr<ASTNode>&) receiver);
+    receiver.declare_and_link(linker, (ASTNode*&) receiver);
     for (auto &param: params) {
-        param->declare_and_link(linker, (std::unique_ptr<ASTNode>&) param);
+        param->declare_and_link(linker, (ASTNode*&) param);
     }
     returnType->link(linker, returnType);
     if (body.has_value()) {
@@ -146,13 +146,13 @@ void ExtensionFunction::declare_and_link(SymbolResolver &linker, std::unique_ptr
     linker.current_func_type = prev_func_type;
 }
 
-std::unique_ptr<BaseType> ExtensionFunction::create_value_type() {
-    auto value_type = FunctionDeclaration::create_value_type();
-    auto functionType = (FunctionType*) value_type.get();
-    functionType->params.insert(functionType->params.begin(), std::make_unique<FunctionParam>("self", std::unique_ptr<BaseType>(receiver.type->copy()), 0, nullptr, this, nullptr));
+BaseType* ExtensionFunction::create_value_type(ASTAllocator& allocator) {
+    auto value_type = FunctionDeclaration::create_value_type(allocator);
+    auto functionType = (FunctionType*) value_type;
+    functionType->params.insert(functionType->params.begin(), new (allocator.allocate<FunctionParam>()) FunctionParam("self", receiver.type->copy(allocator), 0, nullptr, this, nullptr));
     return value_type;
 }
 
-hybrid_ptr<BaseType> ExtensionFunction::get_value_type() {
-    return hybrid_ptr<BaseType> { create_value_type().release() };
-}
+//hybrid_ptr<BaseType> ExtensionFunction::get_value_type() {
+//    return hybrid_ptr<BaseType> { create_value_type().release() };
+//}

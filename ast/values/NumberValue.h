@@ -24,7 +24,7 @@ class NumberValue : public IntNumValue {
 public:
 
     int64_t value;
-    std::unique_ptr<IntNType> linked_type = nullptr;
+    IntNType* linked_type = nullptr;
     CSTToken* token;
 
     /**
@@ -42,9 +42,9 @@ public:
         visitor->visit(this);
     }
 
-    bool link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *type) override;
+    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *type) override;
 
-    void relink_after_generic(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *expected_type) override {
+    void relink_after_generic(SymbolResolver &linker, Value* &value_ptr, BaseType *expected_type) override {
         link(linker, value_ptr, expected_type);
     }
 
@@ -69,36 +69,36 @@ public:
         return ValueKind::NumberValue;
     }
 
-    NumberValue *copy() override {
-        auto copy = new NumberValue(value, token);
+    NumberValue *copy(ASTAllocator& allocator) override {
+        auto copy = new (allocator.allocate<NumberValue>()) NumberValue(value, token);
         if(linked_type) {
-            copy->linked_type = std::unique_ptr<IntNType>((IntNType *) linked_type->copy());
+            copy->linked_type = (IntNType *) linked_type->copy(allocator);
         }
         return copy;
     }
 
     bool is_unsigned() override;
 
-    hybrid_ptr<BaseType> get_base_type() override {
-        if(!linked_type) {
-            return hybrid_ptr<BaseType> { (BaseType*) &IntType::instance, false };
-        }
-        return hybrid_ptr<BaseType> { linked_type.get(), false };
-    }
+//    hybrid_ptr<BaseType> get_base_type() override {
+//        if(!linked_type) {
+//            return hybrid_ptr<BaseType> { (BaseType*) &IntType::instance, false };
+//        }
+//        return hybrid_ptr<BaseType> { linked_type.get(), false };
+//    }
 
     BaseType* known_type() override {
         if(!linked_type) {
             return (BaseType*) &IntType::instance;
         }
-        return linked_type.get();
+        return linked_type;
     }
 
     [[nodiscard]]
-    std::unique_ptr<BaseType> create_type() override {
+    BaseType* create_type(ASTAllocator &allocator) override {
         if(linked_type) {
-            return std::unique_ptr<BaseType>(linked_type->copy());
+            return linked_type->copy(allocator);
         } else {
-            return std::unique_ptr<BaseType>(new IntType(nullptr));
+            return new (allocator.allocate<IntType>()) IntType(nullptr);
         }
     }
 

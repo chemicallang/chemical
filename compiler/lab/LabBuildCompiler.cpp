@@ -35,7 +35,8 @@
 #include "preprocess/2c/2cBackendContext.h"
 
 #ifdef COMPILER_BUILD
-std::vector<std::unique_ptr<ASTNode>> TranslateC(
+std::vector<ASTNode*> TranslateC(
+    ASTAllocator& allocator,
     const char *exe_path,
     const char *abs_path,
     const char *resources_path
@@ -48,8 +49,8 @@ std::vector<std::unique_ptr<ASTNode>> TranslateC(
 
 static bool verify_lib_build_func_type(FunctionDeclaration* found, const std::string& abs_path) {
     if(found->returnType->kind() == BaseTypeKind::Pointer) {
-        auto child_type = found->returnType->get_child_type();
-        if(child_type->kind() == BaseTypeKind::Linked && ((LinkedType*) child_type.get())->type == "Module") {
+        auto child_type = found->returnType->known_child_type();
+        if(child_type->kind() == BaseTypeKind::Linked && ((LinkedType*) child_type)->type == "Module") {
             return true;
         }
     }
@@ -180,22 +181,22 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
     }
 
     // an interpretation scope for interpreting compile time function calls
-    GlobalInterpretScope global(nullptr, this);
+    GlobalInterpretScope global(nullptr, this, *job_allocator);
 
     // a new symbol resolver for every executable
-    SymbolResolver resolver(global, options->is64Bit);
+    SymbolResolver resolver(global, options->is64Bit, *job_allocator, *job_allocator);
 
     // shrinking visitor will shrink everything
     ShrinkingVisitor shrinker;
 
     // beginning
     std::stringstream output_ptr;
-    ToCAstVisitor c_visitor(global, &output_ptr);
+    ToCAstVisitor c_visitor(global, &output_ptr, *mod_allocator);
     ToCBackendContext c_context(&c_visitor);
 
 #ifdef COMPILER_BUILD
     ASTCompiler processor(options, &resolver, *job_allocator, *mod_allocator);
-    Codegen gen(global, options->target_triple, options->exe_path, options->is64Bit, "");
+    Codegen gen(global, options->target_triple, options->exe_path, options->is64Bit, *mod_allocator, "");
     LLVMBackendContext g_context(&gen);
     CodegenEmitterOptions emitter_options;
     // set the context so compile time calls are sent to it
@@ -617,7 +618,7 @@ int LabBuildCompiler::do_to_chemical_job(LabJob* job) {
     }
     for(auto mod : job->dependencies) {
         RepresentationVisitor visitor(output);
-        auto nodes = TranslateC(options->exe_path.data(), mod->paths[0].data(), options->get_resources_path().c_str());
+        auto nodes = TranslateC(*mod_allocator, options->exe_path.data(), mod->paths[0].data(), options->get_resources_path().c_str());
         visitor.translate(nodes);
     }
     output.close();
@@ -678,10 +679,10 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
     ShrinkingVisitor shrinker;
 
     // a global interpret scope required to evaluate compile time things
-    GlobalInterpretScope global(nullptr, this);
+    GlobalInterpretScope global(nullptr, this, lab_allocator);
 
     // creating symbol resolver for build.lab files only
-    SymbolResolver lab_resolver(global, options->is64Bit);
+    SymbolResolver lab_resolver(global, options->is64Bit, lab_allocator, lab_allocator);
 
     // the processor that does everything for build.lab files only
     ASTCompiler lab_processor(
@@ -697,7 +698,7 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
 
     // beginning
     std::stringstream output_ptr;
-    ToCAstVisitor c_visitor(global, &output_ptr);
+    ToCAstVisitor c_visitor(global, &output_ptr, lab_allocator);
     ToCBackendContext c_context(&c_visitor);
 
     // set the backend context

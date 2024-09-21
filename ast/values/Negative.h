@@ -26,7 +26,7 @@ public:
         return ValueKind::NegativeValue;
     }
 
-    hybrid_ptr<BaseType> get_base_type() override;
+//    hybrid_ptr<BaseType> get_base_type() override;
 
     BaseType* known_type() override;
 
@@ -36,12 +36,12 @@ public:
         visitor->visit(this);
     }
 
-    bool link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *expected_type = nullptr) override;
+    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) override;
 
     bool primitive() override;
 
-    Value* copy() override {
-        return new NegativeValue(std::unique_ptr<Value>(value->copy()), token);
+    Value* copy(ASTAllocator& allocator) override {
+        return new (allocator.allocate<NegativeValue>()) NegativeValue(value->copy(allocator), token);
     }
 
 #ifdef COMPILER_BUILD
@@ -50,7 +50,8 @@ public:
 
 #endif
 
-    std::unique_ptr<BaseType> create_type() override;
+    BaseType* create_type(ASTAllocator &allocator) override;
+//    std::unique_ptr<BaseType> create_type() override;
 
     [[nodiscard]]
     ValueType value_type() const override {

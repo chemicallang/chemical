@@ -21,7 +21,7 @@
 class ShrinkingVisitor : Visitor {
 public:
 
-    void visit(std::vector<std::unique_ptr<ASTNode>>& nodes);
+    void visit(std::vector<ASTNode*>& nodes);
 
 private:
 

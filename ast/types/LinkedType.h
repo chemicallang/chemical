@@ -36,7 +36,7 @@ public:
     [[nodiscard]]
     ValueType value_type() const override;
 
-    void link(SymbolResolver &linker, std::unique_ptr<BaseType>& current) override;
+    void link(SymbolResolver &linker, BaseType*& current) override;
 
     ASTNode *linked_node() override;
 
@@ -56,8 +56,8 @@ public:
     bool satisfies(BaseType *type) override;
 
     [[nodiscard]]
-    LinkedType *copy() const override {
-        auto t = new LinkedType(type, token);
+    LinkedType *copy(ASTAllocator& allocator) const override {
+        auto t = new (allocator.allocate<LinkedType>()) LinkedType(type, token);
         t->linked = linked;
         return t;
     }
@@ -68,7 +68,7 @@ public:
 
     llvm::Type *llvm_param_type(Codegen &gen) override;
 
-    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned int index) override;
+    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) override;
 
 #endif
 

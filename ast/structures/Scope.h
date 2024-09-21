@@ -57,12 +57,12 @@ public:
     /**
      * throws an error in debug mode, shouldn't be called
      */
-    void declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override;
+    void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) override;
 
     /**
      * throws an error in debug mode, shouldn't be called
      */
-    void declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override;
+    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) override;
 
     /**
      * when nodes are to be declared and used sequentially, so node can be referenced

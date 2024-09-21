@@ -24,6 +24,7 @@ class ExtendableMembersContainerNode;
 class FunctionDeclaration : public AnnotableNode, public FunctionType {
 private:
     Value *interpretReturn = nullptr;
+    InterpretScope* callScope = nullptr;
 public:
 
     AccessSpecifier specifier = AccessSpecifier::Internal;
@@ -127,15 +128,15 @@ public:
 
     void accept(Visitor *visitor) override;
 
-    void ensure_constructor(StructDefinition* def);
+    void ensure_constructor(ASTAllocator& allocator, StructDefinition* def);
 
-    void ensure_destructor(ExtendableMembersContainerNode* def);
+    void ensure_destructor(ASTAllocator& allocator, ExtendableMembersContainerNode* def);
 
-    void ensure_clear_fn(ExtendableMembersContainerNode* def);
+    void ensure_clear_fn(ASTAllocator& allocator, ExtendableMembersContainerNode* def);
 
-    void ensure_copy_fn(ExtendableMembersContainerNode* def);
+    void ensure_copy_fn(ASTAllocator& allocator, ExtendableMembersContainerNode* def);
 
-    void ensure_move_fn(ExtendableMembersContainerNode* def);
+    void ensure_move_fn(ASTAllocator& allocator, ExtendableMembersContainerNode* def);
 
     using FunctionType::as_extension_func;
 
@@ -362,11 +363,11 @@ public:
 
 #endif
 
-    void declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override;
+    void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) override;
 
-    void redeclare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override;
+    void redeclare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) override;
 
-    void declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override;
+    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) override;
 
     /**
      * ensure that function body has an init block (required in constructors)
@@ -388,18 +389,16 @@ public:
 
     virtual Value *call(
         InterpretScope *call_scope,
-        std::vector<std::unique_ptr<Value>> &call_args,
+        std::vector<Value*> &call_args,
         Value* parent_val,
         InterpretScope *fn_scope,
         bool evaluate_refs = true
     );
 
-    std::unique_ptr<BaseType> create_value_type() override;
-
-    hybrid_ptr<BaseType> get_value_type() override;
+    BaseType* create_value_type(ASTAllocator& allocator) override;
 
     // called by the return statement
-    void set_return(Value *value);
+    void set_return(InterpretScope& func_scope, Value *value);
 
     FunctionDeclaration *as_function() override;
 

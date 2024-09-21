@@ -37,8 +37,8 @@ public:
     }
 
     [[nodiscard]]
-    AnyType* copy() const override {
-        return new AnyType(token);
+    AnyType* copy(ASTAllocator& allocator) const override {
+        return new (allocator.allocate<AnyType>()) AnyType(token);
     }
 
 #ifdef COMPILER_BUILD

@@ -6,15 +6,16 @@
 #include "ast/types/IntNType.h"
 #include "ast/types/BoolType.h"
 #include "ast/types/LongType.h"
+#include "compiler/SymbolResolver.h"
 
 void Expression::replace_number_values(BaseType* firstType, BaseType* secondType) {
     if(firstType->kind() == BaseTypeKind::IntN && secondType->kind() == BaseTypeKind::IntN) {
         if(firstValue->as_number_val() != nullptr) {
-            auto value = ((IntNumValue*)firstValue.get())->get_num_value();
-            firstValue = std::unique_ptr<Value>(((IntNType*) secondType)->create(value));
+            auto value = ((IntNumValue*)firstValue)->get_num_value();
+            firstValue = ((IntNType*) secondType)->create(value);
         } else if(secondValue->as_number_val() != nullptr){
-            auto value = ((IntNumValue*)secondValue.get())->get_num_value();
-            secondValue = std::unique_ptr<Value>(((IntNType*) firstType)->create(value));
+            auto value = ((IntNumValue*)secondValue)->get_num_value();
+            secondValue = ((IntNType*) firstType)->create(value);
         }
     }
 }
@@ -24,15 +25,15 @@ void Expression::shrink_literal_values(BaseType* firstType, BaseType* secondType
         if (firstValue->is_int_n() && secondValue->is_int_n()) { // if both are int n
             if(firstValue->primitive()) {
                 auto secIntNTy = (IntNType*) secondType;
-                auto firstVal = (IntNumValue*) firstValue.get();
+                auto firstVal = (IntNumValue*) firstValue;
                 if(firstVal->get_num_bits() > secIntNTy->num_bits() || (firstVal->get_num_bits() == secIntNTy->num_bits() && !firstVal->is_unsigned() && secIntNTy->is_unsigned())) {
-                    firstValue = std::unique_ptr<Value>(secIntNTy->create(firstVal->get_num_value()));
+                    firstValue = secIntNTy->create(firstVal->get_num_value());
                 }
             } else {
                 auto firIntTy = (IntNType*) firstType;
-                auto secondVal = (IntNumValue*) secondValue.get();
+                auto secondVal = (IntNumValue*) secondValue;
                 if(secondVal->get_num_bits() > firIntTy->num_bits() || (secondVal->get_num_bits() == firIntTy->num_bits() && !secondVal->is_unsigned() && firIntTy->is_unsigned())) {
-                    secondValue = std::unique_ptr<Value>(firIntTy->create(secondVal->get_num_value()));
+                    secondValue = firIntTy->create(secondVal->get_num_value());
                 }
             }
         }
@@ -41,76 +42,53 @@ void Expression::shrink_literal_values(BaseType* firstType, BaseType* secondType
 
 void Expression::promote_literal_values(BaseType* firstType, BaseType* secondType) {
 #ifdef DEBUG
-    if(firstType->can_promote(secondValue.get()) && secondType->can_promote(firstValue.get())) {
+    if(firstType->can_promote(secondValue) && secondType->can_promote(firstValue)) {
         throw std::runtime_error("Both values can promote each other");
     }
 #endif
-    if (firstType->can_promote(secondValue.get())) {
-        secondValue = std::unique_ptr<Value>(firstType->promote(secondValue.get()));
-    } else if(secondType->can_promote(firstValue.get())) {
-        firstValue = std::unique_ptr<Value>(secondType->promote(firstValue.get()));
+    if (firstType->can_promote(secondValue)) {
+        secondValue = firstType->promote(secondValue);
+    } else if(secondType->can_promote(firstValue)) {
+        firstValue = secondType->promote(firstValue);
     }
 }
 
-void Expression::set_created_type() {
+BaseType* Expression::create_type(ASTAllocator& allocator) {
     if(operation >= Operation::IndexComparisonStart && operation <= Operation::IndexComparisonEnd) {
-        created_type = std::make_unique<BoolType>(nullptr);
-        return;
+        return new (allocator.allocate<BoolType>()) BoolType(nullptr);
     }
-    auto first = firstValue->create_type();
-    auto second = secondValue->create_type();
+    auto first = firstValue->create_type(allocator);
+    auto second = secondValue->create_type(allocator);
     if((operation == Operation::Addition || operation == Operation::Subtraction) && first->kind() == BaseTypeKind::Pointer) {
         auto second_value_type = second->value_type();
         if(second_value_type >= ValueType::IntNStart && second_value_type <= ValueType::IntNEnd) {
-            created_type = first->copy_unique();
-            return;
+            return first;
         }
     }
     if(first->value_type() == ValueType::Pointer && second->value_type() == ValueType::Pointer) {
-        created_type = std::make_unique<LongType>(is64Bit, nullptr);
-        return;
+        return new (allocator.allocate<LongType>()) LongType(is64Bit, nullptr);
     }
-    if(first->can_promote(secondValue.get())) {
-        created_type = first->promote_unique(secondValue.get())->create_type();
-        return;
+    if(first->can_promote(secondValue)) {
+        return first->promote_unique(secondValue)->create_type(allocator);
     } else {
-        if(second->can_promote(firstValue.get())) {
-            created_type = second->promote_unique(firstValue.get())->create_type();
-            return;
+        if(second->can_promote(firstValue)) {
+            return second->promote_unique(firstValue)->create_type(allocator);
         } else {
-            created_type = std::move(first);
-            return;
+            return first;
         }
     }
 }
 
-std::unique_ptr<BaseType> Expression::create_type() {
-    if(!created_type) {
-        set_created_type();
-    }
-    return created_type->copy_unique();
-}
-
 BaseType* Expression::known_type() {
-    if(!created_type) {
-        set_created_type();
-    }
-    return created_type.get();
-}
-
-hybrid_ptr<BaseType> Expression::get_base_type() {
-    if(!created_type) {
-        set_created_type();
-    }
-    return hybrid_ptr<BaseType> { created_type.get(), false };
+    return created_type;
 }
 
 uint64_t Expression::byte_size(bool is64Bit) {
-    return create_type()->byte_size(is64Bit);
+    return created_type->byte_size(is64Bit);
 }
 
 ASTNode* Expression::linked_node() {
-    return create_type()->linked_node();
+    return created_type->linked_node();
 }
 
 /**
@@ -130,10 +108,12 @@ Expression::Expression(
 
 }
 
-bool Expression::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr, BaseType *expected_type) {
+bool Expression::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
     auto f = firstValue->link(linker, firstValue);
     auto s = secondValue->link(linker, secondValue);
-    return f && s;
+    auto result = f && s;
+    created_type = create_type(linker.allocator);
+    return result;
 }
 
 bool Expression::primitive() {
@@ -154,7 +134,7 @@ Value *Expression::evaluate(InterpretScope &scope) {
     auto index = ExpressionEvaluators::index(fEvl->value_type(), sEvl->value_type(), operation);
     auto found = ExpressionEvaluators::ExpressionEvaluatorsMap.find(index);
     if (found != ExpressionEvaluators::ExpressionEvaluatorsMap.end()) {
-        return ExpressionEvaluators::ExpressionEvaluatorsMap.at(index)(fEvl.get(), sEvl.get());
+        return ExpressionEvaluators::ExpressionEvaluatorsMap.at(index)(scope, fEvl, sEvl);
     } else {
         scope.error(
                 "Cannot evaluate expression as the method with index " + std::to_string(index) +
@@ -164,10 +144,10 @@ Value *Expression::evaluate(InterpretScope &scope) {
     }
 }
 
-Expression *Expression::copy() {
-    return new Expression(
-        std::unique_ptr<Value>(firstValue->copy()),
-        std::unique_ptr<Value>(secondValue->copy()),
+Expression *Expression::copy(ASTAllocator& allocator) {
+    return new (allocator.allocate<Expression>()) Expression(
+        firstValue->copy(allocator),
+        secondValue->copy(allocator),
         operation,
         is64Bit,
         token

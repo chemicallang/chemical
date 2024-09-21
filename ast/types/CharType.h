@@ -47,8 +47,8 @@ public:
     }
 
     [[nodiscard]]
-    CharType* copy() const override {
-        return new CharType(token);
+    CharType* copy(ASTAllocator& allocator) const override {
+        return new (allocator.allocate<CharType>()) CharType(token);
     }
 
 #ifdef COMPILER_BUILD

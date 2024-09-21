@@ -37,30 +37,30 @@ Value *NumberValue::scope_value(InterpretScope &scope) {
     return new IntValue((int) value, token);
 }
 
-std::unique_ptr<IntNType> linked(BaseType* type) {
+IntNType* linked(BaseType* type) {
     auto pure = type->pure_type();
     if(pure && pure->kind() == BaseTypeKind::IntN) {
-        return std::unique_ptr<IntNType>(((IntNType*) pure->copy()));
+        return (IntNType*) pure;
     } else {
         return nullptr;
     }
 }
 
-bool NumberValue::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *type) {
+bool NumberValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *type) {
     if(type) {
         const auto linked = type->linked_node();
         if(linked) {
             const auto param = linked->as_generic_type_param();
             if(param && param->active_iteration < 0) {
                 if(param->def_type) {
-                    linked_type = std::unique_ptr<IntNType>(((IntNType*) param->def_type->copy()));
+                    linked_type = (IntNType*) param->def_type;
                 }
                 return true;
             }
         }
         auto pure = type->pure_type();
         if(pure && pure->kind() == BaseTypeKind::IntN) {
-            linked_type = std::unique_ptr<IntNType>(((IntNType*) pure->copy()));
+            linked_type = (IntNType*) pure;
         }
     }
     return true;

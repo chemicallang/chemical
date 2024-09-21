@@ -16,21 +16,10 @@ public:
 
     ASTNode* parent_node;
     CSTToken* token;
-
-    /**
-     * @brief Construct a new ForLoop object with an empty body
-     */
-//    ForLoop(
-//            std::unique_ptr<VarInitStatement> initializer,
-//            std::unique_ptr<Value> conditionExpr,
-//            std::unique_ptr<ASTNode> incrementerExpr,
-//            ASTNode* parent_node,
-//            CSTToken* token
-//    );
-
-    ASTNodeKind kind() override {
-        return ASTNodeKind::ForLoopStmt;
-    }
+    VarInitStatement* initializer;
+    Value* conditionExpr;
+    ASTNode* incrementerExpr;
+    bool stoppedInterpretation = false;
 
     /**
      * @brief Construct a new ForLoop object.
@@ -43,6 +32,10 @@ public:
             ASTNode* parent_node,
             CSTToken* token
     );
+
+    ASTNodeKind kind() override {
+        return ASTNodeKind::ForLoopStmt;
+    }
 
     CSTToken* cst_token() override {
         return token;
@@ -58,7 +51,7 @@ public:
 
     void accept(Visitor *visitor) override;
 
-    void declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override;
+    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) override;
 
 #ifdef COMPILER_BUILD
     void code_gen(Codegen &gen) override;
@@ -68,8 +61,4 @@ public:
 
     void stopInterpretation() override;
 
-    std::unique_ptr<VarInitStatement> initializer;
-    std::unique_ptr<Value> conditionExpr;
-    std::unique_ptr<ASTNode> incrementerExpr;
-    bool stoppedInterpretation = false;
 };

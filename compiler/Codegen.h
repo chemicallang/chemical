@@ -59,6 +59,11 @@ public:
     ClangCodegen clang;
 
     /**
+     * allocator is used to allocate ast things during code generation
+     */
+    ASTAllocator& allocator;
+
+    /**
      * casters that take a value and cast them to a different value
      * it should be known that value created by caster is on the heap
      * the caller has the ownership and must manage memory
@@ -73,7 +78,7 @@ public:
     /**
      * when a function is evaluated, it's value is stored on this map, so it can be looked up for destruction
      */
-    std::unordered_map<FunctionCall*, std::unique_ptr<Value>> evaluated_func_calls;
+    std::unordered_map<FunctionCall*, Value*> evaluated_func_calls;
 
     /**
      * All get element pointer instructions use this to state that the element pointer is inbounds
@@ -96,7 +101,8 @@ public:
             GlobalInterpretScope& comptime_scope,
             std::string target_triple,
             std::string curr_exe_path,
-            bool is_64_bit, // can be determined using static method is_arch_64bit on Codegen
+            bool is_64_bit, // can be determined using static method is_arch_64bit on Codegen,
+            ASTAllocator& allocator,
             const std::string& module_name = "ChemMod"
     );
 
@@ -362,7 +368,7 @@ public:
      * the given call is linked with given comptime function decl, that is evaluated to receive the return value
      * using this function, the evaluation is done once, so this function caches the return value
      */
-    std::unique_ptr<Value>& eval_comptime(FunctionCall* call, FunctionDeclaration* decl);
+    Value*& eval_comptime(FunctionCall* call, FunctionDeclaration* decl);
 
     /**
      * determines destructor function for given element type

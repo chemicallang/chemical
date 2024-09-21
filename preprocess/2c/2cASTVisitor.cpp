@@ -961,7 +961,7 @@ void move_access_chain(ToCAstVisitor& visitor, AccessChain* chain) {
 }
 
 void CBeforeStmtVisitor::visit(FunctionCall *call) {
-    auto func_type = call->known_function_type();
+    auto func_type = call->function_type(visitor.allocator);
     auto decl = call->safe_linked_func();
     int16_t prev_iteration;
     if(decl) {
@@ -1191,7 +1191,7 @@ void CBeforeStmtVisitor::process_init_value(Value* value, const std::string& ide
         auto call = chain->values[chain->values.size() - 1]->as_func_call();
         if(call) {
             auto decl = call->safe_linked_func();
-            auto func_type = call->known_function_type();
+            auto func_type = call->function_type(visitor.allocator);
             auto linked = func_type->returnType->linked_node();
             if(decl && decl->has_annotation(AnnotationKind::CompTime)) {
                 process_comp_time_call(decl, call, identifier);
@@ -1352,7 +1352,7 @@ void CAfterStmtVisitor::destruct_chain(AccessChain *chain, bool destruct_last) {
                 }
                 return;
             }
-            auto func_type = call->known_function_type();
+            auto func_type = call->function_type(visitor.allocator);
             if(func_type->returnType->value_type() == ValueType::Struct) {
                 auto linked = func_type->returnType->linked_node();
                 if(linked->as_struct_def()) {

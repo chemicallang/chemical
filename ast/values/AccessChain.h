@@ -186,7 +186,7 @@ public:
 
 ChainValue* get_grandpa_value(std::vector<ChainValue*> &chain_values, unsigned int index);
 
-std::pair<StructDefinition*, int16_t> get_grandpa_generic_struct(std::vector<ChainValue*>& chain_values, unsigned int index);
+std::pair<StructDefinition*, int16_t> get_grandpa_generic_struct(ASTAllocator& allocator, std::vector<ChainValue*>& chain_values, unsigned int index);
 
 #ifdef COMPILER_BUILD
 

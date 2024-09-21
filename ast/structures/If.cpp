@@ -216,19 +216,19 @@ void IfStatement::link_conditions(SymbolResolver &linker) {
     }
 }
 
-void IfStatement::declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode> &node_ptr) {
+void IfStatement::declare_top_level(SymbolResolver &linker, ASTNode* &node_ptr) {
     if(is_top_level()) {
         is_computable = true;
         link_conditions(linker);
         auto eval = get_evaluated_scope((InterpretScope&) linker.comptime_scope, &linker);
         if(eval) {
-            std::unique_ptr<ASTNode> dummy;
+            ASTNode* dummy;
             eval->declare_top_level(linker, dummy);
         }
     }
 }
 
-void IfStatement::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>* node_ptr, std::unique_ptr<Value>* value_ptr) {
+void IfStatement::declare_and_link(SymbolResolver &linker, ASTNode** node_ptr, Value** value_ptr) {
     if(!is_computable) {
         link_conditions(linker);
     }
@@ -236,7 +236,7 @@ void IfStatement::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNo
         is_computable = true;
         auto eval = get_evaluated_scope((InterpretScope&) linker.comptime_scope, &linker);
         if(eval) {
-            std::unique_ptr<ASTNode> dummy;
+            ASTNode* dummy;
             eval->declare_and_link(linker, dummy);
         }
         return;
@@ -262,14 +262,14 @@ Value* IfStatement::get_value_node() {
     return Value::get_first_value_from_value_node(this);
 }
 
-std::unique_ptr<BaseType> IfStatement::create_type() {
+BaseType* IfStatement::create_type(ASTAllocator& allocator) {
     if(!is_value) return nullptr;
     auto last_val = get_value_node();
-    return last_val ? last_val->create_type() : nullptr;
+    return last_val ? last_val->create_type(allocator) : nullptr;
 }
 
-std::unique_ptr<BaseType> IfStatement::create_value_type() {
-    return create_type();
+BaseType* IfStatement::create_value_type(ASTAllocator& allocator) {
+    return create_type(allocator);
 }
 
 BaseType *IfStatement::known_type() {

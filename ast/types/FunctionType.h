@@ -79,7 +79,7 @@ public:
      * user provides the arguments, we check arguments against params, to see if it's compatible
      * if not, another function is selected that is compatible with arguments provided
      */
-    bool satisfy_args(std::vector<std::unique_ptr<Value>>& forArgs);
+    bool satisfy_args(std::vector<Value*>& forArgs);
 
     /**
      * suppose this function takes a self argument passed implicitly
@@ -95,7 +95,7 @@ public:
     /**
      * do parameter types match with the given function parameter types
      */
-    bool do_param_types_match(std::vector<std::unique_ptr<FunctionParam>>& param_types, bool check_self = true);
+    bool do_param_types_match(std::vector<FunctionParam*>& param_types, bool check_self = true);
 
     [[nodiscard]]
     BaseTypeKind kind() const override {
@@ -147,9 +147,9 @@ public:
     }
 
     [[nodiscard]]
-    FunctionType* copy() const override;
+    FunctionType* copy(ASTAllocator& allocator) const override;
 
-    void link(SymbolResolver &linker, std::unique_ptr<BaseType>& current) override;
+    void link(SymbolResolver &linker, BaseType*& current) override;
 
     /**
      * un_move a chain, if found to be moved
@@ -310,7 +310,7 @@ void llvm_func_param_type(
 void llvm_func_param_types_into(
         Codegen &gen,
         std::vector<llvm::Type*>& paramTypes,
-        std::vector<std::unique_ptr<FunctionParam>>& params,
+        std::vector<FunctionParam*>& params,
         BaseType* returnType,
         bool isCapturing,
         bool isVariadic,
@@ -323,7 +323,7 @@ void llvm_func_param_types_into(
  */
 inline std::vector<llvm::Type*> llvm_func_param_types(
         Codegen &gen,
-        std::vector<std::unique_ptr<FunctionParam>>& params,
+        std::vector<FunctionParam*>& params,
         BaseType* returnType,
         bool isCapturing,
         bool isVariadic,

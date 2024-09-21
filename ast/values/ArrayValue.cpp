@@ -13,11 +13,11 @@
 #include "compiler/Codegen.h"
 #include "compiler/llvmimpl.h"
 
-std::unique_ptr<BaseType> array_child(BaseType* expected_type) {
+BaseType* array_child(BaseType* expected_type) {
     if(expected_type) {
         auto pure_type = expected_type->pure_type();
         if(pure_type->kind() == BaseTypeKind::Array) {
-            return pure_type->create_child_type();
+            return pure_type;
         }
     }
     return nullptr;
@@ -51,7 +51,7 @@ void ArrayValue::initialize_allocated(Codegen& gen, llvm::Value* allocated, Base
                 gen.memcpy_struct(value.llvm_type(gen), elementPtr, value.llvm_value(gen, nullptr));
             } else {
                 // couldn't move the struct
-                value.store_in_array(gen, this, allocated, parent_type, idxList, i, child_type.get());
+                value.store_in_array(gen, this, allocated, parent_type, idxList, i, child_type);
             }
         }
     }
@@ -77,8 +77,8 @@ llvm::Value *ArrayValue::llvm_arg_value(Codegen &gen, FunctionCall *call, unsign
 }
 
 void ArrayValue::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
-    auto elem_type = element_type();
-    gen.destruct(allocaInst, array_size(), elem_type.get(), [](llvm::Value*){});
+    auto elem_type = element_type(gen.allocator);
+    gen.destruct(allocaInst, array_size(), elem_type, [](llvm::Value*){});
 }
 
 unsigned int ArrayValue::store_in_array(
@@ -150,35 +150,36 @@ ASTNode *ArrayValue::linked_node() {
     }
 }
 
-bool ArrayValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr, BaseType *expected_type) {
+bool ArrayValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
     if(elemType) {
         elemType->link(linker, elemType);
-        const auto elem_type = element_type();
+        const auto elem_type = element_type(linker.allocator);
         const auto def = elem_type->linked_struct_def();
         if(def) {
             unsigned i = 0;
             while (i < values.size()) {
-                values[i]->link(linker, values[i], elemType.get());
-                const auto implicit = def->implicit_constructor_func(values[i].get());
+                values[i]->link(linker, values[i], elemType);
+                const auto implicit = def->implicit_constructor_func(values[i]);
                 if(implicit) {
                     if(linker.preprocess) {
-                        values[i] = call_with_arg(implicit, std::move(values[i]), linker);
+                        values[i] = call_with_arg(implicit, values[i], linker);
                     } else {
-                        link_with_implicit_constructor(implicit, linker, values[i].get());
+                        link_with_implicit_constructor(implicit, linker, values[i]);
                     }
                 }
                 i++;
             }
+            created_type = create_type(linker.allocator);
             return true;
         }
     } else if(expected_type && expected_type->kind() == BaseTypeKind::Array) {
         const auto arr_type = (ArrayType*) expected_type;
-        elemType.reset(arr_type->elem_type->copy());
+        elemType = arr_type->elem_type;
     }
     auto& current_func_type = *linker.current_func_type;
     BaseType* known_elem_type = nullptr;
     if(elemType) {
-        known_elem_type = elemType.get();
+        known_elem_type = elemType;
     }
     unsigned i = 0;
     for(auto& value : values) {
@@ -186,26 +187,27 @@ bool ArrayValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr,
             known_elem_type = value->known_type();
         }
         if(known_elem_type) {
-            current_func_type.mark_moved_value(value.get(), known_elem_type, linker, elemType != nullptr);
+            current_func_type.mark_moved_value(value, known_elem_type, linker, elemType != nullptr);
         }
         i++;
     }
+    created_type = create_type(linker.allocator);
     return true;
 }
 
-std::unique_ptr<BaseType> ArrayValue::element_type() const {
+BaseType* ArrayValue::element_type(ASTAllocator& allocator) const {
     BaseType *elementType;
     if (elemType) {
         if(sizes.size() <= 1) {
             // get empty array type from the user
-            elementType = elemType->copy();
+            elementType = elemType;
         } else {
             unsigned int i = sizes.size() - 1;
             while(i > 0) {
                 if(i == sizes.size() - 1) {
-                    elementType = new ArrayType(std::unique_ptr<BaseType>(elemType->copy()), sizes[i], token);
+                    elementType = new (allocator.allocate<ArrayType>()) ArrayType(elemType, sizes[i], token);
                 } else {
-                    elementType = new ArrayType(std::unique_ptr<BaseType>(elementType), sizes[i], token);
+                    elementType = new (allocator.allocate<ArrayType>()) ArrayType(elementType, sizes[i], token);
                 }
                 i--;
             }
@@ -214,33 +216,27 @@ std::unique_ptr<BaseType> ArrayValue::element_type() const {
         if(values.empty()) {
             elementType = nullptr;
         } else {
-            elementType = values[0]->create_type().release();
+            elementType = values[0]->create_type(allocator);
         }
     }
-    return std::unique_ptr<BaseType>(elementType);
+    return elementType;
 }
 
-std::unique_ptr<BaseType> ArrayValue::create_type() {
-    if(!cached_type) {
-        cached_type = std::make_unique<ArrayType>(element_type(), array_size(), nullptr);
-    }
-    return cached_type->copy_unique();
+BaseType* ArrayValue::create_type(ASTAllocator& allocator) {
+    return new (allocator.allocate<ArrayType>()) ArrayType(element_type(allocator), array_size(), nullptr);
 }
 
-hybrid_ptr<BaseType> ArrayValue::get_base_type() {
-    if(!cached_type) {
-        cached_type = std::make_unique<ArrayType>(element_type(), array_size(), nullptr);
-    }
-    return hybrid_ptr<BaseType> { cached_type.get(), false };
-}
+//hybrid_ptr<BaseType> ArrayValue::get_base_type() {
+//    if(!cached_type) {
+//        cached_type = std::make_unique<ArrayType>(element_type(), array_size(), nullptr);
+//    }
+//    return hybrid_ptr<BaseType> { cached_type.get(), false };
+//}
 
 BaseType* ArrayValue::known_type() {
-    if(!cached_type) {
-        cached_type = std::make_unique<ArrayType>(element_type(), array_size(), nullptr);
-    }
-    return cached_type.get();
+    return created_type;
 }
 
 BaseType* ArrayValue::known_child_type() {
-    return ((ArrayType*) known_type())->elem_type.get();
+    return ((ArrayType*) known_type())->elem_type;
 }

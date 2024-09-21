@@ -37,10 +37,10 @@ bool VariantCall::initialize_allocated(Codegen &gen, llvm::Value* allocated, llv
             // since it will be moved, we will std memcpy it into current pointer
             std::vector<llvm::Value*> idx{gen.builder->getInt32(0)};
             auto elementPtr = Value::get_element_pointer(gen, struct_type, data_ptr, idx, i);
-            moved = gen.move_by_memcpy(&param_type, value_ptr.get(), elementPtr, value_ptr->llvm_value(gen));
+            moved = gen.move_by_memcpy(&param_type, value_ptr, elementPtr, value_ptr->llvm_value(gen));
         }
         if(!moved) {
-            if(gen.requires_memcpy_ref_struct(&param_type, value_ptr.get())) {
+            if(gen.requires_memcpy_ref_struct(&param_type, value_ptr)) {
                 std::vector<llvm::Value*> idxList { gen.builder->getInt32(0) };
                 auto elementPtr = Value::get_element_pointer(gen, struct_type, data_ptr, idxList, i);
                 gen.memcpy_struct(value_ptr->llvm_type(gen), elementPtr, value_ptr->llvm_value(gen, nullptr));
@@ -119,14 +119,14 @@ void VariantCall::llvm_destruct(Codegen &gen, llvm::Value *allocaInst) {
 
 #endif
 
-VariantCall::VariantCall(std::unique_ptr<AccessChain> _chain, CSTToken* token) : chain(std::move(_chain)), token(token) {
+VariantCall::VariantCall(AccessChain* _chain, CSTToken* token) : chain(_chain), token(token) {
     const auto func_call = chain->values.back()->as_func_call();
     if(func_call) {
         for(auto& value : func_call->values) {
-            values.emplace_back(std::move(value));
+            values.emplace_back(value);
         }
         for(auto& type : func_call->generic_list) {
-            generic_list.emplace_back(std::move(type));
+            generic_list.emplace_back(type);
         }
         chain->values.pop_back();
     }
@@ -145,7 +145,7 @@ void VariantCall::relink_values(SymbolResolver& linker) {
     unsigned i = 0;
     auto itr = member->values.begin();
     while(i < values.size()) {
-        values[i]->relink_after_generic(linker, values[i], itr->second->type.get());
+        values[i]->relink_after_generic(linker, values[i], itr->second->type);
         i++;
         itr++;
     }
@@ -160,7 +160,7 @@ void VariantCall::infer_generic_args(ASTDiagnoser& diagnoser, std::vector<BaseTy
     auto arg_offset = 0;
     auto itr = member->values.begin();
     while(arg_offset < values_size) {
-        const auto param_type = itr->second->type.get();
+        const auto param_type = itr->second->type;
         const auto arg_type = values[arg_offset]->known_type();
         if(!arg_type) {
 #ifdef DEBUG
@@ -180,12 +180,12 @@ void VariantCall::link_args_implicit_constructor(SymbolResolver &linker) {
     unsigned i = 0;
     auto itr = member->values.begin();
     while(i < values.size()) {
-        auto implicit_constructor = itr->second->type->implicit_constructor_for(values[i].get());
+        auto implicit_constructor = itr->second->type->implicit_constructor_for(values[i]);
         if (implicit_constructor) {
             if(linker.preprocess) {
                 values[i] = call_with_arg(implicit_constructor, std::move(values[i]), linker);
             } else {
-                link_with_implicit_constructor(implicit_constructor, linker, values[i].get());
+                link_with_implicit_constructor(implicit_constructor, linker, values[i]);
             }
         }
         i++;
@@ -193,7 +193,7 @@ void VariantCall::link_args_implicit_constructor(SymbolResolver &linker) {
     }
 }
 
-bool VariantCall::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *expected_type) {
+bool VariantCall::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
     const auto member = chain->linked_node()->as_variant_member();
     auto& current_func = *linker.current_func_type;
     // we've already linked chain, when variant call is created, access chain is checked, so no need to link
@@ -205,7 +205,7 @@ bool VariantCall::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr
         auto& value = *mem_value_ptr;
         value.link(linker, mem_value_ptr);
         const auto param = member->values.begin() + i;
-        current_func.mark_moved_value(&value, param->second->type.get(), linker, true);
+        current_func.mark_moved_value(&value, param->second->type, linker, true);
         i++;
     }
     int16_t prev_itr;
@@ -220,38 +220,29 @@ bool VariantCall::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr
     if(!def->generic_params.empty()) {
         def->set_active_iteration(prev_itr);
     }
+    set_created_type(linker.allocator);
     return true;
 }
 
-void VariantCall::set_created_type() {
+void VariantCall::set_created_type(ASTAllocator& allocator) {
     const auto member = chain->linked_node()->as_variant_member();
     const auto largest_member = member->parent_node->largest_member();
     if(largest_member == member) {
-        cached_type = member->parent_node->create_value_type();
+        cached_type = member->parent_node->create_value_type(allocator);
     } else {
         // TODO when it's not the largest member, we must create the type so that
         //  it reflects that, so user can't assign other members that are smaller than this member
-        cached_type = member->parent_node->create_value_type();
+        cached_type = member->parent_node->create_value_type(allocator);
     }
 }
 
-std::unique_ptr<BaseType> VariantCall::create_type() {
+BaseType* VariantCall::create_type(ASTAllocator& allocator) {
     if(!cached_type) {
-        set_created_type();
+        set_created_type(allocator);
     }
-    return cached_type->copy_unique();
-}
-
-hybrid_ptr<BaseType> VariantCall::get_base_type() {
-    if(!cached_type) {
-        set_created_type();
-    }
-    return hybrid_ptr<BaseType> { cached_type.get(), false };
+    return cached_type;
 }
 
 BaseType* VariantCall::known_type() {
-    if(!cached_type) {
-        set_created_type();
-    }
-    return cached_type.get();
+    return cached_type;
 }

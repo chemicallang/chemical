@@ -19,13 +19,13 @@ public:
     }
 
     [[nodiscard]]
-    std::unique_ptr<BaseType> create_child_type() const override {
-        return type->create_child_type();
+    BaseType* create_child_type(ASTAllocator& allocator) const override {
+        return type->create_child_type(allocator);
     }
 
-    hybrid_ptr<BaseType> get_child_type() override {
-        return type->get_child_type();
-    }
+//    hybrid_ptr<BaseType> get_child_type() override {
+//        return type->get_child_type();
+//    }
 
     BaseType* known_child_type() override {
         return type->known_child_type();
@@ -62,15 +62,15 @@ public:
     }
 
     bool is_same(BaseType *other) override {
-        return other->kind() == kind() && static_cast<ReferenceType *>(other)->type->is_same(type.get());
+        return other->kind() == kind() && static_cast<ReferenceType *>(other)->type->is_same(type);
     }
 
     [[nodiscard]]
-    ReferenceType *copy() const override {
-        return new ReferenceType(type->copy_unique(), token);
+    ReferenceType *copy(ASTAllocator& allocator) const override {
+        return new (allocator.allocate<ReferenceType>()) ReferenceType(type->copy(allocator), token);
     }
 
-    void link(SymbolResolver &linker, std::unique_ptr<BaseType>& current) override {
+    void link(SymbolResolver &linker, BaseType*& current) override {
         type->link(linker, type);
     }
 
@@ -82,7 +82,7 @@ public:
 
     llvm::Type *llvm_type(Codegen &gen) override;
 
-    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned int index) override;
+    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) override;
 
     clang::QualType clang_type(clang::ASTContext &context) override;
 

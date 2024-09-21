@@ -10,7 +10,7 @@ BreakStatement::BreakStatement(LoopASTNode *node, ASTNode* parent_node, CSTToken
 
 }
 
-void BreakStatement::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode> &node_ptr) {
+void BreakStatement::declare_and_link(SymbolResolver &linker, ASTNode* &node_ptr) {
     if(value) {
         value->link(linker, value);
     }

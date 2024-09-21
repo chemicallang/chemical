@@ -54,7 +54,7 @@ public:
 
     void accept(Visitor *visitor) override;
 
-    void declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override;
+    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) override;
 
 #ifdef COMPILER_BUILD
     void code_gen(Codegen &gen) override;

@@ -35,7 +35,7 @@ llvm::Type *BaseFunctionParam::llvm_type(Codegen &gen) {
     return type->llvm_type(gen);
 }
 
-llvm::Type *BaseFunctionParam::llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned int index) {
+llvm::Type *BaseFunctionParam::llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) {
     return type->llvm_chain_type(gen, values, index);
 }
 
@@ -97,9 +97,9 @@ llvm::Value *BaseFunctionParam::llvm_load(Codegen &gen) {
 llvm::FunctionType *FunctionDeclaration::create_llvm_func_type(Codegen &gen) {
     auto paramTypes = param_types(gen);
     if(paramTypes.empty()) {
-        return llvm::FunctionType::get(llvm_func_return(gen, returnType.get()), isVariadic);
+        return llvm::FunctionType::get(llvm_func_return(gen, returnType), isVariadic);
     } else {
-        return llvm::FunctionType::get(llvm_func_return(gen, returnType.get()), paramTypes, isVariadic);
+        return llvm::FunctionType::get(llvm_func_return(gen, returnType), paramTypes, isVariadic);
     }
 }
 
@@ -169,7 +169,7 @@ void FunctionType::queue_destruct_params(Codegen& gen) {
             if(def) {
                 const auto members_container = def->as_members_container();
                 if(members_container && members_container->destructor_func()) {
-                    gen.destruct_nodes.emplace_back(param.get());
+                    gen.destruct_nodes.emplace_back(param);
                 }
             }
         }
@@ -218,12 +218,14 @@ void body_gen(Codegen &gen, llvm::Function* funcCallee, std::optional<LoopScope>
         auto prev_func = gen.current_function;
         gen.current_func_type = func_type;
         gen.current_function = funcCallee;
-        const auto destruct_begin = gen.destruct_nodes.size();
+        auto prev_destruct_nodes = std::move(gen.destruct_nodes);
+        const auto destruct_begin = 0;
         func_type->queue_destruct_params(gen);
         gen.SetInsertPoint(&funcCallee->getEntryBlock());
         initialize_constructor_def_values(gen, func_type);
         body->code_gen(gen, destruct_begin);
         gen.end_function_block();
+        gen.destruct_nodes = std::move(prev_destruct_nodes);
         gen.current_function = nullptr;
         gen.current_func_type = prev_func_type;
     }
@@ -609,7 +611,7 @@ void code_gen_member_calls(
     }
     for(auto& var : def->variables) {
         if(var.second->value_type() == ValueType::Struct) {
-            auto mem_type = var.second->get_value_type();
+            auto mem_type = var.second->get_value_type(gen.allocator);
             auto mem_def = mem_type->linked_node()->as_members_container();
             auto destructor = choose_func(mem_def);
             if(!destructor) {
@@ -838,7 +840,7 @@ void FunctionDeclaration::code_gen_clear_fn(Codegen& gen, VariantDefinition* def
         for(auto& value : mem->values) {
             auto ref_node = value.second->type->get_direct_linked_node();
             if(ref_node) { // <-- the node is directly referenced
-                auto clearFn = gen.determine_clear_fn_for(value.second->type.get(), dtr_func_type, dtr_func_callee);
+                auto clearFn = gen.determine_clear_fn_for(value.second->type, dtr_func_type, dtr_func_callee);
                 if(clearFn) {
                     std::vector<llvm::Value*> args;
                     if(clearFn->has_self_param()) {
@@ -877,7 +879,7 @@ void FunctionDeclaration::code_gen_destructor(Codegen& gen, VariantDefinition* d
         for(auto& value : mem->values) {
             auto ref_node = value.second->type->get_direct_linked_node();
             if(ref_node) { // <-- the node is directly referenced
-                auto destructorFunc = gen.determine_destructor_for(value.second->type.get(), dtr_func_type, dtr_func_callee);
+                auto destructorFunc = gen.determine_destructor_for(value.second->type, dtr_func_type, dtr_func_callee);
                 if(destructorFunc) {
                     std::vector<llvm::Value*> args;
                     if(destructorFunc->has_self_param()) {
@@ -895,7 +897,7 @@ void FunctionDeclaration::code_gen_destructor(Codegen& gen, VariantDefinition* d
 }
 
 std::vector<llvm::Type *> FunctionDeclaration::param_types(Codegen &gen) {
-    return llvm_func_param_types(gen, params, returnType.get(), false, isVariadic, this);
+    return llvm_func_param_types(gen, params, returnType, false, isVariadic, this);
 }
 
 llvm::Type *FunctionDeclaration::llvm_type(Codegen &gen) {
@@ -976,30 +978,26 @@ BaseTypeKind BaseFunctionParam::type_kind() const {
     return type->kind();
 }
 
-FunctionParam *FunctionParam::copy() const {
-    std::unique_ptr<Value> copied = nullptr;
+FunctionParam *FunctionParam::copy(ASTAllocator& allocator) const {
+    Value* copied = nullptr;
     if (defValue) {
-        copied.reset(defValue->copy());
+        copied = defValue->copy(allocator);
     }
-    return new FunctionParam(name, std::unique_ptr<BaseType>(type->copy()), index, std::move(copied), func_type, token);
+    return new (allocator.allocate<FunctionParam>()) FunctionParam(name, type->copy(allocator), index, copied, func_type, token);
 }
 
-std::unique_ptr<BaseType> BaseFunctionParam::create_value_type() {
-    return std::unique_ptr<BaseType>(type->copy());
+BaseType* BaseFunctionParam::create_value_type(ASTAllocator& allocator) {
+    return type->copy(allocator);
 }
 
-hybrid_ptr<BaseType> BaseFunctionParam::get_value_type() {
-    return hybrid_ptr<BaseType> { type.get(), false };
-}
-
-void BaseFunctionParam::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+void BaseFunctionParam::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     if(!name.empty()) {
         linker.declare(name, this);
     }
     type->link(linker, type);
 }
 
-void BaseFunctionParam::redeclare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode> &node_ptr) {
+void BaseFunctionParam::redeclare_top_level(SymbolResolver &linker, ASTNode* &node_ptr) {
     if(!name.empty()) {
         linker.declare(name, this);
     }
@@ -1020,19 +1018,19 @@ def_type(def_type), parent_node(parent_node), param_index(param_index), token(to
 
 }
 
-void GenericTypeParameter::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+void GenericTypeParameter::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     linker.declare(identifier, this);
     if(def_type) {
         def_type->link(linker, def_type);
     }
 }
 
-void GenericTypeParameter::register_usage(BaseType* type) {
+void GenericTypeParameter::register_usage(ASTAllocator& allocator, BaseType* type) {
     if(type) {
-        usage.emplace_back(type->copy());
+        usage.emplace_back(type->copy(allocator));
     } else {
         if(def_type) {
-            usage.emplace_back(def_type->copy());
+            usage.emplace_back(def_type->copy(allocator));
         } else {
             std::cerr << "expected a generic type argument for parameter " << identifier << " in node " << parent_node->ns_node_identifier() << std::endl;
         }
@@ -1111,42 +1109,42 @@ int16_t FunctionDeclaration::total_generic_iterations() {
     return ::total_generic_iterations(generic_params);
 }
 
-void FunctionDeclaration::ensure_constructor(StructDefinition* def) {
-    returnType = std::make_unique<LinkedType>(def->name, def, nullptr);
+void FunctionDeclaration::ensure_constructor(ASTAllocator& allocator, StructDefinition* def) {
+    returnType = new (allocator.allocate<LinkedType>()) LinkedType(def->name, def, nullptr);
 }
 
-void FunctionDeclaration::ensure_destructor(ExtendableMembersContainerNode* def) {
+void FunctionDeclaration::ensure_destructor(ASTAllocator& allocator, ExtendableMembersContainerNode* def) {
     if(!has_self_param() || params.size() > 1 || params.empty()) {
         params.clear();
-        params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<LinkedType>(def->name, def, nullptr), nullptr), 0, nullptr, this, nullptr));
+        params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(def->name, def, nullptr), nullptr), 0, nullptr, this, nullptr));
     }
-    returnType = std::make_unique<VoidType>(nullptr);
+    returnType = new (allocator.allocate<VoidType>()) VoidType(nullptr);
 }
 
-void FunctionDeclaration::ensure_clear_fn(ExtendableMembersContainerNode* def) {
+void FunctionDeclaration::ensure_clear_fn(ASTAllocator& allocator, ExtendableMembersContainerNode* def) {
     if(!has_self_param() || params.size() > 1 || params.empty()) {
         params.clear();
-        params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<LinkedType>(def->name, def, nullptr), nullptr), 0, nullptr, this, nullptr));
+        params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(def->name, def, nullptr), nullptr), 0, nullptr, this, nullptr));
     }
-    returnType = std::make_unique<VoidType>(nullptr);
+    returnType = new (allocator.allocate<VoidType>()) VoidType(nullptr);
 }
 
-void FunctionDeclaration::ensure_copy_fn(ExtendableMembersContainerNode* def) {
+void FunctionDeclaration::ensure_copy_fn(ASTAllocator& allocator, ExtendableMembersContainerNode* def) {
     if(!has_self_param() || params.size() != 2 || params.empty()) {
         params.clear();
-        params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<LinkedType>(def->name, def, nullptr), nullptr), 0, nullptr, this, nullptr));
-        params.emplace_back(std::make_unique<FunctionParam>("other", std::make_unique<PointerType>(std::make_unique<LinkedType>(def->name, def, nullptr), nullptr), 1, nullptr, this, nullptr));
+        params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(def->name, def, nullptr), nullptr), 0, nullptr, this, nullptr));
+        params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("other", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(def->name, def, nullptr), nullptr), 1, nullptr, this, nullptr));
     }
-    returnType = std::make_unique<LinkedType>(def->name, def, nullptr);
+    returnType = new (allocator.allocate<LinkedType>()) LinkedType(def->name, def, nullptr);
 }
 
-void FunctionDeclaration::ensure_move_fn(ExtendableMembersContainerNode* def) {
+void FunctionDeclaration::ensure_move_fn(ASTAllocator& allocator, ExtendableMembersContainerNode* def) {
     if(!has_self_param() || params.size() != 2 || params.empty()) {
         params.clear();
-        params.emplace_back(std::make_unique<FunctionParam>("self", std::make_unique<PointerType>(std::make_unique<LinkedType>(def->name, def, nullptr), nullptr), 0, nullptr, this, nullptr));
-        params.emplace_back(std::make_unique<FunctionParam>("other", std::make_unique<PointerType>(std::make_unique<LinkedType>(def->name, def, nullptr), nullptr), 1, nullptr, this, nullptr));
+        params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("self", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(def->name, def, nullptr), nullptr), 0, nullptr, this, nullptr));
+        params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam("other", new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<LinkedType>()) LinkedType(def->name, def, nullptr), nullptr), 1, nullptr, this, nullptr));
     }
-    returnType = std::make_unique<LinkedType>(def->name, def, nullptr);
+    returnType = new (allocator.allocate<LinkedType>()) LinkedType(def->name, def, nullptr);
 }
 
 void FunctionDeclaration::set_active_iteration(int16_t iteration) {
@@ -1176,14 +1174,14 @@ int16_t FunctionDeclaration::register_call(SymbolResolver& resolver, FunctionCal
     // set all to default type (if default type is not present, it would automatically be nullptr)
     unsigned i = 0;
     while(i < total) {
-        generic_args[i] = generic_params[i]->def_type.get();
+        generic_args[i] = generic_params[i]->def_type;
         i++;
     }
 
     // set given generic args to generic parameters
     i = 0;
     for(auto& arg : call->generic_list) {
-        generic_args[i] = arg.get();
+        generic_args[i] = arg;
         i++;
     }
 
@@ -1206,27 +1204,27 @@ int16_t FunctionDeclaration::register_call(SymbolResolver& resolver, FunctionCal
     return itr.first;
 }
 
-std::unique_ptr<BaseType> FunctionDeclaration::create_value_type() {
-    std::vector<std::unique_ptr<FunctionParam>> copied;
+BaseType* FunctionDeclaration::create_value_type(ASTAllocator& allocator) {
+    std::vector<FunctionParam*> copied;
     for(const auto& param : params) {
-        copied.emplace_back(param->copy());
+        copied.emplace_back(param->copy(allocator));
     }
-    return std::make_unique<FunctionType>(std::move(copied), std::unique_ptr<BaseType>(returnType->copy()), isVariadic, false, nullptr);
+    return new (allocator.allocate<FunctionType>()) FunctionType(std::move(copied), returnType->copy(allocator), isVariadic, false, nullptr);
 }
 
-hybrid_ptr<BaseType> FunctionDeclaration::get_value_type() {
-    return hybrid_ptr<BaseType> { create_value_type().release() };
-}
+//hybrid_ptr<BaseType> FunctionDeclaration::get_value_type() {
+//    return hybrid_ptr<BaseType> { create_value_type(), true };
+//}
 
 void FunctionDeclaration::accept(Visitor *visitor) {
     visitor->visit(this);
 }
 
-void FunctionDeclaration::redeclare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+void FunctionDeclaration::redeclare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
     linker.declare_function(name, this);
 }
 
-void FunctionDeclaration::declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+void FunctionDeclaration::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
     /**
      * when a user has a call to function which is declared below current function, that function
      * has a parameter of type ref struct, the struct has implicit constructor for the value we are passing
@@ -1241,7 +1239,7 @@ void FunctionDeclaration::declare_top_level(SymbolResolver &linker, std::unique_
      */
     linker.scope_start();
     for(auto& gen_param : generic_params) {
-        gen_param->declare_and_link(linker, (std::unique_ptr<ASTNode>&) gen_param);
+        gen_param->declare_and_link(linker, (ASTNode*&) gen_param);
     }
     for(auto& param : params) {
         param->type->link(linker, param->type);
@@ -1262,16 +1260,16 @@ void FunctionDeclaration::ensure_has_init_block(ASTDiagnoser& diagnoser) {
     }
 }
 
-void FunctionDeclaration::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+void FunctionDeclaration::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     // if has body declare params
     linker.scope_start();
     auto prev_func_type = linker.current_func_type;
     linker.current_func_type = this;
     for(auto& gen_param : generic_params) {
-        gen_param->declare_and_link(linker, (std::unique_ptr<ASTNode>&) gen_param);
+        gen_param->declare_and_link(linker, (ASTNode*&) gen_param);
     }
     for (auto &param: params) {
-        linker.declare(param->name, param.get());
+        linker.declare(param->name, param);
         if(param->defValue) {
             param->defValue->link(linker, param->defValue);
         }
@@ -1295,8 +1293,13 @@ Value *FunctionDeclaration::call(
 }
 
 // called by the return statement
-void FunctionDeclaration::set_return(Value *value) {
-    interpretReturn = value;
+void FunctionDeclaration::set_return(InterpretScope& func_scope, Value *value) {
+    if(value) {
+        // TODO this can be improved
+        // currently every return is first initialized in the current scope
+        // then every return is copied to the call scope
+        interpretReturn = value->scope_value(func_scope)->copy(callScope->allocator);
+    }
     body->stopInterpretOnce();
 }
 
@@ -1306,11 +1309,13 @@ FunctionDeclaration *FunctionDeclaration::as_function() {
 
 Value *FunctionDeclaration::call(
     InterpretScope *call_scope,
-    std::vector<std::unique_ptr<Value>> &call_args,
+    std::vector<Value*> &call_args,
     Value* parent,
     InterpretScope *fn_scope,
     bool evaluate_refs
 ) {
+    callScope = call_scope;
+    auto& allocator = fn_scope->allocator;
     auto self_param = get_self_param();
     auto params_given = call_args.size() + (self_param ? parent ? 1 : 0 : 0);
     if (params.size() != params_given) {
@@ -1325,41 +1330,50 @@ Value *FunctionDeclaration::call(
     while (i < params.size()) {
         Value* param_val;
         if(evaluate_refs) {
-            param_val = call_args[i]->param_value(*call_scope);
+            param_val = call_args[i]->scope_value(*call_scope);
         } else {
             if(call_args[i]->reference()) {
-                param_val = call_args[i]->copy();
+                param_val = call_args[i]->copy(allocator);
             } else {
-                param_val = call_args[i]->param_value(*call_scope);
+                param_val = call_args[i]->scope_value(*call_scope);
             }
         }
         fn_scope->declare(params[i]->name, param_val);
         i++;
     }
     body.value().interpret(*fn_scope);
-    if(self_param) {
-        fn_scope->erase_value(self_param->name);
-    }
     return interpretReturn;
 }
 
-std::unique_ptr<BaseType> CapturedVariable::create_value_type() {
+CapturedVariable::CapturedVariable(
+    std::string name,
+    unsigned int index,
+    bool capture_by_ref,
+    CSTToken* token
+) : name(std::move(name)), index(index), capture_by_ref(capture_by_ref),
+    token(token), ptrType(nullptr, token) {
+
+}
+
+BaseType* CapturedVariable::create_value_type(ASTAllocator& allocator) {
     if(capture_by_ref) {
-        return std::make_unique<PointerType>(linked->create_value_type(), nullptr);
+        return new (allocator.allocate<PointerType>()) PointerType(linked->create_value_type(allocator), nullptr);
     } else {
-        return linked->create_value_type();
+        return linked->create_value_type(allocator);
     }
 }
 
-hybrid_ptr<BaseType> CapturedVariable::get_value_type() {
+BaseType* CapturedVariable::known_type() {
+    auto val_type = linked->known_type();
     if(capture_by_ref) {
-        return hybrid_ptr<BaseType> { new PointerType(linked->create_value_type(), nullptr), true };
+        ptrType.type = val_type;
+        return &ptrType;
     } else {
-        return linked->get_value_type();
+        return val_type;
     }
 }
 
-void CapturedVariable::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+void CapturedVariable::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     linked = linker.find(name);
     linker.declare(name, this);
 }

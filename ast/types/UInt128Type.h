@@ -38,8 +38,8 @@ public:
     }
 
     [[nodiscard]]
-    UInt128Type *copy() const override {
-        return new UInt128Type(token);
+    UInt128Type *copy(ASTAllocator& allocator) const override {
+        return new (allocator.allocate<UInt128Type>()) UInt128Type(token);
     }
 
 };

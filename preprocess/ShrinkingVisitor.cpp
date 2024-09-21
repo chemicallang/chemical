@@ -8,7 +8,7 @@
 #include "ast/structures/ExtensionFunction.h"
 #include "ast/structures/Namespace.h"
 
-void ShrinkingVisitor::visit(std::vector<std::unique_ptr<ASTNode>>& nodes) {
+void ShrinkingVisitor::visit(std::vector<ASTNode*>& nodes) {
     for(auto& node : nodes) {
         node->accept(this);
     }
@@ -41,19 +41,19 @@ void ShrinkingVisitor::visit(StructDefinition *def) {
         return;
     }
     for(auto& func : def->functions()) {
-        shrink(func.get());
+        shrink(func);
     }
 }
 
 void ShrinkingVisitor::visit(InterfaceDefinition *def) {
     for(auto& func : def->functions()) {
-        shrink(func.get());
+        shrink(func);
     }
 }
 
 void ShrinkingVisitor::visit(ImplDefinition *def) {
     for(auto& func : def->functions()) {
-        shrink(func.get());
+        shrink(func);
     }
 }
 

@@ -32,30 +32,30 @@ public:
         return ValueKind::IsValue;
     }
 
-    IsValue *copy() override;
+    IsValue *copy(ASTAllocator& allocator) override;
 
     /**
      * std::nullopt means unknown, true or false means it evaluated
      */
     std::optional<bool> get_comp_time_result();
 
-    hybrid_ptr<BaseType> get_base_type() override {
-        return hybrid_ptr<BaseType> { (BaseType*) &BoolType::instance, false };
-    }
+//    hybrid_ptr<BaseType> get_base_type() override {
+//        return hybrid_ptr<BaseType> { (BaseType*) &BoolType::instance, false };
+//    }
 
     BaseType* known_type() override {
         return (BaseType*) &BoolType::instance;
     }
 
-    std::unique_ptr<BaseType> create_type() override {
-        return std::unique_ptr<BaseType>(new BoolType(nullptr));
+    BaseType* create_type(ASTAllocator &allocator) override {
+        return new (allocator.allocate<BoolType>()) BoolType(nullptr);
     }
 
     void accept(Visitor *visitor) override {
         visitor->visit(this);
     }
 
-    bool link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *expected_type = nullptr) override;
+    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) override;
 
 #ifdef COMPILER_BUILD
 

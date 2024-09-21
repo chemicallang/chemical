@@ -12,8 +12,8 @@
 #include "llvmimpl.h"
 
 llvm::Value *Codegen::operate(Operation op, Value *lhs, Value *rhs) {
-    auto firstType = lhs->create_type();
-    auto secondType = rhs->create_type();
+    auto firstType = lhs->create_type(allocator);
+    auto secondType = rhs->create_type(allocator);
     return operate(op, lhs, rhs, firstType->pure_type(), secondType->pure_type());
 }
 

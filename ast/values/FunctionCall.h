@@ -58,12 +58,12 @@ public:
 
     void link_gen_args(SymbolResolver &linker);
 
-    bool link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *expected_type = nullptr) override;
+    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) override;
 
     /**
-     * provides the base function type to which call is being made
+     * provides the function type to which call is being made
      */
-    std::unique_ptr<FunctionType> create_function_type();
+    FunctionType* known_function_type();
 
     /**
      * provides the base function type to which call is being made
@@ -110,33 +110,26 @@ public:
 
     Value *scope_value(InterpretScope &scope) override;
 
-    hybrid_ptr<Value> evaluated_value(InterpretScope &scope) override;
+    Value* evaluated_value(InterpretScope &scope) override;
 
-    std::unique_ptr<Value> create_evaluated_value(InterpretScope &scope) override;
-
-    hybrid_ptr<Value> evaluated_chain_value(InterpretScope &scope, Value* parent) override;
+    Value* evaluated_chain_value(InterpretScope &scope, Value *parent) override;
 
     void evaluate_children(InterpretScope &scope) override;
 
-    FunctionCall *copy() override;
+    FunctionCall *copy(ASTAllocator& allocator) override;
 
     void interpret(InterpretScope &scope) override;
 
     /**
      * this returns the return type of the function
      */
-    std::unique_ptr<BaseType> create_type() override;
+    BaseType* create_type(ASTAllocator& allocator) override;
 
-    /**
-     * this returns the return type of the function, it must be called in access chain
-     * to account for generic types that depend on struct
-     */
-    std::unique_ptr<BaseType> create_type(std::vector<std::unique_ptr<ChainValue>>& chain, unsigned int index) override;
-
-    /**
-     * this returns the return type of the function
-     */
-    hybrid_ptr<BaseType> get_base_type() override;
+//    /**
+//     * this returns the return type of the function, it must be called in access chain
+//     * to account for generic types that depend on struct
+//     */
+//    BaseType* create_type(std::vector<ChainValue*>& chain, unsigned int index) override;
 
     [[nodiscard]]
     BaseTypeKind type_kind() const override;
@@ -179,7 +172,7 @@ public:
 
     llvm::Type *llvm_chain_type(
             Codegen &gen,
-            std::vector<std::unique_ptr<ChainValue>> &values,
+            std::vector<ChainValue*> &values,
             unsigned int index
     ) override;
 
@@ -187,18 +180,18 @@ public:
 
     llvm::FunctionType *llvm_linked_func_type(
             Codegen& gen,
-            std::vector<std::unique_ptr<ChainValue>> &chain_values,
+            std::vector<ChainValue*> &chain_values,
             unsigned int index
     );
 
     std::pair<llvm::Value*, llvm::FunctionType*>* llvm_generic_func_data(
-            std::vector<std::unique_ptr<ChainValue>> &chain_values,
+            std::vector<ChainValue*> &chain_values,
             unsigned int index
     );
 
     llvm::Value *llvm_linked_func_callee(
             Codegen& gen,
-            std::vector<std::unique_ptr<ChainValue>> &chain_values,
+            std::vector<ChainValue*> &chain_values,
             unsigned int index
     );
 
@@ -211,7 +204,7 @@ public:
     llvm::Value* llvm_chain_value(
             Codegen &gen,
             std::vector<llvm::Value*>& args,
-            std::vector<std::unique_ptr<ChainValue>>& chain,
+            std::vector<ChainValue*>& chain,
             unsigned int until,
             std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
             llvm::Value* returnedStruct = nullptr,
@@ -225,14 +218,14 @@ public:
      */
     std::pair<bool, llvm::Value*> llvm_dynamic_dispatch(
             Codegen& gen,
-            std::vector<std::unique_ptr<ChainValue>> &chain_values,
+            std::vector<ChainValue*> &chain_values,
             unsigned int index,
             std::vector<std::pair<Value*, llvm::Value*>>& destructibles
     );
 
     llvm::Value *access_chain_value(
             Codegen &gen,
-            std::vector<std::unique_ptr<ChainValue>> &values,
+            std::vector<ChainValue*> &values,
             unsigned until,
             std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
             BaseType* expected_type
@@ -240,7 +233,7 @@ public:
 
     llvm::Value* chain_value_with_callee(
             Codegen& gen,
-            std::vector<std::unique_ptr<ChainValue>>& chain,
+            std::vector<ChainValue*>& chain,
             unsigned int index,
             llvm::Value* grandpa_value,
             llvm::Value* callee_value,
@@ -249,14 +242,14 @@ public:
 
     llvm::AllocaInst *access_chain_allocate(
             Codegen &gen,
-            std::vector<std::unique_ptr<ChainValue>> &values,
+            std::vector<ChainValue*> &values,
             unsigned int until,
             BaseType* expected_type
     ) override;
 
     llvm::Value* access_chain_assign_value(
             Codegen &gen,
-            std::vector<std::unique_ptr<ChainValue>> &values,
+            std::vector<ChainValue*> &values,
             unsigned int until,
             std::vector<std::pair<Value*, llvm::Value*>> &destructibles,
             Value *lhs,

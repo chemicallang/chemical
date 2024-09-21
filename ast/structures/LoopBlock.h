@@ -47,19 +47,15 @@ public:
         return ValueKind::LoopValue;
     }
 
-    void declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode> &node_ptr) override;
+    void declare_and_link(SymbolResolver &linker, ASTNode* &node_ptr) override;
 
-    bool link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *expected_type = nullptr) override;
+    bool link(SymbolResolver &linker, Value* &value_ptr, BaseType *expected_type = nullptr) override;
 
     Value* get_first_broken();
 
-    std::unique_ptr<BaseType> create_value_type() override;
+    BaseType* create_value_type(ASTAllocator& allocator) override;
 
-    std::unique_ptr<BaseType> create_type() override;
-
-    hybrid_ptr<BaseType> get_base_type() override;
-
-    hybrid_ptr<BaseType> get_value_type() override;
+    BaseType* create_type(ASTAllocator& allocator) override;
 
     BaseType* known_type() override;
 

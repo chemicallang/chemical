@@ -15,6 +15,7 @@
 #include "std/hybrid_ptr.h"
 #include "ASTNodeKind.h"
 #include "AccessSpecifier.h"
+#include "ASTAllocator.h"
 #include <optional>
 
 class SymbolResolver;
@@ -87,14 +88,14 @@ public:
      * that must be retained in nested level scopes
      * for example top level functions can be called within functions
      */
-    virtual void declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+    virtual void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
         // does nothing by default
     }
 
     /**
      * called in case some functions need to redeclare themselves
      */
-    virtual void redeclare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+    virtual void redeclare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
         declare_top_level(linker, node_ptr);
     }
 
@@ -102,7 +103,7 @@ public:
      * declares something on the scope map
      * or find something on the map to link yourself with it
      */
-    virtual void declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+    virtual void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
         // does nothing by default
     }
 
@@ -270,13 +271,15 @@ public:
      * get the type from the ASTNode
      * this type can represent the type of value, type of parameter etc.
      */
-    virtual std::unique_ptr<BaseType> create_value_type();
+    virtual BaseType* create_value_type(ASTAllocator& allocator);
 
     /**
      * this returns a hybrid pointer, which decreases the number of allocations, because
      * type of value may be known by the value
      */
-    virtual hybrid_ptr<BaseType> get_value_type();
+    inline BaseType* get_value_type(ASTAllocator& allocator) {
+        return create_value_type(allocator);
+    }
 
 #ifdef COMPILER_BUILD
 

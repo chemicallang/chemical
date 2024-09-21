@@ -123,7 +123,7 @@ public:
         return c;
     }
 
-    Expression* toExpressionRaw(bool is64Bit, CSTToken* token) {
+    Expression* toExpressionRaw(ASTAllocator& allocator, bool is64Bit, CSTToken* token) {
         ValueAndOperatorStack stack;
         int i = 0;
         while(i < container.size()) {
@@ -139,17 +139,18 @@ public:
                     stack.container.pop_back();
                     auto first = stack.container.back();
                     stack.container.pop_back();
-                    stack.putValue(new Expression(std::unique_ptr<Value>(first.item.value),
-                                                  std::unique_ptr<Value>(second.item.value), item.item.operation, is64Bit, token));
+                    stack.putValue(new (allocator.allocate<Expression>()) Expression(first.item.value,
+                                                  second.item.value,
+                                                          item.item.operation,
+                                                          is64Bit,
+                                                          token
+                                                          )
+                                                      );
                     break;
             }
             i++;
         }
         return (Expression *) stack.peakValue();
-    }
-
-    inline std::unique_ptr<Expression> toExpression(bool is64Bit, CSTToken* token) {
-        return std::unique_ptr<Expression>(toExpressionRaw(is64Bit, token));
     }
 
 };

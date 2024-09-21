@@ -18,26 +18,26 @@ void ReturnStatement::interpret(InterpretScope &scope) {
     auto decl = func_type->as_function();
     if(!decl) return;
     if (value) {
-        decl->set_return(value->return_value(scope));
+        decl->set_return(scope, value);
     } else {
-        decl->set_return(nullptr);
+        decl->set_return(scope, nullptr);
     }
 }
 
-void ReturnStatement::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+void ReturnStatement::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     if (value) {
-        value->link(linker, value, func_type && func_type->returnType ? func_type->returnType.get() : nullptr);
+        value->link(linker, value, func_type->returnType ? func_type->returnType : nullptr);
         if(func_type->returnType) {
             const auto func = func_type->as_function();
             if(func && func->has_annotation(AnnotationKind::Constructor)) {
                 return;
             }
-            const auto implicit = func_type->returnType->implicit_constructor_for(value.get());
+            const auto implicit = func_type->returnType->implicit_constructor_for(value);
             if (implicit && implicit != func_type && implicit->parent_node != func_type->parent()) {
                 if(linker.preprocess) {
-                    value = call_with_arg(implicit, std::move(value), linker);
+                    value = call_with_arg(implicit, value, linker);
                 } else {
-                    link_with_implicit_constructor(implicit, linker, value.get());
+                    link_with_implicit_constructor(implicit, linker, value);
                 }
                 return;
             }
@@ -50,5 +50,5 @@ void ReturnStatement::accept(Visitor *visitor) {
 }
 
 BaseType* ReturnStatement::known_type() {
-    return func_type->returnType.get();
+    return func_type->returnType;
 }

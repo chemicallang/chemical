@@ -16,11 +16,11 @@ DestructStmt::DestructStmt(
 
 }
 
-void DestructStmt::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+void DestructStmt::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     if(array_value) {
         array_value->link(linker, array_value);
     }
-    identifier->link(linker, (std::unique_ptr<Value>&) identifier);
+    identifier->link(linker, identifier);
     auto type = identifier->get_pure_type();
     if(!type->is_pointer()) {
         linker.error("destruct cannot be called on a value that isn't a pointer", this);
@@ -38,7 +38,7 @@ DestructData DestructStmt::get_data() {
 
     DestructData data {nullptr, nullptr,  -1 };
 
-    auto created_type = identifier->create_type();
+    auto created_type = identifier->known_type();
     auto pure_type = created_type->pure_type();
 //    auto pure_type = identifier->get_pure_type();
     bool determined_array = false;

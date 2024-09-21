@@ -5,6 +5,7 @@
 #include "preprocess/BaseSymbolResolver.h"
 #include "ASTDiagnoser.h"
 #include "ast/base/AccessSpecifier.h"
+#include "ast/base/ASTAllocator.h"
 #include <memory>
 #include <ordered_map.h>
 
@@ -117,6 +118,19 @@ public:
      * to link code
      */
     GlobalInterpretScope& comptime_scope;
+
+    /**
+     * global allocator reference is required to store
+     * global type usage for generics, so they are never disposed
+     * because they are used to generate implementations
+     */
+    ASTAllocator& global_allocator;
+
+    /**
+     * this is the reference to module allocator which is used
+     * to allocate things during symbol resolution
+     */
+    ASTAllocator& allocator;
 
     /**
      * a file scope begins, a file scope should not be popped, this is because
@@ -233,7 +247,12 @@ public:
     /**
      * constructor
      */
-    SymbolResolver(GlobalInterpretScope& global, bool is64Bit);
+    SymbolResolver(
+        GlobalInterpretScope& global,
+        bool is64Bit,
+        ASTAllocator& allocator,
+        ASTAllocator& global_allocator
+    );
 
     /**
      * if the current where the symbols are being declared is a file scope

@@ -13,8 +13,9 @@
 #define ANSI_COLOR_RED     "\x1b[91m"
 #define ANSI_COLOR_RESET   "\x1b[0m"
 
-InterpretScope::InterpretScope(InterpretScope *parent, GlobalInterpretScope *global)
-        : parent(parent), global(global){}
+InterpretScope::InterpretScope(InterpretScope *parent, GlobalInterpretScope *global) : parent(parent), global(global), allocator(nullptr, 0, 0) {
+
+}
 
 void InterpretScope::declare(const std::string &name, Value *value) {
     values[name] = value;
@@ -30,26 +31,26 @@ Value *InterpretScope::find_value(const std::string &name) {
     }
 }
 
-std::pair<value_iterator, value_map&> InterpretScope::find_value_iterator(const std::string &name) {
+std::pair<value_iterator, InterpretScope&> InterpretScope::find_value_iterator(const std::string &name) {
     auto found = values.find(name);
     if (found == values.end()) {
-        if(parent == nullptr) return {values.end(), values};
+        if(parent == nullptr) return { values.end(), *this };
         return parent->find_value_iterator(name);
     } else {
-        return {found, values};
+        return { found, *this };
     }
 }
 
 void InterpretScope::erase_value(const std::string &name) {
     auto iterator = find_value_iterator(name);
-    if(iterator.first == iterator.second.end()) {
+    if(iterator.first == iterator.second.values.end()) {
         std::cerr << ANSI_COLOR_RED << "couldn't locate value " << name << " for removal" << ANSI_COLOR_RESET
                   << std::endl;
 #ifdef DEBUG
         print_values();
 #endif
     } else {
-        iterator.second.erase(iterator.first);
+        iterator.second.values.erase(iterator.first);
     }
 }
 
@@ -69,10 +70,8 @@ void InterpretScope::print_values() {
 }
 
 void InterpretScope::clean() {
-    for(auto& value : values) {
-        delete value.second;
-    }
     values.clear();
+    allocator.clear();
 }
 
 InterpretScope::~InterpretScope() {

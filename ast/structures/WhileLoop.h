@@ -51,7 +51,7 @@ public:
 
     void accept(Visitor *visitor) override;
 
-    void declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override;
+    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) override;
 
     void interpret(InterpretScope &scope) override;
 

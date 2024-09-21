@@ -33,7 +33,7 @@ void llvm_func_param_type(
 void llvm_func_param_types_into(
         Codegen &gen,
         std::vector<llvm::Type*>& paramTypes,
-        std::vector<std::unique_ptr<FunctionParam>>& params,
+        std::vector<FunctionParam*>& params,
         BaseType* returnType,
         bool isCapturing,
         bool isVariadic,
@@ -53,17 +53,17 @@ void llvm_func_param_types_into(
     auto size = isVariadic ? (params.size() - 1) : params.size();
     unsigned i = 0;
     while (i < size) {
-        llvm_func_param_type(gen, paramTypes, params[i]->type.get());
+        llvm_func_param_type(gen, paramTypes, params[i]->type);
         i++;
     }
 }
 
 std::vector<llvm::Type *> FunctionType::param_types(Codegen &gen) {
-    return llvm_func_param_types(gen, params, returnType.get(), isCapturing, isVariadic, as_function());
+    return llvm_func_param_types(gen, params, returnType, isCapturing, isVariadic, as_function());
 }
 
 llvm::FunctionType *FunctionType::llvm_func_type(Codegen &gen) {
-    return llvm::FunctionType::get(llvm_func_return(gen, returnType.get()), param_types(gen), isVariadic);
+    return llvm::FunctionType::get(llvm_func_return(gen, returnType), param_types(gen), isVariadic);
 }
 
 llvm::Type *FunctionType::llvm_type(Codegen &gen) {
@@ -116,12 +116,12 @@ FunctionParam* FunctionType::func_param_for_arg_at(unsigned index) {
     if(params.empty()) return nullptr;
     const auto offset = explicit_func_arg_offset(); // first argument for implicit self
     if(isVariadic && index >= (params.size() - 1 - offset)) {
-        return params.back().get();
+        return params.back();
     }
-    return params[index + offset].get();
+    return params[index + offset];
 }
 
-bool FunctionType::satisfy_args(std::vector<std::unique_ptr<Value>>& forArgs) {
+bool FunctionType::satisfy_args(std::vector<Value*>& forArgs) {
     auto has_self = has_self_param();
     unsigned offset = has_self ? 1 : 0;
     auto required_args_len = params.size() - offset;
@@ -130,7 +130,7 @@ bool FunctionType::satisfy_args(std::vector<std::unique_ptr<Value>>& forArgs) {
     }
     unsigned i = offset; // first argument for implicit self
     while(i < params.size()) {
-        if(!params[i]->type->satisfies(forArgs[i - offset].get())) {
+        if(!params[i]->type->satisfies(forArgs[i - offset])) {
             return false;
         }
         i++;
@@ -138,12 +138,12 @@ bool FunctionType::satisfy_args(std::vector<std::unique_ptr<Value>>& forArgs) {
     return true;
 }
 
-bool FunctionType::do_param_types_match(std::vector<std::unique_ptr<FunctionParam>>& param_types, bool check_self) {
+bool FunctionType::do_param_types_match(std::vector<FunctionParam*>& param_types, bool check_self) {
     if(params.size() != param_types.size()) return false;
     unsigned i = check_self ? 0 : (has_self_param() ? 1 : 0);
     const auto siz = params.size();
     while(i < siz) {
-        if(!param_types[i]->type->is_same(params[i]->type.get())) {
+        if(!param_types[i]->type->is_same(params[i]->type)) {
             return false;
         }
         i++;
@@ -161,7 +161,7 @@ BaseFunctionParam* FunctionType::get_self_param() {
     if(!params.empty()) {
         auto& param = params[0];
         if(param->name == "this" || param->name == "self") {
-            return param.get();
+            return param;
         }
     }
     return nullptr;
@@ -185,12 +185,12 @@ bool FunctionType::equal(FunctionType *other) const {
     if (isVariadic != other->isVariadic) {
         return false;
     }
-    if (!returnType->is_same(other->returnType.get())) {
+    if (!returnType->is_same(other->returnType)) {
         return false;
     }
     unsigned i = 0;
     while (i < params.size()) {
-        if (!params[i]->type->is_same(other->params[i]->type.get())) {
+        if (!params[i]->type->is_same(other->params[i]->type)) {
             return false;
         }
         i++;
@@ -202,15 +202,15 @@ bool FunctionType::satisfies(ValueType type) {
     return type == ValueType::Lambda;
 }
 
-FunctionType *FunctionType::copy() const {
-    std::vector<std::unique_ptr<FunctionParam>> copied;
+FunctionType *FunctionType::copy(ASTAllocator& allocator) const {
+    std::vector<FunctionParam*> copied;
     for (auto &param: params) {
-        copied.emplace_back(param->copy());
+        copied.emplace_back(param->copy(allocator));
     }
-    return new FunctionType(std::move(copied), std::unique_ptr<BaseType>(returnType->copy()), isVariadic, isCapturing, token);
+    return new (allocator.allocate<FunctionType>()) FunctionType(std::move(copied), returnType->copy(allocator), isVariadic, isCapturing, token);
 }
 
-void FunctionType::link(SymbolResolver &linker, std::unique_ptr<BaseType>& current) {
+void FunctionType::link(SymbolResolver &linker, BaseType*& current) {
     for (auto &param: params) {
         param->type->link(linker, param->type);
     }
@@ -302,7 +302,7 @@ bool FunctionType::un_move_id(VariableIdentifier* id) {
 // when finding x.y, when has moved x.y.z, x.y then x.y is returned or x if present, the smallest chain
 // that matches is returned
 AccessChain* FunctionType::find_partially_matching_moved_chain(AccessChain& chain, ValueKind first_value_kind) {
-    auto first_value = chain.values[0].get();
+    auto first_value = chain.values[0];
     AccessChain* smallest = nullptr;
     for(auto& moved_chain_ptr : moved_chains) {
         auto& moved_chain = *moved_chain_ptr;
@@ -312,13 +312,13 @@ AccessChain* FunctionType::find_partially_matching_moved_chain(AccessChain& chai
             continue;
         }
         auto& moved_chain_first = moved_chain.values[0];
-        if(first_value->is_equal(moved_chain_first.get(), first_value_kind, moved_chain_first->val_kind())) {
+        if(first_value->is_equal(moved_chain_first, first_value_kind, moved_chain_first->val_kind())) {
             const auto given_size = chain.values.size();
             auto matching = true;
             const auto less_size = std::min(moved_size, given_size);
             unsigned i = 1; // zero has already been checked
             while(i < less_size) {
-                if(!moved_chain.values[i]->is_equal(chain.values[i].get())) {
+                if(!moved_chain.values[i]->is_equal(chain.values[i])) {
                     matching = false;
                     break;
                 }

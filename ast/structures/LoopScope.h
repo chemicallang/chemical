@@ -24,7 +24,7 @@ public:
      * construct with given nodes
      * @param nodes
      */
-    LoopScope(std::vector<std::unique_ptr<ASTNode>> nodes, ASTNode* parent_node, CSTToken* token);
+    LoopScope(std::vector<ASTNode*> nodes, ASTNode* parent_node, CSTToken* token);
 
     /**
      * this just continuously interprets nodes in scope, without stopping unless user

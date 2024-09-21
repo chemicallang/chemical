@@ -88,13 +88,13 @@ public:
     void accept(Visitor *visitor) override;
 
     Value *holding_value() override {
-        return defValue ? defValue.get() : nullptr;
+        return defValue;
     }
 
     BaseType *known_type() override {
-        return type.get();
+        return type;
     }
 
-    [[nodiscard]] FunctionParam *copy() const;
+    [[nodiscard]] FunctionParam *copy(ASTAllocator& allocator) const;
 
 };

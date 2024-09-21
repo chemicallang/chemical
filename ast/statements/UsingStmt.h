@@ -16,7 +16,7 @@ public:
     CSTToken* token;
 
     UsingStmt(
-        std::vector<std::unique_ptr<ChainValue>> values,
+        std::vector<ChainValue*> values,
         ASTNode* parent_node,
         bool is_namespace,
         CSTToken* token
@@ -42,7 +42,7 @@ public:
         return chain.parent_node;
     }
 
-    void declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override;
+    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) override;
 
 #ifdef COMPILER_BUILD
 

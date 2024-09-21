@@ -25,22 +25,22 @@ void handle_error(void *opaque, const char *msg){
 
 CompilerBinderCommon::CompilerBinderCommon(
     CSTDiagnoser* diagnoser,
-    ASTAllocator<>& job_allocator,
-    ASTAllocator<>& mod_allocator
-) : converter("", false, "binder", global, job_allocator, mod_allocator), diagnoser(diagnoser), resolver(global, false), global(nullptr, nullptr) {
+    ASTAllocator& job_allocator,
+    ASTAllocator& mod_allocator
+) : converter("", false, "binder", global, job_allocator, mod_allocator), diagnoser(diagnoser), resolver(global, false, mod_allocator, job_allocator), global(nullptr, nullptr, mod_allocator) {
 
 }
 
 CompilerBinderTCC::CompilerBinderTCC(
     CSTDiagnoser* diagnoser,
     std::string exe_path,
-    ASTAllocator<>& job_allocator,
-    ASTAllocator<>& mod_allocator
-) : CompilerBinderCommon(diagnoser, job_allocator, mod_allocator), translator(global, nullptr), exe_path(std::move(exe_path)) {
+    ASTAllocator& job_allocator,
+    ASTAllocator& mod_allocator
+) : CompilerBinderCommon(diagnoser, job_allocator, mod_allocator), translator(global, nullptr, mod_allocator), exe_path(std::move(exe_path)) {
     translator.comptime_scope.prepare_top_level_namespaces(resolver);
 }
 
-std::vector<std::unique_ptr<ASTNode>> CompilerBinderCommon::parse(std::vector<CSTToken*>& tokens) {
+std::vector<ASTNode*> CompilerBinderCommon::parse(std::vector<CSTToken*>& tokens) {
 
     if(tokens.empty()) {
         return {};
@@ -75,11 +75,11 @@ std::vector<std::unique_ptr<ASTNode>> CompilerBinderCommon::parse(std::vector<CS
 
 }
 
-void to_cbi(CompilerBinderCommon* binder, const std::string& cbi_name, std::vector<std::unique_ptr<ASTNode>>& nodes) {
+void to_cbi(CompilerBinderCommon* binder, const std::string& cbi_name, std::vector<ASTNode*>& nodes) {
     auto found_cbi = binder->cbi.find(cbi_name);
     if(found_cbi != binder->cbi.end()) {
         for(auto& node : nodes) {
-            found_cbi->second.emplace_back(node.get());
+            found_cbi->second.emplace_back(node);
         }
     }
 }
@@ -109,7 +109,7 @@ void CompilerBinderCommon::create_cbi(const std::string &cbi_name) {
         auto dummy = dummy_token_at_start();
         diagnoser->error("CBI with name " + cbi_name + " already exists", &dummy);
     } else {
-        collected[cbi_name] = std::vector<std::unique_ptr<ASTNode>> {};
+        collected[cbi_name] = std::vector<ASTNode*> {};
         cbi[cbi_name] = {};
     }
 }
@@ -123,7 +123,7 @@ void CompilerBinderCommon::import_container(const std::string &cbi_name, const s
         auto cbi_found = cbi.find(cbi_name);
         if(cbi_found != cbi.end()) {
             for(auto& node : found->second) {
-                cbi_found->second.emplace_back(node.get());
+                cbi_found->second.emplace_back(node);
             }
         } else {
             auto dummy = dummy_token_at_start();

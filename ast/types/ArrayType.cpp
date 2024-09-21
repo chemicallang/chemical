@@ -2,6 +2,6 @@
 
 #include "ArrayType.h"
 
-void ArrayType::link(SymbolResolver &linker, std::unique_ptr<BaseType> &current) {
+void ArrayType::link(SymbolResolver &linker, BaseType*& current) {
     elem_type->link(linker, elem_type);
 }

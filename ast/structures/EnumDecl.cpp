@@ -4,13 +4,13 @@
 #include "compiler/SymbolResolver.h"
 #include "ast/types/IntType.h"
 
-std::unique_ptr<BaseType> EnumMember::create_value_type() {
-    return std::make_unique<IntType>(nullptr);
+BaseType* EnumMember::create_value_type(ASTAllocator& allocator) {
+    return new (allocator.allocate<IntType>()) IntType(nullptr);
 }
 
-hybrid_ptr<BaseType> EnumMember::get_value_type() {
-    return hybrid_ptr<BaseType> { (BaseType*) &IntType::instance, false };
-}
+//hybrid_ptr<BaseType> EnumMember::get_value_type() {
+//    return hybrid_ptr<BaseType> { (BaseType*) &IntType::instance, false };
+//}
 
 BaseType* EnumMember::known_type() {
     return (BaseType*) &IntType::instance;
@@ -21,21 +21,22 @@ ASTNode *EnumDeclaration::child(const std::string &name) {
     if(mem == members.end()) {
         return nullptr;
     } else {
-        return mem->second.get();
+        return mem->second;
     }
 }
 
-void EnumDeclaration::declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+void EnumDeclaration::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
     linker.declare_node(name, this, specifier, false);
 }
 
-std::unique_ptr<BaseType> EnumDeclaration::create_value_type() {
-    return std::make_unique<IntType>(nullptr);
+BaseType* EnumDeclaration::create_value_type(ASTAllocator& allocator) {
+    return new (allocator.allocate<IntType>()) IntType(nullptr);
+//    return std::make_unique<IntType>(nullptr);
 }
 
-hybrid_ptr<BaseType> EnumDeclaration::get_value_type() {
-    return hybrid_ptr<BaseType> { &type, false };
-}
+//hybrid_ptr<BaseType> EnumDeclaration::get_value_type() {
+//    return hybrid_ptr<BaseType> { &type, false };
+//}
 
 BaseType* EnumDeclaration::known_type() {
     return &type;

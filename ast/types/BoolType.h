@@ -39,8 +39,8 @@ public:
         return type->kind() == kind();
     }
 
-    virtual BoolType* copy() const {
-        return new BoolType(token);
+    virtual BoolType* copy(ASTAllocator& allocator) const {
+        return new (allocator.allocate<BoolType>()) BoolType(token);
     }
 
 #ifdef COMPILER_BUILD

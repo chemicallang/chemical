@@ -23,7 +23,7 @@
 
 void StructDefinition::struct_func_gen(
     Codegen& gen,
-    const std::vector<std::unique_ptr<FunctionDeclaration>>& funcs,
+    const std::vector<FunctionDeclaration*>& funcs,
     bool declare
 ) {
     if(declare) {
@@ -43,8 +43,8 @@ void StructDefinition::struct_func_gen(
     } else {
         for (auto& function: funcs) {
             if (function->has_annotation(AnnotationKind::Override)) {
-                if (!llvm_override(gen, function.get())) {
-                    gen.error("Failed to override the function", (AnnotableNode*) function.get());
+                if (!llvm_override(gen, function)) {
+                    gen.error("Failed to override the function", (AnnotableNode*) function);
                 }
                 continue;
             }
@@ -145,10 +145,10 @@ void StructDefinition::code_gen_external_declare(Codegen &gen) {
     } else {
         if(functions().empty()) return;
         // get the total number of iterations that already exist for each function
-        const auto total_existing_itr = generic_llvm_data[functions().front().get()].size();
+        const auto total_existing_itr = generic_llvm_data[functions().front()].size();
         // clear the existing iteration's llvm_data since that's out of module
         for(auto& func : functions()) {
-            generic_llvm_data[func.get()].clear();
+            generic_llvm_data[func].clear();
         }
         int16_t i = 0;
         const auto prev_active_iteration = active_iteration;
@@ -196,7 +196,7 @@ llvm::Value* BaseDefMember::llvm_load(Codegen &gen) {
     return Value::load_value(gen, known_type(), llvm_type(gen), pointer);
 }
 
-llvm::Type* StructMember::llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned int index) {
+llvm::Type* StructMember::llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) {
     return type->llvm_chain_type(gen, values, index);
 }
 
@@ -248,7 +248,7 @@ llvm::Type *StructDefinition::llvm_param_type(Codegen &gen) {
     return StructType::llvm_param_type(gen);
 }
 
-llvm::Type *StructDefinition::llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned int index) {
+llvm::Type *StructDefinition::llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) {
     return StructType::llvm_chain_type(gen, values, index);
 }
 
@@ -274,27 +274,20 @@ void StructMember::accept(Visitor *visitor) {
     visitor->visit(this);
 }
 
-std::unique_ptr<BaseType> StructMember::create_value_type() {
-    return std::unique_ptr<BaseType>(type->copy());
+BaseType* StructMember::create_value_type(ASTAllocator& allocator) {
+    return type->copy(allocator);
 }
 
-hybrid_ptr<BaseType> StructMember::get_value_type() {
-    return hybrid_ptr<BaseType> { type.get(), false };
+BaseDefMember *StructMember::copy_member(ASTAllocator& allocator) {
+    Value* def_value = defValue ? defValue->copy(allocator) : nullptr;
+    return new (allocator.allocate<StructMember>()) StructMember(name, type->copy(allocator), def_value, parent_node, token);
 }
 
-BaseDefMember *StructMember::copy_member() {
-    std::unique_ptr<Value> def_value = nullptr;
-    if(defValue) {
-        def_value.reset(defValue->copy());
-    }
-    return new StructMember(name, std::unique_ptr<BaseType>(type->copy()), std::move(def_value), parent_node, token);
-}
-
-void StructMember::declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+void StructMember::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
     linker.declare(name, this);
 }
 
-void StructMember::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+void StructMember::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     linker.declare(name, this);
     type->link(linker, type);
     if (defValue) {
@@ -302,27 +295,27 @@ void StructMember::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTN
     }
 }
 
-void UnnamedStruct::redeclare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+void UnnamedStruct::redeclare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
     linker.declare(name, this);
 }
 
-void UnnamedStruct::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+void UnnamedStruct::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     linker.scope_start();
     VariablesContainer::declare_and_link(linker, node_ptr);
     linker.scope_end();
     linker.declare(name, this);
 }
 
-BaseDefMember *UnnamedStruct::copy_member() {
-    auto unnamed = new UnnamedStruct(name, parent_node, token);
+BaseDefMember *UnnamedStruct::copy_member(ASTAllocator& allocator) {
+    auto unnamed = new (allocator.allocate<UnnamedStruct>()) UnnamedStruct(name, parent_node, token);
     for(auto& variable : variables) {
-        unnamed->variables[variable.first] = std::unique_ptr<BaseDefMember>(variable.second->copy_member());
+        unnamed->variables[variable.first] = variable.second->copy_member(allocator);
     }
     return unnamed;
 }
 
-VariablesContainer *UnnamedStruct::copy_container() {
-    return (VariablesContainer*) copy_member();
+VariablesContainer *UnnamedStruct::copy_container(ASTAllocator& allocator) {
+    return (VariablesContainer*) copy_member(allocator);
 }
 
 ASTNode *StructMember::child(const std::string &childName) {
@@ -353,14 +346,22 @@ StructDefinition::StructDefinition(
         ASTNode* parent_node,
         CSTToken* token,
         AccessSpecifier specifier
-) : ExtendableMembersContainerNode(std::move(name)), parent_node(parent_node), token(token), specifier(specifier) {}
+) : ExtendableMembersContainerNode(std::move(name)), parent_node(parent_node),
+    token(token), specifier(specifier), linked_type("", nullptr) {
 
-BaseType *StructDefinition::copy() const {
-    return new LinkedType(name, (ASTNode *) this, token);
 }
 
-BaseType *UnnamedStruct::copy() const {
-    return new LinkedType(name, (ASTNode *) this, token);
+BaseType *StructDefinition::copy(ASTAllocator& allocator) const {
+    return new (allocator.allocate<LinkedType>()) LinkedType(name, (ASTNode *) this, token);
+}
+
+BaseType* UnnamedStruct::create_value_type(ASTAllocator &allocator) {
+    return new (allocator.allocate<LinkedType>()) LinkedType(name, (ASTNode *) this, token);
+}
+
+BaseType *UnnamedStruct::copy(ASTAllocator& allocator) const {
+    // this is UnionType's copy method
+    return new (allocator.allocate<LinkedType>()) LinkedType(name, (ASTNode *) this, token);
 }
 
 bool StructMember::requires_destructor() {
@@ -383,50 +384,53 @@ void StructDefinition::accept(Visitor *visitor) {
     visitor->visit(this);
 }
 
-void StructDefinition::declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+void StructDefinition::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
+    linked_type.type = name;
+    linked_type.linked = this;
     linker.declare_node(name, this, specifier, true);
     is_direct_init = has_annotation(AnnotationKind::DirectInit);
 }
 
-void StructDefinition::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+void StructDefinition::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
+    auto& allocator = linker.allocator;
     bool has_destructor = false;
     bool has_clear_fn = false;
     bool has_copy_fn = false;
     bool has_move_fn = false;
     for(auto& func : functions()) {
         if(func->has_annotation(AnnotationKind::Constructor)) {
-            func->ensure_constructor(this);
+            func->ensure_constructor(allocator, this);
         }
         if(func->has_annotation(AnnotationKind::Delete)) {
-            func->ensure_destructor(this);
+            func->ensure_destructor(allocator, this);
             has_destructor = true;
         }
         if(func->has_annotation(AnnotationKind::Clear)) {
-            func->ensure_clear_fn(this);
+            func->ensure_clear_fn(allocator, this);
             has_clear_fn = true;
         }
         if(func->has_annotation(AnnotationKind::Move)) {
-            func->ensure_move_fn(this);
+            func->ensure_move_fn(allocator, this);
             has_move_fn = true;
         }
         if(func->has_annotation(AnnotationKind::Copy)) {
-            func->ensure_copy_fn(this);
+            func->ensure_copy_fn(allocator, this);
             has_copy_fn = true;
         }
     }
     MembersContainer::declare_and_link(linker, node_ptr);
     register_use_to_inherited_interfaces(this);
     if(!has_copy_fn && any_member_has_copy_func()) {
-        create_def_copy_fn(linker);
+        create_def_copy_fn(allocator, linker);
     }
     if(!has_clear_fn && any_member_has_clear_func()) {
-        create_def_clear_fn(linker);
+        create_def_clear_fn(allocator, linker);
     }
     if(!has_move_fn && any_member_has_pre_move_func()) {
-        create_def_move_fn(linker);
+        create_def_move_fn(allocator, linker);
     }
     if(!has_destructor && any_member_has_destructor()) {
-        create_def_destructor(linker);
+        create_def_destructor(allocator, linker);
     }
 //    if(init_values_req_size() != 0) {
 //        for (auto& func: functions()) {
@@ -450,31 +454,23 @@ ASTNode *StructDefinition::child(const std::string &name) {
     return nullptr;
 }
 
-VariablesContainer *StructDefinition::copy_container() {
-    auto def = new StructDefinition(name, parent_node, token);
+VariablesContainer *StructDefinition::copy_container(ASTAllocator& allocator) {
+    auto def = new (allocator.allocate<StructDefinition>()) StructDefinition(name, parent_node, token);
     for(auto& inherits : inherited) {
-        def->inherited.emplace_back(inherits->copy());
+        def->inherited.emplace_back(inherits->copy(allocator));
     }
     for(auto& variable : variables) {
-        def->variables[variable.first] = std::unique_ptr<BaseDefMember>(variable.second->copy_member());
+        def->variables[variable.first] = variable.second->copy_member(allocator);
     }
     return def;
 }
 
-std::unique_ptr<BaseType> StructDefinition::create_value_type() {
-    return std::make_unique<LinkedType>(name, this, nullptr);
-}
-
-hybrid_ptr<BaseType> StructDefinition::get_value_type() {
-    return hybrid_ptr<BaseType> { this, false };
+BaseType* StructDefinition::create_value_type(ASTAllocator& allocator) {
+    return &linked_type;
 }
 
 BaseType* StructDefinition::known_type() {
-    return this;
-}
-
-hybrid_ptr<BaseType> UnnamedStruct::get_value_type() {
-    return hybrid_ptr<BaseType> { this, false };
+    return &linked_type;
 }
 
 ValueType StructDefinition::value_type() const {

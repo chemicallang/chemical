@@ -31,7 +31,7 @@ llvm::AllocaInst* LambdaFunction::capture_struct(Codegen &gen) {
     auto capturedAlloca = gen.builder->CreateAlloca(capturedStructType);
     unsigned i = 0;
     while(i < captureList.size()) {
-        auto cap = captureList[i].get();
+        auto cap = captureList[i];
         auto ptr = gen.builder->CreateStructGEP(capturedStructType, capturedAlloca, i);
         if(cap->capture_by_ref) {
             gen.builder->CreateStore(cap->linked->llvm_pointer(gen), ptr);
@@ -77,17 +77,17 @@ llvm::Type *LambdaFunction::capture_struct_type(Codegen &gen) {
 
 #endif
 
-std::unique_ptr<BaseType> LambdaFunction::create_type() {
-    auto func_type = std::unique_ptr<FunctionType>((FunctionType*) FunctionType::copy());
+BaseType* LambdaFunction::create_type(ASTAllocator& allocator) {
+    auto func_type = (FunctionType*) FunctionType::copy(allocator);
     func_type->isCapturing = !captureList.empty();
     return func_type;
 }
 
-hybrid_ptr<BaseType> LambdaFunction::get_base_type() {
-    auto func_type = (FunctionType*) FunctionType::copy();
-    func_type->isCapturing = !captureList.empty();
-    return hybrid_ptr<BaseType> { func_type, true };
-}
+//hybrid_ptr<BaseType> LambdaFunction::get_base_type() {
+//    auto func_type = (FunctionType*) FunctionType::copy();
+//    func_type->isCapturing = !captureList.empty();
+//    return hybrid_ptr<BaseType> { func_type, true };
+//}
 
 LambdaFunction::LambdaFunction(
         std::vector<CapturedVariable*> captureList,
@@ -99,19 +99,19 @@ LambdaFunction::LambdaFunction(
 
 }
 
-BaseType* find_return_type(std::vector<std::unique_ptr<ASTNode>>& nodes) {
+BaseType* find_return_type(ASTAllocator& allocator, std::vector<ASTNode*>& nodes) {
     for(auto& node : nodes) {
         if(node->as_return() != nullptr) {
             auto returnStmt = node->as_return();
             if(returnStmt->value) {
-                return returnStmt->value->create_type().release();
+                return returnStmt->value->create_type(allocator);
             } else {
                 return new VoidType(nullptr);
             }
         } else {
             const auto loop_ast = node->as_loop_ast();
             if(loop_ast) {
-                auto found = find_return_type(node->as_loop_ast()->body.nodes);
+                auto found = find_return_type(allocator, node->as_loop_ast()->body.nodes);
                 if (found != nullptr) {
                     return found;
                 }
@@ -123,10 +123,10 @@ BaseType* find_return_type(std::vector<std::unique_ptr<ASTNode>>& nodes) {
 
 void link_params_and_caps(LambdaFunction* fn, SymbolResolver &linker) {
     for(auto& cap : fn->captureList) {
-        cap->declare_and_link(linker, (std::unique_ptr<ASTNode>&) cap);
+        cap->declare_and_link(linker, (ASTNode*&) cap);
     }
     for (auto &param : fn->params) {
-        param->declare_and_link(linker, (std::unique_ptr<ASTNode>&) param);
+        param->declare_and_link(linker, (ASTNode*&) param);
     }
 }
 
@@ -137,7 +137,7 @@ void link_full(LambdaFunction* fn, SymbolResolver &linker) {
     linker.scope_end();
 }
 
-bool LambdaFunction::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr, BaseType *expected_type) {
+bool LambdaFunction::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
 
     auto prev_func_type = linker.current_func_type;
     linker.current_func_type = this;
@@ -154,15 +154,15 @@ bool LambdaFunction::link(SymbolResolver &linker, std::unique_ptr<Value>& value_
         link_full(this, linker);
 
         // finding return type
-        auto found_return_type = find_return_type(scope.nodes);
-        returnType = std::unique_ptr<BaseType>(found_return_type);
+        auto found_return_type = find_return_type(linker.allocator, scope.nodes);
+        returnType = found_return_type;
 
     } else {
 
         if(!params.empty()) {
             auto& param = params[0];
             if((param->name == "self" || param->name == "this") && (!param->type || param->type->kind() == BaseTypeKind::Void)) {
-                param->type = func_type->params[0]->type->copy_unique();
+                param->type = func_type->params[0]->type;
             }
         }
 
@@ -177,7 +177,7 @@ bool LambdaFunction::link(SymbolResolver &linker, std::unique_ptr<Value>& value_
 
 }
 
-void link_given_params(SymbolResolver& resolver, const std::vector<std::unique_ptr<FunctionParam>>& params) {
+void link_given_params(SymbolResolver& resolver, const std::vector<FunctionParam*>& params) {
     for(auto& param : params) {
         if(param->type) {
             param->type->link(resolver, param->type);
@@ -185,7 +185,7 @@ void link_given_params(SymbolResolver& resolver, const std::vector<std::unique_p
     }
 }
 
-void copy_func_params_types(const std::vector<std::unique_ptr<FunctionParam>>& from_params, std::vector<std::unique_ptr<FunctionParam>>& to_params, SymbolResolver& resolver, Value* debug_value) {
+void copy_func_params_types(const std::vector<FunctionParam*>& from_params, std::vector<FunctionParam*>& to_params, SymbolResolver& resolver, Value* debug_value) {
     if(to_params.size() > from_params.size()) {
         resolver.error("Lambda function type expects " + std::to_string(from_params.size()) + " however given " + std::to_string(to_params.size()), debug_value);
         return;
@@ -193,14 +193,14 @@ void copy_func_params_types(const std::vector<std::unique_ptr<FunctionParam>>& f
     auto total = from_params.size();
     auto start = 0;
     while(start < total) {
-        const auto from_param = from_params[start].get();
+        const auto from_param = from_params[start];
         if(start >= to_params.size()) {
             to_params.emplace_back(nullptr);
         }
-        const auto to_param = to_params[start].get();
+        const auto to_param = to_params[start];
         if(!to_param->type) {
-            to_param->type = std::unique_ptr<BaseType>(from_param->type->copy());
-        } else if(!to_param->type->is_same(from_param->type.get())) {
+            to_param->type = from_param->type->copy(resolver.allocator);
+        } else if(!to_param->type->is_same(from_param->type)) {
             resolver.error("Lambda function param at index " + std::to_string(start) + " with type " + from_param->type->representation() + ", redeclared with type " + to_param->type->representation(), debug_value);
         }
         start++;
@@ -211,8 +211,8 @@ bool LambdaFunction::link(SymbolResolver &linker, FunctionType* func_type) {
     link_given_params(linker, params);
     copy_func_params_types(func_type->params, params, linker, this);
     if(!returnType) {
-        returnType = std::unique_ptr<BaseType>(func_type->returnType->copy());
-    } else if(!returnType->is_same(func_type->returnType.get())) {
+        returnType = func_type->returnType->copy(linker.allocator);
+    } else if(!returnType->is_same(func_type->returnType)) {
         linker.error("Lambda function type expected return type to be " + func_type->returnType->representation() + " but got lambda with return type " + returnType->representation(), (Value*) this);
     }
     isCapturing = func_type->isCapturing;

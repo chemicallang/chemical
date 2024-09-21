@@ -55,17 +55,17 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
         if(!pointee) {
             return nullptr;
         }
-        return new PointerType(std::unique_ptr<BaseType>(pointee), nullptr);
+        return new (allocator.allocate<PointerType>()) PointerType(pointee, nullptr);
     }
     if(canon_ptr != ptr) { // reference
         if(canon_ptr->isStructureType()) {
             return make_type(&canonical);
         }
-        return new LinkedType(type->getAsString(), nullptr);
+        return new (allocator.allocate<LinkedType>()) LinkedType(type->getAsString(), nullptr);
     }
     if(ptr->isBuiltinType()) {
         auto builtIn = static_cast<clang::BuiltinType*>(const_cast<clang::Type*>(ptr));
-        auto created = type_makers[builtIn->getKind()](builtIn);
+        auto created = type_makers[builtIn->getKind()](allocator, builtIn);
         if(!created) {
             error("builtin type maker failed with kind " + std::to_string(builtIn->getKind()) + " with representation " + builtIn->getName(clang::PrintingPolicy{clang::LangOptions{}}).str() + " with actual " + type->getAsString());
         }
@@ -73,7 +73,7 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
     } else if(ptr->isStructureType()){
         auto str_type = ptr->getAsStructureType();
         auto decl = str_type->getAsRecordDecl();
-        return new LinkedType(decl->getNameAsString(), nullptr);
+        return new (allocator.allocate<LinkedType>()) LinkedType(decl->getNameAsString(), nullptr);
     }
 //    else if(ptr->isArrayType()) { // couldn't make use of it
 //        auto point = ptr->getAsArrayTypeUnsafe();
@@ -91,25 +91,25 @@ BaseType* CTranslator::make_type(clang::QualType* type) {
 }
 
 EnumDeclaration* CTranslator::make_enum(clang::EnumDecl* decl) {
-    auto enum_decl = new EnumDeclaration(decl->getNameAsString(), {}, parent_node, nullptr);
+    auto enum_decl = new (allocator.allocate<EnumDeclaration>()) EnumDeclaration(decl->getNameAsString(), {}, parent_node, nullptr);
     std::unordered_map<std::string, std::unique_ptr<EnumMember>> members;
     unsigned index = 0;
     for(auto mem : decl->enumerators()) {
-        enum_decl->members[mem->getNameAsString()] = std::make_unique<EnumMember>(mem->getNameAsString(), index, enum_decl, nullptr);
+        enum_decl->members[mem->getNameAsString()] = new (allocator.allocate<EnumMember>()) EnumMember(mem->getNameAsString(), index, enum_decl, nullptr);
         index++;
     }
     return enum_decl;
 }
 
 StructDefinition* CTranslator::make_struct(clang::RecordDecl* decl) {
-    auto def = new StructDefinition(decl->getNameAsString(), parent_node, nullptr);
+    auto def = new (allocator.allocate<StructDefinition>()) StructDefinition(decl->getNameAsString(), parent_node, nullptr);
     for(auto str : decl->fields()) {
         auto field_type = str->getType();
         auto field_type_conv = make_type(&field_type);
         if(!field_type_conv) {
             return nullptr;
         }
-        def->variables[str->getNameAsString()] = std::make_unique<StructMember>(str->getNameAsString(), std::unique_ptr<BaseType>(field_type_conv), nullptr, def, nullptr);
+        def->variables[str->getNameAsString()] = new (allocator.allocate<StructMember>()) StructMember(str->getNameAsString(), field_type_conv, nullptr, def, nullptr);
     }
     return def;
 }
@@ -118,7 +118,7 @@ TypealiasStatement* CTranslator::make_typealias(clang::TypedefDecl* decl) {
     auto decl_type = decl->getUnderlyingType();
     auto type = make_type(&decl_type);
     if(type == nullptr) return nullptr;
-    return new TypealiasStatement(decl->getNameAsString(), std::unique_ptr<BaseType>(type), parent_node, nullptr);
+    return new (allocator.allocate<TypealiasStatement>()) TypealiasStatement(decl->getNameAsString(), type, parent_node, nullptr);
 }
 
 Expression* CTranslator::make_expr(clang::Expr* expr) {
@@ -129,18 +129,14 @@ Expression* CTranslator::make_expr(clang::Expr* expr) {
 VarInitStatement* CTranslator::make_var_init(clang::VarDecl* decl) {
     auto type = decl->getType();
     auto made_type = make_type(&type);
-    std::unique_ptr<Value> initial = nullptr;
     auto initial_value = (Value*) make_expr(decl->getInit());
-    if(initial_value) {
-        initial.reset(initial_value);
-    }
-    return new VarInitStatement(false, decl->getNameAsString(), std::unique_ptr<BaseType>(made_type), std::move(initial), parent_node, nullptr);
+    return new (allocator.allocate<VarInitStatement>()) VarInitStatement(false, decl->getNameAsString(), made_type, initial_value, parent_node, nullptr);
 }
 
 FunctionDeclaration* CTranslator::make_func(clang::FunctionDecl* func_decl) {
     // Check if the declaration is for the printf function
     // Extract function parameters
-    std::vector<std::unique_ptr<FunctionParam>> params;
+    std::vector<FunctionParam*> params;
     unsigned index = 0;
     bool skip_fn = false;
     for (const auto *param: func_decl->parameters()) {
@@ -154,9 +150,9 @@ FunctionDeclaration* CTranslator::make_func(clang::FunctionDecl* func_decl) {
         if(param_name.empty()) {
             param_name = "_";
         }
-        params.emplace_back(new FunctionParam(
+        params.emplace_back(new (allocator.allocate<FunctionParam>()) FunctionParam(
                 param_name,
-                std::unique_ptr<BaseType>(chem_type),
+                chem_type,
                 index,
                 nullptr,
                 nullptr,
@@ -173,10 +169,10 @@ FunctionDeclaration* CTranslator::make_func(clang::FunctionDecl* func_decl) {
         return nullptr;
     }
     dispatch_before();
-    auto decl = new FunctionDeclaration(
+    auto decl = new (allocator.allocate<FunctionDeclaration>()) FunctionDeclaration(
             func_decl->getNameAsString(),
             std::move(params),
-            std::unique_ptr<BaseType>(chem_type),
+            chem_type,
             func_decl->isVariadic(),
             parent_node,
             nullptr,
@@ -524,8 +520,12 @@ void freeCharPointers(char **begin, char **end) {
     delete[] begin; // Free memory for the array of char pointers
 }
 
-std::vector<std::unique_ptr<ASTNode>>
-TranslateC(const char *exe_path, const char *abs_path, const char *resources_path) {
+std::vector<ASTNode*> TranslateC(
+        ASTAllocator& allocator,
+        const char *exe_path,
+        const char *abs_path,
+        const char *resources_path
+) {
 //    std::cout << "[TranslateC] Processing " << abs_path << " with resources " << resources_path << " & compiler at "<< exe_path << std::endl;
     std::vector<std::string> args;
     args.emplace_back(exe_path);
@@ -563,7 +563,7 @@ TranslateC(const char *exe_path, const char *abs_path, const char *resources_pat
         diags.get()->dump();
         return {};
     }
-    CTranslator translator;
+    CTranslator translator(allocator);
     Translate(&translator, unit);
     delete unit;
     if (!translator.errors.empty()) {

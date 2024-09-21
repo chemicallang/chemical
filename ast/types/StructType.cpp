@@ -11,9 +11,9 @@ bool StructType::equals(StructType *type) {
     auto itr_first = elem_types.begin();
     auto itr_second = other_elem_types.begin();
     while(i < elem_types.size()) {
-        auto first = itr_first->second->get_value_type();
-        auto second = itr_second->second->get_value_type();
-        if(!first->is_same(second.get())) {
+        auto first = itr_first->second->known_type();
+        auto second = itr_second->second->known_type();
+        if(!first->is_same(second)) {
             return false;
         }
         itr_first++;

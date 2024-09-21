@@ -43,8 +43,8 @@ public:
     }
 
     [[nodiscard]]
-    ULongType *copy() const override {
-        return new ULongType(is64Bit, token);
+    ULongType *copy(ASTAllocator& allocator) const override {
+        return new (allocator.allocate<ULongType>()) ULongType(is64Bit, token);
     }
 
 };

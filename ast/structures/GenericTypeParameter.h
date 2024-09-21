@@ -9,7 +9,7 @@ public:
 
     std::string identifier;
     BaseType* def_type;
-    std::vector<std::unique_ptr<BaseType>> usage;
+    std::vector<BaseType*> usage;
     int16_t active_iteration = -1; // <-- index of active type in usage vector
     ASTNode* parent_node;
     unsigned param_index = 0; // <-- index in the generic type parameters
@@ -38,16 +38,12 @@ public:
         visitor->visit(this);
     }
 
-    void declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override;
+    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) override;
 
-    void register_usage(BaseType* type);
+    void register_usage(ASTAllocator& allocator, BaseType* type);
 
-    hybrid_ptr<BaseType> get_value_type() override {
-        return hybrid_ptr<BaseType> { usage[active_iteration].get(), false };
-    }
-
-    std::unique_ptr<BaseType> create_value_type() override {
-        return std::unique_ptr<BaseType>(usage[active_iteration]->copy());
+    BaseType* create_value_type(ASTAllocator& allocator) override {
+        return usage[active_iteration]->copy(allocator);
     }
 
     [[nodiscard]]
@@ -72,7 +68,7 @@ public:
         if(active_iteration == -1) {
             return nullptr;
         } else {
-            return usage[active_iteration].get();
+            return usage[active_iteration];
         }
     }
 
@@ -102,7 +98,7 @@ public:
         return usage[active_iteration]->llvm_func_type(gen);
     }
 
-    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned int index) override {
+    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) override {
         return usage[active_iteration]->llvm_chain_type(gen, values, index);
     }
 

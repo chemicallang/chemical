@@ -61,11 +61,11 @@ llvm::Type* VariantDefinition::llvm_param_type(Codegen &gen) {
     return gen.builder->getPtrTy();
 }
 
-llvm::Type* VariantDefinition::llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned int index) {
+llvm::Type* VariantDefinition::llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) {
     auto member = variables.begin() + index;
     if(index + 1 < values.size()) {
         auto linked = values[index + 1]->linked_node();
-        if(linked && member->second.get() == linked) {
+        if(linked && member->second == linked) {
             std::vector<llvm::Type *> struct_type{member->second->llvm_chain_type(gen, values, index + 1)};
             return llvm::StructType::get(*gen.ctx, struct_type);
         }
@@ -242,41 +242,42 @@ ASTNode* VariantDefinition::child(const std::string &child_name) {
     return ExtendableMembersContainerNode::child(child_name);
 }
 
-void VariantDefinition::declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+void VariantDefinition::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
     linker.declare_node(name, this, specifier, true);
 }
 
-void VariantDefinition::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+void VariantDefinition::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
+    auto& allocator = linker.allocator;
     bool has_destructor = false;
     bool has_clear_fn = false;
     bool has_move_fn = false;
     for(auto& func : functions()) {
         if(func->has_annotation(AnnotationKind::Delete)) {
-            func->ensure_destructor(this);
+            func->ensure_destructor(allocator, this);
             has_destructor = true;
         }
         if(func->has_annotation(AnnotationKind::Clear)) {
-            func->ensure_clear_fn(this);
+            func->ensure_clear_fn(allocator, this);
             has_clear_fn = true;
         }
         if(func->has_annotation(AnnotationKind::Move)) {
-            func->ensure_move_fn(this);
+            func->ensure_move_fn(allocator, this);
             has_move_fn = true;
         }
         if(func->has_annotation(AnnotationKind::Copy)) {
-            func->ensure_copy_fn(this);
+            func->ensure_copy_fn(allocator, this);
         }
     }
     MembersContainer::declare_and_link(linker, node_ptr);
 //    register_use_to_inherited_interfaces(this);
-    if(!has_clear_fn && requires_clear_fn()) {
-        create_def_clear_fn(linker);
+    if(!has_clear_fn && any_member_has_clear_func()) {
+        create_def_clear_fn(allocator, linker);
     }
-    if(!has_move_fn && requires_move_fn()) {
-        create_def_move_fn(linker);
+    if(!has_move_fn && any_member_has_pre_move_func()) {
+        create_def_move_fn(allocator, linker);
     }
-    if(!has_destructor && requires_destructor()) {
-        create_def_destructor(linker);
+    if(!has_destructor && any_member_has_destructor()) {
+        create_def_destructor(allocator, linker);
     }
 }
 
@@ -306,13 +307,13 @@ uint64_t VariantDefinition::byte_size(bool is64Bit) {
     return large->byte_size(is64Bit) + type_size;
 }
 
-std::unique_ptr<BaseType> VariantDefinition::create_value_type() {
-    return std::make_unique<LinkedType>(name, this, nullptr);
+BaseType* VariantDefinition::create_value_type(ASTAllocator& allocator) {
+    return new (allocator.allocate<LinkedType>()) LinkedType(name, this, nullptr);
 }
 
-hybrid_ptr<BaseType> VariantDefinition::get_value_type() {
-    return hybrid_ptr<BaseType> { create_value_type().release(), true };
-}
+//hybrid_ptr<BaseType> VariantDefinition::get_value_type() {
+//    return hybrid_ptr<BaseType> { create_value_type(), true };
+//}
 
 int16_t VariantDefinition::register_call(SymbolResolver& resolver, VariantCall* call, BaseType* expected_type) {
 
@@ -322,14 +323,14 @@ int16_t VariantDefinition::register_call(SymbolResolver& resolver, VariantCall* 
     // set all to default type (if default type is not present, it would automatically be nullptr)
     unsigned i = 0;
     while(i < total) {
-        generic_args[i] = generic_params[i]->def_type.get();
+        generic_args[i] = generic_params[i]->def_type;
         i++;
     }
 
     // set given generic args to generic parameters
     i = 0;
     for(auto& arg : call->generic_list) {
-        generic_args[i] = arg.get();
+        generic_args[i] = arg;
         i++;
     }
 
@@ -344,7 +345,7 @@ int16_t VariantDefinition::register_call(SymbolResolver& resolver, VariantCall* 
         if(type->linked_node() == this) {
             i = 0;
             for(auto& arg : type->types) {
-                generic_args[i] = arg.get();
+                generic_args[i] = arg;
                 i++;
             }
         }
@@ -369,10 +370,10 @@ VariantMember::VariantMember(
 
 }
 
-BaseDefMember *VariantMember::copy_member() {
-    const auto member = new VariantMember(name, parent_node, token);
+BaseDefMember *VariantMember::copy_member(ASTAllocator& allocator) {
+    const auto member = new (allocator.allocate<VariantMember>()) VariantMember(name, parent_node, token);
     for(auto& value : values) {
-        member->values[value.first] = std::unique_ptr<VariantMemberParam>(value.second->copy());
+        member->values[value.first] = value.second->copy(allocator);
     }
     return member;
 }
@@ -381,13 +382,13 @@ void VariantMember::accept(Visitor *visitor) {
 
 }
 
-void VariantMember::declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+void VariantMember::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
 
 }
 
-void VariantMember::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+void VariantMember::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     for(auto& value : values) {
-        value.second->declare_and_link(linker, (std::unique_ptr<ASTNode>&) value.second);
+        value.second->declare_and_link(linker, (ASTNode*&) value.second);
     }
 }
 
@@ -401,7 +402,7 @@ ASTNode *VariantMember::child(const std::string &name) {
 
 ASTNode *VariantMember::child(unsigned int index) {
     if(index >= values.size()) return nullptr;
-    return (values.begin() + index)->second.get();
+    return (values.begin() + index)->second;
 }
 
 BaseType* VariantMember::child_type(unsigned int index) {
@@ -449,13 +450,13 @@ BaseType* VariantMember::known_type() {
     return &ref_type;
 }
 
-std::unique_ptr<BaseType> VariantMember::create_value_type() {
-    return std::make_unique<LinkedType>(name, this, nullptr);
+BaseType* VariantMember::create_value_type(ASTAllocator& allocator) {
+    return new (allocator.allocate<LinkedType>()) LinkedType(name, this, nullptr);
 }
 
-hybrid_ptr<BaseType> VariantMember::get_value_type() {
-    return hybrid_ptr<BaseType> { &ref_type, false };
-}
+//hybrid_ptr<BaseType> VariantMember::get_value_type() {
+//    return hybrid_ptr<BaseType> { &ref_type, false };
+//}
 
 ValueType VariantMember::value_type() const {
     return ValueType::Struct;
@@ -476,11 +477,11 @@ VariantMemberParam::VariantMemberParam(
 
 }
 
-VariantMemberParam* VariantMemberParam::copy() {
-    return new VariantMemberParam(name, index,std::unique_ptr<BaseType>(type->copy()), std::unique_ptr<Value>(def_value ? def_value->copy() : nullptr), parent_node, token);
+VariantMemberParam* VariantMemberParam::copy(ASTAllocator& allocator) {
+    return new (allocator.allocate<VariantMemberParam>()) VariantMemberParam(name, index, type->copy(allocator), def_value ? def_value->copy(allocator) : nullptr, parent_node, token);
 }
 
-void VariantMemberParam::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+void VariantMemberParam::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     type->link(linker, type);
     if(def_value) {
         def_value->link(linker, def_value);
@@ -502,13 +503,13 @@ ASTNode* VariantMemberParam::child(const std::string &varName) {
     return linked_node->child(varName);
 }
 
-VariantCase::VariantCase(std::unique_ptr<AccessChain> _chain, ASTDiagnoser& diagnoser, SwitchStatement* statement, CSTToken* token) : chain(std::move(_chain)), switch_statement(statement), token(token) {
+VariantCase::VariantCase(AccessChain* _chain, ASTDiagnoser& diagnoser, SwitchStatement* statement, CSTToken* token) : chain(_chain), switch_statement(statement), token(token) {
     const auto func_call = chain->values.back()->as_func_call();
     if(func_call) {
         for(auto& value : func_call->values) {
             const auto id = value->as_identifier();
             if(!id) {
-                diagnoser.error("switch variant case with a function call doesn't contain identifiers '" + chain->chain_representation() + "', in question " + value->representation(), value.get());
+                diagnoser.error("switch variant case with a function call doesn't contain identifiers '" + chain->chain_representation() + "', in question " + value->representation(), value);
                 return;
             }
             identifier_list.emplace_back(id->value, this, token);
@@ -518,25 +519,25 @@ VariantCase::VariantCase(std::unique_ptr<AccessChain> _chain, ASTDiagnoser& diag
     }
 }
 
-bool VariantCase::link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *expected_type) {
+bool VariantCase::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
     // access chain in variant case allows no replacement of access chain, so nullptr in value_ptr
     chain->link(linker, (BaseType*) nullptr, nullptr);
     // TODO variant case doesn't allow replacing it's identifier list
-    std::unique_ptr<ASTNode> dummy;
+    ASTNode* dummy;
     for(auto& variable : identifier_list) {
         variable.declare_and_link(linker, dummy);
     }
     return true;
 }
 
-void VariantCaseVariable::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+void VariantCaseVariable::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     const auto member = variant_case->chain->linked_node()->as_variant_member();
     auto node = member->values.find(name);
     if(node == member->values.end()) {
         linker.error("variant case member variable not found in switch statement, name '" + name + "' not found", this);
         return;
     }
-    member_param = node->second.get();
+    member_param = node->second;
     linker.declare(name, this);
 }
 
@@ -556,16 +557,16 @@ ASTNode* VariantCaseVariable::parent() {
     return (ASTNode*) variant_case->switch_statement;
 }
 
-hybrid_ptr<BaseType> VariantCaseVariable::get_value_type() {
-    return hybrid_ptr<BaseType> { member_param->type.get(), false };
-}
+//hybrid_ptr<BaseType> VariantCaseVariable::get_value_type() {
+//    return hybrid_ptr<BaseType> { member_param->type.get(), false };
+//}
 
-std::unique_ptr<BaseType> VariantCaseVariable::create_value_type() {
-    return std::unique_ptr<BaseType>(member_param->type->copy());
+BaseType* VariantCaseVariable::create_value_type(ASTAllocator& allocator) {
+    return member_param->type->copy(allocator);
 }
 
 BaseType* VariantCaseVariable::known_type() {
-    return member_param->type.get();
+    return member_param->type;
 }
 
 std::pair<BaseType*, int16_t> VariantCaseVariable::set_iteration() {

@@ -19,7 +19,7 @@ public:
     BaseType* elemType;
     std::vector<unsigned int> sizes;
     CSTToken* token;
-    std::unique_ptr<BaseType> cached_type = nullptr;
+    BaseType* created_type;
 
 #ifdef COMPILER_BUILD
     // TODO this arr value should be stored in code gen since its related to that
@@ -104,14 +104,14 @@ public:
 
     ASTNode *linked_node() override;
 
-    bool link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *expected_type = nullptr) override;
+    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) override;
 
     [[nodiscard]]
-    std::unique_ptr<BaseType> element_type() const;
+    BaseType* element_type(ASTAllocator& allocator) const;
 
-    std::unique_ptr<BaseType> create_type() override;
+    BaseType* create_type(ASTAllocator& allocator) override;
 
-    hybrid_ptr<BaseType> get_base_type() override;
+//    hybrid_ptr<BaseType> get_base_type() override;
 
     BaseType* known_type() override;
 
@@ -127,18 +127,18 @@ public:
         return BaseTypeKind::Array;
     }
 
-    ArrayValue *copy() override {
-        std::vector<std::unique_ptr<Value>> copied_values;
+    ArrayValue *copy(ASTAllocator& allocator) override {
+        std::vector<Value*> copied_values;
         copied_values.reserve(values.size());
         for (const auto &value: values) {
-            copied_values.emplace_back(value->copy());
+            copied_values.emplace_back(value->copy(allocator));
         }
         std::vector<unsigned int> copied_sizes(sizes.size());
-        std::unique_ptr<BaseType> copied_elem_type = nullptr;
+        BaseType* copied_elem_type = nullptr;
         if (elemType) {
-            copied_elem_type.reset(elemType->copy());
+            copied_elem_type = elemType->copy(allocator);
         }
-        return new ArrayValue(std::move(copied_values), std::move(copied_elem_type), sizes, token);
+        return new (allocator.allocate<ArrayValue>()) ArrayValue(std::move(copied_values), copied_elem_type, sizes, token);
     }
 
 };

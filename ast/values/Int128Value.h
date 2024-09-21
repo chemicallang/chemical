@@ -25,9 +25,9 @@ public:
         return ValueKind::Int128;
     }
 
-    hybrid_ptr<BaseType> get_base_type() override {
-        return hybrid_ptr<BaseType> { (BaseType*) &Int128Type::instance, false };
-    }
+//    hybrid_ptr<BaseType> get_base_type() override {
+//        return hybrid_ptr<BaseType> { (BaseType*) &Int128Type::instance, false };
+//    }
 
     BaseType* known_type() override {
         return (BaseType*) &Int128Type::instance;
@@ -41,12 +41,13 @@ public:
         return 16;
     }
 
-    Int128Value *copy() override {
-        return new Int128Value(magnitude, is_negative, token);
+    Int128Value *copy(ASTAllocator& allocator) override {
+        return new (allocator.allocate<Int128Value>()) Int128Value(magnitude, is_negative, token);
     }
 
-    [[nodiscard]] std::unique_ptr<BaseType> create_type() override {
-        return std::make_unique<Int128Type>(token);
+    [[nodiscard]]
+    BaseType* create_type(ASTAllocator &allocator) override {
+        return new (allocator.allocate<Int128Type>()) Int128Type(token);
     }
 
     unsigned int get_num_bits() override {

@@ -49,21 +49,22 @@ public:
         return value;
     }
 
-    IntValue *copy() override {
-        return new IntValue(value, token);
+    IntValue *copy(ASTAllocator& allocator) override {
+        return new (allocator.allocate<IntValue>()) IntValue(value, token);
     }
 
     bool is_unsigned() override {
         return false;
     }
 
-    [[nodiscard]] std::unique_ptr<BaseType> create_type() override {
-        return std::make_unique<IntType>(nullptr);
+    [[nodiscard]]
+    BaseType* create_type(ASTAllocator& allocator) override {
+        return new (allocator.allocate<IntType>()) IntType(nullptr);
     }
 
-    hybrid_ptr<BaseType> get_base_type() override {
-        return hybrid_ptr<BaseType> { (BaseType*) &IntType::instance, false };
-    }
+//    hybrid_ptr<BaseType> get_base_type() override {
+//        return hybrid_ptr<BaseType> { (BaseType*) &IntType::instance, false };
+//    }
 
     BaseType* known_type() override {
         return (BaseType*) &IntType::instance;

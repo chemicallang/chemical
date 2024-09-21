@@ -19,7 +19,7 @@ uint64_t UnionType::byte_size(bool is64Bit) {
 bool UnionType::satisfies(ValueType type) {
     auto container = variables_container();
     for (auto &member: container->variables) {
-        auto mem_type = member.second->create_value_type();
+        auto mem_type = member.second->known_type();
         if (mem_type->satisfies(type)) {
             return true;
         }

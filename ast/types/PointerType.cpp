@@ -5,14 +5,10 @@
 #include <memory>
 #include "VoidType.h"
 
-const PointerType PointerType::void_ptr_instance(hybrid_ptr<BaseType> {
-    (BaseType*) &VoidType::instance, false
-}, nullptr);
+const PointerType PointerType::void_ptr_instance((BaseType*) &VoidType::instance, nullptr);
 
-void PointerType::link(SymbolResolver &linker, std::unique_ptr<BaseType>& current) {
-    std::unique_ptr<BaseType> temp_ptr(type.release());
-    temp_ptr->link(linker, temp_ptr);
-    type.reset(temp_ptr.release());
+void PointerType::link(SymbolResolver &linker, BaseType*& current) {
+    type->link(linker, type);
 }
 
 ASTNode *PointerType::linked_node() {
@@ -21,8 +17,8 @@ ASTNode *PointerType::linked_node() {
 
 BaseType* PointerType::pure_type() {
     const auto pure_child = type->pure_type();
-    if(pure_child && pure_child != type.get()) {
-        auto ptr = new PointerType(hybrid_ptr<BaseType>{ pure_child, false }, token);
+    if(pure_child && pure_child != type) {
+        auto ptr = new PointerType(pure_child, token);
         pures.emplace_back(ptr);
         return ptr;
 //        pures.emplace_back(std::make_unique<PointerType>(hybrid_ptr<BaseType>{ pure_child, false }, token));

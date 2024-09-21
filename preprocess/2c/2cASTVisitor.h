@@ -76,7 +76,7 @@ public:
      * comptime functions are evaluated once and put on this unordered map
      * once used, they are disposed as well
      */
-    std::unordered_map<FunctionCall*, std::unique_ptr<Value>> evaluated_func_calls;
+    std::unordered_map<FunctionCall*, Value*> evaluated_func_calls;
 
     /**
      * this visitor takes out values like lambda from within functions
@@ -124,6 +124,11 @@ public:
      * a reference to the stream it's going to write results to
      */
     std::ostream* output;
+
+    /**
+     * allocator
+     */
+    ASTAllocator& allocator;
 
     /**
      * 0 means in root, no indentation
@@ -178,7 +183,11 @@ public:
      * constructor
      * @param path the current file path being processed
      */
-    ToCAstVisitor(GlobalInterpretScope& global, std::ostream* output);
+    ToCAstVisitor(
+        GlobalInterpretScope& global,
+        std::ostream* output,
+        ASTAllocator& allocator
+    );
 
     /**
      * used to write a character to the stream

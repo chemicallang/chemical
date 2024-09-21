@@ -23,9 +23,9 @@ public:
         return ValueKind::UChar;
     }
 
-    hybrid_ptr<BaseType> get_base_type() override {
-        return hybrid_ptr<BaseType> { (BaseType*) &UCharType::instance, false };
-    }
+//    hybrid_ptr<BaseType> get_base_type() override {
+//        return hybrid_ptr<BaseType> { (BaseType*) &UCharType::instance, false };
+//    }
 
     BaseType* known_type() override {
         return (BaseType*) &UCharType::instance;
@@ -39,12 +39,13 @@ public:
         visitor->visit(this);
     }
 
-    UCharValue *copy() override {
-        return new UCharValue(value, token);
+    UCharValue *copy(ASTAllocator& allocator) override {
+        return new (allocator.allocate<UCharValue>()) UCharValue(value, token);
     }
 
-    [[nodiscard]] std::unique_ptr<BaseType> create_type() override {
-        return std::make_unique<UCharType>(nullptr);
+    [[nodiscard]]
+    BaseType* create_type(ASTAllocator &allocator) override {
+        return new (allocator.allocate<UCharType>()) UCharType(nullptr);
     }
 
     bool is_unsigned() override {

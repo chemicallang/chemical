@@ -37,7 +37,7 @@ int chemical_clang_main2(const std::vector<std::string> &command_args);
 
 int llvm_ar_main2(const std::vector<std::string> &command_args);
 
-std::vector<std::unique_ptr<ASTNode>> TranslateC(const char* exe_path, const char *abs_path, const char *resources_path);
+std::vector<ASTNode*> TranslateC(ASTAllocator& allocator, const char* exe_path, const char *abs_path, const char *resources_path);
 
 #endif
 

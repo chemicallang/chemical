@@ -63,9 +63,9 @@ public:
         return name;
     }
 
-    void declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override;
+    void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) override;
 
-    void declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override;
+    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) override;
 
     BaseType* known_type() override;
 
@@ -76,9 +76,9 @@ public:
 
     uint64_t byte_size(bool is64Bit) override;
 
-    std::unique_ptr<BaseType> create_value_type() override;
+    BaseType* create_value_type(ASTAllocator& allocator) override;
 
-    hybrid_ptr<BaseType> get_value_type() override;
+//    hybrid_ptr<BaseType> get_value_type() override;
 
     /**
      * a variant call notifies a definition, during symbol resolution that it exists
@@ -102,7 +102,7 @@ public:
 
     llvm::Type* llvm_param_type(Codegen &gen) override;
 
-    llvm::Type* llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned int index) override;
+    llvm::Type* llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) override;
 
     /**
      * responsible for generating code for a single function in a union decl

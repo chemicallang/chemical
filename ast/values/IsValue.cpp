@@ -12,16 +12,16 @@ IsValue::IsValue(
 
 }
 
-IsValue *IsValue::copy() {
-    return new IsValue(
-            std::unique_ptr<Value>(value->copy()),
-            std::unique_ptr<BaseType>(type->copy()),
-                is_negating,
-                token
+IsValue *IsValue::copy(ASTAllocator& allocator) {
+    return new (allocator.allocate<IsValue>()) IsValue(
+            value->copy(allocator),
+            type->copy(allocator),
+            is_negating,
+            token
     );
 }
 
-bool IsValue::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr, BaseType *expected_type) {
+bool IsValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
     value->link(linker, value);
     type->link(linker, type);
     return true;

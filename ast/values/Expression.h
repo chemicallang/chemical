@@ -19,7 +19,7 @@ public:
     Operation operation; ///< The operation between the two values.
     bool is64Bit; // is 64bit operating system
     CSTToken* token;
-    std::unique_ptr<BaseType> created_type = nullptr;
+    BaseType* created_type;
 
     /**
      * @brief Construct a new Expression object.
@@ -108,15 +108,11 @@ public:
 
 #endif
 
-    void set_created_type();
-
-    std::unique_ptr<BaseType> create_type() override;
-
-    hybrid_ptr<BaseType> get_base_type() override;
+    BaseType* create_type(ASTAllocator& allocator) override;
 
     BaseType* known_type() override;
 
-    bool link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *expected_type = nullptr) override;
+    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) override;
 
     bool primitive() override;
 
@@ -129,19 +125,19 @@ public:
      */
     Value *evaluate(InterpretScope &scope);
 
-    Expression *copy() override;
+    Expression *copy(ASTAllocator& allocator) override;
 
     Value *scope_value(InterpretScope &scope) override {
         return evaluate(scope);
     }
 
-    hybrid_ptr<Value> evaluated_value(InterpretScope &scope) override {
-        return hybrid_ptr<Value> { evaluate(scope) };
+    Value* evaluated_value(InterpretScope &scope) override {
+        return evaluate(scope);
     }
 
-    std::unique_ptr<Value> create_evaluated_value(InterpretScope &scope) override {
-        return std::unique_ptr<Value>(evaluate(scope));
-    }
+//    Value* create_evaluated_value(InterpretScope &scope) override {
+//        return evaluate(scope);
+//    }
 
     bool compile_time_computable() override;
 

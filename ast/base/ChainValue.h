@@ -28,7 +28,7 @@ public:
     virtual bool link(
             SymbolResolver& linker,
             ChainValue* parent,
-            std::vector<std::unique_ptr<ChainValue>>& values,
+            std::vector<ChainValue*>& values,
             unsigned index,
             BaseType* expected_type
     );
@@ -53,17 +53,17 @@ public:
      */
     virtual void relink_parent(ChainValue* parent);
 
-    /**
-     * when value is part of access chain, this should be called
-     */
-    virtual std::unique_ptr<BaseType> create_type(std::vector<std::unique_ptr<ChainValue>>& chain, unsigned int index);
+//    /**
+//     * when value is part of access chain, this should be called
+//     */
+//    virtual std::unique_ptr<BaseType> create_type(std::vector<ChainValue*>& chain, unsigned int index);
 
     /**
      * if this chain value is connected to a type that has a generic iteration
      * this will set it, also returns the previous generic iteration no the struct
      * otherwise -2
      */
-    int16_t set_generic_iteration();
+    int16_t set_generic_iteration(ASTAllocator& allocator);
 
     /**
      * will check contents, are they of the same kind
@@ -88,7 +88,7 @@ public:
      */
     virtual llvm::AllocaInst* access_chain_allocate(
             Codegen& gen,
-            std::vector<std::unique_ptr<ChainValue>>& values,
+            std::vector<ChainValue*>& values,
             unsigned int until,
             BaseType* expected_type
     );
@@ -105,7 +105,7 @@ public:
      */
     static std::pair<unsigned int, llvm::Value*> access_chain_parent_pointer(
             Codegen &gen,
-            std::vector<std::unique_ptr<ChainValue>>& values,
+            std::vector<ChainValue*>& values,
             std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
             unsigned int until,
             std::vector<llvm::Value*>& idxList
@@ -122,7 +122,7 @@ public:
      */
     static llvm::Value* pointer_from_parent_to_next(
             Codegen &gen,
-            std::vector<std::unique_ptr<ChainValue>>& values,
+            std::vector<ChainValue*>& values,
             std::vector<llvm::Value*>& idxList,
             std::pair<unsigned int, llvm::Value*>& parent_pointer
     );
@@ -143,7 +143,7 @@ public:
      */
     virtual llvm::Value* access_chain_pointer(
             Codegen &gen,
-            std::vector<std::unique_ptr<ChainValue>>& values,
+            std::vector<ChainValue*>& values,
             std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
             unsigned int until
     );
@@ -156,7 +156,7 @@ public:
      */
     virtual llvm::Value* access_chain_value(
             Codegen &gen,
-            std::vector<std::unique_ptr<ChainValue>>& values,
+            std::vector<ChainValue*>& values,
             unsigned int until,
             std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
             BaseType* expected_type
@@ -170,7 +170,7 @@ public:
      */
     virtual llvm::Value* access_chain_assign_value(
             Codegen &gen,
-            std::vector<std::unique_ptr<ChainValue>>& values,
+            std::vector<ChainValue*>& values,
             unsigned int until,
             std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
             Value* lhs,
@@ -186,7 +186,7 @@ public:
      */
     llvm::Value* access_chain_value(
             Codegen &gen,
-            std::vector<std::unique_ptr<ChainValue>>& values,
+            std::vector<ChainValue*>& values,
             unsigned int until,
             std::vector<std::pair<Value*, llvm::Value*>>& destructibles,
             BaseType* expected_type,
@@ -198,7 +198,7 @@ public:
      */
     llvm::Value* access_chain_value(
             Codegen &gen,
-            std::vector<std::unique_ptr<ChainValue>>& values,
+            std::vector<ChainValue*>& values,
             unsigned int until,
             BaseType* expected_type
     ) {

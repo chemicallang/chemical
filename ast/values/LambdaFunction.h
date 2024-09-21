@@ -82,15 +82,13 @@ public:
 
 #endif
 
-    std::unique_ptr<BaseType> create_type() override;
-
-    hybrid_ptr<BaseType> get_base_type() override;
+    BaseType* create_type(ASTAllocator &allocator) override;
 
     BaseType* known_type() override {
         return this;
     }
 
-    bool link(SymbolResolver &linker, std::unique_ptr<Value> &value_ptr, BaseType *expected_type = nullptr) override;
+    bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) override;
 
     bool link(SymbolResolver &linker, FunctionType* func_type);
 

@@ -47,10 +47,10 @@ void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen, BaseType* e
             if(value_ptr->is_ref_moved()) {
                 // since it will be moved, we will std memcpy it into current pointer
                 auto elementPtr = Value::get_element_pointer(gen, parent_type, inst, idx, is_union() ? 0 : variable.first);
-                moved = gen.move_by_memcpy(variable.second, value_ptr.get(), elementPtr, value_ptr->llvm_value(gen));
+                moved = gen.move_by_memcpy(variable.second, value_ptr, elementPtr, value_ptr->llvm_value(gen));
             }
             if(!moved) {
-                if (gen.requires_memcpy_ref_struct(variable.second, value_ptr.get())) {
+                if (gen.requires_memcpy_ref_struct(variable.second, value_ptr)) {
                     auto elementPtr = Value::get_element_pointer(gen, parent_type, inst, idx, is_union() ? 0 : variable.first);
                     gen.memcpy_struct(value_ptr->llvm_type(gen), elementPtr, value_ptr->llvm_value(gen, nullptr));
                 } else {
@@ -218,7 +218,7 @@ bool StructValue::add_child_index(Codegen &gen, std::vector<llvm::Value *> &inde
 StructValue::StructValue(
         Value* ref,
         std::unordered_map<std::string, StructMemberInitializer*> values,
-        std::vector<std::unique_ptr<BaseType>> generic_list,
+        std::vector<BaseType*> generic_list,
         ExtendableMembersContainerNode *definition,
         CSTToken* token,
         ASTNode* parent_node
@@ -302,7 +302,7 @@ bool StructValue::diagnose_missing_members_for_init(ASTDiagnoser& diagnoser) {
     return false;
 }
 
-bool StructValue::link(SymbolResolver& linker, std::unique_ptr<Value>& value_ptr, BaseType* expected_type) {
+bool StructValue::link(SymbolResolver& linker, Value*& value_ptr, BaseType* expected_type) {
     ref->link(linker, ref);
     auto found = ref->linked_node();
     auto& current_func_type = *linker.current_func_type;
@@ -348,18 +348,18 @@ bool StructValue::link(SymbolResolver& linker, std::unique_ptr<Value>& value_ptr
                 linker.error("couldn't find child " + val.first + " in struct declaration", this);
                 continue;
             }
-            auto child_type = child_node->get_value_type();
-            val_ptr->link(linker, val_ptr, child_type.get());
+            auto child_type = child_node->get_value_type(linker.allocator);
+            val_ptr->link(linker, val_ptr, child_type);
             auto member = definition->variables.find(val.first);
             if(definition->variables.end() != member) {
-                const auto mem_type = member->second->get_value_type();
-                auto implicit = mem_type->implicit_constructor_for(val_ptr.get());
-                current_func_type.mark_moved_value(val.second->value.get(), mem_type.get(), linker);
+                const auto mem_type = member->second->get_value_type(linker.allocator);
+                auto implicit = mem_type->implicit_constructor_for(val_ptr);
+                current_func_type.mark_moved_value(val.second->value, mem_type, linker);
                 if(implicit) {
                     if(linker.preprocess) {
-                        val_ptr = call_with_arg(implicit, std::move(val_ptr), linker);
+                        val_ptr = call_with_arg(implicit, val_ptr, linker);
                     } else {
-                        link_with_implicit_constructor(implicit, linker, val_ptr.get());
+                        link_with_implicit_constructor(implicit, linker, val_ptr);
                     }
                 }
             }
@@ -372,6 +372,7 @@ bool StructValue::link(SymbolResolver& linker, std::unique_ptr<Value>& value_ptr
         linker.error("couldn't find struct definition for struct name " + ref->representation(), this);
         return false;
     };
+    struct_type = create_type(linker.allocator);
     return true;
 }
 
@@ -421,7 +422,7 @@ void StructValue::runtime_name(std::ostream& output) {
 Value *StructValue::call_member(
         InterpretScope &scope,
         const std::string &name,
-        std::vector<std::unique_ptr<Value>> &params
+        std::vector<Value*> &params
 ) {
     auto fn = definition->member(name);
     if (fn == nullptr) {
@@ -446,14 +447,14 @@ void StructValue::set_child_value(const std::string &name, Value *value, Operati
         std::cerr << "couldn't find child by name " + name + " in struct";
         return;
     }
-    ptr->second->value = std::unique_ptr<Value>(value);
+    ptr->second->value = value;
 }
 
 Value *StructValue::scope_value(InterpretScope &scope) {
     auto struct_value = new StructValue(
-            std::unique_ptr<Value>(ref->copy()),
-            std::unordered_map<std::string, std::unique_ptr<StructMemberInitializer>>(),
-            std::vector<std::unique_ptr<BaseType>>(),
+            ref->copy(scope.allocator),
+            std::unordered_map<std::string, StructMemberInitializer*>(),
+            std::vector<BaseType*>(),
             definition,
             token,
             parent_node
@@ -461,17 +462,16 @@ Value *StructValue::scope_value(InterpretScope &scope) {
     declare_default_values(struct_value->values, scope);
     struct_value->values.reserve(values.size());
     for (const auto &value: values) {
-        struct_value->values[value.first] = std::make_unique<StructMemberInitializer>(
+        struct_value->values[value.first] = new (scope.allocator.allocate<StructMemberInitializer>()) StructMemberInitializer(
                 value.first,
-                std::unique_ptr<Value>(value.second->value->initializer_value(scope)),
+                value.second->value->scope_value(scope),
                 struct_value,
                 value.second->member
-
         );
     }
     struct_value->generic_list.reserve(generic_list.size());
     for(const auto& arg : generic_list) {
-        struct_value->generic_list.emplace_back(arg->copy());
+        struct_value->generic_list.emplace_back(arg->copy(scope.allocator));
     }
     return struct_value;
 }
@@ -484,58 +484,46 @@ void StructValue::declare_default_values(
     for (const auto &field: definition->variables) {
         defValue = field.second->default_value();
         if (into.find(field.second->name) == into.end() && defValue) {
-            into[field.second->name]->value = std::unique_ptr<Value>(defValue->initializer_value(scope));
+            into[field.second->name]->value = defValue->scope_value(scope);
         }
     }
 }
 
-StructValue *StructValue::copy() {
+StructValue *StructValue::copy(ASTAllocator& allocator) {
     auto struct_value = new StructValue(
-        std::unique_ptr<Value>(ref->copy()),
-        std::unordered_map<std::string, std::unique_ptr<StructMemberInitializer>>(),
-        std::vector<std::unique_ptr<BaseType>>(),
+        ref->copy(allocator),
+        std::unordered_map<std::string, StructMemberInitializer*>(),
+        std::vector<BaseType*>(),
         definition,
         token,
         parent_node
     );
     struct_value->values.reserve(values.size());
     for (const auto &value: values) {
-        struct_value->values[value.first] = value.second->copy_unique();
+        struct_value->values[value.first] = value.second->copy(allocator);
     }
     struct_value->generic_list.reserve(generic_list.size());
     for(const auto& arg : generic_list) {
-        struct_value->generic_list.emplace_back(arg->copy());
+        struct_value->generic_list.emplace_back(arg->copy(allocator));
     }
     return struct_value;
 }
 
-std::unique_ptr<BaseType> StructValue::create_type() {
+BaseType* StructValue::create_type(ASTAllocator& allocator) {
     if(!definition) return nullptr;
     if(!definition->generic_params.empty()) {
-       auto gen_type = std::make_unique<GenericType>(std::make_unique<LinkedType>(definition->name, definition, nullptr), generic_iteration);
+       auto gen_type = new (allocator.allocate<GenericType>()) GenericType(new (allocator.allocate<LinkedType>()) LinkedType(definition->name, definition, nullptr), generic_iteration);
        for(auto& type : generic_list) {
-           gen_type->types.emplace_back(type->copy());
+           gen_type->types.emplace_back(type->copy(allocator));
        }
        return gen_type;
     } else {
-        auto type = std::make_unique<LinkedType>(ref->representation(), nullptr);
-        type->linked = definition;
-        return type;
+        return definition->known_type();
     }
 }
 
 BaseType* StructValue::known_type() {
-    if(!struct_type) {
-        struct_type = create_type();
-    }
-    return struct_type.get();
-}
-
-hybrid_ptr<BaseType> StructValue::get_base_type() {
-    if(!struct_type) {
-        struct_type = create_type();
-    }
-    return hybrid_ptr<BaseType>{ struct_type.get(), false };
+    return struct_type;
 }
 
 Value *StructValue::child(InterpretScope &scope, const std::string &name) {
@@ -548,7 +536,7 @@ Value *StructValue::child(InterpretScope &scope, const std::string &name) {
             return nullptr;
         }
     }
-    return value->second->value.get();
+    return value->second->value;
 }
 
 StructMemberInitializer::StructMemberInitializer(
@@ -560,8 +548,8 @@ StructMemberInitializer::StructMemberInitializer(
 
 }
 
-StructMemberInitializer* StructMemberInitializer::copy() {
-    return new StructMemberInitializer(name, value->copy_unique(), struct_value, member);
+StructMemberInitializer* StructMemberInitializer::copy(ASTAllocator& allocator) {
+    return new (allocator.allocate<StructMemberInitializer>()) StructMemberInitializer(name, value->copy(allocator), struct_value, member);
 }
 
 CSTToken *StructMemberInitializer::cst_token() {

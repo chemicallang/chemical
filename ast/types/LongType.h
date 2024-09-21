@@ -43,8 +43,8 @@ public:
     }
 
     [[nodiscard]]
-    LongType *copy() const override {
-        return new LongType(is64Bit, token);
+    LongType *copy(ASTAllocator& allocator) const override {
+        return new (allocator.allocate<LongType>()) LongType(is64Bit, token);
     }
 
 

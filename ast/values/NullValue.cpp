@@ -4,12 +4,8 @@
 #include "ast/types/PointerType.h"
 #include "ast/types/VoidType.h"
 
-std::unique_ptr<BaseType> NullValue::create_type() {
-    return std::make_unique<PointerType>(std::make_unique<VoidType>(nullptr), nullptr);
-}
-
-hybrid_ptr<BaseType> NullValue::get_base_type() {
-    return hybrid_ptr<BaseType> { (BaseType*) &PointerType::void_ptr_instance, false };
+BaseType* NullValue::create_type(ASTAllocator &allocator) {
+    return new (allocator.allocate<PointerType>()) PointerType(new (allocator.allocate<VoidType>()) VoidType(nullptr), nullptr);
 }
 
 BaseType* NullValue::known_type() {

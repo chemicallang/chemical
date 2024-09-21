@@ -28,6 +28,10 @@ public:
         return token;
     }
 
+    BaseType* known_type() override {
+        return this;
+    }
+
     std::string get_runtime_name() override {
         return "";
     }
@@ -44,9 +48,9 @@ public:
         return 0;
     }
 
-    BaseDefMember *copy_member() override;
+    BaseDefMember* copy_member(ASTAllocator &allocator) override;
 
-    VariablesContainer *copy_container() override;
+    VariablesContainer *copy_container(ASTAllocator& allocator) override;
 
     void set_parent(ASTNode* new_parent) override {
         parent_node = new_parent;
@@ -60,9 +64,9 @@ public:
         visitor->visit(this);
     }
 
-    void redeclare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override;
+    void redeclare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) override;
 
-    void declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override;
+    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) override;
 
     bool requires_copy_fn() override {
         for(const auto& var : variables) {
@@ -108,14 +112,14 @@ public:
         return total_byte_size(is64Bit);
     }
 
-    hybrid_ptr<BaseType> get_value_type() override;
-
     ASTNode *linked_node() override {
         return this;
     }
 
+    BaseType* create_value_type(ASTAllocator &allocator) override;
+
     [[nodiscard]]
-    BaseType *copy() const override;
+    BaseType* copy(ASTAllocator& allocator) const override;
 
 #ifdef COMPILER_BUILD
 
@@ -123,7 +127,7 @@ public:
         return StructType::llvm_type(gen);
     }
 
-    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned int index) override {
+    llvm::Type *llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) override {
         return StructType::llvm_chain_type(gen, values, index);
     }
 

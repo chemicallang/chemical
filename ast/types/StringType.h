@@ -12,9 +12,9 @@ public:
     using TokenizedBaseType::TokenizedBaseType;
 
     [[nodiscard]]
-    std::unique_ptr<BaseType> create_child_type() const override;
+    BaseType* create_child_type(ASTAllocator& allocator) const override;
 
-    hybrid_ptr<BaseType> get_child_type() override;
+//    hybrid_ptr<BaseType> get_child_type() override;
 
     BaseType* known_child_type() override;
 
@@ -43,8 +43,8 @@ public:
     }
 
     [[nodiscard]]
-    StringType *copy() const override {
-        return new StringType(token);
+    StringType *copy(ASTAllocator& allocator) const override {
+        return new (allocator.allocate<StringType>()) StringType(token);
     }
 
 #ifdef COMPILER_BUILD

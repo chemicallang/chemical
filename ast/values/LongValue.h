@@ -24,9 +24,9 @@ public:
         return ValueKind::Long;
     }
 
-    hybrid_ptr<BaseType> get_base_type() override {
-        return hybrid_ptr<BaseType> { known_type(), false };
-    }
+//    hybrid_ptr<BaseType> get_base_type() override {
+//        return hybrid_ptr<BaseType> { known_type(), false };
+//    }
 
     BaseType* known_type() override {
         return (BaseType*) (is64Bit ? &LongType::instance64Bit : &LongType::instance32Bit);
@@ -40,12 +40,13 @@ public:
         visitor->visit(this);
     }
 
-    LongValue *copy() override {
-        return new LongValue(value, is64Bit, token);
+    LongValue *copy(ASTAllocator& allocator) override {
+        return new (allocator.allocate<LongValue>()) LongValue(value, is64Bit, token);
     }
 
-    [[nodiscard]] std::unique_ptr<BaseType> create_type() override {
-        return std::make_unique<LongType>(is64Bit, nullptr);
+    [[nodiscard]]
+    BaseType* create_type(ASTAllocator &allocator) override {
+        return new (allocator.allocate<LongType>()) LongType(is64Bit, nullptr);
     }
 
     unsigned int get_num_bits() override {

@@ -11,18 +11,18 @@ uint64_t VariableIdentifier::byte_size(bool is64Bit) {
     return linked->byte_size(is64Bit);
 }
 
-void VariableIdentifier::prepend_self(SymbolResolver &linker, std::unique_ptr<ChainValue>& value_ptr, const std::string& name, ASTNode* linked) {
+void VariableIdentifier::prepend_self(SymbolResolver &linker, ChainValue*& value_ptr, const std::string& name, ASTNode* linked) {
     // struct members / functions, don't need to be accessed like self.a or this.a
     // because we'll append self and this automatically
-    auto self_id = new VariableIdentifier(name, token);
+    auto self_id = new (linker.allocator.allocate<VariableIdentifier>()) VariableIdentifier(name, token);
     self_id->linked = linked;
-    std::vector<std::unique_ptr<ChainValue>> values;
+    std::vector<ChainValue*> values;
     values.emplace_back(self_id);
-    values.emplace_back(value_ptr.release());
-    value_ptr = std::make_unique<AccessChain>(std::move(values), nullptr, false, token);
+    values.emplace_back(value_ptr);
+    value_ptr = new (linker.allocator.allocate<AccessChain>()) AccessChain(std::move(values), nullptr, false, token);
 }
 
-bool VariableIdentifier::link(SymbolResolver &linker, std::unique_ptr<ChainValue>& value_ptr, bool prepend) {
+bool VariableIdentifier::link(SymbolResolver &linker, ChainValue*& value_ptr, bool prepend) {
     linked = linker.find(value);
     if(linked) {
         if(prepend && linked->isAnyStructMember()) {
@@ -61,14 +61,14 @@ bool VariableIdentifier::link(SymbolResolver &linker, std::unique_ptr<ChainValue
     return false;
 }
 
-bool VariableIdentifier::link(SymbolResolver &linker, std::unique_ptr<Value>& value_ptr, BaseType *expected_type) {
-    return link(linker, (std::unique_ptr<ChainValue> &) (value_ptr), true);
+bool VariableIdentifier::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
+    return link(linker, (ChainValue* &) (value_ptr), true);
 }
 
 bool VariableIdentifier::link(
     SymbolResolver &linker,
     ChainValue *parent,
-    std::vector<std::unique_ptr<ChainValue>> &values,
+    std::vector<ChainValue*> &values,
     unsigned int index,
     BaseType* expected_type
 ) {
@@ -123,7 +123,7 @@ bool VariableIdentifier::compile_time_computable() {
 
 Value *VariableIdentifier::child(InterpretScope &scope, const std::string &name) {
     const auto eval = evaluated_value(scope);
-    if(eval.get()) {
+    if(eval) {
         return eval->child(scope, name);
     } else {
         return nullptr;
@@ -139,21 +139,21 @@ Value *VariableIdentifier::find_in(InterpretScope &scope, Value *parent) {
     return parent->child(scope, value);
 }
 
-std::unique_ptr<BaseType> VariableIdentifier::create_type() {
+BaseType* VariableIdentifier::create_type(ASTAllocator& allocator) {
     if(linked) {
-        return linked->create_value_type();
+        return linked->create_value_type(allocator);
     } else {
         return nullptr;
     }
 }
 
-hybrid_ptr<BaseType> VariableIdentifier::get_base_type() {
-    if(linked) {
-        return linked->get_value_type();
-    } else {
-        return hybrid_ptr<BaseType> { nullptr, false };
-    }
-}
+//hybrid_ptr<BaseType> VariableIdentifier::get_base_type() {
+//    if(linked) {
+//        return linked->get_value_type();
+//    } else {
+//        return hybrid_ptr<BaseType> { nullptr, false };
+//    }
+//}
 
 bool VariableIdentifier::reference() {
     return true;
@@ -170,7 +170,15 @@ void VariableIdentifier::set_value_in(InterpretScope &scope, Value *parent, Valu
 
 void VariableIdentifier::set_identifier_value(InterpretScope &scope, Value *rawValue, Operation op) {
 
-    auto newValue = rawValue->assignment_value(scope);
+    // iterator for previous value
+    auto itr = scope.find_value_iterator(value);
+    if(itr.first == itr.second.values.end()) {
+        scope.error("couldn't find identifier '" + value + "' in current scope");
+        return;
+    }
+
+    // using the scope of the found value, so that it's initialized in the same scope
+    auto newValue = rawValue->scope_value(itr.second);
     if (newValue == nullptr) {
         scope.error("trying to assign null ptr to identifier " + value);
         return;
@@ -194,37 +202,21 @@ void VariableIdentifier::set_identifier_value(InterpretScope &scope, Value *rawV
         }
     }
 
-    // iterator for previous value
-    auto itr = scope.find_value_iterator(value);
-
     auto nextValue = newValue;
 
     // previous value doesn't exist, so it must only be a declaration above that is being assigned
     // preventing x += 1 (requires previous value)
     if (op != Operation::Assignment) {
 
-        // previous value iterator is required
-        if (itr.first == itr.second.end()) {
-            scope.error("couldn't set non-existent variable " + value + " with operation " + to_string(op));
-            return;
-        }
-
         // get the previous value, perform operation on it
         auto prevValue = itr.first->second;
         nextValue = ExpressionEvaluators::ExpressionEvaluatorsMap.at(
             ExpressionEvaluators::index(prevValue->value_type(), prevValue->value_type(), op)
-        )(prevValue, newValue);
+        )(itr.second, prevValue, newValue);
 
     }
 
-    // delete previous value
-    delete itr.first->second;
-
-    if (itr.first == itr.second.end()) {
-        var_init->declare(nextValue);
-    } else {
-        itr.first->second = nextValue;
-    }
+    itr.first->second = nextValue;
 
 }
 
@@ -233,58 +225,43 @@ VarInitStatement *VariableIdentifier::declaration() {
     return linked->as_var_init();
 }
 
-VariableIdentifier* VariableIdentifier::copy() {
-    auto id = new VariableIdentifier(value, token);
+VariableIdentifier* VariableIdentifier::copy(ASTAllocator& allocator) {
+    auto id = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(value, token);
     id->linked = linked;
     return id;
 }
 
-hybrid_ptr<Value> VariableIdentifier::evaluated_value(InterpretScope &scope) {
+Value* VariableIdentifier::evaluated_value(InterpretScope &scope) {
     auto found = scope.find_value(value);
     if (found != nullptr) {
-        return hybrid_ptr<Value> { found , false };
-    } else {
-        return hybrid_ptr<Value> { nullptr , false };
-    }
-}
-
-std::unique_ptr<Value> VariableIdentifier::create_evaluated_value(InterpretScope &scope) {
-    auto found = scope.find_value_iterator(value);
-    if(found.first != found.second.end()) {
-        auto take = found.first->second;
-        found.second.erase(found.first);
-        return std::unique_ptr<Value>(take);
+        return found;
     } else {
         return nullptr;
     }
 }
 
-hybrid_ptr<Value> VariableIdentifier::evaluated_chain_value(InterpretScope &scope, Value* parent) {
-    if(parent) {
-        return hybrid_ptr<Value> { parent->child(scope, value), false };
-    }
-    return hybrid_ptr<Value> { nullptr, false };
-}
+//std::unique_ptr<Value> VariableIdentifier::create_evaluated_value(InterpretScope &scope) {
+//    auto found = scope.find_value_iterator(value);
+//    if(found.first != found.second.end()) {
+//        auto take = found.first->second;
+//        found.second.erase(found.first);
+//        return std::unique_ptr<Value>(take);
+//    } else {
+//        return nullptr;
+//    }
+//}
 
-Value *VariableIdentifier::return_value(InterpretScope &scope) {
-    // current identifier, holds the value, we find it
-    auto val = scope.find_value_iterator(value);
-    // check if not found
-    if (val.first == val.second.end() || val.first->second == nullptr) {
-        return nullptr;
-    }
-    auto store = val.first->second;
-    val.second.erase(val.first);
-    return store;
+Value* VariableIdentifier::evaluated_chain_value(InterpretScope &scope, Value* parent) {
+    return parent ? parent->child(scope, value) : nullptr;
 }
 
 Value *VariableIdentifier::scope_value(InterpretScope &scope) {
     // evaluates the value, copies it
     auto val = scope.find_value_iterator(value);
-    if (val.first == val.second.end() || val.first->second == nullptr) {
+    if (val.first == val.second.values.end() || val.first->second == nullptr) {
         return nullptr;
     }
-    return val.first->second->copy();
+    return val.first->second;
 }
 
 BaseTypeKind VariableIdentifier::type_kind() const {

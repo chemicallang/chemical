@@ -110,13 +110,13 @@ std::vector<ASTNode*> take_body_nodes(CSTConverter *conv, CSTToken *token, ASTNo
     return nodes;
 }
 
-std::vector<ASTNode*> take_body_nodes(CSTConverter *conv, ASTAllocator<>& allocator, CSTToken *token, ASTNode* parent_node) {
-    auto local = conv->local_allocator;
-    conv->local_allocator = &allocator;
-    auto nodes = take_body_nodes(conv, token, parent_node);
-    conv->local_allocator = local;
-    return nodes;
-}
+//std::vector<ASTNode*> take_body_nodes(CSTConverter *conv, ASTAllocator& allocator, CSTToken *token, ASTNode* parent_node) {
+//    auto local = conv->local_allocator;
+//    conv->local_allocator = &allocator;
+//    auto nodes = take_body_nodes(conv, token, parent_node);
+//    conv->local_allocator = local;
+//    return nodes;
+//}
 
 std::vector<ASTNode*> take_body_or_single_stmt(CSTConverter *conv, CSTToken *container, unsigned &i, ASTNode* parent_node) {
     auto& token = container->tokens[i];
@@ -164,8 +164,8 @@ CSTConverter::CSTConverter(
         bool is64Bit,
         std::string target,
         GlobalInterpretScope& scope,
-        ASTAllocator<>& global_allocator,
-        ASTAllocator<>& mod_allocator
+        ASTAllocator& global_allocator,
+        ASTAllocator& mod_allocator
 ) : path(std::move(path)), is64Bit(is64Bit), target(std::move(target)), global_scope(scope),
     global_allocator(global_allocator), mod_allocator(mod_allocator), local_allocator(&mod_allocator) {
 
@@ -177,11 +177,11 @@ const std::unordered_map<std::string, MacroHandlerFn> MacroHandlers = {
                 container->tokens[2]->accept(converter);
                 auto take_value = converter->value();
                 auto evaluated_value = take_value->evaluated_value(converter->global_scope);
-                if(evaluated_value.get() == nullptr) {
+                if(evaluated_value == nullptr) {
                     converter->error("couldn't evaluate value", container);
                     return;
                 }
-                converter->put_value(evaluated_value.release(), container);
+                converter->put_value(evaluated_value, container);
             } else {
                 converter->error("expected a value for eval", container);
             }
@@ -227,7 +227,7 @@ const std::unordered_map<std::string, MacroHandlerFn> MacroHandlers = {
         {"tr:debug:c", [](CSTConverter* converter, CSTToken* container) {
             auto body = take_body_compound(converter, container, converter->parent_node);
             std::ostringstream ostring;
-            ToCAstVisitor visitor(converter->global_scope, &ostring);
+            ToCAstVisitor visitor(converter->global_scope, &ostring, converter->mod_allocator);
             visitor.translate(body.nodes);
             converter->put_value(new (converter->local<StringValue>()) StringValue(ostring.str(), container), container);
         }},
@@ -236,7 +236,7 @@ const std::unordered_map<std::string, MacroHandlerFn> MacroHandlers = {
                 container->accept(converter);
                 auto value = converter->value();
                 std::ostringstream ostring;
-                ToCAstVisitor visitor(converter->global_scope, &ostring);
+                ToCAstVisitor visitor(converter->global_scope, &ostring, converter->mod_allocator);
                 value->accept(&visitor);
                 converter->put_value(new (converter->local<StringValue>()) StringValue(ostring.str(), container), container);
             } else {
@@ -460,7 +460,7 @@ struct FunctionParamsResult {
 };
 
 // will probably leave the index at ')'
-FunctionParamsResult function_params(CSTConverter* converter, ASTAllocator<>& allocator, cst_tokens_ref_type tokens, unsigned start) {
+FunctionParamsResult function_params(CSTConverter* converter, ASTAllocator& allocator, cst_tokens_ref_type tokens, unsigned start) {
     auto prev_param_index = converter->param_index;
     converter->param_index = 0;
     auto isVariadic = false;
@@ -507,7 +507,7 @@ FunctionParamsResult function_params(CSTConverter* converter, ASTAllocator<>& al
 
 void convert_generic_list(
     CSTConverter *converter,
-    ASTAllocator<>& allocator,
+    ASTAllocator& allocator,
     CSTToken*  compound,
     std::vector<GenericTypeParameter*>& generic_list,
     ASTNode* parent_node
@@ -687,7 +687,7 @@ void CSTConverter::visitEnumDecl(CSTToken* decl) {
     put_node(enum_decl, decl);
 }
 
-Value* convertNumber(ASTAllocator<>& alloc, NumberToken* token, ValueType value_type, bool is64Bit) {
+Value* convertNumber(ASTAllocator& alloc, NumberToken* token, ValueType value_type, bool is64Bit) {
     switch(value_type) {
         case ValueType::Int:
             return new (alloc.allocate<IntValue>()) IntValue(std::stoi(token->value()), token);
@@ -835,7 +835,7 @@ void CSTConverter::visitDestruct(CSTToken* delStmt) {
 }
 
 void CSTConverter::visitUsing(CSTToken* usingStmt) {
-    std::vector<std::unique_ptr<ChainValue>> curr_values;
+    std::vector<ChainValue*> curr_values;
     unsigned i = 1;
     while(i < usingStmt->tokens.size()) {
         auto& tok = usingStmt->tokens[i];
@@ -1900,7 +1900,7 @@ void CSTConverter::visitExpression(CSTToken* expr) {
             //    pop the operator from the operator stack onto the output queue
             output.putOperator(op_stack.popOperator());
         }
-        put_value(output.toExpressionRaw(is64Bit, expr), expr);
+        put_value(output.toExpressionRaw(*local_allocator, is64Bit, expr), expr);
     }
 }
 

@@ -19,7 +19,7 @@ public:
     }
 
     bool is_same(BaseType* type) override {
-        return type->kind() == BaseTypeKind::Dynamic && ((DynamicType*) type)->referenced->is_same(referenced.get());
+        return type->kind() == BaseTypeKind::Dynamic && ((DynamicType*) type)->referenced->is_same(referenced);
     }
 
     [[nodiscard]]
@@ -37,15 +37,15 @@ public:
     }
 
     [[nodiscard]]
-    DynamicType* copy() const override {
-        return new DynamicType(std::unique_ptr<BaseType>(referenced->copy()), token);
+    DynamicType* copy(ASTAllocator& allocator) const override {
+        return new (allocator.allocate<DynamicType>()) DynamicType(referenced->copy(allocator), token);
     }
 
     ASTNode* linked_node() override {
         return referenced->linked_node();
     }
 
-    void link(SymbolResolver &linker, std::unique_ptr<BaseType> &current) override;
+    void link(SymbolResolver &linker, BaseType*& current) override;
 
 #ifdef COMPILER_BUILD
 

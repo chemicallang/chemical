@@ -12,7 +12,7 @@ CSTToken *MultiFunctionNode::cst_token() {
     return functions[0]->cst_token();
 }
 
-FunctionDeclaration* MultiFunctionNode::func_for_call(std::vector<std::unique_ptr<Value>>& args) {
+FunctionDeclaration* MultiFunctionNode::func_for_call(std::vector<Value*>& args) {
     for(auto func : functions) {
         if(func->satisfy_args(args)) {
             return func;
@@ -21,10 +21,10 @@ FunctionDeclaration* MultiFunctionNode::func_for_call(std::vector<std::unique_pt
     return nullptr;
 }
 
-void MultiFunctionNode::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+void MultiFunctionNode::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
 
     // TODO Multi Function Node doesn't allow replacing functions when linking
-    std::unique_ptr<ASTNode> dummy;
+    ASTNode* dummy;
 
     // link all the functions
     for(auto func : functions) {

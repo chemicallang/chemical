@@ -34,7 +34,7 @@ public:
     /**
      * everything that is ever collected under a name, ends up here
      */
-    std::unordered_map<std::string, std::vector<std::unique_ptr<ASTNode>>> collected;
+    std::unordered_map<std::string, std::vector<ASTNode*>> collected;
 
     /**
      * when nodes for a cbi are collected, they are put in this map
@@ -44,15 +44,15 @@ public:
     /***
      * parses tokens into nodes
      */
-    std::vector<std::unique_ptr<ASTNode>> parse(std::vector<CSTToken*>& tokens);
+    std::vector<ASTNode*> parse(std::vector<CSTToken*>& tokens);
 
     /**
      * constructor
      */
     explicit CompilerBinderCommon(
         CSTDiagnoser* diagnoser,
-        ASTAllocator<>& job_allocator,
-        ASTAllocator<>& mod_allocator
+        ASTAllocator& job_allocator,
+        ASTAllocator& mod_allocator
     );
 
     /**

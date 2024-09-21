@@ -433,7 +433,6 @@ set(COMMON_SOURCES
         ast/structures/GenericTypeParameter.h
         cst/CSTToken.cpp
         ast/utils/GenericUtils.h
-        ast/values/TypeLinkedValue.h
         compiler/lab/LabBuildCompilerOptions.h
         compiler/lab/Utils.h
         stream/InputSource.h
@@ -477,6 +476,8 @@ set(COMMON_SOURCES
         ast/structures/UnsafeBlock.h
         ast/structures/UnsafeBlock.cpp
         ast/base/ASTAllocator.h
+        ast/base/ASTAllocator.cpp
+        ast/base/Allocator.h
 )
 
 # Chemical LSP Executable Target

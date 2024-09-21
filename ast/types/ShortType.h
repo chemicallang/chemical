@@ -38,8 +38,8 @@ public:
     }
 
     [[nodiscard]]
-    ShortType *copy() const override {
-        return new ShortType(token);
+    ShortType *copy(ASTAllocator& allocator) const override {
+        return new (allocator.allocate<ShortType>()) ShortType(token);
     }
 
 };

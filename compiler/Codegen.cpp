@@ -80,8 +80,9 @@ Codegen::Codegen(
         std::string target_triple,
         std::string curr_exe_path,
         bool is_64_bit,
+        ASTAllocator& allocator,
         const std::string& module_name
-) : ASTDiagnoser(), comptime_scope(comptime_scope),
+) : ASTDiagnoser(), comptime_scope(comptime_scope), allocator(allocator),
     target_triple(std::move(target_triple)), is64Bit(is_64_bit), clang(target_triple) {
     // create llvm context
     ctx = std::make_unique<llvm::LLVMContext>();
@@ -176,25 +177,19 @@ Codegen::create_function_proto(const std::string &name, llvm::FunctionType *type
     return fn;
 }
 
-std::unique_ptr<Value>& Codegen::eval_comptime(FunctionCall* call, FunctionDeclaration* decl) {
+Value*& Codegen::eval_comptime(FunctionCall* call, FunctionDeclaration* decl) {
     auto found = evaluated_func_calls.find(call);
     if(found != evaluated_func_calls.end()) {
         return found->second;
     } else {
-        auto ret = std::unique_ptr<Value>(decl->call(&comptime_scope, call, nullptr, false));
+        auto ret = decl->call(&comptime_scope, call, nullptr, false);
         if(!ret) {
 //            warn("compile time function didn't return a value", decl);
-            evaluated_func_calls[call] = std::unique_ptr<Value>(nullptr);
+            evaluated_func_calls[call] = nullptr;
             return evaluated_func_calls[call];
         }
-        Value* val;
-        auto eval = ret->create_evaluated_value(comptime_scope);
-        if(eval) {
-            val = eval.release();
-        } else {
-            val = ret.release();
-        }
-        evaluated_func_calls[call] = std::unique_ptr<Value>(val);
+        auto eval = ret->evaluated_value(comptime_scope);
+        evaluated_func_calls[call] = eval;
         return evaluated_func_calls[call];
     }
 }

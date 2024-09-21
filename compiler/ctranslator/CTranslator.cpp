@@ -19,1414 +19,1414 @@
 #include "ast/types/UInt128Type.h"
 #include "ast/types/Int128Type.h"
 
-CTranslator::CTranslator() {
+CTranslator::CTranslator(ASTAllocator& allocator) : allocator(allocator) {
     init_type_makers();
     init_node_makers();
 }
 
 void CTranslator::init_type_makers() {
-    type_makers[ZigClangBuiltinTypeOCLImage1dRO] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLImage1dRO] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLImage1dArrayRO] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLImage1dArrayRO] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLImage1dBufferRO] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLImage1dBufferRO] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLImage2dRO] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLImage2dRO] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLImage2dArrayRO] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLImage2dArrayRO] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLImage2dDepthRO] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLImage2dDepthRO] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLImage2dArrayDepthRO] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLImage2dArrayDepthRO] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLImage2dMSAARO] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLImage2dMSAARO] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLImage2dArrayMSAARO] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLImage2dArrayMSAARO] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLImage2dMSAADepthRO] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLImage2dMSAADepthRO] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLImage2dArrayMSAADepthRO] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLImage2dArrayMSAADepthRO] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLImage3dRO] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLImage3dRO] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLImage1dWO] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLImage1dWO] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLImage1dArrayWO] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLImage1dArrayWO] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLImage1dBufferWO] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLImage1dBufferWO] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLImage2dWO] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLImage2dWO] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLImage2dArrayWO] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLImage2dArrayWO] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLImage2dDepthWO] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLImage2dDepthWO] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLImage2dArrayDepthWO] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLImage2dArrayDepthWO] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLImage2dMSAAWO] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLImage2dMSAAWO] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLImage2dArrayMSAAWO] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLImage2dArrayMSAAWO] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLImage2dMSAADepthWO] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLImage2dMSAADepthWO] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLImage2dArrayMSAADepthWO] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLImage2dArrayMSAADepthWO] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLImage3dWO] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLImage3dWO] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLImage1dRW] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLImage1dRW] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLImage1dArrayRW] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLImage1dArrayRW] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLImage1dBufferRW] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLImage1dBufferRW] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLImage2dRW] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLImage2dRW] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLImage2dArrayRW] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLImage2dArrayRW] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLImage2dDepthRW] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLImage2dDepthRW] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLImage2dArrayDepthRW] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLImage2dArrayDepthRW] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLImage2dMSAARW] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLImage2dMSAARW] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLImage2dArrayMSAARW] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLImage2dArrayMSAARW] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLImage2dMSAADepthRW] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLImage2dMSAADepthRW] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLImage2dArrayMSAADepthRW] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLImage2dArrayMSAADepthRW] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLImage3dRW] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLImage3dRW] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLIntelSubgroupAVCMcePayload] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLIntelSubgroupAVCMcePayload] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLIntelSubgroupAVCImePayload] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLIntelSubgroupAVCImePayload] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLIntelSubgroupAVCRefPayload] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLIntelSubgroupAVCRefPayload] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLIntelSubgroupAVCSicPayload] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLIntelSubgroupAVCSicPayload] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLIntelSubgroupAVCMceResult] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLIntelSubgroupAVCMceResult] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLIntelSubgroupAVCImeResult] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLIntelSubgroupAVCImeResult] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLIntelSubgroupAVCRefResult] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLIntelSubgroupAVCRefResult] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLIntelSubgroupAVCSicResult] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLIntelSubgroupAVCSicResult] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLIntelSubgroupAVCImeResultSingleReferenceStreamout] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLIntelSubgroupAVCImeResultSingleReferenceStreamout] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLIntelSubgroupAVCImeResultDualReferenceStreamout] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLIntelSubgroupAVCImeResultDualReferenceStreamout] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLIntelSubgroupAVCImeSingleReferenceStreamin] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLIntelSubgroupAVCImeSingleReferenceStreamin] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLIntelSubgroupAVCImeDualReferenceStreamin] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLIntelSubgroupAVCImeDualReferenceStreamin] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveInt8] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveInt8] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveInt16] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveInt16] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveInt32] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveInt32] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveInt64] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveInt64] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveUint8] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveUint8] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveUint16] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveUint16] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveUint32] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveUint32] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveUint64] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveUint64] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveFloat16] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveFloat16] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveFloat32] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveFloat32] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveFloat64] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveFloat64] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveBFloat16] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveBFloat16] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveInt8x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveInt8x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveInt16x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveInt16x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveInt32x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveInt32x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveInt64x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveInt64x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveUint8x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveUint8x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveUint16x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveUint16x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveUint32x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveUint32x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveUint64x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveUint64x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveFloat16x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveFloat16x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveFloat32x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveFloat32x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveFloat64x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveFloat64x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveBFloat16x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveBFloat16x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveInt8x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveInt8x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveInt16x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveInt16x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveInt32x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveInt32x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveInt64x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveInt64x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveUint8x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveUint8x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveUint16x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveUint16x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveUint32x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveUint32x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveUint64x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveUint64x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveFloat16x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveFloat16x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveFloat32x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveFloat32x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveFloat64x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveFloat64x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveBFloat16x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveBFloat16x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveInt8x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveInt8x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveInt16x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveInt16x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveInt32x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveInt32x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveInt64x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveInt64x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveUint8x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveUint8x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveUint16x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveUint16x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveUint32x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveUint32x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveUint64x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveUint64x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveFloat16x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveFloat16x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveFloat32x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveFloat32x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveFloat64x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveFloat64x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveBFloat16x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveBFloat16x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveBool] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveBool] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveBoolx2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveBoolx2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveBoolx4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveBoolx4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSveCount] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSveCount] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeVectorQuad] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeVectorQuad] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeVectorPair] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeVectorPair] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt8mf8] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt8mf8] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt8mf4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt8mf4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt8mf2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt8mf2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt8m1] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt8m1] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt8m2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt8m2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt8m4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt8m4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt8m8] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt8m8] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint8mf8] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint8mf8] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint8mf4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint8mf4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint8mf2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint8mf2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint8m1] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint8m1] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint8m2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint8m2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint8m4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint8m4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint8m8] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint8m8] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt16mf4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt16mf4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt16mf2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt16mf2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt16m1] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt16m1] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt16m2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt16m2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt16m4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt16m4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt16m8] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt16m8] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint16mf4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint16mf4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint16mf2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint16mf2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint16m1] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint16m1] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint16m2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint16m2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint16m4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint16m4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint16m8] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint16m8] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt32mf2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt32mf2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt32m1] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt32m1] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt32m2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt32m2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt32m4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt32m4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt32m8] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt32m8] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint32mf2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint32mf2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint32m1] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint32m1] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint32m2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint32m2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint32m4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint32m4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint32m8] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint32m8] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt64m1] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt64m1] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt64m2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt64m2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt64m4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt64m4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt64m8] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt64m8] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint64m1] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint64m1] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint64m2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint64m2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint64m4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint64m4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint64m8] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint64m8] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat16mf4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat16mf4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat16mf2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat16mf2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat16m1] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat16m1] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat16m2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat16m2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat16m4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat16m4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat16m8] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat16m8] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat32mf2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat32mf2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat32m1] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat32m1] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat32m2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat32m2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat32m4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat32m4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat32m8] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat32m8] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat64m1] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat64m1] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat64m2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat64m2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat64m4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat64m4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat64m8] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat64m8] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvBool1] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvBool1] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvBool2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvBool2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvBool4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvBool4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvBool8] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvBool8] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvBool16] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvBool16] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvBool32] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvBool32] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvBool64] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvBool64] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt8mf8x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt8mf8x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt8mf8x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt8mf8x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt8mf8x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt8mf8x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt8mf8x5] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt8mf8x5] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt8mf8x6] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt8mf8x6] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt8mf8x7] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt8mf8x7] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt8mf8x8] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt8mf8x8] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt8mf4x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt8mf4x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt8mf4x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt8mf4x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt8mf4x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt8mf4x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt8mf4x5] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt8mf4x5] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt8mf4x6] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt8mf4x6] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt8mf4x7] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt8mf4x7] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt8mf4x8] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt8mf4x8] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt8mf2x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt8mf2x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt8mf2x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt8mf2x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt8mf2x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt8mf2x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt8mf2x5] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt8mf2x5] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt8mf2x6] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt8mf2x6] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt8mf2x7] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt8mf2x7] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt8mf2x8] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt8mf2x8] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt8m1x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt8m1x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt8m1x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt8m1x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt8m1x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt8m1x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt8m1x5] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt8m1x5] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt8m1x6] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt8m1x6] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt8m1x7] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt8m1x7] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt8m1x8] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt8m1x8] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt8m2x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt8m2x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt8m2x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt8m2x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt8m2x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt8m2x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt8m4x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt8m4x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint8mf8x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint8mf8x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint8mf8x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint8mf8x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint8mf8x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint8mf8x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint8mf8x5] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint8mf8x5] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint8mf8x6] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint8mf8x6] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint8mf8x7] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint8mf8x7] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint8mf8x8] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint8mf8x8] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint8mf4x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint8mf4x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint8mf4x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint8mf4x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint8mf4x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint8mf4x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint8mf4x5] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint8mf4x5] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint8mf4x6] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint8mf4x6] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint8mf4x7] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint8mf4x7] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint8mf4x8] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint8mf4x8] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint8mf2x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint8mf2x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint8mf2x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint8mf2x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint8mf2x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint8mf2x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint8mf2x5] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint8mf2x5] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint8mf2x6] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint8mf2x6] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint8mf2x7] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint8mf2x7] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint8mf2x8] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint8mf2x8] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint8m1x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint8m1x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint8m1x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint8m1x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint8m1x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint8m1x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint8m1x5] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint8m1x5] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint8m1x6] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint8m1x6] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint8m1x7] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint8m1x7] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint8m1x8] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint8m1x8] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint8m2x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint8m2x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint8m2x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint8m2x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint8m2x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint8m2x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint8m4x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint8m4x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt16mf4x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt16mf4x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt16mf4x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt16mf4x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt16mf4x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt16mf4x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt16mf4x5] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt16mf4x5] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt16mf4x6] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt16mf4x6] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt16mf4x7] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt16mf4x7] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt16mf4x8] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt16mf4x8] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt16mf2x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt16mf2x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt16mf2x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt16mf2x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt16mf2x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt16mf2x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt16mf2x5] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt16mf2x5] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt16mf2x6] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt16mf2x6] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt16mf2x7] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt16mf2x7] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt16mf2x8] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt16mf2x8] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt16m1x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt16m1x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt16m1x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt16m1x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt16m1x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt16m1x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt16m1x5] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt16m1x5] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt16m1x6] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt16m1x6] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt16m1x7] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt16m1x7] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt16m1x8] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt16m1x8] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt16m2x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt16m2x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt16m2x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt16m2x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt16m2x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt16m2x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt16m4x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt16m4x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint16mf4x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint16mf4x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint16mf4x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint16mf4x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint16mf4x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint16mf4x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint16mf4x5] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint16mf4x5] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint16mf4x6] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint16mf4x6] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint16mf4x7] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint16mf4x7] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint16mf4x8] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint16mf4x8] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint16mf2x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint16mf2x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint16mf2x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint16mf2x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint16mf2x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint16mf2x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint16mf2x5] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint16mf2x5] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint16mf2x6] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint16mf2x6] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint16mf2x7] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint16mf2x7] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint16mf2x8] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint16mf2x8] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint16m1x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint16m1x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint16m1x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint16m1x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint16m1x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint16m1x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint16m1x5] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint16m1x5] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint16m1x6] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint16m1x6] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint16m1x7] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint16m1x7] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint16m1x8] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint16m1x8] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint16m2x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint16m2x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint16m2x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint16m2x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint16m2x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint16m2x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint16m4x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint16m4x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt32mf2x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt32mf2x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt32mf2x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt32mf2x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt32mf2x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt32mf2x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt32mf2x5] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt32mf2x5] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt32mf2x6] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt32mf2x6] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt32mf2x7] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt32mf2x7] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt32mf2x8] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt32mf2x8] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt32m1x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt32m1x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt32m1x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt32m1x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt32m1x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt32m1x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt32m1x5] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt32m1x5] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt32m1x6] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt32m1x6] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt32m1x7] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt32m1x7] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt32m1x8] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt32m1x8] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt32m2x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt32m2x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt32m2x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt32m2x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt32m2x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt32m2x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt32m4x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt32m4x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint32mf2x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint32mf2x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint32mf2x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint32mf2x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint32mf2x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint32mf2x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint32mf2x5] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint32mf2x5] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint32mf2x6] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint32mf2x6] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint32mf2x7] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint32mf2x7] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint32mf2x8] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint32mf2x8] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint32m1x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint32m1x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint32m1x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint32m1x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint32m1x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint32m1x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint32m1x5] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint32m1x5] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint32m1x6] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint32m1x6] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint32m1x7] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint32m1x7] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint32m1x8] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint32m1x8] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint32m2x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint32m2x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint32m2x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint32m2x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint32m2x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint32m2x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint32m4x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint32m4x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt64m1x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt64m1x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt64m1x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt64m1x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt64m1x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt64m1x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt64m1x5] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt64m1x5] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt64m1x6] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt64m1x6] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt64m1x7] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt64m1x7] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt64m1x8] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt64m1x8] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt64m2x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt64m2x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt64m2x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt64m2x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt64m2x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt64m2x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvInt64m4x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvInt64m4x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint64m1x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint64m1x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint64m1x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint64m1x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint64m1x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint64m1x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint64m1x5] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint64m1x5] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint64m1x6] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint64m1x6] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint64m1x7] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint64m1x7] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint64m1x8] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint64m1x8] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint64m2x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint64m2x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint64m2x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint64m2x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint64m2x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint64m2x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvUint64m4x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvUint64m4x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat16mf4x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat16mf4x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat16mf4x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat16mf4x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat16mf4x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat16mf4x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat16mf4x5] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat16mf4x5] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat16mf4x6] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat16mf4x6] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat16mf4x7] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat16mf4x7] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat16mf4x8] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat16mf4x8] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat16mf2x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat16mf2x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat16mf2x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat16mf2x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat16mf2x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat16mf2x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat16mf2x5] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat16mf2x5] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat16mf2x6] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat16mf2x6] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat16mf2x7] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat16mf2x7] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat16mf2x8] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat16mf2x8] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat16m1x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat16m1x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat16m1x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat16m1x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat16m1x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat16m1x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat16m1x5] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat16m1x5] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat16m1x6] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat16m1x6] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat16m1x7] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat16m1x7] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat16m1x8] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat16m1x8] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat16m2x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat16m2x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat16m2x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat16m2x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat16m2x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat16m2x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat16m4x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat16m4x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat32mf2x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat32mf2x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat32mf2x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat32mf2x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat32mf2x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat32mf2x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat32mf2x5] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat32mf2x5] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat32mf2x6] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat32mf2x6] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat32mf2x7] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat32mf2x7] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat32mf2x8] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat32mf2x8] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat32m1x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat32m1x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat32m1x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat32m1x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat32m1x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat32m1x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat32m1x5] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat32m1x5] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat32m1x6] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat32m1x6] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat32m1x7] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat32m1x7] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat32m1x8] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat32m1x8] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat32m2x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat32m2x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat32m2x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat32m2x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat32m2x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat32m2x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat32m4x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat32m4x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat64m1x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat64m1x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat64m1x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat64m1x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat64m1x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat64m1x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat64m1x5] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat64m1x5] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat64m1x6] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat64m1x6] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat64m1x7] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat64m1x7] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat64m1x8] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat64m1x8] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat64m2x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat64m2x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat64m2x3] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat64m2x3] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat64m2x4] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat64m2x4] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeRvvFloat64m4x2] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeRvvFloat64m4x2] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeWasmExternRef] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeWasmExternRef] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeVoid] = [](clang::BuiltinType*) -> BaseType* {
-        return new VoidType(nullptr);
+    type_makers[ZigClangBuiltinTypeVoid] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
+        return new (allocator.allocate<VoidType>()) VoidType(nullptr);
     };
-    type_makers[ZigClangBuiltinTypeBool] = [](clang::BuiltinType*) -> BaseType* {
-        return new BoolType(nullptr);
+    type_makers[ZigClangBuiltinTypeBool] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
+        return new (allocator.allocate<BoolType>()) BoolType(nullptr);
     };
-    type_makers[ZigClangBuiltinTypeChar_U] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeChar_U] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeUChar] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeUChar] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeWChar_U] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeWChar_U] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeChar8] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeChar8] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeChar16] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeChar16] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeChar32] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeChar32] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeUShort] = [](clang::BuiltinType*) -> BaseType* {
-        return new UShortType(nullptr);
+    type_makers[ZigClangBuiltinTypeUShort] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
+        return new (allocator.allocate<UShortType>()) UShortType(nullptr);
     };
-    type_makers[ZigClangBuiltinTypeUInt] = [](clang::BuiltinType*) -> BaseType* {
-        return new UIntType(nullptr);
+    type_makers[ZigClangBuiltinTypeUInt] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
+        return new (allocator.allocate<UIntType>()) UIntType(nullptr);
     };
-    type_makers[ZigClangBuiltinTypeULong] = [](clang::BuiltinType*) -> BaseType* {
-        return new ULongType(sizeof(long) == 8, nullptr);
+    type_makers[ZigClangBuiltinTypeULong] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
+        return new (allocator.allocate<ULongType>()) ULongType(sizeof(long) == 8, nullptr);
     };
-    type_makers[ZigClangBuiltinTypeULongLong] = [](clang::BuiltinType*) -> BaseType* {
-        return new UBigIntType(nullptr);
+    type_makers[ZigClangBuiltinTypeULongLong] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
+        return new (allocator.allocate<UBigIntType>()) UBigIntType(nullptr);
     };
-    type_makers[ZigClangBuiltinTypeUInt128] = [](clang::BuiltinType*) -> BaseType* {
-        return new UInt128Type(nullptr);
+    type_makers[ZigClangBuiltinTypeUInt128] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
+        return new (allocator.allocate<UInt128Type>()) UInt128Type(nullptr);
     };
-    type_makers[ZigClangBuiltinTypeChar_S] = [](clang::BuiltinType*) -> BaseType* {
-        return new CharType(nullptr);
+    type_makers[ZigClangBuiltinTypeChar_S] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
+        return new (allocator.allocate<CharType>()) CharType(nullptr);
     };
-    type_makers[ZigClangBuiltinTypeSChar] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSChar] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeWChar_S] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeWChar_S] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeShort] = [](clang::BuiltinType*) -> BaseType* {
-        return new ShortType(nullptr);
+    type_makers[ZigClangBuiltinTypeShort] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
+        return new (allocator.allocate<ShortType>()) ShortType(nullptr);
     };
-    type_makers[ZigClangBuiltinTypeInt] = [](clang::BuiltinType*) -> BaseType* {
-        return new IntType(nullptr);
+    type_makers[ZigClangBuiltinTypeInt] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
+        return new (allocator.allocate<IntType>()) IntType(nullptr);
     };
-    type_makers[ZigClangBuiltinTypeLong] = [](clang::BuiltinType*) -> BaseType* {
-        return new LongType(sizeof(long) == 8, nullptr);
+    type_makers[ZigClangBuiltinTypeLong] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
+        return new (allocator.allocate<LongType>()) LongType(sizeof(long) == 8, nullptr);
     };
-    type_makers[ZigClangBuiltinTypeLongLong] = [](clang::BuiltinType*) -> BaseType* {
-        return new BigIntType(nullptr);
+    type_makers[ZigClangBuiltinTypeLongLong] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
+        return new (allocator.allocate<BigIntType>()) BigIntType(nullptr);
     };
-    type_makers[ZigClangBuiltinTypeInt128] = [](clang::BuiltinType*) -> BaseType* {
-        return new Int128Type(nullptr);
+    type_makers[ZigClangBuiltinTypeInt128] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
+        return new (allocator.allocate<Int128Type>()) Int128Type(nullptr);
     };
-    type_makers[ZigClangBuiltinTypeShortAccum] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeShortAccum] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeAccum] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeAccum] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeLongAccum] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeLongAccum] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeUShortAccum] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeUShortAccum] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeUAccum] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeUAccum] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeULongAccum] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeULongAccum] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeShortFract] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeShortFract] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeFract] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeFract] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeLongFract] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeLongFract] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeUShortFract] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeUShortFract] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeUFract] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeUFract] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeULongFract] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeULongFract] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSatShortAccum] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSatShortAccum] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSatAccum] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSatAccum] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSatLongAccum] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSatLongAccum] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSatUShortAccum] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSatUShortAccum] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSatUAccum] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSatUAccum] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSatULongAccum] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSatULongAccum] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSatShortFract] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSatShortFract] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSatFract] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSatFract] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSatLongFract] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSatLongFract] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSatUShortFract] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSatUShortFract] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSatUFract] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSatUFract] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeSatULongFract] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeSatULongFract] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeHalf] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeHalf] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeFloat] = [](clang::BuiltinType*) -> BaseType* {
-        return new FloatType(nullptr);
+    type_makers[ZigClangBuiltinTypeFloat] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
+        return new (allocator.allocate<FloatType>()) FloatType(nullptr);
     };
-    type_makers[ZigClangBuiltinTypeDouble] = [](clang::BuiltinType*) -> BaseType* {
-        return new DoubleType(nullptr);
+    type_makers[ZigClangBuiltinTypeDouble] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
+        return new (allocator.allocate<DoubleType>()) DoubleType(nullptr);
     };
-    type_makers[ZigClangBuiltinTypeLongDouble] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeLongDouble] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeFloat16] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeFloat16] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeBFloat16] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeBFloat16] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeFloat128] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeFloat128] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeIbm128] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeIbm128] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeNullPtr] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeNullPtr] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeObjCId] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeObjCId] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeObjCClass] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeObjCClass] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeObjCSel] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeObjCSel] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLSampler] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLSampler] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLEvent] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLEvent] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLClkEvent] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLClkEvent] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLQueue] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLQueue] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOCLReserveID] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOCLReserveID] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeDependent] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeDependent] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOverload] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOverload] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeBoundMember] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeBoundMember] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypePseudoObject] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypePseudoObject] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeUnknownAny] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeUnknownAny] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeBuiltinFn] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeBuiltinFn] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeARCUnbridgedCast] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeARCUnbridgedCast] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeIncompleteMatrixIdx] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeIncompleteMatrixIdx] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOMPArraySection] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOMPArraySection] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOMPArrayShaping] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOMPArrayShaping] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
-    type_makers[ZigClangBuiltinTypeOMPIterator] = [](clang::BuiltinType*) -> BaseType* {
+    type_makers[ZigClangBuiltinTypeOMPIterator] = [](ASTAllocator& allocator, clang::BuiltinType*) -> BaseType* {
         return nullptr;
     };
 }
@@ -1697,7 +1697,7 @@ void CTranslator::init_node_makers() {
 
 void CTranslator::dispatch_before() {
     for(auto& node : before_nodes) {
-        nodes.emplace_back(std::move(node));
+        nodes.emplace_back(node);
     }
     before_nodes.clear();
 }

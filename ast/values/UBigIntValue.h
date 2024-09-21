@@ -23,9 +23,9 @@ public:
         return ValueKind::UBigInt;
     }
 
-    hybrid_ptr<BaseType> get_base_type() override {
-        return hybrid_ptr<BaseType> { (BaseType*) &UBigIntType::instance, false };
-    }
+//    hybrid_ptr<BaseType> get_base_type() override {
+//        return hybrid_ptr<BaseType> { (BaseType*) &UBigIntType::instance, false };
+//    }
 
     BaseType* known_type() override {
         return (BaseType*) &UBigIntType::instance;
@@ -39,12 +39,13 @@ public:
         visitor->visit(this);
     }
 
-    UBigIntValue *copy() override {
-        return new UBigIntValue(value, token);
+    UBigIntValue *copy(ASTAllocator& allocator) override {
+        return new (allocator.allocate<UBigIntValue>()) UBigIntValue(value, token);
     }
 
-    [[nodiscard]] std::unique_ptr<BaseType> create_type() override {
-        return std::make_unique<UBigIntType>(token);
+    [[nodiscard]]
+    BaseType* create_type(ASTAllocator& allocator) override {
+        return new (allocator.allocate<UBigIntType>()) UBigIntType(token);
     }
 
     unsigned int get_num_bits() override {

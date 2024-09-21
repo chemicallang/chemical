@@ -32,24 +32,24 @@ public:
         return token;
     }
 
-    BoolValue *copy() override {
-        return new BoolValue(value, token);
+    BoolValue *copy(ASTAllocator& allocator) override {
+        return new (allocator.allocate<BoolValue>()) BoolValue(value, token);
     }
 
     uint64_t byte_size(bool is64Bit) override {
         return 1;
     }
 
-    hybrid_ptr<BaseType> get_base_type() override {
-        return hybrid_ptr<BaseType> { (BaseType*) &BoolType::instance, false };
-    }
+//    hybrid_ptr<BaseType> get_base_type() override {
+//        return hybrid_ptr<BaseType> { (BaseType*) &BoolType::instance, false };
+//    }
 
     BaseType* known_type() override {
         return (BaseType*) &BoolType::instance;
     }
 
-    std::unique_ptr<BaseType> create_type() override {
-        return std::make_unique<BoolType>(nullptr);
+    BaseType* create_type(ASTAllocator& allocator) override {
+        return new (allocator.allocate<BoolType>()) BoolType(nullptr);
     }
 
     void accept(Visitor *visitor) override {

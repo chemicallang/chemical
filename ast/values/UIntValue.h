@@ -23,9 +23,9 @@ public:
         return ValueKind::UInt;
     }
 
-    hybrid_ptr<BaseType> get_base_type() override {
-        return hybrid_ptr<BaseType> { (BaseType*) &UIntType::instance, false };
-    }
+//    hybrid_ptr<BaseType> get_base_type() override {
+//        return hybrid_ptr<BaseType> { (BaseType*) &UIntType::instance, false };
+//    }
 
     BaseType* known_type() override {
         return (BaseType*) &UIntType::instance;
@@ -39,12 +39,13 @@ public:
         visitor->visit(this);
     }
 
-    UIntValue *copy() override {
-        return new UIntValue(value, token);
+    UIntValue *copy(ASTAllocator& allocator) override {
+        return new (allocator.allocate<UIntValue>()) UIntValue(value, token);
     }
 
-    [[nodiscard]] std::unique_ptr<BaseType> create_type() override {
-        return std::make_unique<UIntType>(nullptr);
+    [[nodiscard]]
+    BaseType* create_type(ASTAllocator &allocator) override {
+        return new (allocator.allocate<UIntType>()) UIntType(nullptr);
     }
 
     bool is_unsigned() override {

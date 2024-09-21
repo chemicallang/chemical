@@ -33,7 +33,7 @@ public:
         return ASTNodeKind::MultiFunctionNode;
     }
 
-    FunctionDeclaration* func_for_call(std::vector<std::unique_ptr<Value>>& args);
+    FunctionDeclaration* func_for_call(std::vector<Value*>& args);
 
     void accept(Visitor *visitor) override {
         // don't do anything
@@ -43,7 +43,7 @@ public:
         return nullptr;
     }
 
-    void declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) override;
+    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) override;
 
 };
 

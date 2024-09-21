@@ -48,7 +48,7 @@ void VarInitStatement::code_gen_global_var(Codegen &gen, bool initialize) {
 void VarInitStatement::code_gen(Codegen &gen) {
     if (gen.current_function == nullptr) {
         if(is_const && has_annotation(AnnotationKind::CompTime)) {
-            llvm_ptr = value->llvm_value(gen, type ? type.get() : nullptr);
+            llvm_ptr = value->llvm_value(gen, type ? type : nullptr);
             return;
         }
         code_gen_global_var(gen, true);
@@ -65,7 +65,7 @@ void VarInitStatement::code_gen(Codegen &gen) {
                 auto node = known_t->get_direct_linked_node();
                 if(node && node->isStoredStructType(node->kind())) {
                     llvm_ptr = gen.builder->CreateAlloca(llvm_type(gen), nullptr, identifier);
-                    gen.move_by_memcpy(node, value.get(), llvm_ptr, value->llvm_value(gen));
+                    gen.move_by_memcpy(node, value, llvm_ptr, value->llvm_value(gen));
                     moved = true;
                 }
             }
@@ -76,13 +76,13 @@ void VarInitStatement::code_gen(Codegen &gen) {
 
                 if(type && value->value_type() == ValueType::Struct && value->as_struct() == nullptr) {
                     // get it's dynamic object implementation based on expected type
-                    dyn_obj_impl = gen.get_dyn_obj_impl(value.get(), type_ptr_fast());
+                    dyn_obj_impl = gen.get_dyn_obj_impl(value, type_ptr_fast());
                 }
 
                 if(!dyn_obj_impl) {
                     auto llvmType = llvm_type(gen);
                     // is referencing another struct, that is non movable and must be mem copied into the pointer
-                    llvm_ptr = gen.memcpy_ref_struct(known_type(), value.get(), nullptr, llvmType);
+                    llvm_ptr = gen.memcpy_ref_struct(known_type(), value, nullptr, llvmType);
                     if (llvm_ptr) {
                         return;
                     }
@@ -137,10 +137,10 @@ void VarInitStatement::code_gen_destruct(Codegen &gen, Value* returnValue) {
                 break;
             }
             case BaseTypeKind::Array: {
-                const auto arr_type = (ArrayType *) type.get();
+                const auto arr_type = (ArrayType *) type;
                 if (arr_type->elem_type->kind() == BaseTypeKind::Linked ||
                 arr_type->elem_type->kind() == BaseTypeKind::Generic) {
-                    gen.destruct(llvm_ptr, arr_type->array_size, arr_type->elem_type.get(), [](llvm::Value*){});
+                    gen.destruct(llvm_ptr, arr_type->array_size, arr_type->elem_type, [](llvm::Value*){});
                 }
                 break;
             }
@@ -204,7 +204,7 @@ llvm::Type *VarInitStatement::llvm_type(Codegen &gen) {
     return type ? type->llvm_type(gen) : value->llvm_type(gen);
 }
 
-llvm::Type *VarInitStatement::llvm_chain_type(Codegen &gen, std::vector<std::unique_ptr<ChainValue>> &values, unsigned int index) {
+llvm::Type *VarInitStatement::llvm_chain_type(Codegen &gen, std::vector<ChainValue*> &values, unsigned int index) {
     check_has_type(gen);
     return type ? type->llvm_chain_type(gen, values, index) : value->llvm_chain_type(gen, values, index);
 }
@@ -231,36 +231,31 @@ bool VarInitStatement::is_top_level() {
     return parent_node == nullptr || parent_node->as_namespace();
 }
 
-std::unique_ptr<BaseType> VarInitStatement::create_value_type() {
+BaseType* VarInitStatement::create_value_type(ASTAllocator& allocator) {
     if(type) {
-        return std::unique_ptr<BaseType>(type->copy());
+        return type;
     } else {
-        return value->create_type();
+        return value->create_type(allocator);
     }
 }
 
-hybrid_ptr<BaseType> VarInitStatement::get_value_type() {
-    if(type) {
-        return hybrid_ptr<BaseType> { type.get(), false };
-    } else {
-        auto base_type = value->get_base_type();
-        if(base_type.get_will_free()) {
-            type = std::unique_ptr<BaseType>(base_type.get());
-            base_type.do_not_free();
-        }
-        return base_type;
-    }
-}
+//hybrid_ptr<BaseType> VarInitStatement::get_value_type() {
+//    if(type) {
+//        return hybrid_ptr<BaseType> { type, false };
+//    } else {
+//        return value->get_base_type();
+//    }
+//}
 
 BaseType* VarInitStatement::known_type() {
-    if(!type) {
-        auto known_type = value->known_type();
-        if(known_type) {
-            return known_type;
-        }
-        type = value->create_type();
+    if(type) {
+        return type;
     }
-    return type.get();
+    auto known_type = value->known_type();
+    if(known_type) {
+        return known_type;
+    }
+    return nullptr;
 }
 
 void VarInitStatement::accept(Visitor *visitor) {
@@ -278,13 +273,13 @@ ASTNode *VarInitStatement::child(const std::string &name) {
     return nullptr;
 }
 
-void VarInitStatement::declare_top_level(SymbolResolver &linker, std::unique_ptr<ASTNode> &node_ptr) {
+void VarInitStatement::declare_top_level(SymbolResolver &linker, ASTNode* &node_ptr) {
     if(is_top_level()) {
         linker.declare_node(identifier, this, specifier, true);
     }
 }
 
-void VarInitStatement::declare_and_link(SymbolResolver &linker, std::unique_ptr<ASTNode>& node_ptr) {
+void VarInitStatement::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     if(!is_top_level()) {
         linker.declare(identifier, this);
     }
@@ -292,12 +287,12 @@ void VarInitStatement::declare_and_link(SymbolResolver &linker, std::unique_ptr<
         type->link(linker, type);
     }
     if (value && value->link(linker, value, type_ptr_fast())) {
-        linker.current_func_type->mark_moved_value(value.get(), known_type(), linker, type != nullptr);
+        linker.current_func_type->mark_moved_value(value, known_type(), linker, type != nullptr);
     }
     if(type && value) {
         const auto as_array = value->as_array_value();
         if(type->kind() == BaseTypeKind::Array && as_array) {
-            const auto arr_type = ((ArrayType*) type.get());
+            const auto arr_type = ((ArrayType*) type);
             if(arr_type->array_size == -1) {
                 arr_type->array_size = (int) as_array->array_size();
             }
@@ -307,7 +302,7 @@ void VarInitStatement::declare_and_link(SymbolResolver &linker, std::unique_ptr<
 
 void VarInitStatement::interpret(InterpretScope &scope) {
     if (value) {
-        auto initializer = value->initializer_value(scope);
+        auto initializer = value->scope_value(scope);
         scope.declare(identifier, initializer);
     }
     decl_scope = &scope;

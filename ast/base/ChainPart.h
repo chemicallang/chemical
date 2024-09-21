@@ -18,7 +18,7 @@ class Value;
 struct ChainPart {
 
     // the values are the values of a access chain
-    std::vector<std::unique_ptr<Value>>& values;
+    std::vector<Value*>& values;
 
     // start is inclusive index into values vector
     unsigned start;

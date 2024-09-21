@@ -53,8 +53,8 @@ public:
         return type->satisfies(value_type);
     }
 
-    bool satisfies(Value *value) override {
-        return type->satisfies(value);
+    bool satisfies(ASTAllocator& allocator, Value* value) override {
+        return type->satisfies(allocator, value);
     }
 
     bool satisfies(BaseType *given) override {

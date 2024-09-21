@@ -258,7 +258,7 @@ bool BaseType::requires_moving(BaseTypeKind k) {
     return node != nullptr && node->requires_moving(node->kind());
 }
 
-FunctionDeclaration* BaseType::implicit_constructor_for(Value *value) {
+FunctionDeclaration* BaseType::implicit_constructor_for(ASTAllocator& allocator, Value *value) {
     const auto linked_def = linked_struct_def();
     if(linked_def) {
         const auto prev_itr = linked_def->active_iteration;
@@ -266,7 +266,7 @@ FunctionDeclaration* BaseType::implicit_constructor_for(Value *value) {
         if(itr != -1) {
             linked_def->set_active_iteration(itr);
         }
-        const auto implicit_constructor = linked_def->implicit_constructor_func(value);
+        const auto implicit_constructor = linked_def->implicit_constructor_func(allocator, value);
         if(itr != -1) {
             linked_def->set_active_iteration(prev_itr);
         }

@@ -42,7 +42,7 @@ public:
         return ValueType::UChar;
     }
 
-    bool satisfies(Value *value) override;
+    bool satisfies(ASTAllocator& allocator, Value* value) override;
 
     Value *create(int64_t value) override;
 

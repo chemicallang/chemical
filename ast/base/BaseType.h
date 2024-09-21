@@ -195,7 +195,7 @@ public:
     /**
      * whether the given value satisfies the current type
      */
-    virtual bool satisfies(Value* value) {
+    virtual bool satisfies(ASTAllocator& allocator, Value* value) {
         throw std::runtime_error("satisfies Value* called on base type");
     }
 
@@ -399,7 +399,7 @@ public:
      * searches a implicit constructor for given value, using the linked struct with this type
      * otherwise nullptr
      */
-    FunctionDeclaration* implicit_constructor_for(Value* value);
+    FunctionDeclaration* implicit_constructor_for(ASTAllocator& allocator, Value* value);
 
     /**
      * if this type supports get_generic_struct

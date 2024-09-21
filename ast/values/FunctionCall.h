@@ -86,7 +86,7 @@ public:
 
     ASTNode *linked_node() override;
 
-    void relink_multi_func(ASTDiagnoser* diagnoser);
+    void relink_multi_func(ASTAllocator& allocator, ASTDiagnoser* diagnoser);
 
     void link_constructor(SymbolResolver &resolver);
 

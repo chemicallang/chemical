@@ -33,7 +33,7 @@ public:
         return ValueType::Float;
     }
 
-    bool satisfies(Value *value) override;
+    bool satisfies(ASTAllocator& allocator, Value* value) override;
 
     bool can_promote(Value *value) override;
 

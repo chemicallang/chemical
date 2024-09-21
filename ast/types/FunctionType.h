@@ -79,7 +79,7 @@ public:
      * user provides the arguments, we check arguments against params, to see if it's compatible
      * if not, another function is selected that is compatible with arguments provided
      */
-    bool satisfy_args(std::vector<Value*>& forArgs);
+    bool satisfy_args(ASTAllocator& allocator, std::vector<Value*>& forArgs);
 
     /**
      * suppose this function takes a self argument passed implicitly
@@ -230,6 +230,7 @@ public:
      * this then takes into account, moves into implicit constructors
      */
     bool mark_moved_value(
+            ASTAllocator& allocator,
             Value* value_ptr,
             BaseType* expected_type,
             ASTDiagnoser& diagnoser,

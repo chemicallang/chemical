@@ -143,6 +143,24 @@ int LabBuildCompiler::do_job(LabJob* job) {
     return return_int;
 }
 
+int LabBuildCompiler::do_job_allocating(LabJob* job) {
+
+    // allocating ast allocators
+    const auto job_stack_size = 100000; // 100 kb will be allocated on the stack
+    const auto mod_stack_size = 100000; // 100 kb will be allocated on the stack
+    char job_stack_memory[job_stack_size];
+    char mod_stack_memory[mod_stack_size];
+    ASTAllocator _job_allocator(job_stack_memory, job_stack_size, job_stack_size);
+    ASTAllocator _mod_allocator(mod_stack_memory, mod_stack_size, mod_stack_size);
+
+    // the allocators that will be used for all jobs
+    job_allocator = &_job_allocator;
+    mod_allocator = &_mod_allocator;
+
+    return do_job(job);
+
+}
+
 int LabBuildCompiler::process_modules(LabJob* exe) {
 
     // the flag that forces usage of tcc

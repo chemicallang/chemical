@@ -31,7 +31,7 @@ import "basic/modules.ch"
 import "basic/moves.ch"
 import "comptime/is_value.ch"
 
-func main() {
+func main() : int {
     test_var_init();
     test_lambda();
     test_bodmas();
@@ -65,4 +65,5 @@ func main() {
     test_modules_import();
     test_moves();
     print_test_stats();
+    return 0;
 }

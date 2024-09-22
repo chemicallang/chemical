@@ -1,8 +1,8 @@
 import "../test.ch"
 
-union IntDoubleUnion {
+union IntFloatUnion {
     var a : int;
-    var b : double;
+    var b : float;
 }
 
 union TwoStructs {
@@ -18,12 +18,12 @@ union TwoStructs {
 
 func test_unions() {
     test("test that int float union works - 1", () => {
-        var u : IntDoubleUnion
+        var u : IntFloatUnion
         u.a = 5;
         return u.a == 5;
     })
     test("test that int float union works - 2", () => {
-        var u : IntDoubleUnion
+        var u : IntFloatUnion
         u.b = 1.2f;
         return u.b == 1.2f;
     })
@@ -41,11 +41,11 @@ func test_unions() {
         return tu.Second.data == 123 && tu.Second.length == 456;
     })
     test("union can be initialized just like structs", () => {
-        var u = IntDoubleUnion { a : 20 }
+        var u = IntFloatUnion { a : 20 }
         return u.a == 20;
     })
     test("union can be initialized just like structs", () => {
-        var u = IntDoubleUnion { b : 3.4 }
-        return u.b == 3.4;
+        var u = IntFloatUnion { b : 3.4f }
+        return u.b == 3.4f;
     })
 }

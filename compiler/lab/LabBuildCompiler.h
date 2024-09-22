@@ -92,6 +92,11 @@ public:
     int do_job(LabJob* job);
 
     /**
+     * will perform the job, using appropriate allocators on stack
+     */
+    int do_job_allocating(LabJob* job);
+
+    /**
      * will build the lab file
      */
     int build_lab_file(LabBuildContext& context, const std::string& path);

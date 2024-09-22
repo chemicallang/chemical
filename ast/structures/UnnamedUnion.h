@@ -56,26 +56,6 @@ public:
 
     void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) override;
 
-    // TODO copy function support unnamed union
-    bool requires_copy_fn() override {
-        return false;
-    }
-
-    // TODO move function support unnamed union
-    bool requires_clear_fn() override {
-        return false;
-    }
-
-    // TODO move function support unnamed union
-    bool requires_move_fn() override {
-        return false;
-    }
-
-    // TODO destructor support unnamed union
-    bool requires_destructor() override {
-        return false;
-    }
-
     ASTNode *child(const std::string &name) override {
         return VariablesContainer::child_def_member(name);
     }

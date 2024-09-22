@@ -14,13 +14,13 @@ public:
         std::string name
     );
 
-    virtual bool requires_destructor() = 0;
-
-    virtual bool requires_clear_fn() = 0;
-
-    virtual bool requires_move_fn() = 0;
-
-    virtual bool requires_copy_fn() = 0;
+//    virtual bool requires_destructor() = 0;
+//
+//    virtual bool requires_clear_fn() = 0;
+//
+//    virtual bool requires_move_fn() = 0;
+//
+//    virtual bool requires_copy_fn() = 0;
 
     virtual BaseDefMember* copy_member(ASTAllocator& allocator) = 0;
 

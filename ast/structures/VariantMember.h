@@ -57,13 +57,13 @@ public:
 
     BaseType* child_type(unsigned int index);
 
-    bool requires_destructor() override;
+    bool requires_destructor();
 
-    bool requires_clear_fn() override;
+    bool requires_clear_fn();
 
-    bool requires_copy_fn() override;
+    bool requires_copy_fn();
 
-    bool requires_move_fn() override;
+    bool requires_move_fn();
 
     BaseType* known_type() override;
 

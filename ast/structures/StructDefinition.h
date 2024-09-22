@@ -34,11 +34,6 @@ public:
     llvm::GlobalVariable* vtable_pointer = nullptr;
 #endif
 
-    using MembersContainer::requires_destructor;
-    using MembersContainer::requires_clear_fn;
-    using MembersContainer::requires_copy_fn;
-    using MembersContainer::requires_move_fn;
-
     /**
      * @brief Construct a new StructDeclaration object.
      *

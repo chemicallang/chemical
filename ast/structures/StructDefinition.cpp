@@ -364,22 +364,6 @@ BaseType *UnnamedStruct::copy(ASTAllocator& allocator) const {
     return new (allocator.allocate<LinkedType>()) LinkedType(name, (ASTNode *) this, token);
 }
 
-bool StructMember::requires_destructor() {
-    return type->requires_destructor();
-}
-
-bool StructMember::requires_clear_fn() {
-    return type->requires_clear_fn();
-}
-
-bool StructMember::requires_move_fn() {
-    return type->requires_move_fn();
-}
-
-bool StructMember::requires_copy_fn() {
-    return type->requires_copy_fn();
-}
-
 void StructDefinition::accept(Visitor *visitor) {
     visitor->visit(this);
 }

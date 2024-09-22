@@ -1065,8 +1065,7 @@ void func_call_that_returns_struct(ToCAstVisitor& visitor, CBeforeStmtVisitor* a
         return;
     }
     auto grandpa = ((int) end) - 3 >= 0 ? values[end - 3] : nullptr;
-    auto parent_type = parent->create_type(visitor.allocator);
-    auto func_type = func_decl ? func_decl : parent_type->function_type();
+    auto func_type = last->function_type(visitor.allocator);
     bool is_lambda = (parent->linked_node() != nullptr && parent->linked_node()->as_struct_member() != nullptr);
     if (visitor.pass_structs_to_initialize && func_type->returnType->value_type() == ValueType::Struct) {
         visitor.debug_comment("function call being taken out that returns struct");
@@ -1077,6 +1076,12 @@ void func_call_that_returns_struct(ToCAstVisitor& visitor, CBeforeStmtVisitor* a
             return;
         }
         if(func_decl) {
+            if(func_decl->parent_node) {
+                const auto container = func_decl->parent_node->as_members_container();
+                if(!container->generic_params.empty()) {
+                    container->set_active_iteration(last->generic_iteration);
+                }
+            }
             func_container_name(visitor, func_decl);
         } else {
             auto prev_nested = visitor.nested_value;

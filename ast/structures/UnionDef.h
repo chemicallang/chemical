@@ -4,6 +4,7 @@
 
 #include "ast/types/UnionType.h"
 #include "ast/base/ExtendableMembersContainerNode.h"
+#include "ast/types/LinkedType.h"
 
 class UnionDef : public ExtendableMembersContainerNode, public UnionType {
 public:
@@ -12,6 +13,7 @@ public:
     CSTToken* token;
     bool is_direct_init = false;
     AccessSpecifier specifier;
+    LinkedType linked_type;
 
 #ifdef COMPILER_BUILD
     llvm::StructType* llvm_struct_type = nullptr;

@@ -28,6 +28,10 @@ public:
         return BaseTypeKind::Union;
     }
 
+    ValueType value_type() const override {
+        return ValueType::Union;
+    }
+
     uint64_t byte_size(bool is64Bit) override;
 
     bool equals(UnionType *type) const {

@@ -77,7 +77,8 @@ UnionDef::UnionDef(
     ASTNode* parent_node,
     CSTToken* token,
     AccessSpecifier specifier
-) : ExtendableMembersContainerNode(std::move(name)), parent_node(parent_node), token(token), specifier(specifier) {
+) : ExtendableMembersContainerNode(std::move(name)), parent_node(parent_node), token(token),
+    specifier(specifier), linked_type("", this, token) {
 
 }
 
@@ -106,7 +107,7 @@ BaseType* UnionDef::create_value_type(ASTAllocator& allocator) {
 }
 
 BaseType* UnionDef::known_type() {
-    return this;
+    return &linked_type;
 }
 
 void UnionDef::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {

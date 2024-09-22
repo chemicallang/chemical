@@ -384,7 +384,7 @@ int main(int argc, char *argv[]) {
             LabModule module(LabModuleType::Files, chem::string("[BuildLabFile]"), chem::string((const char*) nullptr), chem::string((const char*) nullptr), chem::string((const char*) nullptr), chem::string((const char*) nullptr), { }, { });
             module.paths.emplace_back(args[0]);
             job.dependencies.emplace_back(&module);
-            return compiler.process_modules(&job);
+            return compiler.do_job_allocating(&job);
         }
 
         LabBuildContext context(&compiler_opts, args[0]);
@@ -488,7 +488,7 @@ int main(int argc, char *argv[]) {
     if(output.has_value()) {
         job.abs_path.append(output.value());
     }
-    auto return_int = compiler.do_job(&job);
+    auto return_int = compiler.do_job_allocating(&job);
 
     // delete object file which was linked
     if(temporary_obj) {

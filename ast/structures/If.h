@@ -83,7 +83,9 @@ public:
         return true;
     }
 
-    Scope* get_evaluated_scope(InterpretScope& scope, ASTDiagnoser* gen);
+    std::optional<bool> get_condition_const(InterpretScope& scope);
+
+    Scope* get_evaluated_scope(InterpretScope& scope, ASTDiagnoser* gen, bool condition_value);
 
     Value* get_value_node();
 

@@ -166,10 +166,17 @@ llvm::Value *VarInitStatement::llvm_load(Codegen &gen) {
         if(value && value->value_type() == ValueType::String) {
             return llvm_pointer(gen);
         }
-    } else if(known_type()->pure_type()->kind() == BaseTypeKind::Struct) {
-        return llvm_pointer(gen);
-    } else if(known_type()->get_direct_linked_variant()) {
-        return llvm_pointer(gen);
+    } else {
+        const auto k_type = known_type();
+        if(k_type->value_type() == ValueType::Struct) {
+            return llvm_pointer(gen);
+        }
+//        const auto pure = k_type->pure_type();
+//        if(pure->kind() == BaseTypeKind::Struct) {
+//            return llvm_pointer(gen);
+//        } else if(pure->get_direct_linked_variant()) {
+//            return llvm_pointer(gen);
+//        }
     }
     auto v = llvm_pointer(gen);
     return gen.builder->CreateLoad(llvm_type(gen), v, identifier);

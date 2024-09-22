@@ -180,7 +180,7 @@ bool LambdaFunction::link(SymbolResolver &linker, Value*& value_ptr, BaseType *e
 void link_given_params(SymbolResolver& resolver, const std::vector<FunctionParam*>& params) {
     for(auto& param : params) {
         if(param->type) {
-            param->type->link(resolver, param->type);
+            param->type->link(resolver);
         }
     }
 }

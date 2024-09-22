@@ -78,9 +78,9 @@ uint64_t ImplDefinition::byte_size(bool is64Bit) {
 }
 
 void ImplDefinition::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
-    interface_type->link(linker, interface_type);
+    interface_type->link(linker);
     if(struct_type) {
-        struct_type->link(linker, struct_type);
+        struct_type->link(linker);
     }
     auto& interface_name = interface_type->linked_name();
     auto linked = interface_type->linked_node()->as_interface_def();

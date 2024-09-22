@@ -34,7 +34,7 @@ bool LinkedType::satisfies(BaseType *type) {
 //    return value_type->satisfies(type);
 }
 
-void LinkedType::link(SymbolResolver &linker, BaseType*& current) {
+void LinkedType::link(SymbolResolver &linker) {
     linked = linker.find(type);
     if(!linked) {
         linker.error("unresolved symbol, couldn't find referenced type " + type, this);

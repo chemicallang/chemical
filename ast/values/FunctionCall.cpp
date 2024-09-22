@@ -665,7 +665,7 @@ void FunctionCall::link_args_implicit_constructor(SymbolResolver &linker){
 
 void FunctionCall::link_gen_args(SymbolResolver &linker) {
     for(auto& type : generic_list) {
-        type->link(linker, type);
+        type->link(linker);
     }
 }
 

@@ -248,7 +248,7 @@ void MembersContainer::declare_and_link_no_scope(SymbolResolver &linker) {
         gen_param->declare_and_link(linker, (ASTNode*&) gen_param);
     }
     for(auto& inherits : inherited) {
-        inherits->type->link(linker, (BaseType*&) inherits);
+        inherits->type->link(linker);
         const auto def = inherits->type->linked_node()->as_members_container();
         if(def) {
             declare_inherited_members(def, linker);

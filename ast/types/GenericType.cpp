@@ -26,13 +26,13 @@ CSTToken* GenericType::cst_token() {
     return referenced->cst_token();
 }
 
-void GenericType::link(SymbolResolver &linker, BaseType*& current) {
-    referenced->link(linker, (BaseType*&) referenced);
+void GenericType::link(SymbolResolver &linker) {
+    referenced->link(linker);
     if(!referenced->linked) {
         return;
     }
     for(auto& type : types) {
-        type->link(linker, type);
+        type->link(linker);
     }
     report_generic_usage(linker);
 }

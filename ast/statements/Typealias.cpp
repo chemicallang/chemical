@@ -22,7 +22,7 @@ void TypealiasStatement::declare_top_level(SymbolResolver &linker, ASTNode*& nod
 }
 
 void TypealiasStatement::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
-    actual_type->link(linker, actual_type);
+    actual_type->link(linker);
 }
 
 BaseType* TypealiasStatement::create_value_type(ASTAllocator& allocator) {

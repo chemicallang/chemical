@@ -156,7 +156,7 @@ ASTNode *ArrayValue::linked_node() {
 
 bool ArrayValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
     if(elemType) {
-        elemType->link(linker, elemType);
+        elemType->link(linker);
         const auto elem_type = element_type(linker.allocator);
         const auto def = elem_type->linked_struct_def();
         if(def) {

@@ -492,6 +492,8 @@ public:
 
     void visit(StructType* func) override;
 
+    void visit(UnionType *unionType) override;
+
     void visit(UBigIntType* func) override;
 
     void visit(UInt128Type* func) override;

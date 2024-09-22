@@ -311,11 +311,23 @@ void func_type_with_id_no_params(ToCAstVisitor& visitor, FunctionType* type, con
             visitor.write(',');
         }
     }
-//    if(type->params.empty()) {
-//        if(!type->isCapturing) {
-//            visitor->write("void");
-//        }
-//    }
+}
+
+void func_ptr_array_type(ToCAstVisitor& visitor, ArrayType* arrType, FunctionType* type, const std::string& id) {
+    accept_func_return(visitor, type->returnType);
+    visitor.write('(');
+    visitor.write('*');
+    visitor.write(id);
+    write_type_post_id(visitor, arrType);
+    visitor.write(")(");
+    if(type->isCapturing) {
+        visitor.write("void*");
+        if(!type->params.empty()) {
+            visitor.write(',');
+        }
+    }
+    func_type_params(visitor, type);
+    visitor.write(")");
 }
 
 void func_type_with_id(ToCAstVisitor& visitor, FunctionType* type, const std::string& id) {
@@ -681,7 +693,7 @@ Value* evaluate_func(
     return eval;
 }
 
-void value_assign_default(ToCAstVisitor& visitor, const std::string& identifier, BaseType* type, Value* value) {
+void value_assign_default(ToCAstVisitor& visitor, const std::string& identifier, BaseType* type, Value* value, bool write_id = true) {
     if(value->as_access_chain()) {
         auto chain = value->as_access_chain();
         auto func_call = chain->values.back()->as_func_call();
@@ -737,8 +749,10 @@ void value_assign_default(ToCAstVisitor& visitor, const std::string& identifier,
 //            return;
         }
     }
-    visitor.write(identifier);
-    write_type_post_id(visitor, type);
+    if(write_id) {
+        visitor.write(identifier);
+        write_type_post_id(visitor, type);
+    }
     visitor.write(" = ");
     visitor.accept_mutating_value(type, value);
     visitor.write(';');
@@ -752,9 +766,36 @@ void value_init_default(ToCAstVisitor& visitor, const std::string& identifier, B
         prev_itr = struct_value->get_active_iteration();
         struct_value->set_active_iteration(struct_value->generic_iteration);
     }
-    type->accept(&visitor);
+    bool write_id = true;
+    auto type_kind = type->kind();
+    switch(type_kind) {
+        case BaseTypeKind::Array: {
+            const auto arr_type = (ArrayType*) type;
+            auto elem_type = arr_type->elem_type->function_type();
+            if (elem_type && !elem_type->isCapturing) {
+                func_ptr_array_type(visitor, arr_type, elem_type, identifier);
+                write_id = false;
+            } else {
+                type->accept(&visitor);
+            }
+            break;
+        }
+        case BaseTypeKind::Function: {
+            const auto func_type = type->function_type();
+            if (!func_type->isCapturing) {
+                func_type_with_id(visitor, func_type, identifier);
+                write_id = false;
+            } else {
+                type->accept(&visitor);
+            }
+            break;
+        }
+        default:
+            type->accept(&visitor);
+            break;
+    }
     visitor.space();
-    value_assign_default(visitor, identifier, type, value);
+    value_assign_default(visitor, identifier, type, value, write_id);
     if(struct_value && is_generic) struct_value->set_active_iteration(prev_itr);
 }
 
@@ -794,10 +835,8 @@ void var_init(ToCAstVisitor& visitor, VarInitStatement* init, bool is_static, bo
     if(is_static) {
         visitor.write("static ");
     }
-    if (!init->type) {
-        init->type = init->value->create_type(visitor.allocator);
-    }
-    value_alloca_store(visitor, init->identifier, init->type, initialize ? init->value : nullptr);
+    auto init_type = init->type ? init->type : init->value->create_type(visitor.allocator);
+    value_alloca_store(visitor, init->identifier, init_type, initialize ? init->value : nullptr);
 }
 
 void allocate_struct_by_name(ToCAstVisitor& visitor, ASTNode* def, const std::string& name, Value* initializer = nullptr) {
@@ -1589,9 +1628,9 @@ void CDestructionVisitor::process_init_value(VarInitStatement *init, Value* init
             return;
         } else {
             if(chain->is_moved) {
-                auto linked = init->type->linked_node();
+                auto init_type = init->create_value_type(visitor.allocator);
+                auto linked = init_type->linked_node();
                 if(!linked) {
-                    visitor.error("couldn't destruct var init", init);
                     return;
                 }
                 queue_destruct(init->identifier, init, init->type->get_generic_iteration(), linked->as_extendable_members_container_node());
@@ -1705,11 +1744,6 @@ void func_call(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* func_ty
 }
 
 void CValueDeclarationVisitor::visit(VarInitStatement *init) {
-    if(!init->type) {
-        // because it can contain function type, so we must emplace it
-        // this function type creates a typedef, which is accessible by function type's pointer from aliases map
-        init->type = init->value->create_type(visitor.allocator);
-    }
     CommonVisitor::visit(init);
 }
 
@@ -2297,10 +2331,7 @@ void CValueDeclarationVisitor::visit(TypealiasStatement *stmt) {
 }
 
 void CValueDeclarationVisitor::visit(FunctionType *type) {
-    if(type->isCapturing) {
-        return;
-    }
-    typedef_func_type(visitor, type);
+    // TODO remove this method
 }
 
 void CValueDeclarationVisitor::visit(StructMember *member) {
@@ -4237,12 +4268,7 @@ void ToCAstVisitor::visit(FunctionType *type) {
         write('*');
         return;
     }
-    auto found = declarer->aliases.find(type);
-    if(found != declarer->aliases.end()) {
-        write(found->second);
-    } else {
-        func_type_with_id(*this, type, "NOT_FOUND");
-    }
+    func_type_with_id(*this, type, "NOT_FOUND");
 }
 
 void ToCAstVisitor::visit(GenericType *gen_type) {
@@ -4342,6 +4368,10 @@ void ToCAstVisitor::visit(StringType *func) {
 
 void ToCAstVisitor::visit(StructType *val) {
     write("[StructType_UNIMPLEMENTED]");
+}
+
+void ToCAstVisitor::visit(UnionType *unionType) {
+    write("[UnionType_UNIMPLEMENTED]");
 }
 
 void ToCAstVisitor::visit(UBigIntType *func) {

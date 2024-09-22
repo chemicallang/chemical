@@ -468,10 +468,13 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
             auto file_unit = processor.shrinked_unit.find(file.abs_path);
             if(file_unit != processor.shrinked_unit.end()) {
                 auto& nodes = file_unit->second.scope.nodes;
-                for(auto itr = nodes.begin(); itr < nodes.end(); itr++) {
+                auto itr = nodes.begin();
+                while(itr != nodes.end()) {
                     auto& node = *itr;
                     if(node->specifier() != AccessSpecifier::Public) {
-                        nodes.erase(itr);
+                        itr = nodes.erase(itr);
+                    } else {
+                        itr++;
                     }
                 }
             }

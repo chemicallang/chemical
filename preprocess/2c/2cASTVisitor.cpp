@@ -1914,7 +1914,7 @@ void declare_contained_func(CTopLevelDeclarationVisitor* tld, FunctionDeclaratio
 void CTopLevelDeclarationVisitor::visit(VarInitStatement *init) {
     if(!init->is_top_level()) return;
     visitor.new_line_and_indent();
-    var_init(visitor, init, init->is_exported(), !redefining);
+    var_init(visitor, init, !init->is_exported(), !redefining);
 }
 
 void CTopLevelDeclarationVisitor::visit(FunctionDeclaration *decl) {

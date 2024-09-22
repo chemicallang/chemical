@@ -3916,6 +3916,7 @@ void ToCAstVisitor::visit(NumberValue *numValue) {
 
 void ToCAstVisitor::visit(FloatValue *val) {
     write(std::to_string(val->value));
+    write('f');
 }
 
 void ToCAstVisitor::visit(DoubleValue *val) {

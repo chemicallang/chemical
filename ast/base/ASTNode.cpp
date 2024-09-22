@@ -83,6 +83,8 @@ AccessSpecifier ASTNode::specifier() {
             return as_function_unsafe()->specifier;
         case ASTNodeKind::InterfaceDecl:
             return as_interface_def_unsafe()->specifier;
+        case ASTNodeKind::VarInitStmt:
+            return as_var_init_unsafe()->specifier;
         default:
             return AccessSpecifier::Private;
     }

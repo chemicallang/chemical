@@ -443,6 +443,22 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
 
         }
 
+        // going over each file in the module, to remove non-public nodes
+        // so when we declare the nodes in other module, we don't consider non-public nodes
+        // because non-public nodes are only present in the module allocator which will be cleared
+        for(const auto& file : flat_imports) {
+            auto file_unit = processor.shrinked_unit.find(file.abs_path);
+            if(file_unit != processor.shrinked_unit.end()) {
+                auto& nodes = file_unit->second.scope.nodes;
+                for(auto itr = nodes.begin(); itr < nodes.end(); itr++) {
+                    auto& node = *itr;
+                    if(node->specifier() != AccessSpecifier::Public) {
+                        nodes.erase(itr);
+                    }
+                }
+            }
+        }
+
         // no need to dispose symbols for last module
         if(mod_index < dependencies.size() - 1) {
             // dispose module symbols in symbol resolver

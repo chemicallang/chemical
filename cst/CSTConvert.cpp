@@ -726,7 +726,7 @@ void CSTConverter::visitVarInit(CSTToken* varInit) {
     bool is_const = varInit->tokens[i]->value() == "const";
     i += 1;
     auto specifier = is_struct_member ? (spec.has_value() ? spec.value() : AccessSpecifier::Public) : def_specifier(spec);
-    auto& alloc = is_struct_member ? global_allocator : (parent_node ? allocator(specifier) : (*local_allocator));
+    auto& alloc = is_struct_member ? global_allocator : allocator(specifier);
     auto prev_alloc = local_allocator;
     local_allocator = &alloc;
     AnnotableNode* init;

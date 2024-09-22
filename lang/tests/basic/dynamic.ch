@@ -111,11 +111,11 @@ func test_dynamic_dispatch() {
         var c = PhoneContainer { p : CellPhone { number2 : 55 } }
         return c.p.call() == 55;
     })
-    test("storing dynamic object in a struct value works - 1", () => {
+    test("storing dynamic object in a array value works - 1", () => {
         var p : dyn Phone[] = { SmartPhone { number1 : 11 } }
         return p[0].call() == 11;
     })
-    test("storing dynamic object in a struct value works - 2", () => {
+    test("storing dynamic object in a array value works - 2", () => {
         var p : dyn Phone[] = { CellPhone { number2 : 88 } }
         return p[0].call() == 88;
     })

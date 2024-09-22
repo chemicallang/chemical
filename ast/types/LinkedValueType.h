@@ -21,7 +21,7 @@ public:
         );
     }
 
-    void link(SymbolResolver& linker, BaseType*& current) override {
+    void link(SymbolResolver &linker) override {
         value->link(linker, value);
         linked = value->linked_node();
     }

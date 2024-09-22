@@ -994,7 +994,7 @@ void BaseFunctionParam::declare_and_link(SymbolResolver &linker, ASTNode*& node_
     if(!name.empty()) {
         linker.declare(name, this);
     }
-    type->link(linker, type);
+    type->link(linker);
 }
 
 void BaseFunctionParam::redeclare_top_level(SymbolResolver &linker, ASTNode* &node_ptr) {
@@ -1021,7 +1021,7 @@ def_type(def_type), parent_node(parent_node), param_index(param_index), token(to
 void GenericTypeParameter::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     linker.declare(identifier, this);
     if(def_type) {
-        def_type->link(linker, def_type);
+        def_type->link(linker);
     }
 }
 
@@ -1242,7 +1242,7 @@ void FunctionDeclaration::declare_top_level(SymbolResolver &linker, ASTNode*& no
         gen_param->declare_and_link(linker, (ASTNode*&) gen_param);
     }
     for(auto& param : params) {
-        param->type->link(linker, param->type);
+        param->type->link(linker);
     }
     linker.scope_end();
     linker.declare_function(name, this, specifier);
@@ -1274,7 +1274,7 @@ void FunctionDeclaration::declare_and_link(SymbolResolver &linker, ASTNode*& nod
             param->defValue->link(linker, param->defValue);
         }
     }
-    returnType->link(linker, returnType);
+    returnType->link(linker);
     if (body.has_value()) {
         body->link_sequentially(linker);
     }

@@ -482,7 +482,7 @@ VariantMemberParam* VariantMemberParam::copy(ASTAllocator& allocator) {
 }
 
 void VariantMemberParam::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
-    type->link(linker, type);
+    type->link(linker);
     if(def_value) {
         def_value->link(linker, def_value);
     }

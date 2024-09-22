@@ -70,9 +70,9 @@ void ExtensionFunction::declare_top_level(SymbolResolver &linker, ASTNode*& node
     for(auto& gen_param : generic_params) {
         gen_param->declare_and_link(linker, (ASTNode*&) gen_param);
     }
-    receiver.type->link(linker, receiver.type);
+    receiver.type->link(linker);
     for(auto& param : params) {
-        param->type->link(linker, param->type);
+        param->type->link(linker);
     }
     linker.scope_end();
 
@@ -138,7 +138,7 @@ void ExtensionFunction::declare_and_link(SymbolResolver &linker, ASTNode*& node_
     for (auto &param: params) {
         param->declare_and_link(linker, (ASTNode*&) param);
     }
-    returnType->link(linker, returnType);
+    returnType->link(linker);
     if (body.has_value()) {
         body->link_sequentially(linker);
     }

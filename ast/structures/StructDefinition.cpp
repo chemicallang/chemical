@@ -289,7 +289,7 @@ void StructMember::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr)
 
 void StructMember::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
     linker.declare(name, this);
-    type->link(linker, type);
+    type->link(linker);
     if (defValue) {
         defValue->link(linker, defValue);
     }

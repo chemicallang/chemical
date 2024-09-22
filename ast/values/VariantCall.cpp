@@ -198,7 +198,7 @@ bool VariantCall::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expe
     auto& current_func = *linker.current_func_type;
     // we've already linked chain, when variant call is created, access chain is checked, so no need to link
     for(auto& type : generic_list) {
-        type->link(linker, type);
+        type->link(linker);
     }
     unsigned i = 0;
     for(auto& mem_value_ptr : values) {

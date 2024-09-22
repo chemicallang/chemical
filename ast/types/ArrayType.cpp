@@ -2,6 +2,6 @@
 
 #include "ArrayType.h"
 
-void ArrayType::link(SymbolResolver &linker, BaseType*& current) {
-    elem_type->link(linker, elem_type);
+void ArrayType::link(SymbolResolver &linker) {
+    elem_type->link(linker);
 }

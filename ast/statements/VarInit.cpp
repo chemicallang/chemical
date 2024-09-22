@@ -291,7 +291,7 @@ void VarInitStatement::declare_and_link(SymbolResolver &linker, ASTNode*& node_p
         linker.declare(identifier, this);
     }
     if (type) {
-        type->link(linker, type);
+        type->link(linker);
     }
     if (value && value->link(linker, value, type_ptr_fast())) {
         linker.current_func_type->mark_moved_value(linker.allocator, value, known_type(), linker, type != nullptr);

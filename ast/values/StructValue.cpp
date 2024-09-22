@@ -331,7 +331,7 @@ bool StructValue::link(SymbolResolver& linker, Value*& value_ptr, BaseType* expe
             return false;
         }
         for(auto& arg : generic_list) {
-            arg->link(linker, arg);
+            arg->link(linker);
         }
         int16_t prev_itr;
         // setting active generic iteration

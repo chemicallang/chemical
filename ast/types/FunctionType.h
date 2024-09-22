@@ -149,7 +149,7 @@ public:
     [[nodiscard]]
     FunctionType* copy(ASTAllocator& allocator) const override;
 
-    void link(SymbolResolver &linker, BaseType*& current) override;
+    void link(SymbolResolver &linker) override;
 
     /**
      * un_move a chain, if found to be moved

@@ -21,7 +21,7 @@ CastedValue *CastedValue::copy(ASTAllocator& allocator) {
 
 bool CastedValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType* expected_type) {
     value->link(linker, value);
-    type->link(linker, type);
+    type->link(linker);
     return true;
 }
 

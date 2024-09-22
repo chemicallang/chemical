@@ -36,7 +36,7 @@ public:
     [[nodiscard]]
     ValueType value_type() const override;
 
-    void link(SymbolResolver &linker, BaseType*& current) override;
+    void link(SymbolResolver &linker) override;
 
     ASTNode *linked_node() override;
 

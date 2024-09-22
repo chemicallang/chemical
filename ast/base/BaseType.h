@@ -102,7 +102,7 @@ public:
     /**
      * a type, or a referenced type, can link itself with its definition
      */
-    virtual void link(SymbolResolver &linker, BaseType*& current) {
+    virtual void link(SymbolResolver &linker) {
         // does nothing by default
     }
 

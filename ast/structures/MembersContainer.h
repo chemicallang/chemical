@@ -196,33 +196,11 @@ public:
     bool any_member_has_copy_func();
 
     /**
-     * checks if this struct type requires a destructor
-     * or has one
-     */
-    bool requires_destructor();
-
-    /**
-     * check if move fn is required
-     */
-    bool requires_move_fn();
-
-    /**
-     * checks if this struct type requires a move function
-     * or has one
-     */
-    bool requires_clear_fn();
-
-    /**
-     * checks if this struct type requires a copy function
-     */
-    bool requires_copy_fn();
-
-    /**
      * this means struct must be moved by calling move constructor and
      * the default mem copy doesn't suffice
      */
     inline bool requires_moving() {
-        return requires_destructor() || requires_clear_fn();
+        return destructor_func() != nullptr || clear_func() != nullptr || pre_move_func() != nullptr;
     }
 
     /**

@@ -12,6 +12,7 @@
 #include "ast/structures/EnumDeclaration.h"
 #include "ast/structures/FunctionDeclaration.h"
 #include "ast/statements/VarInit.h"
+#include "ast/statements/Typealias.h"
 #include "ast/structures/StructMember.h"
 #include "ast/structures/UnnamedUnion.h"
 #include "ast/structures/UnnamedStruct.h"
@@ -28,6 +29,15 @@ std::string ASTNode::representation() {
     RepresentationVisitor visitor(ostring);
     accept(&visitor);
     return ostring.str();
+}
+
+MembersContainer* ASTNode::get_members_container(ASTNodeKind k) {
+    if(isMembersContainer(k)) {
+        return (MembersContainer*) this;
+    } else if(k == ASTNodeKind::TypealiasStmt) {
+        return ((TypealiasStatement*) this)->actual_type->get_members_container();
+    }
+    return nullptr;
 }
 
 void ASTNode::runtime_name(std::ostream& stream) {

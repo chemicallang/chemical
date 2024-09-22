@@ -211,6 +211,11 @@ public:
     }
 
     /**
+     * get members container (if this node is one, or if linked with one)
+     */
+    MembersContainer* get_members_container(ASTNodeKind k);
+
+    /**
      * This would return the representation of the node
      */
     std::string representation();

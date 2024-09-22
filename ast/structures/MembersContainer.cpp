@@ -8,6 +8,7 @@
 #include "MultiFunctionNode.h"
 #include "FunctionDeclaration.h"
 #include "VariablesContainer.h"
+#include "ast/structures/VariantMember.h"
 #include "ast/values/StructValue.h"
 #include "ast/utils/GenericUtils.h"
 #include "ast/types/GenericType.h"
@@ -492,10 +493,23 @@ bool members_type_require(MembersContainer& container, bool(*requirement)(BaseTy
             return true;
         }
     }
-    for(const auto& var : container.variables) {
-        auto type = var.second->known_type();
-        if(requirement(type)) {
-            return true;
+    auto var_def = container.as_variant_def();
+    if(var_def) {
+        for(const auto& var : container.variables) {
+            const auto mem = var.second->as_variant_member_unsafe();
+            for(auto& val : mem->values) {
+                if(requirement(val.second->type)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    } else {
+        for(const auto& var : container.variables) {
+            auto type = var.second->known_type();
+            if(requirement(type)) {
+                return true;
+            }
         }
     }
     return false;
@@ -529,22 +543,6 @@ bool MembersContainer::any_member_has_copy_func() {
     return members_type_require(*this, [](BaseType* type)-> bool {
         return type->get_copy_fn() != nullptr;
     });
-}
-
-bool MembersContainer::requires_destructor() {
-    return destructor_func() != nullptr || any_member_has_destructor();
-}
-
-bool MembersContainer::requires_clear_fn() {
-    return clear_func() != nullptr || any_member_has_clear_func();
-}
-
-bool MembersContainer::requires_move_fn() {
-    return pre_move_func() != nullptr || any_member_has_pre_move_func();
-}
-
-bool MembersContainer::requires_copy_fn() {
-    return copy_func() != nullptr || any_member_has_copy_func();
 }
 
 FunctionDeclaration* MembersContainer::pre_move_func() {

@@ -68,36 +68,36 @@ public:
 
     void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) override;
 
-    bool requires_copy_fn() override {
+    bool requires_copy_fn() {
         for(const auto& var : variables) {
-            if(var.second->requires_copy_fn()) {
+            if(var.second->known_type()->requires_copy_fn()) {
                 return true;
             }
         }
         return false;
     }
 
-    bool requires_move_fn() override {
+    bool requires_move_fn() {
         for(const auto& var : variables) {
-            if(var.second->requires_move_fn()) {
+            if(var.second->known_type()->requires_move_fn()) {
                 return true;
             }
         }
         return false;
     }
 
-    bool requires_clear_fn() override {
+    bool requires_clear_fn() {
         for(const auto& var : variables) {
-            if(var.second->requires_clear_fn()) {
+            if(var.second->known_type()->requires_clear_fn()) {
                 return true;
             }
         }
         return false;
     }
 
-    bool requires_destructor() override {
+    bool requires_destructor() {
         for(const auto& var : variables) {
-            if(var.second->requires_destructor()) {
+            if(var.second->known_type()->requires_destructor()) {
                 return true;
             }
         }

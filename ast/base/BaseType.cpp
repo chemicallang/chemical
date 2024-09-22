@@ -4,6 +4,8 @@
 #include "preprocess/RepresentationVisitor.h"
 #include "ast/structures/StructDefinition.h"
 #include "ast/structures/VariantDefinition.h"
+#include "ast/structures/UnnamedStruct.h"
+#include "ast/structures/VariantMember.h"
 #include "ast/structures/InterfaceDefinition.h"
 #include "ast/statements/Typealias.h"
 #include "ast/structures/UnionDef.h"
@@ -74,19 +76,7 @@ std::string& BaseType::linked_name() {
 
 MembersContainer* BaseType::get_members_container() {
     const auto direct_node = get_direct_linked_node();
-    if(!direct_node) return nullptr;
-    switch(direct_node->kind()) {
-        case ASTNodeKind::StructDecl:
-            return direct_node->as_struct_def_unsafe();
-        case ASTNodeKind::VariantDecl:
-            return direct_node->as_variant_def_unsafe();
-        case ASTNodeKind::UnionDecl:
-            return direct_node->as_union_def_unsafe();
-        case ASTNodeKind::TypealiasStmt:
-            return direct_node->as_typealias_unsafe()->actual_type->get_members_container();
-        default:
-            return nullptr;
-    }
+    return direct_node ? direct_node->get_members_container(direct_node->kind()) : nullptr;
 }
 
 FunctionDeclaration* BaseType::get_destructor() {
@@ -115,70 +105,70 @@ FunctionDeclaration* BaseType::get_copy_fn() {
 }
 
 bool BaseType::requires_destructor() {
-    const auto direct_node = get_direct_linked_node();
-    if(!direct_node) return false;
-    switch(direct_node->kind()) {
-        case ASTNodeKind::StructDecl:
-            return direct_node->as_struct_def_unsafe()->requires_destructor();
-        case ASTNodeKind::VariantDecl:
-            return direct_node->as_variant_def_unsafe()->requires_destructor();
-        case ASTNodeKind::UnionDecl:
-            return direct_node->as_union_def_unsafe()->requires_destructor();
-        case ASTNodeKind::TypealiasStmt:
-            return direct_node->as_typealias_unsafe()->actual_type->requires_destructor();
-        default:
-            return false;
+    auto node = get_direct_linked_node(kind());
+    auto node_kind = node->kind();
+    if(ASTNode::isMembersContainer(node_kind)) {
+        return ((MembersContainer*) node)->destructor_func() != nullptr;
+    } else {
+        switch(node_kind) {
+            case ASTNodeKind::VariantMember:
+                return ((VariantMember*) node)->requires_destructor();
+            case ASTNodeKind::UnnamedStruct:
+                return ((UnnamedStruct*) node)->requires_destructor();
+            default:
+                return false;
+        }
     }
 }
 
 bool BaseType::requires_move_fn() {
-    const auto direct_node = get_direct_linked_node();
-    if(!direct_node) return false;
-    switch(direct_node->kind()) {
-        case ASTNodeKind::StructDecl:
-            return direct_node->as_struct_def_unsafe()->requires_move_fn();
-        case ASTNodeKind::VariantDecl:
-            return direct_node->as_variant_def_unsafe()->requires_move_fn();
-        case ASTNodeKind::UnionDecl:
-            return direct_node->as_union_def_unsafe()->requires_move_fn();
-        case ASTNodeKind::TypealiasStmt:
-            return direct_node->as_typealias_unsafe()->actual_type->requires_move_fn();
-        default:
-            return false;
+    auto node = get_direct_linked_node(kind());
+    auto node_kind = node->kind();
+    if(ASTNode::isMembersContainer(node_kind)) {
+        return ((MembersContainer*) node)->move_func() != nullptr;
+    } else {
+        switch(node_kind) {
+            case ASTNodeKind::VariantMember:
+                return ((VariantMember*) node)->requires_move_fn();
+            case ASTNodeKind::UnnamedStruct:
+                return ((UnnamedStruct*) node)->requires_move_fn();
+            default:
+                return false;
+        }
     }
 }
 
 bool BaseType::requires_clear_fn() {
-    const auto direct_node = get_direct_linked_node();
-    if(!direct_node) return false;
-    switch(direct_node->kind()) {
-        case ASTNodeKind::StructDecl:
-            return direct_node->as_struct_def_unsafe()->requires_clear_fn();
-        case ASTNodeKind::VariantDecl:
-            return direct_node->as_variant_def_unsafe()->requires_clear_fn();
-        case ASTNodeKind::UnionDecl:
-            return direct_node->as_union_def_unsafe()->requires_clear_fn();
-        case ASTNodeKind::TypealiasStmt:
-            return direct_node->as_typealias_unsafe()->actual_type->requires_clear_fn();
-        default:
-            return false;
+    auto node = get_direct_linked_node(kind());
+    auto node_kind = node->kind();
+    if(ASTNode::isMembersContainer(node_kind)) {
+        return ((MembersContainer*) node)->clear_func() != nullptr;
+    } else {
+        switch(node_kind) {
+            case ASTNodeKind::VariantMember:
+                return ((VariantMember*) node)->requires_clear_fn();
+            case ASTNodeKind::UnnamedStruct:
+                return ((UnnamedStruct*) node)->requires_clear_fn();
+            default:
+                return false;
+        }
     }
 }
 
 bool BaseType::requires_copy_fn() {
-    const auto direct_node = get_direct_linked_node();
-    if(!direct_node) return false;
-    switch(direct_node->kind()) {
-        case ASTNodeKind::StructDecl:
-            return direct_node->as_struct_def_unsafe()->requires_copy_fn();
-        case ASTNodeKind::VariantDecl:
-            return direct_node->as_variant_def_unsafe()->requires_copy_fn();
-        case ASTNodeKind::UnionDecl:
-            return direct_node->as_union_def_unsafe()->requires_copy_fn();
-        case ASTNodeKind::TypealiasStmt:
-            return direct_node->as_typealias_unsafe()->actual_type->requires_copy_fn();
-        default:
-            return false;
+    auto node = get_direct_linked_node(kind());
+    auto node_kind = node->kind();
+    if(ASTNode::isMembersContainer(node_kind)) {
+        return ((MembersContainer*) node)->copy_func() != nullptr;
+    } else {
+        switch(node_kind) {
+            case ASTNodeKind::VariantMember:
+                return ((VariantMember*) node)->requires_copy_fn();
+            case ASTNodeKind::UnnamedStruct:
+                return ((UnnamedStruct*) node)->requires_copy_fn();
+            default:
+                return false;
+        }
     }
 }
 

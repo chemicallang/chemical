@@ -106,6 +106,7 @@ FunctionDeclaration* BaseType::get_copy_fn() {
 
 bool BaseType::requires_destructor() {
     auto node = get_direct_linked_node(kind());
+    if(!node) return false;
     auto node_kind = node->kind();
     if(ASTNode::isMembersContainer(node_kind)) {
         return ((MembersContainer*) node)->destructor_func() != nullptr;
@@ -123,9 +124,10 @@ bool BaseType::requires_destructor() {
 
 bool BaseType::requires_move_fn() {
     auto node = get_direct_linked_node(kind());
+    if(!node) return false;
     auto node_kind = node->kind();
     if(ASTNode::isMembersContainer(node_kind)) {
-        return ((MembersContainer*) node)->move_func() != nullptr;
+        return ((MembersContainer*) node)->pre_move_func() != nullptr;
     } else {
         switch(node_kind) {
             case ASTNodeKind::VariantMember:
@@ -140,6 +142,7 @@ bool BaseType::requires_move_fn() {
 
 bool BaseType::requires_clear_fn() {
     auto node = get_direct_linked_node(kind());
+    if(!node) return false;
     auto node_kind = node->kind();
     if(ASTNode::isMembersContainer(node_kind)) {
         return ((MembersContainer*) node)->clear_func() != nullptr;
@@ -157,6 +160,7 @@ bool BaseType::requires_clear_fn() {
 
 bool BaseType::requires_copy_fn() {
     auto node = get_direct_linked_node(kind());
+    if(!node) return false;
     auto node_kind = node->kind();
     if(ASTNode::isMembersContainer(node_kind)) {
         return ((MembersContainer*) node)->copy_func() != nullptr;

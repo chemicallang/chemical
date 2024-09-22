@@ -34,11 +34,11 @@ void DestructStmt::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) 
     free_func_linked = found->as_function();
 }
 
-DestructData DestructStmt::get_data() {
+DestructData DestructStmt::get_data(ASTAllocator& allocator) {
 
     DestructData data {nullptr, nullptr,  -1 };
 
-    auto created_type = identifier->known_type();
+    auto created_type = identifier->create_type(allocator);
     auto pure_type = created_type->pure_type();
 //    auto pure_type = identifier->get_pure_type();
     bool determined_array = false;

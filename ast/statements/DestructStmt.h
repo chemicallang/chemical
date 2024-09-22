@@ -54,7 +54,7 @@ public:
         return token;
     }
 
-    DestructData get_data();
+    DestructData get_data(ASTAllocator& allocator);
 
     ASTNode* parent() override {
         return parent_node;

@@ -573,11 +573,16 @@ void write_accessor(ToCAstVisitor& visitor, Value* current, Value* next) {
 //            return;
 //        }
 //    }
-    if (current->value_type() == ValueType::Pointer) {
+    auto type = current->create_type(visitor.allocator);
+    if(type->pure_type()->kind() == BaseTypeKind::Pointer) {
         visitor.write("->");
-    } else {
-        visitor.write('.');
+        return;
     }
+//    if (current->value_type() == ValueType::Pointer) {
+//        visitor.write("->");
+//    } else {
+        visitor.write('.');
+//    }
 }
 
 void write_accessor(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, unsigned int index) {
@@ -1252,9 +1257,9 @@ void CBeforeStmtVisitor::process_init_value(Value* value, const std::string& ide
 }
 
 void CBeforeStmtVisitor::visit(VarInitStatement *init) {
-    if (!init->type) {
-        init->type = init->value->create_type(visitor.allocator);
-    }
+//    if (!init->type) {
+//        init->type = init->value->create_type(visitor.allocator);
+//    }
     visitor.debug_comment("visiting var init in before");
     if(init->value) {
         process_init_value(init->value, init->identifier);
@@ -1638,19 +1643,20 @@ void CDestructionVisitor::process_init_value(VarInitStatement *init, Value* init
                 if(!linked) {
                     return;
                 }
-                queue_destruct(init->identifier, init, init->type->get_generic_iteration(), linked->as_extendable_members_container_node());
+                queue_destruct(init->identifier, init, init_type->get_generic_iteration(), linked->as_extendable_members_container_node());
             }
             return;
         }
     }
     auto id = init_value->as_identifier();
     if(id && id->is_moved) {
-        auto linked = init->type->linked_node();
+        auto init_type = init->create_value_type(visitor.allocator);
+        auto linked = init_type->linked_node();
         if(!linked) {
             visitor.error("couldn't destruct var init", init);
             return;
         }
-        queue_destruct(init->identifier, init, init->type->get_generic_iteration(), linked->as_extendable_members_container_node());
+        queue_destruct(init->identifier, init, init_type->get_generic_iteration(), linked->as_extendable_members_container_node());
         return;
     }
     auto array_val = init_value->as_array_value();
@@ -2015,21 +2021,7 @@ void CTopLevelDeclarationVisitor::visit(Namespace *ns) {
     }
 }
 
-void CTopLevelDeclarationVisitor::declare_struct_def_only(StructDefinition* def, bool do_check) {
-    if(do_check) {
-        auto found = declared_nodes.find(def);
-        if (found != declared_nodes.end()) {
-            if(found->second.struct_def.declared_struct) {
-                return;
-            } else {
-                found->second.struct_def.declared_struct = true;
-            }
-        } else {
-            auto& c = declared_nodes[def];
-            c.struct_def.iterations_done = 0;
-            c.struct_def.declared_struct = true;
-        }
-    }
+void CTopLevelDeclarationVisitor::declare_struct_def_only(StructDefinition* def) {
     for(auto& mem : def->variables) {
         mem.second->accept(value_visitor);
     }
@@ -2059,7 +2051,7 @@ void CTopLevelDeclarationVisitor::declare_struct_def_only(StructDefinition* def,
     write("};");
 }
 
-void CTopLevelDeclarationVisitor::declare_struct(StructDefinition* def, bool check_declared) {
+void CTopLevelDeclarationVisitor::declare_struct(StructDefinition* def) {
     // no need to forward declare struct when inlining function types
     if(!visitor.inline_struct_members_fn_types) {
         // forward declaring struct for function types that take a pointer to it
@@ -2073,7 +2065,7 @@ void CTopLevelDeclarationVisitor::declare_struct(StructDefinition* def, bool che
         //    struct_name(visitor, def);
         //    write(';');
     }
-    declare_struct_def_only(def, check_declared);
+    declare_struct_def_only(def);
     // TODO remove this if
     if(def->requires_destructor() && def->destructor_func() == nullptr) {
         auto decl = def->create_destructor(visitor.allocator);
@@ -2093,10 +2085,17 @@ void early_declare_gen_arg_structs(CTopLevelDeclarationVisitor& visitor, std::ve
         if(node) {
             const auto node_kind = node->kind();
             if (node_kind == ASTNodeKind::StructDecl) {
-                visitor.declare_struct(node->as_struct_def_unsafe(), true);
+                const auto def = node->as_struct_def_unsafe();
+                if(visitor.redefining || def->iterations_declared == 0) {
+                    visitor.declare_struct(def);
+                    def->iterations_declared++;
+                }
             } else if (node_kind == ASTNodeKind::VariantDecl) {
-                // TODO check declared
-                visitor.declare_variant(node->as_variant_def_unsafe());
+                const auto def = node->as_variant_def_unsafe();
+                if(visitor.redefining || def->iterations_declared == 0) {
+                    visitor.declare_variant(def);
+                    def->iterations_declared++;
+                }
             } else if (node_kind == ASTNodeKind::UnionDecl) {
                 // TODO this
             }
@@ -2106,26 +2105,24 @@ void early_declare_gen_arg_structs(CTopLevelDeclarationVisitor& visitor, std::ve
 
 void CTopLevelDeclarationVisitor::visit(StructDefinition* def) {
     if(def->generic_params.empty()) {
-        declare_struct(def, !redefining);
-    } else {
-        int16_t itr = 0;
-        // if previously we generated definition, we must start at the definition not done yet
-        // this can happen if generic was present in other file, and we generated all implementations
-        // however in this file we found another implementation that hasn't been generated before
-        if(!redefining) {
-            auto found = declared_nodes.find(def);
-            if (found != declared_nodes.end()) {
-                itr = found->second.struct_def.iterations_done;
-            }
+        if(redefining) { // defining struct imported from another module
+            declare_struct(def);
+        } else if(def->iterations_declared == 0) { // not yet declared, we should declare it
+            declare_struct(def);
+            def->iterations_declared = 1;
         }
+    } else {
+        // when redefining (struct imported from other module), we declare all iterations, otherwise begin where left off
+        int16_t itr = redefining ? (int16_t) 0 : def->iterations_declared;
         const auto total = def->total_generic_iterations();
         while(itr < total) {
             def->set_active_iteration(itr);
             // early declare structs that are generic arguments
             early_declare_gen_arg_structs(*this, def->generic_params);
-            declare_struct(def, false);
+            declare_struct(def);
             itr++;
         }
+        def->iterations_declared = total;
         def->set_active_iteration(-1);
     }
 }
@@ -2210,26 +2207,26 @@ void CTopLevelDeclarationVisitor::declare_variant(VariantDefinition* def) {
     }
 }
 
-void CTopLevelDeclarationVisitor::visit(VariantDefinition *variant_def) {
-    if(variant_def->generic_params.empty()) {
-        declare_variant(variant_def);
-    } else {
-        int16_t itr = 0;
-        // if previously we generated definition, we must start at the definition not done yet
-        // this can happen if generic was present in other file and we generated all implementations
-        // however in this file we found another implementation that hasn't been generated before
-        auto found = declared_nodes.find(variant_def);
-        if(found != declared_nodes.end()) {
-            itr = found->second.variant_def.iterations_done;
+void CTopLevelDeclarationVisitor::visit(VariantDefinition *def) {
+    if(def->generic_params.empty()) {
+        if(redefining) {
+            declare_variant(def);
+        } else if(def->iterations_declared == 0) {
+            declare_variant(def);
+            def->iterations_declared = 1;
         }
-        const auto total = variant_def->total_generic_iterations();
+    } else {
+        // when redefining (struct imported from other module), we declare all iterations, otherwise begin where left off
+        int16_t itr = redefining ? (int16_t) 0 : def->iterations_declared;
+        const auto total = def->total_generic_iterations();
         while(itr < total) {
-            variant_def->set_active_iteration(itr);
+            def->set_active_iteration(itr);
             // early declare structs that are generic arguments
-            early_declare_gen_arg_structs(*this, variant_def->generic_params);
-            declare_variant(variant_def);
+            early_declare_gen_arg_structs(*this, def->generic_params);
+            declare_variant(def);
             itr++;
         }
+        def->iterations_declared = total;
     }
 }
 
@@ -3203,26 +3200,22 @@ void ToCAstVisitor::visit(StructDefinition *def) {
         }
     }
     if(def->generic_params.empty()) {
-        contained_struct_functions(*this, def);
+        if(def->iterations_body_done == 0) {
+            contained_struct_functions(*this, def);
+            def->iterations_body_done = 1;
+        }
     } else {
         const auto total_itr = def->total_generic_iterations();
         if(total_itr == 0) return; // generic type never used (yet)
-        int16_t itr = 0;
-        // if previously we generated function bodies, we must start at the functions not done yet
-        // this can happen if generic was present in other file and we generated all implementations
-        // however in this file we found another implementation that hasn't been generated before
-        auto found = tld.declared_nodes.find(def);
-        if(found != tld.declared_nodes.end()) {
-            itr = found->second.struct_def.iterations_done;
-        }
+        int16_t itr = def->iterations_body_done;
         auto prev = def->active_iteration;
         while (itr < total_itr) {
             def->set_active_iteration(itr);
             contained_struct_functions(*this, def);
             itr++;
         }
+        def->iterations_body_done = total_itr;
         def->set_active_iteration(prev);
-        tld.declared_nodes[def].struct_def.iterations_done = total_itr;
     }
     current_members_container = prev_members_container;
 }
@@ -3235,18 +3228,14 @@ void generate_contained_functions(ToCAstVisitor& visitor, VariantDefinition* def
 
 void ToCAstVisitor::visit(VariantDefinition* def) {
     if(def->generic_params.empty()) {
-        generate_contained_functions(*this, def);
+        if(def->iterations_body_done == 0) {
+            generate_contained_functions(*this, def);
+            def->iterations_body_done = 1;
+        }
     } else {
         const auto total_itr = def->total_generic_iterations();
         if(total_itr == 0) return; // generic type never used (yet)
-        int16_t itr = 0;
-        // if previously we generated bodies for this function, we must start at the function not done yet
-        // this can happen if generic was present in other file and we generated all implementations
-        // however in this file we found another implementation that hasn't been generated before
-        auto found = tld.declared_nodes.find(def);
-        if(found != tld.declared_nodes.end()) {
-            itr = found->second.variant_def.iterations_done;
-        }
+        int16_t itr = def->iterations_body_done;
         auto prev = def->active_iteration;
         while (itr < total_itr) {
             def->set_active_iteration(itr);
@@ -3254,7 +3243,7 @@ void ToCAstVisitor::visit(VariantDefinition* def) {
             itr++;
         }
         def->set_active_iteration(prev);
-        tld.declared_nodes[def].variant_def.iterations_done = total_itr;
+        def->iterations_body_done = total_itr;
     }
 
 }
@@ -3275,7 +3264,7 @@ void ToCAstVisitor::visit(DestructStmt *stmt) {
 
     bool new_line_before = true;
 
-    auto data = stmt->get_data();
+    auto data = stmt->get_data(allocator);
 
     if(data.destructor_func == nullptr) {
         return;

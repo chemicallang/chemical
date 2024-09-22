@@ -8,18 +8,6 @@
 
 class CValueDeclarationVisitor;
 
-struct DeclaredNodeData {
-    union {
-        // total iterations that are done
-        int16_t iterations_done;
-        bool declared_struct;
-    } struct_def;
-    union {
-        // total iterations that are done
-        int16_t iterations_done;
-    } variant_def;
-};
-
 class CTopLevelDeclarationVisitor : public Visitor, public SubVisitor {
 public:
 
@@ -37,15 +25,10 @@ public:
             CValueDeclarationVisitor* value_visitor
     );
 
-    /**
-     * nodes can be declared early if present in generics
-     */
-    std::unordered_map<ASTNode*, DeclaredNodeData> declared_nodes;
-
     // this will not declare it's contained functions
-    void declare_struct_def_only(StructDefinition* def, bool check_declared);
+    void declare_struct_def_only(StructDefinition* def);
 
-    void declare_struct(StructDefinition* structDef, bool check_declared);
+    void declare_struct(StructDefinition* structDef);
 
     void declare_variant(VariantDefinition* structDef);
 

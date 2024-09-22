@@ -70,16 +70,16 @@ public:
         return !parent_node || parent_node->kind() == ASTNodeKind::NamespaceDecl;
     }
 
-    void declare_top_level(SymbolResolver &linker, ASTNode* &node_ptr) override;
+    void declare_top_level(SymbolResolver &linker) override;
 
-    void declare_and_link(SymbolResolver &linker, ASTNode** node_ptr, Value** value_ptr);
+    void declare_and_link(SymbolResolver &linker, Value** value_ptr);
 
-    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) override {
-        declare_and_link(linker, &node_ptr, nullptr);
+    void declare_and_link(SymbolResolver &linker) override {
+        declare_and_link(linker, nullptr);
     }
 
     bool link(SymbolResolver &linker, Value* &value_ptr, BaseType *expected_type = nullptr) override {
-        declare_and_link(linker, nullptr, &value_ptr);
+        declare_and_link(linker, &value_ptr);
         return true;
     }
 

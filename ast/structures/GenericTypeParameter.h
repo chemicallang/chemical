@@ -38,7 +38,7 @@ public:
         visitor->visit(this);
     }
 
-    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) override;
+    void declare_and_link(SymbolResolver &linker) override;
 
     void register_usage(ASTAllocator& allocator, BaseType* type);
 

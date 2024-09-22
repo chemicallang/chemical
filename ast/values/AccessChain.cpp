@@ -99,7 +99,7 @@ bool AccessChain::link(SymbolResolver &linker, BaseType *expected_type, Value** 
     return true;
 }
 
-void AccessChain::declare_and_link(SymbolResolver& linker, ASTNode*& node_ptr) {
+void AccessChain::declare_and_link(SymbolResolver &linker) {
     link(linker, (BaseType*) nullptr, nullptr);
 }
 

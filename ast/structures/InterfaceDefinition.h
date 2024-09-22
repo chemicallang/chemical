@@ -96,7 +96,7 @@ public:
         visitor->visit(this);
     }
 
-    void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) override;
+    void declare_top_level(SymbolResolver &linker) override;
 
     BaseType* create_value_type(ASTAllocator& allocator) override;
 

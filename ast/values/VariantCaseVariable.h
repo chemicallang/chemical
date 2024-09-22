@@ -25,7 +25,7 @@ public:
 
     void accept(Visitor *visitor) override;
 
-    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) override;
+    void declare_and_link(SymbolResolver &linker) override;
 
     ASTNodeKind kind() override {
         return ASTNodeKind::VariantCaseVariable;

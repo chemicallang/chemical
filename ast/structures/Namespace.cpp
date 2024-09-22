@@ -12,7 +12,7 @@ Namespace::Namespace(
 
 }
 
-void Namespace::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
+void Namespace::declare_top_level(SymbolResolver &linker) {
     auto previous = linker.find(name);
     if(previous) {
         root = previous->as_namespace();
@@ -29,23 +29,23 @@ void Namespace::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
     }
 }
 
-void Namespace::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
+void Namespace::declare_and_link(SymbolResolver &linker) {
     linker.scope_start();
     if(root) {
         for(auto& node : root->extended) {
-            node.second->redeclare_top_level(linker, (ASTNode*&) node.second);
+            node.second->redeclare_top_level(linker);
         }
         for(auto& node : nodes) {
-            node->declare_top_level(linker, node);
+            node->declare_top_level(linker);
             root->extended[node->ns_node_identifier()] = node;
         }
     } else {
         for(auto& node : nodes) {
-            node->declare_top_level(linker, node);
+            node->declare_top_level(linker);
         }
     }
     for(auto& node : nodes) {
-        node->declare_and_link(linker, node);
+        node->declare_and_link(linker);
     }
     linker.scope_end();
 }

@@ -47,14 +47,14 @@ public:
 
     void accept(Visitor *visitor) override;
 
-    bool declare_and_link(SymbolResolver &linker, ASTNode** node_ptr, Value** value_ptr);
+    bool declare_and_link(SymbolResolver &linker, Value** value_ptr);
 
-    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) override {
-        declare_and_link(linker, &node_ptr, nullptr);
+    void declare_and_link(SymbolResolver &linker) override {
+        declare_and_link(linker, nullptr);
     }
 
     bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) override {
-        return declare_and_link(linker, nullptr, &value_ptr);
+        return declare_and_link(linker, &value_ptr);
     }
 
     Value* get_value_node();

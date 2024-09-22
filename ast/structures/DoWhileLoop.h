@@ -51,7 +51,7 @@ public:
     void code_gen(Codegen &gen) override;
 #endif
 
-    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) override;
+    void declare_and_link(SymbolResolver &linker) override;
 
     void interpret(InterpretScope &scope) override;
 

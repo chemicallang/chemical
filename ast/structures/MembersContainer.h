@@ -67,7 +67,7 @@ public:
 
     void redeclare_variables_and_functions(SymbolResolver &linker);
 
-    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) override;
+    void declare_and_link(SymbolResolver &linker) override;
 
     /**
      * this would register the definition to all interfaces inherited

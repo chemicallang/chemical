@@ -242,11 +242,11 @@ ASTNode* VariantDefinition::child(const std::string &child_name) {
     return ExtendableMembersContainerNode::child(child_name);
 }
 
-void VariantDefinition::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
+void VariantDefinition::declare_top_level(SymbolResolver &linker) {
     linker.declare_node(name, this, specifier, true);
 }
 
-void VariantDefinition::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
+void VariantDefinition::declare_and_link(SymbolResolver &linker) {
     auto& allocator = linker.allocator;
     bool has_destructor = false;
     bool has_clear_fn = false;
@@ -268,7 +268,7 @@ void VariantDefinition::declare_and_link(SymbolResolver &linker, ASTNode*& node_
             func->ensure_copy_fn(allocator, this);
         }
     }
-    MembersContainer::declare_and_link(linker, node_ptr);
+    MembersContainer::declare_and_link(linker);
 //    register_use_to_inherited_interfaces(this);
     if(!has_clear_fn && any_member_has_clear_func()) {
         create_def_clear_fn(allocator, linker);
@@ -382,13 +382,13 @@ void VariantMember::accept(Visitor *visitor) {
 
 }
 
-void VariantMember::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
+void VariantMember::declare_top_level(SymbolResolver &linker) {
 
 }
 
-void VariantMember::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
+void VariantMember::declare_and_link(SymbolResolver &linker) {
     for(auto& value : values) {
-        value.second->declare_and_link(linker, (ASTNode*&) value.second);
+        value.second->declare_and_link(linker);
     }
 }
 
@@ -481,7 +481,7 @@ VariantMemberParam* VariantMemberParam::copy(ASTAllocator& allocator) {
     return new (allocator.allocate<VariantMemberParam>()) VariantMemberParam(name, index, type->copy(allocator), def_value ? def_value->copy(allocator) : nullptr, parent_node, token);
 }
 
-void VariantMemberParam::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
+void VariantMemberParam::declare_and_link(SymbolResolver &linker) {
     type->link(linker);
     if(def_value) {
         def_value->link(linker, def_value);
@@ -522,15 +522,13 @@ VariantCase::VariantCase(AccessChain* _chain, ASTDiagnoser& diagnoser, SwitchSta
 bool VariantCase::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
     // access chain in variant case allows no replacement of access chain, so nullptr in value_ptr
     chain->link(linker, (BaseType*) nullptr, nullptr);
-    // TODO variant case doesn't allow replacing it's identifier list
-    ASTNode* dummy;
     for(auto& variable : identifier_list) {
-        variable.declare_and_link(linker, dummy);
+        variable.declare_and_link(linker);
     }
     return true;
 }
 
-void VariantCaseVariable::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
+void VariantCaseVariable::declare_and_link(SymbolResolver &linker) {
     const auto member = variant_case->chain->linked_node()->as_variant_member();
     auto node = member->values.find(name);
     if(node == member->values.end()) {

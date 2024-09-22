@@ -283,11 +283,11 @@ BaseDefMember *StructMember::copy_member(ASTAllocator& allocator) {
     return new (allocator.allocate<StructMember>()) StructMember(name, type->copy(allocator), def_value, parent_node, token);
 }
 
-void StructMember::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
+void StructMember::declare_top_level(SymbolResolver &linker) {
     linker.declare(name, this);
 }
 
-void StructMember::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
+void StructMember::declare_and_link(SymbolResolver &linker) {
     linker.declare(name, this);
     type->link(linker);
     if (defValue) {
@@ -295,13 +295,13 @@ void StructMember::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) 
     }
 }
 
-void UnnamedStruct::redeclare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
+void UnnamedStruct::redeclare_top_level(SymbolResolver &linker) {
     linker.declare(name, this);
 }
 
-void UnnamedStruct::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
+void UnnamedStruct::declare_and_link(SymbolResolver &linker) {
     linker.scope_start();
-    VariablesContainer::declare_and_link(linker, node_ptr);
+    VariablesContainer::declare_and_link(linker);
     linker.scope_end();
     linker.declare(name, this);
 }
@@ -368,14 +368,14 @@ void StructDefinition::accept(Visitor *visitor) {
     visitor->visit(this);
 }
 
-void StructDefinition::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
+void StructDefinition::declare_top_level(SymbolResolver &linker) {
     linked_type.type = name;
     linked_type.linked = this;
     linker.declare_node(name, this, specifier, true);
     is_direct_init = has_annotation(AnnotationKind::DirectInit);
 }
 
-void StructDefinition::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
+void StructDefinition::declare_and_link(SymbolResolver &linker) {
     auto& allocator = linker.allocator;
     bool has_destructor = false;
     bool has_clear_fn = false;
@@ -402,7 +402,7 @@ void StructDefinition::declare_and_link(SymbolResolver &linker, ASTNode*& node_p
             has_copy_fn = true;
         }
     }
-    MembersContainer::declare_and_link(linker, node_ptr);
+    MembersContainer::declare_and_link(linker);
     register_use_to_inherited_interfaces(this);
     if(!has_copy_fn && any_member_has_copy_func()) {
         create_def_copy_fn(allocator, linker);

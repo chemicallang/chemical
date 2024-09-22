@@ -670,10 +670,9 @@ struct GlobalContainer {
 GlobalContainer global_fns;
 
 void GlobalInterpretScope::prepare_top_level_namespaces(SymbolResolver& resolver) {
-    ASTNode* dummy = nullptr;
-    global_fns.compiler_namespace.declare_top_level(resolver, dummy);
-    global_fns.std_namespace.declare_top_level(resolver, dummy);
-    global_fns.defined.declare_top_level(resolver, dummy);
+    global_fns.compiler_namespace.declare_top_level(resolver);
+    global_fns.std_namespace.declare_top_level(resolver);
+    global_fns.defined.declare_top_level(resolver);
 }
 
 //void GlobalInterpretScope::rebind_compiler_namespace(SymbolResolver &resolver) {

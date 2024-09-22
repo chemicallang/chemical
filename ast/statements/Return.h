@@ -49,7 +49,7 @@ public:
 
     void interpret(InterpretScope &scope) override;
 
-    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) override;
+    void declare_and_link(SymbolResolver &linker) override;
 
     void accept(Visitor *visitor) override;
 

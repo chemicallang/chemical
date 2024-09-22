@@ -76,11 +76,11 @@ void ForLoop::accept(Visitor *visitor) {
     visitor->visit(this);
 }
 
-void ForLoop::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
+void ForLoop::declare_and_link(SymbolResolver &linker) {
     linker.scope_start();
-    initializer->declare_and_link(linker, (ASTNode*&) initializer);
+    initializer->declare_and_link(linker);
     conditionExpr->link(linker, conditionExpr);
-    incrementerExpr->declare_and_link(linker, incrementerExpr);
+    incrementerExpr->declare_and_link(linker);
     body.link_sequentially(linker);
     linker.scope_end();
 }

@@ -43,7 +43,7 @@ public:
         return nullptr;
     }
 
-    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) override;
+    void declare_and_link(SymbolResolver &linker) override;
 
 };
 

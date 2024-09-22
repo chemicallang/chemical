@@ -109,6 +109,7 @@ Expression::Expression(
 }
 
 bool Expression::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
+    is64Bit = linker.is64Bit;
     auto f = firstValue->link(linker, firstValue);
     auto s = secondValue->link(linker, secondValue);
     auto result = f && s;

@@ -10,6 +10,7 @@
 #include "ast/types/StringType.h"
 #include "ast/types/BoolType.h"
 #include "ast/values/IntValue.h"
+#include "ast/values/Expression.h"
 #include "ast/values/BoolValue.h"
 #include "ast/values/UBigIntValue.h"
 #include "ast/values/RetStructParamValue.h"
@@ -30,6 +31,7 @@
 #include "preprocess/RepresentationVisitor.h"
 #include "utils/Version.h"
 #include "ast/types/UIntType.h"
+#include "ast/values/NullValue.h"
 
 namespace InterpretVector {
 
@@ -144,7 +146,7 @@ namespace InterpretVector {
     }
 
     Value *InterpretVectorConstructor::call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) {
-        return new InterpretVectorVal((InterpretVectorNode*) parent_node);
+        return new (call_scope->allocate<InterpretVectorVal>()) InterpretVectorVal((InterpretVectorNode*) parent_node);
     }
 
     InterpretVectorSize::InterpretVectorSize(InterpretVectorNode* node) : FunctionDeclaration(
@@ -160,7 +162,7 @@ namespace InterpretVector {
     }
 
     Value *InterpretVectorSize::call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) {
-        return new IntValue(static_cast<InterpretVectorVal*>(parent_val)->values.size(), nullptr);
+        return new (call_scope->allocate<IntValue>()) IntValue(static_cast<InterpretVectorVal*>(parent_val)->values.size(), nullptr);
     }
 
 
@@ -334,11 +336,11 @@ public:
         }
         switch(val_type) {
             case ValueType::String:
-                return new UBigIntValue(value->as_string().length(), nullptr);
+                return new (call_scope->allocate<UBigIntValue>()) UBigIntValue(value->as_string().length(), nullptr);
             case ValueType::Array:
-                return new UBigIntValue(value->as_array_value()->array_size(), nullptr);
+                return new (call_scope->allocate<UBigIntValue>()) UBigIntValue(value->as_array_value()->array_size(), nullptr);
             default:
-                return new UBigIntValue(0, nullptr);
+                return new (call_scope->allocate<UBigIntValue>()) UBigIntValue(0, nullptr);
         }
     }
 };
@@ -384,7 +386,7 @@ public:
         annotations.emplace_back(AnnotationKind::CompTime);
         // having a generic type parameter T requires that user gives type during function call to wrap
         // when we can successfully avoid giving type for generic parameters in functions, we should do this
-//        generic_params.emplace_back(new GenericTypeParameter("T", nullptr, this));
+//        generic_params.emplace_back(new (call_scope->allocate<GenericTypeParameter>()) GenericTypeParameter("T", nullptr, this));
 //        returnType = std::make_unique<ReferencedType>("T", generic_params[0].get());
         params.emplace_back(&valueParam);
     }
@@ -413,7 +415,7 @@ public:
         annotations.emplace_back(AnnotationKind::CompTime);
         // having a generic type parameter T requires that user gives type during function call to wrap
         // when we can successfully avoid giving type for generic parameters in functions, we should do this
-//        generic_params.emplace_back(new GenericTypeParameter("T", nullptr, this));
+//        generic_params.emplace_back(new (call_scope->allocate<GenericTypeParameter>()) GenericTypeParameter("T", nullptr, this));
 //        returnType = std::make_unique<ReferencedType>("T", generic_params[0].get());
         params.emplace_back(&valueParam);
     }
@@ -441,7 +443,7 @@ public:
         annotations.emplace_back(AnnotationKind::CompTime);
     }
     Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
-        return new RetStructParamValue(nullptr);
+        return new (call_scope->allocate<RetStructParamValue>()) RetStructParamValue(nullptr);
     }
 };
 
@@ -468,7 +470,7 @@ public:
         val.append(std::to_string(PROJECT_VERSION_MINOR));
         val.append(1, '.');
         val.append(std::to_string(PROJECT_VERSION_PATCH));
-        return new StringValue(std::move(val), nullptr);
+        return new (call_scope->allocate<StringValue>()) StringValue(std::move(val), nullptr);
     }
 };
 
@@ -490,9 +492,9 @@ public:
     }
     Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
 #ifdef TCC_BUILD
-        return new BoolValue(true, nullptr);
+        return new (call_scope->allocate<BoolValue>()) BoolValue(true, nullptr);
 #else
-        return new BoolValue(false, nullptr);
+        return new (call_scope->allocate<BoolValue>()) BoolValue(false, nullptr);
 #endif
     }
 };
@@ -515,9 +517,9 @@ public:
     }
     Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
 #ifdef COMPILER_BUILD
-        return new BoolValue(true, nullptr);
+        return new (call_scope->allocate<BoolValue>()) BoolValue(true, nullptr);
 #else
-        return new BoolValue(false, nullptr);
+        return new (call_scope->allocate<BoolValue>()) BoolValue(false, nullptr);
 #endif
     }
 };
@@ -542,12 +544,41 @@ public:
         params.emplace_back(&valueParam);
     }
     Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
-        if(call->values.empty()) return new BoolValue(false, nullptr);
+        if(call->values.empty()) return new (call_scope->allocate<BoolValue>()) BoolValue(false, nullptr);
         auto val = call->values[0]->evaluated_value(*call_scope);
-        if(val->val_kind() != ValueKind::String) return new BoolValue(false, nullptr);
+        if(val->val_kind() != ValueKind::String) return new (call_scope->allocate<BoolValue>()) BoolValue(false, nullptr);
         auto& definitions = call_scope->global->build_compiler->current_job->definitions;
         auto found = definitions.find(val->as_string());
-        return new BoolValue(found != definitions.end(), nullptr);
+        return new (call_scope->allocate<BoolValue>()) BoolValue(found != definitions.end(), nullptr);
+    }
+};
+
+class InterpretIsPtrNull : public FunctionDeclaration {
+public:
+
+    BoolType boolType;
+    AnyType anyType;
+    PointerType ptrType;
+    FunctionParam valueParam;
+
+    NullValue nullVal;
+
+    explicit InterpretIsPtrNull(ASTNode* parent_node) : FunctionDeclaration(
+            "isNull",
+            std::vector<FunctionParam*> {},
+            &boolType,
+            false,
+            parent_node,
+            nullptr,
+            std::nullopt
+    ), boolType(nullptr), nullVal(nullptr), anyType(nullptr), ptrType(&anyType, nullptr),
+        valueParam("value", &ptrType, 0, nullptr, this, nullptr)
+    {
+        annotations.emplace_back(AnnotationKind::CompTime);
+        params.emplace_back(&valueParam);
+    }
+    Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+        return new (call_scope->allocate<WrapValue>()) WrapValue(new (call_scope->allocate<Expression>()) Expression(call->values[0], &nullVal, Operation::IsEqual, false, nullptr));
     }
 };
 
@@ -645,18 +676,34 @@ public:
 
 };
 
+class PtrNamespace : public Namespace {
+public:
+
+    InterpretIsPtrNull isNullFn;
+
+    explicit PtrNamespace(
+            ASTNode* parent_node
+    ) : Namespace("ptr", parent_node, nullptr), isNullFn(this) {
+        annotations.emplace_back(AnnotationKind::CompTime);
+        nodes = { &isNullFn };
+    }
+
+};
+
+
 class StdNamespace : public Namespace {
 public:
 
     MemNamespace memNamespace;
+    PtrNamespace ptrNamespace;
 
     StdNamespace(
 
     ) : Namespace("std", nullptr, nullptr),
-        memNamespace(this)
+        memNamespace(this), ptrNamespace(this)
     {
         annotations.emplace_back(AnnotationKind::CompTime);
-        nodes = { &memNamespace };
+        nodes = { &memNamespace, &ptrNamespace };
     }
 
 };

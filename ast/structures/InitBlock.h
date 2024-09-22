@@ -40,7 +40,7 @@ public:
         return token;
     }
 
-    void declare_and_link(SymbolResolver &linker, ASTNode* &node_ptr) override;
+    void declare_and_link(SymbolResolver &linker) override;
 
     bool diagnose_missing_members_for_init(ASTDiagnoser& diagnoser);
 

@@ -68,11 +68,11 @@ public:
     /**
      * extension function will add references to extendable members container
      */
-    void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) override;
+    void declare_top_level(SymbolResolver &linker) override;
 
     /**
      * declare and link
      */
-    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) override;
+    void declare_and_link(SymbolResolver &linker) override;
 
 };

@@ -51,9 +51,9 @@ public:
         visitor->visit(this);
     }
 
-    void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) override;
+    void declare_top_level(SymbolResolver &linker) override;
 
-    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) override;
+    void declare_and_link(SymbolResolver &linker) override;
 
     ASTNode *child(const std::string &name) override;
 

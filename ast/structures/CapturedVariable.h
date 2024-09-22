@@ -40,7 +40,7 @@ public:
         // no visit
     }
 
-    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) override;
+    void declare_and_link(SymbolResolver &linker) override;
 
     ASTNode *child(const std::string &name) override {
         return linked->child(name);

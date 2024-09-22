@@ -21,14 +21,11 @@ FunctionDeclaration* MultiFunctionNode::func_for_call(ASTAllocator& allocator, s
     return nullptr;
 }
 
-void MultiFunctionNode::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
-
-    // TODO Multi Function Node doesn't allow replacing functions when linking
-    ASTNode* dummy;
+void MultiFunctionNode::declare_and_link(SymbolResolver &linker) {
 
     // link all the functions
     for(auto func : functions) {
-        func->declare_and_link(linker, dummy);
+        func->declare_and_link(linker);
     }
 
 }

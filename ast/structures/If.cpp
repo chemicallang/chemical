@@ -216,19 +216,18 @@ void IfStatement::link_conditions(SymbolResolver &linker) {
     }
 }
 
-void IfStatement::declare_top_level(SymbolResolver &linker, ASTNode* &node_ptr) {
+void IfStatement::declare_top_level(SymbolResolver &linker) {
     if(is_top_level()) {
         is_computable = true;
         link_conditions(linker);
         auto eval = get_evaluated_scope((InterpretScope&) linker.comptime_scope, &linker);
         if(eval) {
-            ASTNode* dummy;
-            eval->declare_top_level(linker, dummy);
+            eval->declare_top_level(linker);
         }
     }
 }
 
-void IfStatement::declare_and_link(SymbolResolver &linker, ASTNode** node_ptr, Value** value_ptr) {
+void IfStatement::declare_and_link(SymbolResolver &linker, Value** value_ptr) {
     if(!is_computable) {
         link_conditions(linker);
     }
@@ -236,8 +235,7 @@ void IfStatement::declare_and_link(SymbolResolver &linker, ASTNode** node_ptr, V
         is_computable = true;
         auto eval = get_evaluated_scope((InterpretScope&) linker.comptime_scope, &linker);
         if(eval) {
-            ASTNode* dummy;
-            eval->declare_and_link(linker, dummy);
+            eval->declare_and_link(linker);
         }
         return;
     }

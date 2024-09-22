@@ -52,9 +52,9 @@ public:
         visitor->visit(this);
     }
 
-    void redeclare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) override;
+    void redeclare_top_level(SymbolResolver &linker) override;
 
-    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) override;
+    void declare_and_link(SymbolResolver &linker) override;
 
     ASTNode *child(const std::string &name) override {
         return VariablesContainer::child_def_member(name);

@@ -64,9 +64,9 @@ public:
         visitor->visit(this);
     }
 
-    void redeclare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) override;
+    void redeclare_top_level(SymbolResolver &linker) override;
 
-    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) override;
+    void declare_and_link(SymbolResolver &linker) override;
 
     bool requires_copy_fn() {
         for(const auto& var : variables) {

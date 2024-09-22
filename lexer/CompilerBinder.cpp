@@ -62,10 +62,10 @@ std::vector<ASTNode*> CompilerBinderCommon::parse(std::vector<CSTToken*>& tokens
 
     // symbol resolution
     for(auto& node : nodes) {
-        node->declare_top_level(resolver, node);
+        node->declare_top_level(resolver);
     }
     for(auto& node : nodes) {
-        node->declare_and_link(resolver, node);
+        node->declare_and_link(resolver);
     }
     if(resolver.has_errors) {
         resolver.print_diagnostics("unknown_path", "Binder");

@@ -88,22 +88,22 @@ public:
      * that must be retained in nested level scopes
      * for example top level functions can be called within functions
      */
-    virtual void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
+    virtual void declare_top_level(SymbolResolver &linker) {
         // does nothing by default
     }
 
     /**
      * called in case some functions need to redeclare themselves
      */
-    virtual void redeclare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
-        declare_top_level(linker, node_ptr);
+    virtual void redeclare_top_level(SymbolResolver &linker) {
+        declare_top_level(linker);
     }
 
     /**
      * declares something on the scope map
      * or find something on the map to link yourself with it
      */
-    virtual void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
+    virtual void declare_and_link(SymbolResolver &linker) {
         // does nothing by default
     }
 

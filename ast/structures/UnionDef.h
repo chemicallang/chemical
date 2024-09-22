@@ -91,9 +91,9 @@ public:
     [[nodiscard]]
     BaseType * copy(ASTAllocator &allocator) const override;
 
-    void declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) override;
+    void declare_top_level(SymbolResolver &linker) override;
 
-    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) override;
+    void declare_and_link(SymbolResolver &linker) override;
 
     ASTNode *linked_node() override {
         return this;

@@ -77,7 +77,7 @@ uint64_t ImplDefinition::byte_size(bool is64Bit) {
     return 0;
 }
 
-void ImplDefinition::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
+void ImplDefinition::declare_and_link(SymbolResolver &linker) {
     interface_type->link(linker);
     if(struct_type) {
         struct_type->link(linker);
@@ -98,7 +98,7 @@ void ImplDefinition::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr
     const auto overrides_interface = struct_linked && struct_linked->does_override(linked);
     if(!overrides_interface) {
         for (auto& func: linked->functions()) {
-            func->redeclare_top_level(linker, (ASTNode*&) func);
+            func->redeclare_top_level(linker);
         }
     }
     // redeclare everything inside struct

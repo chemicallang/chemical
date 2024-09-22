@@ -55,7 +55,7 @@ public:
         return parent_node;
     }
 
-    void declare_and_link(SymbolResolver &linker, ASTNode* &node_ptr) override;
+    void declare_and_link(SymbolResolver &linker) override;
 
 #ifdef COMPILER_BUILD
 

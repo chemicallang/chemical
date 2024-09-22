@@ -7,7 +7,7 @@ UnsafeBlock::UnsafeBlock(Scope scope) : scope(std::move(scope)) {
 
 }
 
-void UnsafeBlock::declare_and_link(SymbolResolver& linker, ASTNode*& node_ptr) {
+void UnsafeBlock::declare_and_link(SymbolResolver &linker) {
     auto prev = linker.safe_context;
     linker.safe_context = false;
     scope.link_sequentially(linker);

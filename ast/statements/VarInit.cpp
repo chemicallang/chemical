@@ -280,13 +280,13 @@ ASTNode *VarInitStatement::child(const std::string &name) {
     return nullptr;
 }
 
-void VarInitStatement::declare_top_level(SymbolResolver &linker, ASTNode* &node_ptr) {
+void VarInitStatement::declare_top_level(SymbolResolver &linker) {
     if(is_top_level()) {
         linker.declare_node(identifier, this, specifier, true);
     }
 }
 
-void VarInitStatement::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
+void VarInitStatement::declare_and_link(SymbolResolver &linker) {
     if(!is_top_level()) {
         linker.declare(identifier, this);
     }

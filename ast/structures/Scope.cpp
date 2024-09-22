@@ -31,31 +31,31 @@ void Scope::accept(Visitor *visitor) {
     visitor->visit(this);
 }
 
-void Scope::declare_top_level(SymbolResolver &linker, ASTNode*& node_ptr) {
+void Scope::declare_top_level(SymbolResolver &linker) {
     for (auto &node: nodes) {
-        node->declare_top_level(linker, node);
+        node->declare_top_level(linker);
     }
 }
 
-void Scope::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
+void Scope::declare_and_link(SymbolResolver &linker) {
     for (auto &node: nodes) {
-        node->declare_and_link(linker, node);
+        node->declare_and_link(linker);
     }
 }
 
 void Scope::link_sequentially(SymbolResolver &linker) {
     for(auto& node : nodes) {
-        node->declare_top_level(linker, node);
-        node->declare_and_link(linker, node);
+        node->declare_top_level(linker);
+        node->declare_and_link(linker);
     }
 }
 
 void Scope::link_asynchronously(SymbolResolver &linker) {
     for (auto &node: nodes) {
-        node->declare_top_level(linker, node);
+        node->declare_top_level(linker);
     }
     for (auto &node: nodes) {
-        node->declare_and_link(linker, node);
+        node->declare_and_link(linker);
     }
 }
 
@@ -63,7 +63,7 @@ void Scope::stopInterpretOnce() {
 
 }
 
-void LoopBlock::declare_and_link(SymbolResolver &linker, ASTNode* &node_ptr) {
+void LoopBlock::declare_and_link(SymbolResolver &linker) {
     body.link_sequentially(linker);
 }
 
@@ -176,7 +176,7 @@ bool InitBlock::diagnose_missing_members_for_init(ASTDiagnoser& diagnoser) {
     return false;
 }
 
-void InitBlock::declare_and_link(SymbolResolver &linker, ASTNode* &node_ptr) {
+void InitBlock::declare_and_link(SymbolResolver &linker) {
     auto func = parent_node->as_function();
     if(!func) {
         linker.error("expected init block to be in a function", (ASTNode*) this);

@@ -14,8 +14,8 @@ UsingStmt::UsingStmt(
 
 }
 
-void UsingStmt::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
-    chain.declare_and_link(linker, (ASTNode*&) chain);
+void UsingStmt::declare_and_link(SymbolResolver &linker) {
+    chain.declare_and_link(linker);
     auto linked = chain.linked_node();
     if(!linked) {
         linker.error("couldn't find linked node", this);

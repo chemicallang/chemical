@@ -35,7 +35,7 @@ public:
 
     VariantMemberParam* copy(ASTAllocator& allocator);
 
-    void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) override;
+    void declare_and_link(SymbolResolver &linker) override;
 
     uint64_t byte_size(bool is64Bit) override {
         return type->byte_size(is64Bit);

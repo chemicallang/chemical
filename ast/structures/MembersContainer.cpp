@@ -196,10 +196,10 @@ uint64_t VariablesContainer::total_byte_size(bool is64Bit) {
 
 void declare_inherited_members(MembersContainer* container, SymbolResolver& linker) {
     for(auto& var : container->variables) {
-        var.second->redeclare_top_level(linker, (ASTNode*&) var.second);
+        var.second->redeclare_top_level(linker);
     }
     for(auto& func : container->functions()) {
-        func->redeclare_top_level(linker, (ASTNode*&) func);
+        func->redeclare_top_level(linker);
     }
     for(auto& inherits : container->inherited) {
         const auto def = inherits->type->linked_node()->as_members_container();
@@ -220,10 +220,10 @@ void MembersContainer::redeclare_inherited_members(SymbolResolver &linker) {
 
 void MembersContainer::redeclare_variables_and_functions(SymbolResolver &linker) {
     for (auto &var: variables) {
-        var.second->redeclare_top_level(linker, (ASTNode*&) var.second);
+        var.second->redeclare_top_level(linker);
     }
     for(auto& func : functions()) {
-        func->redeclare_top_level(linker, (ASTNode*&) func);
+        func->redeclare_top_level(linker);
     }
 }
 
@@ -245,7 +245,7 @@ unsigned int MembersContainer::init_values_req_size() {
 
 void MembersContainer::declare_and_link_no_scope(SymbolResolver &linker) {
     for(auto& gen_param : generic_params) {
-        gen_param->declare_and_link(linker, (ASTNode*&) gen_param);
+        gen_param->declare_and_link(linker);
     }
     for(auto& inherits : inherited) {
         inherits->type->link(linker);
@@ -255,17 +255,17 @@ void MembersContainer::declare_and_link_no_scope(SymbolResolver &linker) {
         }
     }
     for (auto &var: variables) {
-        var.second->declare_and_link(linker, (ASTNode*&) var.second);
+        var.second->declare_and_link(linker);
     }
     for(auto& func : functions()) {
-        func->declare_top_level(linker, (ASTNode*&) func);
+        func->declare_top_level(linker);
     }
     for (auto &func: functions()) {
-        func->declare_and_link(linker, (ASTNode*&) func);
+        func->declare_and_link(linker);
     }
 }
 
-void MembersContainer::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
+void MembersContainer::declare_and_link(SymbolResolver &linker) {
     linker.scope_start();
     declare_and_link_no_scope(linker);
     linker.scope_end();
@@ -722,9 +722,9 @@ bool VariablesContainer::build_path_to_child(std::vector<int>& path, const std::
     return false;
 }
 
-void VariablesContainer::declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr) {
+void VariablesContainer::declare_and_link(SymbolResolver &linker) {
     for (auto& variable : variables) {
-        variable.second->declare_and_link(linker, (ASTNode*&) variable.second);
+        variable.second->declare_and_link(linker);
     }
 }
 

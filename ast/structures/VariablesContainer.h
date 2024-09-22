@@ -31,7 +31,7 @@ public:
 
     BaseDefMember* largest_member();
 
-    virtual void declare_and_link(SymbolResolver &linker, ASTNode*& node_ptr);
+    virtual void declare_and_link(SymbolResolver &linker);
 
     /**
      * when child is located up somewhere in inheritance tree, we build the path to it

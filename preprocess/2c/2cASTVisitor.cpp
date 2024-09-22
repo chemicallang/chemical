@@ -3079,11 +3079,14 @@ void ToCAstVisitor::visit(ExtensionFunction *decl) {
 void ToCAstVisitor::visit(IfStatement *decl) {
     // generating code for compile time if statements
     if(decl->is_computable) {
-        auto scope = decl->get_evaluated_scope(comptime_scope, this);
-        if(scope) {
-            scope->accept(this);
+        auto condition_val = decl->get_condition_const(comptime_scope);
+        if(condition_val.has_value()) {
+            auto scope = decl->get_evaluated_scope(comptime_scope, this, condition_val.value());
+            if (scope) {
+                scope->accept(this);
+            }
+            return;
         }
-        return;
     }
     // generating code for normal if statements
     write("if(");

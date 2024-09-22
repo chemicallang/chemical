@@ -44,11 +44,14 @@ void IfStatement::code_gen(Codegen &gen) {
 void IfStatement::code_gen(Codegen &gen, bool is_last_block) {
 
     if(is_computable) {
-        auto scope = get_evaluated_scope((InterpretScope&) gen.comptime_scope, &gen);
-        if(scope) {
-            scope->code_gen(gen);
+        auto condition_val = get_condition_const((InterpretScope&) gen.comptime_scope);
+        if(condition_val.has_value()) {
+            auto scope = get_evaluated_scope((InterpretScope&) gen.comptime_scope, &gen, condition_val.value());
+            if (scope) {
+                scope->code_gen(gen);
+            }
+            return;
         }
-        return;
     }
 
     // compare
@@ -170,18 +173,21 @@ void IfStatement::accept(Visitor *visitor) {
     visitor->visit(this);
 }
 
-Scope* IfStatement::get_evaluated_scope(InterpretScope& scope, ASTDiagnoser* gen) {
-    auto err = "couldn't get constant value for top level if statement's condition";
+std::optional<bool> IfStatement::get_condition_const(InterpretScope& scope) {
     auto constant = condition->evaluated_value(scope);
     if(!constant || constant->val_kind() != ValueKind::Bool) {
-        gen->error(err, (ASTNode*) this);
-        return nullptr;
+        return std::nullopt;
     }
-    if(constant->as_bool()) {
+    return constant->as_bool();
+}
+
+Scope* IfStatement::get_evaluated_scope(InterpretScope& scope, ASTDiagnoser* gen, bool condition_value) {
+    auto err = "couldn't get constant value for top level if statement's condition";
+    if(condition_value) {
         return &ifBody;
     } else {
         for(auto& elseIf : elseIfs) {
-            constant = elseIf.first->evaluated_value(scope);
+            auto constant = elseIf.first->evaluated_value(scope);
             if(!constant || constant->val_kind() != ValueKind::Bool) {
                 gen->error(err, (ASTNode*) this);
                 return nullptr;
@@ -220,9 +226,14 @@ void IfStatement::declare_top_level(SymbolResolver &linker) {
     if(is_top_level()) {
         is_computable = true;
         link_conditions(linker);
-        auto eval = get_evaluated_scope((InterpretScope&) linker.comptime_scope, &linker);
-        if(eval) {
-            eval->declare_top_level(linker);
+        auto condition_val = get_condition_const((InterpretScope&) linker.comptime_scope);
+        if(condition_val.has_value()) {
+            auto eval = get_evaluated_scope((InterpretScope&) linker.comptime_scope, &linker, condition_val.value());
+            if (eval) {
+                eval->declare_top_level(linker);
+            }
+        } else {
+            is_computable = false;
         }
     }
 }
@@ -233,11 +244,16 @@ void IfStatement::declare_and_link(SymbolResolver &linker, Value** value_ptr) {
     }
     if(is_computable || compile_time_computable()) {
         is_computable = true;
-        auto eval = get_evaluated_scope((InterpretScope&) linker.comptime_scope, &linker);
-        if(eval) {
-            eval->declare_and_link(linker);
+        auto condition_val = get_condition_const((InterpretScope&) linker.comptime_scope);
+        if(condition_val.has_value()) {
+            auto eval = get_evaluated_scope((InterpretScope&) linker.comptime_scope, &linker, condition_val.value());
+            if (eval) {
+                eval->declare_and_link(linker);
+            }
+            return;
+        } else {
+            is_computable = false;
         }
-        return;
     }
     linker.scope_start();
 //    condition->link(linker, condition);

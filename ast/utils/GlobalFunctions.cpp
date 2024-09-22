@@ -718,8 +718,11 @@ GlobalContainer global_fns;
 
 void GlobalInterpretScope::prepare_top_level_namespaces(SymbolResolver& resolver) {
     global_fns.compiler_namespace.declare_top_level(resolver);
+    global_fns.compiler_namespace.declare_and_link(resolver);
     global_fns.std_namespace.declare_top_level(resolver);
+    global_fns.std_namespace.declare_and_link(resolver);
     global_fns.defined.declare_top_level(resolver);
+    global_fns.defined.declare_and_link(resolver);
 }
 
 //void GlobalInterpretScope::rebind_compiler_namespace(SymbolResolver &resolver) {

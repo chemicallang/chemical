@@ -640,8 +640,11 @@ void CSTConverter::visitFunction(CSTToken* function) {
     if (i < function->tokens.size()) {
         auto prev_decl = current_func_type;
         current_func_type = funcDecl;
+        auto prev_parent = parent_node;
+        parent_node = funcDecl;
         funcDecl->body->nodes = take_body_nodes(this, function->tokens[i], funcDecl);
         current_func_type = prev_decl;
+        parent_node = prev_parent;
     }
 
     local_allocator = prev_local;

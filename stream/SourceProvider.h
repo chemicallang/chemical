@@ -128,13 +128,20 @@ public:
     void readUntil(chem::string* into, char stop);
 
     /**
+     * reads the stream until this (stop) character occurs
+     * @param stop the stopping character
+     * @return everything read until stop character, it doesn't include the stopping character
+     */
+    void readUntil(std::string& into, char stop);
+
+    /**
      * helper
      */
     [[nodiscard]]
-    std::string readUntil(char stop) {
-        chem::string str;
-        readUntil(&str, stop);
-        return str.to_std_string();
+    inline std::string readUntil(char stop) {
+        std::string str;
+        readUntil(str, stop);
+        return str;
     }
 
     /**
@@ -243,13 +250,18 @@ public:
 
     /**
      * reads all characters into a string until char occurs
+     */
+    void readAnything(std::string& str, char until = ' ');
+
+    /**
+     * reads all characters into a string until char occurs
      * @return the string that was found
      */
     [[nodiscard]]
-    std::string readAnything(char until = ' ') {
-        chem::string str((const char*) nullptr);
-        readAnything(&str, until);
-        return str.to_std_string();
+    inline std::string readAnything(char until = ' ') {
+        std::string str;
+        readAnything(str, until);
+        return str;
     }
 
     /**
@@ -258,13 +270,18 @@ public:
     void readAlpha(chem::string* str);
 
     /**
+    * reads a alphabetical string
+     */
+    void readAlpha(std::string& str);
+
+    /**
      * helper
      */
     [[nodiscard]]
-    std::string readAlpha() {
-        chem::string str;
-        readAlpha(&str);
-        return str.to_std_string();
+    inline std::string readAlpha() {
+        std::string str;
+        readAlpha(str);
+        return str;
     }
 
     /**
@@ -273,13 +290,18 @@ public:
     void readUnsignedInt(chem::string* str);
 
     /**
+     * reads an unsigned integer as string, returns "" if no integer found
+     */
+    void readUnsignedInt(std::string& str);
+
+    /**
      * helper
      */
     [[nodiscard]]
-    std::string readUnsignedInt() {
-        chem::string str;
-        readUnsignedInt(&str);
-        return str.to_std_string();
+    inline std::string readUnsignedInt() {
+        std::string str;
+        readUnsignedInt(str);
+        return str;
     }
 
     /**
@@ -288,13 +310,18 @@ public:
     void readNumber(chem::string* string);
 
     /**
+     * a number will be read into a string
+     */
+    void readNumber(std::string& str);
+
+    /**
      * reads a number from the stream
      */
     [[nodiscard]]
-    std::string readNumber() {
-        chem::string content;
-        readNumber(&content);
-        return content.to_std_string();
+    inline std::string readNumber() {
+        std::string content;
+        readNumber(content);
+        return content;
     }
 
     /**
@@ -303,13 +330,18 @@ public:
     void readAlphaNum(chem::string* str);
 
     /**
+     * reads a alphanumeric string
+     */
+    void readAlphaNum(std::string& str);
+
+    /**
      * helper
      */
     [[nodiscard]]
-    std::string readAlphaNum() {
-        chem::string str;
-        readAlphaNum(&str);
-        return str.to_std_string();
+    inline std::string readAlphaNum() {
+        std::string str;
+        readAlphaNum(str);
+        return str;
     }
 
     /**
@@ -320,11 +352,16 @@ public:
     /**
      * reads a single identifier
      */
+    void readIdentifier(std::string& str);
+
+    /**
+     * reads a single identifier
+     */
     [[nodiscard]]
-    std::string readIdentifier() {
-        chem::string str;
-        readIdentifier(&str);
-        return str.to_std_string();
+    inline std::string readIdentifier() {
+        std::string str;
+        readIdentifier(str);
+        return str;
     }
 
     /**
@@ -333,13 +370,18 @@ public:
     void readAnnotationIdentifier(chem::string* into);
 
     /**
+     * reads a single annotation into given string, this doesn't read '@'
+     */
+    void readAnnotationIdentifier(std::string& into);
+
+    /**
      * reads a single annotation, this doesn't read '@'
      */
     [[nodiscard]]
-    std::string readAnnotationIdentifier() {
-        chem::string ret;
-        readAnnotationIdentifier(&ret);
-        return ret.to_std_string();
+    inline std::string readAnnotationIdentifier() {
+        std::string ret;
+        readAnnotationIdentifier(ret);
+        return ret;
     }
 
     /**

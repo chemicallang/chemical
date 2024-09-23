@@ -25,7 +25,7 @@ CompilerBinder::CompilerBinder() {
 
 CompilerBinderTCC::CompilerBinderTCC(std::string exe_path) : CompilerBinder(), exe_path(std::move(exe_path)) {
     auto& provider = interface_maps["SourceProvider"];
-    source_provide_symbol_map(provider);
+    source_provider_symbol_map(provider);
     auto& lexer = interface_maps["Lexer"];
     lexer_symbol_map(lexer);
     auto& context = interface_maps["BuildContext"];

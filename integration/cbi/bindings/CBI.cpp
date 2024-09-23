@@ -1,6 +1,5 @@
 // Copyright (c) Qinetik 2024.
 
-#include "SourceProviderCBI.h"
 #include "LexerCBI.h"
 #include "lexer/Lexer.h"
 #include "stream/SourceProvider.h"
@@ -213,31 +212,81 @@ void lexer_symbol_map(std::unordered_map<std::string, void*>& sym_map) {
     };
 }
 
-void source_provide_symbol_map(std::unordered_map<std::string, void*>& sym_map) {
-    // TODO this
+constexpr std::string sp_func(const std::string& string) {
+    return "SourceProvider" + string;
+}
+
+void source_provider_symbol_map(std::unordered_map<std::string, void*>& sym_map) {
     sym_map = {
-            {lexer_func("storeVariable"), [](Lexer* lexer) -> void {
-                // TODO this
+            {sp_func("readCharacter"), [](SourceProvider* provider) -> char {
+                return provider->readCharacter();
             }},
-            {lexer_func("storeIdentifier"), [](Lexer* lexer) -> void {
-                // TODO this
-            }}
+            {sp_func("eof"), [](SourceProvider* provider) -> bool {
+                return provider->eof();
+            }},
+            {sp_func("peek"), [](SourceProvider* provider) -> char {
+                return provider->peek();
+            }},
+            {sp_func("readUntil"), [](SourceProvider* provider, chem::string* into, char stop) -> void {
+                return provider->readUntil(into, stop);
+            }},
+            {sp_func("increment"), [](SourceProvider* provider, chem::string* text, bool peek) -> void {
+                // TODO we will do this when increment supports string_view
+            }},
+            {sp_func("increment_char"), [](SourceProvider* provider, char c) -> bool {
+                return provider->increment(c);
+            }},
+            {sp_func("getLineNumber"), [](SourceProvider* provider, char c) -> unsigned int {
+                return provider->getLineNumber();
+            }},
+            {sp_func("getLineCharNumber"), [](SourceProvider* provider, char c) -> unsigned int {
+                return provider->getLineCharNumber();
+            }},
+            {sp_func("readEscaping"), [](SourceProvider* provider, chem::string* value, char stopAt) -> void {
+                return provider->readEscaping(value, stopAt);
+            }},
+            {sp_func("readAnything"), [](SourceProvider* provider, chem::string* value, char until) -> void {
+                return provider->readAnything(value, until);
+            }},
+            {sp_func("readAlpha"), [](SourceProvider* provider, chem::string* value) -> void {
+                return provider->readAlpha(value);
+            }},
+            {sp_func("readUnsignedInt"), [](SourceProvider* provider, chem::string* value) -> void {
+                return provider->readUnsignedInt(value);
+            }},
+            {sp_func("readNumber"), [](SourceProvider* provider, chem::string* value) -> void {
+                return provider->readNumber(value);
+            }},
+            {sp_func("readAlphaNum"), [](SourceProvider* provider, chem::string* value) -> void {
+                return provider->readAlphaNum(value);
+            }},
+            {sp_func("readIdentifier"), [](SourceProvider* provider, chem::string* value) -> void {
+                return provider->readIdentifier(value);
+            }},
+            {sp_func("readAnnotationIdentifier"), [](SourceProvider* provider, chem::string* value) -> void {
+                return provider->readAnnotationIdentifier(value);
+            }},
+            {sp_func("readWhitespaces"), [](SourceProvider* provider) -> unsigned int {
+                return provider->readWhitespaces();
+            }},
+            {sp_func("hasNewLine"), [](SourceProvider* provider) -> bool {
+                return provider->hasNewLine();
+            }},
+            {sp_func("readNewLineChars"), [](SourceProvider* provider) -> bool {
+                return provider->readNewLineChars();
+            }},
+            {sp_func("readWhitespacesAndNewLines"), [](SourceProvider* provider) -> void {
+                return provider->readWhitespacesAndNewLines();
+            }},
+
     };
 }
 
-void bind_source_provider_cbi(SourceProviderCBI* cbi, SourceProvider* provider) {
-    cbi->instance = provider;
-}
-
-void bind_lexer_cbi(LexerCBI* cbi, SourceProviderCBI* provider_cbi, Lexer* lexer) {
+void bind_lexer_cbi(LexerCBI* cbi, Lexer* lexer) {
     cbi->instance = lexer;
-    cbi->provider = provider_cbi;
-    bind_source_provider_cbi(provider_cbi, &lexer->provider);
 }
 
-void prep_lexer_cbi(LexerCBI* cbi, SourceProviderCBI* provider) {
-    cbi->provider = provider;
-    prep_source_provider_cbi(provider);
+void prep_lexer_cbi(LexerCBI* cbi) {
     cbi->storeVariable = [](LexerCBI* cbi, char* variable){
         return cbi->instance->storeVariable(variable);
     };
@@ -469,71 +518,5 @@ void prep_lexer_cbi(LexerCBI* cbi, SourceProviderCBI* provider) {
     };
     cbi->lexTryCatchTokens = [](LexerCBI* cbi){
         return cbi->instance->lexTryCatchTokens();
-    };
-}
-
-void prep_source_provider_cbi(SourceProviderCBI* cbi) {
-    cbi->readCharacter = [](struct SourceProviderCBI* cbi){
-        return cbi->instance->readCharacter();
-    };
-    cbi->eof = [](struct SourceProviderCBI* cbi){
-        return cbi->instance->eof();
-    };
-    cbi->peek = [](struct SourceProviderCBI* cbi){
-        return cbi->instance->peek();
-    };
-    cbi->peek_at = [](struct SourceProviderCBI* cbi, int ahead){
-        return cbi->instance->peek(ahead);
-    };
-    cbi->readUntil = [](struct chem::string* str, struct SourceProviderCBI* cbi, char stop){
-        cbi->instance->readUntil(str, stop);
-    };
-    cbi->increment = [](struct SourceProviderCBI* cbi, char* text, bool peek){
-        return cbi->instance->increment(text, peek);
-    };
-    cbi->increment_char = [](struct SourceProviderCBI* cbi, char c){
-        return cbi->instance->increment(c);
-    };
-    cbi->getLineNumber = [](struct SourceProviderCBI* cbi){
-        return cbi->instance->getLineNumber();
-    };
-    cbi->getLineCharNumber = [](struct SourceProviderCBI* cbi){
-        return cbi->instance->getLineCharNumber();
-    };
-    cbi->readEscaping = [](struct SourceProviderCBI* cbi, chem::string* value, char stopAt){
-        cbi->instance->readEscaping(value, stopAt);
-    };
-    cbi->readAnything = [](chem::string* str, struct SourceProviderCBI* cbi, char until){
-        cbi->instance->readAnything(init_chem_string(str), until);
-    };
-    cbi->readAlpha = [](chem::string* str, struct SourceProviderCBI* cbi){
-        cbi->instance->readAlpha(init_chem_string(str));
-    };
-    cbi->readUnsignedInt = [](chem::string* str, struct SourceProviderCBI* cbi){
-        cbi->instance->readUnsignedInt(init_chem_string(str));
-    };
-    cbi->readNumber = [](struct chem::string* str, struct SourceProviderCBI* cbi){
-        cbi->instance->readNumber(init_chem_string(str));
-    };
-    cbi->readAlphaNum = [](chem::string* str, struct SourceProviderCBI* cbi){
-        cbi->instance->readAlphaNum(init_chem_string(str));
-    };
-    cbi->readIdentifier = [](chem::string* str, struct SourceProviderCBI* cbi){
-        cbi->instance->readIdentifier(init_chem_string(str));
-    };
-    cbi->readAnnotationIdentifier = [](chem::string* str, struct SourceProviderCBI* cbi){
-        cbi->instance->readAnnotationIdentifier(init_chem_string(str));
-    };
-    cbi->readWhitespaces = [](struct SourceProviderCBI* cbi){
-        return cbi->instance->readWhitespaces();
-    };
-    cbi->hasNewLine = [](struct SourceProviderCBI* cbi){
-        return cbi->instance->hasNewLine();
-    };
-    cbi->readNewLineChars = [](struct SourceProviderCBI* cbi){
-        return cbi->instance->readNewLineChars();
-    };
-    cbi->readWhitespacesAndNewLines = [](struct SourceProviderCBI* cbi){
-        return cbi->instance->readWhitespacesAndNewLines();
     };
 }

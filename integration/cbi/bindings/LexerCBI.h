@@ -2,9 +2,12 @@
 
 #pragma once
 
-#include "SourceProviderCBI.h"
 #include "ast/utils/Operation.h"
 #include <unordered_map>
+
+namespace chem {
+    class string;
+}
 
 class Lexer;
 
@@ -38,7 +41,6 @@ struct StringArrayRef {
  * a instance member field is required, which is added at the end
  */
 struct LexerCBI {
-    struct SourceProviderCBI* provider;
     bool(*storeVariable)(struct LexerCBI*,char*);
     bool(*storeIdentifier)(struct LexerCBI*,char*);
     bool(*lexVariableToken)(struct LexerCBI*);
@@ -124,14 +126,14 @@ struct LexerCBI {
  * now cbi has been prepared, but it lacks instance, for which bind should be used
  * this should be done once, to ensure cbi methods can be called
  */
-void prep_lexer_cbi(LexerCBI* cbi, SourceProviderCBI* provider);
+void prep_lexer_cbi(LexerCBI* cbi);
 
 /**
  * this function is used to connect the given lexer to the lexer cbi
  * this can be done again and again, to change instance of lexer that will receive calls
  * from cbi
  */
-void bind_lexer_cbi(LexerCBI* cbi, SourceProviderCBI* provider_cbi, Lexer* lexer);
+void bind_lexer_cbi(LexerCBI* cbi, Lexer* lexer);
 
 /**
  * the function to put all symbols inside BuildContext compiler interface
@@ -140,6 +142,12 @@ void bind_lexer_cbi(LexerCBI* cbi, SourceProviderCBI* provider_cbi, Lexer* lexer
  */
 void build_context_symbol_map(std::unordered_map<std::string, void*>& sym_map);
 
+/**
+ * the function to put all symbols inside for the lexer compiler interface
+ */
 void lexer_symbol_map(std::unordered_map<std::string, void*>& sym_map);
 
-void source_provide_symbol_map(std::unordered_map<std::string, void*>& sym_map);
+/**
+ * the function to put all symbols inside for the source provider compiler interface
+ */
+void source_provider_symbol_map(std::unordered_map<std::string, void*>& sym_map);

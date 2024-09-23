@@ -266,45 +266,6 @@ void collect_annotation_func(CSTConverter* converter, CSTToken* container, Annot
 const std::unordered_map<std::string, const AnnotationHandler> AnnotationHandlers = {
         { "cbi:create", AnnotationHandler { ignore_annotation_func } },
         { "cbi:import", AnnotationHandler { ignore_annotation_func } },
-        { "cbi:global", { [](CSTConverter* converter, CSTToken* container, AnnotationKind kind){
-            if(!converter->isCBIEnabled) return;
-            converter->dispose_node = true;
-        }}},
-        { "cbi:to", { [](CSTConverter* converter, CSTToken* container, AnnotationKind kind){
-            if(!converter->isCBIEnabled) return;
-            converter->dispose_node = true;
-        }}},
-        { "cbi:begin", { [](CSTConverter* converter, CSTToken* container, AnnotationKind kind){
-            if(!converter->isCBIEnabled) return;
-            converter->dispose_node = true;
-            converter->keep_disposing = true;
-        }}},
-        { "cbi:end", { [](CSTConverter* converter, CSTToken* container, AnnotationKind kind){
-            if(!converter->isCBIEnabled) return;
-            converter->dispose_node = false;
-            converter->keep_disposing = false;
-        }}},
-        { "cbi:compile", { [](CSTConverter* converter, CSTToken* container, AnnotationKind kind){
-            if(!converter->isCBIEnabled) return;
-            converter->dispose_node = false;
-            converter->keep_disposing = false;
-        }}},
-        { "dispose", { [](CSTConverter* converter, CSTToken* container, AnnotationKind kind){
-            auto result = annotation_bool_arg(0, container);
-            if(result.has_value()) {
-                converter->dispose_node = result.value();
-            } else {
-                converter->error("unknown value given to dispose annotation", container);
-            }
-        }}},
-        { "dispose:end", { [](CSTConverter* converter, CSTToken* container, AnnotationKind kind){
-            converter->dispose_node = false;
-            converter->keep_disposing = false;
-        }}},
-        { "dispose:begin:", { [](CSTConverter* converter, CSTToken* container, AnnotationKind kind){
-            converter->dispose_node = true;
-            converter->keep_disposing = true;
-        }}},
         { "inline:", { collect_annotation_func, AnnotationKind::Inline } },
         { "inline:always", { collect_annotation_func, AnnotationKind::AlwaysInline } },
         { "noinline", { collect_annotation_func, AnnotationKind::NoInline } },
@@ -336,20 +297,6 @@ void CSTConverter::visit(std::vector<CSTToken*> &tokens, unsigned int start, uns
     while (start < end) {
         tokens[start]->accept(this);
         start++;
-    }
-}
-
-bool CSTConverter::is_dispose() {
-    if(dispose_node) {
-        if(!keep_disposing) {
-            dispose_node = false;
-        }
-        return true;
-    } else {
-        if(keep_disposing) {
-            dispose_node = true;
-        }
-        return false;
     }
 }
 
@@ -534,10 +481,6 @@ void CSTConverter::visitFunction(CSTToken* function) {
 
     // private func <T, K> (ext : Extension*) name(param1 : int) : long
 
-    if(is_dispose()) {
-        return;
-    }
-
     unsigned i = 1;
 
     auto spec = specifier_token(function->tokens[0]);
@@ -647,9 +590,7 @@ void CSTConverter::visitFunction(CSTToken* function) {
 }
 
 void CSTConverter::visitEnumDecl(CSTToken* decl) {
-    if(is_dispose()) {
-        return;
-    }
+
     unsigned i = 1;
 
     const auto spec = specifier_token(decl->tokens[0]);
@@ -712,7 +653,7 @@ Value* convertNumber(ASTAllocator& alloc, NumberToken* token, ValueType value_ty
 }
 
 void CSTConverter::visitVarInit(CSTToken* varInit) {
-    if(is_dispose()) return;
+
     // private var i : int = 0
     auto is_struct_member = varInit->type() == LexTokenType::CompStructMember;
     unsigned i = 0;
@@ -847,7 +788,6 @@ void CSTConverter::visitUsing(CSTToken* usingStmt) {
 }
 
 void CSTConverter::visitTypealias(CSTToken* alias) {
-    if(is_dispose()) return;
     auto spec = specifier_token(alias->tokens[0]);
     unsigned i = spec.has_value() ? 2 : 1;
     const auto& name_token = alias->tokens[i];
@@ -1275,9 +1215,6 @@ void get_inherit_list(CSTConverter* converter, CSTToken*  container, unsigned& i
 }
 
 void CSTConverter::visitStructDef(CSTToken* structDef) {
-    if(is_dispose()) {
-        return;
-    }
     // private struct Point<T, K> {
     unsigned i = 1;
     auto spec = specifier_token(structDef->tokens[0]);
@@ -1326,9 +1263,6 @@ void CSTConverter::visitStructDef(CSTToken* structDef) {
 }
 
 void CSTConverter::visitInterface(CSTToken* interface) {
-    if(is_dispose()) {
-        return;
-    }
     // private interface Point <T, K> {
     unsigned i = 1;
     auto spec = specifier_token(interface->tokens[0]);
@@ -1360,9 +1294,6 @@ void CSTConverter::visitInterface(CSTToken* interface) {
 }
 
 void CSTConverter::visitUnionDef(CSTToken* unionDef) {
-    if(is_dispose()) {
-        return;
-    }
     // private union Point <T, K> {
     unsigned i = 1;
     auto spec = specifier_token(unionDef->tokens[0]);
@@ -1408,9 +1339,6 @@ void CSTConverter::visitUnionDef(CSTToken* unionDef) {
 }
 
 void CSTConverter::visitImpl(CSTToken* impl) {
-    if(is_dispose()) {
-        return;
-    }
     unsigned i = 1;
     auto& alloc = global_allocator;
     auto def = new (alloc.allocate<ImplDefinition>()) ImplDefinition(parent_node);

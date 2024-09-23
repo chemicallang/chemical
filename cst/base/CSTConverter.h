@@ -54,18 +54,6 @@ public:
     bool isCBIEnabled = true;
 
     /**
-     * when true, a single node is not put into nodes vector and then mode is turned off
-     * it allows us to skip converting a struct or function based on an annotation
-     */
-    bool dispose_node = false;
-
-    /**
-     * when turned on, all nodes will not be put into nodes vector
-     * it allows us to keep skipping nodes, until user asks to explicitly not dispose nodes with an annotation
-     */
-    bool keep_disposing = false;
-
-    /**
      * the global allocator is used for things like function signature or struct type
      * anything allocated using global allocator is not supposed to be destructed until the code
      * for complete job (executable / dll) has been generated
@@ -159,11 +147,6 @@ public:
         ASTAllocator& global_allocator,
         ASTAllocator& local_allocator
     );
-
-    /**
-     * the function that should be used to ask if node should be disposed
-     */
-    bool is_dispose();
 
     /**
      * this returns the default specifier to use for the node, if user given specifier is missing

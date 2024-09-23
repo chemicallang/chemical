@@ -116,8 +116,11 @@
 ToCAstVisitor::ToCAstVisitor(
     GlobalInterpretScope& scope,
     std::ostream *output,
-    ASTAllocator& allocator
-) : comptime_scope(scope), output(output), allocator(allocator), declarer(new CValueDeclarationVisitor(*this)), tld(*this, declarer.get()), ASTDiagnoser() {
+    ASTAllocator& allocator,
+    std::vector<std::string>* compiler_interfaces
+) : comptime_scope(scope), output(output), allocator(allocator), declarer(new CValueDeclarationVisitor(*this)),
+    tld(*this, declarer.get()), ASTDiagnoser(), compiler_interfaces(compiler_interfaces)
+{
     before_stmt = std::make_unique<CBeforeStmtVisitor>(*this);
     after_stmt = std::make_unique<CAfterStmtVisitor>(*this);
     destructor = std::make_unique<CDestructionVisitor>(*this);
@@ -2104,6 +2107,10 @@ void early_declare_gen_arg_structs(CTopLevelDeclarationVisitor& visitor, std::ve
 }
 
 void CTopLevelDeclarationVisitor::visit(StructDefinition* def) {
+    if(visitor.compiler_interfaces && def->has_annotation(AnnotationKind::CompilerInterface)) {
+        auto& interfaces = *visitor.compiler_interfaces;
+        interfaces.emplace_back(def->name);
+    }
     if(def->generic_params.empty()) {
         if(redefining) { // defining struct imported from another module
             declare_struct(def);
@@ -3192,10 +3199,10 @@ static void contained_struct_functions(ToCAstVisitor& visitor, StructDefinition*
 void ToCAstVisitor::visit(StructDefinition *def) {
     auto prev_members_container = current_members_container;
     current_members_container = def;
-    for(auto& inherits : def->inherited) {
+    for (auto& inherits: def->inherited) {
         const auto overridden = inherits->type->linked_node()->as_interface_def();
-        if(overridden) {
-            for (auto &func: overridden->functions()) {
+        if (overridden) {
+            for (auto& func: overridden->functions()) {
                 if (!def->contains_func(func->name)) {
                     contained_func_decl(*this, func, false, def);
                 }

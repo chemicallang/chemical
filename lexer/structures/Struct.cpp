@@ -26,7 +26,7 @@ void Lexer::lexStructBlockTokens() {
         lexWhitespaceAndNewLines();
         if(!(
             lexStructMemberTokens() ||
-            lexFunctionStructureTokens() ||
+            lexFunctionStructureTokens(true) ||
             lexSingleLineCommentTokens() ||
             lexMultiLineCommentTokens() ||
             lexUnionStructureTokens(true, true) ||

@@ -121,6 +121,12 @@ public:
     MembersContainer* current_members_container = nullptr;
 
     /**
+     * the interfaces are collected in this vector, if this is not null
+     * and no code is generated for compiler interface (compiler:interface annotation)
+     */
+    std::vector<std::string>* const compiler_interfaces;
+
+    /**
      * a reference to the stream it's going to write results to
      */
     std::ostream* output;
@@ -186,7 +192,8 @@ public:
     ToCAstVisitor(
         GlobalInterpretScope& global,
         std::ostream* output,
-        ASTAllocator& allocator
+        ASTAllocator& allocator,
+        std::vector<std::string>* compiler_interfaces = nullptr
     );
 
     /**

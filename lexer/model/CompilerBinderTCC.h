@@ -56,6 +56,11 @@ public:
     ) override;
 
     /**
+     * import compiler interface with the given name
+     */
+    bool import_compiler_interface(const std::string& name, TCCState* state);
+
+    /**
      * provides a pointer to function contained inside cbi
      */
     void* provide_func(const std::string& cbi_name, const std::string& funcName) override;

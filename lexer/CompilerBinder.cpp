@@ -28,6 +28,8 @@ CompilerBinderTCC::CompilerBinderTCC(std::string exe_path) : CompilerBinder(), e
     source_provide_symbol_map(provider);
     auto& lexer = interface_maps["Lexer"];
     lexer_symbol_map(lexer);
+    auto& context = interface_maps["BuildContext"];
+    build_context_symbol_map(context);
 }
 
 void declare_func(FunctionDeclaration* func, TCCState* state, std::unordered_map<std::string, void*>& sym_map) {
@@ -45,6 +47,18 @@ void declare_func(FunctionDeclaration* func, TCCState* state, std::unordered_map
 void declare_sym_map(std::unordered_map<std::string, void*>& from_sym_map, std::unordered_map<std::string, void*>& to_sym_map) {
     for(auto& sym : from_sym_map) {
         to_sym_map[sym.first] = sym.second;
+    }
+}
+
+bool CompilerBinderTCC::import_compiler_interface(const std::string& name, TCCState* state) {
+    auto map = interface_maps.find(name);
+    if(map != interface_maps.end()) {
+        for(auto& sym : map->second) {
+            tcc_add_symbol(state, sym.first.c_str(), sym.second);
+        }
+        return true;
+    } else {
+        return false;
     }
 }
 

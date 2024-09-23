@@ -40,10 +40,7 @@ bool Lexer::lexUnionStructureTokens(unsigned start_token, bool unnamed, bool dir
             error("expected a '{' for union block");
             return true;
         }
-        auto prev = isCBICollecting;
-        isCBICollecting = false;
         lexUnionBlockTokens();
-        isCBICollecting = prev;
         if(!lexOperatorToken('}')) {
             error("expected a closing bracket '}' for union block");
             return true;
@@ -52,7 +49,7 @@ bool Lexer::lexUnionStructureTokens(unsigned start_token, bool unnamed, bool dir
             error("expected an identifier after the '}' for anonymous union definition");
             return true;
         }
-        compound_collectable(start_token, LexTokenType::CompUnionDef);
+        compound_from(start_token, LexTokenType::CompUnionDef);
         return true;
     } else {
         return false;

@@ -7,6 +7,7 @@
 #include "LabJob.h"
 #include "integration/ide/model/FlatIGFile.h"
 #include "LabBuildCompilerOptions.h"
+#include "lexer/model/CBIData.h"
 #include <vector>
 #include <unordered_map>
 
@@ -217,6 +218,16 @@ public:
             chem::string* name,
             LabModule** dependencies,
             unsigned int dep_len
+    );
+
+    /**
+     * adds a cbi entry that'll be built
+     */
+    LabJob* build_cbi(
+            chem::string* name,
+            LabModule** dependencies,
+            unsigned int dep_len,
+            CBIImportKind kind
     );
 
     /**

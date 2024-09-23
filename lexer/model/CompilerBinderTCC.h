@@ -4,27 +4,23 @@
 
 #include "CompilerBinder.h"
 #include "libtcc.h"
-#include "cst/base/CSTConverter.h"
-#include "preprocess/2c/2cASTVisitor.h"
-#include "compiler/SymbolResolver.h"
-#include "CompilerBinderCommon.h"
 #include <mutex>
 
 /**
  * compiler binder based on tiny c compiler
  */
-class CompilerBinderTCC : public CompilerBinderCommon {
+class CompilerBinderTCC : public CompilerBinder {
 public:
-
-    /**
-     * A single To C AST Visitor is used to translate converter ASTNodes to 'C'
-     */
-    ToCAstVisitor translator;
 
     /**
      * container a map between cbi_name and tcc state
      */
     std::unordered_map<std::string, TCCState*> compiled;
+
+    /**
+     * diagnostics during compilation of c files
+     */
+    std::vector<std::string> diagnostics;
 
     /**
      * path to current executable, resources required by tcc are located relative to it
@@ -34,17 +30,16 @@ public:
     /**
      * constructor
      */
-    explicit CompilerBinderTCC(
-        CSTDiagnoser* diagnoser,
-        std::string exe_path,
-        ASTAllocator& job_allocator,
-        ASTAllocator& mod_allocator
-    );
+    explicit CompilerBinderTCC(std::string exe_path);
 
     /**
-     * will compile the following cbi
+     * following c program will be compiled as the cbi
      */
-    bool compile(const std::string &cbi_name) override;
+    BinderResult compile(
+        const std::string& cbi_name,
+        const std::string& program,
+        CBIData& cbiData
+    ) override;
 
     /**
      * provides a pointer to function contained inside cbi

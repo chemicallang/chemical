@@ -209,7 +209,6 @@ set(COMMON_SOURCES
         ast/utils/GlobalFunctions.cpp
         ast/statements/MacroValueStatement.h
         integration/common/Diagnostic.cpp
-        lexer/structures/Collection.cpp
         ast/structures/Scope.cpp
         ast/structures/LoopScope.cpp
         ast/types/PointerType.h
@@ -359,7 +358,6 @@ set(COMMON_SOURCES
         lexer/model/CompilerBinder.h
         lexer/CompilerBinder.cpp
         lexer/model/CompilerBinderTCC.h
-        lexer/model/CompilerBinderCommon.h
         ast/utils/ASTUtils.h
         ast/utils/ASTUtils.cpp
         integration/libtcc/LibTccInteg.h
@@ -477,6 +475,7 @@ set(COMMON_SOURCES
         ast/structures/UnsafeBlock.cpp
         ast/base/ASTAllocator.h
         ast/base/ASTAllocator.cpp
+        lexer/model/CBIData.h
 )
 
 # Chemical LSP Executable Target

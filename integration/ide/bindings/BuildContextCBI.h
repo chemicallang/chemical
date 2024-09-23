@@ -4,6 +4,7 @@
 
 #include "compiler/lab/LabModuleType.h"
 #include "std/chem_string.h"
+#include "lexer/model/CBIData.h"
 
 struct LabBuildContext;
 
@@ -42,6 +43,8 @@ struct BuildContextCBI {
     LabJob*(*build_exe)(BuildContextCBI* self, chem::string* name, ModuleArrayRef* dependencies);
 
     LabJob*(*build_dynamic_lib)(BuildContextCBI* self, chem::string* name, ModuleArrayRef* dependencies);
+
+    LabJob*(*build_cbi)(BuildContextCBI* self, chem::string* name, ModuleArrayRef* dependencies, CBIImportKind cbiImportKind);
 
     void(*add_object)(BuildContextCBI* self, LabJob* job, chem::string* path);
 

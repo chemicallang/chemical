@@ -215,6 +215,23 @@ LabJob* LabBuildContext::build_dynamic_lib(
     return exe;
 }
 
+LabJob* LabBuildContext::build_cbi(
+        chem::string* name,
+        LabModule** dependencies,
+        unsigned int dep_len,
+        CBIImportKind cbiKind
+) {
+    auto exe = new LabJobCBI(LabJob(LabJobType::CBI, name->copy()));
+    exe->data.cbiTypes.emplace_back();
+    auto& cbiImport = exe->data.cbiTypes.back();
+    cbiImport.kind = cbiKind;
+    executables.emplace_back(exe);
+    set_build_dir(exe);
+    LabBuildContext::add_dependencies(exe->dependencies, dependencies, dep_len);
+    init_path_aliases(exe);
+    return exe;
+}
+
 bool LabBuildContext::has_arg(chem::string* name) {
     return build_args.find(name->to_std_string()) != build_args.end();
 }

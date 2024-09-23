@@ -17,7 +17,14 @@
 #include <optional>
 #include "utils/fwd/functional.h"
 #include "model/CompilerBinder.h"
+#include "integration/ide/bindings/LexerCBI.h"
 #include "cst/base/CSTDiagnoser.h"
+
+class CompilerBinder;
+
+class LexerCBI;
+
+class Lexer;
 
 /**
  * A function that is called upon encountering an annotation
@@ -51,32 +58,17 @@ public:
      * the binder that will be used to compile binding code
      * if not present, cbi is considered disabled
      */
-    CompilerBinder* binder;
+    CompilerBinder* const binder;
 
     /**
      * a pointer to lexer cbi that will be passed to cbi functions
      */
-    LexerCBI* cbi;
+    LexerCBI* const cbi;
 
     /**
      * the cbi used for collection
      */
     std::string current_cbi;
-
-    /**
-     * when a struct / function is to be collected by cbi
-     */
-    bool isCBICollecting = false;
-
-    /**
-     * when a struct / function is to be collected by cbi globally
-     */
-    bool isCBICollectingGlobal = false;
-
-    /**
-     * when true, cbi won't be turned off after a single node has been collected
-     */
-    bool isCBIKeepCollecting = false;
 
     /**
      * initialize the lexer with this provider and path
@@ -648,12 +640,6 @@ public:
     }
 
     /**
-     * this will try to collect current struct as a lexer
-     * @param start is the start position inside the tokens vector
-     */
-    bool collect_cbi_node(unsigned int start, unsigned int end);
-
-    /**
      * lexes a impl block tokens
      */
     void lexImplBlockTokens();
@@ -880,13 +866,6 @@ public:
     [[deprecated]]
     void compound_collectable(unsigned int start, LexTokenType type) {
         compound_from(start, type);
-        if(isCBICollecting) {
-            collect_cbi_node(start, tokens_size());
-            if(!isCBIKeepCollecting) {
-                isCBICollecting = false;
-                isCBICollectingGlobal = false;
-            }
-        }
     }
 
     /**

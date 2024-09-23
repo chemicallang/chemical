@@ -67,15 +67,12 @@ bool Lexer::lexVariantStructureTokens(unsigned start_token) {
             error("expected a '{' for struct block");
             return true;
         }
-        auto prev = isCBICollecting;
-        isCBICollecting = false;
         lexVariantBlockTokens();
-        isCBICollecting = prev;
         if(!lexOperatorToken('}')) {
             error("expected a closing bracket '}' for struct block");
             return true;
         }
-        compound_collectable(start_token, LexTokenType::CompVariant);
+        compound_from(start_token, LexTokenType::CompVariant);
         return true;
     } else {
         return false;

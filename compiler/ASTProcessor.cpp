@@ -4,17 +4,19 @@
 
 #include <memory>
 #include "cst/base/CSTConverter.h"
+#include "lexer/model/CompilerBinderTCC.h"
 #include "lexer/Lexi.h"
 #include "compiler/SymbolResolver.h"
+#include "preprocess/2c/2cASTVisitor.h"
 #include "utils/Benchmark.h"
 #include <sstream>
 #include "utils/Utils.h"
-#include "lexer/model/CompilerBinderTCC.h"
 #include "preprocess/ShrinkingVisitor.h"
 #include "utils/PathUtils.h"
 #include "compiler/lab/LabBuildCompiler.h"
 #include "std/chem_string.h"
 #include "rang.hpp"
+#include "integration/ide/bindings/LexerCBI.h"
 #include <filesystem>
 
 #ifdef COMPILER_BUILD
@@ -49,9 +51,7 @@ ASTProcessor::ASTProcessor(
 ) : options(options), resolver(resolver), path_handler(options->exe_path),
     job_allocator(job_allocator), mod_allocator(mod_allocator) {
     if(options->isCBIEnabled) {
-        // TODO compiler binder has a global interpret scope, however we are using a different compile time scope inside
-        // code generation
-        binder = std::make_unique<CompilerBinderTCC>(nullptr, options->exe_path, job_allocator, mod_allocator);
+        binder = std::make_unique<CompilerBinderTCC>(options->exe_path);
         lexer_cbi = std::make_unique<LexerCBI>();
         provider_cbi = std::make_unique<SourceProviderCBI>();
         prep_lexer_cbi(lexer_cbi.get(), provider_cbi.get());

@@ -710,7 +710,7 @@ public:
 
     explicit PtrNamespace(
             ASTNode* parent_node
-    ) : Namespace("ptr", parent_node, nullptr), {
+    ) : Namespace("ptr", parent_node, nullptr) {
         annotations.emplace_back(AnnotationKind::CompTime);
         nodes = { };
     }

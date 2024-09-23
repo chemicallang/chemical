@@ -77,6 +77,17 @@ TCCState* setup_tcc_state(char* exe_path, const std::string& outputFileName, boo
 
 }
 
+void prepare_tcc_state_for_jit(TCCState* s) {
+    tcc_undefine_symbol(s, "malloc");
+    tcc_undefine_symbol(s, "realloc");
+    tcc_undefine_symbol(s, "free");
+    tcc_undefine_symbol(s, "memcpy");
+    tcc_add_symbol(s, "malloc", (void*) malloc);
+    tcc_add_symbol(s, "realloc", (void*) realloc);
+    tcc_add_symbol(s, "free", (void*) free);
+    tcc_add_symbol(s, "memcpy", (void*) memcpy);
+}
+
 TCCState* compile_c_to_tcc_state(char* exe_path, const char* program, const std::string& outputFileName, bool jit, bool debug) {
 
     auto s = setup_tcc_state(exe_path, outputFileName, jit, debug);
@@ -89,14 +100,7 @@ TCCState* compile_c_to_tcc_state(char* exe_path, const char* program, const std:
     // we will use our heap context
     // this way c and our program and can free or allocate for each other
     if(jit) {
-        tcc_undefine_symbol(s, "malloc");
-        tcc_undefine_symbol(s, "realloc");
-        tcc_undefine_symbol(s, "free");
-        tcc_undefine_symbol(s, "memcpy");
-        tcc_add_symbol(s, "malloc", (void*) malloc);
-        tcc_add_symbol(s, "realloc", (void*) realloc);
-        tcc_add_symbol(s, "free", (void*) free);
-        tcc_add_symbol(s, "memcpy", (void*) memcpy);
+        prepare_tcc_state_for_jit(s);
     }
 
     return s;

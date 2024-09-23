@@ -48,6 +48,10 @@ public struct LabJob {
     var status : LabJobStatus
 }
 
+public enum CBIImportKind {
+    Lexer
+}
+
 public struct BuildContext {
 
     // support's paths with .o, .c and .ch extensions
@@ -79,6 +83,9 @@ public struct BuildContext {
 
     // build a dynamic library using executable dependencies
     var build_dynamic_lib : (&self, name : string*, dependencies : ArrayRef<Module*>) => LabJob*;
+
+    // build a cbi by given name, that can be used to integrate with compiler
+    var build_cbi : (&self, name : string*, dependencies : ArrayRef<Module*>, kind : CBIImportKind) => LabJob*
 
     // add a linkable object (.o file)
     var add_object : (&self, job : LabJob*, path : string) => void;

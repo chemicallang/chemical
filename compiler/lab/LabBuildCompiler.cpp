@@ -33,6 +33,7 @@
 #include "utils/FileUtils.h"
 #include "compiler/backend/LLVMBackendContext.h"
 #include "preprocess/2c/2cBackendContext.h"
+#include "lexer/model/CompilerBinderTCC.h"
 
 #ifdef COMPILER_BUILD
 std::vector<ASTNode*> TranslateC(
@@ -772,13 +773,19 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
         lab_allocator // lab allocator is being used as a module level allocator
     );
 
+    // the tcc compiler binder
+    auto& binder = *((CompilerBinderTCC*) lab_processor.binder.get());
+
     // get flat imports
     auto flat_imports = lab_processor.flat_imports(path);
     int compile_result = 0;
 
+    // compiler interfaces the lab files imports
+    std::vector<std::string> compiler_interfaces;
+
     // beginning
     std::stringstream output_ptr;
-    ToCAstVisitor c_visitor(global, &output_ptr, lab_allocator);
+    ToCAstVisitor c_visitor(global, &output_ptr, lab_allocator, &compiler_interfaces);
     ToCBackendContext c_context(&c_visitor);
 
     // set the backend context
@@ -894,7 +901,7 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
     }
 
     // compiling the c output from build.labs
-    auto str = output_ptr.str();
+    const auto& str = output_ptr.str();
     auto state = compile_c_to_tcc_state(options->exe_path.data(), str.data(), "", true, is_debug(options->def_mode));
 
     if(state == nullptr) {
@@ -906,23 +913,31 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
 
     TCCDeletor auto_del(state); // automatic destroy
 
+    // import all compiler interfaces the lab files import
+    for(const auto& interface : compiler_interfaces) {
+        if(!binder.import_compiler_interface(interface, state)) {
+            std::cerr << rang::fg::red << "[LabBuild] failed to import compiler binding interface '" << interface << '\'' << rang::fg::reset << std::endl;
+            return 1;
+        }
+    }
+
     // relocate the code before calling
     tcc_relocate(state);
 
     // get the build method
-    auto build = (void(*)(BuildContextCBI*)) tcc_get_symbol(state, "build");
+    auto build = (void(*)(LabBuildContext*)) tcc_get_symbol(state, "build");
     if(!build) {
         std::cerr << "[LabBuild] Couldn't get build function symbol in translated c :\n" << str << std::endl;
         return 1;
     }
 
     // prepare the cbi
-    BuildContextCBI cbi{};
-    prep_build_context_cbi(&cbi);
-    bind_build_context_cbi(&cbi, &context);
+//    BuildContextCBI cbi{};
+//    prep_build_context_cbi(&cbi);
+//    bind_build_context_cbi(&cbi, &context);
 
     // call the root build.lab build's function
-    build(&cbi);
+    build(&context);
 
     // mkdir the build directory
     if(!std::filesystem::exists(context.build_dir)) {

@@ -117,6 +117,8 @@ void prep_lexer_cbi(LexerCBI* cbi, SourceProviderCBI* provider);
  */
 void bind_lexer_cbi(LexerCBI* cbi, SourceProviderCBI* provider_cbi, Lexer* lexer);
 
+void build_context_symbol_map(std::unordered_map<std::string, void*>& sym_map);
+
 void lexer_symbol_map(std::unordered_map<std::string, void*>& sym_map);
 
 void source_provide_symbol_map(std::unordered_map<std::string, void*>& sym_map);

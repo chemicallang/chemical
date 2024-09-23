@@ -52,88 +52,89 @@ public enum CBIImportKind {
     Lexer
 }
 
+@compiler:interface
 public struct BuildContext {
 
     // support's paths with .o, .c and .ch extensions
-    var files_module : (&self, name : string, paths : string**, paths_len : uint, dependencies : ArrayRef<Module*>) => Module*;
+    func files_module (&self, name : string, paths : string**, paths_len : uint, dependencies : ArrayRef<Module*>) : Module*;
 
     // when paths only contain chemical files
-    var chemical_files_module : (&self, name : string, paths : string**, paths_len : uint, dependencies : ArrayRef<Module*>) => Module*;
+    func chemical_files_module (&self, name : string, paths : string**, paths_len : uint, dependencies : ArrayRef<Module*>) : Module*;
 
     // directory module
-    var chemical_dir_module : (&self, name : string, path : string, dependencies : ArrayRef<Module*>) => Module*
+    func chemical_dir_module (&self, name : string, path : string, dependencies : ArrayRef<Module*>) : Module*
 
     // a single .c file
-    var c_file_module : (&self, name : string, path : string, dependencies : ArrayRef<Module*>) => Module*
+    func c_file_module (&self, name : string, path : string, dependencies : ArrayRef<Module*>) : Module*
 
     // a single .cpp file
-    var cpp_file_module : (&self, name : string, path : string, dependencies : ArrayRef<Module*>) => Module*
+    func cpp_file_module (&self, name : string, path : string, dependencies : ArrayRef<Module*>) : Module*
 
     // a single .o file
-    var object_module : (&self, name : string, path : string) => Module*
+    func object_module (&self, name : string, path : string) : Module*
 
     // translate a c file to chemical
-    var translate_to_chemical : (&self, c_path : string, output_path : string) => LabJob*;
+    func translate_to_chemical (&self, c_path : string, output_path : string) : LabJob*;
 
     // translate a chemical module to c file
-    var translate_to_c : (&self, name : string, dependencies : ArrayRef<Module*>, output_dir : string) => LabJob*
+    func translate_to_c (&self, name : string, dependencies : ArrayRef<Module*>, output_dir : string) : LabJob*
 
     // build executable using module dependencies
-    var build_exe : (&self, name : string*, dependencies : ArrayRef<Module*>) => LabJob*;
+    func build_exe (&self, name : string*, dependencies : ArrayRef<Module*>) : LabJob*;
 
     // build a dynamic library using executable dependencies
-    var build_dynamic_lib : (&self, name : string*, dependencies : ArrayRef<Module*>) => LabJob*;
+    func build_dynamic_lib (&self, name : string*, dependencies : ArrayRef<Module*>) : LabJob*;
 
     // build a cbi by given name, that can be used to integrate with compiler
-    var build_cbi : (&self, name : string*, dependencies : ArrayRef<Module*>, kind : CBIImportKind) => LabJob*
+    func build_cbi (&self, name : string*, dependencies : ArrayRef<Module*>, kind : CBIImportKind) : LabJob*
 
     // add a linkable object (.o file)
-    var add_object : (&self, job : LabJob*, path : string) => void;
+    func add_object (&self, job : LabJob*, path : string) : void;
 
     // declare an alias for a path that can be used in imports like import '@alias/sub_path.ch'
     // returns true if declared
-    var declare_alias : (&self, job : LabJob*, alias : string, path : string) => bool;
+    func declare_alias (&self, job : LabJob*, alias : string, path : string) : bool;
 
     // get build
-    var build_path : (&self) => string;
+    func build_path (&self) : string;
 
     // check if argument given to chemical compiler
     // you can give argument using -arg-myarg, pass myarg to this function to check
-    var has_arg : (&self, name : string*) => bool
+    func has_arg (&self, name : string*) : bool
 
     // get the argument given to chemical compiler
-    var get_arg : (&self, name : string*) => string
+    func get_arg (&self, name : string*) : string
 
     // remove the argument given to chemical compiler
-    var remove_arg : (&self, name : string*) => void
+    func remove_arg (&self, name : string*) : void
 
     // define a definition, that you can access using defined compiler function
     // returns true, if defined
-    var define : (&self, job : LabJob*, name : string*) => bool
+    func define (&self, job : LabJob*, name : string*) : bool
 
     // un-define a definition
-    var undefine : (&self, job : LabJob*, name : string*) => bool;
+    func undefine (&self, job : LabJob*, name : string*) : bool;
 
     // launch an executable at the path
-    var launch_executable : (&self, path : string, same_window : bool) => int;
+    func launch_executable (&self, path : string, same_window : bool) : int;
 
     // something you'd want to be invoked when lab build has finished
-    var on_finished : (&self, lambda : (data : void*) => void, data : void*) => void;
+    func on_finished (&self, lambda : (data : void*) => void, data : void*) : void;
 
     // link object files (.o files) into a single binary
-    var link_objects : (&self, string_arr : ArrayRef<string>, output_path : string) => int;
+    func link_objects (&self, string_arr : ArrayRef<string>, output_path : string) : int;
 
     // invoke llvm dll tool with given cli args
-    var invoke_dlltool : (&self, string_arr : ArrayRef<string>) => int;
+    func invoke_dlltool (&self, string_arr : ArrayRef<string>) : int;
 
     // invoke ranlib tool with given cli args
-    var invoke_ranlib : (&self, string_arr : ArrayRef<string>) => int;
+    func invoke_ranlib (&self, string_arr : ArrayRef<string>) : int;
 
     // invoke lib tool with given cli args
-    var invoke_lib : (&self, string_arr : ArrayRef<string>) => int;
+    func invoke_lib (&self, string_arr : ArrayRef<string>) : int;
 
     // invoke ar with given cli args
-    var invoke_ar : (&self, string_arr : ArrayRef<string>) => int;
+    func invoke_ar (&self, string_arr : ArrayRef<string>) : int;
 
 }
 

@@ -66,11 +66,6 @@ public:
     LexerCBI* const cbi;
 
     /**
-     * the cbi used for collection
-     */
-    std::string current_cbi;
-
-    /**
      * initialize the lexer with this provider and path
      */
     Lexer(

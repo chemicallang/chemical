@@ -163,25 +163,30 @@ int LabBuildCompiler::do_job_allocating(LabJob* job) {
 
 int LabBuildCompiler::process_modules(LabJob* exe) {
 
-    // the flag that forces usage of tcc
-    const bool use_tcc = options->use_tcc || exe->type == LabJobType::ToCTranslation;
+    const auto job_type = exe->type;
 
-    std::cout << rang::bg::blue << rang::fg::black << "[BuildLab]" << " Building ";
-    switch(exe->type) {
+    // the flag that forces usage of tcc
+    const bool use_tcc = options->use_tcc || job_type == LabJobType::ToCTranslation || job_type == LabJobType::CBI;
+
+    std::cout << rang::bg::blue << rang::fg::black << "[BuildLab]" << ' ';
+    switch(job_type) {
         case LabJobType::Executable:
-            std::cout << "executable";
+            std::cout << "Building executable";
             break;
         case LabJobType::Library:
-            std::cout << "library";
+            std::cout << "Building library";
             break;
         case LabJobType::ToCTranslation:
-            std::cout << "c (translation)";
+            std::cout << "Translating to c";
             break;
         case LabJobType::ToChemicalTranslation:
-            std::cout << "chemical (translation)";
+            std::cout << "Translating to chemical";
             break;
         case LabJobType::ProcessingOnly:
-            std::cout << "objects";
+            std::cout << "Building objects";
+            break;
+        case LabJobType::CBI:
+            std::cout << "Building CBI";
             break;
     }
     if(!exe->name.empty()) {
@@ -224,6 +229,8 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
     global.backend_context = (BackendContext*) &c_context;
 #endif
 
+    auto& binder = *processor.binder;
+
     // import executable path aliases
     processor.path_handler.path_aliases = std::move(exe->path_aliases);
 
@@ -262,7 +269,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
     std::vector<FlatIGFile> flat_imports;
     int i;
     int compile_result = 0;
-    bool do_compile = exe->type != LabJobType::ToCTranslation;
+    bool do_compile = job_type != LabJobType::ToCTranslation && job_type != LabJobType::CBI;
 
     // compile dependent modules for this executable
     int mod_index = -1;
@@ -270,12 +277,12 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
         mod_index++;
 
         auto found = generated.find(mod);
-        if(found != generated.end() && exe->type != LabJobType::ToCTranslation) {
+        if(found != generated.end() && job_type != LabJobType::ToCTranslation) {
             exe->linkables.emplace_back(found->second);
             continue;
         }
 
-        if(exe->type == LabJobType::Executable || exe->type == LabJobType::Library) {
+        if(job_type == LabJobType::Executable || job_type == LabJobType::Library) {
             auto obj_path = resolve_rel_child_path_str(exe_build_dir, mod->name.to_std_string() +
                                                                       (is_use_obj_format ? ".o" : ".bc"));
             if (is_use_obj_format || mod->type == LabModuleType::CFile) {
@@ -519,7 +526,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
             }
 
             // writing the translated c file (if user required)
-            if(exe->type == LabJobType::ToCTranslation || !mod->out_c_path.empty()) {
+            if(job_type == LabJobType::ToCTranslation || !mod->out_c_path.empty()) {
                 auto out_path = mod->out_c_path.to_std_string();
                 if(out_path.empty()) {
                     if(!exe->build_dir.empty()) {
@@ -536,6 +543,19 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                     throw std::runtime_error("couldn't figure out the output c path");
                 }
 #endif
+            }
+
+            if(job_type == LabJobType::CBI) {
+                const auto cbiJob = (LabJobCBI*) exe;
+                auto bResult = binder.compile(exe->name.to_std_string(), program, cbiJob->data);
+                if(!bResult.error.empty()) {
+                    std::cerr << "[BuildLab] failed to compile CBI module with name '" << mod->name.data() << "' with error '" << bResult.error << "'" << std::endl;
+                }
+                if(bResult.result == 1) {
+                    compile_result = 1;
+                    break;
+                }
+                compile_result = bResult.result;
             }
 
             // clear the current c string

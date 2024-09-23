@@ -3,6 +3,7 @@
 #pragma once
 
 #include "lexer/Lexer.h"
+#include <unordered_map>
 
 const std::unordered_map<std::string, ValueCreatorFn> ValueCreators = {
         {"null", [](Lexer *lexer) -> void {

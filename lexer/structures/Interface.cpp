@@ -30,16 +30,13 @@ bool Lexer::lexInterfaceStructureTokens(unsigned start) {
             error("expected a '{' when starting an interface block");
             return true;
         }
-        auto prev = isCBICollecting;
-        isCBICollecting = false;
         lexInterfaceBlockTokens();
-        isCBICollecting = prev;
         lexWhitespaceToken();
         if (!lexOperatorToken('}')) {
             error("expected a '}' when ending an interface block");
             return true;
         }
-        compound_collectable(start, LexTokenType::CompInterface);
+        compound_from(start, LexTokenType::CompInterface);
         return true;
     }
     return false;

@@ -69,10 +69,7 @@ bool Lexer::lexStructStructureTokens(unsigned start_token, bool unnamed, bool di
             error("expected a '{' for struct block");
             return true;
         }
-        auto prev = isCBICollecting;
-        isCBICollecting = false;
         lexStructBlockTokens();
-        isCBICollecting = prev;
         if(!lexOperatorToken('}')) {
             error("expected a closing bracket '}' for struct block");
             return true;
@@ -81,7 +78,7 @@ bool Lexer::lexStructStructureTokens(unsigned start_token, bool unnamed, bool di
             error("expected an identifier after the '}' for anonymous struct definition");
             return true;
         }
-        compound_collectable(start_token, LexTokenType::CompStructDef);
+        compound_from(start_token, LexTokenType::CompStructDef);
         return true;
     } else {
         return false;

@@ -5,17 +5,25 @@
 #include <memory>
 #include <vector>
 #include <unordered_map>
-#include "integration/ide/bindings/LexerCBI.h"
+#include "CBIData.h"
 
-class Lexer;
+class CSTDiagnoser;
 
-class CSTToken;
+class LexerCBI;
 
 /**
  * this function is a lex function, it takes the lexer cbi
  * which allows user to lex tokens
  */
 typedef void(*cbi_lex_func)(LexerCBI* cbi);
+
+/**
+ * a compile result
+ */
+struct BinderResult {
+    int result;
+    std::string error;
+};
 
 /**
  * The job of the compiler binder is to bind compiler into user's source code
@@ -34,28 +42,18 @@ public:
     std::unordered_map<std::string, void*> cached_func;
 
     /**
-     * creates a cbi with name cbi_name
+     * constructor
      */
-    virtual void create_cbi(const std::string& cbi_name) = 0;
+    CompilerBinder();
 
     /**
-     * imports collected nodes from a container into a cbi
-     * @param cbi_name cbi name
-     * @param container container name
+     * following c translated program is compiled under the given cbi name
      */
-    virtual void import_container(const std::string& cbi_name, const std::string& container) = 0;
-
-    /**
-     * collects the tokens globally
-     * @param name is the name of container
-     * @param err_no_found should it error out, if container isn't found
-     */
-    virtual void collect(const std::string& name, std::vector<CSTToken*>& tokens, bool err_no_found) = 0;
-
-    /**
-     * following cbi will be compiled
-     */
-    virtual bool compile(const std::string& cbi_name) = 0;
+    virtual BinderResult compile(
+        const std::string& cbi_name,
+        const std::string& program,
+        CBIData& cbiData
+    ) = 0;
 
     /**
      * de caches the function given

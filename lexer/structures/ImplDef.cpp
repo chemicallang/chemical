@@ -32,15 +32,12 @@ bool Lexer::lexImplTokens() {
             error("expected a '{' when starting an implementation");
             return true;
         }
-        auto prev = isCBICollecting;
-        isCBICollecting = false;
         lexImplBlockTokens();
-        isCBICollecting = prev;
         if (!lexOperatorToken('}')) {
             error("expected a '}' when ending an implementation");
             return true;
         }
-        compound_collectable(start, LexTokenType::CompImpl);
+        compound_from(start, LexTokenType::CompImpl);
         return true;
     }
     return false;

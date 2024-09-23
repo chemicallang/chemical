@@ -71,7 +71,6 @@ struct LexerCBI {
     bool(*lexStructMemberTokens)(struct LexerCBI*);
     void(*lexStructBlockTokens)(struct LexerCBI*);
     bool(*lexStructStructureTokens)(struct LexerCBI*);
-    bool(*collectStructAsLexer)(struct LexerCBI*,unsigned int,unsigned int);
     void(*lexImplBlockTokens)(struct LexerCBI*);
     bool(*lexImplTokens)(struct LexerCBI*);
     bool(*lexEnumBlockTokens)(struct LexerCBI*);

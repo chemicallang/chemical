@@ -6,6 +6,7 @@
 
 #include "lexer/utils/AnnotationModifiers.h"
 #include "lexer/utils/MacroLexers.h"
+#include "lexer/model/CompilerBinder.h"
 
 bool Lexer::lexAnnotationMacro() {
 

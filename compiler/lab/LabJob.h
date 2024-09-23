@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include "std/chem_string.h"
 #include "LabJobType.h"
+#include "lexer/model/CBIData.h"
 
 struct LabModule;
 
@@ -17,7 +18,8 @@ enum class LabJobStatus {
 };
 
 struct LabJob {
-    // the type of job
+    // the type of job, the type is user specific
+    // which type of job user want's to perform
     LabJobType type;
     // name of the job / executable / lib
     chem::string name;
@@ -42,4 +44,13 @@ struct LabJob {
      * time to trigger different code paths and generate different code
      */
     std::unordered_map<std::string, bool> definitions;
+};
+
+struct LabJobCBI : public LabJob {
+    /**
+     * cbi data is provided to the job, which provides data
+     * like which functions should be exposed to each module being compiled
+     * in this job
+     */
+    CBIData data;
 };

@@ -190,9 +190,6 @@ void prep_lexer_cbi(LexerCBI* cbi, SourceProviderCBI* provider) {
     cbi->lexStructStructureTokens = [](LexerCBI* cbi){
         return cbi->instance->lexStructStructureTokens();
     };
-    cbi->collectStructAsLexer = [](LexerCBI* cbi, unsigned int start, unsigned int end){
-        return cbi->instance->collect_cbi_node(start, end);
-    };
     cbi->lexImplBlockTokens = [](LexerCBI* cbi){
         return cbi->instance->lexImplBlockTokens();
     };
@@ -390,6 +387,9 @@ void prep_build_context_cbi(BuildContextCBI* cbi) {
     };
     cbi->build_dynamic_lib = [](BuildContextCBI* self, chem::string* name, ModuleArrayRef* dependencies) -> LabJob* {
         return self->instance->build_dynamic_lib(name, dependencies->ptr, dependencies->size);
+    };
+    cbi->build_cbi = [](BuildContextCBI* self, chem::string* name, ModuleArrayRef* dependencies, CBIImportKind kind) -> LabJob* {
+        return self->instance->build_cbi(name, dependencies->ptr, dependencies->size, kind);
     };
     cbi->add_object = [](BuildContextCBI* self, LabJob* job, chem::string* path) {
         dispose_string _x{path};

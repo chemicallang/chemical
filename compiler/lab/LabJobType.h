@@ -29,4 +29,10 @@ enum class LabJobType : int {
      */
     ProcessingOnly = 4,
 
+    /**
+     * creates a cbi, A CBI is compiled C code that can be called by
+     * our compiler to perform actions like handle macros
+     */
+    CBI = 5,
+
 };

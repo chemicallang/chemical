@@ -274,6 +274,7 @@ const std::unordered_map<std::string, const AnnotationHandler> AnnotationHandler
         { "size:opt", { collect_annotation_func, AnnotationKind::OptSize } },
         { "size:min", { collect_annotation_func, AnnotationKind::MinSize } },
         { "comptime", { collect_annotation_func, AnnotationKind::CompTime } },
+        { "compiler:interface", { collect_annotation_func, AnnotationKind::CompilerInterface } },
         { "constructor", { collect_annotation_func, AnnotationKind::Constructor } },
         { "make", { collect_annotation_func, AnnotationKind::Constructor } },
         { "delete", { collect_annotation_func, AnnotationKind::Delete } },

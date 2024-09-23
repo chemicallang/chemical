@@ -58,9 +58,16 @@ void declare_node(ASTNode* node, TCCState* state, std::unordered_map<std::string
             return;
         case ASTNodeKind::StructDecl:
         case ASTNodeKind::VariantDecl:
-        case ASTNodeKind::UnionDecl:
-            declare_functions(((MembersContainer*) node)->functions(), state, sym_map);
+        case ASTNodeKind::UnionDecl: {
+            const auto container = (MembersContainer*) node;
+            if(container->has_annotation(AnnotationKind::CompilerInterface)) {
+                // every struct with this annotation is skipped
+                // because it just provides declarations for cbi modules
+                return;
+            }
+            declare_functions(container->functions(), state, sym_map);
             return;
+        }
         default:
             return;
     }

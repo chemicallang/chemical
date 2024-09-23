@@ -64,9 +64,11 @@ public struct string {
     func move_const_to_buffer(&self) {
         const data = storage.constant.data;
         const length = storage.constant.length;
-        if(data != null) {
-            for(var i = 0; i < length; i++) {
-                storage.sso.buffer[i] = data[i];
+        unsafe {
+            if(data != null) {
+                for(var i = 0; i < length; i++) {
+                    storage.sso.buffer[i] = data[i];
+                }
             }
         }
         storage.sso.buffer[length] = '\0'
@@ -244,14 +246,18 @@ public struct string {
                 return storage.heap.data;
             }
             default => {
-                return null;
+                unsafe {
+                    return null;
+                }
             }
         }
     }
 
     @clear
     func clear(&self) {
-        storage.constant.data = null;
+        unsafe {
+            storage.constant.data = null;
+        }
         storage.constant.length = 0;
         state = '0'
     }

@@ -22,14 +22,16 @@ public struct vector<T> {
 
     func resize(&self, new_cap : size_t) {
         var new_data = realloc(data_ptr, (#sizeof { T } * new_cap)) as T*;
-        if (new_data != null) {
-            data_ptr = new_data;
-            data_cap = new_cap;
-        } else {
-            // Handle allocation failure
-            // fprintf(stderr, "Failed to resize vector\n");
-            printf("failed to resize vector to a capacity of %d\n", new_cap);
-            // exit(1);
+        unsafe {
+            if (new_data != null) {
+                data_ptr = new_data;
+                data_cap = new_cap;
+            } else {
+                // Handle allocation failure
+                // fprintf(stderr, "Failed to resize vector\n");
+                printf("failed to resize vector to a capacity of %d\n", new_cap);
+                // exit(1);
+            }
         }
     }
 
@@ -98,7 +100,9 @@ public struct vector<T> {
     func delete(&self) {
         destruct[data_size] data_ptr;
         free(data_ptr);
-        data_ptr = null;
+        unsafe {
+            data_ptr = null;
+        }
         data_size = 0;
         data_cap = 0;
     }

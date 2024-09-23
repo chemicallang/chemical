@@ -90,6 +90,18 @@ void SourceProvider::readUntil(chem::string* into, char stop) {
     }
 }
 
+void SourceProvider::readUntil(std::string& into, char stop) {
+    char currChar;
+    while (true) {
+        currChar = readCharacter();
+        if (currChar == stop || eof()) {
+            return;
+        } else {
+            into.append(1, currChar);
+        }
+    }
+}
+
 bool SourceProvider::increment(char c) {
     if (peek() == c) {
         readCharacter();
@@ -233,6 +245,12 @@ void SourceProvider::readAnything(chem::string* str, char until) {
     }
 }
 
+void SourceProvider::readAnything(std::string& str, char until) {
+    while (!eof() && peek() != until) {
+        str.append(1, readCharacter());
+    }
+}
+
 std::string SourceProvider::readUntil(const std::string &ending, bool consume) {
     std::string content;
     while (!eof() && peek() != -1) {
@@ -256,29 +274,52 @@ void SourceProvider::readUnsignedInt(chem::string* str) {
     }
 }
 
+void SourceProvider::readUnsignedInt(std::string& str) {
+    if (!std::isdigit(peek())) return;
+    while (true) {
+        const char p = peek();
+        if(!eof() && p >= '0' && p <= '9') {
+            str.append(1, readCharacter());
+        } else {
+            break;
+        }
+    }
+}
+
+bool keep_reading(const char c, bool& appearedDot, bool& first_char) {
+    if (first_char) {
+        first_char = false;
+        if (c == '-') {
+            return true;
+        }
+    }
+    if (c >= '0' && c <= '9') {
+        return true;
+    } else if (c == '.' && !appearedDot) {
+        appearedDot = true;
+        return true;
+    } else {
+        return false;
+    }
+}
+
 void SourceProvider::readNumber(chem::string* string) {
     const auto p = peek();
     if (p != '-' && !std::isdigit(p)) return;
     auto appearedDot = false;
     auto first_char = true;
-    const auto keep_reading = [](const char c, bool& appearedDot, bool& first_char)->bool {
-        if (first_char) {
-            first_char = false;
-            if (c == '-') {
-                return true;
-            }
-        }
-        if (c >= '0' && c <= '9') {
-            return true;
-        } else if (c == '.' && !appearedDot) {
-            appearedDot = true;
-            return true;
-        } else {
-            return false;
-        }
-    };
     while (!eof() && keep_reading(peek(), appearedDot, first_char)) {
         string->append(readCharacter());
+    }
+}
+
+void SourceProvider::readNumber(std::string& str) {
+    const auto p = peek();
+    if (p != '-' && !std::isdigit(p)) return;
+    auto appearedDot = false;
+    auto first_char = true;
+    while (!eof() && keep_reading(peek(), appearedDot, first_char)) {
+        str.append(1, readCharacter());
     }
 }
 
@@ -288,9 +329,21 @@ void SourceProvider::readAlpha(chem::string* str) {
     }
 }
 
+void SourceProvider::readAlpha(std::string& str) {
+    while (std::isalpha(peek())) {
+        str.append(1, readCharacter());
+    }
+}
+
 void SourceProvider::readAlphaNum(chem::string* str) {
     while (std::isalnum(peek())) {
         str->append(readCharacter());
+    }
+}
+
+void SourceProvider::readAlphaNum(std::string& str) {
+    while (std::isalnum(peek())) {
+        str.append(1, readCharacter());
     }
 }
 
@@ -304,11 +357,31 @@ void SourceProvider::readIdentifier(chem::string* str) {
     }
 }
 
+void SourceProvider::readIdentifier(std::string& str) {
+    auto p = peek();
+    if (std::isalpha(p) || p == '_') {
+        while (std::isalnum(p) || p == '_') {
+            str.append(1, readCharacter());
+            p = peek();
+        }
+    }
+}
+
 void SourceProvider::readAnnotationIdentifier(chem::string* str) {
     auto p = peek();
     if (std::isalpha(p) || p == '_') {
         while (std::isalnum(p) || p == '_' || p == ':') {
             str->append(readCharacter());
+            p = peek();
+        }
+    }
+}
+
+void SourceProvider::readAnnotationIdentifier(std::string& str) {
+    auto p = peek();
+    if (std::isalpha(p) || p == '_') {
+        while (std::isalnum(p) || p == '_' || p == ':') {
+            str.append(1, readCharacter());
             p = peek();
         }
     }

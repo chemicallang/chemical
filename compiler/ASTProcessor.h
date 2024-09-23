@@ -15,7 +15,6 @@
 #include "ast/base/ASTUnit.h"
 #include "cst/base/CSTUnit.h"
 #include "ast/base/ASTAllocator.h"
-#include "integration/cbi/bindings/SourceProviderCBI.h"
 #include "integration/cbi/bindings/LexerCBI.h"
 
 class Lexer;
@@ -94,12 +93,6 @@ public:
      * passed to lexer cbi
      */
     std::unique_ptr<LexerCBI> lexer_cbi;
-
-    /**
-     * the source provider cbi, that is initialized if cbi enabled
-     * passed to lexer cbi
-     */
-    std::unique_ptr<SourceProviderCBI> provider_cbi;
 
     /**
      * the symbol resolver that will resolve all the symbols

@@ -53,8 +53,7 @@ ASTProcessor::ASTProcessor(
     if(options->isCBIEnabled) {
         binder = std::make_unique<CompilerBinderTCC>(options->exe_path);
         lexer_cbi = std::make_unique<LexerCBI>();
-        provider_cbi = std::make_unique<SourceProviderCBI>();
-        prep_lexer_cbi(lexer_cbi.get(), provider_cbi.get());
+        prep_lexer_cbi(lexer_cbi.get());
     }
 }
 
@@ -242,7 +241,7 @@ ASTImportResultExt ASTProcessor::import_file(const FlatIGFile& file) {
         SourceProvider provider(nullptr);
         Lexer lexer(provider, binder.get(), lexer_cbi.get());
         if(options->isCBIEnabled) {
-            bind_lexer_cbi(lexer_cbi.get(), provider_cbi.get(), &lexer);
+            bind_lexer_cbi(lexer_cbi.get(), &lexer);
         }
 
         if(options->benchmark) {

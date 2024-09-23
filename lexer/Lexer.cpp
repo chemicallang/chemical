@@ -7,7 +7,7 @@
 #include "Lexer.h"
 #include "ast/types/LinkedType.h"
 
-Lexer::Lexer(SourceProvider &provider, CompilerBinder* binder, LexerCBI* cbi) : provider(provider), cbi(cbi), binder(binder), unit() {
+Lexer::Lexer(SourceProvider &provider, CompilerBinder* binder) : provider(provider), binder(binder), unit() {
     unit.init();
 }
 

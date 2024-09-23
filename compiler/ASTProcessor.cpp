@@ -52,8 +52,6 @@ ASTProcessor::ASTProcessor(
     job_allocator(job_allocator), mod_allocator(mod_allocator) {
     if(options->isCBIEnabled) {
         binder = std::make_unique<CompilerBinderTCC>(options->exe_path);
-        lexer_cbi = std::make_unique<LexerCBI>();
-        prep_lexer_cbi(lexer_cbi.get());
     }
 }
 
@@ -239,10 +237,10 @@ ASTImportResultExt ASTProcessor::import_file(const FlatIGFile& file) {
 
         // lex the file
         SourceProvider provider(nullptr);
-        Lexer lexer(provider, binder.get(), lexer_cbi.get());
-        if(options->isCBIEnabled) {
-            bind_lexer_cbi(lexer_cbi.get(), &lexer);
-        }
+        Lexer lexer(provider, binder.get());
+//        if(options->isCBIEnabled) {
+//            bind_lexer_cbi(lexer_cbi.get(), &lexer);
+//        }
 
         if(options->benchmark) {
             bm_results = std::make_unique<BenchmarkResults>();

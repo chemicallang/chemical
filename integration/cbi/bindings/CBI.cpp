@@ -273,250 +273,329 @@ constexpr std::string lexer_func(const std::string& name) {
 void lexer_symbol_map(std::unordered_map<std::string, void*>& sym_map) {
     // TODO this
     sym_map = {
-            {lexer_func("storeVariable"), [](Lexer* lexer) -> void {
-                // TODO this
+            {lexer_func("tokens_size"), [](Lexer* lexer) -> std::size_t {
+                return lexer->tokens_size();
             }},
-            {lexer_func("storeIdentifier"), [](Lexer* lexer) -> void {
-                // TODO this
-            }}
-    };
-}
-
-void bind_lexer_cbi(LexerCBI* cbi, Lexer* lexer) {
-    cbi->instance = lexer;
-}
-
-void prep_lexer_cbi(LexerCBI* cbi) {
-    cbi->storeVariable = [](LexerCBI* cbi, char* variable){
-        return cbi->instance->storeVariable(variable);
-    };
-    cbi->storeIdentifier = [](LexerCBI* cbi, char* id){
-        return cbi->instance->storeIdentifier(id);
-    };
-    cbi->lexVariableToken = [](LexerCBI* cbi){
-        return cbi->instance->lexVariableToken();
-    };
-    cbi->lexIdentifierToken = [](LexerCBI* cbi){
-        return cbi->instance->lexIdentifierToken();
-    };
-    cbi->lexAccessChainAfterId = [](LexerCBI* cbi, bool lexStruct){
-        return cbi->instance->lexAccessChainAfterId(lexStruct);
-    };
-    cbi->lexAccessChainRecursive = [](LexerCBI* cbi, bool lexStruct){
-        return cbi->instance->lexAccessChainRecursive(lexStruct);
-    };
-    cbi->lexAccessChain = [](LexerCBI* cbi, bool lexStruct){
-        return cbi->instance->lexAccessChain(lexStruct);
-    };
-    cbi->lexAccessChainOrAddrOf = [](LexerCBI* cbi, bool lexStruct){
-        return cbi->instance->lexAccessChainOrAddrOf(lexStruct);
-    };
-    cbi->lexVarInitializationTokens = [](LexerCBI* cbi, bool allowDecls, bool requiredType){
-        return cbi->instance->lexVarInitializationTokens(allowDecls, requiredType);
-    };
-    cbi->lexAssignmentTokens = [](LexerCBI* cbi){
-        return cbi->instance->lexAssignmentTokens();
-    };
-    cbi->lexLanguageOperatorToken = [](LexerCBI* cbi){
-        return cbi->instance->lexLanguageOperatorToken();
-    };
-    cbi->lexAssignmentOperatorToken = [](LexerCBI* cbi){
-        return cbi->instance->lexAssignmentOperatorToken();
-    };
-    cbi->lexLambdaTypeTokens = [](LexerCBI* cbi, unsigned int start){
-        return cbi->instance->lexLambdaTypeTokens(start);
-    };
-    cbi->lexTypeTokens = [](LexerCBI* cbi){
-        return cbi->instance->lexTypeTokens();
-    };
-    cbi->lexTopLevelStatementTokens = [](LexerCBI* cbi){
-        return cbi->instance->lexTopLevelStatementTokens();
-    };
-    cbi->lexNestedLevelStatementTokens = [](LexerCBI* cbi){
-        return cbi->instance->lexNestedLevelStatementTokens();
-    };
-    cbi->lexStatementTokens = [](LexerCBI* cbi){
-        return cbi->instance->lexStatementTokens();
-    };
-    cbi->lexOperatorToken = [](LexerCBI* cbi, char op){
-        return cbi->instance->lexOperatorToken(op);
-    };
-    cbi->lexOperatorTokenStr = [](LexerCBI* cbi, char* str){
-        return cbi->instance->lexOperatorToken(str);
-    };
-    cbi->lexOperationToken = [](LexerCBI* cbi, char token, Operation op){
-        return cbi->instance->lexOperationToken(token, op);
-    };
-    cbi->lexStrOperationToken = [](LexerCBI* cbi, char* token, Operation op){
-        return cbi->instance->lexOperatorToken(token, op);
-    };
-    cbi->lexKeywordToken = [](LexerCBI* cbi, char* keyword){
-        return cbi->instance->lexKeywordToken(keyword);
-    };
-    cbi->lexTopLevelMultipleStatementsTokens = [](LexerCBI* cbi){
-        return cbi->instance->lexTopLevelMultipleStatementsTokens();
-    };
-    cbi->lexTopLevelMultipleImportStatements = [](LexerCBI* cbi){
-        return cbi->instance->lexTopLevelMultipleImportStatements();
-    };
-    cbi->lexNestedLevelMultipleStatementsTokens = [](LexerCBI* cbi){
-        return cbi->instance->lexNestedLevelMultipleStatementsTokens();
-    };
-    cbi->lexMultipleStatementsTokens = [](LexerCBI* cbi){
-        return cbi->instance->lexMultipleStatementsTokens();
-    };
-    cbi->lexSingleLineCommentTokens = [](LexerCBI* cbi){
-        return cbi->instance->lexSingleLineCommentTokens();
-    };
-    cbi->lexMultiLineCommentTokens = [](LexerCBI* cbi){
-        return cbi->instance->lexMultiLineCommentTokens();
-    };
-    cbi->lexBraceBlock = [](LexerCBI* cbi, char* forThing){
-        return cbi->instance->lexBraceBlock(forThing);
-    };
-    cbi->lexImportIdentifierList = [](LexerCBI* cbi){
-        return cbi->instance->lexImportIdentifierList();
-    };
-    cbi->lexImportStatement = [](LexerCBI* cbi){
-        return cbi->instance->lexImportStatement();
-    };
-    cbi->lexReturnStatement = [](LexerCBI* cbi){
-        return cbi->instance->lexReturnStatement();
-    };
-    cbi->lexBreakStatement = [](LexerCBI* cbi){
-        return cbi->instance->lexBreakStatement();
-    };
-    cbi->lexTypealiasStatement = [](LexerCBI* cbi){
-        return cbi->instance->lexTypealiasStatement();
-    };
-    cbi->lexContinueStatement = [](LexerCBI* cbi){
-        return cbi->instance->lexContinueStatement();
-    };
-    cbi->lexIfExprAndBlock = [](LexerCBI* cbi){
-        return cbi->instance->lexIfExprAndBlock(false, false, false);
-    };
-    cbi->lexIfBlockTokens = [](LexerCBI* cbi){
-        return cbi->instance->lexIfBlockTokens(false, false, false);
-    };
-    cbi->lexDoWhileBlockTokens = [](LexerCBI* cbi){
-        return cbi->instance->lexDoWhileBlockTokens();
-    };
-    cbi->lexWhileBlockTokens = [](LexerCBI* cbi){
-        return cbi->instance->lexWhileBlockTokens();
-    };
-    cbi->lexForBlockTokens = [](LexerCBI* cbi){
-        return cbi->instance->lexForBlockTokens();
-    };
-    cbi->lexParameterList = [](LexerCBI* cbi, bool optionalTypes, bool defValues){
-        return cbi->instance->lexParameterList(optionalTypes, defValues);
-    };
-    cbi->lexFunctionSignatureTokens = [](LexerCBI* cbi){
-        return cbi->instance->lexFunctionSignatureTokens();
-    };
-    cbi->lexAfterFuncKeyword = [](LexerCBI* cbi){
-        return cbi->instance->lexAfterFuncKeyword();
-    };
-    cbi->lexFunctionStructureTokens = [](LexerCBI* cbi, bool allowDecls){
-        return cbi->instance->lexFunctionStructureTokens(allowDecls);
-    };
-    cbi->lexInterfaceBlockTokens = [](LexerCBI* cbi){
-        return cbi->instance->lexInterfaceBlockTokens();
-    };
-    cbi->lexInterfaceStructureTokens = [](LexerCBI* cbi){
-        return cbi->instance->lexInterfaceStructureTokens();
-    };
-    cbi->lexStructMemberTokens = [](LexerCBI* cbi){
-        return cbi->instance->lexStructMemberTokens();
-    };
-    cbi->lexStructBlockTokens = [](LexerCBI* cbi){
-        return cbi->instance->lexStructBlockTokens();
-    };
-    cbi->lexStructStructureTokens = [](LexerCBI* cbi){
-        return cbi->instance->lexStructStructureTokens();
-    };
-    cbi->lexImplBlockTokens = [](LexerCBI* cbi){
-        return cbi->instance->lexImplBlockTokens();
-    };
-    cbi->lexImplTokens = [](LexerCBI* cbi){
-        return cbi->instance->lexImplTokens();
-    };
-    cbi->lexEnumBlockTokens = [](LexerCBI* cbi){
-        return cbi->instance->lexEnumBlockTokens();
-    };
-    cbi->lexEnumStructureTokens = [](LexerCBI* cbi){
-        return cbi->instance->lexEnumStructureTokens();
-    };
-    cbi->lexWhitespaceToken = [](LexerCBI* cbi){
-        return cbi->instance->lexWhitespaceToken();
-    };
-    cbi->lexWhitespaceAndNewLines = [](LexerCBI* cbi){
-        return cbi->instance->lexWhitespaceAndNewLines();
-    };
-    cbi->lexStringToken = [](LexerCBI* cbi){
-        return cbi->instance->lexStringToken();
-    };
-    cbi->lexCharToken = [](LexerCBI* cbi){
-        return cbi->instance->lexCharToken();
-    };
-    cbi->lexAnnotationMacro = [](LexerCBI* cbi){
-        return cbi->instance->lexAnnotationMacro();
-    };
-    cbi->lexNull = [](LexerCBI* cbi){
-        return cbi->instance->lexNull();
-    };
-    cbi->lexBoolToken = [](LexerCBI* cbi){
-        return cbi->instance->lexBoolToken();
-    };
-    cbi->lexUnsignedIntAsNumberToken = [](LexerCBI* cbi){
-        return cbi->instance->lexUnsignedIntAsNumberToken();
-    };
-    cbi->lexNumberToken = [](LexerCBI* cbi){
-        return cbi->instance->lexNumberToken();
-    };
-    cbi->lexStructValueTokens = [](LexerCBI* cbi){
-        // TODO back_start not taken into account
-        return cbi->instance->lexStructValueTokens(1);
-    };
-    cbi->lexValueToken = [](LexerCBI* cbi){
-        return cbi->instance->lexValueToken();
-    };
-    cbi->lexAccessChainValueToken = [](LexerCBI* cbi){
-        return cbi->instance->lexAccessChainValueToken();
-    };
-    cbi->lexArrayInit = [](LexerCBI* cbi){
-        return cbi->instance->lexArrayInit();
-    };
-    cbi->lexAccessChainOrValue = [](LexerCBI* cbi, bool lexStruct){
-        return cbi->instance->lexAccessChainOrValue(lexStruct);
-    };
-    cbi->lexIdentifierList = [](LexerCBI* cbi){
-        return cbi->instance->lexIdentifierList();
-    };
-    cbi->lexLambdaAfterParamsList = [](LexerCBI* cbi, unsigned int start){
-        return cbi->instance->lexLambdaAfterParamsList(start);
-    };
-    cbi->lexLambdaValue = [](LexerCBI* cbi){
-        return cbi->instance->lexLambdaValue();
-    };
-    cbi->lexRemainingExpression = [](LexerCBI* cbi, unsigned int start){
-        return cbi->instance->lexRemainingExpression(start);
-    };
-    cbi->lexLambdaAfterLParen = [](LexerCBI* cbi){
-        return cbi->instance->lexLambdaOrExprAfterLParen();
-    };
-    cbi->lexParenExpressionAfterLParen = [](LexerCBI* cbi){
-        return cbi->instance->lexParenExpressionAfterLParen();
-    };
-    cbi->lexParenExpression = [](LexerCBI* cbi){
-        return cbi->instance->lexParenExpression();
-    };
-    cbi->lexExpressionTokens = [](LexerCBI* cbi, bool lexStruct, bool lambda){
-        return cbi->instance->lexExpressionTokens(lexStruct, lambda);
-    };
-    cbi->lexSwitchStatementBlock = [](LexerCBI* cbi){
-        return cbi->instance->lexSwitchStatementBlock();
-    };
-    cbi->lexTryCatchTokens = [](LexerCBI* cbi){
-        return cbi->instance->lexTryCatchTokens();
+            {lexer_func("storeVariable"), [](Lexer* lexer, chem::string* str) -> bool {
+                return lexer->storeVariable(str);
+            }},
+            {lexer_func("storeIdentifier"), [](Lexer* lexer, chem::string* str) -> bool {
+                return lexer->storeIdentifier(str);
+            }},
+            {lexer_func("lexGenericArgsList"), [](Lexer* lexer) -> void {
+                return lexer->lexGenericArgsList();
+            }},
+            {lexer_func("lexGenericArgsListCompound"), [](Lexer* lexer) -> bool {
+                return lexer->lexGenericArgsListCompound();
+            }},
+            {lexer_func("lexFunctionCallWithGenericArgsList"), [](Lexer* lexer) -> void {
+                return lexer->lexFunctionCallWithGenericArgsList();
+            }},
+            {lexer_func("lexFunctionCall"), [](Lexer* lexer, unsigned int back_start) -> bool {
+                return lexer->lexFunctionCall(back_start);
+            }},
+            {lexer_func("lexAccessSpecifier"), [](Lexer* lexer, bool internal, bool protect) -> bool {
+                return lexer->lexAccessSpecifier(internal, protect);
+            }},
+            {lexer_func("lexAccessChainAfterId"), [](Lexer* lexer, bool lexStruct, unsigned int chain_length) -> bool {
+                return lexer->lexAccessChainAfterId(lexStruct, chain_length);
+            }},
+            {lexer_func("lexAccessChainRecursive"), [](Lexer* lexer, bool lexStruct, unsigned int chain_length) -> bool {
+                return lexer->lexAccessChainRecursive(lexStruct, chain_length);
+            }},
+            {lexer_func("lexAccessChain"), [](Lexer* lexer, bool lexStruct, bool lex_as_node) -> bool {
+                return lexer->lexAccessChain(lexStruct, lex_as_node);
+            }},
+            {lexer_func("lexAccessChainOrAddrOf"), [](Lexer* lexer, bool lexStruct) -> bool {
+                return lexer->lexAccessChainOrAddrOf(lexStruct);
+            }},
+            {lexer_func("lexVarInitializationTokens"), [](Lexer* lexer, unsigned start, bool allowDeclarations, bool requiredType) -> bool {
+                return lexer->lexVarInitializationTokens(start, allowDeclarations, requiredType);
+            }},
+            {lexer_func("lexAssignmentTokens"), [](Lexer* lexer) -> bool {
+                return lexer->lexAssignmentTokens();
+            }},
+            {lexer_func("lexDivisionOperatorToken"), [](Lexer* lexer) -> bool {
+                return lexer->lexDivisionOperatorToken();
+            }},
+            {lexer_func("lexLanguageOperatorToken"), [](Lexer* lexer) -> bool {
+                return lexer->lexLanguageOperatorToken();
+            }},
+            {lexer_func("isGenericEndAhead"), [](Lexer* lexer) -> bool {
+                return lexer->isGenericEndAhead();
+            }},
+            {lexer_func("lexAssignmentOperatorToken"), [](Lexer* lexer) -> bool {
+                return lexer->lexAssignmentOperatorToken();
+            }},
+            {lexer_func("lexLambdaTypeTokens"), [](Lexer* lexer, unsigned int start) -> bool {
+                return lexer->lexLambdaTypeTokens(start);
+            }},
+            {lexer_func("lexGenericTypeAfterId"), [](Lexer* lexer, unsigned int start) -> bool {
+                return lexer->lexLambdaTypeTokens(start);
+            }},
+            {lexer_func("lexRefOrGenericType"), [](Lexer* lexer) -> bool {
+                return lexer->lexRefOrGenericType();
+            }},
+            {lexer_func("lexArrayAndPointerTypesAfterTypeId"), [](Lexer* lexer, unsigned int start) -> void {
+                return lexer->lexArrayAndPointerTypesAfterTypeId(start);
+            }},
+            {lexer_func("lexTypeTokens"), [](Lexer* lexer) -> bool {
+                return lexer->lexTypeTokens();
+            }},
+            {lexer_func("lexTopLevelAccessSpecifiedDecls"), [](Lexer* lexer) -> bool {
+                return lexer->lexTopLevelAccessSpecifiedDecls();
+            }},
+            {lexer_func("lexTopLevelStatementTokens"), [](Lexer* lexer) -> bool {
+                return lexer->lexTopLevelStatementTokens();
+            }},
+            {lexer_func("lexNestedLevelStatementTokens"), [](Lexer* lexer, bool is_value, bool lex_value_node) -> bool {
+                return lexer->lexNestedLevelStatementTokens(is_value, lex_value_node);
+            }},
+            {lexer_func("lexStatementTokens"), [](Lexer* lexer) -> bool {
+                return lexer->lexStatementTokens();
+            }},
+            {lexer_func("lexThrowStatementTokens"), [](Lexer* lexer) -> bool {
+                return lexer->lexThrowStatementTokens();
+            }},
+            {lexer_func("lexOperatorToken"), [](Lexer* lexer, char op) -> bool {
+                return lexer->lexOperatorToken(op);
+            }},
+            {lexer_func("lexOperatorTokenStr"), [](Lexer* lexer, chem::string* str) -> bool {
+                return lexer->lexOperatorToken({ str->data(), str->size() });
+            }},
+            {lexer_func("storeOperationToken"), [](Lexer* lexer, char token, Operation op) -> void {
+                return lexer->storeOperationToken(token, op);
+            }},
+            {lexer_func("lexOperationToken"), [](Lexer* lexer, char token, Operation op) -> bool {
+                return lexer->lexOperationToken(token, op);
+            }},
+            {lexer_func("lexOperatorTokenStr2"), [](Lexer* lexer, chem::string* str, Operation op) -> bool {
+                return lexer->lexOperatorToken({ str->data(), str->size() }, op);
+            }},
+            {lexer_func("lexKeywordToken"), [](Lexer* lexer, chem::string* str) -> bool {
+                return lexer->lexKeywordToken({ str->data(), str->size() });
+            }},
+            {lexer_func("lexWSKeywordToken"), [](Lexer* lexer, chem::string* str) -> bool {
+                return lexer->lexWSKeywordToken({ str->data(), str->size() });
+            }},
+            {lexer_func("lexWSKeywordToken2"), [](Lexer* lexer, chem::string* str, char may_end_at) -> bool {
+                return lexer->lexWSKeywordToken({ str->data(), str->size() }, may_end_at);
+            }},
+            {lexer_func("lexTopLevelMultipleStatementsTokens"), [](Lexer* lexer, bool break_at_no_stmt) -> void {
+                return lexer->lexTopLevelMultipleStatementsTokens(break_at_no_stmt);
+            }},
+            {lexer_func("lexTopLevelMultipleImportStatements"), [](Lexer* lexer) -> void {
+                return lexer->lexTopLevelMultipleImportStatements();
+            }},
+            {lexer_func("lexNestedLevelMultipleStatementsTokens"), [](Lexer* lexer, bool is_value, bool lex_value_node) -> void {
+                return lexer->lexNestedLevelMultipleStatementsTokens(is_value, lex_value_node);
+            }},
+            {lexer_func("lexMultipleStatementsTokens"), [](Lexer* lexer) -> void {
+                return lexer->lexNestedLevelMultipleStatementsTokens();
+            }},
+            {lexer_func("lexSingleLineCommentTokens"), [](Lexer* lexer) -> bool {
+                return lexer->lexSingleLineCommentTokens();
+            }},
+            {lexer_func("lexMultiLineCommentTokens"), [](Lexer* lexer) -> bool {
+                return lexer->lexMultiLineCommentTokens();
+            }},
+            {lexer_func("lexBraceBlock"), [](Lexer* lexer, void(*nested_lexer)(Lexer*)) -> bool {
+                return lexer->lexBraceBlock("cbi", nested_lexer);
+            }},
+            {lexer_func("lexTopLevelBraceBlock"), [](Lexer* lexer) -> bool {
+                return lexer->lexTopLevelBraceBlock("cbi");
+            }},
+            {lexer_func("lexBraceBlockStmts"), [](Lexer* lexer) -> bool {
+                return lexer->lexBraceBlock("cbi");
+            }},
+            {lexer_func("lexBraceBlockOrSingleStmt"), [](Lexer* lexer, bool is_value, bool lex_value_node) -> bool {
+                return lexer->lexBraceBlockOrSingleStmt("cbi", is_value, lex_value_node);
+            }},
+            {lexer_func("lexImportIdentifierList"), [](Lexer* lexer) -> bool {
+                return lexer->lexImportIdentifierList();
+            }},
+            {lexer_func("lexImportStatement"), [](Lexer* lexer) -> bool {
+                return lexer->lexImportStatement();
+            }},
+            {lexer_func("lexDestructStatement"), [](Lexer* lexer) -> bool {
+                return lexer->lexDestructStatement();
+            }},
+            {lexer_func("lexReturnStatement"), [](Lexer* lexer) -> bool {
+                return lexer->lexReturnStatement();
+            }},
+            {lexer_func("lexConstructorInitBlock"), [](Lexer* lexer) -> bool {
+                return lexer->lexConstructorInitBlock();
+            }},
+            {lexer_func("lexUnsafeBlock"), [](Lexer* lexer) -> bool {
+                return lexer->lexUnsafeBlock();
+            }},
+            {lexer_func("lexBreakStatement"), [](Lexer* lexer) -> bool {
+                return lexer->lexBreakStatement();
+            }},
+            {lexer_func("lexTypealiasStatement"), [](Lexer* lexer, unsigned start) -> bool {
+                return lexer->lexTypealiasStatement(start);
+            }},
+            {lexer_func("lexContinueStatement"), [](Lexer* lexer) -> bool {
+                return lexer->lexContinueStatement();
+            }},
+            {lexer_func("lexIfExprAndBlock"), [](Lexer* lexer, bool is_value, bool lex_value_node, bool top_level) -> void {
+                return lexer->lexIfExprAndBlock(is_value, lex_value_node, top_level);
+            }},
+            {lexer_func("lexIfBlockTokens"), [](Lexer* lexer, bool is_value, bool lex_value_node, bool top_level) -> bool {
+                return lexer->lexIfBlockTokens(is_value, lex_value_node, top_level);
+            }},
+            {lexer_func("lexDoWhileBlockTokens"), [](Lexer* lexer) -> bool {
+                return lexer->lexDoWhileBlockTokens();
+            }},
+            {lexer_func("lexWhileBlockTokens"), [](Lexer* lexer) -> bool {
+                return lexer->lexWhileBlockTokens();
+            }},
+            {lexer_func("lexForBlockTokens"), [](Lexer* lexer) -> bool {
+                return lexer->lexForBlockTokens();
+            }},
+            {lexer_func("lexLoopBlockTokens"), [](Lexer* lexer, bool is_value) -> bool {
+                return lexer->lexLoopBlockTokens(is_value);
+            }},
+            {lexer_func("lexParameterList"), [](Lexer* lexer, bool optionalTypes, bool defValues, bool lexSelfParam, bool variadicParam) -> void {
+                return lexer->lexParameterList(optionalTypes, defValues, lexSelfParam, variadicParam);
+            }},
+            {lexer_func("lexFunctionSignatureTokens"), [](Lexer* lexer) -> bool {
+                return lexer->lexFunctionSignatureTokens();
+            }},
+            {lexer_func("lexGenericParametersList"), [](Lexer* lexer) -> bool {
+                return lexer->lexGenericParametersList();
+            }},
+            {lexer_func("lexAfterFuncKeyword"), [](Lexer* lexer, bool allow_extensions) -> bool {
+                return lexer->lexAfterFuncKeyword(allow_extensions);
+            }},
+            {lexer_func("lexFunctionStructureTokens"), [](Lexer* lexer, unsigned start, bool allow_declaration, bool allow_extensions) -> bool {
+                return lexer->lexFunctionStructureTokens(start, allow_declaration, allow_extensions);
+            }},
+            {lexer_func("lexInterfaceBlockTokens"), [](Lexer* lexer) -> void {
+                return lexer->lexInterfaceBlockTokens();
+            }},
+            {lexer_func("lexInterfaceStructureTokens"), [](Lexer* lexer, unsigned start) -> bool {
+                return lexer->lexInterfaceStructureTokens(start);
+            }},
+            {lexer_func("lexNamespaceTokens"), [](Lexer* lexer, unsigned start) -> bool {
+                return lexer->lexNamespaceTokens(start);
+            }},
+            {lexer_func("lexStructMemberTokens"), [](Lexer* lexer) -> bool {
+                return lexer->lexStructMemberTokens();
+            }},
+            {lexer_func("lexStructBlockTokens"), [](Lexer* lexer) -> void {
+                return lexer->lexStructBlockTokens();
+            }},
+            {lexer_func("lexStructStructureTokens"), [](Lexer* lexer, unsigned start, bool unnamed, bool direct_init) -> bool {
+                return lexer->lexStructStructureTokens(start, unnamed, direct_init);
+            }},
+            {lexer_func("lexVariantMemberTokens"), [](Lexer* lexer) -> bool {
+                return lexer->lexVariantMemberTokens();
+            }},
+            {lexer_func("lexVariantBlockTokens"), [](Lexer* lexer) -> void {
+                return lexer->lexVariantBlockTokens();
+            }},
+            {lexer_func("lexVariantStructureTokens"), [](Lexer* lexer, unsigned start) -> bool {
+                return lexer->lexVariantStructureTokens();
+            }},
+            {lexer_func("lexUnionBlockTokens"), [](Lexer* lexer) -> void {
+                return lexer->lexUnionBlockTokens();
+            }},
+            {lexer_func("lexUnionStructureTokens"), [](Lexer* lexer, unsigned start, bool unnamed, bool direct_init) -> bool {
+                return lexer->lexUnionStructureTokens(start, unnamed, direct_init);
+            }},
+            {lexer_func("lexImplBlockTokens"), [](Lexer* lexer) -> void {
+                return lexer->lexImplBlockTokens();
+            }},
+            {lexer_func("lexImplTokens"), [](Lexer* lexer) -> bool {
+                return lexer->lexImplTokens();
+            }},
+            {lexer_func("lexEnumBlockTokens"), [](Lexer* lexer) -> bool {
+                return lexer->lexEnumBlockTokens();
+            }},
+            {lexer_func("lexEnumStructureTokens"), [](Lexer* lexer, unsigned start) -> bool {
+                return lexer->lexEnumStructureTokens(start);
+            }},
+            {lexer_func("readWhitespace"), [](Lexer* lexer) -> bool {
+                return lexer->readWhitespace();
+            }},
+            {lexer_func("lexWhitespaceToken"), [](Lexer* lexer) -> bool {
+                return lexer->lexWhitespaceToken();
+            }},
+            {lexer_func("lexStringToken"), [](Lexer* lexer) -> bool {
+                return lexer->lexStringToken();
+            }},
+            {lexer_func("lexCharToken"), [](Lexer* lexer) -> bool {
+                return lexer->lexCharToken();
+            }},
+            {lexer_func("lexAnnotationMacro"), [](Lexer* lexer) -> bool {
+                return lexer->lexAnnotationMacro();
+            }},
+            {lexer_func("lexNull"), [](Lexer* lexer) -> bool {
+                return lexer->lexNull();
+            }},
+            {lexer_func("lexBoolToken"), [](Lexer* lexer) -> bool {
+                return lexer->lexBoolToken();
+            }},
+            {lexer_func("lexUnsignedIntAsNumberToken"), [](Lexer* lexer) -> bool {
+                return lexer->lexUnsignedIntAsNumberToken();
+            }},
+            {lexer_func("lexNumberToken"), [](Lexer* lexer) -> bool {
+                return lexer->lexNumberToken();
+            }},
+            {lexer_func("lexStructValueTokens"), [](Lexer* lexer, unsigned back_start) -> bool {
+                return lexer->lexStructValueTokens(back_start);
+            }},
+            {lexer_func("lexValueToken"), [](Lexer* lexer) -> bool {
+                return lexer->lexValueToken();
+            }},
+            {lexer_func("lexSwitchCaseValue"), [](Lexer* lexer) -> bool {
+                return lexer->lexSwitchCaseValue();
+            }},
+            {lexer_func("lexAccessChainValueToken"), [](Lexer* lexer) -> bool {
+                return lexer->lexAccessChainValueToken();
+            }},
+            {lexer_func("lexArrayInit"), [](Lexer* lexer) -> bool {
+                return lexer->lexArrayInit();
+            }},
+            {lexer_func("lexAccessChainOrValue"), [](Lexer* lexer, bool lexStruct) -> bool {
+                return lexer->lexAccessChainOrValue(lexStruct);
+            }},
+            {lexer_func("lexValueNode"), [](Lexer* lexer) -> bool {
+                return lexer->lexValueNode();
+            }},
+            {lexer_func("lexIdentifierList"), [](Lexer* lexer) -> void {
+                return lexer->lexIdentifierList();
+            }},
+            {lexer_func("lexLambdaAfterParamsList"), [](Lexer* lexer, unsigned int start) -> void {
+                return lexer->lexLambdaAfterParamsList(start);
+            }},
+            {lexer_func("lexLambdaValue"), [](Lexer* lexer) -> bool {
+                return lexer->lexLambdaValue();
+            }},
+            {lexer_func("lexRemainingExpression"), [](Lexer* lexer, unsigned start) -> bool {
+                return lexer->lexRemainingExpression(start);
+            }},
+            {lexer_func("lexLambdaOrExprAfterLParen"), [](Lexer* lexer) -> bool {
+                return lexer->lexLambdaOrExprAfterLParen();
+            }},
+            {lexer_func("lexParenExpressionAfterLParen"), [](Lexer* lexer) -> void {
+                return lexer->lexParenExpressionAfterLParen();
+            }},
+            {lexer_func("lexParenExpression"), [](Lexer* lexer) -> bool {
+                return lexer->lexParenExpression();
+            }},
+            {lexer_func("lexExpressionTokens"), [](Lexer* lexer, bool lexStruct, bool lambda) -> bool {
+                return lexer->lexExpressionTokens(lexStruct, lambda);
+            }},
+            {lexer_func("lexSwitchStatementBlock"), [](Lexer* lexer, bool is_value, bool lex_value_node) -> bool {
+                return lexer->lexSwitchStatementBlock(is_value, lex_value_node);
+            }},
+            {lexer_func("lexTryCatchTokens"), [](Lexer* lexer) -> bool {
+                return lexer->lexTryCatchTokens();
+            }},
+            {lexer_func("lexUsingStatement"), [](Lexer* lexer) -> bool {
+                return lexer->lexUsingStatement();
+            }},
     };
 }

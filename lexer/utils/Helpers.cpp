@@ -15,9 +15,9 @@ bool Lexer::lexOperatorToken(char op) {
     }
 }
 
-bool Lexer::lexOperatorToken(const std::string& op) {
+bool Lexer::lexOperatorToken(const std::string_view& op) {
     if(provider.increment(op)) {
-        emplace(LexTokenType::StringOperator, backPosition(op.length()), op);
+        emplace(LexTokenType::StringOperator, backPosition(op.length()), std::string(op));
         return true;
     } else {
         return false;
@@ -40,7 +40,7 @@ bool Lexer::lexOperationToken(char token, Operation op) {
     }
 }
 
-bool Lexer::lexOperatorToken(const std::string &token, Operation op) {
+bool Lexer::lexOperatorToken(const std::string_view& token, Operation op) {
     if(provider.increment(token)) {
         std::string value;
         value.append(std::to_string((int) op));
@@ -52,7 +52,7 @@ bool Lexer::lexOperatorToken(const std::string &token, Operation op) {
     }
 }
 
-bool Lexer::lexWSKeywordToken(const std::string &keyword) {
+bool Lexer::lexWSKeywordToken(const std::string_view& keyword) {
     if(provider.increment(keyword, true) && provider.peek(keyword.size()) == ' ') {
         provider.increment_amount(keyword.size());
         emplace(LexTokenType::Keyword, backPosition(keyword.length()), keyword);
@@ -63,7 +63,7 @@ bool Lexer::lexWSKeywordToken(const std::string &keyword) {
     }
 }
 
-bool Lexer::lexWSKeywordToken(const std::string &keyword, char may_end_at) {
+bool Lexer::lexWSKeywordToken(const std::string_view& keyword, char may_end_at) {
     if(provider.increment(keyword, true)) {
         const auto peek = provider.peek(keyword.size());
         if(peek == ' ' || peek == '\t') {
@@ -80,7 +80,7 @@ bool Lexer::lexWSKeywordToken(const std::string &keyword, char may_end_at) {
     return false;
 }
 
-bool Lexer::lexKeywordToken(const std::string& keyword) {
+bool Lexer::lexKeywordToken(const std::string_view& keyword) {
     if(provider.increment(keyword)) {
         emplace(LexTokenType::Keyword, backPosition(keyword.length()), keyword);
         return true;

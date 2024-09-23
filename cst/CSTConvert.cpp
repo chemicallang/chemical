@@ -615,12 +615,6 @@ void CSTConverter::visitFunction(CSTToken* function) {
                 std::nullopt,
                 specifier
         );
-        if(!parent_node && !spec.has_value() && name_token->value() == "main") {
-            funcDecl->specifier = AccessSpecifier::Public;
-            if(funcDecl->returnType->kind() != BaseTypeKind::IntN) {
-                funcDecl->returnType = new (alloc.allocate<IntType>()) IntType(funcDecl->returnType->cst_token());
-            }
-        }
     }
 
     if(is_generic) {

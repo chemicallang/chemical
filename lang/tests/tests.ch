@@ -31,7 +31,7 @@ import "basic/modules.ch"
 import "basic/moves.ch"
 import "comptime/is_value.ch"
 
-func main() : int {
+public func main() : int {
     test_var_init();
     test_lambda();
     test_bodmas();

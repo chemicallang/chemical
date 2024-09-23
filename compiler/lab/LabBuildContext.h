@@ -5,7 +5,7 @@
 #include "std/chem_string.h"
 #include "LabModule.h"
 #include "LabJob.h"
-#include "integration/ide/model/FlatIGFile.h"
+#include "integration/cbi/model/FlatIGFile.h"
 #include "LabBuildCompilerOptions.h"
 #include "lexer/model/CBIData.h"
 #include <vector>

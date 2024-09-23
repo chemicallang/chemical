@@ -4,6 +4,7 @@
 
 #include "SourceProviderCBI.h"
 #include "ast/utils/Operation.h"
+#include <unordered_map>
 
 class Lexer;
 
@@ -115,3 +116,7 @@ void prep_lexer_cbi(LexerCBI* cbi, SourceProviderCBI* provider);
  * from cbi
  */
 void bind_lexer_cbi(LexerCBI* cbi, SourceProviderCBI* provider_cbi, Lexer* lexer);
+
+void lexer_symbol_map(std::unordered_map<std::string, void*>& sym_map);
+
+void source_provide_symbol_map(std::unordered_map<std::string, void*>& sym_map);

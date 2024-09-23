@@ -1,8 +1,8 @@
 // Copyright (c) Qinetik 2024.
 
 #include "CSTUtils.h"
-#include "integration/ide/model/LexImportUnit.h"
-#include "integration/ide/model/LexResult.h"
+#include "integration/cbi/model/LexImportUnit.h"
+#include "integration/cbi/model/LexResult.h"
 
 bool is_var_init_const(CSTToken* cst) {
     return str_token(cst->tokens[0]) == "const";

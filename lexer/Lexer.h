@@ -330,7 +330,7 @@ public:
      * lexes the given operator as a string operator token
      * @return whether the token was found
      */
-    bool lexOperatorToken(const std::string &op);
+    bool lexOperatorToken(const std::string_view& op);
 
     /**
      * store an operation token
@@ -347,23 +347,23 @@ public:
      * lexes the given operator as a string operator token
      * @return whether the token was found
      */
-    bool lexOperatorToken(const std::string &token, Operation op);
+    bool lexOperatorToken(const std::string_view& token, Operation op);
 
     /**
      * lexes a keyword token for the given keyword
      * @return  whether the keyword was found
      */
-    bool lexKeywordToken(const std::string &keyword);
+    bool lexKeywordToken(const std::string_view& keyword);
 
     /**
      * lexes a keyword token, after which whitespace is present
      */
-    bool lexWSKeywordToken(const std::string &keyword);
+    bool lexWSKeywordToken(const std::string_view& keyword);
 
     /**
      * lex a whitespaced keyword token, which may end at the given character if not whitespace
      */
-    bool lexWSKeywordToken(const std::string &keyword, char may_end_at);
+    bool lexWSKeywordToken(const std::string_view& keyword, char may_end_at);
 
     /**
      * All top levels statements lexed, These include
@@ -828,6 +828,13 @@ public:
     template<typename... Args>
     inline constexpr void emplace(Args&&... args) {
         unit.emplace(std::forward<Args>(args)...);
+    }
+
+    /**
+     * emplaces the token at the end
+     */
+    inline constexpr void emplace(LexTokenType type, const Position& position, const std::string_view& view) {
+        unit.emplace(type, position, view);
     }
 
     /**

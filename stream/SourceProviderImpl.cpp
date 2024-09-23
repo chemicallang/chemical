@@ -118,7 +118,7 @@ bool SourceProvider::increment_spaced(char c) {
     return false;
 }
 
-bool SourceProvider::increment_spaced(const std::string& text) {
+bool SourceProvider::increment_spaced(const std::string_view& text) {
     if(increment(text, true) && (peek(text.size()) == ' ' || peek(text.size()) == '\t')) {
         increment_amount(text.size());
         return true;
@@ -140,7 +140,7 @@ void SourceProvider::printAll() {
     }
 }
 
-bool SourceProvider::increment(const std::string &text, bool peek) {
+bool SourceProvider::increment(const std::string_view& text, bool peek) {
     if(bufferPos >= buffer.size()) {
         bufferFill();
         if(buffer.empty()) {
@@ -251,7 +251,7 @@ void SourceProvider::readAnything(std::string& str, char until) {
     }
 }
 
-std::string SourceProvider::readUntil(const std::string &ending, bool consume) {
+std::string SourceProvider::readUntil(const std::string_view& ending, bool consume) {
     std::string content;
     while (!eof() && peek() != -1) {
         if (peek() == ending[0] && increment(ending, !consume)) {
@@ -425,12 +425,4 @@ void SourceProvider::readWhitespacesAndNewLines() {
         readCharacter();
         p = peek();
     }
-}
-
-Position SourceProvider::position() {
-    return {getLineNumber(), getLineCharNumber()};
-}
-
-Position SourceProvider::backPosition(unsigned int back) {
-    return {getLineNumber(), getLineCharNumber() - back};
 }

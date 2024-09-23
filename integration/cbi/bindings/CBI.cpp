@@ -214,8 +214,8 @@ void source_provider_symbol_map(std::unordered_map<std::string, void*>& sym_map)
             {sp_func("readUntil"), [](SourceProvider* provider, chem::string* into, char stop) -> void {
                 return provider->readUntil(into, stop);
             }},
-            {sp_func("increment"), [](SourceProvider* provider, chem::string* text, bool peek) -> void {
-                // TODO we will do this when increment supports string_view
+            {sp_func("increment"), [](SourceProvider* provider, chem::string* text, bool peek) -> bool {
+                return provider->increment({ text->data(), text->size() }, peek);
             }},
             {sp_func("increment_char"), [](SourceProvider* provider, char c) -> bool {
                 return provider->increment(c);

@@ -83,6 +83,16 @@ public:
      * emplace a lex token tokens vector
      */
     template<typename... Args>
+    inline constexpr void emplace(LexTokenType type, Position position, const std::string_view& view) {
+        auto& vec = get_current(allocated_lex_tokens);
+        vec.emplace_back(type, position, std::string(view));
+        tokens.emplace_back(&vec.back());
+    }
+
+    /**
+     * emplace a lex token tokens vector
+     */
+    template<typename... Args>
     inline constexpr void emplace(Args&&... args) {
         emplace_tok(allocated_lex_tokens, std::forward<Args>(args)...);
     }

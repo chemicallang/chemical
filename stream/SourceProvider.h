@@ -150,7 +150,7 @@ public:
      * @param peek peeks only, doesn't increment
      * @return true if incremented by text length otherwise false
      */
-    bool increment(const std::string& text, bool peek = false);
+    bool increment(const std::string_view& text, bool peek = false);
 
     /**
      * if char c is present at current pos, increments the stream with character
@@ -169,7 +169,7 @@ public:
      * will also expect a whitespace after the text
      * whitespace is not consumed
      */
-    bool increment_spaced(const std::string& text);
+    bool increment_spaced(const std::string_view& text);
 
     /**
      * increment by given amount
@@ -221,7 +221,7 @@ public:
      * @param consume, should it also consume the ending text
      */
     [[nodiscard]]
-    std::string readUntil(const std::string& ending, bool consume = true);
+    std::string readUntil(const std::string_view& ending, bool consume = true);
 
     /**
      * will read everything to the given string
@@ -414,7 +414,9 @@ public:
      * returns the token position at the very current position
      * @return
      */
-    Position position();
+    inline Position position() {
+        return {getLineNumber(), getLineCharNumber()};
+    }
 
     /**
      * when you have read the character from the stream, you create a position, \n\n
@@ -426,6 +428,8 @@ public:
      * @param back
      * @return
      */
-    Position backPosition(unsigned int back);
+    inline Position backPosition(unsigned int back) {
+        return {getLineNumber(), getLineCharNumber() - back};
+    }
 
 };

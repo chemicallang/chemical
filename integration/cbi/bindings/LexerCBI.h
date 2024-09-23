@@ -8,6 +8,22 @@
 
 class Lexer;
 
+struct LabBuildContext;
+
+struct LabModule;
+
+struct LabJob;
+
+struct ModuleArrayRef {
+    LabModule** ptr;
+    size_t size;
+};
+
+struct StringArrayRef {
+    chem::string* ptr;
+    size_t size;
+};
+
 /**
  * A CBI is a Compiler Binding Interface
  * when user calls functions in the compiler from the code written that is currently
@@ -117,6 +133,11 @@ void prep_lexer_cbi(LexerCBI* cbi, SourceProviderCBI* provider);
  */
 void bind_lexer_cbi(LexerCBI* cbi, SourceProviderCBI* provider_cbi, Lexer* lexer);
 
+/**
+ * the function to put all symbols inside BuildContext compiler interface
+ * into this unordered symbol map, the values are just function pointers
+ * whereas the name's are function names
+ */
 void build_context_symbol_map(std::unordered_map<std::string, void*>& sym_map);
 
 void lexer_symbol_map(std::unordered_map<std::string, void*>& sym_map);

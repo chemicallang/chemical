@@ -18,7 +18,6 @@
 #include "preprocess/ShrinkingVisitor.h"
 #include "preprocess/2c/2cASTVisitor.h"
 #include "compiler/lab/LabBuildContext.h"
-#include "integration/cbi/bindings/BuildContextCBI.h"
 #include "integration/libtcc/LibTccInteg.h"
 #include "ctpl.h"
 #include "compiler/InvokeUtils.h"

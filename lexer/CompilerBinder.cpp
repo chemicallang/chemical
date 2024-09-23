@@ -6,6 +6,11 @@
 #include "lexer/model/CompilerBinderTCC.h"
 #include "utils/PathUtils.h"
 #include "integration/libtcc/LibTccInteg.h"
+#include "compiler/ASTProcessor.h"
+#include "ast/structures/FunctionDeclaration.h"
+#include "ast/structures/Namespace.h"
+#include "ast/structures/MultiFunctionNode.h"
+#include "ast/structures/MembersContainer.h"
 
 void handle_error(void *opaque, const char *msg){
     const auto binder = (CompilerBinderTCC*) opaque;
@@ -20,10 +25,54 @@ CompilerBinderTCC::CompilerBinderTCC(std::string exe_path) : CompilerBinder(), e
 
 }
 
+void declare_func(FunctionDeclaration* func, TCCState* state, std::unordered_map<std::string, void*>& sym_map) {
+    const auto sym_name = func->runtime_name_str();
+    auto sym = tcc_get_symbol(state, sym_name.c_str());
+    if(sym) {
+        sym_map[sym_name] = sym;
+    } else {
+#ifdef DEBUG
+      throw std::runtime_error("symbol not found");
+#endif
+    }
+}
+
+inline void declare_functions(const std::vector<FunctionDeclaration*>& functions, TCCState* state, std::unordered_map<std::string, void*>& sym_map) {
+    for(auto& func : functions) declare_func(func, state, sym_map);
+}
+
+void declare_node(ASTNode* node, TCCState* state, std::unordered_map<std::string, void*>& sym_map) {
+    auto node_kind = node->kind();
+    switch(node_kind) {
+        case ASTNodeKind::FunctionDecl:
+        case ASTNodeKind::ExtensionFunctionDecl:
+            declare_func((FunctionDeclaration*) node, state, sym_map);
+            return;
+        case ASTNodeKind::NamespaceDecl:
+            for(auto& child_node : ((Namespace*) node)->nodes) {
+                declare_node(child_node, state, sym_map);
+            }
+            return;
+        case ASTNodeKind::MultiFunctionNode:
+            declare_functions(((MultiFunctionNode*) node)->functions, state, sym_map);
+            return;
+        case ASTNodeKind::StructDecl:
+        case ASTNodeKind::VariantDecl:
+        case ASTNodeKind::UnionDecl:
+            declare_functions(((MembersContainer*) node)->functions(), state, sym_map);
+            return;
+        default:
+            return;
+    }
+}
+
 BinderResult CompilerBinderTCC::compile(
     const std::string& cbi_name,
     const std::string& program,
-    CBIData& cbiData
+    CBIData& cbiData,
+    std::vector<std::string_view>& imports,
+    std::vector<std::string_view>& current_files,
+    ASTProcessor& processor
 ) {
     auto found = compiled.find(cbi_name);
     if(found != compiled.end()) {
@@ -60,6 +109,19 @@ BinderResult CompilerBinderTCC::compile(
     // add functions like malloc and free
     prepare_tcc_state_for_jit(state);
 
+    // adding symbols from other modules
+    for(auto& file : imports) {
+        const std::string& abs_path = file.data();
+        auto sym_map_itr = symbol_maps.find(abs_path);
+        if(sym_map_itr != symbol_maps.end()) {
+            for(auto& sym : sym_map_itr->second) {
+                tcc_add_symbol(state, sym.first.c_str(), sym.second);
+            }
+        } else {
+            return BinderResult { 1, "couldn't import symbol map for cbi '" + cbi_name + "' when importing file '" + abs_path };
+        }
+    }
+
     // any other functions user require, he would mention by including cbi types
     // in that case, compiler will expose symbols that correspond to that type
     for(auto& cbiType : cbiData.cbiTypes) {
@@ -75,6 +137,19 @@ BinderResult CompilerBinderTCC::compile(
     result = tcc_relocate(state);
     if(result == -1) {
         return BinderResult { 1, "couldn't relocate c code in binder for cbi " + cbi_name };
+    }
+
+    // create symbol from current module's files
+    for(auto& file : current_files) {
+        const std::string& abs_path = file.data();
+        auto& sym_map = symbol_maps[abs_path]; // <--- auto creation
+        auto unit = processor.shrinked_unit.find(abs_path);
+        if(unit != processor.shrinked_unit.end()) {
+            auto& nodes = unit->second.scope.nodes;
+            for(auto& node : nodes) {
+                declare_node(node, state, sym_map);
+            }
+        }
     }
 
     compiled[cbi_name] = state;

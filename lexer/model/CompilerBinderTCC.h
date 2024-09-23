@@ -18,6 +18,11 @@ public:
     std::unordered_map<std::string, TCCState*> compiled;
 
     /**
+     * a map between absolute file paths, and public symbols inside them
+     */
+    std::unordered_map<std::string, std::unordered_map<std::string, void*>> symbol_maps;
+
+    /**
      * diagnostics during compilation of c files
      */
     std::vector<std::string> diagnostics;
@@ -38,7 +43,10 @@ public:
     BinderResult compile(
         const std::string& cbi_name,
         const std::string& program,
-        CBIData& cbiData
+        CBIData& cbiData,
+        std::vector<std::string_view>& imports,
+        std::vector<std::string_view>& current_files,
+        ASTProcessor& processor
     ) override;
 
     /**

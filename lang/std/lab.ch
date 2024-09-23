@@ -135,23 +135,23 @@ public struct BuildContext {
     // invoke ar with given cli args
     var invoke_ar : (&self, string_arr : ArrayRef<string>) => int;
 
-    func chemical_file_module(&self, name : string, path : string, dependencies : ArrayRef<Module*>) : Module* {
-        const path_ptr = &path;
-        return chemical_files_module(name, &path_ptr, 1, dependencies);
-    }
+}
 
-    func file_module(&self, name : string, path : string, dependencies : ArrayRef<Module*>) : Module* {
-        const path_ptr = &path;
-        return files_module(name, &path_ptr, 1, dependencies);
-    }
+func (ctx : BuildContext*) chemical_file_module(name : string, path : string, dependencies : ArrayRef<Module*>) : Module* {
+    const path_ptr = &path;
+    return ctx.chemical_files_module(name, &path_ptr, 1, dependencies);
+}
 
-    func translate_mod_to_c(&self, module : Module*, output_dir : string) : LabJob* {
-        return translate_to_c(string("ToCJob"), { module }, output_dir);
-    }
+func (ctx : BuildContext*) file_module(name : string, path : string, dependencies : ArrayRef<Module*>) : Module* {
+    const path_ptr = &path;
+    return ctx.files_module(name, &path_ptr, 1, dependencies);
+}
 
-    func translate_file_to_c(&self, chem_path : string, output_path : string) : LabJob* {
-        var mod = file_module(string("TempChem"), chem_path, {});
-        return translate_mod_to_c(mod, output_path);
-    }
+func (ctx : BuildContext*) translate_mod_to_c(module : Module*, output_dir : string) : LabJob* {
+    return ctx.translate_to_c(string("ToCJob"), { module }, output_dir);
+}
 
+func (ctx : BuildContext*) translate_file_to_c(chem_path : string, output_path : string) : LabJob* {
+    var mod = ctx.file_module(string("TempChem"), chem_path, {});
+    return ctx.translate_mod_to_c(mod, output_path);
 }

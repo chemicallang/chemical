@@ -95,7 +95,11 @@ uint64_t FunctionType::byte_size(bool is64Bit) {
 }
 
 unsigned FunctionType::explicit_func_arg_offset() {
-    return has_self_param() ? 1 : 0;
+    if(as_extension_func()) {
+        return 0;
+    } else {
+        return has_self_param() ? 1 : 0;
+    }
 }
 
 unsigned int FunctionType::expectedArgsSize() {
@@ -105,7 +109,8 @@ unsigned int FunctionType::expectedArgsSize() {
     if(func && (func->has_annotation(AnnotationKind::Copy) || func->has_annotation(AnnotationKind::Move))) {
         return s - 2; // copy and move have two implicit parameters
     }
-    if(has_self_param()) {
+    const auto ext_func = as_extension_func();
+    if(!ext_func && has_self_param()) {
         return s - 1;
     } else {
         return s;

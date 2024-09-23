@@ -62,8 +62,8 @@ bool Lexer::lexAnnotationMacro() {
             macro_lexer->second(this);
         } else {
             auto lex_func = binder->provide_lex_func(macro);
-            if(lex_func && cbi) {
-                lex_func(cbi);
+            if(lex_func) {
+                lex_func(this);
             } else {
                 auto current = position();
                 auto content = provider.readUntil('}');

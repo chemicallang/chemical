@@ -22,8 +22,6 @@
 
 class CompilerBinder;
 
-class LexerCBI;
-
 class Lexer;
 
 /**
@@ -61,17 +59,11 @@ public:
     CompilerBinder* const binder;
 
     /**
-     * a pointer to lexer cbi that will be passed to cbi functions
-     */
-    LexerCBI* const cbi;
-
-    /**
      * initialize the lexer with this provider and path
      */
     Lexer(
         SourceProvider &provider,
-        CompilerBinder* binder = nullptr,
-        LexerCBI* cbi = nullptr
+        CompilerBinder* binder = nullptr
     );
 
     /**
@@ -134,6 +126,18 @@ public:
      * @return true if identifier is not empty, false if it is
      */
     bool storeIdentifier(const std::string &identifier);
+
+    /**
+     * consumes a identifier and store as a variable token
+     * @return true if identifier is not empty, false if it is
+     */
+    bool storeVariable(chem::string* identifier);
+
+    /**
+     * consumes a identifier and store as an identifier token
+     * @return true if identifier is not empty, false if it is
+     */
+    bool storeIdentifier(chem::string* identifier);
 
     /**
      * lex a variable token into tokens until the until character occurs

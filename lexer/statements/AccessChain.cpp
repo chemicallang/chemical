@@ -24,6 +24,24 @@ bool Lexer::storeIdentifier(const std::string &identifier) {
     }
 }
 
+bool Lexer::storeVariable(chem::string* identifier) {
+    if (!identifier->empty()) {
+        emplace(LexTokenType::Variable, backPosition(identifier->size()), { identifier->data(), identifier->size() });
+        return true;
+    } else {
+        return false;
+    }
+}
+
+bool Lexer::storeIdentifier(chem::string* identifier) {
+    if (!identifier->empty()) {
+        emplace(LexTokenType::Identifier, backPosition(identifier->size()), { identifier->data(), identifier->size() });
+        return true;
+    } else {
+        return false;
+    }
+}
+
 bool Lexer::lexAccessChain(bool lexStruct, bool lex_as_node) {
 
     auto id = lexIdentifier();

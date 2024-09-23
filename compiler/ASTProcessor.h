@@ -89,12 +89,6 @@ public:
     std::unique_ptr<CompilerBinder> binder;
 
     /**
-     * the lexer cbi, that is initialized if cbi enabled
-     * passed to lexer cbi
-     */
-    std::unique_ptr<LexerCBI> lexer_cbi;
-
-    /**
      * the symbol resolver that will resolve all the symbols
      */
     SymbolResolver* resolver;

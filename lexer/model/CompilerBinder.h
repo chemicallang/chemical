@@ -9,15 +9,15 @@
 
 class CSTDiagnoser;
 
-class LexerCBI;
-
 class ASTProcessor;
+
+class Lexer;
 
 /**
  * this function is a lex function, it takes the lexer cbi
  * which allows user to lex tokens
  */
-typedef void(*cbi_lex_func)(LexerCBI* cbi);
+typedef void(*cbi_lex_func)(Lexer* cbi);
 
 /**
  * a compile result

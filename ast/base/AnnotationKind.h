@@ -16,6 +16,7 @@ enum class AnnotationKind {
 
     Extern, // it means declaration is available in other module
     CompTime, // functions that are compile time
+    CompilerInterface, // it means that struct is a compiler interface
     Cpp, // mangle the function name using C++ name mangling scheme
 
     NoInit, // structs that should not be initialized

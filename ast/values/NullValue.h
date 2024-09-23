@@ -52,6 +52,8 @@ public:
 
 #endif
 
+    bool link(SymbolResolver &linker, Value *&value_ptr, BaseType *expected_type = nullptr) override;
+
     [[nodiscard]]
     ValueType value_type() const override {
         return ValueType::Pointer;

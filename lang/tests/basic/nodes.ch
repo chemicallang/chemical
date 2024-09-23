@@ -311,13 +311,17 @@ func test_nodes() {
     test("supports null value - 1", () => {
         var x = 1;
         var y = &x;
-        y = null;
-        return y == null;
+        unsafe {
+            y = null;
+            return y == null;
+        }
     })
     test("supports null value - 2", () => {
         var x = 1;
         var y = &x;
-        return y != null;
+        unsafe {
+            return y != null;
+        }
     })
     test("can store struct in an array", () => {
         var arr = {

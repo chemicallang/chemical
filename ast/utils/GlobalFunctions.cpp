@@ -553,34 +553,63 @@ public:
     }
 };
 
-class InterpretIsPtrNull : public FunctionDeclaration {
-public:
-
-    BoolType boolType;
-    AnyType anyType;
-    PointerType ptrType;
-    FunctionParam valueParam;
-
-    NullValue nullVal;
-
-    explicit InterpretIsPtrNull(ASTNode* parent_node) : FunctionDeclaration(
-            "isNull",
-            std::vector<FunctionParam*> {},
-            &boolType,
-            false,
-            parent_node,
-            nullptr,
-            std::nullopt
-    ), boolType(nullptr), nullVal(nullptr), anyType(nullptr), ptrType(&anyType, nullptr),
-        valueParam("value", &ptrType, 0, nullptr, this, nullptr)
-    {
-        annotations.emplace_back(AnnotationKind::CompTime);
-        params.emplace_back(&valueParam);
-    }
-    Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
-        return new (call_scope->allocate<WrapValue>()) WrapValue(new (call_scope->allocate<Expression>()) Expression(call->values[0], &nullVal, Operation::IsEqual, false, nullptr));
-    }
-};
+//class InterpretIsPtrNull : public FunctionDeclaration {
+//public:
+//
+//    BoolType boolType;
+//    AnyType anyType;
+//    PointerType ptrType;
+//    FunctionParam valueParam;
+//
+//    NullValue nullVal;
+//
+//    explicit InterpretIsPtrNull(ASTNode* parent_node) : FunctionDeclaration(
+//            "isNull",
+//            std::vector<FunctionParam*> {},
+//            &boolType,
+//            false,
+//            parent_node,
+//            nullptr,
+//            std::nullopt
+//    ), boolType(nullptr), nullVal(nullptr), anyType(nullptr), ptrType(&anyType, nullptr),
+//        valueParam("value", &ptrType, 0, nullptr, this, nullptr)
+//    {
+//        annotations.emplace_back(AnnotationKind::CompTime);
+//        params.emplace_back(&valueParam);
+//    }
+//    Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+//        return new (call_scope->allocate<WrapValue>()) WrapValue(new (call_scope->allocate<Expression>()) Expression(call->values[0], &nullVal, Operation::IsEqual, false, nullptr));
+//    }
+//};
+//
+//class InterpretIsPtrNotNull : public FunctionDeclaration {
+//public:
+//
+//    BoolType boolType;
+//    AnyType anyType;
+//    PointerType ptrType;
+//    FunctionParam valueParam;
+//
+//    NullValue nullVal;
+//
+//    explicit InterpretIsPtrNotNull(ASTNode* parent_node) : FunctionDeclaration(
+//            "isNotNull",
+//            std::vector<FunctionParam*> {},
+//            &boolType,
+//            false,
+//            parent_node,
+//            nullptr,
+//            std::nullopt
+//    ), boolType(nullptr), nullVal(nullptr), anyType(nullptr), ptrType(&anyType, nullptr),
+//        valueParam("value", &ptrType, 0, nullptr, this, nullptr)
+//    {
+//        annotations.emplace_back(AnnotationKind::CompTime);
+//        params.emplace_back(&valueParam);
+//    }
+//    Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
+//        return new (call_scope->allocate<WrapValue>()) WrapValue(new (call_scope->allocate<Expression>()) Expression(call->values[0], &nullVal, Operation::IsNotEqual, false, nullptr));
+//    }
+//};
 
 class InterpretMemCopy : public FunctionDeclaration {
 public:
@@ -679,13 +708,11 @@ public:
 class PtrNamespace : public Namespace {
 public:
 
-    InterpretIsPtrNull isNullFn;
-
     explicit PtrNamespace(
             ASTNode* parent_node
-    ) : Namespace("ptr", parent_node, nullptr), isNullFn(this) {
+    ) : Namespace("ptr", parent_node, nullptr), {
         annotations.emplace_back(AnnotationKind::CompTime);
-        nodes = { &isNullFn };
+        nodes = { };
     }
 
 };

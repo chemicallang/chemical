@@ -11,6 +11,8 @@
 #include "ast/structures/Namespace.h"
 #include "ast/structures/MultiFunctionNode.h"
 #include "ast/structures/MembersContainer.h"
+#include "ast/base/ExtendableMembersContainerNode.h"
+#include "integration/cbi/bindings/LexerCBI.h"
 
 void handle_error(void *opaque, const char *msg){
     const auto binder = (CompilerBinderTCC*) opaque;
@@ -22,7 +24,10 @@ CompilerBinder::CompilerBinder() {
 }
 
 CompilerBinderTCC::CompilerBinderTCC(std::string exe_path) : CompilerBinder(), exe_path(std::move(exe_path)) {
-
+    auto& provider = interface_maps["SourceProvider"];
+    source_provide_symbol_map(provider);
+    auto& lexer = interface_maps["Lexer"];
+    lexer_symbol_map(lexer);
 }
 
 void declare_func(FunctionDeclaration* func, TCCState* state, std::unordered_map<std::string, void*>& sym_map) {
@@ -37,11 +42,22 @@ void declare_func(FunctionDeclaration* func, TCCState* state, std::unordered_map
     }
 }
 
+void declare_sym_map(std::unordered_map<std::string, void*>& from_sym_map, std::unordered_map<std::string, void*>& to_sym_map) {
+    for(auto& sym : from_sym_map) {
+        to_sym_map[sym.first] = sym.second;
+    }
+}
+
 inline void declare_functions(const std::vector<FunctionDeclaration*>& functions, TCCState* state, std::unordered_map<std::string, void*>& sym_map) {
     for(auto& func : functions) declare_func(func, state, sym_map);
 }
 
-void declare_node(ASTNode* node, TCCState* state, std::unordered_map<std::string, void*>& sym_map) {
+void declare_node(
+    CompilerBinderTCC& binder,
+    ASTNode* node,
+    TCCState* state,
+    std::unordered_map<std::string, void*>& sym_map
+) {
     auto node_kind = node->kind();
     switch(node_kind) {
         case ASTNodeKind::FunctionDecl:
@@ -50,7 +66,7 @@ void declare_node(ASTNode* node, TCCState* state, std::unordered_map<std::string
             return;
         case ASTNodeKind::NamespaceDecl:
             for(auto& child_node : ((Namespace*) node)->nodes) {
-                declare_node(child_node, state, sym_map);
+                declare_node(binder, child_node, state, sym_map);
             }
             return;
         case ASTNodeKind::MultiFunctionNode:
@@ -61,8 +77,19 @@ void declare_node(ASTNode* node, TCCState* state, std::unordered_map<std::string
         case ASTNodeKind::UnionDecl: {
             const auto container = (MembersContainer*) node;
             if(container->has_annotation(AnnotationKind::CompilerInterface)) {
-                // every struct with this annotation is skipped
-                // because it just provides declarations for cbi modules
+                auto container_node = container->as_extendable_members_container_node();
+                if(container_node) {
+                    auto map = binder.symbol_maps.find(container_node->name);
+                    if(map != binder.symbol_maps.end()) {
+                        declare_sym_map(map->second, sym_map);
+                    } else {
+                        std::cerr << "[Binder] couldn't find compiler interface by name '" << container_node->name << "'" << std::endl;
+                    }
+                } else {
+                    std::cerr << "[Binder] couldn't find compiler interface by name '";
+                    container->runtime_name(std::cerr);
+                    std::cerr << '\'' << std::endl;
+                }
                 return;
             }
             declare_functions(container->functions(), state, sym_map);
@@ -131,13 +158,13 @@ BinderResult CompilerBinderTCC::compile(
 
     // any other functions user require, he would mention by including cbi types
     // in that case, compiler will expose symbols that correspond to that type
-    for(auto& cbiType : cbiData.cbiTypes) {
-        switch(cbiType.kind) {
-            case CBIImportKind::Lexer:
-                // TODO lexer functions should be declared here
-                break;
-        }
-    }
+//    for(auto& cbiType : cbiData.cbiTypes) {
+//        switch(cbiType.kind) {
+//            case CBIImportKind::Lexer:
+//                // TODO lexer functions should be declared here
+//                break;
+//        }
+//    }
 
 
     // relocate the code
@@ -154,7 +181,7 @@ BinderResult CompilerBinderTCC::compile(
         if(unit != processor.shrinked_unit.end()) {
             auto& nodes = unit->second.scope.nodes;
             for(auto& node : nodes) {
-                declare_node(node, state, sym_map);
+                declare_node(*this, node, state, sym_map);
             }
         }
     }

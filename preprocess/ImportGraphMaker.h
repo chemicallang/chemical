@@ -6,7 +6,7 @@
 #include <vector>
 #include "integration/common/Diagnostic.h"
 #include "utils/fwd/functional.h"
-#include "integration/ide/model/FlatIGFile.h"
+#include "integration/cbi/model/FlatIGFile.h"
 #include <memory>
 #include "ImportPathHandler.h"
 

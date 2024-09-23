@@ -30,6 +30,34 @@ chem::string* init_chem_string(chem::string* str) {
     return str;
 }
 
+constexpr std::string lexer_func(const std::string& name) {
+    return "Lexer" + name;
+};
+
+void lexer_symbol_map(std::unordered_map<std::string, void*>& sym_map) {
+    // TODO this
+    sym_map = {
+            {lexer_func("storeVariable"), [](Lexer* lexer) -> void {
+                // TODO this
+            }},
+            {lexer_func("storeIdentifier"), [](Lexer* lexer) -> void {
+                // TODO this
+            }}
+    };
+}
+
+void source_provide_symbol_map(std::unordered_map<std::string, void*>& sym_map) {
+    // TODO this
+    sym_map = {
+            {lexer_func("storeVariable"), [](Lexer* lexer) -> void {
+                // TODO this
+            }},
+            {lexer_func("storeIdentifier"), [](Lexer* lexer) -> void {
+                // TODO this
+            }}
+    };
+}
+
 void bind_source_provider_cbi(SourceProviderCBI* cbi, SourceProvider* provider) {
     cbi->instance = provider;
 }

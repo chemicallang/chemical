@@ -5,7 +5,7 @@
 #include <vector>
 #include <memory>
 #include "LabModuleType.h"
-#include "integration/ide/model/FlatIGFile.h"
+#include "integration/cbi/model/FlatIGFile.h"
 #include "std/chem_string.h"
 
 struct LabModule {

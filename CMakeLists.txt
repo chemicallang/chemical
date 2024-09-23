@@ -327,10 +327,10 @@ set(COMMON_SOURCES
         compiler/ASTDiagnoser.h
         compiler/ASTDiagnoser.cpp
         cst/utils/CSTUtils.cpp
-        integration/ide/model/LexResult.h
-        integration/ide/model/LexImportUnit.h
-        integration/ide/model/FlatIGFile.h
-        integration/ide/model/ImportUnitCache.h
+        integration/cbi/model/LexResult.h
+        integration/cbi/model/LexImportUnit.h
+        integration/cbi/model/FlatIGFile.h
+        integration/cbi/model/ImportUnitCache.h
         preprocess/ImportGraphVisitor.h
         preprocess/ImportPathHandler.h
         preprocess/ImportPathHandler.cpp
@@ -352,9 +352,9 @@ set(COMMON_SOURCES
         compiler/ASTDiag.h
         compiler/ASTProcessor.cpp
         utils/PathUtils.h
-        integration/ide/bindings/SourceProviderCBI.h
-        integration/ide/bindings/LexerCBI.h
-        integration/ide/bindings/CBI.cpp
+        integration/cbi/bindings/SourceProviderCBI.h
+        integration/cbi/bindings/LexerCBI.h
+        integration/cbi/bindings/CBI.cpp
         lexer/model/CompilerBinder.h
         lexer/CompilerBinder.cpp
         lexer/model/CompilerBinderTCC.h
@@ -416,7 +416,7 @@ set(COMMON_SOURCES
         lexer/utils/AnnotationModifiers.h
         lexer/utils/ValueCreators.h
         lexer/utils/MacroLexers.h
-        integration/ide/bindings/BuildContextCBI.h
+        integration/cbi/bindings/BuildContextCBI.h
         compiler/lab/LabBuildContext.h
         compiler/lab/LabModule.h
         compiler/lab/LabBuildContext.cpp
@@ -458,8 +458,8 @@ set(COMMON_SOURCES
         utils/Environment.h
         ast/base/ASTAnyKind.h
         ast/base/ASTUnit.h
-        integration/ide/model/ASTImportUnit.h
-        integration/ide/model/ASTResult.h
+        integration/cbi/model/ASTImportUnit.h
+        integration/cbi/model/ASTResult.h
         preprocess/2c/CBeforeStmtVisitor.h
         preprocess/2c/CAfterStmtVisitor.h
         preprocess/2c/CTopLevelDeclVisitor.h

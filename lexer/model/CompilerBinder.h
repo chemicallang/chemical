@@ -11,6 +11,8 @@ class CSTDiagnoser;
 
 class LexerCBI;
 
+class ASTProcessor;
+
 /**
  * this function is a lex function, it takes the lexer cbi
  * which allows user to lex tokens
@@ -48,11 +50,16 @@ public:
 
     /**
      * following c translated program is compiled under the given cbi name
+     * @param imports absolute paths to files imported in this module
+     * @param current_files absolute paths to files in this module
      */
     virtual BinderResult compile(
         const std::string& cbi_name,
         const std::string& program,
-        CBIData& cbiData
+        CBIData& cbiData,
+        std::vector<std::string_view>& imports,
+        std::vector<std::string_view>& current_files,
+        ASTProcessor& processor
     ) = 0;
 
     /**

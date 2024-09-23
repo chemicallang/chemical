@@ -387,6 +387,14 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
         // start a module scope in symbol resolver, that we can dispose later
         resolver.module_scope_start();
 
+        // CBI ONLY
+        // this is a vector containing absolute paths to files in this module
+        // we give this to binder, which collects symbols from these files so other modules can import it
+        std::vector<std::string_view> current_mod_files;
+        // this is a temporary vector containing absolute paths to files imported from other modules in this module
+        // we only populate this, if job is cbi, then we ask binder to import these symbols while compiling
+        std::vector<std::string_view> imports_from_other_mods;
+
         // sequentially compile each file
         i = 0;
         for(const auto& file : flat_imports) {
@@ -434,11 +442,19 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                 if(already_imported) {
                     auto declared_in = unit.declared_in.find(mod);
                     if(declared_in == unit.declared_in.end()) {
-                        // this is probably a different module, so we'll declare the file (if not declared)
-                        processor.declare_in_c(c_visitor, unit.scope, file);
+                        if(job_type == LabJobType::CBI) {
+                            // mark it imported from other module, so we can import it
+                            imports_from_other_mods.emplace_back(file.abs_path);
+                        } else {
+                            // this is probably a different module, so we'll declare the file (if not declared)
+                            processor.declare_in_c(c_visitor, unit.scope, file);
+                        }
                         unit.declared_in[mod] = true;
                     }
                 } else {
+                    if(job_type == LabJobType::CBI) {
+                        current_mod_files.emplace_back(file.abs_path);
+                    }
                     // translating to c
                     processor.translate_to_c(c_visitor, unit.scope, file);
                 }
@@ -547,7 +563,14 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
 
             if(job_type == LabJobType::CBI) {
                 const auto cbiJob = (LabJobCBI*) exe;
-                auto bResult = binder.compile(exe->name.to_std_string(), program, cbiJob->data);
+                auto bResult = binder.compile(
+                        exe->name.to_std_string(),
+                        program,
+                        cbiJob->data,
+                        imports_from_other_mods,
+                        current_mod_files,
+                        processor
+                );
                 if(!bResult.error.empty()) {
                     std::cerr << "[BuildLab] failed to compile CBI module with name '" << mod->name.data() << "' with error '" << bResult.error << "'" << std::endl;
                 }

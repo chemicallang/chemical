@@ -220,10 +220,10 @@ void source_provider_symbol_map(std::unordered_map<std::string, void*>& sym_map)
             {sp_func("increment_char"), [](SourceProvider* provider, char c) -> bool {
                 return provider->increment(c);
             }},
-            {sp_func("getLineNumber"), [](SourceProvider* provider, char c) -> unsigned int {
+            {sp_func("getLineNumber"), [](SourceProvider* provider) -> unsigned int {
                 return provider->getLineNumber();
             }},
-            {sp_func("getLineCharNumber"), [](SourceProvider* provider, char c) -> unsigned int {
+            {sp_func("getLineCharNumber"), [](SourceProvider* provider) -> unsigned int {
                 return provider->getLineCharNumber();
             }},
             {sp_func("readEscaping"), [](SourceProvider* provider, chem::string* value, char stopAt) -> void {

@@ -84,9 +84,9 @@ public:
     std::unordered_map<std::string, ASTUnit> shrinked_unit;
 
     /**
-     * compiler binder that will be used through out processing
+     * the compiler binder that will be used
      */
-    std::unique_ptr<CompilerBinder> binder;
+    CompilerBinder& binder;
 
     /**
      * the symbol resolver that will resolve all the symbols
@@ -115,6 +115,7 @@ public:
     ASTProcessor(
             ASTProcessorOptions* options,
             SymbolResolver* resolver,
+            CompilerBinder& binder,
             ASTAllocator& job_allocator,
             ASTAllocator& mod_allocator
     );

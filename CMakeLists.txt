@@ -354,9 +354,8 @@ set(COMMON_SOURCES
         utils/PathUtils.h
         integration/cbi/bindings/LexerCBI.h
         integration/cbi/bindings/CBI.cpp
-        lexer/model/CompilerBinder.h
         lexer/CompilerBinder.cpp
-        lexer/model/CompilerBinderTCC.h
+        lexer/model/CompilerBinder.h
         ast/utils/ASTUtils.h
         ast/utils/ASTUtils.cpp
         integration/libtcc/LibTccInteg.h

@@ -2,16 +2,19 @@
 
 #pragma once
 
+#include "libtcc.h"
 #include <vector>
 
-enum class CBIImportKind : int {
-    Lexer = 0,
-};
-
-struct CBIImport {
-    CBIImportKind kind;
-};
-
 struct CBIData {
-    std::vector<CBIImport> cbiTypes;
+
+    /**
+     * all the modules in this CBI
+     */
+    std::vector<TCCState*> modules;
+
+    /**
+     * the module in which public functions are searched
+     */
+    TCCState* entry_module = nullptr;
+
 };

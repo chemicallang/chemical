@@ -6,6 +6,7 @@
 #include "LabBuildCompilerOptions.h"
 #include "LabJob.h"
 #include "ctpl.h"
+#include "lexer/model/CompilerBinder.h"
 
 class ASTAllocator;
 
@@ -18,6 +19,11 @@ class LabBuildContext;
  */
 class LabBuildCompiler {
 public:
+
+    /**
+     * compiler binder is used to bind compiler functions with user source code
+     */
+    CompilerBinder binder;
 
     /**
      * lab build compiler options

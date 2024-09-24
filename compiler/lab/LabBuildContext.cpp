@@ -219,12 +219,10 @@ LabJob* LabBuildContext::build_cbi(
         chem::string* name,
         LabModule** dependencies,
         unsigned int dep_len,
-        CBIImportKind cbiKind
+        LabModule* entry
 ) {
     auto exe = new LabJobCBI(LabJob(LabJobType::CBI, name->copy()));
-    exe->data.cbiTypes.emplace_back();
-    auto& cbiImport = exe->data.cbiTypes.back();
-    cbiImport.kind = cbiKind;
+    exe->entry_module = entry;
     executables.emplace_back(exe);
     set_build_dir(exe);
     LabBuildContext::add_dependencies(exe->dependencies, dependencies, dep_len);

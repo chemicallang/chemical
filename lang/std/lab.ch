@@ -86,7 +86,7 @@ public struct BuildContext {
     func build_dynamic_lib (&self, name : string*, dependencies : ArrayRef<Module*>) : LabJob*;
 
     // build a cbi by given name, that can be used to integrate with compiler
-    func build_cbi (&self, name : string*, dependencies : ArrayRef<Module*>, kind : CBIImportKind) : LabJob*
+    func build_cbi (&self, name : string*, entry : Module*, dependencies : ArrayRef<Module*>, kind : CBIImportKind) : LabJob*
 
     // add a linkable object (.o file)
     func add_object (&self, job : LabJob*, path : string) : void;

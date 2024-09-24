@@ -4,7 +4,7 @@
 
 #include <memory>
 #include "cst/base/CSTConverter.h"
-#include "lexer/model/CompilerBinderTCC.h"
+#include "lexer/model/CompilerBinder.h"
 #include "lexer/Lexi.h"
 #include "compiler/SymbolResolver.h"
 #include "preprocess/2c/2cASTVisitor.h"
@@ -46,13 +46,11 @@ std::string ASTProcessorOptions::get_resources_path() {
 ASTProcessor::ASTProcessor(
         ASTProcessorOptions* options,
         SymbolResolver* resolver,
+        CompilerBinder& binder,
         ASTAllocator& job_allocator,
         ASTAllocator& mod_allocator
-) : options(options), resolver(resolver), path_handler(options->exe_path),
+) : options(options), resolver(resolver), path_handler(options->exe_path), binder(binder),
     job_allocator(job_allocator), mod_allocator(mod_allocator) {
-    if(options->isCBIEnabled) {
-        binder = std::make_unique<CompilerBinderTCC>(options->exe_path);
-    }
 }
 
 void put_import_graph(ImportPathHandler& handler, std::vector<IGFile>& files, const std::vector<std::string>& paths) {
@@ -237,7 +235,7 @@ ASTImportResultExt ASTProcessor::import_file(const FlatIGFile& file) {
 
         // lex the file
         SourceProvider provider(nullptr);
-        Lexer lexer(provider, binder.get());
+        Lexer lexer(provider, &binder);
 //        if(options->isCBIEnabled) {
 //            bind_lexer_cbi(lexer_cbi.get(), &lexer);
 //        }

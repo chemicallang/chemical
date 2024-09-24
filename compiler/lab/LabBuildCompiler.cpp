@@ -32,7 +32,7 @@
 #include "utils/FileUtils.h"
 #include "compiler/backend/LLVMBackendContext.h"
 #include "preprocess/2c/2cBackendContext.h"
-#include "lexer/model/CompilerBinderTCC.h"
+#include "lexer/model/CompilerBinder.h"
 
 #ifdef COMPILER_BUILD
 std::vector<ASTNode*> TranslateC(
@@ -111,7 +111,7 @@ std::vector<LabModule*> flatten_dedupe_sorted(const std::vector<LabModule*>& mod
     return new_modules;
 }
 
-LabBuildCompiler::LabBuildCompiler(LabBuildCompilerOptions *options) : options(options), pool((int) std::thread::hardware_concurrency()) {
+LabBuildCompiler::LabBuildCompiler(LabBuildCompilerOptions *options) : options(options), pool((int) std::thread::hardware_concurrency()), binder(options->exe_path) {
 
 }
 
@@ -218,18 +218,16 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
     ToCBackendContext c_context(&c_visitor);
 
 #ifdef COMPILER_BUILD
-    ASTCompiler processor(options, &resolver, *job_allocator, *mod_allocator);
+    ASTCompiler processor(options, &resolver, binder, *job_allocator, *mod_allocator);
     Codegen gen(global, options->target_triple, options->exe_path, options->is64Bit, *mod_allocator, "");
     LLVMBackendContext g_context(&gen);
     CodegenEmitterOptions emitter_options;
     // set the context so compile time calls are sent to it
     global.backend_context = use_tcc ? (BackendContext*) &c_context : (BackendContext*) &g_context;
 #else
-    ASTProcessor processor(options, &resolver, *job_allocator, *mod_allocator);
+    ASTProcessor processor(options, &resolver, binder, *job_allocator, *mod_allocator);
     global.backend_context = (BackendContext*) &c_context;
 #endif
-
-    auto& binder = *processor.binder;
 
     // import executable path aliases
     processor.path_handler.path_aliases = std::move(exe->path_aliases);
@@ -270,6 +268,11 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
     int i;
     int compile_result = 0;
     bool do_compile = job_type != LabJobType::ToCTranslation && job_type != LabJobType::CBI;
+
+    // create cbi before hand, for reserving allocation
+    if(job_type == LabJobType::CBI) {
+        binder.create_cbi(exe->name.to_std_string(), dependencies.size());
+    }
 
     // compile dependent modules for this executable
     int mod_index = -1;
@@ -562,22 +565,24 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
 
             if(job_type == LabJobType::CBI) {
                 const auto cbiJob = (LabJobCBI*) exe;
+                auto cbiName = exe->name.to_std_string();
+                auto& cbiData = binder.data[cbiName];
                 auto bResult = binder.compile(
-                        exe->name.to_std_string(),
+                        cbiData,
                         program,
-                        cbiJob->data,
                         imports_from_other_mods,
                         current_mod_files,
                         processor
                 );
                 if(!bResult.error.empty()) {
-                    std::cerr << "[BuildLab] failed to compile CBI module with name '" << mod->name.data() << "' with error '" << bResult.error << "'" << std::endl;
-                }
-                if(bResult.result == 1) {
+                    std::cerr << "[BuildLab] failed to compile CBI module with name '" << mod->name.data() << "' in '" << exe->name.data() << "' with error '" << bResult.error << "'" << std::endl;
                     compile_result = 1;
                     break;
                 }
-                compile_result = bResult.result;
+                // marking entry of the cbi module, if this module is the entry
+                if(cbiJob->entry_module == mod) {
+                    cbiData.entry_module = bResult.module;
+                }
             }
 
             // clear the current c string
@@ -767,12 +772,10 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
     ASTCompiler lab_processor(
         options,
         &lab_resolver,
+        binder,
         lab_allocator,
-        lab_allocator // lab allocator is being used as a module level allocator
+        lab_allocator // lab allocator is being used as a module level allocator,
     );
-
-    // the tcc compiler binder
-    auto& binder = *((CompilerBinderTCC*) lab_processor.binder.get());
 
     // get flat imports
     auto flat_imports = lab_processor.flat_imports(path);

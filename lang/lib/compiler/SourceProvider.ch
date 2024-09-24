@@ -1,43 +1,35 @@
 import "./Operation.ch"
 import "../../std/string.ch"
 
-@cbi:global("compiler")
-typealias String = char*;
-
 /**
  * provides access to the source code provided by the user
  */
-@cbi:global("compiler")
+@compiler:interface
 struct SourceProvider {
 
     /**
      * reads a single character and returns it
      * everytime a character is read, it must check if its the line ending character to track lineNumbers
      */
-    var readCharacter : (&self) => char;
+    func readCharacter (&self) : char;
 
     /**
      * checks the stream is at the end
      * please also use both peek() == -1
      */
-    var eof : (&self) => bool;
+    func eof (&self) : bool
 
     /**
      * peaks the character to read
      */
-    var peek : (&self) => char
-
-    /**
-     * peaks the character at current pos + ahead
-     */
-    var peek_at : (&self, offset : int) => char;
+    func peek (&self) : char
 
     /**
      * reads the stream until this (stop) character occurs
      * @param stop the stopping character
      * @return everything read until stop character, it doesn't include the stopping character
      */
-    var readUntil : (&self, stop : char) => string;
+    func readUntil : (&self, into : string*, stop : char) => void;
 
     /**
      * if text is present at current pos in the stream, increments the stream with text.length()
@@ -45,24 +37,24 @@ struct SourceProvider {
      * @param peek peeks only, doesn't increment
      * @return true if incremented by text length otherwise false
      */
-    var increment : (&self, text : char*, peek : bool) => bool;
+    func increment (&self, text : string*, peek : bool) : bool;
 
     /**
      * if char c is present at current pos, increments the stream with character
      * @param c character to look for
      * @return true if incremented by character length = 1, otherwise false
      */
-    var increment_char : (&self, c : char) => bool;
+    func increment_char (&self, c : char) : bool;
 
     /**
      * get zero-based current line number
      */
-    var getLineNumber : (&self) => uint;
+    func getLineNumber (&self) : uint;
 
     /**
      * get zero-based character number
      */
-    var getLineCharNumber : (&self) => uint
+    func getLineCharNumber (&self) : uint
 
     /**
      * will read everything to the given string
@@ -72,62 +64,62 @@ struct SourceProvider {
      *
      * will also append the last stopAt character into value
      */
-    var readEscaping : (&self, value : string*, stopAt : char) => void;
+    func readEscaping (&self, value : string*, stopAt : char) : void;
 
     /**
      * reads all characters into a string until char occurs
      * @return the string that was found
      */
-    var readAnything : (&self, until : char) => string;
+    func readAnything (&self, into : string*, until : char) : void;
 
     /**
      * reads a alphabetical string
      */
-    var readAlpha : (&self) => string;
+    func readAlpha (&self, into : string*) : void;
 
     /**
      * reads an unsigned integer as string, returns "" if no integer found
      */
-    var readUnsignedInt : (&self) => string;
+    func readUnsignedInt (&self, into : string*) : void;
 
     /**
      * reads a number from the stream
      */
-    var readNumber : (&self) => string;
+    func readNumber (&self, into : string*) : void;
 
     /**
      * reads a alphanumeric string
      */
-    var readAlphaNum : (&self) => string;
+    func readAlphaNum (&self, into : string*) : void;
 
     /**
      * reads a single identifier
      */
-    var readIdentifier : (&self) => string;
+    func readIdentifier (&self, into : string*) : void;
 
     /**
      * reads a single annotation, this doesn't read '@'
      */
-    var readAnnotationIdentifier : (&self) => string;
+    func readAnnotationIdentifier (&self, into : string*) : void;
 
     /**
      * reads whitespaces, returns how many whitespaces were read
      */
-    var readWhitespaces : (&self) => uint;
+    func readWhitespaces (&self) : uint;
 
     /**
      * @return whether there's a newline at current position
      */
-    var hasNewLine : (&self) => bool;
+    func hasNewLine (&self) : bool;
 
     /**
      * @return whether new line characters were read
      */
-    var readNewLineChars : (&self) => bool;
+    func readNewLineChars (&self) : bool;
 
     /**
      * reads all whitespaces along with new lines
      */
-    var readWhitespacesAndNewLines : (&self) => void;
+    func readWhitespacesAndNewLines (&self) : void;
 
 }

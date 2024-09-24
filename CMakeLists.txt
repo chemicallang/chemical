@@ -473,6 +473,9 @@ set(COMMON_SOURCES
         ast/base/ASTAllocator.h
         ast/base/ASTAllocator.cpp
         lexer/model/CBIData.h
+        integration/cbi/bindings/BuildContextCBI.h
+        integration/cbi/bindings/BuildContextCBI.cpp
+        integration/cbi/bindings/CBIUtils.h
 )
 
 # Chemical LSP Executable Target

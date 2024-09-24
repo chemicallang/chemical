@@ -16,7 +16,7 @@
 #include "compiler/lab/LabBuildCompiler.h"
 #include "std/chem_string.h"
 #include "rang.hpp"
-#include "integration/cbi/bindings/LexerCBI.h"
+#include "integration/cbi/bindings/CBI.h"
 #include <filesystem>
 
 #ifdef COMPILER_BUILD

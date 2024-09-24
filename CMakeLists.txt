@@ -352,7 +352,7 @@ set(COMMON_SOURCES
         compiler/ASTDiag.h
         compiler/ASTProcessor.cpp
         utils/PathUtils.h
-        integration/cbi/bindings/LexerCBI.h
+        integration/cbi/bindings/CBI.h
         integration/cbi/bindings/CBI.cpp
         lexer/CompilerBinder.cpp
         lexer/model/CompilerBinder.h

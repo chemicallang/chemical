@@ -1,6 +1,6 @@
 // Copyright (c) Qinetik 2024.
 
-#include "LexerCBI.h"
+#include "CBI.h"
 #include "lexer/Lexer.h"
 #include "stream/SourceProvider.h"
 #include "compiler/lab/LabBuildContext.h"

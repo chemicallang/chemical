@@ -11,7 +11,7 @@
 #include "ast/structures/MultiFunctionNode.h"
 #include "ast/structures/MembersContainer.h"
 #include "ast/base/ExtendableMembersContainerNode.h"
-#include "integration/cbi/bindings/LexerCBI.h"
+#include "integration/cbi/bindings/CBI.h"
 
 void handle_error(void *opaque, const char *msg){
     const auto binder = (CompilerBinder*) opaque;

@@ -15,7 +15,7 @@
 #include "ast/base/ASTUnit.h"
 #include "cst/base/CSTUnit.h"
 #include "ast/base/ASTAllocator.h"
-#include "integration/cbi/bindings/LexerCBI.h"
+#include "integration/cbi/bindings/CBI.h"
 
 class Lexer;
 

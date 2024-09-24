@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "ast/utils/Operation.h"
 #include <unordered_map>
+#include <string>
 
 /**
  * the function to put all symbols inside BuildContext compiler interface

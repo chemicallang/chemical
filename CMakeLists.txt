@@ -476,6 +476,10 @@ set(COMMON_SOURCES
         integration/cbi/bindings/BuildContextCBI.h
         integration/cbi/bindings/BuildContextCBI.cpp
         integration/cbi/bindings/CBIUtils.h
+        integration/cbi/bindings/SourceProviderCBI.cpp
+        integration/cbi/bindings/SourceProviderCBI.h
+        integration/cbi/bindings/LexerCBI.h
+        integration/cbi/bindings/LexerCBI.cpp
 )
 
 # Chemical LSP Executable Target

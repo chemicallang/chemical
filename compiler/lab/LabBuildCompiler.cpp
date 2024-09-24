@@ -443,12 +443,11 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                     auto declared_in = unit.declared_in.find(mod);
                     if(declared_in == unit.declared_in.end()) {
                         if(job_type == LabJobType::CBI) {
-                            // mark it imported from other module, so we can import it
+                            // mark it imported from other module, so we can import it's tcc symbols
                             imports_from_other_mods.emplace_back(file.abs_path);
-                        } else {
-                            // this is probably a different module, so we'll declare the file (if not declared)
-                            processor.declare_in_c(c_visitor, unit.scope, file);
                         }
+                        // this is probably a different module, so we'll declare the file (if not declared)
+                        processor.declare_in_c(c_visitor, unit.scope, file);
                         unit.declared_in[mod] = true;
                     }
                 } else {

@@ -5,28 +5,6 @@
 #include "ast/utils/Operation.h"
 #include <unordered_map>
 
-namespace chem {
-    class string;
-}
-
-class Lexer;
-
-struct LabBuildContext;
-
-struct LabModule;
-
-struct LabJob;
-
-struct ModuleArrayRef {
-    LabModule** ptr;
-    size_t size;
-};
-
-struct StringArrayRef {
-    chem::string* ptr;
-    size_t size;
-};
-
 /**
  * the function to put all symbols inside BuildContext compiler interface
  * into this unordered symbol map, the values are just function pointers

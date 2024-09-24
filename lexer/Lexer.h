@@ -17,7 +17,7 @@
 #include <optional>
 #include "utils/fwd/functional.h"
 #include "model/CompilerBinder.h"
-#include "integration/cbi/bindings/LexerCBI.h"
+#include "integration/cbi/bindings/CBI.h"
 #include "cst/base/CSTDiagnoser.h"
 
 class CompilerBinder;

@@ -227,7 +227,7 @@ public:
             chem::string* name,
             LabModule** dependencies,
             unsigned int dep_len,
-            CBIImportKind kind
+            LabModule* entry
     );
 
     /**

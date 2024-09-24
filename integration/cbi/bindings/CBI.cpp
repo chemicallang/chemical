@@ -78,8 +78,8 @@ void build_context_symbol_map(std::unordered_map<std::string, void*>& sym_map) {
         {bc_func("build_dynamic_lib"), [](LabBuildContext* self, chem::string* name, ModuleArrayRef* dependencies) -> LabJob* {
             return self->build_dynamic_lib(name, dependencies->ptr, dependencies->size);
         }},
-        {bc_func("build_cbi"), [](LabBuildContext* self, chem::string* name, ModuleArrayRef* dependencies, CBIImportKind kind) -> LabJob* {
-            return self->build_cbi(name, dependencies->ptr, dependencies->size, kind);
+        {bc_func("build_cbi"), [](LabBuildContext* self, chem::string* name, LabModule* entry, ModuleArrayRef* dependencies) -> LabJob* {
+            return self->build_cbi(name, dependencies->ptr, dependencies->size, entry);
         }},
         {bc_func("add_object"), [](LabBuildContext* self, LabJob* job, chem::string* path) {
             dispose_string _x{path};

@@ -3,7 +3,6 @@
 #include <sstream>
 #include <utility>
 #include "lexer/model/CompilerBinder.h"
-#include "lexer/model/CompilerBinderTCC.h"
 #include "utils/PathUtils.h"
 #include "integration/libtcc/LibTccInteg.h"
 #include "compiler/ASTProcessor.h"
@@ -15,15 +14,11 @@
 #include "integration/cbi/bindings/LexerCBI.h"
 
 void handle_error(void *opaque, const char *msg){
-    const auto binder = (CompilerBinderTCC*) opaque;
+    const auto binder = (CompilerBinder*) opaque;
     binder->diagnostics.emplace_back(msg);
 }
 
-CompilerBinder::CompilerBinder() {
-
-}
-
-CompilerBinderTCC::CompilerBinderTCC(std::string exe_path) : CompilerBinder(), exe_path(std::move(exe_path)) {
+CompilerBinder::CompilerBinder(std::string exe_path) : exe_path(std::move(exe_path)) {
     auto& provider = interface_maps["SourceProvider"];
     source_provider_symbol_map(provider);
     auto& lexer = interface_maps["Lexer"];
@@ -50,7 +45,7 @@ void declare_sym_map(std::unordered_map<std::string, void*>& from_sym_map, std::
     }
 }
 
-bool CompilerBinderTCC::import_compiler_interface(const std::string& name, TCCState* state) {
+bool CompilerBinder::import_compiler_interface(const std::string& name, TCCState* state) {
     auto map = interface_maps.find(name);
     if(map != interface_maps.end()) {
         for(auto& sym : map->second) {
@@ -67,7 +62,7 @@ inline void declare_functions(const std::vector<FunctionDeclaration*>& functions
 }
 
 void declare_node(
-    CompilerBinderTCC& binder,
+    CompilerBinder& binder,
     ASTNode* node,
     TCCState* state,
     std::unordered_map<std::string, void*>& sym_map
@@ -114,21 +109,26 @@ void declare_node(
     }
 }
 
-BinderResult CompilerBinderTCC::compile(
-    const std::string& cbi_name,
-    const std::string& program,
+CBIData* CompilerBinder::create_cbi(const std::string& name, unsigned int mod_count) {
+    auto found = data.find(name);
+    if(found != data.end()) {
+        return nullptr;
+    }
+    auto& mod_data = data[name]; // <------ auto creation
+    mod_data.modules.reserve(mod_count);
+    return &mod_data;
+}
+
+BinderResult CompilerBinder::compile(
     CBIData& cbiData,
+    const std::string& program,
     std::vector<std::string_view>& imports,
     std::vector<std::string_view>& current_files,
     ASTProcessor& processor
 ) {
-    auto found = compiled.find(cbi_name);
-    if(found != compiled.end()) {
-        return BinderResult { 1, "cbi has already been compiled " + cbi_name };
-    }
     auto state = tcc_new();
     if(!state) {
-        return BinderResult { 1, "couldn't initialize tcc state in tcc compiler binder" };
+        return {"couldn't initialize tcc state in tcc compiler binder"};
     }
     tcc_set_error_func(state, this, handle_error);
     auto tcc_dir = resolve_non_canon_parent_path(exe_path, "packages/tcc");
@@ -137,21 +137,21 @@ BinderResult CompilerBinderTCC::compile(
     int result;
     result = tcc_add_include_path(state, include_dir.c_str());
     if(result == -1) {
-        return BinderResult { 1, "couldn't add include path 'packages/tcc/include' in tcc compiler binder" };
+        return { "couldn't add include path 'packages/tcc/include' in tcc compiler binder" };
     }
     result = tcc_add_library_path(state, lib_dir.c_str());
     if(result == -1) {
-        return BinderResult { 1, "couldn't add library path 'packages/tcc/lib' in tcc compiler binder" };
+        return { "couldn't add library path 'packages/tcc/lib' in tcc compiler binder" };
     }
     result = tcc_set_output_type(state, TCC_OUTPUT_MEMORY);
     if(result == -1) {
-        return BinderResult { 1, "couldn't set tcc output memory in tcc compiler binder" };
+        return { "couldn't set tcc output memory in tcc compiler binder" };
     }
 
     // compile
     result = tcc_compile_string(state, program.c_str());
     if(result == -1) {
-        return BinderResult { 1, "couldn't compile c code in binder for cbi " + cbi_name };
+        return { "couldn't compile c code in binder" };
     }
 
     // add functions like malloc and free
@@ -166,25 +166,14 @@ BinderResult CompilerBinderTCC::compile(
                 tcc_add_symbol(state, sym.first.c_str(), sym.second);
             }
         } else {
-            return BinderResult { 1, "couldn't import symbol map for cbi '" + cbi_name + "' when importing file '" + abs_path };
+            return { "couldn't import symbol map when importing file '" + abs_path };
         }
     }
-
-    // any other functions user require, he would mention by including cbi types
-    // in that case, compiler will expose symbols that correspond to that type
-//    for(auto& cbiType : cbiData.cbiTypes) {
-//        switch(cbiType.kind) {
-//            case CBIImportKind::Lexer:
-//                // TODO lexer functions should be declared here
-//                break;
-//        }
-//    }
-
 
     // relocate the code
     result = tcc_relocate(state);
     if(result == -1) {
-        return BinderResult { 1, "couldn't relocate c code in binder for cbi " + cbi_name };
+        return { "couldn't relocate c code in binder"};
     }
 
     // create symbol from current module's files
@@ -200,19 +189,20 @@ BinderResult CompilerBinderTCC::compile(
         }
     }
 
-    compiled[cbi_name] = state;
-    return BinderResult { 0, "" };
+    cbiData.modules.emplace_back(state);
+
+    return { state };
 }
 
-void* CompilerBinderTCC::provide_func(const std::string& cbi_name, const std::string& funcName) {
+void* CompilerBinder::provide_func(const std::string& cbi_name, const std::string& funcName) {
     auto complete_cached_name = cbi_name + ':' + funcName;
     auto found = cached_func.find(complete_cached_name);
     if(found != cached_func.end()) {
         return found->second;
     } else {
-        auto cbi = compiled.find(cbi_name);
-        if(cbi != compiled.end()) {
-            auto sym = tcc_get_symbol(cbi->second, funcName.c_str());
+        auto cbi = data.find(cbi_name);
+        if(cbi != data.end() && cbi->second.entry_module) {
+            auto sym = tcc_get_symbol(cbi->second.entry_module, funcName.c_str());
             if(sym) {
                 cached_func[complete_cached_name] = sym;
             }
@@ -223,8 +213,10 @@ void* CompilerBinderTCC::provide_func(const std::string& cbi_name, const std::st
     }
 }
 
-CompilerBinderTCC::~CompilerBinderTCC() {
-    for(auto& unit : compiled) {
-        tcc_delete(unit.second);
+CompilerBinder::~CompilerBinder() {
+    for(auto& unit : data) {
+        for(auto& mod : unit.second.modules) {
+            tcc_delete(mod);
+        }
     }
 }

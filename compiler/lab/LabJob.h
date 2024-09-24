@@ -48,9 +48,8 @@ struct LabJob {
 
 struct LabJobCBI : public LabJob {
     /**
-     * cbi data is provided to the job, which provides data
-     * like which functions should be exposed to each module being compiled
-     * in this job
+     * the entry module is provided when cbi is created
+     * it is looked for all public functions like lex, parse and others
      */
-    CBIData data;
+    LabModule* entry_module = nullptr;
 };

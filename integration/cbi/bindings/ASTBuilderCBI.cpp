@@ -606,11 +606,11 @@ void InterfaceDefinitionadd_function(InterfaceDefinition* definition, FunctionDe
     definition->insert_multi_func(decl);
 }
 
-std::vector<ASTNode*>* Namespaceget_children(Namespace* ns) {
+std::vector<ASTNode*>* Namespaceget_body(Namespace* ns) {
     return &ns->nodes;
 }
 
-std::vector<ASTNode*>* UnsafeBlockget_children(UnsafeBlock* ub) {
+std::vector<ASTNode*>* UnsafeBlockget_body(UnsafeBlock* ub) {
     return &ub->scope.nodes;
 }
 

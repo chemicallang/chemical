@@ -9,6 +9,11 @@ struct Lexer {
     func tokens_size(&self) : size_t
 
     /**
+     * put the given token into the tokens vector held by this Lexer
+     */
+    func put(&self, value : string*, token_type : LexTokenType, lineNumber : uint, lineCharNumber : uint)
+
+    /**
      * consumes a identifier and store as a variable token
      * @return true if identifier is not empty, false if it is
      */

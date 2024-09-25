@@ -519,6 +519,14 @@ VariantCase::VariantCase(AccessChain* _chain, ASTDiagnoser& diagnoser, SwitchSta
     }
 }
 
+VariantCase::VariantCase(
+    AccessChain* chain,
+    SwitchStatement* statement,
+    CSTToken* token
+) : chain(chain), switch_statement(statement), token(token) {
+
+}
+
 bool VariantCase::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
     // access chain in variant case allows no replacement of access chain, so nullptr in value_ptr
     chain->link(linker, (BaseType*) nullptr, nullptr);

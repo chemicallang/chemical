@@ -374,6 +374,11 @@ namespace chem {
         }
 
         [[nodiscard]]
+        std::string_view to_view() const {
+            return { data(), size() };
+        }
+
+        [[nodiscard]]
         bool ends_with(const std::string& data) const {
             return to_std_string().ends_with(data);
         }

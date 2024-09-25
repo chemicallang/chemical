@@ -7,6 +7,6 @@ func lexMacro(lexer : Lexer*) {
 
 func parseMacro(converter : CSTConverter*, token : CSTToken*) {
     const contained = token.tokens();
-    const interested = container.get(1);
+    const interested = contained.get(1);
     converter.make_uint_value(33, token);
 }

@@ -75,9 +75,9 @@ func build(ctx : BuildContext*) {
     const module = ctx.chemical_file_module(exe_name, relative_path(string("tests.ch")), dependencies);
 
     // cbi integration
-    // const cbi_name = string("html");
-    // const entry_mod = ctx.chemical_dir_module(string("html"), relative_path(string("../lib/html")), {});
-    // ctx.build_cbi(&cbi_name, entry_mod, { entry_mod });
+    const cbi_name = string("html");
+    const entry_mod = ctx.chemical_dir_module(string("html"), relative_path(string("../lib/html")), {});
+    ctx.build_cbi(&cbi_name, entry_mod, { entry_mod });
 
     const do_llvm_ir = false;
     const do_asm = false;

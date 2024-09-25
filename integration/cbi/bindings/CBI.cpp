@@ -94,6 +94,7 @@ constexpr std::string lexer_func(const std::string& name) {
 void lexer_symbol_map(std::unordered_map<std::string, void*>& sym_map) {
     sym_map = {
             {lexer_func("tokens_size"), Lexertokens_size },
+            {lexer_func("put"), Lexerput },
             {lexer_func("storeVariable"), LexerstoreVariable },
             {lexer_func("storeIdentifier"), LexerstoreIdentifier },
             {lexer_func("lexGenericArgsList"), LexerlexGenericArgsList },

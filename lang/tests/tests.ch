@@ -30,6 +30,7 @@ import "basic/modules1.ch"
 import "basic/modules.ch"
 import "basic/moves.ch"
 import "comptime/is_value.ch"
+import "cbi/html/basic.ch"
 
 public func main() : int {
     test_var_init();
@@ -64,6 +65,7 @@ public func main() : int {
     test_imported_modules();
     test_modules_import();
     test_moves();
+    test_html();
     print_test_stats();
     return 0;
 }

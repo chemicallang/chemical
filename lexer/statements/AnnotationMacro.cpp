@@ -65,9 +65,8 @@ bool Lexer::lexAnnotationMacro() {
             if(lex_func) {
                 lex_func(this);
             } else {
-                auto current = position();
-                auto content = provider.readUntil('}');
-                emplace(LexTokenType::RawToken, current, std::move(content));
+                error("couldn't find lexMacro function in cbi '" + macro + "', make sure the function is public");
+                return true;
             }
         }
 

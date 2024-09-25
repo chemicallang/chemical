@@ -903,7 +903,7 @@ void CSTConverter::visitMacro(CSTToken* macroCst) {
     if (macro != MacroHandlers.end()) {
         macro->second(this, macroCst);
     } else {
-        auto func = binder.provide_parse_macro_func(name);
+        auto func = binder.provide_parse_macro_func(annon_name);
         if(func) {
             func(this, macroCst);
         } else {

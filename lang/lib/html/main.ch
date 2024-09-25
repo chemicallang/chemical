@@ -1,5 +1,5 @@
-import "../Lexer.ch"
-import "../CSTConverter.ch"
+import "../compiler/Lexer.ch"
+import "../compiler/CSTConverter.ch"
 
 func lexMacro(lexer : Lexer*) {
     lexer.lexNumberToken();

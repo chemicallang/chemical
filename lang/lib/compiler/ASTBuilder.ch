@@ -1,3 +1,6 @@
+import "AccessSpecifier.ch"
+import "./CSTToken.ch"
+
 // The Base Structs
 
 struct ASTNode {}
@@ -208,7 +211,7 @@ struct VarInitStatement : ASTNode {}
 
 struct Scope : ASTNode {}
 
-struct DoWhileLoop : ASTNode {
+struct DoWhileLoop : LoopASTNode {
 
     func get_body(&self) : VecRef<ASTNode>*;
 
@@ -222,9 +225,17 @@ struct EnumDeclaration : ASTNode {
 
 struct EnumMember : ASTNode {}
 
-struct ForLoop : ASTNode {
+struct LoopASTNode : ASTNode {
+
+}
+
+struct ForLoop : LoopASTNode {
 
     func get_body(&self) : VecRef<ASTNode>*;
+
+}
+
+struct SwitchStatement {
 
 }
 
@@ -304,7 +315,7 @@ struct UnsafeBlock : ASTNode {
 
 }
 
-struct WhileLoop : ASTNode {
+struct WhileLoop : LoopASTNode {
 
     func get_body(&self) : VecRef<ASTNode>*;
 
@@ -391,7 +402,7 @@ public struct ASTBuilder {
 
     func make_bool_value(&self, value : bool, token : CSTToken*) : BoolValue*
 
-    func make_casted_value(&self, Value* value, type : BaseType*, token : CSTToken*) : CastedValue*
+    func make_casted_value(&self, value : Value*, type : BaseType*, token : CSTToken*) : CastedValue*
 
     func make_char_value(&self, value : char, token : CSTToken*) : CharValue*
 
@@ -399,9 +410,9 @@ public struct ASTBuilder {
 
     func make_double_value(&self, value : double, token : CSTToken*) : DoubleValue*
 
-    func make_expression_value(&self, first : Value*, second : Value*, Operation op, token : CSTToken*) : Expression*
+    func make_expression_value(&self, first : Value*, second : Value*, op : Operation, token : CSTToken*) : Expression*
 
-    func make_float_value(&self, float value, token : CSTToken*) : FloatValue*
+    func make_float_value(&self, value : float, token : CSTToken*) : FloatValue*
 
     func make_function_call_value(&self, token : CSTToken*) : FunctionCall*
 
@@ -433,7 +444,7 @@ public struct ASTBuilder {
 
     func make_string_value(&self, value : string*, token : CSTToken*) : StringValue*
 
-    func make_struct_member_initializer(&self, string* name, value : Value*, structValue : StructValue*) : StructMemberInitializer*
+    func make_struct_member_initializer(&self, name : string*, value : Value*, structValue : StructValue*) : StructMemberInitializer*
 
     func make_struct_struct_value(&self, ref : Value*, parent_node : ASTNode*, token : CSTToken*) : StructValue*
 
@@ -471,13 +482,13 @@ public struct ASTBuilder {
 
     func make_return_stmt(&self, value : Value*, decl : FunctionType*, parent_node : ASTNode*, token : CSTToken*) : ReturnStatement*
 
-    //SwitchStatement* ASTBuildermake_return_stmt(CSTConverter* converter, Value* value, FunctionType* decl, ASTNode* parent_node, CSTToken* token);
+    //SwitchStatement* ASTBuildermake_return_stmt(CSTConverter* converter, Value* value, FunctionType* decl, ASTNode* parent_node, token : CSTToken*);
 
-    //ThrowStatement* ASTBuildermake_throw_stmt(CSTConverter* converter, Value* value, FunctionType* decl, ASTNode* parent_node, CSTToken* token);
+    //ThrowStatement* ASTBuildermake_throw_stmt(CSTConverter* converter, Value* value, FunctionType* decl, ASTNode* parent_node, token : CSTToken*);
 
-    func make_typealias_stmt(&self, identifier : string*, actual_type : BaseType*, specifier : AccessSpecifier, parent_node : ASTNode*, CSTToken* token) : TypealiasStatement*
+    func make_typealias_stmt(&self, identifier : string*, actual_type : BaseType*, specifier : AccessSpecifier, parent_node : ASTNode*, token : CSTToken*) : TypealiasStatement*
 
-    func make_using_stmt(&self, chain : AccessChain*, is_namespace : bool, CSTToken* token) : UsingStmt*
+    func make_using_stmt(&self, chain : AccessChain*, is_namespace : bool, token : CSTToken*) : UsingStmt*
 
     func make_varinit_stmt(&self, is_const : bool, identifier : string*, type : BaseType*, value : Value*, specifier : AccessSpecifier, parent_node : ASTNode*, token : CSTToken*) : VarInitStatement*
 
@@ -503,7 +514,7 @@ public struct ASTBuilder {
 
     func make_init_block(&self, parent_node : ASTNode*, token : CSTToken*) : InitBlock*
 
-    func make_interface_def(&self, string* name, specifier : AccessSpecifier, parent_node : ASTNode*, token : CSTToken*) : InterfaceDefinition*
+    func make_interface_def(&self, name : string*, specifier : AccessSpecifier, parent_node : ASTNode*, token : CSTToken*) : InterfaceDefinition*
 
     func make_namespace(&self, name : string*, specifier : AccessSpecifier, parent_node : ASTNode*, token : CSTToken*) : Namespace*
 

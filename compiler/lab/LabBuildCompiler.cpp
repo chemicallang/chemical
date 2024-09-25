@@ -127,6 +127,7 @@ int LabBuildCompiler::do_job(LabJob* job) {
             break;
         case LabJobType::ToCTranslation:
         case LabJobType::ProcessingOnly:
+        case LabJobType::CBI:
             return_int = process_modules(job);
             break;
         case LabJobType::ToChemicalTranslation:
@@ -192,7 +193,10 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
     if(!exe->name.empty()) {
         std::cout << ' ' << '\'' << exe->name.data() << '\'';
     }
-    std::cout << " at path '" << exe->abs_path.data() << '\'' << rang::bg::reset << rang::fg::reset << std::endl;
+    if(!exe->abs_path.empty()) {
+        std::cout << " at path '" << exe->abs_path.data() << '\'';
+    }
+    std::cout << std::endl << rang::bg::reset << rang::fg::reset;
 
     std::string exe_build_dir;
     if(!exe->build_dir.empty()) {

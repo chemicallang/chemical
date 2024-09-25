@@ -1,4 +1,5 @@
 import "./SourceProvider.ch"
+import "./LexTokenType.ch"
 
 @compiler:interface
 struct Lexer {
@@ -225,7 +226,7 @@ struct Lexer {
     /**
      * lex a whitespaced keyword token, which may end at the given character if not whitespace
      */
-    func lexWSKeywordToken2 (&self, keyword : string*, char may_end_at) :  bool;
+    func lexWSKeywordToken2 (&self, keyword : string*, may_end_at : char) :  bool;
 
     /**
      * All top levels statements lexed, These include
@@ -366,7 +367,7 @@ struct Lexer {
     /**
      * lex parameter list
      */
-    func lexParameterList (&self, optionalTypes : bool, defValues : bool, bool lexSelfParam, bool variadicParam) :  void;
+    func lexParameterList (&self, optionalTypes : bool, defValues : bool, lexSelfParam : bool, variadicParam : bool) :  void;
 
     /**
     * lexes a function signature with parameters
@@ -631,7 +632,7 @@ struct Lexer {
     /**
      * lexes switch block
      */
-    func lexSwitchStatementBlock (&self, s) :  bool;
+    func lexSwitchStatementBlock (&self, is_value : bool, lex_value_node : bool) :  bool;
 
     /**
      * lexes try catch block statements

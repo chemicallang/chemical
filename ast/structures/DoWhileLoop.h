@@ -43,7 +43,12 @@ public:
      * @param condition The loop condition.
      * @param body The body of the while loop.
      */
-    DoWhileLoop(Value* condition, LoopScope body);
+    DoWhileLoop(
+            Value* condition,
+            LoopScope body,
+            ASTNode* parent_node,
+            CSTToken* token
+    );
 
     void accept(Visitor *visitor) override;
 

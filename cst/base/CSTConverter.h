@@ -180,6 +180,11 @@ public:
     inline Value* pop_last_value();
 
     /**
+     * pop the last type from the types vector
+     */
+    inline BaseType* pop_last_type();
+
+    /**
      * Take the ast unit
      */
     ASTUnit take_unit();
@@ -384,3 +389,21 @@ public:
     ~CSTConverter();
 
 };
+
+ASTNode* CSTConverter::pop_last_node() {
+    const auto last = nodes.back();
+    nodes.pop_back();
+    return last;
+}
+
+Value* CSTConverter::pop_last_value() {
+    const auto last = values.back();
+    values.pop_back();
+    return last;
+}
+
+BaseType* CSTConverter::pop_last_type() {
+    const auto last = types.back();
+    types.pop_back();
+    return last;
+}

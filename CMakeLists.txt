@@ -480,6 +480,15 @@ set(COMMON_SOURCES
         integration/cbi/bindings/SourceProviderCBI.h
         integration/cbi/bindings/LexerCBI.h
         integration/cbi/bindings/LexerCBI.cpp
+        integration/cbi/bindings/CSTTokenCBI.h
+        integration/cbi/bindings/CSTTokenCBI.cpp
+        integration/cbi/bindings/PtrVecCBI.h
+        integration/cbi/bindings/PtrVecCBI.cpp
+        integration/cbi/bindings/CSTConverterCBI.h
+        integration/cbi/bindings/CSTConverterCBI.cpp
+        integration/cbi/bindings/ASTBuilderCBI.h
+        integration/cbi/bindings/ASTBuilderCBI.cpp
+        integration/cbi/bindings/ASTCBI.h
 )
 
 # Chemical LSP Executable Target

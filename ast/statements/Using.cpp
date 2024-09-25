@@ -14,6 +14,14 @@ UsingStmt::UsingStmt(
 
 }
 
+UsingStmt::UsingStmt(
+    AccessChain* chain,
+    bool is_namespace,
+    CSTToken* token
+) : chain(chain->values, chain->parent_node, chain->is_node, chain->token), is_namespace(is_namespace), token(token) {
+
+}
+
 void UsingStmt::declare_and_link(SymbolResolver &linker) {
     chain.declare_and_link(linker);
     auto linked = chain.linked_node();

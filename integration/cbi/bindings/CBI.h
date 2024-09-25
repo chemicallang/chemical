@@ -13,11 +13,31 @@
 void build_context_symbol_map(std::unordered_map<std::string, void*>& sym_map);
 
 /**
- * the function to put all symbols inside for the lexer compiler interface
+ * the function to put all symbols inside for the Lexer compiler interface
  */
 void lexer_symbol_map(std::unordered_map<std::string, void*>& sym_map);
 
 /**
- * the function to put all symbols inside for the source provider compiler interface
+ * the function to put all symbols inside for the SourceProvider compiler interface
  */
 void source_provider_symbol_map(std::unordered_map<std::string, void*>& sym_map);
+
+/**
+ * the function to put all symbols inside for the CSTToken compiler interface
+ */
+void cst_token_symbol_map(std::unordered_map<std::string, void*>& sym_map);
+
+/**
+ * the function to put all symbols inside for the TokensVec compiler interface
+ */
+void ptr_vec_symbol_map(std::unordered_map<std::string, void*>& sym_map);
+
+/**
+ * the function to put all symbols inside for the ASTBuilder compiler interface
+ */
+void ast_builder_symbol_map(std::unordered_map<std::string, void*>& sym_map);
+
+/**
+ * the function to put all symbols inside for the CSTConverter compiler interface
+ */
+void cst_converter_symbol_map(std::unordered_map<std::string, void*>& sym_map);

@@ -341,18 +341,6 @@ void CSTConverter::put_node(ASTNode* node, CSTToken* token) {
 #endif
 }
 
-ASTNode* CSTConverter::pop_last_node() {
-    const auto last = nodes.back();
-    nodes.pop_back();
-    return last;
-}
-
-Value* CSTConverter::pop_last_value() {
-    const auto last = values.back();
-    values.pop_back();
-    return last;
-}
-
 ASTUnit CSTConverter::take_unit() {
     ASTUnit unit;
     unit.scope.nodes = std::move(nodes);
@@ -1124,7 +1112,7 @@ void CSTConverter::visitDoWhile(CSTToken* doWhileCst) {
     // get it
     auto cond = value();
     // construct a loop
-    auto loop = new (local<DoWhileLoop>()) DoWhileLoop(cond, LoopScope{nullptr, doWhileCst->tokens[1]});
+    auto loop = new (local<DoWhileLoop>()) DoWhileLoop(cond, LoopScope{nullptr, doWhileCst->tokens[1]}, parent_node, doWhileCst);
     loop->body.parent_node = loop;
     // save current nodes
     auto previous = std::move(nodes);

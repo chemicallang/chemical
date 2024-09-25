@@ -40,8 +40,14 @@ void DoWhileLoop::code_gen(Codegen &gen) {
  * @param condition The loop condition.
  * @param body The body of the while loop.
  */
-DoWhileLoop::DoWhileLoop(Value* condition, LoopScope body)
-        : condition(condition), LoopASTNode(std::move(body)) {}
+DoWhileLoop::DoWhileLoop(
+    Value* condition,
+    LoopScope body,
+    ASTNode* parent_node,
+    CSTToken* token
+) : condition(condition), LoopASTNode(std::move(body)), parent_node(parent_node), token(token) {
+
+}
 
 void DoWhileLoop::accept(Visitor *visitor) {
     visitor->visit(this);

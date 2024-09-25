@@ -639,7 +639,7 @@ FunctionDeclaration* MembersContainer::create_def_move_fn(ASTAllocator& allocato
 bool MembersContainer::insert_multi_func(FunctionDeclaration* decl) {
     auto found = indexes.find(decl->name);
     if(found == indexes.end()) {
-        insert_func(std::move(decl));
+        insert_func(decl);
     } else {
         auto result = handle_name_overload_function(decl->name, found->second, decl);
         if(!result.duplicates.empty()) {
@@ -650,7 +650,7 @@ bool MembersContainer::insert_multi_func(FunctionDeclaration* decl) {
             // this can create errors, if not handled properly
             indexes[decl->name] = (FunctionDeclaration*) result.new_multi_func_node;
         }
-        functions_container.emplace_back(std::move(decl));
+        functions_container.emplace_back(decl);
     }
     return true;
 }

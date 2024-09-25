@@ -18,7 +18,21 @@ public:
      * and take identifiers properly
      * this also takes a diagnoser reference, so it can report errors
      */
-    VariantCase(AccessChain* chain, ASTDiagnoser& resolver, SwitchStatement* statement, CSTToken* token);
+    VariantCase(
+            AccessChain* chain,
+            ASTDiagnoser& resolver,
+            SwitchStatement* statement,
+            CSTToken* token
+    );
+
+    /**
+     * constructor
+     */
+    VariantCase(
+            AccessChain* chain,
+            SwitchStatement* statement,
+            CSTToken* token
+    );
 
     CSTToken* cst_token() override {
         return token;

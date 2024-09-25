@@ -22,6 +22,12 @@ public:
         CSTToken* token
     );
 
+    UsingStmt(
+            AccessChain* chain,
+            bool is_namespace,
+            CSTToken* token
+    );
+
     CSTToken *cst_token() override {
         return token;
     }

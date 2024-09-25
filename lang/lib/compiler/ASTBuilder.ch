@@ -19,8 +19,6 @@ struct BigIntType : BaseType {}
 
 struct BoolType : BaseType {}
 
-struct BoolType : BaseType {}
-
 struct DoubleType : BaseType {}
 
 struct DynamicType : BaseType {}

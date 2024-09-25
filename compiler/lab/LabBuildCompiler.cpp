@@ -579,7 +579,9 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                         processor
                 );
                 if(!bResult.error.empty()) {
-                    std::cerr << "[BuildLab] failed to compile CBI module with name '" << mod->name.data() << "' in '" << exe->name.data() << "' with error '" << bResult.error << "'" << std::endl;
+                    auto out_path = resolve_rel_child_path_str(exe->build_dir.data(),mod->name.to_std_string() + ".2c.c");
+                    writeToFile(out_path, program);
+                    std::cerr << rang::fg::red << "[BuildLab] failed to compile CBI module with name '" << mod->name.data() << "' in '" << exe->name.data() << "' with error '" << bResult.error << "' written at '" << out_path << '\'' << rang::fg::reset << std::endl;
                     compile_result = 1;
                     break;
                 }

@@ -216,9 +216,12 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
     // shrinking visitor will shrink everything
     ShrinkingVisitor shrinker;
 
+    // TODO this is only required in CBI
+    std::vector<std::string> compiler_interfaces;
+
     // beginning
     std::stringstream output_ptr;
-    ToCAstVisitor c_visitor(global, &output_ptr, *mod_allocator);
+    ToCAstVisitor c_visitor(global, &output_ptr, *mod_allocator, job_type == LabJobType::CBI ? &compiler_interfaces : nullptr);
     ToCBackendContext c_context(&c_visitor);
 
 #ifdef COMPILER_BUILD
@@ -576,8 +579,15 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                         program,
                         imports_from_other_mods,
                         current_mod_files,
+                        compiler_interfaces,
                         processor
                 );
+                if(options->verbose || options->benchmark || !bResult.error.empty()) {
+                    for(auto& diag : binder.diagnostics) {
+                        std::cerr << rang::fg::red << "[BuildLab:CBI] " << diag << std::endl << rang::fg::reset;
+                    }
+                }
+                binder.diagnostics.clear();
                 if(!bResult.error.empty()) {
                     auto out_path = resolve_rel_child_path_str(exe->build_dir.data(),mod->name.to_std_string() + ".2c.c");
                     writeToFile(out_path, program);
@@ -585,6 +595,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                     compile_result = 1;
                     break;
                 }
+                compiler_interfaces.clear();
                 // marking entry of the cbi module, if this module is the entry
                 if(cbiJob->entry_module == mod) {
                     cbiData.entry_module = bResult.module;
@@ -937,11 +948,6 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
         std::cerr << "[LabBuild] Couldn't get build function symbol in translated c :\n" << str << std::endl;
         return 1;
     }
-
-    // prepare the cbi
-//    BuildContextCBI cbi{};
-//    prep_build_context_cbi(&cbi);
-//    bind_build_context_cbi(&cbi, &context);
 
     // call the root build.lab build's function
     build(&context);

@@ -74,7 +74,7 @@ public:
      * a map between interface names like Lexer, SourceProvider and their actual symbols
      * these symbols correspond to function pointers in the our source code
      */
-    std::unordered_map<std::string, std::unordered_map<std::string, void*>> interface_maps;
+    std::unordered_map<std::string_view, std::unordered_map<std::string_view, void*>> interface_maps;
 
     /**
      * diagnostics during compilation of c files
@@ -104,6 +104,7 @@ public:
         const std::string& program,
         std::vector<std::string_view>& imports,
         std::vector<std::string_view>& current_files,
+        const std::vector<std::string>& compiler_interfaces,
         ASTProcessor& processor
     );
 

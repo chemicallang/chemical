@@ -1,12 +1,13 @@
 import "../compiler/Lexer.ch"
 import "../compiler/CSTConverter.ch"
 
-func lexMacro(lexer : Lexer*) {
+public func lexMacro(lexer : Lexer*) {
     lexer.lexNumberToken();
 }
 
-func parseMacro(converter : CSTConverter*, token : CSTToken*) {
+public func parseMacro(converter : CSTConverter*, token : CSTToken*) {
     const contained = token.tokens();
     const interested = contained.get(1);
-    converter.make_uint_value(33, token);
+    const value = converter.make_uint_value(33, token);
+    converter.put_value(value, interested);
 }

@@ -267,6 +267,7 @@ ASTImportResultExt ASTProcessor::import_file(const FlatIGFile& file) {
                 options->is64Bit,
                 options->target_triple,
                 resolver->comptime_scope,
+                binder,
                 job_allocator,
                 mod_allocator
         );

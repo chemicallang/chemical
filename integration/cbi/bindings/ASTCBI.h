@@ -74,9 +74,9 @@ extern "C" {
 
     void InterfaceDefinitionadd_function(InterfaceDefinition* definition, FunctionDeclaration* decl);
 
-    std::vector<ASTNode*>* Namespaceget_children(Namespace* ns);
+    std::vector<ASTNode*>* Namespaceget_body(Namespace* ns);
 
-    std::vector<ASTNode*>* UnsafeBlockget_children(UnsafeBlock* ub);
+    std::vector<ASTNode*>* UnsafeBlockget_body(UnsafeBlock* ub);
 
     void UnionDefinitionadd_member(UnionDef* definition, chem::string* name, BaseDefMember* member);
 

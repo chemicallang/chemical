@@ -1,17 +1,4 @@
-// Copyright (c) Qinetik 2024.
-
-//
-// Created by Waqas Tahir on 28/02/2024.
-//
-
-#pragma once
-
-#include <cstdint>
-#include <string>
-
-// TODO we must make this uint8_t type after our compiler supports
-//  this is for compatability between chemical cbi
-enum class LexTokenType : int {
+public enum LexTokenType {
 
     CharOperator,
     Operation,
@@ -32,7 +19,6 @@ enum class LexTokenType : int {
     Identifier,
     RawToken,
 
-    // compound statements
     CompAssignment,
     CompAccessChainNode,
     CompValueNode,
@@ -101,17 +87,4 @@ enum class LexTokenType : int {
     // other things
     CompGenericList,
 
-    // indexes
-    IndexLastToken = CompGenericList,
-    IndexAbsStrStart = Keyword,
-    IndexAbsStrEnd = RawToken,
-    IndexCompStart = CompAssignment,
-    IndexCompEnd = CompGenericList,
-    IndexCompTypeStart = CompArrayType,
-    IndexCompTypeEnd = CompPointerType,
-    IndexCompValueStart = CompAccessChain,
-    IndexCompValueEnd = CompStructValue
-
-};
-
-std::string toTypeString(LexTokenType token);
+}

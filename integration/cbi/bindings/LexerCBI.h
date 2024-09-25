@@ -8,7 +8,11 @@
 
 class Lexer;
 
+class SourceProvider;
+
 extern "C" {
+
+    SourceProvider* Lexerprovider(Lexer* lexer);
 
     std::size_t Lexertokens_size(Lexer* lexer);
 

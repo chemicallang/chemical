@@ -3,6 +3,10 @@
 #include "LexerCBI.h"
 #include "lexer/Lexer.h"
 
+SourceProvider* Lexerprovider(Lexer* lexer) {
+    return &lexer->provider;
+}
+
 std::size_t Lexertokens_size(Lexer* lexer)  {
     return lexer->tokens_size();
 }

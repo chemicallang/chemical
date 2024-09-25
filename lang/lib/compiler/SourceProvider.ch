@@ -29,7 +29,7 @@ struct SourceProvider {
      * @param stop the stopping character
      * @return everything read until stop character, it doesn't include the stopping character
      */
-    func readUntil : (&self, into : string*, stop : char) => void;
+    func readUntil (&self, into : string*, stop : char);
 
     /**
      * if text is present at current pos in the stream, increments the stream with text.length()

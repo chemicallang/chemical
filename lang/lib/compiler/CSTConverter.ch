@@ -1,7 +1,8 @@
 import "./ASTBuilder.ch"
+import "./ASTVisitor.ch"
 
 @compiler:interface
-public struct CSTConverter : public ASTBuilder {
+public struct CSTConverter : ASTBuilder, ASTVisitor {
 
     func put_value(&self, value : Value*, token : CSTToken*);
 

@@ -1,4 +1,6 @@
+import "ASTVisitor.ch"
 import "./LexTokenType.ch"
+import "./PtrVec.ch"
 
 public struct Position {
     var line : uint
@@ -16,7 +18,7 @@ public struct CSTToken {
 
     func tokens(&self) : VecRef<CSTToken>*;
 
-    func accept(&self, converter : CSTConverter*);
+    func accept(&self, converter : ASTVisitor*);
 
 }
 

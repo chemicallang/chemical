@@ -4,6 +4,11 @@ import "./SourceProvider.ch"
 struct Lexer {
 
     /**
+     * get the source provider associated with this lexer
+     */
+    func provider(&self) : SourceProvider*
+
+    /**
      * get the current tokens size
      */
     func tokens_size(&self) : size_t

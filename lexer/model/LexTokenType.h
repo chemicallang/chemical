@@ -9,7 +9,9 @@
 #include <cstdint>
 #include <string>
 
-enum class LexTokenType : uint8_t {
+// TODO we must make this uint8_t type after our compiler supports
+//  this is for compatability between chemical cbi
+enum class LexTokenType : int {
 
     CharOperator,
     Operation,

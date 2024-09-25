@@ -87,6 +87,11 @@ private:
     ImportUnitCache cache;
 
     /**
+     * the compiler binder to use in this entire process
+     */
+    CompilerBinder binder;
+
+    /**
      * the argv is the path to the lsp executable
      */
     std::string lsp_exe_path;

@@ -61,7 +61,7 @@ bool Lexer::lexAnnotationMacro() {
         if (macro_lexer != MacroHandlers.end()) {
             macro_lexer->second(this);
         } else {
-            auto lex_func = binder->provide_lex_func(macro);
+            auto lex_func = binder->provide_lex_macro_func(macro);
             if(lex_func) {
                 lex_func(this);
             } else {

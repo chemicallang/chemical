@@ -50,6 +50,7 @@
 #include "ast/structures/UnnamedUnion.h"
 #include "ast/structures/UnnamedStruct.h"
 #include "ast/structures/DoWhileLoop.h"
+#include "lexer/model/CompilerBinder.h"
 #include "ast/statements/Continue.h"
 #include "ast/statements/SwitchStatement.h"
 #include "ast/statements/DestructStmt.h"
@@ -164,9 +165,10 @@ CSTConverter::CSTConverter(
         bool is64Bit,
         std::string target,
         GlobalInterpretScope& scope,
+        CompilerBinder& binder,
         ASTAllocator& global_allocator,
         ASTAllocator& mod_allocator
-) : path(std::move(path)), is64Bit(is64Bit), target(std::move(target)), global_scope(scope),
+) : path(std::move(path)), is64Bit(is64Bit), target(std::move(target)), global_scope(scope), binder(binder),
     global_allocator(global_allocator), mod_allocator(mod_allocator), local_allocator(&mod_allocator) {
 
 }
@@ -894,14 +896,19 @@ void CSTConverter::visitUnsafeBlock(CSTToken *block) {
     nodes.emplace_back(unsafe_block);
 }
 
-void CSTConverter::visitMacro(CSTToken*  macroCst) {
+void CSTConverter::visitMacro(CSTToken* macroCst) {
     auto name = str_token(macroCst->tokens[0]);
     auto annon_name = name.substr(1);
     auto macro = MacroHandlers.find(annon_name);
     if (macro != MacroHandlers.end()) {
         macro->second(this, macroCst);
     } else {
-        error("couldn't find annotation or macro handler for " + name, macroCst);
+        auto func = binder.provide_parse_macro_func(name);
+        if(func) {
+            func(this, macroCst);
+        } else {
+            error("couldn't find annotation or macro handler for " + name, macroCst);
+        }
     }
 }
 

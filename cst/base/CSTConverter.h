@@ -40,6 +40,8 @@ typedef void(*MacroHandlerFn)(CSTConverter*, CSTToken* container);
  */
 typedef void(*AnnotationHandlerFn)(CSTConverter*, CSTToken* container, AnnotationKind kind);
 
+class CompilerBinder;
+
 class CSTConverter : public CSTVisitor, public CSTDiagnoser {
 public:
 
@@ -121,6 +123,11 @@ public:
     GlobalInterpretScope& global_scope;
 
     /**
+     * the reference to compiler binder
+     */
+    CompilerBinder& binder;
+
+    /**
      * the target is provided to the source code
      */
     std::string target;
@@ -144,6 +151,7 @@ public:
         bool is64Bit,
         std::string target,
         GlobalInterpretScope& scope,
+        CompilerBinder& binder,
         ASTAllocator& global_allocator,
         ASTAllocator& local_allocator
     );

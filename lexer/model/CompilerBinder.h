@@ -9,6 +9,10 @@ class ASTProcessor;
 
 class Lexer;
 
+class CSTConverter;
+
+class CSTToken;
+
 /**
  * a compile result
  */
@@ -37,7 +41,13 @@ struct BinderResult {
  * this function is a lex function, it takes the lexer cbi
  * which allows user to lex tokens
  */
-typedef void(*cbi_lex_func)(Lexer* cbi);
+typedef void(*cbi_lex_macro_func)(Lexer* cbi);
+
+/**
+ * this function is a lex function, it takes the lexer cbi
+ * which allows user to lex tokens
+ */
+typedef void(*cbi_parse_macro_func)(CSTConverter* cbi, CSTToken* token);
 
 /**
  * compiler binder based on tiny c compiler
@@ -112,8 +122,17 @@ public:
      * otherwise the pointer to the lex function that can compile the tokens is provided
      * @param structName is the container struct for which it was generated
      */
-    inline cbi_lex_func provide_lex_func(const std::string& cbiName) {
-        return (cbi_lex_func) provide_func(cbiName, "lex");
+    inline cbi_lex_macro_func provide_lex_macro_func(const std::string& cbiName) {
+        return (cbi_lex_macro_func) provide_func(cbiName, "lexMacro");
+    }
+
+    /**
+     * a lex function type is searched in the symbols, if not found nullptr is returned
+     * otherwise the pointer to the lex function that can compile the tokens is provided
+     * @param structName is the container struct for which it was generated
+     */
+    inline cbi_parse_macro_func provide_parse_macro_func(const std::string& cbiName) {
+        return (cbi_parse_macro_func) provide_func(cbiName, "parseMacro");
     }
 
     /**

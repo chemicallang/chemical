@@ -431,8 +431,10 @@ ASTNode *StructDefinition::child(const std::string &name) {
         return node;
     } else if (!inherited.empty()) {
         for(auto& inherits : inherited) {
-            const auto thing = inherits->type->linked_node()->child(name);
-            if(thing) return thing;
+            if(inherits->specifier == AccessSpecifier::Public) {
+                const auto thing = inherits->type->linked_node()->child(name);
+                if (thing) return thing;
+            }
         }
     };
     return nullptr;

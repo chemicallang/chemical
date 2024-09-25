@@ -19,12 +19,13 @@ void handle_error(void *opaque, const char *msg){
 }
 
 CompilerBinder::CompilerBinder(std::string exe_path) : exe_path(std::move(exe_path)) {
-    auto& provider = interface_maps["SourceProvider"];
-    source_provider_symbol_map(provider);
-    auto& lexer = interface_maps["Lexer"];
-    lexer_symbol_map(lexer);
-    auto& context = interface_maps["BuildContext"];
-    build_context_symbol_map(context);
+    source_provider_symbol_map(interface_maps["SourceProvider"]);
+    lexer_symbol_map(interface_maps["Lexer"]);
+    build_context_symbol_map(interface_maps["BuildContext"]);
+    cst_token_symbol_map(interface_maps["CSTToken"]);
+    ast_builder_symbol_map(interface_maps["ASTBuilder"]);
+    ptr_vec_symbol_map(interface_maps["PtrVec"]);
+    cst_converter_symbol_map(interface_maps["CSTConverter"]);
 }
 
 void declare_func(FunctionDeclaration* func, TCCState* state, std::unordered_map<std::string, void*>& sym_map) {

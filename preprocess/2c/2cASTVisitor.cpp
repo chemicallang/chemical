@@ -2081,27 +2081,45 @@ void CTopLevelDeclarationVisitor::declare_struct(StructDefinition* def) {
     }
 }
 
+void early_declare_node(CTopLevelDeclarationVisitor& visitor, ASTNode* node) {
+    const auto node_kind = node->kind();
+    if (node_kind == ASTNodeKind::StructDecl) {
+        const auto def = node->as_struct_def_unsafe();
+        if(visitor.redefining || def->iterations_declared == 0) {
+            // declare inherited types
+            for(auto& inherit : def->inherited) {
+                auto in_node = inherit->type->get_direct_linked_node();
+                if(in_node) {
+                    early_declare_node(visitor, in_node);
+                }
+            }
+            // declare sub variables
+            for(auto& var : def->variables) {
+                auto sub_node = var.second->known_type()->get_direct_linked_node();
+                if(sub_node) {
+                    early_declare_node(visitor, sub_node);
+                }
+            }
+            visitor.declare_struct(def);
+            def->iterations_declared++;
+        }
+    } else if (node_kind == ASTNodeKind::VariantDecl) {
+        const auto def = node->as_variant_def_unsafe();
+        if(visitor.redefining || def->iterations_declared == 0) {
+            visitor.declare_variant(def);
+            def->iterations_declared++;
+        }
+    } else if (node_kind == ASTNodeKind::UnionDecl) {
+        // TODO this
+    }
+}
+
 void early_declare_gen_arg_structs(CTopLevelDeclarationVisitor& visitor, std::vector<GenericTypeParameter*>& gen_params) {
     for(auto& param : gen_params) {
         auto t = param->known_type();
         const auto node = t->get_direct_linked_node();
         if(node) {
-            const auto node_kind = node->kind();
-            if (node_kind == ASTNodeKind::StructDecl) {
-                const auto def = node->as_struct_def_unsafe();
-                if(visitor.redefining || def->iterations_declared == 0) {
-                    visitor.declare_struct(def);
-                    def->iterations_declared++;
-                }
-            } else if (node_kind == ASTNodeKind::VariantDecl) {
-                const auto def = node->as_variant_def_unsafe();
-                if(visitor.redefining || def->iterations_declared == 0) {
-                    visitor.declare_variant(def);
-                    def->iterations_declared++;
-                }
-            } else if (node_kind == ASTNodeKind::UnionDecl) {
-                // TODO this
-            }
+            early_declare_node(visitor, node);
         }
     }
 }

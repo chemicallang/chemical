@@ -32,7 +32,7 @@ public struct VecRef<T> : private PtrVec {
     }
 
     func size(&self) : size_t {
-        return size;
+        return _size();
     }
 
 }

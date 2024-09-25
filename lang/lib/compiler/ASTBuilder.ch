@@ -211,6 +211,10 @@ struct VarInitStatement : ASTNode {}
 
 struct Scope : ASTNode {}
 
+struct LoopASTNode : ASTNode {
+
+}
+
 struct DoWhileLoop : LoopASTNode {
 
     func get_body(&self) : VecRef<ASTNode>*;
@@ -224,10 +228,6 @@ struct EnumDeclaration : ASTNode {
 }
 
 struct EnumMember : ASTNode {}
-
-struct LoopASTNode : ASTNode {
-
-}
 
 struct ForLoop : LoopASTNode {
 

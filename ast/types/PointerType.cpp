@@ -15,6 +15,15 @@ ASTNode *PointerType::linked_node() {
     return type->linked_node();
 }
 
+bool PointerType::satisfies(BaseType *given) {
+    const auto pure = given->pure_type();
+    const auto pointer = pure->pointer_type();
+    if(pointer) {
+        return type->satisfies(pointer->type);
+    }
+    return false;
+}
+
 BaseType* PointerType::pure_type() {
     const auto pure_child = type->pure_type();
     if(pure_child && pure_child != type) {

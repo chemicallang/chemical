@@ -2,6 +2,7 @@
 
 #include "LinkedType.h"
 #include "ast/statements/Typealias.h"
+#include "StructType.h"
 #include "compiler/SymbolResolver.h"
 
 uint64_t LinkedType::byte_size(bool is64Bit) {
@@ -28,10 +29,18 @@ bool LinkedType::satisfies(ValueType value_type) {
     };
 }
 
-bool LinkedType::satisfies(BaseType *type) {
-    return linked->known_type()->satisfies(type);
-//    const auto value_type = linked->get_value_type();
-//    return value_type->satisfies(type);
+bool LinkedType::satisfies(BaseType *other) {
+    const auto other_kind = other->kind();
+    if(other_kind == BaseTypeKind::Linked) {
+        return linked == ((LinkedType*) other)->linked;
+    } else if(other_kind == BaseTypeKind::Struct) {
+        return linked == ((StructType*) other)->linked_node();
+    }
+    auto known = linked->known_type();
+    if(known != this) {
+        return known->satisfies(other);
+    }
+    return false;
 }
 
 void LinkedType::link(SymbolResolver &linker) {

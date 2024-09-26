@@ -96,9 +96,14 @@ llvm::Value* arg_value(
         FunctionCall* call,
         FunctionType* func_type,
         FunctionParam* func_param,
-        Value* value,
+        Value* value_ptr,
         int i
 ) {
+    auto implicit_constructor = func_param->type->implicit_constructor_for(gen.allocator, value_ptr);
+    if (implicit_constructor) {
+        value_ptr = call_with_arg(implicit_constructor, value_ptr, gen.allocator);
+    }
+    const auto value = value_ptr;
     llvm::Value* argValue = nullptr;
     if((func_param->type->get_direct_linked_struct() || func_param->type->get_direct_linked_variant()) && (value->reference() && value->value_type() == ValueType::Struct) && !(value->as_struct() || value->as_array_value() || value->as_variant_call())) {
         argValue = value->llvm_pointer(gen);
@@ -652,11 +657,11 @@ void FunctionCall::link_args_implicit_constructor(SymbolResolver &linker){
         if (param) {
             auto implicit_constructor = param->type->implicit_constructor_for(linker.allocator, values[i]);
             if (implicit_constructor) {
-                if(linker.preprocess) {
-                    values[i] = call_with_arg(implicit_constructor, std::move(values[i]), linker);
-                } else {
+//                if(linker.preprocess) {
+//                    values[i] = call_with_arg(implicit_constructor, values[i], linker);
+//                } else {
                     link_with_implicit_constructor(implicit_constructor, linker, values[i]);
-                }
+//                }
             }
         }
         i++;

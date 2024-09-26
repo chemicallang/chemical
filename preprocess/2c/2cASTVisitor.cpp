@@ -1832,6 +1832,24 @@ void CValueDeclarationVisitor::visit(ReturnStatement *stmt) {
     }
 
     CommonVisitor::visit(stmt);
+
+}
+
+void CValueDeclarationVisitor::visit(ArrayValue *arrayVal) {
+
+    const auto elem_type = arrayVal->element_type(visitor.allocator);
+    const auto def = elem_type->linked_struct_def();
+    if(def) {
+        for (auto& value : arrayVal->values) {
+            const auto implicit = def->implicit_constructor_func(visitor.allocator, value);
+            if (implicit) {
+                value = call_with_arg(implicit, value, visitor.allocator);
+            }
+        }
+    }
+
+    CommonVisitor::visit(arrayVal);
+
 }
 
 void declare_params(CValueDeclarationVisitor* value_visitor, std::vector<FunctionParam*>& params) {

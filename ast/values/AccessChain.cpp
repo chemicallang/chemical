@@ -43,23 +43,9 @@ bool AccessChain::link(SymbolResolver &linker, BaseType *expected_type, Value** 
             return false;
         }
         auto self_param = linker.current_func_type->get_self_param();
-        if (self_param) {
-            auto self_id = new VariableIdentifier(self_param->name, nullptr);
-            self_id->linked = self_param;
-            values.insert(values.begin(), self_id);
-        } else {
+        if (!self_param) {
             auto decl = linker.current_func_type->as_function();
-            if(decl && decl->has_annotation(AnnotationKind::Constructor) && !decl->has_annotation(AnnotationKind::CompTime)) {
-//                auto found = linker.find("this");
-//                if(found) {
-//                    auto self_id = new VariableIdentifier("this", nullptr);
-//                    self_id->linked = found;
-//                    values.insert(values.begin(), std::unique_ptr<ChainValue>(self_id));
-//                } else {
-//                    linker.error("couldn't find this in constructor for linking identifier '" + values[0]->representation() + "'", values[0].get());
-//                    return false;
-//                }
-            } else {
+            if(!decl || !decl->has_annotation(AnnotationKind::Constructor) && !decl->has_annotation(AnnotationKind::CompTime)) {
                 linker.error("couldn't link identifier '" + values[0]->representation() + "', because function doesn't take a self argument", values[0]);
                 return false;
             }

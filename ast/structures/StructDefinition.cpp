@@ -173,16 +173,26 @@ llvm::Type* StructMember::llvm_type(Codegen &gen) {
     return type->llvm_type(gen);
 }
 
+llvm::Value* child_of_self_ptr(Codegen& gen, BaseDefMember& member, llvm::Value* self_ptr) {
+    auto parent_struct = member.parent();
+    std::vector<llvm::Value*> idxList { gen.builder->getInt32(0) };
+    parent_struct->add_child_index(gen, idxList, member.name);
+    return gen.builder->CreateGEP(member.parent()->llvm_type(gen), self_ptr, idxList, "", gen.inbounds);
+}
+
 llvm::Value* BaseDefMember::llvm_pointer(Codegen &gen) {
     if(isAnyStructMember()) {
         const auto curr_func = gen.current_func_type->as_function();
         if(curr_func && curr_func->has_annotation(AnnotationKind::Constructor)) {
             // TODO hard coded the index for the constructor self param
             auto self_ptr = gen.current_function->getArg(0);
-            auto parent_struct = parent();
-            std::vector<llvm::Value*> idxList { gen.builder->getInt32(0) };
-            parent_struct->add_child_index(gen, idxList, name);
-            return gen.builder->CreateGEP(parent()->llvm_type(gen), self_ptr, idxList, "", gen.inbounds);
+            return child_of_self_ptr(gen, *this, self_ptr);
+        } else {
+            auto self_param = curr_func->get_self_param();
+            if(self_param) {
+                auto self_ptr = gen.current_function->getArg(self_param->calculate_c_or_llvm_index());
+                return child_of_self_ptr(gen, *this, self_ptr);
+            }
         }
     }
 #ifdef DEBUG

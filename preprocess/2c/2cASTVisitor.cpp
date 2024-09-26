@@ -3646,7 +3646,7 @@ void func_name_chain(ToCAstVisitor& visitor, std::vector<ChainValue*>& values, u
     access_chain(visitor, values, start, end, values.size());
 }
 
-void write_path_to_child(ToCAstVisitor& visitor, std::vector<int>& path, StructDefinition* def) {
+void write_path_to_child(ToCAstVisitor& visitor, std::vector<int>& path, ExtendableMembersContainerNode* def) {
     int i = 0;
     int last = (((int) path.size()) - 1);
     while(i < last) {
@@ -3659,30 +3659,50 @@ void write_path_to_child(ToCAstVisitor& visitor, std::vector<int>& path, StructD
     }
 }
 
+void write_path_to_member(ToCAstVisitor& visitor, ExtendableMembersContainerNode* member_def, BaseDefMember* member) {
+    // current member name member->name;
+    const auto mem = member_def->direct_variable(member->name);
+    if(!mem) {
+        std::vector<int> path;
+        path.reserve(5);
+        auto found = member_def->build_path_to_child(path, member->name);
+        if(found) {
+            write_path_to_child(visitor, path, member_def);
+        }
+    }
+}
+
 void chain_value_accept(ToCAstVisitor& visitor, ChainValue* previous, ChainValue* value) {
     const auto linked = value->linked_node();
-    if(previous) {
-        const auto prev_type = previous->get_pure_type(visitor.allocator);
-        const auto previous_def = prev_type->linked_struct_def();
-        if(previous_def) {
-            const auto id = value->as_identifier();
-            if (id) {
-                const auto member = id->linked_node()->as_base_def_member();
-                if (member) {
-                    // current member name member->name;
-                    const auto mem = previous_def->direct_variable(member->name);
-                    if(!mem) {
-                        std::vector<int> path;
-                        path.reserve(5);
-                        auto found = previous_def->build_path_to_child(path, member->name);
-                        if(found) {
-                            write_path_to_child(visitor, path, previous_def);
-                        }
+        const auto id = value->as_identifier();
+        if (id) {
+            const auto member = id->linked_node()->as_base_def_member();
+            if (member) {
+                if(previous) {
+                    // user wrote 'self.' before the member access
+                    const auto prev_type = previous->get_pure_type(visitor.allocator);
+                    const auto previous_def = prev_type->linked_struct_def();
+                    if (previous_def) {
+                        write_path_to_member(visitor, previous_def, member);
                     }
+                } else {
+                    // does not have 'self.', since 'a' is an identifier
+                    // when it is accepted it visits the identifier, which will determine the path to member and write it
+//                    auto self_param = visitor.current_func_type->get_self_param();
+//                    if(self_param) {
+//                        visitor.write(self_param->name);
+//                        visitor.write("->");
+//                    }
+//                    const auto parent = member->parent();
+//                    if(parent) {
+//                        const auto def = parent->create_value_type(visitor.allocator)->get_direct_linked_struct();
+//                        if(def) {
+//                            write_path_to_member(visitor, def, member);
+//                        }
+//                    }
                 }
             }
         }
-    }
     if(previous != nullptr && linked && linked->as_variant_case_var()) {
         const auto var = linked->as_variant_case_var();
         Value* expr = var->variant_case->switch_statement->expression;
@@ -4065,6 +4085,17 @@ void ToCAstVisitor::visit(VariableIdentifier *identifier) {
             const auto func = current_func_type->as_function();
             if (func && func->has_annotation(AnnotationKind::Constructor)) {
                 write("this->");
+            }
+            else if(func->parent_node) {
+                auto self_param = func->get_self_param();
+                if(self_param && func->parent_node->isMembersContainer()) {
+                    write(self_param->name);
+                    write("->");
+                }
+                auto ext_node = func->parent_node->as_extendable_members_container_node();
+                if(ext_node) {
+                    write_path_to_member(*this, ext_node, linked->as_base_def_member());
+                }
             }
         }
     } else if(linked_kind == ASTNodeKind::CapturedVariable) {

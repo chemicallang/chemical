@@ -71,8 +71,6 @@ public:
 
     void set_identifier_value(InterpretScope &scope, Value *rawValue, Operation op) override;
 
-    void prepend_self(SymbolResolver &linker, ChainValue*& value_ptr, const std::string& name, ASTNode* linked);
-
     bool link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type = nullptr) override;
 
     bool link(SymbolResolver &linker, ChainValue*& value_ptr, bool prepend);

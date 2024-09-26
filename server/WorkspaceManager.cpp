@@ -28,7 +28,7 @@
 
 #define DEBUG_REPLACE false
 
-WorkspaceManager::WorkspaceManager(std::string lsp_exe_path) : lsp_exe_path(std::move(lsp_exe_path)), binder() {
+WorkspaceManager::WorkspaceManager(std::string lsp_exe_path) : lsp_exe_path(std::move(lsp_exe_path)), binder(compiler_exe_path()) {
 
 }
 

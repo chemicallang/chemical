@@ -3,8 +3,8 @@
 #include "cst/base/CSTToken.h"
 #include "server/helpers/CSTSymbolResolver.h"
 #include "cst/utils/CSTUtils.h"
-#include "integration/ide/model/LexImportUnit.h"
-#include "integration/ide/model/LexResult.h"
+#include "integration/cbi/model/LexImportUnit.h"
+#include "integration/cbi/model/LexResult.h"
 #include "compiler/PrimitiveTypeMap.h"
 #include <iostream>
 

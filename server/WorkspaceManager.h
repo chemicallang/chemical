@@ -13,13 +13,15 @@
 #include "lexer/Lexi.h"
 #include "utils/lspfwd.h"
 #include <future>
-#include "integration/ide/model/LexResult.h"
-#include "integration/ide/model/ASTResult.h"
-#include "integration/ide/model/LexImportUnit.h"
-#include "integration/ide/model/ASTImportUnit.h"
-#include "integration/ide/model/ImportUnitCache.h"
+#include "integration/cbi/model/LexResult.h"
+#include "integration/cbi/model/ASTResult.h"
+#include "integration/cbi/model/LexImportUnit.h"
+#include "integration/cbi/model/ASTImportUnit.h"
+#include "integration/cbi/model/ImportUnitCache.h"
 
 class RemoteEndPoint;
+
+class GlobalInterpretScope;
 
 /**
  * Workspace manager is the operations manager for all IDE related operations
@@ -87,14 +89,14 @@ private:
     ImportUnitCache cache;
 
     /**
-     * the compiler binder to use in this entire process
-     */
-    CompilerBinder binder;
-
-    /**
      * the argv is the path to the lsp executable
      */
     std::string lsp_exe_path;
+
+    /**
+     * the compiler binder to use in this entire process
+     */
+    CompilerBinder binder;
 
     /**
      * publish_diagnostics is triggered when the client asks for semantic tokens
@@ -283,7 +285,12 @@ public:
      *
      * this will also cache the ASTResult and provide it back
      */
-    std::shared_ptr<ASTResult> get_ast(const std::string& path);
+    std::shared_ptr<ASTResult> get_ast(
+        const std::string& path,
+        GlobalInterpretScope& comptime_scope,
+        ASTAllocator& global_allocator,
+        ASTAllocator& local_allocator
+    );
 
     /**
      * just like the get_lexed above, but this supports C headers and files because

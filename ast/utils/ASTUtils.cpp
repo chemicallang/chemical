@@ -28,6 +28,20 @@ void evaluate_values(std::vector<Value*>& values, InterpretScope& scope) {
     }
 }
 
+Value* call_with_arg(FunctionDeclaration* decl, Value* arg, ASTAllocator& allocator) {
+    auto chain = new (allocator.allocate<AccessChain>()) AccessChain(nullptr, false, nullptr);
+    auto id = new (allocator.allocate<VariableIdentifier>()) VariableIdentifier(decl->name, nullptr);
+    id->linked = decl;
+    chain->values.emplace_back(id);
+    auto imp_call = new (allocator.allocate<FunctionCall>()) FunctionCall(std::vector<Value*> {}, nullptr);
+    imp_call->parent_val = chain->values[0];
+    imp_call->values.emplace_back(arg);
+//    auto& value_ptr = imp_call->values[0];
+//    value_ptr->link(resolver, value_ptr, imp_call->get_arg_type(0));
+    chain->values.emplace_back(imp_call);
+    return chain;
+}
+
 Value* call_with_arg(FunctionDeclaration* decl, Value* arg, SymbolResolver& resolver) {
     auto chain = new (resolver.allocator.allocate<AccessChain>()) AccessChain(nullptr, false, nullptr);
     auto id = new (resolver.allocator.allocate<VariableIdentifier>()) VariableIdentifier(decl->name, nullptr);

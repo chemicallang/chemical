@@ -12,6 +12,12 @@ void evaluate_values(std::vector<Value*>& values, InterpretScope& scope);
 
 /**
  * call the given function declaration with given argument
+ * doesn't link the value according to implicit constructor type
+ */
+Value* call_with_arg(FunctionDeclaration* decl, Value* arg, ASTAllocator& allocator);
+
+/**
+ * call the given function declaration with given argument
  */
 Value* call_with_arg(FunctionDeclaration* decl, Value* arg, SymbolResolver& resolver);
 

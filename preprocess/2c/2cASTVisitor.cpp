@@ -1757,10 +1757,6 @@ void func_call(ToCAstVisitor& visitor, FunctionCall* call, FunctionType* func_ty
 //    }
 }
 
-void CValueDeclarationVisitor::visit(VarInitStatement *init) {
-    CommonVisitor::visit(init);
-}
-
 void CValueDeclarationVisitor::visit(LambdaFunction *lamb) {
     CommonVisitor::visit(lamb);
     std::string lamb_name = "__chemda_";
@@ -1818,6 +1814,24 @@ void CValueDeclarationVisitor::visit(LambdaFunction *lamb) {
     scope(visitor, lamb->scope, lamb);
     visitor.destructor->destruct_jobs = std::move(previous_destruct_jobs);
     visitor.destructor->destroy_current_scope = prev_destroy_scope;
+}
+
+void CValueDeclarationVisitor::visit(ReturnStatement *stmt) {
+
+    const auto val = stmt->value;
+    if(val) {
+        const auto func_type = stmt->func_type;
+        // replace value with call to implicit constructor if there is one
+        const auto func = func_type->as_function();
+        if (!(func && func->has_annotation(AnnotationKind::Constructor))) {
+            const auto implicit = func_type->returnType->implicit_constructor_for(visitor.allocator, val);
+            if (implicit && implicit != func_type && implicit->parent_node != func_type->parent()) {
+                stmt->value = call_with_arg(implicit, val, visitor.allocator);
+            }
+        }
+    }
+
+    CommonVisitor::visit(stmt);
 }
 
 void declare_params(CValueDeclarationVisitor* value_visitor, std::vector<FunctionParam*>& params) {
@@ -2583,11 +2597,8 @@ void ToCAstVisitor::return_value(Value* val, BaseType* type) {
 }
 
 void ToCAstVisitor::visit(ReturnStatement *returnStatement) {
-    Value* val = nullptr;
-    if(returnStatement->value) {
-        val = returnStatement->value;
-    }
-    const auto return_type  =returnStatement->func_type->returnType;
+    const auto val = returnStatement->value;
+    const auto return_type  = returnStatement->func_type->returnType;
     std::string saved_into_temp_var;
     bool handle_return_after = true;
     if(val && !requires_return(val)) {

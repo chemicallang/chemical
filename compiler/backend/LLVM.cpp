@@ -62,6 +62,7 @@
 #include "ast/values/FunctionCall.h"
 #include "ast/values/ArrayValue.h"
 #include "ast/types/FunctionType.h"
+#include "ast/utils/ASTUtils.h"
 
 // -------------------- Types
 
@@ -780,6 +781,18 @@ void ContinueStatement::code_gen(Codegen &gen) {
 }
 
 void ReturnStatement::code_gen(Codegen &gen, Scope *scope, unsigned int index) {
+
+    if(value) {
+        // replace value with call to implicit constructor if there is one
+        const auto func = func_type->as_function();
+        if (!(func && func->has_annotation(AnnotationKind::Constructor))) {
+            const auto implicit = func_type->returnType->implicit_constructor_for(gen.allocator, value);
+            if (implicit && implicit != func_type && implicit->parent_node != func_type->parent()) {
+                value = call_with_arg(implicit, value, gen.allocator);
+            }
+        }
+    }
+
     // before destruction, get the return value
     llvm::Value* return_value = nullptr;
     if(value) {

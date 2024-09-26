@@ -11,17 +11,6 @@ uint64_t VariableIdentifier::byte_size(bool is64Bit) {
     return linked->byte_size(is64Bit);
 }
 
-void VariableIdentifier::prepend_self(SymbolResolver &linker, ChainValue*& value_ptr, const std::string& name, ASTNode* linked) {
-    // struct members / functions, don't need to be accessed like self.a or this.a
-    // because we'll append self and this automatically
-    auto self_id = new (linker.allocator.allocate<VariableIdentifier>()) VariableIdentifier(name, token);
-    self_id->linked = linked;
-    std::vector<ChainValue*> values;
-    values.emplace_back(self_id);
-    values.emplace_back(value_ptr);
-    value_ptr = new (linker.allocator.allocate<AccessChain>()) AccessChain(std::move(values), nullptr, false, token);
-}
-
 bool VariableIdentifier::link(SymbolResolver &linker, ChainValue*& value_ptr, bool prepend) {
     linked = linker.find(value);
     if(linked) {
@@ -32,18 +21,10 @@ bool VariableIdentifier::link(SymbolResolver &linker, ChainValue*& value_ptr, bo
             }
             auto self_param = linker.current_func_type->get_self_param();
             if(self_param) {
-                prepend_self(linker, value_ptr, self_param->name, self_param);
                 return true;
             } else {
                 auto decl = linker.current_func_type->as_function();
-                if(decl && decl->has_annotation(AnnotationKind::Constructor) && !decl->has_annotation(AnnotationKind::CompTime)) {
-//                    auto found = linker.find("this");
-//                    if(found) {
-//                        prepend_self(linker, value_ptr, "this", found);
-//                    } else {
-//                        linker.error("couldn't find this in constructor for linking identifier '" + value + "'", this);
-//                    }
-                } else {
+                if(!decl || !decl->has_annotation(AnnotationKind::Constructor) && !decl->has_annotation(AnnotationKind::CompTime)) {
                     linker.error("couldn't link identifier '" + value + "', because function doesn't take a self argument", this);
                 }
             }
@@ -232,6 +213,17 @@ VariableIdentifier* VariableIdentifier::copy(ASTAllocator& allocator) {
 }
 
 Value* VariableIdentifier::evaluated_value(InterpretScope &scope) {
+    auto linkedNode = linked_node();
+    if(linkedNode) {
+        const auto linked_kind = linkedNode->kind();
+        if(linked_kind == ASTNodeKind::StructMember) {
+            const auto found = scope.find_value("self");
+            if(found) {
+                return found->child(scope, value);
+            }
+            return nullptr;
+        }
+    }
     auto found = scope.find_value(value);
     if (found != nullptr) {
         return found;

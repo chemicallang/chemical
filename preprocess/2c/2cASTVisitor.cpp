@@ -1852,6 +1852,21 @@ void CValueDeclarationVisitor::visit(ArrayValue *arrayVal) {
 
 }
 
+void CValueDeclarationVisitor::visit(StructValue *structValue) {
+
+    for(auto& value : structValue->values) {
+        auto& value_ptr = value.second->value;
+        auto variable = structValue->linked_extendable()->variable_type_index(value.first);
+        auto implicit = variable.second->implicit_constructor_for(visitor.allocator, value_ptr);
+        if(implicit) {
+            value_ptr = call_with_arg(implicit, value_ptr, visitor.allocator);
+        }
+    }
+
+    CommonVisitor::visit(structValue);
+
+}
+
 void declare_params(CValueDeclarationVisitor* value_visitor, std::vector<FunctionParam*>& params) {
     for(auto& param : params) {
         if(param->type->kind() == BaseTypeKind::Function && param->type->function_type()->isCapturing) {

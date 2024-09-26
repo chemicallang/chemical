@@ -42,6 +42,8 @@ public:
 
     void visit(ArrayValue *arrayVal) override;
 
+    void visit(StructValue *structValue) override;
+
     void reset() override {
         aliases.clear();
     }

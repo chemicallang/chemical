@@ -42,6 +42,13 @@ void StructValue::initialize_alloca(llvm::Value *inst, Codegen& gen, BaseType* e
         if (variable.first == -1) {
             gen.error("couldn't get struct child " + value.first + " in definition with name " + definition->name, this);
         } else {
+
+            // replace values that call implicit constructors
+            auto implicit = variable.second->implicit_constructor_for(gen.allocator, value_ptr);
+            if(implicit) {
+                value_ptr = call_with_arg(implicit, value_ptr, gen.allocator);
+            }
+
             std::vector<llvm::Value*> idx{gen.builder->getInt32(0)};
             bool moved = false;
             if(value_ptr->is_ref_moved()) {
@@ -356,11 +363,7 @@ bool StructValue::link(SymbolResolver& linker, Value*& value_ptr, BaseType* expe
                 auto implicit = mem_type->implicit_constructor_for(linker.allocator, val_ptr);
                 current_func_type.mark_moved_value(linker.allocator, val.second->value, mem_type, linker);
                 if(implicit) {
-                    if(linker.preprocess) {
-                        val_ptr = call_with_arg(implicit, val_ptr, linker);
-                    } else {
-                        link_with_implicit_constructor(implicit, linker, val_ptr);
-                    }
+                    link_with_implicit_constructor(implicit, linker, val_ptr);
                 }
             }
         }

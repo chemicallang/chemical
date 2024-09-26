@@ -98,7 +98,7 @@ void WorkspaceManager::publish_diagnostics_complete(const std::string& path) {
     }
 
     // let's do symbol resolution
-    SymbolResolver resolver(is64Bit);
+    SymbolResolver resolver(ast_import_unit.comptime_scope, is64Bit, ast_import_unit.local_allocator, ast_import_unit.global_allocator);
     // do not preprocess it will replace stuff inside AST
     resolver.preprocess = false;
 

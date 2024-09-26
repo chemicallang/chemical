@@ -8,8 +8,8 @@
 #include <unordered_set>
 #include "cst/base/CSTToken.h"
 #include "cst/utils/CSTUtils.h"
-#include "integration/ide/model/LexImportUnit.h"
-#include "integration/ide/model/LexResult.h"
+#include "integration/cbi/model/LexImportUnit.h"
+#include "integration/cbi/model/LexResult.h"
 #include "Documentation.h"
 
 #define DEBUG_COMPLETION true

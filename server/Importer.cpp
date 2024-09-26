@@ -8,6 +8,7 @@
 #include "preprocess/ImportPathHandler.h"
 #include "stream/StringInputSource.h"
 #include "cst/base/CSTConverter.h"
+#include <memory>
 #include <sstream>
 #include <iostream>
 #include <filesystem>
@@ -131,7 +132,12 @@ std::shared_ptr<LexResult> WorkspaceManager::get_lexed(const std::string& path) 
     return result;
 }
 
-std::shared_ptr<ASTResult> WorkspaceManager::get_ast(const std::string& path) {
+std::shared_ptr<ASTResult> WorkspaceManager::get_ast(
+    const std::string& path,
+    GlobalInterpretScope& comptime_scope,
+    ASTAllocator& global_allocator,
+    ASTAllocator& local_allocator
+) {
     if(path.empty()) {
         std::cout << "[LSP] Empty path provided to get_lexed function " << std::endl;
         return nullptr;
@@ -150,8 +156,7 @@ std::shared_ptr<ASTResult> WorkspaceManager::get_ast(const std::string& path) {
 
     auto cst = get_lexed_no_lock(path);
     // TODO maybe we should avoid converting if LexResult has errors, to prevent exceptions
-    GlobalInterpretScope global_scope(nullptr, nullptr);
-    CSTConverter converter(path, is64Bit, "ide", global_scope);
+    CSTConverter converter(path, is64Bit, "ide", comptime_scope, binder, global_allocator, local_allocator);
     converter.convert(cst->unit.tokens);
     auto result = std::make_shared<ASTResult>(path, converter.take_unit(), std::move(converter.diagnostics));
 
@@ -258,12 +263,20 @@ LexImportUnit WorkspaceManager::get_import_unit(const std::string& abs_path, std
 }
 
 ASTImportUnit WorkspaceManager::get_ast_import_unit(const LexImportUnit& unit, std::atomic<bool>& cancel_flag) {
-    std::vector<std::shared_ptr<ASTResult>> files;
+    ASTImportUnit import_unit(
+            ASTAllocator(nullptr, 0, 50000),
+            ASTAllocator(nullptr, 0, 50000),
+            GlobalInterpretScope(nullptr, nullptr, import_unit.global_allocator),
+            {}
+    );
+    auto& global_alloc = import_unit.global_allocator;
+    auto& local_alloc = import_unit.local_allocator;
+    auto& files = import_unit.files;
     for(auto& file : unit.files) {
         if(cancel_flag.load()) break;
-        files.emplace_back(get_ast(file->abs_path));
+        files.emplace_back(get_ast(file->abs_path, import_unit.comptime_scope, global_alloc, local_alloc));
     }
-    return { std::move(files) };
+    return import_unit;
 }
 
 WorkspaceImportGraphImporter::WorkspaceImportGraphImporter(

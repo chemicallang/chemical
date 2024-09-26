@@ -2,7 +2,7 @@
 
 #include "DocumentLinksAnalyzer.h"
 #include "cst/utils/CSTUtils.h"
-#include "integration/ide/model/LexResult.h"
+#include "integration/cbi/model/LexResult.h"
 #include "LibLsp/lsp/lsDocumentUri.h"
 #include "LibLsp/lsp/AbsolutePath.h"
 #include "preprocess/ImportPathHandler.h"

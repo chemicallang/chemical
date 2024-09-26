@@ -1,7 +1,6 @@
 // Copyright (c) Qinetik 2024.
 
 #include "DocumentSymbolsAnalyzer.h"
-#include "integration/ide/model/LexResult.h"
 #include "cst/utils/CSTUtils.h"
 
 // TODO put nested symbols

@@ -2,8 +2,8 @@
 
 #include "HoverAnalyzer.h"
 #include "cst/utils/CSTUtils.h"
-#include "integration/ide/model/LexImportUnit.h"
-#include "integration/ide/model/LexResult.h"
+#include "integration/cbi/model/LexImportUnit.h"
+#include "integration/cbi/model/LexResult.h"
 #include <filesystem>
 #include "Documentation.h"
 

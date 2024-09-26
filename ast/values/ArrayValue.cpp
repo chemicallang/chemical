@@ -36,10 +36,20 @@ void ArrayValue::initialize_allocated(Codegen& gen, llvm::Value* allocated, Base
     std::vector<llvm::Value*> idxList;
     idxList.emplace_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*gen.ctx), 0));
     auto child_type = array_child(expected_type);
-    auto known_child_t = array_child_type(*this, gen.allocator);
+    auto known_child_t = element_type(gen.allocator);
+    const auto def = known_child_t->linked_struct_def();
     auto parent_type = llvm_type(gen);
     bool moved = false;
     for (size_t i = 0; i < values.size(); ++i) {
+
+        // replace values that are calls to implicit constructor
+        if(def) {
+            const auto implicit = def->implicit_constructor_func(gen.allocator, values[i]);
+            if(implicit) {
+                values[i] = call_with_arg(implicit, values[i], gen.allocator);
+            }
+        }
+
         auto& value = *values[i];
         moved = false;
         if(value.is_ref_moved()) {
@@ -165,11 +175,7 @@ bool ArrayValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expec
                 values[i]->link(linker, values[i], elemType);
                 const auto implicit = def->implicit_constructor_func(linker.allocator, values[i]);
                 if(implicit) {
-                    if(linker.preprocess) {
-                        values[i] = call_with_arg(implicit, values[i], linker);
-                    } else {
-                        link_with_implicit_constructor(implicit, linker, values[i]);
-                    }
+                    link_with_implicit_constructor(implicit, linker, values[i]);
                 }
                 i++;
             }

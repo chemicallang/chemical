@@ -40,6 +40,8 @@ public:
 
     void visit(ReturnStatement *stmt) override;
 
+    void visit(ArrayValue *arrayVal) override;
+
     void reset() override {
         aliases.clear();
     }

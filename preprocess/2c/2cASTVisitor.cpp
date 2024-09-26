@@ -1835,8 +1835,27 @@ void CValueDeclarationVisitor::visit(ReturnStatement *stmt) {
 
 }
 
+
+void CValueDeclarationVisitor::visit(FunctionCall *call) {
+    // replace all values that call implicit constructor with actual calls
+    const auto size = call->values.size();
+    auto func_type = call->function_type(visitor.allocator);
+    unsigned i = 0;
+    while(i < size) {
+        auto& value = call->values[i];
+        auto func_param = func_type->func_param_for_arg_at(i);
+        auto constructor = func_param->type->implicit_constructor_for(visitor.allocator, value);
+        if(constructor) {
+            value = call_with_arg(constructor, value, visitor.allocator);
+        }
+        i++;
+    }
+    CommonVisitor::visit(call);
+}
+
 void CValueDeclarationVisitor::visit(ArrayValue *arrayVal) {
 
+    // replace all values that call implicit constructors with actual calls
     const auto elem_type = arrayVal->element_type(visitor.allocator);
     const auto def = elem_type->linked_struct_def();
     if(def) {

@@ -31,6 +31,7 @@ bool ArrayType::satisfies(ASTAllocator& allocator, Value* value) {
     const auto arr_type = (ArrayType*) pure_type;
     if(array_size != -1 && arr_type->array_size != -1 && array_size != arr_type->array_size) return false;
     // can't get array element type, because array is empty probably and has no type declaration to lean on
+    // sometimes it links with the expected type which is the type provided by this array type
     if(!arr_type->elem_type) return true;
     return elem_type->satisfies(arr_type->elem_type);
 }

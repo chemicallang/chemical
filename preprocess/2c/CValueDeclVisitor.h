@@ -40,6 +40,8 @@ public:
 
     void visit(ReturnStatement *stmt) override;
 
+    void visit(FunctionCall *call) override;
+
     void visit(ArrayValue *arrayVal) override;
 
     void visit(StructValue *structValue) override;

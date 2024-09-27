@@ -390,7 +390,6 @@ bool StructValue::link(SymbolResolver& linker, Value*& value_ptr, BaseType* expe
         linker.error("couldn't find struct definition for struct name " + refType->representation(), this);
         return false;
     };
-    struct_type = create_type(linker.allocator);
     return true;
 }
 
@@ -526,22 +525,11 @@ StructValue *StructValue::copy(ASTAllocator& allocator) {
 }
 
 BaseType* StructValue::create_type(ASTAllocator& allocator) {
-    if(!definition) return nullptr;
-    if(!definition->generic_params.empty()) {
-       auto gen_type = new (allocator.allocate<GenericType>()) GenericType(new (allocator.allocate<LinkedType>()) LinkedType(definition->name, definition, nullptr), generic_iteration);
-       if(refType->kind() == BaseTypeKind::Generic) {
-           for (auto& type: generic_list()) {
-               gen_type->types.emplace_back(type->copy(allocator));
-           }
-       }
-       return gen_type;
-    } else {
-        return definition->known_type();
-    }
+    return refType;
 }
 
 BaseType* StructValue::known_type() {
-    return struct_type;
+    return refType;
 }
 
 Value *StructValue::child(InterpretScope &scope, const std::string &name) {

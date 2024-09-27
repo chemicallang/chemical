@@ -24,8 +24,6 @@ public:
 #ifdef COMPILER_BUILD
     llvm::AllocaInst* allocaInst = nullptr;
 #endif
-    // the type that represents this struct value, cached !
-    BaseType* struct_type = nullptr;
 
 //    StructValue(
 //            std::unique_ptr<Value> ref,

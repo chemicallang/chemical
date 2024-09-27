@@ -428,7 +428,7 @@ public:
         params.emplace_back(&valueParam);
     }
     Value *call(InterpretScope *call_scope, FunctionCall *call, Value *parent_val, bool evaluate_refs) override {
-        return call->values[0]->evaluated_value(*call_scope)->copy(call_scope->global->allocator);
+        return call->values[0]->evaluated_value(*call_scope)->copy(call_scope->allocator);
     }
 };
 

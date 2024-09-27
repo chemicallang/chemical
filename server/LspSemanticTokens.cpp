@@ -97,8 +97,19 @@ void WorkspaceManager::publish_diagnostics_complete(const std::string& path) {
         return;
     }
 
+    const unsigned int resolver_mem_size = 10000; // pre allocated 10kb on the stack
+    char resolver_memory[resolver_mem_size];
+    // all heap allocations will not be batched
+    ASTAllocator resolver_allocator(resolver_memory, resolver_mem_size, 0);
+
     // let's do symbol resolution
-    SymbolResolver resolver(ast_import_unit.comptime_scope, is64Bit, ast_import_unit.local_allocator, ast_import_unit.global_allocator);
+    SymbolResolver resolver(
+            ast_import_unit.comptime_scope,
+            is64Bit,
+            resolver_allocator,
+            nullptr,
+            nullptr
+    );
     // do not preprocess it will replace stuff inside AST
     resolver.preprocess = false;
 
@@ -111,6 +122,8 @@ void WorkspaceManager::publish_diagnostics_complete(const std::string& path) {
             return;
         }
         auto& file = ast_import_unit.files[i];
+        resolver.mod_allocator = &file->allocator;
+        resolver.ast_allocator = &file->allocator;
         resolver.resolve_file(file->unit.scope, file->abs_path);
         resolver.diagnostics.clear();
         i++;

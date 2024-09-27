@@ -224,7 +224,7 @@ Value* AccessChain::evaluated_value(InterpretScope &scope) {
     while(i < values.size()) {
         auto next = values[i]->evaluated_chain_value(scope, evaluated);
         if(next == nullptr && evaluated && evaluated->as_chain_value() && i == 1) {
-            auto c = (AccessChain*) copy(scope.global->allocator);
+            auto c = (AccessChain*) copy(scope.allocator);
             c->values[0] = (ChainValue*) evaluated;
             c->relink_parent();
             return c;

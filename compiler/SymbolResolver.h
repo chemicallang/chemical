@@ -133,7 +133,7 @@ public:
      * for non public structs and variant definition, since they are expected to be present
      * throughout module, we use this allocator
      */
-    ASTAllocator& mod_allocator;
+    ASTAllocator* mod_allocator;
 
     /**
      * this is the reference to file level allocator which is used
@@ -260,9 +260,9 @@ public:
     SymbolResolver(
         GlobalInterpretScope& global,
         bool is64Bit,
-        ASTAllocator& fileAllocator,
-        ASTAllocator& modAllocator,
-        ASTAllocator& astAllocator
+        ASTAllocator& allocator,
+        ASTAllocator* modAllocator,
+        ASTAllocator* astAllocator
     );
 
     /**

@@ -384,7 +384,7 @@ void StructDefinition::declare_top_level(SymbolResolver &linker) {
 }
 
 void StructDefinition::declare_and_link(SymbolResolver &linker) {
-    auto& allocator = specifier == AccessSpecifier::Public ? *linker.ast_allocator : linker.mod_allocator;
+    auto& allocator = specifier == AccessSpecifier::Public ? *linker.ast_allocator : *linker.mod_allocator;
     bool has_destructor = false;
     bool has_clear_fn = false;
     bool has_copy_fn = false;

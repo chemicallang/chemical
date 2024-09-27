@@ -154,7 +154,7 @@ bool LambdaFunction::link(SymbolResolver &linker, Value*& value_ptr, BaseType *e
         link_full(this, linker);
 
         // finding return type
-        auto found_return_type = find_return_type(linker.allocator, scope.nodes);
+        auto found_return_type = find_return_type(*linker.ast_allocator, scope.nodes);
         returnType = found_return_type;
 
     } else {
@@ -199,7 +199,7 @@ void copy_func_params_types(const std::vector<FunctionParam*>& from_params, std:
         }
         const auto to_param = to_params[start];
         if(!to_param->type) {
-            to_param->type = from_param->type->copy(resolver.allocator);
+            to_param->type = from_param->type->copy(*resolver.ast_allocator);
         } else if(!to_param->type->is_same(from_param->type)) {
             resolver.error("Lambda function param at index " + std::to_string(start) + " with type " + from_param->type->representation() + ", redeclared with type " + to_param->type->representation(), debug_value);
         }
@@ -211,7 +211,7 @@ bool LambdaFunction::link(SymbolResolver &linker, FunctionType* func_type) {
     link_given_params(linker, params);
     copy_func_params_types(func_type->params, params, linker, this);
     if(!returnType) {
-        returnType = func_type->returnType->copy(linker.allocator);
+        returnType = func_type->returnType->copy(*linker.ast_allocator);
     } else if(!returnType->is_same(func_type->returnType)) {
         linker.error("Lambda function type expected return type to be " + func_type->returnType->representation() + " but got lambda with return type " + returnType->representation(), (Value*) this);
     }

@@ -61,6 +61,10 @@ public:
      * module level allocator
      */
     ASTAllocator* mod_allocator;
+    /**
+     * file level allocator
+     */
+    ASTAllocator* file_allocator;
 
     /**
      * constructor

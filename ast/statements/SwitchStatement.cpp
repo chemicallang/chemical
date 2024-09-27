@@ -163,7 +163,7 @@ BaseType *SwitchStatement::known_type() {
 bool SwitchStatement::declare_and_link(SymbolResolver &linker, Value** value_ptr) {
     expression->link(linker, expression);
     VariantDefinition* variant_def = nullptr;
-    auto& allocator = linker.allocator;
+    auto& astAlloc = *linker.ast_allocator;
     const auto linked = expression->known_type()->linked_node();
     if(linked) {
         variant_def = linked->as_variant_def();
@@ -177,7 +177,7 @@ bool SwitchStatement::declare_and_link(SymbolResolver &linker, Value** value_ptr
         if(variant_def) {
             const auto chain = scope.first->as_access_chain();
             if (chain) {
-                scope.first = new (allocator.allocate<VariantCase>()) VariantCase(chain, linker, this, nullptr);
+                scope.first = new (astAlloc.allocate<VariantCase>()) VariantCase(chain, linker, this, nullptr);
             }
         }
         scope.first->link(linker, scope.first);

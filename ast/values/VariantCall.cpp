@@ -225,7 +225,7 @@ bool VariantCall::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expe
     if(!def->generic_params.empty()) {
         def->set_active_iteration(prev_itr);
     }
-    set_created_type(linker.allocator);
+    set_created_type(*linker.ast_allocator);
     return true;
 }
 

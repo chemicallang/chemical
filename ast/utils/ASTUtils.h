@@ -17,11 +17,6 @@ void evaluate_values(std::vector<Value*>& values, InterpretScope& scope);
 Value* call_with_arg(FunctionDeclaration* decl, Value* arg, ASTAllocator& allocator);
 
 /**
- * call the given function declaration with given argument
- */
-Value* call_with_arg(FunctionDeclaration* decl, Value* arg, SymbolResolver& resolver);
-
-/**
  * when the given value for the given expected type, has a constructor
  */
 void link_with_implicit_constructor(FunctionDeclaration* decl, SymbolResolver& resolver, Value* value);

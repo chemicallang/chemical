@@ -48,9 +48,10 @@ ASTProcessor::ASTProcessor(
         SymbolResolver* resolver,
         CompilerBinder& binder,
         ASTAllocator& job_allocator,
-        ASTAllocator& mod_allocator
+        ASTAllocator& mod_allocator,
+        ASTAllocator& file_allocator
 ) : options(options), resolver(resolver), path_handler(options->exe_path), binder(binder),
-    job_allocator(job_allocator), mod_allocator(mod_allocator) {
+    job_allocator(job_allocator), mod_allocator(mod_allocator), file_allocator(file_allocator) {
 }
 
 void put_import_graph(ImportPathHandler& handler, std::vector<IGFile>& files, const std::vector<std::string>& paths) {
@@ -269,7 +270,8 @@ ASTImportResultExt ASTProcessor::import_file(const FlatIGFile& file) {
                 resolver->comptime_scope,
                 binder,
                 job_allocator,
-                mod_allocator
+                mod_allocator,
+                file_allocator
         );
         converter.isCBIEnabled = options->isCBIEnabled;
         converter.convert(lexer.unit.tokens);

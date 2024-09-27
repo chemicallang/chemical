@@ -110,6 +110,11 @@ public:
     ASTAllocator& mod_allocator;
 
     /**
+     * File level allocator
+     */
+    ASTAllocator& file_allocator;
+
+    /**
      * constructor
      */
     ASTProcessor(
@@ -117,7 +122,8 @@ public:
             SymbolResolver* resolver,
             CompilerBinder& binder,
             ASTAllocator& job_allocator,
-            ASTAllocator& mod_allocator
+            ASTAllocator& mod_allocator,
+            ASTAllocator& file_allocator
     );
 
     /**

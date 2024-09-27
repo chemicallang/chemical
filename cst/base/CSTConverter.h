@@ -68,6 +68,12 @@ public:
     ASTAllocator& mod_allocator;
 
     /**
+     * the file level allocator is used for file level private things, that are disposed
+     * instantly after file has completed
+     */
+    ASTAllocator& file_allocator;
+
+    /**
      * local allocator is the allocator for a statement, type or value present inside a non generic,
      * non comptime or internal functions, these are not retained after module has generated code
      * we dispose these allocations after generating code for module
@@ -153,7 +159,8 @@ public:
         GlobalInterpretScope& scope,
         CompilerBinder& binder,
         ASTAllocator& global_allocator,
-        ASTAllocator& local_allocator
+        ASTAllocator& local_allocator,
+        ASTAllocator& file_allocator
     );
 
     /**

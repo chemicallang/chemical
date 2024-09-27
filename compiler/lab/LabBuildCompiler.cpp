@@ -149,14 +149,18 @@ int LabBuildCompiler::do_job_allocating(LabJob* job) {
     // allocating ast allocators
     const auto job_stack_size = 100000; // 100 kb will be allocated on the stack
     const auto mod_stack_size = 100000; // 100 kb will be allocated on the stack
+    const auto file_stack_size = 50000; // 50 kb will be allocated on the stack
     char job_stack_memory[job_stack_size];
     char mod_stack_memory[mod_stack_size];
+    char file_stack_memory[file_stack_size];
     ASTAllocator _job_allocator(job_stack_memory, job_stack_size, job_stack_size);
     ASTAllocator _mod_allocator(mod_stack_memory, mod_stack_size, mod_stack_size);
+    ASTAllocator _file_allocator(file_stack_memory, file_stack_size, file_stack_size);
 
     // the allocators that will be used for all jobs
     job_allocator = &_job_allocator;
     mod_allocator = &_mod_allocator;
+    file_allocator = &_file_allocator;
 
     return do_job(job);
 
@@ -221,18 +225,18 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
 
     // beginning
     std::stringstream output_ptr;
-    ToCAstVisitor c_visitor(global, &output_ptr, *mod_allocator, job_type == LabJobType::CBI ? &compiler_interfaces : nullptr);
+    ToCAstVisitor c_visitor(global, &output_ptr, *file_allocator, job_type == LabJobType::CBI ? &compiler_interfaces : nullptr);
     ToCBackendContext c_context(&c_visitor);
 
 #ifdef COMPILER_BUILD
-    ASTCompiler processor(options, &resolver, binder, *job_allocator, *mod_allocator);
-    Codegen gen(global, options->target_triple, options->exe_path, options->is64Bit, *mod_allocator, "");
+    ASTCompiler processor(options, &resolver, binder, *job_allocator, *mod_allocator, *file_allocator);
+    Codegen gen(global, options->target_triple, options->exe_path, options->is64Bit, *file_allocator, "");
     LLVMBackendContext g_context(&gen);
     CodegenEmitterOptions emitter_options;
     // set the context so compile time calls are sent to it
     global.backend_context = use_tcc ? (BackendContext*) &c_context : (BackendContext*) &g_context;
 #else
-    ASTProcessor processor(options, &resolver, binder, *job_allocator, *mod_allocator);
+    ASTProcessor processor(options, &resolver, binder, *job_allocator, *mod_allocator, *file_allocator);
     global.backend_context = (BackendContext*) &c_context;
 #endif
 
@@ -794,7 +798,8 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
         &lab_resolver,
         binder,
         lab_allocator,
-        lab_allocator // lab allocator is being used as a module level allocator,
+        lab_allocator, // lab allocator is being used as a module level allocator
+        lab_allocator
     );
 
     // get flat imports

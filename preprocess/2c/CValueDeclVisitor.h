@@ -42,6 +42,8 @@ public:
 
     void visit(FunctionCall *call) override;
 
+    void visit(VariantCall *call) override;
+
     void visit(ArrayValue *arrayVal) override;
 
     void visit(StructValue *structValue) override;

@@ -28,7 +28,15 @@ bool VariantCall::initialize_allocated(Codegen &gen, llvm::Value* allocated, llv
     auto data_ptr = gen.builder->CreateGEP(def_type, allocated, { gen.builder->getInt32(0), gen.builder->getInt32(1) }, "", gen.inbounds);
     const auto struct_type = member->llvm_type(gen);
     unsigned i = 0;
+    auto itr = member->values.begin();
     for(auto& value_ptr : values) {
+
+        // replace calls to implicit constructor with actual calls
+        auto implicit_constructor = itr->second->type->implicit_constructor_for(gen.allocator, value_ptr);
+        if (implicit_constructor) {
+            value_ptr = call_with_arg(implicit_constructor, value_ptr, gen.allocator);
+        }
+
         auto& value = *value_ptr;
         const auto param = member->values.begin() + i;
         auto& param_type = *param->second->type;
@@ -49,6 +57,7 @@ bool VariantCall::initialize_allocated(Codegen &gen, llvm::Value* allocated, llv
                                       &param_type);
             }
         }
+        itr++;
         i++;
     }
     return true;
@@ -182,11 +191,7 @@ void VariantCall::link_args_implicit_constructor(SymbolResolver &linker) {
     while(i < values.size()) {
         auto implicit_constructor = itr->second->type->implicit_constructor_for(linker.allocator, values[i]);
         if (implicit_constructor) {
-            if(linker.preprocess) {
-                values[i] = call_with_arg(implicit_constructor, std::move(values[i]), linker);
-            } else {
-                link_with_implicit_constructor(implicit_constructor, linker, values[i]);
-            }
+            link_with_implicit_constructor(implicit_constructor, linker, values[i]);
         }
         i++;
         itr++;

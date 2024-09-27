@@ -1853,6 +1853,19 @@ void CValueDeclarationVisitor::visit(FunctionCall *call) {
     CommonVisitor::visit(call);
 }
 
+void CValueDeclarationVisitor::visit(VariantCall *call) {
+    auto itr = call->get_member()->values.begin();
+    for(auto& value_ptr : call->values) {
+        // replace calls to implicit constructor with actual calls
+        auto implicit_constructor = itr->second->type->implicit_constructor_for(visitor.allocator, value_ptr);
+        if (implicit_constructor) {
+            value_ptr = call_with_arg(implicit_constructor, value_ptr, visitor.allocator);
+        }
+        itr++;
+    }
+    CommonVisitor::visit(call);
+}
+
 void CValueDeclarationVisitor::visit(ArrayValue *arrayVal) {
 
     // replace all values that call implicit constructors with actual calls

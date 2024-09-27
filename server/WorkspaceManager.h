@@ -201,7 +201,7 @@ public:
     /**
      * this will publish given diagnostics
      */
-    void publish_diagnostics(const std::string& path, bool async, const std::vector<std::vector<Diag>*>& diags);
+    void publish_diagnostics(const std::string& path, const std::vector<std::vector<Diag>*>& diags);
 
     /**
      * this will publish complete diagnostics for the given file, non asynchronously

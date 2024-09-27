@@ -270,7 +270,7 @@ LexImportUnit WorkspaceManager::get_import_unit(const std::string& abs_path, std
 }
 
 ASTImportUnit WorkspaceManager::get_ast_import_unit(const LexImportUnit& unit, std::atomic<bool>& cancel_flag) {
-    ASTImportUnit import_unit(ASTAllocator(nullptr, 0, 0), GlobalInterpretScope(nullptr, nullptr, import_unit.allocator), {});
+    ASTImportUnit import_unit;
     auto& files = import_unit.files;
     for(auto& file : unit.files) {
         if(cancel_flag.load()) break;

@@ -198,14 +198,6 @@ public:
     bool override_symbols = false;
 
     /**
-     * when preprocessing, during symbol resolution, after resolving certain values
-     * we process them (replace them / modify them) for example implicit constructors work this way
-     * when this flag is true, values that call implicit constructors are replaced with actual calls
-     * to implicit constructors
-     */
-    bool preprocess = true;
-
-    /**
      * is everything linking inside a safe context
      */
     bool safe_context = true;

@@ -25,4 +25,14 @@ struct ASTImportUnit {
      */
     std::vector<std::shared_ptr<ASTResult>> files;
 
+    /**
+     * constructor
+     */
+    ASTImportUnit(
+    ) : allocator(nullptr, 0, 0),
+        comptime_scope(nullptr, nullptr, allocator)
+    {
+
+    }
+
 };

@@ -281,4 +281,22 @@ int16_t BaseType::set_generic_iteration(int16_t iteration) {
     return -2;
 }
 
+PointerType *BaseType::pointer_type() {
+    auto k = kind();
+    if(k == BaseTypeKind::Pointer) {
+        return (PointerType*) this;
+    } else {
+        return nullptr;
+    }
+}
+
+FunctionType *BaseType::function_type() {
+    auto k = kind();
+    if(k == BaseTypeKind::Function) {
+        return (FunctionType*) this;
+    } else {
+        return nullptr;
+    }
+}
+
 BaseType::~BaseType() = default;

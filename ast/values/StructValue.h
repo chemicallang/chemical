@@ -15,8 +15,7 @@ private:
     ExtendableMembersContainerNode *definition = nullptr;
 public:
 
-    Value* ref;
-    std::vector<BaseType*> generic_list;
+    BaseType* refType;
     std::unordered_map<std::string, StructMemberInitializer*> values;
     int16_t generic_iteration = 0;
     CSTToken* token;
@@ -35,16 +34,15 @@ public:
 //    );
 
     StructValue(
-            Value* ref,
+            BaseType* refType,
             std::unordered_map<std::string, StructMemberInitializer*> values,
-            std::vector<BaseType*> generic_list,
             ExtendableMembersContainerNode *definition,
             CSTToken* token,
             ASTNode* parent
     );
 
     StructValue(
-            Value* ref,
+            BaseType* refType,
             std::unordered_map<std::string, StructMemberInitializer*> values,
             ExtendableMembersContainerNode *definition,
             InterpretScope &scope,
@@ -129,6 +127,10 @@ public:
     bool is_union() {
         return linked_kind == ASTNodeKind::UnionDecl || linked_kind == ASTNodeKind::UnnamedUnion;
     }
+
+    std::vector<BaseType*>& generic_list();
+
+    std::vector<BaseType*> create_generic_list();
 
 #ifdef COMPILER_BUILD
 

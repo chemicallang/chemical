@@ -425,7 +425,8 @@ int16_t MembersContainer::register_generic_args(SymbolResolver& resolver, std::v
 }
 
 int16_t MembersContainer::register_value(SymbolResolver& resolver, StructValue* value) {
-    return register_generic_args(resolver, value->generic_list);
+    auto gen_list = value->create_generic_list();
+    return register_generic_args(resolver, gen_list);
 }
 
 int16_t MembersContainer::total_generic_iterations() {

@@ -223,22 +223,21 @@ bool StructValue::add_child_index(Codegen &gen, std::vector<llvm::Value *> &inde
 //) : ref(std::move(ref)), values(std::move(values)), definition(definition) {}
 
 StructValue::StructValue(
-        Value* ref,
+        BaseType* refType,
         std::unordered_map<std::string, StructMemberInitializer*> values,
-        std::vector<BaseType*> generic_list,
         ExtendableMembersContainerNode *definition,
         CSTToken* token,
         ASTNode* parent_node
-) : ref(ref), values(std::move(values)), definition(definition), generic_list(std::move(generic_list)), token(token), parent_node(parent_node) {}
+) : refType(refType), values(std::move(values)), definition(definition), token(token), parent_node(parent_node) {}
 
 StructValue::StructValue(
-        Value* ref,
+        BaseType* refType,
         std::unordered_map<std::string, StructMemberInitializer*> values,
         ExtendableMembersContainerNode *definition,
         InterpretScope &scope,
         CSTToken* token,
         ASTNode* parent_node
-) : ref(ref), values(std::move(values)), definition(definition), token(token), parent_node(parent_node) {
+) : refType(refType), values(std::move(values)), definition(definition), token(token), parent_node(parent_node) {
     declare_default_values(this->values, scope);
 }
 
@@ -265,6 +264,19 @@ bool StructValue::allows_direct_init() {
             return true;
         default:
             return false;
+    }
+}
+
+std::vector<BaseType*>& StructValue::generic_list() {
+    return ((GenericType*) refType)->types;
+}
+
+std::vector<BaseType*> StructValue::create_generic_list() {
+    const auto k = refType->kind();
+    if(k == BaseTypeKind::Generic) {
+        return ((GenericType*) refType)->types;
+    } else {
+        return {};
     }
 }
 
@@ -310,8 +322,8 @@ bool StructValue::diagnose_missing_members_for_init(ASTDiagnoser& diagnoser) {
 }
 
 bool StructValue::link(SymbolResolver& linker, Value*& value_ptr, BaseType* expected_type) {
-    ref->link(linker, ref);
-    auto found = ref->linked_node();
+    refType->link(linker);
+    auto found = refType->linked_node();
     auto& current_func_type = *linker.current_func_type;
     if(found) {
         const auto k = found->kind();
@@ -327,7 +339,7 @@ bool StructValue::link(SymbolResolver& linker, Value*& value_ptr, BaseType* expe
             case ASTNodeKind::StructDecl:
                 break;
             default:
-                linker.error("given struct name is not a struct definition : " + ref->representation(), this);
+                linker.error("given struct name is not a struct definition : " + refType->representation(), this);
                 return false;
         }
         linked_kind = k;
@@ -337,8 +349,11 @@ bool StructValue::link(SymbolResolver& linker, Value*& value_ptr, BaseType* expe
             linker.error("struct value with a constructor cannot be initialized, name '" + definition->name + "' has a constructor", this);
             return false;
         }
-        for(auto& arg : generic_list) {
-            arg->link(linker);
+        auto refTypeKind = refType->kind();
+        if(refTypeKind == BaseTypeKind::Generic) {
+            for (auto& arg: generic_list()) {
+                arg->link(linker);
+            }
         }
         int16_t prev_itr;
         // setting active generic iteration
@@ -372,7 +387,7 @@ bool StructValue::link(SymbolResolver& linker, Value*& value_ptr, BaseType* expe
             definition->set_active_iteration(prev_itr);
         }
     } else {
-        linker.error("couldn't find struct definition for struct name " + ref->representation(), this);
+        linker.error("couldn't find struct definition for struct name " + refType->representation(), this);
         return false;
     };
     struct_type = create_type(linker.allocator);
@@ -429,7 +444,7 @@ Value *StructValue::call_member(
 ) {
     auto fn = definition->member(name);
     if (fn == nullptr) {
-        scope.error("couldn't find member function by name " + name + " in a struct by name " + ref->representation());
+        scope.error("couldn't find member function by name " + name + " in a struct by name " + refType->representation());
         return nullptr;
     }
 #ifdef DEBUG
@@ -455,9 +470,8 @@ void StructValue::set_child_value(const std::string &name, Value *value, Operati
 
 Value *StructValue::scope_value(InterpretScope &scope) {
     auto struct_value = new (scope.allocate<StructValue>()) StructValue(
-            ref->copy(scope.allocator),
+            refType->copy(scope.allocator),
             std::unordered_map<std::string, StructMemberInitializer*>(),
-            std::vector<BaseType*>(),
             definition,
             token,
             parent_node
@@ -472,10 +486,10 @@ Value *StructValue::scope_value(InterpretScope &scope) {
                 value.second->member
         );
     }
-    struct_value->generic_list.reserve(generic_list.size());
-    for(const auto& arg : generic_list) {
-        struct_value->generic_list.emplace_back(arg->copy(scope.allocator));
-    }
+//    struct_value->generic_list.reserve(generic_list.size());
+//    for(const auto& arg : generic_list) {
+//        struct_value->generic_list.emplace_back(arg->copy(scope.allocator));
+//    }
     return struct_value;
 }
 
@@ -494,9 +508,8 @@ void StructValue::declare_default_values(
 
 StructValue *StructValue::copy(ASTAllocator& allocator) {
     auto struct_value = new (allocator.allocate<StructValue>()) StructValue(
-        ref->copy(allocator),
+        refType->copy(allocator),
         std::unordered_map<std::string, StructMemberInitializer*>(),
-        std::vector<BaseType*>(),
         definition,
         token,
         parent_node
@@ -505,10 +518,10 @@ StructValue *StructValue::copy(ASTAllocator& allocator) {
     for (const auto &value: values) {
         struct_value->values[value.first] = value.second->copy(allocator);
     }
-    struct_value->generic_list.reserve(generic_list.size());
-    for(const auto& arg : generic_list) {
-        struct_value->generic_list.emplace_back(arg->copy(allocator));
-    }
+//    struct_value->generic_list.reserve(generic_list.size());
+//    for(const auto& arg : generic_list) {
+//        struct_value->generic_list.emplace_back(arg->copy(allocator));
+//    }
     return struct_value;
 }
 
@@ -516,8 +529,10 @@ BaseType* StructValue::create_type(ASTAllocator& allocator) {
     if(!definition) return nullptr;
     if(!definition->generic_params.empty()) {
        auto gen_type = new (allocator.allocate<GenericType>()) GenericType(new (allocator.allocate<LinkedType>()) LinkedType(definition->name, definition, nullptr), generic_iteration);
-       for(auto& type : generic_list) {
-           gen_type->types.emplace_back(type->copy(allocator));
+       if(refType->kind() == BaseTypeKind::Generic) {
+           for (auto& type: generic_list()) {
+               gen_type->types.emplace_back(type->copy(allocator));
+           }
        }
        return gen_type;
     } else {

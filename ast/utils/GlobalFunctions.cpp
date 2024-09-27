@@ -124,7 +124,6 @@ namespace InterpretVector {
         explicit InterpretVectorVal(InterpretVectorNode* node) : StructValue(
             nullptr,
             {},
-            {},
             (StructDefinition*) node,
             nullptr,
             nullptr

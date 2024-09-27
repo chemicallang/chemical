@@ -307,8 +307,8 @@ StructMemberInitializer* ASTBuildermake_struct_member_initializer(CSTConverter* 
     return new (converter->local<StructMemberInitializer>()) StructMemberInitializer(name->to_std_string(), value, structValue, nullptr);
 }
 
-StructValue* ASTBuildermake_struct_struct_value(CSTConverter* converter, Value* ref, ASTNode* parent_node, CSTToken* token) {
-    return new (converter->local<StructValue>()) StructValue(ref, {}, {}, nullptr, token, parent_node);
+StructValue* ASTBuildermake_struct_value(CSTConverter* converter, BaseType* ref, ASTNode* parent_node, CSTToken* token) {
+    return new (converter->local<StructValue>()) StructValue(ref, {}, nullptr, token, parent_node);
 }
 
 UBigIntValue* ASTBuildermake_ubigint_value(CSTConverter* converter, unsigned long long value, CSTToken* token) {
@@ -525,10 +525,6 @@ std::vector<CapturedVariable*>* LambdaFunctionget_capture_list(LambdaFunction* l
 
 std::vector<ASTNode*>* LambdaFunctionget_body(LambdaFunction* lambdaFunc) {
     return &lambdaFunc->scope.nodes;
-}
-
-std::vector<BaseType*>* StructValueget_generic_list(StructValue* structValue) {
-    return &structValue->generic_list;
 }
 
 void StructValueadd_value(StructValue* structValue, chem::string* name, StructMemberInitializer* initializer) {

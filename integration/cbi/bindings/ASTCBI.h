@@ -38,8 +38,6 @@ extern "C" {
 
     std::vector<ASTNode*>* LambdaFunctionget_body(LambdaFunction* lambdaFunc);
 
-    std::vector<BaseType*>* StructValueget_generic_list(StructValue* gen_type);
-
     void StructValueadd_value(StructValue* structValue, chem::string* name, StructMemberInitializer* initializer);
 
     void VariantCaseadd_variable(VariantCase* variantCase, VariantCaseVariable* variable);

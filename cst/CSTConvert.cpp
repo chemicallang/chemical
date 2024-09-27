@@ -1555,13 +1555,42 @@ void CSTConverter::visitNumberToken(NumberToken *token) {
     }
 }
 
+BaseType* convert_ref_value_to_type(CSTConverter* converter, Value* value, CSTToken* generic_token, ASTAllocator& allocator) {
+    LinkedType* linked_type;
+    const auto has_generic_list = generic_token->type() == LexTokenType::CompGenericList;
+    const auto id = value->as_identifier();
+    if(id) {
+        linked_type = new (allocator.allocate<LinkedType>()) LinkedType(id->value, id->token);
+    } else {
+        const auto chain = value->as_access_chain();
+        if(chain) {
+            linked_type = new (allocator.allocate<LinkedValueType>()) LinkedValueType(chain, chain->token);
+        } else {
+#ifdef DEBUG
+            throw std::runtime_error("unknown ref value type provided to convert_ref_value_to_type");
+#else
+            linked_type = nullptr;
+#endif
+        }
+    }
+    if(has_generic_list) {
+        const auto gen_type = new (allocator.allocate<GenericType>()) GenericType(linked_type);
+        converter->to_generic_arg_list(gen_type->types, generic_token);
+        return gen_type;
+    } else {
+        return linked_type;
+    }
+}
+
 void CSTConverter::visitStructValue(CSTToken* cst) {
     cst->tokens[0]->accept(this);
+    const auto generic_token = cst->tokens[1];
     const auto has_generic_list = cst->tokens[1]->type() == LexTokenType::CompGenericList;
-    auto struct_value = new (local<StructValue>()) StructValue(value(), {}, {}, nullptr, cst, parent_node);
-    if(has_generic_list) {
-        to_generic_arg_list(struct_value->generic_list, cst->tokens[1]);
-    }
+    auto& alloc = *local_allocator;
+    auto struct_value = new (alloc.allocate<StructValue>()) StructValue(
+            convert_ref_value_to_type(this, value(), generic_token, alloc),
+            {}, nullptr, cst, parent_node
+        );
     auto i = has_generic_list ? 3 : 2; // first identifier or '}'
     while (!is_char_op(cst->tokens[i], '}')) {
         auto id = str_token(cst->tokens[i]);

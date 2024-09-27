@@ -608,7 +608,7 @@ void RepresentationVisitor::visit(ArrayValue *arr) {
 }
 
 void RepresentationVisitor::visit(StructValue *val) {
-    val->ref->accept(this);
+    val->refType->accept(this);
     write(" {");
     indentation_level += 1;
     unsigned i = 0;

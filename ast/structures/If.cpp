@@ -215,18 +215,25 @@ bool IfStatement::compile_time_computable() {
     return true;
 }
 
-void IfStatement::link_conditions(SymbolResolver &linker) {
-    condition->link(linker, condition);
-    for(auto& cond : elseIfs) {
-        cond.first->link(linker, cond.first);
+bool IfStatement::link_conditions(SymbolResolver &linker) {
+    if(!condition->link(linker, condition)) {
+        return false;
     }
+    for (auto& cond: elseIfs) {
+        if(!cond.first->link(linker, cond.first)) {
+            return false;
+        }
+    }
+    return true;
 }
 
 void IfStatement::declare_top_level(SymbolResolver &linker) {
     if(is_top_level()) {
         is_computable = true;
-        link_conditions(linker);
-        auto condition_val = get_condition_const((InterpretScope&) linker.comptime_scope);
+        if(!link_conditions(linker)) {
+            resolved_condition = false;
+        }
+        auto condition_val = resolved_condition ? get_condition_const((InterpretScope&) linker.comptime_scope) : std::optional(false);
         if(condition_val.has_value()) {
             auto eval = get_evaluated_scope((InterpretScope&) linker.comptime_scope, &linker, condition_val.value());
             if (eval) {
@@ -244,7 +251,7 @@ void IfStatement::declare_and_link(SymbolResolver &linker, Value** value_ptr) {
     }
     if(is_computable || compile_time_computable()) {
         is_computable = true;
-        auto condition_val = get_condition_const((InterpretScope&) linker.comptime_scope);
+        auto condition_val = resolved_condition ? get_condition_const((InterpretScope&) linker.comptime_scope) : std::optional(false);
         if(condition_val.has_value()) {
             auto eval = get_evaluated_scope((InterpretScope&) linker.comptime_scope, &linker, condition_val.value());
             if (eval) {

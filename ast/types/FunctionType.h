@@ -142,10 +142,6 @@ public:
 
     bool satisfies(ValueType type) override;
 
-    FunctionType *function_type() override {
-        return this;
-    }
-
     [[nodiscard]]
     FunctionType* copy(ASTAllocator& allocator) const override;
 

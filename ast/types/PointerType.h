@@ -66,10 +66,6 @@ public:
         return other->kind() == kind() && static_cast<PointerType *>(other)->type->is_same(type);
     }
 
-    PointerType *pointer_type() override {
-        return this;
-    }
-
     [[nodiscard]]
     PointerType *copy(ASTAllocator& allocator) const override {
         return new(allocator.allocate<PointerType>()) PointerType(type->copy(allocator), token);

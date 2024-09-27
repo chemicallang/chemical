@@ -202,16 +202,12 @@ public:
     /**
      * pointer type returns pointer type
      */
-    virtual PointerType *pointer_type() {
-        return nullptr;
-    }
+    PointerType *pointer_type();
 
     /**
      * function type returns function type
      */
-    virtual FunctionType *function_type() {
-        return nullptr;
-    }
+    FunctionType *function_type();
 
     /**
      * representation is representation of the type

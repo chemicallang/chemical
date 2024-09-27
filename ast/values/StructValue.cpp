@@ -454,7 +454,7 @@ void StructValue::set_child_value(const std::string &name, Value *value, Operati
 }
 
 Value *StructValue::scope_value(InterpretScope &scope) {
-    auto struct_value = new StructValue(
+    auto struct_value = new (scope.allocate<StructValue>()) StructValue(
             ref->copy(scope.allocator),
             std::unordered_map<std::string, StructMemberInitializer*>(),
             std::vector<BaseType*>(),
@@ -465,7 +465,7 @@ Value *StructValue::scope_value(InterpretScope &scope) {
     declare_default_values(struct_value->values, scope);
     struct_value->values.reserve(values.size());
     for (const auto &value: values) {
-        struct_value->values[value.first] = new (scope.allocator.allocate<StructMemberInitializer>()) StructMemberInitializer(
+        struct_value->values[value.first] = new (scope.allocate<StructMemberInitializer>()) StructMemberInitializer(
                 value.first,
                 value.second->value->scope_value(scope),
                 struct_value,
@@ -493,7 +493,7 @@ void StructValue::declare_default_values(
 }
 
 StructValue *StructValue::copy(ASTAllocator& allocator) {
-    auto struct_value = new StructValue(
+    auto struct_value = new (allocator.allocate<StructValue>()) StructValue(
         ref->copy(allocator),
         std::unordered_map<std::string, StructMemberInitializer*>(),
         std::vector<BaseType*>(),

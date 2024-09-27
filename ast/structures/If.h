@@ -22,6 +22,7 @@ public:
     bool is_value;
     CSTToken* token;
     bool is_computable = false;
+    bool resolved_condition = true;
 
     /**
      * @brief Construct a new IfStatement object.
@@ -64,7 +65,7 @@ public:
 
     bool compile_time_computable() override;
 
-    void link_conditions(SymbolResolver &linker);
+    bool link_conditions(SymbolResolver &linker);
 
     bool is_top_level() {
         return !parent_node || parent_node->kind() == ASTNodeKind::NamespaceDecl;

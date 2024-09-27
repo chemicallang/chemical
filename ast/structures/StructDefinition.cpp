@@ -357,7 +357,7 @@ StructDefinition::StructDefinition(
         CSTToken* token,
         AccessSpecifier specifier
 ) : ExtendableMembersContainerNode(std::move(name)), parent_node(parent_node),
-    token(token), specifier(specifier), linked_type("", nullptr) {
+    token(token), specifier(specifier), linked_type(this->name, this, nullptr) {
 
 }
 
@@ -379,8 +379,6 @@ void StructDefinition::accept(Visitor *visitor) {
 }
 
 void StructDefinition::declare_top_level(SymbolResolver &linker) {
-    linked_type.type = name;
-    linked_type.linked = this;
     linker.declare_node(name, this, specifier, true);
     is_direct_init = has_annotation(AnnotationKind::DirectInit);
 }
@@ -462,7 +460,16 @@ VariablesContainer *StructDefinition::copy_container(ASTAllocator& allocator) {
 }
 
 BaseType* StructDefinition::create_value_type(ASTAllocator& allocator) {
-    return &linked_type;
+    const auto linked_type = new (allocator.allocate<LinkedType>()) LinkedType(name, this, nullptr);
+    if(generic_params.empty()) {
+        return linked_type;
+    } else {
+        const auto gen_type = new (allocator.allocate<GenericType>()) GenericType(linked_type, {});
+        for(auto& param : generic_params) {
+            gen_type->types.emplace_back(new (allocator.allocate<LinkedType>()) LinkedType(param->identifier, param, nullptr));
+        }
+        return gen_type;
+    }
 }
 
 BaseType* StructDefinition::known_type() {

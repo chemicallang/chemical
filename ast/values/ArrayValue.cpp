@@ -125,6 +125,7 @@ unsigned int ArrayValue::store_in_struct(
 
 llvm::Type *ArrayValue::llvm_elem_type(Codegen &gen) {
     llvm::Type *elementType;
+    const auto elemType = known_elem_type();
     if (elemType) {
         if(sizes.size() <= 1) {
             // get empty array type from the user
@@ -156,19 +157,34 @@ bool ArrayValue::add_child_index(Codegen &gen, std::vector<llvm::Value *> &index
 
 #endif
 
+ArrayValue::ArrayValue(
+    std::vector<Value*> values,
+    BaseType* elemType,
+    std::vector<unsigned int> sizes,
+    CSTToken* token,
+    ASTAllocator& allocator
+) : values(std::move(values)), sizes(std::move(sizes)), token(token) {
+    created_type = new (allocator.allocate<ArrayType>()) ArrayType(elemType, (int) array_size(), nullptr);
+    values.shrink_to_fit();
+}
+
+BaseType*& ArrayValue::known_elem_type() const {
+    return ((ArrayType*) created_type)->elem_type;
+}
+
 ASTNode *ArrayValue::linked_node() {
     if(values.empty()) {
-        return elemType->linked_node();
+        return known_elem_type()->linked_node();
     } else {
         return values[0]->linked_node();
     }
 }
 
 bool ArrayValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expected_type) {
+    auto& elemType = known_elem_type();
     if(elemType) {
         elemType->link(linker);
-        const auto elem_type = element_type(linker.allocator);
-        const auto def = elem_type->linked_struct_def();
+        const auto def = elemType->linked_struct_def();
         if(def) {
             unsigned i = 0;
             while (i < values.size()) {
@@ -179,7 +195,6 @@ bool ArrayValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expec
                 }
                 i++;
             }
-            created_type = create_type(linker.allocator);
             return true;
         }
     } else if(expected_type && expected_type->kind() == BaseTypeKind::Array) {
@@ -187,10 +202,7 @@ bool ArrayValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expec
         elemType = arr_type->elem_type;
     }
     auto& current_func_type = *linker.current_func_type;
-    BaseType* known_elem_type = nullptr;
-    if(elemType) {
-        known_elem_type = elemType;
-    }
+    auto& known_elem_type = elemType;
     unsigned i = 0;
     for(auto& value : values) {
         if(value->link(linker, value, nullptr) && i == 0 && !known_elem_type) {
@@ -201,21 +213,21 @@ bool ArrayValue::link(SymbolResolver &linker, Value*& value_ptr, BaseType *expec
         }
         i++;
     }
-    created_type = create_type(linker.allocator);
     return true;
 }
 
 BaseType* ArrayValue::element_type(ASTAllocator& allocator) const {
     BaseType *elementType;
-    if (elemType) {
+    auto& known = known_elem_type();
+    if (known) {
         if(sizes.size() <= 1) {
             // get empty array type from the user
-            elementType = elemType;
+            elementType = known;
         } else {
             unsigned int i = sizes.size() - 1;
             while(i > 0) {
                 if(i == sizes.size() - 1) {
-                    elementType = new (allocator.allocate<ArrayType>()) ArrayType(elemType, sizes[i], token);
+                    elementType = new (allocator.allocate<ArrayType>()) ArrayType(known, sizes[i], token);
                 } else {
                     elementType = new (allocator.allocate<ArrayType>()) ArrayType(elementType, sizes[i], token);
                 }

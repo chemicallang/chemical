@@ -16,7 +16,6 @@ class ArrayValue : public Value {
 public:
 
     std::vector<Value*> values;
-    BaseType* elemType;
     std::vector<unsigned int> sizes;
     CSTToken* token;
     BaseType* created_type;
@@ -28,12 +27,11 @@ public:
 
     ArrayValue(
             std::vector<Value*> values,
-            BaseType* type,
+            BaseType* elem_type,
             std::vector<unsigned int> sizes,
-            CSTToken* token
-    ) : values(std::move(values)), elemType(type), sizes(std::move(sizes)), token(token) {
-        values.shrink_to_fit();
-    }
+            CSTToken* token,
+            ASTAllocator& allocator
+    );
 
     CSTToken* cst_token() override {
         return token;
@@ -46,6 +44,8 @@ public:
     void accept(Visitor *visitor) override {
         visitor->visit(this);
     }
+
+    BaseType*& known_elem_type() const;
 
     bool primitive() override {
         return false;
@@ -133,10 +133,11 @@ public:
         }
         std::vector<unsigned int> copied_sizes(sizes.size());
         BaseType* copied_elem_type = nullptr;
+        const auto elemType = known_elem_type();
         if (elemType) {
             copied_elem_type = elemType->copy(allocator);
         }
-        return new (allocator.allocate<ArrayValue>()) ArrayValue(std::move(copied_values), copied_elem_type, sizes, token);
+        return new (allocator.allocate<ArrayValue>()) ArrayValue(std::move(copied_values), copied_elem_type, sizes, token, allocator);
     }
 
 };

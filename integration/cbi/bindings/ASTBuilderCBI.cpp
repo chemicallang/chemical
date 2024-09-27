@@ -208,7 +208,7 @@ AddrOfValue* ASTBuildermake_addr_of_value(CSTConverter* converter, Value* value,
 }
 
 ArrayValue* ASTBuildermake_array_value(CSTConverter* converter, BaseType* type, CSTToken* token) {
-    return new (converter->local<ArrayValue>()) ArrayValue({}, type, {}, token);
+    return new (converter->local<ArrayValue>()) ArrayValue({}, type, {}, token, *converter->local_allocator);
 }
 
 BigIntValue* ASTBuildermake_bigint_value(CSTConverter* converter, long long value, CSTToken* token) {

@@ -1612,7 +1612,15 @@ void CSTConverter::visitArrayValue(CSTToken* arrayValue) {
             }
         }
     }
-    put_value(new (local<ArrayValue>()) ArrayValue(std::move(arrValues), std::move(arrType), std::move(sizes), arrayValue), arrayValue);
+    put_value(new (local<ArrayValue>()) ArrayValue(
+            std::move(arrValues),
+            arrType,
+            std::move(sizes),
+            arrayValue,
+            *local_allocator
+        ),
+      arrayValue
+  );
 }
 
 std::vector<Value*> take_values(CSTConverter *converter, const std::function<void()> &visit) {

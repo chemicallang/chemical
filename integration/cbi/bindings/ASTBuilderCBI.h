@@ -225,7 +225,7 @@ extern "C" {
 
     StructMemberInitializer* ASTBuildermake_struct_member_initializer(CSTConverter* converter, chem::string* name, Value* value, StructValue* structValue);
 
-    StructValue* ASTBuildermake_struct_struct_value(CSTConverter* converter, Value* ref, ASTNode* parent_node, CSTToken* token);
+    StructValue* ASTBuildermake_struct_value(CSTConverter* converter, BaseType* ref, ASTNode* parent_node, CSTToken* token);
 
     UBigIntValue* ASTBuildermake_ubigint_value(CSTConverter* converter, unsigned long long value, CSTToken* token);
 

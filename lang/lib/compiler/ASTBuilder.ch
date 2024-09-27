@@ -151,8 +151,6 @@ struct StringValue : Value {}
 
 struct StructValue : Value {
 
-    func get_generic_list(&self) : VecRef<BaseType>*;
-
     func add_value(&self, name : string*, initializer : StructMemberInitializer*)
 
 }
@@ -444,7 +442,7 @@ public struct ASTBuilder {
 
     func make_struct_member_initializer(&self, name : string*, value : Value*, structValue : StructValue*) : StructMemberInitializer*
 
-    func make_struct_struct_value(&self, ref : Value*, parent_node : ASTNode*, token : CSTToken*) : StructValue*
+    func make_struct_value(&self, ref : BaseType*, parent_node : ASTNode*, token : CSTToken*) : StructValue*
 
     func make_ubigint_value(&self, value : ubigint, token : CSTToken*) : UBigIntValue*
 

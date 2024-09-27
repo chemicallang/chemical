@@ -462,7 +462,7 @@ bool FunctionType::mark_moved_value(
     if(expected_type_kind == BaseTypeKind::Reference) {
         return false;
     }
-    const auto type = value.known_type();
+    const auto type = value.create_type(allocator);
     const auto linked_node = type->get_direct_linked_node();
     if(!linked_node) {
         return false;

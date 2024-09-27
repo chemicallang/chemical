@@ -139,7 +139,8 @@ namespace InterpretVector {
             false,
             node,
             nullptr,
-            std::nullopt
+            std::nullopt,
+            AccessSpecifier::Public
     ) {
         annotations.emplace_back(AnnotationKind::Constructor);
     }
@@ -155,7 +156,8 @@ namespace InterpretVector {
         false,
         node,
         nullptr,
-        std::nullopt
+        std::nullopt,
+        AccessSpecifier::Public
     ), retType(nullptr), selfParam("self", &node->selfPointer, 0, nullptr, this, nullptr) {
         params.emplace_back(&selfParam);
     }
@@ -172,7 +174,8 @@ namespace InterpretVector {
             false,
             node,
             nullptr,
-            std::nullopt
+            std::nullopt,
+            AccessSpecifier::Public
     ), returnLinkedType("T", &node->typeParam, nullptr),
         selfParam("self", &node->selfPointer, 0, nullptr, this, nullptr), indexType(nullptr), indexParam("index", &indexType, 1, nullptr, this, nullptr)
     {
@@ -191,7 +194,8 @@ namespace InterpretVector {
             false,
             node,
             nullptr,
-            std::nullopt
+            std::nullopt,
+            AccessSpecifier::Public
     ), selfParam("self", &node->selfPointer, 0, nullptr, this, nullptr), returnVoidType(nullptr),
         valueType("T", &node->typeParam, nullptr), valueParam("value", &valueType, 1, nullptr, this, nullptr)
     {
@@ -211,7 +215,8 @@ namespace InterpretVector {
             false,
             node,
             nullptr,
-            std::nullopt
+            std::nullopt,
+            AccessSpecifier::Public
     ), selfParam("self", &node->selfPointer, 0, nullptr, this, nullptr), returnVoidType(nullptr),
         indexType(nullptr), indexParam("index", &indexType, 1, nullptr, this, nullptr)
     {
@@ -226,7 +231,7 @@ namespace InterpretVector {
 
     InterpretVectorNode::InterpretVectorNode(
         ASTNode* parent_node
-    ): StructDefinition("vector", parent_node, nullptr),
+    ): StructDefinition("vector", parent_node, nullptr, AccessSpecifier::Public),
         constructorFn(this), sizeFn(this), getFn(this), pushFn(this), removeFn(this),
         typeParam("T", nullptr, this, 0, nullptr),
         selfType("vector", this, nullptr), selfPointer(&selfType, nullptr)
@@ -257,7 +262,8 @@ public:
             true,
             parent_node,
             nullptr,
-            std::nullopt
+            std::nullopt,
+            AccessSpecifier::Public
     ), visitor(ostring),  returnType(nullptr) {
         visitor.interpret_representation = true;
     }
@@ -312,7 +318,8 @@ public:
             false,
             parent_node,
             nullptr,
-            std::nullopt
+            std::nullopt,
+            AccessSpecifier::Public
     ), returnType(nullptr), anyType(nullptr), valueParam("value", &anyType, 0, nullptr, this, nullptr) {
         annotations.emplace_back(AnnotationKind::CompTime);
         params.emplace_back(&valueParam);
@@ -380,7 +387,8 @@ public:
             true,
             parent_node,
             nullptr,
-            std::nullopt
+            std::nullopt,
+            AccessSpecifier::Public
     ), anyType(nullptr), valueParam("value", &anyType, 0, nullptr, this, nullptr) {
         annotations.emplace_back(AnnotationKind::CompTime);
         // having a generic type parameter T requires that user gives type during function call to wrap
@@ -409,7 +417,8 @@ public:
             true,
             parent_node,
             nullptr,
-            std::nullopt
+            std::nullopt,
+            AccessSpecifier::Public
     ), anyType(nullptr), valueParam("value", &anyType, 0, nullptr, this, nullptr) {
         annotations.emplace_back(AnnotationKind::CompTime);
         // having a generic type parameter T requires that user gives type during function call to wrap
@@ -437,7 +446,8 @@ public:
             true,
             parent_node,
             nullptr,
-            std::nullopt
+            std::nullopt,
+            AccessSpecifier::Public
     ), voidType(nullptr), ptrType(&voidType, nullptr) {
         annotations.emplace_back(AnnotationKind::CompTime);
     }
@@ -458,7 +468,8 @@ public:
             false,
             parent_node,
             nullptr,
-            std::nullopt
+            std::nullopt,
+            AccessSpecifier::Public
     ), stringType(nullptr) {
         annotations.emplace_back(AnnotationKind::CompTime);
     }
@@ -485,7 +496,8 @@ public:
             false,
             parent_node,
             nullptr,
-            std::nullopt
+            std::nullopt,
+            AccessSpecifier::Public
     ), boolType(nullptr) {
         annotations.emplace_back(AnnotationKind::CompTime);
     }
@@ -510,7 +522,8 @@ public:
             false,
             parent_node,
             nullptr,
-            std::nullopt
+            std::nullopt,
+            AccessSpecifier::Public
     ), boolType(nullptr) {
         annotations.emplace_back(AnnotationKind::CompTime);
     }
@@ -537,7 +550,8 @@ public:
             false,
             nullptr,
             nullptr,
-            std::nullopt
+            std::nullopt,
+            AccessSpecifier::Public
     ), boolType(nullptr), stringType(nullptr), valueParam("value", &stringType, 0, nullptr, this, nullptr) {
         annotations.emplace_back(AnnotationKind::CompTime);
         params.emplace_back(&valueParam);
@@ -569,7 +583,8 @@ public:
 //            false,
 //            parent_node,
 //            nullptr,
-//            std::nullopt
+//            std::nullopt,
+//              AccessSpecifier::Public
 //    ), boolType(nullptr), nullVal(nullptr), anyType(nullptr), ptrType(&anyType, nullptr),
 //        valueParam("value", &ptrType, 0, nullptr, this, nullptr)
 //    {
@@ -598,7 +613,8 @@ public:
 //            false,
 //            parent_node,
 //            nullptr,
-//            std::nullopt
+//            std::nullopt,
+//              AccessSpecifier::Public
 //    ), boolType(nullptr), nullVal(nullptr), anyType(nullptr), ptrType(&anyType, nullptr),
 //        valueParam("value", &ptrType, 0, nullptr, this, nullptr)
 //    {
@@ -625,7 +641,8 @@ public:
             false,
             parent_node,
             nullptr,
-            std::nullopt
+            std::nullopt,
+            AccessSpecifier::Public
     ), boolType(nullptr), stringType(nullptr), destValueParam("dest_value", &stringType, 0, nullptr, this, nullptr),
       sourceValueParam("source_value", &stringType, 1, nullptr, this, nullptr){
         annotations.emplace_back(AnnotationKind::CompTime);
@@ -650,7 +667,8 @@ public:
 //            std::make_unique<VoidType>(),
 //            false,
 //            parent_node,
-//            std::nullopt
+//            std::nullopt,
+//              AccessSpecifier::Public
 //    ) {
 //        annotations.emplace_back(AnnotationKind::CompTime);
 //        params.emplace_back(std::make_unique<FunctionParam>("ptr", std::make_unique<PointerType>(std::make_unique<VoidType>()), 0, std::nullopt, this));
@@ -676,7 +694,7 @@ public:
 
     CompilerNamespace(
 
-    ) : Namespace("compiler", nullptr, nullptr),
+    ) : Namespace("compiler", nullptr, nullptr, AccessSpecifier::Public),
         printFn(this), wrapFn(this), unwrapFn(this), retStructPtr(this), verFn(this),
         isTccFn(this), isClangFn(this), sizeFn(this), vectorNode(this)
     {
@@ -697,7 +715,7 @@ public:
 
     explicit MemNamespace(
         ASTNode* parent_node
-    ) : Namespace("mem", parent_node, nullptr), memCopyFn(this) {
+    ) : Namespace("mem", parent_node, nullptr, AccessSpecifier::Public), memCopyFn(this) {
         annotations.emplace_back(AnnotationKind::CompTime);
         nodes = { &memCopyFn };
     }
@@ -709,7 +727,7 @@ public:
 
     explicit PtrNamespace(
             ASTNode* parent_node
-    ) : Namespace("ptr", parent_node, nullptr) {
+    ) : Namespace("ptr", parent_node, nullptr, AccessSpecifier::Public) {
         annotations.emplace_back(AnnotationKind::CompTime);
         nodes = { };
     }
@@ -725,7 +743,7 @@ public:
 
     StdNamespace(
 
-    ) : Namespace("std", nullptr, nullptr),
+    ) : Namespace("std", nullptr, nullptr, AccessSpecifier::Public),
         memNamespace(this), ptrNamespace(this)
     {
         annotations.emplace_back(AnnotationKind::CompTime);

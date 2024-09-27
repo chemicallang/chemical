@@ -66,7 +66,7 @@ bool AccessChain::link(SymbolResolver &linker, BaseType *expected_type, Value** 
             if (linked && linked->as_variant_member()) {
                 auto& chain = *value_ptr;
                 const auto ac_chain = (AccessChain*) chain;
-                chain = new (linker.allocator.allocate<VariantCall>()) VariantCall(ac_chain, token);
+                chain = new (linker.ast_allocator->allocate<VariantCall>()) VariantCall(ac_chain, token);
                 ((std::unique_ptr<VariantCall>&) chain)->link(linker, chain, expected_type);
                 return true;
             }

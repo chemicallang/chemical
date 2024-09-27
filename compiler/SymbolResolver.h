@@ -120,15 +120,25 @@ public:
     GlobalInterpretScope& comptime_scope;
 
     /**
-     * global allocator reference is required to store
-     * global type usage for generics, so they are never disposed
-     * because they are used to generate implementations
+     * ast allocator is the pointer to the allocator that is used to allocate ast nodes
+     * globally, because it is used to store usages of generic types, so they are never disposed
+     * because usages of ast types are needed to generate implementations based on usage
+     * it is currently also being used to replace function calls with variant calls, and
+     * switch cases with variant cases, because these can only be replaced at symbol resolution
      */
-    ASTAllocator& global_allocator;
+    ASTAllocator* ast_allocator;
 
     /**
-     * this is the reference to module allocator which is used
-     * to allocate things during symbol resolution
+     * module level allocator, used to allocate things like destructors / move functions
+     * for non public structs and variant definition, since they are expected to be present
+     * throughout module, we use this allocator
+     */
+    ASTAllocator& mod_allocator;
+
+    /**
+     * this is the reference to file level allocator which is used
+     * to allocate things during symbol resolution, disposed right after this file has
+     * symbol resolved
      */
     ASTAllocator& allocator;
 
@@ -250,8 +260,9 @@ public:
     SymbolResolver(
         GlobalInterpretScope& global,
         bool is64Bit,
-        ASTAllocator& allocator,
-        ASTAllocator& global_allocator
+        ASTAllocator& fileAllocator,
+        ASTAllocator& modAllocator,
+        ASTAllocator& astAllocator
     );
 
     /**

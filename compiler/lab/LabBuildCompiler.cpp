@@ -211,7 +211,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
     GlobalInterpretScope global(nullptr, this, *job_allocator);
 
     // a new symbol resolver for every executable
-    SymbolResolver resolver(global, options->is64Bit, *job_allocator, *job_allocator);
+    SymbolResolver resolver(global, options->is64Bit, *file_allocator, *mod_allocator, *job_allocator);
 
     // shrinking visitor will shrink everything
     ShrinkingVisitor shrinker;
@@ -490,6 +490,9 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
                 }
                 processor.shrink_nodes(shrinker, std::move(result.unit), file);
             }
+
+            // clear everything we allocated using file allocator to make it re-usable
+            file_allocator->clear();
 
         }
 
@@ -783,7 +786,7 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
     GlobalInterpretScope global(nullptr, this, lab_allocator);
 
     // creating symbol resolver for build.lab files only
-    SymbolResolver lab_resolver(global, options->is64Bit, lab_allocator, lab_allocator);
+    SymbolResolver lab_resolver(global, options->is64Bit, lab_allocator, lab_allocator, lab_allocator);
 
     // the processor that does everything for build.lab files only
     ASTCompiler lab_processor(
@@ -962,14 +965,18 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
     // allocating ast allocators
     const auto job_stack_size = 100000; // 100 kb will be allocated on the stack
     const auto mod_stack_size = 100000; // 100 kb will be allocated on the stack
+    const auto file_stack_size = 50000; // 50 kb will be allocated on the stack
     char job_stack_memory[job_stack_size];
     char mod_stack_memory[mod_stack_size];
+    char file_stack_memory[file_stack_size];
     ASTAllocator _job_allocator(job_stack_memory, job_stack_size, job_stack_size);
     ASTAllocator _mod_allocator(mod_stack_memory, mod_stack_size, mod_stack_size);
+    ASTAllocator _file_allocator(file_stack_memory, file_stack_size, file_stack_size);
 
     // the allocators that will be used for all jobs
     job_allocator = &_job_allocator;
     mod_allocator = &_mod_allocator;
+    file_allocator = &_file_allocator;
 
     // generating outputs (executables)
     for(auto& exe : context.executables) {
@@ -984,6 +991,7 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
         // clearing all allocations done in all the allocators
         _job_allocator.clear();
         _mod_allocator.clear();
+        _file_allocator.clear();
 
     }
 

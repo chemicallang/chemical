@@ -287,9 +287,7 @@ public:
      */
     std::shared_ptr<ASTResult> get_ast(
         const std::string& path,
-        GlobalInterpretScope& comptime_scope,
-        ASTAllocator& global_allocator,
-        ASTAllocator& local_allocator
+        GlobalInterpretScope& comptime_scope
     );
 
     /**

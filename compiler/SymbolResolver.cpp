@@ -12,9 +12,9 @@ SymbolResolver::SymbolResolver(
     GlobalInterpretScope& global,
     bool is64Bit,
     ASTAllocator& fileAllocator,
-    ASTAllocator& modAllocator,
-    ASTAllocator& astAllocator
-) : comptime_scope(global), ASTDiagnoser(), is64Bit(is64Bit), allocator(fileAllocator), mod_allocator(modAllocator), ast_allocator(&astAllocator) {
+    ASTAllocator* modAllocator,
+    ASTAllocator* astAllocator
+) : comptime_scope(global), ASTDiagnoser(), is64Bit(is64Bit), allocator(fileAllocator), mod_allocator(modAllocator), ast_allocator(astAllocator) {
     current.emplace_back(new SymResScope(SymResScopeKind::Global));
     dispose_file_symbols.reserve(100);
     dispose_module_symbols.reserve(100);

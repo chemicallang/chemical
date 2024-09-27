@@ -215,7 +215,7 @@ int LabBuildCompiler::process_modules(LabJob* exe) {
     GlobalInterpretScope global(nullptr, this, *job_allocator);
 
     // a new symbol resolver for every executable
-    SymbolResolver resolver(global, options->is64Bit, *file_allocator, *mod_allocator, *job_allocator);
+    SymbolResolver resolver(global, options->is64Bit, *file_allocator, mod_allocator, job_allocator);
 
     // shrinking visitor will shrink everything
     ShrinkingVisitor shrinker;
@@ -790,7 +790,7 @@ int LabBuildCompiler::build_lab_file(LabBuildContext& context, const std::string
     GlobalInterpretScope global(nullptr, this, lab_allocator);
 
     // creating symbol resolver for build.lab files only
-    SymbolResolver lab_resolver(global, options->is64Bit, lab_allocator, lab_allocator, lab_allocator);
+    SymbolResolver lab_resolver(global, options->is64Bit, lab_allocator, &lab_allocator, &lab_allocator);
 
     // the processor that does everything for build.lab files only
     ASTCompiler lab_processor(

@@ -41,7 +41,15 @@ public:
     BackendContext* backend_context;
 
     /**
-     * all the allocations are done using this ast allocator
+     * Currently InterpretScope
+     * 1 - allocates everything on heap directly (no batch allocations) (bad thing)
+     * 2 - free's everything when it dies (good thing)
+     *
+     * If interpret scope must use this allocator, it must allocate memory with it
+     * but free it as soon as it is done, however we don't have such implementation
+     *
+     * DO NOT USE this allocator, as this allocator is just to share memory with interpret
+     * scope, interpret scope's allocate must always be called
      */
     ASTAllocator& allocator;
 

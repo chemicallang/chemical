@@ -23,6 +23,11 @@ struct ASTResult {
     ASTUnit unit;
 
     /**
+     * ast allocator here is used to allocate everything inside the ast unit
+     */
+    ASTAllocator allocator;
+
+    /**
      * diagnostics for this file
      */
     std::vector<Diag> diags;

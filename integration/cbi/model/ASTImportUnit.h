@@ -11,14 +11,9 @@ class ASTResult;
 struct ASTImportUnit {
 
     /**
-     * the global allocator responsible for all top level allocations in these files
+     * The allocator used for global interpret scope
      */
-    ASTAllocator global_allocator;
-
-    /**
-     * the local allocator responsible for all local allocations in these files
-     */
-    ASTAllocator local_allocator;
+    ASTAllocator allocator;
 
     /**
      * the global interpret scope is used for all these files

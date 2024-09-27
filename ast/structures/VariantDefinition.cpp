@@ -247,7 +247,7 @@ void VariantDefinition::declare_top_level(SymbolResolver &linker) {
 }
 
 void VariantDefinition::declare_and_link(SymbolResolver &linker) {
-    auto& allocator = specifier == AccessSpecifier::Public ? *linker.ast_allocator : linker.mod_allocator;
+    auto& allocator = specifier == AccessSpecifier::Public ? *linker.ast_allocator : *linker.mod_allocator;
     bool has_destructor = false;
     bool has_clear_fn = false;
     bool has_move_fn = false;

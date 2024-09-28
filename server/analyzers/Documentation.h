@@ -8,6 +8,15 @@ class LexResult;
 
 class CSTToken;
 
+
+/**
+ * responsible for putting the documentation of the given node into the given value
+ * @param current the file user is editing currently
+ * @param defined_in the file the given symbol is defined in
+ * @param ref_tok the token that is reference token, user is hovering at, or the ref token
+ */
+void markdown_documentation(std::string& value, LexResult* current, LexResult* defined_in, CSTToken* parent, CSTToken* ref_tok);
+
 /**
  * responsible for putting the documentation of the given node into the given value
  * @param current the file user is editing currently
@@ -15,7 +24,8 @@ class CSTToken;
  * @param parent the parent compound token of the symbol
  * @param linked the actual symbol / token for which documentation is to be added
  */
-void markdown_documentation(std::string& value, LexResult* current, LexResult* defined_in, CSTToken* parent, CSTToken* linked);
+[[deprecated]]
+void markdown_documentation_old(std::string& value, LexResult* current, LexResult* defined_in, CSTToken* parent, CSTToken* linked);
 
 /**
  * get a small detail of the given token, for user's representation

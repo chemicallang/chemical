@@ -238,7 +238,7 @@ CSTToken* CompletionItemAnalyzer::chain_before_caret(std::vector<CSTToken*> &tok
 #if defined DEBUG_COMPLETION && DEBUG_COMPLETION
             std::cout << "token before index : " + token->representation() << " type " << token->type_string() << " parent type " << parent->type_string() << std::endl;
 #endif
-            if(token->type() == LexTokenType::CompAccessChain) {
+            if(token->type() == LexTokenType::CompAccessChain || token->type() == LexTokenType::CompAccessChainNode) {
                 return (CSTToken*) token;
             }
             return nullptr;
@@ -454,6 +454,11 @@ bool put_children_of_ref(CompletionItemAnalyzer* analyzer, CSTToken* chain) {
             return put_children_of(analyzer, linked_node);
         }
     }
+#ifdef DEBUG
+    else {
+        std::cout << "chain doesn't have a ref any " << chain->representation() << std::endl;
+    }
+#endif
     return false;
 }
 

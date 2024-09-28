@@ -52,7 +52,72 @@ FuncSignature get_signature(CSTToken* func) {
     return {std::move(params), ret};
 }
 
-void small_detail_of(std::string& value, CSTToken* linked) {
+void small_detail_of(std::string& value, ASTNode* linked) {
+    switch (linked->kind()) {
+        case ASTNodeKind::FunctionDecl:
+        case ASTNodeKind::ExtensionFunctionDecl: {
+            auto& signature = *linked->as_function_unsafe();
+            value += "(";
+            unsigned i = 0;
+            while (i < signature.params.size()) {
+                auto& param = *signature.params[i];
+                if (param.type) {
+                    value += param.name;
+                    value += " : ";
+                    value += param.type->representation();
+                } else if (param.name == "self") {
+                    value += "&self";
+                }
+                if (i != signature.params.size() - 1) {
+                    value += ", ";
+                }
+                i++;
+            }
+            value += ')';
+            if (signature.returnType) {
+                value += " : ";
+                value += signature.returnType->representation();
+            }
+            break;
+        }
+        case ASTNodeKind::EnumDecl:
+            value += "enum ";
+            break;
+        case ASTNodeKind::StructDecl:
+            value += "struct ";
+            break;
+        case ASTNodeKind::UnionDecl:
+            value += "union ";
+            break;
+        case ASTNodeKind::UnnamedStruct:
+            value += "struct";
+            break;
+        case ASTNodeKind::UnnamedUnion:
+            value += "union";
+            break;
+        case ASTNodeKind::InterfaceDecl:
+            value += "interface ";
+            break;
+        case ASTNodeKind::VarInitStmt:{
+            const auto init = linked->as_var_init_unsafe();
+            if (init->type) {
+                value += init->type->representation();
+            }
+            break;
+        }
+        case ASTNodeKind::TypealiasStmt: {
+            const auto alias = linked->as_typealias_unsafe();
+            if(alias->actual_type) {
+                value += alias->actual_type->representation();
+            }
+            break;
+        }
+        default:
+            break;
+    }
+}
+
+void small_detail_of_old(std::string& value, CSTToken* linked) {
     switch (linked->type()) {
         case LexTokenType::CompFunction: {
             auto signature = get_signature(linked->as_compound());
@@ -105,12 +170,7 @@ void small_detail_of(std::string& value, CSTToken* linked) {
     }
 }
 
-void markdown_documentation(std::string& value, LexResult* current, LexResult* defined_in, CSTToken* parent_tok, CSTToken* ref_tok) {
-    const auto linked_any = ref_tok->any;
-    const auto linked_node = linked_any->get_ref_linked_node();
-    if(!linked_node) {
-        return;
-    }
+void markdown_documentation(std::string& value, LexResult* current, LexResult* defined_in, ASTNode* linked_node) {
     const auto linked_kind = linked_node->kind();
     const auto parent = linked_node->parent();
     bool parent_handled = false;
@@ -259,102 +319,110 @@ void markdown_documentation(std::string& value, LexResult* current, LexResult* d
     }
 }
 
-void markdown_documentation_old(std::string& value, LexResult* current, LexResult* defined_in, CSTToken* parent, CSTToken* linked) {
-    bool parent_handled = false;
-    if (defined_in && defined_in != current) {
-        auto relative_path = std::filesystem::relative(
-                std::filesystem::path(defined_in->abs_path),
-                std::filesystem::path(current->abs_path).parent_path()
-        );
-        value += "**Defined in** : " + relative_path.string() + "\n";
+void markdown_documentation(std::string& value, LexResult* current, LexResult* defined_in, ASTAny* ref_any) {
+    const auto linked = ref_any->get_ref_linked_node();
+    if(!linked) {
+        return;
     }
-    if (parent && parent->type() == LexTokenType::CompEnumDecl && linked->type() != LexTokenType::CompEnumDecl) {
-        value += "```typescript\n";
-        value += "enum " + enum_name(parent);
-        value += "\n```\n";
-        value += "```typescript\n";
-        value += enum_name(parent);
-        value += ".";
-        linked->append_representation(value);
-        value += "\n```";
-        parent_handled = true;
-    }
-    switch (linked->type()) {
-        case LexTokenType::CompFunction: {
-            value += "```typescript\n";
-            value += "func " + func_name(linked->as_compound());
-            auto signature = get_signature(linked->as_compound());
-            value += '(';
-            unsigned i = 0;
-            FuncParam *param;
-            while (i < signature.params.size()) {
-                param = &signature.params[i];
-                if (param->type) {
-                    value += param->name;
-                    value += " : ";
-                    param->type->append_representation(value);
-                } else if (param->name == "self") {
-                    value += "&self";
-                }
-                if (i != signature.params.size() - 1) {
-                    value += ", ";
-                }
-                i++;
-            }
-            value += ')';
-            if (signature.returnType) {
-                value += " : ";
-                signature.returnType->append_representation(value);
-            }
-            value += "\n```";
-            break;
-        }
-        case LexTokenType::CompEnumDecl:
-            value += "```typescript\n";
-            value += "enum " + enum_name(linked->as_compound());
-            value += "\n```";
-            break;
-        case LexTokenType::CompStructDef:
-            value += "```c\n";
-            value += "struct " + struct_name(linked->as_compound());
-            value += "\n```";
-            break;
-        case LexTokenType::CompInterface:
-            value += "```typescript\n";
-            value += "interface " + interface_name(linked);
-            value += "\n```";
-            break;
-        case LexTokenType::CompVarInit:
-            value += "```typescript\n";
-            value += "var " + var_init_identifier(linked);
-            if (is_char_op(linked->tokens[2], ':')) {
-                value += " : ";
-                linked->tokens[3]->append_representation(value);
-            } else {
-                // TODO get type by value
-            }
-            value += "\n```";
-            break;
-        case LexTokenType::CompFunctionParam:
-            value += "```typescript\n";
-            value += param_name(linked);
-            value += "\n```";
-            value += "\nfunction parameter";
-            break;
-        case LexTokenType::CompTypealias:
-            value += "```typescript\n";
-            value += "typealias " + typealias_name(linked->as_compound());
-            value += " = ";
-            linked->as_compound()->tokens[3]->append_representation(value);
-            value += "\n```";
-            break;
-        default:
-            if (!parent_handled) {
-                value += "don't know what it is";
-            }
-            break;
-    }
+    markdown_documentation(value, current, defined_in, linked);
 }
+
+//void markdown_documentation_old(std::string& value, LexResult* current, LexResult* defined_in, CSTToken* parent, CSTToken* linked) {
+//    bool parent_handled = false;
+//    if (defined_in && defined_in != current) {
+//        auto relative_path = std::filesystem::relative(
+//                std::filesystem::path(defined_in->abs_path),
+//                std::filesystem::path(current->abs_path).parent_path()
+//        );
+//        value += "**Defined in** : " + relative_path.string() + "\n";
+//    }
+//    if (parent && parent->type() == LexTokenType::CompEnumDecl && linked->type() != LexTokenType::CompEnumDecl) {
+//        value += "```typescript\n";
+//        value += "enum " + enum_name(parent);
+//        value += "\n```\n";
+//        value += "```typescript\n";
+//        value += enum_name(parent);
+//        value += ".";
+//        linked->append_representation(value);
+//        value += "\n```";
+//        parent_handled = true;
+//    }
+//    switch (linked->type()) {
+//        case LexTokenType::CompFunction: {
+//            value += "```typescript\n";
+//            value += "func " + func_name(linked->as_compound());
+//            auto signature = get_signature(linked->as_compound());
+//            value += '(';
+//            unsigned i = 0;
+//            FuncParam *param;
+//            while (i < signature.params.size()) {
+//                param = &signature.params[i];
+//                if (param->type) {
+//                    value += param->name;
+//                    value += " : ";
+//                    param->type->append_representation(value);
+//                } else if (param->name == "self") {
+//                    value += "&self";
+//                }
+//                if (i != signature.params.size() - 1) {
+//                    value += ", ";
+//                }
+//                i++;
+//            }
+//            value += ')';
+//            if (signature.returnType) {
+//                value += " : ";
+//                signature.returnType->append_representation(value);
+//            }
+//            value += "\n```";
+//            break;
+//        }
+//        case LexTokenType::CompEnumDecl:
+//            value += "```typescript\n";
+//            value += "enum " + enum_name(linked->as_compound());
+//            value += "\n```";
+//            break;
+//        case LexTokenType::CompStructDef:
+//            value += "```c\n";
+//            value += "struct " + struct_name(linked->as_compound());
+//            value += "\n```";
+//            break;
+//        case LexTokenType::CompInterface:
+//            value += "```typescript\n";
+//            value += "interface " + interface_name(linked);
+//            value += "\n```";
+//            break;
+//        case LexTokenType::CompVarInit:
+//            value += "```typescript\n";
+//            value += "var " + var_init_identifier(linked);
+//            if (is_char_op(linked->tokens[2], ':')) {
+//                value += " : ";
+//                linked->tokens[3]->append_representation(value);
+//            } else {
+//                // TODO get type by value
+//            }
+//            value += "\n```";
+//            break;
+//        case LexTokenType::CompFunctionParam:
+//            value += "```typescript\n";
+//            value += param_name(linked);
+//            value += "\n```";
+//            value += "\nfunction parameter";
+//            break;
+//        case LexTokenType::CompTypealias:
+//            value += "```typescript\n";
+//            value += "typealias " + typealias_name(linked->as_compound());
+//            value += " = ";
+//            linked->as_compound()->tokens[3]->append_representation(value);
+//            value += "\n```";
+//            break;
+//        default:
+//            if (!parent_handled) {
+//                value += "don't know what it is";
+//            }
+//            break;
+//    }
+//}
 
 std::string HoverAnalyzer::markdown_hover(LexImportUnit *unit) {
     auto file = unit->files[unit->files.size() - 1];
@@ -366,7 +434,8 @@ std::string HoverAnalyzer::markdown_hover(LexImportUnit *unit) {
                 const auto linked = ref_linked->cst_token();
                 if(linked) {
                     auto parent = find_token_parent(unit, linked);
-                    markdown_documentation(value, file.get(), parent.first, parent.second.first, token);
+                    // parent.second.first is the parent token of the linked token
+                    markdown_documentation(value, file.get(), parent.first, token);
                 } else {
                     value += "couldn't get the linked token";
                 }

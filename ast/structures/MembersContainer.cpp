@@ -249,7 +249,7 @@ void MembersContainer::declare_and_link_no_scope(SymbolResolver &linker) {
     }
     for(auto& inherits : inherited) {
         inherits->type->link(linker);
-        const auto def = inherits->type->linked_node()->as_members_container();
+        const auto def = inherits->type->get_members_container();
         if(def) {
             declare_inherited_members(def, linker);
         }

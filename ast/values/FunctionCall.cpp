@@ -894,7 +894,7 @@ BaseType* FunctionCall::create_type(ASTAllocator& allocator) {
     auto func_type = function_type(allocator);
     auto pure_type = func_type->returnType->pure_type();
     if(prev_itr >= -1) safe_linked_func()->set_active_iteration(prev_itr);
-    return pure_type->copy(allocator);
+    return pure_type;
 }
 
 //std::unique_ptr<BaseType> FunctionCall::create_type(std::vector<ChainValue*>& chain, unsigned int index) {

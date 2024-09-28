@@ -47,9 +47,9 @@ public:
     void put(CSTToken* token, unsigned int tokenType, unsigned int tokenModifiers = 0);
 
     /**
-     * given token will be put as the given type
+     * will automatically determine the token type based on token
      */
-    void put_as_type(CSTToken* token, LexTokenType type);
+    void put_auto(CSTToken* token);
 
     // Visitors
 
@@ -64,6 +64,18 @@ public:
     void visitCompoundCommon(CSTToken* compound) override;
 
     // Compound Visitors
+
+    void visitVariableToken(CSTToken *token) override {
+        put_auto(token);
+    }
+
+    void visitTypeToken(CSTToken *token) override {
+        put_auto(token);
+    }
+
+    void visitIdentifierToken(CSTToken *token) override {
+        put_auto(token);
+    }
 
     void visitVarInit(CSTToken* varInit) override;
 
@@ -96,8 +108,6 @@ public:
     void visitBoolToken(CSTToken *token) override;
 
     void visitNullToken(CSTToken *token) override;
-
-    void visitVariableToken(CSTToken *token) override;
 
     void visitAccessChain(CSTToken *accessChain) override;
 

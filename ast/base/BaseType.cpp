@@ -219,6 +219,11 @@ StructDefinition* BaseType::get_direct_linked_struct(BaseTypeKind k) {
     return ref_node ? ref_node->as_struct_def() : nullptr;
 }
 
+InterfaceDefinition* BaseType::get_direct_linked_interface(BaseTypeKind k) {
+    const auto ref_node = get_direct_linked_node(k);
+    return ref_node ? ref_node->as_interface_def() : nullptr;
+}
+
 StructDefinition* BaseType::get_ref_or_linked_struct(BaseTypeKind k) {
     const auto node = get_ref_or_linked_node(k);
     return node ? node->as_struct_def() : nullptr;

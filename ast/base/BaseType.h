@@ -311,6 +311,11 @@ public:
     StructDefinition* get_direct_linked_struct(BaseTypeKind k);
 
     /**
+     * get direct linked interface from the following type
+     */
+    InterfaceDefinition* get_direct_linked_interface(BaseTypeKind k);
+
+    /**
      * get direct or referenced struct, this means either the type should be Struct or Struct&
      */
     StructDefinition* get_ref_or_linked_struct(BaseTypeKind k);

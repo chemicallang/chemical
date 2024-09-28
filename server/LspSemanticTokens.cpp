@@ -19,9 +19,7 @@
 td_semanticTokens_full::response WorkspaceManager::get_semantic_tokens_full(const lsDocumentUri& uri) {
     auto abs_path = canonical(uri.GetAbsolutePath().path);
     // first we collect all the diagnostics, this will symbol resolve everything till the last file
-    // notification will be sent async
-    std::atomic<bool> diags_cancel(false);
-    publish_diagnostics_complete(abs_path, true, diags_cancel);
+    publish_diagnostics_complete_async(abs_path, std::launch::deferred, true, true);
     // the file we are collecting tokens for, has been symbol resolved by publish diagnostics
     // so now tokens contain references to the ast anys
     auto toks = get_semantic_tokens(abs_path);
@@ -179,7 +177,35 @@ void WorkspaceManager::publish_diagnostics_complete(
 
 }
 
-void WorkspaceManager::publish_diagnostics_complete_async(std::string path) {
+template<typename TaskLambda>
+void WorkspaceManager::queued_single_invocation(
+        std::mutex& task_mutex,
+        std::future<void>& task,
+        std::atomic<bool>& cancel_flag,
+        const TaskLambda& lambda
+) {
+
+    std::lock_guard<std::mutex> lock(task_mutex);
+
+    // Signal the current task to cancel if it's running
+    if (task.valid()) {
+        cancel_flag.store(true);
+        task.wait();  // Ensure the previous task has completed before launching a new one
+    }
+
+    // Reset the cancel flag for the new task
+    cancel_flag.store(false);
+
+    task = std::async(std::launch::async, lambda);
+
+}
+
+void WorkspaceManager::publish_diagnostics_complete_async(
+    const std::string& path,
+    std::launch launch_policy,
+    bool notify_async,
+    bool do_synchronous
+) {
 
     std::lock_guard<std::mutex> lock(publish_diagnostics_mutex);
 
@@ -192,9 +218,13 @@ void WorkspaceManager::publish_diagnostics_complete_async(std::string path) {
     // Reset the cancel flag for the new task
     publish_diagnostics_cancel_flag.store(false);
 
-    publish_diagnostics_task = std::async(std::launch::async, [path, this] {
-        publish_diagnostics_complete(path, false, publish_diagnostics_cancel_flag);
+    publish_diagnostics_task = std::async(launch_policy, [path, this, notify_async] {
+        publish_diagnostics_complete(path, notify_async, publish_diagnostics_cancel_flag);
     });
+
+    if(do_synchronous) {
+        publish_diagnostics_task.wait();
+    }
 
 }
 

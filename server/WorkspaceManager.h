@@ -225,9 +225,25 @@ public:
     );
 
     /**
-     * this will publish complete diagnostics for the given file, asynchronously
+     * after the first invocation, every other invocation is queued
      */
-    void publish_diagnostics_complete_async(std::string path);
+    template<typename TaskLambda>
+    void queued_single_invocation(
+        std::mutex& task_mutex,
+        std::future<void>& task,
+        std::atomic<bool>& cancel_flag,
+        const TaskLambda& lambda
+    );
+
+    /**
+     * will publish diagnostics
+     */
+    void publish_diagnostics_complete_async(
+        const std::string& path,
+        std::launch launch_policy,
+        bool notify_async,
+        bool do_synchronous
+    );
 
     /**
      * check if lex import unit has errors

@@ -273,7 +273,7 @@ void MembersContainer::declare_and_link(SymbolResolver &linker) {
 
 void MembersContainer::register_use_to_inherited_interfaces(StructDefinition* definition) {
     for(auto& inherits : inherited) {
-        const auto interface = inherits->type->linked_node()->as_interface_def();
+        const auto interface = inherits->type->linked_interface_def();
         if(interface) {
             interface->register_use(definition);
             interface->register_use_to_inherited_interfaces(definition);
@@ -356,24 +356,28 @@ FunctionDeclaration *MembersContainer::direct_child_function(const std::string& 
 std::pair<ASTNode*, FunctionDeclaration*> MembersContainer::get_overriding_info(FunctionDeclaration* function) {
     if(inherited.empty()) return { nullptr, nullptr };
     for(auto& inherits : inherited) {
-        const auto interface = inherits->type->linked_node()->as_interface_def();
-        if(interface) {
-            const auto child_func = interface->direct_child_function(function->name);
-            if(child_func) {
-                return { interface, child_func };
-            } else {
-                continue;
-            }
-        }
-        const auto struct_def = inherits->type->linked_node()->as_struct_def();
-        if(struct_def) {
-            const auto child_func = struct_def->direct_child_function(function->name);
-            if(child_func) {
-                return {struct_def, child_func};
-            } else {
-                const auto info = struct_def->get_overriding_info(function);
-                if(info.first) {
-                    return info;
+        auto& type = *inherits->type;
+        const auto linked_node = type.get_direct_linked_node();
+        if(linked_node) {
+            const auto linked_node_kind = linked_node->kind();
+            if (linked_node_kind == ASTNodeKind::InterfaceDecl) {
+                const auto interface = linked_node->as_interface_def_unsafe();
+                const auto child_func = interface->direct_child_function(function->name);
+                if (child_func) {
+                    return {interface, child_func};
+                } else {
+                    continue;
+                }
+            } else if (linked_node_kind == ASTNodeKind::StructDecl) {
+                const auto struct_def = linked_node->as_struct_def_unsafe();
+                const auto child_func = struct_def->direct_child_function(function->name);
+                if (child_func) {
+                    return {struct_def, child_func};
+                } else {
+                    const auto info = struct_def->get_overriding_info(function);
+                    if (info.first) {
+                        return info;
+                    }
                 }
             }
         }

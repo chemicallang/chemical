@@ -8,6 +8,7 @@
 #include <unordered_set>
 #include "cst/base/CSTToken.h"
 #include "cst/utils/CSTUtils.h"
+#include "ast/base/ASTNode.h"
 
 #define DEBUG false
 
@@ -31,26 +32,89 @@ void SemanticTokensAnalyzer::visitCommon(CSTToken *token) {
     throw std::runtime_error("[SemanticTokensAnalyzer] VISIT_COMMON called ! It shouldn't have when it's overridden");
 }
 
-void SemanticTokensAnalyzer::visitLexTokenCommon(CSTToken *token) {
+void SemanticTokensAnalyzer::put_auto(CSTToken* token) {
     switch (token->type()) {
         case LexTokenType::Keyword:
             put(token, SemanticTokenType::ls_keyword);
-            break;
+            return;
         case LexTokenType::Variable:
         case LexTokenType::Identifier:
-            put(token, SemanticTokenType::ls_variable);
-            break;
         case LexTokenType::Type:
-            put(token, SemanticTokenType::ls_type);
-            break;
+            if(token->any) {
+                const auto linked = token->any->get_ref_linked_node();
+                if(linked) {
+                    const auto linked_kind = linked->kind();
+                    switch(linked_kind) {
+                        case ASTNodeKind::FunctionParam:
+                        case ASTNodeKind::VariantMemberParam:
+                        case ASTNodeKind::ExtensionFuncReceiver:
+                            put(token, SemanticTokenType::ls_parameter);
+                            return;
+                        case ASTNodeKind::GenericTypeParam:
+                            put(token, SemanticTokenType::ls_typeParameter);
+                            return;
+                        case ASTNodeKind::StructDecl:
+                        case ASTNodeKind::UnnamedStruct:
+                        case ASTNodeKind::UnionDecl:
+                        case ASTNodeKind::UnnamedUnion:
+                        case ASTNodeKind::VariantDecl:
+                            put(token, SemanticTokenType::ls_struct);
+                            return;
+                        case ASTNodeKind::EnumDecl:
+                            put(token, SemanticTokenType::ls_enum);
+                            return;
+                        case ASTNodeKind::EnumMember:
+                            put(token, SemanticTokenType::ls_enumMember);
+                            return;
+                        case ASTNodeKind::NamespaceDecl:
+                            put(token, SemanticTokenType::ls_namespace);
+                            return;
+                        case ASTNodeKind::InterfaceDecl:
+                            put(token, SemanticTokenType::ls_interface);
+                            return;
+                        case ASTNodeKind::ExtensionFunctionDecl:
+                        case ASTNodeKind::FunctionDecl: {
+                            const auto parent = linked->parent();
+                            if(parent) {
+                                const auto parent_kind = parent->kind();
+                                if(parent_kind == ASTNodeKind::VariantDecl || parent_kind == ASTNodeKind::StructDecl || parent_kind == ASTNodeKind::UnionDecl) {
+                                    put(token, SemanticTokenType::ls_method);
+                                    return;
+                                }
+                            }
+                            put(token, SemanticTokenType::ls_function);
+                            return;
+                        }
+                        case ASTNodeKind::VarInitStmt:
+                            put(token, SemanticTokenType::ls_variable);
+                            return;
+                        case ASTNodeKind::TypealiasStmt:
+                            put(token, SemanticTokenType::ls_type);
+                            return;
+                        default:
+                            break;
+                    }
+                }
+            }
+            if(token->type() == LexTokenType::Type) {
+                put(token, SemanticTokenType::ls_type);
+            } else {
+                put(token, SemanticTokenType::ls_variable);
+            }
+            return;
         default:
             std::string s;
             token->append_representation(s);
             std::cerr << "[SemanticTokensAnalyzer] : Token with representation " << s
                       << " and type " << token->type_string()
-                      << " called visit common, has been appended as a comment token" << std::endl;
+                      << " called put_auto, has been appended as a comment token" << std::endl;
             put(token, SemanticTokenType::ls_comment);
+            return;
     }
+}
+
+void SemanticTokensAnalyzer::visitLexTokenCommon(CSTToken *token) {
+    put_auto(token);
 }
 
 void SemanticTokensAnalyzer::visit(std::vector<CSTToken*> &tokens, unsigned start, unsigned end) {
@@ -95,38 +159,14 @@ void SemanticTokensAnalyzer::visitVarInit(CSTToken* varInit) {
 }
 
 void SemanticTokensAnalyzer::visitFunction(CSTToken* function) {
-    unsigned i = 1;
-
-    auto spec = specifier_token(function->tokens[0]);
-    if(spec.has_value()) {
-        // set at name, extension or generic params list
-        i += 1;
-    }
-
-    const auto& gen_token = function->tokens[i];
-    const auto is_generic = gen_token->type() == LexTokenType::CompGenericParamsList;
-
-    if(is_generic) {
-        i += 1;
-    }
-
-    const auto extension_start = i;
-    const auto is_extension = is_char_op(function->tokens[i], '(');
-
-    if(is_extension) {
-        i += 3;
-    }
-
+    auto i = func_name_index(function);
     unsigned j = 0;
     while(j < i) {
         function->tokens[j]->accept(this);
         j++;
     }
-
     auto& name_token = function->tokens[i];
-
     put(name_token, SemanticTokenType::ls_function);
-
     visit(function->tokens, i + 1);
 
 };
@@ -237,52 +277,11 @@ void SemanticTokensAnalyzer::visitStringToken(CSTToken *token) {
     put(token, SemanticTokenType::ls_string);
 };
 
-void SemanticTokensAnalyzer::put_as_type(CSTToken* token, LexTokenType type) {
-    switch(type) {
-        case LexTokenType::CompStructDef:
-            put(token, SemanticTokenType::ls_struct);
-            return;
-        case LexTokenType::CompInterface:
-            put(token, SemanticTokenType::ls_interface);
-            return;
-        case LexTokenType::CompEnumDecl:
-            put(token, SemanticTokenType::ls_enum);
-            return;
-        case LexTokenType::CompFunction:
-            put(token, SemanticTokenType::ls_function);
-            return;
-        default:
-            put(token, SemanticTokenType::ls_variable);
-            return;
-    }
-}
-
-void SemanticTokensAnalyzer::visitVariableToken(CSTToken *token) {
-    if(token->linked) {
-        put_as_type(token, token->linked->type());
-    } else {
-        put(token, SemanticTokenType::ls_variable);
-    }
-}
-
 void SemanticTokensAnalyzer::visitAccessChain(CSTToken *chain) {
-    chain->tokens[0]->accept(this);
-    if(chain->tokens.size() == 1) return;
-    unsigned i = 1;
-    CSTToken* parent = chain->tokens[0]->as_ref()->linked;
-    CSTToken* token;
-    while(i < chain->tokens.size()) {
-        token = chain->tokens[i];
-        if(token->type() == LexTokenType::Variable) {
-            if(parent && parent->type() == LexTokenType::CompEnumDecl) {
-                put(token, SemanticTokenType::ls_enumMember);
-            } else {
-                token->accept(this);
-            }
-            parent = token->as_ref()->linked;
-        } else {
-            token->accept(this);
-        }
+    unsigned i = 0;
+    const auto size = chain->tokens.size();
+    while(i < size) {
+        chain->tokens[i]->accept(this);
         i++;
     }
 }

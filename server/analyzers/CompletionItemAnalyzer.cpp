@@ -258,7 +258,7 @@ void CompletionItemAnalyzer::put_identifiers(std::vector<CSTToken*>& tokens, uns
 
 void put_with_doc(CompletionItemAnalyzer* analyzer, const std::string& label, lsCompletionItemKind kind, CSTToken* token, CSTToken* parent) {
     std::string doc;
-    markdown_documentation(doc, analyzer->current_file, nullptr, parent, token);
+    markdown_documentation_old(doc, analyzer->current_file, nullptr, parent, token);
     std::string detail;
     small_detail_of(detail, token);
     analyzer->put_with_md_doc(label, kind, detail, doc);

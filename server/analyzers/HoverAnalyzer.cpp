@@ -4,7 +4,13 @@
 #include "cst/utils/CSTUtils.h"
 #include "integration/cbi/model/LexImportUnit.h"
 #include "integration/cbi/model/LexResult.h"
+#include "ast/base/ASTNode.h"
 #include <filesystem>
+#include "ast/structures/EnumDeclaration.h"
+#include "ast/structures/StructDefinition.h"
+#include "ast/structures/InterfaceDefinition.h"
+#include "ast/statements/VarInit.h"
+#include "ast/statements/Typealias.h"
 #include "Documentation.h"
 
 HoverAnalyzer::HoverAnalyzer(Position position) : position(position) {
@@ -99,7 +105,161 @@ void small_detail_of(std::string& value, CSTToken* linked) {
     }
 }
 
-void markdown_documentation(std::string& value, LexResult* current, LexResult* defined_in, CSTToken* parent, CSTToken* linked) {
+void markdown_documentation(std::string& value, LexResult* current, LexResult* defined_in, CSTToken* parent_tok, CSTToken* ref_tok) {
+    const auto linked_any = ref_tok->any;
+    const auto linked_node = linked_any->get_ref_linked_node();
+    if(!linked_node) {
+        return;
+    }
+    const auto linked_kind = linked_node->kind();
+    const auto parent = linked_node->parent();
+    bool parent_handled = false;
+    if (defined_in && defined_in != current) {
+        auto relative_path = std::filesystem::relative(
+                std::filesystem::path(defined_in->abs_path),
+                std::filesystem::path(current->abs_path).parent_path()
+        );
+        value += "**Defined in** : " + relative_path.string() + "\n";
+    }
+    if(linked_kind == ASTNodeKind::EnumMember && parent) {
+        const auto member = linked_node->as_enum_member_unsafe();
+        const auto parent_kind = parent->kind();
+        if(parent_kind != ASTNodeKind::EnumDecl) {
+            const auto enumDecl = parent->as_enum_decl_unsafe();
+            value += "```typescript\n";
+            value += "enum " + enumDecl->name;
+            value += "\n```\n";
+            value += "```typescript\n";
+            value += enumDecl->name;
+            value += ".";
+            value += member->name;
+            value += "\n```";
+            parent_handled = true;
+        }
+    }
+    switch (linked_kind) {
+        case ASTNodeKind::FunctionDecl:
+        case ASTNodeKind::ExtensionFunctionDecl: {
+            const auto& func_decl = *linked_node->as_function_unsafe();
+            value += "```typescript\n";
+            value += "func " + func_decl.name;
+            const auto& signature = func_decl;
+            value += '(';
+            unsigned i = 0;
+            while (i < signature.params.size()) {
+                const auto param = signature.params[i];
+                if (param->type) {
+                    value += param->name;
+                    value += " : ";
+                    value += param->type->representation();
+                } else if (param->name == "self") {
+                    value += "&self";
+                }
+                if (i != signature.params.size() - 1) {
+                    value += ", ";
+                }
+                i++;
+            }
+            value += ')';
+            if (signature.returnType) {
+                value += " : ";
+                value += signature.returnType->representation();
+            }
+            value += "\n```";
+            break;
+        }
+        case ASTNodeKind::EnumDecl: {
+            const auto enumDecl = linked_node->as_enum_decl_unsafe();
+            value += "```typescript\n";
+            value += "enum " + enumDecl->name;
+            value += "\n```";
+            break;
+        }
+        case ASTNodeKind::StructDecl: {
+            const auto structDecl = linked_node->as_struct_def_unsafe();
+            value += "```c\n";
+            value += "struct " + structDecl->name;
+            if(!structDecl->inherited.empty()) {
+                value += " : ";
+                bool has_comma = true;
+                for(auto& inherit : structDecl->inherited) {
+                    if(!has_comma) {
+                        value += ", ";
+                    }
+                    switch(inherit->specifier) {
+                        case AccessSpecifier::Private:
+                            value += "private";
+                            break;
+                        case AccessSpecifier::Protected:
+                            value += "protected";
+                            break;
+                        default:
+                            break;
+                    }
+                    value += inherit->type->representation();
+                    has_comma = false;
+                }
+            }
+            value += "\n```";
+            break;
+        }
+        case ASTNodeKind::InterfaceDecl: {
+            const auto& interface = *linked_node->as_interface_def_unsafe();
+            value += "```typescript\n";
+            value += "interface " + interface.name;
+            value += "\n```";
+            break;
+        }
+        case ASTNodeKind::VarInitStmt: {
+            auto& init = *linked_node->as_var_init_unsafe();
+            value += "```typescript\n";
+            if(init.is_const) {
+                value += "const";
+            } else {
+                value += "var";
+            }
+            value += ' ';
+            value += init.identifier;
+            const auto type = init.known_type();
+            if (type) {
+                value += " : ";
+                value += type->representation();
+            } else {
+                // TODO create type using allocator
+            }
+            value += "\n```";
+            break;
+        }
+        case ASTNodeKind::FunctionParam: {
+            auto& linked = *linked_node->as_func_param_unsafe();
+            value += "```typescript\n";
+            value += "const";
+            value += ' ';
+            value += linked.name;
+            value += " : ";
+            value += linked.type->representation();
+            value += "\n```";
+            value += "\nfunction parameter";
+            break;
+        }
+        case ASTNodeKind::TypealiasStmt: {
+            auto& linked = *linked_node->as_typealias_unsafe();
+            value += "```typescript\n";
+            value += "typealias " + linked.identifier;
+            value += " = ";
+            value += linked.actual_type->representation();
+            value += "\n```";
+            break;
+        }
+        default:
+            if (!parent_handled) {
+                value += "don't know what it is";
+            }
+            break;
+    }
+}
+
+void markdown_documentation_old(std::string& value, LexResult* current, LexResult* defined_in, CSTToken* parent, CSTToken* linked) {
     bool parent_handled = false;
     if (defined_in && defined_in != current) {
         auto relative_path = std::filesystem::relative(
@@ -175,6 +335,12 @@ void markdown_documentation(std::string& value, LexResult* current, LexResult* d
             }
             value += "\n```";
             break;
+        case LexTokenType::CompFunctionParam:
+            value += "```typescript\n";
+            value += param_name(linked);
+            value += "\n```";
+            value += "\nfunction parameter";
+            break;
         case LexTokenType::CompTypealias:
             value += "```typescript\n";
             value += "typealias " + typealias_name(linked->as_compound());
@@ -195,16 +361,21 @@ std::string HoverAnalyzer::markdown_hover(LexImportUnit *unit) {
     auto token = get_token_at_position(file->unit.tokens, position);
     if (token) {
         if (token->is_ref()) {
-            auto linked = token->as_ref()->linked;
-            if (linked) {
-                auto parent = find_token_parent(unit, linked);
-                markdown_documentation(value, file.get(), parent.first, parent.second.first, linked);
+            auto ref_linked = token->any->get_ref_linked_node();
+            if (ref_linked) {
+                const auto linked = ref_linked->cst_token();
+                if(linked) {
+                    auto parent = find_token_parent(unit, linked);
+                    markdown_documentation(value, file.get(), parent.first, parent.second.first, token);
+                } else {
+                    value += "couldn't get the linked token";
+                }
             } else {
-                value += "couldn't find the linked token !";
+                value += "has no linked declaration node";
             }
         }
         else {
-            value += "that don't look like a ref bro!";
+            value += "hovering an unknown reference token";
         }
     } else {
         value += "couldn't find the token at position";

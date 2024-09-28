@@ -48,6 +48,11 @@ public:
      */
     virtual void interpret(InterpretScope &scope);
 
+    /**
+     * linked node is only available in Value and BaseType
+     */
+    ASTNode* get_ref_linked_node();
+
 #ifdef COMPILER_BUILD
 
     /**
@@ -69,22 +74,6 @@ public:
      * get the string representation for this node
      */
     std::string representation();
-
-    // ---------------------------------------------
-    // unsafe As methods
-    // ---------------------------------------------
-
-    Value* as_value_unsafe() {
-        return (Value*) this;
-    }
-
-    ASTNode* as_node_unsafe() {
-        return (ASTNode*) this;
-    }
-
-    BaseType* as_type_unsafe() {
-        return (BaseType*) this;
-    }
 
     virtual ~ASTAny();
 

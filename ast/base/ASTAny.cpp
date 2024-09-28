@@ -23,11 +23,22 @@ void ASTAny::interpret(InterpretScope &scope) {
 std::string ASTAny::representation() {
     switch (any_kind()) {
         case ASTAnyKind::Value:
-            return as_value_unsafe()->representation();
+            return ((Value*) this)->representation();
         case ASTAnyKind::Type:
-            return as_type_unsafe()->representation();
+            return ((BaseType*) this)->representation();
         case ASTAnyKind::Node:
-            return as_node_unsafe()->representation();
+            return ((ASTNode*) this)->representation();
+    }
+}
+
+ASTNode* ASTAny::get_ref_linked_node() {
+    switch (any_kind()) {
+        case ASTAnyKind::Value:
+            return ((Value*) this)->linked_node();
+        case ASTAnyKind::Type:
+            return ((BaseType*) this)->linked_node();
+        default:
+            return nullptr;
     }
 }
 

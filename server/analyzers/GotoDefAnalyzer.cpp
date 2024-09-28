@@ -6,6 +6,7 @@
 #include "integration/cbi/model/LexResult.h"
 #include <iostream>
 #include "utils/PathUtils.h"
+#include "ast/base/ASTNode.h"
 
 GotoDefAnalyzer::GotoDefAnalyzer(Position position) : position(position) {
     // do nothing
@@ -21,19 +22,20 @@ std::vector<Location> GotoDefAnalyzer::analyze(LexImportUnit* unit) {
     auto& tokens_vec = token_parent.first ? token_parent.first->tokens : file->unit.tokens;
     auto token = tokens_vec[token_parent.second];
     if(token && token->is_ref()) {
-        auto where = token->as_ref()->linked;
-        if(where) {
+        const auto ref_linked = token->any->get_ref_linked_node();
+        if(ref_linked) {
+            const auto where = ref_linked->cst_token();
             auto container = find_containing_file(unit, where);
             if(container) {
                 auto end = where->end_token();
                 return {
-                    Location{
-                        Range {
-                            where->start_token()->position(),
-                            {end->position().line, static_cast<unsigned int>(end->position().character + where->end_token()->value().size())}
-                        },
-                        container->abs_path
-                    }
+                        Location{
+                                Range {
+                                        where->start_token()->position(),
+                                        {end->position().line, static_cast<unsigned int>(end->position().character + where->end_token()->value().size())}
+                                },
+                                container->abs_path
+                        }
                 };
             }
         } else {

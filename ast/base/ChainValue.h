@@ -211,3 +211,5 @@ public:
 #endif
 
 };
+
+static_assert(sizeof(ChainValue) <= 8, "ChainValue must always be equal or less than 8 bytes");

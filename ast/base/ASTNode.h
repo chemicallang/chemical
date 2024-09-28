@@ -1116,3 +1116,5 @@ public:
     }
 
 };
+
+static_assert(sizeof(ASTNode) <= 8, "ASTNode must always be equal or less than 8 bytes");

@@ -636,3 +636,5 @@ public:
     virtual ~Value();
 
 };
+
+static_assert(sizeof(Value) <= 8, "Value must always be equal or less than 8 bytes");

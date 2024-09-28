@@ -121,11 +121,11 @@ public:
         return type;
     }
 
-#ifdef COMPILER_BUILD
-
     const std::string& ns_node_identifier() override {
         return identifier;
     }
+
+#ifdef COMPILER_BUILD
 
     inline void check_has_type(Codegen &gen);
 
@@ -151,11 +151,15 @@ public:
 
     void code_gen_external_declare(Codegen &gen) override;
 
+#endif
+
+    void runtime_name_no_parent(std::ostream &stream) override {
+        stream << identifier;
+    }
+
     inline std::string runtime_name_fast() {
         return parent_node ? runtime_name_str() : identifier;
     }
-
-#endif
 
     ASTNode *child(const std::string &name) override;
 

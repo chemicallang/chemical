@@ -41,60 +41,87 @@ inline bool is_str_op(CSTToken *token, const std::string &x) {
     return token->type() == LexTokenType::StringOperator && str_token(token) == x;
 }
 
-inline CSTToken* var_init_name_tok(CSTToken* cst) {
-    return cst->tokens[1];
-}
-
-inline std::string var_init_identifier(CSTToken* cst) {
-    return str_token(var_init_name_tok(cst));
-}
-
-inline CSTToken* typealias_name_tok(CSTToken* cst) {
-    return cst->tokens[1];
-}
-
-inline std::string typealias_name(CSTToken* cst) {
-    return str_token(typealias_name_tok(cst));
-}
-
-inline CSTToken* func_name_tok(CSTToken* func) {
-    const auto is_generic = func->tokens[1]->type() == LexTokenType::CompGenericParamsList;
-    const auto is_extension = is_char_op(func->tokens[is_generic ? 2 : 1], '(');
-    return func->tokens[1 + (is_extension ? 3 : 0) + (is_generic ? 1 : 0)];
-}
-
-inline std::string func_name(CSTToken* func) {
-    return str_token(func_name_tok(func));
-}
-
-inline CSTToken* enum_name_tok(CSTToken* _enum) {
-    return _enum->tokens[1];
-}
-
-inline std::string enum_name(CSTToken* _enum) {
-    return str_token(enum_name_tok(_enum));
-}
-
-inline CSTToken* struct_name_tok(CSTToken* _struct) {
-    return _struct->tokens[1]->type() == LexTokenType::Keyword ? _struct->tokens[2] : _struct->tokens[1];
-}
-
-inline std::string struct_name(CSTToken* _struct) {
-    return str_token(struct_name_tok(_struct));
-}
-
-inline CSTToken* interface_name_tok(CSTToken* interface) {
-    return interface->tokens[1];
-}
-
-inline std::string interface_name(CSTToken* interface) {
-    return str_token(interface_name_tok(interface));
-}
-
 /**
  * get the access specifier, otherwise returns 99
  */
 std::optional<AccessSpecifier> specifier_token(CSTToken* token);
+
+/**
+ * get index + 1 if it's a specifier (public / private) otherwise index
+ */
+inline unsigned int specifier_index(CSTToken* spec_token, unsigned index = 0) {
+    return specifier_token(spec_token).has_value() ? index + 1 : index;
+}
+
+inline unsigned int var_init_name_index(CSTToken* cst) {
+    return specifier_index(cst->tokens[0], 1);
+}
+
+inline CSTToken* var_init_name_tok(CSTToken* cst) {
+    return cst->tokens[var_init_name_index(cst)];
+}
+
+inline const std::string& var_init_identifier(CSTToken* cst) {
+    return str_token(var_init_name_tok(cst));
+}
+
+inline unsigned int typealias_name_index(CSTToken* cst) {
+    return specifier_index(cst->tokens[0], 1);
+}
+
+inline CSTToken* typealias_name_tok(CSTToken* cst) {
+    return cst->tokens[typealias_name_index(cst)];
+}
+
+inline const std::string& typealias_name(CSTToken* cst) {
+    return str_token(typealias_name_tok(cst));
+}
+
+unsigned int func_name_index(CSTToken* function);
+
+inline CSTToken* func_name_tok(CSTToken* function) {
+    return function->tokens[func_name_index(function)];
+}
+
+inline const std::string& func_name(CSTToken* func) {
+    return str_token(func_name_tok(func));
+}
+
+inline unsigned int enum_name_index(CSTToken* _enum) {
+    return specifier_index(_enum->tokens[0], 1);
+}
+
+inline CSTToken* enum_name_tok(CSTToken* _enum) {
+    return _enum->tokens[enum_name_index(_enum)];
+}
+
+inline const std::string& enum_name(CSTToken* _enum) {
+    return str_token(enum_name_tok(_enum));
+}
+
+inline unsigned int struct_name_index(CSTToken* _struct) {
+    return specifier_index(_struct->tokens[0], 1);
+}
+
+inline CSTToken* struct_name_tok(CSTToken* _struct) {
+    return _struct->tokens[struct_name_index(_struct)];
+}
+
+inline const std::string& struct_name(CSTToken* _struct) {
+    return str_token(struct_name_tok(_struct));
+}
+
+inline unsigned int interface_name_index(CSTToken* interface) {
+    return specifier_index(interface->tokens[0], 1);
+}
+
+inline CSTToken* interface_name_tok(CSTToken* interface) {
+    return interface->tokens[interface_name_index(interface)];
+}
+
+inline const std::string& interface_name(CSTToken* interface) {
+    return str_token(interface_name_tok(interface));
+}
 
 /**
  * what is the parameter name in given comp param token

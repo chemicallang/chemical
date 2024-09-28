@@ -440,3 +440,6 @@ public:
         return token;
     }
 };
+
+static_assert(sizeof(BaseType) <= 8, "BaseType must always be equal or less than 8 bytes");
+static_assert(sizeof(TokenizedBaseType) <= 16, "TokenizedBaseType must always be equal or less than 8 bytes");

@@ -76,7 +76,7 @@ inline std::string enum_name(CSTToken* _enum) {
 }
 
 inline CSTToken* struct_name_tok(CSTToken* _struct) {
-    return _struct->tokens[1];
+    return _struct->tokens[1]->type() == LexTokenType::Keyword ? _struct->tokens[2] : _struct->tokens[1];
 }
 
 inline std::string struct_name(CSTToken* _struct) {

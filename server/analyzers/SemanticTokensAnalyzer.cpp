@@ -141,8 +141,15 @@ void SemanticTokensAnalyzer::visitImpl(CSTToken* cst) {
 
 void SemanticTokensAnalyzer::visitStructDef(CSTToken* cst) {
     cst->tokens[0]->accept(this);
-    put(cst->tokens[1], SemanticTokenType::ls_struct);
-    visit(cst->tokens, 2);
+    auto has_specifier = cst->tokens[1]->type() == LexTokenType::Keyword;
+    if(has_specifier) {
+        cst->tokens[1]->accept(this);
+        put(cst->tokens[2], SemanticTokenType::ls_struct);
+        visit(cst->tokens, 3);
+    } else {
+        put(cst->tokens[1], SemanticTokenType::ls_struct);
+        visit(cst->tokens, 2);
+    }
 };
 
 void SemanticTokensAnalyzer::analyze(std::vector<CSTToken*> &cstTokens) {

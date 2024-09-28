@@ -4,8 +4,34 @@
 #include "integration/cbi/model/LexImportUnit.h"
 #include "integration/cbi/model/LexResult.h"
 
+unsigned int func_name_index(CSTToken* function) {
+    unsigned i = 1;
+
+    auto spec = specifier_token(function->tokens[0]);
+    if(spec.has_value()) {
+        // set at name, extension or generic params list
+        i += 1;
+    }
+
+    const auto& gen_token = function->tokens[i];
+    const auto is_generic = gen_token->type() == LexTokenType::CompGenericParamsList;
+
+    if(is_generic) {
+        i += 1;
+    }
+
+    const auto extension_start = i;
+    const auto is_extension = is_char_op(function->tokens[i], '(');
+
+    if(is_extension) {
+        i += 3;
+    }
+
+    return i;
+}
+
 bool is_var_init_const(CSTToken* cst) {
-    return str_token(cst->tokens[0]) == "const";
+    return str_token(cst->tokens[specifier_index(cst->tokens[0], 0)]) == "const";
 }
 
 std::optional<AccessSpecifier> specifier_token(CSTToken* token) {

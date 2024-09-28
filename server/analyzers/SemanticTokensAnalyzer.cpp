@@ -95,9 +95,40 @@ void SemanticTokensAnalyzer::visitVarInit(CSTToken* varInit) {
 }
 
 void SemanticTokensAnalyzer::visitFunction(CSTToken* function) {
-    function->tokens[0]->accept(this);
-    put(function->tokens[1]->start_token(), SemanticTokenType::ls_function);
-    visit(function->tokens, 2);
+    unsigned i = 1;
+
+    auto spec = specifier_token(function->tokens[0]);
+    if(spec.has_value()) {
+        // set at name, extension or generic params list
+        i += 1;
+    }
+
+    const auto& gen_token = function->tokens[i];
+    const auto is_generic = gen_token->type() == LexTokenType::CompGenericParamsList;
+
+    if(is_generic) {
+        i += 1;
+    }
+
+    const auto extension_start = i;
+    const auto is_extension = is_char_op(function->tokens[i], '(');
+
+    if(is_extension) {
+        i += 3;
+    }
+
+    unsigned j = 0;
+    while(j < i) {
+        function->tokens[j]->accept(this);
+        j++;
+    }
+
+    auto& name_token = function->tokens[i];
+
+    put(name_token, SemanticTokenType::ls_function);
+
+    visit(function->tokens, i + 1);
+
 };
 
 void SemanticTokensAnalyzer::visitIf(CSTToken* ifCst) {

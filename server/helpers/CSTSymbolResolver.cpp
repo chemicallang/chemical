@@ -29,38 +29,44 @@ void CSTSymbolResolver::visitBody(CSTToken* cst) {
 }
 
 void CSTSymbolResolver::visitVarInit(CSTToken* cst) {
-    declare(cst->tokens[1], cst);
-    ::visit(this, cst->tokens, 2);
+    const auto ind = var_init_name_index(cst);
+    declare(cst->tokens[ind], cst);
+    ::visit(this, cst->tokens, ind + 1);
 }
 
 void CSTSymbolResolver::visitTypealias(CSTToken* cst) {
-    declare(cst->tokens[1], cst);
-    ::visit(this, cst->tokens, 2);
+    const auto ind = typealias_name_index(cst);
+    declare(cst->tokens[ind], cst);
+    ::visit(this, cst->tokens, ind + 1);
 }
 
 void CSTSymbolResolver::visitFunction(CSTToken* cst) {
-    declare(cst->tokens[1], cst);
+    const auto ind = func_name_index(cst);
+    declare(cst->tokens[ind], cst);
     scope_start();
-    ::visit(this, cst->tokens, 2);
+    ::visit(this, cst->tokens, ind + 1);
     scope_end();
 }
 
 void CSTSymbolResolver::visitEnumDecl(CSTToken* cst) {
-    declare(cst->tokens[1], cst);
-    ::visit(this, cst->tokens, 2);
+    const auto ind = enum_name_index(cst);
+    declare(cst->tokens[ind], cst);
+    ::visit(this, cst->tokens, ind + 1);
 }
 
 void CSTSymbolResolver::visitInterface(CSTToken* cst) {
-    declare(cst->tokens[1], cst);
+    const auto ind = interface_name_index(cst);
+    declare(cst->tokens[ind], cst);
     scope_start();
-    ::visit(this, cst->tokens, 2);
+    ::visit(this, cst->tokens, ind + 1);
     scope_end();
 }
 
 void CSTSymbolResolver::visitStructDef(CSTToken* cst) {
-    declare(cst->tokens[1], cst);
+    const auto ind = struct_name_index(cst);
+    declare(cst->tokens[ind], cst);
     scope_start();
-    ::visit(this, cst->tokens, 2);
+    ::visit(this, cst->tokens, ind + 1);
     scope_end();
 }
 

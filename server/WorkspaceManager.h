@@ -99,7 +99,7 @@ private:
     CompilerBinder binder;
 
     /**
-     * publish_diagnostics is triggered when the client asks for semantic tokens
+     * notify_diagnostics is triggered when the client asks for semantic tokens
      * we use this mutex to launch instances of publish diagnostics without causing race conditions
      */
     std::mutex publish_diagnostics_mutex;
@@ -199,14 +199,30 @@ public:
     td_links::response get_links(const lsDocumentUri& uri);
 
     /**
+     * it has to copy all the diagnostics to a request before sending
+     * the request is done async
+     */
+    void notify_diagnostics_async(
+        const std::string& path,
+        const std::vector<std::vector<Diag>*>& diags
+    );
+
+    /**
      * this will publish given diagnostics
      */
-    void publish_diagnostics(const std::string& path, const std::vector<std::vector<Diag>*>& diags);
+    void notify_diagnostics(
+        const std::string& path,
+        const std::vector<std::vector<Diag>*>& diags
+    );
 
     /**
      * this will publish complete diagnostics for the given file, non asynchronously
      */
-    void publish_diagnostics_complete(const std::string& path);
+    void publish_diagnostics_complete(
+        const std::string& path,
+        bool notify_async,
+        std::atomic<bool>& cancel_flag
+    );
 
     /**
      * this will publish complete diagnostics for the given file, asynchronously
@@ -234,12 +250,10 @@ public:
     ASTImportUnit get_ast_import_unit(const LexImportUnit& unit, std::atomic<bool>& cancel_flag);
 
     /**
-     * get the import unit for the given absolute path
+     * it will symbol resolver the ast import unit
+     * it will return diagnostics of symbol resolution for the last file in import unit
      */
-    ASTImportUnit get_ast_import_unit(const std::string& abs_path, std::atomic<bool>& cancel_flag) {
-        auto unit = get_import_unit(abs_path, cancel_flag);
-        return get_ast_import_unit(unit, cancel_flag);
-    }
+    std::vector<Diag> sym_res_import_unit(ASTImportUnit& unit, std::atomic<bool>& cancel_flag);
 
     /**
      * get a locked mutex for this path only

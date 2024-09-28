@@ -18,9 +18,13 @@
 
 td_semanticTokens_full::response WorkspaceManager::get_semantic_tokens_full(const lsDocumentUri& uri) {
     auto abs_path = canonical(uri.GetAbsolutePath().path);
+    // first we collect all the diagnostics, this will symbol resolve everything till the last file
+    // notification will be sent async
+    std::atomic<bool> diags_cancel(false);
+    publish_diagnostics_complete(abs_path, true, diags_cancel);
+    // the file we are collecting tokens for, has been symbol resolved by publish diagnostics
+    // so now tokens contain references to the ast anys
     auto toks = get_semantic_tokens(abs_path);
-    // when user requests semantic tokens, we also trigger publish diagnostics for the file
-    publish_diagnostics_complete_async(abs_path);
     // sending tokens
     td_semanticTokens_full::response rsp;
     SemanticTokens tokens;
@@ -29,8 +33,11 @@ td_semanticTokens_full::response WorkspaceManager::get_semantic_tokens_full(cons
     return std::move(rsp);
 }
 
-void WorkspaceManager::publish_diagnostics(const std::string& path, const std::vector<std::vector<Diag>*>& diags) {
-    Notify_TextDocumentPublishDiagnostics::notify notify;
+void build_notify_request(
+        Notify_TextDocumentPublishDiagnostics::notify& notify,
+        const std::string& path,
+        const std::vector<std::vector<Diag>*>& diags
+) {
     for(auto diag : diags) {
         for(const auto &error : *diag) {
             notify.params.diagnostics.emplace_back(
@@ -47,49 +54,30 @@ void WorkspaceManager::publish_diagnostics(const std::string& path, const std::v
         }
     }
     notify.params.uri = lsDocumentUri::FromPath(AbsolutePath(path));
+}
+
+void WorkspaceManager::notify_diagnostics_async(
+    const std::string& path,
+    const std::vector<std::vector<Diag>*>& diags
+) {
+    const auto notify = new Notify_TextDocumentPublishDiagnostics::notify;
+    build_notify_request(*notify, path, diags);
+    std::future<void> futureObj = std::async(std::launch::async, [this, notify] {
+        remote->sendNotification(*notify);
+        delete notify;
+    });
+}
+
+void WorkspaceManager::notify_diagnostics(
+    const std::string& path,
+    const std::vector<std::vector<Diag>*>& diags
+) {
+    Notify_TextDocumentPublishDiagnostics::notify notify;
+    build_notify_request(notify, path, diags);
     remote->sendNotification(notify);
 }
 
-void WorkspaceManager::publish_diagnostics_complete(const std::string& path) {
-
-    std::vector<std::vector<Diag>*> diag_ptrs;
-
-    // get the lex import unit
-    auto import_unit = get_import_unit(path, publish_diagnostics_cancel_flag);
-
-    // check publish diagnostics hasn't been cancelled
-    if(publish_diagnostics_cancel_flag.load()) {
-        return;
-    }
-
-    auto& last_lex_result = import_unit.files[import_unit.files.size() - 1];
-
-    // put lex diagnostics in the diag pointers
-    diag_ptrs.emplace_back(&last_lex_result->diags);
-
-    // since lexing process generated errors, no need to parse
-    if(has_errors(import_unit)) {
-        publish_diagnostics(path, diag_ptrs);
-        return;
-    }
-
-    // get the ast import unit
-    auto ast_import_unit = get_ast_import_unit(import_unit, publish_diagnostics_cancel_flag);
-    // check publish diagnostics hasn't been cancelled
-    if(publish_diagnostics_cancel_flag.load()) {
-        return;
-    }
-
-    auto& last_ast_result = ast_import_unit.files[ast_import_unit.files.size() - 1];
-
-    // put ast conversion diagnostics
-    diag_ptrs.emplace_back(&last_ast_result->diags);
-
-    // since parsing process generated errors, no need to symbol resolve
-    if(has_errors(import_unit)) {
-        publish_diagnostics(path, diag_ptrs);
-        return;
-    }
+std::vector<Diag> WorkspaceManager::sym_res_import_unit(ASTImportUnit& ast_import_unit, std::atomic<bool>& cancel_flag) {
 
     const unsigned int resolver_mem_size = 10000; // pre allocated 10kb on the stack
     char resolver_memory[resolver_mem_size];
@@ -109,8 +97,8 @@ void WorkspaceManager::publish_diagnostics_complete(const std::string& path) {
     const auto last = ast_import_unit.files.size() - 1;
     while(i < last) {
         // check publish diagnostics hasn't been cancelled
-        if(publish_diagnostics_cancel_flag.load()) {
-            return;
+        if(cancel_flag.load()) {
+            return {};
         }
         auto& file = ast_import_unit.files[i];
         resolver.mod_allocator = &file->allocator;
@@ -121,17 +109,73 @@ void WorkspaceManager::publish_diagnostics_complete(const std::string& path) {
     }
 
     // check publish diagnostics hasn't been cancelled
-    if(publish_diagnostics_cancel_flag.load()) {
-        return;
+    if(cancel_flag.load()) {
+        return {};
     }
 
     // doing last file
     auto& last_file = ast_import_unit.files[last];
     resolver.resolve_file(last_file->unit.scope, last_file->abs_path);
-    diag_ptrs.emplace_back(&resolver.diagnostics);
+
+    return std::move(resolver.diagnostics);
+
+}
+
+void WorkspaceManager::publish_diagnostics_complete(
+    const std::string& path,
+    bool notify_async,
+    std::atomic<bool>& cancel_flag
+) {
+
+    std::vector<std::vector<Diag>*> diag_ptrs;
+
+    // get the lex import unit
+    auto import_unit = get_import_unit(path, cancel_flag);
+
+    // check publish diagnostics hasn't been cancelled
+    if(cancel_flag.load()) {
+        return;
+    }
+
+    auto& last_lex_result = import_unit.files[import_unit.files.size() - 1];
+
+    // put lex diagnostics in the diag pointers
+    diag_ptrs.emplace_back(&last_lex_result->diags);
+
+    // since lexing process generated errors, no need to parse
+    if(has_errors(import_unit)) {
+        notify_diagnostics(path, diag_ptrs);
+        return;
+    }
+
+    // get the ast import unit
+    auto ast_import_unit = get_ast_import_unit(import_unit, cancel_flag);
+    // check publish diagnostics hasn't been cancelled
+    if(cancel_flag.load()) {
+        return;
+    }
+
+    auto& last_ast_result = ast_import_unit.files[ast_import_unit.files.size() - 1];
+
+    // put ast conversion diagnostics
+    diag_ptrs.emplace_back(&last_ast_result->diags);
+
+    // since parsing process generated errors, no need to symbol resolve
+    if(has_errors(import_unit)) {
+        notify_diagnostics(path, diag_ptrs);
+        return;
+    }
+
+    // symbol resolve the import unit, get the last file's diagnostics
+    auto res_diags = sym_res_import_unit(ast_import_unit, cancel_flag);
+    diag_ptrs.emplace_back(&res_diags);
 
     // publish all the diagnostics
-    publish_diagnostics(path, diag_ptrs);
+    if(notify_async) {
+        notify_diagnostics_async(path, diag_ptrs);
+    } else {
+        notify_diagnostics(path, diag_ptrs);
+    }
 
 }
 
@@ -149,7 +193,7 @@ void WorkspaceManager::publish_diagnostics_complete_async(std::string path) {
     publish_diagnostics_cancel_flag.store(false);
 
     publish_diagnostics_task = std::async(std::launch::async, [path, this] {
-        publish_diagnostics_complete(path);
+        publish_diagnostics_complete(path, false, publish_diagnostics_cancel_flag);
     });
 
 }

@@ -150,11 +150,6 @@ public:
     CSTToken* chain_before_caret(std::vector<CSTToken*> &tokens);
 
     /**
-     * put's the identifiers present inside the tokens to the completion list, from start
-     */
-    void put_identifiers(std::vector<CSTToken*>& tokens, unsigned int start = 0);
-
-    /**
      * would handle given access chain
      * @return true if handled
      */

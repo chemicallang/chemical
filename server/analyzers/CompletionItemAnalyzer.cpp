@@ -8,6 +8,12 @@
 #include <unordered_set>
 #include "cst/base/CSTToken.h"
 #include "cst/utils/CSTUtils.h"
+#include "ast/base/ExtendableMembersContainerNode.h"
+#include "ast/statements/VarInit.h"
+#include "ast/statements/Typealias.h"
+#include "ast/structures/UnnamedUnion.h"
+#include "ast/structures/UnnamedStruct.h"
+#include "ast/structures/EnumDeclaration.h"
 #include "integration/cbi/model/LexImportUnit.h"
 #include "integration/cbi/model/LexResult.h"
 #include "Documentation.h"
@@ -245,94 +251,194 @@ CSTToken* CompletionItemAnalyzer::chain_before_caret(std::vector<CSTToken*> &tok
     }
 }
 
-void CompletionItemAnalyzer::put_identifiers(std::vector<CSTToken*>& tokens, unsigned int start) {
-    CSTToken* token;
-    while(start < tokens.size()) {
-        token = tokens[start];
-        if(token->type() == LexTokenType::Identifier) {
-            put(token->value(), lsCompletionItemKind::EnumMember);
-        }
-        start++;
-    }
-}
+//void CompletionItemAnalyzer::put_identifiers(std::vector<CSTToken*>& tokens, unsigned int start) {
+//    CSTToken* token;
+//    while(start < tokens.size()) {
+//        token = tokens[start];
+//        if(token->type() == LexTokenType::Identifier) {
+//            put(token->value(), lsCompletionItemKind::EnumMember);
+//        }
+//        start++;
+//    }
+//}
 
-void put_with_doc(CompletionItemAnalyzer* analyzer, const std::string& label, lsCompletionItemKind kind, CSTToken* token, CSTToken* parent) {
+//[[deprecated]]
+//void put_with_doc_old(CompletionItemAnalyzer* analyzer, const std::string& label, lsCompletionItemKind kind, CSTToken* token, CSTToken* parent) {
+//    std::string doc;
+//    markdown_documentation_old(doc, analyzer->current_file, nullptr, parent, token);
+//    std::string detail;
+//    small_detail_of_old(detail, token);
+//    analyzer->put_with_md_doc(label, kind, detail, doc);
+//}
+
+void put_with_doc(CompletionItemAnalyzer* analyzer, const std::string& label, lsCompletionItemKind kind, ASTNode* linked_node) {
     std::string doc;
-    markdown_documentation_old(doc, analyzer->current_file, nullptr, parent, token);
+    markdown_documentation(doc, analyzer->current_file, nullptr, linked_node);
     std::string detail;
-    small_detail_of(detail, token);
+    small_detail_of(detail, linked_node);
     analyzer->put_with_md_doc(label, kind, detail, doc);
 }
 
-void put_function_with_doc(CompletionItemAnalyzer* analyzer, CSTToken* token, CSTToken* parent) {
-    put_with_doc(analyzer, str_token(((CSTToken*) token)->tokens[1]), lsCompletionItemKind::Function, token, parent);
-}
+//void put_function_with_doc(CompletionItemAnalyzer* analyzer, CSTToken* token, CSTToken* parent) {
+//    put_with_doc_old(analyzer, str_token(((CSTToken*) token)->tokens[1]), lsCompletionItemKind::Function, token, parent);
+//}
 
-void put_var_init_with_doc(CompletionItemAnalyzer* analyzer, CSTToken* token, CSTToken* parent) {
-    put_with_doc(analyzer, str_token(((CSTToken*) token)->tokens[1]), lsCompletionItemKind::Variable, token, parent);
-}
+//void put_var_init_with_doc(CompletionItemAnalyzer* analyzer, CSTToken* token, CSTToken* parent) {
+//    put_with_doc_old(analyzer, str_token(((CSTToken*) token)->tokens[1]), lsCompletionItemKind::Variable, token, parent);
+//}
 
-void collect_struct_functions(
-        CompletionItemAnalyzer* analyzer,
-        CSTToken* parent,
-        unsigned i
-) {
-    CSTToken* token;
-    while(i < parent->tokens.size()) {
-        token = parent->tokens[i];
-        if(token->is_func_decl()) {
-            // TODO collect function if it doesn't have a self | this member
-            put_function_with_doc(analyzer, token, parent);
-        }
-        i++;
+//void collect_struct_functions(
+//        CompletionItemAnalyzer* analyzer,
+//        CSTToken* parent,
+//        unsigned i
+//) {
+//    CSTToken* token;
+//    while(i < parent->tokens.size()) {
+//        token = parent->tokens[i];
+//        if(token->is_func_decl()) {
+//            // TODO collect function if it doesn't have a self | this member
+//            put_function_with_doc(analyzer, token, parent);
+//        }
+//        i++;
+//    }
+//}
+
+//void collect_struct_members(
+//        CompletionItemAnalyzer* analyzer,
+//        CSTToken* parent,
+//        unsigned i
+//) {
+//    while(i < parent->tokens.size()) {
+//        const auto token = parent->tokens[i];
+//        if(token->is_func_decl()) {
+//            put_function_with_doc(analyzer, token, parent);
+//        } else if(token->is_var_init()) {
+//            put_var_init_with_doc(analyzer, token, parent);
+//        }
+//        i++;
+//    }
+//}
+
+//bool put_children(CompletionItemAnalyzer* analyzer, CSTToken* parent, bool put_values = false) {
+//    switch(parent->type()) {
+//        case LexTokenType::CompEnumDecl:
+//            analyzer->put_identifiers(parent->tokens, 2);
+//            return true;
+//        case LexTokenType::CompStructDef:
+//        case LexTokenType::CompInterface:
+//            (put_values ? (collect_struct_members) : (collect_struct_functions))(
+//                    analyzer,
+//                    parent,
+//                    (is_char_op(parent->tokens[2], ':')) ? 5 : 3
+//            );
+//            return true;
+//        case LexTokenType::CompVarInit: {
+//            auto linked = get_linked_from_var_init(parent->tokens);
+//            if(linked) {
+//                return put_children(analyzer, linked, true);
+//            } else {
+//                return false;
+//            }
+//        }
+//        case LexTokenType::CompTypealias: {
+//            auto linked = get_linked_from_typealias(parent->tokens);
+//            if(linked) {
+//                return put_children(analyzer, linked, put_values);
+//            } else {
+//                return false;
+//            }
+//        }
+//        default:
+//            return false;
+//    }
+//}
+
+//bool put_children_of_ref_old(CompletionItemAnalyzer* analyzer, CSTToken* chain) {
+//    auto parent = chain->tokens[chain->tokens.size() - 2];
+//    switch(parent->type()) {
+//        case LexTokenType::Variable:
+//        case LexTokenType::Type:{
+//            if(!parent->linked) return false;
+//            return put_children(analyzer, parent->linked);
+//        }
+//        case LexTokenType::CompIndexOp:{
+//            auto grandpa = chain->tokens[chain->tokens.size() - 3];
+//            auto linked = get_linked_from_node(grandpa->linked);
+//            if(!linked) return false;
+//            return put_children(analyzer, linked, true);
+//        }
+//        case LexTokenType::CompFunctionCall:{
+//            auto grandpa = chain->tokens[chain->tokens.size() - 3];
+//            auto linked = get_linked_from_node(grandpa->linked);
+//            if(!linked) return false;
+//            return put_children(analyzer, linked, true);
+//        }
+//        default:
+//            return false;
+//    }
+//}
+
+void put_variables_of(CompletionItemAnalyzer* analyzer, VariablesContainer* node) {
+    for(auto& var : node->variables) {
+        put_with_doc(analyzer, var.first, lsCompletionItemKind::Field, var.second);
     }
 }
 
-void collect_struct_members(
-        CompletionItemAnalyzer* analyzer,
-        CSTToken* parent,
-        unsigned i
-) {
-    CSTToken* token;
-    while(i < parent->tokens.size()) {
-        token = parent->tokens[i];
-        if(token->is_func_decl()) {
-            put_function_with_doc(analyzer, token, parent);
-        } else if(token->is_var_init()) {
-            put_var_init_with_doc(analyzer, token, parent);
-        }
-        i++;
+void put_functions_of(CompletionItemAnalyzer* analyzer, ExtendableMembersContainerNode* node) {
+    for(auto& func : node->functions()) {
+        put_with_doc(analyzer, func->name, lsCompletionItemKind::Function, func);
     }
 }
 
-bool put_children(CompletionItemAnalyzer* analyzer, CSTToken* parent, bool put_values = false) {
-    switch(parent->type()) {
-        case LexTokenType::CompEnumDecl:
-            analyzer->put_identifiers(parent->tokens, 2);
+bool put_children_of(CompletionItemAnalyzer* analyzer, ASTNode* linked_node) {
+    const auto linked_kind = linked_node->kind();
+    switch(linked_kind) {
+        case ASTNodeKind::StructDecl:
+        case ASTNodeKind::UnionDecl: {
+            const auto node = linked_node->as_extendable_members_container_node();
+            put_variables_of(analyzer, node);
+            put_functions_of(analyzer, node);
             return true;
-        case LexTokenType::CompStructDef:
-        case LexTokenType::CompInterface:
-            (put_values ? (collect_struct_members) : (collect_struct_functions))(
-                    analyzer,
-                    parent,
-                    (is_char_op(parent->tokens[2], ':')) ? 5 : 3
-            );
-            return true;
-        case LexTokenType::CompVarInit: {
-            auto linked = get_linked_from_var_init(parent->tokens);
-            if(linked) {
-                return put_children(analyzer, linked, true);
-            } else {
-                return false;
-            }
         }
-        case LexTokenType::CompTypealias: {
-            auto linked = get_linked_from_typealias(parent->tokens);
-            if(linked) {
-                return put_children(analyzer, linked, put_values);
+        case ASTNodeKind::UnnamedUnion:
+            put_variables_of(analyzer, linked_node->as_unnamed_union_unsafe());
+            return true;
+        case ASTNodeKind::UnnamedStruct:
+            put_variables_of(analyzer, linked_node->as_unnamed_struct_unsafe());
+            return true;
+        case ASTNodeKind::VariantDecl:
+        case ASTNodeKind::InterfaceDecl: {
+            const auto node = linked_node->as_extendable_members_container_node();
+            put_functions_of(analyzer, node);
+            return true;
+        }
+        case ASTNodeKind::VarInitStmt: {
+            auto& init = *linked_node->as_var_init_unsafe();
+            const auto type = init.known_type();
+            if(type) {
+                const auto linked = type->linked_node();
+                if(linked) {
+                    put_children_of(analyzer, linked);
+                }
             } else {
-                return false;
+                // TODO create type with allocator
             }
+            return true;
+        }
+        case ASTNodeKind::TypealiasStmt: {
+            auto& alias = *linked_node->as_typealias_unsafe();
+            const auto linked = alias.actual_type->linked_node();
+            if(linked) {
+                put_children_of(analyzer, linked);
+            }
+            return true;
+        }
+        case ASTNodeKind::EnumDecl:{
+            const auto decl = linked_node->as_enum_decl_unsafe();
+            for(auto& mem : decl->members) {
+                analyzer->put(mem.first, lsCompletionItemKind::EnumMember);
+            }
+            return true;
         }
         default:
             return false;
@@ -341,27 +447,14 @@ bool put_children(CompletionItemAnalyzer* analyzer, CSTToken* parent, bool put_v
 
 bool put_children_of_ref(CompletionItemAnalyzer* analyzer, CSTToken* chain) {
     auto parent = chain->tokens[chain->tokens.size() - 2];
-    switch(parent->type()) {
-        case LexTokenType::Variable:
-        case LexTokenType::Type:{
-            if(!parent->linked) return false;
-            return put_children(analyzer, parent->linked);
+    const auto ref_any = parent->any;
+    if(ref_any) {
+        const auto linked_node = ref_any->get_ref_linked_node();
+        if(linked_node) {
+            return put_children_of(analyzer, linked_node);
         }
-        case LexTokenType::CompIndexOp:{
-            auto grandpa = chain->tokens[chain->tokens.size() - 3];
-            auto linked = get_linked_from_node(grandpa->linked);
-            if(!linked) return false;
-            return put_children(analyzer, linked, true);
-        }
-        case LexTokenType::CompFunctionCall:{
-            auto grandpa = chain->tokens[chain->tokens.size() - 3];
-            auto linked = get_linked_from_node(grandpa->linked);
-            if(!linked) return false;
-            return put_children(analyzer, linked, true);
-        }
-        default:
-            return false;
     }
+    return false;
 }
 
 bool CompletionItemAnalyzer::handle_chain_before_caret(CSTToken* chain) {

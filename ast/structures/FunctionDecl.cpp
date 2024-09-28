@@ -1004,7 +1004,8 @@ void BaseFunctionParam::redeclare_top_level(SymbolResolver &linker) {
 }
 
 ASTNode *BaseFunctionParam::child(const std::string &name) {
-    return type->linked_node()->child(name);
+    const auto linked_node = type->linked_node();
+    return linked_node ? linked_node->child(name) : nullptr;
 }
 
 GenericTypeParameter::GenericTypeParameter(

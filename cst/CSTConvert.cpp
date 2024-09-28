@@ -1715,7 +1715,7 @@ void CSTConverter::visitAccessChain(CSTToken* chain) {
     unsigned int i = 0;
     unsigned int size = chain->tokens.size();
     while(i < size) {
-        auto& token = chain->tokens[i];
+        auto token = chain->tokens[i];
         if(is_str_op(token, "::")) {
             auto prev = pop_last_value();
             auto as_id = prev->as_identifier();
@@ -1724,7 +1724,7 @@ void CSTConverter::visitAccessChain(CSTToken* chain) {
             } else {
                 put_value(prev, token);
             }
-        } else {
+        } else if(!is_char_op(token, '.')) {
             token->accept(this);
         }
         i++;

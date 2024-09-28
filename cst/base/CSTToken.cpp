@@ -100,6 +100,7 @@ std::string toTypeString(LexTokenType token) {
         case LexTokenType::Variable:
             return "Variable";
 
+        // compounds
         case LexTokenType::CompAssignment:
             return "CompAssignment";
         case LexTokenType::CompBreak:
@@ -142,8 +143,6 @@ std::string toTypeString(LexTokenType token) {
             return "CompTryCatch";
         case LexTokenType::CompWhile:
             return "CompWhile";
-
-            //compound types
         case LexTokenType::CompArrayType:
             return "CompArrayType";
         case LexTokenType::CompFunctionType:
@@ -152,8 +151,6 @@ std::string toTypeString(LexTokenType token) {
             return "CompGenericType";
         case LexTokenType::CompPointerType:
             return "CompPointerType";
-
-            //compound values
         case LexTokenType::CompAccessChain:
             return "CompAccessChain";
         case LexTokenType::CompArrayValue:
@@ -178,8 +175,53 @@ std::string toTypeString(LexTokenType token) {
             return "CompNot";
         case LexTokenType::CompStructValue:
             return "CompStructValue";
-
-        default:
-            return "Undocumented LexTokenType in toTypeString";
+        case LexTokenType::CompAccessChainNode:
+            return "CompAccessChainNode";
+        case LexTokenType::CompValueNode:
+            return "CompValueNode";
+        case LexTokenType::CompAnnotation:
+            return "CompAnnotation";
+        case LexTokenType::CompInitBlock:
+            return "CompInitBlock";
+        case LexTokenType::CompUnsafeBlock:
+            return "CompUnsafeBlock";
+        case LexTokenType::CompThrow:
+            return "CompThrow";
+        case LexTokenType::CompUsing:
+            return "CompUsing";
+        case LexTokenType::CompDestruct:
+            return "CompDestruct";
+        case LexTokenType::CompStructMember:
+            return "CompStructMember";
+        case LexTokenType::CompLoopBlock:
+            return "CompLoopBlock";
+        case LexTokenType::CompGenericParamsList:
+            return "CompGenericParamsList";
+        case LexTokenType::CompVariant:
+            return "CompVariant";
+        case LexTokenType::CompVariantMember:
+            return "CompVariantMember";
+        case LexTokenType::CompUnionDef:
+            return "CompUnionDef";
+        case LexTokenType::CompNamespace:
+            return "CompNamespace";
+        case LexTokenType::CompMacro:
+            return "CompMacro";
+        case LexTokenType::CompSpecializedType:
+            return "CompSpecializedType";
+        case LexTokenType::CompLinkedValueType:
+            return "CompLinkedValueType";
+        case LexTokenType::CompReferenceType:
+            return "CompReferenceType";
+        case LexTokenType::CompIfValue:
+            return "CompIfValue";
+        case LexTokenType::CompLoopValue:
+            return "CompLoopValue";
+        case LexTokenType::CompSwitchValue:
+            return "CompSwitchValue";
+        case LexTokenType::CompIsValue:
+            return "CompIsValue";
+        case LexTokenType::CompGenericList:
+            return "CompGenericList";
     }
 }

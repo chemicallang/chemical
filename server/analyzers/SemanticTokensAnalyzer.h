@@ -36,15 +36,21 @@ public:
     SemanticTokensAnalyzer() {}
 
     /**
-     * The function that analyzes
+     * put a lsp token
      */
-    void analyze(std::vector<CSTToken*> &tokens);
+    void put(
+        unsigned int lineNumber,
+        unsigned int lineCharNumber,
+        unsigned int length,
+        unsigned int tokenType,
+        unsigned int tokenModifiers
+    );
 
     /**
      * this just puts the given lex token as a semantic token in the tokens vector
      * also sets prev token line number to this token
      */
-    void put(CSTToken* token, unsigned int tokenType, unsigned int tokenModifiers = 0);
+    inline void put(CSTToken* token, unsigned int tokenType, unsigned int tokenModifiers = 0);
 
     /**
      * will automatically determine the token type based on token
@@ -53,15 +59,26 @@ public:
 
     // Visitors
 
-    void visit(std::vector<CSTToken*> &tokens, unsigned start, unsigned end);
+    /**
+     * @param tokens the tokens vector
+     * @param start inclusive start
+     * @param till exclusive end
+     */
+    void visit(std::vector<CSTToken*> &tokens, unsigned start, unsigned till);
 
-    void visit(std::vector<CSTToken*> &tokens, unsigned start = 0);
+    inline void visit(std::vector<CSTToken*> &tokens_vec, unsigned start = 0) {
+        visit(tokens_vec, start, tokens_vec.size());
+    }
 
-    void visitCommon(CSTToken *token) override;
+    inline void analyze(std::vector<CSTToken*> &tokens_vec) {
+        visit(tokens_vec, 0, tokens_vec.size());
+    }
 
-    void visitLexTokenCommon(CSTToken *token) override;
+    void visitCommon(CSTToken *token) final;
 
-    void visitCompoundCommon(CSTToken* compound) override;
+    void visitLexTokenCommon(CSTToken *token) final;
+
+    void visitCompoundCommon(CSTToken* compound) final;
 
     // Compound Visitors
 

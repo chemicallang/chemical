@@ -16,6 +16,17 @@
 #define DEBUG_TOKENS false
 #define PRINT_TOKENS false
 
+/**
+ * why are diagnostics published here ?
+ * because when publishing diagnostics for a file, we have to symbol resolve it completely
+ * all it's imported files are symbol resolved too, the files imported don't change so they are cached
+ * when a file is modified, we lex the file, convert it to ast, symbol resolver the entire tree (will be improved)
+ * and return the tokens to the IDE, not the ideal
+ * when semantic tokens are provided, they must know which symbols correspond to which nodes (functions / struct)
+ * to provide better highlighting, when all the tokens are linked (done at symbol resolution), we can do that
+ * when doing symbol resolution, we also collect diagnostics, which is tightly coupled with symbol resolution
+ * so we do everything here, that's why notify_async is true, sending notification is done asynchronously
+ */
 td_semanticTokens_full::response WorkspaceManager::get_semantic_tokens_full(const lsDocumentUri& uri) {
     auto abs_path = canonical(uri.GetAbsolutePath().path);
     // first we collect all the diagnostics, this will symbol resolve everything till the last file
@@ -90,6 +101,13 @@ std::vector<Diag> WorkspaceManager::sym_res_import_unit(ASTImportUnit& ast_impor
             nullptr,
             nullptr
     );
+
+    // when preparing compiler functions, some functions may use module or ast level allocator
+    resolver.mod_allocator = &resolver_allocator;
+    resolver.ast_allocator = &resolver_allocator;
+    // prepare top level compiler functions
+    ast_import_unit.comptime_scope.prepare_top_level_namespaces(resolver);
+
     // doing all but last file
     unsigned i = 0;
     const auto last = ast_import_unit.files.size() - 1;
